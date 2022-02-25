@@ -263,7 +263,7 @@ class RideHailManager(
       .expireAfterWrite(1, TimeUnit.MINUTES)
       .build()
   }
-  private val rideHailResponseCache = new mutable.HashMap[PersonIdWithActorRef, RideHailResponse]()
+  private val rideHailResponseCache = new mutable.HashMap[PersonIdWithActorRef, IndexedSeq[RideHailResponse]]
 
   def fleetSize: Int = resources.size
 
@@ -606,24 +606,7 @@ class RideHailManager(
           RideHailResponse(request, Some(travelProposal))
         }
       request.customer.personRef ! rideHailResponse
-      rideHailResponseCache.get(request.customer) match {
-        case Some(previousRideHailResponse) =>
-          /* We log an error if an identical inquiry with a time stamp before the previously cached response as illogical
-           * behavior, but we cannot make a stronger claim here that NO previous response is cached. This is because if an
-           * agent makes an inquiry -- and the response is cached here -- but doesn't choose ride hail
-           * as a mode, there is no simple way to remove that cached response inside the RHM. We can still safely
-           * overwrite the response below with the latest.
-           */
-          if (previousRideHailResponse.request.departAt >= request.departAt) {
-            log.error(
-              s"Customer ${request.customer.personId} has made two RideHail Inquiries, with the departAt for the " +
-              s"second being before or equal to the first: (${previousRideHailResponse.request.departAt} < ${request.departAt}. This is " +
-              s"likely to cause logical errors."
-            )
-          }
-        case None =>
-      }
-      rideHailResponseCache.put(request.customer, rideHailResponse)
+      rideHailResponseCache.put(request.customer, getActualResponses(request) :+ rideHailResponse)
       inquiryIdToInquiryAndResponse.remove(request.requestId)
       responses.foreach(routingResp => routeRequestIdToRideHailRequestId.remove(routingResp.requestId))
 
@@ -1238,8 +1221,8 @@ class RideHailManager(
           response.request.customer.personId,
           theVehicle
         )
-        val directTrip =
-          rideHailResponseCache.remove(response.request.customer).flatMap(_.travelProposal)
+
+        val directTrip = removeOriginalResponseFromCache(response.request).flatMap(_.travelProposal)
         if (processBufferedRequestsOnTimeout) {
           modifyPassengerScheduleManager.addTriggersToSendWithCompletion(finalTriggersToSchedule)
           response.request.customer.personRef ! response.copy(
@@ -1247,8 +1230,7 @@ class RideHailManager(
             directTripTravelProposal = directTrip
           )
           response.request.groupedWithOtherRequests.foreach { subReq =>
-            val subDirectTrip =
-              rideHailResponseCache.remove(subReq.customer).flatMap(_.travelProposal)
+            val subDirectTrip = removeOriginalResponseFromCache(subReq).flatMap(_.travelProposal)
             subReq.customer.personRef ! response.copy(
               request = subReq,
               triggersToSchedule = Vector(),
@@ -1276,6 +1258,26 @@ class RideHailManager(
         cleanUpBufferedRequestProcessing(triggerId)
       }
     }
+  }
+
+  private def getActualResponses(request: RideHailRequest) = {
+    val previousResponses = rideHailResponseCache.getOrElse(request.customer, IndexedSeq.empty)
+    val currentTime = request.requestTime.getOrElse(0)
+    previousResponses.filter(_.request.departAt >= currentTime)
+  }
+
+  private def removeOriginalResponseFromCache(request: RideHailRequest) = {
+    val actualResponses: IndexedSeq[RideHailResponse] = getActualResponses(request)
+    val departureTimeOrdering =
+      Ordering.by((rsp: RideHailResponse) => Math.abs(request.departAt - rsp.request.departAt))
+    val maybeOriginalResponse = actualResponses.reduceOption(departureTimeOrdering.min)
+    val updatedResponses = actualResponses diff maybeOriginalResponse.toSeq
+    if (updatedResponses.isEmpty) {
+      rideHailResponseCache.remove(request.customer)
+    } else {
+      rideHailResponseCache.put(request.customer, updatedResponses)
+    }
+    maybeOriginalResponse
   }
 
   private def handleReservationRequest(request: RideHailRequest, triggerId: Long): Unit = {
