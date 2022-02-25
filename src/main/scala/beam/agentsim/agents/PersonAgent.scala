@@ -1434,6 +1434,11 @@ class PersonAgent(
     val generalizedTime = modeChoiceCalculator.getGeneralizedTimeOfTrip(correctedTrip, Some(attributes), nextActivity)
     val generalizedCost = modeChoiceCalculator.getNonTimeCost(correctedTrip) + attributes.getVOT(generalizedTime)
     val maybePayloadWeightInKg = getPayloadWeightFromLeg(currentActivityIndex)
+    val crowdingLevel =
+      beamServices.skims.tc_skimmer.getTransitOccupancyLevelForPercentile(
+        correctedTrip,
+        beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile
+      )
 
     if (maybePayloadWeightInKg.isDefined && correctedTrip.tripClassifier != BeamMode.CAR) {
       logger.error("Wrong trip classifier ({}) for freight {}", correctedTrip.tripClassifier, id)
@@ -1445,6 +1450,7 @@ class PersonAgent(
       correctedTrip,
       generalizedTime,
       generalizedCost,
+      crowdingLevel,
       maybePayloadWeightInKg,
       curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel,
       failedTrip
