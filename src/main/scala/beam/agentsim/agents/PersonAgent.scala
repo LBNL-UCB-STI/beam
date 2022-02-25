@@ -286,6 +286,8 @@ object PersonAgent {
     case basePersonData: BasePersonData => Some(basePersonData)
     case _                              => None
   }
+
+  def atHome(activity: Activity): Boolean = activity.getType.equalsIgnoreCase("home")
 }
 
 class PersonAgent(
@@ -407,7 +409,7 @@ class PersonAgent(
           // which is used in place of our real remaining tour distance of 0.0
           // which should help encourage residential end-of-day charging
           val tomorrowFirstLegDistance =
-            if (nextAct.getType.toLowerCase == "home") {
+            if (atHome(nextAct)) {
               findFirstCarLegOfTrip(personData) match {
                 case Some(carLeg) =>
                   carLeg.beamLeg.travelPath.distanceInM
@@ -497,22 +499,6 @@ class PersonAgent(
     val tripIndexOfElement = tour
       .tripIndexOfElement(nextAct)
       .getOrElse(throw new IllegalArgumentException(s"Element [$nextAct] not found"))
-    if (tripIndexOfElement == 0 && currentActivity(personData).getType != "Home")
-      logger.warn(
-        "~Activity {}, idx {}, id {}, next {}",
-        currentActivity(personData).getType,
-        tripIndexOfElement,
-        id,
-        nextAct.getType
-      )
-    if (tripIndexOfElement == lastTripIndex && nextAct.getType != "Home")
-      logger.warn(
-        "Cur ~Activity {}, idx {}, id {}, next {}",
-        currentActivity(personData).getType,
-        tripIndexOfElement,
-        id,
-        nextAct.getType
-      )
     (tripIndexOfElement, lastTripIndex)
   }
 
@@ -1353,7 +1339,7 @@ class PersonAgent(
             currentTrip = None,
             restOfCurrentTrip = List(),
             currentTourPersonalVehicle = None,
-            currentTourMode = if (activity.getType.equals("Home")) None else data.currentTourMode,
+            currentTourMode = if (atHome(activity)) None else data.currentTourMode,
             currentTripMode = None,
             hasDeparted = false
           )
@@ -1443,7 +1429,7 @@ class PersonAgent(
             currentTourPersonalVehicle = currentTourPersonalVehicle match {
               case Some(personalVehId) =>
                 val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
-                if (activity.getType.equals("Home")) {
+                if (atHome(activity)) {
                   potentiallyChargingBeamVehicles.put(personalVeh.id, beamVehicles(personalVeh.id))
                   beamVehicles -= personalVeh.id
                   personalVeh.getManager.get ! ReleaseVehicle(personalVeh, triggerId)
@@ -1454,7 +1440,7 @@ class PersonAgent(
               case None =>
                 None
             },
-            currentTourMode = if (activity.getType.equals("Home")) None else currentTourMode,
+            currentTourMode = if (atHome(activity)) None else currentTourMode,
             currentTripMode = None,
             hasDeparted = false
           )
