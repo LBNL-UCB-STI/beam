@@ -591,11 +591,13 @@ class RideHailManager(
           val travelProposal = TravelProposal(
             singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation,
             driverPassengerSchedule,
-            calcFare(
-              request,
-              singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation.vehicleType.id,
-              driverPassengerSchedule,
-              baseFare
+            Map(
+              calcFare(
+                request,
+                singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation.vehicleType.id,
+                driverPassengerSchedule,
+                baseFare
+              )
             ),
             singleOccupantQuoteAndPoolingInfo.poolingInfo
           )
@@ -961,7 +963,7 @@ class RideHailManager(
     rideHailVehicleTypeId: Id[BeamVehicleType],
     trip: PassengerSchedule,
     additionalCost: Double
-  ): Map[Id[Person], Double] = {
+  ): (Id[Person], Double) = {
     var costPerSecond = 0.0
     var costPerMile = 0.0
     var baseCost = 0.0
@@ -988,7 +990,7 @@ class RideHailManager(
         timeFare
     }
     val fare = distanceFare + timeFareAdjusted + additionalCost + baseCost
-    Map(request.customer.personId -> fare)
+    request.customer.personId -> fare
   }
 
   /* END: Refueling Logic */
@@ -1503,7 +1505,6 @@ class RideHailManager(
     nFindAllocationsAndProcess += 1
   }
 
-  //TODO this doesn't distinguish fare by customer, lumps them all together
   def createTravelProposal(alloc: VehicleMatchedToCustomers): TravelProposal = {
     val passSched = mobilityRequestToPassengerSchedule(alloc.schedule, alloc.rideHailAgentLocation)
     val updatedPassengerSchedule =
@@ -1525,7 +1526,9 @@ class RideHailManager(
     TravelProposal(
       alloc.rideHailAgentLocation,
       updatedPassengerSchedule,
-      calcFare(alloc.request, alloc.rideHailAgentLocation.vehicleType.id, updatedPassengerSchedule, baseFare),
+      alloc.request.thisRequestWithGroupedRequests
+        .map(calcFare(_, alloc.rideHailAgentLocation.vehicleType.id, updatedPassengerSchedule, baseFare))
+        .toMap,
       None
     )
   }

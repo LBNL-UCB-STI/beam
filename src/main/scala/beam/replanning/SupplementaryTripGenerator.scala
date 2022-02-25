@@ -7,6 +7,8 @@ import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
+import beam.router.skim.SkimsUtils.timeToBin
+import beam.router.skim.core.ParkingSkimmer.ChargerType
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan}
@@ -391,6 +393,14 @@ class SupplementaryTripGenerator(
             vehicleType,
             fuelPrice
           )
+        val destinationTAZid = beamServices.beamScenario.tazTreeMap
+          .getTAZ(additionalActivity.getCoord.getX, additionalActivity.getCoord.getY)
+          .tazId
+        val parkingSkimOption = beamServices.skims.parking_skimmer.getSkimValue(
+          destinationTAZid,
+          timeToBin(desiredDepartTimeInSeconds) + accessTripSkim.time,
+          ChargerType.NoCharger
+        )
         val egressTripSkimOption = if (bothDirections) {
           Some(
             beamServices.skims.od_skimmer.getTimeDistanceAndCost(
@@ -406,6 +416,8 @@ class SupplementaryTripGenerator(
         } else {
           None
         }
+
+        val parkingCost = destinationChoiceModel.getActivityParkingCost(additionalActivity, parkingSkimOption)
 
         val startingOverlap =
           (altStart - (additionalActivity.getStartTime - accessTripSkim.time)).max(0)
@@ -432,6 +444,7 @@ class SupplementaryTripGenerator(
               egressTripSkim.time,
               -modeChoiceCalculator.utilityOf(mode, accessTripSkim, attributesOfIndividual),
               -modeChoiceCalculator.utilityOf(mode, accessTripSkim, attributesOfIndividual),
+              parkingCost,
               schedulePenalty,
               newActivityBenefit + previousActivityBenefit
             )
@@ -441,6 +454,7 @@ class SupplementaryTripGenerator(
               0.0,
               attributesOfIndividual.getVOT(accessTripSkim.generalizedTime / 3600) + accessTripSkim.cost,
               0.0,
+              parkingCost,
               schedulePenalty,
               0.0
             )

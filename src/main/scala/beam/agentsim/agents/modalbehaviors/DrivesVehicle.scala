@@ -3,7 +3,7 @@ package beam.agentsim.agents.modalbehaviors
 import akka.actor.FSM.Failure
 import akka.actor.{ActorRef, Stash}
 import beam.agentsim.Resource.{NotifyVehicleIdle, ReleaseParkingStall}
-import beam.agentsim.agents.BeamAgent
+import beam.agentsim.agents.{BeamAgent, PersonAgent}
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.parking.ChoosesParking.{handleUseParkingSpot, ConnectingToChargingPoint}
@@ -22,7 +22,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{HasTriggerId, Trigger}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{HOV2_TELEPORTATION, HOV3_TELEPORTATION, WALK}
-import beam.router.model.{BeamLeg, BeamPath}
+import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg}
 import beam.router.osm.TollCalculator
 import beam.router.skim.event.TransitCrowdingSkimmerEvent
 import beam.sim.common.GeoUtils
@@ -421,7 +421,25 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
             goto(EnrouteRefueling) using data.asInstanceOf[T]
           } else goto(ConnectingToChargingPoint) using data.asInstanceOf[T]
         } else {
-          handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager)
+          val maybePersonData = findPersonData(data)
+          val maybeNextActivity = for {
+            personData <- maybePersonData
+            nextActivity <- this match {
+              case agent: PersonAgent => agent.nextActivity(personData)
+              case _                  => None
+            }
+          } yield nextActivity
+          handleUseParkingSpot(
+            tick,
+            currentBeamVehicle,
+            id,
+            geo,
+            eventsManager,
+            beamScenario.tazTreeMap,
+            nextActivity = maybeNextActivity,
+            trip = maybePersonData.flatMap(_.currentTrip),
+            restOfTrip = maybePersonData.map(_.restOfCurrentTrip)
+          )
           self ! LastLegPassengerSchedule(triggerId)
           log.debug(s"state(DrivesVehicle.Driving) $id is going to DrivingInterrupted with $triggerId")
           goto(DrivingInterrupted) using data.asInstanceOf[T]
