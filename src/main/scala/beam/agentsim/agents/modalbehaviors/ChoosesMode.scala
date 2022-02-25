@@ -179,6 +179,7 @@ trait ChoosesMode {
             _,
             _,
             _,
+            _,
             _
           ) =>
         self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)), getCurrentTriggerIdOrGenerate)
@@ -201,6 +202,7 @@ trait ChoosesMode {
               _
             ),
             currentLocation,
+            _,
             _,
             _,
             _,
@@ -243,6 +245,7 @@ trait ChoosesMode {
               _
             ),
             currentLocation,
+            _,
             _,
             _,
             _,
@@ -377,7 +380,8 @@ trait ChoosesMode {
           currentPersonLocation.loc,
           departTime,
           nextAct.getCoord,
-          triggerId = getCurrentTriggerIdOrGenerate
+          triggerId = getCurrentTriggerIdOrGenerate,
+          asPooled = true
         )
         //        println(s"requesting: ${inquiry.requestId}")
         rideHailManager ! inquiry
@@ -559,6 +563,7 @@ trait ChoosesMode {
       val newPersonData = choosesModeData.copy(
         personData = choosesModeData.personData.copy(currentTourMode = correctedCurrentTourMode),
         availablePersonalStreetVehicles = availablePersonalStreetVehicles,
+        allAvailableStreetVehicles = newlyAvailableBeamVehicles,
         routingResponse = responsePlaceholders.routingResponse,
         rideHail2TransitRoutingResponse = responsePlaceholders.rideHail2TransitRoutingResponse,
         rideHail2TransitRoutingRequestId = requestId,
@@ -1148,6 +1153,7 @@ trait ChoosesMode {
             _,
             _,
             _,
+            _,
             Some(cavTripLegs),
             _,
             _,
@@ -1316,6 +1322,14 @@ trait ChoosesMode {
                   availableAlternatives = availableAlts
                 )
               }
+            case Some(_) =>
+              //give another chance to make a choice without predefined mode
+              self ! MobilityStatusResponse(choosesModeData.allAvailableStreetVehicles, getCurrentTriggerId.get)
+              stay() using ChoosesModeData(
+                personData = personData.copy(currentTourMode = None),
+                currentLocation = choosesModeData.currentLocation,
+                excludeModes = choosesModeData.excludeModes
+              )
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
               val originalWalkTripLeg =
@@ -1579,6 +1593,7 @@ object ChoosesMode {
     rideHail2TransitEgressResult: Option[RideHailResponse] = None,
     rideHail2TransitEgressInquiryId: Option[Int] = None,
     availablePersonalStreetVehicles: Vector[VehicleOrToken] = Vector(),
+    allAvailableStreetVehicles: Vector[VehicleOrToken] = Vector(),
     expectedMaxUtilityOfLatestChoice: Option[Double] = None,
     isWithinTripReplanning: Boolean = false,
     cavTripLegs: Option[CavTripLegsResponse] = None,

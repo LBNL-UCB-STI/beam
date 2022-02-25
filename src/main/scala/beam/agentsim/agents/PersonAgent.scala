@@ -24,6 +24,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumed
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
 import beam.agentsim.agents.vehicles._
+import beam.agentsim.events.RideHailReservationConfirmationEvent.{Pooled, Solo}
 import beam.agentsim.events._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
@@ -48,11 +49,17 @@ import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.skim.ActivitySimSkimmerEvent
-import beam.router.skim.event.{DriveTimeSkimmerEvent, ODSkimmerEvent}
+import beam.router.skim.event.{
+  DriveTimeSkimmerEvent,
+  ODSkimmerEvent,
+  RideHailSkimmerEvent,
+  UnmatchedRideHailRequestSkimmerEvent
+}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamScenario, BeamServices, Geofence}
+import beam.utils.MeasureUnitConversion.METERS_IN_MILE
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
@@ -272,6 +279,11 @@ object PersonAgent {
     } else {
       trip
     }
+  }
+
+  def findPersonData(data: DrivingData): Option[BasePersonData] = data match {
+    case basePersonData: BasePersonData => Some(basePersonData)
+    case _                              => None
   }
 }
 
@@ -696,6 +708,13 @@ class PersonAgent(
         )
       )
     )
+    eventsManager.processEvent(
+      new UnmatchedRideHailRequestSkimmerEvent(
+        eventTime = tick,
+        tazId = beamScenario.tazTreeMap.getTAZ(response.request.pickUpLocationUTM).tazId,
+        reservationType = if (response.request.asPooled) Pooled else Solo
+      )
+    )
     eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id), replanningReason))
     val currentCoord = beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
     val nextCoord = nextActivity(data).get.getCoord
@@ -758,9 +777,10 @@ class PersonAgent(
           RideHailResponse(req, travelProposal, None, triggersToSchedule, directTripTravelProposal),
           data: BasePersonData
         ) =>
+      val tick = _currentTick.getOrElse(req.departAt).toDouble
       eventsManager.processEvent(
         new RideHailReservationConfirmationEvent(
-          _currentTick.getOrElse(req.departAt).toDouble,
+          tick,
           Id.createPersonId(id),
           RideHailReservationConfirmationEvent.typeWhenPooledIs(req.asPooled),
           None,
@@ -774,6 +794,18 @@ class PersonAgent(
           ),
           directTripTravelProposal.map(_.travelDistanceForCustomer(bodyVehiclePersonId)),
           directTripTravelProposal.map(_.travelTimeForCustomer(bodyVehiclePersonId))
+        )
+      )
+      eventsManager.processEvent(
+        new RideHailSkimmerEvent(
+          eventTime = tick,
+          tazId = beamScenario.tazTreeMap.getTAZ(req.pickUpLocationUTM).tazId,
+          reservationType = if (req.asPooled) Pooled else Solo,
+          waitTime = travelProposal.get.timeToCustomer(req.customer),
+          costPerMile =
+            travelProposal.get.estimatedPrice(req.customer.personId) / travelProposal.get.travelDistanceForCustomer(
+              req.customer
+            ) * METERS_IN_MILE
         )
       )
       handleSuccessfulReservation(triggersToSchedule, data, travelProposal)
