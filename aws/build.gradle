@@ -93,6 +93,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "experiments": "${ext.getParameterValue('beamExperiments') ?: ext.getParameterValue(getCurrentGitBranch() + '.experiments')}",
   "execute_class": "${ext.getParameterValue('executeClass')}",
   "execute_args": "${ext.getParameterValue('executeArgs')}",
+  "forced_max_ram": "${ext.getParameterValue('forcedMaxRAM')}",
   "storage_size": ${ext.getParameterValue('storageSize')},
   "batch": ${ext.getParameterValue('beamBatch')},
   "s3_publish": ${ext.getParameterValue('s3Backup') ?: true},
