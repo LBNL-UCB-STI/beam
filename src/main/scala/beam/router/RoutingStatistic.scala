@@ -26,7 +26,7 @@ class RoutingStatistic(ioController: OutputDirectoryHierarchy) extends Actor {
       context.become(receive)
       sender() ! Finish
 
-    case RoutingResponse(itineraries, _, Some(request), _, searchedModes, _) =>
+    case RoutingResponse(itineraries, _, Some(request), _, _, searchedModes, _) =>
       searchedModes.foreach { mode =>
         val tripFound =
           if (mode == RIDE_HAIL_TRANSIT) itineraries.exists(_.tripClassifier == DRIVE_TRANSIT)

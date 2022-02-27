@@ -32,7 +32,7 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
   "Running a single person car-only scenario and scale up charging events" must "catch charging events and measure virtual power greater or equal than real power" in {
     val beamVilleCarId = Id.create("beamVilleCar", classOf[BeamVehicleType])
     val vehicleId = Id.create(2, classOf[Vehicle])
-    val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
+    val filesPath = "test/test-resources/beam/input"
     val config: Config = ConfigFactory
       .parseString(
         s"""|beam.outputs.events.fileOutputFormats = csv

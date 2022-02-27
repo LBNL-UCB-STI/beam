@@ -1,8 +1,8 @@
 package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight.FreightRequestType.{Loading, Unloading}
-import beam.agentsim.agents.freight.input.FreightReader.PAYLOAD_WEIGHT_IN_KG
-import beam.agentsim.agents.freight.{FreightCarrier, FreightTour, PayloadPlan}
+import beam.agentsim.agents.freight.input.FreightReader.{FREIGHT_REQUEST_TYPE, PAYLOAD_WEIGHT_IN_KG}
+import beam.agentsim.agents.freight.{FreightCarrier, FreightRequestType, FreightTour, PayloadPlan}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.SpaceTime
@@ -55,7 +55,7 @@ trait FreightReader {
   ): Plan = {
     val allToursPlanElements = tours.flatMap { tour =>
       val tourInitialActivity =
-        createFreightActivity("Warehouse", tour.warehouseLocationUTM, tour.departureTimeInSec)
+        createFreightActivity("Warehouse", tour.warehouseLocationUTM, tour.departureTimeInSec, None)
       val firstLeg: Leg = createFreightLeg(tour.departureTimeInSec)
 
       val plans: IndexedSeq[PayloadPlan] = plansPerTour.get(tour.tourId) match {
@@ -66,7 +66,7 @@ trait FreightReader {
       val planElements: IndexedSeq[PlanElement] = plans.flatMap { plan =>
         val activityEndTime = plan.estimatedTimeOfArrivalInSec + plan.operationDurationInSec
         val activityType = plan.activityType
-        val activity = createFreightActivity(activityType, plan.locationUTM, activityEndTime)
+        val activity = createFreightActivity(activityType, plan.locationUTM, activityEndTime, Some(plan.requestType))
         val leg: Leg = createFreightLeg(activityEndTime)
         Seq(activity, leg)
       }
@@ -82,7 +82,7 @@ trait FreightReader {
       elements
     }
 
-    val finalActivity = createFreightActivity("Warehouse", tours.head.warehouseLocationUTM, -1)
+    val finalActivity = createFreightActivity("Warehouse", tours.head.warehouseLocationUTM, -1, None)
     val allPlanElements: IndexedSeq[PlanElement] = allToursPlanElements :+ finalActivity
 
     val currentPlan = PopulationUtils.createPlan(person)
@@ -144,11 +144,17 @@ trait FreightReader {
     vehicle
   }
 
-  protected def createFreightActivity(activityType: String, locationUTM: Coord, endTime: Int): Activity = {
+  protected def createFreightActivity(
+    activityType: String,
+    locationUTM: Coord,
+    endTime: Int,
+    freightRequestType: Option[FreightRequestType]
+  ): Activity = {
     val act = PopulationUtils.createActivityFromCoord(activityType, locationUTM)
     if (endTime >= 0) {
       act.setEndTime(endTime)
     }
+    freightRequestType.foreach(act.getAttributes.putAttribute(FREIGHT_REQUEST_TYPE, _))
     act
   }
 
@@ -172,6 +178,7 @@ trait FreightReader {
 
 object FreightReader {
   val FREIGHT_ID_PREFIX = "freight"
+  val FREIGHT_REQUEST_TYPE = "FreightRequestType"
   val PAYLOAD_WEIGHT_IN_KG = "PayloadWeightInKg"
 
   def apply(

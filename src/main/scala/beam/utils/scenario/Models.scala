@@ -13,7 +13,8 @@ case class PersonInfo(
   age: Int,
   excludedModes: Seq[String] = Seq.empty,
   isFemale: Boolean,
-  valueOfTime: Double
+  valueOfTime: Double,
+  industry: Option[String]
 )
 
 object PlanElement {
@@ -27,8 +28,14 @@ object PlanElement {
         case "leg"      => Leg
       }
   }
-  object Activity extends PlanElementType
-  object Leg extends PlanElementType
+
+  object Activity extends PlanElementType {
+    override def toString: String = "activity"
+  }
+
+  object Leg extends PlanElementType {
+    override def toString: String = "leg"
+  }
 }
 
 case class PlanElement(
