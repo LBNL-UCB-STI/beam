@@ -262,7 +262,7 @@ class BeamMobsim @Inject() (
 
     def writeDebugCSV(): File = {
       val outputFile = beamServices.matsimServices.getControlerIO.getOutputFilename(
-        "generatedPlans.skimsDebugging.csv"
+        "generatedPlans.skimsDebugging.csv.gz"
       )
       val header = Iterator(beamServices.skims.od_skimmer.skimsDebugCalculationHeader, LineSeparator)
       val data = beamServices.skims.od_skimmer.skimsDebugCalculation
