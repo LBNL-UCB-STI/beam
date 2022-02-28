@@ -27,7 +27,7 @@
         <appender-ref ref="FILE" />
     </root>
 
-    <logger name="com.conveyal.r5" level="${LOG_LEVEL:-ERROR}"/>
+    <logger name="com.conveyal.r5" level="ERROR"/>
     <logger name="com.conveyal.r5.streets.StreetRouter" level="ERROR"/>
 
 
