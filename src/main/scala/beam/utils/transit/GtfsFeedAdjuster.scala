@@ -50,6 +50,8 @@ object GtfsFeedAdjuster extends App with StrictLogging {
           config.copy(strategy = "scale")
         case (config, Array("--op", "remove_routes")) =>
           config.copy(strategy = "remove_routes")
+        case (config, Array("--op", "filter_service")) =>
+          config.copy(strategy = "filter_service")
         case (config, Array("--factor", value)) => config.copy(factor = value.toDouble)
         case (config, Array("--in", path))      => config.copy(in = Paths.get(path))
         case (config, Array("--out", path))     => config.copy(out = Paths.get(path))
