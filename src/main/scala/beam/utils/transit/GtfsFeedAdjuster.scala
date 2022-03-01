@@ -127,6 +127,7 @@ object GtfsFeedAdjuster extends App with StrictLogging {
 //      "M15"
 //    )
     val modifiedRouteIds: Set[String] = Set.empty[String]
+    val filteredServiceIds: Set[String] = Set("MRG_1", "39101-133")
     val (trips, dao) = GtfsUtils.loadTripsFromGtfs(cfg.in)
     val strategy = cfg.strategy match {
       case "multiplication" if cfg.factor >= 1.0 =>
@@ -135,8 +136,9 @@ object GtfsFeedAdjuster extends App with StrictLogging {
         GtfsUtils.partiallyRemoveHalfTripsStrategy(trips, modifiedRouteIds, cfg.timeFrame)
       case "multiplication" if cfg.factor < 1.0 =>
         GtfsUtils.removeTripsStrategy(trips, cfg.factor.toFloat, cfg.timeFrame)
-      case "remove_routes" => GtfsUtils.removeRoutesStrategy(modifiedRouteIds)
-      case "scale"         => GtfsUtils.scaleTripsStrategy(trips, cfg.factor.toInt, cfg.timeFrame)
+      case "remove_routes"  => GtfsUtils.removeRoutesStrategy(modifiedRouteIds)
+      case "scale"          => GtfsUtils.scaleTripsStrategy(trips, cfg.factor.toInt, cfg.timeFrame)
+      case "filter_service" => GtfsUtils.filterServiceIdStrategy(filteredServiceIds)
     }
     GtfsUtils.transformGtfs(
       cfg.in,

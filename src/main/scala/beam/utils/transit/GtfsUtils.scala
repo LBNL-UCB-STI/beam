@@ -340,6 +340,12 @@ object GtfsUtils {
     resultStrategy
   }
 
+  def filterServiceIdStrategy(
+    serviceIdFilters: Set[String]
+  ): GtfsTransformStrategy = {
+    new FilterServiceIdStrategy(serviceIdFilters)
+  }
+
   private def findTrips(
     tripsWithStopTimes: Seq[TripAndStopTimes],
     timeFrame: TimeFrame
@@ -437,10 +443,13 @@ object GtfsUtils {
     }
   }
 
-  final class FilterServiceIdStrategy(serviceIdFilter: String) extends GtfsTransformStrategy {
+  final class FilterServiceIdStrategy(serviceIdFilters: Set[String]) extends GtfsTransformStrategy {
 
     override def run(context: TransformContext, dao: GtfsMutableRelationalDao): Unit = {
-      for (serviceId <- dao.getAllServiceIds.asScala if serviceId.getId != serviceIdFilter) {
+      for (
+        serviceId <- dao.getAllServiceIds.asScala
+        if serviceIdFilters.forall(subString => !serviceId.toString.contains(subString))
+      ) {
         for (trip <- dao.getTripsForServiceId(serviceId).asScala) {
           for (stopTime <- dao.getStopTimesForTrip(trip).asScala) {
             dao.removeEntity[Integer, StopTime](stopTime)
