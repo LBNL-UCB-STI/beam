@@ -36,7 +36,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
 
   protected val (
     parkingZonesAggregated: Map[Id[ParkingZoneId], ParkingZone[GEO]],
-    aggregatedZonesToAllZones: Map[Id[ParkingZoneId], Id[ParkingZoneId]]
+    aggregatedZonesToAllZones: Map[Id[ParkingZoneId], Array[Id[ParkingZoneId]]]
   ) = {
     val groupedZones = parkingZones
       .map {
@@ -66,7 +66,9 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
         (zone, zones)
       }
     val aggregatedZones = groupedZones.map { case (zone, _) => zone.parkingZoneId -> zone }
-    val mappedZones = groupedZones.map { case (zone, zones) => zone.parkingZoneId -> zones.map(_._1.parkingZoneId) }
+    val mappedZones = groupedZones.map { case (zone, zones) =>
+      zone.parkingZoneId -> zones.map(_._1.parkingZoneId).toArray
+    }
     (aggregatedZones, mappedZones)
   }
 
@@ -162,7 +164,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
         zoneSearchTree,
         parkingZonesAggregated,
         parkingZonesAggregated.map { case (zoneId, _) =>
-          zoneId -> aggregatedZonesToAllZones(zoneId).map(parkingZones).toArray
+          zoneId -> aggregatedZonesToAllZones(zoneId).map(parkingZones(_))
         },
         geoQuadTree,
         new Random(seed),
