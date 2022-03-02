@@ -1,7 +1,8 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
-import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
+import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
@@ -33,10 +34,46 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
   seed: Int
 ) extends StrictLogging {
 
-  protected val zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[GEO] =
-    ParkingZoneFileUtils.createZoneSearchTree(parkingZones.values.toSeq)
+  protected val (
+    parkingZonesAggregated: Map[Id[ParkingZoneId], ParkingZone[GEO]],
+    aggregatedZonesToAllZones: Map[Id[ParkingZoneId], Id[ParkingZoneId]]
+  ) = {
+    val groupedZones = parkingZones
+      .map {
+        case (_, parkingZone) if parkingZone.reservedFor.managerType == VehicleManager.TypeEnum.Household =>
+          (parkingZone, VehicleManager.createOrGetReservedFor("generic-hh", VehicleManager.TypeEnum.Household))
+        case (_, parkingZone) => (parkingZone, parkingZone.reservedFor)
+      }
+      .groupBy { case (parkingZone, reservedFor) =>
+        (
+          parkingZone.geoId,
+          parkingZone.parkingType,
+          parkingZone.chargingPointType,
+          parkingZone.pricingModel,
+          reservedFor
+        )
+      }
+      .map { case ((geoId, parkingType, chargingPointType, pricingModel, reservedFor), zones) =>
+        val zone = ParkingZone.init(
+          None,
+          geoId,
+          parkingType,
+          reservedFor,
+          zones.map(_._1.maxStalls).sum,
+          chargingPointType,
+          pricingModel
+        )
+        (zone, zones)
+      }
+    val aggregatedZones = groupedZones.map { case (zone, _) => zone.parkingZoneId -> zone }
+    val mappedZones = groupedZones.map { case (zone, zones) => zone.parkingZoneId -> zones.map(_._1.parkingZoneId) }
+    (aggregatedZones, mappedZones)
+  }
 
   protected val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation]
+
+  protected lazy val zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[GEO] =
+    ParkingZoneFileUtils.createZoneSearchTree(parkingZonesAggregated.values.toSeq)
 
   /**
     * Generic method for updating MNL Parameters
@@ -123,10 +160,14 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
         inquiry.searchMode,
         mnlMultiplierParameters,
         zoneSearchTree,
-        parkingZones,
+        parkingZonesAggregated,
+        parkingZonesAggregated.map { case (zoneId, _) =>
+          zoneId -> aggregatedZonesToAllZones(zoneId).map(parkingZones).toArray
+        },
         geoQuadTree,
         new Random(seed),
-        inquiry.departureLocation
+        inquiry.departureLocation,
+        inquiry.reservedFor
       )
 
     val closestZone =
@@ -143,10 +184,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     // filters out ParkingZones which do not apply to this agent
     // TODO: check for conflicts between variables here - is it always false?
     val parkingZoneFilterFunction: ParkingZone[GEO] => Boolean =
-      (zone: ParkingZone[GEO]) => {
-        val searchFilterPredicates = setupSearchFilterPredicates(zone, inquiry)
-        searchFilterPredicates
-      }
+      (zone: ParkingZone[GEO]) => setupSearchFilterPredicates(zone, inquiry)
 
     // generates a coordinate for an embodied ParkingStall from a ParkingZone
     val parkingZoneLocSamplingFunction: ParkingZone[GEO] => Coord =
