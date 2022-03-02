@@ -45,6 +45,7 @@ object BeamConfig {
       fractionOfPlansWithSingleActivity: scala.Double,
       h3taz: BeamConfig.Beam.Agentsim.H3taz,
       lastIteration: scala.Int,
+      minimumAgentAgeToIncludeInSimulation: scala.Int,
       populationAdjustment: java.lang.String,
       scenarios: BeamConfig.Beam.Agentsim.Scenarios,
       scheduleMonitorTask: BeamConfig.Beam.Agentsim.ScheduleMonitorTask,
@@ -2217,6 +2218,10 @@ object BeamConfig {
             else com.typesafe.config.ConfigFactory.parseString("h3taz{}")
           ),
           lastIteration = if (c.hasPathOrNull("lastIteration")) c.getInt("lastIteration") else 0,
+          minimumAgentAgeToIncludeInSimulation =
+            if (c.hasPathOrNull("minimumAgentAgeToIncludeInSimulation"))
+              c.getInt("minimumAgentAgeToIncludeInSimulation")
+            else 0,
           populationAdjustment =
             if (c.hasPathOrNull("populationAdjustment")) c.getString("populationAdjustment") else "DEFAULT_ADJUSTMENT",
           scenarios = BeamConfig.Beam.Agentsim.Scenarios(
