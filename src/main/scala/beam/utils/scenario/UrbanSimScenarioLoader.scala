@@ -126,6 +126,7 @@ class UrbanSimScenarioLoader(
     val personsWithPlans = getPersonsWithPlan(personsFilteredByAge, plans)
       .filter(p => householdIds.contains(p.householdId.id))
     logger.info(s"There are ${personsWithPlans.size} persons with plans.")
+    logger.info(s"There are ${personsWithPlans.map(_.age).toSet.toSeq.sorted.mkString(", ")} existing ages of persons with plans.")
 
     val householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]] = personsWithPlans.groupBy(_.householdId)
 
