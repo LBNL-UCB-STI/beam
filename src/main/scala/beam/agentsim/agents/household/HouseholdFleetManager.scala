@@ -109,11 +109,10 @@ class HouseholdFleetManager(
         for {
           neededVehicleCategory              <- requireVehicleCategoryAvailable
           emergencyHouseholdVehicleGenerator <- maybeEmergencyHouseholdVehicleGenerator
-          vehicle                            <- emergencyHouseholdVehicleGenerator.createVehicle(personId, nextVehicleIndex, neededVehicleCategory)
         } yield {
           val vehicleCreatedOutOfThinAir: Boolean = if (availableVehicles.isEmpty) {
             logger.warn(
-              s"No vehicles available for category ${neededVehicleCategory} available for person ${personId.toString}, creating a new vehicle with id ${vehicle.id.toString}"
+              s"No vehicles available for category ${neededVehicleCategory} available for person ${personId.toString}"
             )
             emergencyHouseholdVehicleGenerator.createVehicle(personId, nextVehicleIndex, neededVehicleCategory) match {
               case Some(vehicle) =>
@@ -136,8 +135,10 @@ class HouseholdFleetManager(
                   vehicle.becomeDriver(mobilityRequester)
                   MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
                 } pipeTo mobilityRequester
+                logger.warn(s"Creating vehicle with id ${vehicle.id.toString} for person ${personId.toString}")
                 true
               case _ =>
+                logger.warn(s"Failed to create vehicle for person ${personId.toString}")
                 false
             }
           } else false
