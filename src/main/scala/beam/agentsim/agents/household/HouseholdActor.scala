@@ -213,6 +213,7 @@ object HouseholdActor {
           .map(cat => cat -> vehiclesByCategory.getOrElse(cat, Map[Id[BeamVehicle], BeamVehicle]()))
           .toMap
         val fleetManagers = vehiclesByAllCategories.map { case (category, vehicleMap) =>
+          // TODO: Only create this if config says to generate emergency vehicles
           val emergencyGenerator = new EmergencyHouseholdVehicleGenerator(
             household,
             homeCoordFromPlans,
