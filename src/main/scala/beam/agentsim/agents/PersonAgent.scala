@@ -607,9 +607,15 @@ class PersonAgent(
         logDebug(s"wants to go to ${nextAct.getType} @ $tick")
         holdTickAndTriggerId(tick, triggerId)
         val modeOfNextLeg =
-          _experiencedBeamPlan.getTripStrategy(nextAct, classOf[ModeChoiceStrategy]).asInstanceOf[Option[BeamMode]]
+          _experiencedBeamPlan.getTripStrategy(nextAct, classOf[ModeChoiceStrategy]) match {
+            case Some(strategy) => strategy.strategyMode
+            case None           => None
+          }
         val currentTourMode =
-          _experiencedBeamPlan.getTourStrategy(nextAct, classOf[ModeChoiceStrategy]).asInstanceOf[Option[BeamMode]]
+          _experiencedBeamPlan.getTourStrategy(nextAct, classOf[ModeChoiceStrategy]) match {
+            case Some(strategy) => strategy.strategyMode
+            case None           => None
+          }
         val currentCoord = currentActivity(data).getCoord
         val nextCoord = nextActivity(data).get.getCoord
         goto(ChoosingMode) using ChoosesModeData(
@@ -1419,6 +1425,8 @@ class PersonAgent(
             activity.getType
           )
           eventsManager.processEvent(activityStartEvent)
+          val nextActTourMode =
+            _experiencedBeamPlan.getTourStrategy(activity, classOf[ModeChoiceStrategy]).flatMap(_.strategyMode)
 
           scheduler ! CompletionNotice(
             triggerId,
@@ -1442,7 +1450,7 @@ class PersonAgent(
               case None =>
                 None
             },
-            currentTourMode = if (atHome(activity)) None else currentTourMode,
+            currentTourMode = nextActTourMode,
             currentTripMode = None,
             hasDeparted = false
           )
