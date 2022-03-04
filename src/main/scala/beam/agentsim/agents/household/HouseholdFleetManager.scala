@@ -109,6 +109,7 @@ class HouseholdFleetManager(
         for {
           neededVehicleCategory              <- requireVehicleCategoryAvailable
           emergencyHouseholdVehicleGenerator <- maybeEmergencyHouseholdVehicleGenerator
+          vehicle                            <- emergencyHouseholdVehicleGenerator.createVehicle(personId, nextVehicleIndex, neededVehicleCategory)
         } yield {
           val vehicleCreatedOutOfThinAir: Boolean = if (availableVehicles.isEmpty) {
             logger.warn(
