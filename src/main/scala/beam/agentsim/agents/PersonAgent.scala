@@ -17,6 +17,7 @@ import beam.agentsim.agents.parking.ChoosesParking.{
   ChoosingParkingSpot,
   ReleasingParkingSpot
 }
+import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
@@ -605,11 +606,10 @@ class PersonAgent(
       case Some(nextAct) =>
         logDebug(s"wants to go to ${nextAct.getType} @ $tick")
         holdTickAndTriggerId(tick, triggerId)
-        val indexOfNextActivity = _experiencedBeamPlan.getPlanElements.indexOf(nextAct)
-        val modeOfNextLeg = _experiencedBeamPlan.getPlanElements.get(indexOfNextActivity - 1) match {
-          case leg: Leg => BeamMode.fromString(leg.getMode)
-          case _        => None
-        }
+        val modeOfNextLeg =
+          _experiencedBeamPlan.getTripStrategy(nextAct, classOf[ModeChoiceStrategy]).asInstanceOf[Option[BeamMode]]
+        val currentTourMode =
+          _experiencedBeamPlan.getTourStrategy(nextAct, classOf[ModeChoiceStrategy]).asInstanceOf[Option[BeamMode]]
         val currentCoord = currentActivity(data).getCoord
         val nextCoord = nextActivity(data).get.getCoord
         goto(ChoosingMode) using ChoosesModeData(
@@ -618,6 +618,7 @@ class PersonAgent(
             // If we have the currentTourPersonalVehicle then we should use it
             // use the mode of the next leg as the new trip mode.
             currentTripMode = modeOfNextLeg,
+            currentTourMode = currentTourMode,
             numberOfReplanningAttempts = 0,
             failedTrips = IndexedSeq.empty,
             enrouteData = EnrouteData()
@@ -997,6 +998,8 @@ class PersonAgent(
       val currentCoord =
         beamServices.geo.wgs2Utm(basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
       val nextCoord = nextActivity(basePersonData).get.getCoord
+      val currentTour = _experiencedBeamPlan.getTourContaining(basePersonData.currentActivityIndex)
+      _experiencedBeamPlan.putStrategy(currentTour, ModeChoiceStrategy(None))
       goto(ChoosingMode) using ChoosesModeData(
         basePersonData.copy(
           currentTourMode = None, // Have to give up my mode as well, perhaps there's no option left for driving.
@@ -1339,7 +1342,6 @@ class PersonAgent(
             currentTrip = None,
             restOfCurrentTrip = List(),
             currentTourPersonalVehicle = None,
-            currentTourMode = if (atHome(activity)) None else data.currentTourMode,
             currentTripMode = None,
             hasDeparted = false
           )

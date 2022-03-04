@@ -8,6 +8,7 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token, VehicleOrToken}
+import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
@@ -1394,6 +1395,14 @@ trait ChoosesMode {
             beamServices.geo.getNearestR5Edge(transportNetwork.streetLayer, destination, linkRadiusMeters)
           )
         )
+    }
+
+    val currentTrip = _experiencedBeamPlan.getTripContaining(data.personData.currentActivityIndex)
+    val currentTour = _experiencedBeamPlan.getTourContaining(data.personData.currentActivityIndex)
+    _experiencedBeamPlan.putStrategy(currentTrip, ModeChoiceStrategy(Some(chosenTrip.tripClassifier)))
+    _experiencedBeamPlan.getStrategy(currentTour, classOf[ModeChoiceStrategy]) match {
+      case None => _experiencedBeamPlan.putStrategy(currentTour, ModeChoiceStrategy(Some(chosenTrip.tripClassifier)))
+      case _    =>
     }
 
     val modeChoiceEvent = new ModeChoiceEvent(
