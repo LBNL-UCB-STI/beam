@@ -607,15 +607,9 @@ class PersonAgent(
         logDebug(s"wants to go to ${nextAct.getType} @ $tick")
         holdTickAndTriggerId(tick, triggerId)
         val modeOfNextLeg =
-          _experiencedBeamPlan.getTripStrategy(nextAct, classOf[ModeChoiceStrategy]) match {
-            case Some(strategy) => strategy.strategyMode
-            case None           => None
-          }
+          _experiencedBeamPlan.getTripStrategy(nextAct, classOf[ModeChoiceStrategy]).flatMap(_.strategyMode)
         val currentTourMode =
-          _experiencedBeamPlan.getTourStrategy(nextAct, classOf[ModeChoiceStrategy]) match {
-            case Some(strategy) => strategy.strategyMode
-            case None           => None
-          }
+          _experiencedBeamPlan.getTourStrategy(nextAct, classOf[ModeChoiceStrategy]).flatMap(_.strategyMode)
         val currentCoord = currentActivity(data).getCoord
         val nextCoord = nextActivity(data).get.getCoord
         goto(ChoosingMode) using ChoosesModeData(
@@ -624,7 +618,8 @@ class PersonAgent(
             // If we have the currentTourPersonalVehicle then we should use it
             // use the mode of the next leg as the new trip mode.
             currentTripMode = modeOfNextLeg,
-            currentTourMode = currentTourMode,
+            currentTourMode =
+              currentTourMode, // This might not be necessary because it is copied over when the activity starts
             numberOfReplanningAttempts = 0,
             failedTrips = IndexedSeq.empty,
             enrouteData = EnrouteData()
@@ -1343,11 +1338,16 @@ class PersonAgent(
             triggerId,
             Vector(ScheduleTrigger(ActivityEndTrigger(activityEndTime.toInt), self))
           )
+
+          val nextActTourMode =
+            _experiencedBeamPlan.getTourStrategy(activity, classOf[ModeChoiceStrategy]).flatMap(_.strategyMode)
+
           goto(PerformingActivity) using data.copy(
             currentActivityIndex = currentActivityIndex + 1,
             currentTrip = None,
             restOfCurrentTrip = List(),
             currentTourPersonalVehicle = None,
+            currentTourMode = nextActTourMode,
             currentTripMode = None,
             hasDeparted = false
           )
