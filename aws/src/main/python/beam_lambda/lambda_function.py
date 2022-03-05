@@ -287,7 +287,7 @@ instance_type_to_memory = {
     'r5.large': 16, 'r5.xlarge': 32, 'r5.2xlarge': 64, 'r5.4xlarge': 128, 'r5.8xlarge': 256, 'r5.12xlarge': 384, 'r5.24xlarge': 768,
     'r5d.large': 16, 'r5d.xlarge': 32, 'r5d.2xlarge': 64, 'r5d.4xlarge': 128, 'r5d.12xlarge': 384, 'r5d.24xlarge': 768,
     'm5d.large': 8, 'm5d.xlarge': 16, 'm5d.2xlarge': 32, 'm5d.4xlarge': 64, 'm5d.12xlarge': 192, 'm5d.24xlarge': 384,
-    'z1d.large': 2, 'z1d.xlarge': 4, 'z1d.2xlarge': 8, 'z1d.3xlarge': 12, 'z1d.6xlarge': 24, 'z1d.12xlarge': 48
+    'z1d.large': 2, 'z1d.xlarge': 4, 'z1d.2xlarge': 8, 'z1d.3xlarge': 12, 'z1d.6xlarge': 24, 'z1d.12xlarge': 48, 'r6i.24xlarge': 768
 }
 
 
