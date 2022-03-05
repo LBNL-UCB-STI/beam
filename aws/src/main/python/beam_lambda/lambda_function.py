@@ -61,7 +61,7 @@ END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
 
 BRANCH_DEFAULT = 'master'
 
-DATA_BRANCH_DEFAULT = 'develop'
+DATA_BRANCH_DEFAULT = 'pilates'
 
 COMMIT_DEFAULT = 'HEAD'
 
