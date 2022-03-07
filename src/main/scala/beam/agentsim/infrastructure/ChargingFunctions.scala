@@ -149,7 +149,22 @@ class ChargingFunctions[GEO: GeoLevel](
   override protected def processParkingZoneSearchResult(
     inquiry: ParkingInquiry,
     parkingZoneSearchResult: Option[ParkingZoneSearchResult[GEO]]
-  ): Option[ParkingZoneSearchResult[GEO]] = parkingZoneSearchResult
+  ): Option[ParkingZoneSearchResult[GEO]] = {
+    parkingZoneSearchResult match {
+      case Some(result) =>
+        result.parkingZonesSampled.foreach { case (parkingZoneId, chargingPointTypeMaybe, parkingType, costInDollars) =>
+          logger.info(
+            s"SAMPLED: ${parkingZoneId},${chargingPointTypeMaybe.getOrElse("NoCharger")},${parkingType},${costInDollars}"
+          )
+        }
+        logger.info(
+          s"CHOSEN: ${result.parkingStall.parkingZoneId},${result.parkingStall.chargingPointType
+            .getOrElse("NoCharger")},${result.parkingStall.parkingType},${result.parkingStall.costInDollars}"
+        )
+      case _ =>
+    }
+    parkingZoneSearchResult
+  }
 
   /**
     * sample location of a parking stall with a GEO area
