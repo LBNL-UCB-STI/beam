@@ -85,8 +85,30 @@ class ChargingFunctions[GEO: GeoLevel](
     val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry.beamVehicle)
 
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
-    val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
+    val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
 
+    val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
+
+    val isValidTime = inquiry.beamVehicle.forall(vehicle =>
+      zone.timeRestrictions
+        .get(vehicle.beamVehicleType.vehicleCategory)
+        .forall(_.contains(inquiry.destinationUtm.time % (24 * 3600)))
+    )
+
+    val isValidVehicleManager = inquiry.beamVehicle.forall { vehicle =>
+      zone.reservedFor.managerType == VehicleManager.TypeEnum.Default || zone.reservedFor.managerId == vehicle.vehicleManagerId.get
+    }
+
+    inquiry.beamVehicle.foreach { v =>
+      logger.info(
+        s"SEARCH: ${zone.parkingZoneId},${zone.geoId},${zone.parkingType},${zone.chargingPointType.getOrElse("NoCharger")}," +
+        s"${zone.pricingModel.get},${zone.reservedFor},${zone.stallsAvailable},${zone.maxStalls},${v.id},${inquiry.parkingDuration}," +
+        s"${inquiry.activityType},${inquiry.valueOfTime},${isEV},${rideHailFastChargingOnly},${validChargingCapability}," +
+        s"${hasAvailability},${validParkingType},${isValidTime},${isValidVehicleManager}"
+      )
+    }
+
+    val canCarParkHere: Boolean = hasAvailability & validParkingType & isValidTime & isValidVehicleManager
     isEV && rideHailFastChargingOnly && validChargingCapability && canCarParkHere
   }
 
@@ -138,6 +160,16 @@ class ChargingFunctions[GEO: GeoLevel](
       key1 = ParkingMNL.Parameters.RangeAnxietyCost,
       value1 = rangeAnxietyFactor
     )
+
+    inquiry.beamVehicle.foreach { v =>
+      logger.info(
+        s"PARAM: ${parkingAlternative.parkingZone.parkingZoneId},${parkingAlternative.parkingZone.geoId},${parkingAlternative.parkingZone.parkingType}," +
+        s"${parkingAlternative.parkingZone.chargingPointType.getOrElse("NoCharger")},${parkingAlternative.parkingZone.pricingModel.get}," +
+        s"${parkingAlternative.parkingZone.reservedFor},${parkingAlternative.parkingZone.stallsAvailable},${parkingAlternative.parkingZone.maxStalls},${v.id},${inquiry.parkingDuration}," +
+        s"${inquiry.activityType},${inquiry.valueOfTime},${parkingAlternative.costInDollars},${params(ParkingMNL.Parameters.RangeAnxietyCost)}," +
+        s"${params(ParkingMNL.Parameters.WalkingEgressCost)},${params(ParkingMNL.Parameters.ParkingTicketCost)},${params(ParkingMNL.Parameters.HomeActivityPrefersResidentialParking)}"
+      )
+    }
 
     params
   }
