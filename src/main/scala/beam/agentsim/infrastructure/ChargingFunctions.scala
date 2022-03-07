@@ -183,7 +183,7 @@ class ChargingFunctions[GEO: GeoLevel](
     parkingZoneSearchResult: Option[ParkingZoneSearchResult[GEO]]
   ): Option[ParkingZoneSearchResult[GEO]] = {
     parkingZoneSearchResult match {
-      case Some(result) =>
+      case Some(result) if inquiry.beamVehicle.isDefined =>
         result.parkingZonesSampled.foreach { case (parkingZoneId, chargingPointTypeMaybe, parkingType, costInDollars) =>
           logger.info(
             s"SAMPLED: ${inquiry.requestId},${parkingZoneId},${chargingPointTypeMaybe

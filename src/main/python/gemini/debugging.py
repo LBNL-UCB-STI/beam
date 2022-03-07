@@ -1,12 +1,12 @@
 import helper
 import os
 
-mnl_lines = ["mnlStatus,parkingZoneId,chargingPointType,parkingType,costInDollars\n"]
+mnl_lines = ["mnlStatus,requestId,parkingZoneId,chargingPointType,parkingType,costInDollars\n"]
 mnl_search_lines = ["parkingZoneId,geoId,parkingType,chargingPointType,pricingModel,reservedFor,stallsAvailable,"
-                    "maxStalls,vehicleId,parkingDuration,activityType,valueOfTime,isEV,rideHailFastChargingOnly,"
+                    "maxStalls,vehicleId,parkingDuration,activityType,valueOfTime,requestId,isEV,rideHailFastChargingOnly,"
                     "validChargingCapability,hasAvailability,validParkingType,isValidTime,isValidVehicleManager\n"]
 mnl_param_lines = ["parkingZoneId,geoId,parkingType,chargingPointType,pricingModel,reservedFor,stallsAvailable,"
-                   "maxStalls,vehicleId,parkingDuration,activityType,valueOfTime,costInDollars,RangeAnxietyCost,"
+                   "maxStalls,vehicleId,parkingDuration,activityType,valueOfTime,requestId,costInDollars,RangeAnxietyCost,"
                    "WalkingEgressCost,ParkingTicketCost,HomeActivityPrefersResidentialParking\n"]
 output_log_file = os.path.expanduser('~/Data/GEMINI/2022Mars-Calibration/beamLog.out.txt')
 with open(output_log_file) as infile:
