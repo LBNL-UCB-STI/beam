@@ -178,7 +178,7 @@ object ParkingZoneSearch {
 
               // wrap "original" ParkingZones in a ParkingAlternative
               // as the aggregated ParkingZones serve as higher level of abstraction to speed up the search
-              val Some((originalZone, stallLocation, distance)) = params
+              val Some((originalZone, stallLocation, _)) = params
                 .aggregatedToAllZones(parkingZone.parkingZoneId)
                 .foldLeft[Option[(ParkingZone[GEO], Location, Double)]](None) { case (acc, z) =>
                   val stallLocation: Coord = parkingZoneLocSamplingFunction(parkingZone)

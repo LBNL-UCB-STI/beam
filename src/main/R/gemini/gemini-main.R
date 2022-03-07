@@ -206,19 +206,7 @@ p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadTy
   facet_wrap(~factor(name,scenarioNames),ncol = 2)
 ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
 
-## **************************************
-##  public charging by scenario
-p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
-  ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
-  theme_marain() +
-  geom_area(colour="black", size=0.3) +
-  scale_fill_manual(values = chargingTypes.colors, name = "") +
-  labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
-  theme(strip.text = element_text(size=rel(1.2))) +
-  facet_wrap(~factor(name,scenarioNames),ncol = 2)
-ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
 
-all.loads[name%in%scenarioNames,.(fuel=sum(fuel)),by=.(name)]
 ## public  daily charging by scenario
 toplot <- join.on(all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','name')],all.loads[site=='public'&name%in%scenarioNames][,.(tot.kw=sum(kw)),by=c('name')],'name','name')
 p <- ggplot(toplot,aes(x=factor(name,scenarioNames),y=kw/tot.kw*100,fill=factor(loadType, levels = names(chargingTypes.colors))))+
