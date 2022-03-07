@@ -115,7 +115,17 @@ class ParkingFunctions[GEO: GeoLevel](
     parkingZoneSearchResult: Option[ParkingZoneSearchResult[GEO]]
   ): Option[ParkingZoneSearchResult[GEO]] = {
     val output = parkingZoneSearchResult match {
-      case Some(result) => result
+      case Some(result) =>
+        result.parkingZonesSampled.foreach { case (parkingZoneId, chargingPointTypeMaybe, parkingType, costInDollars) =>
+          logger.info(
+            s"SAMPLED: ${parkingZoneId},${chargingPointTypeMaybe.getOrElse("NoCharger")},${parkingType},${costInDollars}"
+          )
+        }
+        logger.info(
+          s"CHOSEN: ${result.parkingStall.parkingZoneId},${result.parkingStall.chargingPointType
+            .getOrElse("NoCharger")},${result.parkingStall.parkingType},${result.parkingStall.costInDollars}"
+        )
+        result
       case _ =>
         inquiry.parkingActivityType match {
           case ParkingActivityType.Init | ParkingActivityType.Home =>
