@@ -103,7 +103,7 @@ class ChargingFunctions[GEO: GeoLevel](
       logger.info(
         s"SEARCH: ${zone.parkingZoneId},${zone.geoId},${zone.parkingType},${zone.chargingPointType.getOrElse("NoCharger")}," +
         s"${zone.pricingModel.get},${zone.reservedFor},${zone.stallsAvailable},${zone.maxStalls},${v.id},${inquiry.parkingDuration}," +
-        s"${inquiry.activityType},${inquiry.valueOfTime},${isEV},${rideHailFastChargingOnly},${validChargingCapability}," +
+        s"${inquiry.activityType},${inquiry.valueOfTime},${inquiry.requestId},${isEV},${rideHailFastChargingOnly},${validChargingCapability}," +
         s"${hasAvailability},${validParkingType},${isValidTime},${isValidVehicleManager}"
       )
     }
@@ -166,7 +166,7 @@ class ChargingFunctions[GEO: GeoLevel](
         s"PARAM: ${parkingAlternative.parkingZone.parkingZoneId},${parkingAlternative.parkingZone.geoId},${parkingAlternative.parkingZone.parkingType}," +
         s"${parkingAlternative.parkingZone.chargingPointType.getOrElse("NoCharger")},${parkingAlternative.parkingZone.pricingModel.get}," +
         s"${parkingAlternative.parkingZone.reservedFor},${parkingAlternative.parkingZone.stallsAvailable},${parkingAlternative.parkingZone.maxStalls},${v.id},${inquiry.parkingDuration}," +
-        s"${inquiry.activityType},${inquiry.valueOfTime},${parkingAlternative.costInDollars},${params(ParkingMNL.Parameters.RangeAnxietyCost)}," +
+        s"${inquiry.activityType},${inquiry.valueOfTime},${inquiry.requestId},${parkingAlternative.costInDollars},${params(ParkingMNL.Parameters.RangeAnxietyCost)}," +
         s"${params(ParkingMNL.Parameters.WalkingEgressCost)},${params(ParkingMNL.Parameters.ParkingTicketCost)},${params(ParkingMNL.Parameters.HomeActivityPrefersResidentialParking)}"
       )
     }
@@ -186,11 +186,12 @@ class ChargingFunctions[GEO: GeoLevel](
       case Some(result) =>
         result.parkingZonesSampled.foreach { case (parkingZoneId, chargingPointTypeMaybe, parkingType, costInDollars) =>
           logger.info(
-            s"SAMPLED: ${parkingZoneId},${chargingPointTypeMaybe.getOrElse("NoCharger")},${parkingType},${costInDollars}"
+            s"SAMPLED: ${inquiry.requestId},${parkingZoneId},${chargingPointTypeMaybe
+              .getOrElse("NoCharger")},${parkingType},${costInDollars}"
           )
         }
         logger.info(
-          s"CHOSEN: ${result.parkingStall.parkingZoneId},${result.parkingStall.chargingPointType
+          s"CHOSEN: ${inquiry.requestId},${result.parkingStall.parkingZoneId},${result.parkingStall.chargingPointType
             .getOrElse("NoCharger")},${result.parkingStall.parkingType},${result.parkingStall.costInDollars}"
         )
       case _ =>
