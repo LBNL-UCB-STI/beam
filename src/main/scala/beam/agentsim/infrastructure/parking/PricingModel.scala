@@ -71,7 +71,7 @@ object PricingModel {
     pricingModel match {
       case FlatFee(costInDollars) => costInDollars
       case Block(costInDollars, intervalSeconds) =>
-        (math.max(0.0, parkingDurationInSeconds.toDouble) / intervalSeconds.toDouble) * costInDollars
+        (math.max(60.0, parkingDurationInSeconds.toDouble) / intervalSeconds.toDouble) * costInDollars
     }
   }
 

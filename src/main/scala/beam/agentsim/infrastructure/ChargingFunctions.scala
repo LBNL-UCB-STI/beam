@@ -41,7 +41,7 @@ class ChargingFunctions[GEO: GeoLevel](
     * @return
     */
   def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
-    inquiry.reservedFor match {
+    inquiry.reservedFor.managerType match {
       case VehicleManager.TypeEnum.RideHail if inquiry.parkingDuration <= 3600 =>
         ChargingPointType.isFastCharger(zone.chargingPointType.get)
       case _ =>
@@ -105,7 +105,7 @@ class ChargingFunctions[GEO: GeoLevel](
 
     // end-of-day parking durations are set to zero, which will be mis-interpreted here
     val parkingDuration: Option[Int] =
-      if (inquiry.parkingDuration <= 0) None
+      if (inquiry.parkingDuration < 60) Some(60) // at least a minute of charging
       else Some(inquiry.parkingDuration.toInt)
 
     val addedEnergy: Double =
