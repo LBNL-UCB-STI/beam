@@ -205,9 +205,9 @@ class ParkingFunctions[GEO: GeoLevel](
   protected def getPreferredParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
     // a lookup for valid parking types based on this inquiry
     inquiry.parkingActivityType match {
-      case ParkingActivityType.Home   => Set(ParkingType.Residential, ParkingType.Public)
+      case ParkingActivityType.Home   => Set(ParkingType.Residential)
       case ParkingActivityType.Init   => Set(ParkingType.Residential, ParkingType.Public)
-      case ParkingActivityType.Work   => Set(ParkingType.Workplace, ParkingType.Public)
+      case ParkingActivityType.Work   => Set(ParkingType.Workplace)
       case ParkingActivityType.Charge => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
       case _                          => Set(ParkingType.Public)
     }
