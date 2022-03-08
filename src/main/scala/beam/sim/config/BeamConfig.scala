@@ -713,6 +713,7 @@ object BeamConfig {
         }
 
         case class Parking(
+          estimatedMinParkingDuration: scala.Double,
           maxSearchRadius: scala.Double,
           minSearchRadius: scala.Double,
           mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
@@ -770,6 +771,9 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking = {
             BeamConfig.Beam.Agentsim.Agents.Parking(
+              estimatedMinParkingDuration =
+                if (c.hasPathOrNull("estimatedMinParkingDuration")) c.getDouble("estimatedMinParkingDuration")
+                else 60.0,
               maxSearchRadius = if (c.hasPathOrNull("maxSearchRadius")) c.getDouble("maxSearchRadius") else 8046.72,
               minSearchRadius = if (c.hasPathOrNull("minSearchRadius")) c.getDouble("minSearchRadius") else 250.00,
               mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit(

@@ -18,7 +18,7 @@ class PricingModelSpec extends AnyWordSpec with Matchers {
         PricingModel("flatfee", inputCost.toString) match {
           case Some(PricingModel.FlatFee(cost)) =>
             cost should equal(inputCost)
-            PricingModel.evaluateParkingTicket(PricingModel.FlatFee(cost), duration) should equal(
+            PricingModel.evaluateParkingTicket(PricingModel.FlatFee(cost), duration, 0.0) should equal(
               inputCost
             )
           case _ => fail()
@@ -31,7 +31,7 @@ class PricingModelSpec extends AnyWordSpec with Matchers {
           case Some(PricingModel.Block(cost, intervalInSeconds)) =>
             cost should equal(100)
             intervalInSeconds should equal(PricingModel.DefaultPricingInterval)
-            PricingModel.evaluateParkingTicket(PricingModel.Block(cost, intervalInSeconds), duration) should equal(
+            PricingModel.evaluateParkingTicket(PricingModel.Block(cost, intervalInSeconds), duration, 0.0) should equal(
               inputCost * 2
             )
           case _ => fail()
@@ -54,7 +54,8 @@ class PricingModelSpec extends AnyWordSpec with Matchers {
                 inputCost.toDouble * (parkingDuration.toDouble / blockIntervalInSeconds.toDouble)
               PricingModel.evaluateParkingTicket(
                 PricingModel.Block(cost, intervalInSeconds),
-                parkingDuration
+                parkingDuration,
+                0.0
               ) should equal(
                 expectedTicketPrice
               )

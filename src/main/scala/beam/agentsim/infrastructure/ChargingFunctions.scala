@@ -30,7 +30,8 @@ class ChargingFunctions[GEO: GeoLevel](
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
   skims: Option[Skims],
-  fuelPrice: Map[FuelType, Double]
+  fuelPrice: Map[FuelType, Double],
+  estimatedMinParkingDuration: Double
 ) extends ParkingFunctions[GEO](
       geoQuadTree,
       idToGeoMapping,
@@ -43,7 +44,8 @@ class ChargingFunctions[GEO: GeoLevel](
       enrouteDuration,
       boundingBox,
       seed,
-      mnlParkingConfig
+      mnlParkingConfig,
+      estimatedMinParkingDuration
     ) {
 
   /**
