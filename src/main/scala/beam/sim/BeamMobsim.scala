@@ -192,6 +192,11 @@ class BeamMobsim @Inject() (
       }
     }
 
+    val personsTotal = households.getHouseholds.values.asScala.map(_.getMemberIds.asScala.count(_ => true)).toSeq.sum
+    val progressReportIncrement = Math.max(2 * (personsTotal / 100), 1)
+    var personsProcessed: Int = 0
+    var nextProgressReport: Int = progressReportIncrement
+
     households.getHouseholds.values.asScala.par.foreach { household =>
       val vehicles = household.getVehicleIds.asScala
         .flatten(vehicleId => beamScenario.privateVehicles.get(vehicleId.asInstanceOf[Id[BeamVehicle]]))
@@ -220,12 +225,6 @@ class BeamMobsim @Inject() (
         }
 
       val modesAvailable: Set[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
-
-      val personsTotal = persons.length
-      val progressReportIncrement = Math.max(2 * (personsTotal / 100), 1)
-      var personsProcessed: Int = 0
-      var nextProgressReport: Int = progressReportIncrement
-
       persons.par.foreach { person =>
         if (matsimServices.getIterationNumber.intValue() == 0) {
           val addSupplementaryTrips = new AddSupplementaryTrips(beamScenario.beamConfig)
@@ -261,11 +260,11 @@ class BeamMobsim @Inject() (
           }
         }
 
-        synchronized {
+        this.synchronized {
           personsProcessed += 1
 
           if (personsProcessed >= nextProgressReport) {
-            val currentProgress = (100.0 * personsProcessed) / personsTotal
+            val currentProgress = ((100.0 * personsProcessed) / personsTotal).toString
             logger.info(s"Filling in secondary trips in plans: $currentProgress% completed.")
             nextProgressReport += progressReportIncrement
           }
