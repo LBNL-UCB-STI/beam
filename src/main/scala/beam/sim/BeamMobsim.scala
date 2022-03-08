@@ -223,7 +223,7 @@ class BeamMobsim @Inject() (
 
       val personsTotal = persons.length
       var personsProcessed: Int = 0
-      var nextProgressReport: Int = Math.min(personsTotal / 100, 1)
+      var nextProgressReport: Int = Math.max(personsTotal / 100, 1)
 
       persons.par.foreach { person =>
         if (matsimServices.getIterationNumber.intValue() == 0) {
@@ -261,16 +261,15 @@ class BeamMobsim @Inject() (
         }
 
         synchronized {
-          personsProcessed += 1
           if (personsProcessed >= nextProgressReport) {
-            logger.info(s"Filling in secondary trips in plans (${personsProcessed / personsTotal * 100.0}% completed)")
+            val currentProgress = (100.0 * personsProcessed) / personsTotal
+            println(s"Filling in secondary trips in plans: $currentProgress% completed.")
             nextProgressReport = nextProgressReport * 2
           }
         }
       }
-
     }
-    logger.info("Done filling in secondary trips in plans")
+    logger.info("Done filling in secondary trips in plans.")
 
 //    def writeDebugCSV(): File = {
 //      val outputFile = beamServices.matsimServices.getControlerIO.getOutputFilename(
