@@ -7,10 +7,10 @@ import beam.sim.config.BeamConfig
 import beam.utils.BeamVehicleUtils.readBeamVehicleTypeFile
 import com.conveyal.r5.transit.RouteInfo
 import com.typesafe.config.ConfigValueFactory
-import org.scalatestplus.mockito.MockitoSugar
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
-class TransitVehicleInitializerSpec extends WordSpecLike with Matchers with MockitoSugar with IntegrationSpecCommon {
+class TransitVehicleInitializerSpec extends AnyWordSpecLike with Matchers with IntegrationSpecCommon {
   "getVehicleType" should {
     val transitInitializer: TransitVehicleInitializer = init
 

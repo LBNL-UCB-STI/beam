@@ -14,9 +14,11 @@ import com.google.inject
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.must.Matchers
 
-class BeamIncentiveSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
+class BeamIncentiveSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
 
   private var injector: inject.Injector = _
 
@@ -30,11 +32,11 @@ class BeamIncentiveSpec extends WordSpecLike with Matchers with BeamHelper with 
   "BeamVille with a lot of ride_hail incentives" must {
     "choose ride_hail more times than without/less incentives" in {
       val lastIteration = 0
-      val avgChoicesWithoutRideHailIncentive =
+      val numChoicesWithoutRideHailIncentive =
         runSimulationAndCalculateAverageOfRideHailChoices(lastIteration, "incentives.csv")
-      val avgChoicesWithRideHailIncentives =
+      val numChoicesWithRideHailIncentives =
         runSimulationAndCalculateAverageOfRideHailChoices(lastIteration, "incentives-ride_hail.csv")
-      assert(avgChoicesWithoutRideHailIncentive <= avgChoicesWithRideHailIncentives)
+      assert(numChoicesWithoutRideHailIncentive < numChoicesWithRideHailIncentives)
     }
   }
 
@@ -44,10 +46,14 @@ class BeamIncentiveSpec extends WordSpecLike with Matchers with BeamHelper with 
   ): Double = {
     val beamVilleFolder = "test/input/beamville/"
     val config = ConfigFactory
-      .parseString(s"""
+      .parseString(
+        s"""
+            |beam.actorSystemName = "BeamIncentiveSpec"
+            |beam.outputs.collectAndCreateBeamAnalysisAndGraphs=true
                       |beam.agentsim.lastIteration = $iterationNumber
-                      |beam.agentsim.agents.modeIncentive.filePath = "$beamVilleFolder$incentivesFile"
-                   """.stripMargin)
+            |beam.agentsim.agents.modeIncentive.filePath = "$beamVilleFolder$incentivesFile"
+         """.stripMargin
+      )
       .withFallback(testConfig(s"${beamVilleFolder}beam.conf"))
       .resolve()
 
@@ -63,14 +69,14 @@ class BeamIncentiveSpec extends WordSpecLike with Matchers with BeamHelper with 
     scenario.setNetwork(beamScenario.network)
 
     injector = buildInjector(config, beamConfig, scenario, beamScenario)
-    val services = buildBeamServices(injector, scenario)
+    val services = buildBeamServices(injector)
     DefaultPopulationAdjustment(services).update(scenario)
 
     val controller = services.controler
     controller.run()
 
     val fileName = extractFileName(outputDir, iterationNumber)
-    BeamIncentiveSpec.avgRideHailModeFromCsv(fileName)
+    BeamIncentiveSpec.numRideHailModeFromCsv(fileName)
   }
 
   private def extractFileName(
@@ -90,7 +96,7 @@ class BeamIncentiveSpec extends WordSpecLike with Matchers with BeamHelper with 
 
 object BeamIncentiveSpec {
 
-  def avgRideHailModeFromCsv(filePath: String): Double = {
+  def numRideHailModeFromCsv(filePath: String): Double = {
     val carLine = FileUtils.using(Source.fromFile(filePath)) { source =>
       source.getLines().find(isRideHail)
     }
@@ -101,12 +107,9 @@ object BeamIncentiveSpec {
       .tail
       .map(_.toDouble)
 
-    val relevantTimes = allHourAvg.filterNot(_ == 0D)
-    relevantTimes.sum / relevantTimes.length
+    allHourAvg.sum
   }
 
-  def isRideHail(value: String): Boolean = rideHailValues.exists(value.startsWith)
-
-  private val rideHailValues = Set(BeamMode.RIDE_HAIL.value, BeamMode.RIDE_HAIL_POOLED.value)
+  def isRideHail(value: String): Boolean = value.startsWith(BeamMode.RIDE_HAIL.value + ",")
 
 }

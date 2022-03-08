@@ -7,7 +7,7 @@ import scala.collection.mutable
 object MutablePopulationFilter {
 
   def apply(
-    populationSampling: Seq[PopulationSample] = Seq.empty[PopulationSample],
+    populationSampling: Seq[PopulationSample] = Seq.empty[PopulationSample]
   ): MutablePopulationFilter = {
 
     val selectNewPersonById: String => Boolean =
@@ -86,11 +86,10 @@ case class MutablePopulationFilter(selectNewPersonById: String => Boolean) exten
       }
 
       if (persons.nonEmpty) {
-        persons.foreach(
-          p =>
-            personsTripsMap.get(p) match {
-              case Some(trip) => trip.trip += pte
-              case None       => personsTripsMap(p) = PersonTrip(p, pte)
+        persons.foreach(p =>
+          personsTripsMap.get(p) match {
+            case Some(trip) => trip.trip += pte
+            case None       => personsTripsMap(p) = PersonTrip(p, pte)
           }
         )
 

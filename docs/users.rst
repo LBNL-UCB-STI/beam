@@ -212,6 +212,41 @@ Steps to add a new configuration :
 
 To add a configuration for a different scenario , follow the above steps and change the folder path to point to the required scenario in program arguments
 
+BEAM in Docker image
+^^^^^^^^^^^^^^^^^^^^
+
+**Building new BEAM image from any branch**
+
+There is a gradle commands to build new BEAM Docker image. This command will build a docker image and tag it with the `version` taken from build.gradle file.::
+
+    ./gradlew buildImage
+
+**Running the docker image with BEAM**
+
+To run the docker image with BEAM one needs to provide input folder with all input information (config, map, plans, etc.) and point to the output folder.
+
+For example here is a shell script which might be used to run the docker image. One needs to replace 'tag', input and output folder name::
+
+    #!/bin/bash
+
+    config=$1
+    beam_image="beammodel/beam:0.8.6"
+    input_folder_name="test"
+    output_folder_name="beam_output"
+    mkdir -m 777 $output_folder_name 2>/dev/null
+
+    max_ram='10g'
+    java_opts="-Xmx$max_ram -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"
+
+    docker run \
+      --network host \
+      --env JAVA_OPTS="$java_opts" \
+      --mount source="$(pwd)/$input_folder_name",destination=/app/$input_folder_name,type=bind \
+      --mount source="$(pwd)/$output_folder_name",destination=/app/output,type=bind \
+      $beam_image --config=$config
+
+
+
 Scenarios
 ^^^^^^^^^
 We have provided two scenarios for you to explore under the `test/input` directory.

@@ -1,7 +1,9 @@
 package beam.analysis
+
 import java.util.concurrent.TimeUnit
 
 import beam.analysis.plots.{GraphAnalysis, GraphUtils, GraphsStatsAgentSimEventsListener}
+import beam.utils.csv.CsvWriter
 import beam.utils.logging.ExponentialLazyLogging
 import org.jfree.chart.ChartFactory
 import org.jfree.chart.plot.PlotOrientation
@@ -19,6 +21,7 @@ class ActivityTypeAnalysis(maxTime: Int) extends GraphAnalysis with ExponentialL
 
   private val hourlyActivityType = mutable.Map[String, ActivityTime]()
   private val hourlyActivityCount = mutable.TreeMap[Int, mutable.Map[String, Int]]()
+  private val iterationActivitiesCount = mutable.ListBuffer[List[Int]]()
 
   override def processStats(event: Event): Unit = {
     val hourOfEvent = (event.getTime / 3600).toInt
@@ -51,6 +54,14 @@ class ActivityTypeAnalysis(maxTime: Int) extends GraphAnalysis with ExponentialL
     val outputDirectoryHiearchy = event.getServices.getControlerIO
 
     val activityDataset = createActivityDataset()
+    val iterationActivityCsvFile =
+      outputDirectoryHiearchy.getIterationFilename(event.getIteration, s"$activityTypeFileBaseName.csv")
+    writeIterationActivityCSV(iterationActivityCsvFile)
+
+    val rootActivityCsvFile =
+      outputDirectoryHiearchy.getOutputFilename(s"$activityTypeFileBaseName.csv")
+    writeRootActivityCSV(rootActivityCsvFile, event.getIteration)
+
     val activityGraphImageFile =
       outputDirectoryHiearchy.getIterationFilename(event.getIteration, s"$activityTypeFileBaseName.png")
     createGraph(activityDataset, activityGraphImageFile, "Activity Type")
@@ -62,18 +73,43 @@ class ActivityTypeAnalysis(maxTime: Int) extends GraphAnalysis with ExponentialL
 
     val maxHour = TimeUnit.SECONDS.toHours(maxTime).toInt
 
-    hourlyActivityType.foreach({
-      case (_, ActivityTime(activity, hour)) => (hour to maxHour).foreach(updateActivityCount(_, activity))
+    hourlyActivityType.foreach({ case (_, ActivityTime(activity, hour)) =>
+      (hour to maxHour).foreach(updateActivityCount(_, activity))
     })
 
-    hourlyActivityCount.foreach({
-      case (hour, activityTypeCount) =>
-        activityTypeCount.foreach({
-          case (activityType, count) =>
-            dataset.addValue(count, activityType, hour)
-        })
+    hourlyActivityCount.foreach({ case (hour, activityTypeCount) =>
+      activityTypeCount.foreach({ case (activityType, count) =>
+        dataset.addValue(count, activityType, hour)
+      })
     })
     dataset
+  }
+
+  private def writeRootActivityCSV(csvFilePath: String, iteration: Int): Unit = {
+    val activities = hourlyActivityCount.values.flatMap(_.keys).toSet
+    iterationActivitiesCount.append(
+      activities.toList.map(activity => hourlyActivityCount.values.map(_.getOrElse(activity, 0)).sum)
+    )
+    val rootCsvWriter = new CsvWriter(csvFilePath, Vector("Iteration", activities.mkString(",")))
+    (0 to iteration).foreach { currentIteration =>
+      rootCsvWriter.writeRow(IndexedSeq(currentIteration, iterationActivitiesCount(currentIteration).mkString(",")))
+    }
+    rootCsvWriter.close()
+  }
+
+  private def writeIterationActivityCSV(csvFilePath: String): Unit = {
+
+    val activities = hourlyActivityCount.values.flatMap(_.keys).toList.distinct
+    val csvWriter =
+      new CsvWriter(csvFilePath, Vector("Hour", activities.mkString(",")))
+
+    hourlyActivityCount.groupBy {
+      case (hour, activityTypeCount) => {
+        val activitiesCount = activities.map(activityTypeCount.getOrElse(_, 0)).mkString(",")
+        csvWriter.write(hour, activitiesCount)
+      }
+    }
+    csvWriter.close()
   }
 
   private def createGraph(dataSet: CategoryDataset, graphImageFile: String, title: String): Unit = {

@@ -33,18 +33,6 @@ class PointProcessEvent(
 
   override def getPersonId: Id[Person] = id
 
-  def createStarBurst(time: Double, location: Coord, intensity: Double): Json = {
-
-    val jsonBuilder: Map[String, Json] = Map(
-      "typ"       -> Json.fromString(EVENT_TYPE),
-      "kind"      -> Json.fromString(PointProcessType.Choice.name),
-      "startTime" -> Json.fromLong(time.toLong),
-      "shp"       -> location.asJson,
-      "attrib"    -> Json.fromJsonObject(JsonObject.fromMap(Map("val" -> intensity.asJson)))
-    )
-    Json.fromJsonObject(JsonObject.fromMap(jsonBuilder))
-  }
-
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
     attr.put(ATTRIBUTE_AGENT_ID, id.toString)
@@ -72,6 +60,17 @@ object PointProcessEvent {
     val values: immutable.IndexedSeq[PointProcessType] = findValues
     case object Choice extends PointProcessType("CHOICE")
 
+  }
+
+  private def createStarBurst(newTime: Double, newLocation: Coord, newIntensity: Double): Json = {
+    val jsonBuilder: Map[String, Json] = Map(
+      "typ"       -> Json.fromString(EVENT_TYPE),
+      "kind"      -> Json.fromString(PointProcessType.Choice.name),
+      "startTime" -> Json.fromLong(newTime.toLong),
+      "shp"       -> newLocation.asJson,
+      "attrib"    -> Json.fromJsonObject(JsonObject.fromMap(Map("val" -> newIntensity.asJson)))
+    )
+    Json.fromJsonObject(JsonObject.fromMap(jsonBuilder))
   }
 
 }

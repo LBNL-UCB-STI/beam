@@ -12,11 +12,14 @@ object DataExchange {
     householdId: String,
     rank: Int,
     age: Int,
+    excludedModes: String,
     isFemale: Boolean,
-    valueOfTime: Double
+    valueOfTime: Double,
+    industry: Option[String]
   )
 
   case class PlanElement(
+    tripId: String,
     personId: String,
     planElement: String,
     planElementIndex: Int,

@@ -1,4 +1,5 @@
 package beam.replanning
+
 import beam.agentsim.agents.PersonTestUtil
 import beam.router.Modes.BeamMode
 import beam.sim.BeamHelper
@@ -8,18 +9,21 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{FlatSpec, Matchers}
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import scala.collection.JavaConverters._
 import scala.util.Random
 
-class ModeIterationPlanCleanerSpec extends FlatSpec with Matchers with BeamHelper {
+class ModeIterationPlanCleanerSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
   private val random = Random.self
 
   "Running Scenario with non car modes clear" must "result only car modes" in {
     val config = ConfigFactory
       .parseString("""
+           |beam.actorSystemName = "ModeIterationPlanCleanerSpec"
            |beam.outputs.events.fileOutputFormats = xml
            |beam.physsim.skipPhysSim = true
            |beam.agentsim.lastIteration = 0
@@ -44,8 +48,8 @@ class ModeIterationPlanCleanerSpec extends FlatSpec with Matchers with BeamHelpe
       .values()
       .forEach { person =>
         {
-          person.getSelectedPlan.getPlanElements.asScala.collect {
-            case leg: Leg => setRandomMode(leg)
+          person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg =>
+            setRandomMode(leg)
           }
         }
       }

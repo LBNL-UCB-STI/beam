@@ -11,19 +11,26 @@ trait IntegrationSpecCommon {
 
   System.setProperty(ContextInitializer.CONFIG_FILE_PROPERTY, "logback-test.xml")
 
-  protected var totalIterations: Int = 1
+  protected val totalIterations: Int = 1
 
   private val configFileName = "test/input/beamville/beam.conf"
 
   private val configLocation = ConfigFactory.parseString("config=" + configFileName)
 
-  lazy val baseConfig: Config = testConfig(configFileName)
-    .resolve()
-    .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
-    .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(totalIterations - 1))
-    .withValue("beam.agentsim.lastIteration", ConfigValueFactory.fromAnyRef(totalIterations - 1))
-    .withFallback(configLocation)
-    .resolve
+  protected def extensionConfig: Config = ConfigFactory.empty
+
+  protected lazy val unResolvedBaseConfig: Config = {
+    extensionConfig
+      .withFallback(testConfig(configFileName))
+      .resolve()
+      .withValue("beam.outputs.collectAndCreateBeamAnalysisAndGraphs", ConfigValueFactory.fromAnyRef("true"))
+      .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
+      .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(totalIterations - 1))
+      .withValue("beam.agentsim.lastIteration", ConfigValueFactory.fromAnyRef(totalIterations - 1))
+      .withFallback(configLocation)
+      .resolve
+  }
+  protected lazy val baseConfig: Config = unResolvedBaseConfig.resolve
 
   def isOrdered[A](s: Seq[A])(cf: (A, A) => Boolean): Boolean = {
     val z1 = s.drop(1)

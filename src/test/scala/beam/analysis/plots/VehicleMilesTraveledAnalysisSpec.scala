@@ -3,7 +3,8 @@ package beam.analysis.plots
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.analysis.summary.VehicleMilesTraveledAnalysis
 import org.matsim.api.core.v01.Id
-import org.scalatest.Matchers
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import scala.collection.Set
 
@@ -20,10 +21,9 @@ class VehicleMilesTraveledAnalysisSpec extends GenericAnalysisSpec with Matchers
   "Vehicle miles traveled analyser " must {
 
     "calculate total vehicle traveled by vehicle type " ignore {
-      vehicleTypes.foreach(
-        t =>
-          withClue(s"vehicle type $t travels zero miles. ") {
-            summaryStats.get(s"motorizedVehicleMilesTraveled_$t") should not be 0
+      vehicleTypes.foreach(t =>
+        withClue(s"vehicle type $t travels zero miles. ") {
+          summaryStats.get(s"motorizedVehicleMilesTraveled_$t") should not be 0
         }
       )
     }

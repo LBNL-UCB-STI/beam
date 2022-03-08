@@ -1,31 +1,18 @@
 package beam.router.r5
 
-import java.time.temporal.ChronoUnit
-import java.time.ZonedDateTime
-import java.util
-import java.util.{Collections, Optional}
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.ThreadLocalRandom
-
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
-import scala.language.postfixOps
-import scala.util.Try
-
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.router.{Modes, RoutingWorker}
-import beam.router.Modes.BeamMode.WALK
+import beam.router.BeamRouter.{RoutingRequest, RoutingResponse, _}
+import beam.router.Modes.BeamMode._
+import beam.router.Modes.{mapLegMode, toR5StreetMode, BeamMode}
+import beam.router.RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
 import beam.router.gtfs.FareCalculator.{filterFaresOnTransfers, BeamFareSegment}
 import beam.router.model.BeamLeg.dummyLeg
 import beam.router.model.RoutingModel.TransitStopsInfo
-import beam.router.BeamRouter.{RoutingRequest, RoutingResponse, _}
-import beam.router.Modes.{mapLegMode, toR5StreetMode, BeamMode}
-import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip, RoutingModel}
-import beam.router.RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
+import beam.router.model._
+import beam.router.{Modes, Router, RoutingWorker}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
 import com.conveyal.r5.api.ProfileResponse
@@ -38,9 +25,21 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.vehicles.Vehicle
 
+import java.time.ZonedDateTime
+import java.time.temporal.ChronoUnit
+import java.util
+import java.util.{Collections, Optional}
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+import scala.language.postfixOps
+import scala.util.Try
+
 class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
     extends MetricsSupport
-    with StrictLogging {
+    with StrictLogging
+    with Router {
+
   private val maxDistanceForBikeMeters: Int =
     workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike
 
@@ -52,29 +51,36 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     ptFares,
     geo,
     dates,
-    networkHelper,
+    _,
     fareCalculator,
     tollCalculator
   ) = workerParams
 
-  private val maxFreeSpeed = networkHelper.allLinks.map(_.getFreespeed).max
+  private val linkRadiusMeters: Double =
+    beamConfig.beam.routing.r5.linkRadiusMeters
 
-  private val bikeLanesAdjustment = new BikeLanesAdjustment(beamConfig)
+  private val carWeightCalculator = new CarWeightCalculator(workerParams, travelTimeNoiseFraction)
+  private val bikeLanesAdjustment = BikeLanesAdjustment(beamConfig)
 
   def embodyWithCurrentTravelTime(
     leg: BeamLeg,
     vehicleId: Id[Vehicle],
     vehicleTypeId: Id[BeamVehicleType],
-    embodyRequestId: Int
+    embodyRequestId: Int,
+    triggerId: Long
   ): RoutingResponse = {
+    val s = System.currentTimeMillis()
+    val vehicleType = vehicleTypes(vehicleTypeId)
     val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
       leg.travelPath.linkIds,
       leg.startTime,
-      travelTimeByLinkCalculator(vehicleTypes(vehicleTypeId), shouldAddNoise = false),
+      travelTimeByLinkCalculator(vehicleType, shouldAddNoise = false),
       toR5StreetMode(leg.mode),
       transportNetwork.streetLayer
     )
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val startLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesAndDistances.linkIds.head)
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val endLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesAndDistances.linkIds.last)
     val duration = linksTimesAndDistances.travelTimes.tail.sum
     val updatedTravelPath = BeamPath(
@@ -91,8 +97,14 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     )
     val toll = tollCalculator.calcTollByLinkIds(updatedTravelPath)
     val updatedLeg = leg.copy(travelPath = updatedTravelPath, duration = updatedTravelPath.duration)
-    val drivingCost = DrivingCost.estimateDrivingCost(updatedLeg, vehicleTypes(vehicleTypeId), fuelTypePrices)
+    val drivingCost = DrivingCost.estimateDrivingCost(
+      updatedLeg.travelPath.distanceInM,
+      updatedLeg.duration,
+      vehicleType,
+      fuelTypePrices(vehicleType.primaryFuelType)
+    )
     val totalCost = drivingCost + (if (updatedLeg.mode == BeamMode.CAR) toll else 0)
+
     val response = RoutingResponse(
       Vector(
         EmbodiedBeamTrip(
@@ -105,12 +117,16 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               totalCost,
               unbecomeDriverOnCompletion = true
             )
-          )
+          ),
+          Some("R5")
         )
       ),
       embodyRequestId,
       None,
-      isEmbodyWithCurrentTravelTime = true
+      isEmbodyWithCurrentTravelTime = true,
+      System.currentTimeMillis() - s,
+      searchedModes = Set.empty,
+      triggerId
     )
     response
   }
@@ -141,8 +157,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         streetRouter.profileRequest = profileRequest
         streetRouter.streetMode = toR5StreetMode(mode)
         streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
-        if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
-          if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)) {
+        if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon, linkRadiusMeters)) {
+          if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon, linkRadiusMeters)) {
             latency("route-transit-time", Metrics.VerboseLevel) {
               streetRouter.route() // latency 1
             }
@@ -183,13 +199,13 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     result
   }
 
-  private def createProfileRequest = {
+  def createProfileRequest = {
     val profileRequest = new ProfileRequest()
     // Warning: carSpeed is not used for link traversal (rather, the OSM travel time model is used),
     // but for R5-internal bushwhacking from network to coordinate, AND ALSO for the A* remaining weight heuristic,
     // which means that this value must be an over(!)estimation, otherwise we will miss optimal routes,
     // particularly in the presence of tolls.
-    profileRequest.carSpeed = maxFreeSpeed.toFloat
+    profileRequest.carSpeed = carWeightCalculator.maxFreeSpeed.toFloat
     profileRequest.maxWalkTime = 30
     profileRequest.maxCarTime = 30
     profileRequest.maxBikeTime = 30
@@ -210,26 +226,35 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     profileRequest
   }
 
-  def calcRoute(request: RoutingRequest): RoutingResponse = {
-    //    log.debug(routingRequest.toString)
-
+  def calcRoute(
+    request: RoutingRequest,
+    buildDirectCarRoute: Boolean,
+    buildDirectWalkRoute: Boolean
+  ): RoutingResponse = {
+    val routeCalcStarted = System.currentTimeMillis()
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
     val isRouteForPerson = request.streetVehicles.exists(_.mode == WALK)
 
     def calcRouteToVehicle(vehicle: StreetVehicle): Option[EmbodiedBeamLeg] = {
-      val mainRouteFromVehicle = request.streetVehiclesUseIntermodalUse == Access && isRouteForPerson && vehicle.mode != WALK
+      val mainRouteFromVehicle =
+        request.streetVehiclesUseIntermodalUse == Access && isRouteForPerson && vehicle.mode != WALK
       if (mainRouteFromVehicle) {
         val body = request.streetVehicles.find(_.mode == WALK).get
-        if (geo.distUTMInMeters(vehicle.locationUTM.loc, request.originUTM) > beamConfig.beam.agentsim.thresholdForWalkingInMeters) {
-          val from = geo.snapToR5Edge(
+        if (
+          geo.distUTMInMeters(
+            vehicle.locationUTM.loc,
+            request.originUTM
+          ) > beamConfig.beam.agentsim.thresholdForWalkingInMeters
+        ) {
+          val fromWgs = geo.snapToR5Edge(
             transportNetwork.streetLayer,
             geo.utm2Wgs(request.originUTM),
-            10E3
+            linkRadiusMeters
           )
-          val to = geo.snapToR5Edge(
+          val toWgs = geo.snapToR5Edge(
             transportNetwork.streetLayer,
             geo.utm2Wgs(vehicle.locationUTM.loc),
-            10E3
+            linkRadiusMeters
           )
           val directMode = LegMode.WALK
           val accessMode = LegMode.WALK
@@ -238,8 +263,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             latency("walkToVehicleRoute-router-time", Metrics.RegularLevel) {
               getStreetPlanFromR5(
                 R5Request(
-                  from,
-                  to,
+                  fromWgs,
+                  toWgs,
                   request.departureTime,
                   directMode,
                   accessMode,
@@ -253,7 +278,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           if (profileResponse.options.isEmpty) {
             Some(
               EmbodiedBeamLeg(
-                createBushwackingBeamLeg(request.departureTime, from, to, geo),
+                createBushwackingBeamLeg(request.departureTime, request.originUTM, vehicle.locationUTM.loc, geo),
                 body.id,
                 body.vehicleTypeId,
                 asDriver = true,
@@ -295,30 +320,29 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         .round(geo.distUTMInMeters(request.originUTM, vehicle.locationUTM.loc) / 5.8)
         .intValue()
       val time = request.departureTime + estimateDurationToGetToVeh
-      val from = geo.snapToR5Edge(
+      val linkRadiusMeters = beamConfig.beam.routing.r5.linkRadiusMeters
+      val fromWgs = geo.snapToR5Edge(
         transportNetwork.streetLayer,
         geo.utm2Wgs(vehicle.locationUTM.loc),
-        10E3
+        linkRadiusMeters
       )
-      val to = geo.snapToR5Edge(
+      val toWgs = geo.snapToR5Edge(
         transportNetwork.streetLayer,
         geo.utm2Wgs(request.destinationUTM),
-        10E3
+        linkRadiusMeters
       )
-      val directMode = vehicle.mode.r5Mode.get.left.get
-      val accessMode = vehicle.mode.r5Mode.get.left.get
-      val egressMode = LegMode.WALK
+      val vehicleLegMode = vehicle.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf(""))
       val profileResponse =
         latency("vehicleOnEgressRoute-router-time", Metrics.RegularLevel) {
           getStreetPlanFromR5(
             R5Request(
-              from,
-              to,
+              fromWgs,
+              toWgs,
               time,
-              directMode,
-              accessMode,
+              directMode = vehicleLegMode,
+              accessMode = vehicleLegMode,
               withTransit = false,
-              egressMode,
+              egressMode = LegMode.WALK,
               request.timeValueOfMoney,
               vehicle.vehicleTypeId
             )
@@ -334,7 +358,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         )
       } else {
         EmbodiedBeamLeg(
-          createBushwackingBeamLeg(request.departureTime, from, to, geo),
+          createBushwackingBeamLeg(request.departureTime, vehicle.locationUTM.loc, request.destinationUTM, geo),
           vehicle.id,
           vehicle.vehicleTypeId,
           asDriver = true,
@@ -378,14 +402,15 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     val maybeWalkToVehicle: Map[StreetVehicle, Option[EmbodiedBeamLeg]] =
       accessVehicles.map(v => v -> calcRouteToVehicle(v)).toMap
 
+    @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val bestAccessVehiclesByR5Mode: Map[LegMode, StreetVehicle] = accessVehicles
-      .groupBy(_.mode.r5Mode.get.left.get)
+      .groupBy(_.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf("")))
       .mapValues(vehicles => vehicles.minBy(maybeWalkToVehicle(_).map(leg => leg.beamLeg.duration).getOrElse(0)))
 
     val egressVehicles = if (mainRouteRideHailTransit) {
       request.streetVehicles.filter(_.mode != WALK)
     } else if (request.withTransit) {
-      Vector(request.streetVehicles.find(_.mode == WALK).get)
+      request.possibleEgressVehicles :+ request.streetVehicles.find(_.mode == WALK).get
     } else {
       Vector()
     }
@@ -420,12 +445,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       val from = geo.snapToR5Edge(
         transportNetwork.streetLayer,
         geo.utm2Wgs(theOrigin),
-        10E3
+        linkRadiusMeters
       )
       val to = geo.snapToR5Edge(
         transportNetwork.streetLayer,
         geo.utm2Wgs(theDestination),
-        10E3
+        linkRadiusMeters
       )
       profileRequest.fromLon = from.getX
       profileRequest.fromLat = from.getY
@@ -433,13 +458,14 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       profileRequest.toLat = to.getY
       val walkToVehicleDuration = maybeWalkToVehicle(vehicle).map(leg => leg.beamLeg.duration).getOrElse(0)
       profileRequest.fromTime = request.departureTime + walkToVehicleDuration
-      profileRequest.toTime = profileRequest.fromTime + 61 // Important to allow 61 seconds for transit schedules to be considered!
+      profileRequest.toTime =
+        profileRequest.fromTime + 61 // Important to allow 61 seconds for transit schedules to be considered!
       val streetRouter = new StreetRouter(
         transportNetwork.streetLayer,
         travelTimeCalculator(
           vehicleTypes(vehicle.vehicleTypeId),
           profileRequest.fromTime,
-          shouldAddNoise = !profileRequest.hasTransit()
+          shouldAddNoise = !profileRequest.hasTransit
         ),
         turnCostCalculator,
         travelCostCalculator(request.timeValueOfMoney, profileRequest.fromTime)
@@ -449,12 +475,18 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       }
       streetRouter.profileRequest = profileRequest
       streetRouter.streetMode = toR5StreetMode(vehicle.mode)
-      if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
+      val legMode: LegMode = vehicle.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf(""))
+      val calcDirectRoute = legMode match {
+        case LegMode.WALK => buildDirectWalkRoute
+        case LegMode.CAR  => buildDirectCarRoute
+        case _            => true
+      }
+      if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon, linkRadiusMeters)) {
         if (profileRequest.hasTransit) {
           val destinationSplit = transportNetwork.streetLayer.findSplit(
             profileRequest.toLat,
             profileRequest.toLon,
-            StreetLayer.LINK_RADIUS_METERS,
+            linkRadiusMeters,
             streetRouter.streetMode
           )
           val stopVisitor = new StopVisitor(
@@ -465,20 +497,20 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             destinationSplit
           )
           streetRouter.setRoutingVisitor(stopVisitor)
-          streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(vehicle.mode.r5Mode.get.left.get)
+          streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(legMode)
           streetRouter.route()
-          accessRouters.put(vehicle.mode.r5Mode.get.left.get, streetRouter)
-          accessStopsByMode.put(vehicle.mode.r5Mode.get.left.get, stopVisitor)
-          if (!mainRouteRideHailTransit) {
+          accessRouters.put(legMode, streetRouter)
+          accessStopsByMode.put(legMode, stopVisitor)
+          if (calcDirectRoute && !mainRouteRideHailTransit) {
             // Not interested in direct options in the ride-hail-transit case,
             // only in the option where we actually use non-empty ride-hail for access and egress.
             // This is only for saving a computation, and only because the requests are structured like they are.
-            if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)) {
+            if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon, linkRadiusMeters)) {
               val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
               if (lastState != null) {
                 val streetPath = new StreetPath(lastState, transportNetwork, false)
                 val streetSegment =
-                  new StreetSegment(streetPath, vehicle.mode.r5Mode.get.left.get, transportNetwork.streetLayer)
+                  new StreetSegment(streetPath, legMode, transportNetwork.streetLayer)
                 directOption.addDirect(streetSegment, profileRequest.getFromTimeDateZD)
               } else if (profileRequest.streetTime * 60 > streetRouter.timeLimitSeconds) {
                 val streetRouter = new StreetRouter(
@@ -497,30 +529,33 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                 streetRouter.profileRequest = profileRequest
                 streetRouter.streetMode = toR5StreetMode(vehicle.mode)
                 streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
-                streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)
-                streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)
+                streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon, linkRadiusMeters)
+                streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon, linkRadiusMeters)
                 streetRouter.route()
                 val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
                 if (lastState != null) {
                   val streetPath = new StreetPath(lastState, transportNetwork, false)
                   val streetSegment =
-                    new StreetSegment(streetPath, vehicle.mode.r5Mode.get.left.get, transportNetwork.streetLayer)
+                    new StreetSegment(streetPath, legMode, transportNetwork.streetLayer)
                   directOption.addDirect(streetSegment, profileRequest.getFromTimeDateZD)
                 }
               }
             }
           }
-        } else if (!mainRouteRideHailTransit) {
+        } else if (calcDirectRoute && !mainRouteRideHailTransit) {
           streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
-          if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)) {
+          if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon, linkRadiusMeters)) {
             streetRouter.route()
             val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
             if (lastState != null) {
               val streetPath = new StreetPath(lastState, transportNetwork, false)
               val streetSegment =
-                new StreetSegment(streetPath, vehicle.mode.r5Mode.get.left.get, transportNetwork.streetLayer)
+                new StreetSegment(streetPath, legMode, transportNetwork.streetLayer)
               directOption.addDirect(streetSegment, profileRequest.getFromTimeDateZD)
             }
+          } else {
+            val coord_str = s"lat:${profileRequest.toLat}, lon:${profileRequest.toLon}"
+            logger.warn(s"Can't 'set destination' to coord $coord_str with streetRouter's maxDistance and mode.")
           }
         }
       }
@@ -541,7 +576,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         val to = geo.snapToR5Edge(
           transportNetwork.streetLayer,
           geo.utm2Wgs(theDestination),
-          10E3
+          linkRadiusMeters
         )
         profileRequest.toLon = to.getX
         profileRequest.toLat = to.getY
@@ -558,13 +593,14 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         if (vehicle.mode == BeamMode.BIKE) {
           streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
         }
+        val legMode = vehicle.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf(""))
         streetRouter.streetMode = toR5StreetMode(vehicle.mode)
         streetRouter.profileRequest = profileRequest
-        streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(vehicle.mode.r5Mode.get.left.get)
+        streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(legMode)
         val destinationSplit = transportNetwork.streetLayer.findSplit(
           profileRequest.fromLat,
           profileRequest.fromLon,
-          StreetLayer.LINK_RADIUS_METERS,
+          linkRadiusMeters,
           streetRouter.streetMode
         )
         val stopVisitor = new StopVisitor(
@@ -575,16 +611,17 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           destinationSplit
         )
         streetRouter.setRoutingVisitor(stopVisitor)
-        if (streetRouter.setOrigin(profileRequest.toLat, profileRequest.toLon)) {
+        if (streetRouter.setOrigin(profileRequest.toLat, profileRequest.toLon, linkRadiusMeters)) {
           streetRouter.route()
-          egressRouters.put(vehicle.mode.r5Mode.get.left.get, streetRouter)
-          egressStopsByMode.put(vehicle.mode.r5Mode.get.left.get, stopVisitor)
+          egressRouters.put(legMode, streetRouter)
+          egressStopsByMode.put(legMode, stopVisitor)
         }
       }
 
       val transitPaths = latency("getpath-transit-time", Metrics.VerboseLevel) {
         profileRequest.fromTime = request.departureTime
-        profileRequest.toTime = request.departureTime + 61 // Important to allow 61 seconds for transit schedules to be considered!
+        profileRequest.toTime =
+          request.departureTime + 61 // Important to allow 61 seconds for transit schedules to be considered!
         val router = new McRaptorSuboptimalPathProfileRouter(
           transportNetwork,
           profileRequest,
@@ -595,7 +632,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               profileRequest.inRoutingFareCalculator,
               Integer.MAX_VALUE,
               departureTime + profileRequest.maxTripDurationMinutes * 60
-          ),
+            ),
           null
         )
         Try(router.getPaths.asScala).getOrElse(Nil) // Catch IllegalStateException in R5.StatsCalculator
@@ -660,99 +697,101 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             val fareSegments = getFareSegments(segments.toVector)
             filterFaresOnTransfers(fareSegments)
           }
-          segments.foreach {
-            case (transitSegment, transitJourneyID) =>
-              val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
-              val tripPattern = profileResponse.getPatterns.asScala
-                .find { tp =>
-                  tp.getTripPatternIdx == segmentPattern.patternIdx
-                }
-                .getOrElse(throw new RuntimeException())
-              val tripId = segmentPattern.tripIds.get(transitJourneyID.time)
-              val route = transportNetwork.transitLayer.routes.get(tripPattern.getRouteIdx)
-              val fromStop = tripPattern.getStops.get(segmentPattern.fromIndex)
-              val toStop = tripPattern.getStops.get(segmentPattern.toIndex)
-              val startTime = dates
-                .toBaseMidnightSeconds(
-                  segmentPattern.fromDepartureTime.get(transitJourneyID.time),
-                  hasTransit = true
-                )
-                .toInt
-              val endTime = dates
-                .toBaseMidnightSeconds(
-                  segmentPattern.toArrivalTime.get(transitJourneyID.time),
-                  hasTransit = true
-                )
-                .toInt
-              val stopSequence =
-                tripPattern.getStops.asScala.toList.slice(segmentPattern.fromIndex, segmentPattern.toIndex + 1)
-              val segmentLeg = BeamLeg(
-                startTime,
-                Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type)),
-                java.time.temporal.ChronoUnit.SECONDS
-                  .between(
-                    segmentPattern.fromDepartureTime.get(transitJourneyID.time),
-                    segmentPattern.toArrivalTime.get(transitJourneyID.time)
-                  )
-                  .toInt,
-                BeamPath(
-                  Vector(),
-                  Vector(),
-                  Some(
-                    TransitStopsInfo(
-                      route.agency_id,
-                      tripPattern.getRouteId,
-                      Id.createVehicleId(tripId),
-                      segmentPattern.fromIndex,
-                      segmentPattern.toIndex
-                    )
-                  ),
-                  SpaceTime(fromStop.lon, fromStop.lat, startTime),
-                  SpaceTime(toStop.lon, toStop.lat, endTime),
-                  stopSequence.sliding(2).map(x => getDistanceBetweenStops(x.head, x.last)).sum
-                )
+          segments.foreach { case (transitSegment, transitJourneyID) =>
+            val segmentPattern = transitSegment.segmentPatterns.get(transitJourneyID.pattern)
+            val tripPattern = profileResponse.getPatterns.asScala
+              .find { tp =>
+                tp.getTripPatternIdx == segmentPattern.patternIdx
+              }
+              .getOrElse(throw new RuntimeException())
+            val tripId = segmentPattern.tripIds.get(transitJourneyID.time)
+            val route = transportNetwork.transitLayer.routes.get(tripPattern.getRouteIdx)
+            val fromStop = tripPattern.getStops.get(segmentPattern.fromIndex)
+            val toStop = tripPattern.getStops.get(segmentPattern.toIndex)
+            val startTime = dates
+              .toBaseMidnightSeconds(
+                segmentPattern.fromDepartureTime.get(transitJourneyID.time),
+                hasTransit = true
               )
-              embodiedBeamLegs += EmbodiedBeamLeg(
-                segmentLeg,
-                segmentLeg.travelPath.transitStops.get.vehicleId,
-                null,
-                asDriver = false,
-                ptFares
-                  .getPtFare(
-                    Some(segmentLeg.travelPath.transitStops.get.agencyId),
-                    Some(segmentLeg.travelPath.transitStops.get.routeId),
-                    request.attributesOfIndividual.flatMap(_.age)
+              .toInt
+            val endTime = dates
+              .toBaseMidnightSeconds(
+                segmentPattern.toArrivalTime.get(transitJourneyID.time),
+                hasTransit = true
+              )
+              .toInt
+            val stopSequence =
+              tripPattern.getStops.asScala.toList.slice(segmentPattern.fromIndex, segmentPattern.toIndex + 1)
+            val segmentLeg = BeamLeg(
+              startTime,
+              Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type)),
+              java.time.temporal.ChronoUnit.SECONDS
+                .between(
+                  segmentPattern.fromDepartureTime.get(transitJourneyID.time),
+                  segmentPattern.toArrivalTime.get(transitJourneyID.time)
+                )
+                .toInt,
+              BeamPath(
+                Vector(),
+                Vector(),
+                Some(
+                  TransitStopsInfo(
+                    route.agency_id,
+                    tripPattern.getRouteId,
+                    Id.createVehicleId(tripId),
+                    segmentPattern.fromIndex,
+                    segmentPattern.toIndex
                   )
-                  .getOrElse {
-                    val fs =
-                      fares.view
-                        .filter(_.patternIndex == segmentPattern.patternIdx)
-                        .map(_.fare.price)
-                    if (fs.nonEmpty) fs.min else 0.0
-                  },
+                ),
+                SpaceTime(fromStop.lon, fromStop.lat, startTime),
+                SpaceTime(toStop.lon, toStop.lat, endTime),
+                stopSequence.sliding(2).map(x => getDistanceBetweenStops(x.head, x.last)).sum
+              )
+            )
+            embodiedBeamLegs += EmbodiedBeamLeg(
+              segmentLeg,
+              segmentLeg.travelPath.transitStops.get.vehicleId,
+              null,
+              asDriver = false,
+              ptFares
+                .getPtFare(
+                  Some(segmentLeg.travelPath.transitStops.get.agencyId),
+                  Some(segmentLeg.travelPath.transitStops.get.routeId),
+                  request.attributesOfIndividual.flatMap(_.age)
+                )
+                .getOrElse {
+                  val fs =
+                    fares.view
+                      .filter(_.patternIndex == segmentPattern.patternIdx)
+                      .map(_.fare.price)
+                  if (fs.nonEmpty) fs.min else 0.0
+                },
+              unbecomeDriverOnCompletion = false
+            )
+            arrivalTime = dates
+              .toBaseMidnightSeconds(
+                segmentPattern.toArrivalTime.get(transitJourneyID.time),
+                hasTransit = true
+              )
+              .toInt
+            if (transitSegment.middle != null) {
+              val body = request.streetVehicles.find(_.mode == WALK).get
+              embodiedBeamLegs += buildStreetBasedLegs(
+                transitSegment.middle,
+                arrivalTime,
+                body,
                 unbecomeDriverOnCompletion = false
               )
-              arrivalTime = dates
-                .toBaseMidnightSeconds(
-                  segmentPattern.toArrivalTime.get(transitJourneyID.time),
-                  hasTransit = true
-                )
-                .toInt
-              if (transitSegment.middle != null) {
-                val body = request.streetVehicles.find(_.mode == WALK).get
-                embodiedBeamLegs += buildStreetBasedLegs(
-                  transitSegment.middle,
-                  arrivalTime,
-                  body,
-                  unbecomeDriverOnCompletion = false
-                )
-                arrivalTime = arrivalTime + transitSegment.middle.duration
-              }
+              arrivalTime = arrivalTime + transitSegment.middle.duration
+            }
           }
 
           if (itinerary.connection.egress != null) {
             val egress = option.egress.get(itinerary.connection.egress)
-            val vehicle = egressVehicles.find(v => v.mode.r5Mode.get.left.get == egress.mode).get
+            val vehicle =
+              egressVehicles
+                .find(v => v.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf("")) == egress.mode)
+                .get
             embodiedBeamLegs += buildStreetBasedLegs(
               egress,
               arrivalTime,
@@ -789,7 +828,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               unbecomeDriverOnCompletion = true
             )
           }
-          EmbodiedBeamTrip(embodiedBeamLegs)
+          EmbodiedBeamTrip(embodiedBeamLegs, Some("R5"))
         }
         .filter { trip: EmbodiedBeamTrip =>
           //TODO make a more sensible window not just 30 minutes
@@ -797,9 +836,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         }
     }
 
-    if (!embodiedTrips.exists(_.tripClassifier == WALK) && !mainRouteToVehicle) {
+    val modesWeSearched =
+      searchedModes(request, buildDirectCarRoute, buildDirectWalkRoute, isRouteForPerson, mainRouteRideHailTransit)
+
+    val routingResponse = if (!embodiedTrips.exists(_.tripClassifier == WALK) && !mainRouteToVehicle) {
       val maybeBody = accessVehicles.find(_.mode == WALK)
-      if (maybeBody.isDefined) {
+      if (buildDirectWalkRoute && maybeBody.isDefined) {
         val dummyTrip = RoutingWorker.createBushwackingTrip(
           new Coord(request.originUTM.getX, request.originUTM.getY),
           new Coord(request.destinationUTM.getX, request.destinationUTM.getY),
@@ -811,18 +853,64 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           embodiedTrips :+ dummyTrip,
           request.requestId,
           Some(request),
-          isEmbodyWithCurrentTravelTime = false
+          isEmbodyWithCurrentTravelTime = false,
+          System.currentTimeMillis() - routeCalcStarted,
+          modesWeSearched,
+          request.triggerId
         )
       } else {
         RoutingResponse(
           embodiedTrips,
           request.requestId,
           Some(request),
-          isEmbodyWithCurrentTravelTime = false
+          isEmbodyWithCurrentTravelTime = false,
+          System.currentTimeMillis() - routeCalcStarted,
+          modesWeSearched,
+          request.triggerId
         )
       }
     } else {
-      RoutingResponse(embodiedTrips, request.requestId, Some(request), isEmbodyWithCurrentTravelTime = false)
+      RoutingResponse(
+        embodiedTrips,
+        request.requestId,
+        Some(request),
+        isEmbodyWithCurrentTravelTime = false,
+        System.currentTimeMillis() - routeCalcStarted,
+        modesWeSearched,
+        request.triggerId
+      )
+    }
+
+    routingResponse
+  }
+
+  private def searchedModes(
+    request: RoutingRequest,
+    buildDirectCarRoute: Boolean,
+    buildDirectWalkRoute: Boolean,
+    isRouteForPerson: Boolean,
+    mainRouteRideHailTransit: Boolean
+  ): Set[BeamMode] = {
+    val searchedModes: Set[BeamMode] = if (mainRouteRideHailTransit) {
+      Set(RIDE_HAIL_TRANSIT)
+    } else if (!isRouteForPerson) {
+      Set(RIDE_HAIL)
+    } else {
+      val hasBike = request.streetVehicles.exists(_.mode == BIKE)
+      val hasCar = request.streetVehicles.exists(_.mode == CAR)
+      val modes: Set[BeamMode] = (hasBike, hasCar) match {
+        case (false, false) => Set(WALK)
+        case (true, false)  => Set(WALK, BIKE)
+        case (false, true)  => Set(WALK, CAR)
+        case (true, true)   => Set(WALK, BIKE, CAR)
+      }
+      if (request.withTransit) modes + TRANSIT else modes
+    }
+    (buildDirectWalkRoute, buildDirectCarRoute) match {
+      case (true, true)   => searchedModes
+      case (false, false) => searchedModes - WALK - CAR
+      case (false, true)  => searchedModes - WALK
+      case (true, false)  => searchedModes - CAR
     }
   }
 
@@ -843,28 +931,34 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     )
     val endCoord = new Coord(
       segment.geometry.getEndPoint.getX,
-      segment.geometry.getEndPoint.getY,
+      segment.geometry.getEndPoint.getY
     )
 
-    var activeLinkIds = ArrayBuffer[Int]()
+    val activeLinkIds = ArrayBuffer[Int]()
     for (edge: StreetEdgeInfo <- segment.streetEdges.asScala) {
       activeLinkIds += edge.edgeId.intValue()
     }
+
     val beamLeg: BeamLeg =
-      createBeamLeg(vehicle.vehicleTypeId, startPoint, endCoord, segment.mode, activeLinkIds)
+      createBeamLeg(vehicle.vehicleTypeId, startPoint, endCoord, segment.mode, activeLinkIds, Some(vehicle.mode))
     val toll = if (segment.mode == LegMode.CAR) {
       val osm = segment.streetEdges.asScala
-        .map(
-          e =>
-            transportNetwork.streetLayer.edgeStore
-              .getCursor(e.edgeId)
-              .getOSMID
+        .map(e =>
+          transportNetwork.streetLayer.edgeStore
+            .getCursor(e.edgeId)
+            .getOSMID
         )
         .toVector
       tollCalculator.calcTollByOsmIds(osm) + tollCalculator.calcTollByLinkIds(beamLeg.travelPath)
     } else 0.0
-    val drivingCost = if (segment.mode == LegMode.CAR) {
-      DrivingCost.estimateDrivingCost(beamLeg, vehicleTypes(vehicle.vehicleTypeId), fuelTypePrices)
+    val drivingCost = if (segment.mode == LegMode.CAR || vehicle.needsToCalculateCost) {
+      val vehicleType = vehicleTypes(vehicle.vehicleTypeId)
+      DrivingCost.estimateDrivingCost(
+        beamLeg.travelPath.distanceInM,
+        beamLeg.duration,
+        vehicleType,
+        fuelTypePrices(vehicleType.primaryFuelType)
+      )
     } else 0.0
     EmbodiedBeamLeg(
       beamLeg,
@@ -881,7 +975,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     startPoint: SpaceTime,
     endCoord: Coord,
     legMode: LegMode,
-    activeLinkIds: IndexedSeq[Int]
+    activeLinkIds: IndexedSeq[Int],
+    maybeVehicleMode: Option[BeamMode] = None
   ): BeamLeg = {
     val tripStartTime: Int = startPoint.time
     // During routing `travelTimeByLinkCalculator` is used with shouldAddNoise = true (if it is not transit)
@@ -893,7 +988,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       toR5StreetMode(legMode),
       transportNetwork.streetLayer
     )
-    val distance = linksTimesDistances.distances.tail.sum // note we exclude the first link to keep with MATSim convention
+    val distance =
+      linksTimesDistances.distances.tail.sum // note we exclude the first link to keep with MATSim convention
     val theTravelPath = BeamPath(
       linkIds = activeLinkIds,
       linkTravelTime = linksTimesDistances.travelTimes,
@@ -902,9 +998,15 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       endPoint = SpaceTime(endCoord, startPoint.time + math.round(linksTimesDistances.travelTimes.tail.sum.toFloat)),
       distanceInM = distance
     )
+
+    val newLegMode = maybeVehicleMode match {
+      case Some(vehicleMode @ CAR) => vehicleMode
+      case _                       => mapLegMode(legMode)
+    }
+
     val beamLeg = BeamLeg(
       tripStartTime,
-      mapLegMode(legMode),
+      newLegMode,
       theTravelPath.duration,
       travelPath = theTravelPath
     )
@@ -969,11 +1071,24 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       ChronoUnit.SECONDS
         .between(fromTime, pattern.toArrivalTime.get(transitJourneyID.time))
 
-    var fr = getFareSegments(agencyId, routeId, fromStopId, toStopId).map(
-      f => BeamFareSegment(f, pattern.patternIdx, duration)
+    calculateFr(pattern, routeId, agencyId, fromStopId, toStopId, duration)
+  }
+
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
+  private def calculateFr(
+    pattern: SegmentPattern,
+    routeId: String,
+    agencyId: String,
+    fromStopId: String,
+    toStopId: String,
+    duration: Long
+  ): IndexedSeq[BeamFareSegment] = {
+    var fr = getFareSegments(agencyId, routeId, fromStopId, toStopId).map(f =>
+      BeamFareSegment(f, pattern.patternIdx, duration)
     )
-    if (fr.nonEmpty && fr.forall(_.patternIndex == fr.head.patternIndex))
+    if (fr.nonEmpty && fr.forall(_.patternIndex == fr.head.patternIndex)) {
       fr = Vector(fr.minBy(_.fare.price))
+    }
     fr
   }
 
@@ -1004,20 +1119,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     shouldAddNoise: Boolean
   ): TravelTimeCalculator = {
     val ttc = travelTimeByLinkCalculator(vehicleType, shouldAddNoise, shouldApplyBicycleScaleFactor = true)
-    (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, _) =>
-      {
-        ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue()
-      }
-  }
-
-  private val travelTimeNoises: Array[Double] = if (travelTimeNoiseFraction == 0.0) {
-    Array.empty
-  } else {
-    Array.fill(1000000) {
-      ThreadLocalRandom.current().nextDouble(1 - travelTimeNoiseFraction, 1 + travelTimeNoiseFraction)
+    (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, _) => {
+      ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue().ceil
     }
   }
-  private val noiseIdx: AtomicInteger = new AtomicInteger(0)
 
   private def travelTimeByLinkCalculator(
     vehicleType: BeamVehicleType,
@@ -1025,33 +1130,19 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     shouldApplyBicycleScaleFactor: Boolean = false
   ): (Double, Int, StreetMode) => Double = {
     val profileRequest = createProfileRequest
-    (time: Double, linkId: Int, streetMode: StreetMode) =>
-      {
-        val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-        val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
-        val minTravelTime = (edge.getLengthM / maxSpeed).ceil.toInt
-        val minSpeed = beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond
-        val maxTravelTime = (edge.getLengthM / minSpeed).ceil.toInt
-        if (streetMode == StreetMode.CAR) {
-          val link = networkHelper.getLinkUnsafe(linkId)
-          assert(link != null)
-          val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null)
-          val physSimTravelTimeWithNoise =
-            (if (travelTimeNoiseFraction == 0.0 || !shouldAddNoise) {
-               physSimTravelTime
-             } else {
-               val idx = Math.abs(noiseIdx.getAndIncrement() % travelTimeNoises.length)
-               physSimTravelTime * travelTimeNoises(idx)
-             }).ceil.toInt
-          val linkTravelTime = Math.max(physSimTravelTimeWithNoise, minTravelTime)
-          Math.min(linkTravelTime, maxTravelTime)
-        } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
-          val scaleFactor = bikeLanesAdjustment.calculateBicycleScaleFactor(vehicleType, linkId)
-          minTravelTime * scaleFactor
-        } else {
-          minTravelTime
-        }
+    (time: Double, linkId: Int, streetMode: StreetMode) => {
+      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+      val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
+      val minTravelTime = edge.getLengthM / maxSpeed
+      if (streetMode == StreetMode.CAR) {
+        carWeightCalculator.calcTravelTime(linkId, travelTime, Some(vehicleType), time, shouldAddNoise)
+      } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
+        val scaleFactor = bikeLanesAdjustment.scaleFactor(vehicleType, linkId)
+        minTravelTime * scaleFactor
+      } else {
+        minTravelTime
       }
+    }
   }
 
   private val turnCostCalculator: TurnCostCalculator =

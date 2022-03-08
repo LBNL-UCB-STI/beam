@@ -1,12 +1,11 @@
 package beam.agentsim.agents.ridehail.repositioningmanager
 
 import beam.agentsim.agents.ridehail.RideHailManager
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.infrastructure.taz.H3TAZ
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
-import beam.router.skim.Skims
 import beam.sim.BeamServices
 import beam.utils.{ActivitySegment, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -45,6 +44,7 @@ class InverseSquareDistanceRepositioningFactor(
   val sensitivityToDistance: Double = 1 / ((1 - sensitivityOfRepositioningToDistance) * maxSensitivityToDistance + 1000)
   val sensitivityToDemand: Double = cfg.sensitivityOfRepositioningToDemand
   val predictionHorizonBin: Int = cfg.predictionHorizon / repositionTimeout
+
   private val activitySegment: ActivitySegment = {
     ProfilingUtils.timed(s"Build ActivitySegment with bin size $repositionTimeout", x => logger.info(x)) {
       ActivitySegment(rideHailManager.beamServices.matsimServices.getScenario, repositionTimeout)
@@ -52,16 +52,15 @@ class InverseSquareDistanceRepositioningFactor(
   }
 
   val timeBinToActivities: Map[Int, collection.Set[Activity]] =
-    Range(0, activitySegment.maxTime + repositionTimeout, repositionTimeout).zipWithIndex.map {
-      case (t, idx) =>
-        val activities = activitySegment.getActivities(t, t + repositionTimeout)
-        logger.debug(s"Time [$t, ${t + repositionTimeout}], idx $idx, num of activities: ${activities.size}")
-        idx -> activities
+    Range(0, activitySegment.maxTime + repositionTimeout, repositionTimeout).zipWithIndex.map { case (t, idx) =>
+      val activities = activitySegment.getActivities(t, t + repositionTimeout)
+      logger.debug(s"Time [$t, ${t + repositionTimeout}], idx $idx, num of activities: ${activities.size}")
+      idx -> activities
     }.toMap
   val peakHourNumberOfActivities: Int = timeBinToActivities.maxBy(_._2.size)._2.size
 
-  val timeBinToActivitiesWeight: Map[Int, Double] = timeBinToActivities.map {
-    case (timeBin, acts) => timeBin -> acts.size.toDouble / peakHourNumberOfActivities
+  val timeBinToActivitiesWeight: Map[Int, Double] = timeBinToActivities.map { case (timeBin, acts) =>
+    timeBin -> acts.size.toDouble / peakHourNumberOfActivities
   }
 
   logger.info(s"totalNumberOfActivities: ${activitySegment.sorted.length}")
@@ -85,7 +84,7 @@ class InverseSquareDistanceRepositioningFactor(
       }
       val newPositions = ProfilingUtils.timed(s"Find where to repos from ${wantToRepos.size}", x => logger.debug(x)) {
         wantToRepos.flatMap { rha =>
-          findWhereToReposition(tick, rha.currentLocationUTM.loc, rha.vehicleId, clusters).map { loc =>
+          findWhereToReposition(tick, rha.latestUpdatedLocationUTM.loc, rha.vehicleId, clusters).map { loc =>
             rha -> loc
           }
         }
@@ -99,14 +98,15 @@ class InverseSquareDistanceRepositioningFactor(
         .filter { vehAndNewLoc =>
           beamServices.skims.od_skimmer
             .getTimeDistanceAndCost(
-              vehAndNewLoc._1.currentLocationUTM.loc,
+              vehAndNewLoc._1.latestUpdatedLocationUTM.loc,
               vehAndNewLoc._2,
               tick,
               CAR,
               vehAndNewLoc._1.vehicleType.id,
-              beamServices.beamScenario
+              vehAndNewLoc._1.vehicleType,
+              beamServices.beamScenario.fuelTypePrices(vehAndNewLoc._1.vehicleType.primaryFuelType)
             )
-            .distance <= rideHailManager.vehicleManager
+            .distance <= rideHailManager.rideHailManagerHelper
             .getVehicleState(vehAndNewLoc._1.vehicleId)
             .totalRemainingRange - range
         }
@@ -162,9 +162,8 @@ class InverseSquareDistanceRepositioningFactor(
     // create a probability distribution based on number of activities by sub clusters (sub hexagons)
     val subClusters = coords
       .groupBy(h3taz.getSubIndex)
-      .map {
-        case (_, subHex) =>
-          new CPair[IndexedSeq[Coord], java.lang.Double](subHex, subHex.size.toDouble)
+      .map { case (_, subHex) =>
+        new CPair[IndexedSeq[Coord], java.lang.Double](subHex, subHex.size.toDouble)
       }
       .toVector
     val distribution = new EnumeratedDistribution[IndexedSeq[Coord]](rng, subClusters.asJava)
@@ -180,13 +179,12 @@ class InverseSquareDistanceRepositioningFactor(
         acts
           .map(_.getCoord)
           .groupBy(beamServices.beamScenario.h3taz.getIndex)
-          .map {
-            case (hex, group) =>
-              val centroid = beamServices.beamScenario.h3taz.getCentroid(hex)
-              logger.debug(s"HexIndex: $hex")
-              logger.debug(s"Size: ${group.size}")
-              logger.debug(s"Center: $centroid")
-              ClusterInfo(group.size, centroid, group.toIndexedSeq)
+          .map { case (hex, group) =>
+            val centroid = beamServices.beamScenario.h3taz.getCentroid(hex)
+            logger.debug(s"HexIndex: $hex")
+            logger.debug(s"Size: ${group.size}")
+            logger.debug(s"Center: $centroid")
+            ClusterInfo(group.size, centroid, group.toIndexedSeq)
           }
       }
     }

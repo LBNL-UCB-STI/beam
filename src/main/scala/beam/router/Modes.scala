@@ -1,21 +1,6 @@
 package beam.router
 
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  BUS,
-  CABLE_CAR,
-  CAR,
-  CAV,
-  FERRY,
-  FUNICULAR,
-  GONDOLA,
-  RAIL,
-  RIDE_HAIL,
-  SUBWAY,
-  TRAM,
-  TRANSIT,
-  WALK
-}
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAR_HOV2, CAR_HOV3, CAV, WALK}
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.profile.StreetMode
 import enumeratum.values._
@@ -39,6 +24,13 @@ object Modes {
     val matsimMode: String
   ) extends StringEnumEntry {
 
+    import BeamMode._
+
+    override def equals(obj: Any): Boolean = obj match {
+      case mode: BeamMode if BeamMode.isCar(mode.value) => BeamMode.isCar(this.value)
+      case _                                            => super.equals(obj)
+    }
+
     def isTransit: Boolean = isR5TransitMode(this)
     def isMassTransit: Boolean = this == SUBWAY || this == RAIL || this == FERRY || this == TRAM
     def isRideHail: Boolean = this == RIDE_HAIL
@@ -46,11 +38,26 @@ object Modes {
 
   object BeamMode extends StringEnum[BeamMode] with StringCirceEnum[BeamMode] {
 
+    def isCar(stringMode: String): Boolean =
+      stringMode.equalsIgnoreCase(CAR.value) ||
+      stringMode.equalsIgnoreCase(CAR_HOV2.value) ||
+      stringMode.equalsIgnoreCase(CAR_HOV3.value)
+
     override val values: immutable.IndexedSeq[BeamMode] = findValues
+
+    case object HOV2_TELEPORTATION extends BeamMode(value = "hov2_teleportation", None, "")
+
+    case object HOV3_TELEPORTATION extends BeamMode(value = "hov3_teleportation", None, "")
 
     // Driving / Automobile-like (hailed rides are a bit of a hybrid)
 
     case object CAR extends BeamMode(value = "car", Some(Left(LegMode.CAR)), TransportMode.car)
+
+    // car with 1 guaranteed additional passenger
+    case object CAR_HOV2 extends BeamMode(value = "car_hov2", Some(Left(LegMode.CAR)), TransportMode.car)
+
+    // car with 2 guaranteed additional passengers
+    case object CAR_HOV3 extends BeamMode(value = "car_hov3", Some(Left(LegMode.CAR)), TransportMode.car)
 
     case object CAV extends BeamMode(value = "cav", Some(Left(LegMode.CAR)), TransportMode.car)
 
@@ -59,6 +66,7 @@ object Modes {
     case object RIDE_HAIL_POOLED
         extends BeamMode(value = "ride_hail_pooled", Some(Left(LegMode.CAR)), TransportMode.other)
 
+    case object FREIGHT extends BeamMode(value = "freight", Some(Left(LegMode.CAR)), TransportMode.truck)
     // Transit
 
     case object BUS extends BeamMode(value = "bus", Some(Right(TransitModes.BUS)), TransportMode.pt)
@@ -107,6 +115,13 @@ object Modes {
           TransportMode.pt
         )
 
+    case object BIKE_TRANSIT
+        extends BeamMode(
+          value = "bike_transit",
+          Some(Right(TransitModes.TRANSIT)),
+          TransportMode.pt
+        )
+
     val chainBasedModes = Seq(CAR, BIKE)
 
     val transitModes =
@@ -125,14 +140,19 @@ object Modes {
         RIDE_HAIL_POOLED,
         RIDE_HAIL_TRANSIT,
         DRIVE_TRANSIT,
-        WALK_TRANSIT
+        WALK_TRANSIT,
+        BIKE_TRANSIT,
+        HOV2_TELEPORTATION,
+        HOV3_TELEPORTATION
       )
 
     def fromString(stringMode: String): Option[BeamMode] = {
-      if (stringMode.equals("")) {
+      if (stringMode.equals("") || stringMode.equals("other")) {
         None
       } else if (stringMode.equalsIgnoreCase("drive")) {
         Some(CAR)
+      } else if (stringMode.equalsIgnoreCase("transit_walk")) {
+        Some(WALK_TRANSIT)
       } else {
         Some(BeamMode.withValue(stringMode))
       }
@@ -208,6 +228,15 @@ object Modes {
     case TransitModes.RAIL      => BeamMode.RAIL
     case TransitModes.TRAM      => BeamMode.TRAM
     case _                      => throw new IllegalArgumentException
+  }
+
+  def getAccessVehicleMode(mode: BeamMode): BeamMode = mode match {
+    case BeamMode.TRANSIT           => throw new IllegalArgumentException("access vehicle is unknown")
+    case BeamMode.WALK_TRANSIT      => BeamMode.WALK
+    case BeamMode.DRIVE_TRANSIT     => BeamMode.CAR
+    case BeamMode.RIDE_HAIL_TRANSIT => BeamMode.CAR
+    case BeamMode.BIKE_TRANSIT      => BeamMode.BIKE
+    case _                          => throw new IllegalArgumentException("not a transit mode: " + mode.value)
   }
 
 }

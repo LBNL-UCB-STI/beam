@@ -16,7 +16,6 @@ import akka.actor.Actor
 
 /**
   * Responsible for maintaining a grouping of resources and their current locations.
-  *
   */
 trait ResourceManager {
 

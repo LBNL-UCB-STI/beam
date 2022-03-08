@@ -41,12 +41,12 @@ private[geozone] case class HexagonLeaf(
         val newIndex = H3Wrapper.getIndex(point, index.resolution + 1)
         newIndex -> point
       }
-      .groupBy {
-        case (geoIndex: H3Index, _) => geoIndex
+      .groupBy { case (geoIndex: H3Index, _) =>
+        geoIndex
       }
       .mapValues { sequenceOfPairs =>
-        sequenceOfPairs.map {
-          case (_, coordinate) => coordinate
+        sequenceOfPairs.map { case (_, coordinate) =>
+          coordinate
         }.toSet
       }
     resultIndex.toSeq.map { index =>

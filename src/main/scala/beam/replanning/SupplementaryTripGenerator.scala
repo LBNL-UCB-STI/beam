@@ -3,11 +3,9 @@ package beam.replanning
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel.TripParameters.ExpMaxUtility
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel._
 import beam.agentsim.agents.choice.logit.{DestinationChoiceModel, MultinomialLogit}
-import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
-import beam.router.skim.Skims
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.{Activity, Person, Plan}
@@ -17,6 +15,7 @@ import org.matsim.utils.objectattributes.attributable.AttributesUtils
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
+import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
 class SupplementaryTripGenerator(
@@ -75,22 +74,50 @@ class SupplementaryTripGenerator(
 
     if (!elements(1).getType.equalsIgnoreCase("temp")) { newPlan.addActivity(elements.head) }
 
+    var updatedPreviousActivity = elements.head
+
+    val activityAccumulator = ListBuffer[Activity]()
+
     elements.sliding(3).foreach {
       case List(prev, curr, next) =>
         if (curr.getType.equalsIgnoreCase("temp")) {
           anyChanges = true
-          val newActivities = generateSubtour(prev, curr, next, modeMNL, destinationMNL, tripMNL, modes)
-          newActivities.foreach { x =>
-            newPlan.addActivity(x)
+          val newActivities = prev.getType match {
+            case "Work" =>
+              generateSubtour(
+                updatedPreviousActivity,
+                curr,
+                next,
+                modeMNL,
+                destinationMNL,
+                tripMNL,
+                modes.filter(_ != BeamMode.CAR)
+              )
+            case _ =>
+              generateSubtour(updatedPreviousActivity, curr, next, modeMNL, destinationMNL, tripMNL, modes)
           }
+          newActivities.foreach { x =>
+            activityAccumulator.lastOption match {
+              case Some(lastTrip) =>
+                if (lastTrip.getType == x.getType) {
+                  activityAccumulator -= activityAccumulator.last
+                }
+              case _ =>
+            }
+            activityAccumulator.append(x)
+          }
+          updatedPreviousActivity = activityAccumulator.last
         } else {
           if ((!prev.getType.equalsIgnoreCase("temp")) & (!next.getType.equalsIgnoreCase("temp"))) {
-            newPlan.addActivity(curr)
+            activityAccumulator.append(curr)
           }
+          updatedPreviousActivity = curr
         }
       case _ =>
     }
-
+    activityAccumulator.foreach { x =>
+      newPlan.addActivity(x)
+    }
     if (!elements(elements.size - 2).getType.equalsIgnoreCase("temp")) { newPlan.addActivity(elements.last) }
 
     if (anyChanges) {
@@ -142,12 +169,11 @@ class SupplementaryTripGenerator(
           gatherSubtourCosts(newActivityType, tazChoiceSet, startTime, endTime, alternativeActivity, modesToConsider)
 
         val modeChoice: Map[SupplementaryTripAlternative, Map[TripParameters, Double]] =
-          modeTazCosts.map {
-            case (alt, modeCost) =>
-              val tazMaxUtility = modeMNL.getExpectedMaximumUtility(modeCost)
-              alt -> Map[TripParameters, Double](
-                TripParameters.ExpMaxUtility -> tazMaxUtility.getOrElse(0)
-              )
+          modeTazCosts.map { case (alt, modeCost) =>
+            val tazMaxUtility = modeMNL.getExpectedMaximumUtility(modeCost)
+            alt -> Map[TripParameters, Double](
+              TripParameters.ExpMaxUtility -> tazMaxUtility.getOrElse(0)
+            )
           }
 
         val tripMaxUtility = destinationMNL.getExpectedMaximumUtility(modeChoice)
@@ -157,7 +183,7 @@ class SupplementaryTripGenerator(
             true -> Map[TripParameters, Double](
               TripParameters.ExpMaxUtility -> tripMaxUtility.getOrElse(0)
             ),
-            false -> noTrip,
+            false -> noTrip
           )
 
         tripMNL.sampleAlternative(tripChoice, r) match {
@@ -232,15 +258,14 @@ class SupplementaryTripGenerator(
               endTime - startTime,
               startTime
             )
-          alternative -> cost.map {
-            case (x, y) =>
-              DestinationChoiceModel.SupplementaryTripAlternative(
-                taz,
-                newActivityType,
-                x,
-                endTime - startTime,
-                startTime
-              ) -> DestinationChoiceModel.toUtilityParameters(y)
+          alternative -> cost.map { case (x, y) =>
+            DestinationChoiceModel.SupplementaryTripAlternative(
+              taz,
+              newActivityType,
+              x,
+              endTime - startTime,
+              startTime
+            ) -> DestinationChoiceModel.toUtilityParameters(y)
           }
         }.toMap
       }
@@ -250,8 +275,10 @@ class SupplementaryTripGenerator(
   private def getRealStartEndTime(
     activity: Activity
   ): (Double, Double) = {
-    val start = if (activity.getStartTime > 0) { activity.getStartTime } else { 0 }
-    val end = if (activity.getEndTime > 0) { activity.getEndTime } else { 3600 * 24 }
+    val start = if (activity.getStartTime > 0) { activity.getStartTime }
+    else { 0 }
+    val end = if (activity.getEndTime > 0) { activity.getEndTime }
+    else { 3600 * 24 }
     (start, end)
   }
 
@@ -265,6 +292,8 @@ class SupplementaryTripGenerator(
     val activityDuration = additionalActivity.getEndTime - additionalActivity.getStartTime
     val desiredDepartTimeBin = secondsToIndex(additionalActivity.getStartTime)
     val desiredReturnTimeBin = secondsToIndex(additionalActivity.getEndTime)
+    val vehicleType = beamServices.beamScenario.vehicleTypes.values.head // TODO: FIX WITH REAL VEHICLE
+    val fuelPrice = beamServices.beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
 
     val modeToTimeAndCosts: Map[BeamMode, DestinationChoiceModel.TimesAndCost] =
       modes.map { mode =>
@@ -274,8 +303,9 @@ class SupplementaryTripGenerator(
             additionalActivity.getCoord,
             desiredDepartTimeBin,
             mode,
-            beamServices.beamScenario.vehicleTypes.keys.head, // TODO: FIX WITH REAL VEHICLE
-            beamServices.beamScenario
+            vehicleType.id,
+            vehicleType,
+            fuelPrice
           )
         val egressTripSkim =
           beamServices.skims.od_skimmer.getTimeDistanceAndCost(
@@ -283,8 +313,9 @@ class SupplementaryTripGenerator(
             alternativeActivity.getCoord,
             desiredReturnTimeBin,
             mode,
-            beamServices.beamScenario.vehicleTypes.keys.head, // TODO: FIX
-            beamServices.beamScenario
+            vehicleType.id,
+            vehicleType,
+            fuelPrice
           )
         val startingOverlap =
           (altStart - (additionalActivity.getStartTime - accessTripSkim.time)).max(0)
@@ -317,15 +348,13 @@ class SupplementaryTripGenerator(
 
     val (altStart, altEnd) = getRealStartEndTime(alternativeActivity)
 
-    val filtered = activityRates.map {
-      case (activityType, hourToRate) =>
-        activityType -> hourToRate
-          .filter {
-            case (hour, rate) =>
-              hour > secondsToIndex(altStart) & hour <= secondsToIndex(altEnd) & rate > 0
-          }
-          .values
-          .sum
+    val filtered = activityRates.map { case (activityType, hourToRate) =>
+      activityType -> hourToRate
+        .filter { case (hour, rate) =>
+          hour > secondsToIndex(altStart) & hour <= secondsToIndex(altEnd) & rate > 0
+        }
+        .values
+        .sum
     }
     val chosenType = drawKeyByValue(filtered)
 
@@ -343,9 +372,8 @@ class SupplementaryTripGenerator(
         val chosenStartIndex = if (latestPossibleEndIndex > earliestPossibleStartIndex + 1) {
           val filteredRates = activityRates
             .getOrElse(actType, Map[Int, Double]())
-            .filter {
-              case (hour, rate) =>
-                hour > secondsToIndex(altStart) & hour < secondsToIndex(altEnd - travelTimeBufferInSec) & rate > 0
+            .filter { case (hour, rate) =>
+              hour > secondsToIndex(altStart) & hour < secondsToIndex(altEnd - travelTimeBufferInSec) & rate > 0
             }
           drawKeyByValue(filteredRates)
         } else { None }

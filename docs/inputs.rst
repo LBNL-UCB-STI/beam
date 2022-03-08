@@ -161,7 +161,8 @@ Warm Mode
    ##################################################################
    # Warm Mode
    ##################################################################
-   beam.warmStart.enabled = false
+   # valid options: disabled, full, linkStatsOnly (only link stats is loaded (all the other data is got from the input directory))
+   beam.warmStart.type = "disabled"
    #PATH TYPE OPTIONS: PARENT_RUN, ABSOLUTE_PATH
    #PARENT_RUN: can be a director or zip archive of the output directory (e.g. like what get's stored on S3). We should also be able to specify a URL to an S3 output.
    #ABSOLUTE_PATH: a directory that contains required warm stats files (e.g. linkstats and eventually a plans).
@@ -273,3 +274,26 @@ Secondary activities generation
     that people are more likely to choose a less optimal destination, mode_nest_scale_factor means people are more likely
     to value destinations accessible by multiple modes, and trip_nest_scale_factor means that people are more likely
     to take secondary trips even if the costs are greater than the benefits.
+
+Agents and Activities
+^^^^^^^^^^^^^^^^^^^^^^^
+::
+
+    beam.agentsim.agents.activities.activityTypeToFixedDurationMap = ["<activity type> -> <duration>"]
+
+*
+    beam.agentsim.agents.activities.activityTypeToFixedDurationMap - by default is empty. For specified activities the duration will be fixed.
+    The durations of the rest activities will be calculated based on activity end time.
+
+
+Output
+^^^^^^^^^
+::
+
+    # this will write out plans and throw and exception at the beginning of simulation
+    beam.output.writePlansAndStopSimulation = "boolean | false"
+
+*
+    beam.output.writePlansAndStopSimulation - if set to true will write plans into 'generatedPlans.csv.gz'
+    and stop simulation with exception at the beginning of agentSim iteration.
+    The functionality was created to generate full population plans with secondary activities for full unscaled input.

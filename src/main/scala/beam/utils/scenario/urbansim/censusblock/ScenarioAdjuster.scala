@@ -28,13 +28,15 @@ class ScenarioAdjuster(val urbansim: Beam.Urbansim, val population: Population, 
       urbansim.fractionOfModesToClear.bike,
       seed
     )
-    clearModes(
-      persons,
-      BeamMode.CAR.value,
-      leg => leg.getMode.equalsIgnoreCase(BeamMode.CAR.value),
-      urbansim.fractionOfModesToClear.car,
-      seed
-    )
+    Seq(BeamMode.CAR, BeamMode.CAR_HOV2, BeamMode.CAR_HOV3).foreach { mode =>
+      clearModes(
+        persons,
+        mode.value,
+        leg => leg.getMode.equalsIgnoreCase(mode.value),
+        urbansim.fractionOfModesToClear.car,
+        seed
+      )
+    }
     clearModes(
       persons,
       BeamMode.DRIVE_TRANSIT.value,
@@ -60,6 +62,7 @@ class ScenarioAdjuster(val urbansim: Beam.Urbansim, val population: Population, 
 }
 
 object ScenarioAdjuster extends StrictLogging {
+
   private[censusblock] def clearModes(
     persons: Iterable[Person],
     mode: String,
@@ -67,7 +70,7 @@ object ScenarioAdjuster extends StrictLogging {
     fractionToClear: Double,
     seed: Int
   ): Unit = {
-    if (fractionToClear != 0.0) {
+    if (!fractionToClear.equals(0d)) {
       val allLegsWithMode = persons.flatMap { person: Person =>
         val legs = person.getSelectedPlan.getPlanElements.asScala.collect {
           case leg: Leg if predicate(leg) => leg

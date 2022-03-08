@@ -1,6 +1,7 @@
 package beam.utils.data.ctpp.readers.flow
 
-import beam.utils.data.ctpp.models.{FlowGeoParser, Industry, OD, ResidenceToWorkplaceFlowGeography}
+import beam.utils.data.ctpp.models.flow.Industry
+import beam.utils.data.ctpp.models.{FlowGeoParser, OD, ResidenceToWorkplaceFlowGeography}
 import beam.utils.data.ctpp.readers.BaseTableReader
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, Table}
 
@@ -9,7 +10,7 @@ class IndustryTableReader(
   val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
 ) extends BaseTableReader(
       dbInfo,
-      Table.Industry,
+      Table.Flow.Industry,
       Some(residenceToWorkplaceFlowGeography.level)
     ) {
 
@@ -17,7 +18,7 @@ class IndustryTableReader(
     readRaw()
       .filter(x => x.lineNumber != 1) // lineNumber == 1 is Total
       .map { entry =>
-        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId).get
+        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId)
         val industry = Industry(entry.lineNumber).get
         OD(fromGeoId, toGeoId, industry, entry.estimate)
       }

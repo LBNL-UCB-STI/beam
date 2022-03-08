@@ -1,19 +1,20 @@
 package beam.utils
 
 import java.io.BufferedReader
-import java.nio.file.Paths
+import java.nio.file.{Path, Paths}
 
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
-import org.scalatest.{Matchers, WordSpecLike}
-
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.wordspec.AnyWordSpecLike
 import scala.collection.JavaConverters._
 
 /**
-  *
   * @author Dmitry Openkov
   */
-class FileUtilsSpec extends WordSpecLike with Matchers {
-  val skimPath = Paths.get(getClass.getResource("/files/multi-part-od-skims").toURI)
+class FileUtilsSpec extends AnyWordSpecLike with Matchers {
+
+  val skimPath: Path = Paths.get(System.getenv("PWD"), "test/test-resources/beam/od-skims/multi-part-od-skims")
 
   "FileUtils" must {
     "read files in parallel into a map" in {
@@ -35,7 +36,7 @@ class FileUtilsSpec extends WordSpecLike with Matchers {
 
     "read files in parallel into a flat iterable" in {
       val result = FileUtils
-        .flatParRead(skimPath, "od_for_test_part*.csv.gz") { (path, reader) =>
+        .flatParRead(skimPath, "od_for_test_part*.csv.gz") { (_, reader) =>
           val records: scala.List[_root_.com.univocity.parsers.common.record.Record] = parseCSV(reader)
           records
         }
@@ -46,7 +47,7 @@ class FileUtilsSpec extends WordSpecLike with Matchers {
 
     "write data to files in parallel" in {
       val data = Array.ofDim[String](111)
-      for (i <- 0 until data.length) {
+      for (i <- data.indices) {
         data(i) = i + (",CAR,101241,101241,153,153.0,0.128873295,0.468873295," +
         "1175.0,0.0,0,0,CAR,101241,101241,153,153.0,0.128873295,0.468873295,1175.0,0.0,0,0CAR,101241,101241,153," +
         "153.0,0.128873295,0.468873295,1175.0,0.0,0,0")
@@ -65,7 +66,7 @@ class FileUtilsSpec extends WordSpecLike with Matchers {
           }
         }
         val records = FileUtils
-          .flatParRead(tmpDir, "part*.csv.gz") { (path, reader) =>
+          .flatParRead(tmpDir, "part*.csv.gz") { (_, reader) =>
             parseCSV(reader)
           }
           .toList

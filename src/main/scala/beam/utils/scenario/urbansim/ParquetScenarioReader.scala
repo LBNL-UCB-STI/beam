@@ -12,6 +12,7 @@ import scala.util.Try
 
 object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
+  @SuppressWarnings(Array("UnusedMethodParameter"))
   def main(array: Array[String]): Unit = {
     //    readUnitsFile("C:\\repos\\apache_arrow\\py_arrow\\data\\units.parquet").take(3).foreach(println)
     //    readParcelAttrFile("C:\\repos\\apache_arrow\\py_arrow\\data\\parcel_attr.parquet").take(3).foreach(println)
@@ -47,8 +48,8 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     readAs[HouseholdInfo](path, "readHouseholdsFile", toHouseholdInfo)
   }
 
-  private[utils] def readAs[T](path: String, what: String, mapper: GenericRecord => T)(
-    implicit ct: ClassTag[T]
+  private[utils] def readAs[T](path: String, what: String, mapper: GenericRecord => T)(implicit
+    ct: ClassTag[T]
   ): Array[T] = {
     val (it, toClose) = ParquetReader.read(path)
     ProfilingUtils.timed(what, x => logger.info(x)) {
@@ -71,6 +72,11 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
   private[scenario] def toPlanInfo(rec: GenericRecord): PlanElement = {
     // Somehow Plan file has columns in camelCase, not snake_case
+    val tripId = if (rec.get("tripId") != null) {
+      rec.get("tripId").toString.filter(x => (x.isDigit || x.equals('.')))
+    } else {
+      ""
+    }
     val personId = getIfNotNull(rec, "personId").toString
     val planElement = getIfNotNull(rec, "planElement").toString
     val planElementIndex = getIfNotNull(rec, "planElementIndex").asInstanceOf[Long].toInt
@@ -81,6 +87,7 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val mode = Option(rec.get("mode")).map(_.toString)
 
     PlanElement(
+      tripId = tripId,
       personId = personId,
       planElement = planElement,
       planElementIndex = planElementIndex,
@@ -100,14 +107,18 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
       val value = Try(getIfNotNull(rec, "sex").asInstanceOf[Long]).getOrElse(1L)
       value == 2L
     }
+    val excludedModes: String = Try(getIfNotNull(rec, "excludedModes").toString).getOrElse("")
     val rank: Int = 0
+    val industry = Option(rec.get("industry")).map(_.toString)
     PersonInfo(
       personId = personId,
       householdId = householdId,
       rank = rank,
       age = age,
+      excludedModes = excludedModes,
       isFemale = isFemaleValue,
-      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime").toString, 0D)).getOrElse(0D)
+      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime").toString, 0d)).getOrElse(0d),
+      industry = industry
     )
   }
 
@@ -129,6 +140,7 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val buildingId = getIfNotNull(rec, "building_id").toString
     UnitInfo(unitId = unitId, buildingId = buildingId)
   }
+
   private[scenario] def getIfNotNull(rec: GenericRecord, column: String): AnyRef = {
     val v = rec.get(column)
     assert(v != null, s"Value in column '$column' is null")

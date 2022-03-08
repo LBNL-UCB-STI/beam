@@ -1,12 +1,12 @@
 package beam.agentsim.infrastructure.parking
 
 import scala.util.Random
-
 import beam.agentsim.infrastructure.taz.TAZ
 import org.matsim.api.core.v01.{Coord, Id}
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
 
-class ParkingStallSamplingTestSpec extends WordSpec with Matchers {
+class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
   val trialsPerTest: Int = 100
   "testAvailabilityAwareSampling" when {
     "square TAZ with agent destination near corner" when {
@@ -17,7 +17,8 @@ class ParkingStallSamplingTestSpec extends WordSpec with Matchers {
             random,
             agent,
             taz,
-            availabilityRatio
+            availabilityRatio,
+            true
           )
           distance(agent, result) should equal(0.0)
         }
@@ -32,7 +33,8 @@ class ParkingStallSamplingTestSpec extends WordSpec with Matchers {
               random,
               agent,
               taz,
-              availabilityRatio
+              availabilityRatio,
+              true
             )
 
             val dist: Double = distance(agent, result)
@@ -53,7 +55,8 @@ class ParkingStallSamplingTestSpec extends WordSpec with Matchers {
               random,
               agent,
               taz,
-              availabilityRatio
+              availabilityRatio,
+              true
             )
 
             val dist: Double = distance(agent, result)
@@ -74,7 +77,8 @@ class ParkingStallSamplingTestSpec extends WordSpec with Matchers {
               random,
               agent,
               taz,
-              availabilityRatio
+              availabilityRatio,
+              true
             )
 
             val dist: Double = distance(agent, result)
@@ -97,7 +101,8 @@ class ParkingStallSamplingTestSpec extends WordSpec with Matchers {
               random,
               agent,
               taz,
-              availabilityRatio
+              availabilityRatio,
+              true
             )
 
             val dist: Double = distance(taz.coord, result)

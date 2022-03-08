@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: An AWS Serverless Specification template describing your function.
+Resources:
+  cloudwatchAllInstances:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.6
+      CodeUri: .
+      Description: ''
+      MemorySize: 128
+      Timeout: 60
+      Role: 'arn:aws:iam::340032650202:role/BeamLambdaExecution'
+      Events:
+        Schedule1:
+          Type: Schedule
+          Properties:
+            Schedule: rate(30 minutes)
+      Environment:
+        Variables:
+          AWS_ACCOUNT_ID: '340032650202'
+          EXCLUDED_INSTANCES: '[''i-0d7356ff7f3927e69'',''i-0b31829f99cc9a7ce'',''i-01dda95dee4c4714f'']'
+          UPTIME_INTERVAL_TO_TRIGGER_NOTIFICATION_IN_DAYS: '5'
+          USER_EMAIL_MAPPER: >-
+            [{"Art":"reasyuATgmail_com"},{"Rajnikant":"rk_sharmaitATyahoo_com"},{"nikoly":"irishwithaxeATgmail_com"},{"justin":"justin_pihonyATgmail_com"},{"Rashid":"rwaraichATlbl_gov"},{"hitam":"haitam_laarabiATlbl_gov"},{"zach":"zaneedellATlbl_gov"},{"dima":"dimaopenATgmail_com"},{"dimitry":"dogurtsovATgmail_com"},{"carlos":"ccaldasATgmail_com"},{"illya":"tkachuk_i_mATgmail_com"},{"Zuykin":"eugenzuyATgmail_com"}]

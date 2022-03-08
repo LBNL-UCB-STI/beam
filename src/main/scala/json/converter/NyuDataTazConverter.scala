@@ -21,6 +21,7 @@ object NyuDataTazConverter extends App with LazyLogging {
 
   //Reads
   implicit val propertiesReads: Reads[Properties] = Json.reads[Properties]
+
   implicit val featuresReads: Reads[Seq[Features]] = (json: JsValue) => {
     try {
       val featuresArray = (json \ "features").as[JsArray]
@@ -52,7 +53,7 @@ object NyuDataTazConverter extends App with LazyLogging {
     }
   }
 
-  println(s"Taz Converter")
+  println("Taz Converter")
 
   def parseArgs() = {
     args
@@ -72,8 +73,9 @@ object NyuDataTazConverter extends App with LazyLogging {
 
   val mContent = inputFilePath.map { p =>
     val source = scala.io.Source.fromFile(p, "UTF-8")
-    val lines = try source.mkString
-    finally source.close()
+    val lines =
+      try source.mkString
+      finally source.close()
     lines
   }
 
@@ -83,7 +85,7 @@ object NyuDataTazConverter extends App with LazyLogging {
 
     val tazVizArray = featuresRes.map { f =>
       val gid = f.properties.id
-      val taz: Long = Try(f.properties.taz.toLong).getOrElse(0l)
+      val taz: Long = Try(f.properties.taz.toLong).getOrElse(0L)
       val nhood = "East Bay"
       val sq_mile = 1
       val coordinates = Array(Array(f.geometry.coordinates.map { coordinates =>
@@ -94,10 +96,10 @@ object NyuDataTazConverter extends App with LazyLogging {
       TazViz(gid, taz, nhood, sq_mile, geoJsonString)
     }
 
-    println(s"Res:")
+    println("Res:")
     println(s"$featuresRes")
 
-    val tazVizJson = Json.toJson(tazVizArray.filter(_.taz > 0l))
+    val tazVizJson = Json.toJson(tazVizArray.filter(_.taz > 0L))
     println(s"Converted: ${tazVizJson.toString()}")
 
     new PrintWriter("d:\\output.json") { write(tazVizJson.toString()); close() }

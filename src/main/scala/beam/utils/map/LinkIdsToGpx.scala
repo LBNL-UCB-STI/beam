@@ -22,7 +22,7 @@ object LinkIdsToGpx {
     val linkMap = network.getLinks
 
     val geoUtils = new beam.sim.common.GeoUtils {
-      override def localCRS: String = "epsg:26910"
+      override def localCRS: String = "epsg:32118"
     }
 
     val source = scala.io.Source.fromFile(pathToLinkIds)
@@ -31,14 +31,13 @@ object LinkIdsToGpx {
         .getLines()
         .flatMap { linkIds =>
           linkIds.split(",").map { linkIdStr =>
-            linkMap.get(Id.createLinkId(linkIdStr))
+            linkMap.get(Id.createLinkId(linkIdStr.trim))
           }
         }
         .toArray
 
       val linkId2WgsCoord = links.map { link =>
-        val loc = link.asInstanceOf[BasicLocation[Link]]
-        val utmCoord = loc.getCoord
+        val utmCoord = link.getCoord
         val wgsCoord = geoUtils.utm2Wgs.transform(utmCoord)
         link.getId.toString -> wgsCoord
       }
@@ -56,16 +55,14 @@ object LinkIdsToGpx {
             .flatMap(x => Option(x.getAttribute("origid")).map(_.toString))
           osmId -> (link.getId.toString, link.getLength)
         }
-        .groupBy { case (k, v) => k }
-        .map {
-          case (k, v) =>
-            k -> v.map(_._2).toList
+        .groupBy { case (k, _) => k }
+        .map { case (k, v) =>
+          k -> v.map(_._2).toList
         }
 
-      osmIds.foreach {
-        case (k, v) =>
-          val length = v.map(_._2).sum
-          println(s"$k => ${v.map(_._1).mkString(" ")}. Length: $length}")
+      osmIds.foreach { case (k, v) =>
+        val length = v.map(_._2).sum
+        println(s"$k => ${v.map(_._1).mkString(" ")}. Length: $length}")
       }
       println(s"OsmIds: $osmIds}")
     } finally {

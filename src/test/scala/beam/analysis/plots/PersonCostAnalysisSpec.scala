@@ -1,9 +1,17 @@
 package beam.analysis.plots
 
 import beam.analysis.summary.PersonCostAnalysis
-import org.scalatest.Matchers
+import com.typesafe.config.{Config, ConfigFactory}
+import org.scalatest.matchers.should.Matchers
 
 class PersonCostAnalysisSpec extends GenericAnalysisSpec with Matchers {
+
+  override protected val extensionConfig: Config = {
+    ConfigFactory
+      .parseString(
+        """beam.agentsim.toll.filePath=${beam.inputDirectory}"/multipleTolls-prices.csv""""
+      )
+  }
 
   override def beforeAll(): Unit = {
     super.beforeAll()

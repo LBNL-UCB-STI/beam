@@ -9,7 +9,7 @@ import org.matsim.api.core.v01.Coord
 object R5NetworkPlayground extends BeamHelper {
 
   def main(args: Array[String]): Unit = {
-    val (arg, cfg) = prepareConfig(Array("--config", "production/sfbay/smart/smart-c-hightech.conf"), true)
+    val (_, cfg) = prepareConfig(Array("--config", "production/sfbay/smart/smart-c-hightech.conf"), true)
     val beamConfig = BeamConfig(cfg)
 
     val nc = DefaultNetworkCoordinator(beamConfig)
@@ -20,11 +20,12 @@ object R5NetworkPlayground extends BeamHelper {
     }
 
     val transportNetwork = nc.transportNetwork
+    val linkRadiusMeters = beamConfig.beam.routing.r5.linkRadiusMeters
 
     // split is null
-    geoUtils.getNearestR5Edge(transportNetwork.streetLayer, new Coord(-123.358396043, 38.7670573007))
+    geoUtils.getNearestR5Edge(transportNetwork.streetLayer, new Coord(-123.358396043, 38.7670573007), linkRadiusMeters)
     // split is null
-    geoUtils.getNearestR5Edge(transportNetwork.streetLayer, new Coord(-123.180062255, 38.7728279981))
+    geoUtils.getNearestR5Edge(transportNetwork.streetLayer, new Coord(-123.180062255, 38.7728279981), linkRadiusMeters)
 
     val gpxWriter = new GpxWriter("corners_production.gpx", geoUtils)
 
@@ -35,13 +36,12 @@ object R5NetworkPlayground extends BeamHelper {
       // First 4 points reprecent LEFT, TOP, RIGHT, BOTTOM coordinates
       gpxWriter.drawRectangle(corners.take(4))
 
-      r.foreach {
-        case (edgeWithCoord, cornerPoint) =>
-          val point = GpxPoint(
-            s"${edgeWithCoord.edgeIndex}_${cornerPoint.name}",
-            new Coord(edgeWithCoord.wgsCoord.x, edgeWithCoord.wgsCoord.y)
-          )
-          gpxWriter.drawMarker(point)
+      r.foreach { case (edgeWithCoord, cornerPoint) =>
+        val point = GpxPoint(
+          s"${edgeWithCoord.edgeIndex}_${cornerPoint.name}",
+          new Coord(edgeWithCoord.wgsCoord.x, edgeWithCoord.wgsCoord.y)
+        )
+        gpxWriter.drawMarker(point)
       }
     } finally {
       gpxWriter.close()

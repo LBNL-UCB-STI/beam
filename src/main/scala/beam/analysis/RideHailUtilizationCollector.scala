@@ -26,6 +26,7 @@ case class RideInfo(
   numOfPassengers: Int,
   primaryFuelLevel: Double
 )
+
 case class RideHailHistoricalData(
   notMovedAtAll: Set[Id[BeamVehicle]],
   movedWithoutPassenger: Set[Id[BeamVehicle]],
@@ -124,28 +125,24 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
   def calcUtilization(iteration: Int): Utilization = {
     val numOfPassengersToTheNumberOfRides: Map[Int, Int] = rides
       .groupBy(x => x.numOfPassengers)
-      .map {
-        case (numOfPassengers, xs) =>
-          numOfPassengers -> xs.size
+      .map { case (numOfPassengers, xs) =>
+        numOfPassengers -> xs.size
       }
 
     val vehicleToRides = rides.groupBy(x => x.vehicleId)
 
     val numOfRidesToVehicleId: Seq[(Int, Id[BeamVehicle])] = vehicleToRides
-      .map {
-        case (vehId, xs) =>
-          vehId -> xs.count(_.numOfPassengers > 0)
+      .map { case (vehId, xs) =>
+        vehId -> xs.count(_.numOfPassengers > 0)
       }
       .toSeq
-      .map {
-        case (vehId, nRides) =>
-          nRides -> vehId
+      .map { case (vehId, nRides) =>
+        nRides -> vehId
       }
     val ridesToVehicles = numOfRidesToVehicleId
       .groupBy { case (nRides, _) => nRides }
-      .map {
-        case (nRides, xs) =>
-          nRides -> xs.map(_._2).size
+      .map { case (nRides, xs) =>
+        nRides -> xs.map(_._2).size
       }
 
     val totalNumberOfNonEmptyRides = rides.count(x => x.numOfPassengers > 0)
@@ -182,7 +179,7 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
             |totalRides: ${utilization.totalRides}
             |movedPassengers: ${utilization.movedPassengers}
             |numOfPassengersToTheNumberOfRides: ${utilization.numOfPassengersToTheNumberOfRides}
-            |numberOfRidesServedByNumberOfVehicles: ${sorted}
+            |numberOfRidesServedByNumberOfVehicles: $sorted
             |rideHailChoices: ${utilization.rideHailModeChoices}
             |rideHailInAlternatives: ${utilization.rideHailInAlternatives}
             |rideHailPooledChoices: ${utilization.rideHailPooledChoices}
@@ -192,15 +189,13 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
     logger.info(msg)
 
     if (shouldDumpRides) {
-      Try(writeRides()).recover {
-        case ex =>
-          logger.error(s"writeRides failed with: ${ex.getMessage}", ex)
+      Try(writeRides()).recover { case ex =>
+        logger.error(s"writeRides failed with: ${ex.getMessage}", ex)
       }
     }
 
-    Try(writeUtilization()).recover {
-      case ex =>
-        logger.error(s"writeUtilization failed with: ${ex.getMessage}", ex)
+    Try(writeUtilization()).recover { case ex =>
+      logger.error(s"writeUtilization failed with: ${ex.getMessage}", ex)
     }
 
     val movedWithoutPassenger = RideHailUtilizationCollector.getMovedWithoutPassenger(rides)
@@ -224,26 +219,24 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
       val vehicleToRides = rides.groupBy(x => x.vehicleId)
 
       val ordered = vehicleToRides
-        .map {
-          case (vehId, xs) =>
-            vehId -> xs.sortBy(x => x.time)
+        .map { case (vehId, xs) =>
+          vehId -> xs.sortBy(x => x.time)
         }
         .toVector
         .sortBy { case (vehId, _) => vehId }
 
-      ordered.foreach {
-        case (_, sortedRides) =>
-          sortedRides.foreach { ri =>
-            csvWriter.write(
-              ri.vehicleId,
-              ri.time,
-              ri.startCoord.getX,
-              ri.startCoord.getY,
-              ri.endCoord.getX,
-              ri.endCoord.getY,
-              ri.numOfPassengers
-            )
-          }
+      ordered.foreach { case (_, sortedRides) =>
+        sortedRides.foreach { ri =>
+          csvWriter.write(
+            ri.vehicleId,
+            ri.time,
+            ri.startCoord.getX,
+            ri.startCoord.getY,
+            ri.endCoord.getX,
+            ri.endCoord.getY,
+            ri.numOfPassengers
+          )
+        }
       }
     } catch {
       case NonFatal(ex) =>
@@ -301,9 +294,8 @@ object RideHailUtilizationCollector {
       .groupBy { x =>
         x.vehicleId
       }
-      .filter {
-        case (_, xs) =>
-          xs.forall(vri => vri.numOfPassengers == 0)
+      .filter { case (_, xs) =>
+        xs.forall(vri => vri.numOfPassengers == 0)
       }
       .keySet
   }

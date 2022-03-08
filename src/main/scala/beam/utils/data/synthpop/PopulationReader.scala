@@ -9,7 +9,7 @@ import scala.util.Try
 class PopulationReader(val pathToPopulationFile: String) extends StrictLogging {
 
   def read(): Seq[Person] = {
-    val (it, toClose) = GenericCsvReader.readAs[Person](pathToPopulationFile, toPerson, x => true)
+    val (it, toClose) = GenericCsvReader.readAs[Person](pathToPopulationFile, toPerson, _ => true)
     try {
       it.toVector
     } finally {
@@ -24,14 +24,15 @@ class PopulationReader(val pathToPopulationFile: String) extends StrictLogging {
       case 1 => Gender.Male
       case 2 => Gender.Female
     }
+    val industry = Option(rec.get("industry"))
 
     val compoundHouseholdId = {
       val serialNo = GenericCsvReader.getIfNotNull(rec, "serialno")
       val householdId = GenericCsvReader.getIfNotNull(rec, "hh_id")
       HouseholdReader.getCompoundHouseholdId(serialNo, householdId)
     }
-    val id = GenericCsvReader.getIfNotNull(rec, "id").toString
-    Person(id = id, age = age, gender = gender, householdId = compoundHouseholdId)
+    val id = GenericCsvReader.getIfNotNull(rec, "id")
+    Person(id = id, age = age, gender = gender, industry = industry, householdId = compoundHouseholdId)
   }
 }
 

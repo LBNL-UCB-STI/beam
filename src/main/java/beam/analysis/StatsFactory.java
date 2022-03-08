@@ -53,7 +53,8 @@ public class StatsFactory {
         LoadOverTimeAnalysis,
         ChargingAnalysis,
         EVFleetAnalysis,
-        PersonAverageTravelTimeAnalysis
+        PersonAverageTravelTimeAnalysis,
+        RoutingRequestAnalysis
     }
 
     private final BeamConfig beamConfig;
@@ -161,13 +162,15 @@ public class StatsFactory {
             case RideHailSummary:
                 return new RideHailSummary();
             case LoadOverTimeAnalysis:
-                return new LoadOverTimeAnalysis(beamServices.geo(), beamServices.simMetricCollector());
+                return new LoadOverTimeAnalysis(beamServices.simMetricCollector());
             case ChargingAnalysis:
                 return new ChargingAnalysis();
             case EVFleetAnalysis:
                 return new RideHailFleetAnalysis(beamServices);
             case PersonAverageTravelTimeAnalysis:
                 return new PersonAverageTravelTimeAnalysis(beamConfig);
+            case RoutingRequestAnalysis:
+                return new RoutingRequestAnalysis();
             default:
                 return null;
         }

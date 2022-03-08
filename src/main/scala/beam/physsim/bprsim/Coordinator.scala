@@ -2,6 +2,7 @@ package beam.physsim.bprsim
 
 import java.util.concurrent.{Executors, TimeUnit}
 
+import beam.utils.ConcurrentUtils.parallelExecution
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.events.Event
@@ -10,11 +11,9 @@ import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.annotation.tailrec
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext, Future}
+import scala.concurrent.{ExecutionContext, Future}
 
 /**
-  *
   * @author Dmitry Openkov
   */
 class Coordinator(
@@ -23,6 +22,7 @@ class Coordinator(
   config: BPRSimConfig,
   eventManager: EventsManager
 ) extends StrictLogging {
+
   private val executorService =
     Executors.newFixedThreadPool(
       clusters.size,
@@ -32,6 +32,7 @@ class Coordinator(
         .build()
     )
   implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(executorService)
+
   private val eventExecutor =
     Executors.newFixedThreadPool(1, new ThreadFactoryBuilder().setNameFormat("main-bpr-thread").build())
   val eventEC: ExecutionContext = ExecutionContext.fromExecutor(eventExecutor)
@@ -53,7 +54,7 @@ class Coordinator(
     val events = executeSubPeriod(tillTime, Vector.empty[Event])
     asyncFlushEvents(events)
     val minTime = workers.map(_.minTime).min
-    if (minTime != Double.MaxValue) {
+    if (!minTime.equals(Double.MaxValue)) {
       executePeriod(minTime + config.syncInterval)
     }
   }
@@ -74,21 +75,16 @@ class Coordinator(
     }
   }
 
-  var seqFuture = Future.successful(())
-  private def asyncFlushEvents(events: Vector[Event]): Unit = {
-    seqFuture = seqFuture.flatMap(
-      _ =>
-        Future {
-          import BPRSimulation.eventTimeOrdering
-          val sorted = util.Sorting.stableSort(events)
-          sorted.foreach(eventManager.processEvent)
-        }(eventEC)
-    )(eventEC)
-  }
+  var seqFuture: Future[Unit] = Future.successful(())
 
-  private def parallelExecution[A](functions: Seq[() => A]): Seq[A] = {
-    val future = Future.sequence(functions.map(f => Future { f() }))
-    Await.result(future, Duration.Inf)
+  private def asyncFlushEvents(events: Vector[Event]): Unit = {
+    seqFuture = seqFuture.flatMap(_ =>
+      Future {
+        import BPRSimulation.eventTimeOrdering
+        val sorted = util.Sorting.stableSort(events)
+        sorted.foreach(eventManager.processEvent)
+      }(eventEC)
+    )(eventEC)
   }
 
 }

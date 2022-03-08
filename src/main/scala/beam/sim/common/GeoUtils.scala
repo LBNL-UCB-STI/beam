@@ -9,11 +9,13 @@ import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.{EdgeStore, Split, StreetLayer}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.{ImplementedBy, Inject}
+import com.typesafe.scalalogging.Logger
 import com.vividsolutions.jts.geom.{Coordinate, Envelope}
 import org.matsim.api.core.v01
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
+import org.slf4j.LoggerFactory
 
 case class EdgeWithCoord(edgeIndex: Int, wgsCoord: Coordinate)
 
@@ -25,9 +27,11 @@ case class EdgeWithCoord(edgeIndex: Int, wgsCoord: Coordinate)
 trait GeoUtils extends ExponentialLazyLogging {
 
   def localCRS: String
+  private lazy val notExponentialLogger = Logger(LoggerFactory.getLogger(getClass.getName))
 
   lazy val utm2Wgs: GeotoolsTransformation =
     new GeotoolsTransformation(localCRS, "EPSG:4326")
+
   lazy val wgs2Utm: GeotoolsTransformation =
     new GeotoolsTransformation("EPSG:4326", localCRS)
 
@@ -57,27 +61,32 @@ trait GeoUtils extends ExponentialLazyLogging {
 
   def distLatLon2Meters(coord1: Coord, coord2: Coord): Double = distUTMInMeters(wgs2Utm(coord1), wgs2Utm(coord2))
 
-  def getNearestR5EdgeToUTMCoord(streetLayer: StreetLayer, coordUTM: Coord, maxRadius: Double = 1E5): Int = {
+  def getNearestR5EdgeToUTMCoord(
+    streetLayer: StreetLayer,
+    coordUTM: Coord,
+    maxRadius: Double
+  ): Int = {
     getNearestR5Edge(streetLayer, utm2Wgs(coordUTM), maxRadius)
   }
 
-  def getNearestR5Edge(streetLayer: StreetLayer, coordWGS: Coord, maxRadius: Double = 1E5): Int = {
+  def getNearestR5Edge(
+    streetLayer: StreetLayer,
+    coordWGS: Coord,
+    maxRadius: Double
+  ): Int = {
     val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, StreetMode.WALK)
     if (theSplit == null) {
       val closestEdgesToTheCorners = ProfilingUtils
         .timed("getEdgesCloseToBoundingBox", x => logger.info(x)) {
           getEdgesCloseToBoundingBox(streetLayer)
         }
-        .map { case (edgeWithCoord, gpxPoint) => edgeWithCoord }
+        .map { case (edgeWithCoord, _) => edgeWithCoord }
       val closest = closestEdgesToTheCorners.minBy { edge =>
         val matsimUtmCoord = wgs2Utm(new v01.Coord(edge.wgsCoord.x, edge.wgsCoord.y))
         distUTMInMeters(matsimUtmCoord, wgs2Utm(coordWGS))
       }
       val distUTM = distUTMInMeters(wgs2Utm(coordWGS), wgs2Utm(new v01.Coord(closest.wgsCoord.x, closest.wgsCoord.y)))
-      logger.warn(
-        s"""The split is `null` for StreetLayer.BoundingBox: ${streetLayer.getEnvelope}, coordWGS: $coordWGS, maxRadius: $maxRadius.
-           | Will return closest to the corner: $closest which is $distUTM meters far away""".stripMargin
-      )
+      notExponentialLogger.warn(s"""Will return closest to the corner: $closest which is $distUTM meters far away""")
       closest.edgeIndex
     } else {
       theSplit.edge
@@ -89,24 +98,28 @@ trait GeoUtils extends ExponentialLazyLogging {
     new Coord(theEdge.getGeometry.getCoordinate.x, theEdge.getGeometry.getCoordinate.y)
   }
 
+  def splitToCoord(theSplit: Split): Coord = {
+    new Coord(theSplit.fixedLon.toDouble / 1.0e7, theSplit.fixedLat.toDouble / 1.0e7)
+  }
+
   def snapToR5Edge(
     streetLayer: StreetLayer,
     coordWGS: Coord,
-    maxRadius: Double = 1E5,
+    maxRadius: Double,
     streetMode: StreetMode = StreetMode.WALK
   ): Coord = {
     val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, streetMode)
     if (theSplit == null) {
       coordWGS
     } else {
-      new Coord(theSplit.fixedLon.toDouble / 1.0E7, theSplit.fixedLat.toDouble / 1.0E7)
+      splitToCoord(theSplit)
     }
   }
 
   def getR5Split(
     streetLayer: StreetLayer,
     coord: Coord,
-    maxRadius: Double = 1E5,
+    maxRadius: Double,
     streetMode: StreetMode = StreetMode.WALK
   ): Split = {
     var radius = 10.0
@@ -117,6 +130,11 @@ trait GeoUtils extends ExponentialLazyLogging {
     }
     if (theSplit == null) {
       theSplit = streetLayer.findSplit(coord.getY, coord.getX, maxRadius, streetMode)
+    }
+    if (theSplit == null) {
+      notExponentialLogger.warn(
+        s"The split is `null` for StreetLayer.BoundingBox: ${streetLayer.getEnvelope}, coord: $coord, maxRadius: $maxRadius, street mode $streetMode"
+      )
     }
     theSplit
   }
@@ -235,6 +253,20 @@ object GeoUtils {
     Math.pow(a + b, 1 / exponent)
   }
 
+  /**
+    * Calculate the Manhattan distance (i.e., L_1-norm) between two coordinates. The provided
+    * coordinates must be in UTM.
+    *
+    * Source: https://en.wikipedia.org/wiki/Taxicab_geometry
+    *
+    * @param coord1 first coordinate in UTM
+    * @param coord2 second coordinate in UTM
+    * @return distance in meters
+    */
+  def manhattanDistance(coord1: Coord, coord2: Coord): Double = {
+    (coord2.getX - coord1.getX).abs + (coord2.getY - coord1.getY).abs
+  }
+
   sealed trait TurningDirection
   case object Straight extends TurningDirection
   case object SoftLeft extends TurningDirection
@@ -319,9 +351,24 @@ object GeoUtils {
     new Coord(currentEdge.getGeometry.getCoordinate.x, currentEdge.getGeometry.getCoordinate.y)
   }
 
+  /**
+    * Returns the WGS coordinates of a link's end.
+    *
+    * Note: by convention, a BeamPath starts at the **end** of the first link and ends at the end of the last link.
+    *
+    * @param linkIdInt Link ID.
+    * @param transportNetwork Transport network.
+    * @return WGS coordinates of the link's end.
+    */
+  def getLinkEndCoordWgs(linkIdInt: Int, transportNetwork: TransportNetwork): Coord = {
+
+    val currentEdge = transportNetwork.streetLayer.edgeStore.getCursor(linkIdInt)
+    new Coord(currentEdge.getGeometry.getEndPoint.getX, currentEdge.getGeometry.getEndPoint.getY)
+  }
+
 }
 
-class GeoUtilsImpl @Inject()(val beamConfig: BeamConfig) extends GeoUtils {
+class GeoUtilsImpl @Inject() (val beamConfig: BeamConfig) extends GeoUtils {
   override def localCRS: String = beamConfig.beam.spatial.localCRS
 }
 

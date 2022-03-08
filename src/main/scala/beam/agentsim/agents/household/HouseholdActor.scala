@@ -1,18 +1,15 @@
 package beam.agentsim.agents.household
 
-import java.util.concurrent.TimeUnit
-
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{Actor, ActorLogging, ActorRef, OneForOneStrategy, Props, Status, Terminated}
-import akka.pattern._
+import akka.actor.{ActorLogging, ActorRef, OneForOneStrategy, Props, Status, Terminated}
+import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents._
-import beam.agentsim.agents.choice.logit.{DestinationChoiceModel, MultinomialLogit}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
-import beam.agentsim.agents.modalbehaviors.{ChoosesMode, ModeChoiceCalculator}
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.planning.BeamPlan
 import beam.agentsim.agents.ridehail.RideHailAgent.{
   ModifyPassengerSchedule,
@@ -20,33 +17,40 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
   ModifyPassengerScheduleAcks
 }
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, PersonIdWithActorRef, VehicleCategory}
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Car, VehicleCategory}
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.agentsim.scheduler.HasTriggerId
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.replanning.{AddSupplementaryTrips, SupplementaryTripGenerator}
 import beam.router.BeamRouter.RoutingResponse
-import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAV
 import beam.router.RouteHistory
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import beam.router.osm.TollCalculator
+import beam.sim.config.BeamConfig.Beam
 import beam.sim.population.AttributesOfIndividual
+import beam.sim.vehicles.VehiclesAdjustment
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.logging.LoggingMessageActor
+import beam.utils.logging.pattern.ask
 import com.conveyal.r5.transit.TransportNetwork
-import com.vividsolutions.jts.geom.Envelope
+import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.config.Config
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.utils.misc.Time
 import org.matsim.households
 import org.matsim.households.Household
 
+import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
+import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 
 object HouseholdActor {
 
@@ -66,14 +70,16 @@ object HouseholdActor {
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
+    chargingNetworkManager: ActorRef,
     eventsManager: EventsManager,
     population: org.matsim.api.core.v01.population.Population,
     matSimHousehold: Household,
     houseHoldVehicles: Map[Id[BeamVehicle], BeamVehicle],
     homeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
+    possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
-    boundingBox: Envelope
+    vehiclesAdjustment: VehiclesAdjustment
   ): Props = {
     Props(
       new HouseholdActor(
@@ -86,22 +92,34 @@ object HouseholdActor {
         router,
         rideHailManager,
         parkingManager,
+        chargingNetworkManager,
         eventsManager,
         population,
         matSimHousehold,
         houseHoldVehicles,
         homeCoord,
         sharedVehicleFleets,
+        possibleSharedVehicleTypes,
         routeHistory,
-        boundingBox
+        vehiclesAdjustment
       )
     )
   }
 
-  case class MobilityStatusInquiry(personId: Id[Person], whereWhen: SpaceTime, originActivity: Activity)
-  case class ReleaseVehicle(vehicle: BeamVehicle)
-  case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None)
-  case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken])
+  case class MobilityStatusInquiry(
+    personId: Id[Person],
+    whereWhen: SpaceTime,
+    originActivity: Activity,
+    requireVehicleCategoryAvailable: Option[VehicleCategory],
+    triggerId: Long
+  ) extends HasTriggerId
+  case class ReleaseVehicle(vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
+
+  case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None, triggerId: Long)
+      extends HasTriggerId
+  case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken], triggerId: Long) extends HasTriggerId
+  case class GetVehicleTypes(triggerId: Long) extends HasTriggerId
+  case class VehicleTypesResponse(vehicleTypes: Set[BeamVehicleType], triggerId: Long) extends HasTriggerId
 
   /**
     * Implementation of intra-household interaction in BEAM using actors.
@@ -114,7 +132,7 @@ object HouseholdActor {
     *
     * @author dserdiuk/sfeygin
     * @param vehicles the [[BeamVehicle]]s managed by this [[Household]].
-    * @see [[ChoosesMode]]
+    * @see [[beam.agentsim.agents.modalbehaviors.ChoosesMode]]
     */
   class HouseholdActor(
     beamServices: BeamServices,
@@ -126,19 +144,22 @@ object HouseholdActor {
     router: ActorRef,
     rideHailManager: ActorRef,
     parkingManager: ActorRef,
+    chargingNetworkManager: ActorRef,
     eventsManager: EventsManager,
     val population: org.matsim.api.core.v01.population.Population,
     val household: Household,
     vehicles: Map[Id[BeamVehicle], BeamVehicle],
-    homeCoord: Coord,
+    fallbackHomeCoord: Coord,
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
+    possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
-    boundingBox: Envelope
-  ) extends Actor
+    vehiclesAdjustment: VehiclesAdjustment
+  ) extends LoggingMessageActor
       with HasTickAndTrigger
       with ActorLogging {
     implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
     implicit val executionContext: ExecutionContext = context.dispatcher
+    implicit val debug: Beam.Debug = beamServices.beamConfig.beam.debug
 
     override val supervisorStrategy: OneForOneStrategy =
       OneForOneStrategy(maxNrOfRetries = 0) {
@@ -167,18 +188,54 @@ object HouseholdActor {
     private var personAndActivityToCav: Map[(Id[Person], Activity), BeamVehicle] = Map()
     private var personAndActivityToLegs: Map[(Id[Person], Activity), List[BeamLeg]] = Map()
 
-    override def receive: Receive = {
+    private val realDistribution: UniformRealDistribution = new UniformRealDistribution()
+    realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+
+    override def loggedReceive: Receive = {
 
       case TriggerWithId(InitializeTrigger(tick), triggerId) =>
+        val homeCoordFromPlans = household.members
+          .flatMap(person =>
+            person.getSelectedPlan.getPlanElements.asScala.flatMap {
+              case act: Activity if act.getType == "Home" => Some(act.getCoord)
+              case _                                      => None
+            }
+          )
+          .headOption
+          .getOrElse(fallbackHomeCoord)
+
         val vehiclesByCategory =
           vehicles.filter(_._2.beamVehicleType.automationLevel <= 3).groupBy(_._2.beamVehicleType.vehicleCategory)
-        val fleetManagers = vehiclesByCategory.map {
-          case (category, vs) =>
-            val fleetManager =
-              context.actorOf(Props(new HouseholdFleetManager(parkingManager, vs, homeCoord)), category.toString)
-            context.watch(fleetManager)
-            schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
-            fleetManager
+
+        //We should create a vehicle manager for cars and bikes for all households in case they are generated during the simulation
+
+        val vehiclesByAllCategories = List(Car, Bike)
+          .map(cat => cat -> vehiclesByCategory.getOrElse(cat, Map[Id[BeamVehicle], BeamVehicle]()))
+          .toMap
+        val fleetManagers = vehiclesByAllCategories.map { case (category, vehicleMap) =>
+          val emergencyGenerator = new EmergencyHouseholdVehicleGenerator(
+            household,
+            homeCoordFromPlans,
+            beamScenario,
+            vehiclesAdjustment,
+            category
+          )
+          val fleetManager =
+            context.actorOf(
+              Props(
+                new HouseholdFleetManager(
+                  parkingManager,
+                  vehicleMap,
+                  homeCoordFromPlans,
+                  Some(emergencyGenerator),
+                  beamServices.beamConfig.beam.debug
+                )
+              ),
+              category.toString
+            )
+          context.watch(fleetManager)
+          schedulerRef ! ScheduleTrigger(InitializeTrigger(0), fleetManager)
+          fleetManager
         }
 
         // If any of my vehicles are CAVs then go through scheduling process
@@ -195,22 +252,25 @@ object HouseholdActor {
                 beamScenario,
                 eventsManager,
                 parkingManager,
+                chargingNetworkManager,
                 cav,
-                Seq(),
                 transportNetwork,
                 tollCalculator
               ),
               s"cavDriver-${cav.id.toString}"
             )
+            log.warning(
+              s"Setting up household cav ${cav.id} with driver ${cav.getDriver} to be set with driver ${cavDriverRef}"
+            )
             context.watch(cavDriverRef)
-            cav.spaceTime = SpaceTime(homeCoord, 0)
+            cav.spaceTime = SpaceTime(homeCoordFromPlans, 0)
             schedulerRef ! ScheduleTrigger(InitializeTrigger(0), cavDriverRef)
             cav.setManager(Some(self))
             cav.becomeDriver(cavDriverRef)
           }
           household.members.foreach { person =>
             person.getSelectedPlan.getPlanElements.forEach {
-              case a: Activity =>
+              case _: Activity =>
               case l: Leg =>
                 if (l.getMode.equalsIgnoreCase("cav")) l.setMode("")
             }
@@ -223,7 +283,7 @@ object HouseholdActor {
             cavs = List()
           } else {
             val requestsAndUpdatedPlans = optimalPlan.filter(_.schedule.size > 1).map {
-              _.toRoutingRequests(beamServices, transportNetwork, routeHistory)
+              _.toRoutingRequests(beamServices, transportNetwork, routeHistory, triggerId)
             }
             val routingRequests = requestsAndUpdatedPlans.flatMap(_._1.flatten)
             cavPlans ++= requestsAndUpdatedPlans.map(_._2)
@@ -256,14 +316,17 @@ object HouseholdActor {
             //            log.debug("Household {} is done planning", household.getId)
             Future
               .sequence(
-                routingRequests.map(
-                  req =>
-                    akka.pattern
-                      .ask(router, if (req.routeReq.isDefined) { req.routeReq.get } else { req.embodyReq.get })
-                      .mapTo[RoutingResponse]
+                routingRequests.map(req =>
+                  beam.utils.logging.pattern
+                    .ask(
+                      router,
+                      if (req.routeReq.isDefined) { req.routeReq.get }
+                      else { req.embodyReq.get }
+                    )
+                    .mapTo[RoutingResponse]
                 )
               )
-              .map(RoutingResponses(tick, _)) pipeTo self
+              .map(RoutingResponses(tick, _, triggerId)) pipeTo self
           }
         }
         household.members.foreach { person =>
@@ -290,13 +353,15 @@ object HouseholdActor {
               router,
               rideHailManager,
               parkingManager,
+              chargingNetworkManager,
               eventsManager,
               person.getId,
               self,
               selectedPlan,
-              fleetManagers ++: sharedVehicleFleets,
-              routeHistory,
-              boundingBox
+              fleetManagers.toSeq,
+              sharedVehicleFleets,
+              possibleSharedVehicleTypes,
+              routeHistory
             ),
             person.getId.toString
           )
@@ -306,7 +371,7 @@ object HouseholdActor {
         }
         if (cavs.isEmpty) completeInitialization(triggerId, Vector())
 
-      case RoutingResponses(tick, routingResponses) =>
+      case RoutingResponses(tick, routingResponses, triggerId) =>
         // Check if there are any broken routes, for now we cancel the whole cav plan if this happens and give a warning
         // a more robust implementation would re-plan but without the person who's mobility led to the bad route
         if (routingResponses.exists(_.itineraries.isEmpty)) {
@@ -322,11 +387,6 @@ object HouseholdActor {
         } else {
           // Index the responses by Id
           val indexedResponses = routingResponses.map(resp => resp.requestId -> resp).toMap
-          routingResponses.foreach { resp =>
-            resp.itineraries.headOption.map { itin =>
-              val theLeg = itin.legs.head.beamLeg
-            }
-          }
           // Create a passenger schedule for each CAV in the plan
           cavPassengerSchedules = cavPlans.map { cavSchedule =>
             val theLegs = cavSchedule.schedule.flatMap { serviceRequest =>
@@ -365,7 +425,11 @@ object HouseholdActor {
                   passengersToAdd = passengersToAdd + person
                 }
               }
-              if (serviceRequest.routingRequestId.isDefined && indexedResponses(serviceRequest.routingRequestId.get).itineraries.nonEmpty) {
+              if (
+                serviceRequest.routingRequestId.isDefined && indexedResponses(
+                  serviceRequest.routingRequestId.get
+                ).itineraries.nonEmpty
+              ) {
                 if (updatedLegsIterator.hasNext) {
                   val leg = updatedLegsIterator.next
                   passengersToAdd.foreach { pass =>
@@ -386,23 +450,23 @@ object HouseholdActor {
               cavPassengerSchedules
                 .filter(_._2.schedule.nonEmpty)
                 .map { cavAndSchedule =>
-                  akka.pattern
+                  beam.utils.logging.pattern
                     .ask(
                       cavAndSchedule._1.getDriver.get,
-                      ModifyPassengerSchedule(cavAndSchedule._2, tick)
+                      ModifyPassengerSchedule(cavAndSchedule._2, tick, triggerId)
                     )
                     .mapTo[ModifyPassengerScheduleAck]
                 }
                 .toList
             )
-            .map(ModifyPassengerScheduleAcks)
+            .map(list => ModifyPassengerScheduleAcks(list, triggerId))
             .pipeTo(self)
         }
 
       case Status.Failure(reason) =>
         throw new RuntimeException(reason)
 
-      case ModifyPassengerScheduleAcks(acks) =>
+      case ModifyPassengerScheduleAcks(acks, _) =>
         val (_, triggerId) = releaseTickAndTriggerId()
         completeInitialization(triggerId, acks.flatMap(_.triggersToSchedule).toVector)
 
@@ -412,16 +476,14 @@ object HouseholdActor {
             val cav = personAndActivityToCav((person.personId, originActivity))
             sender() ! CavTripLegsResponse(
               Some(cav),
-              legs.map(
-                bLeg =>
-                  EmbodiedBeamLeg(
-                    beamLeg = bLeg.copy(mode = CAV),
-                    beamVehicleId = cav.id,
-                    beamVehicleTypeId = cav.beamVehicleType.id,
-                    asDriver = false,
-                    cost = 0D,
-                    unbecomeDriverOnCompletion = false,
-                    isPooledTrip = false
+              legs.map(bLeg =>
+                EmbodiedBeamLeg(
+                  beamLeg = bLeg.copy(mode = CAV),
+                  beamVehicleId = cav.id,
+                  beamVehicleTypeId = cav.beamVehicleType.id,
+                  asDriver = false,
+                  cost = 0d,
+                  unbecomeDriverOnCompletion = false
                 )
               )
             )
@@ -437,9 +499,8 @@ object HouseholdActor {
       case Finish =>
         context.children.foreach(_ ! Finish)
         dieIfNoChildren()
-        context.become {
-          case Terminated(_) =>
-            dieIfNoChildren()
+        contextBecome { case Terminated(_) =>
+          dieIfNoChildren()
         }
 
       case Terminated(_) =>
@@ -449,18 +510,17 @@ object HouseholdActor {
 
     def completeInitialization(triggerId: Long, triggersToSchedule: Vector[ScheduleTrigger]): Unit = {
 
-      val HasEnoughFuelToBeParked: Boolean = true
-
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future
         .sequence(vehicles.filter(_._2.beamVehicleType.automationLevel > 3).values.map { veh =>
           veh.setManager(Some(self))
-          veh.spaceTime = SpaceTime(homeCoord.getX, homeCoord.getY, 0)
           for {
-            ParkingInquiryResponse(stall, _) <- parkingManager ? ParkingInquiry(homeCoord, "init")
+            ParkingInquiryResponse(stall, _, _) <- parkingManager ? ParkingInquiry
+              .init(veh.spaceTime, "init", triggerId = triggerId)
           } {
             veh.useParkingStall(stall)
+            veh.spaceTime = SpaceTime(stall.locationUTM.getX, stall.locationUTM.getY, 0)
           }
           Future.successful(())
         })
@@ -477,4 +537,70 @@ object HouseholdActor {
     }
   }
 
+  class EmergencyHouseholdVehicleGenerator(
+    household: Household,
+    homeCoordFromPlans: Coord,
+    beamScenario: BeamScenario,
+    vehiclesAdjustment: VehiclesAdjustment,
+    defaultCategory: VehicleCategory
+  ) extends LazyLogging {
+    private val realDistribution: UniformRealDistribution = new UniformRealDistribution()
+    realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+
+    private val generateEmergencyHousehold =
+      beamScenario.beamConfig.beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt
+
+    def createVehicle(personId: Id[Person], vehicleIndex: Int, category: VehicleCategory): Option[BeamVehicle] = {
+      val vehicleTypeMaybe =
+        if (generateEmergencyHousehold && defaultCategory == category) {
+          category match {
+            case VehicleCategory.Car =>
+              vehiclesAdjustment
+                .sampleVehicleTypesForHousehold(
+                  1,
+                  VehicleCategory.Car,
+                  household.getIncome.getIncome,
+                  household.getMemberIds.size(),
+                  householdPopulation = null,
+                  homeCoordFromPlans,
+                  realDistribution
+                )
+                .headOption
+                .orElse {
+                  beamScenario.vehicleTypes.get(
+                    Id.create(
+                      beamScenario.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
+                      classOf[BeamVehicleType]
+                    )
+                  )
+                }
+            case VehicleCategory.Bike =>
+              beamScenario.vehicleTypes
+                .get(
+                  Id.create(
+                    beamScenario.beamConfig.beam.agentsim.agents.vehicles.dummySharedBike.vehicleTypeId,
+                    classOf[BeamVehicleType]
+                  )
+                )
+            case _ =>
+              logger.warn(
+                s"Person $personId is requiring a vehicle that belongs to category $category that is neither Car nor Bike"
+              )
+              None
+          }
+        } else None
+      vehicleTypeMaybe map { vehicleType =>
+        val vehicle = new BeamVehicle(
+          Id.createVehicleId(personId.toString + "-emergency-" + vehicleIndex),
+          new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter),
+          vehicleType
+        )
+        beamScenario.privateVehicles.put(vehicle.id, vehicle)
+        vehicle.initializeFuelLevelsFromUniformDistribution(
+          beamScenario.beamConfig.beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC
+        )
+        vehicle
+      }
+    }
+  }
 }

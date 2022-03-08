@@ -1,55 +1,65 @@
 package beam.agentsim.infrastructure
 
-import java.util.concurrent.TimeUnit
-
-import scala.annotation.tailrec
-
-import akka.actor.{ActorRef, ActorSystem, Props}
-import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
+import akka.actor.ActorSystem
+import akka.testkit.{ImplicitSender, TestKitBase}
 import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
-import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
-import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
+import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
+import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
+import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.ConfigFactory
+import beam.utils.{SimRunnerForTest, TestConfigUtils}
+import com.typesafe.config.{Config, ConfigFactory}
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import org.scalatest.{BeforeAndAfterAll, FunSpecLike, Matchers}
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.funspec.AnyFunSpecLike
+import org.scalatest.matchers.should.Matchers
+
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+import scala.annotation.tailrec
 import scala.io.Source
 import scala.util.Random
 
 class ZonalParkingManagerSpec
-    extends TestKit(
-      ActorSystem(
-        "ZonalParkingManagerSpec",
-        ConfigFactory.parseString("""
-  akka.log-dead-letters = 10
-  akka.actor.debug.fsm = true
-  akka.loglevel = debug
-  """).withFallback(testConfig("test/input/beamville/beam.conf").resolve())
-      )
-    )
-    with FunSpecLike
-    with BeforeAndAfterAll
-    with MockitoSugar
+    extends AnyFunSpecLike
+    with TestKitBase
+    with SimRunnerForTest
     with ImplicitSender
     with Matchers
     with BeamvilleFixtures {
 
+  lazy val config: Config = ConfigFactory
+    .parseString(
+      """
+        akka.log-dead-letters = 10
+        akka.actor.debug.fsm = true
+        akka.loglevel = debug
+        akka.test.timefactor = 2
+        """
+    )
+    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .resolve()
+
+  lazy implicit val system: ActorSystem = ActorSystem("PersonAndTransitDriverSpec", config)
+  override def outputDirPath: String = TestConfigUtils.testOutputDir
+
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
 
-  val randomSeed: Long = 0
+  val randomSeed: Int = 0
 
   // a coordinate in the center of the UTM coordinate system
   val coordCenterOfUTM = new Coord(500000, 5000000)
+  val centerSpaceTime = SpaceTime(coordCenterOfUTM, 0)
 
-  val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
 
   describe("ZonalParkingManager with no parking") {
@@ -65,44 +75,39 @@ class ZonalParkingManagerSpec
           yMax = 10000000
         ) // one TAZ at agent coordinate
         config = beamConfig
-        emptyParkingDescription: Iterator[String] = Iterator.empty
+        emptyParkingDescription: Iterator[String] = Iterator.single(ParkingZoneFileUtils.ParkingFileHeader)
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
+          config,
           tazTreeMap,
           geo,
           emptyParkingDescription,
           boundingBox,
-          new Random(randomSeed)
+          randomSeed
         )
       } {
-//        val beta1 = 1
-//        val beta2 = 1
-//        val beta3 = 0.001
-//        val commonUtilityParams: Map[String, UtilityFunctionOperation] = Map(
-//          "energyPriceFactor" -> UtilityFunctionOperation("multiplier", -beta1),
-//          "distanceFactor"    -> UtilityFunctionOperation("multiplier", -beta2),
-//          "installedCapacity" -> UtilityFunctionOperation("multiplier", -beta3)
-//        )
-//        import beam.agentsim.infrastructure.parking.ParkingZoneSearch
-//        val mnl = MultinomialLogit[ParkingZoneSearch.ParkingAlternative, String](Map.empty, commonUtilityParams)
-
-        val inquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 77239)
         val expectedStall: ParkingStall = ParkingStall.lastResortStall(
           new Envelope(
-            inquiry.destinationUtm.getX + 2000,
-            inquiry.destinationUtm.getX - 2000,
-            inquiry.destinationUtm.getY + 2000,
-            inquiry.destinationUtm.getY - 2000
+            inquiry.destinationUtm.loc.getX + 2000,
+            inquiry.destinationUtm.loc.getX - 2000,
+            inquiry.destinationUtm.loc.getY + 2000,
+            inquiry.destinationUtm.loc.getY - 2000
           ),
-          new Random(randomSeed)
+          new Random(randomSeed),
+          geoId = TAZ.EmergencyTAZId
         )
 
-        zonalParkingManager ! inquiry
+        val response = zonalParkingManager.processParkingInquiry(inquiry)
 
         // note on the random seed:
         // since there are no TAZs to search and sample parking locations from,
         // the random number generator is unused by the [[ZonalParkingManager]] search, and we can
         // therefore rely on the coordinate that is generated when [[ZonalParkingManager]] calls [[ParkingStall.emergencyStall]] internally
-        expectMsg(ParkingInquiryResponse(expectedStall, inquiry.requestId))
+        assert(response.isDefined, "no response")
+        assert(
+          response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+          "something is wildly broken"
+        )
       }
     }
   }
@@ -120,42 +125,53 @@ class ZonalParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-            |1,Workplace,FlatFee,None,1,1234,unused
+        oneParkingOption: Iterator[String] = s"""taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId
+            |1,Workplace,FlatFee,None,1,1234,,0
             |
           """.stripMargin.split("\n").toIterator
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
+          config,
           tazTreeMap,
           geo,
           oneParkingOption,
           boundingBox,
-          new Random(randomSeed)
+          randomSeed
         )
       } {
 
         // first request is handled with the only stall in the system
-        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work")
+        val firstInquiry =
+          ParkingInquiry.init(centerSpaceTime, "work", triggerId = 3234324)
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
-            0,
+            Id.create(1, classOf[TAZ]),
+            ParkingZone.createId("0"),
             coordCenterOfUTM,
             12.34,
             None,
             Some(PricingModel.FlatFee(12.34)),
-            ParkingType.Workplace
+            ParkingType.Workplace,
+            VehicleManager.AnyManager
           )
-        zonalParkingManager ! firstInquiry
-        expectMsg(ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId))
+        val response1 = zonalParkingManager.processParkingInquiry(firstInquiry)
+        assert(response1.isDefined, "no response")
+        assert(
+          response1.get == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId, firstInquiry.triggerId),
+          "something is wildly broken"
+        )
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
-        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
-        zonalParkingManager ! secondInquiry
-        expectMsgPF() {
-          case res @ ParkingInquiryResponse(stall, responseId)
-              if stall.tazId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId =>
-            res
-        }
+        val secondInquiry =
+          ParkingInquiry.init(centerSpaceTime, "work", triggerId = 123709)
+        val response2 @ Some(ParkingInquiryResponse(stall, responseId, triggerId)) =
+          zonalParkingManager.processParkingInquiry(secondInquiry)
+        assert(response2.isDefined, "no response")
+        assert(
+          stall.geoId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId
+          && triggerId == secondInquiry.triggerId,
+          "something is wildly broken"
+        )
       }
     }
   }
@@ -173,45 +189,57 @@ class ZonalParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         config = BeamConfig(system.settings.config)
-        oneParkingOption: Iterator[String] = """taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor
-          |1,Workplace,FlatFee,None,1,1234,unused
+        oneParkingOption: Iterator[String] =
+          """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId
+          |1,Workplace,FlatFee,None,1,1234,,0
           |
           """.stripMargin.split("\n").toIterator
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
+          config,
           tazTreeMap,
           geo,
           oneParkingOption,
           boundingBox,
-          new Random(randomSeed)
+          randomSeed
         )
       } {
         // note: ParkingInquiry constructor has a side effect of creating a new (unique) request id
-        val firstInquiry = ParkingInquiry(coordCenterOfUTM, "work")
-        val secondInquiry = ParkingInquiry(coordCenterOfUTM, "work")
-        val expectedParkingZoneId = 0
+        val firstInquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 3829)
+        val secondInquiry =
+          ParkingInquiry.init(centerSpaceTime, "work", triggerId = 38429)
         val expectedTAZId = Id.create(1, classOf[TAZ])
         val expectedStall =
           ParkingStall(
             expectedTAZId,
-            expectedParkingZoneId,
+            expectedTAZId,
+            ParkingZone.createId("0"),
             coordCenterOfUTM,
             12.34,
             None,
             Some(PricingModel.FlatFee(12.34)),
-            ParkingType.Workplace
+            ParkingType.Workplace,
+            VehicleManager.AnyManager
           )
 
         // request the stall
-        zonalParkingManager ! firstInquiry
-        expectMsg(ParkingInquiryResponse(expectedStall, firstInquiry.requestId))
+        val response1 = zonalParkingManager.processParkingInquiry(firstInquiry)
+        assert(response1.isDefined, "no response")
+        assert(
+          response1.get == ParkingInquiryResponse(expectedStall, firstInquiry.requestId, firstInquiry.triggerId),
+          "something is wildly broken"
+        )
 
         // release the stall
-        val releaseParkingStall = ReleaseParkingStall(expectedParkingZoneId, expectedTAZId)
-        zonalParkingManager ! releaseParkingStall
+        val releaseParkingStall = ReleaseParkingStall(expectedStall, 2903)
+        zonalParkingManager.processReleaseParkingStall(releaseParkingStall)
 
         // request the stall again
-        zonalParkingManager ! secondInquiry
-        expectMsg(ParkingInquiryResponse(expectedStall, secondInquiry.requestId))
+        val response2 = zonalParkingManager.processParkingInquiry(secondInquiry)
+        assert(response2.isDefined, "no response")
+        assert(
+          response2.get == ParkingInquiryResponse(expectedStall, secondInquiry.requestId, secondInquiry.triggerId),
+          "something is wildly broken"
+        )
       }
     }
   }
@@ -238,27 +266,36 @@ class ZonalParkingManagerSpec
       val middleOfWorld = new Coord(50, 50)
 
       for {
-        trial <- 1 to trials
+        _ <- 1 to trials
         numStalls = math.max(4, random.nextInt(maxParkingStalls))
         tazTreeMap <- ZonalParkingManagerSpec.mockTazTreeMap(tazList, startAtId = 1, 0, 0, 100, 100)
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random)
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
+        config = BeamConfig(system.settings.config)
         zonalParkingManager = ZonalParkingManagerSpec.mockZonalParkingManager(
+          config,
           tazTreeMap,
           geo,
           parkingConfiguration,
           boundingBox,
-          new Random(randomSeed)
+          randomSeed
         )
       } {
 
         val wasProvidedNonEmergencyParking: Iterable[Int] = for {
           _ <- 1 to maxInquiries
-          req = ParkingInquiry(middleOfWorld, "work")
-          _ = zonalParkingManager ! req
-          counted = expectMsgPF[Int]() {
-            case res @ ParkingInquiryResponse(_, _) =>
-              if (res.stall.tazId != TAZ.EmergencyTAZId) 1 else 0
+          req = ParkingInquiry.init(
+            SpaceTime(middleOfWorld, 0),
+            "work",
+            triggerId = 839237
+          )
+          response1 = zonalParkingManager.processParkingInquiry(req)
+          counted = response1 match {
+            case Some(res @ ParkingInquiryResponse(_, _, _)) =>
+              if (res.stall.geoId != TAZ.EmergencyTAZId) 1 else 0
+            case _ =>
+              assert(response1.isDefined, "no response")
+              0
           }
         } yield {
           counted
@@ -280,46 +317,220 @@ class ZonalParkingManagerSpec
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
       val minSearchRadius = 1000.0
       val maxSearchRadius = 16093.4 // meters, aka 10 miles
-      val zpm = system.actorOf(
-        Props(
-          ZonalParkingManager(
-            parkingDescription,
-            tazMap,
-            geo,
-            new Random(randomSeed),
-            minSearchRadius,
-            maxSearchRadius,
-            boundingBox
-          )
-        )
+      val zpm = ZonalParkingManager(
+        parkingDescription,
+        tazMap.tazQuadTree,
+        tazMap.idToTAZMapping,
+        identity[TAZ](_),
+        boundingBox,
+        geo.distUTMInMeters(_, _),
+        minSearchRadius,
+        maxSearchRadius,
+        randomSeed,
+        beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
+        beamConfig,
+        None
       )
 
-      assertParkingResponse(zpm, new Coord(170308.0, 2964.0), "4", 17, Block(0.0, 3600), ParkingType.Public)
+      assertParkingResponse(
+        zpm,
+        SpaceTime(new Coord(170308.0, 2964.0), 0),
+        "4",
+        ParkingZone.createId("cs_default(Any)_4_Residential_NA_FlatFee_0_2147483647"),
+        FlatFee(0.0),
+        ParkingType.Residential,
+        "beamVilleCar"
+      )
 
-      assertParkingResponse(zpm, new Coord(166321.0, 1568.0), "1", 122, Block(0.0, 3600), ParkingType.Public)
+      assertParkingResponse(
+        zpm,
+        SpaceTime(new Coord(166321.0, 1568.0), 0),
+        "1",
+        ParkingZone.createId("cs_default(Any)_1_Residential_NA_FlatFee_0_2147483647"),
+        FlatFee(0.0),
+        ParkingType.Residential,
+        "beamVilleCar"
+      )
 
-      assertParkingResponse(zpm, new Coord(166500.0, 1500.0), "1", 22, FlatFee(0.0), ParkingType.Residential)
+      assertParkingResponse(
+        zpm,
+        SpaceTime(new Coord(167141.3, 3326.017), 0),
+        "2",
+        ParkingZone.createId("cs_default(Any)_2_Residential_NA_FlatFee_0_2147483647"),
+        FlatFee(0.0),
+        ParkingType.Residential,
+        "beamVilleCar"
+      )
 
       source.close()
     }
   }
 
-  private def assertParkingResponse(
-    zpm: ActorRef,
-    coord: Coord,
-    tazId: String,
-    parkingZoneId: Int,
-    pricingModel: PricingModel,
-    parkingType: ParkingType
-  ) = {
-    val inquiry = ParkingInquiry(coord, "init")
-    zpm ! inquiry
-    val expectedStall =
-      ParkingStall(Id.create(tazId, classOf[TAZ]), parkingZoneId, coord, 0.0, None, Some(pricingModel), parkingType)
-    expectMsg(ParkingInquiryResponse(expectedStall, inquiry.requestId))
+  describe("ZonalParkingManager with time restrictions") {
+    it("should return a stall from the single available zone (index=2)") {
+      val parkingDescription: Iterator[String] =
+        """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,timeRestrictions,reservedFor,parkingZoneId
+          |4,Public,FlatFee,NoCharger,10,0,Car|0-17:30;LightDutyTruck|17:31-23:59,,
+          |4,Public,Block,NoCharger,20,0,LightDutyTruck|0-17:30;Car|17:31-23:59,,""".stripMargin
+          .split("\n")
+          .toIterator
+      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+      val minSearchRadius = 1000.0
+      val maxSearchRadius = 16093.4 // meters, aka 10 miles
+      val zpm = ZonalParkingManager(
+        parkingDescription,
+        tazMap.tazQuadTree,
+        tazMap.idToTAZMapping,
+        identity[TAZ](_),
+        boundingBox,
+        geo.distUTMInMeters(_, _),
+        minSearchRadius,
+        maxSearchRadius,
+        randomSeed,
+        beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
+        beamConfig,
+        None
+      )
+
+      assertParkingResponse(
+        zpm,
+        SpaceTime(new Coord(169369.8, 3326.017), 8 * 3600),
+        "4",
+        ParkingZone.createId("cs_default(Any)_4_Public_NA_Block_0_20"),
+        PricingModel("block", "0").get,
+        ParkingType.Public,
+        "FREIGHT-1"
+      )
+    }
   }
 
-  override def afterAll: Unit = {
+  describe("ZonalParkingManager with multiple parking files loaded") {
+    it("should return the correct stall corresponding with the request (reservedFor, vehicleManagerId)") {
+      val sharedFleet1 = VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared)
+      val sharedFleet2 = VehicleManager.createOrGetReservedFor("shared-fleet-2", VehicleManager.TypeEnum.Shared)
+      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+      val stalls = InfrastructureUtils.loadStalls[TAZ](
+        "test/test-resources/beam/agentsim/infrastructure/taz-parking.csv",
+        IndexedSeq(
+          (
+            "test/test-resources/beam/agentsim/infrastructure/taz-parking-shared-fleet-1.csv",
+            sharedFleet1,
+            Seq(ParkingType.Public)
+          ),
+          (
+            "test/test-resources/beam/agentsim/infrastructure/taz-parking-shared-fleet-2.csv",
+            sharedFleet2,
+            Seq(ParkingType.Public)
+          )
+        ),
+        null, //it is required only in case of failures
+        1.0,
+        1.0,
+        randomSeed,
+        beamConfig,
+        None
+      )
+      val parkingZones = InfrastructureUtils.loadParkingStalls(stalls)
+      val zonesMap = ZonalParkingManager[TAZ](
+        parkingZones,
+        tazMap.tazQuadTree,
+        tazMap.idToTAZMapping,
+        identity[TAZ](_),
+        geo.distUTMInMeters(_, _),
+        boundingBox,
+        beamConfig.beam.agentsim.agents.parking.minSearchRadius,
+        beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+        randomSeed,
+        beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
+      )
+
+      assertParkingResponse(
+        zonesMap,
+        SpaceTime(new Coord(170308.0, 2964.0), 0),
+        "4",
+        ParkingZone.createId("cs_default(Any)_4_Residential_NA_FlatFee_199_1144"),
+        FlatFee(1.99),
+        ParkingType.Residential,
+        "beamVilleCar"
+      )
+
+      assertVehicleManager(
+        zonesMap,
+        new Coord(166321.0, 1568.0),
+        sharedFleet1,
+        Seq(sharedFleet1, VehicleManager.AnyManager)
+      )
+
+      assertVehicleManager(
+        zonesMap,
+        new Coord(166500.0, 1500.0),
+        sharedFleet2,
+        Seq(sharedFleet2, VehicleManager.AnyManager)
+      )
+    }
+  }
+
+  private def assertVehicleManager(
+    zpm: ParkingNetwork[_],
+    coord: Coord,
+    reservedFor: ReservedFor,
+    vehicleManagerToAssert: Seq[ReservedFor]
+  ) = {
+    val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+    val vehicle = new BeamVehicle(
+      id = Id.createVehicleId("car-01"),
+      powerTrain = new Powertrain(0.0),
+      beamVehicleType = vehicleType,
+      vehicleManagerId = new AtomicReference(reservedFor.managerId)
+    )
+    vehicle.spaceTime = SpaceTime(coord.getX - 200, coord.getY - 200, 0)
+    val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", reservedFor, Some(vehicle), triggerId = 0)
+    val response = zpm.processParkingInquiry(inquiry)
+    assert(response.isDefined, "no response")
+    assert(vehicleManagerToAssert.contains(response.get.stall.reservedFor), "something is wildly broken")
+  }
+
+  private def assertParkingResponse(
+    zpm: ParkingNetwork[_],
+    spaceTime: SpaceTime,
+    tazId: String,
+    parkingZoneId: Id[ParkingZoneId],
+    pricingModel: PricingModel,
+    parkingType: ParkingType,
+    vehicleTypeName: String,
+    reservedFor: ReservedFor = VehicleManager.AnyManager
+  ) = {
+    val vehicleType = beamScenario.vehicleTypes(Id.create(vehicleTypeName, classOf[BeamVehicleType]))
+    val vehicle = new BeamVehicle(
+      id = Id.createVehicleId("car-01"),
+      powerTrain = new Powertrain(0.0),
+      beamVehicleType = vehicleType,
+      vehicleManagerId = new AtomicReference(reservedFor.managerId)
+    )
+    vehicle.spaceTime = SpaceTime(spaceTime.loc.getX - 200, spaceTime.loc.getY - 200, 0)
+    val inquiry = ParkingInquiry.init(spaceTime, "init", reservedFor, Some(vehicle), triggerId = 3737)
+    val response = zpm.processParkingInquiry(inquiry)
+    val tazId1 = Id.create(tazId, classOf[TAZ])
+    val costInDollars = if (pricingModel.isInstanceOf[FlatFee]) pricingModel.costInDollars else 0.0
+    val expectedStall =
+      ParkingStall(
+        tazId1,
+        tazId1,
+        parkingZoneId,
+        spaceTime.loc,
+        costInDollars,
+        None,
+        Some(pricingModel),
+        parkingType,
+        reservedFor = reservedFor
+      )
+    assert(
+      response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+      "something is wildly broken"
+    )
+  }
+
+  override def afterAll(): Unit = {
     shutdown()
   }
 }
@@ -327,26 +538,29 @@ class ZonalParkingManagerSpec
 object ZonalParkingManagerSpec {
 
   def mockZonalParkingManager(
+    beamConfig: BeamConfig,
     tazTreeMap: TAZTreeMap,
     geo: GeoUtils,
     parkingDescription: Iterator[String],
     boundingBox: Envelope,
-    random: Random = Random
-  )(implicit system: ActorSystem): ActorRef = {
+    seed: Int
+  ): ZonalParkingManager[TAZ] = {
     val minSearchRadius = 1000.0
     val maxSearchRadius = 16093.4 // meters, aka 10 miles
-    val zonalParkingManagerProps = Props(
-      ZonalParkingManager(
-        parkingDescription,
-        tazTreeMap,
-        geo,
-        random,
-        minSearchRadius,
-        maxSearchRadius,
-        boundingBox
-      )
+    ZonalParkingManager(
+      parkingDescription,
+      tazTreeMap.tazQuadTree,
+      tazTreeMap.idToTAZMapping,
+      identity[TAZ](_),
+      boundingBox,
+      geo.distUTMInMeters(_, _),
+      minSearchRadius,
+      maxSearchRadius,
+      seed,
+      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
+      beamConfig,
+      None
     )
-    TestActorRef[ZonalParkingManager](zonalParkingManagerProps)
   }
 
   /**
@@ -399,27 +613,37 @@ object ZonalParkingManagerSpec {
 
   // using a split of numStalls, create a parking input for all-work, $0-cost parking alternatives with varying stall counts
   def makeParkingConfiguration(split: List[Int]): Iterator[String] = {
-    val header = "taz,parkingType,pricingModel,chargingPoint,numStalls,feeInCents,reservedFor"
+    val header = "taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId"
     val result = split.zipWithIndex
-      .map {
-        case (stalls, i) =>
-          s"${i + 1},Workplace,FlatFee,None,$stalls,0,unused"
-      }
+      .map { case (stalls, i) => s"${i + 1},Workplace,FlatFee,None,$stalls,0,," }
       .mkString(s"$header\n", "\n", "")
       .split("\n")
       .toIterator
     result
   }
 
-  def makeParkingZones(treeMap: TAZTreeMap, zones: List[Int]): Array[ParkingZone] = {
+  def makeParkingZones(
+    treeMap: TAZTreeMap,
+    zones: List[Int],
+    reservedFor: ReservedFor
+  ): Map[Id[ParkingZoneId], ParkingZone[TAZ]] = {
     val result = treeMap.getTAZs
       .zip(zones)
-      .foldLeft(List.empty[ParkingZone]) {
-        case (acc, (taz, numZones)) =>
-          val parkingZones = (0 until numZones)
-            .map(i => ParkingZone(acc.size + i, taz.tazId, ParkingType.Workplace, 5, None, Some(FlatFee(3.0))))
-          acc ++ parkingZones
+      .foldLeft(Map.empty[Id[ParkingZoneId], ParkingZone[TAZ]]) { case (acc, (taz, numZones)) =>
+        val parkingZones = (0 until numZones).map { i =>
+          val zone = ParkingZone
+            .init[TAZ](
+              None,
+              taz.tazId,
+              ParkingType.Workplace,
+              reservedFor,
+              5,
+              pricingModel = Some(FlatFee(3.0))
+            )
+          zone.parkingZoneId -> zone
+        }.toMap
+        acc ++ parkingZones
       }
-    result.toArray
+    result
   }
 }

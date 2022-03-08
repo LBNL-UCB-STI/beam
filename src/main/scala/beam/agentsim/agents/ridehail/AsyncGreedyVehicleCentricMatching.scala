@@ -27,10 +27,9 @@ class AsyncGreedyVehicleCentricMatching(
         Future { vehicleCentricMatching(v) }
       })
       .map(result => greedyAssignment(result.flatten))
-      .recover {
-        case e =>
-          println(e.getMessage)
-          List.empty[RideHailTrip]
+      .recover { case e =>
+        println(e.getMessage)
+        List.empty[RideHailTrip]
       }
   }
 
@@ -74,9 +73,11 @@ class AsyncGreedyVehicleCentricMatching(
       }
       val combinations = ListBuffer.empty[String]
       for ((t1, _) <- potentialTrips) {
-        for ((t2, _) <- potentialTrips.filter(
-               t2p => !t2p._1.requests.exists(t1.requests.contains) && (t1.requests.size + t2p._1.requests.size) == k
-             )) {
+        for (
+          (t2, _) <- potentialTrips.filter(t2p =>
+            !t2p._1.requests.exists(t1.requests.contains) && (t1.requests.size + t2p._1.requests.size) == k
+          )
+        ) {
           val temp = t1.requests ++ t2.requests
           val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
           if (!combinations.contains(matchId)) {

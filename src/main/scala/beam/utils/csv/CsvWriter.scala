@@ -1,18 +1,25 @@
 package beam.utils.csv
 
+import com.typesafe.scalalogging.LazyLogging
+
 import java.io.Writer
 import org.matsim.core.utils.io.IOUtils
+
 import scala.util.Try
+import scala.util.control.NonFatal
 
 case class Delimiter(value: String = ",")
 case class LineSeparator(value: String = System.lineSeparator())
 
 class CsvWriter(
   path: String,
-  headers: IndexedSeq[String],
+  headers: Seq[String],
   implicit val delimiter: Delimiter = Delimiter(),
   implicit val lineSeparator: LineSeparator = LineSeparator()
-) extends AutoCloseable {
+) extends AutoCloseable
+    with LazyLogging {
+  def this(path: String, headers: String*) = this(path, headers)
+
   implicit val writer: Writer = IOUtils.getBufferedWriter(path)
   CsvWriter.writeHeader(headers)
 
@@ -24,11 +31,10 @@ class CsvWriter(
     writeRow(xs.toVector)
   }
 
-  def writeRow(values: IndexedSeq[Any]): Unit = {
-    values.zipWithIndex.foreach {
-      case (value, idx) =>
-        val shouldAddDelimiter = idx != values.length - 1
-        CsvWriter.writeColumnValue(value, shouldAddDelimiter)
+  def writeRow(values: Seq[Any]): Unit = {
+    values.zipWithIndex.foreach { case (value, idx) =>
+      val shouldAddDelimiter = idx != values.length - 1
+      CsvWriter.writeColumnValue(value, shouldAddDelimiter)
     }
     CsvWriter.writeLineSeparator
   }
@@ -42,11 +48,22 @@ class CsvWriter(
   }
 
   override def close(): Unit = {
-    Try(writer.close())
+    try writer.close()
+    catch {
+      case NonFatal(th) =>
+        logger.error(s"Error while closing csv writer", th)
+    }
+  }
+
+  def writeAllAndClose(rows: Iterable[Seq[Any]]): Try[Unit] = {
+    val result = Try(rows.foreach(writeRow))
+    close()
+    result
   }
 }
 
 object CsvWriter {
+  def apply(path: String, headers: String*) = new CsvWriter(path, headers)
 
   def writeColumnValue(
     value: Any,
@@ -58,18 +75,20 @@ object CsvWriter {
       case Some(x) => x
       case x       => x
     }
-    wrt.append(toWrite.toString)
+    val strValue = toWrite.toString
+    val strValueToAppend =
+      if (!strValue.startsWith("\"") && strValue.contains(',')) "\"" + strValue + "\"" else strValue
+    wrt.append(strValueToAppend)
     if (shouldAddDelimiter)
       wrt.append(delimiter.value)
   }
 
   def writeHeader(
-    headers: IndexedSeq[String]
+    headers: Seq[String]
   )(implicit wrt: Writer, delimiter: Delimiter, lineSeparator: LineSeparator): Unit = {
-    headers.zipWithIndex.foreach {
-      case (header, idx) =>
-        val shouldAddDelimiter = idx != headers.size - 1
-        writeColumnValue(header, shouldAddDelimiter)
+    headers.zipWithIndex.foreach { case (header, idx) =>
+      val shouldAddDelimiter = idx != headers.size - 1
+      writeColumnValue(header, shouldAddDelimiter)
     }
     wrt.append(lineSeparator.value)
     wrt.flush()

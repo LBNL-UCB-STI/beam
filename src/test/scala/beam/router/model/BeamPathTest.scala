@@ -3,9 +3,10 @@ package beam.router.model
 import beam.agentsim.events.SpaceTime
 import beam.router.model.RoutingModel.TransitStopsInfo
 import org.matsim.api.core.v01.{Coord, Id}
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
-class BeamPathTest extends WordSpec with Matchers {
+class BeamPathTest extends AnyWordSpec with Matchers {
   "compareSeq" should {
     "return 0" when {
       "both input arrays contain the same elements" in {

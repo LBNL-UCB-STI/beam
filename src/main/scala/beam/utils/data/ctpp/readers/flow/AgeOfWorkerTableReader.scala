@@ -9,7 +9,7 @@ class AgeOfWorkerTableReader(
   val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
 ) extends BaseTableReader(
       dbInfo,
-      Table.AgeOfWorker,
+      Table.Flow.AgeOfWorker,
       Some(residenceToWorkplaceFlowGeography.level)
     ) {
 
@@ -23,7 +23,7 @@ class AgeOfWorkerTableReader(
   )
   require(
     allowedGeos.contains(residenceToWorkplaceFlowGeography),
-    s"Can't find '${residenceToWorkplaceFlowGeography}' in allowedGeos: ${allowedGeos}"
+    s"Can't find '$residenceToWorkplaceFlowGeography' in allowedGeos: $allowedGeos"
   )
 
   private val lineNumberToAge: Map[Int, AgeRange] = Map(
@@ -38,7 +38,7 @@ class AgeOfWorkerTableReader(
 
   def read(): Iterable[OD[AgeRange]] = {
     readRaw().flatMap { entry =>
-      val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId).get
+      val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId)
       lineNumberToAge.get(entry.lineNumber).map { ageRange =>
         OD(fromGeoId, toGeoId, ageRange, entry.estimate)
       }

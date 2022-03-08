@@ -1,14 +1,17 @@
 package beam.periodic
 
 import java.nio.file.Paths
-
 import beam.sim.BeamHelper
 import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.BeamConfigUtils
 import com.typesafe.config.{Config, ConfigValueFactory}
-import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap, Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.{Assertion, BeforeAndAfterAllConfigMap, ConfigMap}
+import org.scalatest.wordspec.AnyWordSpecLike
 
-class ApplicationSfbayRunSpec extends WordSpecLike with Matchers with BeforeAndAfterAllConfigMap with BeamHelper {
+import java.io.File
+
+class ApplicationSfbayRunSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterAllConfigMap with BeamHelper {
 
   private val ITERS_DIR = "ITERS"
   private val LAST_ITER_CONF_PATH = "matsim.modules.controler.lastIteration"
@@ -22,7 +25,7 @@ class ApplicationSfbayRunSpec extends WordSpecLike with Matchers with BeforeAndA
     baseConf = BeamConfigUtils.parseFileSubstitutingInputDirectory(conf).resolve()
   }
 
-  "SF Bay Run" must {
+  "SF Bay Run" should {
 
     "run beam 11 iterations and generate output for each " taggedAs (Periodic, ExcludeRegular) ignore {
 
@@ -43,9 +46,13 @@ class ApplicationSfbayRunSpec extends WordSpecLike with Matchers with BeforeAndA
       itrDir.list should have length totalIterations
       itrDir
         .listFiles()
-        .foreach(
-          itr => exactly(1, itr.list) should endWith(".events.csv").or(endWith(".events.csv.gz"))
-        )
+        .foreach(directoryHasOnlyOneEventsFile)
+    }
+  }
+
+  private def directoryHasOnlyOneEventsFile(itr: File): Assertion = {
+    assertResult(1) {
+      itr.list.count(fileName => fileName.endsWith(".events.csv") || fileName.endsWith(".events.csv.gz"))
     }
   }
 }

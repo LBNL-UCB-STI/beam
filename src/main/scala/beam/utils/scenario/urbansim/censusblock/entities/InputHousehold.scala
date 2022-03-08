@@ -8,15 +8,16 @@ case class InputHousehold(
   householdId: String,
   income: Int,
   cars: Int,
-  blockId: String
+  blockId: Long
 )
 
 object InputHousehold extends EntityTransformer[InputHousehold] {
+
   override def transform(rec: util.Map[String, String]): InputHousehold = {
     val householdId = getIfNotNull(rec, "household_id")
-    val income = getIfNotNull(rec, "income").toInt
-    val cars = getIfNotNull(rec, "cars").toInt
-    val blockId = getIfNotNull(rec, "block_id")
+    val income = Math.round(getIfNotNull(rec, "income").toFloat)
+    val cars = getIfNotNull(rec, "cars", Some("auto_ownership")).toInt
+    val blockId = getIfNotNull(rec, "block_id").toLong
 
     InputHousehold(householdId, income, cars, blockId)
   }

@@ -6,6 +6,7 @@ import beam.utils.DebugLib;
 import org.matsim.api.core.v01.events.*;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.MatsimServices;
+import scala.Option;
 
 import java.util.*;
 
@@ -13,7 +14,7 @@ import java.util.*;
 /**
  * Logger class for BEAM events
  */
-public class BeamEventsLogger {
+public class BeamEventsLogger implements BeamEventsLoggingSettings {
 
     private final EventsManager eventsManager;
     private final MatsimServices matsimServices;
@@ -76,12 +77,12 @@ public class BeamEventsLogger {
         return null;
     }
 
-    boolean shouldLogThisEventType(Class<? extends Event> aClass) {
+    public boolean shouldLogThisEventType(Class<? extends Event> aClass) {
         //TODO in future this is where fine tuning logging based on level number could occur (e.g. info versus debug)
         return eventsToLog.contains(aClass);
     }
 
-    Set<Class<?>> getAllEventsToLog() {
+    public Set<Class<?>> getAllEventsToLog() {
         return eventsToLog;
     }
 
@@ -96,7 +97,7 @@ public class BeamEventsLogger {
         }
     }
 
-    Set<String> getKeysToWrite(Event event, Map<String, String> eventAttributes) {
+    public Set<String> getKeysToWrite(Event event, Map<String, String> eventAttributes) {
         return eventAttributes.keySet();
     }
 
@@ -172,9 +173,24 @@ public class BeamEventsLogger {
                     case "AgencyRevenueEvent":
                         eventClass = AgencyRevenueEvent.class;
                         break;
+                    case "RideHailReservationConfirmationEvent":
+                        eventClass = RideHailReservationConfirmationEvent.class;
+                        break;
+                    case "ShiftEvent":
+                        eventClass = ShiftEvent.class;
+                        break;
+                    case "TeleportationEvent":
+                        eventClass = TeleportationEvent.class;
+                        break;
                     default:
-                        DebugLib.stopSystemAndReportInconsistency(
-                                "Logging class name: Unidentified event type class " + className);
+                        Option<Class<Event>> classEventOption=beamServices.beamCustomizationAPI().customEventsLogging(className);
+
+                        if (classEventOption.isEmpty()){
+                            DebugLib.stopSystemAndReportInconsistency("Logging class name: Unidentified event type class " + className);
+                        }
+
+                        eventClass = classEventOption.get();
+                        break;
                 }
                 //add the matched event class to the list of events to log
                 eventsToLog.add(eventClass);

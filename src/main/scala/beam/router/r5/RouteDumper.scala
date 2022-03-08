@@ -1,28 +1,43 @@
 package beam.router.r5
 
+import java.util
+
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
 import beam.router.model.BeamLeg
 import beam.sim.BeamServices
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
-import org.apache.avro.{Schema, SchemaBuilder}
 import org.apache.avro.Schema.Type
 import org.apache.avro.generic.GenericData
+import org.apache.avro.{Schema, SchemaBuilder}
 import org.apache.hadoop.fs.Path
 import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.ParquetWriter
-import org.matsim.api.core.v01.events.Event
-import org.matsim.core.events.handler.BasicEventHandler
-
-import scala.collection.JavaConverters._
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
 import org.matsim.core.controler.listener.{IterationEndsListener, IterationStartsListener}
+import org.matsim.core.events.handler.BasicEventHandler
 
+import java.util.Objects
+import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
+/**
+  * Set `beam.outputs.writeR5RoutesInterval` config option to a number more than 0
+  * to write all router requests and responses to parquet file.
+  *
+  * That number means how frequent routes will be written,
+  * `1` - each iteration
+  * `2` - every second iteration.
+  *
+  * Each row in the resulting file will correspond to one Beam leg for each itinerary in RoutingResponse
+  * So for one RoutingResponse there will be multiple rows.
+  *
+  * and so on
+  */
 class RouteDumper(beamServices: BeamServices)
     extends BasicEventHandler
     with IterationStartsListener
@@ -95,16 +110,6 @@ class RouteDumper(beamServices: BeamServices)
     }
   }
 
-  private def createWriter(path: String, schema: Schema): ParquetWriter[GenericData.Record] = {
-    AvroParquetWriter
-      .builder[GenericData.Record](
-        new Path(path)
-      )
-      .withSchema(schema)
-      .withCompressionCodec(CompressionCodecName.SNAPPY)
-      .build()
-  }
-
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     routingRequestWriter.foreach(_.close())
     embodyWithCurrentTravelTimeWriter.foreach(_.close())
@@ -113,6 +118,10 @@ class RouteDumper(beamServices: BeamServices)
 }
 
 object RouteDumper {
+
+  import io.circe.syntax._
+  import beam.utils.json.AllNeededFormats._
+
   case class RoutingRequestEvent(routingRequest: RoutingRequest) extends Event(routingRequest.departureTime) {
     override def getEventType: String = "RoutingRequestEvent"
   }
@@ -143,25 +152,14 @@ object RouteDumper {
     record
   }
 
-  def toRecord(streetVehicle: StreetVehicle): GenericData.Record = {
-    val record = new GenericData.Record(streetVehicleSchema)
-    record.put("id", streetVehicle.id.toString)
-    record.put("vehicleTypeId", streetVehicle.vehicleTypeId.toString)
-    record.put("locationUTM_X", streetVehicle.locationUTM.loc.getX)
-    record.put("locationUTM_Y", streetVehicle.locationUTM.loc.getY)
-    record.put("locationUTM_time", streetVehicle.locationUTM.time)
-    record.put("mode", streetVehicle.mode.value)
-    record.put("asDriver", streetVehicle.asDriver)
-    record
-  }
-
-  def toRecord(streetVehicles: IndexedSeq[StreetVehicle]): GenericData.Array[Any] = {
-    val arr = new GenericData.Array[Any](streetVehicles.length, Schema.createArray(streetVehicleSchema))
-    streetVehicles.zipWithIndex.foreach {
-      case (sv, idx) =>
-        arr.add(idx, toRecord(sv))
-    }
-    arr
+  def toRecord(record: GenericData.Record, streetVehicle: StreetVehicle, prefix: String): Unit = {
+    record.put(s"${prefix}_id", streetVehicle.id.toString)
+    record.put(s"${prefix}_vehicleTypeId", streetVehicle.vehicleTypeId.toString)
+    record.put(s"${prefix}_locationUTM_X", streetVehicle.locationUTM.loc.getX)
+    record.put(s"${prefix}_locationUTM_Y", streetVehicle.locationUTM.loc.getY)
+    record.put(s"${prefix}_locationUTM_time", streetVehicle.locationUTM.time)
+    record.put(s"${prefix}_mode", streetVehicle.mode.value)
+    record.put(s"${prefix}_asDriver", streetVehicle.asDriver)
   }
 
   def toRecord(householdAttributes: HouseholdAttributes): GenericData.Record = {
@@ -195,12 +193,23 @@ object RouteDumper {
     record.put("destinationUTM_Y", routingRequest.destinationUTM.getY)
     record.put("departureTime", routingRequest.departureTime)
     record.put("withTransit", routingRequest.withTransit)
-    record.put("streetVehicles", toRecord(routingRequest.streetVehicles))
+    record.put("streetVehiclesUseIntermodalUse", routingRequest.streetVehiclesUseIntermodalUse.toString)
+    record.put("initiatedFrom", routingRequest.initiatedFrom)
+    record.put("requestAsJson", routingRequest.asJson.toString())
+
+    routingRequest.streetVehicles.lift(0).foreach { streetVehicle =>
+      toRecord(record, streetVehicle, "streetVehicle_0")
+    }
+    routingRequest.streetVehicles.lift(1).foreach { streetVehicle =>
+      toRecord(record, streetVehicle, "streetVehicle_1")
+    }
+    routingRequest.streetVehicles.lift(2).foreach { streetVehicle =>
+      toRecord(record, streetVehicle, "streetVehicle_2")
+    }
     routingRequest.attributesOfIndividual.foreach { attibs =>
       record.put("attributesOfIndividual", toRecord(attibs))
     }
-    record.put("streetVehiclesUseIntermodalUse", routingRequest.streetVehiclesUseIntermodalUse.toString)
-    record.put("initiatedFrom", routingRequest.initiatedFrom)
+
     record
   }
 
@@ -218,24 +227,34 @@ object RouteDumper {
 
   def toRecords(routingResponse: RoutingResponse): java.util.ArrayList[GenericData.Record] = {
     val records = new java.util.ArrayList[GenericData.Record]
-    routingResponse.itineraries.zipWithIndex.foreach {
-      case (itinerary, itineraryIndex) =>
-        itinerary.beamLegs.zipWithIndex.foreach {
-          case (leg, legIndex) =>
-            val record = new GenericData.Record(routingResponseSchema)
-            record.put("requestId", routingResponse.requestId)
-            record.put("isEmbodyWithCurrentTravelTime", routingResponse.isEmbodyWithCurrentTravelTime)
+    routingResponse.itineraries.zipWithIndex.foreach { case (itinerary, itineraryIndex) =>
+      itinerary.legs.zipWithIndex.foreach { case (embodiedBeamLeg, legIndex) =>
+        val record = new GenericData.Record(routingResponseSchema)
+        record.put("requestId", routingResponse.requestId)
+        record.put("computedInMs", routingResponse.computedInMs)
+        record.put("isEmbodyWithCurrentTravelTime", routingResponse.isEmbodyWithCurrentTravelTime)
 
-            record.put("itineraryIndex", itineraryIndex)
-            record.put("costEstimate", itinerary.costEstimate)
-            record.put("tripClassifier", itinerary.tripClassifier.value)
-            record.put("replanningPenalty", itinerary.replanningPenalty)
-            record.put("totalTravelTimeInSecs", itinerary.totalTravelTimeInSecs)
+        record.put("itineraries", routingResponse.itineraries.length)
+        record.put("itineraryIndex", itineraryIndex)
+        record.put("router", itinerary.router.mkString)
+        record.put("costEstimate", itinerary.costEstimate)
+        record.put("tripClassifier", itinerary.tripClassifier.value)
+        record.put("replanningPenalty", itinerary.replanningPenalty)
+        record.put("totalTravelTimeInSecs", itinerary.totalTravelTimeInSecs)
+        record.put("legs", itinerary.legs.length)
+        record.put("legIndex", legIndex)
 
-            record.put("legIndex", legIndex)
-            addToRecord(record, leg)
-            records.add(record)
-        }
+        record.put("beamVehicleId", Option(embodiedBeamLeg.beamVehicleId).map(_.toString).orNull)
+        record.put("beamVehicleTypeId", Option(embodiedBeamLeg.beamVehicleTypeId).map(_.toString).orNull)
+        record.put("asDriver", embodiedBeamLeg.asDriver)
+        record.put("cost", embodiedBeamLeg.cost)
+        record.put("unbecomeDriverOnCompletion", embodiedBeamLeg.unbecomeDriverOnCompletion)
+        record.put("isPooledTrip", embodiedBeamLeg.isPooledTrip)
+        record.put("isRideHail", embodiedBeamLeg.isRideHail)
+
+        addToRecord(record, embodiedBeamLeg.beamLeg)
+        records.add(record)
+      }
     }
     records
   }
@@ -249,7 +268,7 @@ object RouteDumper {
     beamLeg.travelPath.transitStops.foreach { transitStop =>
       record.put("transitStops_agencyId", transitStop.agencyId)
       record.put("transitStops_routeId", transitStop.routeId)
-      record.put("transitStops_vehicleId", transitStop.vehicleId)
+      record.put("transitStops_vehicleId", transitStop.vehicleId.toString)
       record.put("transitStops_fromIdx", transitStop.fromIdx)
       record.put("transitStops_toIdx", transitStop.toIdx)
     }
@@ -278,7 +297,7 @@ object RouteDumper {
     val linkTravelTime = {
       new Schema.Field(
         "linkTravelTime",
-        Schema.createArray(Schema.create(Type.INT)),
+        Schema.createArray(Schema.create(Type.DOUBLE)),
         "linkTravelTime",
         null.asInstanceOf[Any]
       )
@@ -337,8 +356,11 @@ object RouteDumper {
       null.asInstanceOf[Any]
     )
 
+    val itineraries = new Schema.Field("itineraries", Schema.create(Type.INT), "itineraries", null.asInstanceOf[Any])
     val itineraryIndex =
       new Schema.Field("itineraryIndex", Schema.create(Type.INT), "itineraryIndex", null.asInstanceOf[Any])
+    val router =
+      new Schema.Field("router", Schema.create(Type.STRING), "router", null.asInstanceOf[Any])
     val costEstimate =
       new Schema.Field("costEstimate", Schema.create(Type.DOUBLE), "costEstimate", null.asInstanceOf[Any])
     val tripClassifier =
@@ -353,16 +375,44 @@ object RouteDumper {
     )
 
     val legIndex = new Schema.Field("legIndex", Schema.create(Type.INT), "legIndex", null.asInstanceOf[Any])
+    val beamVehicleId = new Schema.Field("beamVehicleId", nullable[String], "beamVehicleId", null.asInstanceOf[Any])
+    val beamVehicleTypeId =
+      new Schema.Field("beamVehicleTypeId", nullable[String], "beamVehicleTypeId", null.asInstanceOf[Any])
+    val asDriver = new Schema.Field("asDriver", Schema.create(Type.BOOLEAN), "asDriver", null.asInstanceOf[Any])
+    val cost = new Schema.Field("cost", Schema.create(Type.DOUBLE), "cost", null.asInstanceOf[Any])
+    val unbecomeDriverOnCompletion = new Schema.Field(
+      "unbecomeDriverOnCompletion",
+      Schema.create(Type.BOOLEAN),
+      "unbecomeDriverOnCompletion",
+      null.asInstanceOf[Any]
+    )
+    val isPooledTrip =
+      new Schema.Field("isPooledTrip", Schema.create(Type.BOOLEAN), "isPooledTrip", null.asInstanceOf[Any])
+    val isRideHail = new Schema.Field("isRideHail", Schema.create(Type.BOOLEAN), "isRideHail", null.asInstanceOf[Any])
+    val computedInMs =
+      new Schema.Field("computedInMs", Schema.create(Type.LONG), "computedInMs", null.asInstanceOf[Any])
+    val legs = new Schema.Field("legs", Schema.create(Type.INT), "legs", null.asInstanceOf[Any])
 
     val fields = List(
       requestIdField,
+      computedInMs,
       isEmbodyWithCurrentTravelTime,
+      itineraries,
       itineraryIndex,
+      router,
       costEstimate,
       tripClassifier,
       replanningPenalty,
       totalTravelTimeInSecs,
-      legIndex
+      legs,
+      legIndex,
+      beamVehicleId,
+      beamVehicleTypeId,
+      asDriver,
+      cost,
+      unbecomeDriverOnCompletion,
+      isPooledTrip,
+      isRideHail
     ) ++ beamLegFields
     Schema.createRecord("routingResponse", "", "", false, fields.asJava)
   }
@@ -384,7 +434,7 @@ object RouteDumper {
       new Schema.Field("householdIncome", nullable[Double], "householdIncome", null.asInstanceOf[Any]),
       new Schema.Field("householdSize", nullable[Int], "householdSize", null.asInstanceOf[Any]),
       new Schema.Field("numCars", nullable[Int], "numCars", null.asInstanceOf[Any]),
-      new Schema.Field("numBikes", nullable[Int], "numBikes", null.asInstanceOf[Any]),
+      new Schema.Field("numBikes", nullable[Int], "numBikes", null.asInstanceOf[Any])
     )
     Schema.createRecord("HouseholdAttributes", "", "", false, fields.asJava)
   }
@@ -397,7 +447,7 @@ object RouteDumper {
       new Schema.Field("availableModes", nullable[String], "availableModes", null.asInstanceOf[Any]),
       new Schema.Field("valueOfTime", nullable[Double], "valueOfTime", null.asInstanceOf[Any]),
       new Schema.Field("age", nullable[Int], "age", null.asInstanceOf[Any]),
-      new Schema.Field("income", nullable[Double], "income", null.asInstanceOf[Any]),
+      new Schema.Field("income", nullable[Double], "income", null.asInstanceOf[Any])
     )
     Schema.createRecord("AttributesOfIndividual", "", "", false, fields.asJava)
   }
@@ -406,23 +456,22 @@ object RouteDumper {
     val fields = List(
       new Schema.Field("loc_x", nullable[Double], "loc_x", null.asInstanceOf[Any]),
       new Schema.Field("loc_y", nullable[Double], "loc_y", null.asInstanceOf[Any]),
-      new Schema.Field("time", nullable[Int], "time", null.asInstanceOf[Any]),
+      new Schema.Field("time", nullable[Int], "time", null.asInstanceOf[Any])
     )
     Schema.createRecord("SpaceTimeSchema", "", "", false, fields.asJava)
   }
 
-  val streetVehicleSchema: Schema = {
+  def streetVehicleSchema(prefix: String): List[Schema.Field] = {
     val fields = List(
-      new Schema.Field("id", nullable[String], "id", null.asInstanceOf[Any]),
-      new Schema.Field("vehicleTypeId", nullable[String], "vehicleTypeId", null.asInstanceOf[Any]),
-      //new Schema.Field("locationUTM", spaceTimeSchema, "locationUTM", null.asInstanceOf[Any]),
-      new Schema.Field("locationUTM_X", nullable[Double], "locationUTM_X", null.asInstanceOf[Any]),
-      new Schema.Field("locationUTM_Y", nullable[Double], "locationUTM_Y", null.asInstanceOf[Any]),
-      new Schema.Field("locationUTM_time", nullable[Int], "locationUTM_time", null.asInstanceOf[Any]),
-      new Schema.Field("mode", nullable[String], "mode", null.asInstanceOf[Any]),
-      new Schema.Field("asDriver", nullable[Boolean], "asDriver", null.asInstanceOf[Any]),
+      new Schema.Field(s"${prefix}_id", nullable[String], "id", null.asInstanceOf[Any]),
+      new Schema.Field(s"${prefix}_vehicleTypeId", nullable[String], "vehicleTypeId", null.asInstanceOf[Any]),
+      new Schema.Field(s"${prefix}_locationUTM_X", nullable[Double], "locationUTM_X", null.asInstanceOf[Any]),
+      new Schema.Field(s"${prefix}_locationUTM_Y", nullable[Double], "locationUTM_Y", null.asInstanceOf[Any]),
+      new Schema.Field(s"${prefix}_locationUTM_time", nullable[Int], "locationUTM_time", null.asInstanceOf[Any]),
+      new Schema.Field(s"${prefix}_mode", nullable[String], "mode", null.asInstanceOf[Any]),
+      new Schema.Field(s"${prefix}_asDriver", nullable[Boolean], "asDriver", null.asInstanceOf[Any])
     )
-    Schema.createRecord("StreetVehicle", "", "", false, fields.asJava)
+    fields
   }
 
   val routingRequestSchema: Schema = {
@@ -444,18 +493,10 @@ object RouteDumper {
     val withTransit = {
       new Schema.Field("withTransit", Schema.create(Type.BOOLEAN), "withTransit", null.asInstanceOf[Any])
     }
-    val streetVehicles = {
-      new Schema.Field(
-        "streetVehicles",
-        Schema.createArray(streetVehicleSchema),
-        "streetVehicles",
-        null.asInstanceOf[Any]
-      )
-    }
     val attributesOfIndividual = {
       new Schema.Field(
         "attributesOfIndividual",
-        attributesOfIndividualSchema,
+        Schema.createUnion(util.Arrays.asList(attributesOfIndividualSchema, Schema.create(Schema.Type.NULL))),
         "attributesOfIndividual",
         null.asInstanceOf[Any]
       )
@@ -471,6 +512,10 @@ object RouteDumper {
     val initiatedFrom = {
       new Schema.Field("initiatedFrom", Schema.create(Type.STRING), "initiatedFrom", null.asInstanceOf[Any])
     }
+    val requestAsJson = {
+      new Schema.Field("requestAsJson", Schema.create(Type.STRING), "requestAsJson", null.asInstanceOf[Any])
+    }
+
     val fields = List(
       requestIdField,
       originUTM_X,
@@ -479,11 +524,13 @@ object RouteDumper {
       destinationUTM_Y,
       departureTime,
       withTransit,
-      streetVehicles,
       attributesOfIndividual,
       streetVehiclesUseIntermodalUse,
       initiatedFrom,
-    )
+      requestAsJson
+    ) ++ (streetVehicleSchema("streetVehicle_0") ++ streetVehicleSchema("streetVehicle_1") ++ streetVehicleSchema(
+      "streetVehicle_2"
+    ))
     Schema.createRecord("routingRequest", "", "", false, fields.asJava)
   }
 
@@ -500,10 +547,20 @@ object RouteDumper {
         nullType.and().floatType().endUnion()
       case ClassTag.Double =>
         nullType.and().doubleType().endUnion()
-      case x if x == classTag[String] =>
+      case x if Objects.equals(x, classTag[String]) =>
         nullType.and().stringType().endUnion()
       case x =>
-        throw new IllegalStateException(s"Don't know what to do with ${x}")
+        throw new IllegalStateException(s"Don't know what to do with $x")
     }
+  }
+
+  def createWriter(path: String, schema: Schema): ParquetWriter[GenericData.Record] = {
+    AvroParquetWriter
+      .builder[GenericData.Record](
+        new Path(path)
+      )
+      .withSchema(schema)
+      .withCompressionCodec(CompressionCodecName.SNAPPY)
+      .build()
   }
 }

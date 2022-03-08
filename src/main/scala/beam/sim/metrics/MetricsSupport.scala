@@ -58,7 +58,7 @@ trait MetricsSupport {
     }
   }
 
-  def startMeasuringIteration(itNum: Int): Unit = startMeasuring("iteration", ShortLevel)
+  def startMeasuringIteration(): Unit = startMeasuring("iteration", ShortLevel)
 
   def stopMeasuringIteration(): Unit = stopMeasuring("iteration")
 

@@ -11,8 +11,8 @@ import scala.reflect.ClassTag
 
 object GTFSReader extends LazyLogging {
 
-  private def readGTFSStream[T](stream: InputStream, mapFunc: java.util.Map[String, String] => T)(
-    implicit ct: ClassTag[T]
+  private def readGTFSStream[T](stream: InputStream, mapFunc: java.util.Map[String, String] => T)(implicit
+    ct: ClassTag[T]
   ): Set[T] = {
     val (iter: Iterator[T], toClose: Closeable) =
       GenericCsvReader.readFromStreamAs[T](stream, mapFunc, _ => true)
@@ -27,15 +27,15 @@ object GTFSReader extends LazyLogging {
     gtfsZip: ZipFile,
     fileName: String,
     mapFunc: java.util.Map[String, String] => T
-  )(
-    implicit ct: ClassTag[T]
+  )(implicit
+    ct: ClassTag[T]
   ): Set[T] = {
     val entry = gtfsZip.getEntry(fileName)
     if (entry == null) {
       logger.warn(s"A GTFS archive ${gtfsZip.getName} does not contain a file '$fileName'")
       Set.empty[T]
     } else {
-      val stream = gtfsZip.getInputStream(entry);
+      val stream = gtfsZip.getInputStream(entry)
       val items = readGTFSStream(stream, mapFunc)
       logger.info(s"Read ${items.size} items from $fileName")
       items

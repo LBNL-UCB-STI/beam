@@ -8,7 +8,6 @@ import beam.sim.common.GeoUtils
 import beam.utils.{NetworkHelper, TravelTimeUtils}
 
 /**
-  *
   * @param startTime  time in seconds from base midnight
   * @param mode       BeamMode
   * @param duration   period in seconds
@@ -66,13 +65,15 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
   }
 
   /**
-    * SubLegBefore
-    * Returns a new BeamLeg composed as if one traversed the original BeamLeg until throughTime
+    * SubLegThrough
+    * Returns a new BeamLeg composed as if one traversed the original BeamLeg until throughTime, the link travel times
+    * are scaled to ensure overall leg duration is equivalent to throughTime - leg.startTime
     */
   def subLegThrough(throughTime: Int, networkHelper: NetworkHelper, geoUtils: GeoUtils): BeamLeg = {
     val linkAtTime = this.travelPath.linkAtTime(throughTime)
     val indexOfNewEndLink = this.travelPath.linkIds.indexWhere(_ == linkAtTime)
-    val newDuration = if (indexOfNewEndLink < 1) { 0 } else {
+    val newDuration = if (indexOfNewEndLink < 1) { 0 }
+    else {
       math.round(this.travelPath.linkTravelTime.take(indexOfNewEndLink + 1).tail.sum).toInt
     }
     val newEndPoint = SpaceTime(
@@ -82,9 +83,15 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
     val newTravelPath = this.travelPath.copy(
       linkIds = this.travelPath.linkIds.take(indexOfNewEndLink + 1),
       linkTravelTime = this.travelPath.linkTravelTime.take(indexOfNewEndLink + 1),
-      endPoint = newEndPoint
+      endPoint = newEndPoint,
+      distanceInM = this.travelPath.linkIds
+        .take(indexOfNewEndLink + 1)
+        .map(networkHelper.getLink(_).map(_.getLength.toInt).getOrElse(0))
+        .sum
     )
-    this.copy(duration = newTravelPath.duration, travelPath = newTravelPath)
+    this
+      .copy(duration = newTravelPath.duration, travelPath = newTravelPath)
+      .scaleToNewDuration(throughTime - this.startTime)
   }
 
   override def toString: String =
@@ -126,20 +133,20 @@ object BeamLeg {
   }
 
   def makeVectorLegsConsistentAsOrderdStandAloneLegs(legs: Vector[BeamLeg]): Vector[BeamLeg] = {
-    if (legs.isEmpty) {
-      legs
-    } else {
-      var latestEndTime = legs.head.startTime - 1
-      var newLeg = legs.head
-      for (leg <- legs) yield {
-        if (leg.startTime < latestEndTime) {
-          newLeg = leg.updateStartTime(latestEndTime)
-        } else {
-          newLeg = leg
+    legs.headOption match {
+      case None => legs
+      case Some(headLeg) =>
+        var latestEndTime = headLeg.startTime - 1
+        var newLeg = headLeg
+        for (leg <- legs) yield {
+          if (leg.startTime < latestEndTime) {
+            newLeg = leg.updateStartTime(latestEndTime)
+          } else {
+            newLeg = leg
+          }
+          latestEndTime = newLeg.endTime
+          newLeg
         }
-        latestEndTime = newLeg.endTime
-        newLeg
-      }
     }
   }
 }

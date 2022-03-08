@@ -21,7 +21,7 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
   )
 
   val classMembershipModelMaps: Map[TourType, Map[String, Map[String, UtilityFunctionOperation]]] =
-    extractClassMembershipModels(lccmData)
+    LatentClassChoiceModel.extractClassMembershipModels(lccmData)
 
   val classMembershipModels: Map[TourType, MultinomialLogit[String, String]] = classMembershipModelMaps.mapValues {
     modelMap =>
@@ -30,7 +30,7 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
 
   val modeChoiceModels
     : Map[TourType, Map[String, (MultinomialLogit[EmbodiedBeamTrip, String], MultinomialLogit[BeamMode, String])]] = {
-    extractModeChoiceModels(lccmData)
+    LatentClassChoiceModel.extractModeChoiceModels(lccmData)
   }
 
   private def parseModeChoiceParams(lccmParamsFileName: String): Seq[LccmData] = {
@@ -54,6 +54,36 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
 
   private def newEmptyRow(): LccmData = new LccmData()
 
+}
+
+object LatentClassChoiceModel {
+
+  private def getProcessors: Array[CellProcessor] = {
+    Array[CellProcessor](
+      new NotNull, // model
+      new NotNull, // tourType
+      new NotNull, // variable
+      new NotNull, // alternative
+      new NotNull, // units
+      new Optional, // latentClass
+      new Optional(new ParseDouble()) // value
+    )
+  }
+
+  class LccmData(
+    @BeanProperty var model: String = "",
+    @BeanProperty var tourType: String = "",
+    @BeanProperty var variable: String = "",
+    @BeanProperty var alternative: String = "",
+    @BeanProperty var units: String = "",
+    @BeanProperty var latentClass: String = "",
+    @BeanProperty var value: Double = Double.NaN
+  ) extends Cloneable {
+
+    override def clone(): AnyRef =
+      new LccmData(model, tourType, variable, alternative, units, latentClass, value)
+  }
+
   private def extractClassMembershipModels(
     lccmData: Seq[LccmData]
   ): Map[TourType, Map[String, Map[String, UtilityFunctionOperation]]] = {
@@ -69,6 +99,12 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
       theTourType -> utilityFunctions.toMap
     }.toMap
   }
+
+  sealed trait TourType
+
+  case object Mandatory extends TourType
+
+  case object NonMandatory extends TourType
 
   /*
    * We use presence of ASC to indicate whether an alternative should be added to the MNL model. So even if an alternative is a base alternative,
@@ -101,38 +137,4 @@ class LatentClassChoiceModel(val beamServices: BeamServices) {
     }.toMap
   }
 
-}
-
-object LatentClassChoiceModel {
-
-  private def getProcessors: Array[CellProcessor] = {
-    Array[CellProcessor](
-      new NotNull, // model
-      new NotNull, // tourType
-      new NotNull, // variable
-      new NotNull, // alternative
-      new NotNull, // units
-      new Optional, // latentClass
-      new Optional(new ParseDouble()) // value
-    )
-  }
-
-  class LccmData(
-    @BeanProperty var model: String = "",
-    @BeanProperty var tourType: String = "",
-    @BeanProperty var variable: String = "",
-    @BeanProperty var alternative: String = "",
-    @BeanProperty var units: String = "",
-    @BeanProperty var latentClass: String = "",
-    @BeanProperty var value: Double = Double.NaN
-  ) extends Cloneable {
-    override def clone(): AnyRef =
-      new LccmData(model, tourType, variable, alternative, units, latentClass, value)
-  }
-
-  sealed trait TourType
-
-  case object Mandatory extends TourType
-
-  case object NonMandatory extends TourType
 }

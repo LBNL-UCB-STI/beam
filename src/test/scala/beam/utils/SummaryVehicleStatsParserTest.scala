@@ -1,8 +1,9 @@
 package beam.utils
 
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.should.Matchers
 
-class SummaryVehicleStatsParserTest extends WordSpecLike with Matchers {
+class SummaryVehicleStatsParserTest extends AnyWordSpecLike with Matchers {
   "stats parser " should {
     "split stats names " in {
       SummaryVehicleStatsParser.splitToStatVehicle("") shouldBe None
@@ -19,12 +20,12 @@ class SummaryVehicleStatsParserTest extends WordSpecLike with Matchers {
         "stat1_walk" -> 0.42,
         "stat2_bike" -> 0.42,
         "stat2_c_r"  -> 0.42,
-        "stat2_walk" -> 0.42,
+        "stat2_walk" -> 0.42
       )
       val parsedStats = Map(
         "c_r"  -> IndexedSeq(0.42, 0.42),
         "bike" -> IndexedSeq(0.42, 0.42),
-        "walk" -> IndexedSeq(0.42, 0.42),
+        "walk" -> IndexedSeq(0.42, 0.42)
       )
       SummaryVehicleStatsParser.splitStatsMap(stats, Seq("stat1", "stat2"))._2 shouldBe parsedStats
     }
@@ -41,7 +42,7 @@ class SummaryVehicleStatsParserTest extends WordSpecLike with Matchers {
         "c_r"  -> IndexedSeq(0.42, 0.0, 0.0),
         "bike" -> IndexedSeq(0.0, 0.42, 0.0),
         "walk" -> IndexedSeq(0.42, 0.42, 0.0),
-        "TRAM" -> IndexedSeq(0.0, 0.0, 0.42),
+        "TRAM" -> IndexedSeq(0.0, 0.0, 0.42)
       )
       SummaryVehicleStatsParser.splitStatsMap(stats, Seq("stat1", "stat2", "stat3"))._2 shouldBe parsedStats
     }
@@ -70,7 +71,7 @@ class SummaryVehicleStatsParserTest extends WordSpecLike with Matchers {
         "c_r"  -> IndexedSeq(0.0, 1.0, 0.0),
         "bike" -> IndexedSeq(0.0, 0.0, 3.0),
         "walk" -> IndexedSeq(0.0, 2.0, 4.0),
-        "TRAM" -> IndexedSeq(5.0, 0.0, 0.0),
+        "TRAM" -> IndexedSeq(5.0, 0.0, 0.0)
       )
       SummaryVehicleStatsParser.splitStatsMap(stats, Seq("stat3", "stat1", "stat2"))._2 shouldBe parsedStats
     }

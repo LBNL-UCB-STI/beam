@@ -3,11 +3,11 @@ package beam.physsim.jdeqsim
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.JavaConverters._
 import scala.util.Try
-
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.parking.ParkingZone
 import beam.router.BeamRouter.{Access, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode.CAR
 import beam.router.r5.{R5Parameters, R5Wrapper}
@@ -15,14 +15,14 @@ import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.{ProfilingUtils, Statistics}
 import com.typesafe.scalalogging.StrictLogging
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.{Leg, Person, Population}
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.router.util.TravelTime
 
 class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) extends StrictLogging {
 
-  private val (_: Id[BeamVehicleType], carVehType: BeamVehicleType) = beamServices.beamScenario.vehicleTypes
+  private val (_, carVehType: BeamVehicleType) = beamServices.beamScenario.vehicleTypes
     .collect { case (k, v) if v.vehicleCategory == VehicleCategory.Car => (k, v) }
     .maxBy(_._2.sampleProbabilityWithinCategory)
 
@@ -58,39 +58,37 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
     oldTravelTimes: ArrayBuffer[Double],
     result: Seq[(Person, Vector[ElementIndexToRoutingResponse])]
   ): Unit = {
-    result.foreach {
-      case (person, xs) =>
-        val elems = person.getSelectedPlan.getPlanElements.asScala
-        xs.foreach {
-          case ElementIndexToRoutingResponse(index, maybeResp) =>
-            elems(index) match {
-              case leg: Leg =>
-                maybeResp.fold(
-                  ex => logger.error(s"Can't compute the route: ${ex.getMessage}", ex),
-                  (resp: RoutingResponse) => {
-                    resp.itineraries.headOption.flatMap(_.legs.headOption.map(_.beamLeg)) match {
-                      case Some(beamLeg) =>
-                        oldTravelTimes += leg.getAttributes.getAttribute("travel_time").toString.toLong.toDouble
-                        newTravelTimes += beamLeg.duration.toDouble
+    result.foreach { case (person, xs) =>
+      val elems = person.getSelectedPlan.getPlanElements.asScala
+      xs.foreach { case ElementIndexToRoutingResponse(index, maybeResp) =>
+        elems(index) match {
+          case leg: Leg =>
+            maybeResp.fold(
+              ex => logger.error(s"Can't compute the route: ${ex.getMessage}", ex),
+              (resp: RoutingResponse) => {
+                resp.itineraries.headOption.flatMap(_.legs.headOption.map(_.beamLeg)) match {
+                  case Some(beamLeg) =>
+                    oldTravelTimes += leg.getAttributes.getAttribute("travel_time").toString.toLong.toDouble
+                    newTravelTimes += beamLeg.duration.toDouble
 
-                        val javaLinkIds = beamLeg.travelPath.linkIds
-                          .map(beamServices.networkHelper.getLinkUnsafe)
-                          .map(_.getId)
-                          .asJava
-                        val newRoute = RouteUtils
-                          .createNetworkRoute(javaLinkIds, beamServices.matsimServices.getScenario.getNetwork)
-                        leg.setRoute(newRoute)
-                        leg.setDepartureTime(beamLeg.startTime)
-                        leg.setTravelTime(0)
-                        leg.getAttributes.putAttribute("travel_time", beamLeg.duration)
-                        leg.getAttributes.putAttribute("departure_time", beamLeg.startTime);
-                      case _ =>
-                    }
-                  }
-                )
-              case other => throw new IllegalStateException(s"Did not expect to see type ${other.getClass}: $other")
-            }
+                    val javaLinkIds = beamLeg.travelPath.linkIds
+                      .map(beamServices.networkHelper.getLinkUnsafe)
+                      .map(_.getId)
+                      .asJava
+                    val newRoute = RouteUtils
+                      .createNetworkRoute(javaLinkIds, beamServices.matsimServices.getScenario.getNetwork)
+                    leg.setRoute(newRoute)
+                    leg.setDepartureTime(beamLeg.startTime)
+                    leg.setTravelTime(0)
+                    leg.getAttributes.putAttribute("travel_time", beamLeg.duration)
+                    leg.getAttributes.putAttribute("departure_time", beamLeg.startTime);
+                  case _ =>
+                }
+              }
+            )
+          case other => throw new IllegalStateException(s"Did not expect to see type ${other.getClass}: $other")
         }
+      }
     }
   }
 
@@ -101,9 +99,8 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
   ): Seq[(Person, Vector[ElementIndexToRoutingResponse])] = {
     val r5Wrapper = new R5Wrapper(workerParams, travelTime, 0)
     ProfilingUtils.timed(s"Get new routes for ${toReroute.size} people", x => logger.info(x)) {
-      personToRoutes.par.map {
-        case (person, xs) =>
-          reroute(r5Wrapper, person, xs)
+      personToRoutes.par.map { case (person, xs) =>
+        reroute(r5Wrapper, person, xs)
       }.seq
     }
   }
@@ -120,9 +117,8 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
       val startAndEndLen = beamServices.networkHelper
         .getLinkUnsafe(route.getStartLinkId.toString.toInt)
         .getLength + beamServices.networkHelper.getLinkUnsafe(route.getEndLinkId.toString.toInt).getLength
-      val linkLength = route.getLinkIds.asScala.foldLeft(0.0) {
-        case (acc, curr) =>
-          acc + beamServices.networkHelper.getLinkUnsafe(curr.toString.toInt).getLength
+      val linkLength = route.getLinkIds.asScala.foldLeft(0.0) { case (acc, curr) =>
+        acc + beamServices.networkHelper.getLinkUnsafe(curr.toString.toInt).getLength
       }
       startAndEndLen + linkLength
     }.sum
@@ -154,37 +150,39 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
       carVehType
     )
 
-    val idxToResponse = elemIdxToRoute.map {
-      case ElementIndexToLeg(idx, leg) =>
-        val route = leg.getRoute
-        // Do we need to snap it to R5 edge?
-        val startCoord = getR5UtmCoord(route.getStartLinkId.toString.toInt)
-        val endCoord = getR5UtmCoord(route.getEndLinkId.toString.toInt)
+    val idxToResponse = elemIdxToRoute.map { case ElementIndexToLeg(idx, leg) =>
+      val route = leg.getRoute
+      // Do we need to snap it to R5 edge?
+      val startCoord = getR5UtmCoord(route.getStartLinkId.toString.toInt)
+      val endCoord = getR5UtmCoord(route.getEndLinkId.toString.toInt)
 
-        val departTime = leg.getDepartureTime.toInt
-        val currentPointUTM = SpaceTime(startCoord, departTime)
-        val carStreetVeh =
-          StreetVehicle(
-            car.id,
-            car.beamVehicleType.id,
-            currentPointUTM,
-            CAR,
-            asDriver = true
-          )
-        val streetVehicles = Vector(carStreetVeh)
-        val maybeAttributes: Option[AttributesOfIndividual] =
-          Option(person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual])
-        val routingRequest = RoutingRequest(
-          originUTM = startCoord,
-          destinationUTM = endCoord,
-          departureTime = departTime,
-          withTransit = false,
-          streetVehicles = streetVehicles,
-          attributesOfIndividual = maybeAttributes,
-          streetVehiclesUseIntermodalUse = Access
+      val departTime = leg.getDepartureTime.toInt
+      val currentPointUTM = SpaceTime(startCoord, departTime)
+      val carStreetVeh =
+        StreetVehicle(
+          car.id,
+          car.beamVehicleType.id,
+          currentPointUTM,
+          CAR,
+          asDriver = true,
+          needsToCalculateCost = true
         )
-        val maybeRoutingResponse = Try(r5.calcRoute(routingRequest))
-        ElementIndexToRoutingResponse(idx, maybeRoutingResponse)
+      val streetVehicles = Vector(carStreetVeh)
+      val maybeAttributes: Option[AttributesOfIndividual] =
+        Option(person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual])
+      val routingRequest = RoutingRequest(
+        originUTM = startCoord,
+        destinationUTM = endCoord,
+        departureTime = departTime,
+        withTransit = false,
+        personId = Some(person.getId),
+        streetVehicles = streetVehicles,
+        attributesOfIndividual = maybeAttributes,
+        streetVehiclesUseIntermodalUse = Access,
+        triggerId = -1
+      )
+      val maybeRoutingResponse = Try(r5.calcRoute(routingRequest))
+      ElementIndexToRoutingResponse(idx, maybeRoutingResponse)
     }
     person -> idxToResponse
   }

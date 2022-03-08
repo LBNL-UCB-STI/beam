@@ -12,12 +12,13 @@ import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.google.inject
 import com.typesafe.config.ConfigFactory
-import org.matsim.core.config.Config
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.must.Matchers
 
-class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
+class CaccSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
 
   private var injector: inject.Injector = _
 
@@ -29,14 +30,19 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
   }
 
   private def runSimulationAndReturnAvgCarTravelTimes(caccEnabled: Boolean, iterationNumber: Int): Double = {
+    // beam.outputs.collectAndCreateBeamAnalysisAndGraphs needs to be enabled for this test, as it is trying to access *.averageTravelTimes.csv
     val config = ConfigFactory
-      .parseString(s"""
+      .parseString(
+        s"""
+            |beam.actorSystemName = "CaccSpec"
+            |beam.outputs.collectAndCreateBeamAnalysisAndGraphs=true
                      |beam.outputs.events.fileOutputFormats = xml
-                     |beam.agentsim.lastIteration = $iterationNumber
-                     |beam.physsim.jdeqsim.cacc.enabled = $caccEnabled
-                     |beam.physsim.jdeqsim.cacc.minSpeedMetersPerSec = 0
-                     |beam.agentsim.agents.vehicles.vehiclesFilePath = $${beam.inputDirectory}"/sample/1k/vehicles-cav.csv"
-                   """.stripMargin)
+            |beam.agentsim.lastIteration = $iterationNumber
+            |beam.physsim.jdeqsim.cacc.enabled = $caccEnabled
+            |beam.physsim.jdeqsim.cacc.minSpeedMetersPerSec = 0
+            |beam.agentsim.agents.vehicles.vehiclesFilePath = $${beam.inputDirectory}"/sample/1k/vehicles-cav.csv"
+        """.stripMargin
+      )
       .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))
       .resolve()
 
@@ -53,19 +59,17 @@ class CaccSpec extends WordSpecLike with Matchers with BeamHelper with BeforeAnd
     scenario.setNetwork(beamScenario.network)
 
     injector = buildInjector(config, beamConfig, scenario, beamScenario)
-    val services = buildBeamServices(injector, scenario)
+    val services = buildBeamServices(injector)
     DefaultPopulationAdjustment(services).update(scenario)
 
     val controller = services.controler
     controller.run()
 
-    val fileName = extractFileName(matsimConfig, beamConfig, outputDir, iterationNumber)
+    val fileName = extractFileName(outputDir, iterationNumber)
     CaccSpec.avgCarModeFromCsv(fileName)
   }
 
   private def extractFileName(
-    matsimConfig: Config,
-    beamConfig: BeamConfig,
     outputDir: String,
     iterationNumber: Int
   ): String = {
@@ -100,7 +104,7 @@ object CaccSpec {
       .tail
       .map(_.toDouble)
 
-    val relevantTimes = allHourAvg.filterNot(_ == 0D)
+    val relevantTimes = allHourAvg.filterNot(_ == 0d)
     relevantTimes.sum / relevantTimes.length
   }
 

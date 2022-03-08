@@ -1,28 +1,32 @@
 package beam.agentsim.agents.choice.mode
 
-import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
-
 import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit._
-import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.ModeCostTimeTransfer
+import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.{
+  calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment,
+  ModeCostTimeTransfer
+}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.ModeChoiceOccurredEvent
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.BikeLanesAdjustment
-import beam.router.skim.TransitCrowdingSkims
+import beam.router.skim.readonly.TransitCrowdingSkims
 import beam.sim.BeamServices
-import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
+import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
+import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.api.experimental.events.EventsManager
+
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 /**
   * BEAM
@@ -31,6 +35,7 @@ class ModeChoiceMultinomialLogit(
   val beamServices: BeamServices,
   val model: MultinomialLogit[EmbodiedBeamTrip, String],
   val modeModel: MultinomialLogit[BeamMode, String],
+  val transitVehicleTypeVOTMultipliers: Map[Id[BeamVehicleType], Double],
   beamConfigHolder: BeamConfigHolder,
   transitCrowding: TransitCrowdingSkims,
   val eventsManager: EventsManager
@@ -56,8 +61,8 @@ class ModeChoiceMultinomialLogit(
     } else {
       val modeCostTimeTransfers = altsToModeCostTimeTransfers(alternatives, attributesOfIndividual, destinationActivity)
 
-      val bestInGroup = modeCostTimeTransfers groupBy (_.embodiedBeamTrip.tripClassifier) map {
-        case (_, group) => findBestIn(group)
+      val bestInGroup = modeCostTimeTransfers groupBy (_.embodiedBeamTrip.tripClassifier) map { case (_, group) =>
+        findBestIn(group)
       }
       val inputData = bestInGroup.map { mct =>
         val theParams: Map[String, Double] =
@@ -79,14 +84,14 @@ class ModeChoiceMultinomialLogit(
         val personId = person.map(_.getId)
         val msgToLog =
           s"""|@@@[$personId]-----------------------------------------
-              |@@@[$personId]Alternatives:${alternatives}
-              |@@@[$personId]AttributesOfIndividual:${attributesOfIndividual}
-              |@@@[$personId]DestinationActivity:${destinationActivity}
+              |@@@[$personId]Alternatives:$alternatives
+              |@@@[$personId]AttributesOfIndividual:$attributesOfIndividual
+              |@@@[$personId]DestinationActivity:$destinationActivity
               |@@@[$personId]modeCostTimeTransfers:$modeCostTimeTransfers
               |@@@[$personId]bestInGroup:$bestInGroup
               |@@@[$personId]inputData:$inputData
-              |@@@[$personId]chosenModeOpt:${chosenModeOpt}
-              |@@@[$personId]expectedMaximumUtility:${expectedMaximumUtility}
+              |@@@[$personId]chosenModeOpt:$chosenModeOpt
+              |@@@[$personId]expectedMaximumUtility:$expectedMaximumUtility
               |@@@[$personId]-----------------------------------------
               |""".stripMargin
         logger.debug(msgToLog)
@@ -121,9 +126,7 @@ class ModeChoiceMultinomialLogit(
       group.head
     } else if (group.head.embodiedBeamTrip.tripClassifier.isTransit) {
       val inputData = group
-        .map(
-          mct => mct.embodiedBeamTrip -> attributes(timeAndCost(mct), mct.transitOccupancyLevel, mct.numTransfers)
-        )
+        .map(mct => mct.embodiedBeamTrip -> attributes(timeAndCost(mct), mct.transitOccupancyLevel, mct.numTransfers))
         .toMap
       val alternativesWithUtility = model.calcAlternativesWithUtility(inputData)
       val chosenModeOpt = model.sampleAlternative(alternativesWithUtility, random)
@@ -145,18 +148,16 @@ class ModeChoiceMultinomialLogit(
     person match {
       case Some(p) =>
         val altUtility = alternativesWithUtility
-          .map(
-            au =>
-              au.alternative.tripClassifier.value.toLowerCase() -> ModeChoiceOccurredEvent
-                .AltUtility(au.utility, au.expUtility)
+          .map(au =>
+            au.alternative.tripClassifier.value.toLowerCase() -> ModeChoiceOccurredEvent
+              .AltUtility(au.utility, au.expUtility)
           )
           .toMap
 
         val altCostTimeTransfer = modeCostTimeTransfers
-          .map(
-            mctt =>
-              mctt.embodiedBeamTrip.tripClassifier.value.toLowerCase() -> ModeChoiceOccurredEvent
-                .AltCostTimeTransfer(mctt.cost, mctt.scaledTime, mctt.numTransfers)
+          .map(mctt =>
+            mctt.embodiedBeamTrip.tripClassifier.value.toLowerCase() -> ModeChoiceOccurredEvent
+              .AltCostTimeTransfer(mctt.cost, mctt.scaledTime, mctt.numTransfers)
           )
           .toMap
 
@@ -209,44 +210,23 @@ class ModeChoiceMultinomialLogit(
     adjustSpecialBikeLines: Boolean = false
   ): Double = {
     val adjustedTripDuration = if (adjustSpecialBikeLines && embodiedBeamTrip.tripClassifier == BIKE) {
-      calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(embodiedBeamTrip)
+      calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(embodiedBeamTrip, bikeLanesAdjustment)
     } else {
       embodiedBeamTrip.legs.map(_.beamLeg.duration).sum
     }
     val waitingTime: Int = embodiedBeamTrip.totalTravelTimeInSecs - adjustedTripDuration
     embodiedBeamTrip.legs.map { x: EmbodiedBeamLeg =>
       val factor = if (adjustSpecialBikeLines) {
-        bikeLanesAdjustment.bikeLaneScaleFactor(x.beamLeg.mode, adjustSpecialBikeLines)
+        bikeLanesAdjustment.scaleFactor(x.beamLeg.mode, adjustSpecialBikeLines)
       } else {
-        1D
+        1d
       }
-      getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity) * factor
+      getGeneralizedTimeOfLeg(embodiedBeamTrip, x, attributesOfIndividual, destinationActivity) * factor
     }.sum + getGeneralizedTime(waitingTime, None, None)
   }
 
-  private def calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(
-    embodiedBeamTrip: EmbodiedBeamTrip
-  ): Int = {
-    embodiedBeamTrip.legs
-      .map { embodiedBeamLeg: EmbodiedBeamLeg =>
-        pathScaledForWaiting(embodiedBeamLeg.beamLeg.travelPath)
-      }
-      .sum
-      .toInt
-  }
-
-  private def pathScaledForWaiting(path: BeamPath): Double = {
-    path.linkIds
-      .drop(1)
-      .zip(path.linkTravelTime.drop(1))
-      .map {
-        case (linkId: Int, travelTime: Double) =>
-          travelTime * 1D / bikeLanesAdjustment.scaleFactor(linkId)
-      }
-      .sum
-  }
-
   override def getGeneralizedTimeOfLeg(
+    embodiedBeamTrip: EmbodiedBeamTrip,
     embodiedBeamLeg: EmbodiedBeamLeg,
     attributesOfIndividual: Option[AttributesOfIndividual],
     destinationActivity: Option[Activity]
@@ -254,6 +234,7 @@ class ModeChoiceMultinomialLogit(
     attributesOfIndividual match {
       case Some(attributes) =>
         attributes.getGeneralizedTimeOfLegForMNL(
+          embodiedBeamTrip,
           embodiedBeamLeg,
           this,
           beamServices,
@@ -289,7 +270,7 @@ class ModeChoiceMultinomialLogit(
       val totalCost = getNonTimeCost(altAndIdx._1, includeReplanningPenalty = true)
       val incentive: Double = beamServices.beamScenario.modeIncentives.computeIncentive(attributesOfIndividual, mode)
 
-      val incentivizedCost = Math.max(0, totalCost.toDouble - incentive)
+      val incentivizedCost = Math.max(0, totalCost - incentive)
 
       if (totalCost < incentive)
         logger.warn(
@@ -300,7 +281,7 @@ class ModeChoiceMultinomialLogit(
         )
 
       val numTransfers = mode match {
-        case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT =>
+        case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT =>
           var nVeh = -1
           var vehId = Id.create("dummy", classOf[BeamVehicle])
           altAndIdx._1.legs.foreach { leg =>
@@ -337,16 +318,16 @@ class ModeChoiceMultinomialLogit(
 
   lazy val modeMultipliers: mutable.Map[Option[BeamMode], Double] =
     mutable.Map[Option[BeamMode], Double](
+      // Some(WAITING)        -> modalBehaviors.modeVotMultiplier.waiting, TODO think of alternative for waiting. For now assume "NONE" is waiting
       Some(TRANSIT)           -> modalBehaviors.modeVotMultiplier.transit,
       Some(RIDE_HAIL)         -> modalBehaviors.modeVotMultiplier.rideHail,
       Some(RIDE_HAIL_POOLED)  -> modalBehaviors.modeVotMultiplier.rideHailPooled,
       Some(RIDE_HAIL_TRANSIT) -> modalBehaviors.modeVotMultiplier.rideHailTransit,
       Some(CAV)               -> modalBehaviors.modeVotMultiplier.CAV,
-//      Some(WAITING)          -> modalBehaviors.modeVotMultiplier.waiting, TODO think of alternative for waiting. For now assume "NONE" is waiting
-      Some(BIKE) -> modalBehaviors.modeVotMultiplier.bike,
-      Some(WALK) -> modalBehaviors.modeVotMultiplier.walk,
-      Some(CAR)  -> modalBehaviors.modeVotMultiplier.drive,
-      None       -> modalBehaviors.modeVotMultiplier.waiting
+      Some(BIKE)              -> modalBehaviors.modeVotMultiplier.bike,
+      Some(WALK)              -> modalBehaviors.modeVotMultiplier.walk,
+      Some(CAR)               -> modalBehaviors.modeVotMultiplier.drive,
+      None                    -> modalBehaviors.modeVotMultiplier.waiting
     )
 
   lazy val poolingMultipliers: mutable.Map[automationLevel, Double] =
@@ -359,38 +340,198 @@ class ModeChoiceMultinomialLogit(
 
   lazy val situationMultipliers: mutable.Map[(timeSensitivity, congestionLevel, roadwayType, automationLevel), Double] =
     mutable.Map[(timeSensitivity, congestionLevel, roadwayType, automationLevel), Double](
-      (highSensitivity, highCongestion, highway, levelLE2)    -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.LevelLE2,
-      (highSensitivity, highCongestion, nonHighway, levelLE2) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE2,
-      (highSensitivity, lowCongestion, highway, levelLE2)     -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.LevelLE2,
-      (highSensitivity, lowCongestion, nonHighway, levelLE2)  -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE2,
-      (lowSensitivity, highCongestion, highway, levelLE2)     -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.LevelLE2,
-      (lowSensitivity, highCongestion, nonHighway, levelLE2)  -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE2,
-      (lowSensitivity, lowCongestion, highway, levelLE2)      -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.LevelLE2,
-      (lowSensitivity, lowCongestion, nonHighway, levelLE2)   -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE2,
-      (highSensitivity, highCongestion, highway, level3)      -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level3,
-      (highSensitivity, highCongestion, nonHighway, level3)   -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level3,
-      (highSensitivity, lowCongestion, highway, level3)       -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level3,
-      (highSensitivity, lowCongestion, nonHighway, level3)    -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.Level3,
-      (lowSensitivity, highCongestion, highway, level3)       -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.Level3,
-      (lowSensitivity, highCongestion, nonHighway, level3)    -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.Level3,
-      (lowSensitivity, lowCongestion, highway, level3)        -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.Level3,
-      (lowSensitivity, lowCongestion, nonHighway, level3)     -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.Level3,
-      (highSensitivity, highCongestion, highway, level4)      -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level4,
-      (highSensitivity, highCongestion, nonHighway, level4)   -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level4,
-      (highSensitivity, lowCongestion, highway, level4)       -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level4,
-      (highSensitivity, lowCongestion, nonHighway, level4)    -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.Level4,
-      (lowSensitivity, highCongestion, highway, level4)       -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.Level4,
-      (lowSensitivity, highCongestion, nonHighway, level4)    -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.Level4,
-      (lowSensitivity, lowCongestion, highway, level4)        -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.Level4,
-      (lowSensitivity, lowCongestion, nonHighway, level4)     -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.Level4,
-      (highSensitivity, highCongestion, highway, level5)      -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level5,
-      (highSensitivity, highCongestion, nonHighway, level5)   -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level5,
-      (highSensitivity, lowCongestion, highway, level5)       -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level5,
-      (highSensitivity, lowCongestion, nonHighway, level5)    -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.Level5,
-      (lowSensitivity, highCongestion, highway, level5)       -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.Level5,
-      (lowSensitivity, highCongestion, nonHighway, level5)    -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.Level5,
-      (lowSensitivity, lowCongestion, highway, level5)        -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.Level5,
-      (lowSensitivity, lowCongestion, nonHighway, level5)     -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.Level5
+      (
+        highSensitivity,
+        highCongestion,
+        highway,
+        levelLE2
+      ) -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.LevelLE2,
+      (
+        highSensitivity,
+        highCongestion,
+        nonHighway,
+        levelLE2
+      ) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE2,
+      (
+        highSensitivity,
+        lowCongestion,
+        highway,
+        levelLE2
+      ) -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.LevelLE2,
+      (
+        highSensitivity,
+        lowCongestion,
+        nonHighway,
+        levelLE2
+      ) -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE2,
+      (
+        lowSensitivity,
+        highCongestion,
+        highway,
+        levelLE2
+      ) -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.LevelLE2,
+      (
+        lowSensitivity,
+        highCongestion,
+        nonHighway,
+        levelLE2
+      ) -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE2,
+      (
+        lowSensitivity,
+        lowCongestion,
+        highway,
+        levelLE2
+      ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.LevelLE2,
+      (
+        lowSensitivity,
+        lowCongestion,
+        nonHighway,
+        levelLE2
+      ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE2,
+      (
+        highSensitivity,
+        highCongestion,
+        highway,
+        level3
+      ) -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level3,
+      (
+        highSensitivity,
+        highCongestion,
+        nonHighway,
+        level3
+      ) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level3,
+      (
+        highSensitivity,
+        lowCongestion,
+        highway,
+        level3
+      ) -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level3,
+      (
+        highSensitivity,
+        lowCongestion,
+        nonHighway,
+        level3
+      ) -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.Level3,
+      (
+        lowSensitivity,
+        highCongestion,
+        highway,
+        level3
+      ) -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.Level3,
+      (
+        lowSensitivity,
+        highCongestion,
+        nonHighway,
+        level3
+      ) -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.Level3,
+      (
+        lowSensitivity,
+        lowCongestion,
+        highway,
+        level3
+      ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.Level3,
+      (
+        lowSensitivity,
+        lowCongestion,
+        nonHighway,
+        level3
+      ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.Level3,
+      (
+        highSensitivity,
+        highCongestion,
+        highway,
+        level4
+      ) -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level4,
+      (
+        highSensitivity,
+        highCongestion,
+        nonHighway,
+        level4
+      ) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level4,
+      (
+        highSensitivity,
+        lowCongestion,
+        highway,
+        level4
+      ) -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level4,
+      (
+        highSensitivity,
+        lowCongestion,
+        nonHighway,
+        level4
+      ) -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.Level4,
+      (
+        lowSensitivity,
+        highCongestion,
+        highway,
+        level4
+      ) -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.Level4,
+      (
+        lowSensitivity,
+        highCongestion,
+        nonHighway,
+        level4
+      ) -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.Level4,
+      (
+        lowSensitivity,
+        lowCongestion,
+        highway,
+        level4
+      ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.Level4,
+      (
+        lowSensitivity,
+        lowCongestion,
+        nonHighway,
+        level4
+      ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.Level4,
+      (
+        highSensitivity,
+        highCongestion,
+        highway,
+        level5
+      ) -> modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level5,
+      (
+        highSensitivity,
+        highCongestion,
+        nonHighway,
+        level5
+      ) -> modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level5,
+      (
+        highSensitivity,
+        lowCongestion,
+        highway,
+        level5
+      ) -> modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level5,
+      (
+        highSensitivity,
+        lowCongestion,
+        nonHighway,
+        level5
+      ) -> modalBehaviors.highTimeSensitivity.lowCongestion.nonHighwayFactor.Level5,
+      (
+        lowSensitivity,
+        highCongestion,
+        highway,
+        level5
+      ) -> modalBehaviors.lowTimeSensitivity.highCongestion.highwayFactor.Level5,
+      (
+        lowSensitivity,
+        highCongestion,
+        nonHighway,
+        level5
+      ) -> modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.Level5,
+      (
+        lowSensitivity,
+        lowCongestion,
+        highway,
+        level5
+      ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.Level5,
+      (
+        lowSensitivity,
+        lowCongestion,
+        nonHighway,
+        level5
+      ) -> modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.Level5
     )
 
   override def utilityOf(
@@ -434,7 +575,7 @@ class ModeChoiceMultinomialLogit(
   ): Double = trips.map(utilityOf(_, attributesOfIndividual, None)).sum // TODO: Update with destination activity
 }
 
-object ModeChoiceMultinomialLogit {
+object ModeChoiceMultinomialLogit extends StrictLogging {
 
   def buildModelFromConfig(
     configHolder: BeamConfigHolder
@@ -446,14 +587,15 @@ object ModeChoiceMultinomialLogit {
     )
     val scale_factor: Double =
       configHolder.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.utility_scale_factor
+
+    val carIntercept = Map("intercept" -> UtilityFunctionOperation("intercept", params.car_intercept))
     val mnlUtilityFunctions: Map[String, Map[String, UtilityFunctionOperation]] = Map(
-      "car" -> Map(
-        "intercept" ->
-        UtilityFunctionOperation("intercept", params.car_intercept)
-      ),
-      "cav"       -> Map("intercept" -> UtilityFunctionOperation("intercept", params.cav_intercept)),
-      "walk"      -> Map("intercept" -> UtilityFunctionOperation("intercept", params.walk_intercept)),
-      "ride_hail" -> Map("intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_intercept)),
+      BeamMode.CAR.value      -> carIntercept,
+      BeamMode.CAR_HOV2.value -> carIntercept,
+      BeamMode.CAR_HOV3.value -> carIntercept,
+      "cav"                   -> Map("intercept" -> UtilityFunctionOperation("intercept", params.cav_intercept)),
+      "walk"                  -> Map("intercept" -> UtilityFunctionOperation("intercept", params.walk_intercept)),
+      "ride_hail"             -> Map("intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_intercept)),
       "ride_hail_pooled" -> Map(
         "intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_pooled_intercept)
       ),
@@ -470,6 +612,11 @@ object ModeChoiceMultinomialLogit {
       ),
       "drive_transit" -> Map(
         "intercept"             -> UtilityFunctionOperation("intercept", params.drive_transit_intercept),
+        "transitOccupancyLevel" -> UtilityFunctionOperation("multiplier", params.transit_crowding),
+        "transfer"              -> UtilityFunctionOperation("multiplier", params.transfer)
+      ),
+      "bike_transit" -> Map(
+        "intercept"             -> UtilityFunctionOperation("intercept", params.bike_transit_intercept),
         "transitOccupancyLevel" -> UtilityFunctionOperation("multiplier", params.transit_crowding),
         "transfer"              -> UtilityFunctionOperation("multiplier", params.transfer)
       )
@@ -497,5 +644,58 @@ object ModeChoiceMultinomialLogit {
     transitOccupancyLevel: Double,
     index: Int = -1
   )
+
+  def getTransitVehicleTypeVOTMultipliers(
+    vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+    transitVehicleTypeVOTMultipliersStr: List[String]
+  ): Map[Id[BeamVehicleType], Double] = {
+    if (transitVehicleTypeVOTMultipliersStr.isEmpty) Map.empty
+    else {
+      val vehTypeToMultiplier = transitVehicleTypeVOTMultipliersStr.flatMap { curr =>
+        val separator = curr.indexOf(":")
+        if (separator < 0) {
+          logger.warn(
+            s"Cannot derive vehicle mode and multiplier from '${transitVehicleTypeVOTMultipliersStr}', current element is '${curr}'"
+          )
+          None
+        } else {
+          val vehicleTypeStr = curr.substring(0, separator)
+          val vehicleTypeId = Id.create(vehicleTypeStr, classOf[BeamVehicleType])
+          vehicleTypes.get(vehicleTypeId) match {
+            case Some(_) =>
+              val multiplier = curr.substring(separator + 1).toDouble
+              Some((vehicleTypeId, multiplier))
+            case None =>
+              logger.warn(s"Can't find vehicle type '${vehicleTypeStr}'")
+              None
+          }
+
+        }
+      }
+      vehTypeToMultiplier.toMap
+    }
+  }
+
+  def calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(
+    embodiedBeamTrip: EmbodiedBeamTrip,
+    bikeLanesAdjustment: BikeLanesAdjustment
+  ): Int = {
+    embodiedBeamTrip.legs
+      .map { embodiedBeamLeg: EmbodiedBeamLeg =>
+        pathScaledForWaiting(embodiedBeamLeg.beamLeg.travelPath, bikeLanesAdjustment)
+      }
+      .sum
+      .toInt
+  }
+
+  private[mode] def pathScaledForWaiting(path: BeamPath, bikeLanesAdjustment: BikeLanesAdjustment): Double = {
+    path.linkIds
+      .drop(1)
+      .zip(path.linkTravelTime.drop(1))
+      .map { case (linkId: Int, travelTime: Double) =>
+        travelTime * 1d / bikeLanesAdjustment.scaleFactor(linkId)
+      }
+      .sum
+  }
 
 }

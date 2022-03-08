@@ -13,7 +13,6 @@ import org.matsim.vehicles.Vehicle
 import scala.language.implicitConversions
 
 /**
-  *
   * @author Dmitry Openkov
   */
 abstract class SimEvent(
@@ -26,11 +25,11 @@ abstract class SimEvent(
 ) {
   def previousActivity: Activity = person.getSelectedPlan.getPlanElements.get(legIdx - 1).asInstanceOf[Activity]
   def nextActivity: Activity = person.getSelectedPlan.getPlanElements.get(legIdx + 1).asInstanceOf[Activity]
-  val leg = person.getSelectedPlan.getPlanElements.get(legIdx).asInstanceOf[Leg]
-  val isLegStart = linkIdx < 0
+  val leg: Leg = person.getSelectedPlan.getPlanElements.get(legIdx).asInstanceOf[Leg]
+  val isLegStart: Boolean = linkIdx < 0
   val epsilon = 0.001
   val epsilon2 = 0.0001
-  def immidiateTime = time + epsilon
+  def immidiateTime: Double = time + epsilon
 
   val (linkId, lastLink): (Id[Link], Boolean) =
     leg.getRoute match {
@@ -58,10 +57,11 @@ object SimEvent {
 
 class StartLegSimEvent(time: Double, priority: Int, person: Person, isCACC: Boolean, legIdx: Int)
     extends SimEvent(time, priority, person, isCACC, legIdx, -1) {
+
   override def execute(scenario: Scenario, params: BPRSimParams): (List[Event], Some[SimEvent]) = {
     val events = List(
       new ActivityEndEvent(time, person.getId, linkId, previousActivity.getFacilityId, previousActivity.getType),
-      new PersonDepartureEvent(time + epsilon2, person.getId, linkId, leg.getMode),
+      new PersonDepartureEvent(time + epsilon2, person.getId, linkId, leg.getMode)
     )
 
     val simEvent = leg.getMode match {
@@ -94,8 +94,9 @@ class EndLegSimEvent(
   person: Person,
   isCACC: Boolean,
   legIdx: Int,
-  linkIdx: Int,
+  linkIdx: Int
 ) extends SimEvent(time, priority, person, isCACC, legIdx, linkIdx) {
+
   override def execute(scenario: Scenario, params: BPRSimParams): (List[Event], Option[StartLegSimEvent]) = {
     val nextAct = nextActivity
 
@@ -110,7 +111,7 @@ class EndLegSimEvent(
         activityLinkId,
         nextAct.getFacilityId,
         nextAct.getType
-      ),
+      )
     )
 
     val nextLegExists = person.getSelectedPlan.getPlanElements.size() > legIdx + 2
@@ -128,6 +129,7 @@ class EndLegSimEvent(
 
 class EnteringLinkSimEvent(time: Double, priority: Int, person: Person, isCACC: Boolean, legIdx: Int, linkIdx: Int)
     extends SimEvent(time, priority, person, isCACC, legIdx, linkIdx) {
+
   override def execute(scenario: Scenario, params: BPRSimParams): (List[Event], Option[SimEvent]) = {
     //simplification: When a vehicle is entering a road it enters the road immediately
     val vehicleId = createVehicleId(person)
@@ -166,6 +168,7 @@ class EnteringActivityLinkSimEvent(
   legIdx: Int,
   linkIdx: Int
 ) extends SimEvent(time, priority, person, isCACC, legIdx, linkIdx) {
+
   override def execute(scenario: Scenario, params: BPRSimParams): (List[Event], Option[SimEvent]) = {
     //simplification: When a vehicle is entering road it enters road immediately
     val vehicleId = createVehicleId(person)

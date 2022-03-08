@@ -5,29 +5,26 @@ import beam.sim.BeamHelper
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.events.Event
-import org.scalatest.FlatSpec
-import org.scalatestplus.mockito.MockitoSugar
+import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.collection.mutable.ArrayBuffer
 
-class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSugar {
+class RideHailBufferedRidesSpec extends AnyFlatSpec with BeamHelper {
 
   def getActivitiesGroupedByPerson(events: Seq[Event]): Map[String, (ArrayBuffer[Event], ArrayBuffer[Event])] = {
     val activities = events.filter(e => "actstart".equals(e.getEventType) || "actend".equals(e.getEventType))
 
-    val groupedByPerson = activities.foldLeft(Map[String, ArrayBuffer[Event]]()) {
-      case (c, ev) =>
-        val personId = ev.getAttributes.get("person")
-        val array = c.getOrElse(personId, ArrayBuffer[Event]())
-        array.append(ev)
-        c.updated(personId, array)
+    val groupedByPerson = activities.foldLeft(Map[String, ArrayBuffer[Event]]()) { case (c, ev) =>
+      val personId = ev.getAttributes.get("person")
+      val array = c.getOrElse(personId, ArrayBuffer[Event]())
+      array.append(ev)
+      c.updated(personId, array)
     }
 
-    groupedByPerson.map {
-      case (id, _events) =>
-        val (startActEvents, endActEvents) =
-          _events.partition(e => "actstart".equals(e.getEventType))
-        (id, (startActEvents, endActEvents))
+    groupedByPerson.map { case (id, _events) =>
+      val (startActEvents, endActEvents) =
+        _events.partition(e => "actstart".equals(e.getEventType))
+      (id, (startActEvents, endActEvents))
     }
 
   }
@@ -51,9 +48,8 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
 
     val groupedByPersonStartEndEvents = getActivitiesGroupedByPerson(events)
 
-    assert(groupedByPersonStartEndEvents.forall {
-      case (_, (startActEvents, endActEvent)) =>
-        startActEvents.size == endActEvent.size
+    assert(groupedByPersonStartEndEvents.forall { case (_, (startActEvents, endActEvent)) =>
+      startActEvents.size == endActEvent.size
     })
 
 //    groupedByPersonStartEndEvents.foreach{ case (_, (startActEvents, endActEvent)) =>
@@ -81,9 +77,8 @@ class RideHailBufferedRidesSpec extends FlatSpec with BeamHelper with MockitoSug
 
     val groupedByPersonStartEndEvents = getActivitiesGroupedByPerson(events)
 
-    assert(!groupedByPersonStartEndEvents.forall {
-      case (_, (startActEvents, endActEvent)) =>
-        startActEvents.size == endActEvent.size
+    assert(!groupedByPersonStartEndEvents.forall { case (_, (startActEvents, endActEvent)) =>
+      startActEvents.size == endActEvent.size
     })
 
   }

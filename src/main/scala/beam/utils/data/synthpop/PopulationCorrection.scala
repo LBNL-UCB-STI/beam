@@ -7,13 +7,13 @@ object PopulationCorrection extends StrictLogging {
 
   def adjust(
     input: Seq[(Models.Household, Seq[Models.Person])],
-    stateCodeToWorkForceSampler: Map[String, WorkForceSampler]
+    stateCodeToWorkForceSampler: Map[String, WorkForceSampler],
+    shouldRemoveNonWorkers: Boolean
   ): Map[Models.Household, Seq[Models.Person]] = {
     // Take only with age is >= 16
     val elderThan16Years = input
-      .map {
-        case (hh, persons) =>
-          hh -> persons.filter(p => p.age >= 16)
+      .map { case (hh, persons) =>
+        hh -> persons.filter(p => p.age >= 16)
       }
       .filter { case (_, persons) => persons.nonEmpty }
       .toMap
@@ -21,43 +21,34 @@ object PopulationCorrection extends StrictLogging {
     val removedPeopleYoungerThan16 = input.map(x => x._2.size).sum - elderThan16Years.values.map(x => x.size).sum
     logger.info(s"Read ${input.size} households with ${input.map(x => x._2.size).sum} people")
     logger.info(s"""After filtering them got ${elderThan16Years.size} households with ${elderThan16Years.values
-                     .map(x => x.size)
-                     .sum} people.
+      .map(x => x.size)
+      .sum} people.
          |Removed $removedHh households and $removedPeopleYoungerThan16 people who are younger than 16""".stripMargin)
 
     //    showAgeCounts(elderThan16Years)
 
-    val finalResult = elderThan16Years.foldLeft(Map[Models.Household, Seq[Models.Person]]()) {
-      case (acc, (hh: Models.Household, people)) =>
-        val workForceSampler = stateCodeToWorkForceSampler(hh.geoId.state.value)
-        val workers = people.collect { case person if workForceSampler.isWorker(person.age) => person }
-        if (workers.isEmpty) acc
-        else {
-          acc + (hh -> workers)
-        }
-    }
-    val removedEmptyHh = elderThan16Years.size - finalResult.size
-    val removedNonWorkers = elderThan16Years.map(x => x._2.size).sum - finalResult.values.map(x => x.size).sum
-    logger.info(s"""After applying work force sampler got ${finalResult.size} households with ${finalResult.values
-                     .map(x => x.size)
-                     .sum} people.
-         |Removed $removedEmptyHh households and $removedNonWorkers people""".stripMargin)
-
-    finalResult
-  }
-
-  private def showAgeCounts(hhToPeople: Map[Models.Household, Seq[Models.Person]]): Unit = {
-    val ages = hhToPeople.values.flatten
-      .map { person =>
-        person.age
+    if (shouldRemoveNonWorkers) {
+      val tempFinalResult = elderThan16Years.foldLeft(Map[Models.Household, Seq[Models.Person]]()) {
+        case (acc, (hh: Models.Household, people)) =>
+          val workForceSampler = stateCodeToWorkForceSampler(hh.geoId.state.value)
+          val workers = people.collect { case person if workForceSampler.isWorker(person.age) => person }
+          if (workers.isEmpty) acc
+          else {
+            acc + (hh -> workers)
+          }
       }
-      .groupBy(x => x)
-      .toSeq
-      .map { case (age, xs) => (age, xs.size) }
-      .sortBy { case (age, _) => age }
-    ages.foreach {
-      case (age, cnt) =>
-        logger.info(s"Age: $age, count: $cnt")
+      val removedEmptyHh = elderThan16Years.size - tempFinalResult.size
+      val removedNonWorkers = elderThan16Years.map(x => x._2.size).sum - tempFinalResult.values.map(x => x.size).sum
+      logger.info(
+        s"""After applying work force sampler got ${tempFinalResult.size} households with ${tempFinalResult.values
+          .map(x => x.size)
+          .sum} people.
+           |Removed $removedEmptyHh households and $removedNonWorkers people""".stripMargin
+      )
+
+      tempFinalResult
+    } else {
+      elderThan16Years
     }
   }
 }

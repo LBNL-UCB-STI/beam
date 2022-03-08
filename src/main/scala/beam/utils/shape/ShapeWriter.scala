@@ -39,12 +39,12 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
 
   def add(geom: G, id: String, attribute: A): Unit = {
     if (featureIds.contains(id)) {
-      logger.warn(s"Already saw feature with id ${id}. It won't be written into the shape file!")
+      logger.warn(s"Already saw feature with id $id. It won't be written into the shape file!")
     } else {
       featureIds.add(id)
       // Check for special case when no attribute
-      val maybeAttirb = if (attribute == EmptyAttributes) None else Some(attribute)
-      val feature = buildFeature(geom, id, maybeAttirb)
+      val maybeAttribute = if (EmptyAttributes eq attribute) None else Some(attribute)
+      val feature = buildFeature(geom, id, maybeAttribute)
       features.add(feature)
     }
   }
@@ -58,7 +58,7 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
       )
     } else {
       Try {
-        val dataStore: ShapefileDataStore = initDataStore(featureFactory)
+        val dataStore: ShapefileDataStore = ShapeWriter.initDataStore(featureFactory, path)
         val featureStore = dataStore.getFeatureSource.asInstanceOf[SimpleFeatureStore]
         val featureCollection = DataUtilities.collection(features)
         val fIterator = featureCollection.features()
@@ -68,22 +68,24 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
           override def next(): SimpleFeature = fIterator.next()
         }
         val persistedFeatureIds = featureStore.addFeatures(featureCollection)
-        val originalToPersistedFid: Map[String, String] = originalFeatureIdsIt
+
+        val originalIds = originalFeatureIdsIt
           .map(_.getID)
-          .toSeq
+          .toArray
+        val originalToPersistedFid = originalIds
           .zip(persistedFeatureIds.asScala)
-          .map {
-            case (originalFeatureId, persistedFeatureId) =>
-              originalFeatureId -> persistedFeatureId.getID
+          .map { case (originalFeatureId, persistedFeatureId) =>
+            originalFeatureId -> persistedFeatureId.getID
           }
-          .toMap
+
+        val map = originalToPersistedFid.toMap
 
         dataStore.dispose()
         features.clear()
         featureIds.clear()
         isWritten = true
 
-        OriginalToPersistedFeatureIdMap(originalToPersistedFid)
+        OriginalToPersistedFeatureIdMap(map)
       }
     }
   }
@@ -96,21 +98,26 @@ class ShapeWriter[G <: JtsGeometry, A <: Attributes](
     featureFactory.buildFeature(id)
   }
 
-  private def initDataStore(featureFactory: GenericFeatureBuilder[A]): ShapefileDataStore = {
-    val dataStore = new ShapefileDataStore(new File(path).toURI.toURL)
-    dataStore.createSchema(featureFactory.getFeatureType)
-    dataStore
-  }
 }
 
 object ShapeWriter {
   case class OriginalToPersistedFeatureIdMap(map: Map[String, String])
 
-  def worldGeodetic[G <: JtsGeometry, A <: Attributes](path: String)(
-    implicit evG: ClassTag[G],
+  def worldGeodetic[G <: JtsGeometry, A <: Attributes](path: String)(implicit
+    evG: ClassTag[G],
     evA: ClassTag[A]
   ): ShapeWriter[G, A] = {
     // WGS84 is the same as EPSG:4326 https://epsg.io/4326
     new ShapeWriter[G, A](DefaultGeographicCRS.WGS84, path)
   }
+
+  private def initDataStore(
+    featureFactory: GenericFeatureBuilder[_],
+    path: String
+  ): ShapefileDataStore = {
+    val dataStore = new ShapefileDataStore(new File(path).toURI.toURL)
+    dataStore.createSchema(featureFactory.getFeatureType)
+    dataStore
+  }
+
 }

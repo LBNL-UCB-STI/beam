@@ -5,7 +5,7 @@ import beam.utils.data.ctpp.readers.BaseTableReader
 import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData, Table}
 
 class AgeTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeography: ResidenceGeography)
-    extends BaseTableReader(dbInfo, Table.Age, Some(residenceGeography.level)) {
+    extends BaseTableReader(dbInfo, Table.Residence.Age, Some(residenceGeography.level)) {
 
   private val lineNumberToAge: Map[Int, AgeRange] = Map(
     2  -> AgeRange(Range(0, 16)),
@@ -41,13 +41,11 @@ class AgeTableReader(dbInfo: CTPPDatabaseInfo, val residenceGeography: Residence
         }
       }
       .groupBy { case (geoId, _, _) => geoId }
-      .map {
-        case (geoId, xs) =>
-          val ageToCntMap = xs.map {
-            case (_, ageRng, cnt) =>
-              ageRng -> cnt
-          }.toMap
-          geoId -> ageToCntMap
+      .map { case (geoId, xs) =>
+        val ageToCntMap = xs.map { case (_, ageRng, cnt) =>
+          ageRng -> cnt
+        }.toMap
+        geoId -> ageToCntMap
       }
     ageMap
   }
@@ -62,14 +60,12 @@ object AgeTableReader {
       new AgeTableReader(databaseInfo, ResidenceGeography.State)
     val readData = rdr.read()
     val ageToTotalNumberOfWorkers = readData.values.flatten
-      .groupBy { case (age, cnt) => age }
-      .map {
-        case (age, xs) =>
-          age -> xs.map(_._2).sum
+      .groupBy { case (age, _) => age }
+      .map { case (age, xs) =>
+        age -> xs.map(_._2).sum
       }
-    ageToTotalNumberOfWorkers.foreach {
-      case (age, cnt) =>
-        println(s"$age => $cnt")
+    ageToTotalNumberOfWorkers.foreach { case (age, cnt) =>
+      println(s"$age => $cnt")
     }
     val peopleElderThan16 =
       ageToTotalNumberOfWorkers.filter { case (age, _) => age.range.start > 16 }.values.sum

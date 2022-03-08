@@ -15,8 +15,8 @@ import net.codingwell.scalaguice.ScalaModule
 class BeamAgentModule(val beamConfig: BeamConfig) extends AbstractModule with ScalaModule {
 
   @Provides @Singleton
-  def provideActorSystem(injector: Injector, config: Config): ActorSystem = {
-    ActorSystem("ClusterSystem", config)
+  def provideActorSystem(config: Config): ActorSystem = {
+    ActorSystem(beamConfig.beam.actorSystemName, config)
   }
 
   @Provides @Singleton

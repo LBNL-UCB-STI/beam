@@ -40,7 +40,7 @@ case class UniformVehiclesAdjustment(beamScenario: BeamScenario) extends Vehicle
     }.toList
   }
 
-  override def sampleRideHailVehicleTypes(
+  override def sampleVehicleTypes(
     numVehicles: Int,
     vehicleCategory: VehicleCategory,
     realDistribution: UniformRealDistribution
@@ -49,15 +49,15 @@ case class UniformVehiclesAdjustment(beamScenario: BeamScenario) extends Vehicle
       (vehicleCategory, "Ride Hail Vehicle"),
       vehicleTypesAndProbabilitiesByCategory(vehicleCategory, "Usage Not Set")
     )
-    (1 to numVehicles).map { _ =>
+    (1 to numVehicles).flatMap { _ =>
       val newRand = realDistribution.sample()
-      val (vehType, _) = vehTypeWithProbability.find { case (_, prob) => prob >= newRand }.get
+      val vehType = vehTypeWithProbability.find { case (_, prob) => prob >= newRand }.map(_._1)
       vehType
     }.toList
   }
 
   private def matchCarUse(vehicleTypeId: String): String = {
-    vehicleTypeId.toString.split("_").headOption match {
+    vehicleTypeId.split("_").headOption match {
       case Some(beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypePrefix) =>
         "Ride Hail Vehicle"
       case _ => "Usage Not Set"

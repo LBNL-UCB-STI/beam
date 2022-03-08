@@ -1,10 +1,9 @@
 package beam.analysis
 
 import java.util
-
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
-import beam.router.Modes.BeamMode.CAR
+import beam.router.Modes.BeamMode
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.google.inject.Inject
@@ -21,7 +20,7 @@ import scala.collection.JavaConverters._
 
 case class DelayInLength(delay: Double, length: Int)
 
-class DelayMetricAnalysis @Inject()(
+class DelayMetricAnalysis @Inject() (
   eventsManager: EventsManager,
   controlerIO: OutputDirectoryHierarchy,
   networkHelper: NetworkHelper
@@ -34,7 +33,7 @@ class DelayMetricAnalysis @Inject()(
 
   private val cumulativeLength: Array[Double] = Array.ofDim[Double](networkHelper.maxLinkId + 1)
 
-  private var linkTravelsCount: Array[Int] = Array.ofDim[Int](networkHelper.maxLinkId + 1)
+  private val linkTravelsCount: Array[Int] = Array.ofDim[Int](networkHelper.maxLinkId + 1)
 
   private var linkAverageDelay: Array[DelayInLength] = Array.ofDim[DelayInLength](networkHelper.maxLinkId + 1)
 
@@ -52,7 +51,7 @@ class DelayMetricAnalysis @Inject()(
   private val networkUtilizedGraphTitle = "Physsim Network Utilization"
   private val xAxisName_NetworkUtilized = "hour"
   private val yAxisName_NetworkUtilized = "Network Percent Used"
-  private val linkUtilization = scala.collection.mutable.SortedMap[Int, Set[Int]]()
+  private val linkUtilization = scala.collection.mutable.SortedMap[Int, collection.mutable.Set[Int]]()
 
   var totalTravelTime = 0.0
 
@@ -65,9 +64,7 @@ class DelayMetricAnalysis @Inject()(
     event match {
       case pathTraversalEvent: PathTraversalEvent =>
         calculateNetworkUtilization(pathTraversalEvent)
-
-        val mode = pathTraversalEvent.mode
-        if (mode.value.equalsIgnoreCase(CAR.value)) {
+        if (pathTraversalEvent.mode == BeamMode.CAR) {
           val linkIds = pathTraversalEvent.linkIds
           val linkTravelTimes = pathTraversalEvent.linkTravelTime
           assert(linkIds.length == linkTravelTimes.length)
@@ -126,20 +123,19 @@ class DelayMetricAnalysis @Inject()(
   }
 
   def calculateNetworkUtilization(pathTraversalEvent: PathTraversalEvent): Unit = {
-
     val time = pathTraversalEvent.time / 3600
-    val utilizedLinks = pathTraversalEvent.linkIds.toSet
-    linkUtilization += time.toInt -> (linkUtilization.getOrElse(time.toInt, Set[Int]()) ++ utilizedLinks)
+    val setToUpdate = linkUtilization.getOrElse(time.toInt, collection.mutable.Set[Int]())
+    pathTraversalEvent.linkIds.foreach(setToUpdate += _)
+    linkUtilization += time.toInt -> setToUpdate
   }
 
   def categoryDelayCapacityDataset(iteration: Int): Unit = {
-    cumulativeDelay.zipWithIndex.foreach {
-      case (delay, index) =>
-        val link = networkHelper.getLinkUnsafe(index)
-        val capacity = link.getCapacity
-        val bin = largeset(capacity)
-        val capacityDelay = capacitiesDelay.getOrElse(bin, 0.0)
-        capacitiesDelay(bin) = delay + capacityDelay
+    cumulativeDelay.zipWithIndex.foreach { case (delay, index) =>
+      val link = networkHelper.getLinkUnsafe(index)
+      val capacity = link.getCapacity
+      val bin = largeset(capacity)
+      val capacityDelay = capacitiesDelay.getOrElse(bin, 0.0)
+      capacitiesDelay(bin) = delay + capacityDelay
     }
 
     for (index <- bins.indices) {

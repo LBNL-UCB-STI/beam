@@ -1,6 +1,7 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
+import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import com.conveyal.r5.transit.TransportNetwork
@@ -95,14 +96,17 @@ class RideHailIterationsStatsCollector(
   // timeBins -> number OfTimeBins input
   private val rideHailConfig = beamConfig.beam.agentsim.agents.rideHail
   private val timeBinSizeInSec = rideHailConfig.iterationStats.timeBinSizeInSec
+
   private val numberOfTimeBins = Math
     .floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSizeInSec)
     .toInt + 1
 
   private val rideHailModeChoiceEvents = mutable.Map[String, ModeChoiceEvent]()
+
   private val rideHailEventsTuples =
     mutable.Map[String, (ModeChoiceEvent, PersonEntersVehicleEvent)]()
   private val rideHailLastEvent = mutable.Map[String, PathTraversalEvent]()
+
   private val vehicleIdlingBins =
     mutable.Map[String, mutable.Map[Int, String]]()
   private val vehicles = mutable.Map[String, Int]()
@@ -136,7 +140,7 @@ class RideHailIterationsStatsCollector(
 
     rideHailLastEvent.foreach(rhEvent => {
       val vehicleId = rhEvent._1
-      var idlingBins = vehicleIdlingBins.get(vehicleId) match {
+      val idlingBins = vehicleIdlingBins.get(vehicleId) match {
         case Some(bins) => bins
         case None =>
           val bins = mutable.Map[Int, String]()
@@ -325,7 +329,7 @@ class RideHailIterationsStatsCollector(
     val vehicleId = event.vehicleId.toString
     val numPass = event.numberOfPassengers
 
-    if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHail")) {
+    if (BeamMode.isCar(mode) && vehicleId.contains("rideHail")) {
       if (numPass > 0) {
         vehicles.put(vehicleId, 1)
       } else if (vehicles.getOrElse(vehicleId, -1) < 0) {
@@ -384,13 +388,13 @@ class RideHailIterationsStatsCollector(
     val startY = currentEvent.startY
     val coord = beamServices.geo.wgs2Utm(new Coord(startX, startY))
     val startTazId = getStartTazId(currentEvent)
-    val endTazId = getEndTazId(currentEvent)
+    getEndTazId(currentEvent)
 
     val startTime = currentEvent.departureTime
     val endTime = currentEvent.arrivalTime
 
     val startBin = getTimeBin(startTime)
-    val endingBin = getTimeBin(endTime)
+    getTimeBin(endTime)
 
 //    logger.debug(
 //      "startTazId({}), endTazId({}), startBin({}), endingBin({}), numberOfPassengers({})",
@@ -402,7 +406,7 @@ class RideHailIterationsStatsCollector(
 //        .get(PathTraversalEvent.ATTRIBUTE_NUM_PASS)
 //    )
 
-    var idlingBins = vehicleIdlingBins.get(vehicleId) match {
+    val idlingBins = vehicleIdlingBins.get(vehicleId) match {
       case Some(bins) => bins
       case None =>
         val bins = mutable.Map[Int, String]()

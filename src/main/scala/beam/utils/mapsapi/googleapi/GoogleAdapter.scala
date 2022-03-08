@@ -91,9 +91,10 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
   }
 
   private def parseRoutes(jsRoutes: Seq[JsValue]): Seq[Route] = {
-    jsRoutes.map { route =>
-      val firstAndUniqueLeg = (route \ "legs").as[JsArray].value.head
-      parseRoute(firstAndUniqueLeg.as[JsObject])
+    jsRoutes.flatMap { route: JsValue =>
+      (route \ "legs").as[JsArray].value.map { value =>
+        parseRoute(value.as[JsObject])
+      }
     }
   }
 
@@ -103,13 +104,13 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
   }
 
   private def toRoutes(jsObject: JsObject): Seq[Route] = {
-    (jsObject \ "status") match {
+    jsObject \ "status" match {
       case JsDefined(value) =>
         if (value != JsString("OK")) {
           val error = jsObject \ "error_message"
-          logger.error(s"Google route request failed. Status: ${value}, error: $error")
+          logger.error(s"Google route request failed. Status: $value, error: $error")
         }
-      case undefined: JsUndefined =>
+      case _: JsUndefined =>
     }
     parseRoutes((jsObject \ "routes").as[JsArray].value)
   }
@@ -123,7 +124,7 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
     // and trip duration (response field: duration_in_traffic) that take traffic conditions into account.
     // This option is only available if the request contains a valid API key, or a valid Google Maps Platform Premium Plan client ID and signature.
     // The departure_time must be set to the current time or some time in the future. It cannot be in the past.
-    val durationInTrafficSeconds = (jsObject \ "duration_in_traffic" \ "value").as[Int]
+    val durationInTrafficSeconds = (jsObject \ "duration_in_traffic" \ "value").asOpt[Int]
     val startLocation = parseWgsCoordinate(jsObject \ "start_location")
     val endLocation = parseWgsCoordinate(jsObject \ "end_location")
     Route(startLocation, endLocation, distanceInMeter, durationInSeconds, durationInTrafficSeconds, segments)
@@ -151,22 +152,22 @@ class GoogleAdapter(apiKey: String, outputResponseToFile: Option[Path] = None, a
   }
 
   override def close(): Unit = {
-    implicit val timeOut = new Timeout(20L, TimeUnit.SECONDS)
+    implicit val timeOut: Timeout = new Timeout(20L, TimeUnit.SECONDS)
     fileWriter.foreach { ref =>
       val closed = ref ? ResponseSaverActor.CloseMsg
       Try(Await.result(closed, timeOut.duration))
       ref ! PoisonPill
     }
     Http().shutdownAllConnectionPools
-      .andThen {
-        case _ =>
-          if (actorSystem.isEmpty) system.terminate()
+      .andThen { case _ =>
+        if (actorSystem.isEmpty) system.terminate()
       }
   }
 
 }
 
 object GoogleAdapter {
+
   case class RouteRequest[T](
     userObject: T,
     origin: WgsCoordinate,
@@ -199,7 +200,7 @@ object GoogleAdapter {
       s"origin=$originStr",
       s"destination=$destinationStr",
       s"traffic_model=${trafficModel.apiString}",
-      s"departure_time=${dateAsEpochSecond(departureAt)}",
+      s"departure_time=${dateAsEpochSecond(departureAt)}"
     )
     val optionalParams = {
       if (constraints.isEmpty) Seq.empty
@@ -218,7 +219,8 @@ object GoogleAdapter {
 }
 
 class ResponseSaverActor(file: File) extends Actor {
-  override def receive = {
+
+  override def receive: Receive = {
     case jsObject: JsObject =>
       val out = FileUtils.openOutputStream(file)
       val buffer = new BufferedOutputStream(out)

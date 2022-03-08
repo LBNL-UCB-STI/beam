@@ -17,16 +17,15 @@ object ParquetReader {
     assert(args.nonEmpty, "Expected path to the file, but got nothig")
 
     val parquetPath = new Path(args.head)
-    println(s"Path to parquet file: ${parquetPath}")
+    println(s"Path to parquet file: $parquetPath")
 
     showMetadata(parquetPath)
 
     // Read some rows
     val (iter, toClose) = read(args.head)
     try {
-      iter.take(20).zipWithIndex.foreach {
-        case (row, idx) =>
-          println(s"$idx: $row")
+      iter.take(20).zipWithIndex.foreach { case (row, idx) =>
+        println(s"$idx: $row")
       }
     } finally {
       toClose.close()

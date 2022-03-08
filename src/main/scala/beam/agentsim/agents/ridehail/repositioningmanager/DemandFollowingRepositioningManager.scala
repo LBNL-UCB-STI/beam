@@ -1,11 +1,11 @@
 package beam.agentsim.agents.ridehail.repositioningmanager
 
 import beam.agentsim.agents.ridehail.RideHailManager
-import beam.agentsim.agents.ridehail.RideHailVehicleManager.RideHailAgentLocation
+import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.router.BeamRouter
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode.CAR
-import beam.router.skim.Skims
 import beam.sim.BeamServices
 import beam.utils.{ActivitySegment, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -62,27 +62,26 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   }
 
   val timeBinToActivities: Map[Int, collection.Set[Activity]] =
-    Range(0, activitySegment.maxTime + horizon, horizon).zipWithIndex.map {
-      case (t, idx) =>
-        val activities = activitySegment.getActivities(t, t + horizon)
-        logger.debug(s"Time [$t, ${t + horizon}], idx $idx, num of activities: ${activities.size}")
-        idx -> activities
+    Range(0, activitySegment.maxTime + horizon, horizon).zipWithIndex.map { case (t, idx) =>
+      val activities = activitySegment.getActivities(t, t + horizon)
+      logger.debug(s"Time [$t, ${t + horizon}], idx $idx, num of activities: ${activities.size}")
+      idx -> activities
     }.toMap
 
   val totalNumberOfActivities: Int = activitySegment.sorted.length
 
-  val timeBinToActivitiesWeight: Map[Int, Double] = timeBinToActivities.map {
-    case (timeBin, acts) => timeBin -> acts.size.toDouble / totalNumberOfActivities
+  val timeBinToActivitiesWeight: Map[Int, Double] = timeBinToActivities.map { case (timeBin, acts) =>
+    timeBin -> acts.size.toDouble / totalNumberOfActivities
   }
   logger.info(s"totalNumberOfActivities: $totalNumberOfActivities")
 
   val sortedTimeBinToActivitiesWeight: Vector[(Int, Double)] = timeBinToActivitiesWeight.toVector.sortBy {
-    case (timeBin, weight) => timeBin
+    case (timeBin, _) => timeBin
   }
-  logger.info(s"timeBinToActivitiesWeight: ${sortedTimeBinToActivitiesWeight}")
+  logger.debug(s"timeBinToActivitiesWeight: $sortedTimeBinToActivitiesWeight")
   logger.info(s"sensitivityOfRepositioningToDemand: $sensitivityOfRepositioningToDemand")
   logger.info(s"numberOfClustersForDemand: $numberOfClustersForDemand")
-  logger.info(s"horizon: ${horizon}")
+  logger.info(s"horizon: $horizon")
 
   val timeBinToClusters: Map[Int, Array[ClusterInfo]] = ProfilingUtils.timed("createClusters", x => logger.info(x)) {
     createClusters
@@ -101,7 +100,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
       }
       val newPositions = ProfilingUtils.timed(s"Find where to repos from ${wantToRepos.size}", x => logger.debug(x)) {
         wantToRepos.flatMap { rha =>
-          findWhereToReposition(tick, rha.currentLocationUTM.loc, rha.vehicleId).map { loc =>
+          findWhereToReposition(tick, rha.getCurrentLocationUTM(tick, beamServices), rha.vehicleId).map { loc =>
             rha -> loc
           }
         }
@@ -109,21 +108,25 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
       logger.debug(
         s"nonRepositioningIdleVehicles: ${nonRepositioningIdleVehicles.size}, wantToRepos: ${wantToRepos.size}, newPositions: ${newPositions.size}"
       )
+
       // Filter out vehicles that don't have enough range
       newPositions
         .filter { vehAndNewLoc =>
-          beamServices.skims.od_skimmer
-            .getTimeDistanceAndCost(
-              vehAndNewLoc._1.currentLocationUTM.loc,
+          BeamRouter
+            .computeTravelTimeAndDistanceAndCost(
+              vehAndNewLoc._1.getCurrentLocationUTM(tick, beamServices),
               vehAndNewLoc._2,
               tick,
               CAR,
               vehAndNewLoc._1.vehicleType.id,
-              beamServices.beamScenario
+              vehAndNewLoc._1.vehicleType,
+              beamServices.beamScenario.fuelTypePrices(vehAndNewLoc._1.vehicleType.primaryFuelType),
+              beamServices.beamScenario,
+              beamServices.skims.od_skimmer
             )
-            .distance <= rideHailManager.vehicleManager
-            .getVehicleState(vehAndNewLoc._1.vehicleId)
-            .totalRemainingRange - rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
+            .distance <= rideHailManager
+            .resources(vehAndNewLoc._1.vehicleId)
+            .getTotalRemainingRange - rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters
         }
         .map(tup => (tup._1.vehicleId, tup._2))
         .toVector
@@ -180,57 +183,54 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
 
   private def createClusters: Map[Int, Array[ClusterInfo]] = {
     // Build clusters for every time bin. Number of clusters is configured
-    timeBinToActivities.map {
-      case (timeBin, acts) =>
-        val clusters =
-          if (acts.isEmpty) Array.empty[ClusterInfo]
-          else {
-            val db: Database = createDatabase(acts)
-            try {
-              val kmeans = new KMeansElkan[NumberVector](
-                SquaredEuclideanDistanceFunction.STATIC,
-                numberOfClustersForDemand,
-                1000,
-                new RandomUniformGeneratedInitialMeans(RandomFactory.DEFAULT),
-                true
-              )
-              val result = kmeans.run(db)
-              logger.debug(s"timeBin: $timeBin, seconds: ${timeBinToSeconds(timeBin)}")
-              result.getAllClusters.asScala.zipWithIndex.map {
-                case (clu, idx) =>
-                  logger.debug(s"# $idx: ${clu.getNameAutomatic}")
-                  logger.debug(s"Size: ${clu.size()}")
-                  logger.debug(s"Model: ${clu.getModel}")
-                  logger.debug(s"Center: ${clu.getModel.getMean.toVector}")
-                  logger.debug(s"getPrototype: ${clu.getModel.getPrototype.toString}")
-                  val rel = db.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD)
-                  val coords: ArrayBuffer[Coord] = new ArrayBuffer(clu.size())
-                  var iter: DBIDIter = clu.getIDs.iter()
-                  while (iter.valid()) {
-                    val o: DoubleVector = rel.get(iter)
-                    val arr = o.toArray
-                    coords += new Coord(arr(0), arr(1))
-                    iter.advance()
-                  }
-                  ClusterInfo(clu.size, new Coord(clu.getModel.getMean), coords)
-              }.toArray
-            } catch {
-              case ex: Exception =>
-                logger.error("err clustering", ex)
-                throw ex
-            }
+    timeBinToActivities.map { case (timeBin, acts) =>
+      val clusters =
+        if (acts.isEmpty) Array.empty[ClusterInfo]
+        else {
+          val db: Database = createDatabase(acts)
+          try {
+            val kmeans = new KMeansElkan[NumberVector](
+              SquaredEuclideanDistanceFunction.STATIC,
+              numberOfClustersForDemand,
+              1000,
+              new RandomUniformGeneratedInitialMeans(RandomFactory.DEFAULT),
+              true
+            )
+            val result = kmeans.run(db)
+            logger.debug(s"timeBin: $timeBin, seconds: ${timeBinToSeconds(timeBin)}")
+            result.getAllClusters.asScala.zipWithIndex.map { case (clu, idx) =>
+              logger.debug(s"# $idx: ${clu.getNameAutomatic}")
+              logger.debug(s"Size: ${clu.size()}")
+              logger.debug(s"Model: ${clu.getModel}")
+              logger.debug(s"Center: ${clu.getModel.getMean.toVector}")
+              logger.debug(s"getPrototype: ${clu.getModel.getPrototype.toString}")
+              val rel = db.getRelation(TypeUtil.DOUBLE_VECTOR_FIELD)
+              val coords: ArrayBuffer[Coord] = new ArrayBuffer(clu.size())
+              val iter: DBIDIter = clu.getIDs.iter()
+              while (iter.valid()) {
+                val o: DoubleVector = rel.get(iter)
+                val arr = o.toArray
+                coords += new Coord(arr(0), arr(1))
+                iter.advance()
+              }
+              ClusterInfo(clu.size, new Coord(clu.getModel.getMean), coords)
+            }.toArray
+          } catch {
+            case ex: Exception =>
+              logger.error("err clustering", ex)
+              throw ex
           }
-        timeBin -> clusters
+        }
+      timeBin -> clusters
     }
   }
 
   private def createDatabase(acts: scala.collection.Iterable[Activity]): Database = {
     val data = Array.ofDim[Double](acts.size, 2)
-    acts.zipWithIndex.foreach {
-      case (act, idx) =>
-        val x = act.getCoord.getX
-        val y = act.getCoord.getY
-        data.update(idx, Array(x, y))
+    acts.zipWithIndex.foreach { case (act, idx) =>
+      val x = act.getCoord.getX
+      val y = act.getCoord.getY
+      data.update(idx, Array(x, y))
     }
     val dbc = new ArrayAdapterDatabaseConnection(data)
     // Create a database (which may contain multiple relations!)

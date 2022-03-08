@@ -28,10 +28,10 @@ evs[,isCAV:=grepl("-L5-",vehicleType)]
 ch <- evs[type%in%c('ChargingPlugInEvent','RefuelSessionEvent','ChargingPlugOutEvent')]
 ch[,soc:=primaryFuelLevel/maxFuelLevel]
 ch[,hour:=round(time/3600,0)]
-ch[,kw:=as.numeric(unlist(lapply(str_split(chargingType,"\\("),function(l){ str_split(l[2],"\\|")[[1]][1] })))]
+ch[,kw:=as.numeric(unlist(lapply(str_split(chargingPointType,"\\("),function(l){ str_split(l[2],"\\|")[[1]][1] })))]
 
 dev.new()
-ggplot(ch[type=='RefuelSessionEvent',.(kw=sum(kw*duration/3600)),by=c('hour','vehicleType','chargingType','isRH')],aes(x=hour,y=kw,fill=chargingType))+geom_bar(stat='identity')+facet_wrap(isRH~vehicleType)
+ggplot(ch[type=='RefuelSessionEvent',.(kw=sum(kw*duration/3600)),by=c('hour','vehicleType','chargingPointType','isRH')],aes(x=hour,y=kw,fill=chargingPointType))+geom_bar(stat='identity')+facet_wrap(isRH~vehicleType)
 dev.new()
 ggplot(ch[type=='RefuelSessionEvent'][(isRH)],aes(x=time/3600,y=duration/3600,colour=parkingType,shape=factor(kw)))+geom_point()
 dev.new()

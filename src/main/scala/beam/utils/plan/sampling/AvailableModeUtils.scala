@@ -2,15 +2,16 @@ package beam.utils.plan.sampling
 
 import java.util
 
+import scala.collection.JavaConverters
+
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.population.{AttributesOfIndividual, PopulationAdjustment}
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.lang3.StringUtils.isBlank
 import org.matsim.api.core.v01.population.{Person, Plan, Population}
 import org.matsim.core.population.algorithms.PermissibleModesCalculator
 import org.matsim.households.Household
-
-import scala.collection.JavaConverters
 
 /**
   * Several utility/convenience methods for mode availability. Note that the MATSim convention
@@ -19,6 +20,7 @@ import scala.collection.JavaConverters
 object AvailableModeUtils extends LazyLogging {
 
   object AllowAllModes extends PermissibleModesCalculator {
+
     override def getPermissibleModes(plan: Plan): util.Collection[String] = {
       JavaConverters.asJavaCollection(BeamMode.allModes.map(_.toString))
     }
@@ -36,16 +38,15 @@ object AvailableModeUtils extends LazyLogging {
     * @return List of excluded mode string
     */
   def getExcludedModesForPerson(population: Population, personId: String): Array[String] = {
-    Option(
+    val maybeExcludedModes = Option(
       population.getPersonAttributes.getAttribute(personId, PopulationAdjustment.EXCLUDED_MODES)
-    ).map(_.toString) match {
-      case Some(modes) =>
-        if (modes.isEmpty) {
-          Array.empty[String]
-        } else {
-          modes.split(",")
-        }
-      case None => Array.empty[String]
+    )
+    maybeExcludedModes.map(_.toString)
+    maybeExcludedModes match {
+      case Some(modes: Array[String]) => modes.filterNot(isBlank)
+      case Some(modes: Iterable[_])   => modes.flatMap(_.toString.split(",")).filterNot(isBlank).toArray
+      case Some(modes)                => modes.toString.split(",").filterNot(isBlank)
+      case _                          => Array.empty[String]
     }
   }
 

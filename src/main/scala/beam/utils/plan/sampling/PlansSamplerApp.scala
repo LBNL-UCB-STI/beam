@@ -1,8 +1,8 @@
 package beam.utils.plan.sampling
 
-import java.util
+import beam.router.Modes.BeamMode
 
-import beam.router.Modes.BeamMode.CAR
+import java.util
 import beam.utils.matsim_conversion.{MatsimConversionTool, ShapeUtils}
 import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import beam.utils.plan.sampling.PopulationAttrib.Rank
@@ -182,6 +182,7 @@ trait HasXY[T] {
 object HasXY {
 
   implicit object PlanXY extends HasXY[Plan] {
+
     override def getX(p: Plan): Double =
       PopulationUtils.getFirstActivity(p).getCoord.getX
 
@@ -226,9 +227,8 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
   ): QuadTreeExtent = {
     val envelopes = features.asScala
       .map(_.getDefaultGeometry)
-      .collect {
-        case g: Geometry =>
-          wgsConverter.wgs2Utm(g.getEnvelope.getEnvelopeInternal)
+      .collect { case g: Geometry =>
+        wgsConverter.wgs2Utm(g.getEnvelope.getEnvelopeInternal)
       }
     val bounds = ShapeUtils.quadTreeBounds(envelopes)
     QuadTreeExtent(bounds.minx, bounds.miny, bounds.maxx, bounds.maxy)
@@ -265,7 +265,7 @@ class QuadTreeBuilder(wgsConverter: WGSConverter) {
     sourceCRS: CoordinateReferenceSystem,
     pop: Vector[Person]
   ): QuadTree[T] = {
-    val ev = implicitly[HasXY[T]]
+    val _ = implicitly[HasXY[T]]
 
     val qte = quadTreeExtentFromShapeFile(aoiShapeFileLoc)
     val qt: QuadTree[T] =
@@ -365,9 +365,9 @@ object PlansSampler {
 
     synthHouseholds ++=
       filterSynthHouseholds(
-        new SynthHouseholdParser(wgsConverter.get).parseFile(args(3)),
-        shapeFileReader.getFeatureSet,
-        sourceCrs
+        synthHouseholdsToFilter = new SynthHouseholdParser(wgsConverter.get).parseFile(args(3)),
+        aoiFeatures = shapeFileReader.getFeatureSet,
+        sourceCRS = sourceCrs
       )
 
     planQt = Some(
@@ -418,7 +418,7 @@ object PlansSampler {
   }
 
   private def filterSynthHouseholds(
-    synthHouseholds: Vector[SynthHousehold],
+    synthHouseholdsToFilter: Vector[SynthHousehold],
     aoiFeatures: util.Collection[SimpleFeature],
     sourceCRS: CoordinateReferenceSystem
   ): Vector[SynthHousehold] = {
@@ -426,20 +426,19 @@ object PlansSampler {
     if (spatialSampler == null) {
       val aoi: Geometry = new QuadTreeBuilder(wgsConverter.get)
         .geometryUnionFromShapefile(aoiFeatures, sourceCRS)
-      synthHouseholds
+      synthHouseholdsToFilter
         .filter(hh => aoi.contains(MGC.coord2Point(hh.coord)))
         .take(sampleNumber)
     } else {
-      val tract2HH = synthHouseholds.groupBy(f => f.tract)
+      val tract2HH = synthHouseholdsToFilter.groupBy(f => f.tract)
       val synthHHs = mutable.Buffer[SynthHousehold]()
       (0 to sampleNumber).foreach { _ =>
         {
           val sampleFeature = spatialSampler.getSample
           val sampleTract = sampleFeature.getAttribute("TRACTCE").asInstanceOf[String].toInt
-          var hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
-
+          var hh = hhNewValue(tract2HH, sampleTract)
           while (synthHHs.exists(_.householdId.equals(hh.householdId))) {
-            hh = Random.shuffle(tract2HH(sampleTract)).take(1).head
+            hh = hhNewValue(tract2HH, sampleTract)
           }
           if (hh.individuals.length != 0) {
             synthHHs += hh
@@ -453,17 +452,26 @@ object PlansSampler {
     }
   }
 
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
+  private def hhNewValue(
+    tract2HH: Map[Int, Vector[SynthHousehold]],
+    sampleTract: Int
+  ): SynthHousehold = {
+    Random.shuffle(tract2HH(sampleTract)).take(1).head
+  }
+
   def addModeExclusions(person: Person): Unit = {
     val filteredPermissibleModes = modeAllocator
       .getPermissibleModes(person.getSelectedPlan)
       .asScala
-      .filterNot(pm => PersonUtils.getAge(person) < 16 && pm.equalsIgnoreCase(CAR.toString))
+      .filterNot(pm => PersonUtils.getAge(person) < 16 && BeamMode.isCar(pm))
     AvailableModeUtils.setAvailableModesForPerson(person, newPop, filteredPermissibleModes.toSeq)
   }
 
   def filterPopulationActivities() {
     val factory = newPop.getFactory
     newPop.getPersons.asScala.values.foreach { person =>
+      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val origPlan = person.getPlans.asScala.head
       person.getPlans.clear()
       val newPlan = factory.createPlan()

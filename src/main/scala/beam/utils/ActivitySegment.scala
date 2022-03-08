@@ -47,8 +47,7 @@ object ActivitySegment {
   def apply(scenario: Scenario, binSize: Int): ActivitySegment = {
     val activities = scenario.getPopulation.getPersons.values.asScala.flatMap { person =>
       person.getSelectedPlan.getPlanElements.asScala.collect {
-        case act: Activity if act.getEndTime != Double.NegativeInfinity =>
-          act
+        case act: Activity if !act.getEndTime.isNegInfinity => act
       }
     }.toArray
     new ActivitySegment(activities, binSize)
@@ -63,11 +62,10 @@ object ActivitySegment {
         val binIdx = (act.getEndTime / binSize).toInt
         binIdx -> act
       }
-      .groupBy { case (binIdx, act) => binIdx }
+      .groupBy { case (binIdx, _) => binIdx }
       .map { case (binIdx, xs) => binIdx -> xs.map(_._2) }
-    binToActivities.foreach {
-      case (bin, acts) =>
-        arr.update(bin, acts)
+    binToActivities.foreach { case (bin, acts) =>
+      arr.update(bin, acts)
     }
     arr
   }

@@ -11,11 +11,14 @@ import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.tags.{ExcludeRegular, Periodic}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.scalatest._
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.matchers.must.Matchers
 
 import scala.language.postfixOps
 
 class SfLightRoutePopulationSpec
     extends AbstractSfLightSpec("SfLightRoutePopulationSpec")
+    with Matchers
     with Inside
     with LoneElement {
 
@@ -61,16 +64,19 @@ class SfLightRoutePopulationSpec
                       Id.create("Car", classOf[BeamVehicleType]),
                       new SpaceTime(origin, 0),
                       CAR,
-                      asDriver = true
+                      asDriver = true,
+                      needsToCalculateCost = true
                     ),
                     StreetVehicle(
                       Id.createVehicleId("body-116378-2"),
                       Id.create("BODY-TYPE-DEFAULT", classOf[BeamVehicleType]),
                       new SpaceTime(new Coord(origin.getX, origin.getY), time),
                       WALK,
-                      asDriver = true
+                      asDriver = true,
+                      needsToCalculateCost = false
                     )
-                  )
+                  ),
+                  triggerId = 0
                 )
               )
               assert(response.itineraries.filter(_.tripClassifier.isTransit).forall(_.costEstimate > 0))
@@ -81,13 +87,11 @@ class SfLightRoutePopulationSpec
                 .find(_.tripClassifier == WALK)
                 .get
                 .toBeamTrip
-              inside(walkTrip) {
-                case BeamTrip(legs) =>
-                  legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
-                  inside(legs.loneElement) {
-                    case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _, _)) =>
-                      mode should be(WALK)
-                  }
+              inside(walkTrip) { case BeamTrip(legs) =>
+                legs.map(_.mode) should contain theSameElementsInOrderAs List(WALK)
+                inside(legs.loneElement) { case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _, _)) =>
+                  mode should be(WALK)
+                }
               }
 
               if (response.itineraries.exists(_.tripClassifier == CAR)) {
@@ -96,22 +100,18 @@ class SfLightRoutePopulationSpec
                   .get
                   .toBeamTrip
                 assertMakesSense(carTrip)
-                inside(carTrip) {
-                  case BeamTrip(legs) =>
-                    legs should have size 3
-                    inside(legs(0)) {
-                      case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _, _)) =>
-                        mode should be(WALK)
-                    }
-                    inside(legs(1)) {
-                      case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _, _)) =>
-                        mode should be(CAR)
-                        links should not be 'empty
-                    }
-                    inside(legs(2)) {
-                      case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _, _)) =>
-                        mode should be(WALK)
-                    }
+                inside(carTrip) { case BeamTrip(legs) =>
+                  legs should have size 3
+                  inside(legs(0)) { case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _, _)) =>
+                    mode should be(WALK)
+                  }
+                  inside(legs(1)) { case BeamLeg(_, mode, _, BeamPath(links, _, _, _, _, _)) =>
+                    mode should be(CAR)
+                    links should not be 'empty
+                  }
+                  inside(legs(2)) { case BeamLeg(_, mode, _, BeamPath(_, _, _, _, _, _)) =>
+                    mode should be(WALK)
+                  }
                 }
               } else {
                 numFailedCarRoutes = numFailedCarRoutes + 1

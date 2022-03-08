@@ -4,7 +4,7 @@ import java.util
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.isOnStreetTransit
 import beam.router.model.RoutingModel.TransitStopsInfo
@@ -27,7 +27,6 @@ class TransitInitializer(
   beamConfig: BeamConfig,
   geo: GeoUtils,
   dates: DateUtils,
-  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   transportNetwork: TransportNetwork,
   travelTimeByLinkCalculator: (Double, Int, StreetMode) => Double
 ) extends ExponentialLazyLogging {
@@ -92,7 +91,11 @@ class TransitInitializer(
         )
     }
 
-    def pathWithStreetRoute(fromStop: Int, toStop: Int, streetSeg: StreetPath): (Int, Int, Id[Vehicle]) => BeamPath = {
+    def pathWithStreetRoute(
+      fromStopIdx: Int,
+      toStopIdx: Int,
+      streetSeg: StreetPath
+    ): (Int, Int, Id[Vehicle]) => BeamPath = {
       val edges = streetSeg.getEdges.asScala
       val startEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.head)
       val endEdge = transportNetwork.streetLayer.edgeStore.getCursor(edges.last)
@@ -111,24 +114,32 @@ class TransitInitializer(
         )
         val distance = linksTimesAndDistances.distances.tail.sum
         BeamPath(
-          edges.map(_.intValue()).toVector,
-          TravelTimeUtils.scaleTravelTime(
+          linkIds = edges.map(_.intValue()).toVector,
+          linkTravelTime = TravelTimeUtils.scaleTravelTime(
             streetSeg.getDuration,
             math.round(linksTimesAndDistances.travelTimes.tail.sum).toInt,
             linksTimesAndDistances.travelTimes
           ),
-          None,
-          SpaceTime(
+          transitStops = Some(
+            TransitStopsInfo(
+              agencyId = "",
+              routeId = "",
+              vehicleId = vehicleId,
+              fromIdx = fromStopIdx,
+              toIdx = toStopIdx
+            )
+          ),
+          startPoint = SpaceTime(
             startEdge.getGeometry.getStartPoint.getX,
             startEdge.getGeometry.getStartPoint.getY,
             departureTime
           ),
-          SpaceTime(
+          endPoint = SpaceTime(
             endEdge.getGeometry.getEndPoint.getX,
             endEdge.getGeometry.getEndPoint.getY,
             departureTime + math.round(streetSeg.getDuration - scaledLinkTimes.head).toInt
           ),
-          distance
+          distanceInM = distance
         )
     }
 
@@ -137,23 +148,22 @@ class TransitInitializer(
       val mode = Modes.mapTransitMode(TransitLayer.getTransitModes(route.route_type))
       val transitPaths: Seq[(Int, Int, Id[Vehicle]) => BeamPath] = tripPattern.stops.indices
         .sliding(2)
-        .map {
-          case IndexedSeq(fromStopIdx, toStopIdx) =>
-            val fromStop = tripPattern.stops(fromStopIdx)
-            val toStop = tripPattern.stops(toStopIdx)
-            if (beamConfig.beam.routing.transitOnStreetNetwork && isOnStreetTransit(mode)) {
-              stopToStopStreetSegmentCache.getOrElseUpdate(
-                (fromStop, toStop),
-                routeTransitPathThroughStreets(fromStop, toStop)
-              ) match {
-                case Some(streetSeg) =>
-                  pathWithStreetRoute(fromStop, toStop, streetSeg)
-                case None =>
-                  pathWithoutStreetRoute(fromStop, toStop, fromStopIdx, toStopIdx)
-              }
-            } else {
-              pathWithoutStreetRoute(fromStop, toStop, fromStopIdx, toStopIdx)
+        .map { case IndexedSeq(fromStopIdx, toStopIdx) =>
+          val fromStop = tripPattern.stops(fromStopIdx)
+          val toStop = tripPattern.stops(toStopIdx)
+          if (beamConfig.beam.routing.transitOnStreetNetwork && isOnStreetTransit(mode)) {
+            stopToStopStreetSegmentCache.getOrElseUpdate(
+              (fromStop, toStop),
+              routeTransitPathThroughStreets(fromStop, toStop)
+            ) match {
+              case Some(streetSeg) =>
+                pathWithStreetRoute(fromStopIdx, toStopIdx, streetSeg)
+              case None =>
+                pathWithoutStreetRoute(fromStop, toStop, fromStopIdx, toStopIdx)
             }
+          } else {
+            pathWithoutStreetRoute(fromStop, toStop, fromStopIdx, toStopIdx)
+          }
         }
         .toSeq
 
@@ -161,19 +171,18 @@ class TransitInitializer(
         .filter(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
         .map { tripSchedule =>
           // First create a unique id for this trip which will become the transit agent and vehicle id
-          val tripVehId = Id.create(tripSchedule.tripId, classOf[BeamVehicle])
+          val tripVehId = Id.create(BeamVehicle.noSpecialChars(tripSchedule.tripId), classOf[BeamVehicle])
           val legs =
             tripSchedule.departures.zipWithIndex
               .sliding(2)
-              .map {
-                case Array((departureTimeFrom, from), (_, to)) =>
-                  val duration = tripSchedule.arrivals(to) - departureTimeFrom
-                  BeamLeg(
-                    departureTimeFrom,
-                    mode,
-                    duration,
-                    transitPaths(from)(departureTimeFrom, duration, tripVehId)
-                  ).scaleToNewDuration(duration)
+              .map { case Array((departureTimeFrom, from), (_, to)) =>
+                val duration = tripSchedule.arrivals(to) - departureTimeFrom
+                BeamLeg(
+                  departureTimeFrom,
+                  mode,
+                  duration,
+                  transitPaths(from)(departureTimeFrom, duration, tripVehId)
+                ).scaleToNewDuration(duration)
               }
               .toArray
           (tripVehId, (route, legs))
@@ -196,6 +205,7 @@ class TransitInitializer(
   ): Option[StreetPath] = {
     val fromStopIndex = transportNetwork.transitLayer.streetVertexForStop.get(fromStopIdx)
     val toStopIndex = transportNetwork.transitLayer.streetVertexForStop.get(toStopIdx)
+    val linkRadiusMeters = beamConfig.beam.routing.r5.linkRadiusMeters
     if (fromStopIndex == -1 || toStopIndex == -1) {
       if (fromStopIndex == -1) limitedWarn(fromStopIdx)
       if (toStopIndex == -1) limitedWarn(toStopIdx)
@@ -221,8 +231,8 @@ class TransitInitializer(
       streetRouter.profileRequest = profileRequest
       streetRouter.streetMode = StreetMode.valueOf("CAR")
       streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
-      if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon)) {
-        if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon)) {
+      if (streetRouter.setOrigin(profileRequest.fromLat, profileRequest.fromLon, linkRadiusMeters)) {
+        if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon, linkRadiusMeters)) {
           streetRouter.route()
           val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
           if (lastState != null) {

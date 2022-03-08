@@ -10,7 +10,7 @@ import beam.utils.data.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToDat
 class TravelTimeTableReader(
   dbInfo: CTPPDatabaseInfo,
   val residenceToWorkplaceFlowGeography: ResidenceToWorkplaceFlowGeography
-) extends BaseTableReader(dbInfo, Table.TravelTime, Some(residenceToWorkplaceFlowGeography.level)) {
+) extends BaseTableReader(dbInfo, Table.Flow.TravelTime, Some(residenceToWorkplaceFlowGeography.level)) {
   /*
     TableShell(B302106,3,2,Less than 5 minutes)
     TableShell(B302106,4,2,5 to 14 minutes)
@@ -28,7 +28,7 @@ class TravelTimeTableReader(
     readRaw()
       .filter(x => interestedLineNumber.contains(x.lineNumber))
       .map { entry =>
-        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId).get
+        val (fromGeoId, toGeoId) = FlowGeoParser.parse(entry.geoId)
         OD(fromGeoId, toGeoId, toRange(entry.lineNumber), entry.estimate)
       }
   }
@@ -92,7 +92,7 @@ object TravelTimeTableReader {
     val rdr = new TravelTimeTableReader(databaseInfo, ResidenceToWorkplaceFlowGeography.`PUMA5 To POWPUMA`)
     val readData = rdr.read().toVector
 
-    val nonZeros = readData.filter(x => x.value != 0.0)
+    val nonZeros = readData.filterNot(x => x.value.equals(0d))
     val distinctHomeLocations = readData.map(_.source).distinct.size
     val distintWorkLocations = readData.map(_.destination).distinct.size
     val sumOfValues = readData.map(_.value).sum
