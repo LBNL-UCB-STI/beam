@@ -262,6 +262,8 @@ class BeamMobsim @Inject() (
         }
 
         synchronized {
+          personsProcessed += 1
+
           if (personsProcessed >= nextProgressReport) {
             val currentProgress = (100.0 * personsProcessed) / personsTotal
             logger.info(s"Filling in secondary trips in plans: $currentProgress% completed.")
