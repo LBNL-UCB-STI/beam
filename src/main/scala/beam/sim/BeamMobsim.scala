@@ -222,11 +222,7 @@ class BeamMobsim @Inject() (
       val modesAvailable: Set[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
 
       val personsTotal = persons.length
-      val progressStep =
-        if (personsTotal > 1000000) { 2 }
-        else if (personsTotal > 500000) { 10 }
-        else { 25 }
-      val progressReportIncrement = Math.max(progressStep * (personsTotal / 100), 1)
+      val progressReportIncrement = Math.max(2 * (personsTotal / 100), 1)
       var personsProcessed: Int = 0
       var nextProgressReport: Int = progressReportIncrement
 
