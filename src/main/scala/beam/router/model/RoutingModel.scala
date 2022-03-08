@@ -52,7 +52,7 @@ object RoutingModel {
     val traversalTimes = linkIds.view
       .scanLeft(startTime.toDouble)(exitTimeByEnterTimeAndLinkId)
       .sliding(2)
-      .map(pair => pair.last - pair.head)
+      .map(pair => Math.max(pair.last - pair.head, 0))
       .toVector
     val cumulDistance =
       linkIds.map(streetLayer.edgeStore.getCursor(_).getLengthM)
