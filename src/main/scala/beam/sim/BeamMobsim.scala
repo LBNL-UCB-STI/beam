@@ -221,8 +221,9 @@ class BeamMobsim @Inject() (
 
       val modesAvailable: Set[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
 
+      val personsTotal = persons.length
       var personsProcessed: Int = 0
-      var nextProgressReport: Int = persons.length / 100
+      var nextProgressReport: Int = Math.min(personsTotal / 100, 1)
 
       persons.par.foreach { person =>
         if (matsimServices.getIterationNumber.intValue() == 0) {
@@ -262,7 +263,7 @@ class BeamMobsim @Inject() (
         synchronized {
           personsProcessed += 1
           if (personsProcessed >= nextProgressReport) {
-            logger.info(s"Filling in secondary trips in plans ($nextProgressReport% completed)")
+            logger.info(s"Filling in secondary trips in plans (${personsProcessed / personsTotal * 100.0}% completed)")
             nextProgressReport = nextProgressReport * 2
           }
         }
