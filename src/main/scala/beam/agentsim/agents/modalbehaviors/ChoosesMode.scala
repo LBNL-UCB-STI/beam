@@ -330,7 +330,15 @@ trait ChoosesMode {
 
   when(ChoosingMode)(stateFunction = transform {
     case Event(MobilityStatusResponse(newlyAvailableBeamVehicles, triggerId), choosesModeData: ChoosesModeData) =>
-      beamVehicles ++= newlyAvailableBeamVehicles.map(v => v.id -> v)
+      val newVehicleMap = newlyAvailableBeamVehicles.flatMap { v =>
+        if (BeamVehicle.isSharedTeleportationVehicle(v.id)) {
+          logger.warn("Removing share vehicle from mobility status response")
+          None
+        } else {
+          Some(v.id -> v)
+        }
+      }.toMap
+      beamVehicles ++= newVehicleMap
       val currentPersonLocation = choosesModeData.currentLocation
       val availableModes: Seq[BeamMode] = availableModesForPerson(
         matsimPlan.getPerson
