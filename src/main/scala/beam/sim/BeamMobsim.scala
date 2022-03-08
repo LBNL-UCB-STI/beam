@@ -221,6 +221,9 @@ class BeamMobsim @Inject() (
 
       val modesAvailable: Set[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
 
+      var personsProcessed: Int = 0
+      var nextProgressReport: Int = persons.length / 100
+
       persons.par.foreach { person =>
         if (matsimServices.getIterationNumber.intValue() == 0) {
           val addSupplementaryTrips = new AddSupplementaryTrips(beamScenario.beamConfig)
@@ -253,6 +256,14 @@ class BeamMobsim @Inject() (
               person.addPlan(plan)
               person.setSelectedPlan(plan)
             case None =>
+          }
+        }
+
+        synchronized {
+          personsProcessed += 1
+          if (personsProcessed >= nextProgressReport) {
+            logger.info(s"Filling in secondary trips in plans ($nextProgressReport% completed)")
+            nextProgressReport = nextProgressReport * 2
           }
         }
       }
