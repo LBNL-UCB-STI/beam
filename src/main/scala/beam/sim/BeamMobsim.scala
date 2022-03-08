@@ -196,6 +196,7 @@ class BeamMobsim @Inject() (
     val progressReportIncrement = Math.max(2 * (personsTotal / 100), 1)
     var personsProcessed: Int = 0
     var nextProgressReport: Int = progressReportIncrement
+    logger.info(s"Progress will be reported for each group of $progressReportIncrement agents processed.")
 
     households.getHouseholds.values.asScala.par.foreach { household =>
       val vehicles = household.getVehicleIds.asScala
