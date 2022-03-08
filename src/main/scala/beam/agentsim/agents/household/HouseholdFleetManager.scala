@@ -13,6 +13,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ChargingNetworkManager._
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.HasTriggerId
@@ -31,7 +32,7 @@ class HouseholdFleetManager(
   parkingManager: ActorRef,
   chargingNetworkManager: ActorRef,
   vehicles: Map[Id[BeamVehicle], BeamVehicle],
-  homeAndStartingWorkLocations: Map[Id[Person], (String, Coord)],
+  homeAndStartingWorkLocations: Map[Id[Person], (ParkingActivityType, String, Coord)],
   maybeEmergencyHouseholdVehicleGenerator: Option[EmergencyHouseholdVehicleGenerator]
 )(implicit val debug: Debug)
     extends LoggingMessageActor
@@ -77,19 +78,20 @@ class HouseholdFleetManager(
       val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = {
         // Request that all household vehicles be parked at the home coordinate. If the vehicle is an EV,
         // send the request to the charging manager. Otherwise send request to the parking manager.
-        val workingPersonsList = homeAndStartingWorkLocations.filter(_._2._1 == "Work").keys.toBuffer
+        val workingPersonsList = homeAndStartingWorkLocations.filter(_._2._1 == ParkingActivityType.Work).keys.toBuffer
         vehicles.toList.map { case (id, vehicle) =>
           val personId: Id[Person] =
             if (workingPersonsList.nonEmpty) workingPersonsList.remove(0)
             else
               homeAndStartingWorkLocations
-                .find(_._2._1 == "Home")
+                .find(_._2._1 == ParkingActivityType.Home)
                 .map(_._1)
                 .getOrElse(homeAndStartingWorkLocations.keys.head)
           trackingVehicleAssignmentAtInitialization.put(vehicle.id, personId)
+          val (_, activityType, location) = homeAndStartingWorkLocations(personId)
           val inquiry = ParkingInquiry.init(
-            SpaceTime(homeAndStartingWorkLocations(personId)._2, 0),
-            "init",
+            SpaceTime(location, 0),
+            activityType,
             VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get,
             beamVehicle = Option(vehicle),
             triggerId = triggerId
