@@ -259,6 +259,7 @@ object HierarchicalParkingManager {
     boundingBox: Envelope,
     seed: Int,
     mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+    estimatedMinParkingDuration: Double,
     checkThatNumberOfStallsMatch: Boolean = false
   ): ParkingNetwork[Link] = {
     new HierarchicalParkingManager(
@@ -281,7 +282,8 @@ object HierarchicalParkingManager {
           maxSearchRadius,
           boundingBox,
           seed,
-          mnlParkingConfig
+          mnlParkingConfig,
+          estimatedMinParkingDuration
         )
       )
     }
@@ -297,6 +299,7 @@ object HierarchicalParkingManager {
     boundingBox: Envelope,
     seed: Int,
     mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+    estimatedMinParkingDuration: Double,
     checkThatNumberOfStallsMatch: Boolean = false
   ): ParkingNetwork[Link] =
     HierarchicalParkingManager(
@@ -309,6 +312,7 @@ object HierarchicalParkingManager {
       boundingBox,
       seed,
       mnlParkingConfig,
+      estimatedMinParkingDuration,
       checkThatNumberOfStallsMatch
     )
 
@@ -391,7 +395,7 @@ object HierarchicalParkingManager {
       }
       .filter { case (_, _, maxStalls) => maxStalls > 0 }
       .zipWithIndex
-      .map { case ((linkId, description, maxStalls), id) =>
+      .map { case ((linkId, description, maxStalls), _) =>
         val numStalls = Math.min(maxStalls, Int.MaxValue).toInt
         val parkingZone = ParkingZone.init[Link](
           None,

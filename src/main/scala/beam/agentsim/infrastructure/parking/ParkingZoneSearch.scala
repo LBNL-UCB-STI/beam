@@ -44,6 +44,7 @@ object ParkingZoneSearch {
     searchMaxRadius: Double,
     boundingBox: Envelope,
     distanceFunction: (Coord, Coord) => Double,
+    estimatedMinParkingDuration: Double,
     searchExpansionFactor: Double = 2.0
   )
 
@@ -170,7 +171,11 @@ object ParkingZoneSearch {
               parkingZone.pricingModel match {
                 case None => 0
                 case Some(pricingModel) =>
-                  PricingModel.evaluateParkingTicket(pricingModel, params.parkingDuration.toInt)
+                  PricingModel.evaluateParkingTicket(
+                    pricingModel,
+                    params.parkingDuration.toInt,
+                    config.estimatedMinParkingDuration
+                  )
               }
             val parkingAlternative: ParkingAlternative[GEO] =
               ParkingAlternative(zone, parkingZone.parkingType, parkingZone, stallLocation, stallPriceInDollars)

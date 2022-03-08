@@ -441,7 +441,8 @@ class ZonalParkingManagerSpec
         beamConfig.beam.agentsim.agents.parking.minSearchRadius,
         beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
         randomSeed,
-        beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
+        beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
+        beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDuration
       )
 
       assertParkingResponse(

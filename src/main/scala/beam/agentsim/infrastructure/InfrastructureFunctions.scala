@@ -28,7 +28,8 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
   minSearchRadius: Double,
   maxSearchRadius: Double,
   boundingBox: Envelope,
-  seed: Int
+  seed: Int,
+  estimatedMinParkingDuration: Double
 ) extends StrictLogging {
 
   protected val zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[GEO] =
@@ -94,7 +95,8 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
       minSearchRadius,
       maxSearchRadius,
       boundingBox,
-      distanceFunction
+      distanceFunction,
+      estimatedMinParkingDuration
     )
 
   def searchForParkingStall(inquiry: ParkingInquiry): Option[ParkingZoneSearch.ParkingZoneSearchResult[GEO]] = {

@@ -181,7 +181,8 @@ object InfrastructureUtils extends LazyLogging {
             beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
             envelopeInUTM,
             beamConfig.matsim.modules.global.randomSeed,
-            beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
+            beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
+            beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDuration
           )
       case "PARALLEL" =>
         ParallelParkingManager.init(

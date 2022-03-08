@@ -20,7 +20,8 @@ class ChargingFunctions[GEO: GeoLevel](
   maxSearchRadius: Double,
   boundingBox: Envelope,
   seed: Int,
-  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
+  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+  estimatedMinParkingDuration: Double
 ) extends ParkingFunctions[GEO](
       geoQuadTree,
       idToGeoMapping,
@@ -31,7 +32,8 @@ class ChargingFunctions[GEO: GeoLevel](
       maxSearchRadius,
       boundingBox,
       seed,
-      mnlParkingConfig
+      mnlParkingConfig,
+      estimatedMinParkingDuration
     ) {
 
   /**
@@ -127,7 +129,8 @@ class ChargingFunctions[GEO: GeoLevel](
 
     // end-of-day parking durations are set to zero, which will be mis-interpreted here
     val parkingDuration: Option[Int] =
-      if (inquiry.parkingDuration < 60) Some(60) // at least a minute of charging
+      if (inquiry.parkingDuration < estimatedMinParkingDuration)
+        Some(estimatedMinParkingDuration.toInt) // at least a minute of charging
       else Some(inquiry.parkingDuration.toInt)
 
     val addedEnergy: Double =
