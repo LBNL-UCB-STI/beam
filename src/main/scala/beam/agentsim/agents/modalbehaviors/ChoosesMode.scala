@@ -1501,7 +1501,11 @@ trait ChoosesMode {
       chosenTrip,
       _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getType,
       nextActivity(data.personData).get.getType,
-      _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getAttributes.getAttribute("trip_id").toString
+      _experiencedBeamPlan
+        .activities(data.personData.currentActivityIndex)
+        .getAttributes
+        .getAttribute("trip_id")
+        .toString
     )
     eventsManager.processEvent(modeChoiceEvent)
 

@@ -131,12 +131,7 @@ object XmlPlanElementReader extends PlanElementReader {
       geoId = None
     )
 
-  private def toPlanElement(
-     leg: Leg,
-     plan: Plan,
-     planIdx: Int,
-     person: Person,
-     planElementIdx: Int): PlanElement =
+  private def toPlanElement(leg: Leg, plan: Plan, planIdx: Int, person: Person, planElementIdx: Int): PlanElement =
     PlanElement(
       tripId = if (leg.getAttributes.getAttribute("trip_id") != null) {
         leg.getAttributes.getAttribute("trip_id").toString.filter(x => (x.isDigit || x.equals('.')))
