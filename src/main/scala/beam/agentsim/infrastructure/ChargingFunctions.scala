@@ -78,7 +78,13 @@ class ChargingFunctions[GEO: GeoLevel](
     }
   }
 
-  def ifOvernightStayThenSlowChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
+  /**
+    * function that verifies if Home, Work or Overnight Then Slow Charging Only
+    * @param zone ParkingZone
+    * @param inquiry ParkingInquiry
+    * @return
+    */
+  def ifHomeOrWorkOrOvernightThenSlowChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
     if (
       inquiry.searchMode == ParkingSearchMode.Init || List(ParkingActivityType.Home, ParkingActivityType.Work).contains(
         inquiry.parkingActivityType
@@ -119,7 +125,7 @@ class ChargingFunctions[GEO: GeoLevel](
     val isEV: Boolean = inquiry.beamVehicle.forall(_.isEV)
     val rideHailFastChargingOnly: Boolean = ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone, inquiry)
     val enrouteFastChargingOnly: Boolean = ifEnrouteThenFastChargingOnly(zone, inquiry)
-    val overnightStaySlowChargingOnly: Boolean = ifOvernightStayThenSlowChargingOnly(zone, inquiry)
+    val overnightStaySlowChargingOnly: Boolean = ifHomeOrWorkOrOvernightThenSlowChargingOnly(zone, inquiry)
     val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry.beamVehicle)
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
