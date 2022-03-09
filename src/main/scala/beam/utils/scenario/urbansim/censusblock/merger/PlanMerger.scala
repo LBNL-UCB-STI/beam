@@ -9,7 +9,7 @@ class PlanMerger(modeMap: Map[String, String]) extends Merger[InputPlanElement, 
 
   private def transform(inputPlanElement: InputPlanElement): PlanElement = {
     PlanElement(
-      inputPlanElement.tripId.toString,
+      if (inputPlanElement.tripId.isEmpty) "" else inputPlanElement.tripId.get,
       PersonId(inputPlanElement.personId),
       0,
       0,

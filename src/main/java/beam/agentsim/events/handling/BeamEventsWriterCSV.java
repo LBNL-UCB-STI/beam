@@ -78,7 +78,7 @@ public class BeamEventsWriterCSV extends BeamEventsWriterBase {
         for (String attribute : attributeKeys) {
             if (!attributeToColumnIndexMapping.containsKey(attribute)) {
                 if (this.eventTypeToLog == null || !attribute.equals(Event.ATTRIBUTE_TYPE)) {
-                    DebugLib.stopSystemAndReportInconsistency("unkown attribute:" + attribute + ";class:" + event.getClass());
+                    DebugLib.stopSystemAndReportInconsistency("unknown attribute:" + attribute + ";class:" + event.getClass());
                 }
             }
             if (this.eventTypeToLog == null || !attribute.equals(Event.ATTRIBUTE_TYPE)) {

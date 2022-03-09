@@ -71,7 +71,6 @@ object CsvPlanElementReader extends PlanElementReader {
 }
 
 object XmlPlanElementReader extends PlanElementReader {
-  import beam.utils.csv.GenericCsvReader._
 
   override def read(path: String): Array[PlanElement] = {
     val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
@@ -105,7 +104,11 @@ object XmlPlanElementReader extends PlanElementReader {
     planElementIdx: Int
   ): PlanElement =
     PlanElement(
-      tripId = "",
+      tripId = if (activity.getAttributes.getAttribute("trip_id") != null) {
+        activity.getAttributes.getAttribute("trip_id").toString.filter(x => (x.isDigit || x.equals('.')))
+      } else {
+        ""
+      },
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
       planScore = plan.getScore,
@@ -128,7 +131,12 @@ object XmlPlanElementReader extends PlanElementReader {
       geoId = None
     )
 
-  private def toPlanElement(leg: Leg, plan: Plan, planIdx: Int, person: Person, planElementIdx: Int): PlanElement =
+  private def toPlanElement(
+     leg: Leg,
+     plan: Plan,
+     planIdx: Int,
+     person: Person,
+     planElementIdx: Int): PlanElement =
     PlanElement(
       tripId = if (leg.getAttributes.getAttribute("trip_id") != null) {
         leg.getAttributes.getAttribute("trip_id").toString.filter(x => (x.isDigit || x.equals('.')))

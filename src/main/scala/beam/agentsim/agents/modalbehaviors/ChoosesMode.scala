@@ -1500,7 +1500,8 @@ trait ChoosesMode {
       _experiencedBeamPlan.tourIndexOfElement(nextActivity(data.personData).get),
       chosenTrip,
       _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getType,
-      nextActivity(data.personData).get.getType
+      nextActivity(data.personData).get.getType,
+      _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getAttributes.getAttribute("trip_id").toString
     )
     eventsManager.processEvent(modeChoiceEvent)
 
