@@ -3,7 +3,6 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
-import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
@@ -26,7 +25,8 @@ class ParkingFunctions[GEO: GeoLevel](
   enrouteDuration: Double,
   boundingBox: Envelope,
   seed: Int,
-  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
+  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+  estimatedMinParkingDuration: Double
 ) extends InfrastructureFunctions[GEO](
       geoQuadTree,
       idToGeoMapping,
@@ -38,7 +38,8 @@ class ParkingFunctions[GEO: GeoLevel](
       searchMaxDistanceRelativeToEllipseFoci,
       enrouteDuration,
       boundingBox,
-      seed
+      seed,
+      estimatedMinParkingDuration
     ) {
 
   override protected val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] = Map(
@@ -82,41 +83,8 @@ class ParkingFunctions[GEO: GeoLevel](
 
     val homeActivityPrefersResidentialFactor: Double = if (goingHome) 1.0 else 0.0
 
-    // end-of-day parking durations are set to zero, which will be mis-interpreted here
-    val tempParkingDuration = inquiry.searchMode match {
-      case ParkingSearchMode.EnRoute => enrouteDuration.toInt
-      case _                         => inquiry.parkingDuration.toInt
-    }
-    val parkingDuration: Option[Int] = if (tempParkingDuration <= 0) None else Some(tempParkingDuration)
-
-    val addedEnergy: Double =
-      inquiry.beamVehicle match {
-        case Some(beamVehicle) =>
-          parkingAlternative.parkingZone.chargingPointType match {
-            case Some(chargingPoint) =>
-              val (_, addedEnergy) = ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
-                chargingPoint,
-                beamVehicle.primaryFuelLevelInJoules,
-                beamVehicle.beamVehicleType.primaryFuelCapacityInJoule,
-                1e6,
-                1e6,
-                parkingDuration
-              )
-              addedEnergy
-            case None => 0.0 // no charger here
-          }
-        case None => 0.0 // no beamVehicle, assume agent has range
-      }
-
-    val rangeAnxietyFactor: Double =
-      inquiry.remainingTripData
-        .map {
-          _.rangeAnxiety(withAddedFuelInJoules = addedEnergy)
-        }
-        .getOrElse(0.0) // default no anxiety if no remaining trip data provided
-
     val params: Map[ParkingMNL.Parameters, Double] = Map(
-      ParkingMNL.Parameters.RangeAnxietyCost                      -> rangeAnxietyFactor,
+      ParkingMNL.Parameters.RangeAnxietyCost                      -> 0.0,
       ParkingMNL.Parameters.WalkingEgressCost                     -> distanceFactor,
       ParkingMNL.Parameters.ParkingTicketCost                     -> parkingCostsPriceFactor,
       ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> homeActivityPrefersResidentialFactor,
@@ -228,9 +196,8 @@ class ParkingFunctions[GEO: GeoLevel](
         .forall(_.contains(inquiry.destinationUtm.time % (24 * 3600)))
     )
 
-    val isValidVehicleManager = inquiry.beamVehicle.forall { vehicle =>
+    val isValidVehicleManager =
       zone.reservedFor.managerType == VehicleManager.TypeEnum.Default || zone.reservedFor.managerId == inquiry.reservedFor.managerId
-    }
 
     hasAvailability & validParkingType & isValidTime & isValidVehicleManager
   }

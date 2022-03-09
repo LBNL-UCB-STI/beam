@@ -13,7 +13,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ChargingNetworkManager._
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.HasTriggerId
@@ -94,7 +94,8 @@ class HouseholdFleetManager(
             activityType,
             VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get,
             beamVehicle = Option(vehicle),
-            triggerId = triggerId
+            triggerId = triggerId,
+            searchMode = ParkingSearchMode.Init
           )
           if (vehicle.isEV) (chargingNetworkManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))
           else (parkingManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))

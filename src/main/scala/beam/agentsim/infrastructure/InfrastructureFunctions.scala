@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
-import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
@@ -30,7 +30,8 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
   searchMaxDistanceRelativeToEllipseFoci: Double,
   enrouteDuration: Double,
   boundingBox: Envelope,
-  seed: Int
+  seed: Int,
+  estimatedMinParkingDuration: Double
 ) extends StrictLogging {
 
   protected val zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[GEO] =
@@ -98,7 +99,8 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
       searchMaxDistanceRelativeToEllipseFoci,
       boundingBox,
       distanceFunction,
-      enrouteDuration
+      enrouteDuration,
+      estimatedMinParkingDuration
     )
 
   def searchForParkingStall(inquiry: ParkingInquiry): Option[ParkingZoneSearch.ParkingZoneSearchResult[GEO]] = {

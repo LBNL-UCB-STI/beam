@@ -22,7 +22,7 @@ import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Car, VehicleCategory
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.HasTriggerId
@@ -561,7 +561,8 @@ object HouseholdActor {
         activityType,
         VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get,
         beamVehicle = Option(vehicle),
-        triggerId = triggerId
+        triggerId = triggerId,
+        searchMode = ParkingSearchMode.Init
       )
       if (vehicle.isEV) chargingNetworkManager ? inquiry else parkingManager ? inquiry
     }

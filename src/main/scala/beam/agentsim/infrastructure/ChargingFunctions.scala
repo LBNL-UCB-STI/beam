@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
@@ -30,7 +30,8 @@ class ChargingFunctions[GEO: GeoLevel](
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
   skims: Option[Skims],
-  fuelPrice: Map[FuelType, Double]
+  fuelPrice: Map[FuelType, Double],
+  estimatedMinParkingDuration: Double
 ) extends ParkingFunctions[GEO](
       geoQuadTree,
       idToGeoMapping,
@@ -43,7 +44,8 @@ class ChargingFunctions[GEO: GeoLevel](
       enrouteDuration,
       boundingBox,
       seed,
-      mnlParkingConfig
+      mnlParkingConfig,
+      estimatedMinParkingDuration
     ) {
 
   /**
@@ -74,6 +76,16 @@ class ChargingFunctions[GEO: GeoLevel](
       case _ =>
         true // if it is not Enroute charging then it does not matter
     }
+  }
+
+  def ifOvernightStayThenSlowChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
+    if (
+      inquiry.searchMode == ParkingSearchMode.Init || List(ParkingActivityType.Home, ParkingActivityType.Work).contains(
+        inquiry.parkingActivityType
+      )
+    ) {
+      !ChargingPointType.isFastCharger(zone.chargingPointType.get)
+    } else true
   }
 
   /**
@@ -107,10 +119,11 @@ class ChargingFunctions[GEO: GeoLevel](
     val isEV: Boolean = inquiry.beamVehicle.forall(_.isEV)
     val rideHailFastChargingOnly: Boolean = ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone, inquiry)
     val enrouteFastChargingOnly: Boolean = ifEnrouteThenFastChargingOnly(zone, inquiry)
+    val overnightStaySlowChargingOnly: Boolean = ifOvernightStayThenSlowChargingOnly(zone, inquiry)
     val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry.beamVehicle)
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
-    isEV && rideHailFastChargingOnly && validChargingCapability && canCarParkHere && enrouteFastChargingOnly
+    isEV && rideHailFastChargingOnly && validChargingCapability && canCarParkHere && enrouteFastChargingOnly && overnightStaySlowChargingOnly
   }
 
   /**
@@ -123,7 +136,7 @@ class ChargingFunctions[GEO: GeoLevel](
     parkingAlternative: ParkingAlternative[GEO],
     inquiry: ParkingInquiry
   ): Map[ParkingMNL.Parameters, Double] = {
-    val parkingParameters = inquiry.searchMode match {
+    val enrouteFactor: Double = inquiry.searchMode match {
       case ParkingSearchMode.EnRoute =>
         val beamVehicle = inquiry.beamVehicle.get
         val origin = inquiry.originUtm.getOrElse(
@@ -136,11 +149,50 @@ class ChargingFunctions[GEO: GeoLevel](
           origin.time + travelTime1,
           beamVehicle.beamVehicleType
         )
-        val enrouteFactor: Double = (travelTime1 + travelTime2) * inquiry.valueOfTime
-        Map(ParkingMNL.Parameters.EnrouteDetourCost -> enrouteFactor)
-      case _ => Map()
+        (travelTime1 + travelTime2) * inquiry.valueOfTime
+      case _ => 0.0
     }
-    super[ParkingFunctions].setupMNLParameters(parkingAlternative, inquiry) ++ parkingParameters
+
+    // end-of-day parking durations are set to zero, which will be mis-interpreted here
+    val tempParkingDuration = inquiry.searchMode match {
+      case ParkingSearchMode.EnRoute => enrouteDuration.toInt
+      case _                         => inquiry.parkingDuration.toInt
+    }
+    val parkingDuration: Option[Int] =
+      if (tempParkingDuration < estimatedMinParkingDuration)
+        Some(estimatedMinParkingDuration.toInt) // at least a small duration of charging
+      else Some(tempParkingDuration)
+
+    val addedEnergy: Double =
+      inquiry.beamVehicle match {
+        case Some(beamVehicle) =>
+          parkingAlternative.parkingZone.chargingPointType match {
+            case Some(chargingPoint) =>
+              val (_, addedEnergy) = ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
+                chargingPoint,
+                beamVehicle.primaryFuelLevelInJoules,
+                beamVehicle.beamVehicleType.primaryFuelCapacityInJoule,
+                1e6,
+                1e6,
+                parkingDuration
+              )
+              addedEnergy
+            case None => 0.0 // no charger here
+          }
+        case None => 0.0 // no beamVehicle, assume agent has range
+      }
+
+    val rangeAnxietyFactor: Double =
+      inquiry.remainingTripData
+        .map {
+          _.rangeAnxiety(withAddedFuelInJoules = addedEnergy)
+        }
+        .getOrElse(0.0) // default no anxiety if no remaining trip data provided
+
+    super[ParkingFunctions].setupMNLParameters(parkingAlternative, inquiry) ++ Map(
+      ParkingMNL.Parameters.EnrouteDetourCost -> enrouteFactor,
+      ParkingMNL.Parameters.RangeAnxietyCost  -> rangeAnxietyFactor
+    )
   }
 
   /**

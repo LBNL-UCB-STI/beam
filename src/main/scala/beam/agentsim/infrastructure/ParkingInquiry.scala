@@ -58,6 +58,7 @@ object ParkingInquiry extends LazyLogging {
     val values: immutable.IndexedSeq[ParkingSearchMode] = findValues
     case object EnRoute extends ParkingSearchMode
     case object Destination extends ParkingSearchMode
+    case object Init extends ParkingSearchMode
   }
 
   object ParkingActivityType extends Enum[ParkingActivityType] {
