@@ -515,6 +515,11 @@ trait ChoosesMode {
                 case _ =>
                   makeRequestWith(withTransit = false, Vector(bodyStreetVehicle))
                   responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+                  logger.error(
+                    "No vehicle available for existing route of person {0} trip of mode {1} even though it was created in their plans",
+                    body.id,
+                    tourMode
+                  )
               }
             case _ =>
               val vehicles = filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), tourMode)
@@ -1250,6 +1255,8 @@ trait ChoosesMode {
           eventsManager.processEvent(
             createFailedTransitODSkimmerEvent(currentPersonLocation.loc, nextAct.getCoord, expectedMode)
           )
+        case Some(expectedMode) if !isAvailable(expectedMode) =>
+          logger.warn("Current tour mode {0} not available for person {1}", expectedMode.toString, body.id)
         case _ =>
       }
 
@@ -1345,9 +1352,14 @@ trait ChoosesMode {
                   availableAlternatives = availableAlts
                 )
               }
-            case Some(_) =>
+            case Some(unmatchedMode) =>
               //give another chance to make a choice without predefined mode
               self ! MobilityStatusResponse(choosesModeData.allAvailableStreetVehicles, getCurrentTriggerId.get)
+              logger.debug(
+                "Person {0} replanning because planned mode {1} not available",
+                body.id,
+                unmatchedMode.toString
+              )
               stay() using ChoosesModeData(
                 personData = personData.copy(currentTourMode = None),
                 currentLocation = choosesModeData.currentLocation,
@@ -1374,7 +1386,10 @@ trait ChoosesMode {
               val expensiveWalkTrip = EmbodiedBeamTrip(
                 Vector(originalWalkTripLeg.copy(replanningPenalty = 10.0))
               )
-
+              logger.warn(
+                "Person {0} forced into long walk trip because nothing is available",
+                body.id
+              )
               goto(FinishingModeChoice) using choosesModeData.copy(
                 pendingChosenTrip = Some(expensiveWalkTrip),
                 availableAlternatives = availableAlts
