@@ -643,7 +643,11 @@ class PersonAgent(
       )
       eventsManager.processEvent(teleportationEvent)
 
-      goto(ProcessingNextLegOrStartActivity) using data.copy(hasDeparted = true)
+      goto(ProcessingNextLegOrStartActivity) using data.copy(
+        hasDeparted = true,
+        currentVehicle = Vector.empty[Id[BeamVehicle]],
+        currentTourPersonalVehicle = None
+      )
 
   }
 

@@ -109,40 +109,38 @@ class HouseholdFleetManager(
         for {
           neededVehicleCategory              <- requireVehicleCategoryAvailable
           emergencyHouseholdVehicleGenerator <- maybeEmergencyHouseholdVehicleGenerator
-          vehicle                            <- emergencyHouseholdVehicleGenerator.createVehicle(personId, nextVehicleIndex, neededVehicleCategory)
+          vehicle <- emergencyHouseholdVehicleGenerator.createVehicle(
+            personId,
+            nextVehicleIndex,
+            neededVehicleCategory,
+            whenWhere,
+            self
+          )
         } yield {
-          val vehicleCreatedOutOfThinAir: Boolean = if (availableVehicles.isEmpty) {
+          if (availableVehicles.isEmpty) {
+            // Create a vehicle out of thin air
+            nextVehicleIndex += 1
+            val mobilityRequester = sender()
+            vehiclesInternal(vehicle.id) = vehicle
+
+            // Pipe my car through the parking manager
+            // and complete initialization only when I got them all.
+            val responseFuture = parkingManager ? ParkingInquiry.init(
+              whenWhere,
+              "wherever",
+              triggerId = triggerId
+            )
             logger.warn(
               s"No vehicles available for category ${neededVehicleCategory} available for person ${personId.toString}, creating a new vehicle with id ${vehicle.id.toString}"
             )
-            emergencyHouseholdVehicleGenerator.createVehicle(personId, nextVehicleIndex, neededVehicleCategory) match {
-              case Some(vehicle) =>
-                nextVehicleIndex += 1
-                vehicle.setManager(Some(self))
-                vehicle.spaceTime = whenWhere
-                val mobilityRequester = sender()
-                vehiclesInternal(vehicle.id) = vehicle
 
-                // Pipe my car through the parking manager
-                // and complete initialization only when I got them all.
-                val responseFuture = parkingManager ? ParkingInquiry.init(
-                  whenWhere,
-                  "wherever",
-                  triggerId = triggerId
-                )
-                responseFuture.collect { case ParkingInquiryResponse(stall, _, otherTriggerId) =>
-                  vehicle.useParkingStall(stall)
-                  logger.debug("Vehicle {} is now taken, which was just created", vehicle.id)
-                  vehicle.becomeDriver(mobilityRequester)
-                  MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
-                } pipeTo mobilityRequester
-                true
-              case _ =>
-                false
-            }
-          } else false
-
-          if (!vehicleCreatedOutOfThinAir) {
+            responseFuture.collect { case ParkingInquiryResponse(stall, _, otherTriggerId) =>
+              vehicle.useParkingStall(stall)
+              logger.debug("Vehicle {} is now taken, which was just created", vehicle.id)
+              vehicle.becomeDriver(mobilityRequester)
+              MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
+            } pipeTo mobilityRequester
+          } else {
             availableVehicles = availableVehicles match {
               case firstVehicle :: rest =>
                 logger.debug("Vehicle {} is now taken", firstVehicle.id)

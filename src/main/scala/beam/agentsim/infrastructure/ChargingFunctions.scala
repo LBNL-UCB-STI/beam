@@ -125,7 +125,7 @@ class ChargingFunctions[GEO: GeoLevel](
     parkingAlternative: ParkingAlternative[GEO],
     inquiry: ParkingInquiry
   ): Map[ParkingMNL.Parameters, Double] = {
-    val parkingParameters = inquiry.searchMode match {
+    val enrouteFactor: Double = inquiry.searchMode match {
       case ParkingSearchMode.EnRoute =>
         val beamVehicle = inquiry.beamVehicle.get
         val origin = inquiry.originUtm.getOrElse(
@@ -138,11 +138,50 @@ class ChargingFunctions[GEO: GeoLevel](
           origin.time + travelTime1,
           beamVehicle.beamVehicleType
         )
-        val enrouteFactor: Double = (travelTime1 + travelTime2) * inquiry.valueOfTime
-        Map(ParkingMNL.Parameters.EnrouteDetourCost -> enrouteFactor)
-      case _ => Map()
+        (travelTime1 + travelTime2) * inquiry.valueOfTime
+      case _ => 0.0
     }
-    super[ParkingFunctions].setupMNLParameters(parkingAlternative, inquiry) ++ parkingParameters
+
+    // end-of-day parking durations are set to zero, which will be mis-interpreted here
+    val tempParkingDuration = inquiry.searchMode match {
+      case ParkingSearchMode.EnRoute => enrouteDuration.toInt
+      case _                         => inquiry.parkingDuration.toInt
+    }
+    val parkingDuration: Option[Int] =
+      if (tempParkingDuration < estimatedMinParkingDuration)
+        Some(estimatedMinParkingDuration.toInt) // at least a small duration of charging
+      else Some(tempParkingDuration)
+
+    val addedEnergy: Double =
+      inquiry.beamVehicle match {
+        case Some(beamVehicle) =>
+          parkingAlternative.parkingZone.chargingPointType match {
+            case Some(chargingPoint) =>
+              val (_, addedEnergy) = ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
+                chargingPoint,
+                beamVehicle.primaryFuelLevelInJoules,
+                beamVehicle.beamVehicleType.primaryFuelCapacityInJoule,
+                1e6,
+                1e6,
+                parkingDuration
+              )
+              addedEnergy
+            case None => 0.0 // no charger here
+          }
+        case None => 0.0 // no beamVehicle, assume agent has range
+      }
+
+    val rangeAnxietyFactor: Double =
+      inquiry.remainingTripData
+        .map {
+          _.rangeAnxiety(withAddedFuelInJoules = addedEnergy)
+        }
+        .getOrElse(0.0) // default no anxiety if no remaining trip data provided
+
+    super[ParkingFunctions].setupMNLParameters(parkingAlternative, inquiry) ++ Map(
+      ParkingMNL.Parameters.EnrouteDetourCost -> enrouteFactor,
+      ParkingMNL.Parameters.RangeAnxietyCost  -> rangeAnxietyFactor
+    )
   }
 
   /**
