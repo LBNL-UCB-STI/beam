@@ -634,42 +634,45 @@ class PersonWithPersonalVehiclePlanSpec
 
       scheduler ! StartSchedule(0)
 
+      val messageResponder: PartialFunction[Any, Any] = {
+        case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _, triggerId) =>
+          val embodiedLeg = EmbodiedBeamLeg(
+            beamLeg = leg.copy(
+              duration = 500,
+              travelPath = leg.travelPath.copy(
+                linkTravelTime = IndexedSeq(0, 100, 100, 100, 100, 100, 0),
+                endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
+              )
+            ),
+            beamVehicleId = vehicleId,
+            Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
+            asDriver = true,
+            cost = 0.0,
+            unbecomeDriverOnCompletion = true
+          )
+          lastSender ! RoutingResponse(
+            itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+            requestId = 1,
+            request = None,
+            isEmbodyWithCurrentTravelTime = false,
+            triggerId = triggerId
+          )
+        case RoutingRequest(_, _, _, _, _, _, _, _, _, _, triggerId) =>
+          lastSender ! RoutingResponse(
+            itineraries = Vector(),
+            requestId = 1,
+            request = None,
+            isEmbodyWithCurrentTravelTime = false,
+            triggerId = triggerId
+          )
+      }
+
       for (_ <- 0 to 1) {
-        expectMsgPF() {
-          case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _, triggerId) =>
-            val embodiedLeg = EmbodiedBeamLeg(
-              beamLeg = leg.copy(
-                duration = 500,
-                travelPath = leg.travelPath.copy(
-                  linkTravelTime = IndexedSeq(0, 100, 100, 100, 100, 100, 0),
-                  endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
-                )
-              ),
-              beamVehicleId = vehicleId,
-              Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
-              asDriver = true,
-              cost = 0.0,
-              unbecomeDriverOnCompletion = true
-            )
-            lastSender ! RoutingResponse(
-              itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-              requestId = 1,
-              request = None,
-              isEmbodyWithCurrentTravelTime = false,
-              triggerId = triggerId
-            )
-          case RoutingRequest(_, _, _, _, _, _, _, _, _, _, triggerId) =>
-            lastSender ! RoutingResponse(
-              itineraries = Vector(),
-              requestId = 1,
-              request = None,
-              isEmbodyWithCurrentTravelTime = false,
-              triggerId = triggerId
-            )
-        }
+        expectMsgPF()(messageResponder)
       }
 
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
+      expectMsgPF()(messageResponder)
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
 
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]

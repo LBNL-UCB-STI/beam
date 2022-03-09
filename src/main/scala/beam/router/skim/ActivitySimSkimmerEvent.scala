@@ -27,7 +27,7 @@ case class ActivitySimSkimmerEvent(
 
   val (key, skimInternal) = observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption)
 
-  private def calcTimes(trip: EmbodiedBeamTrip): (Double, Double, Double, Double, Int) = {
+  private def calcTimes(trip: EmbodiedBeamTrip): (Double, Double, Double, Double, Double, Double, Int) = {
     var walkAccess = 0
     var walkEgress = 0
     var walkAuxiliary = 0
@@ -35,6 +35,9 @@ case class ActivitySimSkimmerEvent(
     var sawNonWalkModes = 0
     var currentWalkTime = 0
     var totalInVehicleTime = 0
+    var initialWaitTime = 0
+
+    var previousLegEndTime = 0
 
     var travelingInTransit = false
     var numberOfTransitTrips = 0
@@ -59,14 +62,28 @@ case class ActivitySimSkimmerEvent(
       if (transitModes.contains(leg.beamLeg.mode)) {
         if (!travelingInTransit) {
           travelingInTransit = true
+          if (numberOfTransitTrips == 0) { initialWaitTime = leg.beamLeg.startTime - previousLegEndTime }
           numberOfTransitTrips += 1
         }
       } else {
         travelingInTransit = false
       }
+      previousLegEndTime = leg.beamLeg.endTime
     }
+    val transferWaitTime = if (numberOfTransitTrips > 0) {
+      trip.totalTravelTimeInSecs - trip.legs.foldLeft(0)((tot, leg) => tot + leg.beamLeg.duration) - initialWaitTime
+    } else { 0 }
+
     walkEgress = currentWalkTime
-    (walkAccess, walkAuxiliary, walkEgress, totalInVehicleTime, numberOfTransitTrips)
+    (
+      walkAccess,
+      walkAuxiliary,
+      walkEgress,
+      totalInVehicleTime,
+      initialWaitTime,
+      transferWaitTime,
+      numberOfTransitTrips
+    )
   }
 
   private def observeTrip(
@@ -102,7 +119,8 @@ case class ActivitySimSkimmerEvent(
 
     val key = ActivitySimSkimmerKey(timeBin, pathType, origin, destination)
 
-    val (walkAccess, walkAuxiliary, walkEgress, totalInVehicleTime, numberOfTransitTrips) = calcTimes(trip)
+    val (walkAccess, walkAuxiliary, walkEgress, totalInVehicleTime, waitInitial, waitAuxiliary, numberOfTransitTrips) =
+      calcTimes(trip)
 
     val payload =
       ActivitySimSkimmerInternal(
@@ -116,6 +134,8 @@ case class ActivitySimSkimmerEvent(
         walkAccessInMinutes = walkAccess / 60.0,
         walkEgressInMinutes = walkEgress / 60.0,
         walkAuxiliaryInMinutes = walkAuxiliary / 60.0,
+        waitInitialInMinutes = waitInitial / 60.0,
+        waitAuxiliaryInMinutes = waitAuxiliary / 60.0,
         totalInVehicleTimeInMinutes = totalInVehicleTime / 60.0,
         driveTimeInMinutes = driveTimeInSeconds / 60.0,
         driveDistanceInMeters = driveDistanceInMeters,
