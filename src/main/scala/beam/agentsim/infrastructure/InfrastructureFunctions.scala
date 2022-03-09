@@ -30,7 +30,8 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
   searchMaxDistanceRelativeToEllipseFoci: Double,
   enrouteDuration: Double,
   boundingBox: Envelope,
-  seed: Int
+  seed: Int,
+  estimatedMinParkingDuration: Double
 ) extends StrictLogging {
 
   protected val zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[GEO] =
@@ -98,7 +99,8 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
       searchMaxDistanceRelativeToEllipseFoci,
       boundingBox,
       distanceFunction,
-      enrouteDuration
+      enrouteDuration,
+      estimatedMinParkingDuration
     )
 
   def searchForParkingStall(inquiry: ParkingInquiry): Option[ParkingZoneSearch.ParkingZoneSearchResult[GEO]] = {
@@ -143,10 +145,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     // filters out ParkingZones which do not apply to this agent
     // TODO: check for conflicts between variables here - is it always false?
     val parkingZoneFilterFunction: ParkingZone[GEO] => Boolean =
-      (zone: ParkingZone[GEO]) => {
-        val searchFilterPredicates = setupSearchFilterPredicates(zone, inquiry)
-        searchFilterPredicates
-      }
+      (zone: ParkingZone[GEO]) => setupSearchFilterPredicates(zone, inquiry)
 
     // generates a coordinate for an embodied ParkingStall from a ParkingZone
     val parkingZoneLocSamplingFunction: ParkingZone[GEO] => Coord =

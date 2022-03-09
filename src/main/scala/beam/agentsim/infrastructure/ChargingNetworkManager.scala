@@ -10,7 +10,7 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.EnRoute
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.{Destination, EnRoute, Init}
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -162,7 +162,9 @@ class ChargingNetworkManager(
         val activityType = vehicle2InquiryMap
           .get(vehicle.id)
           .map {
-            case ParkingInquiry(_, _, _, _, _, _, _, _, _, _, `EnRoute`, _, _)    => EnRoute.toString
+            case ParkingInquiry(_, activityType, _, _, _, _, _, _, _, _, searchMode, _, _)
+                if searchMode != Destination =>
+              searchMode.toString + "-" + activityType
             case ParkingInquiry(_, activityType, _, _, _, _, _, _, _, _, _, _, _) => activityType
           }
           .getOrElse("")

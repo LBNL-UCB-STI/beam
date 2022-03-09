@@ -173,7 +173,8 @@ object ChargingNetwork extends LazyLogging {
           beamConfig.matsim.modules.global.randomSeed,
           beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
           skims,
-          fuelPrice
+          fuelPrice,
+          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDuration
         )
       )
     }
