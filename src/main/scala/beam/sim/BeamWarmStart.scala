@@ -223,12 +223,15 @@ object BeamWarmStart extends LazyLogging {
     if (BeamWarmStart.isLinkStatsEnabled(beamConfig.beam.warmStart)) {
       val maxHour = DateUtils.getMaxHour(beamConfig)
       val warm = BeamWarmStart(beamConfig, maxHour)
+      val defaultLinkstatsPath = Paths.get(beamConfig.beam.warmStart.initialLinkstatsFilePath)
       val travelTime =
         if (BeamWarmStart.isLinkStatsFromLastRun(beamConfig.beam.warmStart)) {
           val linkStatsPath = LastRunOutputSource
             .findLastRunLinkStats(
               Paths.get(beamConfig.beam.input.lastBaseOutputDir),
-              beamConfig.beam.input.simulationPrefix
+              beamConfig.beam.input.simulationPrefix,
+              if (Files.isRegularFile(defaultLinkstatsPath)) { Some(defaultLinkstatsPath) }
+              else None
             )
             .map(_.toString)
           warm.readTravelTime(linkStatsPath, beamConfig.beam.input.lastBaseOutputDir)
