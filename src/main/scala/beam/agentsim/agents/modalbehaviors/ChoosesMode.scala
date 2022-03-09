@@ -227,7 +227,7 @@ trait ChoosesMode {
               _,
               _,
               _,
-              None | Some(CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT),
+              plansModeOption @ (None | Some(CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT)),
               _,
               _,
               _,
@@ -259,11 +259,29 @@ trait ChoosesMode {
             _
           ) =>
         implicit val executionContext: ExecutionContext = context.system.dispatcher
-        requestAvailableVehicles(
-          vehicleFleets,
-          currentLocation,
-          _experiencedBeamPlan.activities(currentActivityIndex)
-        ) pipeTo self
+        plansModeOption match {
+          case Some(CAR | DRIVE_TRANSIT) =>
+            requestAvailableVehicles(
+              vehicleFleets,
+              currentLocation,
+              _experiencedBeamPlan.activities(currentActivityIndex),
+              Some(VehicleCategory.Car)
+            ) pipeTo self
+          case Some(BIKE | BIKE_TRANSIT) =>
+            requestAvailableVehicles(
+              vehicleFleets,
+              currentLocation,
+              _experiencedBeamPlan.activities(currentActivityIndex),
+              Some(VehicleCategory.Bike)
+            ) pipeTo self
+          case _ =>
+            requestAvailableVehicles(
+              vehicleFleets,
+              currentLocation,
+              _experiencedBeamPlan.activities(currentActivityIndex)
+            ) pipeTo self
+        }
+
       // Otherwise, send empty list to self
       case _ =>
         self ! MobilityStatusResponse(Vector(), getCurrentTriggerIdOrGenerate)
@@ -328,8 +346,11 @@ trait ChoosesMode {
 
       var availablePersonalStreetVehicles =
         correctedCurrentTourMode match {
-          case None | Some(CAR | BIKE | HOV2_TELEPORTATION | HOV3_TELEPORTATION) =>
-            // In these cases, a personal vehicle will be involved
+          case None | Some(CAR | BIKE) =>
+            // In these cases, a personal vehicle will be involved, but filter out teleportation vehicles
+            newlyAvailableBeamVehicles.filterNot(v => BeamVehicle.isSharedTeleportationVehicle(v.id))
+          case Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION) =>
+            // In these cases, also include teleportation vehicles
             newlyAvailableBeamVehicles
           case Some(DRIVE_TRANSIT | BIKE_TRANSIT) =>
             val tour = _experiencedBeamPlan.getTourContaining(nextAct)
