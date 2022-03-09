@@ -1484,16 +1484,17 @@ trait ChoosesMode {
         )
     }
 
+    val tripId = Option(
+      _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getAttributes.getAttribute("trip_id")
+    ).getOrElse("").toString
+
     val modeChoiceEvent = new ModeChoiceEvent(
       tick,
       id,
       chosenTrip.tripClassifier.value,
       data.personData.currentTourMode.map(_.value).getOrElse(""),
       data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
-      _experiencedBeamPlan
-        .activities(data.personData.currentActivityIndex)
-        .getLinkId
-        .toString,
+      _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getLinkId.toString,
       data.availableAlternatives.get,
       data.availablePersonalStreetVehicles.nonEmpty,
       chosenTrip.legs.view.map(_.beamLeg.travelPath.distanceInM).sum,
@@ -1501,11 +1502,7 @@ trait ChoosesMode {
       chosenTrip,
       _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getType,
       nextActivity(data.personData).get.getType,
-      _experiencedBeamPlan
-        .activities(data.personData.currentActivityIndex)
-        .getAttributes
-        .getAttribute("trip_id")
-        .toString
+      tripId
     )
     eventsManager.processEvent(modeChoiceEvent)
 
