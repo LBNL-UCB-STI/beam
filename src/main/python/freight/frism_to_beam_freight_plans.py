@@ -74,6 +74,7 @@ carriers_renames = {
 carriers_drop = ['x', 'y']
 carriers.rename(columns=carriers_renames, inplace=True)
 carriers.drop(carriers_drop, axis=1, inplace=True)
+carriers['warehouseZone'] = carriers['warehouseZone'].astype(int)
 carriers.to_csv(f'{directory_output}/freight-merged-carriers.csv', index=False)
 
 
@@ -89,6 +90,9 @@ tours_renames = {
     'departureLocation_y': 'departureLocationY'
 }
 tours.rename(columns=tours_renames, inplace=True)
+tours['departureTimeInSec'] = tours['departureTimeInSec'].astype(int)
+tours['maxTourDurationInSec'] = tours['maxTourDurationInSec'].astype(int)
+tours['departureLocationZone'] = tours['departureLocationZone'].astype(int)
 tours.to_csv(f'{directory_output}/freight-merged-tours.csv', index=False)
 
 
@@ -107,6 +111,14 @@ payload_plans_drop = ['weightInlb', 'cummulativeWeightInlb']
 payload_plans['weightInKg'] = abs(payload_plans['weightInlb'].astype(int)) * 0.45359237
 payload_plans.rename(columns=payload_plans_renames, inplace=True)
 payload_plans.drop(payload_plans_drop, axis=1, inplace=True)
+payload_plans['sequenceRank'] = payload_plans['sequenceRank'].astype(int)
+payload_plans['payloadType'] = payload_plans['payloadType'].astype(int)
+payload_plans['requestType'] = payload_plans['requestType'].astype(int)
+payload_plans['estimatedTimeOfArrivalInSec'] = payload_plans['estimatedTimeOfArrivalInSec'].astype(int)
+payload_plans['arrivalTimeWindowInSecLower'] = payload_plans['arrivalTimeWindowInSecLower'].astype(int)
+payload_plans['arrivalTimeWindowInSecUpper'] = payload_plans['arrivalTimeWindowInSecUpper'].astype(int)
+payload_plans['operationDurationInSec'] = payload_plans['operationDurationInSec'].astype(int)
+payload_plans['locationZone'] = payload_plans['locationZone'].astype(int)
 payload_plans.to_csv(f'{directory_output}/freight-merged-payload-plans.csv', index=False)
 
 print("END")
