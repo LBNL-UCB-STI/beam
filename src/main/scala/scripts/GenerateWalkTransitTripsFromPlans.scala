@@ -188,23 +188,41 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
     val inputTrips = readGeneratedPlansTrips(pathToGeneratedPlans)
 
     val routers: Seq[R5Wrapper] = createR5Wrappers(typeSafeConfig)
+    val walkTransitLegs = inputTrips.filter { trip => walkTransitModes.contains(trip.mode) }.toArray
+    println(s"There are ${walkTransitLegs.length} walk transit legs.")
 
-    val personTrips: ParSeq[PersonTrip] = inputTrips.par
-      .filter { trip => walkTransitModes.contains(trip.mode) }
-      .flatMap { trip: Trip =>
-        val request: BeamRouter.RoutingRequest = getRoutingRequest(
-          originUTM = trip.origin,
-          destinationUTM = trip.destination,
-          departureTime = trip.departureTime
-        )
-        val routes = routers.map(_.calcRoute(request, buildDirectCarRoute = false, buildDirectWalkRoute = false))
-        val maybeTransitTrip = selectBeamEmbodyWalkTransitTrip(routes.flatMap(_.itineraries).toIndexedSeq)
-        maybeTransitTrip match {
-          case Some(tt) => Some(PersonTrip(trip.personId, tt))
-          case None     => None
+    var legsProcessed = 0
+    val progressReportIncrement = Math.max(10 * (walkTransitLegs.length / 100), 1)
+    var nextProgressReport: Int = progressReportIncrement
+    println(s"Progress will be reported for each $progressReportIncrement legs processed.")
+
+    val personTrips: ParSeq[PersonTrip] = walkTransitLegs.par.flatMap { trip: Trip =>
+      val request: BeamRouter.RoutingRequest = getRoutingRequest(
+        originUTM = trip.origin,
+        destinationUTM = trip.destination,
+        departureTime = trip.departureTime
+      )
+      val routes = routers.map(_.calcRoute(request, buildDirectCarRoute = false, buildDirectWalkRoute = false))
+      val maybeTransitTrip = selectBeamEmbodyWalkTransitTrip(routes.flatMap(_.itineraries).toIndexedSeq)
+      val maybePersonTrip = maybeTransitTrip match {
+        case Some(tt) => Some(PersonTrip(trip.personId, tt))
+        case None     => None
+      }
+
+      this.synchronized {
+        legsProcessed += 1
+
+        if (legsProcessed >= nextProgressReport) {
+          val currentProgress = ((100.0 * legsProcessed) / walkTransitLegs.length).toString
+          println(s"Generation of person walk transit trips from legs: $currentProgress% completed.")
+          nextProgressReport += progressReportIncrement
         }
       }
 
+      maybePersonTrip
+    }
+
+    println(s"Generation of person walk transit trips from legs completed.")
     personTrips
   }
 
@@ -260,12 +278,13 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
   }
 
   def main(args: Array[String]): Unit = {
-    if (args.length < 3){
+    if (args.length < 3) {
       println("Expected following arguments: <path to beam config> <path to generated plans> <path to output csv>")
     } else {
-      val pathToConfig = args(0)          // "/mnt/data/work/beam/beam/production/newyork/13122k-configs/nyc-lite-14k-persons.conf"
-      val pathToGeneratedPlans = args(1)  // "test/test-resources/scripts/sampled_generatedPlansWithModes_fixed_hr9.csv"
-      val pathToOutputCSV = args(2)       // "test/test-resources/scripts/generatedTrips_fixed_hr9_sample.csv"
+      val pathToConfig = args(0)
+      val pathToGeneratedPlans = args(1)
+      val pathToOutputCSV = args(2)
+
       val personTrips = generateWalkTransitTrips(pathToConfig, pathToGeneratedPlans)
       writeTripsToFile(pathToOutputCSV, personTrips.toArray)
     }
