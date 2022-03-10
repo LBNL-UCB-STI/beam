@@ -194,6 +194,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
     var legsProcessed = 0
     val progressReportIncrement = Math.max(4 * (walkTransitLegs.length / 100), 1)
     var nextProgressReport: Int = progressReportIncrement
+    val beginningTimeStamp: Long = System.currentTimeMillis / 1000
     println(s"Progress will be reported for each $progressReportIncrement legs processed.")
 
     val personTrips: ParSeq[PersonTrip] = walkTransitLegs.par.flatMap { trip: Trip =>
@@ -202,8 +203,9 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
         destinationUTM = trip.destination,
         departureTime = trip.departureTime
       )
-      val routes = routers.map(_.calcRoute(request, buildDirectCarRoute = false, buildDirectWalkRoute = false))
-      val maybeTransitTrip = selectBeamEmbodyWalkTransitTrip(routes.flatMap(_.itineraries).toIndexedSeq)
+      val routes = routers.headOption.map(_.calcRoute(request, buildDirectCarRoute = false, buildDirectWalkRoute = false))
+      val alternatives = routes.flatMap(_.itineraries).toIndexedSeq
+      val maybeTransitTrip = selectBeamEmbodyWalkTransitTrip(alternatives)
       val maybePersonTrip = maybeTransitTrip match {
         case Some(tt) => Some(PersonTrip(trip.personId, tt))
         case None     => None
@@ -213,8 +215,12 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
         legsProcessed += 1
 
         if (legsProcessed >= nextProgressReport) {
-          val currentProgress = ((100.0 * legsProcessed) / walkTransitLegs.length).toString
-          println(s"Generation of person walk transit trips from legs: $currentProgress% completed.")
+          val currentTimeStamp: Long = System.currentTimeMillis / 1000
+          val tookTimeInMinutes = Math.round((currentTimeStamp - beginningTimeStamp) / 60.0)
+          val currentProgress = (100.0 * legsProcessed) / walkTransitLegs.length
+          val expectedTimeToCalculateTheRest = Math.round((100 - currentProgress) * (tookTimeInMinutes / currentProgress))
+          val timeStats = s"$tookTimeInMinutes minutes took, $expectedTimeToCalculateTheRest minutes is expected to calculate the rest"
+          println(s"Generation of person walk transit trips from legs: ${Math.round(currentProgress)}% completed. $timeStats")
           nextProgressReport += progressReportIncrement
         }
       }
