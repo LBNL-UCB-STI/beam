@@ -260,12 +260,14 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
   }
 
   def main(args: Array[String]): Unit = {
-    val pathToConfig = "/mnt/data/work/beam/beam/production/newyork/13122k-configs/nyc-lite-14k-persons.conf"
-    val pathToGeneratedPlans = "test/test-resources/scripts/sampled_generatedPlansWithModes_fixed_hr9.csv"
-    //    val pathToGeneratedPlans = "test/test-resources/scripts/generatedPlans_sample.csv"
-    //    val pathToOutputCSV = "test/test-resources/scripts/generatedTrips_sample.csv"
-    val pathToOutputCSV = "test/test-resources/scripts/generatedTrips_fixed_hr9_sample.csv"
-    val personTrips = generateWalkTransitTrips(pathToConfig, pathToGeneratedPlans)
-    writeTripsToFile(pathToOutputCSV, personTrips.toArray)
+    if (args.length < 3){
+      println("Expected following arguments: <path to beam config> <path to generated plans> <path to output csv>")
+    } else {
+      val pathToConfig = args(0)          // "/mnt/data/work/beam/beam/production/newyork/13122k-configs/nyc-lite-14k-persons.conf"
+      val pathToGeneratedPlans = args(1)  // "test/test-resources/scripts/sampled_generatedPlansWithModes_fixed_hr9.csv"
+      val pathToOutputCSV = args(2)       // "test/test-resources/scripts/generatedTrips_fixed_hr9_sample.csv"
+      val personTrips = generateWalkTransitTrips(pathToConfig, pathToGeneratedPlans)
+      writeTripsToFile(pathToOutputCSV, personTrips.toArray)
+    }
   }
 }
