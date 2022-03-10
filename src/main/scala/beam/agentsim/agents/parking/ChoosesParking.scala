@@ -16,7 +16,7 @@ import beam.agentsim.events.{LeavingParkingEvent, ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.charging.{ChargingPointType, ElectricCurrentType}
 import beam.agentsim.infrastructure.parking.PricingModel
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -222,6 +222,7 @@ trait ChoosesParking extends {
     } else {
       val searchModeChargeOrPark =
         if (
+          ParkingInquiry.activityTypeStringToEnum(activityType) == ParkingActivityType.Home ||
           currentBeamVehicle.isRefuelNeeded(
             beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.refuelRequiredThresholdInMeters,
             beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
