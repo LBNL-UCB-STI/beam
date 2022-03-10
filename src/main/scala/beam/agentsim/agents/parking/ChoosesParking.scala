@@ -215,11 +215,21 @@ trait ChoosesParking extends {
         Some(id),
         attributes.valueOfTime,
         parkingDuration,
-        searchMode = ParkingSearchMode.EnRoute,
+        searchMode = ParkingSearchMode.EnRouteCharging,
         originUtm = Some(vehicle.spaceTime),
         triggerId = getCurrentTriggerIdOrGenerate
       )
     } else {
+      val searchModeChargeOrPark =
+        if (
+          currentBeamVehicle.isRefuelNeeded(
+            beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.refuelRequiredThresholdInMeters,
+            beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
+          )
+        ) {
+          ParkingSearchMode.DestinationCharging
+        } else ParkingSearchMode.Parking
+
       // for regular parking inquiry, we have vehicle information in `currentBeamVehicle`
       val reservedFor = VehicleManager.getReservedFor(currentBeamVehicle.vehicleManagerId.get).get
       ParkingInquiry.init(
@@ -231,6 +241,7 @@ trait ChoosesParking extends {
         Some(id),
         attributes.valueOfTime,
         parkingDuration,
+        searchMode = searchModeChargeOrPark,
         triggerId = getCurrentTriggerIdOrGenerate
       )
     }
