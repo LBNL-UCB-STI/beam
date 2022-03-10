@@ -286,9 +286,9 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
       val pathToOutputCSV = args(2)
 
       println(s"Generation of person walk transit trips from generatedPlans started.")
-      println(s"Beam config to create router: $pathToConfig.")
-      println(s"Path to generated plans: $pathToGeneratedPlans.")
-      println(s"Path to output: $pathToOutputCSV.")
+      println(s"Beam config to create router: $pathToConfig")
+      println(s"Path to generated plans: $pathToGeneratedPlans")
+      println(s"Path to output: $pathToOutputCSV")
 
       val personTrips = generateWalkTransitTrips(pathToConfig, pathToGeneratedPlans)
       writeTripsToFile(pathToOutputCSV, personTrips.toArray)
