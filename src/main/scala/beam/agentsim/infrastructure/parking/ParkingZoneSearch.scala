@@ -168,7 +168,7 @@ object ParkingZoneSearch {
               val stallPriceInDollars: Double =
                 parkingZone.pricingModel match {
                   case None => 0
-                  case Some(pricingModel) if params.searchMode == ParkingSearchMode.EnRoute =>
+                  case Some(pricingModel) if params.searchMode == ParkingSearchMode.EnRouteCharging =>
                     PricingModel.evaluateParkingTicket(
                       pricingModel,
                       config.enrouteDuration.toInt,
@@ -315,7 +315,7 @@ object ParkingZoneSearch {
       params: ParkingZoneSearchParams[GEO]
     ): SearchMode[GEO] = {
       params.searchMode match {
-        case ParkingSearchMode.EnRoute =>
+        case ParkingSearchMode.EnRouteCharging =>
           EnrouteSearch(
             params.originUTM.getOrElse(throw new RuntimeException("Enroute process is expecting an origin location")),
             params.destinationUTM,

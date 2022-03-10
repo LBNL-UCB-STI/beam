@@ -1573,6 +1573,7 @@ object BeamConfig {
         }
 
         case class Vehicles(
+          destination: BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination,
           downsamplingMethod: java.lang.String,
           dummySharedBike: BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedBike,
           dummySharedCar: BeamConfig.Beam.Agentsim.Agents.Vehicles.DummySharedCar,
@@ -1593,6 +1594,24 @@ object BeamConfig {
         )
 
         object Vehicles {
+
+          case class Destination(
+            noRefuelThresholdInMeters: scala.Int,
+            refuelRequiredThresholdInMeters: scala.Int
+          )
+
+          object Destination {
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination = {
+              BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination(
+                noRefuelThresholdInMeters =
+                  if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 128720,
+                refuelRequiredThresholdInMeters =
+                  if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getInt("refuelRequiredThresholdInMeters")
+                  else 32180
+              )
+            }
+          }
 
           case class DummySharedBike(
             vehicleTypeId: java.lang.String
@@ -1813,6 +1832,10 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles = {
             BeamConfig.Beam.Agentsim.Agents.Vehicles(
+              destination = BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination(
+                if (c.hasPathOrNull("destination")) c.getConfig("destination")
+                else com.typesafe.config.ConfigFactory.parseString("destination{}")
+              ),
               downsamplingMethod =
                 if (c.hasPathOrNull("downsamplingMethod")) c.getString("downsamplingMethod")
                 else "SECONDARY_VEHICLES_FIRST",

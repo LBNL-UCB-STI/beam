@@ -71,7 +71,7 @@ class ChargingFunctions[GEO: GeoLevel](
     */
   def ifEnrouteThenFastChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
     inquiry.searchMode match {
-      case ParkingSearchMode.EnRoute =>
+      case ParkingSearchMode.EnRouteCharging =>
         ChargingPointType.isFastCharger(zone.chargingPointType.get)
       case _ =>
         true // if it is not Enroute charging then it does not matter
@@ -79,6 +79,22 @@ class ChargingFunctions[GEO: GeoLevel](
   }
 
   def ifOvernightStayThenSlowChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
+    if (
+      inquiry.searchMode == ParkingSearchMode.Init || List(ParkingActivityType.Home, ParkingActivityType.Work).contains(
+        inquiry.parkingActivityType
+      )
+    ) {
+      !ChargingPointType.isFastCharger(zone.chargingPointType.get)
+    } else true
+  }
+
+  /**
+    * function that verifies if Home, Work or Overnight Then Slow Charging Only
+    * @param zone ParkingZone
+    * @param inquiry ParkingInquiry
+    * @return
+    */
+  def ifHomeOrWorkOrOvernightThenSlowChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
     if (
       inquiry.searchMode == ParkingSearchMode.Init || List(ParkingActivityType.Home, ParkingActivityType.Work).contains(
         inquiry.parkingActivityType
@@ -119,7 +135,7 @@ class ChargingFunctions[GEO: GeoLevel](
     val isEV: Boolean = inquiry.beamVehicle.forall(_.isEV)
     val rideHailFastChargingOnly: Boolean = ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone, inquiry)
     val enrouteFastChargingOnly: Boolean = ifEnrouteThenFastChargingOnly(zone, inquiry)
-    val overnightStaySlowChargingOnly: Boolean = ifOvernightStayThenSlowChargingOnly(zone, inquiry)
+    val overnightStaySlowChargingOnly: Boolean = ifHomeOrWorkOrOvernightThenSlowChargingOnly(zone, inquiry)
     val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry.beamVehicle)
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
@@ -137,7 +153,7 @@ class ChargingFunctions[GEO: GeoLevel](
     inquiry: ParkingInquiry
   ): Map[ParkingMNL.Parameters, Double] = {
     val enrouteFactor: Double = inquiry.searchMode match {
-      case ParkingSearchMode.EnRoute =>
+      case ParkingSearchMode.EnRouteCharging =>
         val beamVehicle = inquiry.beamVehicle.get
         val origin = inquiry.originUtm.getOrElse(
           throw new RuntimeException(s"Enroute requires an origin location in parking inquiry $inquiry")
@@ -155,8 +171,8 @@ class ChargingFunctions[GEO: GeoLevel](
 
     // end-of-day parking durations are set to zero, which will be mis-interpreted here
     val tempParkingDuration = inquiry.searchMode match {
-      case ParkingSearchMode.EnRoute => enrouteDuration.toInt
-      case _                         => inquiry.parkingDuration.toInt
+      case ParkingSearchMode.EnRouteCharging => enrouteDuration.toInt
+      case _                                 => inquiry.parkingDuration.toInt
     }
     val parkingDuration: Option[Int] =
       if (tempParkingDuration < estimatedMinParkingDuration)
@@ -203,7 +219,7 @@ class ChargingFunctions[GEO: GeoLevel](
     inquiry: ParkingInquiry,
     parkingZoneSearchResult: Option[ParkingZoneSearchResult[GEO]]
   ): Option[ParkingZoneSearchResult[GEO]] = parkingZoneSearchResult match {
-    case None if inquiry.searchMode == ParkingSearchMode.EnRoute =>
+    case None if inquiry.searchMode == ParkingSearchMode.EnRouteCharging =>
       // did not find a stall with a fast charging point, return a dummy stall
       Some(
         ParkingZoneSearch.ParkingZoneSearchResult(

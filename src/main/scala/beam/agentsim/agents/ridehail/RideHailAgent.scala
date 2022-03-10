@@ -18,6 +18,7 @@ import beam.agentsim.events.RefuelSessionEvent.{OffShift, OnShift}
 import beam.agentsim.events.ShiftEvent.{EndShift, StartShift}
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.ChargingNetworkManager._
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.parking.ParkingZoneId
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
@@ -1144,7 +1145,8 @@ class RideHailAgent(
       VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get,
       beamVehicle = Some(vehicle),
       parkingDuration = parkingDuration,
-      triggerId = getCurrentTriggerIdOrGenerate
+      triggerId = getCurrentTriggerIdOrGenerate,
+      searchMode = ParkingSearchMode.DestinationCharging
     )
     park(inquiry)
   }
