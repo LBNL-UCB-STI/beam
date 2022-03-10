@@ -921,8 +921,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   protected def park(inquiry: ParkingInquiry): Unit = {
     import ParkingSearchMode._
     val isChargingRequest: Boolean = inquiry.beamVehicle match {
-      case Some(vehicle) => vehicle.isEV && List(DestinationCharging, EnRouteCharging).contains(inquiry.searchMode)
-      case _             => inquiry.parkingActivityType == ParkingActivityType.Charge
+      // If ChoosesMode, then verify if vehicle is EV
+      case Some(vehicle) if !inquiry.reserveStall => vehicle.isEV
+      // If ChoosesParking, then verify if vehicle needs to either enroute or destination charge
+      case Some(vehicle) if inquiry.reserveStall =>
+        vehicle.isEV && List(DestinationCharging, EnRouteCharging).contains(inquiry.searchMode)
+      // If non vehicle has been specified, then verify if the request is a charge request
+      case _ => inquiry.parkingActivityType == ParkingActivityType.Charge
     }
     if (isChargingRequest)
       chargingNetworkManager ! inquiry
