@@ -204,7 +204,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
         departureTime = trip.departureTime
       )
       val routes = routers.headOption.map(_.calcRoute(request, buildDirectCarRoute = false, buildDirectWalkRoute = false))
-      val alternatives = routes.flatMap(_.itineraries).toIndexedSeq
+      val alternatives = routes.map(_.itineraries).toIndexedSeq.flatten
       val maybeTransitTrip = selectBeamEmbodyWalkTransitTrip(alternatives)
       val maybePersonTrip = maybeTransitTrip match {
         case Some(tt) => Some(PersonTrip(trip.personId, tt))
