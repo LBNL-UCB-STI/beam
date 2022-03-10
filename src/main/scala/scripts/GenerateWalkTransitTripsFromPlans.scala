@@ -192,7 +192,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
     println(s"There are ${walkTransitLegs.length} walk transit legs.")
 
     var legsProcessed = 0
-    val progressReportIncrement = Math.max(10 * (walkTransitLegs.length / 100), 1)
+    val progressReportIncrement = Math.max(4 * (walkTransitLegs.length / 100), 1)
     var nextProgressReport: Int = progressReportIncrement
     println(s"Progress will be reported for each $progressReportIncrement legs processed.")
 
