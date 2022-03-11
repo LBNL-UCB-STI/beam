@@ -167,9 +167,7 @@ class GenericFreightReader(
             throw new IllegalArgumentException(
               s"Vehicle type ${firstRow.vehicleTypeId} for vehicle $vehicleId has no payloadCapacityInKg defined"
             )
-          val vehicle = createFreightVehicle(vehicleId, vehicleType, carrierId, warehouseLocationUTM, rnd.nextInt())
-          logger.info(s"create vehicle ${vehicle.id} and vehicle type is ${vehicle.beamVehicleType}")
-          vehicle
+          createFreightVehicle(vehicleId, vehicleType, carrierId, warehouseLocationUTM, rnd.nextInt())
         }
         .toIndexedSeq
       vehicles
