@@ -706,7 +706,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           .drop(data.currentLegPassengerScheduleIndex)
           .head
           ._1
-        val endTime = tick + beamLeg.duration
+        val endTime = if ((beamLeg.duration >= 0) & (tick + beamLeg.duration >= latestObservedTick)) {
+          tick + beamLeg.duration
+        } else if (tick + beamLeg.duration < latestObservedTick) {
+          logger.error("Current tick is before latestObservedTick {}", beamLeg)
+          latestObservedTick
+        } else {
+          logger.error("Negative leg duration for leg {}", beamLeg)
+          tick
+        }
         goto(Driving) using LiterallyDrivingData(data, endTime, Some(tick))
           .asInstanceOf[T] replying CompletionNotice(
           triggerId,

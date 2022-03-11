@@ -1129,12 +1129,14 @@ trait ChoosesMode {
             .toMap
           val newLegs = itin.legs.map { leg =>
             if (parkingLegs.contains(leg)) {
+              if (leg.beamLeg.duration < 0) { logger.error("Negative parking leg duration {}", leg) }
               leg.copy(
                 cost = leg.cost + parkingResponses(
                   VehicleOnTrip(leg.beamVehicleId, TripIdentifier(itin))
                 ).stall.costInDollars
               )
             } else if (walkLegsAfterParkingWithParkingResponses.contains(leg)) {
+              if (leg.beamLeg.duration < 0) { logger.error("Negative walk after parking leg duration {}", leg) }
               val dist = geo.distUTMInMeters(
                 geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc),
                 walkLegsAfterParkingWithParkingResponses(leg).stall.locationUTM
@@ -1142,6 +1144,7 @@ trait ChoosesMode {
               val travelTime: Int = (dist / ZonalParkingManager.AveragePersonWalkingSpeed).toInt
               leg.copy(beamLeg = leg.beamLeg.scaleToNewDuration(travelTime))
             } else {
+              if (leg.beamLeg.duration < 0) { logger.error("Negative non-parking leg duration {}", leg) }
               leg
             }
           }
