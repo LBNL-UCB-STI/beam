@@ -142,6 +142,7 @@ class HouseholdFleetManager(
               MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
             } pipeTo mobilityRequester
           } else {
+            availableVehicles.foreach(vehicle => logger.info(s"1- person ${personId} has this vehicle available: ${vehicle.id} - ${vehicle.beamVehicleType}"))
             availableVehicles = availableVehicles match {
               case firstVehicle :: rest =>
                 logger.debug("Vehicle {} is now taken", firstVehicle.id)
@@ -155,7 +156,7 @@ class HouseholdFleetManager(
           }
         }
       }.getOrElse {
-        availableVehicles.foreach(vehicle => logger.info(s"person ${personId} has this vehicle available: ${vehicle.id} - ${vehicle.beamVehicleType}"))
+        availableVehicles.foreach(vehicle => logger.info(s"2- person ${personId} has this vehicle available: ${vehicle.id} - ${vehicle.beamVehicleType}"))
         availableVehicles = availableVehicles match {
           case firstVehicle :: rest =>
             logger.debug("Vehicle {} is now taken", firstVehicle.id)
