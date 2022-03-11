@@ -539,7 +539,6 @@ object HouseholdActor {
 
   class EmergencyHouseholdVehicleGenerator(
     household: Household,
-    homeCoordFromPlans: Coord,
     beamScenario: BeamScenario,
     vehiclesAdjustment: VehiclesAdjustment,
     defaultCategory: VehicleCategory
@@ -550,7 +549,13 @@ object HouseholdActor {
     private val generateEmergencyHousehold =
       beamScenario.beamConfig.beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt
 
-    def createVehicle(personId: Id[Person], vehicleIndex: Int, category: VehicleCategory): Option[BeamVehicle] = {
+    def createVehicle(
+      personId: Id[Person],
+      vehicleIndex: Int,
+      category: VehicleCategory,
+      whenWhere: SpaceTime,
+      manager: ActorRef
+    ): Option[BeamVehicle] = {
       val vehicleTypeMaybe =
         if (generateEmergencyHousehold && defaultCategory == category) {
           category match {
@@ -562,7 +567,7 @@ object HouseholdActor {
                   household.getIncome.getIncome,
                   household.getMemberIds.size(),
                   householdPopulation = null,
-                  homeCoordFromPlans,
+                  whenWhere.loc,
                   realDistribution
                 )
                 .headOption
@@ -599,6 +604,8 @@ object HouseholdActor {
         vehicle.initializeFuelLevelsFromUniformDistribution(
           beamScenario.beamConfig.beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC
         )
+        vehicle.setManager(Some(manager))
+        vehicle.spaceTime = whenWhere
         vehicle
       }
     }
