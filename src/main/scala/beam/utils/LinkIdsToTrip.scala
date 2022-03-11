@@ -6,12 +6,15 @@ import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 
+import java.io.{ByteArrayInputStream, File, FileInputStream, InputStream}
+import scala.io.{BufferedSource, Source}
 import scala.collection.JavaConverters._
+
 
 object LinkIdsToTrip extends BeamHelper {
 
   def main(args: Array[String]): Unit = {
-    val configPath = "test/input/sf-light/sf-light-1k.conf"
+    val configPath = "test/input/sfbay/gemini/gemini-base-2035-activitysim-da-baseline.conf"
 
     val manualArgs = Array[String]("--config", configPath)
     val (_, c) = prepareConfig(manualArgs, isConfigArgRequired = true)
@@ -20,7 +23,9 @@ object LinkIdsToTrip extends BeamHelper {
     implicit val geoUtils: GeoUtils = r5Parameters.geo
 
     // input
-    printLinks(Seq(88753, 51087, 50223, 51085, 94243, 51083, 51081, 47225, 88925, 47223))
+    val file = Source.fromFile("/Users/jiangxuan/Desktop/linkids.csv")
+    printLinks(file.getLines().map(_.toInt).toStream)
+//    printLinks(Seq(88753, 51087, 50223, 51085, 94243, 51083, 51081, 47225, 88925, 47223))
 
     // output
     // beam.utils.LinkIdsToTrip$ - trip [[-122.41810884999806,37.748624100000235], [-122.41815495012234,37.74839320001403],
@@ -33,6 +38,22 @@ object LinkIdsToTrip extends BeamHelper {
     val coords = linkIds.map(linkId => geoUtils.utm2Wgs(linkIdCoordMap(Id.createLinkId(linkId))))
     val trip = coords.map(loc => s"[${loc.getX},${loc.getY}]")
     logger.info("trip {}", trip.mkString("[", ", ", "]"))
+    inputToFile(str2InputStream(trip.mkString("[", ", ", "]")),new File("/Users/jiangxuan/Desktop/test.txt"))
+  }
+
+  def inputToFile(is: java.io.InputStream, f: java.io.File) {
+    val in: BufferedSource = scala.io.Source.fromInputStream(is)
+    val out = new java.io.PrintWriter(f)
+    try {
+      in.getLines().foreach(out.print(_))//same as write，but if(s==null)s="null"
+    }
+    finally {
+      out.close
+    }
+  }
+
+  def str2InputStream(str:String):InputStream={
+    new  ByteArrayInputStream(str.getBytes())
   }
 
 }
