@@ -187,6 +187,7 @@ object HouseholdActor {
     private var cavPassengerSchedules: Map[BeamVehicle, PassengerSchedule] = Map()
     private var personAndActivityToCav: Map[(Id[Person], Activity), BeamVehicle] = Map()
     private var personAndActivityToLegs: Map[(Id[Person], Activity), List[BeamLeg]] = Map()
+    private val vehicleCategories = List(Car, Bike)
 
     private val realDistribution: UniformRealDistribution = new UniformRealDistribution()
     realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
@@ -209,23 +210,18 @@ object HouseholdActor {
 
         //We should create a vehicle manager for cars and bikes for all households in case they are generated during the simulation
 
-        val vehiclesByAllCategories = List(Car, Bike)
+        val vehiclesByAllCategories = vehicleCategories
           .map(cat => cat -> vehiclesByCategory.getOrElse(cat, Map[Id[BeamVehicle], BeamVehicle]()))
           .toMap
-        val fleetManagers = vehiclesByAllCategories.map { case (category, vehicleMap) =>
-          val emergencyGenerator = new EmergencyHouseholdVehicleGenerator(
-            household,
-            homeCoordFromPlans,
-            beamScenario,
-            vehiclesAdjustment,
-            category
-          )
+        val fleetManagers = vehiclesByAllCategories.map { case (category, vehiclesInCategory) =>
+          val emergencyGenerator =
+            new EmergencyHouseholdVehicleGenerator(household, beamScenario, vehiclesAdjustment, category)
           val fleetManager =
             context.actorOf(
               Props(
                 new HouseholdFleetManager(
                   parkingManager,
-                  vehicleMap,
+                  vehiclesInCategory,
                   homeCoordFromPlans,
                   Some(emergencyGenerator),
                   beamServices.beamConfig.beam.debug
