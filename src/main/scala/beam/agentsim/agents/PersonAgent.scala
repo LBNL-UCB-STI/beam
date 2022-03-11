@@ -515,7 +515,7 @@ class PersonAgent(
       }
     val endTime = beamServices.beamScenario.fixedActivitiesDurations.get(activity.getType) match {
       case Some(fixedDuration) => tick + fixedDuration
-      case None                => activityEndTime
+      case _                   => activityEndTime
     }
     if (lastTickOfSimulation >= tick) {
       Math.min(lastTickOfSimulation, endTime)
