@@ -517,7 +517,6 @@ class PersonAgent(
       case Some(fixedDuration) => tick + fixedDuration
       case _                   => activityEndTime
     }
-
     if (lastTickOfSimulation >= tick) {
       Math.min(lastTickOfSimulation, endTime)
     } else {
