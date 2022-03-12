@@ -222,7 +222,9 @@ trait ChoosesParking extends {
     } else {
       val searchModeChargeOrPark =
         if (
-          ParkingInquiry.activityTypeStringToEnum(activityType) == ParkingActivityType.Home ||
+          ParkingInquiry.activityTypeStringToEnum(
+            activityType
+          ) == ParkingActivityType.Home || ParkingActivityType.Work ||
           currentBeamVehicle.isRefuelNeeded(
             beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.refuelRequiredThresholdInMeters,
             beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
