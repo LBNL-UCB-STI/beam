@@ -3,7 +3,8 @@ package beam.utils.transit
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
-import beam.utils.{CsvFileUtils, FileUtils}
+//import beam.utils.{CsvFileUtils, FileUtils}
+import beam.utils.FileUtils
 import com.conveyal.r5.transit.TransitLayer
 
 import scala.collection.JavaConverters._
@@ -56,19 +57,19 @@ object FrequencyAdjustmentUtils {
     )
   }
 
-  def loadFrequencyAdjustmentCsvFile(freqAdjustmentFilePath: String): Set[FrequencyAdjustment] =
-    CsvFileUtils
-      .readCsvFileByLineToList(freqAdjustmentFilePath) { row =>
-        FrequencyAdjustment(
-          row.get("trip_id").split("-").head,
-          row.get("trip_id"),
-          LocalTime.parse(row.get("start_time")),
-          LocalTime.parse(row.get("end_time")),
-          row.get("headway_secs").toInt,
-          Option(row.get("exact_times")).map(_.toInt)
-        )
-      }
-      .toSet
+//  def loadFrequencyAdjustmentCsvFile(freqAdjustmentFilePath: String): Set[FrequencyAdjustment] =
+//    CsvFileUtils
+//      .readCsvFileByLineToList(freqAdjustmentFilePath) { row =>
+//        FrequencyAdjustment(
+//          row.get("trip_id").split("-").head,
+//          row.get("trip_id"),
+//          LocalTime.parse(row.get("start_time")),
+//          LocalTime.parse(row.get("end_time")),
+//          row.get("headway_secs").toInt,
+//          Option(row.get("exact_times")).map(_.toInt)
+//        )
+//      }
+//      .toSet
 
   private def secondsToTime(secondsOfDay: Int): String =
     LocalTime
