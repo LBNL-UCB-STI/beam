@@ -10,7 +10,7 @@ import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
@@ -39,8 +39,6 @@ class HouseholdFleetManager(
   private val vehiclesInternal: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] =
     collection.mutable.Map(vehicles.toSeq: _*)
 
-  private val freightVehicleCategories: Array[VehicleCategory.VehicleCategory] =
-    Array(VehicleCategory.HeavyDutyTruck, VehicleCategory.LightDutyTruck)
   private var availableVehicles: List[BeamVehicle] = Nil
   var triggerSender: Option[ActorRef] = None
 

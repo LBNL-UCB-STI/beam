@@ -18,7 +18,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
 }
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Car, VehicleCategory}
+import beam.agentsim.agents.vehicles.VehicleCategory.{VehicleCategory, _}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
@@ -182,12 +182,15 @@ object HouseholdActor {
 
     private var members: Map[Id[Person], PersonIdWithActorRef] = Map()
 
+    private val isFreightCarrier: Boolean = household.getId.toString.toLowerCase.contains("freight")
+
     // Data need to execute CAV dispatch
     private val cavPlans: mutable.ListBuffer[CAVSchedule] = mutable.ListBuffer()
     private var cavPassengerSchedules: Map[BeamVehicle, PassengerSchedule] = Map()
     private var personAndActivityToCav: Map[(Id[Person], Activity), BeamVehicle] = Map()
     private var personAndActivityToLegs: Map[(Id[Person], Activity), List[BeamLeg]] = Map()
-    private val basicVehicleCategories = List(Car, Bike)
+    private val householdVehicleCategories = List(Car, Bike)
+    private val freightCarrierVehicleCategories = List(HeavyDutyTruck, LightDutyTruck)
 
     private val realDistribution: UniformRealDistribution = new UniformRealDistribution()
     realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
@@ -197,9 +200,10 @@ object HouseholdActor {
       case TriggerWithId(InitializeTrigger(tick), triggerId) =>
         val homeCoordFromPlans = household.members
           .flatMap(person =>
-            person.getSelectedPlan.getPlanElements.asScala.flatMap {
-              case act: Activity if act.getType == "Home" => Some(act.getCoord)
-              case _                                      => None
+            person.getSelectedPlan.getPlanElements.asScala.headOption.flatMap {
+              case act: Activity if isFreightCarrier && act.getType == "Warehouse" => Some(act.getCoord)
+              case act: Activity if !isFreightCarrier && act.getType == "Home"     => Some(act.getCoord)
+              case _                                                               => None
             }
           )
           .headOption
@@ -209,10 +213,14 @@ object HouseholdActor {
           vehicles.filter(_._2.beamVehicleType.automationLevel <= 3).groupBy(_._2.beamVehicleType.vehicleCategory)
 
         //We should create a vehicle manager for cars and bikes for all households in case they are generated during the simulation
-
-        val vehiclesByAllCategories = basicVehicleCategories
-          .map(cat => cat -> Map[Id[BeamVehicle], BeamVehicle]())
-          .toMap ++ vehiclesByCategory
+        val vehiclesByAllCategories = (if (isFreightCarrier)
+                                         freightCarrierVehicleCategories
+                                           .map(cat => cat -> Map[Id[BeamVehicle], BeamVehicle]())
+                                           .toMap
+                                       else
+                                         householdVehicleCategories
+                                           .map(cat => cat -> Map[Id[BeamVehicle], BeamVehicle]())
+                                           .toMap) ++ vehiclesByCategory
         val fleetManagers = vehiclesByAllCategories.map { case (category, vehiclesInCategory) =>
           val emergencyGenerator =
             new EmergencyHouseholdVehicleGenerator(household, beamScenario, vehiclesAdjustment, category)

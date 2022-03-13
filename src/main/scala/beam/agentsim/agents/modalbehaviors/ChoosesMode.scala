@@ -10,8 +10,8 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token, VehicleOrToken}
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
@@ -269,14 +269,11 @@ trait ChoosesMode {
         implicit val executionContext: ExecutionContext = context.system.dispatcher
         plansModeOption match {
           case Some(CAR | DRIVE_TRANSIT) =>
-            val category = if (this.id.toString.toLowerCase.startsWith("FREIGHT")) {
-              VehicleCategory.HeavyDutyTruck
-            } else VehicleCategory.Car
             requestAvailableVehicles(
               vehicleFleets,
               currentLocation,
               _experiencedBeamPlan.activities(currentActivityIndex),
-              Some(category)
+              Some(VehicleCategory.Car)
             ) pipeTo self
           case Some(BIKE | BIKE_TRANSIT) =>
             requestAvailableVehicles(
