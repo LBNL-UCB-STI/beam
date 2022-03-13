@@ -109,31 +109,27 @@ class HouseholdFleetManager(
         for {
           neededVehicleCategory              <- requireVehicleCategoryAvailable
           emergencyHouseholdVehicleGenerator <- maybeEmergencyHouseholdVehicleGenerator
-          vehicle <- emergencyHouseholdVehicleGenerator.createVehicle(
+          (vehicle, index) <- emergencyHouseholdVehicleGenerator.createVehicle(
             personId,
             nextVehicleIndex,
             neededVehicleCategory,
             whenWhere,
-            self
+            self,
+            availableVehicles
           )
         } yield {
-          if (availableVehicles.isEmpty) {
+          if (index < 0) {
             // Create a vehicle out of thin air
             nextVehicleIndex += 1
             val mobilityRequester = sender()
             vehiclesInternal(vehicle.id) = vehicle
-
             // Pipe my car through the parking manager
             // and complete initialization only when I got them all.
-            val responseFuture = parkingManager ? ParkingInquiry.init(
-              whenWhere,
-              "wherever",
-              triggerId = triggerId
-            )
+            val responseFuture = parkingManager ? ParkingInquiry.init(whenWhere, "wherever", triggerId = triggerId)
             logger.warn(
-              s"No vehicles available for category ${neededVehicleCategory} available for person ${personId.toString}, creating a new vehicle with id ${vehicle.id.toString}"
+              s"No vehicles available for category ${neededVehicleCategory} available " +
+              s"for person ${personId.toString}, creating a new vehicle with id ${vehicle.id.toString}"
             )
-
             responseFuture.collect { case ParkingInquiryResponse(stall, _, otherTriggerId) =>
               vehicle.useParkingStall(stall)
               logger.debug("Vehicle {} is now taken, which was just created", vehicle.id)
@@ -141,42 +137,16 @@ class HouseholdFleetManager(
               MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
             } pipeTo mobilityRequester
           } else {
-            availableVehicles
-              .filter(_.beamVehicleType.toString.startsWith("FREIGHT"))
-              .foreach(vehicle =>
-                logger.info(
-                  s"1- person ${personId} has this vehicle available: ${vehicle.id} - ${vehicle.beamVehicleType}"
-                )
-              )
-            availableVehicles = availableVehicles match {
-              case firstVehicle :: rest =>
-                logger.debug("Vehicle {} is now taken", firstVehicle.id)
-                firstVehicle.becomeDriver(sender)
-                sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)), triggerId)
-                rest
-              case _ =>
-                logger.error(s"THE LIST OF VEHICLES SHOULDN'T BE EMPTY")
-                Nil
-            }
+            logger.debug("Vehicle {} is now taken", vehicle.id)
+            vehicle.becomeDriver(sender)
+            sender() ! MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
+            availableVehicles = availableVehicles.drop(index)
           }
         }
       }.getOrElse {
-        availableVehicles
-          .filter(_.beamVehicleType.toString.startsWith("FREIGHT"))
-          .foreach(vehicle =>
-            logger.info(s"2- person ${personId} has this vehicle available: ${vehicle.id} - ${vehicle.beamVehicleType}")
-          )
-        availableVehicles = availableVehicles match {
-          case firstVehicle :: rest =>
-            logger.debug("Vehicle {} is now taken", firstVehicle.id)
-            firstVehicle.becomeDriver(sender)
-            sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)), triggerId)
-            rest
-          case Nil =>
-            logger.debug(s"Not returning vehicle because no default is defined")
-            sender() ! MobilityStatusResponse(Vector(), triggerId)
-            Nil
-        }
+        logger.debug(s"Not returning vehicle because no default is defined")
+        sender() ! MobilityStatusResponse(Vector(), triggerId)
+        Nil
       }
 
     case Finish =>
