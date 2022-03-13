@@ -39,7 +39,8 @@ class HouseholdFleetManager(
   private val vehiclesInternal: collection.mutable.Map[Id[BeamVehicle], BeamVehicle] =
     collection.mutable.Map(vehicles.toSeq: _*)
 
-  private val freightVehicleCategories: Array[VehicleCategory.VehicleCategory] = Array(VehicleCategory.HeavyDutyTruck, VehicleCategory.LightDutyTruck)
+  private val freightVehicleCategories: Array[VehicleCategory.VehicleCategory] =
+    Array(VehicleCategory.HeavyDutyTruck, VehicleCategory.LightDutyTruck)
   private var availableVehicles: List[BeamVehicle] = Nil
   var triggerSender: Option[ActorRef] = None
 
@@ -142,7 +143,13 @@ class HouseholdFleetManager(
               MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
             } pipeTo mobilityRequester
           } else {
-            availableVehicles.foreach(vehicle => logger.info(s"1- person ${personId} has this vehicle available: ${vehicle.id} - ${vehicle.beamVehicleType}"))
+            availableVehicles
+              .filter(_.beamVehicleType.toString.startsWith("FREIGHT"))
+              .foreach(vehicle =>
+                logger.info(
+                  s"1- person ${personId} has this vehicle available: ${vehicle.id} - ${vehicle.beamVehicleType}"
+                )
+              )
             availableVehicles = availableVehicles match {
               case firstVehicle :: rest =>
                 logger.debug("Vehicle {} is now taken", firstVehicle.id)
@@ -156,7 +163,11 @@ class HouseholdFleetManager(
           }
         }
       }.getOrElse {
-        availableVehicles.foreach(vehicle => logger.info(s"2- person ${personId} has this vehicle available: ${vehicle.id} - ${vehicle.beamVehicleType}"))
+        availableVehicles
+          .filter(_.beamVehicleType.toString.startsWith("FREIGHT"))
+          .foreach(vehicle =>
+            logger.info(s"2- person ${personId} has this vehicle available: ${vehicle.id} - ${vehicle.beamVehicleType}")
+          )
         availableVehicles = availableVehicles match {
           case firstVehicle :: rest =>
             logger.debug("Vehicle {} is now taken", firstVehicle.id)

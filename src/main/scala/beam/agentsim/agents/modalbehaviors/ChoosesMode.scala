@@ -269,7 +269,7 @@ trait ChoosesMode {
         implicit val executionContext: ExecutionContext = context.system.dispatcher
         plansModeOption match {
           case Some(CAR | DRIVE_TRANSIT) =>
-            val category = if(this.id.toString.toLowerCase.startsWith("FREIGHT")) {
+            val category = if (this.id.toString.toLowerCase.startsWith("FREIGHT")) {
               VehicleCategory.HeavyDutyTruck
             } else VehicleCategory.Car
             requestAvailableVehicles(
