@@ -78,16 +78,6 @@ class ChargingFunctions[GEO: GeoLevel](
     }
   }
 
-  def ifOvernightStayThenSlowChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
-    if (
-      inquiry.searchMode == ParkingSearchMode.Init || List(ParkingActivityType.Home, ParkingActivityType.Work).contains(
-        inquiry.parkingActivityType
-      )
-    ) {
-      !ChargingPointType.isFastCharger(zone.chargingPointType.get)
-    } else true
-  }
-
   /**
     * function that verifies if Home, Work or Overnight Then Slow Charging Only
     * @param zone ParkingZone
