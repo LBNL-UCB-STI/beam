@@ -396,7 +396,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                 case _                  => None
               }
             } yield nextActivity
-            val nextActivityEndTime = maybeNextActivity.map(_.getEndTime).getOrElse(24 * 3600)
+            val nextActivityEndTime: Double = maybeNextActivity.map(_.getEndTime).getOrElse(24.0 * 3600.0)
             // TODO: Check to see if reserved stall is for current leg in passenger index
             currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
               stall.chargingPointType match {
@@ -416,7 +416,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     "Not sending a plug in request for vehicle {} at tick {} because that vehicle needs to depart at time {}",
                     currentBeamVehicle.id,
                     tick,
-                    nextLeg.startTime
+                    nextActivityEndTime
                   )
                 case None => // this should only happen rarely
                   log.debug(
