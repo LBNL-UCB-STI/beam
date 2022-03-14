@@ -80,7 +80,8 @@ class NetworkRelaxationScenarioGenerator {
         personId = i.toString,
         householdId = i.toString,
         age = 20 + Random.nextInt(50),
-        sex = if (Random.nextBoolean()) Male else Female
+        sex = if (Random.nextBoolean()) Male else Female,
+        None
       )
     }
     val csvWriter = new CsvWriter(scenarioDir.getPath + "/persons.csv", Seq("person_id", "household_id", "age", "sex"))
