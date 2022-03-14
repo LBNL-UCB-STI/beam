@@ -388,14 +388,19 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         if (data.hasParkingBehaviors) {
           // charge vehicle
           if (currentBeamVehicle.isEV) {
+            val maybePersonData = findPersonData(data)
+            val maybeNextActivity = for {
+              personData <- maybePersonData
+              nextActivity <- this match {
+                case agent: PersonAgent => agent.nextActivity(personData)
+                case _                  => None
+              }
+            } yield nextActivity
+            val nextActivityEndTime = maybeNextActivity.map(_.getEndTime).getOrElse(24 * 3600)
             // TODO: Check to see if reserved stall is for current leg in passenger index
-            val nextLeg =
-              data.passengerSchedule.schedule.keys.view
-                .drop(data.currentLegPassengerScheduleIndex + 1)
-                .head
             currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
               stall.chargingPointType match {
-                case Some(_) if nextLeg.startTime > tick + beamConfig.beam.agentsim.schedulerParallelismWindow =>
+                case Some(_) if nextActivityEndTime > tick + beamConfig.beam.agentsim.schedulerParallelismWindow =>
                   log.debug("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
                   chargingNetworkManager ! ChargingPlugRequest(
                     tick,
