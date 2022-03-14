@@ -52,7 +52,7 @@ class GenericFreightReader(
           row.get("departureLocationY"),
           row.get("departureLocationZone")
         ) match {
-          case (departureLocationZoneMaybe, Some(departureLocationUTMOnMap)) =>
+          case (_, Some(_)) =>
             Some(FreightTour(tourId, departureTimeInSec, maxTourDurationInSec))
           case _ =>
             logger.error(f"Following freight tour row discarded because departure location is not reachable: $row")

@@ -99,7 +99,7 @@ trait FreightReader {
     carriers: IndexedSeq[FreightCarrier],
     populationFactory: PopulationFactory,
     householdsFactory: HouseholdsFactory
-  ): IndexedSeq[(FreightCarrier, Household, Plan)] = {
+  ): IndexedSeq[(FreightCarrier, Household, Plan, Id[Person], Id[BeamVehicle])] = {
     carriers.flatMap { carrier =>
       val freightHouseholdId = createHouseholdId(carrier.carrierId)
       val household = householdsFactory.createHousehold(freightHouseholdId)
@@ -112,7 +112,7 @@ trait FreightReader {
         person.setSelectedPlan(currentPlan)
         household.getMemberIds.add(personId)
         household.getVehicleIds.add(vehicleId)
-        (carrier, household, currentPlan)
+        (carrier, household, currentPlan, personId, vehicleId)
       }
     }
   }

@@ -923,11 +923,12 @@ trait BeamHelper extends LazyLogging {
         population.getFactory,
         households.getFactory
       )
-      .foreach { case (carrier, household, plan) =>
+      .foreach { case (carrier, household, plan, personId, vehicleId) =>
         households.getHouseholdAttributes
           .putAttribute(household.getId.toString, "homecoordx", carrier.warehouseLocationUTM.getX)
         households.getHouseholdAttributes
           .putAttribute(household.getId.toString, "homecoordy", carrier.warehouseLocationUTM.getY)
+        population.getPersonAttributes.putAttribute(personId.toString, "vehicle", vehicleId.toString)
         households.getHouseholds.put(household.getId, household)
         population.addPerson(plan.getPerson)
         AvailableModeUtils.setAvailableModesForPerson_v2(
