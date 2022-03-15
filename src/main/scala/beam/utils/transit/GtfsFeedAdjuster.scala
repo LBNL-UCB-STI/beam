@@ -130,8 +130,12 @@ object GtfsFeedAdjuster extends App with StrictLogging {
 //      "M86+",
 //      "M15"
 //    )
-    val modifiedRouteIds: Set[String] = Set.empty[String]
-    val filteredServiceIds: Set[String] = Set("MRG_1", "39101-133")
+    val modifiedRouteIds: Set[String] = Set("1",  "10", "103", "105", "111", "135", "142",  "17", "171",  "18",   "2",  "20", "201",
+  "214", "217", "228", "233", "237", "243", "271",   "3",  "30", "300", "310", "311", "315",
+  "318", "322", "323", "324", "325", "333", "335", "337", "339", "345", "350", "383", "392",
+  "4", "465", "466", "481", "483", "484", "485", "486",  "50",  "51", "152",   "6",   "7",
+  "935", "980", "981", "982", "985", "987", "990", "150",  "19",   "5")
+    val filteredServiceIds: Set[String] = Set("1-133_MRG_1")
     val (trips, dao) = GtfsUtils.loadTripsFromGtfs(cfg.in)
     val strategy = cfg.strategy match {
       case "multiplication" if cfg.factor >= 1.0 =>
