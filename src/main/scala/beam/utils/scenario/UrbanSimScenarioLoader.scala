@@ -574,17 +574,18 @@ class UrbanSimScenarioLoader(
           person.setSelectedPlan(plan)
         }
         val planElement = planInfo.planElementType
+        val tripId = Option(planInfo.tripId).getOrElse("")
         if (planElement == PlanElement.Leg) {
           planInfo.legMode match {
             case Some(mode) =>
               val leg = PopulationUtils.createLeg(mode)
-              leg.getAttributes.putAttribute("trip_id", Option(planInfo.tripId).getOrElse(""))
+              leg.getAttributes.putAttribute("trip_id", tripId)
               plan.addLeg(leg)
-              plan.getAttributes.putAttribute("trip_id", Option(planInfo.tripId).getOrElse(""))
+              plan.getAttributes.putAttribute("trip_id", tripId)
             case None =>
               val leg = PopulationUtils.createLeg("")
-              leg.getAttributes.putAttribute("trip_id", Option(planInfo.tripId).getOrElse(""))
-              plan.getAttributes.putAttribute("trip_id", Option(planInfo.tripId).getOrElse(""))
+              leg.getAttributes.putAttribute("trip_id", tripId)
+              plan.getAttributes.putAttribute("trip_id", tripId)
           }
         } else if (planElement == PlanElement.Activity) {
           assert(
@@ -606,6 +607,7 @@ class UrbanSimScenarioLoader(
             )
           )
           val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
+          plan.getPlanElements.asScala.last.getAttributes.putAttribute("trip_id", tripId)
           planInfo.activityEndTime.foreach { endTime =>
             act.setEndTime(endTime * 60 * 60)
           }

@@ -153,7 +153,7 @@ trait ChoosesMode {
               _,
               _,
               _,
-              None | Some(CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT),
+              plansModeOption @ (None | Some(CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT)),
               _,
               _,
               _,
@@ -188,11 +188,29 @@ trait ChoosesMode {
             _
           ) =>
         implicit val executionContext: ExecutionContext = context.system.dispatcher
-        requestAvailableVehicles(
-          vehicleFleets,
-          currentLocation,
-          _experiencedBeamPlan.activities(currentActivityIndex)
-        ) pipeTo self
+        plansModeOption match {
+          case Some(CAR | DRIVE_TRANSIT) =>
+            requestAvailableVehicles(
+              vehicleFleets,
+              currentLocation,
+              _experiencedBeamPlan.activities(currentActivityIndex),
+              Some(VehicleCategory.Car)
+            ) pipeTo self
+          case Some(BIKE | BIKE_TRANSIT) =>
+            requestAvailableVehicles(
+              vehicleFleets,
+              currentLocation,
+              _experiencedBeamPlan.activities(currentActivityIndex),
+              Some(VehicleCategory.Bike)
+            ) pipeTo self
+          case _ =>
+            requestAvailableVehicles(
+              vehicleFleets,
+              currentLocation,
+              _experiencedBeamPlan.activities(currentActivityIndex)
+            ) pipeTo self
+        }
+
       // Otherwise, send empty list to self
       case _ =>
         self ! MobilityStatusResponse(Vector(), getCurrentTriggerIdOrGenerate)
@@ -1396,23 +1414,25 @@ trait ChoosesMode {
         )
     }
 
+    val tripId = Option(
+      _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getAttributes.getAttribute("trip_id")
+    ).getOrElse("").toString
+
     val modeChoiceEvent = new ModeChoiceEvent(
       tick,
       id,
       chosenTrip.tripClassifier.value,
       data.personData.currentTripMode.map(_.value).getOrElse(""),
       data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
-      _experiencedBeamPlan
-        .activities(data.personData.currentActivityIndex)
-        .getLinkId
-        .toString,
+      _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getLinkId.toString,
       data.availableAlternatives.get,
       data.availablePersonalStreetVehicles.nonEmpty,
       chosenTrip.legs.view.map(_.beamLeg.travelPath.distanceInM).sum,
       _experiencedBeamPlan.tourIndexOfElement(nextActivity(data.personData).get),
       chosenTrip,
       _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getType,
-      nextActivity(data.personData).get.getType
+      nextActivity(data.personData).get.getType,
+      tripId
     )
     eventsManager.processEvent(modeChoiceEvent)
 
