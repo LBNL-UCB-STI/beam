@@ -135,6 +135,7 @@ object GtfsFeedAdjuster extends App with StrictLogging {
   "318", "322", "323", "324", "325", "333", "335", "337", "339", "345", "350", "383", "392",
   "4", "465", "466", "481", "483", "484", "485", "486",  "50",  "51", "152",   "6",   "7",
   "935", "980", "981", "982", "985", "987", "990", "150",  "19",   "5")
+    // this is working
     val filteredServiceIds: Set[String] = Set("1-133_MRG_1")
     val (trips, dao) = GtfsUtils.loadTripsFromGtfs(cfg.in)
     val strategy = cfg.strategy match {
