@@ -74,8 +74,10 @@ object GtfsFeedAdjuster extends App with StrictLogging {
   } else
     transformSingleEntry(adjusterConfig)
 
+
   private def findZips(dir: Path): List[Path] = {
-    //todo load from file
+    // todo load from file
+    // already done
     val filesToTransform = Set(
       "MTA_Bronx_20200121.zip",
       "MTA_Brooklyn_20200118.zip",
