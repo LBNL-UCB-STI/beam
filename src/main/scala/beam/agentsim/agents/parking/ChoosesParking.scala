@@ -221,17 +221,9 @@ trait ChoosesParking extends {
       )
     } else {
       val searchModeChargeOrPark =
-        if (
-          currentBeamVehicle.isEV && (List(ParkingActivityType.Home, ParkingActivityType.Work).contains(
-            ParkingInquiry.activityTypeStringToEnum(activityType)
-          ) ||
-          currentBeamVehicle.isRefuelNeeded(
-            beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.refuelRequiredThresholdInMeters,
-            beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
-          ))
-        ) {
+        if (currentBeamVehicle.isEV && isRefuelAtDestinationNeeded(currentBeamVehicle, activityType))
           ParkingSearchMode.DestinationCharging
-        } else ParkingSearchMode.Parking
+        else ParkingSearchMode.Parking
 
       // for regular parking inquiry, we have vehicle information in `currentBeamVehicle`
       val reservedFor = VehicleManager.getReservedFor(currentBeamVehicle.vehicleManagerId.get).get
@@ -247,6 +239,23 @@ trait ChoosesParking extends {
         searchMode = searchModeChargeOrPark,
         triggerId = getCurrentTriggerIdOrGenerate
       )
+    }
+  }
+
+  private def isRefuelAtDestinationNeeded(vehicle: BeamVehicle, activityType: String): Boolean = {
+    ParkingInquiry.activityTypeStringToEnum(activityType) match {
+      case ParkingActivityType.Home => true
+      case ParkingActivityType.Work =>
+        // multiplying
+        vehicle.isRefuelNeeded(
+          beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.work.refuelRequiredThresholdInMeters,
+          beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
+        )
+      case _ =>
+        vehicle.isRefuelNeeded(
+          beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.secondary.refuelRequiredThresholdInMeters,
+          beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
+        )
     }
   }
 
