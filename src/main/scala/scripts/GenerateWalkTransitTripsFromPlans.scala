@@ -6,6 +6,7 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{WALK, WALK_TRANSIT}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.router.{BeamRouter, FreeFlowTravelTime}
@@ -26,7 +27,7 @@ import scala.util.Try
 
 object GenerateWalkTransitTripsFromPlans extends BeamHelper {
 
-  case class PersonTrip(personId: String, trip: EmbodiedBeamTrip)
+  case class PersonTrip(personId: String, trip: EmbodiedBeamTrip, alternatives: Seq[String])
 
   case class Trip(personId: String, origin: Coord, destination: Coord, mode: BeamMode, departureTime: Int)
 
@@ -167,17 +168,36 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
 
   val walkTransitModes: Set[BeamMode] = (BeamMode.WALK_TRANSIT +: BeamMode.transitModes).toSet
 
-  //    val (_, _, _, beamServices: BeamServices, _) = prepareBeamService(typeSafeConfig, None)
-  //    val modeChoiceMNL: ModeChoiceCalculator = getModeChoiceMNL(typeSafeConfig, beamServices)
-  def selectBeamEmbodyWalkTransitTrip(alternatives: IndexedSeq[EmbodiedBeamTrip]): Option[EmbodiedBeamTrip] = {
-    //      modeChoiceMNL.apply(
-    //        alternatives.filter(alt => walkTransitModes.contains(alt.tripClassifier)),
-    //        AttributesOfIndividual.EMPTY,
-    //        None,
-    //        None
-    //      )
+  def selectBeamEmbodyWalkTransitTrip(
+    alternatives: IndexedSeq[EmbodiedBeamTrip],
+    maybeModeChoiceMNL: Option[ModeChoiceCalculator]
+  ): Option[EmbodiedBeamTrip] = {
+    maybeModeChoiceMNL match {
+      case Some(modeChoiceMNL) =>
+        modeChoiceMNL.apply(
+          alternatives,
+          AttributesOfIndividual.EMPTY,
+          None,
+          None
+        )
+      case None => alternatives.find(alt => walkTransitModes.contains(alt.tripClassifier))
+    }
+  }
 
-    alternatives.find(alt => walkTransitModes.contains(alt.tripClassifier))
+  def alternativesToStringSeq(alternatives: IndexedSeq[EmbodiedBeamTrip]): Seq[String] = {
+    def getWalkTransitMode(beamTrip: EmbodiedBeamTrip): String = {
+      beamTrip.legs.map(_.beamLeg.mode).filter(mode => mode != WALK) match {
+        case seq: Seq[BeamMode] => seq.map(_.value).mkString("+")
+        case _                  => WALK.value
+      }
+    }
+
+    alternatives.map(beamTrip =>
+      beamTrip.tripClassifier match {
+        case WALK_TRANSIT => getWalkTransitMode(beamTrip)
+        case tripMode     => tripMode.value
+      }
+    )
   }
 
   def generateWalkTransitTrips(
@@ -185,14 +205,18 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
     pathToGeneratedPlans: String
   ): ParSeq[PersonTrip] = {
     val typeSafeConfig = createConfigs(pathToBeamConfig)
+    val (_, _, _, beamServices: BeamServices, _) = prepareBeamService(typeSafeConfig, None)
+    val modeChoiceMNL: ModeChoiceCalculator = getModeChoiceMNL(typeSafeConfig, beamServices)
+
     val inputTrips = readGeneratedPlansTrips(pathToGeneratedPlans)
 
     val routers: Seq[R5Wrapper] = createR5Wrappers(typeSafeConfig)
     val walkTransitLegs = inputTrips.filter { trip => walkTransitModes.contains(trip.mode) }.toArray
-    println(s"There are ${walkTransitLegs.length} walk transit legs.")
+    println(s"There are ${walkTransitLegs.length} walk transit legs, amount of routers: ${routers.size}")
 
     var legsProcessed = 0
-    val progressReportIncrement = Math.max(4 * (walkTransitLegs.length / 100), 1)
+    // notification for each completed 10%
+    val progressReportIncrement = Math.max(10 * (walkTransitLegs.length / 100), 1)
     var nextProgressReport: Int = progressReportIncrement
     val beginningTimeStamp: Long = System.currentTimeMillis / 1000
     println(s"Progress will be reported for each $progressReportIncrement legs processed.")
@@ -203,11 +227,11 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
         destinationUTM = trip.destination,
         departureTime = trip.departureTime
       )
-      val routes = routers.headOption.map(_.calcRoute(request, buildDirectCarRoute = false, buildDirectWalkRoute = false))
+      val routes = routers.map(_.calcRoute(request, buildDirectCarRoute = false, buildDirectWalkRoute = false))
       val alternatives = routes.map(_.itineraries).toIndexedSeq.flatten
-      val maybeTransitTrip = selectBeamEmbodyWalkTransitTrip(alternatives)
+      val maybeTransitTrip = selectBeamEmbodyWalkTransitTrip(alternatives, Some(modeChoiceMNL))
       val maybePersonTrip = maybeTransitTrip match {
-        case Some(tt) => Some(PersonTrip(trip.personId, tt))
+        case Some(tt) => Some(PersonTrip(trip.personId, tt, alternativesToStringSeq(alternatives)))
         case None     => None
       }
 
@@ -218,9 +242,13 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
           val currentTimeStamp: Long = System.currentTimeMillis / 1000
           val tookTimeInMinutes = Math.round((currentTimeStamp - beginningTimeStamp) / 60.0)
           val currentProgress = (100.0 * legsProcessed) / walkTransitLegs.length
-          val expectedTimeToCalculateTheRest = Math.round((100 - currentProgress) * (tookTimeInMinutes / currentProgress))
-          val timeStats = s"$tookTimeInMinutes minutes took, $expectedTimeToCalculateTheRest minutes is expected to calculate the rest"
-          println(s"Generation of person walk transit trips from legs: ${Math.round(currentProgress)}% completed. $timeStats")
+          val expectedTimeToCalculateTheRest =
+            Math.round((100 - currentProgress) * (tookTimeInMinutes / currentProgress))
+          val timeStats =
+            s"$tookTimeInMinutes minutes took, $expectedTimeToCalculateTheRest minutes is expected to calculate the rest"
+          println(
+            s"Generation of person walk transit trips from legs: ${Math.round(currentProgress)}% completed. $timeStats"
+          )
           nextProgressReport += progressReportIncrement
         }
       }
@@ -232,9 +260,8 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
     personTrips
   }
 
-  def embodiedBeamLegToStringSeq(personId: String, leg: EmbodiedBeamLeg): Seq[String] = {
+  def embodiedBeamLegToStringSeq(leg: EmbodiedBeamLeg): Seq[String] = {
     val csvColumnValues = Seq(
-      personId,
       leg.beamLeg.mode,
       leg.beamLeg.travelPath.startPoint.loc.getX,
       leg.beamLeg.travelPath.startPoint.loc.getY,
@@ -246,8 +273,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
       leg.beamLeg.travelPath.transitStops.map(_.fromIdx),
       leg.beamLeg.travelPath.transitStops.map(_.toIdx)
     ).map {
-      case null        => ""
-      case None        => ""
+      case null | None => ""
       case Some(value) => value.toString
       case value       => value.toString
     }
@@ -267,15 +293,16 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
       "transitRouteId",
       "transitVehicle",
       "transitStopStart",
-      "transitStopEnd"
+      "transitStopEnd",
+      "alternatives"
     )
     val csvWriter: CsvWriter = new CsvWriter(path, header)
     try {
-      trips.foreach { case PersonTrip(personId, trip) =>
+      trips.foreach { case PersonTrip(personId, trip, alternatives) =>
         trip.legs
           .filter { leg => BeamMode.transitModes.contains(leg.beamLeg.mode) }
           .foreach { leg: EmbodiedBeamLeg =>
-            csvWriter.writeRow(embodiedBeamLegToStringSeq(personId, leg))
+            csvWriter.writeRow(Seq(personId) ++ embodiedBeamLegToStringSeq(leg) ++ Seq(alternatives.mkString(" : ")))
           }
       }
     } finally {
@@ -284,6 +311,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
   }
 
   def main(args: Array[String]): Unit = {
+    println(s"Current arguments: ${args.mkString(",")}")
     if (args.length < 3) {
       println("Expected following arguments: <path to beam config> <path to generated plans> <path to output csv>")
     } else {
