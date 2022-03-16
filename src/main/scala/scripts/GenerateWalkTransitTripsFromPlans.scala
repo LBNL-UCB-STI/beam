@@ -187,7 +187,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
   def alternativesToStringSeq(alternatives: IndexedSeq[EmbodiedBeamTrip]): Seq[String] = {
     def getWalkTransitMode(beamTrip: EmbodiedBeamTrip): String = {
       beamTrip.legs.map(_.beamLeg.mode).filter(mode => mode != WALK) match {
-        case seq: Seq[BeamMode] => seq.map(_.value).mkString("+")
+        case seq: Seq[BeamMode] => seq.map(_.value).sorted.toSet.mkString("+")
         case _                  => WALK.value
       }
     }
