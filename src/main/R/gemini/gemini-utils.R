@@ -177,12 +177,12 @@ generateReadyToPlot <- function(resultsDirName, loadTypes, countyNames) {
     chargingTypes <- data.table()
     if (!file.exists(pp(sim.xfc.temp.file,"-loads.csv"))) {
       code <- unlist(strsplit(sim.xfc.file, "\\."))[3]
-
+      
       sessions <- readCsv(sim.xfc.file)
       sessions[(depot),taz:=-kmeans(sessions[(depot)][,.(x,y)],20)$cluster]
       sessions[,code:=code]
       write.csv(sessions,file = pp(sim.xfc.temp.file,"-sessions.csv"),row.names=FALSE,quote=FALSE,na="0")
-
+      
       loads <- extractLoads(sessions, loadTypes, countyNames)
       loads[,hour.bin2:=hour.bin%%24]
       loads[,code:=code]

@@ -27,7 +27,7 @@ expFactor <- (6.015/0.6015)
 severity_order <- c("Public <1MW", "Public 1-5MW", "Public >5MW", "Ridehail Depot <1MW", "Ridehail Depot 1-5MW", "Ridehail Depot >5MW")
 extreme_lab_order <- c("<1MW", "1-5MW", ">5MW")
 
-dataDir <- normalizePath("~/Data/GEMINI/2021Oct29/BATCH1")
+dataDir <- normalizePath("~/Data/GEMINI/2022Feb/BATCH1")
 #events <- readCsv(pp(dataDir, "/events/0.events.BASE.csv.gz"))
 #eventsDir <- paste(dataDir, "/events",sep="")
 resultsDir <- paste(dataDir, "/results",sep="")
@@ -39,7 +39,9 @@ dir.create(plotsDir, showWarnings = FALSE)
 # MAIN
 processEventsFileAndScaleUp(dataDir, scaleup, expFactor)
 
-countyNames <- c('Alameda County','Contra Costa County','Marin County','Napa County','Santa Clara County','San Francisco County','San Mateo County','Sonoma County','Solano County')
+countyNames <- c('Alameda County','Contra Costa County','Marin County',
+                 'Napa County','Santa Clara County','San Francisco County',
+                 'San Mateo County','Sonoma County','Solano County')
 # PLOTS
 if (!file.exists(pp(resultsDir,'/ready-to-plot.Rdata'))) {
   generateReadyToPlot(resultsDir, loadTypes, countyNames)
@@ -58,11 +60,16 @@ for(j in 1:nrow(publicLoads)){
 scens <- as.data.table(readCsv(pp(resultsDir,'/../scenarios.csv')))
 all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 
+# sc2 <- all.sessions[code=="SC2"&!startsWith(parkingZoneId,"X")]
+# sc3 <- all.sessions[code=="SC3"&!startsWith(parkingZoneId,"X")]
+# nrow(sc2)*900/3600
+# nrow(sc3)*900/3600
 
 #####
-#scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
-scenarioNames <- c('Scenario2', 'Scenario3')
-scenarioBaselineLabel <- 'Scenario2'
+# scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
+# scenarioNames <- c('Scenario4', 'Scenario4Bis', 'Scenario4Bis2', 'Scenario4Bis3', 'Scenario4Bis4', 'Scenario4Bis5')
+scenarioNames <- c('Scenario4')
+scenarioBaselineLabel <- 'Scenario4'
 #all.loads <- all.loads[!is.na(loadType)]
 ##########################################
 # LOADS & ENERGY
@@ -153,13 +160,6 @@ register_google(key = google_api_key_1)
 oakland_map <- ggmap::get_googlemap("oakland california", zoom = 14, maptype = "roadmap")
 
 # Plot it
-ggmap(oakland_map) +
-  theme_void() +
-  ggtitle("terrain") +
-  theme(
-    plot.title = element_text(colour = "orange"),
-    panel.border = element_rect(colour = "grey", fill=NA, size=2)
-  )
 hours_to_show <- c(0, 8, 12, 18)
 toplot <- all.loads[name==scenarioBaselineLabel&hour.bin2 %in% hours_to_show]
 toplot$hour.bin2.label <- "12am"
@@ -206,18 +206,6 @@ p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadTy
   facet_wrap(~factor(name,scenarioNames),ncol = 2)
 ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
 
-## **************************************
-##  public charging by scenario
-p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
-  ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
-  theme_marain() +
-  geom_area(colour="black", size=0.3) +
-  scale_fill_manual(values = chargingTypes.colors, name = "") +
-  labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
-  theme(strip.text = element_text(size=rel(1.2))) +
-  facet_wrap(~factor(name,scenarioNames),ncol = 2)
-ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
-
 all.loads[name%in%scenarioNames,.(fuel=sum(fuel)),by=.(name)]
 ## public  daily charging by scenario
 toplot <- join.on(all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','name')],all.loads[site=='public'&name%in%scenarioNames][,.(tot.kw=sum(kw)),by=c('name')],'name','name')
@@ -227,7 +215,7 @@ p <- ggplot(toplot,aes(x=factor(name,scenarioNames),y=kw/tot.kw*100,fill=factor(
   scale_fill_manual(values = chargingTypes.colors, name = "") +
   labs(x = "", y = "Share of Charging (%)", fill="load severity", title="Public Charging") +
   theme(axis.text.x = element_text(angle = 0, hjust=0.5), strip.text = element_text(size=rel(1.2)))
-  #theme(axis.text.x = element_text(angle = 30, hjust=1), strip.text = element_text(size=rel(1.2)))
+#theme(axis.text.x = element_text(angle = 30, hjust=1), strip.text = element_text(size=rel(1.2)))
 ggsave(pp(plotsDir,'/public-daily-charging-by-scenario.png'),p,width=5,height=3,units='in')
 
 
@@ -259,7 +247,7 @@ p <- ggplot(toplot,aes(x=factor(name,scenarioNames),y=value,fill=factor(severity
   theme_marain()+
   scale_fill_manual(values = c(brewer.pal(3, "Blues"), brewer.pal(3, "Reds"))) +
   theme(axis.text.x = element_text(angle=0, hjust=0.5), strip.text = element_text(size=rel(1.2)))
-  #theme(axis.text.x = element_text(angle = 30, hjust=1), strip.text = element_text(size=rel(1.2)))
+#theme(axis.text.x = element_text(angle = 30, hjust=1), strip.text = element_text(size=rel(1.2)))
 ggsave(pp(plotsDir,'/energy-charged-by-scenario.png'),p,width=8,height=3,units='in')
 
 
@@ -274,7 +262,7 @@ p <- ggplot(xfc.metric,aes(x=factor(name,scenarioNames),y=xfc.hours,fill=factor(
   theme_marain()+
   scale_fill_manual(values = c(brewer.pal(3, "Blues")[c(1,3)], brewer.pal(3, "Reds")[c(1,3)])) +
   theme(axis.text.x = element_text(angle=0, hjust=0.5),strip.text = element_text(size=rel(1.2)))
-  #theme(axis.text.x = element_text(angle = 30, hjust=1),strip.text = element_text(size=rel(1.2)))
+#theme(axis.text.x = element_text(angle = 30, hjust=1),strip.text = element_text(size=rel(1.2)))
 ggsave(pp(plotsDir,'/xfc-hours-per-site-per-day.png'),p,width=5,height=3,units='in')
 
 
