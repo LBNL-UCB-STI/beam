@@ -210,13 +210,14 @@ trait ScaleUpCharging extends {
                 val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
                 val destinationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
                 val vehicleType = summary.vehicleTypeDistribution.sample()
+                val activityType = summary.activityTypeDistribution.sample()
                 val reservedFor = VehicleManager.AnyManager
                 val beamVehicle = getBeamVehicle(vehicleType, reservedFor, soc)
                 val personId = getPerson(beamVehicle.id)
                 val startTime = timeBin + timeStep
                 val parkingInquiry = ParkingInquiry(
                   SpaceTime(destinationUtm, startTime),
-                  summary.activityTypeDistribution.sample(),
+                  activityType,
                   reservedFor,
                   Some(beamVehicle),
                   None, // remainingTripData
