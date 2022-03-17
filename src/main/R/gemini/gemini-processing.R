@@ -735,6 +735,8 @@ summarizingCharging2 <- function(DATA) {
   chgSummary[,shareFuel:=sumFuel/chgSummaryTotFuel][,-c("sumFuel")][order(actType)]
 }
 
+events0 <- readCsv(pp(workDir, "/2022Mars-Calibration/filtered.0.events.SC4a.csv.gz"))
+
 events1 <- readCsv(pp(workDir, "/2022Mars-Calibration/0.events.b1-1.csv.gz"))
 events2 <- readCsv(pp(workDir, "/2022Mars-Calibration/0.events.b1-2.csv.gz"))
 events3 <- readCsv(pp(workDir, "/2022Mars-Calibration/0.events.b1-3.csv.gz"))
@@ -788,6 +790,7 @@ events8 <- readCsv(pp(workDir, "/2022Mars-Calibration/0.events.b1-8.csv.gz"))
 # Public L3,1.8%,weekday
 # Home L1+L2,77.5,weekday
 
+summarizingCharging(events0)
 
 summarizingCharging(events1)
 summarizingCharging(events2)
