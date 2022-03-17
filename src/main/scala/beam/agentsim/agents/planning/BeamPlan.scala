@@ -151,8 +151,9 @@ class BeamPlan extends Plan {
     strategies(planElement).put(strategy.getClass, strategy)
 
     planElement match {
-      case tour: Tour =>
-        tour.trips.foreach(trip => putStrategy(trip, strategy))
+      // NOTE: Taking this out because we want a trip to potentially have a different mode than its containing tour
+//      case tour: Tour =>
+//        tour.trips.foreach(trip => putStrategy(trip, strategy))
       case trip: Trip =>
         putStrategy(trip.activity, strategy)
         trip.leg.foreach(theLeg => putStrategy(theLeg, strategy))
@@ -163,6 +164,14 @@ class BeamPlan extends Plan {
 
   def getStrategy(planElement: PlanElement, forClass: Class[_ <: Strategy]): Option[Strategy] = {
     strategies.getOrElse(planElement, mutable.Map()).get(forClass)
+  }
+
+  def getTripStrategy(activityOrTrip: PlanElement, forClass: Class[_ <: Strategy]): Option[Strategy] = {
+    strategies.getOrElse(actsLegToTrip(activityOrTrip), mutable.Map()).get(forClass)
+  }
+
+  def getTourStrategy(activity: Activity, forClass: Class[_ <: Strategy]): Option[Strategy] = {
+    strategies.getOrElse(getTourContaining(activity), mutable.Map()).get(forClass)
   }
 
   def isLastElementInTour(planElement: PlanElement): Boolean = {
@@ -202,6 +211,14 @@ class BeamPlan extends Plan {
             throw new RuntimeException(s"Trip not found for plan element $planElement.")
         }
     }
+  }
+
+  def getTourContaining(index: Int): Tour = {
+    getTourContaining(activities(index))
+  }
+
+  def getTripContaining(index: Int): Trip = {
+    getTripContaining(activities(index))
   }
 
   //////////////////////////////////////////////////////////////////////

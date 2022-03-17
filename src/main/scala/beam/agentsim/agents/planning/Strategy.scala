@@ -7,8 +7,12 @@ import beam.router.Modes.BeamMode
   */
 object Strategy {
 
-  sealed trait Strategy
+  sealed trait Strategy {
+    def strategyMode: Option[BeamMode] = None
+  }
 
-  case class ModeChoiceStrategy(mode: Option[BeamMode]) extends Strategy
+  case class ModeChoiceStrategy(mode: Option[BeamMode]) extends Strategy {
+    override def strategyMode: Option[BeamMode] = mode
+  }
 
 }
