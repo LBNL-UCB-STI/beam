@@ -262,7 +262,7 @@ object ParkingZoneSearch {
       override def lookupParkingZonesInNextSearchAreaUnlessThresholdReached(
         zoneQuadTree: QuadTree[GEO]
       ): Option[List[GEO]] = {
-        if (thisInnerRadius >= searchMaxRadius) None
+        if (thisInnerRadius > searchMaxRadius) None
         else {
           val result = zoneQuadTree
             .getRing(destinationUTM.getX, destinationUTM.getY, thisInnerRadius, thisOuterRadius)
@@ -289,7 +289,7 @@ object ParkingZoneSearch {
       override def lookupParkingZonesInNextSearchAreaUnlessThresholdReached(
         zoneQuadTree: QuadTree[GEO]
       ): Option[List[GEO]] = {
-        if (thisInnerDistance > maxDistance) None
+        if (thisInnerDistance >= maxDistance) None
         else {
           val result = zoneQuadTree
             .getElliptical(originUTM.getX, originUTM.getY, destinationUTM.getX, destinationUTM.getY, thisInnerDistance)
