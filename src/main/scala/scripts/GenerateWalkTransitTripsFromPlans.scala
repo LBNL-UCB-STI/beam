@@ -172,11 +172,21 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     maybeModeChoiceMNL: Option[ModeChoiceCalculator]
   ): Option[EmbodiedBeamTrip] = {
+    val attributesOfIndividual = AttributesOfIndividual(
+      HouseholdAttributes.EMPTY,
+      None,
+      isMale = false,
+      Seq(WALK, WALK_TRANSIT),
+      15.0,
+      None,
+      None
+    )
+
     maybeModeChoiceMNL match {
       case Some(modeChoiceMNL) =>
         modeChoiceMNL.apply(
           alternatives,
-          AttributesOfIndividual.EMPTY,
+          attributesOfIndividual,
           None,
           None
         )
