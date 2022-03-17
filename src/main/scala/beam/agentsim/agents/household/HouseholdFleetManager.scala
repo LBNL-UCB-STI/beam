@@ -107,23 +107,23 @@ class HouseholdFleetManager(
       sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet, triggerId)
 
     case inquiry @ MobilityStatusInquiry(personId, _, _, requireVehicleCategoryAvailable, triggerId) =>
-      val availableVehicleMaybe: Option[(BeamVehicle, Int)] = requireVehicleCategoryAvailable match {
+      val availableVehicleMaybe: Option[BeamVehicle] = requireVehicleCategoryAvailable match {
         case Some(_) if personId.toString.contains("freight") =>
           whoDrivesThisVehicle
             .filter(_._2 == personId)
-            .flatMap { case (vehicleId, _) => availableVehicles.zipWithIndex.find(_._1.id == vehicleId) }
+            .flatMap { case (vehicleId, _) => availableVehicles.find(_.id == vehicleId) }
             .headOption
         case Some(requireVehicleCategory) =>
-          availableVehicles.zipWithIndex.find(_._1.beamVehicleType.vehicleCategory == requireVehicleCategory)
-        case _ => availableVehicles.zipWithIndex.headOption
+          availableVehicles.find(_.beamVehicleType.vehicleCategory == requireVehicleCategory)
+        case _ => availableVehicles.headOption
       }
 
       availableVehicleMaybe match {
-        case Some((availableVehicle, index)) =>
+        case Some(availableVehicle) =>
           logger.debug("Vehicle {} is now taken", availableVehicle.id)
           availableVehicle.becomeDriver(sender)
           sender() ! MobilityStatusResponse(Vector(ActualVehicle(availableVehicle)), triggerId)
-          availableVehicles = availableVehicles.drop(index)
+          availableVehicles = availableVehicles.filter(_ != availableVehicle)
         case None if createAnEmergencyVehicle(inquiry).nonEmpty =>
           logger.debug(s"An emergency vehicle has been created!")
         case _ =>
