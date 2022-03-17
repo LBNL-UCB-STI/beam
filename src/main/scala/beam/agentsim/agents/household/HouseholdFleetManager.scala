@@ -106,31 +106,31 @@ class HouseholdFleetManager(
     case GetVehicleTypes(triggerId) =>
       sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet, triggerId)
 
-    case MobilityStatusInquiry(_, _, _, `None`, triggerId) =>
-      logger.debug(s"Not returning vehicle because no default is defined")
-      sender() ! MobilityStatusResponse(Vector(), triggerId)
+    case inquiry @ MobilityStatusInquiry(personId, _, _, requireVehicleCategoryAvailable, triggerId) =>
+      val availableVehicleMaybe: Option[(BeamVehicle, Int)] = requireVehicleCategoryAvailable match {
+        case Some(_) if personId.toString.contains("freight") =>
+          whoDrivesThisVehicle
+            .filter(_._2 == personId)
+            .flatMap { case (vehicleId, _) => availableVehicles.zipWithIndex.find(_._1.id == vehicleId) }
+            .headOption
+        case Some(requireVehicleCategory) =>
+          availableVehicles.zipWithIndex.find(_._1.beamVehicleType.vehicleCategory == requireVehicleCategory)
+        case _ => availableVehicles.zipWithIndex.headOption
+      }
 
-    case inquiry @ MobilityStatusInquiry(personId, _, _, Some(_), triggerId) =>
-      if (availableVehicles.nonEmpty || createAnEmergencyVehicle(inquiry).isEmpty) {
-        whoDrivesThisVehicle
-          .filter(_._2 == personId)
-          .flatMap { case (vehicleId, _) => availableVehicles.zipWithIndex.find(_._1.id == vehicleId) }
-          .headOption orElse {
-          availableVehicles.zipWithIndex.headOption.orElse {
+      availableVehicleMaybe match {
+        case Some((availableVehicle, index)) =>
+          logger.debug("Vehicle {} is now taken", availableVehicle.id)
+          availableVehicle.becomeDriver(sender)
+          sender() ! MobilityStatusResponse(Vector(ActualVehicle(availableVehicle)), triggerId)
+          availableVehicles = availableVehicles.drop(index)
+        case None if createAnEmergencyVehicle(inquiry).nonEmpty =>
+          logger.debug(s"An emergency vehicle has been created!")
+        case _ =>
+          if (availableVehicles.isEmpty)
             logger.error(s"THE LIST OF VEHICLES SHOULD NOT BE EMPTY")
-            None
-          }
-        } match {
-          case Some((vehicle, index)) =>
-            logger.debug("Vehicle {} is now taken", vehicle.id)
-            vehicle.becomeDriver(sender)
-            sender() ! MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
-            availableVehicles = availableVehicles.drop(index)
-          case _ =>
-            logger.debug(s"Not returning vehicle because no default is defined")
-            sender() ! MobilityStatusResponse(Vector(), triggerId)
-            Nil
-        }
+          logger.debug(s"Not returning vehicle because no default for  is defined")
+          sender() ! MobilityStatusResponse(Vector(), triggerId)
       }
 
     case Finish =>
