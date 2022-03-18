@@ -294,19 +294,17 @@ object ParkingZoneSearch {
       private val startDistance: Double = distanceFunction(originUTM, destinationUTM) * 1.01
       private val maxDistance: Double = startDistance * searchMaxDistanceToFociInPercent
       private var thisInnerDistance: Double = startDistance
-      private var counter = 0
 
       override def lookupParkingZonesInNextSearchAreaUnlessThresholdReached(
         zoneQuadTree: QuadTree[GEO]
       ): Option[List[GEO]] = {
-        if (thisInnerDistance >= maxDistance || counter > 3) None
+        if (thisInnerDistance >= maxDistance) None
         else {
           val result = zoneQuadTree
             .getElliptical(originUTM.getX, originUTM.getY, destinationUTM.getX, destinationUTM.getY, thisInnerDistance)
             .asScala
             .toList
           thisInnerDistance = thisInnerDistance * expansionFactor
-          counter = counter + 1
           Some(result)
         }
       }
