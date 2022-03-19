@@ -122,19 +122,22 @@ trait GeoUtils extends ExponentialLazyLogging {
     maxRadius: Double,
     streetMode: StreetMode = StreetMode.WALK
   ): Split = {
+    val isWithinBbox = streetLayer.envelope.contains(coord.getX, coord.getY)
     var radius = 10.0
     var theSplit: Split = null
-    while (theSplit == null && radius <= maxRadius) {
-      theSplit = streetLayer.findSplit(coord.getY, coord.getX, radius, streetMode)
-      radius = radius * 10
-    }
-    if (theSplit == null) {
-      theSplit = streetLayer.findSplit(coord.getY, coord.getX, maxRadius, streetMode)
-    }
-    if (theSplit == null) {
-      notExponentialLogger.warn(
-        s"The split is `null` for StreetLayer.BoundingBox: ${streetLayer.getEnvelope}, coord: $coord, maxRadius: $maxRadius, street mode $streetMode"
-      )
+    if (isWithinBbox) {
+      while (theSplit == null && radius <= maxRadius) {
+        theSplit = streetLayer.findSplit(coord.getY, coord.getX, radius, streetMode)
+        radius = radius * 10
+      }
+      if (theSplit == null) {
+        theSplit = streetLayer.findSplit(coord.getY, coord.getX, maxRadius, streetMode)
+      }
+      if (theSplit == null) {
+        notExponentialLogger.warn(
+          s"The split is `null` for StreetLayer.BoundingBox: ${streetLayer.getEnvelope}, coord: $coord, maxRadius: $maxRadius, street mode $streetMode"
+        )
+      }
     }
     theSplit
   }
