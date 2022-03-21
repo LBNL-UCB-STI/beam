@@ -9,7 +9,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
+import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
@@ -336,7 +336,7 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("cs_default(Any)_4_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("73"),
         FlatFee(0.0),
         ParkingType.Residential,
         "beamVilleCar"
@@ -346,7 +346,7 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(166321.0, 1568.0), 0),
         "1",
-        ParkingZone.createId("cs_default(Any)_1_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("22"),
         FlatFee(0.0),
         ParkingType.Residential,
         "beamVilleCar"
@@ -356,8 +356,8 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(167141.3, 3326.017), 0),
         "2",
-        ParkingZone.createId("cs_default(Any)_2_Residential_NA_FlatFee_0_2147483647"),
-        FlatFee(0.0),
+        ParkingZone.createId("15"),
+        Block(0.0, 3600),
         ParkingType.Residential,
         "beamVilleCar"
       )
@@ -370,8 +370,8 @@ class ZonalParkingManagerSpec
     it("should return a stall from the single available zone (index=2)") {
       val parkingDescription: Iterator[String] =
         """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,timeRestrictions,reservedFor,parkingZoneId
-          |4,Public,FlatFee,NoCharger,10,0,Car|0-17:30;LightDutyTruck|17:31-23:59,,
-          |4,Public,Block,NoCharger,20,0,LightDutyTruck|0-17:30;Car|17:31-23:59,,""".stripMargin
+          |4,Public,FlatFee,NoCharger,10,0,Car|0-17:30;LightDutyTruck|17:31-23:59,,a
+          |4,Public,Block,NoCharger,20,0,LightDutyTruck|0-17:30;Car|17:31-23:59,,b""".stripMargin
           .split("\n")
           .toIterator
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
@@ -396,7 +396,7 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(169369.8, 3326.017), 8 * 3600),
         "4",
-        ParkingZone.createId("cs_default(Any)_4_Public_NA_Block_0_20"),
+        ParkingZone.createId("b"),
         PricingModel("block", "0").get,
         ParkingType.Public,
         "FREIGHT-1"
@@ -448,7 +448,7 @@ class ZonalParkingManagerSpec
         zonesMap,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("cs_default(Any)_4_Residential_NA_FlatFee_199_1144"),
+        ParkingZone.createId("73"),
         FlatFee(1.99),
         ParkingType.Residential,
         "beamVilleCar"

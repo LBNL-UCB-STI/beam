@@ -186,15 +186,12 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
               None,
               None
             )
-        parkingZones should have size 2990
-        val collapsed = HierarchicalParkingManager.collapse(parkingZones)
-        val collapsedZones205 = collapsed.filter(_._2.geoId.toString == "205")
-        collapsedZones205 should have size 11
-        val zoneSearchTree = ParkingZoneFileUtils.createZoneSearchTree(collapsed.values.toSeq)
+        parkingZones should have size 3648
+        val zoneSearchTree = ParkingZoneFileUtils.createZoneSearchTree(parkingZones.values.toSeq)
         val subTree = zoneSearchTree(Id.create("205", classOf[Link]))
-        subTree.values.map(_.length).sum should be(11)
-        subTree(Public) should have length 4
-        subTree(Workplace) should have length 3
+        subTree.values.map(_.length).sum should be(20)
+        subTree(Public) should have length 12
+        subTree(Workplace) should have length 4
         subTree(Residential) should have length 4
       }
     }
@@ -233,17 +230,18 @@ object ParkingZoneFileUtilsSpec {
       """.stripMargin.split("\n").toIterator
 
     val linkLevelData: Iterator[String] =
-      """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
-        |49577,Residential,FlatFee,level1(2.3|AC),10,0.0,
-        |49577,Public,Block,level2(7.2|AC),10,0.0,
-        |49577,Workplace,FlatFee,dcfast(50.0|DC),10,0.0,
-        |83658,Residential,Block,dcfast(50.0|DC),100,0.0,
-        |83658,Residential,FlatFee,NoCharger,100,0.0,
-        |83658,Workplace,FlatFee,ultrafast(250.0|DC),100,0.0,
-        |83661,Residential,Block,dcfast(50.0|DC),1000,0.0,
-        |83661,Public,FlatFee,level2(7.2|AC),1000,0.0,
-        |83663,Workplace,FlatFee,level2(7.2|AC),10000,0.0,
-        |83663,Workplace,FlatFee,ultrafast(250.0|DC),10000,0.0,
+      """taz,parkingZoneId,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
+        |49577,1,Residential,FlatFee,level1(2.3|AC),10,0.0,
+        |49577,2,Public,Block,level2(7.2|AC),10,0.0,
+        |49577,3,Workplace,FlatFee,dcfast(50.0|DC),10,0.0,
+        |83658,4,Residential,Block,dcfast(50.0|DC),100,0.0,
+        |83658,5,Residential,FlatFee,NoCharger,100,0.0,
+        |83658,6,Workplace,FlatFee,ultrafast(250.0|DC),100,0.0,
+        |83661,7,Residential,Block,dcfast(50.0|DC),1000,0.0,
+        |83661,8,Public,FlatFee,level2(7.2|AC),1000,0.0,
+        |83663,9,Workplace,FlatFee,level2(7.2|AC),10000,0.0,
+        |83663,10,Workplace,FlatFee,ultrafast(250.0|DC),10000,0.0,
+        |83664,11,Workplace,FlatFee,ultrafast(250.0|DC),10000,0.0,
         |
       """.stripMargin.split("\n").toIterator
 

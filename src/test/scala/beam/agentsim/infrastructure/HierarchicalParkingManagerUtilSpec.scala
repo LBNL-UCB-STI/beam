@@ -4,10 +4,11 @@ import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoi
 import beam.agentsim.infrastructure.charging.ElectricCurrentType.DC
 import beam.agentsim.infrastructure.parking.ParkingType.Residential
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtilsSpec.PositiveTestData
-import beam.agentsim.infrastructure.parking.{LinkLevelOperations, ParkingZone, ParkingZoneFileUtils}
+import beam.agentsim.infrastructure.parking.{LinkLevelOperations, ParkingZone, ParkingZoneFileUtils, ParkingZoneId}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
+import org.scalatest.LoneElement.convertToCollectionLoneElementWrapper
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -30,13 +31,15 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
           Id.createLinkId(49577) -> Id.create(100026, classOf[TAZ]),
           Id.createLinkId(83658) -> Id.create(100026, classOf[TAZ]),
           Id.createLinkId(83661) -> Id.create(100026, classOf[TAZ]),
-          Id.createLinkId(83663) -> Id.create(100100, classOf[TAZ])
+          Id.createLinkId(83663) -> Id.create(100100, classOf[TAZ]),
+          Id.createLinkId(83664) -> Id.create(100100, classOf[TAZ])
         )
 
-        private val (tazZones, _) =
+        private val (tazZones, linkZoneToTazZoneMap) =
           HierarchicalParkingManager.convertToTazParkingZones(linkZones.toMap, linkToTazMapping)
 
         println(tazZones.mkString("Array(", ", ", ")"))
+        println(linkZoneToTazZoneMap.mkString("Array(", ", ", ")"))
         tazZones.size should be(9)
         val joinZone: Option[ParkingZone[TAZ]] = tazZones.values.find { zone =>
           zone.geoId.toString == "100026" && zone.parkingType == Residential && zone.chargingPointType.contains(
@@ -47,6 +50,27 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
         joinZone shouldBe defined
         joinZone.get.maxStalls should be(1100)
         tazZones.count(_._2.geoId.toString == "100100") should be(2)
+
+        val zoneOfTaz100100 = tazZones.values
+          .filter(zone =>
+            zone.geoId.toString == "100100"
+            && zone.chargingPointType.exists(_.toString.startsWith("ultrafast"))
+          )
+          .loneElement
+        withClue("Two similar link zones should be collapsed to a single one") {
+          zoneOfTaz100100.maxStalls should be(20000)
+          zoneOfTaz100100.stallsAvailable should be(20000)
+        }
+        withClue("For each link zone should be created an entry in linkZoneToTazZoneMap") {
+          linkZoneToTazZoneMap should have size 11
+        }
+        withClue("link zones 4, 7 and 10, 11 should be collapsed into single taz zones") {
+          val groupedByTazZone: IndexedSeq[Set[Id[ParkingZoneId]]] =
+            linkZoneToTazZoneMap.groupBy { case (_, tazZoneId) => tazZoneId }.values.map(_.keySet).toIndexedSeq
+          val (singles, collapsed) = groupedByTazZone.partition(_.size == 1)
+          singles should have size 7
+          collapsed.map(_.map(_.toString)) should contain theSameElementsAs (Seq(Set("4", "7"), Set("10", "11")))
+        }
       }
     }
     "creates taz link quad tree mapping" should {
@@ -76,25 +100,6 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
           "322",
           "323"
         )
-      }
-      "collapsing parking zones " should {
-        "produce a simplified structure" in {
-          val (parkingZones, _) =
-            ParkingZoneFileUtils
-              .fromFile[Link](
-                "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
-                new Random(777934L),
-                None,
-                None
-              )
-          parkingZones should have size 2990
-          val zones205 = parkingZones.filter(_._2.geoId.toString == "205")
-          zones205 should have size 16
-          val collapsed = HierarchicalParkingManager.collapse(parkingZones)
-          val collapsedZones205 = collapsed.filter(_._2.geoId.toString == "205")
-          collapsedZones205 should have size 11
-          collapsed should have size 2236
-        }
       }
     }
   }

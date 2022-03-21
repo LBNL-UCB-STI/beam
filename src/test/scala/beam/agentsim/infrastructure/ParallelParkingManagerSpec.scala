@@ -8,7 +8,7 @@ import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
+import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtilsImpl
@@ -150,8 +150,8 @@ class ParallelParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] =
-          """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
-            |1,Workplace,FlatFee,None,1,1234,
+          """taz,parkingZoneId,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
+            |1,a,Workplace,FlatFee,None,1,1234,
             |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
@@ -173,7 +173,7 @@ class ParallelParkingManagerSpec
           ParkingStall(
             Id.create(1, classOf[TAZ]),
             Id.create(1, classOf[TAZ]),
-            ParkingZone.createId("cs_default(Any)_1_Workplace_NA_FlatFee_1234_1"),
+            ParkingZone.createId("a"),
             coordCenterOfUTM,
             12.34,
             None,
@@ -214,8 +214,8 @@ class ParallelParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] =
-          """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
-          |1,Workplace,FlatFee,None,1,1234,
+          """taz,parkingZoneId,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
+          |1,a,Workplace,FlatFee,None,1,1234,
           |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
@@ -239,7 +239,7 @@ class ParallelParkingManagerSpec
           ParkingStall(
             expectedTAZId,
             expectedTAZId,
-            ParkingZone.createId("cs_default(Any)_1_Workplace_NA_FlatFee_1234_1"),
+            ParkingZone.createId("a"),
             coordCenterOfUTM,
             12.34,
             None,
@@ -362,7 +362,7 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(170308.0, 2964.0),
         "4",
-        ParkingZone.createId("cs_default(Any)_4_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("73"),
         FlatFee(0.0),
         ParkingType.Residential,
         VehicleManager.AnyManager
@@ -372,7 +372,7 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(166321.0, 1568.0),
         "1",
-        ParkingZone.createId("cs_default(Any)_1_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("22"),
         FlatFee(0.0),
         ParkingType.Residential,
         VehicleManager.AnyManager
@@ -382,8 +382,8 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(167141.3, 3326.017),
         "2",
-        ParkingZone.createId("cs_default(Any)_2_Residential_NA_FlatFee_0_2147483647"),
-        FlatFee(0.0),
+        ParkingZone.createId("15"),
+        Block(0.0, 3600),
         ParkingType.Residential,
         VehicleManager.AnyManager
       )

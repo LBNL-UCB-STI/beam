@@ -5,6 +5,7 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.csv.GenericCsvReader
@@ -14,8 +15,12 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.utils.io.IOUtils
 import org.apache.commons.lang3.StringUtils.isBlank
+import org.matsim.api.core.v01.network.Link
+import org.matsim.core.utils.collections.QuadTree
 
 import java.io.{BufferedReader, File, IOException}
+import java.text.{DecimalFormat, DecimalFormatSymbols}
+import java.util.Locale
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.{Failure, Random, Success, Try}
@@ -278,6 +283,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
         val csvRow = iterator.next()
         val updatedAccumulator = parseParkingZoneFromRow(
           csvRow,
+          accumulator.totalRows,
           rand,
           beamConfig,
           beamServices,
@@ -329,6 +335,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
         Try {
           parseParkingZoneFromRow(
             csvRow,
+            accumulator.totalRows,
             random,
             beamConfig,
             beamServices,
@@ -445,6 +452,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     */
   def parseParkingZoneFromRow[GEO: GeoLevel](
     csvRow: jMap,
+    rowNumber: Int,
     rand: Random,
     beamConfig: Option[BeamConfig],
     beamServices: Option[BeamServices],
@@ -480,7 +488,8 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val chargingPoint = ChargingPointType(chargingTypeString)
       val numStalls = calculateNumStalls(numStallsString.toDouble, reservedFor, parkingStallCountScalingFactor)
       val parkingZoneIdMaybe =
-        if (parkingZoneIdString == null || parkingZoneIdString.isEmpty) None
+        if (parkingZoneIdString == null || parkingZoneIdString.isEmpty)
+          Some(ParkingZone.createId(rowNumber.toString))
         else Some(ParkingZone.createId(parkingZoneIdString))
       val linkMaybe = (!isBlank(locationXString) && !isBlank(locationYString)) match {
         case true if beamServices.isDefined =>
@@ -592,6 +601,38 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     ParkingLoadingAccumulator(accumulator.zones, accumulator.tree, accumulator.totalRows + 1, accumulator.failedRows)
   }
 
+  def generateLinkParkingOutOfTazParking(
+    tazZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]],
+    linkQuadTree: QuadTree[Link],
+    linkToTAZMapping: Map[Link, TAZ],
+    tazTreeMap: TAZTreeMap
+  ): Map[Id[ParkingZoneId], ParkingZone[Link]] = {
+    val tazToLinksMapping = linkToTAZMapping.groupBy { case (_, taz) => taz.tazId }.mapValues(_.keys.toIndexedSeq)
+    val random = new Random()
+    tazZones.mapValues { zone =>
+      val links = tazToLinksMapping.getOrElse(
+        zone.geoId, {
+          val taz = tazTreeMap.getTAZ(zone.geoId).get
+          val link = linkQuadTree.getClosest(taz.coord.getX, taz.coord.getY)
+          IndexedSeq(link)
+        }
+      )
+      val link = zone.link.getOrElse(MathUtils.selectRandomElement(links, random))
+      new ParkingZone[Link](
+        zone.parkingZoneId,
+        link.getId,
+        zone.parkingType,
+        zone.stallsAvailable,
+        zone.maxStalls,
+        zone.reservedFor,
+        zone.chargingPointType,
+        zone.pricingModel,
+        zone.timeRestrictions,
+        Some(link)
+      )
+    }
+  }
+
   /**
     * generates ubiquitous parking from a taz centers file, such as test/input/beamville/taz-centers.csv
     * @param geoObjects geo objects that should be used to hold parking stalls
@@ -672,20 +713,23 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     */
   @SuppressWarnings(Array("UnusedMethodParameter")) // TODO: scapegoat bug?
   def toCsv[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]], filePath: String): Unit = {
-    val fileContent = parkingZones
-      .map { case (_, parkingZone) =>
+    val df = new DecimalFormat("0", DecimalFormatSymbols.getInstance(Locale.ENGLISH))
+    df.setMaximumFractionDigits(7)
+    val fileContent = parkingZones.values.toIndexedSeq
+      .sortBy(_.parkingZoneId)
+      .map { parkingZone =>
         List(
           parkingZone.geoId,
           parkingZone.parkingType,
           parkingZone.pricingModel.getOrElse(""),
           parkingZone.chargingPointType.getOrElse(""),
           parkingZone.maxStalls,
-          parkingZone.pricingModel.map(_.costInDollars).getOrElse(""),
-          parkingZone.reservedFor.toString.mkString("|"),
+          parkingZone.pricingModel.map(pricing => df.format(pricing.costInDollars * 100)).getOrElse(""),
+          VehicleManager.reserveForToString(parkingZone.reservedFor),
           parkingZone.timeRestrictions.map(x => x._1.toString + "|" + x._2.toString).mkString(";"),
-          parkingZone.toString,
           parkingZone.parkingZoneId,
-          parkingZone.link
+          "",
+          ""
         ).mkString(",")
       }
       .mkString(System.lineSeparator())
