@@ -27,15 +27,28 @@ import scala.util.Try
 
 object GenerateWalkTransitTripsFromPlans extends BeamHelper {
 
-  case class PersonTrip(personId: String, trip: EmbodiedBeamTrip, alternatives: Seq[String])
+  case class PersonTrip(
+    personId: String,
+    trip: EmbodiedBeamTrip,
+    alternatives: Seq[String],
+    planElementIndexes: String
+  )
 
-  case class Trip(personId: String, origin: Coord, destination: Coord, mode: BeamMode, departureTime: Int)
+  case class Trip(
+    personId: String,
+    origin: Coord,
+    destination: Coord,
+    mode: BeamMode,
+    departureTime: Int,
+    planElementIndexes: String
+  )
 
   case class PlanElement(
     personId: String,
     location: Option[Coord],
     legMode: Option[BeamMode],
-    activityEndTime: Option[Int]
+    activityEndTime: Option[Int],
+    planElementIndex: Int
   ) {
     def isLeg: Boolean = legMode.nonEmpty
     def isActivity: Boolean = location.nonEmpty
@@ -45,6 +58,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
 
     def fromMap(csvRow: util.Map[String, String]): PlanElement = {
       val personId = csvRow.get("personId")
+      val planElementIndex = csvRow.get("planElementIndex").toInt
       val location = {
         val x = Try { csvRow.get("activityLocationX").toDouble }.toOption
         val y = Try { csvRow.get("activityLocationY").toDouble }.toOption
@@ -57,7 +71,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
       // double -> int here is because activityEndTime sometimes written as double
       val activityEndTime = Try { csvRow.get("activityEndTime").toDouble.toInt }.toOption
       val legMode = Try { BeamMode.fromString(csvRow.get("legMode")) }.getOrElse(None)
-      PlanElement(personId, location, legMode, activityEndTime)
+      PlanElement(personId, location, legMode, activityEndTime, planElementIndex)
     }
   }
 
@@ -78,7 +92,8 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
             origin = activity1.location.get,
             destination = activity2.location.get,
             mode = leg.legMode.get,
-            departureTime = activity1.activityEndTime.get
+            departureTime = activity1.activityEndTime.get,
+            leg.planElementIndex.toString
           )
         )
       } else {
@@ -170,7 +185,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
 
   def selectBeamEmbodyWalkTransitTrip(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
-    maybeModeChoiceMNL: Option[ModeChoiceCalculator]
+    modeChoiceMNL: ModeChoiceCalculator
   ): Option[EmbodiedBeamTrip] = {
     val attributesOfIndividual = AttributesOfIndividual(
       HouseholdAttributes.EMPTY,
@@ -182,16 +197,12 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
       None
     )
 
-    maybeModeChoiceMNL match {
-      case Some(modeChoiceMNL) =>
-        modeChoiceMNL.apply(
-          alternatives,
-          attributesOfIndividual,
-          None,
-          None
-        )
-      case None => alternatives.find(alt => walkTransitModes.contains(alt.tripClassifier))
-    }
+    modeChoiceMNL.apply(
+      alternatives,
+      attributesOfIndividual,
+      None,
+      None
+    )
   }
 
   def alternativesToStringSeq(alternatives: IndexedSeq[EmbodiedBeamTrip]): Seq[String] = {
@@ -239,10 +250,18 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
       )
       val routes = routers.map(_.calcRoute(request, buildDirectCarRoute = false, buildDirectWalkRoute = false))
       val alternatives = routes.map(_.itineraries).toIndexedSeq.flatten
-      val maybeTransitTrip = selectBeamEmbodyWalkTransitTrip(alternatives, Some(modeChoiceMNL))
-      val maybePersonTrip = maybeTransitTrip match {
-        case Some(tt) => Some(PersonTrip(trip.personId, tt, alternativesToStringSeq(alternatives)))
-        case None     => None
+      val maybeTransitTrip = selectBeamEmbodyWalkTransitTrip(alternatives, modeChoiceMNL)
+      val maybePersonTrip: Option[PersonTrip] = maybeTransitTrip match {
+        case Some(embodiedBeamTrip) if embodiedBeamTrip.legs.nonEmpty =>
+          Some(
+            PersonTrip(
+              trip.personId,
+              embodiedBeamTrip,
+              alternativesToStringSeq(alternatives),
+              trip.planElementIndexes
+            )
+          )
+        case _ => None
       }
 
       this.synchronized {
@@ -281,7 +300,9 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
       leg.beamLeg.travelPath.transitStops.map(_.routeId),
       leg.beamLeg.travelPath.transitStops.map(_.vehicleId),
       leg.beamLeg.travelPath.transitStops.map(_.fromIdx),
-      leg.beamLeg.travelPath.transitStops.map(_.toIdx)
+      leg.beamLeg.travelPath.transitStops.map(_.toIdx),
+      leg.beamLeg.startTime,
+      leg.beamLeg.endTime
     ).map {
       case null | None => ""
       case Some(value) => value.toString
@@ -304,15 +325,20 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
       "transitVehicle",
       "transitStopStart",
       "transitStopEnd",
+      "startTime",
+      "endTime",
+      "planElementIndexOfLeg",
       "alternatives"
     )
     val csvWriter: CsvWriter = new CsvWriter(path, header)
     try {
-      trips.foreach { case PersonTrip(personId, trip, alternatives) =>
+      trips.foreach { case PersonTrip(personId, trip, alternatives, planElementIndexes) =>
         trip.legs
           .filter { leg => BeamMode.transitModes.contains(leg.beamLeg.mode) }
           .foreach { leg: EmbodiedBeamLeg =>
-            csvWriter.writeRow(Seq(personId) ++ embodiedBeamLegToStringSeq(leg) ++ Seq(alternatives.mkString(" : ")))
+            csvWriter.writeRow(
+              Seq(personId) ++ embodiedBeamLegToStringSeq(leg) ++ Seq(planElementIndexes, alternatives.mkString(" : "))
+            )
           }
       }
     } finally {
