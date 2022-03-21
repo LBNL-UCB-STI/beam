@@ -1684,6 +1684,7 @@ object BeamConfig {
             estimateOfMeanChargingDurationInSecond: scala.Int,
             noRefuelAtRemainingDistanceThresholdInMeters: scala.Int,
             noRefuelThresholdOffsetInMeters: scala.Double,
+            refuelRequiredThresholdOffsetInMeters: scala.Int,
             remainingDistanceWrtBatteryCapacityThreshold: scala.Int
           )
 
@@ -1702,6 +1703,10 @@ object BeamConfig {
                 noRefuelThresholdOffsetInMeters =
                   if (c.hasPathOrNull("noRefuelThresholdOffsetInMeters")) c.getDouble("noRefuelThresholdOffsetInMeters")
                   else 32186.9,
+                refuelRequiredThresholdOffsetInMeters =
+                  if (c.hasPathOrNull("refuelRequiredThresholdOffsetInMeters"))
+                    c.getInt("refuelRequiredThresholdOffsetInMeters")
+                  else 0,
                 remainingDistanceWrtBatteryCapacityThreshold =
                   if (c.hasPathOrNull("remainingDistanceWrtBatteryCapacityThreshold"))
                     c.getInt("remainingDistanceWrtBatteryCapacityThreshold")
