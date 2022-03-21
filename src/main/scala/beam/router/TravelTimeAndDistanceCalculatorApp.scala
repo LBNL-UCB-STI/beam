@@ -89,7 +89,7 @@ class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends Be
   val beamConfig = BeamConfig(cfg)
   val timeBinSizeInSeconds = beamConfig.beam.agentsim.timeBinSize
   val maxHour = DateUtils.getMaxHour(beamConfig)
-  val workerParams: R5Parameters = R5Parameters.fromConfig(cfg)
+  val workerParams = R5Parameters.fromConfig(cfg)._1
   val travelTimeNoiseFraction = beamConfig.beam.routing.r5.travelTimeNoiseFraction
   val travelTime = new LinkTravelTimeContainer(parameters.linkstatsPath.toString, timeBinSizeInSeconds, maxHour)
 
@@ -141,7 +141,8 @@ class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends Be
       vehicleTypes = workerParams.vehicleTypes,
       fuelTypePrices = workerParams.fuelTypePrices,
       wayId2TravelTime = wayId2TravelTime,
-      id2Link = id2Link
+      id2Link = id2Link,
+      useAlternativeRoutes = workerParams.beamConfig.beam.routing.gh.useAlternativeRoutes
     )
   }
 

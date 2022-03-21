@@ -2,56 +2,43 @@ package beam.agentsim.events
 
 import com.typesafe.scalalogging.LazyLogging
 
+import java.util.concurrent.ConcurrentLinkedQueue
+import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
+
 /**
-  * Track the first and last [[RideHailFleetStoredElectricityEvent]] in an iteration to determine the electricity
+  * Track the initial and final [[FleetStoredElectricityEvent]]s in an iteration to determine the electricity
   * stored in the fleet at the beginning and end of the iteration.
   */
 trait RideHailFleetStoredElectricityEventTracker extends LazyLogging {
-  protected var initialRideHailFleetStoredElectricityEventOpt: Option[RideHailFleetStoredElectricityEvent] = None
-  protected var finalRideHailFleetStoredElectricityEventOpt: Option[RideHailFleetStoredElectricityEvent] = None
+  protected val storedElectricityEventQueue = new ConcurrentLinkedQueue[FleetStoredElectricityEvent]()
 
   /** Handle RideHailFleetStoredElectricityEvent. */
-  def handleRideHailFleetStoredElectricityEvent(
-    rideHailFleetStoredElectricityEvent: RideHailFleetStoredElectricityEvent
+  def handleFleetStoredElectricityEvent(
+    rideHailFleetStoredElectricityEvent: FleetStoredElectricityEvent
   ): Unit = {
-    if (initialRideHailFleetStoredElectricityEventOpt.isEmpty) {
-      initialRideHailFleetStoredElectricityEventOpt = Some(rideHailFleetStoredElectricityEvent)
-    } else {
-      finalRideHailFleetStoredElectricityEventOpt = Some(rideHailFleetStoredElectricityEvent)
-    }
+    storedElectricityEventQueue.add(rideHailFleetStoredElectricityEvent)
   }
 
   /** Reset internal state. Should be called after every iteration. */
   def reset(): Unit = {
-    initialRideHailFleetStoredElectricityEventOpt = None
-    finalRideHailFleetStoredElectricityEventOpt = None
+    storedElectricityEventQueue.clear()
   }
 
   /** Computes the relative difference between stored electricity at the beginning and end of the iteration. */
   protected def computeStoredElectricityRelativeDifference: Double = {
-    val initialAndFinalRideHailFleetStoredElectricityEventOpt =
-      (initialRideHailFleetStoredElectricityEventOpt, finalRideHailFleetStoredElectricityEventOpt)
+    val allEvents = storedElectricityEventQueue.asScala.toIndexedSeq
+    val (initialEvents, finalEvents) = allEvents.partition(_.getTime == 0.0)
 
-    initialAndFinalRideHailFleetStoredElectricityEventOpt match {
-      case (Some(initialRideHailFleetStoredElectricityEvent), Some(finalRideHailFleetStoredElectricityEvent)) =>
-        val storedElectricityDifferenceInJoules = (finalRideHailFleetStoredElectricityEvent.storedElectricityInJoules
-          - initialRideHailFleetStoredElectricityEvent.storedElectricityInJoules)
-
-        val storageCapacityInJoules = initialRideHailFleetStoredElectricityEvent.storageCapacityInJoules
-
-        if (storageCapacityInJoules == 0.0) {
-          Double.NaN
-        } else {
-          (storedElectricityDifferenceInJoules / storageCapacityInJoules).abs
-        }
-
-      case _ =>
-        logger.error(
-          f"Unexpected initialAndFinalRideHailFleetStoredElectricityEventOpt: " +
-          f"$initialAndFinalRideHailFleetStoredElectricityEventOpt"
-        )
-
-        Double.NaN
+    val initialCountByFleetId = initialEvents.groupBy(_.fleetId).mapValues(_.size)
+    val finalCountByFleetId = finalEvents.groupBy(_.fleetId).mapValues(_.size)
+    if (allEvents.nonEmpty && initialCountByFleetId == finalCountByFleetId) {
+      val storedElectricityDifferenceInJoules =
+        finalEvents.map(_.storedElectricityInJoules).sum - initialEvents.map(_.storedElectricityInJoules).sum
+      val storageCapacityInJoules = initialEvents.map(_.storageCapacityInJoules).sum
+      storedElectricityDifferenceInJoules.abs / storageCapacityInJoules
+    } else {
+      logger.error(f"Unexpected initialAndFinalFleetStoredElectricityEvent: {}", allEvents)
+      Double.NaN
     }
   }
 }

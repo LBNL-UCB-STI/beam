@@ -2,10 +2,12 @@ package beam.agentsim.infrastructure
 
 import akka.actor.ActorRef
 import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
+import beam.router.skim.Skims
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
@@ -22,12 +24,12 @@ import scala.util.Random
 /**
   * Created by haitamlaarabi
   */
-class ChargingNetwork[GEO: GeoLevel](chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
+class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
     extends ParkingNetwork[GEO](chargingZones) {
 
   import ChargingNetwork._
 
-  override protected val searchFunctions: Option[InfrastructureFunctions[_]] = None
+  override protected val searchFunctions: Option[InfrastructureFunctions[GEO]] = None
 
   protected val chargingZoneKeyToChargingStationMap: Map[Id[ParkingZoneId], ChargingStation] =
     chargingZones.map { case (zoneId, zone) => zoneId -> ChargingStation(zone) }
@@ -82,28 +84,21 @@ class ChargingNetwork[GEO: GeoLevel](chargingZones: Map[Id[ParkingZoneId], Parki
     */
   def processChargingPlugRequest(
     request: ChargingPlugRequest,
+    activityType: String,
     theSender: ActorRef
-  ): Option[ChargingVehicle] = {
-    lookupStation(request.stall.parkingZoneId)
-      .map(
-        _.connect(
-          request.tick,
-          request.vehicle,
-          request.stall,
-          request.personId,
-          request.shiftStatus,
-          request.shiftDuration,
-          theSender
-        )
+  ): Option[ChargingVehicle] = lookupStation(request.stall.parkingZoneId)
+    .map(
+      _.connect(
+        request.tick,
+        request.vehicle,
+        request.stall,
+        request.personId,
+        activityType,
+        request.shiftStatus,
+        request.shiftDuration,
+        theSender
       )
-      .orElse {
-        logger.error(
-          s"Cannot find a ${request.stall.reservedFor} station identified with tazId ${request.stall.tazId}, " +
-          s"parkingType ${request.stall.parkingType} and chargingPointType ${request.stall.chargingPointType.get}!"
-        )
-        None
-      }
-  }
+    )
 
   /**
     * @param vehicleId vehicle to end charge
@@ -159,23 +154,26 @@ object ChargingNetwork extends LazyLogging {
     envelopeInUTM: Envelope,
     beamConfig: BeamConfig,
     distanceFunction: (Coord, Coord) => Double,
-    minSearchRadius: Double,
-    maxSearchRadius: Double,
-    seed: Int
+    skims: Option[Skims],
+    fuelPrice: Map[FuelType, Double]
   ): ChargingNetwork[GEO] = {
     new ChargingNetwork[GEO](chargingZones) {
-      override val searchFunctions: Option[InfrastructureFunctions[_]] = Some(
+      override val searchFunctions: Option[InfrastructureFunctions[GEO]] = Some(
         new ChargingFunctions[GEO](
           geoQuadTree,
           idToGeoMapping,
           geoToTAZ,
           chargingZones,
           distanceFunction,
-          minSearchRadius,
-          maxSearchRadius,
+          beamConfig.beam.agentsim.agents.parking.minSearchRadius,
+          beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+          beamConfig.beam.agentsim.agents.parking.searchMaxDistanceRelativeToEllipseFoci,
+          beamConfig.beam.agentsim.agents.vehicles.enroute.estimateOfMeanChargingDurationInSecond,
           envelopeInUTM,
-          seed,
-          beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
+          beamConfig.matsim.modules.global.randomSeed,
+          beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
+          skims,
+          fuelPrice
         )
       )
     }
@@ -190,9 +188,8 @@ object ChargingNetwork extends LazyLogging {
     beamConfig: BeamConfig,
     beamServicesMaybe: Option[BeamServices],
     distanceFunction: (Coord, Coord) => Double,
-    minSearchRadius: Double,
-    maxSearchRadius: Double,
-    seed: Int
+    skims: Option[Skims] = None,
+    fuelPrice: Map[FuelType, Double] = Map()
   ): ChargingNetwork[GEO] = {
     val parking = ParkingZoneFileUtils.fromIterator(
       parkingDescription,
@@ -211,9 +208,8 @@ object ChargingNetwork extends LazyLogging {
       envelopeInUTM,
       beamConfig,
       distanceFunction,
-      minSearchRadius,
-      maxSearchRadius,
-      seed
+      skims,
+      fuelPrice
     )
   }
 
@@ -227,12 +223,11 @@ object ChargingNetwork extends LazyLogging {
       beamServices.beamScenario.tazTreeMap.tazQuadTree,
       beamServices.beamScenario.tazTreeMap.idToTAZMapping,
       identity[TAZ](_),
-      envelopeInUTM: Envelope,
+      envelopeInUTM,
       beamServices.beamConfig,
       beamServices.geo.distUTMInMeters(_, _),
-      beamServices.beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-      beamServices.beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
-      beamServices.beamConfig.matsim.modules.global.randomSeed
+      Some(beamServices.skims),
+      beamServices.beamScenario.fuelTypePrices
     )
   }
 
@@ -252,9 +247,8 @@ object ChargingNetwork extends LazyLogging {
       envelopeInUTM,
       beamServices.beamConfig,
       beamServices.geo.distUTMInMeters(_, _),
-      beamServices.beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-      beamServices.beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
-      beamServices.beamConfig.matsim.modules.global.randomSeed
+      Some(beamServices.skims),
+      beamServices.beamScenario.fuelTypePrices
     )
   }
 
@@ -300,6 +294,7 @@ object ChargingNetwork extends LazyLogging {
       vehicle: BeamVehicle,
       stall: ParkingStall,
       personId: Id[Person],
+      activityType: String,
       shiftStatus: ShiftStatus = NotApplicable,
       shiftDuration: Option[Int] = None,
       theSender: ActorRef
@@ -310,7 +305,7 @@ object ChargingNetwork extends LazyLogging {
           chargingVehicle
         case _ =>
           val chargingVehicle =
-            ChargingVehicle(vehicle, stall, this, tick, personId, shiftStatus, shiftDuration, theSender)
+            ChargingVehicle(vehicle, stall, this, tick, personId, activityType, shiftStatus, shiftDuration, theSender)
           if (numAvailableChargers > 0) {
             chargingVehiclesInternal.put(vehicle.id, chargingVehicle)
             chargingVehicle.updateStatus(Connected, tick)
@@ -372,7 +367,13 @@ object ChargingNetwork extends LazyLogging {
     }
   }
 
-  final case class ChargingCycle(startTime: Int, endTime: Int, energyToCharge: Double, maxDuration: Int) {
+  final case class ChargingCycle(
+    startTime: Int,
+    endTime: Int,
+    energyToCharge: Double,
+    energyToChargeIfUnconstrained: Double,
+    maxDuration: Int
+  ) {
     var refueled: Boolean = false
   }
 
@@ -382,6 +383,7 @@ object ChargingNetwork extends LazyLogging {
     chargingStation: ChargingStation,
     arrivalTime: Int,
     personId: Id[Person],
+    activityType: String,
     shiftStatus: ShiftStatus,
     shiftDuration: Option[Int],
     theSender: ActorRef,
@@ -420,7 +422,7 @@ object ChargingNetwork extends LazyLogging {
       */
     def refuel: Option[ChargingCycle] = {
       chargingSessions.lastOption match {
-        case Some(cycle @ ChargingCycle(_, _, energy, _)) if !cycle.refueled =>
+        case Some(cycle @ ChargingCycle(_, _, energy, _, _)) if !cycle.refueled =>
           vehicle.addFuel(energy)
           cycle.refueled = true
           logger.debug(s"Charging vehicle $vehicle. Provided energy of = $energy J")
@@ -452,7 +454,13 @@ object ChargingNetwork extends LazyLogging {
       * @param endTime endTime of charging
       * @return boolean value expressing if the charging cycle has been added
       */
-    def processCycle(startTime: Int, endTime: Int, energy: Double, maxDuration: Int): Option[ChargingCycle] = {
+    def processCycle(
+      startTime: Int,
+      endTime: Int,
+      energy: Double,
+      energyToChargeIfUnconstrained: Double,
+      maxDuration: Int
+    ): Option[ChargingCycle] = {
       val addNewChargingCycle = chargingSessions.lastOption match {
         case None =>
           // first charging cycle
@@ -479,7 +487,7 @@ object ChargingNetwork extends LazyLogging {
           false
       }
       if (addNewChargingCycle) {
-        val newCycle = ChargingCycle(startTime, endTime, energy, maxDuration)
+        val newCycle = ChargingCycle(startTime, endTime, energy, energyToChargeIfUnconstrained, maxDuration)
         chargingSessions.append(newCycle)
         Some(newCycle)
       } else None

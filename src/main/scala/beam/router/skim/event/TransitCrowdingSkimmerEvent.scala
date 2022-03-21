@@ -14,7 +14,8 @@ class TransitCrowdingSkimmerEvent(
   vehicleId: Id[Vehicle],
   fromStopIdx: Int,
   numberOfPassengers: Int,
-  capacity: Int
+  capacity: Int,
+  duration: Int
 ) extends AbstractSkimmerEvent(eventTime) {
 
   override protected val skimName: String = transitCrowdingSkimmerConfig.name
@@ -22,5 +23,5 @@ class TransitCrowdingSkimmerEvent(
   override val getKey: AbstractSkimmerKey = TransitCrowdingSkimmerKey(vehicleId, fromStopIdx)
 
   override val getSkimmerInternal: AbstractSkimmerInternal =
-    TransitCrowdingSkimmerInternal(numberOfPassengers, capacity)
+    TransitCrowdingSkimmerInternal(numberOfPassengers, capacity, duration)
 }

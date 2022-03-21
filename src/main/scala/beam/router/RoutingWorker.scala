@@ -26,6 +26,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.config.Config
 import gnu.trove.map.TIntIntMap
 import gnu.trove.map.hash.TIntIntHashMap
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.router.util.TravelTime
 import org.matsim.core.utils.misc.Time
@@ -41,13 +42,10 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.language.postfixOps
 import scala.reflect.io.Directory
 
-class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging with MetricsSupport {
-
-  def this(config: Config) {
-    this(workerParams = {
-      R5Parameters.fromConfig(config)
-    })
-  }
+class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetwork, Network)])
+    extends Actor
+    with ActorLogging
+    with MetricsSupport {
 
   private val carRouter = workerParams.beamConfig.beam.routing.carRouter
 
@@ -85,6 +83,14 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
   private var r5: R5Wrapper = new R5Wrapper(
     workerParams,
+    new FreeFlowTravelTime,
+    workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
+  )
+
+  private var secondR5: Option[R5Wrapper] = for {
+    (transportNetwork, network) <- networks2
+  } yield new R5Wrapper(
+    workerParams.copy(transportNetwork = transportNetwork, networkHelper = new NetworkHelperImpl(network)),
     new FreeFlowTravelTime,
     workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
   )
@@ -188,7 +194,30 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
             joinResponsesOrCallR5(modesToExclude, request, cchResponse)
           } else {
-            r5.calcRoute(request)
+            (secondR5, request.withTransit) match {
+              case (Some(r52), true) =>
+                val resp1 = r5.calcRoute(request)
+                val resp2 = r52.calcRoute(request)
+
+                def union(it1: Seq[EmbodiedBeamTrip], it2: Seq[EmbodiedBeamTrip]): Seq[EmbodiedBeamTrip] = {
+                  val filteredIt2 = it2.filterNot(trip2 => it1.exists(trip1 => equals(trip1, trip2)))
+                  it1 ++ filteredIt2
+                }
+
+                def equals(trip1: EmbodiedBeamTrip, trip2: EmbodiedBeamTrip): Boolean = {
+                  trip1.tripClassifier == trip2.tripClassifier &&
+                  trip1.legs.size == trip2.legs.size &&
+                  trip1.totalTravelTimeInSecs == trip2.totalTravelTimeInSecs
+                }
+
+                resp1.copy(
+                  itineraries = union(resp1.itineraries, resp2.itineraries),
+                  computedInMs = resp1.computedInMs + resp2.computedInMs
+                )
+
+              case _ =>
+                r5.calcRoute(request)
+            }
           }
         }
       }
@@ -210,6 +239,13 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
         newTravelTime,
         workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
       )
+      secondR5 = for {
+        (transportNetwork, network) <- networks2
+      } yield new R5Wrapper(
+        workerParams.copy(transportNetwork = transportNetwork, networkHelper = new NetworkHelperImpl(network)),
+        newTravelTime,
+        workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
+      )
       log.info("{} UpdateTravelTimeLocal. Set new travel time", getNameAndHashCode)
       askForMoreWork()
 
@@ -224,6 +260,13 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 
       r5 = new R5Wrapper(
         workerParams,
+        newTravelTime,
+        workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
+      )
+      secondR5 = for {
+        (transportNetwork, network) <- networks2
+      } yield new R5Wrapper(
+        workerParams.copy(transportNetwork = transportNetwork, networkHelper = new NetworkHelperImpl(network)),
         newTravelTime,
         workerParams.beamConfig.beam.routing.r5.travelTimeNoiseFraction
       )
@@ -258,7 +301,12 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       graphHopperDir
     )
 
-    walkGraphHopper = new WalkGraphHopperWrapper(graphHopperDir, workerParams.geo, id2Link)
+    walkGraphHopper = new WalkGraphHopperWrapper(
+      graphHopperDir,
+      workerParams.geo,
+      id2Link,
+      workerParams.beamConfig.beam.routing.gh.useAlternativeRoutes
+    )
   }
 
   private def createCarGraphHoppers(travelTime: TravelTime): Unit = {
@@ -300,7 +348,8 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
           workerParams.vehicleTypes,
           workerParams.fuelTypePrices,
           wayId2TravelTime,
-          id2Link
+          id2Link,
+          workerParams.beamConfig.beam.routing.gh.useAlternativeRoutes
         )
       }
     }
@@ -385,9 +434,15 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
       val definedResponses = responses.flatten
       (definedResponses, r5ResponseOption) match {
         case (head +: _, Some(r5Resp)) =>
-          head.copy(itineraries = definedResponses.flatMap(_.itineraries) ++ r5Resp.itineraries)
+          head.copy(
+            itineraries = r5Resp.itineraries ++ definedResponses.flatMap(_.itineraries),
+            searchedModes = r5Resp.searchedModes ++ definedResponses.flatMap(_.searchedModes)
+          )
         case (head +: _, None) =>
-          head.copy(itineraries = definedResponses.flatMap(_.itineraries))
+          head.copy(
+            itineraries = definedResponses.flatMap(_.itineraries),
+            searchedModes = definedResponses.flatMap(_.searchedModes).toSet
+          )
         case (Seq(), Some(r5Resp)) =>
           r5Resp
         case (Seq(), None) => r5.calcRoute(request)
@@ -399,10 +454,16 @@ class RoutingWorker(workerParams: R5Parameters) extends Actor with ActorLogging 
 object RoutingWorker {
   val BUSHWHACKING_SPEED_IN_METERS_PER_SECOND = 1.38
 
+  def fromConfig(config: Config) {
+    val (workerParams, networks2) = R5Parameters.fromConfig(config)
+    new RoutingWorker(workerParams, networks2)
+  }
+
   // 3.1 mph -> 1.38 meter per second, changed from 1 mph
   def props(
     beamScenario: BeamScenario,
     transportNetwork: TransportNetwork,
+    networks2: Option[(TransportNetwork, Network)],
     networkHelper: NetworkHelper,
     fareCalculator: FareCalculator,
     tollCalculator: TollCalculator
@@ -419,7 +480,8 @@ object RoutingWorker {
         networkHelper,
         fareCalculator,
         tollCalculator
-      )
+      ),
+      networks2
     )
   )
 
@@ -472,7 +534,8 @@ object RoutingWorker {
           0,
           unbecomeDriverOnCompletion = true
         )
-      )
+      ),
+      Some("Bushwhacking")
     )
   }
 

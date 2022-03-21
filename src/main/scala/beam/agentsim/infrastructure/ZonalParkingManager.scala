@@ -19,7 +19,7 @@ class ZonalParkingManager[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId], Pa
   protected val parkingZoneTree: ZoneSearchTree[GEO] =
     ParkingZoneFileUtils.createZoneSearchTree(parkingZones.values.toSeq)
 
-  override protected val searchFunctions: Option[InfrastructureFunctions[_]] = None
+  override protected val searchFunctions: Option[InfrastructureFunctions[GEO]] = None
 }
 
 object ZonalParkingManager extends LazyLogging {
@@ -54,7 +54,7 @@ object ZonalParkingManager extends LazyLogging {
           s"maxSearchRadius of $maxSearchRadius meters provided from config is less than the fixed minimum search radius of $minSearchRadius; no searches will occur with these settings."
         )
       }
-      override val searchFunctions: Option[InfrastructureFunctions[_]] = Some(
+      override val searchFunctions: Option[InfrastructureFunctions[GEO]] = Some(
         new ParkingFunctions(
           geoQuadTree,
           idToGeoMapping,
@@ -63,6 +63,8 @@ object ZonalParkingManager extends LazyLogging {
           distanceFunction,
           minSearchRadius,
           maxSearchRadius,
+          0.0,
+          0.0,
           boundingBox,
           seed,
           mnlParkingConfig

@@ -1,10 +1,12 @@
 package beam.router.graphhopper
 
+import java.util
+
+import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
-import beam.router.Modes.BeamMode
 import beam.router.Router
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.common.GeoUtils
@@ -12,12 +14,14 @@ import com.conveyal.osmlib.{OSM, OSMEntity}
 import com.conveyal.r5.transit.TransportNetwork
 import com.graphhopper.config.{CHProfile, Profile}
 import com.graphhopper.reader.ReaderWay
+import com.graphhopper.reader.osm.GraphHopperOSM
 import com.graphhopper.routing.ch.{CHPreparationHandler, PrepareContractionHierarchies}
-import com.graphhopper.routing.util._
+import com.graphhopper.routing.util.parsers.TagParserFactory
+import com.graphhopper.routing.util.{EncodingManager, _}
 import com.graphhopper.routing.weighting.{FastestWeighting, TurnCostProvider, Weighting}
 import com.graphhopper.storage._
 import com.graphhopper.util.{PMap, Parameters, PointList}
-import com.graphhopper.{GHRequest, GraphHopper, ResponsePath}
+import com.graphhopper.{GHRequest, GraphHopper, GraphHopperConfig, ResponsePath}
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.JavaConverters._
@@ -25,10 +29,9 @@ import scala.collection.JavaConverters._
 abstract class GraphHopperWrapper(
   graphDir: String,
   geo: GeoUtils,
-  id2Link: Map[Int, (Coord, Coord)]
+  id2Link: Map[Int, (Coord, Coord)],
+  useAlternativeRoutes: Boolean
 ) extends Router {
-
-  protected val beamMode: BeamMode
 
   private val graphHopper = {
     val profile = getProfile()
@@ -62,6 +65,9 @@ abstract class GraphHopperWrapper(
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
     val streetVehicle = routingRequest.streetVehicles.head
     val request = new GHRequest(origin.getY, origin.getX, destination.getY, destination.getX)
+    if (useAlternativeRoutes) {
+      request.setAlgorithm(Parameters.Algorithms.ALT_ROUTE)
+    }
     prepareRequest(request)
 
     val response = graphHopper.route(request)
@@ -94,7 +100,10 @@ abstract class GraphHopperWrapper(
       routingRequest.requestId,
       Some(routingRequest),
       isEmbodyWithCurrentTravelTime = false,
-      triggerId = routingRequest.triggerId
+      triggerId = routingRequest.triggerId,
+      searchedModes =
+        if (alternatives.isEmpty) routingRequest.streetVehicles.map(_.mode).toSet
+        else (alternatives.map(_.tripClassifier).toSet)
     )
   }
 
@@ -147,7 +156,7 @@ abstract class GraphHopperWrapper(
     try {
       val beamLeg = BeamLeg(
         routingRequest.departureTime,
-        beamMode,
+        streetVehicle.mode,
         beamTotalTravelTime,
         BeamPath(
           linkIds,
@@ -169,7 +178,8 @@ abstract class GraphHopperWrapper(
               cost = getCost(beamLeg, streetVehicle.vehicleTypeId),
               unbecomeDriverOnCompletion = true
             )
-          )
+          ),
+          Some("GH")
         )
       )
     } catch {
@@ -313,5 +323,28 @@ object GraphHopperWrapper {
     graphHopperStorage.getProperties.put("prepare.ch.done", true)
 
     graphHopperStorage.flush()
+  }
+
+  def fromOsm(pathToOsm: String, tagParserFactory: Option[TagParserFactory]): GraphHopper = {
+    val cfg = new GraphHopperConfig()
+    cfg.putObject("graph.flag_encoders", "car")
+    cfg.putObject("graph.encoded_values", "way_id")
+
+    val fastestCarProfile = new Profile("car")
+    fastestCarProfile.setVehicle("car")
+    fastestCarProfile.setWeighting("fastest")
+    cfg.setProfiles(util.Arrays.asList(fastestCarProfile))
+
+    val chProfile = new CHProfile("car")
+    cfg.setCHProfiles(util.Arrays.asList(chProfile))
+
+    val tempGh = new GraphHopperOSM()
+      .setOSMFile(pathToOsm)
+      .forServer()
+    val tempGh1 = tagParserFactory.map(pf => tempGh.setTagParserFactory(pf)).getOrElse(tempGh)
+    tempGh1
+      .init(cfg)
+      .importOrLoad()
+
   }
 }

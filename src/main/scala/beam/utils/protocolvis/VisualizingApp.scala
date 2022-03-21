@@ -1,6 +1,6 @@
 package beam.utils.protocolvis
 
-import beam.utils.protocolvis.Extractors.{AllMessages, ByPerson, ExtractorType}
+import beam.utils.protocolvis.Extractors.{AllMessages, ByPerson, ByTrigger, ExtractorType}
 import beam.utils.protocolvis.MessageReader.RowData
 import com.typesafe.scalalogging.StrictLogging
 import enumeratum.{Enum, EnumEntry}
@@ -21,12 +21,14 @@ In this case beam produces files like 0.actor_messages_0.csv.gz in each iteratio
 --diagram-type Sequence | ActorAsState | AgentState | SingleActorAsState
 --force
 --person-id 010900-2012001379980-0-560057
+--trigger-id 7737
 
  input directory where to read message files,
  output the output file,
  diagram-type the type of diagram to generate
  force allows to overwrite the output without prompt
  person-id the person id which the message sequence should be generated for
+ trigger-id the trigger id which the message sequence should be generated for
  */
 object VisualizingApp extends StrictLogging {
 
@@ -34,14 +36,20 @@ object VisualizingApp extends StrictLogging {
     parseArgs(args) match {
       case Some(cliOptions) =>
         val confirm = if (cliOptions.forceOverwriting) true else confirmOverwrite(cliOptions.output)
-        val extractorType = if (cliOptions.personId.isEmpty) AllMessages else ByPerson(cliOptions.personId)
+        val extractorType = if (cliOptions.personId.nonEmpty) {
+          ByPerson(cliOptions.personId)
+        } else if (cliOptions.triggerId >= 0) {
+          ByTrigger(cliOptions.triggerId)
+        } else {
+          AllMessages
+        }
         if (confirm) doJob(cliOptions.input, cliOptions.output, extractorType, cliOptions.diagramType)
         else println("Exiting...")
       case None => System.exit(1)
     }
   }
 
-  private def doJob(inputFile: Path, output: Path, extractorType: ExtractorType, diagramType: DiagramType): Unit = {
+  def doJob(inputFile: Path, output: Path, extractorType: ExtractorType, diagramType: DiagramType): Unit = {
     import java.time.temporal.ChronoUnit.SECONDS
     val startTime = LocalDateTime.now()
     logger.info(s"Generating diagram $diagramType")
@@ -129,6 +137,10 @@ object VisualizingApp extends StrictLogging {
           .optional()
           .action((x, c) => c.copy(personId = x))
           .text("person id to build the message sequence for"),
+        opt[Long]('t', "trigger-id")
+          .optional()
+          .action((x, c) => c.copy(triggerId = x))
+          .text("trigger id (a number) to build the message sequence for"),
         opt[DiagramType]('d', "diagram-type")
           .required()
           .valueName("<diagram type>")
@@ -144,7 +156,8 @@ object VisualizingApp extends StrictLogging {
     output: Path = Paths.get("."),
     diagramType: DiagramType = DiagramType.Sequence,
     forceOverwriting: Boolean = false,
-    personId: String = ""
+    personId: String = "",
+    triggerId: Long = -1
   )
 
   sealed abstract class DiagramType(val isMultiFileOutput: Boolean) extends EnumEntry

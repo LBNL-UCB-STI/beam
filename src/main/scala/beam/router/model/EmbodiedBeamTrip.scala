@@ -6,8 +6,12 @@ import beam.router.Modes.BeamMode.{
   BIKE,
   BIKE_TRANSIT,
   CAR,
+  CAR_HOV2,
+  CAR_HOV3,
   CAV,
   DRIVE_TRANSIT,
+  HOV2_TELEPORTATION,
+  HOV3_TELEPORTATION,
   RIDE_HAIL,
   RIDE_HAIL_POOLED,
   RIDE_HAIL_TRANSIT,
@@ -18,7 +22,7 @@ import beam.router.Modes.BeamMode.{
 import beam.router.model.EmbodiedBeamTrip.determineTripMode
 import org.matsim.api.core.v01.Id
 
-case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
+case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg], router: Option[String] = None) {
 
   @transient
   lazy val costEstimate: Double = legs.map(_.cost).sum /// Generalize or remove
@@ -41,6 +45,10 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
 
   def beamLegs: IndexedSeq[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
 
+  def legModes: IndexedSeq[BeamMode] = legs.map(_.beamLeg.mode)
+
+  def legVehicleIds: IndexedSeq[Id[BeamVehicle]] = legs.map(_.beamVehicleId)
+
   def toBeamTrip: BeamTrip = BeamTrip(beamLegs)
 
   def updateStartTime(newStartTime: Int): EmbodiedBeamTrip = {
@@ -48,6 +56,20 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
     this.copy(legs = legs.map { leg =>
       leg.copy(beamLeg = leg.beamLeg.updateStartTime(leg.beamLeg.startTime + deltaStart))
     })
+  }
+
+  def updatePersonalLegsStartTime(newStartTime: Int): EmbodiedBeamTrip = {
+    val deltaStart = newStartTime - legs.head.beamLeg.startTime
+    val personalLegs = legs.takeWhile(leg =>
+      !leg.beamLeg.mode.isTransit
+      && !leg.beamLeg.mode.isRideHail
+      && leg.beamLeg.mode != RIDE_HAIL_POOLED
+      && leg.beamLeg.mode != CAV
+    )
+    val updatedLegs = personalLegs.map { leg =>
+      leg.copy(beamLeg = leg.beamLeg.updateStartTime(leg.beamLeg.startTime + deltaStart))
+    }
+    this.copy(legs = updatedLegs ++ legs.drop(updatedLegs.size))
   }
 
   def determineVehiclesInTrip(legs: IndexedSeq[EmbodiedBeamLeg]): IndexedSeq[Id[BeamVehicle]] = {
@@ -62,7 +84,7 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg]) {
 }
 
 object EmbodiedBeamTrip {
-  val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(Vector())
+  val empty: EmbodiedBeamTrip = EmbodiedBeamTrip(Vector(), None)
 
   def determineTripMode(legs: IndexedSeq[EmbodiedBeamLeg]): BeamMode = {
     var theMode: BeamMode = WALK
@@ -79,12 +101,20 @@ object EmbodiedBeamTrip {
         } else {
           theMode = RIDE_HAIL
         }
+      } else if (theMode == WALK && BeamVehicle.isSharedTeleportationVehicle(leg.beamVehicleId)) {
+        if (leg.beamLeg.mode.value == CAR_HOV3.value) {
+          theMode = HOV3_TELEPORTATION
+        } else {
+          theMode = HOV2_TELEPORTATION
+        }
       } else if (theMode == WALK && leg.beamLeg.mode == CAR) {
-        theMode = CAR
+        theMode = leg.beamLeg.mode
+      } else if (theMode == WALK && leg.beamLeg.mode.isRideHail) {
+        theMode = leg.beamLeg.mode
       } else if (theMode == WALK && leg.beamLeg.mode == CAV) {
-        theMode = CAV
+        theMode = leg.beamLeg.mode
       } else if (theMode == WALK && leg.beamLeg.mode == BIKE) {
-        theMode = BIKE
+        theMode = leg.beamLeg.mode
       }
       if (leg.beamLeg.mode == BIKE) hasUsedBike = true
       if (leg.beamLeg.mode == CAR) hasUsedCar = true

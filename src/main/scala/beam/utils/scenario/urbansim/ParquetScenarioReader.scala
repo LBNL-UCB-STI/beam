@@ -72,6 +72,11 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
   private[scenario] def toPlanInfo(rec: GenericRecord): PlanElement = {
     // Somehow Plan file has columns in camelCase, not snake_case
+    val tripId = if (rec.get("tripId") != null) {
+      rec.get("tripId").toString.filter(x => (x.isDigit || x.equals('.')))
+    } else {
+      ""
+    }
     val personId = getIfNotNull(rec, "personId").toString
     val planElement = getIfNotNull(rec, "planElement").toString
     val planElementIndex = getIfNotNull(rec, "planElementIndex").asInstanceOf[Long].toInt
@@ -82,6 +87,7 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val mode = Option(rec.get("mode")).map(_.toString)
 
     PlanElement(
+      tripId = tripId,
       personId = personId,
       planElement = planElement,
       planElementIndex = planElementIndex,
@@ -103,6 +109,7 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     }
     val excludedModes: String = Try(getIfNotNull(rec, "excludedModes").toString).getOrElse("")
     val rank: Int = 0
+    val industry = Option(rec.get("industry")).map(_.toString)
     PersonInfo(
       personId = personId,
       householdId = householdId,
@@ -110,7 +117,8 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
       age = age,
       excludedModes = excludedModes,
       isFemale = isFemaleValue,
-      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime").toString, 0d)).getOrElse(0d)
+      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime").toString, 0d)).getOrElse(0d),
+      industry = industry
     )
   }
 

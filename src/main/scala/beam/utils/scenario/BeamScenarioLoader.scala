@@ -79,9 +79,14 @@ class BeamScenarioLoader(
     val households: Households = replaceHouseholds(scenario.getHouseholds, newHouseholds)
 
     beamScenario.privateVehicles.clear()
-    vehicles
-      .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c, rand.nextInt))
-      .foreach(v => beamScenario.privateVehicles.put(v.id, v))
+    beamScenario.privateVehicleInitialSoc.clear()
+    for {
+      vehicleInfo <- vehicles
+      vehicle = buildBeamVehicle(beamScenario.vehicleTypes, vehicleInfo, rand.nextInt)
+    } {
+      beamScenario.privateVehicles.put(vehicle.id, vehicle)
+      vehicleInfo.initialSoc.foreach(beamScenario.privateVehicleInitialSoc.put(vehicle.id, _))
+    }
 
     val scenarioPopulation: Population = buildPopulation(personsWithPlans)
     scenario.setPopulation(scenarioPopulation)
@@ -151,7 +156,7 @@ class BeamScenarioLoader(
       personAttributes.putAttribute(personId, "excluded-modes", personInfo.excludedModes.mkString(","))
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
-
+      person.getAttributes.putAttribute("industry", personInfo.industry.getOrElse(""))
       result.addPerson(person)
     }
 
@@ -205,9 +210,9 @@ class BeamScenarioLoader(
           }
 
           listOfElementsGroupedByPlan.foreach { planElement =>
-            if (planElement.planElementType.equalsIgnoreCase("leg")) {
+            if (planElement.planElementType == PlanElement.Leg) {
               buildAndAddLegToPlan(currentPlan, planElement)
-            } else if (planElement.planElementType.equalsIgnoreCase("activity")) {
+            } else if (planElement.planElementType == PlanElement.Activity) {
               buildAndAddActivityToPlan(currentPlan, planElement)
             }
           }

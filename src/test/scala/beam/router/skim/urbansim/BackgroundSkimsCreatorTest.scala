@@ -31,6 +31,7 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
         |beam.urbansim.backgroundODSkimsCreator.routerType = "r5+gh"
         |beam.agentsim.taz.filePath = test/test-resources/taz-centers.12.csv
         |beam.urbansim.backgroundODSkimsCreator.maxTravelDistanceInMeters.walk = 1000
+        |beam.routing.r5.linkRadiusMeters = 10000
       """.stripMargin
     )
     .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))

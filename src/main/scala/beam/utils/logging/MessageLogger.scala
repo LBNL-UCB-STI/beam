@@ -2,13 +2,15 @@ package beam.utils.logging
 
 import akka.actor.FSM.Event
 import akka.actor.Status.Success
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.scheduler.HasTriggerId
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.utils.csv.CsvWriter
-import beam.utils.logging.MessageLogger.{BeamFSMMessage, BeamMessage, BeamStateTransition, NUM_MESSAGES_PER_FILE}
+import beam.utils.logging.MessageLogger._
 import org.matsim.core.controler.OutputDirectoryHierarchy
+
+import scala.concurrent.duration.DurationInt
 
 /**
   * @author Dmitry Openkov
@@ -23,6 +25,13 @@ class MessageLogger(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy
   private var msgNum = 0
   private var fileNum = 0
   private var csvWriter: CsvWriter = createCsvWriter(iterationNumber, fileNum)
+
+  /**
+    * We put in this var a cancellable for scheduled CloseWriterMsg so that we could close our writer
+    * if we don't receive messages for a long time (the simulation got stuck)
+    */
+  private var closeWriterCancellable: Cancellable =
+    context.system.scheduler.scheduleOnce(24.hours, self, CloseWriterMsg)(context.system.dispatcher)
 
   override def receive: Receive = {
     case BeamMessage(sender, receiver, payload) =>
@@ -42,7 +51,7 @@ class MessageLogger(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy
           tick,
           triggerId
         )
-        updateMsgNum()
+        handleCsvWriter()
       }
     case BeamFSMMessage(sender, actor, event, tick, agentTriggerId) =>
       val (senderParent, senderName) = userFriendly(sender)
@@ -61,14 +70,23 @@ class MessageLogger(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy
         actualTick,
         triggerId
       )
-      updateMsgNum()
+      handleCsvWriter()
     case BeamStateTransition(sender, actor, prevState, newState, tick, triggerId) =>
       val (senderParent, senderName) = userFriendly(sender)
       val (parent, name) = userFriendly(actor)
       csvWriter.write("transition", senderParent, senderName, parent, name, prevState, newState, tick, triggerId)
-      updateMsgNum()
+      handleCsvWriter()
+    case CloseWriterMsg =>
+      log.debug(s"Got CloseWriterMsg")
+      val itIsWorthClosing = fileNum < 20 || msgNum >= 1000
+      if (itIsWorthClosing) {
+        log.debug(s"Closing current writer")
+        closeWriterAndCreateNextOne()
+      }
+      scheduleNextCloseWriterMsg()
     case Finish =>
       log.debug(s"Finishing iteration")
+      closeWriterCancellable.cancel()
       csvWriter.close()
       context.stop(self)
   }
@@ -98,14 +116,27 @@ class MessageLogger(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy
     }
   }
 
-  private def updateMsgNum(): Unit = {
+  private def handleCsvWriter(): Unit = {
+    if (msgNum % 100000 == 0) {
+      scheduleNextCloseWriterMsg()
+    }
     msgNum = msgNum + 1
     if (msgNum >= NUM_MESSAGES_PER_FILE - 1) {
-      csvWriter.close()
-      msgNum = 0
-      fileNum = fileNum + 1
-      csvWriter = createCsvWriter(iterationNumber, fileNum)
+      closeWriterAndCreateNextOne()
     }
+  }
+
+  private def scheduleNextCloseWriterMsg(): Unit = {
+    closeWriterCancellable.cancel()
+    closeWriterCancellable =
+      context.system.scheduler.scheduleOnce(60.seconds, self, CloseWriterMsg)(context.system.dispatcher)
+  }
+
+  private def closeWriterAndCreateNextOne(): Unit = {
+    csvWriter.close()
+    msgNum = 0
+    fileNum = fileNum + 1
+    csvWriter = createCsvWriter(iterationNumber, fileNum)
   }
 
   override def postStop(): Unit = {
@@ -113,29 +144,12 @@ class MessageLogger(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy
       csvWriter.close()
     }
   }
-
-  private def userFriendly(actorRef: ActorRef) = {
-    val parent = userFriendlyParent(actorRef)
-    (parent, actorRef.path.name)
-  }
-
-  private def userFriendlyParent(actorRef: ActorRef) = {
-    val parentElements = actorRef.path.parent.elements.dropWhile(e => e != "BeamMobsim.iteration" && e != "temp").toList
-    val meaningful = if (parentElements.size <= 1) {
-      parentElements
-    } else if (parentElements.head == "BeamMobsim.iteration") {
-      parentElements.drop(1)
-    } else {
-      parentElements
-    }
-    val parent = meaningful.mkString("/")
-    parent
-  }
 }
 
 object MessageLogger {
   val NUM_MESSAGES_PER_FILE = 10000000
 
+  object CloseWriterMsg
   case class BeamMessage(sender: ActorRef, receiver: ActorRef, payload: Any)
   case class BeamFSMMessage(sender: ActorRef, actor: ActorRef, event: Event[_], tick: Int, agentTriggerId: Long)
 
@@ -147,6 +161,24 @@ object MessageLogger {
     tick: Int,
     triggerId: Long
   )
+
+  def userFriendly(actorRef: ActorRef): (String, String) = {
+    val parent = userFriendlyParent(actorRef.path.parent.elements)
+    (parent, actorRef.path.name)
+  }
+
+  def userFriendlyParent(parentPathElements: Iterable[String]): String = {
+    val parentElements = parentPathElements.dropWhile(e => e != "BeamMobsim.iteration" && e != "temp").toList
+    val meaningful = if (parentElements.size <= 1) {
+      parentElements
+    } else if (parentElements.head == "BeamMobsim.iteration") {
+      parentElements.drop(1)
+    } else {
+      parentElements
+    }
+    val parent = meaningful.mkString("/")
+    parent
+  }
 
   def props(iterationNumber: Int, controllerIO: OutputDirectoryHierarchy): Props =
     Props(new MessageLogger(iterationNumber, controllerIO))
