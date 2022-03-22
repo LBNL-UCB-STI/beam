@@ -219,15 +219,16 @@ object FreightReader {
   case class ClosestUTMPointOnMap(streetLayer: StreetLayer, r5LinkRadiusMeters: Double) {
 
     def find(wsgCoord: Coord, geoUtils: GeoUtils): Option[Coord] = {
-      //val wsgCoord = geoUtils.utm2Wgs(utmCoord)
-      val theSplit = geoUtils.getR5Split(streetLayer, wsgCoord, r5LinkRadiusMeters)
-      if (theSplit == null) {
-        None
-      } else {
-        val wgsPointOnMap = geoUtils.splitToCoord(theSplit)
-        val utmCoord = geoUtils.wgs2Utm(wgsPointOnMap)
-        Some(utmCoord)
-      }
+      if (streetLayer.envelope.contains(wsgCoord.getX, wsgCoord.getY)) {
+        val theSplit = geoUtils.getR5Split(streetLayer, wsgCoord, r5LinkRadiusMeters)
+        if (theSplit == null) {
+          None
+        } else {
+          val wgsPointOnMap = geoUtils.splitToCoord(theSplit)
+          val utmCoord = geoUtils.wgs2Utm(wgsPointOnMap)
+          Some(utmCoord)
+        }
+      } else None
     }
   }
 }
