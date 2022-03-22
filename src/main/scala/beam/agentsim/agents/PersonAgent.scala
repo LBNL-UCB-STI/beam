@@ -545,7 +545,6 @@ class PersonAgent(
       case Some(fixedDuration) => tick + fixedDuration
       case _                   => activityEndTime
     }
-
     if (lastTickOfSimulation >= tick) {
       Math.min(lastTickOfSimulation, endTime)
     } else {
@@ -667,7 +666,11 @@ class PersonAgent(
       )
       eventsManager.processEvent(teleportationEvent)
 
-      goto(ProcessingNextLegOrStartActivity) using data.copy(hasDeparted = true)
+      goto(ProcessingNextLegOrStartActivity) using data.copy(
+        hasDeparted = true,
+        currentVehicle = Vector.empty[Id[BeamVehicle]],
+        currentTourPersonalVehicle = None
+      )
 
   }
 

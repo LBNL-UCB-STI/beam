@@ -71,8 +71,8 @@ object ChoosesParking {
       )
       eventsManager.processEvent(parkEvent) // nextLeg.endTime -> to fix repeated path traversal
       restOfTrip.foreach { legs =>
-        if (legs.size >= 2 && legs(0).beamLeg.mode == BeamMode.CAR && legs(1).beamLeg.mode == BeamMode.WALK) {
-          val parkingSkimmerEvent = createParkingSkimmerEvent(tick, tazTreeMap, nextActivity, stall, legs)
+        if (legs.size >= 2 && legs.head.beamLeg.mode == BeamMode.CAR && legs(1).beamLeg.mode == BeamMode.WALK) {
+          val parkingSkimmerEvent = createParkingSkimmerEvent(tick, geo, tazTreeMap, nextActivity, stall, legs)
           eventsManager.processEvent(parkingSkimmerEvent)
           val freightRequestType =
             nextActivity.flatMap(activity =>
@@ -121,6 +121,7 @@ object ChoosesParking {
 
   private def createParkingSkimmerEvent(
     tick: Int,
+    geo: GeoUtils,
     tazTreeMap: TAZTreeMap,
     nextActivity: Option[Activity],
     stall: ParkingStall,
@@ -128,7 +129,8 @@ object ChoosesParking {
   ): ParkingSkimmerEvent = {
     require(restOfTrip.size >= 2, "Rest of trip must consist of two legs at least: current car leg, walk leg")
     val walkLeg = restOfTrip(1)
-    val tazId = tazTreeMap.getTAZ(walkLeg.beamLeg.travelPath.endPoint.loc).tazId
+    val tripEndPointUTMLocation = geo.wgs2Utm(walkLeg.beamLeg.travelPath.endPoint.loc)
+    val tazId = tazTreeMap.getTAZ(tripEndPointUTMLocation).tazId
     val chargerType = stall.chargingPointType match {
       case Some(chargingType) if ChargingPointType.getChargingPointCurrent(chargingType) == ElectricCurrentType.DC =>
         ChargerType.DCFastCharger
