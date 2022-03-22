@@ -724,6 +724,28 @@ trait ChoosesMode {
         )
   } using completeChoiceIfReady)
 
+  private val nonPrivateVehicleBasedModes: Seq[BeamMode] =
+    Seq(WALK, WALK_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT)
+
+  private def validTripsModeGivenTourMode(
+    personData: BasePersonData,
+    nextAct: Activity,
+    availableModes: Seq[BeamMode]
+  ): Seq[BeamMode] = {
+    personData.currentTourMode match {
+      case Some(tourMode) =>
+        tourMode match {
+          case vehicleBasedMode @ (CAR | BIKE) =>
+            Seq(vehicleBasedMode)
+          case parkAndRideMode @ (DRIVE_TRANSIT | BIKE_TRANSIT)
+              if personData.currentTourPersonalVehicle.isDefined && isLastTripWithinTour(personData, nextAct) =>
+            Seq(parkAndRideMode)
+          case _ => availableModes.intersect(nonPrivateVehicleBasedModes)
+        }
+      case None => availableModes
+    }
+  }
+
   private def correctCurrentTripModeAccordingToRules(
     personData: BasePersonData,
     nextAct: Activity,
@@ -1219,8 +1241,14 @@ trait ChoosesMode {
         )
       }
 
+      val filteredAvailableTripModesGivenTourMode =
+        validTripsModeGivenTourMode(personData, nextAct, availableModesForTrips)
+
+      val filteredItenerariesByTourMode =
+        filteredItinerariesForChoice.filter(_.tripClassifier.in(filteredAvailableTripModesGivenTourMode))
+
       modeChoiceCalculator(
-        filteredItinerariesForChoice,
+        filteredItenerariesByTourMode,
         attributesOfIndividual,
         nextActivity(choosesModeData.personData),
         Some(matsimPlan.getPerson)
@@ -1422,8 +1450,20 @@ trait ChoosesMode {
     val currentTour = _experiencedBeamPlan.getTourContaining(data.personData.currentActivityIndex)
     _experiencedBeamPlan.putStrategy(currentTrip, ModeChoiceStrategy(Some(chosenTrip.tripClassifier)))
     _experiencedBeamPlan.getStrategy(currentTour, classOf[ModeChoiceStrategy]) match {
-      case None => _experiencedBeamPlan.putStrategy(currentTour, ModeChoiceStrategy(Some(chosenTrip.tripClassifier)))
-      case _    =>
+      case None =>
+        chosenTrip.tripClassifier match {
+          case CAR =>
+            logger.debug("Chose a car trip")
+          case _ =>
+        }
+        _experiencedBeamPlan.putStrategy(currentTour, ModeChoiceStrategy(Some(chosenTrip.tripClassifier)))
+      case Some(strategy) =>
+        strategy.strategyMode match {
+          case Some(CAR) =>
+            logger.debug("Existing strategy: ", strategy)
+          case _ =>
+        }
+
     }
 
     val tripId = Option(
