@@ -18,8 +18,8 @@ def add_prefix(prefix, column, row, toNum = True):
     return new
 
 
-directory_input = os.path.expanduser('~/Data/FREIGHT/Outputs_All_SF_0223_2022')
-directory_output = os.path.expanduser('~/Data/FREIGHT/Outputs_All_SF_0223_2022_merged')
+directory_input = os.path.expanduser('~/Data/FREIGHT/Outputs(All SF)_0322_2022')
+directory_output = os.path.expanduser('~/Data/FREIGHT/Outputs(All SF)_0322_2022_merged')
 Path(directory_output).mkdir(parents=True, exist_ok=True)
 carriers = None
 payload_plans = None
