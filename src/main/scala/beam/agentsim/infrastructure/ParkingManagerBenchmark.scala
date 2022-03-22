@@ -66,7 +66,7 @@ object ParkingManagerBenchmark extends StrictLogging {
 //  val pathToTazParking: String =
 //    "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/taz-parking-unlimited-fast-limited-l2-150-baseline.csv.gz"
 
-  val pathToLinkParking: String = "data_files/sfbay-smartbaseline/link-parking.csv"
+  val pathToLinkParking: String = "production/sfbay/parking/init1-7_2022_Feb_03_wgs84_withFees_link.csv"
 //  val pathToLinkParking: String =
 //    "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/link-parking-unlimited-fast-limited-l2-150-baseline.csv.gz"
 
@@ -109,7 +109,7 @@ object ParkingManagerBenchmark extends StrictLogging {
   val seed: Int = 42
 
   val nTimes: Int = 1
-  val fractionToBench: Double = 0.5
+  val fractionToBench: Double = 0.05
 
   def main(args: Array[String]): Unit = {
     implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
@@ -289,7 +289,7 @@ object ParkingManagerBenchmark extends StrictLogging {
         })
       logger.info("activities written")
 
-      val (result, responses) = benchmark("hierarchical-taz", nTimes, parkingLocations)
+      val (result, responses) = benchmark("hierarchical", nTimes, parkingLocations)
       val (zonalResult, zonalResponses) = benchmark("zonal", nTimes, parkingLocations)
 
       logger.info("#####################################################################")
