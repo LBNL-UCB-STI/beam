@@ -256,7 +256,8 @@ trait ChoosesMode {
       val personData = choosesModeData.personData
       val nextAct = nextActivity(personData).get
       // Make sure the current mode is allowable
-      val correctedCurrentTripMode = correctCurrentTripModeAccordingToRules(personData, nextAct, availableModes)
+      val correctedCurrentTripMode =
+        correctCurrentTripModeAccordingToRules(personData.currentTripMode, personData, nextAct, availableModes)
 
       val bodyStreetVehicle = createBodyStreetVehicle(currentPersonLocation)
       val departTime = _currentTick.get
@@ -723,13 +724,14 @@ trait ChoosesMode {
   } using completeChoiceIfReady)
 
   private def correctCurrentTripModeAccordingToRules(
+    currentTripMode: Option[BeamMode],
     personData: BasePersonData,
     nextAct: Activity,
     availableModes: Seq[BeamMode]
   ): Option[BeamMode] = {
     val replanningIsAvailable =
       personData.numberOfReplanningAttempts < beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts
-    (personData.currentTripMode, personData.currentTourMode) match {
+    (currentTripMode, personData.currentTourMode) match {
       case (_, Some(CAR | BIKE)) if personData.currentTourPersonalVehicle.isDefined => personData.currentTourMode
       case (_, Some(DRIVE_TRANSIT | BIKE_TRANSIT))
           if personData.currentTourPersonalVehicle.isDefined && isLastTripWithinTour(personData, nextAct) =>
@@ -1261,7 +1263,7 @@ trait ChoosesMode {
               }
             case Some(_) =>
               val correctedTripMode =
-                correctCurrentTripModeAccordingToRules(personData, nextAct, availableModesForTrips)
+                correctCurrentTripModeAccordingToRules(None, personData, nextAct, availableModesForTrips)
               if (correctedTripMode != personData.currentTripMode) {
                 //give another chance to make a choice without predefined mode
                 gotoChoosingModeWithoutPredefinedMode(choosesModeData)
