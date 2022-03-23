@@ -31,7 +31,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
     personId: String,
     trip: EmbodiedBeamTrip,
     alternatives: Seq[String],
-    planElementIndexes: String
+    planElementLegIndex: Int
   )
 
   case class Trip(
@@ -40,7 +40,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
     destination: Coord,
     mode: BeamMode,
     departureTime: Int,
-    planElementIndexes: String
+    planElementLegIndex: Int
   )
 
   case class PlanElement(
@@ -93,7 +93,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
             destination = activity2.location.get,
             mode = leg.legMode.get,
             departureTime = activity1.activityEndTime.get,
-            leg.planElementIndex.toString
+            leg.planElementIndex
           )
         )
       } else {
@@ -258,7 +258,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
               trip.personId,
               embodiedBeamTrip,
               alternativesToStringSeq(alternatives),
-              trip.planElementIndexes
+              trip.planElementLegIndex
             )
           )
         case _ => None
@@ -332,12 +332,12 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
     )
     val csvWriter: CsvWriter = new CsvWriter(path, header)
     try {
-      trips.foreach { case PersonTrip(personId, trip, alternatives, planElementIndexes) =>
+      trips.foreach { case PersonTrip(personId, trip, alternatives, planElementLegIndex) =>
         trip.legs
           .filter { leg => BeamMode.transitModes.contains(leg.beamLeg.mode) }
           .foreach { leg: EmbodiedBeamLeg =>
             csvWriter.writeRow(
-              Seq(personId) ++ embodiedBeamLegToStringSeq(leg) ++ Seq(planElementIndexes, alternatives.mkString(" : "))
+              Seq(personId) ++ embodiedBeamLegToStringSeq(leg) ++ Seq(planElementLegIndex, alternatives.mkString(" : "))
             )
           }
       }

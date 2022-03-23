@@ -21,21 +21,24 @@ class GenerateWalkTransitTripsFromPlansTest extends AnyFunSuite with Matchers {
         new Coord(286351.929071621, 73710.0446915274),
         new Coord(282006.863519056, 72673.9963047469),
         BeamMode.WALK_TRANSIT,
-        31984
+        31984,
+        1
       ),
       Trip(
         "156",
         new Coord(286351.929071621, 73710.0446915274),
         new Coord(279120.867493406, 99635.0648424307),
         BeamMode.WALK_TRANSIT,
-        55486
+        55486,
+        5
       ),
       Trip(
         "156",
         new Coord(279120.867493406, 99635.0648424307),
         new Coord(286351.929071621, 73710.0446915274),
         BeamMode.WALK_TRANSIT,
-        92240
+        92240,
+        7
       )
     )
   }
