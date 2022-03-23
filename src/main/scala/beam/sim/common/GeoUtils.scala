@@ -16,6 +16,7 @@ import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
 import org.slf4j.LoggerFactory
+import scala.collection.concurrent.TrieMap
 
 case class EdgeWithCoord(edgeIndex: Int, wgsCoord: Coordinate)
 
@@ -28,6 +29,10 @@ trait GeoUtils extends ExponentialLazyLogging {
 
   def localCRS: String
   private lazy val notExponentialLogger = Logger(LoggerFactory.getLogger(getClass.getName))
+
+  type Input = (StreetMode, Double, Coord)
+  type Func = Input => Option[Split]
+  val splitStore = TrieMap[Input, Option[Split]]()
 
   lazy val utm2Wgs: GeotoolsTransformation =
     new GeotoolsTransformation(localCRS, "EPSG:4326")
@@ -122,6 +127,20 @@ trait GeoUtils extends ExponentialLazyLogging {
     maxRadius: Double,
     streetMode: StreetMode = StreetMode.WALK
   ): Split = {
+    splitStore
+      .getOrElseUpdate((streetMode, maxRadius, coord), Option(_getR5Split(streetLayer, coord, maxRadius, streetMode)))
+      .orNull
+  }
+
+  private def _getR5Split(
+    streetLayer: StreetLayer,
+    coord: Coord,
+    maxRadius: Double,
+    streetMode: StreetMode = StreetMode.WALK
+  ): Split = {
+    if (!streetLayer.envelope.contains(coord.getX, coord.getY)) {
+      notExponentialLogger.warn("Calling split on coord {} which is out of bounding box!", coord)
+    }
     var radius = 10.0
     var theSplit: Split = null
     while (theSplit == null && radius <= maxRadius) {
