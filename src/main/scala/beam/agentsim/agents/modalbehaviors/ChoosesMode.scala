@@ -133,8 +133,7 @@ trait ChoosesMode {
       // If I am already on a tour in a vehicle, only that vehicle is available to me
       case data: ChoosesModeData
           if data.personData.currentTourPersonalVehicle.isDefined && (
-            data.personData.currentTourMode.exists(mode => mode == CAR || mode == BIKE)
-            || data.personData.currentTourMode.exists(mode => mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT)
+            data.personData.currentTourMode.exists(mode => Modes.isPersonalVehicleMode(mode))
             && isLastTripWithinTour(data.personData, nextActivity(data.personData).get)
           ) =>
         self ! MobilityStatusResponse(
@@ -153,7 +152,7 @@ trait ChoosesMode {
               _,
               _,
               _,
-              plansModeOption @ (None | Some(CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT)),
+              plansModeOption,
               _,
               _,
               _,
@@ -186,7 +185,7 @@ trait ChoosesMode {
             _,
             _,
             _
-          ) =>
+          ) if plansModeOption.forall(Modes.isPersonalVehicleMode) =>
         implicit val executionContext: ExecutionContext = context.system.dispatcher
         plansModeOption match {
           case Some(CAR | DRIVE_TRANSIT) =>
@@ -1035,7 +1034,7 @@ trait ChoosesMode {
   ): Seq[EmbodiedBeamTrip] = {
     itineraries.map { itin =>
       itin.tripClassifier match {
-        case CAR | DRIVE_TRANSIT | BIKE_TRANSIT | BIKE =>
+        case mode if Modes.isPersonalVehicleMode(mode) =>
           // find parking legs (the subsequent leg of the same vehicle)
           val parkingLegs = itin.legs.zip(itin.legs.tail).collect {
             case (leg1, leg2) if leg1.beamVehicleId == leg2.beamVehicleId && legVehicleHasParkingBehavior(leg2) => leg2
