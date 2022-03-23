@@ -122,6 +122,9 @@ trait GeoUtils extends ExponentialLazyLogging {
     maxRadius: Double,
     streetMode: StreetMode = StreetMode.WALK
   ): Split = {
+    if (!streetLayer.envelope.contains(coord.getX, coord.getY)) {
+      notExponentialLogger.warn("Calling split on coord {} which is out of bounding box!", coord)
+    }
     var radius = 10.0
     var theSplit: Split = null
     while (theSplit == null && radius <= maxRadius) {
