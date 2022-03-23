@@ -1474,7 +1474,7 @@ trait ChoosesMode {
       tick,
       id,
       chosenTrip.tripClassifier.value,
-      data.personData.currentTripMode.map(_.value).getOrElse(""),
+      data.personData.currentTourMode.map(_.value).getOrElse(""),
       data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
       _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getLinkId.toString,
       data.availableAlternatives.get,
