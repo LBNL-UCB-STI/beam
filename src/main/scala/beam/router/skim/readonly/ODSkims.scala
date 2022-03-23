@@ -28,41 +28,6 @@ import scala.collection.immutable
 
 class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
 
-//  val skimsDebugCalculationHeader = {
-//    "origin,destination,departureTime,mode,result"
-////    "time,hour,mode,origin,destination,pastSkimsSize,pastSkimValue,aggregatedSkimsSkize,skimValue"
-//  }
-//  val skimsDebugCalculation = scala.collection.mutable.ListBuffer.empty[Seq[String]]
-//
-//
-//  def addStringToDebugCalculation2(
-//    time: String,
-//    skimkey: String,
-//    pastSkimsSize: String,
-//    pastSkimValue: String,
-//    aggregatedFromPastSkimsSize: String,
-//    skimValue: String
-//  ) = {
-//    synchronized {
-//      skimsDebugCalculation.append(
-//        Seq(time, skimkey, pastSkimsSize, pastSkimValue, aggregatedFromPastSkimsSize, skimValue)
-//      )
-//    }
-//  }
-//
-//  def addStringToDebugCalculation(
-//    origin: Id[TAZ],
-//    destination: Id[TAZ],
-//    departureTime: Int,
-//    mode: BeamMode,
-//    result: String
-//  ) = {
-//    val theSeq = Seq(origin.toString, destination.toString, departureTime.toString, mode.toString, result)
-//    synchronized {
-//      skimsDebugCalculation.append(theSeq)
-//    }
-//  }
-
   def getSkimDefaultValue(
     mode: BeamMode,
     originUTM: Location,
@@ -157,20 +122,11 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
       case Some(skimValue) =>
         beamScenario.vehicleTypes.get(vehicleTypeId) match {
           case Some(vehicleType) if vehicleType.automationLevel == 4 =>
-//            addStringToDebugCalculation(origTaz, destTaz, departureTime, mode, "Found - SkimExternalForLevel4CAV")
             skimValue.toSkimExternalForLevel4CAV
           case _ =>
-//            addStringToDebugCalculation(origTaz, destTaz, departureTime, mode, "Found - SkimExternal")
             skimValue.toSkimExternal
         }
       case None =>
-//        if (
-//          beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.return_max_skims_instead_of_calculated_for_missing_OD_pairs
-//        ) {
-//          addStringToDebugCalculation(origTaz, destTaz, departureTime, mode, "NotFound - MAX Skims")
-//        } else {
-//          addStringToDebugCalculation(origTaz, destTaz, departureTime, mode, "NotFound - Default Calculated Skims")
-//        }
         getSkimDefaultValue(
           mode,
           originUTM,
@@ -267,16 +223,6 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
       case Some(_) => maybePastSkim
       case None    => aggregatedFromPastSkims.get(skimKey)
     }
-
-//    addStringToDebugCalculation2(
-//      time.toString,
-//      skimKey.toCsv,
-//      maybePastSkims.map(_.size.toString).getOrElse("empty"),
-//      maybePastSkim.map(_.toString).getOrElse("empty"),
-//      aggregatedFromPastSkims.size.toString,
-//      "\"" + maybeSkim.map(_.toString).getOrElse("empty") + "\""
-//    )
-
     maybeSkim.asInstanceOf[Option[ODSkimmerInternal]]
   }
 

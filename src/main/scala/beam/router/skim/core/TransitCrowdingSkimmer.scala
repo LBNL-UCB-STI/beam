@@ -88,7 +88,7 @@ class TransitCrowdingSkimmer @Inject() (
 object TransitCrowdingSkimmer extends LazyLogging {
 
   case class TransitCrowdingSkimmerKey(vehicleId: Id[Vehicle], fromStopIdx: Int) extends AbstractSkimmerKey {
-    override def toCsv: String = vehicleId.toString.replace(',','.') + "," + fromStopIdx
+    override def toCsv: String = vehicleId.toString.replace(',', '.') + "," + fromStopIdx
   }
 
   case class TransitCrowdingSkimmerInternal(
