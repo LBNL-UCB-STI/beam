@@ -146,67 +146,28 @@ trait ChoosesMode {
         val vehicles = Vector(ActualVehicle(teleportationVehicle))
         self ! MobilityStatusResponse(vehicles, getCurrentTriggerIdOrGenerate)
       // Only need to get available street vehicles if our mode requires such a vehicle
-      case ChoosesModeData(
-            BasePersonData(
-              currentActivityIndex,
-              _,
-              _,
-              _,
-              plansModeOption,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _
-            ),
-            currentLocation,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _
-          ) if plansModeOption.forall(Modes.isPersonalVehicleMode) =>
+      case data: ChoosesModeData if data.personData.currentTripMode.forall(Modes.isPersonalVehicleMode) =>
         implicit val executionContext: ExecutionContext = context.system.dispatcher
-        plansModeOption match {
+        data.personData.currentTripMode match {
           case Some(CAR | DRIVE_TRANSIT) =>
             requestAvailableVehicles(
               vehicleFleets,
-              currentLocation,
-              _experiencedBeamPlan.activities(currentActivityIndex),
+              data.currentLocation,
+              _experiencedBeamPlan.activities(data.personData.currentActivityIndex),
               Some(VehicleCategory.Car)
             ) pipeTo self
           case Some(BIKE | BIKE_TRANSIT) =>
             requestAvailableVehicles(
               vehicleFleets,
-              currentLocation,
-              _experiencedBeamPlan.activities(currentActivityIndex),
+              data.currentLocation,
+              _experiencedBeamPlan.activities(data.personData.currentActivityIndex),
               Some(VehicleCategory.Bike)
             ) pipeTo self
           case _ =>
             requestAvailableVehicles(
               vehicleFleets,
-              currentLocation,
-              _experiencedBeamPlan.activities(currentActivityIndex)
+              data.currentLocation,
+              _experiencedBeamPlan.activities(data.personData.currentActivityIndex)
             ) pipeTo self
         }
 
