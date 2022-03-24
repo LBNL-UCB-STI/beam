@@ -92,7 +92,7 @@ Vehicles and Population
 ::
 
    #BeamVehicles Params
-   eam.agentsim.agents.vehicles.fuelTypesFilePath = ${beam.inputDirectory}"/beamFuelTypes.csv"
+   beam.agentsim.agents.vehicles.fuelTypesFilePath = ${beam.inputDirectory}"/beamFuelTypes.csv"
    beam.agentsim.agents.vehicles.vehicleTypesFilePath = ${beam.inputDirectory}"/vehicleTypes.csv"
    beam.agentsim.agents.vehicles.vehiclesFilePath = ${beam.inputDirectory}"/vehicles.csv"
 
