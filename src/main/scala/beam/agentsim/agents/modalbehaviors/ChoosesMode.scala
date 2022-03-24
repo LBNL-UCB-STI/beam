@@ -129,6 +129,18 @@ trait ChoosesMode {
   def bodyVehiclePersonId: PersonIdWithActorRef = PersonIdWithActorRef(id, self)
 
   onTransition { case _ -> ChoosingMode =>
+    val correctedCurrentTripMode = nextStateData match {
+      case choosesModeData: ChoosesModeData =>
+        val availableModes: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson, choosesModeData.excludeModes)
+        val nextAct = nextActivity(choosesModeData.personData).get
+        correctCurrentTripModeAccordingToRules(
+          choosesModeData.personData.currentTripMode,
+          choosesModeData.personData,
+          nextAct,
+          availableModes
+        )
+      case _ => None
+    }
     nextStateData match {
       // If I am already on a tour in a vehicle, only that vehicle is available to me
       case data: ChoosesModeData
@@ -141,14 +153,14 @@ trait ChoosesMode {
           getCurrentTriggerIdOrGenerate
         )
       // Create teleportation vehicle if we are told to use teleportation
-      case data: ChoosesModeData if data.personData.currentTripMode.exists(_.isHovTeleportation) =>
+      case data: ChoosesModeData if correctedCurrentTripMode.exists(_.isHovTeleportation) =>
         val teleportationVehicle = createSharedTeleportationVehicle(data.currentLocation)
         val vehicles = Vector(ActualVehicle(teleportationVehicle))
         self ! MobilityStatusResponse(vehicles, getCurrentTriggerIdOrGenerate)
       // Only need to get available street vehicles if our mode requires such a vehicle
-      case data: ChoosesModeData if data.personData.currentTripMode.forall(Modes.isPersonalVehicleMode) =>
+      case data: ChoosesModeData if correctedCurrentTripMode.forall(Modes.isPersonalVehicleMode) =>
         implicit val executionContext: ExecutionContext = context.system.dispatcher
-        data.personData.currentTripMode match {
+        correctedCurrentTripMode match {
           case Some(CAR | DRIVE_TRANSIT) =>
             requestAvailableVehicles(
               vehicleFleets,
@@ -700,6 +712,9 @@ trait ChoosesMode {
       case (Some(mode @ (HOV2_TELEPORTATION | HOV3_TELEPORTATION)), _)
           if availableModes.contains(CAR) && replanningIsAvailable =>
         Some(mode)
+      case (Some(CAR_HOV2 | CAR_HOV3), Some(tourMode @ (HOV2_TELEPORTATION | HOV3_TELEPORTATION)))
+          if availableModes.contains(CAR) && replanningIsAvailable =>
+        Some(tourMode)
       case (Some(mode), _) if availableModes.contains(mode) && replanningIsAvailable => Some(mode)
       case (Some(mode), _) if availableModes.contains(mode)                          => Some(WALK)
       case (None, _) if !replanningIsAvailable                                       => Some(WALK)
@@ -1415,6 +1430,7 @@ trait ChoosesMode {
 
         goto(Teleporting) using data.personData.copy(
           currentTrip = Some(chosenTrip),
+          currentTourMode = data.personData.currentTripMode,
           restOfCurrentTrip = List()
         )
 
