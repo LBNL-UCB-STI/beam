@@ -159,14 +159,14 @@ Vehicles and Population
 ::
 
    #BeamVehicles Params
-   beam.agentsim.agents.vehicles.beamFuelTypesFile = ${beam.inputDirectory}"/beamFuelTypes.csv"
-   beam.agentsim.agents.vehicles.beamVehicleTypesFile = ${beam.inputDirectory}"/vehicleTypes.csv"
-   beam.agentsim.agents.vehicles.beamVehiclesFile = ${beam.inputDirectory}"/vehicles.csv"
+   beam.agentsim.agents.vehicles.fuelTypesFilePath = ${beam.inputDirectory}"/beamFuelTypes.csv"
+   beam.agentsim.agents.vehicles.vehicleTypesFilePath = ${beam.inputDirectory}"/vehicleTypes.csv"
+   beam.agentsim.agents.vehicles.vehiclesFilePath = ${beam.inputDirectory}"/vehicles.csv"
 
 * useBikes: simple way to disable biking, set to true if vehicles file does not contain any data on biking.
-* beamFuelTypesFile: configure fuel fuel pricing.
-* beamVehicleTypesFile: configure vehicle properties including seating capacity, length, fuel type, fuel economy, and refueling parameters.
-* beamVehiclesFile: replacement to legacy MATSim vehicles.xml file. This must contain an Id and vehicle type for every vehicle id contained in households.xml.
+* fuelTypesFilePath: configure fuel fuel pricing.
+* vehicleTypesFilePath: configure vehicle properties including seating capacity, length, fuel type, fuel economy, and refueling parameters.
+* vehiclesFilePath: replacement to legacy MATSim vehicles.xml file. This must contain an Id and vehicle type for every vehicle id contained in households.xml.
 
 TAZs, Scaling, and Physsim Tuning
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
