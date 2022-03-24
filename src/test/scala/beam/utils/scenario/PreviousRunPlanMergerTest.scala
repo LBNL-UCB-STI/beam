@@ -239,7 +239,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       Some("a"),
       Some(1),
       Some(1),
-      None,
+      Some(Double.NegativeInfinity), // when read from xml this field is equal to negative infinity
       Option(activityEndTime),
       None,
       None,
@@ -273,7 +273,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
     Some(activityType),
     Some(x),
     Some(y),
-    None,
+    Some(Double.NegativeInfinity), // when read from xml this field is equal to negative infinity
     Option(endTime),
     None,
     None,
