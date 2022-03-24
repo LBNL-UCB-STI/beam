@@ -1506,7 +1506,10 @@ trait ChoosesMode {
     }
 
     val tripId = Option(
-      _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getAttributes.getAttribute("trip_id")
+      _experiencedBeamPlan
+        .trips(data.personData.currentActivityIndex)
+        .getAttributes
+        .getAttribute("trip_id")
     ).getOrElse("").toString
 
     val modeChoiceEvent = new ModeChoiceEvent(
