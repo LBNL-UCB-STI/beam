@@ -129,25 +129,24 @@ trait ChoosesMode {
   def bodyVehiclePersonId: PersonIdWithActorRef = PersonIdWithActorRef(id, self)
 
   onTransition { case _ -> ChoosingMode =>
-    val correctedCurrentTripMode = nextStateData match {
-      case choosesModeData: ChoosesModeData =>
-        val availableModes: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson, choosesModeData.excludeModes)
-        val nextAct = nextActivity(choosesModeData.personData).get
-        correctCurrentTripModeAccordingToRules(
-          choosesModeData.personData.currentTripMode,
-          choosesModeData.personData,
-          nextAct,
-          availableModes
-        )
-      case _ => None
-    }
+    val choosesModeData: ChoosesModeData = nextStateData.asInstanceOf[ChoosesModeData]
+    val availableModes: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson, choosesModeData.excludeModes)
+    val nextAct = nextActivity(choosesModeData.personData).get
+    val correctedCurrentTripMode = correctCurrentTripModeAccordingToRules(
+      choosesModeData.personData.currentTripMode,
+      choosesModeData.personData,
+      nextAct,
+      availableModes
+    )
     nextStateData match {
       // If I am already on a tour in a vehicle, only that vehicle is available to me
       case data: ChoosesModeData
-          if data.personData.currentTourPersonalVehicle.isDefined && (
-            data.personData.currentTourMode.exists(mode => Modes.isPersonalVehicleMode(mode))
-            && isLastTripWithinTour(data.personData, nextActivity(data.personData).get)
-          ) =>
+          if data.personData.currentTourPersonalVehicle.isDefined &&
+            (
+              data.personData.currentTourMode.exists(mode => mode == CAR || mode == BIKE) ||
+              data.personData.currentTourMode.exists(mode => mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT)
+              && isLastTripWithinTour(data.personData, nextAct)
+            ) =>
         self ! MobilityStatusResponse(
           Vector(beamVehicles(data.personData.currentTourPersonalVehicle.get)),
           getCurrentTriggerIdOrGenerate
@@ -165,21 +164,21 @@ trait ChoosesMode {
             requestAvailableVehicles(
               vehicleFleets,
               data.currentLocation,
-              _experiencedBeamPlan.activities(data.personData.currentActivityIndex),
+              currentActivity(data.personData),
               Some(VehicleCategory.Car)
             ) pipeTo self
           case Some(BIKE | BIKE_TRANSIT) =>
             requestAvailableVehicles(
               vehicleFleets,
               data.currentLocation,
-              _experiencedBeamPlan.activities(data.personData.currentActivityIndex),
+              currentActivity(data.personData),
               Some(VehicleCategory.Bike)
             ) pipeTo self
           case _ =>
             requestAvailableVehicles(
               vehicleFleets,
               data.currentLocation,
-              _experiencedBeamPlan.activities(data.personData.currentActivityIndex)
+              currentActivity(data.personData)
             ) pipeTo self
         }
 

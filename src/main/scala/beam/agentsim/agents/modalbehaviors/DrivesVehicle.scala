@@ -222,7 +222,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
     case Event(
           TriggerWithId(EndLegTrigger(tick), triggerId),
           LiterallyDrivingData(data: BasePersonData, _, _)
-        ) if data.currentTripMode.contains(HOV2_TELEPORTATION) || data.currentTourMode.contains(HOV3_TELEPORTATION) =>
+        ) if data.currentTripMode.contains(HOV2_TELEPORTATION) || data.currentTripMode.contains(HOV3_TELEPORTATION) =>
       updateLatestObservedTick(tick)
 
       val dataForNextLegOrActivity: BasePersonData = data.copy(
