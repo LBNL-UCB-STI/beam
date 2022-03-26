@@ -1505,12 +1505,11 @@ trait ChoosesMode {
         )
     }
 
-    val tripId = Option(
-      _experiencedBeamPlan
-        .trips(data.personData.currentActivityIndex)
-        .getAttributes
-        .getAttribute("trip_id")
-    ).getOrElse("").toString
+    val tripId = _experiencedBeamPlan.trips
+      .lift(data.personData.currentActivityIndex + 1) match {
+      case Some(trip) => trip.leg.map(_.getAttributes.getAttribute("trip_id").toString).getOrElse("")
+      case None       => ""
+    }
 
     val modeChoiceEvent = new ModeChoiceEvent(
       tick,
