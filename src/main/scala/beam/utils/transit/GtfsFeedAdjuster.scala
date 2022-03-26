@@ -25,6 +25,16 @@ import scala.collection.JavaConverters._
   *   ]"
   * }}}
   */
+
+//"--op"
+//"scale"
+//"--in"
+//"production/sfbay/r5-simple-no-local/BA.zip"
+//"--out"
+//"production/sfbay/r5-simple-faster-bart/BA.zip"
+//"--factor"
+//"0.6666667"
+
 object GtfsFeedAdjuster extends App with StrictLogging {
 
   final case class GtfsFeedAdjusterConfig(
@@ -139,7 +149,7 @@ object GtfsFeedAdjuster extends App with StrictLogging {
       case "multiplication" if cfg.factor < 1.0 =>
         GtfsUtils.removeTripsStrategy(trips, cfg.factor.toFloat, cfg.timeFrame)
       case "remove_routes"  => GtfsUtils.removeRoutesStrategy(modifiedRouteIds)
-      case "scale"          => GtfsUtils.scaleTripsStrategy(trips, cfg.factor.toInt, cfg.timeFrame)
+      case "scale"          => GtfsUtils.scaleTripsStrategy(trips, cfg.factor, cfg.timeFrame)
       case "filter_service" => GtfsUtils.filterServiceIdStrategy(filteredServiceIds)
     }
     GtfsUtils.transformGtfs(
