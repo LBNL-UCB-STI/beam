@@ -130,85 +130,56 @@ trait ChoosesMode {
   def bodyVehiclePersonId: PersonIdWithActorRef = PersonIdWithActorRef(id, self)
 
   onTransition { case _ -> ChoosingMode =>
+    val choosesModeData: ChoosesModeData = nextStateData.asInstanceOf[ChoosesModeData]
+    val availableModes: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson, choosesModeData.excludeModes)
+    val nextAct = nextActivity(choosesModeData.personData).get
+    val correctedCurrentTripMode = correctCurrentTripModeAccordingToRules(
+      choosesModeData.personData.currentTripMode,
+      choosesModeData.personData,
+      nextAct,
+      availableModes
+    )
     nextStateData match {
       // If I am already on a tour in a vehicle, only that vehicle is available to me
       case data: ChoosesModeData
-          if data.personData.currentTourPersonalVehicle.isDefined && (
-            data.personData.currentTourMode.exists(mode => mode == CAR || mode == BIKE)
-            || data.personData.currentTourMode.exists(mode => mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT)
-            && isLastTripWithinTour(data.personData, nextActivity(data.personData).get)
-          ) =>
+          if data.personData.currentTourPersonalVehicle.isDefined &&
+            (
+              data.personData.currentTourMode.exists(mode => mode == CAR || mode == BIKE) ||
+              data.personData.currentTourMode.exists(mode => mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT)
+              && isLastTripWithinTour(data.personData, nextAct)
+            ) =>
         self ! MobilityStatusResponse(
           Vector(beamVehicles(data.personData.currentTourPersonalVehicle.get)),
           getCurrentTriggerIdOrGenerate
         )
       // Create teleportation vehicle if we are told to use teleportation
-      case data: ChoosesModeData if data.personData.currentTripMode.exists(_.isHovTeleportation) =>
+      case data: ChoosesModeData if correctedCurrentTripMode.exists(_.isHovTeleportation) =>
         val teleportationVehicle = createSharedTeleportationVehicle(data.currentLocation)
         val vehicles = Vector(ActualVehicle(teleportationVehicle))
         self ! MobilityStatusResponse(vehicles, getCurrentTriggerIdOrGenerate)
       // Only need to get available street vehicles if our mode requires such a vehicle
-      case ChoosesModeData(
-            BasePersonData(
-              currentActivityIndex,
-              _,
-              _,
-              _,
-              plansModeOption @ (None | Some(CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT)),
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _
-            ),
-            currentLocation,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _,
-            _
-          ) =>
+      case data: ChoosesModeData if correctedCurrentTripMode.forall(Modes.isPersonalVehicleMode) =>
         implicit val executionContext: ExecutionContext = context.system.dispatcher
-        plansModeOption match {
+        correctedCurrentTripMode match {
           case Some(CAR | DRIVE_TRANSIT) =>
             requestAvailableVehicles(
               vehicleFleets,
-              currentLocation,
-              _experiencedBeamPlan.activities(currentActivityIndex),
+              data.currentLocation,
+              currentActivity(data.personData),
               Some(VehicleCategory.Car)
             ) pipeTo self
           case Some(BIKE | BIKE_TRANSIT) =>
             requestAvailableVehicles(
               vehicleFleets,
-              currentLocation,
-              _experiencedBeamPlan.activities(currentActivityIndex),
+              data.currentLocation,
+              currentActivity(data.personData),
               Some(VehicleCategory.Bike)
             ) pipeTo self
           case _ =>
             requestAvailableVehicles(
               vehicleFleets,
-              currentLocation,
-              _experiencedBeamPlan.activities(currentActivityIndex)
+              data.currentLocation,
+              currentActivity(data.personData)
             ) pipeTo self
         }
 
@@ -258,15 +229,19 @@ trait ChoosesMode {
       val personData = choosesModeData.personData
       val nextAct = nextActivity(personData).get
       // Make sure the current mode is allowable
-      val correctedCurrentTripMode = correctCurrentTripModeAccordingToRules(personData, nextAct, availableModes)
+      val correctedCurrentTripMode =
+        correctCurrentTripModeAccordingToRules(personData.currentTripMode, personData, nextAct, availableModes)
 
       val bodyStreetVehicle = createBodyStreetVehicle(currentPersonLocation)
       val departTime = _currentTick.get
 
       var availablePersonalStreetVehicles =
         correctedCurrentTripMode match {
-          case None | Some(CAR | BIKE | HOV2_TELEPORTATION | HOV3_TELEPORTATION) =>
-            // In these cases, a personal vehicle will be involved
+          case None | Some(CAR | BIKE) =>
+            // In these cases, a personal vehicle will be involved, but filter out teleportation vehicles
+            newlyAvailableBeamVehicles.filterNot(v => BeamVehicle.isSharedTeleportationVehicle(v.id))
+          case Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION) =>
+            // In these cases, also include teleportation vehicles
             newlyAvailableBeamVehicles
           case Some(DRIVE_TRANSIT | BIKE_TRANSIT) =>
             if (isFirstOrLastTripWithinTour(personData, nextAct)) {
@@ -722,13 +697,14 @@ trait ChoosesMode {
   } using completeChoiceIfReady)
 
   private def correctCurrentTripModeAccordingToRules(
+    currentTripMode: Option[BeamMode],
     personData: BasePersonData,
     nextAct: Activity,
     availableModes: Seq[BeamMode]
   ): Option[BeamMode] = {
     val replanningIsAvailable =
       personData.numberOfReplanningAttempts < beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts
-    (personData.currentTripMode, personData.currentTourMode) match {
+    (currentTripMode, personData.currentTourMode) match {
       case (_, Some(CAR | BIKE)) if personData.currentTourPersonalVehicle.isDefined => personData.currentTourMode
       case (_, Some(DRIVE_TRANSIT | BIKE_TRANSIT))
           if personData.currentTourPersonalVehicle.isDefined && isLastTripWithinTour(personData, nextAct) =>
@@ -736,6 +712,9 @@ trait ChoosesMode {
       case (Some(mode @ (HOV2_TELEPORTATION | HOV3_TELEPORTATION)), _)
           if availableModes.contains(CAR) && replanningIsAvailable =>
         Some(mode)
+      case (Some(CAR_HOV2 | CAR_HOV3), Some(tourMode @ (HOV2_TELEPORTATION | HOV3_TELEPORTATION)))
+          if availableModes.contains(CAR) && replanningIsAvailable =>
+        Some(tourMode)
       case (Some(mode), _) if availableModes.contains(mode) && replanningIsAvailable => Some(mode)
       case (Some(mode), _) if availableModes.contains(mode)                          => Some(WALK)
       case (None, _) if !replanningIsAvailable                                       => Some(WALK)
@@ -1033,7 +1012,7 @@ trait ChoosesMode {
   ): Seq[EmbodiedBeamTrip] = {
     itineraries.map { itin =>
       itin.tripClassifier match {
-        case CAR | DRIVE_TRANSIT | BIKE_TRANSIT | BIKE =>
+        case mode if Modes.isPersonalVehicleMode(mode) =>
           // find parking legs (the subsequent leg of the same vehicle)
           val parkingLegs = itin.legs.zip(itin.legs.tail).collect {
             case (leg1, leg2) if leg1.beamVehicleId == leg2.beamVehicleId && legVehicleHasParkingBehavior(leg2) => leg2
@@ -1260,7 +1239,7 @@ trait ChoosesMode {
               }
             case Some(_) =>
               val correctedTripMode =
-                correctCurrentTripModeAccordingToRules(personData, nextAct, availableModesForTrips)
+                correctCurrentTripModeAccordingToRules(None, personData, nextAct, availableModesForTrips)
               if (correctedTripMode != personData.currentTripMode) {
                 //give another chance to make a choice without predefined mode
                 gotoChoosingModeWithoutPredefinedMode(choosesModeData)
@@ -1458,6 +1437,7 @@ trait ChoosesMode {
 
         goto(Teleporting) using data.personData.copy(
           currentTrip = Some(chosenTrip),
+          currentTourMode = data.personData.currentTripMode,
           restOfCurrentTrip = List()
         )
 
