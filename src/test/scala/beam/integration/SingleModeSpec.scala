@@ -11,7 +11,7 @@ import beam.router.RouteHistory
 import beam.sflight.RouterForTest
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.{BeamHelper, BeamMobsim, RideHailFleetInitializerProvider}
-import beam.utils.SimRunnerForTest
+import beam.utils.{MathUtils, SimRunnerForTest}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
@@ -269,8 +269,10 @@ class SingleModeSpec
       val personDepartureEvents = events.collect { case event: PersonDepartureEvent => event }
       personDepartureEvents should not be empty
       val regularPersonEvents = filterOutProfessionalDriversAndCavs(personDepartureEvents)
-      val (drive, others) = regularPersonEvents.map(_.getLegMode).partition(_ == "car")
-      others.size should be < (0.02 * drive.size).toInt
+      val othersCount = regularPersonEvents.count(_.getLegMode != "car")
+      withClue("Majority of agents should use cars. Other modes take place when no car available.") {
+        othersCount should be < MathUtils.doubleToInt(0.02 * regularPersonEvents.size)
+      }
     }
   }
 
