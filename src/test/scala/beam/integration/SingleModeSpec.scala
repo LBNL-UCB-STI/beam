@@ -154,8 +154,10 @@ class SingleModeSpec
             val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
               case activity: Activity if activity.getType == "Home" =>
                 Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
-              case activity: Activity => Seq(activity)
-              case _: Leg             => Nil
+              case activity: Activity =>
+                Seq(activity)
+                Seq(activity, scenario.getPopulation.getFactory.createLeg(""))
+              case _: Leg => Nil
             }.flatten
             if (newPlanElements.last.isInstanceOf[Leg]) {
               newPlanElements.remove(newPlanElements.size - 1)
@@ -205,7 +207,9 @@ class SingleModeSpec
       val regularPersonEvents = filterOutProfessionalDriversAndCavs(personDepartureEvents)
       val (driveTransit, others) = regularPersonEvents.map(_.getLegMode).partition(_ == "drive_transit")
       //router gives too little 'drive transit' trips, most of the persons chooses 'car' in this case
-      others.count(_ == "walk_transit") should be < (0.2 * driveTransit.size).toInt
+      withClue("When transit is available majority of agents should use drive_transit") {
+        others.count(_ == "walk_transit") should be < MathUtils.doubleToInt(0.2 * driveTransit.size)
+      }
 
       val eventsByPerson = events.groupBy(_.getAttributes.get("person"))
 

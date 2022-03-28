@@ -8,6 +8,7 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token, VehicleOrToken}
+import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
@@ -132,8 +133,10 @@ trait ChoosesMode {
     val choosesModeData: ChoosesModeData = nextStateData.asInstanceOf[ChoosesModeData]
     val availableModes: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson, choosesModeData.excludeModes)
     val nextAct = nextActivity(choosesModeData.personData).get
+    val currentTourMode = _experiencedBeamPlan.getTourStrategy[ModeChoiceStrategy](nextAct).flatMap(_.mode)
     val correctedCurrentTripMode = correctCurrentTripModeAccordingToRules(
       choosesModeData.personData.currentTripMode,
+      currentTourMode,
       choosesModeData.personData,
       nextAct,
       availableModes
@@ -143,8 +146,8 @@ trait ChoosesMode {
       case data: ChoosesModeData
           if data.personData.currentTourPersonalVehicle.isDefined &&
             (
-              data.personData.currentTourMode.exists(mode => mode == CAR || mode == BIKE) ||
-              data.personData.currentTourMode.exists(mode => mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT)
+              currentTourMode.exists(mode => mode == CAR || mode == BIKE) ||
+              currentTourMode.exists(mode => mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT)
               && isLastTripWithinTour(data.personData, nextAct)
             ) =>
         self ! MobilityStatusResponse(
@@ -227,9 +230,15 @@ trait ChoosesMode {
       val availableModes: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson, choosesModeData.excludeModes)
       val personData = choosesModeData.personData
       val nextAct = nextActivity(personData).get
+      val currentTourMode = _experiencedBeamPlan.getTourStrategy[ModeChoiceStrategy](nextAct).flatMap(_.mode)
       // Make sure the current mode is allowable
-      val correctedCurrentTripMode =
-        correctCurrentTripModeAccordingToRules(personData.currentTripMode, personData, nextAct, availableModes)
+      val correctedCurrentTripMode = correctCurrentTripModeAccordingToRules(
+        personData.currentTripMode,
+        currentTourMode,
+        personData,
+        nextAct,
+        availableModes
+      )
 
       val bodyStreetVehicle = createBodyStreetVehicle(currentPersonLocation)
       val departTime = _currentTick.get
@@ -697,17 +706,18 @@ trait ChoosesMode {
 
   private def correctCurrentTripModeAccordingToRules(
     currentTripMode: Option[BeamMode],
+    currentTourMode: Option[BeamMode],
     personData: BasePersonData,
     nextAct: Activity,
     availableModes: Seq[BeamMode]
   ): Option[BeamMode] = {
     val replanningIsAvailable =
       personData.numberOfReplanningAttempts < beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts
-    (currentTripMode, personData.currentTourMode) match {
-      case (_, Some(CAR | BIKE)) if personData.currentTourPersonalVehicle.isDefined => personData.currentTourMode
+    (currentTripMode, currentTourMode) match {
+      case (_, Some(CAR | BIKE)) if personData.currentTourPersonalVehicle.isDefined => currentTourMode
       case (_, Some(DRIVE_TRANSIT | BIKE_TRANSIT))
           if personData.currentTourPersonalVehicle.isDefined && isLastTripWithinTour(personData, nextAct) =>
-        personData.currentTourMode
+        currentTourMode
       case (Some(mode @ (HOV2_TELEPORTATION | HOV3_TELEPORTATION)), _)
           if availableModes.contains(CAR) && replanningIsAvailable =>
         Some(mode)
@@ -1237,8 +1247,15 @@ trait ChoosesMode {
                 gotoFinishingModeChoice(bushwhackingTrip)
               }
             case Some(_) =>
+              val currentTourMode = _experiencedBeamPlan.getTourStrategy[ModeChoiceStrategy](nextAct).flatMap(_.mode)
               val correctedTripMode =
-                correctCurrentTripModeAccordingToRules(None, personData, nextAct, availableModesForTrips)
+                correctCurrentTripModeAccordingToRules(
+                  None,
+                  currentTourMode,
+                  personData,
+                  nextAct,
+                  availableModesForTrips
+                )
               if (correctedTripMode != personData.currentTripMode) {
                 //give another chance to make a choice without predefined mode
                 gotoChoosingModeWithoutPredefinedMode(choosesModeData)
@@ -1397,6 +1414,10 @@ trait ChoosesMode {
       _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getAttributes.getAttribute("trip_id")
     ).getOrElse("").toString
 
+    val nextAct = nextActivity(data.personData).get
+    val currentTour = _experiencedBeamPlan.getTourContaining(nextAct)
+    val currentTrip = _experiencedBeamPlan.getTripContaining(nextAct)
+
     val modeChoiceEvent = new ModeChoiceEvent(
       tick,
       id,
@@ -1407,10 +1428,10 @@ trait ChoosesMode {
       data.availableAlternatives.get,
       data.availablePersonalStreetVehicles.nonEmpty,
       chosenTrip.legs.view.map(_.beamLeg.travelPath.distanceInM).sum,
-      _experiencedBeamPlan.tourIndexOfElement(nextActivity(data.personData).get),
+      _experiencedBeamPlan.tourIndexOfElement(nextAct),
       chosenTrip,
       _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getType,
-      nextActivity(data.personData).get.getType,
+      nextAct.getType,
       tripId
     )
     eventsManager.processEvent(modeChoiceEvent)
@@ -1427,9 +1448,11 @@ trait ChoosesMode {
           )
         )
 
+        val strategy = ModeChoiceStrategy(data.personData.currentTripMode)
+        _experiencedBeamPlan.putStrategy(currentTrip, strategy)
+        _experiencedBeamPlan.putStrategy(currentTour, strategy)
         goto(Teleporting) using data.personData.copy(
           currentTrip = Some(chosenTrip),
-          currentTourMode = data.personData.currentTripMode,
           restOfCurrentTrip = List()
         )
 
@@ -1460,11 +1483,15 @@ trait ChoosesMode {
             )
           )
         )
+        val chosenTripMode = Some(chosenTrip.tripClassifier)
+        val currentTourMode = _experiencedBeamPlan.getTourStrategy[ModeChoiceStrategy](nextAct).flatMap(_.mode)
+        val currentTourModeToStore = currentTourMode.orElse(chosenTripMode)
+        _experiencedBeamPlan.putStrategy(currentTrip, ModeChoiceStrategy(chosenTripMode))
+        _experiencedBeamPlan.putStrategy(currentTour, ModeChoiceStrategy(currentTourModeToStore))
         goto(WaitingForDeparture) using data.personData.copy(
           currentTrip = Some(chosenTrip),
           restOfCurrentTrip = chosenTrip.legs.toList,
-          currentTourMode = data.personData.currentTourMode.orElse(Some(chosenTrip.tripClassifier)),
-          currentTripMode = data.personData.currentTripMode.orElse(Some(chosenTrip.tripClassifier)),
+          currentTripMode = data.personData.currentTripMode.orElse(chosenTripMode),
           currentTourPersonalVehicle =
             if (isCurrentPersonalVehicleVoided)
               vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id)

@@ -7,7 +7,9 @@ import beam.router.Modes.BeamMode
   */
 object Strategy {
 
-  sealed trait Strategy
+  trait Strategy {
+    def tripStrategies(tour: Tour): Seq[(Trip, Strategy)] = Seq.empty
+  }
 
   case class ModeChoiceStrategy(mode: Option[BeamMode]) extends Strategy
 
