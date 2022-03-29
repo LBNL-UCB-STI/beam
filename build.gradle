@@ -48,6 +48,7 @@ targetCompatibility = 1.8
 
 compileScala.options.encoding = 'UTF-8'
 compileScala.scalaCompileOptions.additionalParameters = ["-Xmx1g"]
+
 def scalaBinaryVersion = "2.12"
 def scalaBinaryFullVersion = "${scalaBinaryVersion}.12"
 def akkaBinaryVersion = "2.6.6"
@@ -333,7 +334,7 @@ dependencies {
 // Autoformatting using scalafmt
 
 scalafmt {
-    // configFilePath = ".scalafmt.conf" // .scalafmt.conf in the project root is default value, provide only if other location is needed
+    configFilePath = ".scalafmt.conf" // .scalafmt.conf in the project root is default value, provide only if other location is needed
 }
 
 configurations.all {
@@ -382,7 +383,21 @@ tasks.withType(ScalaCompile) {
     scalaCompileOptions.forkOptions.with {
         memoryMaximumSize = '2g'
     }
+    // new:
+        List<String> parameters =
+    configurations.scalaCompilerPlugin.files.collect {
+        '-Xplugin:'+ it.absolutePath
+    }
+
+    // Add existing parameters
+    List<String> existingParameters = scalaCompileOptions.additionalParameters
+    if (existingParameters) {
+        parameters.addAll(existingParameters)
+    }
+        // Finally set the additionalParameters
+    scalaCompileOptions.additionalParameters = parameters
 }
+
 
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
@@ -470,6 +485,7 @@ task generateConfig {
         }
     }
 }
+
 
 task copyConfigWithoutTimeStamp(type: Copy) {
     from 'src/main/scala/beam/sim/BeamConfig.scala'
