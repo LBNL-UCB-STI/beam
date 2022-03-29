@@ -221,7 +221,7 @@ class ModeChoiceMultinomialLogit(
       } else {
         1d
       }
-      getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity) * factor
+      getGeneralizedTimeOfLeg(embodiedBeamTrip, x, attributesOfIndividual, destinationActivity) * factor
     }.sum + getGeneralizedTime(waitingTime, None, None) + getGeneralizedOtherTrip(embodiedBeamTrip,attributesOfIndividual, destinationActivity)
   }
 
