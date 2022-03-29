@@ -284,6 +284,7 @@ class ModeChoiceMultinomialLogit(
       "car_owner"->0.0
     ))
     otherMults.map { case (k, v) => (k, v * otherVals.getOrElse(k, 0.0)) }.foldLeft(0.0)(_+_._2)
+  }
 
   override def getCrowdingForTrip(embodiedBeamTrip: EmbodiedBeamTrip): Double = {
     val percentile =
