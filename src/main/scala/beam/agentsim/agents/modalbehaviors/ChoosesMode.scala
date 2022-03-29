@@ -136,9 +136,7 @@ trait ChoosesMode {
     val currentTourMode = _experiencedBeamPlan.getTourStrategy[ModeChoiceStrategy](nextAct).flatMap(_.mode)
     val correctedCurrentTripMode = correctCurrentTripModeAccordingToRules(
       choosesModeData.personData.currentTripMode,
-      currentTourMode,
       choosesModeData.personData,
-      nextAct,
       availableModes
     )
     nextStateData match {
@@ -230,13 +228,10 @@ trait ChoosesMode {
       val availableModes: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson, choosesModeData.excludeModes)
       val personData = choosesModeData.personData
       val nextAct = nextActivity(personData).get
-      val currentTourMode = _experiencedBeamPlan.getTourStrategy[ModeChoiceStrategy](nextAct).flatMap(_.mode)
       // Make sure the current mode is allowable
       val correctedCurrentTripMode = correctCurrentTripModeAccordingToRules(
         personData.currentTripMode,
-        currentTourMode,
         personData,
-        nextAct,
         availableModes
       )
 
@@ -706,28 +701,19 @@ trait ChoosesMode {
 
   private def correctCurrentTripModeAccordingToRules(
     currentTripMode: Option[BeamMode],
-    currentTourMode: Option[BeamMode],
     personData: BasePersonData,
-    nextAct: Activity,
     availableModes: Seq[BeamMode]
   ): Option[BeamMode] = {
     val replanningIsAvailable =
       personData.numberOfReplanningAttempts < beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts
-    (currentTripMode, currentTourMode) match {
-      case (_, Some(CAR | BIKE)) if personData.currentTourPersonalVehicle.isDefined => currentTourMode
-      case (_, Some(DRIVE_TRANSIT | BIKE_TRANSIT))
-          if personData.currentTourPersonalVehicle.isDefined && isLastTripWithinTour(personData, nextAct) =>
-        currentTourMode
-      case (Some(mode @ (HOV2_TELEPORTATION | HOV3_TELEPORTATION)), _)
+    currentTripMode match {
+      case Some(mode @ (HOV2_TELEPORTATION | HOV3_TELEPORTATION))
           if availableModes.contains(CAR) && replanningIsAvailable =>
         Some(mode)
-      case (Some(CAR_HOV2 | CAR_HOV3), Some(tourMode @ (HOV2_TELEPORTATION | HOV3_TELEPORTATION)))
-          if availableModes.contains(CAR) && replanningIsAvailable =>
-        Some(tourMode)
-      case (Some(mode), _) if availableModes.contains(mode) && replanningIsAvailable => Some(mode)
-      case (Some(mode), _) if availableModes.contains(mode)                          => Some(WALK)
-      case (None, _) if !replanningIsAvailable                                       => Some(WALK)
-      case _                                                                         => None
+      case Some(mode) if availableModes.contains(mode) && replanningIsAvailable => Some(mode)
+      case Some(mode) if availableModes.contains(mode)                          => Some(WALK)
+      case None if !replanningIsAvailable                                       => Some(WALK)
+      case _                                                                    => None
     }
   }
 
@@ -1247,15 +1233,7 @@ trait ChoosesMode {
                 gotoFinishingModeChoice(bushwhackingTrip)
               }
             case Some(_) =>
-              val currentTourMode = _experiencedBeamPlan.getTourStrategy[ModeChoiceStrategy](nextAct).flatMap(_.mode)
-              val correctedTripMode =
-                correctCurrentTripModeAccordingToRules(
-                  None,
-                  currentTourMode,
-                  personData,
-                  nextAct,
-                  availableModesForTrips
-                )
+              val correctedTripMode = correctCurrentTripModeAccordingToRules(None, personData, availableModesForTrips)
               if (correctedTripMode != personData.currentTripMode) {
                 //give another chance to make a choice without predefined mode
                 gotoChoosingModeWithoutPredefinedMode(choosesModeData)

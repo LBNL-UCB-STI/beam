@@ -154,7 +154,7 @@ class BeamPlan extends Plan {
 
     planElement match {
       case tour: Tour =>
-        strategy.tripStrategies(tour).foreach { case (trip, strategy) =>
+        strategy.tripStrategies(tour, this).foreach { case (trip, strategy) =>
           putStrategy(trip, strategy)
         }
       case trip: Trip =>
