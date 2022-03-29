@@ -106,9 +106,9 @@ Fetch the remote branches and tags::
 
     git fetch
 
-Now checkout the latest stable version of BEAM, v0.7.0::
+Now checkout the develop branch::
 
-   git checkout v0.7.0
+   git checkout develop
 
 
 Run the gradle command to compile BEAM, this will also downloaded all required dependencies automatically::
