@@ -15,7 +15,7 @@ import java.nio.file.Files
 class PopulationSamplingSpec extends AnyWordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
 
   private def getObjectsForPopulationSampling(
-    seed:Integer = 0
+    seed: Integer = 0
   ): (MutableScenario, BeamScenario, BeamConfig, BeamServices, String) = {
     if (seed.equals(0)) {
       return prepareObjectsForPopulationSampling(getConfigWithRandomSeed)
@@ -41,9 +41,7 @@ class PopulationSamplingSpec extends AnyWordSpecLike with Matchers with BeamHelp
           "beam.agentsim.agentSampleSizeAsFractionOfPopulation",
           ConfigValueFactory.fromAnyRef(0.5)
         )
-        .withValue(
-          "beam.agentsim.randomSeed",
-          ConfigValueFactory.fromAnyRef(seed))
+        .withValue("beam.agentsim.randomSeed", ConfigValueFactory.fromAnyRef(seed))
         .resolve()
     )
   }
@@ -75,13 +73,27 @@ class PopulationSamplingSpec extends AnyWordSpecLike with Matchers with BeamHelp
       val samplingDataOne = getObjectsForPopulationSampling(1441)
       val samplingDataTwo = getObjectsForPopulationSampling(1441)
       val agentsBeforeSamplingOneSize = samplingDataOne._1.getPopulation.getPersons.keySet().size()
-      PopulationScaling.samplePopulation(samplingDataOne._1, samplingDataOne._2, samplingDataOne._3, samplingDataOne._4, samplingDataOne._5)
+      PopulationScaling.samplePopulation(
+        samplingDataOne._1,
+        samplingDataOne._2,
+        samplingDataOne._3,
+        samplingDataOne._4,
+        samplingDataOne._5
+      )
 
       agentsBeforeSamplingOneSize should be <= 50
-      val agentsAfterSamplingOne = samplingDataOne._1.getPopulation.getPersons.keySet().stream().map(a => a.leftSide).toArray
+      val agentsAfterSamplingOne =
+        samplingDataOne._1.getPopulation.getPersons.keySet().stream().map(a => a.leftSide).toArray
 
-      PopulationScaling.samplePopulation(samplingDataTwo._1, samplingDataTwo._2, samplingDataTwo._3, samplingDataTwo._4, samplingDataTwo._5)
-      val agentsAfterSamplingTwo = samplingDataTwo._1.getPopulation.getPersons.keySet().stream().map(a => a.leftSide).toArray
+      PopulationScaling.samplePopulation(
+        samplingDataTwo._1,
+        samplingDataTwo._2,
+        samplingDataTwo._3,
+        samplingDataTwo._4,
+        samplingDataTwo._5
+      )
+      val agentsAfterSamplingTwo =
+        samplingDataTwo._1.getPopulation.getPersons.keySet().stream().map(a => a.leftSide).toArray
 
       agentsAfterSamplingOne shouldBe agentsAfterSamplingTwo
     }
@@ -90,25 +102,54 @@ class PopulationSamplingSpec extends AnyWordSpecLike with Matchers with BeamHelp
       val samplingDataOne = getObjectsForPopulationSampling()
       val samplingDataTwo = getObjectsForPopulationSampling()
       val agentsBeforeSamplingOneSize = samplingDataOne._1.getPopulation.getPersons.keySet().size()
-      PopulationScaling.samplePopulation(samplingDataOne._1, samplingDataOne._2, samplingDataOne._3, samplingDataOne._4, samplingDataOne._5)
-      PopulationScaling.samplePopulation(samplingDataTwo._1, samplingDataTwo._2, samplingDataTwo._3, samplingDataTwo._4, samplingDataTwo._5)
+      PopulationScaling.samplePopulation(
+        samplingDataOne._1,
+        samplingDataOne._2,
+        samplingDataOne._3,
+        samplingDataOne._4,
+        samplingDataOne._5
+      )
+      PopulationScaling.samplePopulation(
+        samplingDataTwo._1,
+        samplingDataTwo._2,
+        samplingDataTwo._3,
+        samplingDataTwo._4,
+        samplingDataTwo._5
+      )
 
       agentsBeforeSamplingOneSize should be <= 50
-      val agentsAfterSamplingOne = samplingDataOne._1.getPopulation.getPersons.keySet().stream().map(a => a.leftSide).toArray
-      val agentsAfterSamplingTwo = samplingDataTwo._1.getPopulation.getPersons.keySet().stream().map(a => a.leftSide).toArray
+      val agentsAfterSamplingOne =
+        samplingDataOne._1.getPopulation.getPersons.keySet().stream().map(a => a.leftSide).toArray
+      val agentsAfterSamplingTwo =
+        samplingDataTwo._1.getPopulation.getPersons.keySet().stream().map(a => a.leftSide).toArray
 
       agentsAfterSamplingOne should not equal agentsAfterSamplingTwo
     }
+
     "sample different agents for different randomSeeds" in {
       val samplingDataOne = getObjectsForPopulationSampling(1441)
       val samplingDataTwo = getObjectsForPopulationSampling(23)
       val agentsBeforeSamplingOneSize = samplingDataOne._1.getPopulation.getPersons.keySet().size()
-      PopulationScaling.samplePopulation(samplingDataOne._1, samplingDataOne._2, samplingDataOne._3, samplingDataOne._4, samplingDataOne._5)
-      PopulationScaling.samplePopulation(samplingDataTwo._1, samplingDataTwo._2, samplingDataTwo._3, samplingDataTwo._4, samplingDataTwo._5)
+      PopulationScaling.samplePopulation(
+        samplingDataOne._1,
+        samplingDataOne._2,
+        samplingDataOne._3,
+        samplingDataOne._4,
+        samplingDataOne._5
+      )
+      PopulationScaling.samplePopulation(
+        samplingDataTwo._1,
+        samplingDataTwo._2,
+        samplingDataTwo._3,
+        samplingDataTwo._4,
+        samplingDataTwo._5
+      )
 
       agentsBeforeSamplingOneSize should be <= 50
-      val agentsAfterSamplingOne = samplingDataOne._1.getPopulation.getPersons.keySet().stream().map(a => a.leftSide).toArray
-      val agentsAfterSamplingTwo = samplingDataTwo._1.getPopulation.getPersons.keySet().stream().map(a => a.leftSide).toArray
+      val agentsAfterSamplingOne =
+        samplingDataOne._1.getPopulation.getPersons.keySet().stream().map(a => a.leftSide).toArray
+      val agentsAfterSamplingTwo =
+        samplingDataTwo._1.getPopulation.getPersons.keySet().stream().map(a => a.leftSide).toArray
 
       agentsAfterSamplingOne should not equal agentsAfterSamplingTwo
     }

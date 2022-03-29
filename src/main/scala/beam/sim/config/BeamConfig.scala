@@ -2162,8 +2162,9 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim = {
         BeamConfig.Beam.Agentsim(
-          randomSeed = if (c.hasPathOrNull("randomSeed"))
-            c.getInt("randomSeed")
+          randomSeed =
+            if (c.hasPathOrNull("randomSeed"))
+              c.getInt("randomSeed")
             else new Random().nextInt(),
           agentSampleSizeAsFractionOfPopulation =
             if (c.hasPathOrNull("agentSampleSizeAsFractionOfPopulation"))
