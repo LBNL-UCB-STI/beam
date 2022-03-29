@@ -10,6 +10,7 @@ import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
+import beam.agentsim.agents.planning.BeamPlan.atHome
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
@@ -104,7 +105,7 @@ class HouseholdFleetManager(
     case GetVehicleTypes(triggerId) =>
       sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet, triggerId)
 
-    case MobilityStatusInquiry(personId, whenWhere, _, requireVehicleCategoryAvailable, triggerId) =>
+    case MobilityStatusInquiry(personId, whenWhere, originActivity, requireVehicleCategoryAvailable, triggerId) =>
       {
         for {
           neededVehicleCategory              <- requireVehicleCategoryAvailable
@@ -157,13 +158,15 @@ class HouseholdFleetManager(
         }
       }.getOrElse {
         availableVehicles = availableVehicles match {
-          case firstVehicle :: rest =>
+          //in case of replanning because of TRANSIT failure WALK_TRANSIT is used
+          //but we may want to introduce maxWalkingDistance and check that the agent is close enough to the vehicle
+          case firstVehicle :: rest if atHome(originActivity) =>
             logger.debug("Vehicle {} is now taken", firstVehicle.id)
             firstVehicle.becomeDriver(sender)
             sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)), triggerId)
             rest
-          case Nil =>
-            logger.debug(s"Not returning vehicle because no default is defined")
+          case _ =>
+            logger.debug(s"Not returning vehicle because no default is defined or agent is not at home")
             sender() ! MobilityStatusResponse(Vector(), triggerId)
             Nil
         }
