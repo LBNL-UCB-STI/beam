@@ -16,14 +16,17 @@ object Extractors {
     seq.iterator
   }
 
+  def byTrigger(triggerId: Long): Iterator[RowData] => Iterator[RowData] = _.filter(_.triggerId == triggerId)
+
   private def isSenderOrReceiver(personId: String, row: RowData) = {
     row.sender.name == personId || row.receiver.name == personId
   }
 
   def messageExtractor(extractorType: ExtractorType): Function[Iterator[RowData], Iterator[RowData]] =
     extractorType match {
-      case AllMessages  => identity
-      case ByPerson(id) => byPerson(id)
+      case AllMessages   => identity
+      case ByPerson(id)  => byPerson(id)
+      case ByTrigger(id) => byTrigger(id)
     }
 
   sealed trait ExtractorType
@@ -31,5 +34,6 @@ object Extractors {
   object AllMessages extends ExtractorType
 
   case class ByPerson(id: String) extends ExtractorType
+  case class ByTrigger(id: Long) extends ExtractorType
 
 }

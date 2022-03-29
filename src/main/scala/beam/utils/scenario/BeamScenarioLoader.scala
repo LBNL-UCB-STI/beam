@@ -156,7 +156,7 @@ class BeamScenarioLoader(
       personAttributes.putAttribute(personId, "excluded-modes", personInfo.excludedModes.mkString(","))
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
-
+      person.getAttributes.putAttribute("industry", personInfo.industry.getOrElse(""))
       result.addPerson(person)
     }
 
@@ -210,9 +210,9 @@ class BeamScenarioLoader(
           }
 
           listOfElementsGroupedByPlan.foreach { planElement =>
-            if (planElement.planElementType.equalsIgnoreCase("leg")) {
+            if (planElement.planElementType == PlanElement.Leg) {
               buildAndAddLegToPlan(currentPlan, planElement)
-            } else if (planElement.planElementType.equalsIgnoreCase("activity")) {
+            } else if (planElement.planElementType == PlanElement.Activity) {
               buildAndAddActivityToPlan(currentPlan, planElement)
             }
           }

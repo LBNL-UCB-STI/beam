@@ -141,7 +141,9 @@ class BeamMobsim @Inject() (
 
     if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
-      fillInSecondaryActivities(matsimServices.getScenario.getHouseholds)
+      fillInSecondaryActivities(
+        beamServices.matsimServices.getScenario.getHouseholds
+      )
     }
 
     if (beamServices.beamConfig.beam.output.writePlansAndStopSimulation) {
@@ -167,6 +169,7 @@ class BeamMobsim @Inject() (
       ),
       "BeamMobsim.iteration"
     )
+
     Await.result(iteration ? "Run!", timeout.duration)
 
     logger.info("Agentsim finished.")
@@ -236,7 +239,6 @@ class BeamMobsim @Inject() (
       }
 
     }
-
     logger.info("Done filling in secondary trips in plans")
   }
 
@@ -509,8 +511,7 @@ class BeamMobsimIteration(
       chargingNetworkManager,
       sharedVehicleFleets,
       matsimServices.getEvents,
-      routeHistory,
-      envelopeInUTM
+      routeHistory
     ),
     "population"
   )

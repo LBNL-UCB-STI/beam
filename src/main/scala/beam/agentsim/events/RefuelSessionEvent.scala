@@ -17,7 +17,7 @@ case class RefuelSessionEvent(
   energyInJoules: Double,
   sessionStartingFuelLevelInJoules: Double,
   sessionDuration: Double,
-  vehId: Id[Vehicle],
+  vehicleId: Id[Vehicle],
   vehicleType: BeamVehicleType,
   personId: Id[Person],
   activityType: String,
@@ -28,7 +28,7 @@ case class RefuelSessionEvent(
 
   import RefuelSessionEvent._
 
-  override def getPersonId: Id[Person] = Id.create(vehId, classOf[Person])
+  override def getPersonId: Id[Person] = Id.create(vehicleId, classOf[Person])
   override def getEventType: String = EVENT_TYPE
 
   private val parkingZoneId = stall.parkingZoneId
@@ -48,7 +48,7 @@ case class RefuelSessionEvent(
     val attributes = super.getAttributes
     attributes.put(ATTRIBUTE_ENERGY_DELIVERED, energyInJoules.toString)
     attributes.put(ATTRIBUTE_SESSION_DURATION, sessionDuration.toString)
-    attributes.put(ATTRIBUTE_VEHICLE_ID, vehId.toString)
+    attributes.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
     attributes.put(ATTRIBUTE_PRICE, stall.costInDollars.toString)
     attributes.put(ATTRIBUTE_PARKING_ZONE_ID, parkingZoneId.toString)
     attributes.put(ATTRIBUTE_LOCATION_X, stall.locationUTM.getX.toString)

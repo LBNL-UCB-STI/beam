@@ -26,8 +26,6 @@ class CarGraphHopperWrapper(
   useAlternativeRoutes: Boolean
 ) extends GraphHopperWrapper(graphDir, geo, id2Link, useAlternativeRoutes) {
 
-  override protected val beamMode: Modes.BeamMode = BeamMode.CAR
-
   override protected def getProfile(): Profile = {
     if (carRouter == "quasiDynamicGH") {
       BeamProfile

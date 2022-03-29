@@ -10,7 +10,7 @@ import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
 import beam.sim.population.PopulationAdjustment.EXCLUDED_MODES
 import beam.sim.{BeamHelper, BeamServices}
-import beam.utils.FileUtils
+import beam.utils.{BeamVehicleUtils, FileUtils}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.data.synthpop.models.Models.Household
 import com.conveyal.r5.transit.TransportNetwork
@@ -32,7 +32,7 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
   "Running a single person car-only scenario and scale up charging events" must "catch charging events and measure virtual power greater or equal than real power" in {
     val beamVilleCarId = Id.create("beamVilleCar", classOf[BeamVehicleType])
     val vehicleId = Id.create(2, classOf[Vehicle])
-    val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
+    val filesPath = "test/test-resources/beam/input"
     val config: Config = ConfigFactory
       .parseString(
         s"""|beam.outputs.events.fileOutputFormats = csv
@@ -112,13 +112,13 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
                       ChargingPointType.getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
                     )
                   )
-                  totRealPower += ScaleUpCharging.toPowerInKW(energyInJoules, sessionDuration.toInt)
+                  totRealPower += BeamVehicleUtils.toPowerInKW(energyInJoules, sessionDuration.toInt)
                 case e: PathTraversalEvent if e.vehicleId == vehicleId =>
                   energyConsumed += e.primaryFuelConsumed
-                case e: RefuelSessionEvent if e.vehId.toString.startsWith(ScaleUpCharging.VIRTUAL_CAR_ALIAS) =>
-                  totVirtualPower += ScaleUpCharging.toPowerInKW(e.energyInJoules, e.sessionDuration.toInt)
+                case e: RefuelSessionEvent if e.vehicleId.toString.startsWith(ScaleUpCharging.VIRTUAL_CAR_ALIAS) =>
+                  totVirtualPower += BeamVehicleUtils.toPowerInKW(e.energyInJoules, e.sessionDuration.toInt)
                 case e: RefuelSessionEvent =>
-                  totRealPower += ScaleUpCharging.toPowerInKW(e.energyInJoules, e.sessionDuration.toInt)
+                  totRealPower += BeamVehicleUtils.toPowerInKW(e.energyInJoules, e.sessionDuration.toInt)
                 case _ =>
               }
             }

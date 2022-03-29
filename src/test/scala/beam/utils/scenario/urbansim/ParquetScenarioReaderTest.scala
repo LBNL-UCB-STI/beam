@@ -73,7 +73,8 @@ class ParquetScenarioReaderTest extends AnyWordSpec with Matchers {
           rank = 0,
           excludedModes = "",
           isFemale = false,
-          valueOfTime = 0
+          valueOfTime = 0,
+          industry = None
         )
       )
     }

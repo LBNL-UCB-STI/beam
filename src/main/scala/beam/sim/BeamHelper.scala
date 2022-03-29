@@ -19,7 +19,7 @@ import beam.router._
 import beam.router.gtfs.{FareCalculator, GTFSUtils}
 import beam.router.osm.TollCalculator
 import beam.router.r5._
-import beam.router.skim.core.{DriveTimeSkimmer, ODSkimmer, TAZSkimmer, TransitCrowdingSkimmer}
+import beam.router.skim.core._
 import beam.router.skim.{ActivitySimSkimmer, Skims}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
@@ -249,6 +249,9 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[TAZSkimmer]).asEagerSingleton()
           bind(classOf[DriveTimeSkimmer]).asEagerSingleton()
           bind(classOf[TransitCrowdingSkimmer]).asEagerSingleton()
+          bind(classOf[RideHailSkimmer]).asEagerSingleton()
+          bind(classOf[FreightSkimmer]).asEagerSingleton()
+          bind(classOf[ParkingSkimmer]).asEagerSingleton()
           bind(classOf[ActivitySimSkimmer]).asEagerSingleton()
           bind(classOf[Skims]).asEagerSingleton()
 
@@ -323,6 +326,7 @@ trait BeamHelper extends LazyLogging {
       dates,
       PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),
       networkCoordinator.transportNetwork,
+      networkCoordinator.networks2,
       networkCoordinator.network,
       trainStopQuadTree,
       tazMap,
@@ -814,13 +818,11 @@ trait BeamHelper extends LazyLogging {
                 val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
                 val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
                 val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
-                val pathToTrips = s"${beamConfig.beam.exchange.scenario.folder}/trips.csv.gz"
                 val pathToBlocks = s"${beamConfig.beam.exchange.scenario.folder}/blocks.csv.gz"
                 new UrbansimReaderV2(
                   inputPersonPath = pathToPersonFile,
                   inputPlanPath = pathToPlans,
                   inputHouseholdPath = pathToHouseholds,
-                  inputTripsPath = pathToTrips,
                   inputBlockPath = pathToBlocks,
                   geoUtils,
                   shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm,
