@@ -106,7 +106,11 @@ object XmlPlanElementReader extends PlanElementReader {
     planElementIdx: Int
   ): PlanElement =
     PlanElement(
-      tripId = "",
+      tripId = if (activity.getAttributes.getAttribute("trip_id") != null) {
+        activity.getAttributes.getAttribute("trip_id").toString.filter(x => (x.isDigit || x.equals('.')))
+      } else {
+        ""
+      },
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
       planScore = plan.getScore,
