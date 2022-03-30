@@ -57,7 +57,7 @@ static def getFoldersToMap() {
 
 dockerRun {
     name 'jupyter-for-beam'
-    image 'jupyternotebook'
+    image 'jupyter/scipy-notebook'
     volumes getFoldersToMap() as Map<Object, String>
     ports "$port:8888"
     daemonize true
