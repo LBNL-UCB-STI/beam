@@ -1,0 +1,82 @@
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
+    }
+    dependencies {
+        classpath 'com.palantir.docker-run:com.palantir.docker-run.gradle.plugin:0.32.0'
+    }
+}
+
+plugins {
+    id 'com.palantir.docker-run' version '0.32.0'
+}
+
+def port = '11238'
+def token = UUID.randomUUID().toString()
+
+static def tryReadMappingFromFile(filePath, prefix){
+    File file = new File(filePath)
+    if (file.exists()){
+        def mapping = [:]
+        file.eachLine { pathToFolderToMap ->
+
+            def folder = new File(pathToFolderToMap)
+            def exist = folder.exists()
+
+
+            def nameForJupyter = pathToFolderToMap
+                    .tokenize('/')[-1]
+                    .tokenize('\\')[-1]
+                    .replace('.','_')
+            mapping.put(pathToFolderToMap, prefix + nameForJupyter)
+        }
+        return mapping
+    } else {
+        return [:]
+    }
+}
+
+static def getFoldersToMap() {
+    def volume_mapping = [:]
+    volume_mapping.put('jupyter_home', '/home/jovyan')
+
+    volume_mapping = volume_mapping +
+            tryReadMappingFromFile('jupyter/.foldersToMapInJupyter.txt', '/home/jovyan/') +
+            tryReadMappingFromFile('jupyter/local_files/.foldersToMapInJupyter.txt', '/home/jovyan/')
+
+    def currentFolderPath = new File(".").getCanonicalPath()
+    volume_mapping.put(currentFolderPath + "/output", '/home/jovyan/output')
+
+    return volume_mapping
+}
+
+dockerRun {
+    name 'jupyter-for-beam'
+    image 'jupyternotebook'
+    volumes getFoldersToMap() as Map<Object, String>
+    ports "$port:8888"
+    daemonize true
+    clean true
+    env 'JUPYTER_ENABLE_LAB': 'yes', 'GRANT_SUDO': 'no', 'JUPYTER_TOKEN':"$token"
+}
+
+task jupyterStart(dependsOn: ['dockerRun']) {
+    description 'Starts Jupyter container.'
+    group 'Jupyter'
+
+    doLast {
+        println """Jupyter Lab started."""
+        println """Web interface is here: http://127.0.0.1:$port/?token=$token"""
+    }
+}
+
+task jupyterStop(dependsOn: ['dockerStop']) {
+    description 'Stops Jupyter container.'
+    group 'Jupyter'
+
+    doLast {
+        println """Docker container with Jupyter Lab stopped."""
+    }
+}
