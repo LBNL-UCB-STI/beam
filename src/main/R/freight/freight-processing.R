@@ -277,7 +277,7 @@ truck_aadtt_with_linkId <- assignLinkIdToTruckAADTT(network_cleaned, 26910, truc
 truck_aadtt_with_linkData <- merge(data.table::as.data.table(truck_aadtt_with_linkId), network_cleaned, by="linkId")
 
 
-## ********************
+##### PREPARING BEAM/LINKSTAT DATA
 linkstats_noFreight <- readCsv(normalizePath(paste(freightDir,"/validation/beam/0.linkstats.nofreight.csv.gz",sep="")))
 linkstats_wFreight <- readCsv(normalizePath(paste(freightDir,"/validation/beam/0.linkstats.withfreight.csv.gz",sep="")))
 #totVolume <- sum(linkstats_wFreight$volume) - sum(linkstats_noFreight$volume)
@@ -291,6 +291,11 @@ linkStats$truck_share <- linkStats$truck_volume/linkStats$vehicle_volume
 linkStats <- linkStats[,-c("volumeWithFreight","volumeNoFreight")]
 linkStats[is.na(truck_share)]$truck_share <- 0.0
 linkStats[is.infinite(truck_share)]$truck_share <- 0.0
+
+
+##### MERGING
+truck_aadtt_with_linkStats <- merge(truck_aadtt_with_linkData, linkStats, by.x="linkId", by.y="link")
+
 LinkStatsWithLocation <- linkStats[network_cleaned, on=c("link"="linkId")]
 
 LinkStats_as_sf <- st_transform(st_as_sf(
