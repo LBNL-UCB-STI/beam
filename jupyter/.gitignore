@@ -1,4 +1,3 @@
-local_files/*
 .cache
 .ipynb_checkpoints
 .ipython
