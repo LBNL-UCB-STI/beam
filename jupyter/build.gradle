@@ -16,9 +16,9 @@ plugins {
 def port = '11238'
 def token = UUID.randomUUID().toString()
 
-static def tryReadMappingFromFile(filePath, prefix){
+static def tryReadMappingFromFile(filePath, prefix) {
     File file = new File(filePath)
-    if (file.exists()){
+    if (file.exists()) {
         def mapping = [:]
         file.eachLine { pathToFolderToMap ->
 
@@ -29,7 +29,7 @@ static def tryReadMappingFromFile(filePath, prefix){
             def nameForJupyter = pathToFolderToMap
                     .tokenize('/')[-1]
                     .tokenize('\\')[-1]
-                    .replace('.','_')
+                    .replace('.', '_')
             mapping.put(pathToFolderToMap, prefix + nameForJupyter)
         }
         return mapping
@@ -46,8 +46,11 @@ static def getFoldersToMap() {
             tryReadMappingFromFile('jupyter/.foldersToMapInJupyter.txt', '/home/jovyan/') +
             tryReadMappingFromFile('jupyter/local_files/.foldersToMapInJupyter.txt', '/home/jovyan/')
 
-    def currentFolderPath = new File(".").getCanonicalPath()
-    volume_mapping.put(currentFolderPath + "/output", '/home/jovyan/output')
+    def outputFolderPath = new File(".").getCanonicalPath() + "/output"
+    def outputFolder = new File(outputFolderPath)
+    if (outputFolder.exists()) {
+        volume_mapping.put(outputFolderPath, '/home/jovyan/output')
+    }
 
     return volume_mapping
 }
@@ -59,7 +62,7 @@ dockerRun {
     ports "$port:8888"
     daemonize true
     clean true
-    env 'JUPYTER_ENABLE_LAB': 'yes', 'GRANT_SUDO': 'no', 'JUPYTER_TOKEN':"$token"
+    env 'JUPYTER_ENABLE_LAB': 'yes', 'GRANT_SUDO': 'no', 'JUPYTER_TOKEN': "$token"
 }
 
 task jupyterStart(dependsOn: ['dockerRun']) {
