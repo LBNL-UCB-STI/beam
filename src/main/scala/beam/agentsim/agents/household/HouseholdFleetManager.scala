@@ -160,7 +160,7 @@ class HouseholdFleetManager(
         availableVehicles = availableVehicles match {
           //in case of replanning because of TRANSIT failure WALK_TRANSIT is used
           //but we may want to introduce maxWalkingDistance and check that the agent is close enough to the vehicle
-          case firstVehicle :: rest if atHome(originActivity) =>
+          case firstVehicle :: rest =>
             logger.debug("Vehicle {} is now taken", firstVehicle.id)
             firstVehicle.becomeDriver(sender)
             sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)), triggerId)
