@@ -1290,8 +1290,8 @@ trait ChoosesMode {
   ) = {
     val originalEmergencyTripLeg =
       routingResponse.itineraries.find(_.tripClassifier == EMERGENCY) match {
-        case Some(originalWalkTrip) =>
-          originalWalkTrip.legs.head
+        case Some(originalEmergencyTrip) =>
+          originalEmergencyTrip.legs.head
         case None =>
           RoutingWorker
             .createBushwackingTrip(
