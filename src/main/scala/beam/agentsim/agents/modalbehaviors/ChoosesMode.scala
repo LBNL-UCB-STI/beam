@@ -738,8 +738,8 @@ trait ChoosesMode {
           if availableModes.contains(CAR) && replanningIsAvailable =>
         Some(tourMode)
       case (Some(mode), _) if availableModes.contains(mode) && replanningIsAvailable => Some(mode)
-      case (Some(mode), _) if availableModes.contains(mode)                          => Some(WALK)
-      case (None, _) if !replanningIsAvailable                                       => Some(WALK)
+      case (Some(mode), _) if availableModes.contains(mode)                          => Some(BIKE)
+      case (None, _) if !replanningIsAvailable                                       => Some(BIKE)
       case _                                                                         => None
     }
   }
@@ -1305,7 +1305,7 @@ trait ChoosesMode {
             .head
       }
     val expensiveWalkTrip = EmbodiedBeamTrip(
-      Vector(originalWalkTripLeg.copy(replanningPenalty = 10.0))
+      Vector(originalWalkTripLeg.copy(replanningPenalty = 100.0))
     )
     expensiveWalkTrip
   }
