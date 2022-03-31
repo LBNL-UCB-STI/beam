@@ -738,8 +738,8 @@ trait ChoosesMode {
           if availableModes.contains(CAR) && replanningIsAvailable =>
         Some(tourMode)
       case (Some(mode), _) if availableModes.contains(mode) && replanningIsAvailable => Some(mode)
-      case (Some(mode), _) if availableModes.contains(mode)                          => Some(BIKE)
-      case (None, _) if !replanningIsAvailable                                       => Some(BIKE)
+      case (Some(mode), _) if availableModes.contains(mode)                          => Some(EMERGENCY)
+      case (None, _) if !replanningIsAvailable                                       => Some(EMERGENCY)
       case _                                                                         => None
     }
   }
@@ -1272,24 +1272,24 @@ trait ChoosesMode {
                 //give another chance to make a choice without predefined mode
                 gotoChoosingModeWithoutPredefinedMode(choosesModeData)
               } else {
-                val expensiveWalkTrip = createExpensiveWalkTrip(currentPersonLocation, nextAct, routingResponse)
-                gotoFinishingModeChoice(expensiveWalkTrip)
+                val expensiveEmergencyTrip = createExpensiveEmergencyTrip(currentPersonLocation, nextAct, routingResponse)
+                gotoFinishingModeChoice(expensiveEmergencyTrip)
               }
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
-              val expensiveWalkTrip = createExpensiveWalkTrip(currentPersonLocation, nextAct, routingResponse)
-              gotoFinishingModeChoice(expensiveWalkTrip)
+              val expensiveEmergencyTrip = createExpensiveEmergencyTrip(currentPersonLocation, nextAct, routingResponse)
+              gotoFinishingModeChoice(expensiveEmergencyTrip)
           }
       }
   }
 
-  private def createExpensiveWalkTrip(
+  private def createExpensiveEmergencyTrip(
     currentPersonLocation: SpaceTime,
     nextAct: Activity,
     routingResponse: RoutingResponse
   ) = {
-    val originalWalkTripLeg =
-      routingResponse.itineraries.find(_.tripClassifier == WALK) match {
+    val originalEmergencyTripLeg =
+      routingResponse.itineraries.find(_.tripClassifier == EMERGENCY) match {
         case Some(originalWalkTrip) =>
           originalWalkTrip.legs.head
         case None =>
@@ -1304,10 +1304,10 @@ trait ChoosesMode {
             .legs
             .head
       }
-    val expensiveWalkTrip = EmbodiedBeamTrip(
-      Vector(originalWalkTripLeg.copy(replanningPenalty = 100.0))
+    val expensiveEmergencyTrip = EmbodiedBeamTrip(
+      Vector(originalEmergencyTripLeg.copy(replanningPenalty = 100.0))
     )
-    expensiveWalkTrip
+    expensiveEmergencyTrip
   }
 
   private def gotoChoosingModeWithoutPredefinedMode(choosesModeData: ChoosesModeData) = {

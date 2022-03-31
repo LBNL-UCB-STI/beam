@@ -1,6 +1,6 @@
 package beam.router
 
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAR_HOV2, CAR_HOV3, CAV, WALK}
+import beam.router.Modes.BeamMode.{BIKE, CAR, CAR_HOV2, CAR_HOV3, CAV, WALK, EMERGENCY}
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.profile.StreetMode
 import enumeratum.values._
@@ -94,6 +94,8 @@ object Modes {
 
     case object BIKE extends BeamMode(value = "bike", Some(Left(LegMode.BICYCLE)), TransportMode.bike)
 
+    case object EMERGENCY extends BeamMode(value = "emergency", Some(Left(LegMode.WALK)), TransportMode.walk)
+
     // Transit-specific
     case object WALK_TRANSIT
         extends BeamMode(
@@ -137,6 +139,7 @@ object Modes {
         CAR,
         CAV,
         WALK,
+        EMERGENCY,
         BIKE,
         TRANSIT,
         RIDE_HAIL,
