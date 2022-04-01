@@ -354,8 +354,11 @@ trait ChoosesMode {
 
       var availablePersonalStreetVehicles =
         correctedCurrentTourMode match {
-          case None | Some(CAR | BIKE | HOV2_TELEPORTATION | HOV3_TELEPORTATION) =>
-            // In these cases, a personal vehicle will be involved
+          case None | Some(CAR | BIKE) =>
+            // In these cases, a personal vehicle will be involved, but filter out teleportation vehicles
+            newlyAvailableBeamVehicles.filterNot(v => BeamVehicle.isSharedTeleportationVehicle(v.id))
+          case Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION) =>
+            // In these cases, also include teleportation vehicles
             newlyAvailableBeamVehicles
           case Some(DRIVE_TRANSIT | BIKE_TRANSIT) =>
             val tour = _experiencedBeamPlan.getTourContaining(nextAct)
@@ -1484,23 +1487,25 @@ trait ChoosesMode {
         )
     }
 
+    val tripId = Option(
+      _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getAttributes.getAttribute("trip_id")
+    ).getOrElse("").toString
+
     val modeChoiceEvent = new ModeChoiceEvent(
       tick,
       id,
       chosenTrip.tripClassifier.value,
       data.personData.currentTourMode.map(_.value).getOrElse(""),
       data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
-      _experiencedBeamPlan
-        .activities(data.personData.currentActivityIndex)
-        .getLinkId
-        .toString,
+      _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getLinkId.toString,
       data.availableAlternatives.get,
       data.availablePersonalStreetVehicles.nonEmpty,
       chosenTrip.legs.view.map(_.beamLeg.travelPath.distanceInM).sum,
       _experiencedBeamPlan.tourIndexOfElement(nextActivity(data.personData).get),
       chosenTrip,
       _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getType,
-      nextActivity(data.personData).get.getType
+      nextActivity(data.personData).get.getType,
+      tripId
     )
     eventsManager.processEvent(modeChoiceEvent)
 

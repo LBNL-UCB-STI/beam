@@ -28,6 +28,7 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     public final static String ATTRIBUTE_LEG_VEHICLE_IDS = "legVehicleIds";
     public final static String ATTRIBUTE_CURRENT_ACTIVITY = "currentActivity";
     public final static String ATTRIBUTE_NEXT_ACTIVITY = "nextActivity";
+    public final static String ATTRIBUTE_TRIP_ID = "tripId";
 
     public final EmbodiedBeamTrip chosenTrip;
     public final Id<Person> personId;
@@ -41,10 +42,11 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
     public final Integer tourIndex;
     public final String currentActivity;
     public final String nextActivity;
+    public final String tripId;
 
     public ModeChoiceEvent(double time, Id<Person> personId, String chosenMode, String currentTourMode, Double expectedMaxUtility,
                            String linkId, String availableAlternatives, Boolean vehAvailable, Double length,
-                           Integer tourIndex, EmbodiedBeamTrip chosenTrip, String currentActivity, String nextActivity) {
+                           Integer tourIndex, EmbodiedBeamTrip chosenTrip, String currentActivity, String nextActivity, String tripId) {
         super(time);
 
         this.personId = personId;
@@ -59,6 +61,7 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
         this.chosenTrip = chosenTrip;
         this.currentActivity = currentActivity;
         this.nextActivity = nextActivity;
+        this.tripId = tripId;
     }
 
     public static ModeChoiceEvent apply(Event event) {
@@ -76,8 +79,8 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
                     Integer.parseInt(attr.get(ATTRIBUTE_TOUR_INDEX)),
                     null,
                     attr.get(ATTRIBUTE_CURRENT_ACTIVITY),
-                    attr.get(ATTRIBUTE_NEXT_ACTIVITY)
-            );
+                    attr.get(ATTRIBUTE_NEXT_ACTIVITY),
+                    attr.get(ATTRIBUTE_TRIP_ID));
         }
         return (ModeChoiceEvent) event;
     }
@@ -100,6 +103,7 @@ public class ModeChoiceEvent extends Event implements HasPersonId {
         }
         attr.put(ATTRIBUTE_CURRENT_ACTIVITY, currentActivity);
         attr.put(ATTRIBUTE_NEXT_ACTIVITY, nextActivity);
+        attr.put(ATTRIBUTE_TRIP_ID, tripId);
         return attr;
     }
 
