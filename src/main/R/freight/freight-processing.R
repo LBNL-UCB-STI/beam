@@ -14,9 +14,10 @@ library(stringr)
 activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
 freightDir <- normalizePath("~/Data/FREIGHT")
 freightWorkDir <- normalizePath(paste(freightDir,"/2022-03-09/output",sep=""))
-
 source("~/Documents/Workspace/scripts/common/keys.R")
 register_google(key = google_api_key_1)
+
+
 oaklandMap <- ggmap::get_googlemap("oakland california", zoom = 13, maptype = "roadmap")
 shpFile <- pp(activitySimDir, "/__San_Francisco_Bay_Region_2010_Census_Block_Groups-shp/641aa0d4-ce5b-4a81-9c30-8790c4ab8cfb202047-1-wkkklf.j5ouj.shp")
 sfBayCbg <- st_read(shpFile)
@@ -248,7 +249,7 @@ ggsave(pp(freightWorkDir,'/freight-avg-vmt-by-category.png'),p,width=4,height=3,
 
 
 ################ ***************************
-################ validation
+################ validation CALTrans
 ################ ***************************
 
 ##### PREPARING NETWORK AND MATCH IT WITH POSTMILE AND TRUCK AADTT DATA
@@ -263,7 +264,7 @@ counties <- data.table::data.table(
   CNTY=c("ALA", "CC", "MRN", "NAP", "SCL", "SF", "SM", "SOL", "SON")
 )
 
-data.table::fwrite(network_cleaned, pp(freightDir,"/validation/network_cleaned.csv"), quote=F)
+#data.table::fwrite(network_cleaned, pp(freightDir,"/validation/network_cleaned.csv"), quote=F)
 
 # truck_aadtt_2017 <- readCsv(normalizePath(paste(freightDir,"/validation/2017_truck_aadtt.csv",sep="")))
 # truck_aadtt_2017_sfbay <- assignPostMilesGeometries(truck_aadtt_2017[counties, on=c("CNTY"="CNTY")],
@@ -274,6 +275,7 @@ truck_aadtt_2017_sfbay <- data.table::fread(
   sep=",")
 
 truck_aadtt_with_linkId <- assignLinkIdToTruckAADTT(network_cleaned, 26910, truck_aadtt_2017_sfbay, 500, 2)
+ata.table::fwrite(truck_aadtt_with_linkId, pp(freightDir,"/validation/truck_aadtt_with_linkId.csv"), quote=F)
 truck_aadtt_with_linkData <- merge(data.table::as.data.table(truck_aadtt_with_linkId), network_cleaned, by="linkId")
 
 
@@ -282,7 +284,7 @@ linkstats_noFreight <- readCsv(normalizePath(paste(freightDir,"/validation/beam/
 linkstats_wFreight <- readCsv(normalizePath(paste(freightDir,"/validation/beam/0.linkstats.withfreight.csv.gz",sep="")))
 #totVolume <- sum(linkstats_wFreight$volume) - sum(linkstats_noFreight$volume)
 #totAADTT <- sum(truck_aadtt_2017_bay_area$TRUCK_AADT)
-lsWFreight <- linkstats_wFreight[,.(volumeWithFreight=sum(volume)),by=.(link)]
+lsWFreight <- linkstats_wFreight[,.(volumeWithFreight=sum(volume),lengthInMeter=first(length)),by=.(link)]
 lsNoFreight <- linkstats_noFreight[,.(volumeNoFreight=sum(volume)),by=.(link)]
 linkStats <- lsWFreight[lsNoFreight, on=c("link")]
 linkStats$truck_volume <- linkStats$volumeWithFreight - linkStats$volumeNoFreight
@@ -295,6 +297,9 @@ linkStats[is.infinite(truck_share)]$truck_share <- 0.0
 
 ##### MERGING
 truck_aadtt_with_linkStats <- merge(truck_aadtt_with_linkData, linkStats, by.x="linkId", by.y="link")
+
+sum(truck_aadtt_with_linkStats$TRUCK_AADT)
+sum(truck_aadtt_with_linkStats$truck_volume)
 
 LinkStatsWithLocation <- linkStats[network_cleaned, on=c("link"="linkId")]
 
@@ -321,13 +326,21 @@ truckBEAM_truckAADTT <- countyStats[county_truck_aadtt_2017, on=c("cnty"="CNTY")
 truckBEAM_truckAADTT %>% ggplot(aes(county)) +
   geom_bar(truck_volume, )
 
-source("~/Documents/Workspace/scripts/common/keys.R")
-register_google(key = google_api_key_1)
+
 sfBayTAZs <- st_read(pp(freightDir, "/validation/TAZs/Transportation_Analysis_Zones.shp"))
 
 
+################ ***************************
+################ validation HPMS
+################ ***************************
 
+source("~/Documents/Workspace/scripts/common/keys.R")
+sf_hpms <- st_read(pp(freightDir, "/validation/sf_hpms_inventory_clipped.geojson"))
 
+Volume_beam <- sum(linkStats$truck_volume)
+Volume_hpms <- sum(sf_hpms$AADT_Combi+sf_hpms$AADT_Singl)
+VMT_beam <- sum(linkStats$truck_volume * linkStats$lengthInMeter/1609)
+VMT_hpms <- (sum((sf_hpms$AADT_Combi+sf_hpms$AADT_Singl) * as.numeric(st_length(sf_hpms))/1609))
 
-
-
+st_length(sf_hpms[1,])/1609
+sf_hpms[1,]$Shape_Leng
