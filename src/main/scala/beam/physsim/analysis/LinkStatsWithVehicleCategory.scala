@@ -52,9 +52,15 @@ class LinkStatsWithVehicleCategory(
       for {
         hour <- 0 until nofHours
       } yield {
-        val categoryVolumes = aggregation.map { case (categories, _) =>
-          categories.map(category => linkData(category).get(linkId).map(_.getSumVolume(hour)).getOrElse(0.0)).sum
+        val categories = aggregation.flatMap(_._1).distinct
+        val categoryToVolume = categories.map { category =>
+          category -> linkData(category).get(linkId).map(_.getSumVolume(hour)).getOrElse(0.0)
+        }.toMap
+        val aggregatedVolumes = aggregation.map { case (categoryGroup, _) =>
+          categoryGroup.map(category => categoryToVolume(category)).sum
         }
+        val categoryVolumeSum = categoryToVolume.values.reduceOption(_ + _).getOrElse(0.0)
+        val otherVolume = totalLinkData.get(linkId).map(_.getSumVolume(hour)).getOrElse(0.0) - categoryVolumeSum
         Seq(
           linkId,
           link.getFromNode.getId,
@@ -64,8 +70,8 @@ class LinkStatsWithVehicleCategory(
           link.getFreespeed,
           link.getCapacity,
           "AVG",
-          totalLinkData.get(linkId).map(_.getSumVolume(hour)).getOrElse(0.0)
-        ) ++ categoryVolumes ++ Seq(data.calculateAverageTravelTime(hour))
+          otherVolume
+        ) ++ aggregatedVolumes ++ Seq(data.calculateAverageTravelTime(hour))
       }
 
     }
@@ -81,8 +87,8 @@ class LinkStatsWithVehicleCategory(
       Seq("LightDutyTruck", "HeavyDutyTruck") -> "TruckVolume",
       Seq("HeavyDutyTruck")                   -> "HDTruckVolume"
     )
-    val (totalLinkData, linkData, nofHours) =
-      calculateLinkData(volumesAnalyzer, travelTimeForR5, categoryMapping.flatMap(_._1))
+    val categories = categoryMapping.flatMap(_._1).distinct
+    val (totalLinkData, linkData, nofHours) = calculateLinkData(volumesAnalyzer, travelTimeForR5, categories)
     writeToFile(totalLinkData, linkData, nofHours, categoryMapping, filePath)
   }
 }
