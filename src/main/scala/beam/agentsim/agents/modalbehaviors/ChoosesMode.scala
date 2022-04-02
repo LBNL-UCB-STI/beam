@@ -728,8 +728,8 @@ trait ChoosesMode {
           if availableModes.contains(CAR) && replanningIsAvailable =>
         Some(tourMode)
       case (Some(mode), _) if availableModes.contains(mode) && replanningIsAvailable => Some(mode)
-      case (Some(mode), _) if availableModes.contains(mode)                          => Some(RIDE_HAIL)
-      case (None, _) if !replanningIsAvailable                                       => Some(RIDE_HAIL)
+      case (Some(mode), _) if availableModes.contains(mode)                          => Some(RIDE_HAIL) // TODO if use this as backup, what happens if ride_hail is not available?
+      case (None, _) if !replanningIsAvailable                                       => Some(RIDE_HAIL) // TODO if use this as backup, what happens if ride_hail is not available?
       case _                                                                         => None
     }
   }
