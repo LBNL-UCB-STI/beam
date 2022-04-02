@@ -356,6 +356,9 @@ trait ChoosesMode {
             newlyAvailableBeamVehicles.map(_.streetVehicle) :+ bodyStreetVehicle,
             possibleEgressVehicles = dummySharedVehicles
           )
+        case Some(EMERGENCY) =>
+          responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+          makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
         case Some(WALK) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
@@ -995,7 +998,7 @@ trait ChoosesMode {
               vehicleId = body.id,
               isLastLeg = false,
               location = fullTrip.head.beamLeg.travelPath.startPoint.loc,
-              mode = EMERGENCY,
+              mode = WALK,
               vehicleTypeId = body.beamVehicleType.id
             ) +:
             fullTrip :+
@@ -1004,7 +1007,7 @@ trait ChoosesMode {
               vehicleId = body.id,
               isLastLeg = true,
               location = fullTrip.last.beamLeg.travelPath.endPoint.loc,
-              mode = EMERGENCY,
+              mode = WALK,
               vehicleTypeId = body.beamVehicleType.id
             )
           )
@@ -1132,7 +1135,7 @@ trait ChoosesMode {
                 vehicleId = body.id,
                 isLastLeg = false,
                 location = partialItin.head.beamLeg.travelPath.startPoint.loc,
-                mode = EMERGENCY,
+                mode = WALK,
                 vehicleTypeId = body.beamVehicleType.id
               ) +:
               partialItin :+
@@ -1141,7 +1144,7 @@ trait ChoosesMode {
                 vehicleId = body.id,
                 isLastLeg = true,
                 location = partialItin.last.beamLeg.travelPath.endPoint.loc,
-                mode = EMERGENCY,
+                mode = WALK,
                 vehicleTypeId = body.beamVehicleType.id
               )
             )

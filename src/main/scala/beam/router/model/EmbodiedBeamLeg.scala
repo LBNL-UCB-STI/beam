@@ -17,7 +17,7 @@ case class EmbodiedBeamLeg(
   cost: Double,
   unbecomeDriverOnCompletion: Boolean,
   isPooledTrip: Boolean = false,
-  replanningPenalty: Double = 100
+  replanningPenalty: Double = 1000
 ) {
   val isRideHail: Boolean = BeamVehicle.isRidehailVehicle(beamVehicleId)
 }
