@@ -94,6 +94,8 @@ object Modes {
 
     case object BIKE extends BeamMode(value = "bike", Some(Left(LegMode.BICYCLE)), TransportMode.bike)
 
+    case object EMERGENCY extends BeamMode(value = "emergency", Some(Left(LegMode.WALK)), TransportMode.walk)
+
     // Transit-specific
     case object WALK_TRANSIT
         extends BeamMode(
@@ -101,6 +103,13 @@ object Modes {
           Some(Right(TransitModes.TRANSIT)),
           TransportMode.transit_walk
         )
+
+    case object EMERGENCY_TRANSIT
+      extends BeamMode(
+        value = "emergency_transit",
+        Some(Right(TransitModes.TRANSIT)),
+        TransportMode.other
+      )
 
     case object DRIVE_TRANSIT
         extends BeamMode(
@@ -137,6 +146,7 @@ object Modes {
         CAR,
         CAV,
         WALK,
+        EMERGENCY,
         BIKE,
         TRANSIT,
         RIDE_HAIL,
@@ -238,6 +248,7 @@ object Modes {
   def getAccessVehicleMode(mode: BeamMode): BeamMode = mode match {
     case BeamMode.TRANSIT           => throw new IllegalArgumentException("access vehicle is unknown")
     case BeamMode.WALK_TRANSIT      => BeamMode.WALK
+    case BeamMode.EMERGENCY_TRANSIT      => BeamMode.EMERGENCY
     case BeamMode.DRIVE_TRANSIT     => BeamMode.CAR
     case BeamMode.RIDE_HAIL_TRANSIT => BeamMode.CAR
     case BeamMode.BIKE_TRANSIT      => BeamMode.BIKE

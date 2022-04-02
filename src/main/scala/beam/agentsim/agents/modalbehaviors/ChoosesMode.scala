@@ -453,7 +453,7 @@ trait ChoosesMode {
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
         case Some(RIDE_HAIL | RIDE_HAIL_POOLED) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true, withRideHail = true)
-          makeRequestWith(withTransit = false, Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails
+          makeRequestWith(withTransit = false, Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails // TODO Maybe instead of WALK, we still give them all others for choosing
           makeRideHailRequest()
         case Some(RIDE_HAIL_TRANSIT) if choosesModeData.isWithinTripReplanning =>
           // Give up on ride hail transit after a failure, too complicated, but try regular ride hail again
@@ -725,8 +725,8 @@ trait ChoosesMode {
           if availableModes.contains(CAR) && replanningIsAvailable =>
         Some(tourMode)
       case (Some(mode), _) if availableModes.contains(mode) && replanningIsAvailable => Some(mode)
-      case (Some(mode), _) if availableModes.contains(mode)                          => Some(WALK)
-      case (None, _) if !replanningIsAvailable                                       => Some(WALK)
+      case (Some(mode), _) if availableModes.contains(mode)                          => Some(RIDE_HAIL)
+      case (None, _) if !replanningIsAvailable                                       => Some(RIDE_HAIL)
       case _                                                                         => None
     }
   }
@@ -839,7 +839,7 @@ trait ChoosesMode {
       .map { trip =>
         if (trip.legs.head.beamLeg.mode != WALK) {
           val startLeg =
-            dummyWalkLeg(
+            dummyWalkLeg(  // TODO understand this dummy WalkLeg -- now it's for the access and egress of car trips
               trip.legs.head.beamLeg.startTime,
               trip.legs.head.beamLeg.travelPath.startPoint.loc,
               unbecomeDriverOnCompletion = false
@@ -995,7 +995,7 @@ trait ChoosesMode {
               vehicleId = body.id,
               isLastLeg = false,
               location = fullTrip.head.beamLeg.travelPath.startPoint.loc,
-              mode = WALK,
+              mode = EMERGENCY,
               vehicleTypeId = body.beamVehicleType.id
             ) +:
             fullTrip :+
@@ -1004,7 +1004,7 @@ trait ChoosesMode {
               vehicleId = body.id,
               isLastLeg = true,
               location = fullTrip.last.beamLeg.travelPath.endPoint.loc,
-              mode = WALK,
+              mode = EMERGENCY,
               vehicleTypeId = body.beamVehicleType.id
             )
           )
@@ -1132,7 +1132,7 @@ trait ChoosesMode {
                 vehicleId = body.id,
                 isLastLeg = false,
                 location = partialItin.head.beamLeg.travelPath.startPoint.loc,
-                mode = WALK,
+                mode = EMERGENCY,
                 vehicleTypeId = body.beamVehicleType.id
               ) +:
               partialItin :+
@@ -1141,7 +1141,7 @@ trait ChoosesMode {
                 vehicleId = body.id,
                 isLastLeg = true,
                 location = partialItin.last.beamLeg.travelPath.endPoint.loc,
-                mode = WALK,
+                mode = EMERGENCY,
                 vehicleTypeId = body.beamVehicleType.id
               )
             )
@@ -1260,26 +1260,26 @@ trait ChoosesMode {
                 //give another chance to make a choice without predefined mode
                 gotoChoosingModeWithoutPredefinedMode(choosesModeData)
               } else {
-                val expensiveWalkTrip = createExpensiveWalkTrip(currentPersonLocation, nextAct, routingResponse)
-                gotoFinishingModeChoice(expensiveWalkTrip)
+                val expensiveEmergencyTrip = createExpensiveEmergencyTrip(currentPersonLocation, nextAct, routingResponse)
+                gotoFinishingModeChoice(expensiveEmergencyTrip)
               }
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
-              val expensiveWalkTrip = createExpensiveWalkTrip(currentPersonLocation, nextAct, routingResponse)
-              gotoFinishingModeChoice(expensiveWalkTrip)
+              val expensiveEmergencyTrip = createExpensiveEmergencyTrip(currentPersonLocation, nextAct, routingResponse)
+              gotoFinishingModeChoice(expensiveEmergencyTrip)
           }
       }
   }
 
-  private def createExpensiveWalkTrip(
+  private def createExpensiveEmergencyTrip(
     currentPersonLocation: SpaceTime,
     nextAct: Activity,
     routingResponse: RoutingResponse
   ) = {
-    val originalWalkTripLeg =
-      routingResponse.itineraries.find(_.tripClassifier == WALK) match {
-        case Some(originalWalkTrip) =>
-          originalWalkTrip.legs.head
+    val originalEmergencyTripLeg =
+      routingResponse.itineraries.find(_.tripClassifier == EMERGENCY) match {
+        case Some(originalEmergencyTrip) =>
+          originalEmergencyTrip.legs.head
         case None =>
           RoutingWorker
             .createBushwackingTrip(
@@ -1292,10 +1292,10 @@ trait ChoosesMode {
             .legs
             .head
       }
-    val expensiveWalkTrip = EmbodiedBeamTrip(
-      Vector(originalWalkTripLeg.copy(replanningPenalty = 10.0))
+    val expensiveEmergencyTrip = EmbodiedBeamTrip(
+      Vector(originalEmergencyTripLeg.copy(replanningPenalty = 10.0))
     )
-    expensiveWalkTrip
+    expensiveEmergencyTrip
   }
 
   private def gotoChoosingModeWithoutPredefinedMode(choosesModeData: ChoosesModeData) = {
