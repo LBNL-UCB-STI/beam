@@ -7,28 +7,16 @@
 1 + 1
 
 
-# In[1]:
+# In[8]:
 
 
-20 + 20
+5 + 3
 
 
-# In[9]:
+# In[6]:
 
 
 get_ipython().system('jupyter nbconvert --to python MATH.ipynb')
-
-
-# In[19]:
-
-
-get_ipython().system('jupyter notebook --generate-config')
-
-
-# In[1]:
-
-
-get_ipython().system('ls /home/jovyan/.jupyter/jupyter_notebook_confi* -lah')
 
 
 # In[ ]:
