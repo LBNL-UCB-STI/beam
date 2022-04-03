@@ -13,10 +13,10 @@
 2 + 2
 
 
-# In[2]:
+# In[3]:
 
 
-get_ipython().system('jupyter nbconvert --to python DEBUG.ipynb')
+get_ipython().system('jupyter nbconvert --to python MATH.ipynb')
 
 
 # In[ ]:
