@@ -36,6 +36,7 @@ import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.utils.misc.Time
 
 import java.util.concurrent.atomic.AtomicReference
+import scala.collection.immutable
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -240,7 +241,7 @@ trait ChoosesMode {
         availableModes
       )
 
-      val bodyStreetVehicle = createBodyStreetVehicle(currentPersonLocation)
+      val bodyStreetVehicle: StreetVehicle = createBodyStreetVehicle(currentPersonLocation)
       val departTime = _currentTick.get
 
       var availablePersonalStreetVehicles =
@@ -260,6 +261,8 @@ trait ChoosesMode {
           case _ =>
             Vector()
         }
+
+
 
       def makeRequestWith(
         withTransit: Boolean,
@@ -456,7 +459,7 @@ trait ChoosesMode {
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
         case Some(RIDE_HAIL | RIDE_HAIL_POOLED) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true, withRideHail = true)
-          makeRequestWith(withTransit = false, Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails // TODO Maybe instead of WALK, we still give them all others for choosing
+          makeRequestWith(withTransit = false, Vector(availablePersonalStreetVehicles.map(_.streetVehicle).head)) // We need a WALK alternative if RH fails // TODO Maybe instead of WALK, we still give them all others for choosing
           makeRideHailRequest()
         case Some(RIDE_HAIL_TRANSIT) if choosesModeData.isWithinTripReplanning =>
           // Give up on ride hail transit after a failure, too complicated, but try regular ride hail again
