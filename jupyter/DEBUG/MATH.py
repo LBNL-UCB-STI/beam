@@ -1,22 +1,24 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# In[5]:
+
+
+1 + 1 * 2
+
+
 # In[1]:
 
 
-1 + 1
+20 // 3 + 20 // 7 ** 2
 
 
-# In[8]:
+# In[2]:
 
 
-5 + 3
+import random
 
-
-# In[6]:
-
-
-get_ipython().system('jupyter nbconvert --to python MATH.ipynb')
+4 + random.randint(10, 100)
 
 
 # In[ ]:
