@@ -1,30 +1,13 @@
-import io
 import os
-from notebook.utils import to_api_path
+from subprocess import check_call
 
-_script_exporter = None
+c = get_config()
 
-def script_post_save(model, os_path, contents_manager, **kwargs):
-    """convert notebooks to Python script after save with nbconvert
-
-    replaces `ipython notebook --script`
-    """
-    from nbconvert.exporters.script import ScriptExporter
-
+def post_save(model, os_path, contents_manager):
+    """post-save hook for converting notebooks to .py scripts"""
     if model['type'] != 'notebook':
-        return
+        return # only do this for notebooks
+    d, fname = os.path.split(os_path)
+    check_call(['jupyter', 'nbconvert', '--to', 'script', fname], cwd=d)
 
-    global _script_exporter
-    if _script_exporter is None:
-        _script_exporter = ScriptExporter(parent=contents_manager)
-    log = contents_manager.log
-
-    base, ext = os.path.splitext(os_path)
-    py_fname = base + '.py'
-    script, resources = _script_exporter.from_filename(os_path)
-    script_fname = base + resources.get('output_extension', '.txt')
-    log.info("Saving script /%s", to_api_path(script_fname, contents_manager.root_dir))
-    with io.open(script_fname, 'w', encoding='utf-8') as f:
-        f.write(script)
-
-c.FileContentsManager.post_save_hook = script_post_save
+c.FileContentsManager.post_save_hook = post_save
