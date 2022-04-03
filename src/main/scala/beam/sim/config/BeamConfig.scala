@@ -529,7 +529,8 @@ object BeamConfig {
             rideHailTransit: scala.Double,
             transit: scala.Double,
             waiting: scala.Double,
-            walk: scala.Double
+            walk: scala.Double,
+            emergency: scala.Double
           )
 
           object ModeVotMultiplier {
@@ -546,7 +547,8 @@ object BeamConfig {
                 rideHailTransit = if (c.hasPathOrNull("rideHailTransit")) c.getDouble("rideHailTransit") else 1.0,
                 transit = if (c.hasPathOrNull("transit")) c.getDouble("transit") else 1.0,
                 waiting = if (c.hasPathOrNull("waiting")) c.getDouble("waiting") else 1.0,
-                walk = if (c.hasPathOrNull("walk")) c.getDouble("walk") else 1.0
+                walk = if (c.hasPathOrNull("walk")) c.getDouble("walk") else 1.0,
+                emergency = if (c.hasPathOrNull("emergency")) c.getDouble("emergency") else 1.0
               )
             }
           }
