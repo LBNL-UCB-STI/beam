@@ -13,6 +13,8 @@ plugins {
     id 'com.palantir.docker-run' version '0.32.0'
 }
 
+def imageName = 'beammodel/jupyter:1.0'
+def containerName = 'jupyter-for-beam'
 def port = '11238'
 def token = UUID.randomUUID().toString()
 
@@ -56,8 +58,8 @@ static def getFoldersToMap() {
 }
 
 dockerRun {
-    name 'jupyter-for-beam'
-    image 'jupyter/scipy-notebook'
+    name "$containerName"
+    image "$imageName"
     volumes getFoldersToMap() as Map<Object, String>
     ports "$port:8888"
     daemonize true
@@ -70,7 +72,7 @@ task jupyterStart(dependsOn: ['dockerRun']) {
     group 'Jupyter'
 
     doLast {
-        println """Jupyter Lab started."""
+        println """Jupyter Lab from image '$imageName' started with container name '$containerName'."""
         println """Web interface is here: http://127.0.0.1:$port/?token=$token"""
     }
 }
@@ -80,6 +82,6 @@ task jupyterStop(dependsOn: ['dockerStop']) {
     group 'Jupyter'
 
     doLast {
-        println """Docker container with Jupyter Lab stopped."""
+        println """Docker container with name '$containerName' stopped."""
     }
 }
