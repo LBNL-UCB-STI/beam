@@ -7,16 +7,16 @@
 1 + 1
 
 
-# In[2]:
+# In[4]:
 
 
-2 + 2
+2 + 3
 
 
-# In[2]:
+# In[5]:
 
 
-get_ipython().system('jupyter nbconvert --to python DEBUG.ipynb')
+get_ipython().system('jupyter nbconvert --to python MATH.ipynb')
 
 
 # In[ ]:
