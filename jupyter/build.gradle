@@ -13,7 +13,7 @@ plugins {
     id 'com.palantir.docker-run' version '0.32.0'
 }
 
-def imageName = 'beammodel/jupyter:1.0'
+def imageName = 'jupyter/scipy-notebook:2022-04-02'
 def containerName = 'jupyter-for-beam'
 def port = '11238'
 def token = UUID.randomUUID().toString()
