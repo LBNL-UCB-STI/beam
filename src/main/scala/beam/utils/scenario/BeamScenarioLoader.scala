@@ -79,16 +79,16 @@ class BeamScenarioLoader(
       validateHouseholds(households)
     }
 
-    val plans = Await.result(plansF, 1800.seconds)
+    val validPlans = Await.result(plansF, 1800.seconds)
     logger.info(s"Reading plans done.")
     val persons = Await.result(personsF, 1800.seconds)
     logger.info(s"Reading persons done.")
-    val households = Await.result(householdsF, 1800.seconds)
+    val validHouseholds = Await.result(householdsF, 1800.seconds)
     logger.info(s"Reading households done.")
 
     val vehicles = scenarioSource.getVehicles
 
-    val personsWithPlans = getPersonsWithPlan(persons, plans, households)
+    val personsWithPlans = getPersonsWithPlan(persons, validPlans, validHouseholds)
     logger.info(s"There are ${personsWithPlans.size} persons with plans")
 
     beamScenario.privateVehicles.clear()
@@ -101,15 +101,15 @@ class BeamScenarioLoader(
       vehicleInfo.initialSoc.foreach(beamScenario.privateVehicleInitialSoc.put(vehicle.id, _))
     }
 
-    val newHouseholds: Iterable[Household] = buildMatsimHouseholds(households, personsWithPlans, vehicles)
+    val newHouseholds: Iterable[Household] = buildMatsimHouseholds(validHouseholds, personsWithPlans, vehicles)
     val matsimHouseholds: Households = replaceHouseholds(scenario.getHouseholds, newHouseholds)
-    val loadedAttributes = buildAttributesCoordinates(households)
+    val loadedAttributes = buildAttributesCoordinates(validHouseholds)
     replaceHouseholdsAttributes(matsimHouseholds, loadedAttributes)
 
     val scenarioPopulation: Population = buildPopulation(personsWithPlans)
     scenario.setPopulation(scenarioPopulation)
     updateAvailableModesForPopulation(scenario)
-    replacePlansFromPopulation(scenarioPopulation, plans)
+    replacePlansFromPopulation(scenarioPopulation, validPlans)
 
     logger.info("The scenario loading is completed.")
     scenario
