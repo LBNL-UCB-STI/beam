@@ -14,6 +14,8 @@ library(stringr)
 activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
 freightDir <- normalizePath("~/Data/FREIGHT")
 freightWorkDir <- normalizePath(paste(freightDir,"/2022-03-09/output",sep=""))
+
+
 source("~/Documents/Workspace/scripts/common/keys.R")
 register_google(key = google_api_key_1)
 
@@ -206,46 +208,50 @@ p <- ggplot(to_plot, aes(x=category,y=VMT,fill=category))+
 ggsave(pp(freightWorkDir,'/freight-avg-vmt-by-category.png'),p,width=4,height=3,units='in')
 
 
-# ***************************
-# FRISM
-# ***************************
-# freightWorkDir <- normalizePath(paste(freightDir,"/Outputs_All_SF_0223_2022_merged",sep=""))
-# carriers <- readCsv(pp(freightWorkDir, "/freight-merged-carriers.csv"))
-# payload <- readCsv(pp(freightWorkDir, "/freight-merged-payload-plans.csv"))
-# trous <- readCsv(pp(freightWorkDir, "/freight-merged-tours.csv"))
-# 
-# plans <- rbind(plansb2b,plansb2c)[,c("payloadId","sequenceRank","tourId","payloadType","estimatedTimeOfArrivalInSec","arrivalTimeWindowInSec_lower","business")]
-# tours <- rbind(toursb2b,toursb2c)[,c("tourId","departureTimeInSec","business")]
-# 
-# p <- plans[tours, on=c("tourId","business")]
-# pRank2 <- p[sequenceRank==2]
-# pRank2$negativeTravelTime <- pRank2$estimatedTimeOfArrivalInSec - pRank2$departureTimeInSec - pRank2$arrivalTimeWindowInSec_lower
-# p2 <- p[,diff:=estimatedTimeOfArrivalInSec-arrivalTimeWindowInSec_lower-departureTimeInSec]
-# 
-# write.csv(
-#   pRank2[negativeTravelTime<0],
-#   file = pp(freightDir, "/10percent/negativeTravelTime.csv"),
-#   row.names=FALSE,
-#   quote=FALSE,
-#   na="0")
-# 
-# toursb2$hour <- toursb2c$departureTimeInSec/3600.0
-# ggplot(toursb2b[,.N,by=hour]) + geom_line(aes(hour, N))
-# 
-# payload$business <- "B2B"
-# payload[startsWith(payloadId,"b2c")]$business <- "B2C"
-# payload[,time24:=estimatedTimeOfArrivalInSec%%(24*3600),][,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time24),"30 min")), business)] %>% 
-#   ggplot(aes(timeBin, N, colour=business)) +
-#   geom_line() + 
-#   scale_x_datetime("Hour", 
-#                    breaks=scales::date_breaks("2 hour"), 
-#                    labels=scales::date_format("%H", tz = dateTZ)) +
-#   scale_y_continuous("Activity", breaks = scales::pretty_breaks()) +
-#   scale_colour_manual("Supply Chain", values = c("#eca35b", "#20b2aa")) +
-#   theme_marain() +
-#   theme(legend.title = element_text(size = 10),
-#         legend.text = element_text(size = 10),
-#         axis.text.x = element_text(angle = 0, hjust = 1))
+#***************************
+#FRISM
+#***************************
+freightWorkDir <- normalizePath(paste(freightDir,"/Outputs(All SF)_0322_2022_merged",sep=""))
+carriers <- readCsv(pp(freightWorkDir, "/freight-merged-carriers.csv"))
+payload <- readCsv(pp(freightWorkDir, "/freight-merged-payload-plans.csv"))
+tours <- readCsv(pp(freightWorkDir, "/freight-merged-tours.csv"))
+
+print(paste("# carriers:", length(unique(carriers$carrierId))))
+print(paste("# tours:", length(unique(carriers$tourId))))
+print(paste("# vehicleId:", length(unique(carriers$vehicleId))))
+
+plans <- rbind(plansb2b,plansb2c)[,c("payloadId","sequenceRank","tourId","payloadType","estimatedTimeOfArrivalInSec","arrivalTimeWindowInSec_lower","business")]
+tours <- rbind(toursb2b,toursb2c)[,c("tourId","departureTimeInSec","business")]
+
+p <- plans[tours, on=c("tourId","business")]
+pRank2 <- p[sequenceRank==2]
+pRank2$negativeTravelTime <- pRank2$estimatedTimeOfArrivalInSec - pRank2$departureTimeInSec - pRank2$arrivalTimeWindowInSec_lower
+p2 <- p[,diff:=estimatedTimeOfArrivalInSec-arrivalTimeWindowInSec_lower-departureTimeInSec]
+
+write.csv(
+  pRank2[negativeTravelTime<0],
+  file = pp(freightDir, "/10percent/negativeTravelTime.csv"),
+  row.names=FALSE,
+  quote=FALSE,
+  na="0")
+
+toursb2$hour <- toursb2c$departureTimeInSec/3600.0
+ggplot(toursb2b[,.N,by=hour]) + geom_line(aes(hour, N))
+
+payload$business <- "B2B"
+payload[startsWith(payloadId,"b2c")]$business <- "B2C"
+payload[,time24:=estimatedTimeOfArrivalInSec%%(24*3600),][,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time24),"30 min")), business)] %>%
+  ggplot(aes(timeBin, N, colour=business)) +
+  geom_line() +
+  scale_x_datetime("Hour",
+                   breaks=scales::date_breaks("2 hour"),
+                   labels=scales::date_format("%H", tz = dateTZ)) +
+  scale_y_continuous("Activity", breaks = scales::pretty_breaks()) +
+  scale_colour_manual("Supply Chain", values = c("#eca35b", "#20b2aa")) +
+  theme_marain() +
+  theme(legend.title = element_text(size = 10),
+        legend.text = element_text(size = 10),
+        axis.text.x = element_text(angle = 0, hjust = 1))
 
 
 ################ ***************************
@@ -280,6 +286,7 @@ truck_aadtt_with_linkData <- merge(data.table::as.data.table(truck_aadtt_with_li
 
 
 ##### PREPARING BEAM/LINKSTAT DATA
+linkStats <- readCsv(normalizePath(paste(freightDir,"/validation/beam/0.linkstats.csv.gz",sep="")))
 linkstats_noFreight <- readCsv(normalizePath(paste(freightDir,"/validation/beam/0.linkstats.nofreight.csv.gz",sep="")))
 linkstats_wFreight <- readCsv(normalizePath(paste(freightDir,"/validation/beam/0.linkstats.withfreight.csv.gz",sep="")))
 #totVolume <- sum(linkstats_wFreight$volume) - sum(linkstats_noFreight$volume)
@@ -334,12 +341,11 @@ sfBayTAZs <- st_read(pp(freightDir, "/validation/TAZs/Transportation_Analysis_Zo
 ################ validation HPMS
 ################ ***************************
 
-source("~/Documents/Workspace/scripts/common/keys.R")
 sf_hpms <- st_read(pp(freightDir, "/validation/sf_hpms_inventory_clipped.geojson"))
 
-Volume_beam <- sum(linkStats$truck_volume)
+Volume_beam <- sum(linkStats$TruckVolume)
 Volume_hpms <- sum(sf_hpms$AADT_Combi+sf_hpms$AADT_Singl)
-VMT_beam <- sum(linkStats$truck_volume * linkStats$lengthInMeter/1609)
+VMT_beam <- sum(linkStats$TruckVolume * linkStats$length/1609)
 VMT_hpms <- (sum((sf_hpms$AADT_Combi+sf_hpms$AADT_Singl) * as.numeric(st_length(sf_hpms))/1609))
 
 st_length(sf_hpms[1,])/1609
