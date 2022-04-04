@@ -327,7 +327,6 @@ class ModeChoiceMultinomialLogit(
       Some(BIKE)              -> modalBehaviors.modeVotMultiplier.bike,
       Some(WALK)              -> modalBehaviors.modeVotMultiplier.walk,
       Some(CAR)               -> modalBehaviors.modeVotMultiplier.drive,
-      Some(EMERGENCY)               -> modalBehaviors.modeVotMultiplier.emergency,
       None                    -> modalBehaviors.modeVotMultiplier.waiting
     )
 

@@ -1296,7 +1296,7 @@ class PersonAgent(
             _,
             _,
             _,
-            Some(EMERGENCY),
+            Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION),
             _,
             _,
             _,
