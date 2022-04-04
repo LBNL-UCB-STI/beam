@@ -35,6 +35,7 @@ object Modes {
     def isMassTransit: Boolean = this == SUBWAY || this == RAIL || this == FERRY || this == TRAM
     def isRideHail: Boolean = this == RIDE_HAIL
     def isHovTeleportation: Boolean = this == HOV2_TELEPORTATION || this == HOV3_TELEPORTATION
+    def isEmergency: Boolean = this == EMERGENCY
   }
 
   object BeamMode extends StringEnum[BeamMode] with StringCirceEnum[BeamMode] {
@@ -46,7 +47,11 @@ object Modes {
 
     override val values: immutable.IndexedSeq[BeamMode] = findValues
 
+    // modes that doesn't have r5Mode
+
     case object HOV2_TELEPORTATION extends BeamMode(value = "hov2_teleportation", None, "")
+
+    case object EMERGENCY extends BeamMode(value = "emergency", None, "")
 
     case object HOV3_TELEPORTATION extends BeamMode(value = "hov3_teleportation", None, "")
 
@@ -93,8 +98,6 @@ object Modes {
     case object WALK extends BeamMode(value = "walk", Some(Left(LegMode.WALK)), TransportMode.walk)
 
     case object BIKE extends BeamMode(value = "bike", Some(Left(LegMode.BICYCLE)), TransportMode.bike)
-
-    case object EMERGENCY extends BeamMode(value = "emergency", Some(Left(LegMode.WALK)), TransportMode.walk)
 
     // Transit-specific
     case object WALK_TRANSIT

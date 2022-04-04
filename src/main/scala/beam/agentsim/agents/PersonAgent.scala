@@ -39,6 +39,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
   CAR,
   CAV,
+  EMERGENCY,
   HOV2_TELEPORTATION,
   HOV3_TELEPORTATION,
   RIDE_HAIL,
@@ -1295,7 +1296,7 @@ class PersonAgent(
             _,
             _,
             _,
-            Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION),
+            Some(EMERGENCY),
             _,
             _,
             _,

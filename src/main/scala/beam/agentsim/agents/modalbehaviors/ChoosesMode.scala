@@ -252,6 +252,8 @@ trait ChoosesMode {
           case Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION) =>
             // In these cases, also include teleportation vehicles
             newlyAvailableBeamVehicles
+          case Some(EMERGENCY) =>
+            newlyAvailableBeamVehicles
           case Some(DRIVE_TRANSIT | BIKE_TRANSIT) =>
             if (isFirstOrLastTripWithinTour(personData, nextAct)) {
               newlyAvailableBeamVehicles
@@ -360,8 +362,8 @@ trait ChoosesMode {
             possibleEgressVehicles = dummySharedVehicles
           )
         case Some(EMERGENCY) =>
+          makeRequestWith(withTransit = false, Vector(bodyStreetVehicle))
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
-          makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
         case Some(WALK) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
@@ -825,7 +827,7 @@ trait ChoosesMode {
       body.id,
       body.beamVehicleType.id,
       locationUTM,
-      EMERGENCY,
+      WALK,
       asDriver = true,
       needsToCalculateCost = false
     )
@@ -843,7 +845,7 @@ trait ChoosesMode {
     })
     val correctedItins = theRouterResult.itineraries
       .map { trip =>
-        if (trip.legs.head.beamLeg.mode != EMERGENCY) {
+        if (trip.legs.head.beamLeg.mode != WALK) {
           val startLeg =
             dummyWalkLeg(  // TODO understand this dummy WalkLeg -- now it's for the access and egress of car trips
               trip.legs.head.beamLeg.startTime,
@@ -854,7 +856,7 @@ trait ChoosesMode {
         } else trip
       }
       .map { trip =>
-        if (trip.legs.last.beamLeg.mode != EMERGENCY) {
+        if (trip.legs.last.beamLeg.mode != WALK) {
           val endLeg =
             dummyWalkLeg(
               trip.legs.last.beamLeg.endTime,
@@ -1001,7 +1003,7 @@ trait ChoosesMode {
               vehicleId = body.id,
               isLastLeg = false,
               location = fullTrip.head.beamLeg.travelPath.startPoint.loc,
-              mode = EMERGENCY,
+              mode = WALK,
               vehicleTypeId = body.beamVehicleType.id
             ) +:
             fullTrip :+
@@ -1010,7 +1012,7 @@ trait ChoosesMode {
               vehicleId = body.id,
               isLastLeg = true,
               location = fullTrip.last.beamLeg.travelPath.endPoint.loc,
-              mode = EMERGENCY,
+              mode = WALK,
               vehicleTypeId = body.beamVehicleType.id
             )
           )
@@ -1035,7 +1037,7 @@ trait ChoosesMode {
           val walkLegsAfterParkingWithParkingResponses = itin.legs
             .zip(itin.legs.tail)
             .collect {
-              case (leg1, leg2) if parkingLegs.contains(leg1) && leg2.beamLeg.mode == BeamMode.EMERGENCY =>
+              case (leg1, leg2) if parkingLegs.contains(leg1) && leg2.beamLeg.mode == BeamMode.WALK =>
                 leg2 -> parkingResponses(VehicleOnTrip(leg1.beamVehicleId, TripIdentifier(itin)))
             }
             .toMap
@@ -1138,7 +1140,7 @@ trait ChoosesMode {
                 vehicleId = body.id,
                 isLastLeg = false,
                 location = partialItin.head.beamLeg.travelPath.startPoint.loc,
-                mode = EMERGENCY,
+                mode = WALK,
                 vehicleTypeId = body.beamVehicleType.id
               ) +:
               partialItin :+
@@ -1147,7 +1149,7 @@ trait ChoosesMode {
                 vehicleId = body.id,
                 isLastLeg = true,
                 location = partialItin.last.beamLeg.travelPath.endPoint.loc,
-                mode = EMERGENCY,
+                mode = WALK,
                 vehicleTypeId = body.beamVehicleType.id
               )
             )
@@ -1191,6 +1193,8 @@ trait ChoosesMode {
           combinedItinerariesForChoice.filter(_.tripClassifier == HOV2_TELEPORTATION)
         case Some(HOV3_TELEPORTATION) =>
           combinedItinerariesForChoice.filter(_.tripClassifier == HOV3_TELEPORTATION)
+        case Some(EMERGENCY) =>
+          combinedItinerariesForChoice.filter(_.tripClassifier == EMERGENCY)
         case Some(WALK) =>
           combinedItinerariesForChoice.filter(_.tripClassifier == WALK).filter((_.legs.map(_.beamLeg.travelPath.distanceInM <= 4828.03).head))
         case Some(mode) =>
@@ -1231,7 +1235,7 @@ trait ChoosesMode {
                   body.id,
                   isLastLeg = false,
                   cavTripLegs.legs.head.beamLeg.travelPath.startPoint.loc,
-                  EMERGENCY,
+                  WALK,
                   body.beamVehicleType.id
                 )
                 val walk2 = EmbodiedBeamLeg.dummyLegAt(
@@ -1239,7 +1243,7 @@ trait ChoosesMode {
                   body.id,
                   isLastLeg = true,
                   cavTripLegs.legs.last.beamLeg.travelPath.endPoint.loc,
-                  EMERGENCY,
+                  WALK,
                   body.beamVehicleType.id
                 )
                 val cavTrip = EmbodiedBeamTrip(walk1 +: cavTripLegs.legs.toVector :+ walk2)
