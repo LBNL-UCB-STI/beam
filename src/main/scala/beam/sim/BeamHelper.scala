@@ -800,10 +800,9 @@ trait BeamHelper extends LazyLogging {
     matsimConfig: MatsimConfig
   ): (MutableScenario, BeamScenario, Boolean) = {
     val scenarioConfig = beamConfig.beam.exchange.scenario
-
     val src = scenarioConfig.source.toLowerCase
-
     val fileFormat = scenarioConfig.fileFormat
+    val outputDir = matsimConfig.controler().getOutputDirectory
 
     val (scenario, beamScenario, plansMerged) =
       ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
@@ -862,7 +861,8 @@ trait BeamHelper extends LazyLogging {
                 beamScenario,
                 source,
                 new GeoUtilsImpl(beamConfig),
-                Some(merger)
+                Some(merger),
+                Some(outputDir)
               ).loadScenario()
             if (src == "urbansim_v2") {
               new ScenarioAdjuster(
@@ -884,7 +884,13 @@ trait BeamHelper extends LazyLogging {
                   rdr = readers.BeamCsvScenarioReader
                 )
                 val scenarioBuilder = ScenarioBuilder(matsimConfig, beamScenario.network)
-                new BeamScenarioLoader(scenarioBuilder, beamScenario, source, new GeoUtilsImpl(beamConfig))
+                new BeamScenarioLoader(
+                  scenarioBuilder,
+                  beamScenario,
+                  source,
+                  new GeoUtilsImpl(beamConfig),
+                  Some(outputDir)
+                )
                   .loadScenario()
               }.asInstanceOf[MutableScenario]
               (scenario, beamScenario, false)

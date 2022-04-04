@@ -9,7 +9,6 @@ import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.SequenceUtils
 import beam.utils.plan.sampling.AvailableModeUtils
 import beam.utils.scenario.urbansim.HOVModeTransformer
-import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.Population
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -31,8 +30,9 @@ class UrbanSimScenarioLoader(
   val beamScenario: BeamScenario,
   val scenarioSource: ScenarioSource,
   val geo: GeoUtils,
-  val previousRunPlanMerger: Option[PreviousRunPlanMerger] = None
-) extends LazyLogging {
+  val previousRunPlanMerger: Option[PreviousRunPlanMerger] = None,
+  val outputDirOpt: Option[String]
+) extends ScenarioLoaderHelper {
 
   private implicit val ex: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
 
@@ -45,85 +45,45 @@ class UrbanSimScenarioLoader(
   def loadScenario(): (Scenario, Boolean) = {
     clear()
 
-    val wereCoordinatesInWGS = beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
-
     val plansF = Future {
       val plans = scenarioSource.getPlans
       logger.info(s"Read ${plans.size} plans")
-      val activities = plans.view.filter { p =>
-        p.activityType.exists(actType => actType.toLowerCase == "home")
-      }
-
-      val personIdsWithinRange =
-        activities
-          .filter { act =>
-            val actCoord = new Coord(act.activityLocationX.get, act.activityLocationY.get)
-            val wgsCoord = if (wereCoordinatesInWGS) geo.utm2Wgs(actCoord) else actCoord
-            beamScenario.transportNetwork.streetLayer.envelope.contains(wgsCoord.getX, wgsCoord.getY)
-          }
-          .map { act =>
-            act.personId
-          }
-          .toSet
-      val planWithinRange = plans.filter(p => personIdsWithinRange.contains(p.personId))
-      val filteredCnt = plans.size - planWithinRange.size
-      if (filteredCnt > 0) {
-        logger.info(s"Filtered out $filteredCnt plans. Total number of plans: ${planWithinRange.size}")
-      }
-      planWithinRange
+      validatePlans(plans)
     }
+
     val personsF = Future {
       val persons: Iterable[PersonInfo] = scenarioSource.getPersons
       logger.info(s"Read ${persons.size} persons")
       persons
     }
+
     val householdsF = Future {
       val households = scenarioSource.getHousehold
       logger.info(s"Read ${households.size} households")
-      val householdIdsWithinBoundingBox = households.view
-        .filter { hh =>
-          val coord = new Coord(hh.locationX, hh.locationY)
-          val wgsCoord = if (wereCoordinatesInWGS) geo.utm2Wgs(coord) else coord
-          beamScenario.transportNetwork.streetLayer.envelope.contains(wgsCoord.getX, wgsCoord.getY)
-        }
-        .map { hh =>
-          hh.householdId
-        }
-        .toSet
-
-      val householdsInsideBoundingBox =
-        households.filter(household => householdIdsWithinBoundingBox.contains(household.householdId))
-      val filteredCnt = households.size - householdsInsideBoundingBox.size
-      if (filteredCnt > 0) {
-        logger.info(
-          s"Filtered out $filteredCnt households. Total number of households: ${householdsInsideBoundingBox.size}"
-        )
-      }
-      householdsInsideBoundingBox
+      validateHouseholds(households)
     }
-    val inputPlans = Await.result(plansF, 1800.seconds)
+
+    val validPlans = Await.result(plansF, 1800.seconds)
     logger.info(s"Reading plans done.")
     val persons = Await.result(personsF, 1800.seconds)
     logger.info(s"Reading persons done.")
-    val households = Await.result(householdsF, 1800.seconds)
+    val validHouseholds = Await.result(householdsF, 1800.seconds)
     logger.info(s"Reading households done.")
 
-    val (mergedPlans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
+    val (mergedPlans, plansMerged) = previousRunPlanMerger.map(_.merge(validPlans)).getOrElse(validPlans -> false)
 
     val plans = {
       HOVModeTransformer.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
       HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(mergedPlans)
     }
 
-    val householdIds = households.map(_.householdId.id).toSet
-
-    val personsWithPlans = getPersonsWithPlan(persons, plans)
-      .filter(p => householdIds.contains(p.householdId.id))
+    val personsWithPlans = getPersonsWithPlan(persons, plans, validHouseholds)
     logger.info(s"There are ${personsWithPlans.size} persons with plans")
 
     val householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]] = personsWithPlans.groupBy(_.householdId)
 
-    val householdsWithMembers = households.filter(household => householdIdToPersons.contains(household.householdId))
+    val householdsWithMembers =
+      validHouseholds.filter(household => householdIdToPersons.contains(household.householdId))
     logger.info(s"There are ${householdsWithMembers.size} non-empty households")
 
     logger.info("Applying households...")
@@ -150,14 +110,6 @@ class UrbanSimScenarioLoader(
 
     beamScenario.privateVehicles.clear()
     beamScenario.privateVehicleInitialSoc.clear()
-  }
-
-  private[utils] def getPersonsWithPlan(
-    persons: Iterable[PersonInfo],
-    plans: Iterable[PlanElement]
-  ): Iterable[PersonInfo] = {
-    val personIdsWithPlan = plans.map(_.personId).toSet
-    persons.filter(person => personIdsWithPlan.contains(person.personId))
   }
 
   private[utils] def applyHousehold(
