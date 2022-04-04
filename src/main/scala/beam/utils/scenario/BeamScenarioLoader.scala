@@ -30,7 +30,7 @@ class BeamScenarioLoader(
   var beamScenario: BeamScenario,
   val scenarioSource: ScenarioSource,
   val geo: GeoUtils,
-  val outputDirOpt: Option[String]
+  val outputDirMaybe: Option[String]
 ) extends ScenarioLoaderHelper {
 
   import BeamScenarioLoader._

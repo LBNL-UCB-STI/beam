@@ -31,7 +31,7 @@ class UrbanSimScenarioLoader(
   val scenarioSource: ScenarioSource,
   val geo: GeoUtils,
   val previousRunPlanMerger: Option[PreviousRunPlanMerger] = None,
-  val outputDirOpt: Option[String]
+  val outputDirMaybe: Option[String]
 ) extends ScenarioLoaderHelper {
 
   private implicit val ex: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global

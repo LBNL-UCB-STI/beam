@@ -269,7 +269,7 @@ trait BeamHelper extends LazyLogging {
     )
   }
 
-  def loadScenario(beamConfig: BeamConfig): BeamScenario = {
+  def loadScenario(beamConfig: BeamConfig, outputDirMaybe: Option[String] = None): BeamScenario = {
     val vehicleTypes = maybeScaleTransit(beamConfig, readBeamVehicleTypeFile(beamConfig))
     val vehicleCsvReader = new VehicleCsvReader(beamConfig)
     val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
@@ -300,7 +300,7 @@ trait BeamHelper extends LazyLogging {
     val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(networkCoordinator.network, tazMap)
 
     val (freightCarriers, fixedActivitiesDurationsFromFreight) =
-      readFreights(beamConfig, networkCoordinator.transportNetwork.streetLayer, vehicleTypes)
+      readFreights(beamConfig, networkCoordinator.transportNetwork.streetLayer, vehicleTypes, outputDirMaybe)
 
     val fixedActivitiesDurationsFromConfig: Map[String, Double] = {
       val maybeFixedDurationsList = beamConfig.beam.agentsim.agents.activities.activityTypeToFixedDurationMap
@@ -344,13 +344,14 @@ trait BeamHelper extends LazyLogging {
   def readFreights(
     beamConfig: BeamConfig,
     streetLayer: StreetLayer,
-    vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
+    vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+    outputDirMaybe: Option[String]
   ): (IndexedSeq[FreightCarrier], Map[String, Double]) = {
     val freightConfig = beamConfig.beam.agentsim.agents.freight
 
     if (freightConfig.enabled) {
       val geoUtils = new GeoUtilsImpl(beamConfig)
-      val freightReader = FreightReader(beamConfig, geoUtils, streetLayer)
+      val freightReader = FreightReader(beamConfig, geoUtils, streetLayer, outputDirMaybe)
       val tours = freightReader.readFreightTours()
       val plans = freightReader.readPayloadPlans()
       val carriers = freightReader.readFreightCarriers(tours, plans, vehicleTypes)
@@ -721,7 +722,8 @@ trait BeamHelper extends LazyLogging {
         beamServices.beamConfig,
         beamServices.geo,
         beamServices.beamScenario.transportNetwork.streetLayer,
-        beamServices.beamScenario.tazTreeMap
+        beamServices.beamScenario.tazTreeMap,
+        Some(outputDir)
       )
       generatePopulationForPayloadPlans(
         beamScenario,
@@ -802,12 +804,12 @@ trait BeamHelper extends LazyLogging {
     val scenarioConfig = beamConfig.beam.exchange.scenario
     val src = scenarioConfig.source.toLowerCase
     val fileFormat = scenarioConfig.fileFormat
-    val outputDir = matsimConfig.controler().getOutputDirectory
+    val outputDirOpt = Option(matsimConfig.controler().getOutputDirectory)
 
     val (scenario, beamScenario, plansMerged) =
       ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
         if (src == "urbansim" || src == "urbansim_v2" || src == "generic") {
-          val beamScenario = loadScenario(beamConfig)
+          val beamScenario = loadScenario(beamConfig, outputDirOpt)
           val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
           val geoUtils = new GeoUtilsImpl(beamConfig)
           val (scenario, plansMerged) = {
@@ -862,7 +864,7 @@ trait BeamHelper extends LazyLogging {
                 source,
                 new GeoUtilsImpl(beamConfig),
                 Some(merger),
-                Some(outputDir)
+                outputDirOpt
               ).loadScenario()
             if (src == "urbansim_v2") {
               new ScenarioAdjuster(
@@ -877,7 +879,7 @@ trait BeamHelper extends LazyLogging {
         } else if (src == "beam") {
           fileFormat match {
             case "csv" =>
-              val beamScenario = loadScenario(beamConfig)
+              val beamScenario = loadScenario(beamConfig, outputDirOpt)
               val scenario = {
                 val source = new BeamScenarioSource(
                   beamConfig,
@@ -889,13 +891,13 @@ trait BeamHelper extends LazyLogging {
                   beamScenario,
                   source,
                   new GeoUtilsImpl(beamConfig),
-                  Some(outputDir)
+                  outputDirOpt
                 )
                   .loadScenario()
               }.asInstanceOf[MutableScenario]
               (scenario, beamScenario, false)
             case "xml" =>
-              val beamScenario = loadScenario(beamConfig)
+              val beamScenario = loadScenario(beamConfig, outputDirOpt)
               val scenario = {
                 val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
                 fixDanglingPersons(result)

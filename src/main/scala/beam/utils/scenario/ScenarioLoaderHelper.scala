@@ -13,7 +13,7 @@ trait ScenarioLoaderHelper extends LazyLogging {
 
   def beamScenario: BeamScenario
   def geo: GeoUtils
-  def outputDirOpt: Option[String]
+  def outputDirMaybe: Option[String]
 
   private val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
     geo,
@@ -112,7 +112,11 @@ trait ScenarioLoaderHelper extends LazyLogging {
 
   protected def validatePlans(plans: Iterable[PlanElement]): Iterable[PlanElement] = {
     val Processed(validPlans, errors) = snapLocationPlans(plans)
-    outputDirOpt.foreach(path => SnapCoordinateUtils.writeToCsv(s"$path/snapLocationPlanErrors.csv", errors))
+
+    outputDirMaybe.foreach { path =>
+      if (errors.isEmpty) logger.info("No 'snap location' error to report for scenario plans.")
+      else SnapCoordinateUtils.writeToCsv(s"$path/snapLocationPlanErrors.csv.gz", errors)
+    }
 
     val filteredCnt = plans.size - validPlans.size
     if (filteredCnt > 0) {
@@ -123,7 +127,11 @@ trait ScenarioLoaderHelper extends LazyLogging {
 
   protected def validateHouseholds(households: Iterable[HouseholdInfo]): Iterable[HouseholdInfo] = {
     val Processed(validHouseholds, errors) = snapLocationHouseholds(households)
-    outputDirOpt.foreach(path => SnapCoordinateUtils.writeToCsv(s"$path/snapLocationHouseholdErrors.csv", errors))
+
+    outputDirMaybe.foreach { path =>
+      if (errors.isEmpty) logger.info("No 'snap location' error to report for scenario households.")
+      else SnapCoordinateUtils.writeToCsv(s"$path/snapLocationHouseholdErrors.csv.gz", errors)
+    }
 
     val filteredCnt = households.size - validHouseholds.size
     if (filteredCnt > 0) {

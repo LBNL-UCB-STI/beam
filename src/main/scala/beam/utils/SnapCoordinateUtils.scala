@@ -2,7 +2,6 @@ package beam.utils
 
 import beam.sim.common.GeoUtils
 import beam.utils.csv.CsvWriter
-import beam.utils.scenario.PlanElement
 import com.conveyal.r5.streets.StreetLayer
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Coord
