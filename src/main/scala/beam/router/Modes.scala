@@ -34,6 +34,7 @@ object Modes {
     def isTransit: Boolean = isR5TransitMode(this)
     def isMassTransit: Boolean = this == SUBWAY || this == RAIL || this == FERRY || this == TRAM
     def isRideHail: Boolean = this == RIDE_HAIL
+    def isHovTeleportation: Boolean = this == HOV2_TELEPORTATION || this == HOV3_TELEPORTATION
   }
 
   object BeamMode extends StringEnum[BeamMode] with StringCirceEnum[BeamMode] {
@@ -124,6 +125,8 @@ object Modes {
 
     val chainBasedModes = Seq(CAR, BIKE)
 
+    val personalVehicleModes = Seq(CAR, BIKE, DRIVE_TRANSIT, BIKE_TRANSIT)
+
     val transitModes =
       Seq(BUS, FUNICULAR, GONDOLA, CABLE_CAR, FERRY, TRAM, TRANSIT, RAIL, SUBWAY)
 
@@ -160,6 +163,8 @@ object Modes {
   }
 
   def isChainBasedMode(beamMode: BeamMode): Boolean = BeamMode.chainBasedModes.contains(beamMode)
+
+  def isPersonalVehicleMode(beamMode: BeamMode): Boolean = BeamMode.personalVehicleModes.contains(beamMode)
 
   implicit def beamMode2R5Mode(beamMode: BeamMode): Either[LegMode, TransitModes] =
     beamMode.r5Mode.get

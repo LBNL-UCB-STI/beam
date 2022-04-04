@@ -197,8 +197,8 @@ object HouseholdActor {
         val homeCoordFromPlans = household.members
           .flatMap(person =>
             person.getSelectedPlan.getPlanElements.asScala.flatMap {
-              case act: Activity if act.getType == "Home" => Some(act.getCoord)
-              case _                                      => None
+              case act: Activity if PersonAgent.atHome(act) => Some(act.getCoord)
+              case _                                        => None
             }
           )
           .headOption
