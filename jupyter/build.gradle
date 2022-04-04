@@ -15,7 +15,7 @@ plugins {
 
 def imageName = 'jupyter/scipy-notebook:2022-04-02'
 def containerName = 'jupyter-for-beam'
-def port = '11238'
+def port = '8888'
 def token = UUID.randomUUID().toString()
 
 static def tryReadMappingFromFile(filePath, prefix) {
