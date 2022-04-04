@@ -82,7 +82,7 @@ class LinkStatsWithVehicleCategory(
     volumesAnalyzer: VolumesAnalyzer,
     travelTimeForR5: TravelTime,
     filePath: String
-  ): Try[Unit] = {
+  ): Try[(Map[Id[Link], LinkData], Map[String, Map[Id[Link], LinkData]], Int)] = {
     val categoryMapping = IndexedSeq(
       Seq("LightDutyTruck", "HeavyDutyTruck") -> "TruckVolume",
       Seq("HeavyDutyTruck")                   -> "HDTruckVolume"
@@ -90,5 +90,6 @@ class LinkStatsWithVehicleCategory(
     val categories = categoryMapping.flatMap(_._1).distinct
     val (totalLinkData, linkData, nofHours) = calculateLinkData(volumesAnalyzer, travelTimeForR5, categories)
     writeToFile(totalLinkData, linkData, nofHours, categoryMapping, filePath)
+      .map(_ => (totalLinkData, linkData, nofHours))
   }
 }
