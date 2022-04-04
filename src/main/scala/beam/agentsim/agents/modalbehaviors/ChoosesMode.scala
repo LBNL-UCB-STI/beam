@@ -1192,7 +1192,7 @@ trait ChoosesMode {
         case Some(HOV3_TELEPORTATION) =>
           combinedItinerariesForChoice.filter(_.tripClassifier == HOV3_TELEPORTATION)
         case Some(WALK) =>
-          combinedItinerariesForChoice.filter(_.legs.map(_.beamLeg.travelPath.distanceInM <= 3000.02).head)
+          combinedItinerariesForChoice.filter(_.legs.map(_.beamLeg.travelPath.distanceInM <= 4828.03).head)
         case Some(mode) =>
           combinedItinerariesForChoice.filter(_.tripClassifier == mode)
         case _ =>
