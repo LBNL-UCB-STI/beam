@@ -40,6 +40,7 @@ import org.matsim.api.core.v01.events.{
 }
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.{immutable, mutable}
@@ -395,9 +396,20 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         if (data.hasParkingBehaviors) {
           // charge vehicle
           if (currentBeamVehicle.isEV) {
+            val maybePersonData = findPersonData(data)
+            val maybeNextActivity = for {
+              personData <- maybePersonData
+              nextActivity <- this match {
+                case agent: PersonAgent => agent.nextActivity(personData)
+                case _                  => None
+              }
+            } yield nextActivity
+            val nextActivityEndTime: Double = maybeNextActivity
+              .map(_.getEndTime)
+              .getOrElse(Time.parseTime(beamServices.beamConfig.beam.agentsim.endTime))
             currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
               stall.chargingPointType match {
-                case Some(_) =>
+                case Some(_) if nextActivityEndTime > tick + beamConfig.beam.agentsim.schedulerParallelismWindow =>
                   log.debug("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
                   chargingNetworkManager ! ChargingPlugRequest(
                     tick,
@@ -408,6 +420,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     shiftStatus = NotApplicable
                   )
                   waitForConnectionToChargingPoint = true
+                case Some(_) =>
+                  log.warning(
+                    "Not sending a plug in request for vehicle {} at tick {} because that vehicle needs to depart at time {}",
+                    currentBeamVehicle.id,
+                    tick,
+                    nextActivityEndTime
+                  )
                 case None => // this should only happen rarely
                   log.debug(
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
@@ -930,7 +949,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       case Some(vehicle) => vehicle.isPHEV || vehicle.isBEV
       case _             => parkingInquiry.parkingActivityType == ParkingActivityType.Charge
     }
-    if (isChargingRequestOrEV)
+    if (isChargingRequestOrEV & (parkingInquiry.parkingDuration > beamConfig.beam.agentsim.schedulerParallelismWindow))
       chargingNetworkManager ! parkingInquiry
     else
       parkingManager ! parkingInquiry
