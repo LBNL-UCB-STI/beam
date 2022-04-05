@@ -1368,12 +1368,12 @@ trait ChoosesMode {
                       .legs
                       .head
                 }
-              val EmergencyTrip = EmbodiedBeamTrip(
+              val emergencyTrip = EmbodiedBeamTrip(
                 Vector(originalEmergencyTripLeg.copy(replanningPenalty = 10.0))
               )
 
               goto(FinishingModeChoice) using choosesModeData.copy(
-                pendingChosenTrip = Some(EmergencyTrip),
+                pendingChosenTrip = Some(emergencyTrip),
                 availableAlternatives = availableAlts
               )
           }
