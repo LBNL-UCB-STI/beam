@@ -1183,12 +1183,12 @@ trait ChoosesMode {
             case _ =>
               combinedItinerariesForChoice.filter(trip =>
                 trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT
-              )
+              ).filterNot(_.legs.map(_.beamLeg.travelPath.distanceInM > 4828.03).exists(_ == true))
           }
         case Some(mode) if mode == WALK_TRANSIT || mode == RIDE_HAIL_TRANSIT =>
           combinedItinerariesForChoice.filter(trip =>
             trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT
-          )
+          ).filterNot(_.legs.map(_.beamLeg.travelPath.distanceInM > 4828.03).exists(_ == true))
         case Some(HOV2_TELEPORTATION) =>
           combinedItinerariesForChoice.filter(_.tripClassifier == HOV2_TELEPORTATION)
         case Some(HOV3_TELEPORTATION) =>
