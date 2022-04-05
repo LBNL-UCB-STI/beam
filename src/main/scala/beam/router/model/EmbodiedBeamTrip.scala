@@ -115,6 +115,8 @@ object EmbodiedBeamTrip {
         theMode = leg.beamLeg.mode
       } else if (theMode == WALK && leg.beamLeg.mode == BIKE) {
         theMode = leg.beamLeg.mode
+      } else if (theMode == WALK && leg.beamLeg.mode == EMERGENCY) {
+        theMode = EMERGENCY
       }
       if (leg.beamLeg.mode == BIKE) hasUsedBike = true
       if (leg.beamLeg.mode == CAR) hasUsedCar = true
