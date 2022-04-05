@@ -49,6 +49,8 @@ object Modes {
 
     case object HOV3_TELEPORTATION extends BeamMode(value = "hov3_teleportation", None, "")
 
+    case object EMERGENCY extends BeamMode(value = "emergency", None, "")
+
     // Driving / Automobile-like (hailed rides are a bit of a hybrid)
 
     case object CAR extends BeamMode(value = "car", Some(Left(LegMode.CAR)), TransportMode.car)
@@ -100,6 +102,13 @@ object Modes {
           Some(Right(TransitModes.TRANSIT)),
           TransportMode.transit_walk
         )
+
+    case object EMERGENCY_TRANSIT
+      extends BeamMode(
+        value = "emergency_transit",
+        Some(Right(TransitModes.TRANSIT)),
+        TransportMode.other
+      )
 
     case object DRIVE_TRANSIT
         extends BeamMode(

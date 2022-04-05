@@ -2,23 +2,7 @@ package beam.router.model
 
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE,
-  BIKE_TRANSIT,
-  CAR,
-  CAR_HOV2,
-  CAR_HOV3,
-  CAV,
-  DRIVE_TRANSIT,
-  HOV2_TELEPORTATION,
-  HOV3_TELEPORTATION,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE, BIKE_TRANSIT, CAR, CAR_HOV2, CAR_HOV3, CAV, DRIVE_TRANSIT, EMERGENCY, EMERGENCY_TRANSIT, HOV2_TELEPORTATION, HOV3_TELEPORTATION, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.model.EmbodiedBeamTrip.determineTripMode
 import org.matsim.api.core.v01.Id
 
@@ -91,6 +75,7 @@ object EmbodiedBeamTrip {
     var hasUsedCar: Boolean = false
     var hasUsedBike: Boolean = false
     var hasUsedRideHail: Boolean = false
+    var hasUsedEMERGENCY: Boolean = false
     legs.foreach { leg =>
       // Any presence of transit makes it transit
       if (leg.beamLeg.mode.isTransit) {
@@ -118,6 +103,7 @@ object EmbodiedBeamTrip {
       } else if (theMode == WALK && leg.beamLeg.mode == EMERGENCY) {
         theMode = EMERGENCY
       }
+      if (leg.beamLeg.mode == EMERGENCY) hasUsedEMERGENCY = true
       if (leg.beamLeg.mode == BIKE) hasUsedBike = true
       if (leg.beamLeg.mode == CAR) hasUsedCar = true
       if (leg.isRideHail) hasUsedRideHail = true
@@ -128,6 +114,8 @@ object EmbodiedBeamTrip {
       DRIVE_TRANSIT
     } else if (theMode == TRANSIT && hasUsedBike) {
       BIKE_TRANSIT
+    } else if (theMode == TRANSIT && hasUsedEMERGENCY) {
+      EMERGENCY_TRANSIT
     } else if (theMode == TRANSIT && !hasUsedCar) {
       WALK_TRANSIT
     } else {
