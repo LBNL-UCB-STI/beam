@@ -2,7 +2,25 @@ package beam.router.model
 
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE, BIKE_TRANSIT, CAR, CAR_HOV2, CAR_HOV3, CAV, DRIVE_TRANSIT, EMERGENCY, EMERGENCY_TRANSIT, HOV2_TELEPORTATION, HOV3_TELEPORTATION, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  BIKE,
+  BIKE_TRANSIT,
+  CAR,
+  CAR_HOV2,
+  CAR_HOV3,
+  CAV,
+  DRIVE_TRANSIT,
+  EMERGENCY,
+  EMERGENCY_TRANSIT,
+  HOV2_TELEPORTATION,
+  HOV3_TELEPORTATION,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import beam.router.model.EmbodiedBeamTrip.determineTripMode
 import org.matsim.api.core.v01.Id
 

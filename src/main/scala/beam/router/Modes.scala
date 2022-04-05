@@ -104,11 +104,11 @@ object Modes {
         )
 
     case object EMERGENCY_TRANSIT
-      extends BeamMode(
-        value = "emergency_transit",
-        Some(Right(TransitModes.TRANSIT)),
-        TransportMode.other
-      )
+        extends BeamMode(
+          value = "emergency_transit",
+          Some(Right(TransitModes.TRANSIT)),
+          TransportMode.other
+        )
 
     case object DRIVE_TRANSIT
         extends BeamMode(
