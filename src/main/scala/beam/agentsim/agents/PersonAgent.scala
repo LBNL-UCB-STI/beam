@@ -12,11 +12,7 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
-import beam.agentsim.agents.parking.ChoosesParking.{
-  handleReleasingParkingSpot,
-  ChoosingParkingSpot,
-  ReleasingParkingSpot
-}
+import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot, handleReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
@@ -34,27 +30,12 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  CAR,
-  CAV,
-  HOV2_TELEPORTATION,
-  HOV3_TELEPORTATION,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{CAR, CAV, EMERGENCY, HOV2_TELEPORTATION, HOV3_TELEPORTATION, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.skim.ActivitySimSkimmerEvent
-import beam.router.skim.event.{
-  DriveTimeSkimmerEvent,
-  ODSkimmerEvent,
-  RideHailSkimmerEvent,
-  UnmatchedRideHailRequestSkimmerEvent
-}
+import beam.router.skim.event.{DriveTimeSkimmerEvent, ODSkimmerEvent, RideHailSkimmerEvent, UnmatchedRideHailRequestSkimmerEvent}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.population.AttributesOfIndividual
@@ -261,7 +242,22 @@ object PersonAgent {
     bodyVehicleId: Id[BeamVehicle],
     bodyVehicleTypeId: Id[BeamVehicleType]
   ): EmbodiedBeamTrip = {
-    if (trip.tripClassifier != WALK && trip.tripClassifier != WALK_TRANSIT) {
+    if (trip.tripClassifier != EMERGENCY && trip.tripClassifier != EMERGENCY) {
+      trip.copy(
+        legs = trip.legs
+          .dropRight(1) :+ EmbodiedBeamLeg
+          .dummyLegAt(
+            endTime - trip.legs.last.beamLeg.duration,
+            bodyVehicleId,
+            isLastLeg = true,
+            trip.legs.dropRight(1).last.beamLeg.travelPath.endPoint.loc,
+            EMERGENCY,
+            bodyVehicleTypeId,
+            asDriver = true,
+            trip.legs.last.beamLeg.duration
+          )
+      )
+    } else if (trip.tripClassifier != WALK && trip.tripClassifier != WALK_TRANSIT) {
       trip.copy(
         legs = trip.legs
           .dropRight(1) :+ EmbodiedBeamLeg
