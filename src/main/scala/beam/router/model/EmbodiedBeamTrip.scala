@@ -93,7 +93,7 @@ object EmbodiedBeamTrip {
     var hasUsedCar: Boolean = false
     var hasUsedBike: Boolean = false
     var hasUsedRideHail: Boolean = false
-    var hasUsedEMERGENCY: Boolean = false
+    var hasUsedEmergency: Boolean = false
     legs.foreach { leg =>
       // Any presence of transit makes it transit
       if (leg.beamLeg.mode.isTransit) {
@@ -121,7 +121,7 @@ object EmbodiedBeamTrip {
       } else if (theMode == WALK && leg.beamLeg.mode == EMERGENCY) {
         theMode = EMERGENCY
       }
-      if (leg.beamLeg.mode == EMERGENCY) hasUsedEMERGENCY = true
+      if (leg.beamLeg.mode == EMERGENCY) hasUsedEmergency = true
       if (leg.beamLeg.mode == BIKE) hasUsedBike = true
       if (leg.beamLeg.mode == CAR) hasUsedCar = true
       if (leg.isRideHail) hasUsedRideHail = true
@@ -132,7 +132,7 @@ object EmbodiedBeamTrip {
       DRIVE_TRANSIT
     } else if (theMode == TRANSIT && hasUsedBike) {
       BIKE_TRANSIT
-    } else if (theMode == TRANSIT && hasUsedEMERGENCY) {
+    } else if (theMode == TRANSIT && hasUsedEmergency) {
       EMERGENCY_TRANSIT
     } else if (theMode == TRANSIT && !hasUsedCar) {
       WALK_TRANSIT
