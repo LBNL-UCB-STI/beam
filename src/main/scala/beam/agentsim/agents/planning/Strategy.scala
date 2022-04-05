@@ -1,7 +1,9 @@
 package beam.agentsim.agents.planning
 
+import beam.agentsim.agents.planning.BeamPlan.atHome
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
+import org.matsim.api.core.v01.population.Activity
 
 /**
   * BEAM
@@ -47,6 +49,19 @@ object Strategy {
         case _ => super.tripStrategies(tour, beamPlan)
       }
     }
+
+    def tourStrategy(beamPlan: BeamPlan, curAct: Activity, nextAct: Activity): ModeChoiceStrategy = {
+      val currentTourModeOpt = beamPlan.getTourStrategy[ModeChoiceStrategy](nextAct).flatMap(_.mode)
+      val newTourMode = currentTourModeOpt match {
+        case Some(_) if mode.get.isHovTeleportation => mode
+        case Some(DRIVE_TRANSIT | BIKE_TRANSIT)     => currentTourModeOpt
+        case _ if atHome(curAct)                    => mode
+        case Some(_)                                => currentTourModeOpt
+        case None                                   => mode
+      }
+      ModeChoiceStrategy(newTourMode)
+    }
+
   }
 
 }

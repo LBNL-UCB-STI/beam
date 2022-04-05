@@ -1395,12 +1395,16 @@ trait ChoosesMode {
     val nextAct = nextActivity(data.personData).get
     val currentTour = _experiencedBeamPlan.getTourContaining(nextAct)
     val currentTrip = _experiencedBeamPlan.getTripContaining(nextAct)
+    val tripStrategy = ModeChoiceStrategy(Some(chosenTrip.tripClassifier))
+    val currentTourStrategy = tripStrategy.tourStrategy(_experiencedBeamPlan, currentActivity(data.personData), nextAct)
+    _experiencedBeamPlan.putStrategy(currentTrip, tripStrategy)
+    _experiencedBeamPlan.putStrategy(currentTour, currentTourStrategy)
 
     val modeChoiceEvent = new ModeChoiceEvent(
       tick,
       id,
       chosenTrip.tripClassifier.value,
-      data.personData.currentTripMode.map(_.value).getOrElse(""),
+      currentTourStrategy.mode.map(_.value).getOrElse(""),
       data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
       _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getLinkId.toString,
       data.availableAlternatives.get,
@@ -1415,7 +1419,7 @@ trait ChoosesMode {
     eventsManager.processEvent(modeChoiceEvent)
 
     data.personData.currentTripMode match {
-      case Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION) =>
+      case Some(mode) if mode.isHovTeleportation =>
         scheduler ! CompletionNotice(
           triggerId,
           Vector(
@@ -1426,9 +1430,6 @@ trait ChoosesMode {
           )
         )
 
-        val strategy = ModeChoiceStrategy(data.personData.currentTripMode)
-        _experiencedBeamPlan.putStrategy(currentTrip, strategy)
-        _experiencedBeamPlan.putStrategy(currentTour, strategy)
         goto(Teleporting) using data.personData.copy(
           currentTrip = Some(chosenTrip),
           restOfCurrentTrip = List()
@@ -1461,15 +1462,10 @@ trait ChoosesMode {
             )
           )
         )
-        val chosenTripMode = Some(chosenTrip.tripClassifier)
-        val currentTourMode = _experiencedBeamPlan.getTourStrategy[ModeChoiceStrategy](nextAct).flatMap(_.mode)
-        val currentTourModeToStore = currentTourMode.orElse(chosenTripMode)
-        _experiencedBeamPlan.putStrategy(currentTrip, ModeChoiceStrategy(chosenTripMode))
-        _experiencedBeamPlan.putStrategy(currentTour, ModeChoiceStrategy(currentTourModeToStore))
         goto(WaitingForDeparture) using data.personData.copy(
           currentTrip = Some(chosenTrip),
           restOfCurrentTrip = chosenTrip.legs.toList,
-          currentTripMode = data.personData.currentTripMode.orElse(chosenTripMode),
+          currentTripMode = Some(chosenTrip.tripClassifier),
           currentTourPersonalVehicle =
             if (isCurrentPersonalVehicleVoided)
               vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id)
