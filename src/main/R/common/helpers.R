@@ -170,8 +170,8 @@ assignLinkIdToTruckAADTT <- function(NETWORK_CLEANED, NETWORK_CRS, TRUCK_AADTT, 
   counter1 <- 0
   counter2 <- 0
   for (row in 1:nrow(truck_aadtt_sf)) {
-    if(row %% 100) {
-      print(paste(row, " entrees have been processed so far!"))
+    if(row %% 100 == 0) {
+      print(paste(row, " entries have been processed so far!"))
     }
     current_pm <- truck_aadtt_sf[row,]
     currentDist <- 20
