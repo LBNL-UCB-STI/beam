@@ -1196,7 +1196,8 @@ trait ChoosesMode {
         case Some(EMERGENCY) =>
           combinedItinerariesForChoice.filter(_.tripClassifier == EMERGENCY)
         case Some(WALK) =>
-          combinedItinerariesForChoice.filter(_.tripClassifier == WALK).filter((_.legs.map(_.beamLeg.travelPath.distanceInM <= 4828.03).head))
+          combinedItinerariesForChoice.filter(_.tripClassifier == WALK).filterNot(_.legs.map(_.beamLeg.travelPath.distanceInM > 4828.03).exists(_ == true))
+
         case Some(mode) =>
           combinedItinerariesForChoice.filter(_.tripClassifier == mode)
         case _ =>
