@@ -1201,7 +1201,7 @@ trait ChoosesMode {
         case Some(mode) =>
           combinedItinerariesForChoice.filter(_.tripClassifier == mode)
         case _ =>
-          combinedItinerariesForChoice
+          combinedItinerariesForChoice.filterNot(_.legs.map(_.beamLeg.travelPath.distanceInM > 4828.03).exists(_ == true))
       }).filter(itin => availableModesForTrips.contains(itin.tripClassifier))
 
       val attributesOfIndividual =
