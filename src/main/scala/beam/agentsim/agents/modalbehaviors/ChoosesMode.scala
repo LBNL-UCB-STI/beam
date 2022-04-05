@@ -469,16 +469,7 @@ trait ChoosesMode {
             newlyAvailableBeamVehicles.map(_.streetVehicle) :+ bodyStreetVehicle,
             possibleEgressVehicles = dummySharedVehicles
           )
-        case Some(WALK) =>
-          responsePlaceholders = makeResponsePlaceholders(withRouting = true)
-          makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
-        case Some(EMERGENCY) =>
-          responsePlaceholders = makeResponsePlaceholders(withRouting = true)
-          makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
-        case Some(WALK_TRANSIT) =>
-          responsePlaceholders = makeResponsePlaceholders(withRouting = true)
-          makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
-        case Some(EMERGENCY_TRANSIT) =>
+        case Some(WALK | WALK_TRANSIT | EMERGENCY | EMERGENCY_TRANSIT) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
         case Some(CAV) =>
