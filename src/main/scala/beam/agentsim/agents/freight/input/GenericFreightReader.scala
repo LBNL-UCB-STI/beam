@@ -360,7 +360,7 @@ class GenericFreightReader(
   }
 
   private def getDistributedTazLocation(taz: TAZ): Coord =
-    convertedLocation(TAZTreeMap.randomLocationInTAZ(taz, rnd))
+    convertedLocation(TAZTreeMap.randomLocationInTAZ(taz, rnd, Some(snapLocationHelper)))
 
   private def extractCoordOrTaz(strX: String, strY: String, strZone: String): (Option[Id[TAZ]], ClosestUTMPoint) = {
     if (isBlank(strX) || isBlank(strY)) {

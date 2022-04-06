@@ -1,5 +1,7 @@
 package beam.agentsim.infrastructure.taz
 
+import beam.utils.SnapCoordinateUtils.{Result, SnapLocationHelper}
+
 import java.io._
 import java.util
 import scala.collection.JavaConverters._
@@ -195,7 +197,7 @@ object TAZTreeMap {
     new TAZTreeMap(tazQuadTree)
   }
 
-  def randomLocationInTAZ(
+  private def createRandomLocationInTAZ(
     taz: TAZ,
     rand: scala.util.Random = new scala.util.Random(System.currentTimeMillis())
   ): Coord = {
@@ -205,6 +207,41 @@ object TAZTreeMap {
     val x = r * Math.cos(a)
     val y = r * Math.sin(a)
     new Coord(taz.coord.getX + x, taz.coord.getY + y)
+  }
+
+  def randomLocationInTAZ(
+    taz: TAZ,
+    rand: scala.util.Random = new scala.util.Random(System.currentTimeMillis()),
+    snapLocationHelperMaybe: Option[SnapLocationHelper] = None
+  ): Coord = {
+    val tazId = taz.tazId.toString
+    snapLocationHelperMaybe match {
+      case None => createRandomLocationInTAZ(taz, rand)
+      case Some(helper) =>
+        val max = 10000
+        var counter = 0
+        var split: Coord = null
+        while (split == null && counter < max) {
+          helper.computeResult(createRandomLocationInTAZ(taz, rand)) match {
+            case Result.Succeed(splitCoord) =>
+              logger.info(s"Found valid location $splitCoord within taz $tazId in $counter attempt(s).")
+              split = splitCoord
+            case _ =>
+          }
+          counter += 1
+        }
+
+        if (split == null) {
+          // TODO what to do if we don't find valid point in "max" attempts?
+          val loc = createRandomLocationInTAZ(taz, rand)
+          logger.warn(
+            s"Could not found valid location within taz $tazId even in $max attempts. Creating one anyone $loc."
+          )
+          split = loc
+        }
+
+        split
+    }
   }
 
   /**

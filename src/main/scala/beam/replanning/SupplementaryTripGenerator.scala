@@ -8,6 +8,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
@@ -22,7 +23,8 @@ class SupplementaryTripGenerator(
   val attributesOfIndividual: AttributesOfIndividual,
   val destinationChoiceModel: DestinationChoiceModel,
   val beamServices: BeamServices,
-  val personId: Id[Person]
+  val personId: Id[Person],
+  val snapLocationHelper: SnapLocationHelper
 ) {
   val r: Random.type = scala.util.Random
   val personSpecificSeed: Long = personId.hashCode().toLong
@@ -199,7 +201,7 @@ class SupplementaryTripGenerator(
         val newActivity =
           PopulationUtils.createActivityFromCoord(
             newActivityType,
-            TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz)
+            TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz, snapLocationHelperMaybe = Some(snapLocationHelper))
           )
         val activityBeforeNewActivity =
           PopulationUtils.createActivityFromCoord(prevActivity.getType, prevActivity.getCoord)
@@ -244,7 +246,8 @@ class SupplementaryTripGenerator(
         Map[SupplementaryTripAlternative, Map[SupplementaryTripAlternative, Map[DestinationParameters, Double]]]()
       } else {
         TAZs.map { taz =>
-          val destinationCoord: Coord = TAZTreeMap.randomLocationInTAZ(taz)
+          val destinationCoord: Coord =
+            TAZTreeMap.randomLocationInTAZ(taz, snapLocationHelperMaybe = Some(snapLocationHelper))
           val additionalActivity = PopulationUtils.createActivityFromCoord(newActivityType, destinationCoord)
           additionalActivity.setStartTime(startTime)
           additionalActivity.setEndTime(endTime)
