@@ -229,9 +229,9 @@ object ScenarioLoaderHelper extends LazyLogging {
       val plans = person.getPlans.asScala.toList
       plans.foreach { plan =>
         val elements: Vector[PlanElement] = plan.getPlanElements.asScala.toVector
-        val es: Vector[ErrorInfo] = updatePlanElementCoord(person.getId, elements, snapLocationHelper)
-        if (es.nonEmpty) {
-          planErrors.appendAll(es)
+        val errors: Vector[ErrorInfo] = updatePlanElementCoord(person.getId, elements, snapLocationHelper)
+        if (errors.nonEmpty) {
+          planErrors.appendAll(errors)
           person.removePlan(plan)
         }
       }
