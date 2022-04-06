@@ -31,6 +31,7 @@ import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationScaling
 import beam.sim.termination.TerminationCriterionProvider
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils._
 import beam.utils.csv.readers
 import beam.utils.plan.sampling.AvailableModeUtils
@@ -38,7 +39,13 @@ import beam.utils.scenario.generic.GenericScenarioSource
 import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.scenario.urbansim.censusblock.{ScenarioAdjuster, UrbansimReaderV2}
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
-import beam.utils.scenario.{BeamScenarioLoader, InputType, PreviousRunPlanMerger, UrbanSimScenarioLoader}
+import beam.utils.scenario.{
+  BeamScenarioLoader,
+  InputType,
+  PreviousRunPlanMerger,
+  ScenarioLoaderHelper,
+  UrbanSimScenarioLoader
+}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -644,32 +651,17 @@ trait BeamHelper extends LazyLogging {
     (beamExecutionConfig, scenario, beamScenario, services, plansMerged)
   }
 
-  def fixDanglingPersons(result: MutableScenario): Unit = {
-    val peopleViaHousehold = result.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .flatMap { x =>
-        x.getMemberIds.asScala
-      }
-      .toSet
-    val danglingPeople = result.getPopulation.getPersons
-      .values()
-      .asScala
-      .filter(person => !peopleViaHousehold.contains(person.getId))
-    if (danglingPeople.nonEmpty) {
-      logger.error(s"There are ${danglingPeople.size} persons not connected to household, removing them")
-      danglingPeople.foreach { p =>
-        result.getPopulation.removePerson(p.getId)
-      }
-    }
-  }
-
   protected def buildScenarioFromMatsimConfig(
     matsimConfig: MatsimConfig,
     beamScenario: BeamScenario
   ): MutableScenario = {
+    val snapLocationHelper = SnapLocationHelper(
+      new GeoUtilsImpl(beamScenario.beamConfig),
+      beamScenario.transportNetwork.streetLayer,
+      beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
+    )
     val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    fixDanglingPersons(result)
+    ScenarioLoaderHelper.validateScenario(result, snapLocationHelper)
     result.setNetwork(beamScenario.network)
     result
   }
@@ -898,9 +890,14 @@ trait BeamHelper extends LazyLogging {
               (scenario, beamScenario, false)
             case "xml" =>
               val beamScenario = loadScenario(beamConfig, outputDirOpt)
+              val snapLocationHelper = SnapLocationHelper(
+                new GeoUtilsImpl(beamConfig),
+                beamScenario.transportNetwork.streetLayer,
+                beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
+              )
               val scenario = {
                 val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-                fixDanglingPersons(result)
+                ScenarioLoaderHelper.validateScenario(result, snapLocationHelper, outputDirOpt)
                 result
               }
               (scenario, beamScenario, false)
