@@ -367,7 +367,8 @@ class GenericFreightReader(
       val taz = getTaz(strZone)
       (Some(taz.tazId), Left(getDistributedTazLocation(taz)))
     } else {
-      (None, Right(snapLocationHelper.computeResult(location(strX.toDouble, strY.toDouble))))
+      val wasInWgs = config.convertWgs2Utm
+      (None, Right(snapLocationHelper.computeResult(location(strX.toDouble, strY.toDouble), wasInWgs)))
     }
   }
 
