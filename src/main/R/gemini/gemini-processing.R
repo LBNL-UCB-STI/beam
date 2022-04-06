@@ -21,8 +21,8 @@ shpFile <- pp(workDir, "/shapefile/Oakland+Alameda+TAZ/Transportation_Analysis_Z
 oaklandCbg <- st_read(shpFile)
 
 ###
-#eventsraw <- readCsv(pp(workDir, "/2021Aug22-Oakland/BASE0/events-raw/2.events.BASE0.csv.gz"))
-events <- readCsv(pp(workDir, "/2022Feb/BATCH1/events/filtered.0.events.SC4.csv.gz"))
+eventsraw <- readCsv(pp(workDir, "/0.events.csv.gz"))
+events <- readCsv(pp(workDir, "/filtered.0.events.csv.gz"))
 
 ## temp
 workdir <- "/Users/haitamlaarabi/Data/GEMINI/enroute-scenario3"
@@ -667,19 +667,6 @@ b <- sum(rse100[startsWith(parkingZoneId, "AO")]$fuel)
 b <- rse100_3[startsWith(parkingZoneId, "AO"),.(fuel3=mean(fuel)),by=.(chargingPointType)]
 a <- rse100[startsWith(parkingZoneId, "AO"),.(fuel2=mean(fuel)),by=.(chargingPointType)]
 
-#####
-
-sc4 <- readCsv(pp(workDir, "/2021Oct29/BATCH1/events/filtered.3.events.SC4.csv.gz"))
-sc4Bis <- readCsv(pp(workDir, "/2021Oct29/BATCH1/events/filtered.3.events.SC4Bis.csv.gz"))
-
-ref4 <- sc4[type=="RefuelSessionEvent"]
-ref4Bis <- sc4[type=="RefuelSessionEvent"]
-
-mean(ref4[time >= 0 && time < 7 * 3600]$fuel)
-mean(ref4[time > 22]$fuel)
-
-test1 <- ref4[grepl("emergency", vehicle)]
-test2 <- ref4Bis[grepl("emergency", vehicle)]
 
 
 ###
@@ -735,7 +722,8 @@ summarizingCharging2 <- function(DATA) {
   chgSummary[,shareFuel:=sumFuel/chgSummaryTotFuel][,-c("sumFuel")][order(actType)]
 }
 
-events0 <- readCsv(pp(workDir, "/2022Mars-Calibration/filtered.0.events.SC4a.csv.gz"))
+events00 <- readCsv(pp(workDir, "/2022Feb/BATCH1/events/filtered.0.events.SC4b.csv.gz"))
+events01 <- readCsv(pp(workDir, "/2022Feb/BATCH1/events/filtered.0.events.SC4b2.csv.gz"))
 
 events1 <- readCsv(pp(workDir, "/2022Mars-Calibration/0.events.b1-1.csv.gz"))
 events2 <- readCsv(pp(workDir, "/2022Mars-Calibration/0.events.b1-2.csv.gz"))
@@ -790,7 +778,8 @@ events8 <- readCsv(pp(workDir, "/2022Mars-Calibration/0.events.b1-8.csv.gz"))
 # Public L3,1.8%,weekday
 # Home L1+L2,77.5,weekday
 
-summarizingCharging(events0)
+summarizingCharging(events00)
+summarizingCharging(events01)
 
 summarizingCharging(events1)
 summarizingCharging(events2)

@@ -1,7 +1,9 @@
 import pandas as pd
 import os
 
-filename = '~/Data/GEMINI/2022Feb/BATCH1/events-raw/0.events.SC4b.csv.gz'
+work_directory = '~/Data/GEMINI/2022Feb/BATCH1'
+#filename = work_directory + '/events-raw/0.events.SC4b2.csv.gz'
+filename = '~/Data/GEMINI/0.events.csv.gz'
 full_filename = os.path.expanduser(filename)
 compression = None
 if filename.endswith(".gz"):
@@ -15,6 +17,6 @@ data_filtered2 = data_filtered[
      "locationY", "locationX", "duration", "vehicleType", "person", "fuel",
      "parkingZoneId", "pricingModel", "actType"]
 ]
-
-data_filtered2.to_csv('~/Data/GEMINI/2022Feb/BATCH1/events/filtered.0.events.SC4b.csv.gz')
+data_filtered2.to_csv('~/Data/GEMINI/filtered.0.events.csv.gz')
+#data_filtered2.to_csv(work_directory + '/events/filtered.0.events.SC4b2.csv.gz')
 print("END")
