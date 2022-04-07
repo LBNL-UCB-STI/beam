@@ -77,10 +77,7 @@ object AddTAZIdToGeneratedPlans {
 
       val fileRows = addTAZIdToActivitiesLocations(pathToPlans, pathToTAZ, maybeCRS)
 
-      new FileWriter(outputPath, false).use { csvWriter =>
-        csvWriter.write(fileRows.head + "\n")
-        fileRows.tail.foreach(row => csvWriter.write(row + "\n"))
-      }
+      FileUtils.writeToFile(outputPath, Some(fileRows.head), fileRows.tail.mkString("\n"), None)
     }
   }
 }
