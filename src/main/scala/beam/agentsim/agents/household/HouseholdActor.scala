@@ -210,7 +210,7 @@ object HouseholdActor {
 
         //We should create a vehicle manager for cars and bikes for all households in case they are generated during the simulation
 
-        val vehiclesByAllCategories = List(Car, Bike)
+        val vehiclesByAllCategories = (List(Car, Bike) ++ vehiclesByCategory.keys).distinct
           .map(cat => cat -> vehiclesByCategory.getOrElse(cat, Map[Id[BeamVehicle], BeamVehicle]()))
           .toMap
         val fleetManagers = vehiclesByAllCategories.map { case (category, vehicleMap) =>
