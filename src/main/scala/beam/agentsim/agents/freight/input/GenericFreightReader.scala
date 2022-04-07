@@ -27,8 +27,8 @@ class GenericFreightReader(
   val geoUtils: GeoUtils,
   rnd: Random,
   tazTree: TAZTreeMap,
-  val snapLocationHelper: SnapLocationHelper,
-  val outputDirMaybe: Option[String]
+  val snapLocationHelperMaybe: Option[SnapLocationHelper] = None,
+  val outputDirMaybe: Option[String] = None
 ) extends LazyLogging
     with FreightReader {
 
@@ -360,7 +360,7 @@ class GenericFreightReader(
   }
 
   private def getDistributedTazLocation(taz: TAZ): Coord =
-    convertedLocation(TAZTreeMap.randomLocationInTAZ(taz, rnd, Some(snapLocationHelper)))
+    convertedLocation(TAZTreeMap.randomLocationInTAZ(taz, rnd, snapLocationHelperMaybe))
 
   private def extractCoordOrTaz(strX: String, strY: String, strZone: String): (Option[Id[TAZ]], ClosestUTMPoint) = {
     if (isBlank(strX) || isBlank(strY)) {
@@ -368,7 +368,8 @@ class GenericFreightReader(
       (Some(taz.tazId), Left(getDistributedTazLocation(taz)))
     } else {
       val wasInWgs = config.convertWgs2Utm
-      (None, Right(snapLocationHelper.computeResult(location(strX.toDouble, strY.toDouble), wasInWgs)))
+      val loc = location(strX.toDouble, strY.toDouble)
+      (None, Right(snapLocationHelperMaybe.map(_.computeResult(loc, wasInWgs)).getOrElse(Result.Succeed(loc))))
     }
   }
 

@@ -24,7 +24,7 @@ class SupplementaryTripGenerator(
   val destinationChoiceModel: DestinationChoiceModel,
   val beamServices: BeamServices,
   val personId: Id[Person],
-  val snapLocationHelper: SnapLocationHelper
+  val snapLocationHelperMaybe: Option[SnapLocationHelper] = None
 ) {
   val r: Random.type = scala.util.Random
   val personSpecificSeed: Long = personId.hashCode().toLong
@@ -201,7 +201,7 @@ class SupplementaryTripGenerator(
         val newActivity =
           PopulationUtils.createActivityFromCoord(
             newActivityType,
-            TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz, snapLocationHelperMaybe = Some(snapLocationHelper))
+            TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz, snapLocationHelperMaybe = snapLocationHelperMaybe)
           )
         val activityBeforeNewActivity =
           PopulationUtils.createActivityFromCoord(prevActivity.getType, prevActivity.getCoord)
@@ -247,7 +247,7 @@ class SupplementaryTripGenerator(
       } else {
         TAZs.map { taz =>
           val destinationCoord: Coord =
-            TAZTreeMap.randomLocationInTAZ(taz, snapLocationHelperMaybe = Some(snapLocationHelper))
+            TAZTreeMap.randomLocationInTAZ(taz, snapLocationHelperMaybe = snapLocationHelperMaybe)
           val additionalActivity = PopulationUtils.createActivityFromCoord(newActivityType, destinationCoord)
           additionalActivity.setStartTime(startTime)
           additionalActivity.setEndTime(endTime)

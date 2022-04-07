@@ -203,7 +203,7 @@ object FreightReader {
           geoUtils,
           rand,
           tazMap,
-          snapLocationHelper,
+          Some(snapLocationHelper),
           outputDirMaybe
         )
       case s =>
