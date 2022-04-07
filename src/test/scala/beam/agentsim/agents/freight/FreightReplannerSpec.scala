@@ -127,12 +127,12 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper
       plan.getPlanElements should have size 9
       plan.getPlanElements.get(0) shouldBe a[Activity]
       val activity0 = plan.getPlanElements.get(0).asInstanceOf[Activity]
-      activity0.getType should be("Warehouse")
+      activity0.getType should be("Home")
       activity0.getEndTime should be(11915.0)
       plan.getPlanElements.get(2).asInstanceOf[Activity].getType should be("Unloading")
       plan.getPlanElements.get(4).asInstanceOf[Activity].getType should be("Unloading")
       plan.getPlanElements.get(6).asInstanceOf[Activity].getType should be("Loading")
-      plan.getPlanElements.get(8).asInstanceOf[Activity].getType should be("Warehouse")
+      plan.getPlanElements.get(8).asInstanceOf[Activity].getType should be("Home")
     }
 
   }
