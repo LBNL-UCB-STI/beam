@@ -16,20 +16,10 @@ import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 
 class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
 
-  /**
-    * see the notes,
-    *
-    * Scenario:
-    * case1: test/test-resources/beam/input/snap-location/scenario/case1/note
-    *   three invalid plans, update population/households accordingly
-    * case2: test/test-resources/beam/input/snap-location/scenario/case2/note
-    *   one invalid household and three invalid plans, update population/households accordingly
-    *
-    * Freight:
-    * ???
-    */
-
   val pwd: String = System.getenv("PWD")
+
+  // TODO
+  // 1. compare out put csv
 
   "scenario plan" should {
     "contain all valid locations" in {
@@ -93,7 +83,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       } shouldBe true
     }
 
-    "remove/update invalid persons and households [case1 xml input]" in {
+    "remove invalid persons and households [case1 xml input]" in {
       lazy val config: TypesafeConfig = ConfigFactory
         .parseString(s"""
                         |beam.agentsim.agents.plans {
@@ -129,7 +119,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       }
     }
 
-    "remove/update invalid persons and households [case2 xml input]" in {
+    "remove invalid persons and households [case2 xml input]" in {
       lazy val config: TypesafeConfig = ConfigFactory
         .parseString(s"""
                         |beam.agentsim.agents.plans {
@@ -213,11 +203,64 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
         matsimConfig
       )
 
+      scenario.getPopulation.getPersons.size() shouldBe 1
+      scenario.getHouseholds.getHouseholds.size() shouldBe 1
+    }
+
+    "remove invalid persons and households [case1 urbansimv2 input]" in {
+      lazy val config: TypesafeConfig = ConfigFactory
+        .parseString(s"""
+                        |beam.exchange.scenario.folder = "$pwd/test/test-resources/beam/input/snap-location/scenario/case1/urbansim_v2"
+                        |beam.routing.r5.linkRadiusMeters = 350
+                        |""".stripMargin)
+        .withFallback(testConfig("test/input/beamville/beam-urbansimv2.conf"))
+        .resolve()
+
+      val configBuilder = new MatSimBeamConfigBuilder(config)
+      val matsimConfig: Config = configBuilder.buildMatSimConf()
+      matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
+      val beamConfig: BeamConfig = BeamConfig(config)
+
+      FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+
+      val (scenario, _, _) = buildBeamServicesAndScenario(
+        beamConfig,
+        matsimConfig
+      )
+
       val households = scenario.getHouseholds.getHouseholds.values().asScala.toList
+
+      scenario.getPopulation.getPersons.size() shouldBe 2
+      households.foreach { household =>
+        household.getMemberIds.size() shouldBe 1
+      }
+    }
+
+    "remove invalid persons and households [case2 urbansimv2 input]" in {
+      lazy val config: TypesafeConfig = ConfigFactory
+        .parseString(s"""
+                        |beam.exchange.scenario.folder = "$pwd/test/test-resources/beam/input/snap-location/scenario/case2/urbansim_v2"
+                        |beam.routing.r5.linkRadiusMeters = 350
+                        |""".stripMargin)
+        .withFallback(testConfig("test/input/beamville/beam-urbansimv2.conf"))
+        .resolve()
+
+      val configBuilder = new MatSimBeamConfigBuilder(config)
+      val matsimConfig: Config = configBuilder.buildMatSimConf()
+      matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
+      val beamConfig: BeamConfig = BeamConfig(config)
+
+      FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+
+      val (scenario, _, _) = buildBeamServicesAndScenario(
+        beamConfig,
+        matsimConfig
+      )
 
       scenario.getPopulation.getPersons.size() shouldBe 1
       scenario.getHouseholds.getHouseholds.size() shouldBe 1
     }
+
   }
 
 }
