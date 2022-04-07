@@ -34,7 +34,8 @@ class AddTAZIdToGeneratedPlansTest extends AnyFunSuite with Matchers {
       ",010100-2012000596480-0-179584,0,0.0,true,activity,0,Home,551130.2960340485,4184682.7295167553,-Infinity,28980.0,,,,,,,,,\"\",100281"
     )
 
-    val rows = AddTAZIdToGeneratedPlans.addTAZIdToActivitiesLocations(pathToGeneratedPlans, pathToTAZCenters, maybeCRS)
+    val (header, rowsIterator) = AddTAZIdToGeneratedPlans.addTAZIdToActivitiesLocations(pathToGeneratedPlans, pathToTAZCenters, maybeCRS)
+    val rows = Seq(header) ++ rowsIterator.toSeq
     rows.size shouldBe 11939
     rows.take(21) shouldBe expectedFirst21Row
   }

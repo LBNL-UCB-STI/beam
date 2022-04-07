@@ -3,11 +3,11 @@ package scripts
 import beam.agentsim.infrastructure.taz
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.sim.common.GeoUtils
-import beam.utils.CloseableUtil.RichCloseable
 import beam.utils.FileUtils
 import org.matsim.api.core.v01.Coord
+import org.matsim.core.utils.io.IOUtils
 
-import java.io.{BufferedReader, FileWriter}
+import java.io.{BufferedReader, IOException}
 
 /**
   * A script to add activity location TAZ to generatedPlans
@@ -35,7 +35,7 @@ object AddTAZIdToGeneratedPlans {
     generatedPlansFilePath: String,
     tazCentersFilePath: String,
     maybeCRS: Option[String]
-  ): Seq[String] = {
+  ): (String, Iterator[String]) = {
     def convertCoord: Coord => Coord = {
       maybeCRS match {
         case Some(crs) =>
@@ -52,12 +52,12 @@ object AddTAZIdToGeneratedPlans {
 
     val bufferedReader: BufferedReader = FileUtils.readerFromFile(generatedPlansFilePath)
     val headerWithTAZ = bufferedReader.readLine() + ",activityLocationTAZ"
-    val plansRowsWithTAZIds = Iterator
+    val plansRowsWithTAZIds: Iterator[String] = Iterator
       .continually(bufferedReader.readLine())
       .takeWhile(_ != null)
       .map(fileRow => addTazIdToActivityRow(fileRow, convertCoord, getTaz))
 
-    Seq(headerWithTAZ) ++ plansRowsWithTAZIds.toSeq
+    (headerWithTAZ, plansRowsWithTAZIds)
   }
 
   def main(args: Array[String]): Unit = {
@@ -75,9 +75,18 @@ object AddTAZIdToGeneratedPlans {
       val outputPath = args(2)
       val maybeCRS = if (args.length > 3) Some(args(3)) else None
 
-      val fileRows = addTAZIdToActivitiesLocations(pathToPlans, pathToTAZ, maybeCRS)
+      val (header, rows) = addTAZIdToActivitiesLocations(pathToPlans, pathToTAZ, maybeCRS)
 
-      FileUtils.writeToFile(outputPath, Some(fileRows.head), fileRows.tail.mkString("\n"), None)
+      val bw = IOUtils.getBufferedWriter(outputPath)
+      try {
+        bw.write(header + "\n")
+        rows.foreach(row => bw.write(row + "\n"))
+      } catch {
+        case e: IOException =>
+          println(s"Error while writing data to file - $outputPath : $e")
+      } finally {
+        bw.close()
+      }
     }
   }
 }
