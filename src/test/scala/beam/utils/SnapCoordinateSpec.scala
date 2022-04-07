@@ -1,25 +1,69 @@
 package beam.utils
 
+import beam.agentsim.agents.freight.{FreightCarrier, FreightTour, PayloadPlan}
 import beam.sim.BeamHelper
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.SnapCoordinateUtils.{Result, SnapLocationHelper}
+import beam.utils.SnapCoordinateUtils.{CsvFile, ErrorInfo, Result, SnapLocationHelper}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import org.matsim.api.core.v01.Coord
-import org.matsim.api.core.v01.population.Activity
+import org.matsim.api.core.v01.population.{Activity, Population}
 import org.matsim.core.config.Config
+import org.matsim.households.Households
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
+import scala.io.Source
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 
 class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
 
   val pwd: String = System.getenv("PWD")
 
-  // TODO
-  // 1. compare out put csv
+  def readErrorCsv(path: String): List[ErrorInfo] = {
+    val src = Source.fromFile(path)
+    val errors = src
+      .getLines()
+      .drop(1)
+      .map(_.split(","))
+      .map { row =>
+        ErrorInfo(row(0), row(1), row(2), row(3).toDouble, row(4).toDouble)
+      }
+      .toList
+    src.close()
+    errors
+  }
+
+  def intersection(population: Population, path: String): Set[String] = {
+    val invalidPersonIds = readErrorCsv(path).map(_.id).toSet
+    val validPersonIds = population.getPersons.keySet().asScala.map(_.toString).toSet
+    validPersonIds.intersect(invalidPersonIds)
+  }
+
+  def intersection(households: Households, path: String): Set[String] = {
+    val invalidHouseholdIds = readErrorCsv(path).map(_.id).toSet
+    val validHouseholdIds = households.getHouseholds.keySet().asScala.map(_.toString).toSet
+    validHouseholdIds.intersect(invalidHouseholdIds)
+  }
+
+  def intersection(freightTours: Array[FreightTour], path: String): Set[String] = {
+    val invalidIds = readErrorCsv(path).map(_.id).toSet
+    val validIds = freightTours.map(_.tourId.toString).toSet
+    validIds.intersect(invalidIds)
+  }
+
+  def intersection(freightPayloadPlans: Array[PayloadPlan], path: String): Set[String] = {
+    val invalidIds = readErrorCsv(path).map(_.id).toSet
+    val validIds = freightPayloadPlans.map(_.payloadId.toString).toSet
+    validIds.intersect(invalidIds)
+  }
+
+  def intersection(freightCarriers: Array[FreightCarrier], path: String): Set[String] = {
+    val invalidIds = readErrorCsv(path).map(_.id).toSet
+    val validIds = freightCarriers.map(_.carrierId.toString).toSet
+    validIds.intersect(invalidIds)
+  }
 
   "scenario plan" should {
     "contain all valid locations" in {
@@ -104,7 +148,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       val beamConfig: BeamConfig = BeamConfig(config)
 
-      FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+      val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
       val (scenario, _, _) = buildBeamServicesAndScenario(
         beamConfig,
@@ -114,6 +158,8 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       val households = scenario.getHouseholds.getHouseholds.values().asScala.toList
 
       scenario.getPopulation.getPersons.size() shouldBe 2
+      intersection(scenario.getPopulation, path = s"$outputDir/${CsvFile.Plans}") shouldBe Set.empty
+
       households.foreach { household =>
         household.getMemberIds.size() shouldBe 1
       }
@@ -140,7 +186,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       val beamConfig: BeamConfig = BeamConfig(config)
 
-      FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+      val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
       val (scenario, _, _) = buildBeamServicesAndScenario(
         beamConfig,
@@ -148,7 +194,10 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       )
 
       scenario.getPopulation.getPersons.size() shouldBe 1
+      intersection(scenario.getPopulation, path = s"$outputDir/${CsvFile.Plans}") shouldBe Set.empty
+
       scenario.getHouseholds.getHouseholds.size() shouldBe 1
+      intersection(scenario.getHouseholds, path = s"$outputDir/${CsvFile.Households}") shouldBe Set.empty
     }
 
     "remove invalid persons and households [case1 csv input]" in {
@@ -166,7 +215,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       val beamConfig: BeamConfig = BeamConfig(config)
 
-      FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+      val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
       val (scenario, _, _) = buildBeamServicesAndScenario(
         beamConfig,
@@ -176,6 +225,8 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       val households = scenario.getHouseholds.getHouseholds.values().asScala.toList
 
       scenario.getPopulation.getPersons.size() shouldBe 2
+      intersection(scenario.getPopulation, path = s"$outputDir/${CsvFile.Plans}") shouldBe Set.empty
+
       households.foreach { household =>
         household.getMemberIds.size() shouldBe 1
       }
@@ -196,7 +247,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       val beamConfig: BeamConfig = BeamConfig(config)
 
-      FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+      val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
       val (scenario, _, _) = buildBeamServicesAndScenario(
         beamConfig,
@@ -204,7 +255,10 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       )
 
       scenario.getPopulation.getPersons.size() shouldBe 1
+      intersection(scenario.getPopulation, path = s"$outputDir/${CsvFile.Plans}") shouldBe Set.empty
+
       scenario.getHouseholds.getHouseholds.size() shouldBe 1
+      intersection(scenario.getHouseholds, path = s"$outputDir/${CsvFile.Households}") shouldBe Set.empty
     }
 
     "remove invalid persons and households [case1 urbansimv2 input]" in {
@@ -221,7 +275,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       val beamConfig: BeamConfig = BeamConfig(config)
 
-      FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+      val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
       val (scenario, _, _) = buildBeamServicesAndScenario(
         beamConfig,
@@ -231,6 +285,8 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       val households = scenario.getHouseholds.getHouseholds.values().asScala.toList
 
       scenario.getPopulation.getPersons.size() shouldBe 2
+      intersection(scenario.getPopulation, path = s"$outputDir/${CsvFile.Plans}") shouldBe Set.empty
+
       households.foreach { household =>
         household.getMemberIds.size() shouldBe 1
       }
@@ -250,7 +306,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       val beamConfig: BeamConfig = BeamConfig(config)
 
-      FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+      val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
       val (scenario, _, _) = buildBeamServicesAndScenario(
         beamConfig,
@@ -258,9 +314,92 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       )
 
       scenario.getPopulation.getPersons.size() shouldBe 1
+      intersection(scenario.getPopulation, path = s"$outputDir/${CsvFile.Plans}") shouldBe Set.empty
+
       scenario.getHouseholds.getHouseholds.size() shouldBe 1
+      intersection(scenario.getHouseholds, path = s"$outputDir/${CsvFile.Households}") shouldBe Set.empty
     }
 
+    "remove invalid freight tours" in {
+      lazy val config: TypesafeConfig = ConfigFactory
+        .parseString(s"""
+                        |beam.agentsim.agents.freight.toursFilePath = "$pwd/test/test-resources/beam/input/snap-location/freight/freight-tours.csv"
+                        |beam.routing.r5.linkRadiusMeters = 350
+                        |""".stripMargin)
+        .withFallback(testConfig("test/input/beamville/beam-freight.conf"))
+        .resolve()
+
+      val configBuilder = new MatSimBeamConfigBuilder(config)
+      val matsimConfig: Config = configBuilder.buildMatSimConf()
+      matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
+      val beamConfig: BeamConfig = BeamConfig(config)
+
+      val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+
+      val (_, beamScenario, _) = buildBeamServicesAndScenario(
+        beamConfig,
+        matsimConfig
+      )
+
+      intersection(
+        beamScenario.freightCarriers.flatMap(_.tourMap.values).flatten.toArray,
+        path = s"$outputDir/${CsvFile.FreightTours}"
+      ) shouldBe Set.empty
+    }
+
+    "remove invalid freight payload plans" in {
+      lazy val config: TypesafeConfig = ConfigFactory
+        .parseString(s"""
+                        |beam.agentsim.agents.freight.plansFilePath = "$pwd/test/test-resources/beam/input/snap-location/freight/payload-plans.csv"
+                        |beam.routing.r5.linkRadiusMeters = 350
+                        |""".stripMargin)
+        .withFallback(testConfig("test/input/beamville/beam-freight.conf"))
+        .resolve()
+
+      val configBuilder = new MatSimBeamConfigBuilder(config)
+      val matsimConfig: Config = configBuilder.buildMatSimConf()
+      matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
+      val beamConfig: BeamConfig = BeamConfig(config)
+
+      val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+
+      val (_, beamScenario, _) = buildBeamServicesAndScenario(
+        beamConfig,
+        matsimConfig
+      )
+
+      intersection(
+        beamScenario.freightCarriers.flatMap(_.payloadPlans.values).toArray,
+        path = s"$outputDir/${CsvFile.FreightPayloadPlans}"
+      ) shouldBe Set.empty
+    }
+
+    "remove invalid freight carriers" in {
+      lazy val config: TypesafeConfig = ConfigFactory
+        .parseString(s"""
+                        |beam.agentsim.agents.freight.carriersFilePath = "$pwd/test/test-resources/beam/input/snap-location/freight/freight-carriers.csv"
+                        |beam.routing.r5.linkRadiusMeters = 350
+                        |""".stripMargin)
+        .withFallback(testConfig("test/input/beamville/beam-freight.conf"))
+        .resolve()
+
+      val configBuilder = new MatSimBeamConfigBuilder(config)
+      val matsimConfig: Config = configBuilder.buildMatSimConf()
+      matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
+      val beamConfig: BeamConfig = BeamConfig(config)
+
+      val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+
+      val (_, beamScenario, _) = buildBeamServicesAndScenario(
+        beamConfig,
+        matsimConfig
+      )
+
+      intersection(
+        beamScenario.freightCarriers.toArray,
+        path = s"$outputDir/${CsvFile.FreightCarriers}"
+      ) shouldBe Set.empty
+    }
   }
 
 }

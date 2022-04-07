@@ -3,7 +3,7 @@ package beam.utils.scenario
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.utils.SnapCoordinateUtils
-import beam.utils.SnapCoordinateUtils.{Category, Error, ErrorInfo, Processed, Result, SnapLocationHelper}
+import beam.utils.SnapCoordinateUtils.{Category, CsvFile, Error, ErrorInfo, Processed, Result, SnapLocationHelper}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
@@ -124,7 +124,7 @@ trait ScenarioLoaderHelper extends LazyLogging {
 
     outputDirMaybe.foreach { path =>
       if (errors.isEmpty) logger.info("No 'snap location' error to report for scenario plans.")
-      else SnapCoordinateUtils.writeToCsv(s"$path/snapLocationPlanErrors.csv.gz", errors)
+      else SnapCoordinateUtils.writeToCsv(s"$path/${CsvFile.Plans}", errors)
     }
 
     val filteredCnt = plans.size - validPlans.size
@@ -139,7 +139,7 @@ trait ScenarioLoaderHelper extends LazyLogging {
 
     outputDirMaybe.foreach { path =>
       if (errors.isEmpty) logger.info("No 'snap location' error to report for scenario households.")
-      else SnapCoordinateUtils.writeToCsv(s"$path/snapLocationHouseholdErrors.csv.gz", errors)
+      else SnapCoordinateUtils.writeToCsv(s"$path/${CsvFile.Households}", errors)
     }
 
     val filteredCnt = households.size - validHouseholds.size
@@ -298,10 +298,10 @@ object ScenarioLoaderHelper extends LazyLogging {
 
     outputDirMaybe.foreach { path =>
       if (planErrors.isEmpty) logger.info("No 'snap location' error to report for scenario plans.")
-      else SnapCoordinateUtils.writeToCsv(s"$path/snapLocationPlanErrors.csv.gz", planErrors)
+      else SnapCoordinateUtils.writeToCsv(s"$path/${CsvFile.Plans}", planErrors)
 
       if (householdErrors.isEmpty) logger.info("No 'snap location' error to report for scenario households.")
-      else SnapCoordinateUtils.writeToCsv(s"$path/snapLocationHouseholdErrors.csv.gz", householdErrors)
+      else SnapCoordinateUtils.writeToCsv(s"$path/${CsvFile.Households}", householdErrors)
     }
   }
 

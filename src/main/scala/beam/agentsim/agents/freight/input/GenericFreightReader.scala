@@ -7,7 +7,7 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.SnapCoordinateUtils
-import beam.utils.SnapCoordinateUtils.{Category, Error, ErrorInfo, Result, SnapLocationHelper}
+import beam.utils.SnapCoordinateUtils.{Category, CsvFile, Error, ErrorInfo, Result, SnapLocationHelper}
 import beam.utils.csv.GenericCsvReader
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import com.typesafe.scalalogging.LazyLogging
@@ -114,7 +114,7 @@ class GenericFreightReader(
 
     outputDirMaybe.foreach { path =>
       if (errors.isEmpty) logger.info("No 'snap location' error to report for freight tours.")
-      else SnapCoordinateUtils.writeToCsv(s"$path/snapLocationFreightTourErrors.csv.gz", errors)
+      else SnapCoordinateUtils.writeToCsv(s"$path/${CsvFile.FreightTours}", errors)
     }
 
     maybeTours.flatten
@@ -202,7 +202,7 @@ class GenericFreightReader(
 
     outputDirMaybe.foreach { path =>
       if (errors.isEmpty) logger.info("No 'snap location' error to report for freight payload plans.")
-      else SnapCoordinateUtils.writeToCsv(s"$path/snapLocationFreightPayloadPlanErrors.csv.gz", errors)
+      else SnapCoordinateUtils.writeToCsv(s"$path/${CsvFile.FreightPayloadPlans}", errors)
     }
 
     maybePlans.flatten
@@ -341,11 +341,13 @@ class GenericFreightReader(
 
     outputDirMaybe.foreach { path =>
       if (errors.isEmpty) logger.info("No 'snap location' error to report for freight carriers.")
-      else SnapCoordinateUtils.writeToCsv(s"$path/snapLocationFreightCarrierErrors.csv.gz", errors)
+      else SnapCoordinateUtils.writeToCsv(s"$path/${CsvFile.FreightCarriers}", errors)
     }
 
+    val removedCarrierIds = errors.map(_.id)
     val carriersWithFleet = maybeCarrierRows.flatten
       .groupBy(_.carrierId)
+      .filterNot { case (carrierId, _) => removedCarrierIds.contains(carrierId.toString) }
       .map { case (carrierId, carrierRows) =>
         createCarrier(carrierId, carrierRows)
       }

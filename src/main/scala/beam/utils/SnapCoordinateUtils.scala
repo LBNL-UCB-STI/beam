@@ -54,6 +54,14 @@ object SnapCoordinateUtils extends LazyLogging {
     val FreightCarrier = "Carrier"
   }
 
+  object CsvFile {
+    val Plans = "snapLocationPlanErrors.csv"
+    val Households = "snapLocationHouseholdErrors.csv"
+    val FreightTours = "snapLocationFreightTourErrors.csv"
+    val FreightPayloadPlans = "snapLocationFreightPayloadPlanErrors.csv"
+    val FreightCarriers = "snapLocationFreightCarrierErrors.csv"
+  }
+
   final case class ErrorInfo(id: String, category: String, error: String, planX: Double, planY: Double)
   final case class Processed[A](data: Seq[A] = Seq.empty, errors: Seq[ErrorInfo] = Seq.empty)
 
