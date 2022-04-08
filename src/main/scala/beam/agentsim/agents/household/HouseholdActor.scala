@@ -275,6 +275,8 @@ object HouseholdActor {
               case l: Leg =>
                 if (l.getMode.equalsIgnoreCase("cav")) l.setMode("")
             }
+            household.members.filterNot(_.getId.toString.equals("3747042.0"))
+
           }
 
           val cavScheduler = new FastHouseholdCAVScheduling(household, cavs, beamServices)
