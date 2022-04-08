@@ -367,7 +367,9 @@ object HouseholdActor {
               "5559626.0",
               "6335557.0",
               "1733759.0")
-            dropList.foreach(dropId => household.members.dropWhile(_.getId.toString.contains(dropId)))
+            for (element <- dropList) {
+              household.members.dropWhile(_.getId.toString.contains(element))
+            }
           }
 
           val cavScheduler = new FastHouseholdCAVScheduling(household, cavs, beamServices)
