@@ -23,7 +23,7 @@ freightWorkDir <- normalizePath(paste(validationDir,"/beam",sep=""))
 #   file = pp(freightWorkDir, "/filtered.0.events.csv"),
 #   row.names=F,
 #   quote=T)
-events_filtered <- readCsv(pp(freightWorkDir, "/filtered.0.events.csv"))
+events_filtered <- readCsv(pp(freightWorkDir, "/filtered.0.events.new.csv"))
 pt <- events_filtered[type=="PathTraversal"][,c("time","type","vehicleType","vehicle","secondaryFuelLevel",
                                        "primaryFuelLevel","driver","mode","seatingCapacity","startX",
                                        "startY", "endX", "endY", "capacity", "arrivalTime", "departureTime",
@@ -277,7 +277,7 @@ ggsave(pp(freightWorkDir,'/freight-avg-vmt-by-category.png'),p,width=4,height=3,
 
 ##### PREPARING NETWORK AND MATCH IT WITH POSTMILE AND TRUCK AADTT DATA
 #"primary","secondary","tertiary"
-network <- readCsv(normalizePath(paste(freightDir,"/validation/network.csv.gz",sep="")))
+network <- readCsv(normalizePath(paste(freightDir,"/validation/beam/network.csv",sep="")))
 network_cleaned <- network[
   linkModes %in% c("car;bike", "car;walk;bike") & attributeOrigType %in% c("motorway","trunk","primary", "secondary")][
     ,-c("numberOfLanes", "attributeOrigId", "fromNodeId", "toNodeId", "toLocationX", "toLocationY")]
@@ -286,7 +286,7 @@ counties <- data.table::data.table(
              "San Francisco", "San Mateo", "Solano", "Sonoma"),
   CNTY=c("ALA", "CC", "MRN", "NAP", "SCL", "SF", "SM", "SOL", "SON")
 )
-linkStats <- readCsv(normalizePath(paste(freightDir,"/validation/beam/0.linkstats.csv.gz",sep="")))
+linkStats <- readCsv(normalizePath(paste(freightDir,"/validation/beam/0.linkstats.new.csv.gz",sep="")))
 
 #data.table::fwrite(network_cleaned, pp(freightDir,"/validation/network_cleaned.csv"), quote=F)
 
@@ -364,6 +364,9 @@ Volume_beam <- sum(linkStats$TruckVolume)
 Volume_hpms <- sum(sf_hpms$AADT_Combi+sf_hpms$AADT_Singl)
 VMT_beam <- sum(linkStats$TruckVolume * linkStats$length/1609)
 VMT_hpms <- (sum((sf_hpms$AADT_Combi+sf_hpms$AADT_Singl) * as.numeric(st_length(sf_hpms))/1609))
+
+Volume_beam/Volume_hpms
+VMT_beam/VMT_hpms
 
 freight_pt[,.(VMT=sum(length)/1609.0),by=.(vehicleType)]
 freight_pt[,.(tourMT=sum(length)/1609.0),by=.(vehicle,vehicleType)][,.(avgTourMT=mean(tourMT)),by=.(vehicleType)]
