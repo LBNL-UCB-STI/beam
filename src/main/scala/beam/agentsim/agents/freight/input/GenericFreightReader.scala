@@ -127,6 +127,8 @@ class GenericFreightReader(
     val plans: Map[Id[PayloadPlan], PayloadPlan] = allPlans.filter { case (_, plan) =>
       existingTours.contains(plan.tourId)
     }
+    val tourIdToPlans: Map[Id[FreightTour], IndexedSeq[PayloadPlan]] =
+      plans.values.toIndexedSeq.groupBy(_.tourId).map { case (tourId, plans) => tourId -> plans.sortBy(_.sequenceRank) }
     val tours: Map[Id[FreightTour], FreightTour] = allTours.filter { case (_, tour) =>
       existingTours.contains(tour.tourId)
     }
@@ -183,9 +185,11 @@ class GenericFreightReader(
       val carrierTourIds = tourMap.values.flatten.map(_.tourId).toSet
 
       val plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]] =
-        plans.values.groupBy(_.tourId).filterKeys(carrierTourIds).mapValues(_.toIndexedSeq.sortBy(_.sequenceRank))
+        carrierTourIds.collect {
+          case tourId if tourIdToPlans.contains(tourId) => tourId -> tourIdToPlans(tourId)
+        }.toMap
       val carrierPlanIds: Set[Id[PayloadPlan]] = plansPerTour.values.flatten.map(_.payloadId).toSet
-      val payloadMap = plans.filterKeys(carrierPlanIds)
+      val payloadMap = carrierPlanIds.map(planId => planId -> plans(planId)).toMap
 
       FreightCarrier(
         carrierId,
