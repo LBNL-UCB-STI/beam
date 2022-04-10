@@ -16,7 +16,7 @@ plugins {
 def imageName = 'jupyter/scipy-notebook:2022-04-02'
 def containerName = 'jupyter-for-beam'
 def port = '8888'
-def token = UUID.randomUUID().toString()
+def token = project.hasProperty("jupyterToken") ? jupyterToken : UUID.randomUUID().toString()
 
 static def tryReadMappingFromFile(filePath, prefix) {
     File file = new File(filePath)
@@ -41,18 +41,23 @@ static def tryReadMappingFromFile(filePath, prefix) {
 }
 
 static def getFoldersToMap() {
-    def volume_mapping = [:]
+    LinkedHashMap<Object, Object> volume_mapping = [:]
     volume_mapping.put('jupyter_home', '/home/jovyan')
-
-    volume_mapping = volume_mapping +
-            tryReadMappingFromFile('jupyter/.foldersToMapInJupyter.txt', '/home/jovyan/') +
-            tryReadMappingFromFile('jupyter/local_files/.foldersToMapInJupyter.txt', '/home/jovyan/')
 
     def outputFolderPath = new File(".").getCanonicalPath() + "/output"
     def outputFolder = new File(outputFolderPath)
     if (outputFolder.exists()) {
         volume_mapping.put(outputFolderPath, '/home/jovyan/output')
     }
+
+    volume_mapping.put('local_files', '/home/jovyan/local_files')
+
+    volume_mapping = volume_mapping +
+            tryReadMappingFromFile('jupyter/.foldersToMapInJupyter.txt', '/home/jovyan/') +
+            tryReadMappingFromFile('jupyter/local_files/.foldersToMapInJupyter.txt', '/home/jovyan/')
+
+    println "Following folders will be mounted (path in jupyter <- local path):"
+    volume_mapping.each { local_path, jupyter_path -> println "'$jupyter_path' <- '$local_path'" }
 
     return volume_mapping
 }
@@ -64,16 +69,19 @@ dockerRun {
     ports "$port:8888"
     daemonize true
     clean true
-    env 'JUPYTER_ENABLE_LAB': 'yes', 'GRANT_SUDO': 'no', 'JUPYTER_TOKEN': "$token"
+    env 'GRANT_SUDO': 'yes', 'JUPYTER_TOKEN': "$token", "CHOWN_HOME": "yes", "CHOWN_HOME_OPTS": '-R'
+    arguments "--group-add=users"
 }
 
 task jupyterStart(dependsOn: ['dockerRun']) {
     description 'Starts Jupyter container.'
     group 'Jupyter'
 
+    def url = "http://127.0.0.1:$port/?token=$token"
+
     doLast {
         println """Jupyter Lab from image '$imageName' started with container name '$containerName'."""
-        println """Web interface is here: http://127.0.0.1:$port/?token=$token"""
+        println """Web interface is here: $url"""
     }
 }
 
