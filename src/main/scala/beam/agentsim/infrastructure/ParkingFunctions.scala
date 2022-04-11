@@ -162,7 +162,11 @@ class ParkingFunctions[GEO: GeoLevel](
   ): Coord = {
     if (parkingZone.link.isDefined)
       parkingZone.link.get.getCoord
-    else if (parkingZone.reservedFor.managerType == VehicleManager.TypeEnum.Household)
+    else if (
+      (parkingZone.reservedFor.managerType == VehicleManager.TypeEnum.Household) ||
+      (inquiry.parkingActivityType == ParkingActivityType.Home && parkingZone.parkingType == ParkingType.Residential) ||
+      (inquiry.parkingActivityType == ParkingActivityType.Work && parkingZone.parkingType == ParkingType.Workplace)
+    )
       inquiry.destinationUtm.loc
     else
       GeoLevel[GEO].geoSampling(
@@ -197,7 +201,7 @@ class ParkingFunctions[GEO: GeoLevel](
     )
 
     val isValidVehicleManager =
-      zone.reservedFor.managerType == VehicleManager.TypeEnum.Default || zone.reservedFor.managerId == inquiry.reservedFor.managerId
+      zone.reservedFor.managerType == VehicleManager.TypeEnum.Default || zone.reservedFor == inquiry.reservedFor
 
     hasAvailability & validParkingType & isValidTime & isValidVehicleManager
   }

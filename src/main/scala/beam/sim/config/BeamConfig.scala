@@ -1597,18 +1597,57 @@ object BeamConfig {
 
           case class Destination(
             noRefuelThresholdInMeters: scala.Int,
-            refuelRequiredThresholdInMeters: scala.Int
+            secondary: BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Secondary,
+            work: BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Work
           )
 
           object Destination {
+
+            case class Secondary(
+              refuelRequiredThresholdInMeters: scala.Int
+            )
+
+            object Secondary {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Secondary = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Secondary(
+                  refuelRequiredThresholdInMeters =
+                    if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getInt("refuelRequiredThresholdInMeters")
+                    else 32180
+                )
+              }
+            }
+
+            case class Work(
+              refuelRequiredThresholdInMeters: scala.Double
+            )
+
+            object Work {
+
+              def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Work = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Work(
+                  refuelRequiredThresholdInMeters =
+                    if (c.hasPathOrNull("refuelRequiredThresholdInMeters"))
+                      c.getDouble("refuelRequiredThresholdInMeters")
+                    else 64373.8
+                )
+              }
+            }
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination(
                 noRefuelThresholdInMeters =
                   if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 128720,
-                refuelRequiredThresholdInMeters =
-                  if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getInt("refuelRequiredThresholdInMeters")
-                  else 32180
+                secondary = BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Secondary(
+                  if (c.hasPathOrNull("secondary")) c.getConfig("secondary")
+                  else com.typesafe.config.ConfigFactory.parseString("secondary{}")
+                ),
+                work = BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Work(
+                  if (c.hasPathOrNull("work")) c.getConfig("work")
+                  else com.typesafe.config.ConfigFactory.parseString("work{}")
+                )
               )
             }
           }
@@ -1645,6 +1684,7 @@ object BeamConfig {
             estimateOfMeanChargingDurationInSecond: scala.Int,
             noRefuelAtRemainingDistanceThresholdInMeters: scala.Int,
             noRefuelThresholdOffsetInMeters: scala.Double,
+            refuelRequiredThresholdOffsetInMeters: scala.Int,
             remainingDistanceWrtBatteryCapacityThreshold: scala.Int
           )
 
@@ -1663,6 +1703,10 @@ object BeamConfig {
                 noRefuelThresholdOffsetInMeters =
                   if (c.hasPathOrNull("noRefuelThresholdOffsetInMeters")) c.getDouble("noRefuelThresholdOffsetInMeters")
                   else 32186.9,
+                refuelRequiredThresholdOffsetInMeters =
+                  if (c.hasPathOrNull("refuelRequiredThresholdOffsetInMeters"))
+                    c.getInt("refuelRequiredThresholdOffsetInMeters")
+                  else 0,
                 remainingDistanceWrtBatteryCapacityThreshold =
                   if (c.hasPathOrNull("remainingDistanceWrtBatteryCapacityThreshold"))
                     c.getInt("remainingDistanceWrtBatteryCapacityThreshold")

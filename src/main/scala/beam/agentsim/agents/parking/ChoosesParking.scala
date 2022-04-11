@@ -11,12 +11,12 @@ import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_REQUEST_TYPE
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehicleCategory, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehicleManager}
 import beam.agentsim.events.{LeavingParkingEvent, ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.charging.{ChargingPointType, ElectricCurrentType}
 import beam.agentsim.infrastructure.parking.PricingModel
-import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -221,15 +221,9 @@ trait ChoosesParking extends {
       )
     } else {
       val searchModeChargeOrPark =
-        if (
-          ParkingInquiry.activityTypeStringToEnum(activityType) == ParkingActivityType.Home ||
-          currentBeamVehicle.isRefuelNeeded(
-            beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.refuelRequiredThresholdInMeters,
-            beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
-          )
-        ) {
+        if (currentBeamVehicle.isEV && isRefuelAtDestinationNeeded(currentBeamVehicle, activityType))
           ParkingSearchMode.DestinationCharging
-        } else ParkingSearchMode.Parking
+        else ParkingSearchMode.Parking
 
       // for regular parking inquiry, we have vehicle information in `currentBeamVehicle`
       val reservedFor = VehicleManager.getReservedFor(currentBeamVehicle.vehicleManagerId.get).get
@@ -245,6 +239,23 @@ trait ChoosesParking extends {
         searchMode = searchModeChargeOrPark,
         triggerId = getCurrentTriggerIdOrGenerate
       )
+    }
+  }
+
+  private def isRefuelAtDestinationNeeded(vehicle: BeamVehicle, activityType: String): Boolean = {
+    ParkingInquiry.activityTypeStringToEnum(activityType) match {
+      case ParkingActivityType.Home => true
+      case ParkingActivityType.Work =>
+        // multiplying
+        vehicle.isRefuelNeeded(
+          beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.work.refuelRequiredThresholdInMeters,
+          beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
+        )
+      case _ =>
+        vehicle.isRefuelNeeded(
+          beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.secondary.refuelRequiredThresholdInMeters,
+          beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
+        )
     }
   }
 
