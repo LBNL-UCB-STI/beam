@@ -30,9 +30,9 @@ trait FreightReader {
 
   def readPayloadPlans(): Map[Id[PayloadPlan], PayloadPlan]
 
-  def createPersonId(vehicleId: Id[BeamVehicle]): Id[Person]
+  def createPersonId(carrierId: Id[FreightCarrier], vehicleId: Id[BeamVehicle]): Id[Person]
 
-  def createHouseholdId(vehicleId: Id[BeamVehicle]): Id[Household]
+  def createHouseholdId(carrierId: Id[FreightCarrier]): Id[Household]
 
   def readFreightCarriers(
     allTours: Map[Id[FreightTour], FreightTour],
@@ -49,13 +49,14 @@ trait FreightReader {
   }
 
   def createPersonPlan(
+    carrier: FreightCarrier,
     tours: IndexedSeq[FreightTour],
     plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]],
     person: Person
   ): Plan = {
     val allToursPlanElements = tours.flatMap { tour =>
       val tourInitialActivity =
-        createFreightActivity("Warehouse", tour.warehouseLocationUTM, tour.departureTimeInSec, None)
+        createFreightActivity("Warehouse", carrier.warehouseLocationUTM, tour.departureTimeInSec, None)
       val firstLeg: Leg = createFreightLeg(tour.departureTimeInSec)
 
       val plans: IndexedSeq[PayloadPlan] = plansPerTour.get(tour.tourId) match {
@@ -82,7 +83,7 @@ trait FreightReader {
       elements
     }
 
-    val finalActivity = createFreightActivity("Warehouse", tours.head.warehouseLocationUTM, -1, None)
+    val finalActivity = createFreightActivity("Warehouse", carrier.warehouseLocationUTM, -1, None)
     val allPlanElements: IndexedSeq[PlanElement] = allToursPlanElements :+ finalActivity
 
     val currentPlan = PopulationUtils.createPlan(person)
@@ -96,26 +97,22 @@ trait FreightReader {
 
   def generatePopulation(
     carriers: IndexedSeq[FreightCarrier],
-    personFactory: PopulationFactory,
+    populationFactory: PopulationFactory,
     householdsFactory: HouseholdsFactory
-  ): IndexedSeq[(Household, Plan)] = {
+  ): IndexedSeq[(FreightCarrier, Household, Plan, Id[Person], Id[BeamVehicle])] = {
     carriers.flatMap { carrier =>
+      val freightHouseholdId = createHouseholdId(carrier.carrierId)
+      val household = householdsFactory.createHousehold(freightHouseholdId)
+      household.setIncome(new IncomeImpl(0, Income.IncomePeriod.year))
       carrier.tourMap.map { case (vehicleId, tours) =>
-        val personId = createPersonId(vehicleId)
-        val person = personFactory.createPerson(personId)
-
-        val currentPlan: Plan = createPersonPlan(tours, carrier.plansPerTour, person)
-
+        val personId = createPersonId(carrier.carrierId, vehicleId)
+        val person = populationFactory.createPerson(personId)
+        val currentPlan: Plan = createPersonPlan(carrier, tours, carrier.plansPerTour, person)
         person.addPlan(currentPlan)
         person.setSelectedPlan(currentPlan)
-
-        val freightHouseholdId = createHouseholdId(vehicleId)
-        val household: Household = householdsFactory.createHousehold(freightHouseholdId)
-        household.setIncome(new IncomeImpl(44444, Income.IncomePeriod.year))
         household.getMemberIds.add(personId)
         household.getVehicleIds.add(vehicleId)
-
-        (household, currentPlan)
+        (carrier, household, currentPlan, personId, vehicleId)
       }
     }
   }

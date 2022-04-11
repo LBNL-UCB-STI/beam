@@ -1,10 +1,11 @@
 package beam.analysis.physsim;
 
+import beam.agentsim.agents.vehicles.BeamVehicle;
 import beam.analysis.plots.GraphUtils;
+import beam.physsim.analysis.LinkStatsWithVehicleCategory;
 import beam.sim.BeamConfigChangesObservable;
 import beam.sim.BeamConfigChangesObserver;
 import beam.sim.config.BeamConfig;
-import beam.utils.BeamCalcLinkStats;
 import beam.utils.VolumesAnalyzerFixed;
 import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
@@ -12,6 +13,7 @@ import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.CategoryDataset;
 import org.jfree.data.general.DatasetUtilities;
 import org.matsim.analysis.VolumesAnalyzer;
+import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.api.core.v01.network.Network;
 import org.matsim.core.api.experimental.events.EventsManager;
@@ -21,7 +23,7 @@ import org.matsim.core.router.util.TravelTime;
 import org.matsim.core.utils.misc.Time;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Tuple2;
+
 import java.awt.*;
 import java.io.IOException;
 import java.util.*;
@@ -56,14 +58,18 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
     private BeamConfig beamConfig;
     private final Network network;
     private final OutputDirectoryHierarchy controllerIO;
-    private final BeamCalcLinkStats linkStats;
     private VolumesAnalyzer volumes;
+    private TravelTimeCalculatorConfigGroup ttcConfigGroup;
+    private Map<Id<BeamVehicle>, BeamVehicle> vehicleMap;
 
     public PhyssimCalcLinkStats(Network network, OutputDirectoryHierarchy controlerIO, BeamConfig beamConfig,
-                                TravelTimeCalculatorConfigGroup ttcConfigGroup, BeamConfigChangesObservable beamConfigChangesObservable) {
+                                TravelTimeCalculatorConfigGroup ttcConfigGroup, BeamConfigChangesObservable beamConfigChangesObservable,
+                                Map<Id<BeamVehicle>, BeamVehicle> vehicleMap) {
         this.network = network;
         this.controllerIO = controlerIO;
         this.beamConfig = beamConfig;
+        this.ttcConfigGroup = ttcConfigGroup;
+        this.vehicleMap = vehicleMap;
 
         if (isNotTestMode()) {
             binSize = this.beamConfig.beam().physsim().linkStatsBinSize();
@@ -76,15 +82,15 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
         }
         beamConfigChangesObservable.addObserver(this);
 
-        linkStats = new BeamCalcLinkStats(network, ttcConfigGroup);
     }
 
     public void notifyIterationEnds(int iteration, TravelTime travelTime) {
-        linkStats.addData(volumes, travelTime);
         processData(iteration, travelTime);
         if (this.controllerIO != null) {
             if (isNotTestMode() && writeLinkStats(iteration)) {
-                linkStats.writeFile(this.controllerIO.getIterationFilename(iteration, "linkstats_unmodified.csv.gz"));
+                String filePath = this.controllerIO.getIterationFilename(iteration, "linkstats_unmodified.csv.gz");
+                LinkStatsWithVehicleCategory linkStats = new LinkStatsWithVehicleCategory(network, ttcConfigGroup);
+                linkStats.writeLinkStatsWithTruckVolumes(volumes, travelTime, filePath);
             }
             if (beamConfig.beam().outputs().writeGraphs()) {
                 CategoryDataset dataset = buildAndGetGraphCategoryDataset();
@@ -125,7 +131,7 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
 
                 double averageSpeedToFreeSpeedRatio = averageSpeed / freeSpeed;
 
-                double relativeSpeed = Math.max((Math.round(averageSpeedToFreeSpeedRatio * 50.0) / 10),minSpeed);
+                double relativeSpeed = Math.max((Math.round(averageSpeedToFreeSpeedRatio * 50.0) / 10), minSpeed);
 
                 Map<Integer, Integer> hoursDataMap = relativeSpeedFrequenciesPerBin.get(relativeSpeed);
 
@@ -175,13 +181,13 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
 
         Optional<Double> optionalMaxRelativeSpeedsCategories = relativeSpeedsCategoriesList.stream().max(Comparator.naturalOrder());
 
-        if(optionalMaxRelativeSpeedsCategories.isPresent()) {
+        if (optionalMaxRelativeSpeedsCategories.isPresent()) {
             int maxRelativeSpeedsCategories = optionalMaxRelativeSpeedsCategories.get().intValue();
-            dataset = new double[maxRelativeSpeedsCategories+1][noOfBins];
+            dataset = new double[maxRelativeSpeedsCategories + 1][noOfBins];
 
             for (int i = 0; i <= maxRelativeSpeedsCategories; i++) {
 
-                Map<Integer, Integer> relativeSpeedBins = relativeSpeedFrequenciesPerBin.getOrDefault((double)i, new HashMap<>());
+                Map<Integer, Integer> relativeSpeedBins = relativeSpeedFrequenciesPerBin.getOrDefault((double) i, new HashMap<>());
 
                 double[] relativeSpeedFrequencyPerHour = new double[noOfBins];
                 int index = 0;
@@ -218,7 +224,7 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
 
         int max = Collections.max(relativeSpeedsCategoriesList).intValue();
 
-        for (int i = 0; i <= max ; i++) {
+        for (int i = 0; i <= max; i++) {
             legendItems.add(new LegendItem(String.valueOf(i), getColor(i)));
             plot.getRenderer().setSeriesPaint(i, getColor(i));
         }
@@ -250,14 +256,9 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
     }
 
     public void notifyIterationStarts(EventsManager eventsManager, TravelTimeCalculatorConfigGroup travelTimeCalculatorConfigGroup) {
-        this.linkStats.reset();
-        volumes = new VolumesAnalyzerFixed(3600, travelTimeCalculatorConfigGroup.getMaxTime() - 1, network);
+        volumes = new VolumesAnalyzerFixed(3600, travelTimeCalculatorConfigGroup.getMaxTime() - 1, network, vehicleMap);
         eventsManager.addHandler(volumes);
         this.relativeSpeedFrequenciesPerBin.clear();
-    }
-
-    public void clean(){
-        this.linkStats.reset();
     }
 
     @Override
