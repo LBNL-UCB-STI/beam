@@ -11,34 +11,34 @@ class ExponentialLoggerWrapperImpl(name: String) extends LoggerWrapper {
 
   private val logger: Logger = LoggerFactory.getLogger(name)
 
-  override def error(msgTemplate: String, args: Any*): Unit = {
+  override def error(msgTemplate: => String, args: Any*): Unit = {
     if (logger.isErrorEnabled) {
       processMessage(msgTemplate) { message =>
-        logger.error(message, args.map(_.asInstanceOf[AnyRef]): _*)
+        logger.error(message, args.asInstanceOf[Seq[AnyRef]]: _*)
       }
     }
   }
 
-  def warn(msgTemplate: String, args: Any*): Unit = {
+  def warn(msgTemplate: => String, args: Any*): Unit = {
     if (logger.isWarnEnabled) {
       processMessage(msgTemplate) { message =>
-        logger.warn(message, args.map(_.asInstanceOf[AnyRef]): _*)
+        logger.warn(message, args.asInstanceOf[Seq[AnyRef]]: _*)
       }
     }
   }
 
-  override def info(msgTemplate: String, args: Any*): Unit = {
+  override def info(msgTemplate: => String, args: Any*): Unit = {
     if (logger.isInfoEnabled) {
       processMessage(msgTemplate) { message =>
-        logger.info(message, args.map(_.asInstanceOf[AnyRef]): _*)
+        logger.info(message, args.asInstanceOf[Seq[AnyRef]]: _*)
       }
     }
   }
 
-  override def debug(msgTemplate: String, args: Any*): Unit = {
+  override def debug(msgTemplate: => String, args: Any*): Unit = {
     if (logger.isDebugEnabled) {
       processMessage(msgTemplate) { message =>
-        logger.debug(message, args.map(_.asInstanceOf[AnyRef]): _*)
+        logger.debug(message, args.asInstanceOf[Seq[AnyRef]]: _*)
       }
     }
   }

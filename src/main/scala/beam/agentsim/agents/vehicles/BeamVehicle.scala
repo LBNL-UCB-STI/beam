@@ -591,13 +591,8 @@ object BeamVehicle {
     linkId: Int,
     vehicleType: BeamVehicleType,
     linkNumberOfLanes: Option[Int],
-    linkCapacity: Option[Double] = None,
     linkLength: Option[Double],
-    averageSpeed: Option[Double],
-    freeFlowSpeed: Option[Double],
-    linkArrivalTime: Option[Long] = None,
-    turnAtLinkEnd: Option[TurningDirection] = None,
-    numberOfStops: Option[Int] = None
+    averageSpeed: Option[Double]
   )
 
   /**
@@ -617,30 +612,29 @@ object BeamVehicle {
     if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
       Vector.empty
     } else if (fuelConsumptionDataWithOnlyLength_Id_And_Type) {
-      beamLeg.travelPath.linkIds
+      beamLeg.travelPath.linkIds.view
         .drop(1)
         .map(id =>
           FuelConsumptionData(
             linkId = id,
             vehicleType = theVehicleType,
             linkNumberOfLanes = None,
-            linkCapacity = None,
             linkLength = networkHelper.getLink(id).map(_.getLength),
-            averageSpeed = None,
-            freeFlowSpeed = None,
-            linkArrivalTime = None,
-            turnAtLinkEnd = None,
-            numberOfStops = None
+            averageSpeed = None
           )
         )
+        .toIndexedSeq
     } else {
-      val linkIds = beamLeg.travelPath.linkIds.drop(1)
-      val linkTravelTimes: IndexedSeq[Double] = beamLeg.travelPath.linkTravelTime.drop(1)
+      val linkIds = beamLeg.travelPath.linkIds
+      val linkTravelTimes: IndexedSeq[Double] = beamLeg.travelPath.linkTravelTime
       // generate the link arrival times for each link ,by adding cumulative travel times of previous links
 //      val linkArrivalTimes = linkTravelTimes.scan(beamLeg.startTime)((enterTime,duration) => enterTime + duration).dropRight(1)
 //      val nextLinkIds = linkIds.takeRight(linkIds.size - 1)
-      linkIds.zipWithIndex.map { case (id, idx) =>
-        val travelTime = linkTravelTimes(idx)
+      //dropping first link, calculate FuelConsumptionData for the others. Rewritten for performance.
+      val result = Array.ofDim[FuelConsumptionData](linkIds.size - 1)
+      for (i <- 1 until linkIds.size) {
+        val id = linkIds(i)
+        val travelTime = linkTravelTimes(i)
         val currentLink: Option[Link] = networkHelper.getLink(id)
         val averageSpeed =
           try {
@@ -648,19 +642,15 @@ object BeamVehicle {
           } catch {
             case _: Exception => 0.0
           }
-        FuelConsumptionData(
+        result(i - 1) = FuelConsumptionData(
           linkId = id,
           vehicleType = theVehicleType,
           linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
-          linkCapacity = None, //currentLink.map(_.getCapacity),
           linkLength = currentLink.map(_.getLength),
-          averageSpeed = Some(averageSpeed),
-          freeFlowSpeed = None,
-          linkArrivalTime = None, //Some(arrivalTime),
-          turnAtLinkEnd = None, //Some(turnAtLinkEnd),
-          numberOfStops = None //Some(numStops)
+          averageSpeed = Some(averageSpeed)
         )
       }
+      result
     }
   }
 

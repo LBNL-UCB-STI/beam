@@ -78,10 +78,10 @@ class ConsumptionRateFilterStoreImpl(
     secondaryConsumptionRateFiltersByVehicleType.get(vehicleType)
 
   def hasPrimaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Boolean =
-    primaryConsumptionRateFiltersByVehicleType.keySet.contains(vehicleType)
+    primaryConsumptionRateFiltersByVehicleType.contains(vehicleType)
 
   def hasSecondaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Boolean =
-    secondaryConsumptionRateFiltersByVehicleType.keySet.contains(vehicleType)
+    secondaryConsumptionRateFiltersByVehicleType.contains(vehicleType)
 
   private def beginLoadingConsumptionRateFiltersFor(
     files: IndexedSeq[(BeamVehicleType, Option[String])],
@@ -203,14 +203,14 @@ class VehicleEnergy(
     fallBack: Double,
     powerTrainPriority: PowerTrainPriority
   ): Double = {
-    val consumptionsInJoules: IndexedSeq[Double] = fuelConsumptionDatas
+    fuelConsumptionDatas.view
       .map(fuelConsumptionData => {
         val rateInJoulesPerMeter = getRateUsing(fuelConsumptionData, fallBack, powerTrainPriority)
         val distance = fuelConsumptionData.linkLength.getOrElse(0.0)
         val finalConsumption = rateInJoulesPerMeter * distance
         finalConsumption
       })
-    consumptionsInJoules.sum
+      .sum
   }
 
   private def getRateUsing(
@@ -220,26 +220,15 @@ class VehicleEnergy(
   ): Double = {
     if (!vehicleEnergyMappingExistsFor(fuelConsumptionData.vehicleType)) { fallBack }
     else {
-      val BeamVehicle.FuelConsumptionData(
-        linkId,
-        vehicleType,
-        numberOfLanesOption,
-        _,
-        _,
-        speedInMetersPerSecondOption,
-        _,
-        _,
-        _,
-        _
-      ) = fuelConsumptionData
-      val numberOfLanes: Int = numberOfLanesOption.getOrElse(0)
-      val speedInMilesPerHour: Double = speedInMetersPerSecondOption
+      val numberOfLanes: Int = fuelConsumptionData.linkNumberOfLanes.getOrElse(0)
+      val speedInMilesPerHour: Double = fuelConsumptionData.averageSpeed
         .map(convertFromMetersPerSecondToMilesPerHour)
         .getOrElse(0)
-      val gradePercent: Double = linkIdToGradePercentMap.getOrElse(linkId, 0)
+      val gradePercent: Double = linkIdToGradePercentMap.getOrElse(fuelConsumptionData.linkId, 0)
       (powerTrainPriority match {
-        case Primary   => consumptionRateFilterStore.getPrimaryConsumptionRateFilterFor(vehicleType)
-        case Secondary => consumptionRateFilterStore.getSecondaryConsumptionRateFilterFor(vehicleType)
+        case Primary => consumptionRateFilterStore.getPrimaryConsumptionRateFilterFor(fuelConsumptionData.vehicleType)
+        case Secondary =>
+          consumptionRateFilterStore.getSecondaryConsumptionRateFilterFor(fuelConsumptionData.vehicleType)
 
       }).flatMap(consumptionRateFilterFuture =>
         getRateUsing(consumptionRateFilterFuture, numberOfLanes, speedInMilesPerHour, gradePercent)

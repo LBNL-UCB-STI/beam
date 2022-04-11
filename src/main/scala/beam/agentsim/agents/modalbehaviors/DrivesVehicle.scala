@@ -102,7 +102,7 @@ object DrivesVehicle {
     var newPassSchedule = PassengerSchedule().addLegs(newLegsInSchedule)
     updatedPassengerSchedule.uniquePassengers.foreach { pass =>
       val indicesOfMatchingElements =
-        updatedPassengerSchedule.legsWithPassenger(pass).toIndexedSeq.map(updatedLegsInSchedule.indexOf(_))
+        updatedPassengerSchedule.legsWithPassenger(pass).view.map(updatedLegsInSchedule.indexOf(_)).toIndexedSeq
       newPassSchedule = newPassSchedule.addPassenger(pass, indicesOfMatchingElements.map(newLegsInSchedule(_)))
     }
     updatedPassengerSchedule.passengersWhoNeverBoard.foreach { pass =>
@@ -326,7 +326,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val riders = {
         currentLeg.mode match {
           case BeamMode.BIKE | BeamMode.WALK => immutable.IndexedSeq(id.asInstanceOf[Id[Person]])
-          case _                             => data.passengerSchedule.schedule(currentLeg).riders.toIndexedSeq.map(_.personId)
+          case _                             => data.passengerSchedule.schedule(currentLeg).riders.view.map(_.personId).toIndexedSeq
         }
       }
 
@@ -530,7 +530,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
 
       val updatedStopTick = math.max(stopTick, currentLeg.startTime)
       val partiallyCompletedBeamLeg = currentLeg.subLegThrough(updatedStopTick, networkHelper, geo)
-      val riders = data.passengerSchedule.schedule(currentLeg).riders.toIndexedSeq.map(_.personId)
+      val riders = data.passengerSchedule.schedule(currentLeg).riders.view.map(_.personId).toIndexedSeq
 
       val currentLocation = if (updatedStopTick > currentLeg.startTime) {
         val fuelConsumed =

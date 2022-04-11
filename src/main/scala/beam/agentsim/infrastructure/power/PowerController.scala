@@ -62,7 +62,7 @@ class PowerController(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: 
     */
   def obtainPowerPhysicalBounds(
     currentTime: Int,
-    estimatedLoad: Option[Map[ChargingStation, PowerInKW]] = None
+    estimatedLoad: => Option[Map[ChargingStation, PowerInKW]] = None
   ): Map[ChargingStation, PhysicalBounds] = {
     physicalBounds = beamFederateOption match {
       case Some(beamFederate)

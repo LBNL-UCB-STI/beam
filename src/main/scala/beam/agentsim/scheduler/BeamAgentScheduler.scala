@@ -9,7 +9,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
 import beam.utils.StuckFinder
 import beam.utils.logging.{LogActorState, LoggingMessageActor}
-import com.google.common.collect.TreeMultimap
+import com.google.common.collect.{HashMultimap, TreeMultimap}
 
 import java.util.Comparator
 import java.util.concurrent.TimeUnit
@@ -137,6 +137,10 @@ class BeamAgentScheduler(
       java.lang.Integer,
       ScheduledTrigger
     ]() //com.google.common.collect.Ordering.natural(), com.google.common.collect.Ordering.arbitrary())
+
+  private val actorToTriggers: HashMultimap[ActorRef, ScheduledTrigger] =
+    HashMultimap.create[ActorRef, ScheduledTrigger]()
+
   private val triggerIdToTick: mutable.Map[Long, Integer] =
     scala.collection.mutable.Map[Long, java.lang.Integer]()
 
@@ -226,9 +230,8 @@ class BeamAgentScheduler(
       } else {
         val trigger = triggerIdToScheduledTrigger(triggerId)
         awaitingResponse.remove(completionTickOpt.get, trigger)
-        val st = triggerIdToScheduledTrigger(triggerId)
-        awaitingResponse.remove(completionTickOpt.get, st)
-        stuckFinder.removeByKey(st)
+        actorToTriggers.remove(trigger.agent, trigger)
+        stuckFinder.removeByKey(trigger)
         triggerIdToScheduledTrigger -= triggerId
         maybeTriggerMeasurer.foreach(_.resolved(trigger.triggerWithId))
       }
@@ -343,10 +346,9 @@ class BeamAgentScheduler(
   }
 
   private def terminateActor(actor: ActorRef): Unit = {
-    awaitingResponse
-      .values()
+    actorToTriggers
+      .get(actor)
       .stream()
-      .filter(trigger => trigger.agent == actor)
       .forEach(trigger => {
         // We do not need to remove it from `awaitingResponse` or `stuckFunder`.
         // We will do it a bit later when `CompletionNotice` will be received
@@ -380,6 +382,7 @@ class BeamAgentScheduler(
           val scheduledTrigger = this.triggerQueue.poll()
           val triggerWithId = scheduledTrigger.triggerWithId
           awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
+          actorToTriggers.put(scheduledTrigger.agent, scheduledTrigger)
           stuckFinder.add(System.currentTimeMillis(), scheduledTrigger, true)
 
           triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)

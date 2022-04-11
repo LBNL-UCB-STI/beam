@@ -32,6 +32,13 @@ case class BeamVehicleType(
   payloadCapacityInKg: Option[Double] = None
 ) {
 
+  override def hashCode(): Int = id.##
+
+  override def equals(obj: Any): Boolean = obj match {
+    case vehicleType: BeamVehicleType => id == vehicleType.id
+    case _                            => false
+  }
+
   def isCaccEnabled: Boolean = {
     automationLevel >= 3
   }

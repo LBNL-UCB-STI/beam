@@ -58,7 +58,7 @@ abstract class AbstractSkimmerEvent(eventTime: Double) extends Event(eventTime) 
 
   def getSkimmerInternal: AbstractSkimmerInternal
 
-  def getEventType: String = skimName + "-event"
+  def getEventType: String = skimName
 }
 
 abstract class AbstractSkimmerReadOnly extends LazyLogging {
@@ -82,7 +82,6 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   protected val skimFileHeader: String
   protected val skimName: String
   protected val skimType: SkimType.Value
-  private lazy val eventType = skimName + "-event"
 
   private val awaitSkimLoading = 20.minutes
   private val skimCfg = beamConfig.beam.router.skim
@@ -157,7 +156,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
 
   override def handleEvent(event: Event): Unit = {
     event match {
-      case e: AbstractSkimmerEvent if e.getEventType == eventType =>
+      case e: AbstractSkimmerEvent if e.getEventType == skimName =>
         currentSkimInternal.compute(
           e.getKey,
           (_, v) => aggregateWithinIteration(Option(v), e.getSkimmerInternal)
