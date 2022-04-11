@@ -17,7 +17,7 @@ class S3WrapperTest extends AnyFunSuite {
     val regionToCreateBucket = "us-west-2"
     FileUtils.using(S3Wrapper.fromCredential(credentialProfile)) { s3 =>
       val bucketToBeCreatedName =
-        s"beam-s3wrapper-integration-test-${Random.alphanumeric.take(10).mkString.toLowerCase}"
+        s"beam-s3wrapper-integration-beam.sim.test-${Random.alphanumeric.take(10).mkString.toLowerCase}"
       val bucketToBeCreatedExists = () => s3.doesBucketExists(bucketToBeCreatedName)
       assume(!bucketToBeCreatedExists())
       try {

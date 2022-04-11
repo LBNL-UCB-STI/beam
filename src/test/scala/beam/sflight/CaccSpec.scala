@@ -30,7 +30,7 @@ class CaccSpec extends AnyWordSpecLike with Matchers with BeamHelper with Before
   }
 
   private def runSimulationAndReturnAvgCarTravelTimes(caccEnabled: Boolean, iterationNumber: Int): Double = {
-    // beam.outputs.collectAndCreateBeamAnalysisAndGraphs needs to be enabled for this test, as it is trying to access *.averageTravelTimes.csv
+    // beam.outputs.collectAndCreateBeamAnalysisAndGraphs needs to be enabled for this beam.sim.test, as it is trying to access *.averageTravelTimes.csv
     val config = ConfigFactory
       .parseString(
         s"""
@@ -43,7 +43,7 @@ class CaccSpec extends AnyWordSpecLike with Matchers with BeamHelper with Before
             |beam.agentsim.agents.vehicles.vehiclesFilePath = $${beam.inputDirectory}"/sample/1k/vehicles-cav.csv"
         """.stripMargin
       )
-      .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))
+      .withFallback(testConfig("beam.sim.test/input/sf-light/sf-light-1k.conf"))
       .resolve()
 
     val matsimConfig = new MatSimBeamConfigBuilder(config).buildMatSimConf()

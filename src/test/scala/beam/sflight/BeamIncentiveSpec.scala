@@ -44,7 +44,7 @@ class BeamIncentiveSpec extends AnyWordSpecLike with Matchers with BeamHelper wi
     iterationNumber: Int,
     incentivesFile: String
   ): Double = {
-    val beamVilleFolder = "test/input/beamville/"
+    val beamVilleFolder = "beam.sim.test/input/beamville/"
     val config = ConfigFactory
       .parseString(
         s"""

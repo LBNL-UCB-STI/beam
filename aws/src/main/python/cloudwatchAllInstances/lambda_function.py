@@ -82,7 +82,7 @@ def create_cloudwatch_alarm_for(cloudwatch, instance_id, owner_email, region):
         Statistic='Average',
         Period=60, #How often it samples the data
         EvaluationPeriods=60, #Sliding window of periods for consideration - Do not set below 2 as it is too sensitive - a single dip triggers the warning
-        DatapointsToAlarm=30, #How many of the evaluation periods must meet the threshold to cause an alarm - The above 3 settings mean it will test every 60 seconds and go into alarm if the AvgCPU is less than 1 30 times over the past 60 periods....so 30 minutes of 60 were idle
+        DatapointsToAlarm=30, #How many of the evaluation periods must meet the threshold to cause an alarm - The above 3 settings mean it will beam.sim.test every 60 seconds and go into alarm if the AvgCPU is less than 1 30 times over the past 60 periods....so 30 minutes of 60 were idle
         Threshold=1.0,
         ComparisonOperator='LessThanThreshold',
         Dimensions=[

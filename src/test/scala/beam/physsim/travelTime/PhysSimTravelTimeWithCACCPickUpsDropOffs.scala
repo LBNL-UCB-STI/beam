@@ -38,9 +38,9 @@ import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers with LazyLogging {
   import beam.physsim.travelTime.PhysSimTravelTimeWithCACCPickUpsDropOffs._
 
-  val simulationConfigPath = "test/input/beamville/beam.conf"
-  val simulationNetworkPath = "test/test-resources/beam/physsim/beamville-network-output.xml"
-  val simulationPlansPath = "test/test-resources/beam/physsim/physsim-plans-few-persons.xml"
+  val simulationConfigPath = "beam.sim.test/input/beamville/beam.conf"
+  val simulationNetworkPath = "beam.sim.test/beam.sim.test-resources/beam/physsim/beamville-network-output.xml"
+  val simulationPlansPath = "beam.sim.test/beam.sim.test-resources/beam/physsim/physsim-plans-few-persons.xml"
 
   val config: Config = testConfig(simulationConfigPath)
     .withValue(

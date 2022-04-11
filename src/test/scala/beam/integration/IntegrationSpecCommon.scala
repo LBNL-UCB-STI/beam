@@ -13,7 +13,7 @@ trait IntegrationSpecCommon {
 
   protected val totalIterations: Int = 1
 
-  private val configFileName = "test/input/beamville/beam.conf"
+  private val configFileName = "beam.sim.test/input/beamville/beam.conf"
 
   private val configLocation = ConfigFactory.parseString("config=" + configFileName)
 

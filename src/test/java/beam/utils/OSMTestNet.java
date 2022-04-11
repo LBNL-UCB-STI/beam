@@ -18,7 +18,7 @@ package beam.utils;
 ///**
 // * Created by Andrew A. Campbell on 8/14/17.
 // *
-// * Builds the simple Manhattan grid OSM test network. All streets consist of separated single direction ways
+// * Builds the simple Manhattan grid OSM beam.sim.test network. All streets consist of separated single direction ways
 // * ("oneway"="yes"). Some of the spatial attributes are settable (location, block length).
 // */
 //
@@ -55,7 +55,7 @@ package beam.utils;
 //
 //
 //	/**
-//	 * Builds the test network. Use the setters to overwrite defaults
+//	 * Builds the beam.sim.test network. Use the setters to overwrite defaults
 //	 */
 //	public void buildTestNet(){
 //		// Add all the nodes first

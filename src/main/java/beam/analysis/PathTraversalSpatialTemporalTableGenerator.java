@@ -122,13 +122,13 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
     }
 
     public static void main(String[] args) {
-        // String pathToEventsFile = "C:\\tmp\\testing events energy\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events_part.xml";
+        // String pathToEventsFile = "C:\\tmp\\testing events energy\\beam.sim.test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events_part.xml";
 
         String pathToEventsFile = "C:\\tmp\\csv analysis\\base_2017-09-27_05-05-07\\base_2017-09-27_05-05-07~\\base_2017-09-27_05-05-07\\ITERS\\it.0\\0.events.xml";
 
 
         // String pathToEventsFile = "C:\\tmp\\csv analysis\\base_2017-09-27_05-05-07\\base_2017-09-27_05-05-07~\\base_2017-09-27_05-05-07\\ITERS\\it.0\\0.events.xml";
-        // String pathToEventsFile = "C:\\tmp\\base_2017-09-26_18-13-28\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.xml";
+        // String pathToEventsFile = "C:\\tmp\\base_2017-09-26_18-13-28\\beam.sim.test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.xml";
         //String pathToEventsFile = "C:\\tmp\\base_2017-09-27_05-05-07\\base_2017-09-27_05-05-07~\\base_2017-09-27_05-05-07\\ITERS\\it.0\\0.events.xml";
         //String pathToEventsFile = "C:\\tmp\\base_2017-09-26_18-13-2.tar\\base_2017-09-26_18-13-2\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.xml";
         //String pathToEventsFile = "C:\\tmp\\events2.xml.gz";
@@ -143,10 +143,10 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         PathTraversalSpatialTemporalTableGenerator energyConsumptionPerLinkOverTime = new PathTraversalSpatialTemporalTableGenerator();
 
         if (READ_FROM_CSV) {
-            // String eventCsvPath="C:\\tmp\\testing events energy\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.csv\\0.events_partial.csv";
+            // String eventCsvPath="C:\\tmp\\testing events energy\\beam.sim.test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.csv\\0.events_partial.csv";
             String eventCsvPath = "C:\\tmp\\csv analysis\\base_2017-09-27_05-05-07\\base_2017-09-27_05-05-07~\\base_2017-09-27_05-05-07\\ITERS\\it.0\\0.events.csv\\0.events.csv";
-            //String eventCsvPath="C:\\tmp\\base_2017-09-26_18-13-28\\test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.csv\\0.events.csv";
-            //String eventCsvPath = "C:\\tmp\\csv analysis\\sfBay_ridehail_price_high_2017-09-26_12-10-54\\test\\output\\sfBay_ridehail_price_high_2017-09-26_12-10-54\\ITERS\\it.0\\0.events.csv\\0.events.csv";
+            //String eventCsvPath="C:\\tmp\\base_2017-09-26_18-13-28\\beam.sim.test\\output\\base_2017-09-26_18-13-28\\ITERS\\it.0\\0.events.csv\\0.events.csv";
+            //String eventCsvPath = "C:\\tmp\\csv analysis\\sfBay_ridehail_price_high_2017-09-26_12-10-54\\beam.sim.test\\output\\sfBay_ridehail_price_high_2017-09-26_12-10-54\\ITERS\\it.0\\0.events.csv\\0.events.csv";
 
             //  String eventCsvPath="C:\\tmp\\csv analysis\\sfBay_ridehail_price_high_2017-09-27_05-05-15\\sfBay_ridehail_price_high_2017-09-27_05-05-15~\\sfBay_ridehail_price_high_2017-09-27_05-05-15\\ITERS\\it.0\\0.events.csv\\0.events.csv";
             //  String eventCsvPath="C:\\tmp\\csv analysis\\sfBay_ridehail_price_low_2017-09-27_08-19-54\\sfBay_ridehail_price_low_2017-09-27_08-19-54~\\sfBay_ridehail_price_low_2017-09-27_08-19-54\\ITERS\\it.0\\0.events.csv\\0.events.csv";

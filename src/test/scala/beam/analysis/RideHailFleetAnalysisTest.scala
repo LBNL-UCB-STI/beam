@@ -79,7 +79,7 @@ class RideHailFleetAnalysisTest extends AnyFlatSpec with Matchers {
   // eventsFileSmall may be obtained from any local sf-light-1k run
   val eventsFileSmall = ""
 
-  val vehicleTypeFile = "test/input/sf-light/vehicleTypes.csv"
+  val vehicleTypeFile = "beam.sim.test/input/sf-light/vehicleTypes.csv"
 
   val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] =
     BeamVehicleUtils.readBeamVehicleTypeFile(vehicleTypeFile)
@@ -111,7 +111,7 @@ class RideHailFleetAnalysisTest extends AnyFlatSpec with Matchers {
     throw new IllegalArgumentException(
       """In order to use these tests you need to generate content of RideHailFleetAnalysisTestData
         |based on events files you are going to use for tests.
-        |To do so, you need to specify eventsFileBig and/or eventsFileSmall and run 'test' method
+        |To do so, you need to specify eventsFileBig and/or eventsFileSmall and run 'beam.sim.test' method
         |with `printTestCases` set to true. That will print you all methods for RideHailFleetAnalysisTestData.
         |Then you will need to copy the printed methods into RideHailFleetAnalysisTestData class body.""".stripMargin
     )
@@ -160,32 +160,32 @@ class RideHailFleetAnalysisTest extends AnyFlatSpec with Matchers {
 
   //  "V2 fleet analysis" must "return expected metrics for BIG events file" in {
   //    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
-  //    test(event => RHFleetEventsAnalysis.processStats(event), doItFast = false, printTestCases = false)
+  //    beam.sim.test(event => RHFleetEventsAnalysis.processStats(event), doItFast = false, printTestCases = false)
   //  }
   //
   //  "V2 fleet analysis" must "return expected metrics for SMALL events file" ignore {
   //    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
-  //    test(event => RHFleetEventsAnalysis.processStats(event), doItFast = true, printTestCases = false)
+  //    beam.sim.test(event => RHFleetEventsAnalysis.processStats(event), doItFast = true, printTestCases = false)
   //  }
   //
   //  "1. V2 fleet analysis" must "return expected values" ignore {
   //    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
-  //    test(event => RHFleetEventsAnalysis.processStats(event))
+  //    beam.sim.test(event => RHFleetEventsAnalysis.processStats(event))
   //  }
   //
   //  "1. fleet analysis" must "return expected values" ignore {
   //    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternal(vehicleTypes, writeIteration)
-  //    test(event => RHFleetEventsAnalysis.processStats(event))
+  //    beam.sim.test(event => RHFleetEventsAnalysis.processStats(event))
   //  }
   //
   //  "2. V2 fleet analysis" must "return expected values" ignore {
   //    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternalV2(vehicleTypes, writeIteration)
-  //    test(event => RHFleetEventsAnalysis.processStats(event))
+  //    beam.sim.test(event => RHFleetEventsAnalysis.processStats(event))
   //  }
   //
   //  "2. fleet analysis" must "return expected values" ignore {
   //    val RHFleetEventsAnalysis = new RideHailFleetAnalysisInternal(vehicleTypes, writeIteration)
-  //    test(event => RHFleetEventsAnalysis.processStats(event))
+  //    beam.sim.test(event => RHFleetEventsAnalysis.processStats(event))
   //  }
 
   "doubles" must "be compared with tolerance" ignore {

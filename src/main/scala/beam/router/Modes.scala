@@ -12,7 +12,7 @@ import scala.language.implicitConversions
 /**
   * [[ValueEnum]] containing all of the translations b/w BEAM <==> R5[[LegMode]] MATSim [[TransportMode]].
   *
-  * Note: There is an implicit conversion
+  * beam.sim.Note: There is an implicit conversion
   *
   * Created by sfeygin on 4/5/17.
   */

@@ -148,7 +148,7 @@ object GTFSToShape extends LazyLogging {
 
   def main(args: Array[String]): Unit = {
     val srcDir =
-      if (args.length > 0) args(0) else "" // "/mnt/data/work/beam/beam-new-york/test/input/newyork/r5-latest"
+      if (args.length > 0) args(0) else "" // "/mnt/data/work/beam/beam-new-york/beam.sim.test/input/newyork/r5-latest"
     val outDir = if (args.length > 1) args(1) else "" // "/mnt/data/work/beam/gtfs-NY"
 
     logger.info(s"gtfs zip sources folder: '$srcDir'")

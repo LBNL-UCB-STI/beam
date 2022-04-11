@@ -45,7 +45,7 @@ public class ModeChosenGraphTest {
             stats = stat.getFirst();
             return super.compute(stat);
         }
-    }, BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve()), null);
+    }, BeamConfig.apply(TestConfigUtils.testConfig("beam.sim.test/input/beamville/beam.conf").resolve()), null);
 
     @Before
     public void setUpClass() {

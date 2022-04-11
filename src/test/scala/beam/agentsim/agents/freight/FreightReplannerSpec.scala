@@ -20,7 +20,7 @@ import scala.util.Random
 class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper {
 
   val beamServices: BeamServices = TestConfigUtils.configToBeamServices(
-    TestConfigUtils.testConfig("test/input/beamville/beam-freight.conf").resolve()
+    TestConfigUtils.testConfig("beam.sim.test/input/beamville/beam-freight.conf").resolve()
   )
 
   "FreightReplanner" should {
@@ -112,7 +112,7 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper
             beam.agentsim.agents.freight.replanning.strategy = wholeFleet
             """
           )
-          .withFallback(testConfig("test/input/beamville/beam-freight.conf").resolve())
+          .withFallback(testConfig("beam.sim.test/input/beamville/beam-freight.conf").resolve())
       )
 
       val rnd = new Random(100)

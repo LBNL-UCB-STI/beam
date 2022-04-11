@@ -31,7 +31,7 @@ class UrbanSimRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with
 
   "UrbanSimRun" must {
     "run  urbansim-1k.conf" in {
-      val confPath = configMap.getWithDefault("config", "test/input/sf-light/urbansim-1k.conf")
+      val confPath = configMap.getWithDefault("config", "beam.sim.test/input/sf-light/urbansim-1k.conf")
       val totalIterations = configMap.getWithDefault("iterations", "1").toInt
       val baseConf = testConfig(confPath)
         .resolve()

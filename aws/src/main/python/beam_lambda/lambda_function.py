@@ -71,9 +71,9 @@ SHUTDOWN_DEFAULT = '30'
 
 EXECUTE_CLASS_DEFAULT = 'beam.sim.RunBeam'
 
-EXECUTE_ARGS_DEFAULT = '''['--config', 'test/input/beamville/beam.conf']'''
+EXECUTE_ARGS_DEFAULT = '''['--config', 'beam.sim.test/input/beamville/beam.conf']'''
 
-EXPERIMENT_DEFAULT = 'test/input/beamville/calibration/experiments.yml'
+EXPERIMENT_DEFAULT = 'beam.sim.test/input/beamville/calibration/experiments.yml'
 
 CONFIG_DEFAULT = 'production/application-sfbay/base.conf'
 
@@ -118,7 +118,7 @@ runcmd:
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
   - cd /home/ubuntu/git/beam
-  - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
+  - rm -rf /home/ubuntu/git/beam/beam.sim.test/input/sf-light/r5/network.dat
   - hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
   - start_json=$(printf "{
       \\"command\\":\\"add\\",

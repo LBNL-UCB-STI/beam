@@ -165,7 +165,7 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
         val (zones, lookupTree) =
           ParkingZoneFileUtils
             .fromFile[Link](
-              "test/input/sf-light/link-parking.csv.gz",
+              "beam.sim.test/input/sf-light/link-parking.csv.gz",
               new Random(42),
               None,
               None,
@@ -181,7 +181,7 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
         val (parkingZones, _) =
           ParkingZoneFileUtils
             .fromFile[Link](
-              "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
+              "beam.sim.test/beam.sim.test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
               new Random(777934L),
               None,
               None

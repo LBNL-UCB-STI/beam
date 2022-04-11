@@ -19,7 +19,7 @@ class WritePlansAndStopSimulationTest extends AnyFlatSpec with Matchers with Bea
            |beam.physsim.writePlansInterval = 0
            |beam.output.writePlansAndStopSimulation = true
          """.stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
 
     val (

@@ -57,7 +57,7 @@ class PersonAgentSpec
         akka.loglevel = debug
         """
     )
-    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
     .resolve()
 
   lazy implicit val system: ActorSystem = ActorSystem("PersonAgentSpec", config)
@@ -134,7 +134,7 @@ class PersonAgentSpec
       expectMsg(CompletionNotice(0, Vector()))
     }
 
-    // Hopefully deterministic test, where we mock a router and give the agent just one option for its trip.
+    // Hopefully deterministic beam.sim.test, where we mock a router and give the agent just one option for its trip.
     it("should demonstrate a complete trip, throwing MATSim events") {
       val eventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
@@ -296,7 +296,7 @@ class PersonAgentSpec
 
       // In this tests, it's not easy to chronologically sort Events vs. Triggers/Messages
       // that we are expecting. And also not necessary in real life.
-      // So we put the Events on a separate channel to avoid a non-deterministically failing test.
+      // So we put the Events on a separate channel to avoid a non-deterministically failing beam.sim.test.
       val events = new TestProbe(system)
       val eventsManager: EventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
@@ -881,7 +881,7 @@ class PersonAgentSpec
       terminationProbe.expectTerminated(iteration, 60 seconds)
     }
     maybeIteration = None
-    //we need to prevent getting this CompletionNotice from the Scheduler in the next test
+    //we need to prevent getting this CompletionNotice from the Scheduler in the next beam.sim.test
     receiveWhile(1000 millis) { case _: CompletionNotice =>
     }
   }

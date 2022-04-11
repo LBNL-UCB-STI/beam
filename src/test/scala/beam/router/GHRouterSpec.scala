@@ -32,7 +32,7 @@ class GHRouterSpec extends AnyWordSpecLike with Matchers with BeamHelper with Sc
          |beam.routing.carRouter="staticGH"
       """.stripMargin
     )
-    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
     .resolve()
 
   lazy val configAltRoutes: Config = ConfigFactory

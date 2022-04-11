@@ -22,7 +22,7 @@ class TransitCrowdingSkimsTest extends AnyFlatSpec with Matchers with BeamHelper
 
   "TransitCrowdingSkims" should "calculate occupancy level correctly" in {
     val basePath = System.getenv("PWD")
-    val inputFilePath = s"$basePath/test/test-resources/beam/router/skim/transit-crowding-test-data.csv"
+    val inputFilePath = s"$basePath/beam.sim.test/beam.sim.test-resources/beam/router/skim/transit-crowding-beam.sim.test-data.csv"
     val skimmer: TransitCrowdingSkimmer = ODSkimmerTest.createSkimmer(SkimType.TC_SKIMMER, inputFilePath, constr)
 
     val trip = EmbodiedBeamTrip(IndexedSeq(createLeg("SF:7678110"), createLeg("BA:36R11")))

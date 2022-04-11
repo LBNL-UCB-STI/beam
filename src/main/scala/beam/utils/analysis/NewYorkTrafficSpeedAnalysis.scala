@@ -60,7 +60,7 @@ object NewYorkTrafficSpeedAnalysis {
   def main(args: Array[String]): Unit = {
     val pathToCsv = "D:/Work/beam/NewYork/data_sources/DOT_Traffic_Speeds_NBE_Starting_20200301.csv.gz"
     val pathToAlreadyAggregatedCsv = "D:/Work/beam/NewYork/data_sources/only_link_ids.csv"
-    val pathToNetwork = "C:/repos/beam/test/input/newyork/r5-prod/physsim-network.xml"
+    val pathToNetwork = "C:/repos/beam/beam.sim.test/input/newyork/r5-prod/physsim-network.xml"
 
     val transcomLinksWithCorruptedData = readTranscomLinks(pathToAlreadyAggregatedCsv)
 
@@ -107,7 +107,7 @@ object NewYorkTrafficSpeedAnalysis {
     println(s"transcomLinksOriginal: ${transcomLinksOriginal.length}")
     println(s"transcomLinks: ${transcomLinks.length}")
 
-    val r5Network = KryoNetworkSerializer.read(new File("C:/repos/beam/test/input/newyork/r5-prod/network.dat"))
+    val r5Network = KryoNetworkSerializer.read(new File("C:/repos/beam/beam.sim.test/input/newyork/r5-prod/network.dat"))
 
     if (shouldCreateTrafficShape) {
       ProfilingUtils.timed("Create shape file from traffic speeds", x => println(x)) {

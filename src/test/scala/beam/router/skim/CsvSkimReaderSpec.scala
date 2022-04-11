@@ -16,7 +16,7 @@ class CsvSkimReaderSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
   "CsvSkimReader" must "read skims correctly" in {
     val skims =
-      new CsvSkimReader("test/test-resources/beam/router/skim/skims.csv", fromCsv, getDummyLogger).readAggregatedSkims
+      new CsvSkimReader("beam.sim.test/beam.sim.test-resources/beam/router/skim/skims.csv", fromCsv, getDummyLogger).readAggregatedSkims
         .map { case (skimmerKey, skimmerInternal) =>
           (skimmerKey.asInstanceOf[ODSkimmerKey], skimmerInternal.asInstanceOf[ODSkimmerInternal])
         }

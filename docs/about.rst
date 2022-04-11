@@ -19,7 +19,7 @@ These key features are summarized here and described in further detail below:
 
 * **Rich Modal Choice** BEAM’s mode choice model is structured so that agents select modal strategies (e.g. “car” versus “walk to transit” versus “ride hail”) for each tour prior to the simulation day, but resolve the outcome of these strategies within the day (e.g. route selection, standard ride hail versus pooled, etc.).  
 
-* **Transportation Network Companies** TNCs are already changing the mobility landscape and as driverless vehicles come online, the economics of these services will improve substantially. In BEAM, TNCs are modeled as a fleet of ride hail vehicles controlled by a centralized manager that responds to requests from customers and dispatches vehicles accordingly. The fleet can be composed of human drivers, autonomous vehicles, or a hybrid of both human and driverless. The management of the fleet has been developed as an API that can be implemented using mutliple algorithms, allowing users of BEAM to test their own fleet control strategies. Finally, we have implemented a scalable pooling algorithm that efficiency matches customers and pools them into vehicles. Pooled ride hail is treated as a distinct mode and therefore only customers who request such a ride are considered for pooling.
+* **Transportation Network Companies** TNCs are already changing the mobility landscape and as driverless vehicles come online, the economics of these services will improve substantially. In BEAM, TNCs are modeled as a fleet of ride hail vehicles controlled by a centralized manager that responds to requests from customers and dispatches vehicles accordingly. The fleet can be composed of human drivers, autonomous vehicles, or a hybrid of both human and driverless. The management of the fleet has been developed as an API that can be implemented using mutliple algorithms, allowing users of BEAM to beam.sim.test their own fleet control strategies. Finally, we have implemented a scalable pooling algorithm that efficiency matches customers and pools them into vehicles. Pooled ride hail is treated as a distinct mode and therefore only customers who request such a ride are considered for pooling.
 
 * **Parallel Within Day Dynamics** BEAM is written primarily in Scala and leverages the Akka_ library for currency which implements the [Actor Model of Computation](https://en.wikipedia.org/wiki/Actor_model). These tools enable the model to run as a parallel discrete event simulation. This capability is critical to simulate a transportation system that is more dynamic (primarily via on-demand forms of mobility) in a manner than can still achieve non-trivial scales. In addition, this approach allows BEAM to continue to use parallel processing while also simulating resource competition, e.g. agents are accessing finite resources like parking spaces, charging infrastructure, or micromobility vehicles in a manner that is still parallelized but nevertheless disallows one resource to be used by two agents simultaneously. 
   
@@ -76,7 +76,7 @@ BEAM uses the `R5 routing engine`_ to accomplish multi-modal routing. Agents fro
 GraphHopper Router
 ^^^^^^^^^
 
-If configured BEAM can use GraphHopper router (https://github.com/graphhopper/graphhopper) in addition to R5. Note that
+If configured BEAM can use GraphHopper router (https://github.com/graphhopper/graphhopper) in addition to R5. beam.sim.Note that
 currently GraphHopper doesn't work with transit routes, for these it will delegate to R5.
 
 To enable GraphHopper set in config file

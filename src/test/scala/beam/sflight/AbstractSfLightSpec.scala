@@ -22,11 +22,11 @@ class AbstractSfLightSpec(val name: String)
   lazy implicit val system: ActorSystem = ActorSystem(
     name,
     ConfigFactory.parseString("""
-      |akka.test.timefactor=10""".stripMargin)
+      |akka.beam.sim.test.timefactor=10""".stripMargin)
   )
 
   def outputDirPath: String = basePath + "/" + testOutputDir + name
-  def config: Config = testConfig("test/input/sf-light/sf-light.conf").resolve()
+  def config: Config = testConfig("beam.sim.test/input/sf-light/sf-light.conf").resolve()
 
   def planToVec(plan: Plan): Vector[Activity] = {
     plan.getPlanElements.asScala

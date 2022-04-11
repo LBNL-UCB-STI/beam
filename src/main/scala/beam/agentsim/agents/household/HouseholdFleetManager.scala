@@ -17,6 +17,7 @@ import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.HasTriggerId
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.logging.pattern.ask
 import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
@@ -28,6 +29,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class HouseholdFleetManager(
   parkingManager: ActorRef,
   vehicles: Map[Id[BeamVehicle], BeamVehicle],
+//  geo: GeoUtils,
   homeCoord: Coord,
   maybeEmergencyHouseholdVehicleGenerator: Option[EmergencyHouseholdVehicleGenerator],
   implicit val debug: Debug
@@ -60,6 +62,7 @@ class HouseholdFleetManager(
       triggerSender = Some(sender())
       val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map { case (id, _) =>
         (parkingManager ? ParkingInquiry.init(
+//          SpaceTime(geo.wgs2Utm(homeCoord), 0),
           SpaceTime(homeCoord, 0),
           "init",
           triggerId = triggerId

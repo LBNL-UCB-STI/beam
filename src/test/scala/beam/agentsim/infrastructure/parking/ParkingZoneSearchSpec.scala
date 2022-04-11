@@ -282,7 +282,7 @@
 //
 //  val random: Random = new Random(0L)
 //
-//  // this test scenario covers some basic functionality of ParkingZoneSearches
+//  // this beam.sim.test scenario covers some basic functionality of ParkingZoneSearches
 //  // including ranking by availability and pricing model
 //  trait SimpleParkingAlternatives {
 //

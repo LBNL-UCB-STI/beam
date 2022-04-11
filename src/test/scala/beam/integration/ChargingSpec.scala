@@ -32,7 +32,7 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
   "Running a single person car-only scenario and scale up charging events" must "catch charging events and measure virtual power greater or equal than real power" in {
     val beamVilleCarId = Id.create("beamVilleCar", classOf[BeamVehicleType])
     val vehicleId = Id.create(2, classOf[Vehicle])
-    val filesPath = "test/test-resources/beam/input"
+    val filesPath = "beam.sim.test/beam.sim.test-resources/beam/input"
     val config: Config = ConfigFactory
       .parseString(
         s"""|beam.outputs.events.fileOutputFormats = csv
@@ -67,7 +67,7 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
             |
       """.stripMargin
       )
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSimConf()
@@ -181,7 +181,7 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
     val powerPerTime = refuelSessionEvents.map(s => s._2 / 3600.0 * s._3).sum
     energyChargedInKWh shouldBe (powerPerTime +- 0.01)
     // consumed energy should be more or less equal total added energy
-    // TODO Hard to test this without ensuring an energy conservation mechanism
+    // TODO Hard to beam.sim.test this without ensuring an energy conservation mechanism
     // totalEnergyInJoules shouldBe (energyConsumed +- 1000)
 
     assume(

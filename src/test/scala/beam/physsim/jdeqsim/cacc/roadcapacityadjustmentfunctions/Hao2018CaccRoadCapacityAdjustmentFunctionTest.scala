@@ -32,7 +32,7 @@ class Hao2018CaccRoadCapacityAdjustmentFunctionTest extends AnyFunSpec {
       ).asJava
     )
     .withFallback(
-      testConfig("test/input/sf-light/sf-light-1k.conf")
+      testConfig("beam.sim.test/input/sf-light/sf-light-1k.conf")
     )
     .resolve()
 

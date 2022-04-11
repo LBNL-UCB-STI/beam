@@ -30,16 +30,16 @@ class AgentsimWithMaximallyBadRouterSpec
 
   def config: com.typesafe.config.Config =
     ConfigFactory
-      .parseString("""akka.test.timefactor = 10
+      .parseString("""akka.beam.sim.test.timefactor = 10
           |akka.loglevel = off
         """.stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf").resolve())
       .withValue(
         "beam.agentsim.agents.rideHail.repositioningManager.name",
         ConfigValueFactory.fromAnyRef("DEFAULT_REPOSITIONING_MANAGER")
       )
 
-  def outputDirPath: String = basePath + "/" + testOutputDir + "bad-router-test"
+  def outputDirPath: String = basePath + "/" + testOutputDir + "bad-router-beam.sim.test"
 
   lazy implicit val system: ActorSystem = ActorSystem("AgentsimWithMaximallyBadRouterSpec", config)
 

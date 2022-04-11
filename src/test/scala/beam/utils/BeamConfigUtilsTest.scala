@@ -38,7 +38,7 @@ class BeamConfigUtilsTest extends AnyWordSpecLike with Matchers {
 
   "collector of included conf file paths " should {
     "return only one path if there are no includes " in {
-      val filePath = "test/test2/ttt/file0.f"
+      val filePath = "beam.sim.test/test2/ttt/file0.f"
       val collector = getCollector(Map(filePath -> mockText))
       collector.getFileNameToPath(filePath) should equal(
         Map("beam.conf" -> toPathStr(filePath))
@@ -47,7 +47,7 @@ class BeamConfigUtilsTest extends AnyWordSpecLike with Matchers {
 
     "return all path from includes " in {
       val filesPaths =
-        Array("test/test2/supertest/file0", "test/test2/ttt/file1.fff", "test/test2/file2.f", "test/test2/ttt/file3.f")
+        Array("beam.sim.test/test2/supertest/file0", "beam.sim.test/test2/ttt/file1.fff", "beam.sim.test/test2/file2.f", "beam.sim.test/test2/ttt/file3.f")
           .map(toPathStr)
       val fileIncludedPaths = Array("../supertest/file0", "../file2.f", "file3.f")
       val fileMap = Map(
@@ -78,10 +78,10 @@ class BeamConfigUtilsTest extends AnyWordSpecLike with Matchers {
 
     "correctly name files if they have same names " in {
       val filesPaths = Array(
-        "test/test2/supertest/file0.ff",
-        "test/test2/ttt/file1.fff",
-        "test/test2/file0.ff",
-        "test/test2/ttt/file0.ff"
+        "beam.sim.test/test2/supertest/file0.ff",
+        "beam.sim.test/test2/ttt/file1.fff",
+        "beam.sim.test/test2/file0.ff",
+        "beam.sim.test/test2/ttt/file0.ff"
       ).map(toPathStr)
 
       val fileMap = Map(
@@ -108,8 +108,8 @@ class BeamConfigUtilsTest extends AnyWordSpecLike with Matchers {
 
     "collect all includes recursively " in {
       val filesPaths =
-        Array("test/test2/supertest/file0.ff", "test/test2/file2.fff", "test/test2/ttt/file3.f3f3").map(toPathStr)
-      val filePath = toPathStr("test/test2/ttt/file1.fff")
+        Array("beam.sim.test/test2/supertest/file0.ff", "beam.sim.test/test2/file2.fff", "beam.sim.test/test2/ttt/file3.f3f3").map(toPathStr)
+      val filePath = toPathStr("beam.sim.test/test2/ttt/file1.fff")
       val fileMap = Map(
         filePath      -> (" include \"../supertest/file0.ff\"" +: mockText),
         filesPaths(0) -> (" include \"../file2.fff\"" +: mockText),
@@ -130,10 +130,10 @@ class BeamConfigUtilsTest extends AnyWordSpecLike with Matchers {
 
     "ignore files if they appears more than one time in includes " in {
       val filesPaths = Array(
-        "test/test2/supertest/file0.ff",
-        "test/test2/ttt/file1.fff",
-        "test/test2/file2.fff",
-        "test/test2/ttt/file3.f3f3"
+        "beam.sim.test/test2/supertest/file0.ff",
+        "beam.sim.test/test2/ttt/file1.fff",
+        "beam.sim.test/test2/file2.fff",
+        "beam.sim.test/test2/ttt/file3.f3f3"
       ).map(toPathStr)
 
       val fileMap = Map(

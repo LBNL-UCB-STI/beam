@@ -55,7 +55,7 @@
 //
 //    agentLocationOpt match {
 //      case Some(agentLocation) if routeResponsesByDriver.contains(agentLocation.vehicleId) =>
-//        // If we have an agent and routes, test whether the vehicle has sufficient range and exclude
+//        // If we have an agent and routes, beam.sim.test whether the vehicle has sufficient range and exclude
 //        // from future consideration if it fails this check
 //        val routingResponses = routeResponsesByDriver.get(agentLocation.vehicleId)
 //

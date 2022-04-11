@@ -37,7 +37,7 @@ class MatchingAlgorithmsForRideHailSpec extends AnyFlatSpec with Matchers with B
            |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 4
         """.stripMargin
       )
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
     runConsistentPlanCheck(config)
   }
@@ -56,7 +56,7 @@ class MatchingAlgorithmsForRideHailSpec extends AnyFlatSpec with Matchers with B
            |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 1000
         """.stripMargin
       )
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
     runConsistentPlanCheck(config)
   }
@@ -75,7 +75,7 @@ class MatchingAlgorithmsForRideHailSpec extends AnyFlatSpec with Matchers with B
            |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 1000
         """.stripMargin
       )
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
     runConsistentPlanCheck(config)
   }

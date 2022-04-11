@@ -8,7 +8,7 @@ import scala.util.Random
 
 class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 
-  private val outputPath = Paths.get("test/test-resources/beam/agentsim/plans")
+  private val outputPath = Paths.get("beam.sim.test/beam.sim.test-resources/beam/agentsim/plans")
   private val oldPlans = getOldPlans
   private val newPlans = getNewPlans
 

@@ -13,13 +13,13 @@
 
       <condition name="gc-enabled-normal" true="true" false="false">
         <or>
-          <test name="gc-level" operator="equal" value="normal"/>
-          <test name="gc-level" operator="equal" value="all"/>
+          <beam.sim.test name="gc-level" operator="equal" value="normal"/>
+          <beam.sim.test name="gc-level" operator="equal" value="all"/>
         </or>
       </condition>
 
       <condition name="gc-enabled-all" true="true" false="false">
-        <test name="gc-level" operator="equal" value="all"/>
+        <beam.sim.test name="gc-level" operator="equal" value="all"/>
       </condition>
 
       <selection name="compiler-level" default="detailed" label="Compiler">
@@ -30,42 +30,42 @@
       </selection>
 
       <condition name="compiler-enabled" true="false" false="true">
-        <test name="compiler-level" operator="equal" value="off"/>
+        <beam.sim.test name="compiler-level" operator="equal" value="off"/>
       </condition>
 
       <condition name="compiler-enabled-failure" true="true" false="false">
         <or>
-          <test name="compiler-level" operator="equal" value="detailed"/>
-          <test name="compiler-level" operator="equal" value="all"/>
+          <beam.sim.test name="compiler-level" operator="equal" value="detailed"/>
+          <beam.sim.test name="compiler-level" operator="equal" value="all"/>
         </or>
       </condition>
 
       <condition name="compiler-sweeper-threshold" true="0 ms" false="100 ms">
-        <test name="compiler-level" operator="equal" value="all"/>
+        <beam.sim.test name="compiler-level" operator="equal" value="all"/>
       </condition>
 
       <condition name="compiler-compilation-threshold" true="1000 ms">
-        <test name="compiler-level" operator="equal" value="normal"/>
+        <beam.sim.test name="compiler-level" operator="equal" value="normal"/>
       </condition>
 
       <condition name="compiler-compilation-threshold" true="100 ms">
-        <test name="compiler-level" operator="equal" value="detailed"/>
+        <beam.sim.test name="compiler-level" operator="equal" value="detailed"/>
       </condition>
 
       <condition name="compiler-compilation-threshold" true="0 ms">
-        <test name="compiler-level" operator="equal" value="all"/>
+        <beam.sim.test name="compiler-level" operator="equal" value="all"/>
       </condition>
 
       <condition name="compiler-phase-threshold" true="60 s">
-        <test name="compiler-level" operator="equal" value="normal"/>
+        <beam.sim.test name="compiler-level" operator="equal" value="normal"/>
       </condition>
 
       <condition name="compiler-phase-threshold" true="10 s">
-        <test name="compiler-level" operator="equal" value="detailed"/>
+        <beam.sim.test name="compiler-level" operator="equal" value="detailed"/>
       </condition>
 
       <condition name="compiler-phase-threshold" true="0 s">
-        <test name="compiler-level" operator="equal" value="all"/>
+        <beam.sim.test name="compiler-level" operator="equal" value="all"/>
       </condition>
 
       <selection name="method-sampling-interval" default="maximum" label="Method Sampling">
@@ -75,7 +75,7 @@
       </selection>
 
       <condition name="method-sampling-enabled" true="false" false="true">
-        <test name="method-sampling-interval" operator="equal" value="999 d"/>
+        <beam.sim.test name="method-sampling-interval" operator="equal" value="999 d"/>
       </condition>
 
       <selection name="thread-dump-interval" default="everyMinute" label="Thread Dump">
@@ -87,7 +87,7 @@
       </selection>
 
       <condition name="thread-dump-enabled" true="false" false="true">
-        <test name="thread-dump-interval" operator="equal" value="999 d"/>
+        <beam.sim.test name="thread-dump-interval" operator="equal" value="999 d"/>
       </condition>
 
       <selection name="exception-level" default="errors" label="Exceptions">
@@ -98,13 +98,13 @@
 
       <condition name="enable-errors" true="true" false="false">
         <or>
-          <test name="exception-level" operator="equal" value="errors"/>
-          <test name="exception-level" operator="equal" value="all"/>
+          <beam.sim.test name="exception-level" operator="equal" value="errors"/>
+          <beam.sim.test name="exception-level" operator="equal" value="all"/>
         </or>
       </condition>
 
       <condition name="enable-exceptions" true="true" false="false">
-        <test name="exception-level" operator="equal" value="all"/>
+        <beam.sim.test name="exception-level" operator="equal" value="all"/>
       </condition>
 
       <text name="synchronization-threshold" label="Synchronization Threshold" contentType="timespan" minimum="0 s">10 ms</text>

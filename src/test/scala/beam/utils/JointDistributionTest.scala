@@ -9,7 +9,7 @@ import org.scalatest.matchers.should.Matchers
 class JointDistributionTest extends AnyWordSpecLike with Matchers {
 
   val jointDistribution: JointDistribution = JointDistribution.fromCsvFile(
-    pathToCsv = "test/input/beamville/test-data/joint-distribution.csv",
+    pathToCsv = "beam.sim.test/input/beamville/beam.sim.test-data/joint-distribution.csv",
     new MersenneTwister(42),
     columnMapping = Map(
       "age"            -> JointDistribution.DOUBLE_COLUMN_TYPE,
@@ -46,12 +46,12 @@ class JointDistributionTest extends AnyWordSpecLike with Matchers {
       )
     }
 
-    "sample test " in {
+    "sample beam.sim.test " in {
       val sample = jointDistribution.getSample(false, ("age", Left("22")), ("durationIndex", Left("0.0, 2.5")))
       sample.size shouldBe 4
     }
 
-    "range sample test" in {
+    "range sample beam.sim.test" in {
       val sample =
         jointDistribution.getSample(false, ("age", Left("22")), ("durationIndex", Right(CustomRange(0.0, 2.5))))
       sample.size shouldBe 4

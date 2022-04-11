@@ -239,7 +239,7 @@ To configure which metrics will be written one should use BEAM configuration fil
 There is a configuration entry ``beam.sim.metric.collector.metrics`` which contains the names of enabled metrics
 and thus controls which metrics will be written during BEAM execution.
 
-By default metrics which do not affect performance are enabled globally in “test/input/common/metrics.conf” file.
+By default metrics which do not affect performance are enabled globally in “beam.sim.test/input/common/metrics.conf” file.
 
 To configure metrics for a specific BEAM configuration one may add the configuration entry in that specific configuration file.
 

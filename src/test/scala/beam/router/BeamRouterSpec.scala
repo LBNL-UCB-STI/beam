@@ -31,7 +31,7 @@ import scala.collection.concurrent.TrieMap
   */
 class BeamRouterSpec extends AnyFlatSpec with BeamScenarioForTest {
   it should "use odSkim travel times for car" in {
-    val beamScenario = getBeamScenario("test/input/sf-light/sf-light-0.5k.conf", 1.0)
+    val beamScenario = getBeamScenario("beam.sim.test/input/sf-light/sf-light-0.5k.conf", 1.0)
 
     val updatedDuration = 1444
     val skim = Skim(
@@ -88,7 +88,7 @@ class BeamRouterSpec extends AnyFlatSpec with BeamScenarioForTest {
         .parseString(s"""
            |beam.routing.skimTravelTimesScalingFactor =  $skimTravelTimesScalingFactor
         """.stripMargin)
-        .withFallback(testConfig("test/input/sf-light/sf-light-0.5k.conf"))
+        .withFallback(testConfig("beam.sim.test/input/sf-light/sf-light-0.5k.conf"))
         .resolve()
     )
 

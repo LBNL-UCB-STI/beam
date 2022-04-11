@@ -152,7 +152,7 @@ def find_output_test_directory(execution_file):
     all_parents_as_path = list(Path(execution_file).parents)
     all_parents_as_str = list(map(lambda x: str(x.absolute()), all_parents_as_path))
     src_folder = list(filter(lambda x: x.endswith("src/main"), all_parents_as_str))[0]
-    return Path(src_folder).joinpath("../../output/test").resolve()
+    return Path(src_folder).joinpath("../../output/beam.sim.test").resolve()
 
 def read_csv_as_dataframe(file_path, program_arguments):
     columns = ["vehicle_id", "carType", "travel_time", "distance", "free_flow_travel_time", "departure_time", "start_x",

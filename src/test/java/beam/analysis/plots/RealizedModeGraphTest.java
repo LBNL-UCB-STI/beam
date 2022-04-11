@@ -39,7 +39,7 @@ public class RealizedModeGraphTest {
 
     private Map<Integer, Map<String, Double>> stats;
     private static final String BASE_PATH = Paths.get(".").toAbsolutePath().toString();
-    private static final String EVENT_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/replanning.event.xml";
+    private static final String EVENT_FILE_PATH = BASE_PATH + "/beam.sim.test/input/beamville/beam.sim.test-data/replanning.event.xml";
     private final RealizedModeAnalysis realizedModeStats = new RealizedModeAnalysis(new RealizedModesStatsComputation() {
         @Override
         public double[][] compute(Tuple<Map<Integer, Map<String, Double>>, Set<String>> stat) {
@@ -47,7 +47,7 @@ public class RealizedModeGraphTest {
             return super.compute(stat);
         }
 
-    },true, BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve()), null);
+    },true, BeamConfig.apply(TestConfigUtils.testConfig("beam.sim.test/input/beamville/beam.conf").resolve()), null);
 
     @Before
     public void setUpCRC() {

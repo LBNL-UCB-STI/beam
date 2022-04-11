@@ -8,7 +8,7 @@ Configuration file
 ------------------
 The BEAM configuration file controls where BEAM will source input data and the value of parameters. To see an example of the latest version of this file:
 
-https://github.com/LBNL-UCB-STI/beam/blob/master/test/input/beamville/beam.conf
+https://github.com/LBNL-UCB-STI/beam/blob/master/beam.sim.test/input/beamville/beam.conf
 
 As of Fall 2018, BEAM is still under rapid development. So the configuration file will continue to evolve. Particularly, it should be expected that new parameters will be created to contol new model features and old configuration options may be modified, simplied, or eliminated.
 
@@ -16,7 +16,7 @@ Furthermore, the BEAM configuration file contains a hybrid between parameters fr
 
 In order to see example configuration options for a particular release of BEAM replace `master` in the above URL with the version number, e.g. for Version v0.6.2 go to this link:
 
-https://github.com/LBNL-UCB-STI/beam/blob/v0.6.2/test/input/beamville/beam.conf
+https://github.com/LBNL-UCB-STI/beam/blob/v0.6.2/beam.sim.test/input/beamville/beam.conf
 
 BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. Refer to these external documntation for details on the following inputs.
 
@@ -45,8 +45,8 @@ General parameters
    beam.agentsim.timeBinSize = 3600
   
 * simulationName: Used as a prefix when creating an output directory to store simulation results.
-* numAgents: This will limit the number of PersonAgents created in the simulation agents will be . Note that the number of agents is also limited by the total number of "person" elements in the population file specified by `matsim.modules.plans.inputPlansFile`. In other words, if there are 100 people in the plans and numAgents is set to 50, then 50 PersonAgents will be created. If numAgents is >=100, then 100 PersonAgents will be created. Sampling to a smaller number of agents is accomplished by sampling full households until the desired number of PersonAgents is reached. This keeps the household structure intact.
-* thresholdForWalkingInMeters: Used to determine whether a PersonAgent needs to route a walking path through the network to get to a parked vehicle. If the vehicle is closer than thresholdForWalkingInMeters in Euclidean distance, then the walking trip is assumed to be instantaneous. Note, for performance reasons, we do not recommend values for this threshold less than 100m.
+* numAgents: This will limit the number of PersonAgents created in the simulation agents will be . beam.sim.Note that the number of agents is also limited by the total number of "person" elements in the population file specified by `matsim.modules.plans.inputPlansFile`. In other words, if there are 100 people in the plans and numAgents is set to 50, then 50 PersonAgents will be created. If numAgents is >=100, then 100 PersonAgents will be created. Sampling to a smaller number of agents is accomplished by sampling full households until the desired number of PersonAgents is reached. This keeps the household structure intact.
+* thresholdForWalkingInMeters: Used to determine whether a PersonAgent needs to route a walking path through the network to get to a parked vehicle. If the vehicle is closer than thresholdForWalkingInMeters in Euclidean distance, then the walking trip is assumed to be instantaneous. beam.sim.Note, for performance reasons, we do not recommend values for this threshold less than 100m.
 * thresholdForMakingParkingChoiceInMeters: Similar to thresholdForWalkingInMeters, this threshold determines the point in a driving leg when the PersonAgent initiates the parking choice processes. So for 1000m, the agent will drive until she is <=1km from the destination and then seek a parking space.
 * schedulerParallelismWindow: This controls the discrete event scheduling window used by BEAM to achieve within-day parallelism. The units of this parameter are in seconds and the larger the window, the better the performance of the simulation, but the less chronologically accurate the results will be.
 * timeBinSize: For most auto-generated output graphs and tables, this parameter will control the resolution of time-varying outputs.
@@ -152,7 +152,7 @@ vehicle automation level
 * params.transit_crowding_percentile: Which percentile to use to get the occupancyLevel (number of passengers / vehicle capacity). The route may have different occupancy levels during the legs/vehicle stops.
 * utility_scale_factor: amount by which utilites are scaled before evaluating probabilities. Smaller numbers leads to less determinism
 * lccm.paramFile: if modeChoiceClass is set to `ModeChoiceLCCM` this must point to a valid file with LCCM parameters. Otherwise, this parameter is ignored.
-* toll.file: File path to a file with static road tolls. Note, this input will change in future BEAM release where time-varying tolls will possible.
+* toll.file: File path to a file with static road tolls. beam.sim.Note, this input will change in future BEAM release where time-varying tolls will possible.
 
 Vehicles and Population
 ^^^^^^^^^^^^^^^^^^^^^^^

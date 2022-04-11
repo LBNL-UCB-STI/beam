@@ -8,7 +8,7 @@ import beam.sim.config.BeamConfig
 import beam.utils.FileUtils
 
 object XmlConverter extends App {
-  val path = "test/input/beamville"
+  val path = "beam.sim.test/input/beamville"
 
   /*
 /src/beam/output/beamville/beamville__2019-05-07_23-09-15/outputCounts.xml.gz
@@ -22,14 +22,14 @@ object XmlConverter extends App {
 /src/beam/output/beamville/beamville__2019-05-07_23-09-15/outputPersonAttributes.xml.gz
    */
 
-//  private val populationXml = new File("test/input/beamville/population.xml")
-//  private val householdsXml = new File("test/input/beamville/households.xml")
-//  private val houseHoldAttributesXml = new File("test/input/beamville/householdAttributes.xml")
-//  private val populationAttributesXml = new File("test/input/beamville/populationAttributesWithExclusions.xml")
+//  private val populationXml = new File("beam.sim.test/input/beamville/population.xml")
+//  private val householdsXml = new File("beam.sim.test/input/beamville/households.xml")
+//  private val houseHoldAttributesXml = new File("beam.sim.test/input/beamville/householdAttributes.xml")
+//  private val populationAttributesXml = new File("beam.sim.test/input/beamville/populationAttributesWithExclusions.xml")
 //
 //  convert(populationXml, new PopulationXml2CsvConverter(householdsXml, populationAttributesXml).toCsv)
 //  convert(householdsXml, new HouseholdsXml2CsvConverter(houseHoldAttributesXml).toCsv)
-//  convert(populationXml, PlansXml2CsvConverter.toCsv, newName = Some(new File("test/input/beamville/plans")))
+//  convert(populationXml, PlansXml2CsvConverter.toCsv, newName = Some(new File("beam.sim.test/input/beamville/plans")))
 
   def generatePopulationCsv(beamConfig: BeamConfig, allFiles: Seq[File]): File = {
     val populationXml = new File(beamConfig.beam.agentsim.agents.plans.inputPlansFilePath)

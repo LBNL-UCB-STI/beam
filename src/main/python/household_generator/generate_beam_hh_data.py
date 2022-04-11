@@ -3,7 +3,7 @@ Instructions:
     This file is used to generate synthetic household data for BEAM inputs. It has been
     tested for the SF Bay Area.
 
-     >> Note that the census files are too large to keep in the sample file directory,
+     >> beam.sim.Note that the census files are too large to keep in the sample file directory,
      but all other sample inputs are
     already provided.
 
@@ -15,7 +15,7 @@ Instructions:
 
     >> Place the files in sample_data (or wherever you are keeping __all__ input files).
 
-    >> Note that some fields may not match those expected by doppelganger. You may need to edit
+    >> beam.sim.Note that some fields may not match those expected by doppelganger. You may need to edit
     the census files
     (i.e., ssXXhYY.csv and ssXXpYY.csv) to ensure that column headers match expected doppelganger
     inputs. Typically,

@@ -47,9 +47,9 @@ object NewYorkBeamVsLodes {
   }
 
   def main(args: Array[String]): Unit = {
-    val pathToGeoJson = "test/input/external-data/cbg.geojson"
-    val pathToPlans = "test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz"
-    val pathToLodes = "test/input/external-data/NYC_LODES_and_distance.csv"
+    val pathToGeoJson = "beam.sim.test/input/external-data/cbg.geojson"
+    val pathToPlans = "beam.sim.test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz"
+    val pathToLodes = "beam.sim.test/input/external-data/NYC_LODES_and_distance.csv"
 
     val beamHomeToWorkCounts = getBeamHomeWorkCounts(pathToGeoJson, pathToPlans)
     println(s"beamHomeToWorkCounts: ${beamHomeToWorkCounts.size}")

@@ -35,10 +35,10 @@ class SingleModeSpec
 
   def config: com.typesafe.config.Config =
     ConfigFactory
-      .parseString("""akka.test.timefactor = 10""")
-      .withFallback(testConfig("test/input/sf-light/sf-light.conf").resolve())
+      .parseString("""akka.beam.sim.test.timefactor = 10""")
+      .withFallback(testConfig("beam.sim.test/input/sf-light/sf-light.conf").resolve())
 
-  def outputDirPath: String = basePath + "/" + testOutputDir + "single-mode-test"
+  def outputDirPath: String = basePath + "/" + testOutputDir + "single-mode-beam.sim.test"
 
   lazy implicit val system: ActorSystem = ActorSystem("SingleModeSpec", config)
 

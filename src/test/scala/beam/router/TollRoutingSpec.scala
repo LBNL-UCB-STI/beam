@@ -34,7 +34,7 @@ import scala.language.postfixOps
 
 class TollRoutingSpec
     extends TestKit(
-      ActorSystem("TollRoutingSpec", testConfig("test/input/beamville/beam.conf").resolve())
+      ActorSystem("TollRoutingSpec", testConfig("beam.sim.test/input/beamville/beam.conf").resolve())
     )
     with AnyWordSpecLike
     with Matchers

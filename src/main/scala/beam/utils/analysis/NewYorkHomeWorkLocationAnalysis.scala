@@ -96,7 +96,7 @@ object NewYorkHomeWorkLocationAnalysis {
     ProfilingUtils.timed("Compute for 1049k scenario", println) {
       computeBeamScenario(
         boroughMap,
-        "test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz",
+        "beam.sim.test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz",
         "beam_full_scenario_derived_from_location_household_income_borough.csv",
         isUtmCoord = false
       )

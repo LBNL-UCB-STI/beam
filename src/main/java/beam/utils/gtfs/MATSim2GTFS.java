@@ -116,7 +116,7 @@ public class MATSim2GTFS {
 
             // Within a Matsim TransitLine, convert each Matsim TransitRoute to what Conveyal calls a "trip pattern"
             // (a bunch of GTFS trips with the same stop sequence).
-            // Note that this explodes MatSim's representation (which in GTFS would use frequencies.txt with
+            // beam.sim.Note that this explodes MatSim's representation (which in GTFS would use frequencies.txt with
             // exactTimes = true) into a bunch of separate trips all with the same inter-stop times.
             for (TransitRoute matsimRoute : matsimLine.getRoutes().values()) {
                 // A Matsim Route is like what Conveyal calls a "trip pattern".

@@ -41,7 +41,7 @@ for t in range(0, iterations):
     # Federate init string #
     h.helicsFederateInfoSetCoreInitString(fedinfo, fedinitstring)
 
-    # Set the message interval (timedelta) for federate. Note th#
+    # Set the message interval (timedelta) for federate. beam.sim.Note th#
     # HELICS minimum message time interval is 1 ns and by default
     # it uses a time delta of 1 second. What is provided to the
     # setTimedelta routine is a multiplier for the default timedelta.

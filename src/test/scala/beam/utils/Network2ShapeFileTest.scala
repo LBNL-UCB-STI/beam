@@ -15,7 +15,7 @@ import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 class Network2ShapeFileTest extends AnyWordSpecLike with Matchers {
   "Network2ShapeFile transformation" should {
     "generate the same number of features" in {
-      val beamvilleNetwork = "test/test-resources/beam/beamville-physsim-network.xml"
+      val beamvilleNetwork = "beam.sim.test/beam.sim.test-resources/beam/beamville-physsim-network.xml"
       val outputShapeFile = "output/beamville-network.shp"
 
       val crsString = "epsg:32631"

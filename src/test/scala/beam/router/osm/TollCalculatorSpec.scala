@@ -10,7 +10,7 @@ import scala.language.postfixOps
 class TollCalculatorSpec extends AnyWordSpecLike {
   "Using beamville as input" when {
     val beamvilleTollCalc =
-      new TollCalculator(BeamConfig(testConfig("test/input/beamville/beam.conf").resolve()))
+      new TollCalculator(BeamConfig(testConfig("beam.sim.test/input/beamville/beam.conf").resolve()))
     "calculate toll for a single trunk road, it" should {
       "return value $1." in {
         assert(beamvilleTollCalc.calcTollByOsmIds(Vector(109)) == 1.0)

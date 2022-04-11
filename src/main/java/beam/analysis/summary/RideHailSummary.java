@@ -33,7 +33,7 @@ public class RideHailSummary implements IterationSummaryAnalysis {
             case "ModeChoice":
                 ModeChoiceEvent modeChoice = (ModeChoiceEvent)event;
                 if(modeChoice.getPersonId().toString().startsWith("rideHailAgent")) {
-                    // do nothing, agent is driving (this test might be unnecessary)
+                    // do nothing, agent is driving (this beam.sim.test might be unnecessary)
                 } else if(modeChoice.mode.startsWith("ride_hail")) {
                     modeChoiceAttempt.put(modeChoice.personId, modeChoice.mode);
                 } else if(modeChoiceAttempt.containsKey(modeChoice.personId) &&

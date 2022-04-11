@@ -29,13 +29,13 @@ class GraphTestUtil {
     static final String WALK_TRANS = "walk_transit";
 
     private static final String BASE_PATH = Paths.get(".").toAbsolutePath().toString();
-    private static final String TRANSIT_VEHICLE_FILE_PATH = BASE_PATH + "/test/input/beamville/transitVehicles.xml";
-    private static final String EVENTS_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/beamville.events.xml";
-    private static final BeamConfig beamconfig = BeamConfig.apply(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve());
+    private static final String TRANSIT_VEHICLE_FILE_PATH = BASE_PATH + "/beam.sim.test/input/beamville/transitVehicles.xml";
+    private static final String EVENTS_FILE_PATH = BASE_PATH + "/beam.sim.test/input/beamville/beam.sim.test-data/beamville.events.xml";
+    private static final BeamConfig beamconfig = BeamConfig.apply(TestConfigUtils.testConfig("beam.sim.test/input/beamville/beam.conf").resolve());
     private static final BeamServices services = mock(BeamServices.class);
     private static final MatsimServices matsimServices = mock(MatsimServices.class);
     private static final OutputDirectoryHierarchy ioController =
-            new OutputDirectoryHierarchy(BASE_PATH + "/output/beam-test-output", overwriteExistingFiles);
+            new OutputDirectoryHierarchy(BASE_PATH + "/output/beam-beam.sim.test-output", overwriteExistingFiles);
     private static final EventsManager events;
 
     static {

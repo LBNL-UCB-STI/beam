@@ -20,7 +20,7 @@ object IndustryAssigner {
       args.length == 2,
       "Expected two args: 1) path to CTPP 2) Path to plans, like " +
       "'d:/Work/beam/CTPP/'," +
-      "'/beam/test/input/newyork/generic_scenario/4040k-NY-related/plans.csv.gz'"
+      "'/beam/beam.sim.test/input/newyork/generic_scenario/4040k-NY-related/plans.csv.gz'"
     )
     val pathToCTPP: String = args(0)
     val pathToPlans: String = args(1)

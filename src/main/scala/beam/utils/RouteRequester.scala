@@ -30,7 +30,7 @@ object RouteRequester extends BeamHelper {
   def main(args: Array[String]): Unit = {
     val coordPath = "/mnt/data/work/beam-side/notWorkingGHRoutingODPairs.txt"
     val outputShapeFile = "/mnt/data/work/beam-side/notWorkingGHPairs.shp"
-    val configPath = "test/input/sf-light/sf-light-1k-csv.conf"
+    val configPath = "beam.sim.test/input/sf-light/sf-light-1k-csv.conf"
 
     val manualArgs = Array[String]("--config", configPath)
     val (_, cfg) = prepareConfig(manualArgs, isConfigArgRequired = true)

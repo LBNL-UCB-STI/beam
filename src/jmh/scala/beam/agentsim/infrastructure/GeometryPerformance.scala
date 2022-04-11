@@ -18,7 +18,7 @@ import scala.util.Random
   * Executing:<br>
   * ./gradlew jmh<br>
   * Runs convexHull contains point for each TAZ cluster vs TAZTreeMap (with the same TAZes) get nearest Taz for point.
-  * Before actual performance test it loads TAZes and parking zones from appropriate files.
+  * Before actual performance beam.sim.test it loads TAZes and parking zones from appropriate files.
   * @author Dmitry Openkov
   */
 class GeometryPerformance {
@@ -70,13 +70,13 @@ object GeometryPerformance {
   private def loadData: (TAZTreeMap, Vector[ParallelParkingManager.ParkingCluster], QuadTreeBounds) = {
     val beamHome = System.getProperty("beam.home", ".")
     println("beamHome = " + Paths.get(beamHome).toAbsolutePath)
-    val tazMap = taz.TAZTreeMap.fromCsv(s"$beamHome/test/input/sf-bay/taz-centers.csv")
-    val configLocation = "test/input/sf-light/sf-light-1k.conf"
+    val tazMap = taz.TAZTreeMap.fromCsv(s"$beamHome/beam.sim.test/input/sf-bay/taz-centers.csv")
+    val configLocation = "beam.sim.test/input/sf-light/sf-light-1k.conf"
     val baseConfigUnresolved = ConfigFactory.parseString("config=" + configLocation)
     val baseConfig = baseConfigUnresolved.resolve()
     val beamConfig = BeamConfig(baseConfig)
     val stalls = InfrastructureUtils.loadStalls[TAZ](
-      s"$beamHome/test/input/sf-bay/parking/taz-parking-unlimited-fast-limited-l2-150-baseline.csv",
+      s"$beamHome/beam.sim.test/input/sf-bay/parking/taz-parking-unlimited-fast-limited-l2-150-baseline.csv",
       IndexedSeq(),
       tazMap.tazQuadTree, //it is required only in case of failures
       1.0,

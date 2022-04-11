@@ -41,7 +41,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
         |  }
         |}
       """.stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
 
   val beamConfig: BeamConfig = BeamConfig(config)
@@ -95,7 +95,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
         Some(Map[ChargingStation, Double](dummyChargingStation -> 5678.90))
       )
       bounds shouldBe Map(dummyChargingStation -> PhysicalBounds(dummyChargingStation, 7.2, 7.2, 0.0))
-      // TODO: test beam federate connection
+      // TODO: beam.sim.test beam federate connection
       //verify(beamFederateMock, times(1)).syncAndCollectJSON(300)
     }
   }

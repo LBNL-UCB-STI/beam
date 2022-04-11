@@ -17,7 +17,7 @@ class NormalRelaxationRunSpec extends AnyWordSpecLike with Matchers with BeamHel
                        |beam.agentsim.lastIteration = 2
                        |beam.physsim.relaxation.type = "normal"
                      """.stripMargin)
-        .withFallback(testConfig("test/input/beamville/beam.conf"))
+        .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
         .resolve()
 
       runBeamWithConfig(baseConf)
