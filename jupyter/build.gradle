@@ -27,6 +27,9 @@ static def tryReadMappingFromFile(filePath, prefix) {
             def folder = new File(pathToFolderToMap)
             def exist = folder.exists()
 
+            check if either of following is true:
+                1. if path exist "as is"
+                2. if pathToMappingFileLocation + path exist
 
             def nameForJupyter = pathToFolderToMap
                     .tokenize('/')[-1]
