@@ -80,7 +80,7 @@ EXECUTE_ARGS_DEFAULT = '''['--config', 'test/input/beamville/beam.conf']'''
 
 EXPERIMENT_DEFAULT = 'test/input/beamville/calibration/experiments.yml'
 
-CONFIG_DEFAULT = 'production/application-sfbay/base.conf'
+CONFIG_DEFAULT = 'test/input/beamville/beam.conf'
 
 initscript = (('''
 #cloud-config
@@ -675,8 +675,12 @@ def deploy_handler(event, context):
     sigopt_dev_id = event.get('sigopt_dev_id', os.environ['SIGOPT_DEV_ID'])
     google_api_key = event.get('google_api_key', os.environ['GOOGLE_API_KEY'])
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
+
     run_grafana = event.get('run_grafana', False)
     run_helics = event.get('run_helics', False)
+    run_jupyter = event.get('run_jupyter', False)
+    run_beam = event.get('run_beam', True)
+
     profiler_type = event.get('profiler_type', 'null')
 
     git_user_email = get_param('git_user_email')
@@ -747,13 +751,21 @@ def deploy_handler(event, context):
             runName = titled
             if len(params) > 1:
                 runName += "-" + `runNum`
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION', os.environ['REGION']) \
-                .replace('$BRANCH', branch).replace('$DATA_BRANCH', data_branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
-                .replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait) \
+            script = initscript.replace('$RUN_SCRIPT',selected_script)\
+                .replace('$REGION',region)\
+                .replace('$S3_REGION', os.environ['REGION']) \
+                .replace('$BRANCH', branch)\
+                .replace('$DATA_BRANCH', data_branch)\
+                .replace('$COMMIT', commit_id)\
+                .replace('$CONFIG', arg) \
+                .replace('$MAIN_CLASS', execute_class)\
+                .replace('$UID', uid)\
+                .replace('$SHUTDOWN_WAIT', shutdown_wait) \
                 .replace('$TITLED', runName) \
                 .replace('$MAX_RAM', str(max_ram)) \
                 .replace('$S3_PUBLISH', str(s3_publish)) \
-                .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
+                .replace('$SIGOPT_CLIENT_ID', sigopt_client_id)\
+                .replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
                 .replace('$GOOGLE_API_KEY', google_api_key) \
                 .replace('$PROFILER', profiler_type) \
                 .replace('$END_SCRIPT', end_script) \
