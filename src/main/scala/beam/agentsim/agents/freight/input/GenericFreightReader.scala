@@ -57,33 +57,18 @@ class GenericFreightReader(
         val departureLocationX = row.get("departureLocationX")
         val departureLocationY = row.get("departureLocationY")
 
-        // note: placeholder to update warehouseLocationTaz and warehouseLocationUTM later
-        val freightTour = FreightTour(
-          tourId,
-          departureTimeInSec,
-          None,
-          new Coord(),
-          maxTourDurationInSec
-        )
-
         extractCoordOrTaz(
           departureLocationX,
           departureLocationY,
           row.get("departureLocationZone"),
           snapLocationAndRemoveInvalidInputs
         ) match {
-          case (departureLocationZoneMaybe, Left(departureLocationZoneUTM)) =>
+          case (_, Left(_) | Right(Result.Succeed(_))) =>
             Some(
-              freightTour.copy(
-                warehouseLocationTaz = departureLocationZoneMaybe,
-                warehouseLocationUTM = departureLocationZoneUTM
-              )
-            )
-          case (departureLocationZoneMaybe, Right(Result.Succeed(splitCoord))) =>
-            Some(
-              freightTour.copy(
-                warehouseLocationTaz = departureLocationZoneMaybe,
-                warehouseLocationUTM = splitCoord
+              FreightTour(
+                tourId,
+                departureTimeInSec,
+                maxTourDurationInSec
               )
             )
           case (_, Right(Result.OutOfBoundingBoxError)) =>
@@ -224,6 +209,8 @@ class GenericFreightReader(
     val plans: Map[Id[PayloadPlan], PayloadPlan] = allPlans.filter { case (_, plan) =>
       existingTours.contains(plan.tourId)
     }
+    val tourIdToPlans: Map[Id[FreightTour], IndexedSeq[PayloadPlan]] =
+      plans.values.toIndexedSeq.groupBy(_.tourId).map { case (tourId, plans) => tourId -> plans.sortBy(_.sequenceRank) }
     val tours: Map[Id[FreightTour], FreightTour] = allTours.filter { case (_, tour) =>
       existingTours.contains(tour.tourId)
     }
@@ -264,6 +251,7 @@ class GenericFreightReader(
 
     def createCarrier(carrierId: Id[FreightCarrier], carrierRows: IndexedSeq[FreightCarrierRow]) = {
       val warehouseLocationUTM: Coord = carrierRows.head.warehouseLocationUTM
+      val warehouseLocationZone: Option[Id[TAZ]] = carrierRows.head.warehouseLocationZone
       val vehicles: scala.IndexedSeq[BeamVehicle] = createCarrierVehicles(carrierId, carrierRows, warehouseLocationUTM)
       val vehicleMap: Map[Id[BeamVehicle], BeamVehicle] = vehicles.map(vehicle => vehicle.id -> vehicle).toMap
 
@@ -272,18 +260,28 @@ class GenericFreightReader(
         .mapValues { rows =>
           rows
             //setting the tour warehouse location to be the carrier warehouse location
-            .map(row => tours(row.tourId).copy(warehouseLocationUTM = warehouseLocationUTM))
+            .map(row => tours(row.tourId))
             .sortBy(_.departureTimeInSec)
         }
 
       val carrierTourIds = tourMap.values.flatten.map(_.tourId).toSet
 
       val plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]] =
-        plans.values.groupBy(_.tourId).filterKeys(carrierTourIds).mapValues(_.toIndexedSeq.sortBy(_.sequenceRank))
+        carrierTourIds.collect {
+          case tourId if tourIdToPlans.contains(tourId) => tourId -> tourIdToPlans(tourId)
+        }.toMap
       val carrierPlanIds: Set[Id[PayloadPlan]] = plansPerTour.values.flatten.map(_.payloadId).toSet
-      val payloadMap = plans.filterKeys(carrierPlanIds)
+      val payloadMap = carrierPlanIds.map(planId => planId -> plans(planId)).toMap
 
-      FreightCarrier(carrierId, tourMap, payloadMap, vehicleMap, plansPerTour)
+      FreightCarrier(
+        carrierId,
+        tourMap,
+        payloadMap,
+        vehicleMap,
+        plansPerTour,
+        warehouseLocationZone,
+        warehouseLocationUTM
+      )
     }
 
     val maybeCarrierRows = GenericCsvReader.readAsSeq[Option[FreightCarrierRow]](config.carriersFilePath) { row =>
@@ -393,21 +391,16 @@ class GenericFreightReader(
   }
 
   @Override
-  def createPersonId(vehicleId: Id[BeamVehicle]): Id[Person] = {
-    if (vehicleId.toString.startsWith(freightIdPrefix)) {
-      Id.createPersonId(s"$vehicleId-agent")
-    } else {
-      Id.createPersonId(s"$freightIdPrefix-$vehicleId-agent")
-    }
+  def createPersonId(carrierId: Id[FreightCarrier], vehicleId: Id[BeamVehicle]): Id[Person] = {
+    val updatedCarrierId = carrierId.toString.replace(freightIdPrefix + "-", "")
+    val updatedVehicleId = vehicleId.toString.replace(freightIdPrefix + "-", "")
+    Id.createPersonId(s"$freightIdPrefix-$updatedCarrierId-$updatedVehicleId-agent")
   }
 
   @Override
-  def createHouseholdId(vehicleId: Id[BeamVehicle]): Id[Household] = {
-    if (vehicleId.toString.startsWith(freightIdPrefix)) {
-      s"$vehicleId-household".createId
-    } else {
-      s"$freightIdPrefix-$vehicleId-household".createId
-    }
+  def createHouseholdId(carrierId: Id[FreightCarrier]): Id[Household] = {
+    val updatedCarrierId = carrierId.toString.replace(freightIdPrefix + "-", "")
+    s"$freightIdPrefix-$updatedCarrierId-household".createId
   }
 
 }
