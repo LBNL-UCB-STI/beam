@@ -40,7 +40,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 
 /**
-  * BEAM
+  * BEAM ???
   */
 object ChoosesParking {
   case object ChoosingParkingSpot extends BeamAgentState
