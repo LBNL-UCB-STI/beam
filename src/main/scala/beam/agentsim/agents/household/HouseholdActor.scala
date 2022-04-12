@@ -221,19 +221,24 @@ object HouseholdActor {
               case _ => None
             }
         }.toMap
+
         if (!householdMembersToLocationTypeAndLocation.exists(_._2._1 == ParkingActivityType.Home)) {
           householdMembersToLocationTypeAndLocation ++= Map(
             Id.createPersonId("") -> (ParkingActivityType.Home, "Home", fallbackHomeCoord)
           )
         }
 
-        var vehiclesByAllCategories =
+        val vehiclesByCategories =
           vehicles.filter(_._2.beamVehicleType.automationLevel <= 3).groupBy(_._2.beamVehicleType.vehicleCategory)
-        if (!isFreightCarrier) {
-          //We should create a vehicle manager for cars and bikes for all households in case they are generated during the simulation
-          vehiclesByAllCategories = householdVehicleCategories
+
+        val vehiclesByAllCategories = if (isFreightCarrier) {
+          vehiclesByCategories
+        } else {
+          //We should create a vehicle manager for cars and bikes for
+          //all households in case they are generated during the simulation
+          householdVehicleCategories
             .map(cat => cat -> Map[Id[BeamVehicle], BeamVehicle]())
-            .toMap ++ vehiclesByAllCategories
+            .toMap ++ vehiclesByCategories
         }
 
         val fleetManagers = vehiclesByAllCategories.map { case (category, vehiclesInCategory) =>
