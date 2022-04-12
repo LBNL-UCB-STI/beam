@@ -32,7 +32,6 @@ import beam.router.Modes.BeamMode.CAV
 import beam.router.RouteHistory
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import beam.router.osm.TollCalculator
-import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehicles.VehiclesAdjustment
@@ -244,7 +243,6 @@ object HouseholdActor {
         val fleetManagers = vehiclesByAllCategories.map { case (category, vehiclesInCategory) =>
           val emergencyGenerator =
             new EmergencyHouseholdVehicleGenerator(household, beamScenario, vehiclesAdjustment, category)
-          implicit val _: BeamConfig.Beam.Debug = beamServices.beamConfig.beam.debug
           val fleetManager =
             context.actorOf(
               Props(
@@ -254,7 +252,8 @@ object HouseholdActor {
                   vehiclesInCategory,
                   householdMembersToLocationTypeAndLocation,
                   Some(emergencyGenerator),
-                  whoDrivesThisVehicle
+                  whoDrivesThisVehicle,
+                  beamServices.beamConfig.beam.debug
                 )
               ),
               category.toString

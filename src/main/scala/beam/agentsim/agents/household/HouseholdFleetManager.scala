@@ -34,9 +34,9 @@ class HouseholdFleetManager(
   vehicles: Map[Id[BeamVehicle], BeamVehicle],
   homeAndStartingWorkLocations: Map[Id[Person], (ParkingActivityType, String, Coord)],
   maybeEmergencyHouseholdVehicleGenerator: Option[EmergencyHouseholdVehicleGenerator],
-  whoDrivesThisVehicle: Map[Id[BeamVehicle], Id[Person]] // so far only freight module is using this collection
-)(implicit val debug: Debug)
-    extends LoggingMessageActor
+  whoDrivesThisVehicle: Map[Id[BeamVehicle], Id[Person]], // so far only freight module is using this collection
+  implicit val debug: Debug
+) extends LoggingMessageActor
     with ExponentialLazyLogging {
   private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
   private implicit val executionContext: ExecutionContext = context.dispatcher
