@@ -699,6 +699,18 @@ trait BeamHelper extends LazyLogging {
       PopulationScaling.samplePopulation(scenario, beamScenario, beamServices.beamConfig, beamServices, outputDir)
     }
 
+    if (beamScenario.beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs) {
+      val snapLocationHelper = SnapLocationHelper(
+        new GeoUtilsImpl(beamScenario.beamConfig),
+        beamScenario.transportNetwork.streetLayer,
+        beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
+      )
+      ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
+      logger.info(s"""After snapping locations and validating scenario:
+                     |Number of households: ${scenario.getHouseholds.getHouseholds.size()}
+                     |Number of persons: ${scenario.getPopulation.getPersons.size()}""".stripMargin)
+    }
+
     // write static metrics, such as population size, vehicles fleet size, etc.
     // necessary to be called after population sampling
     BeamStaticMetricsWriter.writeSimulationParameters(
@@ -855,8 +867,7 @@ trait BeamHelper extends LazyLogging {
                 beamScenario,
                 source,
                 new GeoUtilsImpl(beamConfig),
-                Some(merger),
-                outputDirOpt
+                Some(merger)
               ).loadScenario()
             if (src == "urbansim_v2") {
               new ScenarioAdjuster(
@@ -882,24 +893,13 @@ trait BeamHelper extends LazyLogging {
                   scenarioBuilder,
                   beamScenario,
                   source,
-                  new GeoUtilsImpl(beamConfig),
-                  outputDirOpt
-                )
-                  .loadScenario()
+                  new GeoUtilsImpl(beamConfig)
+                ).loadScenario()
               }.asInstanceOf[MutableScenario]
               (scenario, beamScenario, false)
             case "xml" =>
               val beamScenario = loadScenario(beamConfig, outputDirOpt)
-              val snapLocationHelper = SnapLocationHelper(
-                new GeoUtilsImpl(beamConfig),
-                beamScenario.transportNetwork.streetLayer,
-                beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
-              )
-              val scenario = {
-                val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-                ScenarioLoaderHelper.validateScenario(result, snapLocationHelper, outputDirOpt)
-                result
-              }
+              val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
               (scenario, beamScenario, false)
             case unknown =>
               throw new IllegalArgumentException(s"Beam does not support [$unknown] file type")

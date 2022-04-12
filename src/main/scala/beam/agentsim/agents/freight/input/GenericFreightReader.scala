@@ -27,6 +27,7 @@ class GenericFreightReader(
   val geoUtils: GeoUtils,
   rnd: Random,
   tazTree: TAZTreeMap,
+  val snapLocationAndRemoveInvalidInputs: Boolean,
   val snapLocationHelperMaybe: Option[SnapLocationHelper] = None,
   val outputDirMaybe: Option[String] = None
 ) extends LazyLogging
@@ -68,7 +69,8 @@ class GenericFreightReader(
         extractCoordOrTaz(
           departureLocationX,
           departureLocationY,
-          row.get("departureLocationZone")
+          row.get("departureLocationZone"),
+          snapLocationAndRemoveInvalidInputs
         ) match {
           case (departureLocationZoneMaybe, Left(departureLocationZoneUTM)) =>
             Some(
@@ -167,7 +169,7 @@ class GenericFreightReader(
           operationDurationInSec
         )
 
-        extractCoordOrTaz(locationX, locationY, row.get("locationZone")) match {
+        extractCoordOrTaz(locationX, locationY, row.get("locationZone"), snapLocationAndRemoveInvalidInputs) match {
           case (locationZoneMaybe, Left(locationZoneUTM)) =>
             Some(payloadPlan.copy(locationZone = locationZoneMaybe, locationUTM = locationZoneUTM))
           case (locationZoneMaybe, Right(Result.Succeed(splitCoord))) =>
@@ -301,7 +303,12 @@ class GenericFreightReader(
         // note: placeholder to update warehouseLocationZone and warehouseLocationUTM later
         val freightCarrier = FreightCarrierRow(carrierId, tourId, vehicleId, vehicleTypeId, None, new Coord())
 
-        extractCoordOrTaz(row.get("warehouseX"), row.get("warehouseY"), row.get("warehouseZone")) match {
+        extractCoordOrTaz(
+          row.get("warehouseX"),
+          row.get("warehouseY"),
+          row.get("warehouseZone"),
+          snapLocationAndRemoveInvalidInputs
+        ) match {
           case (warehouseZoneMaybe, Left(warehouseZoneUTM)) =>
             Some(
               freightCarrier.copy(warehouseLocationZone = warehouseZoneMaybe, warehouseLocationUTM = warehouseZoneUTM)
@@ -364,14 +371,24 @@ class GenericFreightReader(
   private def getDistributedTazLocation(taz: TAZ): Coord =
     convertedLocation(TAZTreeMap.randomLocationInTAZ(taz, rnd, snapLocationHelperMaybe))
 
-  private def extractCoordOrTaz(strX: String, strY: String, strZone: String): (Option[Id[TAZ]], ClosestUTMPoint) = {
+  private def extractCoordOrTaz(
+    strX: String,
+    strY: String,
+    strZone: String,
+    snapLocationAndRemoveInvalidInputs: Boolean
+  ): (Option[Id[TAZ]], ClosestUTMPoint) = {
     if (isBlank(strX) || isBlank(strY)) {
       val taz = getTaz(strZone)
       (Some(taz.tazId), Left(getDistributedTazLocation(taz)))
     } else {
       val wasInWgs = config.convertWgs2Utm
       val loc = location(strX.toDouble, strY.toDouble)
-      (None, Right(snapLocationHelperMaybe.map(_.computeResult(loc, wasInWgs)).getOrElse(Result.Succeed(loc))))
+      val finalLoc =
+        if (snapLocationAndRemoveInvalidInputs)
+          snapLocationHelperMaybe.map(_.computeResult(loc, wasInWgs)).getOrElse(Result.Succeed(loc))
+        else Result.Succeed(loc)
+
+      (None, Right(finalLoc))
     }
   }
 

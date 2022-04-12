@@ -203,6 +203,7 @@ object FreightReader {
           geoUtils,
           rand,
           tazMap,
+          beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs,
           Some(snapLocationHelper),
           outputDirMaybe
         )

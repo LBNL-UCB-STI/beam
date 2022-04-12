@@ -5,9 +5,9 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManag
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
+import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.google.common.annotations.VisibleForTesting
-import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -19,29 +19,29 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import java.util
 import java.util.concurrent.atomic.AtomicReference
-import scala.collection.Iterable
 import scala.collection.JavaConverters._
-import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.Random
 
 class BeamScenarioLoader(
   val scenarioBuilder: ScenarioBuilder,
   var beamScenario: BeamScenario,
   val scenarioSource: ScenarioSource,
-  val geo: GeoUtils,
-  val outputDirMaybe: Option[String]
-) extends ScenarioLoaderHelper {
+  val geo: GeoUtils
+) extends ExponentialLazyLogging {
 
   import BeamScenarioLoader._
 
   type IdToAttributes = Map[String, Seq[(String, Double)]]
 
-  private implicit val ex: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
-
   private val availableModes: Seq[String] = BeamMode.allModes.map(_.value)
 
   private val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+
+  private lazy val plans: Iterable[PlanElement] = {
+    val r = scenarioSource.getPlans
+    logger.info(s"Read ${r.size} plans")
+    r
+  }
 
   private val scenario: MutableScenario = scenarioBuilder.build
 
@@ -61,35 +61,22 @@ class BeamScenarioLoader(
   def loadScenario(): Scenario = {
     logger.info("The scenario loading started...")
 
-    val plansF = Future {
-      val plans = scenarioSource.getPlans
-      logger.info(s"Read ${plans.size} plans")
-      validatePlans(plans)
-    }
-
-    val personsF = Future {
+    val personsWithPlans = {
       val persons: Iterable[PersonInfo] = scenarioSource.getPersons
-      logger.info(s"Read ${persons.size} persons")
-      persons
+      val personIdsWithPlanTmp = plans.map(_.personId).toSet
+      val result = persons.filter(person => personIdsWithPlanTmp.contains(person.personId))
+      logger.info(s"There are ${persons.size} people. ${result.size} have plans")
+      result
     }
-
-    val householdsF = Future {
-      val households = scenarioSource.getHousehold
-      logger.info(s"Read ${households.size} households")
-      validateHouseholds(households)
-    }
-
-    val validPlans = Await.result(plansF, 1800.seconds)
-    logger.info(s"Reading plans done.")
-    val persons = Await.result(personsF, 1800.seconds)
-    logger.info(s"Reading persons done.")
-    val validHouseholds = Await.result(householdsF, 1800.seconds)
-    logger.info(s"Reading households done.")
 
     val vehicles = scenarioSource.getVehicles
 
-    val personsWithPlans = getPersonsWithPlan(persons, validPlans, validHouseholds)
-    logger.info(s"There are ${personsWithPlans.size} persons with plans")
+    val loadedHouseholds = scenarioSource.getHousehold
+
+    val newHouseholds: Iterable[Household] =
+      buildMatsimHouseholds(loadedHouseholds, personsWithPlans, vehicles)
+
+    val households: Households = replaceHouseholds(scenario.getHouseholds, newHouseholds)
 
     beamScenario.privateVehicles.clear()
     beamScenario.privateVehicleInitialSoc.clear()
@@ -101,15 +88,14 @@ class BeamScenarioLoader(
       vehicleInfo.initialSoc.foreach(beamScenario.privateVehicleInitialSoc.put(vehicle.id, _))
     }
 
-    val newHouseholds: Iterable[Household] = buildMatsimHouseholds(validHouseholds, personsWithPlans, vehicles)
-    val matsimHouseholds: Households = replaceHouseholds(scenario.getHouseholds, newHouseholds)
-    val loadedAttributes = buildAttributesCoordinates(validHouseholds)
-    replaceHouseholdsAttributes(matsimHouseholds, loadedAttributes)
-
     val scenarioPopulation: Population = buildPopulation(personsWithPlans)
     scenario.setPopulation(scenarioPopulation)
     updateAvailableModesForPopulation(scenario)
-    replacePlansFromPopulation(scenarioPopulation, validPlans)
+
+    replacePlansFromPopulation(scenarioPopulation, plans)
+
+    val loadedAttributes = buildAttributesCoordinates(loadedHouseholds)
+    replaceHouseholdsAttributes(households, loadedAttributes)
 
     logger.info("The scenario loading is completed.")
     scenario
@@ -211,24 +197,23 @@ class BeamScenarioLoader(
       listOfElementsGroupedByPerson.groupBy(_.planIndex).foreach {
         case (_, listOfElementsGroupedByPlan) if listOfElementsGroupedByPlan.nonEmpty =>
           val person = population.getPersons.get(Id.createPersonId(personId.id))
-          if (person != null) {
-            val currentPlan = PopulationUtils.createPlan(person)
-            currentPlan.setScore(listOfElementsGroupedByPlan.head.planScore)
-            person.addPlan(currentPlan)
 
-            val personWithoutSelectedPlan = person.getSelectedPlan == null
-            val isCurrentPlanIndexSelected = listOfElementsGroupedByPlan.head.planSelected
-            val isLastPlanIteration = person.getPlans.size() == listOfElementsGroupedByPerson.size
-            if (personWithoutSelectedPlan && (isCurrentPlanIndexSelected || isLastPlanIteration)) {
-              person.setSelectedPlan(currentPlan)
-            }
+          val currentPlan = PopulationUtils.createPlan(person)
+          currentPlan.setScore(listOfElementsGroupedByPlan.head.planScore)
+          person.addPlan(currentPlan)
 
-            listOfElementsGroupedByPlan.foreach { planElement =>
-              if (planElement.planElementType == PlanElement.Leg) {
-                buildAndAddLegToPlan(currentPlan, planElement)
-              } else if (planElement.planElementType == PlanElement.Activity) {
-                buildAndAddActivityToPlan(currentPlan, planElement)
-              }
+          val personWithoutSelectedPlan = person.getSelectedPlan == null
+          val isCurrentPlanIndexSelected = listOfElementsGroupedByPlan.head.planSelected
+          val isLastPlanIteration = person.getPlans.size() == listOfElementsGroupedByPerson.size
+          if (personWithoutSelectedPlan && (isCurrentPlanIndexSelected || isLastPlanIteration)) {
+            person.setSelectedPlan(currentPlan)
+          }
+
+          listOfElementsGroupedByPlan.foreach { planElement =>
+            if (planElement.planElementType == PlanElement.Leg) {
+              buildAndAddLegToPlan(currentPlan, planElement)
+            } else if (planElement.planElementType == PlanElement.Activity) {
+              buildAndAddActivityToPlan(currentPlan, planElement)
             }
           }
       }
@@ -291,7 +276,7 @@ class BeamScenarioLoader(
   }
 }
 
-object BeamScenarioLoader extends LazyLogging {
+object BeamScenarioLoader extends ExponentialLazyLogging {
 
   private[utils] def buildMatsimHouseholds(
     households: Iterable[HouseholdInfo],

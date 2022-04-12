@@ -6,6 +6,7 @@ import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.utils.SnapCoordinateUtils.{CsvFile, ErrorInfo, Result, SnapLocationHelper}
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.scenario.ScenarioLoaderHelper
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.{Activity, Population}
@@ -79,7 +80,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
       val beamConfig: BeamConfig = BeamConfig(config)
 
-      FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
+      val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
       val (scenario, beamScenario, _) = buildBeamServicesAndScenario(
         beamConfig,
@@ -91,6 +92,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
         beamScenario.transportNetwork.streetLayer,
         beamConfig.beam.routing.r5.linkRadiusMeters
       )
+      ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
 
       val dummyCoord = new Coord()
       val population: Seq[SnapCoordinateUtils.Result] = scenario.getPopulation.getPersons
@@ -150,10 +152,17 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
 
       val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-      val (scenario, _, _) = buildBeamServicesAndScenario(
+      val (scenario, beamScenario, _) = buildBeamServicesAndScenario(
         beamConfig,
         matsimConfig
       )
+
+      val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
+        new GeoUtilsImpl(beamConfig),
+        beamScenario.transportNetwork.streetLayer,
+        beamConfig.beam.routing.r5.linkRadiusMeters
+      )
+      ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
 
       val households = scenario.getHouseholds.getHouseholds.values().asScala.toList
 
@@ -188,10 +197,17 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
 
       val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-      val (scenario, _, _) = buildBeamServicesAndScenario(
+      val (scenario, beamScenario, _) = buildBeamServicesAndScenario(
         beamConfig,
         matsimConfig
       )
+
+      val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
+        new GeoUtilsImpl(beamConfig),
+        beamScenario.transportNetwork.streetLayer,
+        beamConfig.beam.routing.r5.linkRadiusMeters
+      )
+      ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
 
       scenario.getPopulation.getPersons.size() shouldBe 1
       intersection(scenario.getPopulation, path = s"$outputDir/${CsvFile.Plans}") shouldBe Set.empty
@@ -217,10 +233,17 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
 
       val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-      val (scenario, _, _) = buildBeamServicesAndScenario(
+      val (scenario, beamScenario, _) = buildBeamServicesAndScenario(
         beamConfig,
         matsimConfig
       )
+
+      val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
+        new GeoUtilsImpl(beamConfig),
+        beamScenario.transportNetwork.streetLayer,
+        beamConfig.beam.routing.r5.linkRadiusMeters
+      )
+      ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
 
       val households = scenario.getHouseholds.getHouseholds.values().asScala.toList
 
@@ -249,10 +272,17 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
 
       val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-      val (scenario, _, _) = buildBeamServicesAndScenario(
+      val (scenario, beamScenario, _) = buildBeamServicesAndScenario(
         beamConfig,
         matsimConfig
       )
+
+      val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
+        new GeoUtilsImpl(beamConfig),
+        beamScenario.transportNetwork.streetLayer,
+        beamConfig.beam.routing.r5.linkRadiusMeters
+      )
+      ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
 
       scenario.getPopulation.getPersons.size() shouldBe 1
       intersection(scenario.getPopulation, path = s"$outputDir/${CsvFile.Plans}") shouldBe Set.empty
@@ -277,10 +307,17 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
 
       val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-      val (scenario, _, _) = buildBeamServicesAndScenario(
+      val (scenario, beamScenario, _) = buildBeamServicesAndScenario(
         beamConfig,
         matsimConfig
       )
+
+      val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
+        new GeoUtilsImpl(beamConfig),
+        beamScenario.transportNetwork.streetLayer,
+        beamConfig.beam.routing.r5.linkRadiusMeters
+      )
+      ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
 
       val households = scenario.getHouseholds.getHouseholds.values().asScala.toList
 
@@ -308,10 +345,17 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
 
       val outputDir = FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 
-      val (scenario, _, _) = buildBeamServicesAndScenario(
+      val (scenario, beamScenario, _) = buildBeamServicesAndScenario(
         beamConfig,
         matsimConfig
       )
+
+      val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
+        new GeoUtilsImpl(beamConfig),
+        beamScenario.transportNetwork.streetLayer,
+        beamConfig.beam.routing.r5.linkRadiusMeters
+      )
+      ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
 
       scenario.getPopulation.getPersons.size() shouldBe 1
       intersection(scenario.getPopulation, path = s"$outputDir/${CsvFile.Plans}") shouldBe Set.empty
@@ -325,6 +369,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
         .parseString(s"""
                         |beam.agentsim.agents.freight.toursFilePath = "$pwd/test/test-resources/beam/input/snap-location/freight/freight-tours.csv"
                         |beam.routing.r5.linkRadiusMeters = 350
+                        |beam.agentsim.snapLocationAndRemoveInvalidInputs = true
                         |""".stripMargin)
         .withFallback(testConfig("test/input/beamville/beam-freight.conf"))
         .resolve()
@@ -352,6 +397,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
         .parseString(s"""
                         |beam.agentsim.agents.freight.plansFilePath = "$pwd/test/test-resources/beam/input/snap-location/freight/payload-plans.csv"
                         |beam.routing.r5.linkRadiusMeters = 350
+                        |beam.agentsim.snapLocationAndRemoveInvalidInputs = true
                         |""".stripMargin)
         .withFallback(testConfig("test/input/beamville/beam-freight.conf"))
         .resolve()
@@ -379,6 +425,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
         .parseString(s"""
                         |beam.agentsim.agents.freight.carriersFilePath = "$pwd/test/test-resources/beam/input/snap-location/freight/freight-carriers.csv"
                         |beam.routing.r5.linkRadiusMeters = 350
+                        |beam.agentsim.snapLocationAndRemoveInvalidInputs = true
                         |""".stripMargin)
         .withFallback(testConfig("test/input/beamville/beam-freight.conf"))
         .resolve()
