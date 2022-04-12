@@ -70,6 +70,7 @@ object ParkingInquiry extends LazyLogging {
     case object Home extends ParkingActivityType
     case object Work extends ParkingActivityType
     case object Secondary extends ParkingActivityType
+    case object Warehouse extends ParkingActivityType
   }
 
   def activityTypeStringToEnum(activityType: String): ParkingActivityType = {
@@ -77,6 +78,7 @@ object ParkingInquiry extends LazyLogging {
       case "home"                                  => ParkingActivityType.Home
       case "init"                                  => ParkingActivityType.Init
       case "work"                                  => ParkingActivityType.Work
+      case "warehouse"                             => ParkingActivityType.Warehouse
       case "charge"                                => ParkingActivityType.Charge
       case "wherever"                              => ParkingActivityType.Wherever
       case otherType if otherType.contains("home") => ParkingActivityType.Home

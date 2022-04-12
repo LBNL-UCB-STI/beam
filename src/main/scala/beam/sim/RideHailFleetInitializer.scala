@@ -610,14 +610,6 @@ class ProceduralRideHailFleetInitializer(
               realDistribution
             )
             .head
-          if (
-            beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >=
-              (vehicleType.primaryFuelCapacityInJoule / vehicleType.primaryFuelConsumptionInJoulePerMeter) * 0.8
-          ) {
-            logger.error(
-              "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
-            )
-          }
           val rideInitialLocation: Location = getRideInitLocation(person, activityQuadTreeBounds)
 
           val meanSoc = beamServices.beamConfig.beam.agentsim.agents.vehicles.meanRidehailVehicleStartingSOC

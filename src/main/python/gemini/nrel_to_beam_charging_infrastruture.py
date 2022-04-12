@@ -3,6 +3,14 @@ import os
 import random
 from tqdm import tqdm
 
+
+def read_csv_file(filename):
+    compression = None
+    if filename.endswith(".gz"):
+        compression = 'gzip'
+    return pd.read_csv(filename, sep=",", index_col=None, header=0, compression=compression)
+
+
 nrel_file_input = os.path.expanduser('~/Data/GEMINI/2022Feb/siting/init1-7_2022_Feb_03_wgs84.csv')
 smart_file_input = os.path.expanduser("~/Data/GEMINI/stations/taz-parking-sparse-fast-limited-l2-150-lowtech-b.csv")
 nrel_file_converted_input = os.path.expanduser(nrel_file_input.split(".")[0] + "_converted.csv")
@@ -10,16 +18,9 @@ smart_file_updated_input = os.path.expanduser(smart_file_input.split(".")[0] + "
 smart_file_with_fees_input = os.path.expanduser(nrel_file_input.split(".")[0] + "_withFees.csv.gz")
 
 
-def read_file(filename):
-    compression = None
-    if filename.endswith(".gz"):
-        compression = 'gzip'
-    return pd.read_csv(filename, sep=",", index_col=None, header=0, compression=compression)
-
-
 def convert_nrel_data(nrel_file, nrel_file_converted):
     if not os.path.exists(nrel_file_converted):
-        data = read_file(nrel_file)
+        data = read_csv_file(nrel_file)
         data2 = data[["subSpace", "pType", "chrgType", "field_1", "household_id", "X", "Y", "housingTypes", "propertytype", "propertysubtype", "county"]]
         data2 = data2.rename(columns={
             "chrgType": "chargingPointType",
@@ -46,13 +47,13 @@ def convert_nrel_data(nrel_file, nrel_file_converted):
         print("Reading nrel infrastructure done!")
         return nrel_data
     else:
-        return read_file(nrel_file_converted)
+        return read_csv_file(nrel_file_converted)
 
 
 # Reading fees
 def reading_sf_bay_fees(smart_file, smart_file_updated):
     if not os.path.exists(smart_file_updated):
-        smart_data = read_file(smart_file)
+        smart_data = read_csv_file(smart_file)
         smart_data["chargingPointType"] = "NoCharger"
         smart_data.loc[(smart_data["chargingType"] == "WorkLevel2(7.2|AC)") & (smart_data["parkingType"] == "Public"), ['chargingPointType']] = "publiclevel2(7.2|AC)"
         smart_data.loc[(smart_data["chargingType"] == "WorkLevel2(7.2|AC)") & (smart_data["parkingType"] == "Workplace"), ['chargingPointType']] = "worklevel2(7.2|AC)"
@@ -65,7 +66,7 @@ def reading_sf_bay_fees(smart_file, smart_file_updated):
         print("Reading Fees done!")
         return smart_data
     else:
-        return read_file(smart_file_updated)
+        return read_csv_file(smart_file_updated)
 
 
 def assign_fees_to_infrastructure(nrel_data, fees_data, smart_file_with_fees):

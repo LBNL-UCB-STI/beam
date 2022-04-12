@@ -50,7 +50,7 @@ import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.network.Link
-import org.matsim.api.core.v01.population.{Activity, Plan, Population}
+import org.matsim.api.core.v01.population.{Activity, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
@@ -61,7 +61,7 @@ import org.matsim.core.events.ParallelEventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.households.{Household, Households}
+import org.matsim.households.Households
 import org.matsim.utils.objectattributes.AttributeConverter
 import org.matsim.vehicles.Vehicle
 
@@ -916,30 +916,29 @@ trait BeamHelper extends LazyLogging {
     beamScenario.freightCarriers
       .flatMap(_.fleet)
       .foreach { case (id, vehicle) => beamScenario.privateVehicles.put(id, vehicle) }
-
-    val plans: IndexedSeq[(Household, Plan)] = converter.generatePopulation(
-      beamScenario.freightCarriers,
-      population.getFactory,
-      households.getFactory
-    )
-
     val allowedModes = Seq(BeamMode.CAR.value)
-    plans.foreach { case (household, plan) =>
-      households.getHouseholds.put(household.getId, household)
-      population.addPerson(plan.getPerson)
-      AvailableModeUtils.setAvailableModesForPerson_v2(
-        beamScenario,
-        plan.getPerson,
-        household,
-        population,
-        allowedModes
+    converter
+      .generatePopulation(
+        beamScenario.freightCarriers,
+        population.getFactory,
+        households.getFactory
       )
-      val freightVehicle = beamScenario.privateVehicles(household.getVehicleIds.get(0))
-      households.getHouseholdAttributes
-        .putAttribute(household.getId.toString, "homecoordx", freightVehicle.spaceTime.loc.getX)
-      households.getHouseholdAttributes
-        .putAttribute(household.getId.toString, "homecoordy", freightVehicle.spaceTime.loc.getY)
-    }
+      .foreach { case (carrier, household, plan, personId, vehicleId) =>
+        households.getHouseholdAttributes
+          .putAttribute(household.getId.toString, "homecoordx", carrier.warehouseLocationUTM.getX)
+        households.getHouseholdAttributes
+          .putAttribute(household.getId.toString, "homecoordy", carrier.warehouseLocationUTM.getY)
+        population.getPersonAttributes.putAttribute(personId.toString, "vehicle", vehicleId.toString)
+        households.getHouseholds.put(household.getId, household)
+        population.addPerson(plan.getPerson)
+        AvailableModeUtils.setAvailableModesForPerson_v2(
+          beamScenario,
+          plan.getPerson,
+          household,
+          population,
+          allowedModes
+        )
+      }
   }
 
   def setupBeamWithConfig(
@@ -966,6 +965,7 @@ trait BeamHelper extends LazyLogging {
       Kamon.init(config.withFallback(ConfigFactory.load()))
     }
 
+    logger.info("Agentsim random seed for population scaling is set to {}.", beamConfig.beam.agentsim.randomSeed)
     logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
 
     logger.info(
