@@ -163,6 +163,9 @@ object HouseholdActor {
     implicit val executionContext: ExecutionContext = context.dispatcher
     implicit val debug: Debug = beamServices.beamConfig.beam.debug
 
+    protected val generateEmergencyHousehold: Boolean =
+      beamScenario.beamConfig.beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt
+
     override val supervisorStrategy: OneForOneStrategy =
       OneForOneStrategy(maxNrOfRetries = 0) {
         case _: Exception      => Stop
@@ -241,8 +244,6 @@ object HouseholdActor {
         }
 
         val fleetManagers = vehiclesByAllCategories.map { case (category, vehiclesInCategory) =>
-          val emergencyGenerator =
-            new EmergencyHouseholdVehicleGenerator(household, beamScenario, vehiclesAdjustment, category)
           val fleetManager =
             context.actorOf(
               Props(
@@ -251,7 +252,9 @@ object HouseholdActor {
                   chargingNetworkManager,
                   vehiclesInCategory,
                   householdMembersToLocationTypeAndLocation,
-                  Some(emergencyGenerator),
+                  if (generateEmergencyHousehold)
+                    Some(new EmergencyHouseholdVehicleGenerator(household, beamScenario, vehiclesAdjustment, category))
+                  else None,
                   whoDrivesThisVehicle,
                   beamServices.beamConfig.beam.debug
                 )
@@ -604,15 +607,12 @@ object HouseholdActor {
     private val realDistribution: UniformRealDistribution = new UniformRealDistribution()
     realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
-    private val generateEmergencyHousehold =
-      beamScenario.beamConfig.beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt
-
     def sampleVehicleTypeForEmergencyUse(
       personId: Id[Person],
       category: VehicleCategory,
       whenWhere: SpaceTime
     ): Option[BeamVehicleType] = {
-      if (generateEmergencyHousehold && defaultCategory == category) {
+      if (defaultCategory == category) {
         category match {
           case VehicleCategory.Car =>
             vehiclesAdjustment

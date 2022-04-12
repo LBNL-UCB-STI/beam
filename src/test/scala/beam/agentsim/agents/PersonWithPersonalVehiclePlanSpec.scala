@@ -6,16 +6,16 @@ import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, _}
+import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.{AnotherTrivialParkingManager, TrivialParkingManager}
+import beam.agentsim.infrastructure.{AnotherTrivialParkingManager, ParkingInquiry, TrivialParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
 import beam.router.RouteHistory
-import beam.router.model.{EmbodiedBeamLeg, _}
+import beam.router.model._
 import beam.router.skim.core.AbstractSkimmerEvent
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.TestConfigUtils.testConfig
@@ -30,11 +30,11 @@ import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
-import org.matsim.households.{Household, HouseholdsFactoryImpl}
+import org.matsim.households.{Household, HouseholdsFactoryImpl, Income, IncomeImpl}
 import org.matsim.vehicles._
+import org.scalatest.funspec.AnyFunSpecLike
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
-import org.scalatest.funspec.AnyFunSpecLike
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.{mutable, JavaConverters}
@@ -595,6 +595,7 @@ class PersonWithPersonalVehiclePlanSpec
       population.addPerson(otherPerson)
 
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId, otherPerson.getId)))
+      household.setIncome(new IncomeImpl(0, Income.IncomePeriod.year))
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -628,7 +629,9 @@ class PersonWithPersonalVehiclePlanSpec
           Set(vehicleType),
           new RouteHistory(beamConfig),
           VehiclesAdjustment.getVehicleAdjustment(beamScenario)
-        )
+        ) {
+          override protected val generateEmergencyHousehold: Boolean = true
+        }
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
 
@@ -672,6 +675,7 @@ class PersonWithPersonalVehiclePlanSpec
       }
 
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
+      val inquiry = expectMsgType[ParkingInquiry]
       expectMsgPF()(messageResponder)
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
 
@@ -681,7 +685,9 @@ class PersonWithPersonalVehiclePlanSpec
 
       expectMsgType[CompletionNotice]
 
-      // TODO: Testing last resort vehicle creation
+      // Testing last resort vehicle creation
+      inquiry.beamVehicle.nonEmpty should be(true)
+      inquiry.beamVehicle.get.id.toString.contains("-emergency-") should be(true)
     }
 
     it("should walk to a car that is far away (if told so by the router") {
