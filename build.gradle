@@ -692,8 +692,8 @@ task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
 task buildImageWithoutTags(type: DockerBuildImage, dependsOn: createDockerfile) {}
 
 task buildImage(type: DockerTagImage, dependsOn: buildImageWithoutTags) {
-    repository = "beammodel/beam"
-    tag = version
+    repository = "haitamlaarabi/beam"
+    tag = 'gemini-develop-enroute-overnight-charging-v1'
     targetImageId buildImageWithoutTags.getImageId()
 }
 
