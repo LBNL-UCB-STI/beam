@@ -701,18 +701,29 @@ trait BeamHelper extends LazyLogging {
 
     if (beamScenario.beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs) {
       logger.info(s"""
-           |The parameter `beam.agentsim.snapLocationAndRemoveInvalidInputs` is enabled.
-           |This may take some time to finish based on the size of population/households.""".stripMargin)
+      |The parameter `beam.agentsim.snapLocationAndRemoveInvalidInputs` is enabled.
+      |This may take some time to finish depending on the size of population/households.""".stripMargin)
+
+      val beforeHouseholdsCount = scenario.getHouseholds.getHouseholds.size()
+      val beforePopulationCount = scenario.getPopulation.getPersons.size()
+
       val snapLocationHelper = SnapLocationHelper(
         new GeoUtilsImpl(beamScenario.beamConfig),
         beamScenario.transportNetwork.streetLayer,
         beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
       )
+
       ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
-      logger.info(s"""
-        |After snapping locations and validating scenario:
-        |Number of households: ${scenario.getHouseholds.getHouseholds.size()}
-        |Number of persons: ${scenario.getPopulation.getPersons.size()}""".stripMargin)
+
+      val afterHouseholdsCount = scenario.getHouseholds.getHouseholds.size()
+      val afterPopulationCount = scenario.getPopulation.getPersons.size()
+
+      logger.info(
+        s"""
+      |After snapping locations and validating scenario:
+      |Number of households: $afterHouseholdsCount. Removed: ${beforeHouseholdsCount - afterHouseholdsCount}.
+      |Number of persons: $afterPopulationCount. Removed: ${beforePopulationCount - afterPopulationCount}.""".stripMargin
+      )
     }
 
     // write static metrics, such as population size, vehicles fleet size, etc.
