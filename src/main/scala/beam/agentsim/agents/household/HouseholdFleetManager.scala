@@ -155,7 +155,7 @@ class HouseholdFleetManager(
                 rest
               case _ =>
                 logger.error(s"THE LIST OF VEHICLES SHOULDN'T BE EMPTY")
-                Nil
+                availableVehicles
             }
           }
         }
@@ -171,7 +171,7 @@ class HouseholdFleetManager(
           case _ =>
             logger.debug(s"Not returning vehicle because no default is defined or agent is not at home")
             sender() ! MobilityStatusResponse(Vector(), triggerId)
-            Nil
+            availableVehicles
         }
       }
 

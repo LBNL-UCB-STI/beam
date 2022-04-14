@@ -133,7 +133,8 @@ public class R5MnetBuilder {
         link.setLength(length);
         link.setFreespeed(10.0 / 3.6);
         link.setCapacity(300);
-        link.setNumberOfLanes(1);
+        // TODO Change this back
+        link.setNumberOfLanes(5);
         link.setAllowedModes(flagStrings);
         return link;
     }
