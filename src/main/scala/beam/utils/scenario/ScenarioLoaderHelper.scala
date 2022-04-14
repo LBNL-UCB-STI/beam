@@ -129,19 +129,7 @@ object ScenarioLoaderHelper extends LazyLogging {
         case Right(splitCoord) =>
           attr.putAttribute(householdId, "homecoordx", splitCoord.getX)
           attr.putAttribute(householdId, "homecoordy", splitCoord.getY)
-        case Left(error @ Error.OutOfBoundingBoxError) =>
-          household.getMemberIds.asScala.toList.foreach(personId => scenario.getPopulation.getPersons.remove(personId))
-          scenario.getHouseholds.getHouseholds.remove(household.getId)
-          householdErrors.append(
-            ErrorInfo(
-              householdId,
-              Category.ScenarioHousehold,
-              error,
-              planCoord.getX,
-              planCoord.getY
-            )
-          )
-        case Left(error @ Error.R5SplitNullError) =>
+        case Left(error) =>
           household.getMemberIds.asScala.toList.foreach(personId => scenario.getPopulation.getPersons.remove(personId))
           scenario.getHouseholds.getHouseholds.remove(household.getId)
           householdErrors.append(
