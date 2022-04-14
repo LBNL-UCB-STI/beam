@@ -25,8 +25,7 @@ class SupplementaryTripGenerator(
   val attributesOfIndividual: AttributesOfIndividual,
   val destinationChoiceModel: DestinationChoiceModel,
   val beamServices: BeamServices,
-  val personId: Id[Person],
-  val maybeFixedHourOfTripFromODSkims: Option[Int]
+  val personId: Id[Person]
 ) {
   val r: Random.type = scala.util.Random
   val personSpecificSeed: Long = personId.hashCode().toLong
@@ -166,7 +165,7 @@ class SupplementaryTripGenerator(
   ): Leg = {
     if (fillInModes) {
       val modeToTimeAndCost =
-        getTazCost(nextActivity, prevActivity, availableModes, bothDirections = false, maybeFixedHourOfTripFromODSkims)
+        getTazCost(nextActivity, prevActivity, availableModes, bothDirections = false)
       val alternativeToTimeAndCost = modeToTimeAndCost.map { case (mode, timesAndCost) =>
         val departureTime = prevActivity.getEndTime
         val arrivalTime = timesAndCost.accessTime + departureTime
@@ -331,8 +330,7 @@ class SupplementaryTripGenerator(
               additionalActivity,
               alternativeActivity,
               modes,
-              bothDirections = true,
-              maybeFixedHourOfTripFromODSkims
+              bothDirections = true
             )
           val alternative =
             DestinationChoiceModel.SupplementaryTripAlternative(

@@ -1495,7 +1495,6 @@ object BeamConfig {
             additional_trip_utility: scala.Double,
             destination_nest_scale_factor: scala.Double,
             fill_in_modes_from_skims: scala.Boolean,
-            fixed_trip_hour_from_skims_for_secondary_activity: scala.Int,
             generate_secondary_activities: scala.Boolean,
             intercept_file_path: java.lang.String,
             max_destination_choice_set_size: scala.Int,
@@ -1517,10 +1516,6 @@ object BeamConfig {
                   else 1.0,
                 fill_in_modes_from_skims =
                   c.hasPathOrNull("fill_in_modes_from_skims") && c.getBoolean("fill_in_modes_from_skims"),
-                fixed_trip_hour_from_skims_for_secondary_activity =
-                  if (c.hasPathOrNull("fixed_trip_hour_from_skims_for_secondary_activity"))
-                    c.getInt("fixed_trip_hour_from_skims_for_secondary_activity")
-                  else -1,
                 generate_secondary_activities =
                   c.hasPathOrNull("generate_secondary_activities") && c.getBoolean("generate_secondary_activities"),
                 intercept_file_path =

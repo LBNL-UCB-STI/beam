@@ -182,16 +182,6 @@ class BeamMobsim @Inject() (
   }
 
   private def fillInSecondaryActivities(households: Households, fillInModes: Boolean = false): Unit = {
-    val maybeFixedHourOfTripFromODSkims: Option[Int] = {
-      val fixedHour =
-        beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fixed_trip_hour_from_skims_for_secondary_activity
-      if (fixedHour > 0) {
-        Some(fixedHour)
-      } else {
-        None
-      }
-    }
-
     val personsTotal = households.getHouseholds.values.asScala.map(_.getMemberIds.asScala.count(_ => true)).toSeq.sum
     val progressReportIncrement = Math.max(25 * (personsTotal / 100), 1)
     var personsProcessed: Int = 0
@@ -241,8 +231,7 @@ class BeamMobsim @Inject() (
               person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
               destinationChoiceModel,
               beamServices,
-              person.getId,
-              maybeFixedHourOfTripFromODSkims
+              person.getId
             )
           val newPlan =
             supplementaryTripGenerator.generateNewPlans(
