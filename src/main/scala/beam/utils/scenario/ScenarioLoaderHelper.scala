@@ -40,19 +40,11 @@ object ScenarioLoaderHelper extends LazyLogging {
             case Right(_) =>
               // note: we don't want to update coord in-place here since we might end up removing plan from the person
               errors
-            case Left(Error.OutOfBoundingBoxError) =>
+            case Left(error) =>
               errors :+ ErrorInfo(
                 personId.toString,
                 Category.ScenarioPerson,
-                Error.OutOfBoundingBoxError,
-                planCoord.getX,
-                planCoord.getY
-              )
-            case Left(Error.R5SplitNullError) =>
-              errors :+ ErrorInfo(
-                personId.toString,
-                Category.ScenarioPerson,
-                Error.R5SplitNullError,
+                error,
                 planCoord.getX,
                 planCoord.getY
               )
@@ -137,26 +129,26 @@ object ScenarioLoaderHelper extends LazyLogging {
         case Right(splitCoord) =>
           attr.putAttribute(householdId, "homecoordx", splitCoord.getX)
           attr.putAttribute(householdId, "homecoordy", splitCoord.getY)
-        case Left(Error.OutOfBoundingBoxError) =>
+        case Left(error @ Error.OutOfBoundingBoxError) =>
           household.getMemberIds.asScala.toList.foreach(personId => scenario.getPopulation.getPersons.remove(personId))
           scenario.getHouseholds.getHouseholds.remove(household.getId)
           householdErrors.append(
             ErrorInfo(
               householdId,
               Category.ScenarioHousehold,
-              Error.OutOfBoundingBoxError,
+              error,
               planCoord.getX,
               planCoord.getY
             )
           )
-        case Left(Error.R5SplitNullError) =>
+        case Left(error @ Error.R5SplitNullError) =>
           household.getMemberIds.asScala.toList.foreach(personId => scenario.getPopulation.getPersons.remove(personId))
           scenario.getHouseholds.getHouseholds.remove(household.getId)
           householdErrors.append(
             ErrorInfo(
               householdId,
               Category.ScenarioHousehold,
-              Error.R5SplitNullError,
+              error,
               planCoord.getX,
               planCoord.getY
             )

@@ -70,23 +70,12 @@ class GenericFreightReader(
                 maxTourDurationInSec
               )
             )
-          case (_, Left(Error.OutOfBoundingBoxError)) =>
+          case (_, Left(error)) =>
             errors.append(
               ErrorInfo(
                 tourId.toString,
                 Category.FreightTour,
-                Error.OutOfBoundingBoxError,
-                departureLocationX.toDouble,
-                departureLocationY.toDouble
-              )
-            )
-            None
-          case (_, Left(Error.R5SplitNullError)) =>
-            errors.append(
-              ErrorInfo(
-                tourId.toString,
-                Category.FreightTour,
-                Error.R5SplitNullError,
+                error,
                 departureLocationX.toDouble,
                 departureLocationY.toDouble
               )
@@ -152,23 +141,12 @@ class GenericFreightReader(
                 operationDurationInSec
               )
             )
-          case (_, Left(Error.OutOfBoundingBoxError)) =>
+          case (_, Left(error)) =>
             errors.append(
               ErrorInfo(
                 payloadId.toString,
                 Category.FreightPayloadPlan,
-                Error.OutOfBoundingBoxError,
-                locationX.toDouble,
-                locationY.toDouble
-              )
-            )
-            None
-          case (_, Left(Error.R5SplitNullError)) =>
-            errors.append(
-              ErrorInfo(
-                payloadId.toString,
-                Category.FreightPayloadPlan,
-                Error.R5SplitNullError,
+                error,
                 locationX.toDouble,
                 locationY.toDouble
               )
@@ -296,23 +274,12 @@ class GenericFreightReader(
         ) match {
           case (warehouseZoneMaybe, Right(coord)) =>
             Some(FreightCarrierRow(carrierId, tourId, vehicleId, vehicleTypeId, warehouseZoneMaybe, coord))
-          case (_, Left(Error.OutOfBoundingBoxError)) =>
+          case (_, Left(error)) =>
             errors.append(
               ErrorInfo(
                 carrierId.toString,
                 Category.FreightCarrier,
-                Error.OutOfBoundingBoxError,
-                warehouseX.toDouble,
-                warehouseY.toDouble
-              )
-            )
-            None
-          case (_, Left(Error.R5SplitNullError)) =>
-            errors.append(
-              ErrorInfo(
-                carrierId.toString,
-                Category.FreightCarrier,
-                Error.R5SplitNullError,
+                error,
                 warehouseX.toDouble,
                 warehouseY.toDouble
               )
