@@ -24,9 +24,9 @@ class SupplementaryTripGenerator(
   val destinationChoiceModel: DestinationChoiceModel,
   val beamServices: BeamServices,
   val personId: Id[Person],
-  val snapLocationHelperMaybe: Option[SnapLocationHelper] = None
+  val snapLocationHelper: SnapLocationHelper
 ) {
-  val r: Random.type = scala.util.Random
+  val rnd: Random = new scala.util.Random(System.currentTimeMillis())
   val personSpecificSeed: Long = personId.hashCode().toLong
 
   val travelTimeBufferInSec: Int = 30 * 60
@@ -188,8 +188,8 @@ class SupplementaryTripGenerator(
             false -> noTrip
           )
 
-        tripMNL.sampleAlternative(tripChoice, r) match {
-          case Some(mnlSample) if mnlSample.alternativeType => destinationMNL.sampleAlternative(modeChoice, r)
+        tripMNL.sampleAlternative(tripChoice, rnd) match {
+          case Some(mnlSample) if mnlSample.alternativeType => destinationMNL.sampleAlternative(modeChoice, rnd)
           case _                                            => None
         }
     }
@@ -201,7 +201,7 @@ class SupplementaryTripGenerator(
         val newActivity =
           PopulationUtils.createActivityFromCoord(
             newActivityType,
-            TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz, snapLocationHelperMaybe = snapLocationHelperMaybe)
+            TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz, rnd, snapLocationHelper)
           )
         val activityBeforeNewActivity =
           PopulationUtils.createActivityFromCoord(prevActivity.getType, prevActivity.getCoord)
@@ -247,7 +247,7 @@ class SupplementaryTripGenerator(
       } else {
         TAZs.map { taz =>
           val destinationCoord: Coord =
-            TAZTreeMap.randomLocationInTAZ(taz, snapLocationHelperMaybe = snapLocationHelperMaybe)
+            TAZTreeMap.randomLocationInTAZ(taz, rnd, snapLocationHelper)
           val additionalActivity = PopulationUtils.createActivityFromCoord(newActivityType, destinationCoord)
           additionalActivity.setStartTime(startTime)
           additionalActivity.setEndTime(endTime)
@@ -382,7 +382,7 @@ class SupplementaryTripGenerator(
         } else { None }
         chosenStartIndex match {
           case Some(index) =>
-            val startTime = math.max((r.nextDouble() + index) * 3600, altStart + travelTimeBufferInSec)
+            val startTime = math.max((rnd.nextDouble() + index) * 3600, altStart + travelTimeBufferInSec)
             (
               actType,
               startTime.toInt,
@@ -415,7 +415,7 @@ class SupplementaryTripGenerator(
     keyToProb: Map[A, Double]
   ): Option[A] = {
     val totalProb = keyToProb.values.sum
-    val randomDraw = r.nextDouble()
+    val randomDraw = rnd.nextDouble()
     val probs = keyToProb.values.scanLeft(0.0)(_ + _ / totalProb).drop(1)
     keyToProb.keys.zip(probs).dropWhile { _._2 <= randomDraw }.headOption match {
       case Some(result) => Some(result._1)

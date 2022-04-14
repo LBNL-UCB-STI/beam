@@ -232,7 +232,7 @@ class BeamMobsim @Inject() (
               destinationChoiceModel,
               beamServices,
               person.getId,
-              Some(snapLocationHelper)
+              snapLocationHelper
             )
           val newPlan =
             supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationChoiceModel, modesAvailable)

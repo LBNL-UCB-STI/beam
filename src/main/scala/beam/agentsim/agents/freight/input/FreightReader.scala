@@ -201,7 +201,7 @@ object FreightReader {
           rand,
           tazMap,
           beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs,
-          Some(snapLocationHelper),
+          snapLocationHelper,
           outputDirMaybe
         )
       case s =>

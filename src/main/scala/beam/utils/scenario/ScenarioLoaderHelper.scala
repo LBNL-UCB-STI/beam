@@ -1,7 +1,7 @@
 package beam.utils.scenario
 
 import beam.utils.SnapCoordinateUtils
-import beam.utils.SnapCoordinateUtils.{Category, CsvFile, Error, ErrorInfo, Result, SnapLocationHelper}
+import beam.utils.SnapCoordinateUtils.{Category, CsvFile, Error, ErrorInfo, SnapLocationHelper}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -37,22 +37,22 @@ object ScenarioLoaderHelper extends LazyLogging {
         case a: Activity =>
           val planCoord = a.getCoord
           snapLocationHelper.computeResult(planCoord) match {
-            case Result.Succeed(_) =>
+            case Right(_) =>
               // note: we don't want to update coord in-place here since we might end up removing plan from the person
               errors
-            case Result.OutOfBoundingBoxError =>
+            case Left(Error.OutOfBoundingBoxError) =>
               errors :+ ErrorInfo(
                 personId.toString,
                 Category.ScenarioPerson,
-                Error.OutOfBoundingBox,
+                Error.OutOfBoundingBoxError,
                 planCoord.getX,
                 planCoord.getY
               )
-            case Result.R5SplitNullError =>
+            case Left(Error.R5SplitNullError) =>
               errors :+ ErrorInfo(
                 personId.toString,
                 Category.ScenarioPerson,
-                Error.R5SplitNull,
+                Error.R5SplitNullError,
                 planCoord.getX,
                 planCoord.getY
               )
@@ -134,29 +134,29 @@ object ScenarioLoaderHelper extends LazyLogging {
       val planCoord = new Coord(locationX, locationY)
 
       snapLocationHelper.computeResult(planCoord) match {
-        case Result.Succeed(splitCoord) =>
+        case Right(splitCoord) =>
           attr.putAttribute(householdId, "homecoordx", splitCoord.getX)
           attr.putAttribute(householdId, "homecoordy", splitCoord.getY)
-        case Result.OutOfBoundingBoxError =>
+        case Left(Error.OutOfBoundingBoxError) =>
           household.getMemberIds.asScala.toList.foreach(personId => scenario.getPopulation.getPersons.remove(personId))
           scenario.getHouseholds.getHouseholds.remove(household.getId)
           householdErrors.append(
             ErrorInfo(
               householdId,
               Category.ScenarioHousehold,
-              Error.OutOfBoundingBox,
+              Error.OutOfBoundingBoxError,
               planCoord.getX,
               planCoord.getY
             )
           )
-        case Result.R5SplitNullError =>
+        case Left(Error.R5SplitNullError) =>
           household.getMemberIds.asScala.toList.foreach(personId => scenario.getPopulation.getPersons.remove(personId))
           scenario.getHouseholds.getHouseholds.remove(household.getId)
           householdErrors.append(
             ErrorInfo(
               householdId,
               Category.ScenarioHousehold,
-              Error.R5SplitNull,
+              Error.R5SplitNullError,
               planCoord.getX,
               planCoord.getY
             )

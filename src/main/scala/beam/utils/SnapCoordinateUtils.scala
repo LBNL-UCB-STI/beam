@@ -4,54 +4,32 @@ import beam.sim.common.GeoUtils
 import beam.utils.csv.CsvWriter
 import com.conveyal.r5.streets.StreetLayer
 import com.typesafe.scalalogging.LazyLogging
+import enumeratum._
 import org.matsim.api.core.v01.Coord
 
 import scala.collection.concurrent.TrieMap
 
 object SnapCoordinateUtils extends LazyLogging {
 
-  trait Result
+  sealed abstract class Error(override val entryName: String) extends EnumEntry
 
-  object Result {
-    final case object OutOfBoundingBoxError extends Result
-    final case object R5SplitNullError extends Result
-    final case class Succeed(splitCoord: Coord) extends Result
+  object Error extends Enum[Error] {
+    val values = findValues
+
+    case object OutOfBoundingBoxError extends Error("OutOfBoundingBox")
+    case object R5SplitNullError extends Error("R5SplitNull")
   }
 
-  final case class SnapLocationHelper(geo: GeoUtils, streetLayer: StreetLayer, maxRadius: Double) {
-    private val store: TrieMap[Coord, Option[Coord]] = TrieMap.empty
+  sealed abstract class Category(override val entryName: String) extends EnumEntry
 
-    def find(planCoord: Coord, isWgs: Boolean = false): Option[Coord] = {
-      val coord = if (isWgs) planCoord else geo.utm2Wgs(planCoord)
-      store.get(coord).flatten
-    }
+  object Category extends Enum[Category] {
+    val values = findValues
 
-    def computeResult(planCoord: Coord, isWgs: Boolean = false): Result = {
-      val coord = if (isWgs) planCoord else geo.utm2Wgs(planCoord)
-      if (streetLayer.envelope.contains(coord.getX, coord.getY)) {
-        val snapCoordOpt = store.getOrElseUpdate(
-          coord,
-          Option(geo.getR5Split(streetLayer, coord, maxRadius)).map { split =>
-            val updatedPlanCoord = geo.splitToCoord(split)
-            geo.wgs2Utm(updatedPlanCoord)
-          }
-        )
-        snapCoordOpt.fold[Result](Result.R5SplitNullError)(Result.Succeed)
-      } else Result.OutOfBoundingBoxError
-    }
-  }
-
-  object Error {
-    val OutOfBoundingBox = "OutOfBoundingBox"
-    val R5SplitNull = "R5SplitNull"
-  }
-
-  object Category {
-    val ScenarioPerson = "Person"
-    val ScenarioHousehold = "Household"
-    val FreightTour = "Tour"
-    val FreightPayloadPlan = "PayloadPlan"
-    val FreightCarrier = "Carrier"
+    case object ScenarioPerson extends Category("Person")
+    case object ScenarioHousehold extends Category("Household")
+    case object FreightTour extends Category("Tour")
+    case object FreightPayloadPlan extends Category("PayloadPlan")
+    case object FreightCarrier extends Category("Carrier")
   }
 
   object CsvFile {
@@ -62,13 +40,37 @@ object SnapCoordinateUtils extends LazyLogging {
     val FreightCarriers = "snapLocationFreightCarrierErrors.csv"
   }
 
-  final case class ErrorInfo(id: String, category: String, error: String, planX: Double, planY: Double)
-  final case class Processed[A](data: Seq[A] = Seq.empty, errors: Seq[ErrorInfo] = Seq.empty)
+  final case class ErrorInfo(id: String, category: Category, error: Error, planX: Double, planY: Double)
+
+  type SnapCoordinateResult = Either[Error, Coord]
+
+  final case class SnapLocationHelper(geo: GeoUtils, streetLayer: StreetLayer, maxRadius: Double) {
+    private val store: TrieMap[Coord, Option[Coord]] = TrieMap.empty
+
+    def find(planCoord: Coord, isWgs: Boolean = false): Option[Coord] = {
+      val coord = if (isWgs) planCoord else geo.utm2Wgs(planCoord)
+      store.get(coord).flatten
+    }
+
+    def computeResult(planCoord: Coord, isWgs: Boolean = false): SnapCoordinateResult = {
+      val coord = if (isWgs) planCoord else geo.utm2Wgs(planCoord)
+      if (streetLayer.envelope.contains(coord.getX, coord.getY)) {
+        val snapCoordOpt = store.getOrElseUpdate(
+          coord,
+          Option(geo.getR5Split(streetLayer, coord, maxRadius)).map { split =>
+            val updatedPlanCoord = geo.splitToCoord(split)
+            geo.wgs2Utm(updatedPlanCoord)
+          }
+        )
+        snapCoordOpt.fold[SnapCoordinateResult](Left(Error.R5SplitNullError))(coord => Right(coord))
+      } else Left(Error.OutOfBoundingBoxError)
+    }
+  }
 
   def writeToCsv(path: String, errors: Seq[ErrorInfo]): Unit = {
     new CsvWriter(path, "id", "category", "error", "x", "y")
       .writeAllAndClose(
-        errors.map(error => List(error.id, error.category, error.error, error.planX, error.planY))
+        errors.map(error => List(error.id, error.category.entryName, error.error.entryName, error.planX, error.planY))
       )
     logger.info("See location error info at {}.", path)
   }

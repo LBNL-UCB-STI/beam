@@ -4,7 +4,7 @@ import beam.agentsim.agents.freight.{FreightCarrier, FreightTour, PayloadPlan}
 import beam.sim.BeamHelper
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.SnapCoordinateUtils.{CsvFile, ErrorInfo, Result, SnapLocationHelper}
+import beam.utils.SnapCoordinateUtils.{Category, CsvFile, Error, ErrorInfo, SnapCoordinateResult, SnapLocationHelper}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.scenario.ScenarioLoaderHelper
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
@@ -29,7 +29,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       .drop(1)
       .map(_.split(","))
       .map { row =>
-        ErrorInfo(row(0), row(1), row(2), row(3).toDouble, row(4).toDouble)
+        ErrorInfo(row(0), Category.withName(row(1)), Error.withName(row(2)), row(3).toDouble, row(4).toDouble)
       }
       .toList
     src.close()
@@ -95,20 +95,20 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
 
       val dummyCoord = new Coord()
-      val population: Seq[SnapCoordinateUtils.Result] = scenario.getPopulation.getPersons
+      val population: Seq[SnapCoordinateResult] = scenario.getPopulation.getPersons
         .values()
         .asScala
         .flatMap { person =>
           person.getPlans.asScala.flatMap { plan =>
             plan.getPlanElements.asScala.map {
               case e: Activity => snapLocationHelper.computeResult(e.getCoord)
-              case _           => Result.Succeed(dummyCoord)
+              case _           => Right(dummyCoord)
             }
           }
         }
         .toList
 
-      val households: Seq[SnapCoordinateUtils.Result] = scenario.getHouseholds.getHouseholds
+      val households: Seq[SnapCoordinateResult] = scenario.getHouseholds.getHouseholds
         .values()
         .asScala
         .map { household =>
@@ -123,10 +123,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
         }
         .toList
 
-      (population ++ households).forall {
-        case _: Result.Succeed => true
-        case _                 => false
-      } shouldBe true
+      (population ++ households).forall(_.isRight) shouldBe true
     }
 
     "remove invalid persons and households [case1 xml input]" in {

@@ -5,6 +5,7 @@ import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.BeamVehicleUtils
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import org.matsim.api.core.v01.population.{Activity, Person, Plan, PopulationFactory}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -45,8 +46,17 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
 
   val rnd = new Random(2333L)
 
+  val snapLocationHelper = Mockito.mock(classOf[SnapLocationHelper])
+
   private val reader =
-    new GenericFreightReader(freightConfig, geoUtils, rnd, tazMap, snapLocationAndRemoveInvalidInputs = false)
+    new GenericFreightReader(
+      freightConfig,
+      geoUtils,
+      rnd,
+      tazMap,
+      snapLocationAndRemoveInvalidInputs = false,
+      snapLocationHelper
+    )
 
   "PayloadPlansConverter" should {
     "read Payload Plans" in {
@@ -158,7 +168,8 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
       geoUtils,
       new Random(4324L),
       tazMap,
-      snapLocationAndRemoveInvalidInputs = false
+      snapLocationAndRemoveInvalidInputs = false,
+      snapLocationHelper
     )
     val payloadPlans: Map[Id[PayloadPlan], PayloadPlan] = converter.readPayloadPlans()
     val tours = converter.readFreightTours()
@@ -169,7 +180,8 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
         geoUtils,
         new Random(73737L),
         tazMap,
-        snapLocationAndRemoveInvalidInputs = false
+        snapLocationAndRemoveInvalidInputs = false,
+        snapLocationHelper
       ).readFreightCarriers(
         tours,
         payloadPlans,
