@@ -1,11 +1,16 @@
 # coding=utf-8
 import boto3
+import logging
 import time
 import uuid
 import os
 import glob
 import base64
 from botocore.errorfactory import ClientError
+
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 HELICS_RUN = '''sudo /home/ubuntu/install-and-run-helics-scripts.sh
   -    cd /home/ubuntu/git/beam
@@ -75,7 +80,7 @@ EXECUTE_ARGS_DEFAULT = '''['--config', 'test/input/beamville/beam.conf']'''
 
 EXPERIMENT_DEFAULT = 'test/input/beamville/calibration/experiments.yml'
 
-CONFIG_DEFAULT = 'production/application-sfbay/base.conf'
+CONFIG_DEFAULT = 'test/input/beamville/beam.conf'
 
 initscript = (('''
 #cloud-config
@@ -198,6 +203,7 @@ runcmd:
   -    export $metric=$count
   - done < RunHealthAnalysis.txt
   
+  - curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
   - s3glip=""
   - if [ "$S3_PUBLISH" = "True" ]
   - then
@@ -233,7 +239,7 @@ runcmd:
         \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
       }
     }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "${s3p#","}")
-  - curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="$bye_msg" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"  
+  - /tmp/slack.sh "$bye_msg"
   - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$stop_json"
   - $END_SCRIPT
   - sudo shutdown -h +$SHUTDOWN_WAIT
@@ -295,11 +301,11 @@ regions = ['us-east-1', 'us-east-2', 'us-west-2']
 shutdown_behaviours = ['stop', 'terminate']
 instance_operations = ['start', 'stop', 'terminate']
 
-s3 = boto3.client('s3')
-ec2 = None
 max_system_ram = 15
 percent_towards_system_ram = .25
 
+s3 = boto3.client('s3')
+ec2 = None
 
 def init_ec2(region):
     global ec2
@@ -308,7 +314,6 @@ def init_ec2(region):
 def calculate_max_ram(instance_type):
     ram = instance_type_to_memory[instance_type]
     return ram - min(ram * percent_towards_system_ram, max_system_ram)
-
 
 def check_resource(bucket, key):
     try:
@@ -670,8 +675,12 @@ def deploy_handler(event, context):
     sigopt_dev_id = event.get('sigopt_dev_id', os.environ['SIGOPT_DEV_ID'])
     google_api_key = event.get('google_api_key', os.environ['GOOGLE_API_KEY'])
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
+
     run_grafana = event.get('run_grafana', False)
     run_helics = event.get('run_helics', False)
+    run_jupyter = event.get('run_jupyter', False)
+    run_beam = event.get('run_beam', True)
+
     profiler_type = event.get('profiler_type', 'null')
 
     git_user_email = get_param('git_user_email')
@@ -691,10 +700,6 @@ def deploy_handler(event, context):
     if not is_spot and instance_type not in instance_types:
         return "Unable to start run, {instance_type} instance type not supported.".format(instance_type=instance_type)
 
-    max_ram = event.get('forced_max_ram')
-    if parameter_wasnt_specified(max_ram):
-        max_ram = calculate_max_ram(instance_type)
-
     if shutdown_behaviour not in shutdown_behaviours:
         return "Unable to start run, {shutdown_behaviour} shutdown behaviour not supported.".format(shutdown_behaviour=shutdown_behaviour)
 
@@ -703,6 +708,10 @@ def deploy_handler(event, context):
 
     if volume_size < 64 or volume_size > 256:
         volume_size = 64
+
+    max_ram = event.get('forced_max_ram')
+    if parameter_wasnt_specified(max_ram):
+        max_ram = calculate_max_ram(instance_type)
 
     selected_script = CONFIG_SCRIPT
     if run_grafana:
@@ -752,8 +761,8 @@ def deploy_handler(event, context):
                 .replace('$MAIN_CLASS', execute_class)\
                 .replace('$UID', uid)\
                 .replace('$SHUTDOWN_WAIT', shutdown_wait) \
-                .replace('$TITLED', runName)\
-                .replace('$MAX_RAM', str(max_ram))\
+                .replace('$TITLED', runName) \
+                .replace('$MAX_RAM', str(max_ram)) \
                 .replace('$S3_PUBLISH', str(s3_publish)) \
                 .replace('$SIGOPT_CLIENT_ID', sigopt_client_id)\
                 .replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
@@ -818,6 +827,8 @@ def instance_handler(event):
 
 def lambda_handler(event, context):
     command_id = event.get('command', 'deploy') # deploy | start | stop | terminate | log
+
+    logger.info("Incoming event: " + str(event))
 
     if command_id == 'deploy':
         return deploy_handler(event, context)
