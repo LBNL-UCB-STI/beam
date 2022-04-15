@@ -149,7 +149,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           case None     => "NoCharger"
           case Some(cp) => s"$cp"
         }
-        val reservedFor = parkingZone.reservedFor.toString.mkString("|")
+        val reservedFor = parkingZone.reservedFor.toString
         val timeRestrictions = parkingZone.timeRestrictions.map(toString).mkString("|")
         val parkingZoneIdStr = parkingZone.parkingZoneId.toString
         val (locationXStr, locationYStr) =
