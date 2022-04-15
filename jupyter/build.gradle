@@ -49,11 +49,8 @@ static def getFoldersToMap() {
     LinkedHashMap<Object, Object> volume_mapping = [:]
     volume_mapping.put('jupyter_home', '/home/jovyan')
 
-    def outputFolderPath = new File(".").getCanonicalPath() + "/output"
-    def outputFolder = new File(outputFolderPath)
-    if (outputFolder.exists()) {
-        volume_mapping.put(outputFolderPath, '/home/jovyan/output')
-    }
+    def beamRoot = new File(".").getCanonicalPath()
+    volume_mapping.put(beamRoot, '/home/jovyan/beam-root')
 
     volume_mapping.put('local_files', '/home/jovyan/local_files')
 
