@@ -122,7 +122,7 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper
         beamServices.beamScenario.freightCarriers.find(_.carrierId == "freight-carrier-1".createId[FreightCarrier]).get
       replanner.replan(carrier)
       val person = beamServices.matsimServices.getScenario.getPopulation.getPersons
-        .get(Id.createPersonId("freight-vehicle-1-agent"))
+        .get(Id.createPersonId("freight-carrier-1-vehicle-1-agent"))
       val plan = person.getSelectedPlan
       plan.getPlanElements should have size 9
       plan.getPlanElements.get(0) shouldBe a[Activity]
