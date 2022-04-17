@@ -7,7 +7,7 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, WALK}
+import beam.router.Modes.BeamMode.{CAR, WALK, RIDE_HAIL}
 import beam.router.cch.CchWrapper
 import beam.router.graphhopper.{CarGraphHopperWrapper, GraphHopperWrapper, WalkGraphHopperWrapper}
 import beam.router.gtfs.FareCalculator
@@ -514,7 +514,7 @@ object RoutingWorker {
       SpaceTime(geo.utm2Wgs(endUTM), atTime + bushwhackingTime.toInt),
       distanceInMeters
     )
-    BeamLeg(atTime, WALK, bushwhackingTime.toInt, path)
+    BeamLeg(atTime, RIDE_HAIL, bushwhackingTime.toInt, path)
   }
 
   def createBushwackingTrip(

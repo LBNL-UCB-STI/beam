@@ -278,7 +278,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           if (profileResponse.options.isEmpty) {
             Some(
               EmbodiedBeamLeg(
-                createBushwackingBeamLeg(request.departureTime, request.originUTM, vehicle.locationUTM.loc, geo),
+                createBushwackingBeamLeg(request.departureTime, request.originUTM, vehicle.locationUTM.loc, geo), // it's ridehail for me now
                 body.id,
                 body.vehicleTypeId,
                 asDriver = true,
