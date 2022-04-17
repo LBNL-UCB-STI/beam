@@ -157,10 +157,10 @@ class ChargingFunctions[GEO: GeoLevel](
         ParkingZoneSearch.ParkingZoneSearchResult(
           ParkingStall.lastResortStall(
             new Envelope(
-              inquiry.originUtm.get.loc.getX + 2000,
-              inquiry.originUtm.get.loc.getX - 2000,
-              inquiry.originUtm.get.loc.getY + 2000,
-              inquiry.originUtm.get.loc.getY - 2000
+              inquiry.originUtm.get.loc.getX + 200,
+              inquiry.originUtm.get.loc.getX - 200,
+              inquiry.originUtm.get.loc.getY + 200,
+              inquiry.originUtm.get.loc.getY - 200
             ),
             new Random(seed),
             tazId = TAZ.EmergencyTAZId,
