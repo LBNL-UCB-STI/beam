@@ -13,7 +13,7 @@ plugins {
     id 'com.palantir.docker-run' version '0.32.0'
 }
 
-def imageName = 'jupyter/scipy-notebook'
+def imageName = 'jupyter/scipy-notebook:2022-04-02'
 def containerName = 'jupyter-for-beam'
 def port = '8888'
 def token = project.hasProperty("jupyterToken") ? jupyterToken : UUID.randomUUID().toString()
@@ -86,7 +86,8 @@ task jupyterStart(dependsOn: ['dockerRun']) {
         mountingErrors.forEach { err -> println(err) }
         println ""
         println """Jupyter Lab from image '$imageName' started with container name '$containerName'."""
-        println """Web interface is here: http://127.0.0.1:$port/?token=$token"""
+        println """The token is the following: $token"""
+        println """Lab web interface is here: http://127.0.0.1:$port/lab?token=$token"""
     }
 }
 
