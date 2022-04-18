@@ -32,16 +32,16 @@ object EventsByVehicleMode extends App {
   // gradle execute -PmainClass=beam.utils.beam_to_matsim.EventsByVehicleMode -PappArgs="['D:/Work/BEAM/history/visualizations/v33.0.events.csv', 'D:/Work/BEAM/_tmp/output.via.xml', 'car,bus', '1']" -PmaxRAM=16g
   val inputArgs2 = Seq(
     // Events file path may be in csv or xml format. Does not work with archives.
-    "/Users/haitamlaarabi/Data/FREIGHT/validation/beam/0.events.csv",
+    "D:/Work/BEAM/history/visualizations/v33.0.events.csv", //v35.it3.events.csv", //
     // output file path
-    "/Users/haitamlaarabi/Data/FREIGHT/validation/beam/via.0.events.xml",
+    "D:/Work/BEAM/_tmp/output.via.xml",
     // list of vehicle modes, case insensitive
     "car,bus",
     // 1 means 100%
     "1"
   )
 
-  val inputArgs = inputArgs2 // inputArgs2
+  val inputArgs = args // inputArgs2
 
   if (inputArgs.length == 4) {
     val eventsFile = inputArgs.head
