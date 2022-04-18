@@ -13,15 +13,18 @@ plugins {
     id 'com.palantir.docker-run' version '0.32.0'
 }
 
-def imageName = 'jupyter/scipy-notebook:2022-04-02'
+def imageName = 'jupyter/scipy-notebook'
 def containerName = 'jupyter-for-beam'
 def port = '8888'
 def token = project.hasProperty("jupyterToken") ? jupyterToken : UUID.randomUUID().toString()
 
-static def tryReadMappingFromFile(String filePath, String prefix, String basePath) {
+
+static def readMappingFromFile(String filePath, String prefix, String basePath) {
     File file = new File(filePath)
+    ArrayList<String> errors = []
+    Map<String, String> mapping = [:]
+
     if (file.exists()) {
-        def mapping = [:]
         file.eachLine { String pathToFolderToMap ->
             if (!pathToFolderToMap.isEmpty()) {
                 def relativePath = new File(basePath, pathToFolderToMap)
@@ -35,43 +38,35 @@ static def tryReadMappingFromFile(String filePath, String prefix, String basePat
 
                     mapping.put(pathToFolderToMap, prefix + nameForJupyter)
                 } else {
-                    println "Path does not exist: '$pathToFolderToMap'. (from $filePath)"
+                    errors.add("DOES NOT EXIST path '$pathToFolderToMap' from file '$filePath'.")
                 }
             }
         }
-        return mapping
-    } else {
-        return [:]
     }
+
+    return [mapping, errors]
 }
 
-static def getFoldersToMap() {
+static def getFoldersToMount() {
     LinkedHashMap<Object, Object> volume_mapping = [:]
     volume_mapping.put('jupyter_home', '/home/jovyan')
 
-    def outputFolderPath = new File(".").getCanonicalPath() + "/output"
-    def outputFolder = new File(outputFolderPath)
-    if (outputFolder.exists()) {
-        volume_mapping.put(outputFolderPath, '/home/jovyan/output')
-    }
-
+    def beamRootPath = new File(".").getCanonicalPath()
+    volume_mapping.put(beamRootPath, '/home/jovyan/beam_root')
     volume_mapping.put('local_files', '/home/jovyan/local_files')
 
-    volume_mapping = volume_mapping +
-            tryReadMappingFromFile('jupyter/.foldersToMapInJupyter.txt', '/home/jovyan/', 'jupyter/') +
-            tryReadMappingFromFile('jupyter/local_files/.foldersToMapInJupyter.txt', '/home/jovyan/', 'jupyter/local_files/')
+    def (mapping1, errors1) = readMappingFromFile('jupyter/.foldersToMapInJupyter.txt', '/home/jovyan/', 'jupyter/')
+    def (mapping2, errors2) = readMappingFromFile('jupyter/local_files/.foldersToMapInJupyter.txt', '/home/jovyan/', 'jupyter/local_files/')
 
-    println ""
-    println "Following folders will be mounted (path in jupyter <- local path):"
-    volume_mapping.each { local_path, jupyter_path -> println "'$jupyter_path' <- '$local_path'" }
-
-    return volume_mapping
+    return [volume_mapping + mapping1 + mapping2, errors1 + errors2]
 }
+
+def (foldersToMount, mountingErrors) = getFoldersToMount()
 
 dockerRun {
     name "$containerName"
     image "$imageName"
-    volumes getFoldersToMap() as Map<Object, String>
+    volumes foldersToMount
     ports "$port:8888"
     daemonize true
     clean true
@@ -83,11 +78,15 @@ task jupyterStart(dependsOn: ['dockerRun']) {
     description 'Starts Jupyter container.'
     group 'Jupyter'
 
-    def url = "http://127.0.0.1:$port/?token=$token"
-
     doLast {
+        println ""
+        println "Following folders will be mounted (path in jupyter <- local path):"
+        foldersToMount.forEach { local_path, jupyter_path -> println "'$jupyter_path' <- '$local_path'" }
+        println ""
+        mountingErrors.forEach { err -> println(err) }
+        println ""
         println """Jupyter Lab from image '$imageName' started with container name '$containerName'."""
-        println """Web interface is here: $url"""
+        println """Web interface is here: http://127.0.0.1:$port/?token=$token"""
     }
 }
 
