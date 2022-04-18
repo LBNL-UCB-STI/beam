@@ -35,10 +35,7 @@ object Reader {
           if (timeDiff < 0) prevPTE.adjustTime(timeDiff)
 
           // if they overlap each other in case of travel links
-          if (prevPTE.linkIds.lastOption == currPTE.linkIds.headOption) {
-            if (currPTE.linkTravelTime.size == 1) {
-              println("here")
-            }
+          if (prevPTE.linkIds.lastOption == currPTE.linkIds.headOption && currPTE.linkIds.size > 1) {
             currPTE.removeHeadLinkFromTrip()
             @SuppressWarnings(Array("UnsafeTraversableMethods"))
             val removedLinkTime = currPTE.linkTravelTime.head
