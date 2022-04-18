@@ -12,6 +12,7 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
@@ -30,9 +31,9 @@ trait FreightReader {
 
   def readPayloadPlans(): Map[Id[PayloadPlan], PayloadPlan]
 
-  def createPersonId(vehicleId: Id[BeamVehicle]): Id[Person]
+  def createPersonId(carrierId: Id[FreightCarrier], vehicleId: Id[BeamVehicle]): Id[Person]
 
-  def createHouseholdId(vehicleId: Id[BeamVehicle]): Id[Household]
+  def createHouseholdId(carrierId: Id[FreightCarrier]): Id[Household]
 
   def readFreightCarriers(
     allTours: Map[Id[FreightTour], FreightTour],
@@ -49,13 +50,14 @@ trait FreightReader {
   }
 
   def createPersonPlan(
+    carrier: FreightCarrier,
     tours: IndexedSeq[FreightTour],
     plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]],
     person: Person
   ): Plan = {
     val allToursPlanElements = tours.flatMap { tour =>
       val tourInitialActivity =
-        createFreightActivity("Home", tour.warehouseLocationUTM, tour.departureTimeInSec, None)
+        createFreightActivity("Warehouse", carrier.warehouseLocationUTM, tour.departureTimeInSec, None)
       val firstLeg: Leg = createFreightLeg(tour.departureTimeInSec)
 
       val plans: IndexedSeq[PayloadPlan] = plansPerTour.get(tour.tourId) match {
@@ -82,7 +84,7 @@ trait FreightReader {
       elements
     }
 
-    val finalActivity = createFreightActivity("Home", tours.head.warehouseLocationUTM, -1, None)
+    val finalActivity = createFreightActivity("Warehouse", carrier.warehouseLocationUTM, -1, None)
     val allPlanElements: IndexedSeq[PlanElement] = allToursPlanElements :+ finalActivity
 
     val currentPlan = PopulationUtils.createPlan(person)
@@ -96,26 +98,22 @@ trait FreightReader {
 
   def generatePopulation(
     carriers: IndexedSeq[FreightCarrier],
-    personFactory: PopulationFactory,
+    populationFactory: PopulationFactory,
     householdsFactory: HouseholdsFactory
-  ): IndexedSeq[(Household, Plan)] = {
+  ): IndexedSeq[(FreightCarrier, Household, Plan, Id[Person], Id[BeamVehicle])] = {
     carriers.flatMap { carrier =>
+      val freightHouseholdId = createHouseholdId(carrier.carrierId)
+      val household = householdsFactory.createHousehold(freightHouseholdId)
+      household.setIncome(new IncomeImpl(0, Income.IncomePeriod.year))
       carrier.tourMap.map { case (vehicleId, tours) =>
-        val personId = createPersonId(vehicleId)
-        val person = personFactory.createPerson(personId)
-
-        val currentPlan: Plan = createPersonPlan(tours, carrier.plansPerTour, person)
-
+        val personId = createPersonId(carrier.carrierId, vehicleId)
+        val person = populationFactory.createPerson(personId)
+        val currentPlan: Plan = createPersonPlan(carrier, tours, carrier.plansPerTour, person)
         person.addPlan(currentPlan)
         person.setSelectedPlan(currentPlan)
-
-        val freightHouseholdId = createHouseholdId(vehicleId)
-        val household: Household = householdsFactory.createHousehold(freightHouseholdId)
-        household.setIncome(new IncomeImpl(44444, Income.IncomePeriod.year))
         household.getMemberIds.add(personId)
         household.getVehicleIds.add(vehicleId)
-
-        (household, currentPlan)
+        (carrier, household, currentPlan, personId, vehicleId)
       }
     }
   }
@@ -185,10 +183,16 @@ object FreightReader {
     beamConfig: BeamConfig,
     geoUtils: GeoUtils,
     streetLayer: StreetLayer,
-    tazMap: TAZTreeMap
+    tazMap: TAZTreeMap,
+    outputDirMaybe: Option[String]
   ): FreightReader = {
     val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
     val config = beamConfig.beam.agentsim.agents.freight
+    val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
+      geoUtils,
+      streetLayer,
+      beamConfig.beam.routing.r5.linkRadiusMeters
+    )
     beamConfig.beam.agentsim.agents.freight.reader match {
       case "Generic" =>
         new GenericFreightReader(
@@ -196,16 +200,23 @@ object FreightReader {
           geoUtils,
           rand,
           tazMap,
-          Some(ClosestUTMPointOnMap(streetLayer, beamConfig.beam.routing.r5.linkRadiusMeters))
+          beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs,
+          snapLocationHelper,
+          outputDirMaybe
         )
       case s =>
         throw new RuntimeException(s"Unknown freight reader $s")
     }
   }
 
-  def apply(beamConfig: BeamConfig, geoUtils: GeoUtils, streetLayer: StreetLayer): FreightReader = {
+  def apply(
+    beamConfig: BeamConfig,
+    geoUtils: GeoUtils,
+    streetLayer: StreetLayer,
+    outputDirMaybe: Option[String]
+  ): FreightReader = {
     val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
-    apply(beamConfig, geoUtils, streetLayer, tazMap)
+    apply(beamConfig, geoUtils, streetLayer, tazMap, outputDirMaybe)
   }
 
   def apply(beamServices: BeamServices): FreightReader =
@@ -213,21 +224,7 @@ object FreightReader {
       beamServices.beamConfig,
       beamServices.geo,
       beamServices.beamScenario.transportNetwork.streetLayer,
-      beamServices.beamScenario.tazTreeMap
+      beamServices.beamScenario.tazTreeMap,
+      None
     )
-
-  case class ClosestUTMPointOnMap(streetLayer: StreetLayer, r5LinkRadiusMeters: Double) {
-
-    def find(wsgCoord: Coord, geoUtils: GeoUtils): Option[Coord] = {
-      //val wsgCoord = geoUtils.utm2Wgs(utmCoord)
-      val theSplit = geoUtils.getR5Split(streetLayer, wsgCoord, r5LinkRadiusMeters)
-      if (theSplit == null) {
-        None
-      } else {
-        val wgsPointOnMap = geoUtils.splitToCoord(theSplit)
-        val utmCoord = geoUtils.wgs2Utm(wgsPointOnMap)
-        Some(utmCoord)
-      }
-    }
-  }
 }
