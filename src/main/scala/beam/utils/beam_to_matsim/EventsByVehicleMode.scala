@@ -11,7 +11,7 @@ import scala.xml.XML
 
 object EventsByVehicleMode extends App {
 
-  // gradle execute -PmainClass=beam.utils.beamToVia.EventsByVehicleMode -PappArgs="['D:/Work/BEAM/history/visualizations/v35.it3.events.csv', 'D:/Work/BEAM/_tmp/output.via.xml', 'car,bus', '0.5', 'D:/Work/BEAM/history/visualizations/physSimNetwork.xml', '548966', '4179000', '500']" -PmaxRAM=16g
+  // gradle execute -PmainClass=beam.utils.beam_to_matsim.EventsByVehicleMode -PappArgs="['D:/Work/BEAM/history/visualizations/v35.it3.events.csv', 'D:/Work/BEAM/_tmp/output.via.xml', 'car,bus', '0.5', 'D:/Work/BEAM/history/visualizations/physSimNetwork.xml', '548966', '4179000', '500']" -PmaxRAM=16g
   val inputArgs1 = Seq(
     // Events file path may be in csv or xml format. Does not work with archives.
     "D:/Work/BEAM/history/visualizations/v33.0.events.csv",
@@ -29,8 +29,8 @@ object EventsByVehicleMode extends App {
     "50000"
   )
 
-  // gradle execute -PmainClass=beam.utils.beamToVia.EventsByVehicleMode -PappArgs="['D:/Work/BEAM/history/visualizations/v33.0.events.csv', 'D:/Work/BEAM/_tmp/output.via.xml', 'car,bus', '1']" -PmaxRAM=16g
-  val nputArgs2 = Seq(
+  // gradle execute -PmainClass=beam.utils.beam_to_matsim.EventsByVehicleMode -PappArgs="['D:/Work/BEAM/history/visualizations/v33.0.events.csv', 'D:/Work/BEAM/_tmp/output.via.xml', 'car,bus', '1']" -PmaxRAM=16g
+  val inputArgs2 = Seq(
     // Events file path may be in csv or xml format. Does not work with archives.
     "D:/Work/BEAM/history/visualizations/v33.0.events.csv", //v35.it3.events.csv", //
     // output file path
