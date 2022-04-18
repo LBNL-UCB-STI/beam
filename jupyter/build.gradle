@@ -18,24 +18,26 @@ def containerName = 'jupyter-for-beam'
 def port = '8888'
 def token = project.hasProperty("jupyterToken") ? jupyterToken : UUID.randomUUID().toString()
 
-static def tryReadMappingFromFile(filePath, prefix) {
+static def tryReadMappingFromFile(String filePath, String prefix, String basePath) {
     File file = new File(filePath)
     if (file.exists()) {
         def mapping = [:]
-        file.eachLine { pathToFolderToMap ->
+        file.eachLine { String pathToFolderToMap ->
+            if (!pathToFolderToMap.isEmpty()) {
+                def relativePath = new File(basePath, pathToFolderToMap)
+                def absolutePath = new File(pathToFolderToMap)
 
-            def folder = new File(pathToFolderToMap)
-            def exist = folder.exists()
+                if (relativePath.exists() || absolutePath.exists()) {
+                    def nameForJupyter = pathToFolderToMap
+                            .tokenize('/')[-1]
+                            .tokenize('\\')[-1]
+                            .replace('.', '_')
 
-            check if either of following is true:
-                1. if path exist "as is"
-                2. if pathToMappingFileLocation + path exist
-
-            def nameForJupyter = pathToFolderToMap
-                    .tokenize('/')[-1]
-                    .tokenize('\\')[-1]
-                    .replace('.', '_')
-            mapping.put(pathToFolderToMap, prefix + nameForJupyter)
+                    mapping.put(pathToFolderToMap, prefix + nameForJupyter)
+                } else {
+                    println "Path does not exist: '$pathToFolderToMap'. (from $filePath)"
+                }
+            }
         }
         return mapping
     } else {
@@ -56,9 +58,10 @@ static def getFoldersToMap() {
     volume_mapping.put('local_files', '/home/jovyan/local_files')
 
     volume_mapping = volume_mapping +
-            tryReadMappingFromFile('jupyter/.foldersToMapInJupyter.txt', '/home/jovyan/') +
-            tryReadMappingFromFile('jupyter/local_files/.foldersToMapInJupyter.txt', '/home/jovyan/')
+            tryReadMappingFromFile('jupyter/.foldersToMapInJupyter.txt', '/home/jovyan/', 'jupyter/') +
+            tryReadMappingFromFile('jupyter/local_files/.foldersToMapInJupyter.txt', '/home/jovyan/', 'jupyter/local_files/')
 
+    println ""
     println "Following folders will be mounted (path in jupyter <- local path):"
     volume_mapping.each { local_path, jupyter_path -> println "'$jupyter_path' <- '$local_path'" }
 
