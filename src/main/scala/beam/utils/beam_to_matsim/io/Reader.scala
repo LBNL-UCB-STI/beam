@@ -26,7 +26,7 @@ object Reader {
 
     // fix overlapping of path traversal events for vehicle
     def pteOverlappingFix(pteSeqRaw: Seq[BeamPathTraversal]): Unit = {
-      val pteSeq = pteSeqRaw.filter(pte => pte.linkTravelTime.isEmpty)
+      val pteSeq = pteSeqRaw.filter(pte => pte.linkTravelTime.nonEmpty)
       @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val pteSeqHead = pteSeq.head
       pteSeq.drop(1).foldLeft(pteSeqHead) {

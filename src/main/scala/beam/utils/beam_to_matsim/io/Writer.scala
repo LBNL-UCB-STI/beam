@@ -45,7 +45,7 @@ object Writer {
     FileUtils.using(new PrintWriter(new File(outputPath))) { pw =>
       pw.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<events version=\"1.0\">")
 
-      val sortedEvents = eventsCollection.getSortedEvents()
+      val sortedEvents = eventsCollection.getSortedEvents
 
       sortedEvents.foreach { entry =>
         progress.step()

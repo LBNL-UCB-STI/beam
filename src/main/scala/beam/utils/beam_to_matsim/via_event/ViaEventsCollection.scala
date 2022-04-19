@@ -16,6 +16,8 @@ class ViaEventsCollection {
     java.util.Arrays.parallelSort(arrayToSort, comparator)
     arrayToSort
   }
+
   def put(event: ViaEvent): Unit = unsortedEvents.append(event)
+
   def size: Int = unsortedEvents.length
 }
