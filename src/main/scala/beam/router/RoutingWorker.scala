@@ -514,7 +514,7 @@ object RoutingWorker {
       SpaceTime(geo.utm2Wgs(endUTM), atTime + bushwhackingTime.toInt),
       distanceInMeters
     )
-    BeamLeg(atTime, RIDE_HAIL, bushwhackingTime.toInt, path)
+    BeamLeg(atTime, WALK, bushwhackingTime.toInt, path)
   }
 
   def createBushwackingTrip(

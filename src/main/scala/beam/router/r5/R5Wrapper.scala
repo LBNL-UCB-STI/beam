@@ -256,6 +256,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             geo.utm2Wgs(vehicle.locationUTM.loc),
             linkRadiusMeters
           )
+
           val directMode = LegMode.WALK
           val accessMode = LegMode.WALK
           val egressMode = LegMode.WALK
@@ -278,7 +279,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           if (profileResponse.options.isEmpty) {
             Some(
               EmbodiedBeamLeg(
-                createBushwackingBeamLeg(request.departureTime, request.originUTM, vehicle.locationUTM.loc, geo), // it's ridehail for me now
+                createBushwackingBeamLeg(request.departureTime, request.originUTM, vehicle.locationUTM.loc, geo),
                 body.id,
                 body.vehicleTypeId,
                 asDriver = true,
