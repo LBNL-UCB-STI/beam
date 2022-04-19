@@ -162,10 +162,10 @@ class ParkingFunctions[GEO: GeoLevel](
           case _ =>
             // didn't find any stalls, so, as a last resort, create a very expensive stall
             val boxAroundRequest = new Envelope(
-              inquiry.destinationUtm.loc.getX + 2000,
-              inquiry.destinationUtm.loc.getX - 2000,
-              inquiry.destinationUtm.loc.getY + 2000,
-              inquiry.destinationUtm.loc.getY - 2000
+              inquiry.destinationUtm.loc.getX + 200,
+              inquiry.destinationUtm.loc.getX - 200,
+              inquiry.destinationUtm.loc.getY + 200,
+              inquiry.destinationUtm.loc.getY - 200
             )
             val newStall = ParkingStall.lastResortStall(
               boxAroundRequest,
