@@ -1,9 +1,8 @@
 package beam.utils.beam_to_matsim.io
 
 import java.io.{File, PrintWriter}
-
 import beam.utils.FileUtils
-import beam.utils.beam_to_matsim.via_event.ViaEvent
+import beam.utils.beam_to_matsim.via_event.{ViaEvent, ViaEventsCollection}
 
 import scala.collection.mutable
 
@@ -19,12 +18,37 @@ object Writer {
     val eventsCount = queue.size
     Console.println(s"started writing $eventsCount events ...")
     val progress = new ConsoleProgress("evenst written", eventsCount, 5)
-
     FileUtils.using(new PrintWriter(new File(outputPath))) { pw =>
       pw.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<events version=\"1.0\">")
       while (queue.nonEmpty) {
         progress.step()
         val entry = queue.dequeue()
+        pw.println(transform(entry))
+      }
+      pw.println("</events>")
+    }
+
+    progress.finish()
+
+    Console.println("via events written into " + outputPath)
+  }
+
+  def writeViaEventsQueue(
+    eventsCollection: ViaEventsCollection,
+    transform: ViaEvent => String,
+    outputPath: String
+  ): Unit = {
+    val eventsCount = eventsCollection.size
+    Console.println(s"started writing $eventsCount events ...")
+    val progress = new ConsoleProgress("evenst written", eventsCount, 5)
+
+    FileUtils.using(new PrintWriter(new File(outputPath))) { pw =>
+      pw.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<events version=\"1.0\">")
+
+      val sortedEvents = eventsCollection.getSortedEvents()
+
+      sortedEvents.foreach { entry =>
+        progress.step()
         pw.println(transform(entry))
       }
       pw.println("</events>")

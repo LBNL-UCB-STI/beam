@@ -2,7 +2,7 @@ package beam.utils.beam_to_matsim.io
 
 import beam.utils.beam_to_matsim.events.{BeamActivityEnd, BeamActivityStart, BeamModeChoice, BeamPathTraversal}
 import beam.utils.beam_to_matsim.events_filter.{MutableSamplingFilter, PersonEvents, VehicleTrip}
-import beam.utils.beam_to_matsim.via_event._
+import beam.utils.beam_to_matsim.via_event.{ViaEventsCollection, _}
 
 import scala.collection.mutable
 
@@ -25,7 +25,8 @@ object Reader {
       .getOrElse(filter)
 
     // fix overlapping of path traversal events for vehicle
-    def pteOverlappingFix(pteSeq: Seq[BeamPathTraversal]): Unit = {
+    def pteOverlappingFix(pteSeqRaw: Seq[BeamPathTraversal]): Unit = {
+      val pteSeq = pteSeqRaw.filter(pte => pte.linkTravelTime.isEmpty)
       @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val pteSeqHead = pteSeq.head
       pteSeq.drop(1).foldLeft(pteSeqHead) {
@@ -152,13 +153,12 @@ object Reader {
     vehiclesTrips: Traversable[VehicleTrip],
     vehicleId: BeamPathTraversal => String,
     vehicleType: BeamPathTraversal => String
-  ): (mutable.PriorityQueue[ViaEvent], mutable.Map[String, mutable.HashSet[String]]) = {
+  ): (ViaEventsCollection, mutable.Map[String, mutable.HashSet[String]]) = {
 
     case class ViaEventsCollector(
       vehicleId: BeamPathTraversal => String,
       vehicleType: BeamPathTraversal => String,
-      events: mutable.PriorityQueue[ViaEvent] =
-        mutable.PriorityQueue.empty[ViaEvent]((e1, e2) => e2.time.compare(e1.time)),
+      eventsCollection: ViaEventsCollection = new ViaEventsCollection(),
       vehicleTypeToId: mutable.Map[String, mutable.HashSet[String]] = mutable.Map.empty[String, mutable.HashSet[String]]
     ) {
       def collectVehicleTrip(ptEvents: Seq[BeamPathTraversal]): Unit = {
@@ -166,7 +166,7 @@ object Reader {
         val minTimeIntervalForContinuousMovement = 40.0
 
         case class EventsTransformer(
-          events: mutable.PriorityQueue[ViaEvent],
+          eventsCollection: ViaEventsCollection,
           var prevEvent: Option[ViaTraverseLinkEvent] = None
         ) {
           def addPTEEvent(curr: ViaTraverseLinkEvent): Unit = {
@@ -197,17 +197,17 @@ object Reader {
             }
 
             prevEvent = Some(curr)
-            events.enqueue(curr)
+            eventsCollection.put(curr)
           }
 
           def addPersonArrival(time: Double, viaEvent: ViaTraverseLinkEvent): Unit =
-            events.enqueue(ViaPersonArrivalEvent(time + minTimeStep, viaEvent.vehicle, viaEvent.link))
+            eventsCollection.put(ViaPersonArrivalEvent(time + minTimeStep, viaEvent.vehicle, viaEvent.link))
 
           def addPersonDeparture(viaEvent: ViaTraverseLinkEvent): Unit =
-            events.enqueue(ViaPersonDepartureEvent(viaEvent.time + minTimeStep, viaEvent.vehicle, viaEvent.link))
+            eventsCollection.put(ViaPersonDepartureEvent(viaEvent.time + minTimeStep, viaEvent.vehicle, viaEvent.link))
         }
 
-        val transformer = ptEvents.foldLeft(EventsTransformer(events))((acc, pte) => {
+        val transformer = ptEvents.foldLeft(EventsTransformer(eventsCollection))((acc, pte) => {
           val vId = vehicleId(pte)
           pte.toViaEvents(vId, None).foreach(acc.addPTEEvent)
 
@@ -239,9 +239,9 @@ object Reader {
 
     progress.finish()
 
-    Console.println(viaEventsCollector.events.size + " via events with vehicles trips")
+    Console.println(viaEventsCollector.eventsCollection.size + " via events with vehicles trips")
     Console.println(viaEventsCollector.vehicleTypeToId.size + " vehicle types")
 
-    (viaEventsCollector.events, viaEventsCollector.vehicleTypeToId)
+    (viaEventsCollector.eventsCollection, viaEventsCollector.vehicleTypeToId)
   }
 }

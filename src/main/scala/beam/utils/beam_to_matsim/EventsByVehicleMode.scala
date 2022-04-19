@@ -98,7 +98,7 @@ object EventsByVehicleMode extends App {
     val (vehiclesEvents, _) = Reader.readWithFilter(eventsFile, filter)
     val (events, typeToId) = Reader.transformPathTraversals(vehiclesEvents, vehicleId, vehicleType)
 
-    Writer.writeViaEventsQueue[ViaEvent](events, _.toXmlString, outputFile)
+    Writer.writeViaEventsQueue(events, _.toXmlString, outputFile)
     Writer.writeViaIdFile(typeToId, outputFile + ".ids.txt")
   }
 
