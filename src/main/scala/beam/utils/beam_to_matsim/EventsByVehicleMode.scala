@@ -41,7 +41,7 @@ object EventsByVehicleMode extends App {
     "1"
   )
 
-  val inputArgs = inputArgs2
+  val inputArgs = args // inputArgs2
 
   if (inputArgs.length == 4) {
     val eventsFile = inputArgs.head
