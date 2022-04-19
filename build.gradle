@@ -126,7 +126,10 @@ configurations.all {
     resolutionStrategy {
 //       we need this in order to get Elki library working fine.
         force 'it.unimi.dsi:fastutil:8.5.4'
+        force 'org.apache.logging.log4j:log4j-core:2.15.0'
+        force 'org.apache.logging.log4j:log4j-api:2.15.0'
     }
+    exclude group: "log4j", module: "log4j"
 }
 
 dependencies {
