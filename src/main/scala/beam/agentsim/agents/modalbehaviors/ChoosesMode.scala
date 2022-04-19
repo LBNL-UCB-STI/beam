@@ -1190,7 +1190,7 @@ trait ChoosesMode {
           combinedItinerariesForChoice
 //  }).filter(itin => availableModesForTrips.contains(itin.tripClassifier))
   }).filter(itin => availableModesForTrips.contains(itin.tripClassifier) & !itin.legs.view.filter(_.beamLeg.mode == WALK)
-    .exists(leg => leg.beamLeg.travelPath.distanceInM > 4000))
+    .exists(leg => leg.beamLeg.travelPath.distanceInM > 4828.03))
 
 
       val attributesOfIndividual =
