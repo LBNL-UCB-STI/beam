@@ -46,6 +46,6 @@ object visualization_33_34 extends App {
   val (vehiclesEvents, _) = Reader.readWithFilter(beamEventsFilePath, MutableVehiclesFilter(Selector))
   val (events, typeToId) = Reader.transformPathTraversals(vehiclesEvents, vehicleId, vehicleType)
 
-  Writer.writeViaEventsQueue[ViaEvent](events, _.toXml.toString, viaEventsFile)
+  Writer.writeViaEventsCollection(events, _.toXml.toString, viaEventsFile)
   Writer.writeViaIdFile(typeToId, viaIdsFile)
 }
