@@ -32,16 +32,16 @@ object EventsByVehicleMode extends App {
   // gradle execute -PmainClass=beam.utils.beamToVia.EventsByVehicleMode -PappArgs="['D:/Work/BEAM/history/visualizations/v33.0.events.csv', 'D:/Work/BEAM/_tmp/output.via.xml', 'car,bus', '1']" -PmaxRAM=16g
   val inputArgs2 = Seq(
     // Events file path may be in csv or xml format. Does not work with archives.
-    "/mnt/data/work/beam/beam-production/output/sf-light/sf-light-1k-xml__2022-04-19_22-14-35_ahm/ITERS/it.0/0.events.csv",
+    "/mnt/data/work/beam/beam-production/freight-base-2018-60k__2022-04-19_04-36-11_rrq.0.events.1000000.csv",
     // output file path
-    "/mnt/data/work/beam/beam-production/output/sf-light/sf-light-1k-xml__2022-04-19_22-14-35_ahm/ITERS/it.0/0.events.via.xml",
+    "/mnt/data/work/beam/beam-production/freight-base-2018-60k__2022-04-19_04-36-11_rrq.0.events.1000000.via.xml",
     // list of vehicle modes, case insensitive
     "car,bus",
     // 1 means 100%
     "1"
   )
 
-  val inputArgs = args // inputArgs2
+  val inputArgs = inputArgs2
 
   if (inputArgs.length == 4) {
     val eventsFile = inputArgs.head
@@ -98,7 +98,7 @@ object EventsByVehicleMode extends App {
     val (vehiclesEvents, _) = Reader.readWithFilter(eventsFile, filter)
     val (events, typeToId) = Reader.transformPathTraversals(vehiclesEvents, vehicleId, vehicleType)
 
-    Writer.writeViaEventsQueue(events, _.toXmlString, outputFile)
+    Writer.writeViaEventsCollection(events, _.toXmlString, outputFile)
     Writer.writeViaIdFile(typeToId, outputFile + ".ids.txt")
   }
 

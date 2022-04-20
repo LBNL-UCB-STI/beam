@@ -2,7 +2,7 @@ package beam.utils.beam_to_matsim.io
 
 import beam.utils.beam_to_matsim.events.{BeamActivityEnd, BeamActivityStart, BeamModeChoice, BeamPathTraversal}
 import beam.utils.beam_to_matsim.events_filter.{MutableSamplingFilter, PersonEvents, VehicleTrip}
-import beam.utils.beam_to_matsim.via_event.{ViaEventsCollection, _}
+import beam.utils.beam_to_matsim.via_event._
 
 import scala.collection.mutable
 
@@ -27,26 +27,32 @@ object Reader {
     // fix overlapping of path traversal events for vehicle
     def pteOverlappingFix(pteSeqRaw: Seq[BeamPathTraversal]): Unit = {
       val pteSeq = pteSeqRaw.filter(pte => pte.linkTravelTime.nonEmpty)
-      @SuppressWarnings(Array("UnsafeTraversableMethods"))
-      val pteSeqHead = pteSeq.head
-      pteSeq.drop(1).foldLeft(pteSeqHead) {
-        case (prevPTE, currPTE) if prevPTE.linkIds.nonEmpty && currPTE.linkIds.nonEmpty =>
-          // if they overlap each other in case of time
-          val timeDiff = currPTE.time - prevPTE.arrivalTime
-          if (timeDiff < 0) prevPTE.adjustTime(timeDiff)
+      val maybePteSeqHead = pteSeq.headOption
+      maybePteSeqHead match {
+        case Some(pteSeqHead) =>
+          pteSeq.drop(1).foldLeft(pteSeqHead) {
+            case (prevPTE, currPTE) if prevPTE.linkIds.nonEmpty && currPTE.linkIds.nonEmpty =>
+              // if they overlap each other in case of time
+              val timeDiff = currPTE.time - prevPTE.arrivalTime
+              if (timeDiff < 0) prevPTE.adjustTime(timeDiff)
 
-          // if they overlap each other in case of travel links
-          if (prevPTE.linkIds.lastOption == currPTE.linkIds.headOption) {
-            currPTE.removeHeadLinkFromTrip()
-            @SuppressWarnings(Array("UnsafeTraversableMethods"))
-            val removedLinkTime = currPTE.linkTravelTime.head
-            if (currPTE.linkIds.nonEmpty) currPTE.adjustTime(removedLinkTime)
-            else prevPTE.adjustTime(removedLinkTime)
+              // if they overlap each other in case of travel links
+              if (prevPTE.linkIds.lastOption == currPTE.linkIds.headOption) {
+                currPTE.removeHeadLinkFromTrip()
+
+                val maybeRemovedLinkTime = currPTE.linkTravelTime.headOption
+                maybeRemovedLinkTime match {
+                  case Some(removedLinkTime) if currPTE.linkIds.nonEmpty => currPTE.adjustTime(removedLinkTime)
+                  case Some(removedLinkTime)                             => prevPTE.adjustTime(removedLinkTime)
+                  case None                                              =>
+                }
+              }
+
+              currPTE
+
+            case (_, pte) => pte
           }
-
-          currPTE
-
-        case (_, pte) => pte
+        case None =>
       }
     }
 

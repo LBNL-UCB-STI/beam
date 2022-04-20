@@ -30,7 +30,7 @@ object visualization_20_24 extends App {
   val (activities, activityToCnt) = Reader.transformActivities(personsEvents)
   activities.foreach(events.put)
 
-  Writer.writeViaEventsQueue(events, _.toXml.toString, viaEventsFile)
+  Writer.writeViaEventsCollection(events, _.toXml.toString, viaEventsFile)
 
   Writer.writeViaActivities(activityToCnt, viaActivitiesFile)
   Writer.writeViaModes(modeToCnt, viaModesFile)
