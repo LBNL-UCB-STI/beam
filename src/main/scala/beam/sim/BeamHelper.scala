@@ -31,6 +31,7 @@ import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationScaling
 import beam.sim.termination.TerminationCriterionProvider
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils._
 import beam.utils.csv.readers
 import beam.utils.plan.sampling.AvailableModeUtils
@@ -38,7 +39,13 @@ import beam.utils.scenario.generic.GenericScenarioSource
 import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.scenario.urbansim.censusblock.{ScenarioAdjuster, UrbansimReaderV2}
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
-import beam.utils.scenario.{BeamScenarioLoader, InputType, PreviousRunPlanMerger, UrbanSimScenarioLoader}
+import beam.utils.scenario.{
+  BeamScenarioLoader,
+  InputType,
+  PreviousRunPlanMerger,
+  ScenarioLoaderHelper,
+  UrbanSimScenarioLoader
+}
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -269,7 +276,7 @@ trait BeamHelper extends LazyLogging {
     )
   }
 
-  def loadScenario(beamConfig: BeamConfig): BeamScenario = {
+  def loadScenario(beamConfig: BeamConfig, outputDirMaybe: Option[String] = None): BeamScenario = {
     val vehicleTypes = maybeScaleTransit(beamConfig, readBeamVehicleTypeFile(beamConfig))
     val vehicleCsvReader = new VehicleCsvReader(beamConfig)
     val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
@@ -300,7 +307,7 @@ trait BeamHelper extends LazyLogging {
     val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(networkCoordinator.network, tazMap)
 
     val (freightCarriers, fixedActivitiesDurationsFromFreight) =
-      readFreights(beamConfig, networkCoordinator.transportNetwork.streetLayer, vehicleTypes)
+      readFreights(beamConfig, networkCoordinator.transportNetwork.streetLayer, vehicleTypes, outputDirMaybe)
 
     val fixedActivitiesDurationsFromConfig: Map[String, Double] = {
       val maybeFixedDurationsList = beamConfig.beam.agentsim.agents.activities.activityTypeToFixedDurationMap
@@ -344,13 +351,14 @@ trait BeamHelper extends LazyLogging {
   def readFreights(
     beamConfig: BeamConfig,
     streetLayer: StreetLayer,
-    vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
+    vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+    outputDirMaybe: Option[String]
   ): (IndexedSeq[FreightCarrier], Map[String, Double]) = {
     val freightConfig = beamConfig.beam.agentsim.agents.freight
 
     if (freightConfig.enabled) {
       val geoUtils = new GeoUtilsImpl(beamConfig)
-      val freightReader = FreightReader(beamConfig, geoUtils, streetLayer)
+      val freightReader = FreightReader(beamConfig, geoUtils, streetLayer, outputDirMaybe)
       val tours = freightReader.readFreightTours()
       val plans = freightReader.readPayloadPlans()
       val carriers = freightReader.readFreightCarriers(tours, plans, vehicleTypes)
@@ -643,32 +651,17 @@ trait BeamHelper extends LazyLogging {
     (beamExecutionConfig, scenario, beamScenario, services, plansMerged)
   }
 
-  def fixDanglingPersons(result: MutableScenario): Unit = {
-    val peopleViaHousehold = result.getHouseholds.getHouseholds
-      .values()
-      .asScala
-      .flatMap { x =>
-        x.getMemberIds.asScala
-      }
-      .toSet
-    val danglingPeople = result.getPopulation.getPersons
-      .values()
-      .asScala
-      .filter(person => !peopleViaHousehold.contains(person.getId))
-    if (danglingPeople.nonEmpty) {
-      logger.error(s"There are ${danglingPeople.size} persons not connected to household, removing them")
-      danglingPeople.foreach { p =>
-        result.getPopulation.removePerson(p.getId)
-      }
-    }
-  }
-
   protected def buildScenarioFromMatsimConfig(
     matsimConfig: MatsimConfig,
     beamScenario: BeamScenario
   ): MutableScenario = {
+    val snapLocationHelper = SnapLocationHelper(
+      new GeoUtilsImpl(beamScenario.beamConfig),
+      beamScenario.transportNetwork.streetLayer,
+      beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
+    )
     val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    fixDanglingPersons(result)
+    ScenarioLoaderHelper.validateScenario(result, snapLocationHelper)
     result.setNetwork(beamScenario.network)
     result
   }
@@ -706,6 +699,33 @@ trait BeamHelper extends LazyLogging {
       PopulationScaling.samplePopulation(scenario, beamScenario, beamServices.beamConfig, beamServices, outputDir)
     }
 
+    if (beamScenario.beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs) {
+      logger.info(s"""
+      |The parameter `beam.agentsim.snapLocationAndRemoveInvalidInputs` is enabled.
+      |This may take some time to finish depending on the size of population/households.""".stripMargin)
+
+      val beforeHouseholdsCount = scenario.getHouseholds.getHouseholds.size()
+      val beforePopulationCount = scenario.getPopulation.getPersons.size()
+
+      val snapLocationHelper = SnapLocationHelper(
+        new GeoUtilsImpl(beamScenario.beamConfig),
+        beamScenario.transportNetwork.streetLayer,
+        beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
+      )
+
+      ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
+
+      val afterHouseholdsCount = scenario.getHouseholds.getHouseholds.size()
+      val afterPopulationCount = scenario.getPopulation.getPersons.size()
+
+      logger.info(
+        s"""
+      |After snapping locations and validating scenario:
+      |Number of households: $afterHouseholdsCount. Removed: ${beforeHouseholdsCount - afterHouseholdsCount}.
+      |Number of persons: $afterPopulationCount. Removed: ${beforePopulationCount - afterPopulationCount}.""".stripMargin
+      )
+    }
+
     // write static metrics, such as population size, vehicles fleet size, etc.
     // necessary to be called after population sampling
     BeamStaticMetricsWriter.writeSimulationParameters(
@@ -721,7 +741,8 @@ trait BeamHelper extends LazyLogging {
         beamServices.beamConfig,
         beamServices.geo,
         beamServices.beamScenario.transportNetwork.streetLayer,
-        beamServices.beamScenario.tazTreeMap
+        beamServices.beamScenario.tazTreeMap,
+        Some(outputDir)
       )
       generatePopulationForPayloadPlans(
         beamScenario,
@@ -800,15 +821,14 @@ trait BeamHelper extends LazyLogging {
     matsimConfig: MatsimConfig
   ): (MutableScenario, BeamScenario, Boolean) = {
     val scenarioConfig = beamConfig.beam.exchange.scenario
-
     val src = scenarioConfig.source.toLowerCase
-
     val fileFormat = scenarioConfig.fileFormat
+    val outputDirOpt = Option(matsimConfig.controler().getOutputDirectory)
 
     val (scenario, beamScenario, plansMerged) =
       ProfilingUtils.timed(s"Load scenario using $src/$fileFormat", x => logger.info(x)) {
         if (src == "urbansim" || src == "urbansim_v2" || src == "generic") {
-          val beamScenario = loadScenario(beamConfig)
+          val beamScenario = loadScenario(beamConfig, outputDirOpt)
           val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
           val geoUtils = new GeoUtilsImpl(beamConfig)
           val (scenario, plansMerged) = {
@@ -877,24 +897,24 @@ trait BeamHelper extends LazyLogging {
         } else if (src == "beam") {
           fileFormat match {
             case "csv" =>
-              val beamScenario = loadScenario(beamConfig)
+              val beamScenario = loadScenario(beamConfig, outputDirOpt)
               val scenario = {
                 val source = new BeamScenarioSource(
                   beamConfig,
                   rdr = readers.BeamCsvScenarioReader
                 )
                 val scenarioBuilder = ScenarioBuilder(matsimConfig, beamScenario.network)
-                new BeamScenarioLoader(scenarioBuilder, beamScenario, source, new GeoUtilsImpl(beamConfig))
-                  .loadScenario()
+                new BeamScenarioLoader(
+                  scenarioBuilder,
+                  beamScenario,
+                  source,
+                  new GeoUtilsImpl(beamConfig)
+                ).loadScenario()
               }.asInstanceOf[MutableScenario]
               (scenario, beamScenario, false)
             case "xml" =>
-              val beamScenario = loadScenario(beamConfig)
-              val scenario = {
-                val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-                fixDanglingPersons(result)
-                result
-              }
+              val beamScenario = loadScenario(beamConfig, outputDirOpt)
+              val scenario = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
               (scenario, beamScenario, false)
             case unknown =>
               throw new IllegalArgumentException(s"Beam does not support [$unknown] file type")

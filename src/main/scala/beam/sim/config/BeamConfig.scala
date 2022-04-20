@@ -58,7 +58,8 @@ object BeamConfig {
       thresholdForWalkingInMeters: scala.Int,
       timeBinSize: scala.Int,
       toll: BeamConfig.Beam.Agentsim.Toll,
-      tuning: BeamConfig.Beam.Agentsim.Tuning
+      tuning: BeamConfig.Beam.Agentsim.Tuning,
+      snapLocationAndRemoveInvalidInputs: scala.Boolean
     )
 
     object Agentsim {
@@ -2289,7 +2290,11 @@ object BeamConfig {
           tuning = BeamConfig.Beam.Agentsim.Tuning(
             if (c.hasPathOrNull("tuning")) c.getConfig("tuning")
             else com.typesafe.config.ConfigFactory.parseString("tuning{}")
-          )
+          ),
+          snapLocationAndRemoveInvalidInputs =
+            if (c.hasPathOrNull("snapLocationAndRemoveInvalidInputs"))
+              c.getBoolean("snapLocationAndRemoveInvalidInputs")
+            else false
         )
       }
     }
