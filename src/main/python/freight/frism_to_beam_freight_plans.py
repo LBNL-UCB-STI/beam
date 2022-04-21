@@ -2,61 +2,82 @@ import pandas as pd
 import os
 from pathlib import Path
 
-def read_csv_file(filename):
+
+def read_csv_file(filename_):
     compression = None
-    if filename.endswith(".gz"):
+    if filename_.endswith(".gz"):
         compression = 'gzip'
-    return pd.read_csv(filename, sep=",", index_col=None, header=0, compression=compression)
+    return pd.read_csv(filename_, sep=",", index_col=None, header=0, compression=compression)
 
 
-def add_prefix(prefix, column, row, toNum = True):
-    if toNum:
+def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False):
+    if to_num:
         old = str(int(row[column]))
     else:
         old = str(row[column])
-    new = f"{prefix}{old}"
+    if veh_type:
+        if old == '1':
+            second_prefix = '-medium-duty-'
+        else:
+            second_prefix = '-heavy-duty-'
+    else:
+        second_prefix = '-'
+    new = f"{prefix}{second_prefix}{old.lower().replace('_', '-')}"
+    if store_dict is not None:
+        store_dict[old] = new
     return new
 
 
-directory_input = os.path.expanduser('~/Data/FREIGHT/Outputs(All SF)_0322_2022')
-directory_output = os.path.expanduser('~/Data/FREIGHT/Outputs(All SF)_0322_2022_merged')
+directory_input = os.path.expanduser('~/Data/FREIGHT/Tour_plan_inputs')
+directory_output = os.path.expanduser('~/Data/FREIGHT/Tour_plan_inputs_merged')
 Path(directory_output).mkdir(parents=True, exist_ok=True)
 carriers = None
 payload_plans = None
 tours = None
+tourId_with_prefix = {}
 
-for filename in os.listdir(directory_input):
+for filename in sorted(os.listdir(directory_input)):
     filepath = f'{directory_input}/{filename}'
+    print(filepath)
     parts = filename.split('_', 2)
-    unique_id = parts[0].lower()
+    if len(parts) < 3:
+        print("Warning! could not read file: ", filename)
+        continue
+    business_type = parts[0].lower()
     county = parts[1].lower()
     filetype = parts[2].lower()
-    
-    if filetype.startswith('carrier_'):
+
+    if "carrier" in filetype:
         df = pd.read_csv(filepath)
-        df['carrierId'] = df.apply(lambda row: add_prefix(f'{unique_id}-{county}-', 'carrierId', row), axis=1)
-        df['vehicleId'] = df.apply(lambda row: add_prefix(f'{unique_id}-{county}-', 'vehicleId', row), axis=1)
-        df['vehicleTypeId'] = df.apply(lambda row: add_prefix('FREIGHT-', 'vehicleTypeId', row), axis=1)
-        df['tourId'] = df.apply(lambda row: add_prefix(f'{unique_id}-{county}-', 'tourId', row), axis=1)
+        # df['carrierId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'carrierId', row), axis=1)
+        # df['vehicleId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'vehicleId', row), axis=1)
+        df['carrierId'] = df.apply(lambda row: add_prefix(f'{county}', 'carrierId', row, False), axis=1)
+        df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId'], 'vehicleId', row), axis=1)
+        df['vehicleTypeId'] = df.apply(lambda row: add_prefix('freight', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True), axis=1)
+        # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
+        df['tourId'] = df.apply(lambda row: add_prefix(row['carrierId'], 'tourId', row, True, tourId_with_prefix), axis=1)
         if carriers is None:
             carriers = df
         else:
             carriers = pd.concat([carriers, df])
-    elif filetype.startswith('freight_tours_'):
+    elif "freight_tours" in filetype:
         df = pd.read_csv(filepath)
-        df['tour_id'] = df.apply(lambda row: add_prefix(f'{unique_id}-{county}-', 'tour_id', row), axis=1)
+        # df['tour_id'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tour_id', row), axis=1)
+        df['tour_id'] = df.apply(lambda row: tourId_with_prefix[str(int(row['tour_id']))], axis=1)
         if tours is None:
             tours = df
         else:
             tours = pd.concat([tours, df])
-    elif filetype.startswith('payload_'):
+    elif "payload" in filetype:
         df = pd.read_csv(filepath)
-        df['tourId'] = df.apply(lambda row: add_prefix(f'{unique_id}-{county}-', 'tourId', row), axis=1)
-        df['payloadId'] = df.apply(lambda row: add_prefix(f'{unique_id}-{county}-', 'payloadId', row, False), axis=1)
+        # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
+        df['tourId'] = df.apply(lambda row: tourId_with_prefix[str(int(row['tourId']))], axis=1)
+        df['payloadId'] = df.apply(lambda row: add_prefix(row['tourId'], 'payloadId', row, False), axis=1)
         if payload_plans is None:
             payload_plans = df
         else:
             payload_plans = pd.concat([payload_plans, df])
+        tourId_with_prefix = {}
     else:
         print(f'SKIPPING {filetype}')
 
@@ -73,7 +94,7 @@ carriers_renames = {
 }
 carriers_drop = ['x', 'y']
 carriers.rename(columns=carriers_renames, inplace=True)
-carriers.drop(carriers_drop, axis=1, inplace=True)
+carriers.drop(carriers_drop, axis=1, inplace=True, errors='ignore')
 carriers['warehouseZone'] = carriers['warehouseZone'].astype(int)
 carriers.to_csv(f'{directory_output}/freight-merged-carriers.csv', index=False)
 
@@ -110,7 +131,7 @@ payload_plans_renames = {
 payload_plans_drop = ['weightInlb', 'cummulativeWeightInlb']
 payload_plans['weightInKg'] = abs(payload_plans['weightInlb'].astype(int)) * 0.45359237
 payload_plans.rename(columns=payload_plans_renames, inplace=True)
-payload_plans.drop(payload_plans_drop, axis=1, inplace=True)
+payload_plans.drop(payload_plans_drop, axis=1, inplace=True, errors='ignore')
 payload_plans['sequenceRank'] = payload_plans['sequenceRank'].astype(int)
 payload_plans['payloadType'] = payload_plans['payloadType'].astype(int)
 payload_plans['requestType'] = payload_plans['requestType'].astype(int)
