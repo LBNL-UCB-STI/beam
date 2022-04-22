@@ -21,6 +21,9 @@ events[grepl("freight",vehicle)]
 events[mode=="car"][grepl("freight",vehicle)]
 pt <- events[type=="PathTraversal"]
 pt[grepl("freight",vehicle)]
+pt[grepl("-b2b-",driver)]
+
+
 # events_filtered <- events[(actType %in% c("Warehouse", "Unloading", "Loading")) | (type=="PathTraversal" & startsWith(vehicle,"freight"))]
 # write.csv(
 #   events_filtered,

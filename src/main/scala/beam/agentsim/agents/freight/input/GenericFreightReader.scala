@@ -337,7 +337,7 @@ class GenericFreightReader(
   @Override
   def createPersonId(carrierId: Id[FreightCarrier], vehicleId: Id[BeamVehicle]): Id[Person] = {
     val updatedVehicleId = vehicleId.toString.replace(FREIGHT_ID_PREFIX + "Vehicle-", "")
-    Id.createPersonId(s"${FREIGHT_ID_PREFIX}Agent-$updatedVehicleId")
+    Id.createPersonId(s"${FREIGHT_ID_PREFIX}Driver-$updatedVehicleId")
   }
 
   @Override
