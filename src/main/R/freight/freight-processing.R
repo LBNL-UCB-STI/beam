@@ -20,7 +20,7 @@ events <- readCsv(pp(freightDir, "/via/0.events.csv"))
 events[grepl("freight",vehicle)]
 events[mode=="car"][grepl("freight",vehicle)]
 pt <- events[type=="PathTraversal"]
-pt[startsWith(vehicle,"freight")]
+pt[grepl("freight",vehicle)]
 # events_filtered <- events[(actType %in% c("Warehouse", "Unloading", "Loading")) | (type=="PathTraversal" & startsWith(vehicle,"freight"))]
 # write.csv(
 #   events_filtered,
