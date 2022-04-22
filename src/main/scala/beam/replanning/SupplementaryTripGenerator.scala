@@ -267,7 +267,7 @@ class SupplementaryTripGenerator(
             val newActivity =
               PopulationUtils.createActivityFromCoord(
                 newActivityType,
-            TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz, rnd, snapLocationHelper)
+                TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz, rnd, snapLocationHelper)
               )
             val activityBeforeNewActivity =
               PopulationUtils.createActivityFromCoord(prevActivity.getType, prevActivity.getCoord)
