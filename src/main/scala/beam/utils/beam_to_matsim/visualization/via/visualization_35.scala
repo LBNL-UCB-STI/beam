@@ -71,7 +71,7 @@ object visualization_35 extends App {
 
   val (events, typeToId) = Reader.transformPathTraversals(eventsWithAlternatives, vehicleId, vehicleType)
 
-  Writer.writeViaEventsQueue[ViaEvent](events, _.toXml.toString, viaEventsFile)
+  Writer.writeViaEventsCollection(events, _.toXml.toString, viaEventsFile)
   Writer.writeViaIdFile(typeToId, viaIdFile)
 
 }

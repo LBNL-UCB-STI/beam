@@ -37,15 +37,19 @@ runcmd:
   - sudo apt-get install gcc-8 g++-8 -y
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 --slave /usr/bin/g++ g++ /usr/bin/g++-8
   - sudo apt install jq -y
+  - sudo add-apt-repository ppa:git-core/ppa -y
+  - sudo apt-get update
+  - sudo apt-get install git -y
   - echo "-------------------Finished updating Beam dependencies----------------------"
   - cd /home/ubuntu/git/beam
   - echo "send notification ..."
   - /home/ubuntu/git/glip.sh -i "http://icons.iconarchive.com/icons/uiconstock/socialmedia/32/AWS-icon.png" -a "Updating Dependencies" -b "Beam automated deployment image update started on $(ec2metadata --instance-id)."
   - echo "git checkout ..."
-  - sudo git reset origin/HEAD
+  - sudo git reset --hard origin/HEAD
   - sudo git checkout -- .
   - sudo git clean -df
   - sudo git checkout develop
+  - sudo git reset --hard origin/develop
   - sudo git pull
   - sudo git fetch
   - sudo git fetch --prune
@@ -101,6 +105,7 @@ def init_ec2(region):
 
 def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, en_vars):
     res = ec2.run_instances(ImageId=en_vars[region_prefix + 'IMAGE_ID'],
+
                             InstanceType=instance_type,
                             UserData=script,
                             KeyName=en_vars[region_prefix + 'KEY_NAME'],
@@ -114,7 +119,7 @@ def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_na
                                 'Tags': [ {
                                     'Key': 'Name',
                                     'Value': instance_name
-                                } ]
+                                 }]
                             } ])
     return res['Instances'][0]['InstanceId']
 
