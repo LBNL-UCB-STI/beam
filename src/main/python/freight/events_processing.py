@@ -2,7 +2,7 @@ import pandas as pd
 import os
 
 work_directory = '~/Data/FREIGHT/validation/beam/'
-filename = '0.events.new.csv'
+filename = '0.events.csv'
 full_filename = os.path.expanduser(work_directory + filename)
 compression = None
 if full_filename.endswith(".gz"):

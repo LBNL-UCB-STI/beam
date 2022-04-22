@@ -1,6 +1,7 @@
 package beam.sim
 
 import akka.actor.ActorRef
+import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailVehicleId, Shift}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
@@ -580,7 +581,9 @@ class ProceduralRideHailFleetInitializer(
     var equivalentNumberOfDrivers = 0.0
 
     val personsWithMoreThanOneActivity =
-      scenario.getPopulation.getPersons.values().asScala.filter(_.getSelectedPlan.getPlanElements.size > 1)
+      scenario.getPopulation.getPersons.values().asScala.filter { p =>
+        !p.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX) && p.getSelectedPlan.getPlanElements.size > 1
+      }
     val persons: Array[Person] = rand.shuffle(personsWithMoreThanOneActivity).toArray
 
     val activityEndTimes: Array[Int] = persons.flatMap {
