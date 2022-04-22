@@ -11,11 +11,13 @@ import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
+
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.HasTriggerId
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.logging.pattern.ask
 import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
@@ -28,6 +30,7 @@ import scala.concurrent.{ExecutionContext, Future}
 class HouseholdFleetManager(
   parkingManager: ActorRef,
   vehicles: Map[Id[BeamVehicle], BeamVehicle],
+//  geo: GeoUtils,
   homeCoord: Coord,
   maybeEmergencyHouseholdVehicleGenerator: Option[EmergencyHouseholdVehicleGenerator],
   whoDrivesThisVehicle: Map[Id[BeamVehicle], Id[Person]], // so far only freight module is using this collection
@@ -72,6 +75,7 @@ class HouseholdFleetManager(
             .map { r =>
               (id, r)
             }
+
       }
       val futureOfList = Future.sequence(listOfFutures)
       val response = futureOfList.map(ResolvedParkingResponses(triggerId, _))
@@ -134,6 +138,7 @@ class HouseholdFleetManager(
             logger.error(s"THE LIST OF VEHICLES SHOULD NOT BE EMPTY")
           logger.debug(s"Not returning vehicle because no default for  is defined")
           sender() ! MobilityStatusResponse(Vector(), triggerId)
+
       }
 
     case Finish =>

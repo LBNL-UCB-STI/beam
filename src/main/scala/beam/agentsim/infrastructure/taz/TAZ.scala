@@ -56,7 +56,7 @@ object TAZ {
     }
 
     _find(startRadius).map { taz =>
-      // Note, this assumes both TAZs and SearchCenter are in local coordinates, and therefore in units of meters
+      // beam.sim.Note, this assumes both TAZs and SearchCenter are in local coordinates, and therefore in units of meters
       (taz, GeoUtils.distFormula(taz.coord, searchCenter))
     }
   }
@@ -90,7 +90,7 @@ object TAZ {
     }
 
     _find(0.0, startRadius).map { taz =>
-      // Note, this assumes both TAZs and SearchCenter are in local coordinates, and therefore in units of meters
+      // beam.sim.Note, this assumes both TAZs and SearchCenter are in local coordinates, and therefore in units of meters
       (taz, GeoUtils.distFormula(taz.coord, searchCenter))
     }
   }

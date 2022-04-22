@@ -12,7 +12,7 @@ import scala.language.implicitConversions
 /**
   * [[ValueEnum]] containing all of the translations b/w BEAM <==> R5[[LegMode]] MATSim [[TransportMode]].
   *
-  * Note: There is an implicit conversion
+  * beam.sim.Note: There is an implicit conversion
   *
   * Created by sfeygin on 4/5/17.
   */
@@ -34,6 +34,8 @@ object Modes {
     def isTransit: Boolean = isR5TransitMode(this)
     def isMassTransit: Boolean = this == SUBWAY || this == RAIL || this == FERRY || this == TRAM
     def isRideHail: Boolean = this == RIDE_HAIL
+    def isHovTeleportation: Boolean = this == HOV2_TELEPORTATION || this == HOV3_TELEPORTATION
+    def isEmergency: Boolean = this == EMERGENCY
   }
 
   object BeamMode extends StringEnum[BeamMode] with StringCirceEnum[BeamMode] {
@@ -45,7 +47,11 @@ object Modes {
 
     override val values: immutable.IndexedSeq[BeamMode] = findValues
 
+    // modes that doesn't have r5Mode
+
     case object HOV2_TELEPORTATION extends BeamMode(value = "hov2_teleportation", None, "")
+
+    case object EMERGENCY extends BeamMode(value = "emergency", None, "")
 
     case object HOV3_TELEPORTATION extends BeamMode(value = "hov3_teleportation", None, "")
 
@@ -101,6 +107,13 @@ object Modes {
           TransportMode.transit_walk
         )
 
+    case object EMERGENCY_TRANSIT
+      extends BeamMode(
+        value = "emergency_transit",
+        Some(Right(TransitModes.TRANSIT)),
+        TransportMode.other
+      )
+
     case object DRIVE_TRANSIT
         extends BeamMode(
           value = "drive_transit",
@@ -124,6 +137,8 @@ object Modes {
 
     val chainBasedModes = Seq(CAR, BIKE)
 
+    val personalVehicleModes = Seq(CAR, BIKE, DRIVE_TRANSIT, BIKE_TRANSIT)
+
     val transitModes =
       Seq(BUS, FUNICULAR, GONDOLA, CABLE_CAR, FERRY, TRAM, TRANSIT, RAIL, SUBWAY)
 
@@ -134,6 +149,7 @@ object Modes {
         CAR,
         CAV,
         WALK,
+        EMERGENCY,
         BIKE,
         TRANSIT,
         RIDE_HAIL,
@@ -160,6 +176,8 @@ object Modes {
   }
 
   def isChainBasedMode(beamMode: BeamMode): Boolean = BeamMode.chainBasedModes.contains(beamMode)
+
+  def isPersonalVehicleMode(beamMode: BeamMode): Boolean = BeamMode.personalVehicleModes.contains(beamMode)
 
   implicit def beamMode2R5Mode(beamMode: BeamMode): Either[LegMode, TransitModes] =
     beamMode.r5Mode.get
@@ -233,6 +251,7 @@ object Modes {
   def getAccessVehicleMode(mode: BeamMode): BeamMode = mode match {
     case BeamMode.TRANSIT           => throw new IllegalArgumentException("access vehicle is unknown")
     case BeamMode.WALK_TRANSIT      => BeamMode.WALK
+    case BeamMode.EMERGENCY_TRANSIT      => BeamMode.EMERGENCY
     case BeamMode.DRIVE_TRANSIT     => BeamMode.CAR
     case BeamMode.RIDE_HAIL_TRANSIT => BeamMode.CAR
     case BeamMode.BIKE_TRANSIT      => BeamMode.BIKE

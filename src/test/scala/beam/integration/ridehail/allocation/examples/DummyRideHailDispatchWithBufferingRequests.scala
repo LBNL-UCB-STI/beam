@@ -36,7 +36,7 @@
 //
 //    if (enableDummyRidehailReplacement) {
 //
-//      // TODO: test if any issue with mixing with updateVehicleAllocations/handleRideCancellationReply
+//      // TODO: beam.sim.test if any issue with mixing with updateVehicleAllocations/handleRideCancellationReply
 //      //bufferedRideHailRequests.newTimeout(tick, triggerId)
 //
 //      for (request <- rideHailManager.getCompletedDummyRequests.values) {

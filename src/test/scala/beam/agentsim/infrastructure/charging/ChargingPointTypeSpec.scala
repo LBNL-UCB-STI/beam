@@ -27,7 +27,7 @@ class ChargingPointTypeSpec extends AnyWordSpec with Matchers {
     "custom charging point types" when {
       "given a string describing a valid custom ChargingPointType with correct formatting" should {
         "construct that charging point type" in {
-          val input = "test(250|DC)"
+          val input = "beam.sim.test(250|DC)"
           ChargingPointTypeSpec.expectsACustomChargingPoint(input) match {
             case Left(e) => fail(e)
             case Right(result) =>
@@ -39,7 +39,7 @@ class ChargingPointTypeSpec extends AnyWordSpec with Matchers {
       }
       "given a string with valid CustomChargingPoint data but extra spaces" should {
         "still correctly parse and construct that ChargingPointType" in {
-          val input = "test ( 250 | DC )"
+          val input = "beam.sim.test ( 250 | DC )"
           ChargingPointTypeSpec.expectsACustomChargingPoint(input) match {
             case Left(e) => fail(e)
             case Right(result) =>
@@ -51,13 +51,13 @@ class ChargingPointTypeSpec extends AnyWordSpec with Matchers {
       }
       "given strings with invalid installed capacity values" should {
         "throw an exception" in {
-          val twoPeriods = "test ( 250.. | DC )"
+          val twoPeriods = "beam.sim.test ( 250.. | DC )"
           an[IllegalArgumentException] should be thrownBy ChargingPointTypeSpec.expectsACustomChargingPoint(twoPeriods)
-          val hasLetters = "test ( 25a0 | DC )"
+          val hasLetters = "beam.sim.test ( 25a0 | DC )"
           an[IllegalArgumentException] should be thrownBy ChargingPointTypeSpec.expectsACustomChargingPoint(hasLetters)
-          val comma = "test ( 250,0 | DC )"
+          val comma = "beam.sim.test ( 250,0 | DC )"
           an[IllegalArgumentException] should be thrownBy ChargingPointTypeSpec.expectsACustomChargingPoint(comma)
-          val negativeValue = "test ( -250 | DC )"
+          val negativeValue = "beam.sim.test ( -250 | DC )"
           an[IllegalArgumentException] should be thrownBy ChargingPointTypeSpec.expectsACustomChargingPoint(
             negativeValue
           )
@@ -66,10 +66,10 @@ class ChargingPointTypeSpec extends AnyWordSpec with Matchers {
       }
       "given strings with varying character case for electricCurrentType" should {
         "still correctly parse and construct that ChargingPointType" in {
-          val bothUpper = "test ( 250 | AC )"
-          val lowerFirst = "test ( 250 | dC )"
-          val lowerSecond = "test ( 250 | Ac )"
-          val bothLower = "test ( 250 | dc )"
+          val bothUpper = "beam.sim.test ( 250 | AC )"
+          val lowerFirst = "beam.sim.test ( 250 | dC )"
+          val lowerSecond = "beam.sim.test ( 250 | Ac )"
+          val bothLower = "beam.sim.test ( 250 | dc )"
           ChargingPointTypeSpec.expectsACustomChargingPoint(bothUpper) match {
             case Left(e) => fail(e)
             case Right(result) =>
@@ -94,17 +94,17 @@ class ChargingPointTypeSpec extends AnyWordSpec with Matchers {
       }
       "given strings with invalid electricCurrentType values" should {
         "throw an exception" in {
-          val badLetters = "test ( 250 | AB )"
+          val badLetters = "beam.sim.test ( 250 | AB )"
           an[IllegalArgumentException] should be thrownBy ChargingPointTypeSpec.expectsACustomChargingPoint(badLetters)
-          val spaceBetweenLetters = "test ( 250 | A C )"
+          val spaceBetweenLetters = "beam.sim.test ( 250 | A C )"
           an[IllegalArgumentException] should be thrownBy ChargingPointTypeSpec.expectsACustomChargingPoint(
             spaceBetweenLetters
           )
-          val containsValidButTooLong = "test ( 25a0 | aaaDCaaa )"
+          val containsValidButTooLong = "beam.sim.test ( 25a0 | aaaDCaaa )"
           an[IllegalArgumentException] should be thrownBy ChargingPointTypeSpec.expectsACustomChargingPoint(
             containsValidButTooLong
           )
-          val flipped = "test ( DC | 1234 )"
+          val flipped = "beam.sim.test ( DC | 1234 )"
           an[IllegalArgumentException] should be thrownBy ChargingPointTypeSpec.expectsACustomChargingPoint(flipped)
         }
       }
@@ -115,7 +115,7 @@ class ChargingPointTypeSpec extends AnyWordSpec with Matchers {
 object ChargingPointTypeSpec extends org.scalatest.Assertions {
 
   /**
-    * helper test function which handles the common parsing failures
+    * helper beam.sim.test function which handles the common parsing failures
     * @param input a string representation of a CustomChargingPoint
     * @param pos required for calling "fail" here, an implicit that tracks the call point of an error
     * @return either an error string, or a CustomChargingPoint

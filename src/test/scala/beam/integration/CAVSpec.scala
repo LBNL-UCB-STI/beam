@@ -29,7 +29,7 @@ class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
            |beam.agentsim.agents.vehicles.sharedFleets = []
         """.stripMargin
       )
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
     runCAVTest(config)
   }
@@ -90,7 +90,7 @@ class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
     controler.run()
 
     assume(trips != 0, "Something's wildly broken, I am not seeing any trips.")
-    assume(cavVehicles != 0, "Nobody has a CAV vehicle in test scenario, nothing to test.")
+    assume(cavVehicles != 0, "Nobody has a CAV vehicle in beam.sim.test scenario, nothing to beam.sim.test.")
     assert(cavTrips >= cavVehicles, "Not enough CAV trips (by mode choice) seen.")
   }
 

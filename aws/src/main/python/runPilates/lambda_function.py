@@ -77,7 +77,7 @@ runcmd:
   - echo "-------------------Starting Pilates----------------------"
   - echo $(date +%s) > /tmp/.starttime
   - cd /home/ubuntu/git/beam
-  - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
+  - rm -rf /home/ubuntu/git/beam/beam.sim.test/input/sf-light/r5/network.dat
   - ln -sf /var/log/cloud-init-output.log ./cloud-init-output.log
   - instID=$(ec2metadata --instance-id)
   - instTYPE=$(ec2metadata --instance-type)

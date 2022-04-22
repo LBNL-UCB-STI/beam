@@ -34,18 +34,18 @@ case class ODRow(origin: GeoUnit.TAZ, destination: GeoUnit.TAZ)
 
 /*
 Example of parameters usage:
- --configPath test/input/beamville/beam.conf
- --input test/input/beamville/input.csv
- --output test/input/beamville/output.csv
- --linkstatsPath test/input/beamville/linkstats.csv
- --ODSkimsPath test/input/beamville/odskims.csv
+ --configPath beam.sim.test/input/beamville/beam.conf
+ --input beam.sim.test/input/beamville/input.csv
+ --output beam.sim.test/input/beamville/output.csv
+ --linkstatsPath beam.sim.test/input/beamville/linkstats.csv
+ --ODSkimsPath beam.sim.test/input/beamville/odskims.csv
  --parallelism 2
 
-Note that all csv files can automatically use gzip compression if specified with `csv.gz` extension
-for example "--input test/input/beamville/input.csv.gz"
+beam.sim.Note that all csv files can automatically use gzip compression if specified with `csv.gz` extension
+for example "--input beam.sim.test/input/beamville/input.csv.gz"
 
  Run with gradle:
- ./gradlew execute -PmainClass=beam.router.skim.urbansim.BackgroundSkimsCreatorApp -PappArgs=["'--configPath', 'test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf', '--output', 'output.csv', '--input', 'input.csv', '--ODSkimsPath', 'ODSkimsBeamville.csv',  '--linkstatsPath', '0.linkstats.csv'"]
+ ./gradlew execute -PmainClass=beam.router.skim.urbansim.BackgroundSkimsCreatorApp -PappArgs=["'--configPath', 'beam.sim.test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf', '--output', 'output.csv', '--input', 'input.csv', '--ODSkimsPath', 'ODSkimsBeamville.csv',  '--linkstatsPath', '0.linkstats.csv'"]
  */
 object BackgroundSkimsCreatorApp extends App with BeamHelper {
 

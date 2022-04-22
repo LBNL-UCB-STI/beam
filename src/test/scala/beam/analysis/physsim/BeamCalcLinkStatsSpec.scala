@@ -21,9 +21,9 @@ import scala.xml.XML
 class BeamCalcLinkStatsSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterAll {
 
   private val BASE_PATH = new File("").getAbsolutePath
-  private val OUTPUT_DIR_PATH = BASE_PATH + "/" + testOutputDir + "linkstats-test"
-  private val EVENTS_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/linkStatsTest.events.xml"
-  private val NETWORK_FILE_PATH = BASE_PATH + "/test/input/beamville/r5/physsim-network.xml"
+  private val OUTPUT_DIR_PATH = BASE_PATH + "/" + testOutputDir + "linkstats-beam.sim.test"
+  private val EVENTS_FILE_PATH = BASE_PATH + "/beam.sim.test/input/beamville/beam.sim.test-data/linkStatsTest.events.xml"
+  private val NETWORK_FILE_PATH = BASE_PATH + "/beam.sim.test/input/beamville/r5/physsim-network.xml"
 
   private var beamCalcLinkStats: BeamCalcLinkStats = _
 

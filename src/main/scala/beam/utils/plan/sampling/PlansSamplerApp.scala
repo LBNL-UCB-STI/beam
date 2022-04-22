@@ -641,16 +641,16 @@ object PlansSampler {
   *
   * $> gradle :execute -PmainClass=beam.utils.sampling.PlansSamplerApp
   * -PappArgs="['production/application-sfbay/population.xml.gz', 'production/application-sfbay/shape/bayarea_county_dissolve_4326.shp',
-  * 'production/application-sfbay/physsim-network.xml', 'test/input/sf-light/ind_X_hh_out.csv.gz',
+  * 'production/application-sfbay/physsim-network.xml', 'beam.sim.test/input/sf-light/ind_X_hh_out.csv.gz',
   * 'production/application-sfbay/vehicles.xml.gz', '413187', production/application-sfbay/samples', 'epsg:4326', 'epsg:26910']"
   *
   * for siouxfalls
-  * test/input/siouxfalls/conversion-input/Siouxfalls_population.xml
-  * test/input/siouxfalls/conversion-input/sioux_falls_population_counts_by_census_block_dissolved.shp
-  * test/input/siouxfalls/conversion-input/Siouxfalls_network_PT.xml
-  * test/input/siouxfalls/conversion-input/ind_X_hh_out.csv.gz
-  * test/input/siouxfalls/conversion-input/transitVehicles.xml
-  * 15000 test/input/siouxfalls/samples/15k epsg:4326 epsg:26914
+  * beam.sim.test/input/siouxfalls/conversion-input/Siouxfalls_population.xml
+  * beam.sim.test/input/siouxfalls/conversion-input/sioux_falls_population_counts_by_census_block_dissolved.shp
+  * beam.sim.test/input/siouxfalls/conversion-input/Siouxfalls_network_PT.xml
+  * beam.sim.test/input/siouxfalls/conversion-input/ind_X_hh_out.csv.gz
+  * beam.sim.test/input/siouxfalls/conversion-input/transitVehicles.xml
+  * 15000 beam.sim.test/input/siouxfalls/samples/15k epsg:4326 epsg:26914
   */
 object PlansSamplerApp extends App {
   val sampler = PlansSampler

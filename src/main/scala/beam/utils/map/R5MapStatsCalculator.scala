@@ -17,7 +17,7 @@ object R5MapStatsCalculator {
     // args: <osm-path> <link-radius-meters>
     require(
       args.length == 2,
-      "Expected path for OSM file, like '//test/input/newyork/r5-prod/newyork-14-counties.osm.pbf' and link-radius-meters number"
+      "Expected path for OSM file, like '//beam.sim.test/input/newyork/r5-prod/newyork-14-counties.osm.pbf' and link-radius-meters number"
     )
 
     val pathToOsm = args(0)

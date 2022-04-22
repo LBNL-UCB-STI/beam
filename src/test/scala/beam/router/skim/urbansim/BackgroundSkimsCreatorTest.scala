@@ -29,12 +29,12 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
         |beam.routing.carRouter="staticGH"
         |beam.urbansim.backgroundODSkimsCreator.skimsKind = "activitySim"
         |beam.urbansim.backgroundODSkimsCreator.routerType = "r5+gh"
-        |beam.agentsim.taz.filePath = test/test-resources/taz-centers.12.csv
+        |beam.agentsim.taz.filePath = beam.sim.test/beam.sim.test-resources/taz-centers.12.csv
         |beam.urbansim.backgroundODSkimsCreator.maxTravelDistanceInMeters.walk = 1000
         |beam.routing.r5.linkRadiusMeters = 10000
       """.stripMargin
     )
-    .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))
+    .withFallback(testConfig("beam.sim.test/input/sf-light/sf-light-1k.conf"))
     .resolve()
 
   implicit val actorSystem: ActorSystem = ActorSystem(s"$actorSystemName", config)

@@ -102,7 +102,7 @@ object ParkingManagerBenchmark extends StrictLogging {
         |}
        """.stripMargin
     )
-    .withFallback(BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf"))
+    .withFallback(BeamConfigUtils.parseFileSubstitutingInputDirectory("beam.sim.test/input/beamville/beam.conf"))
     .resolve()
 
   implicit val actorSystem: ActorSystem = ActorSystem("ParkingManagerBenchmark", typeSafeConfig)
@@ -250,7 +250,7 @@ object ParkingManagerBenchmark extends StrictLogging {
         val end = System.currentTimeMillis()
         val diff = end - start
         val what: String = s"$managerType manager"
-        (s"$what for $nTimes tests took $diff ms, AVG per test: ${diff.toDouble / nTimes} ms", responses)
+        (s"$what for $nTimes tests took $diff ms, AVG per beam.sim.test: ${diff.toDouble / nTimes} ms", responses)
       }
 
       val nToTake = (allActivityLocations.length * fractionToBench).toInt

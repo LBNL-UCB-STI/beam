@@ -1,7 +1,7 @@
 
 
-#d <- data.table(read.csv('~/Dropbox/ucb/vto/beam-all/beam/test/input/beamville/lccm.csv'))
-d <- data.table(read.csv('~/Dropbox/ucb/vto/beam-all/beam/test/input/sf-light/lccm-update-vot.csv'))
+#d <- data.table(read.csv('~/Dropbox/ucb/vto/beam-all/beam/beam.sim.test/input/beamville/lccm.csv'))
+d <- data.table(read.csv('~/Dropbox/ucb/vto/beam-all/beam/beam.sim.test/input/sf-light/lccm-update-vot.csv'))
 dm <- melt(d,measure.vars=pp('class',1:6))
 dm[,':='(latentClass=variable.1,variable.1=NULL)]
 dm[alternative=='COLUMNS',':='(alternative=latentClass,latentClass='')]
@@ -20,7 +20,7 @@ dm <- rbindlist(list(dm[alternative!='ALL'],alt.exp),use.names=T)
 
 setkey(dm,model,tourType,variable,alternative,latentClass)
 
-#write.csv(dm[,.(model,tourType,variable,alternative,units,latentClass,value)],file='~/Dropbox/ucb/vto/beam-all/beam/test/input/beamville/lccm-long.csv',row.names=F,na="",quote=F)
-write.csv(dm[,.(model,tourType,variable,alternative,units,latentClass,value)],file='~/Dropbox/ucb/vto/beam-all/beam/test/input/sf-light/lccm-long.csv',row.names=F,na="",quote=F)
+#write.csv(dm[,.(model,tourType,variable,alternative,units,latentClass,value)],file='~/Dropbox/ucb/vto/beam-all/beam/beam.sim.test/input/beamville/lccm-long.csv',row.names=F,na="",quote=F)
+write.csv(dm[,.(model,tourType,variable,alternative,units,latentClass,value)],file='~/Dropbox/ucb/vto/beam-all/beam/beam.sim.test/input/sf-light/lccm-long.csv',row.names=F,na="",quote=F)
 
 

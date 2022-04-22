@@ -65,7 +65,7 @@ class SkimmerSpec extends AnyFlatSpec with Matchers with BeamHelper {
          |}
          |beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 99999
       """.stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
     runScenarioWithSkimmer(config, classOf[CountSkimmerTester], classOf[CountSkimmerTester])
 

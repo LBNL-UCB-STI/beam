@@ -31,7 +31,7 @@ class LinkStateOfChargeSpec extends AnyWordSpecLike with Matchers with BeamHelpe
            beam.agentsim.agents.vehicles.linkSocAcrossIterations = true
            beam.physsim.skipPhysSim = true
          """)
-          .withFallback(testConfig("test/input/beamville/beam.conf"))
+          .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
           .resolve()
 
         val (matsimConfig, _, _) = runBeamWithConfig(baseConf)

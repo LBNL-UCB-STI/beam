@@ -48,7 +48,7 @@ class DrivesVehicleTest extends AnyFunSuite {
 
     DrivesVehicle.processLinkEvents(eventsManager, Id.createVehicleId(vehicleId), beamLeg)
 
-    // If not like this, I still need to do sliding and other things which is already in another test
+    // If not like this, I still need to do sliding and other things which is already in another beam.sim.test
     assert(handler.allEvents.size == 6)
     assert(
       handler

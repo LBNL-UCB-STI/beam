@@ -1,6 +1,6 @@
 
 
-ev <- data.table(read.csv('~/Dropbox/ucb/vto/beam-all/beam/output/test/sf-light-1k_2018-05-14_17-26-50/ITERS/it.0/0.events.csv'))
+ev <- data.table(read.csv('~/Dropbox/ucb/vto/beam-all/beam/output/beam.sim.test/sf-light-1k_2018-05-14_17-26-50/ITERS/it.0/0.events.csv'))
 
 peeps <- ev[type=='departure' & legMode=='drive_transit']$person
 

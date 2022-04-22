@@ -42,7 +42,7 @@ public class PhyssimCalcLinkSpeedDistributionStats {
         this.outputDirectoryHierarchy = outputDirectoryHierarchy;
         this.beamConfig = beamConfig;
 
-        // If not test mode pick up bin count from the beam configuration.
+        // If not beam.sim.test mode pick up bin count from the beam configuration.
         if (isNotTestMode()) {
             Double endTime = Time.parseTime(beamConfig.matsim().modules().qsim().endTime());
             Double noOfTimeBins = endTime / this.beamConfig.beam().physsim().linkStatsBinSize();
@@ -66,7 +66,7 @@ public class PhyssimCalcLinkSpeedDistributionStats {
                 generateInputDataForLinkEfficiencies(travelTime));
 
         if (this.outputDirectoryHierarchy != null) {
-            //If not running in test mode , write output to a csv file
+            //If not running in beam.sim.test mode , write output to a csv file
             if (isNotTestMode()) {
                 //write data outputs to CSV
                 this.writeCSV(speedDataList.get(), outputDirectoryHierarchy.getIterationFilename(iteration, outputAsSpeedUnitFileName + ".csv"), "freeSpeedInMetersPerSecond");
@@ -159,7 +159,7 @@ public class PhyssimCalcLinkSpeedDistributionStats {
         }
     }
 
-    // A helper method to test if the application is running in test mode or not
+    // A helper method to beam.sim.test if the application is running in beam.sim.test mode or not
     private boolean isNotTestMode() {
         return beamConfig != null;
     }

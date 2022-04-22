@@ -256,6 +256,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             geo.utm2Wgs(vehicle.locationUTM.loc),
             linkRadiusMeters
           )
+
           val directMode = LegMode.WALK
           val accessMode = LegMode.WALK
           val egressMode = LegMode.WALK

@@ -12,7 +12,7 @@ import scala.language.postfixOps
 class FareCalculatorSpec extends AnyWordSpecLike with BeamHelper {
 
   "Using sf-light calculator" when {
-    val config = testConfig("test/input/sf-light/sf-light.conf").resolve()
+    val config = testConfig("beam.sim.test/input/sf-light/sf-light.conf").resolve()
     val sfLightFareCalc = new FareCalculator(BeamConfig(config))
 
     "calculate fare for 3555 to 6332" should {
@@ -48,10 +48,10 @@ class FareCalculatorSpec extends AnyWordSpecLike with BeamHelper {
     }
   }
 
-  "Using test Calculator" when {
+  "Using beam.sim.test Calculator" when {
     val config = ConfigFactory
-      .parseString("beam.routing.r5.directory=test/input/fares")
-      .withFallback(testConfig("test/input/sf-light/sf-light.conf"))
+      .parseString("beam.routing.r5.directory=beam.sim.test/input/fares")
+      .withFallback(testConfig("beam.sim.test/input/sf-light/sf-light.conf"))
       .resolve()
 
     val testFareCalc = new FareCalculator(BeamConfig(config))

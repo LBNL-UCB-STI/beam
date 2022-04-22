@@ -24,8 +24,8 @@ import scala.util.Random
   * @author Dmitry Openkov
   */
 class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
-  private val freightInputDir = s"${System.getenv("PWD")}/test/test-resources/beam/agentsim/freight"
-  private val tazMap: TAZTreeMap = TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+  private val freightInputDir = s"${System.getenv("PWD")}/beam.sim.test/beam.sim.test-resources/beam/agentsim/freight"
+  private val tazMap: TAZTreeMap = TAZTreeMap.fromCsv("beam.sim.test/input/beamville/taz-centers.csv")
 
   private val geoUtils = new GeoUtils {
     override def localCRS: String = "epsg:26910"
@@ -158,7 +158,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
       plan4.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(
         new Coord(169900.11498160253, 3510.2356380579545)
       )
-      plan4.getPlanElements.get(4).asInstanceOf[Activity].getType should be("Warehouse")
+      plan4.getPlanElements.get(4).asInstanceOf[Activity].getType should be("Home")
     }
   }
 
@@ -173,7 +173,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
     )
     val payloadPlans: Map[Id[PayloadPlan], PayloadPlan] = converter.readPayloadPlans()
     val tours = converter.readFreightTours()
-    val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile("test/input/beamville/vehicleTypes.csv")
+    val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile("beam.sim.test/input/beamville/vehicleTypes.csv")
     val freightCarriers: IndexedSeq[FreightCarrier] =
       new GenericFreightReader(
         freightConfig,

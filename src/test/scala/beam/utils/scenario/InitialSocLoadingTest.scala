@@ -20,7 +20,7 @@ class InitialSocLoadingTest
     with RouterForTest
     with Matchers {
 
-  def config: com.typesafe.config.Config = testConfig("test/input/beamville/beam.conf").resolve()
+  def config: com.typesafe.config.Config = testConfig("beam.sim.test/input/beamville/beam.conf").resolve()
 
   def outputDirPath: String = basePath + "/" + testOutputDir + "soc_loading"
 

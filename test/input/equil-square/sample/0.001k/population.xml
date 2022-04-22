@@ -1,3 +1,24 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:13499e4f9a381958d3201cc87fe332dbf9f175f73a6dfd77262986460c442485
-size 1172
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE population SYSTEM "../dtd/population_v6.dtd">
+<!-- beam.sim.Note that origin (lon/lat of 0,0) in WGS space is actually at (166021.4,0) meters -->
+<!-- Each cell in Beamville is 1117m x 1117m -->
+
+<population>
+    <person id="1">
+        <plan score="-494.58068848294334" selected="yes">
+            <activity type="Home" link="sfpt383854" x="166000" y="10" end_time="01:00:00"/>
+            <leg mode="car">
+                <route type="links" start_link="sfpt383854" end_link="sfpt124271" trav_time="09:36:20"
+                       distance="9225.803524044934">sfpt383854 sfpt124271
+                </route>
+            </leg>
+            <activity type="Work" link="sfpt124271" x="170470.55" y="4500" end_time="18:00:00"/>
+            <leg mode="car" dep_time="16:15:32" trav_time="00:49:29">
+                <route type="links" start_link="sfpt124271" end_link="sfpt383854" trav_time="00:49:29"
+                       distance="4786.023015812122">sfpt124271 sfpt383854
+                </route>
+            </leg>
+            <activity type="Home" link="sfpt383854" x="166000" y="10"/>
+        </plan>
+    </person>
+</population>

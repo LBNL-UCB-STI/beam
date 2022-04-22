@@ -20,9 +20,9 @@ class BeamWarmStartRunSpec extends AnyWordSpecLike with Matchers with BeamHelper
         .parseString(s"""
                        |beam.agentsim.lastIteration = 1
                        |beam.warmStart.type = full
-                       |beam.warmStart.path = test/input/sf-light/warmstart
+                       |beam.warmStart.path = beam.sim.test/input/sf-light/warmstart
                      """.stripMargin)
-        .withFallback(testConfig("test/input/sf-light/sf-light.conf"))
+        .withFallback(testConfig("beam.sim.test/input/sf-light/sf-light.conf"))
         .resolve()
 
       val (_, output, _) = runBeamWithConfig(baseConf)

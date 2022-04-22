@@ -6,7 +6,7 @@
 //
 //class MathUtilsTest extends AnyFunSuite with Matchers {
 //
-//  test("selectElementsByProbability edge cases") {
+//  beam.sim.test("selectElementsByProbability edge cases") {
 //    val xs = (0 to 10).toArray
 //    def alwaysSelectProbabilityFunction(n: Int): Double = 1
 //    MathUtils.selectElementsByProbability(42, alwaysSelectProbabilityFunction, xs) shouldBe xs
@@ -15,8 +15,8 @@
 //    MathUtils.selectElementsByProbability(42, neverSelectProbabilityFunction, xs) shouldBe Array.empty
 //  }
 //
-//  test("selectElementsByProbability all probabilities are equal") {
-//    // Chi-Square test for simple case when the probability of selecting element is the same for all elements
+//  beam.sim.test("selectElementsByProbability all probabilities are equal") {
+//    // Chi-Square beam.sim.test for simple case when the probability of selecting element is the same for all elements
 //
 //    val xs = (0 to 10).toArray
 //    def probabilityFunction(n: Int): Double = 1.toDouble / xs.length
@@ -42,8 +42,8 @@
 //    require(!isRejected, s"Null hypothesis is rejected. Confidence interval was $alpha, P-value: $pValue")
 //  }
 //
-//  test ("selectElementsByProbability with different probabilities") {
-//    // Chi-Square test for simple case when the probability of selecting element not equal
+//  beam.sim.test ("selectElementsByProbability with different probabilities") {
+//    // Chi-Square beam.sim.test for simple case when the probability of selecting element not equal
 //
 //    val xs = (0 to 100).toArray
 //    def probabilityFunction(n: Int): Double = {

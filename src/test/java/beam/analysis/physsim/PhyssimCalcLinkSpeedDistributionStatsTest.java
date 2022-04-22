@@ -24,8 +24,8 @@ import static org.junit.Assert.assertTrue;
 public class PhyssimCalcLinkSpeedDistributionStatsTest {
 
     private static final String BASE_PATH = Paths.get(".").toAbsolutePath().toString();
-    private static final String EVENTS_FILE_PATH = BASE_PATH + "/test/input/equil-square/test-data/physSimEvents-relative-speeds.xml";
-    private static final String NETWORK_FILE_PATH = BASE_PATH + "/test/input/equil-square/test-data/physSimNetwork-relative-speeds.xml";
+    private static final String EVENTS_FILE_PATH = BASE_PATH + "/beam.sim.test/input/equil-square/beam.sim.test-data/physSimEvents-relative-speeds.xml";
+    private static final String NETWORK_FILE_PATH = BASE_PATH + "/beam.sim.test/input/equil-square/beam.sim.test-data/physSimNetwork-relative-speeds.xml";
 
     private static PhyssimCalcLinkSpeedDistributionStats physsimCalcLinkSpeedDistributionStats;
     private static Network network;

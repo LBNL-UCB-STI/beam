@@ -45,7 +45,7 @@ import org.matsim.core.controler._
   * For now, use MATSim constructs like [[org.matsim.core.events.handler.EventHandler]] and
   * [[org.matsim.core.controler.listener.ControlerListener]] to let your thing observe the simulation.
   *
-  * Note that the bit about the [[Injector]] is totally tangential, it's just the currently most
+  * beam.sim.Note that the bit about the [[Injector]] is totally tangential, it's just the currently most
   * consistent place to put this kind of thing. Nothing keeps us from getting rid of that construct, if
   * so desired, but we would need our own replacement for [[Controler]], and refactor [[BeamSim]] and
   * [[BeamMobsim]]. Please don't create a global variable because you don't like the [[Injector]].

@@ -20,7 +20,7 @@ import org.scalatest.matchers.should.Matchers
 
 class BeamAgentSchedulerSpec
     extends TestKit(
-      ActorSystem("BeamAgentSchedulerSpec", testConfig("test/input/beamville/beam.conf").resolve())
+      ActorSystem("BeamAgentSchedulerSpec", testConfig("beam.sim.test/input/beamville/beam.conf").resolve())
     )
     with AnyFunSpecLike
     with BeforeAndAfterAll

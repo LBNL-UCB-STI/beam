@@ -15,7 +15,7 @@ Configs will be resolved, all included configs will be parsed too and all nested
 The order of config keys in the config files does not matter, but, if config entry contains list of values
 and the order in the list is different, then it will be considered as difference.
 
-./gradlew :execute -PmainClass=beam.utils.ConfigValuesComparator -PappArgs="['test/input/sf-light/sf-light-1k.conf','test/input/sf-light/sf-light-5k.conf']"
+./gradlew :execute -PmainClass=beam.utils.ConfigValuesComparator -PappArgs="['beam.sim.test/input/sf-light/sf-light-1k.conf','beam.sim.test/input/sf-light/sf-light-5k.conf']"
  */
 object ConfigValuesComparator extends LazyLogging {
 

@@ -13,7 +13,7 @@ import scala.collection.JavaConverters._
 
 class SpatialIndexForRideHailAgentLocationTest extends AnyFunSuite with Matchers {
   // #####################################################################################
-  // If one day this test breaks then most probably it is because of the changes in `RideHailAgentLocation.equals`
+  // If one day this beam.sim.test breaks then most probably it is because of the changes in `RideHailAgentLocation.equals`
   // #####################################################################################
   test("Should not allow to put multiple RideHailAgentLocation with the same vehicleId") {
     val spatialIndex = new QuadTree[RideHailAgentLocation](0, 0, 1000, 100)
@@ -44,7 +44,7 @@ class SpatialIndexForRideHailAgentLocationTest extends AnyFunSuite with Matchers
   }
 
   test("Remove should respect only `RideHailAgentLocation.vehicleId`") {
-    // If one day this test breaks it that `RideHailAgentLocation.equals` has been changed
+    // If one day this beam.sim.test breaks it that `RideHailAgentLocation.equals` has been changed
     val spatialIndex = new QuadTree[RideHailAgentLocation](0, 0, 1000, 100)
     val rideHailAgentLocation = RideHailAgentLocation(
       null,

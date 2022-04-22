@@ -8,10 +8,10 @@ import java.nio.file.Paths
 class TravelTimeAndDistanceCalculatorAppSpec extends AnyWordSpecLike with Matchers {
 
   val parameters = InputParameters(
-    configPath = Paths.get("test/input/beamville/beam.conf"),
-    linkstatsPath = Paths.get("test/test-resources/beam/router/0.linkstats.csv.gz"),
+    configPath = Paths.get("beam.sim.test/input/beamville/beam.conf"),
+    linkstatsPath = Paths.get("beam.sim.test/beam.sim.test-resources/beam/router/0.linkstats.csv.gz"),
     router = "R5",
-    input = Paths.get("test/test-resources/beam/router/input.csv"),
+    input = Paths.get("beam.sim.test/beam.sim.test-resources/beam/router/input.csv"),
     output = Paths.get("output.csv")
   )
 

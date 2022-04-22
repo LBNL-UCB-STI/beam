@@ -25,16 +25,16 @@ class BeamSigoptTunerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
     )
   }
 
-  val TEST_BEAM_EXPERIMENT_LOC = "test/input/beamville/example-calibration/experiment.yml"
-  val TEST_BEAM_BENCHMARK_DATA_LOC = "test/input/beamville/example-calibration/benchmark.csv"
+  val TEST_BEAM_EXPERIMENT_LOC = "beam.sim.test/input/beamville/example-calibration/experiment.yml"
+  val TEST_BEAM_BENCHMARK_DATA_LOC = "beam.sim.test/input/beamville/example-calibration/benchmark.csv"
 
   "BeamSigoptTuner" ignore {
-    "create a proper experiment def from the test experiment specification file" taggedAs Periodic in {
+    "create a proper experiment def from the beam.sim.test experiment specification file" taggedAs Periodic in {
 
       wrapWithTestExperiment { experimentData =>
         val header = experimentData.experimentDef.header
         header.title shouldEqual "Example-Experiment"
-        header.beamTemplateConfPath shouldEqual "test/input/sf-light/sf-light-0.5k.conf"
+        header.beamTemplateConfPath shouldEqual "beam.sim.test/input/sf-light/sf-light-0.5k.conf"
       }
     }
 

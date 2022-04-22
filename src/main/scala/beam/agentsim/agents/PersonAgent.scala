@@ -17,6 +17,8 @@ import beam.agentsim.agents.parking.ChoosesParking.{
   ChoosingParkingSpot,
   ReleasingParkingSpot
 }
+import beam.agentsim.agents.planning.BeamPlan.atHome
+import beam.agentsim.agents.planning.Strategy.ModeChoiceStrategy
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
@@ -37,6 +39,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{
   CAR,
   CAV,
+  EMERGENCY,
   HOV2_TELEPORTATION,
   HOV3_TELEPORTATION,
   RIDE_HAIL,
@@ -188,7 +191,7 @@ object PersonAgent {
     currentTrip: Option[EmbodiedBeamTrip] = None,
     restOfCurrentTrip: List[EmbodiedBeamLeg] = List(),
     currentVehicle: VehicleStack = Vector(),
-    currentTourMode: Option[BeamMode] = None,
+    currentTripMode: Option[BeamMode] = None,
     currentTourPersonalVehicle: Option[Id[BeamVehicle]] = None,
     passengerSchedule: PassengerSchedule = PassengerSchedule(),
     currentLegPassengerScheduleIndex: Int = 0,
@@ -406,7 +409,7 @@ class PersonAgent(
           // which is used in place of our real remaining tour distance of 0.0
           // which should help encourage residential end-of-day charging
           val tomorrowFirstLegDistance =
-            if (nextAct.getType.toLowerCase == "home") {
+            if (atHome(nextAct)) {
               findFirstCarLegOfTrip(personData) match {
                 case Some(carLeg) =>
                   carLeg.beamLeg.travelPath.distanceInM
@@ -473,6 +476,30 @@ class PersonAgent(
       case _ =>
         _experiencedBeamPlan.getTourContaining(nextActivity(data).get)
     }
+  }
+
+  def isFirstTripWithinTour(personData: BasePersonData, nextAct: Activity): Boolean = {
+    val (tripIndexOfElement: Int, _) = currentTripIndexWithinTour(personData, nextAct)
+    tripIndexOfElement == 0
+  }
+
+  def isLastTripWithinTour(personData: BasePersonData, nextAct: Activity): Boolean = {
+    val (tripIndexOfElement: Int, lastTripIndex: Int) = currentTripIndexWithinTour(personData, nextAct)
+    tripIndexOfElement == lastTripIndex
+  }
+
+  def isFirstOrLastTripWithinTour(personData: BasePersonData, nextAct: Activity): Boolean = {
+    val (tripIndexOfElement: Int, lastTripIndex: Int) = currentTripIndexWithinTour(personData, nextAct)
+    tripIndexOfElement == 0 || tripIndexOfElement == lastTripIndex
+  }
+
+  def currentTripIndexWithinTour(personData: BasePersonData, nextAct: Activity): (Int, Int) = {
+    val tour = currentTour(personData)
+    val lastTripIndex = tour.trips.size - 1
+    val tripIndexOfElement = tour
+      .tripIndexOfElement(nextAct)
+      .getOrElse(throw new IllegalArgumentException(s"Element [$nextAct] not found"))
+    (tripIndexOfElement, lastTripIndex)
   }
 
   def currentActivity(data: BasePersonData): Activity =
@@ -577,24 +604,15 @@ class PersonAgent(
       case Some(nextAct) =>
         logDebug(s"wants to go to ${nextAct.getType} @ $tick")
         holdTickAndTriggerId(tick, triggerId)
-        val indexOfNextActivity = _experiencedBeamPlan.getPlanElements.indexOf(nextAct)
-        val modeOfNextLeg = _experiencedBeamPlan.getPlanElements.get(indexOfNextActivity - 1) match {
-          case leg: Leg => BeamMode.fromString(leg.getMode)
-          case _        => None
-        }
+        val modeOfNextLeg = _experiencedBeamPlan.getTripStrategy[ModeChoiceStrategy](nextAct).flatMap(_.mode)
         val currentCoord = currentActivity(data).getCoord
         val nextCoord = nextActivity(data).get.getCoord
         goto(ChoosingMode) using ChoosesModeData(
           personData = data.copy(
-            // If the mode of the next leg is defined and is CAV, use it, otherwise,
-            // If we don't have a current tour mode (i.e. are not on a tour aka at home),
-            // use the mode of the next leg as the new tour mode.
-            currentTourMode = modeOfNextLeg match {
-              case Some(CAV) =>
-                Some(CAV)
-              case _ =>
-                data.currentTourMode.orElse(modeOfNextLeg)
-            },
+            // We current tour mode is defined in _experiencedBeamPlan.getTourStrategy
+            // If we have the currentTourPersonalVehicle then we should use it
+            // use the mode of the next leg as the new trip mode.
+            currentTripMode = modeOfNextLeg,
             numberOfReplanningAttempts = 0,
             failedTrips = IndexedSeq.empty,
             enrouteData = EnrouteData()
@@ -625,7 +643,7 @@ class PersonAgent(
 
     case Event(
           TriggerWithId(TeleportationEndsTrigger(tick), triggerId),
-          data @ BasePersonData(_, Some(currentTrip), _, _, maybeCurrentTourMode, _, _, _, true, _, _, _, _, _)
+          data @ BasePersonData(_, Some(currentTrip), _, _, maybeCurrentTripMode, _, _, _, true, _, _, _, _, _)
         ) =>
       holdTickAndTriggerId(tick, triggerId)
 
@@ -638,7 +656,7 @@ class PersonAgent(
         startY = currentTrip.legs.head.beamLeg.travelPath.startPoint.loc.getY,
         endX = currentTrip.legs.last.beamLeg.travelPath.endPoint.loc.getX,
         endY = currentTrip.legs.last.beamLeg.travelPath.endPoint.loc.getY,
-        currentTourMode = maybeCurrentTourMode.map(_.value)
+        currentTourMode = maybeCurrentTripMode.map(_.value)
       )
       eventsManager.processEvent(teleportationEvent)
 
@@ -722,7 +740,7 @@ class PersonAgent(
     val currentCoord = beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
     val nextCoord = nextActivity(data).get.getCoord
     goto(ChoosingMode) using ChoosesModeData(
-      data.copy(currentTourMode = None, numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
+      data.copy(currentTripMode = None, numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
       currentLocation = SpaceTime(
         currentCoord,
         tick
@@ -815,7 +833,7 @@ class PersonAgent(
     // RIDE HAIL FAILURE
     case Event(
           response @ RideHailResponse(_, _, Some(error), _, _),
-          data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _, _, _)
+          data: BasePersonData
         ) =>
       handleFailedRideHailReservation(error, response, data)
   }
@@ -977,9 +995,11 @@ class PersonAgent(
       val currentCoord =
         beamServices.geo.wgs2Utm(basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
       val nextCoord = nextActivity(basePersonData).get.getCoord
+      // Have to give up my mode as well, perhaps there's no option left for driving.
+      _experiencedBeamPlan.putStrategy(currentTour(basePersonData), ModeChoiceStrategy(mode = None))
       goto(ChoosingMode) using ChoosesModeData(
         basePersonData.copy(
-          currentTourMode = None, // Have to give up my mode as well, perhaps there's no option left for driving.
+          currentTripMode = None,
           currentTourPersonalVehicle = None,
           numberOfReplanningAttempts = basePersonData.numberOfReplanningAttempts + 1
         ),
@@ -1185,7 +1205,7 @@ class PersonAgent(
       val nextCoord = nextActivity(data).get.getCoord
       goto(ChoosingMode) using ChoosesModeData(
         personData = data
-          .copy(currentTourMode = Some(WALK_TRANSIT), numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
+          .copy(currentTripMode = Some(WALK_TRANSIT), numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
         isWithinTripReplanning = true,
         excludeModes =
@@ -1247,7 +1267,7 @@ class PersonAgent(
       val nextCoord = nextActivity(data).get.getCoord
       goto(ChoosingMode) using ChoosesModeData(
         personData = data
-          .copy(currentTourMode = Some(WALK_TRANSIT), numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
+          .copy(currentTripMode = Some(WALK_TRANSIT), numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
         isWithinTripReplanning = true,
         excludeModes =
@@ -1276,7 +1296,7 @@ class PersonAgent(
             _,
             _,
             _,
-            currentTourMode @ Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION),
+            Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION),
             _,
             _,
             _,
@@ -1316,7 +1336,7 @@ class PersonAgent(
             currentTrip = None,
             restOfCurrentTrip = List(),
             currentTourPersonalVehicle = None,
-            currentTourMode = if (activity.getType.equals("Home")) None else currentTourMode,
+            currentTripMode = None,
             hasDeparted = false
           )
         case None =>
@@ -1333,7 +1353,7 @@ class PersonAgent(
             Some(currentTrip),
             _,
             _,
-            currentTourMode,
+            _,
             currentTourPersonalVehicle,
             _,
             _,
@@ -1404,7 +1424,7 @@ class PersonAgent(
             currentTourPersonalVehicle = currentTourPersonalVehicle match {
               case Some(personalVehId) =>
                 val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
-                if (activity.getType.equals("Home")) {
+                if (atHome(activity)) {
                   potentiallyChargingBeamVehicles.put(personalVeh.id, beamVehicles(personalVeh.id))
                   beamVehicles -= personalVeh.id
                   personalVeh.getManager.get ! ReleaseVehicle(personalVeh, triggerId)
@@ -1415,7 +1435,7 @@ class PersonAgent(
               case None =>
                 None
             },
-            currentTourMode = if (activity.getType.equals("Home")) None else currentTourMode,
+            currentTripMode = None,
             hasDeparted = false
           )
         case None =>
@@ -1489,7 +1509,7 @@ class PersonAgent(
   }
 
   def getReplanningReasonFrom(data: BasePersonData, prefix: String): String = {
-    data.currentTourMode
+    data.currentTripMode
       .collect { case mode =>
         s"$prefix $mode"
       }

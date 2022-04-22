@@ -7,9 +7,9 @@ import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 
 object TestConfigUtils extends BeamHelper {
-  val testOutputDir = "output/test/"
+  val testOutputDir = "output/beam.sim.test/"
 
-  val configFileName = "test/input/beamville/beam.conf"
+  val configFileName = "beam.sim.test/input/beamville/beam.conf"
   val configLocation: Config = ConfigFactory.parseString("config=" + configFileName)
 
   val minimumValidBeamConfig: Config = {

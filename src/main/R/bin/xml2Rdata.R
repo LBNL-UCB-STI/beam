@@ -14,7 +14,7 @@ option_list <- list(
 )
 if(interactive()){
   #setwd('~/downs/')
-  args<-'test/output/sf-bay_2017-09-19_13-46-01/ITERS/it.0/0.events.xml'
+  args<-'beam.sim.test/output/sf-bay_2017-09-19_13-46-01/ITERS/it.0/0.events.xml'
   args <- parse_args(OptionParser(option_list = option_list,usage = "xml2Rdata.R [file-to-convert]"),positional_arguments=T,args=args)
 }else{
   args <- parse_args(OptionParser(option_list = option_list,usage = "xml2Rdata.R [file-to-convert]"),positional_arguments=T)

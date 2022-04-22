@@ -9,7 +9,7 @@ import org.matsim.core.config.{Config => MatSimConfig}
 object RideHailTestHelper {
 
   def buildConfig(allocationManagerName: String): Config = {
-    val config = testConfig("test/input/beamville/beam.conf")
+    val config = testConfig("beam.sim.test/input/beamville/beam.conf")
       .resolve()
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(

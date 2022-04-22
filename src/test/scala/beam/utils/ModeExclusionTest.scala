@@ -15,7 +15,7 @@ import org.scalatest.matchers.should.Matchers
 
 class ModeExclusionTest extends AnyWordSpecLike with Matchers with BeforeAndAfterEach with BeamHelper {
 
-  private val config = testConfig("test/input/beamville/beam.conf").resolve()
+  private val config = testConfig("beam.sim.test/input/beamville/beam.conf").resolve()
   private val beamConfigBase = BeamConfig(config)
 
   private val scenarioSource = mock(classOf[ScenarioSource])
@@ -28,8 +28,8 @@ class ModeExclusionTest extends AnyWordSpecLike with Matchers with BeforeAndAfte
     val configBuilder = new MatSimBeamConfigBuilder(config)
     val matsimConfig = configBuilder.buildMatSimConf()
     val scenarioBuilder = ScenarioBuilder(matsimConfig, beamScenario.network)
-    val persons = BeamCsvScenarioReader.readPersonsFile("test/test-resources/beam/input/population.csv")
-    val plans = BeamCsvScenarioReader.readPlansFile("test/input/beamville/csvInput/plans.csv")
+    val persons = BeamCsvScenarioReader.readPersonsFile("beam.sim.test/beam.sim.test-resources/beam/input/population.csv")
+    val plans = BeamCsvScenarioReader.readPlansFile("beam.sim.test/input/beamville/csvInput/plans.csv")
     val personIdsWithPlanTmp = plans.map(_.personId).toSet
     val personWithPlans = persons.filter(person => personIdsWithPlanTmp.contains(person.personId))
     val scenarioLoader = new BeamScenarioLoader(scenarioBuilder, beamScenario, scenarioSource, geoUtils)

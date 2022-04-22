@@ -52,9 +52,9 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
     "creates taz link quad tree mapping" should {
       "correct quad tree" in {
         val network =
-          NetworkUtilsExtensions.readNetwork("test/test-resources/beam/physsim/beamville-network-output.xml")
+          NetworkUtilsExtensions.readNetwork("beam.sim.test/beam.sim.test-resources/beam/physsim/beamville-network-output.xml")
         val totalNumberOfLinks = network.getLinks.size()
-        val tazTreeMap = TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+        val tazTreeMap = TAZTreeMap.fromCsv("beam.sim.test/input/beamville/taz-centers.csv")
         val totalNumberOfTAZes = tazTreeMap.tazQuadTree.size()
 
         val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(network, tazTreeMap)
@@ -82,7 +82,7 @@ class HierarchicalParkingManagerUtilSpec extends AnyWordSpec with Matchers {
           val (parkingZones, _) =
             ParkingZoneFileUtils
               .fromFile[Link](
-                "test/test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
+                "beam.sim.test/beam.sim.test-resources/beam/agentsim/infrastructure/taz-parking-similar-zones.csv",
                 new Random(777934L),
                 None,
                 None

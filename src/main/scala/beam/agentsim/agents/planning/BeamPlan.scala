@@ -1,7 +1,8 @@
 package beam.agentsim.agents.planning
 
-import java.{lang, util}
+import beam.agentsim.agents.planning.BeamPlan.atHome
 
+import java.{lang, util}
 import beam.agentsim.agents.planning.Strategy.{ModeChoiceStrategy, Strategy}
 import beam.router.Modes.BeamMode
 import org.matsim.api.core.v01.population._
@@ -10,6 +11,7 @@ import org.matsim.utils.objectattributes.attributable.Attributes
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 /**
   * BeamPlan
@@ -85,6 +87,8 @@ object BeamPlan {
     newPlan.setScore(plan.getScore)
     newPlan
   }
+
+  def atHome(activity: Activity): Boolean = activity.getType.equalsIgnoreCase("home")
 }
 
 class BeamPlan extends Plan {
@@ -115,7 +119,7 @@ class BeamPlan extends Plan {
       case activity: Activity =>
         val nextTrip = Trip(activity, nextLeg, nextTour)
         nextTour.addTrip(nextTrip)
-        if (activity.getType.equalsIgnoreCase("home")) {
+        if (atHome(activity)) {
           tours = tours :+ nextTour
           nextTour = new Tour
         }
@@ -145,14 +149,14 @@ class BeamPlan extends Plan {
   }
 
   def putStrategy(planElement: PlanElement, strategy: Strategy): Unit = {
-    if (!strategies.contains(planElement)) {
-      strategies.put(planElement, mutable.Map[Class[_ <: Strategy], Strategy]())
-    }
-    strategies(planElement).put(strategy.getClass, strategy)
+    val planElementMap = strategies.getOrElseUpdate(planElement, mutable.Map.empty[Class[_ <: Strategy], Strategy])
+    planElementMap.put(strategy.getClass, strategy)
 
     planElement match {
       case tour: Tour =>
-        tour.trips.foreach(trip => putStrategy(trip, strategy))
+        strategy.tripStrategies(tour, this).foreach { case (trip, strategy) =>
+          putStrategy(trip, strategy)
+        }
       case trip: Trip =>
         putStrategy(trip.activity, strategy)
         trip.leg.foreach(theLeg => putStrategy(theLeg, strategy))
@@ -161,8 +165,17 @@ class BeamPlan extends Plan {
     }
   }
 
-  def getStrategy(planElement: PlanElement, forClass: Class[_ <: Strategy]): Option[Strategy] = {
-    strategies.getOrElse(planElement, mutable.Map()).get(forClass)
+  def getStrategy[T <: Strategy: ClassTag](planElement: PlanElement): Option[T] = {
+    val forClass: Class[T] = implicitly[ClassTag[T]].runtimeClass.asInstanceOf[Class[T]]
+    strategies.getOrElse(planElement, Map.empty[Class[_ <: Strategy], Strategy]).get(forClass).asInstanceOf[Option[T]]
+  }
+
+  def getTripStrategy[T <: Strategy: ClassTag](activity: Activity): Option[T] = {
+    getStrategy(actsLegToTrip(activity))
+  }
+
+  def getTourStrategy[T <: Strategy: ClassTag](activity: Activity): Option[T] = {
+    getStrategy(getTourContaining(activity))
   }
 
   def isLastElementInTour(planElement: PlanElement): Boolean = {
@@ -202,6 +215,14 @@ class BeamPlan extends Plan {
             throw new RuntimeException(s"Trip not found for plan element $planElement.")
         }
     }
+  }
+
+  def getTourContaining(index: Int): Tour = {
+    getTourContaining(activities(index))
+  }
+
+  def getTripContaining(index: Int): Trip = {
+    getTripContaining(activities(index))
   }
 
   //////////////////////////////////////////////////////////////////////

@@ -50,11 +50,11 @@ class RideHailAgentSpec
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
-        akka.test.timefactor = 2
+        akka.beam.sim.test.timefactor = 2
         beam.agentsim.agents.rideHail.charging.vehicleChargingManager.name = "DefaultVehicleChargingManager"
         """
     )
-    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
     .resolve()
 
   lazy implicit val system: ActorSystem = ActorSystem("RideHailAgentSpec", config)
@@ -411,7 +411,7 @@ class RideHailAgentSpec
   after {
     import scala.concurrent.duration._
     import scala.language.postfixOps
-    //we need to prevent getting this CompletionNotice from the Scheduler in the next test
+    //we need to prevent getting this CompletionNotice from the Scheduler in the next beam.sim.test
     receiveWhile(1000 millis) { case _: CompletionNotice =>
     }
   }

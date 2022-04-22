@@ -30,7 +30,7 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
     lazy val persAttr: ObjectAttributes = pop.getPersonAttributes
     lazy val vehs: Vehicles = VehicleUtils.createVehiclesContainer()
 
-    // These are unique to each test case
+    // These are unique to each beam.sim.test case
     val personList: immutable.IndexedSeq[Id[Person]]
     val vehicleList: immutable.IndexedSeq[Id[Vehicle]]
 

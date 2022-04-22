@@ -217,7 +217,7 @@
 <!-- ELEMENT activity:
      Each activity is listed seperatly. A person can have knowledge
      about several locations of a specific activity.
-     Note: We choose a seperate tag name for that to distinguish
+     beam.sim.Note: We choose a seperate tag name for that to distinguish
            between knowlegde of an activity and an activity (act)
            of a plan. -->
 

@@ -34,8 +34,8 @@ class ChargingNetworkManagerSpec
            |akka.log-dead-letters = 10
            |akka.actor.debug.fsm = true
            |akka.loglevel = debug
-           |akka.test.timefactor = 2
-           |akka.test.single-expect-default = 10 s""".stripMargin)
+           |akka.beam.sim.test.timefactor = 2
+           |akka.beam.sim.test.single-expect-default = 10 s""".stripMargin)
       )
     )
     with AnyWordSpecLike
@@ -44,13 +44,13 @@ class ChargingNetworkManagerSpec
     with ImplicitSender
     with BeforeAndAfterEach {
 
-  private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
+  private val filesPath = s"${System.getenv("PWD")}/beam.sim.test/beam.sim.test-resources/beam/input"
 
   private val conf = system.settings.config
     .withFallback(ConfigFactory.parseString(s"""
      |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes-simple.csv"
      |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles-simple.csv"
-     |beam.agentsim.taz.parkingFilePath = "test/input/beamville/parking/taz-parking-limited.csv"
+     |beam.agentsim.taz.parkingFilePath = "beam.sim.test/input/beamville/parking/taz-parking-limited.csv"
      |beam.router.skim = {
      |  keepKLatestSkims = 1
      |  writeSkimsInterval = 1
@@ -78,7 +78,7 @@ class ChargingNetworkManagerSpec
      |  }
      |}
      |""".stripMargin))
-    .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+    .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf").resolve())
 
   import ChargingNetworkManager._
 
