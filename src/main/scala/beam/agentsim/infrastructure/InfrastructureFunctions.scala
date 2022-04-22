@@ -6,6 +6,7 @@ import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
   ParkingAlternative,
+  ParkingZoneCollection,
   ParkingZoneSearchConfiguration,
   ParkingZoneSearchParams,
   ParkingZoneSearchResult
@@ -29,12 +30,14 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
   maxSearchRadius: Double,
   searchMaxDistanceRelativeToEllipseFoci: Double,
   enrouteDuration: Double,
+  fractionOfSameTypeZones: Double,
+  minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
   seed: Int
 ) extends StrictLogging {
 
-  protected val zoneSearchTree: ParkingZoneSearch.ZoneSearchTree[GEO] =
-    ParkingZoneFileUtils.createZoneSearchTree(parkingZones.values.toSeq)
+  protected val zoneCollections: Map[Id[GEO], ParkingZoneCollection[GEO]] =
+    ParkingZoneSearch.createZoneCollections(parkingZones.values.toSeq)
 
   protected val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation]
 
@@ -98,7 +101,9 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
       searchMaxDistanceRelativeToEllipseFoci,
       boundingBox,
       distanceFunction,
-      enrouteDuration
+      enrouteDuration,
+      fractionOfSameTypeZones,
+      minNumberOfSameTypeZones
     )
 
   def searchForParkingStall(inquiry: ParkingInquiry): Option[ParkingZoneSearch.ParkingZoneSearchResult[GEO]] = {
@@ -122,11 +127,12 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
         inquiry.parkingDuration,
         inquiry.searchMode,
         mnlMultiplierParameters,
-        zoneSearchTree,
+        zoneCollections,
         parkingZones,
         geoQuadTree,
         new Random(seed),
-        inquiry.departureLocation
+        inquiry.departureLocation,
+        inquiry.reservedFor
       )
 
     val closestZone =
@@ -216,6 +222,18 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
       case _ =>
     }
 
+    result
+  }
+
+  def claimStall(parkingZone: ParkingZone[GEO]): Boolean = {
+    val result = ParkingZone.claimStall(parkingZone)
+    zoneCollections.get(parkingZone.geoId).foreach(_.claimZone(parkingZone))
+    result
+  }
+
+  def releaseStall(parkingZone: ParkingZone[GEO]): Boolean = {
+    val result = ParkingZone.releaseStall(parkingZone)
+    zoneCollections.get(parkingZone.geoId).foreach(_.releaseZone(parkingZone))
     result
   }
 

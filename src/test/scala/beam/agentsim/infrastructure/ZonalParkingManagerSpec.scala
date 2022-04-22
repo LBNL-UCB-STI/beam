@@ -43,10 +43,10 @@ class ZonalParkingManagerSpec
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
-        akka.beam.sim.test.timefactor = 2
+        akka.test.timefactor = 2
         """
     )
-    .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
+    .withFallback(testConfig("test/input/beamville/beam.conf"))
     .resolve()
 
   lazy implicit val system: ActorSystem = ActorSystem("PersonAndTransitDriverSpec", config)
@@ -249,7 +249,7 @@ class ZonalParkingManagerSpec
 
       val random = new Random(1)
 
-      // run this many trials of this beam.sim.test
+      // run this many trials of this test
       val trials = 1
       // the maximum number of parking stalls across all TAZs in each trial
       val maxParkingStalls = 10000
@@ -312,9 +312,9 @@ class ZonalParkingManagerSpec
 
   describe("ZonalParkingManager with loaded common data") {
     it("should return the correct stall") {
-      val source = Source.fromFile("beam.sim.test/input/beamville/parking/taz-parking.csv")
+      val source = Source.fromFile("test/input/beamville/parking/taz-parking.csv")
       val parkingDescription: Iterator[String] = source.getLines()
-      val tazMap = taz.TAZTreeMap.fromCsv("beam.sim.test/input/beamville/taz-centers.csv")
+      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
       val minSearchRadius = 1000.0
       val maxSearchRadius = 16093.4 // meters, aka 10 miles
       val zpm = ZonalParkingManager(
@@ -336,9 +336,9 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("73"),
+        ParkingZone.createId("cs_default(Any)_4_Public_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
-        ParkingType.Residential,
+        ParkingType.Public,
         "beamVilleCar"
       )
 
@@ -346,9 +346,9 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(166321.0, 1568.0), 0),
         "1",
-        ParkingZone.createId("22"),
+        ParkingZone.createId("cs_default(Any)_1_Public_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
-        ParkingType.Residential,
+        ParkingType.Public,
         "beamVilleCar"
       )
 
@@ -356,9 +356,9 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(167141.3, 3326.017), 0),
         "2",
-        ParkingZone.createId("15"),
-        Block(0.0, 3600),
-        ParkingType.Residential,
+        ParkingZone.createId("cs_default(Any)_2_Public_NA_FlatFee_0_2147483647"),
+        FlatFee(0.0),
+        ParkingType.Public,
         "beamVilleCar"
       )
 
@@ -370,11 +370,11 @@ class ZonalParkingManagerSpec
     it("should return a stall from the single available zone (index=2)") {
       val parkingDescription: Iterator[String] =
         """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,timeRestrictions,reservedFor,parkingZoneId
-          |4,Public,FlatFee,NoCharger,10,0,Car|0-17:30;LightDutyTruck|17:31-23:59,,a
-          |4,Public,Block,NoCharger,20,0,LightDutyTruck|0-17:30;Car|17:31-23:59,,b""".stripMargin
+          |4,Public,FlatFee,NoCharger,10,0,Car|0-17:30;LightDutyTruck|17:31-23:59,,
+          |4,Public,Block,NoCharger,20,0,LightDutyTruck|0-17:30;Car|17:31-23:59,,""".stripMargin
           .split("\n")
           .toIterator
-      val tazMap = taz.TAZTreeMap.fromCsv("beam.sim.test/input/beamville/taz-centers.csv")
+      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
       val minSearchRadius = 1000.0
       val maxSearchRadius = 16093.4 // meters, aka 10 miles
       val zpm = ZonalParkingManager(
@@ -396,7 +396,7 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(169369.8, 3326.017), 8 * 3600),
         "4",
-        ParkingZone.createId("b"),
+        ParkingZone.createId("cs_default(Any)_4_Public_NA_Block_0_20"),
         PricingModel("block", "0").get,
         ParkingType.Public,
         "FREIGHT-1"
@@ -408,17 +408,17 @@ class ZonalParkingManagerSpec
     it("should return the correct stall corresponding with the request (reservedFor, vehicleManagerId)") {
       val sharedFleet1 = VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared)
       val sharedFleet2 = VehicleManager.createOrGetReservedFor("shared-fleet-2", VehicleManager.TypeEnum.Shared)
-      val tazMap = taz.TAZTreeMap.fromCsv("beam.sim.test/input/beamville/taz-centers.csv")
+      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
       val stalls = InfrastructureUtils.loadStalls[TAZ](
-        "beam.sim.test/beam.sim.test-resources/beam/agentsim/infrastructure/taz-parking.csv",
+        "test/test-resources/beam/agentsim/infrastructure/taz-parking.csv",
         IndexedSeq(
           (
-            "beam.sim.test/beam.sim.test-resources/beam/agentsim/infrastructure/taz-parking-shared-fleet-1.csv",
+            "test/test-resources/beam/agentsim/infrastructure/taz-parking-shared-fleet-1.csv",
             sharedFleet1,
             Seq(ParkingType.Public)
           ),
           (
-            "beam.sim.test/beam.sim.test-resources/beam/agentsim/infrastructure/taz-parking-shared-fleet-2.csv",
+            "test/test-resources/beam/agentsim/infrastructure/taz-parking-shared-fleet-2.csv",
             sharedFleet2,
             Seq(ParkingType.Public)
           )
@@ -440,6 +440,8 @@ class ZonalParkingManagerSpec
         boundingBox,
         beamConfig.beam.agentsim.agents.parking.minSearchRadius,
         beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+        beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
+        beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
         randomSeed,
         beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
       )
@@ -448,8 +450,8 @@ class ZonalParkingManagerSpec
         zonesMap,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("73"),
-        FlatFee(1.99),
+        ParkingZone.createId("cs_default(Any)_4_Residential_NA_Block_199_1144"),
+        Block(1.99, 3600),
         ParkingType.Residential,
         "beamVilleCar"
       )

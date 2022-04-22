@@ -8,7 +8,7 @@ import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
+import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtilsImpl
@@ -33,8 +33,8 @@ class ParallelParkingManagerSpec
           .parseString("""akka.log-dead-letters = 10
         |akka.actor.debug.fsm = true
         |akka.loglevel = debug
-        |akka.beam.sim.test.timefactor = 2""".stripMargin)
-          .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf").resolve())
+        |akka.test.timefactor = 2""".stripMargin)
+          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
       )
     )
     with AnyFunSpecLike
@@ -150,8 +150,8 @@ class ParallelParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] =
-          """taz,parkingZoneId,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
-            |1,a,Workplace,FlatFee,None,1,1234,
+          """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
+            |1,Workplace,FlatFee,None,1,1234,
             |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
@@ -173,7 +173,7 @@ class ParallelParkingManagerSpec
           ParkingStall(
             Id.create(1, classOf[TAZ]),
             Id.create(1, classOf[TAZ]),
-            ParkingZone.createId("a"),
+            ParkingZone.createId("cs_default(Any)_1_Workplace_NA_FlatFee_1234_1"),
             coordCenterOfUTM,
             12.34,
             None,
@@ -214,8 +214,8 @@ class ParallelParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] =
-          """taz,parkingZoneId,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
-          |1,a,Workplace,FlatFee,None,1,1234,
+          """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
+          |1,Workplace,FlatFee,None,1,1234,
           |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
@@ -239,7 +239,7 @@ class ParallelParkingManagerSpec
           ParkingStall(
             expectedTAZId,
             expectedTAZId,
-            ParkingZone.createId("a"),
+            ParkingZone.createId("cs_default(Any)_1_Workplace_NA_FlatFee_1234_1"),
             coordCenterOfUTM,
             12.34,
             None,
@@ -276,7 +276,7 @@ class ParallelParkingManagerSpec
 
       val random1 = new Random(1)
 
-      // run this many trials of this beam.sim.test
+      // run this many trials of this test
       val trials = 5
       // the maximum number of parking stalls across all TAZs in each trial
       val maxParkingStalls = 10000
@@ -307,7 +307,7 @@ class ParallelParkingManagerSpec
           geo.distUTMInMeters,
           boundingBox,
           randomSeed,
-          1 // this beam.sim.test will work only in a single cluster because clusters are fully separated
+          1 // this test will work only in a single cluster because clusters are fully separated
         )
       } {
 
@@ -336,9 +336,9 @@ class ParallelParkingManagerSpec
 
   describe("ParallelParkingManager with loaded common data") {
     it("should return the correct stall") {
-      val tazMap = taz.TAZTreeMap.fromCsv("beam.sim.test/input/beamville/taz-centers.csv")
+      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
       val stalls = InfrastructureUtils.loadStalls[TAZ](
-        "beam.sim.test/input/beamville/parking/taz-parking.csv",
+        "test/input/beamville/parking/taz-parking.csv",
         IndexedSeq.empty,
         tazMap.tazQuadTree,
         1.0,
@@ -362,9 +362,9 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(170308.0, 2964.0),
         "4",
-        ParkingZone.createId("73"),
+        ParkingZone.createId("cs_default(Any)_4_Public_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
-        ParkingType.Residential,
+        ParkingType.Public,
         VehicleManager.AnyManager
       )
 
@@ -372,9 +372,9 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(166321.0, 1568.0),
         "1",
-        ParkingZone.createId("22"),
+        ParkingZone.createId("cs_default(Any)_1_Public_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
-        ParkingType.Residential,
+        ParkingType.Public,
         VehicleManager.AnyManager
       )
 
@@ -382,9 +382,9 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(167141.3, 3326.017),
         "2",
-        ParkingZone.createId("15"),
-        Block(0.0, 3600),
-        ParkingType.Residential,
+        ParkingZone.createId("cs_default(Any)_2_Public_NA_FlatFee_0_2147483647"),
+        FlatFee(0.0),
+        ParkingType.Public,
         VehicleManager.AnyManager
       )
     }

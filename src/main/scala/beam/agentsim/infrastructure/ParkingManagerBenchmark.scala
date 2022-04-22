@@ -60,22 +60,23 @@ class ParkingManagerBenchmark(
 object ParkingManagerBenchmark extends StrictLogging {
 
   val pathToPlans: String = "data_files/sfbay-smartbaseline/0.plans.xml.gz"
-//  val pathToPlans: String = "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/0.plans.xml.gz"
+  //  val pathToPlans: String = "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/0.plans.xml.gz"
 
-  val pathToTazParking: String = "production/sfbay/parking/init1-7_2022_Feb_03_wgs84_withFees_cleaned.csv"
-//  val pathToTazParking: String =
-//    "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/taz-parking-unlimited-fast-limited-l2-150-baseline.csv.gz"
+//  val pathToTazParking: String = "production/sfbay/gemini/infrastructure/4a_output_2022_Apr_13_pubClust_withFees_aggregated.csv"
+  val pathToTazParking: String = "production/sfbay/gemini/infrastructure/init1-7_2022_Feb_03_wgs84_withFees_cleaned.csv"
+  //  val pathToTazParking: String =
+  //    "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/taz-parking-unlimited-fast-limited-l2-150-baseline.csv.gz"
 
-  val pathToLinkParking: String = "production/sfbay/parking/init1-7_2022_Feb_03_wgs84_withFees_link.csv"
-//  val pathToLinkParking: String =
-//    "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/link-parking-unlimited-fast-limited-l2-150-baseline.csv.gz"
+  val pathToLinkParking: String = "production/sfbay/gemini/infrastructure/init1-7_2022_Feb_03_wgs84_withFees_link.csv"
+  //  val pathToLinkParking: String =
+  //    "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/link-parking-unlimited-fast-limited-l2-150-baseline.csv.gz"
 
   val pathToTAZ: String = "production/sfbay/taz-centers.csv"
-//  val pathToTAZ: String = "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/taz-centers.csv.gz"
+  //  val pathToTAZ: String = "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/taz-centers.csv.gz"
 
   val pathToNetwork: String = "production/sfbay/r5-simple-no-local/physsim-network.xml"
-//  val pathToNetwork: String =
-//    "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/outputNetwork.xml.gz"
+  //  val pathToNetwork: String =
+  //    "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/outputNetwork.xml.gz"
 
   val parkingStallCountScalingFactor: Double = 1.0
   val parkingCostScalingFactor: Double = 1.0
@@ -101,7 +102,7 @@ object ParkingManagerBenchmark extends StrictLogging {
         |}
        """.stripMargin
     )
-    .withFallback(BeamConfigUtils.parseFileSubstitutingInputDirectory("beam.sim.test/input/beamville/beam.conf"))
+    .withFallback(BeamConfigUtils.parseFileSubstitutingInputDirectory("test/input/beamville/beam.conf"))
     .resolve()
 
   implicit val actorSystem: ActorSystem = ActorSystem("ParkingManagerBenchmark", typeSafeConfig)
@@ -109,7 +110,7 @@ object ParkingManagerBenchmark extends StrictLogging {
   val seed: Int = 42
 
   val nTimes: Int = 1
-  val fractionToBench: Double = 0.05
+  val fractionToBench: Double = 0.1
 
   def main(args: Array[String]): Unit = {
     implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global
@@ -230,28 +231,6 @@ object ParkingManagerBenchmark extends StrictLogging {
               checkThatNumberOfStallsMatch = true
             )
             parkingNetwork
-          case "hierarchical-taz" =>
-            val linkQuadTree: QuadTree[Link] =
-              LinkLevelOperations.getLinkTreeMap(network.getLinks.values().asScala.toSeq)
-            val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(network, tazTreeMap)
-            val (tazZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]], _) =
-              loadZones(tazTreeMap.tazQuadTree, pathToTazParking, beamConfig)
-            val linkParkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]] = ParkingZoneFileUtils
-              .generateLinkParkingOutOfTazParking(tazZones, linkQuadTree, linkToTAZMapping, tazTreeMap)
-//            ParkingZoneFileUtils.toCsv(linkParkingZones, "production/sfbay/parking/init1-7_2022_Feb_03_wgs84_withFees_link.csv")
-            val parkingNetwork = HierarchicalParkingManager.init(
-              linkParkingZones,
-              tazTreeMap,
-              linkToTAZMapping,
-              geoUtils.distUTMInMeters,
-              beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-              beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
-              boundingBox,
-              seed,
-              beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
-              checkThatNumberOfStallsMatch = true
-            )
-            parkingNetwork
         }
 
         val bench = new ParkingManagerBenchmark(activityLocations, parkingNetwork)
@@ -271,7 +250,7 @@ object ParkingManagerBenchmark extends StrictLogging {
         val end = System.currentTimeMillis()
         val diff = end - start
         val what: String = s"$managerType manager"
-        (s"$what for $nTimes tests took $diff ms, AVG per beam.sim.test: ${diff.toDouble / nTimes} ms", responses)
+        (s"$what for $nTimes tests took $diff ms, AVG per test: ${diff.toDouble / nTimes} ms", responses)
       }
 
       val nToTake = (allActivityLocations.length * fractionToBench).toInt
@@ -289,7 +268,7 @@ object ParkingManagerBenchmark extends StrictLogging {
         })
       logger.info("activities written")
 
-      val (result, responses) = benchmark("hierarchical", nTimes, parkingLocations)
+      val (result, responses) = benchmark("parallel", nTimes, parkingLocations)
       val (zonalResult, zonalResponses) = benchmark("zonal", nTimes, parkingLocations)
 
       logger.info("#####################################################################")
@@ -297,7 +276,7 @@ object ParkingManagerBenchmark extends StrictLogging {
       logger.info(zonalResult)
       logger.info("#####################################################################")
 
-      writeToCsv(responses, "./hir_parking.csv")
+      writeToCsv(responses, "./par_parking.csv")
       writeToCsv(zonalResponses, "./zonal_parking.csv")
 
       analyzeResult(responses.head.groupBy(_.stall.tazId), zonalResponses.head.groupBy(_.stall.tazId))

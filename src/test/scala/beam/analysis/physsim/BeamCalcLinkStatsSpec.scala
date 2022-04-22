@@ -55,7 +55,7 @@ class BeamCalcLinkStatsSpec extends AnyWordSpecLike with Matchers with BeforeAnd
 
     beamCalcLinkStats = new BeamCalcLinkStats(network, ttccg)
     beamCalcLinkStats.reset()
-    val volumes = new VolumesAnalyzerFixed(3600, ttccg.getMaxTime() - 1, network)
+    val volumes = new VolumesAnalyzerFixed(3600, ttccg.getMaxTime() - 1, network, null)
     events.addHandler(volumes)
 
     val reader = new MatsimEventsReader(events)

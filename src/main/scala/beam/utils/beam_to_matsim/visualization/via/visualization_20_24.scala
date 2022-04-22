@@ -25,12 +25,12 @@ object visualization_20_24 extends App {
   val (events, typeToId) = Reader.transformPathTraversals(vehiclesEvents, vehicleId, vehicleType)
 
   val (modeChoiceEvents, modeToCnt) = Reader.transformModeChoices(personsEvents, 20)
-  modeChoiceEvents.foreach(events.enqueue(_))
+  modeChoiceEvents.foreach(events.put)
 
   val (activities, activityToCnt) = Reader.transformActivities(personsEvents)
-  activities.foreach(events.enqueue(_))
+  activities.foreach(events.put)
 
-  Writer.writeViaEventsQueue[ViaEvent](events, _.toXml.toString, viaEventsFile)
+  Writer.writeViaEventsCollection(events, _.toXml.toString, viaEventsFile)
 
   Writer.writeViaActivities(activityToCnt, viaActivitiesFile)
   Writer.writeViaModes(modeToCnt, viaModesFile)

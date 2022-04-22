@@ -63,7 +63,7 @@ class FreightReplanner(
   ): Iterable[Plan] = {
     routes.groupBy(_.vehicle.id).map { case (vehicleIdStr, routes) =>
       val vehicleId = Id.createVehicleId(vehicleIdStr)
-      val person = population.get(freightReader.createPersonId(vehicleId))
+      val person = population.get(freightReader.createPersonId(freightCarrier.carrierId, vehicleId))
       val toursAndPlans = routes.zipWithIndex.map { case (route, i) =>
         convertToFreightTourWithPayloadPlans(
           s"freight-tour-${route.vehicle.id}-$i".createId,
@@ -73,7 +73,7 @@ class FreightReplanner(
       }
       val tours = toursAndPlans.map(_._1)
       val plansPerTour = toursAndPlans.map { case (tour, plans) => tour.tourId -> plans }.toMap
-      freightReader.createPersonPlan(tours, plansPerTour, person)
+      freightReader.createPersonPlan(freightCarrier, tours, plansPerTour, person)
     }
   }
 
@@ -82,13 +82,7 @@ class FreightReplanner(
     route: Route,
     payloadPlans: Map[Id[PayloadPlan], PayloadPlan]
   ): (FreightTour, IndexedSeq[PayloadPlan]) = {
-    val tour = FreightTour(
-      tourId,
-      route.startTime,
-      None,
-      route.startLocation,
-      route.duration * 2
-    )
+    val tour = FreightTour(tourId, route.startTime, route.duration * 2)
 
     val plans = route.activities.zipWithIndex.map { case (activity, i) =>
       val requestType: FreightRequestType = activity.service match {
@@ -126,8 +120,8 @@ class FreightReplanner(
   private implicit def toLocation(coord: Coord): Location = Location(coord.getX, coord.getY)
   private implicit def toCoord(location: Location): Coord = new Coord(location.x, location.y)
 
-  private def getVehicleHouseholdLocation(vehicle: BeamVehicle): Location = {
-    val householdIdStr = freightReader.createHouseholdId(vehicle.id).toString
+  private def getVehicleHouseholdLocation(carrierId: Id[FreightCarrier]): Location = {
+    val householdIdStr = freightReader.createHouseholdId(carrierId).toString
     val x = beamServices.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
       .getAttribute(householdIdStr, "homecoordx")
       .asInstanceOf[Double]
@@ -178,10 +172,10 @@ class FreightReplanner(
       }
     }
 
-    def toJspritVehicle(beamVehicle: BeamVehicle, departureTime: Int) = {
+    def toJspritVehicle(carrierId: Id[FreightCarrier], beamVehicle: BeamVehicle, departureTime: Int) = {
       Vehicle(
         beamVehicle.id.toString,
-        getVehicleHouseholdLocation(beamVehicle),
+        getVehicleHouseholdLocation(carrierId),
         beamVehicle.beamVehicleType.payloadCapacityInKg.get,
         departureTime
       )
@@ -198,7 +192,7 @@ class FreightReplanner(
         freightCarrier.fleet.values
           .map(beamVehicle => {
             val departure = randomTimeAround(departureTime)
-            toJspritVehicle(beamVehicle, departure)
+            toJspritVehicle(freightCarrier.carrierId, beamVehicle, departure)
           })
           .toIndexedSeq
       val services = freightCarrier.payloadPlans.values.map(toService).toIndexedSeq
@@ -219,7 +213,7 @@ class FreightReplanner(
         beamVehicle = freightCarrier.fleet(vehicleId)
         tour <- tours
         services = freightCarrier.plansPerTour(tour.tourId).map(toService)
-        vehicles = IndexedSeq(toJspritVehicle(beamVehicle, tour.departureTimeInSec))
+        vehicles = IndexedSeq(toJspritVehicle(freightCarrier.carrierId, beamVehicle, tour.departureTimeInSec))
       } yield JspritWrapper.solve(Problem(vehicles, services, Some(calculateCost)))
 
       Monoid.combineAll(tourSolutions)

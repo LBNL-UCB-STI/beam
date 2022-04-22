@@ -2,6 +2,8 @@
 
 package beam.sim.config
 
+import scala.util.Random
+
 case class BeamConfig(
   beam: BeamConfig.Beam,
   matsim: BeamConfig.Matsim
@@ -37,6 +39,7 @@ object BeamConfig {
   object Beam {
 
     case class Agentsim(
+      randomSeed: scala.Int,
       agentSampleSizeAsFractionOfPopulation: scala.Double,
       agents: BeamConfig.Beam.Agentsim.Agents,
       chargingNetworkManager: BeamConfig.Beam.Agentsim.ChargingNetworkManager,
@@ -50,6 +53,7 @@ object BeamConfig {
       scheduleMonitorTask: BeamConfig.Beam.Agentsim.ScheduleMonitorTask,
       schedulerParallelismWindow: scala.Int,
       simulationName: java.lang.String,
+      snapLocationAndRemoveInvalidInputs: scala.Boolean,
       taz: BeamConfig.Beam.Agentsim.Taz,
       thresholdForMakingParkingChoiceInMeters: scala.Int,
       thresholdForWalkingInMeters: scala.Int,
@@ -715,7 +719,9 @@ object BeamConfig {
         }
 
         case class Parking(
+          fractionOfSameTypeZones: scala.Double,
           maxSearchRadius: scala.Double,
+          minNumberOfSameTypeZones: scala.Int,
           minSearchRadius: scala.Double,
           mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
           rangeAnxietyBuffer: scala.Double,
@@ -772,7 +778,11 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking = {
             BeamConfig.Beam.Agentsim.Agents.Parking(
+              fractionOfSameTypeZones =
+                if (c.hasPathOrNull("fractionOfSameTypeZones")) c.getDouble("fractionOfSameTypeZones") else 0.5,
               maxSearchRadius = if (c.hasPathOrNull("maxSearchRadius")) c.getDouble("maxSearchRadius") else 8046.72,
+              minNumberOfSameTypeZones =
+                if (c.hasPathOrNull("minNumberOfSameTypeZones")) c.getInt("minNumberOfSameTypeZones") else 10,
               minSearchRadius = if (c.hasPathOrNull("minSearchRadius")) c.getDouble("minSearchRadius") else 250.00,
               mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit(
                 if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
@@ -2161,6 +2171,10 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim = {
         BeamConfig.Beam.Agentsim(
+          randomSeed =
+            if (c.hasPathOrNull("randomSeed"))
+              c.getInt("randomSeed")
+            else new Random().nextInt(),
           agentSampleSizeAsFractionOfPopulation =
             if (c.hasPathOrNull("agentSampleSizeAsFractionOfPopulation"))
               c.getDouble("agentSampleSizeAsFractionOfPopulation")
@@ -2196,6 +2210,8 @@ object BeamConfig {
           schedulerParallelismWindow =
             if (c.hasPathOrNull("schedulerParallelismWindow")) c.getInt("schedulerParallelismWindow") else 30,
           simulationName = if (c.hasPathOrNull("simulationName")) c.getString("simulationName") else "beamville",
+          snapLocationAndRemoveInvalidInputs =
+            c.hasPathOrNull("snapLocationAndRemoveInvalidInputs") && c.getBoolean("snapLocationAndRemoveInvalidInputs"),
           taz = BeamConfig.Beam.Agentsim.Taz(
             if (c.hasPathOrNull("taz")) c.getConfig("taz") else com.typesafe.config.ConfigFactory.parseString("taz{}")
           ),
