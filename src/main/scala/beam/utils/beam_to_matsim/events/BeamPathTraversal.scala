@@ -48,9 +48,9 @@ object BeamPathTraversal {
     val vehicleId: String = attr(ATTRIBUTE_VEHICLE_ID)
     val driverId: String = attr(ATTRIBUTE_DRIVER_ID)
     val vehicleType: String = attr(ATTRIBUTE_VEHICLE_TYPE)
-    val numberOfPassengers: Int = attr(ATTRIBUTE_NUM_PASS).toInt
-    val time: Int = attr(ATTRIBUTE_DEPARTURE_TIME).toInt
-    var arrivalTime: Int = attr(ATTRIBUTE_ARRIVAL_TIME).toInt
+    val numberOfPassengers: Int = attr(ATTRIBUTE_NUM_PASS).toDouble.toInt
+    val time: Int = attr(ATTRIBUTE_DEPARTURE_TIME).toDouble.toInt
+    var arrivalTime: Int = attr(ATTRIBUTE_ARRIVAL_TIME).toDouble.toInt
 
     val linkIdsAsStr = Option(attr.getOrElse(ATTRIBUTE_LINK_IDS, ""))
     val linkIds: Seq[Int] = linkIdsAsStr match {

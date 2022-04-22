@@ -2,7 +2,7 @@ package beam.utils.beam_to_matsim.visualization.via
 
 import beam.utils.beam_to_matsim.events_filter.{MutablePopulationFilter, MutableSamplingFilter, PopulationSample}
 import beam.utils.beam_to_matsim.io.{Reader, Writer}
-import beam.utils.beam_to_matsim.via_event.ViaEvent
+import beam.utils.beam_to_matsim.via_event.{ViaEvent, ViaEventsCollection}
 
 import java.io.File
 import java.nio.file.Files
@@ -27,10 +27,10 @@ object visualization_12 extends App {
 
   val (vehiclesEvents, personsEvents) = Reader.readWithFilter(beamEventsFilePath, filter)
 
-  val events = mutable.PriorityQueue.empty[ViaEvent]((e1, e2) => e2.time.compare(e1.time))
+  val eventsCollection = new ViaEventsCollection()
   val (activities, activityToCnt) = Reader.transformActivities(personsEvents)
-  activities.foreach(events.enqueue(_))
+  activities.foreach(eventsCollection.put)
 
-  Writer.writeViaEventsQueue[ViaEvent](events, _.toXml.toString, viaEventsFile)
+  Writer.writeViaEventsCollection(eventsCollection, _.toXml.toString, viaEventsFile)
   Writer.writeViaActivities(activityToCnt, viaModesFile)
 }
