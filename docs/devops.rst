@@ -255,7 +255,7 @@ You should now be able to visit your domain using either HTTP or HTTPS, and the 
 
     $ sudo certbot –nginx
 
-35. The Certbot packages on your system come with a cron job that will renew your certificates automatically before they expire. Since Let's Encrypt certificates last for 90 days, it's highly advisable to take advantage of this feature. You can test automatic renewal for your certificates by running this command::
+35. The Certbot packages on your system come with a cron job that will renew your certificates automatically before they expire. Since Let's Encrypt certificates last for 90 days, it's highly advisable to take advantage of this feature. You can beam.sim.test automatic renewal for your certificates by running this command::
 
     $ sudo certbot renew –dry-run
 
@@ -288,7 +288,7 @@ Now configure a Jenkins slave for pipeline configuration. You need the slave AMI
 
    $ sudo apt install git docker oracle-java8-installer git-lfs=2.3.4
 
-7. SSH master that you created in last topic and from inside master again ssh your newly created slave, just to test the communication::
+7. SSH master that you created in last topic and from inside master again ssh your newly created slave, just to beam.sim.test the communication::
 
    $ ssh ubuntu@<slave_ip_address>
 
@@ -398,7 +398,7 @@ Now that you have a token, you need to add it to your Jenkins server so it can a
 
 |image26|
 
-25. Click the Test connection button. Jenkins will make a test API call to your account and verify connectivity. On successful connectivity click Save.
+25. Click the Test connection button. Jenkins will make a beam.sim.test API call to your account and verify connectivity. On successful connectivity click Save.
 
 
 
@@ -417,7 +417,7 @@ Once Jenkins is installed on master and its configured with slave, cloud and git
    -  HTTP Request Plugin: This plugin sends a http request to a url with some parameters.
    -  embeddable-build-status: Fancy but I love to have a status badge on my README
    -  Timestamper: It adds time information in our build output.
-   -  AnsiColor: Because some tools (lint, test) output string with bash color and Jenkins do not render the color without it.
+   -  AnsiColor: Because some tools (lint, beam.sim.test) output string with bash color and Jenkins do not render the color without it.
    -  Green Balls: Because green is better than blue!
 
 3. Back in the main Jenkins dashboard, click New Item in the left hand menu:

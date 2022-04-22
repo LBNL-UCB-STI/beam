@@ -44,8 +44,8 @@ class PickUpDropOffCollectorTest extends AnyFunSuite with Matchers {
   }
 
   test("BEAMVILLE. Should read expected link pick-ups and drop-offs") {
-    val eventsFilePath = "test/test-resources/PickUpsDropOffsCollectorTestData/beamville.events.xml"
-    val vehicleTypeFilePath = "test/test-resources/PickUpsDropOffsCollectorTestData/beamville.vehicleTypes.csv"
+    val eventsFilePath = "beam.sim.test/beam.sim.test-resources/PickUpsDropOffsCollectorTestData/beamville.events.xml"
+    val vehicleTypeFilePath = "beam.sim.test/beam.sim.test-resources/PickUpsDropOffsCollectorTestData/beamville.vehicleTypes.csv"
 
     val events = EventReader.fromXmlFile(eventsFilePath)
 
@@ -71,7 +71,7 @@ class PickUpDropOffCollectorTest extends AnyFunSuite with Matchers {
     dropOffs shouldBe (19 + 20)
 
     /*
-      The PYTHON script to produce test data from events file.
+      The PYTHON script to produce beam.sim.test data from events file.
 
       import pandas as pd
       pd.set_option('display.max_rows', 500)

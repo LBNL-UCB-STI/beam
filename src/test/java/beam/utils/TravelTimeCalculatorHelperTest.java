@@ -11,7 +11,7 @@ public class TravelTimeCalculatorHelperTest {
     @Test
     public void AverageTravelTimesMapShouldWorkProperly() {
         int hours = 10;
-        // The same numbers in both arrays, so it will be easy to test average
+        // The same numbers in both arrays, so it will be easy to beam.sim.test average
         double[] times1 = new double[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 0};
         double[] times2 = new double[]{1, 2, 3, 4, 5, 6, 7, 8, 9, 0};
         Map<String, double[]> map1 = new HashMap<>();

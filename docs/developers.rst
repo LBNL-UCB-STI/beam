@@ -59,7 +59,7 @@ To run from IntelliJ as an "Application", edit the "Environment Variables" field
 
   BEAM_OUTPUT="/path/to/your/preferred/output/destination/"
 
-Finally, if you want to run the gradle tasks from IntelliJ in OS X, you need to configure your variables as launch tasks by creating a plist file for each. The files should be located under :code:`~/Library/LaunchAgents/` and look like the following. Note that after creating the files you need to log out / log in to OS X and you can't Launch IntelliJ automatically on log-in because the LaunchAgents might not complete in time.
+Finally, if you want to run the gradle tasks from IntelliJ in OS X, you need to configure your variables as launch tasks by creating a plist file for each. The files should be located under :code:`~/Library/LaunchAgents/` and look like the following. beam.sim.Note that after creating the files you need to log out / log in to OS X and you can't Launch IntelliJ automatically on log-in because the LaunchAgents might not complete in time.
 
 File: :code:`~/Library/LaunchAgents/setenv.BEAM_OUTPUT.plist`::
 
@@ -136,7 +136,7 @@ or::
 
 to remove all production data.
 
-Note that if you locally fetch the submodule then it will update the submodule pointer to the latest submodule commit.
+beam.sim.Note that if you locally fetch the submodule then it will update the submodule pointer to the latest submodule commit.
 That will result in a git change.
 
 for example, the output of `git status` will be something like that::
@@ -213,11 +213,11 @@ The order which will be used to look for parameter values is follow:
 
 To run a batch simulation, you can specify multiple configuration files separated by commas::
 
-  ./gradlew deploy -PbeamConfigs=test/input/beamville/beam.conf,test/input/sf-light/sf-light.conf
+  ./gradlew deploy -PbeamConfigs=beam.sim.test/input/beamville/beam.conf,beam.sim.test/input/sf-light/sf-light.conf
 
 Similarly for experiment batch, you can specify comma-separated experiment files::
 
-  ./gradlew deploy -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
+  ./gradlew deploy -PbeamExperiments=beam.sim.test/input/beamville/calibration/transport-cost/experiments.yml,beam.sim.test/input/sf-light/calibration/transport-cost/experiments.yml
 
 For demo and presentation material, please follow the link_ on google drive.
 
@@ -482,14 +482,14 @@ Now at the bottom, under NetworkSettings, locate IP Address of your docker conta
 Tagging Tests for Periodic CI
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-ScalaTest allows you to define different test categories by tagging your tests. These tags categorise tests in different sets. And later you can filter these set of tests by specifying these tags with your build tasks. Beam also provide a custom tag `Periodic` to mark your tests for periodic CI runs. As you mark the test with this tag, your test would be included automatically into execution set and become the part of next scheduled run. It also be excluded immediately for regular gradle test task and CI. Follow the example below to tag your test with `Periodic` tag::
+ScalaTest allows you to define different beam.sim.test categories by tagging your tests. These tags categorise tests in different sets. And later you can filter these set of tests by specifying these tags with your build tasks. Beam also provide a custom tag `Periodic` to mark your tests for periodic CI runs. As you mark the beam.sim.test with this tag, your beam.sim.test would be included automatically into execution set and become the part of next scheduled run. It also be excluded immediately for regular gradle beam.sim.test task and CI. Follow the example below to tag your beam.sim.test with `Periodic` tag::
 
    behavior of "Trajectory"
       it should "interpolate coordinates" taggedAs Periodic in {
          ...
       }
 
-This code marks the test with `com.beam.tags.Periodic` tag. You can also specify multiple tags as a comma separated parameter list in `taggedAs` method. Following code demonstrate the use of multiple tags::
+This code marks the beam.sim.test with `com.beam.tags.Periodic` tag. You can also specify multiple tags as a comma separated parameter list in `taggedAs` method. Following code demonstrate the use of multiple tags::
 
    "The agentsim" must {
       ...
@@ -554,7 +554,7 @@ However, in BEAM this represents over 15 GB data and often fails.
 
     [lfs] url = <URL to new LFS repo>
 
-Note: for Bitbucket, the <URL to new LFS repo> is <URL to new repo>/info/lfs
+beam.sim.Note: for Bitbucket, the <URL to new LFS repo> is <URL to new repo>/info/lfs
 
 6. Commit changes
 
@@ -610,10 +610,10 @@ in the root of Beam project. If you want to tag the built image run::
 
     $ ./gradlew tagImage
 
-Once you have the image you can run Beam in Docker. Here is an example how to run test/input/beamville/beam.conf scenario on Windows OS::
+Once you have the image you can run Beam in Docker. Here is an example how to run beam.sim.test/input/beamville/beam.conf scenario on Windows OS::
 
    $ docker run -v c:/repos/beam/output:/app/output -e JAVA_OPTS='-Xmx12g' \
-      beammodel/beam:0.8.6 --config test/input/beamville/beam.conf
+      beammodel/beam:0.8.6 --config beam.sim.test/input/beamville/beam.conf
 
 Docker run command mounts host folder c:/repos/beam/output to be /app/output which allows to see the output of the Beam run. It also passes environment variable e JAVA_OPTS to the container in order to set maximum heap size for Java application.
 

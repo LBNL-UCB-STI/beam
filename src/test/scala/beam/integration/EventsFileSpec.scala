@@ -120,22 +120,22 @@ class EventsFileSpec
 
   it should "contain the same bus trips entries" in {
     tripsFromEvents("BUS-DEFAULT") should contain theSameElementsAs
-    tripsFromGtfs("test/input/beamville/r5/bus.zip")
+    tripsFromGtfs("beam.sim.test/input/beamville/r5/bus.zip")
   }
 
   it should "contain the same train trips entries" in {
     tripsFromEvents("SUBWAY-DEFAULT") should contain theSameElementsAs
-    tripsFromGtfs("test/input/beamville/r5/train.zip")
+    tripsFromGtfs("beam.sim.test/input/beamville/r5/train.zip")
   }
 
   it should "contain same pathTraversal defined at stop times file for bus input file" in {
     stopToStopLegsFromEventsByTrip("BUS-DEFAULT").keys should contain theSameElementsAs
-    stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/bus.zip").keys
+    stopToStopLegsFromGtfsByTrip("beam.sim.test/input/beamville/r5/bus.zip").keys
   }
 
   it should "contain same pathTraversal defined at stop times file for train input file" in {
     stopToStopLegsFromEventsByTrip("SUBWAY-DEFAULT").keys should contain theSameElementsAs
-    stopToStopLegsFromGtfsByTrip("test/input/beamville/r5/train.zip").keys
+    stopToStopLegsFromGtfsByTrip("beam.sim.test/input/beamville/r5/train.zip").keys
   }
 
   it should "also be available as csv file" in {

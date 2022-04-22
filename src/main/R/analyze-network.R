@@ -3,7 +3,7 @@ load.libraries(c('XML','rgdal'))
 
 ##net <- xmlParse(pp(matsim.shared,"model-inputs/development/network_SF_Bay_detailed.xml"))
 #net <- xmlParse(pp(matsim.shared,"model-inputs/development/thinnedNetwork.xml"))
-##net <- xmlParse(pp(matsim.shared,"model-inputs/development/test/network.xml"))
+##net <- xmlParse(pp(matsim.shared,"model-inputs/development/beam.sim.test/network.xml"))
 
 #nodes <- data.table(id=as.numeric(xpathSApply(net,'/network/nodes/node', xmlGetAttr,'id')),
                   #x=as.numeric(xpathSApply(net,'/network/nodes/node', xmlGetAttr,'x')),

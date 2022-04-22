@@ -121,11 +121,11 @@ Now you're ready to run BEAM!
 Running BEAM
 ^^^^^^^^^^^^
 
-Inside of the respository is a folder 'test/input' containing several scenarios and configurations you can experiment with.
+Inside of the respository is a folder 'beam.sim.test/input' containing several scenarios and configurations you can experiment with.
 
 The simplest, smallest, and fastest is the beamville scenario (described below). Try to run beamville with this command::
 
-  ./gradlew :run -PappArgs="['--config', 'test/input/beamville/beam.conf']"
+  ./gradlew :run -PappArgs="['--config', 'beam.sim.test/input/beamville/beam.conf']"
 
 
 The BEAM application by default sets max RAM allocation to 140g (see **maxRAM** setting in gradle.properties). This needs to
@@ -204,7 +204,7 @@ Steps to add a new configuration :
 
   * Main Class : beam.sim.RunBeam
   * VM options : -Xmx8g
-  * Program Arguments : --config test/input/beamville/beam.conf (this runs beamville scenario, changes the folder path to run a different scenario)
+  * Program Arguments : --config beam.sim.test/input/beamville/beam.conf (this runs beamville scenario, changes the folder path to run a different scenario)
   * Working Directory : /home/beam/BEAM
   * Environment Variables : PWD=/home/beam/BEAM
   * use submodule of path : beam.main
@@ -231,7 +231,7 @@ For example here is a shell script which might be used to run the docker image. 
 
     config=$1
     beam_image="beammodel/beam:0.8.6"
-    input_folder_name="test"
+    input_folder_name="beam.sim.test"
     output_folder_name="beam_output"
     mkdir -m 777 $output_folder_name 2>/dev/null
 
@@ -249,9 +249,9 @@ For example here is a shell script which might be used to run the docker image. 
 
 Scenarios
 ^^^^^^^^^
-We have provided two scenarios for you to explore under the `test/input` directory.
+We have provided two scenarios for you to explore under the `beam.sim.test/input` directory.
 
-The `beamville` test scenario is a toy network consisting of a 4 x 4 block gridded road network, a light rail transit agency, a bus transit agency, and a population of ~50 agents.
+The `beamville` beam.sim.test scenario is a toy network consisting of a 4 x 4 block gridded road network, a light rail transit agency, a bus transit agency, and a population of ~50 agents.
 
 .. image:: _static/figs/beamville-net.png
 
@@ -320,14 +320,14 @@ We have created two example experiments to demonstrate how to use the experiment
 
 In any experiment, we seek to vary the parameters of BEAM systematically and producing results in an organized, predicable location to facilitate post-processing. For the two factor experiment example, we only need to vary the contents of the BEAM config file (beam.conf) in order to achieve the desired anlaysis.
 
-Lets start from building your experiment definitions in experiment.yml ( see example in `test/input/beamville/example-experiment/experiment.yml`).
+Lets start from building your experiment definitions in experiment.yml ( see example in `beam.sim.test/input/beamville/example-experiment/experiment.yml`).
 `experiment.yml` is a YAML config file which consists of 3 sections: header, defaultParams, and factors.
 
 The Header defines the basic properties of the experiment, the title, author, and a path to the configuration file (paths should be relative to the project root)::
 
   title: Example-Experiment
   author: MyName
-  beamTemplateConfPath: test/input/beamville/beam.conf
+  beamTemplateConfPath: beam.sim.test/input/beamville/beam.conf
 
 The Default Params are used to override any parameters from the BEAM config file for the whole experiment. These values can, in turn, be overridden by factor levels if specified. This section is mostly a convenient way to ensure certain parameters take on specific values without modifying the BEAM config file in use.
 
@@ -362,13 +362,13 @@ Factors can be designed however you choose, including adding as many factors or 
 
 Each level and the baseScenario defines `params`, or a set of key,value pairs. Those keys are either property names from beam.conf or placeholders from any template config files (see below for an example of this). Param names across factors and template files must be unique, otherwise they will overwrite each other.
 
-In our second example (see directory `test/input/beamville/example-calibration/`), we have added a template file `modeChoiceParameters.xml.tpl` that allows us to change the values of parameters in BEAM input file `modeChoiceParameters.xml`. In the `experiment.yml` file, we have defined 3 factors with two levels each. One level contains the property `mnl_ride_hail_intercept`, which appears in modeChoiceParameters.xml.tpl as `{{ mnl_ride_hail_intercept }}`. This placeholder will be replaced during template processing. The same is true for all properties in the defaultParams and under the facts. Placeholders for template files must NOT contain the dot symbol due to special behaviour of Jinja. However it is possible to use the full names of properties from `beam.conf` (which *do* include dots) if they need to be overridden within this experiment run.
+In our second example (see directory `beam.sim.test/input/beamville/example-calibration/`), we have added a template file `modeChoiceParameters.xml.tpl` that allows us to change the values of parameters in BEAM input file `modeChoiceParameters.xml`. In the `experiment.yml` file, we have defined 3 factors with two levels each. One level contains the property `mnl_ride_hail_intercept`, which appears in modeChoiceParameters.xml.tpl as `{{ mnl_ride_hail_intercept }}`. This placeholder will be replaced during template processing. The same is true for all properties in the defaultParams and under the facts. Placeholders for template files must NOT contain the dot symbol due to special behaviour of Jinja. However it is possible to use the full names of properties from `beam.conf` (which *do* include dots) if they need to be overridden within this experiment run.
 
 Also note that `mnl_ride_hail_intercept` appears both in the level specification and in the baseScenario. When using a template file (versus a BEAM Config file), each level can only override properties from Default Params section of `experiment.yml`.
 
 Experiment generation can be run using following command::
 
-  ./gradlew -PmainClass=beam.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']" execute
+  ./gradlew -PmainClass=beam.experiment.ExperimentGenerator -PappArgs="['--experiments', 'beam.sim.test/input/beamville/example-experiment/experiment.yml']" execute
 
 It's better to create a new sub-folder folder (e.g. 'calibration' or 'experiment-1') in your data input directory and put both templates and the experiment.yml there.
 The ExperimentGenerator will create a sub-folder next to experiment.yml named `runs` which will include all of the data needed to run the experiment along with a shell script to execute a local run. The generator also creates an `experiments.csv` file next to experiment.yml with a mapping between experimental group name, the level name and the value of the params associated with each level. 
@@ -405,7 +405,7 @@ to the SigOpt API. This completes one iteration of the calibration cycle. At the
 `Suggestion` is returned by SigOpt and the simulation is re-run with the new parameter values. This process continues
 for the number of iterations specified in a command-line argument.
 
- Note: that this is a different type of iteration from the number of iterations of a run of BEAM itself.
+ beam.sim.Note: that this is a different type of iteration from the number of iterations of a run of BEAM itself.
  Users may wish to run BEAM for several iterations of the co-evolutionary plan modification loop prior to
  evaluating the metric.
 
@@ -432,7 +432,7 @@ Prepare YML File
 Configuring a BEAM scenario for calibration proceeds in much the same way as it does for an experiment using the
 `Experiment Manager`_. In fact, with some minor adjustments, the `YAML` text file used to define experiments
 has the same general structure as the one used to specify tuning hyperparameters and ranges for calibration
-(see example file beam/test/input/beamville/example-calibration/experiment.yml)::
+(see example file beam/beam.sim.test/input/beamville/example-calibration/experiment.yml)::
 
   title: this is the name of the SigOpt experiment
   beamTemplateConfPath: the config file to be used for the experiments
@@ -562,9 +562,9 @@ Finally, this conversion can only be done with a clone of the full BEAM reposito
 
 Conversion Instructions
 ^^^^^^^^^^^^^^^^^^^^^^^
-Note that we use the MATSim Sioux Falls scenario as an example. The data for this scenario are already in the BEAM repository under "test/input/siouxfalls". We recommend that you follow the steps in this guide with that data to produce a working BEAM Sioux Falls scenario and then attempt to do the process with your own data.
+beam.sim.Note that we use the MATSim Sioux Falls scenario as an example. The data for this scenario are already in the BEAM repository under "beam.sim.test/input/siouxfalls". We recommend that you follow the steps in this guide with that data to produce a working BEAM Sioux Falls scenario and then attempt to do the process with your own data.
 
-1. Create a folder for your scenario in project directory under test/input (e.g: test/input/siouxfalls)
+1. Create a folder for your scenario in project directory under beam.sim.test/input (e.g: beam.sim.test/input/siouxfalls)
 
 2. Create a sub-directory to your scenario directory and name it "conversion-input" (exact name required) 
    
@@ -572,13 +572,13 @@ Note that we use the MATSim Sioux Falls scenario as an example. The data for thi
 
 4. Copy the MATSim input data to the conversion-input directory.
 
-5. Copy the BEAM config file from test/input/beamville/beam.conf into the scenario directory and rename to your scenario (e.g. test/input/siouxfalls/siouxfalls.conf)
+5. Copy the BEAM config file from beam.sim.test/input/beamville/beam.conf into the scenario directory and rename to your scenario (e.g. beam.sim.test/input/siouxfalls/siouxfalls.conf)
 
 6. Make the following edits to siouxfalls.conf (or your scenario name, replace Sioux Falls names below with appropriate names from your case):
 
 * Do a global search/replace and search for "beamville" and replace with your scenario name (e.g. "siouxfalls").
    
-* matsim.conversion.scenarioDirectory = "test/input/siouxfalls"
+* matsim.conversion.scenarioDirectory = "beam.sim.test/input/siouxfalls"
 
 * matsim.conversion.populationFile = "Siouxfalls_population.xml" (just the file name, assumed to be under conversion-input)
 
@@ -632,7 +632,7 @@ Copy the osmosis command generated by conversion tool and run from the command l
 
 * Main class to execute: beam.sim.RunBeam
 * VM Options: -Xmx2g (or more if a large scenario)
-* Program arguments, path to beam config file from above, (e.g. --config "test/input/siouxfalls/siouxfalls.conf")
+* Program arguments, path to beam config file from above, (e.g. --config "beam.sim.test/input/siouxfalls/siouxfalls.conf")
 * Environment variables: PWD=/path/to/beam/folder
 
 

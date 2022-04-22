@@ -32,11 +32,11 @@ case class CsvOutputRow(id: Int, originUTM: Location, destinationUTM: Location, 
 /*
 Example of parameters usage:
  --departureTime 0
- --configPath test/input/beamville/beam.conf
- --linkstatsPath test/input/beamville/linkstats.csv.gz
+ --configPath beam.sim.test/input/beamville/beam.conf
+ --linkstatsPath beam.sim.test/input/beamville/linkstats.csv.gz
  --router R5|GH
- --input test/input/beamville/input.csv
- --output test/input/beamville/output.csv
+ --input beam.sim.test/input/beamville/input.csv
+ --output beam.sim.test/input/beamville/output.csv
  */
 object TravelTimeAndDistanceCalculatorApp extends App with BeamHelper {
 

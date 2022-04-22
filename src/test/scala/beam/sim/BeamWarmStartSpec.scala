@@ -353,7 +353,7 @@ object BeamWarmStartSpec {
   }
 
   def copyPlans(toDir: Path, asName: String): Option[String] = {
-    val plansSrc = Paths.get("test/input/beamville/test-data/beamville.plans.xml.gz")
+    val plansSrc = Paths.get("beam.sim.test/input/beamville/beam.sim.test-data/beamville.plans.xml.gz")
     val plansDest = Paths.get(toDir.toString, s"$asName.xml.gz")
     Files.copy(plansSrc, plansDest)
 
@@ -361,7 +361,7 @@ object BeamWarmStartSpec {
   }
 
   def copyLinkStats(toDir: Path, asName: String): Option[String] = {
-    val plansSrc = Paths.get("test/input/beamville/test-data/beamville.linkstats.csv.gz")
+    val plansSrc = Paths.get("beam.sim.test/input/beamville/beam.sim.test-data/beamville.linkstats.csv.gz")
     val statsDest = Paths.get(toDir.toString, s"$asName.csv.gz")
     Files.copy(plansSrc, statsDest)
 

@@ -242,10 +242,10 @@ object PlansBuilder {
     * Run from directly from CLI with, for example:
     *
     * $> gradle :execute -PmainClass=beam.utils.plan.PlansBuilder
-    *   -PappArgs="['test/input/beamville/population.xml',
-    *   'test/input/beamville/r5/physsim-network.xml',
-    *   'test/input/beamville/vehicles.xml', '2000',
-    *   'test/input/beamville/samples', 'epsg:4326', 'epsg:26910']"
+    *   -PappArgs="['beam.sim.test/input/beamville/population.xml',
+    *   'beam.sim.test/input/beamville/r5/physsim-network.xml',
+    *   'beam.sim.test/input/beamville/vehicles.xml', '2000',
+    *   'beam.sim.test/input/beamville/samples', 'epsg:4326', 'epsg:26910']"
     */
   def main(args: Array[String]): Unit = {
     val builder = PlansBuilder

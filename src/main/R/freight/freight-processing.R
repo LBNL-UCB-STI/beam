@@ -17,7 +17,7 @@ events <- readCsv(pp(workDir, "/5.events.csv.gz"))
 unloading <- events[actType=="Unloading"]
 nrow(unloading[type=="actstart"])
 nrow(unloading[type=="actend"])
-warehouse <- events[actType=="Warehouse"]
+warehouse <- events[actType=="Home"]
 nrow(warehouse[type=="actstart"])
 nrow(warehouse[type=="actend"])
 pt <- events[type=="PathTraversal"][,c("time","type","vehicleType","vehicle","secondaryFuelLevel",

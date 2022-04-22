@@ -11,7 +11,7 @@ import org.scalatest.matchers.should.Matchers
   */
 class SkimsSpec extends AnyFlatSpec with Matchers {
   "Skims" must "return all the skims except ActivitySimSkimmer to avoid loading AS skims during warm start" in {
-    val beamConfig = BeamConfig(TestConfigUtils.testConfig("test/input/beamville/beam.conf").resolve)
+    val beamConfig = BeamConfig(TestConfigUtils.testConfig("beam.sim.test/input/beamville/beam.conf").resolve)
     val skimCfg = beamConfig.beam.router.skim
     val skimFileNames = Skims.skimFileNames(skimCfg)
     skimFileNames should contain allOf (

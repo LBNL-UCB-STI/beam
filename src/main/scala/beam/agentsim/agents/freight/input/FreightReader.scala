@@ -55,7 +55,7 @@ trait FreightReader {
   ): Plan = {
     val allToursPlanElements = tours.flatMap { tour =>
       val tourInitialActivity =
-        createFreightActivity("Warehouse", tour.warehouseLocationUTM, tour.departureTimeInSec, None)
+        createFreightActivity("Home", tour.warehouseLocationUTM, tour.departureTimeInSec, None)
       val firstLeg: Leg = createFreightLeg(tour.departureTimeInSec)
 
       val plans: IndexedSeq[PayloadPlan] = plansPerTour.get(tour.tourId) match {
@@ -82,7 +82,7 @@ trait FreightReader {
       elements
     }
 
-    val finalActivity = createFreightActivity("Warehouse", tours.head.warehouseLocationUTM, -1, None)
+    val finalActivity = createFreightActivity("Home", tours.head.warehouseLocationUTM, -1, None)
     val allPlanElements: IndexedSeq[PlanElement] = allToursPlanElements :+ finalActivity
 
     val currentPlan = PopulationUtils.createPlan(person)
@@ -219,15 +219,16 @@ object FreightReader {
   case class ClosestUTMPointOnMap(streetLayer: StreetLayer, r5LinkRadiusMeters: Double) {
 
     def find(wsgCoord: Coord, geoUtils: GeoUtils): Option[Coord] = {
-      //val wsgCoord = geoUtils.utm2Wgs(utmCoord)
-      val theSplit = geoUtils.getR5Split(streetLayer, wsgCoord, r5LinkRadiusMeters)
-      if (theSplit == null) {
-        None
-      } else {
-        val wgsPointOnMap = geoUtils.splitToCoord(theSplit)
-        val utmCoord = geoUtils.wgs2Utm(wgsPointOnMap)
-        Some(utmCoord)
-      }
+      if (streetLayer.envelope.contains(wsgCoord.getX, wsgCoord.getY)) {
+        val theSplit = geoUtils.getR5Split(streetLayer, wsgCoord, r5LinkRadiusMeters)
+        if (theSplit == null) {
+          None
+        } else {
+          val wgsPointOnMap = geoUtils.splitToCoord(theSplit)
+          val utmCoord = geoUtils.wgs2Utm(wgsPointOnMap)
+          Some(utmCoord)
+        }
+      } else None
     }
   }
 }

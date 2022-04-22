@@ -34,11 +34,11 @@ class MyDebugRoutingVisitor extends RoutingVisitor {
 }
 
 // You can run it as:
-//  - App with Main method in IntelliJ IDEA. You need to provide config as Program Arguments: `--config test/input/texas/austin-prod-100k.conf`
+//  - App with Main method in IntelliJ IDEA. You need to provide config as Program Arguments: `--config beam.sim.test/input/texas/austin-prod-100k.conf`
 //  - Run it from gradle:
 /*
-./gradlew :execute -PmainClass=beam.router.R5Requester -PmaxRAM=24 -PappArgs="['--config', 'test/input/newyork/new-york-PROD-baseline-one-r5.conf']" \
-	-PlogbackCfg=logback.xml -Dplans=test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz -DconvertToWgs=false
+./gradlew :execute -PmainClass=beam.router.R5Requester -PmaxRAM=24 -PappArgs="['--config', 'beam.sim.test/input/newyork/new-york-PROD-baseline-one-r5.conf']" \
+	-PlogbackCfg=logback.xml -Dplans=beam.sim.test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz -DconvertToWgs=false
  */
 object R5Requester extends BeamHelper {
 

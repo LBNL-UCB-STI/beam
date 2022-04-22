@@ -80,7 +80,7 @@ class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper {
                       |beam.agentsim.lastIteration = 0
                       |beam.outputs.events.fileOutputFormats = "xml,csv"
                      """.stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
 
     val (matSimConfig, _, _) = runBeamWithConfig(config)
@@ -109,7 +109,7 @@ class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper {
                       |"Work -> $expectedWorkDuration"
                       |]
                      """.stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
 
     val (matSimConfig, _, _) = runBeamWithConfig(config)

@@ -18,7 +18,7 @@ object GraphHopperOsmUsageExample {
         else default.create(name, configuration)
       }
     }
-    val gh = GraphHopperWrapper.fromOsm("""test/input/sf-light/r5/sflight_muni.osm.pbf""", Some(tagParserFactory))
+    val gh = GraphHopperWrapper.fromOsm("""beam.sim.test/input/sf-light/r5/sflight_muni.osm.pbf""", Some(tagParserFactory))
 
     val edgeIdToWayIdConvertor = new EdgeIdToWayIdConvertor(gh.getEncodingManager)
     val it: AllEdgesIterator = gh.getGraphHopperStorage.getAllEdges

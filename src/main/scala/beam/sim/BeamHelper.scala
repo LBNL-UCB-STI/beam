@@ -402,7 +402,7 @@ trait BeamHelper extends LazyLogging {
       ) -> TrieMap(vehicleIdToSoc.toSeq: _*)
     }
 
-  // Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
+  // beam.sim.Note that this assumes standing room is only available on transit vehicles. Not sure of any counterexamples modulo
   // say, a yacht or personal bus, but I think this will be fine for now.
   // New Feb-2020: Switched over to MediumDutyPassenger -> Transit to solve issue with AV shuttles
   private def maybeScaleTransit(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]) = {

@@ -35,8 +35,8 @@ class HierarchicalParkingManagerSpec
           .parseString("""akka.log-dead-letters = 10
         |akka.actor.debug.fsm = true
         |akka.loglevel = debug
-        |akka.test.timefactor = 2""".stripMargin)
-          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+        |akka.beam.sim.test.timefactor = 2""".stripMargin)
+          .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf").resolve())
       )
     )
     with AnyFunSpecLike
@@ -302,7 +302,7 @@ class HierarchicalParkingManagerSpec
 
       val random1 = new Random(1)
 
-      // run this many trials of this test
+      // run this many trials of this beam.sim.test
       val trials = 5
       // the maximum number of parking stalls across all TAZs in each trial
       val maxParkingStalls = 10000
@@ -374,7 +374,7 @@ class HierarchicalParkingManagerSpec
 
       val stalls = InfrastructureUtils
         .loadStalls[Link](
-          "test/input/beamville/parking/link-parking.csv",
+          "beam.sim.test/input/beamville/parking/link-parking.csv",
           IndexedSeq.empty,
           null, //it is required only in case of failures
           1.0,

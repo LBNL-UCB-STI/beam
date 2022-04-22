@@ -134,7 +134,7 @@ object BeamConfig {
                 if (c.hasPathOrNull("carrierParkingFilePath")) Some(c.getString("carrierParkingFilePath")) else None,
               carriersFilePath =
                 if (c.hasPathOrNull("carriersFilePath")) c.getString("carriersFilePath")
-                else "/test/input/beamville/freight/freight-carriers.csv",
+                else "/beam.sim.test/input/beamville/freight/freight-carriers.csv",
               convertWgs2Utm = c.hasPathOrNull("convertWgs2Utm") && c.getBoolean("convertWgs2Utm"),
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
               generateFixedActivitiesDurations =
@@ -142,7 +142,7 @@ object BeamConfig {
               name = if (c.hasPathOrNull("name")) c.getString("name") else "Freight",
               plansFilePath =
                 if (c.hasPathOrNull("plansFilePath")) c.getString("plansFilePath")
-                else "/test/input/beamville/freight/payload-plans.csv",
+                else "/beam.sim.test/input/beamville/freight/payload-plans.csv",
               reader = if (c.hasPathOrNull("reader")) c.getString("reader") else "Generic",
               replanning = BeamConfig.Beam.Agentsim.Agents.Freight.Replanning(
                 if (c.hasPathOrNull("replanning")) c.getConfig("replanning")
@@ -150,7 +150,7 @@ object BeamConfig {
               ),
               toursFilePath =
                 if (c.hasPathOrNull("toursFilePath")) c.getString("toursFilePath")
-                else "/test/input/beamville/freight/freight-tours.csv"
+                else "/beam.sim.test/input/beamville/freight/freight-tours.csv"
             )
           }
         }
@@ -166,10 +166,10 @@ object BeamConfig {
             BeamConfig.Beam.Agentsim.Agents.Households(
               inputFilePath =
                 if (c.hasPathOrNull("inputFilePath")) c.getString("inputFilePath")
-                else "/test/input/beamville/households.xml.gz",
+                else "/beam.sim.test/input/beamville/households.xml.gz",
               inputHouseholdAttributesFilePath =
                 if (c.hasPathOrNull("inputHouseholdAttributesFilePath")) c.getString("inputHouseholdAttributesFilePath")
-                else "/test/input/beamville/householdAttributes.xml.gz"
+                else "/beam.sim.test/input/beamville/householdAttributes.xml.gz"
             )
           }
         }
@@ -358,7 +358,7 @@ object BeamConfig {
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.Lccm = {
               BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.Lccm(
                 filePath =
-                  if (c.hasPathOrNull("filePath")) c.getString("filePath") else "/test/input/beamville/lccm-long.csv"
+                  if (c.hasPathOrNull("filePath")) c.getString("filePath") else "/beam.sim.test/input/beamville/lccm-long.csv"
               )
             }
           }
@@ -529,7 +529,8 @@ object BeamConfig {
             rideHailTransit: scala.Double,
             transit: scala.Double,
             waiting: scala.Double,
-            walk: scala.Double
+            walk: scala.Double,
+            emergency: scala.Double
           )
 
           object ModeVotMultiplier {
@@ -546,7 +547,8 @@ object BeamConfig {
                 rideHailTransit = if (c.hasPathOrNull("rideHailTransit")) c.getDouble("rideHailTransit") else 1.0,
                 transit = if (c.hasPathOrNull("transit")) c.getDouble("transit") else 1.0,
                 waiting = if (c.hasPathOrNull("waiting")) c.getDouble("waiting") else 1.0,
-                walk = if (c.hasPathOrNull("walk")) c.getDouble("walk") else 1.0
+                walk = if (c.hasPathOrNull("walk")) c.getDouble("walk") else 1.0,
+                emergency = if (c.hasPathOrNull("emergency")) c.getDouble("emergency") else 1.0
               )
             }
           }
@@ -811,10 +813,10 @@ object BeamConfig {
             BeamConfig.Beam.Agentsim.Agents.Plans(
               inputPersonAttributesFilePath =
                 if (c.hasPathOrNull("inputPersonAttributesFilePath")) c.getString("inputPersonAttributesFilePath")
-                else "/test/input/beamville/populationAttributes.xml.gz",
+                else "/beam.sim.test/input/beamville/populationAttributes.xml.gz",
               inputPlansFilePath =
                 if (c.hasPathOrNull("inputPlansFilePath")) c.getString("inputPlansFilePath")
-                else "/test/input/beamville/population.xml.gz",
+                else "/beam.sim.test/input/beamville/population.xml.gz",
               merge = BeamConfig.Beam.Agentsim.Agents.Plans.Merge(
                 if (c.hasPathOrNull("merge")) c.getConfig("merge")
                 else com.typesafe.config.ConfigFactory.parseString("merge{}")
@@ -1807,7 +1809,7 @@ object BeamConfig {
                 if (c.hasPathOrNull("fractionOfPeopleWithBicycle")) c.getDouble("fractionOfPeopleWithBicycle") else 1.0,
               fuelTypesFilePath =
                 if (c.hasPathOrNull("fuelTypesFilePath")) c.getString("fuelTypesFilePath")
-                else "/test/input/beamville/beamFuelTypes.csv",
+                else "/beam.sim.test/input/beamville/beamFuelTypes.csv",
               generateEmergencyHouseholdVehicleWhenPlansRequireIt = c.hasPathOrNull(
                 "generateEmergencyHouseholdVehicleWhenPlansRequireIt"
               ) && c.getBoolean("generateEmergencyHouseholdVehicleWhenPlansRequireIt"),
@@ -1829,10 +1831,10 @@ object BeamConfig {
                 if (c.hasPathOrNull("vehicleAdjustmentMethod")) c.getString("vehicleAdjustmentMethod") else "UNIFORM",
               vehicleTypesFilePath =
                 if (c.hasPathOrNull("vehicleTypesFilePath")) c.getString("vehicleTypesFilePath")
-                else "/test/input/beamville/vehicleTypes.csv",
+                else "/beam.sim.test/input/beamville/vehicleTypes.csv",
               vehiclesFilePath =
                 if (c.hasPathOrNull("vehiclesFilePath")) c.getString("vehiclesFilePath")
-                else "/test/input/beamville/vehicles.csv"
+                else "/beam.sim.test/input/beamville/vehicles.csv"
             )
           }
 
@@ -2037,7 +2039,7 @@ object BeamConfig {
           BeamConfig.Beam.Agentsim.Scenarios(
             frequencyAdjustmentFile =
               if (c.hasPathOrNull("frequencyAdjustmentFile")) c.getString("frequencyAdjustmentFile")
-              else "/test/input/beamville/r5/FrequencyAdjustment.csv"
+              else "/beam.sim.test/input/beamville/r5/FrequencyAdjustment.csv"
           )
         }
       }
@@ -2106,7 +2108,7 @@ object BeamConfig {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Taz = {
           BeamConfig.Beam.Agentsim.Taz(
             filePath =
-              if (c.hasPathOrNull("filePath")) c.getString("filePath") else "/test/input/beamville/taz-centers.csv",
+              if (c.hasPathOrNull("filePath")) c.getString("filePath") else "/beam.sim.test/input/beamville/taz-centers.csv",
             parkingCostScalingFactor =
               if (c.hasPathOrNull("parkingCostScalingFactor")) c.getDouble("parkingCostScalingFactor") else 1.0,
             parkingFilePath = if (c.hasPathOrNull("parkingFilePath")) c.getString("parkingFilePath") else "",
@@ -2130,7 +2132,7 @@ object BeamConfig {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Toll = {
           BeamConfig.Beam.Agentsim.Toll(
             filePath =
-              if (c.hasPathOrNull("filePath")) c.getString("filePath") else "/test/input/beamville/toll-prices.csv"
+              if (c.hasPathOrNull("filePath")) c.getString("filePath") else "/beam.sim.test/input/beamville/toll-prices.csv"
           )
         }
       }
@@ -3756,7 +3758,7 @@ object BeamConfig {
             !c.hasPathOrNull("initializeRouterWithFreeFlowTimes") || c.getBoolean("initializeRouterWithFreeFlowTimes"),
           inputNetworkFilePath =
             if (c.hasPathOrNull("inputNetworkFilePath")) c.getString("inputNetworkFilePath")
-            else "/test/input/beamville/r5/physsim-network.xml",
+            else "/beam.sim.test/input/beamville/r5/physsim-network.xml",
           jdeqsim = BeamConfig.Beam.Physsim.Jdeqsim(
             if (c.hasPathOrNull("jdeqsim")) c.getConfig("jdeqsim")
             else com.typesafe.config.ConfigFactory.parseString("jdeqsim{}")
@@ -4091,7 +4093,7 @@ object BeamConfig {
             bikeLaneScaleFactor =
               if (c.hasPathOrNull("bikeLaneScaleFactor")) c.getDouble("bikeLaneScaleFactor") else 1.0,
             departureWindow = if (c.hasPathOrNull("departureWindow")) c.getDouble("departureWindow") else 15.0,
-            directory = if (c.hasPathOrNull("directory")) c.getString("directory") else "/test/input/beamville/r5",
+            directory = if (c.hasPathOrNull("directory")) c.getString("directory") else "/beam.sim.test/input/beamville/r5",
             directory2 = if (c.hasPathOrNull("directory2")) Some(c.getString("directory2")) else None,
             linkRadiusMeters = if (c.hasPathOrNull("linkRadiusMeters")) c.getDouble("linkRadiusMeters") else 10000.0,
             mNetBuilder = BeamConfig.Beam.Routing.R5.MNetBuilder(
@@ -4105,7 +4107,7 @@ object BeamConfig {
             numberOfSamples = if (c.hasPathOrNull("numberOfSamples")) c.getInt("numberOfSamples") else 1,
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
-              else "/test/input/beamville/r5/osm.mapdb",
+              else "/beam.sim.test/input/beamville/r5/osm.mapdb",
             travelTimeNoiseFraction =
               if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0
           )
@@ -4470,7 +4472,7 @@ object BeamConfig {
           else com.typesafe.config.ConfigFactory.parseString("input{}")
         ),
         inputDirectory =
-          if (c.hasPathOrNull("inputDirectory")) c.getString("inputDirectory") else "/test/input/beamville",
+          if (c.hasPathOrNull("inputDirectory")) c.getString("inputDirectory") else "/beam.sim.test/input/beamville",
         logger = BeamConfig.Beam.Logger(
           if (c.hasPathOrNull("logger")) c.getConfig("logger")
           else com.typesafe.config.ConfigFactory.parseString("logger{}")
@@ -4702,10 +4704,10 @@ object BeamConfig {
         def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules.Households = {
           BeamConfig.Matsim.Modules.Households(
             inputFile =
-              if (c.hasPathOrNull("inputFile")) c.getString("inputFile") else "/test/input/beamville/households.xml",
+              if (c.hasPathOrNull("inputFile")) c.getString("inputFile") else "/beam.sim.test/input/beamville/households.xml",
             inputHouseholdAttributesFile =
               if (c.hasPathOrNull("inputHouseholdAttributesFile")) c.getString("inputHouseholdAttributesFile")
-              else "/test/input/beamville/householdAttributes.xml"
+              else "/beam.sim.test/input/beamville/householdAttributes.xml"
           )
         }
       }
@@ -4737,7 +4739,7 @@ object BeamConfig {
           BeamConfig.Matsim.Modules.Network(
             inputNetworkFile =
               if (c.hasPathOrNull("inputNetworkFile")) c.getString("inputNetworkFile")
-              else "/test/input/beamville/r5/physsim-network.xml"
+              else "/beam.sim.test/input/beamville/r5/physsim-network.xml"
           )
         }
       }
@@ -4858,10 +4860,10 @@ object BeamConfig {
           BeamConfig.Matsim.Modules.Plans(
             inputPersonAttributesFile =
               if (c.hasPathOrNull("inputPersonAttributesFile")) c.getString("inputPersonAttributesFile")
-              else "/test/input/beamville/populationAttributes.xml",
+              else "/beam.sim.test/input/beamville/populationAttributes.xml",
             inputPlansFile =
               if (c.hasPathOrNull("inputPlansFile")) c.getString("inputPlansFile")
-              else "/test/input/beamville/population.xml"
+              else "/beam.sim.test/input/beamville/population.xml"
           )
         }
       }

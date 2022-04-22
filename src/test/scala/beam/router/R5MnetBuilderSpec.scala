@@ -11,17 +11,17 @@ import org.scalatest.flatspec.AnyFlatSpec
 class R5MnetBuilderSpec extends AnyFlatSpec {
 
   it should "do something" in {
-    val config = testConfig("test/input/beamville/beam.conf").resolve()
-    val transportNetwork = TransportNetwork.fromDirectory(new File("test/input/beamville/r5"))
+    val config = testConfig("beam.sim.test/input/beamville/beam.conf").resolve()
+    val transportNetwork = TransportNetwork.fromDirectory(new File("beam.sim.test/input/beamville/r5"))
     val builder = new R5MnetBuilder(transportNetwork, BeamConfig(config), HighwaySetting.empty())
     builder.buildMNet()
     val network = builder.getNetwork
-    new NetworkWriter(network).write("test/input/beamville/r5/physsim-network.xml")
+    new NetworkWriter(network).write("beam.sim.test/input/beamville/r5/physsim-network.xml")
   }
   //
-  //  it should "not a real test, just for extracting edge data" in {
+  //  it should "not a real beam.sim.test, just for extracting edge data" in {
   ////    val r5Dir = "production/application-sfbay/r5"
-  //    val r5Dir = "test/input/sf-light/r5"
+  //    val r5Dir = "beam.sim.test/input/sf-light/r5"
   //    var transportNetwork = TransportNetwork.fromDirectory(new File(r5Dir))
   //    transportNetwork.write(new File(s"$r5Dir/network.dat"))
   //    transportNetwork = TransportNetwork.read(new File(s"$r5Dir/network.dat"))

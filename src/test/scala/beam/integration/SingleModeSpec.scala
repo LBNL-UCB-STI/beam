@@ -11,7 +11,7 @@ import beam.router.RouteHistory
 import beam.sflight.RouterForTest
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.{BeamHelper, BeamMobsim, RideHailFleetInitializerProvider}
-import beam.utils.SimRunnerForTest
+import beam.utils.{MathUtils, SimRunnerForTest}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
@@ -35,10 +35,10 @@ class SingleModeSpec
 
   def config: com.typesafe.config.Config =
     ConfigFactory
-      .parseString("""akka.test.timefactor = 10""")
-      .withFallback(testConfig("test/input/sf-light/sf-light.conf").resolve())
+      .parseString("""akka.beam.sim.test.timefactor = 10""")
+      .withFallback(testConfig("beam.sim.test/input/sf-light/sf-light.conf").resolve())
 
-  def outputDirPath: String = basePath + "/" + testOutputDir + "single-mode-test"
+  def outputDirPath: String = basePath + "/" + testOutputDir + "single-mode-beam.sim.test"
 
   lazy implicit val system: ActorSystem = ActorSystem("SingleModeSpec", config)
 
@@ -154,8 +154,10 @@ class SingleModeSpec
             val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
               case activity: Activity if activity.getType == "Home" =>
                 Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
-              case activity: Activity => Seq(activity)
-              case _: Leg             => Nil
+              case activity: Activity =>
+                Seq(activity)
+                Seq(activity, scenario.getPopulation.getFactory.createLeg(""))
+              case _: Leg => Nil
             }.flatten
             if (newPlanElements.last.isInstanceOf[Leg]) {
               newPlanElements.remove(newPlanElements.size - 1)
@@ -205,7 +207,9 @@ class SingleModeSpec
       val regularPersonEvents = filterOutProfessionalDriversAndCavs(personDepartureEvents)
       val (driveTransit, others) = regularPersonEvents.map(_.getLegMode).partition(_ == "drive_transit")
       //router gives too little 'drive transit' trips, most of the persons chooses 'car' in this case
-      others.count(_ == "walk_transit") should be < (0.2 * driveTransit.size).toInt
+      withClue("When transit is available majority of agents should use drive_transit") {
+        others.count(_ == "walk_transit") should be < MathUtils.doubleToInt(0.2 * driveTransit.size)
+      }
 
       val eventsByPerson = events.groupBy(_.getAttributes.get("person"))
 
@@ -269,8 +273,10 @@ class SingleModeSpec
       val personDepartureEvents = events.collect { case event: PersonDepartureEvent => event }
       personDepartureEvents should not be empty
       val regularPersonEvents = filterOutProfessionalDriversAndCavs(personDepartureEvents)
-      val (drive, others) = regularPersonEvents.map(_.getLegMode).partition(_ == "car")
-      others.size should be < (0.02 * drive.size).toInt
+      val othersCount = regularPersonEvents.count(_.getLegMode != "car")
+      withClue("Majority of agents should use cars. Other modes take place when no car available.") {
+        othersCount should be < MathUtils.doubleToInt(0.02 * regularPersonEvents.size)
+      }
     }
   }
 

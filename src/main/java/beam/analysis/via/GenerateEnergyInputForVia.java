@@ -14,7 +14,7 @@ public class GenerateEnergyInputForVia {
 
         PathTraversalSpatialTemporalTableGenerator.r5NetworkLinks = R5NetworkReader.readR5Network(r5NetworkPath, true);
 
-        PathTraversalSpatialTemporalTableGenerator.loadVehicles("C:\\Users\\NRO_M4700_SSD_02\\IdeaProjects\\beam10\\beam\\test\\input\\sf-light\\transitVehicles.xml");
+        PathTraversalSpatialTemporalTableGenerator.loadVehicles("C:\\Users\\NRO_M4700_SSD_02\\IdeaProjects\\beam10\\beam\\beam.sim.test\\input\\sf-light\\transitVehicles.xml");
 
         EventsManager events = EventsUtils.createEventsManager();
 

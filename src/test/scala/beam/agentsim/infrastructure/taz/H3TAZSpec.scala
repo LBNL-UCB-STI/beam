@@ -16,7 +16,7 @@ import org.scalatest.matchers.should.Matchers
 
 class H3TAZSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
-  "test demand inferred H3 Index set" must "H3 Indexes" in {
+  "beam.sim.test demand inferred H3 Index set" must "H3 Indexes" in {
     val config = ConfigFactory
       .parseString(
         """
@@ -29,7 +29,7 @@ class H3TAZSpec extends AnyFlatSpec with Matchers with BeamHelper {
            |beam.agentsim.lastIteration = 0
         """.stripMargin
       )
-      .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))
+      .withFallback(testConfig("beam.sim.test/input/sf-light/sf-light-1k.conf"))
       .resolve()
     runGetDemandInferredH3IndexSet(config)
   }

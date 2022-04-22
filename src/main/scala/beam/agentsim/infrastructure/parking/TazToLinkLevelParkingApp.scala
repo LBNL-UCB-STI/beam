@@ -36,9 +36,9 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
 
   if (argsMap.size != 4) {
     println(
-      "Usage: --taz-parking test/input/beamville/parking/taz-parking.csv" +
-      " --network test/input/beamville/r5/physsim-network.xml" +
-      " --taz-centers test/input/beamville/taz-centers.csv --out test/input/beamville/parking/link-parking.csv"
+      "Usage: --taz-parking beam.sim.test/input/beamville/parking/taz-parking.csv" +
+      " --network beam.sim.test/input/beamville/r5/physsim-network.xml" +
+      " --taz-centers beam.sim.test/input/beamville/taz-centers.csv --out beam.sim.test/input/beamville/parking/link-parking.csv"
     )
     System.exit(1)
   }

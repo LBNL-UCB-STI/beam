@@ -15,12 +15,12 @@ object ScenarioDownsampler {
     val margin: Double = 0.05
     val seed: Int = 42
 
-    val pathToScenarioFolder: String = "test/input/newyork/generic_scenario/6853k-NYC-related"
+    val pathToScenarioFolder: String = "beam.sim.test/input/newyork/generic_scenario/6853k-NYC-related"
     val pathToHouseholds = s"$pathToScenarioFolder/households.csv.gz"
     val pathToPersons = s"$pathToScenarioFolder/persons.csv.gz"
     val pathToPlans = s"$pathToScenarioFolder/plans.csv.gz"
 
-    val pathToOutput: String = "test/input/newyork/generic_scenario/1051k-NYC-related"
+    val pathToOutput: String = "beam.sim.test/input/newyork/generic_scenario/1051k-NYC-related"
 
     ProfilingUtils.timed(s"Downsample scenario to $newScenarioSize with seed $seed", println) {
 

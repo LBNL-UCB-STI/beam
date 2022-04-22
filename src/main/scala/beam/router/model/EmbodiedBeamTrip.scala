@@ -6,6 +6,7 @@ import beam.router.Modes.BeamMode.{
   BIKE,
   BIKE_TRANSIT,
   CAR,
+  EMERGENCY,
   CAR_HOV2,
   CAR_HOV3,
   CAV,
@@ -115,6 +116,8 @@ object EmbodiedBeamTrip {
         theMode = leg.beamLeg.mode
       } else if (theMode == WALK && leg.beamLeg.mode == BIKE) {
         theMode = leg.beamLeg.mode
+      } else if (theMode == WALK && leg.beamLeg.mode == EMERGENCY) {
+        theMode = EMERGENCY
       }
       if (leg.beamLeg.mode == BIKE) hasUsedBike = true
       if (leg.beamLeg.mode == CAR) hasUsedCar = true

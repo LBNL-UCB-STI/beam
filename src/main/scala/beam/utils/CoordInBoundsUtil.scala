@@ -12,8 +12,8 @@ import scala.collection.mutable.ListBuffer
 
 object CoordInBoundsUtil extends App {
 
-  //val plansFilePath = "C:/ns/beam-projects/beam-master4/test/input/beamville/test-data/urbansim/urbansim2/plans.csv"
-  val plansFilePath = "D:/beam/test/input/sfbay/test-data/urbansim/plans.csv"
+  //val plansFilePath = "C:/ns/beam-projects/beam-master4/beam.sim.test/input/beamville/beam.sim.test-data/urbansim/urbansim2/plans.csv"
+  val plansFilePath = "D:/beam/beam.sim.test/input/sfbay/beam.sim.test-data/urbansim/plans.csv"
 
   // beamServices.beamConfig.beam.spatial.localCRS epsg:32631
   // mNetBuilder.toCRS = "EPSG:26910"     # UTM10N

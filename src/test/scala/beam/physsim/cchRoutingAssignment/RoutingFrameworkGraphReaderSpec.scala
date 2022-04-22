@@ -103,7 +103,7 @@ class RoutingFrameworkGraphReaderSpec extends AnyFlatSpec with Matchers {
 
   "RoutingFramework graph reader" must "correctly read generated graph" in {
     val basePath = System.getenv("PWD")
-    val graphFile = new File(s"$basePath/test/test-resources/beam/router/graph.gr.bin")
+    val graphFile = new File(s"$basePath/beam.sim.test/beam.sim.test-resources/beam/router/graph.gr.bin")
 
     val graph = routingFrameworkGraph.read(graphFile)
 

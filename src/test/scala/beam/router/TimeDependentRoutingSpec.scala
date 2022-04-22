@@ -43,7 +43,7 @@ class TimeDependentRoutingSpec
         akka.loglevel = debug
         """
     )
-    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
     .resolve()
 
   lazy implicit val system: ActorSystem = ActorSystem("TimeDependentRoutingSpec", config)

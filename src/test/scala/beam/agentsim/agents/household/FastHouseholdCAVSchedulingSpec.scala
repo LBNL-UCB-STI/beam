@@ -36,10 +36,10 @@ class FastHouseholdCAVSchedulingSpec
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
-        akka.test.timefactor = 2
+        akka.beam.sim.test.timefactor = 2
         """
           )
-          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+          .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf").resolve())
       )
     )
     with Matchers

@@ -20,14 +20,14 @@ class ActivitySimFilterEventSpec extends AnyWordSpecLike with Matchers {
   private val beamConfigEnabled = BeamConfig(
     ConfigFactory
       .parseString(s"beam.exchange.scenario.urbansim.activitySimEnabled = true")
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
   )
 
   private val beamConfigDisabled = BeamConfig(
     ConfigFactory
       .parseString(s"beam.exchange.scenario.urbansim.activitySimEnabled = false")
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
   )
   private val matsimServices = mock(classOf[MatsimServices])

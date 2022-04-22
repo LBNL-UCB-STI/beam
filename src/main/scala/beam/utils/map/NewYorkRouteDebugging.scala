@@ -141,7 +141,7 @@ object NewYorkRouteDebugging {
   def getRequestsFakeWalkers: Array[RoutingRequest] = {
     val onlyWalkResponseRecords = {
       val (it, toClose) = ParquetReader.read(
-        "D:/Work/beam/NewYork/Runs/new-york-200k-baseline-test-transit-feb__2020-08-23_18-59-19_gev/0.routingResponse.parquet"
+        "D:/Work/beam/NewYork/Runs/new-york-200k-baseline-beam.sim.test-transit-feb__2020-08-23_18-59-19_gev/0.routingResponse.parquet"
       )
       try {
         it.filter(walkWithOneItinerary).toArray

@@ -51,7 +51,7 @@ for(model.i in 1:length(model.names)){
 }
 
 # Create data to apply
-#  Note that units for distance are in miles and time in hours
+#  beam.sim.Note that units for distance are in miles and time in hours
 att.values.orig <- data.table(read.csv(pp(matsim.shared,"parameterization/param-value-bounds.csv"),stringsAsFactors=F))
 att.values.expanded <- list()
 expansion.num <- 3
@@ -409,7 +409,7 @@ datm <- mlogit.data(dat,choice='choice',shape='wide',id.var='obsID',varying=grep
 #mod <- mlogit(choice ~ alt + tt + cost, datm,nest=list(car=c('da','sr'),transit=c('wt','dt'),slow=c('walk','bike')))
 #summary(mod)
 
-# Note that the "iv" coefficients are the "elasticities" or the lambda parameters as documented by Train,
+# beam.sim.Note that the "iv" coefficients are the "elasticities" or the lambda parameters as documented by Train,
 # these are the reciprical of the mu parameters as described in Ben-Akiva
 #print(1/mod$coefficients[grep('^iv',names(mod$coefficients))])
 #print(1/(mod$coefficients[grep('^iv',names(mod$coefficients))] + 1.96*summary(mod)$CoefTable[grep('^iv',names(mod$coefficients)),2]))
@@ -433,7 +433,7 @@ summary(mod2)
 
 #Log-Likelihood: -19503
 #McFadden R^2:  0.011587 
-#Likelihood ratio test : chisq = 457.28 (p.value = < 2.22e-16)
+#Likelihood ratio beam.sim.test : chisq = 457.28 (p.value = < 2.22e-16)
 
 
 #preds <- predict(mod2,newdata=datm)

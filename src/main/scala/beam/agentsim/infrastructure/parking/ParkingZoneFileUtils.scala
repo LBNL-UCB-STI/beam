@@ -634,7 +634,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
   }
 
   /**
-    * generates ubiquitous parking from a taz centers file, such as test/input/beamville/taz-centers.csv
+    * generates ubiquitous parking from a taz centers file, such as beam.sim.test/input/beamville/taz-centers.csv
     * @param geoObjects geo objects that should be used to hold parking stalls
     * @param parkingTypes the parking types we are generating, by default, the complete set
     * @return
@@ -656,7 +656,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
   }
 
   /**
-    * generates ubiquitous parking from a taz centers file, such as test/input/beamville/taz-centers.csv
+    * generates ubiquitous parking from a taz centers file, such as beam.sim.test/input/beamville/taz-centers.csv
     * @param geoObjects geo objects that should be used to hold parking stalls
     * @param parkingTypes the parking types we are generating, by default, the complete set
     * @return the parking accumulator

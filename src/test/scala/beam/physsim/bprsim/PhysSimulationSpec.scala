@@ -37,17 +37,17 @@ import scala.collection.mutable.ArrayBuffer
   */
 class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
 
-  val config: Config = testConfig("test/input/beamville/beam.conf").resolve()
+  val config: Config = testConfig("beam.sim.test/input/beamville/beam.conf").resolve()
 
   val beamConfig: BeamConfig = BeamConfig(config)
 
   val configBuilder = new MatSimBeamConfigBuilder(config)
   val matsimConfig: MatsimConfig = configBuilder.buildMatSimConf()
 
-  val network: Network = PhysSimulationSpec.readNetwork("test/test-resources/beam/physsim/beamville-network-output.xml")
+  val network: Network = PhysSimulationSpec.readNetwork("beam.sim.test/beam.sim.test-resources/beam/physsim/beamville-network-output.xml")
 
   val scenario: MutableScenario =
-    readScenario(matsimConfig, network, "test/test-resources/beam/physsim/physsim-plans-few-persons.xml")
+    readScenario(matsimConfig, network, "beam.sim.test/beam.sim.test-resources/beam/physsim/physsim-plans-few-persons.xml")
   val jdeqConfig = new JDEQSimConfigGroup
   jdeqConfig.setFlowCapacityFactor(beamConfig.beam.physsim.flowCapacityFactor)
   jdeqConfig.setStorageCapacityFactor(beamConfig.beam.physsim.storageCapacityFactor)

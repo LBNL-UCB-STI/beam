@@ -30,15 +30,15 @@ class BackgroundSkimsCreatorAppSpec
   val outputPath = Paths.get("output.csv")
 
   val params = InputParameters(
-    configPath = Paths.get("test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf"),
-    input = Some(Paths.get("test/test-resources/beam/router/skim/input.csv")),
+    configPath = Paths.get("beam.sim.test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf"),
+    input = Some(Paths.get("beam.sim.test/beam.sim.test-resources/beam/router/skim/input.csv")),
     output = outputPath,
-    ODSkimsPath = Some(Paths.get("test/test-resources/beam/router/skim/ODSkimsBeamville.csv"))
+    ODSkimsPath = Some(Paths.get("beam.sim.test/beam.sim.test-resources/beam/router/skim/ODSkimsBeamville.csv"))
   )
 
   val config = ConfigFactory
     .parseString("beam.actorSystemName = \"BackgroundSkimsCreatorAppSpec\"")
-    .withFallback(testConfig("test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf"))
+    .withFallback(testConfig("beam.sim.test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf"))
     .resolve()
   val configBuilder = new MatSimBeamConfigBuilder(config)
   val matsimConfig = configBuilder.buildMatSimConf()

@@ -15,9 +15,9 @@ args(2) - Optional param for comparing existing config with template
 if args(2) is 0 => give existing config files keys only(Default)
 if args(2) is 1 => give template keys only
 if args(2) is 2 => give keys for both existing config and beam template
-./gradlew :execute -PmainClass=beam.utils.ConfigAnalysis -PappArgs="['test/input/beamville','src/main/resources/beam-template.conf']"
+./gradlew :execute -PmainClass=beam.utils.ConfigAnalysis -PappArgs="['beam.sim.test/input/beamville','src/main/resources/beam-template.conf']"
 or
-./gradlew :execute -PmainClass=beam.utils.ConfigAnalysis -PappArgs="['test/input/beamville','src/main/resources/beam-template.conf', '2']"
+./gradlew :execute -PmainClass=beam.utils.ConfigAnalysis -PappArgs="['beam.sim.test/input/beamville','src/main/resources/beam-template.conf', '2']"
  */
 object ConfigAnalysis extends App with StrictLogging {
 

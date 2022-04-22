@@ -18,7 +18,7 @@ import org.mockito.Mockito
 
 class RideHailSurgePricingManagerSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
 
-  val testConfigFileName = "test/input/beamville/beam.conf"
+  val testConfigFileName = "beam.sim.test/input/beamville/beam.conf"
   val config: Config = testConfig(testConfigFileName).resolve()
   lazy val beamConfig: BeamConfig = BeamConfig(config)
   val beamExecConfig: BeamExecutionConfig = setupBeamWithConfig(config)

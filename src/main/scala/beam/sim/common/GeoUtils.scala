@@ -354,7 +354,7 @@ object GeoUtils {
   /**
     * Returns the WGS coordinates of a link's end.
     *
-    * Note: by convention, a BeamPath starts at the **end** of the first link and ends at the end of the last link.
+    * beam.sim.Note: by convention, a BeamPath starts at the **end** of the first link and ends at the end of the last link.
     *
     * @param linkIdInt Link ID.
     * @param transportNetwork Transport network.

@@ -37,8 +37,8 @@ class SitePowerManagerSpec
                        |akka.log-dead-letters = 10
                        |akka.actor.debug.fsm = true
                        |akka.loglevel = debug
-                       |akka.test.timefactor = 2
-                       |akka.test.single-expect-default = 10 s""".stripMargin)
+                       |akka.beam.sim.test.timefactor = 2
+                       |akka.beam.sim.test.single-expect-default = 10 s""".stripMargin)
       )
     )
     with AnyWordSpecLike
@@ -76,7 +76,7 @@ class SitePowerManagerSpec
        |  }
        |}
        |""".stripMargin))
-    .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+    .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf").resolve())
   private val beamConfig: BeamConfig = BeamConfig(conf)
   private val matsimConfig = new MatSimBeamConfigBuilder(conf).buildMatSimConf()
   matsimConfig.controler.setOutputDirectory(TestConfigUtils.testOutputDir)
@@ -95,7 +95,7 @@ class SitePowerManagerSpec
 
   val beamFederateMock: BeamFederate = mock(classOf[BeamFederate])
 
-  private val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile("test/input/beamville/vehicleTypes.csv")
+  private val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile("beam.sim.test/input/beamville/vehicleTypes.csv")
 
   val taz: TAZ = tazMap.getTAZs.head
 

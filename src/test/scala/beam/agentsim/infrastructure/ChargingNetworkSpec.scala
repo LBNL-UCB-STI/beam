@@ -38,14 +38,14 @@ class ChargingNetworkSpec
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
-        akka.test.timefactor = 2
+        akka.beam.sim.test.timefactor = 2
         beam.agentsim.agents.parking.minSearchRadius = 1000.0
         beam.agentsim.agents.parking.maxSearchRadius = 16093.4
         beam.agentsim.agents.parking.searchMaxDistanceRelativeToEllipseFoci = 4.0
         matsim.modules.global.randomSeed = 0
         """
     )
-    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
     .resolve()
 
   lazy implicit val system: ActorSystem = ActorSystem("PersonAndTransitDriverSpec", config)

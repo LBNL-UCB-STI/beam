@@ -33,8 +33,8 @@ class ParallelParkingManagerSpec
           .parseString("""akka.log-dead-letters = 10
         |akka.actor.debug.fsm = true
         |akka.loglevel = debug
-        |akka.test.timefactor = 2""".stripMargin)
-          .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+        |akka.beam.sim.test.timefactor = 2""".stripMargin)
+          .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf").resolve())
       )
     )
     with AnyFunSpecLike
@@ -276,7 +276,7 @@ class ParallelParkingManagerSpec
 
       val random1 = new Random(1)
 
-      // run this many trials of this test
+      // run this many trials of this beam.sim.test
       val trials = 5
       // the maximum number of parking stalls across all TAZs in each trial
       val maxParkingStalls = 10000
@@ -307,7 +307,7 @@ class ParallelParkingManagerSpec
           geo.distUTMInMeters,
           boundingBox,
           randomSeed,
-          1 // this test will work only in a single cluster because clusters are fully separated
+          1 // this beam.sim.test will work only in a single cluster because clusters are fully separated
         )
       } {
 
@@ -336,9 +336,9 @@ class ParallelParkingManagerSpec
 
   describe("ParallelParkingManager with loaded common data") {
     it("should return the correct stall") {
-      val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
+      val tazMap = taz.TAZTreeMap.fromCsv("beam.sim.test/input/beamville/taz-centers.csv")
       val stalls = InfrastructureUtils.loadStalls[TAZ](
-        "test/input/beamville/parking/taz-parking.csv",
+        "beam.sim.test/input/beamville/parking/taz-parking.csv",
         IndexedSeq.empty,
         tazMap.tazQuadTree,
         1.0,

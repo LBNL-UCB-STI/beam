@@ -147,7 +147,7 @@ class HOVModeTransformerTest extends AnyFunSuite with Matchers {
       "DRIVE_LOC"      -> "drive_transit"
     )
 
-    val pathToPlans = "test/test-resources/plans-transformation-test-data/plans.csv.gz"
+    val pathToPlans = "beam.sim.test/beam.sim.test-resources/plans-transformation-beam.sim.test-data/plans.csv.gz"
 
     val merger = new PlanMerger(modeMap)
     val planReader = new PlanReader(pathToPlans)

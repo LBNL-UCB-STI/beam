@@ -71,7 +71,7 @@ class TerminateAtRideHailFleetStoredElectricityConvergence @Inject() (
     * electricity stored in the ride hail fleet's batteries is less than relativeTolerance.
     * If this does not happen before reaching maxLastIteration, the iteration is stopped.
     *
-    * Note: this method is called right before iteration starts.
+    * beam.sim.Note: this method is called right before iteration starts.
     *
     * @param iteration Number of the iteration that would begin if returning true.
     * @return true if the iteration should continue, false otherwise.

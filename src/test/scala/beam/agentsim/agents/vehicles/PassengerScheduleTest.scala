@@ -112,9 +112,9 @@ class PassengerScheduleTest
   it("should be able to find a beam leg (after fixing beam.agentsim.agents.vehicles.BeamLegOrdering)") {
     val basePath = System.getenv("PWD")
     val scheduleJsonStr =
-      IOUtils.toString(new FileInputStream(s"$basePath/test/input/beamville/schedule.json"), StandardCharsets.UTF_8)
+      IOUtils.toString(new FileInputStream(s"$basePath/beam.sim.test/input/beamville/schedule.json"), StandardCharsets.UTF_8)
     val newBeamLegJsonStr =
-      IOUtils.toString(new FileInputStream(s"$basePath/test/input/beamville/newLeg.json"), StandardCharsets.UTF_8)
+      IOUtils.toString(new FileInputStream(s"$basePath/beam.sim.test/input/beamville/newLeg.json"), StandardCharsets.UTF_8)
     val program = for {
       scheduleWithLegs <- decode[List[(BeamLeg, PassengerSchedule.Manifest)]](scheduleJsonStr)
       newLeg           <- decode[BeamLeg](newBeamLegJsonStr)
