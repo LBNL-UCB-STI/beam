@@ -2,6 +2,8 @@
 
 package beam.sim.config
 
+import scala.util.Random
+
 case class BeamConfig(
   beam: BeamConfig.Beam,
   matsim: BeamConfig.Matsim
@@ -37,6 +39,7 @@ object BeamConfig {
   object Beam {
 
     case class Agentsim(
+      randomSeed: scala.Int,
       agentSampleSizeAsFractionOfPopulation: scala.Double,
       agents: BeamConfig.Beam.Agentsim.Agents,
       chargingNetworkManager: BeamConfig.Beam.Agentsim.ChargingNetworkManager,
@@ -56,7 +59,8 @@ object BeamConfig {
       thresholdForWalkingInMeters: scala.Int,
       timeBinSize: scala.Int,
       toll: BeamConfig.Beam.Agentsim.Toll,
-      tuning: BeamConfig.Beam.Agentsim.Tuning
+      tuning: BeamConfig.Beam.Agentsim.Tuning,
+      snapLocationAndRemoveInvalidInputs: scala.Boolean
     )
 
     object Agentsim {
@@ -2163,6 +2167,10 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim = {
         BeamConfig.Beam.Agentsim(
+          randomSeed =
+            if (c.hasPathOrNull("randomSeed"))
+              c.getInt("randomSeed")
+            else new Random().nextInt(),
           agentSampleSizeAsFractionOfPopulation =
             if (c.hasPathOrNull("agentSampleSizeAsFractionOfPopulation"))
               c.getDouble("agentSampleSizeAsFractionOfPopulation")
@@ -2219,7 +2227,11 @@ object BeamConfig {
           tuning = BeamConfig.Beam.Agentsim.Tuning(
             if (c.hasPathOrNull("tuning")) c.getConfig("tuning")
             else com.typesafe.config.ConfigFactory.parseString("tuning{}")
-          )
+          ),
+          snapLocationAndRemoveInvalidInputs =
+            if (c.hasPathOrNull("snapLocationAndRemoveInvalidInputs"))
+              c.getBoolean("snapLocationAndRemoveInvalidInputs")
+            else false
         )
       }
     }
@@ -4059,6 +4071,8 @@ object BeamConfig {
         maxDistanceLimitByModeInMeters: BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters,
         numberOfSamples: scala.Int,
         osmMapdbFile: java.lang.String,
+        suboptimalMinutes: scala.Int,
+        transitAlternativeList: java.lang.String,
         travelTimeNoiseFraction: scala.Double
       )
 
@@ -4114,6 +4128,9 @@ object BeamConfig {
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
+            suboptimalMinutes = if (c.hasPathOrNull("suboptimalMinutes")) c.getInt("suboptimalMinutes") else 0,
+            transitAlternativeList =
+              if (c.hasPathOrNull("transitAlternativeList")) c.getString("transitAlternativeList") else "OPTIMAL",
             travelTimeNoiseFraction =
               if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0
           )
