@@ -48,6 +48,7 @@ import org.matsim.households
 import org.matsim.households.Household
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
@@ -529,7 +530,13 @@ object HouseholdActor {
           veh.setManager(Some(self))
           for {
             ParkingInquiryResponse(stall, _, _) <- parkingManager ? ParkingInquiry
-              .init(veh.spaceTime, "init", triggerId = triggerId)
+              .init(
+                veh.spaceTime,
+                "init",
+                VehicleManager.getReservedFor(veh.vehicleManagerId.get()).get,
+                Some(veh),
+                triggerId = triggerId
+              )
           } {
             veh.useParkingStall(stall)
             veh.spaceTime = SpaceTime(stall.locationUTM.getX, stall.locationUTM.getY, 0)
@@ -612,10 +619,13 @@ object HouseholdActor {
       whenWhere: SpaceTime,
       manager: ActorRef
     ): BeamVehicle = {
+      val vehicleManagerId =
+        VehicleManager.createOrGetReservedFor(household.getId.toString, VehicleManager.TypeEnum.Household).managerId
       val vehicle = new BeamVehicle(
         Id.createVehicleId(personId.toString + "-emergency-" + vehicleIndex),
         new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter),
-        vehicleType
+        vehicleType,
+        new AtomicReference[Id[VehicleManager]](vehicleManagerId)
       )
       vehicle.initializeFuelLevelsFromUniformDistribution(
         beamScenario.beamConfig.beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC

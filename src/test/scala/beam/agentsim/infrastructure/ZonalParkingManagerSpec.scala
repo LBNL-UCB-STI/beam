@@ -9,7 +9,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
+import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
@@ -336,9 +336,9 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("cs_default(Any)_4_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("cs_default(Any)_4_Public_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
-        ParkingType.Residential,
+        ParkingType.Public,
         "beamVilleCar"
       )
 
@@ -346,9 +346,9 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(166321.0, 1568.0), 0),
         "1",
-        ParkingZone.createId("cs_default(Any)_1_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("cs_default(Any)_1_Public_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
-        ParkingType.Residential,
+        ParkingType.Public,
         "beamVilleCar"
       )
 
@@ -356,9 +356,9 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(167141.3, 3326.017), 0),
         "2",
-        ParkingZone.createId("cs_default(Any)_2_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("cs_default(Any)_2_Public_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
-        ParkingType.Residential,
+        ParkingType.Public,
         "beamVilleCar"
       )
 
@@ -440,6 +440,8 @@ class ZonalParkingManagerSpec
         boundingBox,
         beamConfig.beam.agentsim.agents.parking.minSearchRadius,
         beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+        beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
+        beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
         randomSeed,
         beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
       )
@@ -448,8 +450,8 @@ class ZonalParkingManagerSpec
         zonesMap,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("cs_default(Any)_4_Residential_NA_FlatFee_199_1144"),
-        FlatFee(1.99),
+        ParkingZone.createId("cs_default(Any)_4_Residential_NA_Block_199_1144"),
+        Block(1.99, 3600),
         ParkingType.Residential,
         "beamVilleCar"
       )

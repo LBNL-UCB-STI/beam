@@ -33,11 +33,11 @@ object VehicleManager extends LazyLogging {
 
   case class ReservedFor(managerId: Id[VehicleManager], managerType: TypeEnum.VehicleManagerType) {
 
-    override def hashCode: Int = toString.hashCode
+    override val hashCode: Int = toString.hashCode
 
     override def toString: String = {
       managerType match {
-        case TypeEnum.NoManager => NoManager.toString
+        case TypeEnum.NoManager => managerType.toString
         case _                  => managerType + s"($managerId)"
       }
     }
