@@ -17,6 +17,7 @@ validationDir <- normalizePath("~/Data/FREIGHT/validation")
 freightWorkDir <- normalizePath(paste(validationDir,"/beam",sep=""))
 
 events <- readCsv(pp(freightDir, "/via/0.events.csv"))
+events[grepl("freight",vehicle)]
 events[mode=="car"][grepl("freight",vehicle)]
 pt <- events[type=="PathTraversal"]
 pt[startsWith(vehicle,"freight")]
