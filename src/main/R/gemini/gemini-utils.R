@@ -14,18 +14,18 @@ loadTypes <- data.table::data.table(
     "homelevel1(1.8|AC)", "homelevel2(7.2|AC)",
     "worklevel2(7.2|AC)",
     "publiclevel2(7.2|AC)",
-    "publicfc(50.0|DC)", 
-    "depotfc(150.0|DC)", 
-    "publicfc(150.0|DC)", 
+    "publicfc(50.0|DC)",
+    "depotfc(150.0|DC)",
+    "publicfc(150.0|DC)",
     "depotxfc(200.0|DC)", "depotxfc(300.0|DC)", "depotxfc(400.0|DC)",
     "publicfc(200.0|DC)", "publicxfc(200.0|DC)", "publicxfc(300.0|DC)", "publicxfc(400.0|DC)"),
   loadType = c("Home-L1", "Home-L2",
                "Work-L2",
                "Public-L2",
-               "DCFC", 
-               "DCFC", 
                "DCFC",
-               "XFC", "XFC", "XFC", 
+               "DCFC",
+               "DCFC",
+               "XFC", "XFC", "XFC",
                "XFC", "XFC", "XFC", "XFC"))
 
 nextTimePoisson <- function(rate) {
@@ -183,12 +183,12 @@ generateReadyToPlot <- function(resultsDirName, loadTypes, countyNames) {
     chargingTypes <- data.table()
     if (!file.exists(pp(sim.xfc.temp.file,"-loads.csv"))) {
       code <- unlist(strsplit(sim.xfc.file, "\\."))[3]
-      
+
       sessions <- readCsv(sim.xfc.file)
       sessions[(depot),taz:=-kmeans(sessions[(depot)][,.(x,y)],20)$cluster]
       sessions[,code:=code]
       write.csv(sessions,file = pp(sim.xfc.temp.file,"-sessions.csv"),row.names=FALSE,quote=FALSE,na="0")
-      
+
       loads <- extractLoads(sessions, loadTypes, countyNames)
       loads[,hour.bin2:=hour.bin%%24]
       loads[,code:=code]

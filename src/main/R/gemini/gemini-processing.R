@@ -21,8 +21,21 @@ shpFile <- pp(workDir, "/shapefile/Oakland+Alameda+TAZ/Transportation_Analysis_Z
 oaklandCbg <- st_read(shpFile)
 
 ###
-eventsraw <- readCsv(pp(workDir, "/0.events.csv.gz"))
-events <- readCsv(pp(workDir, "/filtered.0.events.csv.gz"))
+#eventsraw <- readCsv(pp(workDir, "/0.events.csv.gz"))
+events1 <- readCsv(pp(workDir, "/2022Feb/BATCH1/events/filtered.0.events.SC4b.csv.gz"))
+events2 <- readCsv(pp(workDir, "/2022Feb/BATCH1/events/filtered.0.events.SC6.csv.gz"))
+
+
+infra <- readCsv(pp(workDir, "/2022-04/infrastructure/4a_output_2022_Apr_13_pubClust.csv"))
+infra[, c("GEOM", "locationX", "locationY") := tstrsplit(geometry, " ", fixed=TRUE)]
+infra <- infra[,-c("geometry", "GEOM")]
+write.csv(
+  infra,
+  file = pp(workDir, "/2022-04/infrastructure/4a_output_2022_Apr_13_pubClust_XY.csv"),
+  row.names=FALSE,
+  quote=FALSE)
+
+
 
 ## temp
 workdir <- "/Users/haitamlaarabi/Data/GEMINI/enroute-scenario3"
@@ -34,7 +47,7 @@ workdir <- "/Users/haitamlaarabi/Data/GEMINI/enroute-scenario3"
 #   row.names=FALSE,
 #   quote=FALSE,
 #   na="0")
-# 
+#
 # enroute <- readCsv(pp(workdir,"/enroute.0.events.csv.gz"))
 # enroute.ref <- enroute[type=="RefuelSessionEvent"]
 # write.csv(
@@ -58,7 +71,7 @@ enroute.ref.sum$scenario <- "Enroute"
 
 ref <- data.table::data.table(rbind(default.ref.sum,enroute.ref.sum))
 
-ref %>% 
+ref %>%
   ggplot(aes(chargingPointType, shareFuel, fill=scenario)) +
   geom_bar(stat='identity',position='dodge') +
   theme_marain() +
@@ -76,7 +89,7 @@ ref.change <- data.table::data.table(
   relativeEnergy=c((enroute.ref.nonfc/default.ref.nonfc)-1,(enroute.ref.fc/default.ref.fc)-1)
 )
 
-p <- ref.change %>% 
+p <- ref.change %>%
   ggplot(aes(scenario, relativeEnergy, fill=scenario)) +
   geom_bar(stat='identity',position='dodge') +
   theme_marain() +
@@ -91,7 +104,7 @@ ref[chargingPointType=="dcfast(50.0|DC)"]$chargingPoint <- "Fast"
 ref[chargingPointType=="ultrafast(250.0|DC)"]$chargingPoint <- "XFC"
 
 chargingPoint_order <- c("Level1/2","Fast","XFC")
-ref %>% 
+ref %>%
   ggplot(aes(factor(chargingPoint, levels=chargingPoint_order), shareFuel, fill=scenario)) +
   geom_bar(stat='identity',position='dodge') +
   theme_marain() +
@@ -305,7 +318,7 @@ oakland_charging_events_merged_with_urbansim_tripIds_scaledUpby10 <- scaleUpAllS
 #   quote=FALSE,
 #   na="")
 #
-# 
+#
 # initInfra_1_5_updated_constrained_non_AlamedaOakland[startsWith(reservedFor, "household")]
 #
 # initInfra_1_5[household_id == 1800619]
@@ -434,9 +447,6 @@ write.csv(
   na="")
 
 
-test <- readCsv(pp(workDir, "/2021Aug22-Oakland/stations/gemini-base-scenario-2-charging-with-household-infra16.csv"))
-
-
 #####
 chargingBehaviorFunc <- function(DT) {
   rseSum <- DT[,.(fuel=sum(fuel)),by=.(parkingType,chargingPointType)]
@@ -514,8 +524,8 @@ charging050 <- charging050[,fuel_100_050:=fuel100/fuel050][,fuel_100_050_W:=coef
 # charging <- rse100[,.(fuel100=sum(fuel)),by=.(parkingType, chargingPointType)]
 
 # charging_100_010 <- data.table(
-#   chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)", 
-#                       "worklevel2(7.2|AC)","publiclevel2(7.2|AC)", 
+#   chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)",
+#                       "worklevel2(7.2|AC)","publiclevel2(7.2|AC)",
 #                       "publicfc(150.0|DC)", "publicxfc(250.0|DC)"),
 #   coef_100_010=c(8.02,6.87,9.00,6.41,8.17,10.33))
 # charging010 <- rse010[,.(fuel010=sum(fuel)),by=.(parkingType,chargingPointType)][
@@ -523,11 +533,11 @@ charging050 <- charging050[,fuel_100_050:=fuel100/fuel050][,fuel_100_050_W:=coef
 #     charging_100_010,on=c("chargingPointType")][
 #       ,fuel_100_010:=fuel100/fuel010][
 #         ,fuel_100_010_W:=coef_100_010*fuel_100_010]
-# 
-# 
+#
+#
 # charging_100_025 <- data.table(
-#   chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)", 
-#                       "worklevel2(7.2|AC)","publiclevel2(7.2|AC)", 
+#   chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)",
+#                       "worklevel2(7.2|AC)","publiclevel2(7.2|AC)",
 #                       "publicfc(150.0|DC)", "publicxfc(250.0|DC)"),
 #   coef_100_025=c(2.95,2.56,3.69,2.65,3.18,4.53))
 # charging025 <- rse025[,.(fuel025=sum(fuel)),by=.(parkingType,chargingPointType)][
@@ -535,11 +545,11 @@ charging050 <- charging050[,fuel_100_050:=fuel100/fuel050][,fuel_100_050_W:=coef
 #     charging_100_025,on=c("chargingPointType")][
 #       ,fuel_100_025:=fuel100/fuel025][
 #         ,fuel_100_025_W:=coef_100_025*fuel_100_025]
-# 
-# 
+#
+#
 # charging_100_050 <- data.table(
-#   chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)", 
-#                       "worklevel2(7.2|AC)","publiclevel2(7.2|AC)", 
+#   chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)",
+#                       "worklevel2(7.2|AC)","publiclevel2(7.2|AC)",
 #                       "publicfc(150.0|DC)", "publicxfc(250.0|DC)"),
 #   coef_100_050=c(1.33,1.20,1.88,1.35,1.67,2.28))
 # charging050 <- rse050[,.(fuel050=sum(fuel)),by=.(parkingType,chargingPointType)][
@@ -547,12 +557,12 @@ charging050 <- charging050[,fuel_100_050:=fuel100/fuel050][,fuel_100_050_W:=coef
 #     charging_100_050,on=c("chargingPointType")][
 #       ,fuel_100_050:=fuel100/fuel050][
 #         ,fuel_100_050_W:=coef_100_050*fuel_100_050]
-# 
-# 
+#
+#
 # charging <- charging[charging010, on=c("parkingType","chargingPointType")]
 # charging <- charging[charging025, on=c("parkingType","chargingPointType")]
 # charging <- charging[charging050, on=c("parkingType","chargingPointType")]
-#   
+#
 # publiclevel2(7.2|AC)
 # publicfc(150.0|DC)
 # worklevel2(7.2|AC)
@@ -563,8 +573,8 @@ charging050 <- charging050[,fuel_100_050:=fuel100/fuel050][,fuel_100_050_W:=coef
 #c(3.82, 141.68, 112.27, 9.02, 5.64, 64.84)
 #c(10.0,10.0,10.0,10.0,10.0,10.0)
 charging_0_010 <- data.table(
-  chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)", 
-                      "worklevel2(7.2|AC)","publiclevel2(7.2|AC)", 
+  chargingPointType=c("homelevel1(1.8|AC)", "homelevel2(7.2|AC)",
+                      "worklevel2(7.2|AC)","publiclevel2(7.2|AC)",
                       "publicfc(150.0|DC)", "publicxfc(250.0|DC)"),
   fuel0_010_coef=c(8.02,6.87,9.00,6.41,8.17,10.33))
 charging <- charging[charging_0_010,on=c("chargingPointType")][,fuel0_010:=fuel0/fuel001][,fuel0_010_t:=fuel0_010_coef*fuel0_010]
@@ -619,9 +629,9 @@ test3All$time2 <- test3All$time%%(24*3600)
 #time<=14*3600&time>=10*3600,
 test3All[,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time),"15 min")), actType2)] %>%
   ggplot(aes(timeBin, N, colour=actType2)) +
-  geom_line() + 
-  scale_x_datetime("time", 
-                   breaks=scales::date_breaks("2 hour"), 
+  geom_line() +
+  scale_x_datetime("time",
+                   breaks=scales::date_breaks("2 hour"),
                    labels=scales::date_format("%H", tz = dateTZ)) +
   scale_y_continuous(breaks = scales::pretty_breaks()) +
   theme_classic() +
@@ -640,9 +650,9 @@ looTest2[ActivityType=="atwork"]$actType2 <- "work"
 looTest2[ActivityType=="Home"]$actType2 <- "home"
 looTest2[departure_time<=16&departure_time>=8,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(departure_time*3600),"1 hour")), actType2)] %>%
   ggplot(aes(timeBin, N, colour=actType2)) +
-  geom_line() + 
-  scale_x_datetime("time", 
-                   breaks=scales::date_breaks("2 hour"), 
+  geom_line() +
+  scale_x_datetime("time",
+                   breaks=scales::date_breaks("2 hour"),
                    labels=scales::date_format("%H", tz = dateTZ)) +
   scale_y_continuous(breaks = scales::pretty_breaks()) +
   theme_classic() +
@@ -679,11 +689,11 @@ chargingEvents <- events.sim[,-c("type", "IDX")]
 nrow(chargingEvents[duration==0])
 nrow(chargingEvents[duration>0])
 
-chargingEvents[duration<1800&duration>0] %>% ggplot(aes(duration)) + 
+chargingEvents[duration<1800&duration>0] %>% ggplot(aes(duration)) +
   theme_classic() +
   geom_histogram(bins = 30)
 
-test <- chargingEvents[duration==0] 
+test <- chargingEvents[duration==0]
 test$kindOfVehicle <- "real"
 test[startsWith(vehicle,"VirtualCar")]$kindOfVehicle <- "virtual"
 
@@ -737,7 +747,7 @@ events8 <- readCsv(pp(workDir, "/2022Mars-Calibration/0.events.b1-8.csv.gz"))
 # ev <- events1[startsWith(vehicleType, "ev-")]
 # phev <- events1[startsWith(vehicleType, "phev-")]
 # virtual <- events1[startsWith(vehicleType, "VirtualCarType")]
-# 
+#
 # allEv <- rbind(ev,phev)
 # allEVSummary <- allEv[,.(.N),by=.(vehicle,vehicleType)]
 # allEVSummary$vehType <- "Car"
@@ -745,14 +755,14 @@ events8 <- readCsv(pp(workDir, "/2022Mars-Calibration/0.events.b1-8.csv.gz"))
 # allEVSummary[grepl("SUV",vehicleType)]$vehType <- "SUV"
 # allEVSummary[grepl("Pickup",vehicleType)]$vehType <- "Pickup"
 # allEVSummary[,.N,by=.(vehType)]
-# 
-# 
+#
+#
 # n_ev <- length(unique(ev$vehicle))
 # n_phev <- length(unique(phev$vehicle))
 # n_virtual <- length(unique(virtual$vehicle))
 # n_ev_virtual <- n_virtual*(n_ev/(n_ev+n_phev))
 # n_phev_virtual <- n_virtual*(n_phev/(n_ev+n_phev))
-# 
+#
 # tot <- n_ev + n_phev + n_ev_virtual + n_phev_virtual
 
 # home_l1 <- c(214111.2,211923.08,208621.38,202296.8,194829.95,187391.03,179245.57,171491.27,164053.89,156328.68,149317.28,142827.17,136334.76,129988.95,123245.08,117163.17,110797.83,104364.94,98190.02,92319.37,86389.21,80431.88,74753.37,69292.44,62771.91,57877.63,52755.43,48026.31,42823.35,38926.68,35399.17,33372.94,32068.76,31352.66,30194.87,28925.32,27057.94,26295.52,25438.38,25708.78,26050.95,27227.11,27994.12,29514.74,32059.96,34931.46,37853.67,41214.31,44844.4,49689.12,54051.58,56591.05,58572.11,61640.34,64870.28,67340.67,70304.79,75464.69,82198.98,87824.1,96141.41,106715.73,117904.53,126863.88,136510.25,146884.4,157953.02,167726.08,179445.74,194061.4,210797.06,224026.44,236691.85,247128.19,255858.86,260320.45,263116.93,265472.88,268295.78,270321.62,271914.39,272345.16,271250.72,272341.52,271938.5,273983.09,274960.99,273487.06,271519.02,268411.56,265309.26,260089.08,254698.2,248714.27,241775.97,234571.86)
@@ -761,7 +771,7 @@ events8 <- readCsv(pp(workDir, "/2022Mars-Calibration/0.events.b1-8.csv.gz"))
 # work_l2 <- c(2652.38,2488.76,2540.62,2572.39,2072.72,1872.36,1807.87,1945.27,1776.29,1547.8,1435.27,1562.15,1498.42,1460.53,2251.85,3499,5391.65,6120.19,6930.83,9421.13,15780.72,18806.46,24901.78,32720.76,48371.92,57512.69,74029.8,90552.08,125095.25,143729.09,173419.71,198975.58,246980.46,251954.92,256120.84,250745.85,254545.87,240578.38,223418.84,207430.87,190271.9,167443.04,150213.27,133096.22,119458.84,107286.2,95935.88,85443.66,77644.96,71057.83,66784.16,66993.52,66857.46,62364.67,61714.21,59384.28,56212.14,52570.95,49901.92,48116.44,45140.64,41447.78,42206.57,39041.89,37433.23,34350.84,31920.26,30529.58,28071.62,26228.93,24383.74,22007.31,20483.44,17821.87,17092.18,17393.01,16069.11,14293.97,12657.19,11710.86,10525.33,8932.18,8141.25,7892.47,7812.86,6883.76,6105.46,5509.72,5533.07,4846.82,4352.89,4475.37,4098.18,3458.24,3196.06,2820.21)
 # public_l2 <- c(19788.76,18253.6,15948.36,14610.69,13154.36,12062.03,10948.83,10387.54,9408.3,8252.05,6699.28,5991.59,5558.33,5303.43,5069,4458.53,4354.81,4287.25,3674.87,3940.49,5068.23,6015.32,7886.53,9011.21,13842.34,16395.02,18872.87,21881.2,25059.47,27813.08,32476.95,37535.23,47378.52,51027.56,55825.96,57967.57,65746.17,70316.27,73245.57,72648.68,76039.95,75117.16,76287.96,76544.59,76267.29,74199.54,75421.25,76531.96,79423.55,79431.21,78182.71,75911.15,76946.27,75698.35,75548.89,75372.07,75104.91,71943.68,70442.19,68094.09,72936.12,72580.56,70357.99,73058.22,73292.64,71539.89,69061.84,70978.03,72952.01,72969.42,76923.5,81983.69,87958.83,90399.75,90921.8,94572.56,97035.49,93019.79,88844.68,85019.96,78802.37,73560.37,64138.86,58119.14,50942.78,46139.02,42267.61,36899.5,33431.12,30559.24,29203,29484.51,26575.88,24058.79,23409.67,21778.24)
 # public_l3 <- c(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,392.5,725.1,185.05,0,0.19,947.28,1440.06,4366.86,5009.1,4164.97,2661.76,4667.31,3887.1,8270.8,7615.17,14079.25,14335.69,11754.3,10793.05,13989.31,11593.17,13399.51,15847.89,17059.26,15505.72,14141.45,14448.21,16772.97,13977.83,16665.23,17113.04,16727.62,18224.13,21393.59,17138.68,16346.03,13321.24,13832.77,17703.98,17284.69,14626,18584.28,20115.24,16532.61,13048.34,11299.61,10443.42,9273.77,9134.84,12408.02,16232.54,17234.55,14942.52,9471.07,11043.17,13640.25,16696.61,14306.41,11058.68,8682.63,5775.34,3623.39,3078.95,2567.03,1351.45,392.31,392.31,392.31,418.33,784.62,624.82,392.31,392.31,279.59,0)
-# 
+#
 # tot <- sum(home_l1) + sum(home_l2) + sum(work_l1) + sum(work_l2) + sum(public_l2) + sum(public_l3)
 # sum(home_l1)/tot
 # sum(home_l2)/tot
@@ -815,9 +825,9 @@ mnl_param <- readCsv(pp(workDir, "/2022Mars-Calibration/mnl-param-beamLog.csv"))
 sampled <- mnl[mnlStatus=="sampled"]
 chosen <- mnl[mnlStatus=="chosen"]
 
-mnl_param$result <- mnl_param$RangeAnxietyCost * -0.5 + 
-  mnl_param$WalkingEgressCost * -0.086 + 
-  mnl_param$ParkingTicketCost * -0.5 + 
+mnl_param$result <- mnl_param$RangeAnxietyCost * -0.5 +
+  mnl_param$WalkingEgressCost * -0.086 +
+  mnl_param$ParkingTicketCost * -0.5 +
   mnl_param$HomeActivityPrefersResidentialParking * 5.0
 
 requestIds <- unique(mnl_param[grepl("Home", activityType)]$requestId)

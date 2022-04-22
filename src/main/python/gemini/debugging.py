@@ -1,4 +1,3 @@
-import helper
 import os
 
 mnl_lines = ["mnlStatus,requestId,parkingZoneId,chargingPointType,parkingType,costInDollars\n"]
