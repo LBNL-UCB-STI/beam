@@ -3,9 +3,7 @@ package beam.utils.beam_to_matsim.visualization.via
 import beam.utils.beam_to_matsim.events.BeamPathTraversal
 import beam.utils.beam_to_matsim.events_filter.{MutablePopulationFilter, MutableSamplingFilter, PopulationSample}
 import beam.utils.beam_to_matsim.io.{HashSetReader, Reader, Writer}
-import beam.utils.beam_to_matsim.via_event.ViaEvent
-
-import scala.collection.mutable
+import beam.utils.beam_to_matsim.via_event.ViaEventsCollection
 
 object visualization_9 extends App {
   val personsInCircleFilePath = "D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half_in_SF.persons.txt"
@@ -35,11 +33,11 @@ object visualization_9 extends App {
   val (vehiclesEvents, personsEvents) = Reader.readWithFilter(beamEventsFilePath, filter)
   //val (events, typeToId) = EventsProcessor.transformPathTraversals(vehiclesEvents, vehicleId, vehicleType)
 
-  val events = mutable.PriorityQueue.empty[ViaEvent]((e1, e2) => e2.time.compare(e1.time))
+  val eventsCollection = new ViaEventsCollection()
   val (modeChoiceEvents, modeToCnt) = Reader.transformModeChoices(personsEvents)
-  modeChoiceEvents.foreach(events.enqueue(_))
+  modeChoiceEvents.foreach(eventsCollection.put)
 
-  Writer.writeViaEventsQueue[ViaEvent](events, _.toXml.toString, viaEventsFile)
+  Writer.writeViaEventsCollection(eventsCollection, _.toXml.toString, viaEventsFile)
   //Writer.writeViaIdFile(typeToId, viaIdsFile)
   Writer.writeViaModes(modeToCnt, viaModesFile)
 }
