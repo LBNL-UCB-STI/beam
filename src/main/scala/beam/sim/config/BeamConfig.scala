@@ -46,7 +46,7 @@ object BeamConfig {
       h3taz: BeamConfig.Beam.Agentsim.H3taz,
       lastIteration: scala.Int,
       populationAdjustment: java.lang.String,
-      maybeRandomSeedForPopulationSampling: scala.Option[scala.Long],
+      maybeRandomSeedForPopulationSampling: scala.Option[scala.Int],
       scenarios: BeamConfig.Beam.Agentsim.Scenarios,
       scheduleMonitorTask: BeamConfig.Beam.Agentsim.ScheduleMonitorTask,
       schedulerParallelismWindow: scala.Int,

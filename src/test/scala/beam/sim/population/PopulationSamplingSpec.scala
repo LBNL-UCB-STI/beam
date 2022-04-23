@@ -41,7 +41,7 @@ class PopulationSamplingSpec extends AnyWordSpecLike with Matchers with BeamHelp
           "beam.agentsim.agentSampleSizeAsFractionOfPopulation",
           ConfigValueFactory.fromAnyRef(0.5)
         )
-        .withValue("beam.agentsim.randomSeed", ConfigValueFactory.fromAnyRef(seed))
+        .withValue("beam.agentsim.randomSeedForPopulationSampling", ConfigValueFactory.fromAnyRef(seed))
         .resolve()
     )
   }
