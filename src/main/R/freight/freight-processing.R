@@ -16,13 +16,17 @@ freightDir <- normalizePath("~/Data/FREIGHT")
 validationDir <- normalizePath("~/Data/FREIGHT/validation")
 freightWorkDir <- normalizePath(paste(validationDir,"/beam",sep=""))
 
-events <- readCsv(pp(freightDir, "/via/0.events.csv"))
+events <- readCsv(pp(freightDir, "/via/0.events.csv.gz"))
 events[grepl("freight",vehicle)]
 events[mode=="car"][grepl("freight",vehicle)]
 pt <- events[type=="PathTraversal"]
-pt[grepl("freight",vehicle)]
+pt[grepl("ridehailAgent-freight",vehicle)]
 pt[grepl("-b2b-",driver)]
+events[startsWith(person,"freightPerson")]
+events[startsWith(vehicle,"freightVehicle")]
+test <- events[grepl("freight",vehicle)]
 
+test2 <- events[startsWith(person, "freight-carrier")]
 
 # events_filtered <- events[(actType %in% c("Warehouse", "Unloading", "Loading")) | (type=="PathTraversal" & startsWith(vehicle,"freight"))]
 # write.csv(
