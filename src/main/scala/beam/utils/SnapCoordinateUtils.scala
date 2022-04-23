@@ -6,6 +6,8 @@ import com.conveyal.r5.streets.StreetLayer
 import com.typesafe.scalalogging.LazyLogging
 import enumeratum._
 import org.matsim.api.core.v01.Coord
+import org.matsim.core.network.NetworkUtils
+import org.matsim.api.core.v01.network.Network
 
 import scala.collection.concurrent.TrieMap
 
@@ -44,7 +46,7 @@ object SnapCoordinateUtils extends LazyLogging {
 
   type SnapCoordinateResult = Either[Error, Coord]
 
-  final case class SnapLocationHelper(geo: GeoUtils, streetLayer: StreetLayer, maxRadius: Double) {
+  final case class SnapLocationHelper(geo: GeoUtils, streetLayer: StreetLayer, maxRadius: Double, network: Network) {
     private val store: TrieMap[Coord, Option[Coord]] = TrieMap.empty
 
     def find(planCoord: Coord, isWgs: Boolean = false): Option[Coord] = {
@@ -52,18 +54,31 @@ object SnapCoordinateUtils extends LazyLogging {
       store.get(coord).flatten
     }
 
-    def computeResult(planCoord: Coord, isWgs: Boolean = false): SnapCoordinateResult = {
+    def computeResult(
+      planCoord: Coord,
+      isWgs: Boolean = false,
+      getNearestLink: Boolean = false
+    ): SnapCoordinateResult = {
       val coord = if (isWgs) planCoord else geo.utm2Wgs(planCoord)
-      if (streetLayer.envelope.contains(coord.getX, coord.getY)) {
-        val snapCoordOpt = store.getOrElseUpdate(
-          coord,
-          Option(geo.getR5Split(streetLayer, coord, maxRadius)).map { split =>
-            val updatedPlanCoord = geo.splitToCoord(split)
-            geo.wgs2Utm(updatedPlanCoord)
-          }
-        )
-        snapCoordOpt.fold[SnapCoordinateResult](Left(Error.R5SplitNullError))(coord => Right(coord))
-      } else Left(Error.OutOfBoundingBoxError)
+      val inEnvelope = !streetLayer.envelope.contains(coord.getX, coord.getY)
+      val newCoordMaybe = if (getNearestLink && !inEnvelope) {
+        val locInUtm = if (isWgs) geo.wgs2Utm(planCoord) else planCoord
+        val newCoord = NetworkUtils.getNearestLink(network, locInUtm).getCoord
+        if (GeoUtils.minkowskiDistFormula(newCoord, locInUtm) <= maxRadius) Some(newCoord) else None
+      } else if (inEnvelope) Some(coord)
+      else None
+      newCoordMaybe match {
+        case Some(coord) =>
+          val snapCoordOpt = store.getOrElseUpdate(
+            coord,
+            Option(geo.getR5Split(streetLayer, coord, maxRadius)).map { split =>
+              val updatedPlanCoord = geo.splitToCoord(split)
+              geo.wgs2Utm(updatedPlanCoord)
+            }
+          )
+          snapCoordOpt.fold[SnapCoordinateResult](Left(Error.R5SplitNullError))(coord => Right(coord))
+        case _ => Left(Error.OutOfBoundingBoxError)
+      }
     }
   }
 

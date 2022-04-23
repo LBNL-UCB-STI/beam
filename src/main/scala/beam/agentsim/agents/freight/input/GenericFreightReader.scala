@@ -15,6 +15,7 @@ import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.Household
 import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_ID_PREFIX
+import org.matsim.core.network.NetworkUtils
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
@@ -321,12 +322,12 @@ class GenericFreightReader(
       val coord =
         if (snapLocationAndRemoveInvalidInputs) TAZTreeMap.randomLocationInTAZ(taz, rnd, snapLocationHelper)
         else TAZTreeMap.randomLocationInTAZ(taz, rnd)
-
       (Some(taz.tazId), Right(coord))
     } else {
       val loc = new Coord(strX.toDouble, strY.toDouble)
       val coord =
-        if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(loc, config.isWgs) else Right(loc)
+        if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(loc, config.isWgs, true)
+        else Right(loc)
       (None, coord)
     }
   }
