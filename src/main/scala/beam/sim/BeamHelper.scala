@@ -987,7 +987,7 @@ trait BeamHelper extends LazyLogging {
 
     logger.info(
       "Agentsim random seed for population scaling is set to {}.",
-      beamConfig.beam.agentsim.randomSeedForPopulationSampling
+      beamConfig.beam.agentsim.maybeRandomSeedForPopulationSampling
     )
     logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
 
