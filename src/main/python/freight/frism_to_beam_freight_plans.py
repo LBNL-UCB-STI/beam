@@ -19,9 +19,9 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
     second_prefix = ''
     if veh_type:
         if old == '1':
-            second_prefix = '@md#'
+            second_prefix = '-md#'
         else:
-            second_prefix = '@hd#'
+            second_prefix = '-hd#'
     first_prefix = prefix.replace('county', 'cty')
     new = f"{first_prefix}{second_prefix}{old_updated}"
     if store_dict is not None:
@@ -93,7 +93,7 @@ carriers_renames = {
     'depot_zone_x': 'warehouseX',
     'depot_zone_y': 'warehouseY'
 }
-carriers_drop = ['x', 'y']
+carriers_drop = ['x', 'y', 'index']
 carriers.rename(columns=carriers_renames, inplace=True)
 carriers.drop(carriers_drop, axis=1, inplace=True, errors='ignore')
 carriers['warehouseZone'] = carriers['warehouseZone'].astype(int)
@@ -115,6 +115,7 @@ tours.rename(columns=tours_renames, inplace=True)
 tours['departureTimeInSec'] = tours['departureTimeInSec'].astype(int)
 tours['maxTourDurationInSec'] = tours['maxTourDurationInSec'].astype(int)
 tours['departureLocationZone'] = tours['departureLocationZone'].astype(int)
+tours.drop(['index'], axis=1, inplace=True, errors='ignore')
 tours.to_csv(f'{directory_output}/freight-merged-tours.csv', index=False)
 
 
@@ -129,7 +130,7 @@ payload_plans_renames = {
     'locationZone_x': 'locationX',
     'locationZone_y': 'locationY'
 }
-payload_plans_drop = ['weightInlb', 'cummulativeWeightInlb']
+payload_plans_drop = ['weightInlb', 'cummulativeWeightInlb', 'index']
 payload_plans['weightInKg'] = abs(payload_plans['weightInlb'].astype(int)) * 0.45359237
 payload_plans.rename(columns=payload_plans_renames, inplace=True)
 payload_plans.drop(payload_plans_drop, axis=1, inplace=True, errors='ignore')
