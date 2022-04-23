@@ -59,15 +59,16 @@ object SnapCoordinateUtils extends LazyLogging {
       isWgs: Boolean = false,
       getNearestLink: Boolean = false
     ): SnapCoordinateResult = {
-      val coord = if (isWgs) planCoord else geo.utm2Wgs(planCoord)
-      val inEnvelope = !streetLayer.envelope.contains(coord.getX, coord.getY)
-      val newCoordMaybe = if (getNearestLink && !inEnvelope) {
+      val coordWgs = if (isWgs) planCoord else geo.utm2Wgs(planCoord)
+      val inEnvelope = streetLayer.envelope.contains(coordWgs.getX, coordWgs.getY)
+      val newCoordInWgsMaybe = if (getNearestLink && !inEnvelope) {
         val locInUtm = if (isWgs) geo.wgs2Utm(planCoord) else planCoord
-        val newCoord = NetworkUtils.getNearestLink(network, locInUtm).getCoord
-        if (GeoUtils.minkowskiDistFormula(newCoord, locInUtm) <= maxRadius) Some(newCoord) else None
-      } else if (inEnvelope) Some(coord)
+        val newLocIntUtm = NetworkUtils.getNearestLink(network, locInUtm).getCoord
+        val newCoordInWgs = geo.utm2Wgs(newLocIntUtm)
+        if (GeoUtils.minkowskiDistFormula(newLocIntUtm, locInUtm) <= maxRadius) Some(newCoordInWgs) else None
+      } else if (inEnvelope) Some(coordWgs)
       else None
-      newCoordMaybe match {
+      newCoordInWgsMaybe match {
         case Some(coord) =>
           val snapCoordOpt = store.getOrElseUpdate(
             coord,
