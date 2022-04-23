@@ -2,8 +2,6 @@
 
 package beam.sim.config
 
-import scala.util.Random
-
 case class BeamConfig(
   beam: BeamConfig.Beam,
   matsim: BeamConfig.Matsim
@@ -39,7 +37,6 @@ object BeamConfig {
   object Beam {
 
     case class Agentsim(
-      randomSeed: scala.Int,
       agentSampleSizeAsFractionOfPopulation: scala.Double,
       agents: BeamConfig.Beam.Agentsim.Agents,
       chargingNetworkManager: BeamConfig.Beam.Agentsim.ChargingNetworkManager,
@@ -53,13 +50,13 @@ object BeamConfig {
       scheduleMonitorTask: BeamConfig.Beam.Agentsim.ScheduleMonitorTask,
       schedulerParallelismWindow: scala.Int,
       simulationName: java.lang.String,
+      snapLocationAndRemoveInvalidInputs: scala.Boolean,
       taz: BeamConfig.Beam.Agentsim.Taz,
       thresholdForMakingParkingChoiceInMeters: scala.Int,
       thresholdForWalkingInMeters: scala.Int,
       timeBinSize: scala.Int,
       toll: BeamConfig.Beam.Agentsim.Toll,
-      tuning: BeamConfig.Beam.Agentsim.Tuning,
-      snapLocationAndRemoveInvalidInputs: scala.Boolean
+      tuning: BeamConfig.Beam.Agentsim.Tuning
     )
 
     object Agentsim {
@@ -102,9 +99,9 @@ object BeamConfig {
         case class Freight(
           carrierParkingFilePath: scala.Option[java.lang.String],
           carriersFilePath: java.lang.String,
-          convertWgs2Utm: scala.Boolean,
           enabled: scala.Boolean,
           generateFixedActivitiesDurations: scala.Boolean,
+          isWgs: scala.Boolean,
           name: java.lang.String,
           plansFilePath: java.lang.String,
           reader: java.lang.String,
@@ -139,10 +136,10 @@ object BeamConfig {
               carriersFilePath =
                 if (c.hasPathOrNull("carriersFilePath")) c.getString("carriersFilePath")
                 else "/test/input/beamville/freight/freight-carriers.csv",
-              convertWgs2Utm = c.hasPathOrNull("convertWgs2Utm") && c.getBoolean("convertWgs2Utm"),
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
               generateFixedActivitiesDurations =
                 c.hasPathOrNull("generateFixedActivitiesDurations") && c.getBoolean("generateFixedActivitiesDurations"),
+              isWgs = c.hasPathOrNull("isWgs") && c.getBoolean("isWgs"),
               name = if (c.hasPathOrNull("name")) c.getString("name") else "Freight",
               plansFilePath =
                 if (c.hasPathOrNull("plansFilePath")) c.getString("plansFilePath")
@@ -2163,10 +2160,6 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim = {
         BeamConfig.Beam.Agentsim(
-          randomSeed =
-            if (c.hasPathOrNull("randomSeed"))
-              c.getInt("randomSeed")
-            else new Random().nextInt(),
           agentSampleSizeAsFractionOfPopulation =
             if (c.hasPathOrNull("agentSampleSizeAsFractionOfPopulation"))
               c.getDouble("agentSampleSizeAsFractionOfPopulation")
@@ -2202,6 +2195,8 @@ object BeamConfig {
           schedulerParallelismWindow =
             if (c.hasPathOrNull("schedulerParallelismWindow")) c.getInt("schedulerParallelismWindow") else 30,
           simulationName = if (c.hasPathOrNull("simulationName")) c.getString("simulationName") else "beamville",
+          snapLocationAndRemoveInvalidInputs =
+            c.hasPathOrNull("snapLocationAndRemoveInvalidInputs") && c.getBoolean("snapLocationAndRemoveInvalidInputs"),
           taz = BeamConfig.Beam.Agentsim.Taz(
             if (c.hasPathOrNull("taz")) c.getConfig("taz") else com.typesafe.config.ConfigFactory.parseString("taz{}")
           ),
@@ -2219,11 +2214,7 @@ object BeamConfig {
           tuning = BeamConfig.Beam.Agentsim.Tuning(
             if (c.hasPathOrNull("tuning")) c.getConfig("tuning")
             else com.typesafe.config.ConfigFactory.parseString("tuning{}")
-          ),
-          snapLocationAndRemoveInvalidInputs =
-            if (c.hasPathOrNull("snapLocationAndRemoveInvalidInputs"))
-              c.getBoolean("snapLocationAndRemoveInvalidInputs")
-            else false
+          )
         )
       }
     }

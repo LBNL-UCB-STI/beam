@@ -161,17 +161,6 @@ trait FreightReader {
     leg.setDepartureTime(departureTime)
     leg
   }
-
-  protected def location(x: Double, y: Double): Coord = convertedLocation(new Coord(x, y))
-
-  protected def convertedLocation(coord: Coord): Coord = {
-    if (config.convertWgs2Utm) {
-      geoUtils.wgs2Utm(coord)
-    } else {
-      coord
-    }
-  }
-
 }
 
 object FreightReader {

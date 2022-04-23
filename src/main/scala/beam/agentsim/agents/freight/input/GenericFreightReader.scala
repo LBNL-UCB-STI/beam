@@ -324,12 +324,9 @@ class GenericFreightReader(
 
       (Some(taz.tazId), Right(coord))
     } else {
-      val wasInWgs = config.convertWgs2Utm
-      val loc = location(strX.toDouble, strY.toDouble)
+      val loc = new Coord(strX.toDouble, strY.toDouble)
       val coord =
-        if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(loc, wasInWgs)
-        else Right(loc)
-
+        if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(loc, config.isWgs) else Right(loc)
       (None, coord)
     }
   }
