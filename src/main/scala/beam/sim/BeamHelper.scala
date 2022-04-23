@@ -82,6 +82,7 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.sys.process.Process
 import scala.util.{Random, Try}
+import org.matsim.api.core.v01.network.Network
 
 trait BeamHelper extends LazyLogging {
   //  Kamon.init()
@@ -307,7 +308,13 @@ trait BeamHelper extends LazyLogging {
     val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(networkCoordinator.network, tazMap)
 
     val (freightCarriers, fixedActivitiesDurationsFromFreight) =
-      readFreights(beamConfig, networkCoordinator.transportNetwork.streetLayer, vehicleTypes, outputDirMaybe)
+      readFreights(
+        beamConfig,
+        networkCoordinator.transportNetwork.streetLayer,
+        networkCoordinator.network,
+        vehicleTypes,
+        outputDirMaybe
+      )
 
     val fixedActivitiesDurationsFromConfig: Map[String, Double] = {
       val maybeFixedDurationsList = beamConfig.beam.agentsim.agents.activities.activityTypeToFixedDurationMap
@@ -351,6 +358,7 @@ trait BeamHelper extends LazyLogging {
   def readFreights(
     beamConfig: BeamConfig,
     streetLayer: StreetLayer,
+    network: Network,
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
     outputDirMaybe: Option[String]
   ): (IndexedSeq[FreightCarrier], Map[String, Double]) = {
@@ -358,7 +366,7 @@ trait BeamHelper extends LazyLogging {
 
     if (freightConfig.enabled) {
       val geoUtils = new GeoUtilsImpl(beamConfig)
-      val freightReader = FreightReader(beamConfig, geoUtils, streetLayer, outputDirMaybe)
+      val freightReader = FreightReader(beamConfig, geoUtils, streetLayer, network, outputDirMaybe)
       val tours = freightReader.readFreightTours()
       val plans = freightReader.readPayloadPlans()
       val carriers = freightReader.readFreightCarriers(tours, plans, vehicleTypes)
@@ -658,6 +666,7 @@ trait BeamHelper extends LazyLogging {
     val snapLocationHelper = SnapLocationHelper(
       new GeoUtilsImpl(beamScenario.beamConfig),
       beamScenario.transportNetwork.streetLayer,
+      beamScenario.network,
       beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
     )
     val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
@@ -710,6 +719,7 @@ trait BeamHelper extends LazyLogging {
       val snapLocationHelper = SnapLocationHelper(
         new GeoUtilsImpl(beamScenario.beamConfig),
         beamScenario.transportNetwork.streetLayer,
+        beamScenario.network,
         beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
       )
 
@@ -741,6 +751,7 @@ trait BeamHelper extends LazyLogging {
         beamServices.beamConfig,
         beamServices.geo,
         beamServices.beamScenario.transportNetwork.streetLayer,
+        beamServices.beamScenario.network,
         beamServices.beamScenario.tazTreeMap,
         Some(outputDir)
       )

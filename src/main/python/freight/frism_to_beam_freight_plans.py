@@ -19,9 +19,9 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
     second_prefix = ''
     if veh_type:
         if old == '1':
-            second_prefix = '-md#'
+            second_prefix = '-MD-'
         else:
-            second_prefix = '-hd#'
+            second_prefix = '-HD-'
     first_prefix = prefix.replace('county', 'cty')
     new = f"{first_prefix}{second_prefix}{old_updated}"
     if store_dict is not None:
@@ -53,10 +53,10 @@ for filename in sorted(os.listdir(directory_input)):
         # df['carrierId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'carrierId', row), axis=1)
         # df['vehicleId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'vehicleId', row), axis=1)
         df['carrierId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}@', 'carrierId', row, False), axis=1)
-        df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId']+'#', 'vehicleId', row), axis=1)
+        df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-', 'vehicleId', row), axis=1)
         df['vehicleTypeId'] = df.apply(lambda row: add_prefix('freight', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True), axis=1)
         # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
-        df['tourId'] = df.apply(lambda row: add_prefix(row['carrierId']+'#', 'tourId', row, True, tourId_with_prefix), axis=1)
+        df['tourId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-', 'tourId', row, True, tourId_with_prefix), axis=1)
         if carriers is None:
             carriers = df
         else:
@@ -73,7 +73,7 @@ for filename in sorted(os.listdir(directory_input)):
         df = pd.read_csv(filepath)
         # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
         df['tourId'] = df.apply(lambda row: tourId_with_prefix[str(int(row['tourId']))], axis=1)
-        df['payloadId'] = df.apply(lambda row: add_prefix(row['tourId']+'#', 'payloadId', row, False), axis=1)
+        df['payloadId'] = df.apply(lambda row: add_prefix(row['tourId']+'-', 'payloadId', row, False), axis=1)
         if payload_plans is None:
             payload_plans = df
         else:

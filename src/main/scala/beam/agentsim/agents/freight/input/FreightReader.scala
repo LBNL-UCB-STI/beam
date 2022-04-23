@@ -14,6 +14,7 @@ import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import com.conveyal.r5.streets.StreetLayer
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
@@ -172,6 +173,7 @@ object FreightReader {
     beamConfig: BeamConfig,
     geoUtils: GeoUtils,
     streetLayer: StreetLayer,
+    network: Network,
     tazMap: TAZTreeMap,
     outputDirMaybe: Option[String]
   ): FreightReader = {
@@ -180,6 +182,7 @@ object FreightReader {
     val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
       geoUtils,
       streetLayer,
+      network,
       beamConfig.beam.routing.r5.linkRadiusMeters
     )
     beamConfig.beam.agentsim.agents.freight.reader match {
@@ -202,10 +205,11 @@ object FreightReader {
     beamConfig: BeamConfig,
     geoUtils: GeoUtils,
     streetLayer: StreetLayer,
+    network: Network,
     outputDirMaybe: Option[String]
   ): FreightReader = {
     val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
-    apply(beamConfig, geoUtils, streetLayer, tazMap, outputDirMaybe)
+    apply(beamConfig, geoUtils, streetLayer, network, tazMap, outputDirMaybe)
   }
 
   def apply(beamServices: BeamServices): FreightReader =
@@ -213,6 +217,7 @@ object FreightReader {
       beamServices.beamConfig,
       beamServices.geo,
       beamServices.beamScenario.transportNetwork.streetLayer,
+      beamServices.beamScenario.network,
       beamServices.beamScenario.tazTreeMap,
       None
     )

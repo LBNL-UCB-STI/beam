@@ -46,7 +46,7 @@ object SnapCoordinateUtils extends LazyLogging {
 
   type SnapCoordinateResult = Either[Error, Coord]
 
-  final case class SnapLocationHelper(geo: GeoUtils, streetLayer: StreetLayer, maxRadius: Double, network: Network) {
+  final case class SnapLocationHelper(geo: GeoUtils, streetLayer: StreetLayer, network: Network, maxRadius: Double) {
     private val store: TrieMap[Coord, Option[Coord]] = TrieMap.empty
 
     def find(planCoord: Coord, isWgs: Boolean = false): Option[Coord] = {
