@@ -12,7 +12,7 @@ import beam.router.skim.core.ParkingSkimmer.ChargerType
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
-import org.matsim.api.core.v01.population.{Activity, Person, Plan}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.attributable.AttributesUtils
@@ -181,7 +181,7 @@ class SupplementaryTripGenerator(
           )
         mode -> DestinationChoiceModel.toUtilityParameters(timesAndCost)
       }
-      val alternativeChosen = modeMNL.sampleAlternative(alternativeToTimeAndCost, r)
+      val alternativeChosen = modeMNL.sampleAlternative(alternativeToTimeAndCost, rnd)
       PopulationUtils.createLeg(alternativeChosen match {
         case Some(alt) => alt.alternativeType.value
         case None      => ""
@@ -243,7 +243,7 @@ class SupplementaryTripGenerator(
 
         val tazToChosenMode: Map[TAZ, Option[BeamMode]] = {
           modeTazCosts.map { case (alt, modeCost) =>
-            val chosenModeOptionForTaz = modeMNL.sampleAlternative(modeCost, r)
+            val chosenModeOptionForTaz = modeMNL.sampleAlternative(modeCost, rnd)
             chosenModeOptionForTaz match {
               case Some(chosenModeForTaz) if fillInModes =>
                 alt.taz -> Some(chosenModeForTaz.alternativeType)
@@ -254,8 +254,8 @@ class SupplementaryTripGenerator(
 
         }
 
-        val chosenAlternativeOption = tripMNL.sampleAlternative(tripChoice, r) match {
-          case Some(mnlSample) if mnlSample.alternativeType => destinationMNL.sampleAlternative(modeChoice, r)
+        val chosenAlternativeOption = tripMNL.sampleAlternative(tripChoice, rnd) match {
+          case Some(mnlSample) if mnlSample.alternativeType => destinationMNL.sampleAlternative(modeChoice, rnd)
           case _                                            => None
         }
 
