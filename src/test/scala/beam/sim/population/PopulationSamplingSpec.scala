@@ -20,7 +20,7 @@ class PopulationSamplingSpec extends AnyWordSpecLike with Matchers with BeamHelp
     if (seed.equals(0)) {
       return prepareObjectsForPopulationSampling(getConfigWithRandomSeed)
     }
-    prepareObjectsForPopulationSampling(getConfigWithSeed(seed))
+    prepareObjectsForPopulationSampling(getConfigWithSeed())
   }
 
   private def getConfigWithRandomSeed: BeamConfig = {
@@ -34,14 +34,13 @@ class PopulationSamplingSpec extends AnyWordSpecLike with Matchers with BeamHelp
     )
   }
 
-  private def getConfigWithSeed(seed: Integer): BeamConfig = {
+  private def getConfigWithSeed(): BeamConfig = {
     BeamConfig(
       baseConfig
         .withValue(
           "beam.agentsim.agentSampleSizeAsFractionOfPopulation",
           ConfigValueFactory.fromAnyRef(0.5)
         )
-        .withValue("beam.agentsim.randomSeed", ConfigValueFactory.fromAnyRef(seed))
         .resolve()
     )
   }

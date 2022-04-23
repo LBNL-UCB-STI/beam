@@ -36,7 +36,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
     carriersFilePath = s"$freightInputDir/freight-carriers.csv",
     plansFilePath = s"$freightInputDir/payload-plans.csv",
     toursFilePath = s"$freightInputDir/freight-tours.csv",
-    convertWgs2Utm = false,
+    isWgs = false,
     enabled = true,
     name = "Freight",
     reader = "Generic",
@@ -145,7 +145,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
       )
 
       personPlans should have size 3
-      val plan1 = personPlans(Id.createPersonId("freightAgent-1"))
+      val plan1 = personPlans(Id.createPersonId("freightDriver-1"))
       plan1.getPlanElements should have size 15
       plan1.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(
         new Coord(169567.3017564815, 836.6518909569604)
@@ -153,7 +153,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
       plan1.getPlanElements.get(12).asInstanceOf[Activity].getCoord should be(
         new Coord(169576.80444138843, 3380.0075111142937)
       )
-      val plan4 = personPlans(Id.createPersonId("freightAgent-3"))
+      val plan4 = personPlans(Id.createPersonId("freightDriver-3"))
       plan4.getPlanElements should have size 5
       plan4.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(
         new Coord(169900.11498160253, 3510.2356380579545)
