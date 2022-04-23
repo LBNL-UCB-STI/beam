@@ -1,7 +1,6 @@
 package beam.sim.population
 
 import beam.sim.config.BeamConfig
-import beam.sim.metrics.BeamStaticMetricsWriter
 import beam.sim.{BeamScenario, BeamServices, BeamWarmStart}
 import beam.utils.CloseableUtil.RichCloseable
 import beam.utils.MathUtils
@@ -126,7 +125,9 @@ class PopulationScaling extends LazyLogging {
     val numAgents = math.round(
       beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation * scenario.getPopulation.getPersons.size()
     )
-    val rand = new Random(beamServices.beamConfig.beam.agentsim.randomSeed)
+    val rand = new Random(
+      beamServices.beamConfig.beam.agentsim.maybeRandomSeedForPopulationSampling.getOrElse(System.currentTimeMillis())
+    )
     val notSelectedHouseholdIds = mutable.Set[Id[Household]]()
     val notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
     val notSelectedPersonIds = mutable.Set[Id[Person]]()
