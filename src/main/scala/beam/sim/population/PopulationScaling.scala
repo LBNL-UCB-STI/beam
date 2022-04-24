@@ -127,7 +127,7 @@ class PopulationScaling extends LazyLogging {
     )
 
     val seed =
-      beamServices.beamConfig.beam.agentsim.maybeRandomSeedForPopulationSampling
+      beamServices.beamConfig.beam.agentsim.randomSeedForPopulationSampling
         .getOrElse(System.currentTimeMillis().toInt)
     logger.info("Agentsim randomSeedForPopulationSampling is set to {}.", seed)
     val rand = new Random(seed)
