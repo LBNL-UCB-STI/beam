@@ -125,11 +125,12 @@ class PopulationScaling extends LazyLogging {
     val numAgents = math.round(
       beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation * scenario.getPopulation.getPersons.size()
     )
-    val rand = new Random(beamServices.beamConfig.beam.agentsim.maybeRandomSeedForPopulationSampling.getOrElse {
-      val seed = System.currentTimeMillis().toInt
-      logger.info("Agentsim maybeRandomSeedForPopulationSampling is set to {}.", seed)
-      seed
-    })
+
+    val seed =
+      beamServices.beamConfig.beam.agentsim.maybeRandomSeedForPopulationSampling.getOrElse(System.currentTimeMillis())
+    logger.info("Agentsim maybeRandomSeedForPopulationSampling is set to {}.", seed)
+    val rand = new Random(seed)
+
     val notSelectedHouseholdIds = mutable.Set[Id[Household]]()
     val notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
     val notSelectedPersonIds = mutable.Set[Id[Person]]()
