@@ -2,8 +2,6 @@
 
 package beam.sim.config
 
-import scala.util.Random
-
 case class BeamConfig(
   beam: BeamConfig.Beam,
   matsim: BeamConfig.Matsim
@@ -39,7 +37,6 @@ object BeamConfig {
   object Beam {
 
     case class Agentsim(
-      randomSeed: scala.Int,
       agentSampleSizeAsFractionOfPopulation: scala.Double,
       agents: BeamConfig.Beam.Agentsim.Agents,
       chargingNetworkManager: BeamConfig.Beam.Agentsim.ChargingNetworkManager,
@@ -49,17 +46,18 @@ object BeamConfig {
       h3taz: BeamConfig.Beam.Agentsim.H3taz,
       lastIteration: scala.Int,
       populationAdjustment: java.lang.String,
+      randomSeedForPopulationSampling: scala.Option[scala.Int],
       scenarios: BeamConfig.Beam.Agentsim.Scenarios,
       scheduleMonitorTask: BeamConfig.Beam.Agentsim.ScheduleMonitorTask,
       schedulerParallelismWindow: scala.Int,
       simulationName: java.lang.String,
+      snapLocationAndRemoveInvalidInputs: scala.Boolean,
       taz: BeamConfig.Beam.Agentsim.Taz,
       thresholdForMakingParkingChoiceInMeters: scala.Int,
       thresholdForWalkingInMeters: scala.Int,
       timeBinSize: scala.Int,
       toll: BeamConfig.Beam.Agentsim.Toll,
-      tuning: BeamConfig.Beam.Agentsim.Tuning,
-      snapLocationAndRemoveInvalidInputs: scala.Boolean
+      tuning: BeamConfig.Beam.Agentsim.Tuning
     )
 
     object Agentsim {
@@ -2163,10 +2161,6 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim = {
         BeamConfig.Beam.Agentsim(
-          randomSeed =
-            if (c.hasPathOrNull("randomSeed"))
-              c.getInt("randomSeed")
-            else new Random().nextInt(),
           agentSampleSizeAsFractionOfPopulation =
             if (c.hasPathOrNull("agentSampleSizeAsFractionOfPopulation"))
               c.getDouble("agentSampleSizeAsFractionOfPopulation")
@@ -2191,6 +2185,9 @@ object BeamConfig {
           lastIteration = if (c.hasPathOrNull("lastIteration")) c.getInt("lastIteration") else 0,
           populationAdjustment =
             if (c.hasPathOrNull("populationAdjustment")) c.getString("populationAdjustment") else "DEFAULT_ADJUSTMENT",
+          randomSeedForPopulationSampling =
+            if (c.hasPathOrNull("randomSeedForPopulationSampling")) Some(c.getInt("randomSeedForPopulationSampling"))
+            else None,
           scenarios = BeamConfig.Beam.Agentsim.Scenarios(
             if (c.hasPathOrNull("scenarios")) c.getConfig("scenarios")
             else com.typesafe.config.ConfigFactory.parseString("scenarios{}")
@@ -2202,6 +2199,8 @@ object BeamConfig {
           schedulerParallelismWindow =
             if (c.hasPathOrNull("schedulerParallelismWindow")) c.getInt("schedulerParallelismWindow") else 30,
           simulationName = if (c.hasPathOrNull("simulationName")) c.getString("simulationName") else "beamville",
+          snapLocationAndRemoveInvalidInputs =
+            c.hasPathOrNull("snapLocationAndRemoveInvalidInputs") && c.getBoolean("snapLocationAndRemoveInvalidInputs"),
           taz = BeamConfig.Beam.Agentsim.Taz(
             if (c.hasPathOrNull("taz")) c.getConfig("taz") else com.typesafe.config.ConfigFactory.parseString("taz{}")
           ),
@@ -2219,11 +2218,7 @@ object BeamConfig {
           tuning = BeamConfig.Beam.Agentsim.Tuning(
             if (c.hasPathOrNull("tuning")) c.getConfig("tuning")
             else com.typesafe.config.ConfigFactory.parseString("tuning{}")
-          ),
-          snapLocationAndRemoveInvalidInputs =
-            if (c.hasPathOrNull("snapLocationAndRemoveInvalidInputs"))
-              c.getBoolean("snapLocationAndRemoveInvalidInputs")
-            else false
+          )
         )
       }
     }
