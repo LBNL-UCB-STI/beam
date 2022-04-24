@@ -65,7 +65,8 @@ object SnapCoordinateUtils extends LazyLogging {
         val locInUtm = if (isWgs) geo.wgs2Utm(planCoord) else planCoord
         val newLocIntUtm = NetworkUtils.getNearestLink(network, locInUtm).getCoord
         val newCoordInWgs = geo.utm2Wgs(newLocIntUtm)
-        if (GeoUtils.minkowskiDistFormula(newLocIntUtm, locInUtm) <= maxRadius) Some(newCoordInWgs) else None
+        Some(newCoordInWgs)
+        // if (GeoUtils.minkowskiDistFormula(newLocIntUtm, locInUtm) <= maxRadius) Some(newCoordInWgs) else None
       } else if (inEnvelope) Some(coordWgs)
       else None
       newCoordInWgsMaybe match {

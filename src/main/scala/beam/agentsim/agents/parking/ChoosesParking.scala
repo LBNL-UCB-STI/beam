@@ -103,7 +103,7 @@ object ChoosesParking {
         val carDistanceInM = trip.beamLegs.collect {
           case leg if leg.mode == BeamMode.CAR => leg.travelPath.distanceInM
         }.sum
-        logger.info("Cost: {}, dist: {}", trip.costEstimate, carDistanceInM)
+        logger.debug("Cost: {}, dist: {}", trip.costEstimate, carDistanceInM)
         trip.costEstimate / carDistanceInM * 1609.0
       }
       .getOrElse(Double.NaN)
