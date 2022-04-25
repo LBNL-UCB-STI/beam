@@ -16,6 +16,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.Household
 import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_ID_PREFIX
 import org.matsim.core.network.NetworkUtils
+import org.matsim.api.core.v01.network.Network
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
@@ -30,6 +31,7 @@ class GenericFreightReader(
   tazTree: TAZTreeMap,
   val snapLocationAndRemoveInvalidInputs: Boolean,
   val snapLocationHelper: SnapLocationHelper,
+  networkMaybe: Option[Network] = None,
   val outputDirMaybe: Option[String] = None
 ) extends LazyLogging
     with FreightReader {
@@ -325,8 +327,16 @@ class GenericFreightReader(
       (Some(taz.tazId), Right(coord))
     } else {
       val loc = new Coord(strX.toDouble, strY.toDouble)
+      val newLoc = networkMaybe
+        .map { network =>
+          val locInUtm = if (config.isWgs) geoUtils.wgs2Utm(loc) else loc
+          val newLocIntUtm = NetworkUtils.getNearestLink(network, locInUtm).getCoord
+          val newLoc = if (config.isWgs) geoUtils.utm2Wgs(newLocIntUtm) else newLocIntUtm
+          newLoc
+        }
+        .getOrElse(loc)
       val coord =
-        if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(loc, config.isWgs, true)
+        if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(newLoc, config.isWgs)
         else Right(loc)
       (None, coord)
     }

@@ -39,13 +39,7 @@ import beam.utils.scenario.generic.GenericScenarioSource
 import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.scenario.urbansim.censusblock.{ScenarioAdjuster, UrbansimReaderV2}
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
-import beam.utils.scenario.{
-  BeamScenarioLoader,
-  InputType,
-  PreviousRunPlanMerger,
-  ScenarioLoaderHelper,
-  UrbanSimScenarioLoader
-}
+import beam.utils.scenario._
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -56,7 +50,7 @@ import com.google.inject.name.Names
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
-import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.population.{Activity, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -82,7 +76,6 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.Await
 import scala.sys.process.Process
 import scala.util.{Random, Try}
-import org.matsim.api.core.v01.network.Network
 
 trait BeamHelper extends LazyLogging {
   //  Kamon.init()
@@ -666,7 +659,6 @@ trait BeamHelper extends LazyLogging {
     val snapLocationHelper = SnapLocationHelper(
       new GeoUtilsImpl(beamScenario.beamConfig),
       beamScenario.transportNetwork.streetLayer,
-      beamScenario.network,
       beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
     )
     val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
@@ -719,7 +711,6 @@ trait BeamHelper extends LazyLogging {
       val snapLocationHelper = SnapLocationHelper(
         new GeoUtilsImpl(beamScenario.beamConfig),
         beamScenario.transportNetwork.streetLayer,
-        beamScenario.network,
         beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
       )
 

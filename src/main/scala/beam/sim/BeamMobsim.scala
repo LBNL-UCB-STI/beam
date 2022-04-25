@@ -74,7 +74,6 @@ class BeamMobsim @Inject() (
   val snapLocationHelper = SnapLocationHelper(
     geo,
     beamScenario.transportNetwork.streetLayer,
-    beamScenario.network,
     beamConfig.beam.routing.r5.linkRadiusMeters
   )
 

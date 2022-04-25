@@ -16,17 +16,17 @@ freightDir <- normalizePath("~/Data/FREIGHT")
 validationDir <- normalizePath("~/Data/FREIGHT/validation")
 freightWorkDir <- normalizePath(paste(validationDir,"/beam",sep=""))
 
-events <- readCsv(pp(freightDir, "/via/0.events.csv"))
-events[grepl("freight",vehicle)]
-events[mode=="car"][grepl("freight",vehicle)]
-pt <- events[type=="PathTraversal"]
-unique(pt[grepl("ridehail",vehicle)]$vehicle)
-pt[grepl("-b2b-",driver)]
-events[startsWith(person,"freightPerson")]
-unique(events[startsWith(vehicle,"freightVehicle")]$vehicle)
-test <- events[grepl("freight",vehicle)]
-
-test2 <- events[startsWith(person, "freight-carrier")]
+# events <- readCsv(pp(freightDir, "/via/0.events.csv"))
+# events[grepl("freight",vehicle)]
+# events[mode=="car"][grepl("freight",vehicle)]
+# pt <- events[type=="PathTraversal"]
+# unique(pt[grepl("ridehail",vehicle)]$vehicle)
+# pt[grepl("-b2b-",driver)]
+# events[startsWith(person,"freightPerson")]
+# unique(events[startsWith(vehicle,"freightVehicle")]$vehicle)
+# test <- events[grepl("freight",vehicle)]
+# 
+# test2 <- events[startsWith(person, "freight-carrier")]
 
 # events_filtered <- events[(actType %in% c("Warehouse", "Unloading", "Loading")) | (type=="PathTraversal" & startsWith(vehicle,"freight"))]
 # write.csv(
@@ -34,7 +34,7 @@ test2 <- events[startsWith(person, "freight-carrier")]
 #   file = pp(freightWorkDir, "/filtered.0.events.csv"),
 #   row.names=F,
 #   quote=T)
-events_filtered <- readCsv(pp(freightWorkDir, "/filtered.0.events.new.csv"))
+events_filtered <- readCsv(pp(freightWorkDir, "/filtered.0.events.csv"))
 pt <- events_filtered[type=="PathTraversal"][,c("time","type","vehicleType","vehicle","secondaryFuelLevel",
                                        "primaryFuelLevel","driver","mode","seatingCapacity","startX",
                                        "startY", "endX", "endY", "capacity", "arrivalTime", "departureTime",
@@ -67,7 +67,7 @@ freight_pt[,.N,by=.(vehicle, vehicleType)][,.(count=.N),by=.(vehicleType)]
 ## ***************************
 #FRISM
 ## ***************************
-freightWorkDir <- normalizePath(paste(freightDir,"/Outputs(All SF)_0322_2022_merged",sep=""))
+freightWorkDir <- normalizePath(paste(freightDir,"/Tour_plan_inputs_merged",sep=""))
 carriers <- readCsv(pp(freightWorkDir, "/freight-merged-carriers.csv"))
 payload <- readCsv(pp(freightWorkDir, "/freight-merged-payload-plans.csv"))
 tours <- readCsv(pp(freightWorkDir, "/freight-merged-tours.csv"))
@@ -248,8 +248,8 @@ ggsave(pp(freightWorkDir,'/freight-avg-vmt.png'),p,width=4,height=3,units='in')
 # ***************************
 # LDT vs HDT
 # ***************************
-ldt_pt <- freight_pt[vehicleType == "FREIGHT-1"][,category:="LightDutyTruck"]
-hdt_pt <- freight_pt[vehicleType == "FREIGHT-2"][,category:="HeavyDutyTruck"]
+ldt_pt <- freight_pt[vehicleType == "freight-MD-1"][,category:="Medium Duty"]
+hdt_pt <- freight_pt[vehicleType == "freight-HD-2"][,category:="Heavy Duty"]
 
 ## FREIGHT ACTIVITY BY TRUCK CATEGORY
 to_plot <- rbind(ldt_pt,hdt_pt)
@@ -265,7 +265,7 @@ p <- to_plot[,time24:=arrivalTime%%(24*3600),][,.N,by=.(timeBin=as.POSIXct(cut(t
   theme(legend.title = element_text(size = 10),
         legend.text = element_text(size = 10),
         axis.text.x = element_text(angle = 0, hjust = 1))
-ggsave(pp(freightWorkDir,'/freight-activity-by-category.png'),p,width=6,height=3,units='in')
+ggsave(pp(freightWorkDir,'/output/freight-activity-by-category.png'),p,width=6,height=3,units='in')
 
 ## FREIGHT AVG VMT BY TRUCK CATEGORY
 to_plot <- rbind(ldt_pt,hdt_pt)[,.(VMT=mean(length)/1609.3),by=.(category)]
@@ -278,7 +278,7 @@ p <- ggplot(to_plot, aes(x=category,y=VMT,fill=category))+
         axis.text.x = element_blank(),
         legend.title = element_text(size = 10),
         legend.text = element_text(size = 10))
-ggsave(pp(freightWorkDir,'/freight-avg-vmt-by-category.png'),p,width=4,height=3,units='in')
+ggsave(pp(freightWorkDir,'/output/freight-avg-vmt-by-category.png'),p,width=4,height=3,units='in')
 
 
 
@@ -288,7 +288,7 @@ ggsave(pp(freightWorkDir,'/freight-avg-vmt-by-category.png'),p,width=4,height=3,
 
 ##### PREPARING NETWORK AND MATCH IT WITH POSTMILE AND TRUCK AADTT DATA
 #"primary","secondary","tertiary"
-network <- readCsv(normalizePath(paste(freightDir,"/validation/beam/network.csv",sep="")))
+network <- readCsv(normalizePath(paste(freightDir,"/validation/beam/network.csv.gz",sep="")))
 network_cleaned <- network[
   linkModes %in% c("car;bike", "car;walk;bike") & attributeOrigType %in% c("motorway","trunk","primary", "secondary")][
     ,-c("numberOfLanes", "attributeOrigId", "fromNodeId", "toNodeId", "toLocationX", "toLocationY")]
@@ -297,7 +297,7 @@ counties <- data.table::data.table(
              "San Francisco", "San Mateo", "Solano", "Sonoma"),
   CNTY=c("ALA", "CC", "MRN", "NAP", "SCL", "SF", "SM", "SOL", "SON")
 )
-linkStats <- readCsv(normalizePath(paste(freightDir,"/validation/beam/0.linkstats.new.csv.gz",sep="")))
+linkStats <- readCsv(normalizePath(paste(freightDir,"/validation/beam/0.linkstats.csv.gz",sep="")))
 
 #data.table::fwrite(network_cleaned, pp(freightDir,"/validation/network_cleaned.csv"), quote=F)
 
@@ -373,14 +373,14 @@ sf_hpms <- st_read(pp(freightDir, "/validation/sf_hpms_inventory_clipped.geojson
 
 Volume_beam <- sum(linkStats$TruckVolume)
 Volume_hpms <- sum(sf_hpms$AADT_Combi+sf_hpms$AADT_Singl)
-VMT_beam <- sum(linkStats$TruckVolume * linkStats$length/1609)
-VMT_hpms <- (sum((sf_hpms$AADT_Combi+sf_hpms$AADT_Singl) * as.numeric(st_length(sf_hpms))/1609))
+VMT_beam <- sum(linkStats$TruckVolume * linkStats$length/1609.0)
+VMT_hpms <- (sum((sf_hpms$AADT_Combi+sf_hpms$AADT_Singl) * as.numeric(st_length(sf_hpms))/1609.0))
 
 Volume_beam/Volume_hpms
 VMT_beam/VMT_hpms
 
 freight_pt[,.(VMT=sum(length)/1609.0),by=.(vehicleType)]
-freight_pt[,.(tourMT=sum(length)/1609.0),by=.(vehicle,vehicleType)][,.(avgTourMT=mean(tourMT)),by=.(vehicleType)]
+freight_pt[,.(tourMT=sum(length)/1609.0),by=.(vehicle,vehicleType)][,.(avgTourMT=mean(tourMT),countVeh=.N),by=.(vehicleType)]
 
 write.csv(
   freight_pt,

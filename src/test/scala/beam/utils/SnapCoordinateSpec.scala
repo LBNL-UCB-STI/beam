@@ -90,7 +90,6 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
         new GeoUtilsImpl(beamConfig),
         beamScenario.transportNetwork.streetLayer,
-        beamScenario.network,
         beamConfig.beam.routing.r5.linkRadiusMeters
       )
       ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
@@ -158,7 +157,6 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
         new GeoUtilsImpl(beamConfig),
         beamScenario.transportNetwork.streetLayer,
-        beamScenario.network,
         beamConfig.beam.routing.r5.linkRadiusMeters
       )
       ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
@@ -204,7 +202,6 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
         new GeoUtilsImpl(beamConfig),
         beamScenario.transportNetwork.streetLayer,
-        beamScenario.network,
         beamConfig.beam.routing.r5.linkRadiusMeters
       )
       ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
@@ -241,7 +238,6 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
         new GeoUtilsImpl(beamConfig),
         beamScenario.transportNetwork.streetLayer,
-        beamScenario.network,
         beamConfig.beam.routing.r5.linkRadiusMeters
       )
       ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
@@ -281,7 +277,6 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
         new GeoUtilsImpl(beamConfig),
         beamScenario.transportNetwork.streetLayer,
-        beamScenario.network,
         beamConfig.beam.routing.r5.linkRadiusMeters
       )
       ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
@@ -317,7 +312,6 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
         new GeoUtilsImpl(beamConfig),
         beamScenario.transportNetwork.streetLayer,
-        beamScenario.network,
         beamConfig.beam.routing.r5.linkRadiusMeters
       )
       ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
@@ -356,7 +350,6 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper {
       val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
         new GeoUtilsImpl(beamConfig),
         beamScenario.transportNetwork.streetLayer,
-        beamScenario.network,
         beamConfig.beam.routing.r5.linkRadiusMeters
       )
       ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))

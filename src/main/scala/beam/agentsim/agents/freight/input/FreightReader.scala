@@ -182,7 +182,6 @@ object FreightReader {
     val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
       geoUtils,
       streetLayer,
-      network,
       beamConfig.beam.routing.r5.linkRadiusMeters
     )
     beamConfig.beam.agentsim.agents.freight.reader match {
@@ -194,6 +193,7 @@ object FreightReader {
           tazMap,
           beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs,
           snapLocationHelper,
+          Some(network),
           outputDirMaybe
         )
       case s =>

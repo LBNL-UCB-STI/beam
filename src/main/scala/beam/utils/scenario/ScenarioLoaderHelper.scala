@@ -1,7 +1,7 @@
 package beam.utils.scenario
 
 import beam.utils.SnapCoordinateUtils
-import beam.utils.SnapCoordinateUtils.{Category, CsvFile, Error, ErrorInfo, SnapLocationHelper}
+import beam.utils.SnapCoordinateUtils.{Category, CsvFile, ErrorInfo, SnapLocationHelper}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
