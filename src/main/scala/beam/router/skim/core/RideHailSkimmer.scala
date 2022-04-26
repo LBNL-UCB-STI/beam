@@ -3,7 +3,6 @@ package beam.router.skim.core
 import beam.agentsim.events.RideHailReservationConfirmationEvent.{Pooled, RideHailReservationType, Solo}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.Skims
-import beam.router.skim.core.AbstractSkimmer.Aggregator
 import beam.router.skim.readonly.RideHailSkims
 import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
@@ -26,7 +25,7 @@ class RideHailSkimmer @Inject() (
   override protected val skimFileHeader =
     "tazId,hour,reservationType,waitTime,costPerMile,unmatchedRequestsPercent,observations,iterations"
   override protected val skimName: String = RideHailSkimmer.name
-  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.TC_SKIMMER
+  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.RH_SKIMMER
 
   override protected def fromCsv(
     line: collection.Map[String, String]
@@ -38,8 +37,8 @@ class RideHailSkimmer @Inject() (
         reservationType = if (line("reservationType").equalsIgnoreCase("pooled")) Pooled else Solo
       ),
       RidehailSkimmerInternal(
-        waitTime = line("waitTime").toDouble,
-        costPerMile = line("costPerMile").toDouble,
+        waitTime = getDoubleOrDefault(line, "waitTime", 0.0),
+        costPerMile = getDoubleOrDefault(line, "costPerMile", 0.0),
         unmatchedRequestsPercent = line("unmatchedRequestsPercent").toDouble,
         observations = line("observations").toInt,
         iterations = line("iterations").toInt
