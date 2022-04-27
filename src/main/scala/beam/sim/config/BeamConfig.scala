@@ -715,7 +715,9 @@ object BeamConfig {
         }
 
         case class Parking(
+          fractionOfSameTypeZones: scala.Double,
           maxSearchRadius: scala.Double,
+          minNumberOfSameTypeZones: scala.Int,
           minSearchRadius: scala.Double,
           mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
           rangeAnxietyBuffer: scala.Double,
@@ -772,7 +774,11 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking = {
             BeamConfig.Beam.Agentsim.Agents.Parking(
+              fractionOfSameTypeZones =
+                if (c.hasPathOrNull("fractionOfSameTypeZones")) c.getDouble("fractionOfSameTypeZones") else 0.5,
               maxSearchRadius = if (c.hasPathOrNull("maxSearchRadius")) c.getDouble("maxSearchRadius") else 8046.72,
+              minNumberOfSameTypeZones =
+                if (c.hasPathOrNull("minNumberOfSameTypeZones")) c.getInt("minNumberOfSameTypeZones") else 10,
               minSearchRadius = if (c.hasPathOrNull("minSearchRadius")) c.getDouble("minSearchRadius") else 250.00,
               mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit(
                 if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")

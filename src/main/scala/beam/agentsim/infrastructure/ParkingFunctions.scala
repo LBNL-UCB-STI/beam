@@ -24,6 +24,8 @@ class ParkingFunctions[GEO: GeoLevel](
   maxSearchRadius: Double,
   searchMaxDistanceRelativeToEllipseFoci: Double,
   enrouteDuration: Double,
+  fractionOfSameTypeZones: Double,
+  minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
@@ -37,6 +39,8 @@ class ParkingFunctions[GEO: GeoLevel](
       maxSearchRadius,
       searchMaxDistanceRelativeToEllipseFoci,
       enrouteDuration,
+      fractionOfSameTypeZones,
+      minNumberOfSameTypeZones,
       boundingBox,
       seed
     ) {
@@ -218,8 +222,6 @@ class ParkingFunctions[GEO: GeoLevel](
     inquiry: ParkingInquiry,
     preferredParkingTypes: Set[ParkingType]
   ): Boolean = {
-    val hasAvailability: Boolean = parkingZones(zone.parkingZoneId).stallsAvailable > 0
-
     val validParkingType: Boolean = preferredParkingTypes.contains(zone.parkingType)
 
     val isValidTime = inquiry.beamVehicle.forall(vehicle =>
@@ -228,11 +230,7 @@ class ParkingFunctions[GEO: GeoLevel](
         .forall(_.contains(inquiry.destinationUtm.time % (24 * 3600)))
     )
 
-    val isValidVehicleManager = inquiry.beamVehicle.forall { vehicle =>
-      zone.reservedFor.managerType == VehicleManager.TypeEnum.Default || zone.reservedFor.managerId == inquiry.reservedFor.managerId
-    }
-
-    hasAvailability & validParkingType & isValidTime & isValidVehicleManager
+    validParkingType && isValidTime
   }
 
   /**

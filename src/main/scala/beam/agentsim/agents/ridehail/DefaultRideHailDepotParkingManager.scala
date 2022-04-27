@@ -342,6 +342,8 @@ object DefaultRideHailDepotParkingManager {
   // for this reason, a higher max radius is reasonable.
   val SearchStartRadius: Double = 40000.0 // meters
   val SearchMaxRadius: Int = 80465 // 50 miles, in meters
+  val FractionOfSameTypeZones: Double = 0.2 // 20%
+  val MinNumberOfSameTypeZones: Int = 5
   val outputRidehailParkingFileName = "ridehailParking.csv"
 
   def apply[GEO: GeoLevel](
@@ -369,6 +371,8 @@ object DefaultRideHailDepotParkingManager {
           beamServices.geo.distUTMInMeters,
           DefaultRideHailDepotParkingManager.SearchStartRadius,
           DefaultRideHailDepotParkingManager.SearchMaxRadius,
+          DefaultRideHailDepotParkingManager.FractionOfSameTypeZones,
+          DefaultRideHailDepotParkingManager.MinNumberOfSameTypeZones,
           boundingBox,
           beamServices.beamConfig.matsim.modules.global.randomSeed,
           beamServices.beamScenario.fuelTypePrices,
