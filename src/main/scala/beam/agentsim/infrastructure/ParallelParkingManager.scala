@@ -38,6 +38,8 @@ class ParallelParkingManager(
   boundingBox: Envelope,
   minSearchRadius: Double,
   maxSearchRadius: Double,
+  fractionOfSameTypeZones: Double,
+  minNumberOfSameTypeZones: Int,
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
 ) extends ParkingNetwork[TAZ](parkingZones) {
@@ -72,6 +74,8 @@ class ParallelParkingManager(
       boundingBox,
       minSearchRadius,
       maxSearchRadius,
+      fractionOfSameTypeZones,
+      minNumberOfSameTypeZones,
       seed,
       mnlParkingConfig
     )
@@ -181,6 +185,8 @@ object ParallelParkingManager extends LazyLogging {
       boundingBox,
       beamConfig.beam.agentsim.agents.parking.minSearchRadius,
       beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+      beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
+      beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
       seed,
       beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
     )

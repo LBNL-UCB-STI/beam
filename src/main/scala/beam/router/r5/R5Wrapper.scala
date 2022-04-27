@@ -1,7 +1,7 @@
 package beam.router.r5
 
 import beam.agentsim.agents.choice.mode.DrivingCost
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse, _}
@@ -1135,7 +1135,14 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
       val minTravelTime = edge.getLengthM / maxSpeed
       if (streetMode == StreetMode.CAR) {
-        carWeightCalculator.calcTravelTime(linkId, travelTime, Some(vehicleType), time, shouldAddNoise)
+        carWeightCalculator.calcTravelTime(
+          linkId,
+          travelTime,
+          Some(vehicleType),
+          time,
+          shouldAddNoise,
+          vehicleType.vehicleCategory == VehicleCategory.HeavyDutyTruck
+        )
       } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
         val scaleFactor = bikeLanesAdjustment.scaleFactor(vehicleType, linkId)
         minTravelTime * scaleFactor

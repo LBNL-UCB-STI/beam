@@ -70,6 +70,8 @@ class HierarchicalParkingManager(
     maxSearchRadius,
     0.0,
     0.0,
+    1.0,
+    1,
     boundingBox,
     seed,
     mnlParkingConfig
@@ -136,7 +138,7 @@ class HierarchicalParkingManager(
       )
 
       ParkingZone.claimStall(parkingZone)
-      ParkingZone.claimStall(tazParkingZone)
+      tazSearchFunctions.claimStall(tazParkingZone)
     }
 
     Some(ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId))
@@ -208,7 +210,7 @@ class HierarchicalParkingManager(
       val tazZoneId = linkZoneToTazZoneMap(parkingZoneId)
       val tazZone = tazParkingZones(tazZoneId)
       ParkingZone.releaseStall(linkZone)
-      ParkingZone.releaseStall(tazZone)
+      tazSearchFunctions.releaseStall(tazZone)
     }
   }
 
