@@ -715,11 +715,8 @@ object BeamConfig {
         }
 
         case class Parking(
-<<<<<<< HEAD
           estimatedMinParkingDuration: scala.Double,
-=======
           fractionOfSameTypeZones: scala.Double,
->>>>>>> origin/develop
           maxSearchRadius: scala.Double,
           minNumberOfSameTypeZones: scala.Int,
           minSearchRadius: scala.Double,
@@ -778,14 +775,11 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking = {
             BeamConfig.Beam.Agentsim.Agents.Parking(
-<<<<<<< HEAD
               estimatedMinParkingDuration =
                 if (c.hasPathOrNull("estimatedMinParkingDuration")) c.getDouble("estimatedMinParkingDuration")
                 else 60.0,
-=======
               fractionOfSameTypeZones =
                 if (c.hasPathOrNull("fractionOfSameTypeZones")) c.getDouble("fractionOfSameTypeZones") else 0.5,
->>>>>>> origin/develop
               maxSearchRadius = if (c.hasPathOrNull("maxSearchRadius")) c.getDouble("maxSearchRadius") else 8046.72,
               minNumberOfSameTypeZones =
                 if (c.hasPathOrNull("minNumberOfSameTypeZones")) c.getInt("minNumberOfSameTypeZones") else 10,

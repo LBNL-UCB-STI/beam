@@ -200,6 +200,11 @@ class HouseholdFleetManager(
         inquiry.whereWhen,
         self
       )
+      logger.warn(
+        s"No vehicles available for category ${category} available for " +
+        s"person ${inquiry.personId.toString}, creating a new vehicle with id ${vehicle.id.toString}"
+      )
+
       // Create a vehicle out of thin air
       nextVehicleIndex += 1
       val mobilityRequester = sender()
@@ -213,10 +218,6 @@ class HouseholdFleetManager(
         VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).get,
         Some(vehicle),
         triggerId = inquiry.triggerId
-      )
-      logger.warn(
-        s"No vehicles available for category ${category} available for " +
-        s"person ${inquiry.personId.toString}, creating a new vehicle with id ${vehicle.id.toString}"
       )
 
       responseFuture.collect { case ParkingInquiryResponse(stall, _, otherTriggerId) =>

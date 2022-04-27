@@ -693,7 +693,7 @@ task buildImageWithoutTags(type: DockerBuildImage, dependsOn: createDockerfile) 
 
 task buildImage(type: DockerTagImage, dependsOn: buildImageWithoutTags) {
     repository = "haitamlaarabi/beam"
-    tag = 'gemini-develop-enroute-overnight-charging-v1'
+    tag = 'gemini-develop-overnight-v1'
     targetImageId buildImageWithoutTags.getImageId()
 }
 
