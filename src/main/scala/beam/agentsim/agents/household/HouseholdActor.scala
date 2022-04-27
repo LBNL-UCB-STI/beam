@@ -18,7 +18,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent.{
 }
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Car, VehicleCategory}
+import beam.agentsim.agents.vehicles.VehicleCategory.{VehicleCategory, _}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
@@ -50,6 +50,7 @@ import org.matsim.households
 import org.matsim.households.Household
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
@@ -184,6 +185,8 @@ object HouseholdActor {
 
     private var members: Map[Id[Person], PersonIdWithActorRef] = Map()
 
+    private val isFreightCarrier: Boolean = household.getId.toString.toLowerCase.contains("freight")
+
     // Data need to execute CAV dispatch
     private val cavPlans: mutable.ListBuffer[CAVSchedule] = mutable.ListBuffer()
     private var cavPassengerSchedules: Map[BeamVehicle, PassengerSchedule] = Map()
@@ -191,7 +194,8 @@ object HouseholdActor {
     private var personAndActivityToLegs: Map[(Id[Person], Activity), List[BeamLeg]] = Map()
     private var householdMembersToLocationTypeAndLocation: Map[Id[Person], (ParkingActivityType, String, Coord)] = Map()
     private val trackingVehicleAssignmentAtInitialization = mutable.HashMap.empty[Id[BeamVehicle], Id[Person]]
-    private val vehicleCategories = List(Car, Bike)
+    private val householdVehicleCategories = List(Car, Bike)
+    private var whoDrivesThisVehicle: Map[Id[BeamVehicle], Id[Person]] = Map()
 
     private val realDistribution: UniformRealDistribution = new UniformRealDistribution()
     realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
@@ -235,6 +239,8 @@ object HouseholdActor {
                   vehiclesInCategory,
                   householdMembersToLocationTypeAndLocation,
                   Some(emergencyGenerator)
+                  whoDrivesThisVehicle,
+                  beamServices.beamConfig.beam.debug
                 )
               ),
               category.toString
@@ -622,13 +628,18 @@ object HouseholdActor {
               beamScenario.vehicleTypes
                 .get(
                   Id.create(
-                    beamScenario.beamConfig.beam.agentsim.agents.vehicles.dummySharedBike.vehicleTypeId,
+                    beamScenario.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
                     classOf[BeamVehicleType]
                   )
                 )
-            case _ =>
-              logger.warn(
-                s"Person $personId is requiring a vehicle that belongs to category $category that is neither Car nor Bike"
+              }
+          case VehicleCategory.Bike =>
+            beamScenario.vehicleTypes
+              .get(
+                Id.create(
+                  beamScenario.beamConfig.beam.agentsim.agents.vehicles.dummySharedBike.vehicleTypeId,
+                  classOf[BeamVehicleType]
+                )
               )
               None
           }

@@ -59,25 +59,26 @@ class ParkingManagerBenchmark(
 
 object ParkingManagerBenchmark extends StrictLogging {
 
-//  val pathToPlans: String = "D:/Work/beam/ParallelJDEQSim/sfbay-smart-base/0.plans.xml.gz"
-  val pathToPlans: String = "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/0.plans.xml.gz"
+  val pathToPlans: String = "data_files/sfbay-smartbaseline/0.plans.xml.gz"
+  //  val pathToPlans: String = "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/0.plans.xml.gz"
 
-//  val pathToTazParking: String = "D:/Work/beam/ParallelJDEQSim/sfbay-smart-base/parking/taz-parking-unlimited-fast-limited-l2-150-baseline.csv"
-  val pathToTazParking: String =
-    "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/taz-parking-unlimited-fast-limited-l2-150-baseline.csv.gz"
+//  val pathToTazParking: String = "production/sfbay/gemini/infrastructure/4a_output_2022_Apr_13_pubClust_withFees_aggregated.csv"
+  val pathToTazParking: String = "production/sfbay/gemini/infrastructure/init1-7_2022_Feb_03_wgs84_withFees_cleaned.csv"
+  //  val pathToTazParking: String =
+  //    "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/taz-parking-unlimited-fast-limited-l2-150-baseline.csv.gz"
 
-//  val pathToLinkParking: String = "D:/Work/beam/ParallelJDEQSim/sfbay-smart-base/parking/link-parking-unlimited-fast-limited-l2-150-baseline.csv"
-  val pathToLinkParking: String =
-    "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/link-parking-unlimited-fast-limited-l2-150-baseline.csv.gz"
+  val pathToLinkParking: String = "production/sfbay/gemini/infrastructure/init1-7_2022_Feb_03_wgs84_withFees_link.csv"
+  //  val pathToLinkParking: String =
+  //    "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/link-parking-unlimited-fast-limited-l2-150-baseline.csv.gz"
 
-//  val pathToTAZ: String = "D:/Work/beam/ParallelJDEQSim/sfbay-smart-base/taz-centers.csv"
-  val pathToTAZ: String = "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/taz-centers.csv.gz"
+  val pathToTAZ: String = "production/sfbay/taz-centers.csv"
+  //  val pathToTAZ: String = "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/taz-centers.csv.gz"
 
-//  val pathToNetwork: String = "D:/Work/beam/ParallelJDEQSim/sfbay-smart-base/outputNetwork.xml.gz"
-  val pathToNetwork: String =
-    "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/outputNetwork.xml.gz"
+  val pathToNetwork: String = "production/sfbay/r5-simple-no-local/physsim-network.xml"
+  //  val pathToNetwork: String =
+  //    "https://beam-outputs.s3.us-east-2.amazonaws.com/parallel_parking_manager/outputNetwork.xml.gz"
 
-  val parkingStallCountScalingFactor: Double = 0.13
+  val parkingStallCountScalingFactor: Double = 1.0
   val parkingCostScalingFactor: Double = 1.0
 
   val typeSafeConfig: Config = ConfigFactory
@@ -109,7 +110,7 @@ object ParkingManagerBenchmark extends StrictLogging {
   val seed: Int = 42
 
   val nTimes: Int = 1
-  val fractionToBench: Double = 0.3
+  val fractionToBench: Double = 0.1
 
   def main(args: Array[String]): Unit = {
     implicit val ec: ExecutionContext = scala.concurrent.ExecutionContext.Implicits.global

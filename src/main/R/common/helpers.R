@@ -11,18 +11,18 @@ mergefiles <- function(directory){
   for (file in list.files(directory)){
     # if the merged dataset doesn't exist, create it
     filepath <- paste(directory, file, sep="/")
-
+    
     if (!exists("dataset")){
       dataset <- readCsv(filepath)
     }
-
+    
     # if the merged dataset does exist, append to it
     if (exists("dataset")){
       temp_dataset <-readCsv(filepath)
       dataset<-rbind(dataset, temp_dataset)
       rm(temp_dataset)
     }
-
+    
   }
   return(dataset)
 }

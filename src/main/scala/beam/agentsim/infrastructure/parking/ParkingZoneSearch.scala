@@ -1,17 +1,21 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.choice.logit.MultinomialLogit
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
+import beam.agentsim.agents.vehicles.VehicleManager.{ReservedFor, TypeEnum}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
+import beam.utils.MathUtils
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.util.Random
 
 object ParkingZoneSearch {
@@ -49,6 +53,8 @@ object ParkingZoneSearch {
     distanceFunction: (Coord, Coord) => Double,
     enrouteDuration: Double,
     estimatedMinParkingDuration: Double,
+    fractionOfSameTypeZones: Double,
+    minNumberOfSameTypeZones: Int,
     searchExpansionFactor: Double = 2.0
   )
 
@@ -58,23 +64,22 @@ object ParkingZoneSearch {
     * @param destinationUTM destination of inquiry
     * @param parkingDuration duration of the activity agent wants to park for
     * @param parkingMNLConfig utility function which evaluates [[ParkingAlternative]]s
-    * @param zoneSearchTree a nested map lookup of [[ParkingZone]]s
+    * @param zoneCollections a nested map lookup of [[ParkingZone]]s
     * @param parkingZones the stored state of all [[ParkingZone]]s
     * @param zoneQuadTree [[ParkingZone]]s are associated with a TAZ, which are themselves stored in this Quad Tree
     * @param random random number generator
-    * @param parkingTypes the list of acceptable parking types allowed for this search
     */
   case class ParkingZoneSearchParams[GEO](
     destinationUTM: Location,
     parkingDuration: Double,
     searchMode: ParkingSearchMode,
     parkingMNLConfig: ParkingMNL.ParkingMNLConfig,
-    zoneSearchTree: ZoneSearchTree[GEO],
+    zoneCollections: Map[Id[GEO], ParkingZoneCollection[GEO]],
     parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
     zoneQuadTree: QuadTree[GEO],
     random: Random,
     originUTM: Option[Location],
-    parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
+    reservedFor: ReservedFor
   )
 
   /**
@@ -155,12 +160,14 @@ object ParkingZoneSearch {
           // ParkingZones as as ParkingAlternatives
           val alternatives: List[ParkingSearchAlternative[GEO]] = {
             for {
-              zone                <- theseZones
-              parkingTypesSubtree <- params.zoneSearchTree.get(zone.getId).toList
-              parkingType         <- params.parkingTypes
-              parkingZoneIds      <- parkingTypesSubtree.get(parkingType).toList
-              parkingZoneId       <- parkingZoneIds
-              parkingZone         <- ParkingZone.getParkingZone(params.parkingZones, parkingZoneId)
+              zone           <- theseZones
+              zoneCollection <- params.zoneCollections.get(zone.getId).toSeq
+              parkingZone <- zoneCollection.getFreeZones(
+                config.fractionOfSameTypeZones,
+                config.minNumberOfSameTypeZones,
+                params.reservedFor,
+                params.random
+              )
               if parkingZoneFilterFunction(parkingZone)
             } yield {
               // wrap ParkingZone in a ParkingAlternative
@@ -251,6 +258,88 @@ object ParkingZoneSearch {
     }
 
     _search(SearchMode.getInstance(config, params))
+  }
+
+  /**
+    * This class "describes" a parking zone (i.e. extended type of parking zone). This allows to search for similar
+    * parking zones on other links or TAZes
+    * @param parkingType the parking type (Residential, Workplace, Public)
+    * @param chargingPointType the charging point type
+    * @param pricingModel the pricing model
+    * @param timeRestrictions the time restrictions
+    */
+  case class ParkingZoneInfo(
+    parkingType: ParkingType,
+    chargingPointType: Option[ChargingPointType],
+    pricingModel: Option[PricingModel],
+    timeRestrictions: Map[VehicleCategory, Range]
+  )
+
+  object ParkingZoneInfo {
+
+    def describeParkingZone(zone: ParkingZone[_]): ParkingZoneInfo = {
+      new ParkingZoneInfo(
+        zone.parkingType,
+        zone.chargingPointType,
+        zone.pricingModel,
+        zone.timeRestrictions
+      )
+    }
+  }
+
+  class ParkingZoneCollection[GEO](parkingZones: Seq[ParkingZone[GEO]]) {
+
+    private val publicFreeZones: Map[ParkingZoneInfo, mutable.Set[ParkingZone[GEO]]] =
+      parkingZones.view
+        .filter(_.reservedFor.managerType == TypeEnum.Default)
+        .groupBy(ParkingZoneInfo.describeParkingZone)
+        .mapValues(zones => mutable.Set(zones: _*))
+        .view
+        .force
+
+    private val reservedFreeZones: Map[ReservedFor, mutable.Set[ParkingZone[GEO]]] =
+      parkingZones.view
+        .filter(_.reservedFor.managerType != TypeEnum.Default)
+        .groupBy(_.reservedFor)
+        .mapValues(zones => mutable.Set(zones: _*))
+        .view
+        .force
+
+    def getFreeZones(
+      fraction: Double,
+      min: Int,
+      reservedFor: ReservedFor,
+      rnd: Random
+    ): IndexedSeq[ParkingZone[GEO]] = {
+      (
+        publicFreeZones.view.flatMap { case (_, zones) =>
+          val numToTake = Math.max(MathUtils.doubleToInt(zones.size * fraction), min)
+          MathUtils.selectRandomElements(zones, numToTake, rnd)
+        } ++
+        reservedFreeZones.getOrElse(reservedFor, Nil)
+      ).toIndexedSeq
+    }
+
+    def claimZone(parkingZone: ParkingZone[GEO]): Unit =
+      if (parkingZone.stallsAvailable <= 0) {
+        for (set <- getCorrespondingZoneSet(parkingZone)) set -= parkingZone
+      }
+
+    def releaseZone(parkingZone: ParkingZone[GEO]): Unit =
+      if (parkingZone.stallsAvailable > 0) {
+        for (set <- getCorrespondingZoneSet(parkingZone)) set += parkingZone
+      }
+
+    private def getCorrespondingZoneSet(parkingZone: ParkingZone[GEO]): Option[mutable.Set[ParkingZone[GEO]]] =
+      if (parkingZone.reservedFor.managerType == TypeEnum.Default) {
+        publicFreeZones.get(ParkingZoneInfo.describeParkingZone(parkingZone))
+      } else {
+        reservedFreeZones.get(parkingZone.reservedFor)
+      }
+  }
+
+  def createZoneCollections[GEO](zones: Seq[ParkingZone[GEO]]): Map[Id[GEO], ParkingZoneCollection[GEO]] = {
+    zones.groupBy(_.geoId).mapValues(new ParkingZoneCollection(_)).view.force
   }
 
   trait SearchMode[GEO] {

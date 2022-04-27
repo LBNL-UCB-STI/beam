@@ -19,7 +19,7 @@ abstract class RideHailDepotParkingManager[GEO: GeoLevel](parkingZones: Map[Id[P
       false
     } else {
       val parkingZone: ParkingZone[GEO] = parkingZones(release.stall.parkingZoneId)
-      val success = ParkingZone.releaseStall(parkingZone)
+      val success = searchFunctions.get.releaseStall(parkingZone)
       if (success) {
         totalStallsInUse -= 1
         totalStallsAvailable += 1

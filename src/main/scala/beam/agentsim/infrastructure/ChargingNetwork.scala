@@ -174,6 +174,8 @@ object ChargingNetwork extends LazyLogging {
           beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
           beamConfig.beam.agentsim.agents.parking.searchMaxDistanceRelativeToEllipseFoci,
           beamConfig.beam.agentsim.agents.vehicles.enroute.estimateOfMeanChargingDurationInSecond,
+          beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
+          beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
           envelopeInUTM,
           beamConfig.matsim.modules.global.randomSeed,
           beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,

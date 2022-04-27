@@ -29,6 +29,8 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
+  fractionOfSameTypeZones: Double,
+  minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
   seed: Int,
   fuelTypePrices: Map[FuelType, Double],
@@ -45,6 +47,8 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
       maxSearchRadius,
       0.0,
       0.0,
+      fractionOfSameTypeZones,
+      minNumberOfSameTypeZones,
       boundingBox,
       seed,
       estimatedMinParkingDuration

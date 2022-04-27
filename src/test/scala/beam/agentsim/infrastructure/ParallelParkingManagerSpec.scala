@@ -362,9 +362,9 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(170308.0, 2964.0),
         "4",
-        ParkingZone.createId("cs_default(Any)_4_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("cs_default(Any)_4_Public_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
-        ParkingType.Residential,
+        ParkingType.Public,
         VehicleManager.AnyManager
       )
 
@@ -372,9 +372,9 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(166321.0, 1568.0),
         "1",
-        ParkingZone.createId("cs_default(Any)_1_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("cs_default(Any)_1_Public_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
-        ParkingType.Residential,
+        ParkingType.Public,
         VehicleManager.AnyManager
       )
 
@@ -382,9 +382,9 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(167141.3, 3326.017),
         "2",
-        ParkingZone.createId("cs_default(Any)_2_Residential_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("cs_default(Any)_2_Public_NA_FlatFee_0_2147483647"),
         FlatFee(0.0),
-        ParkingType.Residential,
+        ParkingType.Public,
         VehicleManager.AnyManager
       )
     }
