@@ -124,7 +124,7 @@ class ParkingFunctions[GEO: GeoLevel](
       case Some(result) => result
       case _ =>
         inquiry.parkingActivityType match {
-          case ParkingActivityType.Init | ParkingActivityType.Home =>
+          case ParkingActivityType.Home =>
             val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc, GeoLevel[GEO].defaultGeoId)
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
           case _ =>
@@ -213,11 +213,17 @@ class ParkingFunctions[GEO: GeoLevel](
     */
   protected def getPreferredParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
     // a lookup for valid parking types based on this inquiry
-    if (inquiry.searchMode == ParkingSearchMode.EnRouteCharging) Set(ParkingType.Public)
-    else {
+    if (inquiry.searchMode == ParkingSearchMode.EnRouteCharging) {
+      Set(ParkingType.Public)
+    } else if (inquiry.searchMode == ParkingSearchMode.Init) {
+      inquiry.parkingActivityType match {
+        case ParkingActivityType.Home => Set(ParkingType.Residential)
+        case ParkingActivityType.Work => Set(ParkingType.Workplace)
+        case _                        => Set(ParkingType.Public)
+      }
+    } else {
       inquiry.parkingActivityType match {
         case ParkingActivityType.Home   => Set(ParkingType.Residential, ParkingType.Public)
-        case ParkingActivityType.Init   => Set(ParkingType.Residential, ParkingType.Public)
         case ParkingActivityType.Work   => Set(ParkingType.Workplace, ParkingType.Public)
         case ParkingActivityType.Charge => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
         case _                          => Set(ParkingType.Public)

@@ -45,7 +45,6 @@ trait ScaleUpCharging extends {
     else {
       Map(
         ParkingActivityType.Home     -> cnmConfig.scaleUp.expansionFactor_home_activity,
-        ParkingActivityType.Init     -> cnmConfig.scaleUp.expansionFactor_init_activity,
         ParkingActivityType.Work     -> cnmConfig.scaleUp.expansionFactor_work_activity,
         ParkingActivityType.Charge   -> cnmConfig.scaleUp.expansionFactor_charge_activity,
         ParkingActivityType.Wherever -> cnmConfig.scaleUp.expansionFactor_wherever_activity
