@@ -336,9 +336,9 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("73"),
+        ParkingZone.createId("82"),
         FlatFee(0.0),
-        ParkingType.Residential,
+        ParkingType.Public,
         "beamVilleCar"
       )
 
@@ -346,9 +346,9 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(166321.0, 1568.0), 0),
         "1",
-        ParkingZone.createId("22"),
+        ParkingZone.createId("80"),
         FlatFee(0.0),
-        ParkingType.Residential,
+        ParkingType.Public,
         "beamVilleCar"
       )
 
@@ -356,9 +356,9 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(167141.3, 3326.017), 0),
         "2",
-        ParkingZone.createId("15"),
-        Block(0.0, 3600),
-        ParkingType.Residential,
+        ParkingZone.createId("115"),
+        FlatFee(0.0),
+        ParkingType.Public,
         "beamVilleCar"
       )
 
@@ -440,6 +440,8 @@ class ZonalParkingManagerSpec
         boundingBox,
         beamConfig.beam.agentsim.agents.parking.minSearchRadius,
         beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+        beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
+        beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
         randomSeed,
         beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
       )
@@ -448,8 +450,8 @@ class ZonalParkingManagerSpec
         zonesMap,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("73"),
-        FlatFee(1.99),
+        ParkingZone.createId("105"),
+        Block(1.99, 3600),
         ParkingType.Residential,
         "beamVilleCar"
       )

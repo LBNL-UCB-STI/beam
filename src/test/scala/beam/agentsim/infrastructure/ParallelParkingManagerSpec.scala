@@ -362,9 +362,9 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(170308.0, 2964.0),
         "4",
-        ParkingZone.createId("73"),
+        ParkingZone.createId("82"),
         FlatFee(0.0),
-        ParkingType.Residential,
+        ParkingType.Public,
         VehicleManager.AnyManager
       )
 
@@ -372,9 +372,9 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(166321.0, 1568.0),
         "1",
-        ParkingZone.createId("22"),
+        ParkingZone.createId("80"),
         FlatFee(0.0),
-        ParkingType.Residential,
+        ParkingType.Public,
         VehicleManager.AnyManager
       )
 
@@ -382,9 +382,9 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(167141.3, 3326.017),
         "2",
-        ParkingZone.createId("15"),
-        Block(0.0, 3600),
-        ParkingType.Residential,
+        ParkingZone.createId("115"),
+        FlatFee(0.0),
+        ParkingType.Public,
         VehicleManager.AnyManager
       )
     }
