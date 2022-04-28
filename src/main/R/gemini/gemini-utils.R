@@ -4,7 +4,7 @@ library(data.table)
 nbOfBinsInHour <- 3600/900
 binsInterval <- 1/nbOfBinsInHour
 siteXFCInKW <- 1000
-plugXFCInKW <- 250
+plugXFCInKW <- 200
 time.bins <- data.table(time=seq(0,61,by=binsInterval)*3600,quarter.hour=seq(0,61,by=binsInterval))
 
 chargingTypes.colors <- c("goldenrod2", "#66CCFF", "#669900", "#660099", "#FFCC33", "#CC3300", "#0066CC")
@@ -14,16 +14,14 @@ loadTypes <- data.table::data.table(
     "homelevel1(1.8|AC)", "homelevel2(7.2|AC)",
     "worklevel2(7.2|AC)",
     "publiclevel2(7.2|AC)",
-    "publicfc(50.0|DC)",
+    "publicfc(50.0|DC)", "publicxfc(50.0|DC)", "publicfc(150.0|DC)",
     "depotfc(150.0|DC)",
-    "publicfc(150.0|DC)",
     "depotxfc(200.0|DC)", "depotxfc(300.0|DC)", "depotxfc(400.0|DC)",
     "publicfc(200.0|DC)", "publicxfc(200.0|DC)", "publicxfc(300.0|DC)", "publicxfc(400.0|DC)"),
   loadType = c("Home-L1", "Home-L2",
                "Work-L2",
                "Public-L2",
-               "DCFC",
-               "DCFC",
+               "DCFC", "DCFC", "DCFC",
                "DCFC",
                "XFC", "XFC", "XFC",
                "XFC", "XFC", "XFC", "XFC"))
