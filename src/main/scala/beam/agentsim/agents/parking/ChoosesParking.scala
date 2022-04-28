@@ -243,19 +243,14 @@ trait ChoosesParking extends {
   }
 
   private def isRefuelAtDestinationNeeded(vehicle: BeamVehicle, activityType: String): Boolean = {
+    val conf = beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination
     ParkingInquiry.activityTypeStringToEnum(activityType) match {
-      case ParkingActivityType.Home => true
+      case ParkingActivityType.Home =>
+        vehicle.isRefuelNeeded(conf.home.refuelRequiredThresholdInMeters, conf.noRefuelThresholdInMeters)
       case ParkingActivityType.Work =>
-        // multiplying
-        vehicle.isRefuelNeeded(
-          beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.work.refuelRequiredThresholdInMeters,
-          beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
-        )
+        vehicle.isRefuelNeeded(conf.work.refuelRequiredThresholdInMeters, conf.noRefuelThresholdInMeters)
       case _ =>
-        vehicle.isRefuelNeeded(
-          beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.secondary.refuelRequiredThresholdInMeters,
-          beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
-        )
+        vehicle.isRefuelNeeded(conf.secondary.refuelRequiredThresholdInMeters, conf.noRefuelThresholdInMeters)
     }
   }
 

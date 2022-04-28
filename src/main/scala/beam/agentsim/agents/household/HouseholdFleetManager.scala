@@ -18,6 +18,7 @@ import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.HasTriggerId
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.logging.pattern.ask
 import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
@@ -35,6 +36,7 @@ class HouseholdFleetManager(
   homeAndStartingWorkLocations: Map[Id[Person], (ParkingActivityType, String, Coord)],
   maybeEmergencyHouseholdVehicleGenerator: Option[EmergencyHouseholdVehicleGenerator],
   whoDrivesThisVehicle: Map[Id[BeamVehicle], Id[Person]], // so far only freight module is using this collection
+  beamConfig: BeamConfig,
   implicit val debug: Debug
 ) extends LoggingMessageActor
     with ExponentialLazyLogging {
@@ -98,7 +100,12 @@ class HouseholdFleetManager(
             triggerId = triggerId,
             searchMode = ParkingSearchMode.Init
           )
-          if (vehicle.isEV) (chargingNetworkManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))
+          if (
+            vehicle.isEV && vehicle.isRefuelNeeded(
+              beamConfig.beam.agentsim.agents.vehicles.destination.home.refuelRequiredThresholdInMeters,
+              beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
+            )
+          ) (chargingNetworkManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))
           else (parkingManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))
         }
       }

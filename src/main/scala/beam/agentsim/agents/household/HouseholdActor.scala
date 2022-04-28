@@ -586,7 +586,14 @@ object HouseholdActor {
         triggerId = triggerId,
         searchMode = ParkingSearchMode.Init
       )
-      if (vehicle.isEV) chargingNetworkManager ? inquiry else parkingManager ? inquiry
+      if (
+        vehicle.isEV && vehicle.isRefuelNeeded(
+          beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.home.refuelRequiredThresholdInMeters,
+          beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
+        )
+      )
+        chargingNetworkManager ? inquiry
+      else parkingManager ? inquiry
     }
 
     def dieIfNoChildren(): Unit = {
