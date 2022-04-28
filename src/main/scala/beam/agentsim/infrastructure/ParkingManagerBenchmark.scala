@@ -228,7 +228,7 @@ object ParkingManagerBenchmark extends StrictLogging {
               boundingBox,
               seed,
               beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
-              beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDuration,
+              beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
               checkThatNumberOfStallsMatch = true
             )
             parkingNetwork

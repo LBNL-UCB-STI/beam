@@ -256,6 +256,7 @@ object HouseholdActor {
                     Some(new EmergencyHouseholdVehicleGenerator(household, beamScenario, vehiclesAdjustment, category))
                   else None,
                   whoDrivesThisVehicle,
+                  beamServices.beamConfig,
                   beamServices.beamConfig.beam.debug
                 )
               ),

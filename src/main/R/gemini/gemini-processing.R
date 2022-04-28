@@ -22,8 +22,8 @@ oaklandCbg <- st_read(shpFile)
 
 vehicles1 <- readCsv(pp(workDir, "/vehicles.4Base.csv"))
 vehicles1$stateOfCharge <- as.double(vehicles1$stateOfCharge)
-vehicles1[is.na(stateOfCharge)]$stateOfCharge <- 0.5
-vehicles1[is.infinite(stateOfCharge)]$stateOfCharge <- 0.5
+vehicles1[is.na(stateOfCharge)]$stateOfCharge <- 1.0
+vehicles1[is.infinite(stateOfCharge)]$stateOfCharge <- 1.0
 
 vehicles2 <- readCsv(pp(workDir, "/2.final_vehicles.5bBase.csv"))
 vehicles2$stateOfCharge <- as.double(vehicles2$stateOfCharge)

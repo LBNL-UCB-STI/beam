@@ -28,7 +28,7 @@ class ParkingFunctions[GEO: GeoLevel](
   boundingBox: Envelope,
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
-  estimatedMinParkingDuration: Double
+  estimatedMinParkingDurationInSeconds: Double
 ) extends InfrastructureFunctions[GEO](
       geoQuadTree,
       idToGeoMapping,
@@ -43,7 +43,7 @@ class ParkingFunctions[GEO: GeoLevel](
       minNumberOfSameTypeZones,
       boundingBox,
       seed,
-      estimatedMinParkingDuration
+      estimatedMinParkingDurationInSeconds
     ) {
 
   override protected val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] = Map(

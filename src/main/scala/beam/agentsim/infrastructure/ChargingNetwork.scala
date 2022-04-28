@@ -181,7 +181,7 @@ object ChargingNetwork extends LazyLogging {
           beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
           skims,
           fuelPrice,
-          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDuration
+          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
         )
       )
     }
@@ -474,7 +474,7 @@ object ChargingNetwork extends LazyLogging {
           // first charging cycle
           true
         case Some(cycle)
-            if startTime >= cycle.endTime && chargingStatus.last.status == Connected || (chargingStatus.last.status == Disconnected && chargingStatus.last.time >= endTime) =>
+            if (startTime >= cycle.endTime && chargingStatus.last.status == Connected) || (chargingStatus.last.status == Disconnected && chargingStatus.last.time >= endTime) =>
           // either a new cycle or an unplug cycle arriving in the middle of the current cycle
           true
         // other cases where an unnecessary charging session happens when a vehicle is already charged or unplugged

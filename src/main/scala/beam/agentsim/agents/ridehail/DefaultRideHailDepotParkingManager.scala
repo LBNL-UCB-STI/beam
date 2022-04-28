@@ -378,7 +378,7 @@ object DefaultRideHailDepotParkingManager {
           beamServices.beamScenario.fuelTypePrices,
           beamServices.beamConfig.beam.agentsim.agents.rideHail,
           beamServices.skims,
-          beamServices.beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDuration
+          beamServices.beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
         )
       )
     }

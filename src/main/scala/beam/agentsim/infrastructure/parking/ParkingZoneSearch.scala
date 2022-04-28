@@ -52,7 +52,7 @@ object ParkingZoneSearch {
     boundingBox: Envelope,
     distanceFunction: (Coord, Coord) => Double,
     enrouteDuration: Double,
-    estimatedMinParkingDuration: Double,
+    estimatedMinParkingDurationInSeconds: Double,
     fractionOfSameTypeZones: Double,
     minNumberOfSameTypeZones: Int,
     searchExpansionFactor: Double = 2.0
@@ -179,13 +179,13 @@ object ParkingZoneSearch {
                     PricingModel.evaluateParkingTicket(
                       pricingModel,
                       config.enrouteDuration.toInt,
-                      config.estimatedMinParkingDuration
+                      config.estimatedMinParkingDurationInSeconds
                     )
                   case Some(pricingModel) =>
                     PricingModel.evaluateParkingTicket(
                       pricingModel,
                       params.parkingDuration.toInt,
-                      config.estimatedMinParkingDuration
+                      config.estimatedMinParkingDurationInSeconds
                     )
                 }
               val parkingAlternative: ParkingAlternative[GEO] =

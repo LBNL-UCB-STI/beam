@@ -715,7 +715,7 @@ object BeamConfig {
         }
 
         case class Parking(
-          estimatedMinParkingDuration: scala.Double,
+          estimatedMinParkingDurationInSeconds: scala.Double,
           fractionOfSameTypeZones: scala.Double,
           maxSearchRadius: scala.Double,
           minNumberOfSameTypeZones: scala.Int,
@@ -775,8 +775,9 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking = {
             BeamConfig.Beam.Agentsim.Agents.Parking(
-              estimatedMinParkingDuration =
-                if (c.hasPathOrNull("estimatedMinParkingDuration")) c.getDouble("estimatedMinParkingDuration")
+              estimatedMinParkingDurationInSeconds =
+                if (c.hasPathOrNull("estimatedMinParkingDurationInSeconds"))
+                  c.getDouble("estimatedMinParkingDurationInSeconds")
                 else 60.0,
               fractionOfSameTypeZones =
                 if (c.hasPathOrNull("fractionOfSameTypeZones")) c.getDouble("fractionOfSameTypeZones") else 0.5,
@@ -2013,6 +2014,7 @@ object BeamConfig {
         chargingPointCountScalingFactor: scala.Double,
         chargingPointFilePath: java.lang.String,
         helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
+        maxChargingSessionsInSeconds: scala.Int,
         scaleUp: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp,
         timeStepInSeconds: scala.Int
       )
@@ -2103,6 +2105,8 @@ object BeamConfig {
               if (c.hasPathOrNull("helics")) c.getConfig("helics")
               else com.typesafe.config.ConfigFactory.parseString("helics{}")
             ),
+            maxChargingSessionsInSeconds =
+              if (c.hasPathOrNull("maxChargingSessionsInSeconds")) c.getInt("maxChargingSessionsInSeconds") else 43200,
             scaleUp = BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
               if (c.hasPathOrNull("scaleUp")) c.getConfig("scaleUp")
               else com.typesafe.config.ConfigFactory.parseString("scaleUp{}")

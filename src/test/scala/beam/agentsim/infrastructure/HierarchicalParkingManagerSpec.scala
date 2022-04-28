@@ -79,7 +79,7 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           randomSeed,
           beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
-          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDuration,
+          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
           checkThatNumberOfStallsMatch = true
         )
       } {
@@ -122,7 +122,7 @@ class HierarchicalParkingManagerSpec
         boundingBox,
         randomSeed,
         beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
-        beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDuration,
+        beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
         checkThatNumberOfStallsMatch = true
       )
 
@@ -182,7 +182,7 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           randomSeed,
           beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
-          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDuration,
+          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
           checkThatNumberOfStallsMatch = true
         )
       } {
@@ -257,7 +257,7 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           randomSeed,
           beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
-          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDuration,
+          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
           checkThatNumberOfStallsMatch = true
         )
       } {
@@ -345,7 +345,7 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           randomSeed,
           beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
-          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDuration,
+          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
           checkThatNumberOfStallsMatch = true
         )
       } {
@@ -400,7 +400,7 @@ class HierarchicalParkingManagerSpec
         boundingBox,
         randomSeed,
         beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
-        beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDuration,
+        beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
         checkThatNumberOfStallsMatch = true
       )
 

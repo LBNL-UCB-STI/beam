@@ -37,7 +37,7 @@ class HierarchicalParkingManager(
   boundingBox: Envelope,
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
-  estimatedMinParkingDuration: Double,
+  estimatedMinParkingDurationInSeconds: Double,
   checkThatNumberOfStallsMatch: Boolean = false
 ) extends ParkingNetwork[Link](parkingZones) {
 
@@ -76,7 +76,7 @@ class HierarchicalParkingManager(
     boundingBox,
     seed,
     mnlParkingConfig,
-    estimatedMinParkingDuration
+    estimatedMinParkingDurationInSeconds
   )
 
   val DefaultParkingZone: ParkingZone[Link] =
@@ -283,7 +283,7 @@ object HierarchicalParkingManager {
     boundingBox: Envelope,
     seed: Int,
     mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
-    estimatedMinParkingDuration: Double,
+    estimatedMinParkingDurationInSeconds: Double,
     checkThatNumberOfStallsMatch: Boolean = false
   ): ParkingNetwork[Link] = {
     new HierarchicalParkingManager(
@@ -296,7 +296,7 @@ object HierarchicalParkingManager {
       boundingBox,
       seed,
       mnlParkingConfig,
-      estimatedMinParkingDuration,
+      estimatedMinParkingDurationInSeconds,
       checkThatNumberOfStallsMatch
     )
   }
@@ -311,7 +311,7 @@ object HierarchicalParkingManager {
     boundingBox: Envelope,
     seed: Int,
     mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
-    estimatedMinParkingDuration: Double,
+    estimatedMinParkingDurationInSeconds: Double,
     checkThatNumberOfStallsMatch: Boolean = false
   ): ParkingNetwork[Link] =
     HierarchicalParkingManager(
@@ -324,7 +324,7 @@ object HierarchicalParkingManager {
       boundingBox,
       seed,
       mnlParkingConfig,
-      estimatedMinParkingDuration,
+      estimatedMinParkingDurationInSeconds,
       checkThatNumberOfStallsMatch
     )
 

@@ -76,7 +76,12 @@ trait ChargingNetworkManagerHelper extends {
   ): Option[ScheduleTrigger] = {
     assume(endTime - startTime >= 0, s"timeInterval should not be negative! startTime $startTime endTime $endTime")
     // Calculate the energy to charge each vehicle connected to the a charging station
-    val updatedEndTime = chargingVehicle.chargingShouldEndAt.map(_ - parallelismWindow).getOrElse(endTime)
+    val endOfMaxSessionTime =
+      chargingVehicle.chargingSessions.headOption
+        .map(_.startTime + cnmConfig.maxChargingSessionsInSeconds)
+        .getOrElse(endTime)
+    val endOfShiftTime = chargingVehicle.chargingShouldEndAt.map(_ - parallelismWindow).getOrElse(endTime)
+    val updatedEndTime = Math.min(endOfMaxSessionTime, endOfShiftTime)
     val duration = Math.max(0, updatedEndTime - startTime)
     val maxCycleDuration = Math.min(
       nextTimeBin(startTime) - startTime,

@@ -33,7 +33,7 @@ class ChargingFunctions[GEO: GeoLevel](
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
   skims: Option[Skims],
   fuelPrice: Map[FuelType, Double],
-  estimatedMinParkingDuration: Double
+  estimatedMinParkingDurationInSeconds: Double
 ) extends ParkingFunctions[GEO](
       geoQuadTree,
       idToGeoMapping,
@@ -49,7 +49,7 @@ class ChargingFunctions[GEO: GeoLevel](
       boundingBox,
       seed,
       mnlParkingConfig,
-      estimatedMinParkingDuration
+      estimatedMinParkingDurationInSeconds
     ) {
 
   /**
@@ -169,8 +169,8 @@ class ChargingFunctions[GEO: GeoLevel](
       case _                                 => inquiry.parkingDuration.toInt
     }
     val parkingDuration: Option[Int] =
-      if (tempParkingDuration < estimatedMinParkingDuration)
-        Some(estimatedMinParkingDuration.toInt) // at least a small duration of charging
+      if (tempParkingDuration < estimatedMinParkingDurationInSeconds)
+        Some(estimatedMinParkingDurationInSeconds.toInt) // at least a small duration of charging
       else Some(tempParkingDuration)
 
     val addedEnergy: Double =

@@ -444,7 +444,7 @@ class ZonalParkingManagerSpec
         beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
         randomSeed,
         beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
-        beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDuration
+        beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
       )
 
       assertParkingResponse(

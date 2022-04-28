@@ -49,7 +49,7 @@ object ZonalParkingManager extends LazyLogging {
     minNumberOfSameTypeZones: Int,
     seed: Int,
     mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
-    estimatedMinParkingDuration: Double
+    estimatedMinParkingDurationInSeconds: Double
   ): ZonalParkingManager[GEO] = {
     new ZonalParkingManager(parkingZones) {
       if (maxSearchRadius < minSearchRadius) {
@@ -73,7 +73,7 @@ object ZonalParkingManager extends LazyLogging {
           boundingBox,
           seed,
           mnlParkingConfig,
-          estimatedMinParkingDuration
+          estimatedMinParkingDurationInSeconds
         )
       )
     }
@@ -106,7 +106,7 @@ object ZonalParkingManager extends LazyLogging {
       beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
       beamConfig.matsim.modules.global.randomSeed,
       beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
-      beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDuration
+      beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
     )
   }
 
@@ -151,7 +151,7 @@ object ZonalParkingManager extends LazyLogging {
       10,
       seed,
       mnlParkingConfig,
-      beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDuration
+      beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
     )
   }
 

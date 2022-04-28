@@ -34,7 +34,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
   minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
   seed: Int,
-  estimatedMinParkingDuration: Double
+  estimatedMinParkingDurationInSeconds: Double
 ) extends StrictLogging {
 
   protected val zoneCollections: Map[Id[GEO], ParkingZoneCollection[GEO]] =
@@ -103,7 +103,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
       boundingBox,
       distanceFunction,
       enrouteDuration,
-      estimatedMinParkingDuration,
+      estimatedMinParkingDurationInSeconds,
       fractionOfSameTypeZones,
       minNumberOfSameTypeZones
     )

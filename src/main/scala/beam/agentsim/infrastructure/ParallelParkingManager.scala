@@ -42,7 +42,7 @@ class ParallelParkingManager(
   minNumberOfSameTypeZones: Int,
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
-  estimatedMinParkingDuration: Double
+  estimatedMinParkingDurationInSeconds: Double
 ) extends ParkingNetwork[TAZ](parkingZones) {
 
   override protected val searchFunctions: Option[InfrastructureFunctions[TAZ]] = None
@@ -79,7 +79,7 @@ class ParallelParkingManager(
       minNumberOfSameTypeZones,
       seed,
       mnlParkingConfig,
-      estimatedMinParkingDuration
+      estimatedMinParkingDurationInSeconds
     )
     Worker(parkingNetwork, cluster)
   }
@@ -191,7 +191,7 @@ object ParallelParkingManager extends LazyLogging {
       beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
       seed,
       beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
-      beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDuration
+      beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
     )
   }
 

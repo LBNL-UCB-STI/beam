@@ -36,7 +36,7 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
   fuelTypePrices: Map[FuelType, Double],
   rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail,
   skims: Skims,
-  estimatedMinParkingDuration: Double
+  estimatedMinParkingDurationInSeconds: Double
 ) extends InfrastructureFunctions[GEO](
       geoQuadTree,
       idToGeoMapping,
@@ -51,7 +51,7 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
       minNumberOfSameTypeZones,
       boundingBox,
       seed,
-      estimatedMinParkingDuration
+      estimatedMinParkingDurationInSeconds
     ) {
 
   private val vehicleIdToEndRefuelTick: mutable.Map[VehicleId, Int] = mutable.Map.empty[VehicleId, Int]
