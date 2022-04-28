@@ -1,8 +1,8 @@
 import pandas as pd
 import os
 
-work_directory = '~/Data/GEMINI/2022-04-28/'
-filename = '0.events.6HighEV.csv.gz'
+work_directory = '~/Data/GEMINI/2022-04-28-Calibration/'
+filename = '0.events.5b4.csv.gz'
 full_filename = os.path.expanduser(work_directory + "events-raw/" + filename)
 print("reading " + filename)
 compression = None
