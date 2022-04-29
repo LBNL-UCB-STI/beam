@@ -10,7 +10,6 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.EnRouteCharging
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -86,18 +85,11 @@ class ChargingNetworkManager(
 
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
-      if (
-        (inquiry.searchMode == ParkingSearchMode.Init && !cnmConfig.overnightChargingEnabled) ||
-        chargingNetworkHelper
-          .get(inquiry.reservedFor.managerId)
-          .processParkingInquiry(inquiry)
-          .map { parkingResponse =>
-            inquiry.beamVehicle foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
-            sender() ! parkingResponse
-          }
-          .isEmpty
-      ) {
-        (parkingNetworkManager ? inquiry).pipeTo(sender())
+      chargingNetworkHelper.get(inquiry.reservedFor.managerId).processParkingInquiry(inquiry) match {
+        case Some(parkingResponse) =>
+          inquiry.beamVehicle foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
+          sender() ! parkingResponse
+        case _ => (parkingNetworkManager ? inquiry).pipeTo(sender())
       }
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>

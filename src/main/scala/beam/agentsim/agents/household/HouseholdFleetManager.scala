@@ -101,7 +101,9 @@ class HouseholdFleetManager(
             searchMode = ParkingSearchMode.Init
           )
           if (
-            vehicle.isEV && vehicle.isRefuelNeeded(
+            vehicle.isEV &&
+            beamConfig.beam.agentsim.chargingNetworkManager.overnightChargingEnabled &&
+            vehicle.isRefuelNeeded(
               beamConfig.beam.agentsim.agents.vehicles.destination.home.refuelRequiredThresholdInMeters,
               beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
             )

@@ -588,7 +588,9 @@ object HouseholdActor {
         searchMode = ParkingSearchMode.Init
       )
       if (
-        vehicle.isEV && vehicle.isRefuelNeeded(
+        vehicle.isEV &&
+        beamScenario.beamConfig.beam.agentsim.chargingNetworkManager.overnightChargingEnabled &&
+        vehicle.isRefuelNeeded(
           beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.home.refuelRequiredThresholdInMeters,
           beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
         )
