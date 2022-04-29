@@ -12,9 +12,8 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.sim.config.BeamConfig.Beam.Agentsim
+import beam.utils.BeamVehicleUtils.toPowerInKW
 import beam.utils.MathUtils.roundUniformly
-import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readVehiclesFile, toPowerInKW}
 import beam.utils.{MathUtils, VehicleIdGenerator}
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
@@ -35,7 +34,6 @@ trait ScaleUpCharging extends {
 
   private lazy val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
   private lazy val mersenne: MersenneTwister = new MersenneTwister(beamConfig.matsim.modules.global.randomSeed)
-  private lazy val cnmConfig: Agentsim.ChargingNetworkManager = beamConfig.beam.agentsim.chargingNetworkManager
   private lazy val timeStepByHour = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds / 3600.0
   private lazy val virtualParkingInquiries: TrieMap[Int, ParkingInquiry] = TrieMap()
   private lazy val vehicleRequests = mutable.HashMap.empty[(Id[TAZ], ParkingActivityType), List[VehicleRequestInfo]]
