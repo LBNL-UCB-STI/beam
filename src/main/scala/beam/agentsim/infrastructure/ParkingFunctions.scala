@@ -218,7 +218,7 @@ class ParkingFunctions[GEO: GeoLevel](
       inquiry.parkingActivityType match {
         case ParkingActivityType.Home => Set(ParkingType.Residential)
         case ParkingActivityType.Work => Set(ParkingType.Workplace)
-        case _                        => Set(ParkingType.Public)
+        case _                        => Set()
       }
     } else {
       inquiry.parkingActivityType match {

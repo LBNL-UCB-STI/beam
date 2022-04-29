@@ -2015,6 +2015,7 @@ object BeamConfig {
         chargingPointFilePath: java.lang.String,
         helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
         maxChargingSessionsInSeconds: scala.Int,
+        overnightChargingEnabled: scala.Boolean,
         scaleUp: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp,
         timeStepInSeconds: scala.Int
       )
@@ -2107,6 +2108,8 @@ object BeamConfig {
             ),
             maxChargingSessionsInSeconds =
               if (c.hasPathOrNull("maxChargingSessionsInSeconds")) c.getInt("maxChargingSessionsInSeconds") else 43200,
+            overnightChargingEnabled =
+              c.hasPathOrNull("overnightChargingEnabled") && c.getBoolean("overnightChargingEnabled"),
             scaleUp = BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
               if (c.hasPathOrNull("scaleUp")) c.getConfig("scaleUp")
               else com.typesafe.config.ConfigFactory.parseString("scaleUp{}")

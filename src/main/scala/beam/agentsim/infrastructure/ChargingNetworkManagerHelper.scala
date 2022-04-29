@@ -17,7 +17,7 @@ trait ChargingNetworkManagerHelper extends {
   this: ChargingNetworkManager =>
 
   private lazy val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
-  private lazy val cnmConfig: Agentsim.ChargingNetworkManager = beamConfig.beam.agentsim.chargingNetworkManager
+  protected lazy val cnmConfig: Agentsim.ChargingNetworkManager = beamConfig.beam.agentsim.chargingNetworkManager
   private lazy val parallelismWindow: Int = beamConfig.beam.agentsim.schedulerParallelismWindow
   protected val vehicle2InquiryMap: TrieMap[Id[BeamVehicle], ParkingInquiry] = TrieMap()
 

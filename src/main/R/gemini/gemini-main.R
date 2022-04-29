@@ -65,10 +65,10 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 # scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
 # scenarioNames <- c('Scenario4', 'Scenario4Bis', 'Scenario4Bis2', 'Scenario4Bis3', 'Scenario4Bis4', 'Scenario4Bis5')
 # scenarioNames <- c('Scenario4a-Base', 'Scenario4b-Base', 'Scenario6-HighEV')
-#scenarioNames <- c('5b1', '5b2', '5b3', '5b4')
-#scenarioBaselineLabel <- '5b4'
-scenarioNames <- c('Base', 'BaseXFC', 'HighEV')
-scenarioBaselineLabel <- 'BaseXFC'
+scenarioNames <- c('5b1', '5b2', '5b3', '5b4')
+scenarioBaselineLabel <- '5b4'
+# scenarioNames <- c('Base', 'BaseXFC', 'HighEV')
+# scenarioBaselineLabel <- 'Base'
 #all.loads <- all.loads[!is.na(loadType)]
 ##########################################
 # LOADS & ENERGY
@@ -195,8 +195,8 @@ ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units=
 
 ## **************************************
 ##  public charging by scenario
-p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
-  ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
+p <- all.loads[hour.bin <= 24][site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin','name')] %>%
+  ggplot(aes(x=hour.bin,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
   theme_marain() +
   geom_area(colour="black", size=0.3) +
   scale_fill_manual(values = chargingTypes.colors, name = "") +
