@@ -67,7 +67,7 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 # scenarioNames <- c('Scenario4a-Base', 'Scenario4b-Base', 'Scenario6-HighEV')
 scenarioNames <- c('5b1', '5b2', '5b3', '5b4')
 
-# scenarioNames <- c('Base', 'BaseXFC', 'HighEV')
+#scenarioNames <- c('Base', 'BaseXFC', 'HighEV')
 # scenarioBaselineLabel <- 'Base'
 #all.loads <- all.loads[!is.na(loadType)]
 ##########################################
@@ -76,6 +76,7 @@ scenarioNames <- c('5b1', '5b2', '5b3', '5b4')
 
 ## Baseline XFC hours per site per day
 scenarioBaselineLabel <- '5b1'
+#scenarioBaselineLabel <- 'Base'
 toplot <- all.loads[name==scenarioBaselineLabel]
 toplot[,panel:=revalue(factor(site),c('public'='Public','depot'='Ridehail CAV Depot'))]
 p <- toplot[,.(kw=sum(kw)),by=c('severity','hour.bin2', 'panel')] %>%
@@ -89,7 +90,8 @@ p <- toplot[,.(kw=sum(kw)),by=c('severity','hour.bin2', 'panel')] %>%
 ggsave(pp(plotsDir,'/baseline-xfc-hours-per-site-per-day.png'),p,width=4,height=4,units='in')
 
 ## Baseline public charging
-scenarioBaselineLabel <- '5b4'
+# scenarioBaselineLabel <- '5b4'
+scenarioBaselineLabel <- 'Base'
 toplot <- all.loads[name==scenarioBaselineLabel]
 toplot[,panel:=revalue(factor(site),c('public'='Public','depot'='Ridehail CAV Depot'))]
 p <- toplot[,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
