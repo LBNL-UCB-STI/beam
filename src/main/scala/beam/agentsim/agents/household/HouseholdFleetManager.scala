@@ -11,7 +11,7 @@ import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
@@ -60,16 +60,19 @@ class HouseholdFleetManager(
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       triggerSender = Some(sender())
-      val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map { case (id, _) =>
-        (parkingManager ? ParkingInquiry.init(
-          SpaceTime(homeCoord, 0),
-          "init",
-          triggerId = triggerId
-        ))
-          .mapTo[ParkingInquiryResponse]
-          .map { r =>
-            (id, r)
-          }
+      val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map {
+        case (id, veh) =>
+          (parkingManager ? ParkingInquiry.init(
+            SpaceTime(homeCoord, 0),
+            "init",
+            VehicleManager.getReservedFor(veh.vehicleManagerId.get()).get,
+            Some(veh),
+            triggerId = triggerId
+          ))
+            .mapTo[ParkingInquiryResponse]
+            .map { r =>
+              (id, r)
+            }
       }
       val futureOfList = Future.sequence(listOfFutures)
       val response = futureOfList.map(ResolvedParkingResponses(triggerId, _))
@@ -172,6 +175,8 @@ class HouseholdFleetManager(
       val responseFuture = parkingManager ? ParkingInquiry.init(
         inquiry.whereWhen,
         "wherever",
+        VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).get,
+        Some(vehicle),
         triggerId = inquiry.triggerId
       )
       logger.warn(

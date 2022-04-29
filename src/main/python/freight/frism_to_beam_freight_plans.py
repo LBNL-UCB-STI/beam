@@ -29,8 +29,8 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
     return new
 
 
-directory_input = os.path.expanduser('~/Data/FREIGHT/Tour_plan_inputs')
-directory_output = os.path.expanduser('~/Data/FREIGHT/Tour_plan_inputs_merged')
+directory_input = os.path.expanduser('~/Data/FREIGHT/Tour_plan_inputs_V2')
+directory_output = os.path.expanduser('~/Data/FREIGHT/Tour_plan_inputs_V2_merged')
 Path(directory_output).mkdir(parents=True, exist_ok=True)
 carriers = None
 payload_plans = None
@@ -53,8 +53,10 @@ for filename in sorted(os.listdir(directory_input)):
         # df['carrierId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'carrierId', row), axis=1)
         # df['vehicleId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'vehicleId', row), axis=1)
         df['carrierId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}@', 'carrierId', row, False), axis=1)
-        df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-', 'vehicleId', row), axis=1)
-        df['vehicleTypeId'] = df.apply(lambda row: add_prefix('freight', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True), axis=1)
+        df['vehicleTypeId'] = df.apply(
+            lambda row: add_prefix('freight', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True),
+            axis=1)
+        df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-'+row['vehicleTypeId']+'-', 'vehicleId', row), axis=1)
         # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
         df['tourId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-', 'tourId', row, True, tourId_with_prefix), axis=1)
         if carriers is None:

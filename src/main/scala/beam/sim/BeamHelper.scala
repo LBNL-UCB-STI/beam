@@ -987,10 +987,6 @@ trait BeamHelper extends LazyLogging {
       Kamon.init(config.withFallback(ConfigFactory.load()))
     }
 
-    logger.info(
-      "Agentsim random seed for population scaling is set to {}.",
-      beamConfig.matsim.modules.global.randomSeed
-    )
     logger.info("Starting beam on branch {} at commit {}.", BashUtils.getBranch, BashUtils.getCommitHash)
 
     logger.info(

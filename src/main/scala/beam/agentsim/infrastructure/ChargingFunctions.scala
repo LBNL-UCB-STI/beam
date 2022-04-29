@@ -26,6 +26,8 @@ class ChargingFunctions[GEO: GeoLevel](
   maxSearchRadius: Double,
   searchMaxDistanceRelativeToEllipseFoci: Double,
   enrouteDuration: Double,
+  fractionOfSameTypeZones: Double,
+  minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
@@ -41,6 +43,8 @@ class ChargingFunctions[GEO: GeoLevel](
       maxSearchRadius,
       searchMaxDistanceRelativeToEllipseFoci,
       enrouteDuration,
+      fractionOfSameTypeZones,
+      minNumberOfSameTypeZones,
       boundingBox,
       seed,
       mnlParkingConfig

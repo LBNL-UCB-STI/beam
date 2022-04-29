@@ -20,7 +20,7 @@ class PopulationSamplingSpec extends AnyWordSpecLike with Matchers with BeamHelp
     if (seed.equals(0)) {
       return prepareObjectsForPopulationSampling(getConfigWithRandomSeed)
     }
-    prepareObjectsForPopulationSampling(getConfigWithSeed())
+    prepareObjectsForPopulationSampling(getConfigWithSeed(seed))
   }
 
   private def getConfigWithRandomSeed: BeamConfig = {
@@ -34,13 +34,14 @@ class PopulationSamplingSpec extends AnyWordSpecLike with Matchers with BeamHelp
     )
   }
 
-  private def getConfigWithSeed(): BeamConfig = {
+  private def getConfigWithSeed(seed: Integer): BeamConfig = {
     BeamConfig(
       baseConfig
         .withValue(
           "beam.agentsim.agentSampleSizeAsFractionOfPopulation",
           ConfigValueFactory.fromAnyRef(0.5)
         )
+        .withValue("beam.agentsim.randomSeedForPopulationSampling", ConfigValueFactory.fromAnyRef(seed))
         .resolve()
     )
   }
@@ -68,7 +69,7 @@ class PopulationSamplingSpec extends AnyWordSpecLike with Matchers with BeamHelp
   }
 
   "PopulationSampling" must {
-    "sample the same agents for the same randomSeed value" in {
+    "sample the same agents for the same randomSeedForPopulationSampling value" in {
       val samplingDataOne = getObjectsForPopulationSampling(1441)
       val samplingDataTwo = getObjectsForPopulationSampling(1441)
       val agentsBeforeSamplingOneSize = samplingDataOne._1.getPopulation.getPersons.keySet().size()
@@ -97,7 +98,7 @@ class PopulationSamplingSpec extends AnyWordSpecLike with Matchers with BeamHelp
       agentsAfterSamplingOne shouldBe agentsAfterSamplingTwo
     }
 
-    "sample different agents if randomSeed is not set" in {
+    "sample different agents if randomSeedForPopulationSampling is not set" in {
       val samplingDataOne = getObjectsForPopulationSampling()
       val samplingDataTwo = getObjectsForPopulationSampling()
       val agentsBeforeSamplingOneSize = samplingDataOne._1.getPopulation.getPersons.keySet().size()
@@ -125,7 +126,7 @@ class PopulationSamplingSpec extends AnyWordSpecLike with Matchers with BeamHelp
       agentsAfterSamplingOne should not equal agentsAfterSamplingTwo
     }
 
-    "sample different agents for different randomSeeds" in {
+    "sample different agents for different randomSeedForPopulationSampling" in {
       val samplingDataOne = getObjectsForPopulationSampling(1441)
       val samplingDataTwo = getObjectsForPopulationSampling(23)
       val agentsBeforeSamplingOneSize = samplingDataOne._1.getPopulation.getPersons.keySet().size()

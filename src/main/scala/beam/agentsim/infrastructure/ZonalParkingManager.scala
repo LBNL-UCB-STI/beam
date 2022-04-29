@@ -45,6 +45,8 @@ object ZonalParkingManager extends LazyLogging {
     boundingBox: Envelope,
     minSearchRadius: Double,
     maxSearchRadius: Double,
+    fractionOfSameTypeZones: Double,
+    minNumberOfSameTypeZones: Int,
     seed: Int,
     mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
   ): ZonalParkingManager[GEO] = {
@@ -65,6 +67,8 @@ object ZonalParkingManager extends LazyLogging {
           maxSearchRadius,
           0.0,
           0.0,
+          fractionOfSameTypeZones,
+          minNumberOfSameTypeZones,
           boundingBox,
           seed,
           mnlParkingConfig
@@ -96,6 +100,8 @@ object ZonalParkingManager extends LazyLogging {
       envelopeInUTM,
       beamConfig.beam.agentsim.agents.parking.minSearchRadius,
       beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
+      beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
+      beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
       beamConfig.matsim.modules.global.randomSeed,
       beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
     )
@@ -138,6 +144,8 @@ object ZonalParkingManager extends LazyLogging {
       boundingBox,
       minSearchRadius,
       maxSearchRadius,
+      0.5,
+      10,
       seed,
       mnlParkingConfig
     )

@@ -210,14 +210,11 @@ object ParkingZone extends LazyLogging {
     parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
     parkingZoneId: Id[ParkingZoneId]
   ): Option[ParkingZone[GEO]] = {
-    if (!parkingZones.contains(parkingZoneId)) {
+    val result = parkingZones.get(parkingZoneId)
+    if (result.isEmpty) {
       logger.warn(s"attempting to access parking zone with illegal parkingZoneId $parkingZoneId, will be ignored")
-      None
-    } else {
-      Some {
-        parkingZones(parkingZoneId)
-      }
     }
+    result
   }
 
   /**
