@@ -20,6 +20,9 @@ oaklandMap <- ggmap::get_googlemap("oakland california", zoom = 13, maptype = "r
 shpFile <- pp(workDir, "/shapefile/Oakland+Alameda+TAZ/Transportation_Analysis_Zones.shp")
 oaklandCbg <- st_read(shpFile)
 
+infra5aBase <- readCsv(pp(workDir, "/2022-04-28/_models/infrastructure/4a_output_2022_Apr_13_pubClust_withFees_aggregated.csv"))
+infra5bBase <- readCsv(pp(workDir, "/2022-04-28/_models/infrastructure/4b_output_2022_Apr_13_pubClust_withFees_aggregated.csv"))
+
 vehicles1 <- readCsv(pp(workDir, "/vehicles.4Base.csv"))
 vehicles1$stateOfCharge <- as.double(vehicles1$stateOfCharge)
 vehicles1[is.na(stateOfCharge)]$stateOfCharge <- 1.0
