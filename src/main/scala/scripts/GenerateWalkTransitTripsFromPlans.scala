@@ -407,8 +407,8 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
 
       val personTrips = generateWalkTransitTrips(pathToConfig, pathToGeneratedPlans)
       println(s"Generation of person walk transit trips from legs completed.")
-      //      writeTripsToFile(pathToOutputCSV, personTrips.toArray)
-      //      println(s"Writing out walk transit trips from legs completed.")
+      writeTripsToFile(pathToOutputCSV, personTrips.toArray)
+      println(s"Writing out walk transit trips from legs completed.")
 
       println(s"There are following modes:")
       personTrips
