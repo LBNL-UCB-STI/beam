@@ -4,6 +4,7 @@ import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.SpaceTime
+import beam.analysis.ModeChoiceAlternativesCollector
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{WALK, WALK_TRANSIT}
@@ -18,8 +19,12 @@ import beam.utils.csv.{CsvWriter, GenericCsvReader}
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.network.Network
+import org.matsim.api.core.v01.population.{Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.controler.events.IterationStartsEvent
 import org.matsim.core.events.EventsManagerImpl
+import org.matsim.utils.objectattributes.attributable.Attributes
 
 import java.util
 import scala.collection.parallel.ParSeq
@@ -52,6 +57,27 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
   ) {
     def isLeg: Boolean = legMode.nonEmpty
     def isActivity: Boolean = location.nonEmpty
+  }
+
+  case class PersonWithId(personId: Id[Person]) extends Person {
+
+    override def getAttributes: Attributes = ???
+
+    override def getCustomAttributes: util.Map[String, AnyRef] = ???
+
+    override def getPlans: util.List[_ <: Plan] = ???
+
+    override def addPlan(p: Plan): Boolean = ???
+
+    override def removePlan(p: Plan): Boolean = ???
+
+    override def getSelectedPlan: Plan = ???
+
+    override def setSelectedPlan(selectedPlan: Plan): Unit = ???
+
+    override def createCopyOfSelectedPlanAndMakeSelected(): Plan = ???
+
+    override def getId: Id[Person] = personId
   }
 
   object PlanElement {
@@ -163,9 +189,9 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
 
   def getModeChoiceMNL(
     typeSafeConfig: Config,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    eventsManager: EventsManager
   ): ModeChoiceCalculator = {
-    val eventsManager = new EventsManagerImpl
     val beamConfig = BeamConfig(typeSafeConfig)
     val configHolder = new BeamConfigHolder(
       new BeamConfigChangesObservable(beamConfig, None),
@@ -184,6 +210,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
   val walkTransitModes: Set[BeamMode] = (BeamMode.WALK_TRANSIT +: BeamMode.transitModes).toSet
 
   def selectBeamEmbodyWalkTransitTrip(
+    person: PersonWithId,
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     modeChoiceMNL: ModeChoiceCalculator
   ): Option[EmbodiedBeamTrip] = {
@@ -201,7 +228,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
       alternatives,
       attributesOfIndividual,
       None,
-      None
+      Some(person)
     )
   }
 
@@ -227,7 +254,24 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
   ): ParSeq[PersonTrip] = {
     val typeSafeConfig = createConfigs(pathToBeamConfig)
     val (_, _, _, beamServices: BeamServices, _) = prepareBeamService(typeSafeConfig, None)
-    val modeChoiceMNL: ModeChoiceCalculator = getModeChoiceMNL(typeSafeConfig, beamServices)
+    val iterationStartsEvent = new IterationStartsEvent(beamServices.matsimServices, 0)
+
+    // for skims to be read from warmstart archive is it is present in the config
+    beamServices.skims.getSkimmers.values.foreach(_.notifyIterationStarts(iterationStartsEvent))
+    beamServices.matsimServices.getControlerIO.createIterationDirectory(0)
+
+    val eventsManager = new EventsManagerImpl
+
+    val maybeModeChoiceAlternativesCollector = if (beamServices.beamConfig.beam.debug.writeModeChoiceAlternatives) {
+      val mcac = new ModeChoiceAlternativesCollector(beamServices)
+      mcac.notifyIterationStarts(iterationStartsEvent)
+      eventsManager.addHandler(mcac)
+      Some(mcac)
+    } else {
+      None
+    }
+
+    val modeChoiceMNL: ModeChoiceCalculator = getModeChoiceMNL(typeSafeConfig, beamServices, eventsManager)
 
     val inputTrips = readGeneratedPlansTrips(pathToGeneratedPlans)
 
@@ -250,7 +294,8 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
       )
       val routes = routers.map(_.calcRoute(request, buildDirectCarRoute = false, buildDirectWalkRoute = false))
       val alternatives = routes.map(_.itineraries).toIndexedSeq.flatten
-      val maybeTransitTrip = selectBeamEmbodyWalkTransitTrip(alternatives, modeChoiceMNL)
+      val personWithId = PersonWithId(Id.create(trip.personId, classOf[Person]))
+      val maybeTransitTrip = selectBeamEmbodyWalkTransitTrip(personWithId, alternatives, modeChoiceMNL)
       val maybePersonTrip: Option[PersonTrip] = maybeTransitTrip match {
         case Some(embodiedBeamTrip) if embodiedBeamTrip.legs.nonEmpty =>
           Some(
@@ -285,7 +330,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
       maybePersonTrip
     }
 
-    println(s"Generation of person walk transit trips from legs completed.")
+    maybeModeChoiceAlternativesCollector.foreach(_.notifyIterationEnds(null))
     personTrips
   }
 
@@ -361,7 +406,20 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
       println(s"Path to output: $pathToOutputCSV")
 
       val personTrips = generateWalkTransitTrips(pathToConfig, pathToGeneratedPlans)
-      writeTripsToFile(pathToOutputCSV, personTrips.toArray)
+      println(s"Generation of person walk transit trips from legs completed.")
+      //      writeTripsToFile(pathToOutputCSV, personTrips.toArray)
+      //      println(s"Writing out walk transit trips from legs completed.")
+
+      println(s"There are following modes:")
+      personTrips
+        .flatMap(pt => pt.trip.legs)
+        .groupBy(leg => leg.beamLeg.mode)
+        .map { case (beamMode, legs) => s"$beamMode -> ${legs.size}" }
+        .toList
+        .sorted
+        .foreach(println)
+
+      println(s"Done.")
     }
   }
 }

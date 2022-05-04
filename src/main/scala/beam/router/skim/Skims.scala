@@ -43,6 +43,8 @@ class Skims @Inject() (
   skims.put(SkimType.PARKING_SKIMMER, addEvent(parkingSkimmer))
   skims.put(SkimType.AS_SKIMMER, addEvent(asSkimmer))
 
+  def getSkimmers: Map[Skims.SkimType.Value, AbstractSkimmer] = skims.toMap
+
   private def addEvent(skimmer: AbstractSkimmer): AbstractSkimmer = {
     matsimServices.addControlerListener(skimmer)
     matsimServices.getEvents.addHandler(skimmer)

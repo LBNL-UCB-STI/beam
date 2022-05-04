@@ -140,14 +140,14 @@ class ModeChoiceMultinomialLogit(
   }
 
   private def createModeChoiceOccurredEvent(
-    person: Option[Person],
+    maybePerson: Option[Person],
     alternativesWithUtility: Iterable[MultinomialLogit.AlternativeWithUtility[EmbodiedBeamTrip]],
     modeCostTimeTransfers: IndexedSeq[ModeCostTimeTransfer],
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     chosenModeCostTime: Iterable[ModeCostTimeTransfer]
   ): Option[ModeChoiceOccurredEvent] = {
-    person match {
-      case Some(p) =>
+    maybePerson match {
+      case Some(person) =>
         val altUtility = alternativesWithUtility
           .map(au =>
             au.alternative.tripClassifier.value.toLowerCase() -> ModeChoiceOccurredEvent
@@ -175,7 +175,7 @@ class ModeChoiceMultinomialLogit(
           Some(
             ModeChoiceOccurredEvent(
               time.get,
-              p.getId.toString,
+              person.getId.toString,
               alternatives,
               altCostTimeTransfer,
               altUtility,
