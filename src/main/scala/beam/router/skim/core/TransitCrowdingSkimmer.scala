@@ -39,10 +39,10 @@ class TransitCrowdingSkimmer @Inject() (
         fromStopIdx = line("fromStopIdx").toInt
       ),
       TransitCrowdingSkimmerInternal(
-        numberOfPassengers = line("numberOfPassengers").toInt,
-        capacity = line("capacity").toInt,
+        numberOfPassengers = line("numberOfPassengers").toDouble.toInt,
+        capacity = line("capacity").toDouble.toInt,
         iterations = line("iterations").toInt,
-        duration = line("duration").toInt
+        duration = line("duration").toDouble.toInt
       )
     )
   }
