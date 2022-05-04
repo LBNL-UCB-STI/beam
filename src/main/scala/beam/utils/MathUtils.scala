@@ -177,21 +177,22 @@ object MathUtils {
     val result = Array.ofDim[T](numToTake)
     val it = xs.iterator
     var originalElementsLeft = size
+    var resultElementsLeft = numToTake
     var i = 0
     while (i < numToTake) {
-      val elem = it.next()
-      val resultElementsLeft = numToTake - i
       if (resultElementsLeft < originalElementsLeft) {
         val probability = resultElementsLeft.toDouble / originalElementsLeft
+        val element = it.next()
         if (random.nextDouble() < probability) {
-          result(i) = elem
+          result(i) = element
           i += 1
+          resultElementsLeft -= 1
         }
+        originalElementsLeft -= 1
       } else {
-        result(i) = elem
-        i += 1
+        it.copyToArray(result, i)
+        i = numToTake //break here
       }
-      originalElementsLeft -= 1
     }
     result
   }
