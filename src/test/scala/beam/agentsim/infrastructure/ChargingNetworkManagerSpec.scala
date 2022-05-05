@@ -130,7 +130,6 @@ class ChargingNetworkManagerSpec
   val parkingStall: ParkingStall =
     ParkingStall(
       taz2.tazId,
-      taz2.tazId,
       parkingZoneId,
       taz2.coord,
       0.0,

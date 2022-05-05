@@ -231,7 +231,7 @@ class RideHailManager(
   val tncIterationStats: Option[TNCIterationStats],
   val routeHistory: RouteHistory,
   val rideHailFleetInitializer: RideHailFleetInitializer,
-  val rideHailParkingNetwork: RideHailDepotParkingManager[_]
+  val rideHailParkingNetwork: RideHailDepotParkingManager
 ) extends LoggingMessageActor
     with ActorLogging
     with Stash {

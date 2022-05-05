@@ -7,7 +7,6 @@ import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePri
 import beam.agentsim.agents.vehicles.VehicleCategory.MediumDutyPassenger
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.handling.BeamEventsHandling
-import beam.agentsim.infrastructure.parking.LinkLevelOperations
 import beam.agentsim.infrastructure.taz.{H3TAZ, TAZ, TAZTreeMap}
 import beam.analysis.ActivityLocationPlotter
 import beam.analysis.plots.{GraphSurgePricing, RideHailRevenueAnalysis}
@@ -301,10 +300,6 @@ trait BeamHelper extends LazyLogging {
     val trainStopQuadTree = GTFSUtils.toQuadTree(GTFSUtils.trainStations(gtfs), new GeoUtilsImpl(beamConfig))
     val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
     val exchangeGeo = beamConfig.beam.exchange.output.geo.filePath.map(TAZTreeMap.getTazTreeMap)
-    val linkQuadTree: QuadTree[Link] =
-      LinkLevelOperations.getLinkTreeMap(networkCoordinator.network.getLinks.values().asScala.toSeq)
-    val linkIdMapping: Map[Id[Link], Link] = LinkLevelOperations.getLinkIdMapping(networkCoordinator.network)
-    val linkToTAZMapping: Map[Link, TAZ] = LinkLevelOperations.getLinkToTazMapping(networkCoordinator.network, tazMap)
 
     val (freightCarriers, fixedActivitiesDurationsFromFreight) =
       readFreights(beamConfig, networkCoordinator.transportNetwork.streetLayer, vehicleTypes, outputDirMaybe)
@@ -338,9 +333,6 @@ trait BeamHelper extends LazyLogging {
       trainStopQuadTree,
       tazMap,
       exchangeGeo,
-      linkQuadTree,
-      linkIdMapping,
-      linkToTAZMapping,
       ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath),
       H3TAZ(networkCoordinator.network, tazMap, beamConfig),
       freightCarriers,

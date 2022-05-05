@@ -5,18 +5,17 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.csv.GenericCsvReader
 import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import beam.utils.{FileUtils, MathUtils}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.utils.io.IOUtils
 import org.apache.commons.lang3.StringUtils.isBlank
-import org.matsim.api.core.v01.network.Link
-import org.matsim.core.utils.collections.QuadTree
 
 import java.io.{BufferedReader, File, IOException}
 import java.text.{DecimalFormat, DecimalFormatSymbols}
@@ -55,8 +54,8 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param maybeChargingPoint charging point type
     * @return a row describing infinite free parking at this TAZ
     */
-  def defaultParkingRow[GEO](
-    geoId: Id[GEO],
+  def defaultParkingRow(
+    geoId: Id[TAZ],
     parkingType: ParkingType,
     maybeChargingPoint: Option[ChargingPointType],
     defaultReservedFor: ReservedFor
@@ -82,15 +81,15 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param totalRows number of rows read
     * @param failedRows number of rows which failed to parse
     */
-  case class ParkingLoadingAccumulator[GEO](
-    zones: mutable.Map[Id[ParkingZoneId], ParkingZone[GEO]] = mutable.Map.empty[Id[ParkingZoneId], ParkingZone[GEO]],
-    tree: mutable.Map[Id[GEO], Map[ParkingType, Vector[Id[ParkingZoneId]]]] =
-      mutable.Map.empty[Id[GEO], Map[ParkingType, Vector[Id[ParkingZoneId]]]],
+  case class ParkingLoadingAccumulator(
+    zones: mutable.Map[Id[ParkingZoneId], ParkingZone] = mutable.Map.empty[Id[ParkingZoneId], ParkingZone],
+    tree: mutable.Map[Id[TAZ], Map[ParkingType, Vector[Id[ParkingZoneId]]]] =
+      mutable.Map.empty[Id[TAZ], Map[ParkingType, Vector[Id[ParkingZoneId]]]],
     totalRows: Int = 0,
     failedRows: Int = 0
   ) {
 
-    def countFailedRow: ParkingLoadingAccumulator[GEO] =
+    def countFailedRow: ParkingLoadingAccumulator =
       this.copy(
         totalRows = totalRows + 1,
         failedRows = failedRows + 1
@@ -116,7 +115,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param parkingType the parking type of this row
     * @param parkingZone the parking zone produced by this row
     */
-  case class ParkingLoadingDataRow[GEO](tazId: Id[GEO], parkingType: ParkingType, parkingZone: ParkingZone[GEO])
+  case class ParkingLoadingDataRow(tazId: Id[TAZ], parkingType: ParkingType, parkingZone: ParkingZone)
 
   /**
     * write the loaded set of parking and charging options to an instance parking file
@@ -125,9 +124,9 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param stalls the stored ParkingZones
     * @param writeDestinationPath a file path to write to
     */
-  def writeParkingZoneFile[GEO](
-    stallSearch: ZoneSearchTree[GEO],
-    stalls: Map[Id[ParkingZoneId], ParkingZone[GEO]],
+  def writeParkingZoneFile(
+    stallSearch: ZoneSearchTree[TAZ],
+    stalls: Map[Id[ParkingZoneId], ParkingZone],
     writeDestinationPath: String
   ): Unit = {
 
@@ -194,14 +193,14 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param filePath location in FS of taz parking data file (.csv)
     * @return table and tree
     */
-  def fromFile[GEO: GeoLevel](
+  def fromFile(
     filePath: String,
     rand: Random,
     beamConfig: Option[BeamConfig],
     beamServices: Option[BeamServices],
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0
-  ): (Map[Id[ParkingZoneId], ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
+  ): (Map[Id[ParkingZoneId], ParkingZone], ZoneSearchTree[TAZ]) = {
     val parkingLoadingAccumulator =
       fromFileToAccumulator(
         filePath,
@@ -222,15 +221,15 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param filePath location in FS of taz parking data file (.csv)
     * @return parking zone accumulator
     */
-  def fromFileToAccumulator[GEO: GeoLevel](
+  def fromFileToAccumulator(
     filePath: String,
     rand: Random,
     beamConfig: Option[BeamConfig],
     beamServices: Option[BeamServices],
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0,
-    parkingLoadingAcc: ParkingLoadingAccumulator[GEO] = ParkingLoadingAccumulator[GEO]()
-  ): ParkingLoadingAccumulator[GEO] = {
+    parkingLoadingAcc: ParkingLoadingAccumulator = ParkingLoadingAccumulator()
+  ): ParkingLoadingAccumulator = {
     FileUtils.using(FileUtils.getReader(filePath)) { reader =>
       Try(
         fromBufferedReader(
@@ -264,21 +263,21 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param reader a java.io.BufferedReader of a csv file
     * @return ParkingZone array and tree lookup
     */
-  def fromBufferedReader[GEO: GeoLevel](
+  def fromBufferedReader(
     reader: BufferedReader,
     rand: Random,
     beamConfig: Option[BeamConfig],
     beamServices: Option[BeamServices],
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0,
-    parkingLoadingAccumulator: ParkingLoadingAccumulator[GEO] = ParkingLoadingAccumulator()
-  ): ParkingLoadingAccumulator[GEO] = {
+    parkingLoadingAccumulator: ParkingLoadingAccumulator = ParkingLoadingAccumulator()
+  ): ParkingLoadingAccumulator = {
 
     val (iterator, closable) = GenericCsvReader.readFromReaderAs[jMap](reader, identity)
     @tailrec
     def _read(
-      accumulator: ParkingLoadingAccumulator[GEO]
-    ): ParkingLoadingAccumulator[GEO] = {
+      accumulator: ParkingLoadingAccumulator
+    ): ParkingLoadingAccumulator = {
       if (iterator.hasNext) {
         val csvRow = iterator.next()
         val updatedAccumulator = parseParkingZoneFromRow(
@@ -293,7 +292,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
         ) match {
           case None =>
             accumulator.countFailedRow
-          case Some(row: ParkingLoadingDataRow[GEO]) =>
+          case Some(row: ParkingLoadingDataRow) =>
             addStallToSearch(row, accumulator)
         }
         _read(updatedAccumulator)
@@ -315,7 +314,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param csvFileContents each line from a file to be read
     * @return table and search tree
     */
-  def fromIterator[GEO: GeoLevel](
+  def fromIterator(
     csvFileContents: Iterator[String],
     beamConfig: Option[BeamConfig],
     beamServices: Option[BeamServices],
@@ -323,8 +322,8 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     defaultReservedFor: Option[ReservedFor] = None,
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0,
-    parkingLoadingAcc: ParkingLoadingAccumulator[GEO] = ParkingLoadingAccumulator[GEO]()
-  ): ParkingLoadingAccumulator[GEO] = {
+    parkingLoadingAcc: ParkingLoadingAccumulator = ParkingLoadingAccumulator()
+  ): ParkingLoadingAccumulator = {
 
     val withLineBreaks = csvFileContents.filterNot(_.trim.isEmpty).flatMap(x => Seq(x, "\n"))
     val (iterator, closable) =
@@ -345,7 +344,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           ) match {
             case None =>
               accumulator.countFailedRow
-            case Some(row: ParkingLoadingDataRow[GEO]) =>
+            case Some(row: ParkingLoadingDataRow) =>
               addStallToSearch(row, accumulator)
           }
         } match {
@@ -358,29 +357,6 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       }
     } finally {
       closable.close()
-    }
-  }
-
-  /**
-    * Creating search tree to find stalls from a sequence of Parking zones
-    *
-    * @param zones each line from a file to be read
-    * @return table and search tree
-    */
-  def createZoneSearchTree[GEO](zones: Seq[ParkingZone[GEO]]): ZoneSearchTree[GEO] = {
-
-    zones.foldLeft(Map.empty: ZoneSearchTree[GEO]) { (accumulator, zone) =>
-      val parkingTypes = accumulator.getOrElse(zone.geoId, Map())
-      val parkingZoneIds: Vector[Id[ParkingZoneId]] =
-        parkingTypes.getOrElse(zone.parkingType, Vector.empty[Id[ParkingZoneId]])
-
-      accumulator.updated(
-        zone.geoId,
-        parkingTypes.updated(
-          zone.parkingType,
-          (parkingZoneIds :+ zone.parkingZoneId).sorted
-        )
-      )
     }
   }
 
@@ -450,7 +426,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param csvRow the comma-separated parking attributes
     * @return a ParkingZone and it's corresponding ParkingType and Taz Id
     */
-  def parseParkingZoneFromRow[GEO: GeoLevel](
+  def parseParkingZoneFromRow(
     csvRow: jMap,
     rowNumber: Int,
     rand: Random,
@@ -459,7 +435,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     defaultReservedFor: Option[ReservedFor] = None,
     parkingStallCountScalingFactor: Double = 1.0,
     parkingCostScalingFactor: Double = 1.0
-  ): Option[ParkingLoadingDataRow[GEO]] = {
+  ): Option[ParkingLoadingDataRow] = {
     if (!validateCsvRow(csvRow)) {
       logger.error(s"Failed to match row of parking configuration '$csvRow' to expected schema")
       return None
@@ -481,7 +457,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val newCostInDollarsString = (feeInCents * parkingCostScalingFactor / 100.0).toString
       val reservedFor = validateReservedFor(reservedForString, beamConfig, defaultReservedFor)
       // parse this row from the source file
-      val taz = GeoLevel[GEO].parseId(tazString.toUpperCase)
+      val taz = tazString.toUpperCase.createId[TAZ]
       val parkingType = ParkingType(parkingTypeString)
       val pricingModel = PricingModel(pricingModelString, newCostInDollarsString)
       val timeRestrictions = parseTimeRestrictions(timeRestrictionsString)
@@ -576,10 +552,10 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param accumulator the currently loaded zones and search tree
     * @return updated tree, stalls
     */
-  private[ParkingZoneFileUtils] def addStallToSearch[GEO](
-    row: ParkingLoadingDataRow[GEO],
-    accumulator: ParkingLoadingAccumulator[GEO]
-  ): ParkingLoadingAccumulator[GEO] = {
+  private[ParkingZoneFileUtils] def addStallToSearch(
+    row: ParkingLoadingDataRow,
+    accumulator: ParkingLoadingAccumulator
+  ): ParkingLoadingAccumulator = {
 
     // find any data stored already within this TAZ and with this ParkingType
     val parkingTypes = accumulator.tree.getOrElse(row.tazId, Map())
@@ -601,50 +577,18 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     ParkingLoadingAccumulator(accumulator.zones, accumulator.tree, accumulator.totalRows + 1, accumulator.failedRows)
   }
 
-  def generateLinkParkingOutOfTazParking(
-    tazZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]],
-    linkQuadTree: QuadTree[Link],
-    linkToTAZMapping: Map[Link, TAZ],
-    tazTreeMap: TAZTreeMap
-  ): Map[Id[ParkingZoneId], ParkingZone[Link]] = {
-    val tazToLinksMapping = linkToTAZMapping.groupBy { case (_, taz) => taz.tazId }.mapValues(_.keys.toIndexedSeq)
-    val random = new Random()
-    tazZones.mapValues { zone =>
-      val links = tazToLinksMapping.getOrElse(
-        zone.geoId, {
-          val taz = tazTreeMap.getTAZ(zone.geoId).get
-          val link = linkQuadTree.getClosest(taz.coord.getX, taz.coord.getY)
-          IndexedSeq(link)
-        }
-      )
-      val link = zone.link.getOrElse(MathUtils.selectRandomElement(links, random))
-      new ParkingZone[Link](
-        zone.parkingZoneId,
-        link.getId,
-        zone.parkingType,
-        zone.stallsAvailable,
-        zone.maxStalls,
-        zone.reservedFor,
-        zone.chargingPointType,
-        zone.pricingModel,
-        zone.timeRestrictions,
-        Some(link)
-      )
-    }
-  }
-
   /**
     * generates ubiquitous parking from a taz centers file, such as test/input/beamville/taz-centers.csv
     * @param geoObjects geo objects that should be used to hold parking stalls
     * @param parkingTypes the parking types we are generating, by default, the complete set
     * @return
     */
-  def generateDefaultParkingFromGeoObjects[GEO: GeoLevel](
-    geoObjects: Iterable[GEO],
+  def generateDefaultParkingFromGeoObjects(
+    geoObjects: Iterable[TAZ],
     random: Random,
     defaultReservedFor: ReservedFor,
     parkingTypes: Seq[ParkingType] = ParkingType.AllTypes
-  ): (Map[Id[ParkingZoneId], ParkingZone[GEO]], ZoneSearchTree[GEO]) = {
+  ): (Map[Id[ParkingZoneId], ParkingZone], ZoneSearchTree[TAZ]) = {
     val parkingLoadingAccumulator =
       generateDefaultParkingAccumulatorFromGeoObjects(
         geoObjects,
@@ -661,13 +605,13 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param parkingTypes the parking types we are generating, by default, the complete set
     * @return the parking accumulator
     */
-  def generateDefaultParkingAccumulatorFromGeoObjects[GEO: GeoLevel](
-    geoObjects: Iterable[GEO],
+  def generateDefaultParkingAccumulatorFromGeoObjects(
+    geoObjects: Iterable[TAZ],
     random: Random,
     defaultReservedFor: ReservedFor,
     parkingTypes: Seq[ParkingType] = ParkingType.AllTypes,
-    parkingLoadingAcc: ParkingLoadingAccumulator[GEO] = ParkingLoadingAccumulator[GEO]()
-  ): ParkingLoadingAccumulator[GEO] = {
+    parkingLoadingAcc: ParkingLoadingAccumulator = ParkingLoadingAccumulator()
+  ): ParkingLoadingAccumulator = {
     val result =
       generateDefaultParking(geoObjects, random, defaultReservedFor, parkingTypes, parkingLoadingAcc)
     logger.info(
@@ -685,13 +629,13 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param parkingTypes the parking types we are generating, by default, the complete set
     * @return parking zones and parking search tree
     */
-  def generateDefaultParking[GEO: GeoLevel](
-    geoObjects: Iterable[GEO],
+  def generateDefaultParking(
+    geoObjects: Iterable[TAZ],
     random: Random,
     defaultReservedFor: ReservedFor,
     parkingTypes: Seq[ParkingType] = ParkingType.AllTypes,
-    parkingLoadingAcc: ParkingLoadingAccumulator[GEO] = ParkingLoadingAccumulator[GEO]()
-  ): ParkingLoadingAccumulator[GEO] = {
+    parkingLoadingAcc: ParkingLoadingAccumulator = ParkingLoadingAccumulator()
+  ): ParkingLoadingAccumulator = {
 
     val rows: Iterable[String] = for {
       geoObj      <- geoObjects
@@ -700,8 +644,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       // None is `NoCharger` which will allow non-charger ParkingZones. Check `returnSpotsWithoutChargers` in `ZonalParkingManager`
       maybeChargingPoint <- Seq(Some(ChargingPointType.CustomChargingPoint("DCFast", "50", "DC")), None) // NoCharger
     } yield {
-      import GeoLevel.ops._
-      defaultParkingRow(geoObj.getId, parkingType, maybeChargingPoint, defaultReservedFor)
+      defaultParkingRow(geoObj.tazId, parkingType, maybeChargingPoint, defaultReservedFor)
     }
 
     val withHeader = Iterator.single(ParkingFileHeader) ++ rows
@@ -712,14 +655,14 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * Write parking zones to csv.
     */
   @SuppressWarnings(Array("UnusedMethodParameter")) // TODO: scapegoat bug?
-  def toCsv[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]], filePath: String): Unit = {
+  def toCsv(parkingZones: Map[Id[ParkingZoneId], ParkingZone], filePath: String): Unit = {
     val df = new DecimalFormat("0", DecimalFormatSymbols.getInstance(Locale.ENGLISH))
     df.setMaximumFractionDigits(7)
     val fileContent = parkingZones.values.toIndexedSeq
       .sortBy(_.parkingZoneId)
       .map { parkingZone =>
         List(
-          parkingZone.geoId,
+          parkingZone.tazId,
           parkingZone.parkingType,
           parkingZone.pricingModel.getOrElse(""),
           parkingZone.chargingPointType.getOrElse(""),
