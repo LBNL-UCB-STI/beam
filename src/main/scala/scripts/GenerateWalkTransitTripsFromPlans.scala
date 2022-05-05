@@ -250,7 +250,8 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
 
   def generateWalkTransitTrips(
     pathToBeamConfig: String,
-    pathToGeneratedPlans: String
+    pathToGeneratedPlans: String,
+    percentForNotification: Float
   ): ParSeq[PersonTrip] = {
     val typeSafeConfig = createConfigs(pathToBeamConfig)
     val (_, _, _, beamServices: BeamServices, _) = prepareBeamService(typeSafeConfig, None)
@@ -280,8 +281,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
     println(s"There are ${walkTransitLegs.length} walk transit legs, amount of routers: ${routers.size}")
 
     var legsProcessed = 0
-    // notification for each completed 10%
-    val progressReportIncrement = Math.max(10 * (walkTransitLegs.length / 100), 1)
+    val progressReportIncrement = Math.round(Math.max(percentForNotification * (walkTransitLegs.length / 100), 1))
     var nextProgressReport: Int = progressReportIncrement
     val beginningTimeStamp: Long = System.currentTimeMillis / 1000
     println(s"Progress will be reported for each $progressReportIncrement legs processed.")
@@ -399,13 +399,14 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
       val pathToConfig = args(0)
       val pathToGeneratedPlans = args(1)
       val pathToOutputCSV = args(2)
+      val percentForNotification: Float = if (args.length > 3) args(3).toFloat else 10.0f
 
       println(s"Generation of person walk transit trips from generatedPlans started.")
       println(s"Beam config to create router: $pathToConfig")
       println(s"Path to generated plans: $pathToGeneratedPlans")
       println(s"Path to output: $pathToOutputCSV")
 
-      val personTrips = generateWalkTransitTrips(pathToConfig, pathToGeneratedPlans)
+      val personTrips = generateWalkTransitTrips(pathToConfig, pathToGeneratedPlans, percentForNotification)
       println(s"Generation of person walk transit trips from legs completed.")
       writeTripsToFile(pathToOutputCSV, personTrips.toArray)
       println(s"Writing out walk transit trips from legs completed.")
