@@ -12,7 +12,7 @@ import os
 def run_spmc_federate(parkingZoneId):
     fedinfo = h.helicsCreateFederateInfo()
 
-    fed_name = "spmc_federate_"+str(tazId)
+    fed_name = "SPMC_FEDERATE_"+str(parkingZoneId)
     # set the name
     h.helicsFederateInfoSetCoreName(fedinfo, fed_name)
 
@@ -33,12 +33,12 @@ def run_spmc_federate(parkingZoneId):
     print("Register a publication of control signals")
 
     # Register a publication of control signals
-    pubs_control = h.helicsFederateRegisterTypePublication(cfed, "charging_powers", "string", "")
+    pubs_control = h.helicsFederateRegisterTypePublication(cfed, "CHARGING_PROFILE", "string", "")
     logging.info("publications registered")
 
     # register subscriptions
     # subscribe to information from TEMPO such that you can map to PyDSS modeled charging stations
-    subs_charging_events = h.helicsFederateRegisterSubscription(cfed, "beam_federate/charging_events_"+str(tazId), "string")
+    subs_charging_events = h.helicsFederateRegisterSubscription(cfed, "BEAM_SPM_FEDERATE_"+str(parkingZoneId)+"/CHARGING_SESSION_EVENTS", "string")
     logging.info("subscriptions registered")
 
     # enter execution mode

@@ -5,7 +5,7 @@ import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSe
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStatus.Connected
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingVehicle}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingTimeOutTrigger
-import beam.agentsim.infrastructure.power.PowerController.PhysicalBounds
+import beam.agentsim.infrastructure.power.PowerManager.PhysicalBounds
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.sim.config.BeamConfig.Beam.Agentsim
 import beam.utils.DateUtils

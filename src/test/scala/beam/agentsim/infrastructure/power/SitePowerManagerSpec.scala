@@ -143,7 +143,7 @@ class SitePowerManagerSpec
   "SitePowerManager" should {
 
     val dummyStation = ChargingStation(dummyChargingZone)
-    val unlimitedBounds = PowerController.getUnlimitedPhysicalBounds(Seq(dummyStation)).value
+    val unlimitedBounds = PowerManager.getUnlimitedPhysicalBounds(Seq(dummyStation)).value
     val sitePowerManager =
       new SitePowerManager(ChargingNetworkHelper(chargingNetwork, rideHailNetwork), unlimitedBounds, beamServices)
 

@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure.power
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingVehicle}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.power.PowerController._
+import beam.agentsim.infrastructure.power.PowerManager._
 import beam.router.skim.event
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging

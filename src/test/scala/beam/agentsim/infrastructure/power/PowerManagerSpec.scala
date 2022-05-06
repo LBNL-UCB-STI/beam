@@ -6,7 +6,7 @@ import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
-import beam.agentsim.infrastructure.power.PowerController.PhysicalBounds
+import beam.agentsim.infrastructure.power.PowerManager.PhysicalBounds
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
@@ -18,7 +18,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterEach {
+class PowerManagerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfterEach {
 
   private val config =
     ConfigFactory
@@ -84,8 +84,8 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
     val chargingNetworkHelper: ChargingNetworkHelper = new ChargingNetworkHelper(chargingNetwork, rideHailNetwork) {
       override lazy val allChargingStations: List[ChargingStation] = List(dummyChargingStation)
     }
-    val powerController: PowerController =
-      new PowerController(chargingNetworkHelper, beamConfig) {
+    val powerController: PowerManager =
+      new PowerManager(chargingNetworkHelper, beamConfig) {
         override private[power] lazy val beamFederateOption = Some(beamFederateMock)
       }
 
@@ -102,8 +102,8 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
 
   "PowerController when not connected to grid" should {
     val chargingNetworkHelper: ChargingNetworkHelper = ChargingNetworkHelper(chargingNetwork, rideHailNetwork)
-    val powerController: PowerController =
-      new PowerController(chargingNetworkHelper, beamConfig) {
+    val powerController: PowerManager =
+      new PowerManager(chargingNetworkHelper, beamConfig) {
         override private[power] lazy val beamFederateOption = None
       }
 

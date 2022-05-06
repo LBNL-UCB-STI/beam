@@ -13,35 +13,39 @@ import com.typesafe.scalalogging.LazyLogging
 import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
-class PowerController(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: BeamConfig) extends LazyLogging {
-  import PowerController._
+class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: BeamConfig) extends LazyLogging {
+  import PowerManager._
   private val timeStep = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds
-  private val isConnectedToHelics = beamConfig.beam.agentsim.chargingNetworkManager.helics.connectionEnabled
+  private val helicsConfig = beamConfig.beam.agentsim.chargingNetworkManager.cosimulationWithHelics
 
   private[infrastructure] lazy val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(
     chargingNetworkHelper.allChargingStations
   ).value
 
   private[power] lazy val beamFederateOption: Option[BeamFederate] =
-    if (isConnectedToHelics) {
+    if (helicsConfig.powerManagerController.connect) {
       logger.warn("ChargingNetworkManager should be connected to a grid via Helics...")
-      val helicsConfig = beamConfig.beam.agentsim.chargingNetworkManager.helics
       Try {
         logger.info("Init PowerController resources...")
         getFederate(
-          helicsConfig.federateName,
-          helicsConfig.coreType,
-          helicsConfig.coreInitString,
-          helicsConfig.timeDeltaProperty,
-          helicsConfig.intLogLevel,
+          helicsConfig.powerManagerController.federateName,
+          helicsConfig.powerManagerController.coreType,
+          helicsConfig.powerManagerController.coreInitString,
+          helicsConfig.powerManagerController.timeDeltaProperty,
+          helicsConfig.powerManagerController.intLogLevel,
           helicsConfig.bufferSize,
-          helicsConfig.dataOutStreamPoint match {
+          helicsConfig.powerManagerController.federatePublication match {
             case s: String if s.nonEmpty => Some(s)
             case _                       => None
           },
-          helicsConfig.dataInStreamPoint match {
-            case s: String if s.nonEmpty => Some(s)
-            case _                       => None
+          (
+            helicsConfig.powerManagerController.pmcFederateName,
+            helicsConfig.powerManagerController.pmcFederateSubscription,
+            helicsConfig.powerManagerController.feedbackEnabled
+          ) match {
+            case (s1: String, s2: String, feedback: Boolean) if s1.nonEmpty && s2.nonEmpty && feedback =>
+              Some(s1 + "/" + s2)
+            case _ => None
           }
         )
       }.recoverWith { case e =>
@@ -66,7 +70,7 @@ class PowerController(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: 
   ): Map[ChargingStation, PhysicalBounds] = {
     physicalBounds = beamFederateOption match {
       case Some(beamFederate)
-          if isConnectedToHelics && estimatedLoad.isDefined && (physicalBounds.isEmpty || currentBin < currentTime / timeStep) =>
+          if helicsConfig.powerManagerController.connect && estimatedLoad.isDefined && (physicalBounds.isEmpty || currentBin < currentTime / timeStep) =>
         logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
         // PUBLISH
         val msgToPublish = estimatedLoad.get.map { case (station, powerInKW) =>
@@ -89,7 +93,7 @@ class PowerController(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: 
         }
 
         logger.debug("Obtained power from the grid {}...", gridBounds)
-        if (beamConfig.beam.agentsim.chargingNetworkManager.helics.feedbackEnabled) {
+        if (beamFederate.dataInStreamPointMaybe.isDefined) {
           gridBounds.flatMap { x =>
             val reservedFor = x("reservedFor").asInstanceOf[String] match {
               case managerIdString if managerIdString.isEmpty => VehicleManager.AnyManager
@@ -146,7 +150,7 @@ class PowerController(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: 
   }
 }
 
-object PowerController {
+object PowerManager {
   type PowerInKW = Double
   type EnergyInJoules = Double
   type ChargingDurationInSec = Int
