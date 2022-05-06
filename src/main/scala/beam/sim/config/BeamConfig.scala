@@ -2077,7 +2077,6 @@ object BeamConfig {
 
         case class ParkingManager(
           displayPerformanceTimings: scala.Boolean,
-          level: java.lang.String,
           method: java.lang.String,
           parallel: BeamConfig.Beam.Agentsim.Taz.ParkingManager.Parallel
         )
@@ -2101,7 +2100,6 @@ object BeamConfig {
             BeamConfig.Beam.Agentsim.Taz.ParkingManager(
               displayPerformanceTimings =
                 c.hasPathOrNull("displayPerformanceTimings") && c.getBoolean("displayPerformanceTimings"),
-              level = if (c.hasPathOrNull("level")) c.getString("level") else "TAZ",
               method = if (c.hasPathOrNull("method")) c.getString("method") else "DEFAULT",
               parallel = BeamConfig.Beam.Agentsim.Taz.ParkingManager.Parallel(
                 if (c.hasPathOrNull("parallel")) c.getConfig("parallel")

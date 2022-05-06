@@ -8,7 +8,7 @@ import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
+import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtilsImpl
@@ -67,7 +67,7 @@ class ParallelParkingManagerSpec
           yMax = 10000000
         ) // one TAZ at agent coordinate
         parkingManager = ParallelParkingManager.init(
-          Map.empty[Id[ParkingZoneId], ParkingZone[TAZ]],
+          Map.empty[Id[ParkingZoneId], ParkingZone],
           beamConfig,
           tazTreeMap,
           geo.distUTMInMeters,
@@ -85,9 +85,7 @@ class ParallelParkingManagerSpec
             inquiry.destinationUtm.loc.getY + 2000,
             inquiry.destinationUtm.loc.getY - 2000
           ),
-          new Random(randomSeed),
-          tazId = TAZ.EmergencyTAZId,
-          geoId = TAZ.EmergencyTAZId
+          new Random(randomSeed)
         )
 
         val response = parkingManager.processParkingInquiry(inquiry)
@@ -106,7 +104,7 @@ class ParallelParkingManagerSpec
       val tazTreeMap = new TAZTreeMap(new QuadTree[TAZ](0, 0, 0, 0))
 
       val parkingManager = ParallelParkingManager.init(
-        Map.empty[Id[ParkingZoneId], ParkingZone[TAZ]],
+        Map.empty[Id[ParkingZoneId], ParkingZone],
         beamConfig,
         tazTreeMap,
         geo.distUTMInMeters,
@@ -123,9 +121,7 @@ class ParallelParkingManagerSpec
           inquiry.destinationUtm.loc.getY + 2000,
           inquiry.destinationUtm.loc.getY - 2000
         ),
-        random = new Random(randomSeed.toLong),
-        tazId = TAZ.EmergencyTAZId,
-        geoId = TAZ.EmergencyTAZId
+        random = new Random(randomSeed.toLong)
       )
 
       val response = parkingManager.processParkingInquiry(inquiry)
@@ -150,12 +146,12 @@ class ParallelParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] =
-          """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
-            |1,Workplace,FlatFee,None,1,1234,
+          """taz,parkingZoneId,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
+            |1,a,Workplace,FlatFee,None,1,1234,
             |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, Some(beamConfig), None, random)
+        parking = ParkingZoneFileUtils.fromIterator(oneParkingOption, Some(beamConfig), None, random)
         parkingManager = ParallelParkingManager.init(
           parking.zones.toMap,
           beamConfig,
@@ -172,8 +168,7 @@ class ParallelParkingManagerSpec
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
-            Id.create(1, classOf[TAZ]),
-            ParkingZone.createId("cs_default(Any)_1_Workplace_NA_FlatFee_1234_1"),
+            ParkingZone.createId("a"),
             coordCenterOfUTM,
             12.34,
             None,
@@ -193,7 +188,7 @@ class ParallelParkingManagerSpec
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         response2 match {
           case Some(ParkingInquiryResponse(stall, responseId, triggerId))
-              if stall.geoId == TAZ.EmergencyTAZId
+              if stall.tazId == TAZ.EmergencyTAZId
                 && responseId == secondInquiry.requestId && triggerId == secondInquiry.triggerId =>
           case _ => assert(response2.isDefined, "no response")
         }
@@ -214,12 +209,12 @@ class ParallelParkingManagerSpec
           10000000
         ) // one TAZ at agent coordinate
         oneParkingOption: Iterator[String] =
-          """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
-          |1,Workplace,FlatFee,None,1,1234,
+          """taz,parkingZoneId,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor
+          |1,a,Workplace,FlatFee,None,1,1234,
           |
           """.stripMargin.split("\n").toIterator
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](oneParkingOption, Some(beamConfig), None, random)
+        parking = ParkingZoneFileUtils.fromIterator(oneParkingOption, Some(beamConfig), None, random)
         parkingManager = ParallelParkingManager.init(
           parking.zones.toMap,
           beamConfig,
@@ -238,8 +233,7 @@ class ParallelParkingManagerSpec
         val expectedStall =
           ParkingStall(
             expectedTAZId,
-            expectedTAZId,
-            ParkingZone.createId("cs_default(Any)_1_Workplace_NA_FlatFee_1234_1"),
+            ParkingZone.createId("a"),
             coordCenterOfUTM,
             12.34,
             None,
@@ -299,7 +293,7 @@ class ParallelParkingManagerSpec
         split = ZonalParkingManagerSpec.randomSplitOfMaxStalls(numStalls, 4, random1)
         parkingConfiguration: Iterator[String] = ZonalParkingManagerSpec.makeParkingConfiguration(split)
         random = new Random(randomSeed)
-        parking = ParkingZoneFileUtils.fromIterator[TAZ](parkingConfiguration, Some(beamConfig), None, random)
+        parking = ParkingZoneFileUtils.fromIterator(parkingConfiguration, Some(beamConfig), None, random)
         parkingManager = ParallelParkingManager.init(
           parking.zones.toMap,
           beamConfig,
@@ -317,7 +311,7 @@ class ParallelParkingManagerSpec
           response1 = parkingManager.processParkingInquiry(req)
           counted = response1 match {
             case Some(res @ ParkingInquiryResponse(_, _, _)) =>
-              if (res.stall.geoId != TAZ.EmergencyTAZId) 1 else 0
+              if (res.stall.tazId != TAZ.EmergencyTAZId) 1 else 0
             case _ =>
               assert(response1.isDefined, "no response")
               0
@@ -337,7 +331,7 @@ class ParallelParkingManagerSpec
   describe("ParallelParkingManager with loaded common data") {
     it("should return the correct stall") {
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
-      val stalls = InfrastructureUtils.loadStalls[TAZ](
+      val stalls = InfrastructureUtils.loadStalls(
         "test/input/beamville/parking/taz-parking.csv",
         IndexedSeq.empty,
         tazMap.tazQuadTree,
@@ -347,7 +341,7 @@ class ParallelParkingManagerSpec
         beamConfig,
         None
       )
-      val parkingZones = InfrastructureUtils.loadParkingStalls[TAZ](stalls)
+      val parkingZones = InfrastructureUtils.loadParkingStalls(stalls)
       val zpm = ParallelParkingManager.init(
         parkingZones,
         beamConfig,
@@ -362,7 +356,7 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(170308.0, 2964.0),
         "4",
-        ParkingZone.createId("cs_default(Any)_4_Public_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("82"),
         FlatFee(0.0),
         ParkingType.Public,
         VehicleManager.AnyManager
@@ -372,7 +366,7 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(166321.0, 1568.0),
         "1",
-        ParkingZone.createId("cs_default(Any)_1_Public_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("80"),
         FlatFee(0.0),
         ParkingType.Public,
         VehicleManager.AnyManager
@@ -382,7 +376,7 @@ class ParallelParkingManagerSpec
         zpm,
         new Coord(167141.3, 3326.017),
         "2",
-        ParkingZone.createId("cs_default(Any)_2_Public_NA_FlatFee_0_2147483647"),
+        ParkingZone.createId("115"),
         FlatFee(0.0),
         ParkingType.Public,
         VehicleManager.AnyManager
@@ -391,7 +385,7 @@ class ParallelParkingManagerSpec
   }
 
   private def assertParkingResponse(
-    spm: ParkingNetwork[_],
+    spm: ParkingNetwork,
     coord: Coord,
     tazId: String,
     parkingZoneId: Id[ParkingZoneId],
@@ -404,7 +398,6 @@ class ParallelParkingManagerSpec
     val tazId1 = Id.create(tazId, classOf[TAZ])
     val expectedStall =
       ParkingStall(
-        tazId1,
         tazId1,
         parkingZoneId,
         coord,
