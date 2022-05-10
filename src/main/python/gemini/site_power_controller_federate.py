@@ -7,7 +7,7 @@ import numpy as np
 import logging
 import json
 import os
-import juliusLib
+import components.GeminiWrapper.ControlWrapper as juliusLib # this is julius package
 
 
 # if len(sys.argv) < 2:
