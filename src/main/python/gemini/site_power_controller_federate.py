@@ -57,7 +57,7 @@ def run_spmc_federate(parkingZoneId):
 
     print("entered execution mode")
     #TODO INITIALIZE HERE
-    juliusObject = juliusLib.ControlWrapper(data.loc[data["parkingZoneId"] == parkingZoneId])
+    juliusObject = juliusLib.ControlWrapperDummy(data.loc[data["parkingZoneId"] == parkingZoneId])
 
     def syncTime(requestedtime):
         grantedtime = -1
@@ -76,7 +76,7 @@ def run_spmc_federate(parkingZoneId):
 
         #for vehicle in charging_events_json["chargingPlugoutEvents"]:
             #vehicleId = vehicle['vehicleId']
-            #juliusObject.departure(vehicle)
+            #juliusObject.departure(vehicleId)
 
         for vehicle in charging_events_json["chargingPluginEvents"]:
             
