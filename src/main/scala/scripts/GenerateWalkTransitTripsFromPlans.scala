@@ -249,13 +249,11 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
   }
 
   def generateWalkTransitTrips(
-    pathToBeamConfig: String,
+    typeSafeConfig: Config,
+    beamServices: BeamServices,
     pathToGeneratedPlans: String,
     percentForNotification: Float
   ): ParSeq[PersonTrip] = {
-    println(s"Preparing beamServices based on '$pathToBeamConfig'...")
-    val typeSafeConfig = createConfigs(pathToBeamConfig)
-    val (_, _, _, beamServices: BeamServices, _) = prepareBeamService(typeSafeConfig, None)
     val iterationStartsEvent = new IterationStartsEvent(beamServices.matsimServices, 0)
 
     // for skims to be read from warmstart archive is it is present in the config
@@ -280,7 +278,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
     println("Preparing ModeChoiceMNL...")
     val modeChoiceMNL: ModeChoiceCalculator = getModeChoiceMNL(typeSafeConfig, beamServices, eventsManager)
 
-    println(s"Creating routers based on '$pathToBeamConfig'...")
+    println(s"Creating routers...")
     val routers: Seq[R5Wrapper] = createR5Wrappers(typeSafeConfig)
     println(s"Created ${routers.size} routers.")
 
@@ -400,6 +398,12 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
     }
   }
 
+  def getConfigAndBeamServices(pathToConfig: String): (Config, BeamServices) = {
+    val typeSafeConfig = createConfigs(pathToConfig)
+    val (_, _, _, beamServices: BeamServices, _) = prepareBeamService(typeSafeConfig, None)
+    (typeSafeConfig, beamServices)
+  }
+
   def main(args: Array[String]): Unit = {
     println(s"Current arguments: ${args.mkString(",")}")
     if (args.length < 3) {
@@ -407,15 +411,29 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
     } else {
       val pathToConfig = args(0)
       val pathToGeneratedPlans = args(1)
-      val pathToOutputCSV = args(2)
+
       val percentForNotification: Float = if (args.length > 3) args(3).toFloat else 10.0f
 
       println(s"Generation of person walk transit trips from generatedPlans started.")
       println(s"Beam config to create router: $pathToConfig")
       println(s"Path to generated plans: $pathToGeneratedPlans")
+
+      println(s"Preparing beamServices based on '$pathToConfig'...")
+      val (typeSafeConfig, beamServices) = getConfigAndBeamServices(pathToConfig)
+
+      val pathToOutputCSV = {
+        val pathParts: Array[String] = args(2).split(".csv")
+        val transitVehicleTypeVOTMultipliers =
+          beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.transitVehicleTypeVOTMultipliers match {
+            case Some(votMults) => "." + votMults.map(_.replaceAll("\\s", "")).mkString("-")
+            case None           => ""
+          }
+        s"${pathParts(0)}$transitVehicleTypeVOTMultipliers.csv.gz"
+      }
       println(s"Path to output: $pathToOutputCSV")
 
-      val personTrips = generateWalkTransitTrips(pathToConfig, pathToGeneratedPlans, percentForNotification)
+      val personTrips =
+        generateWalkTransitTrips(typeSafeConfig, beamServices, pathToGeneratedPlans, percentForNotification)
       println(s"Generation of person walk transit trips from legs completed.")
       writeTripsToFile(pathToOutputCSV, personTrips.toArray)
       println(s"Writing out walk transit trips from legs completed.")
