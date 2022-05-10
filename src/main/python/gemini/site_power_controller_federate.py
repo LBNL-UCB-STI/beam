@@ -7,10 +7,18 @@ import numpy as np
 import logging
 import json
 import os
+import juliusLib
+
+
+data = readfile("infrastructure.file.csv")
+for parkingZone in data["parkingZoneId"].unique:
+    run_spmc_federate(parkingZone["parkingZoneId"])
 
 
 def run_spmc_federate(parkingZoneId):
     fedinfo = h.helicsCreateFederateInfo()
+
+    juliusObject = juliusLib.initialize(data.loc[data["parkingZoneId"] == parkingZoneId])
 
     fed_name = "SPMC_FEDERATE_"+str(parkingZoneId)
     # set the name
@@ -62,10 +70,12 @@ def run_spmc_federate(parkingZoneId):
         charging_events_json = json.loads(h.helicsInputGetString(subs_charging_events))
         logging.info('Logging this as CSV')
         logging.info('stationId,estimatedLoad,currentTime')
-        numChargingVehicles = charging_events_json["numChargingVehicles"]
-        for vehicle in charging_events_json["chargingPlugoutEvents"]:
 
-        for vehicle in charging_events_json["chargingPlugingEvents"]:
+        #for vehicle in charging_events_json["chargingPlugoutEvents"]:
+            #juliusObject.departure(vehicle)
+
+        for vehicle in charging_events_json["chargingPluginEvents"]:
+            vehicleId = vehicle['parkingZoneId']
             vehicleId = vehicle['vehicleId']
             vehicleType = vehicle['vehicleType']
             primaryFuelLevelinJoules = vehicle['primaryFuelLevel']
@@ -73,22 +83,24 @@ def run_spmc_federate(parkingZoneId):
             desiredDepartureTime = vehicle['desiredDepartureTime']
             desiredFuelLevelInJoules = vehicle['desiredFuelLevel']
             logging.info(str(vehicleId)+','+str(vehicleType)+','+str(primaryFuelLevel)+','+str(t))
+            juliusObject.arrival(vehicle)
 
         ############### This section should be un-commented and debugged when we have a controller signal to send to BEAM
         ## format appropriately here
         #TODO CONTROL CODE RESIDE HERE
+        control_command = juliusObject.step(t)
+
         # Let's uncomment this and send dummy control signal to BEAM
         ## send updated signal to BEAM
-        all_stations_with_control = []
-        for station in charging_events_json:
-            station_with_control = {
-                'vehicleId': str(station['vehicleId']),
-                'power': str(station['power']),
-                'release': str(station['release'])
-            }
-            all_stations_with_control.append(station_with_control)
+        control_command_list = []
+        for command in control_command:
+            control_command_list.append({
+                'vehicleId': str(command['vehicleId']),
+                'power': str(command['power']),
+                'release': str(command['release'])
+            })
 
-        h.helicsPublicationPublishString(pubs_control, json.dumps(all_stations_with_control, separators=(',', ':')))
+        h.helicsPublicationPublishString(pubs_control, json.dumps(control_command_list, separators=(',', ':')))
         syncTime(t+1)
 
     # close the federate
