@@ -259,9 +259,13 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
     val iterationStartsEvent = new IterationStartsEvent(beamServices.matsimServices, 0)
 
     // for skims to be read from warmstart archive is it is present in the config
+    println(s"Reading skims...")
     beamServices.skims.getSkimmers.values.foreach(_.notifyIterationStarts(iterationStartsEvent))
     beamServices.matsimServices.getControlerIO.createIterationDirectory(0)
 
+    beamServices.skims.getSkimmers.foreach { case (skimType, skimmer) =>
+      println(s"\t${skimType.toString} -> ${skimmer.getSizeOfAggregatedFromPastSkims}")
+    }
     val eventsManager = new EventsManagerImpl
 
     val maybeModeChoiceAlternativesCollector = if (beamServices.beamConfig.beam.debug.writeModeChoiceAlternatives) {

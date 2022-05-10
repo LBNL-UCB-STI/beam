@@ -91,6 +91,8 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
 
   import readOnlySkim._
 
+  def getSizeOfAggregatedFromPastSkims: Int = aggregatedFromPastSkims.size
+
   protected def getDoubleOrDefault(
     line: scala.collection.Map[String, String],
     fieldName: String,
