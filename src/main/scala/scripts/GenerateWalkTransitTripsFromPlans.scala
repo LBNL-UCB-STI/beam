@@ -274,17 +274,20 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
 
     val modeChoiceMNL: ModeChoiceCalculator = getModeChoiceMNL(typeSafeConfig, beamServices, eventsManager)
 
+    println(s"Reading input plans from '$pathToGeneratedPlans'...")
     val inputTrips = readGeneratedPlansTrips(pathToGeneratedPlans)
-
-    val routers: Seq[R5Wrapper] = createR5Wrappers(typeSafeConfig)
     val walkTransitLegs = inputTrips.filter { trip => walkTransitModes.contains(trip.mode) }.toArray
-    println(s"There are ${walkTransitLegs.length} walk transit legs, amount of routers: ${routers.size}")
+    println(s"There are ${walkTransitLegs.length} walk transit legs")
+
+    println(s"Creating routers based on '$pathToBeamConfig'...")
+    val routers: Seq[R5Wrapper] = createR5Wrappers(typeSafeConfig)
+    println(s"Created ${routers.size} routers.")
 
     var legsProcessed = 0
     val progressReportIncrement = Math.round(Math.max(percentForNotification * (walkTransitLegs.length / 100), 1))
     var nextProgressReport: Int = progressReportIncrement
     val beginningTimeStamp: Long = System.currentTimeMillis / 1000
-    println(s"Progress will be reported for each $progressReportIncrement legs processed.")
+    println(s"Generating trips. Progress will be reported for each $progressReportIncrement legs processed.")
 
     val personTrips: ParSeq[PersonTrip] = walkTransitLegs.par.flatMap { trip: Trip =>
       val request: BeamRouter.RoutingRequest = getRoutingRequest(
