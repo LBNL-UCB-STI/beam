@@ -5,6 +5,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.Skims
@@ -400,6 +401,11 @@ object ChargingNetwork extends LazyLogging {
     import ChargingStatus._
 
     val chargingShouldEndAt: Option[Int] = shiftDuration.map(_ + arrivalTime)
+
+    val chargingCapacityInKw: Double =
+      vehicle.beamVehicleType.chargingCapability
+        .map(ChargingPointType.getChargingPointInstalledPowerInKw)
+        .getOrElse(ChargingPointType.getChargingPointInstalledPowerInKw(stall.chargingPointType.get))
 
     /**
       * @param status the new connection status

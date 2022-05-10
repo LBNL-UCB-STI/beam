@@ -10,6 +10,10 @@ import os
 import juliusLib
 
 
+# if len(sys.argv) < 2:
+#     logging.error("infrastructure file is missing")
+
+
 data = readfile("infrastructure.file.csv")
 for parkingZone in data["parkingZoneId"].unique:
     run_spmc_federate(parkingZone["parkingZoneId"])
@@ -17,8 +21,6 @@ for parkingZone in data["parkingZoneId"].unique:
 
 def run_spmc_federate(parkingZoneId):
     fedinfo = h.helicsCreateFederateInfo()
-
-    juliusObject = juliusLib.initialize(data.loc[data["parkingZoneId"] == parkingZoneId])
 
     fed_name = "SPMC_FEDERATE_"+str(parkingZoneId)
     # set the name
@@ -55,6 +57,7 @@ def run_spmc_federate(parkingZoneId):
 
     print("entered execution mode")
     #TODO INITIALIZE HERE
+    juliusObject = juliusLib.initialize(data.loc[data["parkingZoneId"] == parkingZoneId])
 
     def syncTime(requestedtime):
         grantedtime = -1

@@ -4,6 +4,7 @@ import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.power.SitePowerManager
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
@@ -31,7 +32,8 @@ class ParkingZone[GEO](
   val chargingPointType: Option[ChargingPointType],
   val pricingModel: Option[PricingModel],
   val timeRestrictions: Map[VehicleCategory, Range],
-  val link: Option[Link]
+  val link: Option[Link],
+  val sitePowerManagerId: Id[SitePowerManager]
 ) {
 
   /**
@@ -64,7 +66,8 @@ class ParkingZone[GEO](
       this.chargingPointType,
       this.pricingModel,
       this.timeRestrictions,
-      this.link
+      this.link,
+      this.sitePowerManagerId
     )
   }
 
@@ -99,6 +102,7 @@ object ParkingZone extends LazyLogging {
     geoId: Id[GEO],
     parkingType: ParkingType,
     reservedFor: ReservedFor,
+    sitePowerManagerId: Id[SitePowerManager],
     stallsAvailable: Int = 0,
     maxStalls: Int = 0,
     chargingPointType: Option[ChargingPointType] = None,
@@ -116,7 +120,8 @@ object ParkingZone extends LazyLogging {
       chargingPointType,
       pricingModel,
       timeRestrictions,
-      link
+      link,
+      sitePowerManagerId
     )
 
   def defaultInit[GEO](
@@ -129,6 +134,7 @@ object ParkingZone extends LazyLogging {
       geoId,
       parkingType,
       VehicleManager.AnyManager,
+      Some(SitePowerManager.createId(DefaultParkingZoneId.toString)),
       numStalls
     )
   }
@@ -138,6 +144,7 @@ object ParkingZone extends LazyLogging {
     geoId: Id[GEO],
     parkingType: ParkingType,
     reservedFor: ReservedFor,
+    sitePowerManagerIdMaybe: Option[Id[SitePowerManager]],
     maxStalls: Int = 0,
     chargingPointType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
@@ -146,14 +153,18 @@ object ParkingZone extends LazyLogging {
   ): ParkingZone[GEO] = {
     val parkingZoneId = parkingZoneIdMaybe match {
       case Some(parkingZoneId) => parkingZoneId
-      case _ =>
-        constructParkingZoneKey(reservedFor, geoId, parkingType, chargingPointType, pricingModel, maxStalls)
+      case _                   => constructParkingZoneKey(reservedFor, geoId, parkingType, chargingPointType, pricingModel, maxStalls)
+    }
+    val sitePowerManagerId = sitePowerManagerIdMaybe match {
+      case Some(sitePowerManagerId) => sitePowerManagerId
+      case _                        => SitePowerManager.constructSitePowerKey(reservedFor, geoId, parkingType, chargingPointType)
     }
     ParkingZone[GEO](
       parkingZoneId,
       geoId,
       parkingType,
       reservedFor,
+      sitePowerManagerId,
       maxStalls,
       maxStalls,
       chargingPointType,
@@ -219,7 +230,6 @@ object ParkingZone extends LazyLogging {
 
   /**
     * construct ID of a Parking Zone
-    * @param vehicleManagerId Vehicle Manager
     * @param geoId TAZ ID
     * @param parkingType Parking Type
     * @param chargingPointTypeMaybe Charging Point Type Option
@@ -235,11 +245,11 @@ object ParkingZone extends LazyLogging {
     pricingModelMaybe: Option[PricingModel],
     numStalls: Int
   ): Id[ParkingZoneId] = {
-    val chargingPointType = chargingPointTypeMaybe.getOrElse("NA")
-    val pricingModel = pricingModelMaybe.getOrElse("NA")
+    val chargingPointType = chargingPointTypeMaybe.getOrElse("NoCharger")
+    val pricingModel = pricingModelMaybe.getOrElse("Free")
     val costInCents = pricingModelMaybe.map(x => (x.costInDollars * 100).toInt).getOrElse(0)
     createId(
-      s"cs_${reservedFor}_${geoId}_${parkingType}_${chargingPointType}_${pricingModel}_${costInCents}_$numStalls"
+      s"zone-${reservedFor}-${geoId}-${parkingType}-${chargingPointType}-${pricingModel}-${costInCents}-$numStalls"
     )
   }
 
