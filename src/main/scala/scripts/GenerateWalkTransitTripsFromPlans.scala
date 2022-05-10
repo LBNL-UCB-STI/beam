@@ -253,7 +253,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
     pathToGeneratedPlans: String,
     percentForNotification: Float
   ): ParSeq[PersonTrip] = {
-    println(s"Preparing beamServices based on '$pathToGeneratedPlans'...")
+    println(s"Preparing beamServices based on '$pathToBeamConfig'...")
     val typeSafeConfig = createConfigs(pathToBeamConfig)
     val (_, _, _, beamServices: BeamServices, _) = prepareBeamService(typeSafeConfig, None)
     val iterationStartsEvent = new IterationStartsEvent(beamServices.matsimServices, 0)
