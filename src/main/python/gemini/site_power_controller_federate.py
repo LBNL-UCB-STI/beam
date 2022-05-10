@@ -7,7 +7,7 @@ import numpy as np
 import logging
 import json
 import os
-import components.GeminiWrapper.ControlWrapper as juliusLib # this is julius package
+import components.GeminiWrapper as juliusLib # this is julius package
 
 
 # if len(sys.argv) < 2:
@@ -57,7 +57,7 @@ def run_spmc_federate(parkingZoneId):
 
     print("entered execution mode")
     #TODO INITIALIZE HERE
-    juliusObject = juliusLib.initialize(data.loc[data["parkingZoneId"] == parkingZoneId])
+    juliusObject = juliusLib.ControlWrapper(data.loc[data["parkingZoneId"] == parkingZoneId])
 
     def syncTime(requestedtime):
         grantedtime = -1
@@ -75,9 +75,11 @@ def run_spmc_federate(parkingZoneId):
         logging.info('stationId,estimatedLoad,currentTime')
 
         #for vehicle in charging_events_json["chargingPlugoutEvents"]:
+            #vehicleId = vehicle['vehicleId']
             #juliusObject.departure(vehicle)
 
         for vehicle in charging_events_json["chargingPluginEvents"]:
+            
             vehicleId = vehicle['parkingZoneId']
             vehicleId = vehicle['vehicleId']
             vehicleType = vehicle['vehicleType']
@@ -86,12 +88,13 @@ def run_spmc_federate(parkingZoneId):
             desiredDepartureTime = vehicle['desiredDepartureTime']
             desiredFuelLevelInJoules = vehicle['desiredFuelLevel']
             logging.info(str(vehicleId)+','+str(vehicleType)+','+str(primaryFuelLevel)+','+str(t))
-            juliusObject.arrival(vehicle)
+
+            juliusObject.arrival(vehicleId, vehicleType, arrivalTime, desiredDepartureTime, primaryFuelLevelinJoules, desiredFuelLevelInJoules) # lets call this with the variables, avoid mistakes with data structures
 
         ############### This section should be un-commented and debugged when we have a controller signal to send to BEAM
         ## format appropriately here
         #TODO CONTROL CODE RESIDE HERE
-        control_command = juliusObject.step(t)
+        control_command = juliusObject.step(timebin) # this takes the timestep as an input
 
         # Let's uncomment this and send dummy control signal to BEAM
         ## send updated signal to BEAM
