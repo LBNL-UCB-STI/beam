@@ -152,7 +152,7 @@ class SitePowerManagerSpec
         v.addFuel(v.primaryFuelLevelInJoules * 0.9 * -1)
         val request = ChargingPlugRequest(0, v, v.stall.get, person, 0)
         val Some(chargingVehicle) = chargingNetwork.processChargingPlugRequest(request, "", ActorRef.noSender)
-        chargingVehicle.chargingStatus.last shouldBe ChargingStatus(ChargingStatus.Connected, 0)
+        chargingVehicle.chargingStatus.last shouldBe ChargingStatus(ChargingStatus.PluggedIn, 0)
         chargingVehicle shouldBe ChargingVehicle(
           v,
           v.stall.get,
@@ -163,7 +163,7 @@ class SitePowerManagerSpec
           NotApplicable,
           None,
           ActorRef.noSender,
-          ListBuffer(ChargingStatus(ChargingStatus.Connected, 0))
+          ListBuffer(ChargingStatus(ChargingStatus.PluggedIn, 0))
         )
         sitePowerManager.dispatchEnergy(300, chargingVehicle, unlimitedBounds) should (be(
           (1, 250000.0, 250000.0)

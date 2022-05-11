@@ -42,8 +42,8 @@ class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], P
   /**
     * @return all vehicles still connected to a charging point
     */
-  def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
-    chargingZoneKeyToChargingStationMap.flatMap(_._2.connectedVehicles)
+  def pluggedInVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
+    chargingZoneKeyToChargingStationMap.flatMap(_._2.pluggedInVehicles)
 
   /**
     * all vehicles waiting in line at a charging point
@@ -91,7 +91,7 @@ class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], P
     theSender: ActorRef
   ): Option[ChargingVehicle] = lookupStation(request.stall.parkingZoneId)
     .map { chargingStation =>
-      val chargingVehicle = chargingStation.connect(
+      val chargingVehicle = chargingStation.plugIn(
         request.tick,
         request.vehicle,
         request.stall,
@@ -127,7 +127,7 @@ class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], P
   def disconnectVehicle(vehicleId: Id[BeamVehicle], tick: Int): Option[ChargingVehicle] = {
     lookupVehicle(vehicleId) map { chargingVehicle =>
       beamVehicleIdToChargingVehicleMap.remove(vehicleId)
-      chargingVehicle.chargingStation.disconnect(chargingVehicle.vehicle.id, tick)
+      chargingVehicle.chargingStation.plugOut(chargingVehicle.vehicle.id, tick)
     } getOrElse {
       logger.debug(s"Vehicle $vehicleId is already disconnected")
       None
@@ -140,7 +140,7 @@ class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], P
     * @return list of vehicle that connected
     */
   def processWaitingLine(tick: Int, station: ChargingStation): List[ChargingVehicle] =
-    station.connectFromWaitingLine(tick)
+    station.plugInFromWaitingLine(tick)
 }
 
 object ChargingNetwork extends LazyLogging {
@@ -149,7 +149,7 @@ object ChargingNetwork extends LazyLogging {
 
   object ChargingStatus extends Enumeration {
     type ChargingStatusEnum = Value
-    val WaitingAtStation, Connected, Disconnected, GracePeriod = Value
+    val WaitingAtStation, PluggedIn, PluggedOut, GracePeriod = Value
   }
 
   def apply[GEO: GeoLevel](
@@ -272,7 +272,7 @@ object ChargingNetwork extends LazyLogging {
     private[ChargingNetwork] def numAvailableChargers: Int =
       zone.maxStalls - howManyVehiclesAreCharging - howManyVehiclesAreInGracePeriodAfterCharging
 
-    private[ChargingNetwork] def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
+    private[ChargingNetwork] def pluggedInVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
       chargingVehiclesInternal.toMap
 
     def howManyVehiclesAreWaiting: Int = waitingLineInternal.size
@@ -297,7 +297,7 @@ object ChargingNetwork extends LazyLogging {
       * @param vehicle vehicle to connect
       * @return status of connection
       */
-    private[ChargingNetwork] def connect(
+    private[ChargingNetwork] def plugIn(
       tick: Int,
       vehicle: BeamVehicle,
       stall: ParkingStall,
@@ -316,7 +316,7 @@ object ChargingNetwork extends LazyLogging {
             ChargingVehicle(vehicle, stall, this, tick, personId, activityType, shiftStatus, shiftDuration, theSender)
           if (numAvailableChargers > 0) {
             chargingVehiclesInternal.put(vehicle.id, chargingVehicle)
-            chargingVehicle.updateStatus(Connected, tick)
+            chargingVehicle.updateStatus(PluggedIn, tick)
           } else {
             waitingLineInternal.enqueue(chargingVehicle)
             chargingVehicle.updateStatus(WaitingAtStation, tick)
@@ -342,12 +342,12 @@ object ChargingNetwork extends LazyLogging {
       * @param vehicleId vehicle to disconnect
       * @return status of connection
       */
-    private[ChargingNetwork] def disconnect(vehicleId: Id[BeamVehicle], tick: Int): Option[ChargingVehicle] =
+    private[ChargingNetwork] def plugOut(vehicleId: Id[BeamVehicle], tick: Int): Option[ChargingVehicle] =
       this.synchronized {
         chargingVehiclesInternal
           .remove(vehicleId)
-          .map(_.updateStatus(Disconnected, tick))
-          .orElse(vehiclesInGracePeriodAfterCharging.remove(vehicleId).map(_.updateStatus(Disconnected, tick)))
+          .map(_.updateStatus(PluggedOut, tick))
+          .orElse(vehiclesInGracePeriodAfterCharging.remove(vehicleId).map(_.updateStatus(PluggedOut, tick)))
           .orElse {
             waitingLineInternal.find(_.vehicle.id == vehicleId) map { chargingVehicle =>
               waitingLineInternal = waitingLineInternal.filterNot(_.vehicle.id == vehicleId)
@@ -360,11 +360,11 @@ object ChargingNetwork extends LazyLogging {
       * process waiting line by removing vehicle from waiting line and adding it to the connected list
       * @return map of vehicles that got connected
       */
-    private[ChargingNetwork] def connectFromWaitingLine(tick: Int): List[ChargingVehicle] = this.synchronized {
+    private[ChargingNetwork] def plugInFromWaitingLine(tick: Int): List[ChargingVehicle] = this.synchronized {
       (1 to Math.min(waitingLineInternal.size, numAvailableChargers)).map { _ =>
         val v = waitingLineInternal.dequeue()
         chargingVehiclesInternal.put(v.vehicle.id, v)
-        v.updateStatus(Connected, tick)
+        v.updateStatus(PluggedIn, tick)
       }.toList
     }
 
@@ -416,10 +416,10 @@ object ChargingNetwork extends LazyLogging {
         case WaitingAtStation =>
           vehicle.waitingToCharge(time)
           logger.debug(s"Vehicle ${vehicle.id} has been added to waiting queue for charging")
-        case Connected =>
+        case PluggedIn =>
           vehicle.connectToChargingPoint(time)
           logger.debug(s"Vehicle ${vehicle.id} has been connected to charging point")
-        case Disconnected =>
+        case PluggedOut =>
           vehicle.disconnectFromChargingPoint()
           logger.debug(s"Vehicle ${vehicle.id} has been disconnected from charging point")
         case GracePeriod =>
@@ -479,7 +479,7 @@ object ChargingNetwork extends LazyLogging {
           // first charging cycle
           true
         case Some(cycle)
-            if startTime >= cycle.endTime && chargingStatus.last.status == Connected || (chargingStatus.last.status == Disconnected && chargingStatus.last.time >= endTime) =>
+            if startTime >= cycle.endTime && chargingStatus.last.status == PluggedIn || (chargingStatus.last.status == PluggedOut && chargingStatus.last.time >= endTime) =>
           // either a new cycle or an unplug cycle arriving in the middle of the current cycle
           true
         // other cases where an unnecessary charging session happens when a vehicle is already charged or unplugged
