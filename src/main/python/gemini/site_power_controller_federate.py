@@ -87,6 +87,7 @@ def run_spmc_federate(parkingZoneId):
             arrivalTime = vehicle['arrivalTime']
             desiredDepartureTime = vehicle['desiredDepartureTime']
             desiredFuelLevelInJoules = vehicle['desiredFuelLevel']
+            # associatedPlugId = vehicle['PlugId'] might not be necessary
             logging.info(str(vehicleId)+','+str(vehicleType)+','+str(primaryFuelLevel)+','+str(t))
 
             juliusObject.arrival(vehicleId, vehicleType, arrivalTime, desiredDepartureTime, primaryFuelLevelinJoules, desiredFuelLevelInJoules) # lets call this with the variables, avoid mistakes with data structures
@@ -108,6 +109,9 @@ def run_spmc_federate(parkingZoneId):
 
         h.helicsPublicationPublishString(pubs_control, json.dumps(control_command_list, separators=(',', ':')))
         syncTime(t+1)
+        
+    # save charging station results
+    juliusObject.saveResults()
 
     # close the federate
     h.helicsFederateFinalize(cfed)
