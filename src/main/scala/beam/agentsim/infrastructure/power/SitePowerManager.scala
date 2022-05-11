@@ -6,26 +6,25 @@ import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingType
 import beam.agentsim.infrastructure.power.PowerManager._
-import beam.cosim.helics.BeamHelicsInterface.{getFederate, BeamFederate}
+import beam.cosim.helics.BeamHelicsInterface.{BeamFederate, getFederate, unloadHelics}
 import beam.router.skim.event
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.mutable
+import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
-class SitePowerManager(
-  chargingNetworkHelper: ChargingNetworkHelper,
-  unlimitedPhysicalBounds: Map[ChargingStation, PhysicalBounds],
-  beamServices: BeamServices
-) extends LazyLogging {
+class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamServices: BeamServices) extends LazyLogging {
 
   private val cnmConfig = beamServices.beamConfig.beam.agentsim.chargingNetworkManager
   private val temporaryLoadEstimate = mutable.HashMap.empty[ChargingStation, Double]
   private val spmcConfigMaybe = cnmConfig.sitePowerManagerController
   private val timeStep = cnmConfig.timeStepInSeconds
   private var currentBin = -1
+  protected val powerController = new PowerManager(chargingNetworkHelper, beamServices.beamConfig)
+  protected var physicalBounds = Map.empty[ChargingStation, PhysicalBounds]
 
   private[power] lazy val beamFederateList: List[BeamFederate] = spmcConfigMaybe match {
     case Some(spmcConfig) if spmcConfig.connect =>
@@ -62,31 +61,39 @@ class SitePowerManager(
     case _ => List.empty
   }
 
+  def updateChargingProfiles(timeBin: Int) = {
+
+  }
+
   /**
     * Get required power for electrical vehicles
     *
     * @param tick current time
     * @return power (in Kilo Watt) over planning horizon
     */
-  def requiredPowerInKWOverNextPlanningHorizon(currentTime: Int): Map[ChargingStation, PowerInKW] = {
+  def requiredPowerInKWOverNextPlanningHorizon(timeBin: Int): Map[ChargingStation, PowerInKW] = {
     val plans = if (beamFederateList.isEmpty) {
+
       chargingNetworkHelper.allChargingStations.par
         .map(station => station -> temporaryLoadEstimate.getOrElse(station, 0.0))
         .seq
         .toMap
     } else {
       beamFederateList.par.map {
-        case (beamFederate) if currentBin < currentTime / timeStep =>
-
+        case beamFederate if currentBin < currentTime / timeStep =>
+          chargingNetworkHelper.
+          chargingNetworkHelper.allChargingStations.par.map(_.)
         case _ =>
 
       }
     }
 
-    currentBin = currentTime / timeStep
+    physicalBounds = powerController.obtainPowerPhysicalBounds(timeBin, Some(loadEstimate))
+    log.debug("Total Load estimated is {} at tick {}", loadEstimate.values.sum, timeBin)
+    currentBin = timeBin / timeStep
     temporaryLoadEstimate.clear()
     if (plans.isEmpty) {
-      logger.error(s"Charging Replan did not produce allocations on tick: [$currentTime]")
+      logger.error(s"Charging Replan did not produce allocations on tick: [$timeBin]")
     }
     plans
   }
@@ -96,15 +103,11 @@ class SitePowerManager(
     * @param physicalBounds physical bounds under which the dispatch occur
     * @return
     */
-  def dispatchEnergy(
-    timeInterval: Int,
-    chargingVehicle: ChargingVehicle,
-    physicalBounds: Map[ChargingStation, PhysicalBounds]
-  ): (ChargingDurationInSec, EnergyInJoules, EnergyInJoules) = {
+  def dispatchEnergy(timeInterval: Int, chargingVehicle: ChargingVehicle): (ChargingDurationInSec, EnergyInJoules, EnergyInJoules) = {
     val ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _, _) = chargingVehicle
     // dispatch
     val maxZoneLoad = physicalBounds(station).powerLimitUpper
-    val maxUnlimitedZoneLoad = unlimitedPhysicalBounds(station).powerLimitUpper
+    val maxUnlimitedZoneLoad = powerController.unlimitedPhysicalBounds(station).powerLimitUpper
     val chargingLoad = Math.min(
       ChargingPointType.getChargingPointInstalledPowerInKw(station.zone.chargingPointType.get),
       chargingVehicle.chargingCapacityInKw
@@ -159,6 +162,23 @@ class SitePowerManager(
         geoIdMaybe = Some(station.zone.geoId.toString)
       )
     )
+  }
+
+
+  def close(): Unit = {
+    powerController.close()
+    logger.debug("Release PowerController resources...")
+    beamFederateOption
+      .fold(logger.debug("Not connected to grid, just releasing helics resources")) { beamFederate =>
+        beamFederate.close()
+        try {
+          logger.debug("Destroying BeamFederate")
+          unloadHelics()
+        } catch {
+          case NonFatal(ex) =>
+            logger.error(s"Cannot destroy BeamFederate: ${ex.getMessage}")
+        }
+      }
   }
 }
 

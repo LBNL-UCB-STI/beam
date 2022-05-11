@@ -11,7 +11,7 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.EnRoute
-import beam.agentsim.infrastructure.power.{PowerManager, SitePowerManager}
+import beam.agentsim.infrastructure.power.SitePowerManager
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{HasTriggerId, Trigger}
@@ -60,10 +60,9 @@ class ChargingNetworkManager(
   }
 
   protected val chargingNetworkHelper: ChargingNetworkHelper = ChargingNetworkHelper(chargingNetwork, rideHailNetwork)
-  protected val powerController = new PowerManager(chargingNetworkHelper, beamConfig)
 
   protected val sitePowerManager =
-    new SitePowerManager(chargingNetworkHelper, powerController.unlimitedPhysicalBounds, beamServices)
+    new SitePowerManager(chargingNetworkHelper, beamServices)
 
   override def postStop(): Unit = {
     maybeDebugReport.foreach(_.cancel())
@@ -101,14 +100,12 @@ class ChargingNetworkManager(
     case TriggerWithId(PlanEnergyDispatchTrigger(timeBin), triggerId) =>
       val s = System.currentTimeMillis
       log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$timeBin")
-      val loadEstimate = sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(timeBin)
+      sitePowerManager.updateChargingProfiles(timeBin)
       log.debug("Total Load estimated is {} at tick {}", loadEstimate.values.sum, timeBin)
       val simulatedParkingInquiries = simulateEventsIfScalingEnabled(timeBin, triggerId)
       log.debug("number of simulatedParkingInquiries is {} at tick {}", simulatedParkingInquiries.size, timeBin)
       // obtaining physical bounds
-      val physicalBounds = powerController.obtainPowerPhysicalBounds(timeBin, Some(loadEstimate))
-      val allConnectedVehicles = chargingNetwork.connectedVehicles ++ rideHailNetwork.connectedVehicles
-      val triggers = allConnectedVehicles.par.flatMap { case (_, chargingVehicle) =>
+      val triggers = chargingNetworkHelper.lookUpPluggedInVehiclesAt(timeBin).par.flatMap { case (_, chargingVehicle) =>
         // Refuel
         handleRefueling(chargingVehicle)
         // Calculate the energy to charge and prepare for next current cycle of charging
@@ -116,7 +113,6 @@ class ChargingNetworkManager(
           chargingVehicle,
           timeBin,
           timeBin + beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds,
-          physicalBounds,
           triggerId
         )
       }
@@ -196,7 +192,6 @@ class ChargingNetworkManager(
 
     case ChargingUnplugRequest(tick, vehicle, triggerId) =>
       log.debug(s"ChargingUnplugRequest received for vehicle $vehicle from plug ${vehicle.stall} at $tick")
-      val bounds = powerController.obtainPowerPhysicalBounds(tick, None)
       val responseHasTriggerId = vehicle.stall match {
         case Some(stall) =>
           chargingNetworkHelper.get(stall.reservedFor.managerId).disconnectVehicle(vehicle.id, tick) match {
@@ -206,7 +201,7 @@ class ChargingNetworkManager(
                 val unplugTime = currentTimeBin(tick)
                 val index = sessions.indexWhere(x => currentTimeBin(x.startTime) == unplugTime && x.startTime <= tick)
                 val (startTime, endTime) = if (index == -1) (unplugTime, tick) else (sessions(index).startTime, tick)
-                dispatchEnergyAndProcessChargingCycle(chargingVehicle, startTime, endTime, bounds, triggerId, true)
+                dispatchEnergyAndProcessChargingCycle(chargingVehicle, startTime, endTime, triggerId, true)
                 handleEndCharging(endTime, chargingVehicle, triggerId)
               }
               chargingNetwork
@@ -245,7 +240,7 @@ class ChargingNetworkManager(
       }
       chargingNetwork.clearAllMappedStations()
       rideHailNetwork.clearAllMappedStations()
-      powerController.close()
+      sitePowerManager.close()
       context.children.foreach(_ ! Finish)
       context.stop(self)
   }
@@ -289,6 +284,17 @@ object ChargingNetworkManager extends LazyLogging {
 
     lazy val allChargingStations: List[ChargingStation] =
       chargingNetwork.chargingStations ++ rideHailNetwork.chargingStations
+
+    private var allConnectedVehicles = chargingNetwork.pluggedInVehicles ++ rideHailNetwork.pluggedInVehicles
+    private var currentTime: Double = -1
+
+    def lookUpPluggedInVehiclesAt(time: Double): Map[Id[BeamVehicle], ChargingVehicle] = {
+      if (currentTime < time) {
+        allConnectedVehicles = chargingNetwork.pluggedInVehicles ++ rideHailNetwork.pluggedInVehicles
+        currentTime = time
+      }
+      allConnectedVehicles
+    }
 
     /**
       * @param managerId vehicle manager id
