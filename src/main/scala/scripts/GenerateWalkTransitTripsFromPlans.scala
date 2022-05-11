@@ -423,12 +423,14 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
 
       val pathToOutputCSV = {
         val pathParts: Array[String] = args(2).split(".csv")
-        val transitVehicleTypeVOTMultipliers =
+        val transitVehicleTypeVOTMultipliers = {
           beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.transitVehicleTypeVOTMultipliers match {
             case Some(votMults) => "." + votMults.map(_.replaceAll("\\s", "")).mkString("-")
             case None           => ""
           }
-        s"${pathParts(0)}$transitVehicleTypeVOTMultipliers.csv.gz"
+        }
+        val transfer = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transfer
+        s"${pathParts(0)}$transitVehicleTypeVOTMultipliers.T$transfer.csv.gz"
       }
       println(s"Path to output: $pathToOutputCSV")
 
