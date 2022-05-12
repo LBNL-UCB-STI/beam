@@ -20,11 +20,10 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
-abstract class InfrastructureFunctions[GEO: GeoLevel](
-  geoQuadTree: QuadTree[GEO],
-  idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
-  geoToTAZ: GEO => TAZ,
-  parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
+abstract class InfrastructureFunctions(
+  geoQuadTree: QuadTree[TAZ],
+  idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+  parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
@@ -36,7 +35,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
   seed: Int
 ) extends StrictLogging {
 
-  protected val zoneCollections: Map[Id[GEO], ParkingZoneCollection[GEO]] =
+  val zoneCollections: Map[Id[TAZ], ParkingZoneCollection] =
     ParkingZoneSearch.createZoneCollections(parkingZones.values.toSeq)
 
   protected val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation]
@@ -48,7 +47,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     * @return
     */
   protected def setupMNLParameters(
-    parkingAlternative: ParkingAlternative[GEO],
+    parkingAlternative: ParkingAlternative,
     inquiry: ParkingInquiry
   ): Map[ParkingMNL.Parameters, Double]
 
@@ -58,28 +57,28 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     * @param inquiry ParkingInquiry
     * @return
     */
-  protected def setupSearchFilterPredicates(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean
+  protected def setupSearchFilterPredicates(zone: ParkingZone, inquiry: ParkingInquiry): Boolean
 
   /**
     * Generic method that specifies the behavior when MNL returns a ParkingZoneSearchResult
-    * @param parkingZoneSearchResult ParkingZoneSearchResult[GEO]
+    * @param parkingZoneSearchResult ParkingZoneSearchResult
     */
   protected def processParkingZoneSearchResult(
     inquiry: ParkingInquiry,
-    parkingZoneSearchResult: Option[ParkingZoneSearchResult[GEO]]
-  ): Option[ParkingZoneSearchResult[GEO]]
+    parkingZoneSearchResult: Option[ParkingZoneSearchResult]
+  ): Option[ParkingZoneSearchResult]
 
   /**
     * sample location of a parking stall
     * @param inquiry ParkingInquiry
-    * @param parkingZone ParkingZone[GEO]
-    * @param geoArea GEO
+    * @param parkingZone ParkingZone
+    * @param taz TAZ
     * @return
     */
   protected def sampleParkingStallLocation(
     inquiry: ParkingInquiry,
-    parkingZone: ParkingZone[GEO],
-    geoArea: GEO,
+    parkingZone: ParkingZone,
+    taz: TAZ,
     inClosestZone: Boolean = false
   ): Coord
 
@@ -87,9 +86,9 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
 
   import InfrastructureFunctions._
 
-  val DefaultParkingZone: ParkingZone[GEO] =
+  val DefaultParkingZone: ParkingZone =
     ParkingZone.defaultInit(
-      GeoLevel[GEO].defaultGeoId,
+      TAZ.DefaultTAZId,
       ParkingType.Public,
       UbiqiutousParkingAvailability
     )
@@ -106,7 +105,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
       minNumberOfSameTypeZones
     )
 
-  def searchForParkingStall(inquiry: ParkingInquiry): Option[ParkingZoneSearch.ParkingZoneSearchResult[GEO]] = {
+  def searchForParkingStall(inquiry: ParkingInquiry): Option[ParkingZoneSearch.ParkingZoneSearchResult] = {
     // ---------------------------------------------------------------------------------------------
     // a ParkingZoneSearch takes the following as parameters
     //
@@ -121,7 +120,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     //     based on this.
     // ---------------------------------------------------------------------------------------------
 
-    val parkingZoneSearchParams: ParkingZoneSearchParams[GEO] =
+    val parkingZoneSearchParams: ParkingZoneSearchParams =
       ParkingZoneSearchParams(
         inquiry.destinationUtm.loc,
         inquiry.parkingDuration,
@@ -142,36 +141,36 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
       )
 
     val closestZoneId = closestZone match {
-      case Some(foundZone) => GeoLevel[GEO].getId(foundZone)
-      case _               => GeoLevel[GEO].emergencyGeoId
+      case Some(foundZone) => foundZone.tazId
+      case _               => TAZ.EmergencyTAZId
     }
 
     // filters out ParkingZones which do not apply to this agent
     // TODO: check for conflicts between variables here - is it always false?
-    val parkingZoneFilterFunction: ParkingZone[GEO] => Boolean =
-      (zone: ParkingZone[GEO]) => {
+    val parkingZoneFilterFunction: ParkingZone => Boolean =
+      (zone: ParkingZone) => {
         val searchFilterPredicates = setupSearchFilterPredicates(zone, inquiry)
         searchFilterPredicates
       }
 
     // generates a coordinate for an embodied ParkingStall from a ParkingZone
-    val parkingZoneLocSamplingFunction: ParkingZone[GEO] => Coord =
-      (zone: ParkingZone[GEO]) => {
-        idToGeoMapping.get(zone.geoId) match {
+    val parkingZoneLocSamplingFunction: ParkingZone => Coord =
+      (zone: ParkingZone) => {
+        idToGeoMapping.get(zone.tazId) match {
           case None =>
             logger.error(
-              s"somehow have a ParkingZone with geoId ${zone.geoId} which is not found in the idToGeoMapping"
+              s"somehow have a ParkingZone with tazId ${zone.tazId} which is not found in the idToGeoMapping"
             )
             new Coord()
           case Some(taz) =>
-            val inClosestZone = closestZoneId == zone.geoId
+            val inClosestZone = closestZoneId == zone.tazId
             sampleParkingStallLocation(inquiry, zone, taz, inClosestZone)
         }
       }
 
     // adds multinomial logit parameters to a ParkingAlternative
-    val parkingZoneMNLParamsFunction: ParkingAlternative[GEO] => Map[ParkingMNL.Parameters, Double] =
-      (parkingAlternative: ParkingAlternative[GEO]) => {
+    val parkingZoneMNLParamsFunction: ParkingAlternative => Map[ParkingMNL.Parameters, Double] =
+      (parkingAlternative: ParkingAlternative) => {
         val params = setupMNLParameters(parkingAlternative, inquiry)
         if (inquiry.parkingActivityType == ParkingActivityType.Home) {
           logger.debug(
@@ -195,8 +194,7 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
         parkingZoneSearchParams,
         parkingZoneFilterFunction,
         parkingZoneLocSamplingFunction,
-        parkingZoneMNLParamsFunction,
-        geoToTAZ
+        parkingZoneMNLParamsFunction
       )
     )
 
@@ -225,15 +223,15 @@ abstract class InfrastructureFunctions[GEO: GeoLevel](
     result
   }
 
-  def claimStall(parkingZone: ParkingZone[GEO]): Boolean = {
+  def claimStall(parkingZone: ParkingZone): Boolean = {
     val result = ParkingZone.claimStall(parkingZone)
-    zoneCollections.get(parkingZone.geoId).foreach(_.claimZone(parkingZone))
+    zoneCollections.get(parkingZone.tazId).foreach(_.claimZone(parkingZone))
     result
   }
 
-  def releaseStall(parkingZone: ParkingZone[GEO]): Boolean = {
+  def releaseStall(parkingZone: ParkingZone): Boolean = {
     val result = ParkingZone.releaseStall(parkingZone)
-    zoneCollections.get(parkingZone.geoId).foreach(_.releaseZone(parkingZone))
+    zoneCollections.get(parkingZone.tazId).foreach(_.releaseZone(parkingZone))
     result
   }
 

@@ -6,11 +6,10 @@ import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
-abstract class ParkingNetwork[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
-    extends LazyLogging {
+abstract class ParkingNetwork(parkingZones: Map[Id[ParkingZoneId], ParkingZone]) extends LazyLogging {
 
   // Generic
-  protected val searchFunctions: Option[InfrastructureFunctions[GEO]]
+  protected val searchFunctions: Option[InfrastructureFunctions]
 
   // Core
   protected var totalStallsInUse: Long = 0L
