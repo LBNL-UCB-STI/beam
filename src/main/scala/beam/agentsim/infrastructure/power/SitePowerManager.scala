@@ -1,19 +1,19 @@
 package beam.agentsim.infrastructure.power
 
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
-import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingVehicle}
+import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingVehicle}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingType
 import beam.agentsim.infrastructure.power.PowerManager._
-import beam.cosim.helics.BeamHelicsInterface.{BeamFederate, getFederate, unloadHelics}
+import beam.cosim.helics.BeamHelicsInterface.{BeamFederate, getFederate}
 import beam.router.skim.event
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.mutable
-import scala.util.control.NonFatal
 import scala.util.{Failure, Try}
 
 class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamServices: BeamServices) extends LazyLogging {
@@ -24,7 +24,8 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   private val timeStep = cnmConfig.timeStepInSeconds
   private var currentBin = -1
   protected val powerController = new PowerManager(chargingNetworkHelper, beamServices.beamConfig)
-  protected var physicalBounds = Map.empty[ChargingStation, PhysicalBounds]
+  protected var physicalBounds = Map.empty[ChargingStation, PowerInKW]
+  protected var chargingCommands = Map.empty[Id[BeamVehicle], PowerInKW]
 
   private[power] lazy val beamFederateList: List[BeamFederate] = spmcConfigMaybe match {
     case Some(spmcConfig) if spmcConfig.connect =>
@@ -39,6 +40,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
             spmcConfig.timeDeltaProperty,
             spmcConfig.intLogLevel,
             spmcConfig.bufferSize,
+            beamServices.beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds,
             spmcConfig.federatesPublication match {
               case s: String if s.nonEmpty => Some(s)
               case _                       => None
@@ -103,25 +105,22 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     * @param physicalBounds physical bounds under which the dispatch occur
     * @return
     */
-  def dispatchEnergy(timeInterval: Int, chargingVehicle: ChargingVehicle): (ChargingDurationInSec, EnergyInJoules, EnergyInJoules) = {
+  def dispatchEnergy(cycleStartTime: Int, cycleEndTime: Int, maxCycleDuration: Int, chargingVehicle: ChargingVehicle): ChargingCycle = {
     val ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _, _) = chargingVehicle
-    // dispatch
-    val maxZoneLoad = physicalBounds(station).powerLimitUpper
-    val maxUnlimitedZoneLoad = powerController.unlimitedPhysicalBounds(station).powerLimitUpper
-    val chargingLoad = Math.min(
-      ChargingPointType.getChargingPointInstalledPowerInKw(station.zone.chargingPointType.get),
-      chargingVehicle.chargingCapacityInKw
-    )
-    val chargingPowerLimit = maxZoneLoad * chargingLoad / maxUnlimitedZoneLoad
+    val unconstrainedPower = Math.min(station.maxPlugPower, chargingVehicle.chargingCapacityInKw)
+    val constrainedPower = chargingCommands.getOrElse(vehicle.id, {
+      Math.min(unconstrainedPower, physicalBounds.get(station).map(_/station.numPlugs).getOrElse(unconstrainedPower))
+    })
+    val duration = Math.max(0, cycleEndTime - cycleStartTime)
     val (chargingDuration, energyToCharge) = vehicle.refuelingSessionDurationAndEnergyInJoules(
-      sessionDurationLimit = Some(timeInterval),
+      sessionDurationLimit = Some(duration),
       stateOfChargeLimit = None,
-      chargingPowerLimit = Some(chargingPowerLimit)
+      chargingPowerLimit = Some(constrainedPower)
     )
     val (_, energyToChargeIfUnconstrained) = vehicle.refuelingSessionDurationAndEnergyInJoules(
-      sessionDurationLimit = Some(timeInterval),
+      sessionDurationLimit = Some(duration),
       stateOfChargeLimit = None,
-      chargingPowerLimit = None
+      chargingPowerLimit = Some(unconstrainedPower)
     )
     if ((chargingDuration > 0 && energyToCharge == 0) || chargingDuration == 0 && energyToCharge > 0) {
       logger.debug(
@@ -129,7 +128,8 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
         s"Something is broken or due to physical bounds!!"
       )
     }
-    (chargingDuration, energyToCharge, energyToChargeIfUnconstrained)
+    val theActualEndTime = cycleStartTime + chargingDuration
+    ChargingCycle(cycleStartTime, theActualEndTime, constrainedPower, energyToCharge, energyToChargeIfUnconstrained, maxCycleDuration)
   }
 
   /**
@@ -167,18 +167,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
 
   def close(): Unit = {
     powerController.close()
-    logger.debug("Release PowerController resources...")
-    beamFederateOption
-      .fold(logger.debug("Not connected to grid, just releasing helics resources")) { beamFederate =>
-        beamFederate.close()
-        try {
-          logger.debug("Destroying BeamFederate")
-          unloadHelics()
-        } catch {
-          case NonFatal(ex) =>
-            logger.error(s"Cannot destroy BeamFederate: ${ex.getMessage}")
-        }
-      }
+    beamFederateOption.fold(logger.debug("Not connected to SPMC, just releasing helics resources"))(_.close())
   }
 }
 

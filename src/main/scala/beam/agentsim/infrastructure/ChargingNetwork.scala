@@ -7,6 +7,7 @@ import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking._
+import beam.agentsim.infrastructure.power.PowerManager.PowerInKW
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.Skims
 import beam.sim.BeamServices
@@ -262,8 +263,11 @@ object ChargingNetwork extends LazyLogging {
 
   final case class ChargingStation(zone: ParkingZone[_]) {
     import ChargingStatus._
-    private val chargingVehiclesInternal = mutable.HashMap.empty[Id[BeamVehicle], ChargingVehicle]
 
+    val maxPlugPower: PowerInKW =
+      ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType.get)
+    val numPlugs: Int = zone.maxStalls
+    private val chargingVehiclesInternal = mutable.HashMap.empty[Id[BeamVehicle], ChargingVehicle]
     private val vehiclesInGracePeriodAfterCharging = mutable.HashMap.empty[Id[BeamVehicle], ChargingVehicle]
 
     private var waitingLineInternal: mutable.PriorityQueue[ChargingVehicle] =
@@ -378,6 +382,7 @@ object ChargingNetwork extends LazyLogging {
   final case class ChargingCycle(
     startTime: Int,
     endTime: Int,
+    powerInKW: Double,
     energyToCharge: Double,
     energyToChargeIfUnconstrained: Double,
     maxDuration: Int
@@ -435,10 +440,10 @@ object ChargingNetwork extends LazyLogging {
       */
     def refuel: Option[ChargingCycle] = {
       chargingSessions.lastOption match {
-        case Some(cycle @ ChargingCycle(_, _, energy, _, _)) if !cycle.refueled =>
+        case Some(cycle @ ChargingCycle(_, _, power, energy, _, _)) if !cycle.refueled =>
           vehicle.addFuel(energy)
           cycle.refueled = true
-          logger.debug(s"Charging vehicle $vehicle. Provided energy of = $energy J")
+          logger.debug(s"Charging vehicle $vehicle. Power $power kW. Provided energy of = $energy J")
           Some(cycle)
         case _ => None
       }
@@ -462,24 +467,15 @@ object ChargingNetwork extends LazyLogging {
 
     /**
       * adding a new charging cycle to the charging session
-      * @param startTime start time of the charging cycle
-      * @param energy energy delivered
-      * @param endTime endTime of charging
       * @return boolean value expressing if the charging cycle has been added
       */
-    def processCycle(
-      startTime: Int,
-      endTime: Int,
-      energy: Double,
-      energyToChargeIfUnconstrained: Double,
-      maxDuration: Int
-    ): Option[ChargingCycle] = {
+    def processCycle(newCycle: ChargingCycle): Option[ChargingCycle] = {
       val addNewChargingCycle = chargingSessions.lastOption match {
         case None =>
           // first charging cycle
           true
         case Some(cycle)
-            if startTime >= cycle.endTime && chargingStatus.last.status == PluggedIn || (chargingStatus.last.status == PluggedOut && chargingStatus.last.time >= endTime) =>
+            if newCycle.startTime >= cycle.endTime && chargingStatus.last.status == PluggedIn || (chargingStatus.last.status == PluggedOut && chargingStatus.last.time >= newCycle.endTime) =>
           // either a new cycle or an unplug cycle arriving in the middle of the current cycle
           true
         // other cases where an unnecessary charging session happens when a vehicle is already charged or unplugged
@@ -490,17 +486,16 @@ object ChargingNetwork extends LazyLogging {
             vehicle.id,
             stall,
             chargingSessions.lastOption.map(_.endTime).getOrElse(-1),
-            endTime
+            newCycle.endTime
           )
           logger.debug(
             "Or the unplug request event for Vehicle {} arrived after it finished charging at time {}",
             vehicle.id,
-            endTime
+            newCycle.endTime
           )
           false
       }
       if (addNewChargingCycle) {
-        val newCycle = ChargingCycle(startTime, endTime, energy, energyToChargeIfUnconstrained, maxDuration)
         chargingSessions.append(newCycle)
         Some(newCycle)
       } else None

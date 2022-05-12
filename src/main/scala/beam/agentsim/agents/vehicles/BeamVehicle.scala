@@ -322,6 +322,8 @@ class BeamVehicle(
   ): (Int, Double) = {
     parkingStall match {
       case Some(theStall) =>
+        val chargingCapacityMaybe =
+          beamVehicleType.chargingCapability.map(ChargingPointType.getChargingPointInstalledPowerInKw)
         theStall.chargingPointType match {
           case Some(chargingPoint) =>
             ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
@@ -332,7 +334,7 @@ class BeamVehicle(
               1e6,
               sessionDurationLimit,
               stateOfChargeLimit,
-              chargingPowerLimit
+              chargingPowerLimit.map(p => Math.min(p, chargingCapacityMaybe.getOrElse(p)))
             )
           case None =>
             (0, 0.0)

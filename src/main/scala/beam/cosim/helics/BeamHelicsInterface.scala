@@ -6,9 +6,11 @@ import com.github.beam.HelicsLoader
 import com.java.helics._
 import com.java.helics.helicsJNI._
 import com.typesafe.scalalogging.StrictLogging
+import org.matsim.api.core.v01.Id
 import spray.json.DefaultJsonProtocol.{listFormat, mapFormat, JsValueFormat, StringJsonFormat}
 import spray.json.{JsNumber, JsString, JsValue, _}
-import org.matsim.api.core.v01.Id
+
+import scala.util.control.NonFatal
 
 object BeamHelicsInterface {
   // Lazy makes sure that it is initialized only once
@@ -34,6 +36,7 @@ object BeamHelicsInterface {
     timeDeltaProperty: Double,
     intLogLevel: Int,
     bufferSize: Int,
+    simulationStep: Int,
     dataOutStreamPointMaybe: Option[String] = None,
     dataInStreamPointMaybe: Option[String] = None
   ): BeamFederate = {
@@ -45,6 +48,7 @@ object BeamHelicsInterface {
       timeDeltaProperty,
       intLogLevel,
       bufferSize,
+      simulationStep,
       dataOutStreamPointMaybe,
       dataInStreamPointMaybe
     )
@@ -69,6 +73,7 @@ object BeamHelicsInterface {
     timeDeltaProperty: Double,
     intLogLevel: Int,
     bufferSize: Int,
+    simulationStep: Int,
     dataOutStreamPointMaybe: Option[String] = None,
     dataInStreamPointMaybe: Option[String] = None
   ): BeamBroker = {
@@ -82,6 +87,7 @@ object BeamHelicsInterface {
       timeDeltaProperty,
       intLogLevel,
       bufferSize,
+      simulationStep,
       dataOutStreamPointMaybe,
       dataInStreamPointMaybe
     )
@@ -142,11 +148,13 @@ object BeamHelicsInterface {
     timeDeltaProperty: Double,
     intLogLevel: Int,
     bufferSize: Int,
+    simulationStep: Int,
     dataOutStreamPointMaybe: Option[String] = None,
     dataInStreamPointMaybe: Option[String] = None
   ) extends StrictLogging {
     private var dataOutStreamHandle: Option[SWIGTYPE_p_void] = None
     private var dataInStreamHandle: Option[SWIGTYPE_p_void] = None
+    private var currentBin = -1
 
     // **************************
     val fedInfo: SWIGTYPE_p_void = helics.helicsCreateFederateInfo()
@@ -170,6 +178,25 @@ object BeamHelicsInterface {
     helics.helicsFederateEnterExecutingMode(fedComb)
     logger.debug(s"Federate successfully entered the Executing Mode")
     // **************************
+
+    def cosimulate(tick: Int, msgToPublish: Iterable[Map[String, Any]]): List[Map[String, Any]] = {
+      var msgReceived = List.empty[Map[String, Any]]
+      if (currentBin < tick / simulationStep) {
+        currentBin = tick / simulationStep
+        logger.debug(s"Publishing message to the ${dataOutStreamPointMaybe.getOrElse("NA")} at time $currentBin")
+        publishJSON(msgToPublish.toList)
+        while (msgReceived.isEmpty) {
+          // SYNC
+          sync(currentBin)
+          // COLLECT
+          msgReceived = collectJSON()
+          // Sleep
+          Thread.sleep(1)
+        }
+        logger.debug(s"Message received from ${dataInStreamPointMaybe.getOrElse("NA")}: $msgReceived")
+      }
+      msgReceived
+    }
 
     /**
       * Convert a list of Key Value Map into an array of JSON documents, then stringifies it before publishing via HELICS
@@ -288,6 +315,13 @@ object BeamHelicsInterface {
       } else {
         logger.error(s"helics federate is not valid!")
       }
+      try {
+        logger.debug("Destroying BeamFederate")
+        unloadHelics()
+      } catch {
+        case NonFatal(ex) =>
+          logger.error(s"Cannot destroy BeamFederate: ${ex.getMessage}")
+      }
     }
   }
 
@@ -300,6 +334,7 @@ object BeamHelicsInterface {
     timeDeltaProperty: Double,
     intLogLevel: Int,
     bufferSize: Int,
+    simulationStep: Int,
     dataOutStreamPointMaybe: Option[String] = None,
     dataInStreamPointMaybe: Option[String] = None
   ) extends StrictLogging {
@@ -315,6 +350,7 @@ object BeamHelicsInterface {
           timeDeltaProperty,
           intLogLevel,
           bufferSize,
+          simulationStep,
           dataOutStreamPointMaybe,
           dataInStreamPointMaybe
         )
