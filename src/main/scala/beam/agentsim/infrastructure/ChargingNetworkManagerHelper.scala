@@ -145,7 +145,9 @@ trait ChargingNetworkManagerHelper extends {
   ): Option[ChargingVehicle] = {
     val result = chargingVehicle.chargingStatus.last.status match {
       case PluggedIn =>
-        chargingVehicle.chargingStation.endCharging(chargingVehicle.vehicle.id, tick) orElse {
+        chargingNetworkHelper
+          .get(chargingVehicle.stall.reservedFor.managerId)
+          .endChargingSession(chargingVehicle.vehicle.id, tick) orElse {
           log.debug(s"Vehicle ${chargingVehicle.vehicle.id} has already ended charging")
           None
         }

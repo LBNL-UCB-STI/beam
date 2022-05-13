@@ -7,7 +7,7 @@ import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingType
 import beam.agentsim.infrastructure.power.PowerManager._
-import beam.cosim.helics.BeamHelicsInterface.{BeamFederate, getFederate}
+import beam.cosim.helics.BeamHelicsInterface.{getFederate, BeamFederate}
 import beam.router.skim.event
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
@@ -27,66 +27,81 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   protected var physicalBounds = Map.empty[ChargingStation, PowerInKW]
   protected var chargingCommands = Map.empty[Id[BeamVehicle], PowerInKW]
 
-  private[power] lazy val beamFederateList: List[BeamFederate] = spmcConfigMaybe match {
+  private[power] lazy val beamFederateMap: List[(Id[_], List[ChargingStation], BeamFederate)] = spmcConfigMaybe match {
     case Some(spmcConfig) if spmcConfig.connect =>
       logger.warn("ChargingNetworkManager should connect to a site power controller via Helics...")
       Try {
         logger.info("Init SitePowerManager Federates...")
-        chargingNetworkHelper.allChargingStations.par.map { station =>
-          getFederate(
-            spmcConfig.federatesPrefix + station.zone.sitePowerManagerId.toString,
-            spmcConfig.coreType,
-            spmcConfig.coreInitString,
-            spmcConfig.timeDeltaProperty,
-            spmcConfig.intLogLevel,
-            spmcConfig.bufferSize,
-            beamServices.beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds,
-            spmcConfig.federatesPublication match {
-              case s: String if s.nonEmpty => Some(s)
-              case _                       => None
-            },
-            (
-              spmcConfig.spmcFederatesPrefix + station.zone.sitePowerManagerId.toString,
-              spmcConfig.spmcSubscription,
-              spmcConfig.expectFeedback
-            ) match {
-              case (s1: String, s2: String, feedback: Boolean) if s1.nonEmpty && s2.nonEmpty && feedback =>
-                Some(s1 + "/" + s2)
-              case _ => None
-            }
-          )
-        }.toList
+        chargingNetworkHelper.allChargingStations
+          .groupBy(_.zone.geoId)
+          .par
+          .map { case (zoneId, stations) =>
+            val federate = getFederate(
+              spmcConfig.federatesPrefix + zoneId.toString,
+              spmcConfig.coreType,
+              spmcConfig.coreInitString,
+              spmcConfig.timeDeltaProperty,
+              spmcConfig.intLogLevel,
+              spmcConfig.bufferSize,
+              beamServices.beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds,
+              spmcConfig.federatesPublication match {
+                case s: String if s.nonEmpty => Some(s)
+                case _                       => None
+              },
+              (
+                spmcConfig.spmcFederatesPrefix + zoneId.toString,
+                spmcConfig.spmcSubscription,
+                spmcConfig.expectFeedback
+              ) match {
+                case (s1: String, s2: String, feedback: Boolean) if s1.nonEmpty && s2.nonEmpty && feedback =>
+                  Some(s1 + "/" + s2)
+                case _ => None
+              }
+            )
+            (zoneId, stations, federate)
+          }
+          .seq
       }.recoverWith { case e =>
-        logger.warn("Cannot init BeamFederate: {}. ChargingNetworkManager is not connected to the grid", e.getMessage)
+        logger.warn(
+          s"Cannot initialize BeamFederate: ${e.getMessage}. " +
+          "ChargingNetworkManager is not connected to the SPMC"
+        )
         Failure(e)
-      }.get
-    case _ => List.empty
-  }
-
-  def updateChargingProfiles(timeBin: Int) = {
-
+      }.map(_.toList)
+        .getOrElse(List.empty[(Id[_], List[ChargingStation], BeamFederate)])
+    case _ => List.empty[(Id[_], List[ChargingStation], BeamFederate)]
   }
 
   /**
     * Get required power for electrical vehicles
     *
-    * @param tick current time
     * @return power (in Kilo Watt) over planning horizon
     */
   def requiredPowerInKWOverNextPlanningHorizon(timeBin: Int): Map[ChargingStation, PowerInKW] = {
-    val plans = if (beamFederateList.isEmpty) {
+    val plans = if (beamFederateMap.isEmpty) {
 
       chargingNetworkHelper.allChargingStations.par
         .map(station => station -> temporaryLoadEstimate.getOrElse(station, 0.0))
         .seq
         .toMap
     } else {
-      beamFederateList.par.map {
-        case beamFederate if currentBin < currentTime / timeStep =>
-          chargingNetworkHelper.
-          chargingNetworkHelper.allChargingStations.par.map(_.)
-        case _ =>
-
+      beamFederateMap.par.map { case (zoneId, stations, federate) =>
+//        chargingNetworkHelper
+//          .get(chargingVehicle.stall.reservedFor.managerId)
+        stations.flatMap(_.pluggedInVehicles.values).map { chargingVehicle =>
+          // Sending this message
+          Map(
+            "type"                     -> "departure",
+            "vehicleId"                -> station.zone.reservedFor,
+            "vehicleType"              -> powerInKW,
+            "primaryFuelLevelInJoules" -> station.zone.parkingZoneId,
+            "departureTime"            -> powerInKW,
+            "departureTime"            -> powerInKW,
+            "departureTime"            -> powerInKW,
+            "departureTime"            -> powerInKW
+          )
+        }
+        federate.cosimulate(timeBin, Iterable.empty[Map[String, Any]]).flatMap { message => }.toMap
       }
     }
 
@@ -105,12 +120,22 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     * @param physicalBounds physical bounds under which the dispatch occur
     * @return
     */
-  def dispatchEnergy(cycleStartTime: Int, cycleEndTime: Int, maxCycleDuration: Int, chargingVehicle: ChargingVehicle): ChargingCycle = {
+  def dispatchEnergy(
+    cycleStartTime: Int,
+    cycleEndTime: Int,
+    maxCycleDuration: Int,
+    chargingVehicle: ChargingVehicle
+  ): ChargingCycle = {
     val ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _, _) = chargingVehicle
     val unconstrainedPower = Math.min(station.maxPlugPower, chargingVehicle.chargingCapacityInKw)
-    val constrainedPower = chargingCommands.getOrElse(vehicle.id, {
-      Math.min(unconstrainedPower, physicalBounds.get(station).map(_/station.numPlugs).getOrElse(unconstrainedPower))
-    })
+    val constrainedPower = chargingCommands.getOrElse(
+      vehicle.id, {
+        Math.min(
+          unconstrainedPower,
+          physicalBounds.get(station).map(_ / station.numPlugs).getOrElse(unconstrainedPower)
+        )
+      }
+    )
     val duration = Math.max(0, cycleEndTime - cycleStartTime)
     val (chargingDuration, energyToCharge) = vehicle.refuelingSessionDurationAndEnergyInJoules(
       sessionDurationLimit = Some(duration),
@@ -129,7 +154,14 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
       )
     }
     val theActualEndTime = cycleStartTime + chargingDuration
-    ChargingCycle(cycleStartTime, theActualEndTime, constrainedPower, energyToCharge, energyToChargeIfUnconstrained, maxCycleDuration)
+    ChargingCycle(
+      cycleStartTime,
+      theActualEndTime,
+      constrainedPower,
+      energyToCharge,
+      energyToChargeIfUnconstrained,
+      maxCycleDuration
+    )
   }
 
   /**
@@ -164,10 +196,9 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     )
   }
 
-
   def close(): Unit = {
     powerController.close()
-    beamFederateOption.fold(logger.debug("Not connected to SPMC, just releasing helics resources"))(_.close())
+    beamFederateMap.foreach(_.close())
   }
 }
 

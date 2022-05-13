@@ -273,15 +273,17 @@ object ChargingNetwork extends LazyLogging {
     private var waitingLineInternal: mutable.PriorityQueue[ChargingVehicle] =
       mutable.PriorityQueue.empty[ChargingVehicle](Ordering.by((_: ChargingVehicle).arrivalTime).reverse)
 
-    private[ChargingNetwork] def numAvailableChargers: Int =
+    private[infrastructure] def numAvailableChargers: Int =
       zone.maxStalls - howManyVehiclesAreCharging - howManyVehiclesAreInGracePeriodAfterCharging
 
-    private[ChargingNetwork] def pluggedInVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
+    private[infrastructure] def pluggedInVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
       chargingVehiclesInternal.toMap
 
-    def howManyVehiclesAreWaiting: Int = waitingLineInternal.size
-    def howManyVehiclesAreCharging: Int = chargingVehiclesInternal.size
-    def howManyVehiclesAreInGracePeriodAfterCharging: Int = vehiclesInGracePeriodAfterCharging.size
+    private[infrastructure] def howManyVehiclesAreWaiting: Int = waitingLineInternal.size
+    private[infrastructure] def howManyVehiclesAreCharging: Int = chargingVehiclesInternal.size
+
+    private[infrastructure] def howManyVehiclesAreInGracePeriodAfterCharging: Int =
+      vehiclesInGracePeriodAfterCharging.size
 
     private[ChargingNetwork] def waitingLineVehiclesMap: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] =
       waitingLineInternal.map(x => x.vehicle.id -> x).toMap
@@ -333,7 +335,7 @@ object ChargingNetwork extends LazyLogging {
       * @param vehicleId vehicle to disconnect
       * @return status of connection
       */
-    private[infrastructure] def endCharging(vehicleId: Id[BeamVehicle], tick: Int): Option[ChargingVehicle] =
+    private[ChargingNetwork] def endCharging(vehicleId: Id[BeamVehicle], tick: Int): Option[ChargingVehicle] =
       this.synchronized {
         chargingVehiclesInternal.remove(vehicleId).map { v =>
           vehiclesInGracePeriodAfterCharging.put(vehicleId, v)
