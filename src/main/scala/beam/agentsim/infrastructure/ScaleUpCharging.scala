@@ -85,7 +85,7 @@ trait ScaleUpCharging extends {
       log.debug(s"Received parking response: $t")
       self ! ChargingUnplugRequest(tick, beamVehicle, triggerId)
       virtualParkingInquiries.remove(requestId)
-    case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
+    case response @ ParkingInquiryResponse(stall, requestId, triggerId, _) =>
       log.debug(s"Received parking response: $response")
       virtualParkingInquiries.get(requestId) match {
         case Some(parkingInquiry) if stall.chargingPointType.isDefined =>

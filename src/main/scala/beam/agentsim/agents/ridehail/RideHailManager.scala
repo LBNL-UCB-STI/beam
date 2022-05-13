@@ -768,7 +768,7 @@ class RideHailManager(
         continueProcessingTimeoutIfReady(triggerId)
       }
 
-    case ParkingInquiryResponse(stall, requestId, triggerId) =>
+    case ParkingInquiryResponse(stall, requestId, triggerId, _) =>
       val agentLocation = parkingInquiryCache.remove(requestId).get
 
       val routingRequest = RoutingRequest(

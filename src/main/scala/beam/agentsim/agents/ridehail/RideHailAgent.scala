@@ -381,7 +381,7 @@ class RideHailAgent(
   }
 
   when(Offline) {
-    case ev @ Event(ParkingInquiryResponse(stall, _, triggerId), _) =>
+    case ev @ Event(ParkingInquiryResponse(stall, _, triggerId, _), _) =>
       log.debug("state(RideHailAgent.Offline.ParkingInquiryResponse): {}", ev)
       val currentLocationUTM = beamServices.geo.wgs2Utm(currentBeamVehicle.spaceTime.loc)
       vehicle.useParkingStall(stall)
@@ -574,7 +574,7 @@ class RideHailAgent(
       scheduler ! CompletionNotice(triggerId)
       stash()
       stay()
-    case _ @Event(ParkingInquiryResponse(_, _, _), _) =>
+    case _ @Event(ParkingInquiryResponse(_, _, _, _), _) =>
       stash()
       stay()
     case ev @ Event(RoutingResponse(_, _, _, _, _, _, _), _) =>
@@ -878,7 +878,7 @@ class RideHailAgent(
       log.debug(s"state(RideHailingAgent.PassengerScheduleEmpty.UnhandledVehicle): $ev, Vehicle ID: ${vehicle.id}")
       stash()
       stay
-    case ev @ Event(ParkingInquiryResponse(_, _, _), _) =>
+    case ev @ Event(ParkingInquiryResponse(_, _, _, _), _) =>
       log.debug(
         s"state(RideHailingAgent.PassengerScheduleEmpty.ParkingInquiryResponse): $ev, Vehicle ID: ${vehicle.id}"
       )
@@ -931,7 +931,7 @@ class RideHailAgent(
       )
       stash()
       stay
-    case ev @ Event(ParkingInquiryResponse(_, _, _), _) =>
+    case ev @ Event(ParkingInquiryResponse(_, _, _, _), _) =>
       log.debug(
         s"state(RideHailingAgent.PassengerScheduleEmptyInterrupted.ParkingInquiryResponse): $ev, Vehicle ID: ${vehicle.id}"
       )

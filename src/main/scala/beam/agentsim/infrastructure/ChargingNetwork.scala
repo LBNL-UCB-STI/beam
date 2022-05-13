@@ -269,7 +269,7 @@ object ChargingNetwork extends LazyLogging {
     private var waitingLineInternal: mutable.PriorityQueue[ChargingVehicle] =
       mutable.PriorityQueue.empty[ChargingVehicle](Ordering.by((_: ChargingVehicle).arrivalTime).reverse)
 
-    private[ChargingNetwork] def numAvailableChargers: Int =
+    def numAvailableChargers: Int =
       zone.maxStalls - howManyVehiclesAreCharging - howManyVehiclesAreInGracePeriodAfterCharging
 
     private[ChargingNetwork] def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] =

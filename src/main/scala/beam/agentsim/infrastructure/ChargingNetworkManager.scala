@@ -88,7 +88,12 @@ class ChargingNetworkManager(
       chargingNetworkHelper.get(inquiry.reservedFor.managerId).processParkingInquiry(inquiry) match {
         case Some(parkingResponse) =>
           inquiry.beamVehicle foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
-          sender() ! parkingResponse
+          val stall = parkingResponse.stall
+          val chargingStation =
+            chargingNetworkHelper.get(stall.reservedFor.managerId).lookupStation(stall.parkingZoneId)
+          sender() ! chargingStation.fold(parkingResponse) { station =>
+            parkingResponse.copy(numAvailableChargers = Some(station.numAvailableChargers))
+          }
         case _ => (parkingNetworkManager ? inquiry).pipeTo(sender())
       }
 

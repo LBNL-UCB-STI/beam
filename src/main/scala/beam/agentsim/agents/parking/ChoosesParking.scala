@@ -361,10 +361,9 @@ trait ChoosesParking extends {
   }
 
   when(ChoosingParkingSpot) {
-    case Event(ParkingInquiryResponse(stall, _, _), data) =>
+    case Event(ParkingInquiryResponse(stall, _, _, numAvailableChargers), data) =>
       val distanceThresholdToIgnoreWalking =
         beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
-      val chargingPointMaybe = stall.chargingPointType
       val nextLeg =
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
       currentBeamVehicle.setReservedParkingStall(Some(stall))
@@ -379,19 +378,23 @@ trait ChoosesParking extends {
         )
         goto(WaitingToDrive) using data
       } else {
-        val (updatedData, isEnrouting) = data match {
+        val (updatedData, isEnrouting, isStallAvailable) = data match {
           case data: BasePersonData if data.enrouteData.isInEnrouteState =>
             val updatedEnrouteData =
               data.enrouteData.copy(hasReservedFastChargerStall =
-                chargingPointMaybe.exists(ChargingPointType.isFastCharger)
+                stall.chargingPointType.exists(ChargingPointType.isFastCharger)
               )
-            (data.copy(enrouteData = updatedEnrouteData), updatedEnrouteData.isEnrouting)
+            (
+              data.copy(enrouteData = updatedEnrouteData),
+              updatedEnrouteData.isEnrouting,
+              numAvailableChargers.exists(_ > 0)
+            )
           case _ =>
-            (data, false)
+            (data, false, true)
         }
         updatedData match {
-          case data: BasePersonData if data.enrouteData.isInEnrouteState && !isEnrouting =>
-            // continue normal workflow if enroute is not possible
+          case data: BasePersonData if data.enrouteData.isInEnrouteState && (!isEnrouting || !isStallAvailable) =>
+            // continue normal workflow if enroute is not possible or stalls are not available for selected parking
             val (tick, triggerId) = releaseTickAndTriggerId()
             scheduler ! CompletionNotice(
               triggerId,
