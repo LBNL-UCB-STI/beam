@@ -386,7 +386,6 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
     try {
       trips.foreach { case PersonTrip(personId, trip, alternatives, planElementLegIndex) =>
         trip.legs
-          .filter { leg => BeamMode.transitModes.contains(leg.beamLeg.mode) }
           .foreach { leg: EmbodiedBeamLeg =>
             csvWriter.writeRow(
               Seq(personId) ++ embodiedBeamLegToStringSeq(leg) ++ Seq(planElementLegIndex, alternatives.mkString(" : "))
@@ -448,8 +447,6 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
         .toList
         .sorted
         .foreach(println)
-
-      println(s"Done.")
     }
   }
 }
