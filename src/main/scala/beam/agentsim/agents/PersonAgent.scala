@@ -991,7 +991,9 @@ class PersonAgent(
   }
 
   when(EnrouteRefueling) {
-    case Event(StartingRefuelSession(_, _), _) =>
+    case Event(StartingRefuelSession(_, triggerId), _) =>
+      releaseTickAndTriggerId()
+      scheduler ! CompletionNotice(triggerId)
       stay
     case Event(WaitingToCharge(_, _, _), _) =>
       stay
