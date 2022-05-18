@@ -100,8 +100,7 @@ class ChargingNetworkManager(
     case TriggerWithId(PlanEnergyDispatchTrigger(timeBin), triggerId) =>
       val s = System.currentTimeMillis
       log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$timeBin")
-      sitePowerManager.updateChargingProfiles(timeBin)
-      log.debug("Total Load estimated is {} at tick {}", loadEstimate.values.sum, timeBin)
+      sitePowerManager.obtainPowerCommandsAndLimits(timeBin)
       val simulatedParkingInquiries = simulateEventsIfScalingEnabled(timeBin, triggerId)
       log.debug("number of simulatedParkingInquiries is {} at tick {}", simulatedParkingInquiries.size, timeBin)
       // obtaining physical bounds

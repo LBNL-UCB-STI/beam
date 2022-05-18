@@ -21,11 +21,9 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   private val cnmConfig = beamServices.beamConfig.beam.agentsim.chargingNetworkManager
   private val temporaryLoadEstimate = mutable.HashMap.empty[ChargingStation, Double]
   private val spmcConfigMaybe = cnmConfig.sitePowerManagerController
-  private val timeStep = cnmConfig.timeStepInSeconds
-  private var currentBin = -1
   protected val powerController = new PowerManager(chargingNetworkHelper, beamServices.beamConfig)
-  protected var physicalBounds = Map.empty[ChargingStation, PowerInKW]
-  protected var chargingCommands = Map.empty[Id[BeamVehicle], PowerInKW]
+  protected var powerLimits = Map.empty[ChargingStation, PowerInKW]
+  protected var powerCommands = Map.empty[Id[BeamVehicle], PowerInKW]
 
   private[power] lazy val beamFederateMap: List[(Id[_], List[ChargingStation], BeamFederate)] = spmcConfigMaybe match {
     case Some(spmcConfig) if spmcConfig.connect =>
@@ -73,46 +71,56 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   }
 
   /**
-    * Get required power for electrical vehicles
-    *
-    * @return power (in Kilo Watt) over planning horizon
+    * @param timeBin
     */
-  def requiredPowerInKWOverNextPlanningHorizon(timeBin: Int): Map[ChargingStation, PowerInKW] = {
-    val plans = if (beamFederateMap.isEmpty) {
-
-      chargingNetworkHelper.allChargingStations.par
-        .map(station => station -> temporaryLoadEstimate.getOrElse(station, 0.0))
-        .seq
-        .toMap
-    } else {
-      beamFederateMap.par.map { case (zoneId, stations, federate) =>
-//        chargingNetworkHelper
-//          .get(chargingVehicle.stall.reservedFor.managerId)
-        stations.flatMap(_.pluggedInVehicles.values).map { chargingVehicle =>
-          // Sending this message
-          Map(
-            "type"                     -> "departure",
-            "vehicleId"                -> station.zone.reservedFor,
-            "vehicleType"              -> powerInKW,
-            "primaryFuelLevelInJoules" -> station.zone.parkingZoneId,
-            "departureTime"            -> powerInKW,
-            "departureTime"            -> powerInKW,
-            "departureTime"            -> powerInKW,
-            "departureTime"            -> powerInKW
+  def obtainPowerCommandsAndLimits(timeBin: Int): Unit = {
+    powerCommands = beamFederateMap.par
+      .map { case (zoneId, stations, federate) =>
+        federate
+          .cosimulate(
+            timeBin,
+            stations.flatMap(_.pluggedInVehicles.values).map {
+              case ChargingVehicle(vehicle, _, _, _, _, _, _, _, _, _, _) =>
+                // Sending this message
+                Map(
+                  "event"                    -> "departure",
+                  "zoneId"                   -> zoneId,
+                  "siteId"                   -> "",
+                  "vehicleId"                -> vehicle.id,
+                  "vehicleType"              -> vehicle.beamVehicleType.id,
+                  "primaryFuelLevelInJoules" -> vehicle.primaryFuelLevelInJoules,
+                  "arrivalTime"              -> 0.0,
+                  "departureTime"            -> 0.0,
+                  "desiredFuelLevelInJoules" -> 0.0,
+                  "powerInKW"                -> 0.0
+                )
+            }
           )
-        }
-        federate.cosimulate(timeBin, Iterable.empty[Map[String, Any]]).flatMap { message => }.toMap
+          .flatMap { message =>
+            // Receiving this message
+            chargingNetworkHelper
+              .lookUpPluggedInVehiclesAt(timeBin)
+              .get(Id.create(message("vehicleId").asInstanceOf[String], classOf[BeamVehicle])) match {
+              case Some(chargingVehicle) =>
+                Some(chargingVehicle.vehicle.id -> message("powerInKw").asInstanceOf[PowerInKW])
+              case _ =>
+                logger.error(
+                  s"Cannot find vehicle ${message("vehicleId")} obtained from the site power manager controller." +
+                  s"Potentially the vehicle has already disconnected or something is broken"
+                )
+                None
+            }
+          }
+          .toMap
       }
-    }
+      .reduce(_ ++ _)
 
-    physicalBounds = powerController.obtainPowerPhysicalBounds(timeBin, Some(loadEstimate))
-    log.debug("Total Load estimated is {} at tick {}", loadEstimate.values.sum, timeBin)
-    currentBin = timeBin / timeStep
-    temporaryLoadEstimate.clear()
-    if (plans.isEmpty) {
-      logger.error(s"Charging Replan did not produce allocations on tick: [$timeBin]")
-    }
-    plans
+    val loadEstimate = chargingNetworkHelper.allChargingStations.par
+      .map(station => station -> temporaryLoadEstimate.getOrElse(station, 0.0))
+      .seq
+      .toMap
+    logger.debug("Total Load estimated is {} at tick {}", loadEstimate.values.sum, timeBin)
+    powerLimits = this.powerController.obtainPowerPhysicalBounds(timeBin, loadEstimate)
   }
 
   /**
@@ -128,11 +136,11 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   ): ChargingCycle = {
     val ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _, _) = chargingVehicle
     val unconstrainedPower = Math.min(station.maxPlugPower, chargingVehicle.chargingCapacityInKw)
-    val constrainedPower = chargingCommands.getOrElse(
+    val constrainedPower = powerCommands.getOrElse(
       vehicle.id, {
         Math.min(
           unconstrainedPower,
-          physicalBounds.get(station).map(_ / station.numPlugs).getOrElse(unconstrainedPower)
+          powerLimits.get(station).map(_ / station.numPlugs).getOrElse(unconstrainedPower)
         )
       }
     )
@@ -198,7 +206,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
 
   def close(): Unit = {
     powerController.close()
-    beamFederateMap.foreach(_.close())
+    beamFederateMap.foreach { case (_, _, federate) => federate.close() }
   }
 }
 

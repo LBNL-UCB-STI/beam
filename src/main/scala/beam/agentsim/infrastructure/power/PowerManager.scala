@@ -58,13 +58,13 @@ class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: Bea
     */
   def obtainPowerPhysicalBounds(
     currentTime: Int,
-    estimatedLoad: Option[Map[ChargingStation, PowerInKW]] = None
+    estimatedLoad: Map[ChargingStation, PowerInKW]
   ): Map[ChargingStation, PowerInKW] = {
     beamFederateOption
       .map(
         _.cosimulate(
           currentTime,
-          estimatedLoad.get.map { case (station, powerInKW) =>
+          estimatedLoad.map { case (station, powerInKW) =>
             // Sending this message
             Map(
               "reservedFor"   -> station.zone.reservedFor,
