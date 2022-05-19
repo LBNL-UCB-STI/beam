@@ -46,10 +46,12 @@ object BeamConfig {
       h3taz: BeamConfig.Beam.Agentsim.H3taz,
       lastIteration: scala.Int,
       populationAdjustment: java.lang.String,
+      randomSeedForPopulationSampling: scala.Option[scala.Int],
       scenarios: BeamConfig.Beam.Agentsim.Scenarios,
       scheduleMonitorTask: BeamConfig.Beam.Agentsim.ScheduleMonitorTask,
       schedulerParallelismWindow: scala.Int,
       simulationName: java.lang.String,
+      snapLocationAndRemoveInvalidInputs: scala.Boolean,
       taz: BeamConfig.Beam.Agentsim.Taz,
       thresholdForMakingParkingChoiceInMeters: scala.Int,
       thresholdForWalkingInMeters: scala.Int,
@@ -713,7 +715,9 @@ object BeamConfig {
         }
 
         case class Parking(
+          fractionOfSameTypeZones: scala.Double,
           maxSearchRadius: scala.Double,
+          minNumberOfSameTypeZones: scala.Int,
           minSearchRadius: scala.Double,
           mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
           rangeAnxietyBuffer: scala.Double,
@@ -770,7 +774,11 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking = {
             BeamConfig.Beam.Agentsim.Agents.Parking(
+              fractionOfSameTypeZones =
+                if (c.hasPathOrNull("fractionOfSameTypeZones")) c.getDouble("fractionOfSameTypeZones") else 0.5,
               maxSearchRadius = if (c.hasPathOrNull("maxSearchRadius")) c.getDouble("maxSearchRadius") else 8046.72,
+              minNumberOfSameTypeZones =
+                if (c.hasPathOrNull("minNumberOfSameTypeZones")) c.getInt("minNumberOfSameTypeZones") else 10,
               minSearchRadius = if (c.hasPathOrNull("minSearchRadius")) c.getDouble("minSearchRadius") else 250.00,
               mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit(
                 if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
@@ -889,10 +897,7 @@ object BeamConfig {
           pooledBaseCost: scala.Double,
           pooledCostPerMile: scala.Double,
           pooledCostPerMinute: scala.Double,
-          pooledToRegularRideCostRatio: scala.Double,
           rangeBufferForDispatchInMeters: scala.Int,
-          refuelLocationType: java.lang.String,
-          refuelThresholdInMeters: scala.Double,
           repositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager,
           rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.RideHailManager,
           surgePricing: BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing
@@ -1043,16 +1048,13 @@ object BeamConfig {
           object Charging {
 
             case class VehicleChargingManager(
-              defaultVehicleChargingManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager,
-              name: java.lang.String
+              defaultVehicleChargingManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager
             )
 
             object VehicleChargingManager {
 
               case class DefaultVehicleChargingManager(
-                fractionAvailableThresholdToFavorFasterCharging: scala.Double,
-                mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MulitnomialLogit,
-                noChargingThresholdExpirationTimeInS: scala.Int
+                mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MulitnomialLogit
               )
 
               object DefaultVehicleChargingManager {
@@ -1114,20 +1116,12 @@ object BeamConfig {
                 ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager = {
                   BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager
                     .DefaultVehicleChargingManager(
-                      fractionAvailableThresholdToFavorFasterCharging =
-                        if (c.hasPathOrNull("fractionAvailableThresholdToFavorFasterCharging"))
-                          c.getDouble("fractionAvailableThresholdToFavorFasterCharging")
-                        else 1.01,
                       mulitnomialLogit =
                         BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager
                           .MulitnomialLogit(
                             if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
                             else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
-                          ),
-                      noChargingThresholdExpirationTimeInS =
-                        if (c.hasPathOrNull("noChargingThresholdExpirationTimeInS"))
-                          c.getInt("noChargingThresholdExpirationTimeInS")
-                        else 0
+                          )
                     )
                 }
               }
@@ -1142,8 +1136,7 @@ object BeamConfig {
                         if (c.hasPathOrNull("defaultVehicleChargingManager"))
                           c.getConfig("defaultVehicleChargingManager")
                         else com.typesafe.config.ConfigFactory.parseString("defaultVehicleChargingManager{}")
-                      ),
-                  name = if (c.hasPathOrNull("name")) c.getString("name") else "DefaultVehicleChargingManager"
+                      )
                 )
               }
             }
@@ -1160,8 +1153,7 @@ object BeamConfig {
 
           case class Human(
             noRefuelThresholdInMeters: scala.Int,
-            refuelRequiredThresholdInMeters: scala.Int,
-            valueOfTime: scala.Double
+            refuelRequiredThresholdInMeters: scala.Int
           )
 
           object Human {
@@ -1172,8 +1164,7 @@ object BeamConfig {
                   if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 128720,
                 refuelRequiredThresholdInMeters =
                   if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getInt("refuelRequiredThresholdInMeters")
-                  else 32180,
-                valueOfTime = if (c.hasPathOrNull("valueOfTime")) c.getDouble("valueOfTime") else 22.9
+                  else 32180
               )
             }
           }
@@ -1453,16 +1444,9 @@ object BeamConfig {
               pooledCostPerMile = if (c.hasPathOrNull("pooledCostPerMile")) c.getDouble("pooledCostPerMile") else 1.11,
               pooledCostPerMinute =
                 if (c.hasPathOrNull("pooledCostPerMinute")) c.getDouble("pooledCostPerMinute") else 0.07,
-              pooledToRegularRideCostRatio =
-                if (c.hasPathOrNull("pooledToRegularRideCostRatio")) c.getDouble("pooledToRegularRideCostRatio")
-                else 0.6,
               rangeBufferForDispatchInMeters =
                 if (c.hasPathOrNull("rangeBufferForDispatchInMeters")) c.getInt("rangeBufferForDispatchInMeters")
                 else 10000,
-              refuelLocationType =
-                if (c.hasPathOrNull("refuelLocationType")) c.getString("refuelLocationType") else "AtTAZCenter",
-              refuelThresholdInMeters =
-                if (c.hasPathOrNull("refuelThresholdInMeters")) c.getDouble("refuelThresholdInMeters") else 5000.0,
               repositioningManager = BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager(
                 if (c.hasPathOrNull("repositioningManager")) c.getConfig("repositioningManager")
                 else com.typesafe.config.ConfigFactory.parseString("repositioningManager{}")
@@ -2093,7 +2077,6 @@ object BeamConfig {
 
         case class ParkingManager(
           displayPerformanceTimings: scala.Boolean,
-          level: java.lang.String,
           method: java.lang.String,
           parallel: BeamConfig.Beam.Agentsim.Taz.ParkingManager.Parallel
         )
@@ -2117,7 +2100,6 @@ object BeamConfig {
             BeamConfig.Beam.Agentsim.Taz.ParkingManager(
               displayPerformanceTimings =
                 c.hasPathOrNull("displayPerformanceTimings") && c.getBoolean("displayPerformanceTimings"),
-              level = if (c.hasPathOrNull("level")) c.getString("level") else "TAZ",
               method = if (c.hasPathOrNull("method")) c.getString("method") else "DEFAULT",
               parallel = BeamConfig.Beam.Agentsim.Taz.ParkingManager.Parallel(
                 if (c.hasPathOrNull("parallel")) c.getConfig("parallel")
@@ -2207,6 +2189,9 @@ object BeamConfig {
           lastIteration = if (c.hasPathOrNull("lastIteration")) c.getInt("lastIteration") else 0,
           populationAdjustment =
             if (c.hasPathOrNull("populationAdjustment")) c.getString("populationAdjustment") else "DEFAULT_ADJUSTMENT",
+          randomSeedForPopulationSampling =
+            if (c.hasPathOrNull("randomSeedForPopulationSampling")) Some(c.getInt("randomSeedForPopulationSampling"))
+            else None,
           scenarios = BeamConfig.Beam.Agentsim.Scenarios(
             if (c.hasPathOrNull("scenarios")) c.getConfig("scenarios")
             else com.typesafe.config.ConfigFactory.parseString("scenarios{}")
@@ -2218,6 +2203,8 @@ object BeamConfig {
           schedulerParallelismWindow =
             if (c.hasPathOrNull("schedulerParallelismWindow")) c.getInt("schedulerParallelismWindow") else 30,
           simulationName = if (c.hasPathOrNull("simulationName")) c.getString("simulationName") else "beamville",
+          snapLocationAndRemoveInvalidInputs =
+            c.hasPathOrNull("snapLocationAndRemoveInvalidInputs") && c.getBoolean("snapLocationAndRemoveInvalidInputs"),
           taz = BeamConfig.Beam.Agentsim.Taz(
             if (c.hasPathOrNull("taz")) c.getConfig("taz") else com.typesafe.config.ConfigFactory.parseString("taz{}")
           ),
@@ -2810,7 +2797,6 @@ object BeamConfig {
       writeAnalysis: scala.Boolean,
       writeEventsInterval: scala.Int,
       writeGraphs: scala.Boolean,
-      writeLinkTraversalInterval: scala.Int,
       writePlansInterval: scala.Int,
       writeR5RoutesInterval: scala.Int
     )
@@ -2914,8 +2900,6 @@ object BeamConfig {
           writeAnalysis = !c.hasPathOrNull("writeAnalysis") || c.getBoolean("writeAnalysis"),
           writeEventsInterval = if (c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 1,
           writeGraphs = !c.hasPathOrNull("writeGraphs") || c.getBoolean("writeGraphs"),
-          writeLinkTraversalInterval =
-            if (c.hasPathOrNull("writeLinkTraversalInterval")) c.getInt("writeLinkTraversalInterval") else 0,
           writePlansInterval = if (c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0,
           writeR5RoutesInterval = if (c.hasPathOrNull("writeR5RoutesInterval")) c.getInt("writeR5RoutesInterval") else 0
         )
@@ -2949,7 +2933,6 @@ object BeamConfig {
       speedScalingFactor: scala.Double,
       storageCapacityFactor: scala.Double,
       writeEventsInterval: scala.Int,
-      writeMATSimNetwork: scala.Boolean,
       writePlansInterval: scala.Int,
       writeRouteHistoryInterval: scala.Int
     )
@@ -3827,7 +3810,6 @@ object BeamConfig {
           storageCapacityFactor =
             if (c.hasPathOrNull("storageCapacityFactor")) c.getDouble("storageCapacityFactor") else 1.0,
           writeEventsInterval = if (c.hasPathOrNull("writeEventsInterval")) c.getInt("writeEventsInterval") else 0,
-          writeMATSimNetwork = !c.hasPathOrNull("writeMATSimNetwork") || c.getBoolean("writeMATSimNetwork"),
           writePlansInterval = if (c.hasPathOrNull("writePlansInterval")) c.getInt("writePlansInterval") else 0,
           writeRouteHistoryInterval =
             if (c.hasPathOrNull("writeRouteHistoryInterval")) c.getInt("writeRouteHistoryInterval") else 10
@@ -4081,7 +4063,6 @@ object BeamConfig {
         mNetBuilder: BeamConfig.Beam.Routing.R5.MNetBuilder,
         maxDistanceLimitByModeInMeters: BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters,
         numberOfSamples: scala.Int,
-        osmFile: java.lang.String,
         osmMapdbFile: java.lang.String,
         travelTimeNoiseFraction: scala.Double
       )
@@ -4135,8 +4116,6 @@ object BeamConfig {
               else com.typesafe.config.ConfigFactory.parseString("maxDistanceLimitByModeInMeters{}")
             ),
             numberOfSamples = if (c.hasPathOrNull("numberOfSamples")) c.getInt("numberOfSamples") else 1,
-            osmFile =
-              if (c.hasPathOrNull("osmFile")) c.getString("osmFile") else "/test/input/beamville/r5/beamville.osm.pbf",
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",

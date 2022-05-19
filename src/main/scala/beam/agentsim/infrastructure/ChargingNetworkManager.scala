@@ -34,8 +34,8 @@ import scala.language.postfixOps
 
 class ChargingNetworkManager(
   beamServices: BeamServices,
-  chargingNetwork: ChargingNetwork[_],
-  rideHailNetwork: ChargingNetwork[_],
+  chargingNetwork: ChargingNetwork,
+  rideHailNetwork: ChargingNetwork,
   parkingNetworkManager: ActorRef,
   scheduler: ActorRef
 ) extends LoggingMessageActor
@@ -277,15 +277,15 @@ object ChargingNetworkManager extends LazyLogging {
 
   def props(
     beamServices: BeamServices,
-    chargingNetwork: ChargingNetwork[_],
-    rideHailNetwork: ChargingNetwork[_],
+    chargingNetwork: ChargingNetwork,
+    rideHailNetwork: ChargingNetwork,
     parkingManager: ActorRef,
     scheduler: ActorRef
   ): Props = {
     Props(new ChargingNetworkManager(beamServices, chargingNetwork, rideHailNetwork, parkingManager, scheduler))
   }
 
-  case class ChargingNetworkHelper(chargingNetwork: ChargingNetwork[_], rideHailNetwork: ChargingNetwork[_]) {
+  case class ChargingNetworkHelper(chargingNetwork: ChargingNetwork, rideHailNetwork: ChargingNetwork) {
 
     lazy val allChargingStations: List[ChargingStation] =
       chargingNetwork.chargingStations ++ rideHailNetwork.chargingStations
@@ -294,7 +294,7 @@ object ChargingNetworkManager extends LazyLogging {
       * @param managerId vehicle manager id
       * @return
       */
-    def get(managerId: Id[VehicleManager]): ChargingNetwork[_] = {
+    def get(managerId: Id[VehicleManager]): ChargingNetwork = {
       get(VehicleManager.getReservedFor(managerId).get)
     }
 
@@ -302,7 +302,7 @@ object ChargingNetworkManager extends LazyLogging {
       * @param managerType vehicle manager type
       * @return
       */
-    def get(managerType: ReservedFor): ChargingNetwork[_] = {
+    def get(managerType: ReservedFor): ChargingNetwork = {
       managerType match {
         case VehicleManager.TypeEnum.RideHail => rideHailNetwork
         case _                                => chargingNetwork

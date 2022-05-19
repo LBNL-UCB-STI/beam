@@ -65,4 +65,53 @@ class MathUtilsSpec extends AnyWordSpecLike with Matchers {
       }
     }
   }
+
+  "selectRandomElements" when {
+    "provided with a collection and n is close to the collection size" should {
+      "return n elements" in {
+        val originalElements = 1 to 100
+        val seed = Random.nextInt()
+        val result = MathUtils.selectRandomElements(originalElements, 90, new Random(seed)).toIndexedSeq
+        withClue(s"seed = $seed; ") {
+          result should have size 90
+          originalElements should contain allElementsOf result
+          result.distinct should contain theSameElementsAs result
+        }
+      }
+    }
+    "provided with a collection an n is small" should {
+      "return n elements" in {
+        val originalElements = 1 to 100
+        val seed = Random.nextInt()
+        val result = MathUtils.selectRandomElements(originalElements, 9, new Random(seed)).toIndexedSeq
+        withClue(s"seed = $seed; ") {
+          result should have size 9
+          originalElements should contain allElementsOf result
+          result.distinct should contain theSameElementsAs result
+        }
+      }
+    }
+    "provided with a collection and n = collection.size" should {
+      "return all the collection elements" in {
+        val originalElements = 1 to 100
+        val result = MathUtils.selectRandomElements(originalElements, 100, new Random()).toIndexedSeq
+        result should have size 100
+        result should contain allElementsOf originalElements
+      }
+    }
+    "provided with a collection and n > collection.size" should {
+      "return all the collection elements" in {
+        val originalElements = 1 to 100
+        val result = MathUtils.selectRandomElements(originalElements, 500, new Random()).toIndexedSeq
+        result should have size 100
+        result should contain allElementsOf originalElements
+      }
+    }
+    "provided with an empty collection" should {
+      "return all an empty collection" in {
+        MathUtils.selectRandomElements(Nil, 0, new Random()) shouldBe empty
+        MathUtils.selectRandomElements(Nil, 100, new Random()) shouldBe empty
+      }
+    }
+  }
 }

@@ -48,7 +48,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
   val beamFederateMock: BeamFederate = mock(classOf[BeamFederate])
   val tazFromBeamville: TAZ = new TAZ(Id.create("1", classOf[TAZ]), new Coord(167141.3, 1112.351), 4840000)
 
-  val dummyChargingZone: ParkingZone[TAZ] = ParkingZone.init(
+  val dummyChargingZone: ParkingZone = ParkingZone.init(
     None,
     tazFromBeamville.tazId,
     ParkingType.Public,
@@ -59,14 +59,14 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
   )
   val chargingZones = Map(dummyChargingZone.parkingZoneId -> dummyChargingZone)
 
-  val chargingNetwork: ChargingNetwork[_] = mock(classOf[ChargingNetwork[_]])
+  val chargingNetwork: ChargingNetwork = mock(classOf[ChargingNetwork])
 
-  val rideHailNetwork: ChargingNetwork[_] = mock(classOf[ChargingNetwork[_]])
+  val rideHailNetwork: ChargingNetwork = mock(classOf[ChargingNetwork])
 
   val dummyChargingStation: ChargingStation = ChargingStation(dummyChargingZone)
 
   val dummyPhysicalBounds = Map(
-    "tazId"                   -> dummyChargingZone.geoId.toString,
+    "tazId"                   -> dummyChargingZone.tazId.toString,
     "power_limit_lower"       -> 5678.90,
     "power_limit_upper"       -> 5678.90,
     "lmp_with_control_signal" -> 0.0

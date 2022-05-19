@@ -60,72 +60,29 @@ class UrbanSimScenarioLoader(
     val plansF = Future {
       val plans = scenarioSource.getPlans
       logger.info(s"Read ${plans.size} plans")
-      val activities = plans.view.filter { p =>
-        p.activityType.exists(actType => actType.toLowerCase == "home")
-      }
-
-      val personIdsWithinRange =
-        activities
-          .filter { act =>
-            val coord = wgsCoord(act.activityLocationX.get, act.activityLocationY.get)
-            beamScenario.transportNetwork.streetLayer.envelope.contains(coord.getX, coord.getY)
-          }
-          .map { act =>
-            act.personId
-          }
-          .toSet
-      val planWithinRange = plans.filter(p => personIdsWithinRange.contains(p.personId))
-      val filteredCnt = plans.size - planWithinRange.size
-      if (filteredCnt > 0) {
-        logger.info(s"Filtered out $filteredCnt plans. Total number of plans: ${planWithinRange.size}")
-      }
-      planWithinRange
+      plans
     }
+
     val personsF = Future {
       val persons: Iterable[PersonInfo] = scenarioSource.getPersons
       logger.info(s"Read ${persons.size} persons")
       persons
     }
+
     val householdsF = Future {
       val households = scenarioSource.getHousehold
       logger.info(s"Read ${households.size} households")
-      val householdIdsWithinBoundingBox = households.view
-        .filter { hh =>
-          val coord = wgsCoord(hh.locationX, hh.locationY)
-          beamScenario.transportNetwork.streetLayer.envelope.contains(coord.getX, coord.getY)
-        }
-        .map { hh =>
-          hh.householdId
-        }
-        .toSet
-
-      val householdsInsideBoundingBox =
-        households.filter(household => householdIdsWithinBoundingBox.contains(household.householdId))
-      val filteredCnt = households.size - householdsInsideBoundingBox.size
-      if (filteredCnt > 0) {
-        logger.info(
-          s"Filtered out $filteredCnt households. Total number of households: ${householdsInsideBoundingBox.size}"
-        )
-      }
-      householdsInsideBoundingBox
+      households
     }
+
     val inputPlans = Await.result(plansF, 1800.seconds)
     logger.info(s"Reading plans done.")
-    if (inputPlans.isEmpty) {
-      throw new RuntimeException("Filtered plans are empty")
-    }
 
     val persons = Await.result(personsF, 1800.seconds)
     logger.info(s"Reading persons done.")
-    if (persons.isEmpty) {
-      throw new RuntimeException("Filtered persons are empty")
-    }
 
     val households = Await.result(householdsF, 1800.seconds)
     logger.info(s"Reading households done.")
-    if (households.isEmpty) {
-      throw new RuntimeException("Filtered households are empty")
-    }
 
     val (mergedPlans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
 
