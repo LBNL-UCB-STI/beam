@@ -406,7 +406,9 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
   def main(args: Array[String]): Unit = {
     println(s"Current arguments: ${args.mkString(",")}")
     if (args.length < 3) {
-      println("Expected following arguments: <path to beam config> <path to generated plans> <path to output csv>")
+      println(
+        "Expected following arguments: <path to beam config> <path to generated plans> <path to output csv> [<percent of processed plans for notification>]"
+      )
     } else {
       val pathToConfig = args(0)
       val pathToGeneratedPlans = args(1)
