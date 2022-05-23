@@ -28,14 +28,21 @@ for path in paths:
 # df.head(3)
 
 
-# In[3]:
+# In[ ]:
 
 
 ## modes distribution 
 
+hists = []
 for plan in plans:
-    display(plan['legMode'].value_counts(normalize=True))
-    print("\n\n")
+    selected_legs = plan[(plan['planSelected']==True) & (plan['planElementType']=='leg')]
+    hists.append(selected_legs['legMode'])
+
+    
+labels = [] # ["plan 1", "plan 2"]
+_, ax = plt.subplots(figsize=(15,5))
+ax.hist(hists, label=labels, density=True)
+ax.legend()
 
 
 # In[ ]:
