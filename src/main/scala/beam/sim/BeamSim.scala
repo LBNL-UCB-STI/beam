@@ -227,6 +227,12 @@ class BeamSim @Inject() (
     )
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
+    beamServices.clusterManager =
+      if (beamServices.beamConfig.beam.cluster.enabled)
+        Some(BeamHelper.startClusterManagerSingleton(actorSystem))
+      else
+        None
+
     /*    if(null != beamServices.beamConfig.beam.agentsim.taz.file && !beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
           beamServices.taz = TAZTreeMap.fromCsv(beamServices.beamConfig.beam.agentsim.taz.file)*/
 

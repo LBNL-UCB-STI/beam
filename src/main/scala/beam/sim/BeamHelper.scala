@@ -1,5 +1,12 @@
 package beam.sim
 
+import akka.actor.{ActorRef, ActorSystem, PoisonPill}
+import akka.cluster.singleton.{
+  ClusterSingletonManager,
+  ClusterSingletonManagerSettings,
+  ClusterSingletonProxy,
+  ClusterSingletonProxySettings
+}
 import beam.agentsim.agents.choice.mode.{ModeIncentive, PtFares}
 import beam.agentsim.agents.freight.FreightCarrier
 import beam.agentsim.agents.freight.input._
@@ -21,7 +28,7 @@ import beam.router.r5._
 import beam.router.skim.core._
 import beam.router.skim.{ActivitySimSkimmer, Skims}
 import beam.scoring.BeamScoringFunctionFactory
-import beam.sim.ArgumentsParser.{Arguments, Worker}
+import beam.sim.ArgumentsParser.{Arguments, SimWorker, Worker}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config._
 import beam.sim.metrics.Metrics._
@@ -63,6 +70,7 @@ import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling, PlansDumping}
+import org.matsim.core.controler.events.StartupEvent
 import org.matsim.core.events.ParallelEventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
@@ -202,6 +210,8 @@ trait BeamHelper extends LazyLogging {
 
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
           bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
+
+          bind(classOf[BeamSim])
 
           addControlerListenerBinding().to(classOf[BeamSim])
           addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
@@ -429,7 +439,8 @@ trait BeamHelper extends LazyLogging {
     val (parsedArgs, config) = prepareConfig(args, isConfigArgRequired)
 
     parsedArgs.clusterType match {
-      case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
+      case Some(Worker)    => runClusterWorkerUsing(config)
+      case Some(SimWorker) => runSimulationWorkerUsing(config, abstractModule.orElse(Some(RunBeam.configureDefaultAPI)))
       case _ =>
         val (_, outputDirectory, _) =
           runBeamWithConfig(config, Some(abstractModule.getOrElse(RunBeam.configureDefaultAPI)))
@@ -576,6 +587,45 @@ trait BeamHelper extends LazyLogging {
     )
   }
 
+  def runSimulationWorkerUsing(config: TypesafeConfig, abstractModule: Option[AbstractModule] = None): Unit = {
+    val clusterConfig = ConfigFactory
+      .parseString("""
+           akka.cluster.roles = [sim-worker]
+          """)
+      .withFallback(config)
+    val (
+      beamExecutionConfig: BeamExecutionConfig,
+      scenario: MutableScenario,
+      beamScenario: BeamScenario,
+      services: BeamServices,
+      plansMerged: Boolean
+    ) = prepareBeamService(clusterConfig, abstractModule)
+    stepsBeforeRun(services, scenario, beamScenario, beamExecutionConfig.outputDirectory, plansMerged)
+
+    import akka.actor.ActorSystem
+
+    //todome using Mobsim with different paths:
+//    1. MobsimIteration
+//    2. SimulationWorker, using Mobsim.run imitating matsim infrastructure ?
+// or add methods to Mobsim and use them in our SimWorker Actor
+
+    val beamSim = services.injector.getInstance(classOf[BeamSim])
+    beamSim.notifyStartup(new StartupEvent(services.matsimServices))
+    val system = services.injector.getInstance(classOf[ActorSystem])
+    system.actorOf(
+      SimulationWorker.props(0, 1, services),
+      name = "simulationWorker"
+    )
+
+    import scala.concurrent.ExecutionContext.Implicits.global
+    Await.ready(
+      system.whenTerminated.map(_ => {
+        logger.info("Exiting BEAM 2")
+      }),
+      scala.concurrent.duration.Duration.Inf
+    )
+  }
+
   def runBeamWithConfig(
     config: TypesafeConfig,
     abstractModule: Option[AbstractModule] = None
@@ -683,6 +733,18 @@ trait BeamHelper extends LazyLogging {
     outputDir: String,
     plansMerged: Boolean
   ): Unit = {
+    stepsBeforeRun(beamServices, scenario, beamScenario, outputDir, plansMerged)
+
+    run(beamServices)
+  }
+
+  def stepsBeforeRun(
+    beamServices: BeamServices,
+    scenario: MutableScenario,
+    beamScenario: BeamScenario,
+    outputDir: String,
+    plansMerged: Boolean
+  ): Unit = {
     if (!beamScenario.beamConfig.beam.agentsim.fractionOfPlansWithSingleActivity.equals(0d)) {
       applyFractionOfPlansWithSingleActivity(scenario, beamServices.beamConfig, scenario.getConfig)
     }
@@ -759,8 +821,6 @@ trait BeamHelper extends LazyLogging {
       s"$vehicleType (${groupedValues.size})"
     } mkString " , "
     logger.info(s"Vehicles assigned to households : $vehicleInfo")
-
-    run(beamServices)
   }
 
   private def applyFractionOfPlansWithSingleActivity(
@@ -1062,6 +1122,27 @@ trait BeamHelper extends LazyLogging {
       rdr = scenarioReader,
       geoUtils = geo,
       shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
+    )
+  }
+}
+
+object BeamHelper {
+
+  def startClusterManagerSingleton(system: ActorSystem): ActorRef = {
+    system.actorOf(
+      ClusterSingletonManager.props(
+        singletonProps = SimulationClusterManager.props(1),
+        terminationMessage = PoisonPill,
+        settings = ClusterSingletonManagerSettings(system)
+      ),
+      name = "cluster-manager"
+    )
+    system.actorOf(
+      ClusterSingletonProxy.props(
+        singletonManagerPath = "/user/cluster-manager",
+        settings = ClusterSingletonProxySettings(system)
+      ),
+      name = "cluster-manager-proxy"
     )
   }
 }

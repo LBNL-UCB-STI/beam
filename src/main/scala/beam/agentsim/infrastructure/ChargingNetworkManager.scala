@@ -85,7 +85,7 @@ class ChargingNetworkManager(
 
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
-      chargingNetworkHelper.get(inquiry.reservedFor.managerId).processParkingInquiry(inquiry) match {
+      chargingNetworkHelper.get(inquiry.reservedFor).processParkingInquiry(inquiry) match {
         case Some(parkingResponse) =>
           inquiry.beamVehicle foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
           sender() ! parkingResponse
@@ -138,7 +138,7 @@ class ChargingNetworkManager(
       log.debug(s"ChargingTimeOutTrigger for vehicle ${vehicle.id} at $tick")
       val vehicleEndedCharging = vehicle.stall match {
         case Some(stall) =>
-          chargingNetworkHelper.get(stall.reservedFor.managerId).endChargingSession(vehicle.id, tick) map {
+          chargingNetworkHelper.get(stall.reservedFor).endChargingSession(vehicle.id, tick) map {
             handleEndCharging(tick, _, triggerId)
           } getOrElse {
             log.debug(s"Vehicle ${vehicle.id} has already ended charging")
@@ -167,7 +167,7 @@ class ChargingNetworkManager(
           }
           .getOrElse("")
         chargingNetworkHelper
-          .get(stall.reservedFor.managerId)
+          .get(stall.reservedFor)
           .processChargingPlugRequest(request, activityType, sender()) map {
           case chargingVehicle if chargingVehicle.chargingStatus.last.status == WaitingAtStation =>
             log.debug(
@@ -199,7 +199,7 @@ class ChargingNetworkManager(
       val bounds = powerController.obtainPowerPhysicalBounds(tick, None)
       val responseHasTriggerId = vehicle.stall match {
         case Some(stall) =>
-          chargingNetworkHelper.get(stall.reservedFor.managerId).disconnectVehicle(vehicle.id, tick) match {
+          chargingNetworkHelper.get(stall.reservedFor).disconnectVehicle(vehicle.id, tick) match {
             case Some(chargingVehicle @ ChargingVehicle(_, _, station, _, _, _, _, _, _, listStatus, sessions)) =>
               if (sessions.nonEmpty && !listStatus.exists(_.status == GracePeriod)) {
                 // If the vehicle was still charging
@@ -291,6 +291,7 @@ object ChargingNetworkManager extends LazyLogging {
       chargingNetwork.chargingStations ++ rideHailNetwork.chargingStations
 
     /**
+      *  @deprecated Unsafe in a cluster env
       * @param managerId vehicle manager id
       * @return
       */

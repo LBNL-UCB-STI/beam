@@ -24,9 +24,10 @@ object ArgumentsParser {
         .action((value, args) =>
           args.copy(
             clusterType = value.trim.toLowerCase match {
-              case "master" => Some(Master)
-              case "worker" => Some(Worker)
-              case _        => None
+              case "master"     => Some(Master)
+              case "worker"     => Some(Worker)
+              case "sim-worker" => Some(SimWorker)
+              case _            => None
             }
           )
         )
@@ -94,6 +95,10 @@ object ArgumentsParser {
 
   case object Worker extends ClusterType {
     override def toString = "worker"
+  }
+
+  case object SimWorker extends ClusterType {
+    override def toString = "sim-worker"
   }
 
 }

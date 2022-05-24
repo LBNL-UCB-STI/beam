@@ -1,7 +1,7 @@
 package beam.sim
 
 import akka.actor.Status.Success
-import akka.actor.{ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Props, Terminated}
+import akka.actor.{ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Props, RootActorPath, Terminated}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
@@ -20,6 +20,8 @@ import beam.router.Modes.BeamMode
 import beam.router._
 import beam.router.osm.TollCalculator
 import beam.router.skim.TAZSkimsCollector
+import beam.sim.SimulationClusterManager.{GetWorkerNodes, WorkerNodes}
+import beam.sim.SimulationWorker.MasterBeamData
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
@@ -44,7 +46,7 @@ import org.matsim.households.Households
 
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
-import scala.concurrent.Await
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 import scala.util.Random
 
@@ -505,27 +507,10 @@ class BeamMobsimIteration(
   context.watch(transitSystem)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), transitSystem)
 
-  private val population = context.actorOf(
-    Population.props(
-      matsimServices.getScenario,
-      beamScenario,
-      beamServices,
-      scheduler,
-      beamScenario.transportNetwork,
-      tollCalculator,
-      beamRouter,
-      rideHailManager,
-      parkingNetworkManager,
-      chargingNetworkManager,
-      sharedVehicleFleets,
-      matsimServices.getEvents,
-      routeHistory
-    ),
-    "population"
+  private val simWorkers: Seq[ActorRef] = getSimWorkers
+  simWorkers.foreach(
+    _ ! MasterBeamData(scheduler, rideHailManager, parkingNetworkManager, chargingNetworkManager, sharedVehicleFleets)
   )
-
-  context.watch(population)
-  scheduler ! ScheduleTrigger(InitializeTrigger(0), population)
 
   scheduleRideHailManagerTimerMessages()
 
@@ -554,6 +539,23 @@ class BeamMobsimIteration(
     cancellable
   }
 
+  def getSimWorkers: Seq[ActorRef] = {
+    import context.dispatcher
+    beamServices.clusterManager match {
+      case Some(clusterManager) =>
+        implicit val timeout: Timeout = Timeout(20.minutes)
+        val futureActorRefs = for {
+          workerNodes <- (clusterManager ? GetWorkerNodes).mapTo[WorkerNodes]
+          actorRefs <- Future.sequence(workerNodes.nodes.map { address =>
+            context.actorSelection(RootActorPath(address) / Seq("user", "simulationWorker")).resolveOne()
+          })
+        } yield actorRefs
+        Await.result(futureActorRefs, Duration.Inf)
+      case None =>
+        Seq(context.actorOf(SimulationWorker.props(0, 1, beamServices)))
+    }
+  }
+
   override def loggedReceive: PartialFunction[Any, Unit] = {
 
     case CompletionNotice(_, _) =>
@@ -563,7 +565,7 @@ class BeamMobsimIteration(
       log.info("Processing Agentsim Events (Start)")
       stopMeasuring("agentsim-events:agentsim")
 
-      population ! Finish
+      simWorkers.foreach(_ ! Finish)
       rideHailManager ! Finish
       transitSystem ! Finish
       tazSkimmer ! Finish

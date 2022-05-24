@@ -4,6 +4,7 @@ import akka.actor.Status.Failure
 import akka.actor.{
   Actor,
   ActorLogging,
+  ActorNotFound,
   ActorRef,
   Address,
   Cancellable,
@@ -340,6 +341,9 @@ class BeamRouter(
       }
       //TODO: If there is work outstanding then it needs handled
     } catch {
+      case actorNotFound: ActorNotFound =>
+        //it's not a router node, do nothing
+        log.debug("removeUnavailableMemberFromAvailableWorkers", actorNotFound)
       case ex: Throwable =>
         log.error(ex, s"removeUnavailableMemberFromAvailableWorkers failed with: ${ex.getMessage}")
     }

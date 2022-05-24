@@ -67,6 +67,7 @@ trait BeamServices {
 
   var beamRouter: ActorRef
   var eventBuilderActor: ActorRef
+  var clusterManager: Option[ActorRef]
 
   def matsimServices: MatsimServices
   def networkHelper: NetworkHelper
@@ -96,6 +97,7 @@ class BeamServicesImpl @Inject() (val injector: Injector) extends BeamServices {
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
   var beamRouter: ActorRef = _
   var eventBuilderActor: ActorRef = _
+  var clusterManager: Option[ActorRef] = _
 
   override val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
 
