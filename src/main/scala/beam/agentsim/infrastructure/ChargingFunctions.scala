@@ -122,16 +122,17 @@ class ChargingFunctions(
     zone: ParkingZone,
     inquiry: ParkingInquiry
   ): Boolean = {
-    if (zone.chargingPointType.isEmpty)
-      throw new RuntimeException("ChargingFunctions expect only stalls with charging points")
-    val isEV: Boolean = inquiry.beamVehicle.forall(_.isEV)
+//    if (zone.chargingPointType.isEmpty)
+//      throw new RuntimeException("ChargingFunctions expect only stalls with charging points")
+//    val isEV: Boolean = inquiry.beamVehicle.forall(_.isEV)
     val rideHailFastChargingOnly: Boolean = ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone, inquiry)
     val enrouteFastChargingOnly: Boolean = ifEnrouteThenFastChargingOnly(zone, inquiry)
     val overnightStaySlowChargingOnly: Boolean = ifHomeOrWorkOrOvernightThenSlowChargingOnly(zone, inquiry)
     val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry.beamVehicle)
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
-    isEV && rideHailFastChargingOnly && validChargingCapability && canCarParkHere && enrouteFastChargingOnly && overnightStaySlowChargingOnly
+    /*isEV && */
+    rideHailFastChargingOnly && validChargingCapability && canCarParkHere && enrouteFastChargingOnly && overnightStaySlowChargingOnly
   }
 
   /**
@@ -210,25 +211,8 @@ class ChargingFunctions(
   override protected def processParkingZoneSearchResult(
     inquiry: ParkingInquiry,
     parkingZoneSearchResult: Option[ParkingZoneSearchResult]
-  ): Option[ParkingZoneSearchResult] = parkingZoneSearchResult match {
-    case None if inquiry.searchMode == ParkingSearchMode.EnRouteCharging =>
-      // did not find a stall with a fast charging point, return a dummy stall
-      Some(
-        ParkingZoneSearch.ParkingZoneSearchResult(
-          ParkingStall.lastResortStall(
-            new Envelope(
-              inquiry.originUtm.get.loc.getX + 2000,
-              inquiry.originUtm.get.loc.getX - 2000,
-              inquiry.originUtm.get.loc.getY + 2000,
-              inquiry.originUtm.get.loc.getY - 2000
-            ),
-            new Random(seed)
-          ),
-          DefaultParkingZone
-        )
-      )
-    case resultMaybe => resultMaybe
-  }
+  ): Option[ParkingZoneSearchResult] =
+    super[ParkingFunctions].processParkingZoneSearchResult(inquiry, parkingZoneSearchResult)
 
   /**
     * sample location of a parking stall with a TAZ area

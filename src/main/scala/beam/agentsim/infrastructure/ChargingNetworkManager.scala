@@ -22,9 +22,10 @@ import beam.utils.logging.LoggingMessageActor
 import beam.utils.logging.pattern.ask
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.Person
+import org.matsim.api.core.v01.population.{Activity, Person}
 
 import java.util.concurrent.TimeUnit
+import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
@@ -52,6 +53,14 @@ class ChargingNetworkManager(
   implicit val debug: Debug = beamConfig.beam.debug
   private var timeSpentToPlanEnergyDispatchTrigger: Long = 0
   private var nHandledPlanEnergyDispatchTrigger: Int = 0
+
+  protected val chargingEndTimeInSeconds: Map[Id[Person], Int] =
+    beamServices.matsimServices.getScenario.getPopulation.getPersons.asScala.map { case (personId, person) =>
+      personId -> (person.getSelectedPlan.getPlanElements.asScala
+        .find(_.isInstanceOf[Activity])
+        .map(_.asInstanceOf[Activity].getEndTime)
+        .getOrElse(0.0) + (24 * 3600.0)).toInt
+    }.toMap
 
   private val maybeDebugReport: Option[Cancellable] = if (beamServices.beamConfig.beam.debug.debugEnabled) {
     Some(context.system.scheduler.scheduleWithFixedDelay(10.seconds, 30.seconds, self, DebugReport)(context.dispatcher))
@@ -85,11 +94,11 @@ class ChargingNetworkManager(
 
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
-      chargingNetworkHelper.get(inquiry.reservedFor.managerId).processParkingInquiry(inquiry) match {
-        case Some(parkingResponse) =>
-          inquiry.beamVehicle foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
+      chargingNetworkHelper.get(inquiry.reservedFor.managerId).processParkingInquiry(inquiry) foreach {
+        parkingResponse =>
+          if (parkingResponse.stall.chargingPointType.isDefined)
+            inquiry.beamVehicle foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
           sender() ! parkingResponse
-        case _ => (parkingNetworkManager ? inquiry).pipeTo(sender())
       }
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>

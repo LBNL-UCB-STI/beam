@@ -126,7 +126,7 @@ class ParkingFunctions(
       case Some(result) => result
       case _ =>
         inquiry.parkingActivityType match {
-          case ParkingActivityType.Home =>
+          case ParkingActivityType.Home && inquiry.searchMode != ParkingSearchMode.EnRouteCharging =>
             val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc)
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
           case _ =>
@@ -211,7 +211,7 @@ class ParkingFunctions(
       inquiry.parkingActivityType match {
         case ParkingActivityType.Home => Set(ParkingType.Residential)
         case ParkingActivityType.Work => Set(ParkingType.Workplace)
-        case _                        => Set()
+        case _                        => Set(ParkingType.Public)
       }
     } else {
       inquiry.parkingActivityType match {

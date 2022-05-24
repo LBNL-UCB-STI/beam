@@ -216,12 +216,10 @@ object HouseholdActor {
             )
             whoDrivesThisVehicle = whoDrivesThisVehicle + (vehicleIdFromPlans -> person.getId)
           }
-          person.getSelectedPlan.getPlanElements.asScala.headOption
-            .flatMap {
-              case act: Activity =>
-                Some(person.getId -> (ParkingInquiry.activityTypeStringToEnum(act.getType), act.getType, act.getCoord))
-              case _ => None
-            }
+          person.getSelectedPlan.getPlanElements.asScala.find(_.isInstanceOf[Activity]) map { element =>
+            val act = element.asInstanceOf[Activity]
+            person.getId -> (ParkingInquiry.activityTypeStringToEnum(act.getType), act.getType, act.getCoord)
+          }
         }.toMap
 
         if (!householdMembersToLocationTypeAndLocation.exists(_._2._1 == ParkingActivityType.Home)) {
