@@ -555,7 +555,7 @@ object HouseholdActor {
         .sequence(vehicles.filter(_._2.beamVehicleType.automationLevel > 3).values.map { vehicle =>
           vehicle.setManager(Some(self))
           for {
-            ParkingInquiryResponse(stall, _, _, _) <- sendParkingOrChargingInquiry(vehicle, triggerId)
+            ParkingInquiryResponse(stall, _, _) <- sendParkingOrChargingInquiry(vehicle, triggerId)
           } {
             vehicle.useParkingStall(stall)
             vehicle.spaceTime = SpaceTime(stall.locationUTM.getX, stall.locationUTM.getY, 0)

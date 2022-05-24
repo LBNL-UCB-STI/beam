@@ -1576,7 +1576,7 @@ class PersonAgent(
       stay() replying CompletionNotice(triggerId)
     case ev @ Event(RideHailResponse(_, _, _, _, _), _) =>
       stop(Failure(s"Unexpected RideHailResponse from ${sender()}: $ev"))
-    case Event(ParkingInquiryResponse(_, _, _, _), _) =>
+    case Event(ParkingInquiryResponse(_, _, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
     case ev @ Event(StartingRefuelSession(_, _), _) =>
       log.debug("myUnhandled.StartingRefuelSession: {}", ev)

@@ -361,7 +361,7 @@ trait ChoosesParking extends {
   }
 
   when(ChoosingParkingSpot) {
-    case Event(ParkingInquiryResponse(stall, _, _, numAvailableChargers), data) =>
+    case Event(ParkingInquiryResponse(stall, _, _), data) =>
       val distanceThresholdToIgnoreWalking =
         beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
       val nextLeg =
@@ -378,22 +378,18 @@ trait ChoosesParking extends {
         )
         goto(WaitingToDrive) using data
       } else {
-        val (updatedData, isEnrouting, isStallAvailable) = data match {
+        val (updatedData, isEnrouting) = data match {
           case data: BasePersonData if data.enrouteData.isInEnrouteState =>
             val updatedEnrouteData =
               data.enrouteData.copy(hasReservedFastChargerStall =
                 stall.chargingPointType.exists(ChargingPointType.isFastCharger)
               )
-            (
-              data.copy(enrouteData = updatedEnrouteData),
-              updatedEnrouteData.isEnrouting,
-              numAvailableChargers.exists(_ > 0)
-            )
+            (data.copy(enrouteData = updatedEnrouteData), updatedEnrouteData.isEnrouting)
           case _ =>
-            (data, false, true)
+            (data, false)
         }
         updatedData match {
-          case data: BasePersonData if data.enrouteData.isInEnrouteState && (!isEnrouting || !isStallAvailable) =>
+          case data: BasePersonData if data.enrouteData.isInEnrouteState && !isEnrouting =>
             // continue normal workflow if enroute is not possible or stalls are not available for selected parking
             val (tick, triggerId) = releaseTickAndTriggerId()
             scheduler ! CompletionNotice(

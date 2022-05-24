@@ -82,7 +82,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
               "wherever",
               VehicleManager.getReservedFor(vehicleManagerId).get,
               triggerId = triggerId
-            ) flatMap { case ParkingInquiryResponse(stall, _, triggerId, _) =>
+            ) flatMap { case ParkingInquiryResponse(stall, _, triggerId) =>
             veh.useParkingStall(stall)
             self ? ReleaseVehicleAndReply(veh, None, triggerId)
           }

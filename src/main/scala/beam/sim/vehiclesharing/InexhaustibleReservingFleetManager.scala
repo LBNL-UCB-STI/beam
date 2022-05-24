@@ -63,7 +63,7 @@ private[vehiclesharing] class InexhaustibleReservingFleetManager(
         VehicleManager.getReservedFor(vehicleManagerId).get,
         triggerId = triggerId
       ))
-        .collect { case ParkingInquiryResponse(stall, _, triggerId, _) =>
+        .collect { case ParkingInquiryResponse(stall, _, triggerId) =>
           vehicle.useParkingStall(stall)
           MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
         } pipeTo sender

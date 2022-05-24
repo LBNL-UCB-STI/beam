@@ -229,7 +229,7 @@ class HouseholdFleetManager(
         triggerId = inquiry.triggerId
       )
 
-      responseFuture.collect { case ParkingInquiryResponse(stall, _, otherTriggerId, _) =>
+      responseFuture.collect { case ParkingInquiryResponse(stall, _, otherTriggerId) =>
         vehicle.useParkingStall(stall)
         logger.debug("Vehicle {} is now taken, which was just created", vehicle.id)
         vehicle.becomeDriver(mobilityRequester)
