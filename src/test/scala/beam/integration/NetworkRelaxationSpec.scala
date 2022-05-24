@@ -20,6 +20,16 @@ import scala.util.Random
 class NetworkRelaxationScenarioGenerator {
   val scenarioDir = new File("test/input/network-relaxation-scenario/urbansim_v2")
 
+  def generateBlocks() = {
+    println(s"Generating blocks")
+    val csvWriter = new CsvWriter(
+      scenarioDir + "/blocks.csv.gz",
+      Seq("block_id", "x", "y")
+    )
+    csvWriter.write("1", "166648.21039213781", "998.9706301352383")
+    csvWriter.close()
+  }
+
   def generateHouseholds(count: Int = 2000) = {
     println(s"Generating $count households")
     val csvWriter = new CsvWriter(
@@ -34,29 +44,6 @@ class NetworkRelaxationScenarioGenerator {
       csvWriter.close()
     }
 
-  }
-
-  def generateVehicles(count: Int = 2000) = {
-    println(s"Generating $count vehicles")
-    val vehicles = for (i <- 1 to count) yield {
-      VehicleInfo(i.toString, "Car", None, i.toString)
-    }
-    val csvWriter = new CsvWriter(
-      scenarioDir.getPath + "/vehicles.csv.gz",
-      Seq("vehicleId", "vehicleTypeId", "stateOfCharge", "householdId")
-    )
-    try {
-      vehicles.foreach { vehicle =>
-        csvWriter.write(
-          vehicle.vehicleId,
-          vehicle.vehicleTypeId,
-          vehicle.initialSoc,
-          vehicle.householdId
-        )
-      }
-    } finally {
-      csvWriter.close()
-    }
   }
 
   def generatePersons(count: Int = 2000) = {
@@ -162,8 +149,10 @@ class NetworkRelaxationScenarioGenerator {
   }
 
   def generate() = {
+    scenarioDir.mkdir()
+
+    generateBlocks()
     generateHouseholds()
-    generateVehicles()
     generatePersons()
     generatePlans()
   }
