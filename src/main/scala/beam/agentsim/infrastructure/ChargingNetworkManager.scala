@@ -37,7 +37,6 @@ class ChargingNetworkManager(
   beamServices: BeamServices,
   chargingNetwork: ChargingNetwork,
   rideHailNetwork: ChargingNetwork,
-  parkingNetworkManager: ActorRef,
   scheduler: ActorRef
 ) extends LoggingMessageActor
     with ActorLogging
@@ -290,10 +289,9 @@ object ChargingNetworkManager extends LazyLogging {
     beamServices: BeamServices,
     chargingNetwork: ChargingNetwork,
     rideHailNetwork: ChargingNetwork,
-    parkingManager: ActorRef,
     scheduler: ActorRef
   ): Props = {
-    Props(new ChargingNetworkManager(beamServices, chargingNetwork, rideHailNetwork, parkingManager, scheduler))
+    Props(new ChargingNetworkManager(beamServices, chargingNetwork, rideHailNetwork, scheduler))
   }
 
   case class ChargingNetworkHelper(chargingNetwork: ChargingNetwork, rideHailNetwork: ChargingNetwork) {
