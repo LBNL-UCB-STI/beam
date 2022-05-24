@@ -69,16 +69,12 @@ object PricingModel {
     */
   def evaluateParkingTicket(
     pricingModel: PricingModel,
-    parkingDurationInSeconds: Int,
-    estimatedMinParkingDurationInSeconds: Double
+    parkingDurationInSeconds: Int
   ): Double = {
     pricingModel match {
       case FlatFee(costInDollars) => costInDollars
       case Block(costInDollars, intervalSeconds) =>
-        (math.max(
-          estimatedMinParkingDurationInSeconds,
-          parkingDurationInSeconds.toDouble
-        ) / intervalSeconds.toDouble) * costInDollars
+        (parkingDurationInSeconds.toDouble / intervalSeconds.toDouble) * costInDollars
     }
   }
 

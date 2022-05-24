@@ -112,7 +112,8 @@ object ParkingZoneSearch {
     parkingType: ParkingType,
     parkingZone: ParkingZone,
     coord: Coord,
-    costInDollars: Double
+    costInDollars: Double,
+    parkingDuration: Int
   )
 
   /**
@@ -170,24 +171,31 @@ object ParkingZoneSearch {
             } yield {
               // wrap ParkingZone in a ParkingAlternative
               val stallLocation: Coord = parkingZoneLocSamplingFunction(parkingZone)
-              val stallPriceInDollars: Double =
-                parkingZone.pricingModel match {
-                  case None => 0
-                  case Some(pricingModel) if params.searchMode == ParkingSearchMode.EnRouteCharging =>
-                    PricingModel.evaluateParkingTicket(
-                      pricingModel,
-                      config.enrouteDuration.toInt,
-                      config.estimatedMinParkingDurationInSeconds
-                    )
-                  case Some(pricingModel) =>
-                    PricingModel.evaluateParkingTicket(
-                      pricingModel,
-                      params.parkingDuration.toInt,
-                      config.estimatedMinParkingDurationInSeconds
-                    )
+              // end-of-day parking durations are set to zero, which will be mis-interpreted here
+              val parkingDuration = Math.max(
+                config.estimatedMinParkingDurationInSeconds.toInt, // at least a small duration of charging
+                params.searchMode match {
+                  case ParkingSearchMode.EnRouteCharging => config.enrouteDuration.toInt
+                  case _                                 => params.parkingDuration.toInt
                 }
+              )
+              val stallPriceInDollars: Double = parkingZone.pricingModel
+                .map(
+                  PricingModel.evaluateParkingTicket(
+                    _,
+                    parkingDuration
+                  )
+                )
+                .getOrElse(0.0)
               val parkingAlternative: ParkingAlternative =
-                ParkingAlternative(zone, parkingZone.parkingType, parkingZone, stallLocation, stallPriceInDollars)
+                ParkingAlternative(
+                  zone,
+                  parkingZone.parkingType,
+                  parkingZone,
+                  stallLocation,
+                  stallPriceInDollars,
+                  parkingDuration
+                )
               val parkingAlternativeUtility: Map[ParkingMNL.Parameters, Double] =
                 parkingZoneMNLParamsFunction(parkingAlternative)
               ParkingSearchAlternative(
@@ -213,7 +221,8 @@ object ParkingZoneSearch {
               )
 
             mnl.sampleAlternative(alternativesToSample, params.random).map { result =>
-              val ParkingAlternative(taz, parkingType, parkingZone, coordinate, costInDollars) = result.alternativeType
+              val ParkingAlternative(taz, parkingType, parkingZone, coordinate, costInDollars, _) =
+                result.alternativeType
 
               // create a new stall instance. you win!
               val parkingStall = ParkingStall(
