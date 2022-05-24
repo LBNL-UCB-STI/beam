@@ -238,6 +238,34 @@ object GeoUtils {
     Math.sqrt(Math.pow(x1 - x2, 2.0) + Math.pow(y1 - y2, 2.0))
   }
 
+  def isPointWithinCircle(center: Coord, radiusSquared: Double, point: Coord): Boolean = {
+    val dx = point.getX - center.getX
+    val dy = point.getY - center.getY
+    dx * dx + dy * dy <= radiusSquared
+  }
+
+  /**
+    * Calculates point of intersection between a circle and a segment that starts at `point` and ends at the circle center
+    * @param center circle center
+    * @param radius circle radius
+    * @param point segment starting point
+    * @return intersection of the circle and the segment or the circle center if the point == center
+    */
+  def segmentCircleIntersection(center: Coord, radius: Double, point: Coord): Coord = {
+    val dx = point.getX - center.getX
+    val dy = point.getY - center.getY
+    if (dx == 0) {
+      new Coord(center.getX, center.getY + Math.signum(dy) * radius)
+    } else {
+      val m = dy / dx
+      val m2 = m * m
+      new Coord(
+        center.getX + Math.signum(dx) * radius / Math.sqrt(1 + m2),
+        center.getY + Math.signum(dy) * radius / Math.sqrt(1 + 1 / m2)
+      )
+    }
+  }
+
   /**
     * Calculate the Minkowski distance between two coordinates. Provided coordinates need to be in UTM.
     *

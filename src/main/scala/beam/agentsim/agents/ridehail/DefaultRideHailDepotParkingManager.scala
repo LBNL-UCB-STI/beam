@@ -15,7 +15,6 @@ import beam.sim.{BeamServices, Geofence}
 import beam.utils.logging.LogActorState
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.network.Link
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.utils.collections.QuadTree
 
@@ -42,12 +41,12 @@ import scala.collection.mutable.ListBuffer
   * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.chargingTimeMultiplier = "double | -0.01666667" // one minute of charging is one util
   * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.insufficientRangeMultiplier = "double | -60.0" // 60 minute penalty if out of range
   */
-class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
+class DefaultRideHailDepotParkingManager(
   vehicleManagerId: Id[VehicleManager],
-  parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
+  parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   outputDirectory: OutputDirectoryHierarchy,
   rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail
-) extends RideHailDepotParkingManager[GEO](parkingZones) {
+) extends RideHailDepotParkingManager(parkingZones) {
 
   /*
    * All internal data to track Depots, ParkingZones, and charging queues are kept in ParkingZoneDepotData which is
@@ -59,7 +58,7 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
     parkingZoneIdToParkingZoneDepotData.put(parkingZoneId, ParkingZoneDepotData.empty)
   }
 
-  override protected val searchFunctions: Option[InfrastructureFunctions[GEO]] = None
+  override protected val searchFunctions: Option[InfrastructureFunctions] = None
 
   protected val chargingPlugTypesSortedByPower = parkingZones
     .flatMap(_._2.chargingPointType)
@@ -92,9 +91,9 @@ class DefaultRideHailDepotParkingManager[GEO: GeoLevel](
   /*
    * Track "Depots" as a mapping from TAZ Id to ParkingZones to facilitate processing all ParkingZones in a depot
    */
-  val tazIdToParkingZones: mutable.Map[Id[GEO], Map[Id[ParkingZoneId], ParkingZone[GEO]]] =
-    mutable.Map.empty[Id[GEO], Map[Id[ParkingZoneId], ParkingZone[GEO]]]
-  parkingZones.groupBy(_._2.geoId).foreach(tup => tazIdToParkingZones += tup)
+  val tazIdToParkingZones: mutable.Map[Id[TAZ], Map[Id[ParkingZoneId], ParkingZone]] =
+    mutable.Map.empty[Id[TAZ], Map[Id[ParkingZoneId], ParkingZone]]
+  parkingZones.groupBy(_._2.tazId).foreach(tup => tazIdToParkingZones += tup)
 
   def registerGeofences(vehicleIdToGeofenceMap: mutable.Map[VehicleId, Option[Geofence]]) = {
     vehicleIdToGeofenceMap.foreach {
@@ -346,26 +345,24 @@ object DefaultRideHailDepotParkingManager {
   val MinNumberOfSameTypeZones: Int = 5
   val outputRidehailParkingFileName = "ridehailParking.csv"
 
-  def apply[GEO: GeoLevel](
+  def apply(
     vehicleManagerId: Id[VehicleManager],
-    parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
-    geoQuadTree: QuadTree[GEO],
-    idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
-    geoToTAZ: GEO => TAZ,
+    parkingZones: Map[Id[ParkingZoneId], ParkingZone],
+    geoQuadTree: QuadTree[TAZ],
+    idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
     boundingBox: Envelope,
     beamServices: BeamServices
-  ): RideHailDepotParkingManager[GEO] = {
-    new DefaultRideHailDepotParkingManager[GEO](
+  ): RideHailDepotParkingManager = {
+    new DefaultRideHailDepotParkingManager(
       vehicleManagerId,
       parkingZones,
       beamServices.matsimServices.getControlerIO,
       beamServices.beamConfig.beam.agentsim.agents.rideHail
     ) {
-      override val searchFunctions: Option[InfrastructureFunctions[GEO]] = Some(
+      override val searchFunctions: Option[InfrastructureFunctions] = Some(
         new DefaultRidehailFunctions(
           geoQuadTree,
           idToGeoMapping,
-          geoToTAZ,
           parkingZones,
           parkingZoneIdToParkingZoneDepotData,
           beamServices.geo.distUTMInMeters,
@@ -386,36 +383,15 @@ object DefaultRideHailDepotParkingManager {
 
   def init(
     vehicleManagerId: Id[VehicleManager],
-    parkingZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]],
+    parkingZones: Map[Id[ParkingZoneId], ParkingZone],
     boundingBox: Envelope,
     beamServices: BeamServices
-  ): RideHailDepotParkingManager[TAZ] = {
-    DefaultRideHailDepotParkingManager[TAZ](
+  ): RideHailDepotParkingManager = {
+    DefaultRideHailDepotParkingManager(
       vehicleManagerId,
       parkingZones,
       beamServices.beamScenario.tazTreeMap.tazQuadTree,
       beamServices.beamScenario.tazTreeMap.idToTAZMapping,
-      identity[TAZ],
-      boundingBox,
-      beamServices
-    )
-  }
-
-  def init(
-    vehicleManagerId: Id[VehicleManager],
-    parkingZones: Map[Id[ParkingZoneId], ParkingZone[Link]],
-    geoQuadTree: QuadTree[Link],
-    idToGeoMapping: scala.collection.Map[Id[Link], Link],
-    geoToTAZ: Link => TAZ,
-    boundingBox: Envelope,
-    beamServices: BeamServices
-  ): RideHailDepotParkingManager[Link] = {
-    DefaultRideHailDepotParkingManager[Link](
-      vehicleManagerId,
-      parkingZones,
-      geoQuadTree,
-      idToGeoMapping,
-      geoToTAZ,
       boundingBox,
       beamServices
     )

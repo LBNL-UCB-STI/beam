@@ -12,7 +12,7 @@ import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
 
-class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkMap: ParkingNetwork[_])
+class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkMap: ParkingNetwork)
     extends beam.utils.CriticalActor
     with LoggingMessageActor
     with ActorLogging {
@@ -43,7 +43,7 @@ class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkMap: Parki
 
 object ParkingNetworkManager extends LazyLogging {
 
-  def props(services: BeamServices, parkingNetworkMap: ParkingNetwork[_]): Props = {
+  def props(services: BeamServices, parkingNetworkMap: ParkingNetwork): Props = {
     Props(new ParkingNetworkManager(services, parkingNetworkMap))
   }
 }

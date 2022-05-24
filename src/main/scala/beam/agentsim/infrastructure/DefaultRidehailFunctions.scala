@@ -20,11 +20,10 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.mutable
 
-class DefaultRidehailFunctions[GEO: GeoLevel](
-  geoQuadTree: QuadTree[GEO],
-  idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
-  geoToTAZ: GEO => TAZ,
-  parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
+class DefaultRidehailFunctions(
+  geoQuadTree: QuadTree[TAZ],
+  idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+  parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   parkingZoneIdToParkingZoneDepotData: mutable.Map[Id[ParkingZoneId], ParkingZoneDepotData],
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
@@ -37,10 +36,9 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
   rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail,
   skims: Skims,
   estimatedMinParkingDurationInSeconds: Double
-) extends InfrastructureFunctions[GEO](
+) extends InfrastructureFunctions(
       geoQuadTree,
       idToGeoMapping,
-      geoToTAZ,
       parkingZones,
       distanceFunction,
       minSearchRadius,
@@ -67,7 +65,7 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
     * @return
     */
   override protected def setupMNLParameters(
-    parkingAlternative: ParkingZoneSearch.ParkingAlternative[GEO],
+    parkingAlternative: ParkingZoneSearch.ParkingAlternative,
     inquiry: ParkingInquiry
   ): Map[ParkingMNL.Parameters, Double] = {
     val beamVehicle = inquiry.beamVehicle.get
@@ -93,7 +91,7 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
       .refuelingSessionDurationAndEnergyInJoulesForStall(
         Some(
           ParkingStall
-            .fromParkingAlternative(geoToTAZ(parkingAlternative.geo).tazId, parkingAlternative)
+            .fromParkingAlternative(parkingAlternative.geo.tazId, parkingAlternative)
         ),
         None,
         None,
@@ -116,7 +114,7 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
     * @return
     */
   override protected def setupSearchFilterPredicates(
-    zone: ParkingZone[GEO],
+    zone: ParkingZone,
     inquiry: ParkingInquiry
   ): Boolean = {
     val beamVehicle = inquiry.beamVehicle.get
@@ -125,12 +123,12 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
 
   /**
     * Generic method that specifies the behavior when MNL returns a ParkingZoneSearchResult
-    * @param parkingZoneSearchResult ParkingZoneSearchResult[GEO]
+    * @param parkingZoneSearchResult ParkingZoneSearchResult
     */
   override protected def processParkingZoneSearchResult(
     inquiry: ParkingInquiry,
-    parkingZoneSearchResult: Option[ParkingZoneSearchResult[GEO]]
-  ): Option[ParkingZoneSearchResult[GEO]] = {
+    parkingZoneSearchResult: Option[ParkingZoneSearchResult]
+  ): Option[ParkingZoneSearchResult] = {
     parkingZoneSearchResult match {
       case Some(
             result @ ParkingZoneSearch.ParkingZoneSearchResult(
@@ -155,21 +153,20 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
   }
 
   /**
-    * sample location of a parking stall with a GEO area
+    * sample location of a parking stall with a TAZ area
     *
     * @param inquiry     ParkingInquiry
-    * @param parkingZone ParkingZone[GEO]
-    * @param geoArea GEO
+    * @param parkingZone ParkingZone
+    * @param taz TAZ
     * @return
     */
   override protected def sampleParkingStallLocation(
     inquiry: ParkingInquiry,
-    parkingZone: ParkingZone[GEO],
-    geoArea: GEO,
+    parkingZone: ParkingZone,
+    taz: TAZ,
     inClosestZone: Boolean = true
   ): Coord = {
-    import GeoLevel.ops._
-    geoArea.centroidLocation
+    taz.coord
   }
 
   /**
@@ -182,7 +179,7 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
     * @return
     */
   def secondsToServiceQueueAndChargingVehicles(
-    parkingZone: ParkingZone[GEO],
+    parkingZone: ParkingZone,
     tick: Int
   ): Int = {
     val parkingZoneDepotData = parkingZoneIdToParkingZoneDepotData(parkingZone.parkingZoneId)
@@ -215,7 +212,7 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
     result
   }
 
-  def hasHighSocAndZoneIsDCFast(beamVehicle: BeamVehicle, parkingZone: ParkingZone[GEO]): Boolean = {
+  def hasHighSocAndZoneIsDCFast(beamVehicle: BeamVehicle, parkingZone: ParkingZone): Boolean = {
     val soc = beamVehicle.getStateOfCharge
     soc >= 0.8 && parkingZone.chargingPointType.exists(_.asInstanceOf[CustomChargingPoint].installedCapacity > 20.0)
   }
@@ -227,10 +224,12 @@ class DefaultRidehailFunctions[GEO: GeoLevel](
     * @return Parking zone location in UTM.
     */
   def getParkingZoneLocationUtm(parkingZoneId: Id[ParkingZoneId]): Coord = {
-    val geoId = parkingZones(parkingZoneId).geoId
-    val geo = idToGeoMapping(geoId)
-    import GeoLevel.ops._
-    geo.centroidLocation
+    val parkingZone = parkingZones(parkingZoneId)
+    parkingZone.link.fold {
+      idToGeoMapping(parkingZone.tazId).coord
+    } {
+      _.getCoord
+    }
   }
 }
 

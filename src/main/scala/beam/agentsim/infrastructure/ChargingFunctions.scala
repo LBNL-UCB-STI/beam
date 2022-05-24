@@ -16,11 +16,10 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
-class ChargingFunctions[GEO: GeoLevel](
-  geoQuadTree: QuadTree[GEO],
-  idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
-  geoToTAZ: GEO => TAZ,
-  parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
+class ChargingFunctions(
+  geoQuadTree: QuadTree[TAZ],
+  idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+  parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
@@ -34,10 +33,9 @@ class ChargingFunctions[GEO: GeoLevel](
   skims: Option[Skims],
   fuelPrice: Map[FuelType, Double],
   estimatedMinParkingDurationInSeconds: Double
-) extends ParkingFunctions[GEO](
+) extends ParkingFunctions(
       geoQuadTree,
       idToGeoMapping,
-      geoToTAZ,
       parkingZones,
       distanceFunction,
       minSearchRadius,
@@ -58,8 +56,8 @@ class ChargingFunctions[GEO: GeoLevel](
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
-    inquiry.reservedFor.managerType match {
+  def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+    inquiry.reservedFor match {
       case VehicleManager.TypeEnum.RideHail if inquiry.parkingDuration <= 3600 =>
         ChargingPointType.isFastCharger(zone.chargingPointType.get)
       case _ =>
@@ -73,7 +71,7 @@ class ChargingFunctions[GEO: GeoLevel](
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifEnrouteThenFastChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
+  def ifEnrouteThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     inquiry.searchMode match {
       case ParkingSearchMode.EnRouteCharging =>
         ChargingPointType.isFastCharger(zone.chargingPointType.get)
@@ -88,7 +86,7 @@ class ChargingFunctions[GEO: GeoLevel](
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifHomeOrWorkOrOvernightThenSlowChargingOnly(zone: ParkingZone[GEO], inquiry: ParkingInquiry): Boolean = {
+  def ifHomeOrWorkOrOvernightThenSlowChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     if (
       inquiry.searchMode == ParkingSearchMode.Init || List(ParkingActivityType.Home, ParkingActivityType.Work).contains(
         inquiry.parkingActivityType
@@ -104,7 +102,7 @@ class ChargingFunctions[GEO: GeoLevel](
     * @param beamVehicleMaybe Option[BeamVehicle]
     * @return
     */
-  def hasValidChargingCapability(zone: ParkingZone[GEO], beamVehicleMaybe: Option[BeamVehicle]): Boolean = {
+  def hasValidChargingCapability(zone: ParkingZone, beamVehicleMaybe: Option[BeamVehicle]): Boolean = {
     beamVehicleMaybe.forall(
       _.beamVehicleType.chargingCapability.forall(getPower(_) >= getPower(zone.chargingPointType.get))
     )
@@ -121,7 +119,7 @@ class ChargingFunctions[GEO: GeoLevel](
     * @return
     */
   override protected def setupSearchFilterPredicates(
-    zone: ParkingZone[GEO],
+    zone: ParkingZone,
     inquiry: ParkingInquiry
   ): Boolean = {
     if (zone.chargingPointType.isEmpty)
@@ -143,7 +141,7 @@ class ChargingFunctions[GEO: GeoLevel](
     *  @return
     */
   override protected def setupMNLParameters(
-    parkingAlternative: ParkingAlternative[GEO],
+    parkingAlternative: ParkingAlternative,
     inquiry: ParkingInquiry
   ): Map[ParkingMNL.Parameters, Double] = {
     val enrouteFactor: Double = inquiry.searchMode match {
@@ -207,12 +205,12 @@ class ChargingFunctions[GEO: GeoLevel](
 
   /**
     * Generic method that specifies the behavior when MNL returns a ParkingZoneSearchResult
-    * @param parkingZoneSearchResult ParkingZoneSearchResult[GEO]
+    * @param parkingZoneSearchResult ParkingZoneSearchResult
     */
   override protected def processParkingZoneSearchResult(
     inquiry: ParkingInquiry,
-    parkingZoneSearchResult: Option[ParkingZoneSearchResult[GEO]]
-  ): Option[ParkingZoneSearchResult[GEO]] = parkingZoneSearchResult match {
+    parkingZoneSearchResult: Option[ParkingZoneSearchResult]
+  ): Option[ParkingZoneSearchResult] = parkingZoneSearchResult match {
     case None if inquiry.searchMode == ParkingSearchMode.EnRouteCharging =>
       // did not find a stall with a fast charging point, return a dummy stall
       Some(
@@ -224,9 +222,7 @@ class ChargingFunctions[GEO: GeoLevel](
               inquiry.originUtm.get.loc.getY + 2000,
               inquiry.originUtm.get.loc.getY - 2000
             ),
-            new Random(seed),
-            tazId = TAZ.EmergencyTAZId,
-            geoId = GeoLevel[GEO].emergencyGeoId
+            new Random(seed)
           ),
           DefaultParkingZone
         )
@@ -235,19 +231,19 @@ class ChargingFunctions[GEO: GeoLevel](
   }
 
   /**
-    * sample location of a parking stall with a GEO area
+    * sample location of a parking stall with a TAZ area
     *
     * @param inquiry     ParkingInquiry
-    * @param parkingZone ParkingZone[GEO]
-    * @param geoArea GEO
+    * @param parkingZone ParkingZone
+    * @param taz TAZ
     * @return
     */
   override protected def sampleParkingStallLocation(
     inquiry: ParkingInquiry,
-    parkingZone: ParkingZone[GEO],
-    geoArea: GEO,
+    parkingZone: ParkingZone,
+    taz: TAZ,
     inClosestZone: Boolean = false
-  ): Coord = super[ParkingFunctions].sampleParkingStallLocation(inquiry, parkingZone, geoArea, inClosestZone)
+  ): Coord = super[ParkingFunctions].sampleParkingStallLocation(inquiry, parkingZone, taz, inClosestZone)
 
   /**
     * getTravelTime

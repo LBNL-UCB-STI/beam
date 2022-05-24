@@ -13,11 +13,10 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
-class ParkingFunctions[GEO: GeoLevel](
-  geoQuadTree: QuadTree[GEO],
-  idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
-  geoToTAZ: GEO => TAZ,
-  parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
+class ParkingFunctions(
+  geoQuadTree: QuadTree[TAZ],
+  idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+  parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
@@ -29,10 +28,9 @@ class ParkingFunctions[GEO: GeoLevel](
   seed: Int,
   mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
   estimatedMinParkingDurationInSeconds: Double
-) extends InfrastructureFunctions[GEO](
+) extends InfrastructureFunctions(
       geoQuadTree,
       idToGeoMapping,
-      geoToTAZ,
       parkingZones,
       distanceFunction,
       minSearchRadius,
@@ -72,7 +70,7 @@ class ParkingFunctions[GEO: GeoLevel](
     * @return
     */
   override protected def setupMNLParameters(
-    parkingAlternative: ParkingAlternative[GEO],
+    parkingAlternative: ParkingAlternative,
     inquiry: ParkingInquiry
   ): Map[ParkingMNL.Parameters, Double] = {
     val distance: Double = distanceFunction(inquiry.destinationUtm.loc, parkingAlternative.coord)
@@ -106,7 +104,7 @@ class ParkingFunctions[GEO: GeoLevel](
     * @return
     */
   override protected def setupSearchFilterPredicates(
-    zone: ParkingZone[GEO],
+    zone: ParkingZone,
     inquiry: ParkingInquiry
   ): Boolean = {
     if (zone.chargingPointType.isDefined)
@@ -118,18 +116,18 @@ class ParkingFunctions[GEO: GeoLevel](
 
   /**
     * Generic method that specifies the behavior when MNL returns a ParkingZoneSearchResult
-    * @param parkingZoneSearchResult ParkingZoneSearchResult[GEO]
+    * @param parkingZoneSearchResult ParkingZoneSearchResult
     */
   override protected def processParkingZoneSearchResult(
     inquiry: ParkingInquiry,
-    parkingZoneSearchResult: Option[ParkingZoneSearchResult[GEO]]
-  ): Option[ParkingZoneSearchResult[GEO]] = {
+    parkingZoneSearchResult: Option[ParkingZoneSearchResult]
+  ): Option[ParkingZoneSearchResult] = {
     val output = parkingZoneSearchResult match {
       case Some(result) => result
       case _ =>
         inquiry.parkingActivityType match {
           case ParkingActivityType.Home =>
-            val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc, GeoLevel[GEO].defaultGeoId)
+            val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc)
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
           case _ =>
             // didn't find any stalls, so, as a last resort, create a very expensive stall
@@ -139,12 +137,7 @@ class ParkingFunctions[GEO: GeoLevel](
               inquiry.destinationUtm.loc.getY + 2000,
               inquiry.destinationUtm.loc.getY - 2000
             )
-            val newStall = ParkingStall.lastResortStall(
-              boxAroundRequest,
-              new Random(seed),
-              tazId = TAZ.EmergencyTAZId,
-              geoId = GeoLevel[GEO].emergencyGeoId
-            )
+            val newStall = ParkingStall.lastResortStall(boxAroundRequest, new Random(seed))
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
         }
     }
@@ -152,16 +145,16 @@ class ParkingFunctions[GEO: GeoLevel](
   }
 
   /**
-    * sample location of a parking stall with a GEO area
+    * sample location of a parking stall with a TAZ area
     *
     * @param inquiry     ParkingInquiry
-    * @param parkingZone ParkingZone[GEO]
-    * @param geoArea GEO
+    * @param parkingZone ParkingZone
+    * @param taz TAZ
     */
   override protected def sampleParkingStallLocation(
     inquiry: ParkingInquiry,
-    parkingZone: ParkingZone[GEO],
-    geoArea: GEO,
+    parkingZone: ParkingZone,
+    taz: TAZ,
     inClosestZone: Boolean = true
   ): Coord = {
     if (parkingZone.link.isDefined)
@@ -173,10 +166,10 @@ class ParkingFunctions[GEO: GeoLevel](
     )
       inquiry.destinationUtm.loc
     else
-      GeoLevel[GEO].geoSampling(
+      ParkingStallSampling.availabilityAwareSampling(
         new Random(seed),
         inquiry.destinationUtm.loc,
-        geoArea,
+        taz,
         parkingZone.availability,
         inClosestZone
       )
@@ -190,7 +183,7 @@ class ParkingFunctions[GEO: GeoLevel](
     * @return
     */
   protected def canThisCarParkHere(
-    zone: ParkingZone[GEO],
+    zone: ParkingZone,
     inquiry: ParkingInquiry,
     preferredParkingTypes: Set[ParkingType]
   ): Boolean = {

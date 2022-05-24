@@ -24,11 +24,10 @@ import scala.util.Random
 /**
   * Created by haitamlaarabi
   */
-class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
-    extends ParkingNetwork[GEO](chargingZones) {
+class ChargingNetwork(val chargingZones: Map[Id[ParkingZoneId], ParkingZone]) extends ParkingNetwork(chargingZones) {
   import ChargingNetwork._
 
-  override protected val searchFunctions: Option[InfrastructureFunctions[GEO]] = None
+  override protected val searchFunctions: Option[InfrastructureFunctions] = None
 
   protected val beamVehicleIdToChargingVehicleMap: mutable.HashMap[Id[BeamVehicle], ChargingVehicle] =
     mutable.HashMap.empty
@@ -151,23 +150,21 @@ object ChargingNetwork extends LazyLogging {
     val WaitingAtStation, Connected, Disconnected, GracePeriod = Value
   }
 
-  def apply[GEO: GeoLevel](
-    chargingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]],
-    geoQuadTree: QuadTree[GEO],
-    idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
-    geoToTAZ: GEO => TAZ,
+  def apply(
+    chargingZones: Map[Id[ParkingZoneId], ParkingZone],
+    geoQuadTree: QuadTree[TAZ],
+    idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
     envelopeInUTM: Envelope,
     beamConfig: BeamConfig,
     distanceFunction: (Coord, Coord) => Double,
     skims: Option[Skims],
     fuelPrice: Map[FuelType, Double]
-  ): ChargingNetwork[GEO] = {
-    new ChargingNetwork[GEO](chargingZones) {
-      override val searchFunctions: Option[InfrastructureFunctions[GEO]] = Some(
-        new ChargingFunctions[GEO](
+  ): ChargingNetwork = {
+    new ChargingNetwork(chargingZones) {
+      override val searchFunctions: Option[InfrastructureFunctions] = Some(
+        new ChargingFunctions(
           geoQuadTree,
           idToGeoMapping,
-          geoToTAZ,
           chargingZones,
           distanceFunction,
           beamConfig.beam.agentsim.agents.parking.minSearchRadius,
@@ -187,18 +184,17 @@ object ChargingNetwork extends LazyLogging {
     }
   }
 
-  def apply[GEO: GeoLevel](
+  def apply(
     parkingDescription: Iterator[String],
-    geoQuadTree: QuadTree[GEO],
-    idToGeoMapping: scala.collection.Map[Id[GEO], GEO],
-    geoToTAZ: GEO => TAZ,
+    geoQuadTree: QuadTree[TAZ],
+    idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
     envelopeInUTM: Envelope,
     beamConfig: BeamConfig,
     beamServicesMaybe: Option[BeamServices],
     distanceFunction: (Coord, Coord) => Double,
     skims: Option[Skims] = None,
     fuelPrice: Map[FuelType, Double] = Map()
-  ): ChargingNetwork[GEO] = {
+  ): ChargingNetwork = {
     val parking = ParkingZoneFileUtils.fromIterator(
       parkingDescription,
       Some(beamConfig),
@@ -208,11 +204,10 @@ object ChargingNetwork extends LazyLogging {
       1.0,
       1.0
     )
-    ChargingNetwork[GEO](
+    ChargingNetwork(
       parking.zones.toMap,
       geoQuadTree,
       idToGeoMapping,
-      geoToTAZ,
       envelopeInUTM,
       beamConfig,
       distanceFunction,
@@ -222,15 +217,14 @@ object ChargingNetwork extends LazyLogging {
   }
 
   def init(
-    chargingZones: Map[Id[ParkingZoneId], ParkingZone[TAZ]],
+    chargingZones: Map[Id[ParkingZoneId], ParkingZone],
     envelopeInUTM: Envelope,
     beamServices: BeamServices
-  ): ChargingNetwork[TAZ] = {
-    ChargingNetwork[TAZ](
+  ): ChargingNetwork = {
+    ChargingNetwork(
       chargingZones,
       beamServices.beamScenario.tazTreeMap.tazQuadTree,
       beamServices.beamScenario.tazTreeMap.idToTAZMapping,
-      identity[TAZ](_),
       envelopeInUTM,
       beamServices.beamConfig,
       beamServices.geo.distUTMInMeters(_, _),
@@ -239,28 +233,7 @@ object ChargingNetwork extends LazyLogging {
     )
   }
 
-  def init(
-    chargingZones: Map[Id[ParkingZoneId], ParkingZone[Link]],
-    geoQuadTree: QuadTree[Link],
-    idToGeoMapping: scala.collection.Map[Id[Link], Link],
-    geoToTAZ: Link => TAZ,
-    envelopeInUTM: Envelope,
-    beamServices: BeamServices
-  ): ChargingNetwork[Link] = {
-    ChargingNetwork[Link](
-      chargingZones,
-      geoQuadTree,
-      idToGeoMapping,
-      geoToTAZ,
-      envelopeInUTM,
-      beamServices.beamConfig,
-      beamServices.geo.distUTMInMeters(_, _),
-      Some(beamServices.skims),
-      beamServices.beamScenario.fuelTypePrices
-    )
-  }
-
-  final case class ChargingStation(zone: ParkingZone[_]) {
+  final case class ChargingStation(zone: ParkingZone) {
     import ChargingStatus._
     private val chargingVehiclesInternal = mutable.HashMap.empty[Id[BeamVehicle], ChargingVehicle]
 

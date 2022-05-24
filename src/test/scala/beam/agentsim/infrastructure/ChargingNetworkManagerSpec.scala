@@ -125,12 +125,10 @@ class ChargingNetworkManagerSpec
 
   val personId: Id[Person] = Id.createPersonId("dummyPerson")
 
-  val parkingZoneId: Id[ParkingZoneId] =
-    ParkingZone.createId("cs_default(Any)_2_Public_ultrafast(250.0|DC)_FlatFee_0_1")
+  val parkingZoneId: Id[ParkingZoneId] = ParkingZone.createId("0")
 
   val parkingStall: ParkingStall =
     ParkingStall(
-      taz2.tazId,
       taz2.tazId,
       parkingZoneId,
       taz2.coord,
