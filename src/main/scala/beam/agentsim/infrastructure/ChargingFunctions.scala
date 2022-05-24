@@ -14,8 +14,6 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
-import scala.util.Random
-
 class ChargingFunctions(
   geoQuadTree: QuadTree[TAZ],
   idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
