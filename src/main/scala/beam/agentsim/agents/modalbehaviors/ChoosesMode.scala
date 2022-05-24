@@ -747,7 +747,7 @@ trait ChoosesMode {
       for {
         activity <- nextActivity(choosesModeData.personData)
         leg      <- _experiencedBeamPlan.getTripContaining(activity).leg if leg.getRoute == null
-      } yield {
+      } {
         val links =
           response.itineraries
             .flatMap(_.beamLegs)
