@@ -8,6 +8,7 @@ import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
 import beam.agentsim.infrastructure.parking._
+import beam.agentsim.infrastructure.power.SitePowerManager
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.sim.config.BeamConfig
@@ -255,7 +256,8 @@ object HierarchicalParkingManager {
     reservedFor: ReservedFor,
     chargingPointType: Option[ChargingPointType],
     pricingModel: Option[PricingModel],
-    timeRestrictions: Map[VehicleCategory, Range]
+    timeRestrictions: Map[VehicleCategory, Range],
+    sitePowerManagerId: Id[SitePowerManager]
   )
 
   object ParkingZoneDescription {
@@ -266,7 +268,8 @@ object HierarchicalParkingManager {
         zone.reservedFor,
         zone.chargingPointType,
         zone.pricingModel,
-        zone.timeRestrictions
+        zone.timeRestrictions,
+        zone.sitePowerManagerId
       )
     }
   }
@@ -350,6 +353,7 @@ object HierarchicalParkingManager {
         parkingType = description.parkingType,
         maxStalls = numStalls,
         reservedFor = description.reservedFor,
+        sitePowerManagerIdMaybe = Some(description.sitePowerManagerId),
         chargingPointType = description.chargingPointType,
         pricingModel = description.pricingModel,
         timeRestrictions = description.timeRestrictions
@@ -409,6 +413,7 @@ object HierarchicalParkingManager {
           parkingType = description.parkingType,
           maxStalls = numStalls,
           reservedFor = description.reservedFor,
+          sitePowerManagerIdMaybe = Some(description.sitePowerManagerId),
           chargingPointType = description.chargingPointType,
           pricingModel = description.pricingModel,
           timeRestrictions = description.timeRestrictions

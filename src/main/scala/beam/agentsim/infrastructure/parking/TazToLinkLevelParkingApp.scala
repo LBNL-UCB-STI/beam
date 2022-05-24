@@ -73,6 +73,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
         parkingType = zone.parkingType,
         maxStalls = zone.maxStalls,
         reservedFor = zone.reservedFor,
+        sitePowerManagerIdMaybe = None,
         chargingPointType = zone.chargingPointType,
         pricingModel = zone.pricingModel,
         timeRestrictions = zone.timeRestrictions
@@ -125,6 +126,7 @@ object TazToLinkLevelParkingApp extends App with StrictLogging {
           parkingType = zone.parkingType,
           maxStalls = numZones,
           reservedFor = zone.reservedFor,
+          sitePowerManagerIdMaybe = None,
           chargingPointType = zone.chargingPointType,
           pricingModel = zone.pricingModel,
           timeRestrictions = zone.timeRestrictions

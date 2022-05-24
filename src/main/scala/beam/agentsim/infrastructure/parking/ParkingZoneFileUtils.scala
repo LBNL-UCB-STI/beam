@@ -11,10 +11,10 @@ import beam.sim.config.BeamConfig
 import beam.utils.csv.GenericCsvReader
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.{FileUtils, MathUtils}
+import org.apache.commons.lang3.StringUtils.isBlank
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.utils.io.IOUtils
-import org.apache.commons.lang3.StringUtils.isBlank
 
 import java.io.{BufferedReader, File, IOException}
 import scala.annotation.tailrec
@@ -510,6 +510,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           taz,
           parkingType,
           reservedFor,
+          sitePowerManagerIdMaybe,
           numStalls,
           chargingPoint,
           pricingModel,
