@@ -40,6 +40,8 @@ class SimulationWorker(
       "population"
     )
 
+    context.watch(population)
+
     data.scheduler ! ScheduleTrigger(InitializeTrigger(0), population)
 
     context.become(interationStarted(population))
@@ -50,18 +52,13 @@ class SimulationWorker(
     context.become(interationFinished())
   }
 
-  private def interationFinished(): Actor.Receive = {
-    case Terminated(x) =>
-      logger.info(s"Terminated {}", x)
-      if (context.children.isEmpty) {
-        // Await eventBuilder message queue to be processed, before ending iteration
-        beamServices.eventBuilderActor ! FlushEvents
-      } else {
-        logger.info("Remaining: {}", context.children)
-      }
-
-    case EventBuilderActorCompleted =>
+  private def interationFinished(): Actor.Receive = { case Terminated(x) =>
+    logger.debug(s"Terminated {}", x)
+    if (context.children.isEmpty) {
       context.stop(self)
+    } else {
+      logger.debug("Remaining: {}", context.children)
+    }
   }
 }
 

@@ -552,7 +552,9 @@ class BeamMobsimIteration(
         } yield actorRefs
         Await.result(futureActorRefs, Duration.Inf)
       case None =>
-        Seq(context.actorOf(SimulationWorker.props(0, 1, beamServices)))
+        val localSimWorker = context.actorOf(SimulationWorker.props(0, 1, beamServices))
+        context.watch(localSimWorker)
+        Seq(localSimWorker)
     }
   }
 
