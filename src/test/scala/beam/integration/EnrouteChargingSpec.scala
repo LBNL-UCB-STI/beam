@@ -127,9 +127,9 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
               `vehicleId`,
               _,
               _,
-              "EnRoute",
+              activityType,
               _
-            ) =>
+            ) if activityType.startsWith("EnRoute") =>
           refuelEvents += RefuelEventData(
             energyInJoules,
             ChargingPointType.getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
