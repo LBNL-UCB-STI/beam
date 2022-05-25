@@ -297,7 +297,8 @@ object ChargingNetworkManager extends LazyLogging {
   case class ChargingNetworkHelper(chargingNetwork: ChargingNetwork, rideHailNetwork: ChargingNetwork) {
 
     lazy val allChargingStations: List[ChargingStation] =
-      chargingNetwork.chargingStations ++ rideHailNetwork.chargingStations
+      chargingNetwork.chargingStations.filter(_.zone.chargingPointType.isDefined) ++ rideHailNetwork.chargingStations
+        .filter(_.zone.chargingPointType.isDefined)
 
     /**
       * @param managerId vehicle manager id

@@ -23,7 +23,7 @@ import scala.util.Random
 /**
   * Created by haitamlaarabi
   */
-class ChargingNetwork(val chargingZones: Map[Id[ParkingZoneId], ParkingZone]) extends ParkingNetwork(chargingZones) {
+class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) extends ParkingNetwork(parkingZones) {
   import ChargingNetwork._
 
   override protected val searchFunctions: Option[InfrastructureFunctions] = None
@@ -32,7 +32,7 @@ class ChargingNetwork(val chargingZones: Map[Id[ParkingZoneId], ParkingZone]) ex
     mutable.HashMap.empty
 
   protected val chargingZoneKeyToChargingStationMap: Map[Id[ParkingZoneId], ChargingStation] =
-    chargingZones.map { case (zoneId, zone) => zoneId -> ChargingStation(zone) }
+    parkingZones.filter(_._2.chargingPointType.isDefined).map { case (zoneId, zone) => zoneId -> ChargingStation(zone) }
 
   val chargingStations: List[ChargingStation] = chargingZoneKeyToChargingStationMap.values.toList
 
