@@ -28,7 +28,7 @@ import beam.router.r5._
 import beam.router.skim.core._
 import beam.router.skim.{ActivitySimSkimmer, Skims}
 import beam.scoring.BeamScoringFunctionFactory
-import beam.sim.ArgumentsParser.{Arguments, SimWorker, Worker}
+import beam.sim.ArgumentsParser.{Arguments, Worker}
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config._
 import beam.sim.metrics.Metrics._
@@ -70,7 +70,6 @@ import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling, PlansDumping}
-import org.matsim.core.controler.events.StartupEvent
 import org.matsim.core.events.ParallelEventsManagerImpl
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
@@ -144,6 +143,9 @@ trait BeamHelper extends LazyLogging {
             if (parsedArgs.useCluster)
               Map(
                 "beam.cluster.clusterType"              -> parsedArgs.clusterType.get.toString,
+                "akka.cluster.roles"                    -> java.util.Arrays.asList(parsedArgs.clusterType.get.toString),
+                "akka.cluster.partNumber"               -> parsedArgs.partNumber.getOrElse(0),
+                "akka.cluster.totalParts"               -> parsedArgs.totalParts.getOrElse(1),
                 "akka.actor.provider"                   -> "akka.cluster.ClusterActorRefProvider",
                 "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.get,
                 "akka.remote.artery.canonical.port"     -> parsedArgs.nodePort.get,
@@ -211,7 +213,7 @@ trait BeamHelper extends LazyLogging {
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
           bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
 
-          bind(classOf[BeamSim])
+          bind(classOf[BeamMobsim])
 
           addControlerListenerBinding().to(classOf[BeamSim])
           addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
@@ -439,8 +441,7 @@ trait BeamHelper extends LazyLogging {
     val (parsedArgs, config) = prepareConfig(args, isConfigArgRequired)
 
     parsedArgs.clusterType match {
-      case Some(Worker)    => runClusterWorkerUsing(config)
-      case Some(SimWorker) => runSimulationWorkerUsing(config, abstractModule.orElse(Some(RunBeam.configureDefaultAPI)))
+      case Some(Worker) => runClusterWorkerUsing(config) //Only the worker requires a different path
       case _ =>
         val (_, outputDirectory, _) =
           runBeamWithConfig(config, Some(abstractModule.getOrElse(RunBeam.configureDefaultAPI)))
@@ -582,45 +583,6 @@ trait BeamHelper extends LazyLogging {
     Await.ready(
       system.whenTerminated.map(_ => {
         logger.info("Exiting BEAM")
-      }),
-      scala.concurrent.duration.Duration.Inf
-    )
-  }
-
-  def runSimulationWorkerUsing(config: TypesafeConfig, abstractModule: Option[AbstractModule] = None): Unit = {
-    val clusterConfig = ConfigFactory
-      .parseString("""
-           akka.cluster.roles = [sim-worker]
-          """)
-      .withFallback(config)
-    val (
-      beamExecutionConfig: BeamExecutionConfig,
-      scenario: MutableScenario,
-      beamScenario: BeamScenario,
-      services: BeamServices,
-      plansMerged: Boolean
-    ) = prepareBeamService(clusterConfig, abstractModule)
-    stepsBeforeRun(services, scenario, beamScenario, beamExecutionConfig.outputDirectory, plansMerged)
-
-    import akka.actor.ActorSystem
-
-    //todome using Mobsim with different paths:
-//    1. MobsimIteration
-//    2. SimulationWorker, using Mobsim.run imitating matsim infrastructure ?
-// or add methods to Mobsim and use them in our SimWorker Actor
-
-    val beamSim = services.injector.getInstance(classOf[BeamSim])
-    beamSim.notifyStartup(new StartupEvent(services.matsimServices))
-    val system = services.injector.getInstance(classOf[ActorSystem])
-    system.actorOf(
-      SimulationWorker.props(0, 1, services),
-      name = "simulationWorker"
-    )
-
-    import scala.concurrent.ExecutionContext.Implicits.global
-    Await.ready(
-      system.whenTerminated.map(_ => {
-        logger.info("Exiting BEAM 2")
       }),
       scala.concurrent.duration.Duration.Inf
     )

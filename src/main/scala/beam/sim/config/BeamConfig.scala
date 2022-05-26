@@ -2400,7 +2400,9 @@ object BeamConfig {
 
     case class Cluster(
       clusterType: scala.Option[java.lang.String],
-      enabled: scala.Boolean
+      enabled: scala.Boolean,
+      partNumber: scala.Int,
+      totalParts: scala.Int
     )
 
     object Cluster {
@@ -2408,7 +2410,9 @@ object BeamConfig {
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Cluster = {
         BeamConfig.Beam.Cluster(
           clusterType = if (c.hasPathOrNull("clusterType")) Some(c.getString("clusterType")) else None,
-          enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled")
+          enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+          partNumber = if (c.hasPathOrNull("partNumber")) c.getInt("partNumber") else 0,
+          totalParts = if (c.hasPathOrNull("totalParts")) c.getInt("totalParts") else 1
         )
       }
     }

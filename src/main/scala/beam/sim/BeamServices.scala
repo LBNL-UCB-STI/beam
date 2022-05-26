@@ -59,6 +59,12 @@ import org.matsim.core.controler._
 trait BeamServices {
   val injector: Injector
   val controler: ControlerI
+
+  /**
+    * Contains the original config that was prepared before beam run.
+    * `beamConfig` may be loaded from disk at any time clearing values that should not be changed
+    */
+  def originalConfig: BeamConfig
   def beamConfig: BeamConfig
   def beamScenario: BeamScenario
 
@@ -90,6 +96,7 @@ class BeamServicesImpl @Inject() (val injector: Injector) extends BeamServices {
     injector.getInstance(classOf[BeamConfigChangesObservable])
 
   def beamConfig: BeamConfig = beamConfigChangesObservable.lastBeamConfig
+  def originalConfig: BeamConfig = beamConfigChangesObservable.originalConfig
 
   val beamScenario: BeamScenario = injector.getInstance(classOf[BeamScenario])
   val geo: GeoUtils = injector.getInstance(classOf[GeoUtils])

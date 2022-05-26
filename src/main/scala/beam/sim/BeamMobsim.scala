@@ -1,7 +1,17 @@
 package beam.sim
 
 import akka.actor.Status.Success
-import akka.actor.{ActorLogging, ActorRef, ActorSystem, Cancellable, DeadLetter, Props, RootActorPath, Terminated}
+import akka.actor.{
+  Actor,
+  ActorLogging,
+  ActorRef,
+  ActorSystem,
+  Cancellable,
+  DeadLetter,
+  Props,
+  RootActorPath,
+  Terminated
+}
 import akka.pattern.ask
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
@@ -21,7 +31,7 @@ import beam.router._
 import beam.router.osm.TollCalculator
 import beam.router.skim.TAZSkimsCollector
 import beam.sim.SimulationClusterManager.{GetWorkerNodes, WorkerNodes}
-import beam.sim.SimulationWorker.MasterBeamData
+import beam.sim.DistributedSimulationPart.MasterBeamData
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
@@ -165,19 +175,24 @@ class BeamMobsim @Inject() (
       )
     }
 
-    val iteration = actorSystem.actorOf(
-      Props(
-        new BeamMobsimIteration(
-          beamServices,
-          eventsManager,
-          rideHailSurgePricingManager,
-          rideHailIterationHistory,
-          routeHistory,
-          rideHailFleetInitializerProvider
+    val iteration =
+      if (originalConfig.beam.cluster.enabled && originalConfig.beam.cluster.clusterType.contains("sim-worker")) {
+        actorSystem.actorOf(Props(new WorkerIteration(beamServices)), "cluster.iteration")
+      } else {
+        actorSystem.actorOf(
+          Props(
+            new BeamMobsimIteration(
+              beamServices,
+              eventsManager,
+              rideHailSurgePricingManager,
+              rideHailIterationHistory,
+              routeHistory,
+              rideHailFleetInitializerProvider
+            )
+          ),
+          "BeamMobsim.iteration"
         )
-      ),
-      "BeamMobsim.iteration"
-    )
+      }
 
     Await.result(iteration ? "Run!", timeout.duration)
 
@@ -507,8 +522,8 @@ class BeamMobsimIteration(
   context.watch(transitSystem)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), transitSystem)
 
-  private val simWorkers: Seq[ActorRef] = getSimWorkers
-  simWorkers.foreach(
+  private val simulationParts: Seq[ActorRef] = getSimulationParts
+  simulationParts.foreach(
     _ ! MasterBeamData(scheduler, rideHailManager, parkingNetworkManager, chargingNetworkManager, sharedVehicleFleets)
   )
 
@@ -539,7 +554,7 @@ class BeamMobsimIteration(
     cancellable
   }
 
-  def getSimWorkers: Seq[ActorRef] = {
+  def getSimulationParts: Seq[ActorRef] = {
     import context.dispatcher
     beamServices.clusterManager match {
       case Some(clusterManager) =>
@@ -547,14 +562,16 @@ class BeamMobsimIteration(
         val futureActorRefs = for {
           workerNodes <- (clusterManager ? GetWorkerNodes).mapTo[WorkerNodes]
           actorRefs <- Future.sequence(workerNodes.nodes.map { address =>
-            context.actorSelection(RootActorPath(address) / Seq("user", "simulationWorker")).resolveOne()
+            context
+              .actorSelection(RootActorPath(address) / Seq("user", "cluster.iteration", "simulationPart"))
+              .resolveOne()
           })
         } yield actorRefs
         Await.result(futureActorRefs, Duration.Inf)
       case None =>
-        val localSimWorker = context.actorOf(SimulationWorker.props(0, 1, beamServices))
-        context.watch(localSimWorker)
-        Seq(localSimWorker)
+        val localSimulationPart = context.actorOf(DistributedSimulationPart.props(0, 1, beamServices))
+        context.watch(localSimulationPart)
+        Seq(localSimulationPart)
     }
   }
 
@@ -567,7 +584,7 @@ class BeamMobsimIteration(
       log.info("Processing Agentsim Events (Start)")
       stopMeasuring("agentsim-events:agentsim")
 
-      simWorkers.foreach(_ ! Finish)
+      simulationParts.foreach(_ ! Finish)
       rideHailManager ! Finish
       transitSystem ! Finish
       tazSkimmer ! Finish
@@ -646,4 +663,36 @@ class BeamMobsimIteration(
     )
   }
 
+}
+
+class WorkerIteration(beamServices: BeamServices) extends LoggingMessageActor with ActorLogging {
+
+  private val localSimulationPart = context.actorOf(
+    DistributedSimulationPart.props(
+      beamServices.beamConfig.beam.cluster.partNumber,
+      beamServices.beamConfig.beam.cluster.totalParts,
+      beamServices
+    ),
+    "simulationPart"
+  )
+  context.watch(localSimulationPart)
+
+  override def loggedReceive: Receive = { case "Run!" =>
+    context.become(interationStarted(sender()))
+  }
+
+  private def interationStarted(runSender: ActorRef): Actor.Receive = {
+    case Finish =>
+      localSimulationPart ! Finish
+    case Terminated(x) =>
+      log.info(s"Terminated {}", x)
+      if (context.children.isEmpty) {
+        beamServices.eventBuilderActor ! FlushEvents
+      } else {
+        log.info("Remaining: {}", context.children)
+      }
+    case EventBuilderActorCompleted =>
+      runSender ! Success("Ran.")
+      context.stop(self)
+  }
 }

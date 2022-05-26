@@ -40,6 +40,14 @@ object ArgumentsParser {
         .action((value, args) => args.copy(nodePort = Option(value)))
         .validate(value => if (value.trim.isEmpty) failure("node-port cannot be empty") else success)
         .text("Port used to run the remote actor system")
+      opt[Int]("part-number")
+        .action((value, args) => args.copy(partNumber = Option(value)))
+        .validate(value => if (value < 0) failure("part number cannot be below zero") else success)
+        .text("Simulation part number. sim-worker simulate only a single part of the all the agents.")
+      opt[Int]("total-parts")
+        .action((value, args) => args.copy(totalParts = Option(value)))
+        .validate(value => if (value < 1) failure("total parts must be greater then zero") else success)
+        .text("Number of total parts of simulation.")
       opt[String]("seed-address")
         .action((value, args) => args.copy(seedAddress = Option(value)))
         .validate(value =>
@@ -63,6 +71,13 @@ object ArgumentsParser {
           failure("If using the cluster then node-host, node-port, and seed-address are required")
         else if (args.useCluster && !args.useLocalWorker.getOrElse(true))
           failure("If using the cluster then use-local-worker MUST be true (or unprovided)")
+        else if (args.useCluster && args.clusterType.isEmpty)
+          failure("If using the cluster then cluster-type should be defined")
+        else if (
+          args.useCluster && args.clusterType
+            .contains(SimWorker) && (args.partNumber.isEmpty || args.totalParts.isEmpty)
+        )
+          failure("If it's a sim-worker then part-number and total-parts must be defined")
         else success
       )
     }
@@ -82,6 +97,8 @@ object ArgumentsParser {
     nodePort: Option[String] = None,
     seedAddress: Option[String] = None,
     useLocalWorker: Option[Boolean] = None,
+    partNumber: Option[Int] = None,
+    totalParts: Option[Int] = None,
     customStatsProcessorClass: Option[String] = None
   ) {
     val useCluster: Boolean = clusterType.isDefined

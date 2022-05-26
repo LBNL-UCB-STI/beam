@@ -228,7 +228,7 @@ class BeamSim @Inject() (
     Await.result(beamServices.beamRouter ? Identify(0), timeout.duration)
 
     beamServices.clusterManager =
-      if (beamServices.beamConfig.beam.cluster.enabled)
+      if (beamServices.originalConfig.beam.cluster.enabled)
         Some(BeamHelper.startClusterManagerSingleton(actorSystem))
       else
         None

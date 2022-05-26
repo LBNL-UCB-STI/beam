@@ -76,6 +76,7 @@ class BeamConfigChangesObservable @Inject() (
   private val observable = new WeaklyObservable()
 
   var lastBeamConfig: BeamConfig = beamConfig
+  val originalConfig = beamConfig
 
   private def updateLastBeamConfigFromOriginalConfigLocation(): Unit = {
     lastBeamConfig = maybeOriginalConfigLocation match {
