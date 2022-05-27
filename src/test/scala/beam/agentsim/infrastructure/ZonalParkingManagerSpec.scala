@@ -454,8 +454,7 @@ class ZonalParkingManagerSpec
         ParkingZone.createId("cs_default(Any)_4_Public_NA_Block_199_1144"),
         Block(1.99, 3600),
         ParkingType.Public,
-        "beamVilleCar",
-        defaultCostInDollars = Some(0.033166666666666664)
+        "beamVilleCar"
       )
 
       assertVehicleManager(
@@ -502,8 +501,7 @@ class ZonalParkingManagerSpec
     pricingModel: PricingModel,
     parkingType: ParkingType,
     vehicleTypeName: String,
-    reservedFor: ReservedFor = VehicleManager.AnyManager,
-    defaultCostInDollars: Option[Double] = None
+    reservedFor: ReservedFor = VehicleManager.AnyManager
   ) = {
     val vehicleType = beamScenario.vehicleTypes(Id.create(vehicleTypeName, classOf[BeamVehicleType]))
     val vehicle = new BeamVehicle(
@@ -516,8 +514,7 @@ class ZonalParkingManagerSpec
     val inquiry = ParkingInquiry.init(spaceTime, "init", reservedFor, Some(vehicle), triggerId = 3737)
     val response = zpm.processParkingInquiry(inquiry)
     val tazId1 = Id.create(tazId, classOf[TAZ])
-    val costInDollars =
-      if (pricingModel.isInstanceOf[FlatFee]) pricingModel.costInDollars else defaultCostInDollars.getOrElse(0.0)
+    val costInDollars = PricingModel.evaluateParkingTicket(pricingModel, 0, 60.0)
     val expectedStall =
       ParkingStall(
         tazId1,
