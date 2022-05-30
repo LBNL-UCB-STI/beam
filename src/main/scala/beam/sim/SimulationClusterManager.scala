@@ -1,9 +1,7 @@
 package beam.sim
 
-import akka.actor.{Actor, ActorRef, Address, Props}
-import akka.cluster.Cluster
-import akka.cluster.ClusterEvent.{MemberEvent, MemberUp}
-import beam.sim.SimulationClusterManager.{GetWorkerNodes, WorkerNodes}
+import akka.actor.{Actor, ActorRef, Props}
+import beam.sim.SimulationClusterManager.{GetSimWorkers, SimWorker, SimWorkerFinished, SimWorkerReady, SimWorkers}
 import com.typesafe.scalalogging.StrictLogging
 
 /**
@@ -11,43 +9,48 @@ import com.typesafe.scalalogging.StrictLogging
   */
 class SimulationClusterManager(numWorkerNodes: Int) extends Actor with StrictLogging {
   require(numWorkerNodes > 0)
-  private val cluster = Cluster(context.system)
 
-  override def preStart(): Unit = {
-    cluster.subscribe(self, classOf[MemberEvent])
-  }
+  override def receive: Receive = waitingForSimWorkers(Seq.empty, Seq.empty)
 
-  override def postStop(): Unit = {
-    cluster.unsubscribe(self)
-  }
-
-  override def receive: Receive = waitingForNodes(Seq.empty, Seq.empty)
-
-  def waitingForNodes(nodes: Seq[Address], requesters: Seq[ActorRef]): Actor.Receive = {
-    case GetWorkerNodes =>
-      context.become(waitingForNodes(nodes, requesters :+ sender()))
-    case MemberUp(member) if member.hasRole("sim-worker") =>
-      val newNodes = nodes :+ member.address
-      if (newNodes.size >= numWorkerNodes) {
-        requesters.foreach(_ ! WorkerNodes(newNodes))
-        context.become(clusterReady(newNodes))
+  def waitingForSimWorkers(workers: Seq[SimWorker], requesters: Seq[ActorRef]): Actor.Receive = {
+    case GetSimWorkers =>
+      context.become(waitingForSimWorkers(workers, requesters :+ sender()))
+    case SimWorkerReady(workerNumber) =>
+      val newWorkers = workers :+ SimWorker(workerNumber, sender())
+      if (newWorkers.size >= numWorkerNodes) {
+        requesters.foreach(_ ! SimWorkers(newWorkers))
+        context.become(workersAreReady(newWorkers))
       } else {
-        context.become(waitingForNodes(newNodes, requesters))
+        context.become(waitingForSimWorkers(newWorkers, requesters))
       }
-    case _: MemberEvent =>
   }
 
-  def clusterReady(nodes: Seq[Address]): Actor.Receive = {
-    case GetWorkerNodes =>
-      sender() ! WorkerNodes(nodes)
-    case _: MemberEvent =>
+  def workersAreReady(workers: Seq[SimWorker]): Actor.Receive = {
+    case GetSimWorkers =>
+      sender() ! SimWorkers(workers)
+    case SimWorkerFinished(_) =>
+      context.become(waitingForAllFinished(1, Seq.empty))
+  }
+
+  def waitingForAllFinished(numFinished: Int, requesters: Seq[ActorRef]): Actor.Receive = {
+    if (numFinished >= numWorkerNodes)
+      waitingForSimWorkers(Seq.empty, requesters)
+    else {
+      case SimWorkerFinished(_) =>
+        context.become(waitingForAllFinished(numFinished + 1, requesters))
+      case GetSimWorkers =>
+        context.become(waitingForAllFinished(numFinished, requesters))
+    }
   }
 
 }
 
 object SimulationClusterManager {
-  case object GetWorkerNodes
-  case class WorkerNodes(nodes: Seq[Address])
+  case object GetSimWorkers
+  case class SimWorker(workerNumber: Int, actorRef: ActorRef)
+  case class SimWorkers(workers: Seq[SimWorker])
+  case class SimWorkerReady(workerNumber: Int)
+  case class SimWorkerFinished(workerNumber: Int)
 
   def props(numNodes: Int): Props = Props(new SimulationClusterManager(numNodes))
 }
