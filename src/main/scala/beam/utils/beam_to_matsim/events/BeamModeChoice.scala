@@ -17,7 +17,7 @@ object BeamModeChoice {
 
     val time = genericEvent.getTime
     val personId: String = attr(ATTRIBUTE_PERSON_ID)
-    val linkId: Int = attr(ATTRIBUTE_LINK_ID).toInt
+    val linkId: Int = attr(ATTRIBUTE_LINK_ID).toDouble.toInt
     val mode = attr(ATTRIBUTE_MODE)
 
     new BeamModeChoice(time, personId, linkId, mode)

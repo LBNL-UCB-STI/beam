@@ -4,22 +4,22 @@ import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailManager.VehicleId
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingZone, ParkingZoneId}
+import beam.agentsim.infrastructure.parking.{ParkingZone, ParkingZoneId}
 import beam.agentsim.infrastructure.{ChargingNetwork, ParkingStall}
 import beam.sim.{BeamServices, Geofence}
 import org.matsim.api.core.v01.Id
 
 import scala.collection.mutable
 
-abstract class RideHailDepotParkingManager[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
-    extends ChargingNetwork[GEO](parkingZones) {
+abstract class RideHailDepotParkingManager(parkingZones: Map[Id[ParkingZoneId], ParkingZone])
+    extends ChargingNetwork(parkingZones) {
 
   override def processReleaseParkingStall(release: ReleaseParkingStall): Boolean = {
     if (!parkingZones.contains(release.stall.parkingZoneId)) {
       false
     } else {
-      val parkingZone: ParkingZone[GEO] = parkingZones(release.stall.parkingZoneId)
-      val success = ParkingZone.releaseStall(parkingZone)
+      val parkingZone: ParkingZone = parkingZones(release.stall.parkingZoneId)
+      val success = searchFunctions.get.releaseStall(parkingZone)
       if (success) {
         totalStallsInUse -= 1
         totalStallsAvailable += 1
