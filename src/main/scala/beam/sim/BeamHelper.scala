@@ -106,27 +106,6 @@ trait BeamHelper extends LazyLogging {
       |
     """.stripMargin
 
-  private def updateConfigForClusterUsing(
-    parsedArgs: Arguments,
-    config: TypesafeConfig
-  ): TypesafeConfig = {
-    (for {
-      seedAddress <- parsedArgs.seedAddress
-      nodeHost    <- parsedArgs.nodeHost
-      nodePort    <- parsedArgs.nodePort
-    } yield {
-      config.withFallback(
-        ConfigFactory.parseMap(
-          Map(
-            "seed.address" -> seedAddress,
-            "node.host"    -> nodeHost,
-            "node.port"    -> nodePort
-          ).asJava
-        )
-      )
-    }).getOrElse(config)
-  }
-
   private def embedSelectArgumentsIntoConfig(
     parsedArgs: Arguments,
     config: TypesafeConfig
@@ -149,8 +128,7 @@ trait BeamHelper extends LazyLogging {
                 "akka.actor.provider"                   -> "akka.cluster.ClusterActorRefProvider",
                 "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.get,
                 "akka.remote.artery.canonical.port"     -> parsedArgs.nodePort.get,
-                "akka.cluster.seed-nodes" -> java.util.Arrays
-                  .asList(s"akka://ClusterSystem@${parsedArgs.seedAddress.get}")
+                "akka.cluster.seed-nodes"               -> parsedArgs.seedAddresses.map(adr => s"akka://ClusterSystem@$adr").asJava
               )
             else Map.empty[String, Any]
           }
@@ -476,11 +454,7 @@ trait BeamHelper extends LazyLogging {
     val originalConfigLocation: TypesafeConfig =
       ConfigFactory.parseString(s"""$originalConfigLocationPath="$originalConfigFileLocation"""")
 
-    val configFromArgs =
-      if (parsedArgs.useCluster) updateConfigForClusterUsing(parsedArgs, parsedArgs.config.get)
-      else parsedArgs.config.get
-
-    val config = embedSelectArgumentsIntoConfig(parsedArgs, configFromArgs)
+    val config = embedSelectArgumentsIntoConfig(parsedArgs, parsedArgs.config.get)
       .withFallback(location)
       .withFallback(originalConfigLocation)
       .resolve()
@@ -576,6 +550,7 @@ trait BeamHelper extends LazyLogging {
       ),
       name = "statsServiceProxy"
     )
+    BeamHelper.startClusterManagerSingleton(system)
     val replayer = system.actorOf(DeadLetterReplayer.props())
     system.eventStream.subscribe(replayer, classOf[DeadLetter])
 

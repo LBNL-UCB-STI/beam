@@ -48,10 +48,11 @@ object ArgumentsParser {
         .action((value, args) => args.copy(totalParts = Option(value)))
         .validate(value => if (value < 1) failure("total parts must be greater then zero") else success)
         .text("Number of total parts of simulation.")
-      opt[String]("seed-address")
-        .action((value, args) => args.copy(seedAddress = Option(value)))
+      opt[Seq[String]]("seed-addresses")
+        .valueName("<seed1>,<seed2>...")
+        .action((value, args) => args.copy(seedAddresses = value))
         .validate(value =>
-          if (value.trim.isEmpty) failure("seed-address cannot be empty")
+          if (value.isEmpty) failure("seed-addresses cannot be empty")
           else success
         )
         .text(
@@ -67,7 +68,7 @@ object ArgumentsParser {
         )
 
       checkConfig(args =>
-        if (args.useCluster && (args.nodeHost.isEmpty || args.nodePort.isEmpty || args.seedAddress.isEmpty))
+        if (args.useCluster && (args.nodeHost.isEmpty || args.nodePort.isEmpty || args.seedAddresses.isEmpty))
           failure("If using the cluster then node-host, node-port, and seed-address are required")
         else if (args.useCluster && !args.useLocalWorker.getOrElse(true))
           failure("If using the cluster then use-local-worker MUST be true (or unprovided)")
@@ -95,7 +96,7 @@ object ArgumentsParser {
     clusterType: Option[ClusterType] = None,
     nodeHost: Option[String] = None,
     nodePort: Option[String] = None,
-    seedAddress: Option[String] = None,
+    seedAddresses: Seq[String] = Seq.empty,
     useLocalWorker: Option[Boolean] = None,
     partNumber: Option[Int] = None,
     totalParts: Option[Int] = None,
