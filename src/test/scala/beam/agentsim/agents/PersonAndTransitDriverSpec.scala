@@ -290,6 +290,7 @@ class PersonAndTransitDriverSpec
           modeChoiceCalculatorFactory = _ => modeChoiceCalculator,
           schedulerRef = scheduler,
           transportNetwork = beamScenario.transportNetwork,
+          Map.empty,
           services.tollCalculator,
           router = self,
           rideHailManager = self,

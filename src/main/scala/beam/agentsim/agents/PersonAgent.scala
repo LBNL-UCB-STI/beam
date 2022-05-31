@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
-import akka.actor.{ActorRef, FSM, Props, Stash, Status}
+import akka.actor.{ActorRef, ActorSelection, FSM, Props, Stash, Status}
 import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
@@ -85,6 +85,7 @@ object PersonAgent {
     beamScenario: BeamScenario,
     modeChoiceCalculator: ModeChoiceCalculator,
     transportNetwork: TransportNetwork,
+    transitAgentPaths: Map[Id[BeamVehicle], ActorSelection],
     tollCalculator: TollCalculator,
     router: ActorRef,
     rideHailManager: ActorRef,
@@ -106,6 +107,7 @@ object PersonAgent {
         beamScenario,
         modeChoiceCalculator,
         transportNetwork,
+        transitAgentPaths,
         router,
         rideHailManager,
         eventsManager,
@@ -293,6 +295,7 @@ class PersonAgent(
   val beamScenario: BeamScenario,
   val modeChoiceCalculator: ModeChoiceCalculator,
   val transportNetwork: TransportNetwork,
+  val transitAgentPaths: Map[Id[BeamVehicle], ActorSelection],
   val router: ActorRef,
   val rideHailManager: ActorRef,
   val eventsManager: EventsManager,
@@ -1201,7 +1204,7 @@ class PersonAgent(
         PersonIdWithActorRef(id, self),
         getCurrentTriggerIdOrGenerate
       )
-      TransitDriverAgent.selectByVehicleId(nextLeg.beamVehicleId) ! resRequest
+      transitAgentPaths(nextLeg.beamVehicleId) ! resRequest
       goto(WaitingForReservationConfirmation)
     // RIDE_HAIL
     case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _, _, _, _))

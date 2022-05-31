@@ -20,8 +20,8 @@ import beam.router.Modes.BeamMode
 import beam.router._
 import beam.router.osm.TollCalculator
 import beam.router.skim.TAZSkimsCollector
-import beam.sim.SimulationClusterManager.{GetSimWorkers, SimWorker, SimWorkerFinished, SimWorkerReady, SimWorkers}
-import beam.sim.DistributedSimulationPart.MasterBeamData
+import beam.sim.SimulationClusterManager.{GetSimWorkers, SimWorker, SimWorkerFinished, SimWorkerReady}
+import beam.sim.DistributedSimulationPart.{Initialized, MasterBeamData}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
@@ -379,6 +379,7 @@ class BeamMobsimIteration(
   }
 
   var runSender: ActorRef = _
+  var simPartInited: Int = 0
   private val errorListener = context.actorOf(ErrorListener.props())
   context.watch(errorListener)
   context.system.eventStream.subscribe(errorListener, classOf[BeamAgent.TerminatedPrematurelyEvent])
@@ -491,35 +492,16 @@ class BeamMobsimIteration(
   sharedVehicleFleets.foreach(context.watch)
   sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(InitializeTrigger(0), _))
 
-  private val transitSystem = context.actorOf(
-    Props(
-      new TransitSystem(
-        beamServices,
-        beamScenario,
-        matsimServices.getScenario,
-        beamScenario.transportNetwork,
-        scheduler,
-        parkingNetworkManager,
-        chargingNetworkManager,
-        tollCalculator,
-        geo,
-        networkHelper,
-        matsimServices.getEvents
-      )
-    ),
-    "transit-system"
-  )
-  context.watch(transitSystem)
-  scheduler ! ScheduleTrigger(InitializeTrigger(0), transitSystem)
-
-  private val simulationParts: Seq[SimWorker] = getSimulationParts
+  private val simulationParts: IndexedSeq[SimWorker] = getSimulationParts
   simulationParts.foreach(
     _.actorRef ! MasterBeamData(
+      matsimServices.getIterationNumber,
       scheduler,
       rideHailManager,
       parkingNetworkManager,
       chargingNetworkManager,
-      sharedVehicleFleets
+      sharedVehicleFleets,
+      simulationParts
     )
   )
 
@@ -550,16 +532,16 @@ class BeamMobsimIteration(
     cancellable
   }
 
-  def getSimulationParts: Seq[SimWorker] = {
+  def getSimulationParts: IndexedSeq[SimWorker] = {
     beamServices.clusterManager match {
       case Some(clusterManager) =>
         implicit val timeout: Timeout = Timeout(20.minutes)
-        val futureActorRefs = (clusterManager ? GetSimWorkers).mapTo[SimWorkers]
-        Await.result(futureActorRefs, Duration.Inf).workers
+        val futureActorRefs = (clusterManager ? GetSimWorkers).mapTo[IndexedSeq[SimWorker]]
+        Await.result(futureActorRefs, Duration.Inf)
       case None =>
-        val localSimulationPart = context.actorOf(DistributedSimulationPart.props(0, 1, beamServices))
+        val localSimulationPart = context.actorOf(DistributedSimulationPart.props(0, 1, beamServices), "simulationPart")
         context.watch(localSimulationPart)
-        Seq(SimWorker(0, localSimulationPart))
+        IndexedSeq(SimWorker(0, localSimulationPart))
     }
   }
 
@@ -574,7 +556,6 @@ class BeamMobsimIteration(
 
       simulationParts.foreach(_.actorRef ! Finish)
       rideHailManager ! Finish
-      transitSystem ! Finish
       tazSkimmer ! Finish
       chargingNetworkManager ! Finish
       context.stop(scheduler)
@@ -602,16 +583,29 @@ class BeamMobsimIteration(
       runSender ! Success("Ran.")
       context.stop(self)
 
+    case x: Initialized =>
+      log.info("Received {}", x)
+      simPartInited += 1
+      if (simPartInited >= simulationParts.size && runSender != null) {
+        runIteration()
+      }
+
     case "Run!" =>
       runSender = sender
-      log.info("Running BEAM Mobsim")
-      stopMeasuring("iteration-preparation:mobsim")
+      if (simPartInited >= simulationParts.size) {
+        runIteration()
+      }
+  }
 
-      log.info("Preparing new Iteration (End)")
-      log.info("Starting Agentsim")
-      startMeasuring("agentsim-execution:agentsim")
+  private def runIteration() = {
+    log.info("Running BEAM Mobsim")
+    stopMeasuring("iteration-preparation:mobsim")
 
-      scheduler ! StartSchedule(matsimServices.getIterationNumber)
+    log.info("Preparing new Iteration (End)")
+    log.info("Starting Agentsim")
+    startMeasuring("agentsim-execution:agentsim")
+
+    scheduler ! StartSchedule(matsimServices.getIterationNumber)
   }
 
   private def scheduleRideHailManagerTimerMessages(): Unit = {
@@ -671,7 +665,7 @@ class WorkerIteration(beamServices: BeamServices) extends LoggingMessageActor wi
   }
 
   private def interationStarted(runSender: ActorRef): Actor.Receive = {
-    case masterData: MasterBeamData => localSimulationPart ! masterData
+    case masterData: MasterBeamData => localSimulationPart forward masterData
     case Finish =>
       localSimulationPart ! Finish
     case Terminated(x) =>

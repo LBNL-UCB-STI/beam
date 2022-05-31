@@ -379,11 +379,13 @@ class BeamAgentScheduler(
         ) {
           val scheduledTrigger = this.triggerQueue.poll()
           val triggerWithId = scheduledTrigger.triggerWithId
-          awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
-          stuckFinder.add(System.currentTimeMillis(), scheduledTrigger, true)
-
-          triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
-          maybeTriggerMeasurer.foreach(_.sent(triggerWithId, scheduledTrigger.agent))
+          val shouldWaitForResponse = !triggerWithId.trigger.isInstanceOf[KillTrigger]
+          if (shouldWaitForResponse) {
+            awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
+            stuckFinder.add(System.currentTimeMillis(), scheduledTrigger, true)
+            triggerIdToScheduledTrigger.put(triggerWithId.triggerId, scheduledTrigger)
+            maybeTriggerMeasurer.foreach(_.sent(triggerWithId, scheduledTrigger.agent))
+          }
           scheduledTrigger.agent ! triggerWithId
         }
         if (

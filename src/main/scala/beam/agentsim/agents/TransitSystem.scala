@@ -8,11 +8,12 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManag
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
+import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.router.{Modes, TransitInitializer}
+import beam.router.Modes
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.{BeamScenario, BeamServices, SimulationClusterManager}
 import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
 import beam.utils.{FileUtils, NetworkHelper}
 import com.conveyal.r5.profile.StreetMode
@@ -29,6 +30,7 @@ class TransitSystem(
   val beamScenario: BeamScenario,
   val scenario: Scenario,
   val transportNetwork: TransportNetwork,
+  val transitSchedule: Map[Id[BeamVehicle], (RouteInfo, Array[BeamLeg])],
   val scheduler: ActorRef,
   val parkingManager: ActorRef,
   val chargingNetworkManager: ActorRef,
@@ -71,37 +73,32 @@ class TransitSystem(
 
   private def initDriverAgents(): Unit = {
     val initializer = new TransitVehicleInitializer(beamScenario.beamConfig, beamScenario.vehicleTypes)
-    val oneSecondTravelTime = (_: Double, _: Int, _: StreetMode) => 1.0
-    val transitSchedule = new TransitInitializer(
-      beamScenario.beamConfig,
-      geo,
-      beamScenario.dates,
-      beamScenario.transportNetwork,
-      oneSecondTravelTime
-    ).initMap
     val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
-    transitSchedule.foreach { case (tripVehId, (route, legs)) =>
-      initializer.createTransitVehicle(tripVehId, route, rand.nextInt()).foreach { vehicle =>
-        val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
-        val transitDriverAgentProps = TransitDriverAgent.props(
-          scheduler,
-          beamServices,
-          beamScenario,
-          transportNetwork,
-          tollCalculator,
-          eventsManager,
-          parkingManager,
-          chargingNetworkManager,
-          transitDriverId,
-          vehicle,
-          legs,
-          geo,
-          networkHelper
-        )
-        val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
-        context.watch(transitDriver)
-        scheduler ! ScheduleTrigger(InitializeTrigger(0), transitDriver)
-      }
+    val partNumber = beamServices.originalConfig.beam.cluster.partNumber
+    val totalParts = beamServices.originalConfig.beam.cluster.totalParts
+    SimulationClusterManager.getPart(transitSchedule, partNumber, totalParts).foreach {
+      case (tripVehId, (route, legs)) =>
+        initializer.createTransitVehicle(tripVehId, route, rand.nextInt()).foreach { vehicle =>
+          val transitDriverId = TransitDriverAgent.createAgentIdFromVehicleId(tripVehId)
+          val transitDriverAgentProps = TransitDriverAgent.props(
+            scheduler,
+            beamServices,
+            beamScenario,
+            transportNetwork,
+            tollCalculator,
+            eventsManager,
+            parkingManager,
+            chargingNetworkManager,
+            transitDriverId,
+            vehicle,
+            legs,
+            geo,
+            networkHelper
+          )
+          val transitDriver = context.actorOf(transitDriverAgentProps, transitDriverId.toString)
+          context.watch(transitDriver)
+          scheduler ! ScheduleTrigger(InitializeTrigger(0), transitDriver)
+        }
     }
   }
 }

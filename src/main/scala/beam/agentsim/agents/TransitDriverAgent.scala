@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.FSM.Failure
-import akka.actor.{ActorContext, ActorRef, ActorSelection, Props}
+import akka.actor.{ActorRef, Props}
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent.{DrivingData, PassengerScheduleEmpty, VehicleStack, WaitingToDrive}
 import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
@@ -58,12 +58,6 @@ object TransitDriverAgent {
         networkHelper
       )
     )
-  }
-
-  def selectByVehicleId(
-    transitVehicle: Id[Vehicle]
-  )(implicit context: ActorContext): ActorSelection = {
-    context.actorSelection("/user/BeamMobsim.iteration/transit-system/" + createAgentIdFromVehicleId(transitVehicle))
   }
 
   def createAgentIdFromVehicleId(transitVehicle: Id[Vehicle]): Id[TransitDriverAgent] = {
@@ -163,8 +157,7 @@ class TransitDriverAgent(
       scheduler ! ScheduleKillTrigger(self, triggerId)
       scheduler ! CompletionNotice(triggerId)
       stay
-    case Event(TriggerWithId(KillTrigger(_), triggerId), _) =>
-      scheduler ! CompletionNotice(triggerId)
+    case Event(TriggerWithId(KillTrigger(_), _), _) =>
       stop
   }
 

@@ -1,9 +1,10 @@
 package beam.agentsim.agents
 
-import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
+import akka.actor.{Actor, ActorRef, ActorSelection, ActorSystem, PoisonPill, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKitBase, TestProbe}
 import beam.agentsim.agents.PersonTestUtil._
+import beam.agentsim.agents.TransitDriverAgent.createAgentIdFromVehicleId
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
@@ -36,6 +37,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
+import org.matsim.vehicles.Vehicle
 import org.scalatest.BeforeAndAfter
 import org.scalatest.funspec.AnyFunSpecLike
 
@@ -115,6 +117,7 @@ class PersonAgentSpec
           beamScenario,
           modeChoiceCalculator,
           beamScenario.transportNetwork,
+          Map.empty,
           self,
           self,
           eventsManager,
@@ -179,6 +182,7 @@ class PersonAgentSpec
           _ => modeChoiceCalculator,
           scheduler,
           beamScenario.transportNetwork,
+          Map.empty,
           services.tollCalculator,
           self,
           self,
@@ -273,26 +277,9 @@ class PersonAgentSpec
     it("should know how to take a walk_transit trip when it's already in its plan", FlakyTest) {
       val busId = Id.createVehicleId("bus:B3-WEST-1-175")
       val tramId = Id.createVehicleId("train:R2-SOUTH-1-93")
+      val transitVehicleIds = Seq(busId, tramId)
 
-      maybeIteration = Some(
-        TestActorRef(
-          Props(new Actor() {
-            context.actorOf(
-              Props(new Actor() {
-                context.actorOf(transitDriverProps, "TransitDriverAgent-" + busId.toString)
-                context.actorOf(transitDriverProps, "TransitDriverAgent-" + tramId.toString)
-
-                override def receive: Receive = Actor.emptyBehavior
-              }),
-              "transit-system"
-            )
-
-            override def receive: Receive = Actor.emptyBehavior
-          }),
-          "BeamMobsim.iteration"
-        )
-      )
-      terminationProbe.watch(maybeIteration.get)
+      val transitAgentPaths: Map[Id[BeamVehicle], ActorSelection] = initTransitSystem(transitVehicleIds)
 
       // In this tests, it's not easy to chronologically sort Events vs. Triggers/Messages
       // that we are expecting. And also not necessary in real life.
@@ -319,8 +306,8 @@ class PersonAgentSpec
             Vector(),
             Vector(),
             Some(TransitStopsInfo("someAgency", "someRoute", busId, 0, 2)),
-            SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
-            SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
+            SpaceTime(services.geo.utm2Wgs(new Location(166321.9, 1568.87)), 28800),
+            SpaceTime(services.geo.utm2Wgs(new Location(180000.4, 1200)), 30000),
             2.0
           )
         ),
@@ -340,8 +327,8 @@ class PersonAgentSpec
             linkIds = Vector(),
             linkTravelTime = Vector(),
             transitStops = Some(TransitStopsInfo("someAgency", "someRoute", tramId, 0, 1)),
-            startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
-            endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
+            startPoint = SpaceTime(services.geo.utm2Wgs(new Location(180000.4, 1200)), 30000),
+            endPoint = SpaceTime(services.geo.utm2Wgs(new Location(190000.4, 1300)), 30600),
             distanceInM = 1.0
           )
         ),
@@ -357,7 +344,7 @@ class PersonAgentSpec
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       putDefaultBeamAttributes(person, Vector(WALK_TRANSIT))
       val plan = PopulationUtils.getFactory.createPlan()
-      val homeActivity = PopulationUtils.createActivityFromCoord("home", new Coord(166321.9, 1568.87))
+      val homeActivity = PopulationUtils.createActivityFromCoord("home", new Location(166321.9, 1568.87))
       homeActivity.setEndTime(28800) // 8:00:00 AM
       plan.addActivity(homeActivity)
       val leg = PopulationUtils.createLeg("walk_transit")
@@ -368,7 +355,7 @@ class PersonAgentSpec
       )
       leg.setRoute(route)
       plan.addLeg(leg)
-      val workActivity = PopulationUtils.createActivityFromCoord("work", new Coord(167138.4, 1117))
+      val workActivity = PopulationUtils.createActivityFromCoord("work", new Location(167138.4, 1117))
       workActivity.setEndTime(61200) //5:00:00 PM
       plan.addActivity(workActivity)
       person.addPlan(plan)
@@ -391,6 +378,7 @@ class PersonAgentSpec
           modeChoiceCalculatorFactory = _ => modeChoiceCalculator,
           schedulerRef = scheduler,
           transportNetwork = beamScenario.transportNetwork,
+          transitAgentPaths,
           services.tollCalculator,
           router = self,
           rideHailManager = self,
@@ -400,7 +388,7 @@ class PersonAgentSpec
           population = population,
           household = household,
           vehicles = Map(),
-          fallbackHomeCoord = new Coord(0.0, 0.0),
+          fallbackHomeCoord = new Location(0.0, 0.0),
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
@@ -425,8 +413,8 @@ class PersonAgentSpec
                     linkIds = Vector(),
                     linkTravelTime = Vector(),
                     transitStops = None,
-                    startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
-                    endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 28800),
+                    startPoint = SpaceTime(services.geo.utm2Wgs(new Location(166321.9, 1568.87)), 28800),
+                    endPoint = SpaceTime(services.geo.utm2Wgs(new Location(167138.4, 1117)), 28800),
                     distanceInM = 1d
                   )
                 ),
@@ -447,8 +435,8 @@ class PersonAgentSpec
                     linkIds = Vector(),
                     linkTravelTime = Vector(),
                     transitStops = None,
-                    startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
-                    endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
+                    startPoint = SpaceTime(services.geo.utm2Wgs(new Location(167138.4, 1117)), 30600),
+                    endPoint = SpaceTime(services.geo.utm2Wgs(new Location(167138.4, 1117)), 30600),
                     distanceInM = 1d
                   )
                 ),
@@ -553,26 +541,9 @@ class PersonAgentSpec
       val transitDriverProps = Props(new ForwardActor(self))
       val busId = Id.createVehicleId("bus:B3-WEST-1-175")
       val tramId = Id.createVehicleId("train:R2-SOUTH-1-93")
+      val transitVehicleIds = Seq(busId, tramId)
 
-      maybeIteration = Some(
-        TestActorRef(
-          Props(new Actor() {
-            context.actorOf(
-              Props(new Actor() {
-                context.actorOf(transitDriverProps, "TransitDriverAgent-" + busId.toString)
-                context.actorOf(transitDriverProps, "TransitDriverAgent-" + tramId.toString)
-
-                override def receive: Receive = Actor.emptyBehavior
-              }),
-              "transit-system"
-            )
-
-            override def receive: Receive = Actor.emptyBehavior
-          }),
-          "BeamMobsim.iteration"
-        )
-      )
-      terminationProbe.watch(maybeIteration.get)
+      val transitAgentPaths: Map[Id[BeamVehicle], ActorSelection] = initTransitSystem(transitVehicleIds)
 
       val busPassengerLeg = EmbodiedBeamLeg(
         BeamLeg(
@@ -678,6 +649,7 @@ class PersonAgentSpec
           _ => modeChoiceCalculator,
           scheduler,
           beamScenario.transportNetwork,
+          transitAgentPaths,
           new TollCalculator(services.beamConfig),
           self,
           self,
@@ -871,6 +843,41 @@ class PersonAgentSpec
       events.expectMsgType[ActivityStartEvent]
     }
 
+  }
+
+  private def initTransitSystem(transitVehicleIds: Seq[Id[Vehicle]]): Map[Id[BeamVehicle], ActorSelection] = {
+
+    maybeIteration = Some(
+      TestActorRef(
+        Props(new Actor() {
+          context.actorOf(
+            Props(new Actor() {
+              context.actorOf(
+                Props(new Actor() {
+                  transitVehicleIds.foreach(vehicleId =>
+                    context.actorOf(transitDriverProps, createAgentIdFromVehicleId(vehicleId).toString)
+                  )
+                  override def receive: Receive = Actor.emptyBehavior
+                }),
+                "transit-system"
+              )
+              override def receive: Receive = Actor.emptyBehavior
+            }),
+            "simulationPart"
+          )
+          override def receive: Receive = Actor.emptyBehavior
+        }),
+        "BeamMobsim.iteration"
+      )
+    )
+    terminationProbe.watch(maybeIteration.get)
+    transitVehicleIds
+      .map(vehicleId =>
+        Id.create(vehicleId, classOf[BeamVehicle]) -> system.actorSelection(
+          maybeIteration.get.path / "simulationPart" / "transit-system" / createAgentIdFromVehicleId(vehicleId).toString
+        )
+      )
+      .toMap
   }
 
   after {

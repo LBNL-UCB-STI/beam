@@ -1,7 +1,7 @@
 package beam.agentsim.agents.household
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{ActorLogging, ActorRef, OneForOneStrategy, Props, Status, Terminated}
+import akka.actor.{ActorLogging, ActorRef, ActorSelection, OneForOneStrategy, Props, Status, Terminated}
 import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
@@ -67,6 +67,7 @@ object HouseholdActor {
     modeChoiceCalculator: AttributesOfIndividual => ModeChoiceCalculator,
     schedulerRef: ActorRef,
     transportNetwork: TransportNetwork,
+    transitAgentPaths: Map[Id[BeamVehicle], ActorSelection],
     tollCalculator: TollCalculator,
     router: ActorRef,
     rideHailManager: ActorRef,
@@ -89,6 +90,7 @@ object HouseholdActor {
         modeChoiceCalculator,
         schedulerRef,
         transportNetwork,
+        transitAgentPaths,
         tollCalculator,
         router,
         rideHailManager,
@@ -141,6 +143,7 @@ object HouseholdActor {
     modeChoiceCalculatorFactory: AttributesOfIndividual => ModeChoiceCalculator,
     schedulerRef: ActorRef,
     transportNetwork: TransportNetwork,
+    transitAgentPaths: Map[Id[BeamVehicle], ActorSelection],
     tollCalculator: TollCalculator,
     router: ActorRef,
     rideHailManager: ActorRef,
@@ -362,6 +365,7 @@ object HouseholdActor {
               beamScenario,
               modeChoiceCalculator,
               transportNetwork,
+              transitAgentPaths,
               tollCalculator,
               router,
               rideHailManager,

@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{ActorLogging, ActorRef, OneForOneStrategy, Props, Terminated}
+import akka.actor.{ActorLogging, ActorRef, ActorSelection, OneForOneStrategy, Props, Terminated}
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.household.HouseholdActor
@@ -14,7 +14,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.sim.vehicles.VehiclesAdjustment
-import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.{BeamScenario, BeamServices, SimulationClusterManager}
 import beam.utils.MathUtils
 import beam.utils.logging.LoggingMessageActor
 import com.conveyal.r5.transit.TransportNetwork
@@ -33,6 +33,7 @@ class Population(
   val beamServices: BeamServices,
   val scheduler: ActorRef,
   val transportNetwork: TransportNetwork,
+  val transitAgentPaths: Map[Id[BeamVehicle], ActorSelection],
   val tollCalculator: TollCalculator,
   val router: ActorRef,
   val rideHailManager: ActorRef,
@@ -95,8 +96,12 @@ class Population(
   }
 
   private def initHouseholds(sharedVehicleTypes: Set[BeamVehicleType]): Unit = {
+    import collection.JavaConverters._
     val vehicleAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
-    scenario.getHouseholds.getHouseholds.values().forEach { household =>
+    val partNumber = beamServices.originalConfig.beam.cluster.partNumber
+    val totalParts = beamServices.originalConfig.beam.cluster.totalParts
+    val households = scenario.getHouseholds.getHouseholds.values().asScala
+    SimulationClusterManager.getPart(households, partNumber, totalParts).foreach { household =>
       //TODO a good example where projection should accompany the data
       if (
         scenario.getHouseholds.getHouseholdAttributes
@@ -140,6 +145,7 @@ class Population(
           beamServices.modeChoiceCalculatorFactory,
           scheduler,
           transportNetwork,
+          transitAgentPaths,
           tollCalculator,
           router,
           rideHailManager,
@@ -203,6 +209,7 @@ object Population {
     services: BeamServices,
     scheduler: ActorRef,
     transportNetwork: TransportNetwork,
+    transitAgentPaths: Map[Id[BeamVehicle], ActorSelection],
     tollCalculator: TollCalculator,
     router: ActorRef,
     rideHailManager: ActorRef,
@@ -219,6 +226,7 @@ object Population {
         services,
         scheduler,
         transportNetwork,
+        transitAgentPaths,
         tollCalculator,
         router,
         rideHailManager,
