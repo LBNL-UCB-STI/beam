@@ -68,7 +68,7 @@ class BeamMobsim @Inject() (
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
-  private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(24 * 60 * 60, TimeUnit.SECONDS)
 
   import beamServices._
   val physsimConfig = beamConfig.beam.physsim
