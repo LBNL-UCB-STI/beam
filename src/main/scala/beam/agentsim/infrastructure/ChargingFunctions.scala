@@ -162,7 +162,7 @@ class ChargingFunctions(
           origin.time + travelTime1,
           beamVehicle.beamVehicleType
         )
-        (travelTime1 + travelTime2) * inquiry.valueOfTime
+        ((travelTime1 + travelTime2) / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
       case _ => 0.0
     }
 
