@@ -36,7 +36,9 @@ class TourModeChoiceMultinomialLogit(
         val skims = tripModeCosts.getOrElse(beamMode, ODSkimmerTimeCostTransfer())
         val timeCost = attributesOfIndividual.getVOT(skims.timeInHours)
         val monetaryCost = skims.cost
-        beamMode -> (Map("cost" -> (timeCost + monetaryCost)) ++ Map("transfers" -> skims.numTransfers))
+        beamMode -> (Map("cost" -> (timeCost + monetaryCost)) ++ Map(
+          "transfers" -> skims.numTransfers.toDouble
+        ))
       }.toMap
       beamTourMode -> modeLogit.getExpectedMaximumUtility(modeChoice).getOrElse(Double.NegativeInfinity)
     }
@@ -46,11 +48,13 @@ class TourModeChoiceMultinomialLogit(
     tourModeCosts: Seq[Map[BeamMode, ODSkimmerTimeCostTransfer]],
     modeToTourMode: Map[BeamTourMode, Seq[BeamMode]]
   ): Map[BeamTourMode, Double] = {
-    val x = tourModeCosts.foldLeft(mutable.Map[BeamTourMode, Double]())((acc, modeCosts) =>
-      tripExpectedMaxUtility(modeCosts, modeToTourMode).foreach { case (tourMode, util) =>
-        acc += (tourMode -> (acc.getOrElse(tourMode, 0.0) + util))
+    val tourModeToExpectedUtility = mutable.Map[BeamTourMode, Double]()
+    tourModeCosts foreach { modeCosts =>
+      val tourModeExpectedCosts = tripExpectedMaxUtility(modeCosts, modeToTourMode)
+      tourModeExpectedCosts.map { case (tourMode, util) =>
+        tourModeToExpectedUtility += (tourMode -> (tourModeToExpectedUtility.getOrElse(tourMode, 0.0) + util))
       }
-    )
-    x
+    }
+    tourModeToExpectedUtility.toMap
   }
 }
