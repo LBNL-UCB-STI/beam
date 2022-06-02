@@ -737,6 +737,7 @@ object BeamConfig {
               distanceMultiplier: scala.Double,
               enrouteDetourMultiplier: scala.Double,
               homeActivityPrefersResidentialParkingMultiplier: scala.Double,
+              overnightParkingPrefersChargingMultiplier: scala.Double,
               parkingPriceMultiplier: scala.Double,
               rangeAnxietyMultiplier: scala.Double
             )
@@ -754,6 +755,10 @@ object BeamConfig {
                   homeActivityPrefersResidentialParkingMultiplier =
                     if (c.hasPathOrNull("homeActivityPrefersResidentialParkingMultiplier"))
                       c.getDouble("homeActivityPrefersResidentialParkingMultiplier")
+                    else 1.0,
+                  overnightParkingPrefersChargingMultiplier =
+                    if (c.hasPathOrNull("overnightParkingPrefersChargingMultiplier"))
+                      c.getDouble("overnightParkingPrefersChargingMultiplier")
                     else 1.0,
                   parkingPriceMultiplier =
                     if (c.hasPathOrNull("parkingPriceMultiplier")) c.getDouble("parkingPriceMultiplier") else -0.005,

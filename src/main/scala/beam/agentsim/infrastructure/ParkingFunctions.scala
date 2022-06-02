@@ -59,6 +59,9 @@ class ParkingFunctions(
     ),
     ParkingMNL.Parameters.EnrouteDetourCost -> UtilityFunctionOperation.Multiplier(
       mnlParkingConfig.params.enrouteDetourMultiplier
+    ),
+    ParkingMNL.Parameters.OvernightParkingPrefersCharging -> UtilityFunctionOperation.Multiplier(
+      mnlParkingConfig.params.overnightParkingPrefersChargingMultiplier
     )
   )
 
@@ -90,7 +93,8 @@ class ParkingFunctions(
       ParkingMNL.Parameters.WalkingEgressCost                     -> distanceFactor,
       ParkingMNL.Parameters.ParkingTicketCost                     -> parkingCostsPriceFactor,
       ParkingMNL.Parameters.HomeActivityPrefersResidentialParking -> homeActivityPrefersResidentialFactor,
-      ParkingMNL.Parameters.EnrouteDetourCost                     -> 0.0
+      ParkingMNL.Parameters.EnrouteDetourCost                     -> 0.0,
+      ParkingMNL.Parameters.OvernightParkingPrefersCharging       -> 0.0
     )
 
     params
