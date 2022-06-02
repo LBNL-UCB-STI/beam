@@ -34,6 +34,7 @@ import beam.utils.watcher.MethodWatcher
 import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsParser}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
+import com.google.inject.name.Named
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.lang3.StringUtils
 import org.jfree.data.category.DefaultCategoryDataset
@@ -71,6 +72,7 @@ class BeamSim @Inject() (
   private val tollCalculator: TollCalculator,
   private val beamServices: BeamServices,
   private val eventsManager: EventsManager,
+  @Named("PhyssimEM") physsimEventManager: EventsManager,
   private val scenario: Scenario,
   private val beamScenario: BeamScenario,
   private val networkHelper: NetworkHelper,
@@ -232,13 +234,20 @@ class BeamSim @Inject() (
         Some(BeamHelper.startClusterManagerSingleton(actorSystem))
       else
         None
+    beamServices.distributedEventManager =
+      if (beamServices.originalConfig.beam.cluster.clusterType.contains("master"))
+        Some(actorSystem.actorOf(DistributedEventManager.props(physsimEventManager)))
+      else None
 
     /*    if(null != beamServices.beamConfig.beam.agentsim.taz.file && !beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)
           beamServices.taz = TAZTreeMap.fromCsv(beamServices.beamConfig.beam.agentsim.taz.file)*/
 
-    if (!beamServices.beamConfig.beam.physsim.skipPhysSim) {
+    if (
+      !beamServices.beamConfig.beam.physsim.skipPhysSim
+      && beamServices.originalConfig.beam.cluster.clusterType.forall(_ == "master")
+    ) {
       agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
-        eventsManager,
+        beamServices.clusterManager.fold(eventsManager)(_ => physsimEventManager),
         transportNetwork,
         event.getServices.getControlerIO,
         scenario,
@@ -499,7 +508,10 @@ class BeamSim @Inject() (
     }
 
     val physsimFuture = Future {
-      if (!beamConfig.beam.physsim.skipPhysSim) {
+      if (
+        !beamConfig.beam.physsim.skipPhysSim
+        && beamServices.originalConfig.beam.cluster.clusterType.forall(_ == "master")
+      ) {
         agentSimToPhysSimPlanConverter.startPhysSim(event, initialTravelTime.orNull)
       }
     }

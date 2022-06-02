@@ -36,6 +36,7 @@ import beam.utils.logging.{LoggingMessageActor, MessageLogger}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
+import com.google.inject.name.Named
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Activity, Leg, Person, Population => MATSimPopulation}
 import org.matsim.api.core.v01.{Id, Scenario}
@@ -57,6 +58,7 @@ class BeamMobsim @Inject() (
   val tollCalculator: TollCalculator,
   val scenario: Scenario,
   val eventsManager: EventsManager,
+  @Named("PhyssimEM") physsimEventManager: EventsManager,
   val actorSystem: ActorSystem,
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
   val rideHailIterationHistory: RideHailIterationHistory,
@@ -135,6 +137,7 @@ class BeamMobsim @Inject() (
     )
 
     eventsManager.initProcessing()
+    physsimEventManager.initProcessing()
 
     clearRoutesAndModesIfNeeded(matsimServices.getIterationNumber)
     planCleaner.clearModesAccordingToStrategy(matsimServices.getIterationNumber)
@@ -188,6 +191,7 @@ class BeamMobsim @Inject() (
 
     logger.info("Agentsim finished.")
     eventsManager.finishProcessing()
+    physsimEventManager.finishProcessing()
     logger.info("Events drained.")
     stopMeasuring("agentsim-events:agentsim")
 
@@ -449,7 +453,9 @@ class BeamMobsimIteration(
         beamScenario.transportNetwork,
         tollCalculator,
         matsimServices.getScenario,
-        matsimServices.getEvents,
+        beamServices.distributedEventManager.fold(matsimServices.getEvents) { distributedEM =>
+          new DuplicatingEventManager(distributedEM, matsimServices.getEvents)
+        },
         scheduler,
         beamRouter,
         parkingNetworkManager,
@@ -493,6 +499,7 @@ class BeamMobsimIteration(
   sharedVehicleFleets.foreach(scheduler ! ScheduleTrigger(InitializeTrigger(0), _))
 
   private val simulationParts: IndexedSeq[SimWorker] = getSimulationParts
+
   simulationParts.foreach(
     _.actorRef ! MasterBeamData(
       matsimServices.getIterationNumber,
@@ -501,6 +508,7 @@ class BeamMobsimIteration(
       parkingNetworkManager,
       chargingNetworkManager,
       sharedVehicleFleets,
+      beamServices.distributedEventManager,
       simulationParts
     )
   )

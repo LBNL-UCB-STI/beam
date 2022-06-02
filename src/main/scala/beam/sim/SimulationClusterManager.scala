@@ -16,6 +16,7 @@ class SimulationClusterManager(numWorkerNodes: Int) extends Actor with StrictLog
     case GetSimWorkers =>
       context.become(waitingForSimWorkers(workers, requesters :+ sender()))
     case SimWorkerReady(workerNumber) =>
+      logger.info(s"Received SimWorkerReady: $workerNumber")
       val newWorkers = (workers :+ SimWorker(workerNumber, sender())).sortBy(_.workerNumber)
       if (newWorkers.size >= numWorkerNodes) {
         requesters.foreach(_ ! newWorkers)

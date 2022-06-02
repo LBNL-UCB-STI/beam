@@ -70,7 +70,7 @@ import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling, PlansDumping}
-import org.matsim.core.events.ParallelEventsManagerImpl
+import org.matsim.core.events.{EventsManagerImpl, ParallelEventsManagerImpl}
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.collections.QuadTree
@@ -258,6 +258,10 @@ trait BeamHelper extends LazyLogging {
 
           bind(classOf[EventsManager]).to(classOf[LoggingEventsManager]).asEagerSingleton()
           bind(classOf[EventsManager]).annotatedWith(Names.named("ParallelEM")).to(classOf[ParallelEventsManagerImpl])
+          bind(classOf[EventsManager])
+            .annotatedWith(Names.named("PhyssimEM"))
+            .to(classOf[EventsManagerImpl])
+            .asEagerSingleton()
           bind(classOf[SimulationMetricCollector]).to(classOf[InfluxDbSimulationMetricCollector]).asEagerSingleton()
 
         }

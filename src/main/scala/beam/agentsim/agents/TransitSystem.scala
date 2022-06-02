@@ -16,7 +16,6 @@ import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices, SimulationClusterManager}
 import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
 import beam.utils.{FileUtils, NetworkHelper}
-import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.transit.{RouteInfo, TransitLayer, TransportNetwork}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager

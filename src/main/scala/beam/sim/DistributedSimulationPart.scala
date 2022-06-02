@@ -24,7 +24,11 @@ class DistributedSimulationPart(
     with StrictLogging {
 
   override def receive: Receive = { case data: MasterBeamData =>
-    logger.info(s"Got MasterBeamData sim-worker: $partNumber, total = $total")
+    logger.info(s"Received MasterBeamData, iteration = ${data.iteration} sim-worker: $partNumber, total = $total")
+
+    val eventManager = data.distributedEventManager.fold(beamServices.matsimServices.getEvents) { distributedEM =>
+      new DuplicatingEventManager(distributedEM, beamServices.matsimServices.getEvents)
+    }
 
     val oneSecondTravelTime = (_: Double, _: Int, _: StreetMode) => 1.0
     val transitSchedule = new TransitInitializer(
@@ -49,7 +53,7 @@ class DistributedSimulationPart(
           beamServices.tollCalculator,
           beamServices.geo,
           beamServices.networkHelper,
-          beamServices.matsimServices.getEvents
+          eventManager
         )
       ),
       "transit-system"
@@ -84,7 +88,7 @@ class DistributedSimulationPart(
         data.parkingNetworkManager,
         data.chargingNetworkManager,
         data.sharedVehicleFleets,
-        beamServices.matsimServices.getEvents,
+        eventManager,
         new RouteHistory(beamServices.beamConfig)
       ),
       "population"
@@ -94,6 +98,7 @@ class DistributedSimulationPart(
 
     data.scheduler ! ScheduleTrigger(InitializeTrigger(0), population)
 
+    logger.info(s"Sent initialized: $partNumber, total = $total, iteration = ${data.iteration}")
     sender() ! Initialized(partNumber, beamServices.matsimServices.getIterationNumber)
 
     context.become(interationStarted(transitSystem, population))
@@ -124,6 +129,7 @@ object DistributedSimulationPart {
     parkingNetworkManager: ActorRef,
     chargingNetworkManager: ActorRef,
     sharedVehicleFleets: Seq[ActorRef],
+    distributedEventManager: Option[ActorRef],
     simWorkers: Seq[SimWorker]
   )
 
