@@ -30,13 +30,16 @@ import beam.sim.{BeamServices, Geofence}
 import beam.utils.logging.pattern.ask
 import beam.utils.plan.sampling.AvailableModeUtils._
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.{Activity, Leg}
-import org.matsim.core.population.routes.NetworkRoute
+import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.utils.misc.Time
 
 import java.util.concurrent.atomic.AtomicReference
+import scala.collection.JavaConverters
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.jdk.CollectionConverters.asJavaIterableConverter
 
 /**
   * BEAM
@@ -739,6 +742,29 @@ trait ChoosesMode {
           routingFinished = true
         )
       }
+
+      // If person plan doesn't have a route for an activity create and save it
+      for {
+        activity <- nextActivity(choosesModeData.personData)
+        leg      <- _experiencedBeamPlan.getTripContaining(activity).leg if leg.getRoute == null
+      } {
+        val links =
+          response.itineraries
+            .flatMap(_.beamLegs)
+            .find(_.mode == BeamMode.CAR)
+            .map { beamLeg =>
+              beamLeg.travelPath.linkIds
+                .map(id => Id.create(id, classOf[Link]))
+                .toList
+            }
+            .getOrElse(List.empty)
+
+        if (links.nonEmpty) {
+          val route = RouteUtils.createNetworkRoute(JavaConverters.seqAsJavaList(links), beamScenario.network)
+          leg.setRoute(route)
+        }
+      }
+
       stay() using newData
 
     case Event(theRideHailResult: RideHailResponse, choosesModeData: ChoosesModeData) =>
