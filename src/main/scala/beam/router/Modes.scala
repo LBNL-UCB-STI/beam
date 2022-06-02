@@ -1,6 +1,6 @@
 package beam.router
 
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAR_HOV2, CAR_HOV3, CAV, WALK}
+import beam.agentsim.agents.vehicles.VehicleCategory._
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.profile.StreetMode
 import enumeratum.values._
@@ -202,11 +202,11 @@ object Modes {
   }
 
   def toR5StreetMode(mode: BeamMode): StreetMode = mode match {
-    case BIKE => StreetMode.BICYCLE
-    case WALK => StreetMode.WALK
-    case CAR  => StreetMode.CAR
-    case CAV  => StreetMode.CAR
-    case _    => throw new IllegalArgumentException
+    case BeamMode.BIKE => StreetMode.BICYCLE
+    case BeamMode.WALK => StreetMode.WALK
+    case BeamMode.CAR  => StreetMode.CAR
+    case BeamMode.CAV  => StreetMode.CAR
+    case _             => throw new IllegalArgumentException
   }
 
   def toR5StreetMode(mode: LegMode): StreetMode = mode match {
@@ -242,6 +242,53 @@ object Modes {
     case BeamMode.RIDE_HAIL_TRANSIT => BeamMode.CAR
     case BeamMode.BIKE_TRANSIT      => BeamMode.BIKE
     case _                          => throw new IllegalArgumentException("not a transit mode: " + mode.value)
+  }
+
+}
+
+object TourModes {
+  import beam.router.Modes.BeamMode
+  import beam.router.Modes.BeamMode._
+
+  sealed abstract class BeamTourMode(
+    val value: String,
+    val vehicleCategory: VehicleCategory,
+    val allowedBeamModes: Seq[BeamMode]
+  ) extends StringEnumEntry {
+
+    import BeamTourMode._
+
+    def isVehicleBased: Boolean = this match {
+      case WALK_BASED => false
+      case _          => true
+    }
+  }
+
+  object BeamTourMode extends StringEnum[BeamTourMode] with StringCirceEnum[BeamTourMode] {
+
+    override val values: immutable.IndexedSeq[BeamTourMode] = findValues
+
+    // TODO: Also allow use of shared bikes/cars in walk based tours
+    case object WALK_BASED
+        extends BeamTourMode(
+          "walk_based",
+          Body,
+          Seq[BeamMode](
+            WALK,
+            WALK_TRANSIT,
+            RIDE_HAIL,
+            RIDE_HAIL_POOLED,
+            RIDE_HAIL_TRANSIT,
+            DRIVE_TRANSIT,
+            BIKE_TRANSIT,
+            HOV2_TELEPORTATION,
+            HOV3_TELEPORTATION
+          )
+        )
+
+    case object CAR_BASED extends BeamTourMode("car_based", Car, Seq[BeamMode](CAR, CAR_HOV2, CAR_HOV3))
+
+    case object BIKE_BASED extends BeamTourMode("bike_based", Car, Seq[BeamMode](BIKE))
   }
 
 }

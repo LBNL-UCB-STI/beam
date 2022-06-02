@@ -3,8 +3,10 @@ package beam.agentsim.agents.planning
 import beam.agentsim.agents.planning.BeamPlan.atHome
 
 import java.{lang, util}
-import beam.agentsim.agents.planning.Strategy.{ModeChoiceStrategy, Strategy}
+import beam.agentsim.agents.planning.Strategy.{Strategy, TourModeChoiceStrategy, TripModeChoiceStrategy}
 import beam.router.Modes.BeamMode
+import beam.router.TourModes.BeamTourMode
+import beam.router.TourModes.BeamTourMode._
 import org.matsim.api.core.v01.population._
 import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.attributable.Attributes
@@ -120,8 +122,10 @@ class BeamPlan extends Plan {
         val nextTrip = Trip(activity, nextLeg, nextTour)
         nextTour.addTrip(nextTrip)
         if (atHome(activity)) {
+          // TODO: Also trigger this if we return to a location already present in the tour
           tours = tours :+ nextTour
-          nextTour = new Tour
+          putStrategy(nextTour, TourModeChoiceStrategy(getTourModeFromTourLegs(nextTour)))
+          nextTour = new Tour(originActivity = Some(activity))
         }
       case leg: Leg =>
         nextLeg = Some(leg)
@@ -130,7 +134,7 @@ class BeamPlan extends Plan {
     indexBeamPlan()
     actsLegs.foreach {
       case l: Leg =>
-        putStrategy(actsLegToTrip(l), ModeChoiceStrategy(BeamMode.fromString(l.getMode)))
+        putStrategy(actsLegToTrip(l), TripModeChoiceStrategy(BeamMode.fromString(l.getMode)))
       case _ =>
     }
   }
@@ -152,29 +156,30 @@ class BeamPlan extends Plan {
     val planElementMap = strategies.getOrElseUpdate(planElement, mutable.Map.empty[Class[_ <: Strategy], Strategy])
     planElementMap.put(strategy.getClass, strategy)
 
-    planElement match {
-      case tour: Tour =>
-        strategy.tripStrategies(tour, this).foreach { case (trip, strategy) =>
-          putStrategy(trip, strategy)
+    (strategy, planElement) match {
+      case (tripModeChoiceStrategy: TripModeChoiceStrategy, tour: Tour) =>
+        tripModeChoiceStrategy.tripStrategies(tour, this).foreach { case (trip, _) =>
+          putStrategy(trip, tripModeChoiceStrategy)
         }
-      case trip: Trip =>
-        putStrategy(trip.activity, strategy)
-        trip.leg.foreach(theLeg => putStrategy(theLeg, strategy))
+      case (tripModeChoiceStrategy: TripModeChoiceStrategy, trip: Trip) =>
+        putStrategy(trip.activity, tripModeChoiceStrategy) // I don't think this gets used
+        trip.leg.foreach(theLeg => putStrategy(theLeg, tripModeChoiceStrategy))
+      case (_: TourModeChoiceStrategy, _: Trip) =>
+        throw new RuntimeException("Can only set tour mode strategy from within a tour")
       case _ =>
-      // Already dealt with Acts and Legs
     }
   }
 
-  def getStrategy[T <: Strategy: ClassTag](planElement: PlanElement): Option[T] = {
+  def getStrategy[T <: Strategy: ClassTag](planElement: PlanElement): T = {
     val forClass: Class[T] = implicitly[ClassTag[T]].runtimeClass.asInstanceOf[Class[T]]
-    strategies.getOrElse(planElement, Map.empty[Class[_ <: Strategy], Strategy]).get(forClass).asInstanceOf[Option[T]]
+    strategies.getOrElse(planElement, Map.empty[Class[_ <: Strategy], Strategy]).get(forClass).asInstanceOf[T]
   }
 
-  def getTripStrategy[T <: Strategy: ClassTag](activity: Activity): Option[T] = {
+  def getTripStrategy[T <: Strategy: ClassTag](activity: Activity): T = {
     getStrategy(actsLegToTrip(activity))
   }
 
-  def getTourStrategy[T <: Strategy: ClassTag](activity: Activity): Option[T] = {
+  def getTourStrategy[T <: Strategy: ClassTag](activity: Activity): T = {
     getStrategy(getTourContaining(activity))
   }
 
@@ -223,6 +228,21 @@ class BeamPlan extends Plan {
 
   def getTripContaining(index: Int): Trip = {
     getTripContaining(activities(index))
+  }
+
+  def getTourModeFromTourLegs(tour: Tour): Option[BeamTourMode] = {
+    // TODO: Should this just look at the first/last mode of legs?
+    var tourMode: Option[BeamTourMode] = None
+    tour.trips.foreach(trip =>
+      trip.leg match {
+        case Some(leg) if leg.getMode.equalsIgnoreCase("car") => tourMode = Some(CAR_BASED)
+        case Some(leg) if leg.getMode.equalsIgnoreCase("bike") && !tourMode.contains(CAR_BASED) =>
+          tourMode = Some(BIKE_BASED)
+        case Some(_) => tourMode = Some(WALK_BASED)
+        case _       =>
+      }
+    )
+    tourMode
   }
 
   //////////////////////////////////////////////////////////////////////
