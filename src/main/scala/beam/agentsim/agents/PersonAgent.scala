@@ -318,7 +318,7 @@ class PersonAgent(
   val networkHelper: NetworkHelper = beamServices.networkHelper
   val geo: GeoUtils = beamServices.geo
 
-  val minDistanceToTrainStop =
+  val minDistanceToTrainStop: Double =
     beamScenario.beamConfig.beam.agentsim.agents.tripBehaviors.carUsage.minDistanceToTrainStop
 
   val bodyType: BeamVehicleType = beamScenario.vehicleTypes(
@@ -1135,15 +1135,9 @@ class PersonAgent(
           false
         }
 
-        val tempData = data.copy(
-          passengerSchedule = newPassengerSchedule,
-          currentLegPassengerScheduleIndex = 0,
-          currentVehicle = currentVehicleForNextState
-        )
-
-        val tick = _currentTick.get
-        val triggerId = _currentTriggerId.get
         def sendCompletionNoticeAndScheduleStartLegTrigger(): Unit = {
+          val tick = _currentTick.get
+          val triggerId = _currentTriggerId.get
           scheduler ! CompletionNotice(
             triggerId,
             if (nextLeg.beamLeg.endTime > lastTickOfSimulation) Vector.empty
@@ -1152,18 +1146,23 @@ class PersonAgent(
         }
 
         // decide next state to go, whether we need to complete the trigger, start a leg or both
-        val (stateToGo, updatedData) = {
-          if (needEnroute) {
-            (ReadyToChooseParking, tempData.copy(enrouteData = tempData.enrouteData.copy(isInEnrouteState = true)))
-          } else if (nextLeg.beamLeg.mode == CAR || vehicle.isSharedVehicle) {
-            sendCompletionNoticeAndScheduleStartLegTrigger()
-            (ReleasingParkingSpot, tempData)
+        val stateToGo = {
+          if (nextLeg.beamLeg.mode == CAR || vehicle.isSharedVehicle) {
+            if (!needEnroute) sendCompletionNoticeAndScheduleStartLegTrigger()
+            ReleasingParkingSpot
           } else {
             sendCompletionNoticeAndScheduleStartLegTrigger()
             releaseTickAndTriggerId()
-            (WaitingToDrive, tempData)
+            WaitingToDrive
           }
         }
+
+        val updatedData = data.copy(
+          passengerSchedule = newPassengerSchedule,
+          currentLegPassengerScheduleIndex = 0,
+          currentVehicle = currentVehicleForNextState,
+          enrouteData = if (needEnroute) data.enrouteData.copy(isInEnrouteState = true) else data.enrouteData
+        )
 
         goto(stateToGo) using updatedData
       }

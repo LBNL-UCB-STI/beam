@@ -287,6 +287,7 @@ trait ChoosesParking extends {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
       stay using data
+
     case Event(UnhandledVehicle(tick, vehicleId, triggerId), data) =>
       assume(
         vehicleId == currentBeamVehicle.id,
@@ -298,10 +299,22 @@ trait ChoosesParking extends {
       )
       handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
       goto(WaitingToDrive) using data
+
+    case Event(UnpluggingVehicle(tick, energyCharged, triggerId), data: BasePersonData)
+        if data.enrouteData.isInEnrouteState =>
+      val vehicle = beamVehicles(data.restOfCurrentTrip.head.beamVehicleId).vehicle
+      log.debug(
+        s"Vehicle ${vehicle.id} [chosen for enroute] ended charging and it is not handled by the CNM at tick $tick"
+      )
+      val energyMaybe = Some(energyCharged)
+      handleReleasingParkingSpot(tick, vehicle, energyMaybe, id, parkingManager, eventsManager, triggerId)
+      goto(ReadyToChooseParking) using data
+
     case Event(UnpluggingVehicle(tick, energyCharged, triggerId), data) =>
       log.debug(s"Vehicle ${currentBeamVehicle.id} ended charging and it is not handled by the CNM at tick $tick")
       val energyMaybe = Some(energyCharged)
       handleReleasingParkingSpot(tick, currentBeamVehicle, energyMaybe, id, parkingManager, eventsManager, triggerId)
+      releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
   }
 
@@ -309,20 +322,36 @@ trait ChoosesParking extends {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
       stay using data
+
     case Event(StateTimeout, data: BasePersonData) =>
-      val (tick, triggerId) = releaseTickAndTriggerId()
-      if (currentBeamVehicle.isConnectedToChargingPoint()) {
+      val nextLeg = data.restOfCurrentTrip.head
+      val vehicle = {
+        if (data.enrouteData.isInEnrouteState) beamVehicles(nextLeg.beamVehicleId).vehicle
+        else currentBeamVehicle
+      }
+      val (tick, triggerId) = (_currentTick.get, _currentTriggerId.get)
+
+      if (vehicle.isConnectedToChargingPoint()) {
         log.debug("Sending ChargingUnplugRequest to ChargingNetworkManager at {}", tick)
         chargingNetworkManager ! ChargingUnplugRequest(
           tick,
-          currentBeamVehicle,
+          vehicle,
           triggerId
         )
         goto(ReleasingChargingPoint) using data
       } else {
-        handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
-        goto(WaitingToDrive) using data
+        val state = {
+          if (data.enrouteData.isInEnrouteState)
+            ReadyToChooseParking
+          else {
+            handleReleasingParkingSpot(tick, vehicle, None, id, parkingManager, eventsManager, triggerId)
+            releaseTickAndTriggerId()
+            WaitingToDrive
+          }
+        }
+        goto(state) using data
       }
+
     case Event(StateTimeout, data) =>
       val stall = currentBeamVehicle.stall.get
       parkingManager ! ReleaseParkingStall(stall, getCurrentTriggerIdOrGenerate)
@@ -335,7 +364,6 @@ trait ChoosesParking extends {
     case Event(ParkingInquiryResponse(stall, _, _), data) =>
       val distanceThresholdToIgnoreWalking =
         beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
-      val chargingPointMaybe = stall.chargingPointType
       val nextLeg =
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
       currentBeamVehicle.setReservedParkingStall(Some(stall))
@@ -354,7 +382,7 @@ trait ChoosesParking extends {
           case data: BasePersonData if data.enrouteData.isInEnrouteState =>
             val updatedEnrouteData =
               data.enrouteData.copy(hasReservedFastChargerStall =
-                chargingPointMaybe.exists(ChargingPointType.isFastCharger)
+                stall.chargingPointType.exists(ChargingPointType.isFastCharger)
               )
             (data.copy(enrouteData = updatedEnrouteData), updatedEnrouteData.isEnrouting)
           case _ =>
@@ -362,7 +390,7 @@ trait ChoosesParking extends {
         }
         updatedData match {
           case data: BasePersonData if data.enrouteData.isInEnrouteState && !isEnrouting =>
-            // continue normal workflow if enroute is not possible
+            // continue normal workflow if enroute is not possible or stalls are not available for selected parking
             val (tick, triggerId) = releaseTickAndTriggerId()
             scheduler ! CompletionNotice(
               triggerId,
@@ -572,6 +600,7 @@ trait ChoosesParking extends {
       )
 
       handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, eventsManager, triggerId)
+
       goto(WaitingToDrive) using data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList,
