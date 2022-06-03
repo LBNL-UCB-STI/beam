@@ -179,7 +179,13 @@ trait ChoosesMode {
             ) pipeTo self
           // Drive/Bike transit tours count as WALK_BASED tours,
           // but they only have access to their vehicles on first/last leg
-          case Some(WALK_BASED) | None if isFirstTripWithinTour(nextAct) || isLastTripWithinTour(nextAct) =>
+          case Some(WALK_BASED) if isFirstTripWithinTour(nextAct) || isLastTripWithinTour(nextAct) =>
+            requestAvailableVehicles(
+              vehicleFleets,
+              data.currentLocation,
+              currentActivity(data.personData)
+            ) pipeTo self
+          case None =>
             requestAvailableVehicles(
               vehicleFleets,
               data.currentLocation,
@@ -1311,6 +1317,7 @@ trait ChoosesMode {
               val correctedTripMode = correctCurrentTripModeAccordingToRules(None, personData, availableModesForTrips)
               if (correctedTripMode != personData.currentTripMode) {
                 //give another chance to make a choice without predefined mode
+                //TODO: Do we need to do anything with tour mode here?
                 gotoChoosingModeWithoutPredefinedMode(choosesModeData)
               } else {
                 val expensiveWalkTrip = createExpensiveWalkTrip(currentPersonLocation, nextAct, routingResponse)
@@ -1469,13 +1476,13 @@ trait ChoosesMode {
 
     val nextAct = nextActivity(data.personData).get
 
-    val tripStrategy = TripModeChoiceStrategy(Some(chosenTrip.tripClassifier))
+    val tourMode = data.personData.currentTourMode
 
     val modeChoiceEvent = new ModeChoiceEvent(
       tick,
       id,
       chosenTrip.tripClassifier.value,
-      tripStrategy.mode.map(_.value).getOrElse(""),
+      tourMode.map(_.value).getOrElse(""),
       data.expectedMaxUtilityOfLatestChoice.getOrElse[Double](Double.NaN),
       _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getLinkId.toString,
       data.availableAlternatives.get,
