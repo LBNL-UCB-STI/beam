@@ -1,11 +1,14 @@
 package beam.agentsim.agents.modalbehaviors
 
-import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
+import beam.agentsim.agents.choice.logit
+import beam.agentsim.agents.choice.logit.{LatentClassChoiceModel, UtilityFunctionOperation}
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
+import beam.agentsim.agents.choice.logit.TourModeChoiceModel.TourModeParameters
 import beam.agentsim.agents.choice.mode._
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
+import beam.router.TourModes.BeamTourMode
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
@@ -23,6 +26,15 @@ import scala.util.Random
 trait ModeChoiceCalculator {
 
   val beamConfig: BeamConfig
+
+  val commonUtility: Map[String, UtilityFunctionOperation] = Map(
+    "cost" -> UtilityFunctionOperation("multiplier", -1)
+  )
+
+  val modeChoiceLogit = new logit.MultinomialLogit[BeamMode, String](
+    Map.empty[BeamMode, Option[Map[String, UtilityFunctionOperation]]],
+    commonUtility
+  )
 
   lazy val random: Random = new Random(
     beamConfig.matsim.modules.global.randomSeed

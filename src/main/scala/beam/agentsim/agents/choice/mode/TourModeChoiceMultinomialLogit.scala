@@ -1,10 +1,10 @@
 package beam.agentsim.agents.choice.mode
 
+import beam.agentsim.agents.choice.logit.{MultinomialLogit, TourModeChoiceModel, UtilityFunctionOperation}
+import beam.agentsim.agents.choice.logit.TourModeChoiceModel.{TourModeMNLConfig, TourModeParameters}
 import beam.router.Modes.BeamMode
 import beam.router.TourModes.BeamTourMode
-import beam.router.TourModes.BeamTourMode.WALK_BASED
 import beam.router.skim.core.ODSkimmer.ODSkimmerTimeCostTransfer
-import beam.sim.config.BeamConfigHolder
 import beam.sim.population.AttributesOfIndividual
 
 import scala.collection.mutable
@@ -12,23 +12,29 @@ import scala.util.Random
 
 class TourModeChoiceMultinomialLogit(
   val attributesOfIndividual: AttributesOfIndividual,
-  val configHolder: BeamConfigHolder
+  val tourModeChoiceModel: TourModeChoiceModel
 ) {
   val rnd: Random = new scala.util.Random(System.currentTimeMillis())
 
-  val (_, modeLogit) = ModeChoiceMultinomialLogit.buildModelFromConfig(configHolder)
+  val tourModeLogit = MultinomialLogit[BeamTourMode, TourModeChoiceModel.TourModeParameters](
+    Map.empty[BeamTourMode, Map[TourModeParameters, UtilityFunctionOperation]],
+    tourModeChoiceModel.DefaultMNLParameters
+  )
 
   def chooseTourMode(
     tourModeCosts: Seq[Map[BeamMode, ODSkimmerTimeCostTransfer]],
+    modeLogit: MultinomialLogit[BeamMode, String],
     modeToTourMode: Map[BeamTourMode, Seq[BeamMode]],
-    firstAndLastTripModeToTourMode: Option[Map[BeamTourMode, Seq[BeamMode]]]
-  ): BeamTourMode = {
-
-    WALK_BASED
+    firstAndLastTripModeToTourModeOption: Option[Map[BeamTourMode, Seq[BeamMode]]]
+  ): Option[BeamTourMode] = {
+    val tourUtility =
+      tourExpectedMaxUtility(tourModeCosts, modeLogit, modeToTourMode, firstAndLastTripModeToTourModeOption)
+    tourModeChoice(tourUtility, tourModeLogit)
   }
 
   def tripExpectedMaxUtility(
     tripModeCosts: Map[BeamMode, ODSkimmerTimeCostTransfer],
+    modeLogit: MultinomialLogit[BeamMode, String],
     modeToTourMode: Map[BeamTourMode, Seq[BeamMode]]
   ): Map[BeamTourMode, Double] = {
     modeToTourMode map { case (beamTourMode, beamModes) =>
@@ -46,15 +52,60 @@ class TourModeChoiceMultinomialLogit(
 
   def tourExpectedMaxUtility(
     tourModeCosts: Seq[Map[BeamMode, ODSkimmerTimeCostTransfer]],
-    modeToTourMode: Map[BeamTourMode, Seq[BeamMode]]
+    modeLogit: MultinomialLogit[BeamMode, String],
+    modeToTourMode: Map[BeamTourMode, Seq[BeamMode]],
+    firstAndLastTripModeToTourModeOption: Option[Map[BeamTourMode, Seq[BeamMode]]] = None
   ): Map[BeamTourMode, Double] = {
     val tourModeToExpectedUtility = mutable.Map[BeamTourMode, Double]()
-    tourModeCosts foreach { modeCosts =>
-      val tourModeExpectedCosts = tripExpectedMaxUtility(modeCosts, modeToTourMode)
-      tourModeExpectedCosts.map { case (tourMode, util) =>
-        tourModeToExpectedUtility += (tourMode -> (tourModeToExpectedUtility.getOrElse(tourMode, 0.0) + util))
+    tourModeCosts.zipWithIndex foreach { case (modeCosts, idx) =>
+      if (idx == 0 | idx == tourModeCosts.length - 1) {
+        // Allow inclusion of private vehicles in first/last trips, e.g. for DRIVE_TRANSIT
+        // Default to normal modeToTourMode if the other mapping isn't defined, though
+        tripExpectedMaxUtility(modeCosts, modeLogit, firstAndLastTripModeToTourModeOption.getOrElse(modeToTourMode))
+          .map { case (tourMode, util) =>
+            tourModeToExpectedUtility += (tourMode -> (tourModeToExpectedUtility.getOrElse(tourMode, 0.0) + util))
+          }
+      } else {
+        tripExpectedMaxUtility(modeCosts, modeLogit, modeToTourMode).map { case (tourMode, util) =>
+          tourModeToExpectedUtility += (tourMode -> (tourModeToExpectedUtility.getOrElse(tourMode, 0.0) + util))
+        }
       }
+
     }
     tourModeToExpectedUtility.toMap
+  }
+
+  def tourModeChoice(
+    tourModeUtility: Map[BeamTourMode, Double],
+    tourModeLogit: MultinomialLogit[BeamTourMode, TourModeParameters]
+  ): Option[BeamTourMode] = {
+    val tourModeChoiceData: Map[BeamTourMode, Map[TourModeParameters, Double]] = tourModeUtility.map {
+      case (tourMode, util) =>
+        tourMode -> Map[TourModeParameters, Double](
+          TourModeParameters.ExpectedMaxUtility -> util,
+          TourModeParameters.Intercept          -> 0
+        )
+    }
+    tourModeLogit.sampleAlternative(tourModeChoiceData, rnd) match {
+      case Some(sample) => Some(sample.alternativeType)
+      case None         => None
+    }
+  }
+
+  def apply(
+    tourModeCosts: Seq[Map[BeamMode, ODSkimmerTimeCostTransfer]],
+    modeLogit: MultinomialLogit[BeamMode, String],
+    modeToTourMode: Map[BeamTourMode, Seq[BeamMode]],
+    firstAndLastTripModeToTourModeOption: Option[Map[BeamTourMode, Seq[BeamMode]]]
+  ): Option[BeamTourMode] = {
+    chooseTourMode(tourModeCosts, modeLogit, modeToTourMode, firstAndLastTripModeToTourModeOption)
+  }
+
+  def apply(
+    tourModeCosts: Seq[Map[BeamMode, ODSkimmerTimeCostTransfer]],
+    modeLogit: MultinomialLogit[BeamMode, String],
+    modeToTourMode: Map[BeamTourMode, Seq[BeamMode]]
+  ): Option[BeamTourMode] = {
+    chooseTourMode(tourModeCosts, modeLogit, modeToTourMode, None)
   }
 }

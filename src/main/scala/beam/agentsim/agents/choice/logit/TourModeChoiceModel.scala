@@ -1,11 +1,6 @@
 package beam.agentsim.agents.choice.logit
 
 import beam.sim.config.BeamConfig
-import beam.sim.population.AttributesOfIndividual
-import org.matsim.api.core.v01.population.Activity
-
-import scala.collection.JavaConverters._
-import scala.util.{Failure, Success, Try}
 
 object TourModeChoiceModel {
   def apply(beamConfig: BeamConfig) = new TourModeChoiceModel(beamConfig)

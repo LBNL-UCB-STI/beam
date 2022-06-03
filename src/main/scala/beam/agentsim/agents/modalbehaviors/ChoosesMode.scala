@@ -21,6 +21,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
+import beam.router.TourModes.BeamTourMode
 import beam.router.TourModes.BeamTourMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.skim.core.ODSkimmer
@@ -265,6 +266,36 @@ trait ChoosesMode {
           case _ =>
             Vector()
         }
+
+      val chosenCurrentTourMode: Option[BeamTourMode] = personData.currentTourMode match {
+        case Some(tourMode) => Some(tourMode)
+        case None =>
+          val availablePersonalVehicleModes = availablePersonalStreetVehicles.map(x => x.streetVehicle.mode).distinct
+          val availableFirstAndLastLegModes =
+            availablePersonalVehicleModes.flatMap(x => BeamTourMode.enabledModes.get(x)).flatten
+          val modesToQuery =
+            (availablePersonalVehicleModes ++ BeamMode.nonPersonalVehicleModes ++ availableFirstAndLastLegModes).distinct
+          val dummyVehicleType = beamScenario.vehicleTypes(dummyRHVehicle.vehicleTypeId)
+          val currentTour = _experiencedBeamPlan.getTourContaining(nextAct)
+          val tourModeCosts = beamServices.skims.od_skimmer.getTourModeCosts(
+            modesToQuery,
+            currentTour,
+            dummyRHVehicle.vehicleTypeId,
+            dummyVehicleType,
+            beamScenario.fuelTypePrices(dummyVehicleType.primaryFuelType)
+          )
+          val modeToTourMode =
+            BeamTourMode.values.map(tourMode => tourMode -> tourMode.allowedBeamModes.intersect(modesToQuery)).toMap
+          val firstAndLastTripModeToTourModeOption = BeamTourMode.values
+            .map(tourMode => tourMode -> tourMode.allowedBeamModesForFirstAndLastLeg.intersect(modesToQuery))
+            .toMap
+          tourModeChoiceCalculator(
+            tourModeCosts,
+            modeChoiceCalculator.modeChoiceLogit,
+            modeToTourMode,
+            Some(firstAndLastTripModeToTourModeOption)
+          )
+      }
 
       def makeRequestWith(
         withTransit: Boolean,

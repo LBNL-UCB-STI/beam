@@ -25,10 +25,13 @@ object Strategy {
     def tripStrategies(tour: Tour, beamPlan: BeamPlan): Seq[(Trip, Strategy)] = Seq.empty
   }
 
-  case class TourModeChoiceStrategy(tourMode: Option[BeamTourMode], tourVehicle: Option[Id[BeamVehicle]] = None)
-      extends Strategy
+  case class TourModeChoiceStrategy(tourMode: Option[BeamTourMode] = None, tourVehicle: Option[Id[BeamVehicle]] = None)
+      extends Strategy {
+    def this() = this(None)
+  }
 
-  case class TripModeChoiceStrategy(mode: Option[BeamMode]) extends Strategy {
+  case class TripModeChoiceStrategy(mode: Option[BeamMode] = None) extends Strategy {
+    def this() = this(None)
 
     override def tripStrategies(tour: Tour, beamPlan: BeamPlan): Seq[(Trip, Strategy)] = {
       val tourStrategy = this

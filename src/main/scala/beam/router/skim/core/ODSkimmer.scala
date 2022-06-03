@@ -394,8 +394,12 @@ object ODSkimmer extends LazyLogging {
         this.timeInHours + other.timeInHours,
         this.cost + other.cost,
         this.numTransfers + other.numTransfers,
-        (Try(this.crowdingLevel / this.timeInHours).getOrElse(0) + Try(other.crowdingLevel / other.timeInHours)
-          .getOrElse(0)) * (this.timeInHours + other.timeInHours)
+        if (this.timeInHours <= 0) { other.crowdingLevel }
+        else if (other.timeInHours <= 0) { this.crowdingLevel }
+        else {
+          (this.crowdingLevel / this.timeInHours + other.crowdingLevel / other.timeInHours) *
+          (this.timeInHours + other.timeInHours)
+        }
       )
     }
   }

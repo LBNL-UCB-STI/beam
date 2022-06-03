@@ -5,6 +5,7 @@ import akka.actor.{ActorRef, FSM, Props, Stash, Status}
 import beam.agentsim.Resource._
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
+import beam.agentsim.agents.choice.mode.TourModeChoiceMultinomialLogit
 import beam.agentsim.agents.freight.input.FreightReader.PAYLOAD_WEIGHT_IN_KG
 import beam.agentsim.agents.household.HouseholdActor.ReleaseVehicle
 import beam.agentsim.agents.household.HouseholdCAVDriverAgent
@@ -87,6 +88,7 @@ object PersonAgent {
     services: BeamServices,
     beamScenario: BeamScenario,
     modeChoiceCalculator: ModeChoiceCalculator,
+    tourModeChoiceCalculator: TourModeChoiceMultinomialLogit,
     transportNetwork: TransportNetwork,
     tollCalculator: TollCalculator,
     router: ActorRef,
@@ -108,6 +110,7 @@ object PersonAgent {
         services,
         beamScenario,
         modeChoiceCalculator,
+        tourModeChoiceCalculator,
         transportNetwork,
         router,
         rideHailManager,
@@ -296,6 +299,7 @@ class PersonAgent(
   val beamServices: BeamServices,
   val beamScenario: BeamScenario,
   val modeChoiceCalculator: ModeChoiceCalculator,
+  val tourModeChoiceCalculator: TourModeChoiceMultinomialLogit,
   val transportNetwork: TransportNetwork,
   val router: ActorRef,
   val rideHailManager: ActorRef,
@@ -615,7 +619,7 @@ class PersonAgent(
             // If we have the currentTourPersonalVehicle then we should use it
             // use the mode of the next leg as the new trip mode.
             currentTripMode = modeOfNextLeg,
-            currentTourMode = currentTourModeChoiceStrategy.tourMode,
+            currentTourMode = None, // currentTourModeChoiceStrategy.tourMode,
             numberOfReplanningAttempts = 0,
             failedTrips = IndexedSeq.empty,
             enrouteData = EnrouteData()

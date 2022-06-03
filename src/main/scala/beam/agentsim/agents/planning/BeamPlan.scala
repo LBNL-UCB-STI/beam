@@ -172,7 +172,10 @@ class BeamPlan extends Plan {
 
   def getStrategy[T <: Strategy: ClassTag](planElement: PlanElement): T = {
     val forClass: Class[T] = implicitly[ClassTag[T]].runtimeClass.asInstanceOf[Class[T]]
-    strategies.getOrElse(planElement, Map.empty[Class[_ <: Strategy], Strategy]).get(forClass).asInstanceOf[T]
+    strategies
+      .getOrElse(planElement, Map.empty[Class[_ <: Strategy], Strategy])
+      .getOrElse(forClass, forClass.getConstructor().newInstance())
+      .asInstanceOf[T]
   }
 
   def getTripStrategy[T <: Strategy: ClassTag](activity: Activity): T = {

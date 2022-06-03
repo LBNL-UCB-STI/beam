@@ -127,6 +127,8 @@ object Modes {
 
     val personalVehicleModes = Seq(CAR, BIKE, DRIVE_TRANSIT, BIKE_TRANSIT)
 
+    val nonPersonalVehicleModes = Seq(WALK, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK_TRANSIT)
+
     val transitModes =
       Seq(BUS, FUNICULAR, GONDOLA, CABLE_CAR, FERRY, TRAM, TRANSIT, RAIL, SUBWAY)
 
@@ -253,7 +255,8 @@ object TourModes {
   sealed abstract class BeamTourMode(
     val value: String,
     val vehicleCategory: VehicleCategory,
-    val allowedBeamModes: Seq[BeamMode]
+    val allowedBeamModes: Seq[BeamMode],
+    val allowedBeamModesForFirstAndLastLeg: Seq[BeamMode]
   ) extends StringEnumEntry {
 
     import BeamTourMode._
@@ -268,11 +271,23 @@ object TourModes {
 
     override val values: immutable.IndexedSeq[BeamTourMode] = findValues
 
+    val enabledModes: Map[BeamMode, Seq[BeamMode]] =
+      Map[BeamMode, Seq[BeamMode]](CAR -> Seq(DRIVE_TRANSIT), BIKE -> Seq(BIKE_TRANSIT))
+
     // TODO: Also allow use of shared bikes/cars in walk based tours
     case object WALK_BASED
         extends BeamTourMode(
           "walk_based",
           Body,
+          Seq[BeamMode](
+            WALK,
+            WALK_TRANSIT,
+            RIDE_HAIL,
+            RIDE_HAIL_POOLED,
+            RIDE_HAIL_TRANSIT,
+            HOV2_TELEPORTATION,
+            HOV3_TELEPORTATION
+          ),
           Seq[BeamMode](
             WALK,
             WALK_TRANSIT,
@@ -286,9 +301,15 @@ object TourModes {
           )
         )
 
-    case object CAR_BASED extends BeamTourMode("car_based", Car, Seq[BeamMode](CAR, CAR_HOV2, CAR_HOV3))
+    case object CAR_BASED
+        extends BeamTourMode(
+          "car_based",
+          Car,
+          Seq[BeamMode](CAR, CAR_HOV2, CAR_HOV3),
+          Seq[BeamMode](CAR, CAR_HOV2, CAR_HOV3)
+        )
 
-    case object BIKE_BASED extends BeamTourMode("bike_based", Car, Seq[BeamMode](BIKE))
+    case object BIKE_BASED extends BeamTourMode("bike_based", Car, Seq[BeamMode](BIKE), Seq[BeamMode](BIKE))
   }
 
 }

@@ -7,6 +7,8 @@ import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents._
+import beam.agentsim.agents.choice.logit.TourModeChoiceModel
+import beam.agentsim.agents.choice.mode.TourModeChoiceMultinomialLogit
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -345,6 +347,8 @@ object HouseholdActor {
         household.members.foreach { person =>
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
           val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
+          val tourModeChoiceCalculator =
+            new TourModeChoiceMultinomialLogit(attributes, new TourModeChoiceModel(beamScenario.beamConfig))
           val selectedPlan = person.getSelectedPlan
           // Set zero endTime for plans with one activity. In other case agent sim will be started
           // before all InitializeTrigger's are completed
@@ -361,6 +365,7 @@ object HouseholdActor {
               beamServices,
               beamScenario,
               modeChoiceCalculator,
+              tourModeChoiceCalculator,
               transportNetwork,
               tollCalculator,
               router,
