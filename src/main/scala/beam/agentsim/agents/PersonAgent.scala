@@ -1002,12 +1002,16 @@ class PersonAgent(
       )
       val currentCoord =
         beamServices.geo.wgs2Utm(basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
-      val nextCoord = nextActivity(basePersonData).get.getCoord
+      val nextAct = nextActivity(basePersonData).get
+      val nextCoord = nextAct.getCoord
       // Have to give up my mode as well, perhaps there's no option left for driving.
-      _experiencedBeamPlan.putStrategy(currentTour(basePersonData), TripModeChoiceStrategy(mode = None))
+      _experiencedBeamPlan.putStrategy(nextAct, TripModeChoiceStrategy(mode = None))
+      val updatedTourMode: Option[BeamTourMode] = if (isFirstOrLastTripWithinTour(nextAct)) { None }
+      else { basePersonData.currentTourMode }
       goto(ChoosingMode) using ChoosesModeData(
         basePersonData.copy(
           currentTripMode = None,
+          currentTourMode = updatedTourMode,
           currentTourPersonalVehicle = None,
           numberOfReplanningAttempts = basePersonData.numberOfReplanningAttempts + 1
         ),
