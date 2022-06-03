@@ -236,15 +236,17 @@ class BeamPlan extends Plan {
   def getTourModeFromTourLegs(tour: Tour): Option[BeamTourMode] = {
     // TODO: Should this just look at the first/last mode of legs?
     var tourMode: Option[BeamTourMode] = None
-    tour.trips.foreach(trip =>
-      trip.leg match {
-        case Some(leg) if leg.getMode.equalsIgnoreCase("car") => tourMode = Some(CAR_BASED)
-        case Some(leg) if leg.getMode.equalsIgnoreCase("bike") && !tourMode.contains(CAR_BASED) =>
-          tourMode = Some(BIKE_BASED)
-        case Some(_) => tourMode = Some(WALK_BASED)
-        case _       =>
-      }
-    )
+    if (tour.trips.exists(trip => trip.leg.isDefined)) {
+      tour.trips.foreach(trip =>
+        trip.leg match {
+          case Some(leg) if leg.getMode.equalsIgnoreCase("car") => tourMode = Some(CAR_BASED)
+          case Some(leg) if leg.getMode.equalsIgnoreCase("bike") && !tourMode.contains(CAR_BASED) =>
+            tourMode = Some(BIKE_BASED)
+          case Some(_) => tourMode = Some(WALK_BASED)
+          case _       =>
+        }
+      )
+    }
     tourMode
   }
 

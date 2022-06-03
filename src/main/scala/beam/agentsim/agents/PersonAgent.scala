@@ -483,23 +483,23 @@ class PersonAgent(
     }
   }
 
-  def isFirstTripWithinTour(personData: BasePersonData, nextAct: Activity): Boolean = {
-    val (tripIndexOfElement: Int, _) = currentTripIndexWithinTour(personData, nextAct)
+  def isFirstTripWithinTour(nextAct: Activity): Boolean = {
+    val (tripIndexOfElement: Int, _) = currentTripIndexWithinTour(nextAct)
     tripIndexOfElement == 0
   }
 
-  def isLastTripWithinTour(personData: BasePersonData, nextAct: Activity): Boolean = {
-    val (tripIndexOfElement: Int, lastTripIndex: Int) = currentTripIndexWithinTour(personData, nextAct)
+  def isLastTripWithinTour(nextAct: Activity): Boolean = {
+    val (tripIndexOfElement: Int, lastTripIndex: Int) = currentTripIndexWithinTour(nextAct)
     tripIndexOfElement == lastTripIndex
   }
 
-  def isFirstOrLastTripWithinTour(personData: BasePersonData, nextAct: Activity): Boolean = {
-    val (tripIndexOfElement: Int, lastTripIndex: Int) = currentTripIndexWithinTour(personData, nextAct)
+  def isFirstOrLastTripWithinTour(nextAct: Activity): Boolean = {
+    val (tripIndexOfElement: Int, lastTripIndex: Int) = currentTripIndexWithinTour(nextAct)
     tripIndexOfElement == 0 || tripIndexOfElement == lastTripIndex
   }
 
-  def currentTripIndexWithinTour(personData: BasePersonData, nextAct: Activity): (Int, Int) = {
-    val tour = currentTour(personData)
+  def currentTripIndexWithinTour(nextAct: Activity): (Int, Int) = {
+    val tour = _experiencedBeamPlan.getTourContaining(nextAct)
     val lastTripIndex = tour.trips.size - 1
     val tripIndexOfElement = tour
       .tripIndexOfElement(nextAct)

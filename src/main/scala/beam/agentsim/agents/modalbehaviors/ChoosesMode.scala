@@ -153,7 +153,7 @@ trait ChoosesMode {
             (
               currentTripMode.exists(mode => mode == CAR || mode == BIKE) ||
               currentTripMode.exists(mode => mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT)
-              && isLastTripWithinTour(data.personData, nextAct)
+              && isLastTripWithinTour(nextAct)
             ) =>
         self ! MobilityStatusResponse(
           Vector(beamVehicles(data.personData.currentTourPersonalVehicle.get)),
@@ -184,8 +184,7 @@ trait ChoosesMode {
             ) pipeTo self
           // Drive/Bike transit tours count as WALK_BASED tours,
           // but they only have access to their vehicles on first/last leg
-          case Some(WALK_BASED) | None
-              if isFirstTripWithinTour(data.personData, nextAct) || isLastTripWithinTour(data.personData, nextAct) =>
+          case Some(WALK_BASED) | None if isFirstTripWithinTour(nextAct) || isLastTripWithinTour(nextAct) =>
             requestAvailableVehicles(
               vehicleFleets,
               data.currentLocation,
@@ -258,7 +257,7 @@ trait ChoosesMode {
             // In these cases, also include teleportation vehicles
             newlyAvailableBeamVehicles
           case Some(DRIVE_TRANSIT | BIKE_TRANSIT) =>
-            if (isFirstOrLastTripWithinTour(personData, nextAct)) {
+            if (isFirstOrLastTripWithinTour(nextAct)) {
               newlyAvailableBeamVehicles
             } else {
               Vector()
@@ -452,7 +451,7 @@ trait ChoosesMode {
           }
         case Some(mode @ (DRIVE_TRANSIT | BIKE_TRANSIT)) =>
           val vehicleMode = Modes.getAccessVehicleMode(mode)
-          val (tripIndexOfElement: Int, lastTripIndex: Int) = currentTripIndexWithinTour(personData, nextAct)
+          val (tripIndexOfElement: Int, lastTripIndex: Int) = currentTripIndexWithinTour(nextAct)
           (
             tripIndexOfElement,
             personData.currentTourPersonalVehicle
@@ -1219,7 +1218,7 @@ trait ChoosesMode {
 
       val filteredItinerariesForChoice = (choosesModeData.personData.currentTripMode match {
         case Some(mode) if mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT =>
-          (isFirstOrLastTripWithinTour(personData, nextAct), personData.hasDeparted) match {
+          (isFirstOrLastTripWithinTour(nextAct), personData.hasDeparted) match {
             case (true, false) =>
               combinedItinerariesForChoice.filter(_.tripClassifier == mode)
             case _ =>
