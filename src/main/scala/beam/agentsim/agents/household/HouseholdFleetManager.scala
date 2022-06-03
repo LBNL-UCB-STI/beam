@@ -28,6 +28,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Random
 
 class HouseholdFleetManager(
   parkingManager: ActorRef,
@@ -51,6 +52,8 @@ class HouseholdFleetManager(
   var triggerSender: Option[ActorRef] = None
 
   private val trackingVehicleAssignmentAtInitialization = mutable.HashMap.empty[Id[BeamVehicle], Id[Person]]
+
+  private val rand = new Random(beamConfig.matsim.modules.global.randomSeed)
 
   override def loggedReceive: Receive = {
     case ResolvedParkingResponses(triggerId, xs) =>
@@ -100,14 +103,10 @@ class HouseholdFleetManager(
             triggerId = triggerId,
             searchMode = ParkingSearchMode.Init
           )
-          if (
-            vehicle.isEV &&
-            beamConfig.beam.agentsim.chargingNetworkManager.overnightChargingEnabled &&
-            vehicle.isRefuelNeeded(
-              beamConfig.beam.agentsim.agents.vehicles.destination.home.refuelRequiredThresholdInMeters,
-              beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
-            )
-          ) (chargingNetworkManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))
+          val probabilityOfOvernightCharging =
+            rand.nextDouble() <= beamConfig.beam.agentsim.agents.parking.overnightChargingSampleSize
+          if (vehicle.isEV && probabilityOfOvernightCharging)
+            (chargingNetworkManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))
           else (parkingManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))
         }
       }

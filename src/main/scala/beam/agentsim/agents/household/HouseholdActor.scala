@@ -54,6 +54,7 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
+import scala.util.Random
 
 object HouseholdActor {
 
@@ -163,6 +164,8 @@ object HouseholdActor {
     implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
     implicit val executionContext: ExecutionContext = context.dispatcher
     implicit val debug: Debug = beamServices.beamConfig.beam.debug
+
+    private val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
     protected val generateEmergencyHousehold: Boolean =
       beamScenario.beamConfig.beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt
@@ -585,14 +588,9 @@ object HouseholdActor {
         triggerId = triggerId,
         searchMode = ParkingSearchMode.Init
       )
-      if (
-        vehicle.isEV &&
-        beamScenario.beamConfig.beam.agentsim.chargingNetworkManager.overnightChargingEnabled &&
-        vehicle.isRefuelNeeded(
-          beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.home.refuelRequiredThresholdInMeters,
-          beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters
-        )
-      )
+      val probabilityOfOvernightCharging =
+        rand.nextDouble() <= beamServices.beamConfig.beam.agentsim.agents.parking.overnightChargingSampleSize
+      if (vehicle.isEV && probabilityOfOvernightCharging)
         chargingNetworkManager ? inquiry
       else parkingManager ? inquiry
     }
