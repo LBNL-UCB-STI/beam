@@ -42,7 +42,7 @@ class TourModeChoiceMultinomialLogit(
         val skims = tripModeCosts.getOrElse(beamMode, ODSkimmerTimeCostTransfer())
         val timeCost = attributesOfIndividual.getVOT(skims.timeInHours)
         val monetaryCost = skims.cost
-        beamMode -> (Map("cost" -> (timeCost + monetaryCost)) ++ Map(
+        beamMode -> (Map("cost" -> -(timeCost + monetaryCost)) ++ Map(
           "transfers" -> skims.numTransfers.toDouble
         ))
       }.toMap

@@ -34,11 +34,19 @@ object BeamPlan {
   def apply(matsimPlan: Plan): BeamPlan = {
     val beamPlan = new BeamPlan
     beamPlan.setPerson(matsimPlan.getPerson)
-    matsimPlan.getPlanElements.asScala.foreach {
-      case activity: Activity =>
-        beamPlan.addActivity(activity)
-      case leg: Leg =>
-        beamPlan.addLeg(leg)
+    matsimPlan.getPlanElements.asScala.headOption match {
+      case Some(a1: Activity) => beamPlan.addActivity(a1)
+      case _                  =>
+    }
+    matsimPlan.getPlanElements.asScala.sliding(2).foreach {
+      case mutable.Buffer(_: Activity, a2: Activity) =>
+        beamPlan.addLeg(PopulationUtils.createLeg(""))
+        beamPlan.addActivity(a2)
+      case mutable.Buffer(a1: Activity, l1: Leg) =>
+        beamPlan.addLeg(l1)
+      case mutable.Buffer(l1: Leg, a1: Activity) =>
+        beamPlan.addActivity(a1)
+      case _ =>
     }
     beamPlan.setScore(matsimPlan.getScore)
     beamPlan.setType(matsimPlan.getType)

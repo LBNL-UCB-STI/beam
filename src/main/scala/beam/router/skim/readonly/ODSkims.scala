@@ -24,6 +24,7 @@ import beam.router.skim.core.AbstractSkimmerReadOnly
 import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, ODSkimmerTimeCostTransfer, Skim}
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamHelper, BeamScenario, BeamServices}
+import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.immutable
@@ -108,24 +109,38 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
   ): Seq[Map[BeamMode, ODSkimmerTimeCostTransfer]] = {
     tour.originActivity match {
       case Some(originActivity) =>
-        var tripOrigin = originActivity
-        tour.trips.map { trip =>
-          modes.map { mode =>
-            val skim = getTimeDistanceAndCost(
-              tripOrigin.getCoord,
-              trip.activity.getCoord,
-              originActivity.getEndTime.toInt,
-              mode,
-              vehicleTypeId,
-              vehicleType,
-              fuelPrice
-            )
-            tripOrigin = trip.activity
-            mode -> ODSkimmerTimeCostTransfer(skim.time / 3600, skim.cost, 0, 0)
-          }.toMap
-        }
+        Seq(getSkimInfo(originActivity, tour.trips.head.activity, modes, vehicleTypeId, vehicleType, fuelPrice)) ++
+          tour.trips
+            .sliding(2)
+            .map { case Seq(trip1, trip2) =>
+              getSkimInfo(trip1.activity, trip2.activity, modes, vehicleTypeId, vehicleType, fuelPrice)
+            }
+            .toSeq
+
       case _ => Seq[Map[BeamMode, ODSkimmerTimeCostTransfer]]()
     }
+  }
+
+  def getSkimInfo(
+    activity1: Activity,
+    activity2: Activity,
+    modes: Iterable[BeamMode],
+    vehicleTypeId: Id[BeamVehicleType],
+    vehicleType: BeamVehicleType,
+    fuelPrice: Double
+  ): Map[BeamMode, ODSkimmerTimeCostTransfer] = {
+    modes.map { mode =>
+      val skim = getTimeDistanceAndCost(
+        activity1.getCoord,
+        activity2.getCoord,
+        activity1.getEndTime.toInt,
+        mode,
+        vehicleTypeId,
+        vehicleType,
+        fuelPrice
+      )
+      mode -> ODSkimmerTimeCostTransfer(skim.generalizedTime / 3600.0, skim.cost, 0, 0)
+    }.toMap
   }
 
   def getTimeDistanceAndCost(

@@ -288,12 +288,14 @@ trait ChoosesMode {
           val firstAndLastTripModeToTourModeOption = BeamTourMode.values
             .map(tourMode => tourMode -> tourMode.allowedBeamModesForFirstAndLastLeg.intersect(modesToQuery))
             .toMap
-          tourModeChoiceCalculator(
+          val done = tourModeChoiceCalculator(
             tourModeCosts,
             modeChoiceCalculator.modeChoiceLogit,
             modeToTourMode,
             Some(firstAndLastTripModeToTourModeOption)
           )
+          println(done)
+          done
       }
 
       def makeRequestWith(
