@@ -30,7 +30,6 @@ import beam.sim.vehiclesharing.Fleets
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils._
 import beam.utils.csv.writers.PlansCsvWriter
-import beam.utils.csv.writers.ScenarioCsvWriter.{FieldSeparator, LineSeparator}
 import beam.utils.logging.{LoggingMessageActor, MessageLogger}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
@@ -43,7 +42,6 @@ import org.matsim.core.mobsim.framework.Mobsim
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Households
 
-import java.io.File
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.concurrent.Await
@@ -68,7 +66,7 @@ class BeamMobsim @Inject() (
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
-  private implicit val timeout: Timeout = Timeout(24, TimeUnit.HOURS)
+  private implicit val timeout: Timeout = Timeout(24 * 3, TimeUnit.HOURS)
 
   import beamServices._
   val physsimConfig = beamConfig.beam.physsim
