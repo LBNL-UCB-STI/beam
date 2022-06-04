@@ -619,7 +619,7 @@ class PersonAgent(
             // If we have the currentTourPersonalVehicle then we should use it
             // use the mode of the next leg as the new trip mode.
             currentTripMode = modeOfNextLeg,
-            currentTourMode = None, // currentTourModeChoiceStrategy.tourMode,
+            currentTourMode = None, //  currentTourModeChoiceStrategy.tourMode, NOTE: Not sure why this is needed...
             numberOfReplanningAttempts = 0,
             failedTrips = IndexedSeq.empty,
             enrouteData = EnrouteData()

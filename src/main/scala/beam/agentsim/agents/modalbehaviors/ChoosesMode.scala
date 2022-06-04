@@ -162,36 +162,27 @@ trait ChoosesMode {
       // Only need to get available street vehicles if our mode requires such a vehicle
       case data: ChoosesModeData =>
         implicit val executionContext: ExecutionContext = context.system.dispatcher
-        currentTourStrategy.tourMode match {
-          case Some(CAR_BASED) =>
+        currentTripMode match {
+          case Some(CAR | DRIVE_TRANSIT) =>
             requestAvailableVehicles(
               vehicleFleets,
               data.currentLocation,
               currentActivity(data.personData),
               Some(VehicleCategory.Car)
             ) pipeTo self
-          case Some(BIKE_BASED) =>
+          case Some(BIKE | BIKE_TRANSIT) =>
             requestAvailableVehicles(
               vehicleFleets,
               data.currentLocation,
               currentActivity(data.personData),
               Some(VehicleCategory.Bike)
             ) pipeTo self
-          // Drive/Bike transit tours count as WALK_BASED tours,
-          // but they only have access to their vehicles on first/last leg
-          case Some(WALK_BASED) if isFirstTripWithinTour(nextAct) || isLastTripWithinTour(nextAct) =>
+          case _ =>
             requestAvailableVehicles(
               vehicleFleets,
               data.currentLocation,
               currentActivity(data.personData)
             ) pipeTo self
-          case None =>
-            requestAvailableVehicles(
-              vehicleFleets,
-              data.currentLocation,
-              currentActivity(data.personData)
-            ) pipeTo self
-          case _ => self ! MobilityStatusResponse(Vector(), getCurrentTriggerIdOrGenerate)
         }
 
       // Otherwise, send empty list to self
