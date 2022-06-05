@@ -97,14 +97,6 @@ class ChargingNetworkManager(
         parkingResponse =>
           if (parkingResponse.stall.chargingPointType.isDefined)
             inquiry.beamVehicle foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
-          val numAvailableChargers: Int = chargingNetworkHelper
-            .get(parkingResponse.stall.reservedFor.managerId)
-            .lookupStation(parkingResponse.stall.parkingZoneId)
-            .map(_.numAvailableChargers)
-            .getOrElse(0)
-          if (numAvailableChargers <= 0) {
-            log.error(s"returning a stall with 0 availability. Something is broken. ${parkingResponse.stall}")
-          }
           sender() ! parkingResponse
       }
 
