@@ -445,9 +445,9 @@ class ZonalParkingManagerSpec
         zonesMap,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("105"),
+        ParkingZone.createId("17"),
         Block(1.99, 3600),
-        ParkingType.Residential,
+        ParkingType.Public,
         "beamVilleCar"
       )
 
@@ -508,7 +508,7 @@ class ZonalParkingManagerSpec
     val inquiry = ParkingInquiry.init(spaceTime, "init", reservedFor, Some(vehicle), triggerId = 3737)
     val response = zpm.processParkingInquiry(inquiry)
     val tazId1 = Id.create(tazId, classOf[TAZ])
-    val costInDollars = if (pricingModel.isInstanceOf[FlatFee]) pricingModel.costInDollars else 0.0
+    val costInDollars = PricingModel.evaluateParkingTicket(pricingModel, 60)
     val expectedStall =
       ParkingStall(
         tazId1,

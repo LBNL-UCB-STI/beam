@@ -103,7 +103,7 @@ class ChargingNetworkManager(
             .map(_.numAvailableChargers)
             .getOrElse(0)
           if (numAvailableChargers <= 0) {
-            logger.error(s"returning a stall with 0 availability. Something is broken. ${parkingResponse.stall}")
+            log.error(s"returning a stall with 0 availability. Something is broken. ${parkingResponse.stall}")
           }
           sender() ! parkingResponse
       }

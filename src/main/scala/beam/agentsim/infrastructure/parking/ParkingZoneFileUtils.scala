@@ -506,10 +506,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
   ): Int = {
     reservedFor.managerType match {
       case VehicleManager.TypeEnum.Household =>
-        if (rand.nextDouble() <= scalingFactor)
-          initialNumStalls.toInt
-        else
-          0
+        initialNumStalls.toInt
       case _ =>
         val expectedNumberOfStalls = initialNumStalls * scalingFactor
         MathUtils.roundUniformly(expectedNumberOfStalls, rand).toInt

@@ -460,7 +460,6 @@ class ChargingNetworkManagerSpec
         beamServices,
         chargingNetworkMap,
         rideHailNetwork,
-        parkingManager.ref,
         scheduler
       )
     )
