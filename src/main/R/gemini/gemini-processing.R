@@ -21,11 +21,14 @@ shpFile <- pp(workDir, "/shapefile/Oakland+Alameda+TAZ/Transportation_Analysis_Z
 oaklandCbg <- st_read(shpFile)
 
 infra5aBase <- readCsv(pp(workDir, "/2022-04-28/_models/infrastructure/4a_output_2022_Apr_13_pubClust_withFees_aggregated.csv"))
-infra5bBase <- readCsv(pp(workDir, "/2022-04-28/_models/infrastructure/4b_output_2022_Apr_13_pubClust_withFees.csv.gz"))
+infra5bBase <- readCsv(pp(workDir, "/2022-04-28/_models/infrastructure/6_output_2022_Apr_13_pubClust_withFees.csv.gz"))
 infra5bBase[startsWith(reservedFor,"household")]$reservedFor <- "Any"
+infra5bBase_NH <- infra5bBase[
+  ,.(parkingZoneId=first(parkingZoneId),feeInCents=mean(feeInCents),numStalls=sum(numStalls))
+  ,b=.(taz,parkingType,chargingPointType,X,Y,reservedFor,pricingModel)]
 write.csv(
-  infra5bBase,
-  file = pp(workDir, "/2022-04-28/_models/infrastructure/4b_output_2022_Apr_13_pubClust_withFees.csv"),
+  infra5bBase_NH,
+  file = pp(workDir, "/2022-04-28/_models/infrastructure/6_output_2022_Apr_13_pubClust_withFees_noHousehold.csv"),
   row.names=FALSE,
   quote=FALSE)
 
