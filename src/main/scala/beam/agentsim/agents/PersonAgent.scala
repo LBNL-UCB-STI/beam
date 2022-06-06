@@ -663,7 +663,7 @@ class PersonAgent(
         startY = currentTrip.legs.head.beamLeg.travelPath.startPoint.loc.getY,
         endX = currentTrip.legs.last.beamLeg.travelPath.endPoint.loc.getX,
         endY = currentTrip.legs.last.beamLeg.travelPath.endPoint.loc.getY,
-        currentTourMode = maybeCurrentTripMode.map(_.value)
+        currentTripMode = data.currentTripMode.map(_.value)
       )
       eventsManager.processEvent(teleportationEvent)
 

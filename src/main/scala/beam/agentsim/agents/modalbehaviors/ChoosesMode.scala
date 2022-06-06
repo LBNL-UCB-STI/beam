@@ -288,21 +288,12 @@ trait ChoosesMode {
         TourModeChoiceStrategy(chosenCurrentTourMode)
       )
 
-      val availableModesGivenTourMode = availableModes.intersect(chosenCurrentTourMode match {
-        case Some(WALK_BASED) =>
-          val enabledModes = availablePersonalStreetVehicles
-            .flatMap(veh =>
-              if (veh.vehicle.isSharedVehicle) { BeamTourMode.enabledModes.get(veh.streetVehicle.mode) }
-              else None
-            )
-            .flatten
-          val walkBasedModes =
-            if (isFirstOrLastTripWithinTour(nextAct)) WALK_BASED.allowedBeamModesForFirstAndLastLeg
-            else WALK_BASED.allowedBeamModes
-          walkBasedModes ++ enabledModes
-        case Some(tourMode) => tourMode.allowedBeamModes
-        case None           => BeamMode.allModes
-      })
+      val availableModesGivenTourMode = getAvailableModesGivenTourMode(
+        availableModes,
+        availablePersonalStreetVehicles,
+        chosenCurrentTourMode,
+        isFirstOrLastTripWithinTour(nextAct)
+      )
 
       def makeRequestWith(
         withTransit: Boolean,
@@ -1116,6 +1107,29 @@ trait ChoosesMode {
     }
   }
 
+  def getAvailableModesGivenTourMode(
+    availableModes: Seq[BeamMode],
+    availablePersonalStreetVehicles: Vector[VehicleOrToken],
+    currentTourMode: Option[BeamTourMode],
+    isFirstOrLastTrip: Boolean = false
+  ): Seq[BeamMode] = {
+    availableModes.intersect(currentTourMode match {
+      case Some(WALK_BASED) =>
+        val enabledModes = availablePersonalStreetVehicles
+          .flatMap(veh =>
+            if (veh.vehicle.isSharedVehicle) { BeamTourMode.enabledModes.get(veh.streetVehicle.mode) }
+            else None
+          )
+          .flatten
+        val walkBasedModes =
+          if (isFirstOrLastTrip) WALK_BASED.allowedBeamModesForFirstAndLastLeg
+          else WALK_BASED.allowedBeamModes
+        walkBasedModes ++ enabledModes
+      case Some(tourMode) => tourMode.allowedBeamModes
+      case None           => BeamMode.allModes
+    })
+  }
+
   def mustBeDrivenHome(vehicle: VehicleOrToken): Boolean = {
     vehicle match {
       case ActualVehicle(beamVehicle) =>
@@ -1222,8 +1236,12 @@ trait ChoosesMode {
         case _ =>
       }
 
-      val availableModesForTrips: Seq[BeamMode] =
-        availableModesForPerson(matsimPlan.getPerson, choosesModeData.excludeModes)
+      val availableModesForTrips = getAvailableModesGivenTourMode(
+        availableModesForPerson(matsimPlan.getPerson, choosesModeData.excludeModes),
+        choosesModeData.availablePersonalStreetVehicles,
+        choosesModeData.personData.currentTourMode,
+        isFirstOrLastTripWithinTour(nextAct)
+      )
 
       val filteredItinerariesForChoice = (choosesModeData.personData.currentTripMode match {
         case Some(mode) if mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT =>
@@ -1538,7 +1556,7 @@ trait ChoosesMode {
             data.personData.currentTourPersonalVehicle
               .orElse(vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id))
         val updatedTourStrategy =
-          TourModeChoiceStrategy(_experiencedBeamPlan.getTourStrategy(nextAct), currentTourPersonalVehicle)
+          TourModeChoiceStrategy(data.personData.currentTourMode, currentTourPersonalVehicle)
         _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTourContaining(nextAct), updatedTourStrategy)
         goto(WaitingForDeparture) using data.personData.copy(
           currentTrip = Some(chosenTrip),
