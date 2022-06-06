@@ -53,17 +53,7 @@ write.csv(
   quote=FALSE)
 
 ###
-test1 <- readCsv(pp(workDir, "/test/0.events.test1.csv.gz"))
-test1H <- readCsv(pp(workDir, "/test/0.events.test1H.csv.gz"))
-test2 <- readCsv(pp(workDir, "/test/0.events.test2.csv.gz"))
-test <- readCsv(pp(workDir, "/test/0.events.csv.gz"))
-householdVehicles <- readCsv(pp(workDir, "/test/householdVehicles.csv"))
-refuelEvents <- test[type=="RefuelSessionEvent"]
-parkEvents <- test[type=="ParkingEvent"]
-householdVehicles$vehicleId <- as.character(householdVehicles$vehicleId)
-res <- parkEvents[householdVehicles, on=c(vehicle="vehicleId")]
-res2 <- rbind(res[startsWith(i.vehicleType,"ev-")], res[startsWith(i.vehicleType,"phev-")])
-
+#eventsraw <- readCsv(pp(workDir, "/0.events.csv.gz"))
 events1 <- readCsv(pp(workDir, "/2022-04-27-Calibration/events/filtered.0.events.5b4.csv.gz"))
 events2 <- readCsv(pp(workDir, "/2022-04-28/events/filtered.0.events.5bBase.csv.gz"))
 test <- events2[type=="RefuelSessionEvent"][time-duration == 0]
@@ -939,5 +929,20 @@ mnl_param[,.(.N,mean(costInDollars)),by=.(chargingPointType)]
 
 
 events7[type=="RefuelSessionEvent"][,.(sumFuel=sum(fuel)),by=.(actType)]
+
+## TEST
+
+
+events.test <- readCsv(pp(workDir, "/test/0.events.csv.gz"))
+ref.test <- events.test[type=="RefuelSessionEvent"]
+charging_share <- ref.test[,.(fuel=sum(fuel)),by=.(chargingPointType)][,fuel_share:=fuel/sum(fuel)]
+vehicle.test <- readCsv(pp(workDir, "/test/householdVehicles.csv"))
+park.test <- events.test[type=="ParkingEvent"]
+vehicle.test$vehicleId <- as.character(vehicle.test$vehicleId)
+park.test.2 <- park.test[vehicle.test, on=c(vehicle="vehicleId")]
+
+ev <- park.test.2[startsWith(i.vehicleType,"ev-")]
+phev <- park.test.2[startsWith(i.vehicleType,"phev-")]
+allev <- rbind(ev,phev)
 
 
