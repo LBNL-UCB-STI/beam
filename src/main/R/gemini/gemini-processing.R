@@ -932,6 +932,24 @@ events7[type=="RefuelSessionEvent"][,.(sumFuel=sum(fuel)),by=.(actType)]
 
 ## TEST
 
+events0 <- readCsv(pp(workDir, "/test/0.events.csv.gz"))
+events1 <- readCsv(pp(workDir, "/test/1.events.csv.gz"))
+ev0 <- events0[startsWith(vehicleType,"ev-")]
+ev1 <- events1[startsWith(vehicleType,"ev-")]
+
+ref0 <- events0[type=="RefuelSessionEvent"][,iteration:="0"]
+ref1 <- events1[type=="RefuelSessionEvent"][,iteration:="1"]
+
+rbind(ref0, ref1)[,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time),"15 min")), iteration)] %>% 
+                    ggplot(aes(timeBin, N, colour=iteration)) +
+                    geom_line()
+
+
+test <- ref1[time <= 3600]
+nrow(ref0[time == 0])
+nrow(ref1[time == 0])
+
+
 
 events.test <- readCsv(pp(workDir, "/test/0.events.csv.gz"))
 ref.test <- events.test[type=="RefuelSessionEvent"]
