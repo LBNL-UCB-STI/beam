@@ -176,7 +176,7 @@ class ChargingFunctions(
         Some(estimatedMinParkingDurationInSeconds.toInt) // at least a small duration of charging
       else Some(tempParkingDuration)
 
-    val (addedEnergy, stateOfCharge): (Double, Double) =
+    val (addedEnergy, _): (Double, Double) =
       inquiry.beamVehicle match {
         case Some(beamVehicle) =>
           parkingAlternative.parkingZone.chargingPointType match {
@@ -202,15 +202,9 @@ class ChargingFunctions(
         .map(_.rangeAnxiety(withAddedFuelInJoules = addedEnergy))
         .getOrElse(0.0) // default no anxiety if no remaining trip data provided
 
-    // overnight charging is at the beginning of the simulated day, when inquiries are submitted at time t=0
-    val overnightParkingCheck = inquiry.destinationUtm.time == 0
-    val overnightParkingPrefersChargingFactor: Double =
-      if (overnightParkingCheck) 1 - math.min(1.0, math.max(0.0, stateOfCharge)) else 0.0
-
     super[ParkingFunctions].setupMNLParameters(parkingAlternative, inquiry) ++ Map(
-      ParkingMNL.Parameters.EnrouteDetourCost               -> enrouteFactor,
-      ParkingMNL.Parameters.RangeAnxietyCost                -> rangeAnxietyFactor,
-      ParkingMNL.Parameters.OvernightParkingPrefersCharging -> overnightParkingPrefersChargingFactor
+      ParkingMNL.Parameters.EnrouteDetourCost -> enrouteFactor,
+      ParkingMNL.Parameters.RangeAnxietyCost  -> rangeAnxietyFactor
     )
   }
 
