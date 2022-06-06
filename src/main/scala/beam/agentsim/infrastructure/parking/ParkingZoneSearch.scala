@@ -171,7 +171,7 @@ object ParkingZoneSearch extends LazyLogging {
               if parkingZoneFilterFunction(parkingZone)
             } yield {
               if (parkingZone.stallsAvailable <= 0) {
-                logger.warn(s"Selected parking zone ${parkingZone.parkingZoneId} with 0 availability")
+                //logger.warn(s"Selected parking zone ${parkingZone.parkingZoneId} with 0 availability")
               }
               // wrap ParkingZone in a ParkingAlternative
               val stallLocation: Coord = parkingZoneLocSamplingFunction(parkingZone)

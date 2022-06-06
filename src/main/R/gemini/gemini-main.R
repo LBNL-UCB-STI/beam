@@ -27,7 +27,7 @@ expFactor <- (6.015/0.6015)
 severity_order <- c("Public <1MW", "Public 1-5MW", "Public >5MW", "Ridehail Depot <1MW", "Ridehail Depot 1-5MW", "Ridehail Depot >5MW")
 extreme_lab_order <- c("<1MW", "1-5MW", ">5MW")
 
-dataDir <- normalizePath("~/Data/GEMINI/2022-04-28")
+dataDir <- normalizePath("~/Data/GEMINI/2022-04-27-Calibration")
 #events <- readCsv(pp(dataDir, "/events/0.events.BASE.csv.gz"))
 #eventsDir <- paste(dataDir, "/events",sep="")
 resultsDir <- paste(dataDir, "/results",sep="")
@@ -65,18 +65,18 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 # scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
 # scenarioNames <- c('Scenario4', 'Scenario4Bis', 'Scenario4Bis2', 'Scenario4Bis3', 'Scenario4Bis4', 'Scenario4Bis5')
 # scenarioNames <- c('Scenario4a-Base', 'Scenario4b-Base', 'Scenario6-HighEV')
-# scenarioNames <- c('5b1', '5b2', '5b3', '5b4')
+scenarioNames <- c('5b1', '5b2', '5b3', '5b4')
 
-scenarioNames <- c('BaseXFC', 'HighEV')
-scenarioBaselineLabel <- 'BaseXFC'
-#scenarioBaselineLabel <- '5b3'
+#scenarioNames <- c('BaseXFC', 'HighEV')
+#scenarioBaselineLabel <- 'BaseXFC'
+scenarioBaselineLabel <- '5b1'
 #all.loads <- all.loads[!is.na(loadType)]
 ##########################################
 # LOADS & ENERGY
 ##########################################
 
 ## Baseline XFC hours per site per day
-scenarioBaselineLabel <- 'BaseXFC'
+#scenarioBaselineLabel <- 'BaseXFC'
 toplot <- all.loads[name==scenarioBaselineLabel]
 toplot[,panel:=revalue(factor(site),c('public'='Public','depot'='Ridehail CAV Depot'))]
 p <- toplot[,.(kw=sum(kw)),by=c('severity','hour.bin2', 'panel')] %>%
@@ -90,7 +90,7 @@ p <- toplot[,.(kw=sum(kw)),by=c('severity','hour.bin2', 'panel')] %>%
 ggsave(pp(plotsDir,'/baseline-xfc-hours-per-site-per-day.png'),p,width=6,height=4,units='in')
 
 ## Baseline public charging
-scenarioBaselineLabel <- 'HighEV'
+#scenarioBaselineLabel <- 'HighEV'
 title_label <- paste("Public Charging - ", scenarioBaselineLabel, sep="")
 file_name <- paste('/baseline-public-charging-', scenarioBaselineLabel, ".png", sep="")
 toplot <- all.loads[name==scenarioBaselineLabel]
@@ -106,7 +106,7 @@ ggsave(pp(plotsDir,file_name),p,width=6,height=4,units='in')
 
 
 ## Baseline ev charging loads by space time
-scenarioBaselineLabel <- 'BaseXFC'
+#scenarioBaselineLabel <- 'BaseXFC'
 toplot <- all.loads[name==scenarioBaselineLabel&hour.bin2%in%c(0, 6, 12, 18)]
 toplot$mw <- toplot$kw/1000
 toplot$hour.bin2.label <- "12am"
