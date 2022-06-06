@@ -2,6 +2,7 @@ package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.choice.logit.MultinomialLogit
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.{ReservedFor, TypeEnum}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.ParkingStall
@@ -9,6 +10,7 @@ import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import beam.utils.MathUtils
+import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -293,7 +295,7 @@ object ParkingZoneSearch {
     }
   }
 
-  class ParkingZoneCollection(val parkingZones: Seq[ParkingZone]) {
+  class ParkingZoneCollection(val parkingZones: Seq[ParkingZone]) extends LazyLogging {
 
     private val publicFreeZones: Map[ParkingZoneInfo, mutable.Set[ParkingZone]] =
       parkingZones.view
@@ -322,7 +324,16 @@ object ParkingZoneSearch {
           val numToTake = Math.max(MathUtils.doubleToInt(zones.size * fraction), min)
           MathUtils.selectRandomElements(zones, numToTake, rnd)
         } ++
-        reservedFreeZones.getOrElse(reservedFor, Nil)
+        (reservedFor match {
+          case VehicleManager.AnyManager => Nil
+          case _ =>
+            reservedFreeZones.getOrElse(
+              reservedFor, {
+                logger.error(s"ParkingZoneCollection. reservedFreeZones ${reservedFor.toString}")
+                Nil
+              }
+            )
+        })
       ).toIndexedSeq
     }
 
