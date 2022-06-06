@@ -9,7 +9,6 @@ import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import beam.utils.MathUtils
-import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -19,7 +18,7 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.Random
 
-object ParkingZoneSearch extends LazyLogging {
+object ParkingZoneSearch {
 
   /**
     * a nested structure to support a search over available parking attributes,
@@ -170,9 +169,6 @@ object ParkingZoneSearch extends LazyLogging {
               )
               if parkingZoneFilterFunction(parkingZone)
             } yield {
-              if (parkingZone.stallsAvailable <= 0) {
-                //logger.warn(s"Selected parking zone ${parkingZone.parkingZoneId} with 0 availability")
-              }
               // wrap ParkingZone in a ParkingAlternative
               val stallLocation: Coord = parkingZoneLocSamplingFunction(parkingZone)
               // end-of-day parking durations are set to zero, which will be mis-interpreted here

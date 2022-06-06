@@ -293,12 +293,6 @@ object ChargingNetwork extends LazyLogging {
             chargingVehiclesInternal.put(vehicle.id, chargingVehicle)
             chargingVehicle.updateStatus(Connected, tick)
           } else {
-            logger.warn(
-              s"Person $personId heading to activity $activityType with vehicle ${chargingVehicle.vehicle.id} " +
-              s"has been added to the queue at stall $stall." +
-              s"maxStall ${zone.maxStalls}, howManyVehiclesAreCharging $howManyVehiclesAreCharging, " +
-              s"howManyVehiclesAreInGracePeriodAfterCharging $howManyVehiclesAreInGracePeriodAfterCharging"
-            )
             waitingLineInternal.enqueue(chargingVehicle)
             chargingVehicle.updateStatus(WaitingAtStation, tick)
           }
