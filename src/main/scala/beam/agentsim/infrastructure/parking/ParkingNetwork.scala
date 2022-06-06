@@ -35,6 +35,9 @@ abstract class ParkingNetwork(parkingZones: Map[Id[ParkingZoneId], ParkingZone])
           )
           // update the parking stall data
           val claimed: Boolean = searchFunctions.get.claimStall(parkingZone)
+          logger.warn(
+            s"The parking zone ${parkingZone.parkingZoneId} after claim has now availability ${parkingZone.stallsAvailable}"
+          )
           if (claimed) {
             totalStallsInUse += 1
             totalStallsAvailable -= 1
