@@ -293,6 +293,10 @@ object ChargingNetwork extends LazyLogging {
             chargingVehiclesInternal.put(vehicle.id, chargingVehicle)
             chargingVehicle.updateStatus(Connected, tick)
           } else {
+            logger.error(
+              s"Dropping vehicle at waiting line time $tick: vehicle $vehicle - " +
+              s"activityType $activityType - stall $stall - personId $personId - chargingInfo $chargingVehicle"
+            )
             waitingLineInternal.enqueue(chargingVehicle)
             chargingVehicle.updateStatus(WaitingAtStation, tick)
           }
