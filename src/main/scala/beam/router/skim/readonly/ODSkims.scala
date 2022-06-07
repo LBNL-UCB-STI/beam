@@ -6,17 +6,7 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  BIKE_TRANSIT,
-  CAR,
-  CAV,
-  DRIVE_TRANSIT,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  TRANSIT,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{BIKE_TRANSIT, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK_TRANSIT}
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
 import beam.router.skim.core.AbstractSkimmerReadOnly
 import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
@@ -27,6 +17,12 @@ import org.matsim.api.core.v01.{Coord, Id}
 import scala.collection.immutable
 
 class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
+
+  val minHourForODKeyToLookFor: Int =
+    beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.min_hour_for_closest_hour_in_OD_skims_request
+
+  val maxHourForODKeyToLookFor: Int =
+    beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.max_hour_for_closest_hour_in_OD_skims_request
 
   def getSkimDefaultValue(
     mode: BeamMode,
@@ -99,6 +95,23 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
     (timeFactor, costFactor)
   }
 
+  def lookForClosestHour(
+    originalDepartureTime: Int,
+    mode: BeamMode,
+    origTaz: Id[TAZ],
+    destTaz: Id[TAZ]
+  ): Option[ODSkimmerInternal] = {
+    val originalDepartureHour = timeToBin(originalDepartureTime)
+    val hours = ODSkims.getHoursForRequest(originalDepartureHour, minHourForODKeyToLookFor, maxHourForODKeyToLookFor)
+
+    hours
+      .map(_ * 3600)
+      .foldLeft(Option.empty[ODSkimmerInternal]) {
+        case (None, requestTime)    => getSkimValue(requestTime, mode, origTaz, destTaz)
+        case (calculatedSkimmer, _) => calculatedSkimmer
+      }
+  }
+
   def getTimeDistanceAndCost(
     originUTM: Location,
     destinationUTM: Location,
@@ -110,7 +123,8 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
     maybeOrigTazForPerformanceImprovement: Option[Id[TAZ]] =
       None, //If multiple times the same origin/destination is used, it
     maybeDestTazForPerformanceImprovement: Option[Id[TAZ]] =
-      None //is better to pass them here to avoid accessing treeMap unnecessarily multiple times
+      None, //is better to pass them here to avoid accessing treeMap unnecessarily multiple times
+    lookForClosestHourInSkims: Boolean = false
   ): Skim = {
     val origTaz = maybeOrigTazForPerformanceImprovement.getOrElse(
       beamScenario.tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId
@@ -118,7 +132,17 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
     val destTaz = maybeDestTazForPerformanceImprovement.getOrElse(
       beamScenario.tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId
     )
-    getSkimValue(departureTime, mode, origTaz, destTaz) match {
+
+    val maybeODSkimerInternal = {
+      val maybeSkimValue = getSkimValue(departureTime, mode, origTaz, destTaz)
+      if (maybeSkimValue.isEmpty && lookForClosestHourInSkims) {
+        lookForClosestHour(departureTime, mode, origTaz, destTaz)
+      } else {
+        maybeSkimValue
+      }
+    }
+
+    maybeODSkimerInternal match {
       case Some(skimValue) =>
         beamScenario.vehicleTypes.get(vehicleTypeId) match {
           case Some(vehicleType) if vehicleType.automationLevel == 4 =>
@@ -229,6 +253,43 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
 }
 
 object ODSkims extends BeamHelper {
+
+  def getHoursForRequest(originalRequestHour: Int, minRequestHour: Int, maxRequestHour: Int): Seq[Int] = {
+    if ((originalRequestHour < minRequestHour) || (originalRequestHour > maxRequestHour)) {
+      minRequestHour to maxRequestHour
+    } else if (originalRequestHour == minRequestHour) {
+      (minRequestHour + 1) to maxRequestHour
+    } else if (originalRequestHour == maxRequestHour) {
+      minRequestHour until maxRequestHour
+    } else {
+      val arr = new Array[Int](maxRequestHour - minRequestHour)
+      var valL = originalRequestHour - 1
+      var valR = originalRequestHour + 1
+      var i = 0
+      while (valL >= minRequestHour && valR <= maxRequestHour) {
+        arr(i) = valL
+        arr(i + 1) = valR
+        i = i + 2
+        valL -= 1
+        valR += 1
+      }
+      if (valL < minRequestHour) {
+        while (valR <= maxRequestHour) {
+          arr(i) = valR
+          i += 1
+          valR += 1
+        }
+      } else {
+        while (valL >= minRequestHour) {
+          arr(i) = valL
+          i += 1
+          valL -= 1
+        }
+      }
+
+      arr.toSeq
+    }
+  }
 
   def getSkimDefaultValue(
     beamConfig: BeamConfig,

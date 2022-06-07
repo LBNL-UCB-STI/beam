@@ -1499,8 +1499,11 @@ object BeamConfig {
             fill_in_modes_from_skims: scala.Boolean,
             generate_secondary_activities: scala.Boolean,
             intercept_file_path: java.lang.String,
+            look_for_closest_hour_in_OD_skims_for_fill_in_modes: scala.Boolean,
             max_destination_choice_set_size: scala.Int,
             max_destination_distance_meters: scala.Double,
+            max_hour_for_closest_hour_in_OD_skims_request: scala.Int,
+            min_hour_for_closest_hour_in_OD_skims_request: scala.Int,
             mode_nest_scale_factor: scala.Double,
             trip_nest_scale_factor: scala.Double
           )
@@ -1522,12 +1525,23 @@ object BeamConfig {
                   c.hasPathOrNull("generate_secondary_activities") && c.getBoolean("generate_secondary_activities"),
                 intercept_file_path =
                   if (c.hasPathOrNull("intercept_file_path")) c.getString("intercept_file_path") else "",
+                look_for_closest_hour_in_OD_skims_for_fill_in_modes = c.hasPathOrNull(
+                  "look_for_closest_hour_in_OD_skims_for_fill_in_modes"
+                ) && c.getBoolean("look_for_closest_hour_in_OD_skims_for_fill_in_modes"),
                 max_destination_choice_set_size =
                   if (c.hasPathOrNull("max_destination_choice_set_size")) c.getInt("max_destination_choice_set_size")
                   else 20,
                 max_destination_distance_meters =
                   if (c.hasPathOrNull("max_destination_distance_meters")) c.getDouble("max_destination_distance_meters")
                   else 32000,
+                max_hour_for_closest_hour_in_OD_skims_request =
+                  if (c.hasPathOrNull("max_hour_for_closest_hour_in_OD_skims_request"))
+                    c.getInt("max_hour_for_closest_hour_in_OD_skims_request")
+                  else 20,
+                min_hour_for_closest_hour_in_OD_skims_request =
+                  if (c.hasPathOrNull("min_hour_for_closest_hour_in_OD_skims_request"))
+                    c.getInt("min_hour_for_closest_hour_in_OD_skims_request")
+                  else 6,
                 mode_nest_scale_factor =
                   if (c.hasPathOrNull("mode_nest_scale_factor")) c.getDouble("mode_nest_scale_factor") else 1.0,
                 trip_nest_scale_factor =

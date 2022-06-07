@@ -3,7 +3,6 @@ package beam.replanning
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel.TripParameters.ExpMaxUtility
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel._
 import beam.agentsim.agents.choice.logit.{DestinationChoiceModel, MultinomialLogit}
-import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
@@ -18,7 +17,6 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.attributable.AttributesUtils
 
 import scala.collection.JavaConverters._
-import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
 
@@ -382,6 +380,8 @@ class SupplementaryTripGenerator(
     val vehicleType = beamServices.beamScenario.vehicleTypes.values.head // TODO: FIX WITH REAL VEHICLE
     val fuelPrice = beamServices.beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
 
+    val lookForClosestHourInSkims =
+      beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.look_for_closest_hour_in_OD_skims_for_fill_in_modes
     val modeToTimeAndCosts: Map[BeamMode, DestinationChoiceModel.TimesAndCost] =
       modes.map { mode =>
         val accessTripSkim =
@@ -392,7 +392,8 @@ class SupplementaryTripGenerator(
             mode,
             vehicleType.id,
             vehicleType,
-            fuelPrice
+            fuelPrice,
+            lookForClosestHourInSkims = lookForClosestHourInSkims
           )
         val destinationTAZid = beamServices.beamScenario.tazTreeMap
           .getTAZ(additionalActivity.getCoord.getX, additionalActivity.getCoord.getY)
@@ -411,7 +412,8 @@ class SupplementaryTripGenerator(
               mode,
               vehicleType.id,
               vehicleType,
-              fuelPrice
+              fuelPrice,
+              lookForClosestHourInSkims = lookForClosestHourInSkims
             )
           )
         } else {
