@@ -105,7 +105,7 @@ class HouseholdFleetManager(
           )
           // TODO Overnight charging is still a work in progress and might produce unexpected results
           val probabilityOfOvernightCharging =
-            rand.nextDouble() <= beamConfig.beam.agentsim.agents.parking.overnightChargingSampleSize
+            rand.nextDouble() < beamConfig.beam.agentsim.agents.parking.overnightChargingSampleSize
           if (vehicle.isEV && probabilityOfOvernightCharging)
             (chargingNetworkManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))
           else (parkingManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))

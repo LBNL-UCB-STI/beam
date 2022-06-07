@@ -590,7 +590,7 @@ object HouseholdActor {
       )
       // TODO Overnight charging is still a work in progress and might produce unexpected results
       val probabilityOfOvernightCharging =
-        rand.nextDouble() <= beamServices.beamConfig.beam.agentsim.agents.parking.overnightChargingSampleSize
+        rand.nextDouble() < beamServices.beamConfig.beam.agentsim.agents.parking.overnightChargingSampleSize
       if (vehicle.isEV && probabilityOfOvernightCharging)
         chargingNetworkManager ? inquiry
       else parkingManager ? inquiry
