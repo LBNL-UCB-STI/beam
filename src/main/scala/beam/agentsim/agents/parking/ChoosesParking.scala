@@ -199,7 +199,6 @@ trait ChoosesParking extends {
     val lastLeg = vehicleTrip.last.beamLeg
     val activityType = nextActivity(data).get.getType
     val remainingTripData = calculateRemainingTripData(data)
-    val remainingTourDistance: Double = remainingTripData.map(_.remainingTourDistance).getOrElse(0.0)
     val parkingDuration = nextActivity(data).map(_.getEndTime - lastLeg.endTime).getOrElse(0.0)
     val destinationUtm = SpaceTime(beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), lastLeg.endTime)
     if (data.enrouteData.isInEnrouteState) {
@@ -222,7 +221,13 @@ trait ChoosesParking extends {
       )
     } else {
       val searchModeChargeOrPark =
-        if (currentBeamVehicle.isEV && isRefuelAtDestinationNeeded(currentBeamVehicle, activityType))
+        if (
+          currentBeamVehicle.isEV && isRefuelAtDestinationNeeded(
+            currentBeamVehicle,
+            activityType,
+            remainingTripData.map(_.remainingTourDistance).getOrElse(0.0)
+          )
+        )
           ParkingSearchMode.DestinationCharging
         else ParkingSearchMode.Parking
 
@@ -256,15 +261,17 @@ trait ChoosesParking extends {
           conf.noRefuelThresholdInMeters
         )
       case ParkingActivityType.Work =>
-        vehicle.isRefuelNeeded(
-          remainingTourDistance + conf.work.refuelRequiredThresholdInMeters,
-          conf.noRefuelThresholdInMeters
-        )
+//        vehicle.isRefuelNeeded(
+//          remainingTourDistance + conf.work.refuelRequiredThresholdInMeters,
+//          conf.noRefuelThresholdInMeters
+//        )
+        true
       case _ =>
-        vehicle.isRefuelNeeded(
-          remainingTourDistance + conf.secondary.refuelRequiredThresholdInMeters,
-          conf.noRefuelThresholdInMeters
-        )
+//        vehicle.isRefuelNeeded(
+//          remainingTourDistance + conf.secondary.refuelRequiredThresholdInMeters,
+//          conf.noRefuelThresholdInMeters
+//        )
+        true
     }
   }
 
