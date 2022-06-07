@@ -78,7 +78,8 @@ trait ChargingNetworkManagerHelper extends {
     // Calculate the energy to charge each vehicle connected to the a charging station
     val endOfMaxSessionTime = chargingEndTimeInSeconds.getOrElse(
       chargingVehicle.personId, {
-        log.error(s"Something is broken. The person ${chargingVehicle.personId} is not tracked by CHM")
+        if (!isVirtualPerson(chargingVehicle.personId))
+          log.error(s"Something is broken. The person ${chargingVehicle.personId} is not tracked by CHM")
         endTime
       }
     )

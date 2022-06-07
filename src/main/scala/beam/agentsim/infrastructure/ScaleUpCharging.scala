@@ -305,7 +305,11 @@ trait ScaleUpCharging extends {
     * @param vehicleId vehicle Id
     * @return
     */
-  protected def isVirtualCar(vehicleId: Id[BeamVehicle]): Boolean = vehicleId.toString.contains(VIRTUAL_CAR_ALIAS)
+  protected def isVirtualCar(vehicleId: Id[BeamVehicle]): Boolean = isVirtualEntity(vehicleId)
+
+  protected def isVirtualPerson(personId: Id[Person]): Boolean = isVirtualEntity(personId)
+
+  private def isVirtualEntity(entity: Id[_]): Boolean = entity.toString.startsWith(VIRTUAL_CAR_ALIAS)
 }
 
 object ScaleUpCharging {
