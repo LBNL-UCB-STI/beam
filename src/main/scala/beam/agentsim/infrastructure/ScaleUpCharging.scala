@@ -230,7 +230,7 @@ trait ScaleUpCharging extends {
               }
             }
           case _ =>
-            log.warning("The observed load is null. Most likely due to vehicles not needing to charge!")
+            log.debug("The observed load is null. Most likely due to vehicles not needing to charge!")
         }
         partialTriggersAndInquiries.result()
       }
