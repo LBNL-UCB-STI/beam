@@ -260,17 +260,11 @@ trait ChoosesParking extends {
           remainingTourDistance + conf.home.refuelRequiredThresholdInMeters,
           conf.noRefuelThresholdInMeters
         )
-      case ParkingActivityType.Work =>
-//        vehicle.isRefuelNeeded(
-//          remainingTourDistance + conf.work.refuelRequiredThresholdInMeters,
-//          conf.noRefuelThresholdInMeters
-//        )
-        true
       case _ =>
-//        vehicle.isRefuelNeeded(
-//          remainingTourDistance + conf.secondary.refuelRequiredThresholdInMeters,
-//          conf.noRefuelThresholdInMeters
-//        )
+        vehicle.isRefuelNeeded(
+          remainingTourDistance + conf.refuelRequiredThresholdInMeters,
+          conf.noRefuelThresholdInMeters
+        )
         true
     }
   }

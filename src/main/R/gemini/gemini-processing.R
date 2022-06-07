@@ -956,7 +956,8 @@ nrow(ref1[time == 0])
 
 events.test <- readCsv(pp(workDir, "/test/0.events.csv.gz"))
 ref.test <- events.test[type=="RefuelSessionEvent"]
-charging_share <- ref.test[,.(fuel=sum(fuel)),by=.(chargingPointType)][,fuel_share:=fuel/sum(fuel)]
+charging_share <- ref.test[,.(fuel=sum(fuel)),by=.(chargingPointType)]
+charging_share <- ref.test[,.(fuel=sum(fuel)),by=.(chargingPointType)][,fuel_share:=format(fuel/sum(fuel), digits=3, scientific = F)]
 vehicle.test <- readCsv(pp(workDir, "/test/householdVehicles.csv"))
 park.test <- events.test[type=="ParkingEvent"]
 vehicle.test$vehicleId <- as.character(vehicle.test$vehicleId)
