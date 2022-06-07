@@ -26,11 +26,10 @@ class SitePowerManager(
     * @param tick current time
     * @return power (in Kilo Watt) over planning horizon
     */
-  def requiredPowerInKWOverNextPlanningHorizon(tick: Int): Map[ChargingStation, PowerInKW] = {
+  def requiredPowerInKWOverNextPlanningHorizon(tick: Int): Seq[(ChargingStation, PowerInKW)] = {
     val plans = chargingNetworkHelper.allChargingStations.par
       .map(station => station -> temporaryLoadEstimate.getOrElse(station, 0.0))
       .seq
-      .toMap
     temporaryLoadEstimate.clear()
     if (plans.isEmpty) {
       logger.debug(s"Charging Replan did not produce allocations on tick: [$tick]")

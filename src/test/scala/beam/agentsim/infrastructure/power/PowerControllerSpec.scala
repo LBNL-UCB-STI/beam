@@ -92,7 +92,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
     "obtain power physical bounds" in {
       val bounds = powerController.obtainPowerPhysicalBounds(
         300,
-        Some(Map[ChargingStation, Double](dummyChargingStation -> 5678.90))
+        Seq[(ChargingStation, Double)]((dummyChargingStation, 5678.90))
       )
       bounds shouldBe Map(dummyChargingStation -> PhysicalBounds(dummyChargingStation, 7.2, 7.2, 0.0))
       // TODO: test beam federate connection
@@ -109,7 +109,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
 
     "obtain default (0.0) power physical bounds" in {
       val bounds =
-        powerController.obtainPowerPhysicalBounds(300, Some(Map[ChargingStation, Double](dummyChargingStation -> 0.0)))
+        powerController.obtainPowerPhysicalBounds(300, Seq[(ChargingStation, Double)]((dummyChargingStation, 0.0)))
       bounds shouldBe Map(ChargingStation(dummyChargingZone) -> PhysicalBounds(dummyChargingStation, 7.2, 7.2, 0.0))
       verify(beamFederateMock, never()).sync(300)
       verify(beamFederateMock, never()).collectJSON()

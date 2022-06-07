@@ -110,11 +110,9 @@ class ChargingNetworkManager(
       val s = System.currentTimeMillis
       log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$timeBin")
       val loadEstimate = sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(timeBin)
-      log.debug("Total Load estimated is {} at tick {}", loadEstimate.values.sum, timeBin)
       val simulatedParkingInquiries = simulateEventsIfScalingEnabled(timeBin, triggerId)
-      log.debug("number of simulatedParkingInquiries is {} at tick {}", simulatedParkingInquiries.size, timeBin)
       // obtaining physical bounds
-      val physicalBounds = powerController.obtainPowerPhysicalBounds(timeBin, Some(loadEstimate))
+      val physicalBounds = powerController.obtainPowerPhysicalBounds(timeBin, loadEstimate)
       val allConnectedVehicles = chargingNetwork.connectedVehicles ++ rideHailNetwork.connectedVehicles
       val triggers = allConnectedVehicles.par.flatMap { case (_, chargingVehicle) =>
         // Refuel
@@ -206,7 +204,7 @@ class ChargingNetworkManager(
 
     case ChargingUnplugRequest(tick, vehicle, triggerId) =>
       log.debug(s"ChargingUnplugRequest received for vehicle $vehicle from plug ${vehicle.stall} at $tick")
-      val bounds = powerController.obtainPowerPhysicalBounds(tick, None)
+      val bounds = powerController.obtainPowerPhysicalBounds(tick)
       val responseHasTriggerId = vehicle.stall match {
         case Some(stall) =>
           chargingNetworkHelper.get(stall.reservedFor.managerId).disconnectVehicle(vehicle.id, tick) match {

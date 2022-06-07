@@ -245,7 +245,7 @@ object ChargingNetwork extends LazyLogging {
       zone.maxStalls - howManyVehiclesAreCharging - howManyVehiclesAreInGracePeriodAfterCharging
 
     private[ChargingNetwork] def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
-      chargingVehiclesInternal.toMap
+      chargingVehiclesInternal.asInstanceOf[Map[Id[BeamVehicle], ChargingVehicle]]
 
     def howManyVehiclesAreWaiting: Int = waitingLineInternal.size
     def howManyVehiclesAreCharging: Int = chargingVehiclesInternal.size

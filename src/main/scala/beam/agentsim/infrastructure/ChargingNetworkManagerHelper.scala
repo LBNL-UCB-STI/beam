@@ -138,7 +138,7 @@ trait ChargingNetworkManagerHelper extends {
     if (vehicle.stall.isEmpty)
       vehicle.useParkingStall(chargingVehicle.stall)
     log.debug(s"Starting charging for vehicle $vehicle at $tick")
-    val physicalBounds = powerController.obtainPowerPhysicalBounds(tick, None)
+    val physicalBounds = powerController.obtainPowerPhysicalBounds(tick)
     processStartChargingEvent(tick, chargingVehicle)
     dispatchEnergyAndProcessChargingCycle(chargingVehicle, tick, nextTick, physicalBounds, triggerId).foreach(
       getScheduler ! _
