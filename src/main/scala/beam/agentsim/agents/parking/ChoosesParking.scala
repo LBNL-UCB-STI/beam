@@ -221,7 +221,7 @@ trait ChoosesParking extends {
       )
     } else {
       val searchModeChargeOrPark =
-        if (currentBeamVehicle.isEV /*&& isRefuelAtDestinationNeeded(currentBeamVehicle, activityType)*/ )
+        if (currentBeamVehicle.isEV && isRefuelAtDestinationNeeded(currentBeamVehicle, activityType))
           ParkingSearchMode.DestinationCharging
         else ParkingSearchMode.Parking
 
@@ -242,17 +242,17 @@ trait ChoosesParking extends {
     }
   }
 
-//  private def isRefuelAtDestinationNeeded(vehicle: BeamVehicle, activityType: String): Boolean = {
-//    val conf = beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination
-//    ParkingInquiry.activityTypeStringToEnum(activityType) match {
-//      case ParkingActivityType.Home =>
-//        vehicle.isRefuelNeeded(conf.home.refuelRequiredThresholdInMeters, conf.noRefuelThresholdInMeters)
-//      case ParkingActivityType.Work =>
-//        vehicle.isRefuelNeeded(conf.work.refuelRequiredThresholdInMeters, conf.noRefuelThresholdInMeters)
-//      case _ =>
-//        vehicle.isRefuelNeeded(conf.secondary.refuelRequiredThresholdInMeters, conf.noRefuelThresholdInMeters)
-//    }
-//  }
+  private def isRefuelAtDestinationNeeded(vehicle: BeamVehicle, activityType: String): Boolean = {
+    val conf = beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination
+    ParkingInquiry.activityTypeStringToEnum(activityType) match {
+      case ParkingActivityType.Home =>
+        vehicle.isRefuelNeeded(conf.home.refuelRequiredThresholdInMeters, conf.noRefuelThresholdInMeters)
+      case ParkingActivityType.Work =>
+        vehicle.isRefuelNeeded(conf.work.refuelRequiredThresholdInMeters, conf.noRefuelThresholdInMeters)
+      case _ =>
+        vehicle.isRefuelNeeded(conf.secondary.refuelRequiredThresholdInMeters, conf.noRefuelThresholdInMeters)
+    }
+  }
 
   onTransition { case ReadyToChooseParking -> ChoosingParkingSpot =>
     val personData = stateData.asInstanceOf[BasePersonData]
