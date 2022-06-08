@@ -67,7 +67,7 @@ class DistributedSimulationPart(
       .flatMap { case (vehicleIds, simWorker) =>
         vehicleIds.map(transitVehicleId =>
           transitVehicleId -> context.actorSelection(
-            simWorker.actorRef.path / "simulationPart" / "transit-system" /
+            simWorker.simulationPart.path / "transit-system" /
             createAgentIdFromVehicleId(transitVehicleId).toString
           )
         )

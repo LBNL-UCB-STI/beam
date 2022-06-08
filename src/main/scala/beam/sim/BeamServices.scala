@@ -74,6 +74,12 @@ trait BeamServices {
   var beamRouter: ActorRef
   var eventBuilderActor: ActorRef
   var clusterManager: Option[ActorRef]
+
+  /**
+    * An actor that is intended to receive the Events from distributed simulation parts.
+    * Now we transfer only PTE events in order to run physsim on the master node. The DEM actor hands all the received
+    * PTE events to the physsim EventManager. The physsim EM pass the events to AgentSimToPhysSimPlanConverter.
+    */
   var distributedEventManager: Option[ActorRef]
 
   def matsimServices: MatsimServices
@@ -105,8 +111,8 @@ class BeamServicesImpl @Inject() (val injector: Injector) extends BeamServices {
   var modeChoiceCalculatorFactory: ModeChoiceCalculatorFactory = _
   var beamRouter: ActorRef = _
   var eventBuilderActor: ActorRef = _
-  var clusterManager: Option[ActorRef] = _
-  var distributedEventManager: Option[ActorRef] = _
+  var clusterManager: Option[ActorRef] = None
+  var distributedEventManager: Option[ActorRef] = None
 
   override val matsimServices: MatsimServices = injector.getInstance(classOf[MatsimServices])
 

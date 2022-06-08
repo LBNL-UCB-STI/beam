@@ -20,6 +20,11 @@ object DistributedEventManager {
   def props(eventManager: EventsManager): Props = Props(new DistributedEventManager(eventManager))
 }
 
+/**
+  * We use this EM to pass all the PTE events to the master
+  * @param distributedEM the actor that resides on the master that handles all the PTE event
+  * @param localEM the local event manager to store/handle events locally.
+  */
 class DuplicatingEventManager(distributedEM: ActorRef, localEM: EventsManager) extends EventsManager {
 
   override def processEvent(event: Event): Unit = event match {

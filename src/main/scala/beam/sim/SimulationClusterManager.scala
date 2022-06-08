@@ -15,9 +15,9 @@ class SimulationClusterManager(numWorkerNodes: Int) extends Actor with StrictLog
   def waitingForSimWorkers(workers: IndexedSeq[SimWorker], requesters: Seq[ActorRef]): Actor.Receive = {
     case GetSimWorkers =>
       context.become(waitingForSimWorkers(workers, requesters :+ sender()))
-    case SimWorkerReady(workerNumber) =>
+    case SimWorkerReady(workerNumber, simulationPart) =>
       logger.info(s"Received SimWorkerReady: $workerNumber")
-      val newWorkers = (workers :+ SimWorker(workerNumber, sender())).sortBy(_.workerNumber)
+      val newWorkers = (workers :+ SimWorker(workerNumber, simulationPart)).sortBy(_.workerNumber)
       if (newWorkers.size >= numWorkerNodes) {
         requesters.foreach(_ ! newWorkers)
         context.become(workersAreReady(newWorkers))
@@ -48,8 +48,8 @@ class SimulationClusterManager(numWorkerNodes: Int) extends Actor with StrictLog
 
 object SimulationClusterManager {
   case object GetSimWorkers
-  case class SimWorker(workerNumber: Int, actorRef: ActorRef)
-  case class SimWorkerReady(workerNumber: Int)
+  case class SimWorker(workerNumber: Int, simulationPart: ActorRef)
+  case class SimWorkerReady(workerNumber: Int, simulationPart: ActorRef)
   case class SimWorkerFinished(workerNumber: Int)
 
   def props(numNodes: Int): Props = Props(new SimulationClusterManager(numNodes))

@@ -55,6 +55,7 @@ class AgentsimWithMaximallyBadRouterSpec
         services.tollCalculator,
         scenario,
         services.matsimServices.getEvents,
+        services.matsimServices.getEvents,
         system,
         new RideHailSurgePricingManager(services),
         new RideHailIterationHistory(),

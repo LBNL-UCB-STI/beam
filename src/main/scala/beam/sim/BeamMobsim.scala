@@ -501,7 +501,7 @@ class BeamMobsimIteration(
   private val simulationParts: IndexedSeq[SimWorker] = getSimulationParts
 
   simulationParts.foreach(
-    _.actorRef ! MasterBeamData(
+    _.simulationPart ! MasterBeamData(
       matsimServices.getIterationNumber,
       scheduler,
       rideHailManager,
@@ -562,7 +562,7 @@ class BeamMobsimIteration(
       log.info("Processing Agentsim Events (Start)")
       stopMeasuring("agentsim-events:agentsim")
 
-      simulationParts.foreach(_.actorRef ! Finish)
+      simulationParts.foreach(_.simulationPart ! Finish)
       rideHailManager ! Finish
       tazSkimmer ! Finish
       chargingNetworkManager ! Finish
@@ -668,14 +668,14 @@ class WorkerIteration(beamServices: BeamServices) extends LoggingMessageActor wi
   context.watch(localSimulationPart)
 
   override def loggedReceive: Receive = { case "Run!" =>
-    beamServices.clusterManager.get ! SimWorkerReady(beamServices.beamConfig.beam.cluster.partNumber)
+    beamServices.clusterManager.get ! SimWorkerReady(
+      beamServices.beamConfig.beam.cluster.partNumber,
+      localSimulationPart
+    )
     context.become(interationStarted(sender()))
   }
 
   private def interationStarted(runSender: ActorRef): Actor.Receive = {
-    case masterData: MasterBeamData => localSimulationPart forward masterData
-    case Finish =>
-      localSimulationPart ! Finish
     case Terminated(x) =>
       log.info(s"Terminated {}", x)
       if (context.children.isEmpty) {
