@@ -436,7 +436,7 @@ def get_spot_fleet_instances_based_on(min_cores, max_cores, min_memory, max_memo
         raise Exception('0 spot instances matched min_cores: ' + str(min_cores) + ' - max_cores: ' + str(max_cores) + 'and min_mem: ' + str(min_memory) + ' - max_mem: ' + str(max_memory) )
     return list(dict.fromkeys(output_instance_types))
 
-def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory):
+def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory, budget_override):
     security_group_id_array = (os.environ[region_prefix + 'SECURITY_GROUP']).split(',')
     security_group_ids = []
     for security_group_id in security_group_id_array:
@@ -474,6 +474,9 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
                         }, {
                             'Key': 'DeployType',
                             'Value': deploy_type_tag
+                        },{
+                            'Key': 'BudgetOverride',
+                            'Value': budget_override
                         }
                     ]
                 }
@@ -577,7 +580,7 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
     print 'Spot instance ready to go!'
     return instance_id
 
-def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag):
+def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag, budget_override):
     res = ec2.run_instances(BlockDeviceMappings=[
         {
             'DeviceName': '/dev/sda1',
@@ -609,6 +612,9 @@ def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_na
                     },{
                         'Key': 'DeployType',
                         'Value': deploy_type_tag
+                    },{
+                        'Key': 'BudgetOverride',
+                        'Value': budget_override
                     } ]
             } ])
     return res['Instances'][0]['InstanceId']
@@ -673,6 +679,7 @@ def deploy_handler(event, context):
     run_grafana = event.get('run_grafana', False)
     run_helics = event.get('run_helics', False)
     profiler_type = event.get('profiler_type', 'null')
+    budget_override = event.get('budget_override', True)
 
     git_user_email = get_param('git_user_email')
     deploy_type_tag = event.get('deploy_type_tag', '')
@@ -769,9 +776,9 @@ def deploy_handler(event, context):
                 max_cores = event.get('max_cores', 0)
                 min_memory = event.get('min_memory', 0)
                 max_memory = event.get('max_memory', 0)
-                instance_id = deploy_spot_fleet(context, script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory)
+                instance_id = deploy_spot_fleet(context, script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory, budget_override)
             else:
-                instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
+                instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag, budget_override)
             host = get_dns(instance_id)
             txt += 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
 

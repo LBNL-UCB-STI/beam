@@ -14,4 +14,6 @@ Resources:
       Role: 'arn:aws:iam::340032650202:role/BeamLambdaExecution'
       Environment:
         Variables:
-          BUDGET_NAME: Test budget
+          ALLOWED_INSTANCES: '[''i-0b31829f99cc9a7ce'']'
+          BUDGET_NAME: Total Monthly Budget
+          SLACK_HOOK: SENSITIVE_SO_REDACTED

@@ -109,7 +109,8 @@ task deploy(type: AWSLambdaInvokeTask) {
   "min_cores": ${ext.getParameterValue('minCores') ?: 0},
   "max_cores": ${ext.getParameterValue('maxCores') ?: 0},
   "min_memory": ${ext.getParameterValue('minMemory') ?: 0},
-  "max_memory": ${ext.getParameterValue('maxMemory') ?: 0}
+  "max_memory": ${ext.getParameterValue('maxMemory') ?: 0},
+  "budget_override": ${ext.getParameterValue('budgetOverride') ?: true}
 }"""
         payload = pload
         println "Using data branch $dataBranch"
