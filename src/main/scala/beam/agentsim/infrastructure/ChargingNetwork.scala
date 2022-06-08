@@ -39,7 +39,7 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
   /**
     * @return all vehicles still connected to a charging point
     */
-  def connectedVehicles: Iterable[ChargingVehicle] =
+  def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
     chargingZoneKeyToChargingStationMap.flatMap(_._2.connectedVehicles)
 
   /**
@@ -244,7 +244,8 @@ object ChargingNetwork extends LazyLogging {
     def numAvailableChargers: Int =
       zone.maxStalls - howManyVehiclesAreCharging - howManyVehiclesAreInGracePeriodAfterCharging
 
-    private[ChargingNetwork] def connectedVehicles: Iterable[ChargingVehicle] = chargingVehiclesInternal.values
+    private[ChargingNetwork] def connectedVehicles: collection.Map[Id[BeamVehicle], ChargingVehicle] =
+      chargingVehiclesInternal
 
     def howManyVehiclesAreWaiting: Int = waitingLineInternal.size
     def howManyVehiclesAreCharging: Int = chargingVehiclesInternal.size
