@@ -47,6 +47,8 @@ object BeamAgentScheduler {
 
   case object Monitor extends SchedulerMessage
 
+  case object SimulationStuckCheck extends SchedulerMessage
+
   case object RequestCurrentTime extends SchedulerMessage
 
   case object SkipOverBadActors extends SchedulerMessage
@@ -146,6 +148,8 @@ class BeamAgentScheduler(
   private var idCount: Long = 0L
   private var startSender: ActorRef = _
   private var nowInSeconds: Int = 0
+  private var nowUpdateTime: Long = System.currentTimeMillis()
+  private var longestNowUpdateDelay: Long = 0
 
   private val maybeTriggerMeasurer: Option[TriggerMeasurer] = if (beamConfig.beam.debug.triggerMeasurer.enabled) {
     Some(new TriggerMeasurer(beamConfig.beam.debug.triggerMeasurer))
@@ -164,6 +168,10 @@ class BeamAgentScheduler(
   private val scheduledTriggerToStuckTimes: mutable.HashMap[ScheduledTrigger, Int] =
     mutable.HashMap.empty
 
+  import scala.concurrent.duration._
+
+  private val shutdownOnStuckTask: Cancellable =
+    context.system.scheduler.scheduleWithFixedDelay(10.minutes, 1.minute, self, SimulationStuckCheck)
   private var monitorTask: Option[Cancellable] = None
   private var stuckAgentChecker: Option[Cancellable] = None
 
@@ -191,6 +199,7 @@ class BeamAgentScheduler(
     log.info("aroundPostStop. Stopping all scheduled tasks...")
     stuckAgentChecker.foreach(_.cancel())
     monitorTask.foreach(_.cancel())
+    shutdownOnStuckTask.cancel()
     super.aroundPostStop()
   }
 
@@ -203,6 +212,7 @@ class BeamAgentScheduler(
       startedAt = Deadline.now
       stuckAgentChecker = scheduleStuckAgentCheck
       monitorTask = scheduleMonitorTask
+      nowUpdateTime = System.currentTimeMillis()
       doSimStep(0)
 
     case DoSimStep(newNow: Int) =>
@@ -246,6 +256,22 @@ class BeamAgentScheduler(
 
     case Terminated(actor) =>
       terminateActor(actor)
+
+    case SimulationStuckCheck =>
+      if (started) {
+        val stuckThreshold =
+          if (nowInSeconds == 0)
+            Math.max(
+              beamConfig.beam.debug.initialiazationStuckThresholdMin,
+              beamConfig.beam.debug.simulationStuckThresholdMin
+            )
+          else beamConfig.beam.debug.simulationStuckThresholdMin
+        val currentDelay = System.currentTimeMillis() - nowUpdateTime
+        if (currentDelay > stuckThreshold * 60 * 1000) {
+          log.error("Forcibly terminating beam because of too long update delay: {}", currentDelay)
+          System.exit(10)
+        }
+      }
 
     case Monitor =>
       if (beamConfig.beam.debug.debugEnabled) {
@@ -364,7 +390,7 @@ class BeamAgentScheduler(
         .trigger
         .tick <= stopTick
     ) {
-      nowInSeconds = newNow
+      updateNow(newNow)
       if (
         awaitingResponse.isEmpty || nowInSeconds - awaitingResponse
           .keySet()
@@ -393,19 +419,21 @@ class BeamAgentScheduler(
         ) {
           if (nowInSeconds > 0 && nowInSeconds % 1800 == 0) {
             log.info(
-              "Hour " + nowInSeconds / 3600.0 + " completed. " + math.round(
+              "Hour " + nowInSeconds / 3600.0 + " completed. Longest delay " + longestNowUpdateDelay + " ms. "
+              + math.round(
                 10 * (Runtime.getRuntime.totalMemory() - Runtime.getRuntime
                   .freeMemory()) / Math
                   .pow(1000, 3)
               ) / 10.0 + "(GB)"
             )
+            longestNowUpdateDelay = 0
           }
           doSimStep(nowInSeconds + 1)
         }
       }
 
     } else {
-      nowInSeconds = newNow
+      updateNow(newNow)
       if (awaitingResponse.isEmpty) {
         val duration = Deadline.now - startedAt
         stuckAgentChecker.foreach(_.cancel)
@@ -438,6 +466,17 @@ class BeamAgentScheduler(
         startSender ! CompletionNotice(0L)
       }
 
+    }
+  }
+
+  private def updateNow(newNow: Int): Unit = {
+    if (nowInSeconds != newNow) {
+      nowInSeconds = newNow
+      val currentTime = System.currentTimeMillis()
+      val delay = currentTime - nowUpdateTime
+      nowUpdateTime = currentTime
+      if (longestNowUpdateDelay < delay)
+        longestNowUpdateDelay = delay
     }
   }
 
