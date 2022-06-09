@@ -1,6 +1,6 @@
-package beam.utils.beam_to_matsim.io
+package scripts.beam_to_matsim.io
 
-import beam.utils.beam_to_matsim.via_event.{ViaEvent, ViaEventsCollection}
+import scripts.beam_to_matsim.via_event.{ViaEvent, ViaEventsCollection}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 

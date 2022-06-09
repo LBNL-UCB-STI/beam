@@ -1,4 +1,4 @@
-package beam.utils.beam_to_matsim.utils
+package scripts.beam_to_matsim.utils
 
 import java.io.{File, PrintWriter}
 

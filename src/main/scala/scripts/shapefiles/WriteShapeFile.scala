@@ -1,4 +1,4 @@
-package beam.utils.shapefiles
+package scripts.shapefiles
 
 import java.nio.file.{Files, Paths}
 

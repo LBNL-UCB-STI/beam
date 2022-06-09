@@ -1,11 +1,12 @@
-package beam.utils.plan.sampling
+package scripts
 
 import beam.router.Modes.BeamMode
 
 import java.util
 import beam.utils.matsim_conversion.{MatsimConversionTool, ShapeUtils}
-import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
-import beam.utils.plan.sampling.PopulationAttrib.Rank
+import beam.utils.plan.sampling.AvailableModeUtils
+import scripts.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
+import scripts.PopulationAttrib.Rank
 import com.vividsolutions.jts.geom.{Envelope, Geometry, GeometryCollection, GeometryFactory, Point}
 import enumeratum.EnumEntry._
 import enumeratum._
@@ -35,7 +36,6 @@ import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlW
 import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
-import scripts.PopulationWriterCSV
 
 import scala.collection.JavaConverters._
 import scala.collection.{immutable, mutable, JavaConverters}

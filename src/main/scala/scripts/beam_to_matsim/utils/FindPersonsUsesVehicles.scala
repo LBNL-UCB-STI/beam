@@ -1,7 +1,7 @@
-package beam.utils.beam_to_matsim.utils
+package scripts.beam_to_matsim.utils
 
-import beam.utils.beam_to_matsim.io.{BeamEventsReader, Writer}
-import beam.utils.beam_to_matsim.events.{BeamEvent, BeamPersonEntersVehicle}
+import scripts.beam_to_matsim.io.{BeamEventsReader, Writer}
+import scripts.beam_to_matsim.events.{BeamEvent, BeamPersonEntersVehicle}
 
 import scala.collection.mutable
 import scala.io.Source

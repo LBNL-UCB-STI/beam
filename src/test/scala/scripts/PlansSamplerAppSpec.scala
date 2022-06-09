@@ -1,13 +1,13 @@
-package beam.utils
+package scripts
 
 import beam.sim.population.PopulationAdjustment
 import beam.tags.{ExcludeRegular, Periodic}
-import beam.utils.plan.sampling.PlansSampler
+import beam.utils.FileUtils
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.utils.objectattributes.ObjectAttributes
-import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 class PlansSamplerAppSpec extends AnyWordSpecLike with Matchers {
 

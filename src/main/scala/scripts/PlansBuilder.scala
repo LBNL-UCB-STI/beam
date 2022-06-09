@@ -1,8 +1,8 @@
 package scripts
 
 import beam.utils.plan.sampling.AvailableModeUtils.AllowAllModes
-import beam.utils.plan.sampling.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
-import beam.utils.plan.sampling.PopulationAttrib.Rank
+import scripts.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
+import scripts.PopulationAttrib.Rank
 import beam.utils.plan.sampling._
 import org.matsim.api.core.v01.network.Node
 import org.matsim.api.core.v01.population.{Activity, Person, Plan, Population}

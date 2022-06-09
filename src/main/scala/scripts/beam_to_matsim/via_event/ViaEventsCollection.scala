@@ -1,4 +1,4 @@
-package beam.utils.beam_to_matsim.via_event
+package scripts.beam_to_matsim.via_event
 
 import scala.collection.mutable.ArrayBuffer
 

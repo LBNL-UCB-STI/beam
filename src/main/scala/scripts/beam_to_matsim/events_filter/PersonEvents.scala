@@ -1,6 +1,6 @@
-package beam.utils.beam_to_matsim.events_filter
+package scripts.beam_to_matsim.events_filter
 
-import beam.utils.beam_to_matsim.events.BeamEvent
+import scripts.beam_to_matsim.events.BeamEvent
 
 import scala.collection.mutable
 

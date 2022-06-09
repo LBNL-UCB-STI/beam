@@ -1,6 +1,6 @@
-package beam.utils.beam_to_matsim
+package scripts.beam_to_matsim
 
-import beam.utils.beam_to_matsim.utils.{LinkCoordinate, Point}
+import scripts.beam_to_matsim.utils.{LinkCoordinate, Point}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 

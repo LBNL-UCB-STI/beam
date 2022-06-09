@@ -1,7 +1,7 @@
-package beam.utils.beam_to_matsim.events
+package scripts.beam_to_matsim.events
 
 import beam.router.Modes.BeamMode
-import beam.utils.beam_to_matsim.via_event.ViaTraverseLinkEvent
+import scripts.beam_to_matsim.via_event.ViaTraverseLinkEvent
 import org.matsim.api.core.v01.events.Event
 
 import scala.collection.JavaConverters._

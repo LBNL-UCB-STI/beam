@@ -1,4 +1,4 @@
-package beam.utils.beam_to_matsim.io
+package scripts.beam_to_matsim.io
 
 import scala.collection.mutable
 

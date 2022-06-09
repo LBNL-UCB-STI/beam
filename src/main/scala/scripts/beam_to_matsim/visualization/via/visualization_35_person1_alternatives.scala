@@ -1,6 +1,6 @@
-package beam.utils.beam_to_matsim.visualization.via
+package scripts.beam_to_matsim.visualization.via
 
-import beam.utils.beam_to_matsim.events.BeamPathTraversal
+import scripts.beam_to_matsim.events.BeamPathTraversal
 
 import scala.collection.mutable
 
