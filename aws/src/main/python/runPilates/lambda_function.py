@@ -258,7 +258,7 @@ def init_ec2(region):
     ec2 = boto3.client('ec2', region_name=region)
 
 
-def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size):
+def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, budget_override):
     res = ec2.run_instances(BlockDeviceMappings=[
         {
             'DeviceName': '/dev/sda1',
@@ -282,6 +282,9 @@ def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_na
             'Tags': [{
                 'Key': 'Name',
                 'Value': instance_name
+            },{
+                'Key': 'BudgetOverride',
+                'Value': budget_override
             }]
         }])
     return res['Instances'][0]['InstanceId']
@@ -393,6 +396,8 @@ def lambda_handler(event, context):
     if parameter_wasnt_specified(s3_output_base_path):
         s3_output_base_path = ""
 
+    budget_override = event.get('budget_override', True)
+
     initial_urbansim_output = event.get('initialS3UrbansimOutput')
     initial_skims_path = event.get('initialSkimPath')
     if parameter_wasnt_specified(initial_urbansim_output) and parameter_wasnt_specified(initial_skims_path):
@@ -471,7 +476,7 @@ def lambda_handler(event, context):
         .replace('$RUN_PARAMS_FOR_FILE', all_run_params_comma_le) \
         .replace('$RUN_PARAMS', all_run_params_comma)
 
-    instance_id = deploy(script, instance_type, region.replace("-", "_") + '_', shutdown_behaviour, run_name, volume_size)
+    instance_id = deploy(script, instance_type, region.replace("-", "_") + '_', shutdown_behaviour, run_name, volume_size, budget_override)
     host = get_dns(instance_id)
 
     return 'Started with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '\
