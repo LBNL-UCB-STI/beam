@@ -87,7 +87,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "deploy_type_tag": "${ext.getParameterValue('deployTypeTag')}",
   "branch": "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}",
   "data_branch": "$dataBranch",
-  "commit": "${ext.getParameterValue('beamCommit') ?: 'HEAD'}",
+  "commit": "${ext.getParameterValue('beamCommit') ?: getCurrentGitCommit()}",
   "deploy_mode": "${ext.getParameterValue('deployMode')}",
   "configs": "${ext.getParameterValue('beamConfigs') ?: ext.getParameterValue(getCurrentGitBranch() + '.configs')}",
   "experiments": "${ext.getParameterValue('beamExperiments') ?: ext.getParameterValue(getCurrentGitBranch() + '.experiments')}",
@@ -147,6 +147,7 @@ task deployPilates(type: AWSLambdaInvokeTask) {
         defaultParamVals['region'] = defRegion
         defaultParamVals['dataRegion'] = defRegion
         defaultParamVals['beamBranch'] = getCurrentGitBranch()
+        defaultParamVals['beamCommit'] = getCurrentGitCommit()
         defaultParamVals['dataBranch'] = 'develop'
 
         def paramMap = [:]
@@ -278,6 +279,10 @@ def printResult(pload, result) {
 
 def getCurrentGitBranch() {
     return getGitResultFromWorkingDirUsing('git rev-parse --abbrev-ref HEAD', "$defaultBranch")
+}
+
+def getCurrentGitCommit() {
+    return getGitResultFromWorkingDirUsing('git log -1 --pretty=format:%H', 'HEAD')
 }
 
 def getCurrentGitUserEmail() {
