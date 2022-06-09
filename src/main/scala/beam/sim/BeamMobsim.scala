@@ -35,12 +35,14 @@ import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.{Activity, Leg, Person, Population => MATSimPopulation}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan, Population => MATSimPopulation}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Households
+import org.matsim.utils.objectattributes.attributable.AttributesUtils
 
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
@@ -152,6 +154,16 @@ class BeamMobsim @Inject() (
       fillInSecondaryActivities(beamServices.matsimServices.getScenario.getHouseholds, fillInModes)
     }
 
+    if (beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.replaceModes.enabled) {
+      val maybeModeMap: Option[Map[String, String]] = {
+        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.replaceModes.modeMap
+          .map(BeamConfigUtils.parseListToMap)
+      }
+      if (maybeModeMap.nonEmpty) {
+        replaceLegModes(beamServices.matsimServices.getScenario.getHouseholds, maybeModeMap.get)
+      }
+    }
+
     if (beamServices.beamConfig.beam.output.writePlansAndStopSimulation) {
       PlansCsvWriter.toCsv(
         scenario,
@@ -184,6 +196,36 @@ class BeamMobsim @Inject() (
     stopMeasuring("agentsim-events:agentsim")
 
     logger.info("Processing Agentsim Events (End)")
+  }
+
+  private def replaceLegModes(households: Households, modesToReplace: Map[String, String]): Unit = {
+    households.getHouseholds.values.asScala.par.foreach { household =>
+      val persons = household.getMemberIds.asScala.collect { case personId =>
+        matsimServices.getScenario.getPopulation.getPersons.get(personId)
+      }
+
+      persons.par.foreach { person =>
+        val newPlan = PopulationUtils.createPlan(person)
+        val oldPlan = person.getSelectedPlan
+        newPlan.setType(oldPlan.getType)
+
+        oldPlan.getPlanElements.asScala.foreach {
+          case activity: Activity => newPlan.getPlanElements.add(activity)
+          case leg: Leg =>
+            val newMode = modesToReplace.getOrElse(leg.getMode, leg.getMode)
+            leg.setMode(newMode)
+            newPlan.getPlanElements.add(leg)
+        }
+
+        AttributesUtils.copyAttributesFromTo(oldPlan, newPlan)
+
+        person.removePlan(oldPlan)
+        person.addPlan(newPlan)
+        person.setSelectedPlan(newPlan)
+      }
+    }
+
+    logger.info("Done replacing modes in plans.")
   }
 
   private def fillInSecondaryActivities(households: Households, fillInModes: Boolean = false): Unit = {
@@ -239,13 +281,14 @@ class BeamMobsim @Inject() (
               person.getId,
               snapLocationHelper
             )
-          val newPlan =
+          val newPlan: Option[Plan] = {
             supplementaryTripGenerator.generateNewPlans(
               person.getSelectedPlan,
               destinationChoiceModel,
               modesAvailable,
               fillInModes
             )
+          }
           newPlan match {
             case Some(plan) =>
               person.removePlan(person.getSelectedPlan)

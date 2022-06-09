@@ -6,7 +6,17 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{BIKE_TRANSIT, CAR, CAV, DRIVE_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, TRANSIT, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  BIKE_TRANSIT,
+  CAR,
+  CAV,
+  DRIVE_TRANSIT,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  TRANSIT,
+  WALK_TRANSIT
+}
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
 import beam.router.skim.core.AbstractSkimmerReadOnly
 import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}

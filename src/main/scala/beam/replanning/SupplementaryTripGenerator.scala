@@ -3,6 +3,7 @@ package beam.replanning
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel.TripParameters.ExpMaxUtility
 import beam.agentsim.agents.choice.logit.DestinationChoiceModel._
 import beam.agentsim.agents.choice.logit.{DestinationChoiceModel, MultinomialLogit}
+import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
@@ -35,7 +36,7 @@ class SupplementaryTripGenerator(
   val activityRates: ActivityRates = destinationChoiceModel.activityRates
   val activityVOTs: ActivityVOTs = destinationChoiceModel.activityVOTs
   val activityDurations: ActivityDurations = destinationChoiceModel.activityDurations
-  val modeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributesOfIndividual)
+  val modeChoiceCalculator: ModeChoiceCalculator = beamServices.modeChoiceCalculatorFactory(attributesOfIndividual)
 
   def generateNewPlans(
     plan: Plan,
@@ -167,16 +168,6 @@ class SupplementaryTripGenerator(
       val modeToTimeAndCost =
         getTazCost(nextActivity, prevActivity, availableModes, bothDirections = false)
       val alternativeToTimeAndCost = modeToTimeAndCost.map { case (mode, timesAndCost) =>
-        val departureTime = prevActivity.getEndTime
-        val arrivalTime = timesAndCost.accessTime + departureTime
-        val supplementaryTripAlternative: SupplementaryTripAlternative =
-          DestinationChoiceModel.SupplementaryTripAlternative(
-            TAZ.DefaultTAZ,
-            nextActivity.getType,
-            mode,
-            (arrivalTime - nextActivity.getEndTime).toInt,
-            arrivalTime.toInt
-          )
         mode -> DestinationChoiceModel.toUtilityParameters(timesAndCost)
       }
       val alternativeChosen = modeMNL.sampleAlternative(alternativeToTimeAndCost, rnd)

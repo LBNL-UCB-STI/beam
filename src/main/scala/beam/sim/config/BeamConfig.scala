@@ -1473,7 +1473,8 @@ object BeamConfig {
 
         case class TripBehaviors(
           carUsage: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.CarUsage,
-          mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit
+          mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit,
+          replaceModes: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.ReplaceModes
         )
 
         object TripBehaviors {
@@ -1550,6 +1551,21 @@ object BeamConfig {
             }
           }
 
+          case class ReplaceModes(
+            enabled: scala.Boolean,
+            modeMap: scala.Option[scala.List[java.lang.String]]
+          )
+
+          object ReplaceModes {
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.TripBehaviors.ReplaceModes = {
+              BeamConfig.Beam.Agentsim.Agents.TripBehaviors.ReplaceModes(
+                enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+                modeMap = if (c.hasPathOrNull("modeMap")) scala.Some($_L$_str(c.getList("modeMap"))) else None
+              )
+            }
+          }
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.TripBehaviors = {
             BeamConfig.Beam.Agentsim.Agents.TripBehaviors(
               carUsage = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.CarUsage(
@@ -1559,6 +1575,10 @@ object BeamConfig {
               mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit(
                 if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
                 else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
+              ),
+              replaceModes = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.ReplaceModes(
+                if (c.hasPathOrNull("replaceModes")) c.getConfig("replaceModes")
+                else com.typesafe.config.ConfigFactory.parseString("replaceModes{}")
               )
             )
           }

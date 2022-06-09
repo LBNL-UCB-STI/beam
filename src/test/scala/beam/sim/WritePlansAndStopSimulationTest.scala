@@ -141,4 +141,39 @@ class WritePlansAndStopSimulationTest extends AnyFlatSpec with Matchers with Bea
       case legInfo => throw new NotImplementedError(s"Unexpected legInfo: $legInfo")
     }
   }
+
+  it should "Stop simulation, trow runtime exception and write plans with specific modes of legs." in {
+    val config = ConfigFactory
+      .parseString(s"""
+                      |beam.agentsim.simulationName = "beamville_terminated_with_secondary_activities_with_modes"
+                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept = 10
+                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept = -1000
+                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept = 10
+                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.cav_intercept = -1000
+                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept = -1000
+                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept = -1000
+                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept = -1000
+                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_pooled_intercept = -1000
+                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept = -1000
+                      |beam.agentsim.lastIteration = 0
+                      |beam.output.writePlansAndStopSimulation = true
+                      |beam.agentsim.agents.plans.inputPlansFilePath = "population-onlyWorkHome.xml"
+                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
+                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims = true
+                      |beam.agentsim.agents.tripBehaviors.replaceModes.enabled = true
+                      |beam.agentsim.agents.tripBehaviors.replaceModes.modeMap = ["car -> hov2_teleportation", "walk -> hov2_teleportation"]
+         """.stripMargin)
+      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .resolve()
+
+    val outputDirectory = runSimulationAndCatchException(config)
+    val plansPath = Paths.get(outputDirectory, "generatedPlans.csv.gz").toFile
+    val personPlanIndexMode = readLegsInfoFromPlans(plansPath.getPath)
+
+    val legModeCounts = personPlanIndexMode.groupBy(legInfo => legInfo.legMode)
+    val totalAmountOfLegs = personPlanIndexMode.size
+    legModeCounts.getOrElse("hov2_teleportation", Seq.empty).size should be > (totalAmountOfLegs * 0.8).toInt
+
+  }
+
 }
