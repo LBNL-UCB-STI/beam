@@ -55,7 +55,10 @@ for(j in 1:nrow(publicLoads)){
   temp <- publicLoads.ByChargeType[code==publicLoads[j,]$code]
   temp$fuelShare <- temp$fuel/publicLoads[j,]$fuel
   print(publicLoads[j,]$code)
-  print(temp[,.(loadType,fuelShare)][order(factor(loadType,levels=names(chargingTypes.colors)))])
+  charging <- temp[,.(loadType,fuelShare)][order(factor(loadType,levels=names(chargingTypes.colors)))]
+  print(charging)
+  print(pp("FC: ", charging[loadType=="XFC"]$fuelShare+charging[loadType=="DCFC"]$fuelShare))
+  print(pp("Home: ", charging[loadType=="Home-L1"]$fuelShare+charging[loadType=="Home-L2"]$fuelShare))
 }
 scens <- as.data.table(readCsv(pp(resultsDir,'/../scenarios.csv')))
 all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
@@ -65,7 +68,8 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 # scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
 # scenarioNames <- c('Scenario4', 'Scenario4Bis', 'Scenario4Bis2', 'Scenario4Bis3', 'Scenario4Bis4', 'Scenario4Bis5')
 # scenarioNames <- c('Scenario4a-Base', 'Scenario4b-Base', 'Scenario6-HighEV')
-scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5', '5b6', '5b7')
+#scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5', '5b6', '5b7')
+scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5')
 
 #scenarioNames <- c('BaseXFC', 'HighEV')
 #scenarioBaselineLabel <- 'BaseXFC'
