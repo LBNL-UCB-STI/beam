@@ -114,7 +114,7 @@ class ChargingNetworkManager(
       // obtaining physical bounds
       val physicalBounds = powerController.obtainPowerPhysicalBounds(timeBin, loadEstimate)
       val allConnectedVehicles = chargingNetwork.connectedVehicles ++ rideHailNetwork.connectedVehicles
-      val triggers = allConnectedVehicles.par.flatMap { chargingVehicle =>
+      val triggers = allConnectedVehicles.par.flatMap { case (_, chargingVehicle) =>
         // Refuel
         handleRefueling(chargingVehicle)
         // Calculate the energy to charge and prepare for next current cycle of charging
