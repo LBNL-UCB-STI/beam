@@ -29,8 +29,8 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
     return new
 
 
-directory_input = os.path.expanduser('~/Data/FREIGHT/Tour_plan_inputs_V2')
-directory_output = os.path.expanduser('~/Data/FREIGHT/Tour_plan_inputs_V2_merged')
+directory_input = os.path.expanduser('~/Data/FREIGHT/austin/frism/Tour_plan_AT_2022_05_25/')
+directory_output = os.path.expanduser('~/Data/FREIGHT/austin/beam_freight/')
 Path(directory_output).mkdir(parents=True, exist_ok=True)
 carriers = None
 payload_plans = None
