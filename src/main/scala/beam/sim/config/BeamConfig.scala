@@ -2419,11 +2419,11 @@ object BeamConfig {
       clearRoutedOutstandingWorkEnabled: scala.Boolean,
       debugActorTimerIntervalInSec: scala.Int,
       debugEnabled: scala.Boolean,
-      initialiazationStuckThresholdMin: scala.Int,
+      maxInitializationTimeBeforeConsideredStuckMin: scala.Int,
+      maxSimulationStepTimeBeforeConsideredStuckMin: scala.Int,
       memoryConsumptionDisplayTimeoutInSec: scala.Int,
       messageLogging: scala.Boolean,
       secondsToWaitToClearRoutedOutstandingWork: scala.Int,
-      simulationStuckThresholdMin: scala.Int,
       stuckAgentDetection: BeamConfig.Beam.Debug.StuckAgentDetection,
       triggerMeasurer: BeamConfig.Beam.Debug.TriggerMeasurer,
       vmInformation: BeamConfig.Beam.Debug.VmInformation,
@@ -2581,9 +2581,14 @@ object BeamConfig {
           debugActorTimerIntervalInSec =
             if (c.hasPathOrNull("debugActorTimerIntervalInSec")) c.getInt("debugActorTimerIntervalInSec") else 0,
           debugEnabled = c.hasPathOrNull("debugEnabled") && c.getBoolean("debugEnabled"),
-          initialiazationStuckThresholdMin =
-            if (c.hasPathOrNull("initialiazationStuckThresholdMin")) c.getInt("initialiazationStuckThresholdMin")
+          maxInitializationTimeBeforeConsideredStuckMin =
+            if (c.hasPathOrNull("maxInitializationTimeBeforeConsideredStuckMin"))
+              c.getInt("maxInitializationTimeBeforeConsideredStuckMin")
             else 180,
+          maxSimulationStepTimeBeforeConsideredStuckMin =
+            if (c.hasPathOrNull("maxSimulationStepTimeBeforeConsideredStuckMin"))
+              c.getInt("maxSimulationStepTimeBeforeConsideredStuckMin")
+            else 999999,
           memoryConsumptionDisplayTimeoutInSec =
             if (c.hasPathOrNull("memoryConsumptionDisplayTimeoutInSec"))
               c.getInt("memoryConsumptionDisplayTimeoutInSec")
@@ -2593,8 +2598,6 @@ object BeamConfig {
             if (c.hasPathOrNull("secondsToWaitToClearRoutedOutstandingWork"))
               c.getInt("secondsToWaitToClearRoutedOutstandingWork")
             else 60,
-          simulationStuckThresholdMin =
-            if (c.hasPathOrNull("simulationStuckThresholdMin")) c.getInt("simulationStuckThresholdMin") else 999999,
           stuckAgentDetection = BeamConfig.Beam.Debug.StuckAgentDetection(
             if (c.hasPathOrNull("stuckAgentDetection")) c.getConfig("stuckAgentDetection")
             else com.typesafe.config.ConfigFactory.parseString("stuckAgentDetection{}")

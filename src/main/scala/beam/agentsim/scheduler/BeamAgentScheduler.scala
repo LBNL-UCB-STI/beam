@@ -262,10 +262,10 @@ class BeamAgentScheduler(
         val stuckThreshold =
           if (nowInSeconds == 0)
             Math.max(
-              beamConfig.beam.debug.initialiazationStuckThresholdMin,
-              beamConfig.beam.debug.simulationStuckThresholdMin
+              beamConfig.beam.debug.maxInitializationTimeBeforeConsideredStuckMin,
+              beamConfig.beam.debug.maxSimulationStepTimeBeforeConsideredStuckMin
             )
-          else beamConfig.beam.debug.simulationStuckThresholdMin
+          else beamConfig.beam.debug.maxSimulationStepTimeBeforeConsideredStuckMin
         val currentDelay = System.currentTimeMillis() - nowUpdateTime
         if (currentDelay > stuckThreshold * 60 * 1000) {
           log.error("Forcibly terminating beam because of too long update delay: {}", currentDelay)
