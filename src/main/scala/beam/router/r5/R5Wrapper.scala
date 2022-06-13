@@ -56,7 +56,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     tollCalculator
   ) = workerParams
 
-  private val linkToHGVFlag: Map[String, Boolean] = networkHelper.allLinks.map { link =>
+  private lazy val linkToHGVFlag: Map[String, Boolean] = networkHelper.allLinks.map { link =>
     val isLinkHgv = Try(link.getAttributes.getAttribute("hgv")).map(_.asInstanceOf[Boolean]).getOrElse(false)
     link.getId.toString -> isLinkHgv
   }.toMap
@@ -1168,8 +1168,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         linkToHGVFlag.get(edge.getOSMID.toString) match {
           case Some(true)  => 1f
           case Some(false) => beamConfig.beam.agentsim.agents.freight.nonHGVLinkWeightMultiplier.toFloat
-          case _ =>
-            logger.warn(s"Link ${edge.getOSMID} in travelCostCalculator not found")
+          case _           =>
+            //logger.warn(s"Link ${edge.getOSMID} in travelCostCalculator not found")
             1f
         }
       } else 1f
