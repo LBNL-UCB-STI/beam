@@ -1531,10 +1531,22 @@ trait ChoosesMode {
         )
     }
 
-    val tripId = _experiencedBeamPlan.trips
+    val tripId: String = _experiencedBeamPlan.trips
       .lift(data.personData.currentActivityIndex + 1) match {
-      case Some(trip) => trip.leg.map(_.getAttributes.getAttribute("trip_id").toString).getOrElse("")
-      case None       => ""
+      case Some(trip) =>
+        trip.leg
+          .map(try {
+            _.getAttributes.getAttribute("trip_id").toString
+          } catch {
+            case e: Exception =>
+              logger.warn(e.toString)
+              _ => Some("")
+            case _: Throwable =>
+              _ => Some("")
+          })
+          .getOrElse("")
+          .toString
+      case None => ""
     }
 
     val modeChoiceEvent = new ModeChoiceEvent(
