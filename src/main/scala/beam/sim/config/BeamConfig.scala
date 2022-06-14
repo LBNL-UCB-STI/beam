@@ -717,6 +717,7 @@ object BeamConfig {
         case class Parking(
           estimatedMinParkingDurationInSeconds: scala.Double,
           fractionOfSameTypeZones: scala.Double,
+          homeChargingSampleSize: scala.Double,
           maxSearchRadius: scala.Double,
           minNumberOfSameTypeZones: scala.Int,
           minSearchRadius: scala.Double,
@@ -782,6 +783,8 @@ object BeamConfig {
                 else 60.0,
               fractionOfSameTypeZones =
                 if (c.hasPathOrNull("fractionOfSameTypeZones")) c.getDouble("fractionOfSameTypeZones") else 0.5,
+              homeChargingSampleSize =
+                if (c.hasPathOrNull("homeChargingSampleSize")) c.getDouble("homeChargingSampleSize") else 1.0,
               maxSearchRadius = if (c.hasPathOrNull("maxSearchRadius")) c.getDouble("maxSearchRadius") else 8046.72,
               minNumberOfSameTypeZones =
                 if (c.hasPathOrNull("minNumberOfSameTypeZones")) c.getInt("minNumberOfSameTypeZones") else 10,
@@ -791,7 +794,7 @@ object BeamConfig {
                 else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
               ),
               overnightChargingSampleSize =
-                if (c.hasPathOrNull("overnightChargingSampleSize")) c.getDouble("overnightChargingSampleSize") else 0,
+                if (c.hasPathOrNull("overnightChargingSampleSize")) c.getDouble("overnightChargingSampleSize") else 0.0,
               rangeAnxietyBuffer =
                 if (c.hasPathOrNull("rangeAnxietyBuffer")) c.getDouble("rangeAnxietyBuffer") else 20000.0,
               searchMaxDistanceRelativeToEllipseFoci =

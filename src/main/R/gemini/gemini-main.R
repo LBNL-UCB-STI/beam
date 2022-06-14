@@ -59,17 +59,20 @@ for(j in 1:nrow(publicLoads)){
   print(charging)
   print(pp("FC: ", charging[loadType=="XFC"]$fuelShare+charging[loadType=="DCFC"]$fuelShare))
   print(pp("Home: ", charging[loadType=="Home-L1"]$fuelShare+charging[loadType=="Home-L2"]$fuelShare))
+  print(pp("tot fuel: ", sum(temp$fuel)))
 }
 scens <- as.data.table(readCsv(pp(resultsDir,'/../scenarios.csv')))
 all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 
-
+# let’s squeeze a short date some time this weeklet’s squeeze a short date some time this week
 #####
 # scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
 # scenarioNames <- c('Scenario4', 'Scenario4Bis', 'Scenario4Bis2', 'Scenario4Bis3', 'Scenario4Bis4', 'Scenario4Bis5')
 # scenarioNames <- c('Scenario4a-Base', 'Scenario4b-Base', 'Scenario6-HighEV')
-#scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5', '5b6', '5b7')
-scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5')
+scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5', '5b6', '5b7')
+# scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5')
+# scenarioNames <- c('5b1', '5b2')
+# scenarioNames <- c('5b3', '5b4', '5b5', '5b6', '5b7')
 
 #scenarioNames <- c('BaseXFC', 'HighEV')
 #scenarioBaselineLabel <- 'BaseXFC'
@@ -206,6 +209,8 @@ ggsave(pp(plotsDir,'/baseline-ev-charging-loads-by-space-time-in-oakland.png'),p
 
 ## **************************************
 ##  public charging by scenario
+#scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5', '5b6', '5b7')
+scenarioNames <- c('5b1', '5b2')
 p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
   ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
   theme_marain() +
