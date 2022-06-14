@@ -10,7 +10,7 @@ import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
@@ -19,6 +19,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.logging.pattern.ask
 import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
+import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 
 import java.util.concurrent.TimeUnit
@@ -29,6 +30,7 @@ class HouseholdFleetManager(
   vehicles: Map[Id[BeamVehicle], BeamVehicle],
   homeCoord: Coord,
   maybeEmergencyHouseholdVehicleGenerator: Option[EmergencyHouseholdVehicleGenerator],
+  whoDrivesThisVehicle: Map[Id[BeamVehicle], Id[Person]], // so far only freight module is using this collection
   implicit val debug: Debug
 ) extends LoggingMessageActor
     with ExponentialLazyLogging {
@@ -57,16 +59,19 @@ class HouseholdFleetManager(
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       triggerSender = Some(sender())
-      val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map { case (id, _) =>
-        (parkingManager ? ParkingInquiry.init(
-          SpaceTime(homeCoord, 0),
-          "init",
-          triggerId = triggerId
-        ))
-          .mapTo[ParkingInquiryResponse]
-          .map { r =>
-            (id, r)
-          }
+      val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = vehicles.toList.map {
+        case (id, veh) =>
+          (parkingManager ? ParkingInquiry.init(
+            SpaceTime(homeCoord, 0),
+            "init",
+            VehicleManager.getReservedFor(veh.vehicleManagerId.get()).get,
+            Some(veh),
+            triggerId = triggerId
+          ))
+            .mapTo[ParkingInquiryResponse]
+            .map { r =>
+              (id, r)
+            }
       }
       val futureOfList = Future.sequence(listOfFutures)
       val response = futureOfList.map(ResolvedParkingResponses(triggerId, _))
@@ -104,71 +109,31 @@ class HouseholdFleetManager(
     case GetVehicleTypes(triggerId) =>
       sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet, triggerId)
 
-    case MobilityStatusInquiry(personId, whenWhere, _, requireVehicleCategoryAvailable, triggerId) =>
-      {
-        for {
-          neededVehicleCategory              <- requireVehicleCategoryAvailable
-          emergencyHouseholdVehicleGenerator <- maybeEmergencyHouseholdVehicleGenerator
-          vehicle                            <- emergencyHouseholdVehicleGenerator.createVehicle(personId, nextVehicleIndex, neededVehicleCategory)
-        } yield {
-          val vehicleCreatedOutOfThinAir: Boolean = if (availableVehicles.isEmpty) {
-            logger.warn(
-              s"No vehicles available for category ${neededVehicleCategory} available for person ${personId.toString}"
-            )
-            emergencyHouseholdVehicleGenerator.createVehicle(personId, nextVehicleIndex, neededVehicleCategory) match {
-              case Some(vehicle) =>
-                nextVehicleIndex += 1
-                vehicle.setManager(Some(self))
-                vehicle.spaceTime = whenWhere
-                val mobilityRequester = sender()
-                vehiclesInternal(vehicle.id) = vehicle
+    case inquiry @ MobilityStatusInquiry(personId, _, _, requireVehicleCategoryAvailable, triggerId) =>
+      val availableVehicleMaybe: Option[BeamVehicle] = requireVehicleCategoryAvailable match {
+        case Some(_) if personId.toString.contains("freight") =>
+          whoDrivesThisVehicle
+            .filter(_._2 == personId)
+            .flatMap { case (vehicleId, _) => availableVehicles.find(_.id == vehicleId) }
+            .headOption
+        case Some(requireVehicleCategory) =>
+          availableVehicles.find(_.beamVehicleType.vehicleCategory == requireVehicleCategory)
+        case _ => availableVehicles.headOption
+      }
 
-                // Pipe my car through the parking manager
-                // and complete initialization only when I got them all.
-                val responseFuture = parkingManager ? ParkingInquiry.init(
-                  whenWhere,
-                  "wherever",
-                  triggerId = triggerId
-                )
-                responseFuture.collect { case ParkingInquiryResponse(stall, _, otherTriggerId) =>
-                  vehicle.useParkingStall(stall)
-                  logger.debug("Vehicle {} is now taken, which was just created", vehicle.id)
-                  vehicle.becomeDriver(mobilityRequester)
-                  MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
-                } pipeTo mobilityRequester
-                logger.warn(s"Creating vehicle with id ${vehicle.id.toString} for person ${personId.toString}")
-                true
-              case _ =>
-                logger.warn(s"Failed to create vehicle for person ${personId.toString}")
-                false
-            }
-          } else false
-
-          if (!vehicleCreatedOutOfThinAir) {
-            availableVehicles = availableVehicles match {
-              case firstVehicle :: rest =>
-                logger.debug("Vehicle {} is now taken", firstVehicle.id)
-                firstVehicle.becomeDriver(sender)
-                sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)), triggerId)
-                rest
-              case _ =>
-                logger.error(s"THE LIST OF VEHICLES SHOULDN'T BE EMPTY")
-                Nil
-            }
-          }
-        }
-      }.getOrElse {
-        availableVehicles = availableVehicles match {
-          case firstVehicle :: rest =>
-            logger.debug("Vehicle {} is now taken", firstVehicle.id)
-            firstVehicle.becomeDriver(sender)
-            sender() ! MobilityStatusResponse(Vector(ActualVehicle(firstVehicle)), triggerId)
-            rest
-          case Nil =>
-            logger.debug(s"Not returning vehicle because no default is defined")
-            sender() ! MobilityStatusResponse(Vector(), triggerId)
-            Nil
-        }
+      availableVehicleMaybe match {
+        case Some(availableVehicle) =>
+          logger.debug("Vehicle {} is now taken", availableVehicle.id)
+          availableVehicle.becomeDriver(sender)
+          sender() ! MobilityStatusResponse(Vector(ActualVehicle(availableVehicle)), triggerId)
+          availableVehicles = availableVehicles.filter(_ != availableVehicle)
+        case None if createAnEmergencyVehicle(inquiry).nonEmpty =>
+          logger.debug(s"An emergency vehicle has been created!")
+        case _ =>
+          if (availableVehicles.isEmpty)
+            logger.error(s"THE LIST OF VEHICLES SHOULD NOT BE EMPTY")
+          logger.debug(s"Not returning vehicle because no default for  is defined")
+          sender() ! MobilityStatusResponse(Vector(), triggerId)
       }
 
     case Finish =>
@@ -180,6 +145,52 @@ class HouseholdFleetManager(
 
     case x =>
       logger.warn(s"No handler for $x")
+  }
+
+  /**
+    * @param inquiry
+    * @return
+    */
+  private def createAnEmergencyVehicle(inquiry: MobilityStatusInquiry): Option[BeamVehicle] = {
+    for {
+      category    <- inquiry.requireVehicleCategoryAvailable
+      emergency   <- maybeEmergencyHouseholdVehicleGenerator
+      vehicleType <- emergency.sampleVehicleTypeForEmergencyUse(inquiry.personId, category, inquiry.whereWhen)
+    } yield {
+      val vehicle = emergency.createAndAddVehicle(
+        vehicleType,
+        inquiry.personId,
+        nextVehicleIndex,
+        inquiry.whereWhen,
+        self
+      )
+      // Create a vehicle out of thin air
+      nextVehicleIndex += 1
+      val mobilityRequester = sender()
+      vehiclesInternal(vehicle.id) = vehicle
+
+      // Pipe my car through the parking manager
+      // and complete initialization only when I got them all.
+      val responseFuture = parkingManager ? ParkingInquiry.init(
+        inquiry.whereWhen,
+        "wherever",
+        VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).get,
+        Some(vehicle),
+        triggerId = inquiry.triggerId
+      )
+      logger.warn(
+        s"No vehicles available for category ${category} available for " +
+        s"person ${inquiry.personId.toString}, creating a new vehicle with id ${vehicle.id.toString}"
+      )
+
+      responseFuture.collect { case ParkingInquiryResponse(stall, _, otherTriggerId) =>
+        vehicle.useParkingStall(stall)
+        logger.debug("Vehicle {} is now taken, which was just created", vehicle.id)
+        vehicle.becomeDriver(mobilityRequester)
+        MobilityStatusResponse(Vector(ActualVehicle(vehicle)), otherTriggerId)
+      } pipeTo mobilityRequester
+      vehicle
+    }
   }
 }
 

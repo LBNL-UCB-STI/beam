@@ -22,7 +22,7 @@ class ConsoleProgress(message: String, maxSteps: Int, percentageToWrite: Int = 1
   def print(message: String): Unit = Console.println(s"\t$message")
 
   def write(): Unit = {
-    val percentage = currentStep / onePercent
+    val percentage = currentStep / math.max(onePercent, 1)
     if (percentage < 100) {
       print(s"$percentage%  $message")
     }

@@ -63,7 +63,8 @@ class JDEQSimRunner(
       controlerIO,
       beamServices.beamConfig,
       jdeqSimScenario.getConfig.travelTimeCalculator,
-      beamConfigChangesObservable
+      beamConfigChangesObservable,
+      beamServices.beamScenario.privateVehicles.view.toMap.asJava
     )
     linkStatsGraph.notifyIterationStarts(jdeqsimEvents, jdeqSimScenario.getConfig.travelTimeCalculator)
 

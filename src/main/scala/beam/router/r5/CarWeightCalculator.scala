@@ -5,6 +5,7 @@ import org.matsim.core.router.util.TravelTime
 
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
+import scala.util.Try
 
 class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: Double = 0d) {
   private val networkHelper = workerParams.networkHelper
@@ -32,7 +33,8 @@ class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: D
     travelTime: TravelTime,
     vehicleType: Option[BeamVehicleType],
     time: Double,
-    shouldAddNoise: Boolean
+    shouldAddNoise: Boolean,
+    heavyGoodsVehicle: Boolean = false
   ): Double = {
     val link = networkHelper.getLinkUnsafe(linkId)
     assert(link != null)
@@ -54,6 +56,13 @@ class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: D
         physSimTravelTime * travelTimeNoises(idx)
       }
     val linkTravelTime = Math.max(physSimTravelTimeWithNoise, minTravelTime)
-    Math.min(linkTravelTime, maxTravelTime)
+    val result = Math.min(linkTravelTime, maxTravelTime)
+
+    if (heavyGoodsVehicle) {
+      // TODO this is only prototype
+      val isLinkHgv = Try(link.getAttributes.getAttribute("hgv")).map(_.asInstanceOf[Boolean]).getOrElse(false)
+      if (isLinkHgv) result / 10 else result * 10
+    } else
+      result
   }
 }

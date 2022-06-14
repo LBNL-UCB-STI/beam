@@ -162,6 +162,40 @@ object MathUtils {
   def nanToZero(x: Double) = if (x.isNaN) { 0.0 }
   else { x }
 
+  /**
+    * It selects random elements out of a collection.
+    * It is designed to be performant on not indexed collections (like Sets).
+    * @param xs the collection
+    * @param n number of elements to select
+    * @param random a Random
+    * @tparam T type of elements
+    * @return an array of selected elements
+    */
+  def selectRandomElements[T: ClassTag](xs: Iterable[T], n: Int, random: Random): Array[T] = {
+    val size = xs.size
+    val numToTake = Math.min(n, size)
+    val result = Array.ofDim[T](numToTake)
+    val it = xs.iterator
+    var originalElementsLeft = size
+    var i = 0
+    while (i < numToTake) {
+      val elem = it.next()
+      val resultElementsLeft = numToTake - i
+      if (resultElementsLeft < originalElementsLeft) {
+        val probability = resultElementsLeft.toDouble / originalElementsLeft
+        if (random.nextDouble() < probability) {
+          result(i) = elem
+          i += 1
+        }
+      } else {
+        result(i) = elem
+        i += 1
+      }
+      originalElementsLeft -= 1
+    }
+    result
+  }
+
   def selectElementsByProbability[T](
     rndSeed: Long,
     elementToProbability: T => Double,
@@ -181,4 +215,6 @@ object MathUtils {
       }.toArray
     }
   }
+
+  def selectRandomElement[T](xs: IndexedSeq[T], random: Random): T = xs(random.nextInt(xs.size))
 }

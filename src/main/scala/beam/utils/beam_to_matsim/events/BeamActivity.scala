@@ -41,7 +41,7 @@ object BeamActivity {
 
     val time = genericEvent.getTime
     val personId: String = attr(ATTRIBUTE_PERSON_ID)
-    val linkId: Int = attr(ATTRIBUTE_LINK_ID).toInt
+    val linkId: Int = attr(ATTRIBUTE_LINK_ID).toDouble.toInt
     val activityType = attr(ATTRIBUTE_ACTTYPE)
 
     new BeamActivity(time, personId, linkId, activityType)
