@@ -257,13 +257,13 @@ trait ChoosesParking extends {
     val conf = beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination
     val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
     val homeChargingSampleSize = beamScenario.beamConfig.beam.agentsim.agents.parking.homeChargingSampleSize
-    ParkingInquiry.activityTypeStringToEnum(activityType) match {
-      case ParkingActivityType.Home if rand.nextDouble() <= homeChargingSampleSize =>
+    val parkingTypeActivity = ParkingInquiry.activityTypeStringToEnum(activityType)
+    val refuelDecision = parkingTypeActivity match {
+      case ParkingActivityType.Home =>
         vehicle.isRefuelNeeded(
           remainingTourDistance + conf.home.refuelRequiredThresholdInMeters,
           conf.noRefuelThresholdInMeters
         )
-      case ParkingActivityType.Home => false
       case _ =>
         vehicle.isRefuelNeeded(
           remainingTourDistance + conf.refuelRequiredThresholdInMeters,
@@ -271,6 +271,9 @@ trait ChoosesParking extends {
         )
         true
     }
+    if (refuelDecision && parkingTypeActivity == ParkingActivityType.Home)
+      rand.nextDouble() <= homeChargingSampleSize
+    else refuelDecision
   }
 
   onTransition { case ReadyToChooseParking -> ChoosingParkingSpot =>
