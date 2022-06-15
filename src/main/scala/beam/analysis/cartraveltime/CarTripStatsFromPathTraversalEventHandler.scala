@@ -1,7 +1,5 @@
 package beam.analysis.cartraveltime
 
-import java.io.Closeable
-
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.FreeFlowTravelTime
@@ -26,6 +24,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 
+import java.io.Closeable
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
@@ -302,30 +301,32 @@ class CarTripStatsFromPathTraversalEventHandler(
     val hourAverageSpeed = trips.groupBy(stats => stats.departureTime.toInt / secondsInHour).map {
       case (hour, statsList) => hour -> (statsList.map(_.speed).sum / statsList.size)
     }
-    val maxHour = hourAverageSpeed.keys.max
-    val averageSpeed = (0 until maxHour).map(hourAverageSpeed.getOrElse(_, 0.0))
+    if (hourAverageSpeed.nonEmpty) {
+      val maxHour = hourAverageSpeed.keys.max
+      val averageSpeed = (0 until maxHour).map(hourAverageSpeed.getOrElse(_, 0.0))
 
-    // generate the category dataset using the average travel times data
-    val dataset = DatasetUtilities.createCategoryDataset("car", "", Array(averageSpeed.toArray))
+      // generate the category dataset using the average travel times data
+      val dataset = DatasetUtilities.createCategoryDataset("car", "", Array(averageSpeed.toArray))
 
-    val fileName = s"${prefix}AverageSpeed.$mode.png"
-    val graphTitle = s"Average Speed [ $mode ]"
-    val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
-      dataset,
-      graphTitle,
-      "hour",
-      "Average Speed [m/s]",
-      false
-    )
-    val plot = chart.getCategoryPlot
-    GraphUtils.plotLegendItems(plot, dataset.getRowCount)
-    val graphImageFile = controllerIO.getIterationFilename(iterationNumber, fileName)
-    GraphUtils.saveJFreeChartAsPNG(
-      chart,
-      graphImageFile,
-      GraphsStatsAgentSimEventsListener.GRAPH_WIDTH,
-      GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT
-    )
+      val fileName = s"${prefix}AverageSpeed.$mode.png"
+      val graphTitle = s"Average Speed [ $mode ]"
+      val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
+        dataset,
+        graphTitle,
+        "hour",
+        "Average Speed [m/s]",
+        false
+      )
+      val plot = chart.getCategoryPlot
+      GraphUtils.plotLegendItems(plot, dataset.getRowCount)
+      val graphImageFile = controllerIO.getIterationFilename(iterationNumber, fileName)
+      GraphUtils.saveJFreeChartAsPNG(
+        chart,
+        graphImageFile,
+        GraphsStatsAgentSimEventsListener.GRAPH_WIDTH,
+        GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT
+      )
+    }
   }
 
   private def createIterationGraphForAverageSpeedPercent(
