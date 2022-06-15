@@ -50,7 +50,7 @@ object SkimsUtils extends LazyLogging {
   // 12.1 mph (5.409184 meter per second), is average bus speed
   // source: https://www.apta.com/resources/statistics/Documents/FactBook/2017-APTA-Fact-Book.pdf
   // assuming for now that it includes the headway
-  val transitSpeedMeterPerSec: Double = 5.409184
+  val transitSpeedMeterPerSec: Double = 1.409184
   val bicycleSpeedMeterPerSec: Double = 3
   // 3.1 mph -> 1.38 meter per second
   val walkSpeedMeterPerSec: Double = 1.38
