@@ -1,0 +1,46 @@
+---
+
+# Header
+
+header:
+    title: Prices
+    author: Colin
+    beamTemplateConfPath: production/application-sfbay/base.conf
+    params:
+      ### ---- run template env variables ---####
+      EXPERIMENT_MAX_RAM: 250g
+      S3_OUTPUT_PATH_SUFFIX: "capacities"
+      DROP_OUTPUT_ONCOMPLETE: "true"
+
+# Default Params
+
+defaultParams:
+    ### ---- beam-template.conf param replacement ---####
+    beam.agentsim.tuning.transitPrice: 1.0
+    beam.agentsim.tuning.rideHailPrice: 1.0
+
+# Factors
+
+factors:
+  - title: RideHailPrice
+    levels:
+    - name: low
+      params:
+        beam.agentsim.tuning.rideHailPrice: 0.5
+    - name: base
+      params:
+        beam.agentsim.tuning.rideHailPrice: 1.0
+    - name: high
+      params:
+        beam.agentsim.tuning.rideHailPrice: 1.5
+  - title: TransitPrice
+    levels:
+    - name: low
+      params:
+        beam.agentsim.tuning.transitPrice: 0.5
+    - name: base
+      params:
+        beam.agentsim.tuning.transitPrice: 1.0
+    - name: high
+      params:
+        beam.agentsim.tuning.transitPrice: 1.5
