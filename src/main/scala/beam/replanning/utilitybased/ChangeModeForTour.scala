@@ -120,7 +120,7 @@ class ChangeModeForTour(
   }
 
   def timeScaling(beamMode: BeamMode, tripDistanceInMeters: Double): Double = {
-    val transitSpeedDefault = 10 // m/s
+    val transitSpeedDefault = 1 // m/s
     val transit2AutoRatio = 1.7 // car is 1.7 times faster than transit
 
     beamMode match {
