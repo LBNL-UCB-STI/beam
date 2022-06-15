@@ -583,14 +583,19 @@ Documentation of AWS budget management
 ====
 There are a few levels of budget protection in place:
 
-1. An email notification is sent at 60%-150% of monthly spend (at 10% increments) via a `Billing Budget <https://us-east-1.console.aws.amazon.com/billing/home?region=us-east-1#/budgets/overview>`_ named ``Total Monthly Budget``
-    * The email subject is ``AWS Budgets: Test budget has exceeded your alert threshold`` with more specific information in the body
-    * The original email list (the source of truth is in the budget):
-        * `Rashid Waraich <mailto:rwaraich@lbl.gov>`_
-        * `Justin Pihony <mailto:justin.pihony@gmail.com>`_
-        * `Zach Needell <mailto:zaneedell@lbl.gov>`_
-        * `Haitam Laarabi <haitam.laarabi@lbl.gov>`_
-        * `Nikolay Ilin <irishwithaxe@gmail.com>`_
+1. Alert notifications are sent at 60%-150% of monthly spend (at 10% increments) via a `Billing Budget <https://us-east-1.console.aws.amazon.com/billing/home?region=us-east-1#/budgets/overview>`_ named ``Total Monthly Budget``
+    * An email per below:
+        * The email subject is ``AWS Budgets: Test budget has exceeded your alert threshold`` with more specific information in the body
+        * The original email list (the source of truth is in the budget):
+            * `Rashid Waraich <mailto:rwaraich@lbl.gov>`_
+            * `Justin Pihony <mailto:justin.pihony@gmail.com>`_
+            * `Zach Needell <mailto:zaneedell@lbl.gov>`_
+            * `Haitam Laarabi <haitam.laarabi@lbl.gov>`_
+            * `Nikolay Ilin <irishwithaxe@gmail.com>`_
+    * A slack notification per below:
+        * The message is headed as ``Alert triggered for 'Total Monthly Budget'``
+        * It is sent to the ``#aws-notifications`` using an ``@here`` notifier
+        * This is possible as the budget alerts to the SNS topic ``budget_notifier`` with a subscription to the lambda ``budget_notifier``
 2. For the below regions [1]_ the `Eventbridge <https://us-east-2.console.aws.amazon.com/events/home>`_ ``instance_state_change_notifier`` is triggered on instance state change, which forwards to the `Lambda <https://us-east-2.console.aws.amazon.com/lambda/home>`_ ``instance_monitor`` that follows the below rules:
     * At 150% of budget spent then any new instances can **only** be successfully started if they add the tag ``BudgetOverride`` with the value ``True``.
         * The tag can be added to the EC2 instance manually
