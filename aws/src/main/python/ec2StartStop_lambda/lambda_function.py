@@ -49,7 +49,7 @@ def stop_instance(instance_ids):
 
 def instance_handler(event):
     region = event.get('region', os.environ['REGION'])
-    budget_override = event.get('budget_override', True)
+    budget_override = event.get('budget_override', False)
     instance_ids = event.get('instance_ids')
     command_id = event.get('command')
     system_instances = os.environ['SYSTEM_INSTANCES']

@@ -679,7 +679,7 @@ def deploy_handler(event, context):
     run_grafana = event.get('run_grafana', False)
     run_helics = event.get('run_helics', False)
     profiler_type = event.get('profiler_type', 'null')
-    budget_override = event.get('budget_override', True)
+    budget_override = event.get('budget_override', False)
 
     git_user_email = get_param('git_user_email')
     deploy_type_tag = event.get('deploy_type_tag', '')

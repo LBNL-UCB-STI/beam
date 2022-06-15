@@ -396,7 +396,7 @@ def lambda_handler(event, context):
     if parameter_wasnt_specified(s3_output_base_path):
         s3_output_base_path = ""
 
-    budget_override = event.get('budget_override', True)
+    budget_override = event.get('budget_override', False)
 
     initial_urbansim_output = event.get('initialS3UrbansimOutput')
     initial_skims_path = event.get('initialSkimPath')

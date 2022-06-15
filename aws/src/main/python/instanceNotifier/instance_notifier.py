@@ -196,7 +196,7 @@ def lambda_handler(event, context):
     if percent_of_budget_used >= 300:
         stop_instance(instance_id)
         instance_stopped = True
-    elif percent_of_budget_used >= 150 and instance_details.budget_override != "true":
+    elif percent_of_budget_used >= 150 and instance_details.budget_override.lower() != "true":
         stop_instance(instance_id)
         instance_stopped = True
     set_override_tag_to_empty_for_(instance_id)
