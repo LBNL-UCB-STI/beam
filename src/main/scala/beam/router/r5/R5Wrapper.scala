@@ -56,10 +56,18 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     tollCalculator
   ) = workerParams
 
-  private lazy val linkToHGVFlag: Map[String, Boolean] = networkHelper.allLinks.map { link =>
-    val isLinkHgv = Try(link.getAttributes.getAttribute("hgv")).map(_.asInstanceOf[Boolean]).getOrElse(false)
-    link.getId.toString -> isLinkHgv
-  }.toMap
+  private lazy val osmIdToHGVFlag: Map[Long, Boolean] = networkHelper.allLinks
+    .flatMap { link =>
+      Try(link.getAttributes.getAttribute("origid")).map(_.asInstanceOf[Long]).toOption.map { osmId =>
+        val isLinkHgv = Try(link.getAttributes.getAttribute("hgv")).map(_.asInstanceOf[Boolean]).getOrElse(false)
+        osmId -> isLinkHgv
+      }
+    }
+    .groupBy { case (osmId, _) => osmId }
+    .map { case (osmId, list) =>
+      val (_, isLinkHgv) = list.head
+      osmId -> isLinkHgv
+    }
 
   private val linkRadiusMeters: Double =
     beamConfig.beam.routing.r5.linkRadiusMeters
@@ -1165,7 +1173,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   ): TravelCostCalculator =
     (edge: EdgeStore#Edge, legDurationSeconds: Int, traversalTimeSeconds: Float) => {
       val nonHGVLinkWeightMultiplier: Float = if (vehicleType.vehicleCategory == VehicleCategory.HeavyDutyTruck) {
-        linkToHGVFlag.get(edge.getOSMID.toString) match {
+        osmIdToHGVFlag.get(edge.getOSMID) match {
           case Some(true)  => 1f
           case Some(false) => beamConfig.beam.agentsim.agents.freight.nonHGVLinkWeightMultiplier.toFloat
           case _           =>
