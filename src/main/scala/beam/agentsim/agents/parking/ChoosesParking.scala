@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import scala.util.Random
 
 /**
   * BEAM
@@ -255,10 +254,7 @@ trait ChoosesParking extends {
     remainingTourDistance: Double
   ): Boolean = {
     val conf = beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination
-    val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
-    val homeChargingSampleSize = beamScenario.beamConfig.beam.agentsim.agents.parking.homeChargingSampleSize
-    val parkingTypeActivity = ParkingInquiry.activityTypeStringToEnum(activityType)
-    val refuelDecision = parkingTypeActivity match {
+    ParkingInquiry.activityTypeStringToEnum(activityType) match {
       case ParkingActivityType.Home =>
         vehicle.isRefuelNeeded(
           remainingTourDistance + conf.home.refuelRequiredThresholdInMeters,
@@ -271,9 +267,6 @@ trait ChoosesParking extends {
         )
         true
     }
-    if (refuelDecision && parkingTypeActivity == ParkingActivityType.Home)
-      rand.nextDouble() <= homeChargingSampleSize
-    else refuelDecision
   }
 
   onTransition { case ReadyToChooseParking -> ChoosingParkingSpot =>
