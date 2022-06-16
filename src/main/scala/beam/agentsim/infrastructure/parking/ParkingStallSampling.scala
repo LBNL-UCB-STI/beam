@@ -10,7 +10,6 @@ import org.matsim.api.core.v01.Coord
   */
 object ParkingStallSampling {
 
-  type GeoSampling[GEO] = (Random, Location, GEO, Double, Boolean) => Location
   val maxOffsetDistance = 600.0 // TODO: Make this a config parameter
 
   /**
