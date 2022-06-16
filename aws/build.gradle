@@ -109,7 +109,8 @@ task deploy(type: AWSLambdaInvokeTask) {
   "min_cores": ${ext.getParameterValue('minCores') ?: 0},
   "max_cores": ${ext.getParameterValue('maxCores') ?: 0},
   "min_memory": ${ext.getParameterValue('minMemory') ?: 0},
-  "max_memory": ${ext.getParameterValue('maxMemory') ?: 0}
+  "max_memory": ${ext.getParameterValue('maxMemory') ?: 0},
+  "budget_override": ${ext.getParameterValue('budgetOverride') ?: false}
 }"""
         payload = pload
         println "Using data branch $dataBranch"
@@ -148,6 +149,7 @@ task deployPilates(type: AWSLambdaInvokeTask) {
         defaultParamVals['dataRegion'] = defRegion
         defaultParamVals['beamBranch'] = getCurrentGitBranch()
         defaultParamVals['dataBranch'] = 'develop'
+        defaultParamVals['budgetOverride'] = False
 
         def paramMap = [:]
         def missing = []
@@ -155,7 +157,7 @@ task deployPilates(type: AWSLambdaInvokeTask) {
         // all possible parameters
         ['runName', 'pilatesScenarioName',
          'beamBranch', 'dataBranch', 'beamCommit',
-         'beamConfig',
+         'beamConfig', 'budgetOverride',
          'startYear', 'countOfYears', 'beamItLen', 'urbansimItLen',
          'initialS3UrbansimInput', 'initialS3UrbansimOutput', 'initialSkimPath',
          'pilatesImageVersion', 'pilatesImageName',
@@ -174,6 +176,7 @@ task deployPilates(type: AWSLambdaInvokeTask) {
         }
 
         paramMap['runName'] = paramMap['runName'] + '_' + getCurrentGitUserEmail()
+        paramMap['budget_override'] = paramMap['budgetOverride']
 
         println("parameters wasn't specified: " + missing.join(', '))
 
@@ -267,6 +270,7 @@ def buildPayload(command) {
     return """{
   "instance_ids": "${project.findProperty('instanceIds')}",
   "region": "${project.findProperty('region') ?: defaultRegion}",
+  "budget_override": ${ext.getParameterValue('budgetOverride') ?: false}
   "command": "$command"
 }"""
 }

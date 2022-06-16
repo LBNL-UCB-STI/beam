@@ -320,7 +320,7 @@ object ParkingZoneSearch {
       (
         publicFreeZones.view.flatMap { case (_, zones) =>
           val numToTake = Math.max(MathUtils.doubleToInt(zones.size * fraction), min)
-          MathUtils.selectRandomElements(zones, numToTake, rnd)
+          MathUtils.selectRandomConsecutiveElements(zones, numToTake, rnd)
         } ++
         reservedFreeZones.getOrElse(reservedFor, Nil)
       ).toIndexedSeq
