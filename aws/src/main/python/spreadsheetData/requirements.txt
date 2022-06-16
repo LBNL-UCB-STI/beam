@@ -1,3 +1,6 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:37dcc5b9796ca97a2bb15a94d094225c529528f4ae155018fa7b0a98c60f6254
-size 141
+boto3==1.9.134
+botocore==1.12.134
+google-api-python-client==1.7.11
+google-auth==1.6.3
+google-auth-httplib2==0.0.3
+google-auth-oauthlib==0.4.1
