@@ -327,7 +327,6 @@ def check_resource(bucket, key):
         return True
     except ClientError as clientError:
         print(f"error sending Slack response: {clientError}")
-        # print 'error sending Slack response: ' + str(ex)
     return False
 
 def check_branch(branch):
