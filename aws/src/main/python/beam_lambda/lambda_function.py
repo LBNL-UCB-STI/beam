@@ -173,6 +173,7 @@ runcmd:
   -            echo "Loading remote production data for $i"
   -            git config submodule.$i.branch $DATA_BRANCH
   -            git submodule update --init --remote $i
+  -            cd $i; git checkout $DATA_COMMIT; cd -
   -        esac
   -      done
   -  done
@@ -222,7 +223,7 @@ runcmd:
         \\"branch\\":\\"$BRANCH\\",
         \\"commit\\":\\"$COMMIT\\",
         \\"data_branch\\":\\"$DATA_BRANCH\\",
-        \\"data_branch\\":\\"$DATA_COMMIT\\",
+        \\"data_commit\\":\\"$DATA_COMMIT\\",
         \\"region\\":\\"$REGION\\",
         \\"batch\\":\\"$UID\\",
         \\"s3_link\\":\\"%s\\",
@@ -753,7 +754,7 @@ def deploy_handler(event, context):
                 .replace('$BRANCH', branch) \
                 .replace('$COMMIT', commit_id) \
                 .replace('$DATA_BRANCH', data_branch) \
-                .replace('$DATA_BRANCH', data_commit) \
+                .replace('$DATA_COMMIT', data_commit) \
                 .replace('$CONFIG', arg) \
                 .replace('$MAIN_CLASS', execute_class) \
                 .replace('$UID', uid) \
