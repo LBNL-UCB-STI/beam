@@ -196,6 +196,37 @@ object MathUtils {
     result
   }
 
+  def selectRandomConsecutiveElements[T: ClassTag](xs: Iterable[T], n: Int, random: Random): Iterable[T] = {
+    val size = xs.size
+    if (n >= size) xs
+    else {
+      val startIndex = random.nextInt(size)
+      val endIndex = startIndex + n
+      val result = Array.ofDim[T](n)
+      if (endIndex <= size) {
+        val slice = xs.iterator.drop(startIndex)
+        var i = 0
+        while (i < n) {
+          result(i) = slice.next()
+          i += 1
+        }
+      } else {
+        val takeRight = xs.iterator.drop(startIndex)
+        var i = 0
+        while (takeRight.hasNext) {
+          result(i) = takeRight.next()
+          i += 1
+        }
+        val take = xs.iterator
+        while (i < n) {
+          result(i) = take.next()
+          i += 1
+        }
+      }
+      result
+    }
+  }
+
   def selectElementsByProbability[T](
     rndSeed: Long,
     elementToProbability: T => Double,
