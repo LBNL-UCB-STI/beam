@@ -1,11 +1,15 @@
 # coding=utf-8
 import boto3
+import logging
 import time
 import uuid
 import os
 import glob
 import base64
 from botocore.errorfactory import ClientError
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 HELICS_RUN = '''sudo /home/ubuntu/install-and-run-helics-scripts.sh
   -    cd /home/ubuntu/git/beam
@@ -20,7 +24,7 @@ HELICS_OUTPUT_MOVE_TO_BEAM_OUTPUT = '''
   -         finalPath="$path2";
   -       done;
   -    done;
-  -    finalPath="${finalPath}/helics_output" 
+  -    finalPath="${finalPath}/helics_output"
   -    mkdir "$finalPath"
   -    sudo mv /home/ubuntu/git/beam/src/main/python/gemini/*.log "$finalPath"
   -    sudo mv /home/ubuntu/git/beam/src/main/python/gemini/recording_output.txt "$finalPath"
@@ -112,8 +116,10 @@ write_files:
             cd -
       path: /home/ubuntu/install-and-run-helics-scripts.sh
 
-    
 runcmd:
+  - cd /home/ubuntu/git
+  - sudo rm -rf beam
+  - sudo git clone https://github.com/LBNL-UCB-STI/beam.git
   - ln -sf /var/log/cloud-init-output.log /home/ubuntu/git/beam/cloud-init-output.log
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
@@ -152,12 +158,15 @@ runcmd:
   - crontab /tmp/slack_notification
   - crontab -l
   - echo "notification scheduled..."
-  - git fetch
-  - 'echo "git checkout: $(date)"'
+  - 'echo "sudo git fetch"'
+  - sudo git fetch
+  - 'echo "GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH $(date)"'
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
+  - 'echo "sudo git pull"'
   - sudo git pull
+  - 'echo "sudo git lfs pull"'
   - sudo git lfs pull
-  - echo "git checkout -qf ..."
+  - echo "sudo git checkout -qf ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
 
   - production_data_submodules=$(git submodule | awk '{ print $2 }')
@@ -176,6 +185,8 @@ runcmd:
 
   - 'echo "gradlew assemble: $(date)"'
   - ./gradlew assemble
+  - 'echo "sudo chown -R ubuntu:ubuntu ."'
+  - sudo chown -R ubuntu:ubuntu .
   - echo "looping config ..."
   - export MAXRAM=$MAX_RAM
   - export SIGOPT_CLIENT_ID="$SIGOPT_CLIENT_ID"
@@ -197,7 +208,8 @@ runcmd:
   - do
   -    export $metric=$count
   - done < RunHealthAnalysis.txt
-  
+
+  - curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
   - s3glip=""
   - if [ "$S3_PUBLISH" = "True" ]
   - then
@@ -233,7 +245,7 @@ runcmd:
         \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
       }
     }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "${s3p#","}")
-  - curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="$bye_msg" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"  
+  - /tmp/slack.sh "$bye_msg"
   - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$stop_json"
   - $END_SCRIPT
   - sudo shutdown -h +$SHUTDOWN_WAIT
@@ -295,11 +307,11 @@ regions = ['us-east-1', 'us-east-2', 'us-west-2']
 shutdown_behaviours = ['stop', 'terminate']
 instance_operations = ['start', 'stop', 'terminate']
 
-s3 = boto3.client('s3')
-ec2 = None
 max_system_ram = 15
 percent_towards_system_ram = .25
 
+s3 = boto3.client('s3')
+ec2 = None
 
 def init_ec2(region):
     global ec2
@@ -308,7 +320,6 @@ def init_ec2(region):
 def calculate_max_ram(instance_type):
     ram = instance_type_to_memory[instance_type]
     return ram - min(ram * percent_towards_system_ram, max_system_ram)
-
 
 def check_resource(bucket, key):
     try:
@@ -436,7 +447,7 @@ def get_spot_fleet_instances_based_on(min_cores, max_cores, min_memory, max_memo
         raise Exception('0 spot instances matched min_cores: ' + str(min_cores) + ' - max_cores: ' + str(max_cores) + 'and min_mem: ' + str(min_memory) + ' - max_mem: ' + str(max_memory) )
     return list(dict.fromkeys(output_instance_types))
 
-def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory):
+def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory, budget_override):
     security_group_id_array = (os.environ[region_prefix + 'SECURITY_GROUP']).split(',')
     security_group_ids = []
     for security_group_id in security_group_id_array:
@@ -474,6 +485,9 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
                         }, {
                             'Key': 'DeployType',
                             'Value': deploy_type_tag
+                        }, {
+                            'Key': 'BudgetOverride',
+                            'Value': budget_override
                         }
                     ]
                 }
@@ -577,7 +591,7 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
     print 'Spot instance ready to go!'
     return instance_id
 
-def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag):
+def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag, budget_override):
     res = ec2.run_instances(BlockDeviceMappings=[
         {
             'DeviceName': '/dev/sda1',
@@ -609,6 +623,9 @@ def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_na
                     },{
                         'Key': 'DeployType',
                         'Value': deploy_type_tag
+                    }, {
+                        'Key': 'BudgetOverride',
+                        'Value': budget_override
                     } ]
             } ])
     return res['Instances'][0]['InstanceId']
@@ -673,6 +690,7 @@ def deploy_handler(event, context):
     run_grafana = event.get('run_grafana', False)
     run_helics = event.get('run_helics', False)
     profiler_type = event.get('profiler_type', 'null')
+    budget_override = event.get('budget_override', False)
 
     git_user_email = get_param('git_user_email')
     deploy_type_tag = event.get('deploy_type_tag', '')
@@ -691,10 +709,6 @@ def deploy_handler(event, context):
     if not is_spot and instance_type not in instance_types:
         return "Unable to start run, {instance_type} instance type not supported.".format(instance_type=instance_type)
 
-    max_ram = event.get('forced_max_ram')
-    if parameter_wasnt_specified(max_ram):
-        max_ram = calculate_max_ram(instance_type)
-
     if shutdown_behaviour not in shutdown_behaviours:
         return "Unable to start run, {shutdown_behaviour} shutdown behaviour not supported.".format(shutdown_behaviour=shutdown_behaviour)
 
@@ -703,6 +717,10 @@ def deploy_handler(event, context):
 
     if volume_size < 64 or volume_size > 256:
         volume_size = 64
+
+    max_ram = event.get('forced_max_ram')
+    if parameter_wasnt_specified(max_ram):
+        max_ram = calculate_max_ram(instance_type)
 
     selected_script = CONFIG_SCRIPT
     if run_grafana:
@@ -742,21 +760,13 @@ def deploy_handler(event, context):
             runName = titled
             if len(params) > 1:
                 runName += "-" + `runNum`
-            script = initscript.replace('$RUN_SCRIPT',selected_script) \
-                .replace('$REGION',region) \
-                .replace('$S3_REGION', os.environ['REGION']) \
-                .replace('$BRANCH', branch) \
-                .replace('$DATA_BRANCH', data_branch) \
-                .replace('$COMMIT', commit_id) \
-                .replace('$CONFIG', arg) \
-                .replace('$MAIN_CLASS', execute_class) \
-                .replace('$UID', uid) \
-                .replace('$SHUTDOWN_WAIT', shutdown_wait) \
-                .replace('$TITLED', runName) \
+            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION', os.environ['REGION']) \
+                .replace('$BRANCH', branch).replace('$DATA_BRANCH', data_branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
+                .replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait) \
+                .replace('$TITLED', runName)\
                 .replace('$MAX_RAM', str(max_ram)) \
                 .replace('$S3_PUBLISH', str(s3_publish)) \
-                .replace('$SIGOPT_CLIENT_ID', sigopt_client_id) \
-                .replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
+                .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
                 .replace('$GOOGLE_API_KEY', google_api_key) \
                 .replace('$PROFILER', profiler_type) \
                 .replace('$END_SCRIPT', end_script) \
@@ -769,9 +779,9 @@ def deploy_handler(event, context):
                 max_cores = event.get('max_cores', 0)
                 min_memory = event.get('min_memory', 0)
                 max_memory = event.get('max_memory', 0)
-                instance_id = deploy_spot_fleet(context, script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory)
+                instance_id = deploy_spot_fleet(context, script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag, min_cores, max_cores, min_memory, max_memory, budget_override)
             else:
-                instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag)
+                instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag, budget_override)
             host = get_dns(instance_id)
             txt += 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
 
@@ -818,6 +828,8 @@ def instance_handler(event):
 
 def lambda_handler(event, context):
     command_id = event.get('command', 'deploy') # deploy | start | stop | terminate | log
+
+    logger.info("Incoming event: " + str(event))
 
     if command_id == 'deploy':
         return deploy_handler(event, context)

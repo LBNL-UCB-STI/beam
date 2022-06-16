@@ -573,4 +573,109 @@ Automatic Image (AMI) Update
 In Automated Cloud Deployment capability, there is a baseline image (AMI) that used to instantiate new EC2 instance. It contains copy of git repository and gradle dependency libraries. All of these are outdated in few days due to active development of BEAM. And when we start instance from an outdated image it take additional time to update them before starting the simulation/run. This process help Cloud Automatic Deployment to keep up to date image for fast execution.
 To trigger this update process a Cloud Watch Event is setup with one week frequency. This event triggers an AWS Lambda (named `updateDependencies`) and lambda then starts an instance from the outdated image with instructions to update the image with latest LFS files for pre configured branches (these branches are mentioned in its environment variables that we can configure easily without any change in lambda code). One LFS files and gradle dependencies are updated in the new instance, the instance invoke a new lambda (named `updateBeamAMI`) to take its new image. This new lambda creates an image of the instance, terminate the instance and update this new image id to Automated Cloud Deployment process for future use.
 
-This process is designed to get latest LFS files from different branches. To add a new branch or update existing one, an environment variable named `BRANCHES` need to update with space as branch name delimiter. 
+This process is designed to get latest LFS files from different branches. To add a new branch or update existing one, an environment variable named `BRANCHES` need to update with space as branch name delimiter.
+
+AWS Budget Control
+^^^^^^^^^^^^^^^^^^
+
+====
+Documentation of AWS budget management
+====
+There are a few levels of budget protection in place:
+
+1. Alert notifications are sent at 60%-150% of monthly spend (at 10% increments) via a `Billing Budget <https://us-east-1.console.aws.amazon.com/billing/home?region=us-east-1#/budgets/overview>`_ named ``Total Monthly Budget``
+    * An email per below:
+        * The email subject is ``AWS Budgets: Test budget has exceeded your alert threshold`` with more specific information in the body
+        * The original email list (the source of truth is in the budget):
+            * `Rashid Waraich <mailto:rwaraich@lbl.gov>`_
+            * `Justin Pihony <mailto:justin.pihony@gmail.com>`_
+            * `Zach Needell <mailto:zaneedell@lbl.gov>`_
+            * `Haitam Laarabi <haitam.laarabi@lbl.gov>`_
+            * `Nikolay Ilin <irishwithaxe@gmail.com>`_
+    * A slack notification per below:
+        * The message is headed as ``Alert triggered for 'Total Monthly Budget'``
+        * It is sent to the ``#aws-notifications`` using an ``@here`` notifier
+        * This is possible as the budget alerts to the SNS topic ``budget_notifier`` with a subscription to the lambda ``budget_notifier``
+2. For the below regions [1]_ the `Eventbridge <https://us-east-2.console.aws.amazon.com/events/home>`_ ``instance_state_change_notifier`` is triggered on instance state change, which forwards to the `Lambda <https://us-east-2.console.aws.amazon.com/lambda/home>`_ ``instance_monitor`` that follows the below rules:
+    * At 150% of budget spent then any new instances can **only** be successfully started if they add the tag ``BudgetOverride`` with the value ``True``.
+        * The tag can be added to the EC2 instance manually
+        * The tag can be added as part of the deploy command using the ``budgetOverride`` key
+        * **NOTE**: The tag will be removed upon successful start, so it will need set on each instance run
+    * At 300% of budget spent then all instances will automatically be stopped (unless it is the Jenkins instance)
+    * If an instance is stopped then a slack notification will be made, so that it can be addressed
+    * The regions for this setup are:
+        * ``us-east-1``
+        * ``us-east-2``
+        * ``us-west-1``
+        * ``us-west-2``
+        * Eventbridge pattern::
+
+            {
+              "source": ["aws.ec2"],
+              "detail-type": ["EC2 Instance State-change Notification"]
+              "detail": {
+                "state": ["running"]
+              }
+            }
+
+        * Eventbridge transformer input path::
+
+            {
+              "account-id": "$.account",
+              "instance-id": "$.detail.instance-id",
+              "region": "$.region",
+              "state": "$.detail.state"
+            }
+
+        * Eventbridge template::
+
+            {
+              "instance-id": <instance-id>,
+              "state": <state>,
+              "region": <region>,
+              "account-id": <account-id>
+            }
+3. For the below regions the `Eventbridge <https://us-east-2.console.aws.amazon.com/events/home>`_ ``instance_state_change_notifier`` is triggered on instance state change, which forwards to the `Lambda <https://us-east-2.console.aws.amazon.com/lambda/home>`_ ``instance_blocker`` that follows the below rules:
+        * Automatically **terminate** any instance since these are regions not utilized by BEAM.
+        * Notify slack (on ``terminated`` state change) that an instance was attempted on an unexpected zone.
+        * The regions for this setup are:
+           * ``sa-east-1``
+           * ``eu-north-1``
+           * ``eu-west-3``
+           * ``eu-west-2``
+           * ``eu-west-1``
+           * ``eu-central-1``
+           * ``ca-central-1``
+           * ``ap-northeast-1``
+           * ``ap-southeast-2``
+           * ``ap-southeast-1``
+           * ``ap-northeast-2``
+           * ``ap-northeast-3``
+           * ``ap-south-1``
+        * **NOTE**: Regions ``me-south-1``, ``eu-south-1``, ``af-south-1``, ``ap-east-1``, and ``ap-southeast-3`` are currently not enabled, so no need to block
+        * Eventbridge pattern::
+
+            {
+              "source": ["aws.ec2"],
+              "detail-type": ["EC2 Instance State-change Notification"]
+            }
+
+        * Eventbridge transformer input path::
+
+            {
+              "account-id": "$.account",
+              "instance-id": "$.detail.instance-id",
+              "region": "$.region",
+              "state": "$.detail.state"
+            }
+
+        * Eventbridge template::
+
+            {
+              "instance-id": <instance-id>,
+              "state": <state>,
+              "region": <region>,
+              "account-id": <account-id>
+            }
+
+.. [1] **NOTE**: These AWS components are region specific, so they need to be duplicated across **EVERY** region to be fully effective. There are some possible workarounds (via Route53?), but this region specificity works in our favor currently. In this way we can totally shut down entire regions which are not in use.
