@@ -1,6 +1,4 @@
-package beam.router
-
-import java.time.{LocalDateTime, ZoneOffset}
+package scripts
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -8,6 +6,7 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{Location, RoutingRequest}
 import beam.router.Modes.BeamMode
 import beam.router.r5.{R5Parameters, R5Wrapper}
+import beam.router.{BeamRouter, FreeFlowTravelTime}
 import beam.sim.BeamHelper
 import beam.sim.common.GeoUtils
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
@@ -19,6 +18,7 @@ import com.conveyal.r5.streets.{RoutingVisitor, StreetRouter}
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.{Coord, Id}
 
+import java.time.{LocalDateTime, ZoneOffset}
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 

@@ -9,7 +9,7 @@ import beam.router.BeamRouter.RoutingRequest
 import beam.router.{BeamRouter, FreeFlowTravelTime}
 import beam.router.Modes.BeamMode.{DRIVE_TRANSIT, WALK_TRANSIT}
 import beam.router.Modes.{toR5StreetMode, BeamMode}
-import beam.router.R5Requester.prepareConfig
+import scripts.R5Requester.prepareConfig
 import beam.router.r5.{R5Parameters, R5Wrapper}
 import beam.sim.common.GeoUtils
 import beam.utils.{NetworkHelperImpl, ParquetReader}

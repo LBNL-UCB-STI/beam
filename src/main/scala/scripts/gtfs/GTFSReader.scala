@@ -1,10 +1,10 @@
-package beam.utils.gtfs
+package scripts.gtfs
 
 import java.io.{Closeable, InputStream}
 import java.util.zip.ZipFile
 
 import beam.utils.csv.GenericCsvReader
-import beam.utils.gtfs.Model._
+import scripts.gtfs.Model._
 import com.typesafe.scalalogging.LazyLogging
 
 import scala.reflect.ClassTag

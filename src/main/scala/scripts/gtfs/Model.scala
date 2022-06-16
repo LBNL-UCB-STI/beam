@@ -1,4 +1,4 @@
-package beam.utils.gtfs
+package scripts.gtfs
 
 import java.util
 

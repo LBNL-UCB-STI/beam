@@ -1,11 +1,11 @@
-package beam.utils.gtfs
+package scripts.gtfs
 
 import java.io.{File, IOException}
 import java.util.zip.ZipFile
 
 import beam.agentsim.infrastructure.geozone.WgsCoordinate
 import beam.utils.csv.CsvWriter
-import beam.utils.gtfs.Model._
+import scripts.gtfs.Model._
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.gis.{PointFeatureFactory, ShapeFileWriter}

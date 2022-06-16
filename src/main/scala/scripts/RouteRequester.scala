@@ -1,4 +1,4 @@
-package beam.utils
+package scripts
 
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -13,7 +13,7 @@ import beam.router.skim.urbansim.ODRouterR5GHForActivitySimSkims
 import beam.sim.BeamHelper
 import beam.sim.config.BeamConfig
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
-import beam.utils.gtfs.GTFSToShape
+import scripts.gtfs.GTFSToShape
 import com.conveyal.osmlib.OSM
 import com.typesafe.config.Config
 import org.matsim.api.core.v01.{Coord, Id}
