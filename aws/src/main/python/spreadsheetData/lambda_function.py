@@ -12,6 +12,7 @@ from google.oauth2 import service_account
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from botocore.errorfactory import ClientError
+import urllib.parse
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/spreadsheets']
@@ -462,7 +463,7 @@ def load_service_creds():
         auth_uri = "https://accounts.google.com/o/oauth2/auth",
         token_uri = "https://oauth2.googleapis.com/token",
         auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs",
-        client_x509_cert_url = os.environ["client_x509_cert_url"]
+        client_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/" + urllib.parse.quote(os.environ["client_email"])
     )
     creds = service_account.Credentials.from_service_account_info(creds_data, scopes=SCOPES)
     return creds
