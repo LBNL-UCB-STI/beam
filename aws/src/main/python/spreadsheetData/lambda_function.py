@@ -256,7 +256,7 @@ def apply_beam_formatting(sheet_api, sheet_id):
     header = {
         'values': [
             ["Status", "Run Name", "Instance ID", "Instance type", "Time", "Host name", "Web browser", "Region",
-             "Batch", "Branch", "Data Branch", "Commit", "S3 Url", "Config File"]
+             "Batch", "Branch", "Commit", "Data Branch", "Data Commit", "S3 Url", "Config File"]
         ]
     }
     sheet_api.values().append(
@@ -357,8 +357,9 @@ def add_beam_row(sheet_id, row_data, sheet_api):
                 row_data.pop('region'),
                 row_data.pop('batch'),
                 row_data.pop('branch'),
-                row_data.pop('data_branch'),
                 row_data.pop('commit'),
+                row_data.pop('data_branch'),
+                row_data.pop('data_commit'),
                 row_data.pop('s3_link', ''),
                 row_data.pop('config_file', ''),
                 row_data.pop('max_ram', ''),
@@ -391,8 +392,9 @@ def add_pilates_row(sheet_id, row_data, sheet_api):
                 row_data.pop('instance_region'),
                 row_data.pop('data_region'),
                 row_data.pop('branch'),
-                row_data.pop('data_branch'),
                 row_data.pop('commit'),
+                row_data.pop('data_branch'),
+                row_data.pop('data_commit'),
                 row_data.pop('s3_URL'),
                 row_data.pop('s3_path', ''),
                 row_data.pop('title', ''),
@@ -451,16 +453,16 @@ def load_creds():
 
 def load_service_creds():
     creds_data = dict(
-        "type" = "service_account",
-        "project_id" = os.environ["project_id"],
-        "private_key_id" = os.environ["private_key_id"],
-        "private_key" = os.environ["private_key"],
-        "client_email" = os.environ["client_email"],
-        "client_id" = os.environ["client_id"],
-        "auth_uri" = "https://accounts.google.com/o/oauth2/auth",
-        "token_uri" = "https://oauth2.googleapis.com/token",
-        "auth_provider_x509_cert_url" = "https://www.googleapis.com/oauth2/v1/certs",
-        "client_x509_cert_url" = os.environ["client_x509_cert_url"]
+        type = "service_account",
+        project_id = os.environ["project_id"],
+        private_key_id = os.environ["private_key_id"],
+        private_key = os.environ["private_key"].replace('\\n', '\n'),
+        client_email = os.environ["client_email"],
+        client_id = os.environ["client_id"],
+        auth_uri = "https://accounts.google.com/o/oauth2/auth",
+        token_uri = "https://oauth2.googleapis.com/token",
+        auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs",
+        client_x509_cert_url = os.environ["client_x509_cert_url"]
     )
     creds = service_account.Credentials.from_service_account_info(creds_data, scopes=SCOPES)
     return creds

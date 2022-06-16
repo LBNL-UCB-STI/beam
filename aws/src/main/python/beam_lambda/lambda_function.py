@@ -63,6 +63,8 @@ BRANCH_DEFAULT = 'master'
 
 DATA_BRANCH_DEFAULT = 'develop'
 
+DATA_COMMIT_DEFAULT = 'HEAD'
+
 COMMIT_DEFAULT = 'HEAD'
 
 MAXRAM_DEFAULT = '2g'
@@ -132,10 +134,11 @@ runcmd:
         \\"host_name\\":\\"%s\\",
         \\"browser\\":\\"http://%s:8000\\",
         \\"branch\\":\\"$BRANCH\\",
+        \\"commit\\":\\"$COMMIT\\",
         \\"data_branch\\":\\"$DATA_BRANCH\\",
+        \\"data_commit\\":\\"$DATA_COMMIT\\",
         \\"region\\":\\"$REGION\\",
         \\"batch\\":\\"$UID\\",
-        \\"commit\\":\\"$COMMIT\\",
         \\"s3_link\\":\\"%s\\",
         \\"max_ram\\":\\"$MAX_RAM\\",
         \\"profiler_type\\":\\"$PROFILER\\",
@@ -217,10 +220,11 @@ runcmd:
         \\"host_name\\":\\"%s\\",
         \\"browser\\":\\"http://%s:8000\\",
         \\"branch\\":\\"$BRANCH\\",
+        \\"commit\\":\\"$COMMIT\\",
         \\"data_branch\\":\\"$DATA_BRANCH\\",
+        \\"data_branch\\":\\"$DATA_COMMIT\\",
         \\"region\\":\\"$REGION\\",
         \\"batch\\":\\"$UID\\",
-        \\"commit\\":\\"$COMMIT\\",
         \\"s3_link\\":\\"%s\\",
         \\"max_ram\\":\\"$MAX_RAM\\",
         \\"profiler_type\\":\\"$PROFILER\\",
@@ -655,8 +659,9 @@ def deploy_handler(event, context):
         return param_value
 
     branch = event.get('branch', BRANCH_DEFAULT)
-    data_branch = event.get('data_branch', DATA_BRANCH_DEFAULT)
     commit_id = event.get('commit', COMMIT_DEFAULT)
+    data_branch = event.get('data_branch', DATA_BRANCH_DEFAULT)
+    data_commit = event.get('data_commit', DATA_COMMIT_DEFAULT)
     deploy_mode = event.get('deploy_mode', 'config')
     configs = event.get('configs', CONFIG_DEFAULT)
     experiments = event.get('experiments', EXPERIMENT_DEFAULT)
@@ -746,8 +751,9 @@ def deploy_handler(event, context):
                 .replace('$REGION',region) \
                 .replace('$S3_REGION', os.environ['REGION']) \
                 .replace('$BRANCH', branch) \
-                .replace('$DATA_BRANCH', data_branch) \
                 .replace('$COMMIT', commit_id) \
+                .replace('$DATA_BRANCH', data_branch) \
+                .replace('$DATA_BRANCH', data_commit) \
                 .replace('$CONFIG', arg) \
                 .replace('$MAIN_CLASS', execute_class) \
                 .replace('$UID', uid) \
