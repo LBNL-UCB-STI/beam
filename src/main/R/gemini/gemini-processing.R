@@ -20,40 +20,6 @@ oaklandMap <- ggmap::get_googlemap("oakland california", zoom = 13, maptype = "r
 shpFile <- pp(workDir, "/shapefile/Oakland+Alameda+TAZ/Transportation_Analysis_Zones.shp")
 oaklandCbg <- st_read(shpFile)
 
-infra5aBase <- readCsv(pp(workDir, "/2022-04-28/_models/infrastructure/4a_output_2022_Apr_13_pubClust_withFees_aggregated.csv"))
-infra5bBase <- readCsv(pp(workDir, "/2022-04-28/_models/infrastructure/6_output_2022_Apr_13_pubClust_withFees.csv.gz"))
-infra5bBase[startsWith(reservedFor,"household")]$reservedFor <- "Any"
-infra5bBase_NH <- infra5bBase[
-  ,.(parkingZoneId=first(parkingZoneId),feeInCents=mean(feeInCents),numStalls=sum(numStalls))
-  ,b=.(taz,parkingType,chargingPointType,X,Y,reservedFor,pricingModel)]
-write.csv(
-  infra5bBase_NH,
-  file = pp(workDir, "/2022-04-28/_models/infrastructure/6_output_2022_Apr_13_pubClust_withFees_noHousehold.csv"),
-  row.names=FALSE,
-  quote=FALSE)
-
-vehicles1 <- readCsv(pp(workDir, "/vehicles.4Base.csv"))
-vehicles1$stateOfCharge <- as.double(vehicles1$stateOfCharge)
-vehicles1[is.na(stateOfCharge)]$stateOfCharge <- 1.0
-vehicles1[is.infinite(stateOfCharge)]$stateOfCharge <- 1.0
-
-vehicles2 <- readCsv(pp(workDir, "/2.final_vehicles.5bBase.csv"))
-vehicles2$stateOfCharge <- as.double(vehicles2$stateOfCharge)
-vehicles2[is.na(stateOfCharge)]$stateOfCharge <- 0.5
-vehicles2[is.infinite(stateOfCharge)]$stateOfCharge <- 0.5
-vehicles2$stateOfCharge <- abs(vehicles2$stateOfCharge)
-vehicles2[stateOfCharge < 0.2]$stateOfCharge <- 0.2
-vehicles2[stateOfCharge > 1]$stateOfCharge <- 1.0
-
-vehicles3 <- rbind(vehicles1, vehicles2)[
-  ,.(stateOfCharge=min(stateOfCharge))
-  ,by=.(vehicleId,vehicleTypeId,householdId)]
-
-write.csv(
-  vehicles3,
-  file = pp(workDir, "/new.vehicles.5bBase.csv"),
-  row.names=FALSE,
-  quote=FALSE)
 
 ###
 #eventsraw <- readCsv(pp(workDir, "/0.events.csv.gz"))
