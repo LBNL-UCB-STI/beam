@@ -325,8 +325,8 @@ def check_resource(bucket, key):
     try:
         s3.head_object(Bucket=bucket, Key=key)
         return True
-    except ClientError as ex:
-        print 'error sending Slack response: ' + str(ex)
+    except ClientError as clientError:
+        print(f"error sending Slack response: {clientError}")
     return False
 
 def check_branch(branch):
@@ -442,7 +442,7 @@ def get_spot_fleet_instances_based_on(min_cores, max_cores, min_memory, max_memo
         if preferred_instance_type:
             output_instance_types.append(preferred_instance_type)
     except NameError:
-        print 'No preferred spot instance type provided'
+        print('No preferred spot instance type provided')
     if not output_instance_types:
         raise Exception('0 spot instances matched min_cores: ' + str(min_cores) + ' - max_cores: ' + str(max_cores) + 'and min_mem: ' + str(min_memory) + ' - max_mem: ' + str(max_memory) )
     return list(dict.fromkeys(output_instance_types))
@@ -507,18 +507,18 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
     status = 'pending_fulfillment'
     state = 'submitted'
     spot_fleet_req_id = spot_fleet_req.get('SpotFleetRequestId')
-    print 'SpotFleetRequestId is ' + spot_fleet_req_id
+    print('SpotFleetRequestId is ' + spot_fleet_req_id)
     #Flow as far as I know is that state goes to submitted, then active, but isn't done until status is out of pending_fulfillment
     while status == 'pending_fulfillment' or state == 'submitted':
         remaining_time = context.get_remaining_time_in_millis()
-        print 'Waiting for spot fleet request id to finish pending_fulfillment - Status: ' + status + ' and State: ' + state + ' and Remaining Time (ms): ' + str(remaining_time)
+        print('Waiting for spot fleet request id to finish pending_fulfillment - Status: ' + status + ' and State: ' + state + ' and Remaining Time (ms): ' + str(remaining_time))
         if remaining_time <= 60000:
             ec2.cancel_spot_fleet_requests(
                 DryRun=False,
                 SpotFleetRequestIds=[spot_fleet_req_id],
                 TerminateInstances=True
             )
-            print 'Waiting 30 seconds to let spot fleet cancel and then shutting down due to getting too close to lambda timeout'
+            print('Waiting 30 seconds to let spot fleet cancel and then shutting down due to getting too close to lambda timeout')
             time.sleep(30)
             exit(123)
         else:
@@ -533,10 +533,10 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
             TerminateInstances=True
         )
         #TODO: This situation should be ?IMPOSSIBLE? but if it does occur then it could orphan a volume - not worth it unless it becomes an issue
-        print 'Waiting 30 seconds to let spot fleet cancel and then shutting down due to reaching this point and the state is ' + state + ' and status is ' + status + ' - maybe double check for orphaned volume?'
+        print('Waiting 30 seconds to let spot fleet cancel and then shutting down due to reaching this point and the state is ' + state + ' and status is ' + status + ' - maybe double check for orphaned volume?')
         time.sleep(30)
         exit(1)
-    print 'Getting spot fleet instances'
+    print('Getting spot fleet instances')
     fleet_instances = ec2.describe_spot_fleet_instances(SpotFleetRequestId=spot_fleet_req_id)
     fleet_instance = fleet_instances.get('ActiveInstances')[0] #TODO: Check if InstanceHealth is healthy vs unhealthy?
     bd_count = 0
@@ -546,7 +546,7 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
         bd_count = len(instance.get('BlockDeviceMappings'))
         if bd_count < 1:
             remaining_time = context.get_remaining_time_in_millis()
-            print 'Spot request state now ' + state + ' and status ' + status + ' so getting instance using ' + instance_id + ' and Remaining Time (ms): ' + str(remaining_time)
+            print('Spot request state now ' + state + ' and status ' + status + ' so getting instance using ' + instance_id + ' and Remaining Time (ms): ' + str(remaining_time))
             if remaining_time <= 60000:
                 ec2.cancel_spot_fleet_requests(
                     DryRun=False,
@@ -554,13 +554,13 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
                     TerminateInstances=True
                 )
                 #TODO: Since there is no block device yet then we cannot terminate that instance - this COULD result in orphaned volumes - but they would be named at least...handle with a cloud watch if it becomes an issue
-                print 'Waiting 30 seconds to let spot fleet cancel and then shutting down due to getting too close to lambda timeout'
+                print('Waiting 30 seconds to let spot fleet cancel and then shutting down due to getting too close to lambda timeout')
                 time.sleep(30)
                 exit(123)
             else:
-                print 'Sleeping 30 seconds to let instance volumes spin up (most likely this will never occur)'
+                print('Sleeping 30 seconds to let instance volumes spin up (most likely this will never occur)')
                 time.sleep(30)
-    print 'Instance up with block device ready'
+    print('Instance up with block device ready')
     volume_id = instance.get('BlockDeviceMappings')[0].get('Ebs').get('VolumeId')
     ec2.create_tags(
         Resources=[volume_id],
@@ -575,20 +575,20 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
                 'Key': 'DeployType',
                 'Value': deploy_type_tag
             }])
-    print 'Created tags on volume'
+    print('Created tags on volume')
     while instance.get('State') == 'pending':
         instance = ec2.describe_instances(InstanceIds=[instance_id]).get('Reservations')[0].get('Instances')[0]
         state = instance.get('State')
         if state == 'pending':
             remaining_time = context.get_remaining_time_in_millis()
-            print 'Spot instance state now ' + state + ' and instance id is ' + instance_id + ' and Remaining Time (ms): ' + str(remaining_time)
+            print('Spot instance state now ' + state + ' and instance id is ' + instance_id + ' and Remaining Time (ms): ' + str(remaining_time))
             if remaining_time <= 45000:
-                print 'Returning the instance id because about to timeout and the instance is spinning up - just not fully - no need to cancel'
+                print('Returning the instance id because about to timeout and the instance is spinning up - just not fully - no need to cancel')
                 return instance_id
             else:
-                print 'Waiting for instance to leave pending'
+                print('Waiting for instance to leave pending')
                 time.sleep(30)
-    print 'Spot instance ready to go!'
+    print('Spot instance ready to go!')
     return instance_id
 
 def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag, budget_override):
@@ -625,7 +625,7 @@ def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_na
                         'Value': deploy_type_tag
                     }, {
                         'Key': 'BudgetOverride',
-                        'Value': budget_override
+                        'Value': str(budget_override)
                     } ]
             } ])
     return res['Instances'][0]['InstanceId']
@@ -759,7 +759,7 @@ def deploy_handler(event, context):
             uid = str(uuid.uuid4())[:8]
             runName = titled
             if len(params) > 1:
-                runName += "-" + `runNum`
+                runName += "-" + str(runNum)
             script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION', os.environ['REGION']) \
                 .replace('$BRANCH', branch).replace('$DATA_BRANCH', data_branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
                 .replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait) \
