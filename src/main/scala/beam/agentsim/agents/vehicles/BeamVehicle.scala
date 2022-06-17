@@ -405,7 +405,6 @@ class BeamVehicle(
     StreetVehicle(id, beamVehicleType.id, spaceTime, mode, asDriver = true, needsToCalculateCost = needsToCalculateCost)
   }
 
-
   def isCAV: Boolean = beamVehicleType.automationLevel >= 4
 
   def isBEV: Boolean =
