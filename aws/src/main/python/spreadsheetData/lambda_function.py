@@ -360,7 +360,7 @@ def add_beam_row(sheet_id, row_data, sheet_api):
                 row_data.pop('branch'),
                 row_data.pop('commit'),
                 row_data.pop('data_branch'),
-                row_data.pop('data_commit'),
+                row_data.pop('data_commit', ''),
                 row_data.pop('s3_link', ''),
                 row_data.pop('config_file', ''),
                 row_data.pop('max_ram', ''),
