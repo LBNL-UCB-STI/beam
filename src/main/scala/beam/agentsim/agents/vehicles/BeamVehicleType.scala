@@ -31,6 +31,7 @@ case class BeamVehicleType(
   chargingCapability: Option[ChargingPointType] = None,
   payloadCapacityInKg: Option[Double] = None
 ) {
+  def isSharedVehicle: Boolean = id.toString.startsWith("sharedVehicle")
 
   def isCaccEnabled: Boolean = {
     automationLevel >= 3
