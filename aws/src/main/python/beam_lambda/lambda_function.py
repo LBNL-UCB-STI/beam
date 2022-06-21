@@ -99,6 +99,8 @@ write_files:
       path: /tmp/slack_notification
     - content: |
             #!/bin/bash
+            pip install setuptools
+            pip install strip-hints
             pip install helics==2.7.1
             pip install helics-apps==2.7.1
             cd /home/ubuntu/git/beam/src/main/python
