@@ -1,18 +1,21 @@
 package beam.physsim.jdeqsim
 
-import java.io.{Closeable, File}
-import java.nio.charset.StandardCharsets
-import java.nio.file.Files
-
+import akka.actor.ActorSystem
 import beam.agentsim.events.PathTraversalEvent
+import beam.router.BeamRouter
+import beam.router.r5.DefaultNetworkCoordinator
+import beam.sim.common.GeoUtilsImpl
 import beam.sim.{BeamConfigChangesObservable, BeamHelper}
-import beam.utils.{BeamConfigUtils, EventReader}
+import beam.utils.{BeamConfigUtils, EventReader, NetworkHelperImpl}
 import com.typesafe.config.{Config, ConfigFactory, ConfigResolveOptions, ConfigValueFactory}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.events.EventsManagerImpl
 
+import java.io.{Closeable, File}
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
 import scala.io.Source
 import scala.util.Try
 
@@ -24,27 +27,49 @@ object PhysSimReplayer extends StrictLogging {
 
   def main(args: Array[String]): Unit = {
     assert(
-      args.length == 3,
-      "Expected two args: first arg is the to beam.conf, second args is the path to warmstart zip archive, thirt arg is the path to events file"
+      args.length == 2,
+      "Expected two args: first arg is the path to beam.conf, second arg is the path to the events file"
     )
     val pathToBeamConfig: String = args(0)
     val rootFile = new File(pathToBeamConfig).getParentFile
     assert(rootFile.exists(), s"Folder $rootFile should exist")
-
     // This is lazy, it just creates an iterator
-    val (ptes: Iterator[PathTraversalEvent], closable: Closeable) = {
-      val (e, c) = EventReader.fromCsvFile(args(2), eventsFilter)
+    val (ptes: Iterator[PathTraversalEvent], closePathTraversalEventFile: Closeable) = {
+      val (e, c) = EventReader.fromCsvFile(args(1), eventsFilter)
       (e.map(PathTraversalEvent.apply), c)
     }
+    val eventsManager = new EventsManagerImpl
 
     try {
-      val beamTypesafeConfig = readBeamConfig(pathToBeamConfig, args(1))
+      val beamTypesafeConfig: Config = ConfigFactory
+        .parseString(s"")
+        .withFallback(BeamConfigUtils.parseFileSubstitutingInputDirectory(args(0)))
+        .withFallback(ConfigFactory.parseString("config=" + args(0)))
+        .resolve()
 
       val beamHelper = new BeamHelper {}
       val (execCfg, matsimScenario, beamScenario, beamSvc, _) = beamHelper.prepareBeamService(beamTypesafeConfig, None)
       logger.info("BeamService is prepared")
 
-      val eventsManager = new EventsManagerImpl
+      val actorSystem: ActorSystem = ActorSystem("PhysSimReplayer", beamTypesafeConfig)
+      val networkCoordinator = DefaultNetworkCoordinator(execCfg.beamConfig)
+      networkCoordinator.loadNetwork()
+      networkCoordinator.convertFrequenciesToTrips()
+      val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
+      beamSvc.beamRouter = actorSystem.actorOf(
+        BeamRouter.props(
+          beamScenario,
+          beamScenario.transportNetwork,
+          beamScenario.network,
+          networkHelper,
+          new GeoUtilsImpl(execCfg.beamConfig),
+          beamSvc.fareCalculator,
+          beamSvc.tollCalculator,
+          eventsManager = eventsManager,
+          beamSvc.matsimServices.getControlerIO
+        )
+      )
+
       val agentSimToPhysSimPlanConverter = new AgentSimToPhysSimPlanConverter(
         eventsManager,
         beamScenario.transportNetwork,
@@ -66,9 +91,8 @@ object PhysSimReplayer extends StrictLogging {
       // Create iteration folder because it is needed inside!
       new File(beamSvc.matsimServices.getControlerIO.getIterationPath(0)).mkdirs()
       agentSimToPhysSimPlanConverter.startPhysSim(new IterationEndsEvent(beamSvc.matsimServices, 0), null)
-
     } finally {
-      Try(closable.close())
+      Try(closePathTraversalEventFile.close())
     }
   }
 
