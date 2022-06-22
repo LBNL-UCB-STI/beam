@@ -15,3 +15,5 @@ Resources:
       Environment:
         Variables:
           SLACK_HOOK: SENSITIVE_SO_REDACTED
+          EXCLUDED_INSTANCES: '[''i-0d7356ff7f3927e69'',''i-0b31829f99cc9a7ce'',''i-01dda95dee4c4714f'']'
+          MONITORED_REGIONS: '[''us-east-1'',''us-east-2'',''us-west-1'',''us-west-2'']'
