@@ -97,7 +97,7 @@ def convert_to_ec2_instance_from(response_instance, region):
         for tag in tags:
             if tag['Key'] == 'GitUserEmail':
                 email = tag['Value']
-            elif tag['Key'] == 'BudgetOverride'
+            elif tag['Key'] == 'BudgetOverride':
                 is_budget_overrode = tag.get('Value').lower() == 'true'
 
     instance_id = safe_get(response_instance, 'InstanceId')
