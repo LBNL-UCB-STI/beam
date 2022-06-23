@@ -162,10 +162,6 @@ class UrbanSimScenarioSource(
   private def dropCorruptedPlanElements(rawPlans: Array[DataExchange.PlanElement]): Array[DataExchange.PlanElement] = {
     val correctPlanElements = rawPlans
       .groupBy(x => x.personId)
-      .filter { case (_, v) =>
-        val isCorrupted = v.exists(x => x.planElementIndex == 1 && x.endTime.isEmpty)
-        !isCorrupted
-      }
       .flatMap { case (_, v) => v.sortBy(x => x.planElementIndex) }
       .toArray
     correctPlanElements
