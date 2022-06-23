@@ -1155,7 +1155,7 @@ class PersonAgent(
         val (stateToGo, updatedData) = {
           if (needEnroute) {
             (ReadyToChooseParking, tempData.copy(enrouteData = tempData.enrouteData.copy(isInEnrouteState = true)))
-          } else if (nextLeg.beamLeg.mode == CAR || vehicle.isSharedVehicle) {
+          } else if (nextLeg.beamLeg.mode == CAR || vehicle.beamVehicleType.isSharedVehicle) {
             sendCompletionNoticeAndScheduleStartLegTrigger()
             (ReleasingParkingSpot, tempData)
           } else {
