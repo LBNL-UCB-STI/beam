@@ -1,7 +1,7 @@
 package beam.sim
 
 import akka.actor.{Actor, ActorRef, Props}
-import beam.agentsim.events.PathTraversalEvent
+import beam.agentsim.events.{FleetStoredElectricityEvent, PathTraversalEvent}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.EventHandler
@@ -9,15 +9,18 @@ import org.matsim.core.events.handler.EventHandler
 /**
   * @author Dmitry Openkov
   */
-class DistributedEventManager(eventManager: EventsManager) extends Actor {
+class DistributedEventManager(physsimEventManager: EventsManager, regularEventManager: EventsManager) extends Actor {
 
-  override def receive: Receive = { case e: Event =>
-    eventManager.processEvent(e)
+  override def receive: Receive = {
+    case e: PathTraversalEvent => physsimEventManager.processEvent(e)
+    case e: Event              => regularEventManager.processEvent(e)
   }
 }
 
 object DistributedEventManager {
-  def props(eventManager: EventsManager): Props = Props(new DistributedEventManager(eventManager))
+
+  def props(eventManager: EventsManager, regularEventManager: EventsManager): Props =
+    Props(new DistributedEventManager(eventManager, regularEventManager))
 }
 
 /**
@@ -28,11 +31,11 @@ object DistributedEventManager {
 class DuplicatingEventManager(distributedEM: ActorRef, localEM: EventsManager) extends EventsManager {
 
   override def processEvent(event: Event): Unit = event match {
-    case pte: PathTraversalEvent =>
-      distributedEM ! pte
-      localEM.processEvent(pte)
-    case ev =>
-      localEM.processEvent(ev)
+    case _: PathTraversalEvent | _: FleetStoredElectricityEvent =>
+      distributedEM ! event
+      localEM.processEvent(event)
+    case _ =>
+      localEM.processEvent(event)
   }
 
   override def addHandler(handler: EventHandler): Unit = ???

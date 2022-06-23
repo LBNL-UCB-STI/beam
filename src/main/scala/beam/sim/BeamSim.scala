@@ -231,12 +231,12 @@ class BeamSim @Inject() (
 
     beamServices.clusterManager =
       if (beamServices.originalConfig.beam.cluster.enabled)
-        Some(BeamHelper.startClusterManagerSingleton(actorSystem))
+        Some(BeamHelper.startClusterManagerSingleton(actorSystem, beamServices.originalConfig.beam.cluster.totalParts))
       else
         None
     beamServices.distributedEventManager =
       if (beamServices.originalConfig.beam.cluster.clusterType.contains("master"))
-        Some(actorSystem.actorOf(DistributedEventManager.props(physsimEventManager)))
+        Some(actorSystem.actorOf(DistributedEventManager.props(physsimEventManager, eventsManager)))
       else None
 
     /*    if(null != beamServices.beamConfig.beam.agentsim.taz.file && !beamServices.beamConfig.beam.agentsim.taz.file.isEmpty)

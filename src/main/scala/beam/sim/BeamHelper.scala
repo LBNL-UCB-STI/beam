@@ -122,9 +122,9 @@ trait BeamHelper extends LazyLogging {
             if (parsedArgs.useCluster)
               Map(
                 "beam.cluster.clusterType"              -> parsedArgs.clusterType.get.toString,
+                "beam.cluster.partNumber"               -> parsedArgs.partNumber.getOrElse(0),
+                "beam.cluster.totalParts"               -> parsedArgs.totalParts.getOrElse(1),
                 "akka.cluster.roles"                    -> java.util.Arrays.asList(parsedArgs.clusterType.get.toString),
-                "akka.cluster.partNumber"               -> parsedArgs.partNumber.getOrElse(0),
-                "akka.cluster.totalParts"               -> parsedArgs.totalParts.getOrElse(1),
                 "akka.actor.provider"                   -> "akka.cluster.ClusterActorRefProvider",
                 "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.get,
                 "akka.remote.artery.canonical.port"     -> parsedArgs.nodePort.get,
@@ -554,7 +554,6 @@ trait BeamHelper extends LazyLogging {
       ),
       name = "statsServiceProxy"
     )
-    BeamHelper.startClusterManagerSingleton(system)
     val replayer = system.actorOf(DeadLetterReplayer.props())
     system.eventStream.subscribe(replayer, classOf[DeadLetter])
 
@@ -686,6 +685,20 @@ trait BeamHelper extends LazyLogging {
     outputDir: String,
     plansMerged: Boolean
   ): Unit = {
+    val idGenerators = Seq(
+      IdGeneratorImpl,
+      RideHailRequestIdGenerator,
+      ParkingManagerIdGenerator,
+      InterruptIdIdGenerator,
+      ReservationRequestIdGenerator,
+      VehicleIdGenerator
+    )
+    idGenerators.foreach(generator => {
+      val totalParts = beamServices.originalConfig.beam.cluster.totalParts
+      val partNumber = beamServices.originalConfig.beam.cluster.partNumber
+      val initialId = Int.MaxValue / totalParts * partNumber
+      generator.setInitialValue(initialId)
+    })
     if (!beamScenario.beamConfig.beam.agentsim.fractionOfPlansWithSingleActivity.equals(0d)) {
       applyFractionOfPlansWithSingleActivity(scenario, beamServices.beamConfig, scenario.getConfig)
     }
@@ -1069,10 +1082,10 @@ trait BeamHelper extends LazyLogging {
 
 object BeamHelper {
 
-  def startClusterManagerSingleton(system: ActorSystem): ActorRef = {
+  def startClusterManagerSingleton(system: ActorSystem, numWorkers: Int): ActorRef = {
     system.actorOf(
       ClusterSingletonManager.props(
-        singletonProps = SimulationClusterManager.props(1),
+        singletonProps = SimulationClusterManager.props(numWorkers),
         terminationMessage = PoisonPill,
         settings = ClusterSingletonManagerSettings(system)
       ),

@@ -19,11 +19,11 @@ object FleetStoredElectricityEvent {
   * @param storedElectricityInJoules Electrical energy stored in the fleet.
   * @param storageCapacityInJoules Capacity of the to store electrical energy.
   */
-class FleetStoredElectricityEvent(
+case class FleetStoredElectricityEvent(
   tick: Double,
-  val fleetId: FleetId,
-  val storedElectricityInJoules: Double,
-  val storageCapacityInJoules: Double
+  fleetId: FleetId,
+  storedElectricityInJoules: Double,
+  storageCapacityInJoules: Double
 ) extends Event(tick)
     with ScalaEvent {
 

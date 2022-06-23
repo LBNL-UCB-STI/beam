@@ -659,8 +659,8 @@ class WorkerIteration(beamServices: BeamServices) extends LoggingMessageActor wi
 
   private val localSimulationPart = context.actorOf(
     DistributedSimulationPart.props(
-      beamServices.beamConfig.beam.cluster.partNumber,
-      beamServices.beamConfig.beam.cluster.totalParts,
+      beamServices.originalConfig.beam.cluster.partNumber,
+      beamServices.originalConfig.beam.cluster.totalParts,
       beamServices
     ),
     "simulationPart"
@@ -669,7 +669,7 @@ class WorkerIteration(beamServices: BeamServices) extends LoggingMessageActor wi
 
   override def loggedReceive: Receive = { case "Run!" =>
     beamServices.clusterManager.get ! SimWorkerReady(
-      beamServices.beamConfig.beam.cluster.partNumber,
+      beamServices.originalConfig.beam.cluster.partNumber,
       localSimulationPart
     )
     context.become(interationStarted(sender()))
@@ -684,7 +684,7 @@ class WorkerIteration(beamServices: BeamServices) extends LoggingMessageActor wi
         log.info("Remaining: {}", context.children)
       }
     case EventBuilderActorCompleted =>
-      beamServices.clusterManager.get ! SimWorkerFinished(beamServices.beamConfig.beam.cluster.partNumber)
+      beamServices.clusterManager.get ! SimWorkerFinished(beamServices.originalConfig.beam.cluster.partNumber)
       runSender ! Success("Ran.")
       context.stop(self)
   }

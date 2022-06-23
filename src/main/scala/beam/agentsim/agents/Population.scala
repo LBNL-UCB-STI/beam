@@ -25,7 +25,7 @@ import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
 
 import java.util.concurrent.TimeUnit
-import scala.collection.JavaConverters
+import scala.collection.{mutable, JavaConverters}
 
 class Population(
   val scenario: Scenario,
@@ -53,6 +53,8 @@ class Population(
       case _: AssertionError => Stop
     }
 
+  val householdVehicleIds: mutable.Set[Id[BeamVehicle]] = mutable.Set.empty
+
   override def loggedReceive: PartialFunction[Any, Unit] = { case TriggerWithId(InitializeTrigger(_), triggerId) =>
     implicit val timeout: Timeout = Timeout(120, TimeUnit.SECONDS)
     sharedVehicleFleets.foreach(_ ! GetVehicleTypes(triggerId))
@@ -68,7 +70,7 @@ class Population(
   }
 
   def finishInitialization(triggerId: Long, vehicleTypes: Set[BeamVehicleType]): Receive = {
-    initHouseholds(vehicleTypes)
+    householdVehicleIds ++= initHouseholds(vehicleTypes)
     eventsManager.processEvent(createStoredElectricityEvent(0))
     scheduler ! CompletionNotice(triggerId, Vector())
     val awaitFinish: Receive = {
@@ -95,13 +97,13 @@ class Population(
     }
   }
 
-  private def initHouseholds(sharedVehicleTypes: Set[BeamVehicleType]): Unit = {
+  private def initHouseholds(sharedVehicleTypes: Set[BeamVehicleType]): Iterable[Id[BeamVehicle]] = {
     import collection.JavaConverters._
     val vehicleAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
     val partNumber = beamServices.originalConfig.beam.cluster.partNumber
     val totalParts = beamServices.originalConfig.beam.cluster.totalParts
     val households = scenario.getHouseholds.getHouseholds.values().asScala
-    SimulationClusterManager.getPart(households, partNumber, totalParts).foreach { household =>
+    val vehicleIds = SimulationClusterManager.getPart(households, partNumber, totalParts).flatMap { household =>
       //TODO a good example where projection should accompany the data
       if (
         scenario.getHouseholds.getHouseholdAttributes
@@ -165,12 +167,16 @@ class Population(
       )
       context.watch(householdActor)
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
+      householdVehicles.keys
     }
     log.info(s"Initialized ${scenario.getHouseholds.getHouseholds.size} households")
+    vehicleIds
   }
 
   private def createStoredElectricityEvent(tick: Int) = {
-    val (storedElectricityInJoules, storageCapacityInJoules) = beamServices.beamScenario.privateVehicles.values
+    val (storedElectricityInJoules, storageCapacityInJoules) = beamServices.beamScenario.privateVehicles
+      .filterKeys(householdVehicleIds)
+      .values
       .filter(_.beamVehicleType.primaryFuelType == Electricity)
       .foldLeft(0.0, 0.0) { case ((fuelLevel, fuelCapacity), vehicle) =>
         val primaryFuelCapacityInJoule = vehicle.beamVehicleType.primaryFuelCapacityInJoule

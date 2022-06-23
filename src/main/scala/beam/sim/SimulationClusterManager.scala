@@ -52,7 +52,7 @@ object SimulationClusterManager {
   case class SimWorkerReady(workerNumber: Int, simulationPart: ActorRef)
   case class SimWorkerFinished(workerNumber: Int)
 
-  def props(numNodes: Int): Props = Props(new SimulationClusterManager(numNodes))
+  def props(numWorkers: Int): Props = Props(new SimulationClusterManager(numWorkers))
 
   def splitIntoParts[A](xs: Iterable[A], n: Int): IndexedSeq[Iterable[A]] = {
     val (quot, rem) = (xs.size / n, xs.size % n)
