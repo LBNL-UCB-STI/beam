@@ -128,6 +128,10 @@ runcmd:
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
   - cd /home/ubuntu/git/beam
+  - if [ "$COMMIT" = "HEAD" ]
+  - then
+  -   COMMIT=$(git log -1 --pretty=format:%H)
+  - fi
   - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
   - hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
   - start_json=$(printf "{
