@@ -132,6 +132,39 @@ runcmd:
   - then
   -   COMMIT=$(git log -1 --pretty=format:%H)
   - fi
+
+ - 'echo "sudo git fetch"'
+  - sudo git fetch
+  - 'echo "GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH $(date)"'
+  - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
+  - 'echo "sudo git pull"'
+  - sudo git pull
+  - 'echo "sudo git lfs pull"'
+  - sudo git lfs pull
+  - echo "sudo git checkout -qf ..."
+  - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
+
+  - production_data_submodules=$(git submodule | awk '{ print $2 }')
+  - for i in $production_data_submodules
+  -  do
+  -    for cf in $CONFIG
+  -      do
+  -        case $cf in
+  -         '*$i*)'
+  -            echo "Loading remote production data for $i"
+  -            git config submodule.$i.branch $DATA_BRANCH
+  -            git submodule update --init --remote $i
+  -            cd $i
+  -            if [ "$DATA_COMMIT" = "HEAD" ]
+  -            then
+  -              DATA_COMMIT=$(git log -1 --pretty=format:%H)
+  -            fi
+  -            git checkout $DATA_COMMIT
+  -            cd -
+  -        esac
+  -      done
+  -  done
+
   - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
   - hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
   - start_json=$(printf "{
@@ -167,31 +200,6 @@ runcmd:
   - crontab /tmp/slack_notification
   - crontab -l
   - echo "notification scheduled..."
-  - 'echo "sudo git fetch"'
-  - sudo git fetch
-  - 'echo "GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH $(date)"'
-  - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
-  - 'echo "sudo git pull"'
-  - sudo git pull
-  - 'echo "sudo git lfs pull"'
-  - sudo git lfs pull
-  - echo "sudo git checkout -qf ..."
-  - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
-
-  - production_data_submodules=$(git submodule | awk '{ print $2 }')
-  - for i in $production_data_submodules
-  -  do
-  -    for cf in $CONFIG
-  -      do
-  -        case $cf in
-  -         '*$i*)'
-  -            echo "Loading remote production data for $i"
-  -            git config submodule.$i.branch $DATA_BRANCH
-  -            git submodule update --init --remote $i
-  -            cd $i; git checkout $DATA_COMMIT; cd -
-  -        esac
-  -      done
-  -  done
 
   - 'echo "gradlew assemble: $(date)"'
   - ./gradlew assemble
