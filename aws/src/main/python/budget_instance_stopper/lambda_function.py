@@ -6,6 +6,8 @@ import json
 import boto3
 import urllib.parse
 import http.client
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -21,30 +23,33 @@ class EC2Instance:
     def __str__(self):
         return 'InstanceId: ' + self.instance_id + '; LaunchTime: ' + str(self.launch_datetime) + '; OwnerEmail: ' + str(self.owner_email) + '; UserName: ' + str(self.username) + '; IsBudgetOverrode: ' + str(self.is_budget_overrode)
 
-def shutdown_all_except_necessary_and_using(to_not_keep_filter, budget_threshold):
-    regions = os.environ['MONITORED_REGIONS']
-    excluded_instances = os.environ['EXCLUDED_INSTANCES']
+def shutdown_all_except_necessary_with(to_not_keep_filter, budget_threshold):
+    regions = json.loads(os.environ['MONITORED_REGIONS'])
+    excluded_instances = json.loads(os.environ['EXCLUDED_INSTANCES'])
     excluded_instances_filter = lambda instance_details: instance_details.instance_id not in excluded_instances
     if to_not_keep_filter:
         logger.info("Shutting down all instances except necessary and budgeted override")
     else:
         logger.info("Shutting down all instances except necessary")
     for region in regions:
+        logger.info(f"Region {region}")
         ec2 = boto3.client('ec2', region_name=region)
         instances = get_running_instance_for(region, ec2)
         instances_to_stop = list(filter(excluded_instances_filter, filter(to_not_keep_filter, instances)))
         instance_ids_being_stopped = list(map(lambda instance_details: instance_details.instance_id, instances_to_stop))
-        logger.info(f"Stopping instances: {instance_ids_being_stopped}")
-        notify_on_slack_using(instance_ids_being_stopped)
-        stop(instance_ids_being_stopped, ec2)
+        if len(instance_ids_being_stopped) > 0:
+            notify_on_slack_using(instance_ids_being_stopped, budget_threshold, region)
+            stop(instance_ids_being_stopped, ec2)
+        else:
+            logger.info(f"No instances to be stopped in region {region}")
     return
 
 def stop(instance_ids_to_stop, ec2):
     logger.info(f"Stopping {instance_ids_to_stop}")
     ec2.stop_instances(InstanceIds=instance_ids_to_stop)
 
-def notify_on_slack_using(instance_ids_being_stopped, budget_threshold_passed):
-    slack_message = f"<!here> Budget threshold of {budget_threshold_passed}% passed, so stopping instance ID's: {instance_ids_being_stopped}"
+def notify_on_slack_using(instance_ids_being_stopped, budget_threshold_passed, region):
+    slack_message = f"<!here> Budget threshold of {str(budget_threshold_passed)}% passed, so, in region {region}, stopping instance ID's: {instance_ids_being_stopped}"
     headers = {'Content-type': 'application/json'}
     payload = {
         "blocks": [
@@ -89,9 +94,9 @@ def get_running_instance_for(region, ec2):
         return []
 
 def convert_to_ec2_instance_from(response_instance, region):
-    logger.info('Convert to EC2Instance from ' + str(response_instance))
+    # logger.info('Convert to EC2Instance from ' + str(response_instance))
     email = None
-    has_been_budget_overrode = False
+    is_budget_overrode = False
     tags = response_instance.get('Tags')
     if tags:
         for tag in tags:
@@ -107,7 +112,7 @@ def convert_to_ec2_instance_from(response_instance, region):
         cloudtrail = boto3.client('cloudtrail', region_name=region)
         today=datetime.now()
         responses = cloudtrail.lookup_events(LookupAttributes=[ { 'AttributeKey': 'ResourceName','AttributeValue': instance_id }],
-            StartTime=today - dateutil.relativedelta.relativedelta(months=1),
+            StartTime=today - relativedelta(months=1),
             EndTime=today
         )
         for event in responses['Events']:
@@ -124,6 +129,7 @@ def convert_to_float_from(budget_string):
     return float(cleaned_float_string)
 
 def lambda_handler(event, context):
+    logger.info(f"Received event: {event}")
     budget_message = json.loads(str(event.get('Records')[0]).replace("'",'"')).get('Sns').get('Message')
     budget_name = re.findall(".*Budget Name: (.*)", budget_message)[0]
     budget_limit_as_str = re.findall("Budgeted Amount: (.*)", budget_message)[0]
