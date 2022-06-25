@@ -14,6 +14,6 @@ Resources:
       Role: 'arn:aws:iam::340032650202:role/BeamLambdaExecution'
       Environment:
         Variables:
-          EXCLUDED_INSTANCES: '[''i-0d7356ff7f3927e69'',''i-0b31829f99cc9a7ce'',''i-01dda95dee4c4714f'']'
-          MONITORED_REGIONS: '[''us-east-1'',''us-east-2'',''us-west-1'',''us-west-2'']'
+          EXCLUDED_INSTANCES: '["i-0d7356ff7f3927e69","i-0b31829f99cc9a7ce","i-01dda95dee4c4714f"]'
+          MONITORED_REGIONS: '["us-east-1","us-east-2","us-west-1","us-west-2"]'
           SLACK_HOOK: SENSITIVE_SO_REDACTED
