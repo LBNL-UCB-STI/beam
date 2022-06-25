@@ -176,4 +176,78 @@ class WritePlansAndStopSimulationTest extends AnyFlatSpec with Matchers with Bea
 
   }
 
+  it should "Stop urbansim simulation, write empty plans." in {
+    val config = ConfigFactory
+      .parseString(s"""
+                      |beam.agentsim.simulationName = "beamville_terminated_with_secondary_activities_with_modes"
+                      |beam.output.writePlansAndStopSimulation = true
+                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = false
+                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims = false
+         """.stripMargin)
+      .withFallback(testConfig("test/input/beamville/beam-urbansimv2_home_activities_only.conf"))
+      .resolve()
+
+    val outputDirectory = runSimulationAndCatchException(config)
+    val plansPath = Paths.get(outputDirectory, "generatedPlans.csv.gz").toFile
+    val personPlanIndexMode = readLegsInfoFromPlans(plansPath.getPath)
+
+    personPlanIndexMode.size shouldBe 0
+  }
+
+  it should  "Stop urbansim simulation, write non-empty plans." in {
+    val config = ConfigFactory
+      .parseString(s"""
+                      |beam.agentsim.simulationName = "beamville_terminated_with_secondary_activities_with_modes"
+                      |beam.output.writePlansAndStopSimulation = true
+                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
+                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims = true
+         """.stripMargin)
+      .withFallback(testConfig("test/input/beamville/beam-urbansimv2_home_activities_only.conf"))
+      .resolve()
+
+    val outputDirectory = runSimulationAndCatchException(config)
+    val plansPath = Paths.get(outputDirectory, "generatedPlans.csv.gz").toFile
+    val personPlanIndexMode = readLegsInfoFromPlans(plansPath.getPath)
+
+    personPlanIndexMode.size should be > 0
+  }
+
+  it should "Stop beam simulation, write empty plans." in {
+    val config = ConfigFactory
+      .parseString(s"""
+                      |beam.agentsim.simulationName = "beamville_terminated_with_secondary_activities_with_modes"
+                      |beam.output.writePlansAndStopSimulation = true
+                      |beam.agentsim.agents.plans.inputPlansFilePath = "population-onlyHome.xml"
+                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = false
+                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims = false
+         """.stripMargin)
+      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .resolve()
+
+    val outputDirectory = runSimulationAndCatchException(config)
+    val plansPath = Paths.get(outputDirectory, "generatedPlans.csv.gz").toFile
+    val personPlanIndexMode = readLegsInfoFromPlans(plansPath.getPath)
+
+    personPlanIndexMode.size shouldBe 0
+  }
+
+  it should  "Stop beam simulation, write non-empty plans." in {
+    val config = ConfigFactory
+      .parseString(s"""
+                      |beam.agentsim.simulationName = "beamville_terminated_with_secondary_activities_with_modes"
+                      |beam.output.writePlansAndStopSimulation = true
+                      |beam.agentsim.agents.plans.inputPlansFilePath = "population-onlyHome.xml"
+                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
+                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims = true
+         """.stripMargin)
+      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .resolve()
+
+    val outputDirectory = runSimulationAndCatchException(config)
+    val plansPath = Paths.get(outputDirectory, "generatedPlans.csv.gz").toFile
+    val personPlanIndexMode = readLegsInfoFromPlans(plansPath.getPath)
+
+    personPlanIndexMode.size should be > 0
+  }
+
 }
