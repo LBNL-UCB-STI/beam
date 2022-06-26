@@ -61,6 +61,73 @@ ax.hist(hists, label=labels)
 ax.legend()
 
 
+# In[8]:
+
+
+columns = ["trip_id","person_id","PlanElementIndex","ActivityElement","trip_mode","ActivityType","x","y","departure_time"]
+plans_u = pd.read_csv("../../output/beamville_urbansim_plans.csv.gz")[columns]
+plans_u.head(3)
+
+
+# In[9]:
+
+
+plans = pd.read_csv("../../test/input/beamville/urbansim_v2/plans.csv.gz")[columns]
+plans.head(3)
+
+
+# In[10]:
+
+
+plans['trip_mode'].hist()
+
+
+# In[11]:
+
+
+plans_u['trip_mode'].hist()
+
+
+# In[48]:
+
+
+import pandas as pd
+import os
+
+base_folder = "../../output/beamville/"
+subfolders = [f.path for f in os.scandir(base_folder) if f.is_dir()]
+
+for beamville_run_full_path in subfolders:
+    print(beamville_run_full_path)
+    plans_it0 = pd.read_csv(f"{beamville_run_full_path}/ITERS/it.0/0.plans.csv.gz")
+    value_counts_series = plans_it0['legMode'].value_counts() # plans_it0[plans_it0['planSelected']==True]['legMode'].value_counts()
+    for (i,v) in value_counts_series.items():
+        print(i.ljust(25), v)
+    print()
+
+
+# In[47]:
+
+
+plans_it0.head(3)
+
+
+# In[39]:
+
+
+
+
+
+# In[1]:
+
+
+# either this:
+# ! pip install <package>
+
+# or that:
+# %pip install <package>
+
+
 # In[ ]:
 
 
