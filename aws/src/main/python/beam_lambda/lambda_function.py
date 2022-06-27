@@ -779,7 +779,7 @@ def deploy_handler(event, context):
             uid = str(uuid.uuid4())[:8]
             runName = titled
             if len(params) > 1:
-                runName += "-" + str(`runNum`)
+                runName += "-" + str(runNum)
             script = initscript.replace('$RUN_SCRIPT',selected_script) \
                 .replace('$REGION',region) \
                 .replace('$S3_REGION', os.environ['REGION']) \
