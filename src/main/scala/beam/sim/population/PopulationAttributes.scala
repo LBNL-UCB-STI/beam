@@ -72,11 +72,11 @@ case class AttributesOfIndividual(
             modeChoiceModel.situationMultipliers(beamMode),
             vehicleAutomationLevel,
             beamServices
-<<<<<<< HEAD
-          ) * getModeVotMultiplier(Option(beamMode), modeChoiceModel.modeMultipliers)
-=======
+//<<<<<<< HEAD
+//          ) * getModeVotMultiplier(Option(beamMode), modeChoiceModel.modeMultipliers)
+//=======
           ) * getModeVotMultiplier(Option(CAR), modeChoiceModel)
->>>>>>> origin/zn/more-bike-multipliers-epa
+//>>>>>>> origin/zn/more-bike-multipliers-epa
         }
       case _ =>
         getModeVotMultiplier(Option(beamMode), modeChoiceModel)
@@ -90,11 +90,11 @@ case class AttributesOfIndividual(
     modeChoiceModel: ModeChoiceMultinomialLogit,
     beamServices: BeamServices,
     destinationActivity: Option[Activity],
-<<<<<<< HEAD
-    transitCrowdingSkims: Option[TransitCrowdingSkims]
-=======
+//<<<<<<< HEAD
+    transitCrowdingSkims: Option[TransitCrowdingSkims],
+//=======
     originActivity: Option[Activity]
->>>>>>> origin/zn/more-bike-multipliers-epa
+//>>>>>>> origin/zn/more-bike-multipliers-epa
   ): Double = {
     //NOTE: This gives answers in hours
     embodiedBeamLeg.beamLeg.mode match {
@@ -114,10 +114,10 @@ case class AttributesOfIndividual(
             embodiedBeamLeg.isPooledTrip
           )
         )
-<<<<<<< HEAD
+//<<<<<<< HEAD
       case BUS | SUBWAY | RAIL | TRAM | FERRY | FUNICULAR | CABLE_CAR | GONDOLA | TRANSIT =>
         val uniqueModes = embodiedBeamTrip.beamLegs.map(_.mode).toSet
-        val modeMultiplier = getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel.modeMultipliers)
+        val modeMultiplier = getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel)
         val beamVehicleTypeId = TransitVehicleInitializer.transitModeToBeamVehicleType(embodiedBeamLeg.beamLeg.mode)
         val multiplier = if (uniqueModes == subwayTransit || uniqueModes == busTransit) {
           modeChoiceModel.transitVehicleTypeVOTMultipliers.getOrElse(beamVehicleTypeId, modeMultiplier)
@@ -137,12 +137,12 @@ case class AttributesOfIndividual(
             multiplier * durationInHours
         }
 
-=======
+//=======
       case BIKE =>
         val situation = getSituationForVOT(destinationActivity, originActivity)
         getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel, Some(situation)) *
         embodiedBeamLeg.beamLeg.duration / 3600
->>>>>>> origin/zn/more-bike-multipliers-epa
+//>>>>>>> origin/zn/more-bike-multipliers-epa
       case _ =>
         getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel) *
           embodiedBeamLeg.beamLeg.duration / 3600
