@@ -1,9 +1,5 @@
 package beam.agentsim.agents.choice.mode
 
-//<<<<<<< HEAD
-//=======
-import scala.collection.mutable.ListBuffer
-//>>>>>>> origin/zn/more-bike-multipliers-epa
 import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit._
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.{
@@ -230,11 +226,7 @@ class ModeChoiceMultinomialLogit(
       } else {
         1d
       }
-//<<<<<<< HEAD
       getGeneralizedTimeOfLeg(embodiedBeamTrip, x, attributesOfIndividual, destinationActivity, originActivity) * factor
-//=======
-//      getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity, originActivity) * factor
-//>>>>>>> origin/zn/more-bike-multipliers-epa
     }.sum + getGeneralizedTime(waitingTime, None, None)
   }
 
@@ -253,11 +245,8 @@ class ModeChoiceMultinomialLogit(
           this,
           beamServices,
           destinationActivity,
-//<<<<<<< HEAD
           Some(transitCrowding),
-//=======
           originActivity
-//>>>>>>> origin/zn/more-bike-multipliers-epa
         )
       case None =>
         embodiedBeamLeg.beamLeg.duration * modeMultipliers.getOrElse(Some(embodiedBeamLeg.beamLeg.mode), 1.0) / 3600
@@ -336,14 +325,9 @@ class ModeChoiceMultinomialLogit(
     }
   }
 
-//<<<<<<< HEAD
   lazy val modeMultipliers: mutable.Map[Option[BeamMode], Double] =
     mutable.Map[Option[BeamMode], Double](
       // Some(WAITING)        -> modalBehaviors.modeVotMultiplier.waiting, TODO think of alternative for waiting. For now assume "NONE" is waiting
-//=======
-//  lazy val modeMultipliers: Map[Option[BeamMode], Double] =
-//    Map[Option[BeamMode], Double](
-//>>>>>>> origin/zn/more-bike-multipliers-epa
       Some(TRANSIT)           -> modalBehaviors.modeVotMultiplier.transit,
       Some(RIDE_HAIL)         -> modalBehaviors.modeVotMultiplier.rideHail,
       Some(RIDE_HAIL_POOLED)  -> modalBehaviors.modeVotMultiplier.rideHailPooled,

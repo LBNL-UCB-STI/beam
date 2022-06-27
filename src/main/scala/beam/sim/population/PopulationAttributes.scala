@@ -72,11 +72,8 @@ case class AttributesOfIndividual(
             modeChoiceModel.situationMultipliers(beamMode),
             vehicleAutomationLevel,
             beamServices
-//<<<<<<< HEAD
-//          ) * getModeVotMultiplier(Option(beamMode), modeChoiceModel.modeMultipliers)
-//=======
+
           ) * getModeVotMultiplier(Option(CAR), modeChoiceModel)
-//>>>>>>> origin/zn/more-bike-multipliers-epa
         }
       case _ =>
         getModeVotMultiplier(Option(beamMode), modeChoiceModel)
@@ -90,11 +87,8 @@ case class AttributesOfIndividual(
     modeChoiceModel: ModeChoiceMultinomialLogit,
     beamServices: BeamServices,
     destinationActivity: Option[Activity],
-//<<<<<<< HEAD
     transitCrowdingSkims: Option[TransitCrowdingSkims],
-//=======
     originActivity: Option[Activity]
-//>>>>>>> origin/zn/more-bike-multipliers-epa
   ): Double = {
     //NOTE: This gives answers in hours
     embodiedBeamLeg.beamLeg.mode match {
@@ -137,12 +131,10 @@ case class AttributesOfIndividual(
             multiplier * durationInHours
         }
 
-//=======
       case BIKE =>
         val situation = getSituationForVOT(destinationActivity, originActivity)
         getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel, Some(situation)) *
         embodiedBeamLeg.beamLeg.duration / 3600
-//>>>>>>> origin/zn/more-bike-multipliers-epa
       case _ =>
         getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel) *
           embodiedBeamLeg.beamLeg.duration / 3600
