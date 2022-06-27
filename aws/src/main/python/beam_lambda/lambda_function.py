@@ -130,10 +130,13 @@ runcmd:
   - cd /home/ubuntu/git/beam
   - if [ "$COMMIT" = "HEAD" ]
   - then
-  -   COMMIT=$(git log -1 --pretty=format:%H)
+  -   RESOLVED_COMMIT=$(git log -1 --pretty=format:%H)
+  - else
+  -   RESOLVED_COMMIT=COMMIT
   - fi
+  - echo "Resolved commit is $RESOLVED_COMMIT"
 
- - 'echo "sudo git fetch"'
+  - 'echo "sudo git fetch"'
   - sudo git fetch
   - 'echo "GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH $(date)"'
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
@@ -157,8 +160,11 @@ runcmd:
   -            cd $i
   -            if [ "$DATA_COMMIT" = "HEAD" ]
   -            then
-  -              DATA_COMMIT=$(git log -1 --pretty=format:%H)
+  -              RESOLVED_DATA_COMMIT=$(git log -1 --pretty=format:%H)
+  -            else
+  -              RESOLVED_DATA_COMMIT=$DATA_COMMIT
   -            fi
+  -            echo "Resolved data commit is $RESOLVED_DATA_COMMIT"
   -            git checkout $DATA_COMMIT
   -            cd -
   -        esac
@@ -179,9 +185,9 @@ runcmd:
         \\"host_name\\":\\"%s\\",
         \\"browser\\":\\"http://%s:8000\\",
         \\"branch\\":\\"$BRANCH\\",
-        \\"commit\\":\\"$COMMIT\\",
+        \\"commit\\":\\"$RESOLVED_COMMIT\\",
         \\"data_branch\\":\\"$DATA_BRANCH\\",
-        \\"data_commit\\":\\"$DATA_COMMIT\\",
+        \\"data_commit\\":\\"$RESOLVED_DATA_COMMIT\\",
         \\"region\\":\\"$REGION\\",
         \\"batch\\":\\"$UID\\",
         \\"s3_link\\":\\"%s\\",
@@ -193,6 +199,7 @@ runcmd:
       }
     }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
   - echo $start_json
+  - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
   - chmod +x /tmp/slack.sh
   - chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
   - echo "notification sent..."
@@ -213,7 +220,6 @@ runcmd:
   - echo $MAXRAM
   - /tmp/slack.sh "$hello_msg"
 
-  - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
   - s3p=""
   - for cf in $CONFIG
   -  do
@@ -247,9 +253,9 @@ runcmd:
         \\"host_name\\":\\"%s\\",
         \\"browser\\":\\"http://%s:8000\\",
         \\"branch\\":\\"$BRANCH\\",
-        \\"commit\\":\\"$COMMIT\\",
+        \\"commit\\":\\"$RESOLVED_COMMIT\\",
         \\"data_branch\\":\\"$DATA_BRANCH\\",
-        \\"data_commit\\":\\"$DATA_COMMIT\\",
+        \\"data_commit\\":\\"$RESOLVED_DATA_COMMIT\\",
         \\"region\\":\\"$REGION\\",
         \\"batch\\":\\"$UID\\",
         \\"s3_link\\":\\"%s\\",
