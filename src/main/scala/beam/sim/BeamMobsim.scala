@@ -302,7 +302,7 @@ class BeamMobsim @Inject() (
           personsProcessed += 1
 
           if (personsProcessed >= nextProgressReport) {
-            val currentProgress = ((100.0 * personsProcessed) / personsTotal).toString
+            val currentProgress = Math.round(100.0 * personsProcessed / personsTotal).toString
             logger.info(s"Filling in secondary trips in plans: $currentProgress% completed.")
             nextProgressReport += progressReportIncrement
           }
