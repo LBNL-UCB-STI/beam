@@ -21,11 +21,11 @@ PRODUCT_OPERATING_SYSTEMS = ["Linux","RHEL","Windows","SUSE","Red Hat Enterprise
 
 # Search product filter. This will reduce the amount of data returned by the
 # get_products function of the Pricing API
-FLT = '[{{"Field": "tenancy", "Value": "shared", "Type": "TERM_MATCH"}},'\
-      '{{"Field": "preInstalledSw", "Value": "NA", "Type": "TERM_MATCH"}},'\
-      '{{"Field": "operatingSystem", "Value": "{o}", "Type": "TERM_MATCH"}},'\
-      '{{"Field": "instanceType", "Value": "{t}", "Type": "TERM_MATCH"}},'\
-      '{{"Field": "location", "Value": "{r}", "Type": "TERM_MATCH"}},'\
+FLT = '[{{"Field": "tenancy", "Value": "shared", "Type": "TERM_MATCH"}},' \
+      '{{"Field": "preInstalledSw", "Value": "NA", "Type": "TERM_MATCH"}},' \
+      '{{"Field": "operatingSystem", "Value": "{o}", "Type": "TERM_MATCH"}},' \
+      '{{"Field": "instanceType", "Value": "{t}", "Type": "TERM_MATCH"}},' \
+      '{{"Field": "location", "Value": "{r}", "Type": "TERM_MATCH"}},' \
       '{{"Field": "capacitystatus", "Value": "Used", "Type": "TERM_MATCH"}}]'
 
 class EC2Instance:
@@ -131,13 +131,13 @@ def stop_instance(instance_id):
 def delete_override_tag__for_(instance_id):
     logger.info(f"Removing BudgetOverride tag for {instance_id}")
     ec2_client.delete_tags(
-    Resources=[instance_id],
-    Tags=[
-        {
-            'Key': 'BudgetOverride'
-        },
-    ],
-)
+        Resources=[instance_id],
+        Tags=[
+            {
+                'Key': 'BudgetOverride'
+            }
+        ]
+    )
 
 # Expected format: {"instance-id": <instance-id>, "state": <state>, "region": <region>, "account-id": <account-id>}
 def lambda_handler(event, context):
