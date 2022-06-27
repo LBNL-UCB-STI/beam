@@ -1377,10 +1377,10 @@ class PersonAgent(
                 0.0 // the cost as paid by person has already been accounted for, this event is just about the incentive
               )
             )
-<<<<<<< HEAD
+//<<<<<<< HEAD
           data.failedTrips.foreach(uncompletedTrip =>
-            generateSkimData(tick, uncompletedTrip, failedTrip = true, currentActivityIndex, nextActivity(data))
-=======
+            generateSkimData(tick, uncompletedTrip, failedTrip = true, currentActivityIndex, nextActivity(data)))
+//=======
           val correctedTrip = correctTripEndTime(data.currentTrip.get, tick, body.id, body.beamVehicleType.id)
           val generalizedTime =
             modeChoiceCalculator.getGeneralizedTimeOfTrip(
@@ -1392,15 +1392,18 @@ class PersonAgent(
           val generalizedCost = modeChoiceCalculator.getNonTimeCost(correctedTrip) + attributes
             .getVOT(generalizedTime)
           // Correct the trip to deal with ride hail / disruptions and then register to skimmer
-          val (odSkimmerEvent, origCoord, destCoord) = ODSkimmerEvent.forTaz(
-            tick,
-            beamServices,
-            correctedTrip,
-            generalizedTime,
-            generalizedCost,
-            curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel
->>>>>>> origin/zn/more-bike-multipliers-epa
-          )
+          val maybePayloadWeightInKg = getPayloadWeightFromLeg(currentActivityIndex)
+//          val (odSkimmerEvent, origCoord, destCoord) = ODSkimmerEvent.forTaz(
+//            tick,
+//            beamServices,
+//            correctedTrip,
+//            generalizedTime,
+//            generalizedCost,
+//            maybePayloadWeightInKg,
+//            curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel,
+//            data.failedTrips.foreach(),
+////>>>>>>> origin/zn/more-bike-multipliers-epa
+//          )
           generateSkimData(tick, data.currentTrip.get, failedTrip = false, currentActivityIndex, nextActivity(data))
 
           resetFuelConsumed()
