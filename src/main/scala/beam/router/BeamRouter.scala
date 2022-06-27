@@ -213,7 +213,7 @@ class BeamRouter(
     case other: MemberEvent =>
       log.info("MemberEvent: {}", other)
       other match {
-        case MemberExited(_) | MemberRemoved(_, _) =>
+        case MemberExited(_) | MemberRemoved(_, _) if other.member.hasRole("compute") =>
           remoteNodes -= other.member.address
           removeUnavailableMemberFromAvailableWorkers(other.member)
         case _ =>
@@ -221,8 +221,10 @@ class BeamRouter(
     //Why is this a removal?
     case UnreachableMember(m) =>
       log.info("UnreachableMember: {}", m)
-      remoteNodes -= m.address
-      removeUnavailableMemberFromAvailableWorkers(m)
+      if (m.hasRole("compute")) {
+        remoteNodes -= m.address
+        removeUnavailableMemberFromAvailableWorkers(m)
+      }
     case ReachableMember(m) if m.hasRole("compute") =>
       log.info("ReachableMember: {}", m)
       remoteNodes += m.address
