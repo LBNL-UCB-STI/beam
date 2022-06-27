@@ -14,7 +14,7 @@ import org.matsim.core.population.algorithms.PermissibleModesCalculator
 import org.matsim.households.Household
 
 /**
-  * Several utility/convenience methods for mode availability. Note that the MATSim convention
+  * Several utility/convenience methods for mode availability. beam.sim.Note that the MATSim convention
   * is to call these permissible modes. BEAM uses available modes. The semantics are identical.
   */
 object AvailableModeUtils extends LazyLogging {
@@ -58,6 +58,10 @@ object AvailableModeUtils extends LazyLogging {
     */
   def availableModesForPerson(person: Person): Seq[BeamMode] = {
     getPersonCustomAttributes(person).map(_.availableModes).getOrElse(Seq.empty)
+  }
+
+  def availableModesForPerson(person: Person, excludedModes: Seq[BeamMode]): Seq[BeamMode] = {
+    getPersonCustomAttributes(person).map(_.availableModes).getOrElse(Seq.empty).filterNot(excludedModes.contains)
   }
 
   /**

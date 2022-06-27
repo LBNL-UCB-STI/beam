@@ -1,13 +1,14 @@
 package beam.utils.scenario
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.SequenceUtils
 import beam.utils.plan.sampling.AvailableModeUtils
+import beam.utils.scenario.urbansim.HOVModeTransformer
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.Population
@@ -44,66 +45,37 @@ class UrbanSimScenarioLoader(
   def loadScenario(): (Scenario, Boolean) = {
     clear()
 
-    val wereCoordinatesInWGS = beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
-
     val plansF = Future {
       val plans = scenarioSource.getPlans
       logger.info(s"Read ${plans.size} plans")
-      val activities = plans.view.filter { p =>
-        p.activityType.exists(actType => actType.toLowerCase == "home")
-      }
-      val personIdsWithinRange =
-        activities
-          .filter { act =>
-            val actCoord = new Coord(act.activityLocationX.get, act.activityLocationY.get)
-            val wgsCoord = if (wereCoordinatesInWGS) geo.utm2Wgs(actCoord) else actCoord
-            beamScenario.transportNetwork.streetLayer.envelope.contains(wgsCoord.getX, wgsCoord.getY)
-          }
-          .map { act =>
-            act.personId
-          }
-          .toSet
-      val planWithinRange = plans.filter(p => personIdsWithinRange.contains(p.personId))
-      val filteredCnt = plans.size - planWithinRange.size
-      if (filteredCnt > 0) {
-        logger.info(s"Filtered out $filteredCnt plans. Total number of plans: ${planWithinRange.size}")
-      }
-      planWithinRange
+      plans
     }
+
     val personsF = Future {
       val persons: Iterable[PersonInfo] = scenarioSource.getPersons
       logger.info(s"Read ${persons.size} persons")
       persons
     }
+
     val householdsF = Future {
       val households = scenarioSource.getHousehold
       logger.info(s"Read ${households.size} households")
-      val householdIdsWithinBoundingBox = households.view
-        .filter { hh =>
-          val coord = new Coord(hh.locationX, hh.locationY)
-          val wgsCoord = if (wereCoordinatesInWGS) geo.utm2Wgs(coord) else coord
-          beamScenario.transportNetwork.streetLayer.envelope.contains(wgsCoord.getX, wgsCoord.getY)
-        }
-        .map { hh =>
-          hh.householdId
-        }
-        .toSet
-
-      val householdsInsideBoundingBox =
-        households.filter(household => householdIdsWithinBoundingBox.contains(household.householdId))
-      val filteredCnt = households.size - householdsInsideBoundingBox.size
-      if (filteredCnt > 0) {
-        logger.info(
-          s"Filtered out $filteredCnt households. Total number of households: ${householdsInsideBoundingBox.size}"
-        )
-      }
-      householdsInsideBoundingBox
+      households
     }
-    val inputPlans = Await.result(plansF, 1800.seconds)
-    val persons = Await.result(personsF, 1800.seconds)
-    val households = Await.result(householdsF, 1800.seconds)
 
-    val (plans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
+    val inputPlans = Await.result(plansF, 1800.seconds)
+    logger.info(s"Reading plans done.")
+    val persons = Await.result(personsF, 1800.seconds)
+    logger.info(s"Reading persons done.")
+    val households = Await.result(householdsF, 1800.seconds)
+    logger.info(s"Reading households done.")
+
+    val (mergedPlans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
+
+    val plans = {
+      HOVModeTransformer.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+      HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(mergedPlans)
+    }
 
     val householdIds = households.map(_.householdId.id).toSet
 
@@ -128,6 +100,7 @@ class UrbanSimScenarioLoader(
     applyPlans(plans)
 
     logger.info("The scenario loading is completed..")
+
     scenario -> plansMerged
   }
 
@@ -138,6 +111,7 @@ class UrbanSimScenarioLoader(
     scenario.getHouseholds.getHouseholdAttributes.clear()
 
     beamScenario.privateVehicles.clear()
+    beamScenario.privateVehicleInitialSoc.clear()
   }
 
   private[utils] def getPersonsWithPlan(
@@ -176,6 +150,7 @@ class UrbanSimScenarioLoader(
     realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
     val bikeVehicleType = beamScenario.vehicleTypes.values
+      .filterNot(_.isSharedVehicle)
       .find(_.vehicleCategory == VehicleCategory.Bike)
       .getOrElse(throw new RuntimeException("Bike not found in vehicle types."))
 
@@ -269,7 +244,7 @@ class UrbanSimScenarioLoader(
         None
     }
     val planTripStats = planElements.toSeq
-      .filter(_.planElementType == "activity")
+      .filter(_.planElementType == PlanElement.Activity)
       .sliding(2)
       .flatMap {
         case Seq(firstElement, secondElement, _*) =>
@@ -367,7 +342,7 @@ class UrbanSimScenarioLoader(
       mutable.Map(ArrayBuffer(households.toSeq: _*).groupBy(_.cars).toSeq: _*)
 
     val numberOfWorkVehiclesToCreate =
-      min(numberOfWorkers - numberOfWorkersWithVehicles, goalCarTotal - totalCars)
+      1.2 * min(numberOfWorkers - numberOfWorkersWithVehicles, goalCarTotal - totalCars)
     val likelihoodToCreateVehicle =
       numberOfWorkVehiclesToCreate.toDouble / (numberOfWorkers - numberOfWorkersWithVehicles).toDouble
     var currentTotalCars = totalCars
@@ -538,6 +513,7 @@ class UrbanSimScenarioLoader(
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
       person.getAttributes.putAttribute("income", hh.getIncome.getIncome)
+      person.getAttributes.putAttribute("industry", personInfo.industry.getOrElse("#NO_DATA#"))
 
       AvailableModeUtils.setAvailableModesForPerson_v2(
         beamScenario,
@@ -561,14 +537,20 @@ class UrbanSimScenarioLoader(
           person.setSelectedPlan(plan)
         }
         val planElement = planInfo.planElementType
-        if (planElement.equalsIgnoreCase("leg")) {
+        val tripId = Option(planInfo.tripId).getOrElse("")
+        if (planElement == PlanElement.Leg) {
           planInfo.legMode match {
             case Some(mode) =>
-              PopulationUtils.createAndAddLeg(plan, mode)
+              val leg = PopulationUtils.createLeg(mode)
+              leg.getAttributes.putAttribute("trip_id", tripId)
+              plan.addLeg(leg)
+              plan.getAttributes.putAttribute("trip_id", tripId)
             case None =>
-              PopulationUtils.createAndAddLeg(plan, "")
+              val leg = PopulationUtils.createLeg("")
+              leg.getAttributes.putAttribute("trip_id", tripId)
+              plan.getAttributes.putAttribute("trip_id", tripId)
           }
-        } else if (planElement.equalsIgnoreCase("activity")) {
+        } else if (planElement == PlanElement.Activity) {
           assert(
             planInfo.activityLocationX.isDefined,
             s"planElement is `activity`, but `x` is None! planInfo: $planInfo"
@@ -588,6 +570,7 @@ class UrbanSimScenarioLoader(
             )
           )
           val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
+          plan.getPlanElements.asScala.last.getAttributes.putAttribute("trip_id", tripId)
           planInfo.activityEndTime.foreach { endTime =>
             act.setEndTime(endTime * 60 * 60)
           }

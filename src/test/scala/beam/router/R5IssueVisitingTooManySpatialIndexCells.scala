@@ -17,7 +17,7 @@ class R5IssueVisitingTooManySpatialIndexCells extends AnyFlatSpec with Matchers 
   }
 
   val geo = new GeoUtilsTestImpl("epsg:26910")
-  val dir = new File("test/test-resources/R5-detroit-square")
+  val dir = new File("beam.sim.test/beam.sim.test-resources/R5-detroit-square")
   val transportNetwork: TransportNetwork = TransportNetwork.fromDirectory(dir)
   val streetLayer: StreetLayer = transportNetwork.streetLayer
 

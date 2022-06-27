@@ -14,7 +14,7 @@ class UrbanSimScenarioLoaderTest extends AsyncWordSpec with Matchers with Before
   private val mutableScenario = mock(classOf[MutableScenario])
   private val beamScenario = mock(classOf[BeamScenario])
 
-  private val beamConfigBase = BeamConfig(testConfig("test/input/beamville/beam.conf").resolve())
+  private val beamConfigBase = BeamConfig(testConfig("beam.sim.test/input/beamville/beam.conf").resolve())
 
   private val scenarioSource = mock(classOf[ScenarioSource])
 
@@ -137,7 +137,8 @@ class UrbanSimScenarioLoaderTest extends AsyncWordSpec with Matchers with Before
       age = 30,
       isFemale = false,
       excludedModes = Seq.empty,
-      valueOfTime = 0.0
+      valueOfTime = 0.0,
+      industry = None
     )
 
   private def assertCarNumbers(

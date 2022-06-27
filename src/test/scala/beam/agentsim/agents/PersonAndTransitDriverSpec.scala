@@ -21,6 +21,7 @@ import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model._
 import beam.router.skim.core.AbstractSkimmerEvent
+import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -58,17 +59,17 @@ class PersonAndTransitDriverSpec
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
-        akka.test.timefactor = 2
+        akka.beam.sim.test.timefactor = 2
         """
     )
-    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
     .resolve()
 
   lazy implicit val system: ActorSystem = ActorSystem("PersonAndTransitDriverSpec", config)
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
-  private var parkingNetwork: ParkingNetwork[_] = _
+  private var parkingNetwork: ParkingNetwork = _
   private var parkingManager: ActorRef = _
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
@@ -79,7 +80,7 @@ class PersonAndTransitDriverSpec
 
     val hoseHoldDummyId = Id.create("dummy", classOf[Household])
 
-    ignore("should know how to take a walk_transit trip when it's already in its plan") { // flakey test
+    ignore("should know how to take a walk_transit trip when it's already in its plan") { // flakey beam.sim.test
       val busId = Id.createVehicleId("bus:B3-WEST-1-175")
       val tramId = Id.createVehicleId("train:R2-SOUTH-1-93")
 
@@ -239,7 +240,7 @@ class PersonAndTransitDriverSpec
         SchedulerProps(
           beamConfig,
           stopTick = 31001,
-          maxWindow = 31001, // As a kind of stress test, let everything happen simultaneously
+          maxWindow = 31001, // As a kind of stress beam.sim.test, let everything happen simultaneously
           new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
         )
       )
@@ -298,11 +299,11 @@ class PersonAndTransitDriverSpec
           population = population,
           household = household,
           vehicles = Map(),
-          homeCoord = new Coord(0.0, 0.0),
+          fallbackHomeCoord = new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)

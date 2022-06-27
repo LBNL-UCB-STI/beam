@@ -406,7 +406,7 @@ class RideHailAgent(
       isOnWayToParkAtStall = Some(stall)
       beamServices.beamRouter ! veh2StallRequest
       stay
-    case Event(resp @ RoutingResponse(itineraries, _, _, _, _, _), data) =>
+    case Event(resp @ RoutingResponse(itineraries, _, _, _, _, _, _), data) =>
       log.debug("Received routing response, initiating trip to parking stall")
       if (resp == RoutingResponse.dummyRoutingResponse.get) {
         logger.error(
@@ -533,15 +533,9 @@ class RideHailAgent(
       val tickToUse = Math.max(tick, latestObservedTick)
       updateLatestObservedTick(tick)
       log.debug("state(RideHailAgent.Offline): {}; Vehicle ID: {}", ev, vehicle.id)
-      if (vehicle.isCAV) {
-        if (debugEnabled) outgoingMessages += ev
-        startRefueling(tickToUse, triggerId, Vector())
-        goto(Refueling)
-      } else {
-        holdTickAndTriggerId(tickToUse, triggerId)
-        requestParkingStall()
-        stay
-      }
+      if (debugEnabled) outgoingMessages += ev
+      startRefueling(tickToUse, triggerId, Vector())
+      goto(Refueling)
     case ev @ Event(TriggerWithId(StartLegTrigger(_, _), triggerId), _) =>
       log.warning(
         "state(RideHailingAgent.Offline.StartLegTrigger) this should be avoided instead of what I'm about to do which is ignore and complete this trigger: {} ",
@@ -575,13 +569,14 @@ class RideHailAgent(
     case _ @Event(StartingRefuelSession(_, _), _) =>
       stash()
       stay()
-    case _ @Event(EndingRefuelSession(_, _, _), _) =>
+    case _ @Event(EndingRefuelSession(_, _, triggerId), _) =>
+      scheduler ! CompletionNotice(triggerId)
       stash()
       stay()
     case _ @Event(ParkingInquiryResponse(_, _, _), _) =>
       stash()
       stay()
-    case _ @Event(RoutingResponse(_, _, _, _, _, _), _) =>
+    case ev @ Event(RoutingResponse(_, _, _, _, _, _, _), _) =>
       stash()
       stay()
     case _ @Event(ModifyPassengerSchedule(_, _, _, _), _) =>
@@ -800,7 +795,7 @@ class RideHailAgent(
       stash()
       goto(Offline)
     case ev @ Event(WaitingToCharge(_, _, _), data) =>
-      log.debug("state(RideHailingAgent.WaitingToDrive.StartingRefuelSession): {}, Vehicle ID: {}", ev, vehicle.id)
+      log.debug("state(RideHailingAgent.WaitingToDrive.WaitingToCharge): {}, Vehicle ID: {}", ev, vehicle.id)
       if (debugEnabled) outgoingMessages += ev
       data.passengerSchedule.schedule.keys.headOption.foreach { beamLeg =>
         beamLegsToIgnoreDueToNewPassengerSchedule.add(beamLeg)
@@ -977,14 +972,14 @@ class RideHailAgent(
       log.debug("state(RideHailingAgent.Refueling.EndingRefuelSession): {}, Vehicle ID: {}", ev, vehicle.id)
       holdTickAndTriggerId(tick, triggerId)
       chargingNetworkManager ! ChargingUnplugRequest(
-        tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+        tick,
         currentBeamVehicle,
         triggerId
       )
       stay
     case ev @ Event(UnpluggingVehicle(tick, energyCharged, triggerId), _) =>
       updateLatestObservedTick(tick)
-      log.debug("state(RideHailingAgent.Refueling.EndingRefuelSession): {}, Vehicle ID: {}", ev, vehicle.id)
+      log.debug("state(RideHailingAgent.Refueling.UnpluggingVehicle): {}, Vehicle ID: {}", ev, vehicle.id)
       if (debugEnabled) outgoingMessages += ev
       handleEndRefuel(tick, energyCharged, triggerId)
       if (isCurrentlyOnShift && !needsToEndShift) {
@@ -1002,6 +997,13 @@ class RideHailAgent(
       } else {
         goto(Offline)
       }
+    case ev @ Event(StartingRefuelSession(_, _), _) =>
+      log.debug(
+        "state(RideHailingAgent.Refueling.StartingRefuelSession): {}, Vehicle ID: {}",
+        ev,
+        vehicle.id
+      )
+      stay
   }
   when(RefuelingInterrupted) {
     case Event(Resume(_), _) =>
@@ -1120,7 +1122,7 @@ class RideHailAgent(
   }
 
   def startRefueling(tick: Int, triggerId: Long, triggers: Seq[ScheduleTrigger]): Unit = {
-    handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager)
+    handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager, beamScenario.tazTreeMap, None, None, None)
     handleStartRefuel(triggerId, triggers)
   }
 
@@ -1144,7 +1146,7 @@ class RideHailAgent(
       parkingDuration = parkingDuration,
       triggerId = getCurrentTriggerIdOrGenerate
     )
-    chargingNetworkManager ! inquiry
+    park(inquiry)
   }
 
   def handleStartRefuel(triggerId: Long, triggers: Seq[ScheduleTrigger]): Unit = {

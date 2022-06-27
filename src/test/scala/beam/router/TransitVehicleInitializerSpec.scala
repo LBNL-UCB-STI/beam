@@ -56,7 +56,7 @@ class TransitVehicleInitializerSpec extends AnyWordSpecLike with Matchers with I
         .withValue(
           "beam.agentsim.agents.vehicles.transitVehicleTypesByRouteFile",
           ConfigValueFactory
-            .fromAnyRef("test/test-resources/beam/router/transitVehicleTypesByRoute.csv")
+            .fromAnyRef("beam.sim.test/beam.sim.test-resources/beam/router/transitVehicleTypesByRoute.csv")
         )
     )
     val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)

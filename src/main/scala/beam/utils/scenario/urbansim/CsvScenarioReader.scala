@@ -61,6 +61,11 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
 
   private def toPlanInfo(rec: java.util.Map[String, String]): PlanElement = {
     // Somehow Plan file has columns in camelCase, not snake_case
+    val tripId = if (rec.get("tripId") != null) {
+      rec.get("tripId").filter(x => (x.isDigit || x.equals('.')))
+    } else {
+      ""
+    }
     val personId = getIfNotNull(rec, "personId")
     val planElement = getIfNotNull(rec, "planElement")
     val planElementIndex = getIfNotNull(rec, "planElementIndex").toInt
@@ -70,6 +75,7 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val endTime = Option(rec.get("endTime")).map(_.toDouble)
     val mode: Option[String] = Option(rec.get("mode"))
     PlanElement(
+      tripId = tripId,
       personId = personId,
       planElement = planElement,
       planElementIndex = planElementIndex,
@@ -91,6 +97,7 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     }
     val excludedModes = Try(getIfNotNull(rec, "excludedModes")).getOrElse("")
     val rank: Int = 0
+    val industry = Option(rec.get("industry"))
     PersonInfo(
       personId = personId,
       householdId = householdId,
@@ -98,7 +105,8 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
       age = age,
       excludedModes = excludedModes,
       isFemale = isFemaleValue,
-      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime"), 0d)).getOrElse(0d)
+      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime"), 0d)).getOrElse(0d),
+      industry = industry
     )
   }
 

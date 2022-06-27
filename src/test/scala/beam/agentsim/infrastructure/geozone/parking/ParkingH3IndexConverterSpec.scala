@@ -12,9 +12,9 @@ class ParkingH3IndexConverterSpec extends AnyWordSpec with Matchers {
   "ParkingH3IndexConverter" should {
 
     "convert Taz coordinates to H3Index accordingly to csv file" in {
-      val tazParkingFile: Path = Paths.get("test/input/geozone/parking/taz-parking.csv")
-      val tazCentersFile = Paths.get("test/input/geozone/parking/taz-centers.csv")
-      val targetCentersFile = Paths.get("test/input/geozone/parking/target-centers.csv")
+      val tazParkingFile: Path = Paths.get("beam.sim.test/input/geozone/parking/taz-parking.csv")
+      val tazCentersFile = Paths.get("beam.sim.test/input/geozone/parking/taz-centers.csv")
+      val targetCentersFile = Paths.get("beam.sim.test/input/geozone/parking/target-centers.csv")
 
       val converter: ParkingH3IndexConverter[TazCoordinate] = ParkingH3IndexConverter.tazParkingToH3Index(
         tazParkingFile = tazParkingFile,
@@ -42,8 +42,8 @@ class ParkingH3IndexConverterSpec extends AnyWordSpec with Matchers {
     }
 
     "convert geoIndex-parking coordinates to H3Index accordingly to csv file" in {
-      val parkingFile: Path = Paths.get("test/input/geozone/parking/geoIndex-parking.csv")
-      val targetCenters = Paths.get("test/input/geozone/parking/target-centers.csv")
+      val parkingFile: Path = Paths.get("beam.sim.test/input/geozone/parking/geoIndex-parking.csv")
+      val targetCenters = Paths.get("beam.sim.test/input/geozone/parking/target-centers.csv")
 
       val converter = ParkingH3IndexConverter.geoIndexParkingToH3Index(
         geoIndexParkingFile = parkingFile,

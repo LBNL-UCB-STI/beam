@@ -3,9 +3,10 @@ package beam.agentsim.infrastructure.power
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
-import beam.agentsim.infrastructure.power.SitePowerManager.PhysicalBounds
+import beam.agentsim.infrastructure.power.PowerController.PhysicalBounds
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
@@ -24,7 +25,9 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
       .parseString(s"""
         |beam.agentsim.chargingNetworkManager {
         |  timeStepInSeconds = 300
-        |
+        |  scaleUp {
+        |    enabled = false
+        |  }
         |  helics {
         |    connectionEnabled = false
         |    coreInitString = "--federates=1 --broker_address=tcp://127.0.0.1"
@@ -38,14 +41,14 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
         |  }
         |}
       """.stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
 
   val beamConfig: BeamConfig = BeamConfig(config)
   val beamFederateMock: BeamFederate = mock(classOf[BeamFederate])
   val tazFromBeamville: TAZ = new TAZ(Id.create("1", classOf[TAZ]), new Coord(167141.3, 1112.351), 4840000)
 
-  val dummyChargingZone: ParkingZone[TAZ] = ParkingZone.init(
+  val dummyChargingZone: ParkingZone = ParkingZone.init(
     None,
     tazFromBeamville.tazId,
     ParkingType.Public,
@@ -56,14 +59,14 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
   )
   val chargingZones = Map(dummyChargingZone.parkingZoneId -> dummyChargingZone)
 
-  val chargingNetwork: ChargingNetwork[_] = mock(classOf[ChargingNetwork[_]])
+  val chargingNetwork: ChargingNetwork = mock(classOf[ChargingNetwork])
 
-  val rideHailNetwork: ChargingNetwork[_] = mock(classOf[ChargingNetwork[_]])
+  val rideHailNetwork: ChargingNetwork = mock(classOf[ChargingNetwork])
 
   val dummyChargingStation: ChargingStation = ChargingStation(dummyChargingZone)
 
   val dummyPhysicalBounds = Map(
-    "tazId"                   -> dummyChargingZone.geoId.toString,
+    "tazId"                   -> dummyChargingZone.tazId.toString,
     "power_limit_lower"       -> 5678.90,
     "power_limit_upper"       -> 5678.90,
     "lmp_with_control_signal" -> 0.0
@@ -73,16 +76,16 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
     reset(beamFederateMock)
     when(beamFederateMock.sync(300)).thenReturn(300.0)
     when(beamFederateMock.collectJSON()).thenReturn(List(dummyPhysicalBounds))
+    when(chargingNetwork.chargingStations).thenReturn(List(dummyChargingStation))
+    when(rideHailNetwork.chargingStations).thenReturn(List())
   }
 
   "PowerController when connected to grid" should {
+    val chargingNetworkHelper: ChargingNetworkHelper = new ChargingNetworkHelper(chargingNetwork, rideHailNetwork) {
+      override lazy val allChargingStations: List[ChargingStation] = List(dummyChargingStation)
+    }
     val powerController: PowerController =
-      new PowerController(
-        chargingNetwork,
-        rideHailNetwork,
-        beamConfig,
-        SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyChargingStation)).value
-      ) {
+      new PowerController(chargingNetworkHelper, beamConfig) {
         override private[power] lazy val beamFederateOption = Some(beamFederateMock)
       }
 
@@ -91,20 +94,16 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
         300,
         Some(Map[ChargingStation, Double](dummyChargingStation -> 5678.90))
       )
-      bounds shouldBe Map(ChargingStation(dummyChargingZone) -> PhysicalBounds(dummyChargingStation, 7.2, 7.2, 0.0))
-      // TODO: test beam federate connection
+      bounds shouldBe Map(dummyChargingStation -> PhysicalBounds(dummyChargingStation, 7.2, 7.2, 0.0))
+      // TODO: beam.sim.test beam federate connection
       //verify(beamFederateMock, times(1)).syncAndCollectJSON(300)
     }
   }
 
   "PowerController when not connected to grid" should {
+    val chargingNetworkHelper: ChargingNetworkHelper = ChargingNetworkHelper(chargingNetwork, rideHailNetwork)
     val powerController: PowerController =
-      new PowerController(
-        chargingNetwork,
-        rideHailNetwork,
-        beamConfig,
-        SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyChargingStation)).value
-      ) {
+      new PowerController(chargingNetworkHelper, beamConfig) {
         override private[power] lazy val beamFederateOption = None
       }
 

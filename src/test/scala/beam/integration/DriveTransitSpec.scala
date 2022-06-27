@@ -20,12 +20,12 @@ import org.scalatest.wordspec.AnyWordSpecLike
 class DriveTransitSpec extends AnyWordSpecLike with Matchers with BeamHelper {
 
   /*
-   * This test passes, but it is slow b/c it runs sf-light-1k so ignoring for now. When we actually run "Periodic" tests
+   * This beam.sim.test passes, but it is slow b/c it runs sf-light-1k so ignoring for now. When we actually run "Periodic" tests
    * in a periodic fashion, this can be un-ignored. -CS
    */
   "DriveTransit trips" must {
     "run to completion" taggedAs (Periodic, ExcludeRegular) ignore { //TODO need vehicle input dta
-      val config = testConfig("test/input/sf-light/sf-light-1k.conf")
+      val config = testConfig("beam.sim.test/input/sf-light/sf-light-1k.conf")
         .resolve()
         .withValue(
           TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,

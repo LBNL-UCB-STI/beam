@@ -12,8 +12,8 @@ import beam.router.skim.readonly.ODSkims
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import beam.utils.DateUtils
 import beam.utils.TestConfigUtils.testConfig
+import beam.utils.{BeamScenarioForTest, DateUtils}
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
@@ -29,9 +29,9 @@ import scala.collection.concurrent.TrieMap
 /**
   * Specs for BeamRouter
   */
-class BeamRouterSpec extends AnyFlatSpec {
+class BeamRouterSpec extends AnyFlatSpec with BeamScenarioForTest {
   it should "use odSkim travel times for car" in {
-    val beamScenario = getBeamScenario(1.0)
+    val beamScenario = getBeamScenario("beam.sim.test/input/sf-light/sf-light-0.5k.conf", 1.0)
 
     val updatedDuration = 1444
     val skim = Skim(
@@ -88,7 +88,7 @@ class BeamRouterSpec extends AnyFlatSpec {
         .parseString(s"""
            |beam.routing.skimTravelTimesScalingFactor =  $skimTravelTimesScalingFactor
         """.stripMargin)
-        .withFallback(testConfig("test/input/sf-light/sf-light-0.5k.conf"))
+        .withFallback(testConfig("beam.sim.test/input/sf-light/sf-light-0.5k.conf"))
         .resolve()
     )
 
@@ -111,7 +111,8 @@ class BeamRouterSpec extends AnyFlatSpec {
     BeamScenario(
       fuelTypePrices = fuelTypePrices,
       vehicleTypes = vehicleTypes,
-      TrieMap.empty,
+      privateVehicles = TrieMap.empty,
+      privateVehicleInitialSoc = TrieMap.empty,
       vehicleEnergy = mock(classOf[VehicleEnergy]),
       beamConfig = beamConfig,
       dates = DateUtils(
@@ -120,15 +121,16 @@ class BeamRouterSpec extends AnyFlatSpec {
       ),
       ptFares = PtFares(List.empty),
       transportNetwork = mock(classOf[TransportNetwork]),
+      //todo: this is a quick fix for merging develop, MUST investigate
+      networks2 = None,
       network = mock(classOf[Network]),
+      trainStopQuadTree = new QuadTree[com.conveyal.gtfs.model.Stop](0.0, 0.0, 0.0, 0.0),
       tazTreeMap = tazMap,
-      None,
-      linkQuadTree = new QuadTree[Link](0, 0, 10, 10),
-      linkIdMapping = Map.empty,
-      linkToTAZMapping = Map.empty,
+      exchangeGeoMap = None,
       modeIncentives = null,
       h3taz = null,
-      freightCarriers = IndexedSeq.empty
+      freightCarriers = IndexedSeq.empty,
+      fixedActivitiesDurations = Map.empty[String, Double]
     )
   }
 

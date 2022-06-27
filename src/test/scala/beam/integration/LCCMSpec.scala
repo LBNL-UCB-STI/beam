@@ -17,7 +17,7 @@ import org.scalatest.Ignore
 class LCCMSpec extends AnyFlatSpec with BeamHelper {
 
   it should "be able to run for three iterations with LCCM without exceptions" in {
-    val config = testConfig("test/input/beamville/beam.conf")
+    val config = testConfig("beam.sim.test/input/beamville/beam.conf")
       .resolve()
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
       .withValue(

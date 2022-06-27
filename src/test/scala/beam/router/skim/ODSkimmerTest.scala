@@ -17,7 +17,7 @@ class ODSkimmerTest extends AnyFunSuite with StrictLogging {
   val odConstructor: BeamServices => ODSkimmer =
     services => new ODSkimmer(services.matsimServices, services.beamScenario, services.beamConfig)
 
-  val basePath = s"${System.getenv("PWD")}/test/test-resources/beam/od-skims"
+  val basePath = s"${System.getenv("PWD")}/beam.sim.test/beam.sim.test-resources/beam/od-skims"
 
   test("Read OD skims from single file with warm start mode") {
     val inputFilePath = s"$basePath/od_for_test.csv.gz"
@@ -49,7 +49,7 @@ object ODSkimmerTest {
   ): S = {
     import scala.collection.JavaConverters._
     val beamConfig = BeamConfig(
-      testConfig("test/input/beamville/beam.conf")
+      testConfig("beam.sim.test/input/beamville/beam.conf")
         .withValue("beam.warmStart.type", ConfigValueFactory.fromAnyRef("full"))
         .withValue(
           "beam.warmStart.skimsFilePaths",

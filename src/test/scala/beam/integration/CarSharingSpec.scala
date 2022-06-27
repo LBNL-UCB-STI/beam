@@ -53,17 +53,17 @@ class CarSharingSpec extends AnyFlatSpec with Matchers with BeamHelper {
         | }
         |]
         """.stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
     runCarSharingTest(config)
   }
 
-  // What happens in this test case is unusual due to Beamville being unusual: A lot of people run towards
+  // What happens in this beam.sim.test case is unusual due to Beamville being unusual: A lot of people run towards
   // the same car because they all do exactly the same thing. Only one of them gets it. Repeat.
-  // Car sharing was developed against this test case, so it is more or less resilient against this.
-  // This test will fail once you add things like maximum number of replanning attempts,
+  // Car sharing was developed against this beam.sim.test case, so it is more or less resilient against this.
+  // This beam.sim.test will fail once you add things like maximum number of replanning attempts,
   // or otherwise bailing out of this unusual situation.
-  // So please consider making them configurable if you do, if only for the sake of test cases like this one.
+  // So please consider making them configurable if you do, if only for the sake of beam.sim.test cases like this one.
   "Running a car-sharing-only scenario with one car per person at home" must "result in everybody driving" ignore {
     val config = ConfigFactory
       .parseString("""
@@ -86,7 +86,7 @@ class CarSharingSpec extends AnyFlatSpec with Matchers with BeamHelper {
         |]
         |beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 99999
         """.stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
     runCarSharingTest(config)
   }
@@ -178,7 +178,7 @@ class CarSharingSpec extends AnyFlatSpec with Matchers with BeamHelper {
          |      vehicleTypeId = "sharedCar"
          |      maxWalkingDistance = 1000
          |      fleetSize = 40
-         |      vehiclesSharePerTAZFromCSV = "output/test/vehiclesSharePerTAZ.csv"
+         |      vehiclesSharePerTAZFromCSV = "output/beam.sim.test/vehiclesSharePerTAZ.csv"
          |    }
          |    reposition {
          |      name = "min-availability-undersupply-algorithm"
@@ -192,7 +192,7 @@ class CarSharingSpec extends AnyFlatSpec with Matchers with BeamHelper {
          |]
          |beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 99999
       """.stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
     runRepositionTest(config)
   }
@@ -213,7 +213,7 @@ class CarSharingSpec extends AnyFlatSpec with Matchers with BeamHelper {
     var carsharingTripsIt0 = 0
     var carsharingTripsIt1 = 0
     FleetUtils.writeCSV(
-      "output/test/vehiclesSharePerTAZ.csv",
+      "output/beam.sim.test/vehiclesSharePerTAZ.csv",
       Vector(
         (Id.create("1", classOf[TAZ]), new Coord(0, 0), 0.0),
         (Id.create("2", classOf[TAZ]), new Coord(0, 0), 1.0),

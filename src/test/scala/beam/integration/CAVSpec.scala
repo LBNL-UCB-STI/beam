@@ -17,11 +17,11 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
-
   "Running a CAV-only scenario with a couple of CAVs" must "result in everybody using CAV or walk" in {
     val config = ConfigFactory
       .parseString(
         """
+           |beam.agentsim.simulationName = "beamville_for_CAVSpec"
            |beam.actorSystemName = "CAVSpec"
            |beam.outputs.events.fileOutputFormats = xml
            |beam.physsim.skipPhysSim = true
@@ -29,7 +29,7 @@ class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
            |beam.agentsim.agents.vehicles.sharedFleets = []
         """.stripMargin
       )
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
     runCAVTest(config)
   }
@@ -90,7 +90,7 @@ class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
     controler.run()
 
     assume(trips != 0, "Something's wildly broken, I am not seeing any trips.")
-    assume(cavVehicles != 0, "Nobody has a CAV vehicle in test scenario, nothing to test.")
+    assume(cavVehicles != 0, "Nobody has a CAV vehicle in beam.sim.test scenario, nothing to beam.sim.test.")
     assert(cavTrips >= cavVehicles, "Not enough CAV trips (by mode choice) seen.")
   }
 

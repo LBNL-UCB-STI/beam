@@ -9,6 +9,7 @@ library(rapport)
 library(sjmisc)
 library(ggmap)
 library(sf)
+library(stringr)
 
 workDir <- normalizePath("~/Data/GEMINI")
 activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
@@ -21,7 +22,7 @@ oaklandCbg <- st_read(shpFile)
 
 ###
 #eventsraw <- readCsv(pp(workDir, "/2021Aug22-Oakland/BASE0/events-raw/2.events.BASE0.csv.gz"))
-events <- readCsv(pp(workDir, "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC0.csv.gz"))
+events <- readCsv(pp(workDir, "/2021Oct29/BATCH1/events/filtered.3.events.SC4.csv.gz"))
 
 
 #################### REV
@@ -46,7 +47,7 @@ write.csv(
   na="0")
 
 #################### PEV
-refuel <- events[type%in%c("RefuelSessionEvent")&!startsWith(person,"rideHail")][
+refuel <- events[type%in%c("RefuelSessionEvent")][
   ,.(person,startTime=time-duration,startTime2=time-duration,parkingTaz,chargingPointType,
      pricingModel,parkingType,locationX,locationY,vehicle,vehicleType,fuel,duration)]
 actstart <- events[type%in%c("actstart")&!startsWith(person,"rideHail")][
@@ -64,7 +65,8 @@ refuel_actstart$person <- as.character(refuel_actstart$person)
 # refuel_actstart <- readCsv(pp(workDir, "/2021Aug17-SFBay/BASE0/refuel_actstart.csv"))
 
 
-# trips <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010-cut-718k-by-shapefile/trips.csv.gz"))
+plans <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010/plans.csv.gz"))
+trips <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010/trips.csv.gz"))
 # persons <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010-cut-718k-by-shapefile/persons.csv.gz"))
 # households <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010-cut-718k-by-shapefile/households.csv.gz"))
 # blocks <- readCsv(pp(activitySimDir, "/activitysim-plans-base-2010-cut-718k-by-shapefile/blocks.csv.gz"))
@@ -248,7 +250,7 @@ sfbay_contrained_parking <- sfbay_contrained_parking[,-c("chargingType")]
 setnames(sfbay_contrained_parking, "ReservedFor", "reservedFor")
 #sfbay_contrained_parking[chargingPointType!="NoCharger",.N,by=.(parkingType,chargingPointType)]
 
-initInfra_1_5 <- readCsv(pp(workDir, "/init1.6_2021_Sep_22_wgs84.csv"))
+initInfra_1_5 <- readCsv(pp(workDir, "/init1.6_2021_Oct_06_wgs84.csv"))
 initInfra_1_5_updated <- initInfra_1_5[,c("subSpace", "pType", "chrgType", "field_1", "household_id", "X", "Y")]
 setnames(initInfra_1_5_updated, "chrgType", "chargingPointType")
 setnames(initInfra_1_5_updated, "pType", "parkingType")
@@ -308,7 +310,7 @@ initInfra_1_5_updated[,`:=`(parkingZoneId=paste("AO-PEV",taz,1:.N,sep="-")),]
 initInfra_1_5_updated$numStalls <- 1
 write.csv(
   initInfra_1_5_updated,
-  file = pp(workDir, "/init1.6_2021_Sep_22_wgs84_updated.csv"),
+  file = pp(workDir, "/init1.6_2021_Oct_06_wgs84_updated.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="")
@@ -323,27 +325,36 @@ no_charger_or_non_AlamedaOakland_constrained <- sfbay_contrained_parking[
 initInfra_1_5_updated_constrained_non_AlamedaOakland <- rbind(initInfra_1_5_updated, no_charger_or_non_AlamedaOakland_constrained)
 write.csv(
   initInfra_1_5_updated_constrained_non_AlamedaOakland,
-  file = pp(workDir, "/gemini-base-scenario-2-parking-infra16-and-constrained-nonAO.csv"),
+  file = pp(workDir, "/gemini-base-scenario-3-parking-charging-infra16.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="")
 
 
-logs <- readCsv(pp(workDir, "/beam_to_pydss_federate.csv"))
+infra16 <- readCsv(pp(workDir, "/gemini-base-scenario-3-parking-charging-infra16.csv"))
+infra16_charging <- infra16[chargingPointType!="NoCharger"]
+write.csv(
+  infra16_charging,
+  file = pp(workDir, "/gemini-base-scenario-3-charging-with-household-infra16.csv"),
+  row.names=FALSE,
+  quote=FALSE,
+  na="")
+infra16_charging[startsWith(reservedFor, "household")]$reservedFor <- "Any"
+write.csv(
+  infra16_charging,
+  file = pp(workDir, "/gemini-base-scenario-3-charging-no-household-infra16.csv"),
+  row.names=FALSE,
+  quote=FALSE,
+  na="")
 
-logs[,.(estimatedLoad=sum(estimatedLoad)),by=.(currentTime)] %>%
-  ggplot(aes(currentTime/3600.,estimatedLoad/1000)) +
-  geom_bar(stat="identity")
-ggplot(logs) + geom_histogram(aes(estimatedLoad))
 
-
-####
-
-
-parking <- readCsv(pp(workDir, "/gemini_taz_parking_plugs_power_150kw.csv"))
-
-parking[,.(feeInCents=mean(feeInCents)),by=.(parkingType,chargingPointType)]
-
+infra16_parking <- infra16[chargingPointType=="NoCharger"]
+write.csv(
+  infra16_parking,
+  file = pp(workDir, "/gemini-base-scenario-3-parking-infra16.csv"),
+  row.names=FALSE,
+  quote=FALSE,
+  na="")
 
 
 #####

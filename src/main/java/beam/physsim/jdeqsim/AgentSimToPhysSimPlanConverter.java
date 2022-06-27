@@ -10,6 +10,7 @@ import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimNetworkComparisonEuclideanVsLengthAttribute;
 import beam.analysis.physsim.PhyssimNetworkLinkLengthDistribution;
 import beam.calibration.impl.example.CountsObjectiveFunction;
+import beam.physsim.analysis.LinkStatsWithVehicleCategory;
 import beam.physsim.cchRoutingAssignment.OsmInfoHolder;
 import beam.physsim.cchRoutingAssignment.RoutingFrameworkTravelTimeCalculator;
 import beam.physsim.cchRoutingAssignment.RoutingFrameworkWrapperImpl;
@@ -315,9 +316,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         int endTimeInSeconds = (int) Time.parseTime(beamConfig.beam().agentsim().endTime());
         cfg.setMaxTime(endTimeInSeconds);
         Network network = agentSimScenario.getNetwork();
-        BeamCalcLinkStats linkStats = new BeamCalcLinkStats(network, cfg);
-        linkStats.addData(volumesAnalyzer, travelTimeForR5);
-        linkStats.writeFile(controlerIO.getIterationFilename(iterationEndsEvent.getIteration(), "linkstats.csv.gz"));
+        LinkStatsWithVehicleCategory linkStats = new LinkStatsWithVehicleCategory(network, cfg);
+        String filePath = controlerIO.getIterationFilename(iterationEndsEvent.getIteration(), "linkstats.csv.gz");
+        linkStats.writeLinkStatsWithTruckVolumes(volumesAnalyzer, travelTimeForR5, filePath);
     }
 
     private boolean shouldWritePlans(int iterationNumber) {
@@ -325,7 +326,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     }
 
     private boolean shouldWriteInIteration(int iterationNumber, int interval) {
-        return interval == 1 || (interval > 0 && iterationNumber % interval == 0);
+        return interval == 1 || (interval > 0 && iterationNumber >= interval && iterationNumber % interval == 0);
     }
 
     private void writePhyssimPlans(IterationEndsEvent event) {

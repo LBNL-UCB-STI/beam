@@ -1,12 +1,18 @@
 package beam.agentsim.agents.choice.mode
 
+//<<<<<<< HEAD
 import scala.collection.mutable.ListBuffer
+//=======
+//>>>>>>> origin/Xuan/sfbay-long-walking-solved-investigating-stuckness
 import beam.agentsim.agents.choice.logit
 import beam.agentsim.agents.choice.logit._
-import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.{ModeCostTimeTransfer, _}
+import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit.{
+  calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment,
+  ModeCostTimeTransfer
+}
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
-import beam.agentsim.agents.vehicles.BeamVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.ModeChoiceOccurredEvent
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
@@ -14,13 +20,17 @@ import beam.router.model.{BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.r5.BikeLanesAdjustment
 import beam.router.skim.readonly.TransitCrowdingSkims
 import beam.sim.BeamServices
-import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.ModalBehaviors
+import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual
 import beam.utils.logging.ExponentialLazyLogging
+import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.api.experimental.events.EventsManager
+
+import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 
 /**
   * BEAM
@@ -29,6 +39,7 @@ class ModeChoiceMultinomialLogit(
   val beamServices: BeamServices,
   val model: MultinomialLogit[EmbodiedBeamTrip, String],
   val modeModel: MultinomialLogit[BeamMode, String],
+  val transitVehicleTypeVOTMultipliers: Map[Id[BeamVehicleType], Double],
   beamConfigHolder: BeamConfigHolder,
   transitCrowding: TransitCrowdingSkims,
   val eventsManager: EventsManager
@@ -219,11 +230,16 @@ class ModeChoiceMultinomialLogit(
       } else {
         1d
       }
-      getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity, originActivity) * factor
+//<<<<<<< HEAD
+//      getGeneralizedTimeOfLeg(x, attributesOfIndividual, destinationActivity, originActivity) * factor
+//=======
+      getGeneralizedTimeOfLeg(embodiedBeamTrip, x, attributesOfIndividual, destinationActivity) * factor
+//>>>>>>> origin/Xuan/sfbay-long-walking-solved-investigating-stuckness
     }.sum + getGeneralizedTime(waitingTime, None, None)
   }
 
   override def getGeneralizedTimeOfLeg(
+    embodiedBeamTrip: EmbodiedBeamTrip,
     embodiedBeamLeg: EmbodiedBeamLeg,
     attributesOfIndividual: Option[AttributesOfIndividual],
     destinationActivity: Option[Activity],
@@ -232,15 +248,26 @@ class ModeChoiceMultinomialLogit(
     attributesOfIndividual match {
       case Some(attributes) =>
         attributes.getGeneralizedTimeOfLegForMNL(
+          embodiedBeamTrip,
           embodiedBeamLeg,
           this,
           beamServices,
           destinationActivity,
+//<<<<<<< HEAD
           originActivity
+//=======
+//          Some(transitCrowding)
+//>>>>>>> origin/Xuan/sfbay-long-walking-solved-investigating-stuckness
         )
       case None =>
         embodiedBeamLeg.beamLeg.duration * modeMultipliers.getOrElse(Some(embodiedBeamLeg.beamLeg.mode), 1.0) / 3600
     }
+  }
+
+  override def getCrowdingForTrip(embodiedBeamTrip: EmbodiedBeamTrip): Double = {
+    val percentile =
+      beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile
+    transitCrowding.getTransitOccupancyLevelForPercentile(embodiedBeamTrip, percentile)
   }
 
   override def getGeneralizedTime(
@@ -296,10 +323,7 @@ class ModeChoiceMultinomialLogit(
           adjustSpecialBikeLines = true
         )
       )
-
-      val percentile =
-        beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile
-      val occupancyLevel: Double = transitCrowding.getTransitOccupancyLevelForPercentile(altAndIdx._1, percentile)
+      val occupancyLevel = getCrowdingForTrip(altAndIdx._1)
 
       ModeCostTimeTransfer(
         embodiedBeamTrip = altAndIdx._1,
@@ -312,18 +336,23 @@ class ModeChoiceMultinomialLogit(
     }
   }
 
+<<<<<<< HEAD
   lazy val modeMultipliers: Map[Option[BeamMode], Double] =
     Map[Option[BeamMode], Double](
+=======
+  lazy val modeMultipliers: mutable.Map[Option[BeamMode], Double] =
+    mutable.Map[Option[BeamMode], Double](
+      // Some(WAITING)        -> modalBehaviors.modeVotMultiplier.waiting, TODO think of alternative for waiting. For now assume "NONE" is waiting
+>>>>>>> origin/Xuan/sfbay-long-walking-solved-investigating-stuckness
       Some(TRANSIT)           -> modalBehaviors.modeVotMultiplier.transit,
       Some(RIDE_HAIL)         -> modalBehaviors.modeVotMultiplier.rideHail,
       Some(RIDE_HAIL_POOLED)  -> modalBehaviors.modeVotMultiplier.rideHailPooled,
       Some(RIDE_HAIL_TRANSIT) -> modalBehaviors.modeVotMultiplier.rideHailTransit,
       Some(CAV)               -> modalBehaviors.modeVotMultiplier.CAV,
-//      Some(WAITING)          -> modalBehaviors.modeVotMultiplier.waiting, TODO think of alternative for waiting. For now assume "NONE" is waiting
-      Some(BIKE) -> modalBehaviors.modeVotMultiplier.bike,
-      Some(WALK) -> modalBehaviors.modeVotMultiplier.walk,
-      Some(CAR)  -> modalBehaviors.modeVotMultiplier.drive,
-      None       -> modalBehaviors.modeVotMultiplier.waiting
+      Some(BIKE)              -> modalBehaviors.modeVotMultiplier.bike,
+      Some(WALK)              -> modalBehaviors.modeVotMultiplier.walk,
+      Some(CAR)               -> modalBehaviors.modeVotMultiplier.drive,
+      None                    -> modalBehaviors.modeVotMultiplier.waiting
     )
 
   lazy val poolingMultipliers: Map[AutomationLevel, Double] =
@@ -585,7 +614,7 @@ class ModeChoiceMultinomialLogit(
   ): Double = trips.map(utilityOf(_, attributesOfIndividual, None, None)).sum // TODO: Update with destination activity
 }
 
-object ModeChoiceMultinomialLogit {
+object ModeChoiceMultinomialLogit extends StrictLogging {
 
   def buildModelFromConfig(
     configHolder: BeamConfigHolder
@@ -597,14 +626,15 @@ object ModeChoiceMultinomialLogit {
     )
     val scale_factor: Double =
       configHolder.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.utility_scale_factor
+
+    val carIntercept = Map("intercept" -> UtilityFunctionOperation("intercept", params.car_intercept))
     val mnlUtilityFunctions: Map[String, Map[String, UtilityFunctionOperation]] = Map(
-      "car" -> Map(
-        "intercept" ->
-        UtilityFunctionOperation("intercept", params.car_intercept)
-      ),
-      "cav"       -> Map("intercept" -> UtilityFunctionOperation("intercept", params.cav_intercept)),
-      "walk"      -> Map("intercept" -> UtilityFunctionOperation("intercept", params.walk_intercept)),
-      "ride_hail" -> Map("intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_intercept)),
+      BeamMode.CAR.value      -> carIntercept,
+      BeamMode.CAR_HOV2.value -> carIntercept,
+      BeamMode.CAR_HOV3.value -> carIntercept,
+      "cav"                   -> Map("intercept" -> UtilityFunctionOperation("intercept", params.cav_intercept)),
+      "walk"                  -> Map("intercept" -> UtilityFunctionOperation("intercept", params.walk_intercept)),
+      "ride_hail"             -> Map("intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_intercept)),
       "ride_hail_pooled" -> Map(
         "intercept" -> UtilityFunctionOperation("intercept", params.ride_hail_pooled_intercept)
       ),
@@ -653,6 +683,37 @@ object ModeChoiceMultinomialLogit {
     transitOccupancyLevel: Double,
     index: Int = -1
   )
+
+  def getTransitVehicleTypeVOTMultipliers(
+    vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+    transitVehicleTypeVOTMultipliersStr: List[String]
+  ): Map[Id[BeamVehicleType], Double] = {
+    if (transitVehicleTypeVOTMultipliersStr.isEmpty) Map.empty
+    else {
+      val vehTypeToMultiplier = transitVehicleTypeVOTMultipliersStr.flatMap { curr =>
+        val separator = curr.indexOf(":")
+        if (separator < 0) {
+          logger.warn(
+            s"Cannot derive vehicle mode and multiplier from '${transitVehicleTypeVOTMultipliersStr}', current element is '${curr}'"
+          )
+          None
+        } else {
+          val vehicleTypeStr = curr.substring(0, separator)
+          val vehicleTypeId = Id.create(vehicleTypeStr, classOf[BeamVehicleType])
+          vehicleTypes.get(vehicleTypeId) match {
+            case Some(_) =>
+              val multiplier = curr.substring(separator + 1).toDouble
+              Some((vehicleTypeId, multiplier))
+            case None =>
+              logger.warn(s"Can't find vehicle type '${vehicleTypeStr}'")
+              None
+          }
+
+        }
+      }
+      vehTypeToMultiplier.toMap
+    }
+  }
 
   def calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(
     embodiedBeamTrip: EmbodiedBeamTrip,

@@ -34,18 +34,18 @@ case class ODRow(origin: GeoUnit.TAZ, destination: GeoUnit.TAZ)
 
 /*
 Example of parameters usage:
- --configPath test/input/beamville/beam.conf
- --input test/input/beamville/input.csv
- --output test/input/beamville/output.csv
- --linkstatsPath test/input/beamville/linkstats.csv
- --ODSkimsPath test/input/beamville/odskims.csv
+ --configPath beam.sim.test/input/beamville/beam.conf
+ --input beam.sim.test/input/beamville/input.csv
+ --output beam.sim.test/input/beamville/output.csv
+ --linkstatsPath beam.sim.test/input/beamville/linkstats.csv
+ --ODSkimsPath beam.sim.test/input/beamville/odskims.csv
  --parallelism 2
 
-Note that all csv files can automatically use gzip compression if specified with `csv.gz` extension
-for example "--input test/input/beamville/input.csv.gz"
+beam.sim.Note that all csv files can automatically use gzip compression if specified with `csv.gz` extension
+for example "--input beam.sim.test/input/beamville/input.csv.gz"
 
  Run with gradle:
- ./gradlew execute -PmainClass=beam.router.skim.urbansim.BackgroundSkimsCreatorApp -PappArgs=["'--configPath', 'test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf', '--output', 'output.csv', '--input', 'input.csv', '--ODSkimsPath', 'ODSkimsBeamville.csv',  '--linkstatsPath', '0.linkstats.csv'"]
+ ./gradlew execute -PmainClass=beam.router.skim.urbansim.BackgroundSkimsCreatorApp -PappArgs=["'--configPath', 'beam.sim.test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf', '--output', 'output.csv', '--input', 'input.csv', '--ODSkimsPath', 'ODSkimsBeamville.csv',  '--linkstatsPath', '0.linkstats.csv'"]
  */
 object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
@@ -96,11 +96,13 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       weightedWalkAccess = rec.get("WACC_minutes").toDouble,
       weightedWalkEgress = rec.get("WEGR_minutes").toDouble,
       weightedWalkAuxiliary = rec.get("WAUX_minutes").toDouble,
+      weightedWaitInitial = rec.getOrDefault("IWAIT_minutes", "0").toDouble,
+      weightedWaitTransfer = rec.getOrDefault("XWAIT_minutes", "0").toDouble,
       weightedTotalInVehicleTime = rec.get("TOTIVT_IVT_minutes").toDouble,
       weightedDriveTimeInMinutes = rec.get("DTIM_minutes").toDouble,
       weightedDriveDistanceInMeters = rec.get("DDIST_meters").toDouble,
       weightedFerryInVehicleTimeInMinutes = rec.get("FERRYIVT_minutes").toDouble,
-      weightedLightRailInVehicleTimeInMinutes = rec.get("KEYIVT_minutes").toDouble,
+      weightedKeyInVehicleTimeInMinutes = rec.get("KEYIVT_minutes").toDouble,
       weightedTransitBoardingsCount = rec.get("BOARDS").toDouble,
       weightedCost = Option(rec.get("WeightedCost")).map(_.toDouble).getOrElse(0.0d),
       debugText = rec.get("DEBUG_TEXT")

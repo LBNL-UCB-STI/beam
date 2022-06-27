@@ -26,6 +26,7 @@ import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.skim.core.AbstractSkimmerEvent
+import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -63,10 +64,10 @@ class PersonWithVehicleSharingSpec
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
-        akka.test.timefactor = 2
+        akka.beam.sim.test.timefactor = 2
         """
     )
-    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
     .resolve()
 
   lazy implicit val system: ActorSystem = ActorSystem("PersonWithVehicleSharingSpec", config)
@@ -138,7 +139,7 @@ class PersonWithVehicleSharingSpec
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
             new RouteHistory(beamConfig),
-            boundingBox
+            VehiclesAdjustment.getVehicleAdjustment(beamScenario)
           )
         )
       )
@@ -295,7 +296,7 @@ class PersonWithVehicleSharingSpec
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
             new RouteHistory(beamConfig),
-            boundingBox
+            VehiclesAdjustment.getVehicleAdjustment(beamScenario)
           )
         )
       )
@@ -558,7 +559,7 @@ class PersonWithVehicleSharingSpec
           Vector(mockSharedVehicleFleet.ref),
           Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
           new RouteHistory(beamConfig),
-          boundingBox
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -652,7 +653,7 @@ class PersonWithVehicleSharingSpec
 
       person2EntersVehicleEvents.expectNoMessage()
 
-      mockSharedVehicleFleet.expectMsgPF() { case MobilityStatusInquiry(_, SpaceTime(_, 28820), _, triggerId) =>
+      mockSharedVehicleFleet.expectMsgPF() { case MobilityStatusInquiry(_, SpaceTime(_, 28820), _, _, triggerId) =>
         mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(), triggerId)
       }
 

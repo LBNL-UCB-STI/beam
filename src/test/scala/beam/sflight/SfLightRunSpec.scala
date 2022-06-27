@@ -47,7 +47,7 @@ class SfLightRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with 
           |beam.agentsim.lastIteration = 0
         """.stripMargin
         )
-        .withFallback(testConfig("test/input/sf-light/sf-light-0.5k.conf"))
+        .withFallback(testConfig("beam.sim.test/input/sf-light/sf-light-0.5k.conf"))
         .resolve()
       val configBuilder = new MatSimBeamConfigBuilder(config)
       val matsimConfig = configBuilder.buildMatSimConf()
@@ -87,9 +87,9 @@ class SfLightRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with 
     }
 
     "run 5k(default) scenario for one iteration" taggedAs (Periodic, ExcludeRegular) ignore {
-      val confPath = configMap.getWithDefault("config", "test/input/sf-light/sf-light-5k.conf")
+      val confPath = configMap.getWithDefault("config", "beam.sim.test/input/sf-light/sf-light-5k.conf")
       val totalIterations = configMap.getWithDefault("iterations", "1").toInt
-      logger.info(s"Starting test with config [$confPath] and iterations [$totalIterations]")
+      logger.info(s"Starting beam.sim.test with config [$confPath] and iterations [$totalIterations]")
       val baseConf = testConfig(confPath)
         .resolve()
         .withValue(LAST_ITER_CONF_PATH, ConfigValueFactory.fromAnyRef(totalIterations - 1))

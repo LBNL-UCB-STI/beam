@@ -285,7 +285,7 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     val filteredIdleVehicles: Set[Id[BeamVehicle]] = if (includeRepositioningVehicles) {
       getIdleAndRepositioningVehiclesAndFilterOutExluded.keySet.toSet
     } else {
-      getIdleVehiclesAndFilterOutExluded.keySet.toSet
+      getIdleVehiclesAndFilterOutExluded.keySet.toSet // we set RH to be 1.0 of the population which means each request should go through that big amount
     }
     filteredIdleVehicles -- excludeRideHailVehicles -- vehicleOutOfCharge
   }

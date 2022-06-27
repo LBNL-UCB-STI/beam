@@ -43,14 +43,14 @@ class BikeTransitModeSpec
   def config: com.typesafe.config.Config =
     ConfigFactory
       .parseString("""
-          |akka.test.timefactor = 10
+          |akka.beam.sim.test.timefactor = 10
           |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept = 0
           |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept = 10
           |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_transit_intercept = 20
           |""".stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf").resolve())
 
-  def outputDirPath: String = basePath + "/" + testOutputDir + "transit-mode-test"
+  def outputDirPath: String = basePath + "/" + testOutputDir + "transit-mode-beam.sim.test"
 
   lazy implicit val system: ActorSystem = ActorSystem("BikeTransitModeSpec", config)
 

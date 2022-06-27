@@ -67,7 +67,7 @@ These events are specific to BEAM and are thrown within the AgentSim:
 
 ModeChoiceEvent
 ~~~~~~~~~~~~~~~
-Note that this event corresponds to the moment of choosing a mode, if mode choice is occurring dynamically within the day. If mode choice occurs outside of the simulation day, then this event is not thrown. Also, the time of choosing mode is not always the same as the departure time.
+beam.sim.Note that this event corresponds to the moment of choosing a mode, if mode choice is occurring dynamically within the day. If mode choice occurs outside of the simulation day, then this event is not thrown. Also, the time of choosing mode is not always the same as the departure time.
 
 * Time - Time of the mode choice.
 * Person - Person ID of the person making the mode choice.

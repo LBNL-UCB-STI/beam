@@ -20,16 +20,16 @@ class BeamWarmStartRunSpec extends AnyWordSpecLike with Matchers with BeamHelper
         .parseString(s"""
                        |beam.agentsim.lastIteration = 1
                        |beam.warmStart.type = full
-                       |beam.warmStart.path = test/input/sf-light/warmstart
+                       |beam.warmStart.path = beam.sim.test/input/sf-light/warmstart
                      """.stripMargin)
-        .withFallback(testConfig("test/input/sf-light/sf-light.conf"))
+        .withFallback(testConfig("beam.sim.test/input/sf-light/sf-light.conf"))
         .resolve()
 
       val (_, output, _) = runBeamWithConfig(baseConf)
       val averageCarSpeedIt0 = BeamWarmStartRunSpec.avgCarModeFromCsv(extractFileName(output, 0))
       val averageCarSpeedIt1 = BeamWarmStartRunSpec.avgCarModeFromCsv(extractFileName(output, 1))
-      averageCarSpeedIt0 should equal(4.0 +- 1.6)
-      averageCarSpeedIt1 should equal(6.0 +- 1.6)
+      logger.info("average car speed per iterations: {}, {}", averageCarSpeedIt0, averageCarSpeedIt1)
+      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(0.75 +- 0.07)
 
     }
   }
@@ -50,8 +50,7 @@ object BeamWarmStartRunSpec {
       GenericCsvReader.readAs[Double](filePath, mapper => mapper.get("travel_time").toDouble, _ => true)
     try {
       val travelTimes = rdr.toArray
-      val avg = if (travelTimes.length == 0) 0 else travelTimes.sum / travelTimes.length
-      TimeUnit.SECONDS.toMinutes(avg.toLong)
+      if (travelTimes.length == 0) 0 else travelTimes.sum / travelTimes.length
     } finally {
       toClose.close()
     }

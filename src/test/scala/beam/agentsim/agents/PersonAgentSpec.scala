@@ -21,6 +21,7 @@ import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.skim.core.AbstractSkimmerEvent
+import beam.sim.vehicles.VehiclesAdjustment
 import beam.tags.FlakyTest
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
@@ -56,7 +57,7 @@ class PersonAgentSpec
         akka.loglevel = debug
         """
     )
-    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
     .resolve()
 
   lazy implicit val system: ActorSystem = ActorSystem("PersonAgentSpec", config)
@@ -123,8 +124,7 @@ class PersonAgentSpec
           self,
           services.tollCalculator,
           self,
-          routeHistory = new RouteHistory(beamConfig),
-          boundingBox = boundingBox
+          routeHistory = new RouteHistory(beamConfig)
         )
       )
 
@@ -134,7 +134,7 @@ class PersonAgentSpec
       expectMsg(CompletionNotice(0, Vector()))
     }
 
-    // Hopefully deterministic test, where we mock a router and give the agent just one option for its trip.
+    // Hopefully deterministic beam.sim.test, where we mock a router and give the agent just one option for its trip.
     it("should demonstrate a complete trip, throwing MATSim events") {
       val eventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
@@ -187,12 +187,12 @@ class PersonAgentSpec
           eventsManager,
           population,
           household,
-          Map(),
+          Map.empty,
           new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -296,7 +296,7 @@ class PersonAgentSpec
 
       // In this tests, it's not easy to chronologically sort Events vs. Triggers/Messages
       // that we are expecting. And also not necessary in real life.
-      // So we put the Events on a separate channel to avoid a non-deterministically failing test.
+      // So we put the Events on a separate channel to avoid a non-deterministically failing beam.sim.test.
       val events = new TestProbe(system)
       val eventsManager: EventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
@@ -400,11 +400,11 @@ class PersonAgentSpec
           population = population,
           household = household,
           vehicles = Map(),
-          homeCoord = new Coord(0.0, 0.0),
+          fallbackHomeCoord = new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -686,12 +686,12 @@ class PersonAgentSpec
           eventsManager,
           population,
           household,
-          Map(),
+          Map.empty,
           new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -869,14 +869,8 @@ class PersonAgentSpec
 
       events.expectMsgType[PersonArrivalEvent]
       events.expectMsgType[ActivityStartEvent]
-
-      expectMsgType[CompletionNotice]
     }
 
-  }
-
-  override def afterAll(): Unit = {
-    super.afterAll()
   }
 
   after {
@@ -887,7 +881,7 @@ class PersonAgentSpec
       terminationProbe.expectTerminated(iteration, 60 seconds)
     }
     maybeIteration = None
-    //we need to prevent getting this CompletionNotice from the Scheduler in the next test
+    //we need to prevent getting this CompletionNotice from the Scheduler in the next beam.sim.test
     receiveWhile(1000 millis) { case _: CompletionNotice =>
     }
   }

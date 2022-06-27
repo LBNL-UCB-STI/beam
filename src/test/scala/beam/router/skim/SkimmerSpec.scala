@@ -65,7 +65,7 @@ class SkimmerSpec extends AnyFlatSpec with Matchers with BeamHelper {
          |}
          |beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 99999
       """.stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
     runScenarioWithSkimmer(config, classOf[CountSkimmerTester], classOf[CountSkimmerTester])
 
@@ -270,9 +270,11 @@ object SkimmerSpec extends LazyLogging {
         generalizedCost = row("generalizedCost").toDouble,
         distanceInM = row("distanceInM").toDouble,
         cost = row("cost").toDouble,
+        payloadWeightInKg = Option(row("payloadWeightInKg")).map(_.toDouble).getOrElse(0.0),
         energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
         level4CavTravelTimeScalingFactor =
           Option(row("level4CavTravelTimeScalingFactor")).map(_.toDouble).getOrElse(1.0),
+        failedTrips = 0,
         observations = row("observations").toInt,
         iterations = row("iterations").toInt
       )

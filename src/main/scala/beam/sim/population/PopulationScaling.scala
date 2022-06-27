@@ -1,22 +1,22 @@
 package beam.sim.population
 
-import java.io.FileWriter
-
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices, BeamWarmStart}
-import beam.sim.metrics.BeamStaticMetricsWriter
+import beam.utils.CloseableUtil.RichCloseable
+import beam.utils.MathUtils
+import beam.utils.csv.GenericCsvReader
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.population.Person
-import org.matsim.core.population.PersonUtils
+import org.matsim.api.core.v01.population.{Activity, Person, PlanElement}
+import org.matsim.core.population.{PersonUtils, PopulationUtils}
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households.{Household, HouseholdImpl}
 import org.matsim.vehicles.Vehicle
 
-import scala.collection.{mutable, JavaConverters}
-import scala.util.Random
+import java.io.{Closeable, File, FileWriter}
 import scala.collection.JavaConverters._
-import beam.utils.CloseableUtil.RichCloseable
+import scala.collection.mutable
+import scala.util.Random
 
 class PopulationScaling extends LazyLogging {
 
@@ -125,7 +125,13 @@ class PopulationScaling extends LazyLogging {
     val numAgents = math.round(
       beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation * scenario.getPopulation.getPersons.size()
     )
-    val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+
+    val seed =
+      beamServices.beamConfig.beam.agentsim.randomSeedForPopulationSampling
+        .getOrElse(System.currentTimeMillis().toInt)
+    logger.info("Agentsim randomSeedForPopulationSampling is set to {}.", seed)
+    val rand = new Random(seed)
+
     val notSelectedHouseholdIds = mutable.Set[Id[Household]]()
     val notSelectedVehicleIds = mutable.Set[Id[Vehicle]]()
     val notSelectedPersonIds = mutable.Set[Id[Person]]()
@@ -197,6 +203,120 @@ class PopulationScaling extends LazyLogging {
 
   }
 
+  def sampleByIndustry(scenario: MutableScenario, beamConfig: BeamConfig): Unit = {
+    val industryFile = beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.inputFilePath
+    val industrialProbability: Map[String, Double] = {
+      if (new File(industryFile).exists()) {
+        val (iter: Iterator[mutable.Map[String, String]], toClose: Closeable) =
+          GenericCsvReader.readAs[mutable.Map[String, String]](industryFile, rec => rec.asScala, _ => true)
+        try {
+          iter.map(value => value("industry") -> value("removal_probability").toDouble).toMap
+        } finally {
+          toClose.close()
+        }
+      } else Map.empty
+    }
+    val selectedPersons = getSelectedPersons(
+      beamConfig.matsim.modules.global.randomSeed,
+      scenario.getPopulation.getPersons.values().asScala,
+      industrialProbability
+    )
+    logger.info(s"Selected ${selectedPersons.length} out of ${scenario.getPopulation.getPersons.size()} people")
+
+    beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.removalStrategy match {
+      case "RemovePersonFromScenario" =>
+        removePeople(scenario, selectedPersons)
+      case "KeepPersonButRemoveAllActivities" =>
+        val nPeopleWithWorkingActivitiesBefore = getNumberOfWorkingActivities(scenario)
+        logger.info(
+          s"Before plan removal. $nPeopleWithWorkingActivitiesBefore out ${scenario.getPopulation.getPersons.size()} have working activity"
+        )
+        removeWorkPlan(selectedPersons)
+        val nPeopleWithWorkingActivitiesAfter = getNumberOfWorkingActivities(scenario)
+        logger.info(
+          s"After plan removal. $nPeopleWithWorkingActivitiesAfter out of ${scenario.getPopulation.getPersons.size()} have working activity"
+        )
+      case x =>
+        logger.warn(
+          s"Don't know beam.agentsim.agents.population.industryRemovalProbabilty.removalStrategy=${beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.removalStrategy}"
+        )
+    }
+  }
+
+  def removePeople(scenario: MutableScenario, peopleToRemove: Iterable[Person]): Unit = {
+    val memberIdToHousehold = scenario.getHouseholds.getHouseholds
+      .values()
+      .asScala
+      .flatMap(hh => hh.getMemberIds.asScala.map(memberId => memberId -> hh.getId))
+      .toMap
+
+    var nRemoved: Int = 0
+    peopleToRemove.foreach { person =>
+      val personId: Id[Person] = person.getId
+      memberIdToHousehold.get(personId) match {
+        case Some(hhId) =>
+          val hh = scenario.getHouseholds.getHouseholds.get(hhId).asInstanceOf[HouseholdImpl]
+          val members = hh.getMemberIds.asScala.filter(pId => pId != personId).asJava
+          hh.setMemberIds(members)
+        case _ =>
+          logger.error(s"Household for person $personId is missing.")
+      }
+      if (Option(scenario.getPopulation.getPersons.remove(personId)).nonEmpty) {
+        nRemoved += 1
+      }
+    }
+
+    logger.info(
+      s"Removing done, removed $nRemoved persons, new population size: ${scenario.getPopulation.getPersons.size()}"
+    )
+  }
+
+  def getSelectedPersons(
+    rndSeed: Int,
+    persons: Iterable[Person],
+    industrialProbability: Map[String, Double]
+  ): Array[Person] = {
+    def probabilityFunction(person: Person): Double = {
+      industrialProbability.getOrElse(getIndustry(person), 0.0)
+    }
+    val selectedPersons = MathUtils.selectElementsByProbability(rndSeed, probabilityFunction, persons)
+    selectedPersons
+  }
+
+  def getIndustry(person: Person): String = {
+    val industryAttribute = person.getAttributes.getAttribute("industry")
+    if (industryAttribute != null) industryAttribute.toString else ""
+  }
+
+  def removeWorkPlan(persons: Iterable[Person]): Unit = {
+    var nRemovedWorkPlans: Int = 0
+    persons.foreach { person: Person =>
+      val originalPlan = person.getSelectedPlan
+      val planElements = originalPlan.getPlanElements.asScala
+      if (planElements.exists(isWorkActivity)) {
+        //Keep only first activity of day
+        val daysFirstActivity = planElements.head.asInstanceOf[Activity]
+        val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
+        daysFirstActivity.setEndTime(Double.NegativeInfinity)
+        newPlan.addActivity(daysFirstActivity)
+        person.addPlan(newPlan)
+        person.removePlan(originalPlan)
+        person.setSelectedPlan(newPlan)
+        nRemovedWorkPlans += 1
+      }
+    }
+    logger.info(s"Removed $nRemovedWorkPlans working plans from ${persons.size} people")
+  }
+
+  def isWorkActivity(plan: PlanElement): Boolean = {
+    plan match {
+      case activity: Activity =>
+        activity.getType.toLowerCase() == "work"
+      case _ =>
+        false
+    }
+  }
+
   private def getVehicleGroupingStringUsing(vehicleIds: IndexedSeq[Id[Vehicle]], beamScenario: BeamScenario): String = {
     vehicleIds
       .groupBy(vehicleId =>
@@ -225,14 +345,16 @@ class PopulationScaling extends LazyLogging {
       }
     }
   }
+
+  private def getNumberOfWorkingActivities(scenario: MutableScenario): Int = {
+    scenario.getPopulation.getPersons.values().asScala.count { p =>
+      p.getSelectedPlan.getPlanElements.asScala.exists(isWorkActivity)
+    }
+  }
+
 }
 
 object PopulationScaling {
-
-  def isWarmstartDisabledOrSamplingEnabled(beamConfig: BeamConfig): Boolean = {
-    !BeamWarmStart.isFullWarmStart(beamConfig.beam.warmStart) ||
-    beamConfig.beam.warmStart.samplePopulationIntegerFlag == 1
-  }
 
   // sample population (beamConfig.beam.agentsim.numAgents - round to nearest full household)
   def samplePopulation(
@@ -243,30 +365,23 @@ object PopulationScaling {
     outputDir: String
   ): Unit = {
     val populationScaling = new PopulationScaling()
-    if (
-      isWarmstartDisabledOrSamplingEnabled(
-        beamConfig
-      ) && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation < 1
-    ) {
+    if (beamConfig.beam.agentsim.agents.population.industryRemovalProbabilty.enabled) {
+      populationScaling.sampleByIndustry(scenario, beamConfig)
+    }
+
+    val warmstartDisabledOrSamplingEnabled = {
+      !BeamWarmStart.isFullWarmStart(beamConfig.beam.warmStart) ||
+      beamConfig.beam.warmStart.samplePopulationIntegerFlag == 1
+    }
+
+    if (warmstartDisabledOrSamplingEnabled && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation < 1) {
       populationScaling.downSample(beamServices, scenario, beamScenario, outputDir)
     }
-    if (
-      isWarmstartDisabledOrSamplingEnabled(
-        beamConfig
-      ) && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation > 1
-    ) {
+    if (warmstartDisabledOrSamplingEnabled && beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation > 1) {
       populationScaling.upSample(beamServices, scenario, beamScenario)
     }
+
     val populationAdjustment = PopulationAdjustment.getPopulationAdjustment(beamServices)
     populationAdjustment.update(scenario)
-
-    // write static metrics, such as population size, vehicles fleet size, etc.
-    // necessary to be called after population sampling
-    BeamStaticMetricsWriter.writeSimulationParameters(
-      scenario,
-      beamScenario,
-      beamServices,
-      beamConfig
-    )
   }
 }

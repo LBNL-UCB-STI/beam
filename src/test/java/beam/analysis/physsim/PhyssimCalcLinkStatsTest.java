@@ -17,6 +17,7 @@ import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.network.io.MatsimNetworkReader;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
+import scala.Option;
 
 import java.nio.file.Paths;
 import java.util.List;
@@ -26,8 +27,8 @@ import static org.junit.Assert.assertEquals;
 public class PhyssimCalcLinkStatsTest {
 
     private static final String BASE_PATH = Paths.get(".").toAbsolutePath().toString();
-    private static final String EVENTS_FILE_PATH = BASE_PATH + "/test/input/equil-square/test-data/physSimEvents-relative-speeds.xml";
-    private static final String NETWORK_FILE_PATH = BASE_PATH + "/test/input/equil-square/test-data/physSimNetwork-relative-speeds.xml";
+    private static final String EVENTS_FILE_PATH = BASE_PATH + "/beam.sim.test/input/equil-square/beam.sim.test-data/physSimEvents-relative-speeds.xml";
+    private static final String NETWORK_FILE_PATH = BASE_PATH + "/beam.sim.test/input/equil-square/beam.sim.test-data/physSimNetwork-relative-speeds.xml";
 
     private static PhyssimCalcLinkStats physsimCalcLinkStats;
 
@@ -46,8 +47,7 @@ public class PhyssimCalcLinkStatsTest {
         eventsManager.addHandler(travelTimeCalculator);
 
         BeamConfig beamConfig = BeamConfig.apply(TestConfigUtils.testConfig("test/input/equil-square/equil-0.001k.conf").resolve().withValue("beam.physsim.quick_fix_minCarSpeedInMetersPerSecond", ConfigValueFactory.fromAnyRef(0.0)));
-        physsimCalcLinkStats = new PhyssimCalcLinkStats(network, null,  beamConfig, defaultTravelTimeCalculator, new BeamConfigChangesObservable(beamConfig) );
-
+        physsimCalcLinkStats = new PhyssimCalcLinkStats(network, null,  beamConfig, defaultTravelTimeCalculator, new BeamConfigChangesObservable(beamConfig, Option.empty()), null);
         //physsimCalcLinkStats = new PhyssimCalcLinkStats(network, null, null);
 
         physsimCalcLinkStats.notifyIterationStarts(eventsManager, defaultTravelTimeCalculator);

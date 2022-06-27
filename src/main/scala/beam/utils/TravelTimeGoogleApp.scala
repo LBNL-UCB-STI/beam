@@ -26,7 +26,7 @@ import org.matsim.core.scoring.ScoringFunctionFactory
 
 /**
   * Run it using gradle:<br>
-  * `./gradlew :execute -PmaxRAM=20 -PmainClass=beam.agentsim.events.handling.TravelTimeGoogleApp -PappArgs=["'--config', 'test/input/sf-light/sf-light-0.5k.conf', 'path/to/0.events.csv'"] -PlogbackCfg=logback.xml`
+  * `./gradlew :execute -PmaxRAM=20 -PmainClass=beam.agentsim.events.handling.TravelTimeGoogleApp -PappArgs=["'--config', 'beam.sim.test/input/sf-light/sf-light-0.5k.conf', 'path/to/0.events.csv'"] -PlogbackCfg=logback.xml`
   */
 object TravelTimeGoogleApp extends App with StrictLogging {
 
@@ -46,7 +46,7 @@ object TravelTimeGoogleApp extends App with StrictLogging {
 
   private def processEventFile(execCfg: BeamExecutionConfig, actorSystem: ActorSystem): Unit = {
     val statCfg = execCfg.beamConfig.beam.calibration.google.travelTimes.copy(enable = true)
-    val statistic = new TravelTimeGoogleStatistic(statCfg, actorSystem, SimpleGeoUtils())
+    val statistic = TravelTimeGoogleStatistic.getTravelTimeGoogleStatistic(statCfg, actorSystem, SimpleGeoUtils())
 
     val iteration = 0
     statistic.reset(iteration)
@@ -56,9 +56,11 @@ object TravelTimeGoogleApp extends App with StrictLogging {
     using(
       EventReader.fromCsvFile(
         pathToEventFile,
-        event =>
-          event.getEventType == PathTraversalEvent.EVENT_TYPE && event.getAttributes
-            .get(PathTraversalEvent.ATTRIBUTE_MODE) == BeamMode.CAR.value
+        event => {
+          val isPTE = event.getEventType == PathTraversalEvent.EVENT_TYPE
+          val isCar = BeamMode.isCar(event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE))
+          isPTE && isCar
+        }
       )
     ) { case (_, c) =>
       c.close()

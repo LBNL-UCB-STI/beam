@@ -1,7 +1,5 @@
 package beam.utils.data.synthpop
 
-import java.util
-
 import beam.utils.data.ctpp.models.OD
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.RandomGenerator

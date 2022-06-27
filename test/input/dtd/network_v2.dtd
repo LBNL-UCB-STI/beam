@@ -66,7 +66,7 @@
 <!-- ATTRIBUTE capDivider:
      This is the same as the attribute 'capperiod' in the links element.
      To be compatible with older scenarios, it is still there, but
-     should be removed somewhen. Note that it holds only the hours!
+     should be removed somewhen. beam.sim.Note that it holds only the hours!
      format := unsigned int
      units  := hour -->
 <!-- ATTRIBUTE xml:lang:
@@ -123,7 +123,7 @@
 <!-- ATTRIBUTE type:
      Typically, networks are created by third party (i.e. GIS users).
      So it makes sense (for completeness) to add the type of the node.
-     Note, sometimes, the type defines in which of the network categories
+     beam.sim.Note, sometimes, the type defines in which of the network categories
      it belongs (streets, pedestrians, publictransport), so be sure,
      that the type does not conflict with the network category.
      format := string -->
@@ -210,7 +210,7 @@
 <!-- ATTRIBUTE type:
      Typically, networks are created by third party (i.e. GIS users).
      So it makes sense (for completeness) to add the type of the link.
-     Note, sometimes, the type defines in which of the network
+     beam.sim.Note, sometimes, the type defines in which of the network
      categories it belongs (streets, pedestrians, publictransport), so
      be sure, that the type does not conflict with the network
      category.

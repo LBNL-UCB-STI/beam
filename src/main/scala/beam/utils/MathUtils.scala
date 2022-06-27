@@ -1,6 +1,8 @@
 package beam.utils
 
+import java.util.concurrent.ThreadLocalRandom
 import scala.collection.JavaConverters._
+import scala.reflect.ClassTag
 import scala.util.Random
 
 /**
@@ -18,6 +20,8 @@ object MathUtils {
   def roundDouble(inVal: Double, scale: Int = 3): Double = {
     BigDecimal.decimal(inVal).setScale(scale, BigDecimal.RoundingMode.HALF_UP).toDouble
   }
+
+  def doubleToInt(value: Double): Int = Math.round(value).toInt
 
   /**
     * Calculates the median for the given collection of doubles
@@ -124,10 +128,7 @@ object MathUtils {
     * @return one of the nearest integers depending on the random value and the fraction of x
     */
   def roundUniformly(x: Double): Long = {
-    val floor: Double = Math.floor(x)
-    val diff = x - floor
-    val addition = if (Random.nextDouble() < diff) 1 else 0
-    Math.round(floor + addition)
+    roundUniformly(x, ThreadLocalRandom.current())
   }
 
   /**
@@ -143,6 +144,15 @@ object MathUtils {
     Math.round(floor + addition)
   }
 
+  /**
+    *  clamps a value between an upper and lower bound
+    * @param v value
+    * @param lo lower bound
+    * @param up upper bound
+    * @return
+    */
+  def clamp(v: Double, lo: Double, up: Double): Double = Math.max(lo, Math.min(up, v))
+
   def formatBytes(v: Long): String = {
     if (v < 1024) return v + " B"
     val z = (63 - java.lang.Long.numberOfLeadingZeros(v)) / 10
@@ -151,4 +161,60 @@ object MathUtils {
 
   def nanToZero(x: Double) = if (x.isNaN) { 0.0 }
   else { x }
+
+  /**
+    * It selects random elements out of a collection.
+    * It is designed to be performant on not indexed collections (like Sets).
+    * @param xs the collection
+    * @param n number of elements to select
+    * @param random a Random
+    * @tparam T type of elements
+    * @return an array of selected elements
+    */
+  def selectRandomElements[T: ClassTag](xs: Iterable[T], n: Int, random: Random): Array[T] = {
+    val size = xs.size
+    val numToTake = Math.min(n, size)
+    val result = Array.ofDim[T](numToTake)
+    val it = xs.iterator
+    var originalElementsLeft = size
+    var i = 0
+    while (i < numToTake) {
+      val elem = it.next()
+      val resultElementsLeft = numToTake - i
+      if (resultElementsLeft < originalElementsLeft) {
+        val probability = resultElementsLeft.toDouble / originalElementsLeft
+        if (random.nextDouble() < probability) {
+          result(i) = elem
+          i += 1
+        }
+      } else {
+        result(i) = elem
+        i += 1
+      }
+      originalElementsLeft -= 1
+    }
+    result
+  }
+
+  def selectElementsByProbability[T](
+    rndSeed: Long,
+    elementToProbability: T => Double,
+    xs: Iterable[T]
+  )(implicit ct: ClassTag[T]): Array[T] = {
+    if (xs.isEmpty) Array.empty
+    else {
+      val rnd = new Random(rndSeed)
+      xs.flatMap { person =>
+        val removalProbability = elementToProbability(person)
+        if (removalProbability == 0.0) None
+        else {
+          val isSelected = rnd.nextDouble() < removalProbability
+          if (isSelected) Some(person)
+          else None
+        }
+      }.toArray
+    }
+  }
+
+  def selectRandomElement[T](xs: IndexedSeq[T], random: Random): T = xs(random.nextInt(xs.size))
 }

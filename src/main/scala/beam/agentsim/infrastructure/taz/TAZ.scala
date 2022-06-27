@@ -3,9 +3,7 @@ package beam.agentsim.infrastructure.taz
 import scala.annotation.tailrec
 import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
-import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.network.LinkImpl
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
@@ -28,6 +26,8 @@ object TAZ {
   val EmergencyTAZId: Id[TAZ] = Id.create("emergency", classOf[TAZ])
 
   val DefaultTAZ: TAZ = new TAZ(DefaultTAZId, new Coord(), 0)
+
+  def isSpecialTazId(tazId: Id[TAZ]): Boolean = tazId == DefaultTAZId || tazId == EmergencyTAZId
 
   /**
     * performs a concentric disc search from the present location to find TAZs up to the SearchMaxRadius
@@ -58,7 +58,7 @@ object TAZ {
     }
 
     _find(startRadius).map { taz =>
-      // Note, this assumes both TAZs and SearchCenter are in local coordinates, and therefore in units of meters
+      // beam.sim.Note, this assumes both TAZs and SearchCenter are in local coordinates, and therefore in units of meters
       (taz, GeoUtils.distFormula(taz.coord, searchCenter))
     }
   }
@@ -92,7 +92,7 @@ object TAZ {
     }
 
     _find(0.0, startRadius).map { taz =>
-      // Note, this assumes both TAZs and SearchCenter are in local coordinates, and therefore in units of meters
+      // beam.sim.Note, this assumes both TAZs and SearchCenter are in local coordinates, and therefore in units of meters
       (taz, GeoUtils.distFormula(taz.coord, searchCenter))
     }
   }

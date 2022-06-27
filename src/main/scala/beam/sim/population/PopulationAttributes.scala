@@ -1,12 +1,14 @@
 package beam.sim.population
 
+import beam.agentsim.agents.TransitVehicleInitializer
 import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator._
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.RouteHistory.LinkId
-import beam.router.model.EmbodiedBeamLeg
+import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.readonly.TransitCrowdingSkims
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population._
@@ -27,6 +29,9 @@ case class AttributesOfIndividual(
   income: Option[Double]
 ) extends PopulationAttributes {
   lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
+
+  val busTransit: Set[BeamMode] = Set(BeamMode.BUS, BeamMode.WALK)
+  val subwayTransit: Set[BeamMode] = Set(BeamMode.SUBWAY, BeamMode.WALK)
 
   // Get Value of Travel Time for a specific leg of a travel alternative:
   // If it is a car leg, we use link-specific multipliers, otherwise we just look at the entire leg travel time and mode
@@ -67,7 +72,11 @@ case class AttributesOfIndividual(
             modeChoiceModel.situationMultipliers(beamMode),
             vehicleAutomationLevel,
             beamServices
-          ) * getModeVotMultiplier(Option(CAR), modeChoiceModel)
+//<<<<<<< HEAD
+//          ) * getModeVotMultiplier(Option(CAR), modeChoiceModel)
+//=======
+          ) * getModeVotMultiplier(Option(beamMode), modeChoiceModel)
+//>>>>>>> origin/Xuan/sfbay-long-walking-solved-investigating-stuckness
         }
       case _ =>
         getModeVotMultiplier(Option(beamMode), modeChoiceModel)
@@ -76,11 +85,16 @@ case class AttributesOfIndividual(
   }
 
   def getGeneralizedTimeOfLegForMNL(
+    embodiedBeamTrip: EmbodiedBeamTrip,
     embodiedBeamLeg: EmbodiedBeamLeg,
     modeChoiceModel: ModeChoiceMultinomialLogit,
     beamServices: BeamServices,
     destinationActivity: Option[Activity],
+//<<<<<<< HEAD
     originActivity: Option[Activity]
+//=======
+//    transitCrowdingSkims: Option[TransitCrowdingSkims]
+//>>>>>>> origin/Xuan/sfbay-long-walking-solved-investigating-stuckness
   ): Double = {
     //NOTE: This gives answers in hours
     embodiedBeamLeg.beamLeg.mode match {
@@ -100,10 +114,36 @@ case class AttributesOfIndividual(
             embodiedBeamLeg.isPooledTrip
           )
         )
+//<<<<<<< HEAD
       case BIKE =>
         val situation = getSituationForVOT(destinationActivity, originActivity)
         getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel, Some(situation)) *
         embodiedBeamLeg.beamLeg.duration / 3600
+//=======
+//      case BUS | SUBWAY | RAIL | TRAM | FERRY | FUNICULAR | CABLE_CAR | GONDOLA | TRANSIT =>
+//        val uniqueModes = embodiedBeamTrip.beamLegs.map(_.mode).toSet
+
+//        val modeMultiplier = getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel)
+//        val beamVehicleTypeId = TransitVehicleInitializer.transitModeToBeamVehicleType(embodiedBeamLeg.beamLeg.mode)
+//        val multiplier = if (uniqueModes == subwayTransit || uniqueModes == busTransit) {
+//          modeChoiceModel.transitVehicleTypeVOTMultipliers.getOrElse(beamVehicleTypeId, modeMultiplier)
+//        } else {
+//          modeMultiplier
+//        }
+//        val durationInHours = embodiedBeamLeg.beamLeg.duration.toDouble / 3600
+//        transitCrowdingSkims match {
+//          case Some(transitCrowding) =>
+//            val crowdingMultiplier = transitCrowding.getTransitCrowdingTimeMultiplier(
+//              embodiedBeamLeg,
+//              beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_VOT_multiplier,
+//              beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_VOT_threshold
+//            )
+//            multiplier * durationInHours * crowdingMultiplier
+//          case _ =>
+//            multiplier * durationInHours
+//        }
+
+//>>>>>>> origin/Xuan/sfbay-long-walking-solved-investigating-stuckness
       case _ =>
         getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel) *
           embodiedBeamLeg.beamLeg.duration / 3600
@@ -192,8 +232,13 @@ case class AttributesOfIndividual(
     linkID: Int,
     travelTime: Double,
     beamServices: BeamServices
+//<<<<<<< HEAD
   ): (CongestionLevel, RoadwayType) = {
     // Note: cutoffs for congested (2/3 free flow speed) and highway (ff speed > 20 m/s) are arbitrary and could be inputs
+//=======
+//  ): (congestionLevel, roadwayType) = {
+    // beam.sim.Note: cutoffs for congested (2/3 free flow speed) and highway (ff speed > 20 m/s) are arbitrary and could be inputs
+//>>>>>>> origin/Xuan/sfbay-long-walking-solved-investigating-stuckness
     val currentLink = beamServices.networkHelper.getLink(linkID).get
     val freeSpeed: Double = currentLink.getFreespeed()
     val currentSpeed: Double = if (travelTime == 0) { freeSpeed }

@@ -6,7 +6,7 @@ import org.scalatest.matchers.should.Matchers
 class ParquetReaderTest extends AnyWordSpec with Matchers {
   "ParquetReader" should {
     "be able to read parquet file" in {
-      val (iter, toClose) = ParquetReader.read("test/test-resources/test.parquet")
+      val (iter, toClose) = ParquetReader.read("beam.sim.test/beam.sim.test-resources/beam.sim.test.parquet")
       try {
         val l = iter.take(2).toArray
 

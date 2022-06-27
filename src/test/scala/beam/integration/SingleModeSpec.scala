@@ -11,7 +11,7 @@ import beam.router.RouteHistory
 import beam.sflight.RouterForTest
 import beam.sim.common.GeoUtilsImpl
 import beam.sim.{BeamHelper, BeamMobsim, RideHailFleetInitializerProvider}
-import beam.utils.SimRunnerForTest
+import beam.utils.{MathUtils, SimRunnerForTest}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.{ActivityEndEvent, Event, PersonDepartureEvent, PersonEntersVehicleEvent}
@@ -22,6 +22,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.language.postfixOps
 
 class SingleModeSpec
@@ -34,10 +35,10 @@ class SingleModeSpec
 
   def config: com.typesafe.config.Config =
     ConfigFactory
-      .parseString("""akka.test.timefactor = 10""")
-      .withFallback(testConfig("test/input/sf-light/sf-light.conf").resolve())
+      .parseString("""akka.beam.sim.test.timefactor = 10""")
+      .withFallback(testConfig("beam.sim.test/input/sf-light/sf-light.conf").resolve())
 
-  def outputDirPath: String = basePath + "/" + testOutputDir + "single-mode-test"
+  def outputDirPath: String = basePath + "/" + testOutputDir + "single-mode-beam.sim.test"
 
   lazy implicit val system: ActorSystem = ActorSystem("SingleModeSpec", config)
 
@@ -85,14 +86,10 @@ class SingleModeSpec
       mobsim.run()
 
       assert(events.nonEmpty)
-      var seenEvent = false
-      events.foreach { case event: PersonDepartureEvent =>
-        assert(
-          event.getLegMode == "walk" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
-        )
-        seenEvent = true
-      }
-      assert(seenEvent, "Have not seend `PersonDepartureEvent`")
+      val personDepartureEvents = events.collect { case event: PersonDepartureEvent => event }
+      personDepartureEvents should not be empty
+      val regularPersonEvents = filterOutProfessionalDriversAndCavs(personDepartureEvents)
+      regularPersonEvents.map(_.getLegMode) should contain only "walk"
     }
 
     "let everybody take transit when their plan says so" in {
@@ -136,14 +133,12 @@ class SingleModeSpec
       mobsim.run()
 
       assert(events.nonEmpty)
-      var seenEvent = false
-      events.foreach { case event: PersonDepartureEvent =>
-        assert(
-          event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
-        )
-        seenEvent = true
-      }
-      assert(seenEvent, "Have not seend `PersonDepartureEvent`")
+
+      val personDepartureEvents = events.collect { case event: PersonDepartureEvent => event }
+      personDepartureEvents should not be empty
+      val regularPersonEvents = filterOutProfessionalDriversAndCavs(personDepartureEvents)
+      val (walkTransit, others) = regularPersonEvents.map(_.getLegMode).partition(_ == "walk_transit")
+      others.size should be < (0.02 * walkTransit.size).toInt
     }
 
     "let everybody take drive_transit when their plan says so" in {
@@ -159,8 +154,10 @@ class SingleModeSpec
             val newPlanElements = person.getSelectedPlan.getPlanElements.asScala.collect {
               case activity: Activity if activity.getType == "Home" =>
                 Seq(activity, scenario.getPopulation.getFactory.createLeg("drive_transit"))
-              case activity: Activity => Seq(activity)
-              case _: Leg             => Nil
+              case activity: Activity =>
+                Seq(activity)
+                Seq(activity, scenario.getPopulation.getFactory.createLeg(""))
+              case _: Leg => Nil
             }.flatten
             if (newPlanElements.last.isInstanceOf[Leg]) {
               newPlanElements.remove(newPlanElements.size - 1)
@@ -205,15 +202,14 @@ class SingleModeSpec
       mobsim.run()
 
       assert(events.nonEmpty)
-      var seenEvent = false
-      events.collect { case event: PersonDepartureEvent =>
-        // drive_transit can fail -- maybe I don't have a car
-        assert(
-          event.getLegMode == "walk" || event.getLegMode == "walk_transit" || event.getLegMode == "drive_transit" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
-        )
-        seenEvent = true
+      val personDepartureEvents = events.collect { case event: PersonDepartureEvent => event }
+      personDepartureEvents should not be empty
+      val regularPersonEvents = filterOutProfessionalDriversAndCavs(personDepartureEvents)
+      val (driveTransit, others) = regularPersonEvents.map(_.getLegMode).partition(_ == "drive_transit")
+      //router gives too little 'drive transit' trips, most of the persons chooses 'car' in this case
+      withClue("When transit is available majority of agents should use drive_transit") {
+        others.count(_ == "walk_transit") should be < MathUtils.doubleToInt(0.2 * driveTransit.size)
       }
-      assert(seenEvent, "Have not seen `PersonDepartureEvent`")
 
       val eventsByPerson = events.groupBy(_.getAttributes.get("person"))
 
@@ -274,17 +270,19 @@ class SingleModeSpec
       mobsim.run()
 
       assert(events.nonEmpty)
-      var seenEvent = false
-      events.collect { case event: PersonDepartureEvent =>
-        // Wr still get some failing car routes.
-        // TODO: Find root cause, fix, and remove "walk" here.
-        // See SfLightRouterSpec.
-        assert(
-          event.getLegMode == "walk" || event.getLegMode == "car" || event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
-        )
-        seenEvent = true
+      val personDepartureEvents = events.collect { case event: PersonDepartureEvent => event }
+      personDepartureEvents should not be empty
+      val regularPersonEvents = filterOutProfessionalDriversAndCavs(personDepartureEvents)
+      val othersCount = regularPersonEvents.count(_.getLegMode != "car")
+      withClue("Majority of agents should use cars. Other modes take place when no car available.") {
+        othersCount should be < MathUtils.doubleToInt(0.02 * regularPersonEvents.size)
       }
-      assert(seenEvent, "Have not seen `PersonDepartureEvent`")
     }
+  }
+
+  private def filterOutProfessionalDriversAndCavs(personDepartureEvents: ListBuffer[PersonDepartureEvent]) = {
+    personDepartureEvents.filterNot(event =>
+      event.getLegMode == "be_a_tnc_driver" || event.getLegMode == "be_a_household_cav_driver" || event.getLegMode == "be_a_transit_driver" || event.getLegMode == "cav"
+    )
   }
 }

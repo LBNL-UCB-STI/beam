@@ -76,7 +76,7 @@ class ParkingSpec
       .withValue("matsim.modules.strategy.ModuleProbability_2", ConfigValueFactory.fromAnyRef(0.7))
       .withValue(
         "beam.agentsim.taz.parkingFilePath",
-        ConfigValueFactory.fromAnyRef(s"test/input/beamville/parking/taz-parking-$parkingScenario.csv")
+        ConfigValueFactory.fromAnyRef(s"beam.sim.test/input/beamville/parking/taz-parking-$parkingScenario.csv")
       )
       .withValue(
         "beam.outputs.events.overrideWritingLevels",
@@ -209,7 +209,7 @@ class ParkingSpec
       }
     }
 
-    "very expensive parking should reduce driving" ignore { // flakey test
+    "very expensive parking should reduce driving" ignore { // flakey beam.sim.test
       val expensiveEvents = runAndCollectForIterations("very-expensive", 5)
 
       val expensiveModeChoiceCarCount = expensiveEvents.map(countForPathTraversalAndCarMode)
@@ -223,7 +223,7 @@ class ParkingSpec
         .sum should be > expensiveModeChoiceCarCount.takeRight(5).sum
     }
 
-    "no parking stalls should reduce driving" ignore { // flakey test
+    "no parking stalls should reduce driving" ignore { // flakey beam.sim.test
       val emptyEvents = runAndCollectForIterations("empty", 5)
 
       val emptyModeChoiceCarCount = emptyEvents.map(countForPathTraversalAndCarMode)

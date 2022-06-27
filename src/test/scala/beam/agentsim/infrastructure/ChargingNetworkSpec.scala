@@ -38,18 +38,20 @@ class ChargingNetworkSpec
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
-        akka.test.timefactor = 2
+        akka.beam.sim.test.timefactor = 2
+        beam.agentsim.agents.parking.minSearchRadius = 1000.0
+        beam.agentsim.agents.parking.maxSearchRadius = 16093.4
+        beam.agentsim.agents.parking.searchMaxDistanceRelativeToEllipseFoci = 4.0
+        matsim.modules.global.randomSeed = 0
         """
     )
-    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
     .resolve()
 
   lazy implicit val system: ActorSystem = ActorSystem("PersonAndTransitDriverSpec", config)
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
   private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
-
-  val randomSeed: Int = 0
 
   // a coordinate in the center of the UTM coordinate system
   val coordCenterOfUTM = new Coord(500000, 5000000)
@@ -80,8 +82,7 @@ class ChargingNetworkSpec
           tazTreeMap,
           geo,
           oneParkingOption,
-          boundingBox,
-          randomSeed
+          boundingBox
         )
       } {
         val vehicleType1 = beamScenario.vehicleTypes(Id.create("BEV_XFC", classOf[BeamVehicleType]))
@@ -90,13 +91,13 @@ class ChargingNetworkSpec
           powerTrain = new Powertrain(0.0),
           beamVehicleType = vehicleType1
         )
+        vehicle1.spaceTime = SpaceTime(centerSpaceTime.loc.getX - 200, centerSpaceTime.loc.getY - 200, 0)
         val xfcChargingPoint = CustomChargingPoint("ultrafast", 250.0, ElectricCurrentType.DC)
         // first request is handled with the only stall in the system
         val firstInquiry =
           ParkingInquiry.init(centerSpaceTime, "work", beamVehicle = Some(vehicle1), triggerId = 73737)
         val expectedFirstStall =
           ParkingStall(
-            Id.create(1, classOf[TAZ]),
             Id.create(1, classOf[TAZ]),
             ParkingZone.createId("0"),
             coordCenterOfUTM,
@@ -119,6 +120,7 @@ class ChargingNetworkSpec
           powerTrain = new Powertrain(0.0),
           beamVehicleType = vehicleType2
         )
+        vehicle2.spaceTime = SpaceTime(centerSpaceTime.loc.getX - 200, centerSpaceTime.loc.getY - 200, 0)
         val secondInquiry =
           ParkingInquiry.init(centerSpaceTime, "work", beamVehicle = Some(vehicle2), triggerId = 49238)
         val response2 = chargingNetwork.processParkingInquiry(secondInquiry)
@@ -137,23 +139,16 @@ object ChargingNetworkSpec {
     tazTreeMap: TAZTreeMap,
     geo: GeoUtils,
     parkingDescription: Iterator[String],
-    boundingBox: Envelope,
-    seed: Int
-  ): ChargingNetwork[TAZ] = {
-    val minSearchRadius = 1000.0
-    val maxSearchRadius = 16093.4 // meters, aka 10 miles
-    ChargingNetwork[TAZ](
+    boundingBox: Envelope
+  ): ChargingNetwork = {
+    ChargingNetwork(
       parkingDescription,
       tazTreeMap.tazQuadTree,
       tazTreeMap.idToTAZMapping,
-      identity[TAZ](_),
       boundingBox,
       beamConfig,
       None,
-      geo.distUTMInMeters(_, _),
-      minSearchRadius,
-      maxSearchRadius,
-      seed
+      geo.distUTMInMeters(_, _)
     )
   }
 }

@@ -32,11 +32,11 @@ case class CsvOutputRow(id: Int, originUTM: Location, destinationUTM: Location, 
 /*
 Example of parameters usage:
  --departureTime 0
- --configPath test/input/beamville/beam.conf
- --linkstatsPath test/input/beamville/linkstats.csv.gz
+ --configPath beam.sim.test/input/beamville/beam.conf
+ --linkstatsPath beam.sim.test/input/beamville/linkstats.csv.gz
  --router R5|GH
- --input test/input/beamville/input.csv
- --output test/input/beamville/output.csv
+ --input beam.sim.test/input/beamville/input.csv
+ --output beam.sim.test/input/beamville/output.csv
  */
 object TravelTimeAndDistanceCalculatorApp extends App with BeamHelper {
 
@@ -89,7 +89,7 @@ class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends Be
   val beamConfig = BeamConfig(cfg)
   val timeBinSizeInSeconds = beamConfig.beam.agentsim.timeBinSize
   val maxHour = DateUtils.getMaxHour(beamConfig)
-  val workerParams: R5Parameters = R5Parameters.fromConfig(cfg)
+  val workerParams = R5Parameters.fromConfig(cfg)._1
   val travelTimeNoiseFraction = beamConfig.beam.routing.r5.travelTimeNoiseFraction
   val travelTime = new LinkTravelTimeContainer(parameters.linkstatsPath.toString, timeBinSizeInSeconds, maxHour)
 
@@ -141,7 +141,8 @@ class TravelTimeAndDistanceCalculatorApp(parameters: InputParameters) extends Be
       vehicleTypes = workerParams.vehicleTypes,
       fuelTypePrices = workerParams.fuelTypePrices,
       wayId2TravelTime = wayId2TravelTime,
-      id2Link = id2Link
+      id2Link = id2Link,
+      useAlternativeRoutes = workerParams.beamConfig.beam.routing.gh.useAlternativeRoutes
     )
   }
 

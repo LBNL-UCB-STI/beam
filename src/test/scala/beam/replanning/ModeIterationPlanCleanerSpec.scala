@@ -32,7 +32,7 @@ class ModeIterationPlanCleanerSpec extends AnyFlatSpec with Matchers with BeamHe
            |beam.replanning.clearModes.iteration = 1
            |beam.replanning.clearModes.strategy = "AtBeginningOfIteration"
            """.stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
+      .withFallback(testConfig("beam.sim.test/input/beamville/beam.conf"))
       .resolve()
 
     val configBuilder = new MatSimBeamConfigBuilder(config)

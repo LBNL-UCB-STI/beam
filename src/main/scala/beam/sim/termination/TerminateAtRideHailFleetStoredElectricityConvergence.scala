@@ -1,6 +1,6 @@
 package beam.sim.termination
 
-import beam.agentsim.events.{RideHailFleetStoredElectricityEvent, RideHailFleetStoredElectricityEventTracker}
+import beam.agentsim.events.{FleetStoredElectricityEvent, RideHailFleetStoredElectricityEventTracker}
 import beam.sim.config.BeamConfigHolder
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -71,7 +71,7 @@ class TerminateAtRideHailFleetStoredElectricityConvergence @Inject() (
     * electricity stored in the ride hail fleet's batteries is less than relativeTolerance.
     * If this does not happen before reaching maxLastIteration, the iteration is stopped.
     *
-    * Note: this method is called right before iteration starts.
+    * beam.sim.Note: this method is called right before iteration starts.
     *
     * @param iteration Number of the iteration that would begin if returning true.
     * @return true if the iteration should continue, false otherwise.
@@ -119,8 +119,8 @@ class TerminateAtRideHailFleetStoredElectricityConvergence @Inject() (
     */
   override def handleEvent(event: Event): Unit = {
     event match {
-      case rideHailFleetStoredElectricityEvent: RideHailFleetStoredElectricityEvent =>
-        handleRideHailFleetStoredElectricityEvent(rideHailFleetStoredElectricityEvent)
+      case fleetStoredElectricityEvent: FleetStoredElectricityEvent =>
+        handleFleetStoredElectricityEvent(fleetStoredElectricityEvent)
       case _ =>
     }
   }
