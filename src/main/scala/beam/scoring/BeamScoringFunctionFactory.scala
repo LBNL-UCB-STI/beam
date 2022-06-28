@@ -189,7 +189,6 @@ class BeamScoringFunctionFactory @Inject() (
             .collect { case activity: Activity =>
               activity
             }
-            .lift(tripIndex + 1)
           val tripOrigin = person.getSelectedPlan.getPlanElements.asScala
             .collect { case activity: Activity =>
               activity
@@ -225,9 +224,8 @@ class BeamScoringFunctionFactory @Inject() (
           val tripCost = trip.costEstimate
           val tripDistance = trip.legs.map(_.beamLeg.travelPath.distanceInM).sum
           val destinationActivity = person.getSelectedPlan.getPlanElements.asScala
-            .collect { case activity: Activity =>
-              activity
-            }
+            .filter(_.isInstanceOf[Activity])
+            .map(_.asInstanceOf[Activity])
             .lift(tripIndex + 1)
           trip.legs.foreach { leg =>
             val linksAndTravelTimes = leg.beamLeg.travelPath.linkIds.zip(leg.beamLeg.travelPath.linkTravelTime)
