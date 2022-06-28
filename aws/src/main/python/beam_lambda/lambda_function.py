@@ -67,6 +67,8 @@ BRANCH_DEFAULT = 'master'
 
 DATA_BRANCH_DEFAULT = 'develop'
 
+DATA_COMMIT_DEFAULT = 'HEAD'
+
 COMMIT_DEFAULT = 'HEAD'
 
 MAXRAM_DEFAULT = '2g'
@@ -97,6 +99,8 @@ write_files:
       path: /tmp/slack_notification
     - content: |
             #!/bin/bash
+            pip install setuptools
+            pip install strip-hints
             pip install helics==2.7.1
             pip install helics-apps==2.7.1
             cd /home/ubuntu/git/beam/src/main/python
@@ -124,40 +128,14 @@ runcmd:
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
   - cd /home/ubuntu/git/beam
-  - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
-  - hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
-  - start_json=$(printf "{
-      \\"command\\":\\"add\\",
-      \\"type\\":\\"beam\\",
-      \\"sheet_id\\":\\"$SHEET_ID\\",
-      \\"run\\":{
-        \\"status\\":\\"Run Started\\",
-        \\"name\\":\\"$TITLED\\",
-        \\"instance_id\\":\\"%s\\",
-        \\"instance_type\\":\\"%s\\",
-        \\"host_name\\":\\"%s\\",
-        \\"browser\\":\\"http://%s:8000\\",
-        \\"branch\\":\\"$BRANCH\\",
-        \\"data_branch\\":\\"$DATA_BRANCH\\",
-        \\"region\\":\\"$REGION\\",
-        \\"batch\\":\\"$UID\\",
-        \\"commit\\":\\"$COMMIT\\",
-        \\"s3_link\\":\\"%s\\",
-        \\"max_ram\\":\\"$MAX_RAM\\",
-        \\"profiler_type\\":\\"$PROFILER\\",
-        \\"config_file\\":\\"$CONFIG\\",
-        \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
-        \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
-      }
-    }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
-  - echo $start_json
-  - chmod +x /tmp/slack.sh
-  - chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
-  - echo "notification sent..."
-  - echo "notification saved..."
-  - crontab /tmp/slack_notification
-  - crontab -l
-  - echo "notification scheduled..."
+  - if [ "$COMMIT" = "HEAD" ]
+  - then
+  -   RESOLVED_COMMIT=$(git log -1 --pretty=format:%H)
+  - else
+  -   RESOLVED_COMMIT=COMMIT
+  - fi
+  - echo "Resolved commit is $RESOLVED_COMMIT"
+
   - 'echo "sudo git fetch"'
   - sudo git fetch
   - 'echo "GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH $(date)"'
@@ -179,9 +157,56 @@ runcmd:
   -            echo "Loading remote production data for $i"
   -            git config submodule.$i.branch $DATA_BRANCH
   -            git submodule update --init --remote $i
+  -            cd $i
+  -            if [ "$DATA_COMMIT" = "HEAD" ]
+  -            then
+  -              RESOLVED_DATA_COMMIT=$(git log -1 --pretty=format:%H)
+  -            else
+  -              RESOLVED_DATA_COMMIT=$DATA_COMMIT
+  -            fi
+  -            echo "Resolved data commit is $RESOLVED_DATA_COMMIT"
+  -            git checkout $DATA_COMMIT
+  -            cd -
   -        esac
   -      done
   -  done
+
+  - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
+  - hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  - start_json=$(printf "{
+      \\"command\\":\\"add\\",
+      \\"type\\":\\"beam\\",
+      \\"sheet_id\\":\\"$SHEET_ID\\",
+      \\"run\\":{
+        \\"status\\":\\"Run Started\\",
+        \\"name\\":\\"$TITLED\\",
+        \\"instance_id\\":\\"%s\\",
+        \\"instance_type\\":\\"%s\\",
+        \\"host_name\\":\\"%s\\",
+        \\"browser\\":\\"http://%s:8000\\",
+        \\"branch\\":\\"$BRANCH\\",
+        \\"commit\\":\\"$RESOLVED_COMMIT\\",
+        \\"data_branch\\":\\"$DATA_BRANCH\\",
+        \\"data_commit\\":\\"$RESOLVED_DATA_COMMIT\\",
+        \\"region\\":\\"$REGION\\",
+        \\"batch\\":\\"$UID\\",
+        \\"s3_link\\":\\"%s\\",
+        \\"max_ram\\":\\"$MAX_RAM\\",
+        \\"profiler_type\\":\\"$PROFILER\\",
+        \\"config_file\\":\\"$CONFIG\\",
+        \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
+        \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
+      }
+    }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  - echo $start_json
+  - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
+  - chmod +x /tmp/slack.sh
+  - chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
+  - echo "notification sent..."
+  - echo "notification saved..."
+  - crontab /tmp/slack_notification
+  - crontab -l
+  - echo "notification scheduled..."
 
   - 'echo "gradlew assemble: $(date)"'
   - ./gradlew assemble
@@ -195,7 +220,6 @@ runcmd:
   - echo $MAXRAM
   - /tmp/slack.sh "$hello_msg"
 
-  - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
   - s3p=""
   - for cf in $CONFIG
   -  do
@@ -229,10 +253,11 @@ runcmd:
         \\"host_name\\":\\"%s\\",
         \\"browser\\":\\"http://%s:8000\\",
         \\"branch\\":\\"$BRANCH\\",
+        \\"commit\\":\\"$RESOLVED_COMMIT\\",
         \\"data_branch\\":\\"$DATA_BRANCH\\",
+        \\"data_commit\\":\\"$RESOLVED_DATA_COMMIT\\",
         \\"region\\":\\"$REGION\\",
         \\"batch\\":\\"$UID\\",
-        \\"commit\\":\\"$COMMIT\\",
         \\"s3_link\\":\\"%s\\",
         \\"max_ram\\":\\"$MAX_RAM\\",
         \\"profiler_type\\":\\"$PROFILER\\",
@@ -672,8 +697,9 @@ def deploy_handler(event, context):
         return param_value
 
     branch = event.get('branch', BRANCH_DEFAULT)
-    data_branch = event.get('data_branch', DATA_BRANCH_DEFAULT)
     commit_id = event.get('commit', COMMIT_DEFAULT)
+    data_branch = event.get('data_branch', DATA_BRANCH_DEFAULT)
+    data_commit = event.get('data_commit', DATA_COMMIT_DEFAULT)
     deploy_mode = event.get('deploy_mode', 'config')
     configs = event.get('configs', CONFIG_DEFAULT)
     experiments = event.get('experiments', EXPERIMENT_DEFAULT)
@@ -760,9 +786,17 @@ def deploy_handler(event, context):
             runName = titled
             if len(params) > 1:
                 runName += "-" + str(runNum)
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION', os.environ['REGION']) \
-                .replace('$BRANCH', branch).replace('$DATA_BRANCH', data_branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
-                .replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait) \
+            script = initscript.replace('$RUN_SCRIPT',selected_script) \
+                .replace('$REGION',region) \
+                .replace('$S3_REGION', os.environ['REGION']) \
+                .replace('$BRANCH', branch) \
+                .replace('$COMMIT', commit_id) \
+                .replace('$DATA_BRANCH', data_branch) \
+                .replace('$DATA_COMMIT', data_commit) \
+                .replace('$CONFIG', arg) \
+                .replace('$MAIN_CLASS', execute_class) \
+                .replace('$UID', uid) \
+                .replace('$SHUTDOWN_WAIT', shutdown_wait) \
                 .replace('$TITLED', runName)\
                 .replace('$MAX_RAM', str(max_ram)) \
                 .replace('$S3_PUBLISH', str(s3_publish)) \
