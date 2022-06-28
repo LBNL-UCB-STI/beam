@@ -206,10 +206,12 @@ class BeamRouter(
         case m if m.hasRole("compute") && m.status == MemberStatus.Up => m.address
       }
       if (isWorkAvailable) notifyWorkersOfAvailableWork()
-    case MemberUp(m) if m.hasRole("compute") =>
-      log.info("MemberUp[compute]: {}", m)
-      remoteNodes += m.address
-      notifyNewWorkerIfWorkAvailable(m.address, receivePath = "MemberUp[compute]")
+    case MemberUp(m) =>
+      log.info("MemberUp: {}", m)
+      if (m.hasRole("compute")) {
+        remoteNodes += m.address
+        notifyNewWorkerIfWorkAvailable(m.address, receivePath = "MemberUp[compute]")
+      }
     case other: MemberEvent =>
       log.info("MemberEvent: {}", other)
       other match {
@@ -225,13 +227,15 @@ class BeamRouter(
         remoteNodes -= m.address
         removeUnavailableMemberFromAvailableWorkers(m)
       }
-    case ReachableMember(m) if m.hasRole("compute") =>
+    case ReachableMember(m) =>
       log.info("ReachableMember: {}", m)
-      remoteNodes += m.address
-      notifyNewWorkerIfWorkAvailable(
-        m.address,
-        receivePath = "ReachableMember[compute]"
-      )
+      if (m.hasRole("compute")) {
+        remoteNodes += m.address
+        notifyNewWorkerIfWorkAvailable(
+          m.address,
+          receivePath = "ReachableMember[compute]"
+        )
+      }
     case GimmeWork =>
       val worker = context.sender
       if (!isWorkAvailable)
