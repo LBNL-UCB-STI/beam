@@ -107,7 +107,6 @@ case class AttributesOfIndividual(
             embodiedBeamLeg.isPooledTrip
           )
         )
-//<<<<<<< HEAD
       case BUS | SUBWAY | RAIL | TRAM | FERRY | FUNICULAR | CABLE_CAR | GONDOLA | TRANSIT =>
         val uniqueModes = embodiedBeamTrip.beamLegs.map(_.mode).toSet
         val modeMultiplier = getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel)
