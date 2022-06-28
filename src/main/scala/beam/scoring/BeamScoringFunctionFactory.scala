@@ -190,7 +190,7 @@ class BeamScoringFunctionFactory @Inject() (
             .map(_.asInstanceOf[Activity])
             .lift(tripIndex + 1)
           val tripOrigin = person.getSelectedPlan.getPlanElements.asScala
-            .collect { case Activity if isInstanceOf[Activity] => asInstanceOf[Activity] }
+            .collect { case x if x.isInstanceOf[Activity] => x.asInstanceOf[Activity] }
             .lift(tripIndex)
           val departureTime = trip.legs.headOption.map(_.beamLeg.startTime.toString).getOrElse("")
           val totalTravelTimeInSecs = trip.totalTravelTimeInSecs
