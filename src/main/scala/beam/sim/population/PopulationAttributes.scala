@@ -130,7 +130,7 @@ case class AttributesOfIndividual(
         }
 
       case BIKE =>
-        val situation = getSituationForVOT(destinationActivity, originActivity)
+        val situation = getSituationForVOT(originActivity, destinationActivity)
         getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel, Some(situation)) *
         embodiedBeamLeg.beamLeg.duration / 3600
       case _ =>
@@ -144,8 +144,8 @@ case class AttributesOfIndividual(
   }
 
   private def getSituationForVOT(
-    destinationActivity: Option[Activity],
-    originActivity: Option[Activity]
+                                  originActivity: Option[Activity],
+    destinationActivity: Option[Activity]
   ): Set[SituationMultiplier] = {
     (destinationActivity, originActivity, age) match {
       case (Some(origin), Some(destination), Some(travelerAge)) =>
