@@ -144,7 +144,7 @@ case class AttributesOfIndividual(
   }
 
   private def getSituationForVOT(
-                                  originActivity: Option[Activity],
+    originActivity: Option[Activity],
     destinationActivity: Option[Activity]
   ): Set[SituationMultiplier] = {
     (destinationActivity, originActivity, age) match {
