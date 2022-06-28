@@ -147,7 +147,7 @@ case class AttributesOfIndividual(
     originActivity: Option[Activity],
     destinationActivity: Option[Activity]
   ): Set[SituationMultiplier] = {
-    (destinationActivity, originActivity, age) match {
+    (originActivity,destinationActivity, age) match {
       case (Some(origin), Some(destination), Some(travelerAge)) =>
         val ageBin =
           if (travelerAge > 50) { ageGT50 }
