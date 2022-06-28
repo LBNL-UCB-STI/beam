@@ -27,6 +27,7 @@ class ModeChoiceTransitIfAvailable(val beamServices: BeamServices) extends ModeC
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity],
+    originActivity: Option[Activity],
     person: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
     val containsTransitAlt = alternatives.zipWithIndex.collect {
@@ -44,7 +45,8 @@ class ModeChoiceTransitIfAvailable(val beamServices: BeamServices) extends ModeC
   override def utilityOf(
     alternative: EmbodiedBeamTrip,
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
+    destinationActivity: Option[Activity],
+    originActivity: Option[Activity]
   ): Double = 0.0
 
   override def utilityOf(

@@ -19,7 +19,7 @@ class BingAdapter(apiKey: String, actorSystem: Option[ActorSystem] = None) exten
   private implicit val system: ActorSystem = actorSystem.getOrElse(ActorSystem())
   private val timeout: FiniteDuration = new FiniteDuration(5L, TimeUnit.SECONDS)
 
-  private[bingapi] def findPath(points: Seq[WgsCoordinate]): Future[Seq[SnappedPoint]] = {
+  def findPath(points: Seq[WgsCoordinate]): Future[Seq[SnappedPoint]] = {
     val pointsStr = points
       .map { p =>
         s"${p.latitude},${p.longitude}"
