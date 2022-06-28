@@ -186,8 +186,7 @@ class BeamScoringFunctionFactory @Inject() (
           val (trip, tripIndex) = tripWithIndex
           val personId = person.getId.toString
           val tripPurpose = person.getSelectedPlan.getPlanElements.asScala
-            .filter(_.isInstanceOf[Activity])
-            .map(_.asInstanceOf[Activity])
+              .collect{case x if x.isInstanceOf[Activity] => x.asInstanceOf[Activity]}
             .lift(tripIndex + 1)
           val tripOrigin = person.getSelectedPlan.getPlanElements.asScala
             .collect { case x if x.isInstanceOf[Activity] => x.asInstanceOf[Activity] }
