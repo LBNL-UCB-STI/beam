@@ -1380,7 +1380,6 @@ class PersonAgent(
           data.failedTrips.foreach(uncompletedTrip =>
             generateSkimData(tick, uncompletedTrip, failedTrip = true, currentActivityIndex, nextActivity(data))
           )
-          val correctedTrip = correctTripEndTime(data.currentTrip.get, tick, body.id, body.beamVehicleType.id)
 
           resetFuelConsumed()
 
