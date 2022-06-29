@@ -1391,7 +1391,7 @@ class PersonAgent(
           data.failedTrips.foreach(uncompletedTrip =>
             generateSkimData(tick, uncompletedTrip, failedTrip = true, currentActivityIndex, nextActivity(data))
           )
-          generateSkimData(tick, data.currentTrip.get, failedTrip = false, currentActivityIndex, nextActivity(data))
+//          generateSkimData(tick, data.currentTrip.get, failedTrip = false, currentActivityIndex, nextActivity(data))
 
           resetFuelConsumed()
 
@@ -1448,7 +1448,7 @@ class PersonAgent(
       }
   }
 
-  private def generateSkimData(
+  def generateSkimData(
     tick: Int,
     trip: EmbodiedBeamTrip,
     failedTrip: Boolean,

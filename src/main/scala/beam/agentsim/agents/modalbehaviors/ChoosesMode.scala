@@ -1297,6 +1297,16 @@ trait ChoosesMode {
           combinedItinerariesForChoice
       }).filter(itin => availableModesForTrips.contains(itin.tripClassifier))
 
+      filteredItinerariesForChoice.foreach(
+        this.generateSkimData(
+          _currentTick.get,
+          _,
+          failedTrip = false,
+          personData.currentActivityIndex,
+          nextActivity(personData)
+        )
+      )
+
       val attributesOfIndividual =
         matsimPlan.getPerson.getCustomAttributes
           .get("beam-attributes")
