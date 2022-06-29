@@ -242,6 +242,26 @@ task terminateEC2(type: AWSLambdaInvokeTask) {
     }
 }
 
+task jupyterEC2(type: AWSLambdaInvokeTask) {
+    doFirst {
+        functionName = "start-jupyter-on-instance"
+        invocationType = InvocationType.RequestResponse
+        payload = """
+            {
+              "budget_override": "false",
+              "instance_type": "t2.nano",
+              "title": "alex-vv/jupyter-test",
+              "region": "us-east-2",
+              "storage_size": 128,
+              "token": "e948224a-fbb3-11ec-8714-abc11d9f8dd6"
+            }
+            """
+    }
+    doLast {
+        printResult(payload, invokeResult)
+    }
+}
+
 task listS3Bucket(type: AWSLambdaInvokeTask) {
     doFirst {
         functionName = "s3BucketList"
