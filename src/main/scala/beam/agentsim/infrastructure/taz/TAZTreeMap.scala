@@ -1,9 +1,6 @@
 package beam.agentsim.infrastructure.taz
 
-import java.io._
-import java.util
-import scala.collection.JavaConverters._
-import scala.collection.mutable
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.{HasQuadBounds, QuadTreeBounds}
 import com.vividsolutions.jts.geom.Geometry
@@ -13,8 +10,12 @@ import org.matsim.core.utils.gis.ShapeFileReader
 import org.opengis.feature.simple.SimpleFeature
 import org.slf4j.LoggerFactory
 
+import java.io._
+import java.util
 import scala.annotation.tailrec
+import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 
 /**
   * TAZTreeMap manages a quadTree to find the closest TAZ to any coordinate.
@@ -197,7 +198,7 @@ object TAZTreeMap {
 
   def randomLocationInTAZ(
     taz: TAZ,
-    rand: scala.util.Random = new scala.util.Random(System.currentTimeMillis())
+    rand: scala.util.Random
   ): Coord = {
     val radius = Math.sqrt(taz.areaInSquareMeters / Math.PI) / 2
     val a = 2 * Math.PI * rand.nextDouble()
@@ -205,6 +206,35 @@ object TAZTreeMap {
     val x = r * Math.cos(a)
     val y = r * Math.sin(a)
     new Coord(taz.coord.getX + x, taz.coord.getY + y)
+  }
+
+  def randomLocationInTAZ(
+    taz: TAZ,
+    rand: scala.util.Random,
+    snapLocationHelper: SnapLocationHelper
+  ): Coord = {
+    val tazId = taz.tazId.toString
+    val max = 10000
+    var counter = 0
+    var split: Coord = null
+    while (split == null && counter < max) {
+      snapLocationHelper.computeResult(randomLocationInTAZ(taz, rand)) match {
+        case Right(splitCoord) =>
+          split = splitCoord
+        case _ =>
+      }
+      counter += 1
+    }
+
+    if (split == null) {
+      val loc = randomLocationInTAZ(taz, rand)
+      logger.warn(
+        s"Could not found valid location within taz $tazId even in $max attempts. Creating one anyway $loc."
+      )
+      split = loc
+    }
+
+    split
   }
 
   /**

@@ -27,6 +27,7 @@ import beam.sim.metrics.{Metrics, MetricsSupport, SimulationMetricCollector}
 import beam.sim.monitoring.ErrorListener
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehiclesharing.Fleets
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils._
 import beam.utils.csv.writers.PlansCsvWriter
 import beam.utils.logging.{LoggingMessageActor, MessageLogger}
@@ -69,6 +70,12 @@ class BeamMobsim @Inject() (
 
   import beamServices._
   val physsimConfig = beamConfig.beam.physsim
+
+  val snapLocationHelper = SnapLocationHelper(
+    geo,
+    beamScenario.transportNetwork.streetLayer,
+    beamConfig.beam.routing.r5.linkRadiusMeters
+  )
 
   override def run(): Unit = {
     logger.info("Starting Iteration")
@@ -224,7 +231,8 @@ class BeamMobsim @Inject() (
               person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
               destinationChoiceModel,
               beamServices,
-              person.getId
+              person.getId,
+              snapLocationHelper
             )
           val newPlan =
             supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationChoiceModel, modesAvailable)

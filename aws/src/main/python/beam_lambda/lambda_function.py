@@ -742,20 +742,20 @@ def deploy_handler(event, context):
             runName = titled
             if len(params) > 1:
                 runName += "-" + `runNum`
-            script = initscript.replace('$RUN_SCRIPT',selected_script)\
-                .replace('$REGION',region)\
+            script = initscript.replace('$RUN_SCRIPT',selected_script) \
+                .replace('$REGION',region) \
                 .replace('$S3_REGION', os.environ['REGION']) \
-                .replace('$BRANCH', branch)\
-                .replace('$DATA_BRANCH', data_branch)\
-                .replace('$COMMIT', commit_id)\
+                .replace('$BRANCH', branch) \
+                .replace('$DATA_BRANCH', data_branch) \
+                .replace('$COMMIT', commit_id) \
                 .replace('$CONFIG', arg) \
-                .replace('$MAIN_CLASS', execute_class)\
-                .replace('$UID', uid)\
+                .replace('$MAIN_CLASS', execute_class) \
+                .replace('$UID', uid) \
                 .replace('$SHUTDOWN_WAIT', shutdown_wait) \
-                .replace('$TITLED', runName)\
-                .replace('$MAX_RAM', str(max_ram))\
+                .replace('$TITLED', runName) \
+                .replace('$MAX_RAM', str(max_ram)) \
                 .replace('$S3_PUBLISH', str(s3_publish)) \
-                .replace('$SIGOPT_CLIENT_ID', sigopt_client_id)\
+                .replace('$SIGOPT_CLIENT_ID', sigopt_client_id) \
                 .replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
                 .replace('$GOOGLE_API_KEY', google_api_key) \
                 .replace('$PROFILER', profiler_type) \

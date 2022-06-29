@@ -2,8 +2,6 @@
 
 package beam.sim.config
 
-import scala.util.Random
-
 case class BeamConfig(
   beam: BeamConfig.Beam,
   matsim: BeamConfig.Matsim
@@ -39,7 +37,6 @@ object BeamConfig {
   object Beam {
 
     case class Agentsim(
-      randomSeed: scala.Int,
       agentSampleSizeAsFractionOfPopulation: scala.Double,
       agents: BeamConfig.Beam.Agentsim.Agents,
       chargingNetworkManager: BeamConfig.Beam.Agentsim.ChargingNetworkManager,
@@ -49,10 +46,12 @@ object BeamConfig {
       h3taz: BeamConfig.Beam.Agentsim.H3taz,
       lastIteration: scala.Int,
       populationAdjustment: java.lang.String,
+      randomSeedForPopulationSampling: scala.Option[scala.Int],
       scenarios: BeamConfig.Beam.Agentsim.Scenarios,
       scheduleMonitorTask: BeamConfig.Beam.Agentsim.ScheduleMonitorTask,
       schedulerParallelismWindow: scala.Int,
       simulationName: java.lang.String,
+      snapLocationAndRemoveInvalidInputs: scala.Boolean,
       taz: BeamConfig.Beam.Agentsim.Taz,
       thresholdForMakingParkingChoiceInMeters: scala.Int,
       thresholdForWalkingInMeters: scala.Int,
@@ -716,7 +715,9 @@ object BeamConfig {
         }
 
         case class Parking(
+          fractionOfSameTypeZones: scala.Double,
           maxSearchRadius: scala.Double,
+          minNumberOfSameTypeZones: scala.Int,
           minSearchRadius: scala.Double,
           mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
           rangeAnxietyBuffer: scala.Double,
@@ -773,7 +774,11 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking = {
             BeamConfig.Beam.Agentsim.Agents.Parking(
+              fractionOfSameTypeZones =
+                if (c.hasPathOrNull("fractionOfSameTypeZones")) c.getDouble("fractionOfSameTypeZones") else 0.5,
               maxSearchRadius = if (c.hasPathOrNull("maxSearchRadius")) c.getDouble("maxSearchRadius") else 8046.72,
+              minNumberOfSameTypeZones =
+                if (c.hasPathOrNull("minNumberOfSameTypeZones")) c.getInt("minNumberOfSameTypeZones") else 10,
               minSearchRadius = if (c.hasPathOrNull("minSearchRadius")) c.getDouble("minSearchRadius") else 250.00,
               mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit(
                 if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
@@ -2072,7 +2077,6 @@ object BeamConfig {
 
         case class ParkingManager(
           displayPerformanceTimings: scala.Boolean,
-          level: java.lang.String,
           method: java.lang.String,
           parallel: BeamConfig.Beam.Agentsim.Taz.ParkingManager.Parallel
         )
@@ -2096,7 +2100,6 @@ object BeamConfig {
             BeamConfig.Beam.Agentsim.Taz.ParkingManager(
               displayPerformanceTimings =
                 c.hasPathOrNull("displayPerformanceTimings") && c.getBoolean("displayPerformanceTimings"),
-              level = if (c.hasPathOrNull("level")) c.getString("level") else "TAZ",
               method = if (c.hasPathOrNull("method")) c.getString("method") else "DEFAULT",
               parallel = BeamConfig.Beam.Agentsim.Taz.ParkingManager.Parallel(
                 if (c.hasPathOrNull("parallel")) c.getConfig("parallel")
@@ -2162,10 +2165,6 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim = {
         BeamConfig.Beam.Agentsim(
-          randomSeed =
-            if (c.hasPathOrNull("randomSeed"))
-              c.getInt("randomSeed")
-            else new Random().nextInt(),
           agentSampleSizeAsFractionOfPopulation =
             if (c.hasPathOrNull("agentSampleSizeAsFractionOfPopulation"))
               c.getDouble("agentSampleSizeAsFractionOfPopulation")
@@ -2190,6 +2189,9 @@ object BeamConfig {
           lastIteration = if (c.hasPathOrNull("lastIteration")) c.getInt("lastIteration") else 0,
           populationAdjustment =
             if (c.hasPathOrNull("populationAdjustment")) c.getString("populationAdjustment") else "DEFAULT_ADJUSTMENT",
+          randomSeedForPopulationSampling =
+            if (c.hasPathOrNull("randomSeedForPopulationSampling")) Some(c.getInt("randomSeedForPopulationSampling"))
+            else None,
           scenarios = BeamConfig.Beam.Agentsim.Scenarios(
             if (c.hasPathOrNull("scenarios")) c.getConfig("scenarios")
             else com.typesafe.config.ConfigFactory.parseString("scenarios{}")
@@ -2201,6 +2203,8 @@ object BeamConfig {
           schedulerParallelismWindow =
             if (c.hasPathOrNull("schedulerParallelismWindow")) c.getInt("schedulerParallelismWindow") else 30,
           simulationName = if (c.hasPathOrNull("simulationName")) c.getString("simulationName") else "beamville",
+          snapLocationAndRemoveInvalidInputs =
+            c.hasPathOrNull("snapLocationAndRemoveInvalidInputs") && c.getBoolean("snapLocationAndRemoveInvalidInputs"),
           taz = BeamConfig.Beam.Agentsim.Taz(
             if (c.hasPathOrNull("taz")) c.getConfig("taz") else com.typesafe.config.ConfigFactory.parseString("taz{}")
           ),
@@ -3087,7 +3091,8 @@ object BeamConfig {
 
       case class Network(
         maxSpeedInference: BeamConfig.Beam.Physsim.Network.MaxSpeedInference,
-        overwriteRoadTypeProperties: BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties
+        overwriteRoadTypeProperties: BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties,
+        removeIslands: scala.Boolean
       )
 
       object Network {
@@ -3521,7 +3526,8 @@ object BeamConfig {
             overwriteRoadTypeProperties = BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties(
               if (c.hasPathOrNull("overwriteRoadTypeProperties")) c.getConfig("overwriteRoadTypeProperties")
               else com.typesafe.config.ConfigFactory.parseString("overwriteRoadTypeProperties{}")
-            )
+            ),
+            removeIslands = !c.hasPathOrNull("removeIslands") || c.getBoolean("removeIslands")
           )
         }
       }
@@ -4058,6 +4064,8 @@ object BeamConfig {
         maxDistanceLimitByModeInMeters: BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters,
         numberOfSamples: scala.Int,
         osmMapdbFile: java.lang.String,
+        suboptimalMinutes: scala.Int,
+        transitAlternativeList: java.lang.String,
         travelTimeNoiseFraction: scala.Double
       )
 
@@ -4113,6 +4121,9 @@ object BeamConfig {
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
+            suboptimalMinutes = if (c.hasPathOrNull("suboptimalMinutes")) c.getInt("suboptimalMinutes") else 0,
+            transitAlternativeList =
+              if (c.hasPathOrNull("transitAlternativeList")) c.getString("transitAlternativeList") else "OPTIMAL",
             travelTimeNoiseFraction =
               if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0
           )
