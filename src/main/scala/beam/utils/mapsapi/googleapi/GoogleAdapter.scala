@@ -178,7 +178,7 @@ object GoogleAdapter {
     constraints: Set[TravelConstraints.TravelConstraint] = Set.empty
   )
 
-  private[googleapi] def buildUrl(
+  def buildUrl(
     apiKey: String,
     origin: WgsCoordinate,
     destination: WgsCoordinate,
