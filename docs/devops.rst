@@ -597,11 +597,12 @@ There are a few levels of budget protection in place:
         * It is sent to the ``#aws-notifications`` using an ``@here`` notifier
         * This is possible as the budget alerts to the SNS topic ``budget_notifier`` with a subscription to the lambda ``budget_notifier``
 2. For the below regions [1]_ the `Eventbridge <https://us-east-2.console.aws.amazon.com/events/home>`_ ``instance_state_change_notifier`` is triggered on instance state change, which forwards to the `Lambda <https://us-east-2.console.aws.amazon.com/lambda/home>`_ ``instance_monitor`` that follows the below rules:
-    * At 150% of budget spent then any new instances can **only** be successfully started if they add the tag ``BudgetOverride`` with the value ``True``.
+    * Once 150% of budget spent then any new instances can **only** be successfully started if they add the tag ``BudgetOverride`` with the value ``True``.
         * The tag can be added to the EC2 instance manually
         * The tag can be added as part of the deploy command using the ``budgetOverride`` key
-        * **NOTE**: The tag will be removed upon successful start, so it will need set on each instance run
-    * At 300% of budget spent then all instances will automatically be stopped (unless it is the Jenkins instance)
+        * **NOTE**: The tag will be removed once the instance is stopped, so it will need set on each instance run
+        * At the 150% threshold another lambda (``budgeted_instance_stopper``) is triggered to immediately enact the above rules to the current instances
+    * Once 300% of budget is spent then all instances will automatically be stopped (unless it is the Jenkins instance). This will also affect the current instances immediately via the ``budgeted_instance_stopper`` lambda
     * If an instance is stopped then a slack notification will be made, so that it can be addressed
     * The regions for this setup are:
         * ``us-east-1``

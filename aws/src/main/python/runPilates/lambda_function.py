@@ -310,7 +310,7 @@ def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_na
                 'Value': instance_name
             }, {
                 'Key': 'BudgetOverride',
-                'Value': budget_override
+                'Value': str(budget_override)
             }]
         }])
     return res['Instances'][0]['InstanceId']

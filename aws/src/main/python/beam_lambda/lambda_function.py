@@ -67,6 +67,8 @@ BRANCH_DEFAULT = 'master'
 
 DATA_BRANCH_DEFAULT = 'develop'
 
+DATA_COMMIT_DEFAULT = 'HEAD'
+
 COMMIT_DEFAULT = 'HEAD'
 
 MAXRAM_DEFAULT = '2g'
@@ -97,6 +99,8 @@ write_files:
       path: /tmp/slack_notification
     - content: |
             #!/bin/bash
+            pip install setuptools
+            pip install strip-hints
             pip install helics==2.7.1
             pip install helics-apps==2.7.1
             cd /home/ubuntu/git/beam/src/main/python
@@ -124,40 +128,14 @@ runcmd:
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
   - cd /home/ubuntu/git/beam
-  - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
-  - hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
-  - start_json=$(printf "{
-      \\"command\\":\\"add\\",
-      \\"type\\":\\"beam\\",
-      \\"sheet_id\\":\\"$SHEET_ID\\",
-      \\"run\\":{
-        \\"status\\":\\"Run Started\\",
-        \\"name\\":\\"$TITLED\\",
-        \\"instance_id\\":\\"%s\\",
-        \\"instance_type\\":\\"%s\\",
-        \\"host_name\\":\\"%s\\",
-        \\"browser\\":\\"http://%s:8000\\",
-        \\"branch\\":\\"$BRANCH\\",
-        \\"data_branch\\":\\"$DATA_BRANCH\\",
-        \\"region\\":\\"$REGION\\",
-        \\"batch\\":\\"$UID\\",
-        \\"commit\\":\\"$COMMIT\\",
-        \\"s3_link\\":\\"%s\\",
-        \\"max_ram\\":\\"$MAX_RAM\\",
-        \\"profiler_type\\":\\"$PROFILER\\",
-        \\"config_file\\":\\"$CONFIG\\",
-        \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
-        \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
-      }
-    }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
-  - echo $start_json
-  - chmod +x /tmp/slack.sh
-  - chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
-  - echo "notification sent..."
-  - echo "notification saved..."
-  - crontab /tmp/slack_notification
-  - crontab -l
-  - echo "notification scheduled..."
+  - if [ "$COMMIT" = "HEAD" ]
+  - then
+  -   RESOLVED_COMMIT=$(git log -1 --pretty=format:%H)
+  - else
+  -   RESOLVED_COMMIT=COMMIT
+  - fi
+  - echo "Resolved commit is $RESOLVED_COMMIT"
+
   - 'echo "sudo git fetch"'
   - sudo git fetch
   - 'echo "GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH $(date)"'
@@ -179,9 +157,56 @@ runcmd:
   -            echo "Loading remote production data for $i"
   -            git config submodule.$i.branch $DATA_BRANCH
   -            git submodule update --init --remote $i
+  -            cd $i
+  -            if [ "$DATA_COMMIT" = "HEAD" ]
+  -            then
+  -              RESOLVED_DATA_COMMIT=$(git log -1 --pretty=format:%H)
+  -            else
+  -              RESOLVED_DATA_COMMIT=$DATA_COMMIT
+  -            fi
+  -            echo "Resolved data commit is $RESOLVED_DATA_COMMIT"
+  -            git checkout $DATA_COMMIT
+  -            cd -
   -        esac
   -      done
   -  done
+
+  - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
+  - hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  - start_json=$(printf "{
+      \\"command\\":\\"add\\",
+      \\"type\\":\\"beam\\",
+      \\"sheet_id\\":\\"$SHEET_ID\\",
+      \\"run\\":{
+        \\"status\\":\\"Run Started\\",
+        \\"name\\":\\"$TITLED\\",
+        \\"instance_id\\":\\"%s\\",
+        \\"instance_type\\":\\"%s\\",
+        \\"host_name\\":\\"%s\\",
+        \\"browser\\":\\"http://%s:8000\\",
+        \\"branch\\":\\"$BRANCH\\",
+        \\"commit\\":\\"$RESOLVED_COMMIT\\",
+        \\"data_branch\\":\\"$DATA_BRANCH\\",
+        \\"data_commit\\":\\"$RESOLVED_DATA_COMMIT\\",
+        \\"region\\":\\"$REGION\\",
+        \\"batch\\":\\"$UID\\",
+        \\"s3_link\\":\\"%s\\",
+        \\"max_ram\\":\\"$MAX_RAM\\",
+        \\"profiler_type\\":\\"$PROFILER\\",
+        \\"config_file\\":\\"$CONFIG\\",
+        \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
+        \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
+      }
+    }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  - echo $start_json
+  - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
+  - chmod +x /tmp/slack.sh
+  - chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
+  - echo "notification sent..."
+  - echo "notification saved..."
+  - crontab /tmp/slack_notification
+  - crontab -l
+  - echo "notification scheduled..."
 
   - 'echo "gradlew assemble: $(date)"'
   - ./gradlew assemble
@@ -195,7 +220,6 @@ runcmd:
   - echo $MAXRAM
   - /tmp/slack.sh "$hello_msg"
 
-  - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
   - s3p=""
   - for cf in $CONFIG
   -  do
@@ -229,10 +253,11 @@ runcmd:
         \\"host_name\\":\\"%s\\",
         \\"browser\\":\\"http://%s:8000\\",
         \\"branch\\":\\"$BRANCH\\",
+        \\"commit\\":\\"$RESOLVED_COMMIT\\",
         \\"data_branch\\":\\"$DATA_BRANCH\\",
+        \\"data_commit\\":\\"$RESOLVED_DATA_COMMIT\\",
         \\"region\\":\\"$REGION\\",
         \\"batch\\":\\"$UID\\",
-        \\"commit\\":\\"$COMMIT\\",
         \\"s3_link\\":\\"%s\\",
         \\"max_ram\\":\\"$MAX_RAM\\",
         \\"profiler_type\\":\\"$PROFILER\\",
@@ -325,8 +350,8 @@ def check_resource(bucket, key):
     try:
         s3.head_object(Bucket=bucket, Key=key)
         return True
-    except ClientError as ex:
-        print 'error sending Slack response: ' + str(ex)
+    except ClientError as clientError:
+        print(f"error sending Slack response: {clientError}")
     return False
 
 def check_branch(branch):
@@ -442,7 +467,7 @@ def get_spot_fleet_instances_based_on(min_cores, max_cores, min_memory, max_memo
         if preferred_instance_type:
             output_instance_types.append(preferred_instance_type)
     except NameError:
-        print 'No preferred spot instance type provided'
+        print('No preferred spot instance type provided')
     if not output_instance_types:
         raise Exception('0 spot instances matched min_cores: ' + str(min_cores) + ' - max_cores: ' + str(max_cores) + 'and min_mem: ' + str(min_memory) + ' - max_mem: ' + str(max_memory) )
     return list(dict.fromkeys(output_instance_types))
@@ -507,18 +532,18 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
     status = 'pending_fulfillment'
     state = 'submitted'
     spot_fleet_req_id = spot_fleet_req.get('SpotFleetRequestId')
-    print 'SpotFleetRequestId is ' + spot_fleet_req_id
+    print('SpotFleetRequestId is ' + spot_fleet_req_id)
     #Flow as far as I know is that state goes to submitted, then active, but isn't done until status is out of pending_fulfillment
     while status == 'pending_fulfillment' or state == 'submitted':
         remaining_time = context.get_remaining_time_in_millis()
-        print 'Waiting for spot fleet request id to finish pending_fulfillment - Status: ' + status + ' and State: ' + state + ' and Remaining Time (ms): ' + str(remaining_time)
+        print('Waiting for spot fleet request id to finish pending_fulfillment - Status: ' + status + ' and State: ' + state + ' and Remaining Time (ms): ' + str(remaining_time))
         if remaining_time <= 60000:
             ec2.cancel_spot_fleet_requests(
                 DryRun=False,
                 SpotFleetRequestIds=[spot_fleet_req_id],
                 TerminateInstances=True
             )
-            print 'Waiting 30 seconds to let spot fleet cancel and then shutting down due to getting too close to lambda timeout'
+            print('Waiting 30 seconds to let spot fleet cancel and then shutting down due to getting too close to lambda timeout')
             time.sleep(30)
             exit(123)
         else:
@@ -533,10 +558,10 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
             TerminateInstances=True
         )
         #TODO: This situation should be ?IMPOSSIBLE? but if it does occur then it could orphan a volume - not worth it unless it becomes an issue
-        print 'Waiting 30 seconds to let spot fleet cancel and then shutting down due to reaching this point and the state is ' + state + ' and status is ' + status + ' - maybe double check for orphaned volume?'
+        print('Waiting 30 seconds to let spot fleet cancel and then shutting down due to reaching this point and the state is ' + state + ' and status is ' + status + ' - maybe double check for orphaned volume?')
         time.sleep(30)
         exit(1)
-    print 'Getting spot fleet instances'
+    print('Getting spot fleet instances')
     fleet_instances = ec2.describe_spot_fleet_instances(SpotFleetRequestId=spot_fleet_req_id)
     fleet_instance = fleet_instances.get('ActiveInstances')[0] #TODO: Check if InstanceHealth is healthy vs unhealthy?
     bd_count = 0
@@ -546,7 +571,7 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
         bd_count = len(instance.get('BlockDeviceMappings'))
         if bd_count < 1:
             remaining_time = context.get_remaining_time_in_millis()
-            print 'Spot request state now ' + state + ' and status ' + status + ' so getting instance using ' + instance_id + ' and Remaining Time (ms): ' + str(remaining_time)
+            print('Spot request state now ' + state + ' and status ' + status + ' so getting instance using ' + instance_id + ' and Remaining Time (ms): ' + str(remaining_time))
             if remaining_time <= 60000:
                 ec2.cancel_spot_fleet_requests(
                     DryRun=False,
@@ -554,13 +579,13 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
                     TerminateInstances=True
                 )
                 #TODO: Since there is no block device yet then we cannot terminate that instance - this COULD result in orphaned volumes - but they would be named at least...handle with a cloud watch if it becomes an issue
-                print 'Waiting 30 seconds to let spot fleet cancel and then shutting down due to getting too close to lambda timeout'
+                print('Waiting 30 seconds to let spot fleet cancel and then shutting down due to getting too close to lambda timeout')
                 time.sleep(30)
                 exit(123)
             else:
-                print 'Sleeping 30 seconds to let instance volumes spin up (most likely this will never occur)'
+                print('Sleeping 30 seconds to let instance volumes spin up (most likely this will never occur)')
                 time.sleep(30)
-    print 'Instance up with block device ready'
+    print('Instance up with block device ready')
     volume_id = instance.get('BlockDeviceMappings')[0].get('Ebs').get('VolumeId')
     ec2.create_tags(
         Resources=[volume_id],
@@ -575,20 +600,20 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
                 'Key': 'DeployType',
                 'Value': deploy_type_tag
             }])
-    print 'Created tags on volume'
+    print('Created tags on volume')
     while instance.get('State') == 'pending':
         instance = ec2.describe_instances(InstanceIds=[instance_id]).get('Reservations')[0].get('Instances')[0]
         state = instance.get('State')
         if state == 'pending':
             remaining_time = context.get_remaining_time_in_millis()
-            print 'Spot instance state now ' + state + ' and instance id is ' + instance_id + ' and Remaining Time (ms): ' + str(remaining_time)
+            print('Spot instance state now ' + state + ' and instance id is ' + instance_id + ' and Remaining Time (ms): ' + str(remaining_time))
             if remaining_time <= 45000:
-                print 'Returning the instance id because about to timeout and the instance is spinning up - just not fully - no need to cancel'
+                print('Returning the instance id because about to timeout and the instance is spinning up - just not fully - no need to cancel')
                 return instance_id
             else:
-                print 'Waiting for instance to leave pending'
+                print('Waiting for instance to leave pending')
                 time.sleep(30)
-    print 'Spot instance ready to go!'
+    print('Spot instance ready to go!')
     return instance_id
 
 def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, git_user_email, deploy_type_tag, budget_override):
@@ -625,7 +650,7 @@ def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_na
                         'Value': deploy_type_tag
                     }, {
                         'Key': 'BudgetOverride',
-                        'Value': budget_override
+                        'Value': str(budget_override)
                     } ]
             } ])
     return res['Instances'][0]['InstanceId']
@@ -672,8 +697,9 @@ def deploy_handler(event, context):
         return param_value
 
     branch = event.get('branch', BRANCH_DEFAULT)
-    data_branch = event.get('data_branch', DATA_BRANCH_DEFAULT)
     commit_id = event.get('commit', COMMIT_DEFAULT)
+    data_branch = event.get('data_branch', DATA_BRANCH_DEFAULT)
+    data_commit = event.get('data_commit', DATA_COMMIT_DEFAULT)
     deploy_mode = event.get('deploy_mode', 'config')
     configs = event.get('configs', CONFIG_DEFAULT)
     experiments = event.get('experiments', EXPERIMENT_DEFAULT)
@@ -759,10 +785,18 @@ def deploy_handler(event, context):
             uid = str(uuid.uuid4())[:8]
             runName = titled
             if len(params) > 1:
-                runName += "-" + `runNum`
-            script = initscript.replace('$RUN_SCRIPT',selected_script).replace('$REGION',region).replace('$S3_REGION', os.environ['REGION']) \
-                .replace('$BRANCH', branch).replace('$DATA_BRANCH', data_branch).replace('$COMMIT', commit_id).replace('$CONFIG', arg) \
-                .replace('$MAIN_CLASS', execute_class).replace('$UID', uid).replace('$SHUTDOWN_WAIT', shutdown_wait) \
+                runName += "-" + str(runNum)
+            script = initscript.replace('$RUN_SCRIPT',selected_script) \
+                .replace('$REGION',region) \
+                .replace('$S3_REGION', os.environ['REGION']) \
+                .replace('$BRANCH', branch) \
+                .replace('$COMMIT', commit_id) \
+                .replace('$DATA_BRANCH', data_branch) \
+                .replace('$DATA_COMMIT', data_commit) \
+                .replace('$CONFIG', arg) \
+                .replace('$MAIN_CLASS', execute_class) \
+                .replace('$UID', uid) \
+                .replace('$SHUTDOWN_WAIT', shutdown_wait) \
                 .replace('$TITLED', runName)\
                 .replace('$MAX_RAM', str(max_ram)) \
                 .replace('$S3_PUBLISH', str(s3_publish)) \

@@ -13,7 +13,6 @@ from botocore.errorfactory import ClientError
 ec2_client = None
 budget_client = None
 pricing_client = None
-sns_client = None
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -22,11 +21,11 @@ PRODUCT_OPERATING_SYSTEMS = ["Linux","RHEL","Windows","SUSE","Red Hat Enterprise
 
 # Search product filter. This will reduce the amount of data returned by the
 # get_products function of the Pricing API
-FLT = '[{{"Field": "tenancy", "Value": "shared", "Type": "TERM_MATCH"}},'\
-      '{{"Field": "preInstalledSw", "Value": "NA", "Type": "TERM_MATCH"}},'\
-      '{{"Field": "operatingSystem", "Value": "{o}", "Type": "TERM_MATCH"}},'\
-      '{{"Field": "instanceType", "Value": "{t}", "Type": "TERM_MATCH"}},'\
-      '{{"Field": "location", "Value": "{r}", "Type": "TERM_MATCH"}},'\
+FLT = '[{{"Field": "tenancy", "Value": "shared", "Type": "TERM_MATCH"}},' \
+      '{{"Field": "preInstalledSw", "Value": "NA", "Type": "TERM_MATCH"}},' \
+      '{{"Field": "operatingSystem", "Value": "{o}", "Type": "TERM_MATCH"}},' \
+      '{{"Field": "instanceType", "Value": "{t}", "Type": "TERM_MATCH"}},' \
+      '{{"Field": "location", "Value": "{r}", "Type": "TERM_MATCH"}},' \
       '{{"Field": "capacitystatus", "Value": "Used", "Type": "TERM_MATCH"}}]'
 
 class EC2Instance:
@@ -52,10 +51,6 @@ def init_budget_client():
 def init_pricing_client(region):
     global pricing_client
     pricing_client = boto3.client('pricing', region_name=region)
-
-def init_sns_client():
-    global sns_client
-    sns_client = boto3.client('sns')
 
 def convert_to_pricing_operating_system_from(ec2_operating_system):
     for pricing_os in PRODUCT_OPERATING_SYSTEMS:
@@ -97,6 +92,7 @@ def get_instance_details_for_(instance_id):
     instance_name = ""
     budget_override = ""
     tags = instance.get("Tags")
+    logger.info(f"Tags from instance: {tags}")
     for tag in tags:
         key = tag.get("Key")
         if key == "GitUserEmail":
@@ -106,12 +102,6 @@ def get_instance_details_for_(instance_id):
         elif key == "BudgetOverride":
             budget_override = tag.get("Value")
     return EC2Instance(instance_id, instance_type, operating_system, instance_name, instance_git_user_email, budget_override)
-
-def send_to_sns_notification(message, subject):
-    sns_client.publish(
-        TopicArn='arn:aws:sns:us-east-2:340032650202:instance_notifier',
-        Message=message,
-        Subject=subject)
 
 def notify_slack_using_(message):
     logger.info('Notifying about attempted instance use')
@@ -138,25 +128,31 @@ def stop_instance(instance_id):
     logger.info(f"Stopping {instance_id}")
     ec2_client.stop_instances(InstanceIds=[instance_id])
 
-def set_override_tag_to_empty_for_(instance_id):
-    ec2_client.create_tags(
-    Resources=[instance_id],
-    Tags=[
-        {
-            'Key': 'BudgetOverride',
-            'Value': '',
-        },
-    ],
-)
+def delete_override_tag__for_(instance_id):
+    logger.info(f"Removing BudgetOverride tag for {instance_id}")
+    ec2_client.delete_tags(
+        Resources=[instance_id],
+        Tags=[
+            {
+                'Key': 'BudgetOverride'
+            }
+        ]
+    )
 
 # Expected format: {"instance-id": <instance-id>, "state": <state>, "region": <region>, "account-id": <account-id>}
 def lambda_handler(event, context):
+    logger.info(f"Received event: {event}")
     state = event.get('state')
-    if state != "running":
-        return "Instance state change of {state} is not supported for this lambda - only 'running' is considered".format(state=state)
+    if state != "running" and state != "stopped":
+        return "Instance state change of {state} is not supported for this lambda - only 'running' or 'stopped' is considered".format(state=state)
     region = event.get('region')
     instance_id = event.get('instance-id')
     account_id = event.get('account-id')
+
+    init_ec2_client(region)
+    if state == "stopped":
+        delete_override_tag_for_(instance_id)
+        return "Stopped instance had any budget override tags removed"
 
     allowed_instances = os.environ['ALLOWED_INSTANCES']
     if instance_id in allowed_instances:
@@ -189,8 +185,9 @@ def lambda_handler(event, context):
     # LATER TODO: Add an override option that is not emptied (true_always?) or for # of starts (true_3? - decrement and update tag)
     # LATER TODO: Add a link to trigger an automatic approval. Maybe link to instance is enough, since can tag there?
     # LATER TODO: Create a report of all usages and cost and send as a daily/weekly? email
-    init_ec2_client(region)
     instance_details = get_instance_details_for_(instance_id)
+
+    logger.info(f"Instance details: {instance_details}")
 
     instance_stopped = False
     if percent_of_budget_used >= 300:
@@ -199,7 +196,6 @@ def lambda_handler(event, context):
     elif percent_of_budget_used >= 150 and instance_details.budget_override.lower() != "true":
         stop_instance(instance_id)
         instance_stopped = True
-    set_override_tag_to_empty_for_(instance_id)
 
     forecasted_spend_amount = Decimal(budget_details.get('CalculatedSpend').get('ForecastedSpend').get('Amount'))
     init_pricing_client("us-east-1")
@@ -213,14 +209,8 @@ def lambda_handler(event, context):
     instance_cost_for_rest_of_month = price_per_day * number_of_days_left_in_month
     spend_amount_if_instance_rest_of_month = current_spent_amount + instance_cost_for_rest_of_month
 
-    # Temporarily keeping the email logic in case it is needed sometime soon
-    # email_message = "Instance with ID '" + instance_id + "' just started to run" + instance_stopped + " and the current amount spent this month ($" + str(current_spent_amount) + ") is " + str(round(percent_of_budget_used, 2)) + "% of the budgeted amount ($" + str(budget_limit_amount) + ").\r\nInstance Name: " + instance_name + "\r\nGit email of who created the instance: " + instance_git_user_email + "\r\nForecasted amount to be spent this month: $" + str(forecasted_spend_amount) + "\r\nPercent of month completed: " + str(round(percent_of_month, 2)) + "%\r\nInstance hourly cost: $" + str(price_per_hour) + "\r\nInstance daily cost: $" + str(price_per_day) + "\r\nInstance cost if ran through until the rest of the month: $" + str(round(instance_cost_for_rest_of_month, 2)) + "\r\nFinal AWS amount spent if instance is ran to the end of the month: $" + str(round(spend_amount_if_instance_rest_of_month, 2)) + "\r\nInstance link: " + instance_link + "\r\n*****If stopped then please verify it is allowed to run and add a tag 'BudgetOverride' set to 'True', then restart the instance.*****"
-    # subject = "Instance just started" + instance_stopped + " and BEAM is " + str(round(percent_of_budget_used, 2)) + "% of monthly budget"
-    # init_sns_client()
-    # logger.info(subject + "\r\n" + email_message)
-    # send_to_sns_notification(email_message, subject[:99])
     if instance_stopped:
-        slack_message = f"*Instance with ID '{instance_id}' immediately stopped*\nThe current amount spent this month (${str(round(current_spent_amount, 2))}) is {str(round(percent_of_budget_used, 2))}% of the budgeted amount (${str(round(budget_limit_amount, 2))}).\n*Instance Name*:\n{instance_name}\n*Git email of who created the instance*:\n{instance_git_user_email}\n*Forecasted amount to be spent this month*: \n${str(round(forecasted_spend_amount, 2))}\n*Percent of month completed*:\n{str(round(percent_of_month, 2))}%\n*Instance hourly cost*:\n${str(round(price_per_hour, 2))}\n*Instance daily cost*:\n${str(round(price_per_day, 2))}\n*Instance cost if ran through until the rest of the month*:\n${str(round(instance_cost_for_rest_of_month, 2))}\n*Final AWS amount spent if instance is ran to the end of the month*:\n${str(round(spend_amount_if_instance_rest_of_month, 2))}\n*Instance link*:\n{instance_link}\n*****If stopped then please verify it is allowed to run and add a tag 'BudgetOverride' set to 'True', then restart the instance.*****"
+        slack_message = f"*Instance with ID '{instance_id}' immediately stopped*\nThe current amount spent this month (${str(round(current_spent_amount, 2))}) is {str(round(percent_of_budget_used, 2))}% of the budgeted amount (${str(round(budget_limit_amount, 2))}).\n*Instance Name*:\n{instance_name}\n*Git email of who created the instance*:\n{instance_git_user_email}\n*Forecasted amount to be spent this month*: \n${str(round(forecasted_spend_amount, 2))}\n*Percent of month completed*:\n{str(round(percent_of_month, 2))}%\n*Instance hourly cost*:\n${str(round(price_per_hour, 2))}\n*Instance daily cost*:\n${str(round(price_per_day, 2))}\n*Instance cost if ran through until the rest of the month*:\n${str(round(instance_cost_for_rest_of_month, 2))}\n*Final AWS amount spent if instance is ran to the end of the month*:\n${str(round(spend_amount_if_instance_rest_of_month, 2))}\n*Instance link*:\n{instance_link}\n*****If stopped then please verify it is allowed to run and add a tag `BudgetOverride` set to `True`, then restart the instance. Or terminate it and re-deploy through gradle using `-PbudgetOverride=true`*****"
         notify_slack_using_(slack_message)
 
     return "Done"
