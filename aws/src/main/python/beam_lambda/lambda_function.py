@@ -132,7 +132,7 @@ runcmd:
   - then
   -   RESOLVED_COMMIT=$(git log -1 --pretty=format:%H)
   - else
-  -   RESOLVED_COMMIT=COMMIT
+  -   RESOLVED_COMMIT=$COMMIT
   - fi
   - echo "Resolved commit is $RESOLVED_COMMIT"
 
