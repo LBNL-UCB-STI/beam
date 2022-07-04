@@ -228,6 +228,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
       alternatives,
       attributesOfIndividual,
       None,
+      None,
       Some(person)
     )
   }
