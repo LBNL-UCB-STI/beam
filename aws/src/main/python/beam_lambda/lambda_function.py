@@ -125,6 +125,8 @@ runcmd:
   - sudo rm -rf beam
   - sudo git clone https://github.com/LBNL-UCB-STI/beam.git
   - ln -sf /var/log/cloud-init-output.log /home/ubuntu/git/beam/cloud-init-output.log
+  - sudo chmod 644 /var/log/cloud-init-output.log
+  - sudo chmod 644 /home/ubuntu/git/beam/cloud-init-output.log
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
   - cd /home/ubuntu/git/beam
@@ -797,7 +799,7 @@ def deploy_handler(event, context):
                 .replace('$MAIN_CLASS', execute_class) \
                 .replace('$UID', uid) \
                 .replace('$SHUTDOWN_WAIT', shutdown_wait) \
-                .replace('$TITLED', runName)\
+                .replace('$TITLED', runName) \
                 .replace('$MAX_RAM', str(max_ram)) \
                 .replace('$S3_PUBLISH', str(s3_publish)) \
                 .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
