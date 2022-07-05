@@ -136,7 +136,7 @@ runcmd:
   - sudo chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
   - sudo chmod +x /home/ubuntu/write-cpu-ram-usage.sh
   - cd /home/ubuntu
-  - ./write-cpu-ram-usage.sh 28 > cpu_ram_usage.csv &
+  - ./write-cpu-ram-usage.sh 20 > cpu_ram_usage.csv &
   - cd /home/ubuntu/git
   - sudo rm -rf beam
   - sudo git clone https://github.com/LBNL-UCB-STI/beam.git
