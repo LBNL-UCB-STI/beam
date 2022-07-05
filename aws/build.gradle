@@ -248,12 +248,12 @@ task jupyterEC2(type: AWSLambdaInvokeTask) {
         invocationType = InvocationType.RequestResponse
         payload = """
             {
-              "budget_override": "false",
-              "instance_type": "t2.nano",
-              "title": "alex-vv/jupyter-test",
-              "region": "us-east-2",
-              "storage_size": 128,
-              "token": "e948224a-fbb3-11ec-8714-abc11d9f8dd6"
+              "budget_override": "${project.findProperty('budgetOverride') ?: false}",
+              "instance_type": "${project.findProperty('instanceType') ?: 't2.nano'}",
+              "title": "${project.findProperty('title') ?: 'jupyter-notebook'}",
+              "region": "${project.findProperty('region') ?: defaultRegion}",
+              "storage_size": ${project.findProperty('storageSize') ?: 128},
+              "token": "${project.findProperty("jupyterToken") ?: UUID.randomUUID().toString()}"
             }
             """
     }
