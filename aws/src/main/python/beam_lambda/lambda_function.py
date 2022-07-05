@@ -141,6 +141,7 @@ runcmd:
   - cd /home/ubuntu/git
   - sudo rm -rf beam
   - sudo git clone https://github.com/LBNL-UCB-STI/beam.git
+  - ln -sf /home/ubuntu/cpu_ram_usage.csv /home/ubuntu/git/beam/cpu_ram_usage.csv
   - ln -sf /var/log/cloud-init-output.log /home/ubuntu/git/beam/cloud-init-output.log
   - sudo chmod 644 /var/log/cloud-init-output.log
   - sudo chmod 644 /home/ubuntu/git/beam/cloud-init-output.log
