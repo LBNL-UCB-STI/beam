@@ -126,7 +126,7 @@ write_files:
             echo "date,time,CPU usage,RAM used,RAM available"
             while sleep $timeout
             do
-                    timestamp_CPU=$(vmstat 1 2 -SM -a -w -t | python3 -c 'import sys; ll=sys.stdin.readlines()[-1].split(); print(ll[-2] + ", " + ll[-1] + ", " + str(100 - int(ll[-5])))')
+                    timestamp_CPU=$(vmstat 1 3 -SM -a -w -t | python3 -c 'import sys; ll=sys.stdin.readlines()[-1].split(); print(ll[-2] + ", " + ll[-1] + ", " + str(100 - int(ll[-5])))')
                     ram_used_available=$(free -g | python3 -c 'import sys; ll=sys.stdin.readlines()[-2].split(); print(ll[2] + ", " + ll[-1])')
                     echo $timestamp_CPU, $ram_used_available
             done
@@ -136,7 +136,7 @@ runcmd:
   - sudo chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
   - sudo chmod +x /home/ubuntu/write-cpu-ram-usage.sh
   - cd /home/ubuntu
-  - ./write-cpu-ram-usage.sh 30 > cpu_ram_usage.csv &
+  - ./write-cpu-ram-usage.sh 28 > cpu_ram_usage.csv &
   - cd /home/ubuntu/git
   - sudo rm -rf beam
   - sudo git clone https://github.com/LBNL-UCB-STI/beam.git
