@@ -15,6 +15,8 @@ HELICS_RUN = '''sudo /home/ubuntu/install-and-run-helics-scripts.sh
   -    cd /home/ubuntu/git/beam
   -    '''
 
+JUPYTER_RUN = 'sudo /home/ubuntu/install-and-run-jupyter.sh'
+
 HELICS_OUTPUT_MOVE_TO_BEAM_OUTPUT = '''
   -    opth="output"
   -    echo $opth
@@ -119,7 +121,13 @@ write_files:
             sleep 5s
             cd -
       path: /home/ubuntu/install-and-run-helics-scripts.sh
-
+      - content: |
+            #!/bin/bash
+            - pip install setuptools
+            - pip install jupyter
+            - JUPYTER_TOKEN=$JUPYTER_TOKEN jupyter-notebook --allow-root --no-browser --ip=$(ec2metadata --public-hostname)
+      path: /home/ubuntu/install-and-run-jupyter.sh
+        
 runcmd:
   - cd /home/ubuntu/git
   - sudo rm -rf beam
@@ -202,6 +210,7 @@ runcmd:
   - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
   - chmod +x /tmp/slack.sh
   - chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
+  - chmod +x /home/ubuntu/install-and-run-jupyter.sh
   - echo "notification sent..."
   - echo "notification saved..."
   - crontab /tmp/slack_notification
@@ -715,6 +724,9 @@ def deploy_handler(event, context):
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
     run_grafana = event.get('run_grafana', False)
     run_helics = event.get('run_helics', False)
+    run_jupyter = event.get('run_jupyter', False)
+    jupyter_token = event.get('jupyter_token', '')
+
     profiler_type = event.get('profiler_type', 'null')
     budget_override = event.get('budget_override', False)
 
@@ -754,6 +766,9 @@ def deploy_handler(event, context):
 
     if run_helics:
         selected_script = HELICS_RUN + selected_script + HELICS_OUTPUT_MOVE_TO_BEAM_OUTPUT
+
+    if run_jupyter:
+        selected_script = JUPYTER_RUN + selected_script
 
     params = configs
     if s3_publish:
@@ -807,7 +822,8 @@ def deploy_handler(event, context):
                 .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
                 .replace('$SLACK_TOKEN', os.environ['SLACK_TOKEN']) \
                 .replace('$SLACK_CHANNEL', os.environ['SLACK_CHANNEL']) \
-                .replace('$SHEET_ID', os.environ['SHEET_ID'])
+                .replace('$SHEET_ID', os.environ['SHEET_ID']) \
+                .replace('$JUPYTER_TOKEN', jupyter_token)
             if is_spot:
                 min_cores = event.get('min_cores', 0)
                 max_cores = event.get('max_cores', 0)
@@ -824,6 +840,9 @@ def deploy_handler(event, context):
 
             if run_helics:
                 txt += ' Helics scripts with recorder will be run in parallel with BEAM.'
+
+            if run_jupyter:
+                txt += ' Jupyter will be run in parallel with BEAM. Url: http://{dns}:8888/?token={token}'.format(dns=host, token=jupyter_token)
 
             runNum += 1
     else:
