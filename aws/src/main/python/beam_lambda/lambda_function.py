@@ -58,6 +58,7 @@ S3_PUBLISH_SCRIPT = '''
   -    done;
   -    sudo cp /home/ubuntu/git/beam/gc_* "$finalPath"
   -    sudo cp /var/log/cloud-init-output.log "$finalPath"
+  -    sudo cp /home/ubuntu/cpu_ram_usage.csv "$finalPath"
   -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;
   -    s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#$finalPath"'''
 
@@ -119,8 +120,23 @@ write_files:
             sleep 5s
             cd -
       path: /home/ubuntu/install-and-run-helics-scripts.sh
+    - content: |
+            #!/bin/bash
+            timeout=$1
+            echo "date,time,CPU usage,RAM used,RAM available"
+            while sleep $timeout
+            do
+                    timestamp_CPU=$(vmstat 1 2 -SM -a -w -t | python3 -c 'import sys; ll=sys.stdin.readlines()[-1].split(); print(ll[-2] + ", " + ll[-1] + ", " + str(100 - int(ll[-5])))')
+                    ram_used_available=$(free -g | python3 -c 'import sys; ll=sys.stdin.readlines()[-2].split(); print(ll[2] + ", " + ll[-1])')
+                    echo $timestamp_CPU, $ram_used_available
+            done
+      path: /home/ubuntu/write-cpu-ram-usage.sh
 
 runcmd:
+  - sudo chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
+  - sudo chmod +x /home/ubuntu/write-cpu-ram-usage.sh
+  - cd /home/ubuntu
+  - ./write-cpu-ram-usage.sh 30 > cpu_ram_usage.csv &
   - cd /home/ubuntu/git
   - sudo rm -rf beam
   - sudo git clone https://github.com/LBNL-UCB-STI/beam.git
@@ -203,7 +219,6 @@ runcmd:
   - echo $start_json
   - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
   - chmod +x /tmp/slack.sh
-  - chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
   - echo "notification sent..."
   - echo "notification saved..."
   - crontab /tmp/slack_notification
