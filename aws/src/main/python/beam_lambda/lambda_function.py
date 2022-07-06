@@ -15,8 +15,6 @@ HELICS_RUN = '''sudo /home/ubuntu/install-and-run-helics-scripts.sh
   -    cd /home/ubuntu/git/beam
   -    '''
 
-JUPYTER_RUN = 'sudo /home/ubuntu/install-and-run-jupyter.sh'
-
 HELICS_OUTPUT_MOVE_TO_BEAM_OUTPUT = '''
   -    opth="output"
   -    echo $opth
@@ -134,17 +132,22 @@ write_files:
                     echo $timestamp_CPU, $ram_used_available
             done
       path: /home/ubuntu/write-cpu-ram-usage.sh
-      - content: |
+    - content: |
             #!/bin/bash
-            - pip install setuptools
-            - pip install jupyter
-            - JUPYTER_TOKEN=$JUPYTER_TOKEN jupyter-notebook --allow-root --no-browser --ip=$(ec2metadata --public-hostname)
+            pip install setuptools
+            pip install jupyter
+            JUPYTER_TOKEN=$JUPYTER_TOKEN jupyter-notebook --allow-root --no-browser --ip=$(ec2metadata --public-hostname) --log-level=ERROR
       path: /home/ubuntu/install-and-run-jupyter.sh
         
 runcmd:
   - sudo chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
   - sudo chmod +x /home/ubuntu/write-cpu-ram-usage.sh
   - sudo chmod +x /home/ubuntu/install-and-run-jupyter.sh
+  - if [ "$RUN_JUPYTER" = "True" ]
+  - then
+  -   echo "Installing and starting Jupyter" 
+  -   /home/ubuntu/install-and-run-jupyter.sh &
+  - fi
   - cd /home/ubuntu
   - ./write-cpu-ram-usage.sh 20 > cpu_ram_usage.csv &
   - cd /home/ubuntu/git
@@ -786,9 +789,6 @@ def deploy_handler(event, context):
     if run_helics:
         selected_script = HELICS_RUN + selected_script + HELICS_OUTPUT_MOVE_TO_BEAM_OUTPUT
 
-    if run_jupyter:
-        selected_script = JUPYTER_RUN + selected_script
-
     params = configs
     if s3_publish:
         selected_script += S3_PUBLISH_SCRIPT
@@ -842,6 +842,7 @@ def deploy_handler(event, context):
                 .replace('$SLACK_TOKEN', os.environ['SLACK_TOKEN']) \
                 .replace('$SLACK_CHANNEL', os.environ['SLACK_CHANNEL']) \
                 .replace('$SHEET_ID', os.environ['SHEET_ID']) \
+                .replace('$RUN_JUPYTER', str(run_jupyter)) \
                 .replace('$JUPYTER_TOKEN', jupyter_token)
             if is_spot:
                 min_cores = event.get('min_cores', 0)
