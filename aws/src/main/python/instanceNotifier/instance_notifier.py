@@ -128,7 +128,7 @@ def stop_instance(instance_id):
     logger.info(f"Stopping {instance_id}")
     ec2_client.stop_instances(InstanceIds=[instance_id])
 
-def delete_override_tag__for_(instance_id):
+def delete_override_tag_for_(instance_id):
     logger.info(f"Removing BudgetOverride tag for {instance_id}")
     ec2_client.delete_tags(
         Resources=[instance_id],

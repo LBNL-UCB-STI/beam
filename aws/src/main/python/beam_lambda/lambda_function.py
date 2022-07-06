@@ -60,6 +60,8 @@ S3_PUBLISH_SCRIPT = '''
   -    done;
   -    sudo cp /home/ubuntu/git/beam/gc_* "$finalPath"
   -    sudo cp /var/log/cloud-init-output.log "$finalPath"
+  -    sudo gzip /home/ubuntu/cpu_ram_usage.csv
+  -    sudo cp /home/ubuntu/cpu_ram_usage* "$finalPath"
   -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;
   -    s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#$finalPath"'''
 
@@ -121,6 +123,17 @@ write_files:
             sleep 5s
             cd -
       path: /home/ubuntu/install-and-run-helics-scripts.sh
+    - content: |
+            #!/bin/bash
+            timeout=$1
+            echo "date,time,CPU usage,RAM used,RAM available"
+            while sleep $timeout
+            do
+                    timestamp_CPU=$(vmstat 1 3 -SM -a -w -t | python3 -c 'import sys; ll=sys.stdin.readlines()[-1].split(); print(ll[-2] + ", " + ll[-1] + ", " + str(100 - int(ll[-5])))')
+                    ram_used_available=$(free -g | python3 -c 'import sys; ll=sys.stdin.readlines()[-2].split(); print(ll[2] + ", " + ll[-1])')
+                    echo $timestamp_CPU, $ram_used_available
+            done
+      path: /home/ubuntu/write-cpu-ram-usage.sh
       - content: |
             #!/bin/bash
             - pip install setuptools
@@ -129,10 +142,18 @@ write_files:
       path: /home/ubuntu/install-and-run-jupyter.sh
         
 runcmd:
+  - sudo chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
+  - sudo chmod +x /home/ubuntu/write-cpu-ram-usage.sh
+  - sudo chmod +x /home/ubuntu/install-and-run-jupyter.sh
+  - cd /home/ubuntu
+  - ./write-cpu-ram-usage.sh 20 > cpu_ram_usage.csv &
   - cd /home/ubuntu/git
   - sudo rm -rf beam
   - sudo git clone https://github.com/LBNL-UCB-STI/beam.git
+  - ln -sf /home/ubuntu/cpu_ram_usage.csv /home/ubuntu/git/beam/cpu_ram_usage.csv
   - ln -sf /var/log/cloud-init-output.log /home/ubuntu/git/beam/cloud-init-output.log
+  - sudo chmod 644 /var/log/cloud-init-output.log
+  - sudo chmod 644 /home/ubuntu/git/beam/cloud-init-output.log
   - echo "-------------------Starting Beam Sim----------------------"
   - echo $(date +%s) > /tmp/.starttime
   - cd /home/ubuntu/git/beam
@@ -140,7 +161,7 @@ runcmd:
   - then
   -   RESOLVED_COMMIT=$(git log -1 --pretty=format:%H)
   - else
-  -   RESOLVED_COMMIT=COMMIT
+  -   RESOLVED_COMMIT=$COMMIT
   - fi
   - echo "Resolved commit is $RESOLVED_COMMIT"
 
@@ -209,8 +230,6 @@ runcmd:
   - echo $start_json
   - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
   - chmod +x /tmp/slack.sh
-  - chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
-  - chmod +x /home/ubuntu/install-and-run-jupyter.sh
   - echo "notification sent..."
   - echo "notification saved..."
   - crontab /tmp/slack_notification
@@ -812,7 +831,7 @@ def deploy_handler(event, context):
                 .replace('$MAIN_CLASS', execute_class) \
                 .replace('$UID', uid) \
                 .replace('$SHUTDOWN_WAIT', shutdown_wait) \
-                .replace('$TITLED', runName)\
+                .replace('$TITLED', runName) \
                 .replace('$MAX_RAM', str(max_ram)) \
                 .replace('$S3_PUBLISH', str(s3_publish)) \
                 .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
