@@ -93,3 +93,6 @@ the *chargingPointType* attribute will result in the following charger power in 
 Refueling
 ---------
 
+Reposition
+----------
+
