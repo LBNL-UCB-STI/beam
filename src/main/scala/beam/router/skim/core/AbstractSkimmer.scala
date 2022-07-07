@@ -129,7 +129,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     currentIterationInternal = event.getIteration
     if (
       currentIterationInternal == 0
-      && BeamWarmStart.isFullWarmStart(beamConfig.beam.warmStart)
+      && BeamWarmStart.isSkimsEnabled(beamConfig.beam.warmStart)
       && skimFilePath.isDefined
     ) {
       val filePath = skimFilePath.get.skimsFilePath
