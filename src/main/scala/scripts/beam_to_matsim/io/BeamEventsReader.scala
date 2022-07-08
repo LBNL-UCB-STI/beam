@@ -1,7 +1,7 @@
-package scripts.beam_to_matsim.io
+package beam.utils.beam_to_matsim.io
 
 import beam.utils.EventReader
-import scripts.beam_to_matsim.events.{BeamEvent, BeamEventReader}
+import beam.utils.beam_to_matsim.events.{BeamEvent, BeamEventReader}
 
 object BeamEventsReader {
 

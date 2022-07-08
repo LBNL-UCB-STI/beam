@@ -1,45 +1,42 @@
 package scripts.beam_to_matsim
 
-import scripts.beam_to_matsim.io.{BeamEventsReader, Reader, Writer}
-import scripts.beam_to_matsim.utils.{LinkCoordinate, Point}
-import scripts.beam_to_matsim.events.{BeamEvent, BeamPathTraversal}
-import scripts.beam_to_matsim.events_filter.{MutableSamplingFilter, MutableVehiclesFilter}
-import scripts.beam_to_matsim.via_event.ViaEvent
+import beam.utils.beam_to_matsim.events.{BeamEvent, PathTraversalWithLinks}
+import beam.utils.beam_to_matsim.events_filter.{MutableSamplingFilter, MutableVehiclesFilter}
+import beam.utils.beam_to_matsim.io.{BeamEventsReader, Utils}
+import beam.utils.beam_to_matsim.utils.{Circle, LinkCoordinate, Point}
 
 import scala.collection.mutable
 import scala.xml.XML
 
+/*
+a script to generate Via events for specific modes.
+ */
+
 object EventsByVehicleMode extends App {
 
-  // gradle execute -PmainClass=beam.utils.beamToVia.EventsByVehicleMode -PappArgs="['D:/Work/BEAM/history/visualizations/v35.it3.events.csv', 'D:/Work/BEAM/_tmp/output.via.xml', 'car,bus', '0.5', 'D:/Work/BEAM/history/visualizations/physSimNetwork.xml', '548966', '4179000', '500']" -PmaxRAM=16g
-  val inputArgs1 = Seq(
-    // Events file path may be in csv or xml format. Does not work with archives.
-    "/mnt/data/work/beam/beam-production/output/sf-light/sf-light-1k-xml__2022-04-06_22-49-06_rub/ITERS/it.0/0.events.csv.gz",
-    // output file path
-    "/mnt/data/work/beam/beam-production/output/sf-light/sf-light-1k-xml__2022-04-06_22-49-06_rub/ITERS/it.0/0.events.via.xml",
-    // list of vehicle modes, case insensitive
-    "car,bus",
-    // 1 means 100%
-    "0.5",
-    // network path
-    "D:/Work/BEAM/history/visualizations/physSimNetwork.xml",
-    // san francisco, approximately: x:548966 y:4179000 r:5000
-    "548966",
-    "4179000",
-    "50000"
-  )
+  // format: off
+  /**********************************************************************************************************
+    ./gradlew execute -PmainClass=beam.utils.beam_to_matsim.scripts.via.EventsByVehicleMode -PappArgs="[
+      '<beam events csv file>',
+      '<via events output xml file>',
+      '<mode1>,<mode2>',
+      '<sampling value>',
+    ]" -PmaxRAM=16g
 
-  // gradle execute -PmainClass=beam.utils.beamToVia.EventsByVehicleMode -PappArgs="['D:/Work/BEAM/history/visualizations/v33.0.events.csv', 'D:/Work/BEAM/_tmp/output.via.xml', 'car,bus', '1']" -PmaxRAM=16g
-  val inputArgs2 = Seq(
-    // Events file path may be in csv or xml format. Does not work with archives.
-    "/mnt/data/work/beam/beam-production/freight-base-2018-60k__2022-04-19_04-36-11_rrq.0.events.1000000.csv",
-    // output file path
-    "/mnt/data/work/beam/beam-production/freight-base-2018-60k__2022-04-19_04-36-11_rrq.0.events.1000000.via.xml",
-    // list of vehicle modes, case insensitive
-    "car,bus",
-    // 1 means 100%
-    "1"
-  )
+  ************************************************************************************************************
+
+    ./gradlew execute -PmainClass=beam.utils.beam_to_matsim.scripts.EventsByVehicleMode -PappArgs="[
+      '<beam events csv file>',
+      '<via events output xml file>',
+      '<mode1>,<mode2>',
+      '<sampling value>',
+      '<physsim network xml file>',
+      '<circle x point>', // 548966
+      '<circle y point>', // 4179000
+      '<circle radius>'   // 5000
+    ]" -PmaxRAM=16g
+    ********************************************************************************************************/
+  // format: on
 
   val inputArgs = args
 
@@ -53,7 +50,7 @@ object EventsByVehicleMode extends App {
     Console.println(s"selected modes are: ${selectedModes.mkString(",")} and samling is: $sampling")
 
     val filter = MutableVehiclesFilter.withListOfVehicleModes(selectedModes, sampling)
-    buildViaFile(eventsFile, outputFile, filter)
+    Utils.buildViaFile(eventsFile, outputFile, filter)
   } else if (inputArgs.length == 8) {
     val eventsFile = inputArgs.head
     val outputFile = inputArgs(1)
@@ -81,25 +78,12 @@ object EventsByVehicleMode extends App {
       circleR
     )
 
-    buildViaFile(eventsFile, outputFile, filter)
+    Utils.buildViaFile(eventsFile, outputFile, filter)
   } else {
     Console.print("wrong args")
     Console.print("usage:")
     Console.print("simple sampling args: beamEventsFile outputFile selectedModes sampling")
     Console.print("with circle sampling args: beamEventsFile outputFile selectedModes sampling networkFile X Y R")
-  }
-
-  def buildViaFile(eventsFile: String, outputFile: String, filter: MutableSamplingFilter): Unit = {
-    Console.println("reading events with vehicles sampling ...")
-
-    def vehicleType(pte: BeamPathTraversal): String = pte.mode + "__" + pte.vehicleType
-    def vehicleId(pte: BeamPathTraversal): String = vehicleType(pte) + "__" + pte.vehicleId
-
-    val (vehiclesEvents, _) = Reader.readWithFilter(eventsFile, filter)
-    val (events, typeToId) = Reader.transformPathTraversals(vehiclesEvents, vehicleId, vehicleType)
-
-    Writer.writeViaEventsCollection(events, _.toXmlString, outputFile)
-    Writer.writeViaIdFile(typeToId, outputFile + ".ids.txt")
   }
 
   def getFilterWithCircleSampling(
@@ -115,17 +99,12 @@ object EventsByVehicleMode extends App {
     val networkXml = XML.loadFile(networkPath)
     val nodes = LinkCoordinate.parseNodes(networkXml)
 
-    case class Circle(x: Double, y: Double, r: Double) {
-      val rSquare: Double = r * r
-    }
-
-    val sfCircle = Circle(circleX, circleY, circleR)
-    def pointIsInteresting(point: Point): Boolean = point.vithinCircle(sfCircle.x, sfCircle.y, sfCircle.rSquare)
+    val circle = Circle(circleX, circleY, circleR)
 
     val interestingNodes = nodes
       .foldLeft(mutable.Map.empty[Int, Point]) {
-        case (selectedNodes, (nodeId, point)) if pointIsInteresting(point) => selectedNodes += nodeId -> point
-        case (selectedNodes, _)                                            => selectedNodes
+        case (selectedNodes, (nodeId, point)) if circle.contains(point) => selectedNodes += nodeId -> point
+        case (selectedNodes, _)                                         => selectedNodes
       }
       .toMap
 
@@ -139,7 +118,7 @@ object EventsByVehicleMode extends App {
       val interestingVehicles = mutable.HashSet.empty[String]
 
       def process(event: BeamEvent): Unit = event match {
-        case pte: BeamPathTraversal if pte.linkIds.exists(interestingLinks.contains) =>
+        case pte: PathTraversalWithLinks if pte.linkIds.exists(interestingLinks.contains) =>
           interestingVehicles += pte.vehicleId
 
         case _ =>

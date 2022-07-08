@@ -1,7 +1,7 @@
-package scripts.beam_to_matsim.io
+package beam.utils.beam_to_matsim.io
 
 import beam.utils.FileUtils
-import scripts.beam_to_matsim.via_event.{ViaEvent, ViaEventsCollection}
+import beam.utils.beam_to_matsim.via_event.{ViaEvent, ViaEventsCollection}
 
 import java.io.{File, PrintWriter}
 import scala.collection.mutable

@@ -1,4 +1,4 @@
-package scripts.beam_to_matsim.events
+package beam.utils.beam_to_matsim.events
 
 import org.matsim.api.core.v01.events.Event
 

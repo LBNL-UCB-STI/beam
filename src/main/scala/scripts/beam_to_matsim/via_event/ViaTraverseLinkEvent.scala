@@ -1,4 +1,4 @@
-package scripts.beam_to_matsim.via_event
+package beam.utils.beam_to_matsim.via_event
 
 sealed trait ViaTraverseLinkEventType
 object EnteredLink extends ViaTraverseLinkEventType
