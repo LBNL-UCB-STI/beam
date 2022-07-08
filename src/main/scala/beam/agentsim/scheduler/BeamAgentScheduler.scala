@@ -1,13 +1,13 @@
 package beam.agentsim.scheduler
 
-import akka.actor.{ActorLogging, ActorRef, BeamLoggingReceive, Cancellable, Props, Terminated}
+import akka.actor.{ActorLogging, ActorRef, BeamLoggingReceive, Cancellable, CoordinatedShutdown, Props, Terminated}
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.RideHailRepositioningTrigger
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
-import beam.utils.StuckFinder
+import beam.utils.{FileUtils, StuckFinder}
 import beam.utils.logging.{LogActorState, LoggingMessageActor}
 import com.google.common.collect.TreeMultimap
 
@@ -48,6 +48,8 @@ object BeamAgentScheduler {
   case object Monitor extends SchedulerMessage
 
   case object SimulationStuckCheck extends SchedulerMessage
+
+  case object BeforeShutdown extends SchedulerMessage
 
   case object RequestCurrentTime extends SchedulerMessage
 
@@ -91,13 +93,16 @@ object BeamAgentScheduler {
       }
   }
 
+  /**
+    * Intended for testing, because it doesn't provide the right iteration output directory
+    */
   def SchedulerProps(
     beamConfig: BeamConfig,
     stopTick: Int = TimeUnit.HOURS.toSeconds(24).toInt,
     maxWindow: Int = 1,
     stuckFinder: StuckFinder
   ): Props = {
-    Props(classOf[BeamAgentScheduler], beamConfig, stopTick, maxWindow, stuckFinder)
+    Props(classOf[BeamAgentScheduler], beamConfig, ".", stopTick, maxWindow, stuckFinder)
   }
 
   object ScheduledTriggerComparator extends Comparator[ScheduledTrigger] {
@@ -121,6 +126,7 @@ case object BeamAgentSchedulerTimer
 
 class BeamAgentScheduler(
   val beamConfig: BeamConfig,
+  val iterationOutputDir: String,
   stopTick: Int,
   val maxWindow: Int,
   val stuckFinder: StuckFinder
@@ -150,6 +156,7 @@ class BeamAgentScheduler(
   private var nowInSeconds: Int = 0
   private var nowUpdateTime: Long = System.currentTimeMillis()
   private var longestNowUpdateDelay: Long = 0
+  private var shutdownInitiated = false
 
   private val maybeTriggerMeasurer: Option[TriggerMeasurer] = if (beamConfig.beam.debug.triggerMeasurer.enabled) {
     Some(new TriggerMeasurer(beamConfig.beam.debug.triggerMeasurer))
@@ -177,6 +184,13 @@ class BeamAgentScheduler(
 
   private val initialDelay = beamConfig.beam.agentsim.scheduleMonitorTask.initialDelay
   private val interval = beamConfig.beam.agentsim.scheduleMonitorTask.interval
+
+  CoordinatedShutdown(context.system).addActorTerminationTask(
+    CoordinatedShutdown.PhaseBeforeServiceUnbind,
+    "scheduler.storeState",
+    self,
+    Some(BeforeShutdown)
+  )
 
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
     this.idCount += 1
@@ -273,8 +287,18 @@ class BeamAgentScheduler(
             currentDelayMillis,
             nowInSeconds
           )
+          if (!shutdownInitiated) {
+            shutdownInitiated = true
+            storeSchedulerState()
+          }
           System.exit(10)
         }
+      }
+
+    case BeforeShutdown =>
+      if (!shutdownInitiated) {
+        shutdownInitiated = true
+        storeSchedulerState()
       }
 
     case Monitor =>
@@ -370,6 +394,32 @@ class BeamAgentScheduler(
         }
       }
       if (started) doSimStep(nowInSeconds)
+  }
+
+  //not thread safe (needs to be called only within actor receive or lifecycle methods)
+  private def storeSchedulerState(): Unit = {
+    if (awaitingResponse.isEmpty) {
+      log.info("awaitingResponse is empty, nowInSeconds = {}", nowInSeconds)
+    } else {
+      val queueFile = s"$iterationOutputDir/triggerQueue.txt.gz"
+      log.info("triggerQueue.size = {}, saving to {}, nowInSeconds = {}", triggerQueue.size(), queueFile, nowInSeconds)
+      val sorted = (0 until math.min(triggerQueue.size(), 1024)).view.map(_ => triggerQueue.poll().toString + "\n")
+      FileUtils.writeToFile(queueFile, (s"total queue size = ${triggerQueue.size()}\n" +: sorted).iterator)
+      val awaitingResponseFile = s"$iterationOutputDir/awaitingResponse.txt.gz"
+      log.info(
+        "awaitingResponse.size = {}, saving to {}, nowInSeconds = {}",
+        awaitingResponse.size(),
+        awaitingResponseFile,
+        nowInSeconds
+      )
+      val iterator = awaitingResponse.entries().iterator()
+      val triggers = (0 until math.min(awaitingResponse.size(), 1024)).view
+        .map(_ => iterator.next().getValue.toString + "\n")
+      FileUtils.writeToFile(
+        awaitingResponseFile,
+        (s"total awaitingResponse size = ${awaitingResponse.size()}\n" +: triggers).iterator
+      )
+    }
   }
 
   private def terminateActor(actor: ActorRef): Unit = {
