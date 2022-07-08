@@ -1,11 +1,11 @@
-package beam.utils.beam_to_matsim.transit
+package scripts.beam_to_matsim.transit
 
-import beam.utils.beam_to_matsim.events.{BeamPathTraversal, PathTraversalWithLinks, PathTraversalWithoutLinks}
-import beam.utils.beam_to_matsim.transit.TransitEventsGroup.PassengerRange
-import beam.utils.beam_to_matsim.via_event.{ViaActivity, ViaEvent, ViaPersonArrivalEvent, ViaPersonDepartureEvent}
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.{Coord, Id}
+import scripts.beam_to_matsim.events.{BeamPathTraversal, PathTraversalWithLinks, PathTraversalWithoutLinks}
+import scripts.beam_to_matsim.transit.TransitEventsGroup.PassengerRange
+import scripts.beam_to_matsim.via_event.{ViaActivity, ViaEvent, ViaPersonArrivalEvent, ViaPersonDepartureEvent}
 
 object TransitHelper extends LazyLogging {
 

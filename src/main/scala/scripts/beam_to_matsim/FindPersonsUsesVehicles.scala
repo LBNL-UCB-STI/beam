@@ -1,7 +1,7 @@
 package scripts.beam_to_matsim
 
-import beam.utils.beam_to_matsim.events.{BeamEvent, BeamPersonEntersVehicle}
-import beam.utils.beam_to_matsim.io.{BeamEventsReader, Writer}
+import scripts.beam_to_matsim.events.{BeamEvent, BeamPersonEntersVehicle}
+import scripts.beam_to_matsim.io.{BeamEventsReader, Writer}
 
 import scala.collection.mutable
 import scala.io.Source
@@ -14,7 +14,7 @@ object FindPersonsUsesVehicles extends App {
 
   // format: off
   /******************************************************************************************************
-    ./gradlew execute -PmainClass=beam.utils.beam_to_matsim.scripts.FindPersonsUsesVehicles -PappArgs="[
+    ./gradlew execute -PmainClass=scripts.beam_to_matsim.FindPersonsUsesVehicles -PappArgs="[
       '<beam events csv file>',
       '<vehicles output file>',
       '<text file containing vehicles ids>'

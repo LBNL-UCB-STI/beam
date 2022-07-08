@@ -1,8 +1,8 @@
 package scripts.beam_to_matsim
 
-import beam.utils.beam_to_matsim.events.{BeamEvent, PathTraversalWithLinks}
-import beam.utils.beam_to_matsim.io.{BeamEventsReader, Writer}
-import beam.utils.beam_to_matsim.utils.{Circle, LinkCoordinate, Point}
+import scripts.beam_to_matsim.events.{BeamEvent, PathTraversalWithLinks}
+import scripts.beam_to_matsim.io.{BeamEventsReader, Writer}
+import scripts.beam_to_matsim.utils.{Circle, LinkCoordinate, Point}
 
 import scala.collection.mutable
 import scala.xml.XML
@@ -15,7 +15,7 @@ object FindIdsInCircles extends App {
 
   // format: off
   /************************************************************************************************
-    ./gradlew execute -PmainClass=beam.utils.beam_to_matsim.scripts.FindIdsInCircles -PappArgs="[
+    ./gradlew execute -PmainClass=scripts.beam_to_matsim.FindIdsInCircles -PappArgs="[
       '<beam events csv file>',
       '<vehicles output file>',
       '<physsim network xml file>',

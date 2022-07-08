@@ -1,6 +1,6 @@
-package beam.utils.beam_to_matsim.transit
+package scripts.beam_to_matsim.transit
 
-import beam.utils.beam_to_matsim.events.BeamPathTraversal
+import scripts.beam_to_matsim.events.BeamPathTraversal
 
 object TransitEventsGroup {
 

@@ -1,12 +1,11 @@
-package beam.utils.beam_to_matsim.events
+package scripts.beam_to_matsim.events
 
 import beam.router.Modes.BeamMode
-import beam.sim.common.GeoUtils
-import beam.utils.beam_to_matsim.transit.TransitHelper
-import beam.utils.beam_to_matsim.via_event.ViaTraverseLinkEvent
-import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.{Coord, Id}
+import scripts.beam_to_matsim.transit.TransitHelper
+import scripts.beam_to_matsim.via_event.ViaTraverseLinkEvent
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable

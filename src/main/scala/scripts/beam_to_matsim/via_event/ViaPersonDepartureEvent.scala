@@ -1,4 +1,4 @@
-package beam.utils.beam_to_matsim.via_event
+package scripts.beam_to_matsim.via_event
 
 case class ViaPersonDepartureEvent(var time: Double, person: String, link: Int) extends ViaEvent {
 

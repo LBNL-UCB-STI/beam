@@ -1,15 +1,8 @@
-package beam.utils.beam_to_matsim.io
+package scripts.beam_to_matsim.io
 
-import beam.utils.beam_to_matsim.events.{
-  BeamActivityEnd,
-  BeamActivityStart,
-  BeamModeChoice,
-  BeamPathTraversal,
-  PathTraversalWithLinks,
-  PathTraversalWithoutLinks
-}
-import beam.utils.beam_to_matsim.events_filter.{MutableSamplingFilter, PersonEvents, VehicleTrip}
-import beam.utils.beam_to_matsim.via_event._
+import scripts.beam_to_matsim.events._
+import scripts.beam_to_matsim.events_filter.{MutableSamplingFilter, PersonEvents, VehicleTrip}
+import scripts.beam_to_matsim.via_event._
 
 import scala.collection.mutable
 

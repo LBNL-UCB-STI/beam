@@ -1,7 +1,7 @@
-package beam.utils.beam_to_matsim.io
+package scripts.beam_to_matsim.io
 
-import beam.utils.beam_to_matsim.events.BeamPathTraversal
-import beam.utils.beam_to_matsim.events_filter.MutableSamplingFilter
+import scripts.beam_to_matsim.events.BeamPathTraversal
+import scripts.beam_to_matsim.events_filter.MutableSamplingFilter
 
 object Utils {
 

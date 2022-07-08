@@ -1,7 +1,7 @@
-package beam.utils.beam_to_matsim.transit.generator
+package scripts.beam_to_matsim.transit.generator
 
-import beam.utils.beam_to_matsim.events.BeamPathTraversal
-import beam.utils.beam_to_matsim.via_event.ViaEvent
+import scripts.beam_to_matsim.events.BeamPathTraversal
+import scripts.beam_to_matsim.via_event.ViaEvent
 
 object TransitViaEventsGenerator {
   type EventsGenerator = Vector[BeamPathTraversal] => Vector[ViaEvent]

@@ -1,9 +1,9 @@
 package scripts.beam_to_matsim
 
-import beam.utils.beam_to_matsim.events.{BeamEvent, PathTraversalWithLinks}
-import beam.utils.beam_to_matsim.events_filter.{MutableSamplingFilter, MutableVehiclesFilter}
-import beam.utils.beam_to_matsim.io.{BeamEventsReader, Utils}
-import beam.utils.beam_to_matsim.utils.{Circle, LinkCoordinate, Point}
+import scripts.beam_to_matsim.events.{BeamEvent, PathTraversalWithLinks}
+import scripts.beam_to_matsim.events_filter.{MutableSamplingFilter, MutableVehiclesFilter}
+import scripts.beam_to_matsim.io.{BeamEventsReader, Utils}
+import scripts.beam_to_matsim.utils.{Circle, LinkCoordinate, Point}
 
 import scala.collection.mutable
 import scala.xml.XML
@@ -16,7 +16,7 @@ object EventsByVehicleMode extends App {
 
   // format: off
   /**********************************************************************************************************
-    ./gradlew execute -PmainClass=beam.utils.beam_to_matsim.scripts.via.EventsByVehicleMode -PappArgs="[
+    ./gradlew execute -PmainClass=scripts.beam_to_matsim.EventsByVehicleMode -PappArgs="[
       '<beam events csv file>',
       '<via events output xml file>',
       '<mode1>,<mode2>',
@@ -25,7 +25,7 @@ object EventsByVehicleMode extends App {
 
   ************************************************************************************************************
 
-    ./gradlew execute -PmainClass=beam.utils.beam_to_matsim.scripts.EventsByVehicleMode -PappArgs="[
+    ./gradlew execute -PmainClass=scripts.beam_to_matsim.EventsByVehicleMode -PappArgs="[
       '<beam events csv file>',
       '<via events output xml file>',
       '<mode1>,<mode2>',
@@ -41,9 +41,9 @@ object EventsByVehicleMode extends App {
   val inputArgs = args
 
   if (inputArgs.length == 4) {
-    val eventsFile = inputArgs.head
+    val eventsFile = inputArgs(0)
     val outputFile = inputArgs(1)
-    val selectedModes = inputArgs(2).split(',').toSeq
+    val selectedModes = inputArgs(2).split(',').map(_.trim)
     val sampling = inputArgs(3).toDouble
 
     Console.println(s"going to transform BEAM events from $eventsFile and write them into $outputFile")

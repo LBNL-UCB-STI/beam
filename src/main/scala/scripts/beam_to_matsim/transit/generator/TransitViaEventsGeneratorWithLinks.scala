@@ -1,9 +1,10 @@
-package beam.utils.beam_to_matsim.transit.generator
+package scripts.beam_to_matsim.transit.generator
 
-import beam.utils.beam_to_matsim.events.BeamPathTraversal
-import beam.utils.beam_to_matsim.transit.TransitEventsGroup.PassengerRange
-import beam.utils.beam_to_matsim.transit.{TransitEventsGroup, TransitHelper}
-import beam.utils.beam_to_matsim.via_event.ViaEvent
+import scripts.beam_to_matsim.events.BeamPathTraversal
+import scripts.beam_to_matsim.transit.TransitEventsGroup
+import scripts.beam_to_matsim.transit.TransitEventsGroup.PassengerRange
+import scripts.beam_to_matsim.via_event.ViaEvent
+import scripts.beam_to_matsim.transit.TransitHelper
 
 private[transit] trait TransitViaEventsGeneratorWithLinks extends TransitViaEventsGenerator
 

@@ -1,8 +1,8 @@
 package scripts.beam_to_matsim
 
-import beam.utils.beam_to_matsim.events_filter.MutableVehiclesFilter
-import beam.utils.beam_to_matsim.io.{Reader, Writer}
-import beam.utils.beam_to_matsim.transit.generator.TransitViaEventsGenerator
+import scripts.beam_to_matsim.events_filter.MutableVehiclesFilter
+import scripts.beam_to_matsim.io.{Reader, Writer}
+import scripts.beam_to_matsim.transit.generator.TransitViaEventsGenerator
 
 /*
 a script to generate Via events for transit vehicles
@@ -12,7 +12,7 @@ object EventsByTransitTypes extends App {
 
   // format: off
   /********************************************************************************************************
-    ./gradlew execute -PmainClass=beam.utils.beam_to_matsim.scripts.via.EventsByTransitTypes -PappArgs="[
+    ./gradlew execute -PmainClass=scripts.beam_to_matsim.EventsByTransitTypes -PappArgs="[
       '<beam events csv file>',
       '<via events output xml file>',
       '--ridehail', '<idleThresholdInSec>', '<rangeSize>', '<vehicleType1>,<vehicleType1>',

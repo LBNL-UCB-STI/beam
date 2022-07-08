@@ -1,7 +1,7 @@
 package scripts.beam_to_matsim
 
-import beam.utils.beam_to_matsim.events.{BeamEvent, BeamPathTraversal}
-import beam.utils.beam_to_matsim.io.{BeamEventsReader, HashSetReader, Writer}
+import scripts.beam_to_matsim.events.{BeamEvent, BeamPathTraversal}
+import scripts.beam_to_matsim.io.{BeamEventsReader, HashSetReader, Writer}
 
 import scala.collection.mutable
 
@@ -13,7 +13,7 @@ object CollectIds extends App {
 
   // format: off
   /*****************************************************************************************
-    ./gradlew execute -PmainClass=beam.utils.beam_to_matsim.scripts.CollectIds -PappArgs="[
+    ./gradlew execute -PmainClass=scripts.beam_to_matsim.CollectIds -PappArgs="[
       '<beam events csv file>',
       '<output directory path>',
       '<text file generated with FindIdsInCircles script>'
@@ -69,6 +69,7 @@ object CollectIds extends App {
     )
     .getOrElse(new Accumulator())
 
+  val inFilePath = outputPath + "/vehicleTypes.txt"
   Writer.writeSeqOfString(
     accumulator.vehicleTypes
       .map {
@@ -77,10 +78,11 @@ object CollectIds extends App {
       }
       .toSeq
       .sorted,
-    outputPath + "/vehicleTypes.txt"
+    inFilePath
   )
-  Console.println("vehicle types written into " + outputPath + "/vehicleTypes.txt")
+  Console.println("vehicle types written into " + inFilePath)
 
+  val outFilePath = outputPath + "/vehicleTypes.OOC.txt"
   Writer.writeSeqOfString(
     accumulator.vehicleTypesOutOfCircle
       .map {
@@ -89,7 +91,7 @@ object CollectIds extends App {
       }
       .toSeq
       .sorted,
-    outputPath + "/vehicleTypes.OOC.txt"
+    outFilePath
   )
-  Console.println("vehicle types out of circle written into " + outputPath + "/vehicleTypes.txt")
+  Console.println("vehicle types out of circle written into " + outFilePath)
 }

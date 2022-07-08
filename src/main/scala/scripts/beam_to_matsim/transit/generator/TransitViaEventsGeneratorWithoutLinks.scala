@@ -1,14 +1,14 @@
-package beam.utils.beam_to_matsim.transit.generator
+package scripts.beam_to_matsim.transit.generator
 
 import beam.sim.common.GeoUtils
-import beam.utils.beam_to_matsim.events.BeamPathTraversal
-import beam.utils.beam_to_matsim.transit.{TransitEventsGroup, TransitHelper}
-import beam.utils.beam_to_matsim.via_event.ViaEvent
 import beam.utils.{NetworkHelper, NetworkHelperImpl}
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
+import scripts.beam_to_matsim.events.BeamPathTraversal
+import scripts.beam_to_matsim.transit.{TransitEventsGroup, TransitHelper}
+import scripts.beam_to_matsim.via_event.ViaEvent
 
 private[transit] trait TransitViaEventsGeneratorWithoutLinks extends TransitViaEventsGenerator {
   import TransitHelper._

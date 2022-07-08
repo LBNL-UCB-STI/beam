@@ -14,7 +14,7 @@ object ZipViaEventsFiles extends App {
 
   // format: off
   /****************************************************************************************************
-    ./gradlew execute -PmainClass=beam.utils.beam_to_matsim.scripts.via.ZipViaEventsFiles -PappArgs="[
+    ./gradlew execute -PmainClass=scripts.beam_to_matsim.ZipViaEventsFiles -PappArgs="[
       '<via events xml file 1>',
       '<via events xml file 2>',
       '<via events output xml file>',

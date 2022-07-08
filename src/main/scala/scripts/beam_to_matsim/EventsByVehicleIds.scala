@@ -1,7 +1,7 @@
 package scripts.beam_to_matsim
 
-import beam.utils.beam_to_matsim.events_filter.MutableVehiclesFilter
-import beam.utils.beam_to_matsim.io.Utils
+import scripts.beam_to_matsim.events_filter.MutableVehiclesFilter
+import scripts.beam_to_matsim.io.Utils
 
 /*
 a script to generate Via events for specific vehicle ids
@@ -11,7 +11,7 @@ object EventsByVehicleIds extends App {
 
   // format: off
   /********************************************************************************************************
-    ./gradlew execute -PmainClass=beam.utils.beam_to_matsim.scripts.via.EventsByVehicleIds -PappArgs="[
+    ./gradlew execute -PmainClass=scripts.beam_to_matsim.EventsByVehicleIds -PappArgs="[
       '<beam events csv file>',
       '<via events output xml file>',
       '<vehicleId1>,<vehicleId2>,<vehicleId3>,<vehicleId4>',
