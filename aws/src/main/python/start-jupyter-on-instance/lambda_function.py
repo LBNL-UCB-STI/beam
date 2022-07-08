@@ -18,7 +18,7 @@ initscript = (('''
 runcmd:
   - pip install setuptools
   - pip install jupyter
-  - JUPYTER_TOKEN=$TOKEN jupyter-notebook --allow-root --no-browser --ip=$(ec2metadata --public-hostname)
+  - su -c "JUPYTER_TOKEN=$TOKEN jupyter-notebook --no-browser --ip=$(ec2metadata --public-hostname) --log-level=ERROR" - ubuntu
   - sudo shutdown -h +30
 '''))
 
