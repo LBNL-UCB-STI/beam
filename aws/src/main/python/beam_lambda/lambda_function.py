@@ -136,17 +136,22 @@ write_files:
             #!/bin/bash
             pip install setuptools
             pip install jupyter
-            JUPYTER_TOKEN=$JUPYTER_TOKEN jupyter-notebook --allow-root --no-browser --ip=$(ec2metadata --public-hostname) --log-level=ERROR
-      path: /home/ubuntu/install-and-run-jupyter.sh
+      path: /home/ubuntu/install-jupyter.sh
+    - content: |
+            #!/bin/bash
+            JUPYTER_TOKEN=$JUPYTER_TOKEN jupyter-notebook --no-browser --ip=$(ec2metadata --public-hostname) --log-level=ERROR
+      path: /home/ubuntu/run-jupyter.sh  
         
 runcmd:
   - sudo chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
   - sudo chmod +x /home/ubuntu/write-cpu-ram-usage.sh
-  - sudo chmod +x /home/ubuntu/install-and-run-jupyter.sh
+  - sudo chmod +x /home/ubuntu/install-jupyter.sh
+  - sudo chmod +x /home/ubuntu/run-jupyter.sh
   - if [ "$RUN_JUPYTER" = "True" ]
   - then
   -   echo "Installing and starting Jupyter" 
-  -   /home/ubuntu/install-and-run-jupyter.sh &
+  -   /home/ubuntu/install-jupyter.sh
+  -   su -c "/home/ubuntu/run-jupyter.sh &" - ubuntu
   - fi
   - cd /home/ubuntu
   - ./write-cpu-ram-usage.sh 20 > cpu_ram_usage.csv &
