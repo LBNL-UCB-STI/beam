@@ -67,7 +67,7 @@ END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
 
 BRANCH_DEFAULT = 'master'
 
-DATA_BRANCH_DEFAULT = 'develop'
+DATA_BRANCH_DEFAULT = 'pilates'
 
 DATA_COMMIT_DEFAULT = 'HEAD'
 
@@ -318,7 +318,7 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
                   'r5d.large', 'r5d.xlarge', 'r5d.2xlarge', 'r5d.4xlarge', 'r5d.12xlarge', 'r5d.24xlarge',
                   'm5d.large', 'm5d.xlarge', 'm5d.2xlarge', 'm5d.4xlarge', 'm5d.12xlarge', 'm5d.24xlarge',
                   'z1d.large', 'z1d.xlarge', 'z1d.2xlarge', 'z1d.3xlarge', 'z1d.6xlarge', 'z1d.12xlarge',
-                  'x2gd.metal', 'x2gd.16xlarge']
+                  'x2gd.metal', 'x2gd.16xlarge', 'r6i.24xlarge']
 
 instance_type_to_memory = {
     't2.nano': 0.5, 't2.micro': 1, 't2.small': 2, 't2.medium': 4, 't2.large': 8, 't2.xlarge': 16, 't2.2xlarge': 32,
@@ -343,7 +343,7 @@ instance_type_to_memory = {
     'r5.large': 16, 'r5.xlarge': 32, 'r5.2xlarge': 64, 'r5.4xlarge': 128, 'r5.8xlarge': 256, 'r5.12xlarge': 384, 'r5.24xlarge': 768,
     'r5d.large': 16, 'r5d.xlarge': 32, 'r5d.2xlarge': 64, 'r5d.4xlarge': 128, 'r5d.12xlarge': 384, 'r5d.24xlarge': 768,
     'm5d.large': 8, 'm5d.xlarge': 16, 'm5d.2xlarge': 32, 'm5d.4xlarge': 64, 'm5d.12xlarge': 192, 'm5d.24xlarge': 384,
-    'z1d.large': 2, 'z1d.xlarge': 4, 'z1d.2xlarge': 8, 'z1d.3xlarge': 12, 'z1d.6xlarge': 24, 'z1d.12xlarge': 48
+    'z1d.large': 2, 'z1d.xlarge': 4, 'z1d.2xlarge': 8, 'z1d.3xlarge': 12, 'z1d.6xlarge': 24, 'z1d.12xlarge': 48, 'r6i.24xlarge': 768
 }
 
 

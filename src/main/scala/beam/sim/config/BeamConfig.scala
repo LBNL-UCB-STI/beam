@@ -4129,6 +4129,8 @@ object BeamConfig {
         maxDistanceLimitByModeInMeters: BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters,
         numberOfSamples: scala.Int,
         osmMapdbFile: java.lang.String,
+        suboptimalMinutes: scala.Int,
+        transitAlternativeList: java.lang.String,
         travelTimeNoiseFraction: scala.Double
       )
 
@@ -4184,6 +4186,9 @@ object BeamConfig {
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
+            suboptimalMinutes = if (c.hasPathOrNull("suboptimalMinutes")) c.getInt("suboptimalMinutes") else 0,
+            transitAlternativeList =
+              if (c.hasPathOrNull("transitAlternativeList")) c.getString("transitAlternativeList") else "OPTIMAL",
             travelTimeNoiseFraction =
               if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0
           )
@@ -4466,6 +4471,7 @@ object BeamConfig {
     }
 
     case class WarmStart(
+      initialLinkstatsFilePath: java.lang.String,
       path: java.lang.String,
       prepareData: scala.Boolean,
       samplePopulationIntegerFlag: scala.Int,
@@ -4492,6 +4498,8 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.WarmStart = {
         BeamConfig.Beam.WarmStart(
+          initialLinkstatsFilePath =
+            if (c.hasPathOrNull("initialLinkstatsFilePath")) c.getString("initialLinkstatsFilePath") else "",
           path = if (c.hasPathOrNull("path")) c.getString("path") else "",
           prepareData = c.hasPathOrNull("prepareData") && c.getBoolean("prepareData"),
           samplePopulationIntegerFlag =

@@ -519,6 +519,11 @@ trait ChoosesMode {
                 case _ =>
                   makeRequestWith(withTransit = false, Vector(bodyStreetVehicle))
                   responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+                  logger.error(
+                    "No vehicle available for existing route of person {} trip of mode {} even though it was created in their plans",
+                    body.id,
+                    tourMode
+                  )
               }
             case _ =>
               val vehicles = filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), tourMode)
@@ -1152,12 +1157,14 @@ trait ChoosesMode {
             .toMap
           val newLegs = itin.legs.map { leg =>
             if (parkingLegs.contains(leg)) {
+              if (leg.beamLeg.duration < 0) { logger.error("Negative parking leg duration {}", leg) }
               leg.copy(
                 cost = leg.cost + parkingResponses(
                   VehicleOnTrip(leg.beamVehicleId, TripIdentifier(itin))
                 ).stall.costInDollars
               )
             } else if (walkLegsAfterParkingWithParkingResponses.contains(leg)) {
+              if (leg.beamLeg.duration < 0) { logger.error("Negative walk after parking leg duration {}", leg) }
               val dist = geo.distUTMInMeters(
                 geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc),
                 walkLegsAfterParkingWithParkingResponses(leg).stall.locationUTM
@@ -1165,6 +1172,7 @@ trait ChoosesMode {
               val travelTime: Int = (dist / ZonalParkingManager.AveragePersonWalkingSpeed).toInt
               leg.copy(beamLeg = leg.beamLeg.scaleToNewDuration(travelTime))
             } else {
+              if (leg.beamLeg.duration < 0) { logger.error("Negative non-parking leg duration {}", leg) }
               leg
             }
           }
@@ -1278,6 +1286,8 @@ trait ChoosesMode {
           eventsManager.processEvent(
             createFailedTransitODSkimmerEvent(currentPersonLocation.loc, nextAct.getCoord, expectedMode)
           )
+        case Some(expectedMode) if !isAvailable(expectedMode) =>
+          logger.warn("Current tour mode {} not available for person {}", expectedMode.toString, body.id)
         case _ =>
       }
 
@@ -1314,6 +1324,16 @@ trait ChoosesMode {
         case _ =>
           combinedItinerariesForChoice
       }).filter(itin => availableModesForTrips.contains(itin.tripClassifier))
+
+      filteredItinerariesForChoice.foreach(
+        this.generateSkimData(
+          _currentTick.get,
+          _,
+          failedTrip = false,
+          personData.currentActivityIndex,
+          nextActivity(personData)
+        )
+      )
 
       val attributesOfIndividual =
         matsimPlan.getPerson.getCustomAttributes
@@ -1374,9 +1394,14 @@ trait ChoosesMode {
                   availableAlternatives = availableAlts
                 )
               }
-            case Some(_) =>
+            case Some(unmatchedMode) =>
               //give another chance to make a choice without predefined mode
               self ! MobilityStatusResponse(choosesModeData.allAvailableStreetVehicles, getCurrentTriggerId.get)
+              logger.debug(
+                "Person {} replanning because planned mode {} not available",
+                body.id,
+                unmatchedMode.toString
+              )
               stay() using ChoosesModeData(
                 personData = personData.copy(currentTourMode = None),
                 currentLocation = choosesModeData.currentLocation,
@@ -1403,7 +1428,10 @@ trait ChoosesMode {
               val expensiveWalkTrip = EmbodiedBeamTrip(
                 Vector(originalWalkTripLeg.copy(replanningPenalty = 10.0))
               )
-
+              logger.warn(
+                "Person {} forced into long walk trip because nothing is available",
+                body.id
+              )
               goto(FinishingModeChoice) using choosesModeData.copy(
                 pendingChosenTrip = Some(expensiveWalkTrip),
                 availableAlternatives = availableAlts
@@ -1516,9 +1544,11 @@ trait ChoosesMode {
         )
     }
 
-    val tripId = Option(
-      _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getAttributes.getAttribute("trip_id")
-    ).getOrElse("").toString
+    val tripId: String = _experiencedBeamPlan.trips
+      .lift(data.personData.currentActivityIndex + 1) match {
+      case Some(trip) => "default"
+      case None       => ""
+    }
 
     val modeChoiceEvent = new ModeChoiceEvent(
       tick,

@@ -39,7 +39,7 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '0.8.6'
+version = '0.8.6.11'
 
 description = """"""
 
@@ -210,7 +210,7 @@ dependencies {
     implementation "com.sigopt:sigopt-java:4.9.0"
     implementation group: 'com.graphhopper', name: 'graphhopper-reader-osm', version: '1.0'
 
-    implementation("com.uber:h3:3.7.2")
+    implementation("com.uber:h3:3.4.1")
     implementation("com.github.LBNL-UCB-STI:jsprit-wrapper:v0.5.1")
 
     testImplementation group: 'junit', name: 'junit', version: '4.8'
@@ -695,7 +695,7 @@ task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
 task buildImageWithoutTags(type: DockerBuildImage, dependsOn: createDockerfile) {}
 
 task buildImage(type: DockerTagImage, dependsOn: buildImageWithoutTags) {
-    repository = "beammodel/beam"
+    repository = "zaneedell/beam"
     tag = version
     targetImageId buildImageWithoutTags.getImageId()
 }

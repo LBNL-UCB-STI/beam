@@ -230,6 +230,7 @@ object HouseholdActor {
           .getOrElse(fallbackHomeCoord)
 
         val fleetManagers = vehiclesByAllCategories.map { case (category, vehiclesInCategory) =>
+          // TODO: Only create this if config says to generate emergency vehicles
           val emergencyGenerator =
             new EmergencyHouseholdVehicleGenerator(household, beamScenario, vehiclesAdjustment, category)
           val fleetManager =

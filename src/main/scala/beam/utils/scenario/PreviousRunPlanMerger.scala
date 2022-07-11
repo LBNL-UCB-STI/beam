@@ -71,12 +71,9 @@ object PreviousRunPlanMerger extends LazyLogging {
       personIdsToReplace.size
     )
     val shouldReplace = (plan: PlanElement) => personIdsToReplace.contains(plan.personId)
-    val (oldToBeReplaced, oldElements) = plans.partition(shouldReplace)
+    val (_, oldElementsToKeep) = plans.partition(shouldReplace)
     val elementsFromExistingPersonsToAdd = plansToMerge.filter(shouldReplace)
-    val shouldAdd = (plan: PlanElement) => personIdsToAdd.contains(plan.personId)
-    val elementsFromNewPersonsToAdd = plansToMerge.filter(shouldAdd)
-    val unselectedPlanElements = oldToBeReplaced.map(_.copy(planSelected = false))
-    oldElements ++ unselectedPlanElements ++ elementsFromExistingPersonsToAdd ++ elementsFromNewPersonsToAdd
+    oldElementsToKeep ++ elementsFromExistingPersonsToAdd
   }
 }
 
@@ -90,12 +87,16 @@ object LastRunOutputSource extends LazyLogging {
     plansPaths.headOption
   }
 
-  def findLastRunLinkStats(outputPath: Path, dirPrefix: String): Option[Path] = {
+  def findLastRunLinkStats(outputPath: Path, dirPrefix: String, initialLinkstatsPath: Option[Path]): Option[Path] = {
     val paths = for {
       (itDir, itNumber) <- findAllLastIterationDirectories(outputPath, dirPrefix)
       linkStatsPath     <- findFile(itDir, itNumber, "linkstats.csv.gz")
     } yield linkStatsPath
-    paths.headOption
+    (paths.headOption, initialLinkstatsPath) match {
+      case (Some(path), _)        => Some(path)
+      case (_, Some(defaultPath)) => Some(defaultPath)
+      case _                      => None
+    }
   }
 
   private def findFile(iterationDir: Path, iterationNumber: Int, fileName: String): Option[Path] = {

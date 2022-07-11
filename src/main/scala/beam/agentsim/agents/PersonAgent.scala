@@ -1318,9 +1318,20 @@ class PersonAgent(
               activity.getType
             )
           )
+          val nextLegDepartureTime =
+            if (activityEndTime > tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow) {
+              activityEndTime.toInt
+            } else {
+              logger.warn(
+                "Moving back next activity end time from {} to {} to avoid parallelism issues when teleporting",
+                activityEndTime,
+                tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
+              )
+              tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
+            }
           scheduler ! CompletionNotice(
             triggerId,
-            Vector(ScheduleTrigger(ActivityEndTrigger(activityEndTime.toInt), self))
+            Vector(ScheduleTrigger(ActivityEndTrigger(nextLegDepartureTime), self))
           )
           goto(PerformingActivity) using data.copy(
             currentActivityIndex = currentActivityIndex + 1,
@@ -1401,10 +1412,21 @@ class PersonAgent(
             activity.getType
           )
           eventsManager.processEvent(activityStartEvent)
-
+          val nextLegDepartureTime =
+            if (activityEndTime >= tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow) {
+              activityEndTime.toInt
+            } else {
+              logger.warn(
+                "Moving back next activity end time from {} to {} to avoid parallelism issues, currently on trip {}",
+                activityEndTime,
+                tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow,
+                currentTrip
+              )
+              tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow
+            }
           scheduler ! CompletionNotice(
             triggerId,
-            Vector(ScheduleTrigger(ActivityEndTrigger(activityEndTime.toInt), self))
+            Vector(ScheduleTrigger(ActivityEndTrigger(nextLegDepartureTime), self))
           )
           goto(PerformingActivity) using data.copy(
             currentActivityIndex = currentActivityIndex + 1,
@@ -1435,7 +1457,7 @@ class PersonAgent(
       }
   }
 
-  private def generateSkimData(
+  def generateSkimData(
     tick: Int,
     trip: EmbodiedBeamTrip,
     failedTrip: Boolean,

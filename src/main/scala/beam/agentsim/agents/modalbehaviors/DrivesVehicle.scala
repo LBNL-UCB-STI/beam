@@ -395,9 +395,19 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         if (data.hasParkingBehaviors) {
           // charge vehicle
           if (currentBeamVehicle.isEV) {
+            val maybePersonData = findPersonData(data)
+            val maybeNextActivity = for {
+              personData <- maybePersonData
+              nextActivity <- this match {
+                case agent: PersonAgent => agent.nextActivity(personData)
+                case _                  => None
+              }
+            } yield nextActivity
+            val nextActivityEndTime: Double = maybeNextActivity.map(_.getEndTime).getOrElse(24.0 * 3600.0)
+            // TODO: Check to see if reserved stall is for current leg in passenger index
             currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
               stall.chargingPointType match {
-                case Some(_) =>
+                case Some(_) if nextActivityEndTime > tick + beamConfig.beam.agentsim.schedulerParallelismWindow =>
                   log.debug("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
                   chargingNetworkManager ! ChargingPlugRequest(
                     tick,
@@ -408,6 +418,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     shiftStatus = NotApplicable
                   )
                   waitForConnectionToChargingPoint = true
+                case Some(_) =>
+                  log.warning(
+                    "Not sending a plug in request for vehicle {} at tick {} because that vehicle needs to depart at time {}",
+                    currentBeamVehicle.id,
+                    tick,
+                    nextActivityEndTime
+                  )
                 case None => // this should only happen rarely
                   log.debug(
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
@@ -713,7 +730,17 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           .drop(data.currentLegPassengerScheduleIndex)
           .head
           ._1
-        val endTime = tick + beamLeg.duration
+        val endTime = if ((beamLeg.duration >= 0) & (tick + beamLeg.duration >= latestObservedTick)) {
+          tick + beamLeg.duration
+        } else if (tick + beamLeg.duration < latestObservedTick) {
+          logger.error("Current tick is before latestObservedTick {}", beamLeg)
+          latestObservedTick
+        } else {
+          logger.error("Negative leg duration for leg {}", beamLeg)
+          tick
+        }
+        // TODO: Clear out currently reserved stall
+        // Maybe send out ChargingUnplugRequest(tick, vehicle, triggerId)
         goto(Driving) using LiterallyDrivingData(data, endTime, Some(tick))
           .asInstanceOf[T] replying CompletionNotice(
           triggerId,
@@ -930,7 +957,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       case Some(vehicle) => vehicle.isPHEV || vehicle.isBEV
       case _             => parkingInquiry.parkingActivityType == ParkingActivityType.Charge
     }
-    if (isChargingRequestOrEV)
+    if (isChargingRequestOrEV & (parkingInquiry.parkingDuration > beamConfig.beam.agentsim.schedulerParallelismWindow))
       chargingNetworkManager ! parkingInquiry
     else
       parkingManager ! parkingInquiry

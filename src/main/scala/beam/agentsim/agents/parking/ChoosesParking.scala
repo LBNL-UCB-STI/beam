@@ -197,9 +197,15 @@ trait ChoosesParking extends {
     val firstLeg = data.restOfCurrentTrip.head
     val vehicleTrip = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)
     val lastLeg = vehicleTrip.last.beamLeg
+
     val activityType = nextActivity(data).get.getType
     val remainingTripData = calculateRemainingTripData(data)
-    val parkingDuration = nextActivity(data).map(_.getEndTime - lastLeg.endTime).getOrElse(0.0)
+    val parkingDuration = (_currentTick, nextActivity(data)) match {
+      case (Some(tick), Some(act)) => act.getEndTime - tick
+      case (None, Some(act))       => act.getEndTime - lastLeg.endTime
+      case (Some(tick), None)      => 3600 * 24 - tick // TODO: FIX THIS HACK
+      case _                       => 0.0
+    }
     val destinationUtm = SpaceTime(beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), lastLeg.endTime)
     if (data.enrouteData.isInEnrouteState) {
       // enroute means actual travelling has not started yet,

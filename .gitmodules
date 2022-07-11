@@ -1,11 +1,11 @@
 [submodule "production/austin"]
 	path = production/austin
 	url = git@github.com:LBNL-UCB-STI/beam-data-austin.git
-	branch = develop
+	branch = pilates
 [submodule "production/sfbay"]
 	path = production/sfbay
 	url = git@github.com:LBNL-UCB-STI/beam-data-sfbay.git
-	branch = develop
+	branch = pilates
 [submodule "production/detroit"]
 	path = production/detroit
 	url = git@github.com:LBNL-UCB-STI/beam-data-detroit.git
