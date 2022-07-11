@@ -27,6 +27,8 @@ object TAZ {
 
   val DefaultTAZ: TAZ = new TAZ(DefaultTAZId, new Coord(), 0)
 
+  def isSpecialTazId(tazId: Id[TAZ]): Boolean = tazId == DefaultTAZId || tazId == EmergencyTAZId
+
   /**
     * performs a concentric disc search from the present location to find TAZs up to the SearchMaxRadius
     * @param tazQuadTree tree to search

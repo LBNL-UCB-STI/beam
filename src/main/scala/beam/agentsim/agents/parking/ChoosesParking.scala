@@ -6,17 +6,17 @@ import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
+import beam.agentsim.agents.freight.FreightRequestType
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehicleCategory, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehicleManager}
 import beam.agentsim.events.{LeavingParkingEvent, ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.charging.{ChargingPointType, ElectricCurrentType}
 import beam.agentsim.infrastructure.parking.PricingModel
 import beam.agentsim.infrastructure.taz.TAZTreeMap
-import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -30,6 +30,7 @@ import beam.sim.common.GeoUtils
 import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
+import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.api.experimental.events.EventsManager
 import org.slf4j.LoggerFactory
 
@@ -53,6 +54,8 @@ object ChoosesParking {
     geo: GeoUtils,
     eventsManager: EventsManager,
     tazTreeMap: TAZTreeMap,
+    nextActivity: Option[Activity],
+    trip: Option[EmbodiedBeamTrip],
     restOfTrip: Option[List[EmbodiedBeamLeg]]
   ): Unit = {
     currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
@@ -65,39 +68,91 @@ object ChoosesParking {
         driverId = driver.toString
       )
       eventsManager.processEvent(parkEvent) // nextLeg.endTime -> to fix repeated path traversal
-      if (currentBeamVehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car && restOfTrip.isDefined) {
-        val legs = restOfTrip.get
-        if (legs.size >= 2 && legs(0).beamLeg.mode == BeamMode.CAR && legs(1).beamLeg.mode == BeamMode.WALK) {
-          val walkLeg = legs(1)
-          val tazId = tazTreeMap.getTAZ(walkLeg.beamLeg.travelPath.endPoint.loc).tazId
-          val chargerType = stall.chargingPointType match {
-            case Some(chargingType)
-                if ChargingPointType.getChargingPointCurrent(chargingType) == ElectricCurrentType.DC =>
-              ChargerType.DCFastCharger
-            case Some(_) => ChargerType.ACSlowCharger
-            case None    => ChargerType.NoCharger
-          }
-          val parkingCostPerHour = stall.pricingModel
-            .map {
-              case PricingModel.FlatFee(costInDollars)                => costInDollars
-              case PricingModel.Block(costInDollars, intervalSeconds) => costInDollars / intervalSeconds * 3600
-            }
-            .getOrElse(stall.costInDollars)
-          eventsManager.processEvent(
-            new ParkingSkimmerEvent(
-              tick,
-              tazId,
-              chargerType,
-              walkLeg.beamLeg.travelPath.distanceInM,
-              parkingCostPerHour
+      restOfTrip.foreach { legs =>
+        if (legs.size >= 2 && legs.head.beamLeg.mode == BeamMode.CAR && legs(1).beamLeg.mode == BeamMode.WALK) {
+          val parkingSkimmerEvent = createParkingSkimmerEvent(tick, geo, tazTreeMap, nextActivity, stall, legs)
+          eventsManager.processEvent(parkingSkimmerEvent)
+          val freightRequestType =
+            nextActivity.flatMap(activity =>
+              Option(activity.getAttributes.getAttribute(FREIGHT_REQUEST_TYPE)).asInstanceOf[Option[FreightRequestType]]
             )
-          )
-        } else {
-          logger.error("Cannot create parking skimmmer event with this rest of trip: {}", legs)
+          freightRequestType.foreach { requestType =>
+            val freightSkimmerEvent = createFreightSkimmerEvent(tick, trip, parkingSkimmerEvent, requestType)
+            eventsManager.processEvent(freightSkimmerEvent)
+          }
         }
       }
     }
     currentBeamVehicle.setReservedParkingStall(None)
+  }
+
+  private def createFreightSkimmerEvent(
+    tick: Int,
+    trip: Option[EmbodiedBeamTrip],
+    parkingSkimmerEvent: ParkingSkimmerEvent,
+    requestType: FreightRequestType
+  ) = {
+    val (loading, unloading) = requestType match {
+      case FreightRequestType.Unloading => (0, 1)
+      case FreightRequestType.Loading   => (1, 0)
+    }
+    val costPerMile = trip
+      .map { trip =>
+        val carDistanceInM = trip.beamLegs.collect {
+          case leg if leg.mode == BeamMode.CAR => leg.travelPath.distanceInM
+        }.sum
+        logger.info("Cost: {}, dist: {}", trip.costEstimate, carDistanceInM)
+        trip.costEstimate / carDistanceInM * 1609.0
+      }
+      .getOrElse(Double.NaN)
+    val freightSkimmerEvent = new FreightSkimmerEvent(
+      tick,
+      parkingSkimmerEvent.tazId,
+      loading,
+      unloading,
+      costPerMile,
+      parkingSkimmerEvent.walkAccessDistanceInM,
+      parkingSkimmerEvent.parkingCostPerHour
+    )
+    freightSkimmerEvent
+  }
+
+  private def createParkingSkimmerEvent(
+    tick: Int,
+    geo: GeoUtils,
+    tazTreeMap: TAZTreeMap,
+    nextActivity: Option[Activity],
+    stall: ParkingStall,
+    restOfTrip: List[EmbodiedBeamLeg]
+  ): ParkingSkimmerEvent = {
+    require(restOfTrip.size >= 2, "Rest of trip must consist of two legs at least: current car leg, walk leg")
+    val walkLeg = restOfTrip(1)
+    val tripEndPointUTMLocation = geo.wgs2Utm(walkLeg.beamLeg.travelPath.endPoint.loc)
+    val tazId = tazTreeMap.getTAZ(tripEndPointUTMLocation).tazId
+    val chargerType = stall.chargingPointType match {
+      case Some(chargingType) if ChargingPointType.getChargingPointCurrent(chargingType) == ElectricCurrentType.DC =>
+        ChargerType.DCFastCharger
+      case Some(_) => ChargerType.ACSlowCharger
+      case None    => ChargerType.NoCharger
+    }
+    val parkingCostPerHour = (stall.pricingModel, nextActivity) match {
+      case (Some(PricingModel.Block(costInDollars, intervalSeconds)), _) =>
+        costInDollars / intervalSeconds * SECONDS_IN_HOUR
+      case (Some(PricingModel.FlatFee(costInDollars)), Some(activity))
+          if activity.getEndTime - activity.getStartTime > 0 =>
+        costInDollars / (activity.getEndTime - activity.getStartTime) * SECONDS_IN_HOUR
+      case (Some(PricingModel.FlatFee(costInDollars)), _) => costInDollars
+      case (None, _)                                      => 0
+    }
+    val walkAccessDistance = walkLeg.beamLeg.travelPath.distanceInM
+    val parkingSkimmerEvent = new ParkingSkimmerEvent(
+      tick,
+      tazId,
+      chargerType,
+      walkAccessDistance,
+      parkingCostPerHour
+    )
+    parkingSkimmerEvent
   }
 
   def calculateScore(
@@ -188,11 +243,18 @@ trait ChoosesParking extends {
   when(ConnectingToChargingPoint) {
     case _ @Event(StartingRefuelSession(tick, triggerId), data) =>
       log.debug(s"Vehicle ${currentBeamVehicle.id} started charging and it is now handled by the CNM at $tick")
-      val restOfTrip: Option[List[EmbodiedBeamLeg]] = data match {
-        case personData: BasePersonData => Some(personData.restOfCurrentTrip)
-        case _                          => None
-      }
-      handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager, beamScenario.tazTreeMap, restOfTrip)
+      val maybePersonData = findPersonData(data)
+      handleUseParkingSpot(
+        tick,
+        currentBeamVehicle,
+        id,
+        geo,
+        eventsManager,
+        beamScenario.tazTreeMap,
+        nextActivity = maybePersonData.flatMap(nextActivity),
+        trip = maybePersonData.flatMap(_.currentTrip),
+        restOfTrip = maybePersonData.map(_.restOfCurrentTrip)
+      )
       self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data
     case _ @Event(WaitingToCharge(tick, vehicleId, triggerId), data) =>

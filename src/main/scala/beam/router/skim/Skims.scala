@@ -3,17 +3,8 @@ package beam.router.skim
 import beam.router
 import beam.router.skim
 import beam.router.skim.core.AbstractSkimmer.AGG_SUFFIX
-import beam.router.skim.core.{
-  AbstractSkimmer,
-  AbstractSkimmerReadOnly,
-  DriveTimeSkimmer,
-  ODSkimmer,
-  ParkingSkimmer,
-  RideHailSkimmer,
-  TAZSkimmer,
-  TransitCrowdingSkimmer
-}
-import beam.router.skim.readonly.{DriveTimeSkims, ODSkims, ParkingSkims, RideHailSkims, TAZSkims, TransitCrowdingSkims}
+import beam.router.skim.core._
+import beam.router.skim.readonly._
 import beam.sim.config.BeamConfig.Beam.Router
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -28,6 +19,7 @@ class Skims @Inject() (
   driveTimeSkimmer: DriveTimeSkimmer,
   transitCrowdingSkimmer: TransitCrowdingSkimmer,
   rideHailSkimmer: RideHailSkimmer,
+  freightSkimmer: FreightSkimmer,
   parkingSkimmer: ParkingSkimmer,
   asSkimmer: ActivitySimSkimmer
 ) extends LazyLogging {
@@ -38,6 +30,7 @@ class Skims @Inject() (
   lazy val dt_skimmer: DriveTimeSkims = lookup(SkimType.DT_SKIMMER).asInstanceOf[DriveTimeSkims]
   lazy val tc_skimmer: TransitCrowdingSkims = lookup(SkimType.TC_SKIMMER).asInstanceOf[TransitCrowdingSkims]
   lazy val rh_skimmer: RideHailSkims = lookup(SkimType.RH_SKIMMER).asInstanceOf[RideHailSkims]
+  lazy val freight_skimmer: FreightSkims = lookup(SkimType.FREIGHT_SKIMMER).asInstanceOf[FreightSkims]
   lazy val parking_skimmer: ParkingSkims = lookup(SkimType.PARKING_SKIMMER).asInstanceOf[ParkingSkims]
 
   private val skims = mutable.Map.empty[SkimType.Value, AbstractSkimmer]
@@ -46,6 +39,7 @@ class Skims @Inject() (
   skims.put(SkimType.DT_SKIMMER, addEvent(driveTimeSkimmer))
   skims.put(SkimType.TC_SKIMMER, addEvent(transitCrowdingSkimmer))
   skims.put(SkimType.RH_SKIMMER, addEvent(rideHailSkimmer))
+  skims.put(SkimType.FREIGHT_SKIMMER, addEvent(freightSkimmer))
   skims.put(SkimType.PARKING_SKIMMER, addEvent(parkingSkimmer))
   skims.put(SkimType.AS_SKIMMER, addEvent(asSkimmer))
 
@@ -68,6 +62,7 @@ object Skims {
     val DT_SKIMMER: skim.Skims.SkimType.Value = Value("drive-time-skimmer")
     val TC_SKIMMER: skim.Skims.SkimType.Value = Value("transit-crowding-skimmer")
     val RH_SKIMMER: skim.Skims.SkimType.Value = Value("ridehail-skimmer")
+    val FREIGHT_SKIMMER: skim.Skims.SkimType.Value = Value("freight-skimmer")
     val PARKING_SKIMMER: skim.Skims.SkimType.Value = Value("parking-skimmer")
     val AS_SKIMMER: router.skim.Skims.SkimType.Value = Value("activity-sim-skimmer")
   }
@@ -77,6 +72,7 @@ object Skims {
     SkimType.TAZ_SKIMMER     -> skimCfg.taz_skimmer.fileBaseName,
     SkimType.DT_SKIMMER      -> skimCfg.drive_time_skimmer.fileBaseName,
     SkimType.RH_SKIMMER      -> RideHailSkimmer.fileBaseName,
+    SkimType.FREIGHT_SKIMMER -> FreightSkimmer.fileBaseName,
     SkimType.PARKING_SKIMMER -> ParkingSkimmer.fileBaseName,
     SkimType.TC_SKIMMER      -> skimCfg.transit_crowding_skimmer.fileBaseName
   )

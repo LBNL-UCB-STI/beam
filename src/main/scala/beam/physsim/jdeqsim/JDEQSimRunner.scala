@@ -13,7 +13,6 @@ import beam.physsim.{PickUpDropOffCollector, PickUpDropOffHolder}
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.utils.ConcurrentUtils.parallelExecution
-import beam.utils.NetworkEdgeOutputGenerator.beamConfig
 import beam.utils.{DebugLib, ProfilingUtils}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.analysis.LegHistogram
@@ -63,7 +62,8 @@ class JDEQSimRunner(
       controlerIO,
       beamServices.beamConfig,
       jdeqSimScenario.getConfig.travelTimeCalculator,
-      beamConfigChangesObservable
+      beamConfigChangesObservable,
+      beamServices.beamScenario.privateVehicles.view.toMap.asJava
     )
     linkStatsGraph.notifyIterationStarts(jdeqsimEvents, jdeqSimScenario.getConfig.travelTimeCalculator)
 

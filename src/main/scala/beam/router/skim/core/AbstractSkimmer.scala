@@ -233,6 +233,8 @@ object AbstractSkimmer {
         RoundingMode.HALF_UP
       )
 
+    def sum(extractValue: T => Double): Double = extractValue(a) + extractValue(b)
+
     val aggregateObservations: Int = aObservations + bObservations
   }
 

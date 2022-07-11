@@ -75,7 +75,7 @@ object GeometryPerformance {
     val baseConfigUnresolved = ConfigFactory.parseString("config=" + configLocation)
     val baseConfig = baseConfigUnresolved.resolve()
     val beamConfig = BeamConfig(baseConfig)
-    val stalls = InfrastructureUtils.loadStalls[TAZ](
+    val stalls = InfrastructureUtils.loadStalls(
       s"$beamHome/test/input/sf-bay/parking/taz-parking-unlimited-fast-limited-l2-150-baseline.csv",
       IndexedSeq(),
       tazMap.tazQuadTree, //it is required only in case of failures

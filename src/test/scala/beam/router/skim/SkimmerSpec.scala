@@ -274,6 +274,7 @@ object SkimmerSpec extends LazyLogging {
         energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
         level4CavTravelTimeScalingFactor =
           Option(row("level4CavTravelTimeScalingFactor")).map(_.toDouble).getOrElse(1.0),
+        failedTrips = 0,
         observations = row("observations").toInt,
         iterations = row("iterations").toInt
       )

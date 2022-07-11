@@ -10,11 +10,11 @@ import org.matsim.api.core.v01.Id
   * @author Dmitry Openkov
   */
 class ParkingSkimmerEvent(
-  eventTime: Double,
-  tazId: Id[TAZ],
-  chargerType: ChargerType,
-  walkAccessDistanceInM: Double,
-  parkingCostPerHour: Double
+  val eventTime: Double,
+  val tazId: Id[TAZ],
+  val chargerType: ChargerType,
+  val walkAccessDistanceInM: Double,
+  val parkingCostPerHour: Double
 ) extends AbstractSkimmerEvent(eventTime) {
 
   override protected val skimName: String = ParkingSkimmer.name
