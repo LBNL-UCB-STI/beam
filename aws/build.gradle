@@ -251,7 +251,7 @@ task jupyterEC2(type: AWSLambdaInvokeTask) {
         payload = """
             {
               "budget_override": "${project.findProperty('budgetOverride') ?: false}",
-              "instance_type": "${project.findProperty('instanceType') ?: 't2.nano'}",
+              "instance_type": "${project.findProperty('instanceType') ?: 'r5.xlarge'}",
               "title": "${project.findProperty('title') ?: 'jupyter-notebook'}",
               "region": "${project.findProperty('region') ?: defaultRegion}",
               "storage_size": ${project.findProperty('storageSize') ?: 128},
