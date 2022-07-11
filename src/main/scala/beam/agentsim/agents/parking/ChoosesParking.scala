@@ -7,6 +7,7 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.freight.FreightRequestType
+import beam.agentsim.agents.freight.input.FreightReader._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -25,9 +26,10 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.skim.core.ParkingSkimmer.ChargerType
-import beam.router.skim.event.ParkingSkimmerEvent
+import beam.router.skim.event.{FreightSkimmerEvent, ParkingSkimmerEvent}
 import beam.sim.common.GeoUtils
 import beam.utils.logging.pattern.ask
+import beam.utils.MeasureUnitConversion._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 import org.matsim.api.core.v01.population.Activity
