@@ -7,7 +7,7 @@ import beam.agentsim.agents.ridehail.RideHailManager.RideHailRepositioningTrigge
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
-import beam.utils.{FileUtils, StuckFinder}
+import beam.utils.{DebugLib, FileUtils, StuckFinder}
 import beam.utils.logging.{LogActorState, LoggingMessageActor}
 import com.google.common.collect.TreeMultimap
 
@@ -413,6 +413,10 @@ class BeamAgentScheduler(
       FileUtils.writeToFile(
         awaitingResponseFile,
         (s"total awaitingResponse size = ${awaitingResponse.size()}\n" +: triggers).iterator
+      )
+      FileUtils.writeToFile(
+        s"$outputDir/scheduler_shutdown_thread_dump.txt.gz",
+        DebugLib.currentThreadDump().asScala.iterator
       )
     }
   }
