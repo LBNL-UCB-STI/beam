@@ -42,7 +42,7 @@ object InputPersonInfo extends EntityTransformer[InputPersonInfo] {
     val householdId = getIfNotNull(rec, "household_id")
     val age = getIfNotNull(rec, "age").toInt
     val sex = Sex.determineSex(getIfNotNull(rec, "sex").toInt)
-    val in_wheelchair = Option(rec.get("industry")).exists(_.toBoolean)
+    val in_wheelchair = Option(rec.get("in_wheelchair")).exists(_.toBoolean)
     val industry = Option(rec.get("industry"))
 
     InputPersonInfo(personId, householdId, age, sex, industry, in_wheelchair)
