@@ -27,7 +27,7 @@ class CsvPersonInfoWriter(val path: String) extends AutoCloseable with LazyLoggi
 object CsvPersonInfoWriter extends PersonInfoWriter with LazyLogging {
 
   private val headers: Array[String] =
-    Array("personId", "householdId", "age", "isFemale", "householdRank", "valueOfTime")
+    Array("personId", "householdId", "age", "isFemale", "householdRank", "valueOfTime", "wheelchairUser")
 
   override def write(path: String, xs: Iterator[PersonInfo]): Unit = {
     val csvWriter = new CsvWriter(path, headers)
@@ -50,7 +50,8 @@ object CsvPersonInfoWriter extends PersonInfoWriter with LazyLogging {
         person.isFemale,
         person.rank,
         person.valueOfTime,
-        escapedIndustry
+        escapedIndustry,
+        person.wheelchairUser
       )
     }
   }
