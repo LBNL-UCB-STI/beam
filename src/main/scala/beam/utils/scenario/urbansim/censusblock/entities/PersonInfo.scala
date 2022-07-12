@@ -31,8 +31,8 @@ case class InputPersonInfo(
   householdId: String,
   age: Int,
   sex: Sex,
-  in_wheelchair: Boolean = false,
-  industry: Option[String]
+  industry: Option[String],
+  in_wheelchair: Boolean = false
 )
 
 object InputPersonInfo extends EntityTransformer[InputPersonInfo] {
@@ -45,6 +45,6 @@ object InputPersonInfo extends EntityTransformer[InputPersonInfo] {
     val in_wheelchair = Option(rec.get("industry")).exists(_.toBoolean)
     val industry = Option(rec.get("industry"))
 
-    InputPersonInfo(personId, householdId, age, sex, in_wheelchair, industry)
+    InputPersonInfo(personId, householdId, age, sex, industry, in_wheelchair)
   }
 }
