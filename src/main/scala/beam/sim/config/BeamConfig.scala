@@ -1539,8 +1539,7 @@ object BeamConfig {
 
         case class TripBehaviors(
           carUsage: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.CarUsage,
-          multinomialLogit: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MultinomialLogit
-          mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit,
+          multinomialLogit: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MultinomialLogit,
           replaceModes: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.ReplaceModes
         )
 
@@ -1639,16 +1638,13 @@ object BeamConfig {
                 if (c.hasPathOrNull("carUsage")) c.getConfig("carUsage")
                 else com.typesafe.config.ConfigFactory.parseString("carUsage{}")
               ),
-              mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit(
-                if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
-                else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
+              multinomialLogit = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MultinomialLogit(
+                if (c.hasPathOrNull("multinomialLogit")) c.getConfig("multinomialLogit")
+                else com.typesafe.config.ConfigFactory.parseString("multinomialLogit{}")
               ),
               replaceModes = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.ReplaceModes(
                 if (c.hasPathOrNull("replaceModes")) c.getConfig("replaceModes")
                 else com.typesafe.config.ConfigFactory.parseString("replaceModes{}")
-              multinomialLogit = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MultinomialLogit(
-                if (c.hasPathOrNull("multinomialLogit")) c.getConfig("multinomialLogit")
-                else com.typesafe.config.ConfigFactory.parseString("multinomialLogit{}")
               )
             )
           }
