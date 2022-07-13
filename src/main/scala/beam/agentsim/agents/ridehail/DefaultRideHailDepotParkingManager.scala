@@ -36,10 +36,10 @@ import scala.collection.mutable.ListBuffer
   *
   * Key parameters to control behavior of this class:
   *
-  * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.drivingTimeMultiplier = "double | -0.01666667" // one minute of driving is one util
-  * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.queueingTimeMultiplier = "double | -0.01666667" // one minute of queueing is one util
-  * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.chargingTimeMultiplier = "double | -0.01666667" // one minute of charging is one util
-  * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.insufficientRangeMultiplier = "double | -60.0" // 60 minute penalty if out of range
+  * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.drivingTimeMultiplier = "double | -0.01666667" // one minute of driving is one util
+  * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.queueingTimeMultiplier = "double | -0.01666667" // one minute of queueing is one util
+  * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.chargingTimeMultiplier = "double | -0.01666667" // one minute of charging is one util
+  * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.insufficientRangeMultiplier = "double | -60.0" // 60 minute penalty if out of range
   */
 class DefaultRideHailDepotParkingManager(
   vehicleManagerId: Id[VehicleManager],

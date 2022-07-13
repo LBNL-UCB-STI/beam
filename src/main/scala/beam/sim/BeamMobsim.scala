@@ -146,7 +146,7 @@ class BeamMobsim @Inject() (
       }
     )(scala.concurrent.ExecutionContext.global)
 
-    if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
+    if (beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
       fillInSecondaryActivities(
         beamServices.matsimServices.getScenario.getHouseholds
