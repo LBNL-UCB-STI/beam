@@ -64,8 +64,8 @@ class WritePlansAndStopSimulationTest extends AnyFlatSpec with Matchers with Bea
            |beam.agentsim.lastIteration = 3
            |beam.output.writePlansAndStopSimulation = true
            |beam.agentsim.agents.plans.inputPlansFilePath = "population-onlyWorkHome.xml"
-           |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = false
-           |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims = false
+           |beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = false
+           |beam.agentsim.agents.tripBehaviors.multinomialLogit.fill_in_modes_from_skims = false
          """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
@@ -88,8 +88,8 @@ class WritePlansAndStopSimulationTest extends AnyFlatSpec with Matchers with Bea
                       |beam.agentsim.lastIteration = 0
                       |beam.output.writePlansAndStopSimulation = true
                       |beam.agentsim.agents.plans.inputPlansFilePath = "population-onlyWorkHome.xml"
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims = false
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = true
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.fill_in_modes_from_skims = false
          """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
@@ -116,8 +116,8 @@ class WritePlansAndStopSimulationTest extends AnyFlatSpec with Matchers with Bea
                       |beam.agentsim.lastIteration = 0
                       |beam.output.writePlansAndStopSimulation = true
                       |beam.agentsim.agents.plans.inputPlansFilePath = "population-onlyWorkHome.xml"
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims = true
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = true
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.fill_in_modes_from_skims = true
          """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
@@ -146,20 +146,20 @@ class WritePlansAndStopSimulationTest extends AnyFlatSpec with Matchers with Bea
     val config = ConfigFactory
       .parseString(s"""
                       |beam.agentsim.simulationName = "beamville_terminated_with_secondary_activities_with_modes"
-                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept = 10
-                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept = -1000
-                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept = 10
-                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.cav_intercept = -1000
-                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept = -1000
-                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept = -1000
-                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept = -1000
-                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_pooled_intercept = -1000
-                      |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept = -1000
+                      |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.car_intercept = 10
+                      |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.walk_transit_intercept = -1000
+                      |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.walk_intercept = 10
+                      |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.cav_intercept = -1000
+                      |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.drive_transit_intercept = -1000
+                      |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_transit_intercept = -1000
+                      |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = -1000
+                      |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_pooled_intercept = -1000
+                      |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_intercept = -1000
                       |beam.agentsim.lastIteration = 0
                       |beam.output.writePlansAndStopSimulation = true
                       |beam.agentsim.agents.plans.inputPlansFilePath = "population-onlyWorkHome.xml"
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims = true
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = true
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.fill_in_modes_from_skims = true
                       |beam.agentsim.agents.tripBehaviors.replaceModes.enabled = true
                       |beam.agentsim.agents.tripBehaviors.replaceModes.modeMap = ["car -> hov2_teleportation", "walk -> hov2_teleportation"]
          """.stripMargin)
@@ -181,8 +181,8 @@ class WritePlansAndStopSimulationTest extends AnyFlatSpec with Matchers with Bea
       .parseString(s"""
                       |beam.agentsim.simulationName = "beamville_terminated_with_secondary_activities_with_modes"
                       |beam.output.writePlansAndStopSimulation = true
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = false
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims = false
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = false
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.fill_in_modes_from_skims = false
          """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam-urbansimv2_home_activities_only.conf"))
       .resolve()
@@ -194,13 +194,13 @@ class WritePlansAndStopSimulationTest extends AnyFlatSpec with Matchers with Bea
     personPlanIndexMode.size shouldBe 0
   }
 
-  it should  "Stop urbansim simulation, write non-empty plans." in {
+  it should "Stop urbansim simulation, write non-empty plans." in {
     val config = ConfigFactory
       .parseString(s"""
                       |beam.agentsim.simulationName = "beamville_terminated_with_secondary_activities_with_modes"
                       |beam.output.writePlansAndStopSimulation = true
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims = true
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = true
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.fill_in_modes_from_skims = true
          """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam-urbansimv2_home_activities_only.conf"))
       .resolve()
@@ -218,8 +218,8 @@ class WritePlansAndStopSimulationTest extends AnyFlatSpec with Matchers with Bea
                       |beam.agentsim.simulationName = "beamville_terminated_with_secondary_activities_with_modes"
                       |beam.output.writePlansAndStopSimulation = true
                       |beam.agentsim.agents.plans.inputPlansFilePath = "population-onlyHome.xml"
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = false
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims = false
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = false
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.fill_in_modes_from_skims = false
          """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
@@ -231,14 +231,14 @@ class WritePlansAndStopSimulationTest extends AnyFlatSpec with Matchers with Bea
     personPlanIndexMode.size shouldBe 0
   }
 
-  it should  "Stop beam simulation, write non-empty plans." in {
+  it should "Stop beam simulation, write non-empty plans." in {
     val config = ConfigFactory
       .parseString(s"""
                       |beam.agentsim.simulationName = "beamville_terminated_with_secondary_activities_with_modes"
                       |beam.output.writePlansAndStopSimulation = true
                       |beam.agentsim.agents.plans.inputPlansFilePath = "population-onlyHome.xml"
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims = true
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = true
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.fill_in_modes_from_skims = true
          """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()

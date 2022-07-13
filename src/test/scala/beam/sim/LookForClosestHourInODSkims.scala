@@ -53,11 +53,11 @@ class LookForClosestHourInODSkims extends AnyFlatSpec with Matchers with BeamHel
            |beam.agentsim.simulationName = "beamville_without_look_for_closest_hour"
            |beam.agentsim.lastIteration = 0
            |beam.agentsim.agents.plans.inputPlansFilePath = "population-onlyWorkHome.xml"
-           |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
-           |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims = true
-           |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.look_for_closest_hour_in_OD_skims_for_fill_in_modes = false
-           |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.min_hour_for_closest_hour_in_OD_skims_request = 3
-           |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.max_hour_for_closest_hour_in_OD_skims_request = 5
+           |beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = true
+           |beam.agentsim.agents.tripBehaviors.multinomialLogit.fill_in_modes_from_skims = true
+           |beam.agentsim.agents.tripBehaviors.multinomialLogit.look_for_closest_hour_in_OD_skims_for_fill_in_modes = false
+           |beam.agentsim.agents.tripBehaviors.multinomialLogit.min_hour_for_closest_hour_in_OD_skims_request = 3
+           |beam.agentsim.agents.tripBehaviors.multinomialLogit.max_hour_for_closest_hour_in_OD_skims_request = 5
            |beam.warmStart.type = "full"
            |beam.warmStart.path = "test/test-resources/warmstart_beamville_OD_rh_only_hour_4.zip"
          """.stripMargin)
@@ -77,11 +77,11 @@ class LookForClosestHourInODSkims extends AnyFlatSpec with Matchers with BeamHel
                       |beam.agentsim.simulationName = "beamville_without_look_for_closest_hour"
                       |beam.agentsim.lastIteration = 0
                       |beam.agentsim.agents.plans.inputPlansFilePath = "population-onlyWorkHome.xml"
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims = true
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.look_for_closest_hour_in_OD_skims_for_fill_in_modes = true
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.min_hour_for_closest_hour_in_OD_skims_request = 3
-                      |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.max_hour_for_closest_hour_in_OD_skims_request = 5
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = true
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.fill_in_modes_from_skims = true
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.look_for_closest_hour_in_OD_skims_for_fill_in_modes = true
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.min_hour_for_closest_hour_in_OD_skims_request = 3
+                      |beam.agentsim.agents.tripBehaviors.multinomialLogit.max_hour_for_closest_hour_in_OD_skims_request = 5
                       |beam.warmStart.type = "full"
                       |beam.warmStart.path = "test/test-resources/warmstart_beamville_OD_rh_only_hour_4.zip"
          """.stripMargin)
