@@ -19,7 +19,7 @@ import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, Zon
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{WALK, _}
+import beam.router.Modes.BeamMode.{WALK, EMERGENCY, _}
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.skim.core.ODSkimmer
 import beam.router.skim.event.ODSkimmerFailedTripEvent
@@ -346,8 +346,8 @@ trait ChoosesMode {
             if availableModes.contains(CAR) && replanningIsAvailable =>
           Some(mode)
         case Some(mode) if availableModes.contains(mode) && replanningIsAvailable => Some(mode)
-        case Some(mode) if availableModes.contains(mode)                          => Some(WALK)
-        case None if !replanningIsAvailable                                       => Some(WALK)
+        case Some(mode) if availableModes.contains(mode)                          => Some(EMERGENCY)
+        case None if !replanningIsAvailable                                       => Some(EMERGENCY)
         case _                                                                    => None
       }
 
@@ -472,10 +472,7 @@ trait ChoosesMode {
             newlyAvailableBeamVehicles.map(_.streetVehicle) :+ bodyStreetVehicle,
             possibleEgressVehicles = dummySharedVehicles
           )
-        case Some(WALK) =>
-          responsePlaceholders = makeResponsePlaceholders(withRouting = true)
-          makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
-        case Some(WALK_TRANSIT) =>
+        case Some(WALK | WALK_TRANSIT | EMERGENCY | EMERGENCY_TRANSIT) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
         case Some(CAV) =>
@@ -1382,10 +1379,10 @@ trait ChoosesMode {
               )
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
-              val originalWalkTripLeg =
-                routingResponse.itineraries.find(_.tripClassifier == WALK) match {
-                  case Some(originalWalkTrip) =>
-                    originalWalkTrip.legs.head
+              val originalEmergencyTripLeg =
+                routingResponse.itineraries.find(_.tripClassifier == EMERGENCY) match {
+                  case Some(originalEmergencyTrip) =>
+                    originalEmergencyTrip.legs.head
                   case None =>
                     RoutingWorker
                       .createBushwackingTrip(
@@ -1398,12 +1395,12 @@ trait ChoosesMode {
                       .legs
                       .head
                 }
-              val expensiveWalkTrip = EmbodiedBeamTrip(
-                Vector(originalWalkTripLeg.copy(replanningPenalty = 10.0))
+              val emergencyTrip = EmbodiedBeamTrip(
+                Vector(originalEmergencyTripLeg.copy(replanningPenalty = 10.0))
               )
 
               goto(FinishingModeChoice) using choosesModeData.copy(
-                pendingChosenTrip = Some(expensiveWalkTrip),
+                pendingChosenTrip = Some(emergencyTrip),
                 availableAlternatives = availableAlts
               )
           }
