@@ -10,9 +10,9 @@ object GeneratedPlansToUrbansimPlans {
   def main(input_args: Array[String]): Unit = {
     val manual_args =
       Array(
-        //        "output/beamville/beamville-generate-plans__2022-06-07_18-03-46_brc/ITERS/it.0/0.plans.csv.gz",
-        //        "test/input/beamville/urbansim_v2_v2/plans.csv.gz",
-        "epsg:32631"
+//        "/mnt/data/work/beam/beam-production/output/beamville/beamville-generatedPlans-2/ITERS/it.5/5.plans.csv.gz",
+//        "test/input/beamville/urbansim_v2_v2/plans.csv.gz",
+//        "epsg:32631"
       )
 
     val args = if (manual_args.length == 3) manual_args else input_args
@@ -45,6 +45,8 @@ object GeneratedPlansToUrbansimPlans {
 
       UrbansimPlansCsvWriter.toCsvWithHeader(plansUTM, pathToOutputPlans)
       closable.close()
+
+      println(s"Transformed plans written into $pathToOutputPlans")
     }
   }
 }

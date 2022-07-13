@@ -431,7 +431,7 @@ object GenerateWalkTransitTripsFromPlans extends BeamHelper {
             case None           => ""
           }
         }
-        val transfer = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transfer
+        val transfer = beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transfer
         s"${pathParts(0)}$transitVehicleTypeVOTMultipliers.T$transfer.csv.gz"
       }
       println(s"Path to output: $pathToOutputCSV")

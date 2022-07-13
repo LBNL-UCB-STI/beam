@@ -150,7 +150,7 @@ class BeamMobsim @Inject() (
 
     if (beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
-      val fillInModes = beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims
+      val fillInModes = beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.fill_in_modes_from_skims
       fillInSecondaryActivities(beamServices.matsimServices.getScenario.getHouseholds, fillInModes)
     }
 
