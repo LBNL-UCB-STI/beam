@@ -372,7 +372,7 @@ class SupplementaryTripGenerator(
     val fuelPrice = beamServices.beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
 
     val lookForClosestHourInSkims =
-      beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.look_for_closest_hour_in_OD_skims_for_fill_in_modes
+      beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.look_for_closest_hour_in_OD_skims_for_fill_in_modes
     val modeToTimeAndCosts: Map[BeamMode, DestinationChoiceModel.TimesAndCost] =
       modes.map { mode =>
         val accessTripSkim =

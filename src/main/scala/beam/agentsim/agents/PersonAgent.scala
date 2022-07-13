@@ -1438,7 +1438,7 @@ class PersonAgent(
     val crowdingLevel =
       beamServices.skims.tc_skimmer.getTransitOccupancyLevelForPercentile(
         correctedTrip,
-        beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile
+        beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transit_crowding_percentile
       )
 
     if (maybePayloadWeightInKg.isDefined && correctedTrip.tripClassifier != BeamMode.CAR) {

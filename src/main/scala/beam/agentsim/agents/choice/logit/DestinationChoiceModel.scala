@@ -91,7 +91,7 @@ object DestinationChoiceModel {
 class DestinationChoiceModel(
   val beamConfig: BeamConfig
 ) {
-  val params = beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params
+  val params = beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.params
 
   val DefaultModeParameters: DestinationChoiceModel.ModeChoiceConfig = Map(
     BeamMode.CAR       -> Map(Intercept -> UtilityFunctionOperation("intercept", params.car_intercept)),

@@ -29,10 +29,10 @@ import scala.collection.immutable
 class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
 
   val minHourForODKeyToLookFor: Int =
-    beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.min_hour_for_closest_hour_in_OD_skims_request
+    beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.min_hour_for_closest_hour_in_OD_skims_request
 
   val maxHourForODKeyToLookFor: Int =
-    beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.max_hour_for_closest_hour_in_OD_skims_request
+    beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.max_hour_for_closest_hour_in_OD_skims_request
 
   def getSkimDefaultValue(
     mode: BeamMode,
