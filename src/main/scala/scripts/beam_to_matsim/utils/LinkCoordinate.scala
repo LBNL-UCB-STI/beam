@@ -3,20 +3,23 @@ package scripts.beam_to_matsim.utils
 import scala.collection.mutable
 import scala.xml.{Elem, Node}
 
-case class Point(x: Double, y: Double) {
+case class Point(x: Double, y: Double)
 
-  def vithinCircle(circleX: Double, circleY: Double, circleRSquare: Double): Boolean = {
-    val deltaX = x - circleX
-    val deltaY = y - circleY
+case class Circle(x: Double, y: Double, r: Double) {
+  val rSquare: Double = r * r
+
+  def contains(point: Point): Boolean = {
+    val deltaX = point.x - x
+    val deltaY = point.y - y
     val distanceSquare = deltaX * deltaX + deltaY * deltaY
 
-    distanceSquare <= circleRSquare
+    distanceSquare <= rSquare
   }
 }
 
 object LinkCoordinate {
 
-  def supressNFE[T](func: => T): Option[T] = {
+  def suppressNFE[T](func: => T): Option[T] = {
     try {
       Some(func)
     } catch {
@@ -26,13 +29,13 @@ object LinkCoordinate {
 
   def intAttributeValue(node: Node, attributeName: String): Option[Int] =
     node.attribute(attributeName) match {
-      case Some(attVal) => supressNFE { attVal.text.toInt }
+      case Some(attVal) => suppressNFE { attVal.text.toInt }
       case _            => None
     }
 
   def doubleAttributeValue(node: Node, attributeName: String): Option[Double] =
     node.attribute(attributeName) match {
-      case Some(attVal) => supressNFE { attVal.text.toDouble }
+      case Some(attVal) => suppressNFE { attVal.text.toDouble }
       case _            => None
     }
 

@@ -148,7 +148,7 @@ class BeamMobsim @Inject() (
       }
     )(scala.concurrent.ExecutionContext.global)
 
-    if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
+    if (beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
       val fillInModes = beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.fill_in_modes_from_skims
       fillInSecondaryActivities(beamServices.matsimServices.getScenario.getHouseholds, fillInModes)
@@ -443,6 +443,7 @@ class BeamMobsimIteration(
     Props(
       classOf[BeamAgentScheduler],
       beamConfig,
+      beamServices.matsimServices.getControlerIO.getIterationPath(beamServices.matsimServices.getIterationNumber),
       Time.parseTime(beamConfig.matsim.modules.qsim.endTime).toInt,
       config.schedulerParallelismWindow,
       new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)

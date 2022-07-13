@@ -60,7 +60,7 @@ class SupplementaryTripGenerator(
       MultinomialLogit(
         destinationChoiceModel.DefaultModeParameters,
         destinationChoiceModel.DefaultMNLParameters,
-        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.mode_nest_scale_factor
+        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.mode_nest_scale_factor
       )
 
     val destinationMNL: MultinomialLogit[
@@ -70,14 +70,14 @@ class SupplementaryTripGenerator(
       MultinomialLogit(
         Map.empty,
         destinationChoiceModel.TripMNLParameters,
-        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.destination_nest_scale_factor
+        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.destination_nest_scale_factor
       )
 
     val tripMNL: MultinomialLogit[Boolean, DestinationChoiceModel.TripParameters] =
       MultinomialLogit(
         Map.empty,
         destinationChoiceModel.TripMNLParameters,
-        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.trip_nest_scale_factor
+        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.trip_nest_scale_factor
       )
 
     val newPlan = PopulationUtils.createPlan(plan.getPerson)
@@ -193,7 +193,7 @@ class SupplementaryTripGenerator(
   ): (List[Activity], List[Leg]) = {
     val tazChoiceSet: List[TAZ] =
       generateTazChoiceSet(
-        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.max_destination_choice_set_size,
+        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.max_destination_choice_set_size,
         prevActivity.getCoord
       )
     val alternativeActivity = PopulationUtils.createActivityFromCoord(prevActivity.getType, currentActivity.getCoord)
@@ -512,7 +512,7 @@ class SupplementaryTripGenerator(
     coord: Coord
   ): List[TAZ] = {
     val maxDistance =
-      beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.max_destination_distance_meters
+      beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.max_destination_distance_meters
     val r_repeat = new scala.util.Random
     val tazToChooseFrom: Seq[TAZ] = {
       val sortedTazInRadius =

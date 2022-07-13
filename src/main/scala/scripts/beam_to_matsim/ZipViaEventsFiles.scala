@@ -1,11 +1,8 @@
-package scripts.beam_to_matsim.utils
-
-import java.io.{File, PrintWriter}
+package scripts.beam_to_matsim
 
 import beam.utils.FileUtils
 
-import scala.collection.mutable
-import scala.io.Source
+import java.io.{File, PrintWriter}
 import scala.language.postfixOps
 import scala.xml.{Node, XML}
 
@@ -14,17 +11,22 @@ a script to merge two files from EventsByVehicleMode script output to get one fi
  */
 
 object ZipViaEventsFiles extends App {
-  /*zipEventsFilesInMemory(
-    "D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half.csv.via.events.persons_1_2.xml",
-    "D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half.csv.via.events.person3.xml",
-    "D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half.csv.via.events.persons_1_2_3.xml"
-  )*/
 
-  zipEventsFilesInMemory(
-    "D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half.csv.via.events.person5_1.xml",
-    "D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half.csv.via.events.popSize0.3.xml",
-    "D:/Work/BEAM/visualizations/v2.it20.events.bridge_cap_5000.half.csv.via.events.ZIPPED_p5.xml"
-  )
+  // format: off
+  /****************************************************************************************************
+    ./gradlew execute -PmainClass=scripts.beam_to_matsim.ZipViaEventsFiles -PappArgs="[
+      '<via events xml file 1>',
+      '<via events xml file 2>',
+      '<via events output xml file>',
+    ]" -PmaxRAM=16g
+  *****************************************************************************************************/
+  // format: on
+
+  val viaEvents1 = args(0)
+  val viaEvents2 = args(1)
+  val outputFile = args(2)
+
+  case class ViaEventString(time: Double, xmlString: String)
 
   object ViaEventString {
 
@@ -60,77 +62,6 @@ object ZipViaEventsFiles extends App {
         case Some(time) => Some(ViaEventString(time, str))
         case _          => None
       }
-    }
-  }
-
-  case class ViaEventString(time: Double, xmlString: String)
-
-  def zipEventsFiles(filePath1: String, filePath2: String, outputFile: String): Unit = {
-    FileUtils.using(new PrintWriter(new File(outputFile))) { pw =>
-      pw.println("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<events version=\"1.0\">")
-
-      val pwCashe = mutable.Queue.empty[String]
-
-      def writeEvent(event: ViaEventString): Unit = {
-        pwCashe.enqueue(event.xmlString)
-
-        if (pwCashe.size >= 1000000) {
-          pwCashe.dequeueAll(_ => true).foreach(pw.println)
-          Console.println("dropped to output file portion of messages")
-        }
-      }
-
-      def getReader(filePath: String): (Iterator[String], () => Unit) = {
-        val source = Source fromFile filePath
-        (source.getLines, () => source.close())
-      }
-
-      val (file1Iterator, file1Close) = getReader(filePath1)
-      val (file2Iterator, file2Close) = getReader(filePath2)
-
-      def nextEvent(iterator: Iterator[String]): Option[ViaEventString] =
-        ViaEventString.readStr(if (iterator.hasNext) iterator.next() else "")
-
-      def nextEvent1(): Option[ViaEventString] = nextEvent(file1Iterator)
-
-      def nextEvent2(): Option[ViaEventString] = nextEvent(file2Iterator)
-
-      var ev1 = nextEvent1()
-      var ev2 = nextEvent2()
-
-      while (file1Iterator.hasNext && file2Iterator.hasNext) {
-        (ev1, ev2) match {
-          case (None, _) => ev1 = nextEvent1()
-          case (_, None) => ev2 = nextEvent2()
-
-          case (Some(e1), Some(e2)) =>
-            if (e1.time <= e2.time) {
-              writeEvent(e1)
-              ev1 = nextEvent1()
-            } else {
-              writeEvent(e2)
-              ev2 = nextEvent2()
-            }
-        }
-      }
-
-      pwCashe.dequeueAll(_ => true).foreach(pw.println)
-
-      def writeTail(iterator: Iterator[String]): Unit =
-        iterator.foreach(event => {
-          ViaEventString.readStr(event) match {
-            case Some(viaES) => writeEvent(viaES)
-            case _           =>
-          }
-        })
-
-      if (file1Iterator.hasNext) writeTail(file1Iterator)
-      if (file2Iterator.hasNext) writeTail(file2Iterator)
-
-      pw.println("</events>")
-
-      file1Close()
-      file2Close()
     }
   }
 
@@ -194,4 +125,6 @@ object ZipViaEventsFiles extends App {
       pw.println("</events>")
     }
   }
+
+  zipEventsFilesInMemory(viaEvents1, viaEvents2, outputFile)
 }

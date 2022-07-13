@@ -256,7 +256,7 @@ class ModeChoiceMultinomialLogit(
 
   override def getCrowdingForTrip(embodiedBeamTrip: EmbodiedBeamTrip): Double = {
     val percentile =
-      beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile
+      beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transit_crowding_percentile
     transitCrowding.getTransitOccupancyLevelForPercentile(embodiedBeamTrip, percentile)
   }
 
@@ -617,12 +617,12 @@ object ModeChoiceMultinomialLogit extends StrictLogging {
     configHolder: BeamConfigHolder
   ): (MultinomialLogit[EmbodiedBeamTrip, String], MultinomialLogit[BeamMode, String]) = {
 
-    val params = configHolder.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params
+    val params = configHolder.beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.params
     val commonUtility: Map[String, UtilityFunctionOperation] = Map(
       "cost" -> UtilityFunctionOperation("multiplier", -1)
     )
     val scale_factor: Double =
-      configHolder.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.utility_scale_factor
+      configHolder.beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.utility_scale_factor
 
     val carIntercept = Map("intercept" -> UtilityFunctionOperation("intercept", params.car_intercept))
     val mnlUtilityFunctions: Map[String, Map[String, UtilityFunctionOperation]] = Map(
