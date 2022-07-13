@@ -77,7 +77,7 @@ The following should be considered when configuring a set of parking alternative
 the *chargingPointType* attribute will result in the following charger power in kW:
 
 +----------------+--------+
-| *chargingPointType* | kW     |
+| *chargingPointType* | kW|
 +================+========+
 | NoCharger      | 0.0    |
 +----------------+--------+
@@ -95,4 +95,18 @@ Refueling
 
 Reposition
 ----------
+
+In BEAM, reposition is based on availability. minAvailabilityMap stores the Tazs with lowest availibility of vehicles, and we reposition the number of matchLimit vehicles from the Tazs with available fleets more than matchLimit based on statTimeBin and repositionTimeBin to determinine when we start doing reposition and the frequency of repositioning.
+
+There are several parameters we can adjust in repositioning:
+
++----------------+--------------------------------------------------+
+| Parameters          | Meaning                                     |
++================+==================================================+
+| *matchLimit*        | How many vehicles we want to reposition     |
++----------------+--------------------------------------------------+
+| *repositionTimeBin* | How often we do repositioning               |
++----------------+--------------------------------------------------+
+| *statTimeBin*       | When do we start repositioning              |
++----------------+--------------------------------------------------+
 
