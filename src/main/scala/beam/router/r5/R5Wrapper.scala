@@ -58,8 +58,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
   private lazy val osmIdToHGVFlag: Map[Long, Boolean] = networkHelper.allLinks
     .flatMap { link =>
-      Try(link.getAttributes.getAttribute("origid")).map(_.asInstanceOf[Long]).toOption.map { osmId =>
-        val isLinkHgv = Try(link.getAttributes.getAttribute("hgv")).map(_.asInstanceOf[Boolean]).getOrElse(false)
+      Try(link.getAttributes.getAttribute("origid").toString.toLong).toOption.map { osmId =>
+        val isLinkHgv = Try(link.getAttributes.getAttribute("hgv").toString.toBoolean).getOrElse(false)
         osmId -> isLinkHgv
       }
     }
