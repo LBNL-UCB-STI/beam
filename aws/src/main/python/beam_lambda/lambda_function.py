@@ -132,27 +132,10 @@ write_files:
                     echo $timestamp_CPU, $ram_used_available
             done
       path: /home/ubuntu/write-cpu-ram-usage.sh
-    - content: |
-            #!/bin/bash
-            pip install setuptools
-            pip install jupyter
-      path: /home/ubuntu/install-jupyter.sh
-    - content: |
-            #!/bin/bash
-            JUPYTER_TOKEN=$JUPYTER_TOKEN jupyter-notebook --no-browser --ip=$(ec2metadata --public-hostname) --log-level=ERROR
-      path: /home/ubuntu/run-jupyter.sh  
         
 runcmd:
   - sudo chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
   - sudo chmod +x /home/ubuntu/write-cpu-ram-usage.sh
-  - sudo chmod +x /home/ubuntu/install-jupyter.sh
-  - sudo chmod +x /home/ubuntu/run-jupyter.sh
-  - if [ "$RUN_JUPYTER" = "True" ]
-  - then
-  -   echo "Installing and starting Jupyter" 
-  -   /home/ubuntu/install-jupyter.sh
-  -   su -c "/home/ubuntu/run-jupyter.sh &" - ubuntu
-  - fi
   - cd /home/ubuntu
   - ./write-cpu-ram-usage.sh 20 > cpu_ram_usage.csv &
   - cd /home/ubuntu/git
@@ -243,6 +226,11 @@ runcmd:
   - crontab /tmp/slack_notification
   - crontab -l
   - echo "notification scheduled..."
+  
+  - if [ "$RUN_JUPYTER" = "True" ]
+  - then
+  -   ./gradlew jupyterStart -PjupyterToken=$JUPYTER_TOKEN
+  - fi
 
   - 'echo "gradlew assemble: $(date)"'
   - ./gradlew assemble
