@@ -1166,18 +1166,20 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       override def computeTurnCost(fromEdge: Int, toEdge: Int, streetMode: StreetMode): Int = 0
     }
 
+  private val truckCategory = Seq(VehicleCategory.HeavyDutyTruck)
+
   private def travelCostCalculator(
     vehicleType: BeamVehicleType,
     timeValueOfMoney: Double,
     startTime: Int
-  ): TravelCostCalculator =
-    (edge: EdgeStore#Edge, legDurationSeconds: Int, traversalTimeSeconds: Float) => {
-      val nonHGVLinkWeightMultiplier: Float = if (vehicleType.vehicleCategory == VehicleCategory.HeavyDutyTruck) {
+  ): TravelCostCalculator = { (edge: EdgeStore#Edge, legDurationSeconds: Int, traversalTimeSeconds: Float) =>
+    {
+      val nonHGVLinkWeightMultiplier: Float = if (truckCategory.contains(vehicleType.vehicleCategory)) {
         osmIdToHGVFlag.get(edge.getOSMID) match {
           case Some(true)  => 1f
           case Some(false) => beamConfig.beam.agentsim.agents.freight.nonHGVLinkWeightMultiplier.toFloat
-          case _           =>
-            //logger.warn(s"Link ${edge.getOSMID} in travelCostCalculator not found")
+          case _ =>
+            logger.debug(s"Link ${edge.getOSMID} in travelCostCalculator not found")
             1f
         }
       } else 1f
@@ -1186,4 +1188,5 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         startTime + legDurationSeconds
       )).toFloat) * nonHGVLinkWeightMultiplier
     }
+  }
 }
