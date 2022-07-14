@@ -33,18 +33,18 @@ V_j = ASC_j + Beta_cost * cost + Beta_time * time + Beta_xfer * num_transfers
 
 The ASC (alternative specific constant) parameters as well as the Beta parameters can be configured in the BEAM configuration file and default to the following values:
 
-beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.cost = -1.0
-beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.time = -0.0047
-beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transfer = -1.4
-beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept = 0.0
-beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept = 0.0
-beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept = 0.0
-beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept = 0.0
-beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept = 0.0
-beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept = 0.0
-beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept = 0.0
-beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding = 0.0
-beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile = 90
+beam.agentsim.agents.modalBehaviors.multinomialLogit.params.cost = -1.0
+beam.agentsim.agents.modalBehaviors.multinomialLogit.params.time = -0.0047
+beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transfer = -1.4
+beam.agentsim.agents.modalBehaviors.multinomialLogit.params.car_intercept = 0.0
+beam.agentsim.agents.modalBehaviors.multinomialLogit.params.walk_transit_intercept = 0.0
+beam.agentsim.agents.modalBehaviors.multinomialLogit.params.drive_transit_intercept = 0.0
+beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_transit_intercept = 0.0
+beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 0.0
+beam.agentsim.agents.modalBehaviors.multinomialLogit.params.walk_intercept = 0.0
+beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_intercept = 0.0
+beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transit_crowding = 0.0
+beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transit_crowding_percentile = 90
 
 Latent Class Mode Choice
 ~~~~~~~~~~~~~~~~~~~~~~~~

@@ -41,7 +41,7 @@ object ZonalParkingManager extends LazyLogging {
     fractionOfSameTypeZones: Double,
     minNumberOfSameTypeZones: Int,
     seed: Int,
-    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
+    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit
   ): ZonalParkingManager = {
     new ZonalParkingManager(parkingZones) {
       if (maxSearchRadius < minSearchRadius) {
@@ -93,7 +93,7 @@ object ZonalParkingManager extends LazyLogging {
       beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
       beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
       beamConfig.matsim.modules.global.randomSeed,
-      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
+      beamConfig.beam.agentsim.agents.parking.multinomialLogit
     )
   }
 
@@ -114,7 +114,7 @@ object ZonalParkingManager extends LazyLogging {
     minSearchRadius: Double,
     maxSearchRadius: Double,
     seed: Int,
-    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
     beamConfig: BeamConfig,
     beamServicesMaybe: Option[BeamServices]
   ): ZonalParkingManager = {
@@ -155,7 +155,7 @@ object ZonalParkingManager extends LazyLogging {
       beamServices.beamScenario.tazTreeMap.idToTAZMapping,
       envelopeInUTM,
       beamServices.beamConfig,
-      beamServices.geo.distUTMInMeters(_, _)
+      beamServices.geo.distUTMInMeters
     )
   }
 
