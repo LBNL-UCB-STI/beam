@@ -1166,7 +1166,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       override def computeTurnCost(fromEdge: Int, toEdge: Int, streetMode: StreetMode): Int = 0
     }
 
-  private val truckCategory = Seq(VehicleCategory.HeavyDutyTruck)
+  private val truckCategory = Seq(VehicleCategory.HeavyDutyTruck, VehicleCategory.LightDutyTruck)
 
   private def travelCostCalculator(
     vehicleType: BeamVehicleType,

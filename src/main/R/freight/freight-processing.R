@@ -231,7 +231,7 @@ ggplot(screelines_hpms_network_counts) +
 counties <- data.table::data.table(
   COUNTY = c("Alameda", "Contra Costa", "Marin", "Napa", "Santa Clara", 
              "San Francisco", "San Mateo", "Solano", "Sonoma"),
-  CNTY=c("ALA", "CC", "MRN", "NAP", "SCL", "SF", "SM", "SOL", "SON")
+  CNTY = c("ALA", "CC", "MRN", "NAP", "SCL", "SF", "SM", "SOL", "SON")
 )
 
 #data.table::fwrite(network_cleaned, pp(freightDir,"/validation/network_cleaned.csv"), quote=F)
