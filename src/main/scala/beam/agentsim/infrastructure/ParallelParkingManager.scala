@@ -41,7 +41,7 @@ class ParallelParkingManager(
   fractionOfSameTypeZones: Double,
   minNumberOfSameTypeZones: Int,
   seed: Int,
-  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
   estimatedMinParkingDurationInSeconds: Double
 ) extends ParkingNetwork(parkingZones) {
 
@@ -189,7 +189,7 @@ object ParallelParkingManager extends LazyLogging {
       beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
       beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
       seed,
-      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
+      beamConfig.beam.agentsim.agents.parking.multinomialLogit,
       beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
     )
   }
