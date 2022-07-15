@@ -26,7 +26,7 @@ class ParkingFunctions(
   minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
   seed: Int,
-  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
   estimatedMinParkingDurationInSeconds: Double
 ) extends InfrastructureFunctions(
       geoQuadTree,

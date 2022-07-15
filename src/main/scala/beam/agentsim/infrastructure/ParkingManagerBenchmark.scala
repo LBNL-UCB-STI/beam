@@ -82,10 +82,10 @@ object ParkingManagerBenchmark extends StrictLogging {
       """
         |beam.agentsim.agents.parking.minSearchRadius = 250.00
         |beam.agentsim.agents.parking.maxSearchRadius = 8046.72
-        |beam.agentsim.agents.parking.mulitnomialLogit.params.rangeAnxietyMultiplier = -0.5
-        |beam.agentsim.agents.parking.mulitnomialLogit.params.distanceMultiplier = -0.086
-        |beam.agentsim.agents.parking.mulitnomialLogit.params.parkingPriceMultiplier = -0.5
-        |beam.agentsim.agents.parking.mulitnomialLogit.params.homeActivityPrefersResidentialParkingMultiplier = 2.0
+        |beam.agentsim.agents.parking.multinomialLogit.params.rangeAnxietyMultiplier = -0.5
+        |beam.agentsim.agents.parking.multinomialLogit.params.distanceMultiplier = -0.086
+        |beam.agentsim.agents.parking.multinomialLogit.params.parkingPriceMultiplier = -0.5
+        |beam.agentsim.agents.parking.multinomialLogit.params.homeActivityPrefersResidentialParkingMultiplier = 2.0
         |
         |parallel-parking-manager-dispatcher {
         |  executor = "thread-pool-executor"

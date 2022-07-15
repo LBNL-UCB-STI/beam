@@ -933,4 +933,82 @@ ev <- park.test.2[startsWith(i.vehicleType,"ev-")]
 phev <- park.test.2[startsWith(i.vehicleType,"phev-")]
 allev <- rbind(ev,phev)
 
+#### processing PT
 
+
+ev <- readCsv(pp(workDir, "/2022-07-05/events/filtered.15.events.csv.gz"))
+pt <- readCsv(pp(workDir, "/2022-07-05/events/ptmc.15.events.csv.gz"))
+
+ev0 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.5bBase.csv.gz"))
+sum(ev0[type=="RefuelSessionEvent"]$fuel)
+
+summary <- ev0[type=="RefuelSessionEvent",.(totFuel=sum(fuel)),by=.(chargingPointType)]
+summary$share <- summary$totFuel / sum(summary$totFuel)
+summary[order(chargingPointType)]
+
+plans <- readCsv(pp(workDir, "/2022-07-05/events/plans.csv.gz"))
+ptmc <- readCsv(pp(workDir, "/2022-07-05/events/ptmc.0.events.csv.gz"))
+pt5b <- readCsv(pp(workDir, "/2022-07-05/events/pt.0.events.5bBase.csv.gz"))
+pt6 <- readCsv(pp(workDir, "/2022-07-05/events/pt.0.events.6HighEV.csv.gz"))
+
+pt <- ptmc[type=="PathTraversal"]
+ptICE <- pt[startsWith(vehicleType,"conv-") | startsWith(vehicleType,"hev-")]
+ptEV <- pt[startsWith(vehicleType,"ev-") | startsWith(vehicleType,"phev-")]
+
+ptAllVeh <- rbind(ptICE,ptEV)
+ptAllVeh$durationInMin <- (ptAllVeh$arrivalTime-ptAllVeh$departureTime)/60.0
+ptICE$durationInMin <- (ptICE$arrivalTime-ptICE$departureTime)/60.0
+ptEV$durationInMin <- (ptEV$arrivalTime-ptEV$departureTime)/60.0
+
+ggplot(ptAllVeh[durationInMin<=60], aes(x=durationInMin)) + 
+  geom_histogram(color="black", fill="white")
+
+nrow(ptAllVeh[durationInMin<=5])/nrow(ptAllVeh)
+nrow(ptAllVeh[durationInMin<=10])/nrow(ptAllVeh)
+
+under5 <- ptAllVeh[durationInMin<=5][,c("durationInMin", "driver", "primaryFuelType", 
+                                        "departureTime", "arrivalTime", "primaryFuel",
+                                        "length", "vehicleType", "vehicle", "primaryFuelLevel",
+                                        "time", "startX", "startY", "endX", "endY")]
+
+write.csv(
+  under5[sample(.N,1000)][,ID:=paste(vehicle,time,sep="-")],
+  file = pp(workDir, "/2022-07-05/events/path.traversals.csv"),
+  row.names=FALSE,
+  quote=FALSE)
+
+
+ptAllVeh$lengthInMile <- ptAllVeh$length/1609.0
+ptAllVeh$durationInHour <- ptAllVeh$durationInMin/60.0
+ptAllVeh$speedInMilePerHour <- ptAllVeh$lengthInMile/ptAllVeh$durationInHour
+
+ggplot(ptAllVeh[speedInMilePerHour<100], aes(x=speedInMilePerHour)) + 
+  geom_histogram(color="black", fill="white")
+ggplot(ptAllVeh[speedInMilePerHour>100], aes(x=speedInMilePerHour)) + 
+  geom_histogram(color="black", fill="white")
+
+
+ggplot(ptAllVeh[durationInMin<=10], aes(x=speedInMilePerHour)) + 
+  geom_histogram(color="black", fill="white")
+
+nrow(ptAllVeh[durationInMin<=10&speedInMilePerHour>=100])/nrow(ptAllVeh)
+nrow(ptAllVeh[durationInMin<=10&speedInMilePerHour<100&speedInMilePerHour>=50])/nrow(ptAllVeh)
+nrow(ptAllVeh[durationInMin<=10&speedInMilePerHour<50&speedInMilePerHour>=40])/nrow(ptAllVeh)
+nrow(ptAllVeh[durationInMin<=10&speedInMilePerHour<40&speedInMilePerHour>=30])/nrow(ptAllVeh)
+nrow(ptAllVeh[durationInMin<=10&speedInMilePerHour<30])/nrow(ptAllVeh)
+
+
+ptAllVeh$carOrRideHail <- "Car"
+ptAllVeh[startsWith(vehicle,"rideHail")]$carOrRideHail <- "rideHail"
+ggplot(ptAllVeh[durationInMin<=10&speedInMilePerHour>=80], aes(x=speedInMilePerHour, fill=carOrRideHail)) + 
+  geom_histogram(color="black")
+
+nrow(ptAllVeh[durationInMin<=10&speedInMilePerHour>=50&carOrRideHail=="rideHail"])
+
+mc <- ptmc[type=="ModeChoice"][!mode %in% c("walk", "bike", "walk_transit", "drive_transit", "ride_hail_transit", "bike_transit")]
+mc$lengthInMile <- mc$length/1609
+ggplot(mc[lengthInMile<=50], aes(x=lengthInMile)) + 
+  geom_histogram(color="black", fill="white")
+
+nrow(mc[lengthInMile<=5])/nrow(mc)
+nrow(mc[lengthInMile<=10])/nrow(mc)

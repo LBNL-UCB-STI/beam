@@ -720,7 +720,7 @@ object BeamConfig {
           maxSearchRadius: scala.Double,
           minNumberOfSameTypeZones: scala.Int,
           minSearchRadius: scala.Double,
-          mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+          multinomialLogit: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
           overnightChargingSampleSize: scala.Double,
           rangeAnxietyBuffer: scala.Double,
           searchMaxDistanceRelativeToEllipseFoci: scala.Double
@@ -728,11 +728,11 @@ object BeamConfig {
 
         object Parking {
 
-          case class MulitnomialLogit(
-            params: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit.Params
+          case class MultinomialLogit(
+            params: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit.Params
           )
 
-          object MulitnomialLogit {
+          object MultinomialLogit {
 
             case class Params(
               distanceMultiplier: scala.Double,
@@ -746,8 +746,8 @@ object BeamConfig {
 
               def apply(
                 c: com.typesafe.config.Config
-              ): BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit.Params = {
-                BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit.Params(
+              ): BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit.Params = {
+                BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit.Params(
                   distanceMultiplier =
                     if (c.hasPathOrNull("distanceMultiplier")) c.getDouble("distanceMultiplier") else -0.086,
                   enrouteDetourMultiplier =
@@ -764,9 +764,9 @@ object BeamConfig {
               }
             }
 
-            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit = {
-              BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit(
-                params = BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit.Params(
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit = {
+              BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit(
+                params = BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit.Params(
                   if (c.hasPathOrNull("params")) c.getConfig("params")
                   else com.typesafe.config.ConfigFactory.parseString("params{}")
                 )
@@ -786,9 +786,9 @@ object BeamConfig {
               minNumberOfSameTypeZones =
                 if (c.hasPathOrNull("minNumberOfSameTypeZones")) c.getInt("minNumberOfSameTypeZones") else 10,
               minSearchRadius = if (c.hasPathOrNull("minSearchRadius")) c.getDouble("minSearchRadius") else 250.00,
-              mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit(
-                if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
-                else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
+              multinomialLogit = BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit(
+                if (c.hasPathOrNull("multinomialLogit")) c.getConfig("multinomialLogit")
+                else com.typesafe.config.ConfigFactory.parseString("multinomialLogit{}")
               ),
               overnightChargingSampleSize =
                 if (c.hasPathOrNull("overnightChargingSampleSize")) c.getDouble("overnightChargingSampleSize") else 0.0,

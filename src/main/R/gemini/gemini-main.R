@@ -27,7 +27,7 @@ expFactor <- (6.015/0.6015)
 severity_order <- c("Public <1MW", "Public 1-5MW", "Public >5MW", "Ridehail Depot <1MW", "Ridehail Depot 1-5MW", "Ridehail Depot >5MW")
 extreme_lab_order <- c("<1MW", "1-5MW", ">5MW")
 
-dataDir <- normalizePath("~/Data/GEMINI/2022-04-27-Calibration")
+dataDir <- normalizePath("~/Data/GEMINI/2022-07-05")
 #events <- readCsv(pp(dataDir, "/events/0.events.BASE.csv.gz"))
 #eventsDir <- paste(dataDir, "/events",sep="")
 resultsDir <- paste(dataDir, "/results",sep="")
@@ -69,12 +69,12 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 # scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
 # scenarioNames <- c('Scenario4', 'Scenario4Bis', 'Scenario4Bis2', 'Scenario4Bis3', 'Scenario4Bis4', 'Scenario4Bis5')
 # scenarioNames <- c('Scenario4a-Base', 'Scenario4b-Base', 'Scenario6-HighEV')
-scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5', '5b6', '5b7')
+# scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5', '5b6', '5b7')
 # scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5')
 # scenarioNames <- c('5b1', '5b2')
 # scenarioNames <- c('5b3', '5b4', '5b5', '5b6', '5b7')
 
-#scenarioNames <- c('BaseXFC', 'HighEV')
+scenarioNames <- c('BaseXFC', 'HighEV')
 #scenarioBaselineLabel <- 'BaseXFC'
 scenarioBaselineLabel <- '5b1'
 #all.loads <- all.loads[!is.na(loadType)]
