@@ -97,10 +97,9 @@ write_files:
           curl -X POST -H 'Content-type: application/json' --data-binary @/tmp/slack.json $SLACK_HOOK_WITH_TOKEN
       path: /tmp/slack.sh
     - content: |
-          0 * * * * curl -X POST -H "Content-type: application/json" --data '"'"'{"$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running... \\n Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."}'"'"
           */10 * * * * /home/ubuntu/beam_stuck_guard.sh
           
-      path: /tmp/slack_notification
+      path: /tmp/cron_jobs
     - content: |
             #!/bin/bash
             pip install setuptools
@@ -246,7 +245,7 @@ runcmd:
   - chmod +x /tmp/slack.sh
   - echo "notification sent..."
   - echo "notification saved..."
-  - crontab /tmp/slack_notification
+  - crontab /tmp/cron_jobs
   - crontab -l
   - echo "notification scheduled..."
 
