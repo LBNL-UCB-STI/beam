@@ -229,7 +229,8 @@ runcmd:
   
   - if [ "$RUN_JUPYTER" = "True" ]
   - then
-  -   ./gradlew jupyterStart -PjupyterToken=$JUPYTER_TOKEN
+  -   echo "Starting Jupyter"
+  -   sudo ./gradlew jupyterStart -PjupyterToken=$JUPYTER_TOKEN
   - fi
 
   - 'echo "gradlew assemble: $(date)"'
