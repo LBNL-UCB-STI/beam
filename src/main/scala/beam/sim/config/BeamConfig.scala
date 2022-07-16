@@ -186,7 +186,7 @@ object BeamConfig {
           minimumValueOfTime: scala.Double,
           modeChoiceClass: java.lang.String,
           modeVotMultiplier: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.ModeVotMultiplier,
-          mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit,
+          multinomialLogit: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MultinomialLogit,
           overrideAutomationForVOTT: scala.Boolean,
           overrideAutomationLevel: scala.Int,
           poolingMultiplier: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.PoolingMultiplier,
@@ -609,12 +609,12 @@ object BeamConfig {
             }
           }
 
-          case class MulitnomialLogit(
-            params: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit.Params,
+          case class MultinomialLogit(
+            params: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MultinomialLogit.Params,
             utility_scale_factor: scala.Double
           )
 
-          object MulitnomialLogit {
+          object MultinomialLogit {
 
             case class Params(
               bike_intercept: scala.Double,
@@ -638,8 +638,8 @@ object BeamConfig {
 
               def apply(
                 c: com.typesafe.config.Config
-              ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit.Params = {
-                BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit.Params(
+              ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MultinomialLogit.Params = {
+                BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MultinomialLogit.Params(
                   bike_intercept = if (c.hasPathOrNull("bike_intercept")) c.getDouble("bike_intercept") else 0.0,
                   bike_transit_intercept =
                     if (c.hasPathOrNull("bike_transit_intercept")) c.getDouble("bike_transit_intercept") else 0.0,
@@ -676,9 +676,9 @@ object BeamConfig {
 
             def apply(
               c: com.typesafe.config.Config
-            ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit = {
-              BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit(
-                params = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit.Params(
+            ): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MultinomialLogit = {
+              BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MultinomialLogit(
+                params = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MultinomialLogit.Params(
                   if (c.hasPathOrNull("params")) c.getConfig("params")
                   else com.typesafe.config.ConfigFactory.parseString("params{}")
                 ),
@@ -741,9 +741,9 @@ object BeamConfig {
                 if (c.hasPathOrNull("modeVotMultiplier")) c.getConfig("modeVotMultiplier")
                 else com.typesafe.config.ConfigFactory.parseString("modeVotMultiplier{}")
               ),
-              mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit(
-                if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
-                else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
+              multinomialLogit = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MultinomialLogit(
+                if (c.hasPathOrNull("multinomialLogit")) c.getConfig("multinomialLogit")
+                else com.typesafe.config.ConfigFactory.parseString("multinomialLogit{}")
               ),
               overrideAutomationForVOTT =
                 c.hasPathOrNull("overrideAutomationForVOTT") && c.getBoolean("overrideAutomationForVOTT"),
@@ -779,18 +779,18 @@ object BeamConfig {
           maxSearchRadius: scala.Double,
           minNumberOfSameTypeZones: scala.Int,
           minSearchRadius: scala.Double,
-          mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+          multinomialLogit: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
           rangeAnxietyBuffer: scala.Double,
           searchMaxDistanceRelativeToEllipseFoci: scala.Double
         )
 
         object Parking {
 
-          case class MulitnomialLogit(
-            params: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit.Params
+          case class MultinomialLogit(
+            params: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit.Params
           )
 
-          object MulitnomialLogit {
+          object MultinomialLogit {
 
             case class Params(
               distanceMultiplier: scala.Double,
@@ -804,8 +804,8 @@ object BeamConfig {
 
               def apply(
                 c: com.typesafe.config.Config
-              ): BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit.Params = {
-                BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit.Params(
+              ): BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit.Params = {
+                BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit.Params(
                   distanceMultiplier =
                     if (c.hasPathOrNull("distanceMultiplier")) c.getDouble("distanceMultiplier") else -0.086,
                   enrouteDetourMultiplier =
@@ -822,9 +822,9 @@ object BeamConfig {
               }
             }
 
-            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit = {
-              BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit(
-                params = BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit.Params(
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit = {
+              BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit(
+                params = BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit.Params(
                   if (c.hasPathOrNull("params")) c.getConfig("params")
                   else com.typesafe.config.ConfigFactory.parseString("params{}")
                 )
@@ -840,9 +840,9 @@ object BeamConfig {
               minNumberOfSameTypeZones =
                 if (c.hasPathOrNull("minNumberOfSameTypeZones")) c.getInt("minNumberOfSameTypeZones") else 10,
               minSearchRadius = if (c.hasPathOrNull("minSearchRadius")) c.getDouble("minSearchRadius") else 250.00,
-              mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit(
-                if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
-                else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
+              multinomialLogit = BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit(
+                if (c.hasPathOrNull("multinomialLogit")) c.getConfig("multinomialLogit")
+                else com.typesafe.config.ConfigFactory.parseString("multinomialLogit{}")
               ),
               rangeAnxietyBuffer =
                 if (c.hasPathOrNull("rangeAnxietyBuffer")) c.getDouble("rangeAnxietyBuffer") else 20000.0,
@@ -1114,16 +1114,16 @@ object BeamConfig {
             object VehicleChargingManager {
 
               case class DefaultVehicleChargingManager(
-                mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MulitnomialLogit
+                multinomialLogit: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit
               )
 
               object DefaultVehicleChargingManager {
 
-                case class MulitnomialLogit(
-                  params: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MulitnomialLogit.Params
+                case class MultinomialLogit(
+                  params: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit.Params
                 )
 
-                object MulitnomialLogit {
+                object MultinomialLogit {
 
                   case class Params(
                     chargingTimeMultiplier: scala.Double,
@@ -1136,8 +1136,8 @@ object BeamConfig {
 
                     def apply(
                       c: com.typesafe.config.Config
-                    ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MulitnomialLogit.Params = {
-                      BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MulitnomialLogit
+                    ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit.Params = {
+                      BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit
                         .Params(
                           chargingTimeMultiplier =
                             if (c.hasPathOrNull("chargingTimeMultiplier")) c.getDouble("chargingTimeMultiplier")
@@ -1158,11 +1158,11 @@ object BeamConfig {
 
                   def apply(
                     c: com.typesafe.config.Config
-                  ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MulitnomialLogit = {
+                  ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit = {
                     BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager
-                      .MulitnomialLogit(
+                      .MultinomialLogit(
                         params =
-                          BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MulitnomialLogit
+                          BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit
                             .Params(
                               if (c.hasPathOrNull("params")) c.getConfig("params")
                               else com.typesafe.config.ConfigFactory.parseString("params{}")
@@ -1176,11 +1176,11 @@ object BeamConfig {
                 ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager = {
                   BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager
                     .DefaultVehicleChargingManager(
-                      mulitnomialLogit =
+                      multinomialLogit =
                         BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager
-                          .MulitnomialLogit(
-                            if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
-                            else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
+                          .MultinomialLogit(
+                            if (c.hasPathOrNull("multinomialLogit")) c.getConfig("multinomialLogit")
+                            else com.typesafe.config.ConfigFactory.parseString("multinomialLogit{}")
                           )
                     )
                 }
@@ -1538,7 +1538,7 @@ object BeamConfig {
 
         case class TripBehaviors(
           carUsage: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.CarUsage,
-          mulitnomialLogit: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit
+          multinomialLogit: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MultinomialLogit
         )
 
         object TripBehaviors {
@@ -1557,7 +1557,7 @@ object BeamConfig {
             }
           }
 
-          case class MulitnomialLogit(
+          case class MultinomialLogit(
             activity_file_path: java.lang.String,
             additional_trip_utility: scala.Double,
             destination_nest_scale_factor: scala.Double,
@@ -1569,10 +1569,10 @@ object BeamConfig {
             trip_nest_scale_factor: scala.Double
           )
 
-          object MulitnomialLogit {
+          object MultinomialLogit {
 
-            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit = {
-              BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit(
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MultinomialLogit = {
+              BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MultinomialLogit(
                 activity_file_path =
                   if (c.hasPathOrNull("activity_file_path")) c.getString("activity_file_path") else "",
                 additional_trip_utility =
@@ -1604,9 +1604,9 @@ object BeamConfig {
                 if (c.hasPathOrNull("carUsage")) c.getConfig("carUsage")
                 else com.typesafe.config.ConfigFactory.parseString("carUsage{}")
               ),
-              mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MulitnomialLogit(
-                if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
-                else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
+              multinomialLogit = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MultinomialLogit(
+                if (c.hasPathOrNull("multinomialLogit")) c.getConfig("multinomialLogit")
+                else com.typesafe.config.ConfigFactory.parseString("multinomialLogit{}")
               )
             )
           }
@@ -2479,7 +2479,6 @@ object BeamConfig {
       clearRoutedOutstandingWorkEnabled: scala.Boolean,
       debugActorTimerIntervalInSec: scala.Int,
       debugEnabled: scala.Boolean,
-      maxInitializationTimeBeforeConsideredStuckMin: scala.Int,
       maxSimulationStepTimeBeforeConsideredStuckMin: scala.Int,
       memoryConsumptionDisplayTimeoutInSec: scala.Int,
       messageLogging: scala.Boolean,
@@ -2641,14 +2640,10 @@ object BeamConfig {
           debugActorTimerIntervalInSec =
             if (c.hasPathOrNull("debugActorTimerIntervalInSec")) c.getInt("debugActorTimerIntervalInSec") else 0,
           debugEnabled = c.hasPathOrNull("debugEnabled") && c.getBoolean("debugEnabled"),
-          maxInitializationTimeBeforeConsideredStuckMin =
-            if (c.hasPathOrNull("maxInitializationTimeBeforeConsideredStuckMin"))
-              c.getInt("maxInitializationTimeBeforeConsideredStuckMin")
-            else 180,
           maxSimulationStepTimeBeforeConsideredStuckMin =
             if (c.hasPathOrNull("maxSimulationStepTimeBeforeConsideredStuckMin"))
               c.getInt("maxSimulationStepTimeBeforeConsideredStuckMin")
-            else 999999,
+            else 60,
           memoryConsumptionDisplayTimeoutInSec =
             if (c.hasPathOrNull("memoryConsumptionDisplayTimeoutInSec"))
               c.getInt("memoryConsumptionDisplayTimeoutInSec")

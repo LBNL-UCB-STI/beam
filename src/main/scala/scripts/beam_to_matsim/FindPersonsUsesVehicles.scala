@@ -1,7 +1,7 @@
-package scripts.beam_to_matsim.utils
+package scripts.beam_to_matsim
 
-import scripts.beam_to_matsim.io.{BeamEventsReader, Writer}
 import scripts.beam_to_matsim.events.{BeamEvent, BeamPersonEntersVehicle}
+import scripts.beam_to_matsim.io.{BeamEventsReader, Writer}
 
 import scala.collection.mutable
 import scala.io.Source
@@ -9,14 +9,22 @@ import scala.io.Source
 /*
 a script to find all persons which uses specific vehicles
  */
+
 object FindPersonsUsesVehicles extends App {
 
-  val personsIds: Iterable[String] = find(
-    "D:/Work/BEAM/visualizations/v1.0.events.bridge_cap_5000.csv.RHids.txt",
-    "D:/Work/BEAM/visualizations/v1.0.events.bridge_cap_5000.csv"
-  )
+  // format: off
+  /******************************************************************************************************
+    ./gradlew execute -PmainClass=scripts.beam_to_matsim.FindPersonsUsesVehicles -PappArgs="[
+      '<beam events csv file>',
+      '<vehicles output file>',
+      '<text file containing vehicles ids>'
+    ]" -PmaxRAM=16g
+  *******************************************************************************************************/
+  // format: on
 
-  Writer.writeSeqOfString(personsIds, "D:/Work/BEAM/visualizations/v1.0.events.bridge_cap_5000.csv.RHUsersIds.txt")
+  val eventsPath = args(0)
+  val outputPath = args(1)
+  val vehiclesIdsFilePath = args(2)
 
   def find(vehiclesIdsFilePath: String, eventsFilePath: String): Iterable[String] = {
     val vehicleIds = mutable.HashSet.empty[String]
@@ -39,4 +47,8 @@ object FindPersonsUsesVehicles extends App {
 
     personsIds
   }
+
+  val personsIds: Iterable[String] = find(vehiclesIdsFilePath, eventsPath)
+
+  Writer.writeSeqOfString(personsIds, outputPath)
 }
