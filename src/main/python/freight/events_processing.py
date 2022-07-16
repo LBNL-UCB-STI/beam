@@ -2,10 +2,13 @@ import pandas as pd
 import os
 
 city = "sfbay"
-scenario = "counts"
+scenario = "7days"
+batch = 2
+iteration = 0
+filename = str(iteration)+'.events.hgv1.csv'
 
-work_directory = '~/Data/FREIGHT/'+city+'/beam/runs/'+scenario+'/'
-filename = '18.events.hgv4.csv'
+work_directory = '~/Data/FREIGHT/'+city+'/beam/runs/'+scenario+'/'+str(batch)+"/"
+
 full_filename = os.path.expanduser(work_directory + filename)
 compression = None
 if full_filename.endswith(".gz"):

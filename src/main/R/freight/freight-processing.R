@@ -12,42 +12,46 @@ library(stringr)
 
 city <- "sfbay"
 cityCRS <- 26910
-scenario <- "counts"
+scenario <- "7days"
+iteration <- 0
+batch <- 2
+run <- "hgv4"
 
+## PATHS
 activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
 workDir <- normalizePath(pp("~/Data/FREIGHT/",city))
 validationDir <- pp(workDir,"/validation")
-runDir <- pp(workDir,"/beam/runs/",scenario)
+runDir <- pp(workDir,"/beam/runs/",scenario,"/",batch)
 runOutput <- pp(runDir,"/output")
 dir.create(runOutput, showWarnings = FALSE)
 freightDir <- pp(workDir,"/beam_freight/",scenario)
-sf_hpms <- st_read(pp(validationDir, "/hpms/sf_hpms_inventory_clipped.geojson"))
+eventsFile <- pp(iteration,".events.",run,".csv")
+linkStatsFile <- pp(iteration,".linkstats.",run,".csv.gz")
+
+## READING
+sf_hpms <- st_read(pp(validationDir, "/hpms/sf_hpms_inventory_clipped_original.geojson"))
 caltransTruckAADTT <- data.table::fread(
   normalizePath(pp(validationDir,"/caltrans/2017_truck_aadtt_geocoded.csv")), 
   header=T, 
   sep=",")
 screelines <- readCsv(pp(validationDir,"/screenlines.csv"))
 
-iteration <- "18"
-scenario <- "hgv4"
-eventsFile <- pp(iteration,".events.",scenario,".csv")
-linkStatsFile <- pp(iteration,".linkstats.",scenario,".csv.gz")
 events_filtered <- readCsv(pp(runDir, "/filtered.",eventsFile))
 linkStats <- readCsv(normalizePath(pp(runDir,"/",linkStatsFile)))
 network <- readCsv(normalizePath(pp(workDir,"/beam/network.csv.gz")))
 networkFiltered<- network[
   linkModes %in% c("car;bike", "car;walk;bike") & attributeOrigType %in% c("motorway","trunk","primary", "secondary")][
     ,-c("numberOfLanes", "attributeOrigId", "fromNodeId", "toNodeId", "toLocationX", "toLocationY")]
-networkWGS84 <- st_transform(st_as_sf(
-  networkFiltered,
-  coords = c("fromLocationX", "fromLocationY"),
-  crs = cityCRS,
-  agr = "constant"), 4326)
-networkWGS84$X <- st_coordinates(networkWGS84$geometry)[,1]
-networkWGS84$Y <- st_coordinates(networkWGS84$geometry)[,2]
-networkWGS84 <- data.table::as.data.table(networkWGS84)
 
-data.table::fwrite(networkWGS84, normalizePath(pp(workDir,"/beam/networkWGS84.csv")), quote=F)
+# networkWGS84 <- st_transform(st_as_sf(
+#   networkFiltered,
+#   coords = c("fromLocationX", "fromLocationY"),
+#   crs = cityCRS,
+#   agr = "constant"), 4326)
+# networkWGS84$X <- st_coordinates(networkWGS84$geometry)[,1]
+# networkWGS84$Y <- st_coordinates(networkWGS84$geometry)[,2]
+# networkWGS84 <- data.table::as.data.table(networkWGS84)
+#data.table::fwrite(networkWGS84, normalizePath(pp(workDir,"/beam/networkWGS84.csv")), quote=F)
 
 # persons <- readCsv(pp(freightDir, "/austin/persons.csv.gz"))
 # events <- readCsv(pp(freightDir, "/via/0.events.csv"))
@@ -134,7 +138,7 @@ p <- to_plot[,time24:=arrivalTime%%(24*3600),][,.N,by=.(timeBin=as.POSIXct(cut(t
   theme(legend.title = element_text(size = 10),
         legend.text = element_text(size = 10),
         axis.text.x = element_text(angle = 0, hjust = 1))
-ggsave(pp(runOutput,'/', pp(iteration,".freight-activity-by-category.",scenario,".png")),p,width=6,height=3,units='in')
+ggsave(pp(runOutput,'/', pp(iteration,".freight-activity-by-category.",run,".png")),p,width=6,height=3,units='in')
 
 ## FREIGHT AVG TRIP VMT BY TRUCK CATEGORY
 to_plot <- rbind(ldt_pt,hdt_pt)[,.(VMT=mean(length)/1609.3),by=.(category)]
@@ -147,7 +151,7 @@ p <- ggplot(to_plot, aes(x=category,y=VMT,fill=category))+
         axis.text.x = element_blank(),
         legend.title = element_text(size = 9),
         legend.text = element_text(size = 9))  + theme(legend.position = "none")
-ggsave(pp(runOutput,'/', pp(iteration,".freight-avg-trip-vmt-by-category.",scenario,".png")),p,width=3,height=2,units='in')
+ggsave(pp(runOutput,'/', pp(iteration,".freight-avg-trip-vmt-by-category.",run,".png")),p,width=3,height=2,units='in')
 
 ## FREIGHT TOUR TRIP VMT BY TRUCK CATEGORY
 to_plot <- rbind(ldt_pt,hdt_pt)[,.(tourVMT=sum(length)/1609.3),by=.(vehicle,category)][,.(avgTourVMT=mean(tourVMT)),by=.(category)]
@@ -160,7 +164,7 @@ p <- ggplot(to_plot, aes(x=category,y=avgTourVMT,fill=category))+
         axis.text.x = element_blank(),
         legend.title = element_text(size = 9),
         legend.text = element_text(size = 9))
-ggsave(pp(runOutput,'/', pp(iteration,".freight-avg-tour-vmt-by-category.",scenario,".png")),p,width=4,height=3,units='in')
+ggsave(pp(runOutput,'/', pp(iteration,".freight-avg-tour-vmt-by-category.",run,".png")),p,width=4,height=3,units='in')
 
 
 ################ ***************************
@@ -202,7 +206,7 @@ freightSummary[is.na(vehicleType)]$numVehicles <- sum(freightSummary$numVehicles
 freightSummary
 write.csv(
   freightSummary,
-  file = pp(runOutput, "/", pp(iteration,".summary-per-vehicle-type.",scenario,".csv")),
+  file = pp(runOutput, "/", pp(iteration,".summary-per-vehicle-type.",run,".csv")),
   row.names=F,
   quote=T)
 
@@ -215,8 +219,16 @@ linkStatsAADT <- linkStats[,.(volume=sum(volume),
                               traveltime=mean(traveltime))
                            ,by=.(link,from,to,length,freespeed,capacity)]
 screelines_hpms_network <- screelines_hpms[linkStatsAADT, on=c("linkId"="link")][!is.na(Route_ID)]
-screelines_hpms_network_counts <- screelines_hpms_network[,c("Route_ID","Begin_Poin","End_Point","linkId","TruckVolume","Volume_hpms")]
+screelines_hpms_network_counts <- screelines_hpms_network[,c("Route_ID","Begin_Poin","End_Point","linkId","HDTruckVolume","TruckVolume","Volume_hpms")]
 screelines_hpms_network_counts$VolumeDifference <- screelines_hpms_network_counts$TruckVolume - screelines_hpms_network_counts$Volume_hpms
+sum(screelines_hpms_network_counts[Volume_hpms==0]$VolumeDifference)
+sum(screelines_hpms_network_counts$VolumeDifference)
+
+write.csv(
+  screelines_hpms_network_counts,
+  file = pp(runOutput, "/", pp(iteration,".screelines_hpms_network_counts.",run,".csv")),
+  row.names=F,
+  quote=T)
 
 ggplot(screelines_hpms_network_counts) +
   geom_bar(aes(as.character(linkId), VolumeDifference), stat = 'identity') +
