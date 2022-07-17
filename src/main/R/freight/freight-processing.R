@@ -14,8 +14,8 @@ city <- "sfbay"
 cityCRS <- 26910
 scenario <- "7days"
 iteration <- 0
-batch <- 2
-run <- "hgv4"
+batch <- 3
+run <- "hgv1"
 
 ## PATHS
 activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
@@ -223,6 +223,14 @@ screelines_hpms_network_counts <- screelines_hpms_network[,c("Route_ID","Begin_P
 screelines_hpms_network_counts$VolumeDifference <- screelines_hpms_network_counts$TruckVolume - screelines_hpms_network_counts$Volume_hpms
 sum(screelines_hpms_network_counts[Volume_hpms==0]$VolumeDifference)
 sum(screelines_hpms_network_counts$VolumeDifference)
+screelines_hpms_network_counts
+
+
+debug <- readCsv(pp(workDir,"/debug.csv"))
+debug[isHGV==T]
+
+screelines_hpms_network_counts[Route_ID=="SHS_580_S"&Begin_Poin==57.428]
+SHS_580_S,57.428,57.505
 
 write.csv(
   screelines_hpms_network_counts,
