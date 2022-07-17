@@ -57,7 +57,7 @@ object CsvPlanElementReader extends PlanElementReader {
       activityLocationX = Option(rec.get("activityLocationX")).map(_.toDouble),
       activityLocationY = Option(rec.get("activityLocationY")).map(_.toDouble),
       activityStartTime = Option(rec.get("activityStartTime")).map(NumberUtils.toDouble),
-      activityEndTime = Option(rec.get("activityEndTime")).map(_.toDouble),
+      activityEndTime = Option(rec.get("activityEndTime")).flatMap(v => Try(v.toDouble).toOption),
       legMode = Option(rec.get("legMode")),
       legDepartureTime = Option(rec.get("legDepartureTime")),
       legTravelTime = Option(rec.get("legTravelTime")),
