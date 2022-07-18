@@ -443,7 +443,7 @@ class BeamMobsimIteration(
     Props(
       classOf[BeamAgentScheduler],
       beamConfig,
-      beamServices.matsimServices.getControlerIO.getIterationPath(beamServices.matsimServices.getIterationNumber),
+      beamServices.matsimServices.getControlerIO.getOutputPath,
       Time.parseTime(beamConfig.matsim.modules.qsim.endTime).toInt,
       config.schedulerParallelismWindow,
       new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
