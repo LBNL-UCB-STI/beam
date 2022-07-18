@@ -41,7 +41,7 @@ class PlanMerger(modeMap: Map[String, String])
     modeMap.get(inputMode) match {
       case Some(convertedMode) => convertedMode
       case None =>
-        logger.warn(s"beam.exchange.scenario.modeMap does not contain $inputMode, using $inputMode as return value.")
+        logger.warn(s"beam.exchange.scenario.modeMap does not contain $inputMode, using $inputMode as mapped mode.")
         inputMode
     }
   }
