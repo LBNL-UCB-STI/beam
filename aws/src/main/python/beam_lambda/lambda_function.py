@@ -97,8 +97,9 @@ write_files:
           curl -X POST -H 'Content-type: application/json' --data-binary @/tmp/slack.json $SLACK_HOOK_WITH_TOKEN
       path: /tmp/slack.sh
     - content: |
-          0 * * * * curl -X POST -H "Content-type: application/json" --data '"'"'{"$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running... \\n Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."}'"'"
-      path: /tmp/slack_notification
+          */10 * * * * /home/ubuntu/beam_stuck_guard.sh
+          
+      path: /tmp/cron_jobs
     - content: |
             #!/bin/bash
             pip install setuptools
@@ -132,10 +133,31 @@ write_files:
                     echo $timestamp_CPU, $ram_used_available
             done
       path: /home/ubuntu/write-cpu-ram-usage.sh
+    - content: |
+            #!/bin/bash
+            pgrep -f RunBeam || exit 0
+            out_dir=$(find /home/ubuntu/git/beam/output -maxdepth 2 -mindepth 2 -type d -print -quit)
+            if [[ -z "${out_dir}" ]]; then exit 0; fi
+            log_file="$out_dir/beamLog.out"
+            if [[ ! -f $log_file ]] ; then exit 0; fi
+            last_completed=$(tac $log_file | grep -m 1 completed | grep -m 1 -Eo '^[0-9]{2}:[0-9]{2}:[0-9]{2}')
+            if [[ -z "${last_completed}" ]]; then
+              last_completed=$(tac $log_file | grep -m 1 -Eo '^[0-9]{2}:[0-9]{2}:[0-9]{2}')
+            fi
+            beam_status=$(python3 -c "import datetime as dt; diff = dt.datetime.now() - dt.datetime.combine(dt.datetime.today(), dt.time.fromisoformat('$last_completed')); x = 'OK' if dt.timedelta(0) <= diff and diff < dt.timedelta(hours=3) else 'Bad'; print(x)")
+            pid=$(pgrep -f RunBeam)
+            if [ "$beam_status" == 'Bad' ] && [ "$pid" != "" ]; then
+              jstack $pid | gzip > "$out_dir/kill_thread_dump.txt.gz"
+              kill $pid
+              sleep 5m
+              kill -9 $pid
+            fi
+      path: /home/ubuntu/beam_stuck_guard.sh
 
 runcmd:
   - sudo chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
   - sudo chmod +x /home/ubuntu/write-cpu-ram-usage.sh
+  - sudo chmod +x /home/ubuntu/beam_stuck_guard.sh
   - cd /home/ubuntu
   - ./write-cpu-ram-usage.sh 20 > cpu_ram_usage.csv &
   - cd /home/ubuntu/git
@@ -223,7 +245,7 @@ runcmd:
   - chmod +x /tmp/slack.sh
   - echo "notification sent..."
   - echo "notification saved..."
-  - crontab /tmp/slack_notification
+  - crontab /tmp/cron_jobs
   - crontab -l
   - echo "notification scheduled..."
 
