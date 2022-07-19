@@ -195,8 +195,8 @@ class ChargingNetworkManager(
             WaitingToCharge(tick, vehicle.id, triggerId)
           case chargingVehicle =>
             vehicle2InquiryMap.remove(vehicle.id)
-            collectVehicleRequestInfo(chargingVehicle)
             handleStartCharging(tick, chargingVehicle, triggerId = triggerId)
+            collectVehicleRequestInfo(chargingVehicle)
             StartingRefuelSession(tick, triggerId)
         } getOrElse Failure(
           new RuntimeException(

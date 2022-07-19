@@ -47,7 +47,7 @@ class SitePowerManager(
     chargingVehicle: ChargingVehicle,
     physicalBounds: Map[ChargingStation, PhysicalBounds]
   ): (ChargingDurationInSec, EnergyInJoules, EnergyInJoules) = {
-    val ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _, _) = chargingVehicle
+    val ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _, _, _) = chargingVehicle
     // dispatch
     val maxZoneLoad = physicalBounds(station).powerLimitUpper
     val maxUnlimitedZoneLoad = unlimitedPhysicalBounds(station).powerLimitUpper
