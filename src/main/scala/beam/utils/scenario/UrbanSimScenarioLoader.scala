@@ -20,7 +20,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{Iterable, mutable}
+import scala.collection.{mutable, Iterable}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.math.{max, min, round}
