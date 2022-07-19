@@ -84,6 +84,7 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
     */
   def processChargingPlugRequest(
     request: ChargingPlugRequest,
+    estimatedParkingDuration: Int,
     activityType: String,
     theSender: ActorRef
   ): Option[ChargingVehicle] = lookupStation(request.stall.parkingZoneId)
@@ -93,6 +94,7 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
         request.vehicle,
         request.stall,
         request.personId,
+        estimatedParkingDuration,
         activityType,
         request.shiftStatus,
         request.shiftDuration,
@@ -274,6 +276,7 @@ object ChargingNetwork extends LazyLogging {
       vehicle: BeamVehicle,
       stall: ParkingStall,
       personId: Id[Person],
+      estimatedParkingDuration: Int,
       activityType: String,
       shiftStatus: ShiftStatus = NotApplicable,
       shiftDuration: Option[Int] = None,
@@ -288,7 +291,18 @@ object ChargingNetwork extends LazyLogging {
           chargingVehicle
         case _ =>
           val chargingVehicle =
-            ChargingVehicle(vehicle, stall, this, tick, personId, activityType, shiftStatus, shiftDuration, theSender)
+            ChargingVehicle(
+              vehicle,
+              stall,
+              this,
+              tick,
+              personId,
+              estimatedParkingDuration,
+              activityType,
+              shiftStatus,
+              shiftDuration,
+              theSender
+            )
           if (numAvailableChargers > 0) {
             chargingVehiclesInternal.put(vehicle.id, chargingVehicle)
             chargingVehicle.updateStatus(Connected, tick)
@@ -370,6 +384,7 @@ object ChargingNetwork extends LazyLogging {
     chargingStation: ChargingStation,
     arrivalTime: Int,
     personId: Id[Person],
+    estimatedParkingDuration: Int,
     activityType: String,
     shiftStatus: ShiftStatus,
     shiftDuration: Option[Int],

@@ -323,7 +323,7 @@ class ZonalParkingManagerSpec
         minSearchRadius,
         maxSearchRadius,
         randomSeed,
-        beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
+        beamConfig.beam.agentsim.agents.parking.multinomialLogit,
         beamConfig,
         None
       )
@@ -382,7 +382,7 @@ class ZonalParkingManagerSpec
         minSearchRadius,
         maxSearchRadius,
         randomSeed,
-        beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
+        beamConfig.beam.agentsim.agents.parking.multinomialLogit,
         beamConfig,
         None
       )
@@ -437,7 +437,7 @@ class ZonalParkingManagerSpec
         beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
         beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
         randomSeed,
-        beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
+        beamConfig.beam.agentsim.agents.parking.multinomialLogit,
         beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
       )
 
@@ -552,7 +552,7 @@ object ZonalParkingManagerSpec {
       minSearchRadius,
       maxSearchRadius,
       seed,
-      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
+      beamConfig.beam.agentsim.agents.parking.multinomialLogit,
       beamConfig,
       None
     )

@@ -936,11 +936,21 @@ allev <- rbind(ev,phev)
 #### processing PT
 
 
-ev <- readCsv(pp(workDir, "/2022-07-05/events/filtered.15.events.csv.gz"))
-pt <- readCsv(pp(workDir, "/2022-07-05/events/ptmc.15.events.csv.gz"))
+ev <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.csv.gz"))
+pt <- readCsv(pp(workDir, "/2022-07-05/events/ptmc.0.events.csv.gz"))
 
 ev0 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.5bBase.csv.gz"))
-sum(ev0[type=="RefuelSessionEvent"]$fuel)
+sum(ev0[type=="RefuelSessionEvent"]$fuel)/sum(ev[type=="RefuelSessionEvent"]$fuel)
+length(unique(ev0[startsWith(vehicle, "VirtualCar-")]$vehicle))
+length(unique(ev0[!startsWith(vehicle, "VirtualCar-")]$vehicle))
+
+
+ev1 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.40p.csv.gz"))
+sum(ev1[type=="RefuelSessionEvent"]$fuel)/sum(ev[type=="RefuelSessionEvent"]$fuel)
+length(unique(ev1[startsWith(vehicle, "VirtualCar-")]$vehicle))
+length(unique(ev1[!startsWith(vehicle, "VirtualCar-")]$vehicle))
+
+
 
 summary <- ev0[type=="RefuelSessionEvent",.(totFuel=sum(fuel)),by=.(chargingPointType)]
 summary$share <- summary$totFuel / sum(summary$totFuel)
@@ -1012,3 +1022,14 @@ ggplot(mc[lengthInMile<=50], aes(x=lengthInMile)) +
 
 nrow(mc[lengthInMile<=5])/nrow(mc)
 nrow(mc[lengthInMile<=10])/nrow(mc)
+
+
+lognormal <- function(m, v, sample_size) {
+  phi <- sqrt(v + m^2);
+  mu <- log((m^2)/phi)
+  sigma <- sqrt(log((phi^2)/(m^2)))
+  x <- rnorm(sample_size, mean=mu, sd=sigma)
+  exp(x)
+}
+
+

@@ -10,6 +10,7 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.EnRouteCharging
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -155,7 +156,7 @@ class ChargingNetworkManager(
           None
       }
       vehicleEndedCharging match {
-        case Some(ChargingVehicle(_, _, _, _, _, _, _, _, theSender, _, _)) =>
+        case Some(ChargingVehicle(_, _, _, _, _, _, _, _, _, theSender, _, _)) =>
           theSender ! EndingRefuelSession(tick, vehicle.id, triggerId)
         case _ =>
           sender ! CompletionNotice(triggerId)
@@ -165,18 +166,24 @@ class ChargingNetworkManager(
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       val responseHasTriggerId = if (vehicle.isEV) {
         // connecting the current vehicle
-        val activityType = vehicle2InquiryMap
+        val (parkingDuration, activityType) = vehicle2InquiryMap
           .get(vehicle.id)
           .map {
-            case ParkingInquiry(_, activityType, _, _, _, _, _, _, _, _, searchMode, _, _)
+            case ParkingInquiry(_, activityType, _, _, _, _, _, parkingDuration, _, _, searchMode, _, _)
                 if searchMode == EnRouteCharging =>
-              "EnRoute-" + activityType
-            case ParkingInquiry(_, activityType, _, _, _, _, _, _, _, _, _, _, _) => activityType
+              (parkingDuration, "EnRoute-" + activityType)
+            case ParkingInquiry(_, activityType, _, _, _, _, _, parkingDuration, _, _, _, _, _) =>
+              (parkingDuration, activityType)
           }
-          .getOrElse("")
+          .getOrElse(
+            (
+              beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
+              ParkingActivityType.Wherever.toString
+            )
+          )
         chargingNetworkHelper
           .get(stall.reservedFor.managerId)
-          .processChargingPlugRequest(request, activityType, sender()) map {
+          .processChargingPlugRequest(request, parkingDuration.toInt, activityType, sender()) map {
           case chargingVehicle if chargingVehicle.chargingStatus.last.status == WaitingAtStation =>
             log.debug(
               s"Vehicle $vehicle is moved to waiting line at $tick in station ${chargingVehicle.chargingStation}, " +
@@ -188,8 +195,8 @@ class ChargingNetworkManager(
             WaitingToCharge(tick, vehicle.id, triggerId)
           case chargingVehicle =>
             vehicle2InquiryMap.remove(vehicle.id)
-            handleStartCharging(tick, chargingVehicle, triggerId = triggerId)
             collectVehicleRequestInfo(chargingVehicle)
+            handleStartCharging(tick, chargingVehicle, triggerId = triggerId)
             StartingRefuelSession(tick, triggerId)
         } getOrElse Failure(
           new RuntimeException(
@@ -208,7 +215,7 @@ class ChargingNetworkManager(
       val responseHasTriggerId = vehicle.stall match {
         case Some(stall) =>
           chargingNetworkHelper.get(stall.reservedFor.managerId).disconnectVehicle(vehicle.id, tick) match {
-            case Some(chargingVehicle @ ChargingVehicle(_, _, station, _, _, _, _, _, _, listStatus, sessions)) =>
+            case Some(chargingVehicle @ ChargingVehicle(_, _, station, _, _, _, _, _, _, _, listStatus, sessions)) =>
               if (sessions.nonEmpty && !listStatus.exists(_.status == GracePeriod)) {
                 // If the vehicle was still charging
                 val unplugTime = currentTimeBin(tick)
