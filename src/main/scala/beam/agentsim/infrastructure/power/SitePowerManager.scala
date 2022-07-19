@@ -83,16 +83,16 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
               case ChargingVehicle(vehicle, _, _, _, _, _, _, _, _, _, _) =>
                 // Sending this message
                 Map(
-                  "event"                    -> "departure",
+                  "event"                    -> "pluggedIn", // TODO Check with Keith if both plug In and plug out events are to be transmitted
                   "zoneId"                   -> zoneId,
-                  "siteId"                   -> "",
+                  "siteId"                   -> "", // TODO I have a way for generating the site Id, but for now Site id == parking Zone Id
                   "vehicleId"                -> vehicle.id,
                   "vehicleType"              -> vehicle.beamVehicleType.id,
                   "primaryFuelLevelInJoules" -> vehicle.primaryFuelLevelInJoules,
-                  "arrivalTime"              -> 0.0,
-                  "departureTime"            -> 0.0,
-                  "desiredFuelLevelInJoules" -> 0.0,
-                  "powerInKW"                -> 0.0
+                  "arrivalTime"              -> 0.0, // TODO arrival time at station
+                  "departureTime"            -> 0.0, // TODO estimated departure time = arrival time + parking duration
+                  "desiredFuelLevelInJoules" -> 0.0, // TODO Battery capacity - fuel level
+                  "powerInKW"                -> 0.0 // TODO power at stall: stall.chargingPointType
                 )
             }
           )
