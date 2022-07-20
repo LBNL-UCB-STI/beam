@@ -71,7 +71,7 @@ trait ScaleUpCharging extends {
 
   override def loggedReceive: Receive = {
     case t @ TriggerWithId(PlanParkingInquiryTrigger(_, requestId), triggerId) =>
-      log.debug(s"Received parking response: $t")
+      log.info(s"Received parking response: $t")
       virtualParkingInquiries.get(requestId) match {
         case Some(inquiry) => self ! inquiry
         case _ =>
@@ -81,13 +81,16 @@ trait ScaleUpCharging extends {
       }
       sender ! CompletionNotice(triggerId)
     case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, requestId), triggerId) =>
-      log.debug(s"Received parking response: $t")
+      log.info(s"Received parking response: $t")
       self ! ChargingUnplugRequest(tick, beamVehicle, triggerId)
       virtualParkingInquiries.remove(requestId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
-      log.debug(s"Received parking response: $response")
+      log.info(s"Received parking response: $response")
       virtualParkingInquiries.get(requestId) match {
         case Some(parkingInquiry) if stall.chargingPointType.isDefined =>
+          log.info(
+            s"parking inquiry with requestId $requestId returned a stall with charging point. Scheduling ChargingPlugRequest."
+          )
           val beamVehicle = parkingInquiry.beamVehicle.get
           self ! ChargingPlugRequest(
             parkingInquiry.destinationUtm.time,
@@ -104,22 +107,22 @@ trait ScaleUpCharging extends {
             self
           )
         case Some(_) if stall.chargingPointType.isEmpty =>
-          log.debug(s"parking inquiry with requestId $requestId returned a NoCharger stall")
+          log.info(s"parking inquiry with requestId $requestId returned a NoCharger stall")
         case _ =>
           log.warning(s"inquiryMap does not have this requestId $requestId that returned stall $stall")
       }
     case reply @ StartingRefuelSession(_, _) =>
-      log.debug(s"Received parking response: $reply")
+      log.info(s"Received parking response: $reply")
     case reply @ EndingRefuelSession(_, _, triggerId) =>
-      log.debug(s"Received parking response: $reply")
+      log.info(s"Received parking response: $reply")
       getScheduler ! CompletionNotice(triggerId)
     case reply @ WaitingToCharge(_, _, _) =>
-      log.debug(s"Received parking response: $reply")
+      log.info(s"Received parking response: $reply")
     case reply @ UnhandledVehicle(_, _, triggerId) =>
-      log.debug(s"Received parking response: $reply")
+      log.info(s"Received parking response: $reply")
       getScheduler ! CompletionNotice(triggerId)
     case reply @ UnpluggingVehicle(_, _, triggerId) =>
-      log.debug(s"Received parking response: $reply")
+      log.info(s"Received parking response: $reply")
       getScheduler ! CompletionNotice(triggerId)
   }
 
@@ -214,7 +217,7 @@ trait ScaleUpCharging extends {
               }
             }
           case _ =>
-            log.debug("The observed load is null. Most likely due to vehicles not needing to charge!")
+            log.info("The observed load is null. Most likely due to vehicles not needing to charge!")
         }
         partialTriggersAndInquiries.result()
       }
