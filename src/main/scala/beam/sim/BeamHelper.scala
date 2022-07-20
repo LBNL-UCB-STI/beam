@@ -775,7 +775,7 @@ trait BeamHelper extends LazyLogging {
     val peopleForRemovingWorkActivities =
       (people.size * beamConfig.beam.agentsim.fractionOfPlansWithSingleActivity).toInt
 
-    if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
+    if (beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities) {
       people
         .take(peopleForRemovingWorkActivities)
         .flatMap(p => p.getPlans.asScala.toSeq)

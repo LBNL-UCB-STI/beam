@@ -1,6 +1,6 @@
 package scripts.beam_to_matsim.io
 
-import scripts.beam_to_matsim.events.{BeamActivityEnd, BeamActivityStart, BeamModeChoice, BeamPathTraversal}
+import scripts.beam_to_matsim.events._
 import scripts.beam_to_matsim.events_filter.{MutableSamplingFilter, PersonEvents, VehicleTrip}
 import scripts.beam_to_matsim.via_event._
 
@@ -26,7 +26,8 @@ object Reader {
 
     // fix overlapping of path traversal events for vehicle
     def pteOverlappingFix(pteSeqRaw: Seq[BeamPathTraversal]): Unit = {
-      val pteSeq = pteSeqRaw.filter(pte => pte.linkTravelTime.nonEmpty)
+      val rows = pteSeqRaw.collect { case p: PathTraversalWithLinks => p }
+      val pteSeq = rows.filter(pte => pte.linkTravelTime.nonEmpty)
       val maybePteSeqHead = pteSeq.headOption
       maybePteSeqHead match {
         case Some(pteSeqHead) =>
@@ -215,7 +216,11 @@ object Reader {
 
         val transformer = ptEvents.foldLeft(EventsTransformer(eventsCollection))((acc, pte) => {
           val vId = vehicleId(pte)
-          pte.toViaEvents(vId, None).foreach(acc.addPTEEvent)
+          pte match {
+            case p: PathTraversalWithLinks =>
+              p.toViaEvents(vId, None).foreach(acc.addPTEEvent)
+            case _ =>
+          }
 
           val vType = vehicleType(pte)
           vehicleTypeToId.get(vType) match {
