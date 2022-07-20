@@ -1155,7 +1155,7 @@ class PersonAgent(
         val (stateToGo, updatedData) = {
           if (needEnroute) {
             (ReadyToChooseParking, tempData.copy(enrouteData = tempData.enrouteData.copy(isInEnrouteState = true)))
-          } else if (nextLeg.beamLeg.mode == CAR || vehicle.isSharedVehicle) {
+          } else if (nextLeg.beamLeg.mode == CAR || vehicle.beamVehicleType.isSharedVehicle) {
             sendCompletionNoticeAndScheduleStartLegTrigger()
             (ReleasingParkingSpot, tempData)
           } else {
@@ -1391,10 +1391,8 @@ class PersonAgent(
           data.failedTrips.foreach(uncompletedTrip =>
             generateSkimData(tick, uncompletedTrip, failedTrip = true, currentActivityIndex, nextActivity(data))
           )
-          generateSkimData(tick, data.currentTrip.get, failedTrip = false, currentActivityIndex, nextActivity(data))
-
+          val correctedTrip = correctTripEndTime(data.currentTrip.get, tick, body.id, body.beamVehicleType.id)
           resetFuelConsumed()
-
           val activityStartEvent = new ActivityStartEvent(
             tick,
             id,
@@ -1448,7 +1446,7 @@ class PersonAgent(
       }
   }
 
-  private def generateSkimData(
+  def generateSkimData(
     tick: Int,
     trip: EmbodiedBeamTrip,
     failedTrip: Boolean,

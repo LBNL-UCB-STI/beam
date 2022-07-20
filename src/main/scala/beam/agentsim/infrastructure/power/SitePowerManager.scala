@@ -101,7 +101,7 @@ class SitePowerManager(
         requiredLoad,
         beamServices,
         "CNM",
-        geoIdMaybe = Some(station.zone.geoId.toString)
+        geoIdMaybe = Some(station.zone.tazId.toString)
       )
     )
   }

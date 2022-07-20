@@ -1,0 +1,101 @@
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
+    }
+    dependencies {
+        classpath 'com.palantir.docker-run:com.palantir.docker-run.gradle.plugin:0.32.0'
+    }
+}
+
+plugins {
+    id 'com.palantir.docker-run' version '0.32.0'
+}
+
+def imageName = 'jupyter/scipy-notebook:2022-04-02'
+def containerName = 'jupyter-for-beam'
+def port = '8888'
+def token = project.hasProperty("jupyterToken") ? jupyterToken : UUID.randomUUID().toString()
+
+
+static def readMappingFromFile(String filePath, String prefix, String basePath) {
+    File file = new File(filePath)
+    ArrayList<String> errors = []
+    Map<String, String> mapping = [:]
+
+    if (file.exists()) {
+        file.eachLine { String pathToFolderToMap ->
+            if (!pathToFolderToMap.isEmpty()) {
+                def relativePath = new File(basePath, pathToFolderToMap)
+                def absolutePath = new File(pathToFolderToMap)
+
+                if (relativePath.exists() || absolutePath.exists()) {
+                    def nameForJupyter = pathToFolderToMap
+                            .tokenize('/')[-1]
+                            .tokenize('\\')[-1]
+                            .replace('.', '_')
+
+                    mapping.put(pathToFolderToMap, prefix + nameForJupyter)
+                } else {
+                    errors.add("DOES NOT EXIST path '$pathToFolderToMap' from file '$filePath'.")
+                }
+            }
+        }
+    }
+
+    return [mapping, errors]
+}
+
+static def getFoldersToMount() {
+    LinkedHashMap<Object, Object> volume_mapping = [:]
+    volume_mapping.put('jupyter_home', '/home/jovyan')
+
+    def beamRootPath = new File(".").getCanonicalPath()
+    volume_mapping.put(beamRootPath, '/home/jovyan/beam_root')
+    volume_mapping.put('local_files', '/home/jovyan/local_files')
+
+    def (mapping1, errors1) = readMappingFromFile('jupyter/.foldersToMapInJupyter.txt', '/home/jovyan/', 'jupyter/')
+    def (mapping2, errors2) = readMappingFromFile('jupyter/local_files/.foldersToMapInJupyter.txt', '/home/jovyan/', 'jupyter/local_files/')
+
+    return [volume_mapping + mapping1 + mapping2, errors1 + errors2]
+}
+
+def (foldersToMount, mountingErrors) = getFoldersToMount()
+
+dockerRun {
+    name "$containerName"
+    image "$imageName"
+    volumes foldersToMount
+    ports "$port:8888"
+    daemonize true
+    clean true
+    env 'GRANT_SUDO': 'yes', 'JUPYTER_TOKEN': "$token", "CHOWN_HOME": "yes", "CHOWN_HOME_OPTS": '-R'
+    arguments "--group-add=users"
+}
+
+task jupyterStart(dependsOn: ['dockerRun']) {
+    description 'Starts Jupyter container.'
+    group 'Jupyter'
+
+    doLast {
+        println ""
+        println "Following folders will be mounted (path in jupyter <- local path):"
+        foldersToMount.forEach { local_path, jupyter_path -> println "'$jupyter_path' <- '$local_path'" }
+        println ""
+        mountingErrors.forEach { err -> println(err) }
+        println ""
+        println """Jupyter Lab from image '$imageName' started with container name '$containerName'."""
+        println """The token is the following: $token"""
+        println """Lab web interface is here: http://127.0.0.1:$port/lab?token=$token"""
+    }
+}
+
+task jupyterStop(dependsOn: ['dockerStop']) {
+    description 'Stops Jupyter container.'
+    group 'Jupyter'
+
+    doLast {
+        println """Docker container with name '$containerName' stopped."""
+    }
+}

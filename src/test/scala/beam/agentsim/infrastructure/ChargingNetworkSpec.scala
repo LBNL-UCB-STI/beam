@@ -99,7 +99,6 @@ class ChargingNetworkSpec
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
-            Id.create(1, classOf[TAZ]),
             ParkingZone.createId("0"),
             coordCenterOfUTM,
             56.78,
@@ -141,12 +140,11 @@ object ChargingNetworkSpec {
     geo: GeoUtils,
     parkingDescription: Iterator[String],
     boundingBox: Envelope
-  ): ChargingNetwork[TAZ] = {
-    ChargingNetwork[TAZ](
+  ): ChargingNetwork = {
+    ChargingNetwork(
       parkingDescription,
       tazTreeMap.tazQuadTree,
       tazTreeMap.idToTAZMapping,
-      identity[TAZ](_),
       boundingBox,
       beamConfig,
       None,
