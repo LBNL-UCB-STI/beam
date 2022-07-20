@@ -11,7 +11,7 @@ import beam.utils.plan.sampling.AvailableModeUtils
 import beam.utils.scenario.urbansim.HOVModeTransformer
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
-import org.matsim.api.core.v01.population.Population
+import org.matsim.api.core.v01.population.{Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.MutableScenario
@@ -533,15 +533,45 @@ class UrbanSimScenarioLoader(
   }
 
   private[utils] def applyPlans(plans: Iterable[PlanElement]): Unit = {
-    plans.foreach { planInfo =>
+    // holds data related to plan element index and whether it will be inserted in selected plan or not
+    case class State(planIndex: Int, planSelected: Boolean)
+
+    // person and their list of plans
+    // an index of state in map values (vector) will be the same as `person.getPlans` index
+    val store: mutable.Map[PersonId, Vector[State]] = mutable.Map.empty
+
+    // updates person/plans store internally
+    // add new plan to person if not exist or select appropriate plan based on plan index/selected to operate on
+    // set selected plan if not already
+    def getPlan(person: Person, planInfo: PlanElement): Plan = {
+      val currentPlanSize = person.getPlans.size()
+      val (plan, state) = if (currentPlanSize == 0) {
+        val newState = State(planInfo.planIndex, planInfo.planSelected)
+        val plan = PopulationUtils.createPlan(person)
+        store += (planInfo.personId -> Vector(newState))
+        person.addPlan(plan)
+        plan -> newState
+      } else {
+        val lookingFor = State(planInfo.planIndex, planInfo.planSelected)
+        val states = store(planInfo.personId)
+        val index = states.zipWithIndex.find(_._1 == lookingFor).map(_._2).getOrElse {
+          // couldn't find in store, create new plan
+          person.addPlan(PopulationUtils.createPlan(person))
+          store += (planInfo.personId -> (states :+ lookingFor))
+          currentPlanSize
+        }
+        person.getPlans.get(index) -> lookingFor
+      }
+      if (person.getSelectedPlan == null && state.planSelected) {
+        person.setSelectedPlan(plan)
+      }
+      plan
+    }
+
+    plans.foreach { planInfo: PlanElement =>
       val person = population.getPersons.get(Id.createPersonId(planInfo.personId.id))
       if (person != null) {
-        var plan = person.getSelectedPlan
-        if (plan == null) {
-          plan = PopulationUtils.createPlan(person)
-          person.addPlan(plan)
-          person.setSelectedPlan(plan)
-        }
+        val plan = getPlan(person, planInfo)
         val planElement = planInfo.planElementType
         val tripId = Option(planInfo.tripId).getOrElse("")
         if (planElement == PlanElement.Leg) {
