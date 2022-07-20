@@ -211,6 +211,7 @@ trait ScaleUpCharging extends {
                   searchMode = ParkingSearchMode.DestinationCharging,
                   triggerId = triggerId
                 )
+                log.info(s"Creating parking inquiry with request id ${parkingInquiry.requestId} as $parkingInquiry")
                 val trigger = ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry.requestId), self)
                 cumulatedSimulatedDuration += duration
                 partialTriggersAndInquiries += ((trigger, parkingInquiry))
