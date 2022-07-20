@@ -71,26 +71,21 @@ trait ScaleUpCharging extends {
 
   override def loggedReceive: Receive = {
     case t @ TriggerWithId(PlanParkingInquiryTrigger(_, requestId), triggerId) =>
-      log.info(s"Received parking response: $t")
+      log.debug(s"Received parking response: $t")
       virtualParkingInquiries.get(requestId) match {
         case Some(inquiry) => self ! inquiry
-        case _ =>
-          log.error(
-            s"Something is broken in ScaleUpCharging. Request $requestId is not present in virtualParkingInquiries"
-          )
+        case _             => log.error(s"Something is broken in ScaleUpCharging. Request $requestId has not been found")
       }
       sender ! CompletionNotice(triggerId)
     case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, requestId), triggerId) =>
-      log.info(s"Received parking response: $t")
+      log.debug(s"Received parking response: $t")
       self ! ChargingUnplugRequest(tick, beamVehicle, triggerId)
       virtualParkingInquiries.remove(requestId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
-      log.info(s"Received parking response: $response")
+      log.debug(s"Received parking response: $response")
       virtualParkingInquiries.get(requestId) match {
         case Some(parkingInquiry) if stall.chargingPointType.isDefined =>
-          log.info(
-            s"parking inquiry with requestId $requestId returned a stall with charging point. Scheduling ChargingPlugRequest."
-          )
+          log.debug(s"parking inquiry with requestId $requestId returned a stall with charging point.")
           val beamVehicle = parkingInquiry.beamVehicle.get
           self ! ChargingPlugRequest(
             parkingInquiry.destinationUtm.time,
@@ -107,22 +102,22 @@ trait ScaleUpCharging extends {
             self
           )
         case Some(_) if stall.chargingPointType.isEmpty =>
-          log.info(s"parking inquiry with requestId $requestId returned a NoCharger stall")
+          log.debug(s"parking inquiry with requestId $requestId returned a NoCharger stall")
         case _ =>
           log.warning(s"inquiryMap does not have this requestId $requestId that returned stall $stall")
       }
     case reply @ StartingRefuelSession(_, _) =>
-      log.info(s"Received parking response: $reply")
+      log.debug(s"Received parking response: $reply")
     case reply @ EndingRefuelSession(_, _, triggerId) =>
-      log.info(s"Received parking response: $reply")
+      log.debug(s"Received parking response: $reply")
       getScheduler ! CompletionNotice(triggerId)
     case reply @ WaitingToCharge(_, _, _) =>
-      log.info(s"Received parking response: $reply")
+      log.debug(s"Received parking response: $reply")
     case reply @ UnhandledVehicle(_, _, triggerId) =>
-      log.info(s"Received parking response: $reply")
+      log.debug(s"Received parking response: $reply")
       getScheduler ! CompletionNotice(triggerId)
     case reply @ UnpluggingVehicle(_, _, triggerId) =>
-      log.info(s"Received parking response: $reply")
+      log.debug(s"Received parking response: $reply")
       getScheduler ! CompletionNotice(triggerId)
   }
 
@@ -211,14 +206,14 @@ trait ScaleUpCharging extends {
                   searchMode = ParkingSearchMode.DestinationCharging,
                   triggerId = triggerId
                 )
-                log.info(s"Creating parking inquiry with request id ${parkingInquiry.requestId} as $parkingInquiry")
+                log.debug(s"Creating parking inquiry with request id ${parkingInquiry.requestId} as $parkingInquiry")
                 val trigger = ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry.requestId), self)
                 cumulatedSimulatedDuration += duration
                 partialTriggersAndInquiries += ((trigger, parkingInquiry))
               }
             }
           case _ =>
-            log.info("The observed load is null. Most likely due to vehicles not needing to charge!")
+            log.debug("The observed load is null. Most likely due to vehicles not needing to charge!")
         }
         partialTriggersAndInquiries.result()
       }
