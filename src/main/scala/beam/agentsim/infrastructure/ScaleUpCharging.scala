@@ -244,7 +244,10 @@ trait ScaleUpCharging extends {
         vehicleRequests.put(
           key,
           vehicleRequests.getOrElse(key, List.empty) :+ VehicleRequestInfo(
-            chargingVehicle.estimatedParkingDuration,
+            Math.max(
+              chargingVehicle.estimatedParkingDuration,
+              beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds.toInt
+            ),
             Math.max(vehicle.primaryFuelLevelInJoules, 0.0) / vehicle.beamVehicleType.primaryFuelCapacityInJoule,
             chargingVehicle.activityType,
             vehicle.beamVehicleType,
