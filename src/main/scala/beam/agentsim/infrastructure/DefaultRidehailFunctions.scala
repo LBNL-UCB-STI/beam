@@ -238,16 +238,16 @@ object DefaultRidehailFunctions {
   ): Map[ParkingMNL.Parameters, UtilityFunctionOperation] = {
     Map(
       ParkingMNL.Parameters.DrivingTimeCost -> UtilityFunctionOperation.Multiplier(
-        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.drivingTimeMultiplier
+        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.drivingTimeMultiplier
       ),
       ParkingMNL.Parameters.QueueingTimeCost -> UtilityFunctionOperation.Multiplier(
-        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.queueingTimeMultiplier
+        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.queueingTimeMultiplier
       ),
       ParkingMNL.Parameters.ChargingTimeCost -> UtilityFunctionOperation.Multiplier(
-        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.chargingTimeMultiplier
+        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.chargingTimeMultiplier
       ),
       ParkingMNL.Parameters.InsufficientRangeCost -> UtilityFunctionOperation.Multiplier(
-        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.insufficientRangeMultiplier
+        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.insufficientRangeMultiplier
       )
     )
   }
