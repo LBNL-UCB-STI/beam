@@ -129,14 +129,18 @@ class ChargingFunctions(
 //    if (zone.chargingPointType.isEmpty)
 //      throw new RuntimeException("ChargingFunctions expect only stalls with charging points")
 //    val isEV: Boolean = inquiry.beamVehicle.forall(_.isEV)
+    val needToBeChargerIfVirtualEV: Boolean = inquiry.beamVehicle match {
+      case Some(vehicle) if vehicle.id.toString.startsWith(ScaleUpCharging.VIRTUAL_ALIAS) =>
+        zone.chargingPointType.isDefined
+      case _ => true
+    }
     val rideHailFastChargingOnly: Boolean = ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone, inquiry)
     val enrouteFastChargingOnly: Boolean = ifEnrouteThenFastChargingOnly(zone, inquiry)
     val overnightStaySlowChargingOnly: Boolean = ifHomeOrWorkOrOvernightThenSlowChargingOnly(zone, inquiry)
     val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry.beamVehicle)
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
-    /*isEV && */
-    rideHailFastChargingOnly && validChargingCapability && canCarParkHere && enrouteFastChargingOnly && overnightStaySlowChargingOnly
+    rideHailFastChargingOnly && validChargingCapability && canCarParkHere && enrouteFastChargingOnly && overnightStaySlowChargingOnly && needToBeChargerIfVirtualEV
   }
 
   /**

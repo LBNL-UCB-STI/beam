@@ -38,6 +38,7 @@ class ChargingNetworkManager(
   beamServices: BeamServices,
   chargingNetwork: ChargingNetwork,
   rideHailNetwork: ChargingNetwork,
+  parkingNetworkManager: ActorRef,
   scheduler: ActorRef
 ) extends LoggingMessageActor
     with ActorLogging
@@ -94,11 +95,12 @@ class ChargingNetworkManager(
 
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
-      chargingNetworkHelper.get(inquiry.reservedFor.managerId).processParkingInquiry(inquiry) foreach {
+      chargingNetworkHelper.get(inquiry.reservedFor.managerId).processParkingInquiry(inquiry, true) foreach {
         parkingResponse =>
-          if (parkingResponse.stall.chargingPointType.isDefined)
+          if (parkingResponse.stall.chargingPointType.isDefined) {
             inquiry.beamVehicle foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
-          sender() ! parkingResponse
+            sender() ! parkingResponse
+          } else (parkingNetworkManager ? inquiry).pipeTo(sender())
       }
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
@@ -156,7 +158,7 @@ class ChargingNetworkManager(
           None
       }
       vehicleEndedCharging match {
-        case Some(ChargingVehicle(_, _, _, _, _, _, _, _, _, theSender, _, _)) =>
+        case Some(ChargingVehicle(_, _, _, _, _, _, _, _, _, _, theSender, _, _)) =>
           theSender ! EndingRefuelSession(tick, vehicle.id, triggerId)
         case _ =>
           sender ! CompletionNotice(triggerId)
@@ -196,7 +198,6 @@ class ChargingNetworkManager(
           case chargingVehicle =>
             vehicle2InquiryMap.remove(vehicle.id)
             handleStartCharging(tick, chargingVehicle, triggerId = triggerId)
-            collectVehicleRequestInfo(chargingVehicle)
             StartingRefuelSession(tick, triggerId)
         } getOrElse Failure(
           new RuntimeException(
@@ -215,7 +216,7 @@ class ChargingNetworkManager(
       val responseHasTriggerId = vehicle.stall match {
         case Some(stall) =>
           chargingNetworkHelper.get(stall.reservedFor.managerId).disconnectVehicle(vehicle.id, tick) match {
-            case Some(chargingVehicle @ ChargingVehicle(_, _, station, _, _, _, _, _, _, _, listStatus, sessions)) =>
+            case Some(chargingVehicle @ ChargingVehicle(_, _, station, _, _, _, _, _, _, _, _, listStatus, sessions)) =>
               if (sessions.nonEmpty && !listStatus.exists(_.status == GracePeriod)) {
                 // If the vehicle was still charging
                 val unplugTime = currentTimeBin(tick)
@@ -294,9 +295,10 @@ object ChargingNetworkManager extends LazyLogging {
     beamServices: BeamServices,
     chargingNetwork: ChargingNetwork,
     rideHailNetwork: ChargingNetwork,
+    parkingNetworkManager: ActorRef,
     scheduler: ActorRef
   ): Props = {
-    Props(new ChargingNetworkManager(beamServices, chargingNetwork, rideHailNetwork, scheduler))
+    Props(new ChargingNetworkManager(beamServices, chargingNetwork, rideHailNetwork, parkingNetworkManager, scheduler))
   }
 
   case class ChargingNetworkHelper(chargingNetwork: ChargingNetwork, rideHailNetwork: ChargingNetwork) {

@@ -104,11 +104,13 @@ class HouseholdFleetManager(
             searchMode = ParkingSearchMode.Init
           )
           // TODO Overnight charging is still a work in progress and might produce unexpected results
-          val probabilityOfOvernightCharging =
-            rand.nextDouble() <= beamConfig.beam.agentsim.agents.parking.overnightChargingSampleSize
-          if (vehicle.isEV && probabilityOfOvernightCharging)
+          if (vehicle.isEV && beamConfig.beam.agentsim.chargingNetworkManager.overnightChargingEnabled) {
+            logger.info(s"Overnight charging vehicle $vehicle with state of charge ${vehicle.getStateOfCharge}")
             (chargingNetworkManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))
-          else (parkingManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))
+          } else {
+            logger.debug(s"Overnight parking vehicle $vehicle")
+            (parkingManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))
+          }
         }
       }
       val futureOfList = Future.sequence(listOfFutures)

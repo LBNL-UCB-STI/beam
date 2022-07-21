@@ -90,6 +90,7 @@ class ParallelParkingManager(
     */
   override def processParkingInquiry(
     inquiry: ParkingInquiry,
+    doNotReserveStallWithoutChargingPoint: Boolean = false,
     parallelizationCounterOption: Option[SimpleCounter] = None
   ): Option[ParkingInquiryResponse] = {
     parallelizationCounterOption.map(_.count("all"))

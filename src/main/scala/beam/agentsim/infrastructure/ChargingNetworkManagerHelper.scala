@@ -133,6 +133,7 @@ trait ChargingNetworkManagerHelper extends {
     chargingVehicle: ChargingVehicle,
     triggerId: Long
   ): Unit = {
+    collectVehicleRequestInfo(chargingVehicle)
     val nextTick = nextTimeBin(tick)
     val vehicle = chargingVehicle.vehicle
     if (vehicle.stall.isEmpty)
@@ -208,21 +209,22 @@ trait ChargingNetworkManagerHelper extends {
     * @param chargingVehicle vehicle charging information
     */
   def processEndChargingEvents(currentTick: Int, chargingVehicle: ChargingVehicle): Unit = {
-    val (totDuration, totEnergy) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
+    val (totDuration, _) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
     val vehicle = chargingVehicle.vehicle
     val stall = chargingVehicle.stall
+    val addedFuelLevel = vehicle.primaryFuelLevelInJoules - chargingVehicle.arrivalFuelLevel
     log.debug(
       s"Vehicle ${chargingVehicle.vehicle} was disconnected at time {} with {} J delivered during {} sec",
       currentTick,
-      totEnergy,
+      addedFuelLevel,
       totDuration
     )
     // Refuel Session
     val refuelSessionEvent = new RefuelSessionEvent(
       currentTick,
       stall.copy(locationUTM = getBeamServices.geo.utm2Wgs(stall.locationUTM)),
-      totEnergy,
-      vehicle.primaryFuelLevelInJoules - totEnergy,
+      addedFuelLevel,
+      chargingVehicle.arrivalFuelLevel,
       totDuration,
       vehicle.id,
       vehicle.beamVehicleType,

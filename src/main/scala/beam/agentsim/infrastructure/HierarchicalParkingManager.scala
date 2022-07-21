@@ -92,6 +92,7 @@ class HierarchicalParkingManager(
     */
   override def processParkingInquiry(
     inquiry: ParkingInquiry,
+    doNotReserveStallWithoutChargingPoint: Boolean = false,
     parallelizationCounterOption: Option[SimpleCounter] = None
   ): Option[ParkingInquiryResponse] = {
     logger.debug("Received parking inquiry: {}", inquiry)

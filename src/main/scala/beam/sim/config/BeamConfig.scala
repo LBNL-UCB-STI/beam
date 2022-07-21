@@ -721,7 +721,6 @@ object BeamConfig {
           minNumberOfSameTypeZones: scala.Int,
           minSearchRadius: scala.Double,
           multinomialLogit: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
-          overnightChargingSampleSize: scala.Double,
           rangeAnxietyBuffer: scala.Double,
           searchMaxDistanceRelativeToEllipseFoci: scala.Double
         )
@@ -790,8 +789,6 @@ object BeamConfig {
                 if (c.hasPathOrNull("multinomialLogit")) c.getConfig("multinomialLogit")
                 else com.typesafe.config.ConfigFactory.parseString("multinomialLogit{}")
               ),
-              overnightChargingSampleSize =
-                if (c.hasPathOrNull("overnightChargingSampleSize")) c.getDouble("overnightChargingSampleSize") else 0.0,
               rangeAnxietyBuffer =
                 if (c.hasPathOrNull("rangeAnxietyBuffer")) c.getDouble("rangeAnxietyBuffer") else 20000.0,
               searchMaxDistanceRelativeToEllipseFoci =

@@ -44,19 +44,20 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
             |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles-simple.csv"
             |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes-simple.csv"
             |beam.agentsim.taz.parkingFilePath = $filesPath"/taz-parking-ac-only.csv"
-            |beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC = 0.2
+            |beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC = 0
             |beam.agentsim.chargingNetworkManager {
             |  timeStepInSeconds = 300
+            |  overnightChargingEnabled = true
             |  chargingPointCountScalingFactor = 1.0
             |  chargingPointCostScalingFactor = 1.0
             |  chargingPointFilePath =  ""
             |  scaleUp {
             |    enabled = true
-            |    expansionFactor_home_activity = 3.0
-            |    expansionFactor_work_activity = 3.0
-            |    expansionFactor_charge_activity = 3.0
-            |    expansionFactor_wherever_activity = 3.0
-            |    expansionFactor_init_activity = 3.0
+            |    expansionFactor_home_activity = 10.0
+            |    expansionFactor_work_activity = 10.0
+            |    expansionFactor_charge_activity = 10.0
+            |    expansionFactor_wherever_activity = 10.0
+            |    expansionFactor_init_activity = 10.0
             |  }
             |  helics {
             |    connectionEnabled = false
@@ -99,28 +100,40 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
           addEventHandlerBinding().toInstance(new BasicEventHandler {
             override def handleEvent(event: Event): Unit = {
               event match {
-                case ChargingPlugInEvent(tick, _, _, `vehicleId`, fuelLevel, _) =>
+                case e: PathTraversalEvent if e.vehicleId == vehicleId =>
+                  energyConsumed += e.primaryFuelConsumed
+                case ChargingPlugInEvent(tick, _, _, theVehicleId, fuelLevel, _) if theVehicleId == vehicleId =>
                   chargingPlugInEvents += ((tick, fuelLevel))
-                case ChargingPlugOutEvent(tick, _, `vehicleId`, fuelLevel, _) =>
+                case ChargingPlugOutEvent(tick, _, theVehicleId, fuelLevel, _) if theVehicleId == vehicleId =>
                   chargingPlugOutEvents += ((tick, fuelLevel))
-                case RefuelSessionEvent(tick, stall, energyInJoules, _, sessionDuration, `vehicleId`, _, _, _, _) =>
+                case RefuelSessionEvent(
+                      tick,
+                      stall,
+                      energyInJoules,
+                      _,
+                      sessionDuration,
+                      theVehicleId,
+                      _,
+                      _,
+                      _,
+                      _
+                    ) if theVehicleId == vehicleId =>
                   refuelSessionEvents += (
                     (
                       tick,
                       energyInJoules,
                       sessionDuration.toLong,
-                      ChargingPointType.getChargingPointInstalledPowerInKw(
-                        stall.chargingPointType.get
-                      )
+                      ChargingPointType.getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
                     )
                   )
-                  totRealPower += BeamVehicleUtils.toPowerInKW(energyInJoules, sessionDuration.toInt)
-                case e: PathTraversalEvent if e.vehicleId == vehicleId =>
-                  energyConsumed += e.primaryFuelConsumed
-                case e: RefuelSessionEvent if e.vehicleId.toString.startsWith(ScaleUpCharging.SAMPLED_ALIAS) =>
-                  totVirtualPower += BeamVehicleUtils.toPowerInKW(e.energyInJoules, e.sessionDuration.toInt)
-                case e: RefuelSessionEvent =>
-                  totRealPower += BeamVehicleUtils.toPowerInKW(e.energyInJoules, e.sessionDuration.toInt)
+                  val currentPower = BeamVehicleUtils.toPowerInKW(energyInJoules, sessionDuration.toInt)
+                  totRealPower += currentPower
+                case e: RefuelSessionEvent if e.vehicleId.toString.startsWith(ScaleUpCharging.VIRTUAL_ALIAS) =>
+                  val upSampledPower = BeamVehicleUtils.toPowerInKW(e.energyInJoules, e.sessionDuration.toInt)
+                  totVirtualPower += upSampledPower
+                case e: RefuelSessionEvent if e.vehicleId != vehicleId =>
+                  val currentPower = BeamVehicleUtils.toPowerInKW(e.energyInJoules, e.sessionDuration.toInt)
+                  totRealPower += currentPower
                 case _ =>
               }
             }
@@ -177,7 +190,7 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
     // ensure each refuel event is difference of amounts of fuel before and after charging
     refuelSessionEvents.zipWithIndex foreach { case ((_, energyAdded, _, _), id) =>
-      chargingPlugInEvents(id)._2 + energyAdded shouldBe chargingPlugOutEvents(id)._2
+      (chargingPlugInEvents(id)._2 + energyAdded).toInt shouldBe chargingPlugOutEvents(id)._2.toInt
     }
 
     val energyChargedInKWh = refuelSessionEvents.map(_._2).sum / 3.6e+6
@@ -185,20 +198,21 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
     energyChargedInKWh shouldBe (powerPerTime +- 0.01)
 
     // Check that there is a charging event for start of iteration.
-    val fuelSeshsAtTick0 = chargingPlugInEvents.filter(event => event._1 == 0)
-    assume(fuelSeshsAtTick0.nonEmpty)
-    // Looking at every refuel session and deducting charging duration from tick (the end time of charging).
-    // If the simulation started at time t = 0, then there should be at least as many ChargingPLuginEvent as
-    // RefuelSessionEvent at t = 0
-    val refSessionAtTick0 = refuelSessionEvents.filter(event => event._1 - event._3 == 0)
-    assume(fuelSeshsAtTick0.size == refSessionAtTick0.size)
+    val chargingPlugInEventsAtTick0 = chargingPlugInEvents.filter(_._1 == 0)
+    if (chargingPlugInEventsAtTick0.nonEmpty) {
+      // Looking at every refuel session and deducting charging duration from tick (the end time of charging).
+      // If the simulation started at time t = 0, then there should be at least as many ChargingPLuginEvent as
+      // RefuelSessionEvent at t = 0
+      val refSessionAtTick0 = refuelSessionEvents.filter(event => event._1 - event._3 <= 1)
+      assume(chargingPlugInEventsAtTick0.size == refSessionAtTick0.size)
+    }
     // consumed energy should be more or less equal total added energy
     // TODO Hard to test this without ensuring an energy conservation mechanism
     // totalEnergyInJoules shouldBe (energyConsumed +- 1000)
 
     assume(
       totVirtualPower - totRealPower > 0,
-      "There should be at least as much virtual power as real power when scaling up by 2"
+      "There should be at least as much virtual power as real power when scaling up by 10"
     )
   }
 }

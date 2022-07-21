@@ -157,6 +157,7 @@ class SitePowerManagerSpec
           v.stall.get,
           dummyStation,
           0,
+          v.primaryFuelLevelInJoules,
           person,
           60,
           "",

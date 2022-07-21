@@ -589,11 +589,13 @@ object HouseholdActor {
         searchMode = ParkingSearchMode.Init
       )
       // TODO Overnight charging is still a work in progress and might produce unexpected results
-      val probabilityOfOvernightCharging =
-        rand.nextDouble() < beamServices.beamConfig.beam.agentsim.agents.parking.overnightChargingSampleSize
-      if (vehicle.isEV && probabilityOfOvernightCharging)
+      if (vehicle.isEV && beamServices.beamConfig.beam.agentsim.chargingNetworkManager.overnightChargingEnabled) {
+        log.info(s"Overnight charging vehicle $vehicle with state of charge ${vehicle.getStateOfCharge}")
         chargingNetworkManager ? inquiry
-      else parkingManager ? inquiry
+      } else {
+        log.debug(s"Overnight parking vehicle $vehicle")
+        parkingManager ? inquiry
+      }
     }
 
     def dieIfNoChildren(): Unit = {
