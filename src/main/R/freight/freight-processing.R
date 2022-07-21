@@ -228,9 +228,14 @@ screelines_hpms_network_counts
 
 debug <- readCsv(pp(workDir,"/debug.csv"))
 debug[isHGV==T]
+26866
+26864
+screelines_hpms_network_counts[linkId==26864]
 
-screelines_hpms_network_counts[Route_ID=="SHS_580_S"&Begin_Poin==57.428]
-SHS_580_S,57.428,57.505
+debug[links==23850]
+
+
+screelines_hpms_network_counts[Route_ID=="SHS_580_S"]
 
 write.csv(
   screelines_hpms_network_counts,
