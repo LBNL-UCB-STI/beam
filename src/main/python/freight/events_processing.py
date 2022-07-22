@@ -1,9 +1,10 @@
 import pandas as pd
 import os
 
+# city = "austin"
 city = "sfbay"
 scenario = "7days"
-batch = 3
+batch = 4
 iteration = 0
 filename = str(iteration)+'.events.hgv4.csv'
 

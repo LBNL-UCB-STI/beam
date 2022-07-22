@@ -11,11 +11,14 @@ library(sf)
 library(stringr)
 
 city <- "sfbay"
+linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
+#city <- "austin"
+#linkAADTFile <- "/txdot/txdot_austin_inventory.geojson"
 cityCRS <- 26910
 scenario <- "7days"
 iteration <- 0
-batch <- 3
-run <- "hgv1"
+batch <- 4
+run <- "hgv4"
 
 ## PATHS
 activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
@@ -29,12 +32,14 @@ eventsFile <- pp(iteration,".events.",run,".csv")
 linkStatsFile <- pp(iteration,".linkstats.",run,".csv.gz")
 
 ## READING
-sf_hpms <- st_read(pp(validationDir, "/hpms/sf_hpms_inventory_clipped_original.geojson"))
-caltransTruckAADTT <- data.table::fread(
-  normalizePath(pp(validationDir,"/caltrans/2017_truck_aadtt_geocoded.csv")), 
-  header=T, 
-  sep=",")
-screelines <- readCsv(pp(validationDir,"/screenlines.csv"))
+linkAADT <- st_read(pp(validationDir, linkAADTFile))
+# caltransTruckAADTT <- data.table::fread(
+#   normalizePath(pp(validationDir,"/caltrans/2017_truck_aadtt_geocoded.csv")), 
+#   header=T, 
+#   sep=",")
+# screelines <- readCsv(pp(validationDir,"/screenlines.csv"))
+
+#events <- readCsv(pp(runDir, "/",eventsFile))
 
 events_filtered <- readCsv(pp(runDir, "/filtered.",eventsFile))
 linkStats <- readCsv(normalizePath(pp(runDir,"/",linkStatsFile)))
@@ -170,11 +175,11 @@ ggsave(pp(runOutput,'/', pp(iteration,".freight-avg-tour-vmt-by-category.",run,"
 ################ ***************************
 ################ validation HPMS
 ################ ***************************
-sf_hpms$Volume_hpms <- sf_hpms$AADT_Combi+sf_hpms$AADT_Singl
-sf_hpms$VMT_hpms <- (sf_hpms$AADT_Combi+sf_hpms$AADT_Singl) * as.numeric(st_length(sf_hpms))/1609.0
-sf_hpms_dt <- data.table::as.data.table(sf_hpms)
-Volume_hpms <- sum(sf_hpms_dt$Volume_hpms)
-VMT_hpms <- sum(sf_hpms_dt$VMT_hpms)
+linkAADT$Volume_hpms <- linkAADT$AADT_Combi+linkAADT$AADT_Singl
+linkAADT$VMT_hpms <- (linkAADT$AADT_Combi+linkAADT$AADT_Singl) * as.numeric(st_length(linkAADT))/1609.0
+linkAADT_dt <- data.table::as.data.table(linkAADT)
+Volume_hpms <- sum(linkAADT_dt$Volume_hpms)
+VMT_hpms <- sum(linkAADT_dt$VMT_hpms)
 
 linkStats$VMT_HD_beam <- linkStats$HDTruckVolume * linkStats$length/1609.0
 linkStats$VMT_MD_beam <- (linkStats$TruckVolume * linkStats$length/1609.0) - linkStats$VMT_HD_beam 
@@ -210,6 +215,8 @@ write.csv(
   row.names=F,
   quote=T)
 
+
+###
 screelines_hpms <- screelines[sf_hpms_dt, on=c("Route_ID","Begin_Poin","End_Point")][!is.na(linkId)]
 linkStatsAADT <- linkStats[,.(volume=sum(volume),
                               TruckVolume=sum(TruckVolume),
@@ -224,18 +231,6 @@ screelines_hpms_network_counts$VolumeDifference <- screelines_hpms_network_count
 sum(screelines_hpms_network_counts[Volume_hpms==0]$VolumeDifference)
 sum(screelines_hpms_network_counts$VolumeDifference)
 screelines_hpms_network_counts
-
-
-debug <- readCsv(pp(workDir,"/debug.csv"))
-debug[isHGV==T]
-26866
-26864
-screelines_hpms_network_counts[linkId==26864]
-
-debug[links==23850]
-
-
-screelines_hpms_network_counts[Route_ID=="SHS_580_S"]
 
 write.csv(
   screelines_hpms_network_counts,
