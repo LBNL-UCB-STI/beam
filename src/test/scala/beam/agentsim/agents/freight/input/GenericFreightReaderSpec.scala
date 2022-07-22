@@ -39,6 +39,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
     isWgs = false,
     enabled = true,
     name = "Freight",
+    nonHGVLinkWeightMultiplier = 2.0,
     reader = "Generic",
     replanning = new Freight.Replanning(departureTime = 0, disableAfterIteration = -1, strategy = ""),
     generateFixedActivitiesDurations = false

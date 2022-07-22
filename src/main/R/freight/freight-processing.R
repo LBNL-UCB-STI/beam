@@ -10,15 +10,15 @@ library(ggmap)
 library(sf)
 library(stringr)
 
-city <- "sfbay"
-linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
-#city <- "austin"
-#linkAADTFile <- "/txdot/txdot_austin_inventory.geojson"
+#city <- "sfbay"
+#linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
+city <- "austin"
+linkAADTFile <- "/txdot/txdot_austin_inventory.geojson"
 cityCRS <- 26910
 scenario <- "7days"
 iteration <- 0
-batch <- 4
-run <- "hgv4"
+batch <- 2
+run <- "hgv1"
 
 ## PATHS
 activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
@@ -39,7 +39,8 @@ linkAADT <- st_read(pp(validationDir, linkAADTFile))
 #   sep=",")
 # screelines <- readCsv(pp(validationDir,"/screenlines.csv"))
 
-#events <- readCsv(pp(runDir, "/",eventsFile))
+events <- readCsv(pp(runDir, "/",eventsFile))
+events[type=="PathTraversal"&!startsWith(vehicle, "body")&grepl("freight",vehicle),.N,by=.(vehicle)]
 
 events_filtered <- readCsv(pp(runDir, "/filtered.",eventsFile))
 linkStats <- readCsv(normalizePath(pp(runDir,"/",linkStatsFile)))
