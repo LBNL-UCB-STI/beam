@@ -60,13 +60,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     .flatMap { link =>
       Try(link.getAttributes.getAttribute("origid").toString.toLong).toOption.map { osmId =>
         val isLinkHgv = Try(link.getAttributes.getAttribute("hgv").toString.toBoolean).getOrElse(false)
-        //logger.info(s"link-hgv:$osmId,${link.getId},$isLinkHgv")
         osmId -> isLinkHgv
       }
     }
     .groupBy { case (osmId, _) => osmId }
     .map { case (osmId, list) =>
-      val isLinkHgv = list.exists(_._2)
+      val (_, isLinkHgv) = list.head
       osmId -> isLinkHgv
     }
 
