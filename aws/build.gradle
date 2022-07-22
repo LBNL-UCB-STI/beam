@@ -107,6 +107,8 @@ task deploy(type: AWSLambdaInvokeTask) {
   "command": "deploy",
   "run_grafana" : ${ext.getParameterValue('runGrafana') ?: false},
   "run_helics" : ${ext.getParameterValue('runHelics') ?: false},
+  "run_jupyter" : ${ext.getParameterValue('runJupyter') ?: false},
+  "jupyter_token" : "${ext.getParameterValue('jupyterToken') ?: UUID.randomUUID().toString()}",
   "is_spot" : ${ext.getParameterValue('isSpot') ?: false},
   "min_cores": ${ext.getParameterValue('minCores') ?: 0},
   "max_cores": ${ext.getParameterValue('maxCores') ?: 0},
@@ -237,6 +239,26 @@ task terminateEC2(type: AWSLambdaInvokeTask) {
         payload = buildPayload("terminate")
     }
 
+    doLast {
+        printResult(payload, invokeResult)
+    }
+}
+
+task jupyterEC2(type: AWSLambdaInvokeTask) {
+    doFirst {
+        functionName = "start-jupyter-on-instance"
+        invocationType = InvocationType.RequestResponse
+        payload = """
+            {
+              "budget_override": "${project.findProperty('budgetOverride') ?: false}",
+              "instance_type": "${project.findProperty('instanceType') ?: 'r5.xlarge'}",
+              "title": "${project.findProperty('title') ?: 'jupyter-notebook'}",
+              "region": "${project.findProperty('region') ?: defaultRegion}",
+              "storage_size": ${project.findProperty('storageSize') ?: 128},
+              "token": "${project.findProperty("jupyterToken") ?: UUID.randomUUID().toString()}"
+            }
+            """
+    }
     doLast {
         printResult(payload, invokeResult)
     }
