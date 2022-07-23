@@ -15,7 +15,7 @@ object GeneratedPlansToUrbansimPlans {
 //        "epsg:32631"
       )
 
-    val args = if (manual_args.nonEmpty) manual_args else input_args
+    val args = if (manual_args.length > 0) manual_args else input_args
 
     println(s"Current arguments: ${args.mkString(",")}")
     if (args.length < 2) {
