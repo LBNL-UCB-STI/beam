@@ -145,13 +145,20 @@ trait ScaleUpCharging extends {
         val listDur = data.map(_.durationToChargeInSec)
         val totDurationInSec = listDur.sum
         val meanDur: Double = listDur.sum / numObservation.toDouble
-        val varianceDur: Double = listDur.map(d => math.pow(d - meanDur, 2)).sum / numObservation
+        val varianceDur: Double = listDur.map(d => d - meanDur).map(t => t * t).sum / numObservation
         val listSOC = data.map(_.stateOfCharge)
         val meanSOC: Double = listSOC.sum / numObservation.toDouble
-        val varianceSOC: Double = listSOC.map(soc => math.pow(soc - meanSOC, 2)).sum / numObservation
+        val varianceSOC: Double = listSOC.map(soc => soc - meanSOC).map(t => t * t).sum / numObservation
         val listEnergy = data.map(_.energyToChargeInJoule)
         val meanEnergy: Double = listEnergy.sum / listEnergy.size.toDouble
-        val varianceEnergy: Double = listEnergy.map(energy => math.pow(energy - meanEnergy, 2)).sum / numObservation
+        val varianceEnergy: Double = listEnergy.map(energy => energy - meanEnergy).map(t => t * t).sum / numObservation
+        val pmfActivityType =
+          data
+            .groupBy(_.activityType)
+            .map { case (activityType, elems) =>
+              new CPair[String, java.lang.Double](activityType, elems.size.toDouble)
+            }
+            .toVector
         val pmfVehicleTypeInfo = data
           .groupBy(record => (record.vehicleType, record.vehicleAlias, record.reservedFor))
           .map { case ((vehicleType, vehicleAlias, reservedFor), elems) =>
@@ -161,13 +168,6 @@ trait ScaleUpCharging extends {
             )
           }
           .toVector
-        val pmfActivityType =
-          data
-            .groupBy(_.activityType)
-            .map { case (activityType, elems) =>
-              new CPair[String, java.lang.Double](activityType, elems.size.toDouble)
-            }
-            .toVector
         val vehicleInfoSummary = VehicleInfoSummary(
           numObservation = numObservation,
           totPowerInKW = totPowerInKW,
@@ -309,11 +309,7 @@ trait ScaleUpCharging extends {
     * @return
     */
   protected def getPerson(vehicleId: Id[BeamVehicle]): Id[Person] = {
-    val vehicleIdArray = vehicleId.toString.split("-")
-    val personIdString = if (vehicleIdArray.length > 1 && vehicleIdArray(0).startsWith(VIRTUAL_ALIAS)) {
-      vehicleIdArray.drop(1).mkString("-")
-    } else vehicleId.toString
-    Id.create(VIRTUAL_ALIAS + "-" + personIdString, classOf[Person])
+    Id.create(vehicleId.toString, classOf[Person])
   }
 
   /**
@@ -370,9 +366,9 @@ object ScaleUpCharging {
     def getEnergy(rand: Random): Double = logNormalDistribution(meanEnergy, varianceEnergy, rand)
 
     private def logNormalDistribution(mean: Double, variance: Double, rand: Random) /* mean and variance of Y */ = {
-      val phi = Math.sqrt(variance + Math.pow(mean, 2))
-      val mu = Math.log(Math.pow(mean, 2) / phi) /* mean of log(Y)    */
-      val sigma = Math.sqrt(Math.log(Math.pow(phi, 2) / Math.pow(mean, 2))) /* std dev of log(Y) */
+      val phi = Math.sqrt(variance + (mean * mean))
+      val mu = if (mean <= 0) 0.0 else Math.log((mean * mean) / phi) /* mean of log(Y)    */
+      val sigma = if (phi <= 0) 0.0 else Math.sqrt(Math.log((phi * phi) / (mean * mean))) /* std dev of log(Y) */
       val x = MathUtils.roundUniformly(Math.max(mu + (rand.nextGaussian() * sigma), 0.0), rand).toInt
       Math.exp(x)
     }
