@@ -230,7 +230,7 @@ class BeamMobsim @Inject() (
 
   private def fillInSecondaryActivities(households: Households, fillInModes: Boolean = false): Unit = {
     val personsTotal = households.getHouseholds.values.asScala.map(_.getMemberIds.asScala.count(_ => true)).toSeq.sum
-    val progressReportIncrement = Math.max(25 * (personsTotal / 100), 1)
+    val progressReportIncrement = Math.max(25.0 * (personsTotal / 100.0), 1).toInt
     var personsProcessed: Int = 0
     var nextProgressReport: Int = progressReportIncrement
 
