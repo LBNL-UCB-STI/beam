@@ -6,7 +6,7 @@ city = "austin"
 scenario = "7days"
 batch = 2
 iteration = 0
-filename = str(iteration)+'.events.hgv4.csv'
+filename = str(iteration)+'.events.hgv3.csv'
 
 work_directory = '~/Data/FREIGHT/'+city+'/beam/runs/'+scenario+'/'+str(batch)+"/"
 

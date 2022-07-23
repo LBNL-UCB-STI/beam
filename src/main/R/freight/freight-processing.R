@@ -39,8 +39,13 @@ linkAADT <- st_read(pp(validationDir, linkAADTFile))
 #   sep=",")
 # screelines <- readCsv(pp(validationDir,"/screenlines.csv"))
 
+path <- "/Users/haitamlaarabi/Documents/Workspace/beam/beam-data-austin"
+test <- readCsv(pp(path,"/rideHailFleet.csv.gz"))
 events <- readCsv(pp(runDir, "/",eventsFile))
 events[type=="PathTraversal"&!startsWith(vehicle, "body")&grepl("freight",vehicle),.N,by=.(vehicle)]
+unique(events[!startsWith(vehicle, "body")&!startsWith(vehicle, "rideHail")&!grepl(":",vehicle)]$vehicle)
+
+events[type=="PathTraversal"&grepl("freight",vehicle),.N,by=.(vehicle)]
 
 events_filtered <- readCsv(pp(runDir, "/filtered.",eventsFile))
 linkStats <- readCsv(normalizePath(pp(runDir,"/",linkStatsFile)))
