@@ -332,19 +332,19 @@ class GenericFreightReader(
       (Some(taz.tazId), Right(coord))
     } else {
       val loc = new Coord(strX.toDouble, strY.toDouble)
-      val newLoc = networkMaybe
+      val locInUtm = if (config.isWgs) geoUtils.wgs2Utm(loc) else loc
+      val newLocIntUtm = networkMaybe
         .map { network =>
-          val locInUtm = if (config.isWgs) geoUtils.wgs2Utm(loc) else loc
           val newLocIntUtm = NetworkUtils.getNearestLink(network, locInUtm).getCoord
           //val newLoc = if (config.isWgs) geoUtils.utm2Wgs(newLocIntUtm) else newLocIntUtm
           //newLoc
           newLocIntUtm
         }
-        .getOrElse(loc)
-      val coord =
-        if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(newLoc)
-        else Right(loc)
-      (None, coord)
+        .getOrElse(locInUtm)
+      val coordInUtm =
+        if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(newLocIntUtm)
+        else Right(locInUtm)
+      (None, coordInUtm)
     }
   }
 

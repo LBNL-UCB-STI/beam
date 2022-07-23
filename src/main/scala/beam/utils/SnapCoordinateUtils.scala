@@ -52,17 +52,17 @@ object SnapCoordinateUtils extends LazyLogging {
       store.get(coord).flatten
     }
 
-    def computeResult(planCoordInUtm: Coord): SnapCoordinateResult = {
-      val coord = geo.utm2Wgs(planCoordInUtm)
-      if (streetLayer.envelope.contains(coord.getX, coord.getY)) {
+    def computeResult(utmCoord: Coord): SnapCoordinateResult = {
+      val wgsCoord = geo.utm2Wgs(utmCoord)
+      if (streetLayer.envelope.contains(wgsCoord.getX, wgsCoord.getY)) {
         val snapCoordOpt = store.getOrElseUpdate(
-          coord,
-          Option(geo.getR5Split(streetLayer, coord, maxRadius)).map { split =>
+          utmCoord,
+          Option(geo.getR5Split(streetLayer, wgsCoord, maxRadius)).map { split =>
             val updatedPlanCoord = geo.splitToCoord(split)
             geo.wgs2Utm(updatedPlanCoord)
           }
         )
-        snapCoordOpt.fold[SnapCoordinateResult](Left(Error.R5SplitNullError))(coord => Right(coord))
+        snapCoordOpt.fold[SnapCoordinateResult](Left(Error.R5SplitNullError))(updatedUtmCoord => Right(updatedUtmCoord))
       } else Left(Error.OutOfBoundingBoxError)
     }
   }
