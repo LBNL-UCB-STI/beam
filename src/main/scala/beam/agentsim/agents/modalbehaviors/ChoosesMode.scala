@@ -1499,12 +1499,12 @@ trait ChoosesMode {
       val linkRadiusMeters = beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
       if (origin.getX >= -129 && origin.getX <= -126) {
         log.warning(
-          s"SFBAY-COORD:origin,$origin,${this.id},${this.currentBeamVehicle.id},${data.personData.currentActivityIndex}"
+          s"SFBAY-COORD:origin,$origin,${this.id},${data.currentVehicle.headOption.map(_.toString).getOrElse("NAN")},${data.personData.currentActivityIndex}"
         )
       }
       if (destination.getX >= -129 && destination.getX <= -126) {
         log.warning(
-          s"SFBAY-COORD:destination,$destination,${this.id},${this.currentBeamVehicle.id},${data.personData.currentActivityIndex}"
+          s"SFBAY-COORD:destination,$destination,${this.id},${data.currentVehicle.headOption.map(_.toString).getOrElse("NAN")},${data.personData.currentActivityIndex}"
         )
       }
       _experiencedBeamPlan
