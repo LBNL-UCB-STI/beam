@@ -938,6 +938,11 @@ trait BeamHelper extends LazyLogging {
         households.getFactory
       )
       .foreach { case (carrier, household, plan, personId, vehicleId) =>
+        val firstActivityCoord = plan.getPlanElements.asScala.head match {
+          case a: Activity => a.getCoord
+          case _           => new org.matsim.api.core.v01.Coord(0, 0)
+        }
+        logger.info(s"FREIGHT-POPULATION:${carrier.warehouseLocationUTM.getX},${firstActivityCoord}")
         households.getHouseholdAttributes
           .putAttribute(household.getId.toString, "homecoordx", carrier.warehouseLocationUTM.getX)
         households.getHouseholdAttributes
