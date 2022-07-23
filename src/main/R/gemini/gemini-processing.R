@@ -940,6 +940,9 @@ ev <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.csv.gz"))
 pt <- readCsv(pp(workDir, "/2022-07-05/events/ptmc.0.events.csv.gz"))
 
 ev0 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.5bBase.csv.gz"))
+test <- ev0[,.N,by=.(vehicle)]
+
+
 sum(ev0[type=="RefuelSessionEvent"]$fuel)/sum(ev[type=="RefuelSessionEvent"]$fuel)
 length(unique(ev0[startsWith(vehicle, "VirtualCar-")]$vehicle))
 length(unique(ev0[!startsWith(vehicle, "VirtualCar-")]$vehicle))
