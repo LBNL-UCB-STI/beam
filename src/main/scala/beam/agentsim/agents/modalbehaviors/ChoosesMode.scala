@@ -1486,25 +1486,23 @@ trait ChoosesMode {
         .activities(data.personData.currentActivityIndex + 1)
         .setLinkId(Id.createLinkId(lastOpt.get))
     } else {
-      val origin = beamServices.geo.utm2Wgs(
-        _experiencedBeamPlan
-          .activities(data.personData.currentActivityIndex)
-          .getCoord
-      )
-      val destination = beamServices.geo.utm2Wgs(
-        _experiencedBeamPlan
-          .activities(data.personData.currentActivityIndex + 1)
-          .getCoord
-      )
+      val originUtm = _experiencedBeamPlan
+        .activities(data.personData.currentActivityIndex)
+        .getCoord
+      val destinationUtm = _experiencedBeamPlan
+        .activities(data.personData.currentActivityIndex + 1)
+        .getCoord
+      val origin = beamServices.geo.utm2Wgs(originUtm)
+      val destination = beamServices.geo.utm2Wgs(destinationUtm)
       val linkRadiusMeters = beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
       if (origin.getX >= -129 && origin.getX <= -126) {
         log.warning(
-          s"SFBAY-COORD:origin,$origin,${this.id},${data.currentVehicle.headOption.map(_.toString).getOrElse("NAN")},${data.personData.currentActivityIndex}"
+          s"SFBAY-COORD:origin,$origin,${this.id},${originUtm},${data.personData.currentActivityIndex}"
         )
       }
       if (destination.getX >= -129 && destination.getX <= -126) {
         log.warning(
-          s"SFBAY-COORD:destination,$destination,${this.id},${data.currentVehicle.headOption.map(_.toString).getOrElse("NAN")},${data.personData.currentActivityIndex}"
+          s"SFBAY-COORD:destination,$destination,${this.id},${destinationUtm},${data.personData.currentActivityIndex}"
         )
       }
       _experiencedBeamPlan
