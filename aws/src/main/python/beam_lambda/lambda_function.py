@@ -144,7 +144,7 @@ write_files:
             if [[ -z "${last_completed}" ]]; then
               last_completed=$(tac $log_file | grep -m 1 -Eo '^[0-9]{2}:[0-9]{2}:[0-9]{2}')
             fi
-            beam_status=$(python3 -c "import datetime as dt; diff = dt.datetime.now() - dt.datetime.combine(dt.datetime.today(), dt.time.fromisoformat('$last_completed')); x = 'OK' if dt.timedelta(0) <= diff and diff < dt.timedelta(hours=3) else 'Bad'; print(x)")
+            beam_status=$(python3 -c "import datetime as dt; diff = dt.datetime.now() - dt.datetime.combine(dt.datetime.today(), dt.time.fromisoformat('$last_completed')); diff = diff + dt.timedelta(days = 1) if diff < dt.timedelta(0) else diff; x = 'OK' if diff < dt.timedelta(hours=3) else 'Bad'; print(x)")
             pid=$(pgrep -f RunBeam)
             if [ "$beam_status" == 'Bad' ] && [ "$pid" != "" ]; then
               jstack $pid | gzip > "$out_dir/kill_thread_dump.txt.gz"
@@ -248,6 +248,12 @@ runcmd:
   - crontab /tmp/cron_jobs
   - crontab -l
   - echo "notification scheduled..."
+  
+  - if [ "$RUN_JUPYTER" = "True" ]
+  - then
+  -   echo "Starting Jupyter"
+  -   sudo ./gradlew jupyterStart -Puser=root -PjupyterToken=$JUPYTER_TOKEN
+  - fi
 
   - 'echo "gradlew assemble: $(date)"'
   - ./gradlew assemble
@@ -756,6 +762,9 @@ def deploy_handler(event, context):
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
     run_grafana = event.get('run_grafana', False)
     run_helics = event.get('run_helics', False)
+    run_jupyter = event.get('run_jupyter', False)
+    jupyter_token = event.get('jupyter_token', '')
+
     profiler_type = event.get('profiler_type', 'null')
     budget_override = event.get('budget_override', False)
 
@@ -848,7 +857,9 @@ def deploy_handler(event, context):
                 .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
                 .replace('$SLACK_TOKEN', os.environ['SLACK_TOKEN']) \
                 .replace('$SLACK_CHANNEL', os.environ['SLACK_CHANNEL']) \
-                .replace('$SHEET_ID', os.environ['SHEET_ID'])
+                .replace('$SHEET_ID', os.environ['SHEET_ID']) \
+                .replace('$RUN_JUPYTER', str(run_jupyter)) \
+                .replace('$JUPYTER_TOKEN', jupyter_token)
             if is_spot:
                 min_cores = event.get('min_cores', 0)
                 max_cores = event.get('max_cores', 0)
@@ -865,6 +876,9 @@ def deploy_handler(event, context):
 
             if run_helics:
                 txt += ' Helics scripts with recorder will be run in parallel with BEAM.'
+
+            if run_jupyter:
+                txt += ' Jupyter will be run in parallel with BEAM. Url: http://{dns}:8888/?token={token}'.format(dns=host, token=jupyter_token)
 
             runNum += 1
     else:
