@@ -58,7 +58,7 @@ class GenericFreightReader(
         val departureLocationX = row.get("departureLocationX")
         val departureLocationY = row.get("departureLocationY")
 
-        extractCoordOrTaz(
+        extractCoordInUtmOrTaz(
           departureLocationX,
           departureLocationY,
           row.get("departureLocationZone"),
@@ -124,7 +124,12 @@ class GenericFreightReader(
         val locationX = row.get("locationX")
         val locationY = row.get("locationY")
 
-        extractCoordOrTaz(locationX, locationY, row.get("locationZone"), snapLocationAndRemoveInvalidInputs) match {
+        extractCoordInUtmOrTaz(
+          locationX,
+          locationY,
+          row.get("locationZone"),
+          snapLocationAndRemoveInvalidInputs
+        ) match {
           case (locationZoneMaybe, Right(coord)) =>
             Some(
               PayloadPlan(
@@ -268,7 +273,7 @@ class GenericFreightReader(
         val warehouseX = row.get("warehouseX")
         val warehouseY = row.get("warehouseY")
 
-        extractCoordOrTaz(
+        extractCoordInUtmOrTaz(
           row.get("warehouseX"),
           row.get("warehouseY"),
           row.get("warehouseZone"),
@@ -313,7 +318,7 @@ class GenericFreightReader(
     case None      => throw new IllegalArgumentException(s"Cannot find taz with id $tazId")
   }
 
-  private def extractCoordOrTaz(
+  private def extractCoordInUtmOrTaz(
     strX: String,
     strY: String,
     strZone: String,
@@ -331,12 +336,13 @@ class GenericFreightReader(
         .map { network =>
           val locInUtm = if (config.isWgs) geoUtils.wgs2Utm(loc) else loc
           val newLocIntUtm = NetworkUtils.getNearestLink(network, locInUtm).getCoord
-          val newLoc = if (config.isWgs) geoUtils.utm2Wgs(newLocIntUtm) else newLocIntUtm
-          newLoc
+          //val newLoc = if (config.isWgs) geoUtils.utm2Wgs(newLocIntUtm) else newLocIntUtm
+          //newLoc
+          newLocIntUtm
         }
         .getOrElse(loc)
       val coord =
-        if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(newLoc, config.isWgs)
+        if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(newLoc)
         else Right(loc)
       (None, coord)
     }

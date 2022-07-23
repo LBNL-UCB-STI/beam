@@ -52,8 +52,8 @@ object SnapCoordinateUtils extends LazyLogging {
       store.get(coord).flatten
     }
 
-    def computeResult(planCoord: Coord, isWgs: Boolean = false): SnapCoordinateResult = {
-      val coord = if (isWgs) planCoord else geo.utm2Wgs(planCoord)
+    def computeResult(planCoordInUtm: Coord): SnapCoordinateResult = {
+      val coord = geo.utm2Wgs(planCoordInUtm)
       if (streetLayer.envelope.contains(coord.getX, coord.getY)) {
         val snapCoordOpt = store.getOrElseUpdate(
           coord,
