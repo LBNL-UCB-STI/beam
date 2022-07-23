@@ -333,14 +333,7 @@ class GenericFreightReader(
     } else {
       val loc = new Coord(strX.toDouble, strY.toDouble)
       val locInUtm = if (config.isWgs) geoUtils.wgs2Utm(loc) else loc
-      val newLocIntUtm = networkMaybe
-        .map { network =>
-          val newLocIntUtm = NetworkUtils.getNearestLink(network, locInUtm).getCoord
-          //val newLoc = if (config.isWgs) geoUtils.utm2Wgs(newLocIntUtm) else newLocIntUtm
-          //newLoc
-          newLocIntUtm
-        }
-        .getOrElse(locInUtm)
+      val newLocIntUtm = networkMaybe.map(NetworkUtils.getNearestLink(_, locInUtm).getCoord).getOrElse(locInUtm)
       val coordInUtm =
         if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(newLocIntUtm)
         else Right(locInUtm)

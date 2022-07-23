@@ -10,14 +10,16 @@ library(ggmap)
 library(sf)
 library(stringr)
 
-#city <- "sfbay"
-#linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
-city <- "austin"
-linkAADTFile <- "/txdot/txdot_austin_inventory.geojson"
+city <- "sfbay"
+linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
+batch <- 5
+#city <- "austin"
+#linkAADTFile <- "/txdot/txdot_austin_inventory.geojson"
+#batch <- 2
 cityCRS <- 26910
 scenario <- "7days"
 iteration <- 0
-batch <- 2
+
 run <- "hgv1"
 
 ## PATHS
@@ -39,13 +41,11 @@ linkAADT <- st_read(pp(validationDir, linkAADTFile))
 #   sep=",")
 # screelines <- readCsv(pp(validationDir,"/screenlines.csv"))
 
-path <- "/Users/haitamlaarabi/Documents/Workspace/beam/beam-data-austin"
-test <- readCsv(pp(path,"/rideHailFleet.csv.gz"))
-events <- readCsv(pp(runDir, "/",eventsFile))
-events[type=="PathTraversal"&!startsWith(vehicle, "body")&grepl("freight",vehicle),.N,by=.(vehicle)]
-unique(events[!startsWith(vehicle, "body")&!startsWith(vehicle, "rideHail")&!grepl(":",vehicle)]$vehicle)
+#events <- readCsv(pp(runDir, "/",eventsFile))
+#events[type=="PathTraversal"&!startsWith(vehicle, "body")&grepl("freight",vehicle),.N,by=.(vehicle)]
+#unique(events[!startsWith(vehicle, "body")&!startsWith(vehicle, "rideHail")&!grepl(":",vehicle)]$vehicle)
 
-events[type=="PathTraversal"&grepl("freight",vehicle),.N,by=.(vehicle)]
+#events[type=="PathTraversal"&grepl("freight",vehicle),.N,by=.(vehicle)]
 
 events_filtered <- readCsv(pp(runDir, "/filtered.",eventsFile))
 linkStats <- readCsv(normalizePath(pp(runDir,"/",linkStatsFile)))
