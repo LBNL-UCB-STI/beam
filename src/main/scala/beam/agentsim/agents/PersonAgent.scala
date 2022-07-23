@@ -331,11 +331,7 @@ class PersonAgent(
     bodyType,
     vehicleManagerId = new AtomicReference(VehicleManager.NoManager.managerId)
   )
-  if (body.id.toString.contains("-freight-carrier-")) {
-    println(s"got you: ${body.id}")
-  } else if (body.id.toString.contains("freight")) {
-    println(s"as expected: ${body.id}")
-  }
+
   body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))
 
