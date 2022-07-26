@@ -176,10 +176,9 @@ object ChoosesParking {
         parkingManager ! ReleaseParkingStall(stall, triggerId)
         currentBeamVehicle.unsetParkingStall()
         Some(stall)
-      case None if currentBeamVehicle.lastUsedStall.nonEmpty =>
+      case None =>
         // This can now happen if a vehicle was charging and released the stall already
         currentBeamVehicle.lastUsedStall
-      case _ => None
     }
 
     maybeStallForLeavingParkingEvent match {
