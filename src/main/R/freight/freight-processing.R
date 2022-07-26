@@ -10,17 +10,28 @@ library(ggmap)
 library(sf)
 library(stringr)
 
-city <- "sfbay"
-linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
-batch <- 5
-#city <- "austin"
-#linkAADTFile <- "/txdot/txdot_austin_inventory.geojson"
-#batch <- 2
+getHPMSAADT <- function(linkAADT) {
+  linkAADT$Volume_hpms <- linkAADT$AADT_Combi+linkAADT$AADT_Singl
+  linkAADT$VMT_hpms <- linkAADT$Volume_hpms * as.numeric(st_length(linkAADT))/1609.0
+  return(data.table::as.data.table(linkAADT))
+}
+getTDoxAADT <- function(linkAADT) {
+  linkAADT$Volume_hpms <- linkAADT$AADT_TRUCK
+  linkAADT$VMT_hpms <- linkAADT$Volume_hpms * as.numeric(st_length(linkAADT))/1609.0
+  return(data.table::as.data.table(linkAADT))
+}
+
+#city <- "sfbay"
+#linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
+#batch <- 5
+city <- "austin"
+linkAADTFile <- "/txdot/txdot_austin_inventory.geojson"
+batch <- 1
 cityCRS <- 26910
-scenario <- "7days"
+scenario <- "5days"
 iteration <- 0
 
-run <- "hgv1"
+run <- ""
 
 ## PATHS
 activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
@@ -30,8 +41,8 @@ runDir <- pp(workDir,"/beam/runs/",scenario,"/",batch)
 runOutput <- pp(runDir,"/output")
 dir.create(runOutput, showWarnings = FALSE)
 freightDir <- pp(workDir,"/beam_freight/",scenario)
-eventsFile <- pp(iteration,".events.",run,".csv")
-linkStatsFile <- pp(iteration,".linkstats.",run,".csv.gz")
+eventsFile <- pp(iteration,".events",run,".csv")
+linkStatsFile <- pp(iteration,".linkstats",run,".csv.gz")
 
 ## READING
 linkAADT <- st_read(pp(validationDir, linkAADTFile))
@@ -149,7 +160,7 @@ p <- to_plot[,time24:=arrivalTime%%(24*3600),][,.N,by=.(timeBin=as.POSIXct(cut(t
   theme(legend.title = element_text(size = 10),
         legend.text = element_text(size = 10),
         axis.text.x = element_text(angle = 0, hjust = 1))
-ggsave(pp(runOutput,'/', pp(iteration,".freight-activity-by-category.",run,".png")),p,width=6,height=3,units='in')
+ggsave(pp(runOutput,'/', pp(iteration,".freight-activity-by-category",run,".png")),p,width=6,height=3,units='in')
 
 ## FREIGHT AVG TRIP VMT BY TRUCK CATEGORY
 to_plot <- rbind(ldt_pt,hdt_pt)[,.(VMT=mean(length)/1609.3),by=.(category)]
@@ -162,7 +173,7 @@ p <- ggplot(to_plot, aes(x=category,y=VMT,fill=category))+
         axis.text.x = element_blank(),
         legend.title = element_text(size = 9),
         legend.text = element_text(size = 9))  + theme(legend.position = "none")
-ggsave(pp(runOutput,'/', pp(iteration,".freight-avg-trip-vmt-by-category.",run,".png")),p,width=3,height=2,units='in')
+ggsave(pp(runOutput,'/', pp(iteration,".freight-avg-trip-vmt-by-category",run,".png")),p,width=3,height=2,units='in')
 
 ## FREIGHT TOUR TRIP VMT BY TRUCK CATEGORY
 to_plot <- rbind(ldt_pt,hdt_pt)[,.(tourVMT=sum(length)/1609.3),by=.(vehicle,category)][,.(avgTourVMT=mean(tourVMT)),by=.(category)]
@@ -175,26 +186,27 @@ p <- ggplot(to_plot, aes(x=category,y=avgTourVMT,fill=category))+
         axis.text.x = element_blank(),
         legend.title = element_text(size = 9),
         legend.text = element_text(size = 9))
-ggsave(pp(runOutput,'/', pp(iteration,".freight-avg-tour-vmt-by-category.",run,".png")),p,width=4,height=3,units='in')
+ggsave(pp(runOutput,'/', pp(iteration,".freight-avg-tour-vmt-by-category",run,".png")),p,width=4,height=3,units='in')
 
 
 ################ ***************************
 ################ validation HPMS
 ################ ***************************
-linkAADT$Volume_hpms <- linkAADT$AADT_Combi+linkAADT$AADT_Singl
-linkAADT$VMT_hpms <- (linkAADT$AADT_Combi+linkAADT$AADT_Singl) * as.numeric(st_length(linkAADT))/1609.0
-linkAADT_dt <- data.table::as.data.table(linkAADT)
+# linkAADT_dt <- getHPMSAADT(linkAADT)
+linkAADT_dt <- getTDoxAADT(linkAADT)
 Volume_hpms <- sum(linkAADT_dt$Volume_hpms)
 VMT_hpms <- sum(linkAADT_dt$VMT_hpms)
 
-linkStats$VMT_HD_beam <- linkStats$HDTruckVolume * linkStats$length/1609.0
-linkStats$VMT_MD_beam <- (linkStats$TruckVolume * linkStats$length/1609.0) - linkStats$VMT_HD_beam 
 
+##
 Volume_HD_beam <- sum(linkStats$HDTruckVolume)
 Volume_MD_beam <- sum(linkStats$TruckVolume) - Volume_HD_beam
+Volume_beam <- Volume_HD_beam + Volume_MD_beam
+
+linkStats$VMT_HD_beam <- linkStats$HDTruckVolume * linkStats$length/1609.0
+linkStats$VMT_MD_beam <- (linkStats$TruckVolume * linkStats$length/1609.0) - linkStats$VMT_HD_beam 
 VMT_HD_beam <- sum(linkStats$VMT_HD_beam)
 VMT_MD_beam <- sum(linkStats$VMT_MD_beam)
-Volume_beam <- Volume_HD_beam + Volume_MD_beam
 VMT_beam <- VMT_HD_beam + VMT_MD_beam
 
 freight1 <- freight_pt[,.(avgTripVMT=mean(length)/1609.0),by=.(vehicleType)]
@@ -217,7 +229,7 @@ freightSummary[is.na(vehicleType)]$numVehicles <- sum(freightSummary$numVehicles
 freightSummary
 write.csv(
   freightSummary,
-  file = pp(runOutput, "/", pp(iteration,".summary-per-vehicle-type.",run,".csv")),
+  file = pp(runOutput, "/", pp(iteration,".summary-per-vehicle-type",run,".csv")),
   row.names=F,
   quote=T)
 
@@ -240,7 +252,7 @@ screelines_hpms_network_counts
 
 write.csv(
   screelines_hpms_network_counts,
-  file = pp(runOutput, "/", pp(iteration,".screelines_hpms_network_counts.",run,".csv")),
+  file = pp(runOutput, "/", pp(iteration,".screelines_hpms_network_counts",run,".csv")),
   row.names=F,
   quote=T)
 

@@ -1,12 +1,12 @@
 import pandas as pd
 import os
 
-# city = "austin"
-city = "sfbay"
-scenario = "7days"
-batch = 5
+city = "austin"
+#vcity = "sfbay"
+scenario = "5days"
+batch = 1
 iteration = 0
-filename = str(iteration)+'.events.hgv1.csv'
+filename = str(iteration)+'.events.csv'
 
 work_directory = '~/Data/FREIGHT/'+city+'/beam/runs/'+scenario+'/'+str(batch)+"/"
 
