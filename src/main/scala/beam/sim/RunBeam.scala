@@ -30,16 +30,14 @@ object RunBeam extends BeamHelper {
       runBeamUsing(args, None)
     } catch {
       case e: Exception =>
-        {
-          val threadDumpFileName = "thread_dump_from_RunBeam.txt.gz"
-          logger.error(s"Exception occurred: {}", e.getMessage)
-          FileUtils.writeToFile(threadDumpFileName, DebugLib.currentThreadsDump().asScala.iterator)
-          logger.info("Thread dump has been saved to the file {}", threadDumpFileName)
-          System.exit(2)
-        }
-        logger.info("Exiting BEAM")
-        System.exit(0)
+        val threadDumpFileName = "thread_dump_from_RunBeam.txt.gz"
+        logger.error(s"Exception occurred: {}", e.getMessage)
+        FileUtils.writeToFile(threadDumpFileName, DebugLib.currentThreadsDump().asScala.iterator)
+        logger.info("Thread dump has been saved to the file {}", threadDumpFileName)
+        System.exit(2)
     }
+    logger.info("Exiting BEAM")
+    System.exit(0)
   }
 
   def configureDefaultAPI: AbstractModule = {
