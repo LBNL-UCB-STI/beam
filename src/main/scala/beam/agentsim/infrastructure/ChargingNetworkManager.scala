@@ -144,13 +144,13 @@ class ChargingNetworkManager(
           None
       }
       vehicleEndedCharging match {
-        case Some(ChargingVehicle(_, _, _, _, _, _, _, _, theSender, _, _)) =>
+        case Some(ChargingVehicle(_, _, _, _, _, _, _, _, _, theSender, _, _)) =>
           theSender ! EndingRefuelSession(tick, vehicle.id, triggerId)
         case _ =>
           sender ! CompletionNotice(triggerId)
       }
 
-    case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, _, _) =>
+    case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, shiftStatus, nextShift, parkingEndTime) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       val responseHasTriggerId = if (vehicle.isEV) {
         // connecting the current vehicle
@@ -194,7 +194,7 @@ class ChargingNetworkManager(
       val responseHasTriggerId = vehicle.stall match {
         case Some(stall) =>
           chargingNetworkHelper.get(stall.reservedFor.managerId).disconnectVehicle(vehicle.id, tick) match {
-            case Some(chargingVehicle @ ChargingVehicle(_, _, station, _, _, _, _, _, _, listStatus, sessions)) =>
+            case Some(chargingVehicle @ ChargingVehicle(_, _, station, _, _, _, _, _, _, _, listStatus, sessions)) =>
               if (sessions.nonEmpty && !listStatus.exists(_.status == GracePeriod)) {
                 // If the vehicle was still charging
                 val unplugTime = currentTimeBin(tick)
@@ -213,7 +213,8 @@ class ChargingNetworkManager(
                     newChargingVehicle.personId,
                     triggerId,
                     newChargingVehicle.shiftStatus,
-                    newChargingVehicle.shiftDuration
+                    newChargingVehicle.shiftDuration,
+                    newChargingVehicle.departureTime
                   )
                 }
               val (_, totEnergy) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
@@ -260,7 +261,8 @@ object ChargingNetworkManager extends LazyLogging {
     personId: Id[Person],
     triggerId: Long,
     shiftStatus: ShiftStatus = NotApplicable,
-    shiftDuration: Option[Int] = None
+    shiftDuration: Option[Int] = None,
+    parkingEndTime: Int
   ) extends HasTriggerId
   case class ChargingUnplugRequest(tick: Int, vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
   case class StartingRefuelSession(tick: Int, triggerId: Long) extends HasTriggerId

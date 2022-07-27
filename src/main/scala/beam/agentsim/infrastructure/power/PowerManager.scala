@@ -8,6 +8,7 @@ import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Try}
 
 class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: BeamConfig) extends LazyLogging {
@@ -20,12 +21,10 @@ class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: Bea
         logger.warn("ChargingNetworkManager should connect to a power grid via Helics...")
         Try {
           logger.info("Init PowerManager Federate...")
+          val fedInfo = createFedInfo(pmcConfig.coreType, pmcConfig.coreInitString, pmcConfig.timeDeltaProperty, pmcConfig.intLogLevel)
           getFederate(
             pmcConfig.federateName,
-            pmcConfig.coreType,
-            pmcConfig.coreInitString,
-            pmcConfig.timeDeltaProperty,
-            pmcConfig.intLogLevel,
+            fedInfo,
             pmcConfig.bufferSize,
             beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds,
             pmcConfig.federatePublication match {
@@ -42,6 +41,11 @@ class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: Bea
               case _ => None
             }
           )
+        }.map { federate =>
+          logger.info("Initialized federate, now it is going to execution mode")
+          enterExecutionMode(1.hour, federate)
+          logger.info("Entered execution mode")
+          federate
         }.recoverWith { case e =>
           logger.warn("Cannot init BeamFederate: {}. ChargingNetworkManager is not connected to the grid", e.getMessage)
           Failure(e)

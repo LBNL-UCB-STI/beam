@@ -28,7 +28,7 @@ import beam.router.skim.event.TransitCrowdingSkimmerEvent
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
-import beam.utils.NetworkHelper
+import beam.utils.{MathUtils, NetworkHelper}
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -399,13 +399,22 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               stall.chargingPointType match {
                 case Some(_) =>
                   log.debug("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
+                  val maybeNextActivity = for {
+                    personData <- findPersonData(data)
+                    nextActivity <- this match {
+                      case agent: PersonAgent => agent.nextActivity(personData)
+                      case _                  => None
+                    }
+                  } yield nextActivity
                   chargingNetworkManager ! ChargingPlugRequest(
                     tick,
                     currentBeamVehicle,
                     stall,
                     Id.createPersonId(id),
                     triggerId,
-                    shiftStatus = NotApplicable
+                    shiftStatus = NotApplicable,
+                    parkingEndTime =
+                      maybeNextActivity.fold(tick + 4 * 3600)(activity => MathUtils.doubleToInt(activity.getStartTime))
                   )
                   waitForConnectionToChargingPoint = true
                 case None => // this should only happen rarely

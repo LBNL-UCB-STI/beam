@@ -2,14 +2,17 @@ package beam.cosim.helics
 
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.scheduler.Trigger
+import beam.utils.FileUtils
 import com.github.beam.HelicsLoader
 import com.java.helics._
 import com.java.helics.helicsJNI._
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
-import spray.json.DefaultJsonProtocol.{listFormat, mapFormat, JsValueFormat, StringJsonFormat}
+import spray.json.DefaultJsonProtocol.{JsValueFormat, StringJsonFormat, listFormat, mapFormat}
 import spray.json.{JsNumber, JsString, JsValue, _}
 
+import scala.concurrent.duration.{Duration, DurationInt}
+import scala.concurrent.{Await, ExecutionContext, ExecutionContextExecutorService, Future, blocking}
 import scala.util.control.NonFatal
 
 object BeamHelicsInterface {
@@ -31,10 +34,7 @@ object BeamHelicsInterface {
     */
   def getFederate(
     fedName: String,
-    coreType: String,
-    coreInitString: String,
-    timeDeltaProperty: Double,
-    intLogLevel: Int,
+    fedInfo: SWIGTYPE_p_void,
     bufferSize: Int,
     simulationStep: Int,
     dataOutStreamPointMaybe: Option[String] = None,
@@ -43,10 +43,7 @@ object BeamHelicsInterface {
     loadHelicsIfNotAlreadyLoaded
     BeamFederate(
       fedName,
-      coreType,
-      coreInitString,
-      timeDeltaProperty,
-      intLogLevel,
+      fedInfo,
       bufferSize,
       simulationStep,
       dataOutStreamPointMaybe,
@@ -141,12 +138,41 @@ object BeamHelicsInterface {
     }
   }
 
-  case class BeamFederate(
-    fedName: String,
+  def createFedInfo(
     coreType: String,
     coreInitString: String,
     timeDeltaProperty: Double,
-    intLogLevel: Int,
+    intLogLevel: Int
+  ): SWIGTYPE_p_void = {
+    loadHelicsIfNotAlreadyLoaded
+    val fedInfo: SWIGTYPE_p_void = helics.helicsCreateFederateInfo()
+    helics.helicsFederateInfoSetCoreTypeFromString(fedInfo, coreType)
+    helics.helicsFederateInfoSetCoreInitString(fedInfo, coreInitString)
+    helics.helicsFederateInfoSetTimeProperty(fedInfo, helics_property_time_delta_get(), timeDeltaProperty)
+    helics.helicsFederateInfoSetIntegerProperty(fedInfo, helics_property_int_log_level_get(), intLogLevel)
+    fedInfo
+  }
+
+  def enterExecutionMode(timeout: Duration, federates: BeamFederate*): Unit = {
+    import java.util.concurrent.TimeUnit
+    import java.util.concurrent.SynchronousQueue
+    import java.util.concurrent.ThreadPoolExecutor
+    FileUtils.using(new ThreadPoolExecutor(0, federates.size, 0, TimeUnit.SECONDS, new SynchronousQueue[Runnable]))(
+      _.shutdown()
+    ) { executorService =>
+      implicit val ec: ExecutionContextExecutorService = ExecutionContext.fromExecutorService(executorService)
+      val futureResuls = federates.map { beamFederate =>
+        Future {
+          blocking(helics.helicsFederateEnterExecutingMode(beamFederate.fedComb))
+        }
+      }
+      Await.result(Future.sequence(futureResuls).map(_ => ()), timeout)
+    }
+  }
+
+  case class BeamFederate(
+    fedName: String,
+    fedInfo: SWIGTYPE_p_void,
     bufferSize: Int,
     simulationStep: Int,
     dataOutStreamPointMaybe: Option[String] = None,
@@ -157,12 +183,6 @@ object BeamHelicsInterface {
     private var currentBin = -1
 
     // **************************
-    val fedInfo: SWIGTYPE_p_void = helics.helicsCreateFederateInfo()
-    helics.helicsFederateInfoSetCoreName(fedInfo, fedName)
-    helics.helicsFederateInfoSetCoreTypeFromString(fedInfo, coreType)
-    helics.helicsFederateInfoSetCoreInitString(fedInfo, coreInitString)
-    helics.helicsFederateInfoSetTimeProperty(fedInfo, helics_property_time_delta_get(), timeDeltaProperty)
-    helics.helicsFederateInfoSetIntegerProperty(fedInfo, helics_property_int_log_level_get(), intLogLevel)
     logger.debug(s"FederateInfo created")
     val fedComb: SWIGTYPE_p_void = helics.helicsCreateCombinationFederate(fedName, fedInfo)
     logger.debug(s"CombinationFederate created")
@@ -172,30 +192,27 @@ object BeamHelicsInterface {
     // ******
     // register new BEAM subscriptions here
     dataInStreamPointMaybe.foreach(registerSubscription)
-    // ******
-    helics.helicsFederateEnterInitializingMode(fedComb)
-    logger.debug(s"Federate initialized and wait for Executing Mode to be granted")
-    helics.helicsFederateEnterExecutingMode(fedComb)
-    logger.debug(s"Federate successfully entered the Executing Mode")
     // **************************
 
     def cosimulate(tick: Int, msgToPublish: Iterable[Map[String, Any]]): List[Map[String, Any]] = {
-      var msgReceived = List.empty[Map[String, Any]]
+      var msgReceived: Option[List[Map[String, Any]]] = None
       if (currentBin < tick / simulationStep) {
         currentBin = tick / simulationStep
-        logger.debug(s"Publishing message to the ${dataOutStreamPointMaybe.getOrElse("NA")} at time $currentBin")
+        logger.debug(s"Publishing message to the ${dataOutStreamPointMaybe.getOrElse("NA")} at time $tick")
         publishJSON(msgToPublish.toList)
         while (msgReceived.isEmpty) {
           // SYNC
-          sync(currentBin)
+          sync(tick)
           // COLLECT
           msgReceived = collectJSON()
-          // Sleep
-          Thread.sleep(1)
+          if (msgReceived.isEmpty) {
+            // Sleep
+            Thread.sleep(1)
+          }
         }
         logger.debug(s"Message received from ${dataInStreamPointMaybe.getOrElse("NA")}: $msgReceived")
       }
-      msgReceived
+      msgReceived.getOrElse(List.empty)
     }
 
     /**
@@ -254,16 +271,17 @@ object BeamHelicsInterface {
       * @param time the requested time
       * @return Message in List of Maps format
       */
-    def collectJSON(): List[Map[String, Any]] = {
+    def collectJSON(): Option[List[Map[String, Any]]] = {
       val message = collectRaw()
       if (message.nonEmpty) {
         logger.debug("Received JSON Data via HELICS")
         try {
-          message.replace("\u0000", "").parseJson.convertTo[List[Map[String, Any]]]
+          val messageList = message.replace("\u0000", "").parseJson.convertTo[List[Map[String, Any]]]
+          Some(messageList)
         } catch {
-          case _: Throwable => List.empty[Map[String, Any]]
+          case _: Throwable => None
         }
-      } else List.empty[Map[String, Any]]
+      } else None
     }
 
     /**
@@ -342,13 +360,11 @@ object BeamHelicsInterface {
     lazy val isConnected: Boolean = helics.helicsBrokerIsConnected(broker) > 0
 
     private val federate: Option[BeamFederate] = if (isConnected) {
+      val fedInfo = createFedInfo(coreType, coreInitString, timeDeltaProperty, intLogLevel)
       Some(
         getFederate(
           fedName,
-          coreType,
-          coreInitString,
-          timeDeltaProperty,
-          intLogLevel,
+          fedInfo,
           bufferSize,
           simulationStep,
           dataOutStreamPointMaybe,
@@ -358,6 +374,8 @@ object BeamHelicsInterface {
     } else {
       None
     }
+
+    federate.foreach(enterExecutionMode(10.seconds, _))
     def getBrokersFederate: Option[BeamFederate] = federate
   }
 }

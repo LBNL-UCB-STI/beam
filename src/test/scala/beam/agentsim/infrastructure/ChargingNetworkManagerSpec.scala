@@ -177,7 +177,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.7e8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, parkingStall, personId, 0)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, parkingStall, personId, 0, parkingEndTime = 20)
       expectMsgType[ScheduleTrigger].trigger shouldBe ChargingTimeOutTrigger(10, beamVilleCar)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
@@ -207,7 +207,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.08e8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, parkingStall, personId, 0)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, parkingStall, personId, 0, parkingEndTime = 20)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.08e8)
@@ -242,7 +242,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.35e8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, parkingStall, personId, 0)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, parkingStall, personId, 0, parkingEndTime = 20)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.35e8)
@@ -277,7 +277,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.35e8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, parkingStall, personId, 0)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, parkingStall, personId, 0, parkingEndTime = 20)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.35e8)
@@ -310,7 +310,7 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(5.4e7)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, parkingStall, personId, 0)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar, parkingStall, personId, 0, parkingEndTime = 20)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(5.4e7)
@@ -342,7 +342,7 @@ class ChargingNetworkManagerSpec
       )
 
       val beamVilleCar = getBeamVilleCar("2", parkingStall, 0.8)
-      chargingNetworkManager ! ChargingPlugRequest(100, beamVilleCar, parkingStall, personId, 0)
+      chargingNetworkManager ! ChargingPlugRequest(100, beamVilleCar, parkingStall, personId, 0, parkingEndTime = 20)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(5.4e7)
@@ -384,12 +384,12 @@ class ChargingNetworkManagerSpec
       beamVilleCar2.primaryFuelLevelInJoules should be(1.08e8)
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar2, parkingStall, personId, 0)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar2, parkingStall, personId, 0, parkingEndTime = 20)
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(1.08e8)
 
-      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar3, parkingStall, personId, 112)
+      chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar3, parkingStall, personId, 112, parkingEndTime = 20)
       expectMsgType[WaitingToCharge] should be(WaitingToCharge(10, beamVilleCar3.id, 112))
       expectNoMessage()
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)

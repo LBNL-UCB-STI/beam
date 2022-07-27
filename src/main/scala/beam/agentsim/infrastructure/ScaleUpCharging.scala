@@ -76,6 +76,7 @@ trait ScaleUpCharging extends {
       virtualParkingInquiries.get(requestId) match {
         case Some(parkingInquiry) if stall.chargingPointType.isDefined =>
           val beamVehicle = parkingInquiry.beamVehicle.get
+          val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
           self ! ChargingPlugRequest(
             parkingInquiry.destinationUtm.time,
             beamVehicle,
@@ -83,9 +84,9 @@ trait ScaleUpCharging extends {
             parkingInquiry.personId.map(Id.create(_, classOf[Person])).getOrElse(Id.create("", classOf[Person])),
             triggerId,
             NotApplicable,
-            None
+            None,
+            endTime
           )
-          val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
           getScheduler ! ScheduleTrigger(
             PlanChargingUnplugRequestTrigger(endTime, beamVehicle, parkingInquiry.requestId),
             self

@@ -31,20 +31,21 @@ class BeamHelicsInterfaceSpec extends AnyFlatSpec with Matchers with BeamHelper 
         1.0,
         1,
         1000,
+        60,
         Some("LIST_MAP_ANY"),
         Some("Federate2/LIST_ANY")
       )
+    lazy val fedInfo = createFedInfo("zmq", "--federates=1 --broker_address=tcp://127.0.0.1", 1.0, 1)
     lazy val beamFederate =
       getFederate(
         "Federate2",
-        "zmq",
-        "--federates=1 --broker_address=tcp://127.0.0.1",
-        1.0,
-        1,
+        fedInfo,
         1000,
+        60,
         Some("LIST_ANY"),
         Some("Federate1/LIST_MAP_ANY")
       )
+    enterExecutionMode(10.seconds, beamFederate)
     val f1 = Future { broker(beamBroker) }
     val f2 = Future { federate(beamFederate) }
     val aggregatedFuture = for {
@@ -65,9 +66,10 @@ class BeamHelicsInterfaceSpec extends AnyFlatSpec with Matchers with BeamHelper 
     val time1 = beamFederate.sync(1)
     time1 should be(1.0)
 
-    val (time2, response) = (beamFederate.sync(2), beamFederate.collectJSON())
+    val (time2, responseOpt) = (beamFederate.sync(2), beamFederate.collectJSON())
     time2 should be(2.0)
-    response.size should be(1)
+    responseOpt shouldBe defined
+    val response = responseOpt.get
     response.head should contain("key" -> "foo")
     response.head should contain("value" -> 123456)
 

@@ -100,6 +100,7 @@ class ChargingNetwork[GEO: GeoLevel](val chargingZones: Map[Id[ParkingZoneId], P
         activityType,
         request.shiftStatus,
         request.shiftDuration,
+        request.parkingEndTime,
         theSender
       )
       beamVehicleIdToChargingVehicleMap.put(chargingVehicle.vehicle.id, chargingVehicle)
@@ -311,6 +312,7 @@ object ChargingNetwork extends LazyLogging {
       activityType: String,
       shiftStatus: ShiftStatus = NotApplicable,
       shiftDuration: Option[Int] = None,
+      parkingEndTime: Int,
       theSender: ActorRef
     ): ChargingVehicle = {
       vehicles.get(vehicle.id) match {
@@ -319,7 +321,18 @@ object ChargingNetwork extends LazyLogging {
           chargingVehicle
         case _ =>
           val chargingVehicle =
-            ChargingVehicle(vehicle, stall, this, tick, personId, activityType, shiftStatus, shiftDuration, theSender)
+            ChargingVehicle(
+              vehicle,
+              stall,
+              this,
+              tick,
+              personId,
+              activityType,
+              shiftStatus,
+              shiftDuration,
+              parkingEndTime,
+              theSender
+            )
           if (numAvailableChargers > 0) {
             chargingVehiclesInternal.put(vehicle.id, chargingVehicle)
             chargingVehicle.updateStatus(PluggedIn, tick)
@@ -401,6 +414,7 @@ object ChargingNetwork extends LazyLogging {
     activityType: String,
     shiftStatus: ShiftStatus,
     shiftDuration: Option[Int],
+    departureTime: Int,
     theSender: ActorRef,
     chargingStatus: ListBuffer[ChargingStatus] = ListBuffer.empty[ChargingStatus],
     chargingSessions: ListBuffer[ChargingCycle] = ListBuffer.empty[ChargingCycle]

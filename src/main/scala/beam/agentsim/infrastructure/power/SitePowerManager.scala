@@ -5,15 +5,17 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingVehicle}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.charging.ChargingPointType.getChargingPointInstalledPowerInKw
 import beam.agentsim.infrastructure.parking.ParkingType
 import beam.agentsim.infrastructure.power.PowerManager._
-import beam.cosim.helics.BeamHelicsInterface.{getFederate, BeamFederate}
+import beam.cosim.helics.BeamHelicsInterface.{createFedInfo, enterExecutionMode, getFederate, BeamFederate}
 import beam.router.skim.event
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.mutable
+import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Try}
 
 class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamServices: BeamServices) extends LazyLogging {
@@ -29,44 +31,51 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     case Some(spmcConfig) if spmcConfig.connect =>
       logger.warn("ChargingNetworkManager should connect to a site power controller via Helics...")
       Try {
-        logger.info("Init SitePowerManager Federates...")
-        chargingNetworkHelper.allChargingStations
-          .groupBy(_.zone.geoId)
-          .par
-          .map { case (zoneId, stations) =>
-            val federate = getFederate(
-              spmcConfig.federatesPrefix + zoneId.toString,
-              spmcConfig.coreType,
-              spmcConfig.coreInitString,
-              spmcConfig.timeDeltaProperty,
-              spmcConfig.intLogLevel,
-              spmcConfig.bufferSize,
-              beamServices.beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds,
-              spmcConfig.federatesPublication match {
-                case s: String if s.nonEmpty => Some(s)
-                case _                       => None
-              },
-              (
-                spmcConfig.spmcFederatesPrefix + zoneId.toString,
-                spmcConfig.spmcSubscription,
-                spmcConfig.expectFeedback
-              ) match {
-                case (s1: String, s2: String, feedback: Boolean) if s1.nonEmpty && s2.nonEmpty && feedback =>
-                  Some(s1 + "/" + s2)
-                case _ => None
-              }
-            )
-            (zoneId, stations, federate)
-          }
-          .seq
+        val tazIdToChargingStations = chargingNetworkHelper.allChargingStations.groupBy(_.zone.geoId)
+        logger.info("Init SitePowerManager Federates for {} TAZes...", tazIdToChargingStations.size)
+        val fedInfo = createFedInfo(
+          spmcConfig.coreType,
+          spmcConfig.coreInitString,
+          spmcConfig.timeDeltaProperty,
+          spmcConfig.intLogLevel
+        )
+        tazIdToChargingStations.map { case (tazId, stations) =>
+          val fedName = spmcConfig.federatesPrefix + tazId.toString
+          logger.debug("getting federate {}", fedName)
+          val federate = getFederate(
+            fedName, //BEAM_SPM_FEDERATE_1
+            fedInfo,
+            spmcConfig.bufferSize,
+            beamServices.beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds,
+            spmcConfig.federatesPublication match {
+              case s: String if s.nonEmpty => Some(s)
+              case _                       => None
+            },
+            (
+              spmcConfig.spmcFederatesPrefix + tazId.toString,
+              spmcConfig.spmcSubscription,
+              spmcConfig.expectFeedback
+            ) match {
+              case (s1: String, s2: String, feedback: Boolean) if s1.nonEmpty && s2.nonEmpty && feedback =>
+                Some(s1 + "/" + s2) // SPMC_FEDERATE_1/CHARGING_PROFILE
+              case _ => None
+            }
+          )
+          logger.debug("Got federate for taz {}", tazId.toString)
+          (tazId, stations, federate)
+        }.seq
+      }.map { federates =>
+        logger.info("Initialized {} federates, now they are going to execution mode", federates.size)
+        enterExecutionMode(1.hour, federates.map(_._3).toSeq:_*)
+        logger.info("Entered execution mode")
+        federates.toList
       }.recoverWith { case e =>
         logger.warn(
           s"Cannot initialize BeamFederate: ${e.getMessage}. " +
           "ChargingNetworkManager is not connected to the SPMC"
         )
         Failure(e)
-      }.map(_.toList)
-        .getOrElse(List.empty[(Id[_], List[ChargingStation], BeamFederate)])
+      }.getOrElse(List.empty[(Id[_], List[ChargingStation], BeamFederate)])
     case _ => List.empty[(Id[_], List[ChargingStation], BeamFederate)]
   }
 
@@ -74,25 +83,31 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     * @param timeBin
     */
   def obtainPowerCommandsAndLimits(timeBin: Int): Unit = {
+    val numPluggedVehicles = chargingNetworkHelper.allChargingStations.view.flatMap(_.pluggedInVehicles).size
+    logger.debug(
+      s"obtainPowerCommandsAndLimits timeBin = $timeBin, numPluggedVehicles = $numPluggedVehicles"
+    )
     powerCommands = beamFederateMap.par
-      .map { case (zoneId, stations, federate) =>
+      .map { case (tazId, stations, federate) =>
         federate
           .cosimulate(
             timeBin,
             stations.flatMap(_.pluggedInVehicles.values).map {
-              case ChargingVehicle(vehicle, _, _, _, _, _, _, _, _, _, _) =>
+              case ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, departureTime, _, _, _) =>
                 // Sending this message
                 Map(
                   "event"                    -> "pluggedIn", // TODO Check with Keith if both plug In and plug out events are to be transmitted
-                  "zoneId"                   -> zoneId,
-                  "siteId"                   -> "", // TODO I have a way for generating the site Id, but for now Site id == parking Zone Id
+                  "tazId"                    -> tazId,
+                  "siteId"                   -> tazId, // TODO I have a way for generating the site Id, but for now Site id == parking Zone Id
                   "vehicleId"                -> vehicle.id,
                   "vehicleType"              -> vehicle.beamVehicleType.id,
                   "primaryFuelLevelInJoules" -> vehicle.primaryFuelLevelInJoules,
-                  "arrivalTime"              -> 0.0, // TODO arrival time at station
-                  "departureTime"            -> 0.0, // TODO estimated departure time = arrival time + parking duration
-                  "desiredFuelLevelInJoules" -> 0.0, // TODO Battery capacity - fuel level
-                  "powerInKW"                -> 0.0 // TODO power at stall: stall.chargingPointType
+                  "arrivalTime"              -> arrivalTime, // TODO arrival time at station
+                  "departureTime"            -> departureTime, // TODO estimated departure time = arrival time + parking duration
+                  "desiredFuelLevelInJoules" -> (vehicle.beamVehicleType.primaryFuelCapacityInJoule - vehicle.primaryFuelLevelInJoules), // TODO Battery capacity - fuel level
+                  "powerInKW" -> getChargingPointInstalledPowerInKw(
+                    stall.chargingPointType.get
+                  ) // TODO power at stall: stall.chargingPointType
                 )
             }
           )
@@ -134,7 +149,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     maxCycleDuration: Int,
     chargingVehicle: ChargingVehicle
   ): ChargingCycle = {
-    val ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _, _) = chargingVehicle
+    val ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _, _, _) = chargingVehicle
     val unconstrainedPower = Math.min(station.maxPlugPower, chargingVehicle.chargingCapacityInKw)
     val constrainedPower = powerCommands.getOrElse(
       vehicle.id, {
