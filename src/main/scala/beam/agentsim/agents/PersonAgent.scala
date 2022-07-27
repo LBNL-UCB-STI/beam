@@ -886,6 +886,7 @@ class PersonAgent(
         currentBeamVehicle.unsetDriver()
         (nextNotifyVehicleResourceIdle, currentBeamVehicle.getManager) match {
           case (Some(notifyVehicleIdle), Some(currentVehicleManager)) => currentVehicleManager ! notifyVehicleIdle
+          case _                                                      =>
         }
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), vehicleToExit)
