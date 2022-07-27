@@ -414,7 +414,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     triggerId,
                     shiftStatus = NotApplicable,
                     parkingEndTime =
-                      maybeNextActivity.fold(tick + 4 * 3600)(activity => MathUtils.doubleToInt(activity.getStartTime))
+                      maybeNextActivity.collect {
+                        case activity if activity.getStartTime > 0 => MathUtils.doubleToInt(activity.getStartTime)
+                      }.getOrElse(tick + 4 * 3600)
                   )
                   waitForConnectionToChargingPoint = true
                 case None => // this should only happen rarely
