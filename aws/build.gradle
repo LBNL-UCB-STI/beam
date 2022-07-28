@@ -246,18 +246,26 @@ task terminateEC2(type: AWSLambdaInvokeTask) {
 
 task jupyterEC2(type: AWSLambdaInvokeTask) {
     doFirst {
-        functionName = "start-jupyter-on-instance"
+        functionName = "simulateBeam"
         invocationType = InvocationType.RequestResponse
-        payload = """
-            {
-              "budget_override": "${project.findProperty('budgetOverride') ?: false}",
-              "instance_type": "${project.findProperty('instanceType') ?: 'r5.xlarge'}",
-              "title": "${project.findProperty('title') ?: 'jupyter-notebook'}",
-              "region": "${project.findProperty('region') ?: defaultRegion}",
-              "storage_size": ${project.findProperty('storageSize') ?: 128},
-              "token": "${project.findProperty("jupyterToken") ?: UUID.randomUUID().toString()}"
-            }
-            """
+        payload = """{
+          "title": "${(project.findProperty('title') ?: 'jupyter') + '_' + getCurrentGitUserEmail()}",
+          "git_user_email": "${getCurrentGitUserEmail()}",
+          "branch": "develop",
+          "storage_size": ${project.findProperty('storageSize') ?: 128},
+          "instance_type": "${project.findProperty('instanceType') ?: 'r5.xlarge'}",
+          "region": "${project.findProperty('region') ?: defaultRegion}",
+          "shutdown_behaviour": "terminate", 
+          "command": "deploy",
+          "run_grafana" : false,
+          "run_helics" : false,
+          "run_jupyter" : true,
+          "run_beam": false,
+          "jupyter_token" : "${project.findProperty("jupyterToken") ?: UUID.randomUUID().toString()}",
+          "is_spot" : false,
+          "budget_override": ${project.findProperty('budgetOverride') ?: false}
+        }"""
+
     }
     doLast {
         printResult(payload, invokeResult)
