@@ -296,7 +296,7 @@ def buildPayload(command) {
     return """{
   "instance_ids": "${project.findProperty('instanceIds')}",
   "region": "${project.findProperty('region') ?: defaultRegion}",
-  "budget_override": ${ext.getParameterValue('budgetOverride') ?: false}
+  "budget_override": ${project.findProperty('budgetOverride') ?: false},
   "command": "$command"
 }"""
 }
