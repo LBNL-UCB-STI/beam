@@ -51,6 +51,7 @@ S3_PUBLISH_SCRIPT = '''
   -         finalPath="$path2";
   -       done;
   -    done;
+  -    echo "Final path is '$finalPath'"
   -    for file in /home/ubuntu/git/beam/*.jfr; do
   -      echo "Zipping $file"
   -      zip "$file.zip" "$file"
