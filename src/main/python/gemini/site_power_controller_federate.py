@@ -101,7 +101,7 @@ def run_spmc_federate(cfed):
 ###############################################################################
 
 
-data = pd.read_csv("/home/dimao/work/lbnl/sources/beam/production/sfbay/parking/sfbay_taz_unlimited_charging_point.csv")
+data = pd.read_csv("../../../../production/sfbay/parking/sfbay_taz_unlimited_charging_point.csv")
 tazes = data["taz"].unique()
 logging.info(tazes)
 
