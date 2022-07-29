@@ -42,7 +42,7 @@ class WorkForceSampler(val dbInfo: CTPPDatabaseInfo, val stateCode: String, val 
   workerAgeToStats.foreach { case (ageRng, stat) =>
     val ratio = stat.totalWorkers.toDouble / stat.totalPeople
     logger.info(
-      s"$ageRng => Total people: ${stat.totalPeople}, total workers: ${stat.totalWorkers}, ratio: ${ratio.formatted("%.3f")}"
+      s"$ageRng => Total people: ${stat.totalPeople}, total workers: ${stat.totalWorkers}, ratio: ${"%.3f".format(ratio)}"
     )
   }
 

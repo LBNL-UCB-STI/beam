@@ -10,7 +10,7 @@ buildscript {
         gradlePluginPortal()
     }
     dependencies {
-        classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
+        classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '2.10.1'
         classpath "jp.classmethod.aws.reboot:gradle-aws-plugin-reboot:0.45"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
     }
@@ -139,7 +139,7 @@ configurations.all {
 
 dependencies {
 
-    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.17') {
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.19') {
         exclude group: 'com.github.LBNL-UCB-STI', module: 'r5'
         exclude group: 'org.matsim', module: 'matsim'
     }
@@ -225,11 +225,11 @@ dependencies {
     /////////////////////////////////
 
     // CORE Scala //
-    implementation "org.scala-lang:scala-library:2.12.13"
+    implementation "org.scala-lang:scala-library:2.12.16"
     implementation group: 'org.scala-lang.modules', name: "scala-xml_${scalaBinaryVersion}", version: '1.0.6'
 
     // NEEDED FOR USING REPL //
-    implementation "org.scala-lang:scala-compiler:2.12.13"
+    implementation "org.scala-lang:scala-compiler:2.12.16"
 
     // TEST Scala //
     testImplementation group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.2.9'
