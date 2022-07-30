@@ -1323,10 +1323,10 @@ trait ChoosesMode {
           combinedItinerariesForChoice
       }).filter(itin => availableModesForTrips.contains(itin.tripClassifier))
 
-      filteredItinerariesForChoice.foreach(
+      filteredItinerariesForChoice.foreach(trip =>
         this.generateSkimData(
-          _currentTick.get,
-          _,
+          trip.legs.lastOption.map(_.beamLeg.endTime).getOrElse(_currentTick.get),
+          trip,
           failedTrip = false,
           personData.currentActivityIndex,
           nextActivity(personData)
