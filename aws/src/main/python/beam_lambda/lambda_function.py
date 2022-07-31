@@ -57,8 +57,8 @@ S3_PUBLISH_SCRIPT = '''
   -      sudo cp "$file.zip" "$finalPath"
   -    done;
   -    sudo cp /home/ubuntu/git/beam/gc_* "$finalPath"
-  -    sudo cp /home/ubuntu/git/beam/thread_dump_from_RunBeam.txt.gz "$finalPath"
   -    sudo cp /var/log/cloud-init-output.log "$finalPath"
+  -    sudo cp /home/ubuntu/git/beam/thread_dump_from_RunBeam.txt.gz "$finalPath"    
   -    sudo gzip /home/ubuntu/cpu_ram_usage.csv
   -    sudo cp /home/ubuntu/cpu_ram_usage* "$finalPath"
   -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;
