@@ -8,280 +8,95 @@
 #2) Create a summary of the summary table
 
 
-# In[2]:
+# In[ ]:
 
 
-get_ipython().system(' pip install geopandas')
-get_ipython().system(' pip install pandas')
-get_ipython().system(' pip install pygeos')
-get_ipython().system(' pip install boto')
-get_ipython().system(' pip install s3fs')
-get_ipython().system(' pip install shapely')
+# ! pip install geopandas
+# ! pip install pandas
+# ! pip install pygeos
+# ! pip install boto
+# ! pip install s3fs
+# ! pip install shapely
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import gzip
 import time
+
 from itertools import groupby
+from IPython.display import clear_output
 
 
-# In[3]:
+# In[ ]:
 
 
-#Inputs filepath, data_names, names
+## prepare output dir 
+## download and unpack NJ_Transit_Rail GTFS data
 
-nrows = None #None for all rows
+output_folder = 'outputs/'
+get_ipython().system(' mkdir outputs')
+
+get_ipython().system(' rm -rf NJ_Transit_Rail*')
+get_ipython().system(' wget https://github.com/LBNL-UCB-STI/beam-data-newyork/raw/develop/r5-prod/NJ_Transit_Rail_20200215.zip')
+get_ipython().system(' mkdir NJ_Transit_Rail_20200215')
+get_ipython().system(' unzip NJ_Transit_Rail_20200215.zip -d NJ_Transit_Rail_20200215')
+get_ipython().system(' rm NJ_Transit_Rail_20200215.zip')
+
+clear_output(wait=True)
+
+GTFS_NJ_RAIL_trips = pd.read_csv("NJ_Transit_Rail_20200215/trips.txt")
+GTFS_NJ_RAIL_trips.head(3)
 
 
+# In[ ]:
 
-#######################################################################################################################
-#############NYC##############
-fp = "s3://beam-outputs/output/newyork/"
-output_nm = 'SummaryTable_NYC.csv'
+
+## links to simulations output + name + iteration
+
+number_of_rows_from_events_file = None # 1000000 # default value - None
+
+name_to_iteration_population_output = {
+    "generatedPlans": [0, 0.5, "https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#output/newyork/new-york-calibration-19-0.5pop__2022-07-25_21-31-51_zcx"],
+    "simulatedPlans": [5, 0.1, "https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#output/newyork/new-york-baseline-3-of-10__2022-07-17_01-19-21_soy"]
+}
+
+output_base_name = 'SummaryTable_NYC'
 len_id_transit = 10
-fp_res = 'outputs/'
+
 is_NYC = True
 is_WC = False
-data_names = [
-              # 'new-york-split_scenario-part-1__2022-06-03_17-21-39_iqs/ITERS/it.0/0.events.csv.gz', 
-              # 'new-york-split_scenario-part-2__2022-06-15_14-26-18_cuu/ITERS/it.0/0.events.csv.gz', 
-              # 'new-york-split_scenario-part-3__2022-06-15_14-26-18_dmi/ITERS/it.0/0.events.csv.gz',
-              'new-york-300k-calibration-7__2022-06-25_17-40-03_aui/ITERS/it.10/10.events.csv.gz',
-              # 'new-york-300k-calibration-11__2022-06-28_21-55-14_hbf/ITERS/it.10/10.events.csv.gz',
-              # 'new-york-300k-calibration-12__2022-06-28_21-54-34_tav/ITERS/it.10/10.events.csv.gz',
-              # 'new-york-300k-calibration-13__2022-06-29_17-21-34_psu/ITERS/it.10/10.events.csv.gz',
-              # 'new-york-300k-calibration-15__2022-06-30_15-57-54_zqu/ITERS/it.10/10.events.csv.gz',
-              # 'new-york-300k-calibration-16__2022-07-04_14-46-10_wvt/ITERS/it.10/10.events.csv.gz',
-              # 'new-york-300k-calibration-17__2022-07-05_20-44-02_ccs/ITERS/it.10/10.events.csv.gz',
-              # 'new-york-450k-calibration-18__2022-07-08_15-39-57_pxy/ITERS/it.10/10.events.csv.gz',
-              # 'new-york-450k-calibration-19__2022-07-12_17-14-44_esm/ITERS/it.10/10.events.csv.gz',
-              # 'new-york-450k-calibration-20__2022-07-12_22-31-28_czx/ITERS/it.10/10.events.csv.gz',
-              # 'new-york-baseline-0-of-10__2022-07-17_01-19-13_fgz/ITERS/it.5/5.events.csv.gz',
-              # 'new-york-baseline-3-of-10__2022-07-17_01-19-21_soy/ITERS/it.5/5.events.csv.gz',
-              # 'new-york-baseline-4-of-10__2022-07-17_01-19-20_qig/ITERS/it.5/5.events.csv.gz',
-              # 'new-york-baseline-5-of-10__2022-07-17_01-19-12_yyt/ITERS/it.5/5.events.csv.gz',
-              # 'new-york-baseline-6-of-10__2022-07-17_01-19-12_dgi/ITERS/it.5/5.events.csv.gz',
-              # 'new-york-baseline-7-of-10__2022-07-17_01-19-14_qip/ITERS/it.5/5.events.csv.gz',
-              # 'new-york-baseline-8-of-10__2022-07-17_01-19-11_oko/ITERS/it.5/5.events.csv.gz'
-#               'new-york-baseline-2-of-10__2022-07-19_01-38-47_ryr/ITERS/it.0/0.events.csv.gz',
-#               'new-york-baseline-9-of-10__2022-07-19_01-38-46_hfm/ITERS/it.0/0.events.csv.gz',
-#               'new-york-baseline-1-of-10__2022-07-19_15-06-02_ewc/ITERS/it.0/0.events.csv.gz'
-            ]
 
-plan_names = [
-              # 'new-york-split_scenario-part-1__2022-06-03_17-21-39_iqs/ITERS/it.0/0.plans.csv.gz', 
-              # 'new-york-split_scenario-part-2__2022-06-15_14-26-18_cuu/ITERS/it.0/0.plans.csv.gz', 
-              # 'new-york-split_scenario-part-3__2022-06-15_14-26-18_dmi/ITERS/it.0/0.plans.csv.gz',
-              'new-york-300k-calibration-7__2022-06-25_17-40-03_aui/ITERS/it.10/10.plans.csv.gz',
-              'new-york-300k-calibration-11__2022-06-28_21-55-14_hbf/ITERS/it.10/10.plans.csv.gz', 
-              # 'new-york-300k-calibration-12__2022-06-28_21-54-34_tav/ITERS/it.10/10.plans.csv.gz',
-              # 'new-york-300k-calibration-13__2022-06-29_17-21-34_psu/ITERS/it.10/10.plans.csv.gz',
-              # 'new-york-300k-calibration-15__2022-06-30_15-57-54_zqu/ITERS/it.10/10.plans.csv.gz',
-              # 'new-york-300k-calibration-16__2022-07-04_14-46-10_wvt/ITERS/it.10/10.plans.csv.gz',
-              # 'new-york-300k-calibration-17__2022-07-05_20-44-02_ccs/ITERS/it.10/10.plans.csv.gz',
-              # 'new-york-450k-calibration-18__2022-07-08_15-39-57_pxy/ITERS/it.10/10.plans.csv.gz',
-              # 'new-york-450k-calibration-19__2022-07-12_17-14-44_esm/ITERS/it.10/10.plans.csv.gz',
-              # 'new-york-450k-calibration-20__2022-07-12_22-31-28_czx/ITERS/it.10/10.plans.csv.gz',
-              # 'new-york-baseline-0-of-10__2022-07-17_01-19-13_fgz/ITERS/it.5/5.plans.csv.gz',
-              # 'new-york-baseline-3-of-10__2022-07-17_01-19-21_soy/ITERS/it.5/5.plans.csv.gz',
-              # 'new-york-baseline-4-of-10__2022-07-17_01-19-20_qig/ITERS/it.5/5.plans.csv.gz',
-              # 'new-york-baseline-5-of-10__2022-07-17_01-19-12_yyt/ITERS/it.5/5.plans.csv.gz',
-              # 'new-york-baseline-6-of-10__2022-07-17_01-19-12_dgi/ITERS/it.5/5.plans.csv.gz',
-              # 'new-york-baseline-7-of-10__2022-07-17_01-19-14_qip/ITERS/it.5/5.plans.csv.gz',
-              # 'new-york-baseline-8-of-10__2022-07-17_01-19-11_oko/ITERS/it.5/5.plans.csv.gz'
-#               'new-york-baseline-2-of-10__2022-07-17_01-19-11_oko/ITERS/it.5/5.plans.csv.gz',
-#               'new-york-baseline-9-of-10__2022-07-17_01-19-11_oko/ITERS/it.5/5.plans.csv.gz',
-#               'new-york-baseline-1-of-10__2022-07-17_01-19-11_oko/ITERS/it.5/5.plans.csv.gz'
-                ]
 
-names = [
-    # 'Baseline Part1',
-         # 'Baseline Part2',
-         # 'Baseline Part3',
-         'Run7',
-         'Run11',
-         # 'Run12',
-         # 'Run13',
-         # 'Run15',
-         # 'Run16',
-         # 'Run17',
-         # 'Run18',
-         # 'Run19',
-         # 'Run20',
-         # 'Run21-0/10-fullpop', 
-         # 'Run21-3/10-fullpop', 
-         # 'Run21-4/10-fullpop', 
-         # 'Run21-5/10-fullpop', 
-         # 'Run21-6/10-fullpop', 
-         # 'Run21-7/10-fullpop', 
-         # 'Run21-8/10-fullpop',
-        #  'Run21-2/10-fullpop', 
-        #  'Run21-9/10-fullpop', 
-        #  'Run21-1/10-fullpop', 
-        ]
 
-#######################################################################################################################
-# fp = "s3://beam-outputs/"
-# output_nm = 'SummaryTable_Pilates_invrepo_disabilities.csv'
-# len_id_transit = 2
-# fp_res = 'outputs/'
-# is_NYC = False
-# is_WC = True
-# data_names = [
-#                 'pilates-outputs/sfbay-base-20220409/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-RH_fleetsz_0.125-20220408/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-RH_fleetsz_0.25-20220408/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-RH_fleetsz_0.5-20220408/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-RH_fleetsz_1.75-20220408/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-transit_frequencies_0.5-20220528/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-transit_frequencies_1.5-20220529/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-transit_frequencies_2.0-20220529/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_repo_0.0-20220613/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_repo_0.5-20220613/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_repo_1.5-20220613/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_repo_3.0-20220613/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_radius_0.2-20220610/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_radius_0.5-20220610/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_radius_1.5-20220614/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_radius_5.0-20220616/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_wt_0.2-20220617/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_wt_0.5-20220617/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_wt_0.8-20220617/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_wt_1.6-20220617/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_detour_0.0-20220618/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_detour_0.5-20220618/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_detour_0.75-20220618/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_detour_1.5-20220618/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-pilates_june_test-20220616/beam/year-2010-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_price_0.5-20220616/beam/year-2010-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-1T-20220721/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-1T-SF-VT-20220722/beam/year-2018-iteration-2/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_invrepo_dem_0.0_dist_0.0-20220627/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_invrepo_dem_0.2_dist_0.9-20220627/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_invrepo_dem_0.4_dist_0.3-20220628/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_invrepo_dem_0.4_dist_0.6-20220628/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_invrepo_dem_0.4_dist_1.0-20220628/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_invrepo_dem_0.6_dist_0.9-20220627/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_invrepo_dem_1.0_dist_0.9-20220627/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-                # 'pilates-outputs/sfbay-rh_invrepo_dem_1.0_dist_1.0-20220628/beam/year-2018-iteration-5/ITERS/it.0/0.events.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-5veh__2022-07-20_21-48-51_yti/ITERS/it.2/2.events.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-10veh__2022-07-20_21-48-52_ucj/ITERS/it.2/2.events.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-20veh__2022-07-20_21-48-54_xwf/ITERS/it.2/2.events.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-50veh__2022-07-20_21-49-07_oyq/ITERS/it.2/2.events.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-100veh__2022-07-20_21-49-00_lgi/ITERS/it.2/2.events.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-5veh__2022-07-15_04-13-50_ntn/ITERS/it.2/2.events.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-10veh__2022-07-15_04-13-44_okn/ITERS/it.2/2.events.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-20veh__2022-07-15_04-13-46_szz/ITERS/it.2/2.events.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-50veh__2022-07-15_04-13-48_qbr/ITERS/it.2/2.events.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-100veh__2022-07-15_04-13-44_apr/ITERS/it.2/2.events.csv.gz',
-#              ]
+def fix_s3_url(s3url):
+    wrong = "s3.us-east-2.amazonaws.com/beam-outputs/index.html#output/"
+    correct = "beam-outputs.s3.amazonaws.com/output/"
+    return s3url.replace(wrong, correct)
 
-# plan_names = [
-#                 'pilates-outputs/sfbay-base-20220409/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-RH_fleetsz_0.125-20220408/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-RH_fleetsz_0.25-20220408/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-RH_fleetsz_0.5-20220408/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-RH_fleetsz_1.75-20220408/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-transit_frequencies_0.5-20220528/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-transit_frequencies_1.5-20220529/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-transit_frequencies_2.0-20220529/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_repo_0.0-20220613/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_repo_0.5-20220613/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_repo_1.5-20220613/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_repo_3.0-20220613/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_radius_0.2-20220610/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_radius_0.5-20220610/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_radius_1.5-20220614/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_radius_5.0-20220616/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_wt_0.2-20220617/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_wt_0.5-20220617/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_wt_0.8-20220617/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_wt_1.6-20220617/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_detour_0.0-20220618/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_detour_0.5-20220618/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_detour_0.75-20220618/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_detour_1.5-20220618/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-pilates_june_test-20220616/beam/year-2010-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_price_0.5-20220616/beam/year-2010-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-1T-20220721/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-1T-SF-VT-20220722/beam/year-2018-iteration-2/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_invrepo_dem_0.0_dist_0.0-20220627/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_invrepo_dem_0.2_dist_0.9-20220627/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_invrepo_dem_0.4_dist_0.3-20220628/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_invrepo_dem_0.4_dist_0.6-20220628/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_invrepo_dem_0.4_dist_1.0-20220628/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_invrepo_dem_0.6_dist_0.9-20220627/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_invrepo_dem_1.0_dist_0.9-20220627/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-                # 'pilates-outputs/sfbay-rh_invrepo_dem_1.0_dist_1.0-20220628/beam/year-2018-iteration-5/ITERS/it.0/0.plans.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-5veh__2022-07-20_21-48-51_yti/ITERS/it.2/2.plans.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-10veh__2022-07-20_21-48-52_ucj/ITERS/it.2/2.plans.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-20veh__2022-07-20_21-48-54_xwf/ITERS/it.2/2.plans.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-50veh__2022-07-20_21-49-07_oyq/ITERS/it.2/2.plans.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-100veh__2022-07-20_21-49-00_lgi/ITERS/it.2/2.plans.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-5veh__2022-07-15_04-13-50_ntn/ITERS/it.2/2.plans.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-10veh__2022-07-15_04-13-44_okn/ITERS/it.2/2.plans.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-20veh__2022-07-15_04-13-46_szz/ITERS/it.2/2.plans.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-50veh__2022-07-15_04-13-48_qbr/ITERS/it.2/2.plans.csv.gz',
-#                 'output/sfbay/sfbay-pilates-50pop-100veh__2022-07-15_04-13-44_apr/ITERS/it.2/2.plans.csv.gz',
-#              ]
-# names = [         
-#                 'Baseline/year-2018-iteration-5',
-                # 'sfbay-RH_fleetsz_0.125',
-                # 'sfbay-RH_fleetsz_0.25',
-                # 'sfbay-RH_fleetsz_0.5',
-                # 'sfbay-RH_fleetsz_1.75',
-                # 'sfbay-transit_frequencies_0.5',
-                # 'sfbay-transit_frequencies_1.5',
-                # 'sfbay-transit_frequencies_2.0',
-                # 'sfbay-rh_repo_0.0',
-                # 'sfbay-rh_repo_0.5',
-                # 'sfbay-rh_repo_1.5',
-                # 'sfbay-rh_repo_3.0',
-                # 'sfbay-rh_radius_0.2',
-                # 'sfbay-rh_radius_0.5',
-                # 'sfbay-rh_radius_1.5',
-                # 'sfbay-rh_radius_5.0',
-                # 'sfbay-rh_wt_0.2',
-                # 'sfbay-rh_wt_0.5',
-                # 'sfbay-rh_wt_0.8',
-                # 'sfbay-rh_wt_1.6',
-                # 'sfbay-rh_detour_0.0',
-                # 'sfbay-rh_detour_0.5',
-                # 'sfbay-rh_detour_0.75',
-                # 'sfbay-rh_detour_1.5',
-                # 'sfbay-cp_pilatesJune2022',
-                # 'sfbay-rh_price_0.5',
-                # '1TEMPO',
-                # '1T-SF-VT',
-                # 'sfbay-rh_invrepo_dem_0.0_dist_0.0',
-                # 'sfbay-rh_invrepo_dem_0.2_dist_0.9',
-                # 'sfbay-rh_invrepo_dem_0.4_dist_0.3',
-                # 'sfbay-rh_invrepo_dem_0.4_dist_0.6',
-                # 'sfbay-rh_invrepo_dem_0.4_dist_1.0',
-                # 'sfbay-rh_invrepo_dem_0.6_dist_0.9',
-                # 'sfbay-rh_invrepo_dem_1.0_dist_0.9',
-                # 'sfbay-rh_invrepo_dem_1.0_dist_1.0',
-                # 'Disabilities 5% RH WC 50% RH fleet',
-                # 'Disabilities 10% RH WC 50% RH fleet',
-                # 'Disabilities 20% RH WC 50% RH fleet',
-                # 'Disabilities 50% RH WC 50% RH fleet',
-                # 'Disabilities 100% RH WC 50% RH fleet',
-                # 'Disabilities 5% RH WC 100% RH fleet',
-                # 'Disabilities 10% RH WC 100% RH fleet',
-                # 'Disabilities 20% RH WC 100% RH fleet',
-                # 'Disabilities 50% RH WC 100% RH fleet',
-                # 'Disabilities 100% RH WC 100% RH fleet']
-#######################################################################################################################
+names = []
+data_paths = []
+plan_paths = []
+population_scaling = []
 
+for sim_name, (iteration, population, url_raw) in name_to_iteration_population_output.items():
+    base_url = fix_s3_url(url_raw)
+
+    names.append(sim_name)
+    population_scaling.append(population)
+    data_paths.append(f"{base_url}/ITERS/it.{iteration}/{iteration}.events.csv.gz")
+    plan_paths.append(f"{base_url}/ITERS/it.{iteration}/{iteration}.plans.csv.gz")
+
+for name, pop_scaling, data, plan in zip(names, population_scaling, data_paths, plan_paths):
+    print(f"'{name}'", f"popoulation size: {pop_scaling}")
+    print('\t', data)
+    print('\t', plan)
+    
 # Nomenclature
-PTsColumns = [
-    'vehicle','time','type','mode','length','vehicleType','arrivalTime','departureTime',
-        'capacity','secondaryFuel','primaryFuelType','secondaryFuelType','numPassengers','primaryFuel',
-        ]
-MCsColumns = ['person','time','type','mode','length']
+PTsColumns = ['vehicle','time','type','mode','length','vehicleType','arrivalTime','departureTime',
+              'capacity','secondaryFuel','primaryFuelType','secondaryFuelType','numPassengers','primaryFuel']
 
-summaryTable = pd.DataFrame()
+MCsColumns = ['person','time','type','mode','length']
 
 PTsModes = np.array(['walk','bike','car','car_RideHail','car_RideHail_empty','car_RideHail_WC','car_RideHail_WC_empty',
                                'car_CAV','car_hov2','car_hov3','bus','tram','rail','subway',
@@ -309,62 +124,40 @@ MCsModesNames = [ 'Bus', 'Subway', 'Tram', 'Rail', 'Car', 'HOV3 Passenger', 'Bik
                    'Walk-Transit', 'Ride Hail', 'Ride Hail-Transit', 'Ride Hail Pooled', 
                    'Drive-Transit', 'Cable Car', 'Bike-Transit']
 
-primaryFuelTypes =['Biodiesel','Diesel','Gasoline','Electricity','Food']
+primaryFuelTypes = ['Biodiesel','Diesel','Gasoline','Electricity','Food']
 
-CtV = {0:'SUM',
-      1:'AV',
-      2:'VAR',
-      3:'STD',
-      4:'MIN',
-      5:'Q1ST',
-      6:'Q2ND',
-      7:'Q3RD',
-      8:'MAX',
-      }
+all_operation_codes = ['SUM', 'AV', 'VAR', 'STD', 'MIN', 'Q1ST', 'Q2ND', 'Q3RD', 'MAX']
 
 
 # In[4]:
 
 
-start = time.time()
-print('Start time',start, 's')
-
-
-# In[5]:
-
+## block of functions
 
 def DA(data, code):
-    
     #data is a list of values
     #code - operation
-    #0 - Sum
-    #1 - Mean
-    #2 - Var
-    #3 - Std error
-    #4 - Min
-    #5 - Q1
-    #6 - Q2
-    #7 - Q3
-    #8 - Max
-    if len(data)>0:
-        if code == 0:
+    if len(data) > 0:
+        if code.lower() == "sum":
             value = np.sum(data)
-        elif code == 1:
+        elif code.lower() == "av":
             value = np.mean(data)
-        elif code == 2:
+        elif code.lower() == "var":
             value = np.var(data)
-        elif code == 3:
+        elif code.lower() == "std":
             value = np.std(data)
-        elif code == 4:
+        elif code.lower() == "min":
             value = np.min(data)
-        elif code == 5:
+        elif code.lower() == "q1st":
             value = np.percentile(data, 25)
-        elif code == 6:
+        elif code.lower() == "q2nd":
             value = np.percentile(data, 50)
-        elif code == 7:
+        elif code.lower() == "q3rd":
             value = np.percentile(data, 75)
-        elif code == 8:
+        elif code.lower() == "max":
             value = np.max(data)
+        else: 
+            raise ValueError(f"Unexpected operation code: {code}")
     else:
         value = np.nan
 
@@ -372,15 +165,14 @@ def DA(data, code):
     return value
 
 
-# In[6]:
+
+# check if all expected operation condes are present in the DA function
+for op_code in all_operation_codes:
+    DA(np.array([1,1]), op_code)
 
 
-# PtoPTss = personToPathTraversal(PT s,PEVs,PLVs,personToTripDepartures)
 
-
-# In[7]:
-
-
+    
 def personToPathTraversal(PTs, PEVs, PLVs, personToTripDeparture):
     print('personToPathTraversal...')
     no_legs_after_time_check = []
@@ -507,22 +299,20 @@ def personToPathTraversal(PTs, PEVs, PLVs, personToTripDeparture):
     return PtoPTss
 
 
-# In[8]:
 
-
-def processPlans(directory):
-    #fullPath = directory + 'plans.csv.gz'
-    print('processPlans...')
+def processPlans(path_to_plans):
+    print(f'process plans from {path_to_plans} ...')
     start = time.time()
     trips = []
     activities = []
     personToTripDeparture = {}
-    print(directory)
-    df = pd.read_csv(directory, nrows = None)
+
+    df = pd.read_csv(path_to_plans)
     # print(df.keys())
     df = df[df['planSelected']==True]
     # print(df[df['personId']==194])
     df = addTimesToPlans(df)
+    
     legs = df.loc[(df['planElementType'].str.lower().str.contains('leg'))].dropna(how='all', axis=1)
     legs = (legs[legs['legDepartureTime']>=0])
     # print(legs.keys())
@@ -547,9 +337,6 @@ def processPlans(directory):
     return pd.concat(trips), pd.concat(activities), personToTripDeparture, is_leg_mode
 
 
-# In[9]:
-
-
 def addTimesToPlans(plans):
     print('addTimesToPlans...')
     start = time.time()
@@ -568,18 +355,14 @@ def addTimesToPlans(plans):
     return plans
 
 
-# In[10]:
-
-
-def readEvents(directory):
-    #fullPath = directory + 'ITERS/it.0/0.events.csv.gz'
+def readEvents(path_to_events, number_of_rows):
     PTs = []
     PEVs = []
     PLVs = []
     MCs = []
     RPs = []
-    print('Reading ', directory)
-    for chunk in pd.read_csv(directory, chunksize=2500000, nrows = nrows):
+    print(f"reading events from {path_to_events} ...")
+    for chunk in pd.read_csv(path_to_events, chunksize=2500000, nrows = number_of_rows, low_memory=False):
         if sum((chunk['type'] == 'PathTraversal')) > 0:
             chunk['vehicle'] = chunk['vehicle'].astype(str)
             
@@ -618,6 +401,8 @@ def readEvents(directory):
                 PLV['person'] = PLV['person'].astype(int)
                 PLV['time'] = PLV['time'].astype(int)
                 PLVs.append(PLV)
+        
+        
         if sum((chunk['type'] == 'ModeChoice')) > 0:
             #MC
             MC = chunk.loc[(chunk['type'] == 'ModeChoice') & (chunk['length'] > 0)].dropna(how='all', axis=1)
@@ -646,9 +431,6 @@ def readEvents(directory):
     return MCs, PTs, PEVs, PLVs, RPs
 
 
-# In[11]:
-
-
 def fixData(Mcs, PTs, PEVs, PLVs,len_id_transit):
 
     PTs['duration'] = PTs['arrivalTime'] - PTs['departureTime']
@@ -663,7 +445,7 @@ def fixData(Mcs, PTs, PEVs, PLVs,len_id_transit):
     PTs['isRH'] = PTs['vehicle'].str.contains('rideHail')
     PTs['isRH_WC'] = PTs['vehicleType'].str.contains('RH_Car-wheelchair')
     PTs['is_empty'] = PTs['numPassengers'] == 0
-    PTs['is_RHempty'] = PTs['isRH']*PTs['is_empty']
+    PTs['is_RHempty'] = PTs['isRH'] & PTs['is_empty']
     PTs.loc[PTs['isRH'], 'mode'] += '_RideHail'
     PTs.loc[PTs['isRH_WC'], 'mode'] += '_WC'
     PTs.loc[PTs['isCAV'], 'mode'] += '_CAV'
@@ -684,7 +466,7 @@ def fixData(Mcs, PTs, PEVs, PLVs,len_id_transit):
     for tm in transit_modes:
         PTs['is'+tm] = PTs['mode'].str.contains(tm)
     for tm in transit_modes:
-        PTs['is_'+tm+'_empty'] = PTs['is'+tm]*PTs['is_empty']
+        PTs['is_'+tm+'_empty'] = PTs['is'+tm] & PTs['is_empty']
     PTs['is_transit'] = 0
     for tm in transit_modes:
         PTs['is_transit']+=PTs['is'+tm]
@@ -715,10 +497,6 @@ def fixData(Mcs, PTs, PEVs, PLVs,len_id_transit):
     PLVs['vehicle2'] = vehicles_2
     
     return Mcs, PTs, PEVs, PLVs
-
-
-
-# In[12]:
 
 
 def SummaryTable(ST, data_name, name, plan_name, MCs, PTs, PEVs, PLVs, RPs, trips, PtoPTss, codes, transitCompanies):
@@ -821,41 +599,41 @@ def SummaryTable(ST, data_name, name, plan_name, MCs, PTs, PEVs, PLVs, RPs, trip
     print('Lengths Vehicles...',name)
     lengths = PTs['length']/1000.
     for code in codes:
-        ST.at['Length Vehicle'+CtV[code]+' [km]', name] = DA(lengths, code)
+        ST.at['Length Vehicle'+code+' [km]', name] = DA(lengths, code)
         for PTsMode, PTsModesName in zip(PTsModes, PTsModesNames):
             lengths_mode = lengths[PTsModeIndexes[PTsMode]]
-            ST.at['Length Vehicle '+CtV[code]+' '+PTsModesName+' [km]', name] = DA(lengths_mode, code)
+            ST.at['Length Vehicle '+code+' '+PTsModesName+' [km]', name] = DA(lengths_mode, code)
         for company in transitCompanies:
             lengths_company = lengths[PTsTransitIndexes[company]]
-            ST.at['Length Vehicle '+CtV[code]+' '+company+' [km]', name] = DA(lengths_company, code)
+            ST.at['Length Vehicle '+code+' '+company+' [km]', name] = DA(lengths_company, code)
         for primaryFuelType in primaryFuelTypes:
             lengths_fueltype = lengths[PTsFuelIndexes[primaryFuelType]]
-            ST.at['Length Vehicle '+CtV[code]+' '+primaryFuelType+' [km]', name] = DA(lengths_fueltype, code)  
+            ST.at['Length Vehicle '+code+' '+primaryFuelType+' [km]', name] = DA(lengths_fueltype, code)  
     
     #----------------------Persons
     print('Lengths Persons...',name)
     lengths = PtoPTss['length']/1000.
     for code in codes:
-        ST.at['Length Person'+CtV[code]+' [km]', name] = DA(lengths, code)
+        ST.at['Length Person'+code+' [km]', name] = DA(lengths, code)
         for PTsMode, PTsModesName in zip(PTsModes, PTsModesNames):
             lengths_mode = lengths[PtoPTssModeIndexes[PTsMode]]
-            ST.at['Length Person '+CtV[code]+' '+PTsModesName+' [km]', name] = DA(lengths_mode, code)
+            ST.at['Length Person '+code+' '+PTsModesName+' [km]', name] = DA(lengths_mode, code)
         for company in transitCompanies:
             lengths_company = lengths[PtoPTssTransitIndexes[company]]
-            ST.at['Length Person '+CtV[code]+' '+company+' [km]', name] = DA(lengths_company, code)
+            ST.at['Length Person '+code+' '+company+' [km]', name] = DA(lengths_company, code)
         for primaryFuelType in primaryFuelTypes:
             lengths_fueltype = lengths[PtoPTssFuelIndexes[primaryFuelType]]
-            ST.at['Length Person '+CtV[code]+' '+primaryFuelType+' [km]', name] = DA(lengths_fueltype, code)  
+            ST.at['Length Person '+code+' '+primaryFuelType+' [km]', name] = DA(lengths_fueltype, code)  
     
     
     #----------------------Modes
     print('Lengths Modes...',name)
     lengths = MCs['length']/1000.
     for code in codes:
-        ST.at['Length Trip '+CtV[code]+'[km]', name] = DA(lengths, code)
+        ST.at['Length Trip '+code+'[km]', name] = DA(lengths, code)
         for MCsMode, MCsModesName in zip(MCsModes, MCsModesNames):
             lengths_mode = lengths[MCsModeIndexes[MCsMode]]
-            ST.at['Length Mode '+CtV[code]+' '+MCsModesName+' [km]', name] = DA(lengths_mode, code)
+            ST.at['Length Mode '+code+' '+MCsModesName+' [km]', name] = DA(lengths_mode, code)
    
     lengths = PTs['length']/1000.
     
@@ -863,77 +641,77 @@ def SummaryTable(ST, data_name, name, plan_name, MCs, PTs, PEVs, PLVs, RPs, trip
     print('Durations Vehicle...',name)
     durations = PTs['duration']/3600.
     for code in codes:
-        ST.at['Duration Vehicle'+CtV[code]+' [h]', name] = DA(durations, code)
+        ST.at['Duration Vehicle'+code+' [h]', name] = DA(durations, code)
         for PTsMode, PTsModesName in zip(PTsModes, PTsModesNames):
             durations_mode = durations[PTsModeIndexes[PTsMode]]
-            ST.at['Duration Vehicle '+CtV[code]+' '+PTsModesName+' [h]', name] = DA(durations_mode, code)
+            ST.at['Duration Vehicle '+code+' '+PTsModesName+' [h]', name] = DA(durations_mode, code)
         for company in transitCompanies:
             durations_company = durations[PTsTransitIndexes[company]]
-            ST.at['Duration Vehicle '+CtV[code]+' '+company+' [h]', name] = DA(durations_company, code)
+            ST.at['Duration Vehicle '+code+' '+company+' [h]', name] = DA(durations_company, code)
         for primaryFuelType in primaryFuelTypes:
             durations_fueltype = durations[PTsFuelIndexes[primaryFuelType] ]
-            ST.at['Duration Vehicle '+CtV[code]+' '+primaryFuelType+' [h]', name] = DA(durations_fueltype, code)   
+            ST.at['Duration Vehicle '+code+' '+primaryFuelType+' [h]', name] = DA(durations_fueltype, code)   
      
     #----------Persons
     print('Durations Person...',name)
     durations = PtoPTss['duration']/3600.
     for code in codes:
-        ST.at['Duration Vehicle'+CtV[code]+' [h]', name] = DA(durations, code)
+        ST.at['Duration Vehicle'+code+' [h]', name] = DA(durations, code)
         for PTsMode, PTsModesName in zip(PTsModes, PTsModesNames):
             durations_mode = durations[PtoPTssModeIndexes[PTsMode]]
-            ST.at['Duration Vehicle '+CtV[code]+' '+PTsModesName+' [h]', name] = DA(durations_mode, code)
+            ST.at['Duration Vehicle '+code+' '+PTsModesName+' [h]', name] = DA(durations_mode, code)
         for company in transitCompanies:
             durations_company = durations[PtoPTssTransitIndexes[company]]
-            ST.at['Duration Vehicle '+CtV[code]+' '+company+' [h]', name] = DA(durations_company, code)
+            ST.at['Duration Vehicle '+code+' '+company+' [h]', name] = DA(durations_company, code)
         for primaryFuelType in primaryFuelTypes:
             durations_fueltype = durations[PtoPTssFuelIndexes[primaryFuelType] ]
-            ST.at['Duration Vehicle '+CtV[code]+' '+primaryFuelType+' [h]', name] = DA(durations_fueltype, code)   
+            ST.at['Duration Vehicle '+code+' '+primaryFuelType+' [h]', name] = DA(durations_fueltype, code)   
     
     
 #----------Trip Speeds
     print('Speeds Vehicle...',name)
     speeds = lengths/durations[(durations>0)]
     for code in codes:
-        ST.at['Speed Vehicle'+CtV[code]+' [km/h]', name] = DA(speeds, code)
+        ST.at['Speed Vehicle'+code+' [km/h]', name] = DA(speeds, code)
         for PTsMode, PTsModesName in zip(PTsModes, PTsModesNames):
             speeds_mode = speeds[PTsModeIndexes[PTsMode]]
-            ST.at['Speed Vehicle '+CtV[code]+' '+PTsModesName+' [km/h]', name] = DA(speeds_mode, code)
+            ST.at['Speed Vehicle '+code+' '+PTsModesName+' [km/h]', name] = DA(speeds_mode, code)
         for company in transitCompanies:
             speeds_company = speeds[PTsTransitIndexes[company]]
-            ST.at['Speed Vehicle '+CtV[code]+' '+company+' [km/h]', name] = DA(speeds_company, code)
+            ST.at['Speed Vehicle '+code+' '+company+' [km/h]', name] = DA(speeds_company, code)
         for primaryFuelType in primaryFuelTypes:
             speeds_fueltype = speeds[PTsFuelIndexes[primaryFuelType] ]
-            ST.at['Speed Vehicle '+CtV[code]+' '+primaryFuelType+' [km/h]', name] = DA(speeds_fueltype, code)   
+            ST.at['Speed Vehicle '+code+' '+primaryFuelType+' [km/h]', name] = DA(speeds_fueltype, code)   
     
 #----------Energy Consumption
     print('Energy Usage Vehicle...',name)
     energies = PTs['primaryFuel']/1000000000.+PTs['secondaryFuel']/1000000000.
     for code in codes:
-        ST.at['Energy Vehicle'+CtV[code]+' [GJ]', name] = DA(energies, code)
+        ST.at['Energy Vehicle'+code+' [GJ]', name] = DA(energies, code)
         for PTsMode, PTsModesName in zip(PTsModes, PTsModesNames):
             energies_mode = energies[PTsModeIndexes[PTsMode]]
-            ST.at['Energy Vehicle '+CtV[code]+' '+PTsModesName+' [GJ]', name] = DA(energies_mode, code)
+            ST.at['Energy Vehicle '+code+' '+PTsModesName+' [GJ]', name] = DA(energies_mode, code)
         for company in transitCompanies:
             energies_company = energies[PTsTransitIndexes[company]]
-            ST.at['Energy Vehicle '+CtV[code]+' '+company+' [GJ]', name] = DA(energies_company, code)
+            ST.at['Energy Vehicle '+code+' '+company+' [GJ]', name] = DA(energies_company, code)
         for primaryFuelType in primaryFuelTypes:
             energies_fueltype = energies[PTsFuelIndexes[primaryFuelType] ]
-            ST.at['Energy Vehicle '+CtV[code]+' '+primaryFuelType+' [GJ]', name] = DA(energies_fueltype, code)   
+            ST.at['Energy Vehicle '+code+' '+primaryFuelType+' [GJ]', name] = DA(energies_fueltype, code)   
 
 #----------Trip Gallons
     print('Trip Gallons Vehicle...',name)
     gallons = PTs['gallonsGasoline']
     for code in codes:
-        ST.at['Gallons Gas Vehicle'+CtV[code]+' [gallon]', name] = DA(gallons, code)
+        ST.at['Gallons Gas Vehicle'+code+' [gallon]', name] = DA(gallons, code)
         for PTsMode, PTsModesName in zip(PTsModes, PTsModesNames):
             gallons_mode = gallons[PTsModeIndexes[PTsMode]]
-            ST.at['Gallons Gas Vehicle '+CtV[code]+' '+PTsModesName+' [gallon]', name] = DA(gallons_mode, code)
+            ST.at['Gallons Gas Vehicle '+code+' '+PTsModesName+' [gallon]', name] = DA(gallons_mode, code)
         for company in transitCompanies:
             gallons_company = gallons[PTsTransitIndexes[company]]
-            ST.at['Gallons Gas Vehicle '+CtV[code]+' '+company+' [gallonh]', name] = DA(gallons_company, code)
+            ST.at['Gallons Gas Vehicle '+code+' '+company+' [gallonh]', name] = DA(gallons_company, code)
         for primaryFuelType in primaryFuelTypes:
             gallons_fueltype = gallons[PTsFuelIndexes[primaryFuelType] ]
-            ST.at['Gallons Gas Vehicle '+CtV[code]+' '+primaryFuelType+' [gallon]', name] = DA(gallons_fueltype, code)   
+            ST.at['Gallons Gas Vehicle '+code+' '+primaryFuelType+' [gallon]', name] = DA(gallons_fueltype, code)   
     
 #----------Occupancy
     print('Occupancy Vehicle...',name)
@@ -1001,7 +779,6 @@ def SummaryTable(ST, data_name, name, plan_name, MCs, PTs, PEVs, PLVs, RPs, trip
         NJ_ridership_bus = 0
         NJ_ridership_rail = 0
         NJ_ridership_lrail = 0
-        GTFS_NJ_RAIL_trips = pd.read_csv('GTFS/trips.txt')
         for NJ_vehicle in PEVs_NJ['vehicle']:
             if NJ_vehicle[:12] == 'NJ_Transit_B':
                 NJ_ridership_bus += 1
@@ -1062,7 +839,7 @@ def SummaryTable(ST, data_name, name, plan_name, MCs, PTs, PEVs, PLVs, RPs, trip
         ST.at['Not Empty Trips RH Share', name] = len(PTsRH['vehicle'][PTsRH['numPassengers']>0])/len(PTsRH['vehicle'])
     
     for code in codes:
-        ST.at[CtV[code]+' Trips per RH Vehicle', name] = DA(PTsRH['vehicle'].value_counts(), code)
+        ST.at[code+' Trips per RH Vehicle', name] = DA(PTsRH['vehicle'].value_counts(), code)
         
     rh_vehicles = pd.unique(PTsRH['vehicle'])
     n_empty = []
@@ -1079,7 +856,7 @@ def SummaryTable(ST, data_name, name, plan_name, MCs, PTs, PEVs, PLVs, RPs, trip
         
     share_empty = np.array(n_empty)-np.array(n_notempty)
     for code in codes:
-        ST.at[CtV[code]+' RH Vehicle (Empty - not Empty) Trips', name] = DA(share_empty, code)
+        ST.at[code+' RH Vehicle (Empty - not Empty) Trips', name] = DA(share_empty, code)
     
     if len(first_trip) >0:
         ST.at['RH Empty Share Firts Trip', name] = np.count_nonzero(np.array(first_trip) == 0)/len(first_trip)
@@ -1100,7 +877,7 @@ def SummaryTable(ST, data_name, name, plan_name, MCs, PTs, PEVs, PLVs, RPs, trip
             ST.at['Not Empty Trips RH WC Share', name] = len(PTsRH['vehicle'][PTsRH['numPassengers']>0])/len(PTsRH['vehicle'])
 
         for code in codes:
-            ST.at[CtV[code]+' Trips per RH WC Vehicle', name] = DA(PTsRH['vehicle'].value_counts(), code)
+            ST.at[code+' Trips per RH WC Vehicle', name] = DA(PTsRH['vehicle'].value_counts(), code)
 
         rh_vehicles = pd.unique(PTsRH['vehicle'])
         n_empty = []
@@ -1117,7 +894,7 @@ def SummaryTable(ST, data_name, name, plan_name, MCs, PTs, PEVs, PLVs, RPs, trip
 
         share_empty = np.array(n_empty)-np.array(n_notempty)
         for code in codes:
-            ST.at[CtV[code]+' RH WC Vehicle (Empty - not Empty) Trips', name] = DA(share_empty, code)
+            ST.at[code+' RH WC Vehicle (Empty - not Empty) Trips', name] = DA(share_empty, code)
 
         if len(first_trip) >0:
             ST.at['RH WC Empty Share Firts Trip', name] = np.count_nonzero(np.array(first_trip) == 0)/len(first_trip)
@@ -1127,148 +904,116 @@ def SummaryTable(ST, data_name, name, plan_name, MCs, PTs, PEVs, PLVs, RPs, trip
     
     return ST
 
+print('functions initialized')
 
-# In[ ]:
 
+# In[5]:
+
+
+## reading and processing the data
 
 ST = pd.DataFrame()
 
-for data_name, name, plan_name in zip(data_names, names, plan_names):
+to_be_sure_the_table_exist = GTFS_NJ_RAIL_trips.head()
+
+start_total = time.time()
+
+for name, data_path, plan_path in zip(names, data_paths, plan_paths):
+    iter_start = time.time()
     
     MCs = []
     PTs = []
     PEVs = []
     PLVs = []
-    MCs, PTs, PEVs, PLVs, RPs  = readEvents(fp+data_name)
+    MCs, PTs, PEVs, PLVs, RPs  = readEvents(data_path, number_of_rows_from_events_file)
     MCs, PTs, PEVs, PLVs = fixData(MCs, PTs, PEVs, PLVs, len_id_transit)
-    trips, activities, personToTripDepartures, is_leg_mode = processPlans(fp+plan_name)
+    trips, activities, personToTripDepartures, is_leg_mode = processPlans(plan_path)
     PtoPTss = personToPathTraversal(PTs,PEVs,PLVs,personToTripDepartures)
-    codes = [0,1,2,3,4,5,6,7,8] 
     transitCompanies = PTs['vehicle2'][PTs['is_transit']>0].value_counts().keys()
     
-    ST = SummaryTable(ST, data_name, name, plan_name, MCs, PTs, PEVs, PLVs, RPs, trips, PtoPTss, codes, transitCompanies)
+    ST = SummaryTable(ST, data_path, name, plan_path, MCs, PTs, PEVs, PLVs, RPs, trips, PtoPTss, all_operation_codes, transitCompanies)
     
-    print('Total Time', time.time()-start)
-    start = time.time()
+    print('Total Time', time.time() - iter_start)
+
     print(ST[-6:],'Number of attributes',len(ST))
-    ST.to_csv(fp_res+output_nm)
+    ST.to_csv(f"{output_folder}{output_base_name}_{name}.csv")
     
 ST['code'] = range(len(ST[ST.keys()[0]]))
 print(ST[-6:],'Number of attributes',len(ST))
-ST.to_csv(fp_res+output_nm)
+ST.to_csv(f"{output_folder}{output_base_name}.csv")
 
-end = time.time()
-print('Total time',end- start, 's')
-
-
-# In[ ]:
+end_total = time.time()
+print(f'Done. Total time {end_total - start_total} s')
 
 
+# In[6]:
 
 
-
-# In[ ]:
-
-
-#Validation
+## validating the data
 
 ST2 = pd.DataFrame()
-# ST = pd.read_csv('outputs/SummaryTable_NYC_baseline.csv')
-shares_pop = [
-                # 0.33, 0.33,0.33,
-                0.0295,0.0295,
-    # 0.0295,0.0295,0.0295,0.0295,0.0295,
-                # 0.04425,0.04425,0.04425,
-                    # 0.1,0.1,
-                # 0.1,0.1,0.1,0.1,0.1,
-                # 0.1,0.1,0.1
-                ]
 
+start_total = time.time()
 
-for name, share_pop in zip(names,shares_pop):
+for name, share_pop in zip(names, population_scaling):
+    print(f"processing '{name}' ({share_pop} population) ...")
     
     ST2.at['Original Population share', name] = share_pop
-    
     ST2.at['Scaled Total Simulated Agents', name] = ST.at['Simulated Agents ', name]/share_pop
-    
-
     ST2.at['Total Trips Estimated per Agent in a Day', name] = ST.at['Trips per Agent AV ', name]
-
-
     ST2.at['Scaled Total Trips Estimated in a Day', name] = ST.at['Trips per Agent AV ', name]*ST.at['Simulated Agents ', name]/share_pop
 
     if is_leg_mode:
-
         ST2.at['Scaled Total Estimated Walk-Transit Trips in a Day', name] = ST.at['Trip Est Walk-Transit', name]/share_pop
 
-
     ST2.at['Scaled Total Replanned Walk-Transit Trips in a Day', name] = ST.at['Trip Replan Walk-Transit', name]/share_pop
-
-
     ST2.at['Scaled Total Executed Walk-Transit Trips in a Day', name] = ST.at['Trip Exec Walk-Transit', name]/share_pop
-
-
     ST2.at['Scaled Total Modechoice Walk-Transit Trips in a Day', name] = ST.at['Trip Mode Walk-Transit', name]/share_pop
-
-
     ST2.at['Share Estimated Walk-Transit Trips in a Day', name] = ST.at['Trip Est Share Walk-Transit', name]
-
-
     ST2.at['Share Replanned Walk-Transit Trips in a Day', name] = ST.at['Trip Replan Share Walk-Transit', name]
-
-
     ST2.at['Share Executed Walk-Transit Trips in a Day', name] = ST.at['Trip Exec Share Walk-Transit', name]
     ST2.at['Share Executed Bike-Transit Trips in a Day', name] = ST.at['Trip Exec Share Bike-Transit', name]
     ST2.at['Share Executed Ride Hail-Transit Trips in a Day', name] = ST.at['Trip Exec Share Ride Hail-Transit', name]
     ST2.at['Share Executed Drive-Transit Trips in a Day', name] = ST.at['Trip Exec Share Drive-Transit', name]
+    
     ST2.at['Share Executed Transit Related Trips in a Day', name] = (ST.at['Trip Exec Share Walk-Transit', name] +
                                                                     ST.at['Trip Exec Share Bike-Transit', name] +
                                                                     ST.at['Trip Exec Share Ride Hail-Transit', name] +
                                                                     ST.at['Trip Exec Share Drive-Transit', name])
+    
     ST2.at['Share Executed Bike Trips in a Day', name] = ST.at['Trip Exec Share Bike', name]
     ST2.at['Share Executed Car Trips in a Day', name] = ST.at['Trip Exec Share Car', name]
     ST2.at['Share Executed Ride Hail Trips in a Day', name] = (ST.at['Trip Exec Share Ride Hail', name] +
-                                                            ST.at['Trip Exec Share Ride Hail Pooled', name])
+                                                               ST.at['Trip Exec Share Ride Hail Pooled', name])
+    
     ST2.at['Share Executed Walk Trips in a Day', name] = ST.at['Trip Exec Share Walk', name]
-    ST2.at['Share Executed Other Trips in a Day', name] = 1-(ST.at['Trip Exec Share Walk-Transit', name] +
-                                                                    ST.at['Trip Exec Share Bike-Transit', name] +
-                                                                    ST.at['Trip Exec Share Ride Hail-Transit', name] +
-                                                                    ST.at['Trip Exec Share Drive-Transit', name] +
-                                                                    ST.at['Trip Exec Share Bike', name] +
-                                                                    ST.at['Trip Exec Share Car', name] +
-                                                                    ST.at['Trip Exec Share Ride Hail', name] +
-                                                                    ST.at['Trip Exec Share Ride Hail Pooled', name] +
-                                                                    ST.at['Trip Exec Share Walk', name])
+    ST2.at['Share Executed Other Trips in a Day', name] = 1 - (ST.at['Trip Exec Share Walk-Transit', name] +
+                                                                ST.at['Trip Exec Share Bike-Transit', name] +
+                                                                ST.at['Trip Exec Share Ride Hail-Transit', name] +
+                                                                ST.at['Trip Exec Share Drive-Transit', name] +
+                                                                ST.at['Trip Exec Share Bike', name] +
+                                                                ST.at['Trip Exec Share Car', name] +
+                                                                ST.at['Trip Exec Share Ride Hail', name] +
+                                                                ST.at['Trip Exec Share Ride Hail Pooled', name] +
+                                                                ST.at['Trip Exec Share Walk', name])
 
 
     ST2.at['Share Executed Walk-Transit Trips in a Day', name] = ST.at['Trip Exec Share Walk-Transit', name]
-
-
     ST2.at['AV Transit Transfers per trip', name] = ST.at['Transit Transfer per trip AV', name]
-
-
     ST2.at['Scaled MTA BUS Ridership (with transfers)', name] = (ST.at['Ridership MTA_Brookl', name]+
-                                                             ST.at['Ridership MTA_Bronx_', name]+
-                                                             ST.at['Ridership MTA_Queens', name]+
-                                                             ST.at['Ridership MTA_Staten', name]+
-                                                             ST.at['Ridership MTA_Manhat', name]+
-                                                             ST.at['Ridership NYC_Bus_Co', name])/share_pop
+                                                                 ST.at['Ridership MTA_Bronx_', name]+
+                                                                 ST.at['Ridership MTA_Queens', name]+
+                                                                 ST.at['Ridership MTA_Staten', name]+
+                                                                 ST.at['Ridership MTA_Manhat', name]+
+                                                                 ST.at['Ridership NYC_Bus_Co', name])/share_pop
 
 
     ST2.at['Scaled MTA SUB Ridership (with transfers)', name] = ST.at['Ridership NYC_Subway', name]/share_pop
-    
     ST2.at['Scaled MTA SUB Ridership (without transfers)', name] = ST.at['Ridership NYC Subway Without Transfers', name]/share_pop
-    
     ST2.at['Subway vs Bus', name] = ST2.at['Scaled MTA SUB Ridership (without transfers)', name]/ST2.at['Scaled MTA BUS Ridership (with transfers)', name]
-
-
     ST2.at['Scaled Metro North Ridership (with transfers)', name] = ST.at['Ridership Metro-Nort', name]/share_pop
-
-
     ST2.at['Scaled LIRR Ridership (with transfers)', name] = ST.at['Ridership Long_Islan', name]/share_pop
-    
     ST2.at['Scaled PATH Ridership (with transfers)', name] = ST.at['Ridership 151_631:t_', name]/share_pop
-    
     ST2.at['Scaled NJ BUS Ridership (with transfers)', name] = ST.at['Ridership NJ Transit Bus', name]/share_pop
     ST2.at['Scaled NJ RAIL Ridership (with transfers)', name] = ST.at['Ridership NJ Transit Rail', name]/share_pop
     ST2.at['Scaled NJ LIGHT RAIL Ridership (with transfers)', name] = ST.at['Ridership NJ Transit Light Rail', name]/share_pop
@@ -1293,7 +1038,52 @@ ST2.at['Scaled NJ RAIL Ridership (with transfers)', 'Target'] =  '127k'
 ST2.at['Scaled NJ LIGHT RAIL Ridership (with transfers)', 'Target'] =  '14k'
 
     
-ST2.to_csv('outputs/validationNYC.csv')
+ST2.to_csv(f'{output_folder}validationNYC.csv')
+
+end_total = time.time()
+print(f'Done. Total time {end_total - start_total} s')
+
+
+# In[7]:
+
+
+
+
+
+# In[8]:
+
+
+
+
+
+# In[9]:
+
+
+
+
+
+# In[10]:
+
+
+
+
+
+# In[11]:
+
+
+
+
+
+# In[12]:
+
+
+
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:
