@@ -58,6 +58,8 @@ S3_PUBLISH_SCRIPT = '''
   -    done;
   -    sudo cp /home/ubuntu/git/beam/gc_* "$finalPath"
   -    sudo cp /var/log/cloud-init-output.log "$finalPath"
+  -    sudo gzip /home/ubuntu/cpu_ram_usage.csv
+  -    sudo cp /home/ubuntu/cpu_ram_usage* "$finalPath"
   -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;
   -    s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#$finalPath"'''
 
@@ -95,8 +97,9 @@ write_files:
           curl -X POST -H 'Content-type: application/json' --data-binary @/tmp/slack.json $SLACK_HOOK_WITH_TOKEN
       path: /tmp/slack.sh
     - content: |
-          0 * * * * curl -X POST -H "Content-type: application/json" --data '"'"'{"$(ec2metadata --instance-type) instance $(ec2metadata --instance-id) running... \\n Batch [$UID] completed and instance of type $(ec2metadata --instance-type) is still running in $REGION since last $(($(($(date +%s) - $(cat /tmp/.starttime))) / 3600)) Hour $(($(($(date +%s) - $(cat /tmp/.starttime))) / 60)) Minute."}'"'"
-      path: /tmp/slack_notification
+          */10 * * * * /home/ubuntu/beam_stuck_guard.sh
+          
+      path: /tmp/cron_jobs
     - content: |
             #!/bin/bash
             pip install setuptools
@@ -119,11 +122,48 @@ write_files:
             sleep 5s
             cd -
       path: /home/ubuntu/install-and-run-helics-scripts.sh
+    - content: |
+            #!/bin/bash
+            timeout=$1
+            echo "date,time,CPU usage,RAM used,RAM available"
+            while sleep $timeout
+            do
+                    timestamp_CPU=$(vmstat 1 3 -SM -a -w -t | python3 -c 'import sys; ll=sys.stdin.readlines()[-1].split(); print(ll[-2] + ", " + ll[-1] + ", " + str(100 - int(ll[-5])))')
+                    ram_used_available=$(free -g | python3 -c 'import sys; ll=sys.stdin.readlines()[-2].split(); print(ll[2] + ", " + ll[-1])')
+                    echo $timestamp_CPU, $ram_used_available
+            done
+      path: /home/ubuntu/write-cpu-ram-usage.sh
+    - content: |
+            #!/bin/bash
+            pgrep -f RunBeam || exit 0
+            out_dir=$(find /home/ubuntu/git/beam/output -maxdepth 2 -mindepth 2 -type d -print -quit)
+            if [[ -z "${out_dir}" ]]; then exit 0; fi
+            log_file="$out_dir/beamLog.out"
+            if [[ ! -f $log_file ]] ; then exit 0; fi
+            last_completed=$(tac $log_file | grep -m 1 completed | grep -m 1 -Eo '^[0-9]{2}:[0-9]{2}:[0-9]{2}')
+            if [[ -z "${last_completed}" ]]; then
+              last_completed=$(tac $log_file | grep -m 1 -Eo '^[0-9]{2}:[0-9]{2}:[0-9]{2}')
+            fi
+            beam_status=$(python3 -c "import datetime as dt; diff = dt.datetime.now() - dt.datetime.combine(dt.datetime.today(), dt.time.fromisoformat('$last_completed')); x = 'OK' if dt.timedelta(0) <= diff and diff < dt.timedelta(hours=3) else 'Bad'; print(x)")
+            pid=$(pgrep -f RunBeam)
+            if [ "$beam_status" == 'Bad' ] && [ "$pid" != "" ]; then
+              jstack $pid | gzip > "$out_dir/kill_thread_dump.txt.gz"
+              kill $pid
+              sleep 5m
+              kill -9 $pid
+            fi
+      path: /home/ubuntu/beam_stuck_guard.sh
 
 runcmd:
+  - sudo chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
+  - sudo chmod +x /home/ubuntu/write-cpu-ram-usage.sh
+  - sudo chmod +x /home/ubuntu/beam_stuck_guard.sh
+  - cd /home/ubuntu
+  - ./write-cpu-ram-usage.sh 20 > cpu_ram_usage.csv &
   - cd /home/ubuntu/git
   - sudo rm -rf beam
   - sudo git clone https://github.com/LBNL-UCB-STI/beam.git
+  - ln -sf /home/ubuntu/cpu_ram_usage.csv /home/ubuntu/git/beam/cpu_ram_usage.csv
   - ln -sf /var/log/cloud-init-output.log /home/ubuntu/git/beam/cloud-init-output.log
   - sudo chmod 644 /var/log/cloud-init-output.log
   - sudo chmod 644 /home/ubuntu/git/beam/cloud-init-output.log
@@ -203,10 +243,9 @@ runcmd:
   - echo $start_json
   - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
   - chmod +x /tmp/slack.sh
-  - chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
   - echo "notification sent..."
   - echo "notification saved..."
-  - crontab /tmp/slack_notification
+  - crontab /tmp/cron_jobs
   - crontab -l
   - echo "notification scheduled..."
 

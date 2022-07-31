@@ -135,11 +135,11 @@ class DestinationChoiceModel(
   )
 
   val activityRates: DestinationChoiceModel.ActivityRates = loadActivityRates(
-    beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.intercept_file_path
+    beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.intercept_file_path
   )
 
   val (activityVOTs, activityDurations) = loadActivityParams(
-    beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.activity_file_path
+    beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.activity_file_path
   )
 
   def generateActivityRates(
@@ -251,7 +251,7 @@ class DestinationChoiceModel(
       .getOrElse(secondsToIndex(actStart), 0d)
     val tripIntercept = activity.getType.toLowerCase match {
       case "home" | "work" => 0d
-      case _               => beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.additional_trip_utility
+      case _               => beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.additional_trip_utility
     }
     activityValueOfTime + activityIntercept + tripIntercept
   }

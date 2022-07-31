@@ -36,7 +36,7 @@ class HierarchicalParkingManager(
   maxSearchRadius: Double,
   boundingBox: Envelope,
   seed: Int,
-  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
   checkThatNumberOfStallsMatch: Boolean = false
 ) extends ParkingNetwork(parkingZones) {
 
@@ -256,7 +256,7 @@ object HierarchicalParkingManager {
     maxSearchRadius: Double,
     boundingBox: Envelope,
     seed: Int,
-    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
     checkThatNumberOfStallsMatch: Boolean = false
   ): ParkingNetwork = {
     new HierarchicalParkingManager(
@@ -280,7 +280,7 @@ object HierarchicalParkingManager {
     maxSearchRadius: Double,
     boundingBox: Envelope,
     seed: Int,
-    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
     checkThatNumberOfStallsMatch: Boolean = false
   ): ParkingNetwork =
     HierarchicalParkingManager(
