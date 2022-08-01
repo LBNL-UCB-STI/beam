@@ -251,11 +251,11 @@ task jupyterEC2(type: AWSLambdaInvokeTask) {
         payload = """{
           "title": "${(project.findProperty('title') ?: 'jupyter') + '_' + getCurrentGitUserEmail()}",
           "git_user_email": "${getCurrentGitUserEmail()}",
-          "branch": "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}",
+          "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
           "storage_size": ${project.findProperty('storageSize') ?: 256},
           "instance_type": "${project.findProperty('instanceType') ?: 'r5.xlarge'}",
           "region": "${project.findProperty('region') ?: defaultRegion}",
-          "shutdown_behaviour": "${project.findProperty('shutdownBehaviour')}",
+          "shutdown_behaviour": "${project.findProperty('shutdownBehaviour') ?: "terminate"}",
           "shutdown_wait": "${project.findProperty('shutdownWait') ?: 480}",
           "command": "deploy",
           "run_grafana" : false,
