@@ -57,8 +57,8 @@ S3_PUBLISH_SCRIPT = '''
   -      sudo cp "$file.zip" "$finalPath"
   -    done;
   -    sudo cp /home/ubuntu/git/beam/gc_* "$finalPath"
-  -    sudo cp /home/ubuntu/git/beam/thread_dump_from_RunBeam.txt.gz "$finalPath"
   -    sudo cp /var/log/cloud-init-output.log "$finalPath"
+  -    sudo cp /home/ubuntu/git/beam/thread_dump_from_RunBeam.txt.gz "$finalPath"    
   -    sudo gzip /home/ubuntu/cpu_ram_usage.csv
   -    sudo cp /home/ubuntu/cpu_ram_usage* "$finalPath"
   -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;
@@ -145,7 +145,7 @@ write_files:
             if [[ -z "${last_completed}" ]]; then
               last_completed=$(tac $log_file | grep -m 1 -Eo '^[0-9]{2}:[0-9]{2}:[0-9]{2}')
             fi
-            beam_status=$(python3 -c "import datetime as dt; diff = dt.datetime.now() - dt.datetime.combine(dt.datetime.today(), dt.time.fromisoformat('$last_completed')); diff = diff + dt.timedelta(days = 1) if diff < dt.timedelta(0) else diff; x = 'OK' if diff < dt.timedelta(hours=3) else 'Bad'; print(x)")
+            beam_status=$(python3 -c "import datetime as dt; diff = dt.datetime.now() - dt.datetime.combine(dt.datetime.today(), dt.time.fromisoformat('$last_completed')); diff = diff + dt.timedelta(days = 1) if diff < dt.timedelta(0) else diff; x = 'OK' if diff < dt.timedelta(hours=5) else 'Bad'; print(x)")
             pid=$(pgrep -f RunBeam)
             if [ "$beam_status" == 'Bad' ] && [ "$pid" != "" ]; then
               jstack $pid | gzip > "$out_dir/kill_thread_dump.txt.gz"
