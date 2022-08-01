@@ -852,7 +852,7 @@ def deploy_handler(event, context):
                 .replace('$CONFIG', arg) \
                 .replace('$MAIN_CLASS', execute_class) \
                 .replace('$UID', uid) \
-                .replace('$SHUTDOWN_WAIT', shutdown_wait) \
+                .replace('$SHUTDOWN_WAIT', str(shutdown_wait)) \
                 .replace('$TITLED', runName) \
                 .replace('$MAX_RAM', str(max_ram)) \
                 .replace('$S3_PUBLISH', str(s3_publish)) \

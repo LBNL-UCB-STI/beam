@@ -256,7 +256,7 @@ task jupyterEC2(type: AWSLambdaInvokeTask) {
           "instance_type": "${project.findProperty('instanceType') ?: 'r5.xlarge'}",
           "region": "${project.findProperty('region') ?: defaultRegion}",
           "shutdown_behaviour": "${project.findProperty('shutdownBehaviour') ?: "terminate"}",
-          "shutdown_wait": "${project.findProperty('shutdownWait') ?: 480}",
+          "shutdown_wait": ${project.findProperty('shutdownWait') ?: 480},
           "command": "deploy",
           "run_grafana" : false,
           "run_helics" : false,
