@@ -158,10 +158,7 @@ write_files:
 runcmd:
   - sudo chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
   - sudo chmod +x /home/ubuntu/write-cpu-ram-usage.sh
-  - if [ "$RUN_BEAM" = "True" ]
-  - then
-  -   sudo chmod +x /home/ubuntu/beam_stuck_guard.sh
-  - fi
+  - sudo chmod +x /home/ubuntu/beam_stuck_guard.sh
   - cd /home/ubuntu
   - ./write-cpu-ram-usage.sh 20 > cpu_ram_usage.csv &
   - cd /home/ubuntu/git
@@ -327,8 +324,8 @@ runcmd:
   -   /tmp/slack.sh "$bye_msg"
   -   curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$stop_json"
   -   $END_SCRIPT
-  -   sudo shutdown -h +$SHUTDOWN_WAIT
   - fi
+  - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
 
 instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't2.xlarge', 't2.2xlarge',
