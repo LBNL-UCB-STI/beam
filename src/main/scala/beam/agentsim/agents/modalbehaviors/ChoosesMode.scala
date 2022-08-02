@@ -1329,6 +1329,7 @@ trait ChoosesMode {
           trip,
           failedTrip = false,
           personData.currentActivityIndex,
+          currentActivity(personData),
           nextActivity(personData)
         )
       )
