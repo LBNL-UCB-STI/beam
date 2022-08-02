@@ -1482,14 +1482,10 @@ class PersonAgent(
             .getOrElse("NA")
           (origGeo, destGeo)
         } else {
-
           beamScenario.exchangeGeoMap match {
             case Some(geoMap) =>
               val origGeo = geoMap.getTAZ(origCoord)
               val destGeo = geoMap.getTAZ(destCoord)
-              logger.warn(
-                s"Could not find linkId->taz mapping so falling back on default: Trip from $origGeo to $destGeo"
-              )
               (origGeo.tazId.toString, destGeo.tazId.toString)
             case None =>
               (odSkimmerEvent.origin, odSkimmerEvent.destination)
