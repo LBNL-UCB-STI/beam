@@ -1,11 +1,14 @@
 package beam.agentsim.infrastructure.taz
 
+import beam.agentsim.infrastructure.taz.TAZTreeMap.logger
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.{HasQuadBounds, QuadTreeBounds}
 import com.vividsolutions.jts.geom.Geometry
+import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
+import org.matsim.core.utils.geometry.GeometryUtils
 import org.matsim.core.utils.gis.ShapeFileReader
 import org.opengis.feature.simple.SimpleFeature
 import org.slf4j.LoggerFactory
@@ -30,6 +33,16 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false) 
   private val stringIdToTAZMapping: mutable.HashMap[String, TAZ] = mutable.HashMap()
   val idToTAZMapping: mutable.HashMap[Id[TAZ], TAZ] = mutable.HashMap()
   private val cache: TrieMap[(Double, Double), TAZ] = TrieMap()
+  private val linkIdToTAZMapping: mutable.HashMap[Id[Link], Id[TAZ]] = mutable.HashMap.empty[Id[Link], Id[TAZ]]
+  private val unmatchedLinkIds: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
+  lazy val tazListContainsGeoms: Boolean = tazQuadTree.values().asScala.headOption.exists(_.geometry.isDefined)
+
+  def getTAZfromLink(linkId: Id[Link]): Option[TAZ] = {
+    linkIdToTAZMapping.get(linkId) match {
+      case Some(tazId) => getTAZ(tazId)
+      case _           => None
+    }
+  }
 
   def getTAZs: Iterable[TAZ] = {
     tazQuadTree.values().asScala
@@ -67,6 +80,39 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false) 
   def getTAZInRadius(loc: Coord, radius: Double): util.Collection[TAZ] = {
     tazQuadTree.getDisk(loc.getX, loc.getY, radius)
   }
+
+  def mapNetworkToTAZs(network: Network): Unit = {
+    if (tazListContainsGeoms) {
+      network.getLinks.asScala.foreach {
+        case (id, link) =>
+          val linkEndCoord = link.getToNode.getCoord
+          val foundTaz = TAZTreeMap.ringSearch(
+            tazQuadTree,
+            linkEndCoord,
+            100,
+            1000000,
+            radiusMultiplication = 1.5
+          ) { taz =>
+            if (taz.geometry.exists(_.contains(GeometryUtils.createGeotoolsPoint(linkEndCoord)))) { Some(taz) }
+            else None
+          }
+          foundTaz match {
+            case Some(taz) =>
+              linkIdToTAZMapping += (id -> taz.tazId)
+            case _ =>
+              unmatchedLinkIds += id
+          }
+        case _ =>
+      }
+      logger.info(
+        "Matched "
+        + linkIdToTAZMapping.size.toString +
+        " links to TAZs, failed to match "
+        + unmatchedLinkIds.size.toString +
+        " links"
+      )
+    }
+  }
 }
 
 object TAZTreeMap {
@@ -99,12 +145,12 @@ object TAZTreeMap {
       f.getDefaultGeometry match {
         case g: Geometry =>
           val taz = new TAZ(
-            f.getAttribute(tazIDFieldName).asInstanceOf[String],
+            String.valueOf(f.getAttribute(tazIDFieldName)),
             new Coord(g.getCoordinate.x, g.getCoordinate.y),
-            g.getArea
+            g.getArea,
+            Some(g)
           )
           tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
-        case _ =>
       }
     }
     tazQuadTree
@@ -173,9 +219,14 @@ object TAZTreeMap {
     new TAZTreeMap(tazQuadTree)
   }
 
-  def getTazTreeMap(filePath: String): TAZTreeMap = {
+  def getTazTreeMap(filePath: String, tazIDFieldName: Option[String] = None): TAZTreeMap = {
     try {
-      TAZTreeMap.fromCsv(filePath)
+      if (filePath.endsWith(".shp")) {
+        TAZTreeMap.fromShapeFile(filePath, tazIDFieldName.get)
+      } else {
+        TAZTreeMap.fromCsv(filePath)
+      }
+
     } catch {
       case fe: FileNotFoundException =>
         logger.error("No TAZ file found at given file path (using defaultTazTreeMap): %s" format filePath, fe)

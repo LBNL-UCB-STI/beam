@@ -1378,9 +1378,24 @@ class PersonAgent(
               )
             )
           data.failedTrips.foreach(uncompletedTrip =>
-            generateSkimData(tick, uncompletedTrip, failedTrip = true, currentActivityIndex, nextActivity(data))
+            generateSkimData(
+              tick,
+              uncompletedTrip,
+              failedTrip = true,
+              currentActivityIndex,
+              currentActivity(data),
+              nextActivity(data)
+            )
           )
           val correctedTrip = correctTripEndTime(data.currentTrip.get, tick, body.id, body.beamVehicleType.id)
+          generateSkimData(
+            tick,
+            correctedTrip,
+            failedTrip = false,
+            currentActivityIndex,
+            currentActivity(data),
+            nextActivity(data)
+          )
           resetFuelConsumed()
           val activityStartEvent = new ActivityStartEvent(
             tick,
@@ -1429,6 +1444,7 @@ class PersonAgent(
     trip: EmbodiedBeamTrip,
     failedTrip: Boolean,
     currentActivityIndex: Int,
+    currentActivity: Activity,
     nextActivity: Option[Activity]
   ): Unit = {
     val correctedTrip = correctTripEndTime(trip, tick, body.id, body.beamVehicleType.id)
@@ -1452,14 +1468,33 @@ class PersonAgent(
     )
     eventsManager.processEvent(odSkimmerEvent)
     if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
-      val (origin, destination) = beamScenario.exchangeGeoMap match {
-        case Some(geoMap) =>
-          val origGeo = geoMap.getTAZ(origCoord)
-          val destGeo = geoMap.getTAZ(destCoord)
-          (origGeo.tazId.toString, destGeo.tazId.toString)
-        case None =>
-          (odSkimmerEvent.origin, odSkimmerEvent.destination)
-      }
+      val startLink = currentActivity.getLinkId
+      val endLinkOption = nextActivity.map(_.getLinkId)
+      val (origin, destination) =
+        if (beamScenario.tazTreeMap.tazListContainsGeoms && endLinkOption.isDefined) {
+          val origGeo = beamScenario.tazTreeMap
+            .getTAZfromLink(startLink)
+            .map(_.tazId.toString)
+            .getOrElse("NA")
+          val destGeo = beamScenario.tazTreeMap
+            .getTAZfromLink(endLinkOption.get)
+            .map(_.tazId.toString)
+            .getOrElse("NA")
+          (origGeo, destGeo)
+        } else {
+
+          beamScenario.exchangeGeoMap match {
+            case Some(geoMap) =>
+              val origGeo = geoMap.getTAZ(origCoord)
+              val destGeo = geoMap.getTAZ(destCoord)
+              logger.warn(
+                s"Could not find linkId->taz mapping so falling back on default: Trip from $origGeo to $destGeo"
+              )
+              (origGeo.tazId.toString, destGeo.tazId.toString)
+            case None =>
+              (odSkimmerEvent.origin, odSkimmerEvent.destination)
+          }
+        }
       val asSkimmerEvent = ActivitySimSkimmerEvent(
         origin,
         destination,
