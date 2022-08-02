@@ -147,9 +147,9 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
         case _ =>
       }
       logger.info(
-        "Matched "
+        "Completed mapping links to TAZs. Matched "
         + linkIdToTAZMapping.size.toString +
-        " links to TAZs, failed to match "
+        " links, failed to match "
         + unmatchedLinkIds.size.toString +
         " links"
       )
