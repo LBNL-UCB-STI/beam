@@ -109,7 +109,7 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
       )
       implicit val writer: BufferedWriter =
         IOUtils.getBufferedWriter(filePath)
-      writer.write("tazId,counts")
+      writer.write("linkId,count")
       writer.write(System.lineSeparator())
       failedLinkLookups.toList.groupBy(identity).mapValues(_.size).foreach { case (linkId, count) =>
         writer.write(linkId.toString)
