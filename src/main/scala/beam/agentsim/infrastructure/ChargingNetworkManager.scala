@@ -316,11 +316,11 @@ object ChargingNetworkManager extends LazyLogging {
     }
 
     /**
-      * @param managerType vehicle manager type
+      * @param reservedFor ReservedFor
       * @return
       */
-    def get(managerType: ReservedFor): ChargingNetwork = {
-      managerType match {
+    def get(reservedFor: ReservedFor): ChargingNetwork = {
+      reservedFor.managerType match {
         case VehicleManager.TypeEnum.RideHail => rideHailNetwork
         case _                                => chargingNetwork
       }

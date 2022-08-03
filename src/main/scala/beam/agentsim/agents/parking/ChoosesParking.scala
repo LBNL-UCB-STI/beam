@@ -391,7 +391,11 @@ trait ChoosesParking extends {
           triggerId,
           Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
         )
-        goto(WaitingToDrive) using data
+        val updatedData = data match {
+          case data: BasePersonData => data.copy(enrouteData = EnrouteData())
+          case _                    => data
+        }
+        goto(WaitingToDrive) using updatedData
       } else {
         val (updatedData, isEnrouting) = data match {
           case data: BasePersonData if data.enrouteData.isInEnrouteState =>
