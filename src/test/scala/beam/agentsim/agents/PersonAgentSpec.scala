@@ -124,8 +124,7 @@ class PersonAgentSpec
           self,
           services.tollCalculator,
           self,
-          routeHistory = new RouteHistory(beamConfig),
-          boundingBox = boundingBox
+          routeHistory = new RouteHistory(beamConfig)
         )
       )
 
@@ -188,12 +187,11 @@ class PersonAgentSpec
           eventsManager,
           population,
           household,
-          Map(),
+          Map.empty,
           new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox,
           VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
@@ -406,7 +404,6 @@ class PersonAgentSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox,
           VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
@@ -689,12 +686,11 @@ class PersonAgentSpec
           eventsManager,
           population,
           household,
-          Map(),
+          Map.empty,
           new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox,
           VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
@@ -873,14 +869,8 @@ class PersonAgentSpec
 
       events.expectMsgType[PersonArrivalEvent]
       events.expectMsgType[ActivityStartEvent]
-
-      expectMsgType[CompletionNotice]
     }
 
-  }
-
-  override def afterAll(): Unit = {
-    super.afterAll()
   }
 
   after {

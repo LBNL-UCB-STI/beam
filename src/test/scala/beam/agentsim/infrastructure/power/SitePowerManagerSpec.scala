@@ -25,7 +25,6 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 
 class SitePowerManagerSpec
@@ -99,7 +98,7 @@ class SitePowerManagerSpec
 
   val taz: TAZ = tazMap.getTAZs.head
 
-  val dummyChargingZone: ParkingZone[TAZ] = ParkingZone.init(
+  val dummyChargingZone: ParkingZone = ParkingZone.init(
     None,
     taz.tazId,
     ParkingType.Workplace,
@@ -110,7 +109,7 @@ class SitePowerManagerSpec
   )
 
   private val vehiclesList = {
-    val parkingStall1: ParkingStall = ParkingStall.init[TAZ](dummyChargingZone, taz.tazId, taz.coord, 0.0)
+    val parkingStall1: ParkingStall = ParkingStall.init(dummyChargingZone, taz.tazId, taz.coord, 0.0)
     val v1 = new BeamVehicle(
       Id.createVehicleId("id1"),
       new Powertrain(0.0),
@@ -128,13 +127,13 @@ class SitePowerManagerSpec
     List((v1, person1), (v2, person2))
   }
 
-  val chargingNetwork: ChargingNetwork[TAZ] = ChargingNetwork.init(
+  val chargingNetwork: ChargingNetwork = ChargingNetwork.init(
     Map(dummyChargingZone.parkingZoneId -> dummyChargingZone),
     envelopeInUTM,
     beamServices
   )
 
-  val rideHailNetwork: ChargingNetwork[TAZ] = ChargingNetwork.init(
+  val rideHailNetwork: ChargingNetwork = ChargingNetwork.init(
     Map(),
     envelopeInUTM,
     beamServices
@@ -151,14 +150,16 @@ class SitePowerManagerSpec
       vehiclesList.foreach { case (v, person) =>
         v.addFuel(v.primaryFuelLevelInJoules * 0.9 * -1)
         val request = ChargingPlugRequest(0, v, v.stall.get, person, 0)
-        val Some(chargingVehicle) = chargingNetwork.processChargingPlugRequest(request, "", ActorRef.noSender)
+        val Some(chargingVehicle) = chargingNetwork.processChargingPlugRequest(request, 60, "", ActorRef.noSender)
         chargingVehicle.chargingStatus.last shouldBe ChargingStatus(ChargingStatus.Connected, 0)
         chargingVehicle shouldBe ChargingVehicle(
           v,
           v.stall.get,
           dummyStation,
           0,
+          v.primaryFuelLevelInJoules,
           person,
+          60,
           "",
           NotApplicable,
           None,

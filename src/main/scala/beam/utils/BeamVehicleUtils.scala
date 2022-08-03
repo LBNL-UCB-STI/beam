@@ -159,4 +159,13 @@ object BeamVehicleUtils {
     }
   }
 
+  /**
+    * @param energyInJoule Joules
+    * @param durationInSecond Seconds
+    * @return KW
+    */
+  def toPowerInKW(energyInJoule: Double, durationInSecond: Int): Double = {
+    if (durationInSecond > 0 && energyInJoule >= 0) (energyInJoule / 3.6e+6) / (durationInSecond / 3600.0)
+    else 0
+  }
 }

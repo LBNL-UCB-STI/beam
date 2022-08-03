@@ -132,7 +132,6 @@ class PersonWithPersonalVehiclePlanSpec
             Vector(),
             Set.empty,
             new RouteHistory(beamConfig),
-            boundingBox,
             VehiclesAdjustment.getVehicleAdjustment(beamScenario)
           )
         )
@@ -280,6 +279,7 @@ class PersonWithPersonalVehiclePlanSpec
         triggerId = walkFromParkingRoutingRequest.triggerId
       )
 
+      expectMsgType[LeavingParkingEvent]
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[LinkLeaveEvent]
       expectMsgType[LinkEnterEvent]
@@ -370,7 +370,6 @@ class PersonWithPersonalVehiclePlanSpec
             Vector(),
             Set.empty,
             new RouteHistory(beamConfig),
-            boundingBox,
             VehiclesAdjustment.getVehicleAdjustment(beamScenario)
           )
         )
@@ -499,7 +498,6 @@ class PersonWithPersonalVehiclePlanSpec
         )
       )
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
-      //val chargingNetworkManager = system.actorOf(Props(new ChargingNetworkManager(services, beamScenario, scheduler)))
 
       val householdActor = TestActorRef[HouseholdActor](
         new HouseholdActor(
@@ -521,7 +519,6 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox,
           VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
@@ -630,7 +627,6 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           Set(vehicleType),
           new RouteHistory(beamConfig),
-          boundingBox,
           VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
@@ -638,42 +634,45 @@ class PersonWithPersonalVehiclePlanSpec
 
       scheduler ! StartSchedule(0)
 
+      val messageResponder: PartialFunction[Any, Any] = {
+        case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _, triggerId) =>
+          val embodiedLeg = EmbodiedBeamLeg(
+            beamLeg = leg.copy(
+              duration = 500,
+              travelPath = leg.travelPath.copy(
+                linkTravelTime = IndexedSeq(0, 100, 100, 100, 100, 100, 0),
+                endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
+              )
+            ),
+            beamVehicleId = vehicleId,
+            Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
+            asDriver = true,
+            cost = 0.0,
+            unbecomeDriverOnCompletion = true
+          )
+          lastSender ! RoutingResponse(
+            itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
+            requestId = 1,
+            request = None,
+            isEmbodyWithCurrentTravelTime = false,
+            triggerId = triggerId
+          )
+        case RoutingRequest(_, _, _, _, _, _, _, _, _, _, triggerId) =>
+          lastSender ! RoutingResponse(
+            itineraries = Vector(),
+            requestId = 1,
+            request = None,
+            isEmbodyWithCurrentTravelTime = false,
+            triggerId = triggerId
+          )
+      }
+
       for (_ <- 0 to 1) {
-        expectMsgPF() {
-          case EmbodyWithCurrentTravelTime(leg, vehicleId, _, _, triggerId) =>
-            val embodiedLeg = EmbodiedBeamLeg(
-              beamLeg = leg.copy(
-                duration = 500,
-                travelPath = leg.travelPath.copy(
-                  linkTravelTime = IndexedSeq(0, 100, 100, 100, 100, 100, 0),
-                  endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
-                )
-              ),
-              beamVehicleId = vehicleId,
-              Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
-              asDriver = true,
-              cost = 0.0,
-              unbecomeDriverOnCompletion = true
-            )
-            lastSender ! RoutingResponse(
-              itineraries = Vector(EmbodiedBeamTrip(Vector(embodiedLeg))),
-              requestId = 1,
-              request = None,
-              isEmbodyWithCurrentTravelTime = false,
-              triggerId = triggerId
-            )
-          case RoutingRequest(_, _, _, _, _, _, _, _, _, _, triggerId) =>
-            lastSender ! RoutingResponse(
-              itineraries = Vector(),
-              requestId = 1,
-              request = None,
-              isEmbodyWithCurrentTravelTime = false,
-              triggerId = triggerId
-            )
-        }
+        expectMsgPF()(messageResponder)
       }
 
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
+      expectMsgPF()(messageResponder)
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
 
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
@@ -681,6 +680,8 @@ class PersonWithPersonalVehiclePlanSpec
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
       expectMsgType[CompletionNotice]
+
+      // TODO: Testing last resort vehicle creation
     }
 
     it("should walk to a car that is far away (if told so by the router") {
@@ -738,7 +739,6 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox,
           VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )

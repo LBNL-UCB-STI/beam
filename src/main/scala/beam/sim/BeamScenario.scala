@@ -10,11 +10,12 @@ import beam.router.Modes.BeamMode
 import beam.sim.config.BeamConfig
 import beam.utils.{DateUtils, MathUtils}
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.utils.collections.QuadTree
 import com.conveyal.gtfs.model.Stop
 import scala.collection.concurrent.TrieMap
+import scala.jdk.CollectionConverters.mapAsScalaMapConverter
 
 /**
   * This holds together a couple of containers of simulation data, all of which are immutable.
@@ -40,13 +41,11 @@ case class BeamScenario(
   dates: DateUtils,
   ptFares: PtFares,
   transportNetwork: TransportNetwork,
+  networks2: Option[(TransportNetwork, Network)],
   network: Network,
   trainStopQuadTree: QuadTree[Stop],
   tazTreeMap: TAZTreeMap,
   exchangeGeoMap: Option[TAZTreeMap],
-  linkQuadTree: QuadTree[Link],
-  linkIdMapping: Map[Id[Link], Link],
-  linkToTAZMapping: Map[Link, TAZ],
   modeIncentives: ModeIncentive,
   h3taz: H3TAZ,
   freightCarriers: IndexedSeq[FreightCarrier],

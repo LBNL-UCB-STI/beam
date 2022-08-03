@@ -17,6 +17,7 @@ import org.supercsv.prefs.CsvPreference;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /*
 
@@ -36,8 +37,8 @@ public class Hao2018CaccRoadCapacityAdjustmentFunction implements RoadCapacityAd
     private final boolean writeGraphs;
     private final OutputDirectoryHierarchy controllerIO;
     private final MultiValuedMap<Double, Double> caccCapacityIncrease = new HashSetValuedHashMap<>();
-    private final Map<String, Double> caccLinkCapacityIncrease = new HashMap<>();
-    private final Map<String, Double> allLinksCapacityIncrease = new HashMap<>();
+    private final Map<String, Double> caccLinkCapacityIncrease = new ConcurrentHashMap<>();
+    private final Map<String, Double> allLinksCapacityIncrease = new ConcurrentHashMap<>();
     private final Optional<ICsvMapWriter> csvWriter;
 
     private int numberOfMixedVehicleTypeEncountersOnCACCCategoryRoads = 0;

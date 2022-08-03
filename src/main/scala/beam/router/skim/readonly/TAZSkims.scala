@@ -5,7 +5,7 @@ import beam.router.skim.core.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
 import beam.sim.BeamScenario
 import org.matsim.api.core.v01.Id
 
-case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
+class TAZSkims() extends AbstractSkimmerReadOnly {
 
   def isLatestSkimEmpty: Boolean = pastSkims.isEmpty
 

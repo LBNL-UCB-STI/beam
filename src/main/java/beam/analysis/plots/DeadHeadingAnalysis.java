@@ -49,7 +49,7 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
     private Double repositioningVkt = 0d;
     private int reservationCount = 0;
     private final boolean writeGraph;
-    private static final List<String> excludeModes = Arrays.asList("car", "walk", "ride_hail", "subway");
+    private static final List<String> excludeModes = Arrays.asList("car", "walk", "ride_hail");
 
     private final Logger log = LoggerFactory.getLogger(DeadHeadingAnalysis.class);
 

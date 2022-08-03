@@ -48,7 +48,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
   val beamFederateMock: BeamFederate = mock(classOf[BeamFederate])
   val tazFromBeamville: TAZ = new TAZ(Id.create("1", classOf[TAZ]), new Coord(167141.3, 1112.351), 4840000)
 
-  val dummyChargingZone: ParkingZone[TAZ] = ParkingZone.init(
+  val dummyChargingZone: ParkingZone = ParkingZone.init(
     None,
     tazFromBeamville.tazId,
     ParkingType.Public,
@@ -59,14 +59,14 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
   )
   val chargingZones = Map(dummyChargingZone.parkingZoneId -> dummyChargingZone)
 
-  val chargingNetwork: ChargingNetwork[_] = mock(classOf[ChargingNetwork[_]])
+  val chargingNetwork: ChargingNetwork = mock(classOf[ChargingNetwork])
 
-  val rideHailNetwork: ChargingNetwork[_] = mock(classOf[ChargingNetwork[_]])
+  val rideHailNetwork: ChargingNetwork = mock(classOf[ChargingNetwork])
 
   val dummyChargingStation: ChargingStation = ChargingStation(dummyChargingZone)
 
   val dummyPhysicalBounds = Map(
-    "tazId"                   -> dummyChargingZone.geoId.toString,
+    "tazId"                   -> dummyChargingZone.tazId.toString,
     "power_limit_lower"       -> 5678.90,
     "power_limit_upper"       -> 5678.90,
     "lmp_with_control_signal" -> 0.0
@@ -92,7 +92,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
     "obtain power physical bounds" in {
       val bounds = powerController.obtainPowerPhysicalBounds(
         300,
-        Some(Map[ChargingStation, Double](dummyChargingStation -> 5678.90))
+        Seq[(ChargingStation, Double)]((dummyChargingStation, 5678.90))
       )
       bounds shouldBe Map(dummyChargingStation -> PhysicalBounds(dummyChargingStation, 7.2, 7.2, 0.0))
       // TODO: test beam federate connection
@@ -109,7 +109,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
 
     "obtain default (0.0) power physical bounds" in {
       val bounds =
-        powerController.obtainPowerPhysicalBounds(300, Some(Map[ChargingStation, Double](dummyChargingStation -> 0.0)))
+        powerController.obtainPowerPhysicalBounds(300, Seq[(ChargingStation, Double)]((dummyChargingStation, 0.0)))
       bounds shouldBe Map(ChargingStation(dummyChargingZone) -> PhysicalBounds(dummyChargingStation, 7.2, 7.2, 0.0))
       verify(beamFederateMock, never()).sync(300)
       verify(beamFederateMock, never()).collectJSON()

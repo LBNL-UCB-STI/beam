@@ -4,11 +4,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSessionEvent}
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStatus.Connected
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingVehicle}
-import beam.agentsim.infrastructure.ChargingNetworkManager.{
-  ChargingTimeOutTrigger,
-  EndingRefuelSession,
-  StartingRefuelSession
-}
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingTimeOutTrigger
 import beam.agentsim.infrastructure.power.PowerController.PhysicalBounds
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.sim.config.BeamConfig.Beam.Agentsim
@@ -21,7 +17,7 @@ trait ChargingNetworkManagerHelper extends {
   this: ChargingNetworkManager =>
 
   private lazy val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
-  private lazy val cnmConfig: Agentsim.ChargingNetworkManager = beamConfig.beam.agentsim.chargingNetworkManager
+  protected lazy val cnmConfig: Agentsim.ChargingNetworkManager = beamConfig.beam.agentsim.chargingNetworkManager
   private lazy val parallelismWindow: Int = beamConfig.beam.agentsim.schedulerParallelismWindow
   protected val vehicle2InquiryMap: TrieMap[Id[BeamVehicle], ParkingInquiry] = TrieMap()
 
@@ -76,11 +72,13 @@ trait ChargingNetworkManagerHelper extends {
     endTime: Int,
     physicalBounds: Map[ChargingStation, PhysicalBounds],
     triggerId: Long,
-    interruptCharging: Boolean
+    interruptCharging: Boolean = false
   ): Option[ScheduleTrigger] = {
     assume(endTime - startTime >= 0, s"timeInterval should not be negative! startTime $startTime endTime $endTime")
     // Calculate the energy to charge each vehicle connected to the a charging station
-    val updatedEndTime = chargingVehicle.chargingShouldEndAt.map(_ - parallelismWindow).getOrElse(endTime)
+    val endOfMaxSessionTime = chargingEndTimeInSeconds.getOrElse(chargingVehicle.personId, endTime)
+    val endOfShiftTime = chargingVehicle.chargingShouldEndAt.map(_ - parallelismWindow).getOrElse(endTime)
+    val updatedEndTime = Math.min(endOfMaxSessionTime, endOfShiftTime)
     val duration = Math.max(0, updatedEndTime - startTime)
     val maxCycleDuration = Math.min(
       nextTimeBin(startTime) - startTime,
@@ -99,16 +97,24 @@ trait ChargingNetworkManagerHelper extends {
     chargingVehicle
       .processCycle(startTime, theActualEndTime, energyToCharge, energyToChargeIfUnconstrained, maxCycleDuration)
       .flatMap {
-        case cycle if chargingIsCompleteUsing(cycle) || interruptCharging =>
-          handleEndCharging(cycle.endTime, chargingVehicle, triggerId, interruptCharging)
+        case _ if interruptCharging =>
+          // Charging is being interrupted. We will not return a ChargingTimeOutTrigger
+          // instead we will update fuel and send unplugging request immediately
+          log.debug(
+            s"Vehicle {} is being unplugged from its charging point {}",
+            chargingVehicle.vehicle.id,
+            chargingVehicle.stall
+          )
           None
+        case cycle if chargingIsCompleteUsing(cycle) =>
+          Some(ScheduleTrigger(ChargingTimeOutTrigger(cycle.endTime, chargingVehicle.vehicle), self))
         case cycle if chargingNotCompleteUsing(cycle) && !isEndOfSimulation(startTime) =>
           log.debug(
-            s"Vehicle {} is still charging @ Stall: {}. Provided energy: {} J. Remaining: {} J",
+            s"Vehicle {} is still charging @ Stall: {}. Provided energy: {} J. State of Charge: {}",
             chargingVehicle.vehicle.id,
             chargingVehicle.stall,
             cycle.energyToCharge,
-            energyToCharge
+            chargingVehicle.vehicle.primaryFuelLevelInJoules / chargingVehicle.vehicle.beamVehicleType.primaryFuelCapacityInJoule
           )
           None
         case cycle =>
@@ -127,22 +133,15 @@ trait ChargingNetworkManagerHelper extends {
     chargingVehicle: ChargingVehicle,
     triggerId: Long
   ): Unit = {
+    collectVehicleRequestInfo(chargingVehicle)
     val nextTick = nextTimeBin(tick)
     val vehicle = chargingVehicle.vehicle
     if (vehicle.stall.isEmpty)
       vehicle.useParkingStall(chargingVehicle.stall)
     log.debug(s"Starting charging for vehicle $vehicle at $tick")
-    val physicalBounds = powerController.obtainPowerPhysicalBounds(tick, None)
-    chargingVehicle.theSender ! StartingRefuelSession(tick, triggerId)
+    val physicalBounds = powerController.obtainPowerPhysicalBounds(tick)
     processStartChargingEvent(tick, chargingVehicle)
-    dispatchEnergyAndProcessChargingCycle(
-      chargingVehicle,
-      tick,
-      nextTick,
-      physicalBounds,
-      triggerId,
-      interruptCharging = false
-    ).foreach(
+    dispatchEnergyAndProcessChargingCycle(chargingVehicle, tick, nextTick, physicalBounds, triggerId).foreach(
       getScheduler ! _
     )
   }
@@ -152,20 +151,17 @@ trait ChargingNetworkManagerHelper extends {
     * @param tick current time
     * @param chargingVehicle charging vehicle information
     * @param triggerId the trigger
-    * @param chargingInterrupted Boolean
+    * @return true if EndingRefuelSession is sent to the agent
     */
   protected def handleEndCharging(
     tick: Int,
     chargingVehicle: ChargingVehicle,
-    triggerId: Long,
-    chargingInterrupted: Boolean
-  ): Unit = {
+    triggerId: Long
+  ): Option[ChargingVehicle] = {
     val result = chargingVehicle.chargingStatus.last.status match {
       case Connected =>
         chargingVehicle.chargingStation.endCharging(chargingVehicle.vehicle.id, tick) orElse {
-          log.debug(
-            s"Vehicle ${chargingVehicle.vehicle.id} has already ended charging"
-          )
+          log.debug(s"Vehicle ${chargingVehicle.vehicle.id} has already ended charging")
           None
         }
       case _ => Some(chargingVehicle)
@@ -173,9 +169,8 @@ trait ChargingNetworkManagerHelper extends {
     if (result.isDefined) {
       handleRefueling(chargingVehicle)
       processEndChargingEvents(tick, chargingVehicle)
-      if (!chargingInterrupted)
-        chargingVehicle.theSender ! EndingRefuelSession(tick, chargingVehicle.vehicle.id, triggerId)
     }
+    result
   }
 
   /**
@@ -214,21 +209,22 @@ trait ChargingNetworkManagerHelper extends {
     * @param chargingVehicle vehicle charging information
     */
   def processEndChargingEvents(currentTick: Int, chargingVehicle: ChargingVehicle): Unit = {
-    val (totDuration, totEnergy) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
+    val (totDuration, _) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
     val vehicle = chargingVehicle.vehicle
     val stall = chargingVehicle.stall
+    val addedFuelLevel = vehicle.primaryFuelLevelInJoules - chargingVehicle.arrivalFuelLevel
     log.debug(
       s"Vehicle ${chargingVehicle.vehicle} was disconnected at time {} with {} J delivered during {} sec",
       currentTick,
-      totEnergy,
+      addedFuelLevel,
       totDuration
     )
     // Refuel Session
     val refuelSessionEvent = new RefuelSessionEvent(
       currentTick,
       stall.copy(locationUTM = getBeamServices.geo.utm2Wgs(stall.locationUTM)),
-      totEnergy,
-      vehicle.primaryFuelLevelInJoules - totEnergy,
+      addedFuelLevel,
+      chargingVehicle.arrivalFuelLevel,
       totDuration,
       vehicle.id,
       vehicle.beamVehicleType,

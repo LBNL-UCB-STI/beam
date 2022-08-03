@@ -3,13 +3,13 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ParkingInquiry.{activityTypeStringToEnum, ParkingActivityType}
+import beam.agentsim.infrastructure.ParkingInquiry.{activityTypeStringToEnum, ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.parking.ParkingMNL
 import beam.agentsim.scheduler.HasTriggerId
 import beam.utils.ParkingManagerIdGenerator
 import com.typesafe.scalalogging.LazyLogging
 import enumeratum.{Enum, EnumEntry}
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
 
 import scala.collection.immutable
@@ -38,19 +38,33 @@ case class ParkingInquiry(
   reserveStall: Boolean = true,
   requestId: Int =
     ParkingManagerIdGenerator.nextId, // note, this expects all Agents exist in the same JVM to rely on calling this singleton
+  searchMode: ParkingSearchMode = ParkingSearchMode.Parking,
+  originUtm: Option[SpaceTime] = None,
   triggerId: Long
 ) extends HasTriggerId {
   val parkingActivityType: ParkingActivityType = activityTypeStringToEnum(activityType)
+
+  val departureLocation: Option[Coord] = searchMode match {
+    case ParkingSearchMode.EnRouteCharging => beamVehicle.map(_.spaceTime).orElse(originUtm).map(_.loc)
+    case _                                 => None
+  }
 }
 
 object ParkingInquiry extends LazyLogging {
   sealed abstract class ParkingActivityType extends EnumEntry
+  sealed abstract class ParkingSearchMode extends EnumEntry
+
+  object ParkingSearchMode extends Enum[ParkingSearchMode] {
+    val values: immutable.IndexedSeq[ParkingSearchMode] = findValues
+    case object EnRouteCharging extends ParkingSearchMode
+    case object DestinationCharging extends ParkingSearchMode
+    case object Parking extends ParkingSearchMode
+    case object Init extends ParkingSearchMode
+  }
 
   object ParkingActivityType extends Enum[ParkingActivityType] {
     val values: immutable.IndexedSeq[ParkingActivityType] = findValues
-
     case object Charge extends ParkingActivityType
-    case object Init extends ParkingActivityType
     case object Wherever extends ParkingActivityType
     case object Home extends ParkingActivityType
     case object Work extends ParkingActivityType
@@ -59,11 +73,12 @@ object ParkingInquiry extends LazyLogging {
 
   def activityTypeStringToEnum(activityType: String): ParkingActivityType = {
     activityType.toLowerCase match {
-      case "home"     => ParkingActivityType.Home
-      case "init"     => ParkingActivityType.Init
-      case "work"     => ParkingActivityType.Work
-      case "charge"   => ParkingActivityType.Charge
-      case "wherever" => ParkingActivityType.Wherever
+      case "home"                                  => ParkingActivityType.Home
+      case "work"                                  => ParkingActivityType.Work
+      case "charge"                                => ParkingActivityType.Charge
+      case "wherever"                              => ParkingActivityType.Wherever
+      case otherType if otherType.contains("home") => ParkingActivityType.Home
+      case otherType if otherType.contains("work") => ParkingActivityType.Work
       case otherType =>
         logger.debug(s"This Parking Activity Type ($otherType) has not been defined")
         ParkingActivityType.Wherever
@@ -81,6 +96,8 @@ object ParkingInquiry extends LazyLogging {
     parkingDuration: Double = 0,
     reserveStall: Boolean = true,
     requestId: Int = ParkingManagerIdGenerator.nextId,
+    searchMode: ParkingSearchMode = ParkingSearchMode.Parking,
+    originUtm: Option[SpaceTime] = None,
     triggerId: Long
   ): ParkingInquiry =
     ParkingInquiry(
@@ -94,6 +111,8 @@ object ParkingInquiry extends LazyLogging {
       parkingDuration,
       reserveStall,
       requestId,
+      searchMode,
+      originUtm,
       triggerId = triggerId
     )
 }

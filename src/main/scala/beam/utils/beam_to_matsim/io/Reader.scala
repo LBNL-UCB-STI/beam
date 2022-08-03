@@ -25,27 +25,34 @@ object Reader {
       .getOrElse(filter)
 
     // fix overlapping of path traversal events for vehicle
-    def pteOverlappingFix(pteSeq: Seq[BeamPathTraversal]): Unit = {
-      @SuppressWarnings(Array("UnsafeTraversableMethods"))
-      val pteSeqHead = pteSeq.head
-      pteSeq.drop(1).foldLeft(pteSeqHead) {
-        case (prevPTE, currPTE) if prevPTE.linkIds.nonEmpty && currPTE.linkIds.nonEmpty =>
-          // if they overlap each other in case of time
-          val timeDiff = currPTE.time - prevPTE.arrivalTime
-          if (timeDiff < 0) prevPTE.adjustTime(timeDiff)
+    def pteOverlappingFix(pteSeqRaw: Seq[BeamPathTraversal]): Unit = {
+      val pteSeq = pteSeqRaw.filter(pte => pte.linkTravelTime.nonEmpty)
+      val maybePteSeqHead = pteSeq.headOption
+      maybePteSeqHead match {
+        case Some(pteSeqHead) =>
+          pteSeq.drop(1).foldLeft(pteSeqHead) {
+            case (prevPTE, currPTE) if prevPTE.linkIds.nonEmpty && currPTE.linkIds.nonEmpty =>
+              // if they overlap each other in case of time
+              val timeDiff = currPTE.time - prevPTE.arrivalTime
+              if (timeDiff < 0) prevPTE.adjustTime(timeDiff)
 
-          // if they overlap each other in case of travel links
-          if (prevPTE.linkIds.lastOption == currPTE.linkIds.headOption) {
-            currPTE.removeHeadLinkFromTrip()
-            @SuppressWarnings(Array("UnsafeTraversableMethods"))
-            val removedLinkTime = currPTE.linkTravelTime.head
-            if (currPTE.linkIds.nonEmpty) currPTE.adjustTime(removedLinkTime)
-            else prevPTE.adjustTime(removedLinkTime)
+              // if they overlap each other in case of travel links
+              if (prevPTE.linkIds.lastOption == currPTE.linkIds.headOption) {
+                currPTE.removeHeadLinkFromTrip()
+
+                val maybeRemovedLinkTime = currPTE.linkTravelTime.headOption
+                maybeRemovedLinkTime match {
+                  case Some(removedLinkTime) if currPTE.linkIds.nonEmpty => currPTE.adjustTime(removedLinkTime)
+                  case Some(removedLinkTime)                             => prevPTE.adjustTime(removedLinkTime)
+                  case None                                              =>
+                }
+              }
+
+              currPTE
+
+            case (_, pte) => pte
           }
-
-          currPTE
-
-        case (_, pte) => pte
+        case None =>
       }
     }
 
@@ -152,13 +159,12 @@ object Reader {
     vehiclesTrips: Traversable[VehicleTrip],
     vehicleId: BeamPathTraversal => String,
     vehicleType: BeamPathTraversal => String
-  ): (mutable.PriorityQueue[ViaEvent], mutable.Map[String, mutable.HashSet[String]]) = {
+  ): (ViaEventsCollection, mutable.Map[String, mutable.HashSet[String]]) = {
 
     case class ViaEventsCollector(
       vehicleId: BeamPathTraversal => String,
       vehicleType: BeamPathTraversal => String,
-      events: mutable.PriorityQueue[ViaEvent] =
-        mutable.PriorityQueue.empty[ViaEvent]((e1, e2) => e2.time.compare(e1.time)),
+      eventsCollection: ViaEventsCollection = new ViaEventsCollection(),
       vehicleTypeToId: mutable.Map[String, mutable.HashSet[String]] = mutable.Map.empty[String, mutable.HashSet[String]]
     ) {
       def collectVehicleTrip(ptEvents: Seq[BeamPathTraversal]): Unit = {
@@ -166,7 +172,7 @@ object Reader {
         val minTimeIntervalForContinuousMovement = 40.0
 
         case class EventsTransformer(
-          events: mutable.PriorityQueue[ViaEvent],
+          eventsCollection: ViaEventsCollection,
           var prevEvent: Option[ViaTraverseLinkEvent] = None
         ) {
           def addPTEEvent(curr: ViaTraverseLinkEvent): Unit = {
@@ -197,17 +203,17 @@ object Reader {
             }
 
             prevEvent = Some(curr)
-            events.enqueue(curr)
+            eventsCollection.put(curr)
           }
 
           def addPersonArrival(time: Double, viaEvent: ViaTraverseLinkEvent): Unit =
-            events.enqueue(ViaPersonArrivalEvent(time + minTimeStep, viaEvent.vehicle, viaEvent.link))
+            eventsCollection.put(ViaPersonArrivalEvent(time + minTimeStep, viaEvent.vehicle, viaEvent.link))
 
           def addPersonDeparture(viaEvent: ViaTraverseLinkEvent): Unit =
-            events.enqueue(ViaPersonDepartureEvent(viaEvent.time + minTimeStep, viaEvent.vehicle, viaEvent.link))
+            eventsCollection.put(ViaPersonDepartureEvent(viaEvent.time + minTimeStep, viaEvent.vehicle, viaEvent.link))
         }
 
-        val transformer = ptEvents.foldLeft(EventsTransformer(events))((acc, pte) => {
+        val transformer = ptEvents.foldLeft(EventsTransformer(eventsCollection))((acc, pte) => {
           val vId = vehicleId(pte)
           pte.toViaEvents(vId, None).foreach(acc.addPTEEvent)
 
@@ -239,9 +245,9 @@ object Reader {
 
     progress.finish()
 
-    Console.println(viaEventsCollector.events.size + " via events with vehicles trips")
+    Console.println(viaEventsCollector.eventsCollection.size + " via events with vehicles trips")
     Console.println(viaEventsCollector.vehicleTypeToId.size + " vehicle types")
 
-    (viaEventsCollector.events, viaEventsCollector.vehicleTypeToId)
+    (viaEventsCollector.eventsCollection, viaEventsCollector.vehicleTypeToId)
   }
 }

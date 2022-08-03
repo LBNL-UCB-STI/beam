@@ -76,7 +76,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         val route = Option(leg.getRoute)
         PlanElement(
           tripId = if (leg.getAttributes.getAttribute("trip_id") != null) {
-            leg.getAttributes.getAttribute("trip_id").toString.filter(x => (x.isDigit || x.equals('.')))
+            leg.getAttributes.getAttribute("trip_id").toString.filter(x => x.isDigit || x.equals('.'))
           } else {
             ""
           },

@@ -12,7 +12,7 @@ import com.typesafe.scalalogging.LazyLogging
 
 import scala.concurrent.duration._
 
-class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkMap: ParkingNetwork[_])
+class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkMap: ParkingNetwork)
     extends beam.utils.CriticalActor
     with LoggingMessageActor
     with ActorLogging {
@@ -30,7 +30,7 @@ class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkMap: Parki
 
   override def loggedReceive: Receive = {
     case inquiry: ParkingInquiry if beamConfig.beam.agentsim.taz.parkingManager.method == "PARALLEL" =>
-      parkingNetworkMap.processParkingInquiry(inquiry, Some(counter)).map(sender() ! _)
+      parkingNetworkMap.processParkingInquiry(inquiry, false, Some(counter)).map(sender() ! _)
     case inquiry: ParkingInquiry =>
       parkingNetworkMap.processParkingInquiry(inquiry).map(sender() ! _)
     case release: ReleaseParkingStall =>
@@ -43,7 +43,7 @@ class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkMap: Parki
 
 object ParkingNetworkManager extends LazyLogging {
 
-  def props(services: BeamServices, parkingNetworkMap: ParkingNetwork[_]): Props = {
+  def props(services: BeamServices, parkingNetworkMap: ParkingNetwork): Props = {
     Props(new ParkingNetworkManager(services, parkingNetworkMap))
   }
 }

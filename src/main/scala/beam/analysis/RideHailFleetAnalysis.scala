@@ -64,7 +64,7 @@ class RideHailFleetAnalysisInternal(
     event match {
       case refuelSessionEvent: RefuelSessionEvent =>
         if (refuelSessionEvent.energyInJoules > 0.0) {
-          val vehicle = refuelSessionEvent.vehId.toString
+          val vehicle = refuelSessionEvent.vehicleId.toString
           if (vehicle.contains("rideHail")) {
             if (rideHailEvCav.contains(vehicle)) {
               collectEvent(

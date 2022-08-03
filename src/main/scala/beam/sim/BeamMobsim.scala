@@ -27,6 +27,7 @@ import beam.sim.metrics.{Metrics, MetricsSupport, SimulationMetricCollector}
 import beam.sim.monitoring.ErrorListener
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehiclesharing.Fleets
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils._
 import beam.utils.csv.writers.PlansCsvWriter
 import beam.utils.logging.{LoggingMessageActor, MessageLogger}
@@ -65,10 +66,16 @@ class BeamMobsim @Inject() (
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
-  private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(500000, TimeUnit.SECONDS)
 
   import beamServices._
   val physsimConfig = beamConfig.beam.physsim
+
+  val snapLocationHelper = SnapLocationHelper(
+    geo,
+    beamScenario.transportNetwork.streetLayer,
+    beamConfig.beam.routing.r5.linkRadiusMeters
+  )
 
   override def run(): Unit = {
     logger.info("Starting Iteration")
@@ -141,7 +148,9 @@ class BeamMobsim @Inject() (
 
     if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
-      fillInSecondaryActivities(matsimServices.getScenario.getHouseholds)
+      fillInSecondaryActivities(
+        beamServices.matsimServices.getScenario.getHouseholds
+      )
     }
 
     if (beamServices.beamConfig.beam.output.writePlansAndStopSimulation) {
@@ -167,6 +176,7 @@ class BeamMobsim @Inject() (
       ),
       "BeamMobsim.iteration"
     )
+
     Await.result(iteration ? "Run!", timeout.duration)
 
     logger.info("Agentsim finished.")
@@ -221,7 +231,8 @@ class BeamMobsim @Inject() (
               person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
               destinationChoiceModel,
               beamServices,
-              person.getId
+              person.getId,
+              snapLocationHelper
             )
           val newPlan =
             supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationChoiceModel, modesAvailable)
@@ -236,7 +247,6 @@ class BeamMobsim @Inject() (
       }
 
     }
-
     logger.info("Done filling in secondary trips in plans")
   }
 
@@ -509,8 +519,7 @@ class BeamMobsimIteration(
       chargingNetworkManager,
       sharedVehicleFleets,
       matsimServices.getEvents,
-      routeHistory,
-      envelopeInUTM
+      routeHistory
     ),
     "population"
   )

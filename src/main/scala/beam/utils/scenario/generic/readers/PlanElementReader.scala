@@ -9,23 +9,30 @@ import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.scenario.ScenarioUtils
 
+import java.io.Closeable
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 import scala.util.Try
 
 trait PlanElementReader {
   def read(path: String): Array[PlanElement]
+
+  def readWithFilter(path: String, filter: PlanElement => Boolean): (Iterator[PlanElement], Closeable)
 }
 
 object CsvPlanElementReader extends PlanElementReader {
   import beam.utils.csv.GenericCsvReader._
 
   override def read(path: String): Array[PlanElement] = {
-    val (it, toClose) = readAs[PlanElement](path, toPlanElement, _ => true)
+    val (it: Iterator[PlanElement], toClose) = readAs[PlanElement](path, toPlanElement, _ => true)
     try {
       it.toArray
     } finally {
       Try(toClose.close())
     }
+  }
+
+  override def readWithFilter(path: String, filter: PlanElement => Boolean): (Iterator[PlanElement], Closeable) = {
+    readAs[PlanElement](path, toPlanElement, filter)
   }
 
   private[readers] def toPlanElement(rec: java.util.Map[String, String]): PlanElement = {
@@ -84,6 +91,11 @@ object XmlPlanElementReader extends PlanElementReader {
       .toArray
   }
 
+  override def readWithFilter(path: String, filter: PlanElement => Boolean): (Iterator[PlanElement], Closeable) = {
+    throw new NotImplementedError()
+//    readAs[PlanElement](path, toPlanElement, filter)
+  }
+
   private def toPlanElement(
     activity: Activity,
     plan: Plan,
@@ -92,7 +104,11 @@ object XmlPlanElementReader extends PlanElementReader {
     planElementIdx: Int
   ): PlanElement =
     PlanElement(
-      tripId = "",
+      tripId = if (activity.getAttributes.getAttribute("trip_id") != null) {
+        activity.getAttributes.getAttribute("trip_id").toString.filter(x => (x.isDigit || x.equals('.')))
+      } else {
+        ""
+      },
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
       planScore = plan.getScore,

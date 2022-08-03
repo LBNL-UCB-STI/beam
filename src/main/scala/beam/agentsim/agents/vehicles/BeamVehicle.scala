@@ -49,6 +49,7 @@ class BeamVehicle(
   val vehicleManagerId: AtomicReference[Id[VehicleManager]] = new AtomicReference(VehicleManager.AnyManager.managerId),
   val randomSeed: Int = 0
 ) extends ExponentialLazyLogging {
+
   private val manager: AtomicReference[Option[ActorRef]] = new AtomicReference(None)
   def setManager(value: Option[ActorRef]): Unit = this.manager.set(value)
   def getManager: Option[ActorRef] = this.manager.get
@@ -404,6 +405,8 @@ class BeamVehicle(
     StreetVehicle(id, beamVehicleType.id, spaceTime, mode, asDriver = true, needsToCalculateCost = needsToCalculateCost)
   }
 
+  def isRidehail: Boolean = beamVehicleType.id.toString.startsWith("rideHail")
+
   def isSharedVehicle: Boolean = beamVehicleType.id.toString.startsWith("sharedVehicle")
 
   def isCAV: Boolean = beamVehicleType.automationLevel >= 4
@@ -413,6 +416,8 @@ class BeamVehicle(
 
   def isPHEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.contains(Gasoline)
+
+  def isEV: Boolean = isBEV || isPHEV
 
   def getStateOfCharge: Double = primaryFuelLevelInJoules / beamVehicleType.primaryFuelCapacityInJoule
 
@@ -553,7 +558,14 @@ object BeamVehicle {
   }
 
   def noSpecialChars(theString: String): String =
-    theString.replaceAll("[\\\\|\\\\^]+", ":")
+    theString
+      .replaceAll("[\\\\|\\\\^]+", ":")
+      .replace("[", "")
+      .replace("]", "")
+      .replace("(", "")
+      .replace(")", "")
+      .replace("/", "")
+      .replace("\\", "")
 
   def createId[A](id: Id[A], prefix: Option[String] = None): Id[BeamVehicle] = {
     createId(id.toString, prefix)
@@ -663,4 +675,5 @@ object BeamVehicle {
       case _ => 1.0
     }
   }
+
 }

@@ -1,7 +1,7 @@
 package beam.router.r5
 
 import beam.agentsim.agents.choice.mode.DrivingCost
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse, _}
@@ -69,6 +69,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     embodyRequestId: Int,
     triggerId: Long
   ): RoutingResponse = {
+    val s = System.currentTimeMillis()
     val vehicleType = vehicleTypes(vehicleTypeId)
     val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
       leg.travelPath.linkIds,
@@ -103,6 +104,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       fuelTypePrices(vehicleType.primaryFuelType)
     )
     val totalCost = drivingCost + (if (updatedLeg.mode == BeamMode.CAR) toll else 0)
+
     val response = RoutingResponse(
       Vector(
         EmbodiedBeamTrip(
@@ -122,6 +124,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       embodyRequestId,
       None,
       isEmbodyWithCurrentTravelTime = true,
+      System.currentTimeMillis() - s,
       searchedModes = Set.empty,
       triggerId
     )
@@ -196,7 +199,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     result
   }
 
-  private def createProfileRequest = {
+  def createProfileRequest = {
     val profileRequest = new ProfileRequest()
     // Warning: carSpeed is not used for link traversal (rather, the OSM travel time model is used),
     // but for R5-internal bushwhacking from network to coordinate, AND ALSO for the A* remaining weight heuristic,
@@ -228,6 +231,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     buildDirectCarRoute: Boolean,
     buildDirectWalkRoute: Boolean
   ): RoutingResponse = {
+    val routeCalcStarted = System.currentTimeMillis()
     // For each street vehicle (including body, if available): Route from origin to street vehicle, from street vehicle to destination.
     val isRouteForPerson = request.streetVehicles.exists(_.mode == WALK)
 
@@ -850,6 +854,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           request.requestId,
           Some(request),
           isEmbodyWithCurrentTravelTime = false,
+          System.currentTimeMillis() - routeCalcStarted,
           modesWeSearched,
           request.triggerId
         )
@@ -859,6 +864,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           request.requestId,
           Some(request),
           isEmbodyWithCurrentTravelTime = false,
+          System.currentTimeMillis() - routeCalcStarted,
           modesWeSearched,
           request.triggerId
         )
@@ -869,6 +875,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         request.requestId,
         Some(request),
         isEmbodyWithCurrentTravelTime = false,
+        System.currentTimeMillis() - routeCalcStarted,
         modesWeSearched,
         request.triggerId
       )
@@ -1128,7 +1135,14 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
       val minTravelTime = edge.getLengthM / maxSpeed
       if (streetMode == StreetMode.CAR) {
-        carWeightCalculator.calcTravelTime(linkId, travelTime, Some(vehicleType), time, shouldAddNoise)
+        carWeightCalculator.calcTravelTime(
+          linkId,
+          travelTime,
+          Some(vehicleType),
+          time,
+          shouldAddNoise,
+          vehicleType.vehicleCategory == VehicleCategory.HeavyDutyTruck
+        )
       } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
         val scaleFactor = bikeLanesAdjustment.scaleFactor(vehicleType, linkId)
         minTravelTime * scaleFactor

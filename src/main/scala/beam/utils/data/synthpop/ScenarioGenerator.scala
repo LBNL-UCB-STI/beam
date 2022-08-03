@@ -22,7 +22,6 @@ import beam.utils.data.synthpop.generators.{
 import beam.utils.data.synthpop.models.Models
 import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, County, Gender, GenericGeoId, State, TazGeoId}
 import beam.utils.scenario._
-import beam.utils.scenario.generic.readers.{CsvHouseholdInfoReader, CsvPersonInfoReader, CsvPlanElementReader}
 import beam.utils.scenario.generic.writers.{
   CsvBlocksInfoWriter,
   CsvHouseholdInfoWriter,
@@ -31,14 +30,16 @@ import beam.utils.scenario.generic.writers.{
   CsvPlanElementWriter
 }
 import com.typesafe.scalalogging.StrictLogging
+import com.vividsolutions.jts.geom.Geometry
 import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
 import org.matsim.api.core.v01.Coord
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.util.{Random, Try}
 
 trait ScenarioGenerator {
-  def generate: ScenarioResult
+  def generate(pathToOutput: String): ScenarioResult
 }
 
 case class PersonWithExtraInfo(
@@ -50,7 +51,10 @@ case class PersonWithExtraInfo(
 case class PersonWithPlans(person: PersonInfo, plans: List[PlanElement])
 
 case class ScenarioResult(
-  householdWithTheirPeople: Iterable[(HouseholdInfo, List[PersonWithPlans], BlockInfo)],
+  totalNumberOfHouseholds: Int,
+  totalNumberOfPeople: Int,
+  totalNumberOfPlanElements: Int,
+  totalNumberOfBlockElements: Int,
   geoIdToAreaResidentsAndWorkers: Map[GenericGeoId, (Int, Int)]
 )
 
@@ -66,6 +70,7 @@ class SimpleScenarioGenerator(
   val offPeakSpeedMetersPerSecond: Double,
   val localCoordinateReferenceSystem: String,
   val defaultValueOfTime: Double = 8.0,
+  val shouldRemoveNonWorkers: Boolean = false,
   val linkRadiusMeters: Double
 ) extends ScenarioGenerator
     with StrictLogging {
@@ -128,7 +133,7 @@ class SimpleScenarioGenerator(
     // Read households and people
     val temp: Seq[(Models.Household, Seq[Models.Person])] = SythpopReader.apply(pathToSythpopDataFolder).read().toSeq
     // Adjust population
-    PopulationCorrection.adjust(temp, stateCodeToWorkForceSampler)
+    PopulationCorrection.adjust(temp, stateCodeToWorkForceSampler, shouldRemoveNonWorkers)
   }
 
   private val personIdToHousehold: Map[Models.Person, Models.Household] = householdWithPersons.flatMap {
@@ -147,7 +152,7 @@ class SimpleScenarioGenerator(
   private val uniqueGeoIds = geoIdToHouseholds.keySet
   logger.info(s"uniqueGeoIds: ${uniqueGeoIds.size}")
 
-  private val uniqueStates: Set[State] = households.map(_.geoId.state)
+  private val uniqueStates = households.map(_.geoId.state).toSet
   logger.info(s"uniqueStates: ${uniqueStates.size}")
 
   private val geoSvc: GeoService = new GeoService(
@@ -160,13 +165,13 @@ class SimpleScenarioGenerator(
     s"getBlockGroupToTazs for blockGroupGeoIdToGeom ${geoSvc.blockGroupGeoIdToGeom.size} and tazGeoIdToGeom ${geoSvc.tazGeoIdToGeom.size}",
     x => logger.info(x)
   ) {
-    getBlockGroupToTazs
+    getBlockGroupToTazs(geoSvc.blockGroupGeoIdToGeom, geoSvc.tazGeoIdToGeom).map { case (k, v) => k -> v.map(_._1) }
   }
   logger.info(s"blockGroupToToTazs: ${blockGroupToToTazs.size}")
 
   logger.info(s"Initializing finished")
 
-  override def generate: ScenarioResult = {
+  override def generate(pathToOutput: String): ScenarioResult = {
     logger.info(s"Generating BlockGroupId to Households and their people")
     val blockGroupGeoIdToHouseholds = ProfilingUtils.timed("assignWorkingLocations", x => logger.info(x)) {
       assignWorkingLocations
@@ -255,20 +260,38 @@ class SimpleScenarioGenerator(
     var globalPersonId: Int = 0
     val nextWorkLocation = mutable.HashMap[TazGeoId, Int]()
     var cnt: Int = 0
-    val finalResult = blockGroupGeoIdToHouseholds.map {
-      case (blockGroupGeoId, householdsWithPersonData: Iterable[(Models.Household, Seq[PersonWithExtraInfo])]) =>
-        val pct = "%.3f".format(100 * cnt.toDouble / blockGroupGeoIdToHouseholds.size)
-        logger.info(
-          s"$blockGroupGeoId contains ${householdsWithPersonData.size} households. $cnt out of ${blockGroupGeoIdToHouseholds.size}, pct: $pct%"
-        )
-        val householdLocation = blockGroupGeoIdToHouseholdsLocations(blockGroupGeoId)
-        if (householdLocation.size != householdsWithPersonData.size) {
-          logger.warn(
-            s"For BlockGroupId $blockGroupGeoId generated ${householdLocation.size} locations, but the number of households is ${householdsWithPersonData.size}"
+
+    val householdFilePath = s"$pathToOutput/households.csv.gz"
+    val personsFilePath = s"$pathToOutput/persons.csv.gz"
+    val plansFilePath = s"$pathToOutput/plans.csv.gz"
+    val blocksFilePath = s"$pathToOutput/blocks.csv.gz"
+
+    val householdInfoWriter = new CsvHouseholdInfoWriter(householdFilePath)
+    val personInfoWriter = new CsvPersonInfoWriter(personsFilePath)
+    val plansInfoWriter = new CsvPlanElementWriter(plansFilePath)
+    val blocksFileWriter = new CsvBlocksInfoWriter(blocksFilePath)
+
+    var totalNumberOfHouseholds: Int = 0
+    var totalNumberOfPeople: Int = 0
+    var totalNumberOfPlanElements: Int = 0
+    var totalNumberOfBlockElements: Int = 0
+
+    val wgsActivityLocations = ArrayBuffer[Coord]()
+
+    try {
+      blockGroupGeoIdToHouseholds.foreach {
+        case (blockGroupGeoId, householdsWithPersonData: Seq[(Models.Household, Seq[PersonWithExtraInfo])]) =>
+          val pct = "%.3f".format(100 * cnt.toDouble / blockGroupGeoIdToHouseholds.size)
+          logger.info(
+            s"$blockGroupGeoId contains ${householdsWithPersonData.size} households. $cnt out of ${blockGroupGeoIdToHouseholds.size}, pct: $pct%"
           )
-        }
-        val res: Iterable[Option[(HouseholdInfo, List[PersonWithPlans], BlockInfo)]] =
-          householdsWithPersonData.zip(householdLocation).map {
+          val householdLocation = blockGroupGeoIdToHouseholdsLocations(blockGroupGeoId)
+          if (householdLocation.size != householdsWithPersonData.size) {
+            logger.warn(
+              s"For BlockGroupId $blockGroupGeoId generated ${householdLocation.size} locations, but the number of households is ${householdsWithPersonData.size}"
+            )
+          }
+          val res = householdsWithPersonData.zip(householdLocation).flatMap {
             case ((household: Models.Household, personsWithData: Seq[PersonWithExtraInfo]), wgsHouseholdLocation) =>
               val createdHousehold = HouseholdInfo(
                 HouseholdId(household.fullId),
@@ -304,7 +327,8 @@ class SimpleScenarioGenerator(
                           age = person.age,
                           excludedModes = Seq.empty,
                           isFemale = person.gender == Gender.Female,
-                          valueOfTime = valueOfTime
+                          valueOfTime = valueOfTime,
+                          industry = person.industry
                         )
                         val timeLeavingHomeSeconds = drawTimeLeavingHome(timeLeavingHomeRange)
 
@@ -380,37 +404,72 @@ class SimpleScenarioGenerator(
                 Some((createdHousehold, personsAndPlans, createBlock))
               } else None
           }
-        cnt += 1
-        blockGroupGeoId -> res
+          cnt += 1
+          val householdList = res.map(_._1)
+          householdInfoWriter.write(householdList.toIterator)
+          totalNumberOfHouseholds += householdList.size
+
+          val peopleList = res.flatMap(x => x._2.map(_.person))
+          personInfoWriter.write(peopleList.toIterator)
+          totalNumberOfPeople += peopleList.size
+
+          val plans = res.flatMap(x => x._2.map(_.plans)).flatten
+          plansInfoWriter.write(plans.toIterator)
+          totalNumberOfPlanElements += plans.size
+
+          val blockList = res.map(_._3)
+          blocksFileWriter.write(blockList.toIterator)
+          totalNumberOfBlockElements += blockList.size
+
+          plans.filter(_.planElementType == PlanElement.Activity).foreach { plan =>
+            val wgsCoord = geoUtils.utm2Wgs(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
+            wgsActivityLocations += wgsCoord
+          }
+      }
+    } finally {
+      plansInfoWriter.close()
+      personInfoWriter.close()
+      householdInfoWriter.close()
+      blocksFileWriter.close()
     }
+
+    writeH3(pathToOutput, wgsActivityLocations, 1000)
+
     ScenarioResult(
-      householdWithTheirPeople = finalResult.values.flatten.flatten,
+      totalNumberOfHouseholds = totalNumberOfHouseholds,
+      totalNumberOfPeople = totalNumberOfPeople,
+      totalNumberOfPlanElements = totalNumberOfPlanElements,
+      totalNumberOfBlockElements = totalNumberOfBlockElements,
       geoIdToAreaResidentsAndWorkers = geoIdToAreaResidentsAndWorkers
     )
   }
 
-  private def getBlockGroupToTazs: Map[BlockGroupGeoId, List[TazGeoId]] = {
+  private def getBlockGroupToTazs(
+    blockGroupGeoIdToGeom: Map[BlockGroupGeoId, Geometry],
+    tazGeoIdToGeom: Map[TazGeoId, Geometry]
+  ): Map[BlockGroupGeoId, List[(TazGeoId, Double)]] = {
     // TODO: This can be easily parallelize (very dummy improvement, in case if there is nothing better)
-    val blockGroupToTazs = geoSvc.blockGroupGeoIdToGeom
-      .map { case (blockGroupGeoId, blockGroupGeom) =>
-        // Intersect with all TAZ
-        val allIntersections = geoSvc.tazGeoIdToGeom.flatMap { case (tazGeoId, tazGeo) =>
-          val intersection = blockGroupGeom.intersection(tazGeo)
-          if (intersection.isEmpty)
-            None
-          else Some((intersection, blockGroupGeoId, tazGeoId))
+    val blockGroupToTazs = blockGroupGeoIdToGeom.par.map { case (blockGroupGeoId, blockGroupGeom) =>
+      // Intersect with all TAZ
+      val allIntersections = tazGeoIdToGeom.flatMap { case (tazGeoId, tazGeo) =>
+        val intersection = blockGroupGeom.intersection(tazGeo)
+        if (intersection.isEmpty)
+          None
+        else {
+          Some((intersection: Geometry, blockGroupGeoId, (tazGeoId, intersection.getArea)))
         }
-        blockGroupGeoId -> allIntersections.map(_._3).toList
       }
+      blockGroupGeoId -> allIntersections.map(_._3).toList
+    }.seq
     blockGroupToTazs
   }
 
   def findWorkingLocation(
     tazGeoId: TazGeoId,
-    households: Iterable[Models.Household],
+    households: Seq[Models.Household],
     rndGen: RandomGenerator
-  ): Iterable[Seq[Option[PersonWithExtraInfo]]] = {
-    val personData: Iterable[Seq[Option[PersonWithExtraInfo]]] =
+  ): Seq[Seq[Option[PersonWithExtraInfo]]] = {
+    val personData =
       households.map { household =>
         val persons = householdWithPersons(household)
         val personWithWorkDestAndTimeLeaving = persons.flatMap { person =>
@@ -447,9 +506,9 @@ class SimpleScenarioGenerator(
     personData
   }
 
-  private def assignWorkingLocations: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] = {
+  private def assignWorkingLocations: Map[BlockGroupGeoId, Seq[(Models.Household, List[PersonWithExtraInfo])]] = {
     val numberOfProcessed = new AtomicInteger(0)
-    val blockGroupGeoIdToHouseholds: Map[BlockGroupGeoId, Iterable[(Models.Household, Seq[PersonWithExtraInfo])]] =
+    val blockGroupGeoIdToHouseholds: Map[BlockGroupGeoId, Seq[(Models.Household, List[PersonWithExtraInfo])]] =
       geoIdToHouseholds.toSeq.par // Process in parallel!
         .map { // We process it in parallel, but there is no shared state
           case (blockGroupGeoId, households) =>
@@ -518,9 +577,9 @@ class SimpleScenarioGenerator(
     val pathToFile = pathToFolder + "/taz-centers.csv.gz"
     val csvWriter = new CsvWriter(pathToFile, Array("taz", "coord-x", "coord-y", "area"))
     try {
-      geoSvc.tazGeoIdToGeom.foreach { case (taz, geo) =>
+      geoSvc.tazGeoIdToGeomWithExtraDetails.foreach { case (taz, (geo, area)) =>
         val utmCoord = geoUtils.wgs2Utm(new Coord(geo.getCentroid.getX, geo.getCentroid.getY))
-        csvWriter.write(taz.asUniqueKey, utmCoord.getX, utmCoord.getY, geo.getArea)
+        csvWriter.write(taz.asUniqueKey, utmCoord.getX, utmCoord.getY, area)
       }
     } finally {
       Try(csvWriter.close())
@@ -592,6 +651,25 @@ object SimpleScenarioGenerator extends StrictLogging {
     DateTimeFormatter.ofPattern("MM-dd-yyyy_HH-mm-ss").format(LocalDateTime.now)
   }
 
+  def getBlockGroupToTazs(
+    blockGroupGeoIdToGeom: Map[BlockGroupGeoId, Geometry],
+    tazGeoIdToGeom: Map[TazGeoId, Geometry]
+  ): Map[BlockGroupGeoId, List[(TazGeoId, Double)]] = {
+    val blockGroupToTazs = blockGroupGeoIdToGeom.par.map { case (blockGroupGeoId, blockGroupGeom) =>
+      // Intersect with all TAZ
+      val allIntersections = tazGeoIdToGeom.flatMap { case (tazGeoId, tazGeo) =>
+        val intersection: Geometry = blockGroupGeom.intersection(tazGeo)
+        if (intersection.isEmpty) // Should we consider the area?  && intersection.getArea == 0
+          None
+        else {
+          Some((intersection: Geometry, blockGroupGeoId, (tazGeoId, intersection.getArea)))
+        }
+      }
+      blockGroupGeoId -> allIntersections.map(_._3).toList
+    }.seq
+    blockGroupToTazs
+  }
+
   def run(parsedArgs: Arguments): Unit = {
     val pathToOutput = parsedArgs.outputFolder + "_" + getCurrentDateTime
     val databaseInfo = CTPPDatabaseInfo(PathToData(parsedArgs.ctppFolder), parsedArgs.stateCodes)
@@ -615,37 +693,14 @@ object SimpleScenarioGenerator extends StrictLogging {
 
     gen.writeTazCenters(pathToOutput)
 
-    val scenarioResult = gen.generate
-    val generatedData = scenarioResult.householdWithTheirPeople
-    logger.info(s"Number of households: ${generatedData.size}")
-    logger.info(s"Number of of people: ${generatedData.flatMap(_._2).size}")
+    val scenarioResult = gen.generate(pathToOutput)
+    logger.info(s"Number of households: ${scenarioResult.totalNumberOfHouseholds}")
+    logger.info(s"Number of people: ${scenarioResult.totalNumberOfPeople}")
+    logger.info(s"Number of plan elements: ${scenarioResult.totalNumberOfPlanElements}")
 
     val parkingFilePath = s"$pathToOutput/taz-parking.csv"
     CsvParkingInfoWriter.write(parkingFilePath, gen.geoSvc, scenarioResult.geoIdToAreaResidentsAndWorkers)
-
-    val households = generatedData.map(_._1).toVector
-    val householdFilePath = s"$pathToOutput/households.csv"
-    CsvHouseholdInfoWriter.write(householdFilePath, households)
-
-    val blocks = generatedData.map(_._3).toVector
-    val blockFilePath = s"$pathToOutput/blocks.csv"
-    CsvBlocksInfoWriter.write(blockFilePath, blocks)
-
-    val persons = generatedData.flatMap(_._2.map(_.person)).toVector
-    val personsFilePath = s"$pathToOutput/persons.csv"
-    CsvPersonInfoWriter.write(personsFilePath, persons)
-
-    val planElements = generatedData.flatMap(_._2.flatMap(_.plans)).toVector
-    val plansFilePath = s"$pathToOutput/plans.csv"
-    CsvPlanElementWriter.write(plansFilePath, planElements)
-
-    val geoUtils: GeoUtils = new GeoUtils {
-      override def localCRS: String = parsedArgs.localCRS
-    }
-    val allActivities = planElements.filter(_.planElementType == PlanElement.Activity).map { plan =>
-      geoUtils.utm2Wgs(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
-    }
-    gen.writeH3(pathToOutput, allActivities, 1000)
+    println(s"Wrote parking information to $parkingFilePath")
   }
 
   def main(args: Array[String]): Unit = {

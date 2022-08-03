@@ -13,6 +13,7 @@ case class DefaultNetworkCoordinator(beamConfig: BeamConfig) extends LazyLogging
   override def preprocessing(): Unit = {}
 
   override def postProcessing(): Unit = {
-    convertFrequenciesToTrips()
+    convertFrequenciesToTrips(this.transportNetwork)
+    this.networks2.foreach { case (transportNetwork, _) => convertFrequenciesToTrips(transportNetwork) }
   }
 }
