@@ -7,7 +7,7 @@ library(dplyr)
 library(ggplot2)
 
 geminiDir <- normalizePath("~/Data/GEMINI")
-infraDir <- pp(geminiDir,"/2022-04-28/_models/infrastructure")
+infraDir <- pp(geminiDir,"/2022-07-05/_models/infrastructure")
 
 
 infra5aBase <- readCsv(pp(infraDir, "/4a_output_2022_Apr_13_pubClust_withFees_noHousehold.csv"))
@@ -130,5 +130,22 @@ nrow(fast_sites[site.xfc == TRUE])
 
 sites[plug.xfc]
 
+
+####
+
+events <- readCsv(pp(geminiDir,"/2022-07-05/events/filtered.0.events.7Advanced.csv.gz"))
+events.sim <- readCsv(pp(geminiDir, "/2022-07-05/sim/events.sim.7Advanced.csv.gz"))
+
+refueling <- events[type == "RefuelSessionEvent"][
+  ,.(person,startTime=time-duration,startTime2=time-duration,parkingTaz,chargingPointType,
+     pricingModel,parkingType,locationX,locationY,vehicle,vehicleType,fuel,duration)][
+       ,`:=`(stallLocationX=locationX,stallLocationY=locationY)]
+
+write.csv(
+  refueling,
+  file = pp(geminiDir,"/2022-07-05/_models/chargingEvents.7Advanced.csv"),
+  row.names=FALSE,
+  quote=FALSE,
+  na="0")
 
 

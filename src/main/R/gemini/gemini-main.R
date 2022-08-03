@@ -74,9 +74,9 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 # scenarioNames <- c('5b1', '5b2')
 # scenarioNames <- c('5b3', '5b4', '5b5', '5b6', '5b7')
 
-scenarioNames <- c('BaseXFC', 'HighEV')
+scenarioNames <- c('BaseXFC', 'HighEV', 'Advanced')
 #scenarioBaselineLabel <- 'BaseXFC'
-scenarioBaselineLabel <- '5b1'
+scenarioBaselineLabel <- 'BaseXFC'
 #all.loads <- all.loads[!is.na(loadType)]
 ##########################################
 # LOADS & ENERGY
@@ -219,7 +219,7 @@ p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadTy
   labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
   theme(strip.text = element_text(size=rel(1.2))) +
   facet_wrap(~factor(name,scenarioNames),ncol = 2)
-ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=4,units='in')
+ggsave(pp(plotsDir,'/public-charging-by-scenario-2.png'),p,width=8,height=4,units='in')
 
 
 ## public  daily charging by scenario
