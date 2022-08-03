@@ -198,18 +198,6 @@ class BeamVehicle(
     }
   }
 
-  def getChargerConnectedTick(): Int = {
-    chargerRWLock.read {
-      chargerConnectedTick.getOrElse(0)
-    }
-  }
-
-  def getChargerConnectedPrimaryFuel(): Double = {
-    chargerRWLock.read {
-      chargerConnectedPrimaryFuel.getOrElse(0L)
-    }
-  }
-
   /**
     * useFuel
     *
@@ -401,7 +389,7 @@ class BeamVehicle(
       case Body =>
         WALK
     }
-    val needsToCalculateCost = beamVehicleType.vehicleCategory == Car || isSharedVehicle
+    val needsToCalculateCost = beamVehicleType.vehicleCategory == Car || beamVehicleType.isSharedVehicle
     StreetVehicle(id, beamVehicleType.id, spaceTime, mode, asDriver = true, needsToCalculateCost = needsToCalculateCost)
   }
 

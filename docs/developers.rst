@@ -191,6 +191,7 @@ The command will start an ec2 instance based on the provided configurations and 
 * **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
 * **beamCommit**: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
 * **dataBranch**: To specify the data branch (branch on production data repository) for simulation, 'develop' branch will be used as default data branch.
+* **dataCommit**: The commit SHA for the the data branch, default is `HEAD`
 * **deployMode**: to specify what type of deploy it will be: config | experiment | execute
 * **beamConfigs**: A comma `,` separated list of `beam.conf` files. It should be relative path under the project home. You can create branch level defaults by specifying the branch name with `.configs` suffix like `master.configs`. Branch level default will be used if `beamConfigs` is not present.
 * **beamExperiments**: A comma `,` separated list of `experiment.yml` files. It should be relative path under the project home.You can create branch level defaults same as configs by specifying the branch name with `.experiments` suffix like `master.experiments`. Branch level default will be used if `beamExperiments` is not present. `beamConfigs` has priority over this, in other words, if both are provided then `beamConfigs` will be used.
@@ -203,6 +204,7 @@ The command will start an ec2 instance based on the provided configurations and 
 * **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
 * **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
 * **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
+* **runJupyter**: Should it launch Jupyter Notebook along with a simulation, default is `false`.
 
 There is a default file to specify parameters for task: gradle.deploy.properties_ and it is advised to use it (or custom) file to specify all default values for `deploy` task and not use gradle.properties_ file because latter used as a source of default values for all gradle tasks.
 
@@ -331,6 +333,26 @@ Below is syntax to use the command::
 .. _gradle.deploy.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.deploy.properties
 .. _gradle.deployPILATES.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.deployPILATES.properties
 .. _link: https://goo.gl/Db37yM
+
+
+Running Jupyter Notebook locally and remotely (EC2)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There are 3 options to run Jupyter Notebook via Gradle task.
+
+1. Locally - Jupyter Notebook will be run on the local machine via Docker. To start it use command::
+
+  ./gradlew jupyterStart
+
+It will be run in the background. To stop it use command::
+
+  ./gradlew jupyterStop
+
+2. Remotely on EC2 on a dedicated instance. Use the following command:
+
+  ./gradlew jupyterEC2
+
+3. Remotely on EC2 together with a simulation. Use `-PrunJupyter=true` option for deploy command.
 
 
 Performance Monitoring

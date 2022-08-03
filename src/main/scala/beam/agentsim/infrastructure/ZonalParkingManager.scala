@@ -156,7 +156,7 @@ object ZonalParkingManager extends LazyLogging {
       beamServices.beamScenario.tazTreeMap.idToTAZMapping,
       envelopeInUTM,
       beamServices.beamConfig,
-      beamServices.geo.distUTMInMeters(_, _)
+      beamServices.geo.distUTMInMeters
     )
   }
 

@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure
 
-import akka.actor.ActorRef
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.infrastructure.ParallelParkingManager.{geometryFactory, ParkingCluster, Worker}
 import beam.agentsim.infrastructure.parking.{ParkingNetwork, ParkingZone, ParkingZoneId}
@@ -139,8 +138,6 @@ class ParallelParkingManager(
 
 object ParallelParkingManager extends LazyLogging {
   private val geometryFactory = new GeometryFactory()
-
-  case class ParkingSearchResult(response: ParkingInquiryResponse, originalSender: ActorRef, worker: ActorRef)
 
   /**
     * builds a ParallelParkingManager

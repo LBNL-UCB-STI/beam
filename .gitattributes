@@ -35,3 +35,4 @@ text eol=lf
 test/**/*.xml filter=lfs diff=lfs merge=lfs -text
 production/**/*.xml filter=lfs diff=lfs merge=lfs -text
 test/input/sf-light/TechTakeover_longTerm_lowTech/ filter=lfs diff=lfs merge=lfs -text
+aws/**/*.txt !filter !diff !merge text

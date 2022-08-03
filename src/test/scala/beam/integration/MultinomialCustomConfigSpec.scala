@@ -24,7 +24,7 @@ class MultinomialCustomConfigSpec
           ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept",
+          "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.car_intercept",
           ConfigValueFactory.fromAnyRef(100)
         )
         .withValue(
@@ -39,7 +39,7 @@ class MultinomialCustomConfigSpec
           ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept",
+          "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.car_intercept",
           ConfigValueFactory.fromAnyRef(-100)
         )
         .resolve()
@@ -66,7 +66,7 @@ class MultinomialCustomConfigSpec
           ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept",
+          "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_intercept",
           ConfigValueFactory.fromAnyRef(100)
         )
         .resolve()
@@ -77,7 +77,7 @@ class MultinomialCustomConfigSpec
           ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept",
+          "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_intercept",
           ConfigValueFactory.fromAnyRef(-100)
         )
         .resolve()
@@ -99,7 +99,7 @@ class MultinomialCustomConfigSpec
           ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept",
+          "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept",
           ConfigValueFactory.fromAnyRef(100)
         )
         .resolve()
@@ -110,7 +110,7 @@ class MultinomialCustomConfigSpec
           ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept",
+          "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept",
           ConfigValueFactory.fromAnyRef(-100)
         )
         .resolve()
@@ -132,7 +132,7 @@ class MultinomialCustomConfigSpec
           ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept",
+          "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.drive_transit_intercept",
           ConfigValueFactory.fromAnyRef(100)
         )
         .resolve()
@@ -143,7 +143,7 @@ class MultinomialCustomConfigSpec
           ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept",
+          "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.drive_transit_intercept",
           ConfigValueFactory.fromAnyRef(-100)
         )
         .resolve()
@@ -167,7 +167,7 @@ class MultinomialCustomConfigSpec
           ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept",
+          "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.walk_intercept",
           ConfigValueFactory.fromAnyRef(100)
         )
         .resolve()
@@ -178,7 +178,7 @@ class MultinomialCustomConfigSpec
           ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept",
+          "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.walk_intercept",
           ConfigValueFactory.fromAnyRef(-100)
         )
         .resolve()

@@ -460,12 +460,6 @@ class PersonAgent(
 
   startWith(Uninitialized, BasePersonData())
 
-  def scaleTimeByValueOfTime(timeInSeconds: Double): Double = {
-    attributes.unitConversionVOTT(
-      timeInSeconds
-    ) // TODO: ZN, right now not mode specific. modal factors reside in ModeChoiceMultinomialLogit. Move somewhere else?
-  }
-
   def currentTour(data: BasePersonData): Tour = {
     stateName match {
       case PerformingActivity =>
@@ -678,11 +672,6 @@ class PersonAgent(
     currentCoord == null || beamScenario.trainStopQuadTree
       .getDisk(currentCoord.getX, currentCoord.getY, minDistanceToTrainStop)
       .isEmpty || beamScenario.trainStopQuadTree.getDisk(nextCoord.getX, nextCoord.getY, minDistanceToTrainStop).isEmpty
-  }
-
-  def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
-    if (ind < 0 || ind >= _experiencedBeamPlan.activities.length) Left(msg)
-    else Right(_experiencedBeamPlan.activities(ind))
   }
 
   def handleFailedRideHailReservation(
@@ -1379,10 +1368,7 @@ class PersonAgent(
           data.failedTrips.foreach(uncompletedTrip =>
             generateSkimData(tick, uncompletedTrip, failedTrip = true, currentActivityIndex, nextActivity(data))
           )
-          generateSkimData(tick, data.currentTrip.get, failedTrip = false, currentActivityIndex, nextActivity(data))
-
           resetFuelConsumed()
-
           val activityStartEvent = new ActivityStartEvent(
             tick,
             id,
