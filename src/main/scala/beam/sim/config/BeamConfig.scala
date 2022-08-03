@@ -1631,6 +1631,7 @@ object BeamConfig {
           linkToGradePercentFilePath: java.lang.String,
           meanPrivateVehicleStartingSOC: scala.Double,
           meanRidehailVehicleStartingSOC: scala.Double,
+          replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable: scala.Boolean,
           sharedFleets: scala.List[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm],
           transitVehicleTypesByRouteFile: java.lang.String,
           vehicleAdjustmentMethod: java.lang.String,
@@ -1943,6 +1944,9 @@ object BeamConfig {
               meanRidehailVehicleStartingSOC =
                 if (c.hasPathOrNull("meanRidehailVehicleStartingSOC")) c.getDouble("meanRidehailVehicleStartingSOC")
                 else 1.0,
+              replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable = c.hasPathOrNull(
+                "replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable"
+              ) && c.getBoolean("replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable"),
               sharedFleets = $_LBeamConfig_Beam_Agentsim_Agents_Vehicles_SharedFleets$Elm(c.getList("sharedFleets")),
               transitVehicleTypesByRouteFile =
                 if (c.hasPathOrNull("transitVehicleTypesByRouteFile")) c.getString("transitVehicleTypesByRouteFile")
