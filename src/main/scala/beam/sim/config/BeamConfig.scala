@@ -4124,6 +4124,7 @@ object BeamConfig {
       }
 
       case class R5(
+        accessBufferTimeSeconds: BeamConfig.Beam.Routing.R5.AccessBufferTimeSeconds,
         bikeLaneLinkIdsFilePath: java.lang.String,
         bikeLaneScaleFactor: scala.Double,
         departureWindow: scala.Double,
@@ -4140,6 +4141,25 @@ object BeamConfig {
       )
 
       object R5 {
+
+        case class AccessBufferTimeSeconds(
+          bike: scala.Int,
+          bike_rent: scala.Int,
+          car: scala.Int,
+          walk: scala.Int
+        )
+
+        object AccessBufferTimeSeconds {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5.AccessBufferTimeSeconds = {
+            BeamConfig.Beam.Routing.R5.AccessBufferTimeSeconds(
+              bike = if (c.hasPathOrNull("bike")) c.getInt("bike") else 60,
+              bike_rent = if (c.hasPathOrNull("bike_rent")) c.getInt("bike_rent") else 180,
+              car = if (c.hasPathOrNull("car")) c.getInt("car") else 300,
+              walk = if (c.hasPathOrNull("walk")) c.getInt("walk") else 0
+            )
+          }
+        }
 
         case class MNetBuilder(
           fromCRS: java.lang.String,
@@ -4171,6 +4191,10 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5 = {
           BeamConfig.Beam.Routing.R5(
+            accessBufferTimeSeconds = BeamConfig.Beam.Routing.R5.AccessBufferTimeSeconds(
+              if (c.hasPathOrNull("accessBufferTimeSeconds")) c.getConfig("accessBufferTimeSeconds")
+              else com.typesafe.config.ConfigFactory.parseString("accessBufferTimeSeconds{}")
+            ),
             bikeLaneLinkIdsFilePath =
               if (c.hasPathOrNull("bikeLaneLinkIdsFilePath")) c.getString("bikeLaneLinkIdsFilePath") else "",
             bikeLaneScaleFactor =
