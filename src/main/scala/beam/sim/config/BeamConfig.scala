@@ -2684,7 +2684,8 @@ object BeamConfig {
 
       case class Output(
         activitySimSkimsEnabled: scala.Boolean,
-        geo: BeamConfig.Beam.Exchange.Output.Geo
+        geo: BeamConfig.Beam.Exchange.Output.Geo,
+        sendNonChosenTripsToSkimmer: scala.Boolean
       )
 
       object Output {
@@ -2708,7 +2709,9 @@ object BeamConfig {
               c.hasPathOrNull("activitySimSkimsEnabled") && c.getBoolean("activitySimSkimsEnabled"),
             geo = BeamConfig.Beam.Exchange.Output.Geo(
               if (c.hasPathOrNull("geo")) c.getConfig("geo") else com.typesafe.config.ConfigFactory.parseString("geo{}")
-            )
+            ),
+            sendNonChosenTripsToSkimmer =
+              !c.hasPathOrNull("sendNonChosenTripsToSkimmer") || c.getBoolean("sendNonChosenTripsToSkimmer")
           )
         }
       }
@@ -4131,6 +4134,8 @@ object BeamConfig {
         maxDistanceLimitByModeInMeters: BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters,
         numberOfSamples: scala.Int,
         osmMapdbFile: java.lang.String,
+        suboptimalMinutes: scala.Int,
+        transitAlternativeList: java.lang.String,
         travelTimeNoiseFraction: scala.Double
       )
 
@@ -4186,6 +4191,9 @@ object BeamConfig {
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
+            suboptimalMinutes = if (c.hasPathOrNull("suboptimalMinutes")) c.getInt("suboptimalMinutes") else 0,
+            transitAlternativeList =
+              if (c.hasPathOrNull("transitAlternativeList")) c.getString("transitAlternativeList") else "OPTIMAL",
             travelTimeNoiseFraction =
               if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0
           )

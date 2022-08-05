@@ -1396,6 +1396,7 @@ class PersonAgent(
             currentActivity(data),
             nextActivity(data)
           )
+
           resetFuelConsumed()
           val activityStartEvent = new ActivityStartEvent(
             tick,
@@ -1439,7 +1440,7 @@ class PersonAgent(
       }
   }
 
-  private def generateSkimData(
+  def generateSkimData(
     tick: Int,
     trip: EmbodiedBeamTrip,
     failedTrip: Boolean,
