@@ -1366,7 +1366,6 @@ class PersonAgent(
           )
           val correctedTrip = correctTripEndTime(data.currentTrip.get, tick, body.id, body.beamVehicleType.id)
           generateSkimData(tick, correctedTrip, failedTrip = false, currentActivityIndex, nextActivity(data))
-
           resetFuelConsumed()
           val activityStartEvent = new ActivityStartEvent(
             tick,
@@ -1410,7 +1409,7 @@ class PersonAgent(
       }
   }
 
-  private def generateSkimData(
+  def generateSkimData(
     tick: Int,
     trip: EmbodiedBeamTrip,
     failedTrip: Boolean,
