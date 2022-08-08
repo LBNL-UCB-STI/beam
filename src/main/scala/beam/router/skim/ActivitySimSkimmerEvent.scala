@@ -93,8 +93,7 @@ case class ActivitySimSkimmerEvent(
     energyConsumption: Double
   ): (ActivitySimSkimmerKey, ActivitySimSkimmerInternal) = {
     val pathType = ActivitySimPathType.determineTripPathType(trip)
-    val correctedTrip = ODSkimmerEvent.correctTrip(trip, trip.tripClassifier)
-    val beamLegs = correctedTrip.beamLegs
+    val beamLegs = trip.beamLegs
     val origLeg = beamLegs.head
     val timeBin = SkimsUtils.timeToBin(origLeg.startTime)
     val distInMeters = beamLegs.map(_.travelPath.distanceInM).sum
@@ -124,12 +123,12 @@ case class ActivitySimSkimmerEvent(
 
     val payload =
       ActivitySimSkimmerInternal(
-        travelTimeInMinutes = correctedTrip.totalTravelTimeInSecs.toDouble / 60.0,
+        travelTimeInMinutes = trip.totalTravelTimeInSecs.toDouble / 60.0,
         generalizedTimeInMinutes = generalizedTimeInHours * 60,
         generalizedCost = generalizedCost,
         distanceInMeters = if (distInMeters > 0.0) { distInMeters }
         else { 1.0 },
-        cost = correctedTrip.costEstimate,
+        cost = trip.costEstimate,
         energy = energyConsumption,
         walkAccessInMinutes = walkAccess / 60.0,
         walkEgressInMinutes = walkEgress / 60.0,
@@ -149,7 +148,7 @@ case class ActivitySimSkimmerEvent(
 
 object ActivitySimSkimmerEvent {
 
-  val carModes: Set[BeamMode] = Set(BeamMode.CAV, BeamMode.CAR)
+  val carModes: Set[BeamMode] = Set(BeamMode.CAV, BeamMode.CAR, BeamMode.RIDE_HAIL, BeamMode.RIDE_HAIL_POOLED)
   val transitModes: Set[BeamMode] = (BeamMode.transitModes ++ BeamMode.massTransitModes).toSet
   val inVehicleModes: Set[BeamMode] = carModes ++ transitModes
 }
