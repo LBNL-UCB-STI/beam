@@ -687,17 +687,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       option.itinerary.asScala
         .map { itinerary =>
           // Using itinerary start as access leg's startTime
-          val tripStartTime = dates
-            .toBaseMidnightSeconds(
-              itinerary.startTime,
-              transportNetwork.transitLayer.routes.size() == 0
-            )
-            .toInt
-
-          var arrivalTime: Int = Int.MinValue
-          val embodiedBeamLegs = mutable.ArrayBuffer.empty[EmbodiedBeamLeg]
           val access = option.access.get(itinerary.connection.access)
-          val vehicle = bestAccessVehiclesByR5Mode(access.mode)
           val transitAccessBuffer = access.mode match {
             case LegMode.WALK         => beamConfig.beam.routing.r5.accessBufferTimeSeconds.walk
             case LegMode.BICYCLE      => beamConfig.beam.routing.r5.accessBufferTimeSeconds.bike
@@ -706,6 +696,17 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             case LegMode.CAR          => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
             case _                    => 0
           }
+          val tripStartTime = dates
+            .toBaseMidnightSeconds(
+              itinerary.startTime,
+              transportNetwork.transitLayer.routes.size() == 0
+            )
+            .toInt - transitAccessBuffer
+
+          var arrivalTime: Int = Int.MinValue
+          val embodiedBeamLegs = mutable.ArrayBuffer.empty[EmbodiedBeamLeg]
+          val vehicle = bestAccessVehiclesByR5Mode(access.mode)
+
           maybeWalkToVehicle(vehicle).foreach(walkLeg => {
             // Glue the walk to vehicle in front of the trip without a gap
             embodiedBeamLegs += walkLeg
