@@ -1268,7 +1268,7 @@ trait ChoosesMode {
       val availableModesForTrips: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson)
         .filterNot(mode => choosesModeData.excludeModes.contains(mode))
 
-      val filteredItinerariesForChoice = (choosesModeData.personData.currentTourMode match {
+      val filteredItinerariesForChoice = choosesModeData.personData.currentTourMode match {
         case Some(mode) if mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT =>
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           val tripIndexOfElement = currentTour(choosesModeData.personData)
@@ -1297,22 +1297,38 @@ trait ChoosesMode {
           combinedItinerariesForChoice.filter(_.tripClassifier == mode)
         case _ =>
           combinedItinerariesForChoice
-      }).filter(itin => availableModesForTrips.contains(itin.tripClassifier))
+      }
+
+      val itinerariesOfCorrectMode =
+        filteredItinerariesForChoice.filter(itin => availableModesForTrips.contains(itin.tripClassifier))
 
       val attributesOfIndividual =
         matsimPlan.getPerson.getCustomAttributes
           .get("beam-attributes")
           .asInstanceOf[AttributesOfIndividual]
-      val availableAlts = Some(filteredItinerariesForChoice.map(_.tripClassifier).mkString(":"))
+      val availableAlts = Some(itinerariesOfCorrectMode.map(_.tripClassifier).mkString(":"))
 
       modeChoiceCalculator(
-        filteredItinerariesForChoice,
+        itinerariesOfCorrectMode,
         attributesOfIndividual,
         nextActivity(choosesModeData.personData),
         Some(currentActivity(choosesModeData.personData)),
         Some(matsimPlan.getPerson)
       ) match {
         case Some(chosenTrip) =>
+          filteredItinerariesForChoice.foreach {
+            case possibleTrip
+                if (possibleTrip != chosenTrip) &&
+                  beamScenario.beamConfig.beam.exchange.output.sendNonChosenTripsToSkimmer =>
+              generateSkimData(
+                possibleTrip.legs.lastOption.map(_.beamLeg.endTime).getOrElse(_currentTick.get),
+                possibleTrip,
+                failedTrip = false,
+                personData.currentActivityIndex,
+                nextActivity(personData)
+              )
+            case _ =>
+          }
           val dataForNextStep = choosesModeData.copy(
             pendingChosenTrip = Some(chosenTrip),
             availableAlternatives = availableAlts
