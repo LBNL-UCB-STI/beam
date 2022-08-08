@@ -56,7 +56,7 @@ class BackgroundSkimsCreatorAppSpec
       whenReady(BackgroundSkimsCreatorApp.runWithServices(beamServices, params)) { _ =>
         val csv = GenericCsvReader.readAs[ExcerptData](outputPath.toString, toCsvSkimRow, _ => true)._1.toVector
         csv.size shouldBe 15
-        csv.count(_.weightedGeneralizedTime > 10) shouldBe 10
+        csv.count(_.weightedTotalTime > 10) shouldBe 10
       }
     }
 
@@ -64,7 +64,7 @@ class BackgroundSkimsCreatorAppSpec
       whenReady(BackgroundSkimsCreatorApp.runWithServices(beamServices, params.copy(input = None))) { _ =>
         val csv = GenericCsvReader.readAs[ExcerptData](outputPath.toString, toCsvSkimRow, _ => true)._1.toVector
         csv.size shouldBe 105
-        csv.count(_.weightedGeneralizedTime > 10) shouldBe 65
+        csv.count(_.weightedTotalTime > 10) shouldBe 65
       }
     }
   }
