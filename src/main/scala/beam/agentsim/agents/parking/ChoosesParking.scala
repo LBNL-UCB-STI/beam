@@ -178,7 +178,15 @@ object ChoosesParking {
         stall
       case None =>
         // This can now happen if a vehicle was charging and released the stall already
-        currentBeamVehicle.lastUsedStall.get
+        currentBeamVehicle.lastUsedStall match {
+          case Some(stall) => stall
+          case None =>
+            logger.warn(
+              s"Trying to release stall when vehicle doesn't have one. Vehicle data: ${currentBeamVehicle.toString}"
+            )
+            ParkingStall.defaultStall(currentBeamVehicle.spaceTime.loc)
+        }
+
     }
     val energyCharge: Double = energyChargedMaybe.getOrElse(0.0)
     val score = calculateScore(stallForLeavingParkingEvent.costInDollars, energyCharge)
