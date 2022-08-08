@@ -103,9 +103,8 @@ class HouseholdFleetManager(
             triggerId = triggerId,
             searchMode = ParkingSearchMode.Init
           )
-          // TODO Overnight charging is still a work in progress and might produce unexpected results
           if (vehicle.isEV && beamConfig.beam.agentsim.chargingNetworkManager.overnightChargingEnabled) {
-            logger.info(s"Overnight charging vehicle $vehicle with state of charge ${vehicle.getStateOfCharge}")
+            logger.debug(s"Overnight charging vehicle $vehicle with state of charge ${vehicle.getStateOfCharge}")
             (chargingNetworkManager ? inquiry).mapTo[ParkingInquiryResponse].map(r => (id, r))
           } else {
             logger.debug(s"Overnight parking vehicle $vehicle")
@@ -191,7 +190,7 @@ class HouseholdFleetManager(
       context.stop(self)
     case Success =>
     case x =>
-      logger.warn(s"No handler for $x")
+      logger.error(s"No handler for $x")
   }
 
   /**

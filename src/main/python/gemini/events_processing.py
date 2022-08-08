@@ -1,8 +1,8 @@
 import pandas as pd
 import os
 
-work_directory = '~/Data/GEMINI/2022-07-05/'
-filename = '0.events.7Advanced.csv.gz'
+work_directory = '~/Data/GEMINI/test/'
+filename = '0.events.d3.csv.gz'
 # filename = '0.events.40p.csv.gz'
 full_filename = os.path.expanduser(work_directory + "events-raw/" + filename)
 print("reading " + filename)

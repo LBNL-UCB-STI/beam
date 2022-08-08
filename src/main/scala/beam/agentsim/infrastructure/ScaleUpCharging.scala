@@ -50,23 +50,6 @@ trait ScaleUpCharging extends {
     }
   }
 
-//  lazy val nonSampledVehicle: Map[Id[BeamVehicle], BeamVehicle] = {
-//    val vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = readBeamVehicleTypeFile(beamConfig)
-//    var (allVehicles, _) = readVehiclesFile(
-//      beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath,
-//      vehicleTypes,
-//      beamConfig.matsim.modules.global.randomSeed,
-//      VehicleManager.AnyManager.managerId
-//    )
-//    getBeamServices.matsimServices.getScenario.getHouseholds.getHouseholds
-//      .values()
-//      .asScala
-//      .flatMap(_.getVehicleIds.asScala.map { vehicleId =>
-//        allVehicles = allVehicles - BeamVehicle.createId(vehicleId)
-//      })
-//    allVehicles
-//  }
-
   private lazy val defaultScaleUpFactor: Double =
     if (!cnmConfig.scaleUp.enabled) 1.0 else cnmConfig.scaleUp.expansionFactor_wherever_activity
 

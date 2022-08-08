@@ -265,7 +265,6 @@ trait ChoosesParking extends {
           remainingTourDistance + conf.refuelRequiredThresholdInMeters,
           conf.noRefuelThresholdInMeters
         )
-        true
     }
   }
 

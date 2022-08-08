@@ -11,6 +11,25 @@ library(ggmap)
 library(sf)
 library(stringr)
 
+#####
+chargingBehaviorFunc <- function(DT) {
+  rseSum <- DT[,.(fuel=sum(fuel)),by=.(parkingType,chargingPointType)]
+  rseSum[,fuelShare:=fuel/sum(fuel)]
+  #dcfc <- rseSum[chargingPointType=="publicfc(150.0|DC)"]$fuelShare + rseSum[chargingPointType=="publicxfc(250.0|DC)"]$fuelShare
+  #publicL2 <- rseSum[chargingPointType=="publiclevel2(7.2|AC)"]$fuelShare
+  #work <- rseSum[chargingPointType=="worklevel2(7.2|AC)"]$fuelShare
+  #home <- rseSum[chargingPointType=="homelevel1(1.8|AC)"]$fuelShare + rseSum[chargingPointType=="homelevel2(7.2|AC)"]$fuelShare
+  print("************************")
+  print(rseSum)
+  print(paste("Total All (GWH): ", sum(rseSum$fuel)/3.6e+12, sep=""))
+  totRidehailGWH <- sum(DT[startsWith(vehicle, "rideHail"),]$fuel)/3.6e+12
+  print(paste("Total Ridehail (GWH): ", totRidehailGWH, sep=""))
+  #print(pp("DCFC: ",dcfc," - ",))
+  #print(pp("PublicL2: ",publicL2))
+  #print(pp("Work: ",work))
+  #print(pp("Home: ",home))
+}
+
 workDir <- normalizePath("~/Data/GEMINI")
 activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
 
@@ -448,21 +467,7 @@ write.csv(
   na="")
 
 
-#####
-chargingBehaviorFunc <- function(DT) {
-  rseSum <- DT[,.(fuel=sum(fuel)),by=.(parkingType,chargingPointType)]
-  rseSum[,fuelShare:=fuel/sum(fuel)]
-  #dcfc <- rseSum[chargingPointType=="publicfc(150.0|DC)"]$fuelShare + rseSum[chargingPointType=="publicxfc(250.0|DC)"]$fuelShare
-  #publicL2 <- rseSum[chargingPointType=="publiclevel2(7.2|AC)"]$fuelShare
-  #work <- rseSum[chargingPointType=="worklevel2(7.2|AC)"]$fuelShare
-  #home <- rseSum[chargingPointType=="homelevel1(1.8|AC)"]$fuelShare + rseSum[chargingPointType=="homelevel2(7.2|AC)"]$fuelShare
-  print("************************")
-  print(rseSum)
-  #print(pp("DCFC: ",dcfc," - ",))
-  #print(pp("PublicL2: ",publicL2))
-  #print(pp("Work: ",work))
-  #print(pp("Home: ",home))
-}
+
 
 events100_SC3 <- "/2021Aug22-Oakland/BATCH3/events/filtered.0.events.SC3.csv.gz"
 rse100_SC3_a <- readCsv(pp(workDir, events100_SC3))
@@ -1036,3 +1041,15 @@ lognormal <- function(m, v, sample_size) {
 }
 
 
+####################
+
+events1 <- readCsv(pp(workDir, "/test/events/filtered.0.events.d1.csv.gz"))
+events2 <- readCsv(pp(workDir, "/test/events/filtered.0.events.d2.csv.gz"))
+
+ref1 <- events1[type=="RefuelSessionEvent"]
+ref2 <- events2[type=="RefuelSessionEvent"]
+
+chargingBehaviorFunc(ref1)
+chargingBehaviorFunc(ref2)
+
+events1[startsWith(vehicle,"rideHail"),.N,by=.(vehicleType)]

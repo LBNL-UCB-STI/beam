@@ -424,7 +424,7 @@ trait ChoosesMode {
       var requestId: Option[Int] = None
       // Form and send requests
 
-      var makeCurrentTourModeNone = false // to replan when personal vehicles are not available
+      var householdVehiclesWereNotAvailable = false // to replan when personal vehicles are not available
       correctedCurrentTourMode match {
         case None =>
           if (hasRideHail) {
@@ -514,9 +514,9 @@ trait ChoosesMode {
                     )
                   )
                 )
-                makeCurrentTourModeNone = true
-                makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
-              } else makeRequestWith(withTransit = false, vehicles :+ bodyStreetVehicle)
+                householdVehiclesWereNotAvailable = true
+              }
+              makeRequestWith(withTransit = householdVehiclesWereNotAvailable, vehicles :+ bodyStreetVehicle)
               responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           }
         case Some(mode @ (DRIVE_TRANSIT | BIKE_TRANSIT)) =>
@@ -576,7 +576,7 @@ trait ChoosesMode {
       }
       val newPersonData = choosesModeData.copy(
         personData = choosesModeData.personData
-          .copy(currentTourMode = if (makeCurrentTourModeNone) None else correctedCurrentTourMode),
+          .copy(currentTourMode = if (householdVehiclesWereNotAvailable) None else correctedCurrentTourMode),
         availablePersonalStreetVehicles = availablePersonalStreetVehicles,
         allAvailableStreetVehicles = newlyAvailableBeamVehicles,
         routingResponse = responsePlaceholders.routingResponse,
