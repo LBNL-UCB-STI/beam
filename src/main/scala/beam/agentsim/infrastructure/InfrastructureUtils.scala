@@ -97,9 +97,8 @@ object InfrastructureUtils extends LazyLogging {
         envelopeInUTM,
         beamServices
       ),
-      rideHailChargingStalls.map { case (managerId, chargingZones) =>
+      rideHailChargingStalls.map { case (_, chargingZones) =>
         DefaultRideHailDepotParkingManager.init(
-          managerId,
           chargingZones,
           envelopeInUTM,
           beamServices

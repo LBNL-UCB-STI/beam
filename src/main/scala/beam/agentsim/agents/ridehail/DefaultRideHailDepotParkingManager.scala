@@ -40,7 +40,6 @@ import scala.collection.mutable.ListBuffer
   * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.insufficientRangeMultiplier = "double | -60.0" // 60 minute penalty if out of range
   */
 class DefaultRideHailDepotParkingManager(
-  vehicleManagerId: Id[VehicleManager],
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   outputDirectory: OutputDirectoryHierarchy,
   rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail
@@ -121,7 +120,7 @@ class DefaultRideHailDepotParkingManager(
           ParkingInquiry.init(
             SpaceTime(locationUtm, tick),
             "wherever",
-            VehicleManager.getReservedFor(vehicleManagerId).get,
+            VehicleManager.getReservedFor(beamVehicle.vehicleManagerId.get).get,
             Some(beamVehicle),
             valueOfTime = rideHailConfig.cav.valueOfTime,
             triggerId = 0
@@ -252,7 +251,6 @@ object DefaultRideHailDepotParkingManager {
   val outputRidehailParkingFileName = "ridehailParking.csv"
 
   def apply(
-    vehicleManagerId: Id[VehicleManager],
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
     geoQuadTree: QuadTree[TAZ],
     idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
@@ -260,7 +258,6 @@ object DefaultRideHailDepotParkingManager {
     beamServices: BeamServices
   ): RideHailDepotParkingManager = {
     new DefaultRideHailDepotParkingManager(
-      vehicleManagerId,
       parkingZones,
       beamServices.matsimServices.getControlerIO,
       beamServices.beamConfig.beam.agentsim.agents.rideHail
@@ -288,13 +285,11 @@ object DefaultRideHailDepotParkingManager {
   }
 
   def init(
-    vehicleManagerId: Id[VehicleManager],
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
     boundingBox: Envelope,
     beamServices: BeamServices
   ): RideHailDepotParkingManager = {
     DefaultRideHailDepotParkingManager(
-      vehicleManagerId,
       parkingZones,
       beamServices.beamScenario.tazTreeMap.tazQuadTree,
       beamServices.beamScenario.tazTreeMap.idToTAZMapping,
