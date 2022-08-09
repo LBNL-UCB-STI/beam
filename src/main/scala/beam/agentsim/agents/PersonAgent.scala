@@ -903,7 +903,16 @@ class PersonAgent(
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
         val vehicleToExit = data.currentVehicle.head
         currentBeamVehicle.unsetDriver()
-        nextNotifyVehicleResourceIdle.foreach(currentBeamVehicle.getManager.get ! _)
+        nextNotifyVehicleResourceIdle.foreach(notifyVehicleIdle =>
+          currentBeamVehicle.getManager match {
+            case Some(manager) => manager ! notifyVehicleIdle
+            case None =>
+              logger.error(
+                s"Vehicle ${currentBeamVehicle.id} does not have a manager, " +
+                s"so I can't notify anyone it is idle"
+              )
+          }
+        )
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), vehicleToExit)
         )
