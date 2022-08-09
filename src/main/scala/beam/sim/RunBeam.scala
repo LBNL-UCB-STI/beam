@@ -27,7 +27,8 @@ object RunBeam extends BeamHelper {
     // e.g. we've noticed, that this method LoggingEventsManager#handleBlocking() is likely to have some code
     // that hangs a process and the application cannot be killed, see https://github.com/LBNL-UCB-STI/beam/issues/3524
     try {
-      runBeamUsing(args, None)
+//      runBeamUsing(args, None)
+      println(1)
     } catch {
       case e: Exception =>
         val threadDumpFileName = "thread_dump_from_RunBeam.txt.gz"
