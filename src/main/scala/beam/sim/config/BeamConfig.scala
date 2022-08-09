@@ -4146,6 +4146,7 @@ object BeamConfig {
           bike: scala.Int,
           bike_rent: scala.Int,
           car: scala.Int,
+          ride_hail: scala.Int,
           walk: scala.Int
         )
 
@@ -4156,6 +4157,7 @@ object BeamConfig {
               bike = if (c.hasPathOrNull("bike")) c.getInt("bike") else 60,
               bike_rent = if (c.hasPathOrNull("bike_rent")) c.getInt("bike_rent") else 180,
               car = if (c.hasPathOrNull("car")) c.getInt("car") else 300,
+              ride_hail = if (c.hasPathOrNull("ride_hail")) c.getInt("ride_hail") else 0,
               walk = if (c.hasPathOrNull("walk")) c.getInt("walk") else 0
             )
           }
