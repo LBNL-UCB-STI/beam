@@ -2130,7 +2130,8 @@ object BeamConfig {
         parkingCostScalingFactor: scala.Double,
         parkingFilePath: java.lang.String,
         parkingManager: BeamConfig.Beam.Agentsim.Taz.ParkingManager,
-        parkingStallCountScalingFactor: scala.Double
+        parkingStallCountScalingFactor: scala.Double,
+        tazIdFieldName: java.lang.String
       )
 
       object Taz {
@@ -2182,7 +2183,8 @@ object BeamConfig {
             ),
             parkingStallCountScalingFactor =
               if (c.hasPathOrNull("parkingStallCountScalingFactor")) c.getDouble("parkingStallCountScalingFactor")
-              else 1.0
+              else 1.0,
+            tazIdFieldName = if (c.hasPathOrNull("tazIdFieldName")) c.getString("tazIdFieldName") else "tazId"
           )
         }
       }
