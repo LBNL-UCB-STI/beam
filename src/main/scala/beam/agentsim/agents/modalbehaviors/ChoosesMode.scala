@@ -10,8 +10,8 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token, VehicleOrToken}
 import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
@@ -30,13 +30,16 @@ import beam.sim.{BeamServices, Geofence}
 import beam.utils.logging.pattern.ask
 import beam.utils.plan.sampling.AvailableModeUtils._
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.{Activity, Leg}
-import org.matsim.core.population.routes.NetworkRoute
+import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.utils.misc.Time
 
 import java.util.concurrent.atomic.AtomicReference
+import scala.collection.JavaConverters
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.jdk.CollectionConverters.asJavaIterableConverter
 
 /**
   * BEAM
@@ -739,6 +742,29 @@ trait ChoosesMode {
           routingFinished = true
         )
       }
+
+      // If person plan doesn't have a route for an activity create and save it
+      for {
+        activity <- nextActivity(choosesModeData.personData)
+        leg      <- _experiencedBeamPlan.getTripContaining(activity).leg if leg.getRoute == null
+      } {
+        val links =
+          response.itineraries
+            .flatMap(_.beamLegs)
+            .find(_.mode == BeamMode.CAR)
+            .map { beamLeg =>
+              beamLeg.travelPath.linkIds
+                .map(id => Id.create(id, classOf[Link]))
+                .toList
+            }
+            .getOrElse(List.empty)
+
+        if (links.nonEmpty) {
+          val route = RouteUtils.createNetworkRoute(JavaConverters.seqAsJavaList(links), beamScenario.network)
+          leg.setRoute(route)
+        }
+      }
+
       stay() using newData
 
     case Event(theRideHailResult: RideHailResponse, choosesModeData: ChoosesModeData) =>
@@ -1256,7 +1282,7 @@ trait ChoosesMode {
       val availableModesForTrips: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson)
         .filterNot(mode => choosesModeData.excludeModes.contains(mode))
 
-      val filteredItinerariesForChoice = (choosesModeData.personData.currentTourMode match {
+      val filteredItinerariesForChoice = choosesModeData.personData.currentTourMode match {
         case Some(mode) if mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT =>
           val LastTripIndex = currentTour(choosesModeData.personData).trips.size - 1
           val tripIndexOfElement = currentTour(choosesModeData.personData)
@@ -1285,21 +1311,39 @@ trait ChoosesMode {
           combinedItinerariesForChoice.filter(_.tripClassifier == mode)
         case _ =>
           combinedItinerariesForChoice
-      }).filter(itin => availableModesForTrips.contains(itin.tripClassifier))
+      }
+
+      val itinerariesOfCorrectMode =
+        filteredItinerariesForChoice.filter(itin => availableModesForTrips.contains(itin.tripClassifier))
 
       val attributesOfIndividual =
         matsimPlan.getPerson.getCustomAttributes
           .get("beam-attributes")
           .asInstanceOf[AttributesOfIndividual]
-      val availableAlts = Some(filteredItinerariesForChoice.map(_.tripClassifier).mkString(":"))
+      val availableAlts = Some(itinerariesOfCorrectMode.map(_.tripClassifier).mkString(":"))
 
       modeChoiceCalculator(
-        filteredItinerariesForChoice,
+        itinerariesOfCorrectMode,
         attributesOfIndividual,
         nextActivity(choosesModeData.personData),
+        Some(currentActivity(choosesModeData.personData)),
         Some(matsimPlan.getPerson)
       ) match {
         case Some(chosenTrip) =>
+          filteredItinerariesForChoice.foreach {
+            case possibleTrip
+                if (possibleTrip != chosenTrip) &&
+                  beamScenario.beamConfig.beam.exchange.output.sendNonChosenTripsToSkimmer =>
+              generateSkimData(
+                possibleTrip.legs.lastOption.map(_.beamLeg.endTime).getOrElse(_currentTick.get),
+                possibleTrip,
+                failedTrip = false,
+                personData.currentActivityIndex,
+                currentActivity(personData),
+                nextActivity(personData)
+              )
+            case _ =>
+          }
           val dataForNextStep = choosesModeData.copy(
             pendingChosenTrip = Some(chosenTrip),
             availableAlternatives = availableAlts

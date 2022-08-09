@@ -1,7 +1,7 @@
 package beam.router.r5
 
 import beam.agentsim.agents.choice.mode.DrivingCost
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse, _}
@@ -17,7 +17,14 @@ import beam.sim.metrics.{Metrics, MetricsSupport}
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
-import com.conveyal.r5.profile.{McRaptorSuboptimalPathProfileRouter, ProfileRequest, StreetMode, StreetPath}
+import com.conveyal.r5.profile.{
+  DominatingList,
+  McRaptorSuboptimalPathProfileRouter,
+  ProfileRequest,
+  StreetMode,
+  StreetPath,
+  SuboptimalDominatingList
+}
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.TransitLayer
 import com.typesafe.scalalogging.StrictLogging
@@ -28,6 +35,7 @@ import org.matsim.vehicles.Vehicle
 import java.time.ZonedDateTime
 import java.time.temporal.ChronoUnit
 import java.util
+import java.util.function.IntFunction
 import java.util.{Collections, Optional}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -222,7 +230,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     profileRequest.date = dates.localBaseDate
     // Doesn't calculate any fares, is just a no-op placeholder
     profileRequest.inRoutingFareCalculator = new SimpleInRoutingFareCalculator
-    profileRequest.suboptimalMinutes = 0
+    profileRequest.suboptimalMinutes = beamConfig.beam.routing.r5.suboptimalMinutes
     profileRequest
   }
 
@@ -618,6 +626,20 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         }
       }
 
+      val departureTimeToDominatingList: IntFunction[DominatingList] = (departureTime: Int) =>
+        beamConfig.beam.routing.r5.transitAlternativeList.toLowerCase match {
+          case "suboptimal" =>
+            new SuboptimalDominatingList(
+              profileRequest.suboptimalMinutes
+            )
+          case _ =>
+            new BeamDominatingList(
+              profileRequest.inRoutingFareCalculator,
+              Integer.MAX_VALUE,
+              departureTime + profileRequest.maxTripDurationMinutes * 60
+            )
+        }
+
       val transitPaths = latency("getpath-transit-time", Metrics.VerboseLevel) {
         profileRequest.fromTime = request.departureTime
         profileRequest.toTime =
@@ -627,12 +649,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           profileRequest,
           accessStopsByMode.mapValues(_.stops).asJava,
           egressStopsByMode.mapValues(_.stops).asJava,
-          (departureTime: Int) =>
-            new BeamDominatingList(
-              profileRequest.inRoutingFareCalculator,
-              Integer.MAX_VALUE,
-              departureTime + profileRequest.maxTripDurationMinutes * 60
-            ),
+          departureTimeToDominatingList,
           null
         )
         Try(router.getPaths.asScala).getOrElse(Nil) // Catch IllegalStateException in R5.StatsCalculator
@@ -1135,7 +1152,14 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
       val minTravelTime = edge.getLengthM / maxSpeed
       if (streetMode == StreetMode.CAR) {
-        carWeightCalculator.calcTravelTime(linkId, travelTime, Some(vehicleType), time, shouldAddNoise)
+        carWeightCalculator.calcTravelTime(
+          linkId,
+          travelTime,
+          Some(vehicleType),
+          time,
+          shouldAddNoise,
+          vehicleType.vehicleCategory == VehicleCategory.HeavyDutyTruck
+        )
       } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
         val scaleFactor = bikeLanesAdjustment.scaleFactor(vehicleType, linkId)
         minTravelTime * scaleFactor

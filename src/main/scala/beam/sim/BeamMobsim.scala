@@ -27,6 +27,7 @@ import beam.sim.metrics.{Metrics, MetricsSupport, SimulationMetricCollector}
 import beam.sim.monitoring.ErrorListener
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehiclesharing.Fleets
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils._
 import beam.utils.csv.writers.PlansCsvWriter
 import beam.utils.logging.{LoggingMessageActor, MessageLogger}
@@ -69,6 +70,12 @@ class BeamMobsim @Inject() (
 
   import beamServices._
   val physsimConfig = beamConfig.beam.physsim
+
+  val snapLocationHelper = SnapLocationHelper(
+    geo,
+    beamScenario.transportNetwork.streetLayer,
+    beamConfig.beam.routing.r5.linkRadiusMeters
+  )
 
   override def run(): Unit = {
     logger.info("Starting Iteration")
@@ -139,7 +146,7 @@ class BeamMobsim @Inject() (
       }
     )(scala.concurrent.ExecutionContext.global)
 
-    if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
+    if (beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
       fillInSecondaryActivities(
         beamServices.matsimServices.getScenario.getHouseholds
@@ -224,7 +231,8 @@ class BeamMobsim @Inject() (
               person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
               destinationChoiceModel,
               beamServices,
-              person.getId
+              person.getId,
+              snapLocationHelper
             )
           val newPlan =
             supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationChoiceModel, modesAvailable)
@@ -373,6 +381,7 @@ class BeamMobsimIteration(
     Props(
       classOf[BeamAgentScheduler],
       beamConfig,
+      beamServices.matsimServices.getControlerIO.getOutputPath,
       Time.parseTime(beamConfig.matsim.modules.qsim.endTime).toInt,
       config.schedulerParallelismWindow,
       new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)

@@ -8,6 +8,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
@@ -22,9 +23,10 @@ class SupplementaryTripGenerator(
   val attributesOfIndividual: AttributesOfIndividual,
   val destinationChoiceModel: DestinationChoiceModel,
   val beamServices: BeamServices,
-  val personId: Id[Person]
+  val personId: Id[Person],
+  val snapLocationHelper: SnapLocationHelper
 ) {
-  val r: Random.type = scala.util.Random
+  val rnd: Random = new scala.util.Random(System.currentTimeMillis())
   val personSpecificSeed: Long = personId.hashCode().toLong
 
   val travelTimeBufferInSec: Int = 30 * 60
@@ -46,7 +48,7 @@ class SupplementaryTripGenerator(
       MultinomialLogit(
         Map.empty,
         destinationChoiceModel.DefaultMNLParameters,
-        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.mode_nest_scale_factor
+        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.mode_nest_scale_factor
       )
 
     val destinationMNL: MultinomialLogit[
@@ -56,14 +58,14 @@ class SupplementaryTripGenerator(
       MultinomialLogit(
         Map.empty,
         destinationChoiceModel.TripMNLParameters,
-        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.destination_nest_scale_factor
+        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.destination_nest_scale_factor
       )
 
     val tripMNL: MultinomialLogit[Boolean, DestinationChoiceModel.TripParameters] =
       MultinomialLogit(
         Map.empty,
         destinationChoiceModel.TripMNLParameters,
-        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.trip_nest_scale_factor
+        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.trip_nest_scale_factor
       )
 
     val newPlan = PopulationUtils.createPlan(plan.getPerson)
@@ -142,7 +144,7 @@ class SupplementaryTripGenerator(
   ): List[Activity] = {
     val tazChoiceSet: List[TAZ] =
       generateTazChoiceSet(
-        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.max_destination_choice_set_size,
+        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.max_destination_choice_set_size,
         prevActivity.getCoord
       )
 
@@ -186,8 +188,8 @@ class SupplementaryTripGenerator(
             false -> noTrip
           )
 
-        tripMNL.sampleAlternative(tripChoice, r) match {
-          case Some(mnlSample) if mnlSample.alternativeType => destinationMNL.sampleAlternative(modeChoice, r)
+        tripMNL.sampleAlternative(tripChoice, rnd) match {
+          case Some(mnlSample) if mnlSample.alternativeType => destinationMNL.sampleAlternative(modeChoice, rnd)
           case _                                            => None
         }
     }
@@ -199,7 +201,7 @@ class SupplementaryTripGenerator(
         val newActivity =
           PopulationUtils.createActivityFromCoord(
             newActivityType,
-            TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz)
+            TAZTreeMap.randomLocationInTAZ(chosenAlternative.taz, rnd, snapLocationHelper)
           )
         val activityBeforeNewActivity =
           PopulationUtils.createActivityFromCoord(prevActivity.getType, prevActivity.getCoord)
@@ -244,7 +246,8 @@ class SupplementaryTripGenerator(
         Map[SupplementaryTripAlternative, Map[SupplementaryTripAlternative, Map[DestinationParameters, Double]]]()
       } else {
         TAZs.map { taz =>
-          val destinationCoord: Coord = TAZTreeMap.randomLocationInTAZ(taz)
+          val destinationCoord: Coord =
+            TAZTreeMap.randomLocationInTAZ(taz, rnd, snapLocationHelper)
           val additionalActivity = PopulationUtils.createActivityFromCoord(newActivityType, destinationCoord)
           additionalActivity.setStartTime(startTime)
           additionalActivity.setEndTime(endTime)
@@ -379,7 +382,7 @@ class SupplementaryTripGenerator(
         } else { None }
         chosenStartIndex match {
           case Some(index) =>
-            val startTime = math.max((r.nextDouble() + index) * 3600, altStart + travelTimeBufferInSec)
+            val startTime = math.max((rnd.nextDouble() + index) * 3600, altStart + travelTimeBufferInSec)
             (
               actType,
               startTime.toInt,
@@ -393,7 +396,7 @@ class SupplementaryTripGenerator(
 
   private def generateTazChoiceSet(n: Int, coord: Coord): List[TAZ] = {
     val maxDistance =
-      beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.max_destination_distance_meters
+      beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.max_destination_distance_meters
     val r_repeat = new scala.util.Random
     r_repeat.setSeed(personSpecificSeed)
     r_repeat
@@ -412,7 +415,7 @@ class SupplementaryTripGenerator(
     keyToProb: Map[A, Double]
   ): Option[A] = {
     val totalProb = keyToProb.values.sum
-    val randomDraw = r.nextDouble()
+    val randomDraw = rnd.nextDouble()
     val probs = keyToProb.values.scanLeft(0.0)(_ + _ / totalProb).drop(1)
     keyToProb.keys.zip(probs).dropWhile { _._2 <= randomDraw }.headOption match {
       case Some(result) => Some(result._1)

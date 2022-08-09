@@ -5,6 +5,7 @@ import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
+import com.vividsolutions.jts.geom.Geometry
 
 import scala.collection.JavaConverters._
 
@@ -14,9 +15,9 @@ import scala.collection.JavaConverters._
   * @param coord location of the centroid of this TAZ
   * @param areaInSquareMeters area of TAZ
   */
-class TAZ(val tazId: Id[TAZ], val coord: Coord, val areaInSquareMeters: Double) {
-  def this(tazIdString: String, coord: Coord, area: Double) {
-    this(Id.create(tazIdString, classOf[TAZ]), coord, area)
+class TAZ(val tazId: Id[TAZ], val coord: Coord, val areaInSquareMeters: Double, val geometry: Option[Geometry]) {
+  def this(tazIdString: String, coord: Coord, area: Double, geometry: Option[Geometry] = None) {
+    this(Id.create(tazIdString, classOf[TAZ]), coord, area, geometry)
   }
 }
 
@@ -25,7 +26,9 @@ object TAZ {
   val DefaultTAZId: Id[TAZ] = Id.create("default", classOf[TAZ])
   val EmergencyTAZId: Id[TAZ] = Id.create("emergency", classOf[TAZ])
 
-  val DefaultTAZ: TAZ = new TAZ(DefaultTAZId, new Coord(), 0)
+  val DefaultTAZ: TAZ = new TAZ(DefaultTAZId, coord = new Coord(), areaInSquareMeters = 0, geometry = None)
+
+  def isSpecialTazId(tazId: Id[TAZ]): Boolean = tazId == DefaultTAZId || tazId == EmergencyTAZId
 
   /**
     * performs a concentric disc search from the present location to find TAZs up to the SearchMaxRadius
