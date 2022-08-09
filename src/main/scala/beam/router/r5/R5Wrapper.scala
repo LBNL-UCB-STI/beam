@@ -693,9 +693,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             case LegMode.WALK                => beamConfig.beam.routing.r5.accessBufferTimeSeconds.walk
             case LegMode.BICYCLE             => beamConfig.beam.routing.r5.accessBufferTimeSeconds.bike
             case LegMode.BICYCLE_RENT        => beamConfig.beam.routing.r5.accessBufferTimeSeconds.bike_rent
-            case LegMode.CAR_PARK            => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
+            case LegMode.CAR_PARK            => beamConfig.beam.routing.r5.accessBufferTimeSeconds.carcase LegMode.CAR if mainRouteRideHailTransit => beamConfig.beam.routing.r5.accessBufferTimeSeconds.ride_hail
             case LegMode.CAR                 => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
-
           }
           val tripStartTime = dates
             .toBaseMidnightSeconds(
@@ -711,14 +710,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           maybeWalkToVehicle(vehicle).foreach(walkLeg => {
             // Glue the walk to vehicle in front of the trip without a gap
             embodiedBeamLegs += walkLeg
-              .copy(beamLeg =
-                walkLeg.beamLeg.updateStartTime(tripStartTime - walkLeg.beamLeg.duration - transitAccessBuffer)
-              )
+              .copy(beamLeg = walkLeg.beamLeg.updateStartTime(tripStartTime - walkLeg.beamLeg.duration))
           })
 
           embodiedBeamLegs += buildStreetBasedLegs(
             access,
-            tripStartTime - transitAccessBuffer,
+            tripStartTime,
             vehicle,
             unbecomeDriverOnCompletion = access.mode != LegMode.WALK || option.transit == null
           )
