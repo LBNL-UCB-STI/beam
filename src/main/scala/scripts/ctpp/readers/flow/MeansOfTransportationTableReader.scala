@@ -66,7 +66,7 @@ object MeansOfTransportationTableReader {
     val totalModes = modeToSum.map(_._2).sum
     println(s"The sum of all modes: $totalModes")
     modeToSum.foreach { case (mode, sum) =>
-      val pct = (100 * sum.toDouble / totalModes).formatted("%.2f")
+      val pct = "%.2f".format(100 * sum.toDouble / totalModes)
       println(s"$mode => $sum, $pct %")
     }
   }
