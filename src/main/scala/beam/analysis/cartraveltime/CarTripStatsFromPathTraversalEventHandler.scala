@@ -564,12 +564,13 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
         // We start driving in the very end of the first link => so we we didn't actually travel that link, so we should drop it for both driving and parking
         val linkIds = (driving.linkIds.drop(1) ++ parking.linkIds.drop(1)).map(lid => networkHelper.getLinkUnsafe(lid))
         val linkTravelTimes = driving.linkTravelTime.drop(1) ++ parking.linkTravelTime.drop(1)
-        val linkIdAndTravelTime =
-          linkIds.zip(linkTravelTimes)
-        val badLinks = linkIdAndTravelTime.flatMap {
-          case (link, linkTravelTime) if !(linkTravelTime >= 0) => Some(link)
-          case _                                                => None
-        }.toList
+        val badLinks = linkIds
+          .zip(linkTravelTimes)
+          .flatMap {
+            case (link, linkTravelTime) if !(linkTravelTime >= 0) => Some(link)
+            case _                                                => None
+          }
+          .toList
         val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds)
         val startCoordWGS = new Coord(driving.startX, driving.startY)
         val endCoordWGS = new Coord(parking.endX, parking.endY)
@@ -609,23 +610,33 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
     freeFlowTravelTimeCalc: FreeFlowTravelTime,
     ptes: Seq[PathTraversalEvent]
   ): (Seq[CarTripStat], Seq[Link]) = {
-    val carTripStats = ptes.map { event =>
-      val travelTime = event.arrivalTime - event.departureTime
-      val length = event.legLength
-      val linkIds = event.linkIds.map(lid => networkHelper.getLinkUnsafe(lid))
-      // We start driving in the very end of the first link => so we we didn't actually travel that link, so we should drop it
-      val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds.drop(1))
-      CarTripStat(
-        event.vehicleId.toString,
-        travelTime,
-        length,
-        freeFlowTravelTime,
-        event.departureTime,
-        startCoordWGS = new Coord(event.startX, event.startY),
-        endCoordWGS = new Coord(event.endX, event.endY)
-      )
+    val carTripStatsAndBadLinks = ptes.foldLeft(List.empty[CarTripStat], List.empty[Link]) {
+      case ((carTripAcc, linkAcc), event) =>
+        val travelTime = event.arrivalTime - event.departureTime
+        val length = event.legLength
+        val linkIds = event.linkIds.map(lid => networkHelper.getLinkUnsafe(lid))
+        val linkTravelTimes = event.linkTravelTime
+        val badLinks = linkIds
+          .zip(linkTravelTimes)
+          .flatMap {
+            case (link, linkTravelTime) if !(linkTravelTime >= 0) => Some(link)
+            case _                                                => None
+          }
+          .toList
+        // We start driving in the very end of the first link => so we we didn't actually travel that link, so we should drop it
+        val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds.drop(1))
+        val carTripStats = CarTripStat(
+          event.vehicleId.toString,
+          travelTime,
+          length,
+          freeFlowTravelTime,
+          event.departureTime,
+          startCoordWGS = new Coord(event.startX, event.startY),
+          endCoordWGS = new Coord(event.endX, event.endY)
+        )
+        (carTripStats :: carTripAcc, badLinks ++ linkAcc)
     }
-    (carTripStats, List.empty[Link])
+    carTripStatsAndBadLinks
   }
 
   private def buildDrivingParking(
