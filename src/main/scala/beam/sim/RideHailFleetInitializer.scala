@@ -595,61 +595,64 @@ class ProceduralRideHailFleetInitializer(
     val rideHailAgentInitializers: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInitializer] = new ArrayBuffer()
     var idx = 0
     val numRideHailAgents = computeNumRideHailAgents
-    while (equivalentNumberOfDrivers < numRideHailAgents.toDouble) {
-      if (idx >= persons.length) {
-        logger.error(
-          "Can't have more ridehail drivers than total population"
-        )
-      } else {
-        try {
-          val person = persons(idx)
-          val vehicleType = vehiclesAdjustment
-            .sampleVehicleTypes(
-              numVehicles = 1,
-              vehicleCategory = VehicleCategory.Car,
-              realDistribution
-            )
-            .head
-          val rideInitialLocation: Location = getRideInitLocation(person, activityQuadTreeBounds)
-
-          val meanSoc = beamServices.beamConfig.beam.agentsim.agents.vehicles.meanRidehailVehicleStartingSOC
-          val initialStateOfCharge = BeamVehicle.randomSocFromUniformDistribution(rand, vehicleType, meanSoc)
-
-          val (shiftsOpt, shiftEquivalentNumberOfDrivers) = if (vehicleType.automationLevel >= 4) {
-            (None, 1.0)
-          } else {
-            val shiftDuration =
-              math.round(math.exp(rand.nextGaussian() * stdLogShiftDurationHours + meanLogShiftDurationHours) * 3600)
-            val shiftMidPointTime = activityEndTimes(rand.nextInt(activityEndTimes.length))
-            val shiftStartTime = max(shiftMidPointTime - (shiftDuration / 2).toInt, 10)
-            val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 30 * 3600)
-
-            val shiftEquivalentNumberOfDrivers_ = (shiftEndTime - shiftStartTime) / (averageOnDutyHoursPerDay * 3600)
-
-            (Some(List(Shift(Range(shiftStartTime, shiftEndTime), None))), shiftEquivalentNumberOfDrivers_)
-          }
-
-          val rideHailAgentInitializer = RideHailAgentInitializer(
-            person.getId.toString,
-            vehicleType,
-            rideHailManagerId,
-            shiftsOpt,
-            initialStateOfCharge,
-            rideInitialLocation,
-            geofence = None,
-            fleetId = "default"
+    while (equivalentNumberOfDrivers < numRideHailAgents.toDouble && idx < persons.length) {
+      try {
+        val person = persons(idx)
+        val vehicleType = vehiclesAdjustment
+          .sampleVehicleTypes(
+            numVehicles = 1,
+            vehicleCategory = VehicleCategory.Car,
+            realDistribution
           )
+          .head
 
-          rideHailAgentInitializers += rideHailAgentInitializer
+        val rideInitialLocation: Location = getRideInitLocation(person, activityQuadTreeBounds)
 
-          equivalentNumberOfDrivers += shiftEquivalentNumberOfDrivers
-        } catch {
-          case ex: Throwable =>
-            logger.error(s"Could not generate RideHailAgentInitializer: ${ex.getMessage}")
-            throw ex
+        val meanSoc = beamServices.beamConfig.beam.agentsim.agents.vehicles.meanRidehailVehicleStartingSOC
+        val initialStateOfCharge = BeamVehicle.randomSocFromUniformDistribution(rand, vehicleType, meanSoc)
+
+        val (shiftsOpt, shiftEquivalentNumberOfDrivers) = if (vehicleType.automationLevel >= 4) {
+          (None, 1.0)
+        } else {
+          val shiftDuration =
+            math.round(math.exp(rand.nextGaussian() * stdLogShiftDurationHours + meanLogShiftDurationHours) * 3600)
+          val shiftMidPointTime = activityEndTimes(rand.nextInt(activityEndTimes.length))
+          val shiftStartTime = max(shiftMidPointTime - (shiftDuration / 2).toInt, 10)
+          val shiftEndTime = min(shiftMidPointTime + (shiftDuration / 2).toInt, 30 * 3600)
+
+          val shiftEquivalentNumberOfDrivers_ = (shiftEndTime - shiftStartTime) / (averageOnDutyHoursPerDay * 3600)
+
+          (Some(List(Shift(Range(shiftStartTime, shiftEndTime), None))), shiftEquivalentNumberOfDrivers_)
         }
-        idx += 1
+
+        val rideHailAgentInitializer = RideHailAgentInitializer(
+          person.getId.toString,
+          vehicleType,
+          rideHailManagerId,
+          shiftsOpt,
+          initialStateOfCharge,
+          rideInitialLocation,
+          geofence = None,
+          fleetId = "default"
+        )
+
+        rideHailAgentInitializers += rideHailAgentInitializer
+        equivalentNumberOfDrivers += shiftEquivalentNumberOfDrivers
+      } catch {
+        case ex: Throwable =>
+          logger.error(s"Could not generate RideHailAgentInitializer: ${ex.getMessage}")
+          throw ex
       }
+
+      idx += 1
+    }
+
+    if (idx >= persons.length) {
+      val numbers =
+        s"Expected amount of RH drivers: $numRideHailAgents, generated amount of RH drivers: $equivalentNumberOfDrivers"
+      logger.error(
+        s"Did not get the expected amount if RideHail drivers: can't have more RideHail drivers than total population. $numbers"
+      )
     }
 
     rideHailAgentInitializers.toIndexedSeq

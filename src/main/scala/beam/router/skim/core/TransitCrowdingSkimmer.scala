@@ -39,10 +39,10 @@ class TransitCrowdingSkimmer @Inject() (
         fromStopIdx = line("fromStopIdx").toInt
       ),
       TransitCrowdingSkimmerInternal(
-        numberOfPassengers = line("numberOfPassengers").toInt,
-        capacity = line("capacity").toInt,
+        numberOfPassengers = line("numberOfPassengers").toDouble.toInt,
+        capacity = line("capacity").toDouble.toInt,
         iterations = line("iterations").toInt,
-        duration = line("duration").toInt
+        duration = line("duration").toDouble.toInt
       )
     )
   }
@@ -88,7 +88,7 @@ class TransitCrowdingSkimmer @Inject() (
 object TransitCrowdingSkimmer extends LazyLogging {
 
   case class TransitCrowdingSkimmerKey(vehicleId: Id[Vehicle], fromStopIdx: Int) extends AbstractSkimmerKey {
-    override def toCsv: String = vehicleId + "," + fromStopIdx
+    override def toCsv: String = vehicleId.toString.replace(',', '.') + "," + fromStopIdx
   }
 
   case class TransitCrowdingSkimmerInternal(

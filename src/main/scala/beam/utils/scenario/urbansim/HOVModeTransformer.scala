@@ -174,7 +174,7 @@ object HOVModeTransformer extends LazyLogging {
     }
 
     def canBeSplitToTrips(plans: Iterable[PlanElement]): Boolean = {
-      isHomeActivity(plans.head) && isHomeActivity(plans.last)
+      isHomeActivity(plans.head) && isHomeActivity(plans.last) && plans.size > 1
     }
 
     def addLeg(leg: PlanElement): Unit = personToTrip.get(leg.personId) match {
@@ -225,9 +225,8 @@ object HOVModeTransformer extends LazyLogging {
 
     if (cantSplitTripsForPersons.nonEmpty) {
       logger.info(
-        "Cannot split plans to trips because plans does not start and end by Home activity for {} persons: {}",
-        cantSplitTripsForPersons.size,
-        cantSplitTripsForPersons.mkString(",")
+        "Cannot split plans to trips because plans does not start and end by Home activity or has only one activity for {} persons:",
+        cantSplitTripsForPersons.size
       )
     }
 

@@ -35,12 +35,14 @@ import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.{Activity, Leg, Person, Population => MATSimPopulation}
+import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan, Population => MATSimPopulation}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.mobsim.framework.Mobsim
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Households
+import org.matsim.utils.objectattributes.attributable.AttributesUtils
 
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
@@ -66,7 +68,7 @@ class BeamMobsim @Inject() (
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
-  private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(24 * 3, TimeUnit.HOURS)
 
   import beamServices._
   val physsimConfig = beamConfig.beam.physsim
@@ -148,9 +150,18 @@ class BeamMobsim @Inject() (
 
     if (beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
-      fillInSecondaryActivities(
-        beamServices.matsimServices.getScenario.getHouseholds
-      )
+      val fillInModes = beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.fill_in_modes_from_skims
+      fillInSecondaryActivities(beamServices.matsimServices.getScenario.getHouseholds, fillInModes)
+    }
+
+    if (beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.replaceModes.enabled) {
+      val maybeModeMap: Option[Map[String, String]] = {
+        beamServices.beamConfig.beam.agentsim.agents.tripBehaviors.replaceModes.modeMap
+          .map(BeamConfigUtils.parseListToMap)
+      }
+      if (maybeModeMap.nonEmpty) {
+        replaceLegModes(beamServices.matsimServices.getScenario.getHouseholds, maybeModeMap.get)
+      }
     }
 
     if (beamServices.beamConfig.beam.output.writePlansAndStopSimulation) {
@@ -187,8 +198,43 @@ class BeamMobsim @Inject() (
     logger.info("Processing Agentsim Events (End)")
   }
 
-  private def fillInSecondaryActivities(households: Households): Unit = {
-    households.getHouseholds.values.forEach { household =>
+  private def replaceLegModes(households: Households, modesToReplace: Map[String, String]): Unit = {
+    households.getHouseholds.values.asScala.par.foreach { household =>
+      val persons = household.getMemberIds.asScala.collect { case personId =>
+        matsimServices.getScenario.getPopulation.getPersons.get(personId)
+      }
+
+      persons.par.foreach { person =>
+        val newPlan = PopulationUtils.createPlan(person)
+        val oldPlan = person.getSelectedPlan
+        newPlan.setType(oldPlan.getType)
+
+        oldPlan.getPlanElements.asScala.foreach {
+          case activity: Activity => newPlan.getPlanElements.add(activity)
+          case leg: Leg =>
+            val newMode = modesToReplace.getOrElse(leg.getMode, leg.getMode)
+            leg.setMode(newMode)
+            newPlan.getPlanElements.add(leg)
+        }
+
+        AttributesUtils.copyAttributesFromTo(oldPlan, newPlan)
+
+        person.removePlan(oldPlan)
+        person.addPlan(newPlan)
+        person.setSelectedPlan(newPlan)
+      }
+    }
+
+    logger.info("Done replacing modes in plans.")
+  }
+
+  private def fillInSecondaryActivities(households: Households, fillInModes: Boolean = false): Unit = {
+    val personsTotal = households.getHouseholds.values.asScala.map(_.getMemberIds.asScala.count(_ => true)).toSeq.sum
+    val progressReportIncrement = Math.max(25.0 * (personsTotal / 100.0), 1).toInt
+    var personsProcessed: Int = 0
+    var nextProgressReport: Int = progressReportIncrement
+
+    households.getHouseholds.values.asScala.par.foreach { household =>
       val vehicles = household.getVehicleIds.asScala
         .flatten(vehicleId => beamScenario.privateVehicles.get(vehicleId.asInstanceOf[Id[BeamVehicle]]))
       val persons = household.getMemberIds.asScala.collect { case personId =>
@@ -199,23 +245,24 @@ class BeamMobsim @Inject() (
       val vehiclesByCategory =
         vehicles.filter(_.beamVehicleType.automationLevel <= 3).groupBy(_.beamVehicleType.vehicleCategory)
 
-      val nonCavModesAvailable: List[BeamMode] = vehiclesByCategory.keys.collect {
-        case VehicleCategory.Car  => BeamMode.CAR
-        case VehicleCategory.Bike => BeamMode.BIKE
-      }.toList
+      val nonCavModesAvailable = vehiclesByCategory.keys
+        .collect {
+          case VehicleCategory.Car  => BeamMode.CAR
+          case VehicleCategory.Bike => BeamMode.BIKE
+        }
+        .toSet[BeamMode]
 
       val cavs = vehicles.filter(_.beamVehicleType.automationLevel > 3).toList
 
-      val cavModeAvailable: List[BeamMode] =
+      val cavModeAvailable: Set[BeamMode] =
         if (cavs.nonEmpty) {
-          List[BeamMode](BeamMode.CAV)
+          Set[BeamMode](BeamMode.CAV)
         } else {
-          List[BeamMode]()
+          Set.empty[BeamMode]
         }
 
-      val modesAvailable: List[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
-
-      persons.foreach { person =>
+      val modesAvailable: Set[BeamMode] = nonCavModesAvailable ++ cavModeAvailable
+      persons.par.foreach { person =>
         if (matsimServices.getIterationNumber.intValue() == 0) {
           val addSupplementaryTrips = new AddSupplementaryTrips(beamScenario.beamConfig)
           addSupplementaryTrips.run(person)
@@ -234,8 +281,14 @@ class BeamMobsim @Inject() (
               person.getId,
               snapLocationHelper
             )
-          val newPlan =
-            supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationChoiceModel, modesAvailable)
+          val newPlan: Option[Plan] = {
+            supplementaryTripGenerator.generateNewPlans(
+              person.getSelectedPlan,
+              destinationChoiceModel,
+              modesAvailable,
+              fillInModes
+            )
+          }
           newPlan match {
             case Some(plan) =>
               person.removePlan(person.getSelectedPlan)
@@ -244,10 +297,19 @@ class BeamMobsim @Inject() (
             case None =>
           }
         }
-      }
 
+        this.synchronized {
+          personsProcessed += 1
+
+          if (personsProcessed >= nextProgressReport) {
+            val currentProgress = Math.round(100.0 * personsProcessed / personsTotal).toString
+            logger.info(s"Filling in secondary trips in plans: $currentProgress% completed.")
+            nextProgressReport += progressReportIncrement
+          }
+        }
+      }
     }
-    logger.info("Done filling in secondary trips in plans")
+    logger.info("Done filling in secondary trips in plans.")
   }
 
   private def clearRoutesAndModesIfNeeded(iteration: Int): Unit = {

@@ -2,9 +2,9 @@ package beam.router.skim.core
 
 import beam.agentsim.events.ScalaEvent
 import beam.router.model.EmbodiedBeamTrip
-import beam.router.skim.core.AbstractSkimmer.AGG_SUFFIX
-import beam.router.skim.Skims.SkimType
 import beam.router.skim.CsvSkimReader
+import beam.router.skim.Skims.SkimType
+import beam.router.skim.core.AbstractSkimmer.AGG_SUFFIX
 import beam.sim.BeamWarmStart
 import beam.sim.config.BeamConfig
 import beam.utils.{FileUtils, ProfilingUtils}
@@ -21,8 +21,8 @@ import java.math.RoundingMode
 import java.nio.file.Paths
 import java.text.DecimalFormat
 import java.util.concurrent.ConcurrentHashMap
-import scala.collection.mutable
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.reflect.io.File
 import scala.util.control.NonFatal
@@ -91,6 +91,20 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
 
   import readOnlySkim._
 
+  def getSizeOfAggregatedFromPastSkims: Int = aggregatedFromPastSkims.size
+
+  protected def getDoubleOrDefault(
+    line: scala.collection.Map[String, String],
+    fieldName: String,
+    default: Double
+  ): Double = {
+    try {
+      line(fieldName).toDouble
+    } catch {
+      case _: Throwable => default
+    }
+  }
+
   protected def fromCsv(line: scala.collection.Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal)
 
   protected def aggregateOverIterations(
@@ -115,7 +129,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
     currentIterationInternal = event.getIteration
     if (
       currentIterationInternal == 0
-      && BeamWarmStart.isFullWarmStart(beamConfig.beam.warmStart)
+      && BeamWarmStart.isSkimsEnabled(beamConfig.beam.warmStart)
       && skimFilePath.isDefined
     ) {
       val filePath = skimFilePath.get.skimsFilePath

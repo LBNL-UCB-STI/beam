@@ -22,6 +22,7 @@ class ODSkimmerEventFactory extends AbstractSkimmerEventFactory {
     generalizedTimeInHours,
     generalizedCost,
     energyConsumption,
+    crowdingLevel = 0.0,
     None,
     failedTrip = false,
     // If you change this name, make sure it is properly reflected in `AbstractSkimmer.handleEvent`

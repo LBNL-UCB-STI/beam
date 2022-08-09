@@ -49,6 +49,7 @@ case class PlanElement(
   activityType: Option[String],
   activityLocationX: Option[Double],
   activityLocationY: Option[Double],
+  activityStartTime: Option[Double],
   activityEndTime: Option[Double],
   legMode: Option[String],
   legDepartureTime: Option[String],

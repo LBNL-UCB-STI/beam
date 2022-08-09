@@ -12,10 +12,11 @@ import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
-import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.sim.common.GeoUtils
+import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.TransportNetwork
+import org.apache.commons.lang.UnhandledException
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
 import org.matsim.core.api.experimental.events.EventsManager

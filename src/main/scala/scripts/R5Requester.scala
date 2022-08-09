@@ -357,6 +357,7 @@ object R5Requester extends BeamHelper {
       Some(activityType),
       Some(utmCoord.getX),
       Some(utmCoord.getY),
+      None,
       Some(endTime),
       None,
       None,

@@ -171,20 +171,25 @@ object ChoosesParking {
     eventsManager: EventsManager,
     triggerId: Long
   ): Unit = {
-    val stallForLeavingParkingEvent = currentBeamVehicle.stall match {
+    val maybeStallForLeavingParkingEvent = currentBeamVehicle.stall match {
       case Some(stall) =>
         parkingManager ! ReleaseParkingStall(stall, triggerId)
         currentBeamVehicle.unsetParkingStall()
-        stall
+        Some(stall)
       case None =>
         // This can now happen if a vehicle was charging and released the stall already
-        currentBeamVehicle.lastUsedStall.get
+        currentBeamVehicle.lastUsedStall
     }
-    val energyCharge: Double = energyChargedMaybe.getOrElse(0.0)
-    val score = calculateScore(stallForLeavingParkingEvent.costInDollars, energyCharge)
-    eventsManager.processEvent(
-      LeavingParkingEvent(tick, stallForLeavingParkingEvent, score, driver.toString, currentBeamVehicle.id)
-    )
+
+    maybeStallForLeavingParkingEvent match {
+      case Some(stallForLeavingParkingEvent) =>
+        val energyCharge: Double = energyChargedMaybe.getOrElse(0.0)
+        val score = calculateScore(stallForLeavingParkingEvent.costInDollars, energyCharge)
+        eventsManager.processEvent(
+          LeavingParkingEvent(tick, stallForLeavingParkingEvent, score, driver.toString, currentBeamVehicle.id)
+        )
+      case _ =>
+    }
   }
 }
 

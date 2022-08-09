@@ -93,14 +93,17 @@ class UrbanSimScenarioLoader(
 
     val householdIds = households.map(_.householdId.id).toSet
 
-    val personsWithPlans = getPersonsWithPlan(persons, plans)
+    val minimumAge = beamScenario.beamConfig.beam.agentsim.minimumAgentAgeToIncludeInSimulation
+    val personsFilteredByAge = persons.filter(person => person.age >= minimumAge)
+    logger.info(s"There are ${personsFilteredByAge.size} persons with minimum age of $minimumAge.")
+
+    val personsWithPlans = getPersonsWithPlan(personsFilteredByAge, plans)
       .filter(p => householdIds.contains(p.householdId.id))
-    logger.info(s"There are ${personsWithPlans.size} persons with plans")
 
     val householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]] = personsWithPlans.groupBy(_.householdId)
 
     val householdsWithMembers = households.filter(household => householdIdToPersons.contains(household.householdId))
-    logger.info(s"There are ${householdsWithMembers.size} non-empty households")
+    logger.info(s"There are ${householdsWithMembers.size} non-empty households.")
 
     logger.info("Applying households...")
     applyHousehold(householdsWithMembers, householdIdToPersons, plans)

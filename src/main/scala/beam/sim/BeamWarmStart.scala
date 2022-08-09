@@ -232,6 +232,9 @@ object BeamWarmStart extends LazyLogging {
             )
             .map(_.toString)
           warm.readTravelTime(linkStatsPath, beamConfig.beam.input.lastBaseOutputDir)
+        } else if (BeamWarmStart.isLinkStatsAndSkims(beamConfig.beam.warmStart)) {
+          val linkStatsPath = beamConfig.beam.warmStart.linkStatsFilePath
+          Some(warm.getTravelTime(linkStatsPath))
         } else warm.readTravelTime
       travelTime.foreach { travelTime =>
         beamRouter ! UpdateTravelTimeLocal(travelTime)
@@ -400,6 +403,7 @@ object BeamWarmStart extends LazyLogging {
 
   def isLinkStatsEnabled(warmStart: Beam.WarmStart): Boolean = warmStart.`type`.toLowerCase match {
     case "linkstatsonly"        => true
+    case "linkstatsandskims"    => true
     case "linkstatsfromlastrun" => true
     case "full"                 => true
     case _                      => false
@@ -407,6 +411,19 @@ object BeamWarmStart extends LazyLogging {
 
   def isLinkStatsFromLastRun(warmStart: Beam.WarmStart): Boolean = warmStart.`type`.toLowerCase match {
     case "linkstatsfromlastrun" => true
+    case _                      => false
+  }
+
+  def isLinkStatsAndSkims(warmStart: Beam.WarmStart): Boolean = warmStart.`type`.toLowerCase match {
+    case "linkstatsandskims" => true
+    case _                   => false
+  }
+
+  def isSkimsEnabled(warmStart: Beam.WarmStart): Boolean = warmStart.`type`.toLowerCase match {
+    case "linkstatsonly"        => false
+    case "linkstatsfromlastrun" => false
+    case "linkstatsandskims"    => true
+    case "full"                 => true
     case _                      => false
   }
 

@@ -18,6 +18,7 @@ case class ODSkimmerEvent(
   generalizedTimeInHours: Double,
   generalizedCost: Double,
   energyConsumption: Double,
+  crowdingLevel: Double,
   maybePayloadWeightInKg: Option[Double],
   failedTrip: Boolean,
   override val skimName: String
@@ -26,13 +27,14 @@ case class ODSkimmerEvent(
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 
   val (key, skimInternal) =
-    observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption, maybePayloadWeightInKg)
+    observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption, crowdingLevel, maybePayloadWeightInKg)
 
   private def observeTrip(
     trip: EmbodiedBeamTrip,
     generalizedTimeInHours: Double,
     generalizedCost: Double,
     energyConsumption: Double,
+    crowdingLevel: Double,
     maybePayloadWeightInKg: Option[Double],
     level4CavTravelTimeScalingFactor: Double = 1.0
   ): (ODSkimmerKey, ODSkimmerInternal) = {
@@ -54,6 +56,7 @@ case class ODSkimmerEvent(
         cost = correctedTrip.costEstimate,
         payloadWeightInKg = maybePayloadWeightInKg.getOrElse(0.0),
         energy = energyConsumption,
+        crowdingLevel = crowdingLevel,
         level4CavTravelTimeScalingFactor = level4CavTravelTimeScalingFactor,
         failedTrips = if (failedTrip) 1 else 0
       )
@@ -80,6 +83,7 @@ object ODSkimmerEvent {
     trip: EmbodiedBeamTrip,
     generalizedTimeInHours: Double,
     generalizedCost: Double,
+    crowdingLevel: Double = 0.0,
     maybePayloadWeightInKg: Option[Double],
     energyConsumption: Double,
     failedTrip: Boolean
@@ -109,6 +113,7 @@ object ODSkimmerEvent {
         energyConsumption = energyConsumption,
         maybePayloadWeightInKg = maybePayloadWeightInKg,
         failedTrip = failedTrip,
+        crowdingLevel = crowdingLevel,
         skimName = beamConfig.beam.router.skim.origin_destination_skimmer.name
       ),
       origCoord,
@@ -139,6 +144,7 @@ case class ODSkimmerFailedTripEvent(
       skim.cost,
       skim.payloadWeight,
       skim.energy,
+      skim.crowdingLevel,
       skim.level4CavTravelTimeScalingFactor,
       failedTrips = 1
     )

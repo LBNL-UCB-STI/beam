@@ -45,6 +45,7 @@ object BeamConfig {
       fractionOfPlansWithSingleActivity: scala.Double,
       h3taz: BeamConfig.Beam.Agentsim.H3taz,
       lastIteration: scala.Int,
+      minimumAgentAgeToIncludeInSimulation: scala.Int,
       populationAdjustment: java.lang.String,
       randomSeedForPopulationSampling: scala.Option[scala.Int],
       scenarios: BeamConfig.Beam.Agentsim.Scenarios,
@@ -1538,7 +1539,8 @@ object BeamConfig {
 
         case class TripBehaviors(
           carUsage: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.CarUsage,
-          multinomialLogit: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MultinomialLogit
+          multinomialLogit: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MultinomialLogit,
+          replaceModes: BeamConfig.Beam.Agentsim.Agents.TripBehaviors.ReplaceModes
         )
 
         object TripBehaviors {
@@ -1561,10 +1563,14 @@ object BeamConfig {
             activity_file_path: java.lang.String,
             additional_trip_utility: scala.Double,
             destination_nest_scale_factor: scala.Double,
+            fill_in_modes_from_skims: scala.Boolean,
             generate_secondary_activities: scala.Boolean,
             intercept_file_path: java.lang.String,
+            look_for_closest_hour_in_OD_skims_for_fill_in_modes: scala.Boolean,
             max_destination_choice_set_size: scala.Int,
             max_destination_distance_meters: scala.Double,
+            max_hour_for_closest_hour_in_OD_skims_request: scala.Int,
+            min_hour_for_closest_hour_in_OD_skims_request: scala.Int,
             mode_nest_scale_factor: scala.Double,
             trip_nest_scale_factor: scala.Double
           )
@@ -1580,20 +1586,48 @@ object BeamConfig {
                 destination_nest_scale_factor =
                   if (c.hasPathOrNull("destination_nest_scale_factor")) c.getDouble("destination_nest_scale_factor")
                   else 1.0,
+                fill_in_modes_from_skims =
+                  c.hasPathOrNull("fill_in_modes_from_skims") && c.getBoolean("fill_in_modes_from_skims"),
                 generate_secondary_activities =
                   c.hasPathOrNull("generate_secondary_activities") && c.getBoolean("generate_secondary_activities"),
                 intercept_file_path =
                   if (c.hasPathOrNull("intercept_file_path")) c.getString("intercept_file_path") else "",
+                look_for_closest_hour_in_OD_skims_for_fill_in_modes = c.hasPathOrNull(
+                  "look_for_closest_hour_in_OD_skims_for_fill_in_modes"
+                ) && c.getBoolean("look_for_closest_hour_in_OD_skims_for_fill_in_modes"),
                 max_destination_choice_set_size =
                   if (c.hasPathOrNull("max_destination_choice_set_size")) c.getInt("max_destination_choice_set_size")
                   else 20,
                 max_destination_distance_meters =
                   if (c.hasPathOrNull("max_destination_distance_meters")) c.getDouble("max_destination_distance_meters")
                   else 32000,
+                max_hour_for_closest_hour_in_OD_skims_request =
+                  if (c.hasPathOrNull("max_hour_for_closest_hour_in_OD_skims_request"))
+                    c.getInt("max_hour_for_closest_hour_in_OD_skims_request")
+                  else 20,
+                min_hour_for_closest_hour_in_OD_skims_request =
+                  if (c.hasPathOrNull("min_hour_for_closest_hour_in_OD_skims_request"))
+                    c.getInt("min_hour_for_closest_hour_in_OD_skims_request")
+                  else 6,
                 mode_nest_scale_factor =
                   if (c.hasPathOrNull("mode_nest_scale_factor")) c.getDouble("mode_nest_scale_factor") else 1.0,
                 trip_nest_scale_factor =
                   if (c.hasPathOrNull("trip_nest_scale_factor")) c.getDouble("trip_nest_scale_factor") else 1.0
+              )
+            }
+          }
+
+          case class ReplaceModes(
+            enabled: scala.Boolean,
+            modeMap: scala.Option[scala.List[java.lang.String]]
+          )
+
+          object ReplaceModes {
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.TripBehaviors.ReplaceModes = {
+              BeamConfig.Beam.Agentsim.Agents.TripBehaviors.ReplaceModes(
+                enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+                modeMap = if (c.hasPathOrNull("modeMap")) scala.Some($_L$_str(c.getList("modeMap"))) else None
               )
             }
           }
@@ -1607,6 +1641,10 @@ object BeamConfig {
               multinomialLogit = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MultinomialLogit(
                 if (c.hasPathOrNull("multinomialLogit")) c.getConfig("multinomialLogit")
                 else com.typesafe.config.ConfigFactory.parseString("multinomialLogit{}")
+              ),
+              replaceModes = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.ReplaceModes(
+                if (c.hasPathOrNull("replaceModes")) c.getConfig("replaceModes")
+                else com.typesafe.config.ConfigFactory.parseString("replaceModes{}")
               )
             )
           }
@@ -2249,6 +2287,10 @@ object BeamConfig {
             else com.typesafe.config.ConfigFactory.parseString("h3taz{}")
           ),
           lastIteration = if (c.hasPathOrNull("lastIteration")) c.getInt("lastIteration") else 0,
+          minimumAgentAgeToIncludeInSimulation =
+            if (c.hasPathOrNull("minimumAgentAgeToIncludeInSimulation"))
+              c.getInt("minimumAgentAgeToIncludeInSimulation")
+            else 0,
           populationAdjustment =
             if (c.hasPathOrNull("populationAdjustment")) c.getString("populationAdjustment") else "DEFAULT_ADJUSTMENT",
           randomSeedForPopulationSampling =
@@ -4476,6 +4518,7 @@ object BeamConfig {
     }
 
     case class WarmStart(
+      linkStatsFilePath: java.lang.String,
       path: java.lang.String,
       prepareData: scala.Boolean,
       samplePopulationIntegerFlag: scala.Int,
@@ -4502,6 +4545,7 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.WarmStart = {
         BeamConfig.Beam.WarmStart(
+          linkStatsFilePath = if (c.hasPathOrNull("linkStatsFilePath")) c.getString("linkStatsFilePath") else "",
           path = if (c.hasPathOrNull("path")) c.getString("path") else "",
           prepareData = c.hasPathOrNull("prepareData") && c.getBoolean("prepareData"),
           samplePopulationIntegerFlag =
