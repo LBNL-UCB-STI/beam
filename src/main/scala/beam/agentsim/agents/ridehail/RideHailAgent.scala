@@ -1100,7 +1100,7 @@ class RideHailAgent(
       triggers
     )
     stall.chargingPointType match {
-      case Some(_) if currentBeamVehicle.isBEV | currentBeamVehicle.isPHEV =>
+      case Some(_) if currentBeamVehicle.isEV =>
         log.debug(s"Refueling sending ChargingPlugRequest for ${vehicle.id} and $triggerId")
         chargingNetworkManager ! ChargingPlugRequest(
           tick,

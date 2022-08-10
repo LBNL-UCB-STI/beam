@@ -318,13 +318,13 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
       val powertrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
 
+      val managerIdDependsOnWhetherVehicleIsCav =
+        if (beamVehicleType.isCav) rideHailManagerId else VehicleManager.AnyManager.managerId
       val beamVehicle = new BeamVehicle(
         beamVehicleId,
         powertrain,
         beamVehicleType,
-        vehicleManagerId = new AtomicReference(
-          if (beamVehicleType.automationLevel < 5) VehicleManager.AnyManager.managerId else rideHailManagerId
-        ),
+        vehicleManagerId = new AtomicReference(managerIdDependsOnWhetherVehicleIsCav),
         randomSeed
       )
 
@@ -618,7 +618,7 @@ class ProceduralRideHailFleetInitializer(
           val meanSoc = beamServices.beamConfig.beam.agentsim.agents.vehicles.meanRidehailVehicleStartingSOC
           val initialStateOfCharge = BeamVehicle.randomSocFromUniformDistribution(rand, vehicleType, meanSoc)
 
-          val (shiftsOpt, shiftEquivalentNumberOfDrivers) = if (vehicleType.automationLevel >= 4) {
+          val (shiftsOpt, shiftEquivalentNumberOfDrivers) = if (vehicleType.isCav) {
             (None, 1.0)
           } else {
             val shiftDuration =

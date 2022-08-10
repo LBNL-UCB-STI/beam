@@ -1045,11 +1045,18 @@ lognormal <- function(m, v, sample_size) {
 
 events1 <- readCsv(pp(workDir, "/test/events/filtered.0.events.d1.csv.gz"))
 events2 <- readCsv(pp(workDir, "/test/events/filtered.0.events.d2.csv.gz"))
+events3 <- readCsv(pp(workDir, "/test/events/filtered.0.events.d3.csv.gz"))
+pt1 <- readCsv(pp(workDir, "/test/events/ptmc.0.events.d1.csv.gz"))
 
 ref1 <- events1[type=="RefuelSessionEvent"]
 ref2 <- events2[type=="RefuelSessionEvent"]
+ref3 <- events3[type=="RefuelSessionEvent"]
 
 chargingBehaviorFunc(ref1)
 chargingBehaviorFunc(ref2)
+chargingBehaviorFunc(ref3)
 
-events1[startsWith(vehicle,"rideHail"),.N,by=.(vehicleType)]
+
+events3[startsWith(vehicle,"rideHail"),.N,by=.(vehicleType)]
+
+

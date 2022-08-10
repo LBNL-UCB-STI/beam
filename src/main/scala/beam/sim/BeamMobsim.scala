@@ -204,7 +204,7 @@ class BeamMobsim @Inject() (
         case VehicleCategory.Bike => BeamMode.BIKE
       }.toList
 
-      val cavs = vehicles.filter(_.beamVehicleType.automationLevel > 3).toList
+      val cavs = vehicles.filter(_.beamVehicleType.isCav).toList
 
       val cavModeAvailable: List[BeamMode] =
         if (cavs.nonEmpty) {
