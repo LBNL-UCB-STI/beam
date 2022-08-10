@@ -106,7 +106,7 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
       val enrouteConfig: Config = ConfigFactory
         .parseString(
           s"""
-             |beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC = 0.5
+             |beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC = 0.1
       """.stripMargin
         )
         .withFallback(defaultConfig)
