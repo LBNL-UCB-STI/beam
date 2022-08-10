@@ -1,10 +1,12 @@
 package beam.agentsim.agents.ridehail
 
+import akka.actor.ActorRef
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailManager.VehicleId
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure._
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
@@ -15,7 +17,13 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.utils.collections.QuadTree
+import beam.utils.logging.pattern.ask
+import akka.util.Timeout
+import beam.sim.config.BeamConfig.Beam.Debug
+import scala.concurrent.ExecutionContext.Implicits.global
 
+import java.util.concurrent.TimeUnit
+import scala.concurrent.{ExecutionContext, Future}
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
@@ -42,8 +50,14 @@ import scala.collection.mutable.ListBuffer
 class DefaultRideHailDepotParkingManager(
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   outputDirectory: OutputDirectoryHierarchy,
-  rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail
+  beamServices: BeamServices,
+  chargingNetworkManager: ActorRef
 ) extends RideHailDepotParkingManager(parkingZones) {
+
+  implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+  //implicit val executionContext: ExecutionContext = context.dispatcher
+  implicit val debug: Debug = beamServices.beamConfig.beam.debug
+  val rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail = beamServices.beamConfig.beam.agentsim.agents.rideHail
 
   /*
    * All internal data to track Depots, ParkingZones, and charging queues are kept in ParkingZoneDepotData which is
@@ -99,18 +113,29 @@ class DefaultRideHailDepotParkingManager(
     beamServices: BeamServices
   ): Vector[(Id[BeamVehicle], ParkingStall)] = {
     val idleVehicleIdsWantingToRefuelWithLocation = idleVehicles.toVector.filter {
-      case (vehicleId: Id[BeamVehicle], _) => {
+      case (vehicleId: Id[BeamVehicle], _) =>
         resources.get(vehicleId) match {
-          case Some(beamVehicle) if beamVehicle.isCAV => {
+          case Some(beamVehicle) if beamVehicle.isCAV =>
             beamVehicle.isRefuelNeeded(
               rideHailConfig.cav.refuelRequiredThresholdInMeters,
               rideHailConfig.cav.noRefuelThresholdInMeters
             )
-          }
           case _ => false
         }
-      }
     }
+
+    Future
+      .sequence(idleVehicleIdsWantingToRefuelWithLocation.map { case (vehicleId, rideHailAgentLocation) =>
+        val beamVehicle = resources(vehicleId)
+        val locationUtm: Location = rideHailAgentLocation.getCurrentLocationUTM(tick, beamServices)
+        for {
+          ParkingInquiryResponse(stall, _, _) <- sendChargingInquiry(
+            SpaceTime(locationUtm, tick),
+            beamVehicle,
+            triggerId
+          )
+        } {}
+      })
 
     idleVehicleIdsWantingToRefuelWithLocation.map { case (vehicleId, rideHailAgentLocation) =>
       val beamVehicle = resources(vehicleId)
@@ -128,6 +153,19 @@ class DefaultRideHailDepotParkingManager(
         ).map(_.stall).getOrElse(throw new IllegalStateException(s"no parkingStall available for $vehicleId"))
       (vehicleId, parkingStall)
     }
+  }
+
+  def sendChargingInquiry(whenWhere: SpaceTime, beamVehicle: BeamVehicle, triggerId: Long): Future[Any] = {
+    val inquiry = ParkingInquiry.init(
+      whenWhere,
+      "wherever",
+      VehicleManager.getReservedFor(beamVehicle.vehicleManagerId.get).get,
+      Some(beamVehicle),
+      valueOfTime = rideHailConfig.cav.valueOfTime,
+      triggerId = triggerId,
+      searchMode = ParkingSearchMode.DestinationCharging
+    )
+    chargingNetworkManager ? inquiry
   }
 
   /**
@@ -255,12 +293,15 @@ object DefaultRideHailDepotParkingManager {
     geoQuadTree: QuadTree[TAZ],
     idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
     boundingBox: Envelope,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    chargingNetworkManager: ActorRef
   ): RideHailDepotParkingManager = {
     new DefaultRideHailDepotParkingManager(
       parkingZones,
       beamServices.matsimServices.getControlerIO,
-      beamServices.beamConfig.beam.agentsim.agents.rideHail
+      beamServices.beamConfig.beam.agentsim.agents.rideHail,
+      beamServices,
+      chargingNetworkManager
     ) {
       override val searchFunctions: Option[InfrastructureFunctions] = Some(
         new DefaultRidehailFunctions(
@@ -287,14 +328,16 @@ object DefaultRideHailDepotParkingManager {
   def init(
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
     boundingBox: Envelope,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    chargingNetworkManager: ActorRef
   ): RideHailDepotParkingManager = {
     DefaultRideHailDepotParkingManager(
       parkingZones,
       beamServices.beamScenario.tazTreeMap.tazQuadTree,
       beamServices.beamScenario.tazTreeMap.idToTAZMapping,
       boundingBox,
-      beamServices
+      beamServices,
+      chargingNetworkManager
     )
   }
 }

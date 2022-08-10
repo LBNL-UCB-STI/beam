@@ -46,7 +46,6 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.utils.misc.Time
-import org.matsim.households
 import org.matsim.households.Household
 
 import java.util.concurrent.TimeUnit
@@ -54,15 +53,8 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
-import scala.util.Random
 
 object HouseholdActor {
-
-  def buildActorName(id: Id[households.Household], iterationName: Option[String] = None): String = {
-    s"household-${id.toString}" + iterationName
-      .map(i => s"_iter-$i")
-      .getOrElse("")
-  }
 
   def props(
     beamServices: BeamServices,
@@ -164,8 +156,6 @@ object HouseholdActor {
     implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
     implicit val executionContext: ExecutionContext = context.dispatcher
     implicit val debug: Debug = beamServices.beamConfig.beam.debug
-
-    private val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
     protected val generateEmergencyHousehold: Boolean =
       beamScenario.beamConfig.beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt

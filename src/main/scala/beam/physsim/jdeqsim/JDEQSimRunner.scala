@@ -4,10 +4,7 @@ import beam.analysis.physsim.{PhyssimCalcLinkStats, PhyssimSpeedHandler}
 import beam.analysis.plot.PlotGraph
 import beam.physsim.bprsim.{BPRSimConfig, BPRSimulation, ParallelBPRSimulation}
 import beam.physsim.jdeqsim.cacc.CACCSettings
-import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{
-  Hao2018CaccRoadCapacityAdjustmentFunction,
-  RoadCapacityAdjustmentFunction
-}
+import beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions.{Hao2018CaccRoadCapacityAdjustmentFunction, RoadCapacityAdjustmentFunction}
 import beam.physsim.jdeqsim.cacc.sim.JDEQSimulation
 import beam.physsim.{PickUpDropOffCollector, PickUpDropOffHolder}
 import beam.sim.config.BeamConfig
@@ -28,7 +25,6 @@ import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.misc.Time
 
-import scala.concurrent.ExecutionContext
 import scala.collection.JavaConverters._
 import scala.util.Try
 
