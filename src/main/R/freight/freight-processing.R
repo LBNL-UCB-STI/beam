@@ -206,7 +206,7 @@ ggsave(pp(freightWorkDir,'/b2b-stops.png'),p,width=4,height=5,units='in')
 
 ## FREIGHT ACTIVITY
 to_plot <- rbind(b2b_pt,b2c_pt)
-p <- to_plot[,time24:=arrivalTime%%(24*3600),][,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time24),"30 min")), label)] %>% 
+p <- to_plot[,time24:=arrivalTime%%(24*3600),][,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time24),"30 min")), label)] %>%
   ggplot(aes(timeBin, N, colour=label)) +
   geom_line() + 
   scale_x_datetime("Hour", 
@@ -242,11 +242,11 @@ hdt_pt <- freight_pt[vehicleType == "FREIGHT-2"][,category:="HeavyDutyTruck"]
 
 ## FREIGHT ACTIVITY BY TRUCK CATEGORY
 to_plot <- rbind(ldt_pt,hdt_pt)
-p <- to_plot[,time24:=arrivalTime%%(24*3600),][,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time24),"30 min")), category)] %>% 
+p <- to_plot[,time24:=arrivalTime%%(24*3600),][,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time24),"30 min")), category)] %>%
   ggplot(aes(timeBin, N, colour=category)) +
-  geom_line() + 
-  scale_x_datetime("Hour", 
-                   breaks=scales::date_breaks("2 hour"), 
+  geom_line() +
+  scale_x_datetime("Hour",
+                   breaks=scales::date_breaks("2 hour"),
                    labels=scales::date_format("%H", tz = dateTZ)) +
   scale_y_continuous("Activity", breaks = scales::pretty_breaks()) +
   scale_colour_manual("Vehicle Category", values = c("#eca35b", "#20b2aa")) +
@@ -282,7 +282,7 @@ network_cleaned <- network[
   linkModes %in% c("car;bike", "car;walk;bike") & attributeOrigType %in% c("motorway","trunk","primary", "secondary")][
     ,-c("numberOfLanes", "attributeOrigId", "fromNodeId", "toNodeId", "toLocationX", "toLocationY")]
 counties <- data.table::data.table(
-  COUNTY = c("Alameda", "Contra Costa", "Marin", "Napa", "Santa Clara", 
+  COUNTY = c("Alameda", "Contra Costa", "Marin", "Napa", "Santa Clara",
              "San Francisco", "San Mateo", "Solano", "Sonoma"),
   CNTY=c("ALA", "CC", "MRN", "NAP", "SCL", "SF", "SM", "SOL", "SON")
 )
@@ -294,8 +294,8 @@ linkStats <- readCsv(normalizePath(paste(freightDir,"/validation/beam/0.linkstat
 # truck_aadtt_2017_sfbay <- assignPostMilesGeometries(truck_aadtt_2017[counties, on=c("CNTY"="CNTY")],
 #                           pp(freightDir, "/validation/ds1901_shp/ds1901.shp"))
 truck_aadtt_2017_sfbay <- data.table::fread(
-  normalizePath(paste(freightDir,"/validation/2017_truck_aadtt_geocoded.csv",sep="")), 
-  header=T, 
+  normalizePath(paste(freightDir,"/validation/2017_truck_aadtt_geocoded.csv",sep="")),
+  header=T,
   sep=",")
 
 truck_aadtt_with_linkId <- assignLinkIdToTruckAADTT(network_cleaned, 26910, truck_aadtt_2017_sfbay, 500, 2)

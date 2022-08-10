@@ -680,6 +680,8 @@ class PersonWithPersonalVehiclePlanSpec
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
       expectMsgType[CompletionNotice]
+
+      // TODO: Testing last resort vehicle creation
     }
 
     it("should walk to a car that is far away (if told so by the router") {

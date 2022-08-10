@@ -542,7 +542,7 @@ def jfr = ["-XX:+UnlockCommercialFeatures", "-XX:+FlightRecorder",
 // On the running machine there should be file /usr/lib/jvm/java-8-oracle/jre/lib/jfr/profile_heap_exception.jfc  with content from
 // https://pastebin.com/N3uuUfPz - it's Java Mission Control with metrics about heap allocation and details about exceptions
 def jfrWithMem = ["-XX:+UnlockCommercialFeatures", "-XX:+UnlockDiagnosticVMOptions", "-XX:+DebugNonSafepoints",
-                  "-XX:StartFlightRecording=delay=2s,duration=60m,name=mem_ex,filename=recording.jfr,settings=profile_heap_exception",
+                  "-XX:StartFlightRecording=delay=2s,duration=180m,name=mem_ex,filename=recording.jfr,settings=profile_heap_exception",
                   "-XX:+FlightRecorder", "-XX:FlightRecorderOptions=disk=true,maxage=10h,dumponexit=true,loglevel=info"]
 
 
@@ -695,8 +695,8 @@ task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
 task buildImageWithoutTags(type: DockerBuildImage, dependsOn: createDockerfile) {}
 
 task buildImage(type: DockerTagImage, dependsOn: buildImageWithoutTags) {
-    repository = "beammodel/beam"
-    tag = version
+    repository = "haitamlaarabi/beam"
+    tag = 'gemini-develop-overnight-v1'
     targetImageId buildImageWithoutTags.getImageId()
 }
 
