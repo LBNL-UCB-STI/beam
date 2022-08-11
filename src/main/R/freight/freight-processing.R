@@ -21,17 +21,16 @@ getTDoxAADT <- function(linkAADT) {
   return(data.table::as.data.table(linkAADT))
 }
 
-#city <- "sfbay"
-#linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
-#batch <- 5
+# city <- "sfbay"
+# linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
+# batch <- 5
 city <- "austin"
-linkAADTFile <- "/txdot/txdot_austin_inventory.geojson"
-batch <- 1
+linkAADTFile <- "/hpms/austin_hpms_inventory.geojson"
+batch <- 2
 cityCRS <- 26910
 scenario <- "5days"
 iteration <- 0
-
-run <- ""
+run <- ".hgv4"
 
 ## PATHS
 activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
@@ -61,6 +60,13 @@ linkAADT <- st_read(pp(validationDir, linkAADTFile))
 events_filtered <- readCsv(pp(runDir, "/filtered.",eventsFile))
 linkStats <- readCsv(normalizePath(pp(runDir,"/",linkStatsFile)))
 network <- readCsv(normalizePath(pp(workDir,"/beam/network.csv.gz")))
+network$linkFreeSpeedTravelTime <- network$linkLength/network$linkFreeSpeed
+# ggplot(network, aes(x=linkFreeSpeed*2.237)) + 
+#   geom_histogram(color="black", fill="white") + 
+#   labs(x="miles per hour")
+# ggplot(network[linkFreeSpeedTravelTime<=5*60], aes(x=linkFreeSpeedTravelTime/60.0)) + 
+#   geom_histogram(color="black", fill="white")
+
 networkFiltered<- network[
   linkModes %in% c("car;bike", "car;walk;bike") & attributeOrigType %in% c("motorway","trunk","primary", "secondary")][
     ,-c("numberOfLanes", "attributeOrigId", "fromNodeId", "toNodeId", "toLocationX", "toLocationY")]
@@ -192,8 +198,8 @@ ggsave(pp(runOutput,'/', pp(iteration,".freight-avg-tour-vmt-by-category",run,".
 ################ ***************************
 ################ validation HPMS
 ################ ***************************
-# linkAADT_dt <- getHPMSAADT(linkAADT)
-linkAADT_dt <- getTDoxAADT(linkAADT)
+linkAADT_dt <- getHPMSAADT(linkAADT)
+# linkAADT_dt <- getTDoxAADT(linkAADT)
 Volume_hpms <- sum(linkAADT_dt$Volume_hpms)
 VMT_hpms <- sum(linkAADT_dt$VMT_hpms)
 
