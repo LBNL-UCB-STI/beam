@@ -154,11 +154,27 @@ write_files:
               kill -9 $pid
             fi
       path: /home/ubuntu/beam_stuck_guard.sh
+    - content: |
+            #!/bin/bash
+            log_file="$(find /home/ubuntu/git/beam/output -maxdepth 2 -mindepth 2 -type d -print -quit)/beamLog.out"
+            if [[ ! -f $log_file ]]; then
+                echo "Unable to start"
+                exit 0;
+            fi
+            last_line=$(tail $log_file -n 1)
+            if [[ $last_line == *"Exiting BEAM"* ]]; then
+                echo "Run Completed"
+            else
+                echo "Run Failed"
+            fi
+            exit 0;
+      path: /home/ubuntu/check_simulation_result.sh
 
 runcmd:
   - sudo chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
   - sudo chmod +x /home/ubuntu/write-cpu-ram-usage.sh
   - sudo chmod +x /home/ubuntu/beam_stuck_guard.sh
+  - sudo chmod +x /home/ubuntu/check_simulation_result.sh
   - cd /home/ubuntu
   - ./write-cpu-ram-usage.sh 20 > cpu_ram_usage.csv &
   - cd /home/ubuntu/git
@@ -290,6 +306,8 @@ runcmd:
   -   then
   -     s3glip="\\n S3 output url ${s3p#","}"
   -   fi
+  -   cd /home/ubuntu
+  -   final_status=$(./check_simulation_result.sh)
   -   bye_msg=$(printf "Run Completed \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT %s \\n Shutdown in $SHUTDOWN_WAIT minutes" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "$s3glip")
   -   echo "$bye_msg"
   -   stop_json=$(printf "{
@@ -297,7 +315,7 @@ runcmd:
         \\"type\\":\\"beam\\",
         \\"sheet_id\\":\\"$SHEET_ID\\",
         \\"run\\":{
-          \\"status\\":\\"Run Completed\\",
+          \\"status\\":\\"$final_status\\",
           \\"name\\":\\"$TITLED\\",
           \\"instance_id\\":\\"%s\\",
           \\"instance_type\\":\\"%s\\",

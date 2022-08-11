@@ -14,7 +14,8 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.events.{ModeChoiceEvent, SpaceTime}
+import beam.agentsim.events.resources.ReservationErrorCode
+import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent, SpaceTime}
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
@@ -39,7 +40,6 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
-import scala.jdk.CollectionConverters.asJavaIterableConverter
 
 /**
   * BEAM
@@ -130,33 +130,6 @@ trait ChoosesMode {
   }
 
   def bodyVehiclePersonId: PersonIdWithActorRef = PersonIdWithActorRef(id, self)
-
-  def currentTourBeamVehicle: Option[BeamVehicle] = {
-    stateData match {
-      case data: ChoosesModeData =>
-        data.personData.currentTourPersonalVehicle match {
-          case Some(personalVehicle) =>
-            Option(
-              beamVehicles(personalVehicle)
-                .asInstanceOf[ActualVehicle]
-                .vehicle
-            )
-          case _ => None
-        }
-      case data: BasePersonData =>
-        data.currentTourPersonalVehicle match {
-          case Some(personalVehicle) =>
-            Option(
-              beamVehicles(personalVehicle)
-                .asInstanceOf[ActualVehicle]
-                .vehicle
-            )
-          case _ => None
-        }
-      case _ =>
-        None
-    }
-  }
 
   onTransition { case _ -> ChoosingMode =>
     nextStateData match {
@@ -451,6 +424,7 @@ trait ChoosesMode {
       var requestId: Option[Int] = None
       // Form and send requests
 
+      var householdVehiclesWereNotAvailable = false // to replan when personal vehicles are not available
       correctedCurrentTourMode match {
         case None =>
           if (hasRideHail) {
@@ -532,7 +506,22 @@ trait ChoosesMode {
                     case _   => vehicle
                   }
                 })
-              makeRequestWith(withTransit = false, vehicles :+ bodyStreetVehicle)
+              if (
+                beamScenario.beamConfig.beam.agentsim.agents.vehicles.replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable && vehicles.isEmpty
+              ) {
+                eventsManager.processEvent(
+                  new ReplanningEvent(
+                    departTime,
+                    Id.createPersonId(id),
+                    getReplanningReasonFrom(
+                      choosesModeData.personData,
+                      ReservationErrorCode.HouseholdVehicleNotAvailable.entryName
+                    )
+                  )
+                )
+                householdVehiclesWereNotAvailable = true
+              }
+              makeRequestWith(withTransit = householdVehiclesWereNotAvailable, vehicles :+ bodyStreetVehicle)
               responsePlaceholders = makeResponsePlaceholders(withRouting = true)
           }
         case Some(mode @ (DRIVE_TRANSIT | BIKE_TRANSIT)) =>
@@ -591,7 +580,8 @@ trait ChoosesMode {
           logDebug(m.toString)
       }
       val newPersonData = choosesModeData.copy(
-        personData = choosesModeData.personData.copy(currentTourMode = correctedCurrentTourMode),
+        personData = choosesModeData.personData
+          .copy(currentTourMode = if (householdVehiclesWereNotAvailable) None else correctedCurrentTourMode),
         availablePersonalStreetVehicles = availablePersonalStreetVehicles,
         allAvailableStreetVehicles = newlyAvailableBeamVehicles,
         routingResponse = responsePlaceholders.routingResponse,
@@ -604,6 +594,7 @@ trait ChoosesMode {
         routingFinished = choosesModeData.routingFinished
           || responsePlaceholders.routingResponse == RoutingResponse.dummyRoutingResponse
       )
+      householdVehiclesWereNotAvailable = false
       stay() using newPersonData
     /*
      * Receive and store data needed for choice.
@@ -1006,10 +997,6 @@ trait ChoosesMode {
 
   private def isDriveVehicleLeg(leg: EmbodiedBeamLeg) = {
     leg.asDriver && leg.beamLeg.mode != BeamMode.WALK
-  }
-
-  def isRideHailToTransitResponse(response: RoutingResponse): Boolean = {
-    response.itineraries.exists(_.vehiclesInTrip.contains(dummyRHVehicle.id))
   }
 
   def shouldAttemptRideHail2Transit(
@@ -1769,8 +1756,6 @@ object ChoosesMode {
       }
     )
   }
-
-  case class LegWithPassengerVehicle(leg: EmbodiedBeamLeg, passengerVehicle: Id[BeamVehicle])
 
   case class CavTripLegsRequest(person: PersonIdWithActorRef, originActivity: Activity)
 

@@ -318,7 +318,7 @@ class PersonAgent(
   val networkHelper: NetworkHelper = beamServices.networkHelper
   val geo: GeoUtils = beamServices.geo
 
-  val minDistanceToTrainStop =
+  val minDistanceToTrainStop: Double =
     beamScenario.beamConfig.beam.agentsim.agents.tripBehaviors.carUsage.minDistanceToTrainStop
 
   val bodyType: BeamVehicleType = beamScenario.vehicleTypes(
@@ -459,12 +459,6 @@ class PersonAgent(
   }
 
   startWith(Uninitialized, BasePersonData())
-
-  def scaleTimeByValueOfTime(timeInSeconds: Double): Double = {
-    attributes.unitConversionVOTT(
-      timeInSeconds
-    ) // TODO: ZN, right now not mode specific. modal factors reside in ModeChoiceMultinomialLogit. Move somewhere else?
-  }
 
   def currentTour(data: BasePersonData): Tour = {
     stateName match {
@@ -678,11 +672,6 @@ class PersonAgent(
     currentCoord == null || beamScenario.trainStopQuadTree
       .getDisk(currentCoord.getX, currentCoord.getY, minDistanceToTrainStop)
       .isEmpty || beamScenario.trainStopQuadTree.getDisk(nextCoord.getX, nextCoord.getY, minDistanceToTrainStop).isEmpty
-  }
-
-  def activityOrMessage(ind: Int, msg: String): Either[String, Activity] = {
-    if (ind < 0 || ind >= _experiencedBeamPlan.activities.length) Left(msg)
-    else Right(_experiencedBeamPlan.activities(ind))
   }
 
   def handleFailedRideHailReservation(
@@ -1126,7 +1115,7 @@ class PersonAgent(
           val vehicleTrip = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)
           val totalDistance: Double = vehicleTrip.map(_.beamLeg.travelPath.distanceInM).sum
           // Calculating distance to cross before enroute charging
-          val refuelRequiredThresholdInMeters = totalDistance
+          val refuelRequiredThresholdInMeters = totalDistance + enrouteConfig.refuelRequiredThresholdOffsetInMeters
           val noRefuelThresholdInMeters = totalDistance + enrouteConfig.noRefuelThresholdOffsetInMeters
           val originUtm = vehicle.spaceTime.loc
           val lastLeg = vehicleTrip.last.beamLeg
@@ -1144,15 +1133,9 @@ class PersonAgent(
           false
         }
 
-        val tempData = data.copy(
-          passengerSchedule = newPassengerSchedule,
-          currentLegPassengerScheduleIndex = 0,
-          currentVehicle = currentVehicleForNextState
-        )
-
-        val tick = _currentTick.get
-        val triggerId = _currentTriggerId.get
         def sendCompletionNoticeAndScheduleStartLegTrigger(): Unit = {
+          val tick = _currentTick.get
+          val triggerId = _currentTriggerId.get
           scheduler ! CompletionNotice(
             triggerId,
             if (nextLeg.beamLeg.endTime > lastTickOfSimulation) Vector.empty
@@ -1161,18 +1144,23 @@ class PersonAgent(
         }
 
         // decide next state to go, whether we need to complete the trigger, start a leg or both
-        val (stateToGo, updatedData) = {
-          if (needEnroute) {
-            (ReadyToChooseParking, tempData.copy(enrouteData = tempData.enrouteData.copy(isInEnrouteState = true)))
-          } else if (nextLeg.beamLeg.mode == CAR || vehicle.beamVehicleType.isSharedVehicle) {
-            sendCompletionNoticeAndScheduleStartLegTrigger()
-            (ReleasingParkingSpot, tempData)
+        val stateToGo = {
+          if (nextLeg.beamLeg.mode == CAR || vehicle.isSharedVehicle) {
+            if (!needEnroute) sendCompletionNoticeAndScheduleStartLegTrigger()
+            ReleasingParkingSpot
           } else {
             sendCompletionNoticeAndScheduleStartLegTrigger()
             releaseTickAndTriggerId()
-            (WaitingToDrive, tempData)
+            WaitingToDrive
           }
         }
+
+        val updatedData = data.copy(
+          passengerSchedule = newPassengerSchedule,
+          currentLegPassengerScheduleIndex = 0,
+          currentVehicle = currentVehicleForNextState,
+          enrouteData = if (needEnroute) data.enrouteData.copy(isInEnrouteState = true) else data.enrouteData
+        )
 
         goto(stateToGo) using updatedData
       }

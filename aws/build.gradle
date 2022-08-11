@@ -1,7 +1,5 @@
 import com.amazonaws.services.lambda.model.InvocationType
-import com.amazonaws.services.lambda.model.InvokeResult
 import jp.classmethod.aws.reboot.gradle.lambda.AWSLambdaInvokeTask
-
 
 buildscript {
     repositories {
