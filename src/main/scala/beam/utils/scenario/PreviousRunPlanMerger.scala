@@ -181,6 +181,13 @@ object LastRunOutputSource extends LazyLogging {
     Some(filePath).filter(Files.exists(_))
   }
 
+  private def findLatestOutputDirectory(outputPath: Path, dirPrefix: String) = {
+    findDirs(outputPath, dirPrefix)
+      .filter(path => Files.exists(path.resolve("ITERS")))
+      .sortWith((path1, path2) => path1.getFileName.toString.compareTo(path2.getFileName.toString) > 0)
+      .headOption
+  }
+
   private def findAllLastIterationDirectories(outputPath: Path, dirPrefix: String) = {
     val IterationNumber = """it.(\d+)""".r
     for {
