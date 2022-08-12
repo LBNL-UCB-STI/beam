@@ -1058,5 +1058,5 @@ chargingBehaviorFunc(ref3)
 
 
 events3[startsWith(vehicle,"rideHail"),.N,by=.(vehicleType)]
-
+pt1[startsWith(vehicle,"rideHail"),.N,by=.(vehicleType)]
 

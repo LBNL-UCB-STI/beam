@@ -12,11 +12,7 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
-import beam.agentsim.agents.parking.ChoosesParking.{
-  handleReleasingParkingSpot,
-  ChoosingParkingSpot,
-  ReleasingParkingSpot
-}
+import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
@@ -29,7 +25,7 @@ import beam.agentsim.events._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.parking.ParkingMNL
-import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
+import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingNetworkManager, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
@@ -993,11 +989,11 @@ class PersonAgent(
         triggerId
       )
       stay
-    case Event(UnpluggingVehicle(tick, energyCharged, triggerId), data: BasePersonData) =>
-      log.debug(s"Vehicle ${currentBeamVehicle.id} ended charging and it is not handled by the CNM at tick $tick")
-      handleReleasingParkingSpot(
+    case Event(UnpluggingVehicle(tick, vehicle, energyCharged, triggerId), data: BasePersonData) =>
+      log.debug(s"Vehicle ${vehicle.id} ended charging and it is not handled by the CNM at tick $tick")
+      ParkingNetworkManager.handleReleasingParkingSpot(
         tick,
-        currentBeamVehicle,
+        vehicle,
         Some(energyCharged),
         id,
         parkingManager,
@@ -1007,14 +1003,14 @@ class PersonAgent(
       val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
       holdTickAndTriggerId(updatedTick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
-    case Event(UnhandledVehicle(tick, vehicleId, triggerId), data: BasePersonData) =>
+    case Event(UnhandledVehicle(tick, vehicle, triggerId), data: BasePersonData) =>
       log.warning(
-        s"Vehicle $vehicleId is not handled by the CNM at tick $tick. Something is broken." +
+        s"Vehicle ${vehicle.id} is not handled by the CNM at tick $tick. Something is broken." +
         s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
       )
-      handleReleasingParkingSpot(
+      ParkingNetworkManager.handleReleasingParkingSpot(
         tick,
-        currentBeamVehicle,
+        vehicle,
         None,
         id,
         parkingManager,
