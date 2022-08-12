@@ -1538,7 +1538,7 @@ trait ChoosesMode {
 
     val tripId: String = _experiencedBeamPlan.trips
       .lift(data.personData.currentActivityIndex + 1) match {
-      case Some(trip) => "default"
+      case Some(trip) => trip.getAttributes.getAttribute("trip_id").toString
       case None       => ""
     }
 
