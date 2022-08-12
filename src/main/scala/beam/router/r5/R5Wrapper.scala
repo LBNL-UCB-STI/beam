@@ -689,12 +689,13 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           // Using itinerary start as access leg's startTime
           val access = option.access.get(itinerary.connection.access)
           val transitAccessBuffer = access.mode match {
-            case _ if option.transit == null => 0
-            case LegMode.WALK                => beamConfig.beam.routing.r5.accessBufferTimeSeconds.walk
-            case LegMode.BICYCLE             => beamConfig.beam.routing.r5.accessBufferTimeSeconds.bike
-            case LegMode.BICYCLE_RENT        => beamConfig.beam.routing.r5.accessBufferTimeSeconds.bike_rent
-            case LegMode.CAR_PARK            => beamConfig.beam.routing.r5.accessBufferTimeSeconds.carcase LegMode.CAR if mainRouteRideHailTransit => beamConfig.beam.routing.r5.accessBufferTimeSeconds.ride_hail
-            case LegMode.CAR                 => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
+            case _ if option.transit == null             => 0
+            case LegMode.WALK                            => beamConfig.beam.routing.r5.accessBufferTimeSeconds.walk
+            case LegMode.BICYCLE                         => beamConfig.beam.routing.r5.accessBufferTimeSeconds.bike
+            case LegMode.BICYCLE_RENT                    => beamConfig.beam.routing.r5.accessBufferTimeSeconds.bike_rent
+            case LegMode.CAR_PARK                        => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
+            case LegMode.CAR if mainRouteRideHailTransit => beamConfig.beam.routing.r5.accessBufferTimeSeconds.ride_hail
+            case LegMode.CAR                             => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
           }
           val tripStartTime = dates
             .toBaseMidnightSeconds(

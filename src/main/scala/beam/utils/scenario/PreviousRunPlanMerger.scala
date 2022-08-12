@@ -71,9 +71,12 @@ object PreviousRunPlanMerger extends LazyLogging {
       personIdsToReplace.size
     )
     val shouldReplace = (plan: PlanElement) => personIdsToReplace.contains(plan.personId)
-    val (_, oldElementsToKeep) = plans.partition(shouldReplace)
+    val (oldToBeReplaced, oldElementsToKeep) = plans.partition(shouldReplace)
     val elementsFromExistingPersonsToAdd = plansToMerge.filter(shouldReplace)
-    oldElementsToKeep ++ elementsFromExistingPersonsToAdd
+    val shouldAdd = (plan: PlanElement) => personIdsToAdd.contains(plan.personId)
+    val elementsFromNewPersonsToAdd = plansToMerge.filter(shouldAdd)
+    val unselectedPlanElements = oldToBeReplaced.map(_.copy(planSelected = false))
+    oldElementsToKeep ++ unselectedPlanElements ++ elementsFromExistingPersonsToAdd ++ elementsFromNewPersonsToAdd
   }
 }
 
@@ -82,7 +85,14 @@ object LastRunOutputSource extends LazyLogging {
   def findLastRunOutputPlans(outputPath: Path, dirPrefix: String): Option[Path] = {
     val plansPaths = for {
       (itDir, itNumber) <- findAllLastIterationDirectories(outputPath, dirPrefix)
-      plansPath         <- findFile(itDir, itNumber, "plans.csv.gz") orElse findFile(itDir, itNumber, "plans.xml.gz")
+      plansPath <- findLatestOutputDirectory(outputPath, dirPrefix).filter { p =>
+        logger.info("Initially looking for plans at {}", p.toString)
+        Files.exists(p)
+      } orElse findFile(
+        itDir,
+        itNumber,
+        "plans.xml.gz"
+      ) orElse findFile(itDir, itNumber, "plans.csv.gz")
     } yield plansPath
     plansPaths.headOption
   }
@@ -102,6 +112,13 @@ object LastRunOutputSource extends LazyLogging {
   private def findFile(iterationDir: Path, iterationNumber: Int, fileName: String): Option[Path] = {
     val filePath = iterationDir.resolve(s"$iterationNumber.$fileName")
     Some(filePath).filter(Files.exists(_))
+  }
+
+  private def findLatestOutputDirectory(outputPath: Path, dirPrefix: String) = {
+    findDirs(outputPath, dirPrefix)
+      .filter(path => Files.exists(path.resolve("ITERS")))
+      .sortWith((path1, path2) => path1.getFileName.toString.compareTo(path2.getFileName.toString) > 0)
+      .headOption
   }
 
   private def findAllLastIterationDirectories(outputPath: Path, dirPrefix: String) = {
