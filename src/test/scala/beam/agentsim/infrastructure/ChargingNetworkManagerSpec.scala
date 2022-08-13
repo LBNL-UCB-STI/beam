@@ -124,7 +124,6 @@ class ChargingNetworkManagerSpec
   private val pricingModel = PricingModel.FlatFee(0.0)
 
   val personId: Id[Person] = Id.createPersonId("dummyPerson")
-
   val parkingZoneId: Id[ParkingZoneId] = ParkingZone.createId("0")
 
   val parkingStall: ParkingStall =
