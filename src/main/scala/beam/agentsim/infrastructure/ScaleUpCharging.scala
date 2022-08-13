@@ -100,7 +100,7 @@ trait ScaleUpCharging extends {
     case reply @ WaitingToCharge(_, _, _) =>
       log.debug(s"Received parking response: $reply")
     case reply @ UnhandledVehicle(tick, personId, vehicle, triggerId) =>
-      log.debug(s"Received parking response: $reply")
+      log.error(s"Received parking response: $reply")
       ParkingNetworkManager.handleReleasingParkingSpot(
         tick,
         vehicle,

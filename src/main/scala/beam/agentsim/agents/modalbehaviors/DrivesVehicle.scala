@@ -481,7 +481,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
     case ev @ Event(StartingRefuelSession(_, _), _) =>
       log.debug("state(DrivesVehicle.Driving.StartingRefuelSession): {}", ev)
       stay()
-    case ev @ Event(UnhandledVehicle(_, _, _), _) =>
+    case ev @ Event(UnhandledVehicle(_, _, _, _), _) =>
       log.error("state(DrivesVehicle.Driving.UnhandledVehicle): {}", ev)
       stay()
     case ev @ Event(WaitingToCharge(_, _, _), _) =>

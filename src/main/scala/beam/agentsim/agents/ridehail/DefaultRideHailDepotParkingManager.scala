@@ -1,9 +1,7 @@
 package beam.agentsim.agents.ridehail
 
-import akka.actor.ActorRef
-import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
-import beam.agentsim.agents.ridehail.RideHailManager.{ChargingInquiriesResponse, VehicleId}
+import beam.agentsim.agents.ridehail.RideHailManager.VehicleId
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
@@ -12,12 +10,10 @@ import beam.agentsim.infrastructure._
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
+import beam.sim.Geofence
 import beam.sim.config.BeamConfig
-import beam.sim.{BeamServices, Geofence}
 import beam.utils.logging.pattern.ask
-import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
-import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -47,6 +43,7 @@ import scala.concurrent.Future
 trait DefaultRideHailDepotParkingManager extends {
   this: RideHailManager =>
 
+  val outputRidehailParkingFileName = "ridehailParking.csv"
   val rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail = beamServices.beamConfig.beam.agentsim.agents.rideHail
   val depots: Map[Id[ParkingZoneId], ParkingZone] = rideHailChargingNetwork.parkingZones
 
@@ -63,9 +60,7 @@ trait DefaultRideHailDepotParkingManager extends {
 
   ParkingZoneFileUtils.toCsv(
     rideHailChargingNetwork.parkingZones,
-    beamServices.matsimServices.getControlerIO.getOutputFilename(
-      DefaultRideHailDepotParkingManager.outputRidehailParkingFileName
-    )
+    beamServices.matsimServices.getControlerIO.getOutputFilename(outputRidehailParkingFileName)
   )
 
   /*
@@ -99,37 +94,11 @@ trait DefaultRideHailDepotParkingManager extends {
     }
   }
 
-  override def loggedReceive: Receive = {}
-
-  override def findStationsForVehiclesInNeedOfCharging(
+  def findChargingStalls(
     tick: Int,
-    resources: mutable.Map[Id[BeamVehicle], BeamVehicle],
+    vehiclesWithoutCustomVehicles: Map[Id[BeamVehicle], RideHailAgentLocation],
     triggerId: Long
-  ): Vector[(Id[BeamVehicle], ParkingStall)] = {
-
-    val idleVehicles: mutable.Map[Id[BeamVehicle], RideHailAgentLocation] =
-      rideHailManagerHelper.getIdleAndRepositioningAndOfflineCAVsAndFilterOutExluded.filterNot(veh =>
-        isOnWayToRefuelingDepotOrIsRefuelingOrInQueue(veh._1)
-      )
-
-    val badVehicles =
-      rideHailManagerHelper.getIdleAndRepositioningAndOfflineCAVsAndFilterOutExluded
-        .filter(veh => isOnWayToRefuelingDepotOrIsRefuelingOrInQueue(veh._1))
-        .map(tup => (tup, rideHailManagerHelper.getServiceStatusOf(tup._1)))
-
-    if (badVehicles.nonEmpty) {
-      log.debug(
-        f"Some vehicles (${badVehicles.size}) still appear as 'idle' despite being on way to refuel or refueling, head: ${badVehicles.head}"
-      )
-    }
-
-    val additionalCustomVehiclesForDepotCharging = ridehailManagerCustomizationAPI
-      .identifyAdditionalVehiclesForRefuelingDuringContinueRepositioningAndAssignDepotHook(idleVehicles, tick)
-
-    val vehiclesWithoutCustomVehicles = idleVehicles.filterNot { case (vehicleId, _) =>
-      additionalCustomVehiclesForDepotCharging.map(_._1).contains(vehicleId)
-    }
-
+  ): Future[Vector[(Id[BeamVehicle], ParkingStall)]] = {
     val idleVehicleIdsWantingToRefuelWithLocation = vehiclesWithoutCustomVehicles.toVector.filter {
       case (vehicleId: Id[BeamVehicle], _) =>
         resources.get(vehicleId) match {
@@ -141,7 +110,6 @@ trait DefaultRideHailDepotParkingManager extends {
           case _ => false
         }
     }
-
     Future
       .sequence(idleVehicleIdsWantingToRefuelWithLocation.map { case (vehicleId, rideHailAgentLocation) =>
         val beamVehicle = resources(vehicleId)
@@ -150,32 +118,6 @@ trait DefaultRideHailDepotParkingManager extends {
           .mapTo[ParkingInquiryResponse]
           .map(x => (vehicleId, x.stall))
       })
-      .map(result =>
-        self ? ChargingInquiriesResponse(
-          tick,
-          result,
-          additionalCustomVehiclesForDepotCharging,
-          idleVehicles,
-          triggerId
-        )
-      )
-
-//    idleVehicleIdsWantingToRefuelWithLocation.map { case (vehicleId, rideHailAgentLocation) =>
-//      val beamVehicle = resources(vehicleId)
-//      val locationUtm: Location = rideHailAgentLocation.getCurrentLocationUTM(tick, beamServices)
-//      val parkingStall =
-//        processParkingInquiry(
-//          ParkingInquiry.init(
-//            SpaceTime(locationUtm, tick),
-//            "wherever",
-//            VehicleManager.getReservedFor(beamVehicle.vehicleManagerId.get).get,
-//            Some(beamVehicle),
-//            valueOfTime = rideHailConfig.cav.valueOfTime,
-//            triggerId = 0
-//          )
-//        ).map(_.stall).getOrElse(throw new IllegalStateException(s"no parkingStall available for $vehicleId"))
-//      (vehicleId, parkingStall)
-//    }
   }
 
   def sendChargingInquiry(whenWhere: SpaceTime, beamVehicle: BeamVehicle, triggerId: Long): Future[Any] = {
@@ -234,7 +176,7 @@ trait DefaultRideHailDepotParkingManager extends {
   /**
     * This vehicle is no longer charging and should be removed from internal tracking data.
     *
-    * @param vehicle
+    * @param vehicle Beam Vehicle ID
     * @return the stall if found and successfully removed
     */
   def removeFromCharging(vehicle: VehicleId, tick: Int): Option[ParkingStall] = {
@@ -244,9 +186,16 @@ trait DefaultRideHailDepotParkingManager extends {
       log.debug("Remove from cache that vehicle {} was charging in stall {}", vehicle, stall)
       putNewTickAndObservation(vehicle, (tick, "RemoveFromCharging"))
       parkingZoneIdToParkingZoneDepotData(stall.parkingZoneId).chargingVehicles.remove(vehicle)
-      chargingNetworkManager
-      processReleaseParkingStall(ReleaseParkingStall(stall, 0))
     }
+//    ParkingNetworkManager.handleReleasingParkingSpot(
+//      tick,
+//      vehicle,
+//      Some(energyCharged),
+//      personId,
+//      getParkingManager,
+//      getBeamServices.matsimServices.getEvents,
+//      triggerId
+//    )
     stallOpt
   }
 
@@ -267,7 +216,7 @@ trait DefaultRideHailDepotParkingManager extends {
   /**
     * Is the [[vehicleId]] currently on the way to a refueling depot to charge?
     *
-    * @param vehicleId
+    * @param vehicleId Beam Vehicle ID
     * @return
     */
   def isOnWayToRefuelingDepot(vehicleId: VehicleId): Boolean = vehiclesOnWayToDepot.contains(vehicleId)
@@ -299,68 +248,5 @@ trait DefaultRideHailDepotParkingManager extends {
       case None =>
     }
     parkingStallOpt
-  }
-}
-
-object DefaultRideHailDepotParkingManager {
-  // a ride hail agent is searching for a charging depot and is not in service of an activity.
-  // for this reason, a higher max radius is reasonable.
-  val SearchStartRadius: Double = 40000.0 // meters
-  val SearchMaxRadius: Int = 80465 // 50 miles, in meters
-  val FractionOfSameTypeZones: Double = 0.2 // 20%
-  val MinNumberOfSameTypeZones: Int = 5
-  val outputRidehailParkingFileName = "ridehailParking.csv"
-
-  def apply(
-    parkingZones: Map[Id[ParkingZoneId], ParkingZone],
-    geoQuadTree: QuadTree[TAZ],
-    idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
-    boundingBox: Envelope,
-    beamServices: BeamServices,
-    chargingNetworkManager: ActorRef
-  ): RideHailDepotParkingManager = {
-    new DefaultRideHailDepotParkingManager(
-      parkingZones,
-      beamServices.matsimServices.getControlerIO,
-      beamServices.beamConfig.beam.agentsim.agents.rideHail,
-      beamServices,
-      chargingNetworkManager
-    ) {
-      override val searchFunctions: Option[InfrastructureFunctions] = Some(
-        new DefaultRidehailFunctions(
-          geoQuadTree,
-          idToGeoMapping,
-          parkingZones,
-          parkingZoneIdToParkingZoneDepotData,
-          beamServices.geo.distUTMInMeters,
-          DefaultRideHailDepotParkingManager.SearchStartRadius,
-          DefaultRideHailDepotParkingManager.SearchMaxRadius,
-          DefaultRideHailDepotParkingManager.FractionOfSameTypeZones,
-          DefaultRideHailDepotParkingManager.MinNumberOfSameTypeZones,
-          boundingBox,
-          beamServices.beamConfig.matsim.modules.global.randomSeed,
-          beamServices.beamScenario.fuelTypePrices,
-          beamServices.beamConfig.beam.agentsim.agents.rideHail,
-          beamServices.skims,
-          beamServices.beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
-        )
-      )
-    }
-  }
-
-  def init(
-    parkingZones: Map[Id[ParkingZoneId], ParkingZone],
-    boundingBox: Envelope,
-    beamServices: BeamServices,
-    chargingNetworkManager: ActorRef
-  ): RideHailDepotParkingManager = {
-    DefaultRideHailDepotParkingManager(
-      parkingZones,
-      beamServices.beamScenario.tazTreeMap.tazQuadTree,
-      beamServices.beamScenario.tazTreeMap.idToTAZMapping,
-      boundingBox,
-      beamServices,
-      chargingNetworkManager
-    )
   }
 }
