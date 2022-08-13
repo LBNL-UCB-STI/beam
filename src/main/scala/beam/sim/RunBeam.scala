@@ -31,6 +31,7 @@ object RunBeam extends BeamHelper {
     } catch {
       case e: Exception =>
         val threadDumpFileName = "thread_dump_from_RunBeam.txt.gz"
+        println(s"Exception occurred: ${e.toString}")
         logger.error(s"Exception occurred: {}", e.getMessage)
         FileUtils.writeToFile(threadDumpFileName, DebugLib.currentThreadsDump().asScala.iterator)
         logger.info("Thread dump has been saved to the file {}", threadDumpFileName)
