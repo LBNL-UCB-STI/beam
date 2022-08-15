@@ -100,7 +100,7 @@ Now checkout the develop branch::
    git checkout develop
 
 
-Run the gradle command to compile BEAM, this will also downloaded all required dependencies automatically::
+Run the gradle command to compile BEAM, this will also download all required dependencies automatically::
 
    gradle classes
 
