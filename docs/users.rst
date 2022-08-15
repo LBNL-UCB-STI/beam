@@ -102,7 +102,7 @@ Now checkout the develop branch::
 
 Run the gradle command to compile BEAM, this will also downloaded all required dependencies automatically::
 
-   gradle classes
+   ./gradlew classes
 
 Now you're ready to run BEAM! 
 
