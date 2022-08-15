@@ -9,6 +9,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
+import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.{Available, Refueling, RideHailAgentLocation}
@@ -918,15 +919,54 @@ class RideHailManager(
 
     val beamVehicle = resources(vehicleId)
 
-    val vehicleArrivedAtTickAndStall = notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId).map((whenWhere.time, _))
+    addOrRemoveVehicleFromCharging(vehicleId, whenWhere.time, triggerId)
+      .map(triggersToSend => beamVehicle.getDriver.get ! NotifyVehicleResourceIdleReply(triggerId, triggersToSend))
+      .recover { case e =>
+        log.error(e.getMessage)
+      }
+  }
 
-    if (vehicleArrivedAtTickAndStall.isEmpty) {
+  def addOrRemoveVehicleFromCharging(
+    vehicleId: VehicleId,
+    tick: Int,
+    triggerId: Long
+  ): Future[Vector[ScheduleTrigger]] = {
+    notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId) match {
+      case Some(parkingStall) =>
+        val beamVehicle = resources(vehicleId)
+        attemptToRefuel(
+          beamVehicle,
+          parkingStall,
+          tick,
+          JustArrivedAtDepot,
+          triggerId
+        )
       //If not arrived for refueling;
-      log.debug("Making vehicle {} available", vehicleId)
-      rideHailManagerHelper.makeAvailable(vehicleId)
+      case _ =>
+        log.debug("Making vehicle {} available", vehicleId)
+        rideHailManagerHelper.makeAvailable(vehicleId)
+        removeFromCharging(vehicleId, tick) match {
+          case Some(parkingStall) =>
+            dequeueNextVehicleForRefuelingFrom(
+              parkingStall.parkingZoneId,
+              tick
+            ) match {
+              case Some(ChargingQueueEntry(nextVehicle, nextVehiclesParkingStall, _)) =>
+                val result = attemptToRefuel(
+                  nextVehicle,
+                  nextVehiclesParkingStall,
+                  tick,
+                  DequeuedToCharge,
+                  triggerId
+                )
+                result
+              case None =>
+                Future { Vector() }
+            }
+          case None =>
+            Future { Vector() }
+        }
     }
-
-    beamVehicle.getDriver.get ! NotifyVehicleResourceIdleReply(triggerId, Seq.empty, vehicleArrivedAtTickAndStall)
   }
 
   def dieIfNoChildren(): Unit = {
@@ -1633,22 +1673,16 @@ class RideHailManager(
     rideHailManagerHelper.updateLocationOfAgent(notify.vehicleId, notify.whenWhere)
     rideHailManagerHelper.vehicleState.put(notify.vehicleId, notify.beamVehicleState)
     rideHailManagerHelper.updatePassengerSchedule(notify.vehicleId, None, None)
-
-    val vehicleArrivedAtTickAndStall = notifyVehicleNoLongerOnWayToRefuelingDepot(notify.vehicleId)
-      .map((notify.whenWhere.time, _))
-
-    if (vehicleArrivedAtTickAndStall.isEmpty) {
-      //If not arrived for refueling;
-      log.debug("Making vehicle {} available", notify.vehicleId)
-      rideHailManagerHelper.makeAvailable(notify.vehicleId)
-    }
-
-    resources(notify.vehicleId).getDriver.get ! NotifyVehicleDoneRefuelingAndOutOfServiceReply(
-      notify.triggerId,
-      Seq.empty,
-      vehicleArrivedAtTickAndStall
-    )
-    rideHailManagerHelper.putOutOfService(notify.vehicleId)
+    val beamVehicle = resources(notify.vehicleId)
+    addOrRemoveVehicleFromCharging(notify.vehicleId, notify.tick, notify.triggerId)
+      .map { triggersToSend =>
+        beamVehicle.getDriver.get ! NotifyVehicleDoneRefuelingAndOutOfServiceReply(notify.triggerId, triggersToSend)
+        rideHailManagerHelper.putOutOfService(notify.vehicleId)
+      }
+      .recover { case e =>
+        log.error(e.getMessage)
+        rideHailManagerHelper.putOutOfService(notify.vehicleId)
+      }
   }
 
   def cleanUp(triggerId: Long): Unit = {

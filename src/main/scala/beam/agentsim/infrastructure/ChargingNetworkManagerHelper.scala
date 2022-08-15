@@ -178,7 +178,7 @@ trait ChargingNetworkManagerHelper extends {
     * @param chargingVehicle vehicle charging information
     */
   protected def handleRefueling(chargingVehicle: ChargingVehicle): Unit = {
-    chargingVehicle.refuel.foreach { case ChargingCycle(startTime, endTime, _, energyToChargeIfUnconstrained, _) =>
+    chargingVehicle.refuel().foreach { case ChargingCycle(startTime, endTime, _, energyToChargeIfUnconstrained, _) =>
       val station = chargingVehicle.chargingStation
       sitePowerManager.collectObservedLoadInKW(startTime, endTime - startTime, energyToChargeIfUnconstrained, station)
     }

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/../../../../../freight-develop/src/main/python/freight/.idea/freight.iml" filepath="$PROJECT_DIR$/../../../../../freight-develop/src/main/python/freight/.idea/freight.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/gemini.iml" filepath="$PROJECT_DIR$/.idea/gemini.iml" />
+    </modules>
+  </component>
+</project>

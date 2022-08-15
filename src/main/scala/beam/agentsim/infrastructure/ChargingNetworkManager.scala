@@ -186,14 +186,15 @@ class ChargingNetworkManager(
           .get(stall.reservedFor.managerId)
           .processChargingPlugRequest(request, parkingDuration.toInt, activityType, sender()) map {
           case chargingVehicle if chargingVehicle.chargingStatus.last.status == WaitingAtStation =>
+            val numVehicleWaitingToCharge = chargingVehicle.chargingStation.howManyVehiclesAreWaiting
             log.debug(
               s"Vehicle $vehicle is moved to waiting line at $tick in station ${chargingVehicle.chargingStation}, " +
               s"with {} vehicles connected and {} in grace period and {} in waiting line",
               chargingVehicle.chargingStation.howManyVehiclesAreCharging,
               chargingVehicle.chargingStation.howManyVehiclesAreInGracePeriodAfterCharging,
-              chargingVehicle.chargingStation.howManyVehiclesAreWaiting
+              numVehicleWaitingToCharge
             )
-            WaitingToCharge(tick, vehicle.id, triggerId)
+            WaitingToCharge(tick, vehicle.id, numVehicleWaitingToCharge, triggerId)
           case chargingVehicle =>
             vehicle2InquiryMap.remove(vehicle.id)
             handleStartCharging(tick, chargingVehicle, triggerId = triggerId)
@@ -305,7 +306,9 @@ object ChargingNetworkManager extends LazyLogging {
       extends HasTriggerId
   case class StartingRefuelSession(tick: Int, triggerId: Long) extends HasTriggerId
   case class EndingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle], triggerId: Long) extends HasTriggerId
-  case class WaitingToCharge(tick: Int, vehicleId: Id[BeamVehicle], triggerId: Long) extends HasTriggerId
+
+  case class WaitingToCharge(tick: Int, vehicleId: Id[BeamVehicle], numVehicleWaitingToCharge: Int, triggerId: Long)
+      extends HasTriggerId
   case class UnhandledVehicle(tick: Int, personId: Id[_], vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
 
   case class UnpluggingVehicle(

@@ -240,6 +240,9 @@ object ChargingNetwork extends LazyLogging {
 
     private val vehiclesInGracePeriodAfterCharging = mutable.HashMap.empty[Id[BeamVehicle], ChargingVehicle]
 
+    // priority queue is first come first serve
+    // in previous iteration we used the remaining state of charge
+    // mutable.PriorityQueue.empty[ChargingQueueEntry](Ordering.by[ChargingQueueEntry, Double](_.priority))
     private var waitingLineInternal: mutable.PriorityQueue[ChargingVehicle] =
       mutable.PriorityQueue.empty[ChargingVehicle](Ordering.by((_: ChargingVehicle).arrivalTime).reverse)
 
@@ -258,12 +261,6 @@ object ChargingNetwork extends LazyLogging {
 
     private[ChargingNetwork] def vehicles: scala.collection.Map[Id[BeamVehicle], ChargingVehicle] =
       waitingLineVehiclesMap ++ chargingVehiclesInternal
-
-    private[ChargingNetwork] def lookupVehicle(vehicleId: Id[BeamVehicle]): Option[ChargingVehicle] =
-      chargingVehiclesInternal
-        .get(vehicleId)
-        .orElse(vehiclesInGracePeriodAfterCharging.get(vehicleId))
-        .orElse(waitingLineInternal.find(_.vehicle.id == vehicleId))
 
     /**
       * add vehicle to connected list and connect to charging point
@@ -308,8 +305,8 @@ object ChargingNetwork extends LazyLogging {
             chargingVehiclesInternal.put(vehicle.id, chargingVehicle)
             chargingVehicle.updateStatus(Connected, tick)
           } else {
-            logger.error(
-              s"Dropping vehicle at waiting line time $tick: vehicle $vehicle - " +
+            logger.info(
+              s"Vehicle at waiting line, time $tick: vehicle $vehicle - " +
               s"activityType $activityType - stall $stall - personId $personId - chargingInfo $chargingVehicle"
             )
             waitingLineInternal.enqueue(chargingVehicle)
@@ -424,7 +421,7 @@ object ChargingNetwork extends LazyLogging {
     /**
       * @return
       */
-    def refuel: Option[ChargingCycle] = {
+    def refuel(): Option[ChargingCycle] = {
       chargingSessions.lastOption match {
         case Some(cycle @ ChargingCycle(_, _, energy, _, _)) if !cycle.refueled =>
           vehicle.addFuel(energy)
@@ -505,7 +502,7 @@ object ChargingNetwork extends LazyLogging {
     }
 
     override def toString: String = {
-      s"$arrivalTime - ${vehicle.id} - ${stall.parkingZoneId} - ${personId} - ${activityType} - " +
+      s"$arrivalTime - ${vehicle.id} - ${stall.parkingZoneId} - $personId - $activityType - " +
       s"${chargingStatus.lastOption.getOrElse("None")} - ${chargingSessions.lastOption.getOrElse("None")}"
     }
   }
