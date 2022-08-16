@@ -1097,7 +1097,8 @@ class PersonAgent(
         val vehicle = beamVehicles(nextLeg.beamVehicleId).vehicle
         val asDriver = data.restOfCurrentTrip.head.asDriver
         val isElectric = vehicle.isEV
-        val needEnroute = if (asDriver && isElectric) {
+        val notRideHail = !vehicle.isRidehail
+        val needEnroute = if (asDriver && isElectric && notRideHail) {
           val enrouteConfig = beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute
           val firstLeg = data.restOfCurrentTrip.head
           val vehicleTrip = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)

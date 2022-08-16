@@ -418,6 +418,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               }
             }
           }
+          if (!isInEnrouteState)
+            currentBeamVehicle.setReservedParkingStall(None)
         }
         holdTickAndTriggerId(tick, triggerId)
         if (waitForConnectionToChargingPoint) {
@@ -677,12 +679,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               currentBeamVehicle.id == currentVehicleUnderControl,
               currentBeamVehicle.id + " " + currentVehicleUnderControl
             )
-            currentBeamVehicle.stall match {
-              case Some(theStall) if !currentBeamVehicle.isCAV =>
-                parkingManager ! ReleaseParkingStall(theStall, triggerId)
-                currentBeamVehicle.unsetParkingStall()
-              case _ =>
+            currentBeamVehicle.stall.foreach { theStall =>
+              parkingManager ! ReleaseParkingStall(theStall, triggerId)
             }
+            currentBeamVehicle.unsetParkingStall()
           case None =>
         }
         val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule
@@ -902,8 +902,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       )
     case _ @Event(EndingRefuelSession(tick, vehicleId, triggerId), _) =>
       log.debug(s"DrivesVehicle: EndingRefuelSession. tick: $tick, vehicle: $vehicleId")
-      scheduler ! CompletionNotice(triggerId)
-      stay()
+      //scheduler ! CompletionNotice(triggerId)
+      stay() replying CompletionNotice(triggerId)
   }
 
   private def hasRoomFor(
