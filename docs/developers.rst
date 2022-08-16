@@ -36,7 +36,7 @@ We use `typesafe config <https://github.com/typesafehub/config>`_ for our config
 
 Then you can make a copy of the config template under::
 
-  src/main/resources/config-template.conf
+  src/main/resources/beam-template.conf
 
 and start customizing the configurations to your use case.
 
