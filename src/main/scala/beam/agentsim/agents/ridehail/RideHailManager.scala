@@ -386,8 +386,6 @@ class RideHailManager(
 
   val numRideHailAgents: Int = initializeRideHailFleet()
 
-  val realTimeKpis = new RealTimeKpis(beamServices, 300)
-
   var requestedRideHail: Int = 0
   var servedRideHail: Int = 0
 
@@ -918,12 +916,9 @@ class RideHailManager(
     rideHailManagerHelper.updatePassengerSchedule(vehicleId, None, None)
 
     val beamVehicle = resources(vehicleId)
-
     addOrRemoveVehicleFromCharging(vehicleId, whenWhere.time, triggerId)
       .map(triggersToSend => beamVehicle.getDriver.get ! NotifyVehicleResourceIdleReply(triggerId, triggersToSend))
-      .recover { case e =>
-        log.error(e.getMessage)
-      }
+      .recover { case e => log.error(e.getMessage) }
   }
 
   def addOrRemoveVehicleFromCharging(
@@ -945,7 +940,7 @@ class RideHailManager(
       case _ =>
         log.debug("Making vehicle {} available", vehicleId)
         rideHailManagerHelper.makeAvailable(vehicleId)
-        removeFromCharging(vehicleId, tick) match {
+        removeFromCharging(vehicleId, tick, triggerId) match {
           case Some(parkingStall) =>
             dequeueNextVehicleForRefuelingFrom(
               parkingStall.parkingZoneId,
@@ -1274,7 +1269,6 @@ class RideHailManager(
           response.request.customer.personId,
           theVehicle
         )
-
         val directTrip = removeOriginalResponseFromCache(response.request).flatMap(_.travelProposal)
         if (processBufferedRequestsOnTimeout) {
           modifyPassengerScheduleManager.addTriggersToSendWithCompletion(finalTriggersToSchedule)
@@ -1679,10 +1673,6 @@ class RideHailManager(
         beamVehicle.getDriver.get ! NotifyVehicleDoneRefuelingAndOutOfServiceReply(notify.triggerId, triggersToSend)
         rideHailManagerHelper.putOutOfService(notify.vehicleId)
       }
-      .recover { case e =>
-        log.error(e.getMessage)
-        rideHailManagerHelper.putOutOfService(notify.vehicleId)
-      }
   }
 
   def cleanUp(triggerId: Long): Unit = {
@@ -1926,9 +1916,7 @@ class RideHailManager(
             beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
           val activityLocations: List[Location] =
             person.getSelectedPlan.getPlanElements.asScala
-              .collect { case activity: Activity =>
-                activity.getCoord
-              }
+              .collect { case activity: Activity => activity.getCoord }
               .toList
               .dropRight(1)
           val randomActivityLocation: Location = activityLocations(rand.nextInt(activityLocations.length))

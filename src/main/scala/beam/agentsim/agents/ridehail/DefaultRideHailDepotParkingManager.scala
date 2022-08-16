@@ -5,7 +5,14 @@ import beam.agentsim.agents.ridehail.RideHailManager.{RefuelSource, VehicleId}
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.{ParkingEvent, SpaceTime}
-import beam.agentsim.infrastructure.ChargingNetworkManager.{ChargingPlugRequest, StartingRefuelSession, WaitingToCharge}
+import beam.agentsim.infrastructure.ChargingNetworkManager.{
+  ChargingPlugRequest,
+  ChargingUnplugRequest,
+  StartingRefuelSession,
+  UnhandledVehicle,
+  UnpluggingVehicle,
+  WaitingToCharge
+}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure._
 import beam.agentsim.infrastructure.parking._
@@ -281,48 +288,76 @@ trait DefaultRideHailDepotParkingManager extends {
     * @param vehicle Beam Vehicle ID
     * @return the stall if found and successfully removed
     */
-  def removeFromCharging(vehicle: VehicleId, tick: Int): Option[ParkingStall] = {
-    vehicleIdToEndRefuelTick.remove(vehicle)
-    val stallOpt = chargingVehicleToParkingStallMap.remove(vehicle)
+  def removeFromCharging(vehicleId: VehicleId, tick: Int, triggerId: Long): Option[ParkingStall] = {
+    vehicleIdToEndRefuelTick.remove(vehicleId)
+    val stallOpt = chargingVehicleToParkingStallMap.remove(vehicleId)
     stallOpt.foreach { stall =>
-      log.debug("Remove from cache that vehicle {} was charging in stall {}", vehicle, stall)
-      putNewTickAndObservation(vehicle, (tick, "RemoveFromCharging"))
-      parkingZoneIdToParkingZoneDepotData(stall.parkingZoneId).chargingVehicles.remove(vehicle)
-    // releaseStall(stall)
-    //    ParkingNetworkManager.handleReleasingParkingSpot(
-    //      tick,
-    //      vehicle,
-    //      Some(energyCharged),
-    //      personId,
-    //      getParkingManager,
-    //      getBeamServices.matsimServices.getEvents,
-    //      triggerId
-    //    )
+      log.debug("Remove from cache that vehicle {} was charging in stall {}", vehicleId, stall)
+      putNewTickAndObservation(vehicleId, (tick, "RemoveFromCharging"))
+      parkingZoneIdToParkingZoneDepotData(stall.parkingZoneId).chargingVehicles.remove(vehicleId)
+      releaseStall(stall, tick, resources(vehicleId), triggerId)
     }
     stallOpt
   }
 
   // TODO: KEEPING THIS OLD CODE FOR NOW FOR REFERENCE
 
-//  /**
-//    * releases a single stall in use at this Depot
-//    *
-//    * @param parkingStall stall we want to release
-//    * @return Boolean if zone is defined and remove was success
-//    */
-//  private def releaseStall(parkingStall: ParkingStall): Boolean = {
-//    if (parkingStall.parkingZoneId < 0 || rideHailParkingZones.length <= parkingStall.parkingZoneId) {
-//      false
-//    } else {
-//      val parkingZone: ParkingZone[GEO] = rideHailParkingZones(parkingStall.parkingZoneId)
-//      val success = ParkingZone.releaseStall(parkingZone)
-//      if (success) {
-//        totalStallsInUse -= 1
-//        totalStallsAvailable += 1
-//      }
-//      success
-//    }
-//  }
+  /**
+    * releases a single stall in use at this Depot
+    *
+    * @param parkingStall stall we want to release
+    * @return Boolean if zone is defined and remove was success
+    */
+  private def releaseStall(
+    parkingStall: ParkingStall,
+    tick: Int,
+    beamVehicle: BeamVehicle,
+    triggerId: Long
+  ): Future[Any] = {
+    if (parkingStall.chargingPointType.isEmpty) {
+      Future.successful(()).map { _ =>
+        ParkingNetworkManager.handleReleasingParkingSpot(
+          tick,
+          beamVehicle,
+          None,
+          this.id,
+          parkingManager,
+          beamServices.matsimServices.getEvents,
+          triggerId
+        )
+      }
+    } else {
+      (chargingNetworkManager ? ChargingUnplugRequest(
+        tick,
+        this.id,
+        beamVehicle,
+        triggerId
+      )).map {
+        case _ @UnpluggingVehicle(_, personId, _, energyCharged, _) =>
+          ParkingNetworkManager.handleReleasingParkingSpot(
+            tick,
+            beamVehicle,
+            Some(energyCharged),
+            personId,
+            parkingManager,
+            beamServices.matsimServices.getEvents,
+            triggerId
+          )
+        case _: UnhandledVehicle =>
+          ParkingNetworkManager.handleReleasingParkingSpot(
+            tick,
+            beamVehicle,
+            None,
+            this.id,
+            parkingManager,
+            beamServices.matsimServices.getEvents,
+            triggerId
+          )
+        case e =>
+          log.error(s"Not expecting this response: $e")
+      }
+    }
+  }
 
   /**
     * Adds the vehicle to the appropriate queue for the depot and [[ChargingPlugType]] associatd with the parkingStall argument.
@@ -478,28 +513,4 @@ trait DefaultRideHailDepotParkingManager extends {
     )
     chargingNetworkManager ? inquiry
   }
-//
-//  /**
-//    * If any vehicles are added to queuePriority, then whatever value they hold will be used for ordering, with largest
-//    * values meaning the vehicle has higher priority. If a vehicle is not found in the queuePriority map (but others are present)
-//    * then this vehicle is given lowest priority (-Infinity). This allows a charge dispatch algorithm to be very selective
-//    * about which vehicles will move to the head of the priority queue.
-//    *
-//    * If the implementing class does not add any data to queuePriority, then default behavior will be used where remaining
-//    * range is the ordering of the queue. The negative of the range is used so that vehicles with the lowest range
-//    * are given highest priority.
-//    *
-//    * @param beamVehicle
-//    * @return
-//    */
-//  def getQueuePriorityFor(beamVehicle: BeamVehicle) = {
-//    queuePriority.get(beamVehicle.id) match {
-//      case Some(priority) =>
-//        priority
-//      case None if queuePriority.isEmpty =>
-//        -beamVehicle.getTotalRemainingRange
-//      case None =>
-//        Double.NegativeInfinity
-//    }
-//  }
 }
