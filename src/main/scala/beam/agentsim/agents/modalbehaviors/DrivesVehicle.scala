@@ -902,8 +902,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       )
     case _ @Event(EndingRefuelSession(tick, vehicleId, triggerId), _) =>
       log.debug(s"DrivesVehicle: EndingRefuelSession. tick: $tick, vehicle: $vehicleId")
-      scheduler ! CompletionNotice(triggerId)
-      stay()
+      stay() replying CompletionNotice(triggerId)
   }
 
   private def hasRoomFor(

@@ -302,7 +302,7 @@ trait ChoosesParking extends {
       stash()
       stay using data
 
-    case Event(UnhandledVehicle(tick, personId, vehicle, triggerId), data) =>
+    case Event(UnhandledVehicle(tick, _, vehicle, triggerId), data) =>
       assume(
         vehicle.id == currentBeamVehicle.id,
         s"Agent tried to disconnect a vehicle ${vehicle.id} that's not the current beamVehicle ${currentBeamVehicle.id}"
