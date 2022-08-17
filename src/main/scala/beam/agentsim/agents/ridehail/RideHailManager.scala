@@ -885,16 +885,16 @@ class RideHailManager(
     tick: Int
   ): RideHailFleetStateEvent = {
     val cavNonEvs = rideHailAgentLocations.count(rideHail =>
-      rideHail.vehicleType.primaryFuelType != Electricity && rideHail.vehicleType.isCav
+      rideHail.vehicleType.primaryFuelType != Electricity && rideHail.vehicleType.isConnectedAutomatedVehicle
     )
     val nonCavNonEvs = rideHailAgentLocations.count(rideHail =>
-      rideHail.vehicleType.primaryFuelType != Electricity && !rideHail.vehicleType.isCav
+      rideHail.vehicleType.primaryFuelType != Electricity && !rideHail.vehicleType.isConnectedAutomatedVehicle
     )
     val cavEvs = rideHailAgentLocations.count(rideHail =>
-      rideHail.vehicleType.primaryFuelType == Electricity && rideHail.vehicleType.isCav
+      rideHail.vehicleType.primaryFuelType == Electricity && rideHail.vehicleType.isConnectedAutomatedVehicle
     )
     val nonCavEvs = rideHailAgentLocations.count(rideHail =>
-      rideHail.vehicleType.primaryFuelType == Electricity && !rideHail.vehicleType.isCav
+      rideHail.vehicleType.primaryFuelType == Electricity && !rideHail.vehicleType.isConnectedAutomatedVehicle
     )
     new RideHailFleetStateEvent(tick, cavEvs, nonCavEvs, cavNonEvs, nonCavNonEvs, vehicleType)
   }
@@ -1015,7 +1015,7 @@ class RideHailManager(
     val distanceFare = costPerMile * trip.schedule.keys.map(_.travelPath.distanceInM / 1609).sum
 
     val timeFareAdjusted = beamScenario.vehicleTypes.get(rideHailVehicleTypeId) match {
-      case Some(vehicleType) if vehicleType.isCav =>
+      case Some(vehicleType) if vehicleType.isConnectedAutomatedVehicle =>
         0.0
       case _ =>
         timeFare

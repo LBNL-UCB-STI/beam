@@ -95,11 +95,12 @@ class ChargingNetworkManager(
 
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
-      chargingNetworkHelper.get(inquiry.reservedFor.managerId).processParkingInquiry(inquiry, true) match {
-        case Some(parkingResponse) if parkingResponse.stall.chargingPointType.isDefined =>
-          inquiry.beamVehicle foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
-          sender() ! parkingResponse
-        case _ => (parkingNetworkManager ? inquiry).pipeTo(sender())
+      chargingNetworkHelper.get(inquiry.reservedFor.managerId).processParkingInquiry(inquiry, true) foreach {
+        parkingResponse =>
+          if (parkingResponse.stall.chargingPointType.isDefined) {
+            inquiry.beamVehicle foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
+            sender() ! parkingResponse
+          } else (parkingNetworkManager ? inquiry).pipeTo(sender())
       }
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
