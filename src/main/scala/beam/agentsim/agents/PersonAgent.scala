@@ -990,13 +990,13 @@ class PersonAgent(
         triggerId
       )
       stay
-    case Event(UnpluggingVehicle(tick, personId, vehicle, energyCharged, triggerId), data: BasePersonData) =>
+    case Event(UnpluggingVehicle(tick, _, vehicle, energyCharged, triggerId), data: BasePersonData) =>
       log.debug(s"Vehicle ${vehicle.id} ended charging and it is not handled by the CNM at tick $tick")
       ParkingNetworkManager.handleReleasingParkingSpot(
         tick,
         vehicle,
         Some(energyCharged),
-        personId,
+        id,
         parkingManager,
         eventsManager,
         triggerId
@@ -1004,7 +1004,7 @@ class PersonAgent(
       val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
       holdTickAndTriggerId(updatedTick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
-    case Event(UnhandledVehicle(tick, personId, vehicle, triggerId), data: BasePersonData) =>
+    case Event(UnhandledVehicle(tick, _, vehicle, triggerId), data: BasePersonData) =>
       log.error(
         s"Vehicle ${vehicle.id} is not handled by the CNM at tick $tick. Something is broken." +
         s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
@@ -1013,7 +1013,7 @@ class PersonAgent(
         tick,
         vehicle,
         None,
-        personId,
+        id,
         parkingManager,
         eventsManager,
         triggerId

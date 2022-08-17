@@ -738,7 +738,7 @@ class RideHailAgent(
       if (debugEnabled) outgoingMessages += ev
       handleWaitingLineReply(reply.triggerId, data)
     case ev @ Event(UnhandledVehicle(_, _, _, _), _) =>
-      log.error("IdleInterrupted.UnhandledVehicle: {}", ev)
+      log.error(s"state(RideHailingAgent.IdleInterrupted.UnhandledVehicle): $ev, Vehicle ID: ${vehicle.id}")
       stash()
       stay()
     case _ @Event(UnpluggingVehicle(_, _, _, _, _), _) =>
@@ -771,7 +771,7 @@ class RideHailAgent(
       stash()
       goto(OfflineInterrupted)
     case ev @ Event(UnhandledVehicle(_, _, _, _), _) =>
-      log.error("WaitingToDriveInterrupted.UnhandledVehicle: {}", ev)
+      log.error(s"state(RideHailingAgent.WaitingToDriveInterrupted.UnhandledVehicle): $ev, Vehicle ID: ${vehicle.id}")
       stash()
       goto(IdleInterrupted)
   }
@@ -792,7 +792,7 @@ class RideHailAgent(
       stash()
       goto(Offline)
     case ev @ Event(UnhandledVehicle(_, _, _, _), _) =>
-      log.error("WaitingToDrive.UnhandledVehicle: {}", ev)
+      log.error(s"state(RideHailingAgent.WaitingToDrive.UnhandledVehicle): $ev, Vehicle ID: ${vehicle.id}")
       stash()
       stay()
   }
@@ -863,7 +863,7 @@ class RideHailAgent(
       stash()
       stay
     case ev @ Event(UnhandledVehicle(_, _, _, _), _) =>
-      log.error("PassengerScheduleEmpty.UnhandledVehicle: {}", ev)
+      log.error(s"state(RideHailingAgent.PassengerScheduleEmpty.UnhandledVehicle): $ev, Vehicle ID: ${vehicle.id}")
       stash()
       stay
     case ev @ Event(ParkingInquiryResponse(_, _, _), _) =>
@@ -1067,9 +1067,9 @@ class RideHailAgent(
     }
     ParkingNetworkManager.handleReleasingParkingSpot(
       tick,
-      vehicle,
+      currentBeamVehicle,
       Some(energyCharged),
-      this.id,
+      id,
       parkingManager,
       eventsManager,
       triggerId
