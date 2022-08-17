@@ -397,7 +397,7 @@ class BeamVehicle(
 
   def isSharedVehicle: Boolean = beamVehicleType.id.toString.startsWith("sharedVehicle")
 
-  def isCAV: Boolean = beamVehicleType.isCav
+  def isCAV: Boolean = beamVehicleType.isConnectedAutomatedVehicle
 
   def isBEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.isEmpty

@@ -259,7 +259,7 @@ object HouseholdActor {
         }
 
         // If any of my vehicles are CAVs then go through scheduling process
-        var cavs = vehicles.values.filter(_.beamVehicleType.isCav).toList
+        var cavs = vehicles.values.filter(_.isCAV).toList
 
         if (cavs.nonEmpty) {
           val workingPersonsList =
@@ -543,7 +543,7 @@ object HouseholdActor {
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future
-        .sequence(vehicles.filter(_._2.beamVehicleType.isCav).values.map { vehicle =>
+        .sequence(vehicles.filter(_._2.isCAV).values.map { vehicle =>
           vehicle.setManager(Some(self))
           for {
             ParkingInquiryResponse(stall, _, _) <- sendParkingOrChargingInquiry(vehicle, triggerId)
