@@ -418,6 +418,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               }
             }
           }
+          if (!isInEnrouteState)
+            currentBeamVehicle.setReservedParkingStall(None)
         }
         holdTickAndTriggerId(tick, triggerId)
         if (waitForConnectionToChargingPoint) {
@@ -677,10 +679,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               currentBeamVehicle.id == currentVehicleUnderControl,
               currentBeamVehicle.id + " " + currentVehicleUnderControl
             )
-            currentBeamVehicle.stall.foreach { theStall =>
-              parkingManager ! ReleaseParkingStall(theStall, triggerId)
+            currentBeamVehicle.stall match {
+              case Some(theStall) if !currentBeamVehicle.isCAV =>
+                parkingManager ! ReleaseParkingStall(theStall, triggerId)
+                currentBeamVehicle.unsetParkingStall()
+              case _ =>
             }
-            currentBeamVehicle.unsetParkingStall()
           case None =>
         }
         val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule
