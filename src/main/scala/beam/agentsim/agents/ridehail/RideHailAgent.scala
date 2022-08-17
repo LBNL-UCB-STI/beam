@@ -1097,6 +1097,7 @@ class RideHailAgent(
           stall,
           Id.createPersonId(id),
           triggerId,
+          self,
           shiftStatus = if (isCurrentlyOnShift) { OnShift }
           else { OffShift },
           data.remainingShifts.headOption.map(_.range.lowerBound)

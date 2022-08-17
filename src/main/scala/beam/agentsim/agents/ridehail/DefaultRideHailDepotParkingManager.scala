@@ -217,7 +217,7 @@ trait DefaultRideHailDepotParkingManager extends {
     parkingStall.chargingPointType match {
       case Some(_) if beamVehicle.isEV =>
         log.debug(s"Refueling sending ChargingPlugRequest for ${beamVehicle.id} and $triggerId")
-        chargingNetworkManager ? ChargingPlugRequest(tick, beamVehicle, parkingStall, Id.createPersonId(id), triggerId)
+        chargingNetworkManager ? ChargingPlugRequest(tick, beamVehicle, parkingStall, Id.createPersonId(id), triggerId, self)
       case _ =>
         log.debug("This is not an EV {} that needs to charge at stall {}", beamVehicle.id, parkingStall.parkingZoneId)
         Future.successful(())

@@ -71,7 +71,8 @@ class HouseholdFleetManager(
             resp.stall,
             // use first household member id as stand-in.
             trackingVehicleAssignmentAtInitialization(id),
-            triggerId
+            triggerId,
+            self
           )
         }
 
