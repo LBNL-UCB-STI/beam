@@ -22,16 +22,6 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
-object RideHailAgentETAComparatorMinTimeToCustomer extends Ordering[RideHailAgentETA] {
-
-  override def compare(
-    o1: RideHailAgentETA,
-    o2: RideHailAgentETA
-  ): Int = {
-    java.lang.Double.compare(o1.timeToCustomer, o2.timeToCustomer)
-  }
-}
-
 object RideHailAgentETAComparatorServiceTime extends Ordering[RideHailAgentETA] {
 
   override def compare(
@@ -39,16 +29,6 @@ object RideHailAgentETAComparatorServiceTime extends Ordering[RideHailAgentETA] 
     o2: RideHailAgentETA
   ): Int = {
     java.lang.Double.compare(o1.totalServiceTime, o2.totalServiceTime)
-  }
-}
-
-object RideHailAgentLocationWithRadiusOrdering extends Ordering[(RideHailAgentLocation, Double)] {
-
-  override def compare(
-    o1: (RideHailAgentLocation, Double),
-    o2: (RideHailAgentLocation, Double)
-  ): Int = {
-    java.lang.Double.compare(o1._2, o2._2)
   }
 }
 
@@ -103,24 +83,6 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
   private val vehicleOutOfCharge = mutable.Set[Id[BeamVehicle]]()
   private val mobileVehicleChargingTimes = mutable.PriorityQueue[(Int, Id[BeamVehicle])]()(Ordering.by(-_._1))
   private[this] var latestSpatialIndexUpdateTick = 0
-
-  def addVehicleOutOfCharge(vehicleId: Id[BeamVehicle]): Boolean = {
-    vehicleOutOfCharge.add(vehicleId)
-  }
-
-  def modelMobileRufuelChargingDelay(time: Int, vehicleId: Id[BeamVehicle]) = {
-    mobileVehicleChargingTimes.enqueue((time, vehicleId))
-  }
-
-  def getMobileChargedVehiclesForProcessing(time: Int): mutable.Set[Id[BeamVehicle]] = {
-    val result = mutable.Set[Id[BeamVehicle]]()
-    while (mobileVehicleChargingTimes.nonEmpty && time > mobileVehicleChargingTimes.head._1) {
-      val (_, vehicleId) = mobileVehicleChargingTimes.dequeue()
-      vehicleOutOfCharge.remove(vehicleId)
-      result.add(vehicleId)
-    }
-    result
-  }
 
   def getVehicleState(vehicleId: Id[BeamVehicle]): BeamVehicleState =
     vehicleState(vehicleId)
@@ -743,15 +705,6 @@ object RideHailManagerHelper {
       .filter { x =>
         resources(x.agentLocation.vehicleId).getTotalRemainingRange - bufferForDispatchInMeters > x.distance
       }
-  }
-
-  def RideHailAgentLocationFromVehicleAndSchedule(vehicleAndSchedule: VehicleAndSchedule): RideHailAgentLocation = {
-    RideHailAgentLocation(
-      vehicleAndSchedule.vehicle.getDriver.get,
-      vehicleAndSchedule.vehicle.id,
-      vehicleAndSchedule.vehicle.beamVehicleType,
-      SpaceTime(vehicleAndSchedule.schedule.last.activity.getCoord, vehicleAndSchedule.schedule.last.serviceTime)
-    )
   }
 
   /**

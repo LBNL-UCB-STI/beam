@@ -17,7 +17,7 @@ import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.{Deadline, FiniteDuration}
+import scala.concurrent.duration.Deadline
 
 case class RideHailingManagerIsExtremelySlowException(
   message: String,
@@ -50,8 +50,6 @@ object BeamAgentScheduler {
   case object SimulationStuckCheck extends SchedulerMessage
 
   case object BeforeForcedShutdown extends SchedulerMessage
-
-  case object RequestCurrentTime extends SchedulerMessage
 
   case object SkipOverBadActors extends SchedulerMessage
 

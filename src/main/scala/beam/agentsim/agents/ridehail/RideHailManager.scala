@@ -379,8 +379,6 @@ class RideHailManager(
 
   val numRideHailAgents: Int = initializeRideHailFleet()
 
-  val realTimeKpis = new RealTimeKpis(beamServices, 300)
-
   var requestedRideHail: Int = 0
   var servedRideHail: Int = 0
 
@@ -391,10 +389,14 @@ class RideHailManager(
     log.info(s"ratio: ${servedRideHail.toDouble / requestedRideHail}")
     maybeDebugReport.foreach(_.cancel())
     log.info(
-      s"timeSpendForHandleRideHailInquiryMs: $timeSpendForHandleRideHailInquiryMs ms, nHandleRideHailInquiry: $nHandleRideHailInquiry, AVG: ${timeSpendForHandleRideHailInquiryMs.toDouble / nHandleRideHailInquiry}"
+      s"timeSpendForHandleRideHailInquiryMs: $timeSpendForHandleRideHailInquiryMs ms, " +
+      s"nHandleRideHailInquiry: $nHandleRideHailInquiry, " +
+      s"AVG: ${timeSpendForHandleRideHailInquiryMs.toDouble / nHandleRideHailInquiry}"
     )
     log.info(
-      s"timeSpendForFindAllocationsAndProcessMs: $timeSpendForFindAllocationsAndProcessMs ms, nFindAllocationsAndProcess: $nFindAllocationsAndProcess, AVG: ${timeSpendForFindAllocationsAndProcessMs.toDouble / nFindAllocationsAndProcess}"
+      s"timeSpendForFindAllocationsAndProcessMs: $timeSpendForFindAllocationsAndProcessMs ms, " +
+      s"nFindAllocationsAndProcess: $nFindAllocationsAndProcess, " +
+      s"AVG: ${timeSpendForFindAllocationsAndProcessMs.toDouble / nFindAllocationsAndProcess}"
     )
     super.postStop()
   }
@@ -418,10 +420,14 @@ class RideHailManager(
   override def loggedReceive: Receive = BeamLoggingReceive {
     case DebugReport =>
       log.debug(
-        s"timeSpendForHandleRideHailInquiryMs: $timeSpendForHandleRideHailInquiryMs ms, nHandleRideHailInquiry: $nHandleRideHailInquiry, AVG: ${timeSpendForHandleRideHailInquiryMs.toDouble / nHandleRideHailInquiry}"
+        s"timeSpendForHandleRideHailInquiryMs: $timeSpendForHandleRideHailInquiryMs ms, " +
+        s"nHandleRideHailInquiry: $nHandleRideHailInquiry, " +
+        s"AVG: ${timeSpendForHandleRideHailInquiryMs.toDouble / nHandleRideHailInquiry}"
       )
       log.debug(
-        s"timeSpendForFindAllocationsAndProcessMs: $timeSpendForFindAllocationsAndProcessMs ms, nFindAllocationsAndProcess: $nFindAllocationsAndProcess, AVG: ${timeSpendForFindAllocationsAndProcessMs.toDouble / nFindAllocationsAndProcess}"
+        s"timeSpendForFindAllocationsAndProcessMs: $timeSpendForFindAllocationsAndProcessMs ms, " +
+        s"nFindAllocationsAndProcess: $nFindAllocationsAndProcess, " +
+        s"AVG: ${timeSpendForFindAllocationsAndProcessMs.toDouble / nFindAllocationsAndProcess}"
       )
 
     case TriggerWithId(InitializeTrigger(tick), triggerId) =>
@@ -472,7 +478,7 @@ class RideHailManager(
         rideHailResourceAllocationManager.removeRequestFromBuffer(request)
       }
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
-      rideHailResourceAllocationManager.clearPrimaryBufferAndFillFromSecondary
+      rideHailResourceAllocationManager.clearPrimaryBufferAndFillFromSecondary()
       log.debug("Cleaning up from RecoverFromStuckness")
       cleanUp(triggerId)
 
@@ -1221,7 +1227,6 @@ class RideHailManager(
           response.request.customer.personId,
           theVehicle
         )
-
         val directTrip = removeOriginalResponseFromCache(response.request).flatMap(_.travelProposal)
         if (processBufferedRequestsOnTimeout) {
           modifyPassengerScheduleManager.addTriggersToSendWithCompletion(finalTriggersToSchedule)
@@ -1610,7 +1615,7 @@ class RideHailManager(
   }
 
   def cleanUpBufferedRequestProcessing(triggerId: Long): Unit = {
-    rideHailResourceAllocationManager.clearPrimaryBufferAndFillFromSecondary
+    rideHailResourceAllocationManager.clearPrimaryBufferAndFillFromSecondary()
     modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(BatchedReservation)
     log.debug("Cleaning up from cleanUpBufferedRequestProcessing")
     cleanUp(triggerId)
@@ -1879,9 +1884,7 @@ class RideHailManager(
             beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
           val activityLocations: List[Location] =
             person.getSelectedPlan.getPlanElements.asScala
-              .collect { case activity: Activity =>
-                activity.getCoord
-              }
+              .collect { case activity: Activity => activity.getCoord }
               .toList
               .dropRight(1)
           val randomActivityLocation: Location = activityLocations(rand.nextInt(activityLocations.length))
@@ -1942,7 +1945,7 @@ class RideHailManager(
     * Returns true if the vehicle is still idle AND either the vehicle is not already allocated or is already on the way
     * to refuel.
     *
-    * @param vehicleId
+    * @param vehicleId Beam Vehicle ID
     * @return
     */
   def isEligibleToReposition(vehicleId: Id[BeamVehicle]): Boolean = {

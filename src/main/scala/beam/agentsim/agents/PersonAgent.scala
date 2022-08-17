@@ -29,7 +29,7 @@ import beam.agentsim.events._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.parking.ParkingMNL
-import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
+import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingNetworkManager, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
@@ -984,20 +984,21 @@ class PersonAgent(
       releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       stay
-    case Event(WaitingToCharge(_, _, _), _) =>
+    case Event(WaitingToCharge(_, _, _, _), _) =>
       stay
     case Event(EndingRefuelSession(tick, _, triggerId), _) =>
       chargingNetworkManager ! ChargingUnplugRequest(
         tick,
+        this.id,
         currentBeamVehicle,
         triggerId
       )
       stay
-    case Event(UnpluggingVehicle(tick, energyCharged, triggerId), data: BasePersonData) =>
-      log.debug(s"Vehicle ${currentBeamVehicle.id} ended charging and it is not handled by the CNM at tick $tick")
-      handleReleasingParkingSpot(
+    case Event(UnpluggingVehicle(tick, _, vehicle, energyCharged, triggerId), data: BasePersonData) =>
+      log.debug(s"Vehicle ${vehicle.id} ended charging and it is not handled by the CNM at tick $tick")
+      ParkingNetworkManager.handleReleasingParkingSpot(
         tick,
-        currentBeamVehicle,
+        vehicle,
         Some(energyCharged),
         id,
         parkingManager,
@@ -1007,14 +1008,14 @@ class PersonAgent(
       val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
       holdTickAndTriggerId(updatedTick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
-    case Event(UnhandledVehicle(tick, vehicleId, triggerId), data: BasePersonData) =>
-      log.warning(
-        s"Vehicle $vehicleId is not handled by the CNM at tick $tick. Something is broken." +
+    case Event(UnhandledVehicle(tick, _, vehicle, triggerId), data: BasePersonData) =>
+      log.error(
+        s"Vehicle ${vehicle.id} is not handled by the CNM at tick $tick. Something is broken." +
         s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
       )
-      handleReleasingParkingSpot(
+      ParkingNetworkManager.handleReleasingParkingSpot(
         tick,
-        currentBeamVehicle,
+        vehicle,
         None,
         id,
         parkingManager,
@@ -1100,7 +1101,8 @@ class PersonAgent(
         val vehicle = beamVehicles(nextLeg.beamVehicleId).vehicle
         val asDriver = data.restOfCurrentTrip.head.asDriver
         val isElectric = vehicle.isEV
-        val needEnroute = if (asDriver && isElectric) {
+        val notRideHail = !vehicle.isRidehail
+        val needEnroute = if (asDriver && isElectric && notRideHail) {
           val enrouteConfig = beamServices.beamConfig.beam.agentsim.agents.vehicles.enroute
           val firstLeg = data.restOfCurrentTrip.head
           val vehicleTrip = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)
@@ -1569,10 +1571,10 @@ class PersonAgent(
     case ev @ Event(StartingRefuelSession(_, _), _) =>
       log.debug("myUnhandled.StartingRefuelSession: {}", ev)
       stay()
-    case ev @ Event(UnhandledVehicle(_, _, _), _) =>
-      log.debug("myUnhandled.UnhandledVehicle: {}", ev)
+    case ev @ Event(UnhandledVehicle(_, _, _, _), _) =>
+      log.error("myUnhandled.UnhandledVehicle: {}", ev)
       stay()
-    case ev @ Event(WaitingToCharge(_, _, _), _) =>
+    case ev @ Event(WaitingToCharge(_, _, _, _), _) =>
       log.debug("myUnhandled.WaitingInLine: {}", ev)
       stay()
     case ev @ Event(EndingRefuelSession(_, _, triggerId), _) =>

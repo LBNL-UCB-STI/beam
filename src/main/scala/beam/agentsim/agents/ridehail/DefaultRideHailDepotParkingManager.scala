@@ -267,7 +267,7 @@ object DefaultRideHailDepotParkingManager {
           geoQuadTree,
           idToGeoMapping,
           parkingZones,
-          parkingZoneIdToParkingZoneDepotData,
+          //parkingZoneIdToParkingZoneDepotData,
           beamServices.geo.distUTMInMeters,
           DefaultRideHailDepotParkingManager.SearchStartRadius,
           DefaultRideHailDepotParkingManager.SearchMaxRadius,

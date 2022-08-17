@@ -402,7 +402,7 @@ class BeamMobsimIteration(
 
   import scala.language.existentials
 
-  private val (parkingNetwork, nonRhChargingNetwork, rhChargingNetwork) =
+  private val (parkingNetwork, chargingNetwork, rhDepotNetwork) =
     InfrastructureUtils.buildParkingAndChargingNetworks(beamServices, envelopeInUTM)
 
   // Parking Network Manager
@@ -417,7 +417,7 @@ class BeamMobsimIteration(
   // Charging Network Manager
   private val chargingNetworkManager = context.actorOf(
     ChargingNetworkManager
-      .props(beamServices, nonRhChargingNetwork, rhChargingNetwork, parkingNetworkManager, scheduler)
+      .props(beamServices, chargingNetwork, rhDepotNetwork, parkingNetworkManager, scheduler)
       .withDispatcher("charging-network-manager-pinned-dispatcher"),
     "ChargingNetworkManager"
   )
@@ -453,7 +453,7 @@ class BeamMobsimIteration(
         rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
         routeHistory,
         rideHailFleetInitializer,
-        rhChargingNetwork
+        rhDepotNetwork
       )
     ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
     "RideHailManager"

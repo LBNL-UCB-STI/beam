@@ -63,8 +63,10 @@ trait ScaleUpCharging extends {
       sender ! CompletionNotice(triggerId)
     case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, requestId), triggerId) =>
       log.debug(s"Received parking response: $t")
-      self ! ChargingUnplugRequest(tick, beamVehicle, triggerId)
-      virtualParkingInquiries.remove(requestId)
+      virtualParkingInquiries.remove(requestId) match {
+        case Some(inquiry) => self ! ChargingUnplugRequest(tick, inquiry.personId.get, beamVehicle, triggerId)
+        case _             =>
+      }
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
       log.debug(s"Received parking response: $response")
       virtualParkingInquiries.get(requestId) match {
@@ -95,13 +97,31 @@ trait ScaleUpCharging extends {
     case reply @ EndingRefuelSession(_, _, triggerId) =>
       log.debug(s"Received parking response: $reply")
       getScheduler ! CompletionNotice(triggerId)
-    case reply @ WaitingToCharge(_, _, _) =>
+    case reply @ WaitingToCharge(_, _, _, _) =>
       log.debug(s"Received parking response: $reply")
-    case reply @ UnhandledVehicle(_, _, triggerId) =>
-      log.debug(s"Received parking response: $reply")
+    case reply @ UnhandledVehicle(tick, personId, vehicle, triggerId) =>
+      log.error(s"Received parking response: $reply")
+      ParkingNetworkManager.handleReleasingParkingSpot(
+        tick,
+        vehicle,
+        None,
+        personId,
+        getParkingManager,
+        getBeamServices.matsimServices.getEvents,
+        triggerId
+      )
       getScheduler ! CompletionNotice(triggerId)
-    case reply @ UnpluggingVehicle(_, _, triggerId) =>
+    case reply @ UnpluggingVehicle(tick, personId, vehicle, energyCharged, triggerId) =>
       log.debug(s"Received parking response: $reply")
+      ParkingNetworkManager.handleReleasingParkingSpot(
+        tick,
+        vehicle,
+        Some(energyCharged),
+        personId,
+        getParkingManager,
+        getBeamServices.matsimServices.getEvents,
+        triggerId
+      )
       getScheduler ! CompletionNotice(triggerId)
   }
 
@@ -301,8 +321,6 @@ trait ScaleUpCharging extends {
     * @return
     */
   protected def isVirtualCar(vehicleId: Id[BeamVehicle]): Boolean = isVirtualEntity(vehicleId)
-
-  protected def isVirtualPerson(personId: Id[Person]): Boolean = isVirtualEntity(personId)
 
   private def isVirtualEntity(entity: Id[_]): Boolean = entity.toString.startsWith(VIRTUAL_ALIAS)
 }
