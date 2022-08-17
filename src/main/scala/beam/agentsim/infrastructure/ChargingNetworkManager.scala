@@ -159,6 +159,7 @@ class ChargingNetworkManager(
       vehicleEndedCharging match {
         case Some(ChargingVehicle(_, _, _, _, _, _, _, _, _, _, theSender, _, _)) =>
           theSender ! EndingRefuelSession(tick, vehicle.id, triggerId)
+          sender ! CompletionNotice(triggerId)
         case _ =>
           sender ! CompletionNotice(triggerId)
       }
