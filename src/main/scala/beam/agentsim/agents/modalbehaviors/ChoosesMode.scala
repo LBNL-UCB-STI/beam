@@ -589,7 +589,6 @@ trait ChoosesMode {
         routingFinished = choosesModeData.routingFinished
           || responsePlaceholders.routingResponse == RoutingResponse.dummyRoutingResponse
       )
-      householdVehiclesWereNotAvailable = false
       stay() using newPersonData
     /*
      * Receive and store data needed for choice.

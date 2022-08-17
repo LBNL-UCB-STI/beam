@@ -318,13 +318,13 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
       val powertrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
 
+      val managerIdDependsOnWhetherVehicleIsCav =
+        if (beamVehicleType.isCav) rideHailManagerId else VehicleManager.AnyManager.managerId
       val beamVehicle = new BeamVehicle(
         beamVehicleId,
         powertrain,
         beamVehicleType,
-        vehicleManagerId = new AtomicReference(
-          if (beamVehicleType.automationLevel < 5) VehicleManager.AnyManager.managerId else rideHailManagerId
-        ),
+        vehicleManagerId = new AtomicReference(managerIdDependsOnWhetherVehicleIsCav),
         randomSeed
       )
 
