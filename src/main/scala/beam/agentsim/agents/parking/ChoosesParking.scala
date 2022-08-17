@@ -156,36 +156,6 @@ object ChoosesParking {
     )
     parkingSkimmerEvent
   }
-
-  def calculateScore(
-    cost: Double,
-    energyCharge: Double
-  ): Double = -cost - energyCharge
-
-  def handleReleasingParkingSpot(
-    tick: Int,
-    currentBeamVehicle: BeamVehicle,
-    energyChargedMaybe: Option[Double],
-    driver: Id[_],
-    parkingManager: ActorRef,
-    eventsManager: EventsManager,
-    triggerId: Long
-  ): Unit = {
-    val stallForLeavingParkingEvent = currentBeamVehicle.stall match {
-      case Some(stall) =>
-        parkingManager ! ReleaseParkingStall(stall, triggerId)
-        currentBeamVehicle.unsetParkingStall()
-        stall
-      case None =>
-        // This can now happen if a vehicle was charging and released the stall already
-        currentBeamVehicle.lastUsedStall.get
-    }
-    val energyCharge: Double = energyChargedMaybe.getOrElse(0.0)
-    val score = calculateScore(stallForLeavingParkingEvent.costInDollars, energyCharge)
-    eventsManager.processEvent(
-      LeavingParkingEvent(tick, stallForLeavingParkingEvent, score, driver.toString, currentBeamVehicle.id)
-    )
-  }
 }
 
 trait ChoosesParking extends {
