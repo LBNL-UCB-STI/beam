@@ -418,6 +418,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               }
             }
           }
+          if (!isInEnrouteState)
+            currentBeamVehicle.setReservedParkingStall(None)
         }
         holdTickAndTriggerId(tick, triggerId)
         if (waitForConnectionToChargingPoint) {
@@ -900,7 +902,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       )
     case _ @Event(EndingRefuelSession(tick, vehicleId, triggerId), _) =>
       log.debug(s"DrivesVehicle: EndingRefuelSession. tick: $tick, vehicle: $vehicleId")
-      stay() replying CompletionNotice(triggerId)
+      scheduler ! CompletionNotice(triggerId)
+      stay()
   }
 
   private def hasRoomFor(
