@@ -677,12 +677,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               currentBeamVehicle.id == currentVehicleUnderControl,
               currentBeamVehicle.id + " " + currentVehicleUnderControl
             )
-            currentBeamVehicle.stall match {
-              case Some(theStall) if !currentBeamVehicle.isCAV =>
-                parkingManager ! ReleaseParkingStall(theStall, triggerId)
-                currentBeamVehicle.unsetParkingStall()
-              case _ =>
+            currentBeamVehicle.stall.foreach { theStall =>
+              parkingManager ! ReleaseParkingStall(theStall, triggerId)
             }
+            currentBeamVehicle.unsetParkingStall()
           case None =>
         }
         val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule
