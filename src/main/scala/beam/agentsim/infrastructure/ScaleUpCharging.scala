@@ -255,7 +255,7 @@ trait ScaleUpCharging extends {
       val vehicle = chargingVehicle.vehicle
       val stall = chargingVehicle.stall
       val vehicleAlias =
-        if (vehicle.isRidehail) "rideHail"
+        if (vehicle.isRideHail) "rideHail"
         else if (vehicle.isSharedVehicle) "sharedVehicle"
         else "personalVehicle"
       val estimatedChargingDuration = Math.max(
