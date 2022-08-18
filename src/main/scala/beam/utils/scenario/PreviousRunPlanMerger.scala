@@ -85,11 +85,13 @@ object LastRunOutputSource extends LazyLogging {
   def findLastRunOutputPlans(outputPath: Path, dirPrefix: String): Option[Path] = {
     val plansPaths = for {
       (itDir, itNumber) <- findAllLastIterationDirectories(outputPath, dirPrefix)
-      plansPath <- findLatestOutputDirectory(outputPath, dirPrefix).filter { p =>
-        val outputPlansLocation = p.resolve("output_plans.xml.gz")
-        logger.info("Initially looking for plans at {}", outputPlansLocation.toString)
-        Files.exists(outputPlansLocation)
-      } orElse findFile(
+      plansPath <- findLatestOutputDirectory(outputPath, dirPrefix)
+        .filter { p =>
+          val outputPlansLocation = p.resolve("output_plans.xml.gz")
+          logger.info("Initially looking for plans at {}", outputPlansLocation.toString)
+          Files.exists(outputPlansLocation)
+        }
+        .map(_.resolve("output_plans.xml.gz")) orElse findFile(
         itDir,
         itNumber,
         "plans.xml.gz"
