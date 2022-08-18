@@ -159,11 +159,12 @@ class ChargingNetworkManager(
       vehicleEndedCharging match {
         case Some(ChargingVehicle(_, _, _, _, _, _, _, _, _, _, theSender, _, _)) =>
           theSender ! EndingRefuelSession(tick, vehicle.id, triggerId)
+          sender ! CompletionNotice(triggerId)
         case _ =>
           sender ! CompletionNotice(triggerId)
       }
 
-    case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, _, _) =>
+    case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, theSender, _, _) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       val responseHasTriggerId = if (vehicle.isEV) {
         // connecting the current vehicle
@@ -184,7 +185,7 @@ class ChargingNetworkManager(
           )
         chargingNetworkHelper
           .get(stall.reservedFor.managerId)
-          .processChargingPlugRequest(request, parkingDuration.toInt, activityType, sender()) map {
+          .processChargingPlugRequest(request, parkingDuration.toInt, activityType, theSender) map {
           case chargingVehicle if chargingVehicle.chargingStatus.last.status == WaitingAtStation =>
             val numVehicleWaitingToCharge = chargingVehicle.chargingStation.howManyVehiclesAreWaiting
             log.debug(
@@ -250,6 +251,7 @@ class ChargingNetworkManager(
                     newChargingVehicle.stall,
                     newChargingVehicle.personId,
                     triggerId,
+                    self,
                     newChargingVehicle.shiftStatus,
                     newChargingVehicle.shiftDuration
                   )
@@ -298,6 +300,7 @@ object ChargingNetworkManager extends LazyLogging {
     stall: ParkingStall,
     personId: Id[Person],
     triggerId: Long,
+    sender: ActorRef,
     shiftStatus: ShiftStatus = NotApplicable,
     shiftDuration: Option[Int] = None
   ) extends HasTriggerId

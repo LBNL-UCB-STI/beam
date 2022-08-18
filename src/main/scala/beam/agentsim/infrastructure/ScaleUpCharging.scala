@@ -79,6 +79,7 @@ trait ScaleUpCharging extends {
             stall,
             parkingInquiry.personId.map(Id.create(_, classOf[Person])).getOrElse(Id.create("", classOf[Person])),
             triggerId,
+            self,
             NotApplicable,
             None
           )
