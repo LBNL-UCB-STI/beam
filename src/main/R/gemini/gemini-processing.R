@@ -14,7 +14,7 @@ library(stringr)
 #####
 chargingBehaviorFunc <- function(DT) {
   rseSum <- DT[,.(fuel=sum(fuel)),by=.(parkingType,chargingPointType)]
-  rseSum[,fuelShare:=fuel/sum(fuel)]
+  rseSum$fuelShare <- rseSum$fuel / sum(rseSum$fuel)
   #dcfc <- rseSum[chargingPointType=="publicfc(150.0|DC)"]$fuelShare + rseSum[chargingPointType=="publicxfc(250.0|DC)"]$fuelShare
   #publicL2 <- rseSum[chargingPointType=="publiclevel2(7.2|AC)"]$fuelShare
   #work <- rseSum[chargingPointType=="worklevel2(7.2|AC)"]$fuelShare
@@ -28,6 +28,7 @@ chargingBehaviorFunc <- function(DT) {
   #print(pp("PublicL2: ",publicL2))
   #print(pp("Work: ",work))
   #print(pp("Home: ",home))
+  return(rseSum)
 }
 
 workDir <- normalizePath("~/Data/GEMINI")
@@ -1043,7 +1044,7 @@ lognormal <- function(m, v, sample_size) {
 
 ####################
 
-events1 <- readCsv(pp(workDir, "/test/events/filtered.0.events.d1.csv.gz"))
+events1 <- readCsv(pp(workDir, "/test/events/filtered.0.events.a.csv.gz"))
 events2 <- readCsv(pp(workDir, "/test/events/filtered.0.events.d2.csv.gz"))
 events3 <- readCsv(pp(workDir, "/test/events/filtered.0.events.d3.csv.gz"))
 pt1 <- readCsv(pp(workDir, "/test/events/ptmc.0.events.d1.csv.gz"))
@@ -1052,7 +1053,7 @@ ref1 <- events1[type=="RefuelSessionEvent"]
 ref2 <- events2[type=="RefuelSessionEvent"]
 ref3 <- events3[type=="RefuelSessionEvent"]
 
-chargingBehaviorFunc(ref1)
+res1 <- chargingBehaviorFunc(ref1)
 chargingBehaviorFunc(ref2)
 chargingBehaviorFunc(ref3)
 
@@ -1060,3 +1061,6 @@ chargingBehaviorFunc(ref3)
 events3[startsWith(vehicle,"rideHail"),.N,by=.(vehicleType)]
 pt1[startsWith(vehicle,"rideHail"),.N,by=.(vehicleType)]
 
+ggplot(res1, aes(chargingPointType, fuelShare)) + 
+  geom_bar(stat="identity",colour='black',size=0.3) +
+  theme(axis.text.x = element_text(angle = 45, hjust=1), strip.text = element_text(size=rel(1.2)))
