@@ -156,13 +156,12 @@ class ChargingNetworkManager(
           log.debug(s"Vehicle ${vehicle.id} doesn't have a stall")
           None
       }
-      vehicleEndedCharging match {
-        case Some(ChargingVehicle(_, _, _, _, _, _, _, _, _, _, theSender, _, _)) =>
-          theSender ! EndingRefuelSession(tick, vehicle.id, triggerId)
-          sender ! CompletionNotice(triggerId)
-        case _ =>
-          sender ! CompletionNotice(triggerId)
-      }
+      vehicleEndedCharging.foreach(_.theSender ! EndingRefuelSession(tick, vehicle.id, triggerId))
+      // Do not send completion notice to vehicles in EnRoute mode
+      // Since they need to process additional tasks before completing
+      // TODO Maybe for ride hail too !?
+      if (!vehicleEndedCharging.exists(v => v.activityType.startsWith(EnRouteLabel)))
+        sender ! CompletionNotice(triggerId)
 
     case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, theSender, _, _) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
@@ -173,7 +172,7 @@ class ChargingNetworkManager(
           .map {
             case ParkingInquiry(_, activityType, _, _, _, _, _, parkingDuration, _, _, searchMode, _, _)
                 if searchMode == EnRouteCharging =>
-              (parkingDuration, "EnRoute-" + activityType)
+              (parkingDuration, EnRouteLabel + "-" + activityType)
             case ParkingInquiry(_, activityType, _, _, _, _, _, parkingDuration, _, _, _, _, _) =>
               (parkingDuration, activityType)
           }
@@ -195,11 +194,12 @@ class ChargingNetworkManager(
               chargingVehicle.chargingStation.howManyVehiclesAreInGracePeriodAfterCharging,
               numVehicleWaitingToCharge
             )
-            WaitingToCharge(tick, vehicle.id, numVehicleWaitingToCharge, triggerId)
+            WaitingToCharge(tick, vehicle.id, stall, numVehicleWaitingToCharge, triggerId)
           case chargingVehicle =>
             vehicle2InquiryMap.remove(vehicle.id)
+            chargingVehicle.vehicle.useParkingStall(stall)
             handleStartCharging(tick, chargingVehicle, triggerId = triggerId)
-            StartingRefuelSession(tick, triggerId)
+            StartingRefuelSession(tick, vehicle.id, stall, triggerId)
         } getOrElse Failure(
           new RuntimeException(
             s"Cannot find a ${request.stall.reservedFor} station identified with tazId ${request.stall.tazId}, " +
@@ -251,7 +251,7 @@ class ChargingNetworkManager(
                     newChargingVehicle.stall,
                     newChargingVehicle.personId,
                     triggerId,
-                    self,
+                    newChargingVehicle.theSender,
                     newChargingVehicle.shiftStatus,
                     newChargingVehicle.shiftDuration
                   )
@@ -290,6 +290,9 @@ class ChargingNetworkManager(
 }
 
 object ChargingNetworkManager extends LazyLogging {
+
+  private val EnRouteLabel = "EnRoute"
+
   object DebugReport
   case class PlanEnergyDispatchTrigger(tick: Int) extends Trigger
   case class ChargingTimeOutTrigger(tick: Int, vehicle: BeamVehicle) extends Trigger
@@ -307,11 +310,18 @@ object ChargingNetworkManager extends LazyLogging {
 
   case class ChargingUnplugRequest(tick: Int, personId: Id[_], vehicle: BeamVehicle, triggerId: Long)
       extends HasTriggerId
-  case class StartingRefuelSession(tick: Int, triggerId: Long) extends HasTriggerId
+
+  case class StartingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle], stall: ParkingStall, triggerId: Long)
+      extends HasTriggerId
   case class EndingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle], triggerId: Long) extends HasTriggerId
 
-  case class WaitingToCharge(tick: Int, vehicleId: Id[BeamVehicle], numVehicleWaitingToCharge: Int, triggerId: Long)
-      extends HasTriggerId
+  case class WaitingToCharge(
+    tick: Int,
+    vehicleId: Id[BeamVehicle],
+    stall: ParkingStall,
+    numVehicleWaitingToCharge: Int,
+    triggerId: Long
+  ) extends HasTriggerId
   case class UnhandledVehicle(tick: Int, personId: Id[_], vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
 
   case class UnpluggingVehicle(

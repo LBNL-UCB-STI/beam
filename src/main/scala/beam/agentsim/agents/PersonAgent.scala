@@ -976,11 +976,11 @@ class PersonAgent(
   }
 
   when(EnrouteRefueling) {
-    case Event(StartingRefuelSession(_, triggerId), _) =>
+    case Event(StartingRefuelSession(_, _, _, triggerId), _) =>
       releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       stay
-    case Event(WaitingToCharge(_, _, _, _), _) =>
+    case Event(WaitingToCharge(_, _, _, _, _), _) =>
       stay
     case Event(EndingRefuelSession(tick, _, triggerId), _) =>
       chargingNetworkManager ! ChargingUnplugRequest(
@@ -1564,18 +1564,18 @@ class PersonAgent(
       stop(Failure(s"Unexpected RideHailResponse from ${sender()}: $ev"))
     case Event(ParkingInquiryResponse(_, _, _), _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
-    case ev @ Event(StartingRefuelSession(_, _), _) =>
+    case ev @ Event(StartingRefuelSession(_, _, _, _), _) =>
       log.debug("myUnhandled.StartingRefuelSession: {}", ev)
       stay()
     case ev @ Event(UnhandledVehicle(_, _, _, _), _) =>
       log.error("myUnhandled.UnhandledVehicle: {}", ev)
       stay()
-    case ev @ Event(WaitingToCharge(_, _, _, _), _) =>
+    case ev @ Event(WaitingToCharge(_, _, _, _, _), _) =>
       log.debug("myUnhandled.WaitingInLine: {}", ev)
       stay()
     case ev @ Event(EndingRefuelSession(_, _, triggerId), _) =>
       log.debug("myUnhandled.EndingRefuelSession: {}", ev)
-      scheduler ! CompletionNotice(triggerId)
+      //scheduler ! CompletionNotice(triggerId)
       stay()
     case Event(e, s) =>
       log.warning("received unhandled request {} in state {}/{}", e, stateName, s)

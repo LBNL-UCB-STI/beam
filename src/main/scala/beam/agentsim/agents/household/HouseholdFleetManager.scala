@@ -186,7 +186,7 @@ class HouseholdFleetManager(
       logger.debug("HouseholdFleetManager.WaitingInLine: {}", e)
     case e @ EndingRefuelSession(_, _, triggerId) =>
       logger.debug("HouseholdFleetManager.EndingRefuelSession: {}", e)
-      triggerSender.get ! CompletionNotice(triggerId)
+    //triggerSender.get ! CompletionNotice(triggerId)
     case Finish =>
       context.stop(self)
     case Success =>

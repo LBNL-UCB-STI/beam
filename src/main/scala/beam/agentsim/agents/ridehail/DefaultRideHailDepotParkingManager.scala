@@ -1,18 +1,12 @@
 package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
-import beam.agentsim.agents.ridehail.RideHailManager.{RefuelSource, VehicleId}
+import beam.agentsim.agents.ridehail.RideHailAgent.NotifyVehicleDoneRefuelingAndOutOfServiceReply
+import beam.agentsim.agents.ridehail.RideHailManager.{JustArrivedAtDepot, RefuelSource, VehicleId}
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.{ParkingEvent, SpaceTime}
-import beam.agentsim.infrastructure.ChargingNetworkManager.{
-  ChargingPlugRequest,
-  ChargingUnplugRequest,
-  StartingRefuelSession,
-  UnhandledVehicle,
-  UnpluggingVehicle,
-  WaitingToCharge
-}
+import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure._
 import beam.agentsim.infrastructure.parking._
@@ -24,7 +18,11 @@ import beam.sim.config.BeamConfig
 import beam.utils.logging.LogActorState
 import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.Id
+import akka.pattern.pipe
+import beam.agentsim.agents.ridehail.DefaultRideHailDepotParkingManager.ParkingInquiryResponseMap
+import beam.agentsim.scheduler.HasTriggerId
 
+import scala.collection.immutable.Vector
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -96,6 +94,39 @@ trait DefaultRideHailDepotParkingManager extends {
 
   depots.groupBy(_._2.tazId).foreach(tup => tazIdToParkingZones += tup)
 
+  override def loggedReceive: Receive = {
+    case e @ EndingRefuelSession(tick, vehicleId, triggerId) =>
+      log.debug("RideHailManager.EndingRefuelSession: {}", e)
+      rideHailManagerHelper.updatePassengerSchedule(vehicleId, None, None)
+      removingVehicleFromCharging(vehicleId, tick, triggerId)
+      resources(vehicleId).getDriver.get ! NotifyVehicleDoneRefuelingAndOutOfServiceReply(triggerId, Vector())
+      rideHailManagerHelper.putOutOfService(vehicleId)
+    case _ @UnpluggingVehicle(tick, personId, vehicle, energyCharged, triggerId) =>
+      ParkingNetworkManager.handleReleasingParkingSpot(
+        tick,
+        vehicle,
+        Some(energyCharged),
+        personId,
+        parkingManager,
+        beamServices.matsimServices.getEvents,
+        triggerId
+      )
+    case _ @UnhandledVehicle(tick, personId, vehicle, triggerId) =>
+      ParkingNetworkManager.handleReleasingParkingSpot(
+        tick,
+        vehicle,
+        None,
+        personId,
+        parkingManager,
+        beamServices.matsimServices.getEvents,
+        triggerId
+      )
+    case _ @StartingRefuelSession(tick, vehicleId, stall, _) =>
+      addVehicleToChargingInDepotUsing(stall, resources(vehicleId), tick, JustArrivedAtDepot)
+    case _ @WaitingToCharge(_, vehicleId, stall, numVehicleWaitingToCharge, _) =>
+      addVehicleAndStallToRefuelingQueueFor(resources(vehicleId), stall, -numVehicleWaitingToCharge, JustArrivedAtDepot)
+  }
+
   def registerGeofences(vehicleIdToGeofenceMap: mutable.Map[VehicleId, Option[Geofence]]) = {
     vehicleIdToGeofenceMap.foreach {
       case (vehicleId, Some(geofence)) =>
@@ -143,34 +174,23 @@ trait DefaultRideHailDepotParkingManager extends {
     */
   def attemptToRefuel(
     beamVehicle: BeamVehicle,
-    originalParkingStallFoundDuringAssignment: ParkingStall,
+    stall: ParkingStall,
     tick: Int,
     source: RefuelSource,
     triggerId: Long
-  ): Future[Vector[ScheduleTrigger]] = {
-    findAndClaimStallAtDepot(tick, beamVehicle, originalParkingStallFoundDuringAssignment, triggerId).map {
-      case _: StartingRefuelSession =>
-        beamVehicle.useParkingStall(originalParkingStallFoundDuringAssignment)
-        if (addVehicleToChargingInDepotUsing(originalParkingStallFoundDuringAssignment, beamVehicle, tick, source)) {
-          Vector()
-        } else {
-          Vector()
-        }
-      case _ @WaitingToCharge(_, _, numVehicleWaitingToCharge, _) =>
-        addVehicleAndStallToRefuelingQueueFor(
-          beamVehicle,
-          originalParkingStallFoundDuringAssignment,
-          -numVehicleWaitingToCharge,
-          source
-        )
-        Vector()
-      case e if beamVehicle.isEV =>
-        log.error(s"Not expecting this response: $e")
-        Vector()
-      case e =>
-        log.debug(s"Non Electric RH attempting to refuel: $e")
-        Vector()
-    }
+  ): Unit = {
+    eventsManager.processEvent(
+      ParkingEvent(tick, stall, beamServices.geo.utm2Wgs(stall.locationUTM), beamVehicle.id, id.toString)
+    )
+    log.debug("Refuel started at {}, triggerId: {}, vehicle id: {}", tick, triggerId, beamVehicle.id)
+    (chargingNetworkManager ? ChargingPlugRequest(
+      tick,
+      beamVehicle,
+      stall,
+      Id.createPersonId(id),
+      triggerId,
+      self
+    )).pipeTo(self)
   }
 
   /**
@@ -196,33 +216,6 @@ trait DefaultRideHailDepotParkingManager extends {
   }
 
 // TODO: KEEPING THIS OLD CODE FOR NOW FOR REFERENCE
-
-  /**
-    * Looks up the ParkingZone associated with the parkingStall argument and claims a stall from that Zone if there
-    * are any available, returning the stall as an output. Otherwise, if no stalls are available returns None.
-    *
-    * @param parkingStall the parking stall to claim
-    * @return an optional parking stall that was assigned or None on failure
-    */
-  def findAndClaimStallAtDepot(
-    tick: Int,
-    beamVehicle: BeamVehicle,
-    parkingStall: ParkingStall,
-    triggerId: Long
-  ): Future[Any] = {
-    eventsManager.processEvent(
-      ParkingEvent(tick, parkingStall, beamServices.geo.utm2Wgs(parkingStall.locationUTM), beamVehicle.id, id.toString)
-    )
-    log.debug("Refuel started at {}, triggerId: {}, vehicle id: {}", tick, triggerId, beamVehicle.id)
-    parkingStall.chargingPointType match {
-      case Some(_) if beamVehicle.isEV =>
-        log.debug(s"Refueling sending ChargingPlugRequest for ${beamVehicle.id} and $triggerId")
-        chargingNetworkManager ? ChargingPlugRequest(tick, beamVehicle, parkingStall, Id.createPersonId(id), triggerId, self)
-      case _ =>
-        log.debug("This is not an EV {} that needs to charge at stall {}", beamVehicle.id, parkingStall.parkingZoneId)
-        Future.successful(())
-    }
-  }
 
   /**
     * Adds a vehicle to internal data structures to track that it is engaged in a charging session.
@@ -290,16 +283,17 @@ trait DefaultRideHailDepotParkingManager extends {
     */
   def removeFromCharging(vehicleId: VehicleId, tick: Int, triggerId: Long): Option[ParkingStall] = {
     vehicleIdToEndRefuelTick.remove(vehicleId)
-    val stallOpt = chargingVehicleToParkingStallMap.remove(vehicleId)
-    stallOpt.foreach { stall =>
-      log.debug("Remove from cache that vehicle {} was charging in stall {}", vehicleId, stall)
-      putNewTickAndObservation(vehicleId, (tick, "RemoveFromCharging"))
-      parkingZoneIdToParkingZoneDepotData(stall.parkingZoneId).chargingVehicles.remove(vehicleId)
-      releaseStall(stall, tick, resources(vehicleId), triggerId)
+    chargingVehicleToParkingStallMap.remove(vehicleId) match {
+      case Some(stall) =>
+        log.debug("Remove from cache that vehicle {} was charging in stall {}", vehicleId, stall)
+        putNewTickAndObservation(vehicleId, (tick, "RemoveFromCharging"))
+        parkingZoneIdToParkingZoneDepotData(stall.parkingZoneId).chargingVehicles.remove(vehicleId)
+        releaseStall(stall, tick, resources(vehicleId), triggerId)
+        Some(stall)
+      case _ =>
+        None
     }
-    stallOpt
   }
-
   // TODO: KEEPING THIS OLD CODE FOR NOW FOR REFERENCE
 
   /**
@@ -313,49 +307,20 @@ trait DefaultRideHailDepotParkingManager extends {
     tick: Int,
     beamVehicle: BeamVehicle,
     triggerId: Long
-  ): Future[Any] = {
+  ): Unit = {
     if (parkingStall.chargingPointType.isEmpty) {
-      Future.successful(()).map { _ =>
-        ParkingNetworkManager.handleReleasingParkingSpot(
-          tick,
-          beamVehicle,
-          None,
-          this.id,
-          parkingManager,
-          beamServices.matsimServices.getEvents,
-          triggerId
-        )
-      }
-    } else {
-      (chargingNetworkManager ? ChargingUnplugRequest(
+      ParkingNetworkManager.handleReleasingParkingSpot(
         tick,
-        this.id,
         beamVehicle,
+        None,
+        this.id,
+        parkingManager,
+        beamServices.matsimServices.getEvents,
         triggerId
-      )).map {
-        case _ @UnpluggingVehicle(_, personId, _, energyCharged, _) =>
-          ParkingNetworkManager.handleReleasingParkingSpot(
-            tick,
-            beamVehicle,
-            Some(energyCharged),
-            personId,
-            parkingManager,
-            beamServices.matsimServices.getEvents,
-            triggerId
-          )
-        case _: UnhandledVehicle =>
-          ParkingNetworkManager.handleReleasingParkingSpot(
-            tick,
-            beamVehicle,
-            None,
-            this.id,
-            parkingManager,
-            beamServices.matsimServices.getEvents,
-            triggerId
-          )
-        case e =>
-          log.error(s"Not expecting this response: $e")
-      }
+      )
+    } else {
+      val request = ChargingUnplugRequest(tick, this.id, beamVehicle, triggerId)
+      (chargingNetworkManager ? request).pipeTo(self)
     }
   }
 
@@ -453,6 +418,7 @@ trait DefaultRideHailDepotParkingManager extends {
       case Some(parkingStall) =>
         parkingZoneIdToParkingZoneDepotData(parkingStall.parkingZoneId).vehiclesOnWayToDepot.remove(vehicleId)
       case None =>
+      // still charging
     }
     parkingStallOpt
   }
@@ -467,8 +433,9 @@ trait DefaultRideHailDepotParkingManager extends {
   def findChargingStalls(
     tick: Int,
     vehiclesWithoutCustomVehicles: Map[Id[BeamVehicle], RideHailAgentLocation],
+    additionalCustomVehiclesForDepotCharging: Vector[(Id[BeamVehicle], ParkingStall)],
     triggerId: Long
-  ): Future[Vector[(Id[BeamVehicle], ParkingStall)]] = {
+  ): Unit = {
     val idleVehicleIdsWantingToRefuelWithLocation = vehiclesWithoutCustomVehicles.toVector.filter {
       case (vehicleId: Id[BeamVehicle], _) =>
         resources.get(vehicleId) match {
@@ -491,6 +458,9 @@ trait DefaultRideHailDepotParkingManager extends {
             (vehicleId, response.stall)
           }
       })
+      .map { result =>
+        self ! ParkingInquiryResponseMap(tick, result, additionalCustomVehiclesForDepotCharging, triggerId)
+      }
   }
 
   /**
@@ -513,4 +483,15 @@ trait DefaultRideHailDepotParkingManager extends {
     )
     chargingNetworkManager ? inquiry
   }
+}
+
+object DefaultRideHailDepotParkingManager {
+
+  case class ParkingInquiryResponseMap(
+    tick: Int,
+    responses: Vector[(Id[BeamVehicle], ParkingStall)],
+    additionalCustomVehiclesForDepotCharging: Vector[(Id[BeamVehicle], ParkingStall)],
+    triggerId: Long
+  ) extends HasTriggerId
+
 }
