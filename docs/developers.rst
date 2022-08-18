@@ -205,6 +205,7 @@ The command will start an ec2 instance based on the provided configurations and 
 * **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
 * **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
 * **runJupyter**: Should it launch Jupyter Notebook along with a simulation, default is `false`.
+* **budgetOverride**: Set to `true` to override budget limitations, see `Documentation of AWS budget management` section in `DevOps guide <https://beam.readthedocs.io/en/latest/devops.html>`_, default is `false`
 
 There is a default file to specify parameters for task: gradle.deploy.properties_ and it is advised to use it (or custom) file to specify all default values for `deploy` task and not use gradle.properties_ file because latter used as a source of default values for all gradle tasks.
 
@@ -271,10 +272,10 @@ This command will start PILATES simulation on ec2 instance with specified parame
 * **maxRAM**: to specify MAXRAM environment variable for simulation.
 * **shutdownWait**: to specify shutdown wait after end of simulation, default is `15`.
 * **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
-* **storageSize**: to specfy storage size of instance. May be from `64` to `256`.
+* **storageSize**: to specify storage size of instance. May be from `64` to `256`.
 * **region**: to specify region to deploy ec2 instance. May be different from s3 bucket instance.
 * **dataRegion**: to specify region of s3 buckets. All operations with s3 buckets will be use this region. By default equal to `region`.
-* **instanceType**: to specify s2 instance type.
+* **instanceType**: to specify ec2 instance type.
 * **pilatesImageVersion**: to specify pilates image version, default is `latest`.
 * **pilatesImageName**: to specify full pilates image name, default is `beammodel/pilates`.
 
@@ -344,13 +345,33 @@ There are 3 options to run Jupyter Notebook via Gradle task.
 
   ./gradlew jupyterStart
 
-It will be run in the background. To stop it use command::
+There are some additional parameters that can control how Jupyter is started:
+
+* **jupyterToken**: to specify a custom token for Jupyter, if not set a random UUID will be generated as a token
+* **user**: to specify a custom user for running Jupyter in Docker
+
+Jupyter will be run in the background. To stop it use command::
 
   ./gradlew jupyterStop
 
 2. Remotely on EC2 on a dedicated instance. Use the following command:
 
   ./gradlew jupyterEC2
+
+Under the hood it will use `deploy` gradle task which will create a EC2 instance and will run the same `jupyterStart`
+Gradle task there without starting the simulation.
+
+These are parameters for this task, many of them are inherited from `deploy` task:
+
+* **title**: To specify the custom title for this run, if not set 'jupyter' will be used
+* **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
+* **storageSize**: to specify storage size of instance. May be from `64` to `256`.
+* **instanceType**: to specify ec2 instance type.
+* **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
+* **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
+* **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
+* **jupyter_token**: to specify a custom token for Jupyter, if not set a random UUID will be generated as a token
+* **budgetOverride**: Set to `true` to override budget limitations, see `Documentation of AWS budget management` section in `DevOps guide <https://beam.readthedocs.io/en/latest/devops.html>`_, default is `false`
 
 3. Remotely on EC2 together with a simulation. Use `-PrunJupyter=true` option for deploy command.
 
