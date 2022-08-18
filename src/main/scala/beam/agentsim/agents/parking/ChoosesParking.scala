@@ -244,7 +244,7 @@ trait ChoosesParking extends {
   }
 
   when(ConnectingToChargingPoint) {
-    case _ @Event(StartingRefuelSession(tick, triggerId), data) =>
+    case _ @Event(StartingRefuelSession(tick, _, _, triggerId), data) =>
       log.debug(s"Vehicle ${currentBeamVehicle.id} started charging and it is now handled by the CNM at $tick")
       val maybePersonData = findPersonData(data)
       handleUseParkingSpot(
@@ -260,7 +260,7 @@ trait ChoosesParking extends {
       )
       self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data
-    case _ @Event(WaitingToCharge(tick, vehicleId, _, triggerId), data) =>
+    case _ @Event(WaitingToCharge(tick, vehicleId, _, _, triggerId), data) =>
       log.debug(s"Vehicle $vehicleId is waiting in line and it is now handled by the CNM at $tick")
       self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data
