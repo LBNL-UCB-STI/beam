@@ -22,7 +22,6 @@ import akka.pattern.pipe
 import beam.agentsim.agents.ridehail.DefaultRideHailDepotParkingManager.ParkingInquiryResponseMap
 import beam.agentsim.scheduler.HasTriggerId
 
-import scala.collection.immutable.Vector
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global

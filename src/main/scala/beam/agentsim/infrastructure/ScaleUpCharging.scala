@@ -93,12 +93,12 @@ trait ScaleUpCharging extends {
         case _ =>
           log.warning(s"inquiryMap does not have this requestId $requestId that returned stall $stall")
       }
-    case reply @ StartingRefuelSession(_, _) =>
+    case reply @ StartingRefuelSession(_, _, _, _) =>
       log.debug(s"Received parking response: $reply")
-    case reply @ EndingRefuelSession(_, _, triggerId) =>
+    case reply @ EndingRefuelSession(_, _, _) =>
       log.debug(s"Received parking response: $reply")
     //getScheduler ! CompletionNotice(triggerId)
-    case reply @ WaitingToCharge(_, _, _, _) =>
+    case reply @ WaitingToCharge(_, _, _, _, _) =>
       log.debug(s"Received parking response: $reply")
     case reply @ UnhandledVehicle(tick, personId, vehicle, triggerId) =>
       log.error(s"Received parking response: $reply")
