@@ -15,11 +15,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.{Available, Refueling, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{
-  CouldNotFindRouteToCustomer,
-  DriverNotFoundError,
-  RideHailVehicleTakenError
-}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -1100,15 +1096,18 @@ class RideHailManager(
     rideHailManagerHelper.vehicleState.put(vehicleId, beamVehicleState)
     rideHailManagerHelper.updatePassengerSchedule(vehicleId, None, None)
 
-    addingVehicleToCharging(vehicleId, whenWhere.time, triggerId)
+    addingVehicleToChargingOrMakingAvailable(vehicleId, whenWhere.time, triggerId)
     resources(vehicleId).getDriver.get ! NotifyVehicleResourceIdleReply(triggerId, Vector())
   }
 
-  def addingVehicleToCharging(vehicleId: VehicleId, tick: Int, triggerId: Long): Unit = {
+  def addingVehicleToChargingOrMakingAvailable(vehicleId: VehicleId, tick: Int, triggerId: Long): Unit = {
     notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId) match {
       case Some(parkingStall) =>
         attemptToRefuel(resources(vehicleId), parkingStall, tick, JustArrivedAtDepot, triggerId)
       case _ =>
+        //If not arrived for refueling;
+        log.debug("Making vehicle {} available", vehicleId)
+        rideHailManagerHelper.makeAvailable(vehicleId)
     }
   }
 
