@@ -1,7 +1,7 @@
 package beam.agentsim.agents.ridehail
 
 import akka.pattern.pipe
-import beam.agentsim.agents.ridehail.DefaultRideHailDepotParkingManager.ParkingInquiryResponseMap
+import beam.agentsim.agents.ridehail.DefaultRideHailDepotParkingManager.ParkingStallsClaimedByVehicles
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailAgent.NotifyVehicleDoneRefuelingAndOutOfServiceReply
 import beam.agentsim.agents.ridehail.RideHailManager.{JustArrivedAtDepot, RefuelSource, VehicleId}
@@ -458,7 +458,7 @@ trait DefaultRideHailDepotParkingManager extends {
           }
       })
       .map { result =>
-        self ! ParkingInquiryResponseMap(tick, result, additionalCustomVehiclesForDepotCharging, triggerId)
+        self ! ParkingStallsClaimedByVehicles(tick, result, additionalCustomVehiclesForDepotCharging, triggerId)
       }
   }
 
@@ -486,9 +486,10 @@ trait DefaultRideHailDepotParkingManager extends {
 
 object DefaultRideHailDepotParkingManager {
 
-  case class ParkingInquiryResponseMap(
+  case class ParkingStallsClaimedByVehicles(
     tick: Int,
     responses: Vector[(Id[BeamVehicle], ParkingStall)],
+    // TODO for the future consider migrating this custom vehicles for the API to the chargingNetworkManager
     additionalCustomVehiclesForDepotCharging: Vector[(Id[BeamVehicle], ParkingStall)],
     triggerId: Long
   ) extends HasTriggerId

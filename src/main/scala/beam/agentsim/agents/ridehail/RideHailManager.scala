@@ -9,7 +9,7 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
-import beam.agentsim.agents.ridehail.DefaultRideHailDepotParkingManager.ParkingInquiryResponseMap
+import beam.agentsim.agents.ridehail.DefaultRideHailDepotParkingManager.ParkingStallsClaimedByVehicles
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
@@ -824,7 +824,7 @@ class RideHailManager(
         }
       }
 
-    case ParkingInquiryResponseMap(
+    case ParkingStallsClaimedByVehicles(
           tick,
           vehicleChargingManagerResult,
           additionalCustomVehiclesForDepotCharging,
