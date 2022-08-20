@@ -67,6 +67,7 @@ trait ScaleUpCharging extends {
         case Some(inquiry) => self ! ChargingUnplugRequest(tick, inquiry.personId.get, beamVehicle, triggerId)
         case _             =>
       }
+      getScheduler ! CompletionNotice(triggerId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
       log.debug(s"Received parking response: $response")
       virtualParkingInquiries.get(requestId) match {
@@ -97,7 +98,6 @@ trait ScaleUpCharging extends {
       log.debug(s"Received parking response: $reply")
     case reply @ EndingRefuelSession(_, _, _) =>
       log.debug(s"Received parking response: $reply")
-    //getScheduler ! CompletionNotice(triggerId)
     case reply @ WaitingToCharge(_, _, _, _, _) =>
       log.debug(s"Received parking response: $reply")
     case reply @ UnhandledVehicle(tick, personId, vehicle, triggerId) =>
@@ -111,7 +111,6 @@ trait ScaleUpCharging extends {
         getBeamServices.matsimServices.getEvents,
         triggerId
       )
-      getScheduler ! CompletionNotice(triggerId)
     case reply @ UnpluggingVehicle(tick, personId, vehicle, energyCharged, triggerId) =>
       log.debug(s"Received parking response: $reply")
       ParkingNetworkManager.handleReleasingParkingSpot(
@@ -123,7 +122,6 @@ trait ScaleUpCharging extends {
         getBeamServices.matsimServices.getEvents,
         triggerId
       )
-      getScheduler ! CompletionNotice(triggerId)
   }
 
   /**

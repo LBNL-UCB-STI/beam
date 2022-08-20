@@ -1,5 +1,7 @@
 package beam.agentsim.agents.ridehail
 
+import akka.pattern.pipe
+import beam.agentsim.agents.ridehail.DefaultRideHailDepotParkingManager.ParkingInquiryResponseMap
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
 import beam.agentsim.agents.ridehail.RideHailAgent.NotifyVehicleDoneRefuelingAndOutOfServiceReply
 import beam.agentsim.agents.ridehail.RideHailManager.{JustArrivedAtDepot, RefuelSource, VehicleId}
@@ -12,15 +14,13 @@ import beam.agentsim.infrastructure._
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.agentsim.scheduler.HasTriggerId
 import beam.router.BeamRouter.Location
 import beam.sim.Geofence
 import beam.sim.config.BeamConfig
 import beam.utils.logging.LogActorState
 import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.Id
-import akka.pattern.pipe
-import beam.agentsim.agents.ridehail.DefaultRideHailDepotParkingManager.ParkingInquiryResponseMap
-import beam.agentsim.scheduler.HasTriggerId
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer

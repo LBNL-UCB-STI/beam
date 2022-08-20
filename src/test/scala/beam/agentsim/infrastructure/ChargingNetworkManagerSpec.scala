@@ -218,6 +218,7 @@ class ChargingNetworkManagerSpec
 
       chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(442, beamVilleCar), 0)
       expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(442, beamVilleCar.id, 0)
+      expectMsgType[CompletionNotice]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
 
@@ -253,6 +254,7 @@ class ChargingNetworkManagerSpec
 
       chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(334, beamVilleCar), 0)
       expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(334, beamVilleCar.id, 0)
+      expectMsgType[CompletionNotice]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
 
@@ -359,6 +361,7 @@ class ChargingNetworkManagerSpec
 
       chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(748, beamVilleCar), 0)
       expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(748, beamVilleCar.id, 0)
+      expectMsgType[CompletionNotice]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
 
@@ -402,11 +405,9 @@ class ChargingNetworkManagerSpec
       beamVilleCar2.primaryFuelLevelInJoules should be(1.805e8)
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)
 
-      chargingNetworkManager ! TriggerWithId(
-        ChargingTimeOutTrigger(442, beamVilleCar2),
-        12
-      )
+      chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(442, beamVilleCar2), 12)
       expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(442, beamVilleCar2.id, 12)
+      expectMsgType[CompletionNotice]
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(2.16e8)
       beamVilleCar2.isConnectedToChargingPoint() should be(true)
@@ -428,6 +429,7 @@ class ChargingNetworkManagerSpec
 
       chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(874, beamVilleCar3), 0)
       expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(874, beamVilleCar3.id, 0)
+      expectMsgType[CompletionNotice]
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(2.16e8)
       beamVilleCar3.primaryFuelLevelInJoules should be(1.455e8)
