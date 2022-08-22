@@ -382,6 +382,12 @@ tasks.withType(ScalaCompile) {
     }
 }
 
+tasks.withType(JavaExec).configureEach {task ->
+    if (!task.name.equals("run")) {
+        jvmArgs = project.hasProperty('logbackCfg') ? ["-Dlogback.configurationFile=${project.property('logbackCfg')}"] : []
+    }
+}
+
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 // You can run it with a number of threads: ./gradlew spec -PnumThreads=4
@@ -564,6 +570,7 @@ applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${halfOfAvailableMem
 println(applicationDefaultJvmArgs)
 
 run {
+    println("here")
     if (project.hasProperty("appArgs")) {
         args Eval.me(appArgs)
     }
