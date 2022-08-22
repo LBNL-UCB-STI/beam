@@ -62,14 +62,14 @@ class PowerController(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: 
     */
   def obtainPowerPhysicalBounds(
     currentTime: Int,
-    estimatedLoad: Option[Map[ChargingStation, PowerInKW]] = None
+    estimatedLoad: Seq[(ChargingStation, PowerInKW)] = Seq.empty
   ): Map[ChargingStation, PhysicalBounds] = {
     physicalBounds = beamFederateOption match {
       case Some(beamFederate)
-          if isConnectedToHelics && estimatedLoad.isDefined && (physicalBounds.isEmpty || currentBin < currentTime / timeStep) =>
+          if isConnectedToHelics && estimatedLoad.nonEmpty && (physicalBounds.isEmpty || currentBin < currentTime / timeStep) =>
         logger.debug("Sending power over next planning horizon to the grid at time {}...", currentTime)
         // PUBLISH
-        val msgToPublish = estimatedLoad.get.map { case (station, powerInKW) =>
+        val msgToPublish = estimatedLoad.map { case (station, powerInKW) =>
           Map(
             "reservedFor"   -> station.zone.reservedFor,
             "parkingZoneId" -> station.zone.parkingZoneId,

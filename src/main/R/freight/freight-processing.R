@@ -476,7 +476,7 @@ ggsave(pp(freightWorkDir,'/output/b2b-stops.png'),p,width=4,height=5,units='in')
 
 ## FREIGHT ACTIVITY
 to_plot <- rbind(b2b_pt,b2c_pt)
-p <- to_plot[,time24:=arrivalTime%%(24*3600),][,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time24),"30 min")), label)] %>% 
+p <- to_plot[,time24:=arrivalTime%%(24*3600),][,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time24),"30 min")), label)] %>%
   ggplot(aes(timeBin, N, colour=label)) +
   geom_line() + 
   scale_x_datetime("Hour", 
@@ -502,4 +502,3 @@ p <- ggplot(to_plot, aes(x=label,y=VMT,fill=label))+
         legend.title = element_text(size = 10),
         legend.text = element_text(size = 10))
 ggsave(pp(freightWorkDir,'/freight-avg-vmt.png'),p,width=4,height=3,units='in')
-

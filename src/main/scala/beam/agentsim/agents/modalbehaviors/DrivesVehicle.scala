@@ -15,7 +15,7 @@ import beam.agentsim.agents.{BeamAgent, PersonAgent}
 import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.ChargingNetworkManager._
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -925,14 +925,20 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       0.0
   }
 
-  protected def park(parkingInquiry: ParkingInquiry): Unit = {
-    val isChargingRequestOrEV: Boolean = parkingInquiry.beamVehicle match {
-      case Some(vehicle) => vehicle.isPHEV || vehicle.isBEV
-      case _             => parkingInquiry.parkingActivityType == ParkingActivityType.Charge
+  protected def park(inquiry: ParkingInquiry): Unit = {
+    import ParkingSearchMode._
+    val isChargingRequest: Boolean = inquiry.beamVehicle match {
+      // If ChoosesMode, then verify if vehicle is EV
+      case Some(vehicle) if !inquiry.reserveStall => vehicle.isEV
+      // If ChoosesParking, then verify if vehicle needs to either enroute or destination charge
+      case Some(vehicle) if inquiry.reserveStall =>
+        vehicle.isEV && List(DestinationCharging, EnRouteCharging).contains(inquiry.searchMode)
+      // If non vehicle has been specified, then verify if the request is a charge request
+      case _ => inquiry.parkingActivityType == ParkingActivityType.Charge
     }
-    if (isChargingRequestOrEV)
-      chargingNetworkManager ! parkingInquiry
+    if (isChargingRequest)
+      chargingNetworkManager ! inquiry
     else
-      parkingManager ! parkingInquiry
+      parkingManager ! inquiry
   }
 }

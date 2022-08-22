@@ -36,7 +36,8 @@ class HierarchicalParkingManager(
   maxSearchRadius: Double,
   boundingBox: Envelope,
   seed: Int,
-  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
+  estimatedMinParkingDurationInSeconds: Double,
   checkThatNumberOfStallsMatch: Boolean = false
 ) extends ParkingNetwork(parkingZones) {
 
@@ -59,7 +60,8 @@ class HierarchicalParkingManager(
       1,
       boundingBox,
       seed,
-      mnlParkingConfig
+      mnlParkingConfig,
+      estimatedMinParkingDurationInSeconds
     )
   )
 
@@ -90,6 +92,7 @@ class HierarchicalParkingManager(
     */
   override def processParkingInquiry(
     inquiry: ParkingInquiry,
+    doNotReserveStallWithoutChargingPoint: Boolean = false,
     parallelizationCounterOption: Option[SimpleCounter] = None
   ): Option[ParkingInquiryResponse] = {
     logger.debug("Received parking inquiry: {}", inquiry)
@@ -256,7 +259,8 @@ object HierarchicalParkingManager {
     maxSearchRadius: Double,
     boundingBox: Envelope,
     seed: Int,
-    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
+    estimatedMinParkingDurationInSeconds: Double,
     checkThatNumberOfStallsMatch: Boolean = false
   ): ParkingNetwork = {
     new HierarchicalParkingManager(
@@ -268,6 +272,7 @@ object HierarchicalParkingManager {
       boundingBox,
       seed,
       mnlParkingConfig,
+      estimatedMinParkingDurationInSeconds,
       checkThatNumberOfStallsMatch
     )
   }
@@ -280,7 +285,8 @@ object HierarchicalParkingManager {
     maxSearchRadius: Double,
     boundingBox: Envelope,
     seed: Int,
-    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
+    estimatedMinParkingDurationInSeconds: Double,
     checkThatNumberOfStallsMatch: Boolean = false
   ): ParkingNetwork =
     HierarchicalParkingManager(
@@ -292,6 +298,7 @@ object HierarchicalParkingManager {
       boundingBox,
       seed,
       mnlParkingConfig,
+      estimatedMinParkingDurationInSeconds,
       checkThatNumberOfStallsMatch
     )
 
@@ -351,5 +358,4 @@ object HierarchicalParkingManager {
       (zone: ParkingZone) => zone.link.fold(idToTazMapping(zone.tazId).coord)(_.getCoord)
     zoneLists.mapValues(_.mapValues(zoneList => ShapeUtils.quadTree(zoneList)))
   }
-
 }

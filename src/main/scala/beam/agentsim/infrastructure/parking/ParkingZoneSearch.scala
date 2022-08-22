@@ -29,12 +29,6 @@ object ParkingZoneSearch {
     */
   type ZoneSearchTree[A] = scala.collection.Map[Id[A], Map[ParkingType, Vector[Id[ParkingZoneId]]]]
 
-  // increases search radius by this factor at each iteration
-  val SearchFactor: Double = 2.0
-
-  // fallback value for stall pricing model evaluation
-  val DefaultParkingPrice: Double = 0.0
-
   /**
     * static configuration for all parking zone searches in this simulation
     *
@@ -52,6 +46,7 @@ object ParkingZoneSearch {
     boundingBox: Envelope,
     distanceFunction: (Coord, Coord) => Double,
     enrouteDuration: Double,
+    estimatedMinParkingDurationInSeconds: Double,
     fractionOfSameTypeZones: Double,
     minNumberOfSameTypeZones: Int,
     searchExpansionFactor: Double = 2.0
@@ -111,7 +106,8 @@ object ParkingZoneSearch {
     parkingType: ParkingType,
     parkingZone: ParkingZone,
     coord: Coord,
-    costInDollars: Double
+    costInDollars: Double,
+    parkingDuration: Int
   )
 
   /**
@@ -169,16 +165,31 @@ object ParkingZoneSearch {
             } yield {
               // wrap ParkingZone in a ParkingAlternative
               val stallLocation: Coord = parkingZoneLocSamplingFunction(parkingZone)
-              val stallPriceInDollars: Double =
-                parkingZone.pricingModel match {
-                  case None => 0
-                  case Some(pricingModel) if params.searchMode == ParkingSearchMode.EnRoute =>
-                    PricingModel.evaluateParkingTicket(pricingModel, config.enrouteDuration.toInt)
-                  case Some(pricingModel) =>
-                    PricingModel.evaluateParkingTicket(pricingModel, params.parkingDuration.toInt)
+              // end-of-day parking durations are set to zero, which will be mis-interpreted here
+              val parkingDuration = Math.max(
+                config.estimatedMinParkingDurationInSeconds.toInt, // at least a small duration of charging
+                params.searchMode match {
+                  case ParkingSearchMode.EnRouteCharging => config.enrouteDuration.toInt
+                  case _                                 => params.parkingDuration.toInt
                 }
+              )
+              val stallPriceInDollars: Double = parkingZone.pricingModel
+                .map(
+                  PricingModel.evaluateParkingTicket(
+                    _,
+                    parkingDuration
+                  )
+                )
+                .getOrElse(0.0)
               val parkingAlternative: ParkingAlternative =
-                ParkingAlternative(zone, parkingZone.parkingType, parkingZone, stallLocation, stallPriceInDollars)
+                ParkingAlternative(
+                  zone,
+                  parkingZone.parkingType,
+                  parkingZone,
+                  stallLocation,
+                  stallPriceInDollars,
+                  parkingDuration
+                )
               val parkingAlternativeUtility: Map[ParkingMNL.Parameters, Double] =
                 parkingZoneMNLParamsFunction(parkingAlternative)
               ParkingSearchAlternative(
@@ -204,7 +215,8 @@ object ParkingZoneSearch {
               )
 
             mnl.sampleAlternative(alternativesToSample, params.random).map { result =>
-              val ParkingAlternative(taz, parkingType, parkingZone, coordinate, costInDollars) = result.alternativeType
+              val ParkingAlternative(taz, parkingType, parkingZone, coordinate, costInDollars, _) =
+                result.alternativeType
 
               // create a new stall instance. you win!
               val parkingStall = ParkingStall(
@@ -392,7 +404,7 @@ object ParkingZoneSearch {
       params: ParkingZoneSearchParams
     ): SearchMode = {
       params.searchMode match {
-        case ParkingSearchMode.EnRoute =>
+        case ParkingSearchMode.EnRouteCharging =>
           EnrouteSearch(
             params.originUTM.getOrElse(throw new RuntimeException("Enroute process is expecting an origin location")),
             params.destinationUTM,
