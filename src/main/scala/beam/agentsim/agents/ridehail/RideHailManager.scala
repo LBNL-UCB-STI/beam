@@ -1105,13 +1105,14 @@ class RideHailManager(
   }
 
   def addingVehicleToChargingOrMakingAvailable(vehicleId: VehicleId, tick: Int, triggerId: Long): Unit = {
+    val vehicle = resources(vehicleId)
     notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId) match {
       case Some(parkingStall) =>
-        attemptToRefuel(resources(vehicleId), parkingStall, tick, JustArrivedAtDepot, triggerId)
-      case _ =>
-        //If not arrived for refueling;
-        log.debug("Making vehicle {} available", vehicleId)
+        attemptToRefuel(vehicle, parkingStall, tick, JustArrivedAtDepot, triggerId)
+      case None if !vehicle.isCAV =>
+        // If not CAV and not arrived for refueling;
         rideHailManagerHelper.makeAvailable(vehicleId)
+      case _ =>
     }
   }
 
