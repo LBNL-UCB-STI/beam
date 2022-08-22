@@ -570,7 +570,6 @@ applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${halfOfAvailableMem
 println(applicationDefaultJvmArgs)
 
 run {
-    println("here")
     if (project.hasProperty("appArgs")) {
         args Eval.me(appArgs)
     }
