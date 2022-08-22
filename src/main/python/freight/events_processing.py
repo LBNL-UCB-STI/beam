@@ -2,9 +2,9 @@ import pandas as pd
 import os
 
 city = "austin"
-#vcity = "sfbay"
-scenario = "5days"
-batch = 1
+# city = "sfbay"
+scenario = "7days"
+batch = 3
 iteration = 0
 filename = str(iteration)+'.events.csv'
 

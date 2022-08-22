@@ -21,16 +21,20 @@ getTDoxAADT <- function(linkAADT) {
   return(data.table::as.data.table(linkAADT))
 }
 
+isCav <- function(x) {
+  return(x >= 4)
+}
+
 # city <- "sfbay"
 # linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
 # batch <- 5
 city <- "austin"
 linkAADTFile <- "/hpms/austin_hpms_inventory.geojson"
-batch <- 2
+batch <- 3
 cityCRS <- 26910
-scenario <- "5days"
+scenario <- "7days"
 iteration <- 0
-run <- ".hgv4"
+run <- ""
 
 ## PATHS
 activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
