@@ -1,6 +1,6 @@
 package beam.sim
 
-import beam.agentsim.events.PathTraversalEvent
+import beam.agentsim.events.{PathTraversalEvent, RefuelSessionEvent}
 import beam.utils.EventReader.{fromXmlFile, getEventsFilePath}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
@@ -24,7 +24,7 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper {
     )
   }
 
-  it should "Use RH_BEV_L5 to transfer agents." in {
+  it should "Use RH_BEV_L5 to transfer agents, also RH_BEV_L5 should charge." in {
     val config = ConfigFactory
       .parseString(s"""
            |beam.agentsim.lastIteration = 0
@@ -38,9 +38,14 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper {
     val events = fromXmlFile(filePath)
     val rhPTEEvents = getRHPathTraversalsWithPassengers(events, 1)
 
-    rhPTEEvents.size shouldNot be(0) withClue ", expecting RH path traversal events with passengers"
+    rhPTEEvents.size should be > 0 withClue ", expecting RH path traversal events with passengers"
     rhPTEEvents.map(_.vehicleType) should contain("RH_BEV_L5")
 
+    val refuelSessionEvents = events.filter(e => RefuelSessionEvent.EVENT_TYPE.equals(e.getEventType))
+    refuelSessionEvents.size should be > 0 withClue ", expecting charging events"
+    refuelSessionEvents.map(e => e.getAttributes.get(RefuelSessionEvent.ATTRIBUTE_VEHICLE_TYPE)) should contain(
+      "RH_BEV_L5"
+    ) withClue ", expecting RH_BEV_L5 to charge"
   }
 
   it should "Use RH_BEV to transfer agents." in {
