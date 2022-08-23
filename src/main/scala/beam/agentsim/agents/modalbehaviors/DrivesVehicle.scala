@@ -60,7 +60,7 @@ object DrivesVehicle {
     // First attempt to find the link in updated that corresponds to the stopping link in old
     val stoppingLink = oldPassengerSchedule.linkAtTime(stopTick)
     val updatedLegsInSchedule = updatedPassengerSchedule.schedule.keys.toList
-    val startingLeg = updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(stoppingLink)) match {
+    val startingLeg = updatedLegsInSchedule.view.reverse.find(_.travelPath.linkIds.contains(stoppingLink)) match {
       case Some(leg) =>
         leg
       case None =>
@@ -75,7 +75,7 @@ object DrivesVehicle {
             .min
             ._2
         )
-        updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(startingLink)).get
+        updatedLegsInSchedule.view.reverse.find(_.travelPath.linkIds.contains(startingLink)).get
     }
     val indexOfStartingLink = startingLeg.travelPath.linkIds.indexWhere(_ == stoppingLink)
     val newLinks = startingLeg.travelPath.linkIds.drop(indexOfStartingLink)
@@ -419,8 +419,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               }
             }
           }
-          if (!isInEnrouteState)
-            currentBeamVehicle.setReservedParkingStall(None)
         }
         holdTickAndTriggerId(tick, triggerId)
         if (waitForConnectionToChargingPoint) {

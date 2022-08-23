@@ -9,8 +9,10 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
-import beam.agentsim.agents.ridehail.DefaultRideHailDepotParkingManager.ParkingStallsClaimedByVehicles
-import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
+import beam.agentsim.agents.ridehail.DefaultRideHailDepotParkingManager.{
+  ChargingQueueEntry,
+  ParkingStallsClaimedByVehicles
+}
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.{Available, Refueling, RideHailAgentLocation}

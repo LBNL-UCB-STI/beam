@@ -1,7 +1,6 @@
 package beam.agentsim.agents.parking
 
 import akka.pattern.pipe
-import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
@@ -368,9 +367,15 @@ trait ChoosesParking extends {
       }
 
     case Event(StateTimeout, data) =>
-      val stall = currentBeamVehicle.stall.get
-      parkingManager ! ReleaseParkingStall(stall, getCurrentTriggerIdOrGenerate)
-      currentBeamVehicle.unsetParkingStall()
+      ParkingNetworkManager.handleReleasingParkingSpot(
+        getCurrentTick.get,
+        currentBeamVehicle,
+        None,
+        id,
+        parkingManager,
+        eventsManager,
+        getCurrentTriggerIdOrGenerate
+      )
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
   }

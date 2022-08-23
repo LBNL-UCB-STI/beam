@@ -65,19 +65,23 @@ object ParkingNetworkManager extends LazyLogging {
     eventsManager: EventsManager,
     triggerId: Long
   ): Unit = {
-    val stallForLeavingParkingEvent = currentBeamVehicle.stall match {
+    val stallForLeavingParkingEventMaybe = currentBeamVehicle.stall match {
       case Some(stall) =>
         parkingManager ! ReleaseParkingStall(stall, triggerId)
         currentBeamVehicle.unsetParkingStall()
-        stall
-      case None =>
+        Some(stall)
+      case None if currentBeamVehicle.lastUsedStall.isDefined =>
         // This can now happen if a vehicle was charging and released the stall already
-        currentBeamVehicle.lastUsedStall.get
+        Some(currentBeamVehicle.lastUsedStall.get)
+      case None =>
+        None
     }
-    val energyCharge: Double = energyChargedMaybe.getOrElse(0.0)
-    val score = calculateScore(stallForLeavingParkingEvent.costInDollars, energyCharge)
-    eventsManager.processEvent(
-      LeavingParkingEvent(tick, stallForLeavingParkingEvent, score, driver.toString, currentBeamVehicle.id)
-    )
+    stallForLeavingParkingEventMaybe.foreach { stall =>
+      val energyCharge: Double = energyChargedMaybe.getOrElse(0.0)
+      val score = calculateScore(stall.costInDollars, energyCharge)
+      eventsManager.processEvent(
+        LeavingParkingEvent(tick, stall, score, driver.toString, currentBeamVehicle.id)
+      )
+    }
   }
 }

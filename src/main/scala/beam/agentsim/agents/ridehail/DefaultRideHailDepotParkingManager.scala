@@ -1,8 +1,10 @@
 package beam.agentsim.agents.ridehail
 
 import akka.pattern.pipe
-import beam.agentsim.agents.ridehail.DefaultRideHailDepotParkingManager.ParkingStallsClaimedByVehicles
-import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
+import beam.agentsim.agents.ridehail.DefaultRideHailDepotParkingManager.{
+  ChargingQueueEntry,
+  ParkingStallsClaimedByVehicles
+}
 import beam.agentsim.agents.ridehail.RideHailAgent.NotifyVehicleDoneRefuelingAndOutOfServiceReply
 import beam.agentsim.agents.ridehail.RideHailManager.{JustArrivedAtDepot, RefuelSource, VehicleId}
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
@@ -10,9 +12,9 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.{ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
+import beam.agentsim.infrastructure._
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.agentsim.infrastructure._
 import beam.agentsim.scheduler.HasTriggerId
 import beam.router.BeamRouter.Location
 import beam.sim.config.BeamConfig
@@ -417,4 +419,6 @@ object DefaultRideHailDepotParkingManager {
     additionalCustomVehiclesForDepotCharging: Vector[(Id[BeamVehicle], ParkingStall)],
     triggerId: Long
   ) extends HasTriggerId
+
+  case class ChargingQueueEntry(beamVehicle: BeamVehicle, parkingStall: ParkingStall, priority: Double)
 }
