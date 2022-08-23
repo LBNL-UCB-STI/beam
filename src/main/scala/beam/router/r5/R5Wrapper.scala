@@ -635,17 +635,29 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
       val transitPaths = latency("getpath-transit-time", Metrics.VerboseLevel) {
         profileRequest.fromTime = request.departureTime
-        profileRequest.toTime =
-          request.departureTime + 61 // Important to allow 61 seconds for transit schedules to be considered!
-        val router = new McRaptorSuboptimalPathProfileRouter(
-          transportNetwork,
-          profileRequest,
-          accessStopsByMode.mapValues(_.stops).asJava,
-          egressStopsByMode.mapValues(_.stops).asJava,
-          departureTimeToDominatingList,
-          null
-        )
-        Try(router.getPaths.asScala).getOrElse(Nil) // Catch IllegalStateException in R5.StatsCalculator
+        accessStopsByMode.flatMap { case (mode, stopVisitor) =>
+          val modeSpecificBuffer = mode match {
+            case LegMode.WALK         => beamConfig.beam.routing.r5.accessBufferTimeSeconds.walk
+            case LegMode.BICYCLE      => beamConfig.beam.routing.r5.accessBufferTimeSeconds.bike
+            case LegMode.BICYCLE_RENT => beamConfig.beam.routing.r5.accessBufferTimeSeconds.bike_rent
+            case LegMode.CAR_PARK     => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
+            case LegMode.CAR          => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
+            case _                    => 0
+          }
+          profileRequest.toTime = request.departureTime + modeSpecificBuffer + 61
+          // Important to allow 61 seconds for transit schedules to be considered! Along with any other buffers
+          val router = new McRaptorSuboptimalPathProfileRouter(
+            transportNetwork,
+            profileRequest,
+            Map(mode -> stopVisitor.stops).asJava,
+            egressStopsByMode.mapValues(_.stops).asJava,
+            departureTimeToDominatingList,
+            null
+          )
+          Try(router.getPaths.asScala).getOrElse(Nil)
+        }
+
+        // Catch IllegalStateException in R5.StatsCalculator
       }
 
       for (transitPath <- transitPaths) {
@@ -668,17 +680,28 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       option.itinerary.asScala
         .map { itinerary =>
           // Using itinerary start as access leg's startTime
+          val access = option.access.get(itinerary.connection.access)
+          val transitAccessBuffer = access.mode match {
+            case _ if option.transit == null             => 0
+            case LegMode.WALK                            => beamConfig.beam.routing.r5.accessBufferTimeSeconds.walk
+            case LegMode.BICYCLE                         => beamConfig.beam.routing.r5.accessBufferTimeSeconds.bike
+            case LegMode.BICYCLE_RENT                    => beamConfig.beam.routing.r5.accessBufferTimeSeconds.bike_rent
+            case LegMode.CAR_PARK                        => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
+            case LegMode.CAR if mainRouteRideHailTransit => beamConfig.beam.routing.r5.accessBufferTimeSeconds.ride_hail
+            case LegMode.CAR                             => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
+            case _                                       => 0
+          }
           val tripStartTime = dates
             .toBaseMidnightSeconds(
               itinerary.startTime,
               transportNetwork.transitLayer.routes.size() == 0
             )
-            .toInt
+            .toInt - transitAccessBuffer
 
           var arrivalTime: Int = Int.MinValue
           val embodiedBeamLegs = mutable.ArrayBuffer.empty[EmbodiedBeamLeg]
-          val access = option.access.get(itinerary.connection.access)
           val vehicle = bestAccessVehiclesByR5Mode(access.mode)
+
           maybeWalkToVehicle(vehicle).foreach(walkLeg => {
             // Glue the walk to vehicle in front of the trip without a gap
             embodiedBeamLegs += walkLeg

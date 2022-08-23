@@ -46,7 +46,7 @@ class PowerControllerSpec extends AnyWordSpecLike with Matchers with BeforeAndAf
 
   val beamConfig: BeamConfig = BeamConfig(config)
   val beamFederateMock: BeamFederate = mock(classOf[BeamFederate])
-  val tazFromBeamville: TAZ = new TAZ(Id.create("1", classOf[TAZ]), new Coord(167141.3, 1112.351), 4840000)
+  val tazFromBeamville: TAZ = new TAZ(Id.create("1", classOf[TAZ]), new Coord(167141.3, 1112.351), 4840000, None)
 
   val dummyChargingZone: ParkingZone = ParkingZone.init(
     None,

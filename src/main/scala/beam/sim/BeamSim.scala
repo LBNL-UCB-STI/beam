@@ -425,6 +425,8 @@ class BeamSim @Inject() (
       transitOccupancyByStop.notifyIterationEnds(event)
     }
 
+    beamScenario.tazTreeMap.notifyIterationEnds(event)
+
     travelTimeGoogleStatistic.notifyIterationEnds(event)
     startAndEndEventListeners.foreach(_.notifyIterationEnds(event))
 

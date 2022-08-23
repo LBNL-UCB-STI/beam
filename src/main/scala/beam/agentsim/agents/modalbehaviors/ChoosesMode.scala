@@ -1325,6 +1325,7 @@ trait ChoosesMode {
                 possibleTrip,
                 failedTrip = false,
                 personData.currentActivityIndex,
+                currentActivity(personData),
                 nextActivity(personData)
               )
             case _ =>
