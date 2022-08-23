@@ -1,5 +1,6 @@
 package beam.agentsim.agents.ridehail
 
+import akka.actor.BeamLoggingReceive
 import akka.pattern.pipe
 import beam.agentsim.agents.ridehail.DefaultRideHailDepotParkingManager.{
   ChargingQueueEntry,
@@ -72,14 +73,12 @@ trait DefaultRideHailDepotParkingManager extends {
 
   depots.groupBy(_._2.tazId).foreach(tup => tazIdToParkingZones += tup)
 
-  override def loggedReceive: Receive = {
+  override def loggedReceive: Receive = BeamLoggingReceive {
     case e @ EndingRefuelSession(tick, vehicleId, triggerId) =>
-      log.debug("RideHailManager.EndingRefuelSession: {}", e)
-      rideHailManagerHelper.updatePassengerSchedule(vehicleId, None, None)
+      log.debug("DefaultRideHailDepotParkingManager.EndingRefuelSession: {}", e)
       removingVehicleFromCharging(vehicleId, tick, triggerId)
-      resources(vehicleId).getDriver.get ! NotifyVehicleDoneRefuelingAndOutOfServiceReply(triggerId, Vector())
-      rideHailManagerHelper.putOutOfService(vehicleId)
-    case _ @UnpluggingVehicle(tick, personId, vehicle, energyCharged, triggerId) =>
+    case e @ UnpluggingVehicle(tick, personId, vehicle, energyCharged, triggerId) =>
+      log.debug("DefaultRideHailDepotParkingManager.UnpluggingVehicle: {}", e)
       ParkingNetworkManager.handleReleasingParkingSpot(
         tick,
         vehicle,
@@ -89,7 +88,11 @@ trait DefaultRideHailDepotParkingManager extends {
         beamServices.matsimServices.getEvents,
         triggerId
       )
-    case _ @UnhandledVehicle(tick, personId, vehicle, triggerId) =>
+      rideHailManagerHelper.updatePassengerSchedule(vehicle.id, None, None)
+      vehicle.getDriver.get ! NotifyVehicleDoneRefuelingAndOutOfServiceReply(triggerId, Vector())
+      rideHailManagerHelper.putOutOfService(vehicle.id)
+    case e @ UnhandledVehicle(tick, personId, vehicle, triggerId) =>
+      log.debug("DefaultRideHailDepotParkingManager.UnhandledVehicle: {}", e)
       ParkingNetworkManager.handleReleasingParkingSpot(
         tick,
         vehicle,
@@ -99,9 +102,14 @@ trait DefaultRideHailDepotParkingManager extends {
         beamServices.matsimServices.getEvents,
         triggerId
       )
-    case _ @StartingRefuelSession(tick, vehicleId, stall, _) =>
+      rideHailManagerHelper.updatePassengerSchedule(vehicle.id, None, None)
+      vehicle.getDriver.get ! NotifyVehicleDoneRefuelingAndOutOfServiceReply(triggerId, Vector())
+      rideHailManagerHelper.putOutOfService(vehicle.id)
+    case e @ StartingRefuelSession(tick, vehicleId, stall, _) =>
+      log.debug("DefaultRideHailDepotParkingManager.StartingRefuelSession: {}", e)
       addVehicleToChargingInDepotUsing(stall, resources(vehicleId), tick, JustArrivedAtDepot)
-    case _ @WaitingToCharge(_, vehicleId, stall, numVehicleWaitingToCharge, _) =>
+    case e @ WaitingToCharge(_, vehicleId, stall, numVehicleWaitingToCharge, _) =>
+      log.debug("DefaultRideHailDepotParkingManager.WaitingToCharge: {}", e)
       addVehicleAndStallToRefuelingQueueFor(resources(vehicleId), stall, -numVehicleWaitingToCharge, JustArrivedAtDepot)
   }
 

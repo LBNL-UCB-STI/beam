@@ -124,8 +124,7 @@ class ChargingNetworkManager(
           chargingVehicle,
           timeBin,
           timeBin + beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds,
-          physicalBounds,
-          triggerId
+          physicalBounds
         )
       }
       val nextStepPlanningTriggers =
@@ -147,7 +146,7 @@ class ChargingNetworkManager(
       val vehicleEndedCharging = vehicle.stall match {
         case Some(stall) =>
           chargingNetworkHelper.get(stall.reservedFor.managerId).endChargingSession(vehicle.id, tick) map {
-            handleEndCharging(tick, _, triggerId)
+            handleEndCharging(tick, _)
           } getOrElse {
             log.debug(s"Vehicle ${vehicle.id} has already ended charging")
             None
@@ -198,7 +197,7 @@ class ChargingNetworkManager(
           case chargingVehicle =>
             vehicle2InquiryMap.remove(vehicle.id)
             chargingVehicle.vehicle.useParkingStall(stall)
-            handleStartCharging(tick, chargingVehicle, triggerId = triggerId)
+            handleStartCharging(tick, chargingVehicle)
             StartingRefuelSession(tick, vehicle.id, stall, triggerId)
         } getOrElse Failure(
           new RuntimeException(
@@ -239,8 +238,8 @@ class ChargingNetworkManager(
                 val unplugTime = currentTimeBin(tick)
                 val index = sessions.indexWhere(x => currentTimeBin(x.startTime) == unplugTime && x.startTime <= tick)
                 val (startTime, endTime) = if (index == -1) (unplugTime, tick) else (sessions(index).startTime, tick)
-                dispatchEnergyAndProcessChargingCycle(chargingVehicle, startTime, endTime, bounds, triggerId, true)
-                handleEndCharging(endTime, chargingVehicle, triggerId)
+                dispatchEnergyAndProcessChargingCycle(chargingVehicle, startTime, endTime, bounds, true)
+                handleEndCharging(endTime, chargingVehicle)
               }
               chargingNetwork
                 .processWaitingLine(tick, station)
