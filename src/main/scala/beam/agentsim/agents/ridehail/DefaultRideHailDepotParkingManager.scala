@@ -381,7 +381,6 @@ trait DefaultRideHailDepotParkingManager extends {
         val beamVehicle = resources(vehicleId)
         val locationUtm: Location = rideHailAgentLocation.getCurrentLocationUTM(tick, beamServices)
         sendChargingInquiry(SpaceTime(locationUtm, tick), beamVehicle, triggerId)
-          .mapTo[ParkingInquiryResponse]
           .map { response =>
             beamVehicle.setReservedParkingStall(Some(response.stall))
             (vehicleId, response.stall)
