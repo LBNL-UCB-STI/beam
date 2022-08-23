@@ -457,7 +457,7 @@ trait DefaultRideHailDepotParkingManager extends {
             (vehicleId, response.stall)
           }
       })
-      .map { result =>
+      .foreach { result =>
         self ! ParkingStallsClaimedByVehicles(tick, result, additionalCustomVehiclesForDepotCharging, triggerId)
       }
   }
@@ -469,7 +469,11 @@ trait DefaultRideHailDepotParkingManager extends {
     * @param triggerId
     * @return
     */
-  def sendChargingInquiry(whenWhere: SpaceTime, beamVehicle: BeamVehicle, triggerId: Long): Future[Any] = {
+  def sendChargingInquiry(
+    whenWhere: SpaceTime,
+    beamVehicle: BeamVehicle,
+    triggerId: Long
+  ): Future[ParkingInquiryResponse] = {
     val inquiry = ParkingInquiry.init(
       whenWhere,
       "wherever",
@@ -480,7 +484,7 @@ trait DefaultRideHailDepotParkingManager extends {
       searchMode = ParkingSearchMode.DestinationCharging,
       triggerId = triggerId
     )
-    chargingNetworkManager ? inquiry
+    (chargingNetworkManager ? inquiry).mapTo[ParkingInquiryResponse]
   }
 }
 
