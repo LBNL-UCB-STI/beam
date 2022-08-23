@@ -929,7 +929,6 @@ class RideHailManager(
     }
 
     if (repositionVehicles.isEmpty) {
-      log.debug("sendCompletionAndScheduleNewTimeout from 1486")
       modifyPassengerScheduleManager.sendCompletionAndScheduleNewTimeout(Reposition)
       cleanUp(triggerId)
     } else {
