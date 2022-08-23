@@ -184,9 +184,8 @@ class HouseholdFleetManager(
       logger.error("HouseholdFleetManager.UnhandledVehicle: {}", e)
     case e @ WaitingToCharge(_, _, _, _, _) =>
       logger.debug("HouseholdFleetManager.WaitingInLine: {}", e)
-    case e @ EndingRefuelSession(_, _, triggerId) =>
+    case e @ EndingRefuelSession(_, _, _) =>
       logger.debug("HouseholdFleetManager.EndingRefuelSession: {}", e)
-    //triggerSender.get ! CompletionNotice(triggerId)
     case Finish =>
       context.stop(self)
     case Success =>
@@ -195,7 +194,7 @@ class HouseholdFleetManager(
   }
 
   /**
-    * @param inquiry
+    * @param inquiry MobilityStatusInquiry
     * @return
     */
   private def createAnEmergencyVehicle(inquiry: MobilityStatusInquiry): Option[BeamVehicle] = {

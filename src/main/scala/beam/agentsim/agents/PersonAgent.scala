@@ -1573,9 +1573,8 @@ class PersonAgent(
     case ev @ Event(WaitingToCharge(_, _, _, _, _), _) =>
       log.debug("myUnhandled.WaitingInLine: {}", ev)
       stay()
-    case ev @ Event(EndingRefuelSession(_, _, triggerId), _) =>
+    case ev @ Event(EndingRefuelSession(_, _, _), _) =>
       log.debug("myUnhandled.EndingRefuelSession: {}", ev)
-      //scheduler ! CompletionNotice(triggerId)
       stay()
     case Event(e, s) =>
       log.warning("received unhandled request {} in state {}/{}", e, stateName, s)

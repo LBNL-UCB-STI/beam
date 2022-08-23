@@ -11,8 +11,8 @@ import beam.sim.config.BeamConfig
 import beam.utils.logging.LoggingMessageActor
 import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.api.core.v01.Id
+import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.concurrent.duration._
 

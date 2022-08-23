@@ -901,9 +901,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           ScheduleTrigger(AlightVehicleTrigger(Math.max(currentLeg.endTime + 1, tick), vehicleId), self)
         )
       )
-    case _ @Event(EndingRefuelSession(tick, vehicleId, triggerId), _) =>
+    case _ @Event(EndingRefuelSession(tick, vehicleId, _), _) =>
       log.debug(s"DrivesVehicle: EndingRefuelSession. tick: $tick, vehicle: $vehicleId")
-      //scheduler ! CompletionNotice(triggerId)
       stay()
   }
 

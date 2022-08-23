@@ -159,7 +159,7 @@ class ChargingNetworkManager(
       vehicleEndedCharging.foreach(_.theSender ! EndingRefuelSession(tick, vehicle.id, triggerId))
       // Do not send completion notice to vehicles in EnRoute mode
       // Since they need to process additional tasks before completing
-      // TODO Maybe for ride hail too !?
+      // Maybe for ride hail too !?
       if (!vehicleEndedCharging.exists(v => v.activityType.startsWith(EnRouteLabel)))
         sender ! CompletionNotice(triggerId)
 

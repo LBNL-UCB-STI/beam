@@ -10,7 +10,6 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAV
-import beam.router.skim.Skims
 import beam.router.{BeamRouter, Modes, RouteHistory}
 import beam.sim.BeamServices
 import beam.utils.logging.ExponentialLoggerWrapperImpl

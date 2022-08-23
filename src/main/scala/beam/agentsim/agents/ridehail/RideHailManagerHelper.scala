@@ -1,16 +1,10 @@
 package beam.agentsim.agents.ridehail
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable
-import scala.collection.mutable.PriorityQueue
-import scala.collection.parallel.{ParIterable, ParSeq}
-
 import akka.actor.ActorRef
 import beam.agentsim.agents.ridehail.RideHailManagerHelper._
-import beam.agentsim.agents.ridehail.RideHailMatching.VehicleAndSchedule
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter
@@ -21,6 +15,10 @@ import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable
+import scala.collection.parallel.{ParIterable, ParSeq}
 
 object RideHailAgentETAComparatorServiceTime extends Ordering[RideHailAgentETA] {
 
@@ -81,7 +79,6 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
   private[ridehail] val inServiceRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
   private val refuelingRideHailVehicles = mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation]()
   private val vehicleOutOfCharge = mutable.Set[Id[BeamVehicle]]()
-  private val mobileVehicleChargingTimes = mutable.PriorityQueue[(Int, Id[BeamVehicle])]()(Ordering.by(-_._1))
   private[this] var latestSpatialIndexUpdateTick = 0
 
   def getVehicleState(vehicleId: Id[BeamVehicle]): BeamVehicleState =
@@ -327,14 +324,6 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
       .seq
   }
 
-  def getVehiclesServingCustomers: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {
-    inServiceRideHailVehicles.filter(_._2.currentPassengerSchedule.exists(_.numUniquePassengers > 0))
-  }
-
-  def getOutOfServiceVehicles: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {
-    outOfServiceRideHailVehicles
-  }
-
   def getIdleVehiclesAndFilterOutExluded: mutable.HashMap[Id[BeamVehicle], RideHailAgentLocation] = {
     idleRideHailVehicles.filter(elem => !rideHailManager.doNotUseInAllocation.contains(elem._1))
   }
@@ -373,9 +362,9 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     * and update the location of the agent in that spatial index based on where they are in the current beamLeg at
     * time tick.
     *
-    * @param tick
+    * @param tick time in seconds
     */
-  def updateSpatialIndicesForMovingVehiclesToNewTick(tick: Int) = {
+  def updateSpatialIndicesForMovingVehiclesToNewTick(tick: Int): Unit = {
     if (tick > latestSpatialIndexUpdateTick) {
       (inServiceRideHailVehicles ++ refuelingRideHailVehicles).foreach { veh =>
         updateLocationOfAgent(
@@ -428,10 +417,16 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     }
   }
 
+  /**
+    * update Location Of Agent
+    * @param vehicleId BeamVehicle Id
+    * @param whenWhere SpaceTime
+    * @return
+    */
   def updateLocationOfAgent(
     vehicleId: Id[BeamVehicle],
     whenWhere: SpaceTime
-  ) = {
+  ): Any = {
     getServiceStatusOf(vehicleId) match {
       case Available =>
         idleRideHailVehicles.get(vehicleId) match {
@@ -521,22 +516,42 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     }
   }
 
+  /**
+    * *
+    * @param vehicleId BeamVehicle Id
+    * @return
+    */
   def makeAvailable(vehicleId: Id[BeamVehicle]): Boolean = {
     this.makeAvailable(getRideHailAgentLocation(vehicleId))
   }
 
-  def makeAvailable(agentLocation: RideHailAgentLocation) = {
+  /**
+    * *
+    * @param agentLocation RideHailAgentLocation
+    * @return
+    */
+  def makeAvailable(agentLocation: RideHailAgentLocation): Boolean = {
     addToIdle(agentLocation)
     removeFromInService(agentLocation)
     removeFromOutOfService(agentLocation)
     removeFromRefueling(agentLocation)
   }
 
+  /**
+    * *
+    * @param vehicleId BeamVehicle Id
+    * @return
+    */
   def putIntoService(vehicleId: Id[BeamVehicle]): Boolean = {
     this.putIntoService(getRideHailAgentLocation(vehicleId))
   }
 
-  def putIntoService(agentLocation: RideHailAgentLocation) = {
+  /**
+    * *
+    * @param agentLocation RideHailAgentLocation
+    * @return
+    */
+  def putIntoService(agentLocation: RideHailAgentLocation): Boolean = {
     removeFromIdle(agentLocation)
     addToInService(agentLocation)
     removeFromOutOfService(agentLocation)
@@ -547,25 +562,45 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     this.putOutOfService(getRideHailAgentLocation(vehicleId))
   }
 
-  def putOutOfService(agentLocation: RideHailAgentLocation) = {
+  /**
+    * *
+    * @param agentLocation RideHailAgentLocation
+    * @return
+    */
+  def putOutOfService(agentLocation: RideHailAgentLocation): Boolean = {
     removeFromIdle(agentLocation)
     removeFromInService(agentLocation)
     addToOutOfService(agentLocation)
     removeFromRefueling(agentLocation)
   }
 
+  /**
+    * *
+    * @param vehicleId BeamVehicle Id
+    * @return
+    */
   def putRefueling(vehicleId: Id[BeamVehicle]): Boolean = {
     this.putRefueling(getRideHailAgentLocation(vehicleId))
   }
 
-  def putRefueling(agentLocation: RideHailAgentLocation) = {
+  /**
+    * *
+    * @param agentLocation RideHailAgentLocation
+    * @return
+    */
+  def putRefueling(agentLocation: RideHailAgentLocation): Boolean = {
     removeFromIdle(agentLocation)
     removeFromInService(agentLocation)
     removeFromOutOfService(agentLocation)
     addToRefueling(agentLocation)
   }
 
-  def addToIdle(agentLocation: RideHailAgentLocation) = {
+  /**
+    * *
+    * @param agentLocation RideHailAgentLocation
+    * @return
+    */
+  def addToIdle(agentLocation: RideHailAgentLocation): Boolean = {
     logger.debug(
       s"Making vehicle '${agentLocation.vehicleId}' Idle/Available; Full list before: ${idleRideHailVehicles.keys.mkString(";")}"
     )
@@ -577,7 +612,12 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     )
   }
 
-  def addToInService(agentLocation: RideHailAgentLocation) = {
+  /**
+    * *
+    * @param agentLocation RideHailAgentLocation
+    * @return
+    */
+  def addToInService(agentLocation: RideHailAgentLocation): Boolean = {
     logger.debug(
       s"Making vehicle '${agentLocation.vehicleId}' InService; Full list before: ${inServiceRideHailVehicles.keys.mkString(";")}"
     )
@@ -589,7 +629,12 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     )
   }
 
-  def addToOutOfService(agentLocation: RideHailAgentLocation) = {
+  /**
+    * *
+    * @param agentLocation RideHailAgentLocation
+    * @return
+    */
+  def addToOutOfService(agentLocation: RideHailAgentLocation): Boolean = {
     logger.debug(
       s"Making vehicle '${agentLocation.vehicleId}' OutOfService; Full list before: ${outOfServiceRideHailVehicles.keys.mkString(";")}"
     )
@@ -601,7 +646,12 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     )
   }
 
-  def removeFromIdle(agentLocation: RideHailAgentLocation) = {
+  /**
+    * *
+    * @param agentLocation RideHailAgentLocation
+    * @return
+    */
+  def removeFromIdle(agentLocation: RideHailAgentLocation): Boolean = {
     logger.debug(
       s"Removing vehicle '${agentLocation.vehicleId}' from Idle/Available since will be InService; Full list before: ${idleRideHailVehicles.keys
         .mkString(";")}"
@@ -614,7 +664,12 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     )
   }
 
-  def removeFromInService(agentLocation: RideHailAgentLocation) = {
+  /**
+    * *
+    * @param agentLocation RideHailAgentLocation
+    * @return
+    */
+  def removeFromInService(agentLocation: RideHailAgentLocation): Boolean = {
     logger.debug(
       s"Removing vehicle '${agentLocation.vehicleId}' from InService; Full list before: ${inServiceRideHailVehicles.keys
         .mkString(";")}"
@@ -627,7 +682,12 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     )
   }
 
-  def removeFromOutOfService(agentLocation: RideHailAgentLocation) = {
+  /**
+    * *
+    * @param agentLocation RideHailAgentLocation
+    * @return
+    */
+  def removeFromOutOfService(agentLocation: RideHailAgentLocation): Boolean = {
     logger.debug(
       s"Removing vehicle '${agentLocation.vehicleId}' from OutOfService since will be Idle/Available; Full list before: ${outOfServiceRideHailVehicles.keys
         .mkString(";")}"
@@ -640,7 +700,12 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     )
   }
 
-  def addToRefueling(agentLocation: RideHailAgentLocation) = {
+  /**
+    * *
+    * @param agentLocation RideHailAgentLocation
+    * @return
+    */
+  def addToRefueling(agentLocation: RideHailAgentLocation): Boolean = {
     logger.debug(
       s"Making vehicle '${agentLocation.vehicleId}' Refueling; Full list before: ${refuelingRideHailVehicles.keys.mkString(";")}"
     )
@@ -652,7 +717,12 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     )
   }
 
-  def removeFromRefueling(agentLocation: RideHailAgentLocation) = {
+  /**
+    * *
+    * @param agentLocation RideHailAgentLocation
+    * @return
+    */
+  def removeFromRefueling(agentLocation: RideHailAgentLocation): Boolean = {
     logger.debug(
       s"Removing vehicle '${agentLocation.vehicleId}' from Refueling; Full list before: ${refuelingRideHailVehicles.keys
         .mkString(";")}"
@@ -665,6 +735,10 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     )
   }
 
+  /**
+    * *
+    * @return list of RideHailAgentLocation
+    */
   def getCandidateVehiclesForPoolingAssignment: Iterable[RideHailAgentLocation] = {
     (rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds match {
       case 0 =>
@@ -727,8 +801,8 @@ object RideHailManagerHelper {
       * Returns the current location of the RideHailAgent based on the currentTick parameter. This accounts for where the
       * agent would be along the route if the currentTick is between the start and end times of the BeamLeg currently underway.
       *
-      * @param currentTick
-      * @param beamServices
+      * @param currentTick time in seconds
+      * @param beamServices BeamServices
       * @return
       */
     def getCurrentLocationUTM(currentTick: Int, beamServices: BeamServices): Location = {

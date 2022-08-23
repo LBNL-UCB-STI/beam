@@ -76,8 +76,6 @@ object RideHailManager {
 
   type VehicleId = Id[BeamVehicle]
 
-  case object NotifyIterationEnds
-
   case class RecoverFromStuckness(tick: Int, triggerId: Long) extends HasTriggerId
 
   case class TravelProposal(
@@ -135,17 +133,6 @@ object RideHailManager {
   ) extends HasTriggerId
 
   case class PoolingInfo(timeFactor: Double, costFactor: Double)
-
-  case class RegisterRideAvailable(rideHailAgent: ActorRef, vehicleId: Id[BeamVehicle], availableSince: SpaceTime)
-
-  case class RegisterRideUnavailable(ref: ActorRef, location: Coord)
-
-  case class RepositionResponse(
-    rnd1: RideHailAgentLocation,
-    rnd2: RideHailAgentLocation,
-    rnd1Response: RoutingResponse,
-    rnd2Response: RoutingResponse
-  )
 
   case class RepositionVehicleRequest(
     passengerSchedule: PassengerSchedule,
@@ -209,7 +196,6 @@ object RideHailManager {
       )
       list
     }
-
   }
 
   case object DebugReport
@@ -332,6 +318,8 @@ class RideHailManager(
   // Are we in the middle of processing a batch? or repositioning
   var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
   var currentlyProcessingTimeoutWallStartTime: Long = System.nanoTime()
+
+  private val vehicleIdToGeofence: mutable.Map[VehicleId, Geofence] = mutable.Map.empty[VehicleId, Geofence]
 
   // Cache analysis
   private var cacheAttempts = 0
@@ -834,6 +822,10 @@ class RideHailManager(
       ridehailManagerCustomizationAPI.receiveMessageHook(msg, sender())
   }
 
+  /**
+    * process ParkingStallsClaimedByVehicle
+    * @param message
+    */
   private def processParkingStallsClaimedByVehicle(message: ParkingStallsClaimedByVehicles) = {
     val ParkingStallsClaimedByVehicles(
       tick,
@@ -1980,5 +1972,17 @@ class RideHailManager(
     val isNotAlreadyAllocated = !doNotUseInAllocation.contains(vehicleId)
     val isOnWayToRefuel = isOnWayToRefuelingDepot(vehicleId)
     (serviceStatus == Available || serviceStatus == Refueling) && (isNotAlreadyAllocated || isOnWayToRefuel)
+  }
+
+  /**
+    * register Geofences
+    * @param vehicleIdToGeofenceMap map of vehicleId to Geofence
+    */
+  private def registerGeofences(vehicleIdToGeofenceMap: mutable.Map[VehicleId, Option[Geofence]]): Unit = {
+    vehicleIdToGeofenceMap.foreach {
+      case (vehicleId, Some(geofence)) =>
+        vehicleIdToGeofence.put(vehicleId, geofence)
+      case (_, _) =>
+    }
   }
 }
