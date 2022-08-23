@@ -557,8 +557,7 @@ class RideHailAgent(
     case _ @Event(StartingRefuelSession(_, _, _, _), _) =>
       stash()
       stay()
-    case _ @Event(EndingRefuelSession(_, _, triggerId), _) =>
-      //scheduler ! CompletionNotice(triggerId)
+    case _ @Event(EndingRefuelSession(_, _, _), _) =>
       stash()
       stay()
     case _ @Event(ParkingInquiryResponse(_, _, _), _) =>

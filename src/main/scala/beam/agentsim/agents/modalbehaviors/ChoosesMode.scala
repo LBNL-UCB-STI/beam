@@ -51,8 +51,7 @@ trait ChoosesMode {
     "dummyRH",
     beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
     CAR,
-    asDriver = false,
-    needsToCalculateCost = true
+    asDriver = false
   )
 
   //this dummy shared vehicles is used in R5 requests on egress side
@@ -64,16 +63,14 @@ trait ChoosesMode {
           "dummySharedCar",
           beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId,
           CAR,
-          asDriver = true,
-          needsToCalculateCost = true
+          asDriver = true
         )
       case VehicleCategory.Bike =>
         createDummyVehicle(
           "dummySharedBike",
           beamServices.beamConfig.beam.agentsim.agents.vehicles.dummySharedBike.vehicleTypeId,
           BIKE,
-          asDriver = true,
-          needsToCalculateCost = true
+          asDriver = true
         )
       case category @ _ =>
         throw new IllegalArgumentException(
@@ -82,13 +79,7 @@ trait ChoosesMode {
     }
     .toIndexedSeq
 
-  private def createDummyVehicle(
-    id: String,
-    vehicleTypeId: String,
-    mode: BeamMode,
-    asDriver: Boolean,
-    needsToCalculateCost: Boolean
-  ) =
+  private def createDummyVehicle(id: String, vehicleTypeId: String, mode: BeamMode, asDriver: Boolean) =
     StreetVehicle(
       Id.create(id, classOf[BeamVehicle]),
       Id.create(
@@ -98,7 +89,7 @@ trait ChoosesMode {
       SpaceTime(0.0, 0.0, 0),
       mode,
       asDriver = asDriver,
-      needsToCalculateCost = needsToCalculateCost
+      needsToCalculateCost = true
     )
 
   private var sharedTeleportationVehiclesCount = 0
@@ -1325,6 +1316,7 @@ trait ChoosesMode {
                 possibleTrip,
                 failedTrip = false,
                 personData.currentActivityIndex,
+                currentActivity(personData),
                 nextActivity(personData)
               )
             case _ =>

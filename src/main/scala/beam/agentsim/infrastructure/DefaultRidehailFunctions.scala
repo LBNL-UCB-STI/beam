@@ -19,7 +19,6 @@ class DefaultRidehailFunctions(
   geoQuadTree: QuadTree[TAZ],
   idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
-  // parkingZoneIdToParkingZoneDepotData: mutable.Map[Id[ParkingZoneId], ParkingZoneDepotData],
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
@@ -46,8 +45,6 @@ class DefaultRidehailFunctions(
       seed,
       estimatedMinParkingDurationInSeconds
     ) {
-
-  // private val vehicleIdToEndRefuelTick: mutable.Map[VehicleId, Int] = mutable.Map.empty[VehicleId, Int]
 
   override protected val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] =
     mnlMultiplierParametersFromConfig(rideHailConfig)

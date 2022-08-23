@@ -55,53 +55,52 @@ trait ScaleUpCharging extends {
 
   override def loggedReceive: Receive = {
     case t @ TriggerWithId(PlanParkingInquiryTrigger(_, requestId), triggerId) =>
-      log.debug(s"Received parking response: $t")
+      log.debug(s"Received PlanParkingInquiryTrigger: $t")
       virtualParkingInquiries.get(requestId) match {
         case Some(inquiry) => self ! inquiry
         case _             => log.error(s"Something is broken in ScaleUpCharging. Request $requestId has not been found")
       }
       sender ! CompletionNotice(triggerId)
-    case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, requestId), triggerId) =>
-      log.debug(s"Received parking response: $t")
-      virtualParkingInquiries.remove(requestId) match {
-        case Some(inquiry) => self ! ChargingUnplugRequest(tick, inquiry.personId.get, beamVehicle, triggerId)
-        case _             =>
-      }
-      getScheduler ! CompletionNotice(triggerId)
+    case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, personId), triggerId) =>
+      log.debug(s"Received PlanChargingUnplugRequestTrigger: $t")
+      self ! ChargingUnplugRequest(tick, personId, beamVehicle, triggerId)
+      sender ! CompletionNotice(triggerId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
-      log.debug(s"Received parking response: $response")
-      virtualParkingInquiries.get(requestId) match {
+      log.debug(s"Received ParkingInquiryResponse: $response")
+      val triggers = virtualParkingInquiries.remove(requestId) match {
         case Some(parkingInquiry) if stall.chargingPointType.isDefined =>
           log.debug(s"parking inquiry with requestId $requestId returned a stall with charging point.")
           val beamVehicle = parkingInquiry.beamVehicle.get
+          val personId =
+            parkingInquiry.personId.map(Id.create(_, classOf[Person])).getOrElse(Id.create("", classOf[Person]))
           self ! ChargingPlugRequest(
             parkingInquiry.destinationUtm.time,
             beamVehicle,
             stall,
-            parkingInquiry.personId.map(Id.create(_, classOf[Person])).getOrElse(Id.create("", classOf[Person])),
+            personId,
             triggerId,
             self,
             NotApplicable,
             None
           )
           val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
-          getScheduler ! ScheduleTrigger(
-            PlanChargingUnplugRequestTrigger(endTime, beamVehicle, parkingInquiry.requestId),
-            self
-          )
+          Vector(ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, personId), self))
         case Some(_) if stall.chargingPointType.isEmpty =>
           log.debug(s"parking inquiry with requestId $requestId returned a NoCharger stall")
+          Vector()
         case _ =>
-          log.warning(s"inquiryMap does not have this requestId $requestId that returned stall $stall")
+          log.error(s"inquiryMap does not have this requestId $requestId that returned stall $stall")
+          Vector()
       }
+      triggers.foreach(getScheduler ! _)
     case reply @ StartingRefuelSession(_, _, _, _) =>
-      log.debug(s"Received parking response: $reply")
-    case reply @ EndingRefuelSession(_, _, _) =>
-      log.debug(s"Received parking response: $reply")
+      log.debug(s"Received StartingRefuelSession: $reply")
     case reply @ WaitingToCharge(_, _, _, _, _) =>
-      log.debug(s"Received parking response: $reply")
+      log.debug(s"Received WaitingToCharge: $reply")
+    case reply @ EndingRefuelSession(_, _, _) =>
+      log.debug(s"Received EndingRefuelSession: $reply")
     case reply @ UnhandledVehicle(tick, personId, vehicle, triggerId) =>
-      log.error(s"Received parking response: $reply")
+      log.error(s"Received UnhandledVehicle: $reply")
       ParkingNetworkManager.handleReleasingParkingSpot(
         tick,
         vehicle,
@@ -112,7 +111,7 @@ trait ScaleUpCharging extends {
         triggerId
       )
     case reply @ UnpluggingVehicle(tick, personId, vehicle, energyCharged, triggerId) =>
-      log.debug(s"Received parking response: $reply")
+      log.debug(s"Received UnpluggingVehicle: $reply")
       ParkingNetworkManager.handleReleasingParkingSpot(
         tick,
         vehicle,
@@ -327,7 +326,7 @@ trait ScaleUpCharging extends {
 object ScaleUpCharging {
   val VIRTUAL_ALIAS: String = "virtual"
   case class PlanParkingInquiryTrigger(tick: Int, requestId: Int) extends Trigger
-  case class PlanChargingUnplugRequestTrigger(tick: Int, beamVehicle: BeamVehicle, requestId: Int) extends Trigger
+  case class PlanChargingUnplugRequestTrigger(tick: Int, beamVehicle: BeamVehicle, personId: Id[Person]) extends Trigger
 
   case class VehicleRequestInfo(
     energyToChargeInJoule: Double,
@@ -362,7 +361,6 @@ object ScaleUpCharging {
     activityTypeDistribution: EnumeratedDistribution[String]
   ) {
     def getDuration(rand: Random): Int = logNormalDistribution(meanDuration, varianceDuration, rand).toInt
-    def getSOC(rand: Random): Double = logNormalDistribution(meanSOC, varianceSOC, rand)
     def getEnergy(rand: Random): Double = logNormalDistribution(meanEnergy, varianceEnergy, rand)
 
     private def logNormalDistribution(mean: Double, variance: Double, rand: Random) /* mean and variance of Y */ = {
