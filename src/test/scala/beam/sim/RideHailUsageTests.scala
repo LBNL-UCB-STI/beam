@@ -24,7 +24,8 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper {
     )
   }
 
-  it should "Use RH_BEV_L5 to transfer agents, also RH_BEV_L5 should charge." in {
+  val automatedRideHailVehicleType = "RH_BEV_L5"
+  it should f"Use $automatedRideHailVehicleType to transfer agents, also RH_BEV_L5 should charge." in {
     val config = ConfigFactory
       .parseString(s"""
            |beam.agentsim.lastIteration = 0
@@ -39,16 +40,17 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper {
     val rhPTEEvents = getRHPathTraversalsWithPassengers(events, 1)
 
     rhPTEEvents.size should be > 0 withClue ", expecting RH path traversal events with passengers"
-    rhPTEEvents.map(_.vehicleType) should contain("RH_BEV_L5")
+    rhPTEEvents.map(_.vehicleType) should contain(automatedRideHailVehicleType)
 
     val refuelSessionEvents = events.filter(e => RefuelSessionEvent.EVENT_TYPE.equals(e.getEventType))
     refuelSessionEvents.size should be > 0 withClue ", expecting charging events"
     refuelSessionEvents.map(e => e.getAttributes.get(RefuelSessionEvent.ATTRIBUTE_VEHICLE_TYPE)) should contain(
-      "RH_BEV_L5"
-    ) withClue ", expecting RH_BEV_L5 to charge"
+      automatedRideHailVehicleType
+    ) withClue f", expecting $automatedRideHailVehicleType to charge"
   }
 
-  it should "Use RH_BEV to transfer agents." in {
+  val nonAutomatedRideHailVehicleType = "RH_BEV"
+  it should f"Use $nonAutomatedRideHailVehicleType to transfer agents." in {
     val config = ConfigFactory
       .parseString(s"""
                       |beam.agentsim.lastIteration = 0
@@ -63,7 +65,7 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper {
     val rhPTEEvents = getRHPathTraversalsWithPassengers(events, 1)
 
     rhPTEEvents.size should be > 0 withClue ", expecting RH path traversal events with passengers"
-    rhPTEEvents.map(_.vehicleType) should contain("RH_BEV")
+    rhPTEEvents.map(_.vehicleType) should contain(nonAutomatedRideHailVehicleType)
   }
 
 }
