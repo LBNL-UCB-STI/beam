@@ -388,8 +388,9 @@ trait ChoosesMode {
           }
           var availableVehicles = newlyAvailableBeamVehicles.map(_.streetVehicle) :+ bodyStreetVehicle
           personData.currentTourMode match {
-            case Some(WALK_BASED) =>  availableVehicles = availableVehicles,
-            case Some(WALK_BASED) => availableVehicles = availableVehicles,
+
+            case Some(BIKE_BASED) =>  availableVehicles = newlyAvailableBeamVehicles.filterNot(v => BeamVehicle.isSharedTeleportationVehicle(v.id)).map(_.streetVehicle)
+            case Some(WALK_BASED) => availableVehicles = availableVehicles
             case Some(CAR_BASED) => availableVehicles = availableVehicles
           }
 
