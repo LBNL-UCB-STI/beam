@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.Resource.ReleaseParkingStall
-import beam.agentsim.infrastructure.ParallelParkingManager.{ParkingCluster, Worker, geometryFactory}
+import beam.agentsim.infrastructure.ParallelParkingManager.{geometryFactory, ParkingCluster, Worker}
 import beam.agentsim.infrastructure.parking.{ParkingNetwork, ParkingZone, ParkingZoneId}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils.toJtsCoordinate

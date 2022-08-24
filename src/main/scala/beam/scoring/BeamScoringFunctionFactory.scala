@@ -89,7 +89,7 @@ class BeamScoringFunctionFactory @Inject() (
             )
           case _: ReplanningEvent =>
             // FIXME? If this happens often, maybe we can optimize it:
-            // trips is list buffer meaning removing is O(n)
+            // trips is a ListBuffer meaning removing is O(n)
             trips.remove(trips.size - 1)
           case leavingParkingEvent: LeavingParkingEvent =>
             leavingParkingEventScore += leavingParkingEvent.score
