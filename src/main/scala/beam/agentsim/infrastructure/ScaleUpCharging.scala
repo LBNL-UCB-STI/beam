@@ -37,8 +37,6 @@ trait ScaleUpCharging extends {
   private lazy val timeStepByHour = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds / 3600.0
   private lazy val virtualParkingInquiries: TrieMap[Int, ParkingInquiry] = TrieMap()
   private lazy val vehicleRequests = mutable.HashMap.empty[(Id[TAZ], ParkingActivityType), List[VehicleRequestInfo]]
-  private val trackingInquiryVehicles = mutable.HashMap.empty[BeamVehicle, PlanParkingInquiryTrigger]
-  private val trackingChargingVehicles = mutable.HashMap.empty[BeamVehicle, PlanChargingUnplugRequestTrigger]
 
   private lazy val scaleUpFactors: Map[ParkingActivityType, Double] = {
     if (!cnmConfig.scaleUp.enabled) Map()
@@ -56,35 +54,13 @@ trait ScaleUpCharging extends {
     if (!cnmConfig.scaleUp.enabled) 1.0 else cnmConfig.scaleUp.expansionFactor_wherever_activity
 
   override def loggedReceive: Receive = {
-    case t @ TriggerWithId(PlanParkingInquiryTrigger(tick, inquiry), triggerId) =>
+    case t @ TriggerWithId(PlanParkingInquiryTrigger(_, inquiry), triggerId) =>
       log.debug(s"Received PlanParkingInquiryTrigger: $t")
-      println(
-        s"PlanParkingInquiryTrigger: " +
-        s"vehicle ${inquiry.beamVehicle.get} - Received ${trackingInquiryVehicles.remove(inquiry.beamVehicle.get).get} - " +
-        s"<= tick ${trackingInquiryVehicles.count(_._2.tick <= tick)} - " +
-        s"> tick ${trackingInquiryVehicles.count(_._2.tick > tick)}"
-      )
       virtualParkingInquiries.put(inquiry.requestId, inquiry)
       self ! inquiry
       sender ! CompletionNotice(triggerId)
     case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, personId), triggerId) =>
       log.debug(s"Received PlanChargingUnplugRequestTrigger: $t")
-      trackingChargingVehicles.remove(beamVehicle) match {
-        case Some(unplugPlan) =>
-          println(
-            s"PlanChargingUnplugRequestTrigger: " +
-            s"vehicle $beamVehicle - Received $unplugPlan | " +
-            s"<= tick ${trackingChargingVehicles.count(_._2.tick <= tick)} | " +
-            s"> tick ${trackingChargingVehicles.count(_._2.tick > tick)}"
-          )
-        case _ =>
-          println(
-            s"PlanChargingUnplugRequestTrigger: " +
-            s"vehicle $beamVehicle - Received NONE?? | " +
-            s"<= tick ${trackingChargingVehicles.count(_._2.tick <= tick)} | " +
-            s"> tick ${trackingChargingVehicles.count(_._2.tick > tick)}"
-          )
-      }
       self ! ChargingUnplugRequest(tick, personId, beamVehicle, triggerId)
       sender ! CompletionNotice(triggerId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
@@ -106,12 +82,9 @@ trait ScaleUpCharging extends {
             None
           )
           val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
-          val planningUnplugTrigger = PlanChargingUnplugRequestTrigger(endTime, beamVehicle, personId)
-          trackingChargingVehicles.put(beamVehicle, planningUnplugTrigger)
-          println(s"vehicle $beamVehicle - $planningUnplugTrigger")
-          Vector(ScheduleTrigger(planningUnplugTrigger, self))
+          Vector(ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, personId), self))
         case Some(_) if stall.chargingPointType.isEmpty =>
-          log.info(s"parking inquiry with requestId $requestId returned a NoCharger stall")
+          log.debug(s"parking inquiry with requestId $requestId returned a NoCharger stall")
           Vector()
         case _ =>
           log.error(s"inquiryMap does not have this requestId $requestId that returned stall $stall")
@@ -253,11 +226,8 @@ trait ScaleUpCharging extends {
                 searchMode = ParkingSearchMode.DestinationCharging,
                 triggerId = triggerId
               )
-              val planningInquiryTrigger = PlanParkingInquiryTrigger(startTime, parkingInquiry)
-              trackingInquiryVehicles.put(beamVehicle, planningInquiryTrigger)
-              println(s"vehicle $beamVehicle - $planningInquiryTrigger")
               cumulatedSimulatedPower += toPowerInKW(energyToCharge, duration)
-              parkingInquiriesTriggers += ScheduleTrigger(planningInquiryTrigger, self)
+              parkingInquiriesTriggers += ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry), self)
             }
           case _ =>
             log.debug("The observed load is null. Most likely due to vehicles not needing to charge!")
