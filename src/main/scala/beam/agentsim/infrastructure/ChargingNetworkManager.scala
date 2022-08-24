@@ -94,7 +94,9 @@ class ChargingNetworkManager(
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
       val chargingNetwork = chargingNetworkHelper.get(inquiry.reservedFor.managerId)
-      sender() ! chargingNetwork.processParkingInquiry(inquiry)
+      val response = chargingNetwork.processParkingInquiry(inquiry)
+      collectVehicleRequestInfo(inquiry, response.stall)
+      sender() ! response
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       log.info("ChargingNetworkManager is Starting!")
@@ -169,7 +171,7 @@ class ChargingNetworkManager(
           ) map {
           case chargingVehicle if chargingVehicle.chargingStatus.last.status == WaitingAtStation =>
             val numVehicleWaitingToCharge = chargingVehicle.chargingStation.howManyVehiclesAreWaiting
-            log.debug(
+            println(
               s"Vehicle $vehicle is moved to waiting line at $tick in station ${chargingVehicle.chargingStation}, " +
               s"with {} vehicles connected and {} in grace period and {} in waiting line",
               chargingVehicle.chargingStation.howManyVehiclesAreCharging,

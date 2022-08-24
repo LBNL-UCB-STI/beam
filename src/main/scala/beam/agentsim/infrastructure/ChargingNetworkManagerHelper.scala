@@ -129,7 +129,6 @@ trait ChargingNetworkManagerHelper extends {
     * @param chargingVehicle charging vehicle information
     */
   protected def handleStartCharging(tick: Int, chargingVehicle: ChargingVehicle): Unit = {
-    collectVehicleRequestInfo(chargingVehicle)
     val nextTick = nextTimeBin(tick)
     val vehicle = chargingVehicle.vehicle
     if (vehicle.stall.isEmpty)

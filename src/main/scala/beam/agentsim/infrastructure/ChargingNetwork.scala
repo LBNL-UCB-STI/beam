@@ -166,7 +166,7 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
 
 object ChargingNetwork extends LazyLogging {
 
-  private val EnRouteLabel: String = "EnRoute"
+  val EnRouteLabel: String = "EnRoute-"
 
   case class ChargingStatus(status: ChargingStatus.ChargingStatusEnum, time: Int)
 
@@ -281,7 +281,7 @@ object ChargingNetwork extends LazyLogging {
     def howManyVehiclesAreWaiting: Int = waitingLineInternal.size
     def howManyVehiclesAreCharging: Int = chargingVehiclesInternal.size
     def howManyVehiclesAreInGracePeriodAfterCharging: Int = vehiclesInGracePeriodAfterCharging.size
-    def howManyVehiclesOnTheWayToDepot: Int = parkingInquiries.size
+    def howManyVehiclesOnTheWayToStation: Int = parkingInquiries.size
 
     def remainingChargeDurationFromPluggedInVehicles(tick: Int): Int = {
       chargingVehiclesInternal.map { case (_, chargingVehicle) =>
@@ -319,7 +319,7 @@ object ChargingNetwork extends LazyLogging {
       val (estimatedParkingDuration, activityType) = parkingInquiries
         .remove(vehicle.id)
         .map { inquiry =>
-          val activityTypeAlias = if (inquiry.searchMode == EnRouteCharging) EnRouteLabel + "-" else ""
+          val activityTypeAlias = if (inquiry.searchMode == EnRouteCharging) EnRouteLabel else ""
           (inquiry.parkingDuration.toInt, activityTypeAlias + inquiry.activityType)
         }
         .getOrElse((estimatedMinParkingDurationInSeconds, ParkingActivityType.Wherever.toString))

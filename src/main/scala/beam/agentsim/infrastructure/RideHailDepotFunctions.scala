@@ -196,7 +196,7 @@ class RideHailDepotFunctions(
     }
     val chargeDurationFromQueue =
       depotFunction(parkingZone.parkingZoneId).map(_.remainingChargeDurationForVehiclesFromQueue).sum
-    val numVehiclesOnWayToDepot = depotFunction(parkingZone.parkingZoneId).map(_.howManyVehiclesOnTheWayToDepot).sum
+    val numVehiclesOnWayToDepot = depotFunction(parkingZone.parkingZoneId).map(_.howManyVehiclesOnTheWayToStation).sum
     val chargingQueue =
       depotFunction(parkingZone.parkingZoneId).map(_.howManyVehiclesAreWaiting).getOrElse(0)
     val vehiclesOnWayAdjustmentFactor = chargingQueue match {
