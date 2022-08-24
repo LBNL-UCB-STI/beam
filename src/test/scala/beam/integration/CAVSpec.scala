@@ -15,9 +15,11 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.{Canceled, Failed, Outcome, Retries}
+import org.scalatest.tagobjects.Retryable
 
-class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
-  "Running a CAV-only scenario with a couple of CAVs" must "result in everybody using CAV or walk" in {
+class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper with Retries {
+  "Running a CAV-only scenario with a couple of CAVs" must "result in everybody using CAV or walk" taggedAs(Retryable) in {
     val config = ConfigFactory
       .parseString(
         """
@@ -92,6 +94,33 @@ class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
     assume(trips != 0, "Something's wildly broken, I am not seeing any trips.")
     assume(cavVehicles != 0, "Nobody has a CAV vehicle in test scenario, nothing to test.")
     assert(cavTrips >= cavVehicles, "Not enough CAV trips (by mode choice) seen.")
+  }
+
+  val retries = 5
+
+  override def withFixture(test: NoArgTest) = {
+    if (isRetryable(test))
+      withFixture(test, retries)
+    else
+      super.withFixture(test)
+  }
+
+  def withFixture(test: NoArgTest, count: Int): Outcome = {
+    val outcome = super.withFixture(test)
+    println(outcome.toString)
+    outcome match {
+      case Failed(_) =>
+        if (count == 1) {
+          super.withFixture(test)
+        } else
+          withFixture(test, count - 1)
+      case Canceled(_) =>
+        if (count > 0) {
+          super.withFixture(test)
+        } else
+          withFixture(test, count - 1)
+      case other => other
+    }
   }
 
 }

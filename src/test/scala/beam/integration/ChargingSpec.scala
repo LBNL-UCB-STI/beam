@@ -26,10 +26,12 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable.ArrayBuffer
+import org.scalatest._
+import tagobjects.Retryable
 
-class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
+class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Retries {
 
-  "Running a single person car-only scenario and scale up charging events" must "catch charging events and measure virtual power greater or equal than real power" in {
+  "Running a single person car-only scenario and scale up charging events" must "catch charging events and measure virtual power greater or equal than real power" taggedAs(Retryable) in {
     val beamVilleCarId = Id.create("beamVilleCar", classOf[BeamVehicleType])
     val vehicleId = Id.create(2, classOf[Vehicle])
     val filesPath = "test/test-resources/beam/input"
@@ -210,9 +212,35 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
     // TODO Hard to test this without ensuring an energy conservation mechanism
     // totalEnergyInJoules shouldBe (energyConsumed +- 1000)
 
-    assume(
+    assume (
       totVirtualPower - totRealPower > 0,
       "There should be at least as much virtual power as real power when scaling up by 10"
     )
+
+  }
+
+  val retries = 5
+  override def withFixture(test: NoArgTest)  = {
+    if (isRetryable(test))
+        withFixture(test, retries)
+    else
+      super.withFixture(test)
+  }
+  def withFixture(test: NoArgTest, count: Int): Outcome = {
+    val outcome = super.withFixture(test)
+    println(outcome.toString)
+    outcome match {
+      case Failed(_) =>
+        if (count == 1) {
+          super.withFixture(test)
+        } else
+          withFixture(test, count - 1)
+      case Canceled(_) =>
+        if (count > 0) {
+          super.withFixture(test)
+        } else
+    withFixture (test, count - 1)
+      case other => other
+    }
   }
 }
