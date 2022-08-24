@@ -389,14 +389,14 @@ trait ChoosesMode {
           var availableVehicles = newlyAvailableBeamVehicles.map(_.streetVehicle) :+ bodyStreetVehicle
           personData.currentTourMode match {
 
-            case Some(BIKE_BASED) =>  availableVehicles = newlyAvailableBeamVehicles.filterNot(v => BeamVehicle.isSharedTeleportationVehicle(v.id)).map(_.streetVehicle)
+            case Some(BIKE_BASED) =>  availableVehicles = newlyAvailableBeamVehicles.filterNot(v => BeamVehicle.isSharedVehicle(v.id)).map(_.streetVehicle) :+ bodyStreetVehicle
             case Some(WALK_BASED) => availableVehicles = availableVehicles
-            case Some(CAR_BASED) => availableVehicles = availableVehicles
+            case Some(CAR_BASED) => availableVehicles = newlyAvailableBeamVehicles.filterNot(v => BeamVehicle.isSharedVehicle(v.id)).map(_.streetVehicle) :+ bodyStreetVehicle
           }
 
           makeRequestWith(
             withTransit = availableModesGivenTourMode.exists(_.isTransit),
-            newlyAvailableBeamVehicles.map(_.streetVehicle) :+ bodyStreetVehicle,
+            availableVehicles,
             possibleEgressVehicles = dummySharedVehicles
           )
         case Some(WALK) =>
