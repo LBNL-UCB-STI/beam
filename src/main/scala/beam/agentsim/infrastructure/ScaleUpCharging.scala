@@ -6,7 +6,7 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ChargingNetworkManager._
-import beam.agentsim.infrastructure.ParkingInquiry.{activityTypeStringToEnum, ParkingActivityType, ParkingSearchMode}
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -152,6 +152,13 @@ trait ScaleUpCharging extends {
         val listEnergy = data.map(_.energyToChargeInJoule)
         val meanEnergy: Double = listEnergy.sum / listEnergy.size.toDouble
         val varianceEnergy: Double = listEnergy.map(energy => energy - meanEnergy).map(t => t * t).sum / numObservation
+        val pmfActivityType =
+          data
+            .groupBy(_.activityType)
+            .map { case (activityType, elems) =>
+              new CPair[String, java.lang.Double](activityType, elems.size.toDouble)
+            }
+            .toVector
         val pmfVehicleTypeInfo = data
           .groupBy(record => (record.vehicleType, record.vehicleAlias, record.reservedFor))
           .map { case ((vehicleType, vehicleAlias, reservedFor), elems) =>
@@ -171,7 +178,8 @@ trait ScaleUpCharging extends {
           varianceSOC = varianceSOC,
           meanEnergy = meanEnergy,
           varianceEnergy = varianceEnergy,
-          new EnumeratedDistribution[VehicleTypeInfo](mersenne, pmfVehicleTypeInfo.asJava)
+          new EnumeratedDistribution[VehicleTypeInfo](mersenne, pmfVehicleTypeInfo.asJava),
+          new EnumeratedDistribution[String](mersenne, pmfActivityType.asJava)
         )
         parkingActivityType -> (data, vehicleInfoSummary)
       })
@@ -191,8 +199,7 @@ trait ScaleUpCharging extends {
             var cumulatedSimulatedPower = 0.0
             var timeStep = 0
             while (cumulatedSimulatedPower < totPowerInKWToSimulate && timeStep < timeStepByHour * 3600) {
-              val parkingActivityType = distribution.sample()
-              val (_, summary) = activityType2vehicleInfo(parkingActivityType)
+              val (_, summary) = activityType2vehicleInfo(distribution.sample())
               val duration = Math.max(
                 summary.getDuration(rand),
                 beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds.toInt
@@ -203,13 +210,14 @@ trait ScaleUpCharging extends {
               val energyToCharge = summary.getEnergy(rand)
               val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
               val destinationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
+              val activityType = summary.activityTypeDistribution.sample()
               val reservedFor = vehicleTypeInfo.reservedFor
               val beamVehicle = getBeamVehicle(vehicleTypeInfo, soc)
               val personId = getPerson(beamVehicle.id)
               val startTime = timeBin + timeStep
               val parkingInquiry = ParkingInquiry(
                 SpaceTime(destinationUtm, startTime),
-                parkingActivityType.entryName,
+                activityType,
                 reservedFor,
                 Some(beamVehicle),
                 None, // remainingTripData
@@ -266,12 +274,17 @@ trait ScaleUpCharging extends {
         )
       vehicleRequests.synchronized {
         val key = (stall.tazId, inquiry.parkingActivityType)
+        val activityType =
+          if (inquiry.activityType.startsWith(ChargingNetwork.EnRouteLabel))
+            inquiry.activityType.drop(ChargingNetwork.EnRouteLabel.length + 1)
+          else inquiry.activityType
         vehicleRequests.put(
           key,
           vehicleRequests.getOrElse(key, List.empty) :+ VehicleRequestInfo(
             energyToCharge,
             Math.min(durationToCharge, estimatedChargingDuration),
             100 * Math.min(Math.max(vehicle.getStateOfCharge, 0), 1),
+            activityType,
             vehicle.beamVehicleType,
             vehicleAlias,
             reservedFor
@@ -331,6 +344,7 @@ object ScaleUpCharging {
     energyToChargeInJoule: Double,
     parkingDurationInSec: Int,
     stateOfCharge: Double,
+    activityType: String,
     vehicleType: BeamVehicleType,
     vehicleAlias: String,
     reservedFor: ReservedFor
@@ -355,7 +369,8 @@ object ScaleUpCharging {
     varianceSOC: Double,
     meanEnergy: Double,
     varianceEnergy: Double,
-    vehicleTypeInfoDistribution: EnumeratedDistribution[VehicleTypeInfo]
+    vehicleTypeInfoDistribution: EnumeratedDistribution[VehicleTypeInfo],
+    activityTypeDistribution: EnumeratedDistribution[String]
   ) {
     def getDuration(rand: Random): Int = logNormalDistribution(meanDuration, varianceDuration, rand).toInt
     def getEnergy(rand: Random): Double = logNormalDistribution(meanEnergy, varianceEnergy, rand)
