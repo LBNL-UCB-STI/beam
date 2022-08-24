@@ -24,12 +24,11 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.vehicles.Vehicle
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.tagobjects.Retryable
 
 import scala.collection.mutable.ArrayBuffer
-import org.scalatest._
-import tagobjects.Retryable
 
-class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Retries {
+class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeated {
 
   "Running a single person car-only scenario and scale up charging events" must "catch charging events and measure virtual power greater or equal than real power" taggedAs(Retryable) in {
     val beamVilleCarId = Id.create("beamVilleCar", classOf[BeamVehicleType])
@@ -216,31 +215,5 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Retrie
       totVirtualPower - totRealPower > 0,
       "There should be at least as much virtual power as real power when scaling up by 10"
     )
-
-  }
-
-  val retries = 5
-  override def withFixture(test: NoArgTest)  = {
-    if (isRetryable(test))
-        withFixture(test, retries)
-    else
-      super.withFixture(test)
-  }
-  def withFixture(test: NoArgTest, count: Int): Outcome = {
-    val outcome = super.withFixture(test)
-    println(outcome.toString)
-    outcome match {
-      case Failed(_) =>
-        if (count == 1) {
-          super.withFixture(test)
-        } else
-          withFixture(test, count - 1)
-      case Canceled(_) =>
-        if (count > 0) {
-          super.withFixture(test)
-        } else
-    withFixture (test, count - 1)
-      case other => other
-    }
   }
 }

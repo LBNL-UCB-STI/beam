@@ -7,9 +7,11 @@ import beam.utils.EventReader
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.events.Event
+import org.scalatest.Retries.isRetryable
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.BeforeAndAfterAll
+import org.scalatest.{BeforeAndAfterAll, Canceled, Failed, Outcome, Retries}
+import org.scalatest.tagobjects.Retryable
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -18,7 +20,8 @@ class ParkingSpec
     with BeforeAndAfterAll
     with Matchers
     with BeamHelper
-    with IntegrationSpecCommon {
+    with IntegrationSpecCommon
+    with Retries {
 
   def runAndCollectEvents(parkingScenario: String): Seq[Event] = {
     runAndCollectForIterations(parkingScenario, 1).head
@@ -126,13 +129,13 @@ class ParkingSpec
   }
 
   "Parking system " must {
-    "guarantee at least some parking used " in {
+    "guarantee at least some parking used " taggedAs(Retryable) in {
       val parkingEvents =
         defaultEvents.head.filter(e => ParkingEvent.EVENT_TYPE.equals(e.getEventType))
       parkingEvents.size should be > 0
     }
 
-    "departure and arrival should be from same parking 4 tuple" in {
+    "departure and arrival should be from same parking 4 tuple" taggedAs(Retryable) in {
 
       val parkingEvents =
         defaultEvents.head.filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
@@ -172,7 +175,7 @@ class ParkingSpec
       }
     }
 
-    "Park event should be thrown after last path traversal" in {
+    "Park event should be thrown after last path traversal" taggedAs(Retryable) in {
       val parkingEvents =
         defaultEvents.head.filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
 
@@ -209,7 +212,7 @@ class ParkingSpec
       }
     }
 
-    "very expensive parking should reduce driving" ignore { // flakey test
+    "very expensive parking should reduce driving" taggedAs(Retryable) ignore { // flakey test
       val expensiveEvents = runAndCollectForIterations("very-expensive", 5)
 
       val expensiveModeChoiceCarCount = expensiveEvents.map(countForPathTraversalAndCarMode)
@@ -223,7 +226,7 @@ class ParkingSpec
         .sum should be > expensiveModeChoiceCarCount.takeRight(5).sum
     }
 
-    "no parking stalls should reduce driving" ignore { // flakey test
+    "no parking stalls should reduce driving" taggedAs(Retryable) ignore { // flakey test
       val emptyEvents = runAndCollectForIterations("empty", 5)
 
       val emptyModeChoiceCarCount = emptyEvents.map(countForPathTraversalAndCarMode)
@@ -238,4 +241,20 @@ class ParkingSpec
     }
   }
 
+  var retries = 5
+  override def withFixture(test: NoArgTest): Outcome = {
+    if (isRetryable(test)) {
+      withFixture(test, retries)
+    } else
+      super.withFixture(test)
+  }
+
+  def withFixture(test: NoArgTest, count: Int): Outcome = {
+    val outcome = super.withFixture(test)
+    println(outcome.toString)
+    outcome match {
+      case Failed(_) | Canceled(_) => if (count == 1) super.withFixture(test) else withFixture(test, count - 1)
+      case other => other
+    }
+  }
 }

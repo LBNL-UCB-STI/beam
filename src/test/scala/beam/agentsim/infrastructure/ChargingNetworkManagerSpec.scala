@@ -18,7 +18,7 @@ import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
-import org.scalatest.{BeforeAndAfterEach, Canceled, Failed, Outcome}
+import org.scalatest.{BeforeAndAfterEach, Canceled, Failed, Outcome, Retries}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import beam.agentsim.agents.vehicles.VehicleManager
@@ -44,7 +44,9 @@ class ChargingNetworkManagerSpec
     with Matchers
     with BeamHelper
     with ImplicitSender
-    with BeforeAndAfterEach {
+    with BeforeAndAfterEach
+    with Retries {
+
 
   private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
 
@@ -486,10 +488,9 @@ class ChargingNetworkManagerSpec
     personAgent.ref ! Finish
   }
 
+  var retries = 5
 
-  val retries = 5
-
-  override def withFixture(test: NoArgTest) = {
+  override def withFixture(test: NoArgTest): Outcome = {
     if (isRetryable(test))
       withFixture(test, retries)
     else
@@ -500,19 +501,9 @@ class ChargingNetworkManagerSpec
     val outcome = super.withFixture(test)
     println(outcome.toString)
     outcome match {
-      case Failed(_) =>
-        if (count == 1) {
-          super.withFixture(test)
-        } else
-          withFixture(test, count - 1)
-      case Canceled(_) =>
-        if (count > 0) {
-          super.withFixture(test)
-        } else
-          withFixture(test, count - 1)
+      case Failed(_) | Canceled(_) => if (count == 1) super.withFixture(test) else withFixture(test, count - 1)
       case other => other
     }
   }
-
 }
 

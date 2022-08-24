@@ -1,16 +1,17 @@
 package beam.agentsim.agents
 
+import beam.integration.Repeated
 import beam.sim.BeamHelper
 import beam.utils.EventReader._
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.events.Event
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers._
+import org.scalatest.tagobjects.Retryable
 
 import scala.collection.mutable
 
-class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper {
+class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper with Repeated {
 
   def getActivitiesDurationsGroupedByType(events: Seq[Event]): Map[String, Set[Double]] = {
     class Activity(val time: Double, val actType: String, val person: String)
@@ -74,7 +75,7 @@ class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper {
     }
   }
 
-  it should "have expected activities duration" in {
+  it should "have expected activities duration"  taggedAs(Retryable) in {
     val config = ConfigFactory
       .parseString(s"""
                       |beam.agentsim.lastIteration = 0
@@ -95,7 +96,7 @@ class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper {
     checkIfDurationsExistAndBiggerThan(activitiesDurations, "Work", 40000)
   }
 
-  it should "have fixed Other,Shopping and Work activities duration" in {
+  it should "have fixed Other,Shopping and Work activities duration"  taggedAs(Retryable) in {
     val expectedWorkDuration = 360.0
     val expectedShoppingDuration = 260.0
     val expectedOtherDuration = 160.0
