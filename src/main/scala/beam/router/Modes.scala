@@ -263,9 +263,7 @@ object TourModes {
     import BeamTourMode._
 
     def vehicleSharedOrNot(vehicles: Vector[VehicleOrToken]): Boolean = {
-      val sharedVehicles = vehicles.filter(_.vehicle.isSharedVehicle)
-      if (sharedVehicles.isEmpty) false
-      else true
+      vehicles.forall(_.vehicle.isSharedVehicle)
     }
 
     def isVehicleBased: Boolean = this match {
