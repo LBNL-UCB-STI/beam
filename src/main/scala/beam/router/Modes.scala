@@ -1,5 +1,6 @@
 package beam.router
 
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.vehicles.VehicleCategory._
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.profile.StreetMode
@@ -260,9 +261,14 @@ object TourModes {
   ) extends StringEnumEntry {
 
     import BeamTourMode._
-//    def allowedBeamModes(vehicles: Vector[VehicleOrToken]): Seq[BeamMode] = {
-//
-//    }
+
+    def vehicleSharedOrNot(vehicles: Vector[VehicleOrToken]): Boolean = {
+      val sharedVehicles = vehicles.filter(_.vehicle.isSharedVehicle)
+      if (sharedVehicles.isEmpty) false
+      else true
+    }
+
+
 
     def isVehicleBased: Boolean = this match {
       case WALK_BASED => false
