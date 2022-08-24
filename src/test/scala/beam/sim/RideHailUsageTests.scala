@@ -30,7 +30,7 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper {
            |beam.agentsim.lastIteration = 0
            |beam.outputs.events.fileOutputFormats = "xml"
          """.stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam-rh-ecav.conf"))
+      .withFallback(testConfig("test/input/beamville/beam-withL5.conf"))
       .resolve()
 
     val matsimConfig = runBeamWithConfig(config)._1
