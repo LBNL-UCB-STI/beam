@@ -245,11 +245,6 @@ class BeamPlan extends Plan {
 
   def getTourModeFromTourLegs(tour: Tour): Option[BeamTourMode] = {
     // TODO: Should this just look at the first/last mode of legs?
-//    def vehicleSharedOrNot(vehicles: Vector[VehicleOrToken]): Boolean = {
-//      val sharedVehicles = vehicles.filter(_.vehicle.isSharedVehicle)
-//      if (sharedVehicles.isEmpty) false
-//      else true
-//    }
     var tourMode: Option[BeamTourMode] = None
     if (tour.trips.exists(trip => trip.leg.isDefined)) {
       tour.trips.foreach(trip =>

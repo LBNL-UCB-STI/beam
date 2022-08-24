@@ -27,7 +27,7 @@ import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.skim.core.ODSkimmer
 import beam.router.skim.event.ODSkimmerFailedTripEvent
 import beam.router.skim.readonly.ODSkims
-import beam.router.{Modes, RoutingWorker}
+import beam.router.{Modes, RoutingWorker, TourModes}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, Geofence}
 import beam.utils.logging.pattern.ask
@@ -386,6 +386,13 @@ trait ChoosesMode {
             responsePlaceholders = makeResponsePlaceholders(withRouting = true)
             requestId = None
           }
+          var availableVehicles = newlyAvailableBeamVehicles.map(_.streetVehicle) :+ bodyStreetVehicle
+          personData.currentTourMode match {
+            case Some(WALK_BASED) =>  availableVehicles = availableVehicles,
+            case Some(WALK_BASED) => availableVehicles = availableVehicles,
+            case Some(CAR_BASED) => availableVehicles = availableVehicles
+          }
+
           makeRequestWith(
             withTransit = availableModesGivenTourMode.exists(_.isTransit),
             newlyAvailableBeamVehicles.map(_.streetVehicle) :+ bodyStreetVehicle,
@@ -1255,7 +1262,7 @@ trait ChoosesMode {
           )
         case _ =>
       }
-
+      // TODO: available vehicles
       val availableModesForTrips = getAvailableModesGivenTourMode(
         availableModesForPerson(matsimPlan.getPerson, choosesModeData.excludeModes),
         choosesModeData.availablePersonalStreetVehicles,
