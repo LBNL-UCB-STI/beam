@@ -1806,6 +1806,7 @@ object BeamConfig {
               }
             }
 
+
             case class InexhaustibleReserving(
               vehicleTypeId: java.lang.String
             )
