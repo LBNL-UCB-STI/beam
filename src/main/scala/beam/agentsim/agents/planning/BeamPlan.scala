@@ -1,5 +1,6 @@
 package beam.agentsim.agents.planning
 
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.planning.BeamPlan.atHome
 
 import java.{lang, util}
@@ -241,14 +242,19 @@ class BeamPlan extends Plan {
     getTripContaining(activities(index))
   }
 
-  def getTourModeFromTourLegs(tour: Tour): Option[BeamTourMode] = {
+  def getTourModeFromTourLegs(tour: Tour, vehicles: Vector[VehicleOrToken]): Option[BeamTourMode] = {
     // TODO: Should this just look at the first/last mode of legs?
+    def vehicleSharedOrNot(vehicles: Vector[VehicleOrToken]): Boolean = {
+      val sharedVehicles = vehicles.filter(_.vehicle.isSharedVehicle)
+      if (sharedVehicles.isEmpty) false
+      else true
+    }
     var tourMode: Option[BeamTourMode] = None
     if (tour.trips.exists(trip => trip.leg.isDefined)) {
       tour.trips.foreach(trip =>
         trip.leg match {
           case Some(leg) if leg.getMode.equalsIgnoreCase("car") => tourMode = Some(CAR_BASED)
-          case Some(leg) if leg.getMode.equalsIgnoreCase("bike") && !tourMode.contains(CAR_BASED)=>
+          case Some(leg) if leg.getMode.equalsIgnoreCase("bike") && !tourMode.contains(CAR_BASED) && !vehicleSharedOrNot(vehicles)=>
             tourMode = Some(BIKE_BASED)
           case Some(_) => tourMode = Some(WALK_BASED)
           case _       =>

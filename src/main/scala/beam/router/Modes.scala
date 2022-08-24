@@ -268,8 +268,6 @@ object TourModes {
       else true
     }
 
-
-
     def isVehicleBased: Boolean = this match {
       case WALK_BASED => false
       case _          => true
