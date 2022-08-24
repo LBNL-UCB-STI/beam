@@ -186,7 +186,7 @@ class ChargingNetworkManager(
           .processChargingPlugRequest(request, parkingDuration.toInt, activityType, theSender) map {
           case chargingVehicle if chargingVehicle.chargingStatus.last.status == WaitingAtStation =>
             val numVehicleWaitingToCharge = chargingVehicle.chargingStation.howManyVehiclesAreWaiting
-            log.debug(
+            println(
               s"Vehicle $vehicle is moved to waiting line at $tick in station ${chargingVehicle.chargingStation}, " +
               s"with {} vehicles connected and {} in grace period and {} in waiting line",
               chargingVehicle.chargingStation.howManyVehiclesAreCharging,

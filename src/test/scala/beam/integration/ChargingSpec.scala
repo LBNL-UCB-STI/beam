@@ -44,7 +44,8 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
             |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles-simple.csv"
             |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes-simple.csv"
             |beam.agentsim.taz.parkingFilePath = $filesPath"/taz-parking-ac-only.csv"
-            |beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC = 0
+            |beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC = 0.2
+            |beam.agentsim.agents.vehicles.meanRidehailVehicleStartingSOC = 0.2
             |beam.agentsim.chargingNetworkManager {
             |  timeStepInSeconds = 300
             |  overnightChargingEnabled = true

@@ -62,7 +62,6 @@ trait ChargingNetworkManagerHelper extends {
     * @param startTime the start time
     * @param endTime the end time
     * @param physicalBounds physical bounds
-    * @param triggerId trigger Id
     * @param interruptCharging True if the charging should be interrupted
     * @return
     */

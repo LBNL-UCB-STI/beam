@@ -16,6 +16,7 @@ object Resource {
 
   case class NotifyVehicleIdle(
     resourceId: Id[_],
+    agentId: Id[_],
     whenWhere: SpaceTime,
     passengerSchedule: PassengerSchedule,
     beamVehicleState: BeamVehicleState,
@@ -28,6 +29,7 @@ object Resource {
 
   case class NotifyVehicleDoneRefuelingAndOutOfService(
     vehicleId: Id[BeamVehicle],
+    personId: Id[_],
     whenWhere: SpaceTime,
     triggerId: Long,
     tick: Int,

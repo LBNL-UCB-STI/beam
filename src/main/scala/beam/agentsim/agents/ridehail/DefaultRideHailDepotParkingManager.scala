@@ -22,6 +22,7 @@ import beam.sim.config.BeamConfig
 import beam.utils.logging.LogActorState
 import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -73,46 +74,6 @@ trait DefaultRideHailDepotParkingManager extends {
 
   depots.groupBy(_._2.tazId).foreach(tup => tazIdToParkingZones += tup)
 
-  override def loggedReceive: Receive = BeamLoggingReceive {
-    case e @ EndingRefuelSession(tick, vehicleId, triggerId) =>
-      log.debug("DefaultRideHailDepotParkingManager.EndingRefuelSession: {}", e)
-      removingVehicleFromCharging(vehicleId, tick, triggerId)
-    case e @ UnpluggingVehicle(tick, personId, vehicle, energyCharged, triggerId) =>
-      log.debug("DefaultRideHailDepotParkingManager.UnpluggingVehicle: {}", e)
-      ParkingNetworkManager.handleReleasingParkingSpot(
-        tick,
-        vehicle,
-        Some(energyCharged),
-        personId,
-        parkingManager,
-        beamServices.matsimServices.getEvents,
-        triggerId
-      )
-      rideHailManagerHelper.updatePassengerSchedule(vehicle.id, None, None)
-      vehicle.getDriver.get ! NotifyVehicleDoneRefuelingAndOutOfServiceReply(triggerId, Vector())
-      rideHailManagerHelper.putOutOfService(vehicle.id)
-    case e @ UnhandledVehicle(tick, personId, vehicle, triggerId) =>
-      log.debug("DefaultRideHailDepotParkingManager.UnhandledVehicle: {}", e)
-      ParkingNetworkManager.handleReleasingParkingSpot(
-        tick,
-        vehicle,
-        None,
-        personId,
-        parkingManager,
-        beamServices.matsimServices.getEvents,
-        triggerId
-      )
-      rideHailManagerHelper.updatePassengerSchedule(vehicle.id, None, None)
-      vehicle.getDriver.get ! NotifyVehicleDoneRefuelingAndOutOfServiceReply(triggerId, Vector())
-      rideHailManagerHelper.putOutOfService(vehicle.id)
-    case e @ StartingRefuelSession(tick, vehicleId, stall, _) =>
-      log.debug("DefaultRideHailDepotParkingManager.StartingRefuelSession: {}", e)
-      addVehicleToChargingInDepotUsing(stall, resources(vehicleId), tick, JustArrivedAtDepot)
-    case e @ WaitingToCharge(_, vehicleId, stall, numVehicleWaitingToCharge, _) =>
-      log.debug("DefaultRideHailDepotParkingManager.WaitingToCharge: {}", e)
-      addVehicleAndStallToRefuelingQueueFor(resources(vehicleId), stall, -numVehicleWaitingToCharge, JustArrivedAtDepot)
-  }
-
   /**
     * @param beamVehicle BeamVehicle
     * @param stall ParkingStall
@@ -122,6 +83,7 @@ trait DefaultRideHailDepotParkingManager extends {
     */
   def attemptToRefuel(
     beamVehicle: BeamVehicle,
+    personId: Id[Person],
     stall: ParkingStall,
     tick: Int,
     source: RefuelSource,
@@ -135,10 +97,10 @@ trait DefaultRideHailDepotParkingManager extends {
       tick,
       beamVehicle,
       stall,
-      Id.createPersonId(id),
+      personId,
       triggerId,
-      self
-    )).pipeTo(self)
+      beamVehicle.getDriver.get
+    )).pipeTo(beamVehicle.getDriver.get)
   }
 
   /**
@@ -259,7 +221,7 @@ trait DefaultRideHailDepotParkingManager extends {
       )
     } else {
       val request = ChargingUnplugRequest(tick, this.id, beamVehicle, triggerId)
-      (chargingNetworkManager ? request).pipeTo(self)
+      (chargingNetworkManager ? request).pipeTo(beamVehicle.getDriver.get)
     }
   }
 

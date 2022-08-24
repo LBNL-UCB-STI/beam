@@ -117,7 +117,7 @@ class HouseholdFleetManager(
       val response = futureOfList.map(ResolvedParkingResponses(triggerId, _))
       response.pipeTo(self)
 
-    case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
+    case NotifyVehicleIdle(vId, _, whenWhere, _, _, _, _) =>
       val vehId = vId.asInstanceOf[Id[BeamVehicle]]
       vehiclesInternal.get(vehId) match {
         case Some(vehicle) =>

@@ -275,6 +275,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         nextNotifyVehicleResourceIdle = Some(
           NotifyVehicleIdle(
             currentVehicleUnderControl,
+            this.id,
             geo.wgs2Utm(currentLeg.travelPath.endPoint.copy(time = tick)),
             data.passengerSchedule,
             currentBeamVehicle.getState,
@@ -574,6 +575,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       nextNotifyVehicleResourceIdle = Some(
         NotifyVehicleIdle(
           currentVehicleUnderControl,
+          this.id,
           geo.wgs2Utm(currentLocation.copy(time = updatedStopTick)),
           data.passengerSchedule,
           currentBeamVehicle.getState,

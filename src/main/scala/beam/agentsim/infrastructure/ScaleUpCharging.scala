@@ -37,6 +37,8 @@ trait ScaleUpCharging extends {
   private lazy val timeStepByHour = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds / 3600.0
   private lazy val virtualParkingInquiries: TrieMap[Int, ParkingInquiry] = TrieMap()
   private lazy val vehicleRequests = mutable.HashMap.empty[(Id[TAZ], ParkingActivityType), List[VehicleRequestInfo]]
+  private val trackingInquiryVehicles = mutable.HashMap.empty[BeamVehicle, PlanParkingInquiryTrigger]
+  private val trackingChargingVehicles = mutable.HashMap.empty[BeamVehicle, PlanChargingUnplugRequestTrigger]
 
   private lazy val scaleUpFactors: Map[ParkingActivityType, Double] = {
     if (!cnmConfig.scaleUp.enabled) Map()
@@ -54,15 +56,35 @@ trait ScaleUpCharging extends {
     if (!cnmConfig.scaleUp.enabled) 1.0 else cnmConfig.scaleUp.expansionFactor_wherever_activity
 
   override def loggedReceive: Receive = {
-    case t @ TriggerWithId(PlanParkingInquiryTrigger(_, requestId), triggerId) =>
+    case t @ TriggerWithId(PlanParkingInquiryTrigger(tick, inquiry), triggerId) =>
       log.debug(s"Received PlanParkingInquiryTrigger: $t")
-      virtualParkingInquiries.get(requestId) match {
-        case Some(inquiry) => self ! inquiry
-        case _             => log.error(s"Something is broken in ScaleUpCharging. Request $requestId has not been found")
-      }
+      println(
+        s"PlanParkingInquiryTrigger: " +
+        s"vehicle ${inquiry.beamVehicle.get} - Received ${trackingInquiryVehicles.remove(inquiry.beamVehicle.get).get} - " +
+        s"<= tick ${trackingInquiryVehicles.count(_._2.tick <= tick)} - " +
+        s"> tick ${trackingInquiryVehicles.count(_._2.tick > tick)}"
+      )
+      virtualParkingInquiries.put(inquiry.requestId, inquiry)
+      self ! inquiry
       sender ! CompletionNotice(triggerId)
     case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, personId), triggerId) =>
       log.debug(s"Received PlanChargingUnplugRequestTrigger: $t")
+      trackingChargingVehicles.remove(beamVehicle) match {
+        case Some(unplugPlan) =>
+          println(
+            s"PlanChargingUnplugRequestTrigger: " +
+            s"vehicle $beamVehicle - Received $unplugPlan | " +
+            s"<= tick ${trackingChargingVehicles.count(_._2.tick <= tick)} | " +
+            s"> tick ${trackingChargingVehicles.count(_._2.tick > tick)}"
+          )
+        case _ =>
+          println(
+            s"PlanChargingUnplugRequestTrigger: " +
+            s"vehicle $beamVehicle - Received NONE?? | " +
+            s"<= tick ${trackingChargingVehicles.count(_._2.tick <= tick)} | " +
+            s"> tick ${trackingChargingVehicles.count(_._2.tick > tick)}"
+          )
+      }
       self ! ChargingUnplugRequest(tick, personId, beamVehicle, triggerId)
       sender ! CompletionNotice(triggerId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
@@ -84,9 +106,12 @@ trait ScaleUpCharging extends {
             None
           )
           val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
-          Vector(ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, personId), self))
+          val planningUnplugTrigger = PlanChargingUnplugRequestTrigger(endTime, beamVehicle, personId)
+          trackingChargingVehicles.put(beamVehicle, planningUnplugTrigger)
+          println(s"vehicle $beamVehicle - $planningUnplugTrigger")
+          Vector(ScheduleTrigger(planningUnplugTrigger, self))
         case Some(_) if stall.chargingPointType.isEmpty =>
-          log.debug(s"parking inquiry with requestId $requestId returned a NoCharger stall")
+          log.info(s"parking inquiry with requestId $requestId returned a NoCharger stall")
           Vector()
         case _ =>
           log.error(s"inquiryMap does not have this requestId $requestId that returned stall $stall")
@@ -137,7 +162,7 @@ trait ScaleUpCharging extends {
     * @return
     */
   protected def simulateEventsIfScalingEnabled(timeBin: Int, triggerId: Long): Vector[ScheduleTrigger] = {
-    val results = vehicleRequests
+    vehicleRequests
       .groupBy(_._1._1)
       .par
       .mapValues(_.map { case ((_, parkingActivityType), data) =>
@@ -185,7 +210,7 @@ trait ScaleUpCharging extends {
         parkingActivityType -> (data, vehicleInfoSummary)
       })
       .flatMap { case (tazId, activityType2vehicleInfo) =>
-        val partialTriggersAndInquiries = Vector.newBuilder[(ScheduleTrigger, ParkingInquiry)]
+        val parkingInquiriesTriggers = Vector.newBuilder[ScheduleTrigger]
         activityType2vehicleInfo.foldLeft((0.0, 0.0, Vector.empty[CPair[ParkingActivityType, java.lang.Double]])) {
           case ((powerAcc, numEventsAcc, pmfAcc), (activityType, (_, dataSummary))) =>
             val scaleUpFactor = scaleUpFactors.getOrElse(activityType, defaultScaleUpFactor) - 1
@@ -228,21 +253,23 @@ trait ScaleUpCharging extends {
                 searchMode = ParkingSearchMode.DestinationCharging,
                 triggerId = triggerId
               )
-              val trigger = ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry.requestId), self)
+              val planningInquiryTrigger = PlanParkingInquiryTrigger(startTime, parkingInquiry)
+              trackingInquiryVehicles.put(beamVehicle, planningInquiryTrigger)
+              println(s"vehicle $beamVehicle - $planningInquiryTrigger")
               cumulatedSimulatedPower += toPowerInKW(energyToCharge, duration)
-              partialTriggersAndInquiries += ((trigger, parkingInquiry))
+              parkingInquiriesTriggers += ScheduleTrigger(planningInquiryTrigger, self)
             }
           case _ =>
             log.debug("The observed load is null. Most likely due to vehicles not needing to charge!")
         }
-        partialTriggersAndInquiries.result()
+        parkingInquiriesTriggers.result()
       }
       .seq
       .toVector
-    results.foreach(x => virtualParkingInquiries.put(x._2.requestId, x._2))
-    val triggers = results.map(_._1)
-    vehicleRequests.clear()
-    triggers
+      .map { triggers =>
+        vehicleRequests.clear()
+        triggers
+      }
   }
 
   /**
@@ -253,9 +280,16 @@ trait ScaleUpCharging extends {
       val vehicle = chargingVehicle.vehicle
       val stall = chargingVehicle.stall
       val vehicleAlias =
-        if (vehicle.isRideHail) "rideHail"
-        else if (vehicle.isSharedVehicle) "sharedVehicle"
-        else "personalVehicle"
+        if (vehicle.isRideHail) ScaleUpCharging.RIDE_HAIL
+        else if (vehicle.isSharedVehicle) ScaleUpCharging.SHARED
+        else ScaleUpCharging.PERSONAL
+      val reservedFor = if (vehicle.isRideHail && vehicle.beamVehicleType.isFullSelfDriving) {
+        VehicleManager
+          .getReservedFor(vehicle.vehicleManagerId.get())
+          .getOrElse(throw new RuntimeException("Robot taxis need to have a vehicle manager id"))
+      } else if (vehicle.isSharedVehicle) {
+        VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).getOrElse(VehicleManager.AnyManager)
+      } else VehicleManager.AnyManager
       val estimatedChargingDuration = Math.max(
         chargingVehicle.estimatedParkingDuration,
         beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds.toInt
@@ -278,7 +312,7 @@ trait ScaleUpCharging extends {
             chargingVehicle.activityType,
             vehicle.beamVehicleType,
             vehicleAlias,
-            VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).getOrElse(VehicleManager.AnyManager)
+            reservedFor
           )
         )
       }
@@ -325,7 +359,10 @@ trait ScaleUpCharging extends {
 
 object ScaleUpCharging {
   val VIRTUAL_ALIAS: String = "virtual"
-  case class PlanParkingInquiryTrigger(tick: Int, requestId: Int) extends Trigger
+  private val RIDE_HAIL: String = "rideHailVehicle"
+  private val SHARED: String = "sharedVehicle"
+  private val PERSONAL: String = "personalVehicle"
+  case class PlanParkingInquiryTrigger(tick: Int, inquiry: ParkingInquiry) extends Trigger
   case class PlanChargingUnplugRequestTrigger(tick: Int, beamVehicle: BeamVehicle, personId: Id[Person]) extends Trigger
 
   case class VehicleRequestInfo(

@@ -51,7 +51,6 @@ class RideHailAgentSpec
         akka.actor.debug.fsm = true
         akka.loglevel = debug
         akka.test.timefactor = 2
-        beam.agentsim.agents.rideHail.charging.vehicleChargingManager.name = "DefaultVehicleChargingManager"
         """
     )
     .withFallback(testConfig("test/input/beamville/beam.conf"))
