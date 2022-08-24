@@ -160,15 +160,15 @@ class SitePowerManagerSpec
           v.primaryFuelLevelInJoules,
           person,
           60,
-          "",
+          "Wherever",
           NotApplicable,
           None,
           ActorRef.noSender,
           ListBuffer(ChargingStatus(ChargingStatus.Connected, 0))
         )
         sitePowerManager.dispatchEnergy(300, chargingVehicle, unlimitedBounds) should (be(
-          (1, 250000.0, 250000.0)
-        ) or be((300, 7.5e7, 7.5e7)))
+          (1, 250000.0, 250000.0, 1)
+        ) or be((300, 7.5e7, 7.5e7, 756)))
       }
 
     }
