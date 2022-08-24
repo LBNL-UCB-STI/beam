@@ -248,7 +248,7 @@ class BeamPlan extends Plan {
       tour.trips.foreach(trip =>
         trip.leg match {
           case Some(leg) if leg.getMode.equalsIgnoreCase("car") => tourMode = Some(CAR_BASED)
-          case Some(leg) if leg.getMode.equalsIgnoreCase("bike") && !tourMode.contains(CAR_BASED) =>
+          case Some(leg) if leg.getMode.equalsIgnoreCase("bike") && !tourMode.contains(CAR_BASED)=>
             tourMode = Some(BIKE_BASED)
           case Some(_) => tourMode = Some(WALK_BASED)
           case _       =>

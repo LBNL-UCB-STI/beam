@@ -260,6 +260,9 @@ object TourModes {
   ) extends StringEnumEntry {
 
     import BeamTourMode._
+//    def allowedBeamModes(vehicles: Vector[VehicleOrToken]): Seq[BeamMode] = {
+//
+//    }
 
     def isVehicleBased: Boolean = this match {
       case WALK_BASED => false
@@ -309,7 +312,7 @@ object TourModes {
           Seq[BeamMode](CAR, CAR_HOV2, CAR_HOV3)
         )
 
-    case object BIKE_BASED extends BeamTourMode("bike_based", Car, Seq[BeamMode](BIKE), Seq[BeamMode](BIKE))
+    case object BIKE_BASED extends BeamTourMode("bike_based", Bike, Seq[BeamMode](BIKE), Seq[BeamMode](BIKE))
   }
 
 }

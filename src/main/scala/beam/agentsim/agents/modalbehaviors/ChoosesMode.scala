@@ -1129,6 +1129,22 @@ trait ChoosesMode {
       case None           => BeamMode.allModes
     })
   }
+//  def getAvailableVehiclesGivenTourMode(
+//                                         availableModes: Seq[BeamMode],
+//                                         availablePersonalStreetVehicles: Vector[VehicleOrToken],
+//                                         currentTourMode: Option[BeamTourMode]
+//                                       ): Seq[VehicleOrToken] = {
+//    availableModes.intersect(currentTourMode match {
+//      case Some(WALK_BASED) =>
+//        availablePersonalStreetVehicles.map(veh =>
+//        if (veh.vehicle.isSharedVehicle) {veh}
+//        else None)
+//        availablePersonalStreetVehicles
+//      case Some(tourMode) => availablePersonalStreetVehicles
+//      case None           => availablePersonalStreetVehicles
+//    })
+//  }
+
 
   def mustBeDrivenHome(vehicle: VehicleOrToken): Boolean = {
     vehicle match {
