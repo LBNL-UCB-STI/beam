@@ -317,6 +317,7 @@ object TourModes {
         )
 
     case object BIKE_BASED extends BeamTourMode("bike_based", Bike, Seq[BeamMode](BIKE), Seq[BeamMode](BIKE))
+
   }
 
 }
