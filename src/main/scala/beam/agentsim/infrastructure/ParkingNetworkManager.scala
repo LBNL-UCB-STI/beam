@@ -34,9 +34,9 @@ class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkMap: Parki
 
   override def loggedReceive: Receive = {
     case inquiry: ParkingInquiry if beamConfig.beam.agentsim.taz.parkingManager.method == "PARALLEL" =>
-      parkingNetworkMap.processParkingInquiry(inquiry, false, Some(counter)).map(sender() ! _)
+      sender() ! parkingNetworkMap.processParkingInquiry(inquiry, parallelizationCounterOption = Some(counter))
     case inquiry: ParkingInquiry =>
-      parkingNetworkMap.processParkingInquiry(inquiry).map(sender() ! _)
+      sender() ! parkingNetworkMap.processParkingInquiry(inquiry)
     case release: ReleaseParkingStall =>
       parkingNetworkMap.processReleaseParkingStall(release)
     case "tick" => counter.tick()

@@ -150,7 +150,7 @@ class SitePowerManagerSpec
       vehiclesList.foreach { case (v, person) =>
         v.addFuel(v.primaryFuelLevelInJoules * 0.9 * -1)
         val request = ChargingPlugRequest(0, v, v.stall.get, person, 0, self)
-        val Some(chargingVehicle) = chargingNetwork.processChargingPlugRequest(request, 60, "", ActorRef.noSender)
+        val Some(chargingVehicle) = chargingNetwork.processChargingPlugRequest(request, 60, ActorRef.noSender)
         chargingVehicle.chargingStatus.last shouldBe ChargingStatus(ChargingStatus.Connected, 0)
         chargingVehicle shouldBe ChargingVehicle(
           v,

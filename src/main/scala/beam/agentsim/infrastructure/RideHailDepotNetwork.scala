@@ -7,14 +7,14 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 
-class RidehailDepotNetwork(override val parkingZones: Map[Id[ParkingZoneId], ParkingZone])
+class RideHailDepotNetwork(override val parkingZones: Map[Id[ParkingZoneId], ParkingZone])
     extends ChargingNetwork(parkingZones) {
 
   override protected val searchFunctions: Option[InfrastructureFunctions] = None
 
 }
 
-object RidehailDepotNetwork {
+object RideHailDepotNetwork {
 
   // a ride hail agent is searching for a charging depot and is not in service of an activity.
   // for this reason, a higher max radius is reasonable.
@@ -29,14 +29,13 @@ object RidehailDepotNetwork {
     idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
     boundingBox: Envelope,
     beamServices: BeamServices
-  ): RidehailDepotNetwork = {
-    new RidehailDepotNetwork(parkingZones) {
+  ): RideHailDepotNetwork = {
+    new RideHailDepotNetwork(parkingZones) {
       override val searchFunctions: Option[InfrastructureFunctions] = Some(
-        new DefaultRidehailFunctions(
+        new RideHailDepotFunctions(
           geoQuadTree,
           idToGeoMapping,
           parkingZones,
-          // parkingZoneIdToParkingZoneDepotData,
           beamServices.geo.distUTMInMeters,
           SearchStartRadius,
           SearchMaxRadius,
@@ -47,7 +46,8 @@ object RidehailDepotNetwork {
           beamServices.beamScenario.fuelTypePrices,
           beamServices.beamConfig.beam.agentsim.agents.rideHail,
           beamServices.skims,
-          beamServices.beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
+          beamServices.beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
+          stationMap
         )
       )
     }
@@ -57,8 +57,8 @@ object RidehailDepotNetwork {
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
     boundingBox: Envelope,
     beamServices: BeamServices
-  ): RidehailDepotNetwork = {
-    RidehailDepotNetwork(
+  ): RideHailDepotNetwork = {
+    RideHailDepotNetwork(
       parkingZones,
       beamServices.beamScenario.tazTreeMap.tazQuadTree,
       beamServices.beamScenario.tazTreeMap.idToTAZMapping,

@@ -24,27 +24,26 @@ abstract class ParkingNetwork(parkingZones: Map[Id[ParkingZoneId], ParkingZone])
     inquiry: ParkingInquiry,
     doNotReserveStallWithoutChargingPoint: Boolean = false,
     parallelizationCounterOption: Option[SimpleCounter] = None
-  ): Option[ParkingInquiryResponse] = {
+  ): ParkingInquiryResponse = {
     logger.debug("Received parking inquiry: {}", inquiry)
-    searchFunctions.flatMap(_.searchForParkingStall(inquiry)) map {
-      case ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, _, _, _) =>
-        // reserveStall is false when agent is only seeking pricing information
-        if (inquiry.reserveStall && !doNotReserveStallWithoutChargingPoint) {
-          logger.debug(
-            s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging"
-            else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
-          )
-          // update the parking stall data
-          val claimed: Boolean = searchFunctions.get.claimStall(parkingZone)
-          if (claimed) {
-            totalStallsInUse += 1
-            totalStallsAvailable -= 1
-          }
-          if (totalStallsInUse % 1000 == 0)
-            logger.debug("Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
-        }
-        ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId)
+    val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, _, _, _) =
+      searchFunctions.map(_.searchForParkingStall(inquiry)).get
+    // reserveStall is false when agent is only seeking pricing information
+    if (inquiry.reserveStall && !doNotReserveStallWithoutChargingPoint) {
+      logger.debug(
+        s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging"
+        else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
+      )
+      // update the parking stall data
+      val claimed: Boolean = searchFunctions.get.claimStall(parkingZone)
+      if (claimed) {
+        totalStallsInUse += 1
+        totalStallsAvailable -= 1
+      }
+      if (totalStallsInUse % 1000 == 0)
+        logger.debug("Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
     }
+    ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId)
   }
 
   /**

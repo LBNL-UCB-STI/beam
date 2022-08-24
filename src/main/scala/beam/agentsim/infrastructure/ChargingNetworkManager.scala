@@ -10,8 +10,6 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.EnRouteCharging
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -95,13 +93,8 @@ class ChargingNetworkManager(
 
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
-      chargingNetworkHelper.get(inquiry.reservedFor.managerId).processParkingInquiry(inquiry, true) match {
-        case Some(parkingResponse) =>
-          if (parkingResponse.stall.chargingPointType.isDefined)
-            inquiry.beamVehicle foreach (v => vehicle2InquiryMap.put(v.id, inquiry))
-          sender() ! parkingResponse
-        case _ =>
-      }
+      val chargingNetwork = chargingNetworkHelper.get(inquiry.reservedFor.managerId)
+      sender() ! chargingNetwork.processParkingInquiry(inquiry)
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       log.info("ChargingNetworkManager is Starting!")
@@ -160,31 +153,20 @@ class ChargingNetworkManager(
       // Do not send completion notice to vehicles in EnRoute mode
       // Since they need to process additional tasks before completing
       // Maybe for ride hail too !?
-      if (!vehicleEndedCharging.exists(v => v.activityType.startsWith(EnRouteLabel)))
+      if (!vehicleEndedCharging.exists(_.isInEnRoute))
         sender ! CompletionNotice(triggerId)
 
     case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, theSender, _, _) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       val responseHasTriggerId = if (vehicle.isEV) {
         // connecting the current vehicle
-        val (parkingDuration, activityType) = vehicle2InquiryMap
-          .get(vehicle.id)
-          .map {
-            case ParkingInquiry(_, activityType, _, _, _, _, _, parkingDuration, _, _, searchMode, _, _)
-                if searchMode == EnRouteCharging =>
-              (parkingDuration, EnRouteLabel + "-" + activityType)
-            case ParkingInquiry(_, activityType, _, _, _, _, _, parkingDuration, _, _, _, _, _) =>
-              (parkingDuration, activityType)
-          }
-          .getOrElse(
-            (
-              beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
-              ParkingActivityType.Wherever.toString
-            )
-          )
-        chargingNetworkHelper
-          .get(stall.reservedFor.managerId)
-          .processChargingPlugRequest(request, parkingDuration.toInt, activityType, theSender) map {
+        val chargingNetwork = chargingNetworkHelper.get(stall.reservedFor.managerId)
+        chargingNetwork
+          .processChargingPlugRequest(
+            request,
+            beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds.toInt,
+            theSender
+          ) map {
           case chargingVehicle if chargingVehicle.chargingStatus.last.status == WaitingAtStation =>
             val numVehicleWaitingToCharge = chargingVehicle.chargingStation.howManyVehiclesAreWaiting
             log.debug(
@@ -196,7 +178,6 @@ class ChargingNetworkManager(
             )
             WaitingToCharge(tick, vehicle.id, stall, numVehicleWaitingToCharge, triggerId)
           case chargingVehicle =>
-            vehicle2InquiryMap.remove(vehicle.id)
             chargingVehicle.vehicle.useParkingStall(stall)
             handleStartCharging(tick, chargingVehicle)
             StartingRefuelSession(tick, vehicle.id, stall, triggerId)
@@ -290,8 +271,6 @@ class ChargingNetworkManager(
 }
 
 object ChargingNetworkManager extends LazyLogging {
-
-  private val EnRouteLabel = "EnRoute"
 
   object DebugReport
   case class PlanEnergyDispatchTrigger(tick: Int) extends Trigger

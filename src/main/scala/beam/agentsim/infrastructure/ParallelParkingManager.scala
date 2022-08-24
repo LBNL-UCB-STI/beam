@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.Resource.ReleaseParkingStall
-import beam.agentsim.infrastructure.ParallelParkingManager.{geometryFactory, ParkingCluster, Worker}
+import beam.agentsim.infrastructure.ParallelParkingManager.{ParkingCluster, Worker, geometryFactory}
 import beam.agentsim.infrastructure.parking.{ParkingNetwork, ParkingZone, ParkingZoneId}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils.toJtsCoordinate
@@ -91,7 +91,7 @@ class ParallelParkingManager(
     inquiry: ParkingInquiry,
     doNotReserveStallWithoutChargingPoint: Boolean = false,
     parallelizationCounterOption: Option[SimpleCounter] = None
-  ): Option[ParkingInquiryResponse] = {
+  ): ParkingInquiryResponse = {
     parallelizationCounterOption.map(_.count("all"))
     val foundCluster = workers.find { w =>
       val point = ParallelParkingManager.geometryFactory.createPoint(inquiry.destinationUtm.loc)

@@ -2,7 +2,8 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.infrastructure.DefaultRidehailFunctions.mnlMultiplierParametersFromConfig
+import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
+import beam.agentsim.infrastructure.RideHailDepotFunctions.mnlMultiplierParametersFromConfig
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingZoneSearchResult
 import beam.agentsim.infrastructure.parking._
@@ -16,7 +17,7 @@ import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
-class DefaultRidehailFunctions(
+class RideHailDepotFunctions(
   geoQuadTree: QuadTree[TAZ],
   idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
@@ -30,7 +31,8 @@ class DefaultRidehailFunctions(
   fuelTypePrices: Map[FuelType, Double],
   rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail,
   skims: Skims,
-  estimatedMinParkingDurationInSeconds: Double
+  estimatedMinParkingDurationInSeconds: Double,
+  depotFunction: Id[ParkingZoneId] => Option[ChargingStation]
 ) extends InfrastructureFunctions(
       geoQuadTree,
       idToGeoMapping,
@@ -76,11 +78,8 @@ class DefaultRidehailFunctions(
     val hasInsufficientRange =
       if (remainingRange < travelTimeAndDistanceToDepot.distance + rideHailConfig.rangeBufferForDispatchInMeters) 1.0
       else 0.0
-//    val queueTime = secondsToServiceQueueAndChargingVehicles(
-//      parkingAlternative.parkingZone,
-//      inquiry.destinationUtm.time
-//    )
-    val queueTime = 0
+    val queueTime =
+      secondsToServiceQueueAndChargingVehicles(parkingAlternative.parkingZone, inquiry.destinationUtm.time)
     val chargingTime = beamVehicle
       .refuelingSessionDurationAndEnergyInJoulesForStall(
         Some(
@@ -137,7 +136,7 @@ class DefaultRidehailFunctions(
             )
           ) =>
         logger.debug(
-          s"found ${parkingZonesSeen.length} parking zones over ${iterations} iterations"
+          s"found ${parkingZonesSeen.length} parking zones over $iterations iterations"
         )
         // override the sampled stall coordinate with the TAZ centroid -
         // we want all agents who park in this TAZ to park in the same location.
@@ -176,48 +175,44 @@ class DefaultRidehailFunctions(
     taz.coord
   }
 
-//  /**
-//    * Estimates the amount of time a vehicle will spend waiting for its turn to charge. The estimate is an average wait time
-//    * calculated as the sum of all remaining time needed to for actively charging vehicles (if all plugs are in use, otherwise this is zero)
-//    * plus the time needed to charge all vehicles in the current queue, all divided by the number of plugs (of the same plug type) in this depot.
-//    *
-//    * @param parkingZone the zone for which an estimate is desired
-//    * @param tick
-//    * @return
-//    */
-//  def secondsToServiceQueueAndChargingVehicles(
-//    parkingZone: ParkingZone,
-//    tick: Int
-//  ): Int = {
-//    val parkingZoneDepotData = parkingZoneIdToParkingZoneDepotData(parkingZone.parkingZoneId)
-//    val chargingVehicles = parkingZoneDepotData.chargingVehicles
-//    val remainingChargeDurationFromPluggedInVehicles = if (chargingVehicles.size < parkingZone.maxStalls) {
-//      0
-//    } else {
-//      chargingVehicles.map(vehicleId => vehicleIdToEndRefuelTick.getOrElse(vehicleId, tick) - tick).toVector.sum
-//    }
-//    val serviceTimeOfPhantomVehicles = parkingZoneDepotData.serviceTimeOfQueuedPhantomVehicles
-//    val chargingQueue = parkingZoneDepotData.chargingQueue
-//    val chargeDurationFromQueue = chargingQueue.map { case ChargingQueueEntry(beamVehicle, parkingStall, _) =>
-//      beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(parkingStall), None, None, None)._1
-//    }.sum
-//    val numVehiclesOnWayToDepot = parkingZoneDepotData.vehiclesOnWayToDepot.size
-//    val numPhantomVehiclesInQueue = parkingZoneDepotData.numPhantomVehiclesQueued
-//    val vehiclesOnWayAdjustmentFactor = (numPhantomVehiclesInQueue + chargingQueue.size) match {
-//      case numInQueue if numInQueue == 0 =>
-//        1.0
-//      case numInQueue =>
-//        (1.0 + numVehiclesOnWayToDepot.toDouble / numInQueue.toDouble)
-//    }
-//    val adjustedQueueServiceTime =
-//      (chargeDurationFromQueue.toDouble + serviceTimeOfPhantomVehicles.toDouble) * vehiclesOnWayAdjustmentFactor
-//    val result = Math
-//      .round(
-//        (remainingChargeDurationFromPluggedInVehicles.toDouble + adjustedQueueServiceTime) / parkingZone.maxStalls
-//      )
-//      .toInt
-//    result
-//  }
+  /**
+    * Estimates the amount of time a vehicle will spend waiting for its turn to charge. The estimate is an average wait time
+    * calculated as the sum of all remaining time needed to for actively charging vehicles (if all plugs are in use, otherwise this is zero)
+    * plus the time needed to charge all vehicles in the current queue, all divided by the number of plugs (of the same plug type) in this depot.
+    *
+    * @param parkingZone the zone for which an estimate is desired
+    * @param tick Int
+    * @return
+    */
+  def secondsToServiceQueueAndChargingVehicles(
+    parkingZone: ParkingZone,
+    tick: Int
+  ): Int = {
+    val chargingVehicles = depotFunction(parkingZone.parkingZoneId).map(_.howManyVehiclesAreCharging).getOrElse(0)
+    val remainingChargeDurationFromPluggedInVehicles = if (chargingVehicles < parkingZone.maxStalls) {
+      0
+    } else {
+      depotFunction(parkingZone.parkingZoneId).map(_.remainingChargeDurationFromPluggedInVehicles(tick)).sum
+    }
+    val chargeDurationFromQueue =
+      depotFunction(parkingZone.parkingZoneId).map(_.remainingChargeDurationForVehiclesFromQueue).sum
+    val numVehiclesOnWayToDepot = depotFunction(parkingZone.parkingZoneId).map(_.howManyVehiclesOnTheWayToDepot).sum
+    val chargingQueue =
+      depotFunction(parkingZone.parkingZoneId).map(_.howManyVehiclesAreWaiting).getOrElse(0)
+    val vehiclesOnWayAdjustmentFactor = chargingQueue match {
+      case numInQueue if numInQueue == 0 =>
+        1.0
+      case numInQueue =>
+        1.0 + numVehiclesOnWayToDepot.toDouble / numInQueue.toDouble
+    }
+    val adjustedQueueServiceTime = chargeDurationFromQueue.toDouble * vehiclesOnWayAdjustmentFactor
+    val result = Math
+      .round(
+        (remainingChargeDurationFromPluggedInVehicles.toDouble + adjustedQueueServiceTime) / parkingZone.maxStalls
+      )
+      .toInt
+    result
+  }
 
   /**
     * Gets the location in UTM for a parking zone.
@@ -235,7 +230,7 @@ class DefaultRidehailFunctions(
   }
 }
 
-object DefaultRidehailFunctions {
+object RideHailDepotFunctions {
 
   def mnlMultiplierParametersFromConfig(
     rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail

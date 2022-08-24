@@ -8,7 +8,7 @@ import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.parking.PricingModel.{Block, FlatFee}
+import beam.agentsim.infrastructure.parking.PricingModel.FlatFee
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtilsImpl
@@ -89,9 +89,8 @@ class ParallelParkingManagerSpec
         )
 
         val response = parkingManager.processParkingInquiry(inquiry)
-        assert(response.isDefined, "no response")
         assert(
-          response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+          response == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
           "something is wildly broken"
         )
       }
@@ -125,9 +124,8 @@ class ParallelParkingManagerSpec
       )
 
       val response = parkingManager.processParkingInquiry(inquiry)
-      assert(response.isDefined, "no response")
       assert(
-        response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+        response == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
         "something is wildly broken"
       )
     }
@@ -177,20 +175,19 @@ class ParallelParkingManagerSpec
             VehicleManager.AnyManager
           )
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
-        assert(response1.isDefined, "no response")
         assert(
-          response1.get == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId, firstInquiry.triggerId),
+          response1 == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId, firstInquiry.triggerId),
           "something is wildly broken"
         )
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
         val secondInquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 237)
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
-        response2 match {
-          case Some(ParkingInquiryResponse(stall, responseId, triggerId))
-              if stall.tazId == TAZ.EmergencyTAZId
-                && responseId == secondInquiry.requestId && triggerId == secondInquiry.triggerId =>
-          case _ => assert(response2.isDefined, "no response")
+        val ParkingInquiryResponse(stall, responseId, triggerId) = response2
+        if (
+          stall.tazId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId && triggerId == secondInquiry.triggerId
+        ) {
+          // TODO there should be an assert here
         }
       }
     }
@@ -244,9 +241,8 @@ class ParallelParkingManagerSpec
 
         // request the stall
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
-        assert(response1.isDefined, "no response")
         assert(
-          response1.get == ParkingInquiryResponse(expectedStall, firstInquiry.requestId, firstInquiry.triggerId),
+          response1 == ParkingInquiryResponse(expectedStall, firstInquiry.requestId, firstInquiry.triggerId),
           "something is wildly broken"
         )
 
@@ -256,9 +252,8 @@ class ParallelParkingManagerSpec
 
         // request the stall again
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
-        assert(response2.isDefined, "no response")
         assert(
-          response2.get == ParkingInquiryResponse(expectedStall, secondInquiry.requestId, secondInquiry.triggerId),
+          response2 == ParkingInquiryResponse(expectedStall, secondInquiry.requestId, secondInquiry.triggerId),
           "something is wildly broken"
         )
       }
@@ -309,13 +304,8 @@ class ParallelParkingManagerSpec
           _ <- 1 to maxInquiries
           req = ParkingInquiry.init(SpaceTime(middleOfWorld, 0), "work", triggerId = 902)
           response1 = parkingManager.processParkingInquiry(req)
-          counted = response1 match {
-            case Some(res @ ParkingInquiryResponse(_, _, _)) =>
-              if (res.stall.tazId != TAZ.EmergencyTAZId) 1 else 0
-            case _ =>
-              assert(response1.isDefined, "no response")
-              0
-          }
+          ParkingInquiryResponse(stall, _, _) = response1
+          counted = if (stall.tazId != TAZ.EmergencyTAZId) 1 else 0
         } yield {
           counted
         }
@@ -407,9 +397,8 @@ class ParallelParkingManagerSpec
         parkingType,
         reservedFor = reservedFor
       )
-    assert(response.isDefined, "no response")
     assert(
-      response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+      response == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
       "something is wildly broken"
     )
   }

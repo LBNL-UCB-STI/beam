@@ -28,7 +28,7 @@ object InfrastructureUtils extends LazyLogging {
   def buildParkingAndChargingNetworks(
     beamServices: BeamServices,
     envelopeInUTM: Envelope
-  ): (ParkingNetwork, ChargingNetwork, RidehailDepotNetwork) = {
+  ): (ParkingNetwork, ChargingNetwork, RideHailDepotNetwork) = {
     implicit val beamScenario: BeamScenario = beamServices.beamScenario
     implicit val geo: GeoUtils = beamServices.geo
     val beamConfig = beamServices.beamConfig
@@ -97,7 +97,7 @@ object InfrastructureUtils extends LazyLogging {
         beamServices
       ),
       rideHailChargingStalls.map { case (_, chargingZones) =>
-        RidehailDepotNetwork.init(chargingZones, envelopeInUTM, beamServices)
+        RideHailDepotNetwork.init(chargingZones, envelopeInUTM, beamServices)
       }.head
     )
 
