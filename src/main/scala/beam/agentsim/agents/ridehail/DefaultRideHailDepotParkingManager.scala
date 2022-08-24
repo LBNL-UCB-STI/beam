@@ -1,13 +1,11 @@
 package beam.agentsim.agents.ridehail
 
-import akka.actor.BeamLoggingReceive
 import akka.pattern.pipe
 import beam.agentsim.agents.ridehail.DefaultRideHailDepotParkingManager.{
   ChargingQueueEntry,
   ParkingStallsClaimedByVehicles
 }
-import beam.agentsim.agents.ridehail.RideHailAgent.NotifyVehicleDoneRefuelingAndOutOfServiceReply
-import beam.agentsim.agents.ridehail.RideHailManager.{JustArrivedAtDepot, RefuelSource, VehicleId}
+import beam.agentsim.agents.ridehail.RideHailManager.{RefuelSource, VehicleId}
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.{ParkingEvent, SpaceTime}
@@ -349,7 +347,12 @@ trait DefaultRideHailDepotParkingManager extends {
           }
       })
       .foreach { result =>
-        self ! ParkingStallsClaimedByVehicles(tick, result, additionalCustomVehiclesForDepotCharging, triggerId)
+        self ! ParkingStallsClaimedByVehicles(
+          tick,
+          result.filter(_._2.chargingPointType.isDefined),
+          additionalCustomVehiclesForDepotCharging,
+          triggerId
+        )
       }
   }
 

@@ -1,10 +1,9 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
-import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.infrastructure.DefaultRidehailFunctions.mnlMultiplierParametersFromConfig
-import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingZoneSearchResult
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
@@ -14,6 +13,8 @@ import beam.sim.config.BeamConfig
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
+
+import scala.util.Random
 
 class DefaultRidehailFunctions(
   geoQuadTree: QuadTree[TAZ],
@@ -111,7 +112,10 @@ class DefaultRidehailFunctions(
     inquiry: ParkingInquiry
   ): Boolean = {
     val beamVehicle = inquiry.beamVehicle.get
-    zone.maxStalls > 0 && !hasHighSocAndZoneIsDCFast(beamVehicle, zone)
+    val isFastCharger = zone.chargingPointType.exists(ChargingPointType.isFastCharger)
+    val hasLowSOC = beamVehicle.getStateOfCharge < 0.8
+    val hasStalls = zone.maxStalls > 0
+    hasStalls && isFastCharger && hasLowSOC
   }
 
   /**
@@ -122,7 +126,7 @@ class DefaultRidehailFunctions(
     inquiry: ParkingInquiry,
     parkingZoneSearchResult: Option[ParkingZoneSearchResult]
   ): Option[ParkingZoneSearchResult] = {
-    parkingZoneSearchResult match {
+    val output = parkingZoneSearchResult match {
       case Some(
             result @ ParkingZoneSearch.ParkingZoneSearchResult(
               parkingStall,
@@ -140,9 +144,19 @@ class DefaultRidehailFunctions(
         val updatedParkingStall = parkingStall.copy(
           locationUTM = getParkingZoneLocationUtm(parkingZone.parkingZoneId)
         )
-        Some(result.copy(parkingStall = updatedParkingStall))
-      case _ => None
+        result.copy(parkingStall = updatedParkingStall)
+      case _ =>
+        // didn't find any stalls, so, as a last resort, create a very expensive stall
+        val boxAroundRequest = new Envelope(
+          inquiry.destinationUtm.loc.getX + 2000,
+          inquiry.destinationUtm.loc.getX - 2000,
+          inquiry.destinationUtm.loc.getY + 2000,
+          inquiry.destinationUtm.loc.getY - 2000
+        )
+        val newStall = ParkingStall.lastResortStall(boxAroundRequest, new Random(seed))
+        ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
     }
+    Some(output)
   }
 
   /**
@@ -204,11 +218,6 @@ class DefaultRidehailFunctions(
 //      .toInt
 //    result
 //  }
-
-  def hasHighSocAndZoneIsDCFast(beamVehicle: BeamVehicle, parkingZone: ParkingZone): Boolean = {
-    val soc = beamVehicle.getStateOfCharge
-    soc >= 0.8 && parkingZone.chargingPointType.exists(_.asInstanceOf[CustomChargingPoint].installedCapacity > 20.0)
-  }
 
   /**
     * Gets the location in UTM for a parking zone.

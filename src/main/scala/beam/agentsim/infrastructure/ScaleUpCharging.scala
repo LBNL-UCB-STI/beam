@@ -99,26 +99,10 @@ trait ScaleUpCharging extends {
       log.debug(s"Received EndingRefuelSession: $reply")
     case reply @ UnhandledVehicle(tick, personId, vehicle, triggerId) =>
       log.error(s"Received UnhandledVehicle: $reply")
-      ParkingNetworkManager.handleReleasingParkingSpot(
-        tick,
-        vehicle,
-        None,
-        personId,
-        getParkingManager,
-        getBeamServices.matsimServices.getEvents,
-        triggerId
-      )
+      handleReleasingParkingSpot(tick, personId, vehicle, None, triggerId)
     case reply @ UnpluggingVehicle(tick, personId, vehicle, energyCharged, triggerId) =>
       log.debug(s"Received UnpluggingVehicle: $reply")
-      ParkingNetworkManager.handleReleasingParkingSpot(
-        tick,
-        vehicle,
-        Some(energyCharged),
-        personId,
-        getParkingManager,
-        getBeamServices.matsimServices.getEvents,
-        triggerId
-      )
+      handleReleasingParkingSpot(tick, personId, vehicle, Some(energyCharged), triggerId)
   }
 
   /**
@@ -128,6 +112,24 @@ trait ScaleUpCharging extends {
     */
   private def nextTimeStepUsingPoissonProcess(rate: Double): Double =
     3600.0 * (-Math.log(1.0 - rand.nextDouble()) / rate)
+
+  private def handleReleasingParkingSpot(
+    tick: Int,
+    personId: Id[_],
+    vehicle: BeamVehicle,
+    energyChargedMaybe: Option[Double],
+    triggerId: Long
+  ): Unit = {
+    ParkingNetworkManager.handleReleasingParkingSpot(
+      tick,
+      vehicle,
+      energyChargedMaybe,
+      personId,
+      getParkingManager,
+      getBeamServices.matsimServices.getEvents,
+      triggerId
+    )
+  }
 
   /**
     * @param timeBin current time bin
