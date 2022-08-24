@@ -276,7 +276,7 @@ trait ScaleUpCharging extends {
         val key = (stall.tazId, inquiry.parkingActivityType)
         val activityType =
           if (inquiry.activityType.startsWith(ChargingNetwork.EnRouteLabel))
-            inquiry.activityType.drop(ChargingNetwork.EnRouteLabel.length + 1)
+            ParkingActivityType.Charge.entryName
           else inquiry.activityType
         vehicleRequests.put(
           key,
