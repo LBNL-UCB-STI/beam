@@ -1,11 +1,12 @@
 package beam.agentsim.agents.planning
 
+import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.planning.BeamPlan.atHome
 
 import java.{lang, util}
 import beam.agentsim.agents.planning.Strategy.{Strategy, TourModeChoiceStrategy, TripModeChoiceStrategy}
-import beam.router.Modes.BeamMode
+import beam.router.Modes.{BeamMode, isPersonalVehicleMode}
 import beam.router.TourModes.BeamTourMode
 import beam.router.TourModes.BeamTourMode._
 import org.matsim.api.core.v01.population._
@@ -133,7 +134,7 @@ class BeamPlan extends Plan {
         if (atHome(activity)) {
           // TODO: Also trigger this if we return to a location already present in the tour
           tours = tours :+ nextTour
-          putStrategy(nextTour, TourModeChoiceStrategy(getTourModeFromTourLegs(nextTour)))
+          putStrategy(nextTour, TourModeChoiceStrategy(getTourModeFromTourLegs(nextTour, isPersonalVehicleMode())))
           nextTour = new Tour(originActivity = Some(activity))
         }
       case leg: Leg =>
@@ -242,7 +243,7 @@ class BeamPlan extends Plan {
     getTripContaining(activities(index))
   }
 
-  def getTourModeFromTourLegs(tour: Tour, vehicles: Vector[VehicleOrToken]): Option[BeamTourMode] = {
+  def getTourModeFromTourLegs(tour: Tour): Option[BeamTourMode] = {
     // TODO: Should this just look at the first/last mode of legs?
     def vehicleSharedOrNot(vehicles: Vector[VehicleOrToken]): Boolean = {
       val sharedVehicles = vehicles.filter(_.vehicle.isSharedVehicle)
@@ -254,7 +255,7 @@ class BeamPlan extends Plan {
       tour.trips.foreach(trip =>
         trip.leg match {
           case Some(leg) if leg.getMode.equalsIgnoreCase("car") => tourMode = Some(CAR_BASED)
-          case Some(leg) if leg.getMode.equalsIgnoreCase("bike") && !tourMode.contains(CAR_BASED) && !vehicleSharedOrNot(vehicles)=>
+          case Some(leg) if leg.getMode.equalsIgnoreCase("bike") && !tourMode.contains(CAR_BASED)=>
             tourMode = Some(BIKE_BASED)
           case Some(_) => tourMode = Some(WALK_BASED)
           case _       =>
