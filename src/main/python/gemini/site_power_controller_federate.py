@@ -86,10 +86,10 @@ def run_spmc_federate(cfed):
         # TODO JULIUS SECTION CONTROL CODE RESIDE HERE
         # control_command = juliusObject.step(t)
         control_commands_list = []
-        for key, value in itertools.groupby(charging_events_json, key_func):
-            print(key)
-            print(list(value))
-            # 1) SPMC takes list(value) (and/or key)
+        for siteId, charging_events in itertools.groupby(charging_events_json, key_func):
+            print(siteId)
+            print(list(charging_events))
+            # 1) SPMC takes list(charging_events) (and/or siteId)
             # 2) SPMC returns control_commands
             # 2.a) example
             control_commands = [{
