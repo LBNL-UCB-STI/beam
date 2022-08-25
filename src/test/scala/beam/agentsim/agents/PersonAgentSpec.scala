@@ -68,7 +68,7 @@ class PersonAgentSpec
 
   private lazy val modeChoiceCalculator = new ModeChoiceUniformRandom(beamConfig)
 
-  private lazy val tourModeChoiceCalculator = new TourModeChoiceMultinomialLogit(beamConfig)
+  private lazy val tourModeChoiceCalculator = new TourModeChoiceMultinomialLogit(attributesOfIndividual, tourModeChoiceModel)
 
   // Mock a transit driver (who has to be a child of a mock router)
   private lazy val transitDriverProps = Props(new ForwardActor(self))
