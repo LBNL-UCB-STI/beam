@@ -1147,7 +1147,6 @@ trait ChoosesMode {
           if (isFirstOrLastTrip) WALK_BASED.allowedBeamModesForFirstAndLastLeg
           else WALK_BASED.allowedBeamModes
         walkBasedModes ++ enabledModes
-
       case Some(tourMode) => tourMode.allowedBeamModesGivenAvailableVehicles(availablePersonalStreetVehicles, isFirstOrLastTrip)
       case None           => BeamMode.allModes
     })

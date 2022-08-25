@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKitBase, TestProbe}
 import beam.agentsim.agents.PersonTestUtil._
-import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
+import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, TourModeChoiceMultinomialLogit}
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
@@ -39,7 +39,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.funspec.AnyFunSpecLike
 
-import scala.collection.{mutable, JavaConverters}
+import scala.collection.{JavaConverters, mutable}
 
 class PersonAgentSpec
     extends AnyFunSpecLike
@@ -67,6 +67,8 @@ class PersonAgentSpec
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
   private lazy val modeChoiceCalculator = new ModeChoiceUniformRandom(beamConfig)
+
+  private lazy val tourModeChoiceCalculator = new TourModeChoiceMultinomialLogit(beamConfig)
 
   // Mock a transit driver (who has to be a child of a mock router)
   private lazy val transitDriverProps = Props(new ForwardActor(self))
@@ -114,6 +116,7 @@ class PersonAgentSpec
           services,
           beamScenario,
           modeChoiceCalculator,
+          tourModeChoiceCalculator,
           beamScenario.transportNetwork,
           self,
           self,
