@@ -43,8 +43,6 @@ import scala.collection.JavaConverters
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters.asJavaIterableConverter
-nsePlaceholders = makeResponsePlaceholders(withRouting = true)
-requestId = Non
 /**
   * BEAM
   */
