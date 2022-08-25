@@ -86,7 +86,7 @@ def run_spmc_federate(cfed):
             print(list(charging_events))
 
             if not siteId.str.lower().startswith('depot'):
-                # Myungsoo is SPMC (NOT RIDE HAIL DEPOT)
+                # TODO Myungsoo is SPMC (NOT RIDE HAIL DEPOT)
                 # 1) SPMC takes list(charging_events) (and/or siteId)
                 # 2) SPMC returns control_commands
                 # 2.a) example
@@ -97,7 +97,7 @@ def run_spmc_federate(cfed):
                 # 3) add control_commands to control_commands_list
                 control_commands_list = control_commands_list + control_commands
             else:
-                # Julius Is SPMC (IS RIDE HAIL DEPOT)
+                # TODO Julius Is SPMC (IS RIDE HAIL DEPOT)
                 # 1) SPMC takes list(charging_events) (and/or siteId)
                 # 1.a) Maybe a loop with => juliusObject.arrival(vehicle) and/or juliusObject.departure(vehicle)
                 # We decide to share vehicle information every interval and when they disappear they plugged out
