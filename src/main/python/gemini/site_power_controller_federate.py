@@ -8,6 +8,8 @@ import logging
 import json
 import itertools
 import os
+
+
 # import juliusLib
 
 
@@ -15,8 +17,7 @@ import os
 #     logging.error("infrastructure file is missing")
 
 def create_federate(fedinfo, tazId):
-
-    fed_name = "SPMC_FEDERATE_"+str(tazId)
+    fed_name = "SPMC_FEDERATE_" + str(tazId)
 
     # create federate
     cfed = h.helicsCreateCombinationFederate(fed_name, fedinfo)
@@ -35,10 +36,6 @@ def create_federate(fedinfo, tazId):
     return cfed
 
 
-def key_func(k):
-    return k['siteId']
-
-
 def run_spmc_federate(cfed):
     # enter execution mode
     h.helicsFederateEnterExecutingMode(cfed)
@@ -47,8 +44,13 @@ def run_spmc_federate(cfed):
     subs_charging_events = h.helicsFederateGetInputByIndex(cfed, 0)
     pubs_control = h.helicsFederateGetPublicationByIndex(cfed, 0)
 
-    #TODO INITIALIZE HERE
+    # TODO SPMC INITIALIZE HERE
+    # TODO JULIUS
+    # TODO MYUNGSOO
     # juliusObject = juliusLib.initialize(data.loc[data["parkingZoneId"] == parkingZoneId])
+
+    def key_func(k):
+        return k['siteId']
 
     def syncTime(requestedtime):
         grantedtime = -1
@@ -57,16 +59,13 @@ def run_spmc_federate(cfed):
 
     timebin = 300
     # start execution loop
-    for t in range(0, 60*3600-timebin, timebin):
+    for t in range(0, 60 * 3600 - timebin, timebin):
         syncTime(t)
         logging.info("charger loads received at currenttime: " + str(t) + " seconds")
         logging.info("charger loads received at currenttime: " + str(t) + " seconds")
         charging_events_json = json.loads(h.helicsInputGetString(subs_charging_events))
         logging.info('Logging this as CSV')
         logging.info('stationId,estimatedLoad,currentTime')
-
-        #for vehicle in charging_events_json["chargingPlugoutEvents"]:
-            #juliusObject.departure(vehicle)
 
         # for vehicle in charging_events_json:
         #     vehicleId = vehicle['vehicleId']
@@ -79,29 +78,42 @@ def run_spmc_federate(cfed):
         #     desiredFuelLevelInJoules = vehicle['desiredFuelLevelInJoules']
         #     powerInKW = vehicle['powerInKW']
         #     logging.info(str(vehicleId)+','+str(vehicleType)+','+str(primaryFuelLevelInJoules)+','+str(desiredDepartureTime)+','+str(t))
-        #     # juliusObject.arrival(vehicle)
-
 
         ############### This section should be un-commented and debugged when we have a controller signal to send to BEAM
-        # TODO JULIUS SECTION CONTROL CODE RESIDE HERE
-        # control_command = juliusObject.step(t)
         control_commands_list = []
         for siteId, charging_events in itertools.groupby(charging_events_json, key_func):
             print(siteId)
             print(list(charging_events))
-            # 1) SPMC takes list(charging_events) (and/or siteId)
-            # 2) SPMC returns control_commands
-            # 2.a) example
-            control_commands = [{
-                'vehicleId': "",
-                'powerInKw': 9.5
-            }]
-            # 3) add control_commands to control_commands_list
-            control_commands_list = control_commands_list + control_commands
+
+            if not siteId.str.lower().startswith('depot'):
+                # Myungsoo is SPMC (NOT RIDE HAIL DEPOT)
+                # 1) SPMC takes list(charging_events) (and/or siteId)
+                # 2) SPMC returns control_commands
+                # 2.a) example
+                control_commands = [{
+                    'vehicleId': str(""),
+                    'powerInKw': str(9.5)
+                }]
+                # 3) add control_commands to control_commands_list
+                control_commands_list = control_commands_list + control_commands
+            else:
+                # Julius Is SPMC (IS RIDE HAIL DEPOT)
+                # 1) SPMC takes list(charging_events) (and/or siteId)
+                # 1.a) Maybe a loop with => juliusObject.arrival(vehicle) and/or juliusObject.departure(vehicle)
+                # We decide to share vehicle information every interval and when they disappear they plugged out
+                # 2) SPMC returns control_commands => juliusObject.step(t)
+                # 2.a) example
+                control_commands = [{
+                    'vehicleId': str(""),
+                    'powerInKw': str(9.5),
+                    'release': str(False)
+                }]
+                # 3) add control_commands to control_commands_list
+                control_commands_list = control_commands_list + control_commands
         # END LOOP
 
         h.helicsPublicationPublishString(pubs_control, json.dumps(control_commands_list, separators=(',', ':')))
-        syncTime(t+1)
+        syncTime(t + 1)
 
     # close the federate
     h.helicsFederateFinalize(cfed)
@@ -134,9 +146,8 @@ feds = [create_federate(fedinfo, taz) for taz in tazes]
 
 print(len(feds))
 
-
 from threading import Thread
+
 for fed in feds:
     t = Thread(target=run_spmc_federate, args=(fed,))
     t.start()
-
