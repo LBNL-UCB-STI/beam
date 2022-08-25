@@ -43,7 +43,8 @@ import scala.collection.JavaConverters
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters.asJavaIterableConverter
-
+nsePlaceholders = makeResponsePlaceholders(withRouting = true)
+requestId = Non
 /**
   * BEAM
   */
@@ -385,9 +386,18 @@ trait ChoosesMode {
             responsePlaceholders = makeResponsePlaceholders(withRouting = true)
             requestId = None
           }
+          var availableVehicles = newlyAvailableBeamVehicles.map(_.streetVehicle) :+ bodyStreetVehicle
+          personData.currentTourMode match {
+
+            case Some(BIKE_BASED) =>  availableVehicles = newlyAvailableBeamVehicles.filterNot(v => BeamVehicle.isSharedVehicle(v.id)).map(_.streetVehicle) :+ bodyStreetVehicle
+            case Some(WALK_BASED) => availableVehicles = availableVehicles
+            case Some(CAR_BASED) => availableVehicles = newlyAvailableBeamVehicles.filterNot(v => BeamVehicle.isSharedVehicle(v.id)).map(_.streetVehicle) :+ bodyStreetVehicle
+            case None => availableVehicles = availableVehicles
+          }
+
           makeRequestWith(
             withTransit = availableModesGivenTourMode.exists(_.isTransit),
-            newlyAvailableBeamVehicles.map(_.streetVehicle) :+ bodyStreetVehicle,
+            availableVehicles,
             possibleEgressVehicles = dummySharedVehicles
           )
         case Some(WALK) =>

@@ -536,6 +536,7 @@ object BeamVehicle {
 
   val idPrefixSharedTeleportationVehicle = "teleportationSharedVehicle"
   val idPrefixRideHail = "rideHailVehicle"
+  val idPrefixSharedVehicle = "sharedVehicle"
 
   def isRidehailVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
     vehicleId.toString.startsWith(idPrefixRideHail)
@@ -543,6 +544,10 @@ object BeamVehicle {
 
   def isSharedTeleportationVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
     vehicleId.toString.startsWith(idPrefixSharedTeleportationVehicle)
+  }
+
+  def isSharedVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
+    vehicleId.toString.startsWith(idPrefixSharedVehicle)
   }
 
   def noSpecialChars(theString: String): String =
