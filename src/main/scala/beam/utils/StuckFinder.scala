@@ -5,6 +5,8 @@ import beam.agentsim.scheduler.BeamAgentScheduler.ScheduledTrigger
 import beam.agentsim.scheduler.Trigger
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection
 import beam.sim.config.BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm
+import beam.sim.metrics.Metrics.iterationNumber
+
 import beam.utils.reflection.ReflectionUtils
 import com.typesafe.scalalogging.LazyLogging
 
@@ -159,10 +161,11 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
       // ClassNotFoundException  will be thrown if class does not exists or renamed or deleted
       Class.forName(t.triggerType)
     }
-
     val allSubClasses = new ReflectionUtils { val packageName = "beam.agentsim" }.classesOfType[Trigger]
-    allSubClasses.diff(definedTypes).foreach { clazz =>
-      logger.warn("There is no configuration for '{}'", clazz)
+    if(iterationNumber == 0) {//StuckFinder Warnings should only be displayed during the 0th iteration
+      allSubClasses.diff(definedTypes).foreach { clazz =>
+        logger.warn("There is no configuration for '{}'", clazz);
+      }
     }
   }
 
