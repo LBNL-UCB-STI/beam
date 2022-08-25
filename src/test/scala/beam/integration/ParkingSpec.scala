@@ -7,10 +7,9 @@ import beam.utils.EventReader
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.events.Event
-import org.scalatest.Retries.isRetryable
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.{BeforeAndAfterAll, Canceled, Failed, Outcome, Retries}
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.tagobjects.Retryable
 
 import scala.collection.mutable.ArrayBuffer
@@ -21,7 +20,7 @@ class ParkingSpec
     with Matchers
     with BeamHelper
     with IntegrationSpecCommon
-    with Retries {
+    with Repeated {
 
   def runAndCollectEvents(parkingScenario: String): Seq[Event] = {
     runAndCollectForIterations(parkingScenario, 1).head
@@ -238,23 +237,6 @@ class ParkingSpec
       defaultModeChoiceCarCount
         .takeRight(5)
         .sum should be > emptyModeChoiceCarCount.takeRight(5).sum
-    }
-  }
-
-  var retries = 5
-  override def withFixture(test: NoArgTest): Outcome = {
-    if (isRetryable(test)) {
-      withFixture(test, retries)
-    } else
-      super.withFixture(test)
-  }
-
-  def withFixture(test: NoArgTest, count: Int): Outcome = {
-    val outcome = super.withFixture(test)
-    println(outcome.toString)
-    outcome match {
-      case Failed(_) | Canceled(_) => if (count == 1) super.withFixture(test) else withFixture(test, count - 1)
-      case other => other
     }
   }
 }

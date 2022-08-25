@@ -22,7 +22,7 @@ import org.scalatest.{BeforeAndAfterEach, Canceled, Failed, Outcome, Retries}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import beam.agentsim.agents.vehicles.VehicleManager
-import org.scalatest.Retries.isRetryable
+import beam.integration.Repeated
 import org.scalatest.tagobjects.Retryable
 
 import scala.language.postfixOps
@@ -45,7 +45,7 @@ class ChargingNetworkManagerSpec
     with BeamHelper
     with ImplicitSender
     with BeforeAndAfterEach
-    with Retries {
+    with Repeated {
 
 
   private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
@@ -488,22 +488,5 @@ class ChargingNetworkManagerSpec
     personAgent.ref ! Finish
   }
 
-  var retries = 5
-
-  override def withFixture(test: NoArgTest): Outcome = {
-    if (isRetryable(test))
-      withFixture(test, retries)
-    else
-      super.withFixture(test)
-  }
-
-  def withFixture(test: NoArgTest, count: Int): Outcome = {
-    val outcome = super.withFixture(test)
-    println(outcome.toString)
-    outcome match {
-      case Failed(_) | Canceled(_) => if (count == 1) super.withFixture(test) else withFixture(test, count - 1)
-      case other => other
-    }
-  }
 }
 

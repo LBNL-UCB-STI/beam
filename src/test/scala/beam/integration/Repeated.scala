@@ -1,12 +1,10 @@
 package beam.integration
 
-import beam.sim.BeamHelper
 import org.scalatest._
-import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.TestSuite
 
-
-trait Repeated extends AnyFlatSpec with Matchers with BeamHelper with Retries {
+trait Repeated extends Matchers with Retries with TestSuite {
 
   val retries = 5
 
