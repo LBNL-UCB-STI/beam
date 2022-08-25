@@ -6,6 +6,7 @@ import helics as h
 import pandas as pd
 import logging
 import json
+import itertools
 import os
 # import juliusLib
 
@@ -32,6 +33,11 @@ def create_federate(fedinfo, tazId):
     h.helicsFederateRegisterSubscription(cfed, "BEAM_SPM_FEDERATE_" + str(tazId) + "/CHARGING_SESSION_EVENTS", "string")
     logging.info("subscriptions registered")
     return cfed
+
+
+def key_func(k):
+    return k['siteId']
+
 
 def run_spmc_federate(cfed):
     # enter execution mode
@@ -62,32 +68,39 @@ def run_spmc_federate(cfed):
         #for vehicle in charging_events_json["chargingPlugoutEvents"]:
             #juliusObject.departure(vehicle)
 
-        control_command_list = []
-        for vehicle in charging_events_json:
-            vehicleId = vehicle['vehicleId']
-            tazId = vehicle['tazId']
-            vehicleType = vehicle['vehicleType']
-            primaryFuelLevelInJoules = vehicle['primaryFuelLevelInJoules']
-            arrivalTime = vehicle['arrivalTime']
-            desiredDepartureTime = vehicle['departureTime']
-            desiredFuelLevelInJoules = vehicle['desiredFuelLevelInJoules']
-            powerInKW = vehicle['powerInKW']
-            logging.info(str(vehicleId)+','+str(vehicleType)+','+str(primaryFuelLevelInJoules)+','+str(desiredDepartureTime)+','+str(t))
-            # juliusObject.arrival(vehicle)
-            control_command_list.append({
-                'vehicleId': vehicleId,
-                'powerInKw': 9.5
-            })
+        # for vehicle in charging_events_json:
+        #     vehicleId = vehicle['vehicleId']
+        #     tazId = vehicle['tazId']
+        #     siteId = vehicle['siteId']
+        #     vehicleType = vehicle['vehicleType']
+        #     primaryFuelLevelInJoules = vehicle['primaryFuelLevelInJoules']
+        #     arrivalTime = vehicle['arrivalTime']
+        #     desiredDepartureTime = vehicle['departureTime']
+        #     desiredFuelLevelInJoules = vehicle['desiredFuelLevelInJoules']
+        #     powerInKW = vehicle['powerInKW']
+        #     logging.info(str(vehicleId)+','+str(vehicleType)+','+str(primaryFuelLevelInJoules)+','+str(desiredDepartureTime)+','+str(t))
+        #     # juliusObject.arrival(vehicle)
+
 
         ############### This section should be un-commented and debugged when we have a controller signal to send to BEAM
-        ## format appropriately here
-        #TODO CONTROL CODE RESIDE HERE
+        # TODO JULIUS SECTION CONTROL CODE RESIDE HERE
         # control_command = juliusObject.step(t)
+        control_commands_list = []
+        for key, value in itertools.groupby(charging_events_json, key_func):
+            print(key)
+            print(list(value))
+            # 1) SPMC takes list(value) (and/or key)
+            # 2) SPMC returns control_commands
+            # 2.a) example
+            control_commands = [{
+                'vehicleId': "",
+                'powerInKw': 9.5
+            }]
+            # 3) add control_commands to control_commands_list
+            control_commands_list = control_commands_list + control_commands
+        # END LOOP
 
-        # Let's uncomment this and send dummy control signal to BEAM
-        ## send updated signal to BEAM
-
-        h.helicsPublicationPublishString(pubs_control, json.dumps(control_command_list, separators=(',', ':')))
+        h.helicsPublicationPublishString(pubs_control, json.dumps(control_commands_list, separators=(',', ':')))
         syncTime(t+1)
 
     # close the federate
