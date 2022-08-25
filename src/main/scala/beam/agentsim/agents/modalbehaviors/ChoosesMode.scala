@@ -386,17 +386,18 @@ trait ChoosesMode {
             responsePlaceholders = makeResponsePlaceholders(withRouting = true)
             requestId = None
           }
-          var availableVehicles = newlyAvailableBeamVehicles.map(_.streetVehicle) :+ bodyStreetVehicle
-          personData.currentTourMode match {
 
-            case Some(BIKE_BASED) =>  availableVehicles = newlyAvailableBeamVehicles.filterNot(v => BeamVehicle.isSharedVehicle(v.id)).map(_.streetVehicle) :+ bodyStreetVehicle
-            case Some(WALK_BASED) => availableVehicles = availableVehicles
-            case Some(CAR_BASED) => availableVehicles = newlyAvailableBeamVehicles.filterNot(v => BeamVehicle.isSharedVehicle(v.id)).map(_.streetVehicle) :+ bodyStreetVehicle
-          }
+          val availableStreetVehiclesGivenTourMode = newlyAvailableBeamVehicles.map { vehicleOrToken =>
+            chosenCurrentTourMode match {
+              case Some(BIKE_BASED) if !vehicleOrToken.vehicle.isSharedVehicle => vehicleOrToken.streetVehicle
+              case Some(CAR_BASED) if !vehicleOrToken.vehicle.isSharedVehicle  => vehicleOrToken.streetVehicle
+              case _                                                           => vehicleOrToken.streetVehicle
+            }
+          } :+ bodyStreetVehicle
 
           makeRequestWith(
             withTransit = availableModesGivenTourMode.exists(_.isTransit),
-            availableVehicles,
+            availableStreetVehiclesGivenTourMode,
             possibleEgressVehicles = dummySharedVehicles
           )
         case Some(WALK) =>
@@ -1146,28 +1147,11 @@ trait ChoosesMode {
           if (isFirstOrLastTrip) WALK_BASED.allowedBeamModesForFirstAndLastLeg
           else WALK_BASED.allowedBeamModes
         walkBasedModes ++ enabledModes
-      case Some(BIKE_BASED) =>
-        if (BIKE_BASED.vehicleSharedOrNot(availablePersonalStreetVehicles)) {Seq[BeamMode]()}
-        else BIKE_BASED.allowedBeamModes
-      case Some(tourMode) => tourMode.allowedBeamModes
+
+      case Some(tourMode) => tourMode.allowedBeamModesGivenAvailableVehicles(availablePersonalStreetVehicles, isFirstOrLastTrip)
       case None           => BeamMode.allModes
     })
   }
-//  def getAvailableVehiclesGivenTourMode(
-//                                         availableModes: Seq[BeamMode],
-//                                         availablePersonalStreetVehicles: Vector[VehicleOrToken],
-//                                         currentTourMode: Option[BeamTourMode]
-//                                       ): Seq[VehicleOrToken] = {
-//    availableModes.intersect(currentTourMode match {
-//      case Some(WALK_BASED) =>
-//        availablePersonalStreetVehicles.map(veh =>
-//        if (veh.vehicle.isSharedVehicle) {veh}
-//        else None)
-//        availablePersonalStreetVehicles
-//      case Some(tourMode) => availablePersonalStreetVehicles
-//      case None           => availablePersonalStreetVehicles
-//    })
-//  }
 
 
   def mustBeDrivenHome(vehicle: VehicleOrToken): Boolean = {

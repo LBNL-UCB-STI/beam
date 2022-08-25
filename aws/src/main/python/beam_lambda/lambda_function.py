@@ -169,7 +169,6 @@ write_files:
             fi
             exit 0;
       path: /home/ubuntu/check_simulation_result.sh
-
 runcmd:
   - sudo chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
   - sudo chmod +x /home/ubuntu/write-cpu-ram-usage.sh
@@ -192,7 +191,6 @@ runcmd:
   -   RESOLVED_COMMIT=$COMMIT
   - fi
   - echo "Resolved commit is $RESOLVED_COMMIT"
-
   - 'echo "sudo git fetch"'
   - sudo git fetch
   - 'echo "GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH $(date)"'
@@ -203,7 +201,6 @@ runcmd:
   - sudo git lfs pull
   - echo "sudo git checkout -qf ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
-
   - production_data_submodules=$(git submodule | awk '{ print $2 }')
   - for i in $production_data_submodules
   -  do
@@ -227,19 +224,17 @@ runcmd:
   -        esac
   -      done
   -  done
-
   - if [ "$RUN_JUPYTER" = "True" ]
   - then
   -   echo "Starting Jupyter"
   -   sudo ./gradlew jupyterStart -Puser=root -PjupyterToken=$JUPYTER_TOKEN
   - fi
-  
+
   - if [ "$RUN_BEAM" = "True" ]
   - then
-
   -   echo "-------------------Starting Beam Sim----------------------"
   -   echo $(date +%s) > /tmp/.starttime
-  -   rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat  
+  -   rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
   -   hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
   -   start_json=$(printf "{
         \\"command\\":\\"add\\",
@@ -274,7 +269,6 @@ runcmd:
   -   crontab /tmp/cron_jobs
   -   crontab -l
   -   echo "notification scheduled..."
-
   -   'echo "gradlew assemble: $(date)"'
   -   ./gradlew assemble
   -   'echo "sudo chown -R ubuntu:ubuntu ."'
@@ -286,7 +280,6 @@ runcmd:
   -   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
   -   echo $MAXRAM
   -   /tmp/slack.sh "$hello_msg"
-
   -   s3p=""
   -   for cf in $CONFIG
   -    do
@@ -299,7 +292,7 @@ runcmd:
   -   do
   -      export $metric=$count
   -   done < RunHealthAnalysis.txt
-  
+
   -   curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
   -   s3glip=""
   -   if [ "$S3_PUBLISH" = "True" ]

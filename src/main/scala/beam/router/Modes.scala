@@ -266,6 +266,20 @@ object TourModes {
       vehicles.forall(_.vehicle.isSharedVehicle)
     }
 
+    def allowedBeamModesGivenAvailableVehicles(
+                                                vehicles: Vector[VehicleOrToken],
+                                                firstOrLastLeg: Boolean
+                                              ): Seq[BeamMode] = {
+      val relevantModes = if (firstOrLastLeg) { allowedBeamModesForFirstAndLastLeg }
+      else allowedBeamModes
+      if (
+        vehicles.exists(vehOrToken =>
+          !vehOrToken.vehicle.isSharedVehicle && vehOrToken.streetVehicle.mode.in(relevantModes)
+        )
+      ) { relevantModes }
+      else { Seq.empty[BeamMode] }
+    }
+
     def isVehicleBased: Boolean = this match {
       case WALK_BASED => false
       case _          => true
