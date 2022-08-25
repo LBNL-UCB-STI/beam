@@ -1,0 +1,26 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: An AWS Serverless Specification template describing your function.
+Resources:
+  instanceblocker:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.8
+      CodeUri: .
+      Description: ''
+      MemorySize: 128
+      Timeout: 30
+      Role: 'arn:aws:iam::340032650202:role/BeamLambdaExecution'
+      Events:
+        CloudWatchEvent1:
+          Type: CloudWatchEvent
+          Properties:
+            Pattern:
+              detail-type:
+                - EC2 Instance State-change Notification
+              source:
+                - aws.ec2
+      Environment:
+        Variables:
+          SLACK_HOOK: SENSITIVE_SO_REDACTED

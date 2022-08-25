@@ -9,7 +9,7 @@ print("Script started")
 nbFed = 3
 if len(sys.argv) > 1:
     nbFed = int(sys.argv[1])
-brokerSetting = "-f {} --name=BeamHelicsBroker".format(nbFed)
+brokerSetting = "-f {} --name=BeamHelicsBroker --timeout=86400s".format(nbFed)
 print("broker setting: {}".format(brokerSetting))
 broker = h.helicsCreateBroker("zmq", "", brokerSetting)
 isConnected = h.helicsBrokerIsConnected(broker)

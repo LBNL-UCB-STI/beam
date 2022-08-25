@@ -24,7 +24,7 @@ class FreightSkimmer @Inject() (
   override protected val skimFileHeader =
     "tazId,hour,numberOfLoadings,numberOfUnloadings,costPerMile,walkAccessDistanceInM,parkingCostPerHour,observations,iterations"
   override protected val skimName: String = FreightSkimmer.name
-  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.TC_SKIMMER
+  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.FREIGHT_SKIMMER
 
   override protected def fromCsv(
     line: collection.Map[String, String]
