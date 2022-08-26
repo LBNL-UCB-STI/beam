@@ -262,9 +262,6 @@ object TourModes {
 
     import BeamTourMode._
 
-    def vehicleSharedOrNot(vehicles: Vector[VehicleOrToken]): Boolean = {
-      vehicles.forall(_.vehicle.isSharedVehicle)
-    }
 
     def allowedBeamModesGivenAvailableVehicles(
                                                 vehicles: Vector[VehicleOrToken],
