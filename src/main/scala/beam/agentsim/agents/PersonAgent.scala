@@ -980,7 +980,7 @@ class PersonAgent(
       releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       stay
-    case Event(WaitingToCharge(_, _, _, _, _), _) =>
+    case Event(_: WaitingToCharge, _) =>
       stay
     case Event(EndingRefuelSession(tick, _, triggerId), _) =>
       chargingNetworkManager ! ChargingUnplugRequest(
@@ -990,7 +990,7 @@ class PersonAgent(
         triggerId
       )
       stay
-    case Event(UnpluggingVehicle(tick, _, vehicle, energyCharged, triggerId), data: BasePersonData) =>
+    case Event(UnpluggingVehicle(tick, _, vehicle, _, energyCharged, triggerId), data: BasePersonData) =>
       log.debug(s"Vehicle ${vehicle.id} ended charging and it is not handled by the CNM at tick $tick")
       ParkingNetworkManager.handleReleasingParkingSpot(
         tick,
@@ -1004,7 +1004,7 @@ class PersonAgent(
       val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
       holdTickAndTriggerId(updatedTick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
-    case Event(UnhandledVehicle(tick, _, vehicle, triggerId), data: BasePersonData) =>
+    case Event(UnhandledVehicle(tick, _, vehicle, _, triggerId), data: BasePersonData) =>
       log.error(
         s"Vehicle ${vehicle.id} is not handled by the CNM at tick $tick. Something is broken." +
         s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
@@ -1591,20 +1591,20 @@ class PersonAgent(
       stay()
     case Event(TriggerWithId(_: RideHailResponseTrigger, triggerId), _) =>
       stay() replying CompletionNotice(triggerId)
-    case ev @ Event(RideHailResponse(_, _, _, _, _), _) =>
+    case ev @ Event(_: RideHailResponse, _) =>
       stop(Failure(s"Unexpected RideHailResponse from ${sender()}: $ev"))
-    case Event(ParkingInquiryResponse(_, _, _), _) =>
+    case Event(_: ParkingInquiryResponse, _) =>
       stop(Failure("Unexpected ParkingInquiryResponse"))
-    case ev @ Event(StartingRefuelSession(_, _, _, _), _) =>
+    case ev @ Event(_: StartingRefuelSession, _) =>
       log.debug("myUnhandled.StartingRefuelSession: {}", ev)
       stay()
-    case ev @ Event(UnhandledVehicle(_, _, _, _), _) =>
+    case ev @ Event(_: UnhandledVehicle, _) =>
       log.error("myUnhandled.UnhandledVehicle: {}", ev)
       stay()
-    case ev @ Event(WaitingToCharge(_, _, _, _, _), _) =>
+    case ev @ Event(_: WaitingToCharge, _) =>
       log.debug("myUnhandled.WaitingInLine: {}", ev)
       stay()
-    case ev @ Event(EndingRefuelSession(_, _, _), _) =>
+    case ev @ Event(_: EndingRefuelSession, _) =>
       log.debug("myUnhandled.EndingRefuelSession: {}", ev)
       stay()
     case Event(e, s) =>

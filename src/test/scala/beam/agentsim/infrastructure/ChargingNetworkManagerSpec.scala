@@ -189,7 +189,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.isConnectedToChargingPoint() should be(true)
 
       chargingNetworkManager ! ChargingUnplugRequest(610, personId, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(610, personId, beamVilleCar, 0.0, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(610, personId, beamVilleCar, parkingStall, 0.0, 0)
       beamVilleCar.isConnectedToChargingPoint() should be(false)
     }
 
@@ -223,7 +223,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(500, personId, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(500, personId, beamVilleCar, 1.08e8, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(500, personId, beamVilleCar, parkingStall, 1.08e8, 0)
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
       beamVilleCar.isConnectedToChargingPoint() should be(false)
@@ -259,7 +259,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(700, personId, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(700, personId, beamVilleCar, 8.1e7, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(700, personId, beamVilleCar, parkingStall, 8.1e7, 0)
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
       beamVilleCar.isConnectedToChargingPoint() should be(false)
@@ -281,7 +281,14 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(1.35e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(35, personId, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(35, personId, beamVilleCar, 6249999.999999999, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(
+        35,
+        personId,
+        beamVilleCar,
+        parkingStall,
+        6249999.999999999,
+        0
+      )
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.4125e8) // TODO ???
       beamVilleCar.isConnectedToChargingPoint() should be(false)
@@ -321,7 +328,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(1.265e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(315, personId, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(315, personId, beamVilleCar, 7.625e7, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(315, personId, beamVilleCar, parkingStall, 7.625e7, 0)
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.3025e8) // TODO ???
 
@@ -366,7 +373,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(750, personId, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(750, personId, beamVilleCar, 1.62e8, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(750, personId, beamVilleCar, parkingStall, 1.62e8, 0)
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
     }
@@ -422,7 +429,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(750, personId, beamVilleCar2, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(750, personId, beamVilleCar2, 1.08e8, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(750, personId, beamVilleCar2, parkingStall, 1.08e8, 0)
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(2.16e8)
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)

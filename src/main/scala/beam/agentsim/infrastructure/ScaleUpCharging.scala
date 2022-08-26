@@ -90,16 +90,16 @@ trait ScaleUpCharging extends {
           Vector()
       }
       triggers.foreach(getScheduler ! _)
-    case reply @ StartingRefuelSession(_, _, _, _) =>
+    case reply: StartingRefuelSession =>
       log.debug(s"Received StartingRefuelSession: $reply")
-    case reply @ WaitingToCharge(_, _, _, _, _) =>
+    case reply: WaitingToCharge =>
       log.debug(s"Received WaitingToCharge: $reply")
-    case reply @ EndingRefuelSession(_, _, _) =>
+    case reply: EndingRefuelSession =>
       log.debug(s"Received EndingRefuelSession: $reply")
-    case reply @ UnhandledVehicle(tick, personId, vehicle, triggerId) =>
+    case reply @ UnhandledVehicle(tick, personId, vehicle, _, triggerId) =>
       log.error(s"Received UnhandledVehicle: $reply")
       handleReleasingParkingSpot(tick, personId, vehicle, None, triggerId)
-    case reply @ UnpluggingVehicle(tick, personId, vehicle, energyCharged, triggerId) =>
+    case reply @ UnpluggingVehicle(tick, personId, vehicle, _, energyCharged, triggerId) =>
       log.debug(s"Received UnpluggingVehicle: $reply")
       handleReleasingParkingSpot(tick, personId, vehicle, Some(energyCharged), triggerId)
   }

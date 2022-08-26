@@ -240,14 +240,14 @@ class ChargingNetworkManager(
                   )
                 }
               val (_, totEnergy) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
-              UnpluggingVehicle(tick, personId, vehicle, totEnergy, triggerId)
+              UnpluggingVehicle(tick, personId, vehicle, stall, totEnergy, triggerId)
             case _ =>
               log.debug(s"Vehicle $vehicle is already disconnected or unhandled at $tick")
-              UnhandledVehicle(tick, personId, vehicle, triggerId)
+              UnhandledVehicle(tick, personId, vehicle, Some(stall), triggerId)
           }
         case _ =>
           log.debug(s"Cannot unplug $vehicle as it doesn't have a stall at $tick")
-          UnhandledVehicle(tick, personId, vehicle, triggerId)
+          UnhandledVehicle(tick, personId, vehicle, None, triggerId)
       }
       sender ! responseHasTriggerId
 
@@ -303,12 +303,20 @@ object ChargingNetworkManager extends LazyLogging {
     numVehicleWaitingToCharge: Int,
     triggerId: Long
   ) extends HasTriggerId
-  case class UnhandledVehicle(tick: Int, personId: Id[_], vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
+
+  case class UnhandledVehicle(
+    tick: Int,
+    personId: Id[_],
+    vehicle: BeamVehicle,
+    stallMaybe: Option[ParkingStall],
+    triggerId: Long
+  ) extends HasTriggerId
 
   case class UnpluggingVehicle(
     tick: Int,
     person: Id[Person],
     vehicle: BeamVehicle,
+    stall: ParkingStall,
     energyCharged: Double,
     triggerId: Long
   ) extends HasTriggerId

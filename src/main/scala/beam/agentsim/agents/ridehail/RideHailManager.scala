@@ -9,11 +9,8 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
-import beam.agentsim.agents.ridehail.DefaultRideHailDepotParkingManager.{
-  ChargingQueueEntry,
-  ParkingStallsClaimedByVehicles
-}
 import beam.agentsim.agents.ridehail.RideHailAgent._
+import beam.agentsim.agents.ridehail.RideHailDepotManager.ParkingStallsClaimedByVehicles
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.{Available, Refueling, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.allocation._
@@ -152,12 +149,6 @@ object RideHailManager {
 
   case class ContinueBufferedRideHailRequests(tick: Int, triggerId: Long) extends HasTriggerId
 
-  sealed trait RefuelSource
-
-  case object JustArrivedAtDepot extends RefuelSource
-
-  case object DequeuedToCharge extends RefuelSource
-
   final val fileBaseName = "rideHailInitialLocation"
 
   class OutputData extends OutputDataDescriptor {
@@ -223,7 +214,7 @@ class RideHailManager(
   val rideHailFleetInitializer: RideHailFleetInitializer,
   val rideHailChargingNetwork: RideHailDepotNetwork
 ) extends LoggingMessageActor
-    with DefaultRideHailDepotParkingManager
+    with RideHailDepotManager
     with ActorLogging
     with Stash {
 
@@ -414,7 +405,7 @@ class RideHailManager(
   var currReposTick: Int = 0
   var nRepositioned: Int = 0
 
-  override def loggedReceive: Receive = BeamLoggingReceive {
+  override def loggedReceive: Receive = super[RideHailDepotManager].loggedReceive orElse BeamLoggingReceive {
     case DebugReport =>
       log.debug(
         s"timeSpendForHandleRideHailInquiryMs: $timeSpendForHandleRideHailInquiryMs ms, " +
@@ -826,7 +817,7 @@ class RideHailManager(
 
   /**
     * process ParkingStallsClaimedByVehicle
-    * @param message
+    * @param message ParkingStallsClaimedByVehicles
     */
   private def processParkingStallsClaimedByVehicle(message: ParkingStallsClaimedByVehicles): Unit = {
     val ParkingStallsClaimedByVehicles(
@@ -1107,7 +1098,7 @@ class RideHailManager(
     val vehicle = resources(vehicleId)
     notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId) match {
       case Some(parkingStall) =>
-        attemptToRefuel(vehicle, personId, parkingStall, tick, JustArrivedAtDepot, triggerId)
+        attemptToRefuel(vehicle, personId, parkingStall, tick, triggerId)
       case None if !vehicle.isCAV =>
         // If not CAV and not arrived for refueling;
         rideHailManagerHelper.makeAvailable(vehicleId)
@@ -1115,24 +1106,10 @@ class RideHailManager(
     }
   }
 
-  def removingVehicleFromCharging(vehicleId: VehicleId, personId: Id[Person], tick: Int, triggerId: Long): Unit = {
+  def removingVehicleFromCharging(vehicleId: VehicleId, tick: Int, triggerId: Long): Unit = {
     notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId)
     log.debug("Making vehicle {} available", vehicleId)
-    removeFromCharging(vehicleId, tick, triggerId) foreach { parkingStall =>
-      dequeueNextVehicleForRefuelingFrom(
-        parkingStall.parkingZoneId,
-        tick
-      ) foreach { case ChargingQueueEntry(nextVehicle, nextVehiclesParkingStall, _) =>
-        attemptToRefuel(
-          nextVehicle,
-          personId,
-          nextVehiclesParkingStall,
-          tick,
-          DequeuedToCharge,
-          triggerId
-        )
-      }
-    }
+    removeFromCharging(vehicleId, tick, triggerId)
   }
 
   def dieIfNoChildren(): Unit = {
@@ -1838,12 +1815,7 @@ class RideHailManager(
     rideHailManagerHelper.updateLocationOfAgent(notify.vehicleId, notify.whenWhere)
     rideHailManagerHelper.vehicleState.put(notify.vehicleId, notify.beamVehicleState)
     rideHailManagerHelper.updatePassengerSchedule(notify.vehicleId, None, None)
-    removingVehicleFromCharging(
-      notify.vehicleId,
-      notify.personId.asInstanceOf[Id[Person]],
-      notify.tick,
-      notify.triggerId
-    )
+    removingVehicleFromCharging(notify.vehicleId, notify.tick, notify.triggerId)
     resources(notify.vehicleId).getDriver.get ! NotifyVehicleDoneRefuelingAndOutOfServiceReply(
       notify.triggerId,
       Vector()

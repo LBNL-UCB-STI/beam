@@ -178,13 +178,13 @@ class HouseholdFleetManager(
 
     case pir: ParkingInquiryResponse =>
       logger.error(s"STUCK with ParkingInquiryResponse: $pir")
-    case e @ StartingRefuelSession(_, _, _, _) =>
+    case e: StartingRefuelSession =>
       logger.debug("HouseholdFleetManager.StartingRefuelSession: {}", e)
-    case e @ UnhandledVehicle(_, _, _, _) =>
+    case e: UnhandledVehicle =>
       logger.error("HouseholdFleetManager.UnhandledVehicle: {}", e)
-    case e @ WaitingToCharge(_, _, _, _, _) =>
+    case e: WaitingToCharge =>
       logger.debug("HouseholdFleetManager.WaitingInLine: {}", e)
-    case e @ EndingRefuelSession(_, _, _) =>
+    case e: EndingRefuelSession =>
       logger.debug("HouseholdFleetManager.EndingRefuelSession: {}", e)
     case Finish =>
       context.stop(self)

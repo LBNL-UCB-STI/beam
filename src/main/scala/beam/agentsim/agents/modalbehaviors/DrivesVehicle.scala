@@ -480,13 +480,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         triggerId
       )
 
-    case ev @ Event(StartingRefuelSession(_, _, _, _), _) =>
+    case ev @ Event(_: StartingRefuelSession, _) =>
       log.debug("state(DrivesVehicle.Driving.StartingRefuelSession): {}", ev)
       stay()
-    case ev @ Event(UnhandledVehicle(_, _, _, _), _) =>
+    case ev @ Event(_: UnhandledVehicle, _) =>
       log.error("state(DrivesVehicle.Driving.UnhandledVehicle): {}", ev)
       stay()
-    case ev @ Event(WaitingToCharge(_, _, _, _, _), _) =>
+    case ev @ Event(_: WaitingToCharge, _) =>
       log.error("state(DrivesVehicle.Driving.WaitingInLine): {}. This probably should not happen", ev)
       stay()
   }
@@ -620,7 +620,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
       stay
-    case ev @ Event(StartingRefuelSession(_, _, _, _), _) =>
+    case ev @ Event(_: StartingRefuelSession, _) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stay
     case _ @Event(LastLegPassengerSchedule(triggerId), data) =>
