@@ -31,10 +31,12 @@ trait VehiclesAdjustment extends ExponentialLazyLogging {
 object VehiclesAdjustment {
   val UNIFORM_ADJUSTMENT = "UNIFORM"
   val INCOME_BASED_ADJUSTMENT = "INCOME_BASED"
+  val STATIC_FROM_FILE = "STATIC_FROM_FILE"
 
   def getVehicleAdjustment(beamScenario: BeamScenario): VehiclesAdjustment = {
     beamScenario.beamConfig.beam.agentsim.agents.vehicles.vehicleAdjustmentMethod match {
       case UNIFORM_ADJUSTMENT      => UniformVehiclesAdjustment(beamScenario)
+      case STATIC_FROM_FILE         => NoOpVehiclesAdjustment(beamScenario)
       case INCOME_BASED_ADJUSTMENT => IncomeBasedVehiclesAdjustment(beamScenario)
       case _                       => UniformVehiclesAdjustment(beamScenario)
     }
