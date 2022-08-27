@@ -1,0 +1,17 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: Beam Run Data
+Resources:
+  spreadsheetData:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.6
+      CodeUri: .
+      Description: Beam Run Data
+      MemorySize: 256
+      Timeout: 60
+      Role: 'arn:aws:iam::340032650202:role/BeamLambdaExecution'
+      Environment:
+        Variables:
+          REGION: us-west-2

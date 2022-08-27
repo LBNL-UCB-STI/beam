@@ -106,20 +106,20 @@ Mode choice parameters
    beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.highCongestion.nonHighwayFactor.LevelLE2 = 1.0
    beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.LevelLE2 = 1.0
    beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE2 = 1.0
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transfer = -1.4
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept = 0.0
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.cav_intercept = 0.0
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept = 0.0
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept = 0.0
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept = 0.0
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept = 0.0
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_pooled_intercept = 0.0
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept = 0.0
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept = 0.0
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_transit_intercept = 0.0
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding = 0.0
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_percentile = 90
-   beam.agentsim.agents.modalBehaviors.mulitnomialLogit.utility_scale_factor = 1.0
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transfer = -1.4
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.car_intercept = 0.0
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.cav_intercept = 0.0
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.walk_transit_intercept = 0.0
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.drive_transit_intercept = 0.0
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_transit_intercept = 0.0
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 0.0
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_pooled_intercept = 0.0
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.walk_intercept = 0.0
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_intercept = 0.0
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_transit_intercept = 0.0
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transit_crowding = 0.0
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transit_crowding_percentile = 90
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.utility_scale_factor = 1.0
    beam.agentsim.agents.modalBehaviors.lccm.paramFile = ${beam.inputDirectory}"/lccm-long.csv"
    #Toll params
    beam.agentsim.toll.file=${beam.inputDirectory}"/toll-prices.csv"
@@ -392,10 +392,10 @@ Ride hail management
    beam.agentsim.agents.rideHail.surgePricing.priceAdjustmentStrategy = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
    beam.agentsim.agents.rideHail.surgePricing.numberOfCategories = 6
 
-   beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.drivingTimeMultiplier = -0.01666667 // one minute of driving is one util
-   beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.queueingTimeMultiplier = -0.01666667 // one minute of queueing is one util
-   beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.chargingTimeMultiplier = -0.01666667 // one minute of charging is one util
-   beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.insufficientRangeMultiplier = -60.0 // indicator variable so straight 60 minute penalty if out of range
+   beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.drivingTimeMultiplier = -0.01666667 // one minute of driving is one util
+   beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.queueingTimeMultiplier = -0.01666667 // one minute of queueing is one util
+   beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.chargingTimeMultiplier = -0.01666667 // one minute of charging is one util
+   beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.insufficientRangeMultiplier = -60.0 // indicator variable so straight 60 minute penalty if out of range
 
    beam.agentsim.agents.rideHail.iterationStats.timeBinSizeInSec = 3600.0
 
@@ -459,10 +459,10 @@ Ride hail management
 * cav.refuelRequiredThresholdInMeters: when range below this value, EV ride-hail CAVs will charge
 * cav.noRefuelThresholdInMeters: when range above noRefuelThresholdInMeters, EV ride-hail CAVs will not charge
 * rangeBufferForDispatchInMeters: do not dispatch vehicles below this range to ensure enough available to get to charger
-* charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.drivingTimeMultiplier: one minute of driving is one util
-* charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.queueingTimeMultiplier: one minute of queueing is one util
-* charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.chargingTimeMultiplier: one minute of charging is one util
-* charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.insufficientRangeMultiplier: indicator variable so straight 60 minute penalty if out of range
+* charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.drivingTimeMultiplier: one minute of driving is one util
+* charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.queueingTimeMultiplier: one minute of queueing is one util
+* charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.chargingTimeMultiplier: one minute of charging is one util
+* charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.insufficientRangeMultiplier: indicator variable so straight 60 minute penalty if out of range
 
 * iterationStats.timeBinSizeInSec: time bin size of ride-hail statistic
 
@@ -470,15 +470,15 @@ Secondary activities generation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ::
 
-    beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
-    beam.agentsim.agents.tripBehaviors.mulitnomialLogit.intercept_file_path = ${beam.inputDirectory}"/activity-intercepts.csv"
-    beam.agentsim.agents.tripBehaviors.mulitnomialLogit.activity_file_path = ${beam.inputDirectory}"/activity-params.csv"
-    beam.agentsim.agents.tripBehaviors.mulitnomialLogit.additional_trip_utility = 0.0
-    beam.agentsim.agents.tripBehaviors.mulitnomialLogit.max_destination_distance_meters = 16000
-    beam.agentsim.agents.tripBehaviors.mulitnomialLogit.max_destination_choice_set_size = 6
-    beam.agentsim.agents.tripBehaviors.mulitnomialLogit.destination_nest_scale_factor = 1.0
-    beam.agentsim.agents.tripBehaviors.mulitnomialLogit.mode_nest_scale_factor = 1.0
-    beam.agentsim.agents.tripBehaviors.mulitnomialLogit.trip_nest_scale_factor = 1.0
+    beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = true
+    beam.agentsim.agents.tripBehaviors.multinomialLogit.intercept_file_path = ${beam.inputDirectory}"/activity-intercepts.csv"
+    beam.agentsim.agents.tripBehaviors.multinomialLogit.activity_file_path = ${beam.inputDirectory}"/activity-params.csv"
+    beam.agentsim.agents.tripBehaviors.multinomialLogit.additional_trip_utility = 0.0
+    beam.agentsim.agents.tripBehaviors.multinomialLogit.max_destination_distance_meters = 16000
+    beam.agentsim.agents.tripBehaviors.multinomialLogit.max_destination_choice_set_size = 6
+    beam.agentsim.agents.tripBehaviors.multinomialLogit.destination_nest_scale_factor = 1.0
+    beam.agentsim.agents.tripBehaviors.multinomialLogit.mode_nest_scale_factor = 1.0
+    beam.agentsim.agents.tripBehaviors.multinomialLogit.trip_nest_scale_factor = 1.0
 
 * generate_secondary_activities: allow/disallow generation of secondary activities.
 * intercept_file_path: input file giving the relative likelihoods of starting different activities at different times of the day.

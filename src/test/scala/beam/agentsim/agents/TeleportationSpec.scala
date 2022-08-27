@@ -56,9 +56,9 @@ class TeleportationSpec extends AnyFunSpecLike with Matchers with BeamHelper wit
         {
           case _: TeleportationEvent =>
             teleportationEvents = teleportationEvents + 1
-          case e: PathTraversalEvent if e.currentTourMode.contains("car_hov3") && e.mode == BeamMode.CAR =>
+          case e: PathTraversalEvent if e.currentTripMode.contains("car_hov3") && e.mode == BeamMode.CAR =>
             carHov3passengers.add(e.numberOfPassengers)
-          case e: PathTraversalEvent if e.currentTourMode.contains("car_hov2") && e.mode == BeamMode.CAR =>
+          case e: PathTraversalEvent if e.currentTripMode.contains("car_hov2") && e.mode == BeamMode.CAR =>
             carHov2passengers.add(e.numberOfPassengers)
           case e: ActivityStartEvent if e.getPersonId.toString == "2" =>
             activitiesOfPerson2.append((e.getLinkId.toString, e.getTime, e.getActType))

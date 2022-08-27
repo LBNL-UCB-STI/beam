@@ -1,5 +1,6 @@
 package beam.router
 
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.vehicles.VehicleCategory._
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.profile.StreetMode
@@ -261,6 +262,21 @@ object TourModes {
 
     import BeamTourMode._
 
+
+    def allowedBeamModesGivenAvailableVehicles(
+                                                vehicles: Vector[VehicleOrToken],
+                                                firstOrLastLeg: Boolean
+                                              ): Seq[BeamMode] = {
+      val relevantModes = if (firstOrLastLeg) { allowedBeamModesForFirstAndLastLeg }
+      else allowedBeamModes
+      if (
+        vehicles.exists(vehOrToken =>
+          !vehOrToken.vehicle.isSharedVehicle && vehOrToken.streetVehicle.mode.in(relevantModes)
+        )
+      ) { relevantModes }
+      else { Seq.empty[BeamMode] }
+    }
+
     def isVehicleBased: Boolean = this match {
       case WALK_BASED => false
       case _          => true
@@ -309,7 +325,8 @@ object TourModes {
           Seq[BeamMode](CAR, CAR_HOV2, CAR_HOV3)
         )
 
-    case object BIKE_BASED extends BeamTourMode("bike_based", Car, Seq[BeamMode](BIKE), Seq[BeamMode](BIKE))
+    case object BIKE_BASED extends BeamTourMode("bike_based", Bike, Seq[BeamMode](BIKE), Seq[BeamMode](BIKE))
+
   }
 
 }
