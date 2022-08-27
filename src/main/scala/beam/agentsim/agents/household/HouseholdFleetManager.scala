@@ -28,7 +28,6 @@ import org.matsim.api.core.v01.{Coord, Id}
 import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Random
 
 class HouseholdFleetManager(
   parkingManager: ActorRef,
@@ -53,8 +52,6 @@ class HouseholdFleetManager(
 
   private val trackingVehicleAssignmentAtInitialization = mutable.HashMap.empty[Id[BeamVehicle], Id[Person]]
 
-  private val rand = new Random(beamConfig.matsim.modules.global.randomSeed)
-
   override def loggedReceive: Receive = {
     case ResolvedParkingResponses(triggerId, xs) =>
       logger.debug(s"ResolvedParkingResponses ($triggerId, $xs)")
@@ -71,7 +68,6 @@ class HouseholdFleetManager(
             resp.stall,
             // use first household member id as stand-in.
             trackingVehicleAssignmentAtInitialization(id),
-            triggerId,
             self
           )
         }
@@ -171,7 +167,9 @@ class HouseholdFleetManager(
           logger.debug(s"An emergency vehicle has been created!")
         case _ =>
           if (availableVehicles.isEmpty)
-            logger.error(s"THE LIST OF VEHICLES SHOULD NOT BE EMPTY")
+            logger.warn(
+              s"The list of vehicles should not be empty, activate emergency personal vehicles generation as a temporary solution"
+            )
           logger.debug(s"Not returning vehicle because no default for  is defined")
           sender() ! MobilityStatusResponse(Vector(), triggerId)
       }
@@ -211,7 +209,7 @@ class HouseholdFleetManager(
         self
       )
       logger.warn(
-        s"No vehicles available for category ${category} available for " +
+        s"No vehicles available for category $category available for " +
         s"person ${inquiry.personId.toString}, creating a new vehicle with id ${vehicle.id.toString}"
       )
 

@@ -65,13 +65,11 @@ object ParkingNetworkManager extends LazyLogging {
     energyChargedMaybe: Option[Double],
     driver: Id[_],
     parkingManager: ActorRef,
-    eventsManager: EventsManager,
-    triggerId: Long
+    eventsManager: EventsManager
   ): Unit = {
-    logger.debug(s"testing trigger $triggerId")
     val stallForLeavingParkingEventMaybe = currentBeamVehicle.stall match {
       case Some(stall) =>
-        parkingManager ! ReleaseParkingStall(stall, -rnd.nextInt(Int.MaxValue))
+        parkingManager ! ReleaseParkingStall(stall, tick)
         currentBeamVehicle.unsetParkingStall()
         Some(stall)
       case None if currentBeamVehicle.lastUsedStall.isDefined =>

@@ -976,21 +976,16 @@ class PersonAgent(
   }
 
   when(EnrouteRefueling) {
-    case Event(StartingRefuelSession(_, _, _, triggerId), _) =>
-      releaseTickAndTriggerId()
+    case Event(StartingRefuelSession(_, _, _), _) =>
+      val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       stay
     case Event(_: WaitingToCharge, _) =>
       stay
-    case Event(EndingRefuelSession(tick, _, triggerId), _) =>
-      chargingNetworkManager ! ChargingUnplugRequest(
-        tick,
-        this.id,
-        currentBeamVehicle,
-        triggerId
-      )
+    case Event(EndingRefuelSession(tick, _), _) =>
+      chargingNetworkManager ! ChargingUnplugRequest(tick, this.id, currentBeamVehicle)
       stay
-    case Event(UnpluggingVehicle(tick, _, vehicle, _, energyCharged, triggerId), data: BasePersonData) =>
+    case Event(UnpluggingVehicle(tick, _, vehicle, _, energyCharged), data: BasePersonData) =>
       log.debug(s"Vehicle ${vehicle.id} ended charging and it is not handled by the CNM at tick $tick")
       ParkingNetworkManager.handleReleasingParkingSpot(
         tick,
@@ -998,28 +993,19 @@ class PersonAgent(
         Some(energyCharged),
         id,
         parkingManager,
-        eventsManager,
-        triggerId
+        eventsManager
       )
       val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
-      holdTickAndTriggerId(updatedTick, triggerId)
+      holdTickAndTriggerId(updatedTick, getCurrentTriggerIdOrGenerate)
       goto(ProcessingNextLegOrStartActivity) using updatedData
-    case Event(UnhandledVehicle(tick, _, vehicle, _, triggerId), data: BasePersonData) =>
+    case Event(UnhandledVehicle(tick, _, vehicle, _), data: BasePersonData) =>
       log.error(
         s"Vehicle ${vehicle.id} is not handled by the CNM at tick $tick. Something is broken." +
         s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
       )
-      ParkingNetworkManager.handleReleasingParkingSpot(
-        tick,
-        vehicle,
-        None,
-        id,
-        parkingManager,
-        eventsManager,
-        triggerId
-      )
+      ParkingNetworkManager.handleReleasingParkingSpot(tick, vehicle, None, id, parkingManager, eventsManager)
       val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
-      holdTickAndTriggerId(updatedTick, triggerId)
+      holdTickAndTriggerId(updatedTick, getCurrentTriggerIdOrGenerate)
       goto(ProcessingNextLegOrStartActivity) using updatedData
   }
 

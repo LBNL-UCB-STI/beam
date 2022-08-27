@@ -1086,7 +1086,7 @@ class RideHailManager(
     rideHailManagerHelper.updatePassengerSchedule(vehicleId, None, None)
 
     addingVehicleToChargingOrMakingAvailable(vehicleId, personId, whenWhere.time, triggerId)
-    resources(vehicleId).getDriver.get ! NotifyVehicleResourceIdleReply(triggerId, Vector())
+    resources(vehicleId).getDriver.get ! NotifyVehicleResourceIdleReply(triggerId)
   }
 
   def addingVehicleToChargingOrMakingAvailable(
@@ -1106,10 +1106,10 @@ class RideHailManager(
     }
   }
 
-  def removingVehicleFromCharging(vehicleId: VehicleId, tick: Int, triggerId: Long): Unit = {
+  def removingVehicleFromCharging(vehicleId: VehicleId, tick: Int): Unit = {
     notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId)
     log.debug("Making vehicle {} available", vehicleId)
-    removeFromCharging(vehicleId, tick, triggerId)
+    removeFromCharging(vehicleId, tick)
   }
 
   def dieIfNoChildren(): Unit = {
@@ -1815,7 +1815,7 @@ class RideHailManager(
     rideHailManagerHelper.updateLocationOfAgent(notify.vehicleId, notify.whenWhere)
     rideHailManagerHelper.vehicleState.put(notify.vehicleId, notify.beamVehicleState)
     rideHailManagerHelper.updatePassengerSchedule(notify.vehicleId, None, None)
-    removingVehicleFromCharging(notify.vehicleId, notify.tick, notify.triggerId)
+    removingVehicleFromCharging(notify.vehicleId, notify.tick)
     resources(notify.vehicleId).getDriver.get ! NotifyVehicleDoneRefuelingAndOutOfServiceReply(
       notify.triggerId,
       Vector()

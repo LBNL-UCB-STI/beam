@@ -405,7 +405,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     currentBeamVehicle,
                     stall,
                     Id.createPersonId(id),
-                    triggerId,
                     self,
                     shiftStatus = NotApplicable
                   )
@@ -681,7 +680,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               currentBeamVehicle.id + " " + currentVehicleUnderControl
             )
             currentBeamVehicle.stall.foreach { theStall =>
-              parkingManager ! ReleaseParkingStall(theStall, triggerId)
+              parkingManager ! ReleaseParkingStall(theStall, tick)
             }
             currentBeamVehicle.unsetParkingStall()
           case None =>
@@ -901,7 +900,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           ScheduleTrigger(AlightVehicleTrigger(Math.max(currentLeg.endTime + 1, tick), vehicleId), self)
         )
       )
-    case _ @Event(EndingRefuelSession(tick, vehicleId, _), _) =>
+    case _ @Event(EndingRefuelSession(tick, vehicleId), _) =>
       log.debug(s"DrivesVehicle: EndingRefuelSession. tick: $tick, vehicle: $vehicleId")
       stay()
   }

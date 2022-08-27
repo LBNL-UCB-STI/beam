@@ -282,7 +282,7 @@ object HouseholdActor {
               s"cavDriver-${cav.id.toString}"
             )
             log.warning(
-              s"Setting up household cav ${cav.id} with driver ${cav.getDriver} to be set with driver ${cavDriverRef}"
+              s"Setting up household cav ${cav.id} with driver ${cav.getDriver} to be set with driver $cavDriverRef"
             )
             context.watch(cavDriverRef)
             val personId: Id[Person] =
@@ -557,7 +557,6 @@ object HouseholdActor {
                 stall,
                 // use first household member id as stand-in.
                 household.getMemberIds.get(0),
-                triggerId,
                 self
               )
             }

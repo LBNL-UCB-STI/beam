@@ -55,20 +55,20 @@ trait RideHailDepotManager extends {
   override def loggedReceive: Receive = BeamLoggingReceive {
     case e: EndingRefuelSession =>
       log.debug("RideHailDepotManager.EndingRefuelSession: {}", e)
-    case e @ UnpluggingVehicle(_, _, vehicle, stall, _, _) =>
+    case e @ UnpluggingVehicle(_, _, vehicle, stall, _) =>
       log.debug("RideHailDepotManager.UnpluggingVehicle: {}", e)
       val depotData = getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId)
       depotData.vehiclesInQueue.remove(vehicle.id)
       depotData.vehiclesOnWayToDepot.remove(vehicle.id)
       depotData.chargingVehicles.remove(vehicle.id)
-    case e @ UnhandledVehicle(_, _, vehicle, stallMaybe, _) =>
+    case e @ UnhandledVehicle(_, _, vehicle, stallMaybe) =>
       log.debug("RideHailDepotManager.UnhandledVehicle: {}", e)
       stallMaybe.map(stall => getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId)).map { depotData =>
         depotData.vehiclesInQueue.remove(vehicle.id)
         depotData.vehiclesOnWayToDepot.remove(vehicle.id)
         depotData.chargingVehicles.remove(vehicle.id)
       }
-    case e @ StartingRefuelSession(tick, vehicleId, stall, _) =>
+    case e @ StartingRefuelSession(tick, vehicleId, stall) =>
       log.debug("RideHailDepotManager.StartingRefuelSession: {}", e)
       val depotData = getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId)
       if (depotData.vehiclesInQueue.remove(vehicleId).isDefined) {
@@ -76,7 +76,7 @@ trait RideHailDepotManager extends {
       }
       depotData.vehiclesOnWayToDepot.remove(vehicleId)
       depotData.chargingVehicles.put(vehicleId, stall)
-    case e @ WaitingToCharge(_, vehicleId, stall, _, _) =>
+    case e @ WaitingToCharge(_, vehicleId, stall, _) =>
       log.debug("RideHailDepotManager.WaitingToCharge: {}", e)
       val depotData = getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId)
       depotData.vehiclesOnWayToDepot.remove(vehicleId)
@@ -100,14 +100,8 @@ trait RideHailDepotManager extends {
       ParkingEvent(tick, stall, beamServices.geo.utm2Wgs(stall.locationUTM), beamVehicle.id, id.toString)
     )
     putNewTickAndObservation(beamVehicle.id, (tick, s"Charging($JustArrivedAtDepot)"))
-    (chargingNetworkManager ? ChargingPlugRequest(
-      tick,
-      beamVehicle,
-      stall,
-      personId,
-      triggerId,
-      beamVehicle.getDriver.get
-    )).pipeTo(beamVehicle.getDriver.get)
+    (chargingNetworkManager ? ChargingPlugRequest(tick, beamVehicle, stall, personId, beamVehicle.getDriver.get))
+      .pipeTo(beamVehicle.getDriver.get)
   }
 
   /**
@@ -133,10 +127,9 @@ trait RideHailDepotManager extends {
     *
     * @param vehicleId Beam Vehicle ID
     * @param tick time in seconds
-    * @param triggerId Long
     * @return the stall if found and successfully removed
     */
-  def removeFromCharging(vehicleId: VehicleId, tick: Int, triggerId: Long): Option[ParkingStall] = {
+  def removeFromCharging(vehicleId: VehicleId, tick: Int): Option[ParkingStall] = {
     parkingZoneIdToParkingZoneDepotData
       .filter(_._2.chargingVehicles.contains(vehicleId))
       .flatMap(_._2.chargingVehicles.get(vehicleId))
@@ -145,7 +138,7 @@ trait RideHailDepotManager extends {
         log.debug("Remove from cache that vehicle {} was charging in stall {}", vehicleId, stall)
         putNewTickAndObservation(vehicleId, (tick, "RemoveFromCharging"))
         getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId).chargingVehicles.remove(vehicleId)
-        releaseStall(stall, tick, resources(vehicleId), triggerId)
+        releaseStall(stall, tick, resources(vehicleId))
         stall
       }
   }
@@ -156,7 +149,7 @@ trait RideHailDepotManager extends {
     * @param parkingStall stall we want to release
     * @return Boolean if zone is defined and remove was success
     */
-  private def releaseStall(parkingStall: ParkingStall, tick: Int, beamVehicle: BeamVehicle, triggerId: Long): Unit = {
+  private def releaseStall(parkingStall: ParkingStall, tick: Int, beamVehicle: BeamVehicle): Unit = {
     if (parkingStall.chargingPointType.isEmpty) {
       ParkingNetworkManager.handleReleasingParkingSpot(
         tick,
@@ -164,12 +157,10 @@ trait RideHailDepotManager extends {
         None,
         this.id,
         parkingManager,
-        beamServices.matsimServices.getEvents,
-        triggerId
+        beamServices.matsimServices.getEvents
       )
     } else {
-      val request = ChargingUnplugRequest(tick, this.id, beamVehicle, triggerId)
-      (chargingNetworkManager ? request).pipeTo(beamVehicle.getDriver.get)
+      (chargingNetworkManager ? ChargingUnplugRequest(tick, this.id, beamVehicle)).pipeTo(beamVehicle.getDriver.get)
     }
   }
 

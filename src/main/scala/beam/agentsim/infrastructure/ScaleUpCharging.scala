@@ -60,7 +60,7 @@ trait ScaleUpCharging extends {
       sender ! CompletionNotice(triggerId)
     case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, personId), triggerId) =>
       log.debug(s"Received PlanChargingUnplugRequestTrigger: $t")
-      self ! ChargingUnplugRequest(tick, personId, beamVehicle, triggerId)
+      self ! ChargingUnplugRequest(tick, personId, beamVehicle)
       sender ! CompletionNotice(triggerId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
       log.debug(s"Received ParkingInquiryResponse: $response")
@@ -75,7 +75,6 @@ trait ScaleUpCharging extends {
             beamVehicle,
             stall,
             personId,
-            triggerId,
             self,
             NotApplicable,
             None
@@ -89,19 +88,19 @@ trait ScaleUpCharging extends {
           log.error(s"inquiryMap does not have this requestId $requestId that returned stall $stall")
           Vector()
       }
-      triggers.foreach(getScheduler ! _)
+      getScheduler ! CompletionNotice(triggerId, triggers)
     case reply: StartingRefuelSession =>
       log.debug(s"Received StartingRefuelSession: $reply")
     case reply: WaitingToCharge =>
       log.debug(s"Received WaitingToCharge: $reply")
     case reply: EndingRefuelSession =>
       log.debug(s"Received EndingRefuelSession: $reply")
-    case reply @ UnhandledVehicle(tick, personId, vehicle, _, triggerId) =>
+    case reply @ UnhandledVehicle(tick, personId, vehicle, _) =>
       log.error(s"Received UnhandledVehicle: $reply")
-      handleReleasingParkingSpot(tick, personId, vehicle, None, triggerId)
-    case reply @ UnpluggingVehicle(tick, personId, vehicle, _, energyCharged, triggerId) =>
+      handleReleasingParkingSpot(tick, personId, vehicle, None)
+    case reply @ UnpluggingVehicle(tick, personId, vehicle, _, energyCharged) =>
       log.debug(s"Received UnpluggingVehicle: $reply")
-      handleReleasingParkingSpot(tick, personId, vehicle, Some(energyCharged), triggerId)
+      handleReleasingParkingSpot(tick, personId, vehicle, Some(energyCharged))
   }
 
   /**
@@ -116,8 +115,7 @@ trait ScaleUpCharging extends {
     tick: Int,
     personId: Id[_],
     vehicle: BeamVehicle,
-    energyChargedMaybe: Option[Double],
-    triggerId: Long
+    energyChargedMaybe: Option[Double]
   ): Unit = {
     ParkingNetworkManager.handleReleasingParkingSpot(
       tick,
@@ -125,8 +123,7 @@ trait ScaleUpCharging extends {
       energyChargedMaybe,
       personId,
       getParkingManager,
-      getBeamServices.matsimServices.getEvents,
-      triggerId
+      getBeamServices.matsimServices.getEvents
     )
   }
 

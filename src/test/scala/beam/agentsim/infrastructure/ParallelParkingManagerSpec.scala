@@ -247,7 +247,7 @@ class ParallelParkingManagerSpec
         )
 
         // release the stall
-        val releaseParkingStall = ReleaseParkingStall(expectedStall, 777)
+        val releaseParkingStall = ReleaseParkingStall(expectedStall, 0)
         parkingManager.processReleaseParkingStall(releaseParkingStall)
 
         // request the stall again

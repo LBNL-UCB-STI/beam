@@ -223,7 +223,7 @@ class ZonalParkingManagerSpec
         )
 
         // release the stall
-        val releaseParkingStall = ReleaseParkingStall(expectedStall, 2903)
+        val releaseParkingStall = ReleaseParkingStall(expectedStall, 0)
         zonalParkingManager.processReleaseParkingStall(releaseParkingStall)
 
         // request the stall again
