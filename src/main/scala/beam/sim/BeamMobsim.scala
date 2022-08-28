@@ -66,7 +66,7 @@ class BeamMobsim @Inject() (
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
-  private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(500000, TimeUnit.SECONDS)
 
   import beamServices._
   val physsimConfig = beamConfig.beam.physsim
@@ -146,7 +146,7 @@ class BeamMobsim @Inject() (
       }
     )(scala.concurrent.ExecutionContext.global)
 
-    if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
+    if (beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
       fillInSecondaryActivities(
         beamServices.matsimServices.getScenario.getHouseholds
@@ -204,7 +204,7 @@ class BeamMobsim @Inject() (
         case VehicleCategory.Bike => BeamMode.BIKE
       }.toList
 
-      val cavs = vehicles.filter(_.beamVehicleType.automationLevel > 3).toList
+      val cavs = vehicles.filter(_.beamVehicleType.isCav).toList
 
       val cavModeAvailable: List[BeamMode] =
         if (cavs.nonEmpty) {
@@ -381,6 +381,7 @@ class BeamMobsimIteration(
     Props(
       classOf[BeamAgentScheduler],
       beamConfig,
+      beamServices.matsimServices.getControlerIO.getOutputPath,
       Time.parseTime(beamConfig.matsim.modules.qsim.endTime).toInt,
       config.schedulerParallelismWindow,
       new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)

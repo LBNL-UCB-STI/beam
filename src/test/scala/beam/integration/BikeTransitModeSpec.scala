@@ -44,9 +44,9 @@ class BikeTransitModeSpec
     ConfigFactory
       .parseString("""
           |akka.test.timefactor = 10
-          |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept = 0
-          |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept = 10
-          |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_transit_intercept = 20
+          |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.drive_transit_intercept = 0
+          |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_intercept = 10
+          |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_transit_intercept = 20
           |""".stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
 

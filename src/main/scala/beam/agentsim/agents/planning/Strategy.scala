@@ -1,8 +1,11 @@
 package beam.agentsim.agents.planning
 
 import beam.agentsim.agents.planning.BeamPlan.atHome
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
+import beam.router.TourModes.BeamTourMode
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Activity
 
 /**
@@ -22,7 +25,13 @@ object Strategy {
     def tripStrategies(tour: Tour, beamPlan: BeamPlan): Seq[(Trip, Strategy)] = Seq.empty
   }
 
-  case class ModeChoiceStrategy(mode: Option[BeamMode]) extends Strategy {
+  case class TourModeChoiceStrategy(tourMode: Option[BeamTourMode] = None, tourVehicle: Option[Id[BeamVehicle]] = None)
+      extends Strategy {
+    def this() = this(None)
+  }
+
+  case class TripModeChoiceStrategy(mode: Option[BeamMode] = None) extends Strategy {
+    def this() = this(None)
 
     override def tripStrategies(tour: Tour, beamPlan: BeamPlan): Seq[(Trip, Strategy)] = {
       val tourStrategy = this
@@ -40,7 +49,7 @@ object Strategy {
           //because these CAR_HOV modes shouldn't be used in this type of tour
           tour.trips
             .withFilter { trip =>
-              beamPlan.getStrategy[ModeChoiceStrategy](trip).flatMap(_.mode) match {
+              beamPlan.getStrategy[TripModeChoiceStrategy](trip).mode match {
                 case Some(CAR_HOV2 | CAR_HOV3) => true
                 case _                         => false
               }
@@ -50,8 +59,8 @@ object Strategy {
       }
     }
 
-    def tourStrategy(beamPlan: BeamPlan, curAct: Activity, nextAct: Activity): ModeChoiceStrategy = {
-      val currentTourModeOpt = beamPlan.getTourStrategy[ModeChoiceStrategy](nextAct).flatMap(_.mode)
+    def tourStrategy(beamPlan: BeamPlan, curAct: Activity, nextAct: Activity): TripModeChoiceStrategy = {
+      val currentTourModeOpt = beamPlan.getTourStrategy[TripModeChoiceStrategy](nextAct).mode
       val newTourMode = currentTourModeOpt match {
         case Some(_) if mode.get.isHovTeleportation => mode
         case Some(DRIVE_TRANSIT | BIKE_TRANSIT)     => currentTourModeOpt
@@ -59,7 +68,7 @@ object Strategy {
         case Some(_)                                => currentTourModeOpt
         case None                                   => mode
       }
-      ModeChoiceStrategy(newTourMode)
+      TripModeChoiceStrategy(newTourMode)
     }
 
   }
