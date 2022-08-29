@@ -373,7 +373,7 @@ object HouseholdTrips {
     val householdPlans = household.members
       .take(limitCavToXPersons)
       .map(person => BeamPlan(person.getSelectedPlan))
-    val cavVehicles = householdVehicles.filter(_.beamVehicleType.isCav)
+    val cavVehicles = householdVehicles.filter(_.beamVehicleType.automationLevel > 3)
     val vehicleTypeForSkimmer =
       cavVehicles.head.beamVehicleType // FIXME I need _one_ vehicleType here, but there could be more..
     val (requests, firstPickupOfTheDay, tripTravelTime, totTravelTime) =

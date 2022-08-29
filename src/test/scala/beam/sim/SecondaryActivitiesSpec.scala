@@ -34,9 +34,9 @@ class SecondaryActivitiesSpec
       .parseString(s"""
                     |beam.agentsim.lastIteration = 0
                     |beam.exchange.scenario.urbansim.activitySimEnabled = true
-                    |beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = true
-                    |beam.agentsim.agents.tripBehaviors.multinomialLogit.intercept_file_path = "test/test-resources/beam/agentsim/activities/activity-intercepts.csv"
-                    |beam.agentsim.agents.tripBehaviors.multinomialLogit.activity_file_path = "test/test-resources/beam/agentsim/activities/activity-params.csv"
+                    |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
+                    |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.intercept_file_path = "test/test-resources/beam/agentsim/activities/activity-intercepts.csv"
+                    |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.activity_file_path = "test/test-resources/beam/agentsim/activities/activity-params.csv"
                      """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
@@ -68,7 +68,7 @@ class SecondaryActivitiesSpec
     eventManager = injector.getInstance(classOf[EventsManager])
     networkHelper = injector.getInstance(classOf[NetworkHelper])
 
-    val interceptFilePath = beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.intercept_file_path
+    val interceptFilePath = beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.intercept_file_path
     val interceptPath = Source.fromFile(interceptFilePath)
     interceptMode = interceptPath.getLines().next().split(",").drop(1).toSet
     interceptPath.close()
@@ -109,9 +109,9 @@ class SecondaryActivitiesSpec
         .parseString(s"""
                         |beam.agentsim.lastIteration = 0
                         |beam.exchange.scenario.urbansim.activitySimEnabled = true
-                        |beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = true
-                        |beam.agentsim.agents.tripBehaviors.multinomialLogit.intercept_file_path = "test/test-resources/beam/agentsim/activities/activity-intercepts-0.csv"
-                        |beam.agentsim.agents.tripBehaviors.multinomialLogit.activity_file_path = "test/test-resources/beam/agentsim/activities/activity-params.csv"
+                        |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
+                        |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.intercept_file_path = "test/test-resources/beam/agentsim/activities/activity-intercepts-0.csv"
+                        |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.activity_file_path = "test/test-resources/beam/agentsim/activities/activity-params.csv"
                      """.stripMargin)
         .withFallback(testConfig("test/input/beamville/beam.conf"))
         .resolve()
@@ -128,9 +128,9 @@ class SecondaryActivitiesSpec
         .parseString(s"""
                         |beam.agentsim.lastIteration = 0
                         |beam.exchange.scenario.urbansim.activitySimEnabled = true
-                        |beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = true
-                        |beam.agentsim.agents.tripBehaviors.multinomialLogit.intercept_file_path = "test/test-resources/beam/agentsim/activities/activity-intercepts-high.csv"
-                        |beam.agentsim.agents.tripBehaviors.multinomialLogit.activity_file_path = "test/test-resources/beam/agentsim/activities/activity-params.csv"
+                        |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
+                        |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.intercept_file_path = "test/test-resources/beam/agentsim/activities/activity-intercepts-high.csv"
+                        |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.activity_file_path = "test/test-resources/beam/agentsim/activities/activity-params.csv"
                      """.stripMargin)
         .withFallback(testConfig("test/input/beamville/beam.conf"))
         .resolve()

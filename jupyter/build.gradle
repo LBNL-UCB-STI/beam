@@ -17,7 +17,7 @@ def imageName = 'jupyter/scipy-notebook:2022-04-02'
 def containerName = 'jupyter-for-beam'
 def port = '8888'
 def token = project.hasProperty("jupyterToken") ? jupyterToken : UUID.randomUUID().toString()
-def dockerArguments = project.hasProperty("user") ? ["--group-add=users", "--user=${project.property("user")}"] as String[] : "--group-add=users"
+
 
 static def readMappingFromFile(String filePath, String prefix, String basePath) {
     File file = new File(filePath)
@@ -71,7 +71,7 @@ dockerRun {
     daemonize true
     clean true
     env 'GRANT_SUDO': 'yes', 'JUPYTER_TOKEN': "$token", "CHOWN_HOME": "yes", "CHOWN_HOME_OPTS": '-R'
-    arguments dockerArguments
+    arguments "--group-add=users"
 }
 
 task jupyterStart(dependsOn: ['dockerRun']) {

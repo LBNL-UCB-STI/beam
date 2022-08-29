@@ -55,7 +55,6 @@ class ModeChoiceLCCM(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity],
-    originActivity: Option[Activity],
     person: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
     choose(alternatives, attributesOfIndividual, Mandatory)
@@ -285,8 +284,7 @@ class ModeChoiceLCCM(
   override def utilityOf(
     alternative: EmbodiedBeamTrip,
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity],
-    originActivity: Option[Activity]
+    destinationActivity: Option[Activity]
   ): Double = 0.0
 
   override def computeAllDayUtility(
@@ -305,7 +303,7 @@ class ModeChoiceLCCM(
       }
       .toMap
       .mapValues(modeChoiceCalculatorForStyle =>
-        trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributesOfIndividual, None, None)).sum
+        trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributesOfIndividual, None)).sum
       )
       .toArray
       .toMap // to force computation DO NOT TOUCH IT, because here is call-by-name and it's lazy which will hold a lot of memory !!! :)

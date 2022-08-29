@@ -39,7 +39,7 @@ class EventsFileSpec
     .withValue("beam.physsim.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
     .withValue("beam.physsim.writeEventsInterval", ConfigValueFactory.fromAnyRef("1"))
     .withValue(
-      "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_intercept",
+      "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept",
       ConfigValueFactory.fromAnyRef("6")
     )
     .resolve()

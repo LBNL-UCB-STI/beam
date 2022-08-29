@@ -3,13 +3,6 @@ package beam.utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadInfo;
-import java.lang.management.ThreadMXBean;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
 public class DebugLib {
     private static final Logger log = LoggerFactory.getLogger(DebugLib.class);
 
@@ -38,12 +31,4 @@ public class DebugLib {
         while(System.nanoTime() - start < nanos);
     }
 
-    /*
-    Dumps all current threads
-    */
-    public static List<String> currentThreadsDump() {
-        ThreadMXBean bean = ManagementFactory.getThreadMXBean();
-        ThreadInfo[] infos = bean.dumpAllThreads(true, true);
-        return Arrays.stream(infos).map(Object::toString).collect(Collectors.toList());
-    }
 }

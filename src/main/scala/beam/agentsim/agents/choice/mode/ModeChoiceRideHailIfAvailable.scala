@@ -23,7 +23,6 @@ class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends Mode
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity],
-    originActivity: Option[Activity],
     person: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
     val containsRideHailAlt = alternatives.zipWithIndex.collect {
@@ -41,8 +40,7 @@ class ModeChoiceRideHailIfAvailable(val beamServices: BeamServices) extends Mode
   override def utilityOf(
     alternative: EmbodiedBeamTrip,
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity],
-    originActivity: Option[Activity]
+    destinationActivity: Option[Activity]
   ): Double = 0.0
 
   override def utilityOf(

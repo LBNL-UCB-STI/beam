@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
@@ -32,8 +32,7 @@ abstract class InfrastructureFunctions(
   fractionOfSameTypeZones: Double,
   minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
-  seed: Int,
-  estimatedMinParkingDurationInSeconds: Double
+  seed: Int
 ) extends StrictLogging {
 
   val zoneCollections: Map[Id[TAZ], ParkingZoneCollection] =
@@ -102,7 +101,6 @@ abstract class InfrastructureFunctions(
       boundingBox,
       distanceFunction,
       enrouteDuration,
-      estimatedMinParkingDurationInSeconds,
       fractionOfSameTypeZones,
       minNumberOfSameTypeZones
     )
@@ -150,7 +148,10 @@ abstract class InfrastructureFunctions(
     // filters out ParkingZones which do not apply to this agent
     // TODO: check for conflicts between variables here - is it always false?
     val parkingZoneFilterFunction: ParkingZone => Boolean =
-      (zone: ParkingZone) => setupSearchFilterPredicates(zone, inquiry)
+      (zone: ParkingZone) => {
+        val searchFilterPredicates = setupSearchFilterPredicates(zone, inquiry)
+        searchFilterPredicates
+      }
 
     // generates a coordinate for an embodied ParkingStall from a ParkingZone
     val parkingZoneLocSamplingFunction: ParkingZone => Coord =

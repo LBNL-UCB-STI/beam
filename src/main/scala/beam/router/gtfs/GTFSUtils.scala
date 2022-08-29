@@ -46,11 +46,7 @@ object GTFSUtils {
       )
       .map(_.stop_id)
       .toSet
-    gtfsFeeds.flatMap { gtfsFeed =>
-      val result = gtfsFeed.stops.values().asScala.filter(stop => trainStationIds.contains(stop.stop_id))
-      gtfsFeed.close()
-      result
-    }
+    gtfsFeeds.flatMap(_.stops.values().asScala.filter(stop => trainStationIds.contains(stop.stop_id)))
   }
 
   def toQuadTree(stops: Seq[Stop], geo: GeoUtils): QuadTree[Stop] = {

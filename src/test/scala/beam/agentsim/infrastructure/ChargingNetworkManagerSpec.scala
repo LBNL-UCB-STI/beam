@@ -111,7 +111,7 @@ class ChargingNetworkManagerSpec
     stopTick: Int,
     override val maxWindow: Int,
     override val stuckFinder: StuckFinder
-  ) extends BeamAgentScheduler(beamConfig, ".", stopTick, maxWindow, stuckFinder) {
+  ) extends BeamAgentScheduler(beamConfig, stopTick, maxWindow, stuckFinder) {
 
     override def receive: Receive = {
       case Finish => context.stop(self)

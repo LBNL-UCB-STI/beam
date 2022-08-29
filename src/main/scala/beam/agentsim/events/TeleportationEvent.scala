@@ -16,7 +16,7 @@ case class TeleportationEvent(
   startY: Double,
   endX: Double,
   endY: Double,
-  currentTripMode: Option[String]
+  currentTourMode: Option[String]
 ) extends Event(time)
     with ScalaEvent {
   import TeleportationEvent._
@@ -38,7 +38,7 @@ case class TeleportationEvent(
       attr.put(ATTRIBUTE_START_COORDINATE_Y, startY.toString)
       attr.put(ATTRIBUTE_END_COORDINATE_X, endX.toString)
       attr.put(ATTRIBUTE_END_COORDINATE_Y, endY.toString)
-      attr.put(ATTRIBUTE_CURRENT_TRIP_MODE, currentTripMode.getOrElse(""))
+      attr.put(ATTRIBUTE_CURRENT_TOUR_MODE, currentTourMode.getOrElse(""))
 
       filledAttrs.set(attr)
       attr
@@ -49,7 +49,7 @@ case class TeleportationEvent(
 object TeleportationEvent {
   val EVENT_TYPE: String = "TeleportationEvent"
 
-  val ATTRIBUTE_CURRENT_TRIP_MODE: String = "currentTripMode"
+  val ATTRIBUTE_CURRENT_TOUR_MODE: String = "currentTourMode"
 
   val ATTRIBUTE_DEPARTURE_TIME: String = "departureTime"
   val ATTRIBUTE_PERSON: String = "person"

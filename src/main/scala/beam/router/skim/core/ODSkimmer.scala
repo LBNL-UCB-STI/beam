@@ -16,7 +16,6 @@ import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.apache.commons.lang3.math.NumberUtils
 
-import scala.util.Try
 import scala.util.control.NonFatal
 
 class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamScenario, beamConfig: BeamConfig)
@@ -380,28 +379,6 @@ object ODSkimmer extends LazyLogging {
   // cases
   case class ODSkimmerKey(hour: Int, mode: BeamMode, origin: String, destination: String) extends AbstractSkimmerKey {
     override def toCsv: String = hour + "," + mode + "," + origin + "," + destination
-  }
-
-  case class ODSkimmerTimeCostTransfer(
-    timeInHours: Double = 0.0,
-    cost: Double = 0.0,
-    numTransfers: Int = 0,
-    crowdingLevel: Double = 0.0
-  ) {
-
-    def +(other: ODSkimmerTimeCostTransfer): ODSkimmerTimeCostTransfer = {
-      ODSkimmerTimeCostTransfer(
-        this.timeInHours + other.timeInHours,
-        this.cost + other.cost,
-        this.numTransfers + other.numTransfers,
-        if (this.timeInHours <= 0) { other.crowdingLevel }
-        else if (other.timeInHours <= 0) { this.crowdingLevel }
-        else {
-          (this.crowdingLevel / this.timeInHours + other.crowdingLevel / other.timeInHours) *
-          (this.timeInHours + other.timeInHours)
-        }
-      )
-    }
   }
 
   def fromCsv(

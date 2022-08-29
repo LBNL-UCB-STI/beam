@@ -123,9 +123,6 @@ def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_na
                                 'Tags': [ {
                                     'Key': 'Name',
                                     'Value': instance_name
-                                 }, {
-                                     'Key': 'BudgetOverride',
-                                     'Value': 'True'
                                  }]
                             } ])
     return res['Instances'][0]['InstanceId']

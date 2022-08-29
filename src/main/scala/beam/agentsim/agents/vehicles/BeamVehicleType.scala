@@ -31,11 +31,10 @@ case class BeamVehicleType(
   chargingCapability: Option[ChargingPointType] = None,
   payloadCapacityInKg: Option[Double] = None
 ) {
-  def isSharedVehicle: Boolean = id.toString.startsWith("sharedVehicle")
 
-  def isCaccEnabled: Boolean = automationLevel >= 3
-
-  def isCav: Boolean = automationLevel >= 4
+  def isCaccEnabled: Boolean = {
+    automationLevel >= 3
+  }
 
   def getTotalRange: Double = {
     val primaryRange = primaryFuelCapacityInJoule / primaryFuelConsumptionInJoulePerMeter

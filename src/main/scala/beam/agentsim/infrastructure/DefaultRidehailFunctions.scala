@@ -34,8 +34,7 @@ class DefaultRidehailFunctions(
   seed: Int,
   fuelTypePrices: Map[FuelType, Double],
   rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail,
-  skims: Skims,
-  estimatedMinParkingDurationInSeconds: Double
+  skims: Skims
 ) extends InfrastructureFunctions(
       geoQuadTree,
       idToGeoMapping,
@@ -48,8 +47,7 @@ class DefaultRidehailFunctions(
       fractionOfSameTypeZones,
       minNumberOfSameTypeZones,
       boundingBox,
-      seed,
-      estimatedMinParkingDurationInSeconds
+      seed
     ) {
 
   private val vehicleIdToEndRefuelTick: mutable.Map[VehicleId, Int] = mutable.Map.empty[VehicleId, Int]
@@ -240,16 +238,16 @@ object DefaultRidehailFunctions {
   ): Map[ParkingMNL.Parameters, UtilityFunctionOperation] = {
     Map(
       ParkingMNL.Parameters.DrivingTimeCost -> UtilityFunctionOperation.Multiplier(
-        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.drivingTimeMultiplier
+        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.drivingTimeMultiplier
       ),
       ParkingMNL.Parameters.QueueingTimeCost -> UtilityFunctionOperation.Multiplier(
-        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.queueingTimeMultiplier
+        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.queueingTimeMultiplier
       ),
       ParkingMNL.Parameters.ChargingTimeCost -> UtilityFunctionOperation.Multiplier(
-        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.chargingTimeMultiplier
+        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.chargingTimeMultiplier
       ),
       ParkingMNL.Parameters.InsufficientRangeCost -> UtilityFunctionOperation.Multiplier(
-        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.insufficientRangeMultiplier
+        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.insufficientRangeMultiplier
       )
     )
   }

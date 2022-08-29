@@ -52,7 +52,7 @@ class StudyAreaTripFilterTest extends AnyFunSuite with Matchers {
     vehicleType = vehicleType,
     numPass = 1,
     beamLeg = beamLeg,
-    currentTripMode = None,
+    currentTourMode = None,
     primaryFuelConsumed = 1.0,
     secondaryFuelConsumed = 0.0,
     endLegPrimaryFuelLevel = 1.0,

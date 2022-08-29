@@ -138,8 +138,7 @@ object ParkingStallSamplingTestSpec {
     val taz: TAZ = new TAZ(
       Id.create("taz", classOf[TAZ]),
       new Coord(tazX, tazY),
-      tazArea,
-      None
+      tazArea
     )
 
     val agent: Coord = new Coord(100.0, 100.0)

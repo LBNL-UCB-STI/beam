@@ -16,7 +16,7 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
   private val log = LoggerFactory.getLogger(classOf[AddSupplementaryTrips])
 
   override def run(person: HasPlansAndId[Plan, Person]): Unit = {
-    if (beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities) {
+    if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
       log.debug("Before Replanning AddNewActivities: Person-" + person.getId + " - " + person.getPlans.size())
       ReplanningUtil.makeExperiencedMobSimCompatible(person)
 

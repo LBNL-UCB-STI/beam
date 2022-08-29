@@ -10,7 +10,7 @@ buildscript {
         gradlePluginPortal()
     }
     dependencies {
-        classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '2.10.1'
+        classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
         classpath "jp.classmethod.aws.reboot:gradle-aws-plugin-reboot:0.45"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
     }
@@ -39,7 +39,7 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '0.8.6.13'
+version = '0.8.6'
 
 description = """"""
 
@@ -96,6 +96,7 @@ allprojects {
         // maven { url "http://maven.icm.edu.pl/artifactory/repo/" }
         // maven { url "https://maven.geotoolkit.org/" }
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
+        maven { url "https://central.maven.org/maven2" }
         maven { url "https://repo.maven.apache.org/maven2" }
         maven { url "https://repo.matsim.org/repository/matsim" }
         // Used for graphql-java and matsim.contrib.decongestion specific versions -
@@ -109,6 +110,10 @@ allprojects {
         maven { url "https://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
         maven { url "https://maven.geo-solutions.it" }
         mavenLocal()
+        maven {
+            url "http://nexus.onebusaway.org/content/groups/public/"
+            allowInsecureProtocol = true
+        }
         maven { url "https://jitpack.io" }
     }
 }
@@ -121,11 +126,8 @@ configurations {
 
 configurations.all {
     resolutionStrategy {
-        // we need this in order to get Elki library working fine.
-        force 'net.jafama:jafama:2.3.2'
-        // we need this in order to get Elki library working fine.
+//       we need this in order to get Elki library working fine.
         force 'it.unimi.dsi:fastutil:8.5.4'
-
         force 'org.apache.logging.log4j:log4j-core:2.15.0'
         force 'org.apache.logging.log4j:log4j-api:2.15.0'
     }
@@ -134,7 +136,7 @@ configurations.all {
 
 dependencies {
 
-    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.19') {
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.17') {
         exclude group: 'com.github.LBNL-UCB-STI', module: 'r5'
         exclude group: 'org.matsim', module: 'matsim'
     }
@@ -210,7 +212,7 @@ dependencies {
 
     testImplementation group: 'junit', name: 'junit', version: '4.8'
     testImplementation group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
-    testImplementation group: "org.mockito", name: "mockito-core", version: "2.28.2"
+    testImplementation group: "org.mockito", name: "mockito-core", version: "2.+"
     jmhImplementation group: 'org.openjdk.jmh', name: 'jmh-core', version: '1.23'
     jmhImplementation group: 'org.openjdk.jmh', name: 'jmh-generator-annprocess', version: '1.23'
 
@@ -220,11 +222,11 @@ dependencies {
     /////////////////////////////////
 
     // CORE Scala //
-    implementation "org.scala-lang:scala-library:2.12.16"
+    implementation "org.scala-lang:scala-library:2.12.13"
     implementation group: 'org.scala-lang.modules', name: "scala-xml_${scalaBinaryVersion}", version: '1.0.6'
 
     // NEEDED FOR USING REPL //
-    implementation "org.scala-lang:scala-compiler:2.12.16"
+    implementation "org.scala-lang:scala-compiler:2.12.13"
 
     // TEST Scala //
     testImplementation group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.2.9'
@@ -537,7 +539,7 @@ def jfr = ["-XX:+UnlockCommercialFeatures", "-XX:+FlightRecorder",
 // On the running machine there should be file /usr/lib/jvm/java-8-oracle/jre/lib/jfr/profile_heap_exception.jfc  with content from
 // https://pastebin.com/N3uuUfPz - it's Java Mission Control with metrics about heap allocation and details about exceptions
 def jfrWithMem = ["-XX:+UnlockCommercialFeatures", "-XX:+UnlockDiagnosticVMOptions", "-XX:+DebugNonSafepoints",
-                  "-XX:StartFlightRecording=delay=2s,duration=180m,name=mem_ex,filename=recording.jfr,settings=profile_heap_exception",
+                  "-XX:StartFlightRecording=delay=2s,duration=60m,name=mem_ex,filename=recording.jfr,settings=profile_heap_exception",
                   "-XX:+FlightRecorder", "-XX:FlightRecorderOptions=disk=true,maxage=10h,dumponexit=true,loglevel=info"]
 
 
@@ -690,8 +692,8 @@ task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
 task buildImageWithoutTags(type: DockerBuildImage, dependsOn: createDockerfile) {}
 
 task buildImage(type: DockerTagImage, dependsOn: buildImageWithoutTags) {
-    repository = "haitamlaarabi/beam"
-    tag = 'gemini-develop-overnight-v1'
+    repository = "beammodel/beam"
+    tag = version
     targetImageId buildImageWithoutTags.getImageId()
 }
 

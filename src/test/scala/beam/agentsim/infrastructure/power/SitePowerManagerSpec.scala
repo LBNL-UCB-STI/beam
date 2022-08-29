@@ -25,6 +25,7 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 
 class SitePowerManagerSpec
@@ -150,16 +151,14 @@ class SitePowerManagerSpec
       vehiclesList.foreach { case (v, person) =>
         v.addFuel(v.primaryFuelLevelInJoules * 0.9 * -1)
         val request = ChargingPlugRequest(0, v, v.stall.get, person, 0)
-        val Some(chargingVehicle) = chargingNetwork.processChargingPlugRequest(request, 60, "", ActorRef.noSender)
+        val Some(chargingVehicle) = chargingNetwork.processChargingPlugRequest(request, "", ActorRef.noSender)
         chargingVehicle.chargingStatus.last shouldBe ChargingStatus(ChargingStatus.Connected, 0)
         chargingVehicle shouldBe ChargingVehicle(
           v,
           v.stall.get,
           dummyStation,
           0,
-          v.primaryFuelLevelInJoules,
           person,
-          60,
           "",
           NotApplicable,
           None,

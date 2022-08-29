@@ -102,9 +102,9 @@ assignPostMilesGeometries <- function(TRUCK_DATA, POSTMILES_SHP) {
     rte <- TRUCK_DATA$RTE[i]
     leg <- TRUCK_DATA$LEG[i]
     pm <- TRUCK_DATA$POST_MILE[i]
-    filteredPM <- postmiles %>% filter(County == cnty,
-                                       District == dist,
-                                       Route == rte,
+    filteredPM <- postmiles %>% filter(County == cnty, 
+                                       District == dist, 
+                                       Route == rte, 
                                        startsWith(as.character(PMc), as.character(pm)))
     if(nrow(filteredPM) == 0) {
       filteredPM <- postmiles %>% filter(County == cnty, District == dist, Route == rte)
@@ -156,13 +156,13 @@ assignLinkIdToTruckAADTT <- function(NETWORK_CLEANED, NETWORK_CRS, TRUCK_AADTT, 
     coords = c("fromLocationX", "fromLocationY"),
     crs = NETWORK_CRS,
     agr = "constant"), 4326)
-
+  
   truck_aadtt_sf <- st_as_sf(
     TRUCK_AADTT,
     coords = c("X", "Y"),
     crs = 4326,
     agr = "constant")
-
+  
   network_sf$tempDistance <- NA
   truck_aadtt_sf$linkId <- NA
   expansionFactor <- EXPANSION_FACTOR

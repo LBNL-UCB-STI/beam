@@ -29,8 +29,9 @@ import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
 import beam.utils.csv.writers._
 import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.scripts.FailFast
 import beam.utils.watcher.MethodWatcher
-import beam.utils.{DebugLib, FailFast, NetworkHelper, ProfilingUtils, SummaryVehicleStatsParser}
+import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsParser}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -424,8 +425,6 @@ class BeamSim @Inject() (
       carTravelTimeFromPtes.foreach(_.notifyIterationEnds(event))
       transitOccupancyByStop.notifyIterationEnds(event)
     }
-
-    beamScenario.tazTreeMap.notifyIterationEnds(event)
 
     travelTimeGoogleStatistic.notifyIterationEnds(event)
     startAndEndEventListeners.foreach(_.notifyIterationEnds(event))

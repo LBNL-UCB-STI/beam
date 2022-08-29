@@ -103,7 +103,7 @@ trait NetworkCoordinator extends LazyLogging {
           )
           transportNetwork = TransportNetwork.fromDirectory(
             Paths.get(beamConfig.beam.routing.r5.directory).toFile,
-            beamConfig.beam.physsim.network.removeIslands,
+            true,
             false,
             beamConfig.beam.routing.r5.linkRadiusMeters
           )

@@ -1,22 +1,14 @@
 package beam.agentsim.infrastructure.taz
 
-import beam.agentsim.infrastructure.taz.TAZTreeMap.logger
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.{HasQuadBounds, QuadTreeBounds}
 import com.vividsolutions.jts.geom.Geometry
-import org.matsim.api.core.v01.events.Event
-import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import org.matsim.core.utils.geometry.GeometryUtils
 import org.matsim.core.utils.gis.ShapeFileReader
-import org.matsim.core.utils.io.IOUtils
 import org.opengis.feature.simple.SimpleFeature
 import org.slf4j.LoggerFactory
-import org.matsim.core.controler.events.IterationEndsEvent
-import org.matsim.core.controler.listener.IterationEndsListener
-import org.matsim.core.events.handler.BasicEventHandler
 
 import java.io._
 import java.util
@@ -33,26 +25,11 @@ import scala.collection.mutable
   *                 by avoiding unnecessary queries). The caching mechanism is however still useful for debugging and as a quickfix/confirmation if TAZ quadtree queries
   *                 suddenly increase due to code change.
   */
-class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
-    extends BasicEventHandler
-    with IterationEndsListener {
+class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false) {
 
   private val stringIdToTAZMapping: mutable.HashMap[String, TAZ] = mutable.HashMap()
   val idToTAZMapping: mutable.HashMap[Id[TAZ], TAZ] = mutable.HashMap()
   private val cache: TrieMap[(Double, Double), TAZ] = TrieMap()
-  private val linkIdToTAZMapping: mutable.HashMap[Id[Link], Id[TAZ]] = mutable.HashMap.empty[Id[Link], Id[TAZ]]
-  private val unmatchedLinkIds: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
-  lazy val tazListContainsGeoms: Boolean = tazQuadTree.values().asScala.headOption.exists(_.geometry.isDefined)
-  private val failedLinkLookups: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
-
-  def getTAZfromLink(linkId: Id[Link]): Option[TAZ] = {
-    linkIdToTAZMapping.get(linkId) match {
-      case Some(tazId) => getTAZ(tazId)
-      case _ =>
-        failedLinkLookups.append(linkId)
-        None
-    }
-  }
 
   def getTAZs: Iterable[TAZ] = {
     tazQuadTree.values().asScala
@@ -90,71 +67,6 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
   def getTAZInRadius(loc: Coord, radius: Double): util.Collection[TAZ] = {
     tazQuadTree.getDisk(loc.getX, loc.getY, radius)
   }
-
-  override def handleEvent(event: Event): Unit = {}
-
-  override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    writeFailedLookupsToCsv(event)
-  }
-
-  private def writeFailedLookupsToCsv(event: IterationEndsEvent): Unit = {
-    if (tazListContainsGeoms) {
-      val filePath = event.getServices.getControlerIO.getIterationFilename(
-        event.getServices.getIterationNumber,
-        "linksWithFailedTAZlookup.csv.gz"
-      )
-      val numberOfFailedLookups = failedLinkLookups.size
-      logger.info(
-        s"Missed $numberOfFailedLookups TAZ lookups due to unmapped linkIds. Writing list to linksWithFailedTAZlookup"
-      )
-      implicit val writer: BufferedWriter =
-        IOUtils.getBufferedWriter(filePath)
-      writer.write("linkId,count")
-      writer.write(System.lineSeparator())
-      failedLinkLookups.toList.groupBy(identity).mapValues(_.size).foreach { case (linkId, count) =>
-        writer.write(linkId.toString)
-        writer.write(",")
-        writer.write(count.toString)
-        writer.write(System.lineSeparator())
-      }
-      writer.flush()
-      writer.close()
-    }
-    failedLinkLookups.clear()
-  }
-
-  def mapNetworkToTAZs(network: Network): Unit = {
-    if (tazListContainsGeoms) {
-      network.getLinks.asScala.foreach {
-        case (id, link) =>
-          val linkEndCoord = link.getToNode.getCoord
-          val foundTaz = TAZTreeMap.ringSearch(
-            tazQuadTree,
-            linkEndCoord,
-            100,
-            1000000,
-            radiusMultiplication = 1.5
-          ) { taz =>
-            if (taz.geometry.exists(_.contains(GeometryUtils.createGeotoolsPoint(linkEndCoord)))) { Some(taz) }
-            else None
-          }
-          foundTaz match {
-            case Some(taz) =>
-              linkIdToTAZMapping += (id -> taz.tazId)
-            case _ =>
-              unmatchedLinkIds += id
-          }
-        case _ =>
-      }
-      logger.info(
-        "Completed mapping links to TAZs. Matched "
-        + linkIdToTAZMapping.size.toString +
-        " links, failed to match "
-        + unmatchedLinkIds.size.toString +
-        " links"
-      )
-    }
-  }
 }
 
 object TAZTreeMap {
@@ -187,12 +99,12 @@ object TAZTreeMap {
       f.getDefaultGeometry match {
         case g: Geometry =>
           val taz = new TAZ(
-            String.valueOf(f.getAttribute(tazIDFieldName)),
+            f.getAttribute(tazIDFieldName).asInstanceOf[String],
             new Coord(g.getCoordinate.x, g.getCoordinate.y),
-            g.getArea,
-            Some(g)
+            g.getArea
           )
           tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
+        case _ =>
       }
     }
     tazQuadTree
@@ -261,14 +173,9 @@ object TAZTreeMap {
     new TAZTreeMap(tazQuadTree)
   }
 
-  def getTazTreeMap(filePath: String, tazIDFieldName: Option[String] = None): TAZTreeMap = {
+  def getTazTreeMap(filePath: String): TAZTreeMap = {
     try {
-      if (filePath.endsWith(".shp")) {
-        TAZTreeMap.fromShapeFile(filePath, tazIDFieldName.get)
-      } else {
-        TAZTreeMap.fromCsv(filePath)
-      }
-
+      TAZTreeMap.fromCsv(filePath)
     } catch {
       case fe: FileNotFoundException =>
         logger.error("No TAZ file found at given file path (using defaultTazTreeMap): %s" format filePath, fe)

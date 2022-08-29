@@ -323,7 +323,7 @@ class ZonalParkingManagerSpec
         minSearchRadius,
         maxSearchRadius,
         randomSeed,
-        beamConfig.beam.agentsim.agents.parking.multinomialLogit,
+        beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
         beamConfig,
         None
       )
@@ -382,7 +382,7 @@ class ZonalParkingManagerSpec
         minSearchRadius,
         maxSearchRadius,
         randomSeed,
-        beamConfig.beam.agentsim.agents.parking.multinomialLogit,
+        beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
         beamConfig,
         None
       )
@@ -437,17 +437,16 @@ class ZonalParkingManagerSpec
         beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
         beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
         randomSeed,
-        beamConfig.beam.agentsim.agents.parking.multinomialLogit,
-        beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
+        beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
       )
 
       assertParkingResponse(
         zonesMap,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("17"),
+        ParkingZone.createId("105"),
         Block(1.99, 3600),
-        ParkingType.Public,
+        ParkingType.Residential,
         "beamVilleCar"
       )
 
@@ -508,7 +507,7 @@ class ZonalParkingManagerSpec
     val inquiry = ParkingInquiry.init(spaceTime, "init", reservedFor, Some(vehicle), triggerId = 3737)
     val response = zpm.processParkingInquiry(inquiry)
     val tazId1 = Id.create(tazId, classOf[TAZ])
-    val costInDollars = PricingModel.evaluateParkingTicket(pricingModel, 60)
+    val costInDollars = if (pricingModel.isInstanceOf[FlatFee]) pricingModel.costInDollars else 0.0
     val expectedStall =
       ParkingStall(
         tazId1,
@@ -552,7 +551,7 @@ object ZonalParkingManagerSpec {
       minSearchRadius,
       maxSearchRadius,
       seed,
-      beamConfig.beam.agentsim.agents.parking.multinomialLogit,
+      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
       beamConfig,
       None
     )
@@ -577,7 +576,7 @@ object ZonalParkingManagerSpec {
       val quadTree = coords.foldLeft(new QuadTree[TAZ](xMin, yMin, xMax, yMax)) { (tree, tazData) =>
         val (coord, area) = tazData
         val tazId = Id.create(startAtId + tree.size, classOf[TAZ])
-        val taz = new TAZ(tazId, coord, area, None)
+        val taz = new TAZ(tazId, coord, area)
         tree.put(coord.getX, coord.getY, taz)
         tree
       }

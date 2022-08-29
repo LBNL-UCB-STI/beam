@@ -342,9 +342,6 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
         final JFreeChart chart = GraphUtils.createStackedBarChartWithDefaultSettings(defaultCategoryDataset, graphTitle, "modes", "count", false);
         CategoryPlot plot = chart.getCategoryPlot();
-
-        plot.getDomainAxis().setMaximumCategoryLabelLines(3);
-
         GraphUtils.plotLegendItems(plot, defaultCategoryDataset.getRowCount());
         String graphImageFile = ioCotroller.getIterationFilename(iterationNumber, "NonArrivedAgentsAtTheEndOfSimulation.png");
         GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);

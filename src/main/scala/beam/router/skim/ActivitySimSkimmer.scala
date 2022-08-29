@@ -249,7 +249,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       individualSkims.map(getValue).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
 
     val weightedDistance = getWeightedSkimsValue(_.distanceInMeters)
-    val weightedTotalTime = getWeightedSkimsValue(_.travelTimeInMinutes)
+    val weightedGeneralizedTime = getWeightedSkimsValue(_.generalizedTimeInMinutes)
+    val weightedGeneralizedCost = getWeightedSkimsValue(_.generalizedCost)
     val weightedCost = getWeightedSkimsValue(_.cost)
     val weightedWalkAccessTime = getWeightedSkimsValue(_.walkAccessInMinutes)
     val weightedWalkEgressTime = getWeightedSkimsValue(_.walkEgressInMinutes)
@@ -269,9 +270,9 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       pathType = pathType,
       originId = originId,
       destinationId = destinationId,
-      weightedTotalTime = weightedTotalTime,
+      weightedGeneralizedTime = weightedGeneralizedTime,
       weightedTotalInVehicleTime = weightedTotalInVehicleTime,
-      weightedTotalCost = weightedCost,
+      weightedGeneralizedCost = weightedGeneralizedCost,
       weightedDistance = weightedDistance,
       weightedWalkAccess = weightedWalkAccessTime,
       weightedWalkAuxiliary = weightedWalkAuxiliaryTime,
@@ -369,9 +370,9 @@ object ActivitySimSkimmer extends LazyLogging {
     pathType: ActivitySimPathType,
     originId: String,
     destinationId: String,
-    weightedTotalTime: Double,
+    weightedGeneralizedTime: Double,
     weightedTotalInVehicleTime: Double,
-    weightedTotalCost: Double,
+    weightedGeneralizedCost: Double,
     weightedDistance: Double,
     weightedWalkAccess: Double,
     weightedWalkAuxiliary: Double,

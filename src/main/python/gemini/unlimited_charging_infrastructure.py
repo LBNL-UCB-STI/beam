@@ -21,7 +21,7 @@ with open('sfbay_taz_unlimited_charging_point.csv', mode='w') as csv_writer:
 
         csv_writer.write(f"{x},Public,Block,PublicLevel2(7.2|AC),9999999,19.3,Any" + "\n")
         csv_writer.write(f"{x},Public,Block,PublicFC(150|DC),9999999,490.98,Any" + "\n")
-        csv_writer.write(f"{x},Public,Block,PublicXFC(200|DC),9999999,654.64,Any" + "\n")
+        csv_writer.write(f"{x},Public,Block,PublicFC(200|DC),9999999,654.64,Any" + "\n")
         csv_writer.write(f"{x},Public,Block,PublicXFC(300|DC),9999999,981.96,Any" + "\n")
         csv_writer.write(f"{x},Public,Block,PublicXFC(400|DC),9999999,1309.28,Any" + "\n")
 
@@ -34,3 +34,5 @@ with open('sfbay_taz_unlimited_depots.csv', mode='w') as csv_writer:
         csv_writer.write(f"{x},Public,FlatFee,DepotXFC(200.0|DC),9999999,654.64,ridehail(GlobalRHM)" + "\n")
         csv_writer.write(f"{x},Public,FlatFee,DepotXFC(300.0|DC),9999999,981.96,ridehail(GlobalRHM)" + "\n")
         csv_writer.write(f"{x},Public,FlatFee,DepotXFC(400.0|DC),9999999,1309.28,ridehail(GlobalRHM)" + "\n")
+
+

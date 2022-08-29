@@ -1,16 +1,13 @@
 package beam.utils
 
 import java.io.File
+
 import akka.actor.ActorSystem
-import beam.agentsim.agents.choice.logit.TourModeChoiceModel
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.events.eventbuilder.{ComplexEventBuilder, EventBuilderActor}
 import beam.api.{BeamCustomizationAPI, DefaultAPIImplementation}
-import beam.router.Modes.BeamMode
 import beam.sim.config.{BeamConfig, BeamConfigHolder, MatSimBeamConfigBuilder}
-import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import beam.sim.{BeamHelper, BeamScenario, BeamServices, BeamServicesImpl, RunBeam}
-import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.google.inject.Injector
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
@@ -30,8 +27,6 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll with BeforeAndA
 
   // Next things are pretty cheap in initialization, so let it be non-lazy
   val beamConfig: BeamConfig = BeamConfig(config)
-  val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(householdAttributes = HouseholdAttributes("", 0.0,0,0,0), Option(""), false, Seq(BeamMode.CAR), valueOfTime = 0.0, age = Option(0), income = Option(0))
-  val tourModeChoiceModel: TourModeChoiceModel = TourModeChoiceModel(beamConfig)
   val matsimConfig: Config = new MatSimBeamConfigBuilder(config).buildMatSimConf()
   matsimConfig.controler.setOutputDirectory(outputDirPath)
   matsimConfig.controler.setOverwriteFileSetting(OverwriteFileSetting.overwriteExistingFiles)

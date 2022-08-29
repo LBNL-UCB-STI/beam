@@ -2,15 +2,17 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
-import beam.agentsim.agents.ridehail.RideHailManager.VehicleId
+import beam.agentsim.agents.ridehail.RideHailManager.{RefuelSource, VehicleId}
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure._
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamServices, Geofence}
+import beam.utils.logging.LogActorState
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
 import org.matsim.core.controler.OutputDirectoryHierarchy
@@ -34,12 +36,13 @@ import scala.collection.mutable.ListBuffer
   *
   * Key parameters to control behavior of this class:
   *
-  * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.drivingTimeMultiplier = "double | -0.01666667" // one minute of driving is one util
-  * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.queueingTimeMultiplier = "double | -0.01666667" // one minute of queueing is one util
-  * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.chargingTimeMultiplier = "double | -0.01666667" // one minute of charging is one util
-  * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.insufficientRangeMultiplier = "double | -60.0" // 60 minute penalty if out of range
+  * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.drivingTimeMultiplier = "double | -0.01666667" // one minute of driving is one util
+  * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.queueingTimeMultiplier = "double | -0.01666667" // one minute of queueing is one util
+  * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.chargingTimeMultiplier = "double | -0.01666667" // one minute of charging is one util
+  * beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.insufficientRangeMultiplier = "double | -60.0" // 60 minute penalty if out of range
   */
 class DefaultRideHailDepotParkingManager(
+  vehicleManagerId: Id[VehicleManager],
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   outputDirectory: OutputDirectoryHierarchy,
   rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail
@@ -57,10 +60,18 @@ class DefaultRideHailDepotParkingManager(
 
   override protected val searchFunctions: Option[InfrastructureFunctions] = None
 
+  protected val chargingPlugTypesSortedByPower = parkingZones
+    .flatMap(_._2.chargingPointType)
+    .toArray
+    .distinct
+    .sortBy(-ChargingPointType.getChargingPointInstalledPowerInKw(_))
+
   ParkingZoneFileUtils.toCsv(
     parkingZones,
     outputDirectory.getOutputFilename(DefaultRideHailDepotParkingManager.outputRidehailParkingFileName)
   )
+
+  def fastestChargingPlugType: ChargingPointType = chargingPlugTypesSortedByPower.head
 
   /*
    *  Maps from VehicleId -> XX
@@ -120,7 +131,7 @@ class DefaultRideHailDepotParkingManager(
           ParkingInquiry.init(
             SpaceTime(locationUtm, tick),
             "wherever",
-            VehicleManager.getReservedFor(beamVehicle.vehicleManagerId.get).get,
+            VehicleManager.getReservedFor(vehicleManagerId).get,
             Some(beamVehicle),
             valueOfTime = rideHailConfig.cav.valueOfTime,
             triggerId = 0
@@ -149,6 +160,46 @@ class DefaultRideHailDepotParkingManager(
       putNewTickAndObservation(beamVehicle.id, (tick, "DequeueToCharge"))
       vehiclesInQueueToParkingZoneId.remove(beamVehicle.id)
       Some(ChargingQueueEntry(beamVehicle, parkingStall, 1.0))
+    }
+  }
+
+  /**
+    * Adds a vehicle to internal data structures to track that it is engaged in a charging session.
+    *
+    * @param stall ParkingStall
+    * @param beamVehicle BeamVehicle
+    * @param tick Int
+    * @param source Tag used for logging purposes.
+    */
+  def addVehicleToChargingInDepotUsing(
+    stall: ParkingStall,
+    beamVehicle: BeamVehicle,
+    tick: Int,
+    source: RefuelSource
+  ): Boolean = {
+    if (chargingVehicleToParkingStallMap.keys.exists(_ == beamVehicle.id)) {
+      logger.warn(
+        "{} is already charging in {}, yet it is being added to {}. Source: {} THIS SHOULD NOT HAPPEN!",
+        beamVehicle.id,
+        chargingVehicleToParkingStallMap(beamVehicle.id),
+        stall,
+        source
+      )
+      beamVehicle.getDriver.get ! LogActorState
+      false
+    } else {
+      logger.debug(
+        "Cache that vehicle {} is now charging in depot {}, source {}",
+        beamVehicle.id,
+        stall.parkingZoneId,
+        source
+      )
+      chargingVehicleToParkingStallMap += beamVehicle.id -> stall
+      parkingZoneIdToParkingZoneDepotData(stall.parkingZoneId).chargingVehicles.add(beamVehicle.id)
+      val (chargingSessionDuration, _) = beamVehicle.refuelingSessionDurationAndEnergyInJoules(None, None, None)
+      putNewTickAndObservation(beamVehicle.id, (tick, s"Charging($source)"))
+      vehicleIdToEndRefuelTick.put(beamVehicle.id, tick + chargingSessionDuration)
+      true
     }
   }
 
@@ -189,6 +240,42 @@ class DefaultRideHailDepotParkingManager(
   }
 
   /**
+    * Adds the vehicle to the appropriate queue for the depot and [[ChargingPlugType]] associatd with the parkingStall argument.
+    *
+    * @param vehicle BeamVehicle
+    * @param parkingStall ParkingStall
+    * @param source used for logging purposes only.
+    */
+  def addVehicleAndStallToRefuelingQueueFor(
+    vehicle: BeamVehicle,
+    parkingStall: ParkingStall,
+    priority: Double,
+    source: RefuelSource
+  ): Unit = {
+    val chargingQueue = parkingZoneIdToParkingZoneDepotData(parkingStall.parkingZoneId).chargingQueue
+    val chargingQueueEntry = ChargingQueueEntry(vehicle, parkingStall, priority)
+    if (chargingQueue.exists(_.beamVehicle.id == vehicle.id)) {
+      logger.warn(
+        "{} already exists in parking zone {} queue. Not re-adding as it is a duplicate. Source: {} " +
+        "THIS SHOULD NEVER HAPPEN!",
+        vehicle.id,
+        parkingStall.parkingZoneId,
+        source
+      )
+    } else {
+      logger.debug(
+        "Add vehicle {} to charging queue of length {} at depot {}",
+        vehicle.id,
+        chargingQueue.size,
+        parkingStall.parkingZoneId
+      )
+      putNewTickAndObservation(vehicle.id, (vehicle.spaceTime.time, s"EnQueue($source)"))
+      vehiclesInQueueToParkingZoneId.put(vehicle.id, parkingStall.parkingZoneId)
+      chargingQueue.enqueue(chargingQueueEntry)
+    }
+  }
+
+  /**
     * Notify this [[RideHailDepotParkingManager]] that vehicles are on the way to the depot for the purpose of refueling.
     *
     * @param newVehiclesHeadedToDepot
@@ -223,6 +310,14 @@ class DefaultRideHailDepotParkingManager(
       .contains(vehicleId)
 
   /**
+    * Get all vehicles that are on the way to the refueling depot specified by the [[ParkingZone]] id.
+    * @param parkingZoneId
+    * @return a [[Vector]] of [[VechicleId]]s
+    */
+  def getVehiclesOnWayToRefuelingDepot(parkingZoneId: Id[ParkingZoneId]): Vector[VehicleId] =
+    parkingZoneIdToParkingZoneDepotData(parkingZoneId).vehiclesOnWayToDepot.toVector
+
+  /**
     * Notify this [[RideHailDepotParkingManager]] that a vehicles is no longer on the way to the depot.
     *
     * @param vehicleId
@@ -251,6 +346,7 @@ object DefaultRideHailDepotParkingManager {
   val outputRidehailParkingFileName = "ridehailParking.csv"
 
   def apply(
+    vehicleManagerId: Id[VehicleManager],
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
     geoQuadTree: QuadTree[TAZ],
     idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
@@ -258,6 +354,7 @@ object DefaultRideHailDepotParkingManager {
     beamServices: BeamServices
   ): RideHailDepotParkingManager = {
     new DefaultRideHailDepotParkingManager(
+      vehicleManagerId,
       parkingZones,
       beamServices.matsimServices.getControlerIO,
       beamServices.beamConfig.beam.agentsim.agents.rideHail
@@ -277,19 +374,20 @@ object DefaultRideHailDepotParkingManager {
           beamServices.beamConfig.matsim.modules.global.randomSeed,
           beamServices.beamScenario.fuelTypePrices,
           beamServices.beamConfig.beam.agentsim.agents.rideHail,
-          beamServices.skims,
-          beamServices.beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
+          beamServices.skims
         )
       )
     }
   }
 
   def init(
+    vehicleManagerId: Id[VehicleManager],
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
     boundingBox: Envelope,
     beamServices: BeamServices
   ): RideHailDepotParkingManager = {
     DefaultRideHailDepotParkingManager(
+      vehicleManagerId,
       parkingZones,
       beamServices.beamScenario.tazTreeMap.tazQuadTree,
       beamServices.beamScenario.tazTreeMap.idToTAZMapping,
