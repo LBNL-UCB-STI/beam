@@ -162,7 +162,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
       Class.forName(t.triggerType)
     }
     val allSubClasses = new ReflectionUtils { val packageName = "beam.agentsim" }.classesOfType[Trigger]
-    if(iterationNumber == 0) {//StuckFinder Warnings should only be displayed during the 0th iteration
+    if (iterationNumber == 0) { //StuckFinder Warnings should only be displayed during the 0th iteration
       allSubClasses.diff(definedTypes).foreach { clazz =>
         logger.warn("There is no configuration for '{}'", clazz);
       }
