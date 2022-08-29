@@ -298,9 +298,11 @@ trait BeamHelper extends LazyLogging {
     val networkCoordinator = buildNetworkCoordinator(beamConfig)
     val gtfs = GTFSUtils.loadGTFS(beamConfig.beam.routing.r5.directory)
     val trainStopQuadTree = GTFSUtils.toQuadTree(GTFSUtils.trainStations(gtfs), new GeoUtilsImpl(beamConfig))
-    val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
-    val exchangeGeo = beamConfig.beam.exchange.output.geo.filePath.map(TAZTreeMap.getTazTreeMap)
-
+    val tazMap =
+      TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath, Some(beamConfig.beam.agentsim.taz.tazIdFieldName))
+    tazMap.mapNetworkToTAZs(networkCoordinator.network)
+    val exchangeGeo = beamConfig.beam.exchange.output.geo.filePath
+      .map(TAZTreeMap.getTazTreeMap(_, Some(beamConfig.beam.agentsim.taz.tazIdFieldName)))
     val (freightCarriers, fixedActivitiesDurationsFromFreight) =
       readFreights(beamConfig, networkCoordinator.transportNetwork.streetLayer, vehicleTypes, outputDirMaybe)
 

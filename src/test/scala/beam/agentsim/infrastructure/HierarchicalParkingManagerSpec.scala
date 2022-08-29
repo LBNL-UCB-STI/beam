@@ -2,7 +2,6 @@ package beam.agentsim.infrastructure
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
-import akka.util.Timeout
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.agents.BeamvilleFixtures
 import beam.agentsim.agents.vehicles.VehicleManager
@@ -24,7 +23,6 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.funspec.AnyFunSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import java.util.concurrent.TimeUnit
 import scala.util.Random
 
 class HierarchicalParkingManagerSpec
@@ -45,8 +43,6 @@ class HierarchicalParkingManagerSpec
     with Matchers
     with BeamHelper
     with BeamvilleFixtures {
-
-  private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
 
   val randomSeed: Int = 0
 
@@ -78,6 +74,7 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           randomSeed,
           beamConfig.beam.agentsim.agents.parking.multinomialLogit,
+          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
           checkThatNumberOfStallsMatch = true
         )
       } {
@@ -117,6 +114,7 @@ class HierarchicalParkingManagerSpec
         boundingBox,
         randomSeed,
         beamConfig.beam.agentsim.agents.parking.multinomialLogit,
+        beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
         checkThatNumberOfStallsMatch = true
       )
 
@@ -173,6 +171,7 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           randomSeed,
           beamConfig.beam.agentsim.agents.parking.multinomialLogit,
+          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
           checkThatNumberOfStallsMatch = true
         )
       } {
@@ -245,6 +244,7 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           randomSeed,
           beamConfig.beam.agentsim.agents.parking.multinomialLogit,
+          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
           checkThatNumberOfStallsMatch = true
         )
       } {
@@ -330,6 +330,7 @@ class HierarchicalParkingManagerSpec
           boundingBox,
           randomSeed,
           beamConfig.beam.agentsim.agents.parking.multinomialLogit,
+          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
           checkThatNumberOfStallsMatch = true
         )
       } {
@@ -383,6 +384,7 @@ class HierarchicalParkingManagerSpec
         boundingBox,
         randomSeed,
         beamConfig.beam.agentsim.agents.parking.multinomialLogit,
+        beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
         checkThatNumberOfStallsMatch = true
       )
 

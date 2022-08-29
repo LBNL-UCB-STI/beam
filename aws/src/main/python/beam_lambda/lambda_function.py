@@ -58,6 +58,7 @@ S3_PUBLISH_SCRIPT = '''
   -    done;
   -    sudo cp /home/ubuntu/git/beam/gc_* "$finalPath"
   -    sudo cp /var/log/cloud-init-output.log "$finalPath"
+  -    sudo cp /home/ubuntu/git/beam/thread_dump_from_RunBeam.txt.gz "$finalPath"    
   -    sudo gzip /home/ubuntu/cpu_ram_usage.csv
   -    sudo cp /home/ubuntu/cpu_ram_usage* "$finalPath"
   -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;
@@ -144,7 +145,7 @@ write_files:
             if [[ -z "${last_completed}" ]]; then
               last_completed=$(tac $log_file | grep -m 1 -Eo '^[0-9]{2}:[0-9]{2}:[0-9]{2}')
             fi
-            beam_status=$(python3 -c "import datetime as dt; diff = dt.datetime.now() - dt.datetime.combine(dt.datetime.today(), dt.time.fromisoformat('$last_completed')); diff = diff + dt.timedelta(days = 1) if diff < dt.timedelta(0) else diff; x = 'OK' if diff < dt.timedelta(hours=3) else 'Bad'; print(x)")
+            beam_status=$(python3 -c "import datetime as dt; diff = dt.datetime.now() - dt.datetime.combine(dt.datetime.today(), dt.time.fromisoformat('$last_completed')); diff = diff + dt.timedelta(days = 1) if diff < dt.timedelta(0) else diff; x = 'OK' if diff < dt.timedelta(hours=10) else 'Bad'; print(x)")
             pid=$(pgrep -f RunBeam)
             if [ "$beam_status" == 'Bad' ] && [ "$pid" != "" ]; then
               jstack $pid | gzip > "$out_dir/kill_thread_dump.txt.gz"
@@ -153,11 +154,27 @@ write_files:
               kill -9 $pid
             fi
       path: /home/ubuntu/beam_stuck_guard.sh
+    - content: |
+            #!/bin/bash
+            log_file="$(find /home/ubuntu/git/beam/output -maxdepth 2 -mindepth 2 -type d -print -quit)/beamLog.out"
+            if [[ ! -f $log_file ]]; then
+                echo "Unable to start"
+                exit 0;
+            fi
+            last_line=$(tail $log_file -n 1)
+            if [[ $last_line == *"Exiting BEAM"* ]]; then
+                echo "Run Completed"
+            else
+                echo "Run Failed"
+            fi
+            exit 0;
+      path: /home/ubuntu/check_simulation_result.sh
 
 runcmd:
   - sudo chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
   - sudo chmod +x /home/ubuntu/write-cpu-ram-usage.sh
   - sudo chmod +x /home/ubuntu/beam_stuck_guard.sh
+  - sudo chmod +x /home/ubuntu/check_simulation_result.sh
   - cd /home/ubuntu
   - ./write-cpu-ram-usage.sh 20 > cpu_ram_usage.csv &
   - cd /home/ubuntu/git
@@ -167,8 +184,6 @@ runcmd:
   - ln -sf /var/log/cloud-init-output.log /home/ubuntu/git/beam/cloud-init-output.log
   - sudo chmod 644 /var/log/cloud-init-output.log
   - sudo chmod 644 /home/ubuntu/git/beam/cloud-init-output.log
-  - echo "-------------------Starting Beam Sim----------------------"
-  - echo $(date +%s) > /tmp/.starttime
   - cd /home/ubuntu/git/beam
   - if [ "$COMMIT" = "HEAD" ]
   - then
@@ -213,107 +228,121 @@ runcmd:
   -      done
   -  done
 
-  - rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat
-  - hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
-  - start_json=$(printf "{
-      \\"command\\":\\"add\\",
-      \\"type\\":\\"beam\\",
-      \\"sheet_id\\":\\"$SHEET_ID\\",
-      \\"run\\":{
-        \\"status\\":\\"Run Started\\",
-        \\"name\\":\\"$TITLED\\",
-        \\"instance_id\\":\\"%s\\",
-        \\"instance_type\\":\\"%s\\",
-        \\"host_name\\":\\"%s\\",
-        \\"browser\\":\\"http://%s:8000\\",
-        \\"branch\\":\\"$BRANCH\\",
-        \\"commit\\":\\"$RESOLVED_COMMIT\\",
-        \\"data_branch\\":\\"$DATA_BRANCH\\",
-        \\"data_commit\\":\\"$RESOLVED_DATA_COMMIT\\",
-        \\"region\\":\\"$REGION\\",
-        \\"batch\\":\\"$UID\\",
-        \\"s3_link\\":\\"%s\\",
-        \\"max_ram\\":\\"$MAX_RAM\\",
-        \\"profiler_type\\":\\"$PROFILER\\",
-        \\"config_file\\":\\"$CONFIG\\",
-        \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
-        \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
-      }
-    }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
-  - echo $start_json
-  - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
-  - chmod +x /tmp/slack.sh
-  - echo "notification sent..."
-  - echo "notification saved..."
-  - crontab /tmp/cron_jobs
-  - crontab -l
-  - echo "notification scheduled..."
-
-  - 'echo "gradlew assemble: $(date)"'
-  - ./gradlew assemble
-  - 'echo "sudo chown -R ubuntu:ubuntu ."'
-  - sudo chown -R ubuntu:ubuntu .
-  - echo "looping config ..."
-  - export MAXRAM=$MAX_RAM
-  - export SIGOPT_CLIENT_ID="$SIGOPT_CLIENT_ID"
-  - export SIGOPT_DEV_ID="$SIGOPT_DEV_ID"
-  - export GOOGLE_API_KEY="$GOOGLE_API_KEY"
-  - echo $MAXRAM
-  - /tmp/slack.sh "$hello_msg"
-
-  - s3p=""
-  - for cf in $CONFIG
-  -  do
-  -    echo "-------------------running $cf----------------------"
-  -    $RUN_SCRIPT
-  -  done
-  - echo "-------------------running Health Analysis Script----------------------"
-  - python3 src/main/python/general_analysis/simulation_health_analysis.py
-  - while IFS="," read -r metric count
-  - do
-  -    export $metric=$count
-  - done < RunHealthAnalysis.txt
-
-  - curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
-  - s3glip=""
-  - if [ "$S3_PUBLISH" = "True" ]
+  - if [ "$RUN_JUPYTER" = "True" ]
   - then
-  -   s3glip="\\n S3 output url ${s3p#","}"
+  -   echo "Starting Jupyter"
+  -   sudo ./gradlew jupyterStart -Puser=root -PjupyterToken=$JUPYTER_TOKEN
   - fi
-  - bye_msg=$(printf "Run Completed \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT %s \\n Shutdown in $SHUTDOWN_WAIT minutes" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "$s3glip")
-  - echo "$bye_msg"
-  - stop_json=$(printf "{
-      \\"command\\":\\"add\\",
-      \\"type\\":\\"beam\\",
-      \\"sheet_id\\":\\"$SHEET_ID\\",
-      \\"run\\":{
-        \\"status\\":\\"Run Completed\\",
-        \\"name\\":\\"$TITLED\\",
-        \\"instance_id\\":\\"%s\\",
-        \\"instance_type\\":\\"%s\\",
-        \\"host_name\\":\\"%s\\",
-        \\"browser\\":\\"http://%s:8000\\",
-        \\"branch\\":\\"$BRANCH\\",
-        \\"commit\\":\\"$RESOLVED_COMMIT\\",
-        \\"data_branch\\":\\"$DATA_BRANCH\\",
-        \\"data_commit\\":\\"$RESOLVED_DATA_COMMIT\\",
-        \\"region\\":\\"$REGION\\",
-        \\"batch\\":\\"$UID\\",
-        \\"s3_link\\":\\"%s\\",
-        \\"max_ram\\":\\"$MAX_RAM\\",
-        \\"profiler_type\\":\\"$PROFILER\\",
-        \\"config_file\\":\\"$CONFIG\\",
-        \\"stacktrace\\":\\"$stacktrace\\",
-        \\"died_actors\\":\\"$actorDied\\",
-        \\"error\\":\\"$error\\",
-        \\"warning\\":\\"$warn\\",
-        \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
-        \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
-      }
-    }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "${s3p#","}")
-  - /tmp/slack.sh "$bye_msg"
-  - curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$stop_json"
-  - $END_SCRIPT
+  
+  - if [ "$RUN_BEAM" = "True" ]
+  - then
+
+  -   echo "-------------------Starting Beam Sim----------------------"
+  -   echo $(date +%s) > /tmp/.starttime
+  -   rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat  
+  -   hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  -   start_json=$(printf "{
+        \\"command\\":\\"add\\",
+        \\"type\\":\\"beam\\",
+        \\"sheet_id\\":\\"$SHEET_ID\\",
+        \\"run\\":{
+          \\"status\\":\\"Run Started\\",
+          \\"name\\":\\"$TITLED\\",
+          \\"instance_id\\":\\"%s\\",
+          \\"instance_type\\":\\"%s\\",
+          \\"host_name\\":\\"%s\\",
+          \\"browser\\":\\"http://%s:8000\\",
+          \\"branch\\":\\"$BRANCH\\",
+          \\"commit\\":\\"$RESOLVED_COMMIT\\",
+          \\"data_branch\\":\\"$DATA_BRANCH\\",
+          \\"data_commit\\":\\"$RESOLVED_DATA_COMMIT\\",
+          \\"region\\":\\"$REGION\\",
+          \\"batch\\":\\"$UID\\",
+          \\"s3_link\\":\\"%s\\",
+          \\"max_ram\\":\\"$MAX_RAM\\",
+          \\"profiler_type\\":\\"$PROFILER\\",
+          \\"config_file\\":\\"$CONFIG\\",
+          \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
+          \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
+        }
+      }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  -   echo $start_json
+  -   curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
+  -   chmod +x /tmp/slack.sh
+  -   echo "notification sent..."
+  -   echo "notification saved..."
+  -   crontab /tmp/cron_jobs
+  -   crontab -l
+  -   echo "notification scheduled..."
+
+  -   'echo "gradlew assemble: $(date)"'
+  -   ./gradlew assemble
+  -   'echo "sudo chown -R ubuntu:ubuntu ."'
+  -   sudo chown -R ubuntu:ubuntu .
+  -   echo "looping config ..."
+  -   export MAXRAM=$MAX_RAM
+  -   export SIGOPT_CLIENT_ID="$SIGOPT_CLIENT_ID"
+  -   export SIGOPT_DEV_ID="$SIGOPT_DEV_ID"
+  -   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
+  -   echo $MAXRAM
+  -   /tmp/slack.sh "$hello_msg"
+
+  -   s3p=""
+  -   for cf in $CONFIG
+  -    do
+  -      echo "-------------------running $cf----------------------"
+  -      $RUN_SCRIPT
+  -    done
+  -   echo "-------------------running Health Analysis Script----------------------"
+  -   python3 src/main/python/general_analysis/simulation_health_analysis.py
+  -   while IFS="," read -r metric count
+  -   do
+  -      export $metric=$count
+  -   done < RunHealthAnalysis.txt
+  
+  -   curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
+  -   s3glip=""
+  -   if [ "$S3_PUBLISH" = "True" ]
+  -   then
+  -     s3glip="\\n S3 output url ${s3p#","}"
+  -   fi
+  -   cd /home/ubuntu
+  -   final_status=$(./check_simulation_result.sh)
+  -   bye_msg=$(printf "Run Completed \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT %s \\n Shutdown in $SHUTDOWN_WAIT minutes" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "$s3glip")
+  -   echo "$bye_msg"
+  -   stop_json=$(printf "{
+        \\"command\\":\\"add\\",
+        \\"type\\":\\"beam\\",
+        \\"sheet_id\\":\\"$SHEET_ID\\",
+        \\"run\\":{
+          \\"status\\":\\"$final_status\\",
+          \\"name\\":\\"$TITLED\\",
+          \\"instance_id\\":\\"%s\\",
+          \\"instance_type\\":\\"%s\\",
+          \\"host_name\\":\\"%s\\",
+          \\"browser\\":\\"http://%s:8000\\",
+          \\"branch\\":\\"$BRANCH\\",
+          \\"commit\\":\\"$RESOLVED_COMMIT\\",
+          \\"data_branch\\":\\"$DATA_BRANCH\\",
+          \\"data_commit\\":\\"$RESOLVED_DATA_COMMIT\\",
+          \\"region\\":\\"$REGION\\",
+          \\"batch\\":\\"$UID\\",
+          \\"s3_link\\":\\"%s\\",
+          \\"max_ram\\":\\"$MAX_RAM\\",
+          \\"profiler_type\\":\\"$PROFILER\\",
+          \\"config_file\\":\\"$CONFIG\\",
+          \\"stacktrace\\":\\"$stacktrace\\",
+          \\"died_actors\\":\\"$actorDied\\",
+          \\"error\\":\\"$error\\",
+          \\"warning\\":\\"$warn\\",
+          \\"sigopt_client_id\\":\\"$SIGOPT_CLIENT_ID\\",
+          \\"sigopt_dev_id\\":\\"$SIGOPT_DEV_ID\\"
+        }
+      }" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "${s3p#","}")
+  -   /tmp/slack.sh "$bye_msg"
+  -   curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$stop_json"
+  -   $END_SCRIPT
+  - fi
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
 
@@ -756,6 +785,9 @@ def deploy_handler(event, context):
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
     run_grafana = event.get('run_grafana', False)
     run_helics = event.get('run_helics', False)
+    run_jupyter = event.get('run_jupyter', False)
+    jupyter_token = event.get('jupyter_token', '')
+
     profiler_type = event.get('profiler_type', 'null')
     budget_override = event.get('budget_override', False)
 
@@ -766,6 +798,7 @@ def deploy_handler(event, context):
     region = get_param('region')
     shutdown_behaviour = get_param('shutdown_behaviour')
     is_spot = event.get('is_spot', False)
+    run_beam = event.get('run_beam', True)
 
     if missing_parameters:
         return "Unable to start, missing parameters: " + ", ".join(missing_parameters)
@@ -837,7 +870,7 @@ def deploy_handler(event, context):
                 .replace('$CONFIG', arg) \
                 .replace('$MAIN_CLASS', execute_class) \
                 .replace('$UID', uid) \
-                .replace('$SHUTDOWN_WAIT', shutdown_wait) \
+                .replace('$SHUTDOWN_WAIT', str(shutdown_wait)) \
                 .replace('$TITLED', runName) \
                 .replace('$MAX_RAM', str(max_ram)) \
                 .replace('$S3_PUBLISH', str(s3_publish)) \
@@ -848,7 +881,10 @@ def deploy_handler(event, context):
                 .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
                 .replace('$SLACK_TOKEN', os.environ['SLACK_TOKEN']) \
                 .replace('$SLACK_CHANNEL', os.environ['SLACK_CHANNEL']) \
-                .replace('$SHEET_ID', os.environ['SHEET_ID'])
+                .replace('$SHEET_ID', os.environ['SHEET_ID']) \
+                .replace('$RUN_JUPYTER', str(run_jupyter)) \
+                .replace('$RUN_BEAM', str(run_beam)) \
+                .replace('$JUPYTER_TOKEN', jupyter_token)
             if is_spot:
                 min_cores = event.get('min_cores', 0)
                 max_cores = event.get('max_cores', 0)
@@ -858,13 +894,21 @@ def deploy_handler(event, context):
             else:
                 instance_id = deploy(script, instance_type, region.replace("-", "_")+'_', shutdown_behaviour, runName, volume_size, git_user_email, deploy_type_tag, budget_override)
             host = get_dns(instance_id)
-            txt += 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
+
+            if run_beam:
+                txt += 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
 
             if run_grafana:
                 txt += ' Grafana will be available at http://{dns}:3003/d/dvib8mbWz/beam-simulation-global-view.'.format(dns=host)
 
             if run_helics:
                 txt += ' Helics scripts with recorder will be run in parallel with BEAM.'
+
+            if run_jupyter and run_beam:
+                txt += ' Jupyter will be run in parallel with BEAM. Url: http://{dns}:8888/?token={token}'.format(dns=host, token=jupyter_token)
+
+            if run_jupyter and not run_beam:
+                txt += ' Jupyter is starting. Url: http://{dns}:8888/?token={token}'.format(dns=host, token=jupyter_token)
 
             runNum += 1
     else:

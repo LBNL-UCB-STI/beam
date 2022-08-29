@@ -12,7 +12,6 @@ import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Envelope
-import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -24,7 +23,7 @@ import scala.util.Random
 /**
   * Created by haitamlaarabi
   */
-class ChargingNetwork(val chargingZones: Map[Id[ParkingZoneId], ParkingZone]) extends ParkingNetwork(chargingZones) {
+class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) extends ParkingNetwork(parkingZones) {
   import ChargingNetwork._
 
   override protected val searchFunctions: Option[InfrastructureFunctions] = None
@@ -33,7 +32,7 @@ class ChargingNetwork(val chargingZones: Map[Id[ParkingZoneId], ParkingZone]) ex
     mutable.HashMap.empty
 
   protected val chargingZoneKeyToChargingStationMap: Map[Id[ParkingZoneId], ChargingStation] =
-    chargingZones.map { case (zoneId, zone) => zoneId -> ChargingStation(zone) }
+    parkingZones.filter(_._2.chargingPointType.isDefined).map { case (zoneId, zone) => zoneId -> ChargingStation(zone) }
 
   val chargingStations: List[ChargingStation] = chargingZoneKeyToChargingStationMap.values.toList
 
@@ -85,6 +84,7 @@ class ChargingNetwork(val chargingZones: Map[Id[ParkingZoneId], ParkingZone]) ex
     */
   def processChargingPlugRequest(
     request: ChargingPlugRequest,
+    estimatedParkingDuration: Int,
     activityType: String,
     theSender: ActorRef
   ): Option[ChargingVehicle] = lookupStation(request.stall.parkingZoneId)
@@ -94,6 +94,7 @@ class ChargingNetwork(val chargingZones: Map[Id[ParkingZoneId], ParkingZone]) ex
         request.vehicle,
         request.stall,
         request.personId,
+        estimatedParkingDuration,
         activityType,
         request.shiftStatus,
         request.shiftDuration,
@@ -177,7 +178,8 @@ object ChargingNetwork extends LazyLogging {
           beamConfig.matsim.modules.global.randomSeed,
           beamConfig.beam.agentsim.agents.parking.multinomialLogit,
           skims,
-          fuelPrice
+          fuelPrice,
+          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
         )
       )
     }
@@ -241,11 +243,11 @@ object ChargingNetwork extends LazyLogging {
     private var waitingLineInternal: mutable.PriorityQueue[ChargingVehicle] =
       mutable.PriorityQueue.empty[ChargingVehicle](Ordering.by((_: ChargingVehicle).arrivalTime).reverse)
 
-    private[ChargingNetwork] def numAvailableChargers: Int =
+    def numAvailableChargers: Int =
       zone.maxStalls - howManyVehiclesAreCharging - howManyVehiclesAreInGracePeriodAfterCharging
 
-    private[ChargingNetwork] def connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
-      chargingVehiclesInternal.toMap
+    private[ChargingNetwork] def connectedVehicles: collection.Map[Id[BeamVehicle], ChargingVehicle] =
+      chargingVehiclesInternal
 
     def howManyVehiclesAreWaiting: Int = waitingLineInternal.size
     def howManyVehiclesAreCharging: Int = chargingVehiclesInternal.size
@@ -274,6 +276,7 @@ object ChargingNetwork extends LazyLogging {
       vehicle: BeamVehicle,
       stall: ParkingStall,
       personId: Id[Person],
+      estimatedParkingDuration: Int,
       activityType: String,
       shiftStatus: ShiftStatus = NotApplicable,
       shiftDuration: Option[Int] = None,
@@ -281,15 +284,34 @@ object ChargingNetwork extends LazyLogging {
     ): ChargingVehicle = {
       vehicles.get(vehicle.id) match {
         case Some(chargingVehicle) =>
-          logger.error("Trying to connect a vehicle already connected. Something is broken!")
+          logger.error(
+            s"Something is broken! Trying to connect a vehicle already connected at time $tick: vehicle $vehicle - " +
+            s"activityType $activityType - stall $stall - personId $personId - chargingInfo $chargingVehicle"
+          )
           chargingVehicle
         case _ =>
           val chargingVehicle =
-            ChargingVehicle(vehicle, stall, this, tick, personId, activityType, shiftStatus, shiftDuration, theSender)
+            ChargingVehicle(
+              vehicle,
+              stall,
+              this,
+              tick,
+              vehicle.primaryFuelLevelInJoules,
+              personId,
+              estimatedParkingDuration,
+              activityType,
+              shiftStatus,
+              shiftDuration,
+              theSender
+            )
           if (numAvailableChargers > 0) {
             chargingVehiclesInternal.put(vehicle.id, chargingVehicle)
             chargingVehicle.updateStatus(Connected, tick)
           } else {
+            logger.error(
+              s"Dropping vehicle at waiting line time $tick: vehicle $vehicle - " +
+              s"activityType $activityType - stall $stall - personId $personId - chargingInfo $chargingVehicle"
+            )
             waitingLineInternal.enqueue(chargingVehicle)
             chargingVehicle.updateStatus(WaitingAtStation, tick)
           }
@@ -362,7 +384,9 @@ object ChargingNetwork extends LazyLogging {
     stall: ParkingStall,
     chargingStation: ChargingStation,
     arrivalTime: Int,
+    arrivalFuelLevel: Double,
     personId: Id[Person],
+    estimatedParkingDuration: Int,
     activityType: String,
     shiftStatus: ShiftStatus,
     shiftDuration: Option[Int],
@@ -478,6 +502,11 @@ object ChargingNetwork extends LazyLogging {
       */
     def calculateChargingSessionLengthAndEnergyInJoule: (Long, Double) = chargingSessions.foldLeft((0L, 0.0)) {
       case ((accA, accB), charging) => (accA + (charging.endTime - charging.startTime), accB + charging.energyToCharge)
+    }
+
+    override def toString: String = {
+      s"$arrivalTime - ${vehicle.id} - ${stall.parkingZoneId} - ${personId} - ${activityType} - " +
+      s"${chargingStatus.lastOption.getOrElse("None")} - ${chargingSessions.lastOption.getOrElse("None")}"
     }
   }
 }

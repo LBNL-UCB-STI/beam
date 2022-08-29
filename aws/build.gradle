@@ -1,7 +1,5 @@
 import com.amazonaws.services.lambda.model.InvocationType
-import com.amazonaws.services.lambda.model.InvokeResult
 import jp.classmethod.aws.reboot.gradle.lambda.AWSLambdaInvokeTask
-
 
 buildscript {
     repositories {
@@ -107,6 +105,8 @@ task deploy(type: AWSLambdaInvokeTask) {
   "command": "deploy",
   "run_grafana" : ${ext.getParameterValue('runGrafana') ?: false},
   "run_helics" : ${ext.getParameterValue('runHelics') ?: false},
+  "run_jupyter" : ${ext.getParameterValue('runJupyter') ?: false},
+  "jupyter_token" : "${ext.getParameterValue('jupyterToken') ?: UUID.randomUUID().toString()}",
   "is_spot" : ${ext.getParameterValue('isSpot') ?: false},
   "min_cores": ${ext.getParameterValue('minCores') ?: 0},
   "max_cores": ${ext.getParameterValue('maxCores') ?: 0},
@@ -242,6 +242,35 @@ task terminateEC2(type: AWSLambdaInvokeTask) {
     }
 }
 
+task jupyterEC2(type: AWSLambdaInvokeTask) {
+    doFirst {
+        functionName = "simulateBeam"
+        invocationType = InvocationType.RequestResponse
+        payload = """{
+          "title": "${(project.findProperty('title') ?: 'jupyter') + '_' + getCurrentGitUserEmail()}",
+          "git_user_email": "${getCurrentGitUserEmail()}",
+          "branch": "${project.findProperty('beamBranch') ?: getCurrentGitBranch()}",
+          "storage_size": ${project.findProperty('storageSize') ?: 256},
+          "instance_type": "${project.findProperty('instanceType') ?: 'r5.xlarge'}",
+          "region": "${project.findProperty('region') ?: defaultRegion}",
+          "shutdown_behaviour": "${project.findProperty('shutdownBehaviour') ?: "terminate"}",
+          "shutdown_wait": ${project.findProperty('shutdownWait') ?: 480},
+          "command": "deploy",
+          "run_grafana" : false,
+          "run_helics" : false,
+          "run_jupyter" : true,
+          "run_beam": false,
+          "jupyter_token" : "${project.findProperty("jupyterToken") ?: UUID.randomUUID().toString()}",
+          "is_spot" : false,
+          "budget_override": ${project.findProperty('budgetOverride') ?: false}
+        }"""
+
+    }
+    doLast {
+        printResult(payload, invokeResult)
+    }
+}
+
 task listS3Bucket(type: AWSLambdaInvokeTask) {
     doFirst {
         functionName = "s3BucketList"
@@ -274,7 +303,7 @@ def buildPayload(command) {
     return """{
   "instance_ids": "${project.findProperty('instanceIds')}",
   "region": "${project.findProperty('region') ?: defaultRegion}",
-  "budget_override": ${ext.getParameterValue('budgetOverride') ?: false}
+  "budget_override": ${project.findProperty('budgetOverride') ?: false},
   "command": "$command"
 }"""
 }

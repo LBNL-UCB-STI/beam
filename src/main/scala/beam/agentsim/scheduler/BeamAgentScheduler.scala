@@ -416,7 +416,7 @@ class BeamAgentScheduler(
       )
       FileUtils.writeToFile(
         s"$outputDir/scheduler_shutdown_thread_dump.txt.gz",
-        DebugLib.currentThreadDump().asScala.iterator
+        DebugLib.currentThreadsDump().asScala.iterator
       )
     }
   }

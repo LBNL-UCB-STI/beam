@@ -70,14 +70,14 @@ In BEAM, parking is issued at the granularity of a Traffic Analysis Zone (TAZ). 
 | *reservedFor*  | Any, RideHailManager                         |
 +----------------+----------------------------------------------+
 
-BEAM agents seek parking mid-tour, from within a leg of their trip. A search is run which starts at the trip destination and expands outward, seeking to find the closest TAZ centers with increasing search radii. Agents will pick the closest and cheapest parking alternative with attributes which match their use case. The location can be overridden for ride hail agents using the config parameter *beam.agentsim.agents.rideHail.refuelLocationType*, which may be set to "AtRequestLocation" or "AtTAZCenter".
+BEAM agents seek parking mid-tour, from within a leg of their trip. A search is run which starts at the trip destination and expands outward, seeking to find the closest TAZ centers with increasing search radii. Agents will pick the closest and cheapest parking alternative with attributes which match their use case.
 
 The following should be considered when configuring a set of parking alternatives. The default behavior is to provide a nearly unbounded number of parking stalls for each combination of attributes, per TAZ, for the public, and provide no parking alternatives for ride hail agents. This behavior can be overridden manually by providing replacement values in the parking configuration file. Parking which is *reservedFor* a RideHailManager should only appear as *Workplace* parking. Free parking can be instantiated by setting *feeInCents* to zero. *numStalls* should be non-negative. Charging behavior is currently implemented for ride hail agents only.
 
 the *chargingPointType* attribute will result in the following charger power in kW:
 
 +----------------+--------+
-| *chargingPointType* | kW     |
+| *chargingPointType* | kW|
 +================+========+
 | NoCharger      | 0.0    |
 +----------------+--------+
@@ -92,4 +92,21 @@ the *chargingPointType* attribute will result in the following charger power in 
 
 Refueling
 ---------
+
+Reposition
+----------
+
+In BEAM, reposition is based on availability. minAvailabilityMap stores the Tazs with lowest availibility of vehicles, and we reposition the number of matchLimit vehicles from the Tazs with available fleets more than matchLimit based on statTimeBin and repositionTimeBin to determinine when we start doing reposition and the frequency of repositioning.
+
+There are several parameters we can adjust in repositioning:
+
++----------------+--------------------------------------------------+
+| Parameters          | Meaning                                     |
++================+==================================================+
+| *matchLimit*        | How many vehicles we want to reposition     |
++----------------+--------------------------------------------------+
+| *repositionTimeBin* | How often we do repositioning               |
++----------------+--------------------------------------------------+
+| *statTimeBin*       | When do we start repositioning              |
++----------------+--------------------------------------------------+
 

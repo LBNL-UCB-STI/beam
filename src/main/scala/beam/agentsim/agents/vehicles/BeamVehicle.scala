@@ -198,18 +198,6 @@ class BeamVehicle(
     }
   }
 
-  def getChargerConnectedTick(): Int = {
-    chargerRWLock.read {
-      chargerConnectedTick.getOrElse(0)
-    }
-  }
-
-  def getChargerConnectedPrimaryFuel(): Double = {
-    chargerRWLock.read {
-      chargerConnectedPrimaryFuel.getOrElse(0L)
-    }
-  }
-
   /**
     * useFuel
     *
@@ -405,7 +393,11 @@ class BeamVehicle(
     StreetVehicle(id, beamVehicleType.id, spaceTime, mode, asDriver = true, needsToCalculateCost = needsToCalculateCost)
   }
 
-  def isCAV: Boolean = beamVehicleType.automationLevel >= 4
+  def isRidehail: Boolean = beamVehicleType.id.toString.startsWith("rideHail")
+
+  def isSharedVehicle: Boolean = beamVehicleType.id.toString.startsWith("sharedVehicle")
+
+  def isCAV: Boolean = beamVehicleType.isCav
 
   def isBEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.isEmpty

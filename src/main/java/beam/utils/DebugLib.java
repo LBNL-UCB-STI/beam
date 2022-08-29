@@ -38,10 +38,12 @@ public class DebugLib {
         while(System.nanoTime() - start < nanos);
     }
 
-    public static List<String> currentThreadDump() {
+    /*
+    Dumps all current threads
+    */
+    public static List<String> currentThreadsDump() {
         ThreadMXBean bean = ManagementFactory.getThreadMXBean();
         ThreadInfo[] infos = bean.dumpAllThreads(true, true);
         return Arrays.stream(infos).map(Object::toString).collect(Collectors.toList());
     }
-
 }

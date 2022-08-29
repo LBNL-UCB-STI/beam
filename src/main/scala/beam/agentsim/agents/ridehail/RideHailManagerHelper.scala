@@ -383,7 +383,7 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     collection.mutable.HashMap(
       (idleRideHailVehicles.toMap ++ inServiceRideHailVehicles
         .filter(_._2.currentPassengerSchedule.exists(_.numUniquePassengers == 0))
-        .toMap ++ outOfServiceRideHailVehicles.filter(_._2.vehicleType.automationLevel >= 4).toMap)
+        .toMap ++ outOfServiceRideHailVehicles.filter(_._2.vehicleType.isCav).toMap)
         .filterNot(elem => rideHailManager.doNotUseInAllocation.contains(elem._1))
         .toSeq: _*
     )
