@@ -976,16 +976,21 @@ class PersonAgent(
   }
 
   when(EnrouteRefueling) {
-    case Event(StartingRefuelSession(_, _, _), _) =>
-      val (_, triggerId) = releaseTickAndTriggerId()
+    case Event(StartingRefuelSession(_, _, _, triggerId), _) =>
+      releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId)
       stay
     case Event(_: WaitingToCharge, _) =>
       stay
-    case Event(EndingRefuelSession(tick, _), _) =>
-      chargingNetworkManager ! ChargingUnplugRequest(tick, this.id, currentBeamVehicle)
+    case Event(EndingRefuelSession(tick, _, triggerId), _) =>
+      chargingNetworkManager ! ChargingUnplugRequest(
+        tick,
+        this.id,
+        currentBeamVehicle,
+        triggerId
+      )
       stay
-    case Event(UnpluggingVehicle(tick, _, vehicle, _, energyCharged), data: BasePersonData) =>
+    case Event(UnpluggingVehicle(tick, _, vehicle, _, energyCharged, triggerId), data: BasePersonData) =>
       log.debug(s"Vehicle ${vehicle.id} ended charging and it is not handled by the CNM at tick $tick")
       ParkingNetworkManager.handleReleasingParkingSpot(
         tick,
@@ -996,16 +1001,16 @@ class PersonAgent(
         eventsManager
       )
       val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
-      holdTickAndTriggerId(updatedTick, getCurrentTriggerIdOrGenerate)
+      holdTickAndTriggerId(updatedTick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
-    case Event(UnhandledVehicle(tick, _, vehicle, _), data: BasePersonData) =>
+    case Event(UnhandledVehicle(tick, _, vehicle, _, triggerId), data: BasePersonData) =>
       log.error(
         s"Vehicle ${vehicle.id} is not handled by the CNM at tick $tick. Something is broken." +
         s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
       )
       ParkingNetworkManager.handleReleasingParkingSpot(tick, vehicle, None, id, parkingManager, eventsManager)
       val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
-      holdTickAndTriggerId(updatedTick, getCurrentTriggerIdOrGenerate)
+      holdTickAndTriggerId(updatedTick, triggerId)
       goto(ProcessingNextLegOrStartActivity) using updatedData
   }
 

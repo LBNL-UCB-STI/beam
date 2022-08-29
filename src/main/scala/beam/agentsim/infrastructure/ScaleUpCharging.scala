@@ -60,7 +60,7 @@ trait ScaleUpCharging extends {
       sender ! CompletionNotice(triggerId)
     case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, personId), triggerId) =>
       log.debug(s"Received PlanChargingUnplugRequestTrigger: $t")
-      self ! ChargingUnplugRequest(tick, personId, beamVehicle)
+      self ! ChargingUnplugRequest(tick, personId, beamVehicle, triggerId)
       sender ! CompletionNotice(triggerId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
       log.debug(s"Received ParkingInquiryResponse: $response")
@@ -75,6 +75,7 @@ trait ScaleUpCharging extends {
             beamVehicle,
             stall,
             personId,
+            triggerId,
             self,
             NotApplicable,
             None
@@ -95,10 +96,10 @@ trait ScaleUpCharging extends {
       log.debug(s"Received WaitingToCharge: $reply")
     case reply: EndingRefuelSession =>
       log.debug(s"Received EndingRefuelSession: $reply")
-    case reply @ UnhandledVehicle(tick, personId, vehicle, _) =>
+    case reply @ UnhandledVehicle(tick, personId, vehicle, _, _) =>
       log.error(s"Received UnhandledVehicle: $reply")
       handleReleasingParkingSpot(tick, personId, vehicle, None)
-    case reply @ UnpluggingVehicle(tick, personId, vehicle, _, energyCharged) =>
+    case reply @ UnpluggingVehicle(tick, personId, vehicle, _, energyCharged, _) =>
       log.debug(s"Received UnpluggingVehicle: $reply")
       handleReleasingParkingSpot(tick, personId, vehicle, Some(energyCharged))
   }

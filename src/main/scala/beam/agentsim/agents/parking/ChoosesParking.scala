@@ -243,7 +243,7 @@ trait ChoosesParking extends {
   }
 
   when(ConnectingToChargingPoint) {
-    case _ @Event(StartingRefuelSession(tick, _, _), data) =>
+    case _ @Event(StartingRefuelSession(tick, _, _, triggerId), data) =>
       log.debug(s"Vehicle ${currentBeamVehicle.id} started charging and it is now handled by the CNM at $tick")
       val maybePersonData = findPersonData(data)
       handleUseParkingSpot(
@@ -257,11 +257,11 @@ trait ChoosesParking extends {
         trip = maybePersonData.flatMap(_.currentTrip),
         restOfTrip = maybePersonData.map(_.restOfCurrentTrip)
       )
-      self ! LastLegPassengerSchedule(getCurrentTriggerId.get)
+      self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data
-    case _ @Event(WaitingToCharge(tick, vehicleId, _, _), data) =>
+    case _ @Event(WaitingToCharge(tick, vehicleId, _, _, triggerId), data) =>
       log.debug(s"Vehicle $vehicleId is waiting in line and it is now handled by the CNM at $tick")
-      self ! LastLegPassengerSchedule(getCurrentTriggerId.get)
+      self ! LastLegPassengerSchedule(triggerId)
       goto(DrivingInterrupted) using data
   }
 
@@ -270,7 +270,7 @@ trait ChoosesParking extends {
       stash()
       stay using data
 
-    case Event(UnhandledVehicle(tick, _, vehicle, _), data) =>
+    case Event(UnhandledVehicle(tick, _, vehicle, _, triggerId), data) =>
       assume(
         vehicle.id == currentBeamVehicle.id,
         s"Agent tried to disconnect a vehicle ${vehicle.id} that's not the current beamVehicle ${currentBeamVehicle.id}"
@@ -289,7 +289,7 @@ trait ChoosesParking extends {
       )
       goto(WaitingToDrive) using data
 
-    case Event(UnpluggingVehicle(tick, _, beamVehicle, _, energyCharged), data: BasePersonData)
+    case Event(UnpluggingVehicle(tick, _, beamVehicle, _, energyCharged, _), data: BasePersonData)
         if data.enrouteData.isInEnrouteState =>
       log.debug(
         s"Vehicle ${beamVehicle.id} [chosen for enroute] ended charging and it is not handled by the CNM at tick $tick"
@@ -305,7 +305,7 @@ trait ChoosesParking extends {
       )
       goto(ReadyToChooseParking) using data
 
-    case Event(UnpluggingVehicle(tick, _, beamVehicle, _, energyCharged), data) =>
+    case Event(UnpluggingVehicle(tick, _, beamVehicle, _, energyCharged, _), data) =>
       log.debug(s"Vehicle ${beamVehicle.id} ended charging and it is not handled by the CNM at tick $tick")
       val energyMaybe = Some(energyCharged)
       ParkingNetworkManager.handleReleasingParkingSpot(
@@ -331,11 +331,16 @@ trait ChoosesParking extends {
         if (data.enrouteData.isInEnrouteState) beamVehicles(nextLeg.beamVehicleId).vehicle
         else currentBeamVehicle
       }
-      val (tick, _) = (_currentTick.get, _currentTriggerId.get)
+      val (tick, triggerId) = (_currentTick.get, _currentTriggerId.get)
 
       if (vehicle.isConnectedToChargingPoint()) {
         log.debug("Sending ChargingUnplugRequest to ChargingNetworkManager at {}", tick)
-        chargingNetworkManager ! ChargingUnplugRequest(tick, id, vehicle)
+        chargingNetworkManager ! ChargingUnplugRequest(
+          tick,
+          id,
+          vehicle,
+          triggerId
+        )
         goto(ReleasingChargingPoint) using data
       } else {
         val state = {

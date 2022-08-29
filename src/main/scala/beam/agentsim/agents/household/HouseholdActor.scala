@@ -557,6 +557,7 @@ object HouseholdActor {
                 stall,
                 // use first household member id as stand-in.
                 household.getMemberIds.get(0),
+                triggerId,
                 self
               )
             }

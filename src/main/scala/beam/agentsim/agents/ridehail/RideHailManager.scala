@@ -1085,8 +1085,8 @@ class RideHailManager(
     rideHailManagerHelper.vehicleState.put(vehicleId, beamVehicleState)
     rideHailManagerHelper.updatePassengerSchedule(vehicleId, None, None)
 
-    addingVehicleToChargingOrMakingAvailable(vehicleId, personId, whenWhere.time, triggerId)
-    resources(vehicleId).getDriver.get ! NotifyVehicleResourceIdleReply(triggerId)
+    val attemptRefuel = addingVehicleToChargingOrMakingAvailable(vehicleId, personId, whenWhere.time, triggerId)
+    resources(vehicleId).getDriver.get ! NotifyVehicleResourceIdleReply(triggerId, attemptRefuel = attemptRefuel)
   }
 
   def addingVehicleToChargingOrMakingAvailable(
@@ -1094,22 +1094,25 @@ class RideHailManager(
     personId: Id[Person],
     tick: Int,
     triggerId: Long
-  ): Unit = {
+  ): Boolean = {
     val vehicle = resources(vehicleId)
     notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId) match {
       case Some(parkingStall) =>
         attemptToRefuel(vehicle, personId, parkingStall, tick, triggerId)
+        true
       case None if !vehicle.isCAV =>
         // If not CAV and not arrived for refueling;
         rideHailManagerHelper.makeAvailable(vehicleId)
+        false
       case _ =>
+        false
     }
   }
 
-  def removingVehicleFromCharging(vehicleId: VehicleId, tick: Int): Unit = {
+  def removingVehicleFromCharging(vehicleId: VehicleId, tick: Int, triggerId: Long): Unit = {
     notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId)
     log.debug("Making vehicle {} available", vehicleId)
-    removeFromCharging(vehicleId, tick)
+    removeFromCharging(vehicleId, tick, triggerId)
   }
 
   def dieIfNoChildren(): Unit = {
@@ -1815,7 +1818,7 @@ class RideHailManager(
     rideHailManagerHelper.updateLocationOfAgent(notify.vehicleId, notify.whenWhere)
     rideHailManagerHelper.vehicleState.put(notify.vehicleId, notify.beamVehicleState)
     rideHailManagerHelper.updatePassengerSchedule(notify.vehicleId, None, None)
-    removingVehicleFromCharging(notify.vehicleId, notify.tick)
+    removingVehicleFromCharging(notify.vehicleId, notify.tick, notify.triggerId)
     resources(notify.vehicleId).getDriver.get ! NotifyVehicleDoneRefuelingAndOutOfServiceReply(
       notify.triggerId,
       Vector()

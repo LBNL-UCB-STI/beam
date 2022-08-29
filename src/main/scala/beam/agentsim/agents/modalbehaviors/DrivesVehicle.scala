@@ -405,6 +405,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     currentBeamVehicle,
                     stall,
                     Id.createPersonId(id),
+                    triggerId,
                     self,
                     shiftStatus = NotApplicable
                   )
@@ -729,7 +730,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         triggerId
       )
 
-    case ev @ Event(NotifyVehicleResourceIdleReply(triggerId: Long, newTriggers: Seq[ScheduleTrigger]), _) =>
+    case ev @ Event(
+          NotifyVehicleResourceIdleReply(triggerId: Long, newTriggers: Seq[ScheduleTrigger], attemptRefuel, _),
+          _
+        ) =>
       log.debug("state(DrivesVehicle.WaitingToDrive.NotifyVehicleResourceIdleReply): {}", ev)
 
       if (!_currentTriggerId.contains(triggerId)) {
@@ -742,10 +746,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       }
 
       _currentTriggerId match {
-        case Some(_) =>
+        case Some(_) if !attemptRefuel =>
           val (_, triggerId) = releaseTickAndTriggerId()
           scheduler ! CompletionNotice(triggerId, newTriggers)
-        case None =>
+        case Some(_) =>
+          val (_, _) = releaseTickAndTriggerId()
+        case _ =>
       }
 
       stay()
@@ -761,7 +767,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       log.debug("state(DrivesVehicle.WaitingToDriveInterrupted): {}", ev)
       stash()
       stay
-    case _ @Event(NotifyVehicleResourceIdleReply(_, _), _) =>
+    case _ @Event(_: NotifyVehicleResourceIdleReply, _) =>
       stash()
       stay
 
@@ -900,7 +906,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           ScheduleTrigger(AlightVehicleTrigger(Math.max(currentLeg.endTime + 1, tick), vehicleId), self)
         )
       )
-    case _ @Event(EndingRefuelSession(tick, vehicleId), _) =>
+    case _ @Event(EndingRefuelSession(tick, vehicleId, _), _) =>
       log.debug(s"DrivesVehicle: EndingRefuelSession. tick: $tick, vehicle: $vehicleId")
       stay()
   }
