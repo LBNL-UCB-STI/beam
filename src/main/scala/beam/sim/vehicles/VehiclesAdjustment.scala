@@ -6,7 +6,8 @@ import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.sim.BeamScenario
 import beam.utils.logging.ExponentialLazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.households.Household
 
 trait VehiclesAdjustment extends ExponentialLazyLogging {
 
@@ -17,7 +18,8 @@ trait VehiclesAdjustment extends ExponentialLazyLogging {
     householdSize: Int,
     householdPopulation: Population,
     householdLocation: Coord,
-    realDistribution: UniformRealDistribution
+    realDistribution: UniformRealDistribution,
+    householdId: Id[Household]
   ): List[BeamVehicleType]
 
   def sampleVehicleTypes(
@@ -36,7 +38,7 @@ object VehiclesAdjustment {
   def getVehicleAdjustment(beamScenario: BeamScenario): VehiclesAdjustment = {
     beamScenario.beamConfig.beam.agentsim.agents.vehicles.vehicleAdjustmentMethod match {
       case UNIFORM_ADJUSTMENT      => UniformVehiclesAdjustment(beamScenario)
-      case STATIC_FROM_FILE         => NoOpVehiclesAdjustment(beamScenario)
+      case STATIC_FROM_FILE        => FromFileVehiclesAdjustment(beamScenario)
       case INCOME_BASED_ADJUSTMENT => IncomeBasedVehiclesAdjustment(beamScenario)
       case _                       => UniformVehiclesAdjustment(beamScenario)
     }

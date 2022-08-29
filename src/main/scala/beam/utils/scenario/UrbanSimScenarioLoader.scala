@@ -24,7 +24,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{Iterable, mutable}
+import scala.collection.{mutable, Iterable}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.math.{max, min, round}
@@ -60,14 +60,6 @@ class UrbanSimScenarioLoader(
 
   def loadScenario(): (Scenario, Boolean) = {
     clear()
-
-//    for {
-//      vehicleInfo <- vehicles
-//      vehicle = buildBeamVehicle(beamScenario.vehicleTypes, vehicleInfo, rand.nextInt)
-//    } {
-//      beamScenario.privateVehicles.put(vehicle.id, vehicle)
-//      vehicleInfo.initialSoc.foreach(beamScenario.privateVehicleInitialSoc.put(vehicle.id, _))
-//    }
 
     val plansF = Future {
       val plans = scenarioSource.getPlans
@@ -179,8 +171,7 @@ class UrbanSimScenarioLoader(
       .find(_.vehicleCategory == VehicleCategory.Bike)
       .getOrElse(throw new RuntimeException("Bike not found in vehicle types."))
 
-    assignVehicles(households, householdIdToPersons, personId2Score).foreach {
-      case (householdInfo, nVehicles) =>
+    assignVehicles(households, householdIdToPersons, personId2Score).foreach { case (householdInfo, nVehicles) =>
       val id = Id.create(householdInfo.householdId.id, classOf[Household])
       val household = new HouseholdsFactoryImpl().createHousehold(id)
       val coord = utmCoord(householdInfo.locationX, householdInfo.locationY)
@@ -203,7 +194,8 @@ class UrbanSimScenarioLoader(
           householdSize = household.getMemberIds.size,
           householdPopulation = null,
           householdLocation = coord,
-          realDistribution
+          realDistribution,
+          householdId = household.getId
         )
         .toBuffer
 
@@ -230,20 +222,6 @@ class UrbanSimScenarioLoader(
         beamScenario.privateVehicles.put(beamVehicle.id, beamVehicle)
         vehicleCounter = vehicleCounter + 1
       }
-      if ( beamScenario.beamConfig.beam.agentsim.agents.vehicles.vehicleAdjustmentMethod.equals("STATIC_FROM_FILE")) {
-        // populate private vehicles here
-        val vehicles = readers.BeamCsvScenarioReader.readVehiclesFile(beamScenario.beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath)
-          .filter(x => Id.create(x.householdId, classOf[Household]).equals(id));
-        for {
-          vehicleInfo <- vehicles
-          vehicle = buildBeamVehicle(beamScenario.vehicleTypes, vehicleInfo, rand.nextInt)
-        } {
-          beamScenario.privateVehicles.put(vehicle.id, vehicle)
-          vehicleIds.add(vehicle.id)
-          vehicleCounter = vehicleCounter + 1
-        }
-      }
-
       household.setVehicleIds(vehicleIds)
       scenarioHouseholds.put(household.getId, household)
       scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordx", coord.getX)
@@ -252,34 +230,6 @@ class UrbanSimScenarioLoader(
     }
     logger.info(
       s"Created $totalCarCount vehicles, scaling initial value of $initialVehicleCounter by a factor of $scaleFactor"
-    )
-  }
-
-
-  def buildBeamVehicle(
-                        map: Map[Id[BeamVehicleType], BeamVehicleType],
-                        info: VehicleInfo,
-                        randomSeed: Int
-                      ): BeamVehicle = {
-    val matsimVehicleType: VehicleType =
-      VehicleUtils.getFactory.createVehicleType(Id.create(info.vehicleTypeId, classOf[VehicleType]))
-    val matsimVehicle: Vehicle =
-      VehicleUtils.getFactory.createVehicle(Id.createVehicleId(info.vehicleId), matsimVehicleType)
-
-    val beamVehicleId = Id.create(matsimVehicle.getId, classOf[BeamVehicle])
-    val beamVehicleTypeId = Id.create(info.vehicleTypeId, classOf[BeamVehicleType])
-
-    val beamVehicleType = map(beamVehicleTypeId)
-
-    val vehicleManagerId =
-      VehicleManager.createOrGetReservedFor(info.householdId, VehicleManager.TypeEnum.Household).managerId
-    val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
-    new BeamVehicle(
-      beamVehicleId,
-      powerTrain,
-      beamVehicleType,
-      new AtomicReference(vehicleManagerId),
-      randomSeed = randomSeed
     )
   }
 

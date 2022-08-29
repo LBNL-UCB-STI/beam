@@ -632,7 +632,8 @@ object HouseholdActor {
                 household.getMemberIds.size(),
                 householdPopulation = null,
                 whenWhere.loc,
-                realDistribution
+                realDistribution,
+                household.getId
               )
               .headOption
               .orElse {
