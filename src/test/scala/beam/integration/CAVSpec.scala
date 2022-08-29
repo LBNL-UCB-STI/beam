@@ -19,7 +19,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.tagobjects.Retryable
 
 class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeated {
-  "Running a CAV-only scenario with a couple of CAVs" must "result in everybody using CAV or walk" taggedAs(Retryable) in {
+  "Running a CAV-only scenario with a couple of CAVs" must "result in everybody using CAV or walk" taggedAs Retryable in {
     val config = ConfigFactory
       .parseString(
         """

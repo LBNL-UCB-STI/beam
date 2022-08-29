@@ -47,7 +47,6 @@ class ChargingNetworkManagerSpec
     with BeforeAndAfterEach
     with Repeated {
 
-
   private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
 
   private val conf = system.settings.config
@@ -154,7 +153,7 @@ class ChargingNetworkManagerSpec
   }
 
   "ChargingNetworkManager" should {
-    "process trigger PlanningTimeOutTrigger" taggedAs(Retryable) in {
+    "process trigger PlanningTimeOutTrigger" taggedAs Retryable in {
       chargingNetworkManager ! TriggerWithId(PlanEnergyDispatchTrigger(0), 0)
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
         ScheduleTrigger(PlanEnergyDispatchTrigger(300), chargingNetworkManager)
@@ -162,13 +161,13 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
     }
 
-    "process the last trigger PlanningTimeOutTrigger" taggedAs(Retryable) in {
+    "process the last trigger PlanningTimeOutTrigger" taggedAs Retryable in {
       chargingNetworkManager ! TriggerWithId(PlanEnergyDispatchTrigger(DateUtils.getEndOfTime(beamConfig)), 0)
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector()
       expectNoMessage()
     }
 
-    "add a vehicle to charging queue with full fuel level but ends up with no fuel added" taggedAs(Retryable) in {
+    "add a vehicle to charging queue with full fuel level but ends up with no fuel added" taggedAs Retryable in {
       val beamVilleCar = getBeamVilleCar("2", parkingStall)
       beamVilleCar.primaryFuelLevelInJoules should be(2.7e8)
 
@@ -199,7 +198,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.isConnectedToChargingPoint() should be(false)
     }
 
-    "add a vehicle to charging queue with some fuel required and will charge" taggedAs(Retryable) in {
+    "add a vehicle to charging queue with some fuel required and will charge" taggedAs Retryable in {
       val beamVilleCar = getBeamVilleCar("2", parkingStall, 0.6)
 
       chargingNetworkManager ! TriggerWithId(PlanEnergyDispatchTrigger(0), 0)
@@ -234,7 +233,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.isConnectedToChargingPoint() should be(false)
     }
 
-    "add a vehicle to charging queue with a lot fuel required and will charge in 2 cycles" taggedAs(Retryable) in {
+    "add a vehicle to charging queue with a lot fuel required and will charge in 2 cycles" taggedAs Retryable in {
       val beamVilleCar = getBeamVilleCar("2", parkingStall, 0.5)
 
       chargingNetworkManager ! TriggerWithId(PlanEnergyDispatchTrigger(0), 0)
@@ -269,7 +268,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.isConnectedToChargingPoint() should be(false)
     }
 
-    "add a vehicle to charging queue with a lot fuel required but unplug event happens before 1st cycle" taggedAs(Retryable) in {
+    "add a vehicle to charging queue with a lot fuel required but unplug event happens before 1st cycle" taggedAs Retryable in {
       val beamVilleCar = getBeamVilleCar("2", parkingStall, 0.5)
 
       chargingNetworkManager ! TriggerWithId(PlanEnergyDispatchTrigger(0), 0)
@@ -302,7 +301,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(1.4125e8)
     }
 
-    "add a vehicle to charging queue with a lot fuel required but unplug event happens after 1st cycle" taggedAs(Retryable) in {
+    "add a vehicle to charging queue with a lot fuel required but unplug event happens after 1st cycle" taggedAs Retryable in {
       val beamVilleCar = getBeamVilleCar("2", parkingStall, 0.8)
 
       chargingNetworkManager ! TriggerWithId(PlanEnergyDispatchTrigger(0), 0)
@@ -337,7 +336,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(1.3025e8)
     }
 
-    "add a vehicle to charging queue with a lot fuel required but unplug event happens after 2nd cycle" taggedAs(Retryable) in {
+    "add a vehicle to charging queue with a lot fuel required but unplug event happens after 2nd cycle" taggedAs Retryable in {
       chargingNetworkManager ! TriggerWithId(PlanEnergyDispatchTrigger(0), 0)
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
         ScheduleTrigger(PlanEnergyDispatchTrigger(300), chargingNetworkManager)
@@ -489,4 +488,3 @@ class ChargingNetworkManagerSpec
   }
 
 }
-

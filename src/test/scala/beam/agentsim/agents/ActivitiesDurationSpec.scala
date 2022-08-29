@@ -75,7 +75,7 @@ class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper with Repeated {
     }
   }
 
-  it should "have expected activities duration"  taggedAs(Retryable) in {
+  it should "have expected activities duration" taggedAs Retryable in {
     val config = ConfigFactory
       .parseString(s"""
                       |beam.agentsim.lastIteration = 0
@@ -96,7 +96,7 @@ class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper with Repeated {
     checkIfDurationsExistAndBiggerThan(activitiesDurations, "Work", 40000)
   }
 
-  it should "have fixed Other,Shopping and Work activities duration"  taggedAs(Retryable) in {
+  it should "have fixed Other,Shopping and Work activities duration" taggedAs Retryable in {
     val expectedWorkDuration = 360.0
     val expectedShoppingDuration = 260.0
     val expectedOtherDuration = 160.0

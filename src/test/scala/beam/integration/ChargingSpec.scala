@@ -30,7 +30,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeated {
 
-  "Running a single person car-only scenario and scale up charging events" must "catch charging events and measure virtual power greater or equal than real power" taggedAs(Retryable) in {
+  "Running a single person car-only scenario and scale up charging events" must "catch charging events and measure virtual power greater or equal than real power" taggedAs Retryable in {
     val beamVilleCarId = Id.create("beamVilleCar", classOf[BeamVehicleType])
     val vehicleId = Id.create(2, classOf[Vehicle])
     val filesPath = "test/test-resources/beam/input"
@@ -211,7 +211,7 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeat
     // TODO Hard to test this without ensuring an energy conservation mechanism
     // totalEnergyInJoules shouldBe (energyConsumed +- 1000)
 
-    assume (
+    assume(
       totVirtualPower - totRealPower > 0,
       "There should be at least as much virtual power as real power when scaling up by 10"
     )

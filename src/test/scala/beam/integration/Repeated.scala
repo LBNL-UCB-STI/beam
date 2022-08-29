@@ -20,7 +20,7 @@ trait Repeated extends Matchers with Retries with TestSuite {
     println(outcome.toString)
     outcome match {
       case Failed(_) | Canceled(_) => if (count == 1) super.withFixture(test) else withFixture(test, count - 1)
-      case other => other
+      case other                   => other
     }
   }
 }

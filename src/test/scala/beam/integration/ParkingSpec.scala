@@ -128,13 +128,13 @@ class ParkingSpec
   }
 
   "Parking system " must {
-    "guarantee at least some parking used " taggedAs(Retryable) in {
+    "guarantee at least some parking used " taggedAs Retryable in {
       val parkingEvents =
         defaultEvents.head.filter(e => ParkingEvent.EVENT_TYPE.equals(e.getEventType))
       parkingEvents.size should be > 0
     }
 
-    "departure and arrival should be from same parking 4 tuple" taggedAs(Retryable) in {
+    "departure and arrival should be from same parking 4 tuple" taggedAs Retryable in {
 
       val parkingEvents =
         defaultEvents.head.filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
@@ -174,7 +174,7 @@ class ParkingSpec
       }
     }
 
-    "Park event should be thrown after last path traversal" taggedAs(Retryable) in {
+    "Park event should be thrown after last path traversal" taggedAs Retryable in {
       val parkingEvents =
         defaultEvents.head.filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
 
@@ -211,7 +211,7 @@ class ParkingSpec
       }
     }
 
-    "very expensive parking should reduce driving" taggedAs(Retryable) ignore { // flakey test
+    "very expensive parking should reduce driving" taggedAs Retryable ignore { // flakey test
       val expensiveEvents = runAndCollectForIterations("very-expensive", 5)
 
       val expensiveModeChoiceCarCount = expensiveEvents.map(countForPathTraversalAndCarMode)
@@ -225,7 +225,7 @@ class ParkingSpec
         .sum should be > expensiveModeChoiceCarCount.takeRight(5).sum
     }
 
-    "no parking stalls should reduce driving" taggedAs(Retryable) ignore { // flakey test
+    "no parking stalls should reduce driving" taggedAs Retryable ignore { // flakey test
       val emptyEvents = runAndCollectForIterations("empty", 5)
 
       val emptyModeChoiceCarCount = emptyEvents.map(countForPathTraversalAndCarMode)
