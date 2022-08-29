@@ -38,8 +38,8 @@ class RideHailSkimmer @Inject() (
         reservationType = if (line("reservationType").equalsIgnoreCase("pooled")) Pooled else Solo
       ),
       RidehailSkimmerInternal(
-        waitTime = line("waitTime").toDouble,
-        costPerMile = line("costPerMile").toDouble,
+        waitTime = Option(line("waitTime")).map(_.toDouble).getOrElse(Double.NaN),
+        costPerMile = Option(line("costPerMile")).map(_.toDouble).getOrElse(Double.NaN),
         unmatchedRequestsPercent = line("unmatchedRequestsPercent").toDouble,
         observations = line("observations").toInt,
         iterations = line("iterations").toInt
