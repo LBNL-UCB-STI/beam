@@ -89,7 +89,7 @@ trait ScaleUpCharging extends {
           log.error(s"inquiryMap does not have this requestId $requestId that returned stall $stall")
           Vector()
       }
-      getScheduler ! CompletionNotice(triggerId, triggers)
+      triggers.foreach(getScheduler ! _)
     case reply: StartingRefuelSession =>
       log.debug(s"Received StartingRefuelSession: $reply")
     case reply: WaitingToCharge =>

@@ -107,11 +107,7 @@ object RideHailAgent {
   }
 
   // triggerId is included to facilitate debugging
-  case class NotifyVehicleResourceIdleReply(
-    triggerId: Long,
-    newTriggers: Seq[ScheduleTrigger] = Seq(),
-    attemptRefuel: Boolean = false
-  ) extends HasTriggerId
+  case class NotifyVehicleResourceIdleReply(triggerId: Long, newTriggers: Seq[ScheduleTrigger] = Seq(), attemptRefuel: Boolean = false) extends HasTriggerId
 
   case class NotifyVehicleDoneRefuelingAndOutOfServiceReply(triggerId: Long, newTriggers: Seq[ScheduleTrigger])
       extends HasTriggerId
@@ -309,16 +305,13 @@ class RideHailAgent(
     // This can happen if the NotifyVehicleIdle is sent to RHM after RHM starts a buffered allocation process
     // and meanwhile dispatches this RHA who has now moved on to other things. This is how we complete the trigger
     // that made this RHA available in the first place
-    case ev @ Event(_ @NotifyVehicleResourceIdleReply(_, _, attemptRefuel), _) =>
+    case ev @ Event(NotifyVehicleResourceIdleReply(_, _, _), _) =>
       log.debug("myUnhandled state({}): releaseTickAndTrigger if needed {}", stateName, ev)
       _currentTriggerId match {
-        case Some(_) if !attemptRefuel =>
-          val (_, triggerId) = releaseTickAndTriggerId()
-          println(s"myUnhandled.NotifyVehicleResourceIdleReply triggerId $triggerId")
-          scheduler ! CompletionNotice(triggerId)
         case Some(_) =>
-          val (_, _) = releaseTickAndTriggerId()
-        case _ =>
+          val (_, triggerId) = releaseTickAndTriggerId()
+          scheduler ! CompletionNotice(triggerId, Vector())
+        case None =>
       }
       stay
 
@@ -1195,7 +1188,7 @@ class RideHailAgent(
     attemptRefuel: Boolean
   ): Unit = {
     _currentTriggerId match {
-      case Some(_) if !attemptRefuel =>
+      case Some(_) =>
         val (tick, triggerId) = releaseTickAndTriggerId()
         if (receivedTriggerId.isEmpty || triggerId != receivedTriggerId.get) {
           log.error(
@@ -1205,28 +1198,17 @@ class RideHailAgent(
             receivedTriggerId
           )
         }
-        log.debug("RHA {}: completing trigger @ {} and scheduling {}", id, tick, newTriggers)
-        if (debugEnabled) outgoingMessages += CompletionNotice(triggerId, newTriggers)
-        scheduler ! CompletionNotice(triggerId, newTriggers)
-      case Some(_) =>
-        val (_, triggerId) = releaseTickAndTriggerId()
-        if (receivedTriggerId.isEmpty || triggerId != receivedTriggerId.get) {
-          log.error(
-            "RHA {}: local triggerId {} does not match the id received from RHM {}",
-            id,
-            triggerId,
-            receivedTriggerId
-          )
+        if(!attemptRefuel) {
+          log.debug("RHA {}: completing trigger @ {} and scheduling {}", id, tick, newTriggers)
+          if (debugEnabled) outgoingMessages += CompletionNotice(triggerId, newTriggers)
+          scheduler ! CompletionNotice(triggerId, newTriggers)
         }
       case None =>
         log.error("RHA {}: was expecting to release a triggerId but None found", id)
     }
   }
 
-  def handleWaitingLineReply(
-    triggerId: Long,
-    data: RideHailAgentData
-  ): FSM.State[BeamAgentState, RideHailAgentData] = {
+  def handleWaitingLineReply(triggerId: Long, data: RideHailAgentData): FSM.State[BeamAgentState, RideHailAgentData] = {
     val stall = currentBeamVehicle.stall.getOrElse(currentBeamVehicle.reservedStall.get)
     isInQueueParkingZoneId = Some(stall.parkingZoneId)
     val nextState = stateName match {
@@ -1235,9 +1217,7 @@ class RideHailAgent(
       case IdleInterrupted =>
         InQueueInterrupted
       case _ =>
-        logError(
-          s"Unexpected state $stateName for handling a NotifyVehicleResourceIdleReply assuming non-interrupted"
-        )
+        logError(s"Unexpected state $stateName for handling a NotifyVehicleResourceIdleReply assuming non-interrupted")
         InQueue
     }
     data.remainingShifts.size match {
@@ -1250,7 +1230,7 @@ class RideHailAgent(
         completeHandleNotifyVehicleResourceIdleReply(
           Some(triggerId),
           Vector(ScheduleTrigger(EndShiftTrigger(Math.max(tickToSchedule, _currentTick.get)), self)),
-          attemptRefuel = false
+          attemptRefuel = true
         )
         isCurrentlyOnShift = true
         isStartingNewShift = false

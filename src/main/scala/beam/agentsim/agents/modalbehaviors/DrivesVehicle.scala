@@ -126,8 +126,6 @@ object DrivesVehicle {
     def streetVehicle: StreetVehicle
   }
 
-  case class EndRefuelData(chargingEndTick: Int, energyDelivered: Double)
-
   case class ActualVehicle(vehicle: BeamVehicle) extends VehicleOrToken {
     override def id: Id[BeamVehicle] = vehicle.id
 
@@ -346,15 +344,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         currentBeamVehicle.primaryFuelLevelInJoules,
         currentBeamVehicle.secondaryFuelLevelInJoules,
         tollOnCurrentLeg,
-        /*
-          fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes)),
-          fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.freeFlowSpeed)),
-          fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.gradientOption)),
-          fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkLength)),
-          fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.rate)),
-          fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.consumption)),
-          fuelConsumed.secondaryLoggingData.map(x=>(x.linkId, x.rate)),
-          fuelConsumed.secondaryLoggingData.map(x=>(x.linkId, x.consumption))*/
         riders
       )
 
@@ -730,10 +719,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         triggerId
       )
 
-    case ev @ Event(
-          NotifyVehicleResourceIdleReply(triggerId: Long, newTriggers: Seq[ScheduleTrigger], attemptRefuel, _),
-          _
-        ) =>
+    case ev @ Event(NotifyVehicleResourceIdleReply(triggerId: Long, newTriggers: Seq[ScheduleTrigger], _), _) =>
       log.debug("state(DrivesVehicle.WaitingToDrive.NotifyVehicleResourceIdleReply): {}", ev)
 
       if (!_currentTriggerId.contains(triggerId)) {
@@ -746,12 +732,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       }
 
       _currentTriggerId match {
-        case Some(_) if !attemptRefuel =>
+        case Some(_) =>
           val (_, triggerId) = releaseTickAndTriggerId()
           scheduler ! CompletionNotice(triggerId, newTriggers)
-        case Some(_) =>
-          val (_, _) = releaseTickAndTriggerId()
-        case _ =>
+        case None =>
       }
 
       stay()

@@ -155,11 +155,8 @@ class ChargingNetworkManager(
       // Do not send completion notice to vehicles in EnRoute mode
       // Since they need to process additional tasks before completing
       // Maybe for ride hail too !?
-      if (
-        !vehicleEndedCharging.exists { v =>
-          v.isInEnRoute || (v.vehicle.isRideHail && v.vehicle.beamVehicleType.isFullSelfDriving)
-        }
-      ) sender ! CompletionNotice(triggerId)
+      if (!vehicleEndedCharging.exists(charging => charging.isInEnRoute || charging.vehicle.isRideHailCAV))
+        sender ! CompletionNotice(triggerId)
 
     case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, theSender, _, _) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
