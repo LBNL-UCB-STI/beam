@@ -24,12 +24,13 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.vehicles.Vehicle
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.tagobjects.Retryable
 
 import scala.collection.mutable.ArrayBuffer
 
-class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
+class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeated {
 
-  "Running a single person car-only scenario and scale up charging events" must "catch charging events and measure virtual power greater or equal than real power" in {
+  "Running a single person car-only scenario and scale up charging events" must "catch charging events and measure virtual power greater or equal than real power" taggedAs Retryable in {
     val beamVilleCarId = Id.create("beamVilleCar", classOf[BeamVehicleType])
     val vehicleId = Id.create(2, classOf[Vehicle])
     val filesPath = "test/test-resources/beam/input"
