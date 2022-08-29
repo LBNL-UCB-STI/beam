@@ -44,7 +44,6 @@ import scala.collection.JavaConverters
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
 
-
 /**
   * BEAM
   */
@@ -1147,11 +1146,11 @@ trait ChoosesMode {
           if (isFirstOrLastTrip) WALK_BASED.allowedBeamModesForFirstAndLastLeg
           else WALK_BASED.allowedBeamModes
         walkBasedModes ++ enabledModes
-      case Some(tourMode) => tourMode.allowedBeamModesGivenAvailableVehicles(availablePersonalStreetVehicles, isFirstOrLastTrip)
-      case None           => BeamMode.allModes
+      case Some(tourMode) =>
+        tourMode.allowedBeamModesGivenAvailableVehicles(availablePersonalStreetVehicles, isFirstOrLastTrip)
+      case None => BeamMode.allModes
     })
   }
-
 
   def mustBeDrivenHome(vehicle: VehicleOrToken): Boolean = {
     vehicle match {
@@ -1266,7 +1265,7 @@ trait ChoosesMode {
         isFirstOrLastTripWithinTour(nextAct)
       )
 
-      val filteredItinerariesForChoice = (choosesModeData.personData.currentTripMode match {
+      val filteredItinerariesForChoice = choosesModeData.personData.currentTripMode match {
         case Some(mode) if mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT =>
           (isFirstOrLastTripWithinTour(nextAct), personData.hasDeparted) match {
             case (true, false) =>
@@ -1288,7 +1287,7 @@ trait ChoosesMode {
           combinedItinerariesForChoice.filter(_.tripClassifier == mode)
         case _ =>
           combinedItinerariesForChoice
-      })
+      }
 
       val itinerariesOfCorrectMode =
         filteredItinerariesForChoice.filter(itin => availableModesForTrips.contains(itin.tripClassifier))

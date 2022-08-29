@@ -6,7 +6,7 @@ import beam.agentsim.agents.planning.BeamPlan.atHome
 
 import java.{lang, util}
 import beam.agentsim.agents.planning.Strategy.{Strategy, TourModeChoiceStrategy, TripModeChoiceStrategy}
-import beam.router.Modes.{BeamMode, isPersonalVehicleMode}
+import beam.router.Modes.{isPersonalVehicleMode, BeamMode}
 import beam.router.TourModes.BeamTourMode
 import beam.router.TourModes.BeamTourMode._
 import org.matsim.api.core.v01.population._
@@ -250,7 +250,7 @@ class BeamPlan extends Plan {
       tour.trips.foreach(trip =>
         trip.leg match {
           case Some(leg) if leg.getMode.equalsIgnoreCase("car") => tourMode = Some(CAR_BASED)
-          case Some(leg) if leg.getMode.equalsIgnoreCase("bike") && !tourMode.contains(CAR_BASED)=>
+          case Some(leg) if leg.getMode.equalsIgnoreCase("bike") && !tourMode.contains(CAR_BASED) =>
             tourMode = Some(BIKE_BASED)
           case Some(_) => tourMode = Some(WALK_BASED)
           case _       =>
