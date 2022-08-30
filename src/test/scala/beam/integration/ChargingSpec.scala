@@ -45,7 +45,8 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeat
             |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles-simple.csv"
             |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes-simple.csv"
             |beam.agentsim.taz.parkingFilePath = $filesPath"/taz-parking-ac-only.csv"
-            |beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC = 0
+            |beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC = 0.2
+            |beam.agentsim.agents.vehicles.meanRidehailVehicleStartingSOC = 0.2
             |beam.agentsim.chargingNetworkManager {
             |  timeStepInSeconds = 300
             |  overnightChargingEnabled = true
@@ -54,14 +55,11 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeat
             |  chargingPointFilePath =  ""
             |  scaleUp {
             |    enabled = true
-            |    expansionFactor_home_activity = 10.0
-            |    expansionFactor_work_activity = 10.0
-            |    expansionFactor_charge_activity = 10.0
-            |    expansionFactor_wherever_activity = 10.0
-            |    expansionFactor_init_activity = 10.0
-            |  }
-            |  helics {
-            |    connectionEnabled = false
+            |    expansionFactor_home_activity = 1000.0
+            |    expansionFactor_work_activity = 1000.0
+            |    expansionFactor_charge_activity = 1000.0
+            |    expansionFactor_wherever_activity = 1000.0
+            |    expansionFactor_init_activity = 1000.0
             |  }
             |  helics {
             |    connectionEnabled = false

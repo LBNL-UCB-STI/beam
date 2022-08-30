@@ -91,9 +91,8 @@ class HierarchicalParkingManagerSpec
         )
 
         val response = parkingManager.processParkingInquiry(inquiry)
-        assert(response.isDefined, "no response")
         assert(
-          response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+          response == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
           "something is wildly broken"
         )
       }
@@ -130,9 +129,8 @@ class HierarchicalParkingManagerSpec
       )
 
       val response = parkingManager.processParkingInquiry(inquiry)
-      assert(response.isDefined, "no response")
       assert(
-        response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+        response == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
         "something is wildly broken"
       )
     }
@@ -191,9 +189,8 @@ class HierarchicalParkingManagerSpec
             reservedFor = VehicleManager.AnyManager
           )
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
-        assert(response1.isDefined, "no response")
         assert(
-          response1.get == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId, firstInquiry.triggerId),
+          response1 == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId, firstInquiry.triggerId),
           "something is wildly broken"
         )
 
@@ -201,10 +198,9 @@ class HierarchicalParkingManagerSpec
         val secondInquiry =
           ParkingInquiry.init(centerSpaceTime, "work", triggerId = 3333)
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
-        response2 match {
-          case Some(ParkingInquiryResponse(stall, responseId, secondInquiry.triggerId))
-              if stall.tazId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId =>
-          case _ => assert(response2.isDefined, "no response")
+        val ParkingInquiryResponse(stall, responseId, secondInquiry.triggerId) = response2
+        if (stall.tazId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId) {
+          // TODO there should be an assert here
         }
       }
     }
@@ -266,9 +262,8 @@ class HierarchicalParkingManagerSpec
 
         // request the stall
         val response1 = parkingManager.processParkingInquiry(firstInquiry)
-        assert(response1.isDefined, "no response")
         assert(
-          response1.get == ParkingInquiryResponse(expectedStall, firstInquiry.requestId, firstInquiry.triggerId),
+          response1 == ParkingInquiryResponse(expectedStall, firstInquiry.requestId, firstInquiry.triggerId),
           "something is wildly broken"
         )
 
@@ -278,9 +273,8 @@ class HierarchicalParkingManagerSpec
 
         // request the stall again
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
-        assert(response2.isDefined, "no response")
         assert(
-          response2.get == ParkingInquiryResponse(expectedStall, secondInquiry.requestId, secondInquiry.triggerId),
+          response2 == ParkingInquiryResponse(expectedStall, secondInquiry.requestId, secondInquiry.triggerId),
           "something is wildly broken"
         )
       }
@@ -339,13 +333,8 @@ class HierarchicalParkingManagerSpec
           _ <- 1 to maxInquiries
           req = ParkingInquiry.init(SpaceTime(middleOfWorld, 0), "work", triggerId = 17)
           response1 = parkingManager.processParkingInquiry(req)
-          counted = response1 match {
-            case Some(res @ ParkingInquiryResponse(_, _, req.triggerId)) =>
-              if (res.stall.tazId != TAZ.EmergencyTAZId) 1 else 0
-            case _ =>
-              assert(response1.isDefined, "no response")
-              0
-          }
+          ParkingInquiryResponse(stall, _, req.triggerId) = response1
+          counted = if (stall.tazId != TAZ.EmergencyTAZId) 1 else 0
         } yield {
           counted
         }
@@ -419,14 +408,10 @@ class HierarchicalParkingManagerSpec
   ): Any = {
     val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", reservedFor, triggerId = 27)
     val response = spm.processParkingInquiry(inquiry)
-    response match {
-      case Some(rsp @ ParkingInquiryResponse(_, _, inquiry.triggerId)) =>
-        rsp.stall.tazId should be(Id.create(tazId, classOf[TAZ]))
-        val dist = GeoUtils.distFormula(coord, rsp.stall.locationUTM)
-        dist should be <= 400.0
-      case _ =>
-        assert(response.isDefined, "no response")
-    }
+    val ParkingInquiryResponse(stall, _, inquiry.triggerId) = response
+    stall.tazId should be(Id.create(tazId, classOf[TAZ]))
+    val dist = GeoUtils.distFormula(coord, stall.locationUTM)
+    dist should be <= 400.0
   }
 
   override def afterAll(): Unit = {
