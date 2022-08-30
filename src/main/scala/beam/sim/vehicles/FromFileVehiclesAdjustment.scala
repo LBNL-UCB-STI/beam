@@ -11,8 +11,8 @@ import org.matsim.households.Household
 
 case class FromFileVehiclesAdjustment(beamScenario: BeamScenario) extends VehiclesAdjustment {
 
-  var vehicles: Iterable[VehicleInfo] = List();
-  var vehicleTypesMap: Map[Id[BeamVehicleType], BeamVehicleType] = Map();
+  val vehicles: Iterable[VehicleInfo] = readVehiclesFromFile();
+  val vehicleTypesMap: Map[Id[BeamVehicleType], BeamVehicleType] = beamScenario.vehicleTypes.map(i => i._1 -> i._2).toMap;
 
   override def sampleVehicleTypesForHousehold(
     numVehicles: Int,
@@ -22,7 +22,7 @@ case class FromFileVehiclesAdjustment(beamScenario: BeamScenario) extends Vehicl
     householdPopulation: Population,
     householdLocation: Coord,
     realDistribution: UniformRealDistribution,
-    householdId: Id[Household] = Id.create("", classOf[Household])
+    householdId: Id[Household]
   ): List[BeamVehicleType] = {
     vehicles
       .filter(x => Id.create(x.householdId, classOf[Household]).equals(householdId))
@@ -39,17 +39,9 @@ case class FromFileVehiclesAdjustment(beamScenario: BeamScenario) extends Vehicl
     List()
   }
 
-  def readVechiclesFromFile() = {
+  private def readVehiclesFromFile() = {
     readers.BeamCsvScenarioReader.readVehiclesFile(
       beamScenario.beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath
     )
-  }
-}
-
-object FromFileVehiclesAdjustment {
-
-  def apply(beamScenario: BeamScenario) = new FromFileVehiclesAdjustment(beamScenario) {
-    vehicles = readVechiclesFromFile()
-    vehicleTypesMap = beamScenario.vehicleTypes.map(i => i._1 -> i._2).toMap
   }
 }
