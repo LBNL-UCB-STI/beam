@@ -155,6 +155,7 @@ class BeamMobsim @Inject() (
       beamServices.skims.parking_skimmer.displaySkimStats()
       beamServices.skims.rh_skimmer.displaySkimStats()
       beamServices.skims.freight_skimmer.displaySkimStats()
+      beamServices.skims.taz_skimmer.displaySkimStats()
     }
 
     if (beamServices.beamConfig.beam.output.writePlansAndStopSimulation) {
