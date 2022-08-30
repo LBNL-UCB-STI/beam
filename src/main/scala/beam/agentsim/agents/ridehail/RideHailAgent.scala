@@ -529,14 +529,14 @@ class RideHailAgent(
       updateLatestObservedTick(reply.tick)
       log.debug("state(RideHailAgent.Offline): {}; Vehicle ID: {}", ev, vehicle.id)
       if (debugEnabled) outgoingMessages += ev
-      if (currentBeamVehicle.beamVehicleType.isFullSelfDriving)
+      if (currentBeamVehicle.isRideHailCAV)
         rideHailManager ! reply
       startRefueling(tickToUse, getCurrentTriggerId.get)
       goto(Refueling)
     case ev @ Event(reply: WaitingToCharge, data) =>
       log.debug("state(RideHailingAgent.Offline.WaitingToCharge): {}; Vehicle ID: {}", ev, vehicle.id)
       if (debugEnabled) outgoingMessages += ev
-      if (currentBeamVehicle.beamVehicleType.isFullSelfDriving)
+      if (currentBeamVehicle.isRideHailCAV)
         rideHailManager ! reply
       handleWaitingLineReply(getCurrentTriggerId.get, data)
     case ev @ Event(TriggerWithId(StartLegTrigger(_, _), triggerId), _) =>
@@ -626,14 +626,14 @@ class RideHailAgent(
       updateLatestObservedTick(tick)
       log.debug(s"state(RideHailingAgent.Idle.StartingRefuelSession): $ev, Vehicle ID: ${vehicle.id}")
       if (debugEnabled) outgoingMessages += ev
-      if (currentBeamVehicle.beamVehicleType.isFullSelfDriving)
+      if (currentBeamVehicle.isRideHailCAV)
         rideHailManager ! reply
       startRefueling(tickToUse, triggerId)
       goto(Refueling)
     case ev @ Event(reply: WaitingToCharge, data) =>
       log.debug("state(RideHailingAgent.Idle.WaitingToCharge): {}, Vehicle ID: {}", ev, vehicle.id)
       if (debugEnabled) outgoingMessages += ev
-      if (currentBeamVehicle.beamVehicleType.isFullSelfDriving)
+      if (currentBeamVehicle.isRideHailCAV)
         rideHailManager ! reply
       handleWaitingLineReply(reply.triggerId, data)
     case ev @ Event(_: UnhandledVehicle, _) =>
@@ -975,7 +975,7 @@ class RideHailAgent(
       updateLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Refueling.EndingRefuelSession): {}, Vehicle ID: {}", ev, vehicle.id)
       holdTickAndTriggerId(tick, triggerId)
-      if (currentBeamVehicle.beamVehicleType.isFullSelfDriving)
+      if (currentBeamVehicle.isRideHailCAV)
         rideHailManager ! reply
       chargingNetworkManager ! ChargingUnplugRequest(
         tick,
@@ -988,7 +988,7 @@ class RideHailAgent(
       updateLatestObservedTick(tick)
       log.debug("state(RideHailingAgent.Refueling.UnpluggingVehicle): {}, Vehicle ID: {}", ev, vehicle.id)
       if (debugEnabled) outgoingMessages += ev
-      if (currentBeamVehicle.beamVehicleType.isFullSelfDriving)
+      if (currentBeamVehicle.isRideHailCAV)
         rideHailManager ! reply
       handleEndRefuel(tick, energy)
       if (isCurrentlyOnShift && !needsToEndShift) {
@@ -1000,7 +1000,7 @@ class RideHailAgent(
       updateLatestObservedTick(tick)
       log.error("state(RideHailingAgent.Refueling.UnhandledVehicle): {}, Vehicle ID: {}", ev, vehicle.id)
       if (debugEnabled) outgoingMessages += ev
-      if (currentBeamVehicle.beamVehicleType.isFullSelfDriving)
+      if (currentBeamVehicle.isRideHailCAV)
         rideHailManager ! reply
       handleEndRefuel(tick, 0.0)
       if (isCurrentlyOnShift && !needsToEndShift) {

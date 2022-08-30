@@ -252,7 +252,7 @@ trait ScaleUpCharging extends {
         if (vehicle.isRideHail) ScaleUpCharging.RIDE_HAIL
         else if (vehicle.isSharedVehicle) ScaleUpCharging.SHARED
         else ScaleUpCharging.PERSONAL
-      val reservedFor = if (vehicle.isRideHail && vehicle.beamVehicleType.isFullSelfDriving) {
+      val reservedFor = if (vehicle.isRideHailCAV) {
         VehicleManager
           .getReservedFor(vehicle.vehicleManagerId.get())
           .getOrElse(throw new RuntimeException("Robot taxis need to have a vehicle manager id"))
