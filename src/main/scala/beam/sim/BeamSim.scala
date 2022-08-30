@@ -340,6 +340,8 @@ class BeamSim @Inject() (
     beamServices.skims.rh_skimmer.resetSkimStats()
     beamServices.skims.freight_skimmer.resetSkimStats()
     beamServices.skims.taz_skimmer.resetSkimStats()
+    beamServices.skims.dt_skimmer.resetSkimStats()
+    beamServices.skims.tc_skimmer.resetSkimStats()
 
     backgroundSkimsCreator.foreach(_.reduceParallelismTo(1))
     beamServices.eventBuilderActor = actorSystem.actorOf(
@@ -551,6 +553,8 @@ class BeamSim @Inject() (
     beamServices.skims.rh_skimmer.displaySkimStats()
     beamServices.skims.freight_skimmer.displaySkimStats()
     beamServices.skims.taz_skimmer.displaySkimStats()
+    beamServices.skims.dt_skimmer.displaySkimStats()
+    beamServices.skims.tc_skimmer.displaySkimStats()
 
     if (beamConfig.beam.agentsim.agents.vehicles.linkSocAcrossIterations)
       beamServices.beamScenario.setInitialSocOfPrivateVehiclesFromCurrentStateOfVehicles()
