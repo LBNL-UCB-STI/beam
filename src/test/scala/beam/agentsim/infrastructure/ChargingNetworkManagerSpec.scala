@@ -189,7 +189,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.isConnectedToChargingPoint() should be(true)
 
       chargingNetworkManager ! ChargingUnplugRequest(610, personId, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(610, personId, beamVilleCar, parkingStall, 0.0, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(610, personId, beamVilleCar, parkingStall, 0.0)
       beamVilleCar.isConnectedToChargingPoint() should be(false)
     }
 
@@ -223,7 +223,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(500, personId, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(500, personId, beamVilleCar, parkingStall, 1.08e8, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(500, personId, beamVilleCar, parkingStall, 1.08e8)
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
       beamVilleCar.isConnectedToChargingPoint() should be(false)
@@ -259,7 +259,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(700, personId, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(700, personId, beamVilleCar, parkingStall, 8.1e7, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(700, personId, beamVilleCar, parkingStall, 8.1e7)
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
       beamVilleCar.isConnectedToChargingPoint() should be(false)
@@ -286,8 +286,7 @@ class ChargingNetworkManagerSpec
         personId,
         beamVilleCar,
         parkingStall,
-        6249999.999999999,
-        0
+        6249999.999999999
       )
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.4125e8) // TODO ???
@@ -328,7 +327,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(1.265e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(315, personId, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(315, personId, beamVilleCar, parkingStall, 7.625e7, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(315, personId, beamVilleCar, parkingStall, 7.625e7)
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.3025e8) // TODO ???
 
@@ -373,7 +372,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(750, personId, beamVilleCar, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(750, personId, beamVilleCar, parkingStall, 1.62e8, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(750, personId, beamVilleCar, parkingStall, 1.62e8)
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.16e8)
     }
@@ -396,7 +395,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar2.primaryFuelLevelInJoules should be(1.08e8)
 
       chargingNetworkManager ! ChargingPlugRequest(10, beamVilleCar3, parkingStall, personId, 112, self)
-      expectMsgType[WaitingToCharge] should be(WaitingToCharge(10, beamVilleCar3.id, parkingStall, 1, 112))
+      expectMsgType[WaitingToCharge] should be(WaitingToCharge(10, beamVilleCar3.id, parkingStall, 112))
       expectNoMessage()
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)
 
@@ -429,7 +428,7 @@ class ChargingNetworkManagerSpec
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)
 
       chargingNetworkManager ! ChargingUnplugRequest(750, personId, beamVilleCar2, 0)
-      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(750, personId, beamVilleCar2, parkingStall, 1.08e8, 0)
+      expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(750, personId, beamVilleCar2, parkingStall, 1.08e8)
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(2.16e8)
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)

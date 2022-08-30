@@ -96,10 +96,10 @@ trait ScaleUpCharging extends {
       log.debug(s"Received WaitingToCharge: $reply")
     case reply: EndingRefuelSession =>
       log.debug(s"Received EndingRefuelSession: $reply")
-    case reply @ UnhandledVehicle(tick, personId, vehicle, _, _) =>
+    case reply @ UnhandledVehicle(tick, personId, vehicle, _) =>
       log.error(s"Received UnhandledVehicle: $reply")
       handleReleasingParkingSpot(tick, personId, vehicle, None)
-    case reply @ UnpluggingVehicle(tick, personId, vehicle, _, energyCharged, _) =>
+    case reply @ UnpluggingVehicle(tick, personId, vehicle, _, energyCharged) =>
       log.debug(s"Received UnpluggingVehicle: $reply")
       handleReleasingParkingSpot(tick, personId, vehicle, Some(energyCharged))
   }

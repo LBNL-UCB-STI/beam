@@ -178,7 +178,7 @@ class ChargingNetworkManager(
               chargingVehicle.chargingStation.howManyVehiclesAreInGracePeriodAfterCharging,
               numVehicleWaitingToCharge
             )
-            WaitingToCharge(tick, vehicle.id, stall, numVehicleWaitingToCharge, triggerId)
+            WaitingToCharge(tick, vehicle.id, stall, triggerId)
           case chargingVehicle =>
             chargingVehicle.vehicle.useParkingStall(stall)
             handleStartCharging(tick, chargingVehicle)
@@ -207,7 +207,7 @@ class ChargingNetworkManager(
                     station,
                     _,
                     _,
-                    personId,
+                    _,
                     _,
                     _,
                     _,
@@ -240,14 +240,14 @@ class ChargingNetworkManager(
                   )
                 }
               val (_, totEnergy) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
-              UnpluggingVehicle(tick, personId, vehicle, stall, totEnergy, triggerId)
+              UnpluggingVehicle(tick, personId, vehicle, stall, totEnergy)
             case _ =>
               log.debug(s"Vehicle $vehicle is already disconnected or unhandled at $tick")
-              UnhandledVehicle(tick, personId, vehicle, Some(stall), triggerId)
+              UnhandledVehicle(tick, personId, vehicle, Some(stall))
           }
         case _ =>
           log.debug(s"Cannot unplug $vehicle as it doesn't have a stall at $tick")
-          UnhandledVehicle(tick, personId, vehicle, None, triggerId)
+          UnhandledVehicle(tick, personId, vehicle, None)
       }
       sender ! responseHasTriggerId
 
@@ -294,32 +294,17 @@ object ChargingNetworkManager extends LazyLogging {
 
   case class StartingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle], stall: ParkingStall, triggerId: Long)
       extends HasTriggerId
+
+  case class WaitingToCharge(tick: Int, vehicleId: Id[BeamVehicle], stall: ParkingStall, triggerId: Long)
+      extends HasTriggerId
+
   case class EndingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle], triggerId: Long) extends HasTriggerId
 
-  case class WaitingToCharge(
-    tick: Int,
-    vehicleId: Id[BeamVehicle],
-    stall: ParkingStall,
-    numVehicleWaitingToCharge: Int,
-    triggerId: Long
-  ) extends HasTriggerId
+  case class UnhandledVehicle(tick: Int, personId: Id[_], vehicle: BeamVehicle, stallMaybe: Option[ParkingStall])
+      extends Trigger
 
-  case class UnhandledVehicle(
-    tick: Int,
-    personId: Id[_],
-    vehicle: BeamVehicle,
-    stallMaybe: Option[ParkingStall],
-    triggerId: Long
-  ) extends HasTriggerId
-
-  case class UnpluggingVehicle(
-    tick: Int,
-    person: Id[Person],
-    vehicle: BeamVehicle,
-    stall: ParkingStall,
-    energyCharged: Double,
-    triggerId: Long
-  ) extends HasTriggerId
+  case class UnpluggingVehicle(tick: Int, person: Id[_], vehicle: BeamVehicle, stall: ParkingStall, energy: Double)
+      extends Trigger
 
   def props(
     beamServices: BeamServices,
