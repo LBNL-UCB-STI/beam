@@ -73,7 +73,7 @@ abstract class AbstractSkimmerReadOnly extends LazyLogging {
 
   def displaySkimStats(): Unit = {
     logger.info(s"Number of Skim Requests = $numberOfRequests")
-    logger.info(s"Number of Times Actual Value from Skim Map Was returned = $numberOfSkimValueFound")
+    logger.info(s"Number of times actual value from Skim Map was returned = $numberOfSkimValueFound")
   }
 
   def resetSkimStats(): Unit = {

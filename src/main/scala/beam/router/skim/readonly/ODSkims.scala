@@ -20,6 +20,7 @@ import beam.router.Modes.BeamMode.{
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
 import beam.router.skim.core.AbstractSkimmerReadOnly
 import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
+import beam.router.skim.readonly
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import org.matsim.api.core.v01.{Coord, Id}
