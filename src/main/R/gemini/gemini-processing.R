@@ -1049,8 +1049,9 @@ events2 <- readCsv(pp(workDir, "/test/events/filtered.0.events.b.csv.gz"))
 events3 <- readCsv(pp(workDir, "/test/events/filtered.0.events.c.csv.gz"))
 events4 <- readCsv(pp(workDir, "/test/events/filtered.0.events.d.csv.gz"))
 events5 <- readCsv(pp(workDir, "/test/events/filtered.0.events.e.csv.gz"))
+events6 <- readCsv(pp(workDir, "/test/events/filtered.0.events.f.csv.gz"))
 
-pt1 <- readCsv(pp(workDir, "/test/events/pt.0.events.a.csv.gz"))
+pt1 <- readCsv(pp(workDir, "/test/events/pt.0.events.f.csv.gz"))
 
 ref1 <- events1[type=="RefuelSessionEvent"]
 ref2 <- events2[type=="RefuelSessionEvent"]

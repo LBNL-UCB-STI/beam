@@ -33,14 +33,9 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
 
   override def processParkingInquiry(
     inquiry: ParkingInquiry,
-    doNotReserveStallWithoutChargingPoint: Boolean = true,
     parallelizationCounterOption: Option[SimpleCounter] = None
   ): ParkingInquiryResponse = {
-    val parkingResponse = super[ParkingNetwork].processParkingInquiry(
-      inquiry,
-      doNotReserveStallWithoutChargingPoint,
-      parallelizationCounterOption
-    )
+    val parkingResponse = super[ParkingNetwork].processParkingInquiry(inquiry, parallelizationCounterOption)
     if (parkingResponse.stall.chargingPointType.isDefined)
       processVehicleOnTheWayToStation(inquiry, parkingResponse.stall)
     parkingResponse

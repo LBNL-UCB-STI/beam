@@ -1099,7 +1099,6 @@ class RideHailManager(
     triggerId: Long
   ): Boolean = {
     val vehicle = resources(vehicleId)
-    log.info(s"addingVehicleToChargingOrMakingAvailable $vehicleId")
     notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId) match {
       case Some(parkingStall) =>
         attemptToRefuel(vehicle, personId, parkingStall, tick, triggerId)
@@ -1532,7 +1531,9 @@ class RideHailManager(
       vehicleId -> rideHailManagerHelper.getRideHailAgentLocation(vehicleId).geofence
     })
 
-    log.info(s"[${this.id}] generated ${resources.size} Ride-Hail vehicles. The following is a split by vehicle types:")
+    log.info(
+      s"[${this.id}] generated ${resources.size} Ride-Hail vehicles, ${resources.filter(_._2.isRideHailCAV)} of them are Ride-Hail CAVs. The following is a split by vehicle types:"
+    )
     resources.groupBy(_._2.beamVehicleType).foreach { case (vehicleType, vehicles) =>
       log.info(s"${vehicleType.id} => ${vehicles.size} vehicle(s)")
     }
