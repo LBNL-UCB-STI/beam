@@ -54,22 +54,22 @@ trait RideHailDepotManager extends {
 
   override def loggedReceive: Receive = BeamLoggingReceive {
     case e: EndingRefuelSession =>
-      log.debug("RideHailDepotManager.EndingRefuelSession: {}", e)
+      log.info("RideHailDepotManager.EndingRefuelSession: {}", e)
     case e @ UnpluggingVehicle(_, _, vehicle, stall, _) =>
-      log.debug("RideHailDepotManager.UnpluggingVehicle: {}", e)
+      log.info("RideHailDepotManager.UnpluggingVehicle: {}", e)
       val depotData = getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId)
       depotData.vehiclesInQueue.remove(vehicle.id)
       depotData.vehiclesOnWayToDepot.remove(vehicle.id)
       depotData.chargingVehicles.remove(vehicle.id)
     case e @ UnhandledVehicle(_, _, vehicle, stallMaybe) =>
-      log.debug("RideHailDepotManager.UnhandledVehicle: {}", e)
+      log.info("RideHailDepotManager.UnhandledVehicle: {}", e)
       stallMaybe.map(stall => getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId)).map { depotData =>
         depotData.vehiclesInQueue.remove(vehicle.id)
         depotData.vehiclesOnWayToDepot.remove(vehicle.id)
         depotData.chargingVehicles.remove(vehicle.id)
       }
     case e @ StartingRefuelSession(tick, vehicleId, stall, _) =>
-      log.debug("RideHailDepotManager.StartingRefuelSession: {}", e)
+      log.info("RideHailDepotManager.StartingRefuelSession: {}", e)
       val depotData = getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId)
       if (depotData.vehiclesInQueue.remove(vehicleId).isDefined) {
         putNewTickAndObservation(vehicleId, (tick, s"EnQueue($DequeuedToCharge)"))
@@ -77,7 +77,7 @@ trait RideHailDepotManager extends {
       depotData.vehiclesOnWayToDepot.remove(vehicleId)
       depotData.chargingVehicles.put(vehicleId, stall)
     case e @ WaitingToCharge(_, vehicleId, stall, _) =>
-      log.debug("RideHailDepotManager.WaitingToCharge: {}", e)
+      log.info("RideHailDepotManager.WaitingToCharge: {}", e)
       val depotData = getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId)
       depotData.vehiclesOnWayToDepot.remove(vehicleId)
       depotData.vehiclesInQueue.put(vehicleId, stall)
@@ -253,6 +253,9 @@ trait RideHailDepotManager extends {
           case _ => false
         }
     }
+    log.info(
+      s"findChargingStalls tick $tick idleVehicleIdsWantingToRefuelWithLocation ${idleVehicleIdsWantingToRefuelWithLocation.size}"
+    )
     Future
       .sequence(idleVehicleIdsWantingToRefuelWithLocation.map { case (vehicleId, rideHailAgentLocation) =>
         val beamVehicle = resources(vehicleId)

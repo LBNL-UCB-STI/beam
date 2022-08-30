@@ -837,6 +837,9 @@ class RideHailManager(
       candidateVehiclesHeadedToRefuelingDepot
         .filter { case (vehicleId, _) =>
           val vehicleIsIdle = idleVehicles.contains(vehicleId)
+          resources.get(vehicleId).filter(_.isRideHailCAV).foreach { vehicle =>
+            log.info(s"processParkingStallsClaimedByVehicle ${vehicle.id}")
+          }
           if (!vehicleIsIdle) {
             log.warning(
               f"$vehicleId was sent to refuel but it is not idle." +
@@ -1096,6 +1099,7 @@ class RideHailManager(
     triggerId: Long
   ): Boolean = {
     val vehicle = resources(vehicleId)
+    log.info(s"addingVehicleToChargingOrMakingAvailable $vehicleId")
     notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId) match {
       case Some(parkingStall) =>
         attemptToRefuel(vehicle, personId, parkingStall, tick, triggerId)
