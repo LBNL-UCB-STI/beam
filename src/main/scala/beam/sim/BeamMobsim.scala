@@ -69,9 +69,9 @@ class BeamMobsim @Inject() (
   private implicit val timeout: Timeout = Timeout(500000, TimeUnit.SECONDS)
 
   import beamServices._
-  val physsimConfig = beamConfig.beam.physsim
+  val physsimConfig: Beam.Physsim = beamConfig.beam.physsim
 
-  val snapLocationHelper = SnapLocationHelper(
+  val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
     geo,
     beamScenario.transportNetwork.streetLayer,
     beamConfig.beam.routing.r5.linkRadiusMeters

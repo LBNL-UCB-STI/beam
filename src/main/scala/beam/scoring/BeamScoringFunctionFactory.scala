@@ -5,19 +5,12 @@ import beam.agentsim.agents.choice.mode.ModeChoiceMultinomialLogit
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ReplanningEvent}
 import beam.replanning.ReplanningUtil
 import beam.router.model.EmbodiedBeamTrip
+import beam.sim._
 import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
-import beam.sim.{
-  BeamConfigChangesObservable,
-  BeamConfigChangesObserver,
-  BeamServices,
-  MapStringDouble,
-  OutputDataDescription
-}
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
-import javax.inject.{Inject, Singleton}
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.controler.OutputDirectoryHierarchy
@@ -25,6 +18,7 @@ import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.scoring.{ScoringFunction, ScoringFunctionFactory}
 
+import javax.inject.{Inject, Singleton}
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 
@@ -89,9 +83,13 @@ class BeamScoringFunctionFactory @Inject() (
         event match {
           case modeChoiceEvent: ModeChoiceEvent =>
             trips.append(modeChoiceEvent.chosenTrip)
+          case e: ReplanningEvent if trips.isEmpty =>
+            logger.error(
+              f"We need to remove a trip, but the trips collection is empty, this might be a bug. The event: ${e.toString}, the person: ${person.getId.toString}"
+            )
           case _: ReplanningEvent =>
             // FIXME? If this happens often, maybe we can optimize it:
-            // trips is list buffer meaning removing is O(n)
+            // trips is a ListBuffer meaning removing is O(n)
             trips.remove(trips.size - 1)
           case leavingParkingEvent: LeavingParkingEvent =>
             leavingParkingEventScore += leavingParkingEvent.score
@@ -104,7 +102,7 @@ class BeamScoringFunctionFactory @Inject() (
             val lastTrip = trips.last
             trips.update(
               trips.size - 1,
-              PersonAgent.correctTripEndTime(lastTrip, e.getTime().toInt, bodyVehicleId, bodyVehicleTypeId)
+              PersonAgent.correctTripEndTime(lastTrip, e.getTime.toInt, bodyVehicleId, bodyVehicleTypeId)
             )
           case _ =>
         }

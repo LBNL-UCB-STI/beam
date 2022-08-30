@@ -5,9 +5,8 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events.SpaceTime
-import beam.agentsim.infrastructure.ChargingNetwork.ChargingVehicle
 import beam.agentsim.infrastructure.ChargingNetworkManager._
-import beam.agentsim.infrastructure.ParkingInquiry.{activityTypeStringToEnum, ParkingActivityType, ParkingSearchMode}
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
@@ -54,75 +53,55 @@ trait ScaleUpCharging extends {
     if (!cnmConfig.scaleUp.enabled) 1.0 else cnmConfig.scaleUp.expansionFactor_wherever_activity
 
   override def loggedReceive: Receive = {
-    case t @ TriggerWithId(PlanParkingInquiryTrigger(_, requestId), triggerId) =>
-      log.debug(s"Received parking response: $t")
-      virtualParkingInquiries.get(requestId) match {
-        case Some(inquiry) => self ! inquiry
-        case _             => log.error(s"Something is broken in ScaleUpCharging. Request $requestId has not been found")
-      }
+    case t @ TriggerWithId(PlanParkingInquiryTrigger(_, inquiry), triggerId) =>
+      log.debug(s"Received PlanParkingInquiryTrigger: $t")
+      virtualParkingInquiries.put(inquiry.requestId, inquiry)
+      self ! inquiry
       sender ! CompletionNotice(triggerId)
-    case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, requestId), triggerId) =>
-      log.debug(s"Received parking response: $t")
-      virtualParkingInquiries.remove(requestId) match {
-        case Some(inquiry) => self ! ChargingUnplugRequest(tick, inquiry.personId.get, beamVehicle, triggerId)
-        case _             =>
-      }
+    case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, personId), triggerId) =>
+      log.debug(s"Received PlanChargingUnplugRequestTrigger: $t")
+      self ! ChargingUnplugRequest(tick, personId, beamVehicle, triggerId)
+      sender ! CompletionNotice(triggerId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
-      log.debug(s"Received parking response: $response")
-      virtualParkingInquiries.get(requestId) match {
+      log.debug(s"Received ParkingInquiryResponse: $response")
+      val triggers = virtualParkingInquiries.remove(requestId) match {
         case Some(parkingInquiry) if stall.chargingPointType.isDefined =>
           log.debug(s"parking inquiry with requestId $requestId returned a stall with charging point.")
           val beamVehicle = parkingInquiry.beamVehicle.get
+          val personId =
+            parkingInquiry.personId.map(Id.create(_, classOf[Person])).getOrElse(Id.create("", classOf[Person]))
           self ! ChargingPlugRequest(
             parkingInquiry.destinationUtm.time,
             beamVehicle,
             stall,
-            parkingInquiry.personId.map(Id.create(_, classOf[Person])).getOrElse(Id.create("", classOf[Person])),
+            personId,
             triggerId,
+            self,
             NotApplicable,
             None
           )
           val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
-          getScheduler ! ScheduleTrigger(
-            PlanChargingUnplugRequestTrigger(endTime, beamVehicle, parkingInquiry.requestId),
-            self
-          )
+          Vector(ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, personId), self))
         case Some(_) if stall.chargingPointType.isEmpty =>
           log.debug(s"parking inquiry with requestId $requestId returned a NoCharger stall")
+          Vector()
         case _ =>
-          log.warning(s"inquiryMap does not have this requestId $requestId that returned stall $stall")
+          log.error(s"inquiryMap does not have this requestId $requestId that returned stall $stall")
+          Vector()
       }
-    case reply @ StartingRefuelSession(_, _) =>
-      log.debug(s"Received parking response: $reply")
-    case reply @ EndingRefuelSession(_, _, triggerId) =>
-      log.debug(s"Received parking response: $reply")
-      getScheduler ! CompletionNotice(triggerId)
-    case reply @ WaitingToCharge(_, _, _, _) =>
-      log.debug(s"Received parking response: $reply")
-    case reply @ UnhandledVehicle(tick, personId, vehicle, triggerId) =>
-      log.error(s"Received parking response: $reply")
-      ParkingNetworkManager.handleReleasingParkingSpot(
-        tick,
-        vehicle,
-        None,
-        personId,
-        getParkingManager,
-        getBeamServices.matsimServices.getEvents,
-        triggerId
-      )
-      getScheduler ! CompletionNotice(triggerId)
-    case reply @ UnpluggingVehicle(tick, personId, vehicle, energyCharged, triggerId) =>
-      log.debug(s"Received parking response: $reply")
-      ParkingNetworkManager.handleReleasingParkingSpot(
-        tick,
-        vehicle,
-        Some(energyCharged),
-        personId,
-        getParkingManager,
-        getBeamServices.matsimServices.getEvents,
-        triggerId
-      )
-      getScheduler ! CompletionNotice(triggerId)
+      triggers.foreach(getScheduler ! _)
+    case reply: StartingRefuelSession =>
+      log.debug(s"Received StartingRefuelSession: $reply")
+    case reply: WaitingToCharge =>
+      log.debug(s"Received WaitingToCharge: $reply")
+    case reply: EndingRefuelSession =>
+      log.debug(s"Received EndingRefuelSession: $reply")
+    case reply @ UnhandledVehicle(tick, personId, vehicle, _) =>
+      log.error(s"Received UnhandledVehicle: $reply")
+      handleReleasingParkingSpot(tick, personId, vehicle, None)
+    case reply @ UnpluggingVehicle(tick, personId, vehicle, _, energyCharged) =>
+      log.debug(s"Received UnpluggingVehicle: $reply")
+      handleReleasingParkingSpot(tick, personId, vehicle, Some(energyCharged))
   }
 
   /**
@@ -133,19 +112,35 @@ trait ScaleUpCharging extends {
   private def nextTimeStepUsingPoissonProcess(rate: Double): Double =
     3600.0 * (-Math.log(1.0 - rand.nextDouble()) / rate)
 
+  private def handleReleasingParkingSpot(
+    tick: Int,
+    personId: Id[_],
+    vehicle: BeamVehicle,
+    energyChargedMaybe: Option[Double]
+  ): Unit = {
+    ParkingNetworkManager.handleReleasingParkingSpot(
+      tick,
+      vehicle,
+      energyChargedMaybe,
+      personId,
+      getParkingManager,
+      getBeamServices.matsimServices.getEvents
+    )
+  }
+
   /**
     * @param timeBin current time bin
     * @param triggerId trigger di for the scheduler
     * @return
     */
   protected def simulateEventsIfScalingEnabled(timeBin: Int, triggerId: Long): Vector[ScheduleTrigger] = {
-    val results = vehicleRequests
+    vehicleRequests
       .groupBy(_._1._1)
       .par
       .mapValues(_.map { case ((_, parkingActivityType), data) =>
         val numObservation = data.size
-        val totPowerInKW = data.map(x => toPowerInKW(x.energyToChargeInJoule, x.durationToChargeInSec)).sum
-        val listDur = data.map(_.durationToChargeInSec)
+        val totPowerInKW = data.map(x => toPowerInKW(x.energyToChargeInJoule, x.parkingDurationInSec)).sum
+        val listDur = data.map(_.parkingDurationInSec)
         val totDurationInSec = listDur.sum
         val meanDur: Double = listDur.sum / numObservation.toDouble
         val varianceDur: Double = listDur.map(d => d - meanDur).map(t => t * t).sum / numObservation
@@ -187,12 +182,12 @@ trait ScaleUpCharging extends {
         parkingActivityType -> (data, vehicleInfoSummary)
       })
       .flatMap { case (tazId, activityType2vehicleInfo) =>
-        val partialTriggersAndInquiries = Vector.newBuilder[(ScheduleTrigger, ParkingInquiry)]
+        val parkingInquiriesTriggers = Vector.newBuilder[ScheduleTrigger]
         activityType2vehicleInfo.foldLeft((0.0, 0.0, Vector.empty[CPair[ParkingActivityType, java.lang.Double]])) {
-          case ((powerAcc, numEventsAcc, pmfAcc), (activityType, (_, dataSummary))) =>
-            val scaleUpFactor = scaleUpFactors.getOrElse(activityType, defaultScaleUpFactor) - 1
+          case ((powerAcc, numEventsAcc, pmfAcc), (parkingActivityType, (_, dataSummary))) =>
+            val scaleUpFactor = scaleUpFactors.getOrElse(parkingActivityType, defaultScaleUpFactor) - 1
             val power = scaleUpFactor * dataSummary.totPowerInKW
-            val pmf = new CPair[ParkingActivityType, java.lang.Double](activityType, power)
+            val pmf = new CPair[ParkingActivityType, java.lang.Double](parkingActivityType, power)
             val numEvents = scaleUpFactor * dataSummary.numObservation
             (powerAcc + power, numEventsAcc + numEvents, pmfAcc :+ pmf)
         } match {
@@ -230,57 +225,67 @@ trait ScaleUpCharging extends {
                 searchMode = ParkingSearchMode.DestinationCharging,
                 triggerId = triggerId
               )
-              val trigger = ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry.requestId), self)
               cumulatedSimulatedPower += toPowerInKW(energyToCharge, duration)
-              partialTriggersAndInquiries += ((trigger, parkingInquiry))
+              parkingInquiriesTriggers += ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry), self)
             }
           case _ =>
             log.debug("The observed load is null. Most likely due to vehicles not needing to charge!")
         }
-        partialTriggersAndInquiries.result()
+        parkingInquiriesTriggers.result()
       }
       .seq
       .toVector
-    results.foreach(x => virtualParkingInquiries.put(x._2.requestId, x._2))
-    val triggers = results.map(_._1)
-    vehicleRequests.clear()
-    triggers
+      .map { triggers =>
+        vehicleRequests.clear()
+        triggers
+      }
   }
 
   /**
-    * @param chargingVehicle the vehicle that just plugged in
+    * @param inquiry ParkingInquiry
+    * @param stall ParkingStall
     */
-  protected def collectVehicleRequestInfo(chargingVehicle: ChargingVehicle): Unit = {
-    if (cnmConfig.scaleUp.enabled && !isVirtualCar(chargingVehicle.vehicle.id)) {
-      val vehicle = chargingVehicle.vehicle
-      val stall = chargingVehicle.stall
+  protected def collectVehicleRequestInfo(inquiry: ParkingInquiry, stall: ParkingStall): Unit = {
+    if (cnmConfig.scaleUp.enabled && inquiry.beamVehicle.exists(v => !isVirtualCar(v.id))) {
+      val vehicle = inquiry.beamVehicle.get
       val vehicleAlias =
-        if (vehicle.isRideHail) "rideHail"
-        else if (vehicle.isSharedVehicle) "sharedVehicle"
-        else "personalVehicle"
+        if (vehicle.isRideHail) ScaleUpCharging.RIDE_HAIL
+        else if (vehicle.isSharedVehicle) ScaleUpCharging.SHARED
+        else ScaleUpCharging.PERSONAL
+      val reservedFor = if (vehicle.isRideHailCAV) {
+        VehicleManager
+          .getReservedFor(vehicle.vehicleManagerId.get())
+          .getOrElse(throw new RuntimeException("Robot taxis need to have a vehicle manager id"))
+      } else if (vehicle.isSharedVehicle) {
+        VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).getOrElse(VehicleManager.AnyManager)
+      } else VehicleManager.AnyManager
       val estimatedChargingDuration = Math.max(
-        chargingVehicle.estimatedParkingDuration,
+        inquiry.parkingDuration.toInt,
         beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds.toInt
       )
       val (durationToCharge, energyToCharge) =
-        chargingVehicle.vehicle.refuelingSessionDurationAndEnergyInJoulesForStall(
-          Some(chargingVehicle.stall),
+        vehicle.refuelingSessionDurationAndEnergyInJoulesForStall(
+          Some(stall),
           sessionDurationLimit = Some(estimatedChargingDuration),
           stateOfChargeLimit = None,
           chargingPowerLimit = None
         )
       vehicleRequests.synchronized {
-        val key = (stall.tazId, activityTypeStringToEnum(chargingVehicle.activityType))
+        val key = (stall.tazId, inquiry.parkingActivityType)
+        val activityType =
+          if (inquiry.activityType.startsWith(ChargingNetwork.EnRouteLabel))
+            ParkingActivityType.Charge.entryName
+          else inquiry.activityType
         vehicleRequests.put(
           key,
           vehicleRequests.getOrElse(key, List.empty) :+ VehicleRequestInfo(
             energyToCharge,
             Math.min(durationToCharge, estimatedChargingDuration),
             100 * Math.min(Math.max(vehicle.getStateOfCharge, 0), 1),
-            chargingVehicle.activityType,
+            activityType,
             vehicle.beamVehicleType,
             vehicleAlias,
-            VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).getOrElse(VehicleManager.AnyManager)
+            reservedFor
           )
         )
       }
@@ -327,12 +332,15 @@ trait ScaleUpCharging extends {
 
 object ScaleUpCharging {
   val VIRTUAL_ALIAS: String = "virtual"
-  case class PlanParkingInquiryTrigger(tick: Int, requestId: Int) extends Trigger
-  case class PlanChargingUnplugRequestTrigger(tick: Int, beamVehicle: BeamVehicle, requestId: Int) extends Trigger
+  private val RIDE_HAIL: String = "rideHailVehicle"
+  private val SHARED: String = "sharedVehicle"
+  private val PERSONAL: String = "personalVehicle"
+  case class PlanParkingInquiryTrigger(tick: Int, inquiry: ParkingInquiry) extends Trigger
+  case class PlanChargingUnplugRequestTrigger(tick: Int, beamVehicle: BeamVehicle, personId: Id[Person]) extends Trigger
 
   case class VehicleRequestInfo(
     energyToChargeInJoule: Double,
-    durationToChargeInSec: Int,
+    parkingDurationInSec: Int,
     stateOfCharge: Double,
     activityType: String,
     vehicleType: BeamVehicleType,
@@ -363,7 +371,6 @@ object ScaleUpCharging {
     activityTypeDistribution: EnumeratedDistribution[String]
   ) {
     def getDuration(rand: Random): Int = logNormalDistribution(meanDuration, varianceDuration, rand).toInt
-    def getSOC(rand: Random): Double = logNormalDistribution(meanSOC, varianceSOC, rand)
     def getEnergy(rand: Random): Double = logNormalDistribution(meanEnergy, varianceEnergy, rand)
 
     private def logNormalDistribution(mean: Double, variance: Double, rand: Random) /* mean and variance of Y */ = {

@@ -395,6 +395,8 @@ class BeamVehicle(
 
   def isRideHail: Boolean = id.toString.startsWith("rideHail")
 
+  def isRideHailCAV: Boolean = isRideHail && isCAV
+
   def isSharedVehicle: Boolean = beamVehicleType.id.toString.startsWith("sharedVehicle")
 
   def isCAV: Boolean = beamVehicleType.isConnectedAutomatedVehicle

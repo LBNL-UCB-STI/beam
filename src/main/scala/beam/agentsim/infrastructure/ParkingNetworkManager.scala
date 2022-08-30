@@ -11,8 +11,8 @@ import beam.sim.config.BeamConfig
 import beam.utils.logging.LoggingMessageActor
 import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.api.core.v01.Id
+import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.concurrent.duration._
 
@@ -34,9 +34,9 @@ class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkMap: Parki
 
   override def loggedReceive: Receive = {
     case inquiry: ParkingInquiry if beamConfig.beam.agentsim.taz.parkingManager.method == "PARALLEL" =>
-      parkingNetworkMap.processParkingInquiry(inquiry, false, Some(counter)).map(sender() ! _)
+      sender() ! parkingNetworkMap.processParkingInquiry(inquiry, parallelizationCounterOption = Some(counter))
     case inquiry: ParkingInquiry =>
-      parkingNetworkMap.processParkingInquiry(inquiry).map(sender() ! _)
+      sender() ! parkingNetworkMap.processParkingInquiry(inquiry)
     case release: ReleaseParkingStall =>
       parkingNetworkMap.processReleaseParkingStall(release)
     case "tick" => counter.tick()
@@ -62,22 +62,25 @@ object ParkingNetworkManager extends LazyLogging {
     energyChargedMaybe: Option[Double],
     driver: Id[_],
     parkingManager: ActorRef,
-    eventsManager: EventsManager,
-    triggerId: Long
+    eventsManager: EventsManager
   ): Unit = {
-    val stallForLeavingParkingEvent = currentBeamVehicle.stall match {
+    val stallForLeavingParkingEventMaybe = currentBeamVehicle.stall match {
       case Some(stall) =>
-        parkingManager ! ReleaseParkingStall(stall, triggerId)
+        parkingManager ! ReleaseParkingStall(stall, tick)
         currentBeamVehicle.unsetParkingStall()
-        stall
-      case None =>
+        Some(stall)
+      case None if currentBeamVehicle.lastUsedStall.isDefined =>
         // This can now happen if a vehicle was charging and released the stall already
-        currentBeamVehicle.lastUsedStall.get
+        Some(currentBeamVehicle.lastUsedStall.get)
+      case None =>
+        None
     }
-    val energyCharge: Double = energyChargedMaybe.getOrElse(0.0)
-    val score = calculateScore(stallForLeavingParkingEvent.costInDollars, energyCharge)
-    eventsManager.processEvent(
-      LeavingParkingEvent(tick, stallForLeavingParkingEvent, score, driver.toString, currentBeamVehicle.id)
-    )
+    stallForLeavingParkingEventMaybe.foreach { stall =>
+      val energyCharge: Double = energyChargedMaybe.getOrElse(0.0)
+      val score = calculateScore(stall.costInDollars, energyCharge)
+      eventsManager.processEvent(
+        LeavingParkingEvent(tick, stall, score, driver.toString, currentBeamVehicle.id)
+      )
+    }
   }
 }

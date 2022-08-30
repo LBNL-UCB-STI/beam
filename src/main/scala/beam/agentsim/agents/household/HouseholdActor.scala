@@ -282,7 +282,7 @@ object HouseholdActor {
               s"cavDriver-${cav.id.toString}"
             )
             log.warning(
-              s"Setting up household cav ${cav.id} with driver ${cav.getDriver} to be set with driver ${cavDriverRef}"
+              s"Setting up household cav ${cav.id} with driver ${cav.getDriver} to be set with driver $cavDriverRef"
             )
             context.watch(cavDriverRef)
             val personId: Id[Person] =
@@ -522,7 +522,7 @@ object HouseholdActor {
             sender() ! CavTripLegsResponse(None, List())
         }
 
-      case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
+      case NotifyVehicleIdle(vId, _, whenWhere, _, _, _, _) =>
         val vehId = vId.asInstanceOf[Id[BeamVehicle]]
         vehicles(vehId).spaceTime = whenWhere
         log.debug("updated vehicle {} with location {}", vehId, whenWhere)
@@ -557,7 +557,8 @@ object HouseholdActor {
                 stall,
                 // use first household member id as stand-in.
                 household.getMemberIds.get(0),
-                triggerId
+                triggerId,
+                self
               )
             }
           }

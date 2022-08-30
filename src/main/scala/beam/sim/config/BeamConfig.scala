@@ -1107,110 +1107,63 @@ object BeamConfig {
           }
 
           case class Charging(
-            vehicleChargingManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager
+            multinomialLogit: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit
           )
 
           object Charging {
 
-            case class VehicleChargingManager(
-              defaultVehicleChargingManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager
+            case class MultinomialLogit(
+              params: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit.Params
             )
 
-            object VehicleChargingManager {
+            object MultinomialLogit {
 
-              case class DefaultVehicleChargingManager(
-                multinomialLogit: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit
+              case class Params(
+                chargingTimeMultiplier: scala.Double,
+                drivingTimeMultiplier: scala.Double,
+                insufficientRangeMultiplier: scala.Double,
+                queueingTimeMultiplier: scala.Double
               )
 
-              object DefaultVehicleChargingManager {
-
-                case class MultinomialLogit(
-                  params: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit.Params
-                )
-
-                object MultinomialLogit {
-
-                  case class Params(
-                    chargingTimeMultiplier: scala.Double,
-                    drivingTimeMultiplier: scala.Double,
-                    insufficientRangeMultiplier: scala.Double,
-                    queueingTimeMultiplier: scala.Double
-                  )
-
-                  object Params {
-
-                    def apply(
-                      c: com.typesafe.config.Config
-                    ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit.Params = {
-                      BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit
-                        .Params(
-                          chargingTimeMultiplier =
-                            if (c.hasPathOrNull("chargingTimeMultiplier")) c.getDouble("chargingTimeMultiplier")
-                            else -0.01666667,
-                          drivingTimeMultiplier =
-                            if (c.hasPathOrNull("drivingTimeMultiplier")) c.getDouble("drivingTimeMultiplier")
-                            else -0.01666667,
-                          insufficientRangeMultiplier =
-                            if (c.hasPathOrNull("insufficientRangeMultiplier"))
-                              c.getDouble("insufficientRangeMultiplier")
-                            else -60.0,
-                          queueingTimeMultiplier =
-                            if (c.hasPathOrNull("queueingTimeMultiplier")) c.getDouble("queueingTimeMultiplier")
-                            else -0.01666667
-                        )
-                    }
-                  }
-
-                  def apply(
-                    c: com.typesafe.config.Config
-                  ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit = {
-                    BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager
-                      .MultinomialLogit(
-                        params =
-                          BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit
-                            .Params(
-                              if (c.hasPathOrNull("params")) c.getConfig("params")
-                              else com.typesafe.config.ConfigFactory.parseString("params{}")
-                            )
-                      )
-                  }
-                }
+              object Params {
 
                 def apply(
                   c: com.typesafe.config.Config
-                ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager = {
-                  BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager
-                    .DefaultVehicleChargingManager(
-                      multinomialLogit =
-                        BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager
-                          .MultinomialLogit(
-                            if (c.hasPathOrNull("multinomialLogit")) c.getConfig("multinomialLogit")
-                            else com.typesafe.config.ConfigFactory.parseString("multinomialLogit{}")
-                          )
-                    )
+                ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit.Params = {
+                  BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit.Params(
+                    chargingTimeMultiplier =
+                      if (c.hasPathOrNull("chargingTimeMultiplier")) c.getDouble("chargingTimeMultiplier")
+                      else -0.01666667,
+                    drivingTimeMultiplier =
+                      if (c.hasPathOrNull("drivingTimeMultiplier")) c.getDouble("drivingTimeMultiplier")
+                      else -0.01666667,
+                    insufficientRangeMultiplier =
+                      if (c.hasPathOrNull("insufficientRangeMultiplier")) c.getDouble("insufficientRangeMultiplier")
+                      else -60.0,
+                    queueingTimeMultiplier =
+                      if (c.hasPathOrNull("queueingTimeMultiplier")) c.getDouble("queueingTimeMultiplier")
+                      else -0.01666667
+                  )
                 }
               }
 
               def apply(
                 c: com.typesafe.config.Config
-              ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager = {
-                BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager(
-                  defaultVehicleChargingManager =
-                    BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager
-                      .DefaultVehicleChargingManager(
-                        if (c.hasPathOrNull("defaultVehicleChargingManager"))
-                          c.getConfig("defaultVehicleChargingManager")
-                        else com.typesafe.config.ConfigFactory.parseString("defaultVehicleChargingManager{}")
-                      )
+              ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit = {
+                BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit(
+                  params = BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit.Params(
+                    if (c.hasPathOrNull("params")) c.getConfig("params")
+                    else com.typesafe.config.ConfigFactory.parseString("params{}")
+                  )
                 )
               }
             }
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging = {
               BeamConfig.Beam.Agentsim.Agents.RideHail.Charging(
-                vehicleChargingManager = BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager(
-                  if (c.hasPathOrNull("vehicleChargingManager")) c.getConfig("vehicleChargingManager")
-                  else com.typesafe.config.ConfigFactory.parseString("vehicleChargingManager{}")
+                multinomialLogit = BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit(
+                  if (c.hasPathOrNull("multinomialLogit")) c.getConfig("multinomialLogit")
+                  else com.typesafe.config.ConfigFactory.parseString("multinomialLogit{}")
                 )
               )
             }
@@ -2194,7 +2147,8 @@ object BeamConfig {
         parkingCostScalingFactor: scala.Double,
         parkingFilePath: java.lang.String,
         parkingManager: BeamConfig.Beam.Agentsim.Taz.ParkingManager,
-        parkingStallCountScalingFactor: scala.Double
+        parkingStallCountScalingFactor: scala.Double,
+        tazIdFieldName: java.lang.String
       )
 
       object Taz {
@@ -2246,7 +2200,8 @@ object BeamConfig {
             ),
             parkingStallCountScalingFactor =
               if (c.hasPathOrNull("parkingStallCountScalingFactor")) c.getDouble("parkingStallCountScalingFactor")
-              else 1.0
+              else 1.0,
+            tazIdFieldName = if (c.hasPathOrNull("tazIdFieldName")) c.getString("tazIdFieldName") else "tazId"
           )
         }
       }
@@ -4186,6 +4141,7 @@ object BeamConfig {
       }
 
       case class R5(
+        accessBufferTimeSeconds: BeamConfig.Beam.Routing.R5.AccessBufferTimeSeconds,
         bikeLaneLinkIdsFilePath: java.lang.String,
         bikeLaneScaleFactor: scala.Double,
         departureWindow: scala.Double,
@@ -4202,6 +4158,27 @@ object BeamConfig {
       )
 
       object R5 {
+
+        case class AccessBufferTimeSeconds(
+          bike: scala.Int,
+          bike_rent: scala.Int,
+          car: scala.Int,
+          ride_hail: scala.Int,
+          walk: scala.Int
+        )
+
+        object AccessBufferTimeSeconds {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5.AccessBufferTimeSeconds = {
+            BeamConfig.Beam.Routing.R5.AccessBufferTimeSeconds(
+              bike = if (c.hasPathOrNull("bike")) c.getInt("bike") else 60,
+              bike_rent = if (c.hasPathOrNull("bike_rent")) c.getInt("bike_rent") else 180,
+              car = if (c.hasPathOrNull("car")) c.getInt("car") else 300,
+              ride_hail = if (c.hasPathOrNull("ride_hail")) c.getInt("ride_hail") else 0,
+              walk = if (c.hasPathOrNull("walk")) c.getInt("walk") else 0
+            )
+          }
+        }
 
         case class MNetBuilder(
           fromCRS: java.lang.String,
@@ -4233,6 +4210,10 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5 = {
           BeamConfig.Beam.Routing.R5(
+            accessBufferTimeSeconds = BeamConfig.Beam.Routing.R5.AccessBufferTimeSeconds(
+              if (c.hasPathOrNull("accessBufferTimeSeconds")) c.getConfig("accessBufferTimeSeconds")
+              else com.typesafe.config.ConfigFactory.parseString("accessBufferTimeSeconds{}")
+            ),
             bikeLaneLinkIdsFilePath =
               if (c.hasPathOrNull("bikeLaneLinkIdsFilePath")) c.getString("bikeLaneLinkIdsFilePath") else "",
             bikeLaneScaleFactor =

@@ -7,8 +7,8 @@ import beam.agentsim.agents.ridehail.RideHailManager.RideHailRepositioningTrigge
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
-import beam.utils.{DebugLib, FileUtils, StuckFinder}
 import beam.utils.logging.{LogActorState, LoggingMessageActor}
+import beam.utils.{DebugLib, FileUtils, StuckFinder}
 import com.google.common.collect.TreeMultimap
 
 import java.util.Comparator
