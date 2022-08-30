@@ -277,6 +277,9 @@ class ChargingNetworkManager(
       powerController.close()
       context.children.foreach(_ ! Finish)
       context.stop(self)
+
+    case e =>
+      log.error(s"unhandled message: $e")
   }
 
   protected def getScheduler: ActorRef = scheduler
