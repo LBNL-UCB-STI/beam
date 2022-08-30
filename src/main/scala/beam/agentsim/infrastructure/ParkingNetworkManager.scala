@@ -15,7 +15,6 @@ import org.matsim.api.core.v01.Id
 import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.concurrent.duration._
-import scala.util.Random
 
 class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkMap: ParkingNetwork)
     extends beam.utils.CriticalActor
@@ -47,8 +46,6 @@ class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkMap: Parki
 }
 
 object ParkingNetworkManager extends LazyLogging {
-
-  val rnd = new Random()
 
   def props(services: BeamServices, parkingNetworkMap: ParkingNetwork): Props = {
     Props(new ParkingNetworkManager(services, parkingNetworkMap))
