@@ -214,11 +214,18 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
   }
 
   private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[ODSkimmerInternal] = {
-    pastSkims
+    val getSkimValue = pastSkims
       .get(currentIteration - 1)
       .flatMap(_.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
       .orElse(aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
       .asInstanceOf[Option[ODSkimmerInternal]]
+
+    if(getSkimValue.nonEmpty){
+      noOfReturnsSkimMapActualValue = noOfReturnsSkimMapActualValue + 1
+    }
+    numberOfRequests = numberOfRequests + 1
+
+    getSkimValue
   }
 
 }
@@ -233,6 +240,7 @@ object ODSkims extends BeamHelper {
     beamVehicleType: BeamVehicleType,
     fuelPrice: Double
   ): Skim = {
+
     val (travelDistance, travelTime) = distanceAndTime(mode, originUTM, destinationUTM)
     val votMultiplier: Double = mode match {
       case CAV => beamConfig.beam.agentsim.agents.modalBehaviors.modeVotMultiplier.CAV

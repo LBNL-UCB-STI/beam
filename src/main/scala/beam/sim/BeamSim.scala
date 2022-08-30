@@ -335,6 +335,11 @@ class BeamSim @Inject() (
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    beamServices.skims.parking_skimmer.resetSkimStats()
+    beamServices.skims.od_skimmer.resetSkimStats()
+    beamServices.skims.rh_skimmer.resetSkimStats()
+
+
     backgroundSkimsCreator.foreach(_.reduceParallelismTo(1))
     beamServices.eventBuilderActor = actorSystem.actorOf(
       EventBuilderActor.props(
@@ -539,6 +544,11 @@ class BeamSim @Inject() (
     if (beamConfig.beam.debug.vmInformation.createGCClassHistogram) {
       vmInformationWriter.notifyIterationEnds(event)
     }
+
+    beamServices.skims.parking_skimmer.displaySkimStats()
+    beamServices.skims.od_skimmer.displaySkimStats()
+    beamServices.skims.rh_skimmer.displaySkimStats()
+
 
     if (beamConfig.beam.agentsim.agents.vehicles.linkSocAcrossIterations)
       beamServices.beamScenario.setInitialSocOfPrivateVehiclesFromCurrentStateOfVehicles()

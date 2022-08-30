@@ -17,10 +17,17 @@ class ParkingSkims extends AbstractSkimmerReadOnly {
   ): Option[ParkingSkimmerInternal] = {
     val key = ParkingSkimmerKey(tazId, hour, chargerType)
 
-    pastSkims
+    val getSkimValue = pastSkims
       .get(currentIteration - 1)
       .flatMap(_.get(key))
       .orElse(aggregatedFromPastSkims.get(key))
       .asInstanceOf[Option[ParkingSkimmerInternal]]
+
+    if (getSkimValue.nonEmpty) {
+      noOfReturnsSkimMapActualValue = noOfReturnsSkimMapActualValue + 1
+    }
+    numberOfRequests = numberOfRequests + 1
+
+    getSkimValue
   }
 }

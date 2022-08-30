@@ -151,6 +151,9 @@ class BeamMobsim @Inject() (
       fillInSecondaryActivities(
         beamServices.matsimServices.getScenario.getHouseholds
       )
+      beamServices.skims.od_skimmer.displaySkimStats()
+      beamServices.skims.parking_skimmer.displaySkimStats()
+      beamServices.skims.rh_skimmer.displaySkimStats()
     }
 
     if (beamServices.beamConfig.beam.output.writePlansAndStopSimulation) {
