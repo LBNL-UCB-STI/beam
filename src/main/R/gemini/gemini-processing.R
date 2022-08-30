@@ -1045,18 +1045,24 @@ lognormal <- function(m, v, sample_size) {
 ####################
 
 events1 <- readCsv(pp(workDir, "/test/events/filtered.0.events.a.csv.gz"))
-events2 <- readCsv(pp(workDir, "/test/events/filtered.0.events.d2.csv.gz"))
-events3 <- readCsv(pp(workDir, "/test/events/filtered.0.events.d3.csv.gz"))
-pt1 <- readCsv(pp(workDir, "/test/events/ptmc.0.events.d1.csv.gz"))
+events2 <- readCsv(pp(workDir, "/test/events/filtered.0.events.b.csv.gz"))
+events3 <- readCsv(pp(workDir, "/test/events/filtered.0.events.c.csv.gz"))
+events4 <- readCsv(pp(workDir, "/test/events/filtered.0.events.d.csv.gz"))
+events5 <- readCsv(pp(workDir, "/test/events/filtered.0.events.e.csv.gz"))
+
+pt1 <- readCsv(pp(workDir, "/test/events/pt.0.events.a.csv.gz"))
 
 ref1 <- events1[type=="RefuelSessionEvent"]
 ref2 <- events2[type=="RefuelSessionEvent"]
 ref3 <- events3[type=="RefuelSessionEvent"]
+ref4 <- events4[type=="RefuelSessionEvent"]
 
 res1 <- chargingBehaviorFunc(ref1)
-chargingBehaviorFunc(ref2)
-chargingBehaviorFunc(ref3)
+res2 <- chargingBehaviorFunc(ref2)
+res3 <- chargingBehaviorFunc(ref3)
+res4 <- chargingBehaviorFunc(ref4)
 
+test <- pt1[startsWith(vehicle, "rideHail") & grepl("L5", vehicleType)]
 
 events3[startsWith(vehicle,"rideHail"),.N,by=.(vehicleType)]
 pt1[startsWith(vehicle,"rideHail"),.N,by=.(vehicleType)]
@@ -1064,3 +1070,6 @@ pt1[startsWith(vehicle,"rideHail"),.N,by=.(vehicleType)]
 ggplot(res1, aes(chargingPointType, fuelShare)) + 
   geom_bar(stat="identity",colour='black',size=0.3) +
   theme(axis.text.x = element_text(angle = 45, hjust=1), strip.text = element_text(size=rel(1.2)))
+
+
+

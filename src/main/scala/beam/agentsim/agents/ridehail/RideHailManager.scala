@@ -1528,6 +1528,11 @@ class RideHailManager(
       vehicleId -> rideHailManagerHelper.getRideHailAgentLocation(vehicleId).geofence
     })
 
+    log.info(s"[${this.id}] generated ${resources.size} Ride-Hail vehicles. The following is a split by vehicle types:")
+    resources.groupBy(_._2.beamVehicleType).foreach { case (vehicleType, vehicles) =>
+      log.info(s"${vehicleType.id} => ${vehicles.size} vehicle(s)")
+    }
+
     rideHailAgentInitializers.size
   }
 
