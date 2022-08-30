@@ -220,8 +220,8 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
       .orElse(aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
       .asInstanceOf[Option[ODSkimmerInternal]]
 
-    if(getSkimValue.nonEmpty){
-      noOfReturnsSkimMapActualValue = noOfReturnsSkimMapActualValue + 1
+    if (getSkimValue.nonEmpty) {
+      numberOfSkimValueFound = numberOfSkimValueFound + 1
     }
     numberOfRequests = numberOfRequests + 1
 

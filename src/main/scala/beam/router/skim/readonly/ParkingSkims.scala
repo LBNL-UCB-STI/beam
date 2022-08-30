@@ -24,7 +24,7 @@ class ParkingSkims extends AbstractSkimmerReadOnly {
       .asInstanceOf[Option[ParkingSkimmerInternal]]
 
     if (getSkimValue.nonEmpty) {
-      noOfReturnsSkimMapActualValue = noOfReturnsSkimMapActualValue + 1
+      numberOfSkimValueFound = numberOfSkimValueFound + 1
     }
     numberOfRequests = numberOfRequests + 1
 
