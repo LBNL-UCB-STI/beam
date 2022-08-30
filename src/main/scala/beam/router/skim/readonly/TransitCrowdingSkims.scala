@@ -87,7 +87,7 @@ class TransitCrowdingSkims(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleTyp
     def getValueFrom(x: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]) = {
       x.get(key).asInstanceOf[Option[TransitCrowdingSkimmerInternal]]
     }
-
+    numberOfRequests = numberOfRequests + 1
     average(
       getValueFrom(aggregatedFromPastSkims),
       pastSkims.get(currentIteration - 1).flatMap(getValueFrom),
