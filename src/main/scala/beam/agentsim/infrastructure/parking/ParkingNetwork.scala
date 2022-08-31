@@ -20,7 +20,10 @@ abstract class ParkingNetwork(parkingZones: Map[Id[ParkingZoneId], ParkingZone])
     * @param parallelizationCounterOption Option[SimpleCounter]
     * @return
     */
-  def processParkingInquiry(inquiry: ParkingInquiry, parallelizationCounterOption: Option[SimpleCounter] = None): ParkingInquiryResponse = {
+  def processParkingInquiry(
+    inquiry: ParkingInquiry,
+    parallelizationCounterOption: Option[SimpleCounter] = None
+  ): ParkingInquiryResponse = {
     logger.debug("Received parking inquiry: {}", inquiry)
     val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, _, _, _) =
       searchFunctions.map(_.searchForParkingStall(inquiry)).get

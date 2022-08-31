@@ -54,22 +54,22 @@ trait RideHailDepotManager extends {
 
   override def loggedReceive: Receive = BeamLoggingReceive {
     case e: EndingRefuelSession =>
-      log.info("RideHailDepotManager.EndingRefuelSession: {}", e)
+      log.debug("RideHailDepotManager.EndingRefuelSession: {}", e)
     case e @ UnpluggingVehicle(_, _, vehicle, stall, _) =>
-      log.info("RideHailDepotManager.UnpluggingVehicle: {}", e)
+      log.debug("RideHailDepotManager.UnpluggingVehicle: {}", e)
       val depotData = getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId)
       depotData.vehiclesInQueue.remove(vehicle.id)
       depotData.vehiclesOnWayToDepot.remove(vehicle.id)
       depotData.chargingVehicles.remove(vehicle.id)
     case e @ UnhandledVehicle(_, _, vehicle, stallMaybe) =>
-      log.info("RideHailDepotManager.UnhandledVehicle: {}", e)
+      log.debug("RideHailDepotManager.UnhandledVehicle: {}", e)
       stallMaybe.map(stall => getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId)).map { depotData =>
         depotData.vehiclesInQueue.remove(vehicle.id)
         depotData.vehiclesOnWayToDepot.remove(vehicle.id)
         depotData.chargingVehicles.remove(vehicle.id)
       }
     case e @ StartingRefuelSession(tick, vehicleId, stall, _) =>
-      log.info("RideHailDepotManager.StartingRefuelSession: {}", e)
+      log.debug("RideHailDepotManager.StartingRefuelSession: {}", e)
       val depotData = getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId)
       if (depotData.vehiclesInQueue.remove(vehicleId).isDefined) {
         putNewTickAndObservation(vehicleId, (tick, s"EnQueue($DequeuedToCharge)"))
@@ -77,7 +77,7 @@ trait RideHailDepotManager extends {
       depotData.vehiclesOnWayToDepot.remove(vehicleId)
       depotData.chargingVehicles.put(vehicleId, stall)
     case e @ WaitingToCharge(_, vehicleId, stall, _) =>
-      log.info("RideHailDepotManager.WaitingToCharge: {}", e)
+      log.debug("RideHailDepotManager.WaitingToCharge: {}", e)
       val depotData = getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId)
       depotData.vehiclesOnWayToDepot.remove(vehicleId)
       depotData.vehiclesInQueue.put(vehicleId, stall)
@@ -96,9 +96,6 @@ trait RideHailDepotManager extends {
     tick: Int,
     triggerId: Long
   ): Unit = {
-    if (beamVehicle.isRideHailCAV) {
-      log.info(s"attemptToRefuel vehicle ${beamVehicle.id}")
-    }
     eventsManager.processEvent(
       ParkingEvent(tick, stall, beamServices.geo.utm2Wgs(stall.locationUTM), beamVehicle.id, id.toString)
     )
@@ -218,23 +215,17 @@ trait RideHailDepotManager extends {
     */
   def notifyVehicleNoLongerOnWayToRefuelingDepot(vehicleId: VehicleId): Option[ParkingStall] = {
     parkingZoneIdToParkingZoneDepotData.flatMap(_._2.vehiclesOnWayToDepot.remove(vehicleId)).headOption.flatMap {
-      case Some(parkingStall) =>
-        if (resources(vehicleId).isRideHailCAV)
-          log.info(
-            s"notifyVehicleNoLongerOnWayToRefuelingDepot removing vehicle $vehicleId from parkingZoneIdToParkingZoneDepotData"
-          )
-        Some(parkingStall)
-      case None =>
-        if (resources(vehicleId).isRideHailCAV)
-          log.info(
-            s"notifyVehicleNoLongerOnWayToRefuelingDepot cannot remove vehicle $vehicleId from parkingZoneIdToParkingZoneDepotData"
-          )
-        None
+      case Some(parkingStall) => Some(parkingStall)
+      case None               => None
     }
   }
 
   private def getParkingZoneIdToParkingZoneDepotData(parkingZoneId: Id[ParkingZoneId]): ParkingZoneDepotData = {
-    parkingZoneIdToParkingZoneDepotData.getOrElseUpdate(parkingZoneId, ParkingZoneDepotData.empty)
+    parkingZoneIdToParkingZoneDepotData.get(parkingZoneId) match {
+      case None    => parkingZoneIdToParkingZoneDepotData.put(parkingZoneId, ParkingZoneDepotData.empty)
+      case Some(_) =>
+    }
+    parkingZoneIdToParkingZoneDepotData(parkingZoneId)
   }
 
   /**
@@ -251,9 +242,6 @@ trait RideHailDepotManager extends {
     additionalCustomVehiclesForDepotCharging: Vector[(Id[BeamVehicle], ParkingStall)],
     triggerId: Long
   ): Unit = {
-    log.info(
-      s"findChargingStalls tick $tick vehiclesWithoutCustomVehicles ${vehiclesWithoutCustomVehicles.size}"
-    )
     val idleVehicleIdsWantingToRefuelWithLocation = vehiclesWithoutCustomVehicles.toVector.filter {
       case (vehicleId: Id[BeamVehicle], _) =>
         resources.get(vehicleId) match {
@@ -262,29 +250,12 @@ trait RideHailDepotManager extends {
               rideHailConfig.cav.refuelRequiredThresholdInMeters,
               rideHailConfig.cav.noRefuelThresholdInMeters
             )
-          case Some(beamVehicle) =>
-            val isRefuelNeeded = beamVehicle.isRefuelNeeded(
-              rideHailConfig.cav.refuelRequiredThresholdInMeters,
-              rideHailConfig.cav.noRefuelThresholdInMeters
-            )
-            log.info(
-              s"findChargingStalls tick $tick isCAV ${beamVehicle.isCAV} isRefuelNeeded $isRefuelNeeded SOC ${beamVehicle.getStateOfCharge}"
-            )
-            false
-          case _ =>
-            false
+          case _ => false
         }
     }
-    log.info(
-      s"findChargingStalls tick $tick idleVehicleIdsWantingToRefuelWithLocation ${idleVehicleIdsWantingToRefuelWithLocation.size}"
-    )
     Future
       .sequence(idleVehicleIdsWantingToRefuelWithLocation.map { case (vehicleId, rideHailAgentLocation) =>
         val beamVehicle = resources(vehicleId)
-        if (beamVehicle.isRideHailCAV)
-          log.info(
-            s"findChargingStalls sending parking inquiry to vehicle $vehicleId"
-          )
         val locationUtm: Location = rideHailAgentLocation.getCurrentLocationUTM(tick, beamServices)
         sendChargingInquiry(SpaceTime(locationUtm, tick), beamVehicle, triggerId)
           .map { response =>
@@ -315,11 +286,6 @@ trait RideHailDepotManager extends {
     triggerId: Long
   ): Future[ParkingInquiryResponse] = {
     val reservedFor = VehicleManager.getReservedFor(beamVehicle.vehicleManagerId.get).get
-    if (beamVehicle.isRideHailCAV) {
-      log.info(
-        s"sendChargingInquiry sending parking inquiry to vehicle ${beamVehicle.id} reservedFor $reservedFor"
-      )
-    }
     val inquiry = ParkingInquiry.init(
       whenWhere,
       "wherever",

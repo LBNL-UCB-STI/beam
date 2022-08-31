@@ -1044,6 +1044,9 @@ lognormal <- function(m, v, sample_size) {
 
 ####################
 
+
+events0 <- readCsv(pp(workDir, "/test/events-raw/0.events.csv.gz"))
+
 events1 <- readCsv(pp(workDir, "/test/events/filtered.0.events.a.csv.gz"))
 events2 <- readCsv(pp(workDir, "/test/events/filtered.0.events.b.csv.gz"))
 events3 <- readCsv(pp(workDir, "/test/events/filtered.0.events.c.csv.gz"))

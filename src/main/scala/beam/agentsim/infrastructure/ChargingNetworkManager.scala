@@ -93,9 +93,6 @@ class ChargingNetworkManager(
 
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
-      if (inquiry.beamVehicle.exists(_.isRideHailCAV)) {
-        log.info(s"Received parking inquiry: $inquiry")
-      }
       val chargingNetwork = chargingNetworkHelper.get(inquiry.reservedFor.managerId)
       val response = chargingNetwork.processParkingInquiry(inquiry)
       collectVehicleRequestInfo(inquiry, response.stall)
@@ -142,9 +139,6 @@ class ChargingNetworkManager(
 
     case TriggerWithId(ChargingTimeOutTrigger(tick, vehicle), triggerId) =>
       log.debug(s"ChargingTimeOutTrigger for vehicle ${vehicle.id} at $tick")
-      if (vehicle.isRideHailCAV) {
-        log.info(s"ChargingTimeOutTrigger for vehicle ${vehicle.id} at $tick")
-      }
       val vehicleEndedCharging = vehicle.stall match {
         case Some(stall) =>
           chargingNetworkHelper.get(stall.reservedFor.managerId).endChargingSession(vehicle.id, tick) map {
@@ -166,9 +160,6 @@ class ChargingNetworkManager(
 
     case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, theSender, _, _) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
-      if (vehicle.isRideHailCAV) {
-        log.info(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
-      }
       val responseHasTriggerId = if (vehicle.isEV) {
         // connecting the current vehicle
         val chargingNetwork = chargingNetworkHelper.get(stall.reservedFor.managerId)
@@ -205,9 +196,6 @@ class ChargingNetworkManager(
 
     case ChargingUnplugRequest(tick, personId, vehicle, triggerId) =>
       log.debug(s"ChargingUnplugRequest received for vehicle $vehicle from plug ${vehicle.stall} at $tick")
-      if (vehicle.isRideHailCAV) {
-        log.info(s"ChargingUnplugRequest received for vehicle $vehicle from plug ${vehicle.stall} at $tick")
-      }
       val bounds = powerController.obtainPowerPhysicalBounds(tick)
       val responseHasTriggerId = vehicle.stall match {
         case Some(stall) =>

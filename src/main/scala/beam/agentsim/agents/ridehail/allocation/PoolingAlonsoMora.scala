@@ -24,11 +24,6 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm
   val tempScheduleStore: mutable.Map[Int, List[MobilityRequest]] = mutable.Map()
 
-  val defaultBeamVehilceTypeId: Id[BeamVehicleType] = Id.create(
-    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-    classOf[BeamVehicleType]
-  )
-
   override def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
     rideHailManager.rideHailManagerHelper
       .getClosestIdleVehiclesWithinRadiusByETA(
