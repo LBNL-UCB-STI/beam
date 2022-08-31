@@ -24,8 +24,8 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper {
     )
   }
 
-  val automatedRideHailVehicleType = "RH_BEV_L5"
-  it should f"Use $automatedRideHailVehicleType to transfer agents, also RH_BEV_L5 should charge." in {
+  it should f"Use RH_BEV_L5 to transfer agents, also RH_BEV_L5 should charge." in {
+    val automatedRideHailVehicleType = "RH_BEV_L5"
     val config = ConfigFactory
       .parseString(s"""
            |beam.agentsim.lastIteration = 0
@@ -49,8 +49,8 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper {
     ) withClue f", expecting $automatedRideHailVehicleType to charge"
   }
 
-  val nonAutomatedRideHailVehicleType = "RH_BEV"
-  it should f"Use $nonAutomatedRideHailVehicleType to transfer agents." in {
+  it should f"Use RH_BEV to transfer agents." in {
+    val nonAutomatedRideHailVehicleType = "RH_BEV"
     val config = ConfigFactory
       .parseString(s"""
                       |beam.agentsim.lastIteration = 0
