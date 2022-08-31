@@ -140,6 +140,7 @@ trait ChoosesMode {
     val nextAct = nextActivity(choosesModeData.personData).get
     val currentTourStrategy = _experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](nextAct)
     val currentTripMode = _experiencedBeamPlan.getTripStrategy[TripModeChoiceStrategy](nextAct).mode
+    val currentTourMode = currentTourStrategy.tourMode
 
     nextStateData match {
       // If I am already on a tour in a vehicle, only that vehicle is available to me
@@ -147,8 +148,9 @@ trait ChoosesMode {
           if data.personData.currentTourPersonalVehicle.isDefined &&
             (
               currentTripMode.exists(mode => mode == CAR || mode == BIKE) ||
-              currentTripMode.exists(mode => mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT)
-              && isLastTripWithinTour(nextAct)
+              currentTripMode.exists(mode => mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT) ||
+              currentTourMode.exists(mode => mode == CAR_BASED || mode == BIKE_BASED) &&
+              !isFirstTripWithinTour(nextAct)
             ) =>
         self ! MobilityStatusResponse(
           Vector(beamVehicles(data.personData.currentTourPersonalVehicle.get)),
@@ -283,11 +285,6 @@ trait ChoosesMode {
           )
       }
 
-      _experiencedBeamPlan.putStrategy(
-        _experiencedBeamPlan.getTourContaining(nextAct),
-        TourModeChoiceStrategy(chosenCurrentTourMode)
-      )
-
       val availableModesGivenTourMode = getAvailableModesGivenTourMode(
         availableModes,
         availablePersonalStreetVehicles,
@@ -390,7 +387,7 @@ trait ChoosesMode {
             chosenCurrentTourMode match {
               case Some(BIKE_BASED) if !vehicleOrToken.vehicle.isSharedVehicle => vehicleOrToken.streetVehicle
               case Some(CAR_BASED) if !vehicleOrToken.vehicle.isSharedVehicle  => vehicleOrToken.streetVehicle
-              case _                                                           => vehicleOrToken.streetVehicle
+              case Some(WALK_BASED)                                            => vehicleOrToken.streetVehicle
             }
           } :+ bodyStreetVehicle
 
@@ -1395,7 +1392,11 @@ trait ChoosesMode {
 
   private def gotoChoosingModeWithoutPredefinedMode(choosesModeData: ChoosesModeData) = {
     goto(ChoosingMode) using choosesModeData.copy(
-      personData = choosesModeData.personData.copy(currentTripMode = None),
+      personData = choosesModeData.personData.copy(
+        currentTripMode = None,
+        currentTourMode = if (isFirstTripWithinTour(nextActivity(choosesModeData.personData).get)) { None }
+        else { choosesModeData.personData.currentTourMode }
+      ),
       currentLocation = choosesModeData.currentLocation,
       excludeModes = choosesModeData.excludeModes
     )
