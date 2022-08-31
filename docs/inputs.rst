@@ -238,17 +238,17 @@ Routing Configuration
         departureWindow = "double | 15.0"
         numberOfSamples = "int | 1"
         osmMapdbFile = ${beam.routing.r5.directory}"/osm.mapdb"
-    mNetBuilder.fromCRS = "EPSG:4326"   # WGS84
-    mNetBuilder.toCRS = "EPSG:26910"    # UTM10N
-    travelTimeNoiseFraction = 0.0
-    maxDistanceLimitByModeInMeters {
-      bike = 40000
-    }
-    bikeLaneScaleFactor = 1.0
-    bikeLaneLinkIdsFilePath = ""
-  }
-  startingIterationForTravelTimesMSA = 0
-  overrideNetworkTravelTimesUsingSkims = false
+        mNetBuilder.fromCRS = "EPSG:4326"   # WGS84
+        mNetBuilder.toCRS = "EPSG:26910"    # UTM10N
+        travelTimeNoiseFraction = 0.0
+        maxDistanceLimitByModeInMeters {
+          bike = 40000
+        }
+        bikeLaneScaleFactor = 1.0
+        bikeLaneLinkIdsFilePath = ""
+      }
+      startingIterationForTravelTimesMSA = 0
+      overrideNetworkTravelTimesUsingSkims = false
 
       # Set a lower bound on travel times that can possibly be used to override the network-based
       # travel time in the route.This is used to prevent unrealistically fast trips or negative
