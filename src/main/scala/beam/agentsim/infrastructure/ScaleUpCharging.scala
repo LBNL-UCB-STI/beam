@@ -32,7 +32,6 @@ trait ScaleUpCharging extends {
   import ScaleUpCharging._
 
   private lazy val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
-  private lazy val mersenne: MersenneTwister = new MersenneTwister(beamConfig.matsim.modules.global.randomSeed)
   private lazy val timeStepByHour = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds / 3600.0
   private lazy val virtualParkingInquiries: TrieMap[Int, ParkingInquiry] = TrieMap()
   private lazy val vehicleRequests = mutable.HashMap.empty[(Id[TAZ], ParkingActivityType), List[VehicleRequestInfo]]
@@ -176,8 +175,8 @@ trait ScaleUpCharging extends {
           varianceSOC = varianceSOC,
           meanEnergy = meanEnergy,
           varianceEnergy = varianceEnergy,
-          new EnumeratedDistribution[VehicleTypeInfo](mersenne, pmfVehicleTypeInfo.asJava),
-          new EnumeratedDistribution[String](mersenne, pmfActivityType.asJava)
+          pmfVehicleTypeInfo = pmfVehicleTypeInfo,
+          pmfActivityTypeString = pmfActivityType
         )
         parkingActivityType -> (data, vehicleInfoSummary)
       })
@@ -192,6 +191,7 @@ trait ScaleUpCharging extends {
             (powerAcc + power, numEventsAcc + numEvents, pmfAcc :+ pmf)
         } match {
           case (totPowerInKWToSimulate, totNumberOfEvents, pmf) if totPowerInKWToSimulate > 0 =>
+            val mersenne: MersenneTwister = new MersenneTwister(beamConfig.matsim.modules.global.randomSeed)
             val distribution = new EnumeratedDistribution[ParkingActivityType](mersenne, pmf.asJava)
             val rate = totNumberOfEvents / timeStepByHour
             var cumulatedSimulatedPower = 0.0
@@ -203,12 +203,16 @@ trait ScaleUpCharging extends {
                 beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds.toInt
               )
               timeStep += roundUniformly(nextTimeStepUsingPoissonProcess(rate), rand).toInt
-              val vehicleTypeInfo = summary.vehicleTypeInfoDistribution.sample()
+              val vehicleTypeInfoDistribution =
+                new EnumeratedDistribution[VehicleTypeInfo](mersenne, summary.pmfVehicleTypeInfo.asJava)
+              val activityTypeDistribution =
+                new EnumeratedDistribution[String](mersenne, summary.pmfActivityTypeString.asJava)
+              val vehicleTypeInfo = vehicleTypeInfoDistribution.sample()
               val soc = summary.meanSOC / 100.0
               val energyToCharge = summary.getEnergy(rand)
               val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
               val destinationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
-              val activityType = summary.activityTypeDistribution.sample()
+              val activityType = activityTypeDistribution.sample()
               val reservedFor = vehicleTypeInfo.reservedFor
               val beamVehicle = getBeamVehicle(vehicleTypeInfo, soc)
               val personId = getPerson(beamVehicle.id)
@@ -367,8 +371,8 @@ object ScaleUpCharging {
     varianceSOC: Double,
     meanEnergy: Double,
     varianceEnergy: Double,
-    vehicleTypeInfoDistribution: EnumeratedDistribution[VehicleTypeInfo],
-    activityTypeDistribution: EnumeratedDistribution[String]
+    pmfVehicleTypeInfo: Vector[CPair[VehicleTypeInfo, java.lang.Double]],
+    pmfActivityTypeString: Vector[CPair[String, java.lang.Double]]
   ) {
     def getDuration(rand: Random): Int = logNormalDistribution(meanDuration, varianceDuration, rand).toInt
     def getEnergy(rand: Random): Double = logNormalDistribution(meanEnergy, varianceEnergy, rand)
