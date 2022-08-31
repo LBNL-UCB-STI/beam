@@ -1532,7 +1532,7 @@ class RideHailManager(
     })
 
     log.info(
-      s"[${this.id}] generated ${resources.size} Ride-Hail vehicles, ${resources.filter(_._2.isRideHailCAV)} of them are Ride-Hail CAVs. The following is a split by vehicle types:"
+      s"[${this.id}] generated ${resources.size} Ride-Hail vehicles, ${resources.filter(_._2.isRideHailCAV).size} of them are Ride-Hail CAVs. The following is a split by vehicle types:"
     )
     resources.groupBy(_._2.beamVehicleType).foreach { case (vehicleType, vehicles) =>
       log.info(s"${vehicleType.id} => ${vehicles.size} vehicle(s)")
@@ -1873,6 +1873,10 @@ class RideHailManager(
         isOnWayToRefuelingDepotOrIsRefuelingOrInQueue(veh._1)
       )
 
+    log.info(
+      s"continueRepositioning tick $tick idleVehicles ${idleVehicles.size}"
+    )
+
     val badVehicles =
       rideHailManagerHelper.getIdleAndRepositioningAndOfflineCAVsAndFilterOutExluded
         .filter(veh => isOnWayToRefuelingDepotOrIsRefuelingOrInQueue(veh._1))
@@ -1890,6 +1894,10 @@ class RideHailManager(
     val vehiclesWithoutCustomVehicles = idleVehicles.filterNot { case (vehicleId, _) =>
       additionalCustomVehiclesForDepotCharging.map(_._1).contains(vehicleId)
     }.toMap
+
+    log.info(
+      s"continueRepositioning tick $tick vehiclesWithoutCustomVehicles ${vehiclesWithoutCustomVehicles.size}"
+    )
 
     findChargingStalls(tick, vehiclesWithoutCustomVehicles, additionalCustomVehiclesForDepotCharging, triggerId)
   }

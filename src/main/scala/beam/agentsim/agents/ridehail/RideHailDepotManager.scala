@@ -251,6 +251,9 @@ trait RideHailDepotManager extends {
     additionalCustomVehiclesForDepotCharging: Vector[(Id[BeamVehicle], ParkingStall)],
     triggerId: Long
   ): Unit = {
+    log.info(
+      s"findChargingStalls tick $tick vehiclesWithoutCustomVehicles ${vehiclesWithoutCustomVehicles.size}"
+    )
     val idleVehicleIdsWantingToRefuelWithLocation = vehiclesWithoutCustomVehicles.toVector.filter {
       case (vehicleId: Id[BeamVehicle], _) =>
         resources.get(vehicleId) match {
@@ -259,7 +262,17 @@ trait RideHailDepotManager extends {
               rideHailConfig.cav.refuelRequiredThresholdInMeters,
               rideHailConfig.cav.noRefuelThresholdInMeters
             )
-          case _ => false
+          case Some(beamVehicle) =>
+            val isRefuelNeeded = beamVehicle.isRefuelNeeded(
+              rideHailConfig.cav.refuelRequiredThresholdInMeters,
+              rideHailConfig.cav.noRefuelThresholdInMeters
+            )
+            log.info(
+              s"findChargingStalls tick $tick isCAV ${beamVehicle.isCAV} isRefuelNeeded $isRefuelNeeded SOC ${beamVehicle.getStateOfCharge}"
+            )
+            false
+          case _ =>
+            false
         }
     }
     log.info(
