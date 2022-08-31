@@ -1,10 +1,10 @@
 package beam.router.r5
 
 import beam.agentsim.agents.choice.mode.DrivingCost
-import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.{RoutingRequest, RoutingResponse, _}
+import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode._
 import beam.router.Modes.{mapLegMode, toR5StreetMode, BeamMode}
 import beam.router.RoutingWorker.{createBushwackingBeamLeg, R5Request, StopVisitor}
@@ -17,14 +17,7 @@ import beam.sim.metrics.{Metrics, MetricsSupport}
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
-import com.conveyal.r5.profile.{
-  DominatingList,
-  McRaptorSuboptimalPathProfileRouter,
-  ProfileRequest,
-  StreetMode,
-  StreetPath,
-  SuboptimalDominatingList
-}
+import com.conveyal.r5.profile._
 import com.conveyal.r5.streets._
 import com.conveyal.r5.transit.TransitLayer
 import com.typesafe.scalalogging.StrictLogging

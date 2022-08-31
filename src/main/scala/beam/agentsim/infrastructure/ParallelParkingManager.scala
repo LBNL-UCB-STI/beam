@@ -91,7 +91,7 @@ class ParallelParkingManager(
     inquiry: ParkingInquiry,
     doNotReserveStallWithoutChargingPoint: Boolean = false,
     parallelizationCounterOption: Option[SimpleCounter] = None
-  ): Option[ParkingInquiryResponse] = {
+  ): ParkingInquiryResponse = {
     parallelizationCounterOption.map(_.count("all"))
     val foundCluster = workers.find { w =>
       val point = ParallelParkingManager.geometryFactory.createPoint(inquiry.destinationUtm.loc)

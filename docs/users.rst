@@ -111,7 +111,7 @@ Now checkout the latest stable version of BEAM, v0.7.0::
    git checkout v0.7.0
 
 
-Run the gradle command to compile BEAM, this will also downloaded all required dependencies automatically::
+Run the gradle command to compile BEAM, this will also download all required dependencies automatically::
 
    ./gradlew classes
 

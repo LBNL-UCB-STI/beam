@@ -102,9 +102,8 @@ class ZonalParkingManagerSpec
         // since there are no TAZs to search and sample parking locations from,
         // the random number generator is unused by the [[ZonalParkingManager]] search, and we can
         // therefore rely on the coordinate that is generated when [[ZonalParkingManager]] calls [[ParkingStall.emergencyStall]] internally
-        assert(response.isDefined, "no response")
         assert(
-          response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+          response == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
           "something is wildly broken"
         )
       }
@@ -153,18 +152,16 @@ class ZonalParkingManagerSpec
             VehicleManager.AnyManager
           )
         val response1 = zonalParkingManager.processParkingInquiry(firstInquiry)
-        assert(response1.isDefined, "no response")
         assert(
-          response1.get == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId, firstInquiry.triggerId),
+          response1 == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId, firstInquiry.triggerId),
           "something is wildly broken"
         )
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
         val secondInquiry =
           ParkingInquiry.init(centerSpaceTime, "work", triggerId = 123709)
-        val response2 @ Some(ParkingInquiryResponse(stall, responseId, triggerId)) =
+        val response2 @ ParkingInquiryResponse(stall, responseId, triggerId) =
           zonalParkingManager.processParkingInquiry(secondInquiry)
-        assert(response2.isDefined, "no response")
         assert(
           stall.tazId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId
           && triggerId == secondInquiry.triggerId,
@@ -220,21 +217,19 @@ class ZonalParkingManagerSpec
 
         // request the stall
         val response1 = zonalParkingManager.processParkingInquiry(firstInquiry)
-        assert(response1.isDefined, "no response")
         assert(
-          response1.get == ParkingInquiryResponse(expectedStall, firstInquiry.requestId, firstInquiry.triggerId),
+          response1 == ParkingInquiryResponse(expectedStall, firstInquiry.requestId, firstInquiry.triggerId),
           "something is wildly broken"
         )
 
         // release the stall
-        val releaseParkingStall = ReleaseParkingStall(expectedStall, 2903)
+        val releaseParkingStall = ReleaseParkingStall(expectedStall, 0)
         zonalParkingManager.processReleaseParkingStall(releaseParkingStall)
 
         // request the stall again
         val response2 = zonalParkingManager.processParkingInquiry(secondInquiry)
-        assert(response2.isDefined, "no response")
         assert(
-          response2.get == ParkingInquiryResponse(expectedStall, secondInquiry.requestId, secondInquiry.triggerId),
+          response2 == ParkingInquiryResponse(expectedStall, secondInquiry.requestId, secondInquiry.triggerId),
           "something is wildly broken"
         )
       }
@@ -287,13 +282,8 @@ class ZonalParkingManagerSpec
             triggerId = 839237
           )
           response1 = zonalParkingManager.processParkingInquiry(req)
-          counted = response1 match {
-            case Some(res @ ParkingInquiryResponse(_, _, _)) =>
-              if (res.stall.tazId != TAZ.EmergencyTAZId) 1 else 0
-            case _ =>
-              assert(response1.isDefined, "no response")
-              0
-          }
+          ParkingInquiryResponse(stall, _, _) = response1
+          counted = if (stall.tazId != TAZ.EmergencyTAZId) 1 else 0
         } yield {
           counted
         }
@@ -483,8 +473,7 @@ class ZonalParkingManagerSpec
     vehicle.spaceTime = SpaceTime(coord.getX - 200, coord.getY - 200, 0)
     val inquiry = ParkingInquiry.init(SpaceTime(coord, 0), "init", reservedFor, Some(vehicle), triggerId = 0)
     val response = zpm.processParkingInquiry(inquiry)
-    assert(response.isDefined, "no response")
-    assert(vehicleManagerToAssert.contains(response.get.stall.reservedFor), "something is wildly broken")
+    assert(vehicleManagerToAssert.contains(response.stall.reservedFor), "something is wildly broken")
   }
 
   private def assertParkingResponse(
@@ -521,7 +510,7 @@ class ZonalParkingManagerSpec
         reservedFor = reservedFor
       )
     assert(
-      response.get == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
+      response == ParkingInquiryResponse(expectedStall, inquiry.requestId, inquiry.triggerId),
       "something is wildly broken"
     )
   }

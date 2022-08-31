@@ -69,9 +69,9 @@ class BeamMobsim @Inject() (
   private implicit val timeout: Timeout = Timeout(500000, TimeUnit.SECONDS)
 
   import beamServices._
-  val physsimConfig = beamConfig.beam.physsim
+  val physsimConfig: Beam.Physsim = beamConfig.beam.physsim
 
-  val snapLocationHelper = SnapLocationHelper(
+  val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
     geo,
     beamScenario.transportNetwork.streetLayer,
     beamConfig.beam.routing.r5.linkRadiusMeters
@@ -204,7 +204,7 @@ class BeamMobsim @Inject() (
         case VehicleCategory.Bike => BeamMode.BIKE
       }.toList
 
-      val cavs = vehicles.filter(_.beamVehicleType.isCav).toList
+      val cavs = vehicles.filter(_.isCAV).toList
 
       val cavModeAvailable: List[BeamMode] =
         if (cavs.nonEmpty) {
@@ -402,7 +402,7 @@ class BeamMobsimIteration(
 
   import scala.language.existentials
 
-  private val (parkingNetwork, nonRhChargingNetwork, rhChargingNetwork) =
+  private val (parkingNetwork, chargingNetwork, rhDepotNetwork) =
     InfrastructureUtils.buildParkingAndChargingNetworks(beamServices, envelopeInUTM)
 
   // Parking Network Manager
@@ -417,7 +417,7 @@ class BeamMobsimIteration(
   // Charging Network Manager
   private val chargingNetworkManager = context.actorOf(
     ChargingNetworkManager
-      .props(beamServices, nonRhChargingNetwork, rhChargingNetwork, parkingNetworkManager, scheduler)
+      .props(beamServices, chargingNetwork, rhDepotNetwork, parkingNetworkManager, scheduler)
       .withDispatcher("charging-network-manager-pinned-dispatcher"),
     "ChargingNetworkManager"
   )
@@ -453,7 +453,7 @@ class BeamMobsimIteration(
         rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
         routeHistory,
         rideHailFleetInitializer,
-        rhChargingNetwork
+        rhDepotNetwork
       )
     ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
     "RideHailManager"

@@ -48,7 +48,6 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.utils.misc.Time
-import org.matsim.households
 import org.matsim.households.Household
 
 import java.util.concurrent.TimeUnit
@@ -56,15 +55,8 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
-import scala.util.Random
 
 object HouseholdActor {
-
-  def buildActorName(id: Id[households.Household], iterationName: Option[String] = None): String = {
-    s"household-${id.toString}" + iterationName
-      .map(i => s"_iter-$i")
-      .getOrElse("")
-  }
 
   def props(
     beamServices: BeamServices,
@@ -166,8 +158,6 @@ object HouseholdActor {
     implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
     implicit val executionContext: ExecutionContext = context.dispatcher
     implicit val debug: Debug = beamServices.beamConfig.beam.debug
-
-    private val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
     protected val generateEmergencyHousehold: Boolean =
       beamScenario.beamConfig.beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt
@@ -271,7 +261,7 @@ object HouseholdActor {
         }
 
         // If any of my vehicles are CAVs then go through scheduling process
-        var cavs = vehicles.values.filter(_.beamVehicleType.isCav).toList
+        var cavs = vehicles.values.filter(_.isCAV).toList
 
         if (cavs.nonEmpty) {
           val workingPersonsList =
@@ -294,7 +284,7 @@ object HouseholdActor {
               s"cavDriver-${cav.id.toString}"
             )
             log.warning(
-              s"Setting up household cav ${cav.id} with driver ${cav.getDriver} to be set with driver ${cavDriverRef}"
+              s"Setting up household cav ${cav.id} with driver ${cav.getDriver} to be set with driver $cavDriverRef"
             )
             context.watch(cavDriverRef)
             val personId: Id[Person] =
@@ -537,7 +527,7 @@ object HouseholdActor {
             sender() ! CavTripLegsResponse(None, List())
         }
 
-      case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
+      case NotifyVehicleIdle(vId, _, whenWhere, _, _, _, _) =>
         val vehId = vId.asInstanceOf[Id[BeamVehicle]]
         vehicles(vehId).spaceTime = whenWhere
         log.debug("updated vehicle {} with location {}", vehId, whenWhere)
@@ -558,7 +548,7 @@ object HouseholdActor {
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future
-        .sequence(vehicles.filter(_._2.beamVehicleType.isCav).values.map { vehicle =>
+        .sequence(vehicles.filter(_._2.isCAV).values.map { vehicle =>
           vehicle.setManager(Some(self))
           for {
             ParkingInquiryResponse(stall, _, _) <- sendParkingOrChargingInquiry(vehicle, triggerId)
@@ -572,7 +562,8 @@ object HouseholdActor {
                 stall,
                 // use first household member id as stand-in.
                 household.getMemberIds.get(0),
-                triggerId
+                triggerId,
+                self
               )
             }
           }

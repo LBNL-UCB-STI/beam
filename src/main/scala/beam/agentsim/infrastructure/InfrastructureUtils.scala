@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.agents.ridehail.{DefaultRideHailDepotParkingManager, RideHailDepotParkingManager}
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.ParkingLoadingAccumulator
@@ -29,7 +28,7 @@ object InfrastructureUtils extends LazyLogging {
   def buildParkingAndChargingNetworks(
     beamServices: BeamServices,
     envelopeInUTM: Envelope
-  ): (ParkingNetwork, ChargingNetwork, RideHailDepotParkingManager) = {
+  ): (ParkingNetwork, ChargingNetwork, RideHailDepotNetwork) = {
     implicit val beamScenario: BeamScenario = beamServices.beamScenario
     implicit val geo: GeoUtils = beamServices.geo
     val beamConfig = beamServices.beamConfig
@@ -98,11 +97,7 @@ object InfrastructureUtils extends LazyLogging {
         beamServices
       ),
       rideHailChargingStalls.map { case (_, chargingZones) =>
-        DefaultRideHailDepotParkingManager.init(
-          chargingZones,
-          envelopeInUTM,
-          beamServices
-        )
+        RideHailDepotNetwork.init(chargingZones, envelopeInUTM, beamServices)
       }.head
     )
 

@@ -169,15 +169,6 @@ object PathTraversalEvent {
     endLegPrimaryFuelLevel: Double,
     endLegSecondaryFuelLevel: Double,
     amountPaid: Double,
-    /*
-    linkIdsToLaneOptions: IndexedSeq[(Int, Option[Int])],
-    linkIdsToSpeedOptions: IndexedSeq[(Int, Option[Double])],
-    linkIdsToGradientOptions: IndexedSeq[(Int, Option[Double])],
-    linkIdsToLengthOptions: IndexedSeq[(Int, Option[Double])],
-    linkIdsToSelectedRateOptions: IndexedSeq[(Int, Option[Double])],
-    linkIdsToConsumptionOptions: IndexedSeq[(Int, Option[Double])],
-    secondaryLinkIdsToSelectedRateOptions: IndexedSeq[(Int, Option[Double])],
-    secondaryLinkIdsToConsumptionOptions: IndexedSeq[(Int, Option[Double])]*/
     riders: IndexedSeq[Id[Person]]
   ): PathTraversalEvent = {
     new PathTraversalEvent(
@@ -331,6 +322,7 @@ object PathTraversalEvent {
       linkIdsToConsumptionOptions,
       secondaryLinkIdsToSelectedRateOptions,
       secondaryLinkIdsToConsumptionOptions*/
+
       riders
     )
   }
