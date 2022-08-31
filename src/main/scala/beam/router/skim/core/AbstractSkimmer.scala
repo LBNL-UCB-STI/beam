@@ -73,9 +73,9 @@ abstract class AbstractSkimmerReadOnly extends LazyLogging {
   def pastSkims: Map[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = pastSkimsInternal.toMap
 
   def displaySkimStats(): Unit = {
-    logger.info(s"Number of Skim Requests = $numberOfRequests")
-    logger.info(s"Number of times actual value from Skim Map was returned = $numberOfSkimValueFound")
-    logger.info(s"Number of times default value from Skim Map was returned = $numberOfDefaultSkimValueFound")
+    logger.info(s"Number of skim requests = $numberOfRequests")
+    logger.info(s"Number of times actual value from skim map was returned = $numberOfSkimValueFound")
+    logger.info(s"Number of times default value from skim map was returned = $numberOfDefaultSkimValueFound")
   }
 
   def resetSkimStats(): Unit = {
