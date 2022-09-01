@@ -52,11 +52,10 @@ trait ScaleUpCharging extends {
     if (!cnmConfig.scaleUp.enabled) 1.0 else cnmConfig.scaleUp.expansionFactor_wherever_activity
 
   override def loggedReceive: Receive = {
-    case t @ TriggerWithId(PlanParkingInquiryTrigger(_, inquiry), triggerId) =>
+    case t @ TriggerWithId(PlanParkingInquiryTrigger(_, inquiry), _) =>
       log.debug(s"Received PlanParkingInquiryTrigger: $t")
       virtualParkingInquiries.put(inquiry.requestId, inquiry)
       self ! inquiry
-      sender ! CompletionNotice(triggerId)
     case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, personId), triggerId) =>
       log.debug(s"Received PlanChargingUnplugRequestTrigger: $t")
       self ! ChargingUnplugRequest(tick, personId, beamVehicle, triggerId)
@@ -88,7 +87,7 @@ trait ScaleUpCharging extends {
           log.error(s"inquiryMap does not have this requestId $requestId that returned stall $stall")
           Vector()
       }
-      triggers.foreach(getScheduler ! _)
+      sender ! CompletionNotice(triggerId, triggers)
     case reply: StartingRefuelSession =>
       log.debug(s"Received StartingRefuelSession: $reply")
     case reply: WaitingToCharge =>
