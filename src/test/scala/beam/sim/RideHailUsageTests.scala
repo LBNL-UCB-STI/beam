@@ -1,6 +1,7 @@
 package beam.sim
 
 import beam.agentsim.events.{PathTraversalEvent, RefuelSessionEvent}
+import beam.integration.IntegrationSpecCommon
 import beam.utils.EventReader.{fromXmlFile, getEventsFilePath}
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
@@ -9,7 +10,7 @@ import org.scalatest.AppendedClues.convertToClueful
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper {
+class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper with IntegrationSpecCommon {
 
   def getRHPathTraversalsWithPassengers(
     events: Seq[Event],
