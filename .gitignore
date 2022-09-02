@@ -57,3 +57,4 @@ test/scala/beam/sandbox
 log-path_IS_UNDEFINED/
 .Rproj.user
 thread_dump_from_RunBeam.txt.gz
+/production/sfbay
