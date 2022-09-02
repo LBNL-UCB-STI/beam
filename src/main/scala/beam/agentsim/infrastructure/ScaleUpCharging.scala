@@ -62,7 +62,7 @@ trait ScaleUpCharging extends {
       sender ! CompletionNotice(triggerId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
       log.debug(s"Received ParkingInquiryResponse: $response")
-      val maybeTrigger = virtualParkingInquiries.remove(requestId) match {
+      val msgToScheduler = virtualParkingInquiries.remove(requestId) match {
         case Some(parkingInquiry) if stall.chargingPointType.isDefined =>
           log.debug(s"parking inquiry with requestId $requestId returned a stall with charging point.")
           val beamVehicle = parkingInquiry.beamVehicle.get
@@ -79,15 +79,15 @@ trait ScaleUpCharging extends {
             None
           )
           val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
-          Some(ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, personId), self))
+          ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, personId), self)
         case Some(_) if stall.chargingPointType.isEmpty =>
           log.debug(s"parking inquiry with requestId $requestId returned a NoCharger stall")
-          None
+          CompletionNotice(triggerId)
         case _ =>
           log.error(s"inquiryMap does not have this requestId $requestId that returned stall $stall")
-          None
+          CompletionNotice(triggerId)
       }
-      maybeTrigger.foreach(getScheduler ! _)
+      getScheduler ! msgToScheduler
     case reply: StartingRefuelSession =>
       log.debug(s"Received StartingRefuelSession: $reply")
       getScheduler ! CompletionNotice(reply.triggerId)
