@@ -44,7 +44,7 @@ class TourModeChoiceMultinomialLogit(
         val monetaryCost = skims.cost
         beamMode -> (Map("cost" -> (timeCost + monetaryCost)) ++ Map(
           "transfers" -> skims.numTransfers.toDouble
-        ))
+        )) ++ interceptMap.getOrElse(Map.empty[String, Double]))
       }.toMap
       beamTourMode -> modeLogit.getExpectedMaximumUtility(modeChoice).getOrElse(Double.NegativeInfinity)
     }
