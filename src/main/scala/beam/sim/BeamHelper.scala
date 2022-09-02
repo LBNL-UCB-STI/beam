@@ -801,6 +801,24 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
         .foreach(scenario.getPopulation.removePerson)
     }
   }
+  def buildUrbansimV2ScenarioSource(geoUtils: GeoUtils, beamConfig: BeamConfig) = {
+    val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
+    val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
+    val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
+    val pathToBlocks = s"${beamConfig.beam.exchange.scenario.folder}/blocks.csv.gz"
+    new UrbansimReaderV2(
+      inputPersonPath = pathToPersonFile,
+      inputPlanPath = pathToPlans,
+      inputHouseholdPath = pathToHouseholds,
+      inputBlockPath = pathToBlocks,
+      geoUtils,
+      shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm,
+      modeMap = BeamConfigUtils.parseListToMap(
+        beamConfig.beam.exchange.scenario.modeMap
+          .getOrElse(throw new RuntimeException("beam.exchange.scenario.modeMap must be set"))
+      )
+    )
+  }
 
   protected def buildBeamServicesAndScenario(
     beamConfig: BeamConfig,
@@ -820,24 +838,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
           val (scenario, plansMerged) = {
             val source = src match {
               case "urbansim" => buildUrbansimScenarioSource(geoUtils, beamConfig)
-              case "urbansim_v2" => {
-                val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
-                val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
-                val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
-                val pathToBlocks = s"${beamConfig.beam.exchange.scenario.folder}/blocks.csv.gz"
-                new UrbansimReaderV2(
-                  inputPersonPath = pathToPersonFile,
-                  inputPlanPath = pathToPlans,
-                  inputHouseholdPath = pathToHouseholds,
-                  inputBlockPath = pathToBlocks,
-                  geoUtils,
-                  shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm,
-                  modeMap = BeamConfigUtils.parseListToMap(
-                    beamConfig.beam.exchange.scenario.modeMap
-                      .getOrElse(throw new RuntimeException("beam.exchange.scenario.modeMap must be set"))
-                  )
-                )
-              }
+              case "urbansim_v2" => buildUrbansimV2ScenarioSource(geoUtils, beamConfig)
               case "generic" => {
                 val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
                 val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"

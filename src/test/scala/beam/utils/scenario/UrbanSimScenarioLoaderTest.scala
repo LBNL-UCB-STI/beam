@@ -104,6 +104,17 @@ class UrbanSimScenarioLoaderTest extends AsyncWordSpec with Matchers with Before
   "UrbanSimScenarioLoader with vehicleAdjustmentMethod = STATIC_FROM_FILE "should {
     "assign vehicles properly in case1" in {
 
+      def staticVehiclesConfig: com.typesafe.config.Config =
+        ConfigFactory
+          .parseString(s"""
+                          |beam.agentsim.simulationName = "beamville-urbansimv2_static"
+                          |beam.agentsim.agents.vehicles.vehiclesFilePath = $${beam.inputDirectory}"/vehicles-test.csv"
+                          |beam.agentsim.agents.vehicles.vehicleAdjustmentMethod = "STATIC_FROM_FILE"
+                    """.stripMargin)
+          .withFallback(testConfig("test/input/beamville/beam-urbansimv2.conf"))
+          .resolve()
+
+
       val matsimConfig = new MatSimBeamConfigBuilder(staticVehiclesConfig).buildMatSimConf()
       val emptyScenario = ScenarioBuilder(matsimConfig, beamScenario.network).build
       val staticVehicleBeamConfig = BeamConfig(staticVehiclesConfig)
@@ -117,25 +128,15 @@ class UrbanSimScenarioLoaderTest extends AsyncWordSpec with Matchers with Before
       val vehicleIds = emptyScenario.getHouseholds.getHouseholds.get(Id.create(2, classOf[Household])).getVehicleIds
       val vehicleMap = staticBeamScenario.privateVehicles.toMap
       val vehiclesBelongToSpecificHousehold = vehicleIds.map(x => Id.create(x, classOf[BeamVehicle])).flatMap(x => vehicleMap get x);
-      vehiclesBelongToSpecificHousehold.count(x => x.beamVehicleType.id.compareTo(
+      vehiclesBelongToSpecificHousehold.count(x => x.beamVehicleType.id.equals(
         Id.create("Bicycle", classOf[BeamVehicleType])
-      ) == 0) shouldBe 7
+      )) shouldBe 7
     }
 
   }
 
   override protected def beforeEach(): Unit =
     idIter = Iterator.from(1)
-
-  def staticVehiclesConfig: com.typesafe.config.Config =
-    ConfigFactory
-      .parseString(s"""
-                      |beam.agentsim.simulationName = "beamville-urbansimv2_static"
-                      |beam.agentsim.agents.vehicles.vehiclesFilePath = $${beam.inputDirectory}"/vehicles-test.csv"
-                      |beam.agentsim.agents.vehicles.vehicleAdjustmentMethod = "STATIC_FROM_FILE"
-                    """.stripMargin)
-      .withFallback(testConfig("test/input/beamville/beam-urbansimv2.conf"))
-      .resolve()
 
   private def getConfig(fractionOfInitialVehicleFleet: Double = 1.0) = beamConfigBase.copy(
     matsim = beamConfigBase.matsim
