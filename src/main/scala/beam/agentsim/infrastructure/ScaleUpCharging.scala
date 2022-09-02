@@ -52,17 +52,17 @@ trait ScaleUpCharging extends {
     if (!cnmConfig.scaleUp.enabled) 1.0 else cnmConfig.scaleUp.expansionFactor_wherever_activity
 
   override def loggedReceive: Receive = {
-    case t @ TriggerWithId(PlanParkingInquiryTrigger(_, inquiry), _) =>
+    case t @ TriggerWithId(PlanParkingInquiryTrigger(_, inquiry), triggerId) =>
       log.debug(s"Received PlanParkingInquiryTrigger: $t")
       virtualParkingInquiries.put(inquiry.requestId, inquiry)
-      self ! inquiry
+      self ! inquiry.copy(triggerId = triggerId)
     case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, personId), triggerId) =>
       log.debug(s"Received PlanChargingUnplugRequestTrigger: $t")
       self ! ChargingUnplugRequest(tick, personId, beamVehicle, triggerId)
       sender ! CompletionNotice(triggerId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
       log.debug(s"Received ParkingInquiryResponse: $response")
-      val triggers = virtualParkingInquiries.remove(requestId) match {
+      val maybeTrigger = virtualParkingInquiries.remove(requestId) match {
         case Some(parkingInquiry) if stall.chargingPointType.isDefined =>
           log.debug(s"parking inquiry with requestId $requestId returned a stall with charging point.")
           val beamVehicle = parkingInquiry.beamVehicle.get
@@ -79,19 +79,21 @@ trait ScaleUpCharging extends {
             None
           )
           val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
-          Vector(ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, personId), self))
+          Some(ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, personId), self))
         case Some(_) if stall.chargingPointType.isEmpty =>
           log.debug(s"parking inquiry with requestId $requestId returned a NoCharger stall")
-          Vector()
+          None
         case _ =>
           log.error(s"inquiryMap does not have this requestId $requestId that returned stall $stall")
-          Vector()
+          None
       }
-      sender ! CompletionNotice(triggerId, triggers)
+      maybeTrigger.foreach(getScheduler ! _)
     case reply: StartingRefuelSession =>
       log.debug(s"Received StartingRefuelSession: $reply")
+      getScheduler ! CompletionNotice(reply.triggerId)
     case reply: WaitingToCharge =>
       log.debug(s"Received WaitingToCharge: $reply")
+      getScheduler ! CompletionNotice(reply.triggerId)
     case reply: EndingRefuelSession =>
       log.debug(s"Received EndingRefuelSession: $reply")
     case reply @ UnhandledVehicle(tick, personId, vehicle, _) =>
