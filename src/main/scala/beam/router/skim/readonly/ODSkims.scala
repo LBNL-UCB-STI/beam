@@ -241,7 +241,6 @@ object ODSkims extends BeamHelper {
     beamVehicleType: BeamVehicleType,
     fuelPrice: Double
   ): Skim = {
-
     val (travelDistance, travelTime) = distanceAndTime(mode, originUTM, destinationUTM)
     val votMultiplier: Double = mode match {
       case CAV => beamConfig.beam.agentsim.agents.modalBehaviors.modeVotMultiplier.CAV
