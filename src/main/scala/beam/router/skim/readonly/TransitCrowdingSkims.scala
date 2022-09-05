@@ -87,7 +87,6 @@ class TransitCrowdingSkims(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleTyp
     def getValueFrom(x: collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]) = {
       x.get(key).asInstanceOf[Option[TransitCrowdingSkimmerInternal]]
     }
-
     val pastSkimsValue = pastSkims.get(currentIteration - 1).flatMap(getValueFrom)
     val aggregatedPastSkims = getValueFrom(aggregatedFromPastSkims)
     if (pastSkimsValue.nonEmpty || aggregatedPastSkims.nonEmpty) {
