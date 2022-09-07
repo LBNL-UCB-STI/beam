@@ -16,10 +16,17 @@ class FreightSkims extends AbstractSkimmerReadOnly {
   ): Option[FreightSkimmerInternal] = {
     val key = FreightSkimmerKey(tazId, hour)
 
-    pastSkims
+    val getSkimValue = pastSkims
       .get(currentIteration - 1)
       .flatMap(_.get(key))
       .orElse(aggregatedFromPastSkims.get(key))
       .asInstanceOf[Option[FreightSkimmerInternal]]
+
+    if (getSkimValue.nonEmpty) {
+      numberOfSkimValueFound = numberOfSkimValueFound + 1
+    }
+    numberOfRequests = numberOfRequests + 1
+
+    getSkimValue
   }
 }
