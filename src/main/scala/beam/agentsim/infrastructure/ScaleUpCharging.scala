@@ -54,9 +54,8 @@ trait ScaleUpCharging extends {
   override def loggedReceive: Receive = {
     case t @ TriggerWithId(PlanParkingInquiryTrigger(_, inquiry), triggerId) =>
       log.debug(s"Received PlanParkingInquiryTrigger: $t")
-      val inquiryWithNewTriggerId = inquiry.copy(triggerId = triggerId)
-      virtualParkingInquiries.put(inquiryWithNewTriggerId.requestId, inquiryWithNewTriggerId)
-      self ! inquiryWithNewTriggerId
+      virtualParkingInquiries.put(inquiry.requestId, inquiry)
+      self ! inquiry.copy(triggerId = triggerId)
     case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, personId), triggerId) =>
       log.debug(s"Received PlanChargingUnplugRequestTrigger: $t")
       self ! ChargingUnplugRequest(tick, personId, beamVehicle, triggerId)
