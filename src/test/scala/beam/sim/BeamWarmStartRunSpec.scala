@@ -75,7 +75,7 @@ class BeamWarmStartRunSpec extends AnyWordSpecLike with Matchers with BeamHelper
         .parseString(s"""
          beam.agentsim.lastIteration = 0
          beam.routing.overrideNetworkTravelTimesUsingSkims = true
-         beam.warmStart.path = "test/input/beamville/warmstart/full/warmstart_data_fake_skims.zip"
+         beam.warmStart.path = "test/input/beamville/warmstart/warmstart_data_fake_skims.zip"
          """)
         .withFallback(testConfig("test/input/beamville/beam-warmstart.conf"))
         .resolve()
@@ -90,7 +90,7 @@ class BeamWarmStartRunSpec extends AnyWordSpecLike with Matchers with BeamHelper
         .parseString(s"""
          beam.agentsim.lastIteration = 1
          beam.warmStart.type = "linkStatsOnly"
-         beam.warmStart.path = "test/input/beamville/warmstart/full/warmstart_data_linkstats_only.zip"
+         beam.warmStart.path = "test/input/beamville/warmstart/warmstart_data_linkstats_only.zip"
          """)
         .withFallback(testConfig("test/input/beamville/beam-warmstart.conf"))
         .resolve()
@@ -107,7 +107,7 @@ class BeamWarmStartRunSpec extends AnyWordSpecLike with Matchers with BeamHelper
          beam.agentsim.lastIteration = 1
          beam.warmStart.type = "linkStatsOnly"
          beam.routing.overrideNetworkTravelTimesUsingSkims = true
-         beam.warmStart.path = "test/input/beamville/warmstart/full/warmstart_data_fake_skims.zip"
+         beam.warmStart.path = "test/input/beamville/warmstart/warmstart_data_fake_skims.zip"
          """)
         .withFallback(testConfig("test/input/beamville/beam-warmstart.conf"))
         .resolve()
