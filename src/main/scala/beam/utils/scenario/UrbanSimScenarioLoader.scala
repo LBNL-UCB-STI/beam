@@ -49,11 +49,6 @@ class UrbanSimScenarioLoader(
     if (wereCoordinatesInWGS) geo.wgs2Utm(coord) else coord
   }
 
-  def wgsCoord(x: Double, y: Double): Coord = {
-    val coord = new Coord(x, y)
-    if (wereCoordinatesInWGS) coord else geo.utm2Wgs(coord)
-  }
-
   def loadScenario(): (Scenario, Boolean) = {
     clear()
 
