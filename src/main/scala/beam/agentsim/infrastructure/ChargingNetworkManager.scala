@@ -192,7 +192,7 @@ class ChargingNetworkManager(
       } else {
         Failure(new RuntimeException(s"$vehicle is not a BEV/PHEV vehicle. Request sent by agent ${sender.path.name}"))
       }
-      sender ! responseHasTriggerId
+      theSender ! responseHasTriggerId
 
     case ChargingUnplugRequest(tick, personId, vehicle, triggerId) =>
       log.debug(s"ChargingUnplugRequest received for vehicle $vehicle from plug ${vehicle.stall} at $tick")
@@ -226,7 +226,7 @@ class ChargingNetworkManager(
                 handleEndCharging(endTime, chargingVehicle)
               }
               chargingNetwork
-                .processWaitingLine(tick, station)
+                .processWaitingLine(station)
                 .foreach { newChargingVehicle =>
                   self ! ChargingPlugRequest(
                     tick,

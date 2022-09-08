@@ -155,8 +155,8 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
     * @param station the corresponding station
     * @return list of vehicle that connected
     */
-  def processWaitingLine(tick: Int, station: ChargingStation): List[ChargingVehicle] =
-    station.connectFromWaitingLine(tick)
+  def processWaitingLine(station: ChargingStation): List[ChargingVehicle] =
+    station.connectFromWaitingLine()
 }
 
 object ChargingNetwork extends LazyLogging {
@@ -318,7 +318,7 @@ object ChargingNetwork extends LazyLogging {
           (inquiry.parkingDuration.toInt, activityTypeAlias + inquiry.activityType)
         }
         .getOrElse((estimatedMinParkingDurationInSeconds, ParkingActivityType.Wherever.toString))
-      vehicles.get(vehicle.id) match {
+      chargingVehiclesInternal.get(vehicle.id) match {
         case Some(chargingVehicle) =>
           logger.error(
             s"Something is broken! Trying to connect a vehicle already connected at time $tick: vehicle $vehicle - " +
@@ -390,11 +390,9 @@ object ChargingNetwork extends LazyLogging {
       * process waiting line by removing vehicle from waiting line and adding it to the connected list
       * @return map of vehicles that got connected
       */
-    private[ChargingNetwork] def connectFromWaitingLine(tick: Int): List[ChargingVehicle] = this.synchronized {
+    private[ChargingNetwork] def connectFromWaitingLine(): List[ChargingVehicle] = this.synchronized {
       (1 to Math.min(waitingLineInternal.size, numAvailableChargers)).map { _ =>
-        val v = waitingLineInternal.dequeue()
-        chargingVehiclesInternal.put(v.vehicle.id, v)
-        v.updateStatus(Connected, tick)
+        waitingLineInternal.dequeue()
       }.toList
     }
 

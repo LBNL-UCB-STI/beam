@@ -531,7 +531,7 @@ class RideHailAgent(
       if (debugEnabled) outgoingMessages += ev
       if (currentBeamVehicle.isRideHailCAV)
         rideHailManager ! reply
-      startRefueling(tickToUse, getCurrentTriggerId.get)
+      startRefueling(tickToUse, reply.triggerId)
       goto(Refueling)
     case ev @ Event(reply: WaitingToCharge, data) =>
       log.debug("state(RideHailingAgent.Offline.WaitingToCharge): {}; Vehicle ID: {}", ev, vehicle.id)
@@ -1243,8 +1243,9 @@ class RideHailAgent(
       case _ =>
         _currentTriggerId match {
           case Some(_) => releaseTickAndTriggerId()
-          case _       => log.debug("RHA {}: completing handleWaitingLineReply", id)
+          case _       => log.debug("RHA {}: completing handleWaitingLineReply, nextState = {}", id, nextState)
         }
+        scheduler ! CompletionNotice(triggerId)
         goto(nextState)
     }
   }
