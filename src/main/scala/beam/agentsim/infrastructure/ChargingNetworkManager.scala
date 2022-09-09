@@ -161,34 +161,35 @@ class ChargingNetworkManager(
     case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, theSender, _, _) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       val responseHasTriggerId = if (vehicle.isEV) {
-        // connecting the current vehicle
-        val chargingNetwork = chargingNetworkHelper.get(stall.reservedFor.managerId)
-        chargingNetwork
-          .processChargingPlugRequest(
-            request,
-            beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds.toInt,
-            theSender
-          ) map {
-          case chargingVehicle if chargingVehicle.chargingStatus.last.status == WaitingAtStation =>
-            val numVehicleWaitingToCharge = chargingVehicle.chargingStation.howManyVehiclesAreWaiting
-            log.debug(
-              s"Vehicle $vehicle is moved to waiting line at $tick in station ${chargingVehicle.chargingStation}, " +
-              s"with {} vehicles connected and {} in grace period and {} in waiting line",
-              chargingVehicle.chargingStation.howManyVehiclesAreCharging,
-              chargingVehicle.chargingStation.howManyVehiclesAreInGracePeriodAfterCharging,
-              numVehicleWaitingToCharge
+        { // connecting the current vehicle
+          val chargingNetwork = chargingNetworkHelper.get(stall.reservedFor.managerId)
+          chargingNetwork
+            .processChargingPlugRequest(
+              request,
+              beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds.toInt,
+              theSender
+            ) map {
+            case chargingVehicle if chargingVehicle.chargingStatus.last.status == WaitingAtStation =>
+              val numVehicleWaitingToCharge = chargingVehicle.chargingStation.howManyVehiclesAreWaiting
+              log.debug(
+                s"Vehicle $vehicle is moved to waiting line at $tick in station ${chargingVehicle.chargingStation}, " +
+                s"with {} vehicles connected and {} in grace period and {} in waiting line",
+                chargingVehicle.chargingStation.howManyVehiclesAreCharging,
+                chargingVehicle.chargingStation.howManyVehiclesAreInGracePeriodAfterCharging,
+                numVehicleWaitingToCharge
+              )
+              WaitingToCharge(tick, vehicle.id, stall, triggerId)
+            case chargingVehicle =>
+              chargingVehicle.vehicle.useParkingStall(stall)
+              handleStartCharging(tick, chargingVehicle)
+              StartingRefuelSession(tick, vehicle.id, stall, triggerId)
+          } getOrElse Failure(
+            new RuntimeException(
+              s"Cannot find a ${request.stall.reservedFor} station identified with tazId ${request.stall.tazId}, " +
+              s"parkingType ${request.stall.parkingType} and chargingPointType ${request.stall.chargingPointType.get}!"
             )
-            WaitingToCharge(tick, vehicle.id, stall, triggerId)
-          case chargingVehicle =>
-            chargingVehicle.vehicle.useParkingStall(stall)
-            handleStartCharging(tick, chargingVehicle)
-            StartingRefuelSession(tick, vehicle.id, stall, triggerId)
-        } getOrElse Failure(
-          new RuntimeException(
-            s"Cannot find a ${request.stall.reservedFor} station identified with tazId ${request.stall.tazId}, " +
-            s"parkingType ${request.stall.parkingType} and chargingPointType ${request.stall.chargingPointType.get}!"
           )
-        )
+        }
       } else {
         Failure(new RuntimeException(s"$vehicle is not a BEV/PHEV vehicle. Request sent by agent ${sender.path.name}"))
       }
@@ -226,7 +227,7 @@ class ChargingNetworkManager(
                 handleEndCharging(endTime, chargingVehicle)
               }
               chargingNetwork
-                .processWaitingLine(station)
+                .processWaitingLine(tick, station)
                 .foreach { newChargingVehicle =>
                   self ! ChargingPlugRequest(
                     tick,
