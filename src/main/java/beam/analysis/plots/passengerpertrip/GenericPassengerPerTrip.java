@@ -97,7 +97,8 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
     public String getLegendText(int i) {
 
         int bucketSize = getBucketSize();
-        if (bucketSize <= 0) {
+        if (bucketSize <= 0)
+        {
             bucketSize = 1;
         }
 
