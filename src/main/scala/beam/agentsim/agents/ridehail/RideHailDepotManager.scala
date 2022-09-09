@@ -68,14 +68,14 @@ trait RideHailDepotManager extends {
         depotData.vehiclesOnWayToDepot.remove(vehicle.id)
         depotData.chargingVehicles.remove(vehicle.id)
       }
-    case e @ StartingRefuelSession(tick, vehicleId, stall, _) =>
+    case e @ StartingRefuelSession(tick, vehicle, stall, _) =>
       log.debug("RideHailDepotManager.StartingRefuelSession: {}", e)
       val depotData = getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId)
-      if (depotData.vehiclesInQueue.remove(vehicleId).isDefined) {
-        putNewTickAndObservation(vehicleId, (tick, s"EnQueue($DequeuedToCharge)"))
+      if (depotData.vehiclesInQueue.remove(vehicle.vehicle.id).isDefined) {
+        putNewTickAndObservation(vehicle.vehicle.id, (tick, s"EnQueue($DequeuedToCharge)"))
       }
-      depotData.vehiclesOnWayToDepot.remove(vehicleId)
-      depotData.chargingVehicles.put(vehicleId, stall)
+      depotData.vehiclesOnWayToDepot.remove(vehicle.vehicle.id)
+      depotData.chargingVehicles.put(vehicle.vehicle.id, stall)
     case e @ WaitingToCharge(_, vehicleId, stall, _) =>
       log.debug("RideHailDepotManager.WaitingToCharge: {}", e)
       val depotData = getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId)

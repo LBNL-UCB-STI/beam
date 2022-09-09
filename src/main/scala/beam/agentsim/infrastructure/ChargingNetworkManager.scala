@@ -182,7 +182,7 @@ class ChargingNetworkManager(
             case chargingVehicle =>
               chargingVehicle.vehicle.useParkingStall(stall)
               handleStartCharging(tick, chargingVehicle)
-              StartingRefuelSession(tick, vehicle.id, stall, triggerId)
+              StartingRefuelSession(tick, chargingVehicle, stall, triggerId)
           } getOrElse Failure(
             new RuntimeException(
               s"Cannot find a ${request.stall.reservedFor} station identified with tazId ${request.stall.tazId}, " +
@@ -296,7 +296,7 @@ object ChargingNetworkManager extends LazyLogging {
   case class ChargingUnplugRequest(tick: Int, personId: Id[_], vehicle: BeamVehicle, triggerId: Long)
       extends HasTriggerId
 
-  case class StartingRefuelSession(tick: Int, vehicleId: Id[BeamVehicle], stall: ParkingStall, triggerId: Long)
+  case class StartingRefuelSession(tick: Int, chargingVehicle: ChargingVehicle, stall: ParkingStall, triggerId: Long)
       extends HasTriggerId
 
   case class WaitingToCharge(tick: Int, vehicleId: Id[BeamVehicle], stall: ParkingStall, triggerId: Long)

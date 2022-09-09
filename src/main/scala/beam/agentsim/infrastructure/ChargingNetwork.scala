@@ -323,7 +323,7 @@ object ChargingNetwork extends LazyLogging {
           //When a vehicle gets from the Waiting Line it gets connected to the station internally
           //and a ChargingPlugRequest is sent to the ChargingNetworkManger
           //in this case the vehicle is already connected to the station
-          if (chargingVehicle.chargingStatus.last.status != Connected || chargingVehicle.chargingStation != this) {
+          if (!chargingVehicle.isJustConnectedAfterWaitingLine() || chargingVehicle.chargingStation != this) {
             logger.error(
               s"Something is broken! Trying to connect a vehicle already connected at time $tick: vehicle $vehicle - " +
               s"activityType $activityType - stall $stall - personId $personId - chargingInfo $chargingVehicle"
@@ -571,6 +571,15 @@ object ChargingNetwork extends LazyLogging {
       */
     def calculateChargingSessionLengthAndEnergyInJoule: (Long, Double) = chargingSessions.foldLeft((0L, 0.0)) {
       case ((accA, accB), charging) => (accA + (charging.endTime - charging.startTime), accB + charging.energyToCharge)
+    }
+
+    def isJustConnectedAfterWaitingLine(): Boolean = {
+      chargingStatus match {
+        case _ :+ ChargingStatus(WaitingAtStation, _) :+ ChargingStatus(Connected, _) =>
+          true
+        case _ =>
+          false
+      }
     }
 
     override def toString: String = {
