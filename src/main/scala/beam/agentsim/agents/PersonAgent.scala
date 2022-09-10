@@ -1319,11 +1319,17 @@ class PersonAgent(
             triggerId,
             Vector(ScheduleTrigger(ActivityEndTrigger(activityEndTime.toInt), self))
           )
+
+          val nextTripTourPersonalVehicle = if (isLastTripWithinTour(activity)) {
+            None
+          } else {
+            data.currentTourPersonalVehicle
+          }
           goto(PerformingActivity) using data.copy(
             currentActivityIndex = currentActivityIndex + 1,
             currentTrip = None,
             restOfCurrentTrip = List(),
-            currentTourPersonalVehicle = None,
+            currentTourPersonalVehicle = nextTripTourPersonalVehicle,
             currentTripMode = None,
             hasDeparted = false
           )
