@@ -14,7 +14,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoiceCalculator}
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{
-  handleReleasingParkingSpot,
+//  handleReleasingParkingSpot,
   ChoosingParkingSpot,
   ReleasingParkingSpot
 }
