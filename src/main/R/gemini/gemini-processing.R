@@ -22,7 +22,7 @@ chargingBehaviorFunc <- function(DT) {
   print("************************")
   print(rseSum)
   print(paste("Total All (GWH): ", sum(rseSum$fuel)/3.6e+12, sep=""))
-  totRidehailGWH <- sum(DT[startsWith(vehicle, "rideHail"),]$fuel)/3.6e+12
+  totRidehailGWH <- sum(DT[grepl("rideHail", vehicle),]$fuel)/3.6e+12
   print(paste("Total Ridehail (GWH): ", totRidehailGWH, sep=""))
   #print(pp("DCFC: ",dcfc," - ",))
   #print(pp("PublicL2: ",publicL2))
@@ -1054,7 +1054,8 @@ events4 <- readCsv(pp(workDir, "/test/events/filtered.0.events.d.csv.gz"))
 events5 <- readCsv(pp(workDir, "/test/events/filtered.0.events.e.csv.gz"))
 events6 <- readCsv(pp(workDir, "/test/events/filtered.0.events.f.csv.gz"))
 
-pt1 <- readCsv(pp(workDir, "/test/events/pt.0.events.f.csv.gz"))
+pt2 <- readCsv(pp(workDir, "/test/events/pt.0.events.b.csv.gz"))
+pt3 <- readCsv(pp(workDir, "/test/events/pt.0.events.c.csv.gz"))
 
 ref1 <- events1[type=="RefuelSessionEvent"]
 ref2 <- events2[type=="RefuelSessionEvent"]
