@@ -422,7 +422,8 @@ task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
 
 task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')
+    args = (['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')) +
+            (project.hasProperty('matches') ?  ["-z", project.findProperty('matches')] : [])
     classpath = sourceSets.test.runtimeClasspath
 }
 
