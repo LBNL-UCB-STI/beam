@@ -1595,35 +1595,14 @@ object BeamConfig {
         object Vehicles {
 
           case class Destination(
-            home: BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Home,
             noRefuelThresholdInMeters: scala.Int,
             refuelRequiredThresholdInMeters: scala.Double
           )
 
           object Destination {
 
-            case class Home(
-              refuelRequiredThresholdInMeters: scala.Double
-            )
-
-            object Home {
-
-              def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Home = {
-                BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Home(
-                  refuelRequiredThresholdInMeters =
-                    if (c.hasPathOrNull("refuelRequiredThresholdInMeters"))
-                      c.getDouble("refuelRequiredThresholdInMeters")
-                    else 128747.6
-                )
-              }
-            }
-
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination(
-                home = BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Home(
-                  if (c.hasPathOrNull("home")) c.getConfig("home")
-                  else com.typesafe.config.ConfigFactory.parseString("home{}")
-                ),
                 noRefuelThresholdInMeters =
                   if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 128720,
                 refuelRequiredThresholdInMeters =

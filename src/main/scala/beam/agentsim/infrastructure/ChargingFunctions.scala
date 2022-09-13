@@ -2,7 +2,8 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
-import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.{Charge, Home, Work}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
@@ -56,12 +57,12 @@ class ChargingFunctions(
     */
   def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
-      inquiry.reservedFor match {
-        case VehicleManager.TypeEnum.RideHail if inquiry.parkingDuration <= 3600 =>
-          ChargingPointType.isFastCharger(chargingPointType)
-        case _ =>
-          true // not a ride hail vehicle seeking charging or parking for two then it is fine to park at slow charger
-      }
+      if (
+        inquiry.reservedFor.managerType == VehicleManager.TypeEnum.RideHail || inquiry.beamVehicle
+          .exists(v => v.isRideHail && (inquiry.parkingDuration <= 3600 || v.isCAV))
+      )
+        ChargingPointType.isFastCharger(chargingPointType)
+      else true // not a ride hail vehicle seeking charging or parking for two then it is fine to park at slow charger
     )
   }
 
@@ -74,8 +75,8 @@ class ChargingFunctions(
   def ifChargeActivityThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
       inquiry.parkingActivityType match {
-        case ParkingActivityType.Charge => ChargingPointType.isFastCharger(chargingPointType)
-        case _                          => true // if it is not Charge activity then it does not matter
+        case Charge => ChargingPointType.isFastCharger(chargingPointType)
+        case _      => true // if it is not Charge activity then it does not matter
       }
     )
   }
@@ -103,13 +104,13 @@ class ChargingFunctions(
     */
   def ifHomeOrWorkOrOvernightThenSlowChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
-      if (
-        inquiry.parkingActivityType == ParkingActivityType.Home ||
-        inquiry.parkingActivityType == ParkingActivityType.Work ||
-        inquiry.searchMode == ParkingSearchMode.Init
-      ) {
-        !ChargingPointType.isFastCharger(chargingPointType)
-      } else true
+      inquiry.beamVehicle.forall {
+        case vehicle if !vehicle.isRideHail =>
+          if (List(Home, Work).contains(inquiry.parkingActivityType) || inquiry.searchMode == ParkingSearchMode.Init) {
+            !ChargingPointType.isFastCharger(chargingPointType)
+          } else true
+        case _ => true
+      }
     )
   }
 

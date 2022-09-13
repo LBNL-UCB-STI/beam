@@ -1047,8 +1047,8 @@ lognormal <- function(m, v, sample_size) {
 
 events0 <- readCsv(pp(workDir, "/test/events-raw/0.events.csv.gz"))
 
-events1 <- readCsv(pp(workDir, "/test/events/filtered.0.events.a.csv.gz"))
-events2 <- readCsv(pp(workDir, "/test/events/filtered.0.events.b.csv.gz"))
+events1 <- readCsv(pp(workDir, "/test/events/filtered.0.events.7Advanced.csv.gz"))
+events2 <- readCsv(pp(workDir, "/test/events/filtered.0.events.8MaxEV.csv.gz"))
 events3 <- readCsv(pp(workDir, "/test/events/filtered.0.events.c.csv.gz"))
 events4 <- readCsv(pp(workDir, "/test/events/filtered.0.events.d.csv.gz"))
 events5 <- readCsv(pp(workDir, "/test/events/filtered.0.events.e.csv.gz"))
