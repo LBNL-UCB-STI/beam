@@ -25,11 +25,12 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper with 
     )
   }
 
-  it should f"Use RH_BEV_L5 to transfer agents, also RH_BEV_L5 should charge." in {
+  it should "Use RH_BEV_L5 to transfer agents, RH_BEV_L5 should charge with 1 stall." in {
     val automatedRideHailVehicleType = "RH_BEV_L5"
     val config = ConfigFactory
       .parseString(s"""
            |beam.agentsim.lastIteration = 0
+           |beam.agentsim.taz.parkingFilePath = $${beam.inputDirectory}"/parking/taz-parking-one-rh-stall.csv"
            |beam.outputs.events.fileOutputFormats = "xml"
          """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam-withL5.conf"))
@@ -43,14 +44,34 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper with 
     rhPTEEvents.size should be > 0 withClue ", expecting RH path traversal events with passengers"
     rhPTEEvents.map(_.vehicleType) should contain(automatedRideHailVehicleType)
 
-    val refuelSessionEvents = events.filter(e => RefuelSessionEvent.EVENT_TYPE.equals(e.getEventType))
+    val refuelSessionEvents = events.filter(e =>
+      RefuelSessionEvent.EVENT_TYPE.equals(e.getEventType) && e.getAttributes.get("vehicle").contains("-L5")
+    )
     refuelSessionEvents.size should be > 0 withClue ", expecting charging events"
     refuelSessionEvents.map(e => e.getAttributes.get(RefuelSessionEvent.ATTRIBUTE_VEHICLE_TYPE)) should contain(
       automatedRideHailVehicleType
     ) withClue f", expecting $automatedRideHailVehicleType to charge"
+
+    def getTimeDuration(event: Event) = {
+      val attributes = event.getAttributes
+      (attributes.get("time").toFloat, attributes.get("duration").toFloat)
+    }
+
+    val firstEventEndOfCharging = refuelSessionEvents.headOption
+      .map(refuelEvent => {
+        val (time, duration) = getTimeDuration(refuelEvent)
+        time + duration
+      })
+      .get
+
+    refuelSessionEvents.tail.foldLeft(firstEventEndOfCharging) { case (previousEventEndOfCharging, refuelEvent) =>
+      val (currentEventTime, currentEventDuration) = getTimeDuration(refuelEvent)
+      previousEventEndOfCharging should be <= currentEventTime
+      currentEventTime + currentEventDuration
+    }
   }
 
-  it should f"Use RH_BEV to transfer agents." in {
+  it should "Use RH_BEV to transfer agents." in {
     val nonAutomatedRideHailVehicleType = "RH_BEV"
     val config = ConfigFactory
       .parseString(s"""
