@@ -100,14 +100,14 @@ trait RideHailDepotManager extends {
       ParkingEvent(tick, stall, beamServices.geo.utm2Wgs(stall.locationUTM), beamVehicle.id, id.toString)
     )
     putNewTickAndObservation(beamVehicle.id, (tick, s"Charging($JustArrivedAtDepot)"))
-    (chargingNetworkManager ? ChargingPlugRequest(
+    chargingNetworkManager ! ChargingPlugRequest(
       tick,
       beamVehicle,
       stall,
       personId,
       triggerId,
       beamVehicle.getDriver.get
-    )).pipeTo(beamVehicle.getDriver.get)
+    )
   }
 
   /**
