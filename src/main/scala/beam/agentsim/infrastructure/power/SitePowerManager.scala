@@ -66,7 +66,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
         }.seq
       }.map { federates =>
         logger.info("Initialized {} federates, now they are going to execution mode", federates.size)
-        enterExecutionMode(1.hour, federates.map(_._3).toSeq:_*)
+        enterExecutionMode(1.hour, federates.map(_._3).toSeq: _*)
         logger.info("Entered execution mode")
         federates.toList
       }.recoverWith { case e =>
@@ -95,6 +95,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
             stations.flatMap(_.pluggedInVehicles.values).map {
               case ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, departureTime, _, _, _) =>
                 // Sending this message
+                val powerInKW = getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
                 Map(
                   "tazId"                    -> tazId,
                   "siteId"                   -> tazId, // TODO I have a way for generating the site Id, but for now Site id == parking Zone Id
@@ -104,7 +105,10 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
                   "arrivalTime"              -> arrivalTime, // TODO arrival time at station
                   "departureTime"            -> departureTime, // TODO estimated departure time = arrival time + parking duration
                   "desiredFuelLevelInJoules" -> (vehicle.beamVehicleType.primaryFuelCapacityInJoule - vehicle.primaryFuelLevelInJoules), // TODO Battery capacity - fuel level
-                  "powerInKW" -> getChargingPointInstalledPowerInKw(stall.chargingPointType.get) // TODO power at stall: stall.chargingPointType
+                  "maxPowerInKW" -> vehicle.beamVehicleType.chargingCapability
+                    .map(getChargingPointInstalledPowerInKw)
+                    .map(Math.min(powerInKW, _))
+                    .getOrElse(powerInKW) // TODO power at stall: stall.chargingPointType
                 )
             }
           )

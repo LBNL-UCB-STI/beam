@@ -21,7 +21,12 @@ class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: Bea
         logger.warn("ChargingNetworkManager should connect to a power grid via Helics...")
         Try {
           logger.info("Init PowerManager Federate...")
-          val fedInfo = createFedInfo(pmcConfig.coreType, pmcConfig.coreInitString, pmcConfig.timeDeltaProperty, pmcConfig.intLogLevel)
+          val fedInfo = createFedInfo(
+            pmcConfig.coreType,
+            pmcConfig.coreInitString,
+            pmcConfig.timeDeltaProperty,
+            pmcConfig.intLogLevel
+          )
           getFederate(
             pmcConfig.federateName,
             fedInfo,
