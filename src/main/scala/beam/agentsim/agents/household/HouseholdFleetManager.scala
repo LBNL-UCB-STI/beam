@@ -16,7 +16,7 @@ import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
-import beam.agentsim.scheduler.HasTriggerId
+import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, HasTriggerId}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Debug
@@ -188,6 +188,8 @@ class HouseholdFleetManager(
     case Finish =>
       context.stop(self)
     case Success =>
+    case BeamAgentSchedulerTimer =>
+      logger.debug(s"Received message from ${sender()}")
     case x =>
       logger.error(s"No handler for $x")
   }
