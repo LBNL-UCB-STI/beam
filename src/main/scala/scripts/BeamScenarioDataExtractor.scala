@@ -12,8 +12,8 @@ import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 /**
   * This app can load beam scenario and save wanted data to file(s). Now only vehicles.csv supported
   * {{{
-  * ./gradlew :execute -PmainClass=beam.utils.data.synthpop.BeamScenarioDataExtractor \
-  *  -PappArgs=["'--config', 'test/input/beamville/beam.conf', '--output', 'vehicles.csv'"]"
+  * ./gradlew :execute -PmainClass=scripts.BeamScenarioDataExtractor \
+  *  -PappArgs="['--config', 'test/input/beamville/beam.conf', '--output', 'vehicles.csv']"
   * }}}
   *
   * @author Dmitry Openkov
