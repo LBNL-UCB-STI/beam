@@ -950,8 +950,8 @@ object BeamConfig {
 
           }
 
-          case class MulitnomialLogit(
-            params: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit.Params,
+          case class MultinomialLogit(
+            params: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MultinomialLogit.Params,
             utility_scale_factor: scala.Double
           )
 
@@ -1082,7 +1082,6 @@ object BeamConfig {
                 if (c.hasPathOrNull("modeVotMultiplier")) c.getConfig("modeVotMultiplier")
                 else com.typesafe.config.ConfigFactory.parseString("modeVotMultiplier{}")
               ),
-<<<<<<< HEAD
               incomeMultiplier = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.IncomeMultiplier(
                 if (c.hasPathOrNull("incomeMultiplier")) c.getConfig("incomeMultiplier")
                 else com.typesafe.config.ConfigFactory.parseString("incomeMultiplier{}")
@@ -1093,14 +1092,9 @@ object BeamConfig {
               ),
               useDefaultVOT = 
                 if (c.hasPathOrNull("useDefaultVOT")) c.getBoolean("useDefaultVOT") else false,
-              mulitnomialLogit = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MulitnomialLogit(
-                if (c.hasPathOrNull("mulitnomialLogit")) c.getConfig("mulitnomialLogit")
-                else com.typesafe.config.ConfigFactory.parseString("mulitnomialLogit{}")
-=======
               multinomialLogit = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MultinomialLogit(
                 if (c.hasPathOrNull("multinomialLogit")) c.getConfig("multinomialLogit")
                 else com.typesafe.config.ConfigFactory.parseString("multinomialLogit{}")
->>>>>>> origin/develop
               ),
               overrideAutomationForVOTT =
                 c.hasPathOrNull("overrideAutomationForVOTT") && c.getBoolean("overrideAutomationForVOTT"),

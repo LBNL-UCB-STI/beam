@@ -14,6 +14,7 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population._
 import org.matsim.households.Income.IncomePeriod
 import org.matsim.households.{Household, IncomeImpl}
+import collection.mutable
 
 import scala.collection.JavaConverters._
 
