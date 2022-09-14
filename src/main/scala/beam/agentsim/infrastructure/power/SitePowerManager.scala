@@ -108,7 +108,9 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
                   "maxPowerInKW" -> vehicle.beamVehicleType.chargingCapability
                     .map(getChargingPointInstalledPowerInKw)
                     .map(Math.min(powerInKW, _))
-                    .getOrElse(powerInKW) // TODO power at stall: stall.chargingPointType
+                    .getOrElse(
+                      powerInKW
+                    ) // TODO power at stall: MIN(stall.chargingPointType,vehicle.vehicleType.chargingCapability)
                 )
             }
           )
