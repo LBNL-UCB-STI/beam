@@ -49,7 +49,7 @@ trait ChoosesMode {
 
   val dummyRHVehicle: StreetVehicle = createDummyVehicle(
     "dummyRH",
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.head.initialization.procedural.vehicleTypeId,
     CAR,
     asDriver = false
   )
@@ -369,6 +369,7 @@ trait ChoosesMode {
           departTime,
           nextAct.getCoord,
           requestTime = _currentTick,
+          requester = self,
           triggerId = getCurrentTriggerIdOrGenerate,
           asPooled = true
         )
@@ -1001,6 +1002,7 @@ trait ChoosesMode {
       legs.head.startTime,
       beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc),
       requestTime = _currentTick,
+      requester = self,
       triggerId = getCurrentTriggerIdOrGenerate
     )
     //    println(s"requesting: ${inquiry.requestId}")
@@ -1203,7 +1205,7 @@ trait ChoosesMode {
         case Some(travelProposal)
             if travelProposal.timeToCustomer(
               bodyVehiclePersonId
-            ) <= beamScenario.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec =>
+            ) <= travelProposal.maxWaitingTimeInSec =>
           val origLegs = travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
           (travelProposal.poolingInfo match {
             case Some(poolingInfo) if !choosesModeData.personData.currentTourMode.contains(RIDE_HAIL) =>

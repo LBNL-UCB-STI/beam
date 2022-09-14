@@ -22,18 +22,21 @@ class GeofenceAnalyzer(beamSvc: BeamServices) extends BasicEventHandler with Ite
   val errors: ArrayBuffer[PointInfo] = new ArrayBuffer[PointInfo]()
 
   val rideHail2Geofence: Map[String, CircularGeofence] = {
-    if (beamSvc.beamConfig.beam.agentsim.agents.rideHail.initialization.initType.equalsIgnoreCase("file")) {
-      RideHailFleetInitializer
-        .readFleetFromCSV(beamSvc.beamConfig.beam.agentsim.agents.rideHail.initialization.filePath)
-        .flatMap { fd =>
-          val maybeGeofence = (fd.geofenceX, fd.geofenceY, fd.geofenceRadius) match {
-            case (Some(x), Some(y), Some(r)) => Some(CircularGeofence(x, y, r))
-            case _                           => None
-          }
-          maybeGeofence.map(g => fd.id -> g)
-        }
-        .toMap
-    } else Map.empty[String, CircularGeofence]
+    beamSvc.beamConfig.beam.agentsim.agents.rideHail.managers
+      .collect {
+        case managerConfig if managerConfig.initialization.initType.equalsIgnoreCase("file") =>
+          RideHailFleetInitializer
+            .readFleetFromCSV(managerConfig.initialization.filePath)
+            .flatMap { fd =>
+              val maybeGeofence = (fd.geofenceX, fd.geofenceY, fd.geofenceRadius) match {
+                case (Some(x), Some(y), Some(r)) => Some(CircularGeofence(x, y, r))
+                case _                           => None
+              }
+              maybeGeofence.map(g => fd.id -> g)
+            }
+      }
+      .flatten
+      .toMap
   }
 
   logger.info(

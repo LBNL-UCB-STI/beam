@@ -13,6 +13,7 @@ import beam.router.Modes.BeamMode
 import beam.router.skim.SkimsUtils
 import beam.router.skim.core.ODSkimmer
 import beam.sim.common.GeoUtils
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import beam.sim.{BeamServices, Geofence}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.typesafe.scalalogging.LazyLogging
@@ -30,14 +31,12 @@ import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
 
-abstract class RideHailMatching(services: BeamServices) extends LazyLogging {
+abstract class RideHailMatching(services: BeamServices, managerConfig: Managers$Elm) extends LazyLogging {
 
   // Methods below should be kept as def (instead of val) to allow automatic value updating
-  protected def solutionSpaceSizePerVehicle: Int =
-    services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle
+  protected def solutionSpaceSizePerVehicle: Int = managerConfig.allocationManager.alonsoMora.maxRequestsPerVehicle
 
-  protected def waitingTimeInSec: Int =
-    services.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec
+  protected def waitingTimeInSec: Int = managerConfig.allocationManager.maxWaitingTimeInSec
   protected def searchRadius: Double = waitingTimeInSec * SkimsUtils.speedMeterPerSec(BeamMode.CAV)
   def matchAndAssign(tick: Int): Future[List[RideHailTrip]]
 }
@@ -144,6 +143,7 @@ object RideHailMatching {
   def getTimeDistanceAndCost(
     src: MobilityRequest,
     dst: MobilityRequest,
+    managerConfig: Managers$Elm,
     beamServices: BeamServices,
     beamVehicleType: Option[BeamVehicleType]
   ): ODSkimmer.Skim = {
@@ -151,7 +151,7 @@ object RideHailMatching {
       .map(_.id)
       .getOrElse(
         Id.create(
-          beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+          managerConfig.initialization.procedural.vehicleTypeId,
           classOf[BeamVehicleType]
         )
       )
@@ -203,6 +203,7 @@ object RideHailMatching {
   def getRideHailTrip(
     vehicle: VehicleAndSchedule,
     customers: List[CustomerRequest],
+    managerConfig: Managers$Elm,
     beamServices: BeamServices
   ): Option[RideHailTrip] = {
     val schedule = vehicle.schedule
@@ -213,6 +214,7 @@ object RideHailMatching {
       newRequests,
       remainingVehicleRangeInMeters,
       vehicle.getRequestWithCurrentVehiclePosition,
+      managerConfig,
       beamServices,
       Some(vehicle.vehicle.beamVehicleType)
     ).map(newSchedule => RideHailTrip(customers, newSchedule, Some(vehicle)))
@@ -223,6 +225,7 @@ object RideHailMatching {
     newRequests: List[MobilityRequest],
     remainingVehicleRangeInMeters: Int,
     currentPosition: MobilityRequest,
+    managerConfig: Managers$Elm,
     beamServices: BeamServices,
     beamVehicleType: Option[BeamVehicleType]
   ): Option[List[MobilityRequest]] = {
@@ -245,7 +248,7 @@ object RideHailMatching {
       val prevReq = newSchedule.last
       val (curReqIndex, curReq, skim) = processedRequests.zipWithIndex
         .filter(r => r._1.tag == Pickup || agentsPooled.contains(r._1.person.get))
-        .map(r => (r._2, r._1, getTimeDistanceAndCost(prevReq, r._1, beamServices, beamVehicleType)))
+        .map(r => (r._2, r._1, getTimeDistanceAndCost(prevReq, r._1, managerConfig, beamServices, beamVehicleType)))
         .minBy(_._3.time)
       val serviceTime = Math.max(prevReq.serviceTime + skim.time, curReq.serviceTime)
       val serviceDistance = prevReq.serviceDistance + skim.distance
@@ -268,15 +271,16 @@ object RideHailMatching {
     src: Location,
     departureTime: Int,
     dst: Location,
+    managerConfig: Managers$Elm,
     beamServices: BeamServices,
     triggerId: Long
   ): CustomerRequest = {
-    val waitingTimeInSec = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec
+    val waitingTimeInSec = managerConfig.allocationManager.maxWaitingTimeInSec
     val travelTimeDelayAsFraction =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime
+      managerConfig.allocationManager.maxExcessRideTime
 
     val vehicleTypeId = Id.create(
-      beamServices.beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+      managerConfig.initialization.procedural.vehicleTypeId,
       classOf[BeamVehicleType]
     )
     val vehicleType = beamServices.beamScenario.vehicleTypes(vehicleTypeId)
@@ -351,6 +355,7 @@ object RideHailMatching {
           rhr.pickUpLocationUTM,
           tick,
           rhr.destinationUTM,
+          rideHailManager.managerConfig,
           rideHailManager.beamServices,
           rhr.triggerId
         )
@@ -368,6 +373,7 @@ object RideHailMatching {
       val vehAndSched = RideHailMatching.createVehicleAndScheduleFromRideHailAgentLocation(
         veh,
         Math.max(tick, veh.latestTickExperienced),
+        rideHailManager.managerConfig,
         rideHailManager.beamServices,
         rideHailManager
           .resources(veh.vehicleId)
@@ -381,6 +387,7 @@ object RideHailMatching {
   def createVehicleAndScheduleFromRideHailAgentLocation(
     veh: RideHailAgentLocation,
     tick: Int,
+    managerConfig: Managers$Elm,
     beamServices: BeamServices,
     remainingRangeInMeters: Double,
     vehicleManagerId: Id[VehicleManager]
@@ -396,9 +403,9 @@ object RideHailMatching {
     v1Act0.setEndTime(tick)
     var alonsoSchedule: ListBuffer[MobilityRequest] = ListBuffer()
 
-    val waitingTimeInSec = beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec
+    val waitingTimeInSec = managerConfig.allocationManager.maxWaitingTimeInSec
     val travelTimeDelayAsFraction =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime
+      managerConfig.allocationManager.maxExcessRideTime
 
     veh.currentPassengerSchedule.foreach {
       _.schedule.foreach { case (leg, manifest) =>

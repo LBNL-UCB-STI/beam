@@ -21,6 +21,7 @@ case class RideHailRequest(
   requestId: Int = RideHailRequestIdGenerator.nextId,
   requestTime: Option[Int] = None,
   quotedWaitTime: Option[Int] = None,
+  requester: ActorRef,
   triggerId: Long
 ) extends HasTriggerId {
 
@@ -44,6 +45,7 @@ object RideHailRequest {
       customerRequest.pickup.activity.getEndTime.toInt,
       customerRequest.dropoff.activity.getCoord,
       asPooled,
+      requester = customerRequest.person.personRef,
       triggerId = customerRequest.triggerId
     )
   }
@@ -54,6 +56,7 @@ object RideHailRequest {
     new Coord(Double.NaN, Double.NaN),
     Int.MaxValue,
     new Coord(Double.NaN, Double.NaN),
+    requester = ActorRef.noSender,
     triggerId = -1
   )
 

@@ -152,7 +152,7 @@ class RideHailAgentSpec
           vehicleManagerId = new AtomicReference(
             VehicleManager
               .createOrGetReservedFor(
-                services.beamConfig.beam.agentsim.agents.rideHail.name,
+                services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
                 VehicleManager.TypeEnum.RideHail
               )
               .managerId
@@ -238,7 +238,7 @@ class RideHailAgentSpec
           new AtomicReference(
             VehicleManager
               .createOrGetReservedFor(
-                services.beamConfig.beam.agentsim.agents.rideHail.name,
+                services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
                 VehicleManager.TypeEnum.RideHail
               )
               .managerId
@@ -316,7 +316,7 @@ class RideHailAgentSpec
           new AtomicReference(
             VehicleManager
               .createOrGetReservedFor(
-                services.beamConfig.beam.agentsim.agents.rideHail.name,
+                services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
                 VehicleManager.TypeEnum.RideHail
               )
               .managerId

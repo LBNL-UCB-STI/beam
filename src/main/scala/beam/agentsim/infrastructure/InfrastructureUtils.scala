@@ -63,15 +63,14 @@ object InfrastructureUtils extends LazyLogging {
         )
       )
       // RIDEHAIL
-      val ridehailParkingFile = List(
+      val ridehailParkingFiles = beamConfig.beam.agentsim.agents.rideHail.managers.map(managerConfig =>
         (
-          beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath,
-          VehicleManager
-            .createOrGetReservedFor(beamConfig.beam.agentsim.agents.rideHail.name, VehicleManager.TypeEnum.RideHail),
-          Seq(ParkingType.Workplace).toList
+          managerConfig.initialization.parking.filePath,
+          VehicleManager.createOrGetReservedFor(managerConfig.name, VehicleManager.TypeEnum.RideHail),
+          Seq(ParkingType.Workplace)
         )
       )
-      (sharedFleetsParkingFiles ++ freightParkingFile ++ ridehailParkingFile).toIndexedSeq
+      (sharedFleetsParkingFiles ++ freightParkingFile ++ ridehailParkingFiles).toIndexedSeq
     }
 
     // CHARGING STALLS ARE LOADED HERE

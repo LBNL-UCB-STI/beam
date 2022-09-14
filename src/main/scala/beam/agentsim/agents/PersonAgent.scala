@@ -754,7 +754,10 @@ class PersonAgent(
     // RIDE HAIL DELAY FAILURE
     // we use trigger for this to get triggerId back into hands of the person
     case Event(
-          TriggerWithId(RideHailResponseTrigger(tick, response @ RideHailResponse(_, _, Some(error), _, _)), triggerId),
+          TriggerWithId(
+            RideHailResponseTrigger(tick, response @ RideHailResponse(_, _, _, Some(error), _, _)),
+            triggerId
+          ),
           data: BasePersonData
         ) =>
       holdTickAndTriggerId(tick, triggerId)
@@ -762,7 +765,7 @@ class PersonAgent(
     // RIDE HAIL SUCCESS
     // no trigger needed here since we're going to Waiting anyway without any other actions needed
     case Event(
-          RideHailResponse(req, travelProposal, None, triggersToSchedule, directTripTravelProposal),
+          RideHailResponse(req, travelProposal, _, None, triggersToSchedule, directTripTravelProposal),
           data: BasePersonData
         ) =>
       val tick = _currentTick.getOrElse(req.departAt).toDouble
@@ -799,7 +802,7 @@ class PersonAgent(
       handleSuccessfulReservation(triggersToSchedule, data, travelProposal)
     // RIDE HAIL FAILURE
     case Event(
-          response @ RideHailResponse(_, _, Some(error), _, _),
+          response @ RideHailResponse(_, _, _, Some(error), _, _),
           data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _, _, _)
         ) =>
       handleFailedRideHailReservation(error, response, data)
@@ -1187,6 +1190,7 @@ class PersonAgent(
         nextLeg.isPooledTrip,
         requestTime = _currentTick,
         quotedWaitTime = Some(nextLeg.beamLeg.startTime - _currentTick.get),
+        requester = self,
         triggerId = getCurrentTriggerIdOrGenerate
       )
 

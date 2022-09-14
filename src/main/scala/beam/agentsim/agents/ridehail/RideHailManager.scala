@@ -25,7 +25,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{Dropoff, InitializeTrigger, MobilityRequest, Pickup}
 import beam.agentsim.events.{FleetStoredElectricityEvent, RideHailFleetStateEvent, SpaceTime}
-import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall, RideHailDepotNetwork}
+import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{HasTriggerId, Trigger}
@@ -39,6 +39,7 @@ import beam.router.skim.event.TAZSkimmerEvent
 import beam.router.{BeamRouter, RouteHistory}
 import beam.sim.RideHailFleetInitializer.RideHailAgentInitializer
 import beam.sim._
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.metrics.SimulationMetricCollector._
 import beam.utils._
@@ -81,6 +82,7 @@ object RideHailManager {
     rideHailAgentLocation: RideHailAgentLocation,
     passengerSchedule: PassengerSchedule,
     estimatedPrice: Map[Id[Person], Double],
+    maxWaitingTimeInSec: Int,
     poolingInfo: Option[PoolingInfo] = None
   ) {
 
@@ -192,6 +194,46 @@ object RideHailManager {
   }
 
   case object DebugReport
+
+  class ResponseCache {
+    private val rideHailResponseCache: mutable.Map[Id[Person], IndexedSeq[RideHailResponse]] = mutable.Map.empty
+
+    def remove(personId: Id[Person]): Option[IndexedSeq[RideHailResponse]] = rideHailResponseCache.remove(personId)
+
+    def clear(): Unit = rideHailResponseCache.clear()
+
+    def add(rideHailResponse: RideHailResponse): Unit = {
+      rideHailResponseCache.put(
+        rideHailResponse.request.customer.personId,
+        getActualResponses(rideHailResponse.request) :+ rideHailResponse
+      )
+    }
+
+    def getActualResponses(request: RideHailRequest): IndexedSeq[RideHailResponse] = {
+      val previousResponses = rideHailResponseCache.getOrElse(request.customer.personId, IndexedSeq.empty)
+      val currentTime = request.requestTime.getOrElse(0)
+      previousResponses.filter(_.request.departAt >= currentTime)
+    }
+
+    /**
+      * @param request
+      * @return the original RH response corresponding to the current request
+      */
+    def removeOriginalResponseFromCache(request: RideHailRequest): Option[RideHailResponse] = {
+      val actualResponses: IndexedSeq[RideHailResponse] = getActualResponses(request)
+      val departureTimeOrdering =
+        Ordering.by((rsp: RideHailResponse) => Math.abs(request.departAt - rsp.request.departAt))
+      val maybeOriginalResponse = actualResponses.reduceOption(departureTimeOrdering.min)
+      val updatedResponses = actualResponses diff maybeOriginalResponse.toSeq
+      if (updatedResponses.isEmpty) {
+        rideHailResponseCache.remove(request.customer.personId)
+      } else {
+        rideHailResponseCache.put(request.customer.personId, updatedResponses)
+      }
+      maybeOriginalResponse
+    }
+
+  }
 }
 
 class RideHailManager(
@@ -212,7 +254,7 @@ class RideHailManager(
   val tncIterationStats: Option[TNCIterationStats],
   val routeHistory: RouteHistory,
   val rideHailFleetInitializer: RideHailFleetInitializer,
-  val rideHailChargingNetwork: RideHailDepotNetwork
+  val managerConfig: Managers$Elm
 ) extends LoggingMessageActor
     with RideHailDepotManager
     with ActorLogging
@@ -245,16 +287,16 @@ class RideHailManager(
       .expireAfterWrite(1, TimeUnit.MINUTES)
       .build()
   }
-  private val rideHailResponseCache = new mutable.HashMap[PersonIdWithActorRef, IndexedSeq[RideHailResponse]]
+  private val rideHailResponseCache = new ResponseCache
 
   def fleetSize: Int = resources.size
 
-  val radiusInMeters: Double = beamServices.beamConfig.beam.agentsim.agents.rideHail.rideHailManager.radiusInMeters
+  val radiusInMeters: Double = managerConfig.rideHailManager.radiusInMeters
 
   val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
 
   val processBufferedRequestsOnTimeout: Boolean =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0
+    managerConfig.allocationManager.requestBufferTimeoutInSeconds > 0
 
   val modifyPassengerScheduleManager =
     new RideHailModifyPassengerScheduleManager(
@@ -272,12 +314,12 @@ class RideHailManager(
       this
     )
 
-  private val defaultBaseCost = beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost
-  private val defaultCostPerMile = beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile
-  private val defaultCostPerMinute = beamServices.beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute
-  private val pooledBaseCost = beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledBaseCost
-  private val pooledCostPerMile = beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMile
-  private val pooledCostPerMinute = beamServices.beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMinute
+  private val defaultBaseCost = managerConfig.defaultBaseCost
+  private val defaultCostPerMile = managerConfig.defaultCostPerMile
+  private val defaultCostPerMinute = managerConfig.defaultCostPerMinute
+  private val pooledBaseCost = managerConfig.pooledBaseCost
+  private val pooledCostPerMile = managerConfig.pooledCostPerMile
+  private val pooledCostPerMinute = managerConfig.pooledCostPerMinute
   tncIterationStats.foreach(_.logMap())
   private val defaultCostPerSecond = defaultCostPerMinute / 60.0d
   private val pooledCostPerSecond = pooledCostPerMinute / 60.0d
@@ -323,7 +365,7 @@ class RideHailManager(
   val maxTime: Int = Time.parseTime(beamServices.beamScenario.beamConfig.beam.agentsim.endTime).toInt
 
   // generate or load parking using agentsim.infrastructure.parking.ParkingZoneSearch
-  val parkingFilePath: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath
+  val parkingFilePath: String = managerConfig.initialization.parking.filePath
 
   private val cntEVCAV = 0
   private val cntEVnCAV = 0
@@ -359,7 +401,7 @@ class RideHailManager(
   }
 
   private val rideHailResourceAllocationManager = RideHailResourceAllocationManager(
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.name,
+    managerConfig.allocationManager.name,
     this
   )
 
@@ -457,6 +499,7 @@ class RideHailManager(
               RideHailResponse(
                 request,
                 None,
+                managerConfig.name,
                 Some(CouldNotFindRouteToCustomer)
               )
             ),
@@ -512,7 +555,7 @@ class RideHailManager(
     case MATSimNetwork(network) =>
       rideHailNetworkApi.setMATSimNetwork(network)
 
-    case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _, _, _, _, _, _, _) =>
+    case inquiry @ RideHailRequest(RideHailInquiry, _, _, _, _, _, _, _, _, _, _, _) =>
       val s = System.currentTimeMillis
       handleRideHailInquiry(inquiry)
       val diff = System.currentTimeMillis - s
@@ -557,6 +600,7 @@ class RideHailManager(
           RideHailResponse(
             request,
             None,
+            managerConfig.name,
             Some(CouldNotFindRouteToCustomer)
           )
         } else {
@@ -593,18 +637,19 @@ class RideHailManager(
                 baseFare
               )
             ),
+            rideHailResourceAllocationManager.maxWaitTimeInSec,
             singleOccupantQuoteAndPoolingInfo.poolingInfo
           )
           travelProposalCache.put(request.requestId.toString, travelProposal)
 
-          RideHailResponse(request, Some(travelProposal))
+          RideHailResponse(request, Some(travelProposal), managerConfig.name)
         }
-      request.customer.personRef ! rideHailResponse
-      rideHailResponseCache.put(request.customer, getActualResponses(request) :+ rideHailResponse)
+      request.requester ! rideHailResponse
+      rideHailResponseCache.add(rideHailResponse)
       inquiryIdToInquiryAndResponse.remove(request.requestId)
       responses.foreach(routingResp => routeRequestIdToRideHailRequestId.remove(routingResp.requestId))
 
-    case reserveRide @ RideHailRequest(ReserveRide, _, _, _, _, _, _, _, _, _, triggerId) =>
+    case reserveRide @ RideHailRequest(ReserveRide, _, _, _, _, _, _, _, _, _, _, triggerId) =>
       handleReservationRequest(reserveRide, triggerId)
 
     case modifyPassengerScheduleAck @ ModifyPassengerScheduleAck(
@@ -1182,7 +1227,7 @@ class RideHailManager(
     // Adjust depart time to account for delay from batch processing on a timeout, provides a more accurate quote
     val timeUntilNextDispatch = if (processBufferedRequestsOnTimeout) {
       val timeoutInterval =
-        beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds
+        managerConfig.allocationManager.requestBufferTimeoutInSeconds
       currentlyProcessingTimeoutTrigger match {
         case Some(triggerWithId) =>
           if (triggerWithId.trigger.tick > inquiry.departAt) {
@@ -1204,9 +1249,10 @@ class RideHailManager(
         beamServices.simMetricCollector
           .writeIteration("ride-hail-inquiry-not-available", SimulationTime(inquiry.departAt))
         log.debug("{} -- NoVehiclesAvailable", inquiryWithUpdatedLoc.requestId)
-        inquiryWithUpdatedLoc.customer.personRef ! RideHailResponse(
+        inquiryWithUpdatedLoc.requester ! RideHailResponse(
           inquiryWithUpdatedLoc,
           None,
+          managerConfig.name,
           Some(DriverNotFoundError)
         )
       case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, _) =>
@@ -1356,7 +1402,7 @@ class RideHailManager(
       travelProposal.rideHailAgentLocation
         .copy(currentPassengerSchedule = Some(travelProposal.passengerSchedule), servingPooledTrip = request.asPooled)
     )
-    val rideHailResponse = RideHailResponse(request, Some(travelProposal))
+    val rideHailResponse = RideHailResponse(request, Some(travelProposal), managerConfig.name)
     // Create confirmation info but stash until we receive ModifyPassengerScheduleAck
     pendingModifyPassengerScheduleAcks.put(
       request.requestId,
@@ -1420,23 +1466,24 @@ class RideHailManager(
           response.request.customer.personId,
           theVehicle
         )
-        val directTrip = removeOriginalResponseFromCache(response.request).flatMap(_.travelProposal)
+        val directTrip =
+          rideHailResponseCache.removeOriginalResponseFromCache(response.request).flatMap(_.travelProposal)
         if (processBufferedRequestsOnTimeout) {
           modifyPassengerScheduleManager.addTriggersToSendWithCompletion(finalTriggersToSchedule)
-          response.request.customer.personRef ! response.copy(
+          response.request.requester ! response.copy(
             triggersToSchedule = Vector(),
             directTripTravelProposal = directTrip
           )
           response.request.groupedWithOtherRequests.foreach { subReq =>
-            val subDirectTrip = removeOriginalResponseFromCache(subReq).flatMap(_.travelProposal)
-            subReq.customer.personRef ! response.copy(
+            val subDirectTrip = rideHailResponseCache.removeOriginalResponseFromCache(subReq).flatMap(_.travelProposal)
+            subReq.requester ! response.copy(
               request = subReq,
               triggersToSchedule = Vector(),
               directTripTravelProposal = subDirectTrip
             )
           }
         } else {
-          response.request.customer.personRef ! response.copy(
+          response.request.requester ! response.copy(
             triggersToSchedule = finalTriggersToSchedule,
             directTripTravelProposal = directTrip
           )
@@ -1458,26 +1505,6 @@ class RideHailManager(
     }
   }
 
-  private def getActualResponses(request: RideHailRequest) = {
-    val previousResponses = rideHailResponseCache.getOrElse(request.customer, IndexedSeq.empty)
-    val currentTime = request.requestTime.getOrElse(0)
-    previousResponses.filter(_.request.departAt >= currentTime)
-  }
-
-  private def removeOriginalResponseFromCache(request: RideHailRequest) = {
-    val actualResponses: IndexedSeq[RideHailResponse] = getActualResponses(request)
-    val departureTimeOrdering =
-      Ordering.by((rsp: RideHailResponse) => Math.abs(request.departAt - rsp.request.departAt))
-    val maybeOriginalResponse = actualResponses.reduceOption(departureTimeOrdering.min)
-    val updatedResponses = actualResponses diff maybeOriginalResponse.toSeq
-    if (updatedResponses.isEmpty) {
-      rideHailResponseCache.remove(request.customer)
-    } else {
-      rideHailResponseCache.put(request.customer, updatedResponses)
-    }
-    maybeOriginalResponse
-  }
-
   private def handleReservationRequest(request: RideHailRequest, triggerId: Long): Unit = {
     // Batched processing first
     if (processBufferedRequestsOnTimeout) {
@@ -1488,7 +1515,7 @@ class RideHailManager(
       } else {
         rideHailResourceAllocationManager.addRequestToBuffer(request)
       }
-      request.customer.personRef ! DelayedRideHailResponse
+      request.requester ! DelayedRideHailResponse
     } else {
       if (currentlyProcessingTimeoutTrigger.isEmpty) {
         // We always use the request buffer even if we will process these requests immediately
@@ -1518,7 +1545,7 @@ class RideHailManager(
     RideHailFleetInitializer.writeFleetData(
       beamServices,
       rideHailAgentInitializers.map(_.createRideHailAgentInputData),
-      "rideHailFleet.csv.gz"
+      s"rideHailFleet-${managerConfig.name}.csv.gz"
     )
 
     beamServices.beamCustomizationAPI.getRidehailManagerCustomizationAPI
@@ -1628,7 +1655,7 @@ class RideHailManager(
   }
 
   private def getDispatchProductType(tick: Int) = {
-    val allocationManagerConfig = beamScenario.beamConfig.beam.agentsim.agents.rideHail.allocationManager
+    val allocationManagerConfig = managerConfig.allocationManager
     val pooledRideHailIntervalAsMultipleOfSoloRideHail =
       allocationManagerConfig.pooledRideHailIntervalAsMultipleOfSoloRideHail
     val pooledTimeOut =
@@ -1670,7 +1697,7 @@ class RideHailManager(
             val waitTimeMaximumSatisfied = !travelProposal.passengerSchedule.uniquePassengers.exists { customer =>
               travelProposal.timeToCustomer(
                 customer
-              ) > beamScenario.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec
+              ) > managerConfig.allocationManager.maxWaitingTimeInSec
             }
             if (waitTimeMaximumSatisfied) {
               handleReservation(request, tick, travelProposal)
@@ -1729,6 +1756,7 @@ class RideHailManager(
       alloc.request.thisRequestWithGroupedRequests
         .map(calcFare(_, alloc.rideHailAgentLocation.vehicleType.id, updatedPassengerSchedule, baseFare))
         .toMap,
+      rideHailResourceAllocationManager.maxWaitTimeInSec,
       None
     )
   }
@@ -1778,7 +1806,7 @@ class RideHailManager(
   }
 
   def failedAllocation(request: RideHailRequest, tick: Int): Unit = {
-    val theResponse = RideHailResponse(request, None, Some(DriverNotFoundError))
+    val theResponse = RideHailResponse(request, None, managerConfig.name, Some(DriverNotFoundError))
     if (processBufferedRequestsOnTimeout) {
       modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
         ScheduleTrigger(
@@ -1800,9 +1828,8 @@ class RideHailManager(
         subReq.customer.personRef ! theResponse
       }
     }
-    rideHailResponseCache.remove(request.customer)
-    request.groupedWithOtherRequests.foreach { subReq =>
-      rideHailResponseCache.remove(subReq.customer)
+    request.thisRequestWithGroupedRequests.foreach { req =>
+      rideHailResponseCache.remove(req.customer.personId)
     }
     rideHailResourceAllocationManager.removeRequestFromBuffer(request)
   }
@@ -1886,10 +1913,10 @@ class RideHailManager(
 
   def getRideInitLocation(person: Person): Location = {
     val rideInitialLocation: Location =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name match {
+      managerConfig.initialization.procedural.initialLocation.name match {
         case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_RANDOM_ACTIVITY =>
           val radius =
-            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
+            managerConfig.initialization.procedural.initialLocation.home.radiusInMeters
           val activityLocations: List[Location] =
             person.getSelectedPlan.getPlanElements.asScala
               .collect { case activity: Activity => activity.getCoord }
@@ -1908,7 +1935,7 @@ class RideHailManager(
               .asInstanceOf[Activity]
               .getCoord
           val radius =
-            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
+            managerConfig.initialization.procedural.initialLocation.home.radiusInMeters
           new Coord(
             personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
             personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
@@ -1936,7 +1963,7 @@ class RideHailManager(
               .asInstanceOf[Activity]
               .getCoord
           val radius =
-            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
+            managerConfig.initialization.procedural.initialLocation.home.radiusInMeters
           new Coord(
             personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
             personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
