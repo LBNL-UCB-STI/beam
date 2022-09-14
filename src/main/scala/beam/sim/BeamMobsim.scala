@@ -27,6 +27,7 @@ import beam.sim.metrics.{Metrics, MetricsSupport, SimulationMetricCollector}
 import beam.sim.monitoring.ErrorListener
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehiclesharing.Fleets
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils._
 import beam.utils.csv.writers.PlansCsvWriter
 import beam.utils.logging.{LoggingMessageActor, MessageLogger}
@@ -65,10 +66,16 @@ class BeamMobsim @Inject() (
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
-  private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(500000, TimeUnit.SECONDS)
 
   import beamServices._
-  val physsimConfig = beamConfig.beam.physsim
+  val physsimConfig: Beam.Physsim = beamConfig.beam.physsim
+
+  val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
+    geo,
+    beamScenario.transportNetwork.streetLayer,
+    beamConfig.beam.routing.r5.linkRadiusMeters
+  )
 
   override def run(): Unit = {
     logger.info("Starting Iteration")
@@ -139,11 +146,18 @@ class BeamMobsim @Inject() (
       }
     )(scala.concurrent.ExecutionContext.global)
 
-    if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
+    if (beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
       fillInSecondaryActivities(
         beamServices.matsimServices.getScenario.getHouseholds
       )
+      beamServices.skims.od_skimmer.displaySkimStats()
+      beamServices.skims.parking_skimmer.displaySkimStats()
+      beamServices.skims.rh_skimmer.displaySkimStats()
+      beamServices.skims.freight_skimmer.displaySkimStats()
+      beamServices.skims.taz_skimmer.displaySkimStats()
+      beamServices.skims.dt_skimmer.displaySkimStats()
+      beamServices.skims.tc_skimmer.displaySkimStats()
     }
 
     if (beamServices.beamConfig.beam.output.writePlansAndStopSimulation) {
@@ -197,7 +211,7 @@ class BeamMobsim @Inject() (
         case VehicleCategory.Bike => BeamMode.BIKE
       }.toList
 
-      val cavs = vehicles.filter(_.beamVehicleType.automationLevel > 3).toList
+      val cavs = vehicles.filter(_.isCAV).toList
 
       val cavModeAvailable: List[BeamMode] =
         if (cavs.nonEmpty) {
@@ -224,7 +238,8 @@ class BeamMobsim @Inject() (
               person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
               destinationChoiceModel,
               beamServices,
-              person.getId
+              person.getId,
+              snapLocationHelper
             )
           val newPlan =
             supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationChoiceModel, modesAvailable)
@@ -373,6 +388,7 @@ class BeamMobsimIteration(
     Props(
       classOf[BeamAgentScheduler],
       beamConfig,
+      beamServices.matsimServices.getControlerIO.getOutputPath,
       Time.parseTime(beamConfig.matsim.modules.qsim.endTime).toInt,
       config.schedulerParallelismWindow,
       new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
@@ -393,7 +409,7 @@ class BeamMobsimIteration(
 
   import scala.language.existentials
 
-  private val (parkingNetwork, nonRhChargingNetwork, rhChargingNetwork) =
+  private val (parkingNetwork, chargingNetwork, rhDepotNetwork) =
     InfrastructureUtils.buildParkingAndChargingNetworks(beamServices, envelopeInUTM)
 
   // Parking Network Manager
@@ -408,7 +424,7 @@ class BeamMobsimIteration(
   // Charging Network Manager
   private val chargingNetworkManager = context.actorOf(
     ChargingNetworkManager
-      .props(beamServices, nonRhChargingNetwork, rhChargingNetwork, parkingNetworkManager, scheduler)
+      .props(beamServices, chargingNetwork, rhDepotNetwork, parkingNetworkManager, scheduler)
       .withDispatcher("charging-network-manager-pinned-dispatcher"),
     "ChargingNetworkManager"
   )
@@ -444,7 +460,7 @@ class BeamMobsimIteration(
         rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
         routeHistory,
         rideHailFleetInitializer,
-        rhChargingNetwork
+        rhDepotNetwork
       )
     ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
     "RideHailManager"

@@ -225,9 +225,9 @@ object HOVModeTransformer extends LazyLogging {
 
     if (cantSplitTripsForPersons.nonEmpty) {
       logger.info(
-        "Cannot split plans to trips because plans does not start and end by Home activity for {} persons: {}",
+        "Cannot split plans to trips because plans does not start and end by Home activity for {} persons including: {}",
         cantSplitTripsForPersons.size,
-        cantSplitTripsForPersons.mkString(",")
+        cantSplitTripsForPersons.take(10).mkString(",")
       )
     }
 
