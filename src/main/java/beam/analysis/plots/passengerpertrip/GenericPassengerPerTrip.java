@@ -8,6 +8,7 @@ import org.jfree.data.category.CategoryDataset;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -15,6 +16,8 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# trips";
     private static final int DEFAULT_OCCURRENCE = 1;
+    private static final int NUMBER_OF_BUCKETS = 4;
+    ArrayList<Integer> nonZeroColumns = new ArrayList<Integer>(NUMBER_OF_BUCKETS + 1);
     int eventCounter = 0;
     int maxHour = 0;
 
@@ -57,30 +60,41 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
 
     private double[][] buildDeadHeadingDataSet(Map<Integer, Map<Integer, Integer>> data, String graphName) {
         int maxPassengers = maxPassengersSeenOnGenericCase;
-        double[][] dataSet;
+        double[][] matrixDataSet;
 
         // This loop gives the loop over all the different passenger groups, which is 1 in other cases.
         // In this case we have to group 0, 1 to 5, 6 to 10
 
         int bucketSize = getBucketSize();
-        int dataSize = bucketSize > 0 ? (int)Math.ceil(maxPassengers / (double)bucketSize) + 1 : 1;
-        dataSet = new double[dataSize][maxHour + 1];
+        ArrayList<double[]> dataSet = new ArrayList<double[]>(NUMBER_OF_BUCKETS + 1);
         // We need only 5 data columns at maximum, 0 - 4 buckets depending on maxPassengers and one for 0 passengers
         // The modeOccurrentPerHour array index will not go beyond 5 as all the passengers will be
         // accomodated within the 4 buckets because the index will not be incremented until all
         // passengers falling in one bucket are added into that index of modeOccurrencePerHour
         double[] modeOccurrencePerHour = new double[maxHour + 1];
         int bucket = 0;
+        boolean empty = true;
         for (int i = 0; i <= maxPassengers; i++) {
             modeOccurrencePerHour = getModeOccurrenceOfPassengerWithBucketSize(data, modeOccurrencePerHour, maxHour, i);
             if (i == 0 || (i % bucketSize == 0) || i == maxPassengers) {
-                dataSet[bucket] = modeOccurrencePerHour;
-                modeOccurrencePerHour = new double[maxHour + 1];
+                if (hasNonZeroValue(modeOccurrencePerHour)) {
+                    dataSet.add(modeOccurrencePerHour);
+                    nonZeroColumns.add(bucket);
+                    empty = false;
+                    modeOccurrencePerHour = new double[maxHour + 1];
+                }
                 bucket = bucket + 1;
             }
         }
+        // just to keep at least one column of data in case there are no vehicles
+        if (empty) {
+            dataSet.add(new double[maxHour + 1]);
+            nonZeroColumns.add(0);
+        }
 
-        return dataSet;
+        matrixDataSet = new double[dataSet.size()][];
+
+        return dataSet.toArray(matrixDataSet);
     }
 
 
@@ -97,17 +111,19 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
     @Override
     public String getLegendText(int i) {
 
+        int column = nonZeroColumns.get(i);
+
         int bucketSize = getBucketSize();
         if (bucketSize <= 0) {
             bucketSize = 1;
         }
 
-        if (i == 0) {
+        if (column == 0) {
             return "0";
         } else {
-            int start = (i - 1) * bucketSize + 1;
-            int end = (i - 1) * bucketSize + bucketSize;
-            return start + "-" + end;
+            int start = (column - 1) * bucketSize + 1;
+            int end = (column - 1) * bucketSize + bucketSize;
+            return start == end ? Integer.toString(start) : start + "-" + end;
         }
 
     }
@@ -124,6 +140,15 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
             index = index + 1;
         }
         return modeOccurrencePerHour;
+    }
+
+    private static boolean hasNonZeroValue(double[] array) {
+        for (int i = 0; i < array.length; i++) {
+            if (array[i] != 0.0) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private double[] getEventFrequenciesBinByNumberOfPassengers(int numberOfpassengers, int maxHour) {
@@ -179,7 +204,7 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
     }
 
     private int getBucketSize() {
-        return (int) Math.ceil(maxPassengersSeenOnGenericCase / 4.0);
+        return (int) Math.ceil(maxPassengersSeenOnGenericCase / (double)NUMBER_OF_BUCKETS);
     }
 }
 
