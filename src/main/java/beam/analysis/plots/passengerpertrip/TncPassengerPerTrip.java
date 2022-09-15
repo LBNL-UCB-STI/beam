@@ -15,6 +15,7 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
     private static final String xAxisTitle = "Hour";
     private static final String yAxisTitle = "# trips";
     private static final int DEFAULT_OCCURRENCE = 1;
+    ArrayList<Integer> nonZeroColumns = new ArrayList<Integer>(TNC_MAX_PASSENGERS + 2);
 
     int eventCounter = 0;
     int passengerCounter = 0;
@@ -124,16 +125,31 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
         int maxHour = hours.get(hours.size() - 1);
         int maxPassengers = TNC_MAX_PASSENGERS;
 
-        double[][] dataSet;
+        double[][] matrixDataSet;
 
         int dataSetLength = maxPassengers + 2;
-        dataSet = new double[dataSetLength][maxHour + 1];
-        dataSet[0] = getModeOccurrencePerHourAgainstMode(data, maxHour, -1);
+        ArrayList<double[]> dataSet = new ArrayList<double[]>(dataSetLength);
+        dataSet.add(getModeOccurrencePerHourAgainstMode(data, maxHour, -1));
+        nonZeroColumns.add(0);
 
+        boolean empty = true;
         for (int i = 1; i <= maxPassengers; i++) {
-            dataSet[i] = getModeOccurrencePerHourAgainstMode(data, maxHour, i - 1);
+            double[] occurrence = getModeOccurrencePerHourAgainstMode(data, maxHour, i - 1);
+            if (occurrence != null) {
+                dataSet.add(occurrence);
+                nonZeroColumns.add(i);
+                empty = false;
+            }
         }
-        return dataSet;
+
+        // just to keep at least one column of data in case there are no vehicles
+        if (empty) {
+            dataSet.add(new double[maxHour + 1]);
+            nonZeroColumns.add(1);
+        }
+
+        matrixDataSet = new double[dataSet.size()][];
+        return dataSet.toArray(matrixDataSet);
     }
 
     @Override
@@ -148,10 +164,11 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
 
     @Override
     public String getLegendText(int i) {
-        if (i == 0) {
+        int column = nonZeroColumns.get(i);
+        if (column == 0) {
             return "repositioning";
         }
-        return Integer.toString(i - 1);
+        return Integer.toString(column - 1);
     }
 
     private double[] getModeOccurrenceOfPassengerWithBucketSize(Map<Integer, Map<Integer, Integer>> data, double[] modeOccurrencePerHour, int maxHour, int outerLoopIndex) {
@@ -230,17 +247,21 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
 
     private double[] getModeOccurrencePerHourAgainstMode(Map<Integer, Map<Integer, Integer>> data, int maxHour, int outerLoopIndex) {
         double[] modeOccurrencePerHour = new double[maxHour + 1];
+        boolean nonZero = outerLoopIndex < 0; // always shows the "repositioning" column
         int index = 0;
         for (int hour = 0; hour <= maxHour; hour++) {
             Map<Integer, Integer> hourData = data.get(hour);
             if (hourData != null) {
                 modeOccurrencePerHour[index] = hourData.get(outerLoopIndex) == null ? 0 : hourData.get(outerLoopIndex);
+                if (modeOccurrencePerHour[index] != 0) {
+                    nonZero = true;
+                }
             } else {
                 modeOccurrencePerHour[index] = 0;
             }
             index = index + 1;
         }
-        return modeOccurrencePerHour;
+        return nonZero ? modeOccurrencePerHour : null;
     }
 }
 
