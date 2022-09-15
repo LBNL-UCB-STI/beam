@@ -11,6 +11,7 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{HasTriggerId, Trigger}
@@ -325,8 +326,6 @@ object ChargingNetworkManager extends LazyLogging {
     lazy val allChargingStations: List[ChargingStation] =
       chargingNetwork.chargingStations.filter(_.zone.chargingPointType.isDefined) ++ rideHailNetwork.chargingStations
         .filter(_.zone.chargingPointType.isDefined)
-
-    lazy val allPersons: List[Id[Person]] = allChargingStations.flatMap(_.persons)
 
     /**
       * @param managerId vehicle manager id
