@@ -84,9 +84,19 @@ class BeamScoringFunctionFactory @Inject() (
           case modeChoiceEvent: ModeChoiceEvent =>
             trips.append(modeChoiceEvent.chosenTrip)
           case e: ReplanningEvent if trips.isEmpty =>
-            logger.error(
-              f"We need to remove a trip, but the trips collection is empty, this might be a bug. The event: ${e.toString}, the person: ${person.getId.toString}"
-            )
+            // FIXME? What's a reason of sending a scoring function at replanning?
+            if (e.getReason == "HouseholdVehicleNotAvailable CAR") {
+              logger.debug(
+                s"Household does not have an available vehicle and the agent has likely triggered " +
+                s"a replanning. Value if  replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable is " +
+                s"${beamConfig.beam.agentsim.agents.vehicles.replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable}"
+              )
+            } else {
+              logger.error(
+                f"We need to remove a trip, but the trips collection is empty, this might be a bug. " +
+                f"The event: ${e.toString}, the person: ${person.getId.toString}"
+              )
+            }
           case _: ReplanningEvent =>
             // FIXME? If this happens often, maybe we can optimize it:
             // trips is a ListBuffer meaning removing is O(n)
