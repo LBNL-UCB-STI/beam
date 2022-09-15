@@ -63,8 +63,9 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
         // In this case we have to group 0, 1 to 5, 6 to 10
 
         int bucketSize = getBucketSize();
-        dataSet = new double[5][maxHour + 1];
-        // We need only 5 buckets
+        int dataSize = bucketSize > 0 ? (int)Math.ceil(maxPassengers / (double)bucketSize) + 1 : 1;
+        dataSet = new double[dataSize][maxHour + 1];
+        // We need only 5 data columns at maximum, 0 - 4 buckets depending on maxPassengers and one for 0 passengers
         // The modeOccurrentPerHour array index will not go beyond 5 as all the passengers will be
         // accomodated within the 4 buckets because the index will not be incremented until all
         // passengers falling in one bucket are added into that index of modeOccurrencePerHour
