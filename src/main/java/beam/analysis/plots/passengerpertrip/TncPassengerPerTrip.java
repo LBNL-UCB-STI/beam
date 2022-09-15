@@ -126,6 +126,7 @@ public class TncPassengerPerTrip implements IGraphPassengerPerTrip{
         int maxPassengers = TNC_MAX_PASSENGERS;
 
         double[][] matrixDataSet;
+        nonZeroColumns.clear(); // just in case this is processed more than once.
 
         int dataSetLength = maxPassengers + 2;
         ArrayList<double[]> dataSet = new ArrayList<double[]>(dataSetLength);

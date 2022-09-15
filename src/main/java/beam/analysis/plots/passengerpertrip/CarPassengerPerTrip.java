@@ -64,6 +64,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
 
     public double[][] buildMatrixDataSet() {
         ArrayList<double[]> dataSet = new ArrayList<double[]>(maxPassengers);
+        nonZeroColumns.clear(); // just in case this is processed more than once.
 
         boolean empty = true;
         for (int numberOfPassengers = 0; numberOfPassengers <= maxPassengers; numberOfPassengers++) {

@@ -61,10 +61,10 @@ public class GenericPassengerPerTrip implements IGraphPassengerPerTrip{
     private double[][] buildDeadHeadingDataSet(Map<Integer, Map<Integer, Integer>> data, String graphName) {
         int maxPassengers = maxPassengersSeenOnGenericCase;
         double[][] matrixDataSet;
+        nonZeroColumns.clear(); // just in case this is processed more than once.
 
         // This loop gives the loop over all the different passenger groups, which is 1 in other cases.
         // In this case we have to group 0, 1 to 5, 6 to 10
-
         int bucketSize = getBucketSize();
         ArrayList<double[]> dataSet = new ArrayList<double[]>(NUMBER_OF_BUCKETS + 1);
         // We need only 5 data columns at maximum, 0 - 4 buckets depending on maxPassengers and one for 0 passengers
