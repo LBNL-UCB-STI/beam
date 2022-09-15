@@ -209,8 +209,11 @@ trait ScaleUpCharging extends {
             val rate = totNumberOfEvents / timeStepByHour
             var cumulatedSimulatedPower = 0.0
             var timeStep = 0
-            val activitiesLocationInCurrentTAZ =
-              activitiesLocationMap.get(tazId).flatMap(_.filterNot(a => allPersons.contains(a.personId))).toVector
+            val activitiesLocationInCurrentTAZ: Vector[ActivityLocation] =
+              activitiesLocationMap
+                .get(tazId)
+                .map(_.filterNot(a => allPersons.contains(a.personId)))
+                .getOrElse(Vector.empty)
             while (cumulatedSimulatedPower < totPowerInKWToSimulate && timeStep < timeStepByHour * 3600) {
               val (_, summary) = activityType2vehicleInfo(distribution.sample())
               val duration = Math.max(
