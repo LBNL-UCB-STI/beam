@@ -145,7 +145,7 @@ trait ScaleUpCharging extends {
     * @return
     */
   protected def simulateEventsIfScalingEnabled(timeBin: Int, triggerId: Long): Vector[ScheduleTrigger] = {
-    val allPersons = this.chargingNetworkHelper.allPersons
+    var allPersons = this.chargingNetworkHelper.allPersons
     vehicleRequests
       .groupBy(_._1._1)
       .par
@@ -236,6 +236,7 @@ trait ScaleUpCharging extends {
                   case Some(activitiesLocation) if activitiesLocation.nonEmpty =>
                     val _ @ActivityLocation(_, personId, _, _, location) =
                       activitiesLocation(rand.nextInt(activitiesLocation.size))
+                    allPersons = allPersons :+ personId
                     (personId, getBeamServices.geo.wgs2Utm(location))
                   case _ =>
                     val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
