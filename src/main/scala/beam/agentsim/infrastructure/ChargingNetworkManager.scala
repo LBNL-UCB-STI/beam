@@ -326,6 +326,8 @@ object ChargingNetworkManager extends LazyLogging {
       chargingNetwork.chargingStations.filter(_.zone.chargingPointType.isDefined) ++ rideHailNetwork.chargingStations
         .filter(_.zone.chargingPointType.isDefined)
 
+    lazy val allPersons: List[Id[Person]] = allChargingStations.flatMap(_.persons)
+
     /**
       * @param managerId vehicle manager id
       * @return

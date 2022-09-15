@@ -277,6 +277,7 @@ object ChargingNetwork extends LazyLogging {
     def howManyVehiclesAreCharging: Int = chargingVehiclesInternal.size
     def howManyVehiclesAreInGracePeriodAfterCharging: Int = vehiclesInGracePeriodAfterCharging.size
     def howManyVehiclesOnTheWayToStation: Int = parkingInquiries.size
+    def persons: Iterable[Id[Person]] = vehicles.map(_._2.personId)
 
     def remainingChargeDurationFromPluggedInVehicles(tick: Int): Int = {
       chargingVehiclesInternal.map { case (_, chargingVehicle) =>

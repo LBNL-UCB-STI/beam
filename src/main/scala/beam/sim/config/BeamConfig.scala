@@ -2016,6 +2016,7 @@ object BeamConfig {
         }
 
         case class ScaleUp(
+          activitiesLocationFilePath: java.lang.String,
           enabled: scala.Boolean,
           expansionFactor_charge_activity: scala.Double,
           expansionFactor_home_activity: scala.Double,
@@ -2028,6 +2029,8 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp = {
             BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
+              activitiesLocationFilePath =
+                if (c.hasPathOrNull("activitiesLocationFilePath")) c.getString("activitiesLocationFilePath") else "",
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
               expansionFactor_charge_activity =
                 if (c.hasPathOrNull("expansionFactor_charge_activity")) c.getDouble("expansionFactor_charge_activity")

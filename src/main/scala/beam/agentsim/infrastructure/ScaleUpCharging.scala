@@ -13,12 +13,16 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.utils.BeamVehicleUtils.toPowerInKW
 import beam.utils.MathUtils.roundUniformly
-import beam.utils.{MathUtils, VehicleIdGenerator}
+import beam.utils.scenario.HouseholdId
+import beam.utils.{FileUtils, MathUtils, VehicleIdGenerator}
+import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
 import org.apache.commons.math3.util.{Pair => CPair}
-import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.api.core.v01.population.Person
+import org.supercsv.io.CsvMapReader
+import org.supercsv.prefs.CsvPreference
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
@@ -46,6 +50,13 @@ trait ScaleUpCharging extends {
         ParkingActivityType.Wherever -> cnmConfig.scaleUp.expansionFactor_wherever_activity
       )
     }
+  }
+
+  private lazy val activitiesLocationMap: Map[Id[TAZ], Vector[ActivityLocation]] = {
+    ActivityLocation
+      .readActivitiesLocation(cnmConfig.scaleUp.activitiesLocationFilePath)
+      .filter(a => a.location.getX != 0 && a.location.getY != 0 && a.activityType.nonEmpty)
+      .groupBy(_.tazId)
   }
 
   private lazy val defaultScaleUpFactor: Double =
@@ -134,6 +145,7 @@ trait ScaleUpCharging extends {
     * @return
     */
   protected def simulateEventsIfScalingEnabled(timeBin: Int, triggerId: Long): Vector[ScheduleTrigger] = {
+    val allPersons = this.chargingNetworkHelper.allPersons
     vehicleRequests
       .groupBy(_._1._1)
       .par
@@ -197,6 +209,8 @@ trait ScaleUpCharging extends {
             val rate = totNumberOfEvents / timeStepByHour
             var cumulatedSimulatedPower = 0.0
             var timeStep = 0
+            val activitiesLocationInCurrentTAZ =
+              activitiesLocationMap.get(tazId).flatMap(_.filterNot(a => allPersons.contains(a.personId))).toVector
             while (cumulatedSimulatedPower < totPowerInKWToSimulate && timeStep < timeStepByHour * 3600) {
               val (_, summary) = activityType2vehicleInfo(distribution.sample())
               val duration = Math.max(
@@ -211,12 +225,19 @@ trait ScaleUpCharging extends {
               val vehicleTypeInfo = vehicleTypeInfoDistribution.sample()
               val soc = summary.meanSOC / 100.0
               val energyToCharge = summary.getEnergy(rand)
-              val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
-              val destinationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
               val activityType = activityTypeDistribution.sample()
               val reservedFor = vehicleTypeInfo.reservedFor
-              val beamVehicle = getBeamVehicle(vehicleTypeInfo, soc)
-              val personId = getPerson(beamVehicle.id)
+              val beamVehicle = createBeamVehicle(vehicleTypeInfo, soc)
+              val (personId, destinationUtm) =
+                Option(activitiesLocationInCurrentTAZ.filter(_.activityType == activityType)) match {
+                  case Some(activitiesLocation) if activitiesLocation.nonEmpty =>
+                    val _ @ActivityLocation(_, personId, _, _, location) =
+                      activitiesLocation(rand.nextInt(activitiesLocation.size))
+                    (personId, getBeamServices.geo.wgs2Utm(location))
+                  case _ =>
+                    val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
+                    (createPerson(beamVehicle.id), TAZTreeMap.randomLocationInTAZ(taz, rand))
+                }
               val startTime = timeBin + timeStep
               val parkingInquiry = ParkingInquiry(
                 SpaceTime(destinationUtm, startTime),
@@ -303,7 +324,7 @@ trait ScaleUpCharging extends {
     * @param soc State Of Charge In Double
     * @return
     */
-  protected def getBeamVehicle(vehicleTypeInfo: VehicleTypeInfo, soc: Double): BeamVehicle = {
+  protected def createBeamVehicle(vehicleTypeInfo: VehicleTypeInfo, soc: Double): BeamVehicle = {
     val powerTrain = new Powertrain(vehicleTypeInfo.vehicleType.primaryFuelConsumptionInJoulePerMeter)
     val nextId = VehicleIdGenerator.nextId
     val beamVehicle = new BeamVehicle(
@@ -321,7 +342,7 @@ trait ScaleUpCharging extends {
     * @param vehicleId vehicle Id
     * @return
     */
-  protected def getPerson(vehicleId: Id[BeamVehicle]): Id[Person] = {
+  protected def createPerson(vehicleId: Id[BeamVehicle]): Id[Person] = {
     Id.create(vehicleId.toString, classOf[Person])
   }
 
@@ -384,6 +405,44 @@ object ScaleUpCharging {
       val sigma = if (phi <= 0) 0.0 else Math.sqrt(Math.log((phi * phi) / (mean * mean))) /* std dev of log(Y) */
       val x = MathUtils.roundUniformly(Math.max(mu + (rand.nextGaussian() * sigma), 0.0), rand).toInt
       Math.exp(x)
+    }
+  }
+
+  case class ActivityLocation(
+    tazId: Id[TAZ],
+    personId: Id[Person],
+    householdId: Id[HouseholdId],
+    activityType: String,
+    location: Coord
+  )
+
+  object ActivityLocation extends LazyLogging {
+    private val fileHeader = Seq[String]("TAZ", "person_id", "household_id", "ActivityType", "x", "y")
+
+    def readActivitiesLocation(filePath: String): Vector[ActivityLocation] = {
+      var res = Vector.empty[ActivityLocation]
+      var mapReader: CsvMapReader = null
+      try {
+        mapReader = new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+        val header = mapReader.getHeader(true)
+        var line: java.util.Map[String, String] = mapReader.read(header: _*)
+        while (null != line) {
+          val idz = Id.create(line.getOrDefault(fileHeader(0), ""), classOf[TAZ])
+          val idp = Id.create(line.getOrDefault(fileHeader(1), ""), classOf[Person])
+          val idh = Id.create(line.getOrDefault(fileHeader(2), ""), classOf[HouseholdId])
+          val activityType = line.getOrDefault(fileHeader(3), "")
+          val x = line.getOrDefault(fileHeader(4), "0.0").toDouble
+          val y = line.getOrDefault(fileHeader(5), "0.0").toDouble
+          res = res :+ ActivityLocation(idz, idp, idh, activityType, new Coord(x, y))
+          line = mapReader.read(header: _*)
+        }
+      } catch {
+        case e: Exception => logger.info(s"issue with reading $filePath: $e")
+      } finally {
+        if (null != mapReader)
+          mapReader.close()
+      }
+      res
     }
   }
 }
