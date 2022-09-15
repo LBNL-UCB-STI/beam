@@ -85,11 +85,6 @@ class RideHailMaster(
 
   for (rhm <- rideHailManagers.values) context.watch(rhm)
 
-  rideHailManagers.foreach { case (rhmName, rideHailManager) =>
-    val managerConfig = beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.find(_.name == rhmName).get
-    scheduleRideHailManagerTimerMessages(managerConfig, rideHailManager)
-  }
-
   private val inquiriesWithResponses: mutable.Map[Int, RequestWithResponses] = mutable.Map.empty
   private val rideHailResponseCache = new ResponseCache
 
@@ -105,17 +100,15 @@ class RideHailMaster(
     case rideHailResponse: RideHailResponse if rideHailResponse.request.requestType == RideHailInquiry =>
       val requestId = rideHailResponse.request.requestId
       val requestWithResponses: RequestWithResponses = inquiriesWithResponses(requestId)
-      val allData = requestWithResponses.addResponse(rideHailResponse)
-      if (allData.responses.size == rideHailManagers.size) {
+      val newRequestWithResponses = requestWithResponses.addResponse(rideHailResponse)
+      if (newRequestWithResponses.responses.size == rideHailManagers.size) {
         inquiriesWithResponses.remove(requestId)
-        val withProposals = allData.responses.filter(_.travelProposal.isDefined)
-        val bestResponse =
-          if (withProposals.isEmpty) allData.responses.head
-          else withProposals.minBy(_.travelProposal.get.estimatedPrice(rideHailResponse.request.customer.personId))
+        val bestResponse: RideHailResponse =
+          findBestProposal(requestWithResponses.request.customer.personId, newRequestWithResponses.responses)
         rideHailResponseCache.add(bestResponse)
-        allData.request.customer.personRef ! bestResponse
+        newRequestWithResponses.request.customer.personRef ! bestResponse
       } else {
-        inquiriesWithResponses.update(requestId, allData)
+        inquiriesWithResponses.update(requestId, newRequestWithResponses)
       }
 
     case reserveRide: RideHailRequest if reserveRide.requestType == ReserveRide =>
@@ -138,16 +131,10 @@ class RideHailMaster(
       rideHailManagers.values.foreach(_.forward(anyOtherMessage))
   }
 
-  private def scheduleRideHailManagerTimerMessages(managerConfig: Managers$Elm, rideHailManager: ActorRef): Unit = {
-    if (managerConfig.repositioningManager.timeout > 0) {
-      // We need to stagger init tick for repositioning manager and allocation manager
-      // This is important because during the `requestBufferTimeoutInSeconds` repositioned vehicle is not available, so to make them work together
-      // we have to make sure that there is no overlap
-      val initTick = managerConfig.repositioningManager.timeout / 2
-      scheduler ! ScheduleTrigger(RideHailRepositioningTrigger(initTick), rideHailManager)
-    }
-    if (managerConfig.allocationManager.requestBufferTimeoutInSeconds > 0)
-      scheduler ! ScheduleTrigger(BufferedRideHailRequestsTrigger(0), rideHailManager)
+  private def findBestProposal(customer: Id[Person], responses: IndexedSeq[RideHailResponse]) = {
+    val withProposals = responses.filter(_.travelProposal.isDefined)
+    if (withProposals.isEmpty) responses.head
+    else withProposals.minBy(_.travelProposal.get.estimatedPrice(customer))
   }
 }
 
