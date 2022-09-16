@@ -2,6 +2,11 @@ import pandas as pd
 import os
 import random
 from tqdm import tqdm
+from pyproj import Proj, transform
+from pyproj import Transformer
+import numpy as np
+pd.options.mode.chained_assignment = None
+
 
 def read_csv_file(filename):
     compression = None
@@ -9,26 +14,32 @@ def read_csv_file(filename):
         compression = 'gzip'
     return pd.read_csv(filename, sep=",", index_col=None, header=0, compression=compression)
 
-nrel_file_input = os.path.expanduser('~/Data/GEMINI/2022Feb/siting/init1-7_2022_Feb_03_wgs84.csv')
+
+workdir = "~/Data/GEMINI/2022-04/infrastructure/"
+nrel_file_input = os.path.expanduser(workdir + '6_output_2022_Apr_13_pubClust.csv')
 smart_file_input = os.path.expanduser("~/Data/GEMINI/stations/taz-parking-sparse-fast-limited-l2-150-lowtech-b.csv")
 nrel_file_converted_input = os.path.expanduser(nrel_file_input.split(".")[0] + "_converted.csv")
 smart_file_updated_input = os.path.expanduser(smart_file_input.split(".")[0] + "_updated.csv")
 smart_file_with_fees_input = os.path.expanduser(nrel_file_input.split(".")[0] + "_withFees.csv.gz")
 
+transformer = Transformer.from_crs(7131, 4326, always_xy=True)
+
 
 def convert_nrel_data(nrel_file, nrel_file_converted):
     if not os.path.exists(nrel_file_converted):
         data = read_csv_file(nrel_file)
-        data2 = data[["subSpace", "pType", "chrgType", "field_1", "household_id", "X", "Y", "housingTypes", "propertytype", "propertysubtype", "county"]]
+        data2 = data[["subSpace", "pType", "chrgType", "household_id", "geometry", "housingTypes", "propertytype", "county"]]
+        data2[['geomType', 'lon', 'lat']] = data2["geometry"].str.split(" ", expand=True)
+        xx, yy = transformer.transform(data2["lon"].values, data2["lat"].values)
+        data2["X"] = xx
+        data2["Y"] = yy
+        data2 = data2.drop(columns=['geomType', "lon", "lat", "geometry"], errors='ignore')
         data2 = data2.rename(columns={
             "chrgType": "chargingPointType",
             "pType": "parkingType",
             "subSpace": "taz",
-            "X": "locationX",
-            "Y": "locationY",
             "housingTypes": "housingType",
             "propertytype": "propertyType",
-            "propertysubtype": "propertySubType",
             "county": "county"
         })
         data2["parkingZoneId"] = ""
@@ -36,11 +47,12 @@ def convert_nrel_data(nrel_file, nrel_file_converted):
         data2["pricingModel"] = "Block"
         data2["feeInCents"] = 0
         data2["numStalls"] = 1
-        data2.loc[data2["household_id"].notna(), ['reservedFor']] = data2.loc[data2["household_id"].notna()].apply(
-            lambda row1: "household(" + str(int(row1["household_id"])) + ")", axis=1)
-        data2.loc[data2["field_1"].notna(), ['parkingZoneId']] = data2.loc[data2["field_1"].notna()].apply(
-            lambda row2: "PEV-" + str(int(row2["taz"])) + "-" + str(int(row2["field_1"])), axis=1)
-        nrel_data = data2.drop(columns=['household_id', 'field_1'])
+        data2.loc[data2["household_id"].notna(), ['reservedFor']] = \
+            "household(" + data2.loc[data2["household_id"].notna(), "household_id"].astype(int).astype(str) + ")"
+        frequency = data2['parkingZoneId'].count()
+        set_of_ids = np.random.randint(1000000, 9999999, frequency)
+        data2['parkingZoneId'] = data2["taz"].astype(str) + "-" + set_of_ids.astype(str)
+        nrel_data = data2.drop(columns=['household_id'])
         nrel_data.to_csv(nrel_file_converted, index=False)
         print("Reading nrel infrastructure done!")
         return nrel_data
@@ -90,13 +102,8 @@ def assign_fees_to_infrastructure(nrel_data, fees_data, smart_file_with_fees):
             cumulated = cumulated + float(row2.numStalls) / float(tot_stalls)
             if cumulated >= rd_prob:
                 break
-        if "(150.0|DC)" in row["chargingPointType"]:
-            memorized_fee = memorized_fee * 1.6
-        elif "(250.0|DC)" in row["chargingPointType"]:
-            memorized_fee = memorized_fee * 2.2
-        elif "(400.0|DC)" in row["chargingPointType"]:
-            memorized_fee = memorized_fee * 3.1
-        row["feeInCents"] = memorized_fee
+        power = float(row["chargingPointType"].split("(")[1].split("|")[0])
+        row["feeInCents"] = memorized_fee * max(power/150.0, 1.0)
     output = pd.DataFrame.from_dict(df_dict)
     output.reset_index(drop=True, inplace=True)
     output.to_csv(smart_file_with_fees, index=False)

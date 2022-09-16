@@ -69,7 +69,7 @@ class PersonAndTransitDriverSpec
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
-  private var parkingNetwork: ParkingNetwork[_] = _
+  private var parkingNetwork: ParkingNetwork = _
   private var parkingManager: ActorRef = _
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()

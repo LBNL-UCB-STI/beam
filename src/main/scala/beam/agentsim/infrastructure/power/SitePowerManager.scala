@@ -31,7 +31,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     case Some(spmcConfig) if spmcConfig.connect =>
       logger.warn("ChargingNetworkManager should connect to a site power controller via Helics...")
       Try {
-        val tazIdToChargingStations = chargingNetworkHelper.allChargingStations.groupBy(_.zone.geoId)
+        val tazIdToChargingStations = chargingNetworkHelper.allChargingStations.groupBy(_.zone.tazId)
         logger.info("Init SitePowerManager Federates for {} TAZes...", tazIdToChargingStations.size)
         val fedInfo = createFedInfo(
           spmcConfig.coreType,
@@ -83,7 +83,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     * @param timeBin
     */
   def obtainPowerCommandsAndLimits(timeBin: Int): Unit = {
-    val numPluggedVehicles = chargingNetworkHelper.allChargingStations.view.flatMap(_.pluggedInVehicles).size
+    val numPluggedVehicles = chargingNetworkHelper.allChargingStations.view.map(_.howManyVehiclesAreCharging).sum
     logger.debug(
       s"obtainPowerCommandsAndLimits timeBin = $timeBin, numPluggedVehicles = $numPluggedVehicles"
     )
@@ -92,8 +92,8 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
         federate
           .cosimulate(
             timeBin,
-            stations.flatMap(_.pluggedInVehicles.values).map {
-              case ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, departureTime, _, _, _) =>
+            stations.flatMap(_.connectedVehicles.values).map {
+              case ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, departureTime, _, _, _) =>
                 // Sending this message
                 val powerInKW = getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
                 Map(
@@ -117,7 +117,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
           .flatMap { message =>
             // Receiving this message
             chargingNetworkHelper
-              .lookUpPluggedInVehiclesAt(timeBin)
+              .lookUpConnectedVehiclesAt(timeBin)
               .get(Id.create(message("vehicleId").asInstanceOf[String], classOf[BeamVehicle])) match {
               case Some(chargingVehicle) =>
                 Some(chargingVehicle.vehicle.id -> message("powerInKw").asInstanceOf[PowerInKW])
@@ -138,12 +138,11 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
       .seq
       .toMap
     logger.debug("Total Load estimated is {} at tick {}", loadEstimate.values.sum, timeBin)
-    powerLimits = this.powerController.obtainPowerPhysicalBounds(timeBin, loadEstimate)
+    powerLimits = powerController.obtainPowerPhysicalBounds(timeBin, loadEstimate)
   }
 
   /**
     * @param chargingVehicle the vehicle being charging
-    * @param physicalBounds physical bounds under which the dispatch occur
     * @return
     */
   def dispatchEnergy(
@@ -152,7 +151,8 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     maxCycleDuration: Int,
     chargingVehicle: ChargingVehicle
   ): ChargingCycle = {
-    val ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _, _, _) = chargingVehicle
+    val vehicle = chargingVehicle.vehicle
+    val station = chargingVehicle.chargingStation
     val unconstrainedPower = Math.min(station.maxPlugPower, chargingVehicle.chargingCapacityInKw)
     val constrainedPower = powerCommands.getOrElse(
       vehicle.id, {
@@ -173,6 +173,11 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
       stateOfChargeLimit = None,
       chargingPowerLimit = Some(unconstrainedPower)
     )
+    val (remainingChargingDuration, _) = vehicle.refuelingSessionDurationAndEnergyInJoules(
+      sessionDurationLimit = None,
+      stateOfChargeLimit = None,
+      chargingPowerLimit = Some(constrainedPower)
+    )
     if ((chargingDuration > 0 && energyToCharge == 0) || chargingDuration == 0 && energyToCharge > 0) {
       logger.debug(
         s"chargingDuration is $chargingDuration while energyToCharge is $energyToCharge. " +
@@ -186,7 +191,8 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
       constrainedPower,
       energyToCharge,
       energyToChargeIfUnconstrained,
-      maxCycleDuration
+      maxCycleDuration,
+      remainingChargingDuration
     )
   }
 
@@ -217,7 +223,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
         requiredLoad,
         beamServices,
         "CNM",
-        geoIdMaybe = Some(station.zone.geoId.toString)
+        geoIdMaybe = Some(station.zone.tazId.toString)
       )
     )
   }
@@ -241,7 +247,7 @@ object SitePowerManager {
       case Some(_)                                                                       => "Slow"
       case _                                                                             => "NoCharger"
     }
-    createId(s"site-${reservedFor}-${geoId}-${parkingType}-${chargingLevel}")
+    createId(s"site-$reservedFor-$geoId-$parkingType-$chargingLevel")
   }
 
   def createId(siteId: String): Id[SitePowerManager] = Id.create(siteId, classOf[SitePowerManager])

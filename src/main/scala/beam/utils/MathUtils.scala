@@ -215,4 +215,6 @@ object MathUtils {
       }.toArray
     }
   }
+
+  def selectRandomElement[T](xs: IndexedSeq[T], random: Random): T = xs(random.nextInt(xs.size))
 }

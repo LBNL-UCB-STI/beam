@@ -79,4 +79,12 @@ object VehicleManager extends LazyLogging {
     }
     reservedForMaybe map { case ReservedFor(mngId, mngType) => createOrGetReservedFor(mngId.toString, mngType) }
   }
+
+  def reserveForToString(reservedFor: ReservedFor): String = {
+    reservedFor match {
+      case NoManager  => "None"
+      case AnyManager => "Any"
+      case x          => x.toString
+    }
+  }
 }
