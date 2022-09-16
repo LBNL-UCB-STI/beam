@@ -7,6 +7,7 @@ import beam.utils.{EventReader, MathUtils}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
+import org.scalatest.AppendedClues.convertToClueful
 import org.scalatest.BeforeAndAfterAllConfigMap
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -23,14 +24,17 @@ class LinkStateOfChargeSpec extends AnyWordSpecLike with Matchers with BeamHelpe
 
         val iterations = 2
 
-        val baseConf = ConfigFactory
-          .parseString(s"""
-           beam.agentsim.agents.rideHail.initialization.initType = "FILE"
-           beam.agentsim.agents.rideHail.initialization.filePath=$${beam.inputDirectory}"/rideHailFleet.csv"
-           beam.agentsim.agents.rideHail.linkFleetStateAcrossIterations = true
-           beam.agentsim.agents.vehicles.linkSocAcrossIterations = true
-           beam.physsim.skipPhysSim = true
-         """)
+        val baseConf = ConfigFactory.parseString(s"""
+            beam.agentsim.agents.rideHail.managers = [
+              {
+                initialization.initType = "FILE"
+                initialization.filePath=$${beam.inputDirectory}"/rideHailFleet.csv"
+              }
+            ]
+            beam.agentsim.agents.rideHail.linkFleetStateAcrossIterations = true
+            beam.agentsim.agents.vehicles.linkSocAcrossIterations = true
+            beam.physsim.skipPhysSim = true
+          """)
           .withFallback(testConfig("test/input/beamville/beam.conf"))
           .resolve()
 
@@ -69,16 +73,8 @@ class LinkStateOfChargeSpec extends AnyWordSpecLike with Matchers with BeamHelpe
           //final SOC might be greater then 1.0 because of too long charging sessions
           val limitedFinalSoc = MathUtils.clamp(finalLevel / primaryFuelCapacityInJoule, 0, 1.0)
           val nextInitialSoc = initialNextIterationLevel / primaryFuelCapacityInJoule
-          Try(limitedFinalSoc shouldBe nextInitialSoc +- 0.0001) match {
-            case Failure(exception) =>
-              logger.error(
-                "Wrong initial iteration state for vehicle {}, fuel levels: {}",
-                vehicleId,
-                iterationStates.mkString("\n")
-              )
-              throw exception
-            case Success(_) =>
-          }
+          (limitedFinalSoc shouldBe nextInitialSoc +- 0.0001) withClue
+            s"Wrong initial iteration state for vehicle $vehicleId, fuel levels: ${iterationStates.mkString("\n")}"
         }
       }
     }

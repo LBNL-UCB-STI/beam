@@ -58,7 +58,7 @@ object BeamStaticMetricsWriter {
       If both files are given then read parking stalls from both of them.
       beamConfig.beam.agentsim.taz.parkingFilePath
             provides public fast charge stalls and
-      beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath
+      beamConfig.beam.agentsim.agents.rideHail.managers[i].initialization.parking.filePath
             provides charging depot stalls
      */
 

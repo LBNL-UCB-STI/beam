@@ -11,7 +11,7 @@ object InputConsistencyCheck {
   /**
     *  Right now we need to check if the values from
     *
-    *    beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId
+    *    beam.agentsim.agents.rideHail.managers[i].initialization.procedural.vehicleTypeId
     *    beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId
     *
     *  are present in vehicle types from file

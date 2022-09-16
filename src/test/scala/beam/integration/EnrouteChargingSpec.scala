@@ -37,7 +37,11 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
          |beam.physsim.skipPhysSim = true
          |beam.agentsim.lastIteration = 0
          |beam.agentsim.tuning.transitCapacity = 0.0
-         |beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet = 0
+         |beam.agentsim.agents.rideHail.managers = [
+         |  {
+         |    initialization.procedural.fractionOfInitialVehicleFleet = 0
+         |  }
+         |]
          |beam.agentsim.agents.vehicles.sharedFleets = []
          |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles.csv.gz"
          |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes.csv"
