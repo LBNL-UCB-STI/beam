@@ -450,7 +450,8 @@ object ScaleUpCharging {
           line = mapReader.read(header: _*)
         }
       } catch {
-        case e: Exception => logger.info(s"issue with reading $filePath: $e")
+        case e: Exception if filePath.nonEmpty => logger.info(s"Cannot read with reading $filePath: $e")
+        case _ => logger.debug(s"File Path of activities location is empty in CNM.scaleup")
       } finally {
         if (null != mapReader)
           mapReader.close()
