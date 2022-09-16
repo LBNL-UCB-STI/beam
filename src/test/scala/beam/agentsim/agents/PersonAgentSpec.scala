@@ -39,7 +39,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.funspec.AnyFunSpecLike
 
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 
 class PersonAgentSpec
     extends AnyFunSpecLike
@@ -68,7 +68,8 @@ class PersonAgentSpec
 
   private lazy val modeChoiceCalculator = new ModeChoiceUniformRandom(beamConfig)
 
-  private lazy val tourModeChoiceCalculator = new TourModeChoiceMultinomialLogit(attributesOfIndividual, tourModeChoiceModel)
+  private lazy val tourModeChoiceCalculator =
+    new TourModeChoiceMultinomialLogit(attributesOfIndividual, tourModeChoiceModel)
 
   // Mock a transit driver (who has to be a child of a mock router)
   private lazy val transitDriverProps = Props(new ForwardActor(self))

@@ -139,9 +139,9 @@ trait ChoosesMode {
           if data.personData.currentTourPersonalVehicle.isDefined &&
             (
               currentTripMode.exists(mode => mode == CAR || mode == BIKE) ||
-                currentTripMode.exists(mode => mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT) ||
-                currentTourMode.exists(mode => mode == CAR_BASED || mode == BIKE_BASED) &&
-                  !isFirstTripWithinTour(nextAct)
+              currentTripMode.exists(mode => mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT) ||
+              currentTourMode.exists(mode => mode == CAR_BASED || mode == BIKE_BASED) &&
+              !isFirstTripWithinTour(nextAct)
             ) =>
         self ! MobilityStatusResponse(
           Vector(beamVehicles(data.personData.currentTourPersonalVehicle.get)),

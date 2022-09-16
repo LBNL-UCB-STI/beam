@@ -30,7 +30,16 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll with BeforeAndA
 
   // Next things are pretty cheap in initialization, so let it be non-lazy
   val beamConfig: BeamConfig = BeamConfig(config)
-  val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(householdAttributes = HouseholdAttributes("", 0.0,0,0,0), Option(""), false, Seq(BeamMode.CAR), valueOfTime = 0.0, age = Option(0), income = Option(0))
+
+  val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(
+    householdAttributes = HouseholdAttributes("", 0.0, 0, 0, 0),
+    Option(""),
+    false,
+    Seq(BeamMode.CAR),
+    valueOfTime = 0.0,
+    age = Option(0),
+    income = Option(0)
+  )
   val tourModeChoiceModel: TourModeChoiceModel = TourModeChoiceModel(beamConfig)
   val matsimConfig: Config = new MatSimBeamConfigBuilder(config).buildMatSimConf()
   matsimConfig.controler.setOutputDirectory(outputDirPath)

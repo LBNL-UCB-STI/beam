@@ -29,6 +29,7 @@ object UtilityFunctionOperation {
       case _                 => throw new RuntimeException(s"Unknown Utility Parameter Type $s")
     }
   }
+
   def toMap: Map[String, Double] = {
     Map.empty[String, Double]
   }
