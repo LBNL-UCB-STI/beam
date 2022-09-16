@@ -200,6 +200,15 @@ trait ScaleUpCharging extends {
       })
       .flatMap { case (tazId, activityType2vehicleInfo) =>
         val parkingInquiriesTriggers = Vector.newBuilder[ScheduleTrigger]
+        val activitiesLocationInCurrentTAZ: Map[String, Vector[ActivityLocation]] =
+          activitiesLocationMap
+            .get(tazId)
+            .map(_.filterNot { a =>
+              allPersonsWhichCarIsChargingByTAZ.getOrElse(tazId, List.empty).contains(a.personId) ||
+              allVirtualPersonsByTAZ.getOrElse(tazId, List.empty).contains(a.personId)
+            })
+            .map(_.groupBy(_.activityType))
+            .getOrElse(Map.empty)
         activityType2vehicleInfo.foldLeft((0.0, 0.0, Vector.empty[CPair[ParkingActivityType, java.lang.Double]])) {
           case ((powerAcc, numEventsAcc, pmfAcc), (parkingActivityType, (_, dataSummary))) =>
             val scaleUpFactor = scaleUpFactors.getOrElse(parkingActivityType, defaultScaleUpFactor) - 1
@@ -214,14 +223,7 @@ trait ScaleUpCharging extends {
             val rate = totNumberOfEvents / timeStepByHour
             var cumulatedSimulatedPower = 0.0
             var timeStep = 0
-            val activitiesLocationInCurrentTAZ: Vector[ActivityLocation] =
-              activitiesLocationMap
-                .get(tazId)
-                .map(_.filterNot { a =>
-                  allPersonsWhichCarIsChargingByTAZ.getOrElse(tazId, List.empty).contains(a.personId) ||
-                  allVirtualPersonsByTAZ.getOrElse(tazId, List.empty).contains(a.personId)
-                })
-                .getOrElse(Vector.empty)
+
             while (cumulatedSimulatedPower < totPowerInKWToSimulate && timeStep < timeStepByHour * 3600) {
               val (_, summary) = activityType2vehicleInfo(distribution.sample())
               val duration = Math.max(
@@ -240,10 +242,9 @@ trait ScaleUpCharging extends {
               val reservedFor = vehicleTypeInfo.reservedFor
               val beamVehicle = createBeamVehicle(vehicleTypeInfo, soc)
               val (personId, destinationUtm) =
-                Option(activitiesLocationInCurrentTAZ.filter(_.activityType == activityType)) match {
-                  case Some(activitiesLocation) if activitiesLocation.nonEmpty =>
-                    val _ @ActivityLocation(_, personId, _, _, location) =
-                      activitiesLocation(rand.nextInt(activitiesLocation.size))
+                activitiesLocationInCurrentTAZ.get(activityType) match {
+                  case Some(activities) if activities.nonEmpty =>
+                    val _ @ActivityLocation(_, personId, _, _, location) = activities(rand.nextInt(activities.size))
                     allVirtualPersonsByTAZ.put(tazId, allVirtualPersonsByTAZ.getOrElse(tazId, List.empty) :+ personId)
                     (personId, getBeamServices.geo.wgs2Utm(location))
                   case _ =>
