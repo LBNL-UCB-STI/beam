@@ -383,11 +383,16 @@ trait ChoosesMode {
             requestId = None
           }
 
-          val availableStreetVehiclesGivenTourMode = newlyAvailableBeamVehicles.map { vehicleOrToken =>
+          val availableStreetVehiclesGivenTourMode = newlyAvailableBeamVehicles.flatMap { vehicleOrToken =>
             chosenCurrentTourMode match {
-              case Some(BIKE_BASED) if !vehicleOrToken.vehicle.isSharedVehicle => vehicleOrToken.streetVehicle
-              case Some(CAR_BASED) if !vehicleOrToken.vehicle.isSharedVehicle  => vehicleOrToken.streetVehicle
-              case Some(WALK_BASED)                                            => vehicleOrToken.streetVehicle
+              case Some(BIKE_BASED) if !vehicleOrToken.vehicle.isSharedVehicle => Some(vehicleOrToken.streetVehicle)
+              case Some(CAR_BASED) if !vehicleOrToken.vehicle.isSharedVehicle  => Some(vehicleOrToken.streetVehicle)
+              case Some(WALK_BASED)                                            => Some(vehicleOrToken.streetVehicle)
+              case _ => {
+                val isSharedVehicle = if(chosenCurrentTourMode.contains(WALK_BASED)) "Not Applicable" else vehicleOrToken.vehicle.isSharedVehicle.toString
+                logger.error(s"Available vehicles set up with wrong type $chosenCurrentTourMode and isSharedVehicle status of $isSharedVehicle")
+                None
+              }
             }
           } :+ bodyStreetVehicle
 
