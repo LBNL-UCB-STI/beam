@@ -46,7 +46,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.google.inject
 import com.google.inject.Scopes
 import com.google.inject.name.Names
-import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.population.{Activity, Population}
@@ -467,7 +467,9 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       .withFallback(originalConfigLocation)
       .resolve()
 
-    checkDockerIsInstalledForCCHPhysSim(config)
+    val currentConfig = BeamHelper.updateConfigToCurrentVersion(config)
+
+    checkDockerIsInstalledForCCHPhysSim(currentConfig)
 
     (parsedArgs, config)
   }
@@ -1058,6 +1060,34 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       geoUtils = geo,
       shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
     )
+  }
+}
+
+object BeamHelper {
+
+  /**
+    * We need to copy the old config values ot the first element of rideHail.managers collection.
+    * It helps workaround the typesafe config limitation that one cannot access array elements via paths
+    * like this
+    * beam.agentsim.agents.rideHail.managers[0].initialization.procedural.fractionOfInitialVehicleFlee
+    * (https://github.com/lightbend/config/issues/30).
+    * This update helps working correctly the experiments, old configs.
+    */
+  def updateConfigToCurrentVersion(config: TypesafeConfig): TypesafeConfig = {
+    import scala.collection.JavaConverters._
+    val managers = config.getConfigList("beam.agentsim.agents.rideHail.managers").asScala
+    if (managers.nonEmpty) {
+      val firstManagerConfig: TypesafeConfig = managers.head
+      val rideHailConfig = config.getConfig("beam.agentsim.agents.rideHail")
+      val newManagerConfig = rideHailConfig.withoutPath("managers").withFallback(firstManagerConfig)
+      config.withValue(
+        "beam.agentsim.agents.rideHail.managers",
+        ConfigValueFactory.fromIterable((newManagerConfig +: managers.tail).map(_.root()).asJava)
+      )
+    } else {
+      config
+    }
+
   }
 }
 
