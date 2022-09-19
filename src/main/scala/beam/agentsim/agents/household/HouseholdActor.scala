@@ -281,7 +281,7 @@ object HouseholdActor {
               ),
               s"cavDriver-${cav.id.toString}"
             )
-            log.warning(
+            log.debug(
               s"Setting up household cav ${cav.id} with driver ${cav.getDriver} to be set with driver $cavDriverRef"
             )
             context.watch(cavDriverRef)
