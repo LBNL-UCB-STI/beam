@@ -209,7 +209,7 @@ trait ScaleUpCharging extends {
             })
             .map(_.groupBy(_.activityType))
             .getOrElse(Map.empty)
-        log.info(s"*** number of location per each activity: ${activitiesLocationInCurrentTAZ.mapValues(_.size)}")
+//        log.info(s"*** number of location per each activity: ${activitiesLocationInCurrentTAZ.mapValues(_.size)}")
         activityType2vehicleInfo.foldLeft((0.0, 0.0, Vector.empty[CPair[ParkingActivityType, java.lang.Double]])) {
           case ((powerAcc, numEventsAcc, pmfAcc), (parkingActivityType, (_, dataSummary))) =>
             val scaleUpFactor = scaleUpFactors.getOrElse(parkingActivityType, defaultScaleUpFactor) - 1
@@ -248,17 +248,17 @@ trait ScaleUpCharging extends {
                     val _ @ActivityLocation(_, personId, _, _, location) = activities(rand.nextInt(activities.size))
                     allVirtualPersonsByTAZ.put(tazId, personId +: allVirtualPersonsByTAZ.getOrElse(tazId, List.empty))
                     val locationUtm = getBeamServices.geo.wgs2Utm(location)
-                    log.info(
-                      s"*** For activity $activityType and TAZ $tazId sampling person $personId location $locationUtm"
-                    )
+//                    log.info(
+//                      s"*** For activity $activityType and TAZ $tazId sampling person $personId location $locationUtm"
+//                    )
                     (personId, locationUtm)
                   case _ =>
                     val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
                     val personId = createPerson(beamVehicle.id)
                     val locationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
-                    log.info(
-                      s"*** For activity $activityType and TAZ $tazId creating person $personId location $locationUtm"
-                    )
+//                    log.info(
+//                      s"*** For activity $activityType and TAZ $tazId creating person $personId location $locationUtm"
+//                    )
                     (personId, locationUtm)
                 }
               val startTime = timeBin + timeStep
