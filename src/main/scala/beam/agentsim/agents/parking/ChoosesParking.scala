@@ -240,9 +240,9 @@ trait ChoosesParking extends {
         )
       case _ =>
         vehicle.isRefuelNeeded(
-        remainingTourDistance + conf.refuelRequiredThresholdInMeters,
-        conf.noRefuelThresholdInMeters
-      )
+          remainingTourDistance + conf.refuelRequiredThresholdInMeters,
+          conf.noRefuelThresholdInMeters
+        )
     }
   }
 

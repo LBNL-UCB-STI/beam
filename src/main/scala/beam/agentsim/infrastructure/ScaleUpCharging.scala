@@ -61,7 +61,9 @@ trait ScaleUpCharging extends {
       )
       .groupBy(_.tazId)
     val numPerson = res.flatMap(_._2).groupBy(_.personId)
-    log.info(s"*** Number of activities location is ${res.size} and number of persons is ${numPerson.size} and simulated persons are ${persons.size}")
+    log.info(
+      s"*** Number of activities location is ${res.size} and number of persons is ${numPerson.size} and simulated persons are ${persons.size}"
+    )
     res
   }
 
@@ -456,8 +458,8 @@ object ScaleUpCharging {
           line = mapReader.read(header: _*)
         }
       } catch {
-        case e: Exception if filePath.nonEmpty => logger.info(s"Cannot read with reading $filePath: $e")
-        case _ => logger.debug(s"File Path of activities location is empty in CNM.scaleup")
+        case t: Throwable if filePath.nonEmpty => logger.info(s"Cannot read with reading $filePath: $t")
+        case t: Throwable                      => logger.debug(s"File Path of activities location is empty in CNM.scaleup. Cause $t")
       } finally {
         if (null != mapReader)
           mapReader.close()
