@@ -1060,7 +1060,7 @@ class RideHailManager(
     }
     new FleetStoredElectricityEvent(
       tick,
-      "all-ridehail-fleet-vehicles",
+      s"ridehail-fleet-${managerConfig.name}",
       storedElectricityInJoules,
       storageCapacityInJoules
     )

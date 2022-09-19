@@ -7,13 +7,12 @@ import beam.utils.{EventReader, MathUtils}
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
+import org.matsim.vehicles.Vehicle
 import org.scalatest.AppendedClues.convertToClueful
 import org.scalatest.BeforeAndAfterAllConfigMap
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.wordspec.AnyWordSpecLike
-
-import scala.util.{Failure, Success, Try}
 
 class LinkStateOfChargeSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
   private val primaryFuelCapacityInJoule = 2.699999827e8
@@ -24,11 +23,26 @@ class LinkStateOfChargeSpec extends AnyWordSpecLike with Matchers with BeamHelpe
 
         val iterations = 2
 
-        val baseConf = ConfigFactory.parseString(s"""
+        val baseConf = ConfigFactory
+          .parseString(s"""
             beam.agentsim.agents.rideHail.managers = [
               {
+                name = "default"
                 initialization.initType = "FILE"
                 initialization.filePath=$${beam.inputDirectory}"/rideHailFleet.csv"
+                repositioningManager.name = "DEMAND_FOLLOWING_REPOSITIONING_MANAGER"
+                repositioningManager.timeout = 300
+                repositioningManager.demandFollowingRepositioningManager.sensitivityOfRepositioningToDemand = 1
+                repositioningManager.demandFollowingRepositioningManager.numberOfClustersForDemand = 30
+              },
+              {
+                name = "file2"
+                initialization.initType = "FILE"
+                initialization.filePath=$${beam.inputDirectory}"/rideHailFleet.csv"
+                repositioningManager.name = "DEMAND_FOLLOWING_REPOSITIONING_MANAGER"
+                repositioningManager.timeout = 300
+                repositioningManager.demandFollowingRepositioningManager.sensitivityOfRepositioningToDemand = 1
+                repositioningManager.demandFollowingRepositioningManager.numberOfClustersForDemand = 30
               }
             ]
             beam.agentsim.agents.rideHail.linkFleetStateAcrossIterations = true
@@ -43,19 +57,9 @@ class LinkStateOfChargeSpec extends AnyWordSpecLike with Matchers with BeamHelpe
           val filePath = EventReader.getEventsFilePath(matsimConfig, "events", "xml", i).getAbsolutePath
           EventReader.fromXmlFile(filePath)
         }
-        val electricVehicles = IndexedSeq("4", "8", "9") ++ IndexedSeq(
-          "rideHailVehicle-rideHailVehicle-49@default",
-          "rideHailVehicle-rideHailVehicle-20@default",
-          "rideHailVehicle-rideHailVehicle-28@default",
-          "rideHailVehicle-rideHailVehicle-40@default",
-          "rideHailVehicle-rideHailVehicle-41@default",
-          "rideHailVehicle-rideHailVehicle-31@default",
-          "rideHailVehicle-rideHailVehicle-38@default",
-          "rideHailVehicle-rideHailVehicle-3@default",
-          "rideHailVehicle-rideHailVehicle-7@default",
-          "rideHailVehicle-rideHailVehicle-29@default"
-        )
-        val iterationStates: IndexedSeq[Map[String, (Double, Double)]] = eventsPerIteration
+        val electricVehicles: IndexedSeq[Id[Vehicle]] = findAllElectricVehicles(eventsPerIteration.flatten)
+        electricVehicles.size should be >= 7 withClue "Too low number of EVs, RideHail vehicles are not moving?"
+        val iterationStates: IndexedSeq[Map[Id[Vehicle], (Double, Double)]] = eventsPerIteration
           .map(events =>
             electricVehicles
               .map(vehicle =>
@@ -74,14 +78,13 @@ class LinkStateOfChargeSpec extends AnyWordSpecLike with Matchers with BeamHelpe
           val limitedFinalSoc = MathUtils.clamp(finalLevel / primaryFuelCapacityInJoule, 0, 1.0)
           val nextInitialSoc = initialNextIterationLevel / primaryFuelCapacityInJoule
           (limitedFinalSoc shouldBe nextInitialSoc +- 0.0001) withClue
-            s"Wrong initial iteration state for vehicle $vehicleId, fuel levels: ${iterationStates.mkString("\n")}"
+          s"Wrong initial iteration state for vehicle $vehicleId, fuel levels: ${iterationStates.mkString("\n")}"
         }
       }
     }
   }
 
-  private def getInitialStateOfCharge(events: Seq[Event], vehicleIdStr: String): Double = {
-    val vehicleId = Id.createVehicleId(vehicleIdStr)
+  private def getInitialStateOfCharge(events: Seq[Event], vehicleId: Id[Vehicle]): Double = {
     events
       .collectFirst {
         case pte: PathTraversalEvent if pte.vehicleId == vehicleId =>
@@ -90,19 +93,21 @@ class LinkStateOfChargeSpec extends AnyWordSpecLike with Matchers with BeamHelpe
       .getOrElse(Double.NaN)
   }
 
-  private def getFinalStateOfCharge(events: Seq[Event], vehicleIdStr: String): Double = {
-    val vehicleId = Id.createVehicleId(vehicleIdStr)
+  private def getFinalStateOfCharge(events: Seq[Event], vehicleId: Id[Vehicle]): Double = {
     events.view.reverse
       .collectFirst {
         case pte: PathTraversalEvent if pte.vehicleId == vehicleId =>
           pte.endLegPrimaryFuelLevel
-        case plugOut if isEventOfTypeAndVehicle(plugOut, "ChargingPlugOutEvent", vehicleIdStr) =>
+        case plugOut
+            if plugOut.getEventType == "ChargingPlugOutEvent"
+              && plugOut.getAttributes.get("vehicle") == vehicleId.toString =>
           plugOut.getAttributes.get("primaryFuelLevel").toDouble
       }
       .getOrElse(Double.NaN)
   }
 
-  private def isEventOfTypeAndVehicle(event: Event, eventType: String, vehicle: String) = {
-    event.getEventType == eventType && event.getAttributes.get("vehicle") == vehicle
+  def findAllElectricVehicles(events: IndexedSeq[Event]): IndexedSeq[Id[Vehicle]] = {
+    events.collect { case pte: PathTraversalEvent if pte.primaryFuelType == "Electricity" => pte.vehicleId }.distinct
   }
+
 }
