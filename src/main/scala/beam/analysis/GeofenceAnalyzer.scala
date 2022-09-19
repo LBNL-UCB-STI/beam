@@ -26,7 +26,7 @@ class GeofenceAnalyzer(beamSvc: BeamServices) extends BasicEventHandler with Ite
       .collect {
         case managerConfig if managerConfig.initialization.initType.equalsIgnoreCase("file") =>
           RideHailFleetInitializer
-            .readFleetFromCSV(managerConfig.initialization.filePath)
+            .readFleetFromCSV(managerConfig.initialization.filePath, managerConfig.name)
             .flatMap { fd =>
               val maybeGeofence = (fd.geofenceX, fd.geofenceY, fd.geofenceRadius) match {
                 case (Some(x), Some(y), Some(r)) => Some(CircularGeofence(x, y, r))

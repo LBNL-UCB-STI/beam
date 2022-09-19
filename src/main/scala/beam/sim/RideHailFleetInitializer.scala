@@ -34,7 +34,10 @@ import scala.util.control.NonFatal
 object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
   type FleetId = String
 
-  private[sim] def toRideHailAgentInputData(rec: java.util.Map[String, String]): RideHailAgentInputData = {
+  private[sim] def toRideHailAgentInputData(
+    rec: java.util.Map[String, String],
+    defaultFleetId: String
+  ): RideHailAgentInputData = {
     val id = GenericCsvReader.getIfNotNull(rec, "id")
     val rideHailManagerIdStr = GenericCsvReader.getIfNotNull(rec, "rideHailManagerId")
     val rideHailManagerId =
@@ -48,7 +51,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     val geofenceRadius = Option(rec.get("geofenceRadius")).map(_.toDouble)
     val geofenceTAZFile = Option(rec.get("geofenceTAZFile"))
     val geofenceTazIds = Option(rec.get("geofenceTAZFile")).map(readTazIdsFile)
-    val fleetId = rec.getOrDefault("fleetId", "default")
+    val fleetId = rec.getOrDefault("fleetId", defaultFleetId)
     val initialStateOfCharge = rec.getOrDefault("initialStateOfCharge", "1.0").toDouble
 
     RideHailAgentInputData(
@@ -153,9 +156,10 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     * @param filePath path to the csv file
     * @return list of [[RideHailAgentInputData]] objects
     */
-  def readFleetFromCSV(filePath: String): List[RideHailAgentInputData] = {
+  def readFleetFromCSV(filePath: String, defaultFleetId: String): List[RideHailAgentInputData] = {
     // This is lazy, to make it to read the data we need to call `.toList`
-    val (iter, toClose) = GenericCsvReader.readAs[RideHailAgentInputData](filePath, toRideHailAgentInputData, _ => true)
+    val (iter, toClose) =
+      GenericCsvReader.readAs[RideHailAgentInputData](filePath, toRideHailAgentInputData(_, defaultFleetId), _ => true)
     try {
       // Read the data
       val fleetData = iter.toList
@@ -535,7 +539,7 @@ class FileRideHailFleetInitializer(
   ): IndexedSeq[RideHailAgentInitializer] = {
     val fleetFilePath = managerConfig.initialization.filePath
 
-    val rideHailInputDatas = RideHailFleetInitializer.readFleetFromCSV(fleetFilePath).toIndexedSeq
+    val rideHailInputDatas = RideHailFleetInitializer.readFleetFromCSV(fleetFilePath, managerConfig.name).toIndexedSeq
     rideHailInputDatas.map(_.createRideHailAgentInitializer(beamScenario))
   }
 }
