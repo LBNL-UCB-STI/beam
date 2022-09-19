@@ -54,16 +54,12 @@ trait ScaleUpCharging extends {
 
   private lazy val activitiesLocationMap: Map[Id[TAZ], Vector[ActivityLocation]] = {
     val persons = getBeamServices.matsimServices.getScenario.getPopulation.getPersons.asScala
-    val res = ActivityLocation
+    ActivityLocation
       .readActivitiesLocation(cnmConfig.scaleUp.activitiesLocationFilePath)
       .filter(a =>
         a.location.getX != 0 && a.location.getY != 0 && a.activityType.nonEmpty && !persons.contains(a.personId)
       )
       .groupBy(_.tazId)
-    val numPerson = res.flatMap(_._2).groupBy(_.personId)
-//    log.info(s"*** Number of activities location is ${res.size} and number of persons is ${numPerson.size} " +
-//        s"and simulated persons are ${persons.size}")
-    res
   }
 
   private lazy val defaultScaleUpFactor: Double =
@@ -153,9 +149,8 @@ trait ScaleUpCharging extends {
     */
   protected def simulateEventsIfScalingEnabled(timeBin: Int, triggerId: Long): Vector[ScheduleTrigger] = {
     val allPersonsWhichCarIsChargingByTAZ =
-      chargingNetworkHelper.allChargingStations.groupBy(_.zone.tazId).mapValues(_.flatMap(_.persons))
-    //log.info(s"*** number of persons simulated in all TAZs: ${allPersonsWhichCarIsChargingByTAZ.flatMap(_._2).size}")
-    val allVirtualPersonsByTAZ = mutable.HashMap.empty[Id[TAZ], List[Id[Person]]]
+      chargingNetworkHelper.allChargingStations.groupBy(_.zone.tazId).mapValues(_.flatMap(_.persons)).view.force
+    val allVirtualPersonsByTAZ = mutable.HashMap.empty[Id[TAZ], Seq[Id[Person]]]
     vehicleRequests
       .groupBy(_._1._1)
       .par
@@ -208,13 +203,13 @@ trait ScaleUpCharging extends {
         val activitiesLocationInCurrentTAZ: Map[String, Vector[ActivityLocation]] =
           activitiesLocationMap
             .get(tazId)
-            .map(_.filterNot { a =>
-              allPersonsWhichCarIsChargingByTAZ.getOrElse(tazId, List.empty).contains(a.personId) ||
-              allVirtualPersonsByTAZ.getOrElse(tazId, List.empty).contains(a.personId)
+            .map(_.filter { a =>
+              !allPersonsWhichCarIsChargingByTAZ.getOrElse(tazId, List.empty).contains(a.personId) &&
+              !allVirtualPersonsByTAZ.getOrElse(tazId, List.empty).contains(a.personId)
             })
             .map(_.groupBy(_.activityType))
             .getOrElse(Map.empty)
-        //log.info(s"*** number of location per each activity: ${activitiesLocationInCurrentTAZ.mapValues(_.size)}")
+        log.info(s"*** number of location per each activity: ${activitiesLocationInCurrentTAZ.mapValues(_.size)}")
         activityType2vehicleInfo.foldLeft((0.0, 0.0, Vector.empty[CPair[ParkingActivityType, java.lang.Double]])) {
           case ((powerAcc, numEventsAcc, pmfAcc), (parkingActivityType, (_, dataSummary))) =>
             val scaleUpFactor = scaleUpFactors.getOrElse(parkingActivityType, defaultScaleUpFactor) - 1
@@ -251,12 +246,20 @@ trait ScaleUpCharging extends {
                 activitiesLocationInCurrentTAZ.get(activityType) match {
                   case Some(activities) if activities.nonEmpty =>
                     val _ @ActivityLocation(_, personId, _, _, location) = activities(rand.nextInt(activities.size))
-                    allVirtualPersonsByTAZ.put(tazId, allVirtualPersonsByTAZ.getOrElse(tazId, List.empty) :+ personId)
-                    //log.info(s"*** For activity $activityType and TAZ $tazId sampling person $personId")
-                    (personId, getBeamServices.geo.wgs2Utm(location))
+                    allVirtualPersonsByTAZ.put(tazId, personId +: allVirtualPersonsByTAZ.getOrElse(tazId, List.empty))
+                    val locationUtm = getBeamServices.geo.wgs2Utm(location)
+                    log.info(
+                      s"*** For activity $activityType and TAZ $tazId sampling person $personId location $locationUtm"
+                    )
+                    (personId, locationUtm)
                   case _ =>
                     val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
-                    (createPerson(beamVehicle.id), TAZTreeMap.randomLocationInTAZ(taz, rand))
+                    val personId = createPerson(beamVehicle.id)
+                    val locationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
+                    log.info(
+                      s"*** For activity $activityType and TAZ $tazId creating person $personId location $locationUtm"
+                    )
+                    (personId, locationUtm)
                 }
               val startTime = timeBin + timeStep
               val parkingInquiry = ParkingInquiry(
