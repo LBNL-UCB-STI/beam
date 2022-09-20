@@ -62,6 +62,12 @@ trait ScaleUpCharging extends {
       .groupBy(_.tazId)
   }
 
+  private lazy val allVirtualPersonsByTAZ: Map[Id[TAZ], mutable.HashSet[Id[Person]]] = {
+    getBeamServices.beamScenario.tazTreeMap.getTAZs.map { taz =>
+      taz.tazId -> mutable.HashSet[Id[Person]]
+    }
+  }
+
   private lazy val defaultScaleUpFactor: Double =
     if (!cnmConfig.scaleUp.enabled) 1.0 else cnmConfig.scaleUp.expansionFactor_wherever_activity
 
@@ -154,7 +160,6 @@ trait ScaleUpCharging extends {
         .mapValues { v => mutable.HashSet(v.flatMap(_.persons): _*) }
         .view
         .force
-    val allVirtualPersonsByTAZ = mutable.HashMap.empty[Id[TAZ], mutable.HashSet[Id[Person]]]
     vehicleRequests
       .groupBy(_._1._1)
       .par
@@ -204,7 +209,6 @@ trait ScaleUpCharging extends {
       })
       .flatMap { case (tazId, activityType2vehicleInfo) =>
         val parkingInquiriesTriggers = Vector.newBuilder[ScheduleTrigger]
-        if (!allVirtualPersonsByTAZ.contains(tazId)) allVirtualPersonsByTAZ.put(tazId, mutable.HashSet.empty)
         val activitiesLocationInCurrentTAZ: Map[String, Vector[ActivityLocation]] =
           activitiesLocationMap
             .get(tazId)
