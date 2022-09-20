@@ -4153,6 +4153,8 @@ object BeamConfig {
         numberOfSamples: scala.Int,
         osmMapdbFile: java.lang.String,
         suboptimalMinutes: scala.Int,
+        suboptimalMinutesSameMode: scala.Int,
+        suboptimalMinutesDifferentMode: scala.Int,
         transitAlternativeList: java.lang.String,
         travelTimeNoiseFraction: scala.Double
       )
@@ -4235,6 +4237,8 @@ object BeamConfig {
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
             suboptimalMinutes = if (c.hasPathOrNull("suboptimalMinutes")) c.getInt("suboptimalMinutes") else 0,
+            suboptimalMinutesSameMode = if (c.hasPathOrNull("suboptimalMinutesSameMode")) c.getInt("suboptimalMinutesSameMode") else 0,
+            suboptimalMinutesDifferentMode = if (c.hasPathOrNull("suboptimalMinutesDifferentMode")) c.getInt("suboptimalMinutesDifferentMode") else 0,
             transitAlternativeList =
               if (c.hasPathOrNull("transitAlternativeList")) c.getString("transitAlternativeList") else "OPTIMAL",
             travelTimeNoiseFraction =
