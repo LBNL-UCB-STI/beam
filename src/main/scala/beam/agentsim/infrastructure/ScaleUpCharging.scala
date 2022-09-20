@@ -62,18 +62,12 @@ trait ScaleUpCharging extends {
       .groupBy(_.tazId)
   }
 
-  private lazy val allVirtualPersonsByTAZ: Map[Id[TAZ], mutable.HashSet[Id[Person]]] = {
-    getBeamServices.beamScenario.tazTreeMap.getTAZs.map { taz =>
-      taz.tazId -> mutable.HashSet[Id[Person]]
-    }
-  }
-
   private lazy val defaultScaleUpFactor: Double =
     if (!cnmConfig.scaleUp.enabled) 1.0 else cnmConfig.scaleUp.expansionFactor_wherever_activity
 
   override def loggedReceive: Receive = {
     case t @ TriggerWithId(PlanParkingInquiryTrigger(_, inquiry), triggerId) =>
-      log.info(s"Received PlanParkingInquiryTrigger: $t")
+      log.debug(s"Received PlanParkingInquiryTrigger: $t")
       virtualParkingInquiries.put(inquiry.requestId, inquiry)
       self ! inquiry.copy(triggerId = triggerId)
     case t @ TriggerWithId(PlanChargingUnplugRequestTrigger(tick, beamVehicle, personId), triggerId) =>
@@ -81,10 +75,10 @@ trait ScaleUpCharging extends {
       self ! ChargingUnplugRequest(tick, personId, beamVehicle, triggerId)
       sender ! CompletionNotice(triggerId)
     case response @ ParkingInquiryResponse(stall, requestId, triggerId) =>
-      log.info(s"Received ParkingInquiryResponse: $response")
+      log.debug(s"Received ParkingInquiryResponse: $response")
       val msgToScheduler = virtualParkingInquiries.remove(requestId) match {
         case Some(parkingInquiry) if stall.chargingPointType.isDefined =>
-          log.info(s"parking inquiry with requestId $requestId returned a stall with charging point.")
+          log.debug(s"parking inquiry with requestId $requestId returned a stall with charging point.")
           val beamVehicle = parkingInquiry.beamVehicle.get
           val personId =
             parkingInquiry.personId.map(Id.create(_, classOf[Person])).getOrElse(Id.create("", classOf[Person]))
@@ -109,18 +103,18 @@ trait ScaleUpCharging extends {
       }
       getScheduler ! msgToScheduler
     case reply: StartingRefuelSession =>
-      log.info(s"Received StartingRefuelSession: $reply")
+      log.debug(s"Received StartingRefuelSession: $reply")
       getScheduler ! CompletionNotice(reply.triggerId)
     case reply: WaitingToCharge =>
       log.debug(s"Received WaitingToCharge: $reply")
       getScheduler ! CompletionNotice(reply.triggerId)
     case reply: EndingRefuelSession =>
-      log.info(s"Received EndingRefuelSession: $reply")
+      log.debug(s"Received EndingRefuelSession: $reply")
     case reply @ UnhandledVehicle(tick, personId, vehicle, _) =>
       log.error(s"Received UnhandledVehicle: $reply")
       handleReleasingParkingSpot(tick, personId, vehicle, None)
     case reply @ UnpluggingVehicle(tick, personId, vehicle, _, energyCharged) =>
-      log.info(s"Received UnpluggingVehicle: $reply")
+      log.debug(s"Received UnpluggingVehicle: $reply")
       handleReleasingParkingSpot(tick, personId, vehicle, Some(energyCharged))
   }
 
@@ -160,6 +154,11 @@ trait ScaleUpCharging extends {
         .mapValues { v => mutable.HashSet(v.flatMap(_.persons): _*) }
         .view
         .force
+    val allVirtualPersonsByTAZ: Map[Id[TAZ], mutable.HashSet[Id[Person]]] = {
+      getBeamServices.beamScenario.tazTreeMap.getTAZs.map { taz =>
+        taz.tazId -> mutable.HashSet.empty[Id[Person]]
+      }.toMap
+    }
     vehicleRequests
       .groupBy(_._1._1)
       .par
@@ -214,11 +213,10 @@ trait ScaleUpCharging extends {
             .get(tazId)
             .map(_.filterNot { a =>
               allPersonsWhichCarIsChargingByTAZ.getOrElse(tazId, mutable.HashSet.empty).contains(a.personId) ||
-              allVirtualPersonsByTAZ(tazId).contains(a.personId)
+              allVirtualPersonsByTAZ.synchronized(allVirtualPersonsByTAZ(tazId).contains(a.personId))
             })
             .map(_.groupBy(_.activityType))
             .getOrElse(Map.empty)
-        log.info(s"*** number of location per each activity: ${activitiesLocationInCurrentTAZ.mapValues(_.size)}")
         activityType2vehicleInfo.foldLeft((0.0, 0.0, Vector.empty[CPair[ParkingActivityType, java.lang.Double]])) {
           case ((powerAcc, numEventsAcc, pmfAcc), (parkingActivityType, (_, dataSummary))) =>
             val scaleUpFactor = scaleUpFactors.getOrElse(parkingActivityType, defaultScaleUpFactor) - 1
@@ -255,19 +253,13 @@ trait ScaleUpCharging extends {
                 activitiesLocationInCurrentTAZ.get(activityType) match {
                   case Some(activities) if activities.nonEmpty =>
                     val _ @ActivityLocation(_, personId, _, _, location) = activities(rand.nextInt(activities.size))
-                    allVirtualPersonsByTAZ(tazId).add(personId)
+                    allVirtualPersonsByTAZ.synchronized(allVirtualPersonsByTAZ(tazId).add(personId))
                     val locationUtm = getBeamServices.geo.wgs2Utm(location)
-                    log.info(
-                      s"*** For activity $activityType and TAZ $tazId sampling person $personId location $locationUtm"
-                    )
                     (personId, locationUtm)
                   case _ =>
                     val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
                     val personId = createPerson(beamVehicle.id)
                     val locationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
-                    log.info(
-                      s"*** For activity $activityType and TAZ $tazId creating person $personId location $locationUtm"
-                    )
                     (personId, locationUtm)
                 }
               val startTime = timeBin + timeStep
