@@ -149,8 +149,12 @@ trait ScaleUpCharging extends {
     */
   protected def simulateEventsIfScalingEnabled(timeBin: Int, triggerId: Long): Vector[ScheduleTrigger] = {
     val allPersonsWhichCarIsChargingByTAZ =
-      chargingNetworkHelper.allChargingStations.groupBy(_.zone.tazId).mapValues(_.flatMap(_.persons)).view.force
-    val allVirtualPersonsByTAZ = mutable.HashMap.empty[Id[TAZ], Seq[Id[Person]]]
+      chargingNetworkHelper.allChargingStations
+        .groupBy(_.zone.tazId)
+        .mapValues { v => mutable.HashSet(v.flatMap(_.persons): _*) }
+        .view
+        .force
+    val allVirtualPersonsByTAZ = mutable.HashMap.empty[Id[TAZ], mutable.HashSet[Id[Person]]]
     vehicleRequests
       .groupBy(_._1._1)
       .par
@@ -200,12 +204,13 @@ trait ScaleUpCharging extends {
       })
       .flatMap { case (tazId, activityType2vehicleInfo) =>
         val parkingInquiriesTriggers = Vector.newBuilder[ScheduleTrigger]
+        if (!allVirtualPersonsByTAZ.contains(tazId)) allVirtualPersonsByTAZ.put(tazId, mutable.HashSet.empty)
         val activitiesLocationInCurrentTAZ: Map[String, Vector[ActivityLocation]] =
           activitiesLocationMap
             .get(tazId)
-            .map(_.filter { a =>
-              !allPersonsWhichCarIsChargingByTAZ.getOrElse(tazId, List.empty).contains(a.personId) &&
-              !allVirtualPersonsByTAZ.getOrElse(tazId, List.empty).contains(a.personId)
+            .map(_.filterNot { a =>
+              allPersonsWhichCarIsChargingByTAZ.getOrElse(tazId, mutable.HashSet.empty).contains(a.personId) ||
+              allVirtualPersonsByTAZ(tazId).contains(a.personId)
             })
             .map(_.groupBy(_.activityType))
             .getOrElse(Map.empty)
@@ -246,7 +251,7 @@ trait ScaleUpCharging extends {
                 activitiesLocationInCurrentTAZ.get(activityType) match {
                   case Some(activities) if activities.nonEmpty =>
                     val _ @ActivityLocation(_, personId, _, _, location) = activities(rand.nextInt(activities.size))
-                    allVirtualPersonsByTAZ.put(tazId, personId +: allVirtualPersonsByTAZ.getOrElse(tazId, List.empty))
+                    allVirtualPersonsByTAZ(tazId).add(personId)
                     val locationUtm = getBeamServices.geo.wgs2Utm(location)
 //                    log.info(
 //                      s"*** For activity $activityType and TAZ $tazId sampling person $personId location $locationUtm"
