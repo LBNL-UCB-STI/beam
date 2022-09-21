@@ -109,7 +109,8 @@ class ChargingFunctions(
   def ifHomeWorkOrLongParkingDurationThenSlowChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
       inquiry.beamVehicle.forall {
-        case vehicle if !vehicle.isRideHail && (isHomeWorkOrOvernight(inquiry) || inquiry.parkingDuration > 3600.0) =>
+        case vehicle
+            if !vehicle.isRideHail && (isHomeWorkOrOvernight(inquiry) || hasLongParkingDurationButNotCharge(inquiry)) =>
           !ChargingPointType.isFastCharger(chargingPointType)
         case _ => true
       }
@@ -139,6 +140,10 @@ class ChargingFunctions(
     val isHomeOrWork = List(Home, Work).contains(inquiry.parkingActivityType)
     val isOvernight = inquiry.searchMode == ParkingSearchMode.Init
     isHomeOrWork || isOvernight
+  }
+
+  private def hasLongParkingDurationButNotCharge(inquiry: ParkingInquiry): Boolean = {
+    inquiry.parkingDuration > 3600.0 && inquiry.searchMode != ParkingSearchMode.EnRouteCharging && inquiry.parkingActivityType != Charge
   }
 
   /**
