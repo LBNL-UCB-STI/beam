@@ -42,9 +42,13 @@ import scala.language.postfixOps
   */
 object ChoosesParking {
   case object ChoosingParkingSpot extends BeamAgentState
+
   case object ReleasingParkingSpot extends BeamAgentState
+
   case object ReleasingChargingPoint extends BeamAgentState
+
   case object ConnectingToChargingPoint extends BeamAgentState
+
   private val logger = LoggerFactory.getLogger(this.getClass)
 
   def handleUseParkingSpot(
@@ -189,14 +193,7 @@ trait ChoosesParking extends {
       )
     } else {
       val searchModeChargeOrPark =
-        if (
-          currentBeamVehicle.isEV && isRefuelAtDestinationNeeded(
-            currentBeamVehicle,
-            activityType,
-            remainingTripData.map(_.remainingTourDistance).getOrElse(0.0)
-          )
-        )
-          ParkingSearchMode.DestinationCharging
+        if (isRefuelAtDestinationNeeded(currentBeamVehicle, activityType)) ParkingSearchMode.DestinationCharging
         else ParkingSearchMode.Parking
 
       // for regular parking inquiry, we have vehicle information in `currentBeamVehicle`
@@ -216,34 +213,23 @@ trait ChoosesParking extends {
     }
   }
 
-  private def isRefuelAtDestinationNeeded(
-    vehicle: BeamVehicle,
-    activityType: String,
-    remainingTourDistance: Double
-  ): Boolean = {
+  private def isRefuelAtDestinationNeeded(vehicle: BeamVehicle, activityType: String): Boolean = {
     val conf = beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination
-    ParkingInquiry.activityTypeStringToEnum(activityType) match {
-      case ParkingActivityType.Home =>
-        vehicle.isRefuelNeeded(
-          remainingTourDistance + conf.home.refuelRequiredThresholdInMeters,
-          remainingTourDistance + conf.home.noRefuelThresholdInMeters
-        )
-      case ParkingActivityType.Work =>
-        vehicle.isRefuelNeeded(
-          remainingTourDistance + conf.work.refuelRequiredThresholdInMeters,
-          remainingTourDistance + conf.work.noRefuelThresholdInMeters
-        )
-      case ParkingActivityType.Wherever =>
-        vehicle.isRefuelNeeded(
-          remainingTourDistance + conf.secondary.refuelRequiredThresholdInMeters,
-          remainingTourDistance + conf.secondary.noRefuelThresholdInMeters
-        )
-      case _ =>
-        vehicle.isRefuelNeeded(
-          remainingTourDistance + conf.refuelRequiredThresholdInMeters,
-          remainingTourDistance + conf.noRefuelThresholdInMeters
-        )
-    }
+    if (vehicle.isEV) {
+      ParkingInquiry.activityTypeStringToEnum(activityType) match {
+        case ParkingActivityType.Home =>
+          vehicle.isRefuelNeeded(conf.home.refuelRequiredThresholdInMeters, conf.home.noRefuelThresholdInMeters)
+        case ParkingActivityType.Work =>
+          vehicle.isRefuelNeeded(conf.work.refuelRequiredThresholdInMeters, conf.work.noRefuelThresholdInMeters)
+        case ParkingActivityType.Wherever =>
+          vehicle.isRefuelNeeded(
+            conf.secondary.refuelRequiredThresholdInMeters,
+            conf.secondary.noRefuelThresholdInMeters
+          )
+        case _ =>
+          vehicle.isRefuelNeeded(conf.refuelRequiredThresholdInMeters, conf.noRefuelThresholdInMeters)
+      }
+    } else false
   }
 
   onTransition { case ReadyToChooseParking -> ChoosingParkingSpot =>
