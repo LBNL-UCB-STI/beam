@@ -471,7 +471,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
 
     checkDockerIsInstalledForCCHPhysSim(currentConfig)
 
-    (parsedArgs, config)
+    (parsedArgs, currentConfig)
   }
 
   private def checkDockerIsInstalledForCCHPhysSim(config: TypesafeConfig): Unit = {
@@ -1075,19 +1075,21 @@ object BeamHelper {
     */
   def updateConfigToCurrentVersion(config: TypesafeConfig): TypesafeConfig = {
     import scala.collection.JavaConverters._
-    val managers = config.getConfigList("beam.agentsim.agents.rideHail.managers").asScala
-    if (managers.nonEmpty) {
-      val firstManagerConfig: TypesafeConfig = managers.head
-      val rideHailConfig = config.getConfig("beam.agentsim.agents.rideHail")
-      val newManagerConfig = rideHailConfig.withoutPath("managers").withFallback(firstManagerConfig)
-      config.withValue(
-        "beam.agentsim.agents.rideHail.managers",
-        ConfigValueFactory.fromIterable((newManagerConfig +: managers.tail).map(_.root()).asJava)
-      )
-    } else {
+    val managersPath = "beam.agentsim.agents.rideHail.managers"
+    val configWithManagers = if (config.hasPath(managersPath)) {
       config
+    } else {
+      val singleEmptyElementArray = ConfigFactory.parseString("x = [{}]").getValue("x")
+      config.withValue(managersPath, singleEmptyElementArray)
     }
-
+    val managers = configWithManagers.getConfigList(managersPath).asScala
+    val firstManagerConfig: TypesafeConfig = managers.head
+    val rideHailConfig = configWithManagers.getConfig("beam.agentsim.agents.rideHail")
+    val newManagerConfig = rideHailConfig.withoutPath("managers").withFallback(firstManagerConfig)
+    configWithManagers.withValue(
+      managersPath,
+      ConfigValueFactory.fromIterable((newManagerConfig +: managers.tail).map(_.root()).asJava)
+    )
   }
 }
 
