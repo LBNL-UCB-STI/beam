@@ -232,7 +232,7 @@ trait ScaleUpCharging extends {
               pmfObservedActivities.map(x => x.getKey.scaledUpNumObservation * x.getKey.totDurationInSec).sum
             var cumulatedDurationInSecs = 0
             var timeStep = 0
-            while (timeStep < timeStepByHour * 3600 && cumulatedDurationInSecs < totDurationInSec) {
+            while (cumulatedDurationInSecs < totDurationInSec && timeStep < timeStepByHour * 3600) {
               val activitiesSample = activitiesDistribution.sample()
               val vehicleTypesSample = vehicleTypesDistribution.sample()
               val duration = Math.max(
@@ -258,6 +258,11 @@ trait ScaleUpCharging extends {
                     (personId, locationUtm)
                 }
               val startTime = timeBin + timeStep
+              val updatedDuration =
+                if ((startTime + duration) >= endOfSimulationTime)
+                  endOfSimulationTime - startTime
+                else
+                  duration
               val parkingInquiry = ParkingInquiry(
                 SpaceTime(destinationUtm, startTime),
                 activityType,
@@ -266,11 +271,11 @@ trait ScaleUpCharging extends {
                 None, // remainingTripData
                 Some(personId),
                 1.0, // valueOfTime
-                duration,
+                updatedDuration,
                 searchMode = ParkingSearchMode.DestinationCharging,
                 triggerId = triggerId
               )
-              cumulatedDurationInSecs += duration
+              cumulatedDurationInSecs += parkingInquiry.parkingDuration.toInt
               parkingInquiriesTriggers += ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry), self)
             }
           } else log.warning(s"There were no observed charging events in TAZ $tazId")
