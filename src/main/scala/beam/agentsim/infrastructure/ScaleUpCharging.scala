@@ -228,9 +228,11 @@ trait ScaleUpCharging extends {
             val vehicleTypesDistribution =
               new EnumeratedDistribution[ObservedVehicleTypes](mersenne, pmfObservedVehicleTypes.asJava)
             val rate = totNumberOfEvents / timeStepByHour
-            var cumulatedNumberOfEvents = 0.0
+            val totDurationInSec =
+              pmfObservedActivities.map(x => x.getKey.scaledUpNumObservation * x.getKey.totDurationInSec).sum
+            var cumulatedDurationInSecs = 0
             var timeStep = 0
-            while (cumulatedNumberOfEvents < totNumberOfEvents && timeStep < timeStepByHour * 3600) {
+            while (timeStep < timeStepByHour * 3600 && cumulatedDurationInSecs < totDurationInSec) {
               val activitiesSample = activitiesDistribution.sample()
               val vehicleTypesSample = vehicleTypesDistribution.sample()
               val duration = Math.max(
@@ -268,10 +270,10 @@ trait ScaleUpCharging extends {
                 searchMode = ParkingSearchMode.DestinationCharging,
                 triggerId = triggerId
               )
-              cumulatedNumberOfEvents += 1
+              cumulatedDurationInSecs += duration
               parkingInquiriesTriggers += ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry), self)
             }
-          } else log.warning(s"There were no observed charging events under TAZ $tazId")
+          } else log.warning(s"There were no observed charging events in TAZ $tazId")
           parkingInquiriesTriggers.result()
         case (tazId, _) =>
           log.warning(s"The current TAZ $tazId is unrecognizable")
