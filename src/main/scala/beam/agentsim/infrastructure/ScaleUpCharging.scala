@@ -41,17 +41,10 @@ trait ScaleUpCharging extends {
   private lazy val vehicleRequests = mutable.HashSet.empty[ChargingEvent]
   private lazy val tazTreeMap = getBeamServices.beamScenario.tazTreeMap
 
-  private lazy val scaleUpFactors: Map[ParkingActivityType, Double] = {
-    if (!cnmConfig.scaleUp.enabled) Map()
-    else {
-      Map(
-        ParkingActivityType.Home     -> cnmConfig.scaleUp.expansionFactor_home_activity,
-        ParkingActivityType.Work     -> cnmConfig.scaleUp.expansionFactor_work_activity,
-        ParkingActivityType.Charge   -> cnmConfig.scaleUp.expansionFactor_charge_activity,
-        ParkingActivityType.Wherever -> cnmConfig.scaleUp.expansionFactor_wherever_activity
-      )
-    }
-  }
+  private lazy val scaleUpFactor: Double =
+    if (!cnmConfig.scaleUp.enabled) 0.0
+    else if (cnmConfig.scaleUp.expansionFactor >= 1.0) cnmConfig.scaleUp.expansionFactor - 1.0
+    else throw new RuntimeException(s"scaleUp.expansionFactor == ${cnmConfig.scaleUp.expansionFactor} < 1.0")
 
   private lazy val activitiesLocationMap: Map[Id[TAZ], Vector[ActivityLocation]] = {
     val persons = getBeamServices.matsimServices.getScenario.getPopulation.getPersons.asScala
@@ -62,9 +55,6 @@ trait ScaleUpCharging extends {
       )
       .groupBy(_.tazId)
   }
-
-  private lazy val defaultScaleUpFactor: Double =
-    if (!cnmConfig.scaleUp.enabled) 1.0 else cnmConfig.scaleUp.expansionFactor_wherever_activity
 
   override def loggedReceive: Receive = {
     case t @ TriggerWithId(PlanParkingInquiryTrigger(_, inquiry), triggerId) =>
@@ -172,7 +162,6 @@ trait ScaleUpCharging extends {
               val meanDur: Double = listDur.sum / numObservation.toDouble
               val varianceDur: Double = listDur.map(d => d - meanDur).map(t => t * t).sum / numObservation
               val parkingActivityType: ParkingActivityType = activityTypeStringToEnum(activityType)
-              val scaleUpFactor = scaleUpFactors.getOrElse(parkingActivityType, defaultScaleUpFactor) - 1
               val scaledUpObservation: Double = scaleUpFactor * numObservation
               val activities = ObservedActivities(
                 activityType,

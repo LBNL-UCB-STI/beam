@@ -187,18 +187,11 @@ object ChargingNetwork extends LazyLogging {
           idToGeoMapping,
           chargingZones,
           distanceFunction,
-          beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-          beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
-          beamConfig.beam.agentsim.agents.parking.searchMaxDistanceRelativeToEllipseFoci,
-          beamConfig.beam.agentsim.agents.vehicles.enroute.estimateOfMeanChargingDurationInSecond,
-          beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
-          beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
+          beamConfig.beam.agentsim.agents.parking,
           envelopeInUTM,
           beamConfig.matsim.modules.global.randomSeed,
-          beamConfig.beam.agentsim.agents.parking.multinomialLogit,
           skims,
-          fuelPrice,
-          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
+          fuelPrice
         )
       )
     }

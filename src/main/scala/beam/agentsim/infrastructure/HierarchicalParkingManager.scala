@@ -56,12 +56,12 @@ class HierarchicalParkingManager(
       maxSearchRadius,
       0.0,
       0.0,
+      estimatedMinParkingDurationInSeconds,
       1.0,
       1,
       boundingBox,
       seed,
-      mnlParkingConfig,
-      estimatedMinParkingDurationInSeconds
+      mnlParkingConfig
     )
   )
 

@@ -20,33 +20,26 @@ class ChargingFunctions(
   idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
-  minSearchRadius: Double,
-  maxSearchRadius: Double,
-  searchMaxDistanceRelativeToEllipseFoci: Double,
-  enrouteDuration: Double,
-  fractionOfSameTypeZones: Double,
-  minNumberOfSameTypeZones: Int,
+  parkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking,
   boundingBox: Envelope,
   seed: Int,
-  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
   skims: Option[Skims],
-  fuelPrice: Map[FuelType, Double],
-  estimatedMinParkingDurationInSeconds: Double
+  fuelPrice: Map[FuelType, Double]
 ) extends ParkingFunctions(
       geoQuadTree,
       idToGeoMapping,
       parkingZones,
       distanceFunction,
-      minSearchRadius,
-      maxSearchRadius,
-      searchMaxDistanceRelativeToEllipseFoci,
-      enrouteDuration,
-      fractionOfSameTypeZones,
-      minNumberOfSameTypeZones,
+      parkingConfig.minSearchRadius,
+      parkingConfig.maxSearchRadius,
+      parkingConfig.searchMaxDistanceRelativeToEllipseFoci,
+      parkingConfig.estimatedMinParkingDurationInSeconds,
+      parkingConfig.estimatedMeanEnRouteChargingDurationInSeconds,
+      parkingConfig.fractionOfSameTypeZones,
+      parkingConfig.minNumberOfSameTypeZones,
       boundingBox,
       seed,
-      mnlParkingConfig,
-      estimatedMinParkingDurationInSeconds
+      parkingConfig.multinomialLogit
     ) {
 
   /**
@@ -197,12 +190,12 @@ class ChargingFunctions(
 
     // end-of-day parking durations are set to zero, which will be mis-interpreted here
     val tempParkingDuration = inquiry.searchMode match {
-      case ParkingSearchMode.EnRouteCharging => enrouteDuration.toInt
+      case ParkingSearchMode.EnRouteCharging => parkingConfig.estimatedMeanEnRouteChargingDurationInSeconds.toInt
       case _                                 => inquiry.parkingDuration.toInt
     }
     val parkingDuration: Option[Int] =
-      if (tempParkingDuration < estimatedMinParkingDurationInSeconds)
-        Some(estimatedMinParkingDurationInSeconds.toInt) // at least a small duration of charging
+      if (tempParkingDuration < parkingConfig.estimatedMinParkingDurationInSeconds)
+        Some(parkingConfig.estimatedMinParkingDurationInSeconds.toInt) // at least a small duration of charging
       else Some(tempParkingDuration)
 
     val (addedEnergy, _): (Double, Double) =
@@ -286,5 +279,17 @@ class ChargingFunctions(
         )
         .time
     } getOrElse SkimsUtils.distanceAndTime(BeamMode.CAR, origin, dest)._2
+  }
+
+  override protected def getPreferredParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
+    import ParkingSearchMode._
+    if (parkingConfig.forceParkingType && !List(EnRouteCharging, Init).contains(inquiry.searchMode)) {
+      inquiry.parkingActivityType match {
+        case Home   => Set(ParkingType.Residential)
+        case Work   => Set(ParkingType.Workplace)
+        case Charge => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
+        case _      => Set(ParkingType.Public)
+      }
+    } else super[ParkingFunctions].getPreferredParkingTypes(inquiry)
   }
 }

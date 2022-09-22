@@ -775,7 +775,9 @@ object BeamConfig {
         }
 
         case class Parking(
+          estimatedMeanEnRouteChargingDurationInSeconds: scala.Double,
           estimatedMinParkingDurationInSeconds: scala.Double,
+          forceParkingType: scala.Boolean,
           fractionOfSameTypeZones: scala.Double,
           maxSearchRadius: scala.Double,
           minNumberOfSameTypeZones: scala.Int,
@@ -835,10 +837,15 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking = {
             BeamConfig.Beam.Agentsim.Agents.Parking(
+              estimatedMeanEnRouteChargingDurationInSeconds =
+                if (c.hasPathOrNull("estimatedMeanEnRouteChargingDurationInSeconds"))
+                  c.getDouble("estimatedMeanEnRouteChargingDurationInSeconds")
+                else 1800.0,
               estimatedMinParkingDurationInSeconds =
                 if (c.hasPathOrNull("estimatedMinParkingDurationInSeconds"))
                   c.getDouble("estimatedMinParkingDurationInSeconds")
                 else 60.0,
+              forceParkingType = c.hasPathOrNull("forceParkingType") && c.getBoolean("forceParkingType"),
               fractionOfSameTypeZones =
                 if (c.hasPathOrNull("fractionOfSameTypeZones")) c.getDouble("fractionOfSameTypeZones") else 0.5,
               maxSearchRadius = if (c.hasPathOrNull("maxSearchRadius")) c.getDouble("maxSearchRadius") else 8046.72,
@@ -1712,7 +1719,6 @@ object BeamConfig {
           }
 
           case class Enroute(
-            estimateOfMeanChargingDurationInSecond: scala.Int,
             noRefuelAtRemainingDistanceThresholdInMeters: scala.Int,
             noRefuelThresholdOffsetInMeters: scala.Double,
             refuelRequiredThresholdOffsetInMeters: scala.Int,
@@ -1723,10 +1729,6 @@ object BeamConfig {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Enroute = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.Enroute(
-                estimateOfMeanChargingDurationInSecond =
-                  if (c.hasPathOrNull("estimateOfMeanChargingDurationInSecond"))
-                    c.getInt("estimateOfMeanChargingDurationInSecond")
-                  else 1800,
                 noRefuelAtRemainingDistanceThresholdInMeters =
                   if (c.hasPathOrNull("noRefuelAtRemainingDistanceThresholdInMeters"))
                     c.getInt("noRefuelAtRemainingDistanceThresholdInMeters")
@@ -2042,7 +2044,6 @@ object BeamConfig {
         chargingPointCountScalingFactor: scala.Double,
         chargingPointFilePath: java.lang.String,
         helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
-        maxChargingSessionsInSeconds: scala.Int,
         overnightChargingEnabled: scala.Boolean,
         scaleUp: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp,
         timeStepInSeconds: scala.Int
@@ -2089,11 +2090,7 @@ object BeamConfig {
         case class ScaleUp(
           activitiesLocationFilePath: java.lang.String,
           enabled: scala.Boolean,
-          expansionFactor_charge_activity: scala.Double,
-          expansionFactor_home_activity: scala.Double,
-          expansionFactor_init_activity: scala.Double,
-          expansionFactor_wherever_activity: scala.Double,
-          expansionFactor_work_activity: scala.Double
+          expansionFactor: scala.Double
         )
 
         object ScaleUp {
@@ -2103,22 +2100,7 @@ object BeamConfig {
               activitiesLocationFilePath =
                 if (c.hasPathOrNull("activitiesLocationFilePath")) c.getString("activitiesLocationFilePath") else "",
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
-              expansionFactor_charge_activity =
-                if (c.hasPathOrNull("expansionFactor_charge_activity")) c.getDouble("expansionFactor_charge_activity")
-                else 1.0,
-              expansionFactor_home_activity =
-                if (c.hasPathOrNull("expansionFactor_home_activity")) c.getDouble("expansionFactor_home_activity")
-                else 1.0,
-              expansionFactor_init_activity =
-                if (c.hasPathOrNull("expansionFactor_init_activity")) c.getDouble("expansionFactor_init_activity")
-                else 1.0,
-              expansionFactor_wherever_activity =
-                if (c.hasPathOrNull("expansionFactor_wherever_activity"))
-                  c.getDouble("expansionFactor_wherever_activity")
-                else 1.0,
-              expansionFactor_work_activity =
-                if (c.hasPathOrNull("expansionFactor_work_activity")) c.getDouble("expansionFactor_work_activity")
-                else 1.0
+              expansionFactor = if (c.hasPathOrNull("expansionFactor")) c.getDouble("expansionFactor") else 1.0
             )
           }
         }
@@ -2137,8 +2119,6 @@ object BeamConfig {
               if (c.hasPathOrNull("helics")) c.getConfig("helics")
               else com.typesafe.config.ConfigFactory.parseString("helics{}")
             ),
-            maxChargingSessionsInSeconds =
-              if (c.hasPathOrNull("maxChargingSessionsInSeconds")) c.getInt("maxChargingSessionsInSeconds") else 43200,
             overnightChargingEnabled =
               c.hasPathOrNull("overnightChargingEnabled") && c.getBoolean("overnightChargingEnabled"),
             scaleUp = BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
