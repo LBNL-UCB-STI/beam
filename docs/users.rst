@@ -368,7 +368,7 @@ Also note that `mnl_ride_hail_intercept` appears both in the level specification
 
 Experiment generation can be run using following command::
 
-  ./gradlew -PmainClass=beam.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']" execute
+  ./gradlew -PmainClass=scripts.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']" execute
 
 It's better to create a new sub-folder folder (e.g. 'calibration' or 'experiment-1') in your data input directory and put both templates and the experiment.yml there.
 The ExperimentGenerator will create a sub-folder next to experiment.yml named `runs` which will include all of the data needed to run the experiment along with a shell script to execute a local run. The generator also creates an `experiments.csv` file next to experiment.yml with a mapping between experimental group name, the level name and the value of the params associated with each level. 
@@ -714,7 +714,7 @@ There are, at least, two ways to run conversion:
 
   ::
 
-  ./gradlew execute -PmainClass=beam.utils.beam_to_matsim.EventsByVehicleMode -PappArgs="[<parameters>]"
+  ./gradlew execute -PmainClass=scripts.beam_to_matsim.EventsByVehicleMode -PappArgs="[<parameters>]"
 
 Both ways require four parameters:
  * BEAM events file path
@@ -722,7 +722,7 @@ Both ways require four parameters:
  * Comma separated list of chosen vehicle modes
  * Vehicle population fraction for sampling
 
-Example: `./gradlew execute -PmainClass=beam.utils.beam_to_matsim.EventsByVehicleMode -PappArgs="['BEAM events file path', 'output file path', 'car,bus', '1']" -PmaxRAM=16g`
+Example: `./gradlew execute -PmainClass=scripts.beam_to_matsim.EventsByVehicleMode -PappArgs="['BEAM events file path', 'output file path', 'car,bus', '1']" -PmaxRAM=16g`
 
 If it is required to sample not by just population but also select only vehicles that passes through specific circle with center in X,Y and radius R then there are 4 optional arguments.
 They should be provided together.
@@ -733,7 +733,7 @@ Parameters for circle sampling:
  * Y circle coordinate
  * radius R of circle
 
-Example: `./gradlew execute -PmainClass=beam.utils.beam_to_matsim.EventsByVehicleMode -PappArgs="['BEAM events file path', 'output file path', 'car,bus', '0.2', 'path to physSimNetwork.xml', '548966', '4179000', '5000']" -PmaxRAM=16g`
+Example: `./gradlew execute -PmainClass=scripts.beam_to_matsim.EventsByVehicleMode -PappArgs="['BEAM events file path', 'output file path', 'car,bus', '0.2', 'path to physSimNetwork.xml', '548966', '4179000', '5000']" -PmaxRAM=16g`
 
 Worth noting the fact that running the script require sufficient amount of computing resources corresponding to source events file size.
 For example: processing a BEAM file of 1.5Gb while selecting all vehicles (with fraction of 1) require about 16Gb memory for Java and takes about 12 minutes on modern laptop.
