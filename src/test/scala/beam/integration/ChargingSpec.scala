@@ -55,11 +55,8 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeat
             |  chargingPointFilePath =  ""
             |  scaleUp {
             |    enabled = true
-            |    expansionFactor_home_activity = 1000.0
-            |    expansionFactor_work_activity = 1000.0
-            |    expansionFactor_charge_activity = 1000.0
-            |    expansionFactor_wherever_activity = 1000.0
-            |    expansionFactor_init_activity = 1000.0
+            |    expansionFactor = 1000.0
+            |    activitiesLocationFilePath = ""
             |  }
             |  helics {
             |    connectionEnabled = false
