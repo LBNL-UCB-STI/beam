@@ -346,7 +346,7 @@ trait ScaleUpCharging extends {
       randomSeed = rand.nextInt
     )
     val remainingFuelLevel = remainingRangeInMeters * powerTrain.estimateConsumptionInJoules(1)
-    val soc = remainingFuelLevel / vehicleTypesSample.vehicleType.primaryFuelCapacityInJoule
+    val soc = Math.min(remainingFuelLevel / vehicleTypesSample.vehicleType.primaryFuelCapacityInJoule, 1.0)
     beamVehicle.initializeFuelLevels(soc)
     beamVehicle
   }
