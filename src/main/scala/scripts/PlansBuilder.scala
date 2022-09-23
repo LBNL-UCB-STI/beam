@@ -240,7 +240,7 @@ object PlansBuilder {
     *
     * Run from directly from CLI with, for example:
     *
-    * $> gradle :execute -PmainClass=beam.utils.plan.PlansBuilder
+    * $> gradle :execute -PmainClass=scripts.PlansBuilder
     *   -PappArgs="['test/input/beamville/population.xml',
     *   'test/input/beamville/r5/physsim-network.xml',
     *   'test/input/beamville/vehicles.xml', '2000',

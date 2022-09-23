@@ -17,7 +17,7 @@ import scala.util.Try
 object OsmosisPolygonFilterGenerator extends StrictLogging {
 
   // How to run
-  // ./gradlew execute -PmainClass=beam.utils.map.OsmosisPolygonFilterGenerator -PappArgs="['D:/Work/beam/Austin/input/tl_2017_us_county/tl_2017_us_county.shp', '48209,48055', 'D:/Work/beam/Austin/results']" -PmaxRAM=4g
+  // ./gradlew execute -PmainClass=scripts.map.OsmosisPolygonFilterGenerator -PappArgs="['D:/Work/beam/Austin/input/tl_2017_us_county/tl_2017_us_county.shp', '48209,48055', 'D:/Work/beam/Austin/results']" -PmaxRAM=4g
   // 48209 - is geo id for the county. First two digits represent state code, in this case it is 48 which is Texas. Last three digits represent county code, in this case it is 209 which is Hays county
   def main(args: Array[String]): Unit = {
     require(args.length == 3)
