@@ -1,6 +1,6 @@
 package beam.utils.scenario
 
-import beam.utils.SnapCoordinateUtils
+import beam.utils.{ProfilingUtils, SnapCoordinateUtils}
 import beam.utils.SnapCoordinateUtils.{Category, CsvFile, Error, ErrorInfo, SnapLocationHelper}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
@@ -104,8 +104,9 @@ object ScenarioLoaderHelper extends LazyLogging {
     val households: List[Household] = scenario.getHouseholds.getHouseholds.values().asScala.toList
     households.par.foreach { household =>
       val members = household.getMemberIds.asScala.toSet
-      val validMembers = validPeople.filter(validPerson => members.exists(member => validPerson.equals(member)))//validPeople.intersect(members)
-
+      val validMembers = ProfilingUtils.timed(s"Determining valid members from households. Valid People Size: ${validPeople.size} and Members Size: ${members.size}", logger.info) {
+        validPeople.filter(validPerson => members.exists(member => validPerson.equals(member))) //validPeople.intersect(members)
+      }
       if (validMembers.isEmpty) {
         scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(household.getId.toString)
         scenario.getHouseholds.getHouseholds.remove(household.getId)
