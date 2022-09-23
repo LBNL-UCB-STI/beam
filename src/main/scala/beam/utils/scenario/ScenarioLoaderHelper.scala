@@ -104,7 +104,7 @@ object ScenarioLoaderHelper extends LazyLogging {
     val households: List[Household] = scenario.getHouseholds.getHouseholds.values().asScala.toList
     households.par.foreach { household =>
       val members = household.getMemberIds.asScala.toSet
-      val validMembers = validPeople.intersect(members)
+      val validMembers = validPeople.filter(validPerson => members.exists(member => validPerson.equals(member)))//validPeople.intersect(members)
 
       if (validMembers.isEmpty) {
         scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(household.getId.toString)
