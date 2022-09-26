@@ -233,9 +233,7 @@ trait ChoosesParking extends {
   }
 
   onTransition { case ReadyToChooseParking -> ChoosingParkingSpot =>
-    val personData = stateData.asInstanceOf[BasePersonData]
-    latestParkingInquiry = Some(buildParkingInquiry(personData))
-    park(latestParkingInquiry.get)
+    park(buildParkingInquiry(stateData.asInstanceOf[BasePersonData]))
   }
 
   when(ConnectingToChargingPoint) {

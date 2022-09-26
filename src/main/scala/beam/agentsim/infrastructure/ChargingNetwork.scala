@@ -36,7 +36,7 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
     parallelizationCounterOption: Option[SimpleCounter] = None
   ): ParkingInquiryResponse = {
     val parkingResponse = super[ParkingNetwork].processParkingInquiry(inquiry, parallelizationCounterOption)
-    if (parkingResponse.stall.chargingPointType.isDefined)
+    if (parkingResponse.stall.chargingPointType.isDefined && inquiry.reserveStall)
       processVehicleOnTheWayToStation(inquiry, parkingResponse.stall)
     parkingResponse
   }

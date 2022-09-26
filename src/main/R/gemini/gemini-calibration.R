@@ -1086,6 +1086,7 @@ chargingBehaviorFunc2(ref1)
 chargingBehaviorFunc2(ref2)
 chargingBehaviorFunc2(ref3)
 chargingBehaviorFunc2(ref4)
+
 chargingBehaviorFunc2(ref5)
 
 test <- pt1[startsWith(vehicle, "rideHail") & grepl("L5", vehicleType)]
