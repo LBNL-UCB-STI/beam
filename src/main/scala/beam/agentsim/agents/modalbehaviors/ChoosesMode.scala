@@ -384,6 +384,7 @@ trait ChoosesMode {
               case Some(BIKE_BASED) if !vehicleOrToken.vehicle.isSharedVehicle => vehicleOrToken.streetVehicle
               case Some(CAR_BASED) if !vehicleOrToken.vehicle.isSharedVehicle  => vehicleOrToken.streetVehicle
               case Some(WALK_BASED)                                            => vehicleOrToken.streetVehicle
+              case _                                                           => dummyRHVehicle
             }
           } :+ bodyStreetVehicle
 
