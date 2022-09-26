@@ -366,10 +366,10 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
                   'c5.large', 'c5.xlarge', 'c5.2xlarge', 'c5.4xlarge', 'c5.9xlarge', 'c5.18xlarge',
                   'c5d.large', 'c5d.xlarge', 'c5d.2xlarge', 'c5d.4xlarge', 'c5d.9xlarge', 'c5d.18xlarge', 'c5d.24xlarge',
                   'r5.large', 'r5.xlarge', 'r5.2xlarge', 'r5.4xlarge', 'r5.8xlarge', 'r5.12xlarge', 'r5.24xlarge',
-                  'r5d.large', 'r5d.xlarge', 'r5d.2xlarge', 'r5d.4xlarge', 'r5d.12xlarge', 'r5d.24xlarge',
+                  'r5d.large', 'r5d.xlarge', 'r5d.2xlarge', 'r5d.4xlarge', 'r5d.12xlarge', 'r5d.16xlarge', 'r5d.24xlarge',
                   'm5d.large', 'm5d.xlarge', 'm5d.2xlarge', 'm5d.4xlarge', 'm5d.12xlarge', 'm5d.24xlarge',
                   'z1d.large', 'z1d.xlarge', 'z1d.2xlarge', 'z1d.3xlarge', 'z1d.6xlarge', 'z1d.12xlarge',
-                  'x2gd.metal', 'x2gd.16xlarge']
+                  'x2gd.metal', 'x2gd.16xlarge', 'x2gd.8xlarge', 'r5a.16xlarge', 'r5a.4xlarge']
 
 instance_type_to_memory = {
     't2.nano': 0.5, 't2.micro': 1, 't2.small': 2, 't2.medium': 4, 't2.large': 8, 't2.xlarge': 16, 't2.2xlarge': 32,
@@ -392,9 +392,9 @@ instance_type_to_memory = {
     'c5.large': 4, 'c5.xlarge': 8, 'c5.2xlarge': 16, 'c5.4xlarge': 32, 'c5.9xlarge': 72, 'c5.18xlarge': 96,
     'c5d.large': 4, 'c5d.xlarge': 8, 'c5d.2xlarge': 16, 'c5d.4xlarge': 32, 'c5d.9xlarge': 72, 'c5d.18xlarge': 144, 'c5d.24xlarge': 192,
     'r5.large': 16, 'r5.xlarge': 32, 'r5.2xlarge': 64, 'r5.4xlarge': 128, 'r5.8xlarge': 256, 'r5.12xlarge': 384, 'r5.24xlarge': 768,
-    'r5d.large': 16, 'r5d.xlarge': 32, 'r5d.2xlarge': 64, 'r5d.4xlarge': 128, 'r5d.12xlarge': 384, 'r5d.24xlarge': 768,
+    'r5d.large': 16, 'r5d.xlarge': 32, 'r5d.2xlarge': 64, 'r5d.4xlarge': 128, 'r5d.12xlarge': 384, 'r5d.16xlarge': 480, 'r5d.24xlarge': 768,
     'm5d.large': 8, 'm5d.xlarge': 16, 'm5d.2xlarge': 32, 'm5d.4xlarge': 64, 'm5d.12xlarge': 192, 'm5d.24xlarge': 384,
-    'z1d.large': 2, 'z1d.xlarge': 4, 'z1d.2xlarge': 8, 'z1d.3xlarge': 12, 'z1d.6xlarge': 24, 'z1d.12xlarge': 48
+    'z1d.large': 2, 'z1d.xlarge': 4, 'z1d.2xlarge': 8, 'z1d.3xlarge': 12, 'z1d.6xlarge': 24, 'z1d.12xlarge': 48, 'r5a.16xlarge': 480, 'r5a.4xlarge': 100
 }
 
 
@@ -464,6 +464,7 @@ spot_specs = [
     AWS_Instance_Spec('m5.xlarge',4,16),
     AWS_Instance_Spec('c5d.xlarge',4,8),
     AWS_Instance_Spec('r5d.xlarge',4,32),
+    AWS_Instance_Spec('r5d.16xlarge',64,512),
     AWS_Instance_Spec('m5dn.xlarge',4,16),
     AWS_Instance_Spec('c5.xlarge',4,8),
     AWS_Instance_Spec('g4dn.xlarge',4,16),
@@ -512,7 +513,6 @@ spot_specs = [
     AWS_Instance_Spec('r5dn.16xlarge',64,512),
     AWS_Instance_Spec('r5.16xlarge',64,512),
     AWS_Instance_Spec('m5dn.16xlarge',64,256),
-    AWS_Instance_Spec('r5d.16xlarge',64,512),
     #AWS_Instance_Spec('g4dn.16xlarge',64,256),
     AWS_Instance_Spec('c5n.18xlarge',72,192),
     AWS_Instance_Spec('c5d.18xlarge',72,144),
@@ -525,7 +525,10 @@ spot_specs = [
     #AWS_Instance_Spec('i3en.metal',96,768),
     AWS_Instance_Spec('m5ad.24xlarge',96,384),
     AWS_Instance_Spec('x2gd.16xlarge',64,1024),
-    AWS_Instance_Spec('x2gd.metal',64,1024)
+    AWS_Instance_Spec('x2gd.8xlarge',32,512),
+    AWS_Instance_Spec('x2gd.metal',64,1024),
+    AWS_Instance_Spec('r5a.16xlarge',64,512),
+    AWS_Instance_Spec('r5a.4xlarge',16,128)
 ]
 
 def get_spot_fleet_instances_based_on(min_cores, max_cores, min_memory, max_memory, preferred_instance_type):
@@ -949,6 +952,9 @@ def lambda_handler(event, context):
     command_id = event.get('command', 'deploy') # deploy | start | stop | terminate | log
 
     logger.info("Incoming event: " + str(event))
+    logger.info("Lambda function ARN:" +  str(context.invoked_function_arn))
+    logger.info("Lambda function ARN:" +  str(context.identity))
+
 
     if command_id == 'deploy':
         return deploy_handler(event, context)
