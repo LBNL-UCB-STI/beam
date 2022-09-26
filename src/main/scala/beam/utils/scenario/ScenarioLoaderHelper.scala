@@ -108,7 +108,8 @@ object ScenarioLoaderHelper extends LazyLogging {
     households.par.foreach { household =>
       val members = household.getMemberIds.asScala.toSet
       val validMembers = ProfilingUtils.timed(s"Determining valid members from households. Valid People Size: ${validPeople.size} and Members Size: ${members.size}", x=>logger.info(x)) {
-        members.flatMap(member=>validPeople.find(_.equals(member)))
+        members.filter(member=>validPeople(member))
+        //members.flatMap(member=>validPeople.find(_.equals(member)))
       }
       //val validMembers = ProfilingUtils.timed(s"Determining valid members from households. Valid People Size: ${validPeople.size} and Members Size: ${members.size}", x=>logger.info(x)) {
       //  validPeople.filter(validPerson => members.exists(member => validPerson.equals(member))) //validPeople.intersect(members)
