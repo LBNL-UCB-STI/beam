@@ -92,16 +92,17 @@ class RideHailMaster(
     case TriggerWithId(trigger: InitializeTrigger, triggerId) =>
       sender ! CompletionNotice(triggerId, rideHailManagers.values.map(rhm => ScheduleTrigger(trigger, rhm)).toVector)
 
-    case inquiry: RideHailRequest if inquiry.requestType == RideHailInquiry =>
+    case inquiry: RideHailRequest if !inquiry.shouldReserveRide =>
       inquiriesWithResponses.put(inquiry.requestId, RequestWithResponses(inquiry))
       val requestWithModifiedRequester = inquiry.copy(requester = self)
-      rideHailManagers.values.foreach(_ ! requestWithModifiedRequester)
+      getCustomerRideHailManagers(inquiry.rideHailServiceSubscription).foreach(_ ! requestWithModifiedRequester)
 
-    case rideHailResponse: RideHailResponse if rideHailResponse.request.requestType == RideHailInquiry =>
+    case rideHailResponse: RideHailResponse if !rideHailResponse.request.shouldReserveRide =>
       val requestId = rideHailResponse.request.requestId
       val requestWithResponses: RequestWithResponses = inquiriesWithResponses(requestId)
       val newRequestWithResponses = requestWithResponses.addResponse(rideHailResponse)
-      if (newRequestWithResponses.responses.size == rideHailManagers.size) {
+      val customerRHMs = getCustomerRideHailManagers(requestWithResponses.request.rideHailServiceSubscription)
+      if (newRequestWithResponses.responses.size == customerRHMs.size) {
         inquiriesWithResponses.remove(requestId)
         val bestResponse: RideHailResponse =
           findBestProposal(requestWithResponses.request.customer.personId, newRequestWithResponses.responses)
@@ -111,7 +112,7 @@ class RideHailMaster(
         inquiriesWithResponses.update(requestId, newRequestWithResponses)
       }
 
-    case reserveRide: RideHailRequest if reserveRide.requestType == ReserveRide =>
+    case reserveRide: RideHailRequest if reserveRide.shouldReserveRide =>
       rideHailResponseCache.removeOriginalResponseFromCache(reserveRide) match {
         case Some(originalResponse) =>
           rideHailManagers(originalResponse.rideHailManagerName) forward reserveRide
@@ -129,6 +130,11 @@ class RideHailMaster(
 
     case anyOtherMessage =>
       rideHailManagers.values.foreach(_.forward(anyOtherMessage))
+  }
+
+  private def getCustomerRideHailManagers(subscription: Seq[String]): Iterable[ActorRef] = {
+    val subscribedTo = subscription.collect(rideHailManagers)
+    if (subscribedTo.isEmpty) rideHailManagers.values else subscribedTo
   }
 
   private def findBestProposal(customer: Id[Person], responses: IndexedSeq[RideHailResponse]) = {

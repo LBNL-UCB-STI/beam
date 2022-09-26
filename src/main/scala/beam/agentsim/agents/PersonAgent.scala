@@ -1191,6 +1191,7 @@ class PersonAgent(
         requestTime = _currentTick,
         quotedWaitTime = Some(nextLeg.beamLeg.startTime - _currentTick.get),
         requester = self,
+        rideHailServiceSubscription = attributes.rideHailServiceSubscription,
         triggerId = getCurrentTriggerIdOrGenerate
       )
 

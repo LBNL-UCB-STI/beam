@@ -370,6 +370,7 @@ trait ChoosesMode {
           nextAct.getCoord,
           requestTime = _currentTick,
           requester = self,
+          rideHailServiceSubscription = attributes.rideHailServiceSubscription,
           triggerId = getCurrentTriggerIdOrGenerate,
           asPooled = true
         )
@@ -1003,6 +1004,7 @@ trait ChoosesMode {
       beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc),
       requestTime = _currentTick,
       requester = self,
+      rideHailServiceSubscription = attributes.rideHailServiceSubscription,
       triggerId = getCurrentTriggerIdOrGenerate
     )
     //    println(s"requesting: ${inquiry.requestId}")

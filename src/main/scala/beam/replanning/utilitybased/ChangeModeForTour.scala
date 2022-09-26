@@ -243,6 +243,10 @@ class ChangeModeForTour(
       .getBeamAttributes(beamServices.matsimServices.getScenario.getPopulation, person.getId.toString)
       .availableModes
 
+    val rideHailServiceSubscription: Seq[String] = PopulationAdjustment
+      .getBeamAttributes(beamServices.matsimServices.getScenario.getPopulation, person.getId.toString)
+      .rideHailServiceSubscription
+
     val income = Option(
       beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
         .getAttribute(person.getId.toString, "income")
@@ -255,6 +259,7 @@ class ChangeModeForTour(
         modalityStyle,
         PersonUtils.getSex(person).equalsIgnoreCase("M"),
         availableModes,
+        rideHailServiceSubscription,
         valueOfTime,
         Option(PersonUtils.getAge(person)),
         income.map { x =>

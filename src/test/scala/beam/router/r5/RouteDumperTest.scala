@@ -35,6 +35,7 @@ class RouteDumperTest extends AnyFunSuite with Matchers {
       None,
       true,
       Vector(BeamMode.CAR),
+      Seq.empty,
       valueOfTime = 10000000.0,
       Some(42),
       Some(1234)

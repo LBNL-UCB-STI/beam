@@ -24,6 +24,7 @@ case class AttributesOfIndividual(
   modalityStyle: Option[String],
   isMale: Boolean,
   availableModes: Seq[BeamMode],
+  rideHailServiceSubscription: Seq[String],
   valueOfTime: Double,
   age: Option[Int],
   income: Option[Double]
@@ -264,7 +265,7 @@ case class AttributesOfIndividual(
 object AttributesOfIndividual {
 
   val EMPTY: AttributesOfIndividual =
-    AttributesOfIndividual(HouseholdAttributes.EMPTY, None, true, Seq(), 0.0, None, None)
+    AttributesOfIndividual(HouseholdAttributes.EMPTY, None, true, Seq(), Seq.empty, 0.0, None, None)
 }
 
 case class HouseholdAttributes(
