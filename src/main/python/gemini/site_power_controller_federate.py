@@ -10,8 +10,6 @@ import itertools
 import os
 
 from rudimentary_spmc import SPM_Control
-
-# import xfc-btms-saev-controller
 import components
 
 
@@ -49,7 +47,7 @@ def create_federate(fedinfo, tazId):
     return cfed
 
 
-def run_spmc_federate(cfed):
+def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds):
     # enter execution mode
     h.helicsFederateEnterExecutingMode(cfed)
     fed_name = h.helicsFederateGetName(cfed)
@@ -58,14 +56,14 @@ def run_spmc_federate(cfed):
     pubs_control = h.helicsFederateGetPublicationByIndex(cfed, 0)
 
     # SPMC INITIALIZE HERE
-    # TODO JULIUS: @HL I initialized my SPMC here
+    # JULIUS: @HL I initialized my SPMC here
     # @ HL can you provide the missing infromation
     initMpc = False
-    t_start = int()
-    timestep_intervall = int()
+    t_start = int(0)
+    timestep_intervall = int(timebin_in_seconds)
     result_directory = ''
     simName = 'myFirstSimulation'
-    RideHailDepotId = ''
+    RideHailDepotId = str(taz_id)
     ChBaMaxPower = []  # list of floats in kW for each plug, for first it should be the same maximum power for all -> could set 10 000 kW if message contains data --> list with length of number of plugs from infrastructure file?
     ChBaParkingZoneId = []  # list of strings, could just be a list of empty strings as not further used so far
     ChBaNum = len(ChBaMaxPower)  # number of plugs in one depot --> infrastructure file?
@@ -78,15 +76,15 @@ def run_spmc_federate(cfed):
         'arrivalTime': 'float64', 'departureTime': 'float64', 'linkTravelTime': 'string', 'primaryFuelType': 'category',
         'parkingZoneId': 'category', 'duration': 'float64'
     }  # dictionary containing the data types in the beam prediction file
-    t_max = int()  # maximum time up to which we simulate (for prediciting in MPC)
+    t_max = int(
+        simulated_day_in_seconds - timebin_in_seconds)  # maximum time up to which we simulate (for prediciting in MPC)
 
     depotController = components.GeminiWrapper.ControlWrapper(initMpc, t_start, timestep_intervall, result_directory,
                                                               simName, RideHailDepotId, ChBaMaxPower, ChBaParkingZoneId,
                                                               ChBaNum, path_BeamPredictionFile, dtype_Predictions,
                                                               t_max)
-
-    # TODO MYUNGSOO
-    # spmc = SPM_Control(time_step_mins=1, max_power_evse=[], min_power_evse=[])
+    # MYUNGSOO
+    spmc = SPM_Control(time_step_mins=1, max_power_evse=[], min_power_evse=[])
 
     def key_func(k):
         return k['siteId']
@@ -96,27 +94,13 @@ def run_spmc_federate(cfed):
         while grantedtime < requestedtime:
             grantedtime = h.helicsFederateRequestTime(cfed, requestedtime)
 
-    timebin = 300
     # start execution loop
-    for t in range(0, 60 * 3600 - timebin, timebin):
+    for t in range(0, simulated_day_in_seconds - timebin_in_seconds, timebin_in_seconds):
         syncTime(t)
-        logging.info("charger loads received at currenttime: " + str(t) + " seconds")
         logging.info("charger loads received at currenttime: " + str(t) + " seconds")
         charging_events_json = json.loads(h.helicsInputGetString(subs_charging_events))
         logging.info('Logging this as CSV')
         logging.info('stationId,estimatedLoad,currentTime')
-
-        # for vehicle in charging_events_json:
-        #     vehicleId = vehicle['vehicleId']
-        #     tazId = vehicle['tazId']
-        #     siteId = vehicle['siteId']
-        #     vehicleType = vehicle['vehicleType']
-        #     primaryFuelLevelInJoules = vehicle['primaryFuelLevelInJoules']
-        #     arrivalTime = vehicle['arrivalTime']
-        #     desiredDepartureTime = vehicle['departureTime']
-        #     desiredFuelLevelInJoules = vehicle['desiredFuelLevelInJoules']
-        #     powerInKW = vehicle['powerInKW']
-        #     logging.info(str(vehicleId)+','+str(vehicleType)+','+str(primaryFuelLevelInJoules)+','+str(desiredDepartureTime)+','+str(t))
 
         ############### This section should be un-commented and debugged when we have a controller signal to send to BEAM
         control_commands_list = []
@@ -139,16 +123,18 @@ def run_spmc_federate(cfed):
                 tazId.append(int(vehicle['tazId']))
                 siteId.append(int(vehicle['siteId']))
                 vehicleType.append(vehicle['vehicleType'])
-                primaryFuelLevelInKWh.append(float(vehicle[
-                                                       'primaryFuelLevelInJoules']) / 3600000)  ### MJ: What is this? Is it the current energy level of each EV? Or battery size?
-                arrivalTime.append(
-                    float(vehicle['arrivalTime']))  ### MJ: Should be in minutes of day. What is the unit of this?
-                desiredDepartureTime.append(
-                    float(vehicle['departureTime']))  ### MJ: Should be in minutes of day. What is the unit of this?
-                desiredFuelLevelInKWh.append(float(vehicle[
-                                                       'desiredFuelLevelInJoules']) / 3600000)  ### MJ: I assume that this is remaining energy to be delivered to each EV and updated each time, right?
-                maxPowerInKW.append(float(vehicle['maxPowerInKW']))  ### MJ: I assume that this is the EV charging power
-                batteryCapacityInKWh.append(60)  # TODO Julius @ HL can you please add this to the BEAM output?
+                # MJ: What is this? Is it the current energy level of each EV? Or battery size?
+                primaryFuelLevelInKWh.append(float(vehicle['primaryFuelLevelInJoules']) / 3600000)
+                # MJ: Should be in minutes of day. What is the unit of this?
+                arrivalTime.append(float(vehicle['arrivalTime']))
+                # MJ: Should be in minutes of day. What is the unit of this?
+                desiredDepartureTime.append(float(vehicle['departureTime']))
+                # MJ: I assume that this is remaining energy to be delivered to each EV and updated each time, right?
+                desiredFuelLevelInKWh.append(float(vehicle['desiredFuelLevelInJoules']) / 3600000)
+                # MJ: I assume that this is the EV charging power
+                maxPowerInKW.append(float(vehicle['maxPowerInKW']))
+                # Julius @ HL can you please add this to the BEAM output?
+                batteryCapacityInKWh.append(float(vehicle['primaryFuelCapacityInJoule']) / 3600000)
 
             if not siteId.str.lower().startswith('depot'):
                 # Myungsoo is SPMC (NOT RIDE HAIL DEPOT)
@@ -265,12 +251,15 @@ h.helicsFederateInfoSetCoreInitString(fedinfo, f"--federates={len(tazes)}")
 deltat = 1.0  # smallest discernable interval to this federate
 h.helicsFederateInfoSetTimeProperty(fedinfo, h.helics_property_time_delta, deltat)
 
-feds = [create_federate(fedinfo, taz) for taz in tazes]
+feds = [[create_federate(fedinfo, taz), taz] for taz in tazes]
 
 print(len(feds))
 
 from threading import Thread
 
-for fed in feds:
-    t = Thread(target=run_spmc_federate, args=(fed,))
+timeBin = 300
+simulatedDay = 60 * 3600  # 60 hours BEAM Day
+# start execution loop
+for [fed, tazId] in feds:
+    t = Thread(target=run_spmc_federate, args=(fed, tazId, timeBin, simulatedDay))
     t.start()

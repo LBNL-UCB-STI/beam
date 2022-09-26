@@ -97,14 +97,15 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
                 // Sending this message
                 val powerInKW = getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
                 Map(
-                  "tazId"                    -> tazId,
-                  "siteId"                   -> tazId, // TODO I have a way for generating the site Id, but for now Site id == parking Zone Id
-                  "vehicleId"                -> vehicle.id,
-                  "vehicleType"              -> vehicle.beamVehicleType.id,
-                  "primaryFuelLevelInJoules" -> vehicle.primaryFuelLevelInJoules,
-                  "arrivalTime"              -> arrivalTime, // TODO arrival time at station
-                  "departureTime"            -> departureTime, // TODO estimated departure time = arrival time + parking duration
-                  "desiredFuelLevelInJoules" -> (vehicle.beamVehicleType.primaryFuelCapacityInJoule - vehicle.primaryFuelLevelInJoules), // TODO Battery capacity - fuel level
+                  "tazId"                      -> tazId,
+                  "siteId"                     -> tazId, // TODO I have a way for generating the site Id, but for now Site id == parking Zone Id
+                  "vehicleId"                  -> vehicle.id,
+                  "vehicleType"                -> vehicle.beamVehicleType.id,
+                  "primaryFuelLevelInJoules"   -> vehicle.primaryFuelLevelInJoules,
+                  "primaryFuelCapacityInJoule" -> vehicle.beamVehicleType.primaryFuelCapacityInJoule,
+                  "arrivalTime"                -> arrivalTime, // TODO arrival time at station
+                  "departureTime"              -> departureTime, // TODO estimated departure time = arrival time + parking duration
+                  "desiredFuelLevelInJoules"   -> (vehicle.beamVehicleType.primaryFuelCapacityInJoule - vehicle.primaryFuelLevelInJoules), // TODO Battery capacity - fuel level
                   "maxPowerInKW" -> vehicle.beamVehicleType.chargingCapability
                     .map(getChargingPointInstalledPowerInKw)
                     .map(Math.min(powerInKW, _))
