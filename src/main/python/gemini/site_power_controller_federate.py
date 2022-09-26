@@ -76,8 +76,8 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
         'arrivalTime': 'float64', 'departureTime': 'float64', 'linkTravelTime': 'string', 'primaryFuelType': 'category',
         'parkingZoneId': 'category', 'duration': 'float64'
     }  # dictionary containing the data types in the beam prediction file
-    t_max = int(
-        simulated_day_in_seconds - timebin_in_seconds)  # maximum time up to which we simulate (for prediciting in MPC)
+    # maximum time up to which we simulate (for predicting in MPC)
+    t_max = int(simulated_day_in_seconds - timebin_in_seconds)
 
     depotController = components.GeminiWrapper.ControlWrapper(initMpc, t_start, timestep_intervall, result_directory,
                                                               simName, RideHailDepotId, ChBaMaxPower, ChBaParkingZoneId,
@@ -102,7 +102,7 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
         logging.info('Logging this as CSV')
         logging.info('stationId,estimatedLoad,currentTime')
 
-        ############### This section should be un-commented and debugged when we have a controller signal to send to BEAM
+        # Reading BEAM values
         control_commands_list = []
         for siteId, charging_events in itertools.groupby(charging_events_json, key_func):
             print(siteId)
@@ -110,7 +110,6 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
 
             vehicleId = []
             tazId = []
-            siteId = []
             vehicleType = []
             primaryFuelLevelInKWh = []
             arrivalTime = []
@@ -121,7 +120,6 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
             for vehicle in charging_events:
                 vehicleId.append(int(vehicle['vehicleId']))
                 tazId.append(int(vehicle['tazId']))
-                siteId.append(int(vehicle['siteId']))
                 vehicleType.append(vehicle['vehicleType'])
                 # MJ: What is this? Is it the current energy level of each EV? Or battery size?
                 primaryFuelLevelInKWh.append(float(vehicle['primaryFuelLevelInJoules']) / 3600000)
@@ -136,11 +134,14 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
                 # Julius @ HL can you please add this to the BEAM output?
                 batteryCapacityInKWh.append(float(vehicle['primaryFuelCapacityInJoule']) / 3600000)
 
+            # Running SPMC controllers
             if not siteId.str.lower().startswith('depot'):
                 # Myungsoo is SPMC (NOT RIDE HAIL DEPOT)
                 # 1) SPMC takes list(charging_events) (and/or siteId)
                 # 2) SPMC returns control_commands
                 # 2.a) example
+                # 3) add control_commands to control_commands_list
+                # control_commands_list = control_commands_list + control_commands
                 spmc.max_power_evse = maxPowerInKW
                 spmc.min_power_evse = [0] * len(spmc.max_power_evse)
                 Pmin_siteInKW = 0
@@ -156,13 +157,6 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
                     }]
                     control_commands_list = control_commands_list + control_commands
                     i = i + 1
-
-                # control_commands = [{
-                #     'vehicleId': str(""),
-                #     'powerInKw': str(9.5)
-                # }]
-                # # 3) add control_commands to control_commands_list
-                # control_commands_list = control_commands_list + control_commands
             else:
                 # Julius Is SPMC (IS RIDE HAIL DEPOT)
                 # 1) SPMC takes list(charging_events) (and/or siteId)
@@ -177,8 +171,8 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
                 # Julius @ HL do we need to check if all vehicles which are already in my charging depot are still there in every loop of this run? i.e. could there be vehicles which just leave without me sending a departure signal? --> # @Julius yes, we should do that  --> implemented below
 
                 # synchronize vehicles which are at station: Remove vehicles which are not in the vehicleId list from BEAM anymore
-                depotController.synchronizeVehiclesAtStation(vehicleIdsAtStation=vehicleId,
-                                                             t_act=0)  # TODO Julius @ HL can you please add the actual time here?
+                # Julius @ HL can you please add the actual time here?
+                depotController.synchronizeVehiclesAtStation(vehicleIdsAtStation=vehicleId, t_act=t)
 
                 # VEHICLE ARRIVAL
                 vehicleInDepot = []
