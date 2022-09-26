@@ -8,6 +8,8 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 
+import scala.collection.compat.IterableFactoryExtensionMethods
+import scala.collection.immutable.HashSet
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
 
@@ -99,14 +101,18 @@ object ScenarioLoaderHelper extends LazyLogging {
       else SnapCoordinateUtils.writeToCsv(s"$path/${CsvFile.Plans}", planErrors)
     }
 
-    val validPeople: Set[Id[Person]] = scenario.getPopulation.getPersons.values().asScala.map(_.getId).toSet
+    val validPeople: HashSet[Id[Person]] = HashSet.from(scenario.getPopulation.getPersons.values().asScala.map(_.getId))
+
 
     val households: List[Household] = scenario.getHouseholds.getHouseholds.values().asScala.toList
     households.par.foreach { household =>
       val members = household.getMemberIds.asScala.toSet
       val validMembers = ProfilingUtils.timed(s"Determining valid members from households. Valid People Size: ${validPeople.size} and Members Size: ${members.size}", x=>logger.info(x)) {
-        validPeople.filter(validPerson => members.exists(member => validPerson.equals(member))) //validPeople.intersect(members)
+        members.flatMap(member=>validPeople.find(_.equals(member)))
       }
+      //val validMembers = ProfilingUtils.timed(s"Determining valid members from households. Valid People Size: ${validPeople.size} and Members Size: ${members.size}", x=>logger.info(x)) {
+      //  validPeople.filter(validPerson => members.exists(member => validPerson.equals(member))) //validPeople.intersect(members)
+      //}
       if (validMembers.isEmpty) {
         scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(household.getId.toString)
         scenario.getHouseholds.getHouseholds.remove(household.getId)
