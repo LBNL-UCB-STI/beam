@@ -192,12 +192,12 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
                                                 VehicleMaxEngy=batteryCapacityInKWh[i],
                                                 VehicleMaxPower=maxPowerInKW[i],
                                                 # this doesn't change within one charging session
-                                                t_act=int())  # Julius @ HL can you provide the actual time
+                                                t_act=int(t))  # Julius @ HL can you provide the actual time
 
                 # OBTAIN CONTROL COMMANDS
                 vehicles, power, release = depotController.step(
-                    timestep=int(),  # julius @ HL can you provide the timestep,
-                    t_act=int(),  # julius @ HL can you provide the actual time)
+                    timestep=int(timebin_in_seconds),  # julius @ HL can you provide the timestep,
+                    t_act=int(t),  # julius @ HL can you provide the actual time)
                     GridPowerUpper=1e10,  # Update from DERMS, for the first we turn this off with a big number
                     GridPowerLower=-1e10,  # Update from DERMS, for the first we turn this off with a big number
                     BtmsEnergy=0,  # Update from PyDSS, for first this is deactivated in components.ChaDepParent
