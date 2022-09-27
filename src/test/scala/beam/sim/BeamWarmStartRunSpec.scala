@@ -11,18 +11,18 @@ import com.typesafe.config.ConfigFactory
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.{MatsimServices, OutputDirectoryHierarchy}
 import org.mockito.Mockito._
-import org.scalatest.{BeforeAndAfterAllConfigMap, Retries}
-import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.tagobjects.Retryable
+import org.scalatest.{BeforeAndAfterAllConfigMap, Retries}
+import org.scalatest.wordspec.AnyWordSpecLike
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
+import scala.collection.mutable.ListBuffer
+import scala.util.control.Breaks.{break, breakable}
 
 import java.io.{File, FileInputStream}
 import java.util.zip.ZipInputStream
-import scala.collection.mutable.ListBuffer
-import scala.util.control.Breaks.{break, breakable}
 
 class BeamWarmStartRunSpec
     extends AnyWordSpecLike
