@@ -14,9 +14,10 @@ class RideHailSkims extends AbstractSkimmerReadOnly {
   def getSkimValue(
     tazId: Id[TAZ],
     hour: Int,
-    reservationType: RideHailReservationType
+    reservationType: RideHailReservationType,
+    serviceName: String
   ): Option[RidehailSkimmerInternal] = {
-    val key = RidehailSkimmerKey(tazId, hour, reservationType)
+    val key = RidehailSkimmerKey(tazId, hour, reservationType, serviceName)
 
     val getSkimValue = pastSkims
       .get(currentIteration - 1)

@@ -3,7 +3,6 @@ package beam.router.skim.core
 import beam.agentsim.events.RideHailReservationConfirmationEvent.{Pooled, RideHailReservationType, Solo}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.Skims
-import beam.router.skim.core.AbstractSkimmer.Aggregator
 import beam.router.skim.readonly.RideHailSkims
 import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
@@ -24,7 +23,7 @@ class RideHailSkimmer @Inject() (
   override protected val skimFileBaseName: String = RideHailSkimmer.fileBaseName
 
   override protected val skimFileHeader =
-    "tazId,hour,reservationType,waitTime,costPerMile,unmatchedRequestsPercent,observations,iterations"
+    "tazId,hour,reservationType,serviceName,waitTime,costPerMile,unmatchedRequestsPercent,observations,iterations"
   override protected val skimName: String = RideHailSkimmer.name
   override protected val skimType: Skims.SkimType.Value = Skims.SkimType.RH_SKIMMER
 
@@ -35,7 +34,8 @@ class RideHailSkimmer @Inject() (
       RidehailSkimmerKey(
         tazId = line("tazId").createId,
         hour = line("hour").toInt,
-        reservationType = if (line("reservationType").equalsIgnoreCase("pooled")) Pooled else Solo
+        reservationType = if (line("reservationType").equalsIgnoreCase("pooled")) Pooled else Solo,
+        serviceName = line.getOrElse("serviceName", "GlobalRHM")
       ),
       RidehailSkimmerInternal(
         waitTime = Option(line("waitTime")).map(_.toDouble).getOrElse(Double.NaN),
@@ -79,8 +79,12 @@ object RideHailSkimmer extends LazyLogging {
   val name = "ridehail-skimmer"
   val fileBaseName = "skimsRidehail"
 
-  case class RidehailSkimmerKey(tazId: Id[TAZ], hour: Int, reservationType: RideHailReservationType)
-      extends AbstractSkimmerKey {
+  case class RidehailSkimmerKey(
+    tazId: Id[TAZ],
+    hour: Int,
+    reservationType: RideHailReservationType,
+    serviceName: String
+  ) extends AbstractSkimmerKey {
     override def toCsv: String = productIterator.mkString(",")
   }
 

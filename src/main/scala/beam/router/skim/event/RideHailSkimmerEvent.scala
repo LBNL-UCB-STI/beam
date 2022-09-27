@@ -14,6 +14,7 @@ class RideHailSkimmerEvent(
   eventTime: Double,
   tazId: Id[TAZ],
   reservationType: RideHailReservationType,
+  serviceName: String,
   waitTime: Int,
   costPerMile: Double
 ) extends AbstractSkimmerEvent(eventTime) {
@@ -21,7 +22,7 @@ class RideHailSkimmerEvent(
   override protected val skimName: String = RideHailSkimmer.name
 
   override val getKey: AbstractSkimmerKey =
-    RidehailSkimmerKey(tazId, SkimsUtils.timeToBin(eventTime.toInt), reservationType)
+    RidehailSkimmerKey(tazId, SkimsUtils.timeToBin(eventTime.toInt), reservationType, serviceName)
 
   override val getSkimmerInternal: AbstractSkimmerInternal = RidehailSkimmerInternal(waitTime, costPerMile, 0)
 }
@@ -29,13 +30,14 @@ class RideHailSkimmerEvent(
 class UnmatchedRideHailRequestSkimmerEvent(
   eventTime: Double,
   tazId: Id[TAZ],
-  reservationType: RideHailReservationType
+  reservationType: RideHailReservationType,
+  serviceName: String
 ) extends AbstractSkimmerEvent(eventTime) {
 
   override protected val skimName: String = RideHailSkimmer.name
 
   override val getKey: AbstractSkimmerKey =
-    RidehailSkimmerKey(tazId, SkimsUtils.timeToBin(eventTime.toInt), reservationType)
+    RidehailSkimmerKey(tazId, SkimsUtils.timeToBin(eventTime.toInt), reservationType, serviceName)
 
   override val getSkimmerInternal: AbstractSkimmerInternal = RidehailSkimmerInternal(Double.NaN, Double.NaN, 100.0)
 }

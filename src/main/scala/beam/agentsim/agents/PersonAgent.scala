@@ -700,7 +700,8 @@ class PersonAgent(
       new UnmatchedRideHailRequestSkimmerEvent(
         eventTime = tick,
         tazId = beamScenario.tazTreeMap.getTAZ(response.request.pickUpLocationUTM).tazId,
-        reservationType = if (response.request.asPooled) Pooled else Solo
+        reservationType = if (response.request.asPooled) Pooled else Solo,
+        serviceName = response.rideHailManagerName
       )
     )
     eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id), replanningReason))
@@ -765,7 +766,7 @@ class PersonAgent(
     // RIDE HAIL SUCCESS
     // no trigger needed here since we're going to Waiting anyway without any other actions needed
     case Event(
-          RideHailResponse(req, travelProposal, _, None, triggersToSchedule, directTripTravelProposal),
+          RideHailResponse(req, travelProposal, serviceName, None, triggersToSchedule, directTripTravelProposal),
           data: BasePersonData
         ) =>
       val tick = _currentTick.getOrElse(req.departAt).toDouble
@@ -792,6 +793,7 @@ class PersonAgent(
           eventTime = tick,
           tazId = beamScenario.tazTreeMap.getTAZ(req.pickUpLocationUTM).tazId,
           reservationType = if (req.asPooled) Pooled else Solo,
+          serviceName = serviceName,
           waitTime = travelProposal.get.timeToCustomer(req.customer),
           costPerMile =
             travelProposal.get.estimatedPrice(req.customer.personId) / travelProposal.get.travelDistanceForCustomer(
