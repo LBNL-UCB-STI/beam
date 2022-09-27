@@ -22,7 +22,12 @@ import java.util.zip.ZipInputStream
 import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks.{break, breakable}
 
-class BeamWarmStartRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
+class BeamWarmStartRunSpec
+    extends AnyWordSpecLike
+    with Matchers
+    with BeamHelper
+    with BeforeAndAfterAllConfigMap
+    with Retries {
 
   "Beam WarmStart" must {
 
@@ -97,7 +102,7 @@ class BeamWarmStartRunSpec extends AnyWordSpecLike with Matchers with BeamHelper
       (averageCarSpeedIt1 / averageCarSpeedIt0) should be > 30.0
     }
 
-    "run beamville scenario with linkStatsOnly warmstart with linkstats only file" in {
+    "run beamville scenario with linkStatsOnly warmstart with linkstats only file" taggedAs Retryable in {
       val baseConf = ConfigFactory
         .parseString(s"""
          beam.agentsim.lastIteration = 1

@@ -350,7 +350,7 @@ def add_beam_row(sheet_id, row_data, sheet_api):
             [
                 row_data.pop('status'),
                 row_data.pop('name'),
-                row_data.pop('instance_id'),
+                row_data.pop('s3_link', ''),
                 row_data.pop('instance_type'),
                 datetime.now().strftime('%m/%d/%Y, %H:%M:%S'),
                 row_data.pop('host_name'),
@@ -361,7 +361,7 @@ def add_beam_row(sheet_id, row_data, sheet_api):
                 row_data.pop('commit'),
                 row_data.pop('data_branch'),
                 row_data.pop('data_commit', ''),
-                row_data.pop('s3_link', ''),
+                row_data.pop('instance_id'),
                 row_data.pop('config_file', ''),
                 row_data.pop('max_ram', ''),
                 row_data.pop('stacktrace', ''),
@@ -370,6 +370,7 @@ def add_beam_row(sheet_id, row_data, sheet_api):
                 row_data.pop('warning', ''),
                 row_data.pop('sigopt_client_id', ''),
                 row_data.pop('sigopt_dev_id', ''),
+                row_data.pop('profiler_type', ''),
                 *row_data.values()
             ]
         ]
