@@ -4,15 +4,16 @@ import beam.utils.TestConfigUtils.testConfig
 import beam.utils.csv.GenericCsvReader
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.controler.OutputDirectoryHierarchy
-import org.scalatest.BeforeAndAfterAllConfigMap
+import org.scalatest.{BeforeAndAfterAllConfigMap, Retries}
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
+import org.scalatest.tagobjects.Retryable
 
 import java.io.{File, FileInputStream}
 import java.util.zip.ZipInputStream
 
-class BeamWarmStartRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap {
+class BeamWarmStartRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAllConfigMap with Retries {
 
   "Beam WarmStart" must {
 
@@ -85,7 +86,7 @@ class BeamWarmStartRunSpec extends AnyWordSpecLike with Matchers with BeamHelper
       (averageCarSpeedIt1 / averageCarSpeedIt0) should be > 30.0
     }
 
-    "run beamville scenario with linkStatsOnly warmstart with linkstats only file" in {
+    "run beamville scenario with linkStatsOnly warmstart with linkstats only file" taggedAs Retryable in {
       val baseConf = ConfigFactory
         .parseString(s"""
          beam.agentsim.lastIteration = 1
