@@ -10,6 +10,7 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode._
 import beam.agentsim.infrastructure.power.{PowerController, SitePowerManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -95,7 +96,8 @@ class ChargingNetworkManager(
       log.debug(s"Received parking inquiry: $inquiry")
       val chargingNetwork = chargingNetworkHelper.get(inquiry.reservedFor.managerId)
       val response = chargingNetwork.processParkingInquiry(inquiry)
-      collectVehicleRequestInfo(inquiry, response.stall)
+      if (inquiry.reserveStall && List(DestinationCharging, EnRouteCharging).contains(inquiry.searchMode))
+        collectChargingRequests(inquiry, response.stall)
       sender() ! response
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>

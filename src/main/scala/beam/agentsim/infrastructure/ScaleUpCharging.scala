@@ -285,7 +285,7 @@ trait ScaleUpCharging extends {
     * @param inquiry ParkingInquiry
     * @param stall   ParkingStall
     */
-  protected def collectVehicleRequestInfo(inquiry: ParkingInquiry, stall: ParkingStall): Unit = {
+  protected def collectChargingRequests(inquiry: ParkingInquiry, stall: ParkingStall): Unit = {
     if (cnmConfig.scaleUp.enabled && inquiry.beamVehicle.exists(v => !isVirtualCar(v.id))) {
       val vehicle = inquiry.beamVehicle.get
       val vehicleAlias =
