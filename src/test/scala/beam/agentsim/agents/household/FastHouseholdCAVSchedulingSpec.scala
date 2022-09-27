@@ -212,7 +212,16 @@ class FastHouseholdCAVSchedulingSpec
     P2.addPlan(plan2)
     population.addPerson(P2)
 
-    household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(P1.getId, P2.getId)))
+    val P3: Person = population.getFactory.createPerson(Id.createPersonId(household.getId + "_P3"))
+    val H31: Activity = PopulationUtils.createActivityFromCoord("home", homeCoord)
+    H31.setEndTime(Double.NegativeInfinity)
+    val plan3: Plan = population.getFactory.createPlan()
+    plan3.setPerson(P3)
+    plan3.addActivity(H31)
+    P3.addPlan(plan3)
+    population.addPerson(P3)
+
+    household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(P1.getId, P2.getId, P3.getId)))
     household.setVehicleIds(
       JavaConverters.seqAsJavaList(vehicles.map(veh => Id.create(veh.toStreetVehicle.id, classOf[Vehicle])))
     )
