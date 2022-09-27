@@ -346,33 +346,6 @@ runcmd:
   - sudo shutdown -h +$SHUTDOWN_WAIT
 '''))
 
-instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't2.xlarge', 't2.2xlarge',
-                  'm4.large', 'm4.xlarge', 'm4.2xlarge', 'm4.4xlarge', 'm4.10xlarge', 'm4.16xlarge',
-                  'm5.large', 'm5.xlarge', 'm5.2xlarge', 'm5.4xlarge', 'm5.12xlarge', 'm5.24xlarge',
-                  'c4.large', 'c4.xlarge', 'c4.2xlarge', 'c4.4xlarge', 'c4.8xlarge',
-                  'f1.2xlarge', 'f1.16xlarge',
-                  'g2.2xlarge', 'g2.8xlarge',
-                  'g3.4xlarge', 'g3.8xlarge', 'g3.16xlarge',
-                  'p2.xlarge', 'p2.8xlarge', 'p2.16xlarge',
-                  'p3.2xlarge', 'p3.8xlarge', 'p3.16xlarge',
-                  'r4.large', 'r4.xlarge', 'r4.2xlarge', 'r4.4xlarge', 'r4.8xlarge', 'r4.16xlarge',
-                  'r3.large', 'r3.xlarge', 'r3.2xlarge', 'r3.4xlarge', 'r3.8xlarge',
-                  'x1.16xlarge', 'x1.32xlarge',
-                  'x1e.xlarge', 'x1e.2xlarge', 'x1e.4xlarge', 'x1e.8xlarge', 'x1e.16xlarge', 'x1e.32xlarge',
-                  'd2.xlarge', 'd2.2xlarge', 'd2.4xlarge', 'd2.8xlarge',
-                  'i2.xlarge', 'i2.2xlarge', 'i2.4xlarge', 'i2.8xlarge',
-                  'h1.2xlarge', 'h1.4xlarge', 'h1.8xlarge', 'h1.16xlarge',
-                  'i3.large', 'i3.xlarge', 'i3.2xlarge', 'i3.4xlarge', 'i3.8xlarge', 'i3.16xlarge', 'i3.metal',
-                  'c5.large', 'c5.xlarge', 'c5.2xlarge', 'c5.4xlarge', 'c5.9xlarge', 'c5.18xlarge',
-                  'c5d.large', 'c5d.xlarge', 'c5d.2xlarge', 'c5d.4xlarge', 'c5d.9xlarge', 'c5d.18xlarge',
-                  'c5d.24xlarge',
-                  'r5.large', 'r5.xlarge', 'r5.2xlarge', 'r5.4xlarge', 'r5.8xlarge', 'r5.12xlarge', 'r5.24xlarge',
-                  'r5d.large', 'r5d.xlarge', 'r5d.2xlarge', 'r5d.4xlarge', 'r5d.12xlarge', 'r5d.16xlarge',
-                  'r5d.24xlarge',
-                  'm5d.large', 'm5d.xlarge', 'm5d.2xlarge', 'm5d.4xlarge', 'm5d.12xlarge', 'm5d.24xlarge',
-                  'z1d.large', 'z1d.xlarge', 'z1d.2xlarge', 'z1d.3xlarge', 'z1d.6xlarge', 'z1d.12xlarge',
-                  'x2gd.metal', 'x2gd.16xlarge', 'x2gd.8xlarge', 'r5a.16xlarge', 'r5a.4xlarge']
-
 instance_type_to_memory = {
     't2.nano': 0.5, 't2.micro': 1, 't2.small': 2, 't2.medium': 4, 't2.large': 8, 't2.xlarge': 16, 't2.2xlarge': 32,
     'm4.large': 8, 'm4.xlarge': 16, 'm4.2xlarge': 32, 'm4.4xlarge': 64, 'm4.10xlarge': 160, 'm4.16xlarge': 256,
@@ -402,7 +375,8 @@ instance_type_to_memory = {
     'r5d.24xlarge': 768,
     'm5d.large': 8, 'm5d.xlarge': 16, 'm5d.2xlarge': 32, 'm5d.4xlarge': 64, 'm5d.12xlarge': 192, 'm5d.24xlarge': 384,
     'z1d.large': 2, 'z1d.xlarge': 4, 'z1d.2xlarge': 8, 'z1d.3xlarge': 12, 'z1d.6xlarge': 24, 'z1d.12xlarge': 48,
-    'r5a.16xlarge': 480, 'r5a.4xlarge': 100
+    'r5a.16xlarge': 480, 'r5a.4xlarge': 100,
+    'x2gd.16xlarge': 1024, 'x2gd.8xlarge': 512, 'x2gd.metal': 1024
 }
 
 regions = ['us-east-1', 'us-east-2', 'us-west-2']
@@ -846,7 +820,7 @@ def deploy_handler(event, context):
     if not instance_type and not is_spot:
         return "Unable to start, missing instance_type AND is NOT a spot request"
 
-    if not is_spot and instance_type not in instance_types:
+    if not is_spot and instance_type not in instance_type_to_memory:
         return "Unable to start run, {instance_type} instance type not supported.".format(instance_type=instance_type)
 
     if shutdown_behaviour not in shutdown_behaviours:
