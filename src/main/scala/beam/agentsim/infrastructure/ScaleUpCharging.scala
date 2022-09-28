@@ -79,8 +79,7 @@ trait ScaleUpCharging extends {
             triggerId,
             self,
             NotApplicable,
-            None,
-            endTime
+            None
           )
           Vector(ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, personId), self))
         case Some(_) if stall.chargingPointType.isEmpty =>

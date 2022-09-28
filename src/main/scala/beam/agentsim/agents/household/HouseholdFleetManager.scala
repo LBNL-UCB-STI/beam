@@ -22,8 +22,8 @@ import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.logging.pattern.ask
 import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
-import org.matsim.api.core.v01.{Coord, Id}
 
 import java.util.concurrent.TimeUnit
 import scala.collection.mutable
@@ -33,7 +33,7 @@ class HouseholdFleetManager(
   parkingManager: ActorRef,
   chargingNetworkManager: ActorRef,
   vehicles: Map[Id[BeamVehicle], BeamVehicle],
-  homeAndStartingWorkLocations: Map[Id[Person], (ParkingActivityType, String, Coord, Double)],
+  homeAndStartingWorkLocations: Map[Id[Person], HomeAndStartingWorkLocation],
   maybeEmergencyHouseholdVehicleGenerator: Option[EmergencyHouseholdVehicleGenerator],
   whoDrivesThisFreightVehicle: Map[Id[BeamVehicle], Id[Person]], // so far only freight module is using this collection
   beamConfig: BeamConfig,
@@ -77,29 +77,31 @@ class HouseholdFleetManager(
       }
       triggerSender.foreach(actorRef => actorRef ! CompletionNotice(triggerId, Vector()))
 
-    case TriggerWithId(InitializeTrigger(_), triggerId) =>
+    case TriggerWithId(InitializeTrigger(tick), triggerId) =>
       triggerSender = Some(sender())
       val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = {
         // Request that all household vehicles be parked at the home coordinate. If the vehicle is an EV,
         // send the request to the charging manager. Otherwise send request to the parking manager.
-        val workingPersonsList = homeAndStartingWorkLocations.filter(_._2._1 == ParkingActivityType.Work).keys.toBuffer
+        val workingPersonsList =
+          homeAndStartingWorkLocations.filter(_._2.parkingActivityType == ParkingActivityType.Work).keys.toBuffer
         vehicles.toList.map { case (id, vehicle) =>
           val personId: Id[Person] =
             if (workingPersonsList.nonEmpty) workingPersonsList.remove(0)
             else
               homeAndStartingWorkLocations
-                .find(_._2._1 == ParkingActivityType.Home)
+                .find(_._2.parkingActivityType == ParkingActivityType.Home)
                 .map(_._1)
                 .getOrElse(homeAndStartingWorkLocations.keys.head)
           trackingVehicleAssignmentAtInitialization.put(vehicle.id, personId)
-          val (_, activityType, location) = homeAndStartingWorkLocations(personId)
+          val HomeAndStartingWorkLocation(_, activityType, location, endTime) = homeAndStartingWorkLocations(personId)
           val inquiry = ParkingInquiry.init(
             SpaceTime(location, 0),
             activityType,
             VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get,
             beamVehicle = Option(vehicle),
             triggerId = triggerId,
-            searchMode = ParkingSearchMode.Init
+            searchMode = ParkingSearchMode.Init,
+            parkingDuration = endTime - tick
           )
           if (vehicle.isEV && beamConfig.beam.agentsim.chargingNetworkManager.overnightChargingEnabled) {
             logger.debug(s"Overnight charging vehicle $vehicle with state of charge ${vehicle.getStateOfCharge}")
@@ -226,7 +228,8 @@ class HouseholdFleetManager(
         "wherever",
         VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).get,
         Some(vehicle),
-        triggerId = inquiry.triggerId
+        triggerId = inquiry.triggerId,
+        parkingDuration = beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
       )
 
       responseFuture.collect { case ParkingInquiryResponse(stall, _, otherTriggerId) =>

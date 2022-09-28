@@ -93,7 +93,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
           .cosimulate(
             timeBin,
             stations.flatMap(_.connectedVehicles.values).map {
-              case ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, departureTime, _, _, _) =>
+              case ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, departureTime, _, _) =>
                 // Sending this message
                 val powerInKW = getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
                 Map(

@@ -1117,9 +1117,7 @@ class RideHailAgent(
           self,
           shiftStatus = if (isCurrentlyOnShift) { OnShift }
           else { OffShift },
-          data.remainingShifts.headOption.map(_.range.lowerBound),
-          if (isCurrentlyOnShift) tick + 600
-          else data.remainingShifts.headOption.map(_.range.lowerBound).getOrElse(tick + 4 * 3600)
+          data.remainingShifts.headOption.map(_.range.lowerBound)
         )
       case _ =>
         log.debug(
