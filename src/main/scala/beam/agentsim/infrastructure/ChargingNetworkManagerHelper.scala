@@ -67,12 +67,12 @@ trait ChargingNetworkManagerHelper extends {
     assume(endTime - startTime >= 0, s"timeInterval should not be negative! startTime $startTime endTime $endTime")
     // Calculate the energy to charge each vehicle connected to the a charging station
     val endOfMaxSessionTime = chargingEndTimeInSeconds.getOrElse(chargingVehicle.personId, endTime)
-    val endOfShiftTime = chargingVehicle.chargingShouldEndAt.map(_ - parallelismWindow).getOrElse(endTime)
-    val updatedEndTime = Math.min(endOfMaxSessionTime, endOfShiftTime)
-    val maxCycleDuration = Math.min(
-      nextTimeBin(startTime) - startTime,
-      chargingVehicle.chargingShouldEndAt.map(_ - parallelismWindow - startTime).getOrElse(Int.MaxValue)
-    )
+    val shouldEndAtMaybe = chargingVehicle.chargingShouldEndAt.map(_ - parallelismWindow)
+    val maxCycleDuration =
+      if (shouldEndAtMaybe.isDefined)
+        Math.min(nextTimeBin(startTime) - startTime, shouldEndAtMaybe.map(_ - startTime).get)
+      else nextTimeBin(startTime) - startTime
+    val updatedEndTime = Math.min(endOfMaxSessionTime, shouldEndAtMaybe.getOrElse(endTime))
     chargingVehicle.checkAndCorrectCycleAfterInterruption(updatedEndTime)
     val newCycle = sitePowerManager.dispatchEnergy(startTime, updatedEndTime, maxCycleDuration, chargingVehicle)
     log.debug(

@@ -28,7 +28,7 @@ import beam.router.skim.event.TransitCrowdingSkimmerEvent
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamScenario, BeamServices}
-import beam.utils.{MathUtils, NetworkHelper}
+import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
@@ -403,12 +403,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     Id.createPersonId(id),
                     triggerId,
                     self,
-                    shiftStatus = NotApplicable,
-                    parkingEndTime = maybeNextActivity
-                      .collect {
-                        case activity if activity.getStartTime > 0 => MathUtils.doubleToInt(activity.getStartTime)
-                      }
-                      .getOrElse(tick + 4 * 3600)
+                    shiftStatus = NotApplicable
                   )
                   waitForConnectionToChargingPoint = true
                 case None => // this should only happen rarely

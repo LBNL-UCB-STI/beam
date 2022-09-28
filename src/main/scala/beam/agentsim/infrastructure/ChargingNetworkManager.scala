@@ -141,7 +141,7 @@ class ChargingNetworkManager(
       if (!vehicleEndedCharging.exists(charging => charging.isInEnRoute || charging.vehicle.isRideHailCAV))
         sender ! CompletionNotice(triggerId)
 
-    case request @ ChargingPlugRequest(tick, vehicle, stall, _, triggerId, theSender, _, _, _) =>
+    case request @ ChargingPlugRequest(tick, vehicle, stall, personId, triggerId, theSender, _, _) =>
       log.debug(s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall}")
       val responseHasTriggerId = if (vehicle.isEV) {
         // connecting the current vehicle
@@ -150,6 +150,7 @@ class ChargingNetworkManager(
           .processChargingPlugRequest(
             request,
             beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds.toInt,
+            chargingEndTimeInSeconds.get(personId),
             theSender
           ) map {
           case chargingVehicle if chargingVehicle.chargingStatus.last.status == WaitingAtStation =>
@@ -195,7 +196,6 @@ class ChargingNetworkManager(
                     _,
                     _,
                     _,
-                    _,
                     listStatus,
                     sessions
                   )
@@ -219,8 +219,7 @@ class ChargingNetworkManager(
                     triggerId,
                     newChargingVehicle.theSender,
                     newChargingVehicle.shiftStatus,
-                    newChargingVehicle.shiftDuration,
-                    newChargingVehicle.departureTime
+                    newChargingVehicle.shiftDuration
                   )
                 }
               val (_, totEnergy) = chargingVehicle.calculateChargingSessionLengthAndEnergyInJoule
@@ -270,8 +269,7 @@ object ChargingNetworkManager extends LazyLogging {
     triggerId: Long,
     sender: ActorRef,
     shiftStatus: ShiftStatus = NotApplicable,
-    shiftDuration: Option[Int] = None,
-    parkingEndTime: Int
+    shiftDuration: Option[Int] = None
   ) extends HasTriggerId
 
   case class ChargingUnplugRequest(tick: Int, personId: Id[_], vehicle: BeamVehicle, triggerId: Long)

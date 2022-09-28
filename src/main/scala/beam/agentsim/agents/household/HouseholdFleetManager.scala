@@ -33,9 +33,9 @@ class HouseholdFleetManager(
   parkingManager: ActorRef,
   chargingNetworkManager: ActorRef,
   vehicles: Map[Id[BeamVehicle], BeamVehicle],
-  homeAndStartingWorkLocations: Map[Id[Person], (ParkingActivityType, String, Coord)],
+  homeAndStartingWorkLocations: Map[Id[Person], (ParkingActivityType, String, Coord, Double)],
   maybeEmergencyHouseholdVehicleGenerator: Option[EmergencyHouseholdVehicleGenerator],
-  whoDrivesThisVehicle: Map[Id[BeamVehicle], Id[Person]], // so far only freight module is using this collection
+  whoDrivesThisFreightVehicle: Map[Id[BeamVehicle], Id[Person]], // so far only freight module is using this collection
   beamConfig: BeamConfig,
   implicit val debug: Debug
 ) extends LoggingMessageActor
@@ -149,7 +149,7 @@ class HouseholdFleetManager(
     case inquiry @ MobilityStatusInquiry(personId, _, _, requireVehicleCategoryAvailable, triggerId) =>
       val availableVehicleMaybe: Option[BeamVehicle] = requireVehicleCategoryAvailable match {
         case Some(_) if personId.toString.contains("freight") =>
-          whoDrivesThisVehicle
+          whoDrivesThisFreightVehicle
             .filter(_._2 == personId)
             .flatMap { case (vehicleId, _) => availableVehicles.find(_.id == vehicleId) }
             .headOption

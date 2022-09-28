@@ -182,8 +182,7 @@ class ChargingNetworkManagerSpec
         parkingStall,
         personId,
         0,
-        self,
-        parkingEndTime = 20
+        self
       )
       expectMsgType[ScheduleTrigger].trigger shouldBe ChargingTimeOutTrigger(10, beamVilleCar)
       expectMsgType[StartingRefuelSession]
@@ -192,7 +191,7 @@ class ChargingNetworkManagerSpec
 
       chargingNetworkManager ! TriggerWithId(PlanEnergyDispatchTrigger(300), 0)
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
-        ScheduleTrigger(ChargingTimeOutTrigger(300, beamVilleCar), chargingNetworkManager),
+        ScheduleTrigger(ChargingTimeOutTrigger(300, _ @ ChargingVehicle), chargingNetworkManager),
         ScheduleTrigger(PlanEnergyDispatchTrigger(600), chargingNetworkManager)
       )
       expectNoMessage()
@@ -220,8 +219,7 @@ class ChargingNetworkManagerSpec
         parkingStall,
         personId,
         0,
-        self,
-        parkingEndTime = 20
+        self
       )
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
@@ -264,8 +262,7 @@ class ChargingNetworkManagerSpec
         parkingStall,
         personId,
         0,
-        self,
-        parkingEndTime = 20
+        self
       )
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
@@ -308,8 +305,7 @@ class ChargingNetworkManagerSpec
         parkingStall,
         personId,
         0,
-        self,
-        parkingEndTime = 20
+        self
       )
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
@@ -355,8 +351,7 @@ class ChargingNetworkManagerSpec
         parkingStall,
         personId,
         0,
-        self,
-        parkingEndTime = 20
+        self
       )
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
@@ -395,8 +390,7 @@ class ChargingNetworkManagerSpec
         parkingStall,
         personId,
         0,
-        self,
-        parkingEndTime = 20
+        self
       )
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
@@ -446,8 +440,7 @@ class ChargingNetworkManagerSpec
         parkingStall,
         personId,
         0,
-        self,
-        parkingEndTime = 20
+        self
       )
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
@@ -459,8 +452,7 @@ class ChargingNetworkManagerSpec
         parkingStall,
         personId,
         112,
-        self,
-        parkingEndTime = 20
+        self
       )
       expectMsgType[WaitingToCharge] should be(WaitingToCharge(10, beamVilleCar3.id, parkingStall, 112))
       expectNoMessage()

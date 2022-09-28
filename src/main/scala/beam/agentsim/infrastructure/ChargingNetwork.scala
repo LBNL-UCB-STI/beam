@@ -29,6 +29,7 @@ import scala.util.Random
   * Created by haitamlaarabi
   */
 class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) extends ParkingNetwork(parkingZones) {
+
   import ChargingNetwork._
 
   override protected val searchFunctions: Option[InfrastructureFunctions] = None
@@ -61,6 +62,7 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
 
   /**
     * all vehicles waiting in line at a charging point
+    *
     * @return
     */
   def waitingLineVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
@@ -73,6 +75,7 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
 
   /**
     * lookup a station from parking zone Id
+    *
     * @param parkingZoneId parking zone Id
     * @return
     */
@@ -81,6 +84,7 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
 
   /**
     * lookup information about charging vehicle
+    *
     * @param vehicleId vehicle Id
     * @return charging vehicle
     */
@@ -98,13 +102,15 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
 
   /**
     * Connect to charging point or add to waiting line
-    * @param request ChargingPlugRequest
+    *
+    * @param request   ChargingPlugRequest
     * @param theSender ActorRef
     * @return a tuple of the status of the charging vehicle and the connection status
     */
   def processChargingPlugRequest(
     request: ChargingPlugRequest,
     estimatedMinParkingDurationInSeconds: Int,
+    endOfChargingInSeconds: Option[Int],
     theSender: ActorRef
   ): Option[ChargingVehicle] = lookupStation(request.stall.parkingZoneId)
     .map { chargingStation =>
@@ -116,7 +122,7 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
         estimatedMinParkingDurationInSeconds,
         request.shiftStatus,
         request.shiftDuration,
-        request.parkingEndTime,
+        endOfChargingInSeconds,
         theSender
       )
       beamVehicleIdToChargingVehicleMap.put(chargingVehicle.vehicle.id, chargingVehicle)
@@ -124,21 +130,8 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
     }
 
   /**
-    * @param vehicleId vehicle to end charge
-    * @param tick at time
-    * @return
-    */
-  def endChargingSession(vehicleId: Id[BeamVehicle], tick: Int): Option[ChargingVehicle] = {
-    lookupVehicle(vehicleId) map { chargingVehicle =>
-      chargingVehicle.chargingStation.endCharging(chargingVehicle.vehicle.id, tick)
-    } getOrElse {
-      logger.debug(s"Vehicle $vehicleId has already ended charging")
-      None
-    }
-  }
-
-  /**
     * Disconnect the vehicle for the charging point/station
+    *
     * @param vehicleId vehicle to disconnect
     * @return a tuple of the status of the charging vehicle and the connection status
     */
@@ -154,6 +147,7 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
 
   /**
     * transfer vehciles from waiting line to connected
+    *
     * @param station the corresponding station
     * @return list of vehicle that connected
     */
@@ -256,6 +250,7 @@ object ChargingNetwork extends LazyLogging {
   }
 
   final case class ChargingStation(zone: ParkingZone) {
+
     import ChargingStatus._
 
     val maxPlugPower: PowerInKW =
@@ -278,8 +273,11 @@ object ChargingNetwork extends LazyLogging {
       chargingVehiclesInternal
 
     def howManyVehiclesAreWaiting: Int = waitingLineInternal.size
+
     def howManyVehiclesAreCharging: Int = chargingVehiclesInternal.size
+
     def howManyVehiclesAreInGracePeriodAfterCharging: Int = vehiclesInGracePeriodAfterCharging.size
+
     def howManyVehiclesOnTheWayToStation: Int = parkingInquiries.size
 
     def remainingChargeDurationFromPluggedInVehicles(tick: Int): Int = {
@@ -301,7 +299,8 @@ object ChargingNetwork extends LazyLogging {
 
     /**
       * add vehicle to connected list and connect to charging point
-      * @param tick current time
+      *
+      * @param tick    current time
       * @param vehicle vehicle to connect
       * @return status of connection
       */
@@ -313,14 +312,19 @@ object ChargingNetwork extends LazyLogging {
       estimatedMinParkingDurationInSeconds: Int,
       shiftStatus: ShiftStatus = NotApplicable,
       shiftDuration: Option[Int] = None,
-      parkingEndTime: Int,
+      endOfChargingInSeconds: Option[Int],
       theSender: ActorRef
     ): ChargingVehicle = {
       val (estimatedParkingDuration, activityType) = parkingInquiries
         .remove(vehicle.id)
         .map { inquiry =>
           val activityTypeAlias = if (inquiry.searchMode == EnRouteCharging) EnRouteLabel else ""
-          (inquiry.parkingDuration.toInt, activityTypeAlias + inquiry.activityType)
+          val parkingDuration = endOfChargingInSeconds
+            .map(_ - tick)
+            .map(endOfChargingDuration => Math.min(endOfChargingDuration, inquiry.parkingDuration.toInt))
+            .getOrElse(inquiry.parkingDuration.toInt)
+          val updatedParkingDuration = Math.max(parkingDuration, estimatedMinParkingDurationInSeconds)
+          (updatedParkingDuration, activityTypeAlias + inquiry.activityType)
         }
         .getOrElse((estimatedMinParkingDurationInSeconds, ParkingActivityType.Wherever.toString))
       vehicles.get(vehicle.id) match {
@@ -343,7 +347,6 @@ object ChargingNetwork extends LazyLogging {
               activityType,
               shiftStatus,
               shiftDuration,
-              parkingEndTime,
               theSender
             )
           if (numAvailableChargers > 0) {
@@ -362,6 +365,7 @@ object ChargingNetwork extends LazyLogging {
 
     /**
       * remove vehicle from connected list and disconnect from charging point
+      *
       * @param vehicleId vehicle to disconnect
       * @return status of connection
       */
@@ -375,6 +379,7 @@ object ChargingNetwork extends LazyLogging {
 
     /**
       * remove vehicle from connected list and disconnect from charging point
+      *
       * @param vehicleId vehicle to disconnect
       * @return status of connection
       */
@@ -394,6 +399,7 @@ object ChargingNetwork extends LazyLogging {
 
     /**
       * process waiting line by removing vehicle from waiting line and adding it to the connected list
+      *
       * @return map of vehicles that got connected
       */
     private[ChargingNetwork] def connectFromWaitingLine(tick: Int): List[ChargingVehicle] = this.synchronized {
@@ -435,19 +441,25 @@ object ChargingNetwork extends LazyLogging {
     activityType: String,
     shiftStatus: ShiftStatus,
     shiftDuration: Option[Int],
-    departureTime: Int,
     theSender: ActorRef,
     chargingStatus: ListBuffer[ChargingStatus] = ListBuffer.empty[ChargingStatus],
     chargingSessions: ListBuffer[ChargingCycle] = ListBuffer.empty[ChargingCycle]
   ) extends LazyLogging {
+
     import ChargingStatus._
 
     val chargingShouldEndAt: Option[Int] = shiftDuration.map(_ + arrivalTime)
+
+    val estimatedDepartureTime: Int =
+      if (chargingShouldEndAt.isDefined)
+        Math.min(arrivalTime + estimatedParkingDuration, chargingShouldEndAt.get)
+      else arrivalTime + estimatedParkingDuration
 
     val chargingCapacityInKw: Double =
       vehicle.beamVehicleType.chargingCapability
         .map(ChargingPointType.getChargingPointInstalledPowerInKw)
         .getOrElse(ChargingPointType.getChargingPointInstalledPowerInKw(stall.chargingPointType.get))
+
     def isInEnRoute: Boolean = activityType.startsWith(EnRouteLabel)
 
     def chargingExpectedToEndAt: Int = {
@@ -506,6 +518,7 @@ object ChargingNetwork extends LazyLogging {
     /**
       * an unplug request arrived right before the new cycle started
       * or vehicle finished charging right before unplug requests arrived
+      *
       * @param newEndTime Int
       */
     def checkAndCorrectCycleAfterInterruption(newEndTime: Int): Unit = {
@@ -521,6 +534,7 @@ object ChargingNetwork extends LazyLogging {
 
     /**
       * adding a new charging cycle to the charging session
+      *
       * @param newCycle Charging Cycle
       * @return boolean value expressing if the charging cycle has been added
       */
