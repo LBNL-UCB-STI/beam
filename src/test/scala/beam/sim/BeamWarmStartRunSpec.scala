@@ -1,6 +1,7 @@
 package beam.sim
 
 import beam.agentsim.agents.ridehail.RideHailManager.VehicleId
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.passengerpertrip._
 import beam.router.Modes
@@ -8,6 +9,7 @@ import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.csv.GenericCsvReader
 import com.typesafe.config.ConfigFactory
+import org.matsim.api.core.v01.Id
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.{MatsimServices, OutputDirectoryHierarchy}
 import org.mockito.Mockito._
@@ -18,11 +20,10 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAllConfigMap, Retries}
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
-import scala.collection.mutable.ListBuffer
-import scala.util.control.Breaks.{break, breakable}
-
 import java.io.{File, FileInputStream}
 import java.util.zip.ZipInputStream
+import scala.collection.mutable.ListBuffer
+import scala.util.control.Breaks.{break, breakable}
 
 class BeamWarmStartRunSpec
     extends AnyWordSpecLike
@@ -138,8 +139,14 @@ class BeamWarmStartRunSpec
     }
 
     "output passenger per trip files with properly omitted columns" in {
-
-      withClue("previous test (\"run beamville scenario for two iterations with warmstart\") must be ran") { output should not be "" }
+      // just in case the test "run beamville scenario for two iterations with warmstart" was not ran prior to this
+      if (output == "") {
+        val baseConf = ConfigFactory
+          .parseString("beam.agentsim.lastIteration = 1")
+          .withFallback(testConfig("test/input/beamville/beam-warmstart.conf"))
+          .resolve()
+        output = runBeamWithConfig(baseConf)._2
+      }
 
       val expectedHeadersWarmStart = Map(
         "passengerPerTripBike.csv" -> Array("hours", "1"),
@@ -190,6 +197,10 @@ class BeamWarmStartRunSpec
             23 -> Map(4 -> 2),
           ),
         ),
+        // do not fire events with zero passengers on TNC for testing, these events will be either interpreted as
+        // repositioning or a trip with zero passengers depending on the history, which is hard to test without
+        // re-implementing TncPassengerPerTrip.java's logic which is not the intended test here
+        // use only -1 passengers which will be interpreted as repositioning as well
         "passengerPerTripRideHail.csv" -> Array(
           Map(
             // hour -> (numberOfPassengers -> numberOfVehicles)
@@ -244,6 +255,14 @@ class BeamWarmStartRunSpec
       val services = mock(classOf[MatsimServices])
       when(services.getControlerIO) thenReturn outputDirectoryHierarchy
       val iterationsEndEvent = new IterationEndsEvent(services, itr)
+
+      // example of how to get events firing zero passengers on the output of TncPassengerPerTrip.java
+      val tnc = new TncPassengerPerTrip()
+      tnc.collectEvent(createPathTraversalEvent(6, 0, "rideHailVehicle-48@default"))
+      tnc.collectEvent(createPathTraversalEvent(6.1, 0, "rideHailVehicle-48@default"))
+      tnc.collectEvent(createPathTraversalEvent(6.2, 1, "rideHailVehicle-48@default"))
+      tnc.process(iterationsEndEvent)
+      testOutputFileColumns("passengerPerTripRideHail.csv", Array("hours", "repositioning", "0", "1"), output, itr)
 
       for (fn <- eventsMap.keys) {
         for (k <- eventsMap(fn).indices) {
@@ -307,14 +326,15 @@ class BeamWarmStartRunSpec
     zeroFilled.toList
   }
 
-  private def createPathTraversalEvent(hour: Int, numberOfPassengers: Int): PathTraversalEvent = {
+  private def createPathTraversalEvent(hour: Double, numberOfPassengers: Int, id: String = ""): PathTraversalEvent = {
     // the only fields we care for testing this are time: Double and numberOfPassengers: Int
+    val idv = if(id != "") Id.create(id, classOf[BeamVehicle]) else mock(classOf[VehicleId])
     new PathTraversalEvent(
       hour * IGraphPassengerPerTrip.SECONDS_IN_HOUR,
-      mock(classOf[VehicleId]), // vehicleId is accessed in TncPassengerPerTrip.collectEvent
+      idv, // vehicleId is accessed in TncPassengerPerTrip.collectEvent
       "", "", 0, 0, "", "",
       numberOfPassengers,
-      0, 0, Modes.BeamMode.WALK, 0.0, null, null, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, None, None, None, null
+      0, 0, Modes.BeamMode.CAR, 0.0, null, null, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, None, None, None, null
     )
   }
 
