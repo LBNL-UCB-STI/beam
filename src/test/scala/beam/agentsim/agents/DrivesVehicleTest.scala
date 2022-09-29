@@ -92,8 +92,8 @@ class DrivesVehicleTest extends AnyFunSuite {
         BeamMode.CAR,
         0,
         BeamPath(
-          linkIds = Vector(1, 2, 3, 4, 5),
-          linkTravelTime = Vector(5, 5, 5, 5, 5),
+          linkIds = Array(1, 2, 3, 4, 5),
+          linkTravelTime = Array(5, 5, 5, 5, 5),
           transitStops = None,
           startPoint = SpaceTime.zero,
           endPoint = SpaceTime.zero.copy(time = 20),
@@ -108,8 +108,8 @@ class DrivesVehicleTest extends AnyFunSuite {
         BeamMode.CAR,
         0,
         BeamPath(
-          linkIds = Vector(1, 2, 3, 4),
-          linkTravelTime = Vector(1, 2, 3, 4),
+          linkIds = Array(1, 2, 3, 4),
+          linkTravelTime = Array(1, 2, 3, 4),
           transitStops = None,
           startPoint = SpaceTime.zero,
           endPoint = SpaceTime.zero.copy(time = 9),
@@ -124,8 +124,8 @@ class DrivesVehicleTest extends AnyFunSuite {
         BeamMode.CAR,
         0,
         BeamPath(
-          linkIds = Vector(1),
-          linkTravelTime = Vector(1),
+          linkIds = Array(1),
+          linkTravelTime = Array(1),
           transitStops = None,
           startPoint = SpaceTime.zero,
           endPoint = SpaceTime.zero,
@@ -168,7 +168,7 @@ class DrivesVehicleTest extends AnyFunSuite {
       val linksWithTime = links.sliding(2).zip(avgTravelTimeWithoutLast.iterator)
 
       var curTime = leg.startTime
-      linksWithTime.foreach { case (Seq(from, to), timeAtNode) =>
+      linksWithTime.foreach { case (Array(from, to), timeAtNode) =>
         curTime = math.round(curTime + timeAtNode).intValue()
         eventsManager.processEvent(new LinkLeaveEvent(curTime, vehicleId, Id.createLinkId(from)))
         eventsManager.processEvent(new LinkEnterEvent(curTime, vehicleId, Id.createLinkId(to)))

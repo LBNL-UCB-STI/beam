@@ -2,8 +2,6 @@ package beam.agentsim.agents.planning
 
 import java.{lang, util}
 
-import beam.agentsim.agents.planning.Strategy.{ModeChoiceStrategy, Strategy}
-import beam.router.Modes.BeamMode
 import org.matsim.api.core.v01.population._
 import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.attributable.Attributes
