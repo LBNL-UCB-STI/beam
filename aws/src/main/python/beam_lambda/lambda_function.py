@@ -154,9 +154,10 @@ write_files:
             if [[ -z "${last_completed}" ]]; then
               last_completed=$(tac $log_file | grep -m 1 -Eo '^[0-9]{2}:[0-9]{2}:[0-9]{2}')
             fi
-            beam_status=$(python3 -c "import datetime as dt; diff = dt.datetime.now() - dt.datetime.combine(dt.datetime.today(), dt.time.fromisoformat('$last_completed')); diff = diff + dt.timedelta(days = 1) if diff < dt.timedelta(0) else diff; x = 'OK' if diff < dt.timedelta(hours=10) else 'Bad'; print(x)")
+            beam_status=$(python3 -c "import datetime as dt; diff = dt.datetime.now() - dt.datetime.combine(dt.datetime.today(), dt.time.fromisoformat('$last_completed')); diff = diff + dt.timedelta(days = 1) if diff < dt.timedelta(0) else diff; x = 'OK' if diff < dt.timedelta(hours=$MAX_INACTIVE_TIME_INTERVAL) else 'Bad'; print(x)")
             pid=$(pgrep -f RunBeam)
-            if [ "$beam_status" == 'Bad' ] && [ "$pid" != "" ]; then
+            cpu_usage=`grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$4+$5)} END {print usage}'`
+            if [ "$beam_status" == 'Bad' ] && [ "$pid" != "" ] && [$cpu_usage < $MIN_CPU_USAGE]; then
               jstack $pid | gzip > "$out_dir/kill_thread_dump.txt.gz"
               kill $pid
               sleep 5m
@@ -823,6 +824,10 @@ def deploy_handler(event, context):
     is_spot = event.get('is_spot', False)
     run_beam = event.get('run_beam', True)
 
+    # for beam stuck guard shell
+    min_cpu_usage = get_param('min_cpu_usage')
+    max_inactive_time_interval = get_param('max_inactive_time_interval')
+
     if missing_parameters:
         return "Unable to start, missing parameters: " + ", ".join(missing_parameters)
 
@@ -906,6 +911,8 @@ def deploy_handler(event, context):
                 .replace('$SLACK_TOKEN', os.environ['SLACK_TOKEN']) \
                 .replace('$SLACK_CHANNEL', os.environ['SLACK_CHANNEL']) \
                 .replace('$SHEET_ID', os.environ['SHEET_ID']) \
+                .replace('$MAX_INACTIVE_TIME_INTERVAL', max_inactive_time_interval) \
+                .replace('$MIN_CPU_USAGE', min_cpu_usage) \
                 .replace('$RUN_JUPYTER', str(run_jupyter)) \
                 .replace('$RUN_BEAM', str(run_beam)) \
                 .replace('$JUPYTER_TOKEN', jupyter_token)
