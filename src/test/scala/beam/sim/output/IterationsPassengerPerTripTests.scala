@@ -41,38 +41,38 @@ class IterationsPassengerPerTripTests extends AnyWordSpecLike with Matchers with
         "passengerPerTripCar.csv" -> Array( // CarPassengerPerTrip.java
           Array("hours", "2", "3"),
           Array("hours", "0"),
-          Array("hours", "0", "1", "2", "3", "4"),
+          Array("hours", "0", "1", "2", "3", "4")
         ),
         "passengerPerTripRideHail.csv" -> Array( // TncPassengerPerTrip.java
           Array("hours", "repositioning", "2", "3"),
           Array("hours", "repositioning", "0"),
-          Array("hours", "repositioning", "1", "2", "3", "4"),
+          Array("hours", "repositioning", "1", "2", "3", "4")
         ),
         "passengerPerTripBus.csv" -> Array( // GenericPassengerPerTrip.java
           Array("hours", "0", "3"),
           Array("hours", "4"),
           Array("hours", "0", "1", "2", "3", "4"),
           Array("hours", "0", "1-8", "25-32"),
-          Array("hours", "0", "1-8", "9-16", "17-24", "25-32"),
-        ),
+          Array("hours", "0", "1-8", "9-16", "17-24", "25-32")
+        )
       )
 
       val eventsMap = Map(
         "passengerPerTripCar.csv" -> Array(
           Map(
             // hour -> (numberOfPassengers -> numberOfVehicles)
-            6 -> Map(2 -> 1),
-            23 -> Map(3 -> 2),
+            6  -> Map(2 -> 1),
+            23 -> Map(3 -> 2)
           ),
           Map.empty[Int, Map[Int, Int]],
           Map(
-            6 -> Map(0 -> 2),
-            7 -> Map(1 -> 5),
-            8 -> Map(2 -> 5),
-            9 -> Map(3 -> 5),
+            6  -> Map(0 -> 2),
+            7  -> Map(1 -> 5),
+            8  -> Map(2 -> 5),
+            9  -> Map(3 -> 5),
             10 -> Map(0 -> 2),
-            23 -> Map(4 -> 2),
-          ),
+            23 -> Map(4 -> 2)
+          )
         ),
         // do not fire events with zero passengers on TNC for testing, these events will be either interpreted as
         // repositioning or a trip with zero passengers depending on the history, which is hard to test without
@@ -81,53 +81,54 @@ class IterationsPassengerPerTripTests extends AnyWordSpecLike with Matchers with
         "passengerPerTripRideHail.csv" -> Array(
           Map(
             // hour -> (numberOfPassengers -> numberOfVehicles)
-            6 -> Map(2 -> 1),
-            23 -> Map(3 -> 2),
+            6  -> Map(2 -> 1),
+            23 -> Map(3 -> 2)
           ),
           Map(
-            23 -> Map(-1 -> 1),
+            23 -> Map(-1 -> 1)
           ),
           Map(
-            6 -> Map(-1 -> 2),
-            7 -> Map(1 -> 5),
-            8 -> Map(2 -> 5),
-            9 -> Map(3 -> 5),
-            23 -> Map(4 -> 2),
-          ),
+            6  -> Map(-1 -> 2),
+            7  -> Map(1 -> 5),
+            8  -> Map(2 -> 5),
+            9  -> Map(3 -> 5),
+            23 -> Map(4 -> 2)
+          )
         ),
         "passengerPerTripBus.csv" -> Array(
           Map(
             // hour -> (numberOfPassengers -> numberOfVehicles)
-            6 -> Map(0 -> 1),
-            23 -> Map(3 -> 2),
+            6  -> Map(0 -> 1),
+            23 -> Map(3 -> 2)
           ),
           Map(
-            23 -> Map(4 -> 2),
+            23 -> Map(4 -> 2)
           ),
           Map(
-            6 -> Map(0 -> 2),
-            7 -> Map(1 -> 5),
-            8 -> Map(2 -> 5),
-            9 -> Map(3 -> 5),
-            23 -> Map(4 -> 2),
+            6  -> Map(0 -> 2),
+            7  -> Map(1 -> 5),
+            8  -> Map(2 -> 5),
+            9  -> Map(3 -> 5),
+            23 -> Map(4 -> 2)
           ),
-          Map (
-            6 -> Map(32 -> 1),
+          Map(
+            6  -> Map(32 -> 1),
             17 -> Map(0 -> 2),
-            23 -> Map(1 -> 1),
+            23 -> Map(1 -> 1)
           ),
           Map(
-            6 -> Map(32 -> 1),
-            7 -> Map(24 -> 1),
-            8 -> Map(16 -> 1),
-            9 -> Map(8 -> 2),
-            23 -> Map(0 -> 2),
-          ),
-        ),
+            6  -> Map(32 -> 1),
+            7  -> Map(24 -> 1),
+            8  -> Map(16 -> 1),
+            9  -> Map(8 -> 2),
+            23 -> Map(0 -> 2)
+          )
+        )
       )
 
       val itr = 0
-      val outputDirectoryHierarchy = new OutputDirectoryHierarchy(output, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
+      val outputDirectoryHierarchy =
+        new OutputDirectoryHierarchy(output, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
       FileUtils.createDirectoryIfNotExists(outputDirectoryHierarchy.getIterationPath(itr))
       val services = mock(classOf[MatsimServices])
       when(services.getControlerIO) thenReturn outputDirectoryHierarchy
@@ -145,9 +146,9 @@ class IterationsPassengerPerTripTests extends AnyWordSpecLike with Matchers with
         for (k <- eventsMap(fn).indices) {
           val events = eventsMap(fn)(k)
           val passengerPerTrip = fn match {
-            case "passengerPerTripCar.csv" => new CarPassengerPerTrip("car")
+            case "passengerPerTripCar.csv"      => new CarPassengerPerTrip("car")
             case "passengerPerTripRideHail.csv" => new TncPassengerPerTrip()
-            case _ => new GenericPassengerPerTrip("bus")
+            case _                              => new GenericPassengerPerTrip("bus")
           }
           firePathTraversalEvents(passengerPerTrip, events)
           passengerPerTrip.process(iterationsEndEvent)
@@ -168,7 +169,12 @@ class IterationsPassengerPerTripTests extends AnyWordSpecLike with Matchers with
     outputDirectoryHierarchy.getIterationFilename(iterationNumber, fileName)
   }
 
-  private def testOutputFileColumns(fileName: String, expectedHeader: Array[String], output: String, itr: Int): (Array[String], Array[Array[Double]]) = {
+  private def testOutputFileColumns(
+    fileName: String,
+    expectedHeader: Array[String],
+    output: String,
+    itr: Int
+  ): (Array[String], Array[Array[Double]]) = {
 
     val filePath = extractFileName(output, itr, fileName)
 
@@ -201,7 +207,8 @@ class IterationsPassengerPerTripTests extends AnyWordSpecLike with Matchers with
         header
           .map(m.get(_))
           .map(_.toDouble)
-      }).toArray
+      })
+      .toArray
     reader.close()
     (header, data)
   }
@@ -231,13 +238,39 @@ class IterationsPassengerPerTripTests extends AnyWordSpecLike with Matchers with
     new PathTraversalEvent(
       hour * IGraphPassengerPerTrip.SECONDS_IN_HOUR,
       idv, // vehicleId is accessed in TncPassengerPerTrip.collectEvent
-      "", "", 0, 0, "", "",
+      "",
+      "",
+      0,
+      0,
+      "",
+      "",
       numberOfPassengers,
-      0, 0, Modes.BeamMode.CAR, 0.0, null, null, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, None, None, None, null
+      0,
+      0,
+      Modes.BeamMode.CAR,
+      0.0,
+      null,
+      null,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      None,
+      None,
+      None,
+      null
     )
   }
 
-  private def firePathTraversalEvents(passengerPerTrip: IGraphPassengerPerTrip, events: Map[Int, Map[Int, Int]]): Unit = {
+  private def firePathTraversalEvents(
+    passengerPerTrip: IGraphPassengerPerTrip,
+    events: Map[Int, Map[Int, Int]]
+  ): Unit = {
     for (hour <- events.keys) {
       for (numberOfPassengers <- events(hour).keys) {
         val event = createPathTraversalEvent(hour, numberOfPassengers)
@@ -248,7 +281,12 @@ class IterationsPassengerPerTripTests extends AnyWordSpecLike with Matchers with
     }
   }
 
-  private def compareEventsAndCsvData(fileName: String, events: Map[Int, Map[Int, Int]], header: Array[String], data: Array[Array[Double]]): Unit = {
+  private def compareEventsAndCsvData(
+    fileName: String,
+    events: Map[Int, Map[Int, Int]],
+    header: Array[String],
+    data: Array[Array[Double]]
+  ): Unit = {
     for (i <- data.indices) {
       val hour = data(i)(0).toInt
       if (events.contains(hour)) {

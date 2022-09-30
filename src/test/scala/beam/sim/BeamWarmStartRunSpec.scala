@@ -73,11 +73,11 @@ class BeamWarmStartRunSpec
       averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.15)
 
       val expectedHeaders = Map(
-        "passengerPerTripBike.csv" -> Array("hours", "1"),
-        "passengerPerTripBus.csv" -> Array("hours", "0"),
-        "passengerPerTripCar.csv" -> Array("hours", "0", "1"),
+        "passengerPerTripBike.csv"     -> Array("hours", "1"),
+        "passengerPerTripBus.csv"      -> Array("hours", "0"),
+        "passengerPerTripCar.csv"      -> Array("hours", "0", "1"),
         "passengerPerTripRideHail.csv" -> Array("hours", "repositioning", "0", "1"),
-        "passengerPerTripSubway.csv" -> Array("hours", "0"),
+        "passengerPerTripSubway.csv"   -> Array("hours", "0")
       )
 
       // tests files created by Beam simulation
@@ -140,7 +140,11 @@ class BeamWarmStartRunSpec
     }
   }
 
-  private def extractFileName(outputDir: String, iterationNumber: Int, fileName: String = "CarRideStats.personal.csv.gz"): String = {
+  private def extractFileName(
+    outputDir: String,
+    iterationNumber: Int,
+    fileName: String = "CarRideStats.personal.csv.gz"
+  ): String = {
     val outputDirectoryHierarchy =
       new OutputDirectoryHierarchy(outputDir, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
 
@@ -154,7 +158,12 @@ class BeamWarmStartRunSpec
     }
   }
 
-  private def testOutputFileColumns(fileName: String, expectedHeader: Array[String], output: String, itr: Int): (Array[String], Array[Array[Double]]) = {
+  private def testOutputFileColumns(
+    fileName: String,
+    expectedHeader: Array[String],
+    output: String,
+    itr: Int
+  ): (Array[String], Array[Array[Double]]) = {
 
     val filePath = extractFileName(output, itr, fileName)
 
@@ -187,7 +196,8 @@ class BeamWarmStartRunSpec
         header
           .map(m.get(_))
           .map(_.toDouble)
-      }).toArray
+      })
+      .toArray
     reader.close()
     (header, data)
   }
