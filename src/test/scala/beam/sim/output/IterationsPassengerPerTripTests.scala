@@ -17,19 +17,13 @@ import org.mockito.Mockito._
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.{BeforeAndAfterAllConfigMap, Retries}
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import scala.collection.mutable.ListBuffer
 import scala.util.control.Breaks.{break, breakable}
 
-class IterationsPassengerPerTripTests
-  extends AnyWordSpecLike
-    with Matchers
-    with BeamHelper
-    with BeforeAndAfterAllConfigMap
-    with Retries {
+class IterationsPassengerPerTripTests extends AnyWordSpecLike with Matchers with BeamHelper {
 
   "Passenger per trip output files must" must {
 
@@ -172,13 +166,6 @@ class IterationsPassengerPerTripTests
       new OutputDirectoryHierarchy(outputDir, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
 
     outputDirectoryHierarchy.getIterationFilename(iterationNumber, fileName)
-  }
-
-  private def testOutputFiles(expectedHeaders: Map[String, Array[String]], output: String, itr: Int): Unit = {
-
-    for (fileName <- expectedHeaders.keys) {
-      testOutputFileColumns(fileName, expectedHeaders(fileName), output, itr)
-    }
   }
 
   private def testOutputFileColumns(fileName: String, expectedHeader: Array[String], output: String, itr: Int): (Array[String], Array[Array[Double]]) = {
