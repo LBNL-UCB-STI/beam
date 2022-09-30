@@ -76,8 +76,8 @@ class IterationsPassengerPerTripTests extends AnyWordSpecLike with Matchers with
         ),
         // do not fire events with zero passengers on TNC for testing, these events will be either interpreted as
         // repositioning or a trip with zero passengers depending on the history, which is hard to test without
-        // re-implementing TncPassengerPerTrip.java's logic which is not the intended test here
-        // use only -1 passengers which will be interpreted as repositioning as well
+        // re-implementing TncPassengerPerTrip.java's logic which is not the intended test here.
+        // Use only -1 passengers which will be interpreted as repositioning as well
         "passengerPerTripRideHail.csv" -> Array(
           Map(
             // hour -> (numberOfPassengers -> numberOfVehicles)
