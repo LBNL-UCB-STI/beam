@@ -112,6 +112,8 @@ task deploy(type: AWSLambdaInvokeTask) {
   "max_cores": ${ext.getParameterValue('maxCores') ?: 0},
   "min_memory": ${ext.getParameterValue('minMemory') ?: 0},
   "max_memory": ${ext.getParameterValue('maxMemory') ?: 0},
+  "min_cpu_usage": ${ext.getParameterValue('minCpuUsage') ?: 1},
+  "max_inactive_time_interval": ${ext.getParameterValue('maxInactiveTimeInterval') ?: 5},
   "budget_override": ${ext.getParameterValue('budgetOverride') ?: false}
 }"""
         payload = pload
