@@ -19,8 +19,10 @@ import scala.collection.JavaConverters._
   *     '--factor', '0.5',
   *     '--startTime', '36000',
   *     '--endTime', '57600',
-  *     '--in', 'test/input/sf-light/r5/BA.zip',
-  *     '--out', 'test/input/sf-light/r5/BA-out.zip'
+  *     '--in', 'single GTFS zip archive OR folder',
+  *     '--out', 'test/input/sf-light/r5/BA-out.zip',
+  *      OPTIONAL '--filesToTransform', 'MTA_Bronx_20200121.zip,MTA_Brooklyn_20200118.zip',
+  *      OPTIONAL '--routesToModify', 'B15,M79+,M103,B82+'
   *   ]"
   * }}}
   */
@@ -31,7 +33,9 @@ object GtfsFeedAdjuster extends App with StrictLogging {
     factor: Double = 1.0,
     timeFrame: TimeFrame = TimeFrame.WholeDay,
     in: Path = Paths.get("."),
-    out: Path = Paths.get(".")
+    out: Path = Paths.get("."),
+    filesToTransform: Set[String] = Set.empty[String],
+    routesToModify: Set[String] = Set.empty[String]
   )
 
   final object NoOpTransformStrategy extends GtfsTransformStrategy {
@@ -51,18 +55,20 @@ object GtfsFeedAdjuster extends App with StrictLogging {
           config.copy(strategy = "remove_routes")
         case (config, Array("--op", "filter_service")) =>
           config.copy(strategy = "filter_service")
-        case (config, Array("--factor", value)) => config.copy(factor = value.toDouble)
-        case (config, Array("--in", path))      => config.copy(in = Paths.get(path))
-        case (config, Array("--out", path))     => config.copy(out = Paths.get(path))
-        case (config, Array("--startTime", s))  => config.copy(timeFrame = config.timeFrame.copy(startTime = s.toInt))
-        case (config, Array("--endTime", s))    => config.copy(timeFrame = config.timeFrame.copy(endTime = s.toInt))
-        case (_, arg)                           => throw new IllegalArgumentException(arg.mkString(" "))
+        case (config, Array("--factor", s))           => config.copy(factor = s.toDouble)
+        case (config, Array("--in", s))               => config.copy(in = Paths.get(s))
+        case (config, Array("--out", s))              => config.copy(out = Paths.get(s))
+        case (config, Array("--startTime", s))        => config.copy(timeFrame = config.timeFrame.copy(startTime = s.toInt))
+        case (config, Array("--endTime", s))          => config.copy(timeFrame = config.timeFrame.copy(endTime = s.toInt))
+        case (config, Array("--filesToTransform", s)) => config.copy(filesToTransform = s.split(",").toSet)
+        case (config, Array("--routesToModify", s))   => config.copy(routesToModify = s.split(",").toSet)
+        case (_, arg)                                 => throw new IllegalArgumentException(arg.mkString(" "))
       }
   }
 
   val adjusterConfig = parseArgs(args)
 
-  val zipList = findZips(adjusterConfig.in)
+  val zipList = findZips(adjusterConfig.in, adjusterConfig.filesToTransform)
   if (zipList.nonEmpty) {
     logger.info("Found {} zip files", zipList.size)
     logger.info("Transform to {}", adjusterConfig.out)
@@ -73,23 +79,16 @@ object GtfsFeedAdjuster extends App with StrictLogging {
   } else
     transformSingleEntry(adjusterConfig)
 
-  private def findZips(dir: Path): List[Path] = {
-    //todo load from file
-    val filesToTransform = Set(
-      "MTA_Bronx_20200121.zip",
-      "MTA_Brooklyn_20200118.zip",
-      "MTA_Manhattan_20200123.zip",
-      "MTA_Queens_20200118.zip",
-      "MTA_Staten_Island_20200118.zip"
-    )
+  private def findZips(dir: Path, filesToTransform: Set[String]): List[Path] = {
+    def filePathIsSelected(file: Path): Boolean =
+      Files.isRegularFile(file) &&
+      (filesToTransform.isEmpty || filesToTransform.contains(file.getFileName.toString)) &&
+      "zip".equalsIgnoreCase(FilenameUtils.getExtension(file.getFileName.toString))
+
     if (Files.isDirectory(dir))
       Files
         .walk(dir, 1)
-        .filter((file: Path) =>
-          Files.isRegularFile(file)
-          && filesToTransform.contains(file.getFileName.toString)
-          && "zip".equalsIgnoreCase(FilenameUtils.getExtension(file.getFileName.toString))
-        )
+        .filter((file: Path) => filePathIsSelected(file))
         .sorted()
         .collect(Collectors.toList[Path])
         .asScala
@@ -104,43 +103,21 @@ object GtfsFeedAdjuster extends App with StrictLogging {
       logger.info("Creating directory {}", cfg.out.getParent)
       Files.createDirectories(cfg.out.getParent)
     }
-    //todo load from file
-//    val modifiedRouteIds = Set(
-//      "B15",
-//      "M79+",
-//      "M103",
-//      "B82+",
-//      "M7",
-//      "M11",
-//      "M5",
-//      "B35",
-//      "B41",
-//      "B44",
-//      "Q58",
-//      "M1",
-//      "M102",
-//      "B8",
-//      "M42",
-//      "M31",
-//      "M15+",
-//      "B6",
-//      "M86+",
-//      "M15"
-//    )
-    val modifiedRouteIds: Set[String] = Set.empty[String]
+
     val filteredServiceIds: Set[String] = Set("MRG_1", "39101-133")
     val (trips, dao) = GtfsUtils.loadTripsFromGtfs(cfg.in)
     val strategy = cfg.strategy match {
       case "multiplication" if cfg.factor >= 1.0 =>
-        GtfsUtils.doubleTripsStrategy(dao, modifiedRouteIds, trips, cfg.factor.toFloat, cfg.timeFrame)
-      case "multiplication" if cfg.factor < 1.0 && modifiedRouteIds.nonEmpty =>
-        GtfsUtils.partiallyRemoveHalfTripsStrategy(trips, modifiedRouteIds, cfg.timeFrame)
+        GtfsUtils.doubleTripsStrategy(dao, cfg.routesToModify, trips, cfg.factor.toFloat, cfg.timeFrame)
+      case "multiplication" if cfg.factor < 1.0 && cfg.routesToModify.nonEmpty =>
+        GtfsUtils.partiallyRemoveHalfTripsStrategy(trips, cfg.routesToModify, cfg.timeFrame)
       case "multiplication" if cfg.factor < 1.0 =>
         GtfsUtils.removeTripsStrategy(trips, cfg.factor.toFloat, cfg.timeFrame)
-      case "remove_routes"  => GtfsUtils.removeRoutesStrategy(modifiedRouteIds)
+      case "remove_routes"  => GtfsUtils.removeRoutesStrategy(cfg.routesToModify)
       case "scale"          => GtfsUtils.scaleTripsStrategy(trips, cfg.factor.toInt, cfg.timeFrame)
       case "filter_service" => GtfsUtils.filterServiceIdStrategy(filteredServiceIds)
     }
+
     GtfsUtils.transformGtfs(
       cfg.in,
       cfg.out,
