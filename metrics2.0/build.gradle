@@ -1,13 +1,11 @@
 buildscript {
     repositories {
-        jcenter()
         mavenLocal()
         mavenCentral()
         maven { url "https://plugins.gradle.org/m2/" }
     }
     dependencies {
-        // 0.9.5 because starting from plugin version 0.10.0, Gradle 4.9 or newer is required
-        classpath 'com.avast.gradle:gradle-docker-compose-plugin:0.9.5'
+        classpath 'com.avast.gradle:gradle-docker-compose-plugin:0.16.8'
     }
 }
 
@@ -19,7 +17,7 @@ task grafanaStart {
     description 'Starts Grafana and Influx DB docker container.'
     group 'Grafana'
 
-    // the whole logic comes from 'com.avast.gradle:gradle-docker-compose-plugin:0.9.5'
+    // the whole logic comes from 'com.avast.gradle:gradle-docker-compose-plugin'
     dependsOn(composeUp)
 
     doLast {
@@ -98,7 +96,7 @@ task grafanaStop {
     dependsOn(GrafanaInfluxDBContainerStop)
     dependsOn(GrafanaInfluxDBContainerRM)
 
-    // the whole logic used to come from 'com.avast.gradle:gradle-docker-compose-plugin:0.9.5'
+    // the whole logic used to come from 'com.avast.gradle:gradle-docker-compose-plugin'
     // but it appears that, sometimes, after switching branches and\or restarting pc
     // composeDown is unable to stop container
     // dependsOn(composeDown)

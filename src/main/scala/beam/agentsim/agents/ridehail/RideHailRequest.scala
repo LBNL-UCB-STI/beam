@@ -26,6 +26,7 @@ case class RideHailRequest(
 
   def addSubRequest(subRequest: RideHailRequest): RideHailRequest =
     this.copy(requestId = this.requestId, groupedWithOtherRequests = this.groupedWithOtherRequests :+ subRequest)
+  def thisRequestWithGroupedRequests: List[RideHailRequest] = this :: groupedWithOtherRequests
   override def equals(that: Any): Boolean = this.requestId == that.asInstanceOf[RideHailRequest].requestId
   override def hashCode: Int = requestId
 
@@ -62,16 +63,19 @@ object RideHailRequest {
     * @param beamServices an instance of beam services
     */
   def projectCoordinatesToUtm(request: RideHailRequest, beamServices: BeamServices): RideHailRequest = {
+    val linkRadiusMeters = beamServices.beamConfig.beam.routing.r5.linkRadiusMeters
     val pickUpLocUpdatedUTM = beamServices.geo.wgs2Utm(
       beamServices.geo.snapToR5Edge(
         beamServices.beamScenario.transportNetwork.streetLayer,
-        beamServices.geo.utm2Wgs(request.pickUpLocationUTM)
+        beamServices.geo.utm2Wgs(request.pickUpLocationUTM),
+        linkRadiusMeters
       )
     )
     val destLocUpdatedUTM = beamServices.geo.wgs2Utm(
       beamServices.geo.snapToR5Edge(
         beamServices.beamScenario.transportNetwork.streetLayer,
-        beamServices.geo.utm2Wgs(request.destinationUTM)
+        beamServices.geo.utm2Wgs(request.destinationUTM),
+        linkRadiusMeters
       )
     )
     request.copy(destinationUTM = destLocUpdatedUTM, pickUpLocationUTM = pickUpLocUpdatedUTM)

@@ -46,12 +46,32 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
 
     val prevSkim = prevIteration
       .map(_.asInstanceOf[ActivitySimSkimmerInternal])
-      .getOrElse(ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, observations = 0))
+      .getOrElse(ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, observations = 0))
     val currSkim =
       currIteration
         .map(_.asInstanceOf[ActivitySimSkimmerInternal])
         .getOrElse(
-          ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, observations = 0, iterations = 1)
+          ActivitySimSkimmerInternal(
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            observations = 0,
+            iterations = 1
+          )
         )
 
     def aggregate(getValue: ActivitySimSkimmerInternal => Double): Double = {
@@ -70,11 +90,13 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       walkAccessInMinutes = aggregate(_.walkAccessInMinutes),
       walkEgressInMinutes = aggregate(_.walkEgressInMinutes),
       walkAuxiliaryInMinutes = aggregate(_.walkAuxiliaryInMinutes),
+      waitInitialInMinutes = aggregate(_.waitInitialInMinutes),
+      waitAuxiliaryInMinutes = aggregate(_.waitAuxiliaryInMinutes),
       totalInVehicleTimeInMinutes = aggregate(_.totalInVehicleTimeInMinutes),
       driveTimeInMinutes = aggregate(_.driveTimeInMinutes),
       driveDistanceInMeters = aggregate(_.driveDistanceInMeters),
       ferryInVehicleTimeInMinutes = aggregate(_.ferryInVehicleTimeInMinutes),
-      lightRailInVehicleTimeInMinutes = aggregate(_.lightRailInVehicleTimeInMinutes),
+      keyInVehicleTimeInMinutes = aggregate(_.keyInVehicleTimeInMinutes),
       transitBoardingsCount = aggregate(_.transitBoardingsCount),
       observations =
         (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
@@ -107,11 +129,13 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       walkAccessInMinutes = aggregatedDoubleSkimValue(_.walkAccessInMinutes),
       walkEgressInMinutes = aggregatedDoubleSkimValue(_.walkEgressInMinutes),
       walkAuxiliaryInMinutes = aggregatedDoubleSkimValue(_.walkAuxiliaryInMinutes),
+      waitInitialInMinutes = aggregatedDoubleSkimValue(_.waitInitialInMinutes),
+      waitAuxiliaryInMinutes = aggregatedDoubleSkimValue(_.waitAuxiliaryInMinutes),
       totalInVehicleTimeInMinutes = aggregatedDoubleSkimValue(_.totalInVehicleTimeInMinutes),
       driveTimeInMinutes = aggregatedDoubleSkimValue(_.driveTimeInMinutes),
       driveDistanceInMeters = aggregatedDoubleSkimValue(_.driveDistanceInMeters),
       ferryInVehicleTimeInMinutes = aggregatedDoubleSkimValue(_.ferryInVehicleTimeInMinutes),
-      lightRailInVehicleTimeInMinutes = aggregatedDoubleSkimValue(_.lightRailInVehicleTimeInMinutes),
+      keyInVehicleTimeInMinutes = aggregatedDoubleSkimValue(_.keyInVehicleTimeInMinutes),
       transitBoardingsCount = aggregatedDoubleSkimValue(_.transitBoardingsCount),
       observations = prevSkim.observations + currSkim.observations,
       iterations = matsimServices.getIterationNumber + 1,
@@ -225,16 +249,17 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       individualSkims.map(getValue).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
 
     val weightedDistance = getWeightedSkimsValue(_.distanceInMeters)
-    val weightedGeneralizedTime = getWeightedSkimsValue(_.generalizedTimeInMinutes)
-    val weightedGeneralizedCost = getWeightedSkimsValue(_.generalizedCost)
+    val weightedTotalTime = getWeightedSkimsValue(_.travelTimeInMinutes)
     val weightedCost = getWeightedSkimsValue(_.cost)
     val weightedWalkAccessTime = getWeightedSkimsValue(_.walkAccessInMinutes)
     val weightedWalkEgressTime = getWeightedSkimsValue(_.walkEgressInMinutes)
     val weightedWalkAuxiliaryTime = getWeightedSkimsValue(_.walkAuxiliaryInMinutes)
+    val weightedWaitInitialTime = getWeightedSkimsValue(_.waitInitialInMinutes)
+    val weightedWaitTransferTime = getWeightedSkimsValue(_.waitAuxiliaryInMinutes)
     val weightedTotalInVehicleTime = getWeightedSkimsValue(_.totalInVehicleTimeInMinutes)
     val weightedDriveTime = getWeightedSkimsValue(_.driveTimeInMinutes)
     val weightedDriveDistance = getWeightedSkimsValue(_.driveDistanceInMeters)
-    val weightedLightRailTime = getWeightedSkimsValue(_.lightRailInVehicleTimeInMinutes)
+    val weightedKeyInVehicleTime = getWeightedSkimsValue(_.keyInVehicleTimeInMinutes)
     val weightedFerryTime = getWeightedSkimsValue(_.ferryInVehicleTimeInMinutes)
     val weightedTransitBoardingsCount = getWeightedSkimsValue(_.transitBoardingsCount)
     val debugText = individualSkims.map(_.debugText).filter(t => t != "").mkString("|")
@@ -244,16 +269,18 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       pathType = pathType,
       originId = originId,
       destinationId = destinationId,
-      weightedGeneralizedTime = weightedGeneralizedTime,
+      weightedTotalTime = weightedTotalTime,
       weightedTotalInVehicleTime = weightedTotalInVehicleTime,
-      weightedGeneralizedCost = weightedGeneralizedCost,
+      weightedTotalCost = weightedCost,
       weightedDistance = weightedDistance,
       weightedWalkAccess = weightedWalkAccessTime,
       weightedWalkAuxiliary = weightedWalkAuxiliaryTime,
       weightedWalkEgress = weightedWalkEgressTime,
+      weightedWaitInitial = weightedWaitInitialTime,
+      weightedWaitTransfer = weightedWaitTransferTime,
       weightedDriveTimeInMinutes = weightedDriveTime,
       weightedDriveDistanceInMeters = weightedDriveDistance,
-      weightedLightRailInVehicleTimeInMinutes = weightedLightRailTime,
+      weightedKeyInVehicleTimeInMinutes = weightedKeyInVehicleTime,
       weightedFerryInVehicleTimeInMinutes = weightedFerryTime,
       weightedTransitBoardingsCount = weightedTransitBoardingsCount,
       weightedCost = weightedCost,
@@ -268,7 +295,28 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     pathType: ActivitySimPathType
   ): ExcerptData = {
     getExcerptDataOption(timeBin, origin, destination, pathType).getOrElse(
-      ExcerptData(timeBin.toString, pathType, origin.id, destination.id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, "")
+      ExcerptData(
+        timeBin.toString,
+        pathType,
+        origin.id,
+        destination.id,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        ""
+      )
     )
   }
 }
@@ -292,11 +340,13 @@ object ActivitySimSkimmer extends LazyLogging {
     walkAccessInMinutes: Double,
     walkEgressInMinutes: Double,
     walkAuxiliaryInMinutes: Double,
+    waitInitialInMinutes: Double,
+    waitAuxiliaryInMinutes: Double,
     totalInVehicleTimeInMinutes: Double,
     driveTimeInMinutes: Double,
     driveDistanceInMeters: Double,
     ferryInVehicleTimeInMinutes: Double,
-    lightRailInVehicleTimeInMinutes: Double,
+    keyInVehicleTimeInMinutes: Double,
     transitBoardingsCount: Double,
     observations: Int = 1,
     iterations: Int = 0,
@@ -309,7 +359,9 @@ object ActivitySimSkimmer extends LazyLogging {
   }
 
   object ActivitySimSkimmerInternal {
-    def empty: ActivitySimSkimmerInternal = ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+
+    def empty: ActivitySimSkimmerInternal =
+      ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
   }
 
   case class ExcerptData(
@@ -317,16 +369,18 @@ object ActivitySimSkimmer extends LazyLogging {
     pathType: ActivitySimPathType,
     originId: String,
     destinationId: String,
-    weightedGeneralizedTime: Double,
+    weightedTotalTime: Double,
     weightedTotalInVehicleTime: Double,
-    weightedGeneralizedCost: Double,
+    weightedTotalCost: Double,
     weightedDistance: Double,
     weightedWalkAccess: Double,
     weightedWalkAuxiliary: Double,
     weightedWalkEgress: Double,
+    weightedWaitInitial: Double,
+    weightedWaitTransfer: Double,
     weightedDriveTimeInMinutes: Double,
     weightedDriveDistanceInMeters: Double,
-    weightedLightRailInVehicleTimeInMinutes: Double,
+    weightedKeyInVehicleTimeInMinutes: Double,
     weightedFerryInVehicleTimeInMinutes: Double,
     weightedTransitBoardingsCount: Double,
     weightedCost: Double,
@@ -352,6 +406,8 @@ object ActivitySimSkimmer extends LazyLogging {
       "WACC_minutes",
       "WAUX_minutes",
       "WEGR_minutes",
+      "IWAIT_minutes",
+      "XWAIT_minutes",
       "DTIM_minutes",
       "DDIST_meters",
       "KEYIVT_minutes",

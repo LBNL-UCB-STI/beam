@@ -9,12 +9,12 @@ class PlanMerger(modeMap: Map[String, String]) extends Merger[InputPlanElement, 
 
   private def transform(inputPlanElement: InputPlanElement): PlanElement = {
     PlanElement(
-      inputPlanElement.tripId.toString,
+      inputPlanElement.tripId.getOrElse(""),
       PersonId(inputPlanElement.personId),
       0,
       0,
       planSelected = true,
-      inputPlanElement.activityElement.toString,
+      PlanElement.PlanElementType(inputPlanElement.activityElement.toString),
       inputPlanElement.planElementIndex,
       inputPlanElement.ActivityType,
       inputPlanElement.x,

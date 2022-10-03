@@ -21,6 +21,7 @@ import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model._
 import beam.router.skim.core.AbstractSkimmerEvent
+import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -68,7 +69,7 @@ class PersonAndTransitDriverSpec
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
-  private var parkingNetwork: ParkingNetwork[_] = _
+  private var parkingNetwork: ParkingNetwork = _
   private var parkingManager: ActorRef = _
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
@@ -298,11 +299,11 @@ class PersonAndTransitDriverSpec
           population = population,
           household = household,
           vehicles = Map(),
-          homeCoord = new Coord(0.0, 0.0),
+          fallbackHomeCoord = new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)

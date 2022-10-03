@@ -10,7 +10,6 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAV
-import beam.router.skim.Skims
 import beam.router.{BeamRouter, Modes, RouteHistory}
 import beam.sim.BeamServices
 import beam.utils.logging.ExponentialLoggerWrapperImpl
@@ -282,15 +281,16 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
             asDriver = true,
             needsToCalculateCost = true
           )
+          val linkRadiusMeters = beamServices.beamConfig.beam.routing.r5.linkRadiusMeters
           val origLink = beamServices.geo.getNearestR5Edge(
             transportNetwork.streetLayer,
             beamServices.geo.utm2Wgs(orig.activity.getCoord),
-            10e3
+            linkRadiusMeters
           )
           val destLink = beamServices.geo.getNearestR5Edge(
             transportNetwork.streetLayer,
             beamServices.geo.utm2Wgs(dest.activity.getCoord),
-            10e3
+            linkRadiusMeters
           )
           routeHistory.getRoute(origLink, destLink, orig.baselineNonPooledTime) match {
             case Some(rememberedRoute) =>
@@ -372,7 +372,7 @@ object HouseholdTrips {
     val householdPlans = household.members
       .take(limitCavToXPersons)
       .map(person => BeamPlan(person.getSelectedPlan))
-    val cavVehicles = householdVehicles.filter(_.beamVehicleType.automationLevel > 3)
+    val cavVehicles = householdVehicles.filter(_.isCAV)
     val vehicleTypeForSkimmer =
       cavVehicles.head.beamVehicleType // FIXME I need _one_ vehicleType here, but there could be more..
     val (requests, firstPickupOfTheDay, tripTravelTime, totTravelTime) =

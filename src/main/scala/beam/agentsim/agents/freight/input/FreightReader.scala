@@ -1,6 +1,8 @@
 package beam.agentsim.agents.freight.input
 
-import beam.agentsim.agents.freight.{FreightCarrier, FreightTour, PayloadPlan}
+import beam.agentsim.agents.freight.FreightRequestType.{Loading, Unloading}
+import beam.agentsim.agents.freight.input.FreightReader.{FREIGHT_REQUEST_TYPE, PAYLOAD_WEIGHT_IN_KG}
+import beam.agentsim.agents.freight.{FreightCarrier, FreightRequestType, FreightTour, PayloadPlan}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.SpaceTime
@@ -10,9 +12,10 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import com.conveyal.r5.streets.StreetLayer
+import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan, PlanElement, PopulationFactory}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.households.{Household, HouseholdsFactory, Income, IncomeImpl}
 import org.matsim.vehicles.Vehicle
@@ -28,9 +31,9 @@ trait FreightReader {
 
   def readPayloadPlans(): Map[Id[PayloadPlan], PayloadPlan]
 
-  def createPersonId(vehicleId: Id[BeamVehicle]): Id[Person]
+  def createPersonId(carrierId: Id[FreightCarrier], vehicleId: Id[BeamVehicle]): Id[Person]
 
-  def createHouseholdId(vehicleId: Id[BeamVehicle]): Id[Household]
+  def createHouseholdId(carrierId: Id[FreightCarrier]): Id[Household]
 
   def readFreightCarriers(
     allTours: Map[Id[FreightTour], FreightTour],
@@ -38,14 +41,23 @@ trait FreightReader {
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): IndexedSeq[FreightCarrier]
 
+  def calculatePayloadWeights(plans: IndexedSeq[PayloadPlan]): IndexedSeq[Double] = {
+    val initialWeight = 0.0
+    plans.foldLeft(IndexedSeq(initialWeight)) {
+      case (acc, PayloadPlan(_, _, _, _, weight, Unloading, _, _, _, _, _, _, _)) => acc :+ acc.last - weight
+      case (acc, PayloadPlan(_, _, _, _, weight, Loading, _, _, _, _, _, _, _))   => acc :+ acc.last + weight
+    }
+  }
+
   def createPersonPlan(
+    carrier: FreightCarrier,
     tours: IndexedSeq[FreightTour],
     plansPerTour: Map[Id[FreightTour], IndexedSeq[PayloadPlan]],
     person: Person
   ): Plan = {
     val allToursPlanElements = tours.flatMap { tour =>
       val tourInitialActivity =
-        createFreightActivity("Warehouse", tour.warehouseLocationUTM, tour.departureTimeInSec)
+        createFreightActivity("Warehouse", carrier.warehouseLocationUTM, tour.departureTimeInSec, None)
       val firstLeg: Leg = createFreightLeg(tour.departureTimeInSec)
 
       val plans: IndexedSeq[PayloadPlan] = plansPerTour.get(tour.tourId) match {
@@ -56,15 +68,23 @@ trait FreightReader {
       val planElements: IndexedSeq[PlanElement] = plans.flatMap { plan =>
         val activityEndTime = plan.estimatedTimeOfArrivalInSec + plan.operationDurationInSec
         val activityType = plan.activityType
-        val activity = createFreightActivity(activityType, plan.locationUTM, activityEndTime)
+        val activity = createFreightActivity(activityType, plan.locationUTM, activityEndTime, Some(plan.requestType))
         val leg: Leg = createFreightLeg(activityEndTime)
         Seq(activity, leg)
       }
 
-      tourInitialActivity +: firstLeg +: planElements
+      val elements = tourInitialActivity +: firstLeg +: planElements
+      val weightsToCarry: IndexedSeq[Double] = calculatePayloadWeights(plans)
+      elements
+        .collect { case leg: Leg => leg }
+        .zip(weightsToCarry)
+        .foreach { case (leg, payloadWeight) =>
+          leg.getAttributes.putAttribute(PAYLOAD_WEIGHT_IN_KG, payloadWeight)
+        }
+      elements
     }
 
-    val finalActivity = createFreightActivity("Warehouse", tours.head.warehouseLocationUTM, -1)
+    val finalActivity = createFreightActivity("Warehouse", carrier.warehouseLocationUTM, -1, None)
     val allPlanElements: IndexedSeq[PlanElement] = allToursPlanElements :+ finalActivity
 
     val currentPlan = PopulationUtils.createPlan(person)
@@ -78,26 +98,22 @@ trait FreightReader {
 
   def generatePopulation(
     carriers: IndexedSeq[FreightCarrier],
-    personFactory: PopulationFactory,
+    populationFactory: PopulationFactory,
     householdsFactory: HouseholdsFactory
-  ): IndexedSeq[(Household, Plan)] = {
+  ): IndexedSeq[(FreightCarrier, Household, Plan, Id[Person], Id[BeamVehicle])] = {
     carriers.flatMap { carrier =>
+      val freightHouseholdId = createHouseholdId(carrier.carrierId)
+      val household = householdsFactory.createHousehold(freightHouseholdId)
+      household.setIncome(new IncomeImpl(0, Income.IncomePeriod.year))
       carrier.tourMap.map { case (vehicleId, tours) =>
-        val personId = createPersonId(vehicleId)
-        val person = personFactory.createPerson(personId)
-
-        val currentPlan: Plan = createPersonPlan(tours, carrier.plansPerTour, person)
-
+        val personId = createPersonId(carrier.carrierId, vehicleId)
+        val person = populationFactory.createPerson(personId)
+        val currentPlan: Plan = createPersonPlan(carrier, tours, carrier.plansPerTour, person)
         person.addPlan(currentPlan)
         person.setSelectedPlan(currentPlan)
-
-        val freightHouseholdId = createHouseholdId(vehicleId)
-        val household: Household = householdsFactory.createHousehold(freightHouseholdId)
-        household.setIncome(new IncomeImpl(44444, Income.IncomePeriod.year))
         household.getMemberIds.add(personId)
         household.getVehicleIds.add(vehicleId)
-
-        (household, currentPlan)
+        (carrier, household, currentPlan, personId, vehicleId)
       }
     }
   }
@@ -126,11 +142,17 @@ trait FreightReader {
     vehicle
   }
 
-  protected def createFreightActivity(activityType: String, locationUTM: Coord, endTime: Int): Activity = {
+  protected def createFreightActivity(
+    activityType: String,
+    locationUTM: Coord,
+    endTime: Int,
+    freightRequestType: Option[FreightRequestType]
+  ): Activity = {
     val act = PopulationUtils.createActivityFromCoord(activityType, locationUTM)
     if (endTime >= 0) {
       act.setEndTime(endTime)
     }
+    freightRequestType.foreach(act.getAttributes.putAttribute(FREIGHT_REQUEST_TYPE, _))
     act
   }
 
@@ -153,28 +175,48 @@ trait FreightReader {
 }
 
 object FreightReader {
+  val FREIGHT_ID_PREFIX = "freight"
+  val FREIGHT_REQUEST_TYPE = "FreightRequestType"
+  val PAYLOAD_WEIGHT_IN_KG = "PayloadWeightInKg"
 
   def apply(
     beamConfig: BeamConfig,
     geoUtils: GeoUtils,
     streetLayer: StreetLayer,
-    tazMap: TAZTreeMap
+    tazMap: TAZTreeMap,
+    outputDirMaybe: Option[String]
   ): FreightReader = {
     val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
     val config = beamConfig.beam.agentsim.agents.freight
+    val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
+      geoUtils,
+      streetLayer,
+      beamConfig.beam.routing.r5.linkRadiusMeters
+    )
     beamConfig.beam.agentsim.agents.freight.reader match {
-      case "NREL" =>
-        new NRELFreightReader(config, geoUtils, rand, streetLayer)
       case "Generic" =>
-        new GenericFreightReader(config, geoUtils, rand, tazMap)
+        new GenericFreightReader(
+          config,
+          geoUtils,
+          rand,
+          tazMap,
+          beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs,
+          snapLocationHelper,
+          outputDirMaybe
+        )
       case s =>
         throw new RuntimeException(s"Unknown freight reader $s")
     }
   }
 
-  def apply(beamConfig: BeamConfig, geoUtils: GeoUtils, streetLayer: StreetLayer): FreightReader = {
+  def apply(
+    beamConfig: BeamConfig,
+    geoUtils: GeoUtils,
+    streetLayer: StreetLayer,
+    outputDirMaybe: Option[String]
+  ): FreightReader = {
     val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
-    apply(beamConfig, geoUtils, streetLayer, tazMap)
+    apply(beamConfig, geoUtils, streetLayer, tazMap, outputDirMaybe)
   }
 
   def apply(beamServices: BeamServices): FreightReader =
@@ -182,6 +224,7 @@ object FreightReader {
       beamServices.beamConfig,
       beamServices.geo,
       beamServices.beamScenario.transportNetwork.streetLayer,
-      beamServices.beamScenario.tazTreeMap
+      beamServices.beamScenario.tazTreeMap,
+      None
     )
 }

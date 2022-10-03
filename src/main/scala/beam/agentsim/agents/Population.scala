@@ -13,11 +13,11 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
+import beam.sim.vehicles.VehiclesAdjustment
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.MathUtils
 import beam.utils.logging.LoggingMessageActor
 import com.conveyal.r5.transit.TransportNetwork
-import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -40,8 +40,7 @@ class Population(
   val chargingNetworkManager: ActorRef,
   val sharedVehicleFleets: Seq[ActorRef],
   val eventsManager: EventsManager,
-  val routeHistory: RouteHistory,
-  boundingBox: Envelope
+  val routeHistory: RouteHistory
 ) extends LoggingMessageActor
     with ActorLogging {
 
@@ -96,6 +95,7 @@ class Population(
   }
 
   private def initHouseholds(sharedVehicleTypes: Set[BeamVehicleType]): Unit = {
+    val vehicleAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
     scenario.getHouseholds.getHouseholds.values().forEach { household =>
       //TODO a good example where projection should accompany the data
       if (
@@ -153,7 +153,7 @@ class Population(
           sharedVehicleFleets,
           sharedVehicleTypes,
           routeHistory,
-          boundingBox
+          vehicleAdjustment
         ),
         household.getId.toString
       )
@@ -210,8 +210,7 @@ object Population {
     chargingNetworkManager: ActorRef,
     sharedVehicleFleets: Seq[ActorRef],
     eventsManager: EventsManager,
-    routeHistory: RouteHistory,
-    boundingBox: Envelope
+    routeHistory: RouteHistory
   ): Props = {
     Props(
       new Population(
@@ -227,8 +226,7 @@ object Population {
         chargingNetworkManager,
         sharedVehicleFleets,
         eventsManager,
-        routeHistory,
-        boundingBox
+        routeHistory
       )
     )
   }

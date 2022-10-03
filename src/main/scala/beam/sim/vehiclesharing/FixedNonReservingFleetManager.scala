@@ -92,7 +92,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
 
     case GetVehicleTypes(triggerId) =>
       sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet, triggerId)
-    case MobilityStatusInquiry(_, whenWhere, _, triggerId) =>
+    case MobilityStatusInquiry(_, whenWhere, _, _, triggerId) =>
       // Search box: maxWalkingDistance meters around query location
       val boundingBox = new Envelope(new Coordinate(whenWhere.loc.getX, whenWhere.loc.getY))
       boundingBox.expandBy(maxWalkingDistance)
@@ -117,7 +117,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
           who ! NotAvailable(triggerId)
       }
 
-    case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
+    case NotifyVehicleIdle(vId, _, whenWhere, _, _, _, _) =>
       makeTeleport(vId.asInstanceOf[Id[BeamVehicle]], whenWhere)
 
     case ReleaseVehicle(vehicle, _) =>

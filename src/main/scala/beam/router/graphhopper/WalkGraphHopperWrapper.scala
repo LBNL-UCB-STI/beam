@@ -21,8 +21,6 @@ class WalkGraphHopperWrapper(
   useAlternativeRoutes: Boolean
 ) extends GraphHopperWrapper(graphDir, geo, id2Link, useAlternativeRoutes) {
 
-  override protected val beamMode: Modes.BeamMode = BeamMode.WALK
-
   override def getProfile(): Profile = FastestProfile
 
   override def createGraphHopper(): GraphHopper = {

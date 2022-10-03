@@ -14,3 +14,7 @@
 	path = production/newyork
 	url = git@github.com:LBNL-UCB-STI/beam-data-newyork.git
 	branch = develop
+[submodule "production/seattle"]
+	path = production/seattle
+	url = git@github.com:LBNL-UCB-STI/beam-data-seattle.git
+	branch = develop

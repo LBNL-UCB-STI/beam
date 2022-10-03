@@ -5,15 +5,22 @@ import beam.router.skim.core.TAZSkimmer.{TAZSkimmerInternal, TAZSkimmerKey}
 import beam.sim.BeamScenario
 import org.matsim.api.core.v01.Id
 
-case class TAZSkims(beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
+class TAZSkims() extends AbstractSkimmerReadOnly {
 
   def isLatestSkimEmpty: Boolean = pastSkims.isEmpty
 
-  def getLatestSkim(time: Int, geoId: Id[_], actor: String, key: String): Option[TAZSkimmerInternal] =
-    pastSkims
+  def getLatestSkim(time: Int, geoId: Id[_], actor: String, key: String): Option[TAZSkimmerInternal] = {
+    val getSkimValue = pastSkims
       .get(currentIteration - 1)
       .flatMap(_.get(TAZSkimmerKey(time, geoId.toString, actor, key)))
       .asInstanceOf[Option[TAZSkimmerInternal]]
+    if (getSkimValue.nonEmpty) {
+      numberOfSkimValueFound = numberOfSkimValueFound + 1
+    }
+    numberOfRequests = numberOfRequests + 1
+
+    getSkimValue
+  }
 
   def getLatestSkim(time: Int, geoId: String, actor: String, key: String): Option[TAZSkimmerInternal] =
     getLatestSkim(time, geoId, actor, key)

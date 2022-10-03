@@ -29,9 +29,8 @@ import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
 import beam.utils.csv.writers._
 import beam.utils.logging.ExponentialLazyLogging
-import beam.utils.scripts.FailFast
 import beam.utils.watcher.MethodWatcher
-import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsParser}
+import beam.utils._
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -197,6 +196,7 @@ class BeamSim @Inject() (
       eventsManager.addHandler(transitOccupancyByStop)
       eventsManager.addHandler(modeChoiceAlternativesCollector)
       eventsManager.addHandler(rideHailUtilizationCollector)
+      eventsManager.addHandler(travelTimeGoogleStatistic)
       maybePickUpDropOffCollector.foreach(eventsManager.addHandler(_))
       carTravelTimeFromPtes.foreach(eventsManager.addHandler)
     }
@@ -335,6 +335,14 @@ class BeamSim @Inject() (
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    beamServices.skims.parking_skimmer.resetSkimStats()
+    beamServices.skims.od_skimmer.resetSkimStats()
+    beamServices.skims.rh_skimmer.resetSkimStats()
+    beamServices.skims.freight_skimmer.resetSkimStats()
+    beamServices.skims.taz_skimmer.resetSkimStats()
+    beamServices.skims.dt_skimmer.resetSkimStats()
+    beamServices.skims.tc_skimmer.resetSkimStats()
+
     backgroundSkimsCreator.foreach(_.reduceParallelismTo(1))
     beamServices.eventBuilderActor = actorSystem.actorOf(
       EventBuilderActor.props(
@@ -424,6 +432,8 @@ class BeamSim @Inject() (
       carTravelTimeFromPtes.foreach(_.notifyIterationEnds(event))
       transitOccupancyByStop.notifyIterationEnds(event)
     }
+
+    beamScenario.tazTreeMap.notifyIterationEnds(event)
 
     travelTimeGoogleStatistic.notifyIterationEnds(event)
     startAndEndEventListeners.foreach(_.notifyIterationEnds(event))
@@ -538,6 +548,14 @@ class BeamSim @Inject() (
       vmInformationWriter.notifyIterationEnds(event)
     }
 
+    beamServices.skims.parking_skimmer.displaySkimStats()
+    beamServices.skims.od_skimmer.displaySkimStats()
+    beamServices.skims.rh_skimmer.displaySkimStats()
+    beamServices.skims.freight_skimmer.displaySkimStats()
+    beamServices.skims.taz_skimmer.displaySkimStats()
+    beamServices.skims.dt_skimmer.displaySkimStats()
+    beamServices.skims.tc_skimmer.displaySkimStats()
+
     if (beamConfig.beam.agentsim.agents.vehicles.linkSocAcrossIterations)
       beamServices.beamScenario.setInitialSocOfPrivateVehiclesFromCurrentStateOfVehicles()
 
@@ -640,7 +658,6 @@ class BeamSim @Inject() (
       })
 
     beamServices.simMetricCollector.close()
-
   }
 
   def deleteMATSimOutputFiles(lastIterationNumber: Int): Unit = {
