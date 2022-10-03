@@ -206,7 +206,6 @@ dependencies {
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
     implementation group: 'com.graphhopper', name: 'graphhopper-core', version: '2.3'
-    implementation group: 'com.graphhopper', name: 'graphhopper-reader-osm', version: '1.0'
     implementation "com.sigopt:sigopt-java:4.9.0"
     implementation group: 'com.graphhopper', name: 'graphhopper-reader-osm', version: '1.0'
 
@@ -582,7 +581,7 @@ if (profilerTypeConfig.toString().equalsIgnoreCase('cpu')) {
 // UseParallelGC
 applicationDefaultJvmArgs = ["-Xmx${myAvailableRam}g", "-Xms${halfOfAvailableMem}g",
                              "-XX:+UseParallelGC", "-XX:+UseParallelOldGC", "-XX:MetaspaceSize=150M", "-Djava.awt.headless=true",
-                             "-Dlogback.configurationFile=${logbackConfig}", "-Xss2048k"] + profilerOption + logGC + jmx + jfr
+                             "-Dlogback.configurationFile=${logbackConfig}", "-Xss2048k"] + profilerOption + logGC + jmx
 println(applicationDefaultJvmArgs)
 
 run {
