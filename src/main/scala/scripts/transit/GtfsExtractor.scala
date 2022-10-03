@@ -15,32 +15,25 @@ import scala.collection.JavaConverters._
   */
 object GtfsExtractor extends App with StrictLogging {
 
-  if (args.length != 2) {
-    println("Usage: GtfsExtractor path/to/r5_dir path/to/write/route_to_stop.csv")
-    System.exit(1)
+  if (args.length != 3) {
+    println("Usage: GtfsExtractor path/to/r5_dir path/to/route_to_stop.csv, comma_separated_list_of_GTFS_zip_files")
+  } else {
+    val source = Paths.get(args(0))
+    val output = Paths.get(args(1))
+    val gtfsFiles = args(2).split(",")
+
+    logger.info("Transforming {} files", gtfsFiles.length)
+    logger.info("Transform to {}", output)
+
+    val routeToStops: List[Entry] = gtfsFiles
+      .map(gtfsFileName => gtfsFileName.split(".zip").head -> source.resolve(gtfsFileName))
+      .map { case (name, path) =>
+        extractStops(name, path)
+      }
+      .reduce(_ ++ _)
+
+    saveToCSV(routeToStops, output)
   }
-
-  private val agencies = List(
-    "MTA_Bronx_20200121",
-    "MTA_Brooklyn_20200118",
-    "MTA_Manhattan_20200123",
-    "MTA_Queens_20200118",
-    "MTA_Staten_Island_20200118",
-    "NJ_Transit_Bus_20200210"
-  )
-  private val source = Paths.get(args(0))
-
-  logger.info("Transforming {} files", agencies.size)
-  logger.info("Transform to {}", args(1))
-
-  private val routeToStops: List[Entry] = agencies
-    .map(name => name -> source.resolve(s"$name.zip"))
-    .map { case (name, path) =>
-      extractStops(name, path)
-    }
-    .reduce(_ ++ _)
-
-  saveToCSV(routeToStops, Paths.get(args(1)))
 
   private case class Entry(fileName: String, route: Route, stops: Seq[Stop])
 
