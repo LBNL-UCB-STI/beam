@@ -1,15 +1,15 @@
-package beam.utils.transit
+package scripts.transit
 
 import beam.router.r5.DefaultNetworkCoordinator
 import beam.sim.config.BeamConfig
 import beam.utils.BeamConfigUtils
-import beam.utils.transit.FrequencyAdjustmentUtils.generateFrequencyAdjustmentCsvFile
+import FrequencyAdjustmentUtils.generateFrequencyAdjustmentCsvFile
 import com.typesafe.config.Config
 
 /**
   * Run directly from CLI with, for example:
   * {{{
-  *   ./gradlew execute -PmainClass=beam.utils.transit.FrequencyAdjustmentGenerator -PappArgs=\
+  *   ./gradlew execute -PmainClass=scripts.transit.FrequencyAdjustmentGenerator -PappArgs=\
   *   "['--config', 'test/input/beamville/beam.conf', '--frequencyAdjustmentFile', 'test/input/beamville/r5/FrequencyAdjustment.csv']"
   * }}}
   */

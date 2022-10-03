@@ -1,17 +1,14 @@
-package beam.utils.transit
-
-import java.nio.file.{Path, Paths}
+package scripts.transit
 
 import beam.utils.FileUtils
 import beam.utils.csv.CsvWriter
 import com.typesafe.scalalogging.StrictLogging
 import org.onebusaway.gtfs.model.{Route, Stop}
 
+import java.nio.file.{Path, Paths}
 import scala.collection.JavaConverters._
-import scala.collection.immutable
 
 /**
-  *
   * @author Dmitry Openkov
   *
   * read r5 data and save the route to stop mapping to csv
@@ -29,7 +26,7 @@ object GtfsExtractor extends App with StrictLogging {
     "MTA_Manhattan_20200123",
     "MTA_Queens_20200118",
     "MTA_Staten_Island_20200118",
-    "NJ_Transit_Bus_20200210",
+    "NJ_Transit_Bus_20200210"
   )
   private val source = Paths.get(args(0))
 
@@ -38,9 +35,8 @@ object GtfsExtractor extends App with StrictLogging {
 
   private val routeToStops: List[Entry] = agencies
     .map(name => name -> source.resolve(s"$name.zip"))
-    .map {
-      case (name, path) =>
-        extractStops(name, path)
+    .map { case (name, path) =>
+      extractStops(name, path)
     }
     .reduce(_ ++ _)
 
@@ -56,9 +52,8 @@ object GtfsExtractor extends App with StrictLogging {
       .mapValues(trip => dao.getStopTimesForTrip(trip).asScala)
       .mapValues(stopTimes => stopTimes.map(_.getStop))
 
-    routeToStop.map {
-      case (route, stops) =>
-        Entry(fileName, route, stops)
+    routeToStop.map { case (route, stops) =>
+      Entry(fileName, route, stops)
     }.toList
   }
 
@@ -72,16 +67,15 @@ object GtfsExtractor extends App with StrictLogging {
       for {
         e    <- routeToStops
         stop <- e.stops
-      } yield
-        (writer.write(
-          e.fileName,
-          e.route.getAgency.getId,
-          e.route.getId.getId,
-          Option(e.route.getShortName),
-          stop.getId.getId,
-          stop.getLat,
-          stop.getLon
-        ))
+      } yield writer.write(
+        e.fileName,
+        e.route.getAgency.getId,
+        e.route.getId.getId,
+        Option(e.route.getShortName),
+        stop.getId.getId,
+        stop.getLat,
+        stop.getLon
+      )
     }
   }
 }

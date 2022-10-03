@@ -1,20 +1,19 @@
-package beam.utils.transit
+package scripts.transit
 
-import java.nio.file.{Files, Path, Paths}
-import java.util.stream.Collectors
-
-import beam.utils.transit.GtfsUtils.TimeFrame
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.commons.io.FilenameUtils
 import org.onebusaway.gtfs.services.GtfsMutableRelationalDao
 import org.onebusaway.gtfs_transformer.services.{GtfsTransformStrategy, TransformContext}
+import scripts.transit.GtfsUtils.TimeFrame
 
+import java.nio.file.{Files, Path, Paths}
+import java.util.stream.Collectors
 import scala.collection.JavaConverters._
 
 /**
   * Run directly from CLI with, for example:
   * {{{
-  *   ./gradlew execute -PmainClass=beam.utils.transit.GtfsFeedAdjuster -PappArgs=\
+  *   ./gradlew execute -PmainClass=scripts.transit.GtfsFeedAdjuster -PappArgs=\
   *   "[
   *     '--op', 'multiplication|scale|remove_routes',
   *     '--factor', '0.5',

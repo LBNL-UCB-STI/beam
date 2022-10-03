@@ -1,14 +1,14 @@
-package beam.utils.transit
-
-import java.time.LocalTime
-import java.time.format.DateTimeFormatter
+package scripts.transit
 
 import beam.utils.{CsvFileUtils, FileUtils}
 import com.conveyal.r5.transit.TransitLayer
 
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import scala.collection.JavaConverters._
 
-/** Generates/Loads CSV in the following format:
+/**
+  * Generates/Loads CSV in the following format:
   * {{{
   *   trip_id,start_time,end_time,headway_secs,exact_times
   *   bus:B1-EAST-1,06:00:00,22:00:00,150,
@@ -38,9 +38,8 @@ object FrequencyAdjustmentUtils {
     val rows = if (transitLayer.hasFrequencies) {
       transitLayer.tripPatterns.asScala.flatMap { tp =>
         tp.tripSchedules.asScala.flatMap { ts =>
-          ts.startTimes.zip(ts.endTimes).zip(ts.headwaySeconds).map {
-            case ((startTime, endTime), headwaySeconds) =>
-              s"${ts.tripId},${secondsToTime(startTime)},${secondsToTime(endTime)},$headwaySeconds,"
+          ts.startTimes.zip(ts.endTimes).zip(ts.headwaySeconds).map { case ((startTime, endTime), headwaySeconds) =>
+            s"${ts.tripId},${secondsToTime(startTime)},${secondsToTime(endTime)},$headwaySeconds,"
           }
         }
       }.toList

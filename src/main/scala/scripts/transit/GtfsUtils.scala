@@ -1,4 +1,4 @@
-package beam.utils.transit
+package scripts.transit
 
 import java.nio.file.Path
 
