@@ -429,7 +429,7 @@ object HouseholdTripsHelper {
     var firstPickupOfTheDay: Option[MobilityRequest] = None
     breakable {
       householdPlans.foldLeft(householdNbOfVehicles) { case (counter, plan) =>
-        val usedCarOut = plan.trips.sliding(2).foldLeft(false) { case (usedCar, Seq(prevTrip, curTrip)) =>
+        val usedCarOut = plan.trips.sliding(2).foldLeft(false) { case (usedCar, Array(prevTrip, curTrip)) =>
           val (pickup, dropoff, travelTime) =
             getPickupAndDropoff(
               plan,
