@@ -16,10 +16,9 @@ import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.matchers.must.Matchers
 import org.scalatest.tagobjects.Retryable
 
-class BeamIncentiveSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll with Repeated {
+class BeamIncentiveSpec extends AnyWordSpecLike with BeamHelper with BeforeAndAfterAll with Repeated {
 
   private var injector: inject.Injector = _
 
@@ -30,7 +29,7 @@ class BeamIncentiveSpec extends AnyWordSpecLike with Matchers with BeamHelper wi
     super.afterAll()
   }
 
-  "BeamVille with a lot of ride_hail incentives" must {
+  "BeamVille with a lot of ride_hail incentives" should {
     "choose ride_hail more times than without/less incentives" taggedAs Retryable in {
       val lastIteration = 0
       val numChoicesWithoutRideHailIncentive =
