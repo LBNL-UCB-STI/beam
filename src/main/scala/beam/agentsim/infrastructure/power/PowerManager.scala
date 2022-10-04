@@ -70,27 +70,26 @@ class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: Bea
     estimatedLoad: Map[ChargingStation, PowerInKW]
   ): Map[ChargingStation, PowerInKW] = {
     beamFederateOption
-      .map(
-        _.cosimulate(
-          currentTime,
-          estimatedLoad.map { case (station, powerInKW) =>
-            // Sending this message
-            Map(
-              "reservedFor"   -> station.zone.reservedFor,
-              "parkingZoneId" -> station.zone.parkingZoneId,
-              "estimatedLoad" -> powerInKW
-            )
-          }
-        ).flatMap { message =>
+      .map { beamFederate =>
+        val messageToSend = estimatedLoad.map { case (station, powerInKW) =>
+          // Sending this message
+          Map(
+            "reservedFor"   -> station.zone.reservedFor,
+            "parkingZoneId" -> station.zone.parkingZoneId,
+            "estimatedLoad" -> powerInKW
+          )
+        }
+        val messageReceived = beamFederate.cosimulate(currentTime, messageToSend)
+        messageReceived.flatMap { message =>
           // Receiving this message
-          val reservedFor = message("reservedFor").asInstanceOf[String] match {
+          val reservedFor = message("reservedFor").toString match {
             case managerIdString if managerIdString.isEmpty => VehicleManager.AnyManager
             case managerIdString =>
               VehicleManager.createOrGetReservedFor(managerIdString, Some(beamConfig)).get
           }
           chargingNetworkHelper
             .get(reservedFor)
-            .lookupStation(createId(message("parkingZoneId").asInstanceOf[String])) match {
+            .lookupStation(createId(message("parkingZoneId").toString)) match {
             case Some(station) =>
               Some(station -> message("power_limit_upper").asInstanceOf[PowerInKW])
             case _ =>
@@ -100,7 +99,7 @@ class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: Bea
               None
           }
         }.toMap
-      )
+      }
       .getOrElse {
         logger.debug("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
         Map.empty[ChargingStation, PowerInKW]

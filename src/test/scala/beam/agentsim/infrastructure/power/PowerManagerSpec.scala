@@ -6,7 +6,6 @@ import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
-import beam.agentsim.infrastructure.power.PowerManager.PhysicalBounds
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
@@ -23,23 +22,23 @@ class PowerManagerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfter
   private val config =
     ConfigFactory
       .parseString(s"""
-        |beam.agentsim.chargingNetworkManager {
-        |  timeStepInSeconds = 300
-        |  scaleUp {
-        |    enabled = false
-        |  }
-        |  helics {
-        |    connectionEnabled = false
-        |    coreInitString = "--federates=1 --broker_address=tcp://127.0.0.1"
-        |    coreType = "zmq"
-        |    timeDeltaProperty = 1.0
-        |    intLogLevel = 1
-        |    federateName = "CNMFederate"
-        |    dataOutStreamPoint = ""
-        |    dataInStreamPoint = ""
-        |    bufferSize = 100
-        |  }
-        |}
+           |beam.agentsim.chargingNetworkManager {
+           |  timeStepInSeconds = 300
+           |  scaleUp {
+           |    enabled = false
+           |  }
+           |  helics {
+           |    connectionEnabled = false
+           |    coreInitString = "--federates=1 --broker_address=tcp://127.0.0.1"
+           |    coreType = "zmq"
+           |    timeDeltaProperty = 1.0
+           |    intLogLevel = 1
+           |    federateName = "CNMFederate"
+           |    dataOutStreamPoint = ""
+           |    dataInStreamPoint = ""
+           |    bufferSize = 100
+           |  }
+           |}
       """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
@@ -60,7 +59,7 @@ class PowerManagerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfter
   )
   val chargingZones = Map(dummyChargingZone.parkingZoneId -> dummyChargingZone)
 
-  val chargingNetwork: ChargingNetwork = mock(classOf[ChargingNetwork])
+  val chargingNetwork: ChargingNetwork = new ChargingNetwork(chargingZones)
 
   val rideHailNetwork: ChargingNetwork = mock(classOf[ChargingNetwork])
 
@@ -76,9 +75,28 @@ class PowerManagerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfter
   override def beforeEach(): Unit = {
     reset(beamFederateMock)
     when(beamFederateMock.sync(300)).thenReturn(300.0)
-    when(beamFederateMock.collectJSON()).thenReturn(List(dummyPhysicalBounds))
-    when(chargingNetwork.chargingStations).thenReturn(List(dummyChargingStation))
+    when(beamFederateMock.collectJSON()).thenReturn(Some(List(dummyPhysicalBounds)))
     when(rideHailNetwork.chargingStations).thenReturn(List())
+    doReturn(
+      List[Map[String, Any]](
+        Map(
+          "reservedFor"       -> dummyChargingStation.zone.reservedFor,
+          "parkingZoneId"     -> dummyChargingStation.zone.parkingZoneId,
+          "power_limit_upper" -> 7.2
+        )
+      ),
+      Nil: _*
+    ).when(beamFederateMock)
+      .cosimulate(
+        300,
+        Iterable[Map[String, Any]](
+          Map(
+            "reservedFor"   -> dummyChargingStation.zone.reservedFor,
+            "parkingZoneId" -> dummyChargingStation.zone.parkingZoneId,
+            "estimatedLoad" -> 5678.90
+          )
+        )
+      )
   }
 
   "PowerController when connected to grid" should {
@@ -89,15 +107,10 @@ class PowerManagerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfter
       new PowerManager(chargingNetworkHelper, beamConfig) {
         override private[power] lazy val beamFederateOption = Some(beamFederateMock)
       }
-
     "obtain power physical bounds" in {
-      val bounds = powerController.obtainPowerPhysicalBounds(
-        300,
-        Seq[(ChargingStation, Double)]((dummyChargingStation, 5678.90))
-      )
-      bounds shouldBe Map(dummyChargingStation -> PhysicalBounds(dummyChargingStation, 7.2, 7.2, 0.0))
-      // TODO: test beam federate connection
-      //verify(beamFederateMock, times(1)).syncAndCollectJSON(300)
+      val bounds =
+        powerController.obtainPowerPhysicalBounds(300, Map[ChargingStation, Double](dummyChargingStation -> 5678.90))
+      bounds shouldBe Map(dummyChargingStation -> 7.2)
     }
   }
 
@@ -110,10 +123,8 @@ class PowerManagerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfter
 
     "obtain default (0.0) power physical bounds" in {
       val bounds =
-        powerController.obtainPowerPhysicalBounds(300, Seq[(ChargingStation, Double)]((dummyChargingStation, 0.0)))
-      bounds shouldBe Map(ChargingStation(dummyChargingZone) -> PhysicalBounds(dummyChargingStation, 7.2, 7.2, 0.0))
-      verify(beamFederateMock, never()).sync(300)
-      verify(beamFederateMock, never()).collectJSON()
+        powerController.obtainPowerPhysicalBounds(300, Map[ChargingStation, Double](dummyChargingStation -> 0.0))
+      bounds shouldBe Map()
     }
   }
 }

@@ -424,10 +424,11 @@ object ChargingNetwork extends LazyLogging {
     powerInKW: Double,
     energyToCharge: Double,
     energyToChargeIfUnconstrained: Double,
-    maxDuration: Int,
-    remainingDuration: Int
+    remainingDuration: Int,
+    maxDuration: Int
   ) {
     var refueled: Boolean = false
+    val totalDuration: Int = (endTime - startTime) + remainingDuration
   }
 
   final case class ChargingVehicle(
@@ -464,7 +465,7 @@ object ChargingNetwork extends LazyLogging {
 
     def chargingExpectedToEndAt: Int = {
       val chargingEndTime =
-        chargingSessions.lastOption.map(cycle => cycle.startTime + cycle.remainingDuration).getOrElse {
+        chargingSessions.lastOption.map(cycle => cycle.startTime + cycle.totalDuration).getOrElse {
           vehicle
             .refuelingSessionDurationAndEnergyInJoules(
               sessionDurationLimit = None,

@@ -27,19 +27,18 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import scala.language.postfixOps
 
 class ChargingNetworkManagerSpec
-  extends TestKit(
-    ActorSystem(
-      "ChargingNetworkManagerSpec",
-      ConfigFactory
-        .parseString(
-          """
+    extends TestKit(
+      ActorSystem(
+        "ChargingNetworkManagerSpec",
+        ConfigFactory
+          .parseString("""
             |akka.log-dead-letters = 10
             |akka.actor.debug.fsm = true
             |akka.loglevel = debug
             |akka.test.timefactor = 2
             |akka.test.single-expect-default = 10 s""".stripMargin)
+      )
     )
-  )
     with AnyWordSpecLike
     with Matchers
     with BeamHelper
@@ -50,8 +49,7 @@ class ChargingNetworkManagerSpec
   private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
 
   private val conf = system.settings.config
-    .withFallback(ConfigFactory.parseString(
-      s"""
+    .withFallback(ConfigFactory.parseString(s"""
          |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes-simple.csv"
          |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles-simple.csv"
          |beam.agentsim.taz.parkingFilePath = "test/input/beamville/parking/taz-parking-limited.csv"
@@ -98,10 +96,10 @@ class ChargingNetworkManagerSpec
   val timeStepInSeconds: Int = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds
 
   def getBeamVilleCar(
-                       vehicleId: String,
-                       parkingStall: ParkingStall,
-                       fuelToSubtractInPercent: Double = 0.0
-                     ): BeamVehicle = {
+    vehicleId: String,
+    parkingStall: ParkingStall,
+    fuelToSubtractInPercent: Double = 0.0
+  ): BeamVehicle = {
     val beamVilleCar = beamScenario.privateVehicles(Id.create(vehicleId, classOf[BeamVehicle]))
     val fuelToSubtract = beamVilleCar.primaryFuelLevelInJoules * fuelToSubtractInPercent
     beamVilleCar.addFuel(-1 * fuelToSubtract)
@@ -111,15 +109,15 @@ class ChargingNetworkManagerSpec
   }
 
   class BeamAgentSchedulerRedirect(
-                                    override val beamConfig: BeamConfig,
-                                    stopTick: Int,
-                                    override val maxWindow: Int,
-                                    override val stuckFinder: StuckFinder
-                                  ) extends BeamAgentScheduler(beamConfig, ".", stopTick, maxWindow, stuckFinder) {
+    override val beamConfig: BeamConfig,
+    stopTick: Int,
+    override val maxWindow: Int,
+    override val stuckFinder: StuckFinder
+  ) extends BeamAgentScheduler(beamConfig, ".", stopTick, maxWindow, stuckFinder) {
 
     override def receive: Receive = {
       case Finish => context.stop(self)
-      case msg => testActor ! msg
+      case msg    => testActor ! msg
     }
   }
 
@@ -186,8 +184,9 @@ class ChargingNetworkManagerSpec
         0,
         self
       )
-      expectMsgType[ScheduleTrigger].trigger shouldBe a[ChargingTimeOutTrigger]
-      expectMsgType[ScheduleTrigger].trigger.asInstanceOf[ChargingTimeOutTrigger].tick shouldBe 10
+      val trigger = expectMsgType[ScheduleTrigger].trigger
+      trigger shouldBe a[ChargingTimeOutTrigger]
+      trigger.asInstanceOf[ChargingTimeOutTrigger].tick shouldBe 10
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.7e8)
@@ -334,11 +333,6 @@ class ChargingNetworkManagerSpec
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(1.4125e8) // TODO ???
       beamVilleCar.isConnectedToChargingPoint() should be(false)
-
-      //      val beamVilleCarCharging = triggers(0).trigger.asInstanceOf[ChargingTimeOutTrigger].chargingVehicle
-      //      chargingNetworkManager ! TriggerWithId(ChargingTimeOutTrigger(35, beamVilleCar), 0)
-      //      expectMsgType[CompletionNotice]
-      //      beamVilleCar.primaryFuelLevelInJoules should be(1.4125e8)
 
       chargingNetworkManager ! TriggerWithId(PlanEnergyDispatchTrigger(300), 0)
       expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
@@ -509,21 +503,16 @@ class ChargingNetworkManagerSpec
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)
 
       chargingNetworkManager ! TriggerWithId(PlanEnergyDispatchTrigger(900), 0)
-      expectMsgType[CompletionNotice].newTriggers shouldBe Vector(
-        ScheduleTrigger(PlanEnergyDispatchTrigger(1200), chargingNetworkManager)
-      )
+      val triggers2 = expectMsgType[CompletionNotice].newTriggers
+      triggers2.size shouldBe 2
+      triggers2(0).trigger shouldBe a[ChargingTimeOutTrigger]
+      triggers2(0).trigger.asInstanceOf[ChargingTimeOutTrigger].tick shouldBe 1182
+      triggers2(1).trigger shouldBe a[PlanEnergyDispatchTrigger]
+      triggers2(1).trigger.asInstanceOf[PlanEnergyDispatchTrigger].tick shouldBe 1200
       expectNoMessage()
       beamVilleCar3.primaryFuelLevelInJoules should be(1.455e8)
       beamVilleCar3.isConnectedToChargingPoint() should be(true)
       beamVilleCar2.isConnectedToChargingPoint() should be(false)
-
-      /*      expectMsgType[EndingRefuelSession] shouldBe EndingRefuelSession(874, beamVilleCar3.id, 0)
-            expectMsgType[CompletionNotice]
-            expectNoMessage()
-            beamVilleCar2.primaryFuelLevelInJoules should be(2.16e8)
-            beamVilleCar3.primaryFuelLevelInJoules should be(1.455e8)
-            beamVilleCar3.isConnectedToChargingPoint() should be(true)
-            beamVilleCar2.isConnectedToChargingPoint() should be(false)*/
     }
   }
 

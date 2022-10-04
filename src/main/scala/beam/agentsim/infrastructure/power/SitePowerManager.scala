@@ -174,7 +174,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
       stateOfChargeLimit = None,
       chargingPowerLimit = Some(unconstrainedPower)
     )
-    val (remainingChargingDuration, _) = vehicle.refuelingSessionDurationAndEnergyInJoules(
+    val (totChargingDuration, _) = vehicle.refuelingSessionDurationAndEnergyInJoules(
       sessionDurationLimit = None,
       stateOfChargeLimit = None,
       chargingPowerLimit = Some(constrainedPower)
@@ -192,8 +192,8 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
       constrainedPower,
       energyToCharge,
       energyToChargeIfUnconstrained,
-      maxCycleDuration,
-      remainingChargingDuration
+      totChargingDuration - chargingDuration,
+      maxCycleDuration
     )
   }
 
