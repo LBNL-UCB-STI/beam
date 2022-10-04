@@ -61,8 +61,17 @@ S3_PUBLISH_SCRIPT = '''
   -    sudo cp /home/ubuntu/git/beam/thread_dump_from_RunBeam.txt.gz "$finalPath"    
   -    sudo gzip /home/ubuntu/cpu_ram_usage.csv
   -    sudo cp /home/ubuntu/cpu_ram_usage* "$finalPath"
-  -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;
-  -    s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#$finalPath"'''
+  -    if [ -d "$finalPath" ]; then
+  -       s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#$finalPath"
+  -    else
+  -       finalPath="output/cloud-init-logs"
+  -       mkdir -p "$finalPath"
+  -       cloudInitName=$(echo "$(date '+%Y-%m-%d_%H-%M-%S')__$CONFIG__cloud-init-output.log" | tr '/' '_' ) 
+  -       sudo cp /var/log/cloud-init-output.log "$finalPath/$cloudInitName"
+  -       s3p="$s3p, https://beam-outputs.s3.amazonaws.com/$finalPath/$cloudInitName"
+  -    fi
+  -    echo "copy to s3 '$finalPath'"
+  -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;'''
 
 END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
 
