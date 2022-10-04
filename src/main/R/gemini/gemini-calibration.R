@@ -1058,8 +1058,9 @@ events1 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.a.csv.gz"))
 events2 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.b.csv.gz"))
 events3 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.c.csv.gz"))
 events4 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.d.csv.gz"))
-events5 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.e.csv.gz"))
-events6 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.f.csv.gz"))
+
+events5 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.7Advanced.csv.gz"))
+events6 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.8MaxEV.csv.gz"))
 
 
 
@@ -1070,6 +1071,7 @@ ref1 <- events1[type=="RefuelSessionEvent"]
 ref2 <- events2[type=="RefuelSessionEvent"]
 ref3 <- events3[type=="RefuelSessionEvent"]
 ref4 <- events4[type=="RefuelSessionEvent"]
+
 ref5 <- events5[type=="RefuelSessionEvent"]
 ref6 <- events6[type=="RefuelSessionEvent"]
 
@@ -1086,6 +1088,9 @@ chargingBehaviorFunc2(ref1)
 chargingBehaviorFunc2(ref2)
 chargingBehaviorFunc2(ref3)
 chargingBehaviorFunc2(ref4)
+
+chargingBehaviorFunc2(ref5)
+chargingBehaviorFunc2(ref6)
 
 chargingBehaviorFunc2(ref5)
 

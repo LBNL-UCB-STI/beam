@@ -10,7 +10,10 @@ import itertools
 import os
 
 from rudimentary_spmc import SPM_Control
-import components
+
+
+# TODO uncomment
+# import components
 
 
 # if len(sys.argv) < 2:
@@ -79,10 +82,11 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
     # maximum time up to which we simulate (for predicting in MPC)
     t_max = int(simulated_day_in_seconds - timebin_in_seconds)
 
-    depotController = components.GeminiWrapper.ControlWrapper(initMpc, t_start, timestep_intervall, result_directory,
-                                                              simName, RideHailDepotId, ChBaMaxPower, ChBaParkingZoneId,
-                                                              ChBaNum, path_BeamPredictionFile, dtype_Predictions,
-                                                              t_max)
+    # TODO uncomment
+    # depotController = components.GeminiWrapper.ControlWrapper(initMpc, t_start, timestep_intervall, result_directory,
+    #                                                           simName, RideHailDepotId, ChBaMaxPower, ChBaParkingZoneId,
+    #                                                           ChBaNum, path_BeamPredictionFile, dtype_Predictions,
+    #                                                           t_max)
     # MYUNGSOO
     spmc = SPM_Control(time_step_mins=1, max_power_evse=[], min_power_evse=[])
 
@@ -106,7 +110,6 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
         control_commands_list = []
         for siteId, charging_events in itertools.groupby(charging_events_json, key_func):
             print(siteId)
-            print(list(charging_events))
 
             vehicleId = []
             tazId = []
@@ -158,6 +161,7 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
                     control_commands_list = control_commands_list + control_commands
                     i = i + 1
             else:
+                print("Julius Is SPMC (IS RIDE HAIL DEPOT)")
                 # Julius Is SPMC (IS RIDE HAIL DEPOT)
                 # 1) SPMC takes list(charging_events) (and/or siteId)
                 # 1.a) Maybe a loop with => juliusObject.arrival(vehicle) and/or juliusObject.departure(vehicle)
@@ -172,44 +176,45 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
 
                 # synchronize vehicles which are at station: Remove vehicles which are not in the vehicleId list from BEAM anymore
                 # Julius @ HL can you please add the actual time here?
-                depotController.synchronizeVehiclesAtStation(vehicleIdsAtStation=vehicleId, t_act=t)
-
-                # VEHICLE ARRIVAL
-                vehicleInDepot = []
-                for vehicle in depotController.ChargingStation.ChBaVehicles:
-                    vehicleInDepot.append(vehicle.vehicleId)
-                for vehicle in depotController.ChargingStation.Queue:
-                    vehicleInDepot.append(vehicle.vehicleId)
-
-                for i in range(0, len(vehicleId)):
-                    if vehicleId[i] not in vehicleInDepot:
-                        depotController.arrival(VehicleId=vehicleId[i],
-                                                VehicleType=vehicleType[i],
-                                                VehicleArrival=arrivalTime[i],
-                                                VehicleDesEnd=desiredDepartureTime[i],
-                                                VehicleEngyInKwh=primaryFuelLevelInKWh[i],
-                                                VehicleDesEngyInKwh=desiredFuelLevelInKWh[i],
-                                                VehicleMaxEngy=batteryCapacityInKWh[i],
-                                                VehicleMaxPower=maxPowerInKW[i],
-                                                # this doesn't change within one charging session
-                                                t_act=int(t))  # Julius @ HL can you provide the actual time
-
-                # OBTAIN CONTROL COMMANDS
-                vehicles, power, release = depotController.step(
-                    timestep=int(timebin_in_seconds),  # julius @ HL can you provide the timestep,
-                    t_act=int(t),  # julius @ HL can you provide the actual time)
-                    GridPowerUpper=1e10,  # Update from DERMS, for the first we turn this off with a big number
-                    GridPowerLower=-1e10,  # Update from DERMS, for the first we turn this off with a big number
-                    BtmsEnergy=0,  # Update from PyDSS, for first this is deactivated in components.ChaDepParent
-                )
-
-                for i in range(0, len(vehicles)):
-                    control_commands = [{
-                        'vehicleId': str(vehicles[i]),
-                        'power': str(power[i]),
-                        'release': str(release[i])
-                    }]
-                    control_commands_list = control_commands_list + control_commands
+                # TODO uncomment
+                # depotController.synchronizeVehiclesAtStation(vehicleIdsAtStation=vehicleId, t_act=t)
+                #
+                # # VEHICLE ARRIVAL
+                # vehicleInDepot = []
+                # for vehicle in depotController.ChargingStation.ChBaVehicles:
+                #     vehicleInDepot.append(vehicle.vehicleId)
+                # for vehicle in depotController.ChargingStation.Queue:
+                #     vehicleInDepot.append(vehicle.vehicleId)
+                #
+                # for i in range(0, len(vehicleId)):
+                #     if vehicleId[i] not in vehicleInDepot:
+                #         depotController.arrival(VehicleId=vehicleId[i],
+                #                                 VehicleType=vehicleType[i],
+                #                                 VehicleArrival=arrivalTime[i],
+                #                                 VehicleDesEnd=desiredDepartureTime[i],
+                #                                 VehicleEngyInKwh=primaryFuelLevelInKWh[i],
+                #                                 VehicleDesEngyInKwh=desiredFuelLevelInKWh[i],
+                #                                 VehicleMaxEngy=batteryCapacityInKWh[i],
+                #                                 VehicleMaxPower=maxPowerInKW[i],
+                #                                 # this doesn't change within one charging session
+                #                                 t_act=int(t))  # Julius @ HL can you provide the actual time
+                #
+                # # OBTAIN CONTROL COMMANDS
+                # vehicles, power, release = depotController.step(
+                #     timestep=int(timebin_in_seconds),  # julius @ HL can you provide the timestep,
+                #     t_act=int(t),  # julius @ HL can you provide the actual time)
+                #     GridPowerUpper=1e10,  # Update from DERMS, for the first we turn this off with a big number
+                #     GridPowerLower=-1e10,  # Update from DERMS, for the first we turn this off with a big number
+                #     BtmsEnergy=0,  # Update from PyDSS, for first this is deactivated in components.ChaDepParent
+                # )
+                #
+                # for i in range(0, len(vehicles)):
+                #     control_commands = [{
+                #         'vehicleId': str(vehicles[i]),
+                #         'power': str(power[i]),
+                #         'release': str(release[i])
+                #     }]
+                #     control_commands_list = control_commands_list + control_commands
         # END LOOP
 
         h.helicsPublicationPublishString(pubs_control, json.dumps(control_commands_list, separators=(',', ':')))
@@ -223,7 +228,8 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
     h.helicsCloseLibrary()
 
     # depotController: save results
-    depotController.save()
+    # TODO uncomment
+    # depotController.save()
 
 
 ###############################################################################
