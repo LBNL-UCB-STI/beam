@@ -72,16 +72,16 @@ class BeamWarmStartRunSpec
       logger.info("average car speed per iterations: {}, {}", averageCarSpeedIt0, averageCarSpeedIt1)
       averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.15)
 
-      val expectedHeaders = Map(
-        "passengerPerTripBike.csv"     -> Array("hours", "1"),
-        "passengerPerTripBus.csv"      -> Array("hours", "0"),
-        "passengerPerTripCar.csv"      -> Array("hours", "0", "1"),
-        "passengerPerTripRideHail.csv" -> Array("hours", "repositioning", "0", "1"),
-        "passengerPerTripSubway.csv"   -> Array("hours", "0")
+      val outputFileIdentifiers = Array(
+        "passengerPerTripBike.csv",
+        "passengerPerTripBus.csv",
+        "passengerPerTripCar.csv",
+        "passengerPerTripRideHail.csv",
+        "passengerPerTripSubway.csv"
       )
 
       // tests files created by Beam simulation
-      testOutputFiles(expectedHeaders, output, 0)
+      testOutputFiles(outputFileIdentifiers, output, 0)
     }
 
     "run beamville scenario for two iterations with warmstart with normal and fake skims" in {
@@ -151,16 +151,15 @@ class BeamWarmStartRunSpec
     outputDirectoryHierarchy.getIterationFilename(iterationNumber, fileName)
   }
 
-  private def testOutputFiles(expectedHeaders: Map[String, Array[String]], output: String, itr: Int): Unit = {
+  private def testOutputFiles(fileIdentifiers: Array[String], output: String, itr: Int): Unit = {
 
-    for (fileName <- expectedHeaders.keys) {
-      testOutputFileColumns(fileName, expectedHeaders(fileName), output, itr)
+    for (fileName <- fileIdentifiers) {
+      testOutputFileColumns(fileName, output, itr)
     }
   }
 
   private def testOutputFileColumns(
     fileName: String,
-    expectedHeader: Array[String],
     output: String,
     itr: Int
   ): (Array[String], Array[Array[Double]]) = {
@@ -175,7 +174,6 @@ class BeamWarmStartRunSpec
     if (zeroFilledColumns.contains("repositioning")) {
       zeroFilledColumns = zeroFilledColumns.filter(_ != "repositioning")
     }
-    withClue(f"output file=$filePath itr=$itr header") { header shouldBe expectedHeader }
 
     // if there is only 1 data column
     // (ignoring hours for all of them and repositioning from passengerPerTripRideHail), it is ok to be all zeroes
