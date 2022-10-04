@@ -5,7 +5,7 @@ import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
+import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneId, PricingModel}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
@@ -57,7 +57,7 @@ class PowerManagerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfter
     chargingPointType = Some(ChargingPointType.ChargingStationType1),
     pricingModel = Some(PricingModel.FlatFee(0.0))
   )
-  val chargingZones = Map(dummyChargingZone.parkingZoneId -> dummyChargingZone)
+  val chargingZones: Map[Id[ParkingZoneId], ParkingZone] = Map(dummyChargingZone.parkingZoneId -> dummyChargingZone)
 
   val chargingNetwork: ChargingNetwork = new ChargingNetwork(chargingZones)
 
@@ -65,7 +65,7 @@ class PowerManagerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfter
 
   val dummyChargingStation: ChargingStation = ChargingStation(dummyChargingZone)
 
-  val dummyPhysicalBounds = Map(
+  val dummyPhysicalBounds: Map[String, Any] = Map(
     "tazId"                   -> dummyChargingZone.tazId.toString,
     "power_limit_lower"       -> 5678.90,
     "power_limit_upper"       -> 5678.90,

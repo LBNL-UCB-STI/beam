@@ -93,7 +93,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
           .cosimulate(
             timeBin,
             stations.flatMap(_.connectedVehicles.values).map {
-              case ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, departureTime, _, _) =>
+              case cv @ ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, _, _, _) =>
                 // Sending this message
                 val powerInKW = getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
                 Map(
@@ -104,7 +104,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
                   "primaryFuelLevelInJoules"   -> vehicle.primaryFuelLevelInJoules,
                   "primaryFuelCapacityInJoule" -> vehicle.beamVehicleType.primaryFuelCapacityInJoule,
                   "arrivalTime"                -> arrivalTime, // TODO arrival time at station
-                  "departureTime"              -> departureTime, // TODO estimated departure time = arrival time + parking duration
+                  "departureTime"              -> cv.estimatedDepartureTime, // TODO estimated departure time = arrival time + parking duration
                   "desiredFuelLevelInJoules"   -> (vehicle.beamVehicleType.primaryFuelCapacityInJoule - vehicle.primaryFuelLevelInJoules), // TODO Battery capacity - fuel level
                   "maxPowerInKW" -> vehicle.beamVehicleType.chargingCapability
                     .map(getChargingPointInstalledPowerInKw)
