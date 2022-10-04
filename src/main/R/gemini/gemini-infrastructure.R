@@ -136,7 +136,7 @@ sites[plug.xfc]
 events <- readCsv(pp(geminiDir,"/2022-07-05/events/filtered.0.events.7Advanced.csv.gz"))
 events.sim <- readCsv(pp(geminiDir, "/2022-07-05/sim/events.sim.7Advanced.csv.gz"))
 
-refueling <- events5[type == "RefuelSessionEvent"][
+refueling <- events6[type == "RefuelSessionEvent"][
   ,.(person,startTime=time-duration,startTime2=time-duration,parkingTaz,chargingPointType,
      pricingModel,parkingType,locationX,locationY,vehicle,vehicleType,fuel,duration,actType)][
        ,`:=`(stallLocationX=locationX,stallLocationY=locationY)]
