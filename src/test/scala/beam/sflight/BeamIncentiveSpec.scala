@@ -1,8 +1,8 @@
 package beam.sflight
 
 import scala.io.Source
-
 import beam.analysis.plots.ModeChosenAnalysis
+import beam.integration.Repeated
 import beam.router.Modes.BeamMode
 import beam.sflight.CaccSpec.NotFoundCarInTravelTimeMode
 import beam.sim.BeamHelper
@@ -17,8 +17,9 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.must.Matchers
+import org.scalatest.tagobjects.Retryable
 
-class BeamIncentiveSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
+class BeamIncentiveSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll with Repeated {
 
   private var injector: inject.Injector = _
 
@@ -30,7 +31,7 @@ class BeamIncentiveSpec extends AnyWordSpecLike with Matchers with BeamHelper wi
   }
 
   "BeamVille with a lot of ride_hail incentives" must {
-    "choose ride_hail more times than without/less incentives" in {
+    "choose ride_hail more times than without/less incentives" taggedAs Retryable in {
       val lastIteration = 0
       val numChoicesWithoutRideHailIncentive =
         runSimulationAndCalculateAverageOfRideHailChoices(lastIteration, "incentives.csv")
