@@ -135,7 +135,7 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
                 batteryCapacityInKWh.append(float(vehicle['primaryFuelCapacityInJoule']) / 3600000)
 
             # Running SPMC controllers
-            if not siteId.str.lower().startswith('depot'):
+            if not siteId.lower().startswith('depot'):
                 # Myungsoo is SPMC (NOT RIDE HAIL DEPOT)
                 # 1) SPMC takes list(charging_events) (and/or siteId)
                 # 2) SPMC returns control_commands
