@@ -26,10 +26,11 @@ object BeamHelicsInterface {
 
   /**
     * Create a Federate Instance
-    * @param fedName FEDERATE_NAME
-    * @param bufferSize BUFFER_SIZE
+    *
+    * @param fedName                 FEDERATE_NAME
+    * @param bufferSize              BUFFER_SIZE
     * @param dataOutStreamPointMaybe "PUBLICATION_NAME"
-    * @param dataInStreamPointMaybe "FEDERATE_NAME/SUBSCRIPTION_NAME"
+    * @param dataInStreamPointMaybe  "FEDERATE_NAME/SUBSCRIPTION_NAME"
     * @return
     */
   def getFederate(
@@ -53,12 +54,13 @@ object BeamHelicsInterface {
 
   /**
     * Create a Broker instance and a Federate Instance
-    * @param brokerName BROKER_NAME
-    * @param numFederates number of federates to consider
-    * @param fedName FEDERATE_NAME
-    * @param bufferSize BUFFER_SIZE
+    *
+    * @param brokerName              BROKER_NAME
+    * @param numFederates            number of federates to consider
+    * @param fedName                 FEDERATE_NAME
+    * @param bufferSize              BUFFER_SIZE
     * @param dataOutStreamPointMaybe PUBLICATION_NAME
-    * @param dataInStreamPointMaybe FEDERATE_NAME/SUBSCRIPTION_NAME
+    * @param dataInStreamPointMaybe  FEDERATE_NAME/SUBSCRIPTION_NAME
     * @return
     */
   def getBroker(
@@ -138,6 +140,19 @@ object BeamHelicsInterface {
     }
   }
 
+  // Not implicit to avoid ambiguity
+  object MapNestedJsonFormat extends JsonFormat[Map[String, List[Map[String, Any]]]] {
+
+    def write(c: Map[String, List[Map[String, Any]]]): JsValue = {
+      c.map { case (k, v) => k -> v.toJson(ListMapAnyJsonFormat) }.toJson
+    }
+
+    def read(value: JsValue): Map[String, List[Map[String, Any]]] = value match {
+      case JsObject(x) => x.map(y => y._1 -> y._2.convertTo[List[Map[String, Any]]](ListMapAnyJsonFormat))
+      case _           => deserializationError("JsObject expected")
+    }
+  }
+
   def createFedInfo(
     coreType: String,
     coreInitString: String,
@@ -194,6 +209,30 @@ object BeamHelicsInterface {
     dataInStreamPointMaybe.foreach(registerSubscription)
     // **************************
 
+    def cosimulate2(
+      tick: Int,
+      nestedMsgToPublish: Map[String, List[Map[String, Any]]]
+    ): Map[String, List[Map[String, Any]]] = {
+      var nestedMsgReceived = Map.empty[String, List[Map[String, Any]]]
+      if (currentBin < tick / simulationStep) {
+        currentBin = tick / simulationStep
+        logger.debug(s"Publishing message to the ${dataOutStreamPointMaybe.getOrElse("NA")} at time $tick")
+        publishNestedJSON(nestedMsgToPublish)
+        while (nestedMsgReceived.isEmpty) {
+          // SYNC
+          sync(tick)
+          // COLLECT
+          nestedMsgReceived = collectedNestedJSON()
+          if (nestedMsgReceived.isEmpty) {
+            // Sleep
+            Thread.sleep(1)
+          }
+        }
+        logger.debug(s"Message received from ${dataInStreamPointMaybe.getOrElse("NA")}: $nestedMsgReceived")
+      }
+      nestedMsgReceived
+    }
+
     def cosimulate(tick: Int, msgToPublish: Iterable[Map[String, Any]]): List[Map[String, Any]] = {
       var msgReceived: Option[List[Map[String, Any]]] = None
       if (currentBin < tick / simulationStep) {
@@ -217,6 +256,7 @@ object BeamHelicsInterface {
 
     /**
       * Convert a list of Key Value Map into an array of JSON documents, then stringifies it before publishing via HELICS
+      *
       * @param labeledData List of Key -> Value
       */
     def publishJSON(labeledData: List[Map[String, Any]]): Unit = {
@@ -227,7 +267,20 @@ object BeamHelicsInterface {
     }
 
     /**
+      * Convert a list of Key Value Map into an array of JSON documents, then stringifies it before publishing via HELICS
+      *
+      * @param labeledData List of Key -> Value
+      */
+    def publishNestedJSON(labeledData: Map[String, List[Map[String, Any]]]): Unit = {
+      dataOutStreamHandle.foreach(
+        helics.helicsPublicationPublishString(_, labeledData.toJson(MapNestedJsonFormat).compactPrint.stripMargin)
+      )
+      logger.debug("Data published via HELICS")
+    }
+
+    /**
       * Convert a list of values into a string of element separated with a comma, then publishes it via HELICS
+      *
       * @param unlabeledData list of values or strings in form of "key:value"
       */
     def publish(unlabeledData: List[Any]): Unit = {
@@ -238,6 +291,7 @@ object BeamHelicsInterface {
     /**
       * Requests a co-simulation time and wait until it is awarded. The HELICS broker doesn't aware the requested time
       * until all the federates in co-simulation are synchronized
+      *
       * @param time the requested time
       * @return the awarded time
       */
@@ -251,6 +305,7 @@ object BeamHelicsInterface {
 
     /**
       * Collect message that has been published by other federates
+      *
       * @param time the requested time
       * @return raw message in string format
       */
@@ -268,7 +323,7 @@ object BeamHelicsInterface {
     /**
       * Collect JSON messages that has been published by other federates
       * The message is expected to be JSON, if not this method will fail
-      * @param time the requested time
+      *
       * @return Message in List of Maps format
       */
     def collectJSON(): Option[List[Map[String, Any]]] = {
@@ -285,8 +340,28 @@ object BeamHelicsInterface {
     }
 
     /**
+      * Collect nested JSON messages that has been published by other federates
+      * The message is expected to be nested JSON, if not this method will fail
+      *
+      * @return Message in List of Maps format
+      */
+    def collectedNestedJSON(): Map[String, List[Map[String, Any]]] = {
+      val message = collectRaw()
+      if (message.nonEmpty) {
+        logger.debug("Received JSON Data via HELICS")
+        try {
+          val messageList = message.replace("\u0000", "").parseJson.convertTo[Map[String, List[Map[String, Any]]]]
+          messageList
+        } catch {
+          case _: Throwable => Map.empty
+        }
+      } else Map.empty
+    }
+
+    /**
       * Collect list of String messages that has been published by other federates
       * The message is expected to be list of string, if not this method will fail
+      *
       * @param time the requested time
       * @return message in list of Strings format
       */
@@ -300,6 +375,7 @@ object BeamHelicsInterface {
 
     /**
       * Register a publication channel
+      *
       * @param pubName the publication id which **is not expected** to be prefixed by a federate name, such as
       *                "PUBLICATION_NAME"
       */
@@ -312,6 +388,7 @@ object BeamHelicsInterface {
 
     /**
       * Register a subscription channel
+      *
       * @param subName the subscription id which **is expected** to be prefixed by a federate name, such as
       *                "FEDERATE_NAME/SUBSCRIPTION_NAME"
       */
@@ -376,6 +453,7 @@ object BeamHelicsInterface {
     }
 
     federate.foreach(enterExecutionMode(10.seconds, _))
+
     def getBrokersFederate: Option[BeamFederate] = federate
   }
 }

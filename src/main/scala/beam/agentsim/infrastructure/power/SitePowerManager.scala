@@ -88,34 +88,36 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
       s"obtainPowerCommandsAndLimits timeBin = $timeBin, numPluggedVehicles = $numPluggedVehicles"
     )
     powerCommands = beamFederateMap.par
-      .map { case (tazId, stations, federate) =>
+      .flatMap { case (tazId, stations, federate) =>
         federate
-          .cosimulate(
+          .cosimulate2(
             timeBin,
-            stations.flatMap(_.connectedVehicles.values).map {
-              case cv @ ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, _, _, _) =>
-                // Sending this message
-                val powerInKW = getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
-                Map(
-                  "tazId"                      -> tazId,
-                  "siteId"                     -> tazId, // TODO I have a way for generating the site Id, but for now Site id == parking Zone Id
-                  "vehicleId"                  -> vehicle.id,
-                  "vehicleType"                -> vehicle.beamVehicleType.id,
-                  "primaryFuelLevelInJoules"   -> vehicle.primaryFuelLevelInJoules,
-                  "primaryFuelCapacityInJoule" -> vehicle.beamVehicleType.primaryFuelCapacityInJoule,
-                  "arrivalTime"                -> arrivalTime, // TODO arrival time at station
-                  "departureTime"              -> cv.estimatedDepartureTime, // TODO estimated departure time = arrival time + parking duration
-                  "desiredFuelLevelInJoules"   -> (vehicle.beamVehicleType.primaryFuelCapacityInJoule - vehicle.primaryFuelLevelInJoules), // TODO Battery capacity - fuel level
-                  "maxPowerInKW" -> vehicle.beamVehicleType.chargingCapability
-                    .map(getChargingPointInstalledPowerInKw)
-                    .map(Math.min(powerInKW, _))
-                    .getOrElse(
-                      powerInKW
-                    ) // TODO power at stall: MIN(stall.chargingPointType,vehicle.vehicleType.chargingCapability)
-                )
-            }
+            Map(
+              tazId.toString -> stations.flatMap(_.connectedVehicles.values).map {
+                case cv @ ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, _, _, _) =>
+                  // Sending this message
+                  val powerInKW = getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
+                  Map(
+                    "siteId"                     -> tazId, // TODO I have a way for generating the site Id, but for now Site id == parking Zone Id
+                    "vehicleId"                  -> vehicle.id,
+                    "vehicleType"                -> vehicle.beamVehicleType.id,
+                    "primaryFuelLevelInJoules"   -> vehicle.primaryFuelLevelInJoules,
+                    "primaryFuelCapacityInJoule" -> vehicle.beamVehicleType.primaryFuelCapacityInJoule,
+                    "arrivalTime"                -> arrivalTime, // TODO arrival time at station
+                    "departureTime"              -> cv.estimatedDepartureTime, // TODO estimated departure time = arrival time + parking duration
+                    "desiredFuelLevelInJoules"   -> (vehicle.beamVehicleType.primaryFuelCapacityInJoule - vehicle.primaryFuelLevelInJoules), // TODO Battery capacity - fuel level
+                    "maxPowerInKW" -> vehicle.beamVehicleType.chargingCapability
+                      .map(getChargingPointInstalledPowerInKw)
+                      .map(Math.min(powerInKW, _))
+                      .getOrElse(
+                        powerInKW
+                      ) // TODO power at stall: MIN(stall.chargingPointType,vehicle.vehicleType.chargingCapability)
+                  )
+              }
+            )
           )
-          .flatMap { message =>
+          .flatMap(_._2)
+          .map { message =>
             // Receiving this message
             chargingNetworkHelper
               .lookUpConnectedVehiclesAt(timeBin)
@@ -130,7 +132,6 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
                 None
             }
           }
-          .toMap
       }
       .foldLeft(Map.empty[Id[BeamVehicle], PowerInKW])(_ ++ _)
 
@@ -199,10 +200,11 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
 
   /**
     * Collect rough power demand per vehicle
-    * @param time start time of charging cycle
-    * @param duration duration of charging cycle
+    *
+    * @param time                          start time of charging cycle
+    * @param duration                      duration of charging cycle
     * @param energyToChargeIfUnconstrained the energy to charge
-    * @param station the station where vehicle is charging
+    * @param station                       the station where vehicle is charging
     */
   def collectObservedLoadInKW(
     time: Int,
