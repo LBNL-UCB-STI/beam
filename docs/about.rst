@@ -53,10 +53,15 @@ The AgentSim is designed to execute the daily plans of the population, allowing 
 
 All movements in the AgentSim occur via "teleportation" as discrete events. In other words, given a route and a travel time, an agent simply schedules herself to "arrive" at the destination accordingly. When this occurs, a PathTraversal Event is thrown -- one for each vehicle movement, not necessarily each passenger movement -- which is used by the PhysSim to simulate traffic flow, resolve congestion, and update travel times in the router so that in future iterations, agents will teleport according to travel times that are consistent with network congestion.
 
-PhysSim
-^^^^^^^
+Physics simulation
+^^^^^^^^^^^^^^^^^^
 
-The PhysSim simulates traffic on the road network. The underlying simulation engine is based on the Java Discrete Event Queue Simulator (JDEQSim_) from the MATSim framework. The JDEQSim then simulates traffic flow through the system and updated the Router with new network travel times for use in subsequent iterations.
+BEAM provides the following PhysSim algorithms to simulate the traffic on the road network.
+
+JDEQSim
+~~~~~~~~~~~~
+
+By default, the underlying simulation engine is based on the Java Discrete Event Queue Simulator (JDEQSim_) from the MATSim framework. The JDEQSim then simulates traffic flow through the system and updated the Router with new network travel times for use in subsequent iterations.
 
 .. _JDEQSim: https://www.researchgate.net/publication/239925133_Performance_Improvements_for_Large_Scale_Traffic_Simula-_tion_in_MATSim
 
@@ -64,17 +69,32 @@ JDEQSim was designed as a MobSim engine for MATSim, so it is capable of simulati
 
 Currently, PhysSim and AgentSim run serially, one after another. This is due to the fact that the PhysSim is substantially faster to run than the AgentSim, because the PhysSim does not need to do any routing calculations. As improvements to AgentSim reduce run times, future versions of BEAM will likely allow AgentSim and PhysSim to run concurrently, or even be run in a tightly coupled manner where each teleportation in AgentSim is replaced with a direct simulation of the propagation of vehicles through the network by the PhysSim.
 
-R5 Router
-^^^^^^^^^
+BPRSim
+~~~~~~
 
-BEAM uses the `R5 routing engine`_ to accomplish multi-modal routing. Agents from BEAM make request of the router, and the results of the routing calculation are then transformed into objects that are directly usable by the BEAM agents to choose between alternative routes and move throughout the system. 
+*explain shortcomings/upsides compared to JDEQSim. From what I gather it seems like it does not simulate traffic jams properly*
+
+CCHRoutingAssignment
+~~~~~~~~~~~~~~~~~~~~
+
+*does this have to be paired with nativeCCH Router?*
+
+Routers
+^^^^^^^
+
+BEAM can be configured to run with one of three multi-modal routing algorithms:
+
+R5 Router
+~~~~~~~~~
+
+By default, BEAM uses the `R5 routing engine`_ to accomplish multi-modal routing. Agents from BEAM make request of the router, and the results of the routing calculation are then transformed into objects that are directly usable by the BEAM agents to choose between alternative routes and move throughout the system.
 
 .. _R5 routing engine: https://github.com/conveyal/r5
 
 .. _matsim-events:
 
 GraphHopper Router
-^^^^^^^^^
+~~~~~~~~~~~~~~~~~~
 
 If configured BEAM can use GraphHopper router (https://github.com/graphhopper/graphhopper) in addition to R5. Note that
 currently GraphHopper doesn't work with transit routes, for these it will delegate to R5.
@@ -91,6 +111,11 @@ GraphHopper router can be configured to use alternative routes (https://github.c
 To enable it set in config file
 
 `beam.routing.gh.useAlternativeRoutes = true`
+
+nativeCCH Router (Linux Only)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+*Could not gather much information about this one. What does CCH stands for?*
 
 MATSim Events
 ^^^^^^^^^^^^^
