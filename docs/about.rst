@@ -115,7 +115,7 @@ To enable it set in config file
 nativeCCH Router (Linux Only)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-*Could not gather much information about this one. What does CCH stands for?*
+*Could not gather much information about this one. What does CCH stands for? It has something to do with network relaxation, reducing the number of iterations needed to settle the network*
 
 MATSim Events
 ^^^^^^^^^^^^^
