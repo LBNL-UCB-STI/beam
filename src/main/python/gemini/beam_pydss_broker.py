@@ -20,6 +20,6 @@ while h.helicsBrokerIsConnected(broker) == 1:
     time.sleep(1)
     second += 1
     if second % 3600 == 0:
-        print("{} hours passed".format(second/3600))
+        print("{} hours passed".format(second / 3600))
 h.helicsCloseLibrary()
 print("Broker disconnected")

@@ -2029,16 +2029,15 @@ object BeamConfig {
                 if (c.hasPathOrNull("coreInitString")) c.getString("coreInitString")
                 else "--federates=1 --broker_address=tcp://127.0.0.1",
               coreType = if (c.hasPathOrNull("coreType")) c.getString("coreType") else "zmq",
-              federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "BEAM_PM_FEDERATE",
+              federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "FED_BEAM",
               federatePublication =
-                if (c.hasPathOrNull("federatePublication")) c.getString("federatePublication") else "POWER_DEMAND",
+                if (c.hasPathOrNull("federatePublication")) c.getString("federatePublication") else "LOAD_DEMAND",
               feedbackEnabled = !c.hasPathOrNull("feedbackEnabled") || c.getBoolean("feedbackEnabled"),
               intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
-              pmcFederateName =
-                if (c.hasPathOrNull("pmcFederateName")) c.getString("pmcFederateName") else "GRID_FEDERATE",
+              pmcFederateName = if (c.hasPathOrNull("pmcFederateName")) c.getString("pmcFederateName") else "FED_GRID",
               pmcFederateSubscription =
                 if (c.hasPathOrNull("pmcFederateSubscription")) c.getString("pmcFederateSubscription")
-                else "PHYSICAL_BOUNDS",
+                else "POWER_LIMITS",
               timeDeltaProperty = if (c.hasPathOrNull("timeDeltaProperty")) c.getDouble("timeDeltaProperty") else 1.0
             )
           }
@@ -2087,8 +2086,8 @@ object BeamConfig {
           federatesPrefix: java.lang.String,
           federatesPublication: java.lang.String,
           intLogLevel: scala.Int,
-          spmcFederatesPrefix: java.lang.String,
-          spmcSubscription: java.lang.String,
+          spmFederatesPrefix: java.lang.String,
+          spmSubscription: java.lang.String,
           timeDeltaProperty: scala.Double
         )
 
@@ -2105,16 +2104,15 @@ object BeamConfig {
                 else "--federates=1 --broker_address=tcp://127.0.0.1",
               coreType = if (c.hasPathOrNull("coreType")) c.getString("coreType") else "zmq",
               expectFeedback = !c.hasPathOrNull("expectFeedback") || c.getBoolean("expectFeedback"),
-              federatesPrefix =
-                if (c.hasPathOrNull("federatesPrefix")) c.getString("federatesPrefix") else "BEAM_SPM_FEDERATE_",
+              federatesPrefix = if (c.hasPathOrNull("federatesPrefix")) c.getString("federatesPrefix") else "FED_BEAM_",
               federatesPublication =
                 if (c.hasPathOrNull("federatesPublication")) c.getString("federatesPublication")
-                else "CHARGING_SESSION_EVENTS",
+                else "CHARGING_VEHICLES",
               intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
-              spmcFederatesPrefix =
-                if (c.hasPathOrNull("spmcFederatesPrefix")) c.getString("spmcFederatesPrefix") else "SPMC_FEDERATE_",
-              spmcSubscription =
-                if (c.hasPathOrNull("spmcSubscription")) c.getString("spmcSubscription") else "CHARGING_PROFILE",
+              spmFederatesPrefix =
+                if (c.hasPathOrNull("spmFederatesPrefix")) c.getString("spmFederatesPrefix") else "FED_SPM_",
+              spmSubscription =
+                if (c.hasPathOrNull("spmSubscription")) c.getString("spmSubscription") else "CHARGING_COMMANDS",
               timeDeltaProperty = if (c.hasPathOrNull("timeDeltaProperty")) c.getDouble("timeDeltaProperty") else 1.0
             )
           }

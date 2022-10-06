@@ -78,7 +78,7 @@ class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: Bea
             "parkingZoneId" -> station.zone.parkingZoneId,
             "estimatedLoad" -> powerInKW
           )
-        }
+        }.toList
         val messageReceived = beamFederate.cosimulate(currentTime, messageToSend)
         messageReceived.flatMap { message =>
           // Receiving this message

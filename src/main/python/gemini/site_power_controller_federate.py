@@ -25,26 +25,25 @@ def print2(to_print):
 # if len(sys.argv) < 2:
 #     logging.error("infrastructure file is missing")
 
-def create_federate(fed_info, taz_id):
-    fed_name = "SPMC_FEDERATE_" + taz_id
+def create_federate(helics_conf, fed_info, taz_id):
+    fed_name = helics_conf["spmFederatesPrefix"] + taz_id
 
     # create federate
     cfed = h.helicsCreateCombinationFederate(fed_name, fed_info)
-    logging.info(fed_name + " created")
-
-    logging.info("Register a publication of control signals")
+    logging.info("Create combination federate " + fed_name)
 
     # Register a publication of control signals
     # Power in kW
-    h.helicsFederateRegisterTypePublication(cfed, "CHARGING_PROFILE", "string", "")
-    logging.info("publications registered")
+    pub = helics_conf["spmSubscription"]
+    h.helicsFederateRegisterTypePublication(cfed, pub, "string", "")
+    logging.info("Registered to publication " + pub)
 
     # register subscriptions
     # subscribe to information from TEMPO such that you can map to PyDSS modeled charging stations
     # Power in kW and Energy in Joules
-    h.helicsFederateRegisterSubscription(cfed, "BEAM_SPM_FEDERATE_" + str(taz_id) + "/CHARGING_SESSION_EVENTS",
-                                         "string")
-    logging.info("subscriptions registered")
+    sub = helics_conf["federatesPrefix"] + str(taz_id) + "/" + helics_conf["federatesPublication"]
+    h.helicsFederateRegisterSubscription(cfed, sub, "string")
+    logging.info("Registered to subscription " + sub)
 
     # subscriptions to PyDSS
     # The Power is in kW, and to get the energy multiply by 60 seconds (1 minute interval) and convert it to Joules
@@ -57,7 +56,7 @@ def create_federate(fed_info, taz_id):
     return cfed
 
 
-def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds):
+def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds):
     # enter execution mode
     h.helicsFederateEnterExecutingMode(cfed)
     fed_name = h.helicsFederateGetName(cfed)
@@ -104,27 +103,33 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
     def key_func(k):
         return k['siteId']
 
-    def syncTime(requestedtime):
-        grantedtime = -1
-        while grantedtime < requestedtime:
-            grantedtime = h.helicsFederateRequestTime(cfed, requestedtime)
+    def sync_time(requested_time):
+        granted_time = -1
+        while granted_time < requested_time:
+            granted_time = h.helicsFederateRequestTime(cfed, requested_time)
 
     # start execution loop
-    for t in range(0, simulated_day_in_seconds - timebin_in_seconds, timebin_in_seconds):
-        syncTime(t)
+    for t in range(0, simulated_day_in_seconds - time_bin_in_seconds, time_bin_in_seconds):
+        print2("[TAZ:" + taz_id + "]. Ready to sync: " + str(t) + " seconds" + "(" + str(time.time() * 1000) + ")")
+        sync_time(t)
         control_commands_list = []
-        print2("charger loads received at current time: " + str(t) + " seconds")
+        print2("[TAZ:" + taz_id + "]. Message received at current time: " + str(t) + " seconds" + "(" + str(
+            time.time() * 1000) + ")")
         received_message = h.helicsInputGetString(subs_charging_events)
-        logging.info("[TAZ:" + taz_id + "]. Received a message with a length " + str(len(received_message)))
+        print2(received_message)
+        logging.info("[TAZ:" + taz_id + "]. Received a message with a length " + str(len(received_message)) + "(" + str(
+            time.time() * 1000) + ")")
+        logging.info("[TAZ:" + taz_id + "]. Message " + str(received_message) + "(" + str(time.time() * 1000) + ")")
         if bool(str(received_message).strip()):
-            taz_id_json = json.loads(received_message)
-            if taz_id in taz_id_json:
-                charging_events_json = taz_id_json[taz_id]
-                logging.info("[TAZ:" + taz_id + "]. Loaded JSON format from the received message")
+            charging_events_json = json.loads(received_message)
+            if len(charging_events_json) > 0 and 'vehicleId' in charging_events_json[0]:
+                logging.info("[TAZ:" + taz_id + "]. Loaded JSON format from the received message" + "(" + str(
+                    time.time() * 1000) + ")")
                 # Reading BEAM values
                 for siteId, charging_events in itertools.groupby(charging_events_json, key_func):
                     logging.info(
-                        '  {SITE:' + str(siteId) + "}. Received " + str(len(charging_events)) + " charging event(s)")
+                        '  {SITE:' + str(siteId) + "}. Received " + str(
+                            len(charging_events)) + " charging event(s)" + "(" + str(time.time() * 1000) + ")")
                     vehicle_id = []
                     vehicle_type = []
                     primary_fuel_level_in_k_wh = []
@@ -134,18 +139,19 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
                     max_power_in_kw = []  # min [plug, vehicle]
                     battery_capacity_in_k_wh = []  # TODO Julius @ HL can you please add this to the BEAM output?
                     for vehicle in charging_events:
-                        vehicle_id.append(int(vehicle['vehicle_id']))
-                        vehicle_type.append(vehicle['vehicle_type'])
+                        vehicle_id.append(int(vehicle['vehicleId']))
+                        vehicle_type.append(vehicle['vehicleType'])
                         # MJ: What is this? Is it the current energy level of each EV? Or battery size?
                         primary_fuel_level_in_k_wh.append(float(vehicle['primaryFuelLevelInJoules']) / 3600000)
                         # MJ: Should be in minutes of day. What is the unit of this?
-                        arrival_time.append(float(vehicle['arrival_time']))
+                        arrival_time.append(float(vehicle['arrivalTime']))
                         # MJ: Should be in minutes of day. What is the unit of this?
                         desired_departure_time.append(float(vehicle['departureTime']))
-                        # MJ: I assume that this is remaining energy to be delivered to each EV and updated each time,right?
+                        # MJ: I assume that this is remaining energy to be delivered to each EV
+                        # and updated each time,right?
                         desired_fuel_level_in_k_wh.append(float(vehicle['desiredFuelLevelInJoules']) / 3600000)
                         # MJ: I assume that this is the EV charging power
-                        max_power_in_kw.append(float(vehicle['max_power_in_kw']))
+                        max_power_in_kw.append(float(vehicle['maxPowerInKW']))
                         # Julius @ HL can you please add this to the BEAM output?
                         battery_capacity_in_k_wh.append(float(vehicle['primaryFuelCapacityInJoule']) / 3600000)
 
@@ -170,8 +176,9 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
                         i = 0
                         for vehicle in charging_events:
                             control_commands = [{
-                                'vehicle_id': vehicle['vehicle_id'],
-                                'powerInKw': str(p_evse_opt[i])
+                                'tazId': str(taz_id),
+                                'vehicleId': vehicle['vehicleId'],
+                                'powerInKW': str(p_evse_opt[i])
                             }]
                             control_commands_list_temp = control_commands_list_temp + control_commands
                             i = i + 1
@@ -238,27 +245,33 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
                         #
                         # for i in range(0, len(vehicles)):
                         #     control_commands = [{
-                        #         'vehicle_id': str(vehicles[i]),
-                        #         'power': str(power[i]),
+                        #         'tazId': str(taz_id),
+                        #         'vehicleId': str(vehicles[i]),
+                        #         'powerInKW': str(power[i]),
                         #         'release': str(release[i])
                         #     }]
                         #     control_commands_list_temp = control_commands_list_temp + control_commands
                         num_commands = len(control_commands_list_temp)
                         logging.info(
                             '  {SITE:' + str(siteId) + "}. " + str(
-                                num_commands) + " EVSE setpoints from the ride-hail SPMC")
+                                num_commands) + " EVSE setpoints from the ride-hail SPMC" + "(" + str(
+                                time.time() * 1000) + ")")
                         control_commands_list = control_commands_list + control_commands_list_temp
                 # END LOOP
+            elif len(charging_events_json) > 0 and 'vehicleId' not in charging_events_json[0]:
+                logging.info("[TAZ:" + taz_id + "]. No charging events were observed from BEAM from TAZ: " +
+                             str(charging_events_json[0]["tazId"]))
             else:
-                logging.error("[TAZ:" + taz_id + "]. The loaded JSON message does not contains taz_id " + taz_id +
-                              ". Something is broken. Here are the actual keys in the message: " + taz_id_json.keys())
+                logging.error("[TAZ:" + taz_id + "]. The loaded JSON message is not valid. Something is broken! " +
+                              "Here is the received message" + charging_events_json)
         else:
-            logging.error("[TAZ:" + taz_id + "]. The receive message is empty (" + received_message
-                          + "). Something is broken")
+            logging.error("[TAZ:" + taz_id + "]. SPMC received empty message from BEAM. Something is broken!")
 
-        message_to_send = {taz_id: control_commands_list}
+        message_to_send = control_commands_list
+        if not message_to_send:
+            message_to_send = [{'tazId': str(taz_id)}]
         h.helicsPublicationPublishString(pubs_control, json.dumps(message_to_send, separators=(',', ':')))
-        syncTime(t + 1)
+        sync_time(t + 1)
 
     # close the federate
     h.helicsFederateFinalize(cfed)
@@ -275,31 +288,40 @@ def run_spmc_federate(cfed, taz_id, timebin_in_seconds, simulated_day_in_seconds
 
 if __name__ == "__main__":
     logging.basicConfig(filename='site_power_controller_federate.log', level=logging.DEBUG, filemode='w')
-
     infrastructure_file = "../../../../production/sfbay/parking/sfbay_taz_unlimited_charging_point.csv"
     print2("Loading infrastructure file: " + infrastructure_file)
     data = pd.read_csv(infrastructure_file)
-
-    logging.info("Extracting TAZs...")
-    tazes = data["taz"].unique()
-    logging.info(tazes)
+    # all_taz = data["taz"].unique()
+    all_taz = ["1"]
+    num_all_taz = len(all_taz)
+    logging.info("Extracted " + str(num_all_taz) + " TAZs...")
+    helics_config = {"coreInitString": f"--federates={num_all_taz} --broker_address=tcp://127.0.0.1",
+                     "coreType": "zmq",
+                     "timeDeltaProperty": 1.0,  # smallest discernible interval to this federate
+                     "intLogLevel": 1,
+                     "federatesPrefix": "FED_BEAM_",
+                     "federatesPublication": "CHARGING_VEHICLES",
+                     "spmFederatesPrefix": "FED_SPM_",
+                     "spmSubscription": "CHARGING_COMMANDS",
+                     "timeStepInSeconds": 60}
 
     print2("Creating a federate per TAZ...")
-    fedinfo = h.helicsCreateFederateInfo()
+    main_fed_info = h.helicsCreateFederateInfo()
     # set core type
-    h.helicsFederateInfoSetCoreTypeFromString(fedinfo, "zmq")
+    h.helicsFederateInfoSetCoreTypeFromString(main_fed_info, helics_config["coreType"])
     # set initialization string
-    h.helicsFederateInfoSetCoreInitString(fedinfo, f"--federates={len(tazes)}")
+    h.helicsFederateInfoSetCoreInitString(main_fed_info, helics_config["coreInitString"])
     # set message interval
-    deltat = 1.0  # smallest discernable interval to this federate
-    h.helicsFederateInfoSetTimeProperty(fedinfo, h.helics_property_time_delta, deltat)
+    h.helicsFederateInfoSetTimeProperty(main_fed_info, h.helics_property_time_delta, helics_config["timeDeltaProperty"])
+    #
+    h.helicsFederateInfoSetIntegerProperty(main_fed_info, h.helics_property_int_log_level, helics_config["intLogLevel"])
 
-    feds = [[create_federate(fedinfo, str(taz_id)), taz_id] for taz_id in tazes]
+    feds = [[create_federate(helics_config, main_fed_info, str(taz_id)), taz_id] for taz_id in all_taz]
     print2("Starting " + str(len(feds)) + " number of thread(s). Each thread is running one federate.")
 
-    timeBin = 300
-    simulatedDay = 60 * 3600  # 60 hours BEAM Day
+    time_bin = helics_config["timeStepInSeconds"]
+    simulated_day = 60 * 3600  # 60 hours BEAM Day
     # start execution loop
-    for [fed, tazId] in feds:
-        t = Thread(target=run_spmc_federate, args=(fed, str(tazId), timeBin, simulatedDay))
-        t.start()
+    for [fed, taz_id] in feds:
+        thread = Thread(target=run_spm_federate, args=(fed, str(taz_id), time_bin, simulated_day))
+        thread.start()

@@ -46,15 +46,15 @@ def run_beam_to_pydss_federate():
 
     print("entered execution mode")
 
-    def syncTime(requestedtime):
+    def sync_time(requestedtime):
         grantedtime = -1
         while grantedtime < requestedtime:
             grantedtime = h.helicsFederateRequestTime(cfed, requestedtime)
 
     timebin = 300
     # start execution loop
-    for t in range(0, 60*3600-timebin, timebin):
-        syncTime(t)
+    for t in range(0, 60 * 3600 - timebin, timebin):
+        sync_time(t)
         print("charger loads received at currenttime: " + str(t) + " seconds")
         logging.info("charger loads received at currenttime: " + str(t) + " seconds")
         charger_load_json = json.loads(h.helicsInputGetString(subs_charger_loads))
@@ -64,7 +64,7 @@ def run_beam_to_pydss_federate():
             reservedFor = station['reservedFor']
             parkingZoneId = station['parkingZoneId']
             station_load = station['estimatedLoad']
-            logging.info(str(parkingZoneId)+','+str(station_load)+','+str(reservedFor)+','+str(t))
+            logging.info(str(parkingZoneId) + ',' + str(station_load) + ',' + str(reservedFor) + ',' + str(t))
 
         ############### This section should be un-commented and debugged when we have a controller signal to send to BEAM
         ## format appropriately here
@@ -83,7 +83,7 @@ def run_beam_to_pydss_federate():
             all_stations_with_control.append(station_with_control)
 
         h.helicsPublicationPublishString(pubs_control, json.dumps(all_stations_with_control, separators=(',', ':')))
-        syncTime(t+1)
+        sync_time(t + 1)
 
     # close the federate
     h.helicsFederateFinalize(cfed)

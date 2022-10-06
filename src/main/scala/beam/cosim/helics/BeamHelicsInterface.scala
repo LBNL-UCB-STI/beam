@@ -140,19 +140,6 @@ object BeamHelicsInterface {
     }
   }
 
-  // Not implicit to avoid ambiguity
-  object MapNestedJsonFormat extends JsonFormat[Map[String, List[Map[String, Any]]]] {
-
-    def write(c: Map[String, List[Map[String, Any]]]): JsValue = {
-      c.map { case (k, v) => k -> v.toJson(ListMapAnyJsonFormat) }.toJson
-    }
-
-    def read(value: JsValue): Map[String, List[Map[String, Any]]] = value match {
-      case JsObject(x) => x.map(y => y._1 -> y._2.convertTo[List[Map[String, Any]]](ListMapAnyJsonFormat))
-      case _           => deserializationError("JsObject expected")
-    }
-  }
-
   def createFedInfo(
     coreType: String,
     coreInitString: String,
@@ -176,12 +163,16 @@ object BeamHelicsInterface {
       _.shutdown()
     ) { executorService =>
       implicit val ec: ExecutionContextExecutorService = ExecutionContext.fromExecutorService(executorService)
-      val futureResuls = federates.map { beamFederate =>
+      val futureResults = federates.map { beamFederate =>
         Future {
+          println("enterExecutionMode 1")
           blocking(helics.helicsFederateEnterExecutingMode(beamFederate.fedComb))
+          println("enterExecutionMode 2")
         }
       }
-      Await.result(Future.sequence(futureResuls).map(_ => ()), timeout)
+      println("enterExecutionMode 3")
+      Await.result(Future.sequence(futureResults), timeout)
+      println("enterExecutionMode 4")
     }
   }
 
@@ -198,9 +189,8 @@ object BeamHelicsInterface {
     private var currentBin = -1
 
     // **************************
-    logger.debug(s"FederateInfo created")
     val fedComb: SWIGTYPE_p_void = helics.helicsCreateCombinationFederate(fedName, fedInfo)
-    logger.debug(s"CombinationFederate created")
+    logger.info(s"Create combination federate $fedName")
     // ******
     // register new BEAM publications here
     dataOutStreamPointMaybe.foreach(registerPublication)
@@ -209,47 +199,30 @@ object BeamHelicsInterface {
     dataInStreamPointMaybe.foreach(registerSubscription)
     // **************************
 
-    def cosimulate2(
-      tick: Int,
-      nestedMsgToPublish: Map[String, List[Map[String, Any]]]
-    ): Map[String, List[Map[String, Any]]] = {
-      var nestedMsgReceived = Map.empty[String, List[Map[String, Any]]]
-      if (currentBin < tick / simulationStep) {
-        currentBin = tick / simulationStep
-        logger.debug(s"Publishing message to the ${dataOutStreamPointMaybe.getOrElse("NA")} at time $tick")
-        publishNestedJSON(nestedMsgToPublish)
-        while (nestedMsgReceived.isEmpty) {
-          // SYNC
-          sync(tick)
-          // COLLECT
-          nestedMsgReceived = collectedNestedJSON()
-          if (nestedMsgReceived.isEmpty) {
-            // Sleep
-            Thread.sleep(1)
-          }
-        }
-        logger.debug(s"Message received from ${dataInStreamPointMaybe.getOrElse("NA")}: $nestedMsgReceived")
-      }
-      nestedMsgReceived
-    }
-
-    def cosimulate(tick: Int, msgToPublish: Iterable[Map[String, Any]]): List[Map[String, Any]] = {
+    def cosimulate(tick: Int, msgToPublish: List[Map[String, Any]]): List[Map[String, Any]] = {
       var msgReceived: Option[List[Map[String, Any]]] = None
       if (currentBin < tick / simulationStep) {
         currentBin = tick / simulationStep
-        logger.debug(s"Publishing message to the ${dataOutStreamPointMaybe.getOrElse("NA")} at time $tick")
-        publishJSON(msgToPublish.toList)
+        logger.info(
+          s"Publishing message to the ${dataOutStreamPointMaybe.getOrElse("NA")} at time $tick. [${System.currentTimeMillis()}]"
+        )
+        publishJSON(msgToPublish)
+        logger.info(s"publishNestedJSON $msgToPublish. [${System.currentTimeMillis()}]")
         while (msgReceived.isEmpty) {
           // SYNC
           sync(tick)
+          logger.info(s"sync $tick. [${System.currentTimeMillis()}]")
           // COLLECT
           msgReceived = collectJSON()
+          logger.info(s"collectedNestedJSON $msgReceived. [${System.currentTimeMillis()}]")
           if (msgReceived.isEmpty) {
             // Sleep
             Thread.sleep(1)
           }
         }
-        logger.debug(s"Message received from ${dataInStreamPointMaybe.getOrElse("NA")}: $msgReceived")
+        logger.info(
+          s"Message received from ${dataInStreamPointMaybe.getOrElse("NA")}: $msgReceived. [${System.currentTimeMillis()}]"
+        )
       }
       msgReceived.getOrElse(List.empty)
     }
@@ -263,19 +236,6 @@ object BeamHelicsInterface {
       dataOutStreamHandle.foreach(
         helics.helicsPublicationPublishString(_, labeledData.toJson(ListMapAnyJsonFormat).compactPrint.stripMargin)
       )
-      logger.debug("Data published via HELICS")
-    }
-
-    /**
-      * Convert a list of Key Value Map into an array of JSON documents, then stringifies it before publishing via HELICS
-      *
-      * @param labeledData List of Key -> Value
-      */
-    def publishNestedJSON(labeledData: Map[String, List[Map[String, Any]]]): Unit = {
-      dataOutStreamHandle.foreach(
-        helics.helicsPublicationPublishString(_, labeledData.toJson(MapNestedJsonFormat).compactPrint.stripMargin)
-      )
-      logger.debug("Data published via HELICS")
     }
 
     /**
@@ -285,7 +245,6 @@ object BeamHelicsInterface {
       */
     def publish(unlabeledData: List[Any]): Unit = {
       dataOutStreamHandle.foreach(helics.helicsPublicationPublishString(_, unlabeledData.mkString(",")))
-      logger.debug("Data published via HELICS: " + unlabeledData)
     }
 
     /**
@@ -306,7 +265,6 @@ object BeamHelicsInterface {
     /**
       * Collect message that has been published by other federates
       *
-      * @param time the requested time
       * @return raw message in string format
       */
     private def collectRaw(): String = {
@@ -329,7 +287,6 @@ object BeamHelicsInterface {
     def collectJSON(): Option[List[Map[String, Any]]] = {
       val message = collectRaw()
       if (message.nonEmpty) {
-        logger.debug("Received JSON Data via HELICS")
         try {
           val messageList = message.replace("\u0000", "").parseJson.convertTo[List[Map[String, Any]]]
           Some(messageList)
@@ -340,35 +297,14 @@ object BeamHelicsInterface {
     }
 
     /**
-      * Collect nested JSON messages that has been published by other federates
-      * The message is expected to be nested JSON, if not this method will fail
-      *
-      * @return Message in List of Maps format
-      */
-    def collectedNestedJSON(): Map[String, List[Map[String, Any]]] = {
-      val message = collectRaw()
-      if (message.nonEmpty) {
-        logger.debug("Received JSON Data via HELICS")
-        try {
-          val messageList = message.replace("\u0000", "").parseJson.convertTo[Map[String, List[Map[String, Any]]]]
-          messageList
-        } catch {
-          case _: Throwable => Map.empty
-        }
-      } else Map.empty
-    }
-
-    /**
       * Collect list of String messages that has been published by other federates
       * The message is expected to be list of string, if not this method will fail
       *
-      * @param time the requested time
       * @return message in list of Strings format
       */
     def collectAny(): List[Any] = {
       val message = collectRaw()
       if (message.nonEmpty) {
-        logger.debug("Received JSON Data via HELICS")
         message.split(",").toList
       } else List.empty[Any]
     }
@@ -383,7 +319,7 @@ object BeamHelicsInterface {
       dataOutStreamHandle = Some(
         helics.helicsFederateRegisterPublication(fedComb, pubName, helics_data_type.helics_data_type_string, "")
       )
-      logger.debug(s"registering $pubName to CombinationFederate")
+      logger.info(s"registering publication $pubName")
     }
 
     /**
@@ -394,28 +330,28 @@ object BeamHelicsInterface {
       */
     private def registerSubscription(subName: String): Unit = {
       dataInStreamHandle = Some(helics.helicsFederateRegisterSubscription(fedComb, subName, ""))
-      logger.debug(s"registering $subName to CombinationFederate")
+      logger.info(s"registering subscription $subName")
     }
 
     /**
       * close HELICS library
       */
     def close(): Unit = {
-      logger.debug(s"closing BeamFederate")
+      logger.info(s"closing BeamFederate $fedName")
       if (helics.helicsFederateIsValid(fedComb) == 1) {
         helics.helicsFederateFinalize(fedComb)
         helics.helicsFederateFree(fedComb)
         helics.helicsCloseLibrary()
-        logger.debug(s"BeamFederate closed")
+        logger.info(s"BeamFederate $fedName closed")
       } else {
-        logger.error(s"helics federate is not valid!")
+        logger.info(s"helics federate $fedName is not valid!")
       }
       try {
-        logger.debug("Destroying BeamFederate")
+        logger.info("Destroying BeamFederate $fedName")
         unloadHelics()
       } catch {
         case NonFatal(ex) =>
-          logger.error(s"Cannot destroy BeamFederate: ${ex.getMessage}")
+          logger.error(s"Cannot destroy BeamFederate $fedName: ${ex.getMessage}")
       }
     }
   }
