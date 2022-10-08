@@ -108,6 +108,7 @@ object BeamConfig {
           plansFilePath: java.lang.String,
           reader: java.lang.String,
           replanning: BeamConfig.Beam.Agentsim.Agents.Freight.Replanning,
+          tourSampleSizeAsFractionOfTotal: scala.Double,
           toursFilePath: java.lang.String
         )
 
@@ -153,6 +154,9 @@ object BeamConfig {
                 if (c.hasPathOrNull("replanning")) c.getConfig("replanning")
                 else com.typesafe.config.ConfigFactory.parseString("replanning{}")
               ),
+              tourSampleSizeAsFractionOfTotal =
+                if (c.hasPathOrNull("tourSampleSizeAsFractionOfTotal")) c.getDouble("tourSampleSizeAsFractionOfTotal")
+                else 1.0,
               toursFilePath =
                 if (c.hasPathOrNull("toursFilePath")) c.getString("toursFilePath")
                 else "/test/input/beamville/freight/freight-tours.csv"
