@@ -89,7 +89,7 @@ class PowerManagerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfter
     ).when(beamFederateMock)
       .cosimulate(
         300,
-        Iterable[Map[String, Any]](
+        List[Map[String, Any]](
           Map(
             "reservedFor"   -> dummyChargingStation.zone.reservedFor,
             "parkingZoneId" -> dummyChargingStation.zone.parkingZoneId,
@@ -124,7 +124,7 @@ class PowerManagerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfter
     "obtain default (0.0) power physical bounds" in {
       val bounds =
         powerController.obtainPowerPhysicalBounds(300, Map[ChargingStation, Double](dummyChargingStation -> 0.0))
-      bounds shouldBe Map()
+      bounds shouldBe Map.empty
     }
   }
 }
