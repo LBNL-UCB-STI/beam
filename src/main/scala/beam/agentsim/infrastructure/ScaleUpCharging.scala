@@ -24,27 +24,28 @@ import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.{ConcurrentHashMap, ThreadLocalRandom}
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
 import scala.language.postfixOps
-import scala.util.Random
 
 trait ScaleUpCharging extends {
   this: ChargingNetworkManager =>
 
   import ScaleUpCharging._
 
-  private lazy val rand: Random = new Random(beamConfig.matsim.modules.global.randomSeed)
-  private lazy val timeStepByHour = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds / 3600.0
-  private lazy val virtualParkingInquiries: TrieMap[Int, ParkingInquiry] = TrieMap()
-  private lazy val vehicleRequests = mutable.HashSet.empty[ChargingEvent]
-  private lazy val tazTreeMap = getBeamServices.beamScenario.tazTreeMap
+  private val rand: ThreadLocalRandom = new ThreadLocalRandom(beamConfig.matsim.modules.global.randomSeed)
+  private val timeStepByHour = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds / 3600.0
+  private val virtualParkingInquiries: TrieMap[Int, ParkingInquiry] = TrieMap()
+  private val vehicleRequests = mutable.HashSet.empty[ChargingEvent]
 
-  private lazy val scaleUpFactor: Double =
+  private val scaleUpFactor: Double =
     if (!cnmConfig.scaleUp.enabled) 0.0
     else if (cnmConfig.scaleUp.expansionFactor >= 1.0) cnmConfig.scaleUp.expansionFactor - 1.0
     else throw new RuntimeException(s"scaleUp.expansionFactor == ${cnmConfig.scaleUp.expansionFactor} < 1.0")
+
+  private lazy val tazTreeMap = getBeamServices.beamScenario.tazTreeMap
 
   private lazy val activitiesLocationMap: Map[Id[TAZ], Vector[ActivityLocation]] = {
     val persons = getBeamServices.matsimServices.getScenario.getPopulation.getPersons.asScala
@@ -143,11 +144,11 @@ trait ScaleUpCharging extends {
     val allPersonsWhichCarIsChargingByTAZ =
       chargingNetworkHelper.allChargingStations
         .groupBy(_.zone.tazId)
-        .mapValues(v => mutable.HashSet(v.flatMap(_.persons): _*))
+        .mapValues(_.flatMap(_.persons).toSet)
         .view
         .force
-    val allVirtualPersonsByTAZ: Map[Id[TAZ], mutable.HashSet[Id[Person]]] =
-      tazTreeMap.getTAZs.map(_.tazId -> mutable.HashSet.empty[Id[Person]]).toMap
+    val allVirtualPersonsByTAZ = new ConcurrentHashMap[Id[TAZ], mutable.HashSet[Id[Person]]]()
+    tazTreeMap.getTAZs.foreach(taz => allVirtualPersonsByTAZ.put(taz.tazId, mutable.HashSet.empty[Id[Person]]))
     vehicleRequests
       .groupBy(_.tazId)
       .par
@@ -204,8 +205,8 @@ trait ScaleUpCharging extends {
             activitiesLocationMap
               .get(tazId)
               .map(_.filterNot { a =>
-                allPersonsWhichCarIsChargingByTAZ.getOrElse(tazId, mutable.HashSet.empty).contains(a.personId) ||
-                allVirtualPersonsByTAZ.synchronized(allVirtualPersonsByTAZ(tazId).contains(a.personId))
+                allPersonsWhichCarIsChargingByTAZ.getOrElse(tazId, Set.empty).contains(a.personId) ||
+                allVirtualPersonsByTAZ.get(tazId).contains(a.personId)
               })
               .map(_.groupBy(_.activityType))
               .getOrElse(Map.empty)
@@ -237,11 +238,11 @@ trait ScaleUpCharging extends {
                 activitiesLocationInCurrentTAZ.get(activityType) match {
                   case Some(activities) if activities.nonEmpty =>
                     val _ @ActivityLocation(_, personId, _, _, location) = activities(rand.nextInt(activities.size))
-                    allVirtualPersonsByTAZ.synchronized(allVirtualPersonsByTAZ(tazId).add(personId))
+                    allVirtualPersonsByTAZ.get(tazId).add(personId)
                     val locationUtm = getBeamServices.geo.wgs2Utm(location)
                     (personId, locationUtm)
                   case _ =>
-                    val taz = getBeamServices.beamScenario.tazTreeMap.getTAZ(tazId).get
+                    val taz = tazTreeMap.getTAZ(tazId).get
                     val personId = createPerson(beamVehicle.id)
                     val locationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
                     (personId, locationUtm)
@@ -308,20 +309,18 @@ trait ScaleUpCharging extends {
         if (inquiry.activityType.startsWith(ChargingNetwork.EnRouteLabel))
           ParkingActivityType.Charge.entryName
         else inquiry.activityType
-      vehicleRequests.synchronized {
-        vehicleRequests.add(
-          ChargingEvent(
-            stall.tazId,
-            estimatedParkingDuration,
-            remainingRangeInMeters,
-            activityType,
-            inquiry.parkingActivityType,
-            vehicle.beamVehicleType,
-            vehicleAlias,
-            reservedFor
-          )
+      vehicleRequests.add(
+        ChargingEvent(
+          stall.tazId,
+          estimatedParkingDuration,
+          remainingRangeInMeters,
+          activityType,
+          inquiry.parkingActivityType,
+          vehicle.beamVehicleType,
+          vehicleAlias,
+          reservedFor
         )
-      }
+      )
     }
   }
 
@@ -396,7 +395,7 @@ object ScaleUpCharging {
     protected def logNormalDistribution(
       mean: Double,
       variance: Double,
-      rand: Random
+      rand: ThreadLocalRandom
     ): Double /* mean and variance of Y */ = {
       val phi = Math.sqrt(variance + (mean * mean))
       val mu = if (mean <= 0) 0.0 else Math.log((mean * mean) / phi)
@@ -416,7 +415,9 @@ object ScaleUpCharging {
     meanRangeInMeters: Double,
     varianceRange: Double
   ) extends ObservedData {
-    def getRemainingRangeInMeters(rand: Random): Double = logNormalDistribution(meanRangeInMeters, varianceRange, rand)
+
+    def getRemainingRangeInMeters(rand: ThreadLocalRandom): Double =
+      logNormalDistribution(meanRangeInMeters, varianceRange, rand)
 
     override def toString: String = s"${vehicleType.id.toString}|$vehicleAlias|${reservedFor.toString}"
 
@@ -432,7 +433,7 @@ object ScaleUpCharging {
     parkingActivityType: ParkingActivityType,
     scaledUpNumObservation: Double
   ) extends ObservedData {
-    def getDuration(rand: Random): Int = logNormalDistribution(meanDuration, varianceDuration, rand).toInt
+    def getDuration(rand: ThreadLocalRandom): Int = logNormalDistribution(meanDuration, varianceDuration, rand).toInt
 
     override def toString: String = activityType
 
