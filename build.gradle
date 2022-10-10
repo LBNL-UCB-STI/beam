@@ -1,3 +1,7 @@
+import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+import com.bmuschko.gradle.docker.tasks.image.DockerTagImage
+import com.bmuschko.gradle.docker.tasks.image.Dockerfile
+
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -230,7 +234,10 @@ dependencies {
     testImplementation group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.2.9'
     testImplementation group: 'org.scalatestplus', name: 'scalatestplus-junit_2.12', version: '1.0.0-M2'
     testRuntimeOnly "org.pegdown:pegdown:1.6.0"
-    testImplementation group: 'com.vladsch.flexmark', name: 'flexmark-all', version: '0.36.8' // HTML report for scalatest
+
+    // HTML report for scalatest
+    testImplementation group: 'com.vladsch.flexmark', name: 'flexmark-all', version: '0.36.8'
+
 
     // 3rd Party Scala //
 
@@ -359,7 +366,7 @@ publishing {
 
 task install(dependsOn: 'publishToMavenLocal')
 
-tasks.withType(cz.alenkacz.gradle.scalafmt.ScalafmtFormatBase){
+tasks.withType(cz.alenkacz.gradle.scalafmt.ScalafmtFormatBase) {
     outputs.upToDateWhen { false }
 }
 
@@ -382,7 +389,7 @@ tasks.withType(ScalaCompile) {
     }
 }
 
-tasks.withType(JavaExec).configureEach {task ->
+tasks.withType(JavaExec).configureEach { task ->
     if (!task.name.equals("run")) {
         jvmArgs = project.hasProperty('logbackCfg') ? ["-Dlogback.configurationFile=${project.property('logbackCfg')}"] : []
     }
@@ -423,7 +430,7 @@ task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
 task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
     args = (['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')) +
-            (project.hasProperty('matches') ?  ["-z", project.findProperty('matches')] : [])
+            (project.hasProperty('matches') ? ["-z", project.findProperty('matches')] : [])
     classpath = sourceSets.test.runtimeClasspath
 }
 
@@ -523,7 +530,12 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 mainClassName = "beam.sim.RunBeam"
 
-def myAvailableRam = (System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "140")).toString().replace("g", "").toInteger()
+def myAvailableRam = (System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "140"))
+        .toString()
+        .replace("g", "")
+        .toFloat() // because otherwise 'toInteger' might throw java.lang.NumberFormatException
+        .toInteger()
+
 def halfOfAvailableMem = (myAvailableRam / 2).toInteger()
 
 def getCurrentTimestamp = {
@@ -587,7 +599,7 @@ run {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Run ExperimentGenerator from Command line
-//  gradle :execute -PmainClass=beam.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']"
+//  gradle :execute -PmainClass=scripts.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']"
 // Run R5 GUI server
 //  gradle --stacktrace :execute -PmainClass=com.conveyal.r5.R5Main -PappArgs="['point','--graphs','production/application-sfbay/r5/']"
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -659,11 +671,6 @@ docker {
         password = System.getenv("DOCKER_PASSWORD")
     }
 }
-
-import com.bmuschko.gradle.docker.tasks.image.Dockerfile
-import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
-import com.bmuschko.gradle.docker.tasks.image.DockerTagImage
-
 // Some examples of manual docker file creation can be found https://github.com/bmuschko/gradle-docker-plugin/blob/3736ff644bed1cbfeed6fc7f844a5513c4208bc2/src/functTest/groovy/com/bmuschko/gradle/docker/DockerWorkflowFunctionalTest.groovy#L24
 // Also here: https://bmuschko.github.io/gradle-docker-plugin/#modifying_instructions_of_a_dockerfile_task
 task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {

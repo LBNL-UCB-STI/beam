@@ -17,7 +17,7 @@ case class BeamLeg(startTime: Int, mode: BeamMode, duration: Int, travelPath: Be
   val endTime: Int = startTime + duration
 
   def updateLinks(newLinks: IndexedSeq[Int]): BeamLeg =
-    this.copy(travelPath = this.travelPath.copy(newLinks))
+    this.copy(travelPath = this.travelPath.copy(newLinks.toArray))
 
   def updateStartTime(newStartTime: Int): BeamLeg = {
     val newTravelPath = this.travelPath.updateStartTime(newStartTime)
@@ -105,7 +105,7 @@ object BeamLeg {
       0,
       mode,
       duration,
-      BeamPath(Vector(), Vector(), None, SpaceTime(location, startTime), SpaceTime(location, startTime), 0)
+      BeamPath(Array[Int](), Array[Double](), None, SpaceTime(location, startTime), SpaceTime(location, startTime), 0)
     ).updateStartTime(startTime)
 
   def makeLegsConsistent(legs: List[Option[BeamLeg]]): List[Option[BeamLeg]] = {

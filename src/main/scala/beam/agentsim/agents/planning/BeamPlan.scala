@@ -2,8 +2,6 @@ package beam.agentsim.agents.planning
 
 import java.{lang, util}
 
-import beam.agentsim.agents.planning.Strategy.{ModeChoiceStrategy, Strategy}
-import beam.router.Modes.BeamMode
 import org.matsim.api.core.v01.population._
 import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.attributable.Attributes
@@ -92,15 +90,13 @@ class BeamPlan extends Plan {
   //////////////////////////////////////////////////////////////////////
   // Beam-Specific methods
   //////////////////////////////////////////////////////////////////////
-  lazy val trips: Vector[Trip] = tours.flatMap(_.trips)
-  lazy val activities: Vector[Activity] = tours.flatMap(_.trips.map(_.activity))
-  lazy val legs: Vector[Leg] = tours.flatMap(_.trips.map(_.leg)).flatten
+  lazy val trips: Array[Trip] = tours.flatMap(_.trips)
+  lazy val activities: Array[Activity] = tours.flatMap(_.trips.map(_.activity))
+  lazy val legs: Array[Leg] = tours.flatMap(_.trips.map(_.leg)).flatten
   private val actsLegToTrip: mutable.Map[PlanElement, Trip] = mutable.Map()
 
-  private val strategies: mutable.Map[PlanElement, mutable.Map[Class[_ <: Strategy], Strategy]] =
-    mutable.Map()
   // Beam-Specific members
-  var tours: Vector[Tour] = Vector()
+  var tours: Array[Tour] = Array()
   // Implementation of Legacy Interface
   private var person: Person = _
   private var actsLegs: Vector[PlanElement] = Vector()
@@ -108,7 +104,7 @@ class BeamPlan extends Plan {
   private var planType: String = ""
 
   def createToursFromMatsimPlan(): Unit = {
-    tours = Vector()
+    val toursBuilder = mutable.ArrayBuilder.make[Tour]()
     var nextTour = new Tour
     var nextLeg: Option[Leg] = None
     actsLegs.foreach {
@@ -116,19 +112,15 @@ class BeamPlan extends Plan {
         val nextTrip = Trip(activity, nextLeg, nextTour)
         nextTour.addTrip(nextTrip)
         if (activity.getType.equalsIgnoreCase("home")) {
-          tours = tours :+ nextTour
+          toursBuilder += nextTour
           nextTour = new Tour
         }
       case leg: Leg =>
         nextLeg = Some(leg)
     }
-    if (nextTour.trips.nonEmpty) tours = tours :+ nextTour
+    if (nextTour.trips.nonEmpty) toursBuilder += nextTour
+    tours = toursBuilder.result()
     indexBeamPlan()
-    actsLegs.foreach {
-      case l: Leg =>
-        putStrategy(actsLegToTrip(l), ModeChoiceStrategy(BeamMode.fromString(l.getMode)))
-      case _ =>
-    }
   }
 
   def indexTrip(trip: Trip): Unit = {
@@ -142,27 +134,6 @@ class BeamPlan extends Plan {
 
   def indexBeamPlan(): Unit = {
     tours.foreach(tour => tour.trips.foreach(indexTrip))
-  }
-
-  def putStrategy(planElement: PlanElement, strategy: Strategy): Unit = {
-    if (!strategies.contains(planElement)) {
-      strategies.put(planElement, mutable.Map[Class[_ <: Strategy], Strategy]())
-    }
-    strategies(planElement).put(strategy.getClass, strategy)
-
-    planElement match {
-      case tour: Tour =>
-        tour.trips.foreach(trip => putStrategy(trip, strategy))
-      case trip: Trip =>
-        putStrategy(trip.activity, strategy)
-        trip.leg.foreach(theLeg => putStrategy(theLeg, strategy))
-      case _ =>
-      // Already dealt with Acts and Legs
-    }
-  }
-
-  def getStrategy(planElement: PlanElement, forClass: Class[_ <: Strategy]): Option[Strategy] = {
-    strategies.getOrElse(planElement, mutable.Map()).get(forClass)
   }
 
   def isLastElementInTour(planElement: PlanElement): Boolean = {

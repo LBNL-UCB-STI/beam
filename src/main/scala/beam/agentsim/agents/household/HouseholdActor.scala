@@ -195,9 +195,6 @@ object HouseholdActor {
     private val householdVehicleCategories = List(Car, Bike)
     private var whoDrivesThisVehicle: Map[Id[BeamVehicle], Id[Person]] = Map()
 
-    private val realDistribution: UniformRealDistribution = new UniformRealDistribution()
-    realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
-
     override def loggedReceive: Receive = {
 
       case TriggerWithId(InitializeTrigger(tick), triggerId) =>

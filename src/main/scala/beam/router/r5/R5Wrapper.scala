@@ -98,8 +98,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     val endLoc = geo.coordOfR5Edge(transportNetwork.streetLayer, linksTimesAndDistances.linkIds.last)
     val duration = linksTimesAndDistances.travelTimes.tail.sum
     val updatedTravelPath = BeamPath(
-      linksTimesAndDistances.linkIds,
-      linksTimesAndDistances.travelTimes,
+      linksTimesAndDistances.linkIds.toArray,
+      linksTimesAndDistances.travelTimes.toArray,
       None,
       SpaceTime(startLoc.getX, startLoc.getY, leg.startTime),
       SpaceTime(
@@ -781,8 +781,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                 )
                 .toInt,
               BeamPath(
-                Vector(),
-                Vector(),
+                Array[Int](),
+                Array[Double](),
                 Some(
                   TransitStopsInfo(
                     route.agency_id,
@@ -1040,8 +1040,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     val distance =
       linksTimesDistances.distances.tail.sum // note we exclude the first link to keep with MATSim convention
     val theTravelPath = BeamPath(
-      linkIds = activeLinkIds,
-      linkTravelTime = linksTimesDistances.travelTimes,
+      linkIds = activeLinkIds.toArray,
+      linkTravelTime = linksTimesDistances.travelTimes.toArray,
       transitStops = None,
       startPoint = startPoint,
       endPoint = SpaceTime(endCoord, startPoint.time + math.round(linksTimesDistances.travelTimes.tail.sum.toFloat)),

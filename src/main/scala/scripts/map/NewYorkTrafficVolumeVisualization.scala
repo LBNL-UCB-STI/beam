@@ -14,7 +14,7 @@ object NewYorkTrafficVolumeVisualization {
   // How to run through gradle
   /*
   ./gradlew :execute \
-      -PmainClass=beam.utils.map.NewYorkTrafficVolumeVisualization \
+      -PmainClass=scripts.map.NewYorkTrafficVolumeVisualization \
       -PappArgs="['C:/Users/User/Downloads/LION.geojson', '04/11/2018']" \
       -PmaxRAM=8g
    */
