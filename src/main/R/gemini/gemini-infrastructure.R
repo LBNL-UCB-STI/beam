@@ -133,19 +133,19 @@ sites[plug.xfc]
 
 ####
 
-events <- readCsv(pp(geminiDir,"/2022-07-05/events/filtered.0.events.7Advanced.csv.gz"))
+events <- readCsv(pp(geminiDir,"/2022-07-05/events/filtered.0.events.8MaxEV.csv.gz"))
 events.sim <- readCsv(pp(geminiDir, "/2022-07-05/sim/events.sim.7Advanced.csv.gz"))
 
-refueling <- events6[type == "RefuelSessionEvent"][
+refueling <- events[type == "RefuelSessionEvent"][
   ,.(person,startTime=time-duration,startTime2=time-duration,parkingTaz,chargingPointType,
      pricingModel,parkingType,locationX,locationY,vehicle,vehicleType,fuel,duration,actType)][
        ,`:=`(stallLocationX=locationX,stallLocationY=locationY)]
 
 write.csv(
   refueling[!startsWith(chargingPointType, "depot")],
-  file = pp(geminiDir,"/2022-07-05/_models/chargingEvents.7Advanced.csv"),
+  file = pp(geminiDir,"/2022-07-05/_models/chargingEvents.8MaxEV.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="0")
 
-
+# chargingBehaviorFunc2(refueling)
