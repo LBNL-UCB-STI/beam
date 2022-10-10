@@ -42,7 +42,8 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
     nonHGVLinkWeightMultiplier = 2.0,
     reader = "Generic",
     replanning = new Freight.Replanning(departureTime = 0, disableAfterIteration = -1, strategy = ""),
-    generateFixedActivitiesDurations = false
+    generateFixedActivitiesDurations = false,
+    tourSampleSizeAsFractionOfTotal = 1.0
   )
 
   val rnd = new Random(2333L)

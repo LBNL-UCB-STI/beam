@@ -593,13 +593,6 @@ class ProceduralRideHailFleetInitializer(
     var equivalentNumberOfDrivers = 0.0
 
     val personsWithMoreThanOneActivity = passengerPopulation.filter(_.getSelectedPlan.getPlanElements.size > 1)
-    logger.info(
-      s"generateRideHailAgentInitializers. personsWithMoreThanOneActivity: ${scenario.getPopulation.getPersons.size}"
-    )
-    logger.info(s"generateRideHailAgentInitializers. passengerPopulation: ${passengerPopulation.size}")
-    logger.info(
-      s"generateRideHailAgentInitializers. personsWithMoreThanOneActivity: ${personsWithMoreThanOneActivity.size}"
-    )
     val persons: Array[Person] = rand.shuffle(personsWithMoreThanOneActivity).toArray
 
     val activityEndTimes: Array[Int] = persons.flatMap {
