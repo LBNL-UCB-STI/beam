@@ -2778,14 +2778,18 @@ object BeamConfig {
       object Scenario {
 
         case class Urbansim(
-          activitySimEnabled: scala.Boolean
+          activitySimEnabled: scala.Boolean,
+          scenarioLoadingTimeoutSeconds: scala.Int
         )
 
         object Urbansim {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Scenario.Urbansim = {
             BeamConfig.Beam.Exchange.Scenario.Urbansim(
-              activitySimEnabled = c.hasPathOrNull("activitySimEnabled") && c.getBoolean("activitySimEnabled")
+              activitySimEnabled = c.hasPathOrNull("activitySimEnabled") && c.getBoolean("activitySimEnabled"),
+              scenarioLoadingTimeoutSeconds =
+                if (c.hasPathOrNull("scenarioLoadingTimeoutSeconds")) c.getInt("scenarioLoadingTimeoutSeconds")
+                else 3000
             )
           }
         }

@@ -88,8 +88,8 @@ class RideHailAgentSpec
               BeamMode.CAR,
               10000,
               BeamPath(
-                Vector(1),
-                Vector(1),
+                Array(1),
+                Array(1),
                 None,
                 SpaceTime(0.0, 0.0, 28800),
                 SpaceTime(0.0, 0.0, 28800),
@@ -101,8 +101,8 @@ class RideHailAgentSpec
               BeamMode.CAR,
               10000,
               BeamPath(
-                Vector(1),
-                Vector(1),
+                Array(1),
+                Array(1),
                 None,
                 SpaceTime(0.0, 0.0, 38800),
                 SpaceTime(0.0, 0.0, 38800),
@@ -119,8 +119,8 @@ class RideHailAgentSpec
               BeamMode.CAR,
               10000,
               BeamPath(
-                Vector(1),
-                Vector(1),
+                Array(1),
+                Array(1),
                 None,
                 SpaceTime(0.0, 0.0, 38800),
                 SpaceTime(0.0, 0.0, 38800),

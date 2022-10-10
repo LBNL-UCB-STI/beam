@@ -65,10 +65,21 @@ abstract class AbstractSkimmerReadOnly extends LazyLogging {
   private[core] var currentIterationInternal: Int = -1
   private[core] var aggregatedFromPastSkimsInternal = Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
   private[core] val pastSkimsInternal = mutable.HashMap.empty[Int, Map[AbstractSkimmerKey, AbstractSkimmerInternal]]
-
+  var numberOfRequests: Long = 0
+  var numberOfSkimValueFound: Long = 0
   def currentIteration: Int = currentIterationInternal
   def aggregatedFromPastSkims: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = aggregatedFromPastSkimsInternal
   def pastSkims: Map[Int, collection.Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = pastSkimsInternal.toMap
+
+  def displaySkimStats(): Unit = {
+    logger.info(s"Number of skim requests = $numberOfRequests")
+    logger.info(s"Number of times actual value from skim map was returned = $numberOfSkimValueFound")
+  }
+
+  def resetSkimStats(): Unit = {
+    numberOfRequests = 0
+    numberOfSkimValueFound = 0
+  }
 }
 
 abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirectoryHierarchy)
