@@ -94,12 +94,12 @@ class HierarchicalParkingManager(
     inquiry: ParkingInquiry,
     doNotReserveStallWithoutChargingPoint: Boolean = false,
     parallelizationCounterOption: Option[SimpleCounter] = None
-  ): Option[ParkingInquiryResponse] = {
+  ): ParkingInquiryResponse = {
     logger.debug("Received parking inquiry: {}", inquiry)
 
     //searchForParkingStall always returns a ParkingZoneSearchResult. It may contain either a real parkingStall
     // (success) or emergency parking stall (not found an appropriate one)
-    val Some(ParkingZoneSearch.ParkingZoneSearchResult(tazParkingStall, tazParkingZone, _, _, _)) =
+    val ParkingZoneSearch.ParkingZoneSearchResult(tazParkingStall, tazParkingZone, _, _, _) =
       searchFunctions.get.searchForParkingStall(inquiry)
 
     val (parkingStall: ParkingStall, parkingZone: ParkingZone) =
@@ -134,7 +134,7 @@ class HierarchicalParkingManager(
       searchFunctions.get.claimStall(tazParkingZone)
     }
 
-    Some(ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId))
+    ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId)
   }
 
   def findStartingPoint(taz: TAZ, destination: Coord): Coord = {

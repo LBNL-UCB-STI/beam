@@ -35,7 +35,7 @@ case class BeamVehicleType(
 
   def isCaccEnabled: Boolean = automationLevel >= 3
 
-  def isCav: Boolean = automationLevel >= 4
+  def isConnectedAutomatedVehicle: Boolean = automationLevel >= 4
 
   def getTotalRange: Double = {
     val primaryRange = primaryFuelCapacityInJoule / primaryFuelConsumptionInJoulePerMeter

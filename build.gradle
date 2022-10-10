@@ -382,6 +382,12 @@ tasks.withType(ScalaCompile) {
     }
 }
 
+tasks.withType(JavaExec).configureEach {task ->
+    if (!task.name.equals("run")) {
+        jvmArgs = project.hasProperty('logbackCfg') ? ["-Dlogback.configurationFile=${project.property('logbackCfg')}"] : []
+    }
+}
+
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 // You can run it with a number of threads: ./gradlew spec -PnumThreads=4
@@ -416,7 +422,8 @@ task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
 
 task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')
+    args = (['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')) +
+            (project.hasProperty('matches') ?  ["-z", project.findProperty('matches')] : [])
     classpath = sourceSets.test.runtimeClasspath
 }
 

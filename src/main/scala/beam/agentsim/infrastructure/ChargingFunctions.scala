@@ -66,7 +66,22 @@ class ChargingFunctions(
   }
 
   /**
-    * function that verifies if Enroute Then Fast Charging Only
+    * function that verifies if Charge activity Then Fast Charging Only
+    * @param zone ParkingZone
+    * @param inquiry ParkingInquiry
+    * @return
+    */
+  def ifChargeActivityThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+    zone.chargingPointType.forall(chargingPointType =>
+      inquiry.parkingActivityType match {
+        case ParkingActivityType.Charge => ChargingPointType.isFastCharger(chargingPointType)
+        case _                          => true // if it is not Charge activity then it does not matter
+      }
+    )
+  }
+
+  /**
+    * function that verifies if EnRoute Then Fast Charging Only
     * @param zone ParkingZone
     * @param inquiry ParkingInquiry
     * @return
@@ -75,7 +90,7 @@ class ChargingFunctions(
     zone.chargingPointType.forall(chargingPointType =>
       inquiry.searchMode match {
         case ParkingSearchMode.EnRouteCharging => ChargingPointType.isFastCharger(chargingPointType)
-        case _                                 => true // if it is not Enroute charging then it does not matter
+        case _                                 => true // if it is not EnRoute charging then it does not matter
       }
     )
   }
@@ -126,21 +141,14 @@ class ChargingFunctions(
     zone: ParkingZone,
     inquiry: ParkingInquiry
   ): Boolean = {
-//    if (zone.chargingPointType.isEmpty)
-//      throw new RuntimeException("ChargingFunctions expect only stalls with charging points")
-//    val isEV: Boolean = inquiry.beamVehicle.forall(_.isEV)
-    val needToBeChargerIfVirtualEV: Boolean = inquiry.beamVehicle match {
-      case Some(vehicle) if vehicle.id.toString.startsWith(ScaleUpCharging.VIRTUAL_ALIAS) =>
-        zone.chargingPointType.isDefined
-      case _ => true
-    }
     val rideHailFastChargingOnly: Boolean = ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone, inquiry)
-    val enrouteFastChargingOnly: Boolean = ifEnrouteThenFastChargingOnly(zone, inquiry)
+    val enRouteFastChargingOnly: Boolean = ifEnrouteThenFastChargingOnly(zone, inquiry)
+    val chargeFastChargingOnly: Boolean = ifChargeActivityThenFastChargingOnly(zone, inquiry)
     val overnightStaySlowChargingOnly: Boolean = ifHomeOrWorkOrOvernightThenSlowChargingOnly(zone, inquiry)
     val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry.beamVehicle)
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
-    rideHailFastChargingOnly && validChargingCapability && canCarParkHere && enrouteFastChargingOnly && overnightStaySlowChargingOnly && needToBeChargerIfVirtualEV
+    rideHailFastChargingOnly && validChargingCapability && canCarParkHere && enRouteFastChargingOnly && chargeFastChargingOnly && overnightStaySlowChargingOnly
   }
 
   /**

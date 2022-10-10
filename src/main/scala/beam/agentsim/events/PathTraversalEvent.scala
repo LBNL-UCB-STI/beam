@@ -42,15 +42,6 @@ case class PathTraversalEvent(
   fromStopIndex: Option[Int],
   toStopIndex: Option[Int],
   currentTourMode: Option[String],
-  /*,
-  linkIdsToLaneOptions: IndexedSeq[(Int, Option[Int])],
-  linkIdsToSpeedOptions: IndexedSeq[(Int, Option[Double])],
-  linkIdsToGradientOptions: IndexedSeq[(Int, Option[Double])],
-  linkIdsToLengthOptions: IndexedSeq[(Int, Option[Double])],
-  linkIdsToSelectedRateOptions: IndexedSeq[(Int, Option[Double])],
-  linkIdsToConsumptionOptions: IndexedSeq[(Int, Option[Double])],
-  secondaryLinkIdsToSelectedRateOptions: IndexedSeq[(Int, Option[Double])],
-  secondaryLinkIdsToConsumptionOptions: IndexedSeq[(Int, Option[Double])]*/
   riders: IndexedSeq[Id[Person]] = Vector()
 ) extends Event(time)
     with ScalaEvent {
@@ -97,16 +88,6 @@ case class PathTraversalEvent(
       attr.put(ATTRIBUTE_FROM_STOP_INDEX, fromStopIndex.map(_.toString).getOrElse(""))
       attr.put(ATTRIBUTE_TO_STOP_INDEX, toStopIndex.map(_.toString).getOrElse(""))
       attr.put(ATTRIBUTE_CURRENT_TOUR_MODE, currentTourMode.getOrElse(""))
-      /*
-    attr.put(ATTRIBUTE_LINKID_WITH_LANE_MAP, linkIdsToLaneOptions.map{case ((linkId, laneOption)) => s"$linkId:${laneOption.getOrElse(0)}"}.mkString(","))
-    attr.put(ATTRIBUTE_LINKID_WITH_SPEED_MAP, linkIdsToSpeedOptions.map{case ((linkId, speedOption)) => s"$linkId:${speedOption.getOrElse(0)}"}.mkString(","))
-    attr.put(ATTRIBUTE_LINKID_WITH_SELECTED_GRADIENT_MAP, linkIdsToGradientOptions.map{case ((linkId, gradientOption)) => s"$linkId:${gradientOption.getOrElse(0)}"}.mkString(","))
-    attr.put(ATTRIBUTE_LINKID_WITH_LENGTH_MAP, linkIdsToLengthOptions.map{case ((linkId, lengthOption)) => s"$linkId:${lengthOption.getOrElse(0)}"}.mkString(","))
-    attr.put(ATTRIBUTE_LINKID_WITH_SELECTED_RATE_MAP, linkIdsToSelectedRateOptions.map{case ((linkId, rateOption)) => s"$linkId:${rateOption.getOrElse(0)}"}.mkString(","))
-    attr.put(ATTRIBUTE_LINKID_WITH_FINAL_CONSUMPTION_MAP, linkIdsToConsumptionOptions.map{case ((linkId, consumptionOption)) => s"$linkId:${consumptionOption.getOrElse(0)}"}.mkString(","))
-    attr.put(ATTRIBUTE_SECONDARY_LINKID_WITH_SELECTED_RATE_MAP, secondaryLinkIdsToSelectedRateOptions.map{case ((linkId, rateOption)) => s"$linkId:${rateOption.getOrElse(0)}"}.mkString(","))
-    attr.put(ATTRIBUTE_SECONDARY_LINKID_WITH_FINAL_CONSUMPTION_MAP, secondaryLinkIdsToConsumptionOptions.map{case ((linkId, consumptionOption)) => s"$linkId:${consumptionOption.getOrElse(0)}"}.mkString(","))
-       */
       attr.put(ATTRIBUTE_RIDERS, ridersToStr(riders))
       filledAttrs.set(attr)
       attr
@@ -169,15 +150,6 @@ object PathTraversalEvent {
     endLegPrimaryFuelLevel: Double,
     endLegSecondaryFuelLevel: Double,
     amountPaid: Double,
-    /*
-    linkIdsToLaneOptions: IndexedSeq[(Int, Option[Int])],
-    linkIdsToSpeedOptions: IndexedSeq[(Int, Option[Double])],
-    linkIdsToGradientOptions: IndexedSeq[(Int, Option[Double])],
-    linkIdsToLengthOptions: IndexedSeq[(Int, Option[Double])],
-    linkIdsToSelectedRateOptions: IndexedSeq[(Int, Option[Double])],
-    linkIdsToConsumptionOptions: IndexedSeq[(Int, Option[Double])],
-    secondaryLinkIdsToSelectedRateOptions: IndexedSeq[(Int, Option[Double])],
-    secondaryLinkIdsToConsumptionOptions: IndexedSeq[(Int, Option[Double])]*/
     riders: IndexedSeq[Id[Person]]
   ): PathTraversalEvent = {
     new PathTraversalEvent(
@@ -208,15 +180,6 @@ object PathTraversalEvent {
       fromStopIndex = beamLeg.travelPath.transitStops.map(_.fromIdx),
       toStopIndex = beamLeg.travelPath.transitStops.map(_.toIdx),
       currentTourMode = currentTourMode,
-      /*
-      linkIdsToLaneOptions = linkIdsToLaneOptions,
-      linkIdsToSpeedOptions = linkIdsToSpeedOptions,
-      linkIdsToGradientOptions = linkIdsToGradientOptions,
-      linkIdsToLengthOptions = linkIdsToLengthOptions,
-      linkIdsToSelectedRateOptions = linkIdsToSelectedRateOptions,
-      linkIdsToConsumptionOptions = linkIdsToConsumptionOptions,
-      secondaryLinkIdsToSelectedRateOptions = secondaryLinkIdsToSelectedRateOptions,
-      secondaryLinkIdsToConsumptionOptions = secondaryLinkIdsToConsumptionOptions*/
       riders = riders
     )
   }
@@ -260,40 +223,6 @@ object PathTraversalEvent {
       attr.get(ATTRIBUTE_TO_STOP_INDEX).flatMap(Option(_)).flatMap(x => if (x == "") None else Some(x.toInt))
     val currentTourMode: Option[String] =
       attr.get(ATTRIBUTE_CURRENT_TOUR_MODE).flatMap(x => if (x == "") None else Some(x))
-    /*
-    val linkIdsToLaneOptions = attr(ATTRIBUTE_LINKID_WITH_LANE_MAP).split(",").map(x=>{
-      val linkIdToLaneSplit = x.split(":")
-      (linkIdToLaneSplit(0).toInt, Some(linkIdToLaneSplit(1).toInt))
-    })
-    val linkIdsToSpeedOptions = attr(ATTRIBUTE_LINKID_WITH_SPEED_MAP).split(",").map(x=>{
-      val linkIdToSpeedSplit = x.split(":")
-      (linkIdToSpeedSplit(0).toInt, Some(linkIdToSpeedSplit(1).toDouble))
-    })
-    val linkIdsToGradientOptions = attr(ATTRIBUTE_LINKID_WITH_SELECTED_GRADIENT_MAP).split(",").map(x=>{
-      val linkIdToGradientSplit = x.split(":")
-      (linkIdToGradientSplit(0).toInt, Some(linkIdToGradientSplit(1).toDouble))
-    })
-    val linkIdsToLengthOptions = attr(ATTRIBUTE_LINKID_WITH_LENGTH_MAP).split(",").map(x=>{
-      val linkIdToLengthSplit = x.split(":")
-      (linkIdToLengthSplit(0).toInt, Some(linkIdToLengthSplit(1).toDouble))
-    })
-    val linkIdsToSelectedRateOptions = attr(ATTRIBUTE_LINKID_WITH_SELECTED_RATE_MAP).split(",").map(x=>{
-      val linkIdToRateSplit = x.split(":")
-      (linkIdToRateSplit(0).toInt, Some(linkIdToRateSplit(1).toDouble))
-    })
-    val linkIdsToConsumptionOptions = attr(ATTRIBUTE_LINKID_WITH_FINAL_CONSUMPTION_MAP).split(",").map(x=>{
-      val linkIdToConsumptionSplit = x.split(":")
-      (linkIdToConsumptionSplit(0).toInt, Some(linkIdToConsumptionSplit(1).toDouble))
-    })
-    val secondaryLinkIdsToSelectedRateOptions = attr(ATTRIBUTE_SECONDARY_LINKID_WITH_SELECTED_RATE_MAP).split(",").map(x=>{
-      val linkIdToRateSplit = x.split(":")
-      (linkIdToRateSplit(0).toInt, Some(linkIdToRateSplit(1).toDouble))
-    })
-    val secondaryLinkIdsToConsumptionOptions = attr(ATTRIBUTE_SECONDARY_LINKID_WITH_FINAL_CONSUMPTION_MAP).split(",").map(x=>{
-      val linkIdToConsumptionSplit = x.split(":")
-      (linkIdToConsumptionSplit(0).toInt, Some(linkIdToConsumptionSplit(1).toDouble))
-    })
-     */
     PathTraversalEvent(
       time,
       vehicleId,
@@ -322,15 +251,6 @@ object PathTraversalEvent {
       fromStopIndex,
       toStopIndex,
       currentTourMode,
-      /*,
-      linkIdsToLaneOptions,
-      linkIdsToSpeedOptions,
-      linkIdsToGradientOptions,
-      linkIdsToLengthOptions,
-      linkIdsToSelectedRateOptions,
-      linkIdsToConsumptionOptions,
-      secondaryLinkIdsToSelectedRateOptions,
-      secondaryLinkIdsToConsumptionOptions*/
       riders
     )
   }

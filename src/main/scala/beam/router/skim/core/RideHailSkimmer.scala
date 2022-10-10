@@ -26,7 +26,7 @@ class RideHailSkimmer @Inject() (
   override protected val skimFileHeader =
     "tazId,hour,reservationType,waitTime,costPerMile,unmatchedRequestsPercent,observations,iterations"
   override protected val skimName: String = RideHailSkimmer.name
-  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.TC_SKIMMER
+  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.RH_SKIMMER
 
   override protected def fromCsv(
     line: collection.Map[String, String]
@@ -38,8 +38,8 @@ class RideHailSkimmer @Inject() (
         reservationType = if (line("reservationType").equalsIgnoreCase("pooled")) Pooled else Solo
       ),
       RidehailSkimmerInternal(
-        waitTime = line("waitTime").toDouble,
-        costPerMile = line("costPerMile").toDouble,
+        waitTime = Option(line("waitTime")).map(_.toDouble).getOrElse(Double.NaN),
+        costPerMile = Option(line("costPerMile")).map(_.toDouble).getOrElse(Double.NaN),
         unmatchedRequestsPercent = line("unmatchedRequestsPercent").toDouble,
         observations = line("observations").toInt,
         iterations = line("iterations").toInt

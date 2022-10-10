@@ -393,11 +393,13 @@ class BeamVehicle(
     StreetVehicle(id, beamVehicleType.id, spaceTime, mode, asDriver = true, needsToCalculateCost = needsToCalculateCost)
   }
 
-  def isRidehail: Boolean = beamVehicleType.id.toString.startsWith("rideHail")
+  def isRideHail: Boolean = id.toString.startsWith("rideHail")
+
+  def isRideHailCAV: Boolean = isRideHail && isCAV
 
   def isSharedVehicle: Boolean = beamVehicleType.id.toString.startsWith("sharedVehicle")
 
-  def isCAV: Boolean = beamVehicleType.isCav
+  def isCAV: Boolean = beamVehicleType.isConnectedAutomatedVehicle
 
   def isBEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.isEmpty

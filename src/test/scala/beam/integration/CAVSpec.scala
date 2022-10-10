@@ -16,8 +16,10 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
-  "Running a CAV-only scenario with a couple of CAVs" must "result in everybody using CAV or walk" in {
+import org.scalatest.tagobjects.Retryable
+
+class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeated {
+  "Running a CAV-only scenario with a couple of CAVs" must "result in everybody using CAV or walk" taggedAs Retryable in {
     val config = ConfigFactory
       .parseString(
         """
@@ -92,6 +94,7 @@ class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
     assume(trips != 0, "Something's wildly broken, I am not seeing any trips.")
     assume(cavVehicles != 0, "Nobody has a CAV vehicle in test scenario, nothing to test.")
     assert(cavTrips >= cavVehicles, "Not enough CAV trips (by mode choice) seen.")
+
   }
 
 }

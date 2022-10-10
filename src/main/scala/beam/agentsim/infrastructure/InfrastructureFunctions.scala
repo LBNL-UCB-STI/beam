@@ -107,7 +107,7 @@ abstract class InfrastructureFunctions(
       minNumberOfSameTypeZones
     )
 
-  def searchForParkingStall(inquiry: ParkingInquiry): Option[ParkingZoneSearch.ParkingZoneSearchResult] = {
+  def searchForParkingStall(inquiry: ParkingInquiry): ParkingZoneSearch.ParkingZoneSearchResult = {
     // ---------------------------------------------------------------------------------------------
     // a ParkingZoneSearch takes the following as parameters
     //
@@ -219,7 +219,7 @@ abstract class InfrastructureFunctions(
       case _ =>
     }
 
-    result
+    result.get
   }
 
   def claimStall(parkingZone: ParkingZone): Boolean = {
