@@ -35,16 +35,18 @@ trait ScaleUpCharging extends {
 
   import ScaleUpCharging._
 
-  private val rand: ThreadLocalRandom = {
+  private val virtualParkingInquiries: TrieMap[Int, ParkingInquiry] = TrieMap()
+  private val vehicleRequests = mutable.HashSet.empty[ChargingEvent]
+
+  private lazy val timeStepByHour = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds / 3600.0
+
+  private lazy val rand: ThreadLocalRandom = {
     val instance = ThreadLocalRandom.current()
     instance.setSeed(beamConfig.matsim.modules.global.randomSeed)
     instance
   }
-  private val timeStepByHour = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds / 3600.0
-  private val virtualParkingInquiries: TrieMap[Int, ParkingInquiry] = TrieMap()
-  private val vehicleRequests = mutable.HashSet.empty[ChargingEvent]
 
-  private val scaleUpFactor: Double =
+  private lazy val scaleUpFactor: Double =
     if (!cnmConfig.scaleUp.enabled) 0.0
     else if (cnmConfig.scaleUp.expansionFactor >= 1.0) cnmConfig.scaleUp.expansionFactor - 1.0
     else throw new RuntimeException(s"scaleUp.expansionFactor == ${cnmConfig.scaleUp.expansionFactor} < 1.0")
