@@ -75,13 +75,14 @@ class UrbanSimScenarioLoader(
       households
     }
 
-    val inputPlans = Await.result(plansF, 1800.seconds)
+    val timeOutSeconds = beamScenario.beamConfig.beam.exchange.scenario.urbansim.scenarioLoadingTimeoutSeconds
+    val inputPlans = Await.result(plansF, timeOutSeconds.seconds)
     logger.info(s"Reading plans done.")
 
-    val persons = Await.result(personsF, 1800.seconds)
+    val persons = Await.result(personsF, timeOutSeconds.seconds)
     logger.info(s"Reading persons done.")
 
-    val households = Await.result(householdsF, 1800.seconds)
+    val households = Await.result(householdsF, timeOutSeconds.seconds)
     logger.info(s"Reading households done.")
 
     val (mergedPlans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
