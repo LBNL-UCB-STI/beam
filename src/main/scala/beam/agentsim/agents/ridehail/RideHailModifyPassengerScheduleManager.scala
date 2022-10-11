@@ -274,7 +274,6 @@ class RideHailModifyPassengerScheduleManager(
                 )
                 rideHailManager.ridehailManagerCustomizationAPI
                   .sendNewPassengerScheduleToVehicleWhenSuccessCaseHook(status.vehicleId, passengerSchedule)
-
             }
           case _ =>
             log.error(

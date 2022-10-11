@@ -9,7 +9,6 @@ import org.jgrapht.graph.DefaultEdge
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
-import scala.collection.immutable.List
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future

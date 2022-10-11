@@ -35,7 +35,7 @@ Note that all csv files can automatically use gzip compression if specified with
 for example "--input test/input/beamville/input.csv.gz"
 
  Run with gradle:
- ./gradlew execute -PmainClass=beam.router.skim.urbansim.BackgroundSkimsCreatorApp -PappArgs=["'--configPath', 'test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf', '--output', 'output.csv', '--input', 'input.csv', '--ODSkimsPath', 'ODSkimsBeamville.csv',  '--linkstatsPath', '0.linkstats.csv'"]
+ ./gradlew execute -PmainClass=scripts.BackgroundSkimsCreatorApp -PappArgs=["'--configPath', 'test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf', '--output', 'output.csv', '--input', 'input.csv', '--ODSkimsPath', 'ODSkimsBeamville.csv',  '--linkstatsPath', '0.linkstats.csv'"]
  */
 object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
@@ -91,8 +91,8 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       pathType = ActivitySimPathType.fromString(rec.get("pathType")).getOrElse(ActivitySimPathType.DRV_COM_WLK),
       originId = rec.get("origin"),
       destinationId = rec.get("destination"),
-      weightedGeneralizedTime = rec.get("TIME_minutes").toDouble,
-      weightedGeneralizedCost = rec.get("VTOLL_FAR").toDouble,
+      weightedTotalTime = rec.get("TIME_minutes").toDouble,
+      weightedTotalCost = rec.get("VTOLL_FAR").toDouble,
       weightedDistance = rec.get("DIST_meters").toDouble,
       weightedWalkAccess = rec.get("WACC_minutes").toDouble,
       weightedWalkEgress = rec.get("WEGR_minutes").toDouble,
@@ -121,7 +121,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
   private def readSkimsCsv(csvPath: String): Vector[ExcerptData] = {
     val (iter: Iterator[ExcerptData], toClose: Closeable) =
-      GenericCsvReader.readAs[ExcerptData](csvPath, toCsvSkimRow, _.weightedGeneralizedTime > 0)
+      GenericCsvReader.readAs[ExcerptData](csvPath, toCsvSkimRow, _.weightedTotalTime > 0)
     try {
       iter.toVector
     } finally {

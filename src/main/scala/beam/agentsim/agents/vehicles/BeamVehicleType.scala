@@ -34,9 +34,9 @@ case class BeamVehicleType(
 ) {
   def isSharedVehicle: Boolean = id.toString.startsWith("sharedVehicle")
 
-  def isCaccEnabled: Boolean = {
-    automationLevel >= 3
-  }
+  def isCaccEnabled: Boolean = automationLevel >= 3
+
+  def isConnectedAutomatedVehicle: Boolean = automationLevel >= 4
 
   def isWheelchairAccessible: Boolean = {
     wheelchairAccessible.getOrElse(true)

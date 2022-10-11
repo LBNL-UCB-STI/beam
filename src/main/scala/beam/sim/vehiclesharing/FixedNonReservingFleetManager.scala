@@ -117,7 +117,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
           who ! NotAvailable(triggerId)
       }
 
-    case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
+    case NotifyVehicleIdle(vId, _, whenWhere, _, _, _, _) =>
       makeTeleport(vId.asInstanceOf[Id[BeamVehicle]], whenWhere)
 
     case ReleaseVehicle(vehicle, _) =>

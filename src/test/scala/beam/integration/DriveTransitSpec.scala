@@ -32,7 +32,7 @@ class DriveTransitSpec extends AnyWordSpecLike with Matchers with BeamHelper {
           ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
         )
         .withValue(
-          "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept",
+          "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.drive_transit_intercept",
           ConfigValueFactory.fromAnyRef(9999)
         )
         .withValue(

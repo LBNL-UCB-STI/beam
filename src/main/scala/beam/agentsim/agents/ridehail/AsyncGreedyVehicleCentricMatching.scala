@@ -1,12 +1,11 @@
 package beam.agentsim.agents.ridehail
 
-import java.math.BigInteger
 import beam.agentsim.agents.ridehail.RideHailMatching.{CustomerRequest, RideHailTrip, VehicleAndSchedule}
 import beam.sim.BeamServices
 import org.matsim.core.utils.collections.QuadTree
 
+import java.math.BigInteger
 import scala.collection.JavaConverters._
-import scala.collection.immutable.List
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global

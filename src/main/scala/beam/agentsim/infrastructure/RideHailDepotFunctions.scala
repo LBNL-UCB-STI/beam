@@ -1,13 +1,10 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
-import beam.agentsim.agents.ridehail.ParkingZoneDepotData
-import beam.agentsim.agents.ridehail.ParkingZoneDepotData.ChargingQueueEntry
-import beam.agentsim.agents.ridehail.RideHailManager.VehicleId
-import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.infrastructure.DefaultRidehailFunctions.mnlMultiplierParametersFromConfig
-import beam.agentsim.infrastructure.charging.ChargingPointType.CustomChargingPoint
+import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
+import beam.agentsim.infrastructure.RideHailDepotFunctions.mnlMultiplierParametersFromConfig
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingZoneSearchResult
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
@@ -18,13 +15,12 @@ import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
-import scala.collection.mutable
+import scala.util.Random
 
-class DefaultRidehailFunctions(
+class RideHailDepotFunctions(
   geoQuadTree: QuadTree[TAZ],
   idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
-  parkingZoneIdToParkingZoneDepotData: mutable.Map[Id[ParkingZoneId], ParkingZoneDepotData],
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
@@ -34,7 +30,9 @@ class DefaultRidehailFunctions(
   seed: Int,
   fuelTypePrices: Map[FuelType, Double],
   rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail,
-  skims: Skims
+  skims: Skims,
+  estimatedMinParkingDurationInSeconds: Double,
+  depotFunction: Id[ParkingZoneId] => Option[ChargingStation]
 ) extends InfrastructureFunctions(
       geoQuadTree,
       idToGeoMapping,
@@ -47,10 +45,9 @@ class DefaultRidehailFunctions(
       fractionOfSameTypeZones,
       minNumberOfSameTypeZones,
       boundingBox,
-      seed
+      seed,
+      estimatedMinParkingDurationInSeconds
     ) {
-
-  private val vehicleIdToEndRefuelTick: mutable.Map[VehicleId, Int] = mutable.Map.empty[VehicleId, Int]
 
   override protected val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] =
     mnlMultiplierParametersFromConfig(rideHailConfig)
@@ -81,10 +78,8 @@ class DefaultRidehailFunctions(
     val hasInsufficientRange =
       if (remainingRange < travelTimeAndDistanceToDepot.distance + rideHailConfig.rangeBufferForDispatchInMeters) 1.0
       else 0.0
-    val queueTime = secondsToServiceQueueAndChargingVehicles(
-      parkingAlternative.parkingZone,
-      inquiry.destinationUtm.time
-    )
+    val queueTime =
+      secondsToServiceQueueAndChargingVehicles(parkingAlternative.parkingZone, inquiry.destinationUtm.time)
     val chargingTime = beamVehicle
       .refuelingSessionDurationAndEnergyInJoulesForStall(
         Some(
@@ -116,7 +111,10 @@ class DefaultRidehailFunctions(
     inquiry: ParkingInquiry
   ): Boolean = {
     val beamVehicle = inquiry.beamVehicle.get
-    zone.maxStalls > 0 && !hasHighSocAndZoneIsDCFast(beamVehicle, zone)
+    val isFastCharger = zone.chargingPointType.exists(ChargingPointType.isFastCharger)
+    val hasLowSOC = beamVehicle.getStateOfCharge < 0.8
+    val hasStalls = zone.maxStalls > 0
+    hasStalls && isFastCharger && hasLowSOC
   }
 
   /**
@@ -127,7 +125,7 @@ class DefaultRidehailFunctions(
     inquiry: ParkingInquiry,
     parkingZoneSearchResult: Option[ParkingZoneSearchResult]
   ): Option[ParkingZoneSearchResult] = {
-    parkingZoneSearchResult match {
+    val output = parkingZoneSearchResult match {
       case Some(
             result @ ParkingZoneSearch.ParkingZoneSearchResult(
               parkingStall,
@@ -138,16 +136,26 @@ class DefaultRidehailFunctions(
             )
           ) =>
         logger.debug(
-          s"found ${parkingZonesSeen.length} parking zones over ${iterations} iterations"
+          s"found ${parkingZonesSeen.length} parking zones over $iterations iterations"
         )
         // override the sampled stall coordinate with the TAZ centroid -
         // we want all agents who park in this TAZ to park in the same location.
         val updatedParkingStall = parkingStall.copy(
           locationUTM = getParkingZoneLocationUtm(parkingZone.parkingZoneId)
         )
-        Some(result.copy(parkingStall = updatedParkingStall))
-      case _ => None
+        result.copy(parkingStall = updatedParkingStall)
+      case _ =>
+        // didn't find any stalls, so, as a last resort, create a very expensive stall
+        val boxAroundRequest = new Envelope(
+          inquiry.destinationUtm.loc.getX + 2000,
+          inquiry.destinationUtm.loc.getX - 2000,
+          inquiry.destinationUtm.loc.getY + 2000,
+          inquiry.destinationUtm.loc.getY - 2000
+        )
+        val newStall = ParkingStall.lastResortStall(boxAroundRequest, new Random(seed))
+        ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
     }
+    Some(output)
   }
 
   /**
@@ -173,46 +181,37 @@ class DefaultRidehailFunctions(
     * plus the time needed to charge all vehicles in the current queue, all divided by the number of plugs (of the same plug type) in this depot.
     *
     * @param parkingZone the zone for which an estimate is desired
-    * @param tick
+    * @param tick Int
     * @return
     */
   def secondsToServiceQueueAndChargingVehicles(
     parkingZone: ParkingZone,
     tick: Int
   ): Int = {
-    val parkingZoneDepotData = parkingZoneIdToParkingZoneDepotData(parkingZone.parkingZoneId)
-    val chargingVehicles = parkingZoneDepotData.chargingVehicles
-    val remainingChargeDurationFromPluggedInVehicles = if (chargingVehicles.size < parkingZone.maxStalls) {
+    val chargingVehicles = depotFunction(parkingZone.parkingZoneId).map(_.howManyVehiclesAreCharging).getOrElse(0)
+    val remainingChargeDurationFromPluggedInVehicles = if (chargingVehicles < parkingZone.maxStalls) {
       0
     } else {
-      chargingVehicles.map(vehicleId => vehicleIdToEndRefuelTick.getOrElse(vehicleId, tick) - tick).toVector.sum
+      depotFunction(parkingZone.parkingZoneId).map(_.remainingChargeDurationFromPluggedInVehicles(tick)).sum
     }
-    val serviceTimeOfPhantomVehicles = parkingZoneDepotData.serviceTimeOfQueuedPhantomVehicles
-    val chargingQueue = parkingZoneDepotData.chargingQueue
-    val chargeDurationFromQueue = chargingQueue.map { case ChargingQueueEntry(beamVehicle, parkingStall, _) =>
-      beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(Some(parkingStall), None, None, None)._1
-    }.sum
-    val numVehiclesOnWayToDepot = parkingZoneDepotData.vehiclesOnWayToDepot.size
-    val numPhantomVehiclesInQueue = parkingZoneDepotData.numPhantomVehiclesQueued
-    val vehiclesOnWayAdjustmentFactor = (numPhantomVehiclesInQueue + chargingQueue.size) match {
+    val chargeDurationFromQueue =
+      depotFunction(parkingZone.parkingZoneId).map(_.remainingChargeDurationForVehiclesFromQueue).sum
+    val numVehiclesOnWayToDepot = depotFunction(parkingZone.parkingZoneId).map(_.howManyVehiclesOnTheWayToStation).sum
+    val chargingQueue =
+      depotFunction(parkingZone.parkingZoneId).map(_.howManyVehiclesAreWaiting).getOrElse(0)
+    val vehiclesOnWayAdjustmentFactor = chargingQueue match {
       case numInQueue if numInQueue == 0 =>
         1.0
       case numInQueue =>
-        (1.0 + numVehiclesOnWayToDepot.toDouble / numInQueue.toDouble)
+        1.0 + numVehiclesOnWayToDepot.toDouble / numInQueue.toDouble
     }
-    val adjustedQueueServiceTime =
-      (chargeDurationFromQueue.toDouble + serviceTimeOfPhantomVehicles.toDouble) * vehiclesOnWayAdjustmentFactor
+    val adjustedQueueServiceTime = chargeDurationFromQueue.toDouble * vehiclesOnWayAdjustmentFactor
     val result = Math
       .round(
         (remainingChargeDurationFromPluggedInVehicles.toDouble + adjustedQueueServiceTime) / parkingZone.maxStalls
       )
       .toInt
     result
-  }
-
-  def hasHighSocAndZoneIsDCFast(beamVehicle: BeamVehicle, parkingZone: ParkingZone): Boolean = {
-    val soc = beamVehicle.getStateOfCharge
-    soc >= 0.8 && parkingZone.chargingPointType.exists(_.asInstanceOf[CustomChargingPoint].installedCapacity > 20.0)
   }
 
   /**
@@ -231,23 +230,23 @@ class DefaultRidehailFunctions(
   }
 }
 
-object DefaultRidehailFunctions {
+object RideHailDepotFunctions {
 
   def mnlMultiplierParametersFromConfig(
     rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail
   ): Map[ParkingMNL.Parameters, UtilityFunctionOperation] = {
     Map(
       ParkingMNL.Parameters.DrivingTimeCost -> UtilityFunctionOperation.Multiplier(
-        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.drivingTimeMultiplier
+        rideHailConfig.charging.multinomialLogit.params.drivingTimeMultiplier
       ),
       ParkingMNL.Parameters.QueueingTimeCost -> UtilityFunctionOperation.Multiplier(
-        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.queueingTimeMultiplier
+        rideHailConfig.charging.multinomialLogit.params.queueingTimeMultiplier
       ),
       ParkingMNL.Parameters.ChargingTimeCost -> UtilityFunctionOperation.Multiplier(
-        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.chargingTimeMultiplier
+        rideHailConfig.charging.multinomialLogit.params.chargingTimeMultiplier
       ),
       ParkingMNL.Parameters.InsufficientRangeCost -> UtilityFunctionOperation.Multiplier(
-        rideHailConfig.charging.vehicleChargingManager.defaultVehicleChargingManager.mulitnomialLogit.params.insufficientRangeMultiplier
+        rideHailConfig.charging.multinomialLogit.params.insufficientRangeMultiplier
       )
     )
   }

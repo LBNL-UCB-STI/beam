@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure
 
-import akka.actor.ActorRef
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.infrastructure.ParallelParkingManager.{geometryFactory, ParkingCluster, Worker}
 import beam.agentsim.infrastructure.parking.{ParkingNetwork, ParkingZone, ParkingZoneId}
@@ -41,7 +40,8 @@ class ParallelParkingManager(
   fractionOfSameTypeZones: Double,
   minNumberOfSameTypeZones: Int,
   seed: Int,
-  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
+  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
+  estimatedMinParkingDurationInSeconds: Double
 ) extends ParkingNetwork(parkingZones) {
 
   override protected val searchFunctions: Option[InfrastructureFunctions] = None
@@ -76,7 +76,8 @@ class ParallelParkingManager(
       fractionOfSameTypeZones,
       minNumberOfSameTypeZones,
       seed,
-      mnlParkingConfig
+      mnlParkingConfig,
+      estimatedMinParkingDurationInSeconds
     )
     Worker(parkingNetwork, cluster)
   }
@@ -88,8 +89,9 @@ class ParallelParkingManager(
     */
   override def processParkingInquiry(
     inquiry: ParkingInquiry,
+    doNotReserveStallWithoutChargingPoint: Boolean = false,
     parallelizationCounterOption: Option[SimpleCounter] = None
-  ): Option[ParkingInquiryResponse] = {
+  ): ParkingInquiryResponse = {
     parallelizationCounterOption.map(_.count("all"))
     val foundCluster = workers.find { w =>
       val point = ParallelParkingManager.geometryFactory.createPoint(inquiry.destinationUtm.loc)
@@ -136,8 +138,6 @@ class ParallelParkingManager(
 
 object ParallelParkingManager extends LazyLogging {
   private val geometryFactory = new GeometryFactory()
-
-  case class ParkingSearchResult(response: ParkingInquiryResponse, originalSender: ActorRef, worker: ActorRef)
 
   /**
     * builds a ParallelParkingManager
@@ -187,7 +187,8 @@ object ParallelParkingManager extends LazyLogging {
       beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
       beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
       seed,
-      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
+      beamConfig.beam.agentsim.agents.parking.multinomialLogit,
+      beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
     )
   }
 

@@ -7,8 +7,8 @@ import beam.agentsim.agents.ridehail.RideHailManager.RideHailRepositioningTrigge
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
-import beam.utils.{FileUtils, StuckFinder}
 import beam.utils.logging.{LogActorState, LoggingMessageActor}
+import beam.utils.{DebugLib, FileUtils, StuckFinder}
 import com.google.common.collect.TreeMultimap
 
 import java.util.Comparator
@@ -17,7 +17,7 @@ import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.{Deadline, FiniteDuration}
+import scala.concurrent.duration.Deadline
 
 case class RideHailingManagerIsExtremelySlowException(
   message: String,
@@ -49,9 +49,7 @@ object BeamAgentScheduler {
 
   case object SimulationStuckCheck extends SchedulerMessage
 
-  case object BeforeShutdown extends SchedulerMessage
-
-  case object RequestCurrentTime extends SchedulerMessage
+  case object BeforeForcedShutdown extends SchedulerMessage
 
   case object SkipOverBadActors extends SchedulerMessage
 
@@ -126,7 +124,7 @@ case object BeamAgentSchedulerTimer
 
 class BeamAgentScheduler(
   val beamConfig: BeamConfig,
-  val iterationOutputDir: String,
+  val outputDir: String,
   stopTick: Int,
   val maxWindow: Int,
   val stuckFinder: StuckFinder
@@ -189,7 +187,7 @@ class BeamAgentScheduler(
     CoordinatedShutdown.PhaseBeforeServiceUnbind,
     "scheduler.storeState",
     self,
-    Some(BeforeShutdown)
+    Some(BeforeForcedShutdown)
   )
 
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
@@ -289,11 +287,12 @@ class BeamAgentScheduler(
         }
       }
 
-    case BeforeShutdown =>
+    case BeforeForcedShutdown =>
       if (!shutdownInitiated) {
         shutdownInitiated = true
         storeSchedulerState()
       }
+      context.stop(self)
 
     case Monitor =>
       if (beamConfig.beam.debug.debugEnabled) {
@@ -395,11 +394,11 @@ class BeamAgentScheduler(
     if (awaitingResponse.isEmpty) {
       log.info("awaitingResponse is empty, nowInSeconds = {}", nowInSeconds)
     } else {
-      val queueFile = s"$iterationOutputDir/triggerQueue.txt.gz"
+      val queueFile = s"$outputDir/scheduler_shutdown_dump_trigger_queue.txt.gz"
       log.info("triggerQueue.size = {}, saving to {}, nowInSeconds = {}", triggerQueue.size(), queueFile, nowInSeconds)
       val sorted = (0 until math.min(triggerQueue.size(), 1024)).view.map(_ => triggerQueue.poll().toString + "\n")
       FileUtils.writeToFile(queueFile, (s"total queue size = ${triggerQueue.size()}\n" +: sorted).iterator)
-      val awaitingResponseFile = s"$iterationOutputDir/awaitingResponse.txt.gz"
+      val awaitingResponseFile = s"$outputDir/scheduler_shutdown_dump_awaiting_response.txt.gz"
       log.info(
         "awaitingResponse.size = {}, saving to {}, nowInSeconds = {}",
         awaitingResponse.size(),
@@ -412,6 +411,10 @@ class BeamAgentScheduler(
       FileUtils.writeToFile(
         awaitingResponseFile,
         (s"total awaitingResponse size = ${awaitingResponse.size()}\n" +: triggers).iterator
+      )
+      FileUtils.writeToFile(
+        s"$outputDir/scheduler_shutdown_thread_dump.txt.gz",
+        DebugLib.currentThreadsDump().asScala.iterator
       )
     }
   }

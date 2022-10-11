@@ -95,7 +95,7 @@ class ChargingNetworkSpec
         val xfcChargingPoint = CustomChargingPoint("ultrafast", 250.0, ElectricCurrentType.DC)
         // first request is handled with the only stall in the system
         val firstInquiry =
-          ParkingInquiry.init(centerSpaceTime, "work", beamVehicle = Some(vehicle1), triggerId = 73737)
+          ParkingInquiry.init(centerSpaceTime, "charge", beamVehicle = Some(vehicle1), triggerId = 73737)
         val expectedFirstStall =
           ParkingStall(
             Id.create(1, classOf[TAZ]),
@@ -109,7 +109,7 @@ class ChargingNetworkSpec
           )
         val response1 = chargingNetwork.processParkingInquiry(firstInquiry)
         assert(
-          response1.get == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId, firstInquiry.triggerId),
+          response1 == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId, firstInquiry.triggerId),
           "something is wildly broken"
         )
 
@@ -125,7 +125,10 @@ class ChargingNetworkSpec
           ParkingInquiry.init(centerSpaceTime, "work", beamVehicle = Some(vehicle2), triggerId = 49238)
         val response2 = chargingNetwork.processParkingInquiry(secondInquiry)
         chargingNetwork.processParkingInquiry(secondInquiry)
-        assert(response2.isEmpty, "it should not get an Ultra Fast charging point stall")
+        assert(
+          response2.stall.chargingPointType.isEmpty,
+          "it should not get an Ultra Fast charging point stall"
+        )
       }
     }
   }

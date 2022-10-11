@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.agents.ridehail.{DefaultRideHailDepotParkingManager, RideHailDepotParkingManager}
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.ParkingLoadingAccumulator
@@ -22,21 +21,17 @@ import scala.util.{Failure, Random, Success, Try}
 object InfrastructureUtils extends LazyLogging {
 
   /**
-    * @param beamScenario
-    * @param beamConfig
-    * @param geo
-    * @param envelopeInUTM
+    * @param beamServices BeamServices
+    * @param envelopeInUTM envelope
     * @return
     */
   def buildParkingAndChargingNetworks(
     beamServices: BeamServices,
     envelopeInUTM: Envelope
-  ): (ParkingNetwork, ChargingNetwork, RideHailDepotParkingManager) = {
+  ): (ParkingNetwork, ChargingNetwork, RideHailDepotNetwork) = {
     implicit val beamScenario: BeamScenario = beamServices.beamScenario
     implicit val geo: GeoUtils = beamServices.geo
-    implicit val boundingBox: Envelope = envelopeInUTM
     val beamConfig = beamServices.beamConfig
-    val parkingManagerCfg = beamConfig.beam.agentsim.taz.parkingManager
 
     val mainParkingFile: String = beamConfig.beam.agentsim.taz.parkingFilePath
     val parkingStallCountScalingFactor: Double = beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
@@ -80,7 +75,7 @@ object InfrastructureUtils extends LazyLogging {
     }
 
     // CHARGING STALLS ARE LOADED HERE
-    val allChargingStalls = loadStalls(
+    val allStalls = loadStalls(
       mainChargingFile,
       vehicleManagersParkingFiles,
       beamScenario.tazTreeMap.tazQuadTree,
@@ -90,8 +85,8 @@ object InfrastructureUtils extends LazyLogging {
       beamScenario.beamConfig,
       Some(beamServices)
     )
-    val chargingStalls = loadChargingStalls(allChargingStalls)
-    val rideHailChargingStalls = loadRideHailChargingStalls(allChargingStalls)
+    val chargingStalls = loadChargingStalls(allStalls)
+    val rideHailChargingStalls = loadRideHailChargingStalls(allStalls)
 
     // CHARGING ZONES ARE BUILT HERE
     logger.info(s"building charging networks...")
@@ -101,13 +96,8 @@ object InfrastructureUtils extends LazyLogging {
         envelopeInUTM,
         beamServices
       ),
-      rideHailChargingStalls.map { case (managerId, chargingZones) =>
-        DefaultRideHailDepotParkingManager.init(
-          managerId,
-          chargingZones,
-          envelopeInUTM,
-          beamServices
-        )
+      rideHailChargingStalls.map { case (_, chargingZones) =>
+        RideHailDepotNetwork.init(chargingZones, envelopeInUTM, beamServices)
       }.head
     )
 
@@ -138,12 +128,13 @@ object InfrastructureUtils extends LazyLogging {
           .init(
             parkingStalls,
             beamScenario.tazTreeMap,
-            geo.distUTMInMeters(_, _),
+            geo.distUTMInMeters,
             beamConfig.beam.agentsim.agents.parking.minSearchRadius,
             beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
             envelopeInUTM,
             beamConfig.matsim.modules.global.randomSeed,
-            beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
+            beamConfig.beam.agentsim.agents.parking.multinomialLogit,
+            beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
           )
       case "PARALLEL" =>
         ParallelParkingManager.init(
@@ -270,6 +261,6 @@ object InfrastructureUtils extends LazyLogging {
     stalls: Map[Id[ParkingZoneId], ParkingZone]
   ): Map[Id[ParkingZoneId], ParkingZone] = {
     import VehicleManager._
-    stalls.filter(x => x._2.chargingPointType.nonEmpty && x._2.reservedFor.managerType != TypeEnum.RideHail)
+    stalls.filter(x => x._2.reservedFor.managerType != TypeEnum.RideHail)
   }
 }

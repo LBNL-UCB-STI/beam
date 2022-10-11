@@ -36,8 +36,8 @@ class TransitCrowdingSkimsTest extends AnyFlatSpec with Matchers with BeamHelper
     val start = SpaceTime(128.0, 70.0, 100)
     val end = SpaceTime(128.0, 70.0, 10000)
     val path = BeamPath(
-      IndexedSeq.empty,
-      IndexedSeq.empty,
+      Array(),
+      Array(),
       Some(TransitStopsInfo("A", "A", vehicleId, 0, 9)),
       start,
       end,

@@ -20,7 +20,7 @@ class RoutingModelSpec extends AnyFlatSpec with Matchers {
         0,
         BeamMode.CAR,
         0,
-        BeamPath(Vector(1, 2, 3, 4, 5), Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)
+        BeamPath(Array(1, 2, 3, 4, 5), Array(), None, SpaceTime.zero, SpaceTime.zero, 10.0)
       ),
       Id.createVehicleId(13),
       Id.create("Car", classOf[BeamVehicleType]),
@@ -50,7 +50,7 @@ class RoutingModelSpec extends AnyFlatSpec with Matchers {
         0,
         BeamMode.CAR,
         0,
-        BeamPath(Vector(1, 2, 3, 4, 5), Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)
+        BeamPath(Array(1, 2, 3, 4, 5), Array(), None, SpaceTime.zero, SpaceTime.zero, 10.0)
       ),
       Id.createVehicleId(13),
       Id.create("Car", classOf[BeamVehicleType]),
@@ -78,7 +78,7 @@ class RoutingModelSpec extends AnyFlatSpec with Matchers {
         0,
         BeamMode.CAR,
         0,
-        BeamPath(Vector(1, 2), Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)
+        BeamPath(Array(1, 2), Array(), None, SpaceTime.zero, SpaceTime.zero, 10.0)
       ),
       Id.createVehicleId(13),
       Id.create("Car", classOf[BeamVehicleType]),
@@ -96,7 +96,7 @@ class RoutingModelSpec extends AnyFlatSpec with Matchers {
 
   it should "produce an empty sequence of link events from a car leg which stays on one link" in {
     val leg = EmbodiedBeamLeg(
-      BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(1), Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
+      BeamLeg(0, BeamMode.CAR, 0, BeamPath(Array(1), Array(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       Id.createVehicleId(13),
       Id.create("Car", classOf[BeamVehicleType]),
       asDriver = true,
@@ -112,7 +112,7 @@ class RoutingModelSpec extends AnyFlatSpec with Matchers {
 
   it should "produce an empty sequence of link events from a car leg which is empty" in {
     val leg = EmbodiedBeamLeg(
-      beamLeg = BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(), Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
+      beamLeg = BeamLeg(0, BeamMode.CAR, 0, BeamPath(Array(), Array(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       beamVehicleId = Id.createVehicleId(13),
       Id.create("Car", classOf[BeamVehicleType]),
       asDriver = true,
@@ -128,7 +128,7 @@ class RoutingModelSpec extends AnyFlatSpec with Matchers {
 
   it should "produce travel and distance estimates from links that match router" in {
     val leg = EmbodiedBeamLeg(
-      beamLeg = BeamLeg(0, BeamMode.CAR, 0, BeamPath(Vector(), Vector(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
+      beamLeg = BeamLeg(0, BeamMode.CAR, 0, BeamPath(Array(), Array(), None, SpaceTime.zero, SpaceTime.zero, 10.0)),
       beamVehicleId = Id.createVehicleId(13),
       Id.create("Car", classOf[BeamVehicleType]),
       asDriver = true,
