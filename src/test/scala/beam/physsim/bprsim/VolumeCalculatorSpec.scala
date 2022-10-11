@@ -1,15 +1,15 @@
 package beam.physsim.bprsim
 
 import org.matsim.api.core.v01.Id
-import org.scalatest.{Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.math.BigDecimal.RoundingMode
 
 /**
-  *
   * @author Dmitry Openkov
   */
-class VolumeCalculatorSpec extends WordSpecLike with Matchers {
+class VolumeCalculatorSpec extends AnyWordSpecLike with Matchers {
   "Volume Calculator" must {
     "calculate volume for links" in {
       val vc = new VolumeCalculator(10)
@@ -123,6 +123,6 @@ class VolumeCalculatorSpec extends WordSpecLike with Matchers {
 object VolumeCalculatorSpec {
 
   implicit class ReachTuple(val t: (Double, Double)) extends AnyVal {
-    def comparable: (Double, Double) = (t._1, BigDecimal(t._2).setScale(5, RoundingMode.HALF_UP).toDouble)
+    def comparable: (Double, Double) = (t._1, BigDecimal.decimal(t._2).setScale(5, RoundingMode.HALF_UP).toDouble)
   }
 }

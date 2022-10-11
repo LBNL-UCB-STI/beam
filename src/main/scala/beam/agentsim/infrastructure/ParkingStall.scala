@@ -1,9 +1,10 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
-import beam.agentsim.infrastructure.parking.{GeoLevel, ParkingType, ParkingZone, PricingModel}
+import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import com.vividsolutions.jts.geom.Envelope
@@ -12,20 +13,37 @@ import org.matsim.api.core.v01.{Coord, Id}
 import scala.util.Random
 
 case class ParkingStall(
-  geoId: Id[_],
   tazId: Id[TAZ],
-  parkingZoneId: Int,
+  parkingZoneId: Id[ParkingZoneId],
   locationUTM: Location,
   costInDollars: Double,
   chargingPointType: Option[ChargingPointType],
   pricingModel: Option[PricingModel],
   parkingType: ParkingType,
-  managerId: Id[VehicleManager]
+  reservedFor: ReservedFor
 )
 
 object ParkingStall {
 
   val CostOfEmergencyStallInDollars: Double = 50.0
+
+  def init(
+    parkingZone: ParkingZone,
+    tazId: Id[TAZ],
+    location: Location,
+    costInDollars: Double
+  ): ParkingStall = {
+    ParkingStall(
+      tazId,
+      parkingZone.parkingZoneId,
+      location,
+      costInDollars,
+      parkingZone.chargingPointType,
+      parkingZone.pricingModel,
+      parkingZone.parkingType,
+      parkingZone.reservedFor
+    )
+  }
 
   /**
     * for testing purposes and trivial parking functionality, produces a stall directly at the provided location which has no cost and is available
@@ -33,7 +51,6 @@ object ParkingStall {
     * @return a new parking stall with the default Id[Taz] and parkingZoneId
     */
   def defaultStall(coord: Coord): ParkingStall = ParkingStall(
-    geoId = TAZ.DefaultTAZId,
     tazId = TAZ.DefaultTAZId,
     parkingZoneId = ParkingZone.DefaultParkingZoneId,
     locationUTM = coord,
@@ -41,7 +58,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = None,
     parkingType = ParkingType.Public,
-    VehicleManager.privateVehicleManager.managerId
+    reservedFor = VehicleManager.AnyManager
   )
 
   /**
@@ -55,23 +72,20 @@ object ParkingStall {
   def lastResortStall(
     boundingBox: Envelope,
     random: Random = Random,
-    costInDollars: Double = CostOfEmergencyStallInDollars,
-    tazId: Id[TAZ] = TAZ.EmergencyTAZId,
-    geoId: Id[_],
+    costInDollars: Double = CostOfEmergencyStallInDollars
   ): ParkingStall = {
     val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
     val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
 
     ParkingStall(
-      geoId = geoId,
-      tazId = tazId,
+      tazId = TAZ.EmergencyTAZId,
       parkingZoneId = ParkingZone.DefaultParkingZoneId,
       locationUTM = new Coord(x, y),
       costInDollars = costInDollars,
       chargingPointType = None,
       pricingModel = Some { PricingModel.FlatFee(costInDollars.toInt) },
       parkingType = ParkingType.Public,
-      VehicleManager.privateVehicleManager.managerId
+      reservedFor = VehicleManager.AnyManager
     )
   }
 
@@ -85,11 +99,7 @@ object ParkingStall {
     *
     * @return a stall that is free and located at the person's home.
     */
-  def defaultResidentialStall(
-    locationUTM: Location,
-    defaultGeoId: Id[_],
-  ): ParkingStall = ParkingStall(
-    geoId = defaultGeoId,
+  def defaultResidentialStall(locationUTM: Location): ParkingStall = ParkingStall(
     tazId = TAZ.DefaultTAZId,
     parkingZoneId = ParkingZone.DefaultParkingZoneId,
     locationUTM = locationUTM,
@@ -97,25 +107,17 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = Some { PricingModel.FlatFee(0) },
     parkingType = ParkingType.Residential,
-    VehicleManager.privateVehicleManager.managerId
+    reservedFor = VehicleManager.AnyManager
   )
 
   /**
     * Convenience method to convert a [[ParkingAlternative]] to a [[ParkingStall]]
     *
-    * @param parkingAlternative
+    * @param parkingAlternative Parking Alternative
     * @return
     */
-  def fromParkingAlternative[GEO](
-    tazId: Id[TAZ],
-    parkingAlternative: ParkingAlternative[GEO],
-    vehicleManagerId: Id[VehicleManager]
-  )(
-    implicit gl: GeoLevel[GEO]
-  ): ParkingStall = {
-    import GeoLevel.ops._
+  def fromParkingAlternative(tazId: Id[TAZ], parkingAlternative: ParkingAlternative): ParkingStall = {
     ParkingStall(
-      parkingAlternative.geo.getId,
       tazId,
       parkingAlternative.parkingZone.parkingZoneId,
       parkingAlternative.coord,
@@ -123,7 +125,7 @@ object ParkingStall {
       parkingAlternative.parkingZone.chargingPointType,
       None,
       parkingAlternative.parkingType,
-      vehicleManagerId
+      parkingAlternative.parkingZone.reservedFor
     )
   }
 

@@ -20,7 +20,6 @@ class VolumeCalculator(val timeWindow: Int) {
   }
 
   /**
-    *
     * @param linkId the link id
     * @param time the simulation time
     * @return inFlow volume (current number of in flow vehicles per hour) and CACC share
@@ -29,7 +28,7 @@ class VolumeCalculator(val timeWindow: Int) {
     val eventHolder = linkToEvents(linkId)
     val (numEvents, tw) = eventHolder.numberOfEventsWithLength(time)
     val cacc = (numEvents >> 32).toInt
-    val regular = (numEvents & 0xFFFFFFFFL).toInt
+    val regular = (numEvents & 0xffffffffL).toInt
     val total = cacc + regular
     val caccShare = cacc.toDouble / total
     (total * (3600 / tw), caccShare)

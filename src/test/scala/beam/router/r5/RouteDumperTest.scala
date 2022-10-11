@@ -3,7 +3,7 @@ package beam.router.r5
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, Location, RoutingRequest, RoutingResponse}
+import beam.router.BeamRouter._
 import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.model.RoutingModel.TransitStopsInfo
@@ -11,10 +11,13 @@ import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import org.apache.avro.generic.GenericData
 import org.matsim.api.core.v01.{Coord, Id}
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.matchers.should.Matchers
+
+import java.io.File
 import scala.collection.JavaConverters._
 
-class RouteDumperTest extends FunSuite with Matchers {
+class RouteDumperTest extends AnyFunSuite with Matchers {
   test("Should be able to convert RoutingRequest to Record") {
     val origin = new Location(166027.034662, 2208.12088093)
     val time = 3000
@@ -43,7 +46,8 @@ class RouteDumperTest extends FunSuite with Matchers {
       withTransit = false,
       streetVehicles = Vector(streetVehicle),
       attributesOfIndividual = Some(attributesOfIndividual),
-      requestId = 123
+      requestId = 123,
+      triggerId = 0
     )
     val record = RouteDumper.toRecord(request)
     record.get("requestId") shouldBe 123
@@ -56,16 +60,13 @@ class RouteDumperTest extends FunSuite with Matchers {
     record.get("requestId") shouldBe 123
 
     // Verify StreetVehicles
-    val readSvs = record.get("streetVehicles").asInstanceOf[GenericData.Array[Any]]
-    readSvs.size() shouldBe 1
-    val readStreetVehicle = readSvs.get(0).asInstanceOf[GenericData.Record]
-    readStreetVehicle.get("id") shouldBe streetVehicle.id.toString
-    readStreetVehicle.get("vehicleTypeId") shouldBe streetVehicle.vehicleTypeId.toString
-    readStreetVehicle.get("locationUTM_X") shouldBe streetVehicle.locationUTM.loc.getX
-    readStreetVehicle.get("locationUTM_Y") shouldBe streetVehicle.locationUTM.loc.getY
-    readStreetVehicle.get("locationUTM_time") shouldBe streetVehicle.locationUTM.time
-    readStreetVehicle.get("mode") shouldBe streetVehicle.mode.value
-    readStreetVehicle.get("asDriver") shouldBe streetVehicle.asDriver
+    record.get("streetVehicle_0_id") shouldBe streetVehicle.id.toString
+    record.get("streetVehicle_0_vehicleTypeId") shouldBe streetVehicle.vehicleTypeId.toString
+    record.get("streetVehicle_0_locationUTM_X") shouldBe streetVehicle.locationUTM.loc.getX
+    record.get("streetVehicle_0_locationUTM_Y") shouldBe streetVehicle.locationUTM.loc.getY
+    record.get("streetVehicle_0_locationUTM_time") shouldBe streetVehicle.locationUTM.time
+    record.get("streetVehicle_0_mode") shouldBe streetVehicle.mode.value
+    record.get("streetVehicle_0_asDriver") shouldBe streetVehicle.asDriver
 
     // Verify AttributesOfIndividual
     val readAttributesOfIndividual = record.get("attributesOfIndividual").asInstanceOf[GenericData.Record]
@@ -92,8 +93,8 @@ class RouteDumperTest extends FunSuite with Matchers {
       BeamMode.CAR,
       0,
       BeamPath(
-        linkIds = Vector(1, 2, 3, 4, 5),
-        linkTravelTime = Vector(5, 5, 5, 5, 5),
+        linkIds = Array(1, 2, 3, 4, 5),
+        linkTravelTime = Array(5, 5, 5, 5, 5),
         transitStops = Some(
           TransitStopsInfo(
             agencyId = "Agent",
@@ -112,7 +113,8 @@ class RouteDumperTest extends FunSuite with Matchers {
       leg = beamLeg,
       vehicleId = Id.createVehicleId("car"),
       vehicleTypeId = Id.create("beamVilleCar", classOf[BeamVehicleType]),
-      requestId = 123
+      requestId = 123,
+      triggerId = 0
     )
 
     val record = RouteDumper.toRecord(embodyWithCurrentTravelTime)
@@ -123,7 +125,7 @@ class RouteDumperTest extends FunSuite with Matchers {
   }
 
   test("Should be able to convert RoutingResponse to Record") {
-    val routingResposne = RoutingResponse(
+    val routingResponse = RoutingResponse(
       itineraries = Vector(
         EmbodiedBeamTrip(
           legs = Vector(
@@ -133,12 +135,12 @@ class RouteDumperTest extends FunSuite with Matchers {
                 mode = BeamMode.WALK,
                 duration = 50,
                 travelPath = BeamPath(
-                  linkIds = Vector(1, 2),
-                  linkTravelTime = Vector(50, 50),
+                  linkIds = Array(1, 2),
+                  linkTravelTime = Array(50, 50),
                   transitStops = None,
                   startPoint = SpaceTime(0.0, 0.0, 28800),
                   endPoint = SpaceTime(0.01, 0.0, 28850),
-                  distanceInM = 1000D
+                  distanceInM = 1000d
                 )
               ),
               beamVehicleId = Id.createVehicleId("body-dummyAgent"),
@@ -153,12 +155,12 @@ class RouteDumperTest extends FunSuite with Matchers {
                 mode = BeamMode.CAR,
                 duration = 50,
                 travelPath = BeamPath(
-                  linkIds = Vector(3, 4),
-                  linkTravelTime = Vector(50, 50),
+                  linkIds = Array(3, 4),
+                  linkTravelTime = Array(50, 50),
                   transitStops = None,
                   startPoint = SpaceTime(0.01, 0.0, 28950),
                   endPoint = SpaceTime(0.01, 0.01, 29000),
-                  distanceInM = 1000D
+                  distanceInM = 1000d
                 )
               ),
               beamVehicleId = Id.createVehicleId("car-1"),
@@ -172,42 +174,104 @@ class RouteDumperTest extends FunSuite with Matchers {
       ),
       requestId = 123,
       request = None,
-      isEmbodyWithCurrentTravelTime = false
+      isEmbodyWithCurrentTravelTime = false,
+      triggerId = 0
     )
 
-    val records = RouteDumper.toRecords(routingResposne)
-    val legToIt = routingResposne.itineraries.zipWithIndex.flatMap {
-      case (it, itIndex) =>
-        it.beamLegs.zipWithIndex.map {
-          case (leg, legIndex) =>
-            ((leg, legIndex), (it, itIndex))
-        }
+    val records = RouteDumper.toRecords(routingResponse)
+    val legToIt = routingResponse.itineraries.zipWithIndex.flatMap { case (it, itIndex) =>
+      it.beamLegs.zipWithIndex.map { case (leg, legIndex) =>
+        ((leg, legIndex), (it, itIndex))
+      }
     }
-    records.asScala.zip(legToIt).foreach {
-      case (record, ((leg, legIndex), (trip, tripIndex))) =>
-        record.get("requestId") shouldBe routingResposne.requestId
-        record.get("isEmbodyWithCurrentTravelTime") shouldBe routingResposne.isEmbodyWithCurrentTravelTime
-        record.get("itineraryIndex") shouldBe tripIndex
-        record.get("costEstimate") shouldBe trip.costEstimate
-        record.get("tripClassifier") shouldBe trip.tripClassifier.value
-        record.get("replanningPenalty") shouldBe trip.replanningPenalty
-        record.get("totalTravelTimeInSecs") shouldBe trip.totalTravelTimeInSecs
+    records.asScala.zip(legToIt).foreach { case (record, ((leg, legIndex), (trip, tripIndex))) =>
+      record.get("requestId") shouldBe routingResponse.requestId
+      record.get("isEmbodyWithCurrentTravelTime") shouldBe routingResponse.isEmbodyWithCurrentTravelTime
+      record.get("itineraryIndex") shouldBe tripIndex
+      record.get("costEstimate") shouldBe trip.costEstimate
+      record.get("tripClassifier") shouldBe trip.tripClassifier.value
+      record.get("replanningPenalty") shouldBe trip.replanningPenalty
+      record.get("totalTravelTimeInSecs") shouldBe trip.totalTravelTimeInSecs
 
-        record.get("legIndex") shouldBe legIndex
-        verifyBeamLeg(leg, record)
+      record.get("legIndex") shouldBe legIndex
+      verifyBeamLeg(leg, record)
     }
+  }
+
+  test("write RouteResponse to parquet") {
+    val response = RoutingResponse(
+      itineraries = Vector(
+        EmbodiedBeamTrip(
+          Vector(
+            EmbodiedBeamLeg(
+              BeamLeg(1295, BeamMode.DRIVE_TRANSIT, 0, BeamPath.empty),
+              Id.createVehicleId(0),
+              Id.create(0, classOf[BeamVehicleType]),
+              false,
+              0,
+              false
+            )
+          )
+        )
+      ),
+      requestId = 0,
+      request = Some(
+        RoutingRequest(
+          originUTM = new Location(290956.446675882, 50435.04443916706),
+          destinationUTM = new Location(301043.01250748953, 66968.4063643679),
+          departureTime = 1114,
+          withTransit = true,
+          personId = Some(Id.createPersonId(170703)),
+          streetVehicles = Vector(
+            StreetVehicle(
+              Id.createVehicleId(170703),
+              Id.create("BODY - TYPE - DEFAULT", classOf[BeamVehicleType]),
+              SpaceTime(290956.446675882, 50435.04443916706, 214),
+              BeamMode.WALK,
+              true,
+              false
+            ),
+            StreetVehicle(
+              Id.createVehicleId("dummyRH"),
+              Id.create("Car", classOf[BeamVehicleType]),
+              SpaceTime(290956.446675882, 50435.04443916706, 1114),
+              BeamMode.CAR,
+              false,
+              true
+            )
+          ),
+          attributesOfIndividual = None,
+          streetVehiclesUseIntermodalUse = AccessAndEgress,
+          requestId = 0,
+          possibleEgressVehicles = Vector(),
+          triggerId = 949
+        )
+      ),
+      isEmbodyWithCurrentTravelTime = false,
+      computedInMs = 1637,
+      searchedModes = Set(BeamMode.RIDE_HAIL_TRANSIT),
+      triggerId = 949
+    )
+    val records = RouteDumper.toRecords(response)
+
+    val tmpFile = File.createTempFile("route-dumper", "")
+    val path = tmpFile.toString()
+    tmpFile.delete()
+    val writer = RouteDumper.createWriter(path, RouteDumper.routingResponseSchema)
+    records.forEach(record => writer.write(record))
+
   }
 
   private def verifyBeamLeg(leg: BeamLeg, record: GenericData.Record): Unit = {
     record.get("startTime") shouldBe leg.startTime
     record.get("mode") shouldBe leg.mode.value
     record.get("duration") shouldBe leg.duration
-    record.get("linkIds").asInstanceOf[Array[Int]] shouldBe leg.travelPath.linkIds
-    record.get("linkTravelTime").asInstanceOf[Array[Double]] shouldBe leg.travelPath.linkTravelTime
+    record.get("linkIds") shouldBe leg.travelPath.linkIds.toArray
+    record.get("linkTravelTime") shouldBe leg.travelPath.linkTravelTime.toArray
     leg.travelPath.transitStops.foreach { transitStops =>
       record.get("transitStops_agencyId") shouldBe transitStops.agencyId
       record.get("transitStops_routeId") shouldBe transitStops.routeId
-      record.get("transitStops_vehicleId") shouldBe transitStops.vehicleId
+      record.get("transitStops_vehicleId") shouldBe transitStops.vehicleId.toString
       record.get("transitStops_fromIdx") shouldBe transitStops.fromIdx
       record.get("transitStops_toIdx") shouldBe transitStops.toIdx
     }

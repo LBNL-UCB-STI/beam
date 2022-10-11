@@ -1,13 +1,11 @@
 package beam.agentsim.agents.ridehail
 
-import java.math.BigInteger
-
 import beam.agentsim.agents.ridehail.RideHailMatching.{CustomerRequest, RideHailTrip, VehicleAndSchedule}
 import beam.sim.BeamServices
 import org.matsim.core.utils.collections.QuadTree
 
+import java.math.BigInteger
 import scala.collection.JavaConverters._
-import scala.collection.immutable.List
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -27,10 +25,9 @@ class AsyncGreedyVehicleCentricMatching(
         Future { vehicleCentricMatching(v) }
       })
       .map(result => greedyAssignment(result.flatten))
-      .recover {
-        case e =>
-          println(e.getMessage)
-          List.empty[RideHailTrip]
+      .recover { case e =>
+        println(e.getMessage)
+        List.empty[RideHailTrip]
       }
   }
 
@@ -74,9 +71,11 @@ class AsyncGreedyVehicleCentricMatching(
       }
       val combinations = ListBuffer.empty[String]
       for ((t1, _) <- potentialTrips) {
-        for ((t2, _) <- potentialTrips.filter(
-               t2p => !t2p._1.requests.exists(t1.requests.contains) && (t1.requests.size + t2p._1.requests.size) == k
-             )) {
+        for (
+          (t2, _) <- potentialTrips.filter(t2p =>
+            !t2p._1.requests.exists(t1.requests.contains) && (t1.requests.size + t2p._1.requests.size) == k
+          )
+        ) {
           val temp = t1.requests ++ t2.requests
           val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
           if (!combinations.contains(matchId)) {

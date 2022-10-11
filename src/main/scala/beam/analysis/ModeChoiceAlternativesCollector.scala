@@ -47,18 +47,18 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
               (mco.modeCostTimeTransfers.get(tripType), mco.alternativesUtility.get(tripType)) match {
                 case (Some(tripCostTimeTransfer), Some(tripUtility)) =>
                   val duration = trip.legs.map(_.beamLeg.duration).sum
-                  trip.legs.foreach(
-                    leg =>
-                      writeAlternative(
-                        mco.personId,
-                        idx,
-                        idx == mco.chosenAlternativeIdx,
-                        tripCostTimeTransfer,
-                        tripUtility,
-                        duration,
-                        tripType,
-                        leg,
-                        tripCategory
+                  trip.legs.foreach(leg =>
+                    writeAlternative(
+                      personId = mco.personId,
+                      numberOfAlternatives = mco.alternatives.size,
+                      tripNumber = idx,
+                      wasChosen = idx == mco.chosenAlternativeIdx,
+                      altCostTimeTransfer = tripCostTimeTransfer,
+                      altUtility = tripUtility,
+                      tripDuration = duration,
+                      tripType = tripType,
+                      leg = leg,
+                      tripCategory = tripCategory
                     )
                   )
                 case _ =>
@@ -73,6 +73,7 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
 
   def writeAlternative(
     personId: String,
+    numberOfAlternatives: Int,
     tripNumber: Int,
     wasChosen: Boolean,
     altCostTimeTransfer: ModeChoiceOccurredEvent.AltCostTimeTransfer,
@@ -80,7 +81,7 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
     tripDuration: Int,
     tripType: String,
     leg: EmbodiedBeamLeg,
-    tripCategory: Int,
+    tripCategory: Int
   ): Unit = {
     val beamLegType = if (leg.beamVehicleTypeId != null) leg.beamVehicleTypeId.toString else "DEFAULT"
     val vehicleType = if (leg.isRideHail) "RH_" + beamLegType else beamLegType
@@ -103,6 +104,7 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
     csvWriter.writeRow(
       IndexedSeq(
         personId,
+        numberOfAlternatives,
         tripNumber,
         if (wasChosen) 1 else 0,
         tripType,
@@ -134,13 +136,14 @@ class ModeChoiceAlternativesCollector(beamServices: BeamServices)
 
     csvFilePath = beamServices.matsimServices.getControlerIO.getIterationFilename(
       iteration,
-      "modeChoiceAlternativesWhenRHPooled.csv.gz"
+      "modeChoiceDetailed.csv.gz"
     )
 
     csvWriter = new CsvWriter(
       csvFilePath,
       Vector(
         "personId",
+        "numberOfAlternatives",
         "altNumber",
         "wasChosen",
         "altType",

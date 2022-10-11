@@ -36,7 +36,7 @@ We use `typesafe config <https://github.com/typesafehub/config>`_ for our config
 
 Then you can make a copy of the config template under::
 
-  src/main/resources/config-template.conf
+  src/main/resources/beam-template.conf
 
 and start customizing the configurations to your use case.
 
@@ -103,46 +103,71 @@ Sometimes it is possible to face a timeout issue when trying to push huge files.
 
 #. Just push the files as usual
 
-Keeping Production Data out of Master Branch
+Production Data And Git Submodules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Production versus test data. Any branch beginning with "production" or "application" will contain data in the "production/" subfolder. This data should stay in that branch and not be merged into master. To keep the data out, the easiest practice is to simply keep merges one-way from master into the production branch and not vice versa.
+Production data is located in separate git repositories each scenario in its own repo.
 
-However, sometimes troubleshooting / debugging / development happens on a production branch. The cleanest way to get changes to source code or other non-production files back into master is the following.
+Separation of production data and code is needed for:
 
-Checkout your production branch::
+1. Reducing the git repository size for developers
+2. Easier addition or changing production data without merging back into develop code changes
+3. Ability to use any production data with any code branch/commit without creation of yet another git production branch
 
-  git checkout production-branch
 
-Bring branch even with master::
+These repositories have `beam-data-` prefix, e.g `beam-data-sfbay`
 
-  git merge master
+They are linked back to the parent repo by `git submodules <https://git-scm.com/book/en/v2/Git-Tools-Submodules>`_. For example sfbay is mapped to `production/sfbay`.
 
-Resolve conflicts if needed
+When you clone a parent project, by default you get the production data directories that contain submodules, but none of the files within them.
+To fetch production data manually type::
 
-Capture the files that are different now between production and master::
+   git submodule update --init --remote production/sfbay
 
-  git diff --name-only HEAD master > diff-with-master.txt
+(replace `sfbay` with other scenario if needed)
 
-You have created a file "diff-with-master.txt" containing a listing of every file that is different.
+If you don't need the production data anymore and want to remove it locally you can run::
 
-IMPORTANT!!!! -- Edit the file diff-with-master.txt and remove all production-related data (this typically will be all files underneath "production" sub-directory.
+  git submodule deinit production/sfbay
 
-Checkout master::
+or::
 
-  git checkout master
+  git submodule deinit --all
 
-Create a new branch off of master, this is where you will stage the files to then merge back into master::
+to remove all production data.
 
-  git checkout -b new-branch-with-changes-4ci
+Note that if you locally fetch the submodule then it will update the submodule pointer to the latest submodule commit.
+That will result in a git change.
 
-Do a file by file checkout of all differing files from production branch onto master::
+for example, the output of `git status` will be something like that::
 
-  cat diff-with-master.txt | xargs git checkout production-branch --
+  Changes not staged for commit:
+    (use "git add <file>..." to update what will be committed)
+    (use "git restore <file>..." to discard changes in working directory)
+	  modified:   production/sfbay (new commits)
 
-Note, if any of our diffs include the deletion of a file on your production branch, then you will need to remove (i.e. with "git remove" these before you do the above "checkout" step and you should also remove them from the diff-with-master.txt"). If you don't do this, you will see an error message ("did not match any file(s) known to git.") and the checkout command will not be completed.
+It is safe to either add this change with `git add` and commit it or drop it with `git reset`. It doesn't matter since we
+always fetch the latest commit in submodule.
 
-Finally, commit the files that were checked out of the production branch, push, and go create your pull request!
+Using old production data
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Old production data is still available at branches `production-gemini-develop`, `inm/merge-urbansim-with-detroit` etc.
+
+If for some reason you need to merge latest changes to these branches please note that there could be a conflict with the
+same directory name for example `production/sfbay`. In that case you will need to rename this directory in production branch
+to some other name before merging, commit this change and then merge the latest changes from develop.
+
+Adding new production scenario
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+First create a new repository for the data with beam-data- prefix.
+
+Then in the main repo type::
+
+  git submodule add -b develop git@github.com:LBNL-UCB-STI/beam-data-city.git production/city
+
+replacing `city` with a new scenario name, assuming that repo uses `develop` branch as default one.
 
 
 Automated Cloud Deployment
@@ -165,6 +190,8 @@ The command will start an ec2 instance based on the provided configurations and 
 * **runName**: to specify instance name.
 * **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
 * **beamCommit**: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
+* **dataBranch**: To specify the data branch (branch on production data repository) for simulation, 'develop' branch will be used as default data branch.
+* **dataCommit**: The commit SHA for the the data branch, default is `HEAD`
 * **deployMode**: to specify what type of deploy it will be: config | experiment | execute
 * **beamConfigs**: A comma `,` separated list of `beam.conf` files. It should be relative path under the project home. You can create branch level defaults by specifying the branch name with `.configs` suffix like `master.configs`. Branch level default will be used if `beamConfigs` is not present.
 * **beamExperiments**: A comma `,` separated list of `experiment.yml` files. It should be relative path under the project home.You can create branch level defaults same as configs by specifying the branch name with `.experiments` suffix like `master.experiments`. Branch level default will be used if `beamExperiments` is not present. `beamConfigs` has priority over this, in other words, if both are provided then `beamConfigs` will be used.
@@ -177,6 +204,8 @@ The command will start an ec2 instance based on the provided configurations and 
 * **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
 * **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
 * **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
+* **runJupyter**: Should it launch Jupyter Notebook along with a simulation, default is `false`.
+* **budgetOverride**: Set to `true` to override budget limitations, see `Documentation of AWS budget management` section in `DevOps guide <https://beam.readthedocs.io/en/latest/devops.html>`_, default is `false`
 
 There is a default file to specify parameters for task: gradle.deploy.properties_ and it is advised to use it (or custom) file to specify all default values for `deploy` task and not use gradle.properties_ file because latter used as a source of default values for all gradle tasks.
 
@@ -194,6 +223,25 @@ Similarly for experiment batch, you can specify comma-separated experiment files
   ./gradlew deploy -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
 
 For demo and presentation material, please follow the link_ on google drive.
+
+BEAM run on NERSC
+~~~~~~~~~~~~~~~~~
+
+In order to run BEAM on NERSC one needs to get an `ssh key <https://docs.nersc.gov/connect/mfa/#sshproxy>`_ that allows you to ssh to NERSC systems without further authentication until the key expires (24 hours). You also need to specify your user name on NERSC in the following property: **nerscUser**, i.e::
+
+ ./gradlew deployToNersc -PnerscUser=dmitriio
+
+You need to define the deploy properties that are similar to the ones for AWS deploy. These are the properties that is used on NERSC:
+
+* **runName**: to specify instance name.
+* **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
+* **beamCommit**: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
+* **dataBranch**: To specify the branch for production data, 'develop' branch will be used as default branch.
+* **beamConfigs**: The `beam.conf` file. It should be relative path under the project home.
+* **s3Backup**: to specify if copying results to s3 bucket is needed, default is `true`.
+* **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
+
+Your task is going to be added to the queue and when it starts/finishes you receive a notification on your git user email. It may take 1-24 hours (or even more) for the task to get started. It depends on the NERSC workload. In your user home directory on NERSC you can find the output file of your task that looks like `slurm-<job id>.out`. The BEAM output directory is resides at `$SCRATCH/beam_runs/`. Also the output is uploaded to s3 if `s3Backup` is set to true.
 
 
 PILATES run on EC2
@@ -224,10 +272,10 @@ This command will start PILATES simulation on ec2 instance with specified parame
 * **maxRAM**: to specify MAXRAM environment variable for simulation.
 * **shutdownWait**: to specify shutdown wait after end of simulation, default is `15`.
 * **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
-* **storageSize**: to specfy storage size of instance. May be from `64` to `256`.
+* **storageSize**: to specify storage size of instance. May be from `64` to `256`.
 * **region**: to specify region to deploy ec2 instance. May be different from s3 bucket instance.
 * **dataRegion**: to specify region of s3 buckets. All operations with s3 buckets will be use this region. By default equal to `region`.
-* **instanceType**: to specify s2 instance type.
+* **instanceType**: to specify ec2 instance type.
 * **pilatesImageVersion**: to specify pilates image version, default is `latest`.
 * **pilatesImageName**: to specify full pilates image name, default is `beammodel/pilates`.
 
@@ -288,6 +336,46 @@ Below is syntax to use the command::
 .. _link: https://goo.gl/Db37yM
 
 
+Running Jupyter Notebook locally and remotely (EC2)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There are 3 options to run Jupyter Notebook via Gradle task.
+
+1. Locally - Jupyter Notebook will be run on the local machine via Docker. To start it use command::
+
+  ./gradlew jupyterStart
+
+There are some additional parameters that can control how Jupyter is started:
+
+* **jupyterToken**: to specify a custom token for Jupyter, if not set a random UUID will be generated as a token
+* **user**: to specify a custom user for running Jupyter in Docker
+
+Jupyter will be run in the background. To stop it use command::
+
+  ./gradlew jupyterStop
+
+2. Remotely on EC2 on a dedicated instance. Use the following command:
+
+  ./gradlew jupyterEC2
+
+Under the hood it will use `deploy` gradle task which will create a EC2 instance and will run the same `jupyterStart`
+Gradle task there without starting the simulation.
+
+These are parameters for this task, many of them are inherited from `deploy` task:
+
+* **title**: To specify the custom title for this run, if not set 'jupyter' will be used
+* **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
+* **storageSize**: to specify storage size of instance. May be from `64` to `256`.
+* **instanceType**: to specify ec2 instance type.
+* **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
+* **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
+* **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
+* **jupyter_token**: to specify a custom token for Jupyter, if not set a random UUID will be generated as a token
+* **budgetOverride**: Set to `true` to override budget limitations, see `Documentation of AWS budget management` section in `DevOps guide <https://beam.readthedocs.io/en/latest/devops.html>`_, default is `false`
+
+3. Remotely on EC2 together with a simulation. Use `-PrunJupyter=true` option for deploy command.
+
+
 Performance Monitoring
 ^^^^^^^^^^^^^^^^^^^^^^
 
@@ -312,7 +400,7 @@ Beam provides metric utility as part of performance monitoring framework using K
             calcRoute(request)
         }
 
-    In this snippet, first two arguments are same as of `countOccurrence`. Next, it takes the actual piece of code/expression for which you want to measure the execution time/latency. In the example above we are measuring the execution time to calculate a router in `R5RoutingWorker`, we named the entity as `"request-router-time"` and set metric level to `Metrics.RegularLevel`. When this method executes your entity recorder record the metrics and log with provided name.
+    In this snippet, first two arguments are same as of `countOccurrence`. Next, it takes the actual piece of code/expression for which you want to measure the execution time/latency. In the example above we are measuring the execution time to calculate a router in `RoutingWorker`, we named the entity as `"request-router-time"` and set metric level to `Metrics.RegularLevel`. When this method executes your entity recorder record the metrics and log with provided name.
 
 Beam Metrics Configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

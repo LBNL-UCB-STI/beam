@@ -11,12 +11,17 @@ case class TAZSkimmerEvent(
   key: String,
   value: Double,
   beamServices: BeamServices,
-  actor: String = "default"
+  actor: String = "default",
+  geoIdMaybe: Option[String] = None
 ) extends AbstractSkimmerEvent(time) {
   override protected val skimName: String = beamServices.beamConfig.beam.router.skim.taz_skimmer.name
-  private val hexIndex = beamServices.beamScenario.h3taz.getIndex(coord)
-  private val idTaz = beamServices.beamScenario.h3taz.getTAZ(hexIndex)
-  override def getKey: AbstractSkimmerKey = TAZSkimmerKey(time, idTaz, hexIndex, actor, key)
+
+  private val idTaz = geoIdMaybe match {
+    case Some(geoId) => geoId
+    case _           => beamServices.beamScenario.tazTreeMap.getTAZ(coord).tazId.toString
+  }
+  override def getKey: AbstractSkimmerKey = TAZSkimmerKey(time, idTaz, actor, key)
+
   override def getSkimmerInternal: AbstractSkimmerInternal =
     TAZSkimmerInternal(value, 1, beamServices.matsimServices.getIterationNumber + 1)
 }

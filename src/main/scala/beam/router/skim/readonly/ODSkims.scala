@@ -20,24 +20,226 @@ import beam.router.Modes.BeamMode.{
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
 import beam.router.skim.core.AbstractSkimmerReadOnly
 import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
-import beam.sim.config.{BeamConfig, BeamExecutionConfig}
+import beam.router.skim.readonly
+import beam.sim.config.BeamConfig
 import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.scenario.MutableScenario
 
 import scala.collection.immutable
 
-case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
+class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends AbstractSkimmerReadOnly {
 
   def getSkimDefaultValue(
     mode: BeamMode,
     originUTM: Location,
     destinationUTM: Location,
-    departureTime: Int,
-    vehicleTypeId: Id[BeamVehicleType],
     beamVehicleType: BeamVehicleType,
+    fuelPrice: Double
+  ): Skim = ODSkims.getSkimDefaultValue(beamConfig, mode, originUTM, destinationUTM, beamVehicleType, fuelPrice)
+
+  def getRideHailPoolingTimeAndCostRatios(
+    origin: Location,
+    destination: Location,
+    departureTime: Int,
+    beamServices: BeamServices
+  ): (Double, Double) = {
+    val tazTreeMap = beamServices.beamScenario.tazTreeMap
+    val beamConfig = beamServices.beamConfig
+    val origTaz = tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
+    val destTaz = tazTreeMap.getTAZ(destination.getX, destination.getY).tazId
+    val solo = getSkimValue(departureTime, RIDE_HAIL, origTaz, destTaz) match {
+      case Some(skimValue) if skimValue.observations > 5 =>
+        skimValue
+      case _ =>
+        val (travelDistance, travelTime) = distanceAndTime(RIDE_HAIL, origin, destination)
+        ODSkimmerInternal(
+          travelTimeInS = travelTime.toDouble,
+          generalizedTimeInS = 0,
+          generalizedCost = 0,
+          distanceInM = travelDistance.toDouble,
+          cost = getRideHailCost(RIDE_HAIL, travelDistance, travelTime, beamConfig),
+          payloadWeightInKg = 0.0,
+          energy = 0.0,
+          level4CavTravelTimeScalingFactor = 1.0,
+          failedTrips = 0,
+          observations = 0,
+          iterations = beamServices.matsimServices.getIterationNumber
+        )
+    }
+    val pooled = getSkimValue(departureTime, RIDE_HAIL_POOLED, origTaz, destTaz) match {
+      case Some(skimValue) if skimValue.observations > 5 =>
+        skimValue
+      case _ =>
+        val poolingTravelTimeOveheadFactor =
+          beamConfig.beam.router.skim.origin_destination_skimmer.poolingTravelTimeOveheadFactor
+        ODSkimmerInternal(
+          travelTimeInS = solo.travelTimeInS * poolingTravelTimeOveheadFactor,
+          generalizedTimeInS = 0,
+          generalizedCost = 0,
+          distanceInM = solo.distanceInM,
+          cost = getRideHailCost(
+            RIDE_HAIL_POOLED,
+            solo.distanceInM,
+            solo.travelTimeInS * poolingTravelTimeOveheadFactor,
+            beamConfig
+          ),
+          payloadWeightInKg = 0.0,
+          energy = 0.0,
+          level4CavTravelTimeScalingFactor = 1.0,
+          failedTrips = 0,
+          observations = 0,
+          iterations = beamServices.matsimServices.getIterationNumber
+        )
+    }
+    val timeFactor = if (solo.travelTimeInS > 0.0) { pooled.travelTimeInS / solo.travelTimeInS }
+    else { 1.0 }
+    val costFactor = if (solo.cost > 0.0) { pooled.cost / solo.cost }
+    else { 1.0 }
+    (timeFactor, costFactor)
+  }
+
+  def getTimeDistanceAndCost(
+    originUTM: Location,
+    destinationUTM: Location,
+    departureTime: Int,
+    mode: BeamMode,
+    vehicleTypeId: Id[BeamVehicleType],
+    vehicleType: BeamVehicleType,
     fuelPrice: Double,
-    beamScenario: BeamScenario
+    maybeOrigTazForPerformanceImprovement: Option[Id[TAZ]] =
+      None, //If multiple times the same origin/destination is used, it
+    maybeDestTazForPerformanceImprovement: Option[Id[TAZ]] =
+      None //is better to pass them here to avoid accessing treeMap unnecessarily multiple times
+  ): Skim = {
+    val origTaz = maybeOrigTazForPerformanceImprovement.getOrElse(
+      beamScenario.tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId
+    )
+    val destTaz = maybeDestTazForPerformanceImprovement.getOrElse(
+      beamScenario.tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId
+    )
+    getSkimValue(departureTime, mode, origTaz, destTaz) match {
+      case Some(skimValue) =>
+        beamScenario.vehicleTypes.get(vehicleTypeId) match {
+          case Some(vehicleType) if vehicleType.automationLevel == 4 =>
+            skimValue.toSkimExternalForLevel4CAV
+          case _ =>
+            skimValue.toSkimExternal
+        }
+      case None =>
+        getSkimDefaultValue(
+          mode,
+          originUTM,
+          new Coord(destinationUTM.getX, destinationUTM.getY),
+          vehicleType,
+          fuelPrice
+        )
+    }
+  }
+
+  def getExcerptData(
+    timePeriodString: String,
+    hoursIncluded: List[Int],
+    origin: TAZ,
+    destination: TAZ,
+    mode: BeamMode,
+    dummyId: Id[BeamVehicleType],
+    skim: immutable.Map[ODSkimmerKey, ODSkimmerInternal]
+  ): ExcerptData = {
+    val individualSkims = hoursIncluded.map { timeBin =>
+      skim
+        .get(ODSkimmerKey(timeBin, mode, origin.tazId.toString, destination.tazId.toString))
+        .map(_.toSkimExternal)
+        .getOrElse {
+          val adjustedDestCoord = if (origin.equals(destination)) {
+            new Coord(
+              origin.coord.getX,
+              origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
+            )
+          } else {
+            destination.coord
+          }
+          val vehicleType: BeamVehicleType = beamScenario.vehicleTypes(dummyId)
+          val fuelPrice = beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
+
+          getSkimDefaultValue(
+            mode,
+            origin.coord,
+            adjustedDestCoord,
+            vehicleType,
+            fuelPrice
+          )
+        }
+    }
+    val weights = individualSkims.map(sk => Math.max(sk.count, 1).toDouble)
+    val sumWeights = weights.sum
+    val weightedDistance = individualSkims.map(_.distance).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    val weightedTime = individualSkims.map(_.time).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    val weightedGeneralizedTime = individualSkims
+      .map(_.generalizedTime)
+      .zip(weights)
+      .map(tup => tup._1 * tup._2)
+      .sum / sumWeights
+    val weightedCost = individualSkims.map(_.cost).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    val weightedGeneralizedCost = individualSkims
+      .map(_.generalizedCost)
+      .zip(weights)
+      .map(tup => tup._1 * tup._2)
+      .sum / sumWeights
+    val weightedPayloadWeight =
+      individualSkims.map(_.payloadWeight).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    val weightedFailedTrips =
+      individualSkims.map(_.failedTrips).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    val weightedEnergy = individualSkims.map(_.energy).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    val weightedTravelTimeScaleFactor = individualSkims
+      .map(_.level4CavTravelTimeScalingFactor)
+      .zip(weights)
+      .map(tup => tup._1 * tup._2)
+      .sum / sumWeights
+
+    ExcerptData(
+      timePeriodString = timePeriodString,
+      mode = mode,
+      originTazId = origin.tazId,
+      destinationTazId = destination.tazId,
+      weightedTime = weightedTime,
+      weightedGeneralizedTime = weightedGeneralizedTime,
+      weightedCost = weightedCost,
+      weightedGeneralizedCost = weightedGeneralizedCost,
+      weightedDistance = weightedDistance,
+      weightedFailedTrips = weightedFailedTrips,
+      sumWeights = sumWeights,
+      weightedPayloadWeight = weightedPayloadWeight,
+      weightedEnergy = weightedEnergy,
+      weightedLevel4TravelTimeScaleFactor = weightedTravelTimeScaleFactor
+    )
+  }
+
+  private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[ODSkimmerInternal] = {
+    val getSkimValue = pastSkims
+      .get(currentIteration - 1)
+      .flatMap(_.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
+      .orElse(aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
+      .asInstanceOf[Option[ODSkimmerInternal]]
+
+    if (getSkimValue.nonEmpty) {
+      numberOfSkimValueFound = numberOfSkimValueFound + 1
+    }
+    numberOfRequests = numberOfRequests + 1
+
+    getSkimValue
+  }
+
+}
+
+object ODSkims extends BeamHelper {
+
+  def getSkimDefaultValue(
+    beamConfig: BeamConfig,
+    mode: BeamMode,
+    originUTM: Location,
+    destinationUTM: Location,
+    beamVehicleType: BeamVehicleType,
+    fuelPrice: Double
   ): Skim = {
     val (travelDistance, travelTime) = distanceAndTime(mode, originUTM, destinationUTM)
     val votMultiplier: Double = mode match {
@@ -65,207 +267,21 @@ case class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends A
       travelCost + travelTime * beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime / 3600,
       travelDistance,
       travelCost,
-      0,
-      0.0, // TODO get default energy information
-      1.0
+      failedTrips = 0,
+      count = 0,
+      payloadWeight = 0,
+      energy = 0.0 // TODO get default energy information
     )
   }
-
-  def getRideHailPoolingTimeAndCostRatios(
-    origin: Location,
-    destination: Location,
-    departureTime: Int,
-    vehicleTypeId: org.matsim.api.core.v01.Id[BeamVehicleType],
-    beamServices: BeamServices
-  ): (Double, Double) = {
-    val tazTreeMap = beamServices.beamScenario.tazTreeMap
-    val beamConfig = beamServices.beamConfig
-    val origTaz = tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
-    val destTaz = tazTreeMap.getTAZ(destination.getX, destination.getY).tazId
-    val solo = getSkimValue(departureTime, RIDE_HAIL, origTaz, destTaz) match {
-      case Some(skimValue) if skimValue.observations > 5 =>
-        skimValue
-      case _ =>
-        val (travelDistance, travelTime) = distanceAndTime(RIDE_HAIL, origin, destination)
-        ODSkimmerInternal(
-          travelTimeInS = travelTime.toDouble,
-          generalizedTimeInS = 0,
-          generalizedCost = 0,
-          distanceInM = travelDistance.toDouble,
-          cost = getRideHailCost(RIDE_HAIL, travelDistance, travelTime, beamConfig),
-          energy = 0.0,
-          level4CavTravelTimeScalingFactor = 1.0,
-          observations = 0,
-          iterations = beamServices.matsimServices.getIterationNumber
-        )
-    }
-    val pooled = getSkimValue(departureTime, RIDE_HAIL_POOLED, origTaz, destTaz) match {
-      case Some(skimValue) if skimValue.observations > 5 =>
-        skimValue
-      case _ =>
-        val poolingTravelTimeOveheadFactor =
-          beamConfig.beam.router.skim.origin_destination_skimmer.poolingTravelTimeOveheadFactor
-        ODSkimmerInternal(
-          travelTimeInS = solo.travelTimeInS * poolingTravelTimeOveheadFactor,
-          generalizedTimeInS = 0,
-          generalizedCost = 0,
-          distanceInM = solo.distanceInM,
-          cost = getRideHailCost(
-            RIDE_HAIL_POOLED,
-            solo.distanceInM,
-            solo.travelTimeInS * poolingTravelTimeOveheadFactor,
-            beamConfig
-          ),
-          energy = 0.0,
-          level4CavTravelTimeScalingFactor = 1.0,
-          observations = 0,
-          iterations = beamServices.matsimServices.getIterationNumber
-        )
-    }
-    val timeFactor = if (solo.travelTimeInS > 0.0) { pooled.travelTimeInS / solo.travelTimeInS } else { 1.0 }
-    val costFactor = if (solo.cost > 0.0) { pooled.cost / solo.cost } else { 1.0 }
-    (timeFactor, costFactor)
-  }
-
-  def getTimeDistanceAndCost(
-    originUTM: Location,
-    destinationUTM: Location,
-    departureTime: Int,
-    mode: BeamMode,
-    vehicleTypeId: Id[BeamVehicleType],
-    vehicleType: BeamVehicleType,
-    fuelPrice: Double,
-    beamScenario: BeamScenario,
-    maybeOrigTazForPerformanceImprovement: Option[Id[TAZ]] = None, //If multiple times the same origin/destination is used, it
-    maybeDestTazForPerformanceImprovement: Option[Id[TAZ]] = None //is better to pass them here to avoid accessing treeMap unnecessarily multiple times
-  ): Skim = {
-    val origTaz = maybeOrigTazForPerformanceImprovement.getOrElse(
-      beamScenario.tazTreeMap.getTAZ(originUTM.getX, originUTM.getY).tazId
-    )
-    val destTaz = maybeDestTazForPerformanceImprovement.getOrElse(
-      beamScenario.tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId
-    )
-    getSkimValue(departureTime, mode, origTaz, destTaz) match {
-      case Some(skimValue) =>
-        beamScenario.vehicleTypes.get(vehicleTypeId) match {
-          case Some(vehicleType) if vehicleType.automationLevel == 4 =>
-            skimValue.toSkimExternalForLevel4CAV
-          case _ =>
-            skimValue.toSkimExternal
-        }
-      case None =>
-        getSkimDefaultValue(
-          mode,
-          originUTM,
-          new Coord(destinationUTM.getX, destinationUTM.getY),
-          departureTime,
-          vehicleTypeId,
-          vehicleType,
-          fuelPrice,
-          beamScenario
-        )
-    }
-  }
-
-  def getExcerptData(
-    timePeriodString: String,
-    hoursIncluded: List[Int],
-    origin: TAZ,
-    destination: TAZ,
-    mode: BeamMode,
-    dummyId: Id[BeamVehicleType],
-    skim: immutable.Map[ODSkimmerKey, ODSkimmerInternal]
-  ): ExcerptData = {
-    val individualSkims = hoursIncluded.map { timeBin =>
-      skim
-        .get(ODSkimmerKey(timeBin, mode, origin.tazId, destination.tazId))
-        .map(_.toSkimExternal)
-        .getOrElse {
-          val adjustedDestCoord = if (origin.equals(destination)) {
-            new Coord(
-              origin.coord.getX,
-              origin.coord.getY + Math.sqrt(origin.areaInSquareMeters) / 2.0
-            )
-          } else {
-            destination.coord
-          }
-          val vehicleType: BeamVehicleType = beamScenario.vehicleTypes(dummyId)
-          val fuelPrice = beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
-
-          getSkimDefaultValue(
-            mode,
-            origin.coord,
-            adjustedDestCoord,
-            timeBin * 3600,
-            dummyId,
-            vehicleType,
-            fuelPrice,
-            beamScenario
-          )
-        }
-    }
-    val weights = individualSkims.map(sk => Math.max(sk.count, 1).toDouble)
-    val sumWeights = weights.sum
-    val weightedDistance = individualSkims.map(_.distance).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
-    val weightedTime = individualSkims.map(_.time).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
-    val weightedGeneralizedTime = individualSkims
-      .map(_.generalizedTime)
-      .zip(weights)
-      .map(tup => tup._1 * tup._2)
-      .sum / sumWeights
-    val weightedCost = individualSkims.map(_.cost).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
-    val weightedGeneralizedCost = individualSkims
-      .map(_.generalizedCost)
-      .zip(weights)
-      .map(tup => tup._1 * tup._2)
-      .sum / sumWeights
-    val weightedEnergy = individualSkims.map(_.energy).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
-    val weightedTravelTimeScaleFactor = individualSkims
-      .map(_.level4CavTravelTimeScalingFactor)
-      .zip(weights)
-      .map(tup => tup._1 * tup._2)
-      .sum / sumWeights
-
-    ExcerptData(
-      timePeriodString = timePeriodString,
-      mode = mode,
-      originTazId = origin.tazId,
-      destinationTazId = destination.tazId,
-      weightedTime = weightedTime,
-      weightedGeneralizedTime = weightedGeneralizedTime,
-      weightedCost = weightedCost,
-      weightedGeneralizedCost = weightedGeneralizedCost,
-      weightedDistance = weightedDistance,
-      sumWeights = sumWeights,
-      weightedEnergy = weightedEnergy,
-      weightedLevel4TravelTimeScaleFactor = weightedTravelTimeScaleFactor
-    )
-  }
-
-  private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[ODSkimmerInternal] = {
-    val res = if (pastSkims.isEmpty) {
-      aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig, dest))
-    } else {
-      pastSkims
-        .get(currentIteration - 1)
-        .map(_.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
-        .getOrElse(aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig, dest)))
-        .map(_.asInstanceOf[ODSkimmerInternal])
-    }
-    res.map(_.asInstanceOf[ODSkimmerInternal])
-  }
-
-}
-
-object ODSkims extends BeamHelper {
 
   def main(args: Array[String]): Unit = {
-    val (parsedArgs, config) = prepareConfig(args, true)
+    val (_, config) = prepareConfig(args, true)
     val (
-      beamExecutionConfig: BeamExecutionConfig,
-      scenario: MutableScenario,
+      _,
+      _,
       beamScenario: BeamScenario,
-      services: BeamServices
+      services: BeamServices,
+      _
     ) = prepareBeamService(config, None)
 
     val skims = services.skims.od_skimmer
@@ -299,6 +315,6 @@ object ODSkims extends BeamHelper {
     }
     val e = System.currentTimeMillis()
     val diff = e - s
-    println(s"Took: ${diff} ms for $count, AVG per call: ${diff.toDouble / count}")
+    println(s"Took: $diff ms for $count, AVG per call: ${diff.toDouble / count}")
   }
 }

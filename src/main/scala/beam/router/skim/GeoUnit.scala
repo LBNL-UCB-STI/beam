@@ -10,10 +10,12 @@ sealed trait GeoUnit {
 }
 
 object GeoUnit {
+
   final case class TAZ(override val id: String, override val center: Coord, override val areaInSquareMeters: Double)
       extends GeoUnit {
     require(GeoUtils.isInvalidWgsCoordinate(center), s"Provided coordinate $center is not in UTM!")
   }
+
   final case class H3(override val id: String, override val center: Coord, override val areaInSquareMeters: Double)
       extends GeoUnit {
     require(GeoUtils.isInvalidWgsCoordinate(center), s"Provided coordinate $center is not in UTM")

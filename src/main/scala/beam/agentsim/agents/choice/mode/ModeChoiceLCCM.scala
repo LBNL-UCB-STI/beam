@@ -55,6 +55,7 @@ class ModeChoiceLCCM(
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity],
+    originActivity: Option[Activity],
     person: Option[Person] = None
   ): Option[EmbodiedBeamTrip] = {
     choose(alternatives, attributesOfIndividual, Mandatory)
@@ -214,7 +215,9 @@ class ModeChoiceLCCM(
       alternatives.zipWithIndex.map { altAndIdx =>
         val totalCost = altAndIdx._1.tripClassifier match {
           case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | BIKE_TRANSIT =>
-            (altAndIdx._1.costEstimate + transitFareDefaults(altAndIdx._2)) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice
+            (altAndIdx._1.costEstimate + transitFareDefaults(
+              altAndIdx._2
+            )) * beamServices.beamConfig.beam.agentsim.tuning.transitPrice
           case RIDE_HAIL =>
             altAndIdx._1.costEstimate * beamServices.beamConfig.beam.agentsim.tuning.rideHailPrice
           case _ =>
@@ -242,25 +245,24 @@ class ModeChoiceLCCM(
           walkTime,
           waitTime,
           bikeTime,
-          totalCost.toDouble,
+          totalCost,
           altAndIdx._2
         )
       }
 
     val groupedByMode: Map[BeamMode, Seq[ModeChoiceData]] =
       modeChoiceAlternatives.groupBy(_.mode)
-    val bestInGroup = groupedByMode.map {
-      case (_, alts) =>
-        // Which dominates at $18/hr for total time
-        alts
-          .map { alt =>
-            (
-              (alt.vehicleTime + alt.walkTime + alt.waitTime + alt.bikeTime) / 3600 * 18 + alt.cost,
-              alt
-            )
-          }
-          .minBy(_._1)
-          ._2
+    val bestInGroup = groupedByMode.map { case (_, alts) =>
+      // Which dominates at $18/hr for total time
+      alts
+        .map { alt =>
+          (
+            (alt.vehicleTime + alt.walkTime + alt.waitTime + alt.bikeTime) / 3600 * 18 + alt.cost,
+            alt
+          )
+        }
+        .minBy(_._1)
+        ._2
     }
     bestInGroup.toVector
   }
@@ -283,7 +285,8 @@ class ModeChoiceLCCM(
   override def utilityOf(
     alternative: EmbodiedBeamTrip,
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
+    destinationActivity: Option[Activity],
+    originActivity: Option[Activity]
   ): Double = 0.0
 
   override def computeAllDayUtility(
@@ -301,9 +304,8 @@ class ModeChoiceLCCM(
         )
       }
       .toMap
-      .mapValues(
-        modeChoiceCalculatorForStyle =>
-          trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributesOfIndividual, None)).sum
+      .mapValues(modeChoiceCalculatorForStyle =>
+        trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributesOfIndividual, None, None)).sum
       )
       .toArray
       .toMap // to force computation DO NOT TOUCH IT, because here is call-by-name and it's lazy which will hold a lot of memory !!! :)
@@ -314,17 +316,16 @@ class ModeChoiceLCCM(
     val logsum = Option(
       math.log(
         person.getPlans.asScala.view
-          .map(
-            plan =>
-              plan.getAttributes
-                .getAttribute("scores")
-                .asInstanceOf[MapStringDouble]
-                .data(attributesOfIndividual.modalityStyle.get)
+          .map(plan =>
+            plan.getAttributes
+              .getAttribute("scores")
+              .asInstanceOf[MapStringDouble]
+              .data(attributesOfIndividual.modalityStyle.get)
           )
           .map(score => math.exp(score))
           .sum
       )
-    ).filterNot(x => x < -100D).getOrElse(-100D)
+    ).filterNot(x => x < -100d).getOrElse(-100d)
 
     // Score of being in class given this outcome
     lccm

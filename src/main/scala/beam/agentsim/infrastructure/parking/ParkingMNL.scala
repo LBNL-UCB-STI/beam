@@ -1,7 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 
 object ParkingMNL {
 
@@ -11,6 +10,7 @@ object ParkingMNL {
     Parameters.ParkingTicketCost                     -> UtilityFunctionOperation.Multiplier(-1.0),
     Parameters.RangeAnxietyCost                      -> UtilityFunctionOperation.Multiplier(-1.0),
     Parameters.WalkingEgressCost                     -> UtilityFunctionOperation.Multiplier(-1.0),
+    Parameters.EnrouteDetourCost                     -> UtilityFunctionOperation.Multiplier(-1.0),
     Parameters.HomeActivityPrefersResidentialParking -> UtilityFunctionOperation.Multiplier(1.0)
   )
 
@@ -41,8 +41,8 @@ object ParkingMNL {
     def rangeAnxiety(withAddedFuelInJoules: Double = 0.0): Double = {
       if (remainingTourDistance == 0) 0.0
       else {
-        val newRange
-          : Double = (primaryFuelLevelInJoules + withAddedFuelInJoules) / primaryFuelConsumptionInJoulePerMeter
+        val newRange: Double =
+          (primaryFuelLevelInJoules + withAddedFuelInJoules) / primaryFuelConsumptionInJoulePerMeter
         if (newRange > remainingTourDistance) {
           val excessFuelProportion: Double = newRange / (remainingTourDistance + rangeAnxietyBuffer)
           1 - math.min(1.0, math.max(0.0, excessFuelProportion))
@@ -55,9 +55,8 @@ object ParkingMNL {
 
   def prettyPrintAlternatives(params: Map[ParkingMNL.Parameters, Double]): String = {
     params
-      .map {
-        case (param, value) =>
-          f"${Parameters.shortName(param)}=$value%.2f".padTo(10, ' ')
+      .map { case (param, value) =>
+        f"${Parameters.shortName(param)}=$value%.2f".padTo(10, ' ')
       }
       .mkString("", " ", ": ")
   }
@@ -73,6 +72,7 @@ object ParkingMNL {
     final case object QueueingTimeCost extends Parameters with Serializable
     final case object ChargingTimeCost extends Parameters with Serializable
     final case object HomeActivityPrefersResidentialParking extends Parameters with Serializable
+    final case object EnrouteDetourCost extends Parameters with Serializable
 
     def shortName(parameter: Parameters): String = parameter match {
       case ParkingTicketCost                     => "park"
@@ -83,6 +83,7 @@ object ParkingMNL {
       case QueueingTimeCost                      => "queue"
       case ChargingTimeCost                      => "charge"
       case HomeActivityPrefersResidentialParking => "home"
+      case EnrouteDetourCost                     => "enroute"
     }
   }
 }

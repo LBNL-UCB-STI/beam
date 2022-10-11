@@ -1,0 +1,366 @@
+@startuml
+...tick = 0...
+"scheduler" -> "RideHailAgent": InitializeTrigger
+hnote over "RideHailAgent": Offline
+"RideHailAgent" -> "scheduler": CompletionNotice
+...tick = 27440...
+"scheduler" -> "RideHailAgent": StartShiftTrigger
+hnote over "RideHailAgent": Idle
+"RideHailAgent" -> "RideHailManager": NotifyVehicleIdle
+"RideHailManager" -> "RideHailAgent": NotifyVehicleResourceIdleReply
+hnote over "RideHailAgent": Idle
+"RideHailAgent" -> "scheduler": CompletionNotice
+...tick = 27450...
+"scheduler" -> "RideHailManager": RideHailRepositioningTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 27600...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+"RideHailManager" -> "scheduler": CompletionNotice
+...tick = 27750...
+"scheduler" -> "RideHailManager": RideHailRepositioningTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 27800...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+"RideHailManager" -> "scheduler": CompletionNotice
+...tick = 28000...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 28050...
+"scheduler" -> "RideHailManager": RideHailRepositioningTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "router": RoutingRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 28200...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+"RideHailManager" -> "scheduler": CompletionNotice
+...tick = 28350...
+"scheduler" -> "RideHailManager": RideHailRepositioningTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "router": RoutingRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 28400...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 28600...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 28650...
+"scheduler" -> "RideHailManager": RideHailRepositioningTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+"RideHailManager" -> "scheduler": CompletionNotice
+...tick = 28800...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 28950...
+"scheduler" -> "RideHailManager": RideHailRepositioningTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 29000...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"router" -> "RideHailManager": RoutingResponse
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RoutingResponses
+"RideHailManager" -> "RideHailManager": ContinueBufferedRideHailRequests
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 29200...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+"RideHailManager" -> "scheduler": CompletionNotice
+...tick = 29250...
+"scheduler" -> "RideHailManager": RideHailRepositioningTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 29400...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"router" -> "RideHailManager": RoutingResponse
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RoutingResponses
+"RideHailManager" -> "RideHailManager": ContinueBufferedRideHailRequests
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 29550...
+"scheduler" -> "RideHailManager": RideHailRepositioningTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 29600...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+"RideHailManager" -> "scheduler": CompletionNotice
+...tick = 29800...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 29850...
+"scheduler" -> "RideHailManager": RideHailRepositioningTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 30000...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 30150...
+"scheduler" -> "RideHailManager": RideHailRepositioningTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "router": RoutingRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+"RideHailManager" -> "scheduler": CompletionNotice
+...tick = 30200...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+"RideHailManager" -> "scheduler": CompletionNotice
+...tick = 30400...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 30450...
+"scheduler" -> "RideHailManager": RideHailRepositioningTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 30600...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 30750...
+"scheduler" -> "RideHailManager": RideHailRepositioningTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 30800...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 31000...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+"RideHailManager" -> "scheduler": CompletionNotice
+...tick = 31050...
+"scheduler" -> "RideHailManager": RideHailRepositioningTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"RideHailManager" -> "router": RoutingRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"router" -> "RideHailManager": RoutingResponse
+"RideHailManager" -> "RideHailManager": RepositionVehicleRequest
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 31200...
+"scheduler" -> "RideHailManager": BufferedRideHailRequestsTrigger
+"RideHailManager" -> "RideHailAgent": Interrupt
+hnote over "RideHailAgent": IdleInterrupted
+"RideHailAgent" -> "RideHailManager": InterruptedWhileIdle
+"RideHailManager" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Resume
+hnote over "RideHailAgent": Idle
+...tick = 31240...
+"scheduler" -> "RideHailAgent": EndShiftTrigger
+hnote over "RideHailAgent": Offline
+"RideHailAgent" -> "RideHailManager": NotifyVehicleOutOfService
+"RideHailAgent" -> "scheduler": CompletionNotice
+"RideHailManager" -> "RideHailAgent": Finish
+"RideHailAgent" -> "RideHailManager": Terminated
+@enduml

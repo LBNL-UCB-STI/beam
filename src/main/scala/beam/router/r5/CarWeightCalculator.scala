@@ -5,8 +5,9 @@ import org.matsim.core.router.util.TravelTime
 
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.atomic.AtomicInteger
+import scala.util.Try
 
-class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: Double = 0D) {
+class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: Double = 0d) {
   private val networkHelper = workerParams.networkHelper
   private val transportNetwork = workerParams.transportNetwork
 
@@ -15,7 +16,7 @@ class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: D
 
   private val noiseIdx: AtomicInteger = new AtomicInteger(0)
 
-  private val travelTimeNoises: Array[Double] = if (travelTimeNoiseFraction.equals(0D)) {
+  private val travelTimeNoises: Array[Double] = if (travelTimeNoiseFraction.equals(0d)) {
     Array.empty
   } else {
     Array.fill(1000000) {
@@ -32,28 +33,36 @@ class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: D
     travelTime: TravelTime,
     vehicleType: Option[BeamVehicleType],
     time: Double,
-    shouldAddNoise: Boolean
+    shouldAddNoise: Boolean,
+    heavyGoodsVehicle: Boolean = false
   ): Double = {
     val link = networkHelper.getLinkUnsafe(linkId)
     assert(link != null)
     val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-    val maxTravelTime = (edge.getLengthM / minSpeed).ceil.toInt
+    val maxTravelTime = edge.getLengthM / minSpeed
     val maxSpeed: Double = vehicleType match {
       case Some(vType) => vType.maxVelocity.getOrElse(maxFreeSpeed)
       case None        => maxFreeSpeed
     }
 
-    val minTravelTime = (edge.getLengthM / maxSpeed).ceil.toInt
+    val minTravelTime = edge.getLengthM / maxSpeed
 
     val physSimTravelTime = travelTime.getLinkTravelTime(link, time, null, null)
     val physSimTravelTimeWithNoise =
-      (if (travelTimeNoiseFraction.equals(0D) || !shouldAddNoise) {
-         physSimTravelTime
-       } else {
-         val idx = Math.abs(noiseIdx.getAndIncrement() % travelTimeNoises.length)
-         physSimTravelTime * travelTimeNoises(idx)
-       }).ceil.toInt
+      if (travelTimeNoiseFraction.equals(0d) || !shouldAddNoise) {
+        physSimTravelTime
+      } else {
+        val idx = Math.abs(noiseIdx.getAndIncrement() % travelTimeNoises.length)
+        physSimTravelTime * travelTimeNoises(idx)
+      }
     val linkTravelTime = Math.max(physSimTravelTimeWithNoise, minTravelTime)
-    Math.min(linkTravelTime, maxTravelTime)
+    val result = Math.min(linkTravelTime, maxTravelTime)
+
+    if (heavyGoodsVehicle) {
+      // TODO this is only prototype
+      val isLinkHgv = Try(link.getAttributes.getAttribute("hgv")).map(_.asInstanceOf[Boolean]).getOrElse(false)
+      if (isLinkHgv) result / 10 else result * 10
+    } else
+      result
   }
 }

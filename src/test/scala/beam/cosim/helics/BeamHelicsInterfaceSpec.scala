@@ -2,14 +2,17 @@ package beam.cosim.helics
 
 import beam.sim.BeamHelper
 import com.java.helics.helics
-import org.scalatest.{BeforeAndAfterAll, FlatSpec, Matchers}
+import org.scalatest.BeforeAndAfterAll
 import beam.cosim.helics.BeamHelicsInterface._
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, TimeoutException}
 
-class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper with BeforeAndAfterAll {
+class BeamHelicsInterfaceSpec extends AnyFlatSpec with Matchers with BeamHelper with BeforeAndAfterAll {
   override def beforeAll(): Unit = loadHelicsIfNotAlreadyLoaded
 
   override def afterAll(): Unit = {
@@ -19,8 +22,29 @@ class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper wit
 
   "Running a broker and two federates" must "result is message being transmitted back and forth" in {
     lazy val beamBroker =
-      getBroker("Broker", 2, "Federate1", Some("LIST_MAP_ANY"), Some(("Federate2/LIST_ANY", 1000)))
-    lazy val beamFederate = getFederate("Federate2", Some("LIST_ANY"), Some(("Federate1/LIST_MAP_ANY", 1000)))
+      getBroker(
+        "Broker",
+        2,
+        "Federate1",
+        "zmq",
+        "--federates=1",
+        1.0,
+        1,
+        1000,
+        Some("LIST_MAP_ANY"),
+        Some("Federate2/LIST_ANY")
+      )
+    lazy val beamFederate =
+      getFederate(
+        "Federate2",
+        "zmq",
+        "--federates=1 --broker_address=tcp://127.0.0.1",
+        1.0,
+        1,
+        1000,
+        Some("LIST_ANY"),
+        Some("Federate1/LIST_MAP_ANY")
+      )
     val f1 = Future { broker(beamBroker) }
     val f2 = Future { federate(beamFederate) }
     val aggregatedFuture = for {
@@ -41,10 +65,10 @@ class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper wit
     val time1 = beamFederate.sync(1)
     time1 should be(1.0)
 
-    val (time2, response) = beamFederate.syncAndCollectJSON(2)
+    val (time2, response) = (beamFederate.sync(2), beamFederate.collectJSON())
     time2 should be(2.0)
     response.size should be(1)
-    response.head should contain("key"   -> "foo")
+    response.head should contain("key" -> "foo")
     response.head should contain("value" -> 123456)
 
     beamFederate.close()
@@ -54,7 +78,7 @@ class BeamHelicsInterfaceSpec extends FlatSpec with Matchers with BeamHelper wit
     beamBroker.getBrokersFederate.isDefined should be(true)
     val beamFederate = beamBroker.getBrokersFederate.get
 
-    val (time1, message) = beamFederate.syncAndCollect(1)
+    val (time1, message) = (beamFederate.sync(1), beamFederate.collectAny())
     time1 should be(1.0)
     message.mkString(",").trim should be("foo,123456")
 

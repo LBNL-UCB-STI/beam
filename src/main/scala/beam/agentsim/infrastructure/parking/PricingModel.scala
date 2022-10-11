@@ -37,7 +37,6 @@ object PricingModel {
     * construct an optional PricingModel based on a parsed input string
     * @param s the input string, scraped from a configuration file
     * @return an optional PricingModel if the input is recognized, otherwise None
-    *
     */
   def apply(
     s: String,
@@ -68,11 +67,14 @@ object PricingModel {
     * @param parkingDurationInSeconds duration of parking in seconds
     * @return monetary cost of parking, in cents
     */
-  def evaluateParkingTicket(pricingModel: PricingModel, parkingDurationInSeconds: Int): Double = {
+  def evaluateParkingTicket(
+    pricingModel: PricingModel,
+    parkingDurationInSeconds: Int
+  ): Double = {
     pricingModel match {
       case FlatFee(costInDollars) => costInDollars
       case Block(costInDollars, intervalSeconds) =>
-        (math.max(0.0, parkingDurationInSeconds.toDouble) / intervalSeconds.toDouble) * costInDollars
+        (parkingDurationInSeconds.toDouble / intervalSeconds.toDouble) * costInDollars
     }
   }
 

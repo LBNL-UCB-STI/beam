@@ -3,9 +3,10 @@ package beam.router.model
 import beam.agentsim.events.SpaceTime
 import beam.router.model.RoutingModel.TransitStopsInfo
 import org.matsim.api.core.v01.{Coord, Id}
-import org.scalatest.{Matchers, WordSpec}
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatest.matchers.should.Matchers
 
-class BeamPathTest extends WordSpec with Matchers {
+class BeamPathTest extends AnyWordSpec with Matchers {
   "compareSeq" should {
     "return 0" when {
       "both input arrays contain the same elements" in {
@@ -45,8 +46,8 @@ class BeamPathTest extends WordSpec with Matchers {
   "compare" should {
     val transitStopsInfo: TransitStopsInfo = TransitStopsInfo("someAgency", "someRoute", Id.createVehicleId(1), 0, 2)
     val beamPath: BeamPath = BeamPath(
-      linkIds = Vector(1, 2),
-      linkTravelTime = Vector(5, 5),
+      linkIds = Array(1, 2),
+      linkTravelTime = Array(5, 5),
       transitStops = Some(transitStopsInfo),
       startPoint = SpaceTime(new Coord(0, 0), 0),
       endPoint = SpaceTime(new Coord(2, 2), 5),
@@ -79,16 +80,16 @@ class BeamPathTest extends WordSpec with Matchers {
       "the first endPoint > the second endPoint" in {
         BeamPath.compare(
           BeamPath(
-            linkIds = Vector(1, 2),
-            linkTravelTime = Vector(5, 5),
+            linkIds = Array(1, 2),
+            linkTravelTime = Array(5, 5),
             transitStops = Some(transitStopsInfo),
             startPoint = SpaceTime(new Coord(0, 0), 0),
             endPoint = SpaceTime(new Coord(2, 2), 5),
             distanceInM = 2.0
           ),
           BeamPath(
-            linkIds = Vector(1, 2),
-            linkTravelTime = Vector(5, 5),
+            linkIds = Array(1, 2),
+            linkTravelTime = Array(5, 5),
             transitStops = Some(transitStopsInfo),
             startPoint = SpaceTime(new Coord(0, 0), 0),
             endPoint = SpaceTime(new Coord(1, 1), 5),
@@ -98,16 +99,16 @@ class BeamPathTest extends WordSpec with Matchers {
 
         BeamPath.compare(
           BeamPath(
-            linkIds = Vector(1, 2),
-            linkTravelTime = Vector(10, 10),
+            linkIds = Array(1, 2),
+            linkTravelTime = Array(10, 10),
             transitStops = Some(transitStopsInfo),
             startPoint = SpaceTime(new Coord(0, 0), 0),
             endPoint = SpaceTime(new Coord(2, 2), 10),
             distanceInM = 2.0
           ),
           BeamPath(
-            linkIds = Vector(1, 2),
-            linkTravelTime = Vector(5, 5),
+            linkIds = Array(1, 2),
+            linkTravelTime = Array(5, 5),
             transitStops = Some(transitStopsInfo),
             startPoint = SpaceTime(new Coord(0, 0), 0),
             endPoint = SpaceTime(new Coord(2, 2), 5),
@@ -153,16 +154,16 @@ class BeamPathTest extends WordSpec with Matchers {
       "the first endPoint < the second endPoint" in {
         BeamPath.compare(
           BeamPath(
-            linkIds = Vector(1, 2),
-            linkTravelTime = Vector(5, 5),
+            linkIds = Array(1, 2),
+            linkTravelTime = Array(5, 5),
             transitStops = Some(transitStopsInfo),
             startPoint = SpaceTime(new Coord(0, 0), 0),
             endPoint = SpaceTime(new Coord(1, 1), 5),
             distanceInM = 2.0
           ),
           BeamPath(
-            linkIds = Vector(1, 2),
-            linkTravelTime = Vector(5, 5),
+            linkIds = Array(1, 2),
+            linkTravelTime = Array(5, 5),
             transitStops = Some(transitStopsInfo),
             startPoint = SpaceTime(new Coord(0, 0), 0),
             endPoint = SpaceTime(new Coord(2, 2), 5),
@@ -172,16 +173,16 @@ class BeamPathTest extends WordSpec with Matchers {
 
         BeamPath.compare(
           BeamPath(
-            linkIds = Vector(1, 2),
-            linkTravelTime = Vector(5, 5),
+            linkIds = Array(1, 2),
+            linkTravelTime = Array(5, 5),
             transitStops = Some(transitStopsInfo),
             startPoint = SpaceTime(new Coord(0, 0), 0),
             endPoint = SpaceTime(new Coord(2, 2), 5),
             distanceInM = 2.0
           ),
           BeamPath(
-            linkIds = Vector(1, 2),
-            linkTravelTime = Vector(10, 10),
+            linkIds = Array(1, 2),
+            linkTravelTime = Array(10, 10),
             transitStops = Some(transitStopsInfo),
             startPoint = SpaceTime(new Coord(0, 0), 0),
             endPoint = SpaceTime(new Coord(2, 2), 10),

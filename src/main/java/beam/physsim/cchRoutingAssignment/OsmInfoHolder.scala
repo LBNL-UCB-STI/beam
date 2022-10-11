@@ -12,14 +12,12 @@ import scala.collection.JavaConverters._
 class OsmInfoHolder(beamServices: BeamServices) {
   private val osm = new OSM(beamServices.beamConfig.beam.routing.r5.osmMapdbFile)
 
-  private val id2NodeIds: Map[Long, Seq[Long]] = osm.ways.asScala.map {
-    case (id, way) =>
-      id.toLong -> way.nodes.toSeq
+  private val id2NodeIds: Map[Long, Seq[Long]] = osm.ways.asScala.map { case (id, way) =>
+    id.toLong -> way.nodes.toSeq
   }.toMap
 
-  private val id2NodeCoordinate = osm.nodes.asScala.map {
-    case (id, node) =>
-      id -> new Coordinate(node.getLat, node.getLon)
+  private val id2NodeCoordinate = osm.nodes.asScala.map { case (id, node) =>
+    id -> new Coordinate(node.getLat, node.getLon)
   }.toMap
 
   osm.close()

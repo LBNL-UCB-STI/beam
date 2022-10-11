@@ -2,7 +2,7 @@ package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.FuelType._
 import beam.agentsim.agents.vehicles.VehicleCategory._
-import beam.agentsim.agents.vehicles.ChargingCapability._
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import org.matsim.api.core.v01.Id
 
 case class BeamVehicleType(
@@ -28,15 +28,20 @@ case class BeamVehicleType(
   secondaryVehicleEnergyFile: Option[String] = None,
   sampleProbabilityWithinCategory: Double = 1.0,
   sampleProbabilityString: Option[String] = None,
-  chargingCapability: Option[ChargingCapability] = None
+  chargingCapability: Option[ChargingPointType] = None,
+  payloadCapacityInKg: Option[Double] = None
 ) {
+  def isSharedVehicle: Boolean = id.toString.startsWith("sharedVehicle")
 
-  def isEV: Boolean = {
-    primaryFuelType == Electricity || secondaryFuelType.contains(Electricity)
-  }
+  def isCaccEnabled: Boolean = automationLevel >= 3
 
-  def isCaccEnabled: Boolean = {
-    automationLevel >= 3
+  def isConnectedAutomatedVehicle: Boolean = automationLevel >= 4
+
+  def getTotalRange: Double = {
+    val primaryRange = primaryFuelCapacityInJoule / primaryFuelConsumptionInJoulePerMeter
+    val secondaryRange =
+      secondaryFuelCapacityInJoule.getOrElse(0.0) / secondaryFuelConsumptionInJoulePerMeter.getOrElse(1.0)
+    primaryRange + secondaryRange
   }
 }
 
@@ -67,20 +72,10 @@ object VehicleCategory {
   case object LightDutyTruck extends VehicleCategory
   case object HeavyDutyTruck extends VehicleCategory
 
-  def fromString(value: String): VehicleCategory = {
+  def fromString(value: String): VehicleCategory = fromStringOptional(value).get
+
+  def fromStringOptional(value: String): Option[VehicleCategory] = {
     Vector(Body, Bike, Car, MediumDutyPassenger, LightDutyTruck, HeavyDutyTruck)
       .find(_.toString.equalsIgnoreCase(value))
-      .get
-  }
-}
-
-object ChargingCapability {
-  sealed trait ChargingCapability
-  case object XFC extends ChargingCapability
-  case object DCFC extends ChargingCapability
-  case object AC extends ChargingCapability
-
-  def fromString(value: String): ChargingCapability = {
-    Vector(XFC, DCFC, AC).find(_.toString.equalsIgnoreCase(value)).get
   }
 }

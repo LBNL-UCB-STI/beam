@@ -73,6 +73,25 @@ BEAM uses the `R5 routing engine`_ to accomplish multi-modal routing. Agents fro
 
 .. _matsim-events:
 
+GraphHopper Router
+^^^^^^^^^
+
+If configured BEAM can use GraphHopper router (https://github.com/graphhopper/graphhopper) in addition to R5. Note that
+currently GraphHopper doesn't work with transit routes, for these it will delegate to R5.
+
+To enable GraphHopper set in config file
+
+`beam.routing.carRouter="staticGH"` or
+`beam.routing.carRouter="quasiDynamicGH"`
+
+The difference is that for `quasiDynamicGH` Router will create multiple GraphHopper instances for each travel time bin.
+
+GraphHopper router can be configured to use alternative routes (https://github.com/graphhopper/graphhopper/pull/640)
+
+To enable it set in config file
+
+`beam.routing.gh.useAlternativeRoutes = true`
+
 MATSim Events
 ^^^^^^^^^^^^^
 

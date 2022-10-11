@@ -1,23 +1,38 @@
 package beam.agentsim.agents.parking
 
-import akka.pattern.{ask, pipe}
-import beam.agentsim.Resource.ReleaseParkingStall
+import akka.pattern.pipe
 import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
+import beam.agentsim.agents.freight.FreightRequestType
+import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_REQUEST_TYPE
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{PassengerSchedule, VehicleManager}
-import beam.agentsim.events.{LeavingParkingEvent, SpaceTime}
+import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, VehicleManager}
+import beam.agentsim.events.{ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
-import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
+import beam.agentsim.infrastructure.charging.{ChargingPointType, ElectricCurrentType}
+import beam.agentsim.infrastructure.parking.PricingModel
+import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingNetworkManager, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
-import beam.router.Modes.BeamMode.WALK
+import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.core.ParkingSkimmer.ChargerType
+import beam.router.skim.event.{FreightSkimmerEvent, ParkingSkimmerEvent}
+import beam.sim.common.GeoUtils
+import beam.utils.MeasureUnitConversion.SECONDS_IN_HOUR
+import beam.utils.logging.pattern.ask
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
+import org.matsim.api.core.v01.population.Activity
+import org.matsim.core.api.experimental.events.EventsManager
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
@@ -30,50 +45,223 @@ object ChoosesParking {
   case object ReleasingParkingSpot extends BeamAgentState
   case object ReleasingChargingPoint extends BeamAgentState
   case object ConnectingToChargingPoint extends BeamAgentState
+  private val logger = LoggerFactory.getLogger(this.getClass)
+
+  def handleUseParkingSpot(
+    tick: Int,
+    currentBeamVehicle: BeamVehicle,
+    driver: Id[_],
+    geo: GeoUtils,
+    eventsManager: EventsManager,
+    tazTreeMap: TAZTreeMap,
+    nextActivity: Option[Activity],
+    trip: Option[EmbodiedBeamTrip],
+    restOfTrip: Option[List[EmbodiedBeamLeg]]
+  ): Unit = {
+    currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
+      currentBeamVehicle.useParkingStall(stall)
+      val parkEvent = ParkingEvent(
+        time = tick,
+        stall = stall,
+        locationWGS = geo.utm2Wgs(stall.locationUTM),
+        vehicleId = currentBeamVehicle.id,
+        driverId = driver.toString
+      )
+      eventsManager.processEvent(parkEvent) // nextLeg.endTime -> to fix repeated path traversal
+      restOfTrip.foreach { legs =>
+        if (legs.size >= 2 && legs.head.beamLeg.mode == BeamMode.CAR && legs(1).beamLeg.mode == BeamMode.WALK) {
+          val parkingSkimmerEvent = createParkingSkimmerEvent(tick, geo, tazTreeMap, nextActivity, stall, legs)
+          eventsManager.processEvent(parkingSkimmerEvent)
+          val freightRequestType =
+            nextActivity.flatMap(activity =>
+              Option(activity.getAttributes.getAttribute(FREIGHT_REQUEST_TYPE)).asInstanceOf[Option[FreightRequestType]]
+            )
+          freightRequestType.foreach { requestType =>
+            val freightSkimmerEvent = createFreightSkimmerEvent(tick, trip, parkingSkimmerEvent, requestType)
+            eventsManager.processEvent(freightSkimmerEvent)
+          }
+        }
+      }
+    }
+    currentBeamVehicle.setReservedParkingStall(None)
+  }
+
+  private def createFreightSkimmerEvent(
+    tick: Int,
+    trip: Option[EmbodiedBeamTrip],
+    parkingSkimmerEvent: ParkingSkimmerEvent,
+    requestType: FreightRequestType
+  ) = {
+    val (loading, unloading) = requestType match {
+      case FreightRequestType.Unloading => (0, 1)
+      case FreightRequestType.Loading   => (1, 0)
+    }
+    val costPerMile = trip
+      .map { trip =>
+        val carDistanceInM = trip.beamLegs.collect {
+          case leg if leg.mode == BeamMode.CAR => leg.travelPath.distanceInM
+        }.sum
+        logger.info("Cost: {}, dist: {}", trip.costEstimate, carDistanceInM)
+        trip.costEstimate / carDistanceInM * 1609.0
+      }
+      .getOrElse(Double.NaN)
+    val freightSkimmerEvent = new FreightSkimmerEvent(
+      tick,
+      parkingSkimmerEvent.tazId,
+      loading,
+      unloading,
+      costPerMile,
+      parkingSkimmerEvent.walkAccessDistanceInM,
+      parkingSkimmerEvent.parkingCostPerHour
+    )
+    freightSkimmerEvent
+  }
+
+  private def createParkingSkimmerEvent(
+    tick: Int,
+    geo: GeoUtils,
+    tazTreeMap: TAZTreeMap,
+    nextActivity: Option[Activity],
+    stall: ParkingStall,
+    restOfTrip: List[EmbodiedBeamLeg]
+  ): ParkingSkimmerEvent = {
+    require(restOfTrip.size >= 2, "Rest of trip must consist of two legs at least: current car leg, walk leg")
+    val walkLeg = restOfTrip(1)
+    val tripEndPointUTMLocation = geo.wgs2Utm(walkLeg.beamLeg.travelPath.endPoint.loc)
+    val tazId = tazTreeMap.getTAZ(tripEndPointUTMLocation).tazId
+    val chargerType = stall.chargingPointType match {
+      case Some(chargingType) if ChargingPointType.getChargingPointCurrent(chargingType) == ElectricCurrentType.DC =>
+        ChargerType.DCFastCharger
+      case Some(_) => ChargerType.ACSlowCharger
+      case None    => ChargerType.NoCharger
+    }
+    val parkingCostPerHour = (stall.pricingModel, nextActivity) match {
+      case (Some(PricingModel.Block(costInDollars, intervalSeconds)), _) =>
+        costInDollars / intervalSeconds * SECONDS_IN_HOUR
+      case (Some(PricingModel.FlatFee(costInDollars)), Some(activity))
+          if activity.getEndTime - activity.getStartTime > 0 =>
+        costInDollars / (activity.getEndTime - activity.getStartTime) * SECONDS_IN_HOUR
+      case (Some(PricingModel.FlatFee(costInDollars)), _) => costInDollars
+      case (None, _)                                      => 0
+    }
+    val walkAccessDistance = walkLeg.beamLeg.travelPath.distanceInM
+    val parkingSkimmerEvent = new ParkingSkimmerEvent(
+      tick,
+      tazId,
+      chargerType,
+      walkAccessDistance,
+      parkingCostPerHour
+    )
+    parkingSkimmerEvent
+  }
 }
 
 trait ChoosesParking extends {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
-  onTransition {
-    case ReadyToChooseParking -> ChoosingParkingSpot =>
-      val personData = stateData.asInstanceOf[BasePersonData]
 
-      val firstLeg = personData.restOfCurrentTrip.head
-      val lastLeg =
-        personData.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId).last
+  var latestParkingInquiry: Option[ParkingInquiry] = None
 
-      val parkingDuration: Double = {
-        for {
-          act <- nextActivity(personData)
-          lastLegEndTime = lastLeg.beamLeg.endTime.toDouble
-        } yield act.getEndTime - lastLegEndTime
-      }.getOrElse(0.0)
-      val destinationUtm = beamServices.geo.wgs2Utm(lastLeg.beamLeg.travelPath.endPoint.loc)
-
-      // in meter (the distance that should be considered as buffer for range estimation
-
-      val nextActivityType = nextActivity(personData).get.getType
-
-      val remainingTripData = calculateRemainingTripData(personData)
-
-      parkingManager ! ParkingInquiry(
+  private def buildParkingInquiry(data: BasePersonData): ParkingInquiry = {
+    val firstLeg = data.restOfCurrentTrip.head
+    val vehicleTrip = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)
+    val lastLeg = vehicleTrip.last.beamLeg
+    val activityType = nextActivity(data).get.getType
+    val remainingTripData = calculateRemainingTripData(data)
+    val parkingDuration = nextActivity(data).map(_.getEndTime - lastLeg.endTime).getOrElse(0.0)
+    val destinationUtm = SpaceTime(beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), lastLeg.endTime)
+    if (data.enrouteData.isInEnrouteState) {
+      // enroute means actual travelling has not started yet,
+      // so vehicle can be found in first leg of rest of the trip.
+      val vehicle = beamVehicles(firstLeg.beamVehicleId).vehicle
+      val reservedFor = VehicleManager.getReservedFor(vehicle.vehicleManagerId.get).get
+      ParkingInquiry.init(
         destinationUtm,
-        nextActivityType,
-        Some(this.currentBeamVehicle),
+        activityType,
+        reservedFor,
+        Some(vehicle),
         remainingTripData,
+        Some(id),
         attributes.valueOfTime,
-        parkingDuration
+        parkingDuration,
+        searchMode = ParkingSearchMode.EnRouteCharging,
+        originUtm = Some(vehicle.spaceTime),
+        triggerId = getCurrentTriggerIdOrGenerate
       )
+    } else {
+      val searchModeChargeOrPark =
+        if (
+          currentBeamVehicle.isEV && isRefuelAtDestinationNeeded(
+            currentBeamVehicle,
+            activityType,
+            remainingTripData.map(_.remainingTourDistance).getOrElse(0.0)
+          )
+        )
+          ParkingSearchMode.DestinationCharging
+        else ParkingSearchMode.Parking
+
+      // for regular parking inquiry, we have vehicle information in `currentBeamVehicle`
+      val reservedFor = VehicleManager.getReservedFor(currentBeamVehicle.vehicleManagerId.get).get
+      ParkingInquiry.init(
+        destinationUtm,
+        activityType,
+        reservedFor,
+        Some(currentBeamVehicle),
+        remainingTripData,
+        Some(id),
+        attributes.valueOfTime,
+        parkingDuration,
+        searchMode = searchModeChargeOrPark,
+        triggerId = getCurrentTriggerIdOrGenerate
+      )
+    }
+  }
+
+  private def isRefuelAtDestinationNeeded(
+    vehicle: BeamVehicle,
+    activityType: String,
+    remainingTourDistance: Double
+  ): Boolean = {
+    val conf = beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination
+    ParkingInquiry.activityTypeStringToEnum(activityType) match {
+      case ParkingActivityType.Home =>
+        vehicle.isRefuelNeeded(
+          remainingTourDistance + conf.home.refuelRequiredThresholdInMeters,
+          conf.noRefuelThresholdInMeters
+        )
+      case _ =>
+        vehicle.isRefuelNeeded(
+          remainingTourDistance + conf.refuelRequiredThresholdInMeters,
+          conf.noRefuelThresholdInMeters
+        )
+    }
+  }
+
+  onTransition { case ReadyToChooseParking -> ChoosingParkingSpot =>
+    val personData = stateData.asInstanceOf[BasePersonData]
+    latestParkingInquiry = Some(buildParkingInquiry(personData))
+    park(latestParkingInquiry.get)
   }
 
   when(ConnectingToChargingPoint) {
-    case _ @Event(StartingRefuelSession(tick, vehicleId), data) =>
-      log.debug(s"Vehicle $vehicleId started charging and it is now handled by the CNM at $tick")
-      self ! LastLegPassengerSchedule
+    case _ @Event(StartingRefuelSession(tick, _, _, _), data) =>
+      log.debug(s"Vehicle ${currentBeamVehicle.id} started charging and it is now handled by the CNM at $tick")
+      val maybePersonData = findPersonData(data)
+      handleUseParkingSpot(
+        tick,
+        currentBeamVehicle,
+        id,
+        geo,
+        eventsManager,
+        beamScenario.tazTreeMap,
+        nextActivity = maybePersonData.flatMap(nextActivity),
+        trip = maybePersonData.flatMap(_.currentTrip),
+        restOfTrip = maybePersonData.map(_.restOfCurrentTrip)
+      )
+      self ! LastLegPassengerSchedule(getCurrentTriggerId.get)
       goto(DrivingInterrupted) using data
-    case _ @Event(WaitingInLine(tick, vehicleId), data) =>
+    case _ @Event(WaitingToCharge(tick, vehicleId, _, _), data) =>
       log.debug(s"Vehicle $vehicleId is waiting in line and it is now handled by the CNM at $tick")
-      self ! LastLegPassengerSchedule
+      self ! LastLegPassengerSchedule(getCurrentTriggerId.get)
       goto(DrivingInterrupted) using data
   }
 
@@ -81,14 +269,38 @@ trait ChoosesParking extends {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
       stay using data
-    case _ @Event(EndingRefuelSession(tick, vehicleId), data) =>
-      log.debug(s"Vehicle $vehicleId ended charging and it is not handled by the CNM at tick $tick")
-      handleReleasingParkingSpot(tick, data)
+
+    case Event(UnhandledVehicle(tick, _, vehicle, _), data) =>
+      assume(
+        vehicle.id == currentBeamVehicle.id,
+        s"Agent tried to disconnect a vehicle ${vehicle.id} that's not the current beamVehicle ${currentBeamVehicle.id}"
+      )
+      log.error(
+        s"Vehicle ${vehicle.id} is not handled by the CNM at tick $tick. Something is broken." +
+        s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
+      )
+      ParkingNetworkManager.handleReleasingParkingSpot(
+        tick,
+        currentBeamVehicle,
+        None,
+        id,
+        parkingManager,
+        eventsManager
+      )
       goto(WaitingToDrive) using data
-    case _ @Event(UnhandledVehicle(tick, vehicleId), data) =>
-      log.debug(s"Vehicle $vehicleId is not handled by the CNM at tick $tick")
-      goto(ReleasingParkingSpot) using data
-      handleReleasingParkingSpot(tick, data)
+
+    case Event(UnpluggingVehicle(tick, _, vehicle, _, energy), data: BasePersonData)
+        if data.enrouteData.isInEnrouteState =>
+      log.debug(
+        s"Vehicle ${vehicle.id} [chosen for enroute] ended charging and it is not handled by the CNM at tick $tick"
+      )
+      ParkingNetworkManager.handleReleasingParkingSpot(tick, vehicle, Some(energy), id, parkingManager, eventsManager)
+      goto(ReadyToChooseParking) using data
+
+    case Event(UnpluggingVehicle(tick, _, vehicle, _, energy), data) =>
+      log.debug(s"Vehicle ${vehicle.id} ended charging and it is not handled by the CNM at tick $tick")
+      ParkingNetworkManager.handleReleasingParkingSpot(tick, vehicle, Some(energy), id, parkingManager, eventsManager)
+      releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
   }
 
@@ -96,45 +308,57 @@ trait ChoosesParking extends {
     case Event(TriggerWithId(StartLegTrigger(_, _), _), data) =>
       stash()
       stay using data
+
     case Event(StateTimeout, data: BasePersonData) =>
-      val (tick, _) = releaseTickAndTriggerId()
-      if (currentBeamVehicle.isConnectedToChargingPoint()) {
+      val nextLeg = data.restOfCurrentTrip.head
+      val vehicle = {
+        if (data.enrouteData.isInEnrouteState) beamVehicles(nextLeg.beamVehicleId).vehicle
+        else currentBeamVehicle
+      }
+      val (tick, triggerId) = (_currentTick.get, _currentTriggerId.get)
+
+      if (vehicle.isConnectedToChargingPoint()) {
         log.debug("Sending ChargingUnplugRequest to ChargingNetworkManager at {}", tick)
         chargingNetworkManager ! ChargingUnplugRequest(
           tick,
-          currentBeamVehicle,
-          VehicleManager.privateVehicleManager.managerId
+          id,
+          vehicle,
+          triggerId
         )
         goto(ReleasingChargingPoint) using data
       } else {
-        handleReleasingParkingSpot(tick, data)
-        goto(WaitingToDrive) using data
+        val state = {
+          if (data.enrouteData.isInEnrouteState)
+            ReadyToChooseParking
+          else {
+            ParkingNetworkManager.handleReleasingParkingSpot(tick, vehicle, None, id, parkingManager, eventsManager)
+            releaseTickAndTriggerId()
+            WaitingToDrive
+          }
+        }
+        goto(state) using data
       }
 
     case Event(StateTimeout, data) =>
-      val stall = currentBeamVehicle.stall.get
-      parkingManager ! ReleaseParkingStall(stall)
-      currentBeamVehicle.unsetParkingStall()
+      ParkingNetworkManager.handleReleasingParkingSpot(
+        getCurrentTick.get,
+        currentBeamVehicle,
+        None,
+        id,
+        parkingManager,
+        eventsManager
+      )
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
   }
 
   when(ChoosingParkingSpot) {
-    case Event(ParkingInquiryResponse(stall, _), data) =>
+    case Event(ParkingInquiryResponse(stall, _, _), data) =>
       val distanceThresholdToIgnoreWalking =
         beamServices.beamConfig.beam.agentsim.thresholdForWalkingInMeters
       val nextLeg =
         data.passengerSchedule.schedule.keys.drop(data.currentLegPassengerScheduleIndex).head
       currentBeamVehicle.setReservedParkingStall(Some(stall))
-
-      // data.currentVehicle.head
-
-      //Veh id
-      //distance to dest
-      //parking Id
-      //cost
-      //location
-
       val distance =
         beamServices.geo.distUTMInMeters(stall.locationUTM, beamServices.geo.wgs2Utm(nextLeg.travelPath.endPoint.loc))
       // If the stall is co-located with our destination... then continue on but add the stall to PersonData
@@ -144,56 +368,92 @@ trait ChoosesParking extends {
           triggerId,
           Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
         )
-
-        goto(WaitingToDrive) using data
+        val updatedData = data match {
+          case data: BasePersonData => data.copy(enrouteData = EnrouteData())
+          case _                    => data
+        }
+        goto(WaitingToDrive) using updatedData
       } else {
-        // Else the stall requires a diversion in travel, calc the new routes (in-vehicle to the stall and walking to the destination)
-        import context.dispatcher
-        val currentPoint = nextLeg.travelPath.startPoint
-        val currentLocUTM = beamServices.geo.wgs2Utm(currentPoint.loc)
-        val currentPointUTM = currentPoint.copy(loc = currentLocUTM)
-        val finalPoint = nextLeg.travelPath.endPoint
-
-        val streetVehicle = currentBeamVehicle.toStreetVehicle
-        // get route from customer to stall, add body for backup in case car route fails
-        val carStreetVeh =
-          StreetVehicle(
-            currentBeamVehicle.id,
-            currentBeamVehicle.beamVehicleType.id,
-            currentPointUTM,
-            streetVehicle.mode,
-            asDriver = true,
-            streetVehicle.needsToCalculateCost
-          )
-        val bodyStreetVeh =
-          StreetVehicle(
-            body.id,
-            body.beamVehicleType.id,
-            currentPointUTM,
-            WALK,
-            asDriver = true,
-            needsToCalculateCost = false
-          )
-        val veh2StallRequest = RoutingRequest(
-          currentLocUTM,
-          stall.locationUTM,
-          currentPoint.time,
-          withTransit = false,
-          Some(id),
-          Vector(carStreetVeh, bodyStreetVeh),
-          Some(attributes)
-        )
-        val futureVehicle2StallResponse = router ? veh2StallRequest
-
-        // get walk route from stall to destination, note we give a dummy start time and update later based on drive time to stall
-        val futureStall2DestinationResponse = router ? RoutingRequest(
-          stall.locationUTM,
-          beamServices.geo.wgs2Utm(finalPoint.loc),
-          currentPoint.time,
-          withTransit = false,
-          Some(id),
-          Vector(
-            StreetVehicle(
+        val (updatedData, isEnrouting) = data match {
+          case data: BasePersonData if data.enrouteData.isInEnrouteState =>
+            val updatedEnrouteData =
+              data.enrouteData.copy(hasReservedFastChargerStall =
+                stall.chargingPointType.exists(ChargingPointType.isFastCharger)
+              )
+            (data.copy(enrouteData = updatedEnrouteData), updatedEnrouteData.isEnrouting)
+          case _ =>
+            (data, false)
+        }
+        updatedData match {
+          case data: BasePersonData if data.enrouteData.isInEnrouteState && !isEnrouting =>
+            // continue normal workflow if enroute is not possible or stalls are not available for selected parking
+            val (tick, triggerId) = releaseTickAndTriggerId()
+            scheduler ! CompletionNotice(
+              triggerId,
+              Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
+            )
+            ParkingNetworkManager.handleReleasingParkingSpot(
+              tick,
+              currentBeamVehicle,
+              None,
+              id,
+              parkingManager,
+              eventsManager
+            )
+            goto(WaitingToDrive) using data.copy(enrouteData = EnrouteData())
+          case _ =>
+            // Else the stall requires a diversion in travel, calc the new routes (in-vehicle to the stall and walking to the destination)
+            import context.dispatcher
+            val currentPoint = nextLeg.travelPath.startPoint
+            val currentLocUTM = beamServices.geo.wgs2Utm(currentPoint.loc)
+            val currentPointUTM = currentPoint.copy(loc = currentLocUTM)
+            val finalPoint = nextLeg.travelPath.endPoint
+            val streetVehicle = currentBeamVehicle.toStreetVehicle
+            // get route from customer to stall, add body for backup in case car route fails
+            val carStreetVeh =
+              StreetVehicle(
+                currentBeamVehicle.id,
+                currentBeamVehicle.beamVehicleType.id,
+                currentPointUTM,
+                streetVehicle.mode,
+                asDriver = true,
+                streetVehicle.needsToCalculateCost
+              )
+            val bodyStreetVeh =
+              StreetVehicle(
+                body.id,
+                body.beamVehicleType.id,
+                currentPointUTM,
+                WALK,
+                asDriver = true,
+                needsToCalculateCost = false
+              )
+            val veh2StallRequest = RoutingRequest(
+              currentLocUTM,
+              stall.locationUTM,
+              currentPoint.time,
+              withTransit = false,
+              Some(id),
+              Vector(carStreetVeh, bodyStreetVeh),
+              Some(attributes),
+              triggerId = getCurrentTriggerIdOrGenerate
+            )
+            val futureVehicle2StallResponse = router ? veh2StallRequest
+            val carIfEnroute = if (isEnrouting) {
+              // get car route from stall to destination
+              Vector(
+                StreetVehicle(
+                  currentBeamVehicle.id,
+                  currentBeamVehicle.beamVehicleType.id,
+                  SpaceTime(stall.locationUTM, currentPoint.time),
+                  streetVehicle.mode,
+                  asDriver = true,
+                  streetVehicle.needsToCalculateCost
+                )
+              )
+            } else Vector()
+            // get walk route from stall to destination, note we give a dummy start time and update later based on drive time to stall
+            val bodyStreetVehToDest = StreetVehicle(
               body.id,
               body.beamVehicleType.id,
               SpaceTime(stall.locationUTM, currentPoint.time),
@@ -201,21 +461,88 @@ trait ChoosesParking extends {
               asDriver = true,
               needsToCalculateCost = false
             )
-          ),
-          Some(attributes)
-        )
-
-        val responses = for {
-          vehicle2StallResponse     <- futureVehicle2StallResponse.mapTo[RoutingResponse]
-          stall2DestinationResponse <- futureStall2DestinationResponse.mapTo[RoutingResponse]
-        } yield (vehicle2StallResponse, stall2DestinationResponse)
-
-        responses pipeTo self
-        stay using data
+            val futureStall2DestinationResponse = router ? RoutingRequest(
+              stall.locationUTM,
+              beamServices.geo.wgs2Utm(finalPoint.loc),
+              currentPoint.time,
+              withTransit = false,
+              Some(id),
+              carIfEnroute :+ bodyStreetVehToDest,
+              Some(attributes),
+              triggerId = getCurrentTriggerIdOrGenerate
+            )
+            val responses = for {
+              vehicle2StallResponse     <- futureVehicle2StallResponse.mapTo[RoutingResponse]
+              stall2DestinationResponse <- futureStall2DestinationResponse.mapTo[RoutingResponse]
+            } yield (vehicle2StallResponse, stall2DestinationResponse)
+            responses pipeTo self
+            stay using updatedData
+        }
       }
+
+    // to keep it simple, adding new case here. [en-route]
     case Event(
-        (routingResponse1: RoutingResponse, routingResponse2: RoutingResponse),
-        data: BasePersonData
+          (vehicle2StallResponse: RoutingResponse, stall2DestinationResponse: RoutingResponse),
+          data: BasePersonData
+        ) if data.enrouteData.isEnrouting =>
+      // find car leg and split it for parking
+      def createCarLegs(legs: IndexedSeq[EmbodiedBeamLeg]): Vector[EmbodiedBeamLeg] = {
+        legs
+          .find(_.beamLeg.mode == CAR)
+          .map { beamLeg =>
+            EmbodiedBeamLeg.splitLegForParking(beamLeg, beamServices, transportNetwork)
+          }
+          .getOrElse {
+            log.error("EnRoute: car leg not found in routing response.")
+            Vector()
+          }
+      }
+
+      // calculate travel and parking leg from vehicle location to charging stall
+      val vehicle2StallCarLegs = createCarLegs(vehicle2StallResponse.itineraries.head.legs)
+      val stall2DestinationCarLegs = createCarLegs(stall2DestinationResponse.itineraries.head.legs)
+
+      // create new legs to travel to the charging stall
+      val (tick, triggerId) = releaseTickAndTriggerId()
+      val walkTemp = data.currentTrip.head.legs.head
+      val walkStart = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(tick))
+      val walkRest = data.currentTrip.head.legs.last
+      val newCurrentTripLegs: Vector[EmbodiedBeamLeg] =
+        EmbodiedBeamLeg.makeLegsConsistent(walkStart +: (vehicle2StallCarLegs :+ walkRest))
+      val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
+
+      // set two car legs in schedule
+      val newPassengerSchedule = PassengerSchedule().addLegs(newRestOfTrip.take(2).map(_.beamLeg))
+
+      scheduler ! CompletionNotice(
+        triggerId,
+        Vector(
+          ScheduleTrigger(
+            StartLegTrigger(newRestOfTrip.head.beamLeg.startTime, newRestOfTrip.head.beamLeg),
+            self
+          )
+        )
+      )
+
+      ParkingNetworkManager.handleReleasingParkingSpot(
+        tick,
+        currentBeamVehicle,
+        None,
+        id,
+        parkingManager,
+        eventsManager
+      )
+      goto(WaitingToDrive) using data.copy(
+        currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
+        restOfCurrentTrip = newRestOfTrip.toList,
+        passengerSchedule = newPassengerSchedule,
+        currentLegPassengerScheduleIndex = 0, // setting it 0 means we are about to start travelling first car leg.
+        enrouteData = data.enrouteData.copy(stall2DestLegs = stall2DestinationCarLegs)
+      )
+
+    case Event(
+          (vehicle2StallResponse: RoutingResponse, stall2DestinationResponse: RoutingResponse),
+          data: BasePersonData
         ) =>
       val (tick, triggerId) = releaseTickAndTriggerId()
       val nextLeg =
@@ -223,7 +550,7 @@ trait ChoosesParking extends {
 
       val vehicleMode = currentBeamVehicle.toStreetVehicle.mode
       // If no vehicle leg returned, use previous route to destination (i.e. assume parking is at dest)
-      var (leg1, leg2) = if (!routingResponse1.itineraries.exists(_.tripClassifier == vehicleMode)) {
+      var (leg1, leg2) = if (!vehicle2StallResponse.itineraries.exists(_.tripClassifier == vehicleMode)) {
         logDebug(s"no vehicle leg ($vehicleMode) returned by router, assuming parking spot is at destination")
         (
           EmbodiedBeamLeg(
@@ -234,18 +561,18 @@ trait ChoosesParking extends {
             0.0,
             unbecomeDriverOnCompletion = true
           ),
-          routingResponse2.itineraries.head.legs.head
+          stall2DestinationResponse.itineraries.head.legs.head
         )
       } else {
         (
-          routingResponse1.itineraries.view
+          vehicle2StallResponse.itineraries.view
             .filter(_.tripClassifier == vehicleMode)
             .head
             .legs
             .view
             .filter(_.beamLeg.mode == vehicleMode)
             .head,
-          routingResponse2.itineraries.head.legs.head
+          stall2DestinationResponse.itineraries.head.legs.head
         )
       }
       // Update start time of the second leg
@@ -262,14 +589,14 @@ trait ChoosesParking extends {
         .takeWhile(_.beamLeg != nextLeg) ++ newRestOfTrip
       val newPassengerSchedule = PassengerSchedule().addLegs(Vector(newRestOfTrip.head.beamLeg))
 
-      val (newVehicle, newVehicleToken) = if (leg1.beamLeg.mode == vehicleMode || currentBeamVehicle.id == body.id) {
-        (data.currentVehicle, currentBeamVehicle)
+      val newVehicle = if (leg1.beamLeg.mode == vehicleMode || currentBeamVehicle.id == body.id) {
+        data.currentVehicle
       } else {
         currentBeamVehicle.unsetDriver()
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(tick, id, data.currentVehicle.head)
         )
-        (data.currentVehicle.drop(1), body)
+        data.currentVehicle.drop(1)
       }
 
       scheduler ! CompletionNotice(
@@ -282,6 +609,15 @@ trait ChoosesParking extends {
         )
       )
 
+      ParkingNetworkManager.handleReleasingParkingSpot(
+        tick,
+        currentBeamVehicle,
+        None,
+        id,
+        parkingManager,
+        eventsManager
+      )
+
       goto(WaitingToDrive) using data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList,
@@ -290,33 +626,4 @@ trait ChoosesParking extends {
         currentVehicle = newVehicle
       )
   }
-
-  def calculateScore(
-    walkingDistance: Double,
-    cost: Double,
-    energyCharge: Double,
-    valueOfTime: Double
-  ): Double = -cost - energyCharge
-
-  private def handleReleasingParkingSpot(tick: Int, data: PersonData): Unit = {
-    val stallForLeavingParkingEvent = currentBeamVehicle.stall match {
-      case Some(stall) =>
-        parkingManager ! ReleaseParkingStall(stall)
-        currentBeamVehicle.unsetParkingStall()
-        stall
-      case None =>
-        // This can now happen if a vehicle was charging and released the stall already
-        currentBeamVehicle.lastUsedStall.get
-    }
-    val nextLeg = data.passengerSchedule.schedule.head._1
-    val distance =
-      beamServices.geo.distUTMInMeters(stallForLeavingParkingEvent.locationUTM, nextLeg.travelPath.endPoint.loc)
-    val energyCharge: Double = 0.0 //TODO
-    val timeCost: Double = 0.0 //scaleTimeByValueOfTime(0.0)
-    val score = calculateScore(distance, stallForLeavingParkingEvent.costInDollars, energyCharge, timeCost)
-    eventsManager.processEvent(
-      LeavingParkingEvent(tick, stallForLeavingParkingEvent, score, id.toString, currentBeamVehicle.id)
-    )
-  }
-
 }

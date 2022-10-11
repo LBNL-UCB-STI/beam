@@ -20,6 +20,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   private var bufferedRideHailRequests = Map[RideHailRequest, List[RoutingResponse]]()
   private var secondaryBufferedRideHailRequests = Map[RideHailRequest, List[RoutingResponse]]()
   private var awaitingRoutes = Set[RideHailRequest]()
+
   protected val maxWaitTimeInSec =
     rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec
 
@@ -66,7 +67,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     secondaryBufferedRideHailRequests = secondaryBufferedRideHailRequests + (request -> List())
   }
 
-  def clearPrimaryBufferAndFillFromSecondary: Unit = {
+  def clearPrimaryBufferAndFillFromSecondary(): Unit = {
     bufferedRideHailRequests = secondaryBufferedRideHailRequests
     secondaryBufferedRideHailRequests = Map()
   }
@@ -76,7 +77,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   def addRouteForRequestToBuffer(request: RideHailRequest, routingResponse: RoutingResponse): Unit = {
     if (awaitingRoutes.contains(request)) awaitingRoutes -= request
     if (!bufferedRideHailRequests.contains(request)) addRequestToBuffer(request)
-    bufferedRideHailRequests = bufferedRideHailRequests + (request -> (bufferedRideHailRequests(request) :+ routingResponse))
+    bufferedRideHailRequests =
+      bufferedRideHailRequests + (request -> (bufferedRideHailRequests(request) :+ routingResponse))
   }
 
   def removeRequestFromBuffer(request: RideHailRequest): Unit = {
@@ -99,22 +101,22 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
       Map.empty[RideHailRequest, scala.List[BeamRouter.RoutingResponse]]
     }
 
-    requestsNotMatchingDispatchProductType.foreach {
-      case (rideHailRequest, _) =>
-        removeRequestFromBuffer(rideHailRequest)
-        addRequestToSecondaryBuffer(rideHailRequest)
+    requestsNotMatchingDispatchProductType.foreach { case (rideHailRequest, _) =>
+      removeRequestFromBuffer(rideHailRequest)
+      addRequestToSecondaryBuffer(rideHailRequest)
     }
   }
 
   def allocateVehiclesToCustomers(
     tick: Int,
     beamServices: BeamServices,
-    dispatchProductType: DispatchProductType
+    dispatchProductType: DispatchProductType,
+    triggerId: Long
   ): AllocationResponse = {
     moveNonMatchingDispatchProductTypeToSecondaryBuffer(dispatchProductType)
 
     val allocationResponse =
-      allocateVehiclesToCustomers(tick, new AllocationRequests(bufferedRideHailRequests), beamServices)
+      allocateVehiclesToCustomers(tick, new AllocationRequests(bufferedRideHailRequests), beamServices, triggerId)
     allocationResponse match {
       case VehicleAllocations(allocations) =>
         allocations.foreach {
@@ -151,12 +153,13 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   def allocateVehiclesToCustomers(
     tick: Int,
     vehicleAllocationRequest: AllocationRequests,
-    beamServices: BeamServices
+    beamServices: BeamServices,
+    triggerId: Long
   ): AllocationResponse = {
     // closest request
     var alreadyAllocated: Set[Id[BeamVehicle]] = Set()
     val allocResponses = vehicleAllocationRequest.requests.map {
-      case (request, routingResponses) if (routingResponses.isEmpty) =>
+      case (request, routingResponses) if routingResponses.isEmpty =>
         val requestWithUpdatedLoc = RideHailRequest.projectCoordinatesToUtm(request, beamServices)
         rideHailManager.rideHailManagerHelper
           .getClosestIdleVehiclesWithinRadiusByETA(
@@ -172,7 +175,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
               rideHailManager.createRoutingRequestsToCustomerAndDestination(
                 tick,
                 requestWithUpdatedLoc,
-                agentETA.agentLocation
+                agentETA.agentLocation,
+                request.triggerId
               )
             )
             routeRequired
@@ -253,9 +257,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     val repositionManagerTry = rideHailManager.beamServices.beamCustomizationAPI.getRepositionManagerFactory
       .create(rideHailManager, repositioningManagerName)
 
-    repositionManagerTry.recoverWith {
-      case exception: Exception =>
-        throw new IllegalStateException(s"There is no implementation for `$repositioningManagerName`", exception)
+    repositionManagerTry.recoverWith { case exception: Exception =>
+      throw new IllegalStateException(s"There is no implementation for `$repositioningManagerName`", exception)
     }.get
   }
 }
@@ -351,12 +354,12 @@ case class VehicleMatchedToCustomers(
 case class AllocationRequests(requests: Map[RideHailRequest, List[RoutingResponse]])
 
 object AllocationRequests {
-  def apply(requests: List[RideHailRequest]): AllocationRequests = AllocationRequests(requests.map((_ -> List())).toMap)
+  def apply(requests: List[RideHailRequest]): AllocationRequests = AllocationRequests(requests.map(_ -> List()).toMap)
 
-  def apply(request: RideHailRequest): AllocationRequests = AllocationRequests(Map((request -> List())))
+  def apply(request: RideHailRequest): AllocationRequests = AllocationRequests(Map(request -> List()))
 
   def apply(request: RideHailRequest, routeResponses: List[RoutingResponse]): AllocationRequests =
-    AllocationRequests(Map((request -> routeResponses)))
+    AllocationRequests(Map(request -> routeResponses))
 }
 
 sealed trait DispatchProductType extends EnumEntry

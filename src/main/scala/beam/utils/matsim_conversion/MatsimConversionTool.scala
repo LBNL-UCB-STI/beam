@@ -158,9 +158,9 @@ object MatsimConversionTool extends App {
   }
 
   // From https://www.extension.iastate.edu/agdm/wholefarm/pdf/c6-87.pdf
-  val GASOLINE_JOULE_PER_LITER = 34.8E6
-  val DIESEL_JOULE_PER_LITER = 38.7E6
-  val BIODIESEL_JOULE_PER_LITER = 35.2E6
+  val GASOLINE_JOULE_PER_LITER = 34.8e6
+  val DIESEL_JOULE_PER_LITER = 38.7e6
+  val BIODIESEL_JOULE_PER_LITER = 35.2e6
   val ELECTRICITY_JOULE_PER_LITER = 1
 
   def beamVehicleTypeToMatsimVehicleType(beamVehicleType: BeamVehicleType): VehicleType = {

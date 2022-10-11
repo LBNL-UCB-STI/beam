@@ -4,7 +4,6 @@ import beam.agentsim.events.SpaceTime
 import beam.router.model.RoutingModel.TransitStopsInfo
 
 /**
-  *
   * @param linkIds      either matsim linkId or R5 edgeIds that describes whole path
   * @param transitStops start and end stop if this path is transit (partial) route
   *
@@ -12,8 +11,8 @@ import beam.router.model.RoutingModel.TransitStopsInfo
   * We therefore ignore the first link in estimating travel time.
   */
 case class BeamPath(
-  linkIds: IndexedSeq[Int],
-  linkTravelTime: IndexedSeq[Double],
+  linkIds: Array[Int],
+  linkTravelTime: Array[Double],
   transitStops: Option[TransitStopsInfo],
   startPoint: SpaceTime,
   endPoint: SpaceTime,
@@ -34,16 +33,20 @@ case class BeamPath(
 
   def duration: Int = endPoint.time - startPoint.time
 
-  if (linkTravelTime.size > 1 && math.abs(math.round(linkTravelTime.tail.sum).toInt - (endPoint.time - startPoint.time)) > 2) {
+  if (
+    linkTravelTime.length > 1 && math.abs(
+      math.round(linkTravelTime.tail.sum).toInt - (endPoint.time - startPoint.time)
+    ) > 2
+  ) {
     throw new IllegalStateException("Total travel time and total sum by edges are not same")
   }
 
-  def toShortString: String =
-    if (linkIds.nonEmpty) {
-      s"${linkIds.head} .. ${linkIds(linkIds.size - 1)}"
-    } else {
-      ""
+  def toShortString: String = {
+    linkIds.headOption match {
+      case Some(head) => s"$head .. ${linkIds(linkIds.length - 1)}"
+      case None       => ""
     }
+  }
 
   def updateStartTime(newStartTime: Int): BeamPath =
     this.copy(
@@ -53,34 +56,39 @@ case class BeamPath(
 
   def scaleTravelTimes(scaleBy: Double): BeamPath = {
     val newLinkTimes = this.linkTravelTime.map(travelTime => travelTime * scaleBy)
-    val newDuration = if (newLinkTimes.size > 1) { math.round(newLinkTimes.tail.sum).toInt } else { 0 }
+    val newDuration = if (newLinkTimes.length > 1) { math.round(newLinkTimes.tail.sum).toInt }
+    else { 0 }
     this.copy(
       linkTravelTime = newLinkTimes,
       endPoint = this.endPoint.copy(time = this.startPoint.time + newDuration)
     )
   }
 
+  @SuppressWarnings(Array("UnsafeTraversableMethods"))
   def linkAtTime(tick: Int): Int = {
     tick - startPoint.time match {
-      case secondsAlongPath if secondsAlongPath <= 0 || linkIds.size <= 1 =>
+      case secondsAlongPath if secondsAlongPath <= 0 || linkIds.length <= 1 =>
+        // TODO: there is a likely bug here because linkIds.size can be 0(zero)
         linkIds.head
       case secondsAlongPath if secondsAlongPath > linkTravelTime.tail.sum =>
         linkIds.last
       case secondsAlongPath =>
-        if (linkTravelTime.tail.scanLeft(0.0)((a, b) => a + b).indexWhere(_ >= secondsAlongPath) < 0) {
-          val i = 0
-        }
-        linkIds.tail(linkTravelTime.tail.scanLeft(0.0)((a, b) => a + b).indexWhere(_ >= secondsAlongPath) - 1)
+        val linkTravelTimeTail = linkTravelTime.drop(1)
+        val index = linkTravelTimeTail.scanLeft(0.0)((a, b) => a + b).indexWhere(_ >= secondsAlongPath) - 1
+        linkIds.drop(1)(index)
     }
   }
 }
 
 //case object EmptyBeamPath extends BeamPath(Vector[String](), None, departure = SpaceTime(Double.PositiveInfinity, Double.PositiveInfinity, Long.MaxValue), arrival = SpaceTime(Double.NegativeInfinity, Double.NegativeInfinity, Long.MinValue))
 object BeamPath extends Ordering[BeamPath] {
-  val empty: BeamPath = BeamPath(Vector[Int](), Vector(), None, SpaceTime(0, 0, 0), SpaceTime(2, 2, 2), 0)
+  val empty: BeamPath = BeamPath(Array[Int](), Array[Double](), None, SpaceTime(0, 0, 0), SpaceTime(2, 2, 2), 0)
 
   import scala.annotation.tailrec
 
+  // TODO: looks like a bug on scapegoat.
+  //  it does not recognize the usage of implicit ev variable (used inside internal function)
+  @SuppressWarnings(Array("UnusedMethodParameter"))
   def compareSeq[T: Numeric](xArr: IndexedSeq[T], yArr: IndexedSeq[T])(implicit ev: Numeric[T]): Int = {
     @tailrec
     def loop(idx: Int, shouldStop: Boolean, result: Int): Int = {

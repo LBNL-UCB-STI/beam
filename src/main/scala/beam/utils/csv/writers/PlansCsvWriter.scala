@@ -1,8 +1,8 @@
 package beam.utils.csv.writers
 
 import scala.collection.JavaConverters._
-
 import beam.utils.scenario.{PersonId, PlanElement}
+import ScenarioCsvWriter._
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Leg, Plan, PlanElement => MatsimPlanElement}
 import org.matsim.core.population.routes.NetworkRoute
@@ -10,6 +10,7 @@ import org.matsim.core.population.routes.NetworkRoute
 object PlansCsvWriter extends ScenarioCsvWriter {
 
   override protected val fields: Seq[String] = Seq(
+    "tripId",
     "personId",
     "planIndex",
     "planScore",
@@ -32,24 +33,22 @@ object PlansCsvWriter extends ScenarioCsvWriter {
   )
 
   private def getPlanInfo(scenario: Scenario): Iterator[PlanElement] = {
-    scenario.getPopulation.getPersons.asScala.iterator.flatMap {
-      case (_, person) =>
-        val selectedPlan = person.getSelectedPlan
-        person.getPlans.asScala.zipWithIndex.flatMap {
-          case (plan: Plan, planIndex: Int) =>
-            val isSelected = selectedPlan == plan
-            plan.getPlanElements.asScala.zipWithIndex.map {
-              case (planElement, planElementIndex) =>
-                toPlanInfo(
-                  planIndex = planIndex,
-                  personId = plan.getPerson.getId.toString,
-                  planScore = plan.getScore,
-                  isSelectedPlan = isSelected,
-                  planElement = planElement,
-                  planeElementIndex = planElementIndex,
-                )
-            }
+
+    scenario.getPopulation.getPersons.asScala.iterator.flatMap { case (_, person) =>
+      val selectedPlan = person.getSelectedPlan
+      person.getPlans.asScala.zipWithIndex.flatMap { case (plan: Plan, planIndex: Int) =>
+        val isSelected = selectedPlan == plan
+        plan.getPlanElements.asScala.zipWithIndex.map { case (planElement, planElementIndex) =>
+          toPlanInfo(
+            planIndex = planIndex,
+            personId = plan.getPerson.getId.toString,
+            planScore = plan.getScore,
+            isSelectedPlan = isSelected,
+            planElement = planElement,
+            planeElementIndex = planElementIndex
+          )
         }
+      }
     }
   }
 
@@ -76,11 +75,16 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
         val route = Option(leg.getRoute)
         PlanElement(
+          tripId = if (leg.getAttributes.getAttribute("trip_id") != null) {
+            leg.getAttributes.getAttribute("trip_id").toString.filter(x => x.isDigit || x.equals('.'))
+          } else {
+            ""
+          },
           personId = PersonId(personId),
           planIndex = planIndex,
           planScore = planScore,
           planSelected = isSelectedPlan,
-          planElementType = "leg",
+          planElementType = PlanElement.Leg,
           planElementIndex = planeElementIndex,
           activityType = None,
           activityLocationX = None,
@@ -99,11 +103,12 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         )
       case act: Activity =>
         PlanElement(
+          tripId = "",
           personId = PersonId(personId),
           planIndex = planIndex,
           planScore = planScore,
           planSelected = isSelectedPlan,
-          planElementType = "activity",
+          planElementType = PlanElement.Activity,
           planElementIndex = planeElementIndex,
           activityType = Option(act.getType),
           activityLocationX = Option(act.getCoord.getX),
@@ -136,6 +141,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
   private def toLine(planInfo: PlanElement): String = {
     Seq(
+      planInfo.tripId,
       planInfo.personId.id,
       planInfo.planIndex,
       planInfo.planScore,

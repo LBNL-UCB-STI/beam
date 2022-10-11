@@ -16,7 +16,7 @@ class CarTravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean])
 
   private val events = new ArrayBuffer[ArrivalDepartureEvent]
 
-  def shouldTakeThisEvent(personId: Id[Person], legMode: String): Boolean = {
+  def shouldTakeThisEvent(personId: Id[Person]): Boolean = {
     val pid = personId.toString.toLowerCase
     val isCacc = isCACCVehicle.getOrElse(pid, false)
     // No buses && no ridehailes and no cacc vehicles
@@ -27,11 +27,11 @@ class CarTravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean])
   override def handleEvent(event: Event): Unit = {
     event match {
       case pae: PersonArrivalEvent =>
-        if (shouldTakeThisEvent(pae.getPersonId, pae.getLegMode)) {
+        if (shouldTakeThisEvent(pae.getPersonId)) {
           events += ArrivalDepartureEvent(pae.getPersonId.toString, pae.getTime.toInt, "arrival")
         }
       case pde: PersonDepartureEvent =>
-        if (shouldTakeThisEvent(pde.getPersonId, pde.getLegMode)) {
+        if (shouldTakeThisEvent(pde.getPersonId)) {
           events += ArrivalDepartureEvent(pde.getPersonId.toString, pde.getTime.toInt, "departure")
         }
       case _ =>
@@ -40,21 +40,20 @@ class CarTravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean])
 
   def compute: Statistics = {
     val groupedByPerson = events.groupBy(x => x.personId)
-    val allTravelTimes = groupedByPerson.flatMap {
-      case (personId, xs) =>
-        val sorted = xs.sortBy(z => z.time)
-        val sliding = sorted.sliding(2, 2)
-        val travelTimes = sliding
-          .map { curr =>
-            if (curr.size != 2) {
-              0
-            } else {
-              val travelTime = curr(1).time - curr(0).time
-              travelTime
-            }
+    val allTravelTimes = groupedByPerson.flatMap { case (_, xs) =>
+      val sorted = xs.sortBy(z => z.time)
+      val sliding = sorted.sliding(2, 2)
+      val travelTimes = sliding
+        .map { curr =>
+          if (curr.size != 2) {
+            0
+          } else {
+            val travelTime = curr(1).time - curr(0).time
+            travelTime
           }
-          .filter(x => x != 0)
-        travelTimes
+        }
+        .filter(x => x != 0)
+      travelTimes
     }
     Statistics(allTravelTimes.map(t => t.toDouble / 60).toArray)
   }

@@ -1,12 +1,9 @@
 package beam.analysis
 
-//import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent}
 import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent}
 import beam.analysis.plots.{GraphAnalysis, GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.sim.metrics.MetricsSupport
 import beam.utils.logging.ExponentialLazyLogging
-import org.jfree.chart.ChartFactory
-import org.jfree.chart.plot.PlotOrientation
 import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -78,8 +75,8 @@ class VehicleChargingAnalysis extends GraphAnalysis with ExponentialLazyLogging 
   private def createChargingDataset(): CategoryDataset = {
     val dataset = new DefaultCategoryDataset
 
-    hourlyChargingCount.foreach({
-      case (hour, count) => dataset.addValue(count, "charging-vehicle", hour)
+    hourlyChargingCount.foreach({ case (hour, count) =>
+      dataset.addValue(count, "charging-vehicle", hour)
     })
 
     dataset

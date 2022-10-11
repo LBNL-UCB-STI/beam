@@ -17,9 +17,8 @@ class ClusterWorkerRouter(config: Config) extends Actor with ActorLogging {
   def getNameAndHashCode: String = s"ClusterWorkerRouter[${hashCode()}], Path: `${self.path}`"
   log.info("{} inited. workerRouter => {}", getNameAndHashCode, workerRouter)
 
-  def receive: Receive = {
-    case other =>
-      log.debug("{} received {}", getNameAndHashCode, other)
-      workerRouter.forward(other)
+  def receive: Receive = { case other =>
+    log.debug("{} received {}", getNameAndHashCode, other)
+    workerRouter.forward(other)
   }
 }

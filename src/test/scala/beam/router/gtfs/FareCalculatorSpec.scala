@@ -5,11 +5,11 @@ import beam.sim.BeamHelper
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import org.scalatest.WordSpecLike
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.language.postfixOps
 
-class FareCalculatorSpec extends WordSpecLike with BeamHelper {
+class FareCalculatorSpec extends AnyWordSpecLike with BeamHelper {
 
   "Using sf-light calculator" when {
     val config = testConfig("test/input/sf-light/sf-light.conf").resolve()
@@ -99,10 +99,10 @@ class FareCalculatorSpec extends WordSpecLike with BeamHelper {
           .getFareSegments("CE", "ACE", null, null, Set("55448", "55449", "55643"))
           .map(BeamFareSegment(_, 0, 3200)) ++
 //          testFareCalc.getFareSegments("CE", "ACE", "55643", "55644").map(BeamFareSegment(_, 0, 3800)) ++
-        testFareCalc
-          .getFareSegments("CE", "ACE", "55644", "55645")
-          .map(BeamFareSegment(_, 0, 4300)) ++
-        testFareCalc.getFareSegments("CE", "ACE", "55645", "55645").map(BeamFareSegment(_, 0, 4700))
+          testFareCalc
+            .getFareSegments("CE", "ACE", "55644", "55645")
+            .map(BeamFareSegment(_, 0, 4300)) ++
+          testFareCalc.getFareSegments("CE", "ACE", "55645", "55645").map(BeamFareSegment(_, 0, 4700))
         val fsf = filterFaresOnTransfers(fr)
         assert(fsf.nonEmpty)
         assert(fsf.size == 3)

@@ -21,7 +21,7 @@ object RoutingModel {
     travelTimeByEnterTimeAndLinkId: (Int, Int) => Int
   ): Iterator[Event] = {
     if (leg.travelPath.linkIds.size >= 2) {
-      val links = leg.travelPath.linkIds.view
+      val links = leg.travelPath.linkIds
       val fullyTraversedLinks = links.drop(1).dropRight(1)
 
       def exitTimeByEnterTimeAndLinkId(enterTime: Int, linkId: Int) =
@@ -29,10 +29,9 @@ object RoutingModel {
 
       val timesAtNodes = fullyTraversedLinks.scanLeft(leg.startTime)(exitTimeByEnterTimeAndLinkId)
       val events = new ArrayBuffer[Event]()
-      links.sliding(2).zip(timesAtNodes.iterator).foreach {
-        case (Seq(from, to), timeAtNode) =>
-          events += new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from))
-          events += new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to))
+      links.sliding(2).zip(timesAtNodes.iterator).foreach { case (Array(from, to), timeAtNode) =>
+        events += new LinkLeaveEvent(timeAtNode, vehicleId, Id.createLinkId(from))
+        events += new LinkEnterEvent(timeAtNode, vehicleId, Id.createLinkId(to))
       }
       events.toIterator
     } else {

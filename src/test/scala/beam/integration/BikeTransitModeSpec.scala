@@ -25,13 +25,15 @@ import org.matsim.api.core.v01.events.{
 import org.matsim.api.core.v01.population.{Activity, Leg}
 import org.matsim.core.events.handler.BasicEventHandler
 import org.scalatest._
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.language.postfixOps
 
 class BikeTransitModeSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with TestKitBase
     with SimRunnerForTest
     with RouterForTest
@@ -42,9 +44,9 @@ class BikeTransitModeSpec
     ConfigFactory
       .parseString("""
           |akka.test.timefactor = 10
-          |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept = 0
-          |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept = 10
-          |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_transit_intercept = 20
+          |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.drive_transit_intercept = 0
+          |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_intercept = 10
+          |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_transit_intercept = 20
           |""".stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
 
@@ -61,9 +63,8 @@ class BikeTransitModeSpec
         .values()
         .forEach { person =>
           {
-            person.getSelectedPlan.getPlanElements.asScala.collect {
-              case leg: Leg =>
-                leg.setMode("bike_transit")
+            person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg =>
+              leg.setMode("bike_transit")
             }
           }
         }
@@ -94,7 +95,7 @@ class BikeTransitModeSpec
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
         services.networkHelper,
-        new RideHailFleetInitializerProvider(services, beamScenario, scenario),
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario)
       )
       mobsim.run()
 
@@ -111,9 +112,8 @@ class BikeTransitModeSpec
         .values()
         .forEach { person =>
           {
-            person.getSelectedPlan.getPlanElements.asScala.collect {
-              case leg: Leg =>
-                leg.setMode("bike_transit")
+            person.getSelectedPlan.getPlanElements.asScala.collect { case leg: Leg =>
+              leg.setMode("bike_transit")
             }
           }
         }
@@ -151,7 +151,7 @@ class BikeTransitModeSpec
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
         services.networkHelper,
-        new RideHailFleetInitializerProvider(services, beamScenario, scenario),
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario)
       )
       mobsim.run()
 

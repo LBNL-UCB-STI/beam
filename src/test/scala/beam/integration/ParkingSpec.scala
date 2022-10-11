@@ -1,18 +1,26 @@
 package beam.integration
 
 import java.io.File
-
 import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ParkingEvent, PathTraversalEvent}
 import beam.sim.BeamHelper
 import beam.utils.EventReader
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.events.Event
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.tagobjects.Retryable
 
 import scala.collection.mutable.ArrayBuffer
 
-class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with BeamHelper with IntegrationSpecCommon {
+class ParkingSpec
+    extends AnyWordSpecLike
+    with BeforeAndAfterAll
+    with Matchers
+    with BeamHelper
+    with IntegrationSpecCommon
+    with Repeated {
 
   def runAndCollectEvents(parkingScenario: String): Seq[Event] = {
     runAndCollectForIterations(parkingScenario, 1).head
@@ -39,31 +47,31 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
         ConfigValueFactory.fromAnyRef(TestConstants.MODE_CHOICE_MULTINOMIAL_LOGIT)
       )
       .withValue(
-        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.car_intercept",
+        "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.car_intercept",
         ConfigValueFactory.fromAnyRef(1.0)
       )
       .withValue(
-        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_transit_intercept",
+        "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.walk_transit_intercept",
         ConfigValueFactory.fromAnyRef(0.0)
       )
       .withValue(
-        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept",
+        "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.drive_transit_intercept",
         ConfigValueFactory.fromAnyRef(0.0)
       )
       .withValue(
-        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept",
+        "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_transit_intercept",
         ConfigValueFactory.fromAnyRef(0.0)
       )
       .withValue(
-        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept",
+        "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept",
         ConfigValueFactory.fromAnyRef(0.0)
       )
       .withValue(
-        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.walk_intercept",
+        "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.walk_intercept",
         ConfigValueFactory.fromAnyRef(-5.0)
       )
       .withValue(
-        "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept",
+        "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_intercept",
         ConfigValueFactory.fromAnyRef(0.0)
       )
       .withValue("matsim.modules.strategy.ModuleProbability_1", ConfigValueFactory.fromAnyRef(0.3))
@@ -120,98 +128,90 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
   }
 
   "Parking system " must {
-    "guarantee at least some parking used " in {
+    "guarantee at least some parking used " taggedAs Retryable in {
       val parkingEvents =
         defaultEvents.head.filter(e => ParkingEvent.EVENT_TYPE.equals(e.getEventType))
       parkingEvents.size should be > 0
     }
 
-    "departure and arrival should be from same parking 4 tuple" in {
+    "departure and arrival should be from same parking 4 tuple" taggedAs Retryable in {
 
       val parkingEvents =
         defaultEvents.head.filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
-      val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) {
-        case (c, ev) =>
-          val vehId = ev.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
-          val array = c.getOrElse(vehId, ArrayBuffer[Event]())
-          array.append(ev)
-          c.updated(vehId, array)
+      val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) { case (c, ev) =>
+        val vehId = ev.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
+        val array = c.getOrElse(vehId, ArrayBuffer[Event]())
+        array.append(ev)
+        c.updated(vehId, array)
       }
 
-      val res = groupedByVehicle.map {
-        case (id, x) =>
-          val (parkEvents, leavingEvents) =
-            x.partition(e => ParkingEvent.EVENT_TYPE.equals(e.getEventType))
+      val res = groupedByVehicle.map { case (id, x) =>
+        val (parkEvents, leavingEvents) =
+          x.partition(e => ParkingEvent.EVENT_TYPE.equals(e.getEventType))
 
-          // First and last park events won't match
-          val parkEventsWithoutLast = parkEvents.dropRight(1)
-          val leavingParkEventsWithoutFirst = leavingEvents.tail
+        // First and last park events won't match
+        val parkEventsWithoutLast = parkEvents.dropRight(1)
+        val leavingParkEventsWithoutFirst = leavingEvents.tail
 
-          parkEventsWithoutLast.size shouldEqual leavingParkEventsWithoutFirst.size
-          (id, parkEventsWithoutLast zip leavingParkEventsWithoutFirst)
+        parkEventsWithoutLast.size shouldEqual leavingParkEventsWithoutFirst.size
+        (id, parkEventsWithoutLast zip leavingParkEventsWithoutFirst)
       }
 
-      res.collect {
-        case (_, array) =>
-          array.foreach {
-            case (evA, evB) =>
-              List(
-                ParkingEvent.ATTRIBUTE_PARKING_TAZ,
-                ParkingEvent.ATTRIBUTE_PARKING_TYPE,
-                ParkingEvent.ATTRIBUTE_PRICING_MODEL,
-                ParkingEvent.ATTRIBUTE_CHARGING_TYPE
-              ).foreach { k =>
-                evA.getAttributes.get(k) should equal(evB.getAttributes.get(k))
-              }
-              evA.getAttributes.get("time").toDouble should be <= evB.getAttributes
-                .get("time")
-                .toDouble
+      res.collect { case (_, array) =>
+        array.foreach { case (evA, evB) =>
+          List(
+            ParkingEvent.ATTRIBUTE_PARKING_TAZ,
+            ParkingEvent.ATTRIBUTE_PARKING_TYPE,
+            ParkingEvent.ATTRIBUTE_PRICING_MODEL,
+            ParkingEvent.ATTRIBUTE_CHARGING_TYPE
+          ).foreach { k =>
+            evA.getAttributes.get(k) should equal(evB.getAttributes.get(k))
           }
+          evA.getAttributes.get("time").toDouble should be <= evB.getAttributes
+            .get("time")
+            .toDouble
+        }
       }
     }
 
-    "Park event should be thrown after last path traversal" in {
+    "Park event should be thrown after last path traversal" taggedAs Retryable in {
       val parkingEvents =
         defaultEvents.head.filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
 
-      val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) {
-        case (c, ev) =>
-          val vehId = ev.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
-          val array = c.getOrElse(vehId, ArrayBuffer[Event]())
-          array.append(ev)
-          c.updated(vehId, array)
+      val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) { case (c, ev) =>
+        val vehId = ev.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
+        val array = c.getOrElse(vehId, ArrayBuffer[Event]())
+        array.append(ev)
+        c.updated(vehId, array)
       }
 
-      val vehToParkLeavingEvents = groupedByVehicle.map {
-        case (id, x) =>
-          val (parkEvents, leavingEvents) =
-            x.partition(e => ParkingEvent.EVENT_TYPE.equals(e.getEventType))
-          (id, leavingEvents zip parkEvents)
+      val vehToParkLeavingEvents = groupedByVehicle.map { case (id, x) =>
+        val (parkEvents, leavingEvents) =
+          x.partition(e => ParkingEvent.EVENT_TYPE.equals(e.getEventType))
+        (id, leavingEvents zip parkEvents)
       }
 
       val pathTraversalEvents =
         defaultEvents.head.filter(event => PathTraversalEvent.EVENT_TYPE.equals(event.getEventType))
 
-      vehToParkLeavingEvents.foreach {
-        case (currVehId, events) =>
-          events.foreach {
-            case (leavingParkEvent, parkEvent) =>
-              val pathTraversalEventsInRange = pathTraversalEvents.filter { event =>
-                val vehId = event.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
-                currVehId.equals(vehId) &&
-                event.getTime >= leavingParkEvent.getTime &&
-                event.getTime <= parkEvent.getTime
-              }
-              pathTraversalEventsInRange.size should be > 1
-              val lastPathTravInRange = pathTraversalEventsInRange.maxBy(_.getTime)
-              val indexOfLastPathTravInRange = defaultEvents.head.indexOf(lastPathTravInRange)
-              val indexOfParkEvent = defaultEvents.head.indexOf(parkEvent)
-              indexOfLastPathTravInRange should be < indexOfParkEvent
+      vehToParkLeavingEvents.foreach { case (currVehId, events) =>
+        events.foreach { case (leavingParkEvent, parkEvent) =>
+          val pathTraversalEventsInRange = pathTraversalEvents.filter { event =>
+            val vehId = event.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
+            currVehId.equals(vehId) &&
+            event.getTime >= leavingParkEvent.getTime &&
+            event.getTime <= parkEvent.getTime
           }
+          pathTraversalEventsInRange.size should be > 1
+          val lastPathTravInRange = pathTraversalEventsInRange.maxBy(_.getTime)
+          val indexOfLastPathTravInRange = defaultEvents.head.indexOf(lastPathTravInRange)
+          val indexOfParkEvent = defaultEvents.head.indexOf(parkEvent)
+          indexOfLastPathTravInRange should be < indexOfParkEvent
+        }
       }
     }
 
-    "very expensive parking should reduce driving" ignore { // flakey test
+    "very expensive parking should reduce driving" taggedAs Retryable ignore { // flakey test
       val expensiveEvents = runAndCollectForIterations("very-expensive", 5)
 
       val expensiveModeChoiceCarCount = expensiveEvents.map(countForPathTraversalAndCarMode)
@@ -225,7 +225,7 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
         .sum should be > expensiveModeChoiceCarCount.takeRight(5).sum
     }
 
-    "no parking stalls should reduce driving" ignore { // flakey test
+    "no parking stalls should reduce driving" taggedAs Retryable ignore { // flakey test
       val emptyEvents = runAndCollectForIterations("empty", 5)
 
       val emptyModeChoiceCarCount = emptyEvents.map(countForPathTraversalAndCarMode)
@@ -239,5 +239,4 @@ class ParkingSpec extends WordSpecLike with BeforeAndAfterAll with Matchers with
         .sum should be > emptyModeChoiceCarCount.takeRight(5).sum
     }
   }
-
 }

@@ -17,8 +17,10 @@ case class RefuelSessionEvent(
   energyInJoules: Double,
   sessionStartingFuelLevelInJoules: Double,
   sessionDuration: Double,
-  val vehId: Id[Vehicle],
+  vehicleId: Id[Vehicle],
   vehicleType: BeamVehicleType,
+  personId: Id[Person],
+  activityType: String,
   shiftStatus: ShiftStatus = NotApplicable
 ) extends Event(tick)
     with HasPersonId
@@ -26,16 +28,16 @@ case class RefuelSessionEvent(
 
   import RefuelSessionEvent._
 
-  override def getPersonId: Id[Person] = Id.create(vehId, classOf[Person])
+  override def getPersonId: Id[Person] = Id.create(vehicleId, classOf[Person])
   override def getEventType: String = EVENT_TYPE
 
-  val parkingZoneId = stall.parkingZoneId
+  private val parkingZoneId = stall.parkingZoneId
 
-  val pricingModelString = stall.pricingModel.map { _.toString }.getOrElse("None")
-  val chargingPointString = stall.chargingPointType.map { _.toString }.getOrElse("None")
+  private val pricingModelString = stall.pricingModel.map { _.toString }.getOrElse("None")
+  val chargingPointString: String = stall.chargingPointType.map { _.toString }.getOrElse("None")
   val parkingType: String = stall.parkingType.toString
 
-  val shiftStatusString = shiftStatus match {
+  private val shiftStatusString = shiftStatus match {
     case NotApplicable =>
       ""
     case status =>
@@ -46,7 +48,7 @@ case class RefuelSessionEvent(
     val attributes = super.getAttributes
     attributes.put(ATTRIBUTE_ENERGY_DELIVERED, energyInJoules.toString)
     attributes.put(ATTRIBUTE_SESSION_DURATION, sessionDuration.toString)
-    attributes.put(ATTRIBUTE_VEHICLE_ID, vehId.toString)
+    attributes.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
     attributes.put(ATTRIBUTE_PRICE, stall.costInDollars.toString)
     attributes.put(ATTRIBUTE_PARKING_ZONE_ID, parkingZoneId.toString)
     attributes.put(ATTRIBUTE_LOCATION_X, stall.locationUTM.getX.toString)
@@ -56,6 +58,8 @@ case class RefuelSessionEvent(
     attributes.put(ATTRIBUTE_CHARGING_TYPE, chargingPointString)
     attributes.put(ATTRIBUTE_PARKING_TAZ, stall.tazId.toString)
     attributes.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType.id.toString)
+    attributes.put(ATTRIBUTE_PERSON, personId.toString)
+    attributes.put(ATTRIBUTE_ACTTYPE, activityType.toString)
     attributes.put(ATTRIBUTE_SHIFT_STATUS, shiftStatusString)
     attributes
   }
@@ -72,10 +76,12 @@ object RefuelSessionEvent {
   val ATTRIBUTE_LOCATION_Y: String = "locationY"
   val ATTRIBUTE_PARKING_TYPE: String = "parkingType"
   val ATTRIBUTE_PRICING_MODEL: String = "pricingModel"
-  val ATTRIBUTE_CHARGING_TYPE: String = "chargingType"
+  val ATTRIBUTE_CHARGING_TYPE: String = "chargingPointType"
   val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
   val ATTRIBUTE_VEHICLE_TYPE: String = "vehicleType"
   val ATTRIBUTE_SHIFT_STATUS: String = "shiftStatus"
+  val ATTRIBUTE_PERSON: String = "person"
+  val ATTRIBUTE_ACTTYPE: String = "actType"
 
   sealed trait ShiftStatus
   case object OnShift extends ShiftStatus

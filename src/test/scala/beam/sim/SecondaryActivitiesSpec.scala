@@ -14,15 +14,16 @@ import org.matsim.api.core.v01.events.{ActivityEndEvent, Event}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.scalatest.{BeforeAndAfterAll, Matchers, WordSpecLike}
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.wordspec.AnyWordSpecLike
+import org.scalatest.matchers.must.Matchers
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 import scala.io.Source
 
 class SecondaryActivitiesSpec
-    extends WordSpecLike
+    extends AnyWordSpecLike
     with Matchers
     with BeamHelper
     with GenericEventsSpec
@@ -33,9 +34,9 @@ class SecondaryActivitiesSpec
       .parseString(s"""
                     |beam.agentsim.lastIteration = 0
                     |beam.exchange.scenario.urbansim.activitySimEnabled = true
-                    |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
-                    |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.intercept_file_path = "test/test-resources/beam/agentsim/activities/activity-intercepts.csv"
-                    |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.activity_file_path = "test/test-resources/beam/agentsim/activities/activity-params.csv"
+                    |beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = true
+                    |beam.agentsim.agents.tripBehaviors.multinomialLogit.intercept_file_path = "test/test-resources/beam/agentsim/activities/activity-intercepts.csv"
+                    |beam.agentsim.agents.tripBehaviors.multinomialLogit.activity_file_path = "test/test-resources/beam/agentsim/activities/activity-params.csv"
                      """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
@@ -67,7 +68,7 @@ class SecondaryActivitiesSpec
     eventManager = injector.getInstance(classOf[EventsManager])
     networkHelper = injector.getInstance(classOf[NetworkHelper])
 
-    val interceptFilePath = beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.intercept_file_path
+    val interceptFilePath = beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.intercept_file_path
     val interceptPath = Source.fromFile(interceptFilePath)
     interceptMode = interceptPath.getLines().next().split(",").drop(1).toSet
     interceptPath.close()
@@ -97,10 +98,8 @@ class SecondaryActivitiesSpec
       val (_, output, _) = runBeamWithConfig(config)
       val modeChoice = extractFileContent(output, "modeChoice.csv")
       val modeChoiceCommute = extractFileContent(output, "modeChoice_commute.csv")
-      modeChoiceCommute.foreach {
-        case (mode, value) => {
-          assert(value <= modeChoice(mode))
-        }
+      modeChoiceCommute.foreach { case (mode, value) =>
+        assert(value <= modeChoice(mode))
       }
     }
 
@@ -110,9 +109,9 @@ class SecondaryActivitiesSpec
         .parseString(s"""
                         |beam.agentsim.lastIteration = 0
                         |beam.exchange.scenario.urbansim.activitySimEnabled = true
-                        |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
-                        |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.intercept_file_path = "test/test-resources/beam/agentsim/activities/activity-intercepts-0.csv"
-                        |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.activity_file_path = "test/test-resources/beam/agentsim/activities/activity-params.csv"
+                        |beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = true
+                        |beam.agentsim.agents.tripBehaviors.multinomialLogit.intercept_file_path = "test/test-resources/beam/agentsim/activities/activity-intercepts-0.csv"
+                        |beam.agentsim.agents.tripBehaviors.multinomialLogit.activity_file_path = "test/test-resources/beam/agentsim/activities/activity-params.csv"
                      """.stripMargin)
         .withFallback(testConfig("test/input/beamville/beam.conf"))
         .resolve()
@@ -129,9 +128,9 @@ class SecondaryActivitiesSpec
         .parseString(s"""
                         |beam.agentsim.lastIteration = 0
                         |beam.exchange.scenario.urbansim.activitySimEnabled = true
-                        |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities = true
-                        |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.intercept_file_path = "test/test-resources/beam/agentsim/activities/activity-intercepts-high.csv"
-                        |beam.agentsim.agents.tripBehaviors.mulitnomialLogit.activity_file_path = "test/test-resources/beam/agentsim/activities/activity-params.csv"
+                        |beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities = true
+                        |beam.agentsim.agents.tripBehaviors.multinomialLogit.intercept_file_path = "test/test-resources/beam/agentsim/activities/activity-intercepts-high.csv"
+                        |beam.agentsim.agents.tripBehaviors.multinomialLogit.activity_file_path = "test/test-resources/beam/agentsim/activities/activity-params.csv"
                      """.stripMargin)
         .withFallback(testConfig("test/input/beamville/beam.conf"))
         .resolve()
@@ -139,10 +138,8 @@ class SecondaryActivitiesSpec
       val (_, output, _) = runBeamWithConfig(baseConf)
       val modeChoice = extractFileContent(output, "modeChoice.csv")
       val modeChoiceCommute = extractFileContent(output, "modeChoice_commute.csv")
-      modeChoiceCommute.foreach {
-        case (mode, value) => {
-          assert(value <= modeChoice(mode))
-        }
+      modeChoiceCommute.foreach { case (mode, value) =>
+        assert(value <= modeChoice(mode))
       }
     }
 

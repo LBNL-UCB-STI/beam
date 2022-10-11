@@ -65,8 +65,8 @@ object TopDownEqualDemandH3IndexMapper {
     initialResolution: Int
   ): TopDownEqualDemandH3IndexMapper = {
     val allContent: GeoZoneContent = GeoZone.generateContent(coordinates, initialResolution)
-    val allHexagons: IndexedSeq[HexagonLeaf] = allContent.map {
-      case (index, points) => HexagonLeaf(index, points)
+    val allHexagons: IndexedSeq[HexagonLeaf] = allContent.map { case (index, points) =>
+      HexagonLeaf(index, points)
     }.toIndexedSeq
     new TopDownEqualDemandH3IndexMapper(allHexagons, expectedNumberOfBuckets)
   }
