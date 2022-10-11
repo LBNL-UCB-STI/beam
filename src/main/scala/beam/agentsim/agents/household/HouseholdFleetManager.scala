@@ -11,19 +11,21 @@ import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
-import beam.agentsim.events.SpaceTime
+import beam.agentsim.events.{ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.HasTriggerId
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Debug
-import beam.utils.logging.pattern.ask
 import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
+import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.api.experimental.events.EventsManager
 
 import java.util.concurrent.TimeUnit
 import scala.collection.mutable
@@ -36,6 +38,8 @@ class HouseholdFleetManager(
   homeAndStartingWorkLocations: Map[Id[Person], (ParkingActivityType, String, Coord)],
   maybeEmergencyHouseholdVehicleGenerator: Option[EmergencyHouseholdVehicleGenerator],
   whoDrivesThisVehicle: Map[Id[BeamVehicle], Id[Person]], // so far only freight module is using this collection
+  eventsManager: EventsManager,
+  geo: GeoUtils,
   beamConfig: BeamConfig,
   implicit val debug: Debug
 ) extends LoggingMessageActor
@@ -61,6 +65,14 @@ class HouseholdFleetManager(
         veh.spaceTime = SpaceTime(resp.stall.locationUTM.getX, resp.stall.locationUTM.getY, 0)
         veh.setMustBeDrivenHome(true)
         veh.useParkingStall(resp.stall)
+        val parkEvent = ParkingEvent(
+          time = 0,
+          stall = resp.stall,
+          locationWGS = geo.utm2Wgs(resp.stall.locationUTM),
+          vehicleId = id,
+          driverId = "None"
+        )
+        eventsManager.processEvent(parkEvent)
         if (resp.stall.chargingPointType.isDefined) {
           chargingNetworkManager ! ChargingPlugRequest(
             0,
