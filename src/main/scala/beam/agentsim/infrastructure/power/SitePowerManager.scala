@@ -12,7 +12,6 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamHelicsInterface.{createFedInfo, enterExecutionMode, getFederate, BeamFederate}
 import beam.router.skim.event
 import beam.sim.BeamServices
-import com.java.helics.helics
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 

@@ -68,14 +68,14 @@ trait RideHailDepotManager extends {
         depotData.vehiclesOnWayToDepot.remove(vehicle.id)
         depotData.chargingVehicles.remove(vehicle.id)
       }
-    case e @ StartingRefuelSession(tick, vehicleId, stall, _) =>
+    case e @ StartingRefuelSession(tick, vehicle, stall, _) =>
       log.debug("RideHailDepotManager.StartingRefuelSession: {}", e)
       val depotData = getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId)
-      if (depotData.vehiclesInQueue.remove(vehicleId).isDefined) {
-        putNewTickAndObservation(vehicleId, (tick, s"EnQueue($DequeuedToCharge)"))
+      if (depotData.vehiclesInQueue.remove(vehicle.vehicle.id).isDefined) {
+        putNewTickAndObservation(vehicle.vehicle.id, (tick, s"EnQueue($DequeuedToCharge)"))
       }
-      depotData.vehiclesOnWayToDepot.remove(vehicleId)
-      depotData.chargingVehicles.put(vehicleId, stall)
+      depotData.vehiclesOnWayToDepot.remove(vehicle.vehicle.id)
+      depotData.chargingVehicles.put(vehicle.vehicle.id, stall)
     case e @ WaitingToCharge(_, vehicleId, stall, _) =>
       log.debug("RideHailDepotManager.WaitingToCharge: {}", e)
       val depotData = getParkingZoneIdToParkingZoneDepotData(stall.parkingZoneId)
@@ -100,14 +100,14 @@ trait RideHailDepotManager extends {
       ParkingEvent(tick, stall, beamServices.geo.utm2Wgs(stall.locationUTM), beamVehicle.id, id.toString)
     )
     putNewTickAndObservation(beamVehicle.id, (tick, s"Charging($JustArrivedAtDepot)"))
-    (chargingNetworkManager ? ChargingPlugRequest(
+    chargingNetworkManager ! ChargingPlugRequest(
       tick,
       beamVehicle,
       stall,
       personId,
       triggerId,
       beamVehicle.getDriver.get
-    )).pipeTo(beamVehicle.getDriver.get)
+    )
   }
 
   /**
@@ -291,10 +291,11 @@ trait RideHailDepotManager extends {
       None,
       None
     )
+    val reservedFor = VehicleManager.getReservedFor(beamVehicle.vehicleManagerId.get).get
     val inquiry = ParkingInquiry.init(
       whenWhere,
       "wherever",
-      VehicleManager.getReservedFor(beamVehicle.vehicleManagerId.get).get,
+      reservedFor,
       Some(beamVehicle),
       valueOfTime = rideHailConfig.cav.valueOfTime,
       reserveStall = false,

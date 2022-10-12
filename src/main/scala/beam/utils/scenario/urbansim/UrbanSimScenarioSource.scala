@@ -40,6 +40,7 @@ class UrbanSimScenarioSource(
         excludedModes = person.excludedModes.split(","),
         isFemale = person.isFemale,
         valueOfTime = person.valueOfTime,
+        wheelchairUser = person.wheelchairUser,
         industry = person.industry
       )
     }

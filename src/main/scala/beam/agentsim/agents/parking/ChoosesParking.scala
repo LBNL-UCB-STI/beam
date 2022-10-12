@@ -5,7 +5,7 @@ import beam.agentsim.agents.BeamAgent._
 import beam.agentsim.agents.PersonAgent._
 import beam.agentsim.agents._
 import beam.agentsim.agents.freight.FreightRequestType
-import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_REQUEST_TYPE
+import beam.agentsim.agents.freight.input.FreightReader._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.StartLegTrigger
 import beam.agentsim.agents.parking.ChoosesParking._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -26,8 +26,8 @@ import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.skim.core.ParkingSkimmer.ChargerType
 import beam.router.skim.event.{FreightSkimmerEvent, ParkingSkimmerEvent}
 import beam.sim.common.GeoUtils
-import beam.utils.MeasureUnitConversion.SECONDS_IN_HOUR
 import beam.utils.logging.pattern.ask
+import beam.utils.MeasureUnitConversion._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent
 import org.matsim.api.core.v01.population.Activity
@@ -42,9 +42,13 @@ import scala.language.postfixOps
   */
 object ChoosesParking {
   case object ChoosingParkingSpot extends BeamAgentState
+
   case object ReleasingParkingSpot extends BeamAgentState
+
   case object ReleasingChargingPoint extends BeamAgentState
+
   case object ConnectingToChargingPoint extends BeamAgentState
+
   private val logger = LoggerFactory.getLogger(this.getClass)
 
   def handleUseParkingSpot(
@@ -189,14 +193,7 @@ trait ChoosesParking extends {
       )
     } else {
       val searchModeChargeOrPark =
-        if (
-          currentBeamVehicle.isEV && isRefuelAtDestinationNeeded(
-            currentBeamVehicle,
-            activityType,
-            remainingTripData.map(_.remainingTourDistance).getOrElse(0.0)
-          )
-        )
-          ParkingSearchMode.DestinationCharging
+        if (isRefuelAtDestinationNeeded(currentBeamVehicle, activityType)) ParkingSearchMode.DestinationCharging
         else ParkingSearchMode.Parking
 
       // for regular parking inquiry, we have vehicle information in `currentBeamVehicle`
@@ -216,30 +213,27 @@ trait ChoosesParking extends {
     }
   }
 
-  private def isRefuelAtDestinationNeeded(
-    vehicle: BeamVehicle,
-    activityType: String,
-    remainingTourDistance: Double
-  ): Boolean = {
+  private def isRefuelAtDestinationNeeded(vehicle: BeamVehicle, activityType: String): Boolean = {
     val conf = beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination
-    ParkingInquiry.activityTypeStringToEnum(activityType) match {
-      case ParkingActivityType.Home =>
-        vehicle.isRefuelNeeded(
-          remainingTourDistance + conf.home.refuelRequiredThresholdInMeters,
-          conf.noRefuelThresholdInMeters
-        )
-      case _ =>
-        vehicle.isRefuelNeeded(
-          remainingTourDistance + conf.refuelRequiredThresholdInMeters,
-          conf.noRefuelThresholdInMeters
-        )
-    }
+    if (vehicle.isEV) {
+      ParkingInquiry.activityTypeStringToEnum(activityType) match {
+        case ParkingActivityType.Home =>
+          vehicle.isRefuelNeeded(conf.home.refuelRequiredThresholdInMeters, conf.home.noRefuelThresholdInMeters)
+        case ParkingActivityType.Work =>
+          vehicle.isRefuelNeeded(conf.work.refuelRequiredThresholdInMeters, conf.work.noRefuelThresholdInMeters)
+        case ParkingActivityType.Wherever =>
+          vehicle.isRefuelNeeded(
+            conf.secondary.refuelRequiredThresholdInMeters,
+            conf.secondary.noRefuelThresholdInMeters
+          )
+        case _ =>
+          vehicle.isRefuelNeeded(conf.refuelRequiredThresholdInMeters, conf.noRefuelThresholdInMeters)
+      }
+    } else false
   }
 
   onTransition { case ReadyToChooseParking -> ChoosingParkingSpot =>
-    val personData = stateData.asInstanceOf[BasePersonData]
-    latestParkingInquiry = Some(buildParkingInquiry(personData))
-    park(latestParkingInquiry.get)
+    park(buildParkingInquiry(stateData.asInstanceOf[BasePersonData]))
   }
 
   when(ConnectingToChargingPoint) {

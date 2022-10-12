@@ -137,7 +137,9 @@ class ParkingSpec
     "departure and arrival should be from same parking 4 tuple" taggedAs Retryable in {
 
       val parkingEvents =
-        defaultEvents.head.filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
+        defaultEvents.head
+          .filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
+          .filter(_.getTime > 0)
       val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) { case (c, ev) =>
         val vehId = ev.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
         val array = c.getOrElse(vehId, ArrayBuffer[Event]())
@@ -151,7 +153,7 @@ class ParkingSpec
 
         // First and last park events won't match
         val parkEventsWithoutLast = parkEvents.dropRight(1)
-        val leavingParkEventsWithoutFirst = leavingEvents.tail
+        val leavingParkEventsWithoutFirst = leavingEvents.drop(1)
 
         parkEventsWithoutLast.size shouldEqual leavingParkEventsWithoutFirst.size
         (id, parkEventsWithoutLast zip leavingParkEventsWithoutFirst)
@@ -176,7 +178,9 @@ class ParkingSpec
 
     "Park event should be thrown after last path traversal" taggedAs Retryable in {
       val parkingEvents =
-        defaultEvents.head.filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
+        defaultEvents.head
+          .filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
+          .filter(_.getTime > 0)
 
       val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) { case (c, ev) =>
         val vehId = ev.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)

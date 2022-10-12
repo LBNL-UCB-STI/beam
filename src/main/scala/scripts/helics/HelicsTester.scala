@@ -2,7 +2,7 @@ package scripts.helics
 
 import com.github.beam.HelicsLoader
 import com.java.helics.helicsJNI.{helics_property_int_log_level_get, helics_property_time_delta_get}
-import com.java.helics.{SWIGTYPE_p_void, helics, helics_data_type}
+import com.java.helics.{helics, helics_data_type, SWIGTYPE_p_void}
 
 object HelicsTester extends App {
 
@@ -12,6 +12,7 @@ object HelicsTester extends App {
   val fedComb: SWIGTYPE_p_void = helics.helicsCreateCombinationFederate(fedName, fedInfo)
 
   val publicationName = "CHARGING_VEHICLES"
+
   val dataOutStreamHandle = Some(
     helics.helicsFederateRegisterPublication(fedComb, publicationName, helics_data_type.helics_data_type_string, "")
   )

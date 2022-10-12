@@ -11,12 +11,13 @@ import beam.utils.DateUtils
 trait ChargingNetworkManagerHelper extends {
   this: ChargingNetworkManager =>
 
-  private lazy val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
+  protected lazy val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamConfig)
   protected lazy val cnmConfig: Agentsim.ChargingNetworkManager = beamConfig.beam.agentsim.chargingNetworkManager
   private lazy val parallelismWindow: Int = beamConfig.beam.agentsim.schedulerParallelismWindow
 
   /**
     * if this is the last timebin of the simulation
+    *
     * @param tick current tick
     * @return a boolean
     */
@@ -24,6 +25,7 @@ trait ChargingNetworkManagerHelper extends {
 
   /**
     * if charging completed then duration of charging should be zero
+    *
     * @param cycle the latest charging cycle
     * @return
     */
@@ -31,6 +33,7 @@ trait ChargingNetworkManagerHelper extends {
 
   /**
     * if charging won't complete during the current cycle
+    *
     * @param cycle the latest charging cycle
     * @return
     */
@@ -39,6 +42,7 @@ trait ChargingNetworkManagerHelper extends {
 
   /**
     * Get current time bin
+    *
     * @param tick time
     * @return
     */
@@ -46,6 +50,7 @@ trait ChargingNetworkManagerHelper extends {
 
   /**
     * get next time bin
+    *
     * @param tick time
     * @return
     */
@@ -109,7 +114,8 @@ trait ChargingNetworkManagerHelper extends {
 
   /**
     * Connect the vehicle
-    * @param tick current time
+    *
+    * @param tick            current time
     * @param chargingVehicle charging vehicle information
     */
   protected def handleStartCharging(tick: Int, chargingVehicle: ChargingVehicle): Unit = {
@@ -124,7 +130,8 @@ trait ChargingNetworkManagerHelper extends {
 
   /**
     * Disconnect the vehicle
-    * @param tick current time
+    *
+    * @param tick            current time
     * @param chargingVehicle charging vehicle information
     * @return true if EndingRefuelSession is sent to the agent
     */
@@ -146,6 +153,7 @@ trait ChargingNetworkManagerHelper extends {
 
   /**
     * Refuel the vehicle using last charging session and collect the corresponding load
+    *
     * @param chargingVehicle vehicle charging information
     */
   protected def handleRefueling(chargingVehicle: ChargingVehicle): Unit = {
@@ -158,7 +166,8 @@ trait ChargingNetworkManagerHelper extends {
 
   /**
     * process the event ChargingPlugInEvent
-    * @param currentTick current time
+    *
+    * @param currentTick     current time
     * @param chargingVehicle vehicle charging information
     */
   private def processStartChargingEvent(currentTick: Int, chargingVehicle: ChargingVehicle): Unit = {
@@ -177,7 +186,8 @@ trait ChargingNetworkManagerHelper extends {
 
   /**
     * Calculates the duration of the refuel session, the provided energy and throws corresponding events
-    * @param currentTick current time
+    *
+    * @param currentTick     current time
     * @param chargingVehicle vehicle charging information
     */
   def processEndChargingEvents(currentTick: Int, chargingVehicle: ChargingVehicle): Unit = {

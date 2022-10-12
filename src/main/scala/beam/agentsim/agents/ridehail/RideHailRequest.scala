@@ -17,6 +17,7 @@ case class RideHailRequest(
   departAt: Int,
   destinationUTM: Location,
   asPooled: Boolean = false,
+  withWheelchair: Boolean = false,
   groupedWithOtherRequests: List[RideHailRequest] = List(),
   requestId: Int = RideHailRequestIdGenerator.nextId,
   requestTime: Option[Int] = None,
