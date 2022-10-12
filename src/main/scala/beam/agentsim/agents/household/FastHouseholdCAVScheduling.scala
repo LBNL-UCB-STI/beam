@@ -24,10 +24,10 @@ import scala.collection.mutable
 import scala.util.control.Breaks._
 
 class FastHouseholdCAVScheduling(
-  val household: Household,
-  val householdVehicles: List[BeamVehicle],
-  val beamServices: BeamServices
-) {
+                                  val household: Household,
+                                  val householdVehicles: List[BeamVehicle],
+                                  val beamServices: BeamServices
+                                ) {
 
   implicit val population: org.matsim.api.core.v01.population.Population =
     beamServices.matsimServices.getScenario.getPopulation
@@ -120,9 +120,9 @@ class FastHouseholdCAVScheduling(
   }
 
   case class HouseholdSchedule(
-    schedulesMap: Map[BeamVehicle, CAVSchedule],
-    householdScheduleCost: HouseholdTrips
-  ) {
+                                schedulesMap: Map[BeamVehicle, CAVSchedule],
+                                householdScheduleCost: HouseholdTrips
+                              ) {
 
     def check(requests: List[MobilityRequest]): List[HouseholdSchedule] = {
       val outHouseholdSchedule = mutable.ListBuffer.empty[HouseholdSchedule]
@@ -141,10 +141,10 @@ class FastHouseholdCAVScheduling(
     }
 
     private def getScheduleOrNone(
-      cav: BeamVehicle,
-      cavSchedule: CAVSchedule,
-      requests: List[MobilityRequest]
-    ): Option[HouseholdSchedule] = {
+                                   cav: BeamVehicle,
+                                   cavSchedule: CAVSchedule,
+                                   requests: List[MobilityRequest]
+                                 ): Option[HouseholdSchedule] = {
       if (cavSchedule.occupancy >= cav.beamVehicleType.seatingCapacity)
         return None
 
@@ -252,11 +252,11 @@ class FastHouseholdCAVScheduling(
 case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupancy: Int) {
 
   def toRoutingRequests(
-    beamServices: BeamServices,
-    transportNetwork: TransportNetwork,
-    routeHistory: RouteHistory,
-    triggerId: Long
-  ): (List[Option[RouteOrEmbodyRequest]], CAVSchedule) = {
+                         beamServices: BeamServices,
+                         transportNetwork: TransportNetwork,
+                         routeHistory: RouteHistory,
+                         triggerId: Long
+                       ): (List[Option[RouteOrEmbodyRequest]], CAVSchedule) = {
     var newMobilityRequests = List[MobilityRequest]()
     val requestList = (schedule.tail :+ schedule.head)
       .sliding(2)
@@ -343,29 +343,29 @@ object CAVSchedule {
 }
 
 case class HouseholdTrips(
-  household: Household,
-  requests: List[List[MobilityRequest]],
-  cavVehicles: List[BeamVehicle],
-  homePickup: MobilityRequest,
-  baseTotalTravelTime: Int,
-  tripTravelTime: Map[Trip, Int],
-  totalTravelTime: Int,
-  sumOfDelays: Map[Id[Person], Int]
-) {
+                           household: Household,
+                           requests: List[List[MobilityRequest]],
+                           cavVehicles: List[BeamVehicle],
+                           homePickup: MobilityRequest,
+                           baseTotalTravelTime: Int,
+                           tripTravelTime: Map[Trip, Int],
+                           totalTravelTime: Int,
+                           sumOfDelays: Map[Id[Person], Int]
+                         ) {
   override def toString: String = requests.toString
 }
 
 object HouseholdTrips {
 
   def get(
-    household: Household,
-    householdVehicles: List[BeamVehicle],
-    householdNbOfVehicles: Int,
-    waitingTimeInSec: Int,
-    delayToArrivalInSec: Int,
-    limitCavToXPersons: Int,
-    beamServices: BeamServices
-  ): Option[HouseholdTrips] = {
+           household: Household,
+           householdVehicles: List[BeamVehicle],
+           householdNbOfVehicles: Int,
+           waitingTimeInSec: Int,
+           delayToArrivalInSec: Int,
+           limitCavToXPersons: Int,
+           beamServices: BeamServices
+         ): Option[HouseholdTrips] = {
     import beam.agentsim.agents.memberships.Memberships.RankedGroup._
     implicit val population: org.matsim.api.core.v01.population.Population =
       beamServices.matsimServices.getScenario.getPopulation
@@ -395,7 +395,7 @@ object HouseholdTrips {
         totTravelTime,
         household.getMemberIds.asScala.map(_ -> 0).toMap
       )
-    )
+      )
   }
 }
 
@@ -415,13 +415,13 @@ object HouseholdTripsHelper {
   }
 
   def getListOfPickupsDropoffs(
-    householdPlans: Seq[BeamPlan],
-    householdNbOfVehicles: Int,
-    beamVehicleType: BeamVehicleType,
-    waitingTimeInSec: Int,
-    delayToArrivalInSec: Int,
-    beamServices: BeamServices
-  ): (List[List[MobilityRequest]], Option[MobilityRequest], mutable.Map[Trip, Int], Int) = {
+                                householdPlans: Seq[BeamPlan],
+                                householdNbOfVehicles: Int,
+                                beamVehicleType: BeamVehicleType,
+                                waitingTimeInSec: Int,
+                                delayToArrivalInSec: Int,
+                                beamServices: BeamServices
+                              ): (List[List[MobilityRequest]], Option[MobilityRequest], mutable.Map[Trip, Int], Int) = {
     val requests = mutable.ListBuffer.empty[List[MobilityRequest]]
     val tours = mutable.ListBuffer.empty[MobilityRequest]
     val tripTravelTime = mutable.Map[Trip, Int]()
@@ -464,15 +464,15 @@ object HouseholdTripsHelper {
   }
 
   def getPickupAndDropoff(
-    plan: BeamPlan,
-    curTrip: Trip,
-    prevTrip: Trip,
-    counter: Int,
-    beamVehicleType: BeamVehicleType,
-    waitingTimeInSec: Int,
-    delayToArrivalInSec: Int,
-    beamServices: BeamServices
-  ): (MobilityRequest, MobilityRequest, Int) = {
+                           plan: BeamPlan,
+                           curTrip: Trip,
+                           prevTrip: Trip,
+                           counter: Int,
+                           beamVehicleType: BeamVehicleType,
+                           waitingTimeInSec: Int,
+                           delayToArrivalInSec: Int,
+                           beamServices: BeamServices
+                         ): (MobilityRequest, MobilityRequest, Int) = {
     val legTrip = curTrip.leg
     val defaultMode = getDefaultMode(legTrip, counter)
 
