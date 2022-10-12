@@ -303,7 +303,11 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     geofence: Option[Geofence],
     fleetId: String
   ) {
-    val rideHailAgentId: Id[RideHailAgent] = Id.create(s"${RideHailAgent.idPrefix}-$id", classOf[RideHailAgent])
+
+    val rideHailAgentId: Id[RideHailAgent] = if (beamVehicleType.isWheelchairAccessible) {
+      Id.create(s"${RideHailAgent.idPrefix}-accessible-$id", classOf[RideHailAgent])
+    } else Id.create(s"${RideHailAgent.idPrefix}-$id", classOf[RideHailAgent])
+
     val beamVehicleId: Id[BeamVehicle] = RideHailVehicleId(id, fleetId).beamVehicleId
 
     /**
