@@ -72,7 +72,7 @@ class BeamWarmStartRunSpec
       val averageCarSpeedIt0 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 0))
       val averageCarSpeedIt1 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 1))
       logger.info("average car speed per iterations: {}, {}", averageCarSpeedIt0, averageCarSpeedIt1)
-      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.20)
+      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.50)
 
       val outputFileIdentifiers = Array(
         "passengerPerTripBike.csv",
@@ -122,7 +122,7 @@ class BeamWarmStartRunSpec
       val averageCarSpeedIt0 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 0))
       val averageCarSpeedIt1 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 1))
       logger.info("average car speed per iterations: {}, {}", averageCarSpeedIt0, averageCarSpeedIt1)
-      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.20)
+      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.50)
     }
 
     "run beamville scenario with linkStatsOnly warmstart and full file with fake skims" in {
@@ -140,7 +140,7 @@ class BeamWarmStartRunSpec
       val averageCarSpeedIt0 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 0))
       val averageCarSpeedIt1 = BeamWarmStartRunSpec.medianCarModeFromCsv(extractFileName(output, 1))
       logger.info("average car speed per iterations: {}, {}", averageCarSpeedIt0, averageCarSpeedIt1)
-      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.20)
+      averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.50)
     }
   }
 
