@@ -33,15 +33,10 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
 
   override def processParkingInquiry(
     inquiry: ParkingInquiry,
-    doNotReserveStallWithoutChargingPoint: Boolean = true,
     parallelizationCounterOption: Option[SimpleCounter] = None
   ): ParkingInquiryResponse = {
-    val parkingResponse = super[ParkingNetwork].processParkingInquiry(
-      inquiry,
-      doNotReserveStallWithoutChargingPoint,
-      parallelizationCounterOption
-    )
-    if (parkingResponse.stall.chargingPointType.isDefined)
+    val parkingResponse = super[ParkingNetwork].processParkingInquiry(inquiry, parallelizationCounterOption)
+    if (inquiry.reserveStall && parkingResponse.stall.chargingPointType.isDefined)
       processVehicleOnTheWayToStation(inquiry, parkingResponse.stall)
     parkingResponse
   }
@@ -192,18 +187,11 @@ object ChargingNetwork extends LazyLogging {
           idToGeoMapping,
           chargingZones,
           distanceFunction,
-          beamConfig.beam.agentsim.agents.parking.minSearchRadius,
-          beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
-          beamConfig.beam.agentsim.agents.parking.searchMaxDistanceRelativeToEllipseFoci,
-          beamConfig.beam.agentsim.agents.vehicles.enroute.estimateOfMeanChargingDurationInSecond,
-          beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
-          beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
+          beamConfig.beam.agentsim.agents.parking,
           envelopeInUTM,
           beamConfig.matsim.modules.global.randomSeed,
-          beamConfig.beam.agentsim.agents.parking.multinomialLogit,
           skims,
-          fuelPrice,
-          beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
+          fuelPrice
         )
       )
     }
@@ -282,6 +270,7 @@ object ChargingNetwork extends LazyLogging {
     def howManyVehiclesAreCharging: Int = chargingVehiclesInternal.size
     def howManyVehiclesAreInGracePeriodAfterCharging: Int = vehiclesInGracePeriodAfterCharging.size
     def howManyVehiclesOnTheWayToStation: Int = parkingInquiries.size
+    def persons: Iterable[Id[Person]] = vehicles.map(_._2.personId)
 
     def remainingChargeDurationFromPluggedInVehicles(tick: Int): Int = {
       chargingVehiclesInternal.map { case (_, chargingVehicle) =>
@@ -323,12 +312,17 @@ object ChargingNetwork extends LazyLogging {
           (inquiry.parkingDuration.toInt, activityTypeAlias + inquiry.activityType)
         }
         .getOrElse((estimatedMinParkingDurationInSeconds, ParkingActivityType.Wherever.toString))
-      vehicles.get(vehicle.id) match {
+      chargingVehiclesInternal.get(vehicle.id) match {
         case Some(chargingVehicle) =>
-          logger.error(
-            s"Something is broken! Trying to connect a vehicle already connected at time $tick: vehicle $vehicle - " +
-            s"activityType $activityType - stall $stall - personId $personId - chargingInfo $chargingVehicle"
-          )
+          //When a vehicle gets from the Waiting Line it gets connected to the station internally
+          //and a ChargingPlugRequest is sent to the ChargingNetworkManger
+          //in this case the vehicle is already connected to the station
+          if (!chargingVehicle.isJustConnectedAfterWaitingLine() || chargingVehicle.chargingStation != this) {
+            logger.error(
+              s"Something is broken! Trying to connect a vehicle already connected at time $tick: vehicle $vehicle - " +
+              s"activityType $activityType - stall $stall - personId $personId - chargingInfo $chargingVehicle"
+            )
+          }
           chargingVehicle
         case _ =>
           val chargingVehicle =
@@ -571,6 +565,15 @@ object ChargingNetwork extends LazyLogging {
       */
     def calculateChargingSessionLengthAndEnergyInJoule: (Long, Double) = chargingSessions.foldLeft((0L, 0.0)) {
       case ((accA, accB), charging) => (accA + (charging.endTime - charging.startTime), accB + charging.energyToCharge)
+    }
+
+    def isJustConnectedAfterWaitingLine(): Boolean = {
+      chargingStatus match {
+        case _ :+ ChargingStatus(WaitingAtStation, _) :+ ChargingStatus(Connected, _) =>
+          true
+        case _ =>
+          false
+      }
     }
 
     override def toString: String = {

@@ -21,13 +21,13 @@ class ParkingFunctions(
   minSearchRadius: Double,
   maxSearchRadius: Double,
   searchMaxDistanceRelativeToEllipseFoci: Double,
-  enrouteDuration: Double,
+  estimatedMinParkingDurationInSeconds: Double,
+  estimatedMeanEnRouteChargingDurationInSeconds: Double,
   fractionOfSameTypeZones: Double,
   minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
   seed: Int,
-  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
-  estimatedMinParkingDurationInSeconds: Double
+  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit
 ) extends InfrastructureFunctions(
       geoQuadTree,
       idToGeoMapping,
@@ -36,12 +36,12 @@ class ParkingFunctions(
       minSearchRadius,
       maxSearchRadius,
       searchMaxDistanceRelativeToEllipseFoci,
-      enrouteDuration,
+      estimatedMinParkingDurationInSeconds,
+      estimatedMeanEnRouteChargingDurationInSeconds,
       fractionOfSameTypeZones,
       minNumberOfSameTypeZones,
       boundingBox,
-      seed,
-      estimatedMinParkingDurationInSeconds
+      seed
     ) {
 
   override protected val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] = Map(
@@ -116,6 +116,7 @@ class ParkingFunctions(
 
   /**
     * Generic method that specifies the behavior when MNL returns a ParkingZoneSearchResult
+    *
     * @param parkingZoneSearchResult ParkingZoneSearchResult
     */
   override protected def processParkingZoneSearchResult(
@@ -149,7 +150,7 @@ class ParkingFunctions(
     *
     * @param inquiry     ParkingInquiry
     * @param parkingZone ParkingZone
-    * @param taz TAZ
+    * @param taz         TAZ
     */
   override protected def sampleParkingStallLocation(
     inquiry: ParkingInquiry,
@@ -177,8 +178,9 @@ class ParkingFunctions(
 
   /**
     * Can This Car Park Here
-    * @param zone ParkingZone
-    * @param inquiry ParkingInquiry
+    *
+    * @param zone                  ParkingZone
+    * @param inquiry               ParkingInquiry
     * @param preferredParkingTypes Set[ParkingType]
     * @return
     */
@@ -200,6 +202,7 @@ class ParkingFunctions(
 
   /**
     * Preferred Parking Types
+    *
     * @param inquiry ParkingInquiry
     * @return
     */

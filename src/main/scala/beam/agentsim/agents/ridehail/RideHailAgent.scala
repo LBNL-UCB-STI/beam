@@ -531,7 +531,11 @@ class RideHailAgent(
       if (debugEnabled) outgoingMessages += ev
       if (currentBeamVehicle.isRideHailCAV)
         rideHailManager ! reply
-      startRefueling(tickToUse, getCurrentTriggerId.get)
+      startRefueling(
+        tickToUse,
+        reply.triggerId,
+        sendCompletionNotice = !reply.chargingVehicle.isJustConnectedAfterWaitingLine()
+      )
       goto(Refueling)
     case ev @ Event(reply: WaitingToCharge, data) =>
       log.debug("state(RideHailingAgent.Offline.WaitingToCharge): {}; Vehicle ID: {}", ev, vehicle.id)
@@ -628,7 +632,11 @@ class RideHailAgent(
       if (debugEnabled) outgoingMessages += ev
       if (currentBeamVehicle.isRideHailCAV)
         rideHailManager ! reply
-      startRefueling(tickToUse, triggerId)
+      startRefueling(
+        tickToUse,
+        triggerId,
+        sendCompletionNotice = !reply.chargingVehicle.isJustConnectedAfterWaitingLine
+      )
       goto(Refueling)
     case ev @ Event(reply: WaitingToCharge, data) =>
       log.debug("state(RideHailingAgent.Idle.WaitingToCharge): {}, Vehicle ID: {}", ev, vehicle.id)
@@ -1126,12 +1134,17 @@ class RideHailAgent(
           stall.parkingZoneId
         )
     }
-    startRefueling(tick, triggerId)
+    startRefueling(tick, triggerId, sendCompletionNotice = true)
   }
 
-  def startRefueling(tick: Int, triggerId: Long): Unit = {
+  private def startRefueling(tick: Int, triggerId: Long, sendCompletionNotice: Boolean): Unit = {
     handleUseParkingSpot(tick, currentBeamVehicle, id, geo, eventsManager, beamScenario.tazTreeMap, None, None, None)
-    handleStartRefuel(triggerId)
+    if (sendCompletionNotice) {
+      if (debugEnabled)
+        outgoingMessages += CompletionNotice(triggerId)
+      log.debug(s"Sending Completion for ${vehicle.id} and trigger $triggerId")
+      scheduler ! CompletionNotice(triggerId)
+    }
   }
 
   def requestParkingStall(): Unit = {
@@ -1156,13 +1169,6 @@ class RideHailAgent(
       searchMode = ParkingSearchMode.DestinationCharging
     )
     park(inquiry)
-  }
-
-  def handleStartRefuel(triggerId: Long): Unit = {
-    if (debugEnabled)
-      outgoingMessages += CompletionNotice(triggerId)
-    log.debug(s"Sending Completion for ${vehicle.id} and trigger $triggerId")
-    scheduler ! CompletionNotice(triggerId)
   }
 
   def handleNotifyVehicleResourceIdleReplyAndGoToNextState(
@@ -1243,8 +1249,9 @@ class RideHailAgent(
       case _ =>
         _currentTriggerId match {
           case Some(_) => releaseTickAndTriggerId()
-          case _       => log.debug("RHA {}: completing handleWaitingLineReply", id)
+          case _       => log.debug("RHA {}: completing handleWaitingLineReply, nextState = {}", id, nextState)
         }
+        scheduler ! CompletionNotice(triggerId)
         goto(nextState)
     }
   }

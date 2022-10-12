@@ -22,14 +22,13 @@ abstract class ParkingNetwork(parkingZones: Map[Id[ParkingZoneId], ParkingZone])
     */
   def processParkingInquiry(
     inquiry: ParkingInquiry,
-    doNotReserveStallWithoutChargingPoint: Boolean = false,
     parallelizationCounterOption: Option[SimpleCounter] = None
   ): ParkingInquiryResponse = {
     logger.debug("Received parking inquiry: {}", inquiry)
     val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, _, _, _) =
       searchFunctions.map(_.searchForParkingStall(inquiry)).get
     // reserveStall is false when agent is only seeking pricing information
-    if (inquiry.reserveStall && !doNotReserveStallWithoutChargingPoint) {
+    if (inquiry.reserveStall) {
       logger.debug(
         s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging"
         else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
