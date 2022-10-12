@@ -100,13 +100,15 @@ object BeamConfig {
         case class Freight(
           carrierParkingFilePath: scala.Option[java.lang.String],
           carriersFilePath: java.lang.String,
-          convertWgs2Utm: scala.Boolean,
           enabled: scala.Boolean,
           generateFixedActivitiesDurations: scala.Boolean,
+          isWgs: scala.Boolean,
           name: java.lang.String,
+          nonHGVLinkWeightMultiplier: scala.Double,
           plansFilePath: java.lang.String,
           reader: java.lang.String,
           replanning: BeamConfig.Beam.Agentsim.Agents.Freight.Replanning,
+          tourSampleSizeAsFractionOfTotal: scala.Double,
           toursFilePath: java.lang.String
         )
 
@@ -137,11 +139,13 @@ object BeamConfig {
               carriersFilePath =
                 if (c.hasPathOrNull("carriersFilePath")) c.getString("carriersFilePath")
                 else "/test/input/beamville/freight/freight-carriers.csv",
-              convertWgs2Utm = c.hasPathOrNull("convertWgs2Utm") && c.getBoolean("convertWgs2Utm"),
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
               generateFixedActivitiesDurations =
                 c.hasPathOrNull("generateFixedActivitiesDurations") && c.getBoolean("generateFixedActivitiesDurations"),
+              isWgs = c.hasPathOrNull("isWgs") && c.getBoolean("isWgs"),
               name = if (c.hasPathOrNull("name")) c.getString("name") else "Freight",
+              nonHGVLinkWeightMultiplier =
+                if (c.hasPathOrNull("nonHGVLinkWeightMultiplier")) c.getDouble("nonHGVLinkWeightMultiplier") else 2.0,
               plansFilePath =
                 if (c.hasPathOrNull("plansFilePath")) c.getString("plansFilePath")
                 else "/test/input/beamville/freight/payload-plans.csv",
@@ -150,6 +154,9 @@ object BeamConfig {
                 if (c.hasPathOrNull("replanning")) c.getConfig("replanning")
                 else com.typesafe.config.ConfigFactory.parseString("replanning{}")
               ),
+              tourSampleSizeAsFractionOfTotal =
+                if (c.hasPathOrNull("tourSampleSizeAsFractionOfTotal")) c.getDouble("tourSampleSizeAsFractionOfTotal")
+                else 1.0,
               toursFilePath =
                 if (c.hasPathOrNull("toursFilePath")) c.getString("toursFilePath")
                 else "/test/input/beamville/freight/freight-tours.csv"
