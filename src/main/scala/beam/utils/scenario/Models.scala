@@ -14,6 +14,7 @@ case class PersonInfo(
   excludedModes: Seq[String] = Seq.empty,
   isFemale: Boolean,
   valueOfTime: Double,
+  wheelchairUser: Boolean = false,
   industry: Option[String]
 )
 
