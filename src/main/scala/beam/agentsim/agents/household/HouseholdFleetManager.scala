@@ -188,6 +188,8 @@ class HouseholdFleetManager(
     case Finish =>
       context.stop(self)
     case Success =>
+//    case BeamAgentSchedulerTimer =>
+//      logger.debug(s"Received message from ${sender()}")
     case x =>
       logger.error(s"No handler for $x")
   }
