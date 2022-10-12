@@ -249,6 +249,9 @@ object PopulationAdjustment extends LazyLogging {
     val income = Option(personAttributes.getAttribute(person.getId.toString, "income"))
       .map(_.asInstanceOf[Double])
       .getOrElse(0d)
+    // Read person attribute "wheelchairUser" and default it to 0 if not set
+    val wheelchairUser =
+      Option(personAttributes.getAttribute(person.getId.toString, "wheelchairUser")).exists(_.asInstanceOf[Boolean])
     // Read person attribute "modalityStyle"
     val modalityStyle =
       Option(person.getSelectedPlan)
@@ -279,7 +282,8 @@ object PopulationAdjustment extends LazyLogging {
       availableModes = availableModes,
       valueOfTime = valueOfTime,
       age = Option(PersonUtils.getAge(person)),
-      income = Some(income)
+      income = Some(income),
+      wheelchairUser = wheelchairUser
     )
   }
 
