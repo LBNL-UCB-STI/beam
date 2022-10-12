@@ -507,8 +507,8 @@ object RoutingWorker {
       GeoUtils.minkowskiDistFormula(startUTM, endUTM) //changed from geo.distUTMInMeters(startUTM, endUTM)
     val bushwhackingTime = Math.round(distanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
     val path = BeamPath(
-      Vector(),
-      Vector(),
+      Array[Int](),
+      Array[Double](),
       None,
       SpaceTime(geo.utm2Wgs(startUTM), atTime),
       SpaceTime(geo.utm2Wgs(endUTM), atTime + bushwhackingTime.toInt),
