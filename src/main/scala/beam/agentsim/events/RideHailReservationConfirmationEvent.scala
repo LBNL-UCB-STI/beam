@@ -1,7 +1,6 @@
 package beam.agentsim.events
 
 import java.util
-
 import beam.agentsim.events.RideHailReservationConfirmationEvent.RideHailReservationType
 import beam.agentsim.events.resources.ReservationErrorCode
 import org.matsim.api.core.v01.events.Event
@@ -23,6 +22,7 @@ object RideHailReservationConfirmationEvent {
   val ATTRIBUTE_OFFERED_PICKUP_TIME: String = "offeredPickupTime"
   val ATTRIBUTE_DIRECT_ROUTE_DISTANCE: String = "directRouteDistanceInM"
   val ATTRIBUTE_DIRECT_ROUTE_TIME: String = "directRouteDurationInS"
+  val ATTRIBUTE_WHEELCHAIR_REQUIREMENT: String = "wheelchairRequirement"
 
   def typeWhenPooledIs(isPooled: Boolean): RideHailReservationType = {
     if (isPooled) {
@@ -54,7 +54,8 @@ class RideHailReservationConfirmationEvent(
   val dropOffLocationWgs: Coord, /* Same CRS as in PathTraversalEvent */
   val offeredPickUpTimeOpt: Option[Int], /*  None if the reservation failed */
   val directRouteDistanceInMOpt: Option[Double],
-  val directRouteDurationInSOpt: Option[Int]
+  val directRouteDurationInSOpt: Option[Int],
+  val wheelchairRequirement: Boolean
 ) extends Event(time)
     with ScalaEvent {
   import RideHailReservationConfirmationEvent._
@@ -76,6 +77,7 @@ class RideHailReservationConfirmationEvent(
     attributes.put(ATTRIBUTE_OFFERED_PICKUP_TIME, offeredPickUpTimeOpt.map(_.toString).getOrElse(""))
     attributes.put(ATTRIBUTE_DIRECT_ROUTE_DISTANCE, directRouteDistanceInMOpt.map(_.toString).getOrElse(""))
     attributes.put(ATTRIBUTE_DIRECT_ROUTE_TIME, directRouteDurationInSOpt.map(_.toString).getOrElse(""))
+    attributes.put(ATTRIBUTE_WHEELCHAIR_REQUIREMENT, wheelchairRequirement.toString)
     attributes
   }
 }
