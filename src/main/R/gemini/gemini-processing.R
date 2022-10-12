@@ -803,3 +803,14 @@ lognormal <- function(m, v, sample_size) {
 
 ####################
 
+t0 <- readCsv(pp(workDir, "/test/0.CarRideStats.personal.csv.gz"))
+t1 <- readCsv(pp(workDir, "/test/1.CarRideStats.personal.csv.gz"))
+mean(t0$travel_time)
+mean(t1$travel_time)
+e0 <- readCsv(pp(workDir, "/test/0.events.csv"))
+e1 <- readCsv(pp(workDir, "/test/1.events.csv"))
+View(e0[vehicle==4])
+View(e1[vehicle==4])
+stats <- readCsv(pp(workDir, "/test/30.linkstats.csv.gz"))
+stats2 <- readCsv(pp(workDir, "/test/30.linkstats 2.csv.gz"))
+res <- stats[,.(tt=mean(traveltime)),by=.(link)]
