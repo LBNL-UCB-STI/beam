@@ -1,13 +1,16 @@
 package beam.utils.scenario
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.vehicles.VehiclesAdjustment
+import beam.sim.vehicles.VehiclesAdjustment.STATIC_FROM_FILE
 import beam.utils.SequenceUtils
+import beam.utils.csv.readers
 import beam.utils.plan.sampling.AvailableModeUtils
+import beam.utils.scenario.BeamScenarioLoader.buildBeamVehicle
 import beam.utils.scenario.urbansim.HOVModeTransformer
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
@@ -18,6 +21,7 @@ import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{mutable, Iterable}
@@ -124,7 +128,6 @@ class UrbanSimScenarioLoader(
     scenario.getPopulation.getPersonAttributes.clear()
     scenario.getHouseholds.getHouseholds.clear()
     scenario.getHouseholds.getHouseholdAttributes.clear()
-
     beamScenario.privateVehicles.clear()
     beamScenario.privateVehicleInitialSoc.clear()
   }
@@ -192,7 +195,8 @@ class UrbanSimScenarioLoader(
           householdSize = household.getMemberIds.size,
           householdPopulation = null,
           householdLocation = coord,
-          realDistribution
+          realDistribution,
+          householdId = household.getId
         )
         .toBuffer
 
