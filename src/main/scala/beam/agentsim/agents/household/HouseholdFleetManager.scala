@@ -7,6 +7,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
+import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
@@ -162,7 +163,7 @@ class HouseholdFleetManager(
 
     case inquiry @ MobilityStatusInquiry(personId, _, _, requireVehicleCategoryAvailable, triggerId) =>
       val availableVehicleMaybe: Option[BeamVehicle] = requireVehicleCategoryAvailable match {
-        case Some(_) if personId.toString.contains("freight") =>
+        case Some(_) if personId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX) =>
           whoDrivesThisFreightVehicle
             .filter(_._2 == personId)
             .flatMap { case (vehicleId, _) => availableVehicles.find(_.id == vehicleId) }
