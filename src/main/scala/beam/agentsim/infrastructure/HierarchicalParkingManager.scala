@@ -56,12 +56,12 @@ class HierarchicalParkingManager(
       maxSearchRadius,
       0.0,
       0.0,
+      estimatedMinParkingDurationInSeconds,
       1.0,
       1,
       boundingBox,
       seed,
-      mnlParkingConfig,
-      estimatedMinParkingDurationInSeconds
+      mnlParkingConfig
     )
   )
 
@@ -92,7 +92,6 @@ class HierarchicalParkingManager(
     */
   override def processParkingInquiry(
     inquiry: ParkingInquiry,
-    doNotReserveStallWithoutChargingPoint: Boolean = false,
     parallelizationCounterOption: Option[SimpleCounter] = None
   ): ParkingInquiryResponse = {
     logger.debug("Received parking inquiry: {}", inquiry)

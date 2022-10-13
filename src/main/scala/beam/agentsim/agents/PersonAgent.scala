@@ -339,6 +339,7 @@ class PersonAgent(
     bodyType,
     vehicleManagerId = new AtomicReference(VehicleManager.NoManager.managerId)
   )
+
   body.setManager(Some(self))
   beamVehicles.put(body.id, ActualVehicle(body))
 

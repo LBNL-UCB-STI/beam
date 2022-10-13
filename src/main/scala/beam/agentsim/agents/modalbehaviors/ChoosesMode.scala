@@ -465,7 +465,11 @@ trait ChoosesMode {
                 householdVehiclesWereNotAvailable = true
               }
               makeRequestWith(withTransit = householdVehiclesWereNotAvailable, vehicles :+ bodyStreetVehicle)
-              responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+              responsePlaceholders =
+                makeResponsePlaceholders(withRouting = true, withRideHail = householdVehiclesWereNotAvailable)
+              if (householdVehiclesWereNotAvailable) {
+                makeRideHailRequest()
+              }
           }
         case Some(mode @ (DRIVE_TRANSIT | BIKE_TRANSIT)) =>
           val vehicleMode = Modes.getAccessVehicleMode(mode)
