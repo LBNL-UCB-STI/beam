@@ -8,6 +8,8 @@ import logging
 import json
 import itertools
 import os
+import collections.abc
+
 from threading import Thread
 
 from rudimentary_spmc import SPM_Control
@@ -108,6 +110,16 @@ def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds
         while granted_time < requested_time:
             granted_time = h.helicsFederateRequestTime(cfed, requested_time)
 
+    def parse_json(message_to_parse):
+        try:
+            charging_events_json = json.loads(message_to_parse)
+            return charging_events_json
+        except json.decoder.JSONDecodeError as err:
+            error_text = "[TAZ:" + taz_id + "]. Message from BEAM is an incorrect JSON, " + str(err)
+            logging.error(error_text)
+            print(error_text)
+            return ""
+
     # start execution loop
     for t in range(0, simulated_day_in_seconds - time_bin_in_seconds, time_bin_in_seconds):
         print2("[TAZ:" + taz_id + "]. Ready to sync: " + str(t) + " seconds" + "(" + str(time.time() * 1000) + ")")
@@ -121,8 +133,10 @@ def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds
             time.time() * 1000) + ")")
         logging.info("[TAZ:" + taz_id + "]. Message " + str(received_message) + "(" + str(time.time() * 1000) + ")")
         if bool(str(received_message).strip()):
-            charging_events_json = json.loads(received_message)
-            if len(charging_events_json) > 0 and 'vehicleId' in charging_events_json[0]:
+            charging_events_json = parse_json(received_message)
+            if not isinstance(charging_events_json, collections.abc.Sequence):
+                logging.error("[TAZ:" + taz_id + "]. Was not able to parse JSON message from BEAM. Something is broken!")
+            elif len(charging_events_json) > 0 and 'vehicleId' in charging_events_json[0]:
                 logging.info("[TAZ:" + taz_id + "]. Loaded JSON format from the received message" + "(" + str(
                     time.time() * 1000) + ")")
                 # Reading BEAM values
@@ -274,7 +288,7 @@ def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds
         sync_time(t + 1)
 
     # close the federate
-    h.helicsFederateFinalize(cfed)
+    h.helicsFederateDisconnect(cfed)
     print2("[TAZ:" + taz_id + "]. Federate finalized and now saving and finishing")
     h.helicsFederateFree(cfed)
     h.helicsCloseLibrary()
@@ -288,6 +302,7 @@ def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds
 
 if __name__ == "__main__":
     logging.basicConfig(filename='site_power_controller_federate.log', level=logging.DEBUG, filemode='w')
+    print2("Using helics version " + h.helicsGetVersion())
     infrastructure_file = "../../../../production/sfbay/parking/sfbay_taz_unlimited_charging_point.csv"
     print2("Loading infrastructure file: " + infrastructure_file)
     data = pd.read_csv(infrastructure_file)

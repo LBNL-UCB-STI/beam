@@ -5,7 +5,7 @@ import sys
 
 # helics_recorder beam_recorder.txt --output=recording_output.txt
 # Create broker #
-print("Script started")
+print("Script started. Using helics version " + h.helicsGetVersion())
 nbFed = 3
 if len(sys.argv) > 1:
     nbFed = int(sys.argv[1])
