@@ -81,7 +81,7 @@ class UrbansimReaderV2(
       implicit val system = ActorSystem()
 
       import akka.stream.scaladsl.Source
-      val source: Source[PlanElement, NotUsed] = Source.fromIterator(()=>iter).mapAsync(100){ plan: PlanElement => Future {
+      val source: Source[PlanElement, NotUsed] = Source.fromIterator(()=>iter).mapAsync(1000){ plan: PlanElement => Future {
         if (plan.planElementType == PlanElement.Activity && shouldConvertWgs2Utm) {
           val utmCoord = geoUtils.wgs2Utm(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
           plan.copy(activityLocationX = Some(utmCoord.getX), activityLocationY = Some(utmCoord.getY))
