@@ -24,9 +24,10 @@ trait LoggingMessageActor extends Actor {
 }
 
 object LoggingMessageActor {
+
   def messageLoggingEnabled(config: Config): Boolean =
-    if(config.hasPathOrNull("beam.debug.messageLogging")){
-      config.getBoolean(("beam.debug.messageLogging"))
+    if (config.hasPathOrNull("beam.debug.messageLogging")) {
+      config.getBoolean("beam.debug.messageLogging")
     } else false
 }
 
