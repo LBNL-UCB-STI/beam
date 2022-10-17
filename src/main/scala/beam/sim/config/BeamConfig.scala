@@ -100,13 +100,15 @@ object BeamConfig {
         case class Freight(
           carrierParkingFilePath: scala.Option[java.lang.String],
           carriersFilePath: java.lang.String,
-          convertWgs2Utm: scala.Boolean,
           enabled: scala.Boolean,
           generateFixedActivitiesDurations: scala.Boolean,
+          isWgs: scala.Boolean,
           name: java.lang.String,
+          nonHGVLinkWeightMultiplier: scala.Double,
           plansFilePath: java.lang.String,
           reader: java.lang.String,
           replanning: BeamConfig.Beam.Agentsim.Agents.Freight.Replanning,
+          tourSampleSizeAsFractionOfTotal: scala.Double,
           toursFilePath: java.lang.String
         )
 
@@ -137,11 +139,13 @@ object BeamConfig {
               carriersFilePath =
                 if (c.hasPathOrNull("carriersFilePath")) c.getString("carriersFilePath")
                 else "/test/input/beamville/freight/freight-carriers.csv",
-              convertWgs2Utm = c.hasPathOrNull("convertWgs2Utm") && c.getBoolean("convertWgs2Utm"),
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
               generateFixedActivitiesDurations =
                 c.hasPathOrNull("generateFixedActivitiesDurations") && c.getBoolean("generateFixedActivitiesDurations"),
+              isWgs = c.hasPathOrNull("isWgs") && c.getBoolean("isWgs"),
               name = if (c.hasPathOrNull("name")) c.getString("name") else "Freight",
+              nonHGVLinkWeightMultiplier =
+                if (c.hasPathOrNull("nonHGVLinkWeightMultiplier")) c.getDouble("nonHGVLinkWeightMultiplier") else 2.0,
               plansFilePath =
                 if (c.hasPathOrNull("plansFilePath")) c.getString("plansFilePath")
                 else "/test/input/beamville/freight/payload-plans.csv",
@@ -150,6 +154,9 @@ object BeamConfig {
                 if (c.hasPathOrNull("replanning")) c.getConfig("replanning")
                 else com.typesafe.config.ConfigFactory.parseString("replanning{}")
               ),
+              tourSampleSizeAsFractionOfTotal =
+                if (c.hasPathOrNull("tourSampleSizeAsFractionOfTotal")) c.getDouble("tourSampleSizeAsFractionOfTotal")
+                else 1.0,
               toursFilePath =
                 if (c.hasPathOrNull("toursFilePath")) c.getString("toursFilePath")
                 else "/test/input/beamville/freight/freight-tours.csv"
@@ -775,7 +782,9 @@ object BeamConfig {
         }
 
         case class Parking(
+          estimatedMeanEnRouteChargingDurationInSeconds: scala.Double,
           estimatedMinParkingDurationInSeconds: scala.Double,
+          forceParkingType: scala.Boolean,
           fractionOfSameTypeZones: scala.Double,
           maxSearchRadius: scala.Double,
           minNumberOfSameTypeZones: scala.Int,
@@ -835,10 +844,15 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking = {
             BeamConfig.Beam.Agentsim.Agents.Parking(
+              estimatedMeanEnRouteChargingDurationInSeconds =
+                if (c.hasPathOrNull("estimatedMeanEnRouteChargingDurationInSeconds"))
+                  c.getDouble("estimatedMeanEnRouteChargingDurationInSeconds")
+                else 1800.0,
               estimatedMinParkingDurationInSeconds =
                 if (c.hasPathOrNull("estimatedMinParkingDurationInSeconds"))
                   c.getDouble("estimatedMinParkingDurationInSeconds")
                 else 60.0,
+              forceParkingType = c.hasPathOrNull("forceParkingType") && c.getBoolean("forceParkingType"),
               fractionOfSameTypeZones =
                 if (c.hasPathOrNull("fractionOfSameTypeZones")) c.getDouble("fractionOfSameTypeZones") else 0.5,
               maxSearchRadius = if (c.hasPathOrNull("maxSearchRadius")) c.getDouble("maxSearchRadius") else 8046.72,
@@ -1644,23 +1658,65 @@ object BeamConfig {
           case class Destination(
             home: BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Home,
             noRefuelThresholdInMeters: scala.Int,
-            refuelRequiredThresholdInMeters: scala.Double
+            refuelRequiredThresholdInMeters: scala.Int,
+            secondary: BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Secondary,
+            work: BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Work
           )
 
           object Destination {
 
             case class Home(
-              refuelRequiredThresholdInMeters: scala.Double
+              noRefuelThresholdInMeters: scala.Int,
+              refuelRequiredThresholdInMeters: scala.Int
             )
 
             object Home {
 
               def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Home = {
                 BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Home(
+                  noRefuelThresholdInMeters =
+                    if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 482803,
                   refuelRequiredThresholdInMeters =
-                    if (c.hasPathOrNull("refuelRequiredThresholdInMeters"))
-                      c.getDouble("refuelRequiredThresholdInMeters")
-                    else 128747.6
+                    if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getInt("refuelRequiredThresholdInMeters")
+                    else 482803
+                )
+              }
+            }
+
+            case class Secondary(
+              noRefuelThresholdInMeters: scala.Int,
+              refuelRequiredThresholdInMeters: scala.Int
+            )
+
+            object Secondary {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Secondary = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Secondary(
+                  noRefuelThresholdInMeters =
+                    if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 482803,
+                  refuelRequiredThresholdInMeters =
+                    if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getInt("refuelRequiredThresholdInMeters")
+                    else 482803
+                )
+              }
+            }
+
+            case class Work(
+              noRefuelThresholdInMeters: scala.Int,
+              refuelRequiredThresholdInMeters: scala.Int
+            )
+
+            object Work {
+
+              def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Work = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Work(
+                  noRefuelThresholdInMeters =
+                    if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 482803,
+                  refuelRequiredThresholdInMeters =
+                    if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getInt("refuelRequiredThresholdInMeters")
+                    else 482803
                 )
               }
             }
@@ -1672,10 +1728,18 @@ object BeamConfig {
                   else com.typesafe.config.ConfigFactory.parseString("home{}")
                 ),
                 noRefuelThresholdInMeters =
-                  if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 128720,
+                  if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 482803,
                 refuelRequiredThresholdInMeters =
-                  if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getDouble("refuelRequiredThresholdInMeters")
-                  else 64373.8
+                  if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getInt("refuelRequiredThresholdInMeters")
+                  else 482803,
+                secondary = BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Secondary(
+                  if (c.hasPathOrNull("secondary")) c.getConfig("secondary")
+                  else com.typesafe.config.ConfigFactory.parseString("secondary{}")
+                ),
+                work = BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Work(
+                  if (c.hasPathOrNull("work")) c.getConfig("work")
+                  else com.typesafe.config.ConfigFactory.parseString("work{}")
+                )
               )
             }
           }
@@ -1709,7 +1773,6 @@ object BeamConfig {
           }
 
           case class Enroute(
-            estimateOfMeanChargingDurationInSecond: scala.Int,
             noRefuelAtRemainingDistanceThresholdInMeters: scala.Int,
             noRefuelThresholdOffsetInMeters: scala.Double,
             refuelRequiredThresholdOffsetInMeters: scala.Int,
@@ -1720,10 +1783,6 @@ object BeamConfig {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Enroute = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.Enroute(
-                estimateOfMeanChargingDurationInSecond =
-                  if (c.hasPathOrNull("estimateOfMeanChargingDurationInSecond"))
-                    c.getInt("estimateOfMeanChargingDurationInSecond")
-                  else 1800,
                 noRefuelAtRemainingDistanceThresholdInMeters =
                   if (c.hasPathOrNull("noRefuelAtRemainingDistanceThresholdInMeters"))
                     c.getInt("noRefuelAtRemainingDistanceThresholdInMeters")
@@ -2039,7 +2098,6 @@ object BeamConfig {
         chargingPointCountScalingFactor: scala.Double,
         chargingPointFilePath: java.lang.String,
         helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
-        maxChargingSessionsInSeconds: scala.Int,
         overnightChargingEnabled: scala.Boolean,
         scaleUp: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp,
         timeStepInSeconds: scala.Int
@@ -2084,35 +2142,19 @@ object BeamConfig {
         }
 
         case class ScaleUp(
+          activitiesLocationFilePath: java.lang.String,
           enabled: scala.Boolean,
-          expansionFactor_charge_activity: scala.Double,
-          expansionFactor_home_activity: scala.Double,
-          expansionFactor_init_activity: scala.Double,
-          expansionFactor_wherever_activity: scala.Double,
-          expansionFactor_work_activity: scala.Double
+          expansionFactor: scala.Double
         )
 
         object ScaleUp {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp = {
             BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
+              activitiesLocationFilePath =
+                if (c.hasPathOrNull("activitiesLocationFilePath")) c.getString("activitiesLocationFilePath") else "",
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
-              expansionFactor_charge_activity =
-                if (c.hasPathOrNull("expansionFactor_charge_activity")) c.getDouble("expansionFactor_charge_activity")
-                else 1.0,
-              expansionFactor_home_activity =
-                if (c.hasPathOrNull("expansionFactor_home_activity")) c.getDouble("expansionFactor_home_activity")
-                else 1.0,
-              expansionFactor_init_activity =
-                if (c.hasPathOrNull("expansionFactor_init_activity")) c.getDouble("expansionFactor_init_activity")
-                else 1.0,
-              expansionFactor_wherever_activity =
-                if (c.hasPathOrNull("expansionFactor_wherever_activity"))
-                  c.getDouble("expansionFactor_wherever_activity")
-                else 1.0,
-              expansionFactor_work_activity =
-                if (c.hasPathOrNull("expansionFactor_work_activity")) c.getDouble("expansionFactor_work_activity")
-                else 1.0
+              expansionFactor = if (c.hasPathOrNull("expansionFactor")) c.getDouble("expansionFactor") else 1.0
             )
           }
         }
@@ -2131,8 +2173,6 @@ object BeamConfig {
               if (c.hasPathOrNull("helics")) c.getConfig("helics")
               else com.typesafe.config.ConfigFactory.parseString("helics{}")
             ),
-            maxChargingSessionsInSeconds =
-              if (c.hasPathOrNull("maxChargingSessionsInSeconds")) c.getInt("maxChargingSessionsInSeconds") else 43200,
             overnightChargingEnabled =
               c.hasPathOrNull("overnightChargingEnabled") && c.getBoolean("overnightChargingEnabled"),
             scaleUp = BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
@@ -2792,14 +2832,18 @@ object BeamConfig {
       object Scenario {
 
         case class Urbansim(
-          activitySimEnabled: scala.Boolean
+          activitySimEnabled: scala.Boolean,
+          scenarioLoadingTimeoutSeconds: scala.Int
         )
 
         object Urbansim {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Scenario.Urbansim = {
             BeamConfig.Beam.Exchange.Scenario.Urbansim(
-              activitySimEnabled = c.hasPathOrNull("activitySimEnabled") && c.getBoolean("activitySimEnabled")
+              activitySimEnabled = c.hasPathOrNull("activitySimEnabled") && c.getBoolean("activitySimEnabled"),
+              scenarioLoadingTimeoutSeconds =
+                if (c.hasPathOrNull("scenarioLoadingTimeoutSeconds")) c.getInt("scenarioLoadingTimeoutSeconds")
+                else 3000
             )
           }
         }

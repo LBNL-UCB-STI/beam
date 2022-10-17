@@ -1146,11 +1146,9 @@ class RideHailManager(
       case Some(parkingStall) =>
         attemptToRefuel(vehicle, personId, parkingStall, tick, triggerId)
         true
-      case None if !vehicle.isCAV =>
-        // If not CAV and not arrived for refueling;
+      case None =>
+        // If not arrived for refueling;
         rideHailManagerHelper.makeAvailable(vehicleId)
-        false
-      case _ =>
         false
     }
   }
@@ -1555,6 +1553,13 @@ class RideHailManager(
     registerGeofences(resources.map { case (vehicleId, _) =>
       vehicleId -> rideHailManagerHelper.getRideHailAgentLocation(vehicleId).geofence
     })
+
+    log.info(
+      s"[${this.id}] generated ${resources.size} Ride-Hail vehicles, ${resources.count(_._2.isRideHailCAV)} of them are Ride-Hail CAVs. The following is a split by vehicle types:"
+    )
+    resources.groupBy(_._2.beamVehicleType).foreach { case (vehicleType, vehicles) =>
+      log.info(s"${vehicleType.id} => ${vehicles.size} vehicle(s)")
+    }
 
     rideHailAgentInitializers.size
   }

@@ -14,30 +14,35 @@ class RideHailSkimmerEvent(
   eventTime: Double,
   tazId: Id[TAZ],
   reservationType: RideHailReservationType,
+  wheelchairRequired: Boolean,
   serviceName: String,
   waitTime: Int,
-  costPerMile: Double
+  costPerMile: Double,
+  vehicleIsWheelchairAccessible: Boolean
 ) extends AbstractSkimmerEvent(eventTime) {
 
   override protected val skimName: String = RideHailSkimmer.name
 
   override val getKey: AbstractSkimmerKey =
-    RidehailSkimmerKey(tazId, SkimsUtils.timeToBin(eventTime.toInt), reservationType, serviceName)
+    RidehailSkimmerKey(tazId, SkimsUtils.timeToBin(eventTime.toInt), reservationType, wheelchairRequired, serviceName)
 
-  override val getSkimmerInternal: AbstractSkimmerInternal = RidehailSkimmerInternal(waitTime, costPerMile, 0)
+  override val getSkimmerInternal: AbstractSkimmerInternal =
+    RidehailSkimmerInternal(waitTime, costPerMile, 0, if (vehicleIsWheelchairAccessible) 1.0 else 0.0)
 }
 
 class UnmatchedRideHailRequestSkimmerEvent(
   eventTime: Double,
   tazId: Id[TAZ],
   reservationType: RideHailReservationType,
+  wheelchairRequired: Boolean,
   serviceName: String
 ) extends AbstractSkimmerEvent(eventTime) {
 
   override protected val skimName: String = RideHailSkimmer.name
 
   override val getKey: AbstractSkimmerKey =
-    RidehailSkimmerKey(tazId, SkimsUtils.timeToBin(eventTime.toInt), reservationType, serviceName)
+    RidehailSkimmerKey(tazId, SkimsUtils.timeToBin(eventTime.toInt), reservationType, wheelchairRequired, serviceName)
 
-  override val getSkimmerInternal: AbstractSkimmerInternal = RidehailSkimmerInternal(Double.NaN, Double.NaN, 100.0)
+  override val getSkimmerInternal: AbstractSkimmerInternal =
+    RidehailSkimmerInternal(Double.NaN, Double.NaN, 100.0, Double.NaN)
 }

@@ -15,9 +15,10 @@ class RideHailSkims extends AbstractSkimmerReadOnly {
     tazId: Id[TAZ],
     hour: Int,
     reservationType: RideHailReservationType,
+    wheelchairRequired: Boolean,
     serviceName: String
   ): Option[RidehailSkimmerInternal] = {
-    val key = RidehailSkimmerKey(tazId, hour, reservationType, serviceName)
+    val key = RidehailSkimmerKey(tazId, hour, reservationType, wheelchairRequired, serviceName)
 
     val getSkimValue = pastSkims
       .get(currentIteration - 1)

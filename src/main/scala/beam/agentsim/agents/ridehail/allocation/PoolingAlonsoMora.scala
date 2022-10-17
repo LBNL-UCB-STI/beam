@@ -31,6 +31,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         rideHailManager.radiusInMeters,
         inquiry.departAt,
         maxWaitTimeInSec,
+        requireWheelchairAccessible = inquiry.withWheelchair,
         includeRepositioningVehicles = true
       ) match {
       case Some(agentETA) =>

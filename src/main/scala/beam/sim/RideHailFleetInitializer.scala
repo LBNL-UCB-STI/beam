@@ -1,6 +1,7 @@
 package beam.sim
 
 import akka.actor.ActorRef
+import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailVehicleId, Shift}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
@@ -20,6 +21,7 @@ import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.controler.OutputDirectoryHierarchy
+import org.matsim.households.Household
 
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicReference
@@ -309,7 +311,11 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     geofence: Option[Geofence],
     fleetId: String
   ) {
-    val rideHailAgentId: Id[RideHailAgent] = Id.create(s"${RideHailAgent.idPrefix}-$id", classOf[RideHailAgent])
+
+    val rideHailAgentId: Id[RideHailAgent] = if (beamVehicleType.isWheelchairAccessible) {
+      Id.create(s"${RideHailAgent.idPrefix}-accessible-$id", classOf[RideHailAgent])
+    } else Id.create(s"${RideHailAgent.idPrefix}-$id", classOf[RideHailAgent])
+
     val beamVehicleId: Id[BeamVehicle] = RideHailVehicleId(id, fleetId).beamVehicleId
 
     /**
@@ -562,11 +568,19 @@ class ProceduralRideHailFleetInitializer(
   val realDistribution: UniformRealDistribution = new UniformRealDistribution()
   realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
+  val passengerPopulation: Iterable[Person] = scenario.getPopulation.getPersons
+    .values()
+    .asScala
+    .filterNot(_.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX))
+
+  val passengerHousehold: Iterable[Household] = scenario.getHouseholds.getHouseholds
+    .values()
+    .asScala
+    .filterNot(_.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX))
+
   private def computeNumRideHailAgents: Long = {
     val fleet: Double = beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
-    val initialNumHouseholdVehicles = scenario.getHouseholds.getHouseholds
-      .values()
-      .asScala
+    val initialNumHouseholdVehicles = passengerHousehold
       .flatMap { hh =>
         hh.getVehicleIds.asScala.map { vehId =>
           beamScenario.privateVehicles
@@ -592,8 +606,7 @@ class ProceduralRideHailFleetInitializer(
     val stdLogShiftDurationHours = 0.44
     var equivalentNumberOfDrivers = 0.0
 
-    val personsWithMoreThanOneActivity =
-      scenario.getPopulation.getPersons.values().asScala.filter(_.getSelectedPlan.getPlanElements.size > 1)
+    val personsWithMoreThanOneActivity = passengerPopulation.filter(_.getSelectedPlan.getPlanElements.size > 1)
     val persons: Array[Person] = rand.shuffle(personsWithMoreThanOneActivity).toArray
 
     val activityEndTimes: Array[Int] = persons.flatMap {

@@ -60,10 +60,12 @@ class UrbanSimRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with
         .keys
         .filter(_.vehicleCategory == Car)
         .map(_.id.toString)
-      listOfVehicleTypes should contain("Car-rh-only")
-      listOfVehicleTypes should have size 6
-      listOfPrivateVehicleTypes should not contain "Car-rh-only"
-      listOfPrivateVehicleTypes should have size 5
+      listOfVehicleTypes should contain("RH_Car")
+      listOfVehicleTypes should contain("RH_Car-wheelchair")
+      listOfVehicleTypes should have size 7
+      listOfPrivateVehicleTypes should not contain "RH_Car"
+      listOfPrivateVehicleTypes should not contain "RH_Car-wheelchair"
+      listOfPrivateVehicleTypes should have size 3
 
       val injector = buildInjector(conf, beamConfig, scenario, beamScenario)
       val services = injector.getInstance(classOf[BeamServices])

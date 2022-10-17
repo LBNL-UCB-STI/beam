@@ -41,6 +41,7 @@ class UrbanSimScenarioSource(
         rideHailServiceSubscription = person.rideHailServiceSubscription.split(","),
         isFemale = person.isFemale,
         valueOfTime = person.valueOfTime,
+        wheelchairUser = person.wheelchairUser,
         industry = person.industry
       )
     }

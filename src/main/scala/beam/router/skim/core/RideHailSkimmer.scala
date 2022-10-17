@@ -23,7 +23,7 @@ class RideHailSkimmer @Inject() (
   override protected val skimFileBaseName: String = RideHailSkimmer.fileBaseName
 
   override protected val skimFileHeader =
-    "tazId,hour,reservationType,serviceName,waitTime,costPerMile,unmatchedRequestsPercent,observations,iterations"
+    "tazId,hour,reservationType,wheelchairRequired,serviceName,waitTime,costPerMile,unmatchedRequestsPercent,accessibleVehiclesPercent,observations,iterations"
   override protected val skimName: String = RideHailSkimmer.name
   override protected val skimType: Skims.SkimType.Value = Skims.SkimType.RH_SKIMMER
 
@@ -35,12 +35,14 @@ class RideHailSkimmer @Inject() (
         tazId = line("tazId").createId,
         hour = line("hour").toInt,
         reservationType = if (line("reservationType").equalsIgnoreCase("pooled")) Pooled else Solo,
+        line("wheelchairRequired").toBoolean,
         serviceName = line.getOrElse("serviceName", "GlobalRHM")
       ),
       RidehailSkimmerInternal(
         waitTime = Option(line("waitTime")).map(_.toDouble).getOrElse(Double.NaN),
         costPerMile = Option(line("costPerMile")).map(_.toDouble).getOrElse(Double.NaN),
         unmatchedRequestsPercent = line("unmatchedRequestsPercent").toDouble,
+        accessibleVehiclePercent = line("accessibleVehiclePercent").toDouble,
         observations = line("observations").toInt,
         iterations = line("iterations").toInt
       )
@@ -56,6 +58,7 @@ class RideHailSkimmer @Inject() (
         waitTime = agg.aggregate(_.waitTime),
         costPerMile = agg.aggregate(_.costPerMile),
         unmatchedRequestsPercent = agg.aggregate(_.unmatchedRequestsPercent),
+        accessibleVehiclePercent = agg.aggregate(_.accessibleVehiclePercent),
         observations = agg.aggregate(_.observations),
         iterations = agg.aggregateObservations
       )
@@ -70,6 +73,7 @@ class RideHailSkimmer @Inject() (
         waitTime = agg.aggregate(_.waitTime),
         costPerMile = agg.aggregate(_.costPerMile),
         unmatchedRequestsPercent = agg.aggregate(_.unmatchedRequestsPercent),
+        accessibleVehiclePercent = agg.aggregate(_.accessibleVehiclePercent),
         observations = agg.aggregateObservations
       )
     }
@@ -83,6 +87,7 @@ object RideHailSkimmer extends LazyLogging {
     tazId: Id[TAZ],
     hour: Int,
     reservationType: RideHailReservationType,
+    wheelchairRequired: Boolean,
     serviceName: String
   ) extends AbstractSkimmerKey {
     override def toCsv: String = productIterator.mkString(",")
@@ -92,6 +97,7 @@ object RideHailSkimmer extends LazyLogging {
     waitTime: Double,
     costPerMile: Double,
     unmatchedRequestsPercent: Double,
+    accessibleVehiclePercent: Double,
     observations: Int = 1,
     iterations: Int = 1
   ) extends AbstractSkimmerInternal {

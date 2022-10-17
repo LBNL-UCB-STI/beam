@@ -15,6 +15,7 @@ case class PersonInfo(
   rideHailServiceSubscription: Seq[String] = Seq.empty,
   isFemale: Boolean,
   valueOfTime: Double,
+  wheelchairUser: Boolean = false,
   industry: Option[String]
 )
 

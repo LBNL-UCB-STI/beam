@@ -34,11 +34,11 @@ import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils._
 import beam.utils.csv.readers
 import beam.utils.plan.sampling.AvailableModeUtils
+import beam.utils.scenario._
 import beam.utils.scenario.generic.GenericScenarioSource
 import beam.utils.scenario.matsim.BeamScenarioSource
 import beam.utils.scenario.urbansim.censusblock.{ScenarioAdjuster, UrbansimReaderV2}
 import beam.utils.scenario.urbansim.{CsvScenarioReader, ParquetScenarioReader, UrbanSimScenarioSource}
-import beam.utils.scenario._
 import com.conveyal.r5.streets.StreetLayer
 import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
@@ -49,6 +49,7 @@ import com.google.inject.name.Names
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.{Activity, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
@@ -296,7 +297,13 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     val exchangeGeo = beamConfig.beam.exchange.output.geo.filePath
       .map(TAZTreeMap.getTazTreeMap(_, Some(beamConfig.beam.agentsim.taz.tazIdFieldName)))
     val (freightCarriers, fixedActivitiesDurationsFromFreight) =
-      readFreights(beamConfig, networkCoordinator.transportNetwork.streetLayer, vehicleTypes, outputDirMaybe)
+      readFreights(
+        beamConfig,
+        networkCoordinator.transportNetwork.streetLayer,
+        networkCoordinator.network,
+        vehicleTypes,
+        outputDirMaybe
+      )
 
     val fixedActivitiesDurationsFromConfig: Map[String, Double] = {
       val maybeFixedDurationsList = beamConfig.beam.agentsim.agents.activities.activityTypeToFixedDurationMap
@@ -337,6 +344,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
   def readFreights(
     beamConfig: BeamConfig,
     streetLayer: StreetLayer,
+    network: Network,
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
     outputDirMaybe: Option[String]
   ): (IndexedSeq[FreightCarrier], Map[String, Double]) = {
@@ -344,10 +352,20 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
 
     if (freightConfig.enabled) {
       val geoUtils = new GeoUtilsImpl(beamConfig)
-      val freightReader = FreightReader(beamConfig, geoUtils, streetLayer, outputDirMaybe)
+      val random = new Random(beamConfig.matsim.modules.global.randomSeed)
+      val freightReader = FreightReader(beamConfig, geoUtils, streetLayer, network, outputDirMaybe)
       val tours = freightReader.readFreightTours()
       val plans = freightReader.readPayloadPlans()
-      val carriers = freightReader.readFreightCarriers(tours, plans, vehicleTypes)
+      logger.info(s"Freight before sampling: ${tours.size} tours. ${plans.size} payloads")
+      val numTours = (tours.size * beamConfig.beam.agentsim.agents.freight.tourSampleSizeAsFractionOfTotal).round.toInt
+      val sampledTours = random.shuffle(tours).take(numTours).toMap
+      logger.info(s"Freight after sampling: ${sampledTours.size} tours")
+      // In principle readFreightCarriers will only keep the carriers and plans that are linked to the sampled tours
+      val carriers = freightReader.readFreightCarriers(sampledTours, plans, vehicleTypes)
+      val finalNumTours = carriers.flatMap(_.tourMap.values).flatten.size
+      val finalNumPlans = carriers.flatMap(_.payloadPlans.values).size
+      val finalNumCarriers = carriers.size
+      logger.info(s"Freight after merging: $finalNumTours tours. $finalNumPlans payloads. $finalNumCarriers carriers")
       val activityNameToDuration = if (freightConfig.generateFixedActivitiesDurations) {
         plans.map { case (_, plan) => plan.activityType -> plan.operationDurationInSec.toDouble }
       } else {
@@ -729,6 +747,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
         beamServices.beamConfig,
         beamServices.geo,
         beamServices.beamScenario.transportNetwork.streetLayer,
+        beamServices.beamScenario.network,
         beamServices.beamScenario.tazTreeMap,
         Some(outputDir)
       )
@@ -822,7 +841,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
           val (scenario, plansMerged) = {
             val source = src match {
               case "urbansim" => buildUrbansimScenarioSource(geoUtils, beamConfig)
-              case "urbansim_v2" => {
+              case "urbansim_v2" =>
                 val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
                 val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
                 val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
@@ -839,8 +858,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
                       .getOrElse(throw new RuntimeException("beam.exchange.scenario.modeMap must be set"))
                   )
                 )
-              }
-              case "generic" => {
+              case "generic" =>
                 val pathToHouseholds = s"${beamConfig.beam.exchange.scenario.folder}/households.csv.gz"
                 val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
                 val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
@@ -851,7 +869,6 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
                   geoUtils,
                   shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
                 )
-              }
             }
             val merger = new PreviousRunPlanMerger(
               beamConfig.beam.agentsim.agents.plans.merge.fraction,
@@ -1034,7 +1051,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     result
   }
 
-  def run(beamServices: BeamServices) {
+  def run(beamServices: BeamServices): Unit = {
     beamServices.controler.run()
   }
 

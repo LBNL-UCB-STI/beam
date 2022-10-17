@@ -74,8 +74,8 @@ class TransitInitializer(
 
       (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
         BeamPath(
-          linkIds = Vector(),
-          linkTravelTime = Vector(),
+          linkIds = Array[Int](),
+          linkTravelTime = Array[Double](),
           transitStops = Some(
             TransitStopsInfo(
               "",
@@ -114,12 +114,14 @@ class TransitInitializer(
         )
         val distance = linksTimesAndDistances.distances.tail.sum
         BeamPath(
-          linkIds = edges.map(_.intValue()).toVector,
-          linkTravelTime = TravelTimeUtils.scaleTravelTime(
-            streetSeg.getDuration,
-            math.round(linksTimesAndDistances.travelTimes.tail.sum).toInt,
-            linksTimesAndDistances.travelTimes
-          ),
+          linkIds = edges.map(_.intValue()).toArray,
+          linkTravelTime = TravelTimeUtils
+            .scaleTravelTime(
+              streetSeg.getDuration,
+              math.round(linksTimesAndDistances.travelTimes.tail.sum).toInt,
+              linksTimesAndDistances.travelTimes
+            )
+            .toArray,
           transitStops = Some(
             TransitStopsInfo(
               agencyId = "",

@@ -257,6 +257,7 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(18000, 19000),
         services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p4Req: CustomerRequest =
@@ -267,6 +268,7 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(20000, 18000),
         services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p2Req: CustomerRequest =
@@ -277,6 +279,7 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(19000, 18000),
         services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p3Req: CustomerRequest =
@@ -287,6 +290,7 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(21000, 21000),
         services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
@@ -337,6 +341,7 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(18000, 19000),
         services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p4Req: CustomerRequest =
@@ -347,6 +352,7 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(20000, 18000),
         services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p2Req: CustomerRequest =
@@ -357,6 +363,7 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(19000, 18000),
         services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p3Req: CustomerRequest =
@@ -367,6 +374,7 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(21000, 20000),
         services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
@@ -443,6 +451,7 @@ object MatchingAlgorithmsForRideHailSpec {
         taz4Loc,
         services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p4Req: CustomerRequest =
@@ -453,6 +462,7 @@ object MatchingAlgorithmsForRideHailSpec {
         taz1Loc,
         services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p2Req: CustomerRequest =
@@ -463,6 +473,7 @@ object MatchingAlgorithmsForRideHailSpec {
         taz4Loc,
         services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p3Req: CustomerRequest =
@@ -473,6 +484,7 @@ object MatchingAlgorithmsForRideHailSpec {
         taz1Loc,
         services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))

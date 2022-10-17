@@ -59,11 +59,8 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeat
             |  chargingPointFilePath =  ""
             |  scaleUp {
             |    enabled = true
-            |    expansionFactor_home_activity = 1000.0
-            |    expansionFactor_work_activity = 1000.0
-            |    expansionFactor_charge_activity = 1000.0
-            |    expansionFactor_wherever_activity = 1000.0
-            |    expansionFactor_init_activity = 1000.0
+            |    expansionFactor = 10.0
+            |    activitiesLocationFilePath = ""
             |  }
             |  helics {
             |    connectionEnabled = false
@@ -134,7 +131,7 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeat
                 case e: RefuelSessionEvent if e.vehicleId.toString.startsWith(ScaleUpCharging.VIRTUAL_ALIAS) =>
                   val upSampledPower = BeamVehicleUtils.toPowerInKW(e.energyInJoules, e.sessionDuration.toInt)
                   totVirtualPower += upSampledPower
-                case e: RefuelSessionEvent if e.vehicleId != vehicleId =>
+                case e: RefuelSessionEvent =>
                   val currentPower = BeamVehicleUtils.toPowerInKW(e.energyInJoules, e.sessionDuration.toInt)
                   totRealPower += currentPower
                 case _ =>

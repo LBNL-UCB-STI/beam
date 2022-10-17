@@ -99,6 +99,8 @@ object InfrastructureUtils extends LazyLogging {
         RideHailDepotNetwork.init(chargingZones, envelopeInUTM, beamServices)
       }.head
     )
+    logger.info(s"public charging network has ${nonRhChargingNetwork.parkingZones.size} stations")
+    logger.info(s"ride-hail charging network has ${rhChargingNetwork.parkingZones.size} depots")
 
     // PARKING STALLS ARE LOADED HERE
     logger.info(s"loading stalls...")

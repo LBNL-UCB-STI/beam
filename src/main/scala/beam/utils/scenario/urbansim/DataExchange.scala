@@ -16,6 +16,7 @@ object DataExchange {
     rideHailServiceSubscription: String,
     isFemale: Boolean,
     valueOfTime: Double,
+    wheelchairUser: Boolean = false,
     industry: Option[String]
   )
 

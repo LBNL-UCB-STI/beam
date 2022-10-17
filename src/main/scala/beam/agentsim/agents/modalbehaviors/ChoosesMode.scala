@@ -368,6 +368,7 @@ trait ChoosesMode {
           currentPersonLocation.loc,
           departTime,
           nextAct.getCoord,
+          withWheelchair = wheelchairUser,
           requestTime = _currentTick,
           requester = self,
           rideHailServiceSubscription = attributes.rideHailServiceSubscription,
@@ -510,7 +511,11 @@ trait ChoosesMode {
                 householdVehiclesWereNotAvailable = true
               }
               makeRequestWith(withTransit = householdVehiclesWereNotAvailable, vehicles :+ bodyStreetVehicle)
-              responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+              responsePlaceholders =
+                makeResponsePlaceholders(withRouting = true, withRideHail = householdVehiclesWereNotAvailable)
+              if (householdVehiclesWereNotAvailable) {
+                makeRideHailRequest()
+              }
           }
         case Some(mode @ (DRIVE_TRANSIT | BIKE_TRANSIT)) =>
           val vehicleMode = Modes.getAccessVehicleMode(mode)
@@ -1002,6 +1007,7 @@ trait ChoosesMode {
       beamServices.geo.wgs2Utm(legs.head.travelPath.startPoint.loc),
       legs.head.startTime,
       beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc),
+      wheelchairUser,
       requestTime = _currentTick,
       requester = self,
       rideHailServiceSubscription = attributes.rideHailServiceSubscription,
