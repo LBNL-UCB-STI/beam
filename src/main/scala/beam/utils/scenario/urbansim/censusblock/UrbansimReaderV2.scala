@@ -63,8 +63,8 @@ class UrbansimReaderV2(
     val planReader = new PlanReader(inputPlanPath)
 
     try {
-      val iter: Iterator[PlanElement] = merger.merge(planReader.iterator())
-      import scala.concurrent.ExecutionContext.Implicits.global
+   //   val iter: Iterator[PlanElement] = merger.merge(planReader.iterator())
+  //    import scala.concurrent.ExecutionContext.Implicits.global
       /*val futures: Iterator[Future[PlanElement]] = iter.map{ plan: PlanElement => Future {
         if (plan.planElementType == PlanElement.Activity && shouldConvertWgs2Utm) {
           val utmCoord = geoUtils.wgs2Utm(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
@@ -76,7 +76,7 @@ class UrbansimReaderV2(
       }
       val x: Future[Iterator[PlanElement]] = Future.sequence(futures)
 */
-
+/*
 
       implicit val system = ActorSystem()
 
@@ -97,7 +97,8 @@ class UrbansimReaderV2(
       val result = Await.result(output, Duration.Inf)
       system.terminate()
       result.toList
-/*
+      */
+
       merger
         .merge(planReader.iterator())
         .map { plan: PlanElement =>
@@ -110,7 +111,7 @@ class UrbansimReaderV2(
         }
         .toList
 
- */
+
     } finally {
       logger.info("Modes merged successfully into plan.")
       planReader.close()
