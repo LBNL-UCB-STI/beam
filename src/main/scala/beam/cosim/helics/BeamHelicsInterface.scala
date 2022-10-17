@@ -1,16 +1,14 @@
 package beam.cosim.helics
 
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
-import beam.agentsim.scheduler.Trigger
 import com.github.beam.HelicsLoader
 import com.java.helics._
 import com.java.helics.helicsJNI._
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
-import spray.json.DefaultJsonProtocol.{listFormat, mapFormat, JsValueFormat, StringJsonFormat}
+import spray.json.DefaultJsonProtocol.{JsValueFormat, StringJsonFormat, listFormat, mapFormat}
 import spray.json.{JsNumber, JsString, JsValue, _}
 
-import scala.concurrent.duration.{Duration, DurationInt}
 import scala.util.control.NonFatal
 
 object BeamHelicsInterface {
@@ -89,8 +87,6 @@ object BeamHelicsInterface {
       dataInStreamPointMaybe
     )
   }
-
-  case class BeamFederateTrigger(tick: Int) extends Trigger
 
   implicit object AnyJsonFormat extends JsonFormat[Any] {
 
@@ -368,7 +364,7 @@ object BeamHelicsInterface {
       None
     }
 
-    federate.foreach(enterExecutionMode(_))
+    federate.foreach(enterExecutionMode)
 
     def getBrokersFederate: Option[BeamFederate] = federate
   }
