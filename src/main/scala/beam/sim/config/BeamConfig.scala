@@ -4164,6 +4164,7 @@ object BeamConfig {
       overrideNetworkTravelTimesUsingSkims: scala.Boolean,
       r5: BeamConfig.Beam.Routing.R5,
       skimTravelTimesScalingFactor: scala.Double,
+      startingIterationForTravelTimesMSA: scala.Int,
       transitOnStreetNetwork: scala.Boolean,
       writeRoutingStatistic: scala.Boolean
     )
@@ -4306,6 +4307,9 @@ object BeamConfig {
           ),
           skimTravelTimesScalingFactor =
             if (c.hasPathOrNull("skimTravelTimesScalingFactor")) c.getDouble("skimTravelTimesScalingFactor") else 0.0,
+          startingIterationForTravelTimesMSA =
+            if (c.hasPathOrNull("startingIterationForTravelTimesMSA")) c.getInt("startingIterationForTravelTimesMSA")
+            else 0,
           transitOnStreetNetwork = !c.hasPathOrNull("transitOnStreetNetwork") || c.getBoolean("transitOnStreetNetwork"),
           writeRoutingStatistic = c.hasPathOrNull("writeRoutingStatistic") && c.getBoolean("writeRoutingStatistic")
         )
