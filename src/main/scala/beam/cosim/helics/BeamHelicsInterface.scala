@@ -2,7 +2,6 @@ package beam.cosim.helics
 
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.scheduler.Trigger
-import beam.utils.FileUtils
 import com.github.beam.HelicsLoader
 import com.java.helics._
 import com.java.helics.helicsJNI._
@@ -12,7 +11,6 @@ import spray.json.DefaultJsonProtocol.{listFormat, mapFormat, JsValueFormat, Str
 import spray.json.{JsNumber, JsString, JsValue, _}
 
 import scala.concurrent.duration.{Duration, DurationInt}
-import scala.concurrent.{blocking, Await, ExecutionContext, ExecutionContextExecutorService, Future}
 import scala.util.control.NonFatal
 
 object BeamHelicsInterface {
@@ -150,30 +148,13 @@ object BeamHelicsInterface {
     val fedInfo: SWIGTYPE_p_void = helics.helicsCreateFederateInfo()
     helics.helicsFederateInfoSetCoreTypeFromString(fedInfo, coreType)
     helics.helicsFederateInfoSetCoreInitString(fedInfo, coreInitString)
-    helics.helicsFederateInfoSetTimeProperty(fedInfo, helics_property_time_delta_get(), timeDeltaProperty)
-    helics.helicsFederateInfoSetIntegerProperty(fedInfo, helics_property_int_log_level_get(), intLogLevel)
+    helics.helicsFederateInfoSetTimeProperty(fedInfo, HELICS_PROPERTY_TIME_DELTA_get(), timeDeltaProperty)
+    helics.helicsFederateInfoSetIntegerProperty(fedInfo, HELICS_PROPERTY_INT_LOG_LEVEL_get(), intLogLevel)
     fedInfo
   }
 
-  def enterExecutionMode(timeout: Duration, federates: BeamFederate*): Unit = {
-    import java.util.concurrent.TimeUnit
-    import java.util.concurrent.SynchronousQueue
-    import java.util.concurrent.ThreadPoolExecutor
-    FileUtils.using(new ThreadPoolExecutor(0, federates.size, 0, TimeUnit.SECONDS, new SynchronousQueue[Runnable]))(
-      _.shutdown()
-    ) { executorService =>
-      implicit val ec: ExecutionContextExecutorService = ExecutionContext.fromExecutorService(executorService)
-      val futureResults = federates.map { beamFederate =>
-        Future {
-          println("enterExecutionMode 1")
-          blocking(helics.helicsFederateEnterExecutingMode(beamFederate.fedComb))
-          println("enterExecutionMode 2")
-        }
-      }
-      println("enterExecutionMode 3")
-      Await.result(Future.sequence(futureResults), timeout)
-      println("enterExecutionMode 4")
-    }
+  def enterExecutionMode(beamFederate: BeamFederate): Unit = {
+    helics.helicsFederateEnterExecutingMode(beamFederate.fedComb)
   }
 
   case class BeamFederate(
@@ -200,29 +181,28 @@ object BeamHelicsInterface {
     // **************************
 
     def cosimulate(tick: Int, msgToPublish: List[Map[String, Any]]): List[Map[String, Any]] = {
+      def log(message: String): Unit = {
+        logger.debug(s"$message [${System.currentTimeMillis()}]")
+      }
       var msgReceived: Option[List[Map[String, Any]]] = None
       if (currentBin < tick / simulationStep) {
         currentBin = tick / simulationStep
-        logger.info(
-          s"Publishing message to the ${dataOutStreamPointMaybe.getOrElse("NA")} at time $tick. [${System.currentTimeMillis()}]"
-        )
+        log(s"Publishing message to the ${dataOutStreamPointMaybe.getOrElse("NA")} at time $tick.")
         publishJSON(msgToPublish)
-        logger.info(s"publishNestedJSON $msgToPublish. [${System.currentTimeMillis()}]")
+        log(s"publishNestedJSON $msgToPublish.")
         while (msgReceived.isEmpty) {
           // SYNC
           sync(tick)
-          logger.info(s"sync $tick. [${System.currentTimeMillis()}]")
+          log(s"sync $tick.")
           // COLLECT
           msgReceived = collectJSON()
-          logger.info(s"collectedNestedJSON $msgReceived. [${System.currentTimeMillis()}]")
+          log(s"collectedNestedJSON $msgReceived.")
           if (msgReceived.isEmpty) {
             // Sleep
             Thread.sleep(1)
           }
         }
-        logger.info(
-          s"Message received from ${dataInStreamPointMaybe.getOrElse("NA")}: $msgReceived. [${System.currentTimeMillis()}]"
-        )
+        log(s"Message received from ${dataInStreamPointMaybe.getOrElse("NA")}: $msgReceived.")
       }
       msgReceived.getOrElse(List.empty)
     }
@@ -317,7 +297,7 @@ object BeamHelicsInterface {
       */
     private def registerPublication(pubName: String): Unit = {
       dataOutStreamHandle = Some(
-        helics.helicsFederateRegisterPublication(fedComb, pubName, helics_data_type.helics_data_type_string, "")
+        helics.helicsFederateRegisterPublication(fedComb, pubName, HelicsDataTypes.HELICS_DATA_TYPE_STRING, "")
       )
       logger.info(s"registering publication $pubName")
     }
@@ -388,7 +368,7 @@ object BeamHelicsInterface {
       None
     }
 
-    federate.foreach(enterExecutionMode(10.seconds, _))
+    federate.foreach(enterExecutionMode(_))
 
     def getBrokersFederate: Option[BeamFederate] = federate
   }

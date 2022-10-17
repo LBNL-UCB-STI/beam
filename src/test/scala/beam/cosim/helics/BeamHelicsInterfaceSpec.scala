@@ -45,7 +45,7 @@ class BeamHelicsInterfaceSpec extends AnyFlatSpec with Matchers with BeamHelper 
         Some("LIST_ANY"),
         Some("Federate1/LIST_MAP_ANY")
       )
-    enterExecutionMode(10.seconds, beamFederate)
+    enterExecutionMode(beamFederate)
     val f1 = Future { broker(beamBroker) }
     val f2 = Future { federate(beamFederate) }
     val aggregatedFuture = for {

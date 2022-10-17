@@ -61,7 +61,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
           }.seq
         }.map { federates =>
           logger.info("Initialized {} federates, now they are going to execution mode", federates.size)
-          enterExecutionMode(1.hour, federates.map(_._3).toSeq: _*)
+          federates.foreach { case (_, _, beamFederate: BeamFederate) => enterExecutionMode(beamFederate) }
           logger.info("Entered execution mode")
           federates.toList
         }.recoverWith { case e =>
@@ -79,7 +79,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     */
   def obtainPowerCommandsAndLimits(timeBin: Int): Unit = {
     val numPluggedVehicles = chargingNetworkHelper.allChargingStations.view.map(_.howManyVehiclesAreCharging).sum
-    println(s"obtainPowerCommandsAndLimits timeBin = $timeBin, numPluggedVehicles = $numPluggedVehicles")
+//    println(s"obtainPowerCommandsAndLimits timeBin = $timeBin, numPluggedVehicles = $numPluggedVehicles")
     logger.debug(
       s"obtainPowerCommandsAndLimits timeBin = $timeBin, numPluggedVehicles = $numPluggedVehicles"
     )

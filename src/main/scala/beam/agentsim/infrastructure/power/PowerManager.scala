@@ -48,7 +48,7 @@ class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: Bea
           )
         }.map { federate =>
           logger.info("Initialized federate, now it is going to execution mode")
-          enterExecutionMode(1.hour, federate)
+          enterExecutionMode(federate)
           logger.info("Entered execution mode")
           federate
         }.recoverWith { case e =>

@@ -1,8 +1,8 @@
 package scripts.helics
 
 import com.github.beam.HelicsLoader
-import com.java.helics.helicsJNI.{helics_property_int_log_level_get, helics_property_time_delta_get}
-import com.java.helics.{helics, helics_data_type, SWIGTYPE_p_void}
+import com.java.helics.helicsJNI.{HELICS_PROPERTY_INT_LOG_LEVEL_get, HELICS_PROPERTY_TIME_DELTA_get}
+import com.java.helics.{helics, HelicsDataTypes, SWIGTYPE_p_void}
 
 object HelicsTester extends App {
 
@@ -14,7 +14,7 @@ object HelicsTester extends App {
   val publicationName = "CHARGING_VEHICLES"
 
   val dataOutStreamHandle = Some(
-    helics.helicsFederateRegisterPublication(fedComb, publicationName, helics_data_type.helics_data_type_string, "")
+    helics.helicsFederateRegisterPublication(fedComb, publicationName, HelicsDataTypes.HELICS_DATA_TYPE_STRING, "")
   )
 
   // val subscriptionName = "CHARGING_VEHICLES"
@@ -44,7 +44,7 @@ object HelicsTester extends App {
 
   def loadHelics(): Unit = {
     HelicsLoader.load()
-    println("Helics loaded.")
+    println(s"Helics loaded (version: ${helics.helicsGetVersion()})")
   }
 
   def getFederateInfo(
@@ -56,8 +56,8 @@ object HelicsTester extends App {
     val fedInfo: SWIGTYPE_p_void = helics.helicsCreateFederateInfo()
     helics.helicsFederateInfoSetCoreTypeFromString(fedInfo, coreType)
     helics.helicsFederateInfoSetCoreInitString(fedInfo, coreInitString)
-    helics.helicsFederateInfoSetTimeProperty(fedInfo, helics_property_time_delta_get(), timeDeltaProperty)
-    helics.helicsFederateInfoSetIntegerProperty(fedInfo, helics_property_int_log_level_get(), intLogLevel)
+    helics.helicsFederateInfoSetTimeProperty(fedInfo, HELICS_PROPERTY_TIME_DELTA_get(), timeDeltaProperty)
+    helics.helicsFederateInfoSetIntegerProperty(fedInfo, HELICS_PROPERTY_INT_LOG_LEVEL_get(), intLogLevel)
     fedInfo
   }
 
