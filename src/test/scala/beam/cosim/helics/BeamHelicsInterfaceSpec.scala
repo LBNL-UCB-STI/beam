@@ -1,9 +1,9 @@
 package beam.cosim.helics
 
+import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.BeamHelper
 import com.java.helics.helics
 import org.scalatest.BeforeAndAfterAll
-import beam.cosim.helics.BeamHelicsInterface._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -45,7 +45,7 @@ class BeamHelicsInterfaceSpec extends AnyFlatSpec with Matchers with BeamHelper 
         Some("LIST_ANY"),
         Some("Federate1/LIST_MAP_ANY")
       )
-    enterExecutionMode(beamFederate)
+    enterExecutionMode(10.seconds, beamFederate)
     val f1 = Future { broker(beamBroker) }
     val f2 = Future { federate(beamFederate) }
     val aggregatedFuture = for {

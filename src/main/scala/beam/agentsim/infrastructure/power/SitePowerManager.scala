@@ -33,8 +33,11 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
       case Some(spmcConfig) if spmcConfig.connect =>
         logger.warn("ChargingNetworkManager should connect to a site power controller via Helics...")
         Try {
-          val tazIdToChargingStations =
-            chargingNetworkHelper.allChargingStations.groupBy(_.zone.tazId).filter(_._1.toString == "1")
+          // the same should be in 'all_taz' in src/main/python/gemini/site_power_controller_federate.py:311
+          val selectedTazs = (1 to 1).map(_.toString).toSet
+          val tazIdToChargingStations = chargingNetworkHelper.allChargingStations
+            .groupBy(_.zone.tazId)
+            .filter { case (tazId, _) => selectedTazs.contains(tazId.toString) }
           logger.info("Init SitePowerManager Federates for {} TAZes...", tazIdToChargingStations.size)
           val fedInfo = createFedInfo(
             spmcConfig.coreType,
@@ -61,7 +64,8 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
           }.seq
         }.map { federates =>
           logger.info("Initialized {} federates, now they are going to execution mode", federates.size)
-          federates.foreach { case (_, _, beamFederate: BeamFederate) => enterExecutionMode(beamFederate) }
+          val beamFederates = federates.map { case (_, _, beamFederate: BeamFederate) => beamFederate }.toSeq
+          enterExecutionMode(10.seconds, beamFederates: _*)
           logger.info("Entered execution mode")
           federates.toList
         }.recoverWith { case e =>

@@ -308,6 +308,7 @@ if __name__ == "__main__":
     data = pd.read_csv(infrastructure_file)
     # all_taz = data["taz"].unique()
     all_taz = ["1"]
+    # all_taz = ["1","2","3","4","5"]
     num_all_taz = len(all_taz)
     logging.info("Extracted " + str(num_all_taz) + " TAZs...")
     helics_config = {"coreInitString": f"--federates={num_all_taz} --broker_address=tcp://127.0.0.1",

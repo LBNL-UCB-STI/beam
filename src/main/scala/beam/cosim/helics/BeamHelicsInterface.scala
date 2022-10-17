@@ -1,6 +1,8 @@
 package beam.cosim.helics
 
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
+import beam.agentsim.scheduler.Trigger
+import beam.utils.FileUtils
 import com.github.beam.HelicsLoader
 import com.java.helics._
 import com.java.helics.helicsJNI._
@@ -9,6 +11,8 @@ import org.matsim.api.core.v01.Id
 import spray.json.DefaultJsonProtocol.{JsValueFormat, StringJsonFormat, listFormat, mapFormat}
 import spray.json.{JsNumber, JsString, JsValue, _}
 
+import scala.concurrent._
+import scala.concurrent.duration.{Duration, DurationInt}
 import scala.util.control.NonFatal
 
 object BeamHelicsInterface {
@@ -88,6 +92,9 @@ object BeamHelicsInterface {
     )
   }
 
+  @SuppressWarnings(Array("unused"))
+  case class BeamFederateTrigger(tick: Int) extends Trigger
+
   implicit object AnyJsonFormat extends JsonFormat[Any] {
 
     def write(x: Any): JsValue = x match {
@@ -149,8 +156,21 @@ object BeamHelicsInterface {
     fedInfo
   }
 
-  def enterExecutionMode(beamFederate: BeamFederate): Unit = {
-    helics.helicsFederateEnterExecutingMode(beamFederate.fedComb)
+  def enterExecutionMode(timeout: Duration, federates: BeamFederate*): Unit = {
+    import java.util.concurrent.{SynchronousQueue, ThreadPoolExecutor, TimeUnit}
+    FileUtils.using(
+      new ThreadPoolExecutor(federates.size, federates.size, 0, TimeUnit.SECONDS, new SynchronousQueue[Runnable])
+    )(
+      _.shutdown()
+    ) { executorService =>
+      implicit val ec: ExecutionContextExecutorService = ExecutionContext.fromExecutorService(executorService)
+      val futureResults = federates.map { beamFederate =>
+        Future {
+          blocking(helics.helicsFederateEnterExecutingMode(beamFederate.fedComb))
+        }
+      }
+      Await.result(Future.sequence(futureResults), timeout)
+    }
   }
 
   case class BeamFederate(
@@ -364,7 +384,7 @@ object BeamHelicsInterface {
       None
     }
 
-    federate.foreach(enterExecutionMode)
+    federate.foreach(enterExecutionMode(10.seconds, _))
 
     def getBrokersFederate: Option[BeamFederate] = federate
   }
