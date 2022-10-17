@@ -37,7 +37,7 @@ class BeamIncentiveSpec extends AnyWordSpecLike with BeamHelper with BeforeAndAf
         runSimulationAndCalculateAverageOfRideHailChoices(lastIteration, "incentives.csv")
       val numChoicesWithRideHailIncentives =
         runSimulationAndCalculateAverageOfRideHailChoices(lastIteration, "incentives-ride_hail.csv")
-      numChoicesWithoutRideHailIncentive must be < numChoicesWithRideHailIncentives withClue
+      numChoicesWithoutRideHailIncentive should be < numChoicesWithRideHailIncentives withClue
       "RH incentives don't increase the number of choices of RH for some reason"
     }
   }
