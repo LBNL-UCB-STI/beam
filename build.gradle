@@ -184,7 +184,7 @@ dependencies {
     }
 
     // https://github.com/nikolayilyin/helics-wrapper/releases
-    implementation 'com.github.nikolayilyin:helics-wrapper:v3.3.0-all-os-1'
+    implementation 'com.github.nikolayilyin:helics-wrapper:v3.3.0-all-os-2'
     //implementation 'com.github.LBNL-UCB-STI:helics-wrapper:v2.6.2'
 
     // GPLv3
