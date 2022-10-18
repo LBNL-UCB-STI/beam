@@ -40,7 +40,7 @@ trait GeoUtils extends ExponentialLazyLogging {
 
   def wgs2Utm(coord: Coord): Coord = {
     if (GeoUtils.isInvalidWgsCoordinate(coord)) {
-      logger.warn(s"Coordinate does not appear to be in WGS. No conversion will happen: $coord")
+      logger.warn("Coordinate does not appear to be in WGS. No conversion will happen: {}", coord)
       coord
     } else {
       wgs2Utm.transform(coord)
