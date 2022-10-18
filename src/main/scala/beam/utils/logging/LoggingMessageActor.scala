@@ -24,12 +24,10 @@ trait LoggingMessageActor extends Actor {
 }
 
 object LoggingMessageActor {
-  import scala.collection.JavaConverters._
-
   def messageLoggingEnabled(config: Config): Boolean =
-    config
-      .withFallback(ConfigFactory.parseMap(Map("beam.debug.messageLogging" -> false).asJava))
-      .getBoolean("beam.debug.messageLogging")
+    if (config.hasPathOrNull("beam.debug.messageLogging")) {
+      config.getBoolean("beam.debug.messageLogging")
+    } else false
 }
 
 trait LoggingMessagePublisher extends Actor {
