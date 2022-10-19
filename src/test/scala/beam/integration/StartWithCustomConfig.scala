@@ -9,7 +9,9 @@ import org.matsim.api.core.v01.events.Event
 class StartWithCustomConfig(val config: Config) extends IntegrationSpecCommon with BeamHelper {
 
   lazy val (matsimConfig, _, _) = runBeamWithConfig(
-    config.withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(0))
+    BeamHelper.updateConfigToCurrentVersion(
+      config.withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(0))
+    )
   )
 
   lazy val groupedCount: Map[String, Int] =
