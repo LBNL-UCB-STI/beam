@@ -543,6 +543,21 @@ class UrbanSimScenarioLoader(
     // an index of state in map values (vector) will be the same as `person.getPlans` index
     val store: mutable.Map[PersonId, Vector[State]] = mutable.Map.empty
 
+    def findIndexFor(stateToMatch: State, states: Vector[State])(fallbackAction: => Int) = {
+      import scala.util.control.Breaks._
+      var index = 0
+      var found = false
+      breakable {
+        for (state <- states) {
+          if (state == stateToMatch) {
+            found = true
+            break
+          }
+          index = index + 1
+        }
+      }
+      if(found) index else fallbackAction
+    }
     // updates person/plans store internally
     // add new plan to person if not exist or select appropriate plan based on plan index/selected to operate on
     // set selected plan if not already
@@ -557,12 +572,19 @@ class UrbanSimScenarioLoader(
       } else {
         val lookingFor = State(planInfo.planIndex, planInfo.planSelected)
         val states = store(planInfo.personId)
-        val index = states.zipWithIndex.find(_._1 == lookingFor).map(_._2).getOrElse {
+
+        val index = findIndexFor(lookingFor, states){
           // couldn't find in store, create new plan
           person.addPlan(PopulationUtils.createPlan(person))
           store += (planInfo.personId -> (states :+ lookingFor))
           currentPlanSize
         }
+        /*val index = states.zipWithIndex.find(_._1 == lookingFor).map(_._2).getOrElse {
+          // couldn't find in store, create new plan
+          person.addPlan(PopulationUtils.createPlan(person))
+          store += (planInfo.personId -> (states :+ lookingFor))
+          currentPlanSize
+        }*/
         person.getPlans.get(index) -> lookingFor
       }
       if (person.getSelectedPlan == null && state.planSelected) {
