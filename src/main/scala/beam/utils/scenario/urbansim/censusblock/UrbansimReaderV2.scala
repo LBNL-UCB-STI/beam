@@ -4,7 +4,7 @@ import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import beam.sim.common.GeoUtils
-import beam.utils.scenario.urbansim.censusblock.entities.InputHousehold
+import beam.utils.scenario.urbansim.censusblock.entities.{InputHousehold, InputPlanElement}
 import beam.utils.scenario.urbansim.censusblock.merger.{HouseholdMerger, PersonMerger, PlanMerger}
 import beam.utils.scenario.urbansim.censusblock.reader._
 import beam.utils.scenario.{HouseholdInfo, PersonInfo, PlanElement, ScenarioSource}
@@ -63,6 +63,7 @@ class UrbansimReaderV2(
     val planReader = new PlanReader(inputPlanPath)
 
     try {
+      /*
       val iter: Iterator[PlanElement] = merger.merge(planReader.iterator())
       import scala.concurrent.ExecutionContext.Implicits.global
       val futures: Iterator[Future[PlanElement]] = iter.map{ plan: PlanElement => Future {
@@ -76,12 +77,14 @@ class UrbansimReaderV2(
       }
       val x: Future[Iterator[PlanElement]] = Future.sequence(futures)
       Await.result(x, Duration.Inf).toList
-/*
+      */
+
 
       implicit val system = ActorSystem()
-
+      import scala.concurrent.ExecutionContext.Implicits.global
       import akka.stream.scaladsl.Source
-      val source: Source[PlanElement, NotUsed] = Source.fromIterator(()=>iter).mapAsync(1000){ plan: PlanElement => Future {
+      val source: Source[PlanElement, NotUsed] = Source.fromIterator(()=>planReader.iterator()).mapAsync(100){ inputplan: InputPlanElement => Future {
+        val plan = merger.transform(inputplan)
         if (plan.planElementType == PlanElement.Activity && shouldConvertWgs2Utm) {
           val utmCoord = geoUtils.wgs2Utm(new Coord(plan.activityLocationX.get, plan.activityLocationY.get))
           plan.copy(activityLocationX = Some(utmCoord.getX), activityLocationY = Some(utmCoord.getY))
@@ -97,7 +100,6 @@ class UrbansimReaderV2(
       val result = Await.result(output, Duration.Inf)
       system.terminate()
       result.toList
-      */
 /*
       merger
         .merge(planReader.iterator())

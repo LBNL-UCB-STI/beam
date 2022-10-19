@@ -7,7 +7,7 @@ class PlanMerger(modeMap: Map[String, String]) extends Merger[InputPlanElement, 
 
   def merge(inputIterator: Iterator[InputPlanElement]): Iterator[PlanElement] = inputIterator.map(transform)
 
-  private def transform(inputPlanElement: InputPlanElement): PlanElement = {
+  def transform(inputPlanElement: InputPlanElement): PlanElement = {
     PlanElement(
       inputPlanElement.tripId.getOrElse(""),
       PersonId(inputPlanElement.personId),
