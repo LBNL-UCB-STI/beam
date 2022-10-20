@@ -160,7 +160,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
       plan4.getPlanElements.get(2).asInstanceOf[Activity].getCoord should be(
         new Coord(169900.11498160253, 3510.2356380579545)
       )
-      plan4.getPlanElements.get(4).asInstanceOf[Activity].getType should be("Home")
+      plan4.getPlanElements.get(4).asInstanceOf[Activity].getType should be("Warehouse")
     }
   }
 
