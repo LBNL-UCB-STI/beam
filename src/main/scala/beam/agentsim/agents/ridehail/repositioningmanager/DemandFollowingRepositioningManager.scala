@@ -83,7 +83,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   logger.info(s"numberOfClustersForDemand: $numberOfClustersForDemand")
   logger.info(s"horizon: $horizon")
 
-  val timeBinToClusters: Map[Int, Array[ClusterInfo]] = ProfilingUtils.timed("createClusters", x => logger.info(x)) {
+  val timeBinToClusters: Map[Int, Array[ClusterInfo]] = ProfilingUtils.timed("createClusters", x => logger.error(x)) {
     createClusters
   }
 
@@ -182,6 +182,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   }
 
   private def createClusters: Map[Int, Array[ClusterInfo]] = {
+    logger.error("timebin activities size" + timeBinToActivities.size)
     // Build clusters for every time bin. Number of clusters is configured
     timeBinToActivities.map { case (timeBin, acts) =>
       val clusters =
