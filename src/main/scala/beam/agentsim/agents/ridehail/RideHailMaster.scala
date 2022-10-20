@@ -3,19 +3,14 @@ package beam.agentsim.agents.ridehail
 import akka.actor.{ActorRef, Props, Terminated}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
-import beam.agentsim.agents.ridehail.RideHailManager.{
-  BufferedRideHailRequestsTrigger,
-  ResponseCache,
-  RideHailRepositioningTrigger
-}
+import beam.agentsim.agents.ridehail.RideHailManager.ResponseCache
 import beam.agentsim.agents.ridehail.RideHailMaster.RequestWithResponses
 import beam.agentsim.agents.vehicles.AccessErrorCodes.UnknownInquiryIdError
-import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, VehicleManager}
+import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
-import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import beam.sim.{BeamScenario, BeamServices, RideHailFleetInitializerProvider}
 import beam.utils.logging.LoggingMessageActor
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
@@ -27,6 +22,7 @@ import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 
 import scala.collection.mutable
+import scala.util.Random
 
 /**
   * @author Dmitry Openkov
@@ -87,6 +83,7 @@ class RideHailMaster(
 
   private val inquiriesWithResponses: mutable.Map[Int, RequestWithResponses] = mutable.Map.empty
   private val rideHailResponseCache = new ResponseCache
+  val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
   override def loggedReceive: Receive = {
     case TriggerWithId(trigger: InitializeTrigger, triggerId) =>
@@ -138,8 +135,9 @@ class RideHailMaster(
   }
 
   private def findBestProposal(customer: Id[Person], responses: IndexedSeq[RideHailResponse]) = {
-    val withProposals = responses.filter(_.travelProposal.isDefined)
-    if (withProposals.isEmpty) responses.head
+    val responsesInRandomOrder = rand.shuffle(responses)
+    val withProposals = responsesInRandomOrder.filter(_.travelProposal.isDefined)
+    if (withProposals.isEmpty) responsesInRandomOrder.head
     else withProposals.minBy(_.travelProposal.get.estimatedPrice(customer))
   }
 }
