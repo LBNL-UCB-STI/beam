@@ -183,9 +183,7 @@ dependencies {
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
 
-    // https://github.com/nikolayilyin/helics-wrapper/releases
-    implementation 'com.github.nikolayilyin:helics-wrapper:v3.3.0-all-os-3'
-    //implementation 'com.github.LBNL-UCB-STI:helics-wrapper:v2.6.2'
+    implementation 'com.github.LBNL-UCB-STI:helics-wrapper:v3.3.0'
 
     // GPLv3
     implementation group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
