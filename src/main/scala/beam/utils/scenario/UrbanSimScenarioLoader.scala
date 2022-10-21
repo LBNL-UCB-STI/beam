@@ -75,13 +75,14 @@ class UrbanSimScenarioLoader(
       households
     }
 
-    val inputPlans = Await.result(plansF, 1800.seconds)
+    val timeOutSeconds = beamScenario.beamConfig.beam.exchange.scenario.urbansim.scenarioLoadingTimeoutSeconds
+    val inputPlans = Await.result(plansF, timeOutSeconds.seconds)
     logger.info(s"Reading plans done.")
 
-    val persons = Await.result(personsF, 1800.seconds)
+    val persons = Await.result(personsF, timeOutSeconds.seconds)
     logger.info(s"Reading persons done.")
 
-    val households = Await.result(householdsF, 1800.seconds)
+    val households = Await.result(householdsF, timeOutSeconds.seconds)
     logger.info(s"Reading households done.")
 
     val (mergedPlans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
@@ -515,10 +516,12 @@ class UrbanSimScenarioLoader(
       personAttrib.putAttribute(personId, "age", personInfo.age)
       personAttrib.putAttribute(personId, "income", hh.getIncome.getIncome)
       personAttrib.putAttribute(personId, "sex", sexChar)
+      personAttrib.putAttribute(personId, "wheelchairUser", personInfo.wheelchairUser)
 
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
       person.getAttributes.putAttribute("income", hh.getIncome.getIncome)
+      person.getAttributes.putAttribute("wheelchairUser", personInfo.wheelchairUser)
       person.getAttributes.putAttribute("industry", personInfo.industry.getOrElse("#NO_DATA#"))
 
       AvailableModeUtils.setAvailableModesForPerson_v2(

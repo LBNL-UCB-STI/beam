@@ -7,6 +7,7 @@ import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents._
+import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -109,12 +110,16 @@ object HouseholdActor {
     requireVehicleCategoryAvailable: Option[VehicleCategory],
     triggerId: Long
   ) extends HasTriggerId
+
   case class ReleaseVehicle(vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
 
   case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None, triggerId: Long)
       extends HasTriggerId
+
   case class MobilityStatusResponse(streetVehicle: Vector[VehicleOrToken], triggerId: Long) extends HasTriggerId
+
   case class GetVehicleTypes(triggerId: Long) extends HasTriggerId
+
   case class VehicleTypesResponse(vehicleTypes: Set[BeamVehicleType], triggerId: Long) extends HasTriggerId
 
   /**
@@ -181,7 +186,8 @@ object HouseholdActor {
 
     private var members: Map[Id[Person], PersonIdWithActorRef] = Map()
 
-    private val isFreightCarrier: Boolean = household.getId.toString.toLowerCase.contains("freight")
+    private val isFreightCarrier: Boolean =
+      household.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX)
 
     // Data need to execute CAV dispatch
     private val cavPlans: mutable.ListBuffer[CAVSchedule] = mutable.ListBuffer()
@@ -244,6 +250,8 @@ object HouseholdActor {
                     Some(new EmergencyHouseholdVehicleGenerator(household, beamScenario, vehiclesAdjustment, category))
                   else None,
                   whoDrivesThisVehicle,
+                  beamServices.matsimServices.getEvents,
+                  beamServices.geo,
                   beamServices.beamConfig,
                   beamServices.beamConfig.beam.debug
                 )
@@ -261,7 +269,7 @@ object HouseholdActor {
         if (cavs.nonEmpty) {
           val workingPersonsList =
             householdMembersToLocationTypeAndLocation.filter(_._2._1 == ParkingActivityType.Work).keys.toBuffer
-//          log.debug("Household {} has {} CAVs and will do some planning", household.getId, cavs.size)
+          //          log.debug("Household {} has {} CAVs and will do some planning", household.getId, cavs.size)
           cavs.foreach { cav =>
             val cavDriverRef: ActorRef = context.actorOf(
               HouseholdCAVDriverAgent.props(
@@ -278,7 +286,7 @@ object HouseholdActor {
               ),
               s"cavDriver-${cav.id.toString}"
             )
-            log.warning(
+            log.debug(
               s"Setting up household cav ${cav.id} with driver ${cav.getDriver} to be set with driver $cavDriverRef"
             )
             context.watch(cavDriverRef)
@@ -348,8 +356,11 @@ object HouseholdActor {
                   beam.utils.logging.pattern
                     .ask(
                       router,
-                      if (req.routeReq.isDefined) { req.routeReq.get }
-                      else { req.embodyReq.get }
+                      if (req.routeReq.isDefined) {
+                        req.routeReq.get
+                      } else {
+                        req.embodyReq.get
+                      }
                     )
                     .mapTo[RoutingResponse]
                 )

@@ -41,7 +41,7 @@ object BeamAgentScheduler {
 
   case class CompletionNotice(
     triggerId: Long,
-    newTriggers: Seq[ScheduleTrigger] = Vector[ScheduleTrigger]()
+    newTriggers: Seq[ScheduleTrigger] = Vector.empty[ScheduleTrigger]
   ) extends SchedulerMessage
       with HasTriggerId
 

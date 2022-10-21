@@ -432,6 +432,7 @@ class ChargingNetworkManagerSpec
 
       chargingNetworkManager ! ChargingUnplugRequest(750, personId, beamVilleCar2, 0)
       expectMsgType[UnpluggingVehicle] shouldBe UnpluggingVehicle(750, personId, beamVilleCar2, parkingStall, 1.08e8)
+      expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar2.primaryFuelLevelInJoules should be(2.16e8)
       beamVilleCar3.primaryFuelLevelInJoules should be(1.08e8)

@@ -66,7 +66,7 @@ class FreightReplanner(
       val person = population.get(freightReader.createPersonId(freightCarrier.carrierId, vehicleId))
       val toursAndPlans = routes.zipWithIndex.map { case (route, i) =>
         convertToFreightTourWithPayloadPlans(
-          s"freight-tour-${route.vehicle.id}-$i".createId,
+          s"${route.vehicle.id}-$i".createId,
           route,
           freightCarrier.payloadPlans
         )
