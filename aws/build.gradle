@@ -336,3 +336,4 @@ def getGitResultFromWorkingDirUsing(command, defaultResult) {
     } catch (ignored) {
     }
     return gitResult
+}
