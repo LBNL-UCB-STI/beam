@@ -911,8 +911,8 @@ def deploy_handler(event, context):
                 .replace('$SLACK_TOKEN', os.environ['SLACK_TOKEN']) \
                 .replace('$SLACK_CHANNEL', os.environ['SLACK_CHANNEL']) \
                 .replace('$SHEET_ID', os.environ['SHEET_ID']) \
-                .replace('$STUCK_GUARD_MAX_INACTIVE_TIME_INTERVAL', stuck_guard_max_inactive_time_interval) \
-                .replace('$STUCK_GUARD_MIN_CPU_USAGE', stuck_guard_min_cpu_usage) \
+                .replace('$STUCK_GUARD_MAX_INACTIVE_TIME_INTERVAL', str(stuck_guard_max_inactive_time_interval)) \
+                .replace('$STUCK_GUARD_MIN_CPU_USAGE', str(stuck_guard_min_cpu_usage)) \
                 .replace('$RUN_JUPYTER', str(run_jupyter)) \
                 .replace('$RUN_BEAM', str(run_beam)) \
                 .replace('$JUPYTER_TOKEN', jupyter_token)
