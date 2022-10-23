@@ -11,11 +11,7 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavT
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.{
-  ModifyPassengerSchedule,
-  ModifyPassengerScheduleAck,
-  ModifyPassengerScheduleAcks
-}
+import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.{VehicleCategory, _}
@@ -48,7 +44,7 @@ import org.matsim.core.population.PopulationUtils
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
 
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.{ForkJoinPool, TimeUnit}
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
@@ -183,7 +179,7 @@ object HouseholdActor {
 
     implicit val pop: org.matsim.api.core.v01.population.Population = population
 
-    private var members: Map[Id[Person], PersonIdWithActorRef] = Map()
+    private val members: mutable.Map[Id[Person], PersonIdWithActorRef] = mutable.Map()
 
     private val isFreightCarrier: Boolean = household.getId.toString.toLowerCase.contains("freight")
 
@@ -366,7 +362,10 @@ object HouseholdActor {
               .map(RoutingResponses(tick, _, triggerId)) pipeTo self
           }
         }
-        household.members.foreach { person =>
+        import scala.collection.parallel._
+        val parallelHouseholdMembers = household.members.par
+        parallelHouseholdMembers.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(20))
+        val membersToAdd = parallelHouseholdMembers.map { person =>
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
           val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
           val selectedPlan = person.getSelectedPlan
@@ -403,9 +402,10 @@ object HouseholdActor {
             person.getId.toString
           )
           context.watch(personRef)
-          members = members + (person.getId -> PersonIdWithActorRef(person.getId, personRef))
           schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
+          person.getId -> PersonIdWithActorRef(person.getId, personRef)
         }
+        members ++= membersToAdd.seq
         if (cavs.isEmpty) completeInitialization(triggerId, Vector())
 
       case RoutingResponses(tick, routingResponses, triggerId) =>
