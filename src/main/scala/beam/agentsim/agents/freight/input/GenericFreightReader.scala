@@ -1,6 +1,7 @@
 package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight._
+import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_ID_PREFIX
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
@@ -11,12 +12,11 @@ import beam.utils.csv.GenericCsvReader
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.lang3.StringUtils.isBlank
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.households.Household
-import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_ID_PREFIX
 import org.matsim.core.network.NetworkUtils
-import org.matsim.api.core.v01.network.Network
+import org.matsim.households.Household
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
@@ -178,14 +178,19 @@ class GenericFreightReader(
     allPlans: Map[Id[PayloadPlan], PayloadPlan],
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): IndexedSeq[FreightCarrier] = {
-    val existingTours: Set[Id[FreightTour]] = allTours.keySet.intersect(allPlans.map(_._2.tourId).toSet)
+    val existingAllTours: Set[Id[FreightTour]] = allTours.keySet.intersect(allPlans.map(_._2.tourId).toSet)
+    // ****
+    val sampledToursNum = (allTours.size * config.tourSampleSizeAsFractionOfTotal).round.toInt
+    val sampledTours = rnd.shuffle(allTours).take(sampledToursNum).toMap
+    logger.info(s"Freight after sampling: ${sampledTours.size} tours")
+    val existingSampledTours: Set[Id[FreightTour]] = sampledTours.keySet.intersect(allPlans.map(_._2.tourId).toSet)
     val plans: Map[Id[PayloadPlan], PayloadPlan] = allPlans.filter { case (_, plan) =>
-      existingTours.contains(plan.tourId)
+      existingSampledTours.contains(plan.tourId)
     }
     val tourIdToPlans: Map[Id[FreightTour], IndexedSeq[PayloadPlan]] =
       plans.values.toIndexedSeq.groupBy(_.tourId).map { case (tourId, plans) => tourId -> plans.sortBy(_.sequenceRank) }
-    val tours: Map[Id[FreightTour], FreightTour] = allTours.filter { case (_, tour) =>
-      existingTours.contains(tour.tourId)
+    val tours: Map[Id[FreightTour], FreightTour] = sampledTours.filter { case (_, tour) =>
+      existingSampledTours.contains(tour.tourId)
     }
 
     case class FreightCarrierRow(
@@ -266,8 +271,11 @@ class GenericFreightReader(
       val tourId: Id[FreightTour] = get("tourId").createId
       val vehicleId: Id[BeamVehicle] = Id.createVehicleId(s"${FREIGHT_ID_PREFIX}Vehicle-${get("vehicleId")}")
       val vehicleTypeId: Id[BeamVehicleType] = get("vehicleTypeId").createId
-      if (!existingTours.contains(tourId)) {
+      if (!existingAllTours.contains(tourId)) {
         logger.error(f"Following freight carrier row discarded because tour $tourId was filtered out: $row")
+        None
+      } else if (!existingSampledTours.contains(tourId)) {
+        logger.debug(f"Following freight carrier row ignored because tour $tourId was sampled out: $row")
         None
       } else {
         val warehouseX = row.get("warehouseX")

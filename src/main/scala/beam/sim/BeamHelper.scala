@@ -30,7 +30,6 @@ import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationScaling
 import beam.sim.termination.TerminationCriterionProvider
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
-import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils._
 import beam.utils.csv.readers
 import beam.utils.plan.sampling.AvailableModeUtils
@@ -352,16 +351,12 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
 
     if (freightConfig.enabled) {
       val geoUtils = new GeoUtilsImpl(beamConfig)
-      val random = new Random(beamConfig.matsim.modules.global.randomSeed)
       val freightReader = FreightReader(beamConfig, geoUtils, streetLayer, network, outputDirMaybe)
       val tours = freightReader.readFreightTours()
       val plans = freightReader.readPayloadPlans()
       logger.info(s"Freight before sampling: ${tours.size} tours. ${plans.size} payloads")
-      val numTours = (tours.size * beamConfig.beam.agentsim.agents.freight.tourSampleSizeAsFractionOfTotal).round.toInt
-      val sampledTours = random.shuffle(tours).take(numTours).toMap
-      logger.info(s"Freight after sampling: ${sampledTours.size} tours")
       // In principle readFreightCarriers will only keep the carriers and plans that are linked to the sampled tours
-      val carriers = freightReader.readFreightCarriers(sampledTours, plans, vehicleTypes)
+      val carriers = freightReader.readFreightCarriers(tours, plans, vehicleTypes)
       val finalNumTours = carriers.flatMap(_.tourMap.values).flatten.size
       val finalNumPlans = carriers.flatMap(_.payloadPlans.values).size
       val finalNumCarriers = carriers.size
@@ -780,7 +775,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     if (beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities) {
       people
         .take(peopleForRemovingWorkActivities)
-        .flatMap(p => p.getPlans.asScala.toSeq)
+        .flatMap(p => p.getPlans.asScala)
         .filter(_.getPlanElements.size() > 1)
         .foreach { plan =>
           val planElements = plan.getPlanElements
