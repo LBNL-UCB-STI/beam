@@ -183,13 +183,6 @@ object ConfigConsistencyComparator extends LazyLogging {
   def checkMapFilesDirectoriesConsistency(userConf: TypesafeConfig): Unit = {
     val r5config = userConf.getConfig("beam.routing.r5")
     val r5directory = r5config.getString("directory")
-    val osmFile = r5config.getString("osmFile")
-    if (!osmFile.contains(r5directory)) {
-      throw new IllegalArgumentException(
-        s"It is expected that beam.routing.r5.osmFile points to the file inside beam.routing.r5.directory " +
-        s"[$r5directory]. Instead it points to: [$osmFile]"
-      )
-    }
     val osmMapdbFile = r5config.getString("osmMapdbFile")
     if (!osmMapdbFile.contains(r5directory)) {
       throw new IllegalArgumentException(

@@ -95,6 +95,10 @@ EXPERIMENT_DEFAULT = 'test/input/beamville/calibration/experiments.yml'
 
 CONFIG_DEFAULT = 'production/application-sfbay/base.conf'
 
+DEFAULT_STUCK_GUARD_MIN_CPU_USAGE = "5"
+
+DEFAULT_STUCK_GUARD_MAX_INACTIVE_TIME_INTERVAL = "10"
+
 initscript = (('''
 #cloud-config
 write_files:
@@ -771,16 +775,16 @@ def terminate_instance(instance_ids):
 
 
 def deploy_handler(event, context):
-    missing_parameters = []
+    missing_mandatory_parameters = []
 
     def parameter_wasnt_specified(parameter_value):
         # in gradle if parameter wasn't specified then project.findProperty return 'null'
         return parameter_value is None or parameter_value == 'null'
 
-    def get_param(param_name):
+    def get_mandatory_param(param_name):
         param_value = event.get(param_name)
         if parameter_wasnt_specified(param_value):
-            missing_parameters.append(param_name)
+            missing_mandatory_parameters.append(param_name)
         return param_value
 
     branch = event.get('branch', BRANCH_DEFAULT)
@@ -808,21 +812,21 @@ def deploy_handler(event, context):
     profiler_type = event.get('profiler_type', 'null')
     budget_override = event.get('budget_override', False)
 
-    git_user_email = get_param('git_user_email')
+    git_user_email = get_mandatory_param('git_user_email')
     deploy_type_tag = event.get('deploy_type_tag', '')
-    titled = get_param('title')
+    titled = get_mandatory_param('title')
     instance_type = event.get('instance_type')
-    region = get_param('region')
-    shutdown_behaviour = get_param('shutdown_behaviour')
+    region = get_mandatory_param('region')
+    shutdown_behaviour = get_mandatory_param('shutdown_behaviour')
     is_spot = event.get('is_spot', False)
     run_beam = event.get('run_beam', True)
 
-    # for beam stuck guard shell
-    stuck_guard_min_cpu_usage = get_param('stuck_guard_min_cpu_usage')
-    stuck_guard_max_inactive_time_interval = get_param('stuck_guard_max_inactive_time_interval')
+    # for beam stuck guard shell script
+    stuck_guard_min_cpu_usage = event.get('stuck_guard_min_cpu_usage', DEFAULT_STUCK_GUARD_MIN_CPU_USAGE)
+    stuck_guard_max_inactive_time_interval = event.get('stuck_guard_max_inactive_time_interval', DEFAULT_STUCK_GUARD_MAX_INACTIVE_TIME_INTERVAL)
 
-    if missing_parameters:
-        return "Unable to start, missing parameters: " + ", ".join(missing_parameters)
+    if missing_mandatory_parameters:
+        return "Unable to start, missing parameters: " + ", ".join(missing_mandatory_parameters)
 
     if not instance_type and not is_spot:
         return "Unable to start, missing instance_type AND is NOT a spot request"
@@ -904,8 +908,8 @@ def deploy_handler(event, context):
                 .replace('$SLACK_TOKEN', os.environ['SLACK_TOKEN']) \
                 .replace('$SLACK_CHANNEL', os.environ['SLACK_CHANNEL']) \
                 .replace('$SHEET_ID', os.environ['SHEET_ID']) \
-                .replace('$STUCK_GUARD_MAX_INACTIVE_TIME_INTERVAL', stuck_guard_max_inactive_time_interval) \
-                .replace('$STUCK_GUARD_MIN_CPU_USAGE', stuck_guard_min_cpu_usage) \
+                .replace('$STUCK_GUARD_MAX_INACTIVE_TIME_INTERVAL', str(stuck_guard_max_inactive_time_interval)) \
+                .replace('$STUCK_GUARD_MIN_CPU_USAGE', str(stuck_guard_min_cpu_usage)) \
                 .replace('$RUN_JUPYTER', str(run_jupyter)) \
                 .replace('$RUN_BEAM', str(run_beam)) \
                 .replace('$JUPYTER_TOKEN', jupyter_token)
