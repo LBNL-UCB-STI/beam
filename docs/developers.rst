@@ -206,6 +206,8 @@ The command will start an ec2 instance based on the provided configurations and 
 * **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
 * **runJupyter**: Should it launch Jupyter Notebook along with a simulation, default is `false`.
 * **budgetOverride**: Set to `true` to override budget limitations, see `Documentation of AWS budget management` section in `DevOps guide <https://beam.readthedocs.io/en/latest/devops.html>`_, default is `false`
+* **stuckGuardMinCpuUsage**: Set to a number to override the value of minimal CPU usage, if the current CPU usage is less than the number, beam stuck guard will shutdown the simulation, default is 1
+* **stuckGuardMaxInactiveTimeInterval**: Set to a number as hours with no output logs then beam stuck guard will shutdown the simulation, default is 5 hours
 
 There is a default file to specify parameters for task: gradle.deploy.properties_ and it is advised to use it (or custom) file to specify all default values for `deploy` task and not use gradle.properties_ file because latter used as a source of default values for all gradle tasks.
 
