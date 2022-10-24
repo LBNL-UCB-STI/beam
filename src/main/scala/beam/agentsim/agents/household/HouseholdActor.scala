@@ -364,7 +364,8 @@ object HouseholdActor {
         }
         import scala.collection.parallel._
         val parallelHouseholdMembers = household.members.par
-        parallelHouseholdMembers.tasksupport = new ForkJoinTaskSupport(new ForkJoinPool(20))
+        log.error(s"Household Actor using dispatcher context " + context.dispatcher)
+        parallelHouseholdMembers.tasksupport = new ExecutionContextTaskSupport(context.dispatcher)// new ForkJoinTaskSupport(new ForkJoinPool(20))
         val membersToAdd = parallelHouseholdMembers.map { person =>
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
           val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)

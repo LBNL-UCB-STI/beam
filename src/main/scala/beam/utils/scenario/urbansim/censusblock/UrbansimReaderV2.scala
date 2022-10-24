@@ -79,7 +79,7 @@ class UrbansimReaderV2(
       Await.result(x, Duration.Inf).toList
       */
 
-
+/*
       implicit val system = ActorSystem()
       import scala.concurrent.ExecutionContext.Implicits.global
       import akka.stream.scaladsl.Source
@@ -100,7 +100,9 @@ class UrbansimReaderV2(
       val result = Await.result(output, Duration.Inf)
       system.terminate()
       result.toList
-/*
+
+ */
+
       merger
         .merge(planReader.iterator())
         .map { plan: PlanElement =>
@@ -112,7 +114,7 @@ class UrbansimReaderV2(
           }
         }
         .toList
-*/
+
 
     } finally {
       logger.info("Modes merged successfully into plan.")
