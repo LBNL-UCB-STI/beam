@@ -62,11 +62,11 @@ def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds
     # enter execution mode
     h.helicsFederateEnterExecutingMode(cfed)
     fed_name = h.helicsFederateGetName(cfed)
-    print2("[TAZ:" + taz_id + "]. " + fed_name + " in execution mode")
+    taz_prefix = "[TAZ:" + taz_id + "]. "
+    print2(taz_prefix + fed_name + " in execution mode")
     subs_charging_events = h.helicsFederateGetInputByIndex(cfed, 0)
     pubs_control = h.helicsFederateGetPublicationByIndex(cfed, 0)
-
-    print2("[TAZ:" + taz_id + "]. Initializing the SPMCs...")
+    print2(taz_prefix + "Initializing the SPMCs...")
     # SPMC INITIALIZE HERE
     # JULIUS: @HL I initialized my SPMC here
     # @ HL can you provide the missing information
@@ -115,35 +115,33 @@ def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds
             charging_events_json = json.loads(message_to_parse)
             return charging_events_json
         except json.decoder.JSONDecodeError as err:
-            error_text = "[TAZ:" + taz_id + "]. Message from BEAM is an incorrect JSON, " + str(err)
+            error_text = taz_prefix + "Message from BEAM is an incorrect JSON, " + str(err)
             logging.error(error_text)
             print(error_text)
             return ""
 
     # start execution loop
     for t in range(0, simulated_day_in_seconds - time_bin_in_seconds, time_bin_in_seconds):
-        print2("[TAZ:" + taz_id + "]. Ready to sync: " + str(t) + " seconds" + "(" + str(time.time() * 1000) + ")")
         sync_time(t)
+        t_hour_min = str(int(t / 3600)) + ":" + str(round((t % 3600)/60))
         control_commands_list = []
-        print2("[TAZ:" + taz_id + "]. Message received at current time: " + str(t) + " seconds" + "(" + str(
-            time.time() * 1000) + ")")
         received_message = h.helicsInputGetString(subs_charging_events)
-        print2(received_message)
-        logging.info("[TAZ:" + taz_id + "]. Received a message with a length " + str(len(received_message)) + "(" + str(
-            time.time() * 1000) + ")")
-        logging.info("[TAZ:" + taz_id + "]. Message " + str(received_message) + "(" + str(time.time() * 1000) + ")")
+        # print2(taz_prefix +
+        #        "Message received at simulation time: " + str(t) + " seconds (" + t_hour_min + "). " +
+        #        "Message length: " + str(len(received_message)) + ". Message: " + str(received_message))
         if bool(str(received_message).strip()):
             charging_events_json = parse_json(received_message)
             if not isinstance(charging_events_json, collections.abc.Sequence):
-                logging.error("[TAZ:" + taz_id + "]. Was not able to parse JSON message from BEAM. Something is broken!")
+                logging.error(taz_prefix + "Was not able to parse JSON message from BEAM. Something is broken!")
             elif len(charging_events_json) > 0 and 'vehicleId' in charging_events_json[0]:
-                logging.info("[TAZ:" + taz_id + "]. Loaded JSON format from the received message" + "(" + str(
-                    time.time() * 1000) + ")")
+                print2(taz_prefix +
+                       "Message received at simulation time: " + str(t) + " seconds (" + t_hour_min + "). " +
+                       "Message length: " + str(len(received_message)) + ". Message: " + str(received_message))
                 # Reading BEAM values
                 for siteId, charging_events in itertools.groupby(charging_events_json, key_func):
-                    logging.info(
-                        '  {SITE:' + str(siteId) + "}. Received " + str(
-                            len(charging_events)) + " charging event(s)" + "(" + str(time.time() * 1000) + ")")
+                    site_prefix = "[TAZ:" + taz_id + "|SITE:" + str(siteId) + "]. "
+                    charging_events_list = list(charging_events)
+                    logging.info(site_prefix + "Received " + str(len(charging_events_list)) + " charging event(s)")
                     vehicle_id = []
                     vehicle_type = []
                     primary_fuel_level_in_k_wh = []
@@ -183,7 +181,7 @@ def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds
                         pmin_site_in_kw = 0
                         pmax_site_in_kw = sum(max_power_in_kw)
                         tdep = [(tt - t) / 60.0 for tt in desired_departure_time]
-                        logging.info('  {SITE:' + str(siteId) + "}. Optimizing EVSE setpoints by the regular SPMC")
+                        logging.info(site_prefix + "Optimizing EVSE setpoints by the regular SPMC")
                         [p_evse_opt, e_evse_opt, delta_t] = spmc.get_evse_setpoint(tdep, desired_fuel_level_in_k_wh,
                                                                                    pmin_site_in_kw,
                                                                                    pmax_site_in_kw)
@@ -198,9 +196,7 @@ def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds
                             i = i + 1
 
                         num_commands = len(control_commands_list_temp)
-                        logging.info(
-                            '  {SITE:' + str(siteId) + "}. " + str(
-                                num_commands) + " EVSE setpoints from the regular SPMC")
+                        logging.info(site_prefix + str(num_commands) + " EVSE setpoints from the regular SPMC. Sending " + str(control_commands))
                         control_commands_list = control_commands_list + control_commands_list_temp
                     else:
                         # Julius Is SPMC (IS RIDE HAIL DEPOT)
@@ -224,7 +220,7 @@ def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds
                         # synchronize vehicles which are at station: Remove vehicles which are not in the vehicle_id
                         # list from BEAM anymore
                         # Julius @ HL can you please add the actual time here?
-                        logging.info('  {SITE:' + str(siteId) + "}. Optimizing EVSE setpoints by the ride-hail SPMC")
+                        logging.info(site_prefix + "Optimizing EVSE setpoints by the ride-hail SPMC")
                         # TODO uncomment
                         # depotController.synchronizeVehiclesAtStation(vehicleIdsAtStation=vehicle_id, t_act=t)
                         #
@@ -266,20 +262,20 @@ def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds
                         #     }]
                         #     control_commands_list_temp = control_commands_list_temp + control_commands
                         num_commands = len(control_commands_list_temp)
-                        logging.info(
-                            '  {SITE:' + str(siteId) + "}. " + str(
-                                num_commands) + " EVSE setpoints from the ride-hail SPMC" + "(" + str(
-                                time.time() * 1000) + ")")
+                        logging.info(site_prefix + str(num_commands) + " EVSE setpoints from the ride-hail SPMC")
                         control_commands_list = control_commands_list + control_commands_list_temp
                 # END LOOP
             elif len(charging_events_json) > 0 and 'vehicleId' not in charging_events_json[0]:
-                logging.info("[TAZ:" + taz_id + "]. No charging events were observed from BEAM from TAZ: " +
-                             str(charging_events_json[0]["tazId"]))
+                pass
+                # logging.debug(taz_prefix +
+                #               "No charging events were observed from BEAM from TAZ: " +
+                #               str(charging_events_json[0]["tazId"]))
             else:
-                logging.error("[TAZ:" + taz_id + "]. The loaded JSON message is not valid. Something is broken! " +
-                              "Here is the received message" + charging_events_json)
+                logging.error(taz_prefix +
+                              "The loaded JSON message is not valid. Something is broken! " +
+                              "Here is the received message" + str(charging_events_json))
         else:
-            logging.error("[TAZ:" + taz_id + "]. SPMC received empty message from BEAM. Something is broken!")
+            logging.error(taz_prefix + "SPMC received empty message from BEAM. Something is broken!")
 
         message_to_send = control_commands_list
         if not message_to_send:
@@ -289,7 +285,7 @@ def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds
 
     # close the federate
     h.helicsFederateDisconnect(cfed)
-    print2("[TAZ:" + taz_id + "]. Federate finalized and now saving and finishing")
+    print2(taz_prefix + "Federate finalized and now saving and finishing")
     h.helicsFederateFree(cfed)
     h.helicsCloseLibrary()
     # depotController: save results
@@ -306,8 +302,9 @@ if __name__ == "__main__":
     infrastructure_file = "../../../../production/sfbay/parking/sfbay_taz_unlimited_charging_point.csv"
     print2("Loading infrastructure file: " + infrastructure_file)
     data = pd.read_csv(infrastructure_file)
-    # all_taz = data["taz"].unique()
-    all_taz = ["1"]
+    all_taz = data["taz"].unique()
+    # all_taz = range(920, 930)
+    # all_taz = ["1"]
     # all_taz = ["1","2","3","4","5"]
     num_all_taz = len(all_taz)
     logging.info("Extracted " + str(num_all_taz) + " TAZs...")

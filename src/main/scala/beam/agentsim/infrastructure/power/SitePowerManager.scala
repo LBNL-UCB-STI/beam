@@ -12,6 +12,7 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamHelicsInterface.{createFedInfo, enterExecutionMode, getFederate, BeamFederate}
 import beam.router.skim.event
 import beam.sim.BeamServices
+import com.java.helics.helics
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -34,14 +35,14 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
         logger.warn("ChargingNetworkManager should connect to a site power controller via Helics...")
         Try {
           // the same should be in 'all_taz' in src/main/python/gemini/site_power_controller_federate.py:311
-          val selectedTazs = (1 to 1).map(_.toString).toSet
-          val tazIdToChargingStations = chargingNetworkHelper.allChargingStations
-            .groupBy(_.zone.tazId)
-            .filter { case (tazId, _) => selectedTazs.contains(tazId.toString) }
-          logger.info("Init SitePowerManager Federates for {} TAZes...", tazIdToChargingStations.size)
+          // val selectedTazs = (920 until 930).map(_.toString).toSet
+          val tazIdToChargingStations = chargingNetworkHelper.allChargingStations.groupBy(_.zone.tazId)
+          //.filter { case (tazId, _) => selectedTazs.contains(tazId.toString) }
+          val numTAZs = tazIdToChargingStations.size
+          logger.info(s"Init SitePowerManager Federates for $numTAZs TAZes...")
           val fedInfo = createFedInfo(
             spmcConfig.coreType,
-            spmcConfig.coreInitString,
+            s"--federates=$numTAZs --broker_address=${spmcConfig.brokerAddress}",
             spmcConfig.timeDeltaProperty,
             spmcConfig.intLogLevel
           )
@@ -65,7 +66,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
         }.map { federates =>
           logger.info("Initialized {} federates, now they are going to execution mode", federates.size)
           val beamFederates = federates.map { case (_, _, beamFederate: BeamFederate) => beamFederate }.toSeq
-          enterExecutionMode(10.seconds, beamFederates: _*)
+          enterExecutionMode(1.hour, beamFederates: _*)
           logger.info("Entered execution mode")
           federates.toList
         }.recoverWith { case e =>
@@ -83,7 +84,6 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     */
   def obtainPowerCommandsAndLimits(timeBin: Int): Unit = {
     val numPluggedVehicles = chargingNetworkHelper.allChargingStations.view.map(_.howManyVehiclesAreCharging).sum
-//    println(s"obtainPowerCommandsAndLimits timeBin = $timeBin, numPluggedVehicles = $numPluggedVehicles")
     logger.debug(
       s"obtainPowerCommandsAndLimits timeBin = $timeBin, numPluggedVehicles = $numPluggedVehicles"
     )

@@ -23,7 +23,7 @@ class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: Bea
           logger.info("Init PowerManager Federate...")
           val fedInfo = createFedInfo(
             pmcConfig.coreType,
-            pmcConfig.coreInitString,
+            s"--federates=1 --broker_address=${pmcConfig.brokerAddress}",
             pmcConfig.timeDeltaProperty,
             pmcConfig.intLogLevel
           )

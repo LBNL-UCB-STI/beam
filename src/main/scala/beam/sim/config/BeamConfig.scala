@@ -2062,9 +2062,9 @@ object BeamConfig {
       object ChargingNetworkManager {
 
         case class PowerManagerController(
+          brokerAddress: java.lang.String,
           bufferSize: scala.Int,
           connect: scala.Boolean,
-          coreInitString: java.lang.String,
           coreType: java.lang.String,
           federateName: java.lang.String,
           federatePublication: java.lang.String,
@@ -2081,11 +2081,9 @@ object BeamConfig {
             c: com.typesafe.config.Config
           ): BeamConfig.Beam.Agentsim.ChargingNetworkManager.PowerManagerController = {
             BeamConfig.Beam.Agentsim.ChargingNetworkManager.PowerManagerController(
+              brokerAddress = if (c.hasPathOrNull("brokerAddress")) c.getString("brokerAddress") else "tcp://127.0.0.1",
               bufferSize = if (c.hasPathOrNull("bufferSize")) c.getInt("bufferSize") else 1000,
               connect = c.hasPathOrNull("connect") && c.getBoolean("connect"),
-              coreInitString =
-                if (c.hasPathOrNull("coreInitString")) c.getString("coreInitString")
-                else "--federates=1 --broker_address=tcp://127.0.0.1",
               coreType = if (c.hasPathOrNull("coreType")) c.getString("coreType") else "zmq",
               federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "FED_BEAM",
               federatePublication =
@@ -2120,9 +2118,9 @@ object BeamConfig {
         }
 
         case class SitePowerManagerController(
+          brokerAddress: java.lang.String,
           bufferSize: scala.Int,
           connect: scala.Boolean,
-          coreInitString: java.lang.String,
           coreType: java.lang.String,
           expectFeedback: scala.Boolean,
           federatesPrefix: java.lang.String,
@@ -2139,11 +2137,9 @@ object BeamConfig {
             c: com.typesafe.config.Config
           ): BeamConfig.Beam.Agentsim.ChargingNetworkManager.SitePowerManagerController = {
             BeamConfig.Beam.Agentsim.ChargingNetworkManager.SitePowerManagerController(
+              brokerAddress = if (c.hasPathOrNull("brokerAddress")) c.getString("brokerAddress") else "tcp://127.0.0.1",
               bufferSize = if (c.hasPathOrNull("bufferSize")) c.getInt("bufferSize") else 1000,
               connect = c.hasPathOrNull("connect") && c.getBoolean("connect"),
-              coreInitString =
-                if (c.hasPathOrNull("coreInitString")) c.getString("coreInitString")
-                else "--federates=1 --broker_address=tcp://127.0.0.1",
               coreType = if (c.hasPathOrNull("coreType")) c.getString("coreType") else "zmq",
               expectFeedback = !c.hasPathOrNull("expectFeedback") || c.getBoolean("expectFeedback"),
               federatesPrefix = if (c.hasPathOrNull("federatesPrefix")) c.getString("federatesPrefix") else "FED_BEAM_",
