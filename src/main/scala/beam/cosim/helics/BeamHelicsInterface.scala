@@ -8,7 +8,7 @@ import com.java.helics._
 import com.java.helics.helicsJNI._
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
-import spray.json.DefaultJsonProtocol.{listFormat, mapFormat, JsValueFormat, StringJsonFormat}
+import spray.json.DefaultJsonProtocol.{JsValueFormat, StringJsonFormat, listFormat, mapFormat}
 import spray.json.{JsNumber, JsString, JsValue, _}
 
 import scala.concurrent._
@@ -159,7 +159,13 @@ object BeamHelicsInterface {
   def enterExecutionMode(timeout: Duration, federates: BeamFederate*): Unit = {
     import java.util.concurrent.{SynchronousQueue, ThreadPoolExecutor, TimeUnit}
     FileUtils.using(
-      new ThreadPoolExecutor(federates.size, federates.size, 0, TimeUnit.SECONDS, new SynchronousQueue[Runnable])
+      new ThreadPoolExecutor(
+        federates.size,
+        federates.size * 2,
+        0,
+        TimeUnit.SECONDS,
+        new SynchronousQueue[Runnable]
+      )
     )(
       _.shutdown()
     ) { executorService =>
