@@ -234,6 +234,7 @@ class PumaLevelScenarioGenerator(
                           rank = 0,
                           age = person.age,
                           excludedModes = Seq.empty,
+                          rideHailServiceSubscription = Seq.empty,
                           isFemale = person.gender == Gender.Female,
                           valueOfTime = valueOfTime,
                           industry = person.industry

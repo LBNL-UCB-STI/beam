@@ -707,7 +707,8 @@ class PersonAgent(
         eventTime = tick,
         tazId = beamScenario.tazTreeMap.getTAZ(response.request.pickUpLocationUTM).tazId,
         reservationType = if (response.request.asPooled) Pooled else Solo,
-        wheelchairRequired = response.request.withWheelchair
+        wheelchairRequired = response.request.withWheelchair,
+        serviceName = response.rideHailManagerName
       )
     )
     eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id), replanningReason))
@@ -761,7 +762,10 @@ class PersonAgent(
     // RIDE HAIL DELAY FAILURE
     // we use trigger for this to get triggerId back into hands of the person
     case Event(
-          TriggerWithId(RideHailResponseTrigger(tick, response @ RideHailResponse(_, _, Some(error), _, _)), triggerId),
+          TriggerWithId(
+            RideHailResponseTrigger(tick, response @ RideHailResponse(_, _, _, Some(error), _, _)),
+            triggerId
+          ),
           data: BasePersonData
         ) =>
       holdTickAndTriggerId(tick, triggerId)
@@ -769,7 +773,7 @@ class PersonAgent(
     // RIDE HAIL SUCCESS
     // no trigger needed here since we're going to Waiting anyway without any other actions needed
     case Event(
-          RideHailResponse(req, travelProposal, None, triggersToSchedule, directTripTravelProposal),
+          RideHailResponse(req, travelProposal, serviceName, None, triggersToSchedule, directTripTravelProposal),
           data: BasePersonData
         ) =>
       val tick = _currentTick.getOrElse(req.departAt).toDouble
@@ -797,6 +801,7 @@ class PersonAgent(
           eventTime = tick,
           tazId = beamScenario.tazTreeMap.getTAZ(req.pickUpLocationUTM).tazId,
           reservationType = if (req.asPooled) Pooled else Solo,
+          serviceName = serviceName,
           waitTime = travelProposal.get.timeToCustomer(req.customer),
           costPerMile =
             travelProposal.get.estimatedPrice(req.customer.personId) / travelProposal.get.travelDistanceForCustomer(
@@ -809,7 +814,7 @@ class PersonAgent(
       handleSuccessfulReservation(triggersToSchedule, data, travelProposal)
     // RIDE HAIL FAILURE
     case Event(
-          response @ RideHailResponse(_, _, Some(error), _, _),
+          response @ RideHailResponse(_, _, _, Some(error), _, _),
           data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _, _, _)
         ) =>
       handleFailedRideHailReservation(error, response, data)
@@ -1198,6 +1203,8 @@ class PersonAgent(
         wheelchairUser,
         requestTime = _currentTick,
         quotedWaitTime = Some(nextLeg.beamLeg.startTime - _currentTick.get),
+        requester = self,
+        rideHailServiceSubscription = attributes.rideHailServiceSubscription,
         triggerId = getCurrentTriggerIdOrGenerate
       )
 

@@ -58,7 +58,9 @@ case class UniformVehiclesAdjustment(beamScenario: BeamScenario) extends Vehicle
 
   private def matchCarUse(vehicleTypeId: String): String = {
     vehicleTypeId.split("_").headOption match {
-      case Some(beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypePrefix) =>
+      case Some(vehicleTypePrefix)
+          if beamScenario.beamConfig.beam.agentsim.agents.rideHail.managers
+            .exists(managerConfig => managerConfig.initialization.procedural.vehicleTypePrefix == vehicleTypePrefix) =>
         "Ride Hail Vehicle"
       case _ => "Usage Not Set"
     }

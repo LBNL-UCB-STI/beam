@@ -201,7 +201,7 @@ class PersonAgentSpec
 
       // The agent will ask for a ride, and we will answer.
       val inquiry = expectMsgType[RideHailRequest]
-      lastSender ! RideHailResponse(inquiry, None, None)
+      lastSender ! RideHailResponse(inquiry, None, "rhm", None)
 
       // This is the ridehail to transit request.
       // We don't provide an option.

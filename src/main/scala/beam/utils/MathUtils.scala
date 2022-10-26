@@ -51,6 +51,11 @@ object MathUtils {
     }
   }
 
+  def avg[T: Numeric](xs: Iterable[T]): Double = {
+    if (xs.isEmpty) Double.NaN
+    else implicitly[Numeric[T]].toDouble(xs.sum) / xs.size
+  }
+
   def isNumberPowerOfTwo(number: Int): Boolean = {
     number > 0 && ((number & (number - 1)) == 0)
   }
@@ -172,7 +177,7 @@ object MathUtils {
     "%.1f %sB".format(v.toDouble / (1L << (z * 10)), " KMGTPE".charAt(z))
   }
 
-  def nanToZero(x: Double) = if (x.isNaN) {
+  def nanToZero(x: Double): Double = if (x.isNaN) {
     0.0
   } else {
     x
