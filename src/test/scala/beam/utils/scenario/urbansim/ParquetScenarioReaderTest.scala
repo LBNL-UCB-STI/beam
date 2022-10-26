@@ -72,6 +72,7 @@ class ParquetScenarioReaderTest extends AnyWordSpec with Matchers {
           age = 3,
           rank = 0,
           excludedModes = "",
+          rideHailServiceSubscription = "",
           isFemale = false,
           valueOfTime = 0,
           industry = None

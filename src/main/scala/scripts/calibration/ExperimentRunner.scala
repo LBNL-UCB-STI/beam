@@ -41,7 +41,7 @@ case class ExperimentRunner()(implicit experimentData: SigoptExperimentData) ext
       val suggestion = experimentData.experiment.suggestions.create.call
       logger.info(logExpHelper(s"Received new suggestion (ID: ${suggestion.getId})."))
 
-      val modedConfig: Config = createConfigBasedOnSuggestion(suggestion)
+      val modedConfig: Config = BeamHelper.updateConfigToCurrentVersion(createConfigBasedOnSuggestion(suggestion))
       logger.info(
         logExpHelper(
           s"Created new config based on suggestion ${suggestion.getId}, starting BEAM..."

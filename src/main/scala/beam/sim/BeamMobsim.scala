@@ -8,10 +8,16 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.freight.FreightReplanner
 import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
-import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
+import beam.agentsim.agents.ridehail.{
+  RideHailIterationHistory,
+  RideHailManager,
+  RideHailMaster,
+  RideHailSurgePricingManager
+}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.events.eventbuilder.EventBuilderActor.{EventBuilderActorCompleted, FlushEvents}
+import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils
 import beam.agentsim.infrastructure.{ChargingNetworkManager, InfrastructureUtils, ParkingNetworkManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
@@ -339,17 +345,16 @@ class BeamMobsim @Inject() (
         "Vehicle type for human body: " + beamScenario.beamConfig.beam.agentsim.agents.bodyType + " is missing. Please add it to the vehicle types."
       )
     }
-    if (
-      !beamScenario.vehicleTypes.contains(
-        Id.create(
-          beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-          classOf[BeamVehicleType]
+    beamConfig.beam.agentsim.agents.rideHail.managers.foreach { managerConfig =>
+      if (
+        !beamScenario.vehicleTypes.contains(
+          Id.create(managerConfig.initialization.procedural.vehicleTypeId, classOf[BeamVehicleType])
         )
-      )
-    ) {
-      throw new RuntimeException(
-        "Vehicle type for ride-hail: " + beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId + " is missing. Please add it to the vehicle types."
-      )
+      ) {
+        throw new RuntimeException(
+          "Vehicle type for ride-hail: " + managerConfig.initialization.procedural.vehicleTypeId + " is missing. Please add it to the vehicle types."
+        )
+      }
     }
   }
 
@@ -411,6 +416,10 @@ class BeamMobsimIteration(
 
   private val (parkingNetwork, chargingNetwork, rhDepotNetwork) =
     InfrastructureUtils.buildParkingAndChargingNetworks(beamServices, envelopeInUTM)
+  ParkingZoneFileUtils.toCsv(
+    rhDepotNetwork.parkingZones,
+    beamServices.matsimServices.getControlerIO.getOutputFilename("ridehailParking.csv")
+  )
 
   // Parking Network Manager
   private val parkingNetworkManager = context.actorOf(
@@ -431,40 +440,63 @@ class BeamMobsimIteration(
   context.watch(chargingNetworkManager)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), chargingNetworkManager)
 
-  private val rideHailManagerId =
-    VehicleManager
-      .createOrGetReservedFor(
-        beamConfig.beam.agentsim.agents.rideHail.name,
-        VehicleManager.TypeEnum.RideHail
-      )
-      .managerId
-  private val rideHailFleetInitializer = rideHailFleetInitializerProvider.get()
-
   private val rideHailManager = context.actorOf(
-    Props(
-      new RideHailManager(
-        rideHailManagerId,
-        beamServices,
-        beamScenario,
-        beamScenario.transportNetwork,
-        tollCalculator,
-        matsimServices.getScenario,
-        matsimServices.getEvents,
-        scheduler,
-        beamRouter,
-        parkingNetworkManager,
-        chargingNetworkManager,
-        envelopeInUTM,
-        activityQuadTreeBounds,
-        rideHailSurgePricingManager,
-        rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
-        routeHistory,
-        rideHailFleetInitializer,
-        rhDepotNetwork
-      )
-    ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
+    createRHMProps.withDispatcher("ride-hail-manager-pinned-dispatcher"),
     "RideHailManager"
   )
+
+  private def createRHMProps = {
+    if (beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.size == 1) {
+      val managerConfig = beamConfig.beam.agentsim.agents.rideHail.managers.head
+      val rhmName = managerConfig.name
+      val rideHailManagerId = VehicleManager.createOrGetReservedFor(rhmName, VehicleManager.TypeEnum.RideHail).managerId
+      val rideHailFleetInitializer = rideHailFleetInitializerProvider.get(rhmName)
+      Props(
+        new RideHailManager(
+          rideHailManagerId,
+          beamServices,
+          beamScenario,
+          beamScenario.transportNetwork,
+          tollCalculator,
+          matsimServices.getScenario,
+          matsimServices.getEvents,
+          scheduler,
+          beamRouter,
+          parkingNetworkManager,
+          chargingNetworkManager,
+          envelopeInUTM,
+          activityQuadTreeBounds,
+          rideHailSurgePricingManager,
+          rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
+          routeHistory,
+          rideHailFleetInitializer,
+          managerConfig
+        )
+      )
+    } else {
+      Props(
+        new RideHailMaster(
+          beamServices,
+          beamScenario,
+          beamScenario.transportNetwork,
+          tollCalculator,
+          matsimServices.getScenario,
+          matsimServices.getEvents,
+          scheduler,
+          beamRouter,
+          parkingNetworkManager,
+          chargingNetworkManager,
+          envelopeInUTM,
+          activityQuadTreeBounds,
+          rideHailSurgePricingManager,
+          rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
+          routeHistory,
+          rideHailFleetInitializerProvider
+        )
+      )
+    }
+  }
+
   context.watch(rideHailManager)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailManager)
 
@@ -534,8 +566,6 @@ class BeamMobsimIteration(
 
   context.watch(population)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), population)
-
-  scheduleRideHailManagerTimerMessages()
 
   //to monitor with TAZSkimmer add actor hereinafter
   private val tazSkimmer = context.actorOf(
@@ -611,18 +641,6 @@ class BeamMobsimIteration(
       startMeasuring("agentsim-execution:agentsim")
 
       scheduler ! StartSchedule(matsimServices.getIterationNumber)
-  }
-
-  private def scheduleRideHailManagerTimerMessages(): Unit = {
-    if (config.agents.rideHail.repositioningManager.timeout > 0) {
-      // We need to stagger init tick for repositioning manager and allocation manager
-      // This is important because during the `requestBufferTimeoutInSeconds` repositioned vehicle is not available, so to make them work together
-      // we have to make sure that there is no overlap
-      val initTick = config.agents.rideHail.repositioningManager.timeout / 2
-      scheduler ! ScheduleTrigger(RideHailRepositioningTrigger(initTick), rideHailManager)
-    }
-    if (config.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0)
-      scheduler ! ScheduleTrigger(BufferedRideHailRequestsTrigger(0), rideHailManager)
   }
 
   def buildActivityQuadTreeBounds(population: MATSimPopulation): QuadTreeBounds = {

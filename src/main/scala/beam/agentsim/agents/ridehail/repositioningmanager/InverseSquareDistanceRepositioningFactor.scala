@@ -30,7 +30,7 @@ class InverseSquareDistanceRepositioningFactor(
   // If sensitivityOfRepositioningToDemand = 1, it means all vehicles reposition all the time
   // sensitivityOfRepositioningToDemand = 0, means no one reposition
   private def cfg =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.inverseSquareDistanceRepositioningFactor
+    rideHailManager.managerConfig.repositioningManager.inverseSquareDistanceRepositioningFactor
   val rndGen: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val rng: MersenneTwister = new MersenneTwister(beamServices.beamConfig.matsim.modules.global.randomSeed) // Random.org
 

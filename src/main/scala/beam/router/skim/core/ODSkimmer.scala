@@ -35,7 +35,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
     "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,payloadWeightInKg,energy,level4CavTravelTimeScalingFactor,failedTrips,observations,iterations"
 
   protected lazy val dummyId = Id.create(
-    beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+    beamScenario.beamConfig.beam.agentsim.agents.rideHail.managers.head.initialization.procedural.vehicleTypeId,
     classOf[BeamVehicleType]
   )
 
@@ -166,10 +166,6 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
     val filePath = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
       skimFileBaseName + "Excerpt.csv.gz"
-    )
-    val dummyId = Id.create(
-      beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-      classOf[BeamVehicleType]
     )
     var writer: BufferedWriter = null
     try {

@@ -125,7 +125,8 @@ object BeamVehicleUtils {
 
   def readBeamVehicleTypeFile(beamConfig: BeamConfig): Map[Id[BeamVehicleType], BeamVehicleType] = {
     val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
-    val rideHailTypeId = beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId
+    val rideHailTypeIds =
+      beamConfig.beam.agentsim.agents.rideHail.managers.map(_.initialization.procedural.vehicleTypeId)
     val dummySharedCarId = beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId
     val defaultVehicleType = BeamVehicleType(
       id = Id.create("DefaultVehicleType", classOf[BeamVehicleType]),
@@ -138,12 +139,10 @@ object BeamVehicleUtils {
       vehicleCategory = VehicleCategory.Car
     )
 
-    val missingTypes = Seq(
-      dummySharedCarId.createId[BeamVehicleType],
-      rideHailTypeId.createId[BeamVehicleType]
-    ).collect {
-      case vehicleId if !vehicleTypes.contains(vehicleId) => vehicleId -> defaultVehicleType.copy(id = vehicleId)
-    }
+    val missingTypes = (dummySharedCarId.createId[BeamVehicleType] +: rideHailTypeIds.map(_.createId[BeamVehicleType]))
+      .collect {
+        case vehicleId if !vehicleTypes.contains(vehicleId) => vehicleId -> defaultVehicleType.copy(id = vehicleId)
+      }
     vehicleTypes ++ missingTypes
   }
 
