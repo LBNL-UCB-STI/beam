@@ -844,7 +844,7 @@ class PersonAgent(
     // RIDE HAIL FAILURE
     case Event(
           response @ RideHailResponse(_, _, _, Some(error), _, _),
-          data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _, _, _)
+          data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _, _, _, _)
         ) =>
       handleFailedRideHailReservation(error, response, data)
   }
