@@ -10,6 +10,8 @@ class Tour(
 
   def trips: Seq[Trip] = tripsInternal
 
+  def activities: Seq[Activity] = originActivity.toSeq ++ trips.map(_.activity)
+
   override def getAttributes = new Attributes
 
   def addTrip(newTrip: Trip): Unit = tripsInternal = tripsInternal :+ newTrip

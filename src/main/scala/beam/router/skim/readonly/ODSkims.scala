@@ -110,14 +110,13 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
     fuelPrice: Double
   ): Seq[Map[BeamMode, ODSkimmerTimeCostTransfer]] = {
     tour.originActivity match {
-      case Some(originActivity) =>
-        Seq(getSkimInfo(originActivity, tour.trips.head.activity, modes, vehicleTypeId, vehicleType, fuelPrice)) ++
-          tour.trips
-            .sliding(2)
-            .map { case Seq(trip1, trip2) =>
-              getSkimInfo(trip1.activity, trip2.activity, modes, vehicleTypeId, vehicleType, fuelPrice)
-            }
-            .toSeq
+      case Some(_) =>
+        tour.activities
+          .sliding(2)
+          .map { case Seq(activity1, activity2) =>
+            getSkimInfo(activity1, activity2, modes, vehicleTypeId, vehicleType, fuelPrice)
+          }
+          .toSeq
 
       case _ => Seq[Map[BeamMode, ODSkimmerTimeCostTransfer]]()
     }

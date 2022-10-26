@@ -105,7 +105,7 @@ class PersonAgentSpec
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       putDefaultBeamAttributes(person, Vector(WALK))
-      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+      val homeActivity = createActivity("home", 1)
       homeActivity.setStartTime(1.0)
       homeActivity.setEndTime(10.0)
       val plan = PopulationUtils.getFactory.createPlan()
@@ -157,11 +157,8 @@ class PersonAgentSpec
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       putDefaultBeamAttributes(person, Vector(RIDE_HAIL, RIDE_HAIL_TRANSIT, WALK))
       val plan = PopulationUtils.getFactory.createPlan()
-      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
-      homeActivity.setEndTime(28800) // 8:00:00 AM
-      plan.addActivity(homeActivity)
-      val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
-      plan.addActivity(workActivity)
+      plan.addActivity(createActivity("home", 1, 28800))
+      plan.addActivity(createActivity("work", 2))
       person.addPlan(plan)
       population.addPerson(person)
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
@@ -875,6 +872,15 @@ class PersonAgentSpec
       events.expectMsgType[ActivityStartEvent]
     }
 
+  }
+
+  private def createActivity(activity: String, linkId: Int, endTime: Int = -1) = {
+    val homeActivity = PopulationUtils.createActivityFromLinkId(activity, Id.createLinkId(linkId))
+    homeActivity.setCoord(services.networkHelper.getLink(linkId).get.getCoord)
+    if (endTime > 0) {
+      homeActivity.setEndTime(endTime)
+    }
+    homeActivity
   }
 
   after {

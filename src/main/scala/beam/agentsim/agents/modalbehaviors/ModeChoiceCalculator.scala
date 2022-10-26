@@ -32,7 +32,7 @@ trait ModeChoiceCalculator {
   )
 
   val modeChoiceLogit = new logit.MultinomialLogit[BeamMode, String](
-    Map.empty[BeamMode, Option[Map[String, UtilityFunctionOperation]]],
+    _ => Option.empty,
     commonUtility
   )
 
