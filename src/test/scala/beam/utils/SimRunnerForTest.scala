@@ -36,6 +36,7 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll with BeforeAndA
     Option(""),
     false,
     Seq(BeamMode.CAR),
+    Seq(""),
     valueOfTime = 0.0,
     age = Option(0),
     income = Option(0)
