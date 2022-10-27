@@ -179,7 +179,7 @@ object HouseholdActor {
 
     implicit val pop: org.matsim.api.core.v01.population.Population = population
 
-    private val members: mutable.Map[Id[Person], PersonIdWithActorRef] = mutable.Map()
+    private var members: Map[Id[Person], PersonIdWithActorRef] = Map()
 
     private val isFreightCarrier: Boolean = household.getId.toString.toLowerCase.contains("freight")
 
@@ -362,63 +362,47 @@ object HouseholdActor {
               .map(RoutingResponses(tick, _, triggerId)) pipeTo self
           }
         }
-        import scala.collection.parallel._
-        val parallelHouseholdMembers = household.members.par
-
-        parallelHouseholdMembers.tasksupport = new ExecutionContextTaskSupport(context.dispatcher)// new ForkJoinTaskSupport(new ForkJoinPool(20))
-        val householdsize = parallelHouseholdMembers.size
-        log.error("Running person creation for household members of size: " + householdsize)
-        val membersToAdd = parallelHouseholdMembers.map { person =>
-          try {
-            val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
-            val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
-            val selectedPlan = person.getSelectedPlan
-            // Set zero endTime for plans with one activity. In other case agent sim will be started
-            // before all InitializeTrigger's are completed
-            if (selectedPlan.getPlanElements.size() == 1) {
-              selectedPlan.getPlanElements.get(0) match {
-                case elem: Activity => if (Time.isUndefinedTime(elem.getEndTime)) elem.setEndTime(0.0)
-                case _ =>
-              }
+        household.members.foreach { person =>
+          val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
+          val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
+          val selectedPlan = person.getSelectedPlan
+          // Set zero endTime for plans with one activity. In other case agent sim will be started
+          // before all InitializeTrigger's are completed
+          if (selectedPlan.getPlanElements.size() == 1) {
+            selectedPlan.getPlanElements.get(0) match {
+              case elem: Activity => if (Time.isUndefinedTime(elem.getEndTime)) elem.setEndTime(0.0)
+              case _ =>
             }
-
-            log.error(s"Household Actor creating person. Members size: " + members.size + " of household size: " + householdsize)
-            val personRef: ActorRef = context.actorOf(
-              PersonAgent.props(
-                schedulerRef,
-                beamServices,
-                beamScenario,
-                modeChoiceCalculator,
-                transportNetwork,
-                tollCalculator,
-                router,
-                rideHailManager,
-                parkingManager,
-                chargingNetworkManager,
-                eventsManager,
-                person.getId,
-                self,
-                selectedPlan,
-                fleetManagers.toSeq,
-                sharedVehicleFleets,
-                possibleSharedVehicleTypes,
-                routeHistory
-              ),
-              person.getId.toString
-            )
-            context.watch(personRef)
-            schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
-            person.getId -> PersonIdWithActorRef(person.getId, personRef)
-          } catch {
-            case x: Throwable =>
-              log.error("Caught exception in person creation code: " + x)
-              ???
           }
         }
-        val membersToAddSeq = membersToAdd.seq
-        log.error("Done running person creation for household members of size: " + householdsize + " created " + membersToAddSeq.size)
-        members ++= membersToAdd.seq
-        log.error("Done updating person creation for household members of size: " + householdsize + " members size now " + members.size)
+
+        val personRef: ActorRef = context.actorOf(
+          PersonAgent.props(
+            schedulerRef,
+            beamServices,
+            beamScenario,
+            modeChoiceCalculator,
+            transportNetwork,
+            tollCalculator,
+            router,
+            rideHailManager,
+            parkingManager,
+            chargingNetworkManager,
+            eventsManager,
+            person.getId,
+            self,
+            selectedPlan,
+            fleetManagers.toSeq,
+            sharedVehicleFleets,
+            possibleSharedVehicleTypes,
+            routeHistory
+          ),
+          person.getId.toString
+        )
+        context.watch(personRef)
+        members = members + (person.getId -> PersonIdWithActorRef(person.getId, personRef))
+        schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
+        }
         if (cavs.isEmpty) completeInitialization(triggerId, Vector())
 
       case RoutingResponses(tick, routingResponses, triggerId) =>
