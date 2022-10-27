@@ -313,7 +313,18 @@ object TourModes {
             HOV2_TELEPORTATION,
             HOV3_TELEPORTATION
           )
-        )
+        ) {
+      // When we're on a walk based tour, we can still use shared vehicles
+      override def allowedBeamModesGivenAvailableVehicles(
+                                                           vehicles: Vector[VehicleOrToken],
+                                                           firstOrLastLeg: Boolean
+                                                         ): Seq[BeamMode] = {
+        vehicles.flatMap { veh =>
+          if (veh.vehicle.isSharedVehicle) { Seq(veh.streetVehicle.mode) ++  enabledModes(veh.streetVehicle.mode)  }
+          else { Seq.empty[BeamMode] }
+        } ++ super.allowedBeamModesGivenAvailableVehicles(vehicles, firstOrLastLeg)
+      }
+    }
 
     case object CAR_BASED
         extends BeamTourMode(
