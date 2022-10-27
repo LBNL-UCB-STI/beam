@@ -52,34 +52,34 @@ class BeamPlanSpec extends AnyWordSpecLike with Matchers with BeamHelper {
       val beamPlan = BeamPlan(matsimPlan)
       val act = beamPlan.activities.head
       beamPlan.putStrategy(act, strat)
-      beamPlan.getStrategy[TripModeChoiceStrategy](act) should be(Some(strat))
+      beamPlan.getStrategy[TripModeChoiceStrategy](act) should be(strat)
     }
     "should attach a strategy to a leg" in {
       val beamPlan = BeamPlan(matsimPlan)
       val leg = beamPlan.legs.head
       beamPlan.putStrategy(leg, strat)
-      beamPlan.getStrategy[TripModeChoiceStrategy](leg) should be(Some(strat))
+      beamPlan.getStrategy[TripModeChoiceStrategy](leg) should be(strat)
     }
     "should attach a strategy to a trip" in {
       val beamPlan = BeamPlan(matsimPlan)
       val trip = beamPlan.trips.head
       beamPlan.putStrategy(trip, strat)
-      beamPlan.getStrategy[TripModeChoiceStrategy](trip) should be(Some(strat))
+      beamPlan.getStrategy[TripModeChoiceStrategy](trip) should be(strat)
     }
     "should attach a strategy to a tour" in {
       val beamPlan = BeamPlan(matsimPlan)
       val tour = beamPlan.tours.head
       beamPlan.putStrategy(tour, strat)
-      beamPlan.getStrategy[TripModeChoiceStrategy](tour) should be(Some(strat))
+      beamPlan.getStrategy[TripModeChoiceStrategy](tour) should be(strat)
     }
     "should attach a strategy to a trip and the trip's activity and leg" in {
       val beamPlan = BeamPlan(matsimPlan)
       val trip = beamPlan.trips.head
       beamPlan.putStrategy(trip, strat)
-      beamPlan.getStrategy[TripModeChoiceStrategy](trip.activity) should be(Some(strat))
+      beamPlan.getStrategy[TripModeChoiceStrategy](trip.activity) should be(strat)
       trip.leg match {
         case Some(leg) =>
-          beamPlan.getStrategy[TripModeChoiceStrategy](leg) should be(Some(strat))
+          beamPlan.getStrategy[TripModeChoiceStrategy](leg) should be(strat)
         case None =>
       }
     }
@@ -88,13 +88,13 @@ class BeamPlanSpec extends AnyWordSpecLike with Matchers with BeamHelper {
       val tour = beamPlan.tours(1)
       val strategy = TripModeChoiceStrategy(None)
       beamPlan.putStrategy(tour, strategy)
-      beamPlan.getStrategy[TripModeChoiceStrategy](tour) should be(Some(strategy))
+      beamPlan.getStrategy[TripModeChoiceStrategy](tour) should be(strategy)
       tour.trips.foreach { trip =>
-        beamPlan.getStrategy[TripModeChoiceStrategy](trip) should be(Some(strat))
-        beamPlan.getStrategy[TripModeChoiceStrategy](trip.activity) should be(Some(strat))
+        beamPlan.getStrategy[TripModeChoiceStrategy](trip) should be(strat)
+        beamPlan.getStrategy[TripModeChoiceStrategy](trip.activity) should be(strat)
         trip.leg match {
           case Some(leg) =>
-            beamPlan.getStrategy[TripModeChoiceStrategy](leg) should be(Some(strat))
+            beamPlan.getStrategy[TripModeChoiceStrategy](leg) should be(strat)
           case None =>
         }
       }
