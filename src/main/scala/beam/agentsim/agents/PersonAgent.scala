@@ -1410,7 +1410,7 @@ class PersonAgent(
           eventsManager.processEvent(activityStartEvent)
 
           val nextLegDepartureTime =
-            if (activityEndTime >= tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow) {
+            if (activityEndTime > tick + beamServices.beamConfig.beam.agentsim.schedulerParallelismWindow) {
               activityEndTime.toInt
             } else {
               logger.warn(
