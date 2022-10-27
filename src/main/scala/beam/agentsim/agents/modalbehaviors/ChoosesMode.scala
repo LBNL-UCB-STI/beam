@@ -264,9 +264,19 @@ trait ChoosesMode {
             beamScenario.fuelTypePrices(dummyVehicleType.primaryFuelType)
           )
           val modeToTourMode =
-            BeamTourMode.values.map(tourMode => tourMode -> tourMode.allowedBeamModes.intersect(modesToQuery)).toMap
+            BeamTourMode.values
+              .map(tourMode =>
+                tourMode -> tourMode
+                  .allowedBeamModesGivenAvailableVehicles(availablePersonalStreetVehicles, false)
+                  .intersect(modesToQuery)
+              )
+              .toMap
           val firstAndLastTripModeToTourModeOption = BeamTourMode.values
-            .map(tourMode => tourMode -> tourMode.allowedBeamModesForFirstAndLastLeg.intersect(modesToQuery))
+            .map(tourMode =>
+              tourMode -> tourMode
+                .allowedBeamModesGivenAvailableVehicles(availablePersonalStreetVehicles, true)
+                .intersect(modesToQuery)
+            )
             .toMap
           tourModeChoiceCalculator(
             tourModeCosts,
@@ -1141,13 +1151,15 @@ trait ChoosesMode {
       case Some(WALK_BASED) =>
         val enabledModes = availablePersonalStreetVehicles
           .flatMap(veh =>
-            if (veh.vehicle.isSharedVehicle) { BeamTourMode.enabledModes.get(veh.streetVehicle.mode) }
+            if (veh.vehicle.isSharedVehicle) {
+              // We can still use shared vehicles on WALK_BASED tours, including to access transit (whether
+              // or not it's our first or last trip)
+              Some(Seq(veh.streetVehicle.mode)) ++ BeamTourMode.enabledModes.get(veh.streetVehicle.mode)
+            } else if (isFirstOrLastTrip) { BeamTourMode.enabledModes.get(veh.streetVehicle.mode) }
             else None
           )
           .flatten
-        val walkBasedModes =
-          if (isFirstOrLastTrip) WALK_BASED.allowedBeamModesForFirstAndLastLeg
-          else WALK_BASED.allowedBeamModes
+        val walkBasedModes = WALK_BASED.allowedBeamModes
         walkBasedModes ++ enabledModes
       case Some(tourMode) =>
         tourMode.allowedBeamModesGivenAvailableVehicles(availablePersonalStreetVehicles, isFirstOrLastTrip)
