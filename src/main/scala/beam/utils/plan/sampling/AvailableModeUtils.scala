@@ -38,14 +38,17 @@ object AvailableModeUtils extends LazyLogging {
     * @return List of excluded mode string
     */
   def getExcludedModesForPerson(population: Population, personId: String): Array[String] = {
-    val maybeExcludedModes = Option(
-      population.getPersonAttributes.getAttribute(personId, PopulationAdjustment.EXCLUDED_MODES)
+    getAttributeAsArrayOfStrings(population, personId, PopulationAdjustment.EXCLUDED_MODES)
+  }
+
+  def getAttributeAsArrayOfStrings(population: Population, personId: String, attributeName: String): Array[String] = {
+    val attributeValueOpt = Option(
+      population.getPersonAttributes.getAttribute(personId, attributeName)
     )
-    maybeExcludedModes.map(_.toString)
-    maybeExcludedModes match {
-      case Some(modes: Array[String]) => modes.filterNot(isBlank)
-      case Some(modes: Iterable[_])   => modes.flatMap(_.toString.split(",")).filterNot(isBlank).toArray
-      case Some(modes)                => modes.toString.split(",").filterNot(isBlank)
+    attributeValueOpt match {
+      case Some(modes: Array[String]) => modes.map(_.trim).filterNot(isBlank)
+      case Some(modes: Iterable[_])   => modes.flatMap(_.toString.split(',')).map(_.trim).filterNot(isBlank).toArray
+      case Some(modes)                => modes.toString.split(',').map(_.trim).filterNot(isBlank)
       case _                          => Array.empty[String]
     }
   }

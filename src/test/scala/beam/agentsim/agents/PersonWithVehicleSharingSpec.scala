@@ -181,7 +181,7 @@ class PersonWithVehicleSharingSpec
                 beamLeg = embodyRequest.leg.copy(
                   duration = 500,
                   travelPath = embodyRequest.leg.travelPath.copy(
-                    linkTravelTime = IndexedSeq(0, 500, 0),
+                    linkTravelTime = Array(0, 500, 0),
                     endPoint = embodyRequest.leg.travelPath.endPoint.copy(time = embodyRequest.leg.startTime + 500)
                   )
                 ),
@@ -340,8 +340,8 @@ class PersonWithVehicleSharingSpec
                   mode = BeamMode.WALK,
                   duration = 50,
                   travelPath = BeamPath(
-                    linkIds = Vector(1, 2),
-                    linkTravelTime = Vector(50, 50),
+                    linkIds = Array(1, 2),
+                    linkTravelTime = Array(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
                     endPoint = SpaceTime(0.01, 0.0, 28850),
@@ -360,8 +360,8 @@ class PersonWithVehicleSharingSpec
                   mode = BeamMode.CAR,
                   duration = 50,
                   travelPath = BeamPath(
-                    linkIds = Vector(3, 4),
-                    linkTravelTime = Vector(50, 50),
+                    linkIds = Array(3, 4),
+                    linkTravelTime = Array(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(-1.4887439, 0.0, 28950),
                     endPoint = SpaceTime(-1.4887438, 0.01, 29000),
@@ -449,8 +449,8 @@ class PersonWithVehicleSharingSpec
                   mode = BeamMode.CAR,
                   duration = 40,
                   travelPath = BeamPath(
-                    linkIds = Vector(4, 3, 2, 1),
-                    linkTravelTime = Vector(10, 10, 10, 10),
+                    linkIds = Array(4, 3, 2, 1),
+                    linkTravelTime = Array(10, 10, 10, 10),
                     transitStops = None,
                     startPoint = SpaceTime(-1.4887438, 0.0, 61200),
                     endPoint = SpaceTime(-1.4887439, 0.0, 61230),
@@ -583,7 +583,7 @@ class PersonWithVehicleSharingSpec
           beamLeg = leg.copy(
             duration = 500,
             travelPath = leg.travelPath.copy(
-              linkTravelTime = IndexedSeq(0, 500, 0),
+              linkTravelTime = Array(0, 500, 0),
               endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
             )
           ),
@@ -624,7 +624,7 @@ class PersonWithVehicleSharingSpec
           beamLeg = leg.copy(
             duration = 500,
             travelPath = leg.travelPath.copy(
-              linkTravelTime = IndexedSeq(0, 500, 0),
+              linkTravelTime = Array(0, 500, 0),
               endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
             )
           ),
@@ -665,7 +665,7 @@ class PersonWithVehicleSharingSpec
             28820,
             BeamMode.WALK,
             500,
-            BeamPath(Vector(), Vector(), None, SpaceTime(0, 0, 28820), SpaceTime(0, 0, 28820), 0.0)
+            BeamPath(Array(), Array(), None, SpaceTime(0, 0, 28820), SpaceTime(0, 0, 28820), 0.0)
           ),
           beamVehicleId = body.id,
           beamVehicleTypeId = body.vehicleTypeId,

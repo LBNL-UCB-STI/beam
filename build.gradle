@@ -1,3 +1,7 @@
+import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+import com.bmuschko.gradle.docker.tasks.image.DockerTagImage
+import com.bmuschko.gradle.docker.tasks.image.Dockerfile
+
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -96,7 +100,6 @@ allprojects {
         // maven { url "http://maven.icm.edu.pl/artifactory/repo/" }
         // maven { url "https://maven.geotoolkit.org/" }
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
-        maven { url "https://central.maven.org/maven2" }
         maven { url "https://repo.maven.apache.org/maven2" }
         maven { url "https://repo.matsim.org/repository/matsim" }
         // Used for graphql-java and matsim.contrib.decongestion specific versions -
@@ -110,10 +113,6 @@ allprojects {
         maven { url "https://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
         maven { url "https://maven.geo-solutions.it" }
         mavenLocal()
-        maven {
-            url "http://nexus.onebusaway.org/content/groups/public/"
-            allowInsecureProtocol = true
-        }
         maven { url "https://jitpack.io" }
     }
 }
@@ -215,7 +214,7 @@ dependencies {
 
     testImplementation group: 'junit', name: 'junit', version: '4.8'
     testImplementation group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
-    testImplementation group: "org.mockito", name: "mockito-core", version: "2.+"
+    testImplementation group: "org.mockito", name: "mockito-core", version: "2.28.2"
     jmhImplementation group: 'org.openjdk.jmh', name: 'jmh-core', version: '1.23'
     jmhImplementation group: 'org.openjdk.jmh', name: 'jmh-generator-annprocess', version: '1.23'
 
@@ -235,7 +234,10 @@ dependencies {
     testImplementation group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.2.9'
     testImplementation group: 'org.scalatestplus', name: 'scalatestplus-junit_2.12', version: '1.0.0-M2'
     testRuntimeOnly "org.pegdown:pegdown:1.6.0"
-    testImplementation group: 'com.vladsch.flexmark', name: 'flexmark-all', version: '0.36.8' // HTML report for scalatest
+
+    // HTML report for scalatest
+    testImplementation group: 'com.vladsch.flexmark', name: 'flexmark-all', version: '0.36.8'
+
 
     // 3rd Party Scala //
 
@@ -323,6 +325,8 @@ dependencies {
 
     implementation group: 'com.google.maps', name: 'google-maps-services', version: '0.14.0'
 
+    implementation group: 'org.onebusaway', name: 'onebusaway-gtfs-transformer', version: '1.3.4'
+
     implementation 'de.vandermeer:asciitable:0.3.2'
 
     implementation "com.sksamuel.scapegoat:scalac-scapegoat-plugin_${scalaBinaryVersion}.13:1.4.8"
@@ -364,7 +368,7 @@ publishing {
 
 task install(dependsOn: 'publishToMavenLocal')
 
-tasks.withType(cz.alenkacz.gradle.scalafmt.ScalafmtFormatBase){
+tasks.withType(cz.alenkacz.gradle.scalafmt.ScalafmtFormatBase) {
     outputs.upToDateWhen { false }
 }
 
@@ -384,6 +388,12 @@ tasks.withType(ScalaCompile) {
     }
     scalaCompileOptions.forkOptions.with {
         memoryMaximumSize = '2g'
+    }
+}
+
+tasks.withType(JavaExec).configureEach { task ->
+    if (!task.name.equals("run")) {
+        jvmArgs = project.hasProperty('logbackCfg') ? ["-Dlogback.configurationFile=${project.property('logbackCfg')}"] : []
     }
 }
 
@@ -421,7 +431,8 @@ task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
 
 task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
     main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')
+    args = (['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')) +
+            (project.hasProperty('matches') ? ["-z", project.findProperty('matches')] : [])
     classpath = sourceSets.test.runtimeClasspath
 }
 
@@ -521,7 +532,12 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 mainClassName = "beam.sim.RunBeam"
 
-def myAvailableRam = (System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "140")).toString().replace("g", "").toInteger()
+def myAvailableRam = (System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "140"))
+        .toString()
+        .replace("g", "")
+        .toFloat() // because otherwise 'toInteger' might throw java.lang.NumberFormatException
+        .toInteger()
+
 def halfOfAvailableMem = (myAvailableRam / 2).toInteger()
 
 def getCurrentTimestamp = {
@@ -585,7 +601,7 @@ run {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Run ExperimentGenerator from Command line
-//  gradle :execute -PmainClass=beam.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']"
+//  gradle :execute -PmainClass=scripts.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']"
 // Run R5 GUI server
 //  gradle --stacktrace :execute -PmainClass=com.conveyal.r5.R5Main -PappArgs="['point','--graphs','production/application-sfbay/r5/']"
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -657,11 +673,6 @@ docker {
         password = System.getenv("DOCKER_PASSWORD")
     }
 }
-
-import com.bmuschko.gradle.docker.tasks.image.Dockerfile
-import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
-import com.bmuschko.gradle.docker.tasks.image.DockerTagImage
-
 // Some examples of manual docker file creation can be found https://github.com/bmuschko/gradle-docker-plugin/blob/3736ff644bed1cbfeed6fc7f844a5513c4208bc2/src/functTest/groovy/com/bmuschko/gradle/docker/DockerWorkflowFunctionalTest.groovy#L24
 // Also here: https://bmuschko.github.io/gradle-docker-plugin/#modifying_instructions_of_a_dockerfile_task
 task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {

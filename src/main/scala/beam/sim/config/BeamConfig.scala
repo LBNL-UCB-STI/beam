@@ -100,13 +100,15 @@ object BeamConfig {
         case class Freight(
           carrierParkingFilePath: scala.Option[java.lang.String],
           carriersFilePath: java.lang.String,
-          convertWgs2Utm: scala.Boolean,
           enabled: scala.Boolean,
           generateFixedActivitiesDurations: scala.Boolean,
+          isWgs: scala.Boolean,
           name: java.lang.String,
+          nonHGVLinkWeightMultiplier: scala.Double,
           plansFilePath: java.lang.String,
           reader: java.lang.String,
           replanning: BeamConfig.Beam.Agentsim.Agents.Freight.Replanning,
+          tourSampleSizeAsFractionOfTotal: scala.Double,
           toursFilePath: java.lang.String
         )
 
@@ -137,11 +139,13 @@ object BeamConfig {
               carriersFilePath =
                 if (c.hasPathOrNull("carriersFilePath")) c.getString("carriersFilePath")
                 else "/test/input/beamville/freight/freight-carriers.csv",
-              convertWgs2Utm = c.hasPathOrNull("convertWgs2Utm") && c.getBoolean("convertWgs2Utm"),
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
               generateFixedActivitiesDurations =
                 c.hasPathOrNull("generateFixedActivitiesDurations") && c.getBoolean("generateFixedActivitiesDurations"),
+              isWgs = c.hasPathOrNull("isWgs") && c.getBoolean("isWgs"),
               name = if (c.hasPathOrNull("name")) c.getString("name") else "Freight",
+              nonHGVLinkWeightMultiplier =
+                if (c.hasPathOrNull("nonHGVLinkWeightMultiplier")) c.getDouble("nonHGVLinkWeightMultiplier") else 2.0,
               plansFilePath =
                 if (c.hasPathOrNull("plansFilePath")) c.getString("plansFilePath")
                 else "/test/input/beamville/freight/payload-plans.csv",
@@ -150,6 +154,9 @@ object BeamConfig {
                 if (c.hasPathOrNull("replanning")) c.getConfig("replanning")
                 else com.typesafe.config.ConfigFactory.parseString("replanning{}")
               ),
+              tourSampleSizeAsFractionOfTotal =
+                if (c.hasPathOrNull("tourSampleSizeAsFractionOfTotal")) c.getDouble("tourSampleSizeAsFractionOfTotal")
+                else 1.0,
               toursFilePath =
                 if (c.hasPathOrNull("toursFilePath")) c.getString("toursFilePath")
                 else "/test/input/beamville/freight/freight-tours.csv"
@@ -775,7 +782,9 @@ object BeamConfig {
         }
 
         case class Parking(
+          estimatedMeanEnRouteChargingDurationInSeconds: scala.Double,
           estimatedMinParkingDurationInSeconds: scala.Double,
+          forceParkingType: scala.Boolean,
           fractionOfSameTypeZones: scala.Double,
           maxSearchRadius: scala.Double,
           minNumberOfSameTypeZones: scala.Int,
@@ -835,10 +844,15 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking = {
             BeamConfig.Beam.Agentsim.Agents.Parking(
+              estimatedMeanEnRouteChargingDurationInSeconds =
+                if (c.hasPathOrNull("estimatedMeanEnRouteChargingDurationInSeconds"))
+                  c.getDouble("estimatedMeanEnRouteChargingDurationInSeconds")
+                else 1800.0,
               estimatedMinParkingDurationInSeconds =
                 if (c.hasPathOrNull("estimatedMinParkingDurationInSeconds"))
                   c.getDouble("estimatedMinParkingDurationInSeconds")
                 else 60.0,
+              forceParkingType = c.hasPathOrNull("forceParkingType") && c.getBoolean("forceParkingType"),
               fractionOfSameTypeZones =
                 if (c.hasPathOrNull("fractionOfSameTypeZones")) c.getDouble("fractionOfSameTypeZones") else 0.5,
               maxSearchRadius = if (c.hasPathOrNull("maxSearchRadius")) c.getDouble("maxSearchRadius") else 8046.72,
@@ -948,143 +962,17 @@ object BeamConfig {
         }
 
         case class RideHail(
-          allocationManager: BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager,
           cav: BeamConfig.Beam.Agentsim.Agents.RideHail.Cav,
           charging: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging,
-          defaultBaseCost: scala.Double,
-          defaultCostPerMile: scala.Double,
-          defaultCostPerMinute: scala.Double,
           human: BeamConfig.Beam.Agentsim.Agents.RideHail.Human,
-          initialization: BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization,
           iterationStats: BeamConfig.Beam.Agentsim.Agents.RideHail.IterationStats,
           linkFleetStateAcrossIterations: scala.Boolean,
-          name: java.lang.String,
-          pooledBaseCost: scala.Double,
-          pooledCostPerMile: scala.Double,
-          pooledCostPerMinute: scala.Double,
+          managers: scala.List[BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm],
           rangeBufferForDispatchInMeters: scala.Int,
-          repositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager,
-          rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.RideHailManager,
           surgePricing: BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing
         )
 
         object RideHail {
-
-          case class AllocationManager(
-            alonsoMora: BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager.AlonsoMora,
-            matchingAlgorithm: java.lang.String,
-            maxExcessRideTime: scala.Double,
-            maxWaitingTimeInSec: scala.Int,
-            name: java.lang.String,
-            pooledRideHailIntervalAsMultipleOfSoloRideHail: scala.Int,
-            repositionLowWaitingTimes: BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager.RepositionLowWaitingTimes,
-            requestBufferTimeoutInSeconds: scala.Int
-          )
-
-          object AllocationManager {
-
-            case class AlonsoMora(
-              maxRequestsPerVehicle: scala.Int
-            )
-
-            object AlonsoMora {
-
-              def apply(
-                c: com.typesafe.config.Config
-              ): BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager.AlonsoMora = {
-                BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager.AlonsoMora(
-                  maxRequestsPerVehicle =
-                    if (c.hasPathOrNull("maxRequestsPerVehicle")) c.getInt("maxRequestsPerVehicle") else 5
-                )
-              }
-            }
-
-            case class RepositionLowWaitingTimes(
-              allowIncreasingRadiusIfDemandInRadiusLow: scala.Boolean,
-              demandWeight: scala.Double,
-              distanceWeight: scala.Double,
-              keepMaxTopNScores: scala.Int,
-              minDemandPercentageInRadius: scala.Double,
-              minScoreThresholdForRepositioning: scala.Double,
-              minimumNumberOfIdlingVehiclesThresholdForRepositioning: scala.Int,
-              percentageOfVehiclesToReposition: scala.Double,
-              produceDebugImages: scala.Boolean,
-              repositionCircleRadiusInMeters: scala.Double,
-              repositioningMethod: java.lang.String,
-              timeWindowSizeInSecForDecidingAboutRepositioning: scala.Double,
-              waitingTimeWeight: scala.Double
-            )
-
-            object RepositionLowWaitingTimes {
-
-              def apply(
-                c: com.typesafe.config.Config
-              ): BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager.RepositionLowWaitingTimes = {
-                BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager.RepositionLowWaitingTimes(
-                  allowIncreasingRadiusIfDemandInRadiusLow = !c.hasPathOrNull(
-                    "allowIncreasingRadiusIfDemandInRadiusLow"
-                  ) || c.getBoolean("allowIncreasingRadiusIfDemandInRadiusLow"),
-                  demandWeight = if (c.hasPathOrNull("demandWeight")) c.getDouble("demandWeight") else 4.0,
-                  distanceWeight = if (c.hasPathOrNull("distanceWeight")) c.getDouble("distanceWeight") else 0.01,
-                  keepMaxTopNScores = if (c.hasPathOrNull("keepMaxTopNScores")) c.getInt("keepMaxTopNScores") else 1,
-                  minDemandPercentageInRadius =
-                    if (c.hasPathOrNull("minDemandPercentageInRadius")) c.getDouble("minDemandPercentageInRadius")
-                    else 0.1,
-                  minScoreThresholdForRepositioning =
-                    if (c.hasPathOrNull("minScoreThresholdForRepositioning"))
-                      c.getDouble("minScoreThresholdForRepositioning")
-                    else 0.1,
-                  minimumNumberOfIdlingVehiclesThresholdForRepositioning =
-                    if (c.hasPathOrNull("minimumNumberOfIdlingVehiclesThresholdForRepositioning"))
-                      c.getInt("minimumNumberOfIdlingVehiclesThresholdForRepositioning")
-                    else 1,
-                  percentageOfVehiclesToReposition =
-                    if (c.hasPathOrNull("percentageOfVehiclesToReposition"))
-                      c.getDouble("percentageOfVehiclesToReposition")
-                    else 0.01,
-                  produceDebugImages = !c.hasPathOrNull("produceDebugImages") || c.getBoolean("produceDebugImages"),
-                  repositionCircleRadiusInMeters =
-                    if (c.hasPathOrNull("repositionCircleRadiusInMeters")) c.getDouble("repositionCircleRadiusInMeters")
-                    else 3000,
-                  repositioningMethod =
-                    if (c.hasPathOrNull("repositioningMethod")) c.getString("repositioningMethod") else "TOP_SCORES",
-                  timeWindowSizeInSecForDecidingAboutRepositioning =
-                    if (c.hasPathOrNull("timeWindowSizeInSecForDecidingAboutRepositioning"))
-                      c.getDouble("timeWindowSizeInSecForDecidingAboutRepositioning")
-                    else 1200,
-                  waitingTimeWeight =
-                    if (c.hasPathOrNull("waitingTimeWeight")) c.getDouble("waitingTimeWeight") else 4.0
-                )
-              }
-            }
-
-            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager = {
-              BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager(
-                alonsoMora = BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager.AlonsoMora(
-                  if (c.hasPathOrNull("alonsoMora")) c.getConfig("alonsoMora")
-                  else com.typesafe.config.ConfigFactory.parseString("alonsoMora{}")
-                ),
-                matchingAlgorithm =
-                  if (c.hasPathOrNull("matchingAlgorithm")) c.getString("matchingAlgorithm")
-                  else "ALONSO_MORA_MATCHING_WITH_ASYNC_GREEDY_ASSIGNMENT",
-                maxExcessRideTime = if (c.hasPathOrNull("maxExcessRideTime")) c.getDouble("maxExcessRideTime") else 0.5,
-                maxWaitingTimeInSec =
-                  if (c.hasPathOrNull("maxWaitingTimeInSec")) c.getInt("maxWaitingTimeInSec") else 900,
-                name = if (c.hasPathOrNull("name")) c.getString("name") else "DEFAULT_MANAGER",
-                pooledRideHailIntervalAsMultipleOfSoloRideHail =
-                  if (c.hasPathOrNull("pooledRideHailIntervalAsMultipleOfSoloRideHail"))
-                    c.getInt("pooledRideHailIntervalAsMultipleOfSoloRideHail")
-                  else 1,
-                repositionLowWaitingTimes =
-                  BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager.RepositionLowWaitingTimes(
-                    if (c.hasPathOrNull("repositionLowWaitingTimes")) c.getConfig("repositionLowWaitingTimes")
-                    else com.typesafe.config.ConfigFactory.parseString("repositionLowWaitingTimes{}")
-                  ),
-                requestBufferTimeoutInSeconds =
-                  if (c.hasPathOrNull("requestBufferTimeoutInSeconds")) c.getInt("requestBufferTimeoutInSeconds") else 0
-              )
-            }
-          }
 
           case class Cav(
             noRefuelThresholdInMeters: scala.Int,
@@ -1107,110 +995,63 @@ object BeamConfig {
           }
 
           case class Charging(
-            vehicleChargingManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager
+            multinomialLogit: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit
           )
 
           object Charging {
 
-            case class VehicleChargingManager(
-              defaultVehicleChargingManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager
+            case class MultinomialLogit(
+              params: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit.Params
             )
 
-            object VehicleChargingManager {
+            object MultinomialLogit {
 
-              case class DefaultVehicleChargingManager(
-                multinomialLogit: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit
+              case class Params(
+                chargingTimeMultiplier: scala.Double,
+                drivingTimeMultiplier: scala.Double,
+                insufficientRangeMultiplier: scala.Double,
+                queueingTimeMultiplier: scala.Double
               )
 
-              object DefaultVehicleChargingManager {
-
-                case class MultinomialLogit(
-                  params: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit.Params
-                )
-
-                object MultinomialLogit {
-
-                  case class Params(
-                    chargingTimeMultiplier: scala.Double,
-                    drivingTimeMultiplier: scala.Double,
-                    insufficientRangeMultiplier: scala.Double,
-                    queueingTimeMultiplier: scala.Double
-                  )
-
-                  object Params {
-
-                    def apply(
-                      c: com.typesafe.config.Config
-                    ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit.Params = {
-                      BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit
-                        .Params(
-                          chargingTimeMultiplier =
-                            if (c.hasPathOrNull("chargingTimeMultiplier")) c.getDouble("chargingTimeMultiplier")
-                            else -0.01666667,
-                          drivingTimeMultiplier =
-                            if (c.hasPathOrNull("drivingTimeMultiplier")) c.getDouble("drivingTimeMultiplier")
-                            else -0.01666667,
-                          insufficientRangeMultiplier =
-                            if (c.hasPathOrNull("insufficientRangeMultiplier"))
-                              c.getDouble("insufficientRangeMultiplier")
-                            else -60.0,
-                          queueingTimeMultiplier =
-                            if (c.hasPathOrNull("queueingTimeMultiplier")) c.getDouble("queueingTimeMultiplier")
-                            else -0.01666667
-                        )
-                    }
-                  }
-
-                  def apply(
-                    c: com.typesafe.config.Config
-                  ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit = {
-                    BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager
-                      .MultinomialLogit(
-                        params =
-                          BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager.MultinomialLogit
-                            .Params(
-                              if (c.hasPathOrNull("params")) c.getConfig("params")
-                              else com.typesafe.config.ConfigFactory.parseString("params{}")
-                            )
-                      )
-                  }
-                }
+              object Params {
 
                 def apply(
                   c: com.typesafe.config.Config
-                ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager = {
-                  BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager
-                    .DefaultVehicleChargingManager(
-                      multinomialLogit =
-                        BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager.DefaultVehicleChargingManager
-                          .MultinomialLogit(
-                            if (c.hasPathOrNull("multinomialLogit")) c.getConfig("multinomialLogit")
-                            else com.typesafe.config.ConfigFactory.parseString("multinomialLogit{}")
-                          )
-                    )
+                ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit.Params = {
+                  BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit.Params(
+                    chargingTimeMultiplier =
+                      if (c.hasPathOrNull("chargingTimeMultiplier")) c.getDouble("chargingTimeMultiplier")
+                      else -0.01666667,
+                    drivingTimeMultiplier =
+                      if (c.hasPathOrNull("drivingTimeMultiplier")) c.getDouble("drivingTimeMultiplier")
+                      else -0.01666667,
+                    insufficientRangeMultiplier =
+                      if (c.hasPathOrNull("insufficientRangeMultiplier")) c.getDouble("insufficientRangeMultiplier")
+                      else -60.0,
+                    queueingTimeMultiplier =
+                      if (c.hasPathOrNull("queueingTimeMultiplier")) c.getDouble("queueingTimeMultiplier")
+                      else -0.01666667
+                  )
                 }
               }
 
               def apply(
                 c: com.typesafe.config.Config
-              ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager = {
-                BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager(
-                  defaultVehicleChargingManager =
-                    BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager
-                      .DefaultVehicleChargingManager(
-                        if (c.hasPathOrNull("defaultVehicleChargingManager"))
-                          c.getConfig("defaultVehicleChargingManager")
-                        else com.typesafe.config.ConfigFactory.parseString("defaultVehicleChargingManager{}")
-                      )
+              ): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit = {
+                BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit(
+                  params = BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit.Params(
+                    if (c.hasPathOrNull("params")) c.getConfig("params")
+                    else com.typesafe.config.ConfigFactory.parseString("params{}")
+                  )
                 )
               }
             }
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging = {
               BeamConfig.Beam.Agentsim.Agents.RideHail.Charging(
-                vehicleChargingManager = BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.VehicleChargingManager(
-                  if (c.hasPathOrNull("vehicleChargingManager")) c.getConfig("vehicleChargingManager")
-                  else com.typesafe.config.ConfigFactory.parseString("vehicleChargingManager{}")
+                multinomialLogit = BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit(
+                  if (c.hasPathOrNull("multinomialLogit")) c.getConfig("multinomialLogit")
+                  else com.typesafe.config.ConfigFactory.parseString("multinomialLogit{}")
                 )
               )
             }
@@ -1234,108 +1075,6 @@ object BeamConfig {
             }
           }
 
-          case class Initialization(
-            filePath: java.lang.String,
-            initType: java.lang.String,
-            parking: BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking,
-            procedural: BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Procedural
-          )
-
-          object Initialization {
-
-            case class Parking(
-              filePath: java.lang.String
-            )
-
-            object Parking {
-
-              def apply(
-                c: com.typesafe.config.Config
-              ): BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking = {
-                BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking(
-                  filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else ""
-                )
-              }
-            }
-
-            case class Procedural(
-              fractionOfInitialVehicleFleet: scala.Double,
-              initialLocation: BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Procedural.InitialLocation,
-              vehicleTypeId: java.lang.String,
-              vehicleTypePrefix: java.lang.String
-            )
-
-            object Procedural {
-
-              case class InitialLocation(
-                home: BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Procedural.InitialLocation.Home,
-                name: java.lang.String
-              )
-
-              object InitialLocation {
-
-                case class Home(
-                  radiusInMeters: scala.Double
-                )
-
-                object Home {
-
-                  def apply(
-                    c: com.typesafe.config.Config
-                  ): BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Procedural.InitialLocation.Home = {
-                    BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Procedural.InitialLocation.Home(
-                      radiusInMeters = if (c.hasPathOrNull("radiusInMeters")) c.getDouble("radiusInMeters") else 10000
-                    )
-                  }
-                }
-
-                def apply(
-                  c: com.typesafe.config.Config
-                ): BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Procedural.InitialLocation = {
-                  BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Procedural.InitialLocation(
-                    home = BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Procedural.InitialLocation.Home(
-                      if (c.hasPathOrNull("home")) c.getConfig("home")
-                      else com.typesafe.config.ConfigFactory.parseString("home{}")
-                    ),
-                    name = if (c.hasPathOrNull("name")) c.getString("name") else "HOME"
-                  )
-                }
-              }
-
-              def apply(
-                c: com.typesafe.config.Config
-              ): BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Procedural = {
-                BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Procedural(
-                  fractionOfInitialVehicleFleet =
-                    if (c.hasPathOrNull("fractionOfInitialVehicleFleet")) c.getDouble("fractionOfInitialVehicleFleet")
-                    else 0.1,
-                  initialLocation = BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Procedural.InitialLocation(
-                    if (c.hasPathOrNull("initialLocation")) c.getConfig("initialLocation")
-                    else com.typesafe.config.ConfigFactory.parseString("initialLocation{}")
-                  ),
-                  vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "Car",
-                  vehicleTypePrefix =
-                    if (c.hasPathOrNull("vehicleTypePrefix")) c.getString("vehicleTypePrefix") else "RH"
-                )
-              }
-            }
-
-            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization = {
-              BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization(
-                filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else "",
-                initType = if (c.hasPathOrNull("initType")) c.getString("initType") else "PROCEDURAL",
-                parking = BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Parking(
-                  if (c.hasPathOrNull("parking")) c.getConfig("parking")
-                  else com.typesafe.config.ConfigFactory.parseString("parking{}")
-                ),
-                procedural = BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization.Procedural(
-                  if (c.hasPathOrNull("procedural")) c.getConfig("procedural")
-                  else com.typesafe.config.ConfigFactory.parseString("procedural{}")
-                )
-              )
-            }
-          }
-
           case class IterationStats(
             timeBinSizeInSec: scala.Double
           )
@@ -1349,102 +1088,390 @@ object BeamConfig {
             }
           }
 
-          case class RepositioningManager(
-            demandFollowingRepositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager.DemandFollowingRepositioningManager,
-            inverseSquareDistanceRepositioningFactor: BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager.InverseSquareDistanceRepositioningFactor,
+          case class Managers$Elm(
+            allocationManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager,
+            defaultBaseCost: scala.Double,
+            defaultCostPerMile: scala.Double,
+            defaultCostPerMinute: scala.Double,
+            initialization: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization,
             name: java.lang.String,
-            timeout: scala.Int
+            pooledBaseCost: scala.Double,
+            pooledCostPerMile: scala.Double,
+            pooledCostPerMinute: scala.Double,
+            repositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager,
+            rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager
           )
 
-          object RepositioningManager {
+          object Managers$Elm {
 
-            case class DemandFollowingRepositioningManager(
-              fractionOfClosestClustersToConsider: scala.Double,
-              horizon: scala.Int,
-              numberOfClustersForDemand: scala.Int,
-              sensitivityOfRepositioningToDemand: scala.Double,
-              sensitivityOfRepositioningToDemandForCAVs: scala.Double
+            case class AllocationManager(
+              alonsoMora: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager.AlonsoMora,
+              matchingAlgorithm: java.lang.String,
+              maxExcessRideTime: scala.Double,
+              maxWaitingTimeInSec: scala.Int,
+              name: java.lang.String,
+              pooledRideHailIntervalAsMultipleOfSoloRideHail: scala.Int,
+              repositionLowWaitingTimes: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager.RepositionLowWaitingTimes,
+              requestBufferTimeoutInSeconds: scala.Int
             )
 
-            object DemandFollowingRepositioningManager {
+            object AllocationManager {
 
-              def apply(
-                c: com.typesafe.config.Config
-              ): BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager.DemandFollowingRepositioningManager = {
-                BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager.DemandFollowingRepositioningManager(
-                  fractionOfClosestClustersToConsider =
-                    if (c.hasPathOrNull("fractionOfClosestClustersToConsider"))
-                      c.getDouble("fractionOfClosestClustersToConsider")
-                    else 0.2,
-                  horizon = if (c.hasPathOrNull("horizon")) c.getInt("horizon") else 1200,
-                  numberOfClustersForDemand =
-                    if (c.hasPathOrNull("numberOfClustersForDemand")) c.getInt("numberOfClustersForDemand") else 30,
-                  sensitivityOfRepositioningToDemand =
-                    if (c.hasPathOrNull("sensitivityOfRepositioningToDemand"))
-                      c.getDouble("sensitivityOfRepositioningToDemand")
-                    else 1,
-                  sensitivityOfRepositioningToDemandForCAVs =
-                    if (c.hasPathOrNull("sensitivityOfRepositioningToDemandForCAVs"))
-                      c.getDouble("sensitivityOfRepositioningToDemandForCAVs")
-                    else 1
-                )
-              }
-            }
-
-            case class InverseSquareDistanceRepositioningFactor(
-              predictionHorizon: scala.Int,
-              sensitivityOfRepositioningToDemand: scala.Double,
-              sensitivityOfRepositioningToDistance: scala.Double
-            )
-
-            object InverseSquareDistanceRepositioningFactor {
-
-              def apply(
-                c: com.typesafe.config.Config
-              ): BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager.InverseSquareDistanceRepositioningFactor = {
-                BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager.InverseSquareDistanceRepositioningFactor(
-                  predictionHorizon = if (c.hasPathOrNull("predictionHorizon")) c.getInt("predictionHorizon") else 3600,
-                  sensitivityOfRepositioningToDemand =
-                    if (c.hasPathOrNull("sensitivityOfRepositioningToDemand"))
-                      c.getDouble("sensitivityOfRepositioningToDemand")
-                    else 0.4,
-                  sensitivityOfRepositioningToDistance =
-                    if (c.hasPathOrNull("sensitivityOfRepositioningToDistance"))
-                      c.getDouble("sensitivityOfRepositioningToDistance")
-                    else 0.9
-                )
-              }
-            }
-
-            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager = {
-              BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager(
-                demandFollowingRepositioningManager =
-                  BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager.DemandFollowingRepositioningManager(
-                    if (c.hasPathOrNull("demandFollowingRepositioningManager"))
-                      c.getConfig("demandFollowingRepositioningManager")
-                    else com.typesafe.config.ConfigFactory.parseString("demandFollowingRepositioningManager{}")
-                  ),
-                inverseSquareDistanceRepositioningFactor = BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager
-                  .InverseSquareDistanceRepositioningFactor(
-                    if (c.hasPathOrNull("inverseSquareDistanceRepositioningFactor"))
-                      c.getConfig("inverseSquareDistanceRepositioningFactor")
-                    else com.typesafe.config.ConfigFactory.parseString("inverseSquareDistanceRepositioningFactor{}")
-                  ),
-                name = if (c.hasPathOrNull("name")) c.getString("name") else "DEFAULT_REPOSITIONING_MANAGER",
-                timeout = if (c.hasPathOrNull("timeout")) c.getInt("timeout") else 0
+              case class AlonsoMora(
+                maxRequestsPerVehicle: scala.Int
               )
+
+              object AlonsoMora {
+
+                def apply(
+                  c: com.typesafe.config.Config
+                ): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager.AlonsoMora = {
+                  BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager.AlonsoMora(
+                    maxRequestsPerVehicle =
+                      if (c.hasPathOrNull("maxRequestsPerVehicle")) c.getInt("maxRequestsPerVehicle") else 5
+                  )
+                }
+              }
+
+              case class RepositionLowWaitingTimes(
+                allowIncreasingRadiusIfDemandInRadiusLow: scala.Boolean,
+                demandWeight: scala.Double,
+                distanceWeight: scala.Double,
+                keepMaxTopNScores: scala.Int,
+                minDemandPercentageInRadius: scala.Double,
+                minScoreThresholdForRepositioning: scala.Double,
+                minimumNumberOfIdlingVehiclesThresholdForRepositioning: scala.Int,
+                percentageOfVehiclesToReposition: scala.Double,
+                produceDebugImages: scala.Boolean,
+                repositionCircleRadiusInMeters: scala.Double,
+                repositioningMethod: java.lang.String,
+                timeWindowSizeInSecForDecidingAboutRepositioning: scala.Double,
+                waitingTimeWeight: scala.Double
+              )
+
+              object RepositionLowWaitingTimes {
+
+                def apply(
+                  c: com.typesafe.config.Config
+                ): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager.RepositionLowWaitingTimes = {
+                  BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager.RepositionLowWaitingTimes(
+                    allowIncreasingRadiusIfDemandInRadiusLow = !c.hasPathOrNull(
+                      "allowIncreasingRadiusIfDemandInRadiusLow"
+                    ) || c.getBoolean("allowIncreasingRadiusIfDemandInRadiusLow"),
+                    demandWeight = if (c.hasPathOrNull("demandWeight")) c.getDouble("demandWeight") else 4.0,
+                    distanceWeight = if (c.hasPathOrNull("distanceWeight")) c.getDouble("distanceWeight") else 0.01,
+                    keepMaxTopNScores = if (c.hasPathOrNull("keepMaxTopNScores")) c.getInt("keepMaxTopNScores") else 1,
+                    minDemandPercentageInRadius =
+                      if (c.hasPathOrNull("minDemandPercentageInRadius")) c.getDouble("minDemandPercentageInRadius")
+                      else 0.1,
+                    minScoreThresholdForRepositioning =
+                      if (c.hasPathOrNull("minScoreThresholdForRepositioning"))
+                        c.getDouble("minScoreThresholdForRepositioning")
+                      else 0.1,
+                    minimumNumberOfIdlingVehiclesThresholdForRepositioning =
+                      if (c.hasPathOrNull("minimumNumberOfIdlingVehiclesThresholdForRepositioning"))
+                        c.getInt("minimumNumberOfIdlingVehiclesThresholdForRepositioning")
+                      else 1,
+                    percentageOfVehiclesToReposition =
+                      if (c.hasPathOrNull("percentageOfVehiclesToReposition"))
+                        c.getDouble("percentageOfVehiclesToReposition")
+                      else 0.01,
+                    produceDebugImages = !c.hasPathOrNull("produceDebugImages") || c.getBoolean("produceDebugImages"),
+                    repositionCircleRadiusInMeters =
+                      if (c.hasPathOrNull("repositionCircleRadiusInMeters"))
+                        c.getDouble("repositionCircleRadiusInMeters")
+                      else 3000,
+                    repositioningMethod =
+                      if (c.hasPathOrNull("repositioningMethod")) c.getString("repositioningMethod") else "TOP_SCORES",
+                    timeWindowSizeInSecForDecidingAboutRepositioning =
+                      if (c.hasPathOrNull("timeWindowSizeInSecForDecidingAboutRepositioning"))
+                        c.getDouble("timeWindowSizeInSecForDecidingAboutRepositioning")
+                      else 1200,
+                    waitingTimeWeight =
+                      if (c.hasPathOrNull("waitingTimeWeight")) c.getDouble("waitingTimeWeight") else 4.0
+                  )
+                }
+              }
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager = {
+                BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager(
+                  alonsoMora = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager.AlonsoMora(
+                    if (c.hasPathOrNull("alonsoMora")) c.getConfig("alonsoMora")
+                    else com.typesafe.config.ConfigFactory.parseString("alonsoMora{}")
+                  ),
+                  matchingAlgorithm =
+                    if (c.hasPathOrNull("matchingAlgorithm")) c.getString("matchingAlgorithm")
+                    else "ALONSO_MORA_MATCHING_WITH_ASYNC_GREEDY_ASSIGNMENT",
+                  maxExcessRideTime =
+                    if (c.hasPathOrNull("maxExcessRideTime")) c.getDouble("maxExcessRideTime") else 0.5,
+                  maxWaitingTimeInSec =
+                    if (c.hasPathOrNull("maxWaitingTimeInSec")) c.getInt("maxWaitingTimeInSec") else 900,
+                  name = if (c.hasPathOrNull("name")) c.getString("name") else "DEFAULT_MANAGER",
+                  pooledRideHailIntervalAsMultipleOfSoloRideHail =
+                    if (c.hasPathOrNull("pooledRideHailIntervalAsMultipleOfSoloRideHail"))
+                      c.getInt("pooledRideHailIntervalAsMultipleOfSoloRideHail")
+                    else 1,
+                  repositionLowWaitingTimes =
+                    BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager.RepositionLowWaitingTimes(
+                      if (c.hasPathOrNull("repositionLowWaitingTimes")) c.getConfig("repositionLowWaitingTimes")
+                      else com.typesafe.config.ConfigFactory.parseString("repositionLowWaitingTimes{}")
+                    ),
+                  requestBufferTimeoutInSeconds =
+                    if (c.hasPathOrNull("requestBufferTimeoutInSeconds")) c.getInt("requestBufferTimeoutInSeconds")
+                    else 0
+                )
+              }
             }
-          }
 
-          case class RideHailManager(
-            radiusInMeters: scala.Double
-          )
+            case class Initialization(
+              filePath: java.lang.String,
+              initType: java.lang.String,
+              parking: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Parking,
+              procedural: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural
+            )
 
-          object RideHailManager {
+            object Initialization {
 
-            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.RideHailManager = {
-              BeamConfig.Beam.Agentsim.Agents.RideHail.RideHailManager(
-                radiusInMeters = if (c.hasPathOrNull("radiusInMeters")) c.getDouble("radiusInMeters") else 5000
+              case class Parking(
+                filePath: java.lang.String
+              )
+
+              object Parking {
+
+                def apply(
+                  c: com.typesafe.config.Config
+                ): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Parking = {
+                  BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Parking(
+                    filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else ""
+                  )
+                }
+              }
+
+              case class Procedural(
+                fractionOfInitialVehicleFleet: scala.Double,
+                initialLocation: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation,
+                vehicleTypeId: java.lang.String,
+                vehicleTypePrefix: java.lang.String
+              )
+
+              object Procedural {
+
+                case class InitialLocation(
+                  home: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation.Home,
+                  name: java.lang.String
+                )
+
+                object InitialLocation {
+
+                  case class Home(
+                    radiusInMeters: scala.Double
+                  )
+
+                  object Home {
+
+                    def apply(
+                      c: com.typesafe.config.Config
+                    ): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation.Home = {
+                      BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation
+                        .Home(
+                          radiusInMeters =
+                            if (c.hasPathOrNull("radiusInMeters")) c.getDouble("radiusInMeters") else 10000
+                        )
+                    }
+                  }
+
+                  def apply(
+                    c: com.typesafe.config.Config
+                  ): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation = {
+                    BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation(
+                      home =
+                        BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation
+                          .Home(
+                            if (c.hasPathOrNull("home")) c.getConfig("home")
+                            else com.typesafe.config.ConfigFactory.parseString("home{}")
+                          ),
+                      name = if (c.hasPathOrNull("name")) c.getString("name") else "HOME"
+                    )
+                  }
+                }
+
+                def apply(
+                  c: com.typesafe.config.Config
+                ): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural = {
+                  BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural(
+                    fractionOfInitialVehicleFleet =
+                      if (c.hasPathOrNull("fractionOfInitialVehicleFleet")) c.getDouble("fractionOfInitialVehicleFleet")
+                      else 0.1,
+                    initialLocation =
+                      BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation(
+                        if (c.hasPathOrNull("initialLocation")) c.getConfig("initialLocation")
+                        else com.typesafe.config.ConfigFactory.parseString("initialLocation{}")
+                      ),
+                    vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "Car",
+                    vehicleTypePrefix =
+                      if (c.hasPathOrNull("vehicleTypePrefix")) c.getString("vehicleTypePrefix") else "RH"
+                  )
+                }
+              }
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization = {
+                BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization(
+                  filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else "",
+                  initType = if (c.hasPathOrNull("initType")) c.getString("initType") else "PROCEDURAL",
+                  parking = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Parking(
+                    if (c.hasPathOrNull("parking")) c.getConfig("parking")
+                    else com.typesafe.config.ConfigFactory.parseString("parking{}")
+                  ),
+                  procedural = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural(
+                    if (c.hasPathOrNull("procedural")) c.getConfig("procedural")
+                    else com.typesafe.config.ConfigFactory.parseString("procedural{}")
+                  )
+                )
+              }
+            }
+
+            case class RepositioningManager(
+              demandFollowingRepositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager.DemandFollowingRepositioningManager,
+              inverseSquareDistanceRepositioningFactor: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager.InverseSquareDistanceRepositioningFactor,
+              name: java.lang.String,
+              timeout: scala.Int
+            )
+
+            object RepositioningManager {
+
+              case class DemandFollowingRepositioningManager(
+                fractionOfClosestClustersToConsider: scala.Double,
+                horizon: scala.Int,
+                numberOfClustersForDemand: scala.Int,
+                sensitivityOfRepositioningToDemand: scala.Double,
+                sensitivityOfRepositioningToDemandForCAVs: scala.Double
+              )
+
+              object DemandFollowingRepositioningManager {
+
+                def apply(
+                  c: com.typesafe.config.Config
+                ): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager.DemandFollowingRepositioningManager = {
+                  BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager
+                    .DemandFollowingRepositioningManager(
+                      fractionOfClosestClustersToConsider =
+                        if (c.hasPathOrNull("fractionOfClosestClustersToConsider"))
+                          c.getDouble("fractionOfClosestClustersToConsider")
+                        else 0.2,
+                      horizon = if (c.hasPathOrNull("horizon")) c.getInt("horizon") else 1200,
+                      numberOfClustersForDemand =
+                        if (c.hasPathOrNull("numberOfClustersForDemand")) c.getInt("numberOfClustersForDemand") else 30,
+                      sensitivityOfRepositioningToDemand =
+                        if (c.hasPathOrNull("sensitivityOfRepositioningToDemand"))
+                          c.getDouble("sensitivityOfRepositioningToDemand")
+                        else 1,
+                      sensitivityOfRepositioningToDemandForCAVs =
+                        if (c.hasPathOrNull("sensitivityOfRepositioningToDemandForCAVs"))
+                          c.getDouble("sensitivityOfRepositioningToDemandForCAVs")
+                        else 1
+                    )
+                }
+              }
+
+              case class InverseSquareDistanceRepositioningFactor(
+                predictionHorizon: scala.Int,
+                sensitivityOfRepositioningToDemand: scala.Double,
+                sensitivityOfRepositioningToDistance: scala.Double
+              )
+
+              object InverseSquareDistanceRepositioningFactor {
+
+                def apply(
+                  c: com.typesafe.config.Config
+                ): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager.InverseSquareDistanceRepositioningFactor = {
+                  BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager
+                    .InverseSquareDistanceRepositioningFactor(
+                      predictionHorizon =
+                        if (c.hasPathOrNull("predictionHorizon")) c.getInt("predictionHorizon") else 3600,
+                      sensitivityOfRepositioningToDemand =
+                        if (c.hasPathOrNull("sensitivityOfRepositioningToDemand"))
+                          c.getDouble("sensitivityOfRepositioningToDemand")
+                        else 0.4,
+                      sensitivityOfRepositioningToDistance =
+                        if (c.hasPathOrNull("sensitivityOfRepositioningToDistance"))
+                          c.getDouble("sensitivityOfRepositioningToDistance")
+                        else 0.9
+                    )
+                }
+              }
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager = {
+                BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager(
+                  demandFollowingRepositioningManager =
+                    BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager
+                      .DemandFollowingRepositioningManager(
+                        if (c.hasPathOrNull("demandFollowingRepositioningManager"))
+                          c.getConfig("demandFollowingRepositioningManager")
+                        else com.typesafe.config.ConfigFactory.parseString("demandFollowingRepositioningManager{}")
+                      ),
+                  inverseSquareDistanceRepositioningFactor =
+                    BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager
+                      .InverseSquareDistanceRepositioningFactor(
+                        if (c.hasPathOrNull("inverseSquareDistanceRepositioningFactor"))
+                          c.getConfig("inverseSquareDistanceRepositioningFactor")
+                        else com.typesafe.config.ConfigFactory.parseString("inverseSquareDistanceRepositioningFactor{}")
+                      ),
+                  name = if (c.hasPathOrNull("name")) c.getString("name") else "DEFAULT_REPOSITIONING_MANAGER",
+                  timeout = if (c.hasPathOrNull("timeout")) c.getInt("timeout") else 0
+                )
+              }
+            }
+
+            case class RideHailManager(
+              radiusInMeters: scala.Double
+            )
+
+            object RideHailManager {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager = {
+                BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager(
+                  radiusInMeters = if (c.hasPathOrNull("radiusInMeters")) c.getDouble("radiusInMeters") else 5000
+                )
+              }
+            }
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm = {
+              BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm(
+                allocationManager = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager(
+                  if (c.hasPathOrNull("allocationManager")) c.getConfig("allocationManager")
+                  else com.typesafe.config.ConfigFactory.parseString("allocationManager{}")
+                ),
+                defaultBaseCost = if (c.hasPathOrNull("defaultBaseCost")) c.getDouble("defaultBaseCost") else 1.8,
+                defaultCostPerMile =
+                  if (c.hasPathOrNull("defaultCostPerMile")) c.getDouble("defaultCostPerMile") else 0.91,
+                defaultCostPerMinute =
+                  if (c.hasPathOrNull("defaultCostPerMinute")) c.getDouble("defaultCostPerMinute") else 0.28,
+                initialization = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization(
+                  if (c.hasPathOrNull("initialization")) c.getConfig("initialization")
+                  else com.typesafe.config.ConfigFactory.parseString("initialization{}")
+                ),
+                name = if (c.hasPathOrNull("name")) c.getString("name") else "GlobalRHM",
+                pooledBaseCost = if (c.hasPathOrNull("pooledBaseCost")) c.getDouble("pooledBaseCost") else 1.89,
+                pooledCostPerMile =
+                  if (c.hasPathOrNull("pooledCostPerMile")) c.getDouble("pooledCostPerMile") else 1.11,
+                pooledCostPerMinute =
+                  if (c.hasPathOrNull("pooledCostPerMinute")) c.getDouble("pooledCostPerMinute") else 0.07,
+                repositioningManager = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager(
+                  if (c.hasPathOrNull("repositioningManager")) c.getConfig("repositioningManager")
+                  else com.typesafe.config.ConfigFactory.parseString("repositioningManager{}")
+                ),
+                rideHailManager = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager(
+                  if (c.hasPathOrNull("rideHailManager")) c.getConfig("rideHailManager")
+                  else com.typesafe.config.ConfigFactory.parseString("rideHailManager{}")
+                )
               )
             }
           }
@@ -1473,10 +1500,6 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail = {
             BeamConfig.Beam.Agentsim.Agents.RideHail(
-              allocationManager = BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager(
-                if (c.hasPathOrNull("allocationManager")) c.getConfig("allocationManager")
-                else com.typesafe.config.ConfigFactory.parseString("allocationManager{}")
-              ),
               cav = BeamConfig.Beam.Agentsim.Agents.RideHail.Cav(
                 if (c.hasPathOrNull("cav")) c.getConfig("cav")
                 else com.typesafe.config.ConfigFactory.parseString("cav{}")
@@ -1485,18 +1508,9 @@ object BeamConfig {
                 if (c.hasPathOrNull("charging")) c.getConfig("charging")
                 else com.typesafe.config.ConfigFactory.parseString("charging{}")
               ),
-              defaultBaseCost = if (c.hasPathOrNull("defaultBaseCost")) c.getDouble("defaultBaseCost") else 1.8,
-              defaultCostPerMile =
-                if (c.hasPathOrNull("defaultCostPerMile")) c.getDouble("defaultCostPerMile") else 0.91,
-              defaultCostPerMinute =
-                if (c.hasPathOrNull("defaultCostPerMinute")) c.getDouble("defaultCostPerMinute") else 0.28,
               human = BeamConfig.Beam.Agentsim.Agents.RideHail.Human(
                 if (c.hasPathOrNull("human")) c.getConfig("human")
                 else com.typesafe.config.ConfigFactory.parseString("human{}")
-              ),
-              initialization = BeamConfig.Beam.Agentsim.Agents.RideHail.Initialization(
-                if (c.hasPathOrNull("initialization")) c.getConfig("initialization")
-                else com.typesafe.config.ConfigFactory.parseString("initialization{}")
               ),
               iterationStats = BeamConfig.Beam.Agentsim.Agents.RideHail.IterationStats(
                 if (c.hasPathOrNull("iterationStats")) c.getConfig("iterationStats")
@@ -1504,27 +1518,27 @@ object BeamConfig {
               ),
               linkFleetStateAcrossIterations =
                 c.hasPathOrNull("linkFleetStateAcrossIterations") && c.getBoolean("linkFleetStateAcrossIterations"),
-              name = if (c.hasPathOrNull("name")) c.getString("name") else "GlobalRHM",
-              pooledBaseCost = if (c.hasPathOrNull("pooledBaseCost")) c.getDouble("pooledBaseCost") else 1.89,
-              pooledCostPerMile = if (c.hasPathOrNull("pooledCostPerMile")) c.getDouble("pooledCostPerMile") else 1.11,
-              pooledCostPerMinute =
-                if (c.hasPathOrNull("pooledCostPerMinute")) c.getDouble("pooledCostPerMinute") else 0.07,
+              managers = $_LBeamConfig_Beam_Agentsim_Agents_RideHail_Managers$Elm(c.getList("managers")),
               rangeBufferForDispatchInMeters =
                 if (c.hasPathOrNull("rangeBufferForDispatchInMeters")) c.getInt("rangeBufferForDispatchInMeters")
                 else 10000,
-              repositioningManager = BeamConfig.Beam.Agentsim.Agents.RideHail.RepositioningManager(
-                if (c.hasPathOrNull("repositioningManager")) c.getConfig("repositioningManager")
-                else com.typesafe.config.ConfigFactory.parseString("repositioningManager{}")
-              ),
-              rideHailManager = BeamConfig.Beam.Agentsim.Agents.RideHail.RideHailManager(
-                if (c.hasPathOrNull("rideHailManager")) c.getConfig("rideHailManager")
-                else com.typesafe.config.ConfigFactory.parseString("rideHailManager{}")
-              ),
               surgePricing = BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing(
                 if (c.hasPathOrNull("surgePricing")) c.getConfig("surgePricing")
                 else com.typesafe.config.ConfigFactory.parseString("surgePricing{}")
               )
             )
+          }
+
+          private def $_LBeamConfig_Beam_Agentsim_Agents_RideHail_Managers$Elm(
+            cl: com.typesafe.config.ConfigList
+          ): scala.List[BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm] = {
+            import scala.collection.JavaConverters._
+            cl.asScala
+              .map(cv =>
+                BeamConfig.Beam.Agentsim.Agents.RideHail
+                  .Managers$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)
+              )
+              .toList
           }
         }
 
@@ -1644,23 +1658,65 @@ object BeamConfig {
           case class Destination(
             home: BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Home,
             noRefuelThresholdInMeters: scala.Int,
-            refuelRequiredThresholdInMeters: scala.Double
+            refuelRequiredThresholdInMeters: scala.Int,
+            secondary: BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Secondary,
+            work: BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Work
           )
 
           object Destination {
 
             case class Home(
-              refuelRequiredThresholdInMeters: scala.Double
+              noRefuelThresholdInMeters: scala.Int,
+              refuelRequiredThresholdInMeters: scala.Int
             )
 
             object Home {
 
               def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Home = {
                 BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Home(
+                  noRefuelThresholdInMeters =
+                    if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 482803,
                   refuelRequiredThresholdInMeters =
-                    if (c.hasPathOrNull("refuelRequiredThresholdInMeters"))
-                      c.getDouble("refuelRequiredThresholdInMeters")
-                    else 128747.6
+                    if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getInt("refuelRequiredThresholdInMeters")
+                    else 482803
+                )
+              }
+            }
+
+            case class Secondary(
+              noRefuelThresholdInMeters: scala.Int,
+              refuelRequiredThresholdInMeters: scala.Int
+            )
+
+            object Secondary {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Secondary = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Secondary(
+                  noRefuelThresholdInMeters =
+                    if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 482803,
+                  refuelRequiredThresholdInMeters =
+                    if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getInt("refuelRequiredThresholdInMeters")
+                    else 482803
+                )
+              }
+            }
+
+            case class Work(
+              noRefuelThresholdInMeters: scala.Int,
+              refuelRequiredThresholdInMeters: scala.Int
+            )
+
+            object Work {
+
+              def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Work = {
+                BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Work(
+                  noRefuelThresholdInMeters =
+                    if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 482803,
+                  refuelRequiredThresholdInMeters =
+                    if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getInt("refuelRequiredThresholdInMeters")
+                    else 482803
                 )
               }
             }
@@ -1672,10 +1728,18 @@ object BeamConfig {
                   else com.typesafe.config.ConfigFactory.parseString("home{}")
                 ),
                 noRefuelThresholdInMeters =
-                  if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 128720,
+                  if (c.hasPathOrNull("noRefuelThresholdInMeters")) c.getInt("noRefuelThresholdInMeters") else 482803,
                 refuelRequiredThresholdInMeters =
-                  if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getDouble("refuelRequiredThresholdInMeters")
-                  else 64373.8
+                  if (c.hasPathOrNull("refuelRequiredThresholdInMeters")) c.getInt("refuelRequiredThresholdInMeters")
+                  else 482803,
+                secondary = BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Secondary(
+                  if (c.hasPathOrNull("secondary")) c.getConfig("secondary")
+                  else com.typesafe.config.ConfigFactory.parseString("secondary{}")
+                ),
+                work = BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Work(
+                  if (c.hasPathOrNull("work")) c.getConfig("work")
+                  else com.typesafe.config.ConfigFactory.parseString("work{}")
+                )
               )
             }
           }
@@ -1709,7 +1773,6 @@ object BeamConfig {
           }
 
           case class Enroute(
-            estimateOfMeanChargingDurationInSecond: scala.Int,
             noRefuelAtRemainingDistanceThresholdInMeters: scala.Int,
             noRefuelThresholdOffsetInMeters: scala.Double,
             refuelRequiredThresholdOffsetInMeters: scala.Int,
@@ -1720,10 +1783,6 @@ object BeamConfig {
 
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Enroute = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.Enroute(
-                estimateOfMeanChargingDurationInSecond =
-                  if (c.hasPathOrNull("estimateOfMeanChargingDurationInSecond"))
-                    c.getInt("estimateOfMeanChargingDurationInSecond")
-                  else 1800,
                 noRefuelAtRemainingDistanceThresholdInMeters =
                   if (c.hasPathOrNull("noRefuelAtRemainingDistanceThresholdInMeters"))
                     c.getInt("noRefuelAtRemainingDistanceThresholdInMeters")
@@ -2039,7 +2098,6 @@ object BeamConfig {
         chargingPointCountScalingFactor: scala.Double,
         chargingPointFilePath: java.lang.String,
         helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
-        maxChargingSessionsInSeconds: scala.Int,
         overnightChargingEnabled: scala.Boolean,
         scaleUp: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp,
         timeStepInSeconds: scala.Int
@@ -2084,35 +2142,19 @@ object BeamConfig {
         }
 
         case class ScaleUp(
+          activitiesLocationFilePath: java.lang.String,
           enabled: scala.Boolean,
-          expansionFactor_charge_activity: scala.Double,
-          expansionFactor_home_activity: scala.Double,
-          expansionFactor_init_activity: scala.Double,
-          expansionFactor_wherever_activity: scala.Double,
-          expansionFactor_work_activity: scala.Double
+          expansionFactor: scala.Double
         )
 
         object ScaleUp {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp = {
             BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
+              activitiesLocationFilePath =
+                if (c.hasPathOrNull("activitiesLocationFilePath")) c.getString("activitiesLocationFilePath") else "",
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
-              expansionFactor_charge_activity =
-                if (c.hasPathOrNull("expansionFactor_charge_activity")) c.getDouble("expansionFactor_charge_activity")
-                else 1.0,
-              expansionFactor_home_activity =
-                if (c.hasPathOrNull("expansionFactor_home_activity")) c.getDouble("expansionFactor_home_activity")
-                else 1.0,
-              expansionFactor_init_activity =
-                if (c.hasPathOrNull("expansionFactor_init_activity")) c.getDouble("expansionFactor_init_activity")
-                else 1.0,
-              expansionFactor_wherever_activity =
-                if (c.hasPathOrNull("expansionFactor_wherever_activity"))
-                  c.getDouble("expansionFactor_wherever_activity")
-                else 1.0,
-              expansionFactor_work_activity =
-                if (c.hasPathOrNull("expansionFactor_work_activity")) c.getDouble("expansionFactor_work_activity")
-                else 1.0
+              expansionFactor = if (c.hasPathOrNull("expansionFactor")) c.getDouble("expansionFactor") else 1.0
             )
           }
         }
@@ -2131,8 +2173,6 @@ object BeamConfig {
               if (c.hasPathOrNull("helics")) c.getConfig("helics")
               else com.typesafe.config.ConfigFactory.parseString("helics{}")
             ),
-            maxChargingSessionsInSeconds =
-              if (c.hasPathOrNull("maxChargingSessionsInSeconds")) c.getInt("maxChargingSessionsInSeconds") else 43200,
             overnightChargingEnabled =
               c.hasPathOrNull("overnightChargingEnabled") && c.getBoolean("overnightChargingEnabled"),
             scaleUp = BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
@@ -2792,14 +2832,18 @@ object BeamConfig {
       object Scenario {
 
         case class Urbansim(
-          activitySimEnabled: scala.Boolean
+          activitySimEnabled: scala.Boolean,
+          scenarioLoadingTimeoutSeconds: scala.Int
         )
 
         object Urbansim {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Scenario.Urbansim = {
             BeamConfig.Beam.Exchange.Scenario.Urbansim(
-              activitySimEnabled = c.hasPathOrNull("activitySimEnabled") && c.getBoolean("activitySimEnabled")
+              activitySimEnabled = c.hasPathOrNull("activitySimEnabled") && c.getBoolean("activitySimEnabled"),
+              scenarioLoadingTimeoutSeconds =
+                if (c.hasPathOrNull("scenarioLoadingTimeoutSeconds")) c.getInt("scenarioLoadingTimeoutSeconds")
+                else 3000
             )
           }
         }

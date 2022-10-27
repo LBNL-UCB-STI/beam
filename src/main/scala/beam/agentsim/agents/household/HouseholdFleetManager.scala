@@ -7,28 +7,30 @@ import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
+import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.household.HouseholdActor._
 import beam.agentsim.agents.household.HouseholdFleetManager.ResolvedParkingResponses
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.ActualVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
-import beam.agentsim.events.SpaceTime
+import beam.agentsim.events.{ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse}
 import beam.agentsim.scheduler.BeamAgentScheduler.CompletionNotice
 import beam.agentsim.scheduler.HasTriggerId
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Debug
-import beam.utils.logging.pattern.ask
 import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
+import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.api.experimental.events.EventsManager
 
 import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
-import scala.util.Random
 
 class HouseholdFleetManager(
   parkingManager: ActorRef,
@@ -37,6 +39,8 @@ class HouseholdFleetManager(
   homeAndStartingWorkLocations: Map[Id[Person], (ParkingActivityType, String, Coord)],
   maybeEmergencyHouseholdVehicleGenerator: Option[EmergencyHouseholdVehicleGenerator],
   whoDrivesThisVehicle: Map[Id[BeamVehicle], Id[Person]], // so far only freight module is using this collection
+  eventsManager: EventsManager,
+  geo: GeoUtils,
   beamConfig: BeamConfig,
   implicit val debug: Debug
 ) extends LoggingMessageActor
@@ -53,8 +57,6 @@ class HouseholdFleetManager(
 
   private val trackingVehicleAssignmentAtInitialization = mutable.HashMap.empty[Id[BeamVehicle], Id[Person]]
 
-  private val rand = new Random(beamConfig.matsim.modules.global.randomSeed)
-
   override def loggedReceive: Receive = {
     case ResolvedParkingResponses(triggerId, xs) =>
       logger.debug(s"ResolvedParkingResponses ($triggerId, $xs)")
@@ -64,6 +66,14 @@ class HouseholdFleetManager(
         veh.spaceTime = SpaceTime(resp.stall.locationUTM.getX, resp.stall.locationUTM.getY, 0)
         veh.setMustBeDrivenHome(true)
         veh.useParkingStall(resp.stall)
+        val parkEvent = ParkingEvent(
+          time = 0,
+          stall = resp.stall,
+          locationWGS = geo.utm2Wgs(resp.stall.locationUTM),
+          vehicleId = id,
+          driverId = "None"
+        )
+        eventsManager.processEvent(parkEvent)
         if (resp.stall.chargingPointType.isDefined) {
           chargingNetworkManager ! ChargingPlugRequest(
             0,
@@ -71,7 +81,8 @@ class HouseholdFleetManager(
             resp.stall,
             // use first household member id as stand-in.
             trackingVehicleAssignmentAtInitialization(id),
-            triggerId
+            triggerId,
+            self
           )
         }
 
@@ -116,7 +127,7 @@ class HouseholdFleetManager(
       val response = futureOfList.map(ResolvedParkingResponses(triggerId, _))
       response.pipeTo(self)
 
-    case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
+    case NotifyVehicleIdle(vId, _, whenWhere, _, _, _, _) =>
       val vehId = vId.asInstanceOf[Id[BeamVehicle]]
       vehiclesInternal.get(vehId) match {
         case Some(vehicle) =>
@@ -157,7 +168,7 @@ class HouseholdFleetManager(
 
     case inquiry @ MobilityStatusInquiry(personId, _, _, requireVehicleCategoryAvailable, triggerId) =>
       val availableVehicleMaybe: Option[BeamVehicle] = requireVehicleCategoryAvailable match {
-        case Some(_) if personId.toString.contains("freight") =>
+        case Some(_) if personId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX) =>
           whoDrivesThisVehicle
             .filter(_._2 == personId)
             .flatMap { case (vehicleId, _) => availableVehicles.find(_.id == vehicleId) }
@@ -177,22 +188,23 @@ class HouseholdFleetManager(
           logger.debug(s"An emergency vehicle has been created!")
         case _ =>
           if (availableVehicles.isEmpty)
-            logger.error(s"THE LIST OF VEHICLES SHOULD NOT BE EMPTY")
+            logger.warn(
+              s"The list of vehicles should not be empty, activate emergency personal vehicles generation as a temporary solution"
+            )
           logger.debug(s"Not returning vehicle because no default for  is defined")
           sender() ! MobilityStatusResponse(Vector(), triggerId)
       }
 
     case pir: ParkingInquiryResponse =>
       logger.error(s"STUCK with ParkingInquiryResponse: $pir")
-    case e @ StartingRefuelSession(_, _) =>
+    case e: StartingRefuelSession =>
       logger.debug("HouseholdFleetManager.StartingRefuelSession: {}", e)
-    case e @ UnhandledVehicle(_, _, _) =>
-      logger.debug("HouseholdFleetManager.UnhandledVehicle: {}", e)
-    case e @ WaitingToCharge(_, _, _) =>
+    case e: UnhandledVehicle =>
+      logger.error("HouseholdFleetManager.UnhandledVehicle: {}", e)
+    case e: WaitingToCharge =>
       logger.debug("HouseholdFleetManager.WaitingInLine: {}", e)
-    case e @ EndingRefuelSession(_, _, triggerId) =>
+    case e: EndingRefuelSession =>
       logger.debug("HouseholdFleetManager.EndingRefuelSession: {}", e)
-      triggerSender.get ! CompletionNotice(triggerId)
     case Finish =>
       context.stop(self)
     case Success =>
@@ -201,7 +213,7 @@ class HouseholdFleetManager(
   }
 
   /**
-    * @param inquiry
+    * @param inquiry MobilityStatusInquiry
     * @return
     */
   private def createAnEmergencyVehicle(inquiry: MobilityStatusInquiry): Option[BeamVehicle] = {
@@ -218,7 +230,7 @@ class HouseholdFleetManager(
         self
       )
       logger.warn(
-        s"No vehicles available for category ${category} available for " +
+        s"No vehicles available for category $category available for " +
         s"person ${inquiry.personId.toString}, creating a new vehicle with id ${vehicle.id.toString}"
       )
 

@@ -46,8 +46,8 @@ class BeamPathTest extends AnyWordSpec with Matchers {
   "compare" should {
     val transitStopsInfo: TransitStopsInfo = TransitStopsInfo("someAgency", "someRoute", Id.createVehicleId(1), 0, 2)
     val beamPath: BeamPath = BeamPath(
-      linkIds = Vector(1, 2),
-      linkTravelTime = Vector(5, 5),
+      linkIds = Array(1, 2),
+      linkTravelTime = Array(5, 5),
       transitStops = Some(transitStopsInfo),
       startPoint = SpaceTime(new Coord(0, 0), 0),
       endPoint = SpaceTime(new Coord(2, 2), 5),
@@ -80,16 +80,16 @@ class BeamPathTest extends AnyWordSpec with Matchers {
       "the first endPoint > the second endPoint" in {
         BeamPath.compare(
           BeamPath(
-            linkIds = Vector(1, 2),
-            linkTravelTime = Vector(5, 5),
+            linkIds = Array(1, 2),
+            linkTravelTime = Array(5, 5),
             transitStops = Some(transitStopsInfo),
             startPoint = SpaceTime(new Coord(0, 0), 0),
             endPoint = SpaceTime(new Coord(2, 2), 5),
             distanceInM = 2.0
           ),
           BeamPath(
-            linkIds = Vector(1, 2),
-            linkTravelTime = Vector(5, 5),
+            linkIds = Array(1, 2),
+            linkTravelTime = Array(5, 5),
             transitStops = Some(transitStopsInfo),
             startPoint = SpaceTime(new Coord(0, 0), 0),
             endPoint = SpaceTime(new Coord(1, 1), 5),
@@ -99,16 +99,16 @@ class BeamPathTest extends AnyWordSpec with Matchers {
 
         BeamPath.compare(
           BeamPath(
-            linkIds = Vector(1, 2),
-            linkTravelTime = Vector(10, 10),
+            linkIds = Array(1, 2),
+            linkTravelTime = Array(10, 10),
             transitStops = Some(transitStopsInfo),
             startPoint = SpaceTime(new Coord(0, 0), 0),
             endPoint = SpaceTime(new Coord(2, 2), 10),
             distanceInM = 2.0
           ),
           BeamPath(
-            linkIds = Vector(1, 2),
-            linkTravelTime = Vector(5, 5),
+            linkIds = Array(1, 2),
+            linkTravelTime = Array(5, 5),
             transitStops = Some(transitStopsInfo),
             startPoint = SpaceTime(new Coord(0, 0), 0),
             endPoint = SpaceTime(new Coord(2, 2), 5),
@@ -154,16 +154,16 @@ class BeamPathTest extends AnyWordSpec with Matchers {
       "the first endPoint < the second endPoint" in {
         BeamPath.compare(
           BeamPath(
-            linkIds = Vector(1, 2),
-            linkTravelTime = Vector(5, 5),
+            linkIds = Array(1, 2),
+            linkTravelTime = Array(5, 5),
             transitStops = Some(transitStopsInfo),
             startPoint = SpaceTime(new Coord(0, 0), 0),
             endPoint = SpaceTime(new Coord(1, 1), 5),
             distanceInM = 2.0
           ),
           BeamPath(
-            linkIds = Vector(1, 2),
-            linkTravelTime = Vector(5, 5),
+            linkIds = Array(1, 2),
+            linkTravelTime = Array(5, 5),
             transitStops = Some(transitStopsInfo),
             startPoint = SpaceTime(new Coord(0, 0), 0),
             endPoint = SpaceTime(new Coord(2, 2), 5),
@@ -173,16 +173,16 @@ class BeamPathTest extends AnyWordSpec with Matchers {
 
         BeamPath.compare(
           BeamPath(
-            linkIds = Vector(1, 2),
-            linkTravelTime = Vector(5, 5),
+            linkIds = Array(1, 2),
+            linkTravelTime = Array(5, 5),
             transitStops = Some(transitStopsInfo),
             startPoint = SpaceTime(new Coord(0, 0), 0),
             endPoint = SpaceTime(new Coord(2, 2), 5),
             distanceInM = 2.0
           ),
           BeamPath(
-            linkIds = Vector(1, 2),
-            linkTravelTime = Vector(10, 10),
+            linkIds = Array(1, 2),
+            linkTravelTime = Array(10, 10),
             transitStops = Some(transitStopsInfo),
             startPoint = SpaceTime(new Coord(0, 0), 0),
             endPoint = SpaceTime(new Coord(2, 2), 10),

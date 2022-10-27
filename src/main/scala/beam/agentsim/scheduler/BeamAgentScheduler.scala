@@ -7,8 +7,8 @@ import beam.agentsim.agents.ridehail.RideHailManager.RideHailRepositioningTrigge
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
-import beam.utils.{DebugLib, FileUtils, StuckFinder}
 import beam.utils.logging.{LogActorState, LoggingMessageActor}
+import beam.utils.{DebugLib, FileUtils, StuckFinder}
 import com.google.common.collect.TreeMultimap
 
 import java.util.Comparator
@@ -17,7 +17,7 @@ import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.{Deadline, FiniteDuration}
+import scala.concurrent.duration.Deadline
 
 case class RideHailingManagerIsExtremelySlowException(
   message: String,
@@ -41,7 +41,7 @@ object BeamAgentScheduler {
 
   case class CompletionNotice(
     triggerId: Long,
-    newTriggers: Seq[ScheduleTrigger] = Vector[ScheduleTrigger]()
+    newTriggers: Seq[ScheduleTrigger] = Vector.empty[ScheduleTrigger]
   ) extends SchedulerMessage
       with HasTriggerId
 
@@ -50,8 +50,6 @@ object BeamAgentScheduler {
   case object SimulationStuckCheck extends SchedulerMessage
 
   case object BeforeForcedShutdown extends SchedulerMessage
-
-  case object RequestCurrentTime extends SchedulerMessage
 
   case object SkipOverBadActors extends SchedulerMessage
 

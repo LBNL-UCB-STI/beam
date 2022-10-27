@@ -40,6 +40,7 @@ import org.matsim.api.core.v01.events.{
 }
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.{immutable, mutable}
@@ -60,7 +61,7 @@ object DrivesVehicle {
     // First attempt to find the link in updated that corresponds to the stopping link in old
     val stoppingLink = oldPassengerSchedule.linkAtTime(stopTick)
     val updatedLegsInSchedule = updatedPassengerSchedule.schedule.keys.toList
-    val startingLeg = updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(stoppingLink)) match {
+    val startingLeg = updatedLegsInSchedule.view.reverse.find(_.travelPath.linkIds.contains(stoppingLink)) match {
       case Some(leg) =>
         leg
       case None =>
@@ -75,7 +76,7 @@ object DrivesVehicle {
             .min
             ._2
         )
-        updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(startingLink)).get
+        updatedLegsInSchedule.view.reverse.find(_.travelPath.linkIds.contains(startingLink)).get
     }
     val indexOfStartingLink = startingLeg.travelPath.linkIds.indexWhere(_ == stoppingLink)
     val newLinks = startingLeg.travelPath.linkIds.drop(indexOfStartingLink)
@@ -125,8 +126,6 @@ object DrivesVehicle {
     def vehicle: BeamVehicle
     def streetVehicle: StreetVehicle
   }
-
-  case class EndRefuelData(chargingEndTick: Int, energyDelivered: Double)
 
   case class ActualVehicle(vehicle: BeamVehicle) extends VehicleOrToken {
     override def id: Id[BeamVehicle] = vehicle.id
@@ -275,6 +274,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         nextNotifyVehicleResourceIdle = Some(
           NotifyVehicleIdle(
             currentVehicleUnderControl,
+            this.id,
             geo.wgs2Utm(currentLeg.travelPath.endPoint.copy(time = tick)),
             data.passengerSchedule,
             currentBeamVehicle.getState,
@@ -345,15 +345,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         currentBeamVehicle.primaryFuelLevelInJoules,
         currentBeamVehicle.secondaryFuelLevelInJoules,
         tollOnCurrentLeg,
-        /*
-          fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes)),
-          fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.freeFlowSpeed)),
-          fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.gradientOption)),
-          fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkLength)),
-          fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.rate)),
-          fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.consumption)),
-          fuelConsumed.secondaryLoggingData.map(x=>(x.linkId, x.rate)),
-          fuelConsumed.secondaryLoggingData.map(x=>(x.linkId, x.consumption))*/
         riders
       )
 
@@ -403,8 +394,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                 case _                  => None
               }
             } yield nextActivity
-            val nextActivityEndTime: Double = maybeNextActivity.map(_.getEndTime).getOrElse(24.0 * 3600.0)
-            // TODO: Check to see if reserved stall is for current leg in passenger index
+            val nextActivityEndTime: Double = maybeNextActivity
+              .map(_.getEndTime)
+              .getOrElse(Time.parseTime(beamServices.beamConfig.beam.agentsim.endTime))
             currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
               stall.chargingPointType match {
                 case Some(_) if nextActivityEndTime > tick + beamConfig.beam.agentsim.schedulerParallelismWindow =>
@@ -415,6 +407,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     stall,
                     Id.createPersonId(id),
                     triggerId,
+                    self,
                     shiftStatus = NotApplicable
                   )
                   waitForConnectionToChargingPoint = true
@@ -495,13 +488,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         triggerId
       )
 
-    case ev @ Event(StartingRefuelSession(_, _), _) =>
+    case ev @ Event(_: StartingRefuelSession, _) =>
       log.debug("state(DrivesVehicle.Driving.StartingRefuelSession): {}", ev)
       stay()
-    case ev @ Event(UnhandledVehicle(_, _, _), _) =>
+    case ev @ Event(_: UnhandledVehicle, _) =>
       log.error("state(DrivesVehicle.Driving.UnhandledVehicle): {}", ev)
       stay()
-    case ev @ Event(WaitingToCharge(_, _, _), _) =>
+    case ev @ Event(_: WaitingToCharge, _) =>
       log.error("state(DrivesVehicle.Driving.WaitingInLine): {}. This probably should not happen", ev)
       stay()
   }
@@ -590,6 +583,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       nextNotifyVehicleResourceIdle = Some(
         NotifyVehicleIdle(
           currentVehicleUnderControl,
+          this.id,
           geo.wgs2Utm(currentLocation.copy(time = updatedStopTick)),
           data.passengerSchedule,
           currentBeamVehicle.getState,
@@ -634,7 +628,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
       stay
-    case ev @ Event(StartingRefuelSession(_, _), _) =>
+    case ev @ Event(_: StartingRefuelSession, _) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stay
     case _ @Event(LastLegPassengerSchedule(triggerId), data) =>
@@ -694,12 +688,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               currentBeamVehicle.id == currentVehicleUnderControl,
               currentBeamVehicle.id + " " + currentVehicleUnderControl
             )
-            currentBeamVehicle.stall match {
-              case Some(theStall) if !currentBeamVehicle.isCAV =>
-                parkingManager ! ReleaseParkingStall(theStall, triggerId)
-                currentBeamVehicle.unsetParkingStall()
-              case _ =>
+            currentBeamVehicle.stall.foreach { theStall =>
+              parkingManager ! ReleaseParkingStall(theStall, tick)
             }
+            currentBeamVehicle.unsetParkingStall()
           case None =>
         }
         val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule
@@ -788,7 +780,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       log.debug("state(DrivesVehicle.WaitingToDriveInterrupted): {}", ev)
       stash()
       stay
-    case _ @Event(NotifyVehicleResourceIdleReply(_, _, _), _) =>
+    case _ @Event(_: NotifyVehicleResourceIdleReply, _) =>
       stash()
       stay
 
@@ -927,9 +919,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           ScheduleTrigger(AlightVehicleTrigger(Math.max(currentLeg.endTime + 1, tick), vehicleId), self)
         )
       )
-    case _ @Event(EndingRefuelSession(tick, vehicleId, triggerId), _) =>
+    case _ @Event(EndingRefuelSession(tick, vehicleId, _), _) =>
       log.debug(s"DrivesVehicle: EndingRefuelSession. tick: $tick, vehicle: $vehicleId")
-      scheduler ! CompletionNotice(triggerId)
       stay()
   }
 
@@ -963,6 +954,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       // If non vehicle has been specified, then verify if the request is a charge request
       case _ => inquiry.parkingActivityType == ParkingActivityType.Charge
     }
+
     if (isChargingRequest && (inquiry.parkingDuration > beamConfig.beam.agentsim.schedulerParallelismWindow))
       chargingNetworkManager ! inquiry
     else

@@ -1,12 +1,20 @@
 import pandas as pd
 import os
 
-work_directory = '~/Data/FREIGHT/validation/beam/'
-filename = '0.events.new.csv'
+city = "austin"
+# city = "sfbay"
+scenario = "7days"
+batch = 3
+iteration = 0
+filename = str(iteration)+'.events.csv'
+
+work_directory = '~/Data/FREIGHT/'+city+'/beam/runs/'+scenario+'/'+str(batch)+"/"
+
 full_filename = os.path.expanduser(work_directory + filename)
 compression = None
 if full_filename.endswith(".gz"):
     compression = 'gzip'
+print("reading: " + full_filename)
 data = pd.read_csv(full_filename, sep=",", index_col=None, header=0, compression=compression)
 print(data.type.unique())
 data_filtered = data.loc[data.type.isin(["PathTraversal", "actstart", "actend"])]

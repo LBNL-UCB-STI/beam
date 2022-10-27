@@ -1,13 +1,15 @@
 package beam.utils.scenario
 
 import beam.utils.SnapCoordinateUtils
-import beam.utils.SnapCoordinateUtils.{Category, CsvFile, Error, ErrorInfo, SnapLocationHelper}
+import beam.utils.SnapCoordinateUtils.{Category, CsvFile, ErrorInfo, SnapLocationHelper}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 
+import scala.collection.compat.IterableFactoryExtensionMethods
+import scala.collection.immutable.HashSet
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
 
@@ -99,12 +101,12 @@ object ScenarioLoaderHelper extends LazyLogging {
       else SnapCoordinateUtils.writeToCsv(s"$path/${CsvFile.Plans}", planErrors)
     }
 
-    val validPeople: Set[Id[Person]] = scenario.getPopulation.getPersons.values().asScala.map(_.getId).toSet
+    val validPeople: HashSet[Id[Person]] = HashSet.from(scenario.getPopulation.getPersons.values().asScala.map(_.getId))
 
     val households: List[Household] = scenario.getHouseholds.getHouseholds.values().asScala.toList
     households.par.foreach { household =>
       val members = household.getMemberIds.asScala.toSet
-      val validMembers = validPeople.intersect(members)
+      val validMembers = members.filter(validPeople)
 
       if (validMembers.isEmpty) {
         scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(household.getId.toString)

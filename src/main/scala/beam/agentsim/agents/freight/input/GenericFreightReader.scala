@@ -14,6 +14,9 @@ import org.apache.commons.lang3.StringUtils.isBlank
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.Household
+import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_ID_PREFIX
+import org.matsim.core.network.NetworkUtils
+import org.matsim.api.core.v01.network.Network
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
@@ -28,11 +31,10 @@ class GenericFreightReader(
   tazTree: TAZTreeMap,
   val snapLocationAndRemoveInvalidInputs: Boolean,
   val snapLocationHelper: SnapLocationHelper,
+  networkMaybe: Option[Network] = None,
   val outputDirMaybe: Option[String] = None
 ) extends LazyLogging
     with FreightReader {
-
-  val freightIdPrefix = "freight"
 
   private def getRowValue(table: String, row: java.util.Map[String, String], key: String): String = {
     if (row.containsKey(key)) {
@@ -56,7 +58,7 @@ class GenericFreightReader(
         val departureLocationX = row.get("departureLocationX")
         val departureLocationY = row.get("departureLocationY")
 
-        extractCoordOrTaz(
+        extractCoordInUtmOrTaz(
           departureLocationX,
           departureLocationY,
           row.get("departureLocationZone"),
@@ -122,7 +124,12 @@ class GenericFreightReader(
         val locationX = row.get("locationX")
         val locationY = row.get("locationY")
 
-        extractCoordOrTaz(locationX, locationY, row.get("locationZone"), snapLocationAndRemoveInvalidInputs) match {
+        extractCoordInUtmOrTaz(
+          locationX,
+          locationY,
+          row.get("locationZone"),
+          snapLocationAndRemoveInvalidInputs
+        ) match {
           case (locationZoneMaybe, Right(coord)) =>
             Some(
               PayloadPlan(
@@ -255,9 +262,9 @@ class GenericFreightReader(
     val maybeCarrierRows = GenericCsvReader.readAsSeq[Option[FreightCarrierRow]](config.carriersFilePath) { row =>
       def get(key: String): String = getRowValue(config.carriersFilePath, row, key)
       //carrierId,tourId,vehicleId,vehicleTypeId,warehouseZone,warehouseX,warehouseY
-      val carrierId: Id[FreightCarrier] = s"$freightIdPrefix-carrier-${get("carrierId")}".createId
+      val carrierId: Id[FreightCarrier] = s"${FREIGHT_ID_PREFIX}Carrier-${get("carrierId")}".createId
       val tourId: Id[FreightTour] = get("tourId").createId
-      val vehicleId: Id[BeamVehicle] = Id.createVehicleId(s"$freightIdPrefix-vehicle-${get("vehicleId")}")
+      val vehicleId: Id[BeamVehicle] = Id.createVehicleId(s"${FREIGHT_ID_PREFIX}Vehicle-${get("vehicleId")}")
       val vehicleTypeId: Id[BeamVehicleType] = get("vehicleTypeId").createId
       if (!existingTours.contains(tourId)) {
         logger.error(f"Following freight carrier row discarded because tour $tourId was filtered out: $row")
@@ -266,7 +273,7 @@ class GenericFreightReader(
         val warehouseX = row.get("warehouseX")
         val warehouseY = row.get("warehouseY")
 
-        extractCoordOrTaz(
+        extractCoordInUtmOrTaz(
           row.get("warehouseX"),
           row.get("warehouseY"),
           row.get("warehouseZone"),
@@ -311,7 +318,7 @@ class GenericFreightReader(
     case None      => throw new IllegalArgumentException(s"Cannot find taz with id $tazId")
   }
 
-  private def extractCoordOrTaz(
+  private def extractCoordInUtmOrTaz(
     strX: String,
     strY: String,
     strZone: String,
@@ -322,30 +329,28 @@ class GenericFreightReader(
       val coord =
         if (snapLocationAndRemoveInvalidInputs) TAZTreeMap.randomLocationInTAZ(taz, rnd, snapLocationHelper)
         else TAZTreeMap.randomLocationInTAZ(taz, rnd)
-
       (Some(taz.tazId), Right(coord))
     } else {
-      val wasInWgs = config.convertWgs2Utm
-      val loc = location(strX.toDouble, strY.toDouble)
-      val coord =
-        if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(loc, wasInWgs)
-        else Right(loc)
-
-      (None, coord)
+      val loc = new Coord(strX.toDouble, strY.toDouble)
+      val locInUtm = if (config.isWgs) geoUtils.wgs2Utm(loc) else loc
+      val newLocIntUtm = networkMaybe.map(NetworkUtils.getNearestLink(_, locInUtm).getCoord).getOrElse(locInUtm)
+      val coordInUtm =
+        if (snapLocationAndRemoveInvalidInputs) snapLocationHelper.computeResult(newLocIntUtm)
+        else Right(locInUtm)
+      (None, coordInUtm)
     }
   }
 
   @Override
   def createPersonId(carrierId: Id[FreightCarrier], vehicleId: Id[BeamVehicle]): Id[Person] = {
-    val updatedCarrierId = carrierId.toString.replace(freightIdPrefix + "-", "")
-    val updatedVehicleId = vehicleId.toString.replace(freightIdPrefix + "-", "")
-    Id.createPersonId(s"$freightIdPrefix-$updatedCarrierId-$updatedVehicleId-agent")
+    val updatedVehicleId = vehicleId.toString.replace(FREIGHT_ID_PREFIX + "Vehicle-", "")
+    Id.createPersonId(s"${FREIGHT_ID_PREFIX}Driver-$updatedVehicleId")
   }
 
   @Override
   def createHouseholdId(carrierId: Id[FreightCarrier]): Id[Household] = {
-    val updatedCarrierId = carrierId.toString.replace(freightIdPrefix + "-", "")
-    s"$freightIdPrefix-$updatedCarrierId-household".createId
+    val updatedCarrierId = carrierId.toString.replace(FREIGHT_ID_PREFIX + "Carrier-", "")
+    s"${FREIGHT_ID_PREFIX}Household-$updatedCarrierId".createId
   }
 
 }

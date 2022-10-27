@@ -44,7 +44,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   // If sensitivityOfRepositioningToDemand = 1, it means all vehicles reposition all the time
   // sensitivityOfRepositioningToDemand = 0, means no one reposition
   private val cfg =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager
+    rideHailManager.managerConfig.repositioningManager.demandFollowingRepositioningManager
 
   val sensitivityOfRepositioningToDemand: Double = cfg.sensitivityOfRepositioningToDemand
   val sensitivityOfRepositioningToDemandForCAVs: Double = cfg.sensitivityOfRepositioningToDemandForCAVs
@@ -138,7 +138,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
   private def shouldReposition(tick: Int, vehicle: RideHailAgentLocation): Boolean = {
     val currentTimeBin = getTimeBin(tick)
     val weight = timeBinToActivitiesWeight.getOrElse(currentTimeBin, 0.0)
-    val scaled = weight * (if (vehicle.vehicleType.isCav) {
+    val scaled = weight * (if (vehicle.vehicleType.isConnectedAutomatedVehicle) {
                              sensitivityOfRepositioningToDemandForCAVs
                            } else {
                              sensitivityOfRepositioningToDemand
@@ -155,7 +155,7 @@ class DemandFollowingRepositioningManager(val beamServices: BeamServices, val ri
     val currentTimeBin = getTimeBin(tick)
     val nextTimeBin = currentTimeBin + 1
     val fractionOfClosestClusters =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.fractionOfClosestClustersToConsider
+      rideHailManager.managerConfig.repositioningManager.demandFollowingRepositioningManager.fractionOfClosestClustersToConsider
 
     timeBinToClusters.get(nextTimeBin).flatMap { clusters =>
       if (clusters.map(_.size).sum == 0) None

@@ -24,12 +24,13 @@ import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.vehicles.Vehicle
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.tagobjects.Retryable
 
 import scala.collection.mutable.ArrayBuffer
 
-class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
+class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeated {
 
-  "Running a single person car-only scenario and scale up charging events" must "catch charging events and measure virtual power greater or equal than real power" in {
+  "Running a single person car-only scenario and scale up charging events" must "catch charging events and measure virtual power greater or equal than real power" taggedAs Retryable in {
     val beamVilleCarId = Id.create("beamVilleCar", classOf[BeamVehicleType])
     val vehicleId = Id.create(2, classOf[Vehicle])
     val filesPath = "test/test-resources/beam/input"
@@ -39,12 +40,17 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
             |beam.physsim.skipPhysSim = true
             |beam.agentsim.lastIteration = 0
             |beam.agentsim.tuning.transitCapacity = 0.0
-            |beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet = 0
+            |beam.agentsim.agents.rideHail.managers = [
+            |  {
+            |     initialization.procedural.fractionOfInitialVehicleFleet = 0
+            |  }
+            |]
             |beam.agentsim.agents.vehicles.sharedFleets = []
             |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles-simple.csv"
             |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes-simple.csv"
             |beam.agentsim.taz.parkingFilePath = $filesPath"/taz-parking-ac-only.csv"
-            |beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC = 0
+            |beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC = 0.2
+            |beam.agentsim.agents.vehicles.meanRidehailVehicleStartingSOC = 0.2
             |beam.agentsim.chargingNetworkManager {
             |  timeStepInSeconds = 300
             |  overnightChargingEnabled = true
@@ -53,14 +59,8 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
             |  chargingPointFilePath =  ""
             |  scaleUp {
             |    enabled = true
-            |    expansionFactor_home_activity = 10.0
-            |    expansionFactor_work_activity = 10.0
-            |    expansionFactor_charge_activity = 10.0
-            |    expansionFactor_wherever_activity = 10.0
-            |    expansionFactor_init_activity = 10.0
-            |  }
-            |  helics {
-            |    connectionEnabled = false
+            |    expansionFactor = 10.0
+            |    activitiesLocationFilePath = ""
             |  }
             |  helics {
             |    connectionEnabled = false
@@ -131,7 +131,7 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper {
                 case e: RefuelSessionEvent if e.vehicleId.toString.startsWith(ScaleUpCharging.VIRTUAL_ALIAS) =>
                   val upSampledPower = BeamVehicleUtils.toPowerInKW(e.energyInJoules, e.sessionDuration.toInt)
                   totVirtualPower += upSampledPower
-                case e: RefuelSessionEvent if e.vehicleId != vehicleId =>
+                case e: RefuelSessionEvent =>
                   val currentPower = BeamVehicleUtils.toPowerInKW(e.energyInJoules, e.sessionDuration.toInt)
                   totRealPower += currentPower
                 case _ =>

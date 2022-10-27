@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure
 
-import beam.agentsim.agents.ridehail.{DefaultRideHailDepotParkingManager, RideHailDepotParkingManager}
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.ParkingLoadingAccumulator
@@ -29,7 +28,7 @@ object InfrastructureUtils extends LazyLogging {
   def buildParkingAndChargingNetworks(
     beamServices: BeamServices,
     envelopeInUTM: Envelope
-  ): (ParkingNetwork, ChargingNetwork, RideHailDepotParkingManager) = {
+  ): (ParkingNetwork, ChargingNetwork, RideHailDepotNetwork) = {
     implicit val beamScenario: BeamScenario = beamServices.beamScenario
     implicit val geo: GeoUtils = beamServices.geo
     val beamConfig = beamServices.beamConfig
@@ -64,15 +63,14 @@ object InfrastructureUtils extends LazyLogging {
         )
       )
       // RIDEHAIL
-      val ridehailParkingFile = List(
+      val ridehailParkingFiles = beamConfig.beam.agentsim.agents.rideHail.managers.map(managerConfig =>
         (
-          beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath,
-          VehicleManager
-            .createOrGetReservedFor(beamConfig.beam.agentsim.agents.rideHail.name, VehicleManager.TypeEnum.RideHail),
-          Seq(ParkingType.Workplace).toList
+          managerConfig.initialization.parking.filePath,
+          VehicleManager.createOrGetReservedFor(managerConfig.name, VehicleManager.TypeEnum.RideHail),
+          Seq(ParkingType.Workplace)
         )
       )
-      (sharedFleetsParkingFiles ++ freightParkingFile ++ ridehailParkingFile).toIndexedSeq
+      (sharedFleetsParkingFiles ++ freightParkingFile ++ ridehailParkingFiles).toIndexedSeq
     }
 
     // CHARGING STALLS ARE LOADED HERE
@@ -98,13 +96,11 @@ object InfrastructureUtils extends LazyLogging {
         beamServices
       ),
       rideHailChargingStalls.map { case (_, chargingZones) =>
-        DefaultRideHailDepotParkingManager.init(
-          chargingZones,
-          envelopeInUTM,
-          beamServices
-        )
+        RideHailDepotNetwork.init(chargingZones, envelopeInUTM, beamServices)
       }.head
     )
+    logger.info(s"public charging network has ${nonRhChargingNetwork.parkingZones.size} stations")
+    logger.info(s"ride-hail charging network has ${rhChargingNetwork.parkingZones.size} depots")
 
     // PARKING STALLS ARE LOADED HERE
     logger.info(s"loading stalls...")

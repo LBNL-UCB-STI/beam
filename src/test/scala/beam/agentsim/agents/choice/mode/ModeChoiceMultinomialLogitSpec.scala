@@ -78,8 +78,8 @@ object ModeChoiceMultinomialLogitSpec {
     val startPointTime = randomSpaceTime
     val newTime = (tailSum + startPointTime.time - Random.nextInt(2)).toInt
     BeamPath(
-      linkIds = linkIds.toIndexedSeq,
-      linkTravelTime = travelTimes.toIndexedSeq,
+      linkIds = linkIds.toArray,
+      linkTravelTime = travelTimes.toArray,
       transitStops = randomOption(randomTransitStops),
       startPoint = startPointTime,
       endPoint = randomSpaceTime.copy(time = newTime),
