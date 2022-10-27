@@ -410,7 +410,7 @@ object HouseholdActor {
             schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
             person.getId -> PersonIdWithActorRef(person.getId, personRef)
           } catch {
-            case x =>
+            case x: Throwable =>
               log.error("Caught exception in person creation code: " + x)
               ???
           }
