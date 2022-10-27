@@ -21,9 +21,10 @@ import beam.router.Modes.BeamMode.{
   WALK,
   WALK_TRANSIT
 }
-import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import beam.utils.MathUtils.avg
 import beam.utils.{FileUtils, GeoJsonReader, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Geometry
@@ -107,9 +108,13 @@ object SkimsUtils extends LazyLogging {
   ): Double = {
     mode match {
       case RIDE_HAIL =>
-        beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * distanceInMeters / 1609.34 + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * timeInSeconds / 60 + beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost
+        avg(beamConfig.beam.agentsim.agents.rideHail.managers.map(_.defaultCostPerMile)) * distanceInMeters / 1609.34 +
+          avg(beamConfig.beam.agentsim.agents.rideHail.managers.map(_.defaultCostPerMinute)) * timeInSeconds / 60 +
+          avg(beamConfig.beam.agentsim.agents.rideHail.managers.map(_.defaultBaseCost))
       case RIDE_HAIL_POOLED =>
-        beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMile * distanceInMeters / 1609.34 + beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMinute * timeInSeconds / 60 + beamConfig.beam.agentsim.agents.rideHail.pooledBaseCost
+        avg(beamConfig.beam.agentsim.agents.rideHail.managers.map(_.pooledCostPerMile)) * distanceInMeters / 1609.34 +
+          avg(beamConfig.beam.agentsim.agents.rideHail.managers.map(_.pooledCostPerMinute)) * timeInSeconds / 60 +
+          avg(beamConfig.beam.agentsim.agents.rideHail.managers.map(_.pooledBaseCost))
       case _ =>
         0.0
     }

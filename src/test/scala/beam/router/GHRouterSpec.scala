@@ -92,6 +92,7 @@ class GHRouterSpec extends AnyWordSpecLike with Matchers with BeamHelper with Sc
               WALK_TRANSIT,
               BIKE_TRANSIT
             ),
+            Seq.empty,
             12.254901960784315,
             Some(0),
             Some(0.0)

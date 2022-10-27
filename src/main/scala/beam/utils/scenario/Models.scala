@@ -12,8 +12,10 @@ case class PersonInfo(
   rank: Int,
   age: Int,
   excludedModes: Seq[String] = Seq.empty,
+  rideHailServiceSubscription: Seq[String] = Seq.empty,
   isFemale: Boolean,
   valueOfTime: Double,
+  wheelchairUser: Boolean = false,
   industry: Option[String]
 )
 

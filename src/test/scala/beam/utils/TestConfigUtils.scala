@@ -15,6 +15,7 @@ object TestConfigUtils extends BeamHelper {
   val minimumValidBeamConfig: Config = {
     ConfigFactory.parseString(
       """|beam.agentsim.agents.vehicles.sharedFleets=[]
+         |beam.agentsim.agents.rideHail.managers = [{}]
          |beam.debug.stuckAgentDetection.thresholds=[]
          |matsim.modules.strategy.parameterset=[]
          |matsim.modules.planCalcScore.parameterset=[]

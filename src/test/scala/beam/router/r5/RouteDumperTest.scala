@@ -35,6 +35,7 @@ class RouteDumperTest extends AnyFunSuite with Matchers {
       None,
       true,
       Vector(BeamMode.CAR),
+      Seq.empty,
       valueOfTime = 10000000.0,
       Some(42),
       Some(1234)
@@ -93,8 +94,8 @@ class RouteDumperTest extends AnyFunSuite with Matchers {
       BeamMode.CAR,
       0,
       BeamPath(
-        linkIds = Vector(1, 2, 3, 4, 5),
-        linkTravelTime = Vector(5, 5, 5, 5, 5),
+        linkIds = Array(1, 2, 3, 4, 5),
+        linkTravelTime = Array(5, 5, 5, 5, 5),
         transitStops = Some(
           TransitStopsInfo(
             agencyId = "Agent",
@@ -135,8 +136,8 @@ class RouteDumperTest extends AnyFunSuite with Matchers {
                 mode = BeamMode.WALK,
                 duration = 50,
                 travelPath = BeamPath(
-                  linkIds = Vector(1, 2),
-                  linkTravelTime = Vector(50, 50),
+                  linkIds = Array(1, 2),
+                  linkTravelTime = Array(50, 50),
                   transitStops = None,
                   startPoint = SpaceTime(0.0, 0.0, 28800),
                   endPoint = SpaceTime(0.01, 0.0, 28850),
@@ -155,8 +156,8 @@ class RouteDumperTest extends AnyFunSuite with Matchers {
                 mode = BeamMode.CAR,
                 duration = 50,
                 travelPath = BeamPath(
-                  linkIds = Vector(3, 4),
-                  linkTravelTime = Vector(50, 50),
+                  linkIds = Array(3, 4),
+                  linkTravelTime = Array(50, 50),
                   transitStops = None,
                   startPoint = SpaceTime(0.01, 0.0, 28950),
                   endPoint = SpaceTime(0.01, 0.01, 29000),

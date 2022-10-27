@@ -1,0 +1,19 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: An AWS Serverless Specification template describing your function.
+Resources:
+  testingnotice:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: lambda_function.lambda_handler
+      Runtime: python3.8
+      CodeUri: .
+      Description: ''
+      MemorySize: 256
+      Timeout: 30
+      Role: 'arn:aws:iam::340032650202:role/BeamLambdaExecution'
+      Environment:
+        Variables:
+          ALLOWED_INSTANCES: '[''i-0b31829f99cc9a7ce'']'
+          BUDGET_NAME: Total Monthly Budget
+          SLACK_HOOK: SENSITIVE_SO_REDACTED

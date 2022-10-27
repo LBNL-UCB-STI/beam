@@ -112,6 +112,8 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
     val rank = getIfNotNull(rec, "householdRank", "0").toInt
     val industry = Option(rec.get("industry"))
     val excludedModes = Try(getIfNotNull(rec, "excludedModes")).getOrElse("").split(",")
+    val rideHailServiceSubscription =
+      Option(rec.get("rideHailServiceSubscription")).fold(Seq.empty[String])(_.split(","))
     val valueOfTime = NumberUtils.toDouble(Try(getIfNotNull(rec, "valueOfTime", "0")).getOrElse("0"), 0d)
     PersonInfo(
       personId = PersonId(personId),
@@ -119,6 +121,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
       rank = rank,
       age = age,
       excludedModes = excludedModes,
+      rideHailServiceSubscription = rideHailServiceSubscription,
       isFemale = isFemale,
       valueOfTime = valueOfTime,
       industry = industry

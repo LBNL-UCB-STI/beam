@@ -26,11 +26,10 @@ class SitePowerManager(
     * @param tick current time
     * @return power (in Kilo Watt) over planning horizon
     */
-  def requiredPowerInKWOverNextPlanningHorizon(tick: Int): Map[ChargingStation, PowerInKW] = {
+  def requiredPowerInKWOverNextPlanningHorizon(tick: Int): Seq[(ChargingStation, PowerInKW)] = {
     val plans = chargingNetworkHelper.allChargingStations.par
       .map(station => station -> temporaryLoadEstimate.getOrElse(station, 0.0))
       .seq
-      .toMap
     temporaryLoadEstimate.clear()
     if (plans.isEmpty) {
       logger.debug(s"Charging Replan did not produce allocations on tick: [$tick]")
@@ -47,8 +46,8 @@ class SitePowerManager(
     timeInterval: Int,
     chargingVehicle: ChargingVehicle,
     physicalBounds: Map[ChargingStation, PhysicalBounds]
-  ): (ChargingDurationInSec, EnergyInJoules, EnergyInJoules) = {
-    val ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _, _) = chargingVehicle
+  ): (ChargingDurationInSec, EnergyInJoules, EnergyInJoules, ChargingDurationInSec) = {
+    val ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _, _, _, _) = chargingVehicle
     // dispatch
     val maxZoneLoad = physicalBounds(station).powerLimitUpper
     val maxUnlimitedZoneLoad = unlimitedPhysicalBounds(station).powerLimitUpper
@@ -65,13 +64,18 @@ class SitePowerManager(
       stateOfChargeLimit = None,
       chargingPowerLimit = None
     )
+    val (remainingChargingDuration, _) = vehicle.refuelingSessionDurationAndEnergyInJoules(
+      sessionDurationLimit = None,
+      stateOfChargeLimit = None,
+      chargingPowerLimit = Some(chargingPowerLimit)
+    )
     if ((chargingDuration > 0 && energyToCharge == 0) || chargingDuration == 0 && energyToCharge > 0) {
       logger.debug(
         s"chargingDuration is $chargingDuration while energyToCharge is $energyToCharge. " +
         s"Something is broken or due to physical bounds!!"
       )
     }
-    (chargingDuration, energyToCharge, energyToChargeIfUnconstrained)
+    (chargingDuration, energyToCharge, energyToChargeIfUnconstrained, remainingChargingDuration)
   }
 
   /**
@@ -101,7 +105,7 @@ class SitePowerManager(
         requiredLoad,
         beamServices,
         "CNM",
-        geoIdMaybe = Some(station.zone.geoId.toString)
+        geoIdMaybe = Some(station.zone.tazId.toString)
       )
     )
   }

@@ -29,11 +29,17 @@ case class BeamVehicleType(
   sampleProbabilityWithinCategory: Double = 1.0,
   sampleProbabilityString: Option[String] = None,
   chargingCapability: Option[ChargingPointType] = None,
-  payloadCapacityInKg: Option[Double] = None
+  payloadCapacityInKg: Option[Double] = None,
+  wheelchairAccessible: Option[Boolean] = None
 ) {
+  def isSharedVehicle: Boolean = id.toString.startsWith("sharedVehicle")
 
-  def isCaccEnabled: Boolean = {
-    automationLevel >= 3
+  def isCaccEnabled: Boolean = automationLevel >= 3
+
+  def isConnectedAutomatedVehicle: Boolean = automationLevel >= 4
+
+  def isWheelchairAccessible: Boolean = {
+    wheelchairAccessible.getOrElse(true)
   }
 
   def getTotalRange: Double = {

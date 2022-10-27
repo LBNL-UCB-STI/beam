@@ -27,6 +27,7 @@ case class EdgeWithCoord(edgeIndex: Int, wgsCoord: Coordinate)
 trait GeoUtils extends ExponentialLazyLogging {
 
   def localCRS: String
+  val defaultMaxRadiusForMapSearch = 10000
   private lazy val notExponentialLogger = Logger(LoggerFactory.getLogger(getClass.getName))
 
   lazy val utm2Wgs: GeotoolsTransformation =
@@ -64,7 +65,7 @@ trait GeoUtils extends ExponentialLazyLogging {
   def getNearestR5EdgeToUTMCoord(
     streetLayer: StreetLayer,
     coordUTM: Coord,
-    maxRadius: Double
+    maxRadius: Double = defaultMaxRadiusForMapSearch
   ): Int = {
     getNearestR5Edge(streetLayer, utm2Wgs(coordUTM), maxRadius)
   }
@@ -72,7 +73,7 @@ trait GeoUtils extends ExponentialLazyLogging {
   def getNearestR5Edge(
     streetLayer: StreetLayer,
     coordWGS: Coord,
-    maxRadius: Double
+    maxRadius: Double = defaultMaxRadiusForMapSearch
   ): Int = {
     val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, StreetMode.WALK)
     if (theSplit == null) {
@@ -105,7 +106,7 @@ trait GeoUtils extends ExponentialLazyLogging {
   def snapToR5Edge(
     streetLayer: StreetLayer,
     coordWGS: Coord,
-    maxRadius: Double,
+    maxRadius: Double = defaultMaxRadiusForMapSearch,
     streetMode: StreetMode = StreetMode.WALK
   ): Coord = {
     val theSplit = getR5Split(streetLayer, coordWGS, maxRadius, streetMode)
@@ -119,7 +120,7 @@ trait GeoUtils extends ExponentialLazyLogging {
   def getR5Split(
     streetLayer: StreetLayer,
     coord: Coord,
-    maxRadius: Double,
+    maxRadius: Double = defaultMaxRadiusForMapSearch,
     streetMode: StreetMode = StreetMode.WALK
   ): Split = {
     var radius = 10.0
@@ -235,6 +236,34 @@ object GeoUtils {
 
   def distFormula(x1: Double, y1: Double, x2: Double, y2: Double): Double = {
     Math.sqrt(Math.pow(x1 - x2, 2.0) + Math.pow(y1 - y2, 2.0))
+  }
+
+  def isPointWithinCircle(center: Coord, radiusSquared: Double, point: Coord): Boolean = {
+    val dx = point.getX - center.getX
+    val dy = point.getY - center.getY
+    dx * dx + dy * dy <= radiusSquared
+  }
+
+  /**
+    * Calculates point of intersection between a circle and a segment that starts at `point` and ends at the circle center
+    * @param center circle center
+    * @param radius circle radius
+    * @param point segment starting point
+    * @return intersection of the circle and the segment or the circle center if the point == center
+    */
+  def segmentCircleIntersection(center: Coord, radius: Double, point: Coord): Coord = {
+    val dx = point.getX - center.getX
+    val dy = point.getY - center.getY
+    if (dx == 0) {
+      new Coord(center.getX, center.getY + Math.signum(dy) * radius)
+    } else {
+      val m = dy / dx
+      val m2 = m * m
+      new Coord(
+        center.getX + Math.signum(dx) * radius / Math.sqrt(1 + m2),
+        center.getY + Math.signum(dy) * radius / Math.sqrt(1 + 1 / m2)
+      )
+    }
   }
 
   /**

@@ -3,7 +3,6 @@ package beam.sim.metrics
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.charging.ElectricCurrentType.DC
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils
-import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.config.BeamConfig
 import beam.sim.metrics.SimulationMetricCollector.{defaultMetricName, SimulationTime}
 import beam.sim.{BeamScenario, BeamServices}
@@ -59,7 +58,7 @@ object BeamStaticMetricsWriter {
       If both files are given then read parking stalls from both of them.
       beamConfig.beam.agentsim.taz.parkingFilePath
             provides public fast charge stalls and
-      beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath
+      beamConfig.beam.agentsim.agents.rideHail.managers[i].initialization.parking.filePath
             provides charging depot stalls
      */
 
@@ -72,39 +71,33 @@ object BeamStaticMetricsWriter {
       metricEnabled("beam-run-charging-depots-stalls-cnt")
     ) {
 
-      val (chargingDepotsFilePath: String, publicFastChargerFilePath: String) = {
-        if (
-          fileExist(beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath) &&
-          fileExist(beamConfig.beam.agentsim.taz.parkingFilePath)
-        ) {
-          (
-            beamConfig.beam.agentsim.agents.rideHail.initialization.parking.filePath,
-            beamConfig.beam.agentsim.taz.parkingFilePath
-          )
-        } else if (fileExist(beamConfig.beam.agentsim.taz.parkingFilePath)) {
-          ("", beamConfig.beam.agentsim.taz.parkingFilePath)
-        } else {
-          ("", "")
-        }
+      val chargingDepotFilePaths: List[String] = beamConfig.beam.agentsim.agents.rideHail.managers.collect {
+        case managerConfig if fileExist(managerConfig.initialization.parking.filePath) =>
+          managerConfig.initialization.parking.filePath
       }
 
-      if (chargingDepotsFilePath.nonEmpty) {
+      val publicFastChargerFilePath =
+        if (fileExist(beamConfig.beam.agentsim.taz.parkingFilePath)) beamConfig.beam.agentsim.taz.parkingFilePath
+        else ""
+
+      if (chargingDepotFilePaths.nonEmpty) {
         val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
         val parkingStallCountScalingFactor = beamServices.beamConfig.beam.agentsim.taz.parkingStallCountScalingFactor
-        val (chargingDepots, _) =
-          ParkingZoneFileUtils
-            .fromFile[TAZ](
+        val chargingDepots = chargingDepotFilePaths.flatMap { chargingDepotsFilePath =>
+          val (chargingDepotMap, _) = ParkingZoneFileUtils
+            .fromFile(
               chargingDepotsFilePath,
               rand,
               Some(beamScenario.beamConfig),
               Some(beamServices),
               parkingStallCountScalingFactor
             )
-
+          chargingDepotMap.values
+        }
         var cntChargingDepots = 0
         var cntChargingDepotsStalls = 0
 
-        chargingDepots.foreach { case (_, parkingZone) =>
+        chargingDepots.foreach { parkingZone =>
           if (parkingZone.chargingPointType.nonEmpty) {
             cntChargingDepots += 1
             cntChargingDepotsStalls += parkingZone.stallsAvailable
@@ -117,7 +110,7 @@ object BeamStaticMetricsWriter {
           val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
           val (publicChargers, _) =
             ParkingZoneFileUtils
-              .fromFile[TAZ](
+              .fromFile(
                 publicFastChargerFilePath,
                 rand,
                 Some(beamConfig),

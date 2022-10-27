@@ -8,10 +8,16 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.freight.FreightReplanner
 import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
-import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailSurgePricingManager}
+import beam.agentsim.agents.ridehail.{
+  RideHailIterationHistory,
+  RideHailManager,
+  RideHailMaster,
+  RideHailSurgePricingManager
+}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.events.eventbuilder.EventBuilderActor.{EventBuilderActorCompleted, FlushEvents}
+import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils
 import beam.agentsim.infrastructure.{ChargingNetworkManager, InfrastructureUtils, ParkingNetworkManager}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, StartSchedule}
@@ -27,6 +33,7 @@ import beam.sim.metrics.{Metrics, MetricsSupport, SimulationMetricCollector}
 import beam.sim.monitoring.ErrorListener
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehiclesharing.Fleets
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils._
 import beam.utils.csv.writers.PlansCsvWriter
 import beam.utils.logging.{LoggingMessageActor, MessageLogger}
@@ -65,10 +72,16 @@ class BeamMobsim @Inject() (
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
-  private implicit val timeout: Timeout = Timeout(50000, TimeUnit.SECONDS)
+  private implicit val timeout: Timeout = Timeout(500000, TimeUnit.SECONDS)
 
   import beamServices._
-  val physsimConfig = beamConfig.beam.physsim
+  val physsimConfig: Beam.Physsim = beamConfig.beam.physsim
+
+  val snapLocationHelper: SnapLocationHelper = SnapLocationHelper(
+    geo,
+    beamScenario.transportNetwork.streetLayer,
+    beamConfig.beam.routing.r5.linkRadiusMeters
+  )
 
   override def run(): Unit = {
     logger.info("Starting Iteration")
@@ -139,11 +152,18 @@ class BeamMobsim @Inject() (
       }
     )(scala.concurrent.ExecutionContext.global)
 
-    if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
+    if (beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities) {
       logger.info("Filling in secondary trips in plans")
       fillInSecondaryActivities(
         beamServices.matsimServices.getScenario.getHouseholds
       )
+      beamServices.skims.od_skimmer.displaySkimStats()
+      beamServices.skims.parking_skimmer.displaySkimStats()
+      beamServices.skims.rh_skimmer.displaySkimStats()
+      beamServices.skims.freight_skimmer.displaySkimStats()
+      beamServices.skims.taz_skimmer.displaySkimStats()
+      beamServices.skims.dt_skimmer.displaySkimStats()
+      beamServices.skims.tc_skimmer.displaySkimStats()
     }
 
     if (beamServices.beamConfig.beam.output.writePlansAndStopSimulation) {
@@ -197,7 +217,7 @@ class BeamMobsim @Inject() (
         case VehicleCategory.Bike => BeamMode.BIKE
       }.toList
 
-      val cavs = vehicles.filter(_.beamVehicleType.automationLevel > 3).toList
+      val cavs = vehicles.filter(_.isCAV).toList
 
       val cavModeAvailable: List[BeamMode] =
         if (cavs.nonEmpty) {
@@ -224,7 +244,8 @@ class BeamMobsim @Inject() (
               person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual],
               destinationChoiceModel,
               beamServices,
-              person.getId
+              person.getId,
+              snapLocationHelper
             )
           val newPlan =
             supplementaryTripGenerator.generateNewPlans(person.getSelectedPlan, destinationChoiceModel, modesAvailable)
@@ -324,17 +345,16 @@ class BeamMobsim @Inject() (
         "Vehicle type for human body: " + beamScenario.beamConfig.beam.agentsim.agents.bodyType + " is missing. Please add it to the vehicle types."
       )
     }
-    if (
-      !beamScenario.vehicleTypes.contains(
-        Id.create(
-          beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-          classOf[BeamVehicleType]
+    beamConfig.beam.agentsim.agents.rideHail.managers.foreach { managerConfig =>
+      if (
+        !beamScenario.vehicleTypes.contains(
+          Id.create(managerConfig.initialization.procedural.vehicleTypeId, classOf[BeamVehicleType])
         )
-      )
-    ) {
-      throw new RuntimeException(
-        "Vehicle type for ride-hail: " + beamScenario.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId + " is missing. Please add it to the vehicle types."
-      )
+      ) {
+        throw new RuntimeException(
+          "Vehicle type for ride-hail: " + managerConfig.initialization.procedural.vehicleTypeId + " is missing. Please add it to the vehicle types."
+        )
+      }
     }
   }
 
@@ -373,6 +393,7 @@ class BeamMobsimIteration(
     Props(
       classOf[BeamAgentScheduler],
       beamConfig,
+      beamServices.matsimServices.getControlerIO.getOutputPath,
       Time.parseTime(beamConfig.matsim.modules.qsim.endTime).toInt,
       config.schedulerParallelismWindow,
       new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
@@ -393,8 +414,12 @@ class BeamMobsimIteration(
 
   import scala.language.existentials
 
-  private val (parkingNetwork, nonRhChargingNetwork, rhChargingNetwork) =
+  private val (parkingNetwork, chargingNetwork, rhDepotNetwork) =
     InfrastructureUtils.buildParkingAndChargingNetworks(beamServices, envelopeInUTM)
+  ParkingZoneFileUtils.toCsv(
+    rhDepotNetwork.parkingZones,
+    beamServices.matsimServices.getControlerIO.getOutputFilename("ridehailParking.csv")
+  )
 
   // Parking Network Manager
   private val parkingNetworkManager = context.actorOf(
@@ -408,47 +433,70 @@ class BeamMobsimIteration(
   // Charging Network Manager
   private val chargingNetworkManager = context.actorOf(
     ChargingNetworkManager
-      .props(beamServices, nonRhChargingNetwork, rhChargingNetwork, parkingNetworkManager, scheduler)
+      .props(beamServices, chargingNetwork, rhDepotNetwork, parkingNetworkManager, scheduler)
       .withDispatcher("charging-network-manager-pinned-dispatcher"),
     "ChargingNetworkManager"
   )
   context.watch(chargingNetworkManager)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), chargingNetworkManager)
 
-  private val rideHailManagerId =
-    VehicleManager
-      .createOrGetReservedFor(
-        beamConfig.beam.agentsim.agents.rideHail.name,
-        VehicleManager.TypeEnum.RideHail
-      )
-      .managerId
-  private val rideHailFleetInitializer = rideHailFleetInitializerProvider.get()
-
   private val rideHailManager = context.actorOf(
-    Props(
-      new RideHailManager(
-        rideHailManagerId,
-        beamServices,
-        beamScenario,
-        beamScenario.transportNetwork,
-        tollCalculator,
-        matsimServices.getScenario,
-        matsimServices.getEvents,
-        scheduler,
-        beamRouter,
-        parkingNetworkManager,
-        chargingNetworkManager,
-        envelopeInUTM,
-        activityQuadTreeBounds,
-        rideHailSurgePricingManager,
-        rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
-        routeHistory,
-        rideHailFleetInitializer,
-        rhChargingNetwork
-      )
-    ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
+    createRHMProps.withDispatcher("ride-hail-manager-pinned-dispatcher"),
     "RideHailManager"
   )
+
+  private def createRHMProps = {
+    if (beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.size == 1) {
+      val managerConfig = beamConfig.beam.agentsim.agents.rideHail.managers.head
+      val rhmName = managerConfig.name
+      val rideHailManagerId = VehicleManager.createOrGetReservedFor(rhmName, VehicleManager.TypeEnum.RideHail).managerId
+      val rideHailFleetInitializer = rideHailFleetInitializerProvider.get(rhmName)
+      Props(
+        new RideHailManager(
+          rideHailManagerId,
+          beamServices,
+          beamScenario,
+          beamScenario.transportNetwork,
+          tollCalculator,
+          matsimServices.getScenario,
+          matsimServices.getEvents,
+          scheduler,
+          beamRouter,
+          parkingNetworkManager,
+          chargingNetworkManager,
+          envelopeInUTM,
+          activityQuadTreeBounds,
+          rideHailSurgePricingManager,
+          rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
+          routeHistory,
+          rideHailFleetInitializer,
+          managerConfig
+        )
+      )
+    } else {
+      Props(
+        new RideHailMaster(
+          beamServices,
+          beamScenario,
+          beamScenario.transportNetwork,
+          tollCalculator,
+          matsimServices.getScenario,
+          matsimServices.getEvents,
+          scheduler,
+          beamRouter,
+          parkingNetworkManager,
+          chargingNetworkManager,
+          envelopeInUTM,
+          activityQuadTreeBounds,
+          rideHailSurgePricingManager,
+          rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
+          routeHistory,
+          rideHailFleetInitializerProvider
+        )
+      )
+    }
+  }
+
   context.watch(rideHailManager)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), rideHailManager)
 
@@ -518,8 +566,6 @@ class BeamMobsimIteration(
 
   context.watch(population)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), population)
-
-  scheduleRideHailManagerTimerMessages()
 
   //to monitor with TAZSkimmer add actor hereinafter
   private val tazSkimmer = context.actorOf(
@@ -595,18 +641,6 @@ class BeamMobsimIteration(
       startMeasuring("agentsim-execution:agentsim")
 
       scheduler ! StartSchedule(matsimServices.getIterationNumber)
-  }
-
-  private def scheduleRideHailManagerTimerMessages(): Unit = {
-    if (config.agents.rideHail.repositioningManager.timeout > 0) {
-      // We need to stagger init tick for repositioning manager and allocation manager
-      // This is important because during the `requestBufferTimeoutInSeconds` repositioned vehicle is not available, so to make them work together
-      // we have to make sure that there is no overlap
-      val initTick = config.agents.rideHail.repositioningManager.timeout / 2
-      scheduler ! ScheduleTrigger(RideHailRepositioningTrigger(initTick), rideHailManager)
-    }
-    if (config.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0)
-      scheduler ! ScheduleTrigger(BufferedRideHailRequestsTrigger(0), rideHailManager)
   }
 
   def buildActivityQuadTreeBounds(population: MATSimPopulation): QuadTreeBounds = {

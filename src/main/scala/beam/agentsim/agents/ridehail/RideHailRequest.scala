@@ -17,12 +17,16 @@ case class RideHailRequest(
   departAt: Int,
   destinationUTM: Location,
   asPooled: Boolean = false,
+  withWheelchair: Boolean = false,
   groupedWithOtherRequests: List[RideHailRequest] = List(),
   requestId: Int = RideHailRequestIdGenerator.nextId,
   requestTime: Option[Int] = None,
   quotedWaitTime: Option[Int] = None,
+  rideHailServiceSubscription: Seq[String],
+  requester: ActorRef,
   triggerId: Long
 ) extends HasTriggerId {
+  def shouldReserveRide: Boolean = requestType == ReserveRide
 
   def addSubRequest(subRequest: RideHailRequest): RideHailRequest =
     this.copy(requestId = this.requestId, groupedWithOtherRequests = this.groupedWithOtherRequests :+ subRequest)
@@ -44,6 +48,8 @@ object RideHailRequest {
       customerRequest.pickup.activity.getEndTime.toInt,
       customerRequest.dropoff.activity.getCoord,
       asPooled,
+      requester = customerRequest.person.personRef,
+      rideHailServiceSubscription = Seq.empty,
       triggerId = customerRequest.triggerId
     )
   }
@@ -54,6 +60,8 @@ object RideHailRequest {
     new Coord(Double.NaN, Double.NaN),
     Int.MaxValue,
     new Coord(Double.NaN, Double.NaN),
+    requester = ActorRef.noSender,
+    rideHailServiceSubscription = Seq.empty,
     triggerId = -1
   )
 

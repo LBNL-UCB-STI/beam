@@ -23,6 +23,7 @@ trait IntegrationSpecCommon {
     extensionConfig
       .withFallback(testConfig(configFileName))
       .resolve()
+      .withValue("beam.cfg.copyRideHailToFirstManager", ConfigValueFactory.fromAnyRef(true))
       .withValue("beam.outputs.collectAndCreateBeamAnalysisAndGraphs", ConfigValueFactory.fromAnyRef("true"))
       .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
       .withValue("matsim.modules.controler.lastIteration", ConfigValueFactory.fromAnyRef(totalIterations - 1))
