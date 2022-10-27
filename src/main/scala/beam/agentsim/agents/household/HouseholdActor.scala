@@ -374,7 +374,7 @@ object HouseholdActor {
               case _ =>
             }
           }
-        }
+
 
         val personRef: ActorRef = context.actorOf(
           PersonAgent.props(
@@ -403,6 +403,7 @@ object HouseholdActor {
         members = members + (person.getId -> PersonIdWithActorRef(person.getId, personRef))
         schedulerRef ! ScheduleTrigger(InitializeTrigger(0), personRef)
         }
+        log.error("Completed household initialization")
         if (cavs.isEmpty) completeInitialization(triggerId, Vector())
 
       case RoutingResponses(tick, routingResponses, triggerId) =>

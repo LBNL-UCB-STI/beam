@@ -96,7 +96,9 @@ class Population(
 
   private def initHouseholds(sharedVehicleTypes: Set[BeamVehicleType]): Unit = {
     val vehicleAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
-    scenario.getHouseholds.getHouseholds.values().forEach { household =>
+    val houses = scenario.getHouseholds.getHouseholds.values()
+    log.error("Initing households of size: " + houses.size)
+    houses.forEach { household =>
       //TODO a good example where projection should accompany the data
       if (
         scenario.getHouseholds.getHouseholdAttributes
@@ -159,6 +161,7 @@ class Population(
       )
       context.watch(householdActor)
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
+      log.error("Triggered house Init")
     }
     log.info(s"Initialized ${scenario.getHouseholds.getHouseholds.size} households")
   }
