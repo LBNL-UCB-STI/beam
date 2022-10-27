@@ -3244,6 +3244,7 @@ object BeamConfig {
         }
 
         case class OverwriteRoadTypeProperties(
+          default: BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Default,
           enabled: scala.Boolean,
           livingStreet: BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.LivingStreet,
           minor: BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Minor,
@@ -3262,6 +3263,23 @@ object BeamConfig {
         )
 
         object OverwriteRoadTypeProperties {
+
+          case class Default(
+            alpha: scala.Double,
+            beta: scala.Double
+          )
+
+          object Default {
+
+            def apply(
+              c: com.typesafe.config.Config
+            ): BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Default = {
+              BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Default(
+                alpha = if (c.hasPathOrNull("alpha")) c.getDouble("alpha") else 1.0,
+                beta = if (c.hasPathOrNull("beta")) c.getDouble("beta") else 2.0
+              )
+            }
+          }
 
           case class LivingStreet(
             alpha: scala.Option[scala.Double],
@@ -3587,6 +3605,10 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties = {
             BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties(
+              default = BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Default(
+                if (c.hasPathOrNull("default")) c.getConfig("default")
+                else com.typesafe.config.ConfigFactory.parseString("default{}")
+              ),
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
               livingStreet = BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.LivingStreet(
                 if (c.hasPathOrNull("livingStreet")) c.getConfig("livingStreet")

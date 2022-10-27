@@ -898,9 +898,6 @@ class PersonAgent(
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
         val vehicleToExit = data.currentVehicle.head
         currentBeamVehicle.unsetDriver()
-        if (currentBeamVehicle.getManager.isEmpty) {
-          println("Ok")
-        }
         nextNotifyVehicleResourceIdle.foreach(currentBeamVehicle.getManager.get ! _)
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), vehicleToExit)
