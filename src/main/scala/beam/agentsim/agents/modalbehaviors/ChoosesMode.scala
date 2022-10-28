@@ -248,42 +248,49 @@ trait ChoosesMode {
       val chosenCurrentTourMode: Option[BeamTourMode] = personData.currentTourMode match {
         case Some(tourMode) => Some(tourMode)
         case None =>
-          val availablePersonalVehicleModes = availablePersonalStreetVehicles.map(x => x.streetVehicle.mode).distinct
-          val availableFirstAndLastLegModes =
-            availablePersonalVehicleModes.flatMap(x => BeamTourMode.enabledModes.get(x)).flatten
-          val modesToQuery =
-            (availablePersonalVehicleModes ++ BeamMode.nonPersonalVehicleModes ++ availableFirstAndLastLegModes).distinct
-              .intersect(availableModes)
-          val dummyVehicleType = beamScenario.vehicleTypes(dummyRHVehicle.vehicleTypeId)
-          val currentTour = _experiencedBeamPlan.getTourContaining(nextAct)
-          val tourModeCosts = beamServices.skims.od_skimmer.getTourModeCosts(
-            modesToQuery,
-            currentTour,
-            dummyRHVehicle.vehicleTypeId,
-            dummyVehicleType,
-            beamScenario.fuelTypePrices(dummyVehicleType.primaryFuelType)
-          )
-          val modeToTourMode =
-            BeamTourMode.values
-              .map(tourMode =>
-                tourMode -> tourMode
-                  .allowedBeamModesGivenAvailableVehicles(availablePersonalStreetVehicles, false)
-                  .intersect(modesToQuery)
+          personData.currentTripMode match {
+            case None =>
+              val availablePersonalVehicleModes = availablePersonalStreetVehicles.map(x => x.streetVehicle.mode).distinct
+              val availableFirstAndLastLegModes =
+                availablePersonalVehicleModes.flatMap(x => BeamTourMode.enabledModes.get(x)).flatten
+              val modesToQuery =
+                (availablePersonalVehicleModes ++ BeamMode.nonPersonalVehicleModes ++ availableFirstAndLastLegModes).distinct
+                  .intersect(availableModes)
+              val dummyVehicleType = beamScenario.vehicleTypes(dummyRHVehicle.vehicleTypeId)
+              val currentTour = _experiencedBeamPlan.getTourContaining(nextAct)
+              val tourModeCosts = beamServices.skims.od_skimmer.getTourModeCosts(
+                modesToQuery,
+                currentTour,
+                dummyRHVehicle.vehicleTypeId,
+                dummyVehicleType,
+                beamScenario.fuelTypePrices(dummyVehicleType.primaryFuelType)
               )
-              .toMap
-          val firstAndLastTripModeToTourModeOption = BeamTourMode.values
-            .map(tourMode =>
-              tourMode -> tourMode
-                .allowedBeamModesGivenAvailableVehicles(availablePersonalStreetVehicles, true)
-                .intersect(modesToQuery)
-            )
-            .toMap
-          tourModeChoiceCalculator(
-            tourModeCosts,
-            modeChoiceCalculator.modeChoiceLogit,
-            modeToTourMode,
-            Some(firstAndLastTripModeToTourModeOption)
-          )
+              val modeToTourMode =
+                BeamTourMode.values
+                  .map(tourMode =>
+                    tourMode -> tourMode
+                      .allowedBeamModesGivenAvailableVehicles(availablePersonalStreetVehicles, false)
+                      .intersect(modesToQuery)
+                  )
+                  .toMap
+              val firstAndLastTripModeToTourModeOption = BeamTourMode.values
+                .map(tourMode =>
+                  tourMode -> tourMode
+                    .allowedBeamModesGivenAvailableVehicles(availablePersonalStreetVehicles, true)
+                    .intersect(modesToQuery)
+                )
+                .toMap
+              tourModeChoiceCalculator(
+                tourModeCosts,
+                modeChoiceCalculator.modeChoiceLogit,
+                modeToTourMode,
+                Some(firstAndLastTripModeToTourModeOption)
+              )
+            case Some(_) =>
+              // If trip mode is already set leave tour mode as none (effectively disabling it)
+              None
+          }
+
       }
 
 //      _experiencedBeamPlan.putStrategy(
