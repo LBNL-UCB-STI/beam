@@ -250,7 +250,8 @@ trait ChoosesMode {
         case None =>
           personData.currentTripMode match {
             case None =>
-              val availablePersonalVehicleModes = availablePersonalStreetVehicles.map(x => x.streetVehicle.mode).distinct
+              val availablePersonalVehicleModes =
+                availablePersonalStreetVehicles.map(x => x.streetVehicle.mode).distinct
               val availableFirstAndLastLegModes =
                 availablePersonalVehicleModes.flatMap(x => BeamTourMode.enabledModes.get(x)).flatten
               val modesToQuery =
