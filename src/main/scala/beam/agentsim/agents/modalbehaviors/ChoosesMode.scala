@@ -1376,9 +1376,16 @@ trait ChoosesMode {
                   availableAlternatives = availableAlts
                 )
               }
-            case Some(_) =>
+            case Some(mode) =>
               //give another chance to make a choice without predefined mode
-              self ! MobilityStatusResponse(choosesModeData.allAvailableStreetVehicles, getCurrentTriggerId.get)
+              val availableVehicles =
+                if (mode.isTeleportation)
+                  //we need to remove our teleportation vehicle since we cannot use it if it's not a teleportation mode
+                  choosesModeData.allAvailableStreetVehicles.filterNot(vehicle =>
+                    BeamVehicle.isSharedTeleportationVehicle(vehicle.id)
+                  )
+                else choosesModeData.allAvailableStreetVehicles
+              self ! MobilityStatusResponse(availableVehicles, getCurrentTriggerId.get)
               stay() using ChoosesModeData(
                 personData = personData.copy(currentTourMode = None),
                 currentLocation = choosesModeData.currentLocation,
