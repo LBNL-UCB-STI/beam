@@ -30,10 +30,12 @@ isCav <- function(x) {
 # batch <- 5
 city <- "austin"
 linkAADTFile <- "/hpms/austin_hpms_inventory.geojson"
-batch <- 3
+batch <- "Oct30"
 cityCRS <- 26910
-scenario <- "7days"
-iteration <- 0
+scenario <- "2018"
+batch2 <- "Oct30"
+scenario2 <- "2040"
+iteration <- 6
 run <- ""
 
 ## PATHS
@@ -42,10 +44,16 @@ workDir <- normalizePath(pp("~/Data/FREIGHT/",city))
 validationDir <- pp(workDir,"/validation")
 runDir <- pp(workDir,"/beam/runs/",scenario,"/",batch)
 runOutput <- pp(runDir,"/output")
+runDir2 <- pp(workDir,"/beam/runs/",scenario2,"/",batch2)
+runOutput2 <- pp(runDir2,"/output")
 dir.create(runOutput, showWarnings = FALSE)
 freightDir <- pp(workDir,"/beam_freight/",scenario)
-eventsFile <- pp(iteration,".events",run,".csv")
-linkStatsFile <- pp(iteration,".linkstats",run,".csv.gz")
+eventsFile <- pp(run,iteration,".events.csv.gz")
+linkStatsFile <- pp(run,iteration,".linkstats.csv.gz")
+eventsFile2 <- pp(run,iteration,".events.csv.gz")
+linkStatsFile2 <- pp(run,iteration,".linkstats.csv.gz")
+
+expansionFactor <- 1/0.3
 
 ## READING
 linkAADT <- st_read(pp(validationDir, linkAADTFile))
@@ -70,6 +78,10 @@ network$linkFreeSpeedTravelTime <- network$linkLength/network$linkFreeSpeed
 #   labs(x="miles per hour")
 # ggplot(network[linkFreeSpeedTravelTime<=5*60], aes(x=linkFreeSpeedTravelTime/60.0)) + 
 #   geom_histogram(color="black", fill="white")
+
+events_filtered2 <- readCsv(pp(runDir2, "/filtered.",eventsFile))
+linkStats2 <- readCsv(normalizePath(pp(runDir2,"/",linkStatsFile)))
+
 
 networkFiltered<- network[
   linkModes %in% c("car;bike", "car;walk;bike") & attributeOrigType %in% c("motorway","trunk","primary", "secondary")][
@@ -104,15 +116,46 @@ networkFiltered<- network[
 #   file = pp(freightWorkDir, "/filtered.0.events.csv"),
 #   row.names=F,
 #   quote=T)
-pt <- events_filtered[type=="PathTraversal"][,c("time","type","vehicleType","vehicle","secondaryFuelLevel",
-                                       "primaryFuelLevel","driver","mode","seatingCapacity","startX",
-                                       "startY", "endX", "endY", "capacity", "arrivalTime", "departureTime",
-                                       "secondaryFuel", "secondaryFuelType", "primaryFuelType",
-                                       "numPassengers", "length", "primaryFuel")]
+columns <- c("time","type","vehicleType","vehicle","secondaryFuelLevel",
+             "primaryFuelLevel","driver","mode","seatingCapacity","startX",
+             "startY", "endX", "endY", "capacity", "arrivalTime", "departureTime",
+             "secondaryFuel", "secondaryFuelType", "primaryFuelType",
+             "numPassengers", "length", "primaryFuel")
+pt <- events_filtered[type=="PathTraversal"][,..columns]
 freight_pt <- pt[startsWith(vehicle,"freight")]
 if (nrow(freight_pt[grepl("-emergency-",vehicle)]) > 0) {
   println("This is a bug")
 }
+
+pt2 <- events_filtered2[type=="PathTraversal"][,..columns]
+freight_pt2 <- pt2[startsWith(vehicle,"freight")]
+if (nrow(freight_pt2[grepl("-emergency-",vehicle)]) > 0) {
+  println("This is a bug")
+}
+
+pt$scenario <- "2018"
+pt2$scenario <- "2040"
+
+ptAll <- rbind(pt, pt2)
+ptAll$energyType <- "Diesel"
+ptAll[startsWith(vehicleType, "freight-BE-")]$energyType <- "Electric"
+
+energy_consumption <- ptAll[,.(fuelGWH=expansionFactor*sum(primaryFuel/3.6e+12)),by=.(energyType,scenario)]
+
+ggplot(energy_consumption, aes(scenario, fuelGWH, fill=energyType)) +
+  geom_bar(stat='identity') +
+  labs(y='GW Equivalent',x='Scenario',fill='Energy Type', title='Energy Consumption')+
+  theme_marain()+
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))
+
+energy_vmt <- ptAll[,.(MVMT=expansionFactor*sum(length/1609.344)/1000000),by=.(energyType,scenario)]
+
+ggplot(energy_vmt, aes(scenario, MVMT, fill=energyType)) +
+  geom_bar(stat='identity') +
+  labs(y='Million VMT',x='Scenario',fill='Energy Type', title='Total VMT')+
+  theme_marain()+
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))
+
 
 # nrow(freight_pt)
 # all_pt_x <- data.table::as.data.table(rbind(b2b_pt,b2c_pt)[,c("time","vehicle","departureTime","arrivalTime","label")])

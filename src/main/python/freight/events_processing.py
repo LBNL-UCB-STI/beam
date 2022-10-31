@@ -3,10 +3,11 @@ import os
 
 city = "austin"
 # city = "sfbay"
-scenario = "7days"
-batch = 3
-iteration = 0
-filename = str(iteration)+'.events.csv'
+scenario = "2040"
+batch = "Oct30"
+iteration = 6
+prefix = ""
+filename = prefix+str(iteration)+'.events.csv.gz'
 
 work_directory = '~/Data/FREIGHT/'+city+'/beam/runs/'+scenario+'/'+str(batch)+"/"
 
