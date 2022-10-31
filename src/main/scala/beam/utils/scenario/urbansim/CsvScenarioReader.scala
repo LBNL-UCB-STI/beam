@@ -108,6 +108,7 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
       rank = rank,
       age = age,
       excludedModes = excludedModes,
+      rideHailServiceSubscription = Option(rec.get("ridehail_service_subscription")).getOrElse(""),
       isFemale = isFemaleValue,
       valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime"), 0d)).getOrElse(0d),
       wheelchairUser = isWheelchairUser,

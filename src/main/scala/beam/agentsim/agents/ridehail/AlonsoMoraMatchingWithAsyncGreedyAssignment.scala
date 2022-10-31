@@ -2,6 +2,7 @@ package beam.agentsim.agents.ridehail
 
 import beam.agentsim.agents.ridehail.RideHailMatching._
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import org.jgrapht.graph.DefaultEdge
 import org.matsim.core.utils.collections.QuadTree
 
@@ -13,8 +14,9 @@ import scala.concurrent.Future
 class AlonsoMoraMatchingWithAsyncGreedyAssignment(
   spatialDemand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
+  managerConfig: Managers$Elm,
   beamServices: BeamServices
-) extends RideHailMatching(beamServices) {
+) extends RideHailMatching(beamServices, managerConfig) {
 
   private implicit val implicitServices: BeamServices = beamServices
 
@@ -55,6 +57,7 @@ class AlonsoMoraMatchingWithAsyncGreedyAssignment(
           List(r.pickup, r.dropoff),
           v.vehicleRemainingRangeInMeters.toInt,
           v.getRequestWithCurrentVehiclePosition,
+          managerConfig,
           beamServices,
           Some(v.vehicle.beamVehicleType)
         )
@@ -81,7 +84,7 @@ class AlonsoMoraMatchingWithAsyncGreedyAssignment(
             val temp = t1.requests ++ t2.requests
             val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
             if (!combinations.contains(matchId)) {
-              RideHailMatching.getRideHailTrip(v, temp, beamServices).foreach { t =>
+              RideHailMatching.getRideHailTrip(v, temp, managerConfig, beamServices).foreach { t =>
                 combinations.append(t.matchId)
                 kRequestsList append t
                 vertices append t

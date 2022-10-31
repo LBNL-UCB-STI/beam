@@ -53,6 +53,7 @@ object R5Requester extends BeamHelper {
       modalityStyle = None,
       isMale = true,
       availableModes = Seq(BeamMode.CAR, BeamMode.WALK_TRANSIT, BeamMode.BIKE),
+      rideHailServiceSubscription = Seq.empty,
       valueOfTime = 17.15686274509804,
       age = None,
       income = Some(70000.0)

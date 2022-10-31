@@ -45,7 +45,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.google.inject
 import com.google.inject.Scopes
 import com.google.inject.name.Names
-import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory, ConfigValueType, Config => TypesafeConfig}
 import com.typesafe.scalalogging.LazyLogging
 import kamon.Kamon
 import org.matsim.api.core.v01.network.Network
@@ -480,9 +480,11 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       .withFallback(originalConfigLocation)
       .resolve()
 
-    checkDockerIsInstalledForCCHPhysSim(config)
+    val currentConfig = BeamHelper.updateConfigToCurrentVersion(config)
 
-    (parsedArgs, config)
+    checkDockerIsInstalledForCCHPhysSim(currentConfig)
+
+    (parsedArgs, currentConfig)
   }
 
   private def checkDockerIsInstalledForCCHPhysSim(config: TypesafeConfig): Unit = {
@@ -1059,6 +1061,48 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       geoUtils = geo,
       shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm
     )
+  }
+}
+
+object BeamHelper {
+
+  /**
+    * We need to copy the old config values to the first element of rideHail.managers collection.
+    * It helps workaround the typesafe config limitation that one cannot access array elements via paths
+    * like this
+    * beam.agentsim.agents.rideHail.managers[0].initialization.procedural.fractionOfInitialVehicleFlee
+    * (https://github.com/lightbend/config/issues/30).
+    * This update helps working correctly the experiments, old configs.
+    * If config doesn't have beam.agentsim.agents.rideHail.managers then copying always happens.
+    * If config has beam.agentsim.agents.rideHail.managers then copying happens only in the case
+    * beam.cfg.copyRideHailToFirstManager = true is presented in the config
+    */
+  def updateConfigToCurrentVersion(config: TypesafeConfig): TypesafeConfig = {
+    import scala.collection.JavaConverters._
+    val managersPath = "beam.agentsim.agents.rideHail.managers"
+    val copyRootValuesPath = "beam.cfg.copyRideHailToFirstManager"
+    val (configWithManagers, needToOverride) = if (config.hasPath(managersPath)) {
+      val needToOverride = config.hasPath(copyRootValuesPath) &&
+        config.getValue(copyRootValuesPath).valueType() == ConfigValueType.BOOLEAN &&
+        config.getBoolean(copyRootValuesPath)
+      config -> needToOverride
+    } else {
+      val needToOverride = true
+      val singleEmptyElementArray = ConfigFactory.parseString("x = [{}]").getValue("x")
+      config.withValue(managersPath, singleEmptyElementArray) -> needToOverride
+    }
+    if (needToOverride) {
+      val managers = configWithManagers.getConfigList(managersPath).asScala
+      val firstManagerConfig: TypesafeConfig = managers.head
+      val rideHailConfig = configWithManagers.getConfig("beam.agentsim.agents.rideHail")
+      val newManagerConfig = rideHailConfig.withoutPath("managers").withFallback(firstManagerConfig)
+      configWithManagers.withValue(
+        managersPath,
+        ConfigValueFactory.fromIterable((newManagerConfig +: managers.tail).map(_.root()).asJava)
+      )
+    } else {
+      configWithManagers
+    }
   }
 }
 

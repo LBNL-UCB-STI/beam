@@ -45,7 +45,7 @@ class UrbanSimRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with
       val configBuilder = new MatSimBeamConfigBuilder(conf)
       val matsimConfig = configBuilder.buildMatSimConf()
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)
-      val beamConfig = BeamConfig(conf)
+      val beamConfig = BeamConfig(BeamHelper.updateConfigToCurrentVersion(conf))
 
       FileUtils.setConfigOutputFile(beamConfig, matsimConfig)
 

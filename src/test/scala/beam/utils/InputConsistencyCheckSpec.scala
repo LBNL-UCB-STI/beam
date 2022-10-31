@@ -14,12 +14,12 @@ class InputConsistencyCheckSpec extends AnyWordSpecLike with Matchers {
       val vehicleTypes = Set(createId("one"), createId("two"))
       val vehicleTypesStr = vehicleTypes.mkString(",")
 
-      InputConsistencyCheck.checkVehicleTypes(vehicleTypes, "one", "two") shouldBe List()
-      InputConsistencyCheck.checkVehicleTypes(vehicleTypes, "rh", "two") shouldBe List(
-        s"beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId 'rh' is not in vehicleTypes [$vehicleTypesStr]"
+      InputConsistencyCheck.checkVehicleTypes(vehicleTypes, Seq("one"), "two") shouldBe List()
+      InputConsistencyCheck.checkVehicleTypes(vehicleTypes, Seq("one", "rh"), "two") shouldBe List(
+        s"beam.agentsim.agents.rideHail.managers[1].initialization.procedural.vehicleTypeId 'rh' is not in vehicleTypes [$vehicleTypesStr]"
       )
-      InputConsistencyCheck.checkVehicleTypes(vehicleTypes, "rh", "dummy") shouldBe List(
-        s"beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId 'rh' is not in vehicleTypes [$vehicleTypesStr]",
+      InputConsistencyCheck.checkVehicleTypes(vehicleTypes, Seq("one", "two", "rh"), "dummy") shouldBe List(
+        s"beam.agentsim.agents.rideHail.managers[2].initialization.procedural.vehicleTypeId 'rh' is not in vehicleTypes [$vehicleTypesStr]",
         s"beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId 'dummy' is not in vehicleTypes [$vehicleTypesStr]"
       )
     }

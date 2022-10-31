@@ -49,7 +49,7 @@ trait ChoosesMode {
 
   val dummyRHVehicle: StreetVehicle = createDummyVehicle(
     "dummyRH",
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.head.initialization.procedural.vehicleTypeId,
     CAR,
     asDriver = false
   )
@@ -370,6 +370,8 @@ trait ChoosesMode {
           nextAct.getCoord,
           withWheelchair = wheelchairUser,
           requestTime = _currentTick,
+          requester = self,
+          rideHailServiceSubscription = attributes.rideHailServiceSubscription,
           triggerId = getCurrentTriggerIdOrGenerate,
           asPooled = true
         )
@@ -1007,6 +1009,8 @@ trait ChoosesMode {
       beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc),
       wheelchairUser,
       requestTime = _currentTick,
+      requester = self,
+      rideHailServiceSubscription = attributes.rideHailServiceSubscription,
       triggerId = getCurrentTriggerIdOrGenerate
     )
     //    println(s"requesting: ${inquiry.requestId}")
@@ -1209,7 +1213,7 @@ trait ChoosesMode {
         case Some(travelProposal)
             if travelProposal.timeToCustomer(
               bodyVehiclePersonId
-            ) <= beamScenario.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec =>
+            ) <= travelProposal.maxWaitingTimeInSec =>
           val origLegs = travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
           (travelProposal.poolingInfo match {
             case Some(poolingInfo) if !choosesModeData.personData.currentTourMode.contains(RIDE_HAIL) =>
@@ -1372,9 +1376,16 @@ trait ChoosesMode {
                   availableAlternatives = availableAlts
                 )
               }
-            case Some(_) =>
+            case Some(mode) =>
               //give another chance to make a choice without predefined mode
-              self ! MobilityStatusResponse(choosesModeData.allAvailableStreetVehicles, getCurrentTriggerId.get)
+              val availableVehicles =
+                if (mode.isTeleportation)
+                  //we need to remove our teleportation vehicle since we cannot use it if it's not a teleportation mode
+                  choosesModeData.allAvailableStreetVehicles.filterNot(vehicle =>
+                    BeamVehicle.isSharedTeleportationVehicle(vehicle.id)
+                  )
+                else choosesModeData.allAvailableStreetVehicles
+              self ! MobilityStatusResponse(availableVehicles, getCurrentTriggerId.get)
               stay() using ChoosesModeData(
                 personData = personData.copy(currentTourMode = None),
                 currentLocation = choosesModeData.currentLocation,
