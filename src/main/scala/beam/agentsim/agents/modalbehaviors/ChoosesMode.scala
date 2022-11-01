@@ -1417,6 +1417,14 @@ trait ChoosesMode {
   }
 
   private def gotoChoosingModeWithoutPredefinedMode(choosesModeData: ChoosesModeData) = {
+    val availableVehicles =
+      if (choosesModeData.personData.currentTripMode.get.isTeleportation)
+      //we need to remove our teleportation vehicle since we cannot use it if it's not a teleportation mode
+        choosesModeData.allAvailableStreetVehicles.filterNot(vehicle =>
+          BeamVehicle.isSharedTeleportationVehicle(vehicle.id)
+        )
+      else choosesModeData.allAvailableStreetVehicles
+    self ! MobilityStatusResponse(availableVehicles, getCurrentTriggerId.get)
     goto(ChoosingMode) using choosesModeData.copy(
       personData = choosesModeData.personData.copy(
         currentTripMode = None,

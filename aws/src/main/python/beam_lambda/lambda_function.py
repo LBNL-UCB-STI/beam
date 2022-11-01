@@ -390,7 +390,7 @@ regions = ['us-east-1', 'us-east-2', 'us-west-2']
 shutdown_behaviours = ['stop', 'terminate']
 instance_operations = ['start', 'stop', 'terminate']
 
-max_system_ram = 15
+max_system_ram = 50
 percent_towards_system_ram = .25
 
 s3 = boto3.client('s3')
