@@ -1371,16 +1371,22 @@ trait ChoosesMode {
                 )
                 gotoFinishingModeChoice(bushwhackingTrip)
               }
-            case Some(_) =>
-              val correctedTripMode = correctCurrentTripModeAccordingToRules(None, personData, availableModesForTrips)
-              if (correctedTripMode != personData.currentTripMode) {
-                //give another chance to make a choice without predefined mode
-                //TODO: Do we need to do anything with tour mode here?
-                gotoChoosingModeWithoutPredefinedMode(choosesModeData)
-              } else {
-                val expensiveWalkTrip = createExpensiveWalkTrip(currentPersonLocation, nextAct, routingResponse)
-                gotoFinishingModeChoice(expensiveWalkTrip)
-              }
+
+            case Some(mode) =>
+              //give another chance to make a choice without predefined mode
+              val availableVehicles =
+                if (mode.isTeleportation)
+                  //we need to remove our teleportation vehicle since we cannot use it if it's not a teleportation mode
+                  choosesModeData.allAvailableStreetVehicles.filterNot(vehicle =>
+                    BeamVehicle.isSharedTeleportationVehicle(vehicle.id)
+                  )
+                else choosesModeData.allAvailableStreetVehicles
+              self ! MobilityStatusResponse(availableVehicles, getCurrentTriggerId.get)
+              stay() using ChoosesModeData(
+                personData = personData.copy(currentTourMode = None),
+                currentLocation = choosesModeData.currentLocation,
+                excludeModes = choosesModeData.excludeModes
+              )
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
               val expensiveWalkTrip = createExpensiveWalkTrip(currentPersonLocation, nextAct, routingResponse)
