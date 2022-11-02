@@ -30,27 +30,12 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  CAR,
-  CAV,
-  HOV2_TELEPORTATION,
-  HOV3_TELEPORTATION,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode.{CAR, CAV, HOV2_TELEPORTATION, HOV3_TELEPORTATION, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.skim.ActivitySimSkimmerEvent
-import beam.router.skim.event.{
-  DriveTimeSkimmerEvent,
-  ODSkimmerEvent,
-  RideHailSkimmerEvent,
-  UnmatchedRideHailRequestSkimmerEvent
-}
+import beam.router.skim.event.{DriveTimeSkimmerEvent, ODSkimmerEvent, RideHailSkimmerEvent, UnmatchedRideHailRequestSkimmerEvent}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.population.AttributesOfIndividual
@@ -342,6 +327,9 @@ class PersonAgent(
 
   var totFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
   var curFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
+
+  // FixMe this is proof of concept, it should be removed.
+  private var prevTickProcessedEndingRefuelSession: Int = 0
 
   def wheelchairUser: Boolean = {
     attributes.wheelchairUser
@@ -992,11 +980,18 @@ class PersonAgent(
       stay
     case Event(_: WaitingToCharge, _) =>
       stay
-    case Event(EndingRefuelSession(tick, _, triggerId), data: BasePersonData) =>
+    case Event(EndingRefuelSession(tick, vehicleId, triggerId), data: BasePersonData)
+        if prevTickProcessedEndingRefuelSession <= tick =>
+      prevTickProcessedEndingRefuelSession = tick
+      log.warning(f"REMOVE ME!!! EndingRefuelSession(tick $tick, vehicle $vehicleId, trigger $triggerId)")
       val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
       holdTickAndTriggerId(updatedTick, triggerId)
       chargingNetworkManager ! ChargingUnplugRequest(tick, id, currentBeamVehicle, triggerId)
       stay using updatedData
+    case Event(EndingRefuelSession(tick, vehicleId, triggerId), _) =>
+      scheduler ! CompletionNotice(triggerId)
+      log.error(f"REMOVE ME!!! EndingRefuelSession(tick $tick, vehicle $vehicleId, trigger $triggerId) This is a proof-of-concept. It should be replaced by changes in actor system!")
+      stay
     case Event(UnpluggingVehicle(tick, _, vehicle, _, energyCharged), data: BasePersonData) =>
       log.debug(s"Vehicle ${vehicle.id} ended charging and it is not handled by the CNM at tick $tick")
       ParkingNetworkManager.handleReleasingParkingSpot(
