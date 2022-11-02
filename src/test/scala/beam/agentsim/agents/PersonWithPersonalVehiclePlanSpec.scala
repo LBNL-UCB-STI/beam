@@ -35,6 +35,7 @@ import org.matsim.vehicles._
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.funspec.AnyFunSpecLike
+import beam.agentsim.agents.household.HouseholdFleetManager
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.{mutable, JavaConverters}
