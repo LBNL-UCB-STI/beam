@@ -35,6 +35,7 @@ import org.matsim.vehicles._
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.funspec.AnyFunSpecLike
+import beam.agentsim.agents.household.HouseholdFleetManager
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.{mutable, JavaConverters}
@@ -667,19 +668,19 @@ class PersonWithPersonalVehiclePlanSpec
           )
       }
 
-//      for (_ <- 0 to 1) {
-//        expectMsgPF()(messageResponder)
-//      }
+      for (_ <- 0 to 1) {
+        expectMsgPF()(messageResponder)
+      }
 
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
-//      expectMsgPF()(messageResponder)
+      expectMsgPF()(messageResponder)
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
 
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
-//      expectMsgType[CompletionNotice]
+      expectMsgType[CompletionNotice]
 
       // TODO: Testing last resort vehicle creation
     }
