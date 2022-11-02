@@ -20,26 +20,26 @@ pd.set_option('display.max_colwidth', None)
 
 def read_csv(file_path):
     try:
-        df = pd.read_csv(actor_events_path)
+        df = pd.read_csv(file_path)
         return df
     except Exception as ex:
-        print(f"An exception while reading {actor_events_path}: \n\t{str(ex)}")
+        print(f"An exception while reading {file_path}: \n\t{str(ex)}")
         return pd.DataFrame()
 
 
-def find_and_read_akka_events(base_path, iteration):
+def find_and_read_akka_events(base_path, iteration, max_number=100):
     dfs = []
 
-    for i in range(0,100):
+    for i in range(1, max_number):
         actor_events_path = f"{base_path}/ITERS/it.{iteration}/{iteration}.actor_messages_{i}.csv.gz"
-        if not os.path.isfile(actor_events_path): 
-            break
 
         df = read_csv(actor_events_path)
         if len(df) > 0:
             dfs.append(df)
+        else:
+            break
 
-    print(f"There were {len(dfs)} chunks")
+    print(f"{len(dfs)} chunks were read.")
     if len(dfs) > 0:
         actor_events = pd.concat(dfs)
         return actor_events.fillna("")
@@ -106,6 +106,56 @@ def fix_corrupted_gzip_file(file_path, fixed_copy_file_path = ""):
 
     
 print("init complete")
+
+
+# In[ ]:
+
+
+# https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#output/sfbay/gemini-oakland-helics__2022-10-31_13-51-20_yzq
+# https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#output/sfbay/gemini-oakland-helics__2022-10-31_15-23-47_aer
+# https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#output/sfbay/gemini-oakland-helics__2022-11-01_08-54-54_ohh
+
+sim_name = "gemini-oakland-helics__2022-10-31_13-51-20_yzq"
+aws_base_path = f"https://beam-outputs.s3.amazonaws.com/output/sfbay/{sim_name}"
+dir_name = f"output1_{sim_name}"
+events_aws_path = f"{aws_base_path}/ITERS/it.0/0.events.csv.gz"
+beam_log_aws_path = f"{aws_base_path}/beamLog.out"
+
+# !mkdir $dir_name
+# !wget $events_aws_path 
+# !mv 0.events.csv.gz $dir_name
+# !wget $beam_log_aws_path 
+# !mv beamLog.out $dir_name
+
+get_ipython().system('ls *')
+print("")
+
+log_path = f"{dir_name}/beamLog.out"
+get_ipython().system('tail -77 $log_path | head -10')
+
+
+# In[ ]:
+
+
+akka_events = find_and_read_akka_events(aws_base_path, 0, 18)
+print("the len is", len(akka_events))
+akka_events.tail(3)
+
+
+# In[ ]:
+
+
+df1 = akka_events[(akka_events['sender_name'] == '6102200') | (akka_events['receiver_name'] == '6102200')]
+triggers = set(df1['triggerId'])
+triggers.remove(-1)
+df2 = akka_events[(akka_events['sender_name'] == '6102200') | (akka_events['receiver_name'] == '6102200') | (akka_events['triggerId']).isin(triggers)]
+print('the number of triggers:', len(triggers), "the len of df1:", len(df1), "the len of df2:", len(df2))
+
+
+# In[ ]:
+
+
+df2.tail(20)
 
 
 # In[ ]:
