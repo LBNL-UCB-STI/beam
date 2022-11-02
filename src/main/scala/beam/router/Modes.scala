@@ -1,6 +1,6 @@
 package beam.router
 
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
 import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleCategory._
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
@@ -296,13 +296,19 @@ object TourModes {
 
     override val values: immutable.IndexedSeq[BeamTourMode] = findValues
 
-
-
-    def getTourMode(tripMode: BeamMode): BeamTourMode = {
+    def getTourMode(
+      tripMode: BeamMode,
+      availableVehicles: Vector[VehicleOrToken] = Vector.empty[VehicleOrToken]
+    ): BeamTourMode = {
       tripMode match {
-        case CAR | CAR_HOV2 | CAR_HOV3 => CAR_BASED
-        case BIKE                      => BIKE_BASED
-        case _                         => WALK_BASED
+        case CAR | CAR_HOV2 | CAR_HOV3 =>
+          if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
+            // Assume that if they have access to a personal vehicle they'll take it
+            // on the whole tour, otherwise they'll rely on a shared vehicle
+            CAR_BASED
+          } else WALK_BASED
+        case BIKE => BIKE_BASED
+        case _    => WALK_BASED
       }
     }
 

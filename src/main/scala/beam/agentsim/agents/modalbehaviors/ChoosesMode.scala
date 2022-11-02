@@ -289,7 +289,7 @@ trait ChoosesMode {
               )
             case Some(tripMode) =>
               // If trip mode is already set leave tour mode as none (effectively disabling it)
-              Some(getTourMode(tripMode))
+              Some(getTourMode(tripMode, availablePersonalStreetVehicles))
           }
 
       }
