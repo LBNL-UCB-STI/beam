@@ -542,7 +542,8 @@ object BeamVehicle {
   val idPrefixRideHail = "rideHailVehicle"
 
   def isRidehailVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
-    vehicleId.toString.startsWith(idPrefixRideHail)
+    val idStr = vehicleId.toString
+    idStr.startsWith(idPrefixRideHail) || idStr == "dummyRH"
   }
 
   def isSharedTeleportationVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
