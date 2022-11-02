@@ -62,7 +62,7 @@ object Strategy {
     def tourStrategy(beamPlan: BeamPlan, curAct: Activity, nextAct: Activity): TripModeChoiceStrategy = {
       val currentTourModeOpt = beamPlan.getTourStrategy[TripModeChoiceStrategy](nextAct).mode
       val newTourMode = currentTourModeOpt match {
-        case Some(_) if mode.get.isHovTeleportation => mode
+        case Some(_) if mode.get.isTeleportation => mode
         case Some(DRIVE_TRANSIT | BIKE_TRANSIT)     => currentTourModeOpt
         case _ if atHome(curAct)                    => mode
         case Some(_)                                => currentTourModeOpt

@@ -285,6 +285,29 @@ object TourModes {
 
     override val values: immutable.IndexedSeq[BeamTourMode] = findValues
 
+    private val tripModeToTourMode: Map[BeamMode, BeamTourMode] =
+      Map[BeamMode, BeamTourMode](
+        CAR                -> CAR_BASED,
+        CAR_HOV2           -> CAR_BASED,
+        CAR_HOV3           -> CAR_BASED,
+        CAV                -> WALK_BASED,
+        WALK               -> WALK_BASED,
+        BIKE               -> BIKE_BASED,
+        TRANSIT            -> WALK_BASED,
+        RIDE_HAIL          -> WALK_BASED,
+        RIDE_HAIL_POOLED   -> WALK_BASED,
+        RIDE_HAIL_TRANSIT  -> WALK_BASED,
+        DRIVE_TRANSIT      -> WALK_BASED,
+        WALK_TRANSIT       -> WALK_BASED,
+        BIKE_TRANSIT       -> WALK_BASED,
+        HOV2_TELEPORTATION -> WALK_BASED,
+        HOV3_TELEPORTATION -> WALK_BASED
+      )
+
+    def getTourMode(tripMode: BeamMode): BeamTourMode = {
+      tripModeToTourMode(tripMode)
+    }
+
     val enabledModes: Map[BeamMode, Seq[BeamMode]] =
       Map[BeamMode, Seq[BeamMode]](CAR -> Seq(DRIVE_TRANSIT), BIKE -> Seq(BIKE_TRANSIT))
 

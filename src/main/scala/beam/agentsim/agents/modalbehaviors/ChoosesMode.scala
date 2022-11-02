@@ -14,7 +14,7 @@ import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles._
+import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events.resources.ReservationErrorCode
 import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent, SpaceTime}
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ZonalParkingManager}
@@ -148,7 +148,7 @@ trait ChoosesMode {
           getCurrentTriggerIdOrGenerate
         )
       // Create teleportation vehicle if we are told to use teleportation
-      case data: ChoosesModeData if choosesModeData.personData.currentTripMode.exists(_.isHovTeleportation) =>
+      case data: ChoosesModeData if choosesModeData.personData.currentTripMode.exists(_.isTeleportation) =>
         val teleportationVehicle = createSharedTeleportationVehicle(data.currentLocation)
         val vehicles = Vector(ActualVehicle(teleportationVehicle))
         self ! MobilityStatusResponse(vehicles, getCurrentTriggerIdOrGenerate)
@@ -287,9 +287,9 @@ trait ChoosesMode {
                 modeToTourMode,
                 Some(firstAndLastTripModeToTourModeOption)
               )
-            case Some(_) =>
+            case Some(tripMode) =>
               // If trip mode is already set leave tour mode as none (effectively disabling it)
-              None
+              Some(getTourMode(tripMode))
           }
 
       }
@@ -401,11 +401,14 @@ trait ChoosesMode {
           }
 
           val availableStreetVehiclesGivenTourMode = newlyAvailableBeamVehicles.map { vehicleOrToken =>
+            val isPersonalVehicle =
+              !vehicleOrToken.vehicle.isSharedVehicle &&
+              !BeamVehicle.isSharedTeleportationVehicle(vehicleOrToken.vehicle.id)
             chosenCurrentTourMode match {
-              case Some(BIKE_BASED) if !vehicleOrToken.vehicle.isSharedVehicle => vehicleOrToken.streetVehicle
-              case Some(CAR_BASED) if !vehicleOrToken.vehicle.isSharedVehicle  => vehicleOrToken.streetVehicle
-              case Some(WALK_BASED)                                            => vehicleOrToken.streetVehicle
-              case _                                                           => dummyRHVehicle
+              case Some(BIKE_BASED) if isPersonalVehicle => vehicleOrToken.streetVehicle
+              case Some(CAR_BASED) if isPersonalVehicle  => vehicleOrToken.streetVehicle
+              case Some(WALK_BASED)                      => vehicleOrToken.streetVehicle
+              case _                                     => dummyRHVehicle
             }
           } :+ bodyStreetVehicle
 
@@ -1567,7 +1570,7 @@ trait ChoosesMode {
     eventsManager.processEvent(modeChoiceEvent)
 
     data.personData.currentTripMode match {
-      case Some(mode) if mode.isHovTeleportation =>
+      case Some(mode) if mode.isTeleportation =>
         scheduler ! CompletionNotice(
           triggerId,
           Vector(
@@ -1578,8 +1581,13 @@ trait ChoosesMode {
           )
         )
 
+        val updatedTourStrategy =
+          TourModeChoiceStrategy(data.personData.currentTourMode, None)
+        _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTourContaining(nextAct), updatedTourStrategy)
+
         goto(Teleporting) using data.personData.copy(
           currentTrip = Some(chosenTrip),
+          currentTourPersonalVehicle = None,
           restOfCurrentTrip = List()
         )
 
