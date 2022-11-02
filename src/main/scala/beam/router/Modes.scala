@@ -1,6 +1,7 @@
 package beam.router
 
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleCategory._
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.profile.StreetMode
@@ -262,6 +263,14 @@ object TourModes {
 
     import BeamTourMode._
 
+    def getModeFromVehicle(beamVehicle: BeamVehicle): BeamMode = {
+      beamVehicle.beamVehicleType.vehicleCategory match {
+        case VehicleCategory.Car  => CAR
+        case VehicleCategory.Bike => BIKE
+        case _                    => WALK
+      }
+    }
+
     def allowedBeamModesGivenAvailableVehicles(
       vehicles: Vector[VehicleOrToken],
       firstOrLastLeg: Boolean
@@ -270,7 +279,9 @@ object TourModes {
       else allowedBeamModes
       if (
         vehicles
-          .exists(vehOrToken => !vehOrToken.vehicle.isSharedVehicle && vehOrToken.streetVehicle.mode.in(relevantModes))
+          .exists { vehOrToken =>
+            !vehOrToken.vehicle.isSharedVehicle && getModeFromVehicle(vehOrToken.vehicle).in(relevantModes)
+          }
       ) { relevantModes }
       else { Seq.empty[BeamMode] }
     }
@@ -285,27 +296,14 @@ object TourModes {
 
     override val values: immutable.IndexedSeq[BeamTourMode] = findValues
 
-    private val tripModeToTourMode: Map[BeamMode, BeamTourMode] =
-      Map[BeamMode, BeamTourMode](
-        CAR                -> CAR_BASED,
-        CAR_HOV2           -> CAR_BASED,
-        CAR_HOV3           -> CAR_BASED,
-        CAV                -> WALK_BASED,
-        WALK               -> WALK_BASED,
-        BIKE               -> BIKE_BASED,
-        TRANSIT            -> WALK_BASED,
-        RIDE_HAIL          -> WALK_BASED,
-        RIDE_HAIL_POOLED   -> WALK_BASED,
-        RIDE_HAIL_TRANSIT  -> WALK_BASED,
-        DRIVE_TRANSIT      -> WALK_BASED,
-        WALK_TRANSIT       -> WALK_BASED,
-        BIKE_TRANSIT       -> WALK_BASED,
-        HOV2_TELEPORTATION -> WALK_BASED,
-        HOV3_TELEPORTATION -> WALK_BASED
-      )
+
 
     def getTourMode(tripMode: BeamMode): BeamTourMode = {
-      tripModeToTourMode(tripMode)
+      tripMode match {
+        case CAR | CAR_HOV2 | CAR_HOV3 => CAR_BASED
+        case BIKE                      => BIKE_BASED
+        case _                         => WALK_BASED
+      }
     }
 
     val enabledModes: Map[BeamMode, Seq[BeamMode]] =

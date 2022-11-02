@@ -138,7 +138,7 @@ trait ChoosesMode {
       case data: ChoosesModeData
           if data.personData.currentTourPersonalVehicle.isDefined &&
             (
-              currentTripMode.exists(mode => mode == CAR || mode == BIKE) ||
+              currentTripMode.exists(mode => mode == CAR || mode == BIKE || mode == CAR_HOV2 || mode == CAR_HOV3) ||
               currentTripMode.exists(mode => mode == DRIVE_TRANSIT || mode == BIKE_TRANSIT) ||
               currentTourMode.exists(mode => mode == CAR_BASED || mode == BIKE_BASED) &&
               !isFirstTripWithinTour(nextAct)
@@ -156,7 +156,7 @@ trait ChoosesMode {
       case data: ChoosesModeData =>
         implicit val executionContext: ExecutionContext = context.system.dispatcher
         currentTripMode match {
-          case Some(CAR | DRIVE_TRANSIT) =>
+          case Some(CAR | CAR_HOV2 | CAR_HOV3 | DRIVE_TRANSIT) =>
             requestAvailableVehicles(
               vehicleFleets,
               data.currentLocation,
@@ -1422,7 +1422,7 @@ trait ChoosesMode {
   private def gotoChoosingModeWithoutPredefinedMode(choosesModeData: ChoosesModeData) = {
     val availableVehicles =
       if (choosesModeData.personData.currentTripMode.get.isTeleportation)
-      //we need to remove our teleportation vehicle since we cannot use it if it's not a teleportation mode
+        //we need to remove our teleportation vehicle since we cannot use it if it's not a teleportation mode
         choosesModeData.allAvailableStreetVehicles.filterNot(vehicle =>
           BeamVehicle.isSharedTeleportationVehicle(vehicle.id)
         )
