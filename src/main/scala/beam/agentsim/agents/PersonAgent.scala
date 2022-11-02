@@ -205,7 +205,16 @@ object PersonAgent {
     failedTrips: IndexedSeq[EmbodiedBeamTrip] = IndexedSeq.empty,
     lastUsedParkingStall: Option[ParkingStall] = None,
     enrouteData: EnrouteData = EnrouteData()
-  ) extends PersonData {
+  ) extends PersonData
+      with ExponentialLazyLogging {
+
+    if (currentTripMode.exists(_.isTeleportation) & currentTourPersonalVehicle.isDefined) {
+      logger.warn(
+        s"Agent on tour with mode ${currentTourMode.getOrElse("N/A")} " +
+        s"is on a teleportation trip but " +
+        s"has a tour vehicle defined from a previous trip -- this is bad"
+      )
+    }
 
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
       copy(passengerSchedule = newPassengerSchedule)
