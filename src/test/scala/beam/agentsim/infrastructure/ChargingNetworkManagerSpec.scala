@@ -184,9 +184,6 @@ class ChargingNetworkManagerSpec
         0,
         self
       )
-      val trigger = expectMsgType[ScheduleTrigger].trigger
-      trigger shouldBe a[ChargingTimeOutTrigger]
-      trigger.asInstanceOf[ChargingTimeOutTrigger].tick shouldBe 10
       expectMsgType[StartingRefuelSession]
       expectNoMessage()
       beamVilleCar.primaryFuelLevelInJoules should be(2.7e8)
