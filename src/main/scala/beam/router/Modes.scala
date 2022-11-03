@@ -307,8 +307,13 @@ object TourModes {
             // on the whole tour, otherwise they'll rely on a shared vehicle
             CAR_BASED
           } else WALK_BASED
-        case BIKE => BIKE_BASED
-        case _    => WALK_BASED
+        case BIKE =>
+          if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
+            // Assume that if they have access to a personal vehicle they'll take it
+            // on the whole tour, otherwise they'll rely on a shared vehicle
+            BIKE_BASED
+          } else WALK_BASED
+        case _ => WALK_BASED
       }
     }
 
@@ -348,8 +353,9 @@ object TourModes {
         firstOrLastLeg: Boolean
       ): Seq[BeamMode] = {
         vehicles.flatMap { veh =>
-          if (veh.vehicle.isSharedVehicle) { Seq(veh.streetVehicle.mode) ++ enabledModes(veh.streetVehicle.mode) }
-          else { Seq.empty[BeamMode] }
+          if (veh.vehicle.isSharedVehicle | firstOrLastLeg) {
+            Seq(veh.streetVehicle.mode) ++ enabledModes(veh.streetVehicle.mode)
+          } else { Seq.empty[BeamMode] }
         } ++ allowedBeamModes
       }
     }

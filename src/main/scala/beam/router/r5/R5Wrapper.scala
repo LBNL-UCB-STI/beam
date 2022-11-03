@@ -452,7 +452,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         vehicle.locationUTM.loc
       }
       val theDestination = if (mainRouteToVehicle) {
-        destinationVehicle.get.locationUTM.loc
+        destinationVehicle match {
+          case Some(vehicle) => vehicle.locationUTM.loc
+          case None =>
+            logger.error("Route requested with egress vehicles that don't exist")
+            request.destinationUTM
+        }
       } else {
         request.destinationUTM
       }
