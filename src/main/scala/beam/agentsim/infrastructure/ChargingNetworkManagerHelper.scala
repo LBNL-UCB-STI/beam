@@ -24,14 +24,6 @@ trait ChargingNetworkManagerHelper extends {
   protected def isEndOfSimulation(tick: Int): Boolean = nextTimeBin(tick) >= endOfSimulationTime
 
   /**
-    * if charging completed then duration of charging should be zero
-    *
-    * @param cycle the latest charging cycle
-    * @return
-    */
-  protected def chargingIsCompleteUsing(cycle: ChargingCycle): Boolean = (cycle.endTime - cycle.startTime) == 0
-
-  /**
     * if charging won't complete during the current cycle
     *
     * @param cycle the latest charging cycle
@@ -73,12 +65,12 @@ trait ChargingNetworkManagerHelper extends {
     // Calculate the energy to charge each vehicle connected to the a charging station
     val endOfMaxSessionTime = chargingEndTimeInSeconds.getOrElse(chargingVehicle.personId, endTime)
     val shouldEndAtMaybe = chargingVehicle.chargingShouldEndAt.map(_ - parallelismWindow)
-    val maxCycleDuration =
-      if (shouldEndAtMaybe.isDefined)
-        Math.min(nextTimeBin(startTime) - startTime, shouldEndAtMaybe.map(_ - startTime).get)
-      else nextTimeBin(startTime) - startTime
     val updatedEndTime = Math.min(endOfMaxSessionTime, shouldEndAtMaybe.getOrElse(endTime))
     chargingVehicle.checkAndCorrectCycleAfterInterruption(updatedEndTime)
+    val maxCycleDuration = shouldEndAtMaybe match {
+      case Some(shouldEndAt) => Math.min(nextTimeBin(startTime) - startTime, shouldEndAt - startTime)
+      case None              => nextTimeBin(startTime) - startTime
+    }
     val newCycle = sitePowerManager.dispatchEnergy(startTime, updatedEndTime, maxCycleDuration, chargingVehicle)
     log.debug(
       s"dispatchEnergyAndProcessChargingCycle. " +
@@ -86,18 +78,8 @@ trait ChargingNetworkManagerHelper extends {
       s"cycle:$newCycle, chargingVehicle:$chargingVehicle"
     )
     chargingVehicle.processCycle(newCycle).flatMap {
-      case _ if interruptCharging =>
+      case cycle if interruptCharging || (chargingNotCompleteUsing(cycle) && !isEndOfSimulation(startTime)) =>
         // Charging is being interrupted. We will not return a ChargingTimeOutTrigger
-        // instead we will update fuel and send unplugging request immediately
-        log.debug(
-          s"Vehicle {} is being unplugged from its charging point {}",
-          chargingVehicle.vehicle.id,
-          chargingVehicle.stall
-        )
-        None
-      case cycle if chargingIsCompleteUsing(cycle) =>
-        Some(ScheduleTrigger(ChargingTimeOutTrigger(cycle.endTime, chargingVehicle), self))
-      case cycle if chargingNotCompleteUsing(cycle) && !isEndOfSimulation(startTime) =>
         log.debug(
           s"Vehicle {} is still charging @ Stall: {}. Provided energy: {} J. State of Charge: {}",
           chargingVehicle.vehicle.id,
@@ -125,7 +107,9 @@ trait ChargingNetworkManagerHelper extends {
       vehicle.useParkingStall(chargingVehicle.stall)
     log.debug(s"Starting charging for vehicle $vehicle at $tick")
     processStartChargingEvent(tick, chargingVehicle)
-    dispatchEnergyAndProcessChargingCycle(chargingVehicle, tick, nextTick).foreach(getScheduler ! _)
+    // we need to interrupt charging here in order to charge vehicle from tick to timeBin(tick)
+    // from timeBin(tick) to the next time bin it will be processed while processing PlanEnergyDispatchTrigger
+    dispatchEnergyAndProcessChargingCycle(chargingVehicle, tick, nextTick, interruptCharging = true)
   }
 
   /**
