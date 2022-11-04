@@ -12,7 +12,7 @@ import spray.json.DefaultJsonProtocol.{listFormat, mapFormat, JsValueFormat, Str
 import spray.json.{JsNumber, JsString, JsValue, _}
 
 import scala.concurrent._
-import scala.concurrent.duration.{Duration, DurationInt}
+import scala.concurrent.duration.Duration
 import scala.util.control.NonFatal
 
 object BeamHelicsInterface {
@@ -45,46 +45,6 @@ object BeamHelicsInterface {
     BeamFederate(
       fedName,
       fedInfo,
-      bufferSize,
-      simulationStep,
-      dataOutStreamPointMaybe,
-      dataInStreamPointMaybe
-    )
-  }
-
-  /**
-    * Create a Broker instance and a Federate Instance
-    *
-    * @param brokerName              BROKER_NAME
-    * @param numFederates            number of federates to consider
-    * @param fedName                 FEDERATE_NAME
-    * @param bufferSize              BUFFER_SIZE
-    * @param dataOutStreamPointMaybe PUBLICATION_NAME
-    * @param dataInStreamPointMaybe  FEDERATE_NAME/SUBSCRIPTION_NAME
-    * @return
-    */
-  def getBroker(
-    brokerName: String,
-    numFederates: Int,
-    fedName: String,
-    coreType: String,
-    coreInitString: String,
-    timeDeltaProperty: Double,
-    intLogLevel: Int,
-    bufferSize: Int,
-    simulationStep: Int,
-    dataOutStreamPointMaybe: Option[String] = None,
-    dataInStreamPointMaybe: Option[String] = None
-  ): BeamBroker = {
-    loadHelicsIfNotAlreadyLoaded
-    BeamBroker(
-      brokerName,
-      numFederates,
-      fedName,
-      coreType,
-      coreInitString,
-      timeDeltaProperty,
-      intLogLevel,
       bufferSize,
       simulationStep,
       dataOutStreamPointMaybe,
@@ -356,42 +316,5 @@ object BeamHelicsInterface {
           logger.error(s"Cannot destroy BeamFederate $fedName: ${ex.getMessage}")
       }
     }
-  }
-
-  case class BeamBroker(
-    brokerName: String,
-    numFederates: Int,
-    fedName: String,
-    coreType: String,
-    coreInitString: String,
-    timeDeltaProperty: Double,
-    intLogLevel: Int,
-    bufferSize: Int,
-    simulationStep: Int,
-    dataOutStreamPointMaybe: Option[String] = None,
-    dataInStreamPointMaybe: Option[String] = None
-  ) extends StrictLogging {
-    private val broker = helics.helicsCreateBroker(coreType, "", s"-f $numFederates --name=$brokerName")
-    lazy val isConnected: Boolean = helics.helicsBrokerIsConnected(broker) > 0
-
-    private val federate: Option[BeamFederate] = if (isConnected) {
-      val fedInfo = createFedInfo(coreType, coreInitString, timeDeltaProperty, intLogLevel)
-      Some(
-        getFederate(
-          fedName,
-          fedInfo,
-          bufferSize,
-          simulationStep,
-          dataOutStreamPointMaybe,
-          dataInStreamPointMaybe
-        )
-      )
-    } else {
-      None
-    }
-
-    federate.foreach(enterExecutionMode(10.seconds, _))
-
-    def getBrokersFederate: Option[BeamFederate] = federate
   }
 }
