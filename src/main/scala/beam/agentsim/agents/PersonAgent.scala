@@ -1019,13 +1019,14 @@ class PersonAgent(
       val nextCoord = nextAct.getCoord
       // Have to give up my mode as well, perhaps there's no option left for driving.
       _experiencedBeamPlan.putStrategy(nextAct, TripModeChoiceStrategy(mode = None))
-      val updatedTourMode: Option[BeamTourMode] = if (isFirstOrLastTripWithinTour(nextAct)) { None }
-      else { basePersonData.currentTourMode }
+      val (updatedTourMode, updatedTourPersonalVehicle): (Option[BeamTourMode], Option[Id[BeamVehicle]]) =
+        if (isFirstTripWithinTour(nextAct)) { (None, None) }
+        else { (basePersonData.currentTourMode, basePersonData.currentTourPersonalVehicle) }
       goto(ChoosingMode) using ChoosesModeData(
         basePersonData.copy(
           currentTripMode = None,
           currentTourMode = updatedTourMode,
-          currentTourPersonalVehicle = None,
+          currentTourPersonalVehicle = updatedTourPersonalVehicle,
           numberOfReplanningAttempts = basePersonData.numberOfReplanningAttempts + 1
         ),
         SpaceTime(currentCoord, _currentTick.get),
@@ -1485,7 +1486,7 @@ class PersonAgent(
             currentTrip = None,
             restOfCurrentTrip = List(),
             currentTourPersonalVehicle = currentTourPersonalVehicle match {
-              case Some(personalVehId) =>
+              case Some(personalVehId) if beamVehicles.contains(personalVehId) =>
                 val personalVeh = beamVehicles(personalVehId).asInstanceOf[ActualVehicle].vehicle
                 if (atHome(activity)) {
                   potentiallyChargingBeamVehicles.put(personalVeh.id, beamVehicles(personalVeh.id))
@@ -1495,6 +1496,9 @@ class PersonAgent(
                 } else {
                   currentTourPersonalVehicle
                 }
+              case Some(personalVehId) =>
+                logger.error(s"Vehicle ${personalVehId.toString} seems to have disappeared")
+                None
               case None =>
                 None
             },

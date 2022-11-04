@@ -1718,15 +1718,28 @@ trait ChoosesMode {
           vehiclesNotUsed.collect { case ActualVehicle(vehicle) =>
             data.personData.currentTourPersonalVehicle.foreach { currentVehicle =>
               // We allow people to keep personal vehicles on walk based tours for access/egress
-              if ((currentVehicle == vehicle.id) && !data.personData.currentTourMode.contains(WALK_BASED)) {
-                logError(
-                  s"Current tour vehicle is the same as the one being removed: $currentVehicle - ${vehicle.id} - $data"
-                )
-                isCurrentPersonalVehicleVoided = true
+              if (currentVehicle == vehicle.id) {
+                if (data.personData.currentTourMode.contains(WALK_BASED) && !isFirstTripWithinTour(nextAct)) {
+                  logger.debug(
+                    s"We're keeping vehicle ${vehicle.id} even though it isn't used in this trip " +
+                    s"because we need it for egress at the end of the tour"
+                  )
+                } else {
+                  logError(
+                    s"Current tour vehicle is the same as the one being removed: " +
+                    s"$currentVehicle - ${vehicle.id} - $data"
+                  )
+                  isCurrentPersonalVehicleVoided = true
+                  beamVehicles.remove(vehicle.id)
+                  vehicle.getManager.get ! ReleaseVehicle(vehicle, triggerId)
+                }
+              } else {
+                // Vehicle is neither used nor reserved for a return trip
+                beamVehicles.remove(vehicle.id)
+                vehicle.getManager.get ! ReleaseVehicle(vehicle, triggerId)
               }
             }
-            beamVehicles.remove(vehicle.id)
-            vehicle.getManager.get ! ReleaseVehicle(vehicle, triggerId)
+
           }
 
           scheduler ! CompletionNotice(
@@ -1741,22 +1754,25 @@ trait ChoosesMode {
 
           val currentTourPersonalVehicle = {
             if (isCurrentPersonalVehicleVoided)
-              vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id)
+              vehiclesUsed.headOption.filter(!_.vehicle.isSharedVehicle).map(_.id)
             else {
               data.personData.currentTourPersonalVehicle
                 .orElse(
-                  vehiclesUsed
+                  vehiclesUsed.view
+                    .filter(!_.vehicle.isSharedVehicle)
                     .find { veh =>
-                      data.personData.currentTourMode match {
-                        case Some(CAR_BASED)  => veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car
-                        case Some(BIKE_BASED) => veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike
-                        case _                => false
+                      (chosenTrip.tripClassifier, data.personData.currentTourMode) match {
+                        case (_, Some(CAR_BASED)) => veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car
+                        case (_, Some(BIKE_BASED)) =>
+                          veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike
+                        case (DRIVE_TRANSIT, _) => veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car
+                        case (BIKE_TRANSIT, _)  => veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike
+                        case _                  => false
                       }
                     }
                     .map(_.id)
                 )
             }
-
           }
           val updatedTourStrategy =
             TourModeChoiceStrategy(data.personData.currentTourMode, currentTourPersonalVehicle)
