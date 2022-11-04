@@ -134,7 +134,7 @@ class BeamPlan extends Plan {
         if (atHome(activity)) {
           // TODO: Also trigger this if we return to a location already present in the tour
           tours = tours :+ nextTour
-          putStrategy(nextTour, TourModeChoiceStrategy(getTourModeFromTourLegs(nextTour)))
+          putStrategy(nextTour, TourModeChoiceStrategy(None))
           nextTour = new Tour(originActivity = Some(activity))
         }
       case leg: Leg =>
@@ -243,22 +243,22 @@ class BeamPlan extends Plan {
     getTripContaining(activities(index))
   }
 
-  def getTourModeFromTourLegs(tour: Tour): Option[BeamTourMode] = {
-    // TODO: Should this just look at the first/last mode of legs?
-    var tourMode: Option[BeamTourMode] = None
-    if (tour.trips.exists(trip => trip.leg.isDefined)) {
-      tour.trips.foreach(trip =>
-        trip.leg match {
-          case Some(leg) if leg.getMode.equalsIgnoreCase("car") => tourMode = Some(CAR_BASED)
-          case Some(leg) if leg.getMode.equalsIgnoreCase("bike") && !tourMode.contains(CAR_BASED) =>
-            tourMode = Some(BIKE_BASED)
-          case Some(_) => tourMode = Some(WALK_BASED)
-          case _       =>
-        }
-      )
-    }
-    tourMode
-  }
+//  def getTourModeFromTourLegs(tour: Tour): Option[BeamTourMode] = {
+//    // TODO: Should this just look at the first/last mode of legs?
+//    var tourMode: Option[BeamTourMode] = None
+////    if (tour.trips.exists(trip => trip.leg.isDefined)) {
+////      tour.trips.foreach(trip =>
+////        trip.leg match {
+////          case Some(leg) if leg.getMode.equalsIgnoreCase("car") => tourMode = Some(CAR_BASED)
+////          case Some(leg) if leg.getMode.equalsIgnoreCase("bike") && !tourMode.contains(CAR_BASED) =>
+////            tourMode = Some(BIKE_BASED)
+////          case Some(_) => tourMode = Some(WALK_BASED)
+////          case _       =>
+////        }
+////      )
+////    }
+//    tourMode
+//  }
 
   //////////////////////////////////////////////////////////////////////
   // Supporting legacy interface
