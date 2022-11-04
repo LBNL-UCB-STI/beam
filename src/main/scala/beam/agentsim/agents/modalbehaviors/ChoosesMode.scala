@@ -198,7 +198,11 @@ trait ChoosesMode {
           currentActivity(data.personData)
         ) pipeTo self
       // Otherwise, send empty list to self
-      case (_: ChoosesModeData, Some(CAV | RIDE_HAIL | RIDE_HAIL_POOLED | RIDE_HAIL_TRANSIT | WALK), _) =>
+      case (
+            _: ChoosesModeData,
+            Some(CAV | RIDE_HAIL | RIDE_HAIL_POOLED | RIDE_HAIL_TRANSIT | WALK | WALK_TRANSIT),
+            _
+          ) =>
         self ! MobilityStatusResponse(Vector(), getCurrentTriggerIdOrGenerate)
       case (_, tripModeOption, tourModeOption) =>
         logger.error(
