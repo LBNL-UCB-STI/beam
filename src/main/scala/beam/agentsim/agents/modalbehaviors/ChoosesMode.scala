@@ -43,6 +43,7 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.language.postfixOps
 
 /**
   * BEAM
@@ -136,7 +137,7 @@ trait ChoosesMode {
     (nextStateData, currentTripMode, currentTourMode) match {
       // If I am already on a tour in a vehicle, only that vehicle is available to me
       // Unless it's a walk based tour and I used that vehicle for egress on my first trip
-      case (data: ChoosesModeData, _, Some(CAR_BASED | BIKE_BASED)) =>
+      case (data: ChoosesModeData, _, tourMode @ Some(CAR_BASED | BIKE_BASED)) =>
         if (data.personData.currentTourPersonalVehicle.isDefined) {
           self ! MobilityStatusResponse(
             Vector(beamVehicles(data.personData.currentTourPersonalVehicle.get)),
@@ -144,14 +145,19 @@ trait ChoosesMode {
           )
         } else {
           logger.warn(
-            s"Currently on a $currentTourMode tour and $currentTripMode trip but " +
+            s"Currently on a $tourMode tour and $currentTripMode trip but " +
             s"don't have a tour vehicle defined. This is a problem"
           )
           implicit val executionContext: ExecutionContext = context.system.dispatcher
           requestAvailableVehicles(
             vehicleFleets,
             data.currentLocation,
-            currentActivity(data.personData)
+            currentActivity(data.personData),
+            tourMode match {
+              case Some(CAR_BASED)  => Some(VehicleCategory.Car)
+              case Some(BIKE_BASED) => Some(VehicleCategory.Bike)
+              case _                => None
+            }
           ) pipeTo self
         }
       // If we're on a walk based tour but using a vehicle for access/egress
@@ -300,16 +306,40 @@ trait ChoosesMode {
                     .intersect(modesToQuery)
                 )
                 .toMap
-              tourModeChoiceCalculator(
+              val out = tourModeChoiceCalculator(
                 tourModeCosts,
                 modeChoiceCalculator.modeChoiceLogit,
                 modeToTourMode,
                 Some(firstAndLastTripModeToTourModeOption)
               )
+              out match {
+                case Some(CAR_BASED)
+                    if !availablePersonalStreetVehicles
+                      .exists(_.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car) =>
+                  logger.error("We're on a car based tour without any cars -- this is bad!")
+                case Some(BIKE_BASED)
+                    if !availablePersonalStreetVehicles
+                      .exists(_.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike) =>
+                  logger.error("We're on a bike based tour without any bikes -- this is bad!")
+                case _ =>
+              }
+              out
             case Some(tripMode) =>
               // If trip mode is already set, determine tour mode from that and available vehicles (sticking
               // with walk based tour if the only available vehicles are shared)
-              Some(getTourMode(tripMode, availablePersonalStreetVehicles))
+              val out = Some(getTourMode(tripMode, availablePersonalStreetVehicles))
+              out match {
+                case Some(CAR_BASED)
+                    if !availablePersonalStreetVehicles
+                      .exists(_.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car) =>
+                  logger.error("We're on a car based tour without any cars -- this is bad!")
+                case Some(BIKE_BASED)
+                    if !availablePersonalStreetVehicles
+                      .exists(_.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike) =>
+                  logger.error("We're on a bike based tour without any bikes -- this is bad!")
+                case _ =>
+              }
+              out
           }
 
       }
@@ -1493,7 +1523,7 @@ trait ChoosesMode {
         }
       ),
       currentLocation = choosesModeData.currentLocation,
-      excludeModes = choosesModeData.excludeModes
+      excludeModes = choosesModeData.excludeModes ++ choosesModeData.personData.currentTripMode.toSeq
     )
 
   }
@@ -1661,7 +1691,8 @@ trait ChoosesMode {
           var isCurrentPersonalVehicleVoided = false
           vehiclesNotUsed.collect { case ActualVehicle(vehicle) =>
             data.personData.currentTourPersonalVehicle.foreach { currentVehicle =>
-              if (currentVehicle == vehicle.id) {
+              // We allow people to keep personal vehicles on walk based tours for access/egress
+              if ((currentVehicle == vehicle.id) && !data.personData.currentTourMode.contains(WALK_BASED)) {
                 logError(
                   s"Current tour vehicle is the same as the one being removed: $currentVehicle - ${vehicle.id} - $data"
                 )
@@ -1681,12 +1712,26 @@ trait ChoosesMode {
               )
             )
           )
-          val currentTourPersonalVehicle =
+
+          val currentTourPersonalVehicle = {
             if (isCurrentPersonalVehicleVoided)
               vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id)
-            else
+            else {
               data.personData.currentTourPersonalVehicle
-                .orElse(vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id))
+                .orElse(
+                  vehiclesUsed
+                    .find { veh =>
+                      data.personData.currentTourMode match {
+                        case Some(CAR_BASED)  => veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car
+                        case Some(BIKE_BASED) => veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike
+                        case _                => false
+                      }
+                    }.map(_.id)
+
+                )
+            }
+
+          }
           val updatedTourStrategy =
             TourModeChoiceStrategy(data.personData.currentTourMode, currentTourPersonalVehicle)
           _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTourContaining(nextAct), updatedTourStrategy)

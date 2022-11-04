@@ -180,10 +180,11 @@ class HouseholdFleetManager(
         case None if createAnEmergencyVehicle(inquiry).nonEmpty =>
           logger.debug(s"An emergency vehicle has been created!")
         case _ =>
-          if (availableVehicles.isEmpty)
-            logger.warn(
-              s"The list of vehicles should not be empty, activate emergency personal vehicles generation as a temporary solution"
-            )
+          // I don't think this is actually a problem????
+//          if (availableVehicles.isEmpty)
+//            logger.warn(
+//              s"The list of vehicles should not be empty, activate emergency personal vehicles generation as a temporary solution"
+//            )
           logger.debug(s"Not returning vehicle because no default for  is defined")
           sender() ! MobilityStatusResponse(Vector(), triggerId)
       }
