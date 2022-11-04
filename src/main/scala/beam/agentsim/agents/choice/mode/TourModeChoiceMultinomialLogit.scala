@@ -7,7 +7,7 @@ import beam.router.TourModes.BeamTourMode
 import beam.router.skim.core.ODSkimmer.ODSkimmerTimeCostTransfer
 import beam.sim.population.AttributesOfIndividual
 
-import scala.collection.mutable
+import scala.collection.{mutable, Seq}
 import scala.util.Random
 
 class TourModeChoiceMultinomialLogit(
@@ -108,5 +108,9 @@ class TourModeChoiceMultinomialLogit(
     modeToTourMode: Map[BeamTourMode, Seq[BeamMode]]
   ): Option[BeamTourMode] = {
     chooseTourMode(tourModeCosts, modeLogit, modeToTourMode, None)
+  }
+
+  def apply(tourUtility: Map[BeamTourMode, Double]): Option[BeamTourMode] = {
+    tourModeChoice(tourUtility, tourModeLogit)
   }
 }

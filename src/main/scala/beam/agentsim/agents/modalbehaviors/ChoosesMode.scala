@@ -16,7 +16,7 @@ import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events.resources.ReservationErrorCode
-import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent, SpaceTime}
+import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent, SpaceTime, TourModeChoiceEvent}
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
@@ -306,12 +306,13 @@ trait ChoosesMode {
                     .intersect(modesToQuery)
                 )
                 .toMap
-              val out = tourModeChoiceCalculator(
+              val tourModeUtils = tourModeChoiceCalculator.tourExpectedMaxUtility(
                 tourModeCosts,
                 modeChoiceCalculator.modeChoiceLogit,
                 modeToTourMode,
                 Some(firstAndLastTripModeToTourModeOption)
               )
+              val out = tourModeChoiceCalculator(tourModeUtils)
               out match {
                 case Some(CAR_BASED)
                     if !availablePersonalStreetVehicles
@@ -323,11 +324,36 @@ trait ChoosesMode {
                   logger.error("We're on a bike based tour without any bikes -- this is bad!")
                 case _ =>
               }
+
+              val tourModeChoiceEvent = new TourModeChoiceEvent(
+                departTime.toDouble,
+                this.id,
+                out.map(_.value).getOrElse(""),
+                currentTour,
+                availablePersonalStreetVehicles,
+                modeToTourMode,
+                tourModeUtils,
+                modesToQuery,
+                currentActivity(personData)
+              )
+              eventsManager.processEvent(tourModeChoiceEvent)
               out
             case Some(tripMode) =>
               // If trip mode is already set, determine tour mode from that and available vehicles (sticking
               // with walk based tour if the only available vehicles are shared)
               val out = Some(getTourMode(tripMode, availablePersonalStreetVehicles))
+              val tourModeChoiceEvent = new TourModeChoiceEvent(
+                departTime.toDouble,
+                this.id,
+                out.map(_.value).getOrElse(""),
+                _experiencedBeamPlan.getTourContaining(nextAct),
+                availablePersonalStreetVehicles,
+                Map.empty[BeamTourMode, Seq[BeamMode]],
+                Map.empty[BeamTourMode, Double],
+                Vector(tripMode),
+                currentActivity(personData)
+              )
+              eventsManager.processEvent(tourModeChoiceEvent)
               out match {
                 case Some(CAR_BASED)
                     if !availablePersonalStreetVehicles
@@ -1726,8 +1752,8 @@ trait ChoosesMode {
                         case Some(BIKE_BASED) => veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike
                         case _                => false
                       }
-                    }.map(_.id)
-
+                    }
+                    .map(_.id)
                 )
             }
 
