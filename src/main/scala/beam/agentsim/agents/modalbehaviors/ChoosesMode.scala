@@ -1726,8 +1726,8 @@ trait ChoosesMode {
                         case Some(BIKE_BASED) => veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike
                         case _                => false
                       }
-                    }.map(_.id)
-
+                    }
+                    .map(_.id)
                 )
             }
 
