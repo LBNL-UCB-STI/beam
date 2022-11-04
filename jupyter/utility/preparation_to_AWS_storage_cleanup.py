@@ -13,7 +13,7 @@ pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
 
 
-# In[6]:
+# In[2]:
 
 
 ## define a method to check if beam log exists
@@ -36,8 +36,8 @@ def beam_log_exists(path):
     except Exception:
         return False
 
-# output_path = "https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#output/*/*"
-# print(beam_log_exists(output_path))
+output_path = "https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#output/*/*"
+print(beam_log_exists(output_path))
 
 
 # In[9]:
