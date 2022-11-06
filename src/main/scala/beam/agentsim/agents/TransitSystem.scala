@@ -9,6 +9,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY, TRAM}
 import beam.router.osm.TollCalculator
+import beam.router.r5.ttc
 import beam.router.{Modes, TransitInitializer}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
@@ -71,7 +72,9 @@ class TransitSystem(
 
   private def initDriverAgents(): Unit = {
     val initializer = new TransitVehicleInitializer(beamScenario.beamConfig, beamScenario.vehicleTypes)
-    val oneSecondTravelTime = (_: Double, _: Int, _: StreetMode) => 1.0
+    val oneSecondTravelTime = new ttc {
+      override def apply(time: Double, linkId: Int, streetMode: StreetMode): Double = 1.0
+    }//(_: Double, _: Int, _: StreetMode) => 1.0
     val transitSchedule = new TransitInitializer(
       beamScenario.beamConfig,
       geo,
