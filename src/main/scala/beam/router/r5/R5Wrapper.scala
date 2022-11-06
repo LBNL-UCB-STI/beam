@@ -1146,43 +1146,75 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
   private def getStopId(stop: Stop) = stop.stopId.split(":")(1)
 
+  private trait ttc{
+    def apply(time: Double, linkId: Int, streetMode: StreetMode): Double
+  }
+
   private def travelTimeCalculator(
     vehicleType: BeamVehicleType,
     startTime: Int,
     shouldAddNoise: Boolean
   ): TravelTimeCalculator = {
-    val ttc = travelTimeByLinkCalculator(vehicleType, shouldAddNoise, shouldApplyBicycleScaleFactor = true)
-    (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, _) => {
-      ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue().ceil
+    new TravelTimeCalculator {
+      val ttc = travelTimeByLinkCalculator(vehicleType, shouldAddNoise, shouldApplyBicycleScaleFactor = true)
+      override def getTravelTimeSeconds(edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest): Float = {
+        ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue().ceil
+      }
     }
+//    val ttc = travelTimeByLinkCalculator(vehicleType, shouldAddNoise, shouldApplyBicycleScaleFactor = true)
+//    (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, _) => {
+//      ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue().ceil
+//    }
   }
 
   private def travelTimeByLinkCalculator(
     vehicleType: BeamVehicleType,
     shouldAddNoise: Boolean,
     shouldApplyBicycleScaleFactor: Boolean = false
-  ): (Double, Int, StreetMode) => Double = {
+  ): ttc = {
     val profileRequest = createProfileRequest
-    (time: Double, linkId: Int, streetMode: StreetMode) => {
-      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-      val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
-      val minTravelTime = edge.getLengthM / maxSpeed
-      if (streetMode == StreetMode.CAR) {
-        carWeightCalculator.calcTravelTime(
-          linkId,
-          travelTime,
-          Some(vehicleType),
-          time,
-          shouldAddNoise,
-          vehicleType.vehicleCategory == VehicleCategory.HeavyDutyTruck
-        )
-      } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
-        val scaleFactor = bikeLanesAdjustment.scaleFactor(vehicleType, linkId)
-        minTravelTime * scaleFactor
-      } else {
-        minTravelTime
-      }
-    }
+        new ttc {
+          override def apply(time: Double, linkId: Int, streetMode: StreetMode): Double = {
+            val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+            val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
+            val minTravelTime = edge.getLengthM / maxSpeed
+            if (streetMode == StreetMode.CAR) {
+              carWeightCalculator.calcTravelTime(
+                linkId,
+                travelTime,
+                Some(vehicleType),
+                time,
+                shouldAddNoise,
+                vehicleType.vehicleCategory == VehicleCategory.HeavyDutyTruck
+              )
+            } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
+              val scaleFactor = bikeLanesAdjustment.scaleFactor(vehicleType, linkId)
+              minTravelTime * scaleFactor
+            } else {
+              minTravelTime
+            }
+          }
+        }
+//    (time: Double, linkId: Int, streetMode: StreetMode) => {
+//      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+//      val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
+//      val minTravelTime = edge.getLengthM / maxSpeed
+//      if (streetMode == StreetMode.CAR) {
+//        carWeightCalculator.calcTravelTime(
+//          linkId,
+//          travelTime,
+//          Some(vehicleType),
+//          time,
+//          shouldAddNoise,
+//          vehicleType.vehicleCategory == VehicleCategory.HeavyDutyTruck
+//        )
+//      } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
+//        val scaleFactor = bikeLanesAdjustment.scaleFactor(vehicleType, linkId)
+//        minTravelTime * scaleFactor
+//      } else {
+//        minTravelTime
+//      }
+//    }
   }
 
   private val turnCostCalculator: TurnCostCalculator =
