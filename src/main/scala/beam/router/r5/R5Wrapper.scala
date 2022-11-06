@@ -36,6 +36,10 @@ import scala.collection.mutable.ArrayBuffer
 import scala.language.postfixOps
 import scala.util.Try
 
+trait ttc{
+  def apply(time: Double, linkId: Int, streetMode: StreetMode): Double
+}
+
 class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
     extends MetricsSupport
     with StrictLogging
@@ -1145,10 +1149,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     transitSegment.segmentPatterns.get(transitJourneyID.pattern)
 
   private def getStopId(stop: Stop) = stop.stopId.split(":")(1)
-
-  private trait ttc{
-    def apply(time: Double, linkId: Int, streetMode: StreetMode): Double
-  }
 
   private def travelTimeCalculator(
     vehicleType: BeamVehicleType,
