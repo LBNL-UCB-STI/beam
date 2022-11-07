@@ -397,7 +397,7 @@ Ride hail management
 
 One can add multiple different RH fleets into the array **beam.agentsim.agents.rideHail.managers** above.
 
-* name: RH manager name. It should be different for each RH config. RH vehicles prefer parking on parking zones with reservedFor parameter equals to this value
+* name: RH manager name. It should be different for each RH config. RH vehicles prefer parking on parking zones with reservedFor parameter equals to this value. A person can be subscribed to a limited set of RH fleets. For Beam scenario one need to put a corresponding attribute (ridehail-service-subscription) to populationAttributes.xml. For Urbansim scenario one need to put attribute (ridehail_service_subscription) to person.csv file. Value of this attribute should contain a comma separated list of RH manager names. If this attribute is not set then the person subscribes to all the RH fleets.
 * initialization.initType: type of ridehail fleet initialization
 * initialization.procedural.vehicleTypePrefix: the vehicle type prefix that indicates ridehail vehicles
 * initialization.procedural.vehicleTypeId: default ridehail vehicle type
