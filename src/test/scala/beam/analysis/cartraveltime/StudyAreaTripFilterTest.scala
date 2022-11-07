@@ -36,8 +36,8 @@ class StudyAreaTripFilterTest extends AnyFunSuite with Matchers {
     mode = BeamMode.CAR,
     duration = 25,
     travelPath = BeamPath(
-      linkIds = Vector(1, 2, 3, 4, 5),
-      linkTravelTime = Vector(5, 5, 5, 5, 5),
+      linkIds = Array(1, 2, 3, 4, 5),
+      linkTravelTime = Array(5, 5, 5, 5, 5),
       transitStops = None,
       startPoint = SpaceTime.zero,
       endPoint = SpaceTime.zero.copy(time = 20),
@@ -52,6 +52,7 @@ class StudyAreaTripFilterTest extends AnyFunSuite with Matchers {
     vehicleType = vehicleType,
     numPass = 1,
     beamLeg = beamLeg,
+    currentTourMode = None,
     primaryFuelConsumed = 1.0,
     secondaryFuelConsumed = 0.0,
     endLegPrimaryFuelLevel = 1.0,

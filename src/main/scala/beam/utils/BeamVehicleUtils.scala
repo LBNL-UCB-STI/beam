@@ -4,11 +4,14 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.sim.config.BeamConfig
+import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import org.matsim.api.core.v01.Id
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
 import java.util
+import java.util.concurrent.atomic.AtomicReference
 import scala.util.Random
 
 object BeamVehicleUtils {
@@ -18,28 +21,33 @@ object BeamVehicleUtils {
     vehiclesTypeMap: scala.collection.Map[Id[BeamVehicleType], BeamVehicleType],
     randomSeed: Long,
     vehicleManagerId: Id[VehicleManager]
-  ): scala.collection.Map[Id[BeamVehicle], BeamVehicle] = {
+  ): (Map[Id[BeamVehicle], BeamVehicle], Map[Id[BeamVehicle], Double]) = {
     val rand: Random = new Random(randomSeed)
 
-    readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicle], BeamVehicle]()) { case (line, acc) =>
-      val vehicleIdString = line.get("vehicleId")
-      val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
+    readCsvFileByLine(filePath, (Map.empty[Id[BeamVehicle], BeamVehicle], Map.empty[Id[BeamVehicle], Double])) {
+      case (line, (vehicleAcc, socAcc)) =>
+        val vehicleIdString = line.get("vehicleId")
+        val vehicleId = Id.create(vehicleIdString, classOf[BeamVehicle])
 
-      val vehicleTypeIdString = line.get("vehicleTypeId")
-      val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
+        val vehicleTypeIdString = line.get("vehicleTypeId")
+        val vehicleType = vehiclesTypeMap(Id.create(vehicleTypeIdString, classOf[BeamVehicleType]))
 
-      val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
+        val powerTrain = new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter)
 
-      val beamVehicle =
-        new BeamVehicle(
-          vehicleId,
-          powerTrain,
-          vehicleType,
-          vehicleManagerId,
-          randomSeed = rand.nextInt
+        val beamVehicle =
+          new BeamVehicle(
+            vehicleId,
+            powerTrain,
+            vehicleType,
+            new AtomicReference(vehicleManagerId),
+            randomSeed = rand.nextInt
+          )
+
+        val initialSocStr = Option(line.get("stateOfCharge")).map(_.trim).getOrElse("")
+        (
+          vehicleAcc + (vehicleId -> beamVehicle),
+          if (initialSocStr.isEmpty) socAcc else socAcc + (vehicleId -> initialSocStr.toDouble)
         )
-      acc += ((vehicleId, beamVehicle))
-      acc
     }
   }
 
@@ -82,6 +90,7 @@ object BeamVehicleUtils {
         val sampleProbabilityString = Option(line.get("sampleProbabilityString"))
         val chargingCapability = Option(line.get("chargingCapability")).flatMap(ChargingPointType(_))
         val payloadCapacity = Option(line.get("payloadCapacityInKg")).map(_.toDouble)
+        val wheelchairAccessible = Option(line.get("wheelchairAccessible")).map(_.toBoolean)
 
         val bvt = BeamVehicleType(
           vehicleTypeId,
@@ -107,10 +116,34 @@ object BeamVehicleUtils {
           sampleProbabilityWithinCategory,
           sampleProbabilityString,
           chargingCapability,
-          payloadCapacity
+          payloadCapacity,
+          wheelchairAccessible
         )
         z += ((vehicleTypeId, bvt))
     }.toMap
+  }
+
+  def readBeamVehicleTypeFile(beamConfig: BeamConfig): Map[Id[BeamVehicleType], BeamVehicleType] = {
+    val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
+    val rideHailTypeIds =
+      beamConfig.beam.agentsim.agents.rideHail.managers.map(_.initialization.procedural.vehicleTypeId)
+    val dummySharedCarId = beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId
+    val defaultVehicleType = BeamVehicleType(
+      id = Id.create("DefaultVehicleType", classOf[BeamVehicleType]),
+      seatingCapacity = 4,
+      standingRoomCapacity = 0,
+      lengthInMeter = 4.5,
+      primaryFuelType = FuelType.Gasoline,
+      primaryFuelConsumptionInJoulePerMeter = 3655.98,
+      primaryFuelCapacityInJoule = 3655980000.0,
+      vehicleCategory = VehicleCategory.Car
+    )
+
+    val missingTypes = (dummySharedCarId.createId[BeamVehicleType] +: rideHailTypeIds.map(_.createId[BeamVehicleType]))
+      .collect {
+        case vehicleId if !vehicleTypes.contains(vehicleId) => vehicleId -> defaultVehicleType.copy(id = vehicleId)
+      }
+    vehicleTypes ++ missingTypes
   }
 
   def readCsvFileByLine[A](filePath: String, z: A)(readLine: (java.util.Map[String, String], A) => A): A = {
@@ -127,4 +160,13 @@ object BeamVehicleUtils {
     }
   }
 
+  /**
+    * @param energyInJoule Joules
+    * @param durationInSecond Seconds
+    * @return KW
+    */
+  def toPowerInKW(energyInJoule: Double, durationInSecond: Int): Double = {
+    if (durationInSecond > 0 && energyInJoule >= 0) (energyInJoule / 3.6e+6) / (durationInSecond / 3600.0)
+    else 0
+  }
 }

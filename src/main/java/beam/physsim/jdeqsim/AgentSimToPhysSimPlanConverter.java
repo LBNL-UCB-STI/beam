@@ -4,11 +4,13 @@ import akka.actor.ActorRef;
 import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
 import beam.analysis.IterationStatsProvider;
+import beam.physsim.PickUpDropOffCollector;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedDistributionStats;
 import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimNetworkComparisonEuclideanVsLengthAttribute;
 import beam.analysis.physsim.PhyssimNetworkLinkLengthDistribution;
 import beam.calibration.impl.example.CountsObjectiveFunction;
+import beam.physsim.analysis.LinkStatsWithVehicleCategory;
 import beam.physsim.cchRoutingAssignment.OsmInfoHolder;
 import beam.physsim.cchRoutingAssignment.RoutingFrameworkTravelTimeCalculator;
 import beam.physsim.cchRoutingAssignment.RoutingFrameworkWrapperImpl;
@@ -79,6 +81,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private final OutputDirectoryHierarchy controlerIO;
     private final Logger log = LoggerFactory.getLogger(AgentSimToPhysSimPlanConverter.class);
     private final Scenario agentSimScenario;
+    private final Option<PickUpDropOffCollector> pickUpDropOffCollector;
     private Population jdeqsimPopulation;
     private TravelTime aggregatedTravelTime;
     private final BeamServices beamServices;
@@ -111,7 +114,8 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                                           OutputDirectoryHierarchy controlerIO,
                                           Scenario scenario,
                                           BeamServices beamServices,
-                                          BeamConfigChangesObservable beamConfigChangesObservable) {
+                                          BeamConfigChangesObservable beamConfigChangesObservable,
+                                          Option<PickUpDropOffCollector> pickUpDropOffCollector) {
         eventsManager.addHandler(this);
         this.beamServices = beamServices;
         this.controlerIO = controlerIO;
@@ -119,6 +123,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         this.beamConfig = beamServices.beamConfig();
         this.rand.setSeed(beamConfig.matsim().modules().global().randomSeed());
         this.beamConfigChangesObservable = beamConfigChangesObservable;
+        this.pickUpDropOffCollector = pickUpDropOffCollector;
         agentSimScenario = scenario;
         agentSimPhysSimInterfaceDebuggerEnabled = beamConfig.beam().physsim().jdeqsim().agentSimPhysSimInterfaceDebugger().enabled();
 
@@ -177,7 +182,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                 log.info("{} started", physSimName);
 
                 RelaxationExperiment sim = RelaxationExperiment$.MODULE$.apply(beamConfig, agentSimScenario, jdeqsimPopulation,
-                        beamServices, controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, rnd);
+                        beamServices, controlerIO, caccVehiclesMap, beamConfigChangesObservable, iterationNumber, rnd, pickUpDropOffCollector);
                 log.info("RelaxationExperiment is {}, type is {}", sim.getClass().getSimpleName(), beamConfig.beam().physsim().relaxation().type());
                 SimulationResult result = sim.run(prevTravelTime);
                 travelTimeFromPhysSim = result.travelTime();
@@ -311,9 +316,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         int endTimeInSeconds = (int) Time.parseTime(beamConfig.beam().agentsim().endTime());
         cfg.setMaxTime(endTimeInSeconds);
         Network network = agentSimScenario.getNetwork();
-        BeamCalcLinkStats linkStats = new BeamCalcLinkStats(network, cfg);
-        linkStats.addData(volumesAnalyzer, travelTimeForR5);
-        linkStats.writeFile(controlerIO.getIterationFilename(iterationEndsEvent.getIteration(), "linkstats.csv.gz"));
+        LinkStatsWithVehicleCategory linkStats = new LinkStatsWithVehicleCategory(network, cfg);
+        String filePath = controlerIO.getIterationFilename(iterationEndsEvent.getIteration(), "linkstats.csv.gz");
+        linkStats.writeLinkStatsWithTruckVolumes(volumesAnalyzer, travelTimeForR5, filePath);
     }
 
     private boolean shouldWritePlans(int iterationNumber) {
@@ -321,7 +326,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     }
 
     private boolean shouldWriteInIteration(int iterationNumber, int interval) {
-        return interval == 1 || (interval > 0 && iterationNumber % interval == 0);
+        return interval == 1 || (interval > 0 && iterationNumber >= interval && iterationNumber % interval == 0);
     }
 
     private void writePhyssimPlans(IterationEndsEvent event) {

@@ -21,6 +21,7 @@ import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.util.{Random, Try}
 
 class TransitSystem(
@@ -129,7 +130,7 @@ class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Ma
           beamVehicleId,
           powertrain,
           vehicleType,
-          VehicleManager.noManager,
+          new AtomicReference(VehicleManager.NoManager.managerId),
           randomSeed = randomSeed
         ) // TODO: implement fuel level later as needed
         Some(vehicle)
@@ -157,7 +158,7 @@ class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Ma
       )
       //There has to be a default one defined
       vehicleTypes.getOrElse(
-        Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[BeamVehicleType]),
+        TransitVehicleInitializer.transitModeToBeamVehicleType(mode),
         vehicleTypes(Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]))
       )
     }
@@ -174,4 +175,11 @@ class TransitVehicleInitializer(val beamConfig: BeamConfig, val vehicleTypes: Ma
       .mapValues(_.groupBy(_(1)).mapValues(_.head(2)))
   }
 
+}
+
+object TransitVehicleInitializer {
+
+  def transitModeToBeamVehicleType(mode: Modes.BeamMode): Id[BeamVehicleType] = {
+    Id.create(mode.toString.toUpperCase + "-DEFAULT", classOf[BeamVehicleType])
+  }
 }

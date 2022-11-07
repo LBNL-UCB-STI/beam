@@ -1,9 +1,9 @@
 package beam.utils.csv.readers
 
 import java.util.{Map => JavaMap}
-
 import beam.utils.csv.writers.ScenarioCsvWriter.ArrayItemSeparator
 import beam.utils.logging.ExponentialLazyLogging
+import beam.utils.scenario._
 import beam.utils.scenario.matsim.BeamScenarioReader
 import beam.utils.{FileUtils, ProfilingUtils}
 import beam.utils.scenario._
@@ -15,6 +15,7 @@ import scala.reflect.ClassTag
 import scala.util.Try
 
 object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogging {
+
   override def inputType: InputType = InputType.CSV
 
   override def readPersonsFile(path: String): Array[PersonInfo] = {
@@ -75,11 +76,16 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
     val linkIds =
       Option(rec.get("legRouteLinks")).map(_.split(ArrayItemSeparator).map(_.trim)).getOrElse(Array.empty[String])
     PlanElement(
+      tripId = if (rec.get("trip_id") != null) {
+        rec.get("trip_id").filter(x => (x.isDigit || x.equals('.')))
+      } else {
+        ""
+      },
       personId = PersonId(personId),
       planIndex = planIndex,
       planScore = getIfNotNull(rec, "planScore", "0").toDouble,
       planSelected = getIfNotNull(rec, "planSelected", "false").toBoolean,
-      planElementType = planElementType,
+      planElementType = PlanElement.PlanElementType(planElementType),
       planElementIndex = planElementIndex,
       activityType = activityType,
       activityLocationX = Option(rec.get("activityLocationX")).map(_.toDouble),
@@ -104,7 +110,10 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
     val age = getIfNotNull(rec, "age").toInt
     val isFemale = getIfNotNull(rec, "isFemale", "false").toBoolean
     val rank = getIfNotNull(rec, "householdRank", "0").toInt
+    val industry = Option(rec.get("industry"))
     val excludedModes = Try(getIfNotNull(rec, "excludedModes")).getOrElse("").split(",")
+    val rideHailServiceSubscription =
+      Option(rec.get("rideHailServiceSubscription")).fold(Seq.empty[String])(_.split(","))
     val valueOfTime = NumberUtils.toDouble(Try(getIfNotNull(rec, "valueOfTime", "0")).getOrElse("0"), 0d)
     PersonInfo(
       personId = PersonId(personId),
@@ -112,8 +121,10 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
       rank = rank,
       age = age,
       excludedModes = excludedModes,
+      rideHailServiceSubscription = rideHailServiceSubscription,
       isFemale = isFemale,
-      valueOfTime = valueOfTime
+      valueOfTime = valueOfTime,
+      industry = industry
     )
   }
 
@@ -121,6 +132,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
     VehicleInfo(
       vehicleId = getIfNotNull(rec, "vehicleId"),
       vehicleTypeId = getIfNotNull(rec, "vehicleTypeId"),
+      initialSoc = Option(rec.get("stateOfCharge")).map(_.trim).filterNot(_.isEmpty).map(_.toDouble),
       householdId = getIfNotNull(rec, "householdId")
     )
   }

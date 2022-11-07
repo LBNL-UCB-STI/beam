@@ -37,6 +37,7 @@ PREPARE_URBANSIM_OUTPUT_SCRIPT = 'aws --region "$S3_DATA_REGION" s3 cp --recursi
 # "data_region": s3 data region which is used when copying from s3 and writing to s3 buckets;
 # "branch": git branch;
 # "commit": git commit;
+# "data_branch": data branch;
 # "s3_path": s3 path to output folder started with double slash;
 # "title": used as instance name only;
 # "start_year": pilates simulation start year;
@@ -93,6 +94,7 @@ runcmd:
         \\"data_region\\":\\"$S3_DATA_REGION\\",
         \\"branch\\":\\"$BRANCH\\",
         \\"commit\\":\\"$COMMIT\\",
+        \\"data_branch\\":\\"$DATA_BRANCH\\",
         \\"title\\":\\"$TITLED\\",
         \\"start_year\\":\\"$START_YEAR\\",
         \\"count_of_years\\":\\"$COUNT_OF_YEARS\\",
@@ -143,6 +145,21 @@ runcmd:
   - git fetch
   - echo "git checkout for branch $BRANCH ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout $BRANCH
+  
+  - production_data_submodules=$(git submodule | awk '{ print $2 }')
+  - for i in $production_data_submodules
+  -  do
+  -    for cf in $CONFIG
+  -      do
+  -        case $cf in
+  -         '*$i*)'
+  -            echo "Loading remote production data for $i"
+  -            git config submodule.$i.branch $DATA_BRANCH
+  -            git submodule update --init --remote $i
+  -        esac
+  -      done
+  -  done
+  
   - sudo git pull
   - sudo git lfs pull
   - echo "git checkout -qf for commit $COMMIT ..."
@@ -227,11 +244,39 @@ instance_types = ['t2.nano', 't2.micro', 't2.small', 't2.medium', 't2.large', 't
                   'm5d.large', 'm5d.xlarge', 'm5d.2xlarge', 'm5d.4xlarge', 'm5d.12xlarge', 'm5d.24xlarge',
                   'z1d.large', 'z1d.xlarge', 'z1d.2xlarge', 'z1d.3xlarge', 'z1d.6xlarge', 'z1d.12xlarge']
 
+instance_type_to_memory = {
+    't2.nano': 0.5, 't2.micro': 1, 't2.small': 2, 't2.medium': 4, 't2.large': 8, 't2.xlarge': 16, 't2.2xlarge': 32,
+    'm4.large': 8, 'm4.xlarge': 16, 'm4.2xlarge': 32, 'm4.4xlarge': 64, 'm4.10xlarge': 160, 'm4.16xlarge': 256,
+    'm5.large': 8, 'm5.xlarge': 16, 'm5.2xlarge': 32, 'm5.4xlarge': 64, 'm5.12xlarge': 192, 'm5.24xlarge': 384,
+    'c4.large': 3.75, 'c4.xlarge': 7.5, 'c4.2xlarge': 15, 'c4.4xlarge': 30, 'c4.8xlarge': 60,
+    'f1.2xlarge': 122, 'f1.16xlarge': 976,
+    'g2.2xlarge': 15.25, 'g2.8xlarge': 61,
+    'g3.4xlarge': 122, 'g3.8xlarge': 244, 'g3.16xlarge': 488,
+    'p2.xlarge': 61, 'p2.8xlarge': 488, 'p2.16xlarge': 732,
+    'p3.2xlarge': 61, 'p3.8xlarge': 244, 'p3.16xlarge': 488,
+    'r4.large': 15.25, 'r4.xlarge': 30.5, 'r4.2xlarge': 61, 'r4.4xlarge': 122, 'r4.8xlarge': 244, 'r4.16xlarge': 488,
+    'r3.large': 15, 'r3.xlarge': 30.5, 'r3.2xlarge': 61, 'r3.4xlarge': 122, 'r3.8xlarge': 244,
+    'x1.16xlarge': 976, 'x1.32xlarge': 1952,
+    'x1e.xlarge': 122, 'x1e.2xlarge': 244, 'x1e.4xlarge': 488, 'x1e.8xlarge': 976, 'x1e.16xlarge': 1952, 'x1e.32xlarge': 3904,
+    'd2.xlarge': 30.5, 'd2.2xlarge': 61, 'd2.4xlarge': 122, 'd2.8xlarge': 244,
+    'i2.xlarge': 30.5, 'i2.2xlarge': 61, 'i2.4xlarge': 122, 'i2.8xlarge': 244,
+    'h1.2xlarge': 32, 'h1.4xlarge': 64, 'h1.8xlarge': 128, 'h1.16xlarge': 256,
+    'i3.large': 15.25, 'i3.xlarge': 30.5, 'i3.2xlarge': 61, 'i3.4xlarge': 122, 'i3.8xlarge': 244, 'i3.16xlarge': 488, 'i3.metal': 512,
+    'c5.large': 4, 'c5.xlarge': 8, 'c5.2xlarge': 16, 'c5.4xlarge': 32, 'c5.9xlarge': 72, 'c5.18xlarge': 96,
+    'c5d.large': 4, 'c5d.xlarge': 8, 'c5d.2xlarge': 16, 'c5d.4xlarge': 32, 'c5d.9xlarge': 72, 'c5d.18xlarge': 144, 'c5d.24xlarge': 192,
+    'r5.large': 16, 'r5.xlarge': 32, 'r5.2xlarge': 64, 'r5.4xlarge': 128, 'r5.8xlarge': 256, 'r5.12xlarge': 384, 'r5.24xlarge': 768,
+    'r5d.large': 16, 'r5d.xlarge': 32, 'r5d.2xlarge': 64, 'r5d.4xlarge': 128, 'r5d.12xlarge': 384, 'r5d.24xlarge': 768,
+    'm5d.large': 8, 'm5d.xlarge': 16, 'm5d.2xlarge': 32, 'm5d.4xlarge': 64, 'm5d.12xlarge': 192, 'm5d.24xlarge': 384,
+    'z1d.large': 2, 'z1d.xlarge': 4, 'z1d.2xlarge': 8, 'z1d.3xlarge': 12, 'z1d.6xlarge': 24, 'z1d.12xlarge': 48
+}
+
 regions = ['us-east-1', 'us-east-2', 'us-west-2']
 shutdown_behaviours = ['stop', 'terminate']
 
 s3 = boto3.client('s3')
 ec2 = None
+max_system_ram = 15
+percent_towards_system_ram = .25
 
 
 def init_ec2(region):
@@ -239,7 +284,7 @@ def init_ec2(region):
     ec2 = boto3.client('ec2', region_name=region)
 
 
-def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size):
+def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_name, volume_size, budget_override):
     res = ec2.run_instances(BlockDeviceMappings=[
         {
             'DeviceName': '/dev/sda1',
@@ -263,6 +308,9 @@ def deploy(script, instance_type, region_prefix, shutdown_behaviour, instance_na
             'Tags': [{
                 'Key': 'Name',
                 'Value': instance_name
+            }, {
+                'Key': 'BudgetOverride',
+                'Value': str(budget_override)
             }]
         }])
     return res['Instances'][0]['InstanceId']
@@ -289,7 +337,9 @@ def get_dns(instance_id):
 
     return host
 
-
+def calculate_max_ram(instance_type):
+    ram = instance_type_to_memory[instance_type]
+    return ram - min(ram * percent_towards_system_ram, max_system_ram)
 
 def lambda_handler(event, context):
     all_run_params_comma = ''
@@ -318,6 +368,7 @@ def lambda_handler(event, context):
     initial_urbansim_input = get_param('initialS3UrbansimInput')
     branch = get_param('beamBranch')
     commit_id = get_param('beamCommit')
+    data_branch = get_param('dataBranch')
 
     start_year = get_param('startYear')
     count_of_years = get_param('countOfYears')
@@ -332,7 +383,6 @@ def lambda_handler(event, context):
     s3_data_region = get_param('dataRegion')
 
     config = get_param('beamConfig')
-    max_ram = get_param('maxRAM')
     shutdown_wait = get_param('shutdownWait')
 
     instance_type = get_param('instanceType')
@@ -345,6 +395,8 @@ def lambda_handler(event, context):
     s3_output_base_path = event.get('s3OutputBasePath')
     if parameter_wasnt_specified(s3_output_base_path):
         s3_output_base_path = ""
+
+    budget_override = event.get('budget_override', False)
 
     initial_urbansim_output = event.get('initialS3UrbansimOutput')
     initial_skims_path = event.get('initialSkimPath')
@@ -364,6 +416,10 @@ def lambda_handler(event, context):
 
     if region not in regions:
         return "Unable to start, {region} region not supported.".format(region=region)
+
+    max_ram = event.get('forced_max_ram')
+    if parameter_wasnt_specified(max_ram):
+        max_ram = calculate_max_ram(instance_type)
 
     if volume_size < 64:
         volume_size = 64
@@ -405,13 +461,14 @@ def lambda_handler(event, context):
         .replace('$IN_YEAR_OUTPUT', in_year_output) \
         .replace('$PILATES_IMAGE_NAME', pilates_image_name) \
         .replace('$BRANCH', branch).replace('$COMMIT', commit_id).replace('$CONFIG', config) \
+        .replace('$DATA_BRANCH', data_branch) \
         .replace('$SHUTDOWN_WAIT', shutdown_wait) \
         .replace('$SHUTDOWN_BEHAVIOUR', shutdown_behaviour) \
         .replace('$STORAGE_SIZE', str(volume_size)) \
         .replace('$S3_OUTPUT_BUCKET', s3_output_bucket) \
         .replace('$S3_OUTPUT_BASE_PATH', s3_output_base_path) \
         .replace('$PILATES_SCENARIO_NAME', pilates_scenario_name) \
-        .replace('$TITLED', run_name).replace('$MAX_RAM', max_ram) \
+        .replace('$TITLED', run_name).replace('$MAX_RAM', str(max_ram)) \
         .replace('$SIGOPT_CLIENT_ID', sigopt_client_id).replace('$SIGOPT_DEV_ID', sigopt_dev_id) \
         .replace('$GOOGLE_API_KEY', google_api_key) \
         .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
@@ -419,7 +476,7 @@ def lambda_handler(event, context):
         .replace('$RUN_PARAMS_FOR_FILE', all_run_params_comma_le) \
         .replace('$RUN_PARAMS', all_run_params_comma)
 
-    instance_id = deploy(script, instance_type, region.replace("-", "_") + '_', shutdown_behaviour, run_name, volume_size)
+    instance_id = deploy(script, instance_type, region.replace("-", "_") + '_', shutdown_behaviour, run_name, volume_size, budget_override)
     host = get_dns(instance_id)
 
     return 'Started with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '\

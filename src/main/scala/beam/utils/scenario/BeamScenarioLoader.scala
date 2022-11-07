@@ -1,29 +1,27 @@
 package beam.utils.scenario
 
-import beam.agentsim.agents.household.HouseholdFleetManager
-
-import java.util
-import scala.util.Random
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
-import beam.agentsim.infrastructure.parking.ParkingZone
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
+import beam.sim.population.PopulationAdjustment.RIDEHAIL_SERVICE_SUBSCRIPTION
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.google.common.annotations.VisibleForTesting
-import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.network.Link
-import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan, Population}
+import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder}
-import org.matsim.households.{Household, _}
+import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
+import java.util
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
+import scala.util.Random
 
 class BeamScenarioLoader(
   val scenarioBuilder: ScenarioBuilder,
@@ -82,9 +80,14 @@ class BeamScenarioLoader(
     val households: Households = replaceHouseholds(scenario.getHouseholds, newHouseholds)
 
     beamScenario.privateVehicles.clear()
-    vehicles
-      .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c, rand.nextInt, ParkingZone.GlobalReservedFor))
-      .foreach(v => beamScenario.privateVehicles.put(v.id, v))
+    beamScenario.privateVehicleInitialSoc.clear()
+    for {
+      vehicleInfo <- vehicles
+      vehicle = buildBeamVehicle(beamScenario.vehicleTypes, vehicleInfo, rand.nextInt)
+    } {
+      beamScenario.privateVehicles.put(vehicle.id, vehicle)
+      vehicleInfo.initialSoc.foreach(beamScenario.privateVehicleInitialSoc.put(vehicle.id, _))
+    }
 
     val scenarioPopulation: Population = buildPopulation(personsWithPlans)
     scenario.setPopulation(scenarioPopulation)
@@ -152,9 +155,14 @@ class BeamScenarioLoader(
       personAttributes.putAttribute(personId, "valueOfTime", personInfo.valueOfTime)
       personAttributes.putAttribute(personId, "sex", sexChar)
       personAttributes.putAttribute(personId, "excluded-modes", personInfo.excludedModes.mkString(","))
+      personAttributes.putAttribute(
+        personId,
+        RIDEHAIL_SERVICE_SUBSCRIPTION,
+        personInfo.rideHailServiceSubscription.mkString(",")
+      )
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
-
+      person.getAttributes.putAttribute("industry", personInfo.industry.getOrElse(""))
       result.addPerson(person)
     }
 
@@ -196,22 +204,29 @@ class BeamScenarioLoader(
         case (_, listOfElementsGroupedByPlan) if listOfElementsGroupedByPlan.nonEmpty =>
           val person = population.getPersons.get(Id.createPersonId(personId.id))
 
-          val currentPlan = PopulationUtils.createPlan(person)
-          currentPlan.setScore(listOfElementsGroupedByPlan.head.planScore)
-          person.addPlan(currentPlan)
+          if (person == null) {
+            logger.warn(
+              "Could not find person {} while adding plans (maybe it doesn't belong to any household!?)",
+              personId.id
+            )
+          } else {
+            val currentPlan = PopulationUtils.createPlan(person)
+            currentPlan.setScore(listOfElementsGroupedByPlan.head.planScore)
+            person.addPlan(currentPlan)
 
-          val personWithoutSelectedPlan = person.getSelectedPlan == null
-          val isCurrentPlanIndexSelected = listOfElementsGroupedByPlan.head.planSelected
-          val isLastPlanIteration = person.getPlans.size() == listOfElementsGroupedByPerson.size
-          if (personWithoutSelectedPlan && (isCurrentPlanIndexSelected || isLastPlanIteration)) {
-            person.setSelectedPlan(currentPlan)
-          }
+            val personWithoutSelectedPlan = person.getSelectedPlan == null
+            val isCurrentPlanIndexSelected = listOfElementsGroupedByPlan.head.planSelected
+            val isLastPlanIteration = person.getPlans.size() == listOfElementsGroupedByPerson.size
+            if (personWithoutSelectedPlan && (isCurrentPlanIndexSelected || isLastPlanIteration)) {
+              person.setSelectedPlan(currentPlan)
+            }
 
-          listOfElementsGroupedByPlan.foreach { planElement =>
-            if (planElement.planElementType.equalsIgnoreCase("leg")) {
-              buildAndAddLegToPlan(currentPlan, planElement)
-            } else if (planElement.planElementType.equalsIgnoreCase("activity")) {
-              buildAndAddActivityToPlan(currentPlan, planElement)
+            listOfElementsGroupedByPlan.foreach { planElement =>
+              if (planElement.planElementType == PlanElement.Leg) {
+                buildAndAddLegToPlan(currentPlan, planElement)
+              } else if (planElement.planElementType == PlanElement.Activity) {
+                buildAndAddActivityToPlan(currentPlan, planElement)
+              }
             }
           }
       }
@@ -338,8 +353,7 @@ object BeamScenarioLoader extends ExponentialLazyLogging {
   def buildBeamVehicle(
     map: Map[Id[BeamVehicleType], BeamVehicleType],
     info: VehicleInfo,
-    randomSeed: Int,
-    vehicleManagerId: Id[VehicleManager]
+    randomSeed: Int
   ): BeamVehicle = {
     val matsimVehicleType: VehicleType =
       VehicleUtils.getFactory.createVehicleType(Id.create(info.vehicleTypeId, classOf[VehicleType]))
@@ -351,12 +365,14 @@ object BeamScenarioLoader extends ExponentialLazyLogging {
 
     val beamVehicleType = map(beamVehicleTypeId)
 
+    val vehicleManagerId =
+      VehicleManager.createOrGetReservedFor(info.householdId, VehicleManager.TypeEnum.Household).managerId
     val powerTrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
     new BeamVehicle(
       beamVehicleId,
       powerTrain,
       beamVehicleType,
-      vehicleManagerId,
+      new AtomicReference(vehicleManagerId),
       randomSeed = randomSeed
     )
   }

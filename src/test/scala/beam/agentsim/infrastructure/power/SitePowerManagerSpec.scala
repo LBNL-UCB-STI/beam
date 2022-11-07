@@ -3,10 +3,10 @@ package beam.agentsim.infrastructure.power
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{ImplicitSender, TestKit}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
 import beam.agentsim.events.RefuelSessionEvent.NotApplicable
-import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingVehicle, ConnectionStatus}
-import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingPlugRequest
+import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
+import beam.agentsim.infrastructure.ChargingNetworkManager.{ChargingNetworkHelper, ChargingPlugRequest}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, PricingModel}
 import beam.agentsim.infrastructure.taz.TAZ
@@ -25,7 +25,6 @@ import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.collection.immutable.List
 import scala.collection.mutable.ListBuffer
 
 class SitePowerManagerSpec
@@ -60,7 +59,9 @@ class SitePowerManagerSpec
        |}
        |beam.agentsim.chargingNetworkManager {
        |  timeStepInSeconds = 300
-       |
+       |  scaleUp {
+       |    enabled = false
+       |  }
        |  helics {
        |    connectionEnabled = false
        |    coreInitString = "--federates=1 --broker_address=tcp://127.0.0.1"
@@ -97,18 +98,18 @@ class SitePowerManagerSpec
 
   val taz: TAZ = tazMap.getTAZs.head
 
-  val dummyChargingZone: ParkingZone[TAZ] = ParkingZone.init(
+  val dummyChargingZone: ParkingZone = ParkingZone.init(
     None,
     taz.tazId,
     ParkingType.Workplace,
-    ParkingZone.GlobalReservedFor,
+    VehicleManager.AnyManager,
     maxStalls = 2,
     chargingPointType = Some(ChargingPointType.CustomChargingPoint("ultrafast", "250.0", "DC")),
     pricingModel = Some(PricingModel.FlatFee(0.0))
   )
 
   private val vehiclesList = {
-    val parkingStall1: ParkingStall = ParkingStall.init[TAZ](dummyChargingZone, taz.tazId, taz.coord, 0.0)
+    val parkingStall1: ParkingStall = ParkingStall.init(dummyChargingZone, taz.tazId, taz.coord, 0.0)
     val v1 = new BeamVehicle(
       Id.createVehicleId("id1"),
       new Powertrain(0.0),
@@ -126,9 +127,14 @@ class SitePowerManagerSpec
     List((v1, person1), (v2, person2))
   }
 
-  val chargingNetwork: ChargingNetwork[TAZ] = ChargingNetwork.init(
-    ParkingZone.GlobalReservedFor,
+  val chargingNetwork: ChargingNetwork = ChargingNetwork.init(
     Map(dummyChargingZone.parkingZoneId -> dummyChargingZone),
+    envelopeInUTM,
+    beamServices
+  )
+
+  val rideHailNetwork: ChargingNetwork = ChargingNetwork.init(
+    Map(),
     envelopeInUTM,
     beamServices
   )
@@ -136,44 +142,33 @@ class SitePowerManagerSpec
   "SitePowerManager" should {
 
     val dummyStation = ChargingStation(dummyChargingZone)
-    val sitePowerManager = new SitePowerManager(Map(ParkingZone.GlobalReservedFor -> chargingNetwork), beamServices)
+    val unlimitedBounds = PowerController.getUnlimitedPhysicalBounds(Seq(dummyStation)).value
+    val sitePowerManager =
+      new SitePowerManager(ChargingNetworkHelper(chargingNetwork, rideHailNetwork), unlimitedBounds, beamServices)
 
-    "get power over planning horizon 0.0 for charged vehicles" in {
-      sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(300) shouldBe Map(
-        ChargingStation(dummyChargingZone) -> 0.0
-      )
-    }
-    "get power over planning horizon greater than 0.0 for discharged vehicles" in {
-      val vehiclesMap = Map(vehiclesList.map { case (v, _) => v.id -> v }: _*)
-      vehiclesMap.foreach(_._2.addFuel(-10000))
-      sitePowerManager.requiredPowerInKWOverNextPlanningHorizon(300) shouldBe Map(
-        ChargingStation(dummyChargingZone) -> 0.0
-      )
-    }
     "replan horizon and get charging plan per vehicle" in {
       vehiclesList.foreach { case (v, person) =>
         v.addFuel(v.primaryFuelLevelInJoules * 0.9 * -1)
-        val request = ChargingPlugRequest(0, v, v.stall.get, person, 0)
-        val Some((chargingVehicle, status)) =
-          chargingNetwork.attemptToConnectVehicle(request, ActorRef.noSender)
-        status shouldBe ConnectionStatus.Connected
+        val request = ChargingPlugRequest(0, v, v.stall.get, person, 0, self)
+        val Some(chargingVehicle) = chargingNetwork.processChargingPlugRequest(request, 60, ActorRef.noSender)
+        chargingVehicle.chargingStatus.last shouldBe ChargingStatus(ChargingStatus.Connected, 0)
         chargingVehicle shouldBe ChargingVehicle(
           v,
           v.stall.get,
           dummyStation,
           0,
-          0,
+          v.primaryFuelLevelInJoules,
           person,
+          60,
+          "Wherever",
           NotApplicable,
           None,
           ActorRef.noSender,
-          ListBuffer(ConnectionStatus.Connected)
+          ListBuffer(ChargingStatus(ChargingStatus.Connected, 0))
         )
-        sitePowerManager.dispatchEnergy(
-          300,
-          chargingVehicle,
-          SitePowerManager.getUnlimitedPhysicalBounds(Seq(dummyStation)).value
-        ) should (be((1, 250000.0)) or be((300, 7.5e7)))
+        sitePowerManager.dispatchEnergy(300, chargingVehicle, unlimitedBounds) should (be(
+          (1, 250000.0, 250000.0, 1)
+        ) or be((300, 7.5e7, 7.5e7, 756)))
       }
 
     }

@@ -1,6 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 import beam.agentsim.infrastructure.parking._
@@ -12,7 +13,6 @@ import org.matsim.api.core.v01.{Coord, Id}
 import scala.util.Random
 
 case class ParkingStall(
-  geoId: Id[_],
   tazId: Id[TAZ],
   parkingZoneId: Id[ParkingZoneId],
   locationUTM: Location,
@@ -20,21 +20,20 @@ case class ParkingStall(
   chargingPointType: Option[ChargingPointType],
   pricingModel: Option[PricingModel],
   parkingType: ParkingType,
-  reservedFor: Id[VehicleManager]
+  reservedFor: ReservedFor
 )
 
 object ParkingStall {
 
   val CostOfEmergencyStallInDollars: Double = 50.0
 
-  def init[GEO: GeoLevel](
-    parkingZone: ParkingZone[GEO],
+  def init(
+    parkingZone: ParkingZone,
     tazId: Id[TAZ],
     location: Location,
     costInDollars: Double
   ): ParkingStall = {
     ParkingStall(
-      parkingZone.geoId,
       tazId,
       parkingZone.parkingZoneId,
       location,
@@ -52,7 +51,6 @@ object ParkingStall {
     * @return a new parking stall with the default Id[Taz] and parkingZoneId
     */
   def defaultStall(coord: Coord): ParkingStall = ParkingStall(
-    geoId = TAZ.DefaultTAZId,
     tazId = TAZ.DefaultTAZId,
     parkingZoneId = ParkingZone.DefaultParkingZoneId,
     locationUTM = coord,
@@ -60,7 +58,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = None,
     parkingType = ParkingType.Public,
-    reservedFor = ParkingZone.GlobalReservedFor
+    reservedFor = VehicleManager.AnyManager
   )
 
   /**
@@ -74,23 +72,20 @@ object ParkingStall {
   def lastResortStall(
     boundingBox: Envelope,
     random: Random = Random,
-    costInDollars: Double = CostOfEmergencyStallInDollars,
-    tazId: Id[TAZ] = TAZ.EmergencyTAZId,
-    geoId: Id[_]
+    costInDollars: Double = CostOfEmergencyStallInDollars
   ): ParkingStall = {
     val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
     val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
 
     ParkingStall(
-      geoId = geoId,
-      tazId = tazId,
+      tazId = TAZ.EmergencyTAZId,
       parkingZoneId = ParkingZone.DefaultParkingZoneId,
       locationUTM = new Coord(x, y),
       costInDollars = costInDollars,
       chargingPointType = None,
       pricingModel = Some { PricingModel.FlatFee(costInDollars.toInt) },
       parkingType = ParkingType.Public,
-      reservedFor = ParkingZone.GlobalReservedFor
+      reservedFor = VehicleManager.AnyManager
     )
   }
 
@@ -104,11 +99,7 @@ object ParkingStall {
     *
     * @return a stall that is free and located at the person's home.
     */
-  def defaultResidentialStall(
-    locationUTM: Location,
-    defaultGeoId: Id[_]
-  ): ParkingStall = ParkingStall(
-    geoId = defaultGeoId,
+  def defaultResidentialStall(locationUTM: Location): ParkingStall = ParkingStall(
     tazId = TAZ.DefaultTAZId,
     parkingZoneId = ParkingZone.DefaultParkingZoneId,
     locationUTM = locationUTM,
@@ -116,7 +107,7 @@ object ParkingStall {
     chargingPointType = None,
     pricingModel = Some { PricingModel.FlatFee(0) },
     parkingType = ParkingType.Residential,
-    reservedFor = ParkingZone.GlobalReservedFor
+    reservedFor = VehicleManager.AnyManager
   )
 
   /**
@@ -125,12 +116,8 @@ object ParkingStall {
     * @param parkingAlternative Parking Alternative
     * @return
     */
-  def fromParkingAlternative[GEO](tazId: Id[TAZ], parkingAlternative: ParkingAlternative[GEO])(implicit
-    gl: GeoLevel[GEO]
-  ): ParkingStall = {
-    import GeoLevel.ops._
+  def fromParkingAlternative(tazId: Id[TAZ], parkingAlternative: ParkingAlternative): ParkingStall = {
     ParkingStall(
-      parkingAlternative.geo.getId,
       tazId,
       parkingAlternative.parkingZone.parkingZoneId,
       parkingAlternative.coord,

@@ -9,15 +9,17 @@ print("Script started")
 nbFed = 3
 if len(sys.argv) > 1:
     nbFed = int(sys.argv[1])
-brokerSetting = "-f {} --name=BeamHelicsBroker".format(nbFed)
+brokerSetting = "-f {} --name=BeamHelicsBroker --timeout=86400s".format(nbFed)
 print("broker setting: {}".format(brokerSetting))
 broker = h.helicsCreateBroker("zmq", "", brokerSetting)
 isConnected = h.helicsBrokerIsConnected(broker)
 if isConnected == 1:
     print("Broker created and connected")
 second = 0
-while h.helicsBrokerIsConnected(broker) == 1 and second < 8*60*60:
+while h.helicsBrokerIsConnected(broker) == 1:
     time.sleep(1)
     second += 1
+    if second % 3600 == 0:
+        print("{} hours passed".format(second/3600))
 h.helicsCloseLibrary()
 print("Broker disconnected")

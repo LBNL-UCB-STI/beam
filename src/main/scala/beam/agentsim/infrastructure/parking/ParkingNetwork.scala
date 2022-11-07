@@ -6,11 +6,10 @@ import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
-abstract class ParkingNetwork[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId], ParkingZone[GEO]])
-    extends LazyLogging {
+abstract class ParkingNetwork(parkingZones: Map[Id[ParkingZoneId], ParkingZone]) extends LazyLogging {
 
   // Generic
-  protected val searchFunctions: Option[InfrastructureFunctions[_]]
+  protected val searchFunctions: Option[InfrastructureFunctions]
 
   // Core
   protected var totalStallsInUse: Long = 0L
@@ -24,27 +23,26 @@ abstract class ParkingNetwork[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId]
   def processParkingInquiry(
     inquiry: ParkingInquiry,
     parallelizationCounterOption: Option[SimpleCounter] = None
-  ): Option[ParkingInquiryResponse] = {
+  ): ParkingInquiryResponse = {
     logger.debug("Received parking inquiry: {}", inquiry)
-    searchFunctions.map(_.searchForParkingStall(inquiry)).getOrElse(None) map {
-      case ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, _, _, _) =>
-        // reserveStall is false when agent is only seeking pricing information
-        if (inquiry.reserveStall) {
-          logger.debug(
-            s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging"
-            else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
-          )
-          // update the parking stall data
-          val claimed: Boolean = ParkingZone.claimStall(parkingZone)
-          if (claimed) {
-            totalStallsInUse += 1
-            totalStallsAvailable -= 1
-          }
-          if (totalStallsInUse % 1000 == 0)
-            logger.debug("Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
-        }
-        ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId)
+    val ParkingZoneSearch.ParkingZoneSearchResult(parkingStall, parkingZone, _, _, _) =
+      searchFunctions.map(_.searchForParkingStall(inquiry)).get
+    // reserveStall is false when agent is only seeking pricing information
+    if (inquiry.reserveStall) {
+      logger.debug(
+        s"reserving a ${if (parkingStall.chargingPointType.isDefined) "charging"
+        else "non-charging"} stall for agent ${inquiry.requestId} in parkingZone ${parkingZone.parkingZoneId}"
+      )
+      // update the parking stall data
+      val claimed: Boolean = searchFunctions.get.claimStall(parkingZone)
+      if (claimed) {
+        totalStallsInUse += 1
+        totalStallsAvailable -= 1
+      }
+      if (totalStallsInUse % 1000 == 0)
+        logger.debug("Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
     }
+    ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId)
   }
 
   /**
@@ -61,7 +59,7 @@ abstract class ParkingNetwork[GEO: GeoLevel](parkingZones: Map[Id[ParkingZoneId]
       logger.debug("Attempting to release stall in zone {} which is an illegal parking zone id", parkingZoneId)
       false
     } else {
-      val releasedTemp: Boolean = ParkingZone.releaseStall(parkingZones(parkingZoneId))
+      val releasedTemp: Boolean = searchFunctions.get.releaseStall(parkingZones(parkingZoneId))
       if (releasedTemp) {
         totalStallsInUse -= 1
         totalStallsAvailable += 1

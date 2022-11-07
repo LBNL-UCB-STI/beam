@@ -129,7 +129,8 @@ class ODRequester(
           location = actualLegs.last.beamLeg.travelPath.endPoint.loc,
           mode = WALK,
           vehicleTypeId = dummyBodyVehicleType.id
-        )
+        ),
+        trip.router
       )
     } else {
       trip
@@ -226,6 +227,7 @@ class ODRequester(
       modalityStyle = None,
       isMale = true,
       availableModes = Seq(CAR, WALK_TRANSIT, BIKE, DRIVE_TRANSIT),
+      rideHailServiceSubscription = Seq.empty,
       valueOfTime = personVOTT,
       age = None,
       income = Some(dummyHouseholdAttributes.householdIncome)

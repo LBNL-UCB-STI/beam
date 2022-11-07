@@ -3,13 +3,13 @@ package beam.agentsim.agents.ridehail
 import beam.agentsim.agents.MobilityRequest
 import beam.agentsim.agents.ridehail.RideHailMatching._
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import com.github.beam.OrToolsLoader
 import com.google.ortools.linearsolver.{MPSolver, MPVariable}
 import org.jgrapht.graph.DefaultEdge
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.JavaConverters._
-import scala.collection.immutable.List
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
@@ -24,8 +24,9 @@ object AlonsoMoraMatchingWithMIPAssignment {
 class AlonsoMoraMatchingWithMIPAssignment(
   spatialDemand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
+  managerConfig: Managers$Elm,
   beamServices: BeamServices
-) extends RideHailMatching(beamServices) {
+) extends RideHailMatching(beamServices, managerConfig) {
 
   AlonsoMoraMatchingWithMIPAssignment.initialize
 
@@ -57,6 +58,7 @@ class AlonsoMoraMatchingWithMIPAssignment(
               List(r1.pickup, r1.dropoff, r2.pickup, r2.dropoff),
               Integer.MAX_VALUE,
               startPoint,
+              managerConfig,
               beamServices,
               None
             )
@@ -78,6 +80,12 @@ class AlonsoMoraMatchingWithMIPAssignment(
         v,
         spatialDemand.getDisk(center.getX, center.getY, searchRadius).asScala.toList
       )
+
+      // if rh vehicle is not accessible, only allow non-wheelchair customers
+      customers = if (!v.vehicle.beamVehicleType.isWheelchairAccessible) {
+        customers.filterNot(req => req.requireVehicleAccessible)
+      } else customers
+
       // heading same direction
       customers = RideHailMatching.getNearbyRequestsHeadingSameDirection(v, customers, solutionSpaceSizePerVehicle)
 
@@ -92,6 +100,7 @@ class AlonsoMoraMatchingWithMIPAssignment(
               List(r.pickup, r.dropoff),
               v.vehicleRemainingRangeInMeters.toInt,
               v.getRequestWithCurrentVehiclePosition,
+              managerConfig,
               beamServices,
               Some(v.vehicle.beamVehicleType)
             )
@@ -133,7 +142,7 @@ class AlonsoMoraMatchingWithMIPAssignment(
             val temp = t1.requests ++ t2.requests
             val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
             if (!combinations.contains(matchId)) {
-              RideHailMatching.getRideHailTrip(v, temp, beamServices).foreach { t =>
+              RideHailMatching.getRideHailTrip(v, temp, managerConfig, beamServices).foreach { t =>
                 combinations.append(t.matchId)
                 pairRequestsList append t
                 rTvG.addVertex(t)
@@ -159,7 +168,7 @@ class AlonsoMoraMatchingWithMIPAssignment(
               val temp = t1.requests ++ t2.requests
               val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
               if (!combinations.contains(matchId)) {
-                RideHailMatching.getRideHailTrip(v, temp, beamServices).foreach { t =>
+                RideHailMatching.getRideHailTrip(v, temp, managerConfig, beamServices).foreach { t =>
                   combinations.append(t.matchId)
                   kRequestsList.append(t)
                   rTvG.addVertex(t)

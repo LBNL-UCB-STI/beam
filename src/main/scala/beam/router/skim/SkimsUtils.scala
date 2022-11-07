@@ -2,7 +2,6 @@ package beam.router.skim
 
 import java.awt.geom.Ellipse2D
 import java.awt.{BasicStroke, Color}
-
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.BeamRouter.Location
@@ -11,6 +10,8 @@ import beam.router.Modes.BeamMode.{
   BIKE,
   BIKE_TRANSIT,
   CAR,
+  CAR_HOV2,
+  CAR_HOV3,
   CAV,
   DRIVE_TRANSIT,
   RIDE_HAIL,
@@ -20,9 +21,10 @@ import beam.router.Modes.BeamMode.{
   WALK,
   WALK_TRANSIT
 }
-import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import beam.utils.MathUtils.avg
 import beam.utils.{FileUtils, GeoJsonReader, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Geometry
@@ -62,6 +64,8 @@ object SkimsUtils extends LazyLogging {
   val speedMeterPerSec: Map[BeamMode, Double] = Map(
     CAV               -> carSpeedMeterPerSec,
     CAR               -> carSpeedMeterPerSec,
+    CAR_HOV2          -> carSpeedMeterPerSec,
+    CAR_HOV3          -> carSpeedMeterPerSec,
     WALK              -> walkSpeedMeterPerSec,
     BIKE              -> bicycleSpeedMeterPerSec,
     WALK_TRANSIT      -> transitSpeedMeterPerSec,
@@ -104,9 +108,13 @@ object SkimsUtils extends LazyLogging {
   ): Double = {
     mode match {
       case RIDE_HAIL =>
-        beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * distanceInMeters / 1609.34 + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * timeInSeconds / 60 + beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost
+        avg(beamConfig.beam.agentsim.agents.rideHail.managers.map(_.defaultCostPerMile)) * distanceInMeters / 1609.34 +
+          avg(beamConfig.beam.agentsim.agents.rideHail.managers.map(_.defaultCostPerMinute)) * timeInSeconds / 60 +
+          avg(beamConfig.beam.agentsim.agents.rideHail.managers.map(_.defaultBaseCost))
       case RIDE_HAIL_POOLED =>
-        beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMile * distanceInMeters / 1609.34 + beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMinute * timeInSeconds / 60 + beamConfig.beam.agentsim.agents.rideHail.pooledBaseCost
+        avg(beamConfig.beam.agentsim.agents.rideHail.managers.map(_.pooledCostPerMile)) * distanceInMeters / 1609.34 +
+          avg(beamConfig.beam.agentsim.agents.rideHail.managers.map(_.pooledCostPerMinute)) * timeInSeconds / 60 +
+          avg(beamConfig.beam.agentsim.agents.rideHail.managers.map(_.pooledBaseCost))
       case _ =>
         0.0
     }

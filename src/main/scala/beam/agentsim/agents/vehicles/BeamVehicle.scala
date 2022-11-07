@@ -1,17 +1,15 @@
 package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.PersonAgent
 import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
 import beam.agentsim.agents.vehicles.ConsumptionRateFilterStore.{Primary, Secondary}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
-import beam.agentsim.agents.vehicles.VehicleCategory.{Bike, Body, Car, HeavyDutyTruck, LightDutyTruck}
+import beam.agentsim.agents.vehicles.VehicleCategory._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingZone
 import beam.api.agentsim.agents.vehicles.BeamVehicleAfterUseFuelHook
 import beam.router.Modes
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
@@ -48,9 +46,10 @@ class BeamVehicle(
   val id: Id[BeamVehicle],
   val powerTrain: Powertrain,
   val beamVehicleType: BeamVehicleType,
-  val vehicleManagerId: Id[VehicleManager] = ParkingZone.GlobalReservedFor,
+  val vehicleManagerId: AtomicReference[Id[VehicleManager]] = new AtomicReference(VehicleManager.AnyManager.managerId),
   val randomSeed: Int = 0
 ) extends ExponentialLazyLogging {
+
   private val manager: AtomicReference[Option[ActorRef]] = new AtomicReference(None)
   def setManager(value: Option[ActorRef]): Unit = this.manager.set(value)
   def getManager: Option[ActorRef] = this.manager.get
@@ -98,6 +97,9 @@ class BeamVehicle(
   private var chargerConnectedTick: Option[Int] = None
   private var chargerConnectedPrimaryFuel: Option[Double] = None
 
+  private var waitingToChargeInternal: Boolean = false
+  private var waitingToChargeTick: Option[Int] = None
+
   /**
     * Called by the driver.
     */
@@ -144,6 +146,23 @@ class BeamVehicle(
     }
   }
 
+  def waitingToCharge(startTick: Int): Unit = {
+    if (beamVehicleType.primaryFuelType == Electricity || beamVehicleType.secondaryFuelType.contains(Electricity)) {
+      chargerRWLock.write {
+        waitingToChargeInternal = true
+        waitingToChargeTick = Some(startTick)
+        connectedToCharger = false
+        chargerConnectedTick = None
+        chargerConnectedPrimaryFuel = None
+      }
+    } else {
+      logger.warn(
+        "Trying to connect a non BEV/PHEV to a electricity charging station. " +
+        "This will cause an explosion. Ignoring!"
+      )
+    }
+  }
+
   /**
     * @param startTick
     */
@@ -153,10 +172,13 @@ class BeamVehicle(
         connectedToCharger = true
         chargerConnectedTick = Some(startTick)
         chargerConnectedPrimaryFuel = Some(primaryFuelLevelInJoules)
+        waitingToChargeInternal = false
+        waitingToChargeTick = None
       }
     } else
       logger.warn(
-        "Trying to connect a non BEV/PHEV to a electricity charging station. This will cause an explosion. Ignoring!"
+        "Trying to connect a non BEV/PHEV to a electricity charging station. " +
+        "This will cause an explosion. Ignoring!"
       )
   }
 
@@ -165,24 +187,14 @@ class BeamVehicle(
       connectedToCharger = false
       chargerConnectedTick = None
       chargerConnectedPrimaryFuel = None
+      waitingToChargeInternal = false
+      waitingToChargeTick = None
     }
   }
 
   def isConnectedToChargingPoint(): Boolean = {
     chargerRWLock.read {
       connectedToCharger
-    }
-  }
-
-  def getChargerConnectedTick(): Int = {
-    chargerRWLock.read {
-      chargerConnectedTick.getOrElse(0)
-    }
-  }
-
-  def getChargerConnectedPrimaryFuel(): Double = {
-    chargerRWLock.read {
-      chargerConnectedPrimaryFuel.getOrElse(0L)
     }
   }
 
@@ -275,8 +287,6 @@ class BeamVehicle(
       secondaryEnergyConsumed /*, fuelConsumptionData, primaryLoggingData, secondaryLoggingData*/
     )
   }
-
-  def isRidehailVehicle = id.toString.startsWith("rideHailVehicle")
 
   def addFuel(fuelInJoules: Double): Unit = {
     fuelRWLock.write {
@@ -379,19 +389,27 @@ class BeamVehicle(
       case Body =>
         WALK
     }
-    val needsToCalculateCost = beamVehicleType.vehicleCategory == Car || isSharedVehicle
+    val needsToCalculateCost = beamVehicleType.vehicleCategory == Car || beamVehicleType.isSharedVehicle
     StreetVehicle(id, beamVehicleType.id, spaceTime, mode, asDriver = true, needsToCalculateCost = needsToCalculateCost)
   }
 
+  def isRideHail: Boolean = id.toString.startsWith("rideHail")
+
+  def isRideHailCAV: Boolean = isRideHail && isCAV
+
   def isSharedVehicle: Boolean = beamVehicleType.id.toString.startsWith("sharedVehicle")
 
-  def isCAV: Boolean = beamVehicleType.automationLevel >= 4
+  def isCAV: Boolean = beamVehicleType.isConnectedAutomatedVehicle
 
   def isBEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.isEmpty
 
   def isPHEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.contains(Gasoline)
+
+  def isEV: Boolean = isBEV || isPHEV
+
+  def getStateOfCharge: Double = primaryFuelLevelInJoules / beamVehicleType.primaryFuelCapacityInJoule
 
   /**
     * Initialize the vehicle's fuel levels to a given state of charge (between 0.0 and 1.0).
@@ -518,8 +536,26 @@ object BeamVehicle {
                           secondaryLoggingData: IndexedSeq[LoggingData]*/
   )
 
+  val idPrefixSharedTeleportationVehicle = "teleportationSharedVehicle"
+  val idPrefixRideHail = "rideHailVehicle"
+
+  def isRidehailVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
+    vehicleId.toString.startsWith(idPrefixRideHail)
+  }
+
+  def isSharedTeleportationVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
+    vehicleId.toString.startsWith(idPrefixSharedTeleportationVehicle)
+  }
+
   def noSpecialChars(theString: String): String =
-    theString.replaceAll("[\\\\|\\\\^]+", ":")
+    theString
+      .replaceAll("[\\\\|\\\\^]+", ":")
+      .replace("[", "")
+      .replace("]", "")
+      .replace("(", "")
+      .replace(")", "")
+      .replace("/", "")
+      .replace("\\", "")
 
   def createId[A](id: Id[A], prefix: Option[String] = None): Id[BeamVehicle] = {
     createId(id.toString, prefix)
@@ -629,4 +665,5 @@ object BeamVehicle {
       case _ => 1.0
     }
   }
+
 }

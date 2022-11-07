@@ -139,11 +139,11 @@ class RideHailModifyPassengerScheduleManager(
     val timerTrigger = batchDispatchType match {
       case BatchedReservation =>
         BufferedRideHailRequestsTrigger(
-          currentTick + beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds
+          currentTick + rideHailManager.managerConfig.allocationManager.requestBufferTimeoutInSeconds
         )
       case Reposition =>
         RideHailRepositioningTrigger(
-          currentTick + beamConfig.beam.agentsim.agents.rideHail.repositioningManager.timeout
+          currentTick + rideHailManager.managerConfig.repositioningManager.timeout
         )
       case _ =>
         throw new RuntimeException("Should not attempt to send completion when doing single reservations")
@@ -274,7 +274,6 @@ class RideHailModifyPassengerScheduleManager(
                 )
                 rideHailManager.ridehailManagerCustomizationAPI
                   .sendNewPassengerScheduleToVehicleWhenSuccessCaseHook(status.vehicleId, passengerSchedule)
-
             }
           case _ =>
             log.error(
@@ -402,7 +401,15 @@ class RideHailModifyPassengerScheduleManager(
   ): Unit = {
     //    log.debug("sendInterruptMessage:" + passengerScheduleStatus)
     passengerScheduleStatus.rideHailAgent
-      .tell(Interrupt(passengerScheduleStatus.interruptId, passengerScheduleStatus.tick, triggerId), rideHailManagerRef)
+      .tell(
+        Interrupt(
+          passengerScheduleStatus.interruptId,
+          passengerScheduleStatus.tick,
+          triggerId,
+          passengerScheduleStatus.vehicleId
+        ),
+        rideHailManagerRef
+      )
   }
 
   def doesPendingReservationContainPassSchedule(
@@ -417,7 +424,8 @@ class RideHailModifyPassengerScheduleManager(
   }
 
   def isVehicleNeitherRepositioningNorProcessingReservation(vehicleId: Id[Vehicle]): Boolean = {
-    // TODO: FIXME `vehicleIdToModifyPassengerScheduleStatus` is broken, so for now we return `true`, but fixme, please!
+    // TODO: https://github.com/LBNL-UCB-STI/beam/issues/3296
+    log.warning(s"`vehicleIdToModifyPassengerScheduleStatus` is broken and variable vehicleId($vehicleId) is not used")
     // !vehicleIdToModifyPassengerScheduleStatus.contains(vehicleId)
     true
   }

@@ -7,6 +7,9 @@ while [ $# -gt 0 ]; do
     --branch=*)
       beam_branch_name="${1#*=}"
       ;;
+    --data_branch=*)
+      beam_data_branch_name="${1#*=}"
+      ;;
     --revision=*)
       beam_revision="${1#*=}"
       ;;
@@ -39,6 +42,7 @@ while [ $# -gt 0 ]; do
 done
 
 export BEAM_BRANCH_NAME=$beam_branch_name \
+export BEAM_DATA_BRANCH_NAME=$beam_data_branch_name \
 export BEAM_COMMIT_SHA=$beam_revision \
 export BEAM_CONFIG=$beam_config \
 export MAXRAM=$max_ram \

@@ -30,14 +30,16 @@ class AgentsimWithMaximallyBadRouterSpec
 
   def config: com.typesafe.config.Config =
     ConfigFactory
-      .parseString("""akka.test.timefactor = 10
-          |akka.loglevel = off
-        """.stripMargin)
+      .parseString("""
+          akka.test.timefactor = 10
+          akka.loglevel = off
+          beam.agentsim.agents.rideHail.managers = [
+            {
+              repositioningManager.name = "DEFAULT_REPOSITIONING_MANAGER"
+            }
+          ]
+        """)
       .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
-      .withValue(
-        "beam.agentsim.agents.rideHail.repositioningManager.name",
-        ConfigValueFactory.fromAnyRef("DEFAULT_REPOSITIONING_MANAGER")
-      )
 
   def outputDirPath: String = basePath + "/" + testOutputDir + "bad-router-test"
 

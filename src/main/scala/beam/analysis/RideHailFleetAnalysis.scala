@@ -64,7 +64,7 @@ class RideHailFleetAnalysisInternal(
     event match {
       case refuelSessionEvent: RefuelSessionEvent =>
         if (refuelSessionEvent.energyInJoules > 0.0) {
-          val vehicle = refuelSessionEvent.vehId.toString
+          val vehicle = refuelSessionEvent.vehicleId.toString
           if (vehicle.contains("rideHail")) {
             if (rideHailEvCav.contains(vehicle)) {
               collectEvent(
@@ -101,7 +101,7 @@ class RideHailFleetAnalysisInternal(
       case pathTraversalEvent: PathTraversalEvent =>
         if (pathTraversalEvent.mode == BeamMode.CAR) {
           val vehicleTypeId = Id.create(pathTraversalEvent.vehicleType, classOf[BeamVehicleType])
-          val isCAV = vehicleTypes(vehicleTypeId).automationLevel > 3
+          val isCAV = vehicleTypes(vehicleTypeId).isConnectedAutomatedVehicle
           val vehicle = pathTraversalEvent.vehicleId.toString
           val rideHail = vehicle.contains("rideHail")
           val ev = pathTraversalEvent.primaryFuelType == "Electricity"

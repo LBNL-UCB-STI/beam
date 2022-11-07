@@ -22,6 +22,7 @@ import com.typesafe.config.ConfigValueFactory
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.ConfigUtils
+import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.ScenarioUtils
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito._
@@ -56,7 +57,7 @@ class TollRoutingSpec
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
-    networkCoordinator.convertFrequenciesToTrips()
+    networkCoordinator.convertFrequenciesToTrips(networkCoordinator.transportNetwork)
 
     val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
@@ -72,7 +73,8 @@ class TollRoutingSpec
         new GeoUtilsImpl(beamConfig),
         fareCalculator,
         tollCalculator,
-        eventsManager = mock(classOf[EventsManager])
+        eventsManager = mock(classOf[EventsManager]),
+        ioController = mock(classOf[OutputDirectoryHierarchy])
       )
     )
   }
@@ -105,6 +107,7 @@ class TollRoutingSpec
             None,
             true,
             Vector(BeamMode.CAR),
+            Seq.empty,
             valueOfTime = 10000000.0, // I don't mind tolls at all
             None,
             None
@@ -116,7 +119,7 @@ class TollRoutingSpec
       val response = expectMsgType[RoutingResponse]
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
       assert(carOption.costEstimate == 3.0, "contains three toll links: two specified in OSM, and one in CSV file")
-      assert(carOption.totalTravelTimeInSecs == 145)
+      assert(carOption.totalTravelTimeInSecs == 142)
 
       val earlierRequest = request.copy(departureTime = 2000)
       router ! earlierRequest
@@ -138,7 +141,8 @@ class TollRoutingSpec
           new GeoUtilsImpl(beamScenario.beamConfig),
           fareCalculator,
           moreExpensiveTollCalculator,
-          eventsManager = mock(classOf[EventsManager])
+          eventsManager = mock(classOf[EventsManager]),
+          ioController = mock(classOf[OutputDirectoryHierarchy])
         )
       )
       moreExpensiveRouter ! request
@@ -168,6 +172,7 @@ class TollRoutingSpec
             None,
             true,
             Vector(BeamMode.CAR),
+            Seq.empty,
             // If 1$ is worth more than 144 seconds to me, I should be sent on the alternative route
             // (which takes 288 seconds)
             valueOfTime = 3600.0 / 145.0,
@@ -181,7 +186,7 @@ class TollRoutingSpec
       val tollSensitiveResponse = expectMsgType[RoutingResponse]
       val tollSensitiveCarOption = tollSensitiveResponse.itineraries.find(_.tripClassifier == CAR).get
       assert(tollSensitiveCarOption.costEstimate <= 2.0, "if I'm toll sensitive, I don't go over the tolled link")
-      assert(tollSensitiveCarOption.totalTravelTimeInSecs == 289)
+      assert(tollSensitiveCarOption.totalTravelTimeInSecs == 284)
     }
 
     "not report a toll when walking" in {

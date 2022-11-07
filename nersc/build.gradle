@@ -30,7 +30,7 @@ remotes {
 import org.apache.tools.ant.filters.ReplaceTokens
 
 task deployToNersc {
-        def propsFileName = "../gradle.deploy.properties"
+        def propsFileName = "${project.rootDir}/gradle.deploy.properties"
         if (project.hasProperty('propsFile')) {
             propsFileName = project.findProperty('propsFile')
         }
@@ -49,6 +49,7 @@ task deployToNersc {
         def runName = "${ext.getParameterValue('runName')}"
         def git_user_email = "${getCurrentGitUserEmail()}"
         def branch = "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}"
+        def dataBranch = "${ext.getParameterValue('dataBranch') ?: 'develop'}"
         def commit = "${ext.getParameterValue('beamCommit') ?: 'HEAD'}"
         def configs = "${ext.getParameterValue('beamConfigs') ?: ext.getParameterValue(getCurrentGitBranch() + '.configs')}"
         def max_ram = '100g'
@@ -60,7 +61,7 @@ task deployToNersc {
 
     doFirst {
         copy {
-            from('src/main/bash/shifter_job.sh') {
+            from("${project.rootDir}/nersc/src/main/bash/shifter_job.sh") {
                 filter(ReplaceTokens, tokens: ['jobName': runName.toString(), 'userEmail': git_user_email.toString()])
             }
             into "${project.rootDir}/build/generated/scripts"
@@ -68,14 +69,15 @@ task deployToNersc {
     }
 
     doLast {
-
+        println "Using data branch ${dataBranch}"
         ssh.run {
             session(remotes.nerscLoginNode) {
-                put from: 'nersc/src/main/bash/run_beam_on_nersc.sh', into: "run_beam.sh"
+                put from: "${project.rootDir}/nersc/src/main/bash/run_beam_on_nersc.sh", into: "run_beam.sh"
                 put from: "${project.rootDir}/build/generated/scripts/shifter_job.sh", into: "shifter_job.sh"
                 execute "chmod +x run_beam.sh shifter_job.sh"
                 execute "./run_beam.sh \
                             --branch='$branch' \
+                            --data_branch='$dataBranch' \
                             --revision='$commit' \
                             --config='$configs' \
                             --max_ram=$max_ram \

@@ -7,7 +7,7 @@ sealed trait ActivitySimPathType
 
 object ActivitySimPathType {
 
-  private def determineCarPathType(trip: EmbodiedBeamTrip): ActivitySimPathType = {
+  private def determineCarPathType(): ActivitySimPathType = {
     //    HOV2,
     //    HOV3,
     //    SOV,
@@ -89,7 +89,7 @@ object ActivitySimPathType {
       if (uniqueNotWalkingModes.exists(isWalkTransit)) {
         determineDriveTransitPathType(trip)
       } else {
-        determineCarPathType(trip)
+        determineCarPathType()
       }
     } else if (uniqueNotWalkingModes.exists(isWalkTransit)) {
       determineTransitPathType(trip)
@@ -125,6 +125,28 @@ object ActivitySimPathType {
       case WLK_LRF_WLK  => BeamMode.WALK_TRANSIT
       case WLK_TRN_WLK  => BeamMode.WALK_TRANSIT
       case WALK | OTHER => BeamMode.WALK
+    }
+  }
+
+  def toKeyMode(pathType: ActivitySimPathType): Option[BeamMode] = {
+    pathType match {
+      case DRV_COM_WLK => Some(BeamMode.RAIL)
+      case DRV_EXP_WLK => Some(BeamMode.BUS)
+      case DRV_HVY_WLK => Some(BeamMode.SUBWAY)
+      case DRV_LOC_WLK => Some(BeamMode.BUS)
+      case DRV_LRF_WLK => Some(BeamMode.TRAM)
+      case WLK_COM_DRV => Some(BeamMode.RAIL)
+      case WLK_EXP_DRV => Some(BeamMode.BUS)
+      case WLK_HVY_DRV => Some(BeamMode.SUBWAY)
+      case WLK_LOC_DRV => Some(BeamMode.BUS)
+      case WLK_LRF_DRV => Some(BeamMode.TRAM)
+      case WLK_COM_WLK => Some(BeamMode.RAIL)
+      case WLK_EXP_WLK => Some(BeamMode.BUS)
+      case WLK_HVY_WLK => Some(BeamMode.SUBWAY)
+      case WLK_LOC_WLK => Some(BeamMode.BUS)
+      case WLK_LRF_WLK => Some(BeamMode.TRAM)
+      case WLK_TRN_WLK => Some(BeamMode.RAIL)
+      case _           => None
     }
   }
 
@@ -165,9 +187,7 @@ object ActivitySimPathType {
   private def isWalkTransit(beamMode: BeamMode): Boolean = beamMode match {
     case BeamMode.BUS | BeamMode.FERRY | BeamMode.RAIL | BeamMode.SUBWAY | BeamMode.TRAM | BeamMode.CABLE_CAR => true
 
-    case BeamMode.CAR | BeamMode.CAV | BeamMode.RIDE_HAIL | BeamMode.RIDE_HAIL_POOLED                   => false
-    case BeamMode.FUNICULAR | BeamMode.GONDOLA | BeamMode.WALK | BeamMode.BIKE | BeamMode.BIKE_TRANSIT  => false
-    case BeamMode.TRANSIT | BeamMode.WALK_TRANSIT | BeamMode.DRIVE_TRANSIT | BeamMode.RIDE_HAIL_TRANSIT => false
+    case _ => false
   }
 
   private def isCar(beamMode: BeamMode): Boolean = beamMode match {

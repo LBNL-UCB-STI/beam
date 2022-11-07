@@ -21,6 +21,7 @@ import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model._
 import beam.router.skim.core.AbstractSkimmerEvent
+import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -38,6 +39,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.funspec.AnyFunSpecLike
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.Await
 import scala.concurrent.duration._
@@ -67,7 +69,7 @@ class PersonAndTransitDriverSpec
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
-  private var parkingNetwork: ParkingNetwork[_] = _
+  private var parkingNetwork: ParkingNetwork = _
   private var parkingManager: ActorRef = _
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
@@ -123,13 +125,13 @@ class PersonAndTransitDriverSpec
         id = busId,
         powerTrain = new Powertrain(0.0),
         beamVehicleType = vehicleType,
-        vehicleManagerId = VehicleManager.noManager
+        vehicleManagerId = new AtomicReference(VehicleManager.NoManager.managerId)
       )
       val tram = new BeamVehicle(
         id = tramId,
         powerTrain = new Powertrain(0.0),
         beamVehicleType = vehicleType,
-        vehicleManagerId = VehicleManager.noManager
+        vehicleManagerId = new AtomicReference(VehicleManager.NoManager.managerId)
       )
 
       val busLeg = EmbodiedBeamLeg(
@@ -138,8 +140,8 @@ class PersonAndTransitDriverSpec
           mode = BeamMode.BUS,
           duration = 600,
           travelPath = BeamPath(
-            Vector(),
-            Vector(),
+            Array(),
+            Array(),
             None,
             SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
             SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
@@ -158,8 +160,8 @@ class PersonAndTransitDriverSpec
           mode = BeamMode.BUS,
           duration = 600,
           travelPath = BeamPath(
-            Vector(),
-            Vector(),
+            Array(),
+            Array(),
             None,
             SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
@@ -178,8 +180,8 @@ class PersonAndTransitDriverSpec
           mode = BeamMode.BUS,
           duration = 1200,
           travelPath = BeamPath(
-            Vector(),
-            Vector(),
+            Array(),
+            Array(),
             Some(TransitStopsInfo("someAgency", "someRoute", busId, 0, 2)),
             SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
@@ -198,8 +200,8 @@ class PersonAndTransitDriverSpec
           mode = BeamMode.TRAM,
           duration = 600,
           travelPath = BeamPath(
-            linkIds = Vector(),
-            linkTravelTime = Vector(),
+            linkIds = Array(),
+            linkTravelTime = Array(),
             transitStops = None,
             startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
@@ -219,8 +221,8 @@ class PersonAndTransitDriverSpec
           mode = BeamMode.TRAM,
           duration = 600,
           travelPath = BeamPath(
-            linkIds = Vector(),
-            linkTravelTime = Vector(),
+            linkIds = Array(),
+            linkTravelTime = Array(),
             transitStops = Some(TransitStopsInfo("someAgency", "someRoute", tramId, 0, 1)),
             startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
@@ -297,11 +299,11 @@ class PersonAndTransitDriverSpec
           population = population,
           household = household,
           vehicles = Map(),
-          homeCoord = new Coord(0.0, 0.0),
+          fallbackHomeCoord = new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          boundingBox
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -319,8 +321,8 @@ class PersonAndTransitDriverSpec
                   mode = BeamMode.WALK,
                   duration = 500,
                   travelPath = BeamPath(
-                    linkIds = Vector(),
-                    linkTravelTime = Vector(),
+                    linkIds = Array(),
+                    linkTravelTime = Array(),
                     transitStops = None,
                     startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
                     endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 28800),
@@ -341,8 +343,8 @@ class PersonAndTransitDriverSpec
                   mode = BeamMode.WALK,
                   duration = 400,
                   travelPath = BeamPath(
-                    linkIds = Vector(),
-                    linkTravelTime = Vector(),
+                    linkIds = Array(),
+                    linkTravelTime = Array(),
                     transitStops = None,
                     startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
                     endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
@@ -361,7 +363,7 @@ class PersonAndTransitDriverSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        routingRequest.triggerId
+        triggerId = routingRequest.triggerId
       )
 
       personEvents.expectMsgType[ModeChoiceEvent]

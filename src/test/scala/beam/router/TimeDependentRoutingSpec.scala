@@ -61,8 +61,8 @@ class TimeDependentRoutingSpec
         BeamMode.CAR,
         0,
         BeamPath(
-          Vector(143, 60, 58, 62, 80, 74, 68, 154),
-          Vector(),
+          Array(143, 60, 58, 62, 80, 74, 68, 154),
+          Array(),
           None,
           SpaceTime(services.geo.utm2Wgs(origin), 3000),
           SpaceTime(services.geo.utm2Wgs(destination), 3000),
@@ -76,7 +76,7 @@ class TimeDependentRoutingSpec
         triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.head.beamLegs.head.duration == 147)
+      assert(response.itineraries.head.beamLegs.head.duration == 144)
       // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
     }
@@ -87,8 +87,8 @@ class TimeDependentRoutingSpec
         BeamMode.CAR,
         0,
         BeamPath(
-          Vector(143, 60, 58, 62, 80, 74, 68, 154),
-          Vector(),
+          Array(143, 60, 58, 62, 80, 74, 68, 154),
+          Array(),
           None,
           SpaceTime(services.geo.utm2Wgs(origin), 3000),
           SpaceTime(services.geo.utm2Wgs(destination), 3000),
@@ -102,7 +102,7 @@ class TimeDependentRoutingSpec
         triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.head.beamLegs.head.duration == 276)
+      assert(response.itineraries.head.beamLegs.head.duration == 271)
       // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
     }
@@ -113,8 +113,8 @@ class TimeDependentRoutingSpec
         BeamMode.BIKE,
         0,
         BeamPath(
-          Vector(143, 60, 58, 62, 80, 74, 68, 154),
-          Vector(),
+          Array(143, 60, 58, 62, 80, 74, 68, 154),
+          Array(),
           None,
           SpaceTime(services.geo.utm2Wgs(origin), 3000),
           SpaceTime(services.geo.utm2Wgs(destination), 3000),
@@ -128,7 +128,7 @@ class TimeDependentRoutingSpec
         triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
-      assert(response.itineraries.head.beamLegs.head.duration == 567)
+      assert(response.itineraries.head.beamLegs.head.duration == 564)
       // R5 travel time, but less than what's in R5's routing response (see vv),
       // presumably because the first/last edge are not travelled (in R5, trip starts on a "split")
     }
@@ -155,7 +155,7 @@ class TimeDependentRoutingSpec
       val response = expectMsgType[RoutingResponse]
       assert(response.itineraries.exists(_.tripClassifier == CAR))
       val carOption = response.itineraries.find(_.tripClassifier == CAR).get
-      assert(carOption.totalTravelTimeInSecs == 147)
+      assert(carOption.totalTravelTimeInSecs == 144)
 
       router ! UpdateTravelTimeLocal((_: Link, _: Double, _: Person, _: Vehicle) =>
         1000
@@ -216,7 +216,7 @@ class TimeDependentRoutingSpec
       // Then route again.
       // Like a one-person iterated dynamic traffic assignment.
       def estimatedTotalTravelTime = carOption.totalTravelTimeInSecs
-      def longerTravelTimes(enterTime: Int, linkId: Int) = 2000
+      val longerTravelTimes = (_: Int, _: Int) => 2000
       def experiencedTotalTravelTime = (carOption.legs(0).beamLeg.travelPath.linkIds.size - 2) * 2000
       // This ^^ is the travel time which I am now reporting to the TravelTimeCalculator, 2000 per fully-traversed link
 
@@ -261,8 +261,8 @@ class TimeDependentRoutingSpec
         BeamMode.CAR,
         0,
         BeamPath(
-          Vector(1, 2, 3, 4),
-          Vector(1, 1, 1, 1),
+          Array(1, 2, 3, 4),
+          Array(1, 1, 1, 1),
           None,
           SpaceTime(0.0, 0.0, 28800),
           SpaceTime(1.0, 1.0, 28803),

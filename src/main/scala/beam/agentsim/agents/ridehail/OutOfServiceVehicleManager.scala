@@ -41,7 +41,12 @@ class OutOfServiceVehicleManager(
       .getRideHailAgentLocation(vehicleId)
       .rideHailAgent
       .tell(
-        Interrupt(RideHailModifyPassengerScheduleManager.nextRideHailAgentInterruptId, tick, triggerId),
+        Interrupt(
+          RideHailModifyPassengerScheduleManager.nextRideHailAgentInterruptId,
+          tick,
+          triggerId,
+          vehicleId
+        ),
         rideHailManagerActor
       )
   }
@@ -67,18 +72,11 @@ class OutOfServiceVehicleManager(
     rideHailAgent.tell(Resume(triggerId), rideHailManagerActor)
   }
 
-  def releaseTrigger(
-    vehicleId: Id[Vehicle],
-    triggersToSchedule: Seq[ScheduleTrigger] = Vector()
-  ): Unit = {
+  def releaseTrigger(vehicleId: Id[Vehicle], triggersToSchedule: Seq[ScheduleTrigger] = Vector()): Unit = {
     val rideHailAgent = rideHailManager.rideHailManagerHelper
       .getRideHailAgentLocation(vehicleId)
       .rideHailAgent
-
-    rideHailAgent ! NotifyVehicleResourceIdleReply(
-      triggerIds(vehicleId).get,
-      triggersToSchedule
-    )
+    rideHailAgent ! NotifyVehicleResourceIdleReply(triggerIds(vehicleId).get, triggersToSchedule)
   }
 
 }

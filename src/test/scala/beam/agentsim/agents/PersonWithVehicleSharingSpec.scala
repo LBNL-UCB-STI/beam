@@ -26,6 +26,7 @@ import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.skim.core.AbstractSkimmerEvent
+import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
 import com.typesafe.config.{Config, ConfigFactory}
@@ -43,6 +44,7 @@ import org.matsim.households.{Household, HouseholdsFactoryImpl}
 import org.scalatest.funspec.AnyFunSpecLike
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.{mutable, JavaConverters}
 import scala.concurrent.ExecutionContext
 
@@ -137,7 +139,7 @@ class PersonWithVehicleSharingSpec
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
             new RouteHistory(beamConfig),
-            boundingBox
+            VehiclesAdjustment.getVehicleAdjustment(beamScenario)
           )
         )
       )
@@ -150,13 +152,13 @@ class PersonWithVehicleSharingSpec
       mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
-      val managerId = VehicleManager.createOrGetIdUsingUnique("shared-fleet-1", VehicleManager.BEAMShared)
+      val managerId = VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
       // I give it a car to use.
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        vehicleManagerId = managerId
+        vehicleManagerId = new AtomicReference(managerId)
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
 
@@ -179,7 +181,7 @@ class PersonWithVehicleSharingSpec
                 beamLeg = embodyRequest.leg.copy(
                   duration = 500,
                   travelPath = embodyRequest.leg.travelPath.copy(
-                    linkTravelTime = IndexedSeq(0, 500, 0),
+                    linkTravelTime = Array(0, 500, 0),
                     endPoint = embodyRequest.leg.travelPath.endPoint.copy(time = embodyRequest.leg.startTime + 500)
                   )
                 ),
@@ -195,7 +197,7 @@ class PersonWithVehicleSharingSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        embodyRequest.triggerId
+        triggerId = embodyRequest.triggerId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -294,7 +296,7 @@ class PersonWithVehicleSharingSpec
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
             new RouteHistory(beamConfig),
-            boundingBox
+            VehiclesAdjustment.getVehicleAdjustment(beamScenario)
           )
         )
       )
@@ -308,12 +310,12 @@ class PersonWithVehicleSharingSpec
 
       val vehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
       // I give it a car to use.
-      val managerId = VehicleManager.createOrGetIdUsingUnique("shared-fleet-1", VehicleManager.BEAMShared)
+      val managerId = VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
       val vehicle = new BeamVehicle(
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        vehicleManagerId = managerId
+        vehicleManagerId = new AtomicReference(managerId)
       )
       vehicle.setManager(Some(mockSharedVehicleFleet.ref))
 
@@ -338,8 +340,8 @@ class PersonWithVehicleSharingSpec
                   mode = BeamMode.WALK,
                   duration = 50,
                   travelPath = BeamPath(
-                    linkIds = Vector(1, 2),
-                    linkTravelTime = Vector(50, 50),
+                    linkIds = Array(1, 2),
+                    linkTravelTime = Array(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
                     endPoint = SpaceTime(0.01, 0.0, 28850),
@@ -358,8 +360,8 @@ class PersonWithVehicleSharingSpec
                   mode = BeamMode.CAR,
                   duration = 50,
                   travelPath = BeamPath(
-                    linkIds = Vector(3, 4),
-                    linkTravelTime = Vector(50, 50),
+                    linkIds = Array(3, 4),
+                    linkTravelTime = Array(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(-1.4887439, 0.0, 28950),
                     endPoint = SpaceTime(-1.4887438, 0.01, 29000),
@@ -378,7 +380,7 @@ class PersonWithVehicleSharingSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        routingRequest.triggerId
+        triggerId = routingRequest.triggerId
       )
 
       events.expectMsgType[ModeChoiceEvent]
@@ -423,7 +425,7 @@ class PersonWithVehicleSharingSpec
         vehicleId,
         new Powertrain(0.0),
         vehicleType,
-        vehicleManagerId = managerId
+        vehicleManagerId = new AtomicReference(managerId)
       )
       vehicle2.setManager(Some(mockSharedVehicleFleet.ref))
       (parkingManager ? ParkingInquiry.init(
@@ -447,8 +449,8 @@ class PersonWithVehicleSharingSpec
                   mode = BeamMode.CAR,
                   duration = 40,
                   travelPath = BeamPath(
-                    linkIds = Vector(4, 3, 2, 1),
-                    linkTravelTime = Vector(10, 10, 10, 10),
+                    linkIds = Array(4, 3, 2, 1),
+                    linkTravelTime = Array(10, 10, 10, 10),
                     transitStops = None,
                     startPoint = SpaceTime(-1.4887438, 0.0, 61200),
                     endPoint = SpaceTime(-1.4887439, 0.0, 61230),
@@ -467,7 +469,7 @@ class PersonWithVehicleSharingSpec
         requestId = 1,
         request = None,
         isEmbodyWithCurrentTravelTime = false,
-        routingRequest2.triggerId
+        triggerId = routingRequest2.triggerId
       )
       val modeChoiceEvent = events.expectMsgType[ModeChoiceEvent]
       assert(modeChoiceEvent.chosenTrip.tripClassifier == CAR)
@@ -483,7 +485,9 @@ class PersonWithVehicleSharingSpec
         Id.createVehicleId("car-1"),
         new Powertrain(0.0),
         vehicleType,
-        vehicleManagerId = VehicleManager.createOrGetIdUsingUnique("shared-fleet-1", VehicleManager.BEAMShared)
+        vehicleManagerId = new AtomicReference(
+          VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
+        )
       )
       car1.setManager(Some(mockSharedVehicleFleet.ref))
 
@@ -555,7 +559,7 @@ class PersonWithVehicleSharingSpec
           Vector(mockSharedVehicleFleet.ref),
           Set(beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))),
           new RouteHistory(beamConfig),
-          boundingBox
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -579,7 +583,7 @@ class PersonWithVehicleSharingSpec
           beamLeg = leg.copy(
             duration = 500,
             travelPath = leg.travelPath.copy(
-              linkTravelTime = IndexedSeq(0, 500, 0),
+              linkTravelTime = Array(0, 500, 0),
               endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
             )
           ),
@@ -594,7 +598,7 @@ class PersonWithVehicleSharingSpec
           requestId = 1,
           request = None,
           isEmbodyWithCurrentTravelTime = false,
-          triggerId
+          triggerId = triggerId
         )
       }
 
@@ -620,7 +624,7 @@ class PersonWithVehicleSharingSpec
           beamLeg = leg.copy(
             duration = 500,
             travelPath = leg.travelPath.copy(
-              linkTravelTime = IndexedSeq(0, 500, 0),
+              linkTravelTime = Array(0, 500, 0),
               endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
             )
           ),
@@ -635,7 +639,7 @@ class PersonWithVehicleSharingSpec
           requestId = 1,
           request = None,
           isEmbodyWithCurrentTravelTime = false,
-          triggerId
+          triggerId = triggerId
         )
       }
 
@@ -649,7 +653,7 @@ class PersonWithVehicleSharingSpec
 
       person2EntersVehicleEvents.expectNoMessage()
 
-      mockSharedVehicleFleet.expectMsgPF() { case MobilityStatusInquiry(_, SpaceTime(_, 28820), _, triggerId) =>
+      mockSharedVehicleFleet.expectMsgPF() { case MobilityStatusInquiry(_, SpaceTime(_, 28820), _, _, triggerId) =>
         mockSharedVehicleFleet.lastSender ! MobilityStatusResponse(Vector(), triggerId)
       }
 
@@ -661,7 +665,7 @@ class PersonWithVehicleSharingSpec
             28820,
             BeamMode.WALK,
             500,
-            BeamPath(Vector(), Vector(), None, SpaceTime(0, 0, 28820), SpaceTime(0, 0, 28820), 0.0)
+            BeamPath(Array(), Array(), None, SpaceTime(0, 0, 28820), SpaceTime(0, 0, 28820), 0.0)
           ),
           beamVehicleId = body.id,
           beamVehicleTypeId = body.vehicleTypeId,
@@ -674,7 +678,7 @@ class PersonWithVehicleSharingSpec
           requestId = 1,
           request = None,
           isEmbodyWithCurrentTravelTime = false,
-          triggerId
+          triggerId = triggerId
         )
       }
 

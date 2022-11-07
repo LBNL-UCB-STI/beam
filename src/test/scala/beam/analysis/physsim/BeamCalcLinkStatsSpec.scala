@@ -23,7 +23,7 @@ class BeamCalcLinkStatsSpec extends AnyWordSpecLike with Matchers with BeforeAnd
   private val BASE_PATH = new File("").getAbsolutePath
   private val OUTPUT_DIR_PATH = BASE_PATH + "/" + testOutputDir + "linkstats-test"
   private val EVENTS_FILE_PATH = BASE_PATH + "/test/input/beamville/test-data/linkStatsTest.events.xml"
-  private val NETWORK_FILE_PATH = BASE_PATH + "/test/input/beamville/physsim-network.xml"
+  private val NETWORK_FILE_PATH = BASE_PATH + "/test/input/beamville/r5/physsim-network.xml"
 
   private var beamCalcLinkStats: BeamCalcLinkStats = _
 
@@ -55,7 +55,7 @@ class BeamCalcLinkStatsSpec extends AnyWordSpecLike with Matchers with BeforeAnd
 
     beamCalcLinkStats = new BeamCalcLinkStats(network, ttccg)
     beamCalcLinkStats.reset()
-    val volumes = new VolumesAnalyzerFixed(3600, ttccg.getMaxTime() - 1, network)
+    val volumes = new VolumesAnalyzerFixed(3600, ttccg.getMaxTime() - 1, network, null)
     events.addHandler(volumes)
 
     val reader = new MatsimEventsReader(events)

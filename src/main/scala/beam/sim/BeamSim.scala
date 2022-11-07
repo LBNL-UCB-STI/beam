@@ -1,9 +1,5 @@
 package beam.sim
 
-import java.io.{BufferedWriter, File, FileWriter}
-import java.nio.file.{Files, Path, Paths}
-import java.util.Collections
-import java.util.concurrent.TimeUnit
 import akka.actor.{ActorSystem, Identify}
 import akka.pattern.ask
 import akka.util.Timeout
@@ -21,9 +17,9 @@ import beam.analysis.cartraveltime.{
 import beam.analysis.plots.modality.ModalityStyleStats
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.analysis.via.ExpectedMaxUtilityHeatMap
+import beam.physsim.PickUpDropOffCollector
 import beam.physsim.jdeqsim.AgentSimToPhysSimPlanConverter
-import beam.router.BeamRouter.ODSkimmerReady
-import beam.router.BeamRouter.UpdateTravelTimeLocal
+import beam.router.BeamRouter.{ODSkimmerReady, UpdateTravelTimeLocal}
 import beam.router.Modes.BeamMode
 import beam.router.osm.TollCalculator
 import beam.router.r5.RouteDumper
@@ -31,23 +27,13 @@ import beam.router.skim.urbansim.{BackgroundSkimsCreator, GeoClustering, H3Clust
 import beam.router.{BeamRouter, FreeFlowTravelTime, RouteHistory}
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
-import beam.utils.watcher.MethodWatcher
-import org.matsim.core.router.util.TravelTime
-
-import scala.util.Try
-import scala.concurrent.duration._
-
-import scala.util.control.NonFatal
 import beam.utils.csv.writers._
 import beam.utils.logging.ExponentialLazyLogging
-import beam.utils.scripts.FailFast
-import beam.utils.{DebugLib, NetworkHelper, ProfilingUtils, SummaryVehicleStatsParser}
+import beam.utils.watcher.MethodWatcher
+import beam.utils._
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.core.events.handler.BasicEventHandler
-import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
-import beam.analysis.PythonProcess
 import org.apache.commons.lang3.StringUtils
 import org.jfree.data.category.DefaultCategoryDataset
 import org.matsim.api.core.v01.Scenario
@@ -61,13 +47,22 @@ import org.matsim.core.controler.listener.{
   ShutdownListener,
   StartupListener
 }
+import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.core.router.util.TravelTime
+import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
 
+import java.io.{BufferedWriter, File, FileWriter}
+import java.nio.file.{Files, Path, Paths}
+import java.util.Collections
+import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ListBuffer
 import scala.collection.{immutable, mutable}
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.Duration
+import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, Future}
+import scala.util.Try
+import scala.util.control.NonFatal
 
 class BeamSim @Inject() (
   private val actorSystem: ActorSystem,
@@ -151,16 +146,22 @@ class BeamSim @Inject() (
     List(Some(normalCarTravelTime), studyAreCarTravelTime).flatten
   }
 
-  val travelTimeGoogleStatistic: TravelTimeGoogleStatistic =
-    new TravelTimeGoogleStatistic(
-      beamServices.beamConfig.beam.calibration.google.travelTimes,
-      actorSystem,
-      beamServices.geo
-    )
+  val travelTimeGoogleStatistic: TravelTimeGoogleStatistic = TravelTimeGoogleStatistic.getTravelTimeGoogleStatistic(
+    beamServices.beamConfig.beam.calibration.google.travelTimes,
+    actorSystem,
+    beamServices.geo
+  )
 
   val vmInformationWriter: VMInformationCollector = new VMInformationCollector(
     beamServices.matsimServices.getControlerIO
   )
+
+  val maybePickUpDropOffCollector =
+    if (beamServices.beamConfig.beam.physsim.pickUpDropOffAnalysis.enabled) {
+      Some(new PickUpDropOffCollector(beamServices.beamScenario.vehicleTypes))
+    } else {
+      None
+    }
 
   var maybeConsecutivePopulationLoader: Option[ConsecutivePopulationLoader] = None
 
@@ -195,6 +196,8 @@ class BeamSim @Inject() (
       eventsManager.addHandler(transitOccupancyByStop)
       eventsManager.addHandler(modeChoiceAlternativesCollector)
       eventsManager.addHandler(rideHailUtilizationCollector)
+      eventsManager.addHandler(travelTimeGoogleStatistic)
+      maybePickUpDropOffCollector.foreach(eventsManager.addHandler(_))
       carTravelTimeFromPtes.foreach(eventsManager.addHandler)
     }
 
@@ -211,7 +214,8 @@ class BeamSim @Inject() (
         beamServices.geo,
         beamServices.fareCalculator,
         tollCalculator,
-        eventsManager
+        eventsManager,
+        event.getServices.getControlerIO
       ),
       "router"
     )
@@ -232,7 +236,8 @@ class BeamSim @Inject() (
         event.getServices.getControlerIO,
         scenario,
         beamServices,
-        beamConfigChangesObservable
+        beamConfigChangesObservable,
+        maybePickUpDropOffCollector
       )
       iterationStatsProviders += agentSimToPhysSimPlanConverter
     }
@@ -330,6 +335,14 @@ class BeamSim @Inject() (
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    beamServices.skims.parking_skimmer.resetSkimStats()
+    beamServices.skims.od_skimmer.resetSkimStats()
+    beamServices.skims.rh_skimmer.resetSkimStats()
+    beamServices.skims.freight_skimmer.resetSkimStats()
+    beamServices.skims.taz_skimmer.resetSkimStats()
+    beamServices.skims.dt_skimmer.resetSkimStats()
+    beamServices.skims.tc_skimmer.resetSkimStats()
+
     backgroundSkimsCreator.foreach(_.reduceParallelismTo(1))
     beamServices.eventBuilderActor = actorSystem.actorOf(
       EventBuilderActor.props(
@@ -346,7 +359,7 @@ class BeamSim @Inject() (
 
     beamServices.beamRouter ! BeamRouter.IterationStartsMessage(event.getIteration)
 
-    beamConfigChangesObservable.notifyChangeToSubscribers()
+    beamConfigChangesObservable.updateBeamConfigAndNotifyChangeToSubscribers()
 
     if (beamServices.beamConfig.beam.debug.writeModeChoiceAlternatives) {
       modeChoiceAlternativesCollector.notifyIterationStarts(event)
@@ -362,11 +375,16 @@ class BeamSim @Inject() (
     )
 
     ExponentialLazyLogging.reset()
-    beamServices.beamScenario.privateVehicles.values.foreach(
-      _.initializeFuelLevelsFromUniformDistribution(
-        beamServices.beamConfig.beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC
-      )
-    )
+    beamServices.beamScenario.privateVehicles.values.foreach { vehicle =>
+      beamServices.beamScenario.privateVehicleInitialSoc.get(vehicle.id) match {
+        case Some(initialSoc) =>
+          vehicle.initializeFuelLevels(initialSoc)
+        case None =>
+          vehicle.initializeFuelLevelsFromUniformDistribution(
+            beamServices.beamConfig.beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC
+          )
+      }
+    }
 
     val iterationNumber = event.getIteration
 
@@ -374,6 +392,8 @@ class BeamSim @Inject() (
     if (isFirstIteration(iterationNumber)) {
       PlansCsvWriter.toCsv(scenario, controllerIO.getOutputFilename("plans.csv.gz"))
     }
+
+    maybePickUpDropOffCollector.foreach(_.notifyIterationStarts(event))
 
     if (COLLECT_AND_CREATE_BEAM_ANALYSIS_AND_GRAPHS) {
       rideHailUtilizationCollector.reset(event.getIteration)
@@ -386,8 +406,7 @@ class BeamSim @Inject() (
 
   }
 
-  private def shouldWritePlansAtCurrentIteration(iterationNumber: Int): Boolean = {
-    val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
+  private def shouldWritePlansAtCurrentIteration(beamConfig: BeamConfig, iterationNumber: Int): Boolean = {
     val interval = beamConfig.beam.outputs.writePlansInterval
     interval > 0 && iterationNumber % interval == 0
   }
@@ -395,9 +414,10 @@ class BeamSim @Inject() (
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     backgroundSkimsCreator.foreach(_.increaseParallelismTo(Runtime.getRuntime.availableProcessors() - 1))
 
-    val beamConfig: BeamConfig = beamConfigChangesObservable.getUpdatedBeamConfig
+    beamConfigChangesObservable.updateBeamConfigAndNotifyChangeToSubscribers()
+    val beamConfig: BeamConfig = beamConfigChangesObservable.lastBeamConfig
 
-    if (shouldWritePlansAtCurrentIteration(event.getIteration)) {
+    if (shouldWritePlansAtCurrentIteration(beamConfig, event.getIteration)) {
       PlansCsvWriter.toCsv(
         scenario,
         beamServices.matsimServices.getControlerIO.getIterationFilename(event.getIteration, "plans.csv.gz")
@@ -413,6 +433,8 @@ class BeamSim @Inject() (
       transitOccupancyByStop.notifyIterationEnds(event)
     }
 
+    beamScenario.tazTreeMap.notifyIterationEnds(event)
+
     travelTimeGoogleStatistic.notifyIterationEnds(event)
     startAndEndEventListeners.foreach(_.notifyIterationEnds(event))
 
@@ -421,6 +443,7 @@ class BeamSim @Inject() (
     }
 
     maybeRealizedModeChoiceWriter.foreach(_.notifyIterationEnds(event))
+    val routerFinished = beamServices.beamRouter ? BeamRouter.IterationEndsMessage(event.getIteration)
 
     val outputGraphsFuture = Future {
       if (COLLECT_AND_CREATE_BEAM_ANALYSIS_AND_GRAPHS) {
@@ -471,17 +494,22 @@ class BeamSim @Inject() (
         }
       }
     }
+    val outputVehicles = Future {
+      VehiclesCsvWriter(beamServices).toCsv(
+        scenario,
+        event.getServices.getControlerIO.getIterationFilename(event.getIteration, "final_vehicles.csv.gz")
+      )
+    }
 
-    if (beamConfig.beam.physsim.skipPhysSim) {
-      Await.result(Future.sequence(List(outputGraphsFuture)), Duration.Inf)
-    } else {
-      val physsimFuture = Future {
+    val physsimFuture = Future {
+      if (!beamConfig.beam.physsim.skipPhysSim) {
         agentSimToPhysSimPlanConverter.startPhysSim(event, initialTravelTime.orNull)
       }
-
-      // executing code blocks parallel
-      Await.result(Future.sequence(List(outputGraphsFuture, physsimFuture)), Duration.Inf)
     }
+    val futuresToWait = List(outputGraphsFuture, routerFinished, outputVehicles, physsimFuture)
+
+    // executing code blocks parallel
+    Await.result(Future.sequence(futuresToWait), Duration.Inf)
 
     if (beamConfig.beam.debug.debugEnabled)
       logger.info(DebugLib.getMemoryLogMessage("notifyIterationEnds.end (after GC): "))
@@ -519,6 +547,17 @@ class BeamSim @Inject() (
     if (beamConfig.beam.debug.vmInformation.createGCClassHistogram) {
       vmInformationWriter.notifyIterationEnds(event)
     }
+
+    beamServices.skims.parking_skimmer.displaySkimStats()
+    beamServices.skims.od_skimmer.displaySkimStats()
+    beamServices.skims.rh_skimmer.displaySkimStats()
+    beamServices.skims.freight_skimmer.displaySkimStats()
+    beamServices.skims.taz_skimmer.displaySkimStats()
+    beamServices.skims.dt_skimmer.displaySkimStats()
+    beamServices.skims.tc_skimmer.displaySkimStats()
+
+    if (beamConfig.beam.agentsim.agents.vehicles.linkSocAcrossIterations)
+      beamServices.beamScenario.setInitialSocOfPrivateVehiclesFromCurrentStateOfVehicles()
 
     // Clear the state of private vehicles because they are shared across iterations
     beamServices.beamScenario.privateVehicles.values.foreach(_.resetState())
@@ -610,8 +649,6 @@ class BeamSim @Inject() (
 
     deleteMATSimOutputFiles(event.getServices.getIterationNumber)
 
-    BeamConfigChangesObservable.clear()
-
     runningPythonScripts
       .filter(process => process.isRunning)
       .foreach(process => {
@@ -621,7 +658,6 @@ class BeamSim @Inject() (
       })
 
     beamServices.simMetricCollector.close()
-
   }
 
   def deleteMATSimOutputFiles(lastIterationNumber: Int): Unit = {

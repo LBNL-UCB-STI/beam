@@ -17,15 +17,20 @@ case class RideHailRequest(
   departAt: Int,
   destinationUTM: Location,
   asPooled: Boolean = false,
+  withWheelchair: Boolean = false,
   groupedWithOtherRequests: List[RideHailRequest] = List(),
   requestId: Int = RideHailRequestIdGenerator.nextId,
   requestTime: Option[Int] = None,
   quotedWaitTime: Option[Int] = None,
+  rideHailServiceSubscription: Seq[String],
+  requester: ActorRef,
   triggerId: Long
 ) extends HasTriggerId {
+  def shouldReserveRide: Boolean = requestType == ReserveRide
 
   def addSubRequest(subRequest: RideHailRequest): RideHailRequest =
     this.copy(requestId = this.requestId, groupedWithOtherRequests = this.groupedWithOtherRequests :+ subRequest)
+  def thisRequestWithGroupedRequests: List[RideHailRequest] = this :: groupedWithOtherRequests
   override def equals(that: Any): Boolean = this.requestId == that.asInstanceOf[RideHailRequest].requestId
   override def hashCode: Int = requestId
 
@@ -43,6 +48,8 @@ object RideHailRequest {
       customerRequest.pickup.activity.getEndTime.toInt,
       customerRequest.dropoff.activity.getCoord,
       asPooled,
+      requester = customerRequest.person.personRef,
+      rideHailServiceSubscription = Seq.empty,
       triggerId = customerRequest.triggerId
     )
   }
@@ -53,6 +60,8 @@ object RideHailRequest {
     new Coord(Double.NaN, Double.NaN),
     Int.MaxValue,
     new Coord(Double.NaN, Double.NaN),
+    requester = ActorRef.noSender,
+    rideHailServiceSubscription = Seq.empty,
     triggerId = -1
   )
 
@@ -62,16 +71,19 @@ object RideHailRequest {
     * @param beamServices an instance of beam services
     */
   def projectCoordinatesToUtm(request: RideHailRequest, beamServices: BeamServices): RideHailRequest = {
+    val linkRadiusMeters = beamServices.beamConfig.beam.routing.r5.linkRadiusMeters
     val pickUpLocUpdatedUTM = beamServices.geo.wgs2Utm(
       beamServices.geo.snapToR5Edge(
         beamServices.beamScenario.transportNetwork.streetLayer,
-        beamServices.geo.utm2Wgs(request.pickUpLocationUTM)
+        beamServices.geo.utm2Wgs(request.pickUpLocationUTM),
+        linkRadiusMeters
       )
     )
     val destLocUpdatedUTM = beamServices.geo.wgs2Utm(
       beamServices.geo.snapToR5Edge(
         beamServices.beamScenario.transportNetwork.streetLayer,
-        beamServices.geo.utm2Wgs(request.destinationUTM)
+        beamServices.geo.utm2Wgs(request.destinationUTM),
+        linkRadiusMeters
       )
     )
     request.copy(destinationUTM = destLocUpdatedUTM, pickUpLocationUTM = pickUpLocUpdatedUTM)

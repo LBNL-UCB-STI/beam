@@ -1,6 +1,7 @@
 package beam.analysis.physsim;
 
 import beam.sim.BeamConfigChangesObservable;
+import beam.sim.BeamHelper;
 import beam.sim.config.BeamConfig;
 import beam.utils.TestConfigUtils;
 import com.typesafe.config.ConfigValueFactory;
@@ -17,6 +18,7 @@ import org.matsim.core.events.MatsimEventsReader;
 import org.matsim.core.network.io.MatsimNetworkReader;
 import org.matsim.core.scenario.ScenarioUtils;
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator;
+import scala.Option;
 
 import java.nio.file.Paths;
 import java.util.List;
@@ -45,8 +47,13 @@ public class PhyssimCalcLinkStatsTest {
         EventsManager eventsManager = EventsUtils.createEventsManager();
         eventsManager.addHandler(travelTimeCalculator);
 
-        BeamConfig beamConfig = BeamConfig.apply(TestConfigUtils.testConfig("test/input/equil-square/equil-0.001k.conf").resolve().withValue("beam.physsim.quick_fix_minCarSpeedInMetersPerSecond", ConfigValueFactory.fromAnyRef(0.0)));
-        physsimCalcLinkStats = new PhyssimCalcLinkStats(network, null,  beamConfig, defaultTravelTimeCalculator, new BeamConfigChangesObservable(beamConfig) );
+        com.typesafe.config.Config cfg = BeamHelper.updateConfigToCurrentVersion(
+                TestConfigUtils.testConfig("test/input/equil-square/equil-0.001k.conf")
+                        .resolve()
+                        .withValue("beam.physsim.quick_fix_minCarSpeedInMetersPerSecond", ConfigValueFactory.fromAnyRef(0.0))
+        );
+        BeamConfig beamConfig = BeamConfig.apply(cfg);
+        physsimCalcLinkStats = new PhyssimCalcLinkStats(network, null, beamConfig, defaultTravelTimeCalculator, new BeamConfigChangesObservable(beamConfig, Option.empty()), null);
 
         //physsimCalcLinkStats = new PhyssimCalcLinkStats(network, null, null);
 

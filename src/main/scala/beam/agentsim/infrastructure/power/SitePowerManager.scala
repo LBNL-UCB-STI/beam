@@ -1,29 +1,23 @@
 package beam.agentsim.infrastructure.power
 
-import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleManager}
-import beam.agentsim.infrastructure.ChargingNetwork
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingVehicle}
+import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.power.PowerController._
 import beam.router.skim.event
 import beam.sim.BeamServices
-import cats.Eval
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.api.core.v01.Coord
 
 import scala.collection.mutable
 
 class SitePowerManager(
-  chargingNetworkMap: Map[Id[VehicleManager], ChargingNetwork[_]],
+  chargingNetworkHelper: ChargingNetworkHelper,
+  unlimitedPhysicalBounds: Map[ChargingStation, PhysicalBounds],
   beamServices: BeamServices
 ) extends LazyLogging {
-  import SitePowerManager._
 
   private val cnmConfig = beamServices.beamConfig.beam.agentsim.chargingNetworkManager
-  private lazy val allChargingStations = chargingNetworkMap.flatMap(_._2.chargingStations).toList.distinct
-
-  private[infrastructure] val unlimitedPhysicalBounds = getUnlimitedPhysicalBounds(
-    chargingNetworkMap.flatMap(_._2.chargingStations).toSeq
-  ).value
   private val temporaryLoadEstimate = mutable.HashMap.empty[ChargingStation, Double]
 
   /**
@@ -32,13 +26,14 @@ class SitePowerManager(
     * @param tick current time
     * @return power (in Kilo Watt) over planning horizon
     */
-  def requiredPowerInKWOverNextPlanningHorizon(tick: Int): Map[ChargingStation, PowerInKW] = {
-    val plans = allChargingStations.par
+  def requiredPowerInKWOverNextPlanningHorizon(tick: Int): Seq[(ChargingStation, PowerInKW)] = {
+    val plans = chargingNetworkHelper.allChargingStations.par
       .map(station => station -> temporaryLoadEstimate.getOrElse(station, 0.0))
       .seq
-      .toMap
     temporaryLoadEstimate.clear()
-    if (plans.isEmpty) logger.debug(s"Charging Replan did not produce allocations")
+    if (plans.isEmpty) {
+      logger.debug(s"Charging Replan did not produce allocations on tick: [$tick]")
+    }
     plans
   }
 
@@ -51,8 +46,8 @@ class SitePowerManager(
     timeInterval: Int,
     chargingVehicle: ChargingVehicle,
     physicalBounds: Map[ChargingStation, PhysicalBounds]
-  ): (ChargingDurationInSec, EnergyInJoules) = {
-    val ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _, _) = chargingVehicle
+  ): (ChargingDurationInSec, EnergyInJoules, EnergyInJoules, ChargingDurationInSec) = {
+    val ChargingVehicle(vehicle, _, station, _, _, _, _, _, _, _, _, _, _) = chargingVehicle
     // dispatch
     val maxZoneLoad = physicalBounds(station).powerLimitUpper
     val maxUnlimitedZoneLoad = unlimitedPhysicalBounds(station).powerLimitUpper
@@ -64,80 +59,54 @@ class SitePowerManager(
       stateOfChargeLimit = None,
       chargingPowerLimit = Some(chargingPowerLimit)
     )
+    val (_, energyToChargeIfUnconstrained) = vehicle.refuelingSessionDurationAndEnergyInJoules(
+      sessionDurationLimit = Some(timeInterval),
+      stateOfChargeLimit = None,
+      chargingPowerLimit = None
+    )
+    val (remainingChargingDuration, _) = vehicle.refuelingSessionDurationAndEnergyInJoules(
+      sessionDurationLimit = None,
+      stateOfChargeLimit = None,
+      chargingPowerLimit = Some(chargingPowerLimit)
+    )
     if ((chargingDuration > 0 && energyToCharge == 0) || chargingDuration == 0 && energyToCharge > 0) {
       logger.debug(
-        s"chargingDuration is $chargingDuration while energyToCharge is $energyToCharge. Something is broken or due to physical bounds!!"
+        s"chargingDuration is $chargingDuration while energyToCharge is $energyToCharge. " +
+        s"Something is broken or due to physical bounds!!"
       )
     }
-    (chargingDuration, energyToCharge)
+    (chargingDuration, energyToCharge, energyToChargeIfUnconstrained, remainingChargingDuration)
   }
 
   /**
     * Collect rough power demand per vehicle
     * @param time start time of charging cycle
     * @param duration duration of charging cycle
-    * @param vehicle vehicle charging
+    * @param energyToChargeIfUnconstrained the energy to charge
     * @param station the station where vehicle is charging
     */
   def collectObservedLoadInKW(
     time: Int,
     duration: Int,
-    vehicle: BeamVehicle,
+    energyToChargeIfUnconstrained: Double,
     station: ChargingStation
   ): Unit = {
-    // Collect data on load demand
-    val (chargingDuration, requiredEnergy) = vehicle.refuelingSessionDurationAndEnergyInJoules(
-      sessionDurationLimit = Some(duration),
-      stateOfChargeLimit = None,
-      chargingPowerLimit = None
-    )
-    val requiredLoad = if (chargingDuration == 0) 0.0 else (requiredEnergy / 3.6e+6) / (chargingDuration / 3600.0)
+    val requiredLoad = if (duration == 0) 0.0 else (energyToChargeIfUnconstrained / 3.6e+6) / (duration / 3600.0)
+    // Keep track of previous time bin load
     temporaryLoadEstimate.synchronized {
       val requiredLoadAcc = temporaryLoadEstimate.getOrElse(station, 0.0) + requiredLoad
       temporaryLoadEstimate.put(station, requiredLoadAcc)
     }
-    val timeBin = cnmConfig.timeStepInSeconds * (time / cnmConfig.timeStepInSeconds)
     beamServices.matsimServices.getEvents.processEvent(
       event.TAZSkimmerEvent(
-        timeBin,
+        cnmConfig.timeStepInSeconds * (time / cnmConfig.timeStepInSeconds),
         new Coord(0, 0),
         station.zone.parkingZoneId.toString,
         requiredLoad,
         beamServices,
         "CNM",
-        geoIdMaybe = Some(station.zone.geoId.toString)
+        geoIdMaybe = Some(station.zone.tazId.toString)
       )
     )
-  }
-}
-
-object SitePowerManager {
-  type PowerInKW = Double
-  type EnergyInJoules = Double
-  type ChargingDurationInSec = Int
-
-  case class PhysicalBounds(
-    station: ChargingStation,
-    powerLimitUpper: PowerInKW,
-    powerLimitLower: PowerInKW,
-    lpmWithControlSignal: Double
-  )
-
-  /**
-    * create unlimited physical bounds
-    * @param stations sequence of stations for which to produce physical bounds
-    * @return map of physical bounds
-    */
-  def getUnlimitedPhysicalBounds(stations: Seq[ChargingStation]): Eval[Map[ChargingStation, PhysicalBounds]] = {
-    Eval.later {
-      stations.map { case station @ ChargingStation(zone) =>
-        station -> PhysicalBounds(
-          station,
-          ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType.get) * zone.maxStalls,
-          ChargingPointType.getChargingPointInstalledPowerInKw(zone.chargingPointType.get) * zone.maxStalls,
-          0.0
-        )
-      }.toMap
-    }
   }
 }

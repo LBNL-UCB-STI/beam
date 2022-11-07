@@ -25,6 +25,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.geometry.CoordUtils
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.{ExecutionContext, Future}
@@ -56,7 +57,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
       Id.createVehicleId(self.path.name + "-" + ix),
       new Powertrain(0.0),
       vehicleType,
-      vehicleManagerId = vehicleManagerId,
+      vehicleManagerId = new AtomicReference(vehicleManagerId),
       rand.nextInt()
     )
     vehicle.setManager(Some(self))
@@ -76,10 +77,14 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
           veh.setManager(Some(self))
           val infrastructureManager = if (veh.isBEV || veh.isPHEV) chargingNetworkManager else parkingNetworkManager
           infrastructureManager ? ParkingInquiry
-            .init(veh.spaceTime, "wherever", vehicleManagerId, triggerId = triggerId) flatMap {
-            case ParkingInquiryResponse(stall, _, triggerId) =>
-              veh.useParkingStall(stall)
-              self ? ReleaseVehicleAndReply(veh, None, triggerId)
+            .init(
+              veh.spaceTime,
+              "wherever",
+              VehicleManager.getReservedFor(vehicleManagerId).get,
+              triggerId = triggerId
+            ) flatMap { case ParkingInquiryResponse(stall, _, triggerId) =>
+            veh.useParkingStall(stall)
+            self ? ReleaseVehicleAndReply(veh, None, triggerId)
           }
         })
         .map(_ => CompletionNotice(triggerId, Vector()))
@@ -87,7 +92,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
 
     case GetVehicleTypes(triggerId) =>
       sender() ! VehicleTypesResponse(vehicles.values.map(_.beamVehicleType).toSet, triggerId)
-    case MobilityStatusInquiry(_, whenWhere, _, triggerId) =>
+    case MobilityStatusInquiry(_, whenWhere, _, _, triggerId) =>
       // Search box: maxWalkingDistance meters around query location
       val boundingBox = new Envelope(new Coordinate(whenWhere.loc.getX, whenWhere.loc.getY))
       boundingBox.expandBy(maxWalkingDistance)
@@ -112,7 +117,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
           who ! NotAvailable(triggerId)
       }
 
-    case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
+    case NotifyVehicleIdle(vId, _, whenWhere, _, _, _, _) =>
       makeTeleport(vId.asInstanceOf[Id[BeamVehicle]], whenWhere)
 
     case ReleaseVehicle(vehicle, _) =>
