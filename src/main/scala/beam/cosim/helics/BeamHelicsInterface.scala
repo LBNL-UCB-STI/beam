@@ -92,9 +92,6 @@ object BeamHelicsInterface {
     )
   }
 
-  @SuppressWarnings(Array("unused"))
-  case class BeamFederateTrigger(tick: Int) extends Trigger
-
   implicit object AnyJsonFormat extends JsonFormat[Any] {
 
     def write(x: Any): JsValue = x match {
@@ -158,22 +155,18 @@ object BeamHelicsInterface {
 
   def enterExecutionMode(timeout: Duration, federates: BeamFederate*): Unit = {
     import java.util.concurrent.{SynchronousQueue, ThreadPoolExecutor, TimeUnit}
-    if (federates.size == 1) {
-      federates.foreach(federate => helics.helicsFederateEnterExecutingMode(federate.fedComb))
-    } else {
-      FileUtils.using(
-        new ThreadPoolExecutor(federates.size, federates.size, 0, TimeUnit.SECONDS, new SynchronousQueue[Runnable])
-      )(
-        _.shutdown()
-      ) { executorService =>
-        implicit val ec: ExecutionContextExecutorService = ExecutionContext.fromExecutorService(executorService)
-        val futureResults = federates.map { beamFederate =>
-          Future {
-            blocking(helics.helicsFederateEnterExecutingMode(beamFederate.fedComb))
-          }
+    FileUtils.using(
+      new ThreadPoolExecutor(federates.size, federates.size * 2, 0, TimeUnit.SECONDS, new SynchronousQueue[Runnable])
+    )(
+      _.shutdown()
+    ) { executorService =>
+      implicit val ec: ExecutionContextExecutorService = ExecutionContext.fromExecutorService(executorService)
+      val futureResults = federates.map { beamFederate =>
+        Future {
+          blocking(helics.helicsFederateEnterExecutingMode(beamFederate.fedComb))
         }
-        Await.result(Future.sequence(futureResults), timeout)
       }
+      Await.result(Future.sequence(futureResults), timeout)
     }
   }
 

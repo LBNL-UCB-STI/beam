@@ -211,7 +211,7 @@ class ChargingNetworkManager(
                 val unplugTime = currentTimeBin(tick)
                 val index = sessions.indexWhere(x => currentTimeBin(x.startTime) == unplugTime && x.startTime <= tick)
                 val (startTime, endTime) = if (index == -1) (unplugTime, tick) else (sessions(index).startTime, tick)
-                dispatchEnergyAndProcessChargingCycle(chargingVehicle, startTime, endTime, true)
+                dispatchEnergyAndProcessChargingCycle(chargingVehicle, startTime, endTime, interruptCharging = true)
                 handleEndCharging(endTime, chargingVehicle)
               }
               chargingNetwork
