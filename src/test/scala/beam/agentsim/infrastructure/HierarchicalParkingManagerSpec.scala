@@ -199,9 +199,9 @@ class HierarchicalParkingManagerSpec
           ParkingInquiry.init(centerSpaceTime, "work", triggerId = 3333)
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         val ParkingInquiryResponse(stall, responseId, secondInquiry.triggerId) = response2
-        if (stall.tazId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId) {
-          // TODO there should be an assert here
-        }
+        // if (stall.tazId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId) {
+        // TODO there should be an assert here
+        // }
       }
     }
   }
