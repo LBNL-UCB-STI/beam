@@ -398,7 +398,9 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               .getOrElse(Time.parseTime(beamServices.beamConfig.beam.agentsim.endTime))
             currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
               stall.chargingPointType match {
-                case Some(_) if nextActivityEndTime > tick + beamConfig.beam.agentsim.schedulerParallelismWindow =>
+                case Some(_)
+                    if (nextActivityEndTime > tick + beamConfig.beam.agentsim.schedulerParallelismWindow) ||
+                      nextActivityEndTime < 0.0 =>
                   log.debug("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
                   chargingNetworkManager ! ChargingPlugRequest(
                     tick,

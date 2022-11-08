@@ -63,6 +63,14 @@ object ChoosesParking {
     restOfTrip: Option[List[EmbodiedBeamLeg]]
   ): Unit = {
     currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
+      if (!currentBeamVehicle.isSharedVehicle) {
+        nextActivity match {
+          case Some(act) if act.getType == "home" =>
+            currentBeamVehicle.setMustBeDrivenHome(false)
+          case _ =>
+            currentBeamVehicle.setMustBeDrivenHome(true)
+        }
+      }
       currentBeamVehicle.useParkingStall(stall)
       val parkEvent = ParkingEvent(
         time = tick,

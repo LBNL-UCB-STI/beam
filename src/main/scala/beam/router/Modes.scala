@@ -353,9 +353,10 @@ object TourModes {
         firstOrLastLeg: Boolean
       ): Seq[BeamMode] = {
         vehicles.flatMap { veh =>
-          if (veh.vehicle.isSharedVehicle | firstOrLastLeg) {
-            enabledModes(veh.streetVehicle.mode)
-          } else { Seq.empty[BeamMode] }
+          if (veh.vehicle.isSharedVehicle) {
+            Seq(veh.streetVehicle.mode) ++ enabledModes(veh.streetVehicle.mode)
+          } else if (firstOrLastLeg) { enabledModes(veh.streetVehicle.mode) }
+          else { Seq.empty[BeamMode] }
         } ++ allowedBeamModes
       }
     }

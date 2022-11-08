@@ -64,7 +64,7 @@ class HouseholdFleetManager(
         val veh = vehiclesInternal(id)
         veh.setManager(Some(self))
         veh.spaceTime = SpaceTime(resp.stall.locationUTM.getX, resp.stall.locationUTM.getY, 0)
-        veh.setMustBeDrivenHome(true)
+        veh.setMustBeDrivenHome(false)
         veh.useParkingStall(resp.stall)
         val parkEvent = ParkingEvent(
           time = 0,
@@ -244,6 +244,7 @@ class HouseholdFleetManager(
       )
 
       responseFuture.collect { case ParkingInquiryResponse(stall, _, otherTriggerId) =>
+        vehicle.setMustBeDrivenHome(false)
         vehicle.useParkingStall(stall)
         logger.debug("Vehicle {} is now taken, which was just created", vehicle.id)
         vehicle.becomeDriver(mobilityRequester)
