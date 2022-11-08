@@ -299,21 +299,21 @@ object TourModes {
     def getTourMode(
       tripMode: BeamMode,
       availableVehicles: Vector[VehicleOrToken] = Vector.empty[VehicleOrToken]
-    ): BeamTourMode = {
+    ): (Option[BeamTourMode], Option[BeamVehicle]) = {
       tripMode match {
         case CAR | CAR_HOV2 | CAR_HOV3 =>
           if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
             // Assume that if they have access to a personal vehicle they'll take it
             // on the whole tour, otherwise they'll rely on a shared vehicle
-            CAR_BASED
-          } else WALK_BASED
+            (Some(CAR_BASED), availableVehicles.find(!_.vehicle.isSharedVehicle).map(_.vehicle))
+          } else (Some(WALK_BASED), None)
         case BIKE =>
           if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
             // Assume that if they have access to a personal vehicle they'll take it
             // on the whole tour, otherwise they'll rely on a shared vehicle
-            BIKE_BASED
-          } else WALK_BASED
-        case _ => WALK_BASED
+            (Some(BIKE_BASED), availableVehicles.find(!_.vehicle.isSharedVehicle).map(_.vehicle))
+          } else (Some(WALK_BASED), None)
+        case _ => (Some(WALK_BASED), None)
       }
     }
 

@@ -65,7 +65,7 @@ object ChoosesParking {
     currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
       if (!currentBeamVehicle.isSharedVehicle) {
         nextActivity match {
-          case Some(act) if act.getType == "home" =>
+          case Some(act) if act.getType.equalsIgnoreCase("Home") =>
             currentBeamVehicle.setMustBeDrivenHome(false)
           case _ =>
             currentBeamVehicle.setMustBeDrivenHome(true)
