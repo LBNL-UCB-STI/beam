@@ -31,7 +31,6 @@ import scala.concurrent.Future
 trait RideHailDepotManager extends {
   this: RideHailManager =>
 
-  val outputRideHailParkingFileName = "ridehailParking.csv"
   val rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail = beamServices.beamConfig.beam.agentsim.agents.rideHail
 
   /*
@@ -40,11 +39,6 @@ trait RideHailDepotManager extends {
    */
   private val parkingZoneIdToParkingZoneDepotData: mutable.Map[Id[ParkingZoneId], ParkingZoneDepotData] =
     mutable.Map.empty[Id[ParkingZoneId], ParkingZoneDepotData]
-
-  ParkingZoneFileUtils.toCsv(
-    rideHailChargingNetwork.parkingZones,
-    beamServices.matsimServices.getControlerIO.getOutputFilename(outputRideHailParkingFileName)
-  )
 
   /*
    *  Maps from VehicleId -> XX

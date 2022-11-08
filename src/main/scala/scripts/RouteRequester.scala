@@ -167,6 +167,7 @@ object RouteRequester extends BeamHelper {
       BeamMode.DRIVE_TRANSIT,
       BeamMode.WALK_TRANSIT
     ),
+    rideHailServiceSubscription = Seq.empty,
     valueOfTime = 10.99834490709942,
     age = Some(28),
     income = Some(70000.0)

@@ -224,14 +224,18 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     destination: GeoUnit,
     pathType: ActivitySimPathType
   ): Option[ExcerptData] = {
-    val individualSkims = timeBin.hours.flatMap { hour =>
-      getCurrentSkimValue(ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
-        .map(_.asInstanceOf[ActivitySimSkimmerInternal])
-    }
-    if (individualSkims.isEmpty) {
+    if (pathType == ActivitySimPathType.WALK && timeBin != ActivitySimTimeBin.EARLY_AM) {
       None
     } else {
-      Some(weightedData(timeBin.toString, origin.id, destination.id, pathType, individualSkims))
+      val individualSkims = timeBin.hours.flatMap { hour =>
+        getCurrentSkimValue(ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
+          .map(_.asInstanceOf[ActivitySimSkimmerInternal])
+      }
+      if (individualSkims.isEmpty) {
+        None
+      } else {
+        Some(weightedData(timeBin.toString, origin.id, destination.id, pathType, individualSkims))
+      }
     }
   }
 
