@@ -150,22 +150,22 @@ def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds
                     desired_fuel_level_in_k_wh = []
                     max_power_in_kw = []  # min [plug, vehicle]
                     battery_capacity_in_k_wh = []  # TODO Julius @ HL can you please add this to the BEAM output?
-                    for vehicle in charging_events:
-                        vehicle_id.append(int(vehicle['vehicleId']))
-                        vehicle_type.append(vehicle['vehicleType'])
+                    for vehicle in charging_events_list:
+                        vehicle_id.append(str(vehicle['vehicleId']))
+                        vehicle_type.append(str(vehicle['vehicleType']))
                         # MJ: What is this? Is it the current energy level of each EV? Or battery size?
-                        primary_fuel_level_in_k_wh.append(float(vehicle['primaryFuelLevelInJoules']) / 3600000)
+                        primary_fuel_level_in_k_wh.append(int(vehicle['primaryFuelLevelInJoules']) / 3600000)
                         # MJ: Should be in minutes of day. What is the unit of this?
-                        arrival_time.append(float(vehicle['arrivalTime']))
+                        arrival_time.append(int(vehicle['arrivalTime']))
                         # MJ: Should be in minutes of day. What is the unit of this?
-                        desired_departure_time.append(float(vehicle['departureTime']))
+                        desired_departure_time.append(int(vehicle['departureTime']))
                         # MJ: I assume that this is remaining energy to be delivered to each EV
                         # and updated each time,right?
-                        desired_fuel_level_in_k_wh.append(float(vehicle['desiredFuelLevelInJoules']) / 3600000)
+                        desired_fuel_level_in_k_wh.append(int(vehicle['desiredFuelLevelInJoules']) / 3600000)
                         # MJ: I assume that this is the EV charging power
                         max_power_in_kw.append(float(vehicle['maxPowerInKW']))
                         # Julius @ HL can you please add this to the BEAM output?
-                        battery_capacity_in_k_wh.append(float(vehicle['primaryFuelCapacityInJoule']) / 3600000)
+                        battery_capacity_in_k_wh.append(int(vehicle['primaryFuelCapacityInJoule']) / 3600000)
 
                     # Running SPMC controllers
                     if not siteId.lower().startswith('depot'):
