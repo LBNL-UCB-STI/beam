@@ -16,6 +16,8 @@ from rudimentary_spmc import SPM_Control
 
 from site_power_controller_utils import print2
 from site_power_controller_utils import create_federate
+from site_power_controller_utils import RideHailSPMC
+from site_power_controller_utils import DefaultSPMC
 
 
 def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds):
@@ -27,40 +29,9 @@ def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds
     subs_charging_events = h.helicsFederateGetInputByIndex(cfed, 0)
     pubs_control = h.helicsFederateGetPublicationByIndex(cfed, 0)
     print2(taz_prefix + "Initializing the SPMCs...")
-    # SPMC INITIALIZE HERE
-    # JULIUS: @HL I initialized my SPMC here
-    # @ HL can you provide the missing information
-    # TODO uncomment
-    # initMpc = False
-    # t_start = int(0)
-    # timestep_intervall = int(timebin_in_seconds)
-    # result_directory = ''
-    # simName = 'myFirstSimulation'
-    # RideHailDepotId = taz_id
-    # ChBaMaxPower = []  # list of floats in kW for each plug, for first it should be the same maximum power
-    # for all -> could set 10 000 kW if message contains data --> list with length of number
-    # of plugs from infrastructure file?
-    # ChBaParkingZoneId = []  # list of strings, could just be a list of empty strings as not further used so far
-    # ChBaNum = len(ChBaMaxPower)  # number of plugs in one depot --> infrastructure file?
-    # only needed for MPC
-    # path_BeamPredictionFile = ''  # path to a former run of the same simulation to obtain predicitions.
-    # the beam result file should be reduced before to only contain the relevant data
-    # dtype_Predictions = {
-    #     'time': 'int64', 'type': 'category', 'vehicle': 'int64', 'parkingTaz': 'category',
-    #     'chargingPointType': 'category',
-    #     'primaryFuelLevel': 'float64', 'mode': 'category', 'currentTourMode': 'category', 'vehicle_type': 'category',
-    #     'arrival_time': 'float64', 'departureTime': 'float64', 'linkTravelTime': 'string',
-    #     'primaryFuelType': 'category',
-    #     'parkingZoneId': 'category', 'duration': 'float64'
-    # }  # dictionary containing the data types in the beam prediction file
-    # maximum time up to which we simulate (for predicting in MPC)
-    # t_max = int(simulated_day_in_seconds - timebin_in_seconds)
-    # depotController = components.GeminiWrapper.ControlWrapper(initMpc, t_start, timestep_intervall, result_directory,
-    #                                                           simName, RideHailDepotId, ChBaMaxPower, ChBaParkingZoneId,
-    #                                                           ChBaNum, path_BeamPredictionFile, dtype_Predictions,
-    #                                                           t_max)
-    # MYUNGSOO
-    spmc = SPM_Control(time_step_mins=1, max_power_evse=[], min_power_evse=[])
+    # SPM Controller INITIALIZE HERE
+    default_spm_c = DefaultSPMC("DefaultSPMC", taz_id, site_id)
+    ride_hail_spm_c = RideHailSPMC("DefaultSPMC", taz_id, site_id)
 
     def key_func(k):
         return k['siteId']
@@ -72,8 +43,7 @@ def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds
 
     def parse_json(message_to_parse):
         try:
-            charging_events_json = json.loads(message_to_parse)
-            return charging_events_json
+            return json.loads(message_to_parse)
         except json.decoder.JSONDecodeError as err:
             error_text = taz_prefix + "Message from BEAM is an incorrect JSON, " + str(err)
             logging.error(error_text)
@@ -103,128 +73,14 @@ def run_spm_federate(cfed, taz_id, time_bin_in_seconds, simulated_day_in_seconds
                     site_prefix = "[TAZ:" + taz_id + "|SITE:" + str(siteId) + "]. "
                     charging_events_list = list(charging_events)
                     logging.info(site_prefix + "Received " + str(len(charging_events_list)) + " charging event(s)")
-                    vehicle_id = []
-                    vehicle_type = []
-                    primary_fuel_level_in_k_wh = []
-                    arrival_time = []
-                    desired_departure_time = []
-                    desired_fuel_level_in_k_wh = []
-                    max_power_in_kw = []  # min [plug, vehicle]
-                    battery_capacity_in_k_wh = []  # TODO Julius @ HL can you please add this to the BEAM output?
-                    for vehicle in charging_events_list:
-                        vehicle_id.append(str(vehicle['vehicleId']))
-                        vehicle_type.append(str(vehicle['vehicleType']))
-                        # MJ: What is this? Is it the current energy level of each EV? Or battery size?
-                        primary_fuel_level_in_k_wh.append(int(vehicle['primaryFuelLevelInJoules']) / 3600000)
-                        # MJ: Should be in minutes of day. What is the unit of this?
-                        arrival_time.append(int(vehicle['arrivalTime']))
-                        # MJ: Should be in minutes of day. What is the unit of this?
-                        desired_departure_time.append(int(vehicle['departureTime']))
-                        # MJ: I assume that this is remaining energy to be delivered to each EV
-                        # and updated each time,right?
-                        desired_fuel_level_in_k_wh.append(int(vehicle['desiredFuelLevelInJoules']) / 3600000)
-                        # MJ: I assume that this is the EV charging power
-                        max_power_in_kw.append(float(vehicle['maxPowerInKW']))
-                        # Julius @ HL can you please add this to the BEAM output?
-                        battery_capacity_in_k_wh.append(int(vehicle['primaryFuelCapacityInJoule']) / 3600000)
 
                     # Running SPMC controllers
                     if not siteId.lower().startswith('depot'):
                         # Myungsoo is SPMC (NOT RIDE HAIL DEPOT)
-                        control_commands_list_temp = []
-                        # 1) SPMC takes list(charging_events) (and/or siteId)
-                        # 2) SPMC returns control_commands
-                        # 2.a) example
-                        # 3) add control_commands to control_commands_list
-                        # control_commands_list = control_commands_list + control_commands
-                        spmc.max_power_evse = max_power_in_kw
-                        spmc.min_power_evse = [0] * len(spmc.max_power_evse)
-                        pmin_site_in_kw = 0
-                        pmax_site_in_kw = sum(max_power_in_kw)
-                        tdep = [(tt - t) / 60.0 for tt in desired_departure_time]
-                        logging.info(site_prefix + "Optimizing EVSE setpoints by the regular SPMC")
-                        [p_evse_opt, e_evse_opt, delta_t] = spmc.get_evse_setpoint(tdep, desired_fuel_level_in_k_wh,
-                                                                                   pmin_site_in_kw,
-                                                                                   pmax_site_in_kw)
-                        i = 0
-                        for vehicle in charging_events:
-                            control_commands = [{
-                                'tazId': str(taz_id),
-                                'vehicleId': vehicle['vehicleId'],
-                                'powerInKW': str(p_evse_opt[i])
-                            }]
-                            control_commands_list_temp = control_commands_list_temp + control_commands
-                            i = i + 1
-
-                        num_commands = len(control_commands_list_temp)
-                        logging.info(site_prefix + str(num_commands) + " EVSE setpoints from the regular SPMC. Sending " + str(control_commands))
-                        control_commands_list = control_commands_list + control_commands_list_temp
+                        control_commands_list = control_commands_list + default_spm_c.run(t, charging_events_list)
                     else:
                         # Julius Is SPMC (IS RIDE HAIL DEPOT)
-                        control_commands_list_temp = []
-                        # 1) SPMC takes list(charging_events) (and/or siteId)
-                        # 1.a) Maybe a loop with => juliusObject.arrival(vehicle) and/or juliusObject.departure(vehicle)
-                        # We decide to share vehicle information every interval and when they disappear they plugged out
-                        # 2) SPMC returns control_commands => juliusObject.step(t)
-                        # 2.a) example
-                        # 3) add control_commands to control_commands_list
-
-                        # Julius @ HL we need to add every vehicle which arrives to the depotController
-                        # Julius @ HL do you send a list of all vehicles which are currently at the depot or of the ones
-                        # which are just arriving? - I implemented a routine here to check if they are already
-                        # in the station. If not, they are added. Do we need to synchronize the SOC of vehicles
-                        # in my controller with the one in the BEAM output?
-                        # Julius @ HL do we need to check if all vehicles which are already in my charging depot
-                        # are still there in every loop of this run? i.e. could there be vehicles which just leave
-                        # without me sending a departure signal? --> # @Julius yes, we should do that  --> implemented below
-
-                        # synchronize vehicles which are at station: Remove vehicles which are not in the vehicle_id
-                        # list from BEAM anymore
-                        # Julius @ HL can you please add the actual time here?
-                        logging.info(site_prefix + "Optimizing EVSE setpoints by the ride-hail SPMC")
-                        # TODO uncomment
-                        # depotController.synchronizeVehiclesAtStation(vehicleIdsAtStation=vehicle_id, t_act=t)
-                        #
-                        # # VEHICLE ARRIVAL
-                        # vehicleInDepot = []
-                        # for vehicle in depotController.ChargingStation.ChBaVehicles:
-                        #     vehicleInDepot.append(vehicle.vehicle_id)
-                        # for vehicle in depotController.ChargingStation.Queue:
-                        #     vehicleInDepot.append(vehicle.vehicle_id)
-                        #
-                        # for i in range(0, len(vehicle_id)):
-                        #     if vehicle_id[i] not in vehicleInDepot:
-                        #         depotController.arrival(VehicleId=vehicle_id[i],
-                        #                                 VehicleType=vehicle_type[i],
-                        #                                 VehicleArrival=arrival_time[i],
-                        #                                 VehicleDesEnd=desired_departure_time[i],
-                        #                                 VehicleEngyInKwh=primary_fuel_level_in_k_wh[i],
-                        #                                 VehicleDesEngyInKwh=desired_fuel_level_in_k_wh[i],
-                        #                                 VehicleMaxEngy=battery_capacity_in_k_wh[i],
-                        #                                 VehicleMaxPower=max_power_in_kw[i],
-                        #                                 # this doesn't change within one charging session
-                        #                                 t_act=int(t))  # Julius @ HL can you provide the actual time
-                        #
-                        # # OBTAIN CONTROL COMMANDS
-                        # vehicles, power, release = depotController.step(
-                        #     timestep=int(timebin_in_seconds),  # julius @ HL can you provide the timestep,
-                        #     t_act=int(t),  # julius @ HL can you provide the actual time)
-                        #     GridPowerUpper=1e10,  # Update from DERMS, for the first we turn this off with a big number
-                        #     GridPowerLower=-1e10,  # Update from DERMS, for the first we turn this off with a big number
-                        #     BtmsEnergy=0,  # Update from PyDSS, for first this is deactivated in components.ChaDepParent
-                        # )
-                        #
-                        # for i in range(0, len(vehicles)):
-                        #     control_commands = [{
-                        #         'tazId': str(taz_id),
-                        #         'vehicleId': str(vehicles[i]),
-                        #         'powerInKW': str(power[i]),
-                        #         'release': str(release[i])
-                        #     }]
-                        #     control_commands_list_temp = control_commands_list_temp + control_commands
-                        num_commands = len(control_commands_list_temp)
-                        logging.info(site_prefix + str(num_commands) + " EVSE setpoints from the ride-hail SPMC")
-                        control_commands_list = control_commands_list + control_commands_list_temp
+                        control_commands_list = control_commands_list + ride_hail_spm_c.run(t, charging_events_list)
                 # END LOOP
             elif len(charging_events_json) > 0 and 'vehicleId' not in charging_events_json[0]:
                 pass
