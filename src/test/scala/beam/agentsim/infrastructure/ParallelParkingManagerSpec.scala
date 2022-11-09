@@ -184,11 +184,11 @@ class ParallelParkingManagerSpec
         val secondInquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 237)
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         val ParkingInquiryResponse(stall, responseId, triggerId) = response2
-        if (
-          stall.tazId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId && triggerId == secondInquiry.triggerId
-        ) {
-          // TODO there should be an assert here
-        }
+        // TODO there should be an assert here
+        //        if (
+        //          stall.tazId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId && triggerId == secondInquiry.triggerId
+        //        ) {
+        //        }
       }
     }
   }
