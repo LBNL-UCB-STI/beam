@@ -2,7 +2,7 @@ package beam.utils.scenario
 
 import beam.utils.SnapCoordinateUtils
 import beam.utils.SnapCoordinateUtils.{Category, CsvFile, ErrorInfo, SnapLocationHelper}
-import com.typesafe.scalalogging.LazyLogging
+import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.scenario.MutableScenario
@@ -13,7 +13,7 @@ import scala.collection.immutable.HashSet
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
 
-object ScenarioLoaderHelper extends LazyLogging {
+object ScenarioLoaderHelper extends ExponentialLazyLogging {
 
   import org.matsim.api.core.v01.population.PlanElement
 
