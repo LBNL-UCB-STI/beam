@@ -47,8 +47,8 @@ class HierarchicalParkingManagerSpec
   val randomSeed: Int = 0
 
   // a coordinate in the center of the UTM coordinate system
-  val coordCenterOfUTM = new Coord(500000, 5000000)
-  val centerSpaceTime = SpaceTime(coordCenterOfUTM, 0)
+  val coordCenterOfUTM: Coord = new Coord(500000, 5000000)
+  val centerSpaceTime: SpaceTime = SpaceTime(coordCenterOfUTM, 0)
 
   val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
@@ -195,13 +195,12 @@ class HierarchicalParkingManagerSpec
         )
 
         // since only stall is in use, the second inquiry will be handled with the emergency stall
-        val secondInquiry =
-          ParkingInquiry.init(centerSpaceTime, "work", triggerId = 3333)
+        val secondInquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 3333)
         val response2 = parkingManager.processParkingInquiry(secondInquiry)
         val ParkingInquiryResponse(stall, responseId, secondInquiry.triggerId) = response2
-        // if (stall.tazId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId) {
-        // TODO there should be an assert here
-        // }
+
+        assert(stall.tazId == TAZ.EmergencyTAZId)
+        assert(responseId == secondInquiry.requestId)
       }
     }
   }
