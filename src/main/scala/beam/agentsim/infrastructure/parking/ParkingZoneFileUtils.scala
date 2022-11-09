@@ -218,6 +218,26 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     (parkingLoadingAccumulator.zones.toMap, parkingLoadingAccumulator.tree)
   }
 
+  def fromFiles(
+    filePath: String,
+    rand: Random,
+    beamConfig: Option[BeamConfig],
+    beamServices: Option[BeamServices],
+    parkingStallCountScalingFactor: Double = 1.0,
+    parkingCostScalingFactor: Double = 1.0
+  ): (Map[Id[ParkingZoneId], ParkingZone], ZoneSearchTree[TAZ]) = {
+    val parkingLoadingAccumulator =
+      fromFileToAccumulator(
+        filePath,
+        rand,
+        beamConfig,
+        beamServices,
+        parkingStallCountScalingFactor,
+        parkingCostScalingFactor
+      )
+    (parkingLoadingAccumulator.zones.toMap, parkingLoadingAccumulator.tree)
+  }
+
   /**
     * Loads taz parking data from file, creating a parking zone accumulator
     * This method allows to read multiple parking files into a single array of parking zones

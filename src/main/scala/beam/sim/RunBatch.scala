@@ -44,7 +44,9 @@ object RunBatch extends App with BeamHelper {
     val batchConfig = BeamConfigUtils.parseFileSubstitutingInputDirectory(batchPath.toFile).resolve()
 
     val baseConfPath = batchConfig.getString("batch.baseConfig")
-    val baseConf = BeamConfigUtils.parseFileSubstitutingInputDirectory(baseConfPath)
+    val baseConf = BeamHelper.updateConfigToCurrentVersion(
+      BeamConfigUtils.parseFileSubstitutingInputDirectory(baseConfPath)
+    )
 
     val plans = batchConfig.getConfigList("batch.plans")
 

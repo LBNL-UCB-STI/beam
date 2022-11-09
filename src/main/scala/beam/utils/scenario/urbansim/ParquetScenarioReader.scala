@@ -116,6 +116,7 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
       rank = rank,
       age = age,
       excludedModes = excludedModes,
+      rideHailServiceSubscription = Option(rec.get("ridehail_service_subscription")).map(_.toString).getOrElse(""),
       isFemale = isFemaleValue,
       valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime").toString, 0d)).getOrElse(0d),
       industry = industry
