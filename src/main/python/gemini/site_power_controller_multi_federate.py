@@ -317,9 +317,9 @@ if __name__ == "__main__":
                      "coreType": "zmq",
                      "timeDeltaProperty": 1.0,  # smallest discernible interval to this federate
                      "intLogLevel": 1,
-                     "federatesPrefix": "FED_BEAM_",
+                     "federatesPrefix": "BEAM_FED_TAZ",
                      "federatesPublication": "CHARGING_VEHICLES",
-                     "spmFederatesPrefix": "FED_SPM_",
+                     "spmFederatesPrefix": "SPM_FED_TAZ",
                      "spmSubscription": "CHARGING_COMMANDS",
                      "timeStepInSeconds": 60}
 
