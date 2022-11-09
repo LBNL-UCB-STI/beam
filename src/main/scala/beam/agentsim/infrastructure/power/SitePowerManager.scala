@@ -59,7 +59,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
               if (spmConfig.expectFeedback) Some(spmFedNameSub) else None
             )
             logger.debug("Got federate {} for taz {}", federate.fedName, tazIdStr)
-            (tazIdStr, stations, federate)
+            (Id.create(tazIdStr, classOf[TAZ]), stations, federate)
           }.seq
         }.map { federates =>
           logger.info("Initialized {} federates, now they are going to execution mode", federates.size)
