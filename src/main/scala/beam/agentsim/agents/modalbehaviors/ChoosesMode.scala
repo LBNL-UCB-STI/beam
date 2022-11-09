@@ -432,12 +432,13 @@ trait ChoosesMode {
         withTransit: Boolean,
         vehicles: Vector[StreetVehicle],
         streetVehiclesIntermodalUse: IntermodalUse = Access,
-        possibleEgressVehicles: IndexedSeq[StreetVehicle] = IndexedSeq.empty
+        possibleEgressVehicles: IndexedSeq[StreetVehicle] = IndexedSeq.empty,
+        departureBuffer: Int = 0
       ): Unit = {
         router ! RoutingRequest(
           currentPersonLocation.loc,
           nextAct.getCoord,
-          departTime,
+          departTime + departureBuffer,
           withTransit,
           Some(id),
           vehicles,
@@ -550,7 +551,11 @@ trait ChoosesMode {
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
         case Some(WALK_TRANSIT) =>
           responsePlaceholders = makeResponsePlaceholders(withRouting = true)
-          makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
+          makeRequestWith(
+            withTransit = true,
+            Vector(bodyStreetVehicle),
+            departureBuffer = personData.numberOfReplanningAttempts * 5
+          )
         case Some(CAV) =>
           // Request from household the trip legs to put into trip
           householdRef ! CavTripLegsRequest(bodyVehiclePersonId, currentActivity(personData))
