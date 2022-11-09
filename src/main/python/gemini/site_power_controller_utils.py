@@ -16,7 +16,7 @@ from rudimentary_spmc import SPM_Control
 
 
 class DefaultSPMC:
-    def __init__(self, name, site_id, taz_id):
+    def __init__(self, name, taz_id, site_id):
         self.site_id = site_id
         self.taz_id = taz_id
         self.site_prefix_logging = name + "[TAZ:" + taz_id + "|SITE:" + str(site_id) + "]. "
@@ -80,11 +80,10 @@ class DefaultSPMC:
 
 
 class RideHailSPMC:
-    def __init__(self, site_id, taz_id):
-        self.name = "RideHailSPMC"
+    def __init__(self, name, taz_id, site_id):
         self.site_id = site_id
         self.taz_id = taz_id
-        self.site_prefix_logging = self.name + "[TAZ:" + taz_id + "|SITE:" + str(site_id) + "]. "
+        self.site_prefix_logging = name + "[TAZ:" + taz_id + "|SITE:" + str(site_id) + "]. "
         # JULIUS: @HL I initialized my SPMC here
         # @ HL can you provide the missing information
         # TODO uncomment
