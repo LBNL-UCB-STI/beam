@@ -14,7 +14,7 @@ import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.{mutable, JavaConverters}
 import scala.util.Try
 
 case class ChainBasedTourVehicleAllocator(

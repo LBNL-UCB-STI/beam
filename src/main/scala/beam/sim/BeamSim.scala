@@ -534,10 +534,6 @@ class BeamSim @Inject() (
       logger.warn(s"Non-negative end times found for person activities - ${activityEndTimesNonNegativeCheck.size}")
     }
 
-//    if (beamConfig.beam.outputs.writeGraphs) {
-//      generateRepositioningGraphs(event)
-//    }
-
     logger.info("Ending Iteration")
     if (COLLECT_AND_CREATE_BEAM_ANALYSIS_AND_GRAPHS) {
       delayMetricAnalysis.generateDelayAnalysis(event)

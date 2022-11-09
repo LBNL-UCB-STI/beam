@@ -57,10 +57,6 @@ object EventReplayer extends BeamHelper {
     val buf = new ArrayBuffer[Event]()
     eventsManager.addHandler(new BasicEventHandler {
       def handleEvent(event: Event): Unit = {
-        //  if (event.getEventType == "PathTraversal") {
-        //    Do something with need `PathTraversalEvent`
-        //    buf += new PathTraversalEvent(event.getTime, event.getAttributes)
-        //  }
         buf += event
         numOfEvents += 1
       }
