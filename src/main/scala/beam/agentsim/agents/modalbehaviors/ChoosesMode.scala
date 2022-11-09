@@ -536,7 +536,7 @@ trait ChoosesMode {
               case Some(WALK_BASED) if !isPersonalVehicle => vehicleOrToken.streetVehicle
               case Some(WALK_BASED) if isPersonalVehicle && isFirstOrLastTripWithinTour(nextAct) =>
                 vehicleOrToken.streetVehicle
-              case _ => dummyRHVehicle
+              case _ => dummyRHVehicle.copy(locationUTM = currentPersonLocation)
             }
           } :+ bodyStreetVehicle
 
@@ -1607,7 +1607,8 @@ trait ChoosesMode {
         } else {
           choosesModeData.personData.currentTourMode
         },
-        currentTourPersonalVehicle = newTourVehicle
+        currentTourPersonalVehicle = newTourVehicle,
+        numberOfReplanningAttempts = choosesModeData.personData.numberOfReplanningAttempts + 1
       ),
       currentLocation = choosesModeData.currentLocation,
       excludeModes = choosesModeData.excludeModes

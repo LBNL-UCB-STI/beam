@@ -1205,9 +1205,14 @@ class PersonAgent(
     case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, _, _, _))
         if nextLeg.beamLeg.mode.isTransit && nextLeg.beamLeg.startTime < _currentTick.get =>
       // We've missed the bus. This occurs when something takes longer than planned (based on the
-      // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our non-transit
+      // initial inquiry). So we replan but change trip mode to WALK_TRANSIT since we've already done our non-transit
       // portion.
-      log.debug("Missed transit pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
+      log.warning(
+        "Agent {} missed transit pickup on {} trip, late by {} sec",
+        id.toString,
+        data.currentTripMode.map(_.value).getOrElse("None"),
+        _currentTick.get - nextLeg.beamLeg.startTime
+      )
 
       val replanningReason = getReplanningReasonFrom(data, ReservationErrorCode.MissedTransitPickup.entryName)
       eventsManager.processEvent(
@@ -1362,7 +1367,7 @@ class PersonAgent(
             Vector(ScheduleTrigger(ActivityEndTrigger(nextLegDepartureTime), self))
           )
 
-          val nextTripTourPersonalVehicle = if (isLastTripWithinTour(activity)) {
+          val nextTripTourPersonalVehicle = if (activity.getType.equalsIgnoreCase("Home")) {
             None
           } else {
             data.currentTourPersonalVehicle
