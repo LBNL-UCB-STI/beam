@@ -627,7 +627,7 @@ class PersonAgent(
             // If we have the currentTourPersonalVehicle then we should use it
             // use the mode of the next leg as the new trip mode.
             currentTripMode = modeOfNextLeg,
-            currentTourMode = None, //  currentTourModeChoiceStrategy.tourMode, NOTE: Not sure why this is needed...
+            currentTourMode = currentTourModeChoiceStrategy.tourMode, // NOTE: Not sure why this is needed...
             numberOfReplanningAttempts = 0,
             failedTrips = IndexedSeq.empty,
             enrouteData = EnrouteData()
@@ -1008,7 +1008,7 @@ class PersonAgent(
       potentiallyChargingBeamVehicles.remove(vehicle.id)
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable(_), basePersonData: BasePersonData) =>
-      log.debug("{} replanning because vehicle not available when trying to board")
+      log.warning("{} replanning because vehicle not available when trying to board")
       val replanningReason = getReplanningReasonFrom(basePersonData, ReservationErrorCode.ResourceUnavailable.entryName)
       eventsManager.processEvent(
         new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
@@ -1207,7 +1207,7 @@ class PersonAgent(
       // We've missed the bus. This occurs when something takes longer than planned (based on the
       // initial inquiry). So we replan but change trip mode to WALK_TRANSIT since we've already done our non-transit
       // portion.
-      log.warning(
+      log.debug(
         "Agent {} missed transit pickup on {} trip, late by {} sec",
         id.toString,
         data.currentTripMode.map(_.value).getOrElse("None"),
