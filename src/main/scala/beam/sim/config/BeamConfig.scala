@@ -2585,6 +2585,7 @@ object BeamConfig {
       clearRoutedOutstandingWorkEnabled: scala.Boolean,
       debugActorTimerIntervalInSec: scala.Int,
       debugEnabled: scala.Boolean,
+      maxSimulationStepTimeBeforeConsideredStuckAtInitializationMin: scala.Int,
       maxSimulationStepTimeBeforeConsideredStuckMin: scala.Int,
       memoryConsumptionDisplayTimeoutInSec: scala.Int,
       messageLogging: scala.Boolean,
@@ -2746,6 +2747,10 @@ object BeamConfig {
           debugActorTimerIntervalInSec =
             if (c.hasPathOrNull("debugActorTimerIntervalInSec")) c.getInt("debugActorTimerIntervalInSec") else 0,
           debugEnabled = c.hasPathOrNull("debugEnabled") && c.getBoolean("debugEnabled"),
+          maxSimulationStepTimeBeforeConsideredStuckAtInitializationMin =
+            if (c.hasPathOrNull("maxSimulationStepTimeBeforeConsideredStuckAtInitializationMin"))
+              c.getInt("maxSimulationStepTimeBeforeConsideredStuckAtInitializationMin")
+            else 600,
           maxSimulationStepTimeBeforeConsideredStuckMin =
             if (c.hasPathOrNull("maxSimulationStepTimeBeforeConsideredStuckMin"))
               c.getInt("maxSimulationStepTimeBeforeConsideredStuckMin")
