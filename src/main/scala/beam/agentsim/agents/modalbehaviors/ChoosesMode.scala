@@ -1585,15 +1585,15 @@ trait ChoosesMode {
   }
 
   private def gotoChoosingModeWithoutPredefinedMode(choosesModeData: ChoosesModeData) = {
-    val newTourVehicle = choosesModeData.personData.currentTourPersonalVehicle match {
+    val (newTourVehicle, abandonedVehicle) = choosesModeData.personData.currentTourPersonalVehicle match {
       case Some(id) =>
         logger.warn(
           s"Abandoning vehicle $id because no return ${choosesModeData.personData.currentTripMode} " +
           s"itinerary is available"
         )
         beamVehicles(id).vehicle.setMustBeDrivenHome(false)
-        None
-      case _ => None
+        (None, true)
+      case _ => (None, false)
     }
     if (choosesModeData.personData.currentTripMode.get.isTeleportation) {
       //we need to remove our teleportation vehicle since we cannot use it if it's not a teleportation mode {
@@ -1608,6 +1608,16 @@ trait ChoosesMode {
       personData = choosesModeData.personData.copy(
         currentTripMode = None,
         currentTourMode = if (currentActivity(choosesModeData.personData).getType.equalsIgnoreCase("Home")) {
+          None
+        } else if (abandonedVehicle) {
+          // Give up our tour mode too so if we're on a car tour and can't find our car we don't just keep creating
+          // new emergency ones
+          val updatedTourStrategy =
+            TourModeChoiceStrategy(None, None)
+          _experiencedBeamPlan.putStrategy(
+            _experiencedBeamPlan.getTourContaining(nextActivity(choosesModeData.personData).get),
+            updatedTourStrategy
+          )
           None
         } else {
           choosesModeData.personData.currentTourMode
