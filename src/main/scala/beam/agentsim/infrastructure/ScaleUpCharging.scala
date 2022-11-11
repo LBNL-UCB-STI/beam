@@ -73,6 +73,7 @@ trait ScaleUpCharging extends {
         case Some(parkingInquiry) if stall.chargingPointType.isDefined =>
           log.debug(s"parking inquiry with requestId $requestId returned a stall with charging point.")
           val beamVehicle = parkingInquiry.beamVehicle.get
+          val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
           val personId =
             parkingInquiry.personId.map(Id.create(_, classOf[Person])).getOrElse(Id.create("", classOf[Person]))
           self ! ChargingPlugRequest(
@@ -85,7 +86,6 @@ trait ScaleUpCharging extends {
             NotApplicable,
             None
           )
-          val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
           ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, personId), self)
         case Some(_) if stall.chargingPointType.isEmpty =>
           log.debug(s"parking inquiry with requestId $requestId returned a NoCharger stall")

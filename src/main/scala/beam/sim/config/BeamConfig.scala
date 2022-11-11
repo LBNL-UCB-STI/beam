@@ -2097,45 +2097,50 @@ object BeamConfig {
         chargingPointCostScalingFactor: scala.Double,
         chargingPointCountScalingFactor: scala.Double,
         chargingPointFilePath: java.lang.String,
-        helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
         overnightChargingEnabled: scala.Boolean,
+        powerManagerController: scala.Option[BeamConfig.Beam.Agentsim.ChargingNetworkManager.PowerManagerController],
         scaleUp: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp,
+        sitePowerManagerController: scala.Option[
+          BeamConfig.Beam.Agentsim.ChargingNetworkManager.SitePowerManagerController
+        ],
         timeStepInSeconds: scala.Int
       )
 
       object ChargingNetworkManager {
 
-        case class Helics(
+        case class PowerManagerController(
+          brokerAddress: java.lang.String,
           bufferSize: scala.Int,
-          connectionEnabled: scala.Boolean,
-          coreInitString: java.lang.String,
+          connect: scala.Boolean,
           coreType: java.lang.String,
-          dataInStreamPoint: java.lang.String,
-          dataOutStreamPoint: java.lang.String,
           federateName: java.lang.String,
+          federatePublication: java.lang.String,
           feedbackEnabled: scala.Boolean,
           intLogLevel: scala.Int,
+          pmcFederateName: java.lang.String,
+          pmcFederateSubscription: java.lang.String,
           timeDeltaProperty: scala.Double
         )
 
-        object Helics {
+        object PowerManagerController {
 
-          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics = {
-            BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
+          def apply(
+            c: com.typesafe.config.Config
+          ): BeamConfig.Beam.Agentsim.ChargingNetworkManager.PowerManagerController = {
+            BeamConfig.Beam.Agentsim.ChargingNetworkManager.PowerManagerController(
+              brokerAddress = if (c.hasPathOrNull("brokerAddress")) c.getString("brokerAddress") else "tcp://127.0.0.1",
               bufferSize = if (c.hasPathOrNull("bufferSize")) c.getInt("bufferSize") else 1000,
-              connectionEnabled = c.hasPathOrNull("connectionEnabled") && c.getBoolean("connectionEnabled"),
-              coreInitString =
-                if (c.hasPathOrNull("coreInitString")) c.getString("coreInitString")
-                else "--federates=1 --broker_address=tcp://127.0.0.1",
+              connect = c.hasPathOrNull("connect") && c.getBoolean("connect"),
               coreType = if (c.hasPathOrNull("coreType")) c.getString("coreType") else "zmq",
-              dataInStreamPoint =
-                if (c.hasPathOrNull("dataInStreamPoint")) c.getString("dataInStreamPoint")
-                else "GridFed/PhysicalBounds",
-              dataOutStreamPoint =
-                if (c.hasPathOrNull("dataOutStreamPoint")) c.getString("dataOutStreamPoint") else "PowerDemand",
-              federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "CNMFederate",
+              federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "FED_BEAM",
+              federatePublication =
+                if (c.hasPathOrNull("federatePublication")) c.getString("federatePublication") else "LOAD_DEMAND",
               feedbackEnabled = !c.hasPathOrNull("feedbackEnabled") || c.getBoolean("feedbackEnabled"),
               intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
+              pmcFederateName = if (c.hasPathOrNull("pmcFederateName")) c.getString("pmcFederateName") else "FED_GRID",
+              pmcFederateSubscription =
+                if (c.hasPathOrNull("pmcFederateSubscription")) c.getString("pmcFederateSubscription")
+                else "POWER_LIMITS",
               timeDeltaProperty = if (c.hasPathOrNull("timeDeltaProperty")) c.getDouble("timeDeltaProperty") else 1.0
             )
           }
@@ -2159,6 +2164,45 @@ object BeamConfig {
           }
         }
 
+        case class SitePowerManagerController(
+          brokerAddress: java.lang.String,
+          bufferSize: scala.Int,
+          connect: scala.Boolean,
+          coreType: java.lang.String,
+          expectFeedback: scala.Boolean,
+          federatesPrefix: java.lang.String,
+          federatesPublication: java.lang.String,
+          intLogLevel: scala.Int,
+          spmFederatesPrefix: java.lang.String,
+          spmSubscription: java.lang.String,
+          timeDeltaProperty: scala.Double
+        )
+
+        object SitePowerManagerController {
+
+          def apply(
+            c: com.typesafe.config.Config
+          ): BeamConfig.Beam.Agentsim.ChargingNetworkManager.SitePowerManagerController = {
+            BeamConfig.Beam.Agentsim.ChargingNetworkManager.SitePowerManagerController(
+              brokerAddress = if (c.hasPathOrNull("brokerAddress")) c.getString("brokerAddress") else "tcp://127.0.0.1",
+              bufferSize = if (c.hasPathOrNull("bufferSize")) c.getInt("bufferSize") else 1000,
+              connect = c.hasPathOrNull("connect") && c.getBoolean("connect"),
+              coreType = if (c.hasPathOrNull("coreType")) c.getString("coreType") else "zmq",
+              expectFeedback = !c.hasPathOrNull("expectFeedback") || c.getBoolean("expectFeedback"),
+              federatesPrefix = if (c.hasPathOrNull("federatesPrefix")) c.getString("federatesPrefix") else "FED_BEAM_",
+              federatesPublication =
+                if (c.hasPathOrNull("federatesPublication")) c.getString("federatesPublication")
+                else "CHARGING_VEHICLES",
+              intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
+              spmFederatesPrefix =
+                if (c.hasPathOrNull("spmFederatesPrefix")) c.getString("spmFederatesPrefix") else "FED_SPM_",
+              spmSubscription =
+                if (c.hasPathOrNull("spmSubscription")) c.getString("spmSubscription") else "CHARGING_COMMANDS",
+              timeDeltaProperty = if (c.hasPathOrNull("timeDeltaProperty")) c.getDouble("timeDeltaProperty") else 1.0
+            )
+          }
+        }
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager = {
           BeamConfig.Beam.Agentsim.ChargingNetworkManager(
             chargingPointCostScalingFactor =
@@ -2169,16 +2213,26 @@ object BeamConfig {
               else 1.0,
             chargingPointFilePath =
               if (c.hasPathOrNull("chargingPointFilePath")) c.getString("chargingPointFilePath") else "",
-            helics = BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
-              if (c.hasPathOrNull("helics")) c.getConfig("helics")
-              else com.typesafe.config.ConfigFactory.parseString("helics{}")
-            ),
             overnightChargingEnabled =
               c.hasPathOrNull("overnightChargingEnabled") && c.getBoolean("overnightChargingEnabled"),
+            powerManagerController =
+              if (c.hasPathOrNull("powerManagerController"))
+                scala.Some(
+                  BeamConfig.Beam.Agentsim.ChargingNetworkManager
+                    .PowerManagerController(c.getConfig("powerManagerController"))
+                )
+              else None,
             scaleUp = BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
               if (c.hasPathOrNull("scaleUp")) c.getConfig("scaleUp")
               else com.typesafe.config.ConfigFactory.parseString("scaleUp{}")
             ),
+            sitePowerManagerController =
+              if (c.hasPathOrNull("sitePowerManagerController"))
+                scala.Some(
+                  BeamConfig.Beam.Agentsim.ChargingNetworkManager
+                    .SitePowerManagerController(c.getConfig("sitePowerManagerController"))
+                )
+              else None,
             timeStepInSeconds = if (c.hasPathOrNull("timeStepInSeconds")) c.getInt("timeStepInSeconds") else 300
           )
         }

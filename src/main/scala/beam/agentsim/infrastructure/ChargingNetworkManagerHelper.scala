@@ -2,9 +2,8 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.events.{ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSessionEvent}
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStatus.Connected
-import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingVehicle}
+import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingVehicle}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingTimeOutTrigger
-import beam.agentsim.infrastructure.power.PowerController.PhysicalBounds
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.sim.config.BeamConfig.Beam.Agentsim
 import beam.utils.DateUtils
@@ -23,14 +22,6 @@ trait ChargingNetworkManagerHelper extends {
     * @return a boolean
     */
   protected def isEndOfSimulation(tick: Int): Boolean = nextTimeBin(tick) >= endOfSimulationTime
-
-  /**
-    * if charging completed then duration of charging should be zero
-    *
-    * @param cycle the latest charging cycle
-    * @return
-    */
-  protected def chargingIsCompleteUsing(cycle: ChargingCycle): Boolean = (cycle.endTime - cycle.startTime) == 0
 
   /**
     * if charging won't complete during the current cycle
@@ -58,10 +49,9 @@ trait ChargingNetworkManagerHelper extends {
   protected def nextTimeBin(tick: Int): Int = currentTimeBin(tick) + cnmConfig.timeStepInSeconds
 
   /**
-    * @param chargingVehicle   the vehicle being charged
-    * @param startTime         the start time
-    * @param endTime           the end time
-    * @param physicalBounds    physical bounds
+    * @param chargingVehicle the vehicle being charged
+    * @param startTime the start time
+    * @param endTime the end time
     * @param interruptCharging True if the charging should be interrupted
     * @return
     */
@@ -69,63 +59,39 @@ trait ChargingNetworkManagerHelper extends {
     chargingVehicle: ChargingVehicle,
     startTime: Int,
     endTime: Int,
-    physicalBounds: Map[ChargingStation, PhysicalBounds],
     interruptCharging: Boolean = false
   ): Option[ScheduleTrigger] = {
     assume(endTime - startTime >= 0, s"timeInterval should not be negative! startTime $startTime endTime $endTime")
     // Calculate the energy to charge each vehicle connected to the a charging station
     val endOfMaxSessionTime = chargingEndTimeInSeconds.getOrElse(chargingVehicle.personId, endTime)
-    val endOfShiftTime = chargingVehicle.chargingShouldEndAt.map(_ - parallelismWindow).getOrElse(endTime)
-    val updatedEndTime = Math.min(endOfMaxSessionTime, endOfShiftTime)
-    val duration = Math.max(0, updatedEndTime - startTime)
-    val maxCycleDuration = Math.min(
-      nextTimeBin(startTime) - startTime,
-      chargingVehicle.chargingShouldEndAt.map(_ - parallelismWindow - startTime).getOrElse(Int.MaxValue)
-    )
+    val shouldEndAtMaybe = chargingVehicle.chargingShouldEndAt.map(_ - parallelismWindow)
+    val updatedEndTime = Math.min(endOfMaxSessionTime, shouldEndAtMaybe.getOrElse(endTime))
     chargingVehicle.checkAndCorrectCycleAfterInterruption(updatedEndTime)
-    val (chargingDuration, energyToCharge, energyToChargeIfUnconstrained, remainingChargingDuration) =
-      sitePowerManager.dispatchEnergy(duration, chargingVehicle, physicalBounds)
-    val theActualEndTime = startTime + chargingDuration
+    val maxCycleDuration = shouldEndAtMaybe match {
+      case Some(shouldEndAt) => Math.min(nextTimeBin(startTime) - startTime, shouldEndAt - startTime)
+      case None              => nextTimeBin(startTime) - startTime
+    }
+    val newCycle = sitePowerManager.dispatchEnergy(startTime, updatedEndTime, maxCycleDuration, chargingVehicle)
     log.debug(
-      s"dispatchEnergyAndProcessChargingCycle. startTime:$startTime, endTime:$endTime, updatedEndTime:$updatedEndTime, " +
-      s"theActualEndTime:$theActualEndTime, duration:$duration, maxCycleDuration:$maxCycleDuration, " +
-      s"chargingVehicle:$chargingVehicle, chargingDuration:$chargingDuration"
+      s"dispatchEnergyAndProcessChargingCycle. " +
+      s"startTime:$startTime, endTime:$endTime, updatedEndTime:$updatedEndTime," +
+      s"cycle:$newCycle, chargingVehicle:$chargingVehicle"
     )
-    // update charging vehicle with dispatched energy and schedule ChargingTimeOutScheduleTrigger
-    chargingVehicle
-      .processCycle(
-        startTime,
-        theActualEndTime,
-        energyToCharge,
-        energyToChargeIfUnconstrained,
-        maxCycleDuration,
-        remainingChargingDuration
-      )
-      .flatMap {
-        case _ if interruptCharging =>
-          // Charging is being interrupted. We will not return a ChargingTimeOutTrigger
-          // instead we will update fuel and send unplugging request immediately
-          log.debug(
-            s"Vehicle {} is being unplugged from its charging point {}",
-            chargingVehicle.vehicle.id,
-            chargingVehicle.stall
-          )
-          None
-        case cycle if chargingIsCompleteUsing(cycle) =>
-          Some(ScheduleTrigger(ChargingTimeOutTrigger(cycle.endTime, chargingVehicle.vehicle), self))
-        case cycle if chargingNotCompleteUsing(cycle) && !isEndOfSimulation(startTime) =>
-          log.debug(
-            s"Vehicle {} is still charging @ Stall: {}. Provided energy: {} J. State of Charge: {}",
-            chargingVehicle.vehicle.id,
-            chargingVehicle.stall,
-            cycle.energyToCharge,
-            chargingVehicle.vehicle.primaryFuelLevelInJoules / chargingVehicle.vehicle.beamVehicleType.primaryFuelCapacityInJoule
-          )
-          None
-        case cycle =>
-          // charging is going to end during this current session
-          Some(ScheduleTrigger(ChargingTimeOutTrigger(cycle.endTime, chargingVehicle.vehicle), self))
-      }
+    chargingVehicle.processCycle(newCycle).flatMap {
+      case cycle if interruptCharging || (chargingNotCompleteUsing(cycle) && !isEndOfSimulation(startTime)) =>
+        // Charging is being interrupted. We will not return a ChargingTimeOutTrigger
+        log.debug(
+          s"Vehicle {} is still charging @ Stall: {}. Provided energy: {} J. State of Charge: {}",
+          chargingVehicle.vehicle.id,
+          chargingVehicle.stall,
+          cycle.energyToCharge,
+          chargingVehicle.vehicle.primaryFuelLevelInJoules / chargingVehicle.vehicle.beamVehicleType.primaryFuelCapacityInJoule
+        )
+        None
+      case cycle =>
+        // charging is going to end during this current session
+        Some(ScheduleTrigger(ChargingTimeOutTrigger(cycle.endTime, chargingVehicle), self))
+    }
   }
 
   /**
@@ -140,9 +106,10 @@ trait ChargingNetworkManagerHelper extends {
     if (vehicle.stall.isEmpty)
       vehicle.useParkingStall(chargingVehicle.stall)
     log.debug(s"Starting charging for vehicle $vehicle at $tick")
-    val physicalBounds = powerController.obtainPowerPhysicalBounds(tick)
     processStartChargingEvent(tick, chargingVehicle)
-    dispatchEnergyAndProcessChargingCycle(chargingVehicle, tick, nextTick, physicalBounds).foreach(getScheduler ! _)
+    // we need to interrupt charging here in order to charge vehicle from tick to timeBin(tick)
+    // from timeBin(tick) to the next time bin it will be processed while processing PlanEnergyDispatchTrigger
+    dispatchEnergyAndProcessChargingCycle(chargingVehicle, tick, nextTick, interruptCharging = true)
   }
 
   /**
@@ -174,9 +141,10 @@ trait ChargingNetworkManagerHelper extends {
     * @param chargingVehicle vehicle charging information
     */
   protected def handleRefueling(chargingVehicle: ChargingVehicle): Unit = {
-    chargingVehicle.refuel.foreach { case ChargingCycle(startTime, endTime, _, energyToChargeIfUnconstrained, _, _) =>
-      val station = chargingVehicle.chargingStation
-      sitePowerManager.collectObservedLoadInKW(startTime, endTime - startTime, energyToChargeIfUnconstrained, station)
+    chargingVehicle.refuel.foreach {
+      case ChargingCycle(startTime, endTime, _, _, energyToChargeIfUnconstrained, _, _) =>
+        val station = chargingVehicle.chargingStation
+        sitePowerManager.collectObservedLoadInKW(startTime, endTime - startTime, energyToChargeIfUnconstrained, station)
     }
   }
 

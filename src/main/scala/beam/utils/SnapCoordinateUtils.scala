@@ -48,7 +48,7 @@ object SnapCoordinateUtils extends LazyLogging {
     private val store: TrieMap[Coord, Option[Coord]] = TrieMap.empty
 
     def find(planCoord: Coord, isWgs: Boolean = false): Option[Coord] = {
-      val coord = if (isWgs) planCoord else geo.utm2Wgs(planCoord)
+      val coord = if (isWgs) geo.wgs2Utm(planCoord) else planCoord
       store.get(coord).flatten
     }
 

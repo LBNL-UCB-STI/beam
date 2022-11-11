@@ -1,5 +1,7 @@
 package beam.utils.scenario
 
+import beam.sim.BeamScenario
+import beam.sim.common.GeoUtilsImpl
 import beam.utils.SnapCoordinateUtils
 import beam.utils.SnapCoordinateUtils.{Category, CsvFile, ErrorInfo, SnapLocationHelper}
 import beam.utils.logging.ExponentialLazyLogging
@@ -31,7 +33,8 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
   private def updatePlanElementCoord(
     personId: Id[Person],
     elements: Vector[PlanElement],
-    snapLocationHelper: SnapLocationHelper
+    snapLocationHelper: SnapLocationHelper,
+    convertWgs2Utm: Boolean
   ): Vector[ErrorInfo] = {
     val errors = elements.foldLeft[Vector[ErrorInfo]](Vector.empty) { (errors, element) =>
       element match {
@@ -58,7 +61,7 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
       elements.foreach {
         case a: Activity =>
           val planCoord = a.getCoord
-          snapLocationHelper.find(planCoord) match {
+          snapLocationHelper.find(planCoord, !convertWgs2Utm) match {
             case Some(coord) =>
               a.setCoord(coord)
             case None =>
@@ -73,9 +76,15 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
 
   def validateScenario(
     scenario: MutableScenario,
-    snapLocationHelper: SnapLocationHelper,
+    beamScenario: BeamScenario,
     outputDirMaybe: Option[String] = None
-  ): Unit = {
+  ): SnapLocationHelper = {
+
+    val snapLocationHelper = SnapLocationHelper(
+      new GeoUtilsImpl(beamScenario.beamConfig),
+      beamScenario.transportNetwork.streetLayer,
+      beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
+    )
 
     val planErrors: ListBuffer[ErrorInfo] = ListBuffer()
 
@@ -84,7 +93,12 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
       val plans = person.getPlans.asScala.toList
       plans.foreach { plan =>
         val elements: Vector[PlanElement] = plan.getPlanElements.asScala.toVector
-        val errors: Vector[ErrorInfo] = updatePlanElementCoord(person.getId, elements, snapLocationHelper)
+        val errors: Vector[ErrorInfo] = updatePlanElementCoord(
+          person.getId,
+          elements,
+          snapLocationHelper,
+          beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
+        )
         if (errors.nonEmpty) {
           planErrors.appendAll(errors)
           person.removePlan(plan)
@@ -151,6 +165,7 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
       else SnapCoordinateUtils.writeToCsv(s"$path/${CsvFile.Households}", householdErrors)
     }
 
+    snapLocationHelper
   }
 
 }

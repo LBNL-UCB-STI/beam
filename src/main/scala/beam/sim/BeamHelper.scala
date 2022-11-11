@@ -661,13 +661,8 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     matsimConfig: MatsimConfig,
     beamScenario: BeamScenario
   ): MutableScenario = {
-    val snapLocationHelper = SnapLocationHelper(
-      new GeoUtilsImpl(beamScenario.beamConfig),
-      beamScenario.transportNetwork.streetLayer,
-      beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
-    )
     val result = ScenarioUtils.loadScenario(matsimConfig).asInstanceOf[MutableScenario]
-    ScenarioLoaderHelper.validateScenario(result, snapLocationHelper)
+    ScenarioLoaderHelper.validateScenario(result, beamScenario)
     result.setNetwork(beamScenario.network)
     result
   }
@@ -713,13 +708,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       val beforeHouseholdsCount = scenario.getHouseholds.getHouseholds.size()
       val beforePopulationCount = scenario.getPopulation.getPersons.size()
 
-      val snapLocationHelper = SnapLocationHelper(
-        new GeoUtilsImpl(beamScenario.beamConfig),
-        beamScenario.transportNetwork.streetLayer,
-        beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
-      )
-
-      ScenarioLoaderHelper.validateScenario(scenario, snapLocationHelper, Some(outputDir))
+      ScenarioLoaderHelper.validateScenario(scenario, beamScenario, Some(outputDir))
 
       val afterHouseholdsCount = scenario.getHouseholds.getHouseholds.size()
       val afterPopulationCount = scenario.getPopulation.getPersons.size()
