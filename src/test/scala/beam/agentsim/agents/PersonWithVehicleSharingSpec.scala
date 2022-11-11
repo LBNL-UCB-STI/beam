@@ -200,6 +200,8 @@ class PersonWithVehicleSharingSpec
         triggerId = embodyRequest.triggerId
       )
 
+      events.expectMsgType[TourModeChoiceEvent]
+
       events.expectMsgType[ModeChoiceEvent]
       events.expectMsgType[ActivityEndEvent]
       events.expectMsgType[PersonDepartureEvent]
@@ -382,6 +384,8 @@ class PersonWithVehicleSharingSpec
         isEmbodyWithCurrentTravelTime = false,
         triggerId = routingRequest.triggerId
       )
+
+      events.expectMsgType[TourModeChoiceEvent]
 
       events.expectMsgType[ModeChoiceEvent]
       events.expectMsgType[ActivityEndEvent]
