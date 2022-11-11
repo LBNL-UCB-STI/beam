@@ -1591,7 +1591,10 @@ trait ChoosesMode {
           s"Abandoning vehicle $id because no return ${choosesModeData.personData.currentTripMode} " +
           s"itinerary is available"
         )
-        beamVehicles(id).vehicle.setMustBeDrivenHome(false)
+        val vehicle = beamVehicles(id).vehicle
+        vehicle.setMustBeDrivenHome(false)
+        beamVehicles.remove(vehicle.id)
+        vehicle.getManager.get ! ReleaseVehicle(vehicle, getCurrentTriggerId.get)
         (None, true)
       case _ => (None, false)
     }
@@ -1613,12 +1616,12 @@ trait ChoosesMode {
           // Give up our tour mode too so if we're on a car tour and can't find our car we don't just keep creating
           // new emergency ones
           val updatedTourStrategy =
-            TourModeChoiceStrategy(None, None)
+            TourModeChoiceStrategy(Some(WALK_BASED), None)
           _experiencedBeamPlan.putStrategy(
             _experiencedBeamPlan.getTourContaining(nextActivity(choosesModeData.personData).get),
             updatedTourStrategy
           )
-          None
+          Some(WALK_BASED)
         } else {
           choosesModeData.personData.currentTourMode
         },
