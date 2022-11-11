@@ -2141,7 +2141,7 @@ object BeamConfig {
           ): BeamConfig.Beam.Agentsim.ChargingNetworkManager.SitePowerManagerController = {
             BeamConfig.Beam.Agentsim.ChargingNetworkManager.SitePowerManagerController(
               beamFederatePrefix =
-                if (c.hasPathOrNull("beamFederatePrefix")) c.getString("beamFederatePrefix") else "BEAM_FED",
+                if (c.hasPathOrNull("beamFederatePrefix")) c.getString("beamFederatePrefix") else "BEAM_FED_TAZ",
               beamFederatePublication =
                 if (c.hasPathOrNull("beamFederatePublication")) c.getString("beamFederatePublication")
                 else "CHARGING_VEHICLES",
@@ -2153,7 +2153,7 @@ object BeamConfig {
               intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
               oneFederatePerTAZ = !c.hasPathOrNull("oneFederatePerTAZ") || c.getBoolean("oneFederatePerTAZ"),
               spmFederatePrefix =
-                if (c.hasPathOrNull("spmFederatePrefix")) c.getString("spmFederatePrefix") else "SPM_FED",
+                if (c.hasPathOrNull("spmFederatePrefix")) c.getString("spmFederatePrefix") else "SPM_FED_TAZ",
               spmFederateSubscription =
                 if (c.hasPathOrNull("spmFederateSubscription")) c.getString("spmFederateSubscription")
                 else "CHARGING_COMMANDS",
