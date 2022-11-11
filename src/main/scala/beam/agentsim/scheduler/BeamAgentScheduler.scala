@@ -271,7 +271,11 @@ class BeamAgentScheduler(
 
     case SimulationStuckCheck =>
       if (started) {
-        val stuckThresholdMin = beamConfig.beam.debug.maxSimulationStepTimeBeforeConsideredStuckMin
+        val stuckThresholdMin =
+          if (nowInSeconds < maxWindow)
+            beamConfig.beam.debug.maxSimulationStepTimeBeforeConsideredStuckAtInitializationMin
+          else
+            beamConfig.beam.debug.maxSimulationStepTimeBeforeConsideredStuckMin
         val currentDelayMillis = System.currentTimeMillis() - nowUpdateTime
         if (currentDelayMillis > stuckThresholdMin * 60000L) {
           log.error(
