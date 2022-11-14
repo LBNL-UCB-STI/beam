@@ -621,6 +621,7 @@ object ZonalParkingManagerSpec {
               taz.tazId,
               ParkingType.Workplace,
               reservedFor,
+              None,
               5,
               pricingModel = Some(FlatFee(3.0))
             )

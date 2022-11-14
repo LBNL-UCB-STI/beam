@@ -1045,7 +1045,8 @@ class PersonAgent(
       stay
     case Event(EndingRefuelSession(tick, _, triggerId), data: BasePersonData) =>
       val (updatedTick, updatedData) = createStallToDestTripForEnroute(data, tick)
-      holdTickAndTriggerId(updatedTick, triggerId)
+      if (_currentTick.isEmpty)
+        holdTickAndTriggerId(updatedTick, triggerId)
       chargingNetworkManager ! ChargingUnplugRequest(tick, id, currentBeamVehicle, triggerId)
       stay using updatedData
     case Event(UnpluggingVehicle(tick, _, vehicle, _, energyCharged), data: BasePersonData) =>

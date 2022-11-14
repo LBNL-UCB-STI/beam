@@ -402,6 +402,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     if (nextActivityEndTime > tick + beamConfig.beam.agentsim.schedulerParallelismWindow) ||
                       nextActivityEndTime < 0.0 =>
                   log.debug("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
+                  val maybeNextActivity = for {
+                    personData <- findPersonData(data)
+                    nextActivity <- this match {
+                      case agent: PersonAgent => agent.nextActivity(personData)
+                      case _                  => None
+                    }
+                  } yield nextActivity
                   chargingNetworkManager ! ChargingPlugRequest(
                     tick,
                     currentBeamVehicle,
