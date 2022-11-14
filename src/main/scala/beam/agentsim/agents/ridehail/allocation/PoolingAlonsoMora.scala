@@ -191,7 +191,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         try {
           Await.result(
             createMatchingAlgorithm(matchingAlgorithm, availVehicles, spatialPoolCustomerReqs).matchAndAssign(tick),
-            atMost = 2.minutes
+            atMost = 10.minutes
           )
         } catch {
           case _: TimeoutException =>
