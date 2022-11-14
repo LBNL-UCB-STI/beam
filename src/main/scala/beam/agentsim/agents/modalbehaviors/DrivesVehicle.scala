@@ -385,30 +385,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         if (data.hasParkingBehaviors) {
           // charge vehicle
           if (currentBeamVehicle.isEV) {
-            val maybePersonData = findPersonData(data)
-            val maybeNextActivity = for {
-              personData <- maybePersonData
-              nextActivity <- this match {
-                case agent: PersonAgent => agent.nextActivity(personData)
-                case _                  => None
-              }
-            } yield nextActivity
-            val nextActivityEndTime: Double = maybeNextActivity
-              .map(_.getEndTime)
-              .getOrElse(Time.parseTime(beamServices.beamConfig.beam.agentsim.endTime))
             currentBeamVehicle.reservedStall.foreach { stall: ParkingStall =>
               stall.chargingPointType match {
-                case Some(_)
-                    if (nextActivityEndTime > tick + beamConfig.beam.agentsim.schedulerParallelismWindow) ||
-                      nextActivityEndTime < 0.0 =>
+                case Some(_) =>
                   log.debug("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
-                  val maybeNextActivity = for {
-                    personData <- findPersonData(data)
-                    nextActivity <- this match {
-                      case agent: PersonAgent => agent.nextActivity(personData)
-                      case _                  => None
-                    }
-                  } yield nextActivity
                   chargingNetworkManager ! ChargingPlugRequest(
                     tick,
                     currentBeamVehicle,
@@ -419,13 +399,24 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     shiftStatus = NotApplicable
                   )
                   waitForConnectionToChargingPoint = true
-                case Some(_) =>
-                  log.warning(
-                    "Not sending a plug in request for vehicle {} at tick {} because that vehicle needs to depart at time {}",
-                    currentBeamVehicle.id,
-                    tick,
-                    nextActivityEndTime
-                  )
+                  for {
+                    personData <- findPersonData(data)
+                    nextActivity <- this match {
+                      case agent: PersonAgent => agent.nextActivity(personData)
+                      case _                  => None
+                    }
+                    nextActivityEndTime = nextActivity.getEndTime
+                    if !Time.isUndefinedTime(nextActivityEndTime) &&
+                    nextActivityEndTime <= tick + beamConfig.beam.agentsim.schedulerParallelismWindow
+                  } {
+                    log.warning(
+                      "Vehicle {} needs to depart at time {} but agent {} sends a plug request at tick {}",
+                      currentBeamVehicle.id,
+                      nextActivityEndTime,
+                      id,
+                      tick
+                    )
+                  }
                 case None => // this should only happen rarely
                   log.debug(
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
