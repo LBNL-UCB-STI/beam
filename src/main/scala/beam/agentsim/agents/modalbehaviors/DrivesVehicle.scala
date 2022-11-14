@@ -40,6 +40,7 @@ import org.matsim.api.core.v01.events.{
 }
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.{immutable, mutable}
@@ -389,13 +390,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               stall.chargingPointType match {
                 case Some(_) =>
                   log.debug("Sending ChargingPlugRequest to chargingNetworkManager at {}", tick)
-                  val maybeNextActivity = for {
-                    personData <- findPersonData(data)
-                    nextActivity <- this match {
-                      case agent: PersonAgent => agent.nextActivity(personData)
-                      case _                  => None
-                    }
-                  } yield nextActivity
                   chargingNetworkManager ! ChargingPlugRequest(
                     tick,
                     currentBeamVehicle,
@@ -406,6 +400,24 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     shiftStatus = NotApplicable
                   )
                   waitForConnectionToChargingPoint = true
+                  for {
+                    personData <- findPersonData(data)
+                    nextActivity <- this match {
+                      case agent: PersonAgent => agent.nextActivity(personData)
+                      case _                  => None
+                    }
+                    nextActivityEndTime = nextActivity.getEndTime
+                    if !Time.isUndefinedTime(nextActivityEndTime) &&
+                    nextActivityEndTime <= tick + beamConfig.beam.agentsim.schedulerParallelismWindow
+                  } {
+                    log.warning(
+                      "Vehicle {} needs to depart at time {} but agent {} sends a plug request at tick {}",
+                      currentBeamVehicle.id,
+                      nextActivityEndTime,
+                      id,
+                      tick
+                    )
+                  }
                 case None => // this should only happen rarely
                   log.debug(
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
