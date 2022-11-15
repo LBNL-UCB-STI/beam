@@ -115,21 +115,18 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
           .cosimulate(timeBin, eventsToSend)
           .flatMap { message =>
             // Receiving this message
-            val feedback = message.get("tazId") match {
-              case Some(tazIdStr) =>
+            val feedback = spmConfigMaybe.get.expectFeedback && (message.get("tazId") match {
+              case Some(tazIdStr) if spmConfigMaybe.get.oneFederatePerTAZ =>
                 val taz = beamServices.beamScenario.tazTreeMap.getTAZ(tazIdStr.toString)
-                if (taz.isEmpty || (spmConfigMaybe.get.oneFederatePerTAZ && taz.get.tazId != groupedTazId)) {
-                  logger.error(s"The received tazId $tazIdStr from SPM Controller is empty")
+                if (taz.isEmpty || taz.get.tazId != groupedTazId) {
+                  logger.error(s"The received tazId $tazIdStr from SPM Controller does not match tazId $groupedTazId")
                   false
-                } else if (taz.nonEmpty && spmConfigMaybe.get.oneFederatePerTAZ && taz.get.tazId != groupedTazId) {
-                  logger.error(s"The received tazId $tazIdStr from SPM C does not match current tazId $groupedTazId")
-                  false
-                } else true
+                } else message.contains("vehicleId")
               case _ =>
-                logger.error(s"The received feedback from SPM Controller is empty. Something is broken!")
-                false
-            }
-            if (feedback && message.contains("vehicleId")) {
+                logger.debug(s"The received feedback from SPM Controller: $message")
+                message.contains("vehicleId")
+            })
+            if (feedback) {
               chargingNetworkHelper
                 .lookUpConnectedVehiclesAt(timeBin)
                 .get(Id.create(message("vehicleId").toString, classOf[BeamVehicle])) match {
