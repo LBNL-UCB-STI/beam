@@ -16,10 +16,11 @@ from rudimentary_spmc import SPM_Control
 
 
 class DefaultSPMC:
-    def __init__(self, name, taz_id, site_id):
+    # Myungsoo is SPMC (NOT RIDE HAIL DEPOT)
+    def __init__(self, name, site_id):
         self.site_id = site_id
-        self.taz_id = taz_id
-        self.site_prefix_logging = name + "[TAZ:" + taz_id + "|SITE:" + str(site_id) + "]. "
+        self.site_prefix_logging = name + "[|SITE:" + str(site_id) + "]. "
+        print2(self.site_prefix_logging + "Initializing the SPMCs...")
         self.spm_c = SPM_Control(time_step_mins=1, max_power_evse=[], min_power_evse=[])
 
     def log(self, log_message):
@@ -34,6 +35,8 @@ class DefaultSPMC:
         desired_fuel_level_in_k_wh = []
         max_power_in_kw = []  # min [plug, vehicle]
         battery_capacity_in_k_wh = []  # TODO Julius @ HL can you please add this to the BEAM output?
+
+        self.log("Received " + str(len(charging_events)) + " charging event(s)")
 
         for vehicle in charging_events:
             vehicle_id.append(str(vehicle['vehicleId']))
@@ -66,24 +69,30 @@ class DefaultSPMC:
         tdep = [(tt - t) / 60.0 for tt in desired_departure_time]
         self.log("Optimizing EVSE setpoints by the regular SPMC")
         [p_evse_opt, e_evse_opt, delta_t] = self.spm_c.get_evse_setpoint(tdep, desired_fuel_level_in_k_wh, pmin_site_in_kw, pmax_site_in_kw)
+        print2("TEST ****")
+        print2(t)
+        print2(charging_events)
+        print2(desired_departure_time)
+        print2(tdep)
+        print2(p_evse_opt)
         i = 0
         for vehicle in charging_events:
             control_commands = control_commands + [{
-                'tazId': str(self.taz_id),
+                'tazId': str(vehicle["tazId"]),
                 'vehicleId': vehicle['vehicleId'],
                 'powerInKW': str(p_evse_opt[i])
             }]
             i = i + 1
         num_commands = len(control_commands)
-        self.log(str(num_commands) + " EVSE setpoints from the regular SPMC. Sending " + str(control_commands))
+        self.log(str(num_commands) + " EVSE setpoints. Sending:" + str(control_commands))
         return control_commands
 
 
 class RideHailSPMC:
-    def __init__(self, name, taz_id, site_id):
+    # Julius Is SPMC (IS RIDE HAIL DEPOT)
+    def __init__(self, name, site_id):
         self.site_id = site_id
-        self.taz_id = taz_id
-        self.site_prefix_logging = name + "[TAZ:" + taz_id + "|SITE:" + str(site_id) + "]. "
+        self.site_prefix_logging = name + "[SITE:" + str(site_id) + "]. "
         # JULIUS: @HL I initialized my SPMC here
         # @ HL can you provide the missing information
         # TODO uncomment

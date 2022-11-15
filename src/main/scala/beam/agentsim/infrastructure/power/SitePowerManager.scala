@@ -86,15 +86,15 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
       s"obtainPowerCommandsAndLimits timeBin = $timeBin, numPluggedVehicles = $numPluggedVehicles"
     )
     powerCommands = beamFederateMap.par
-      .map { case (tazId, stations, federate) =>
+      .map { case (groupedTazId, stations, federate) =>
         val currentlyConnectedVehicles = stations.flatMap(_.connectedVehicles.values)
         val eventsToSend = if (currentlyConnectedVehicles.nonEmpty) currentlyConnectedVehicles.map {
           case cv @ ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, _, _, _) =>
             // Sending this message
             val powerInKW = getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
             Map(
-              "tazId"                      -> tazId,
-              "siteId"                     -> tazId, // TODO I have a way for generating the site Id, but for now Site id == parking Zone Id
+              "tazId"                      -> stall.tazId,
+              "siteId"                     -> stall.parkingZoneId,
               "vehicleId"                  -> vehicle.id,
               "vehicleType"                -> vehicle.beamVehicleType.id,
               "primaryFuelLevelInJoules"   -> vehicle.primaryFuelLevelInJoules,
@@ -110,7 +110,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
                 )
             )
         }
-        else List(Map("tazId" -> tazId))
+        else List(Map("tazId" -> groupedTazId))
         federate
           .cosimulate(timeBin, eventsToSend)
           .flatMap { message =>
@@ -118,20 +118,23 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
             val feedback = message.get("tazId") match {
               case Some(tazIdStr) =>
                 val taz = beamServices.beamScenario.tazTreeMap.getTAZ(tazIdStr.toString)
-                if (taz.isEmpty || taz.get.tazId != tazId) {
-                  logger.error(s"The received tazId $tazIdStr from SPMC does not match current tazId $tazId")
+                if (taz.isEmpty || (spmConfigMaybe.get.oneFederatePerTAZ && taz.get.tazId != groupedTazId)) {
+                  logger.error(s"The received tazId $tazIdStr from SPM Controller is empty")
+                  false
+                } else if (taz.nonEmpty && spmConfigMaybe.get.oneFederatePerTAZ && taz.get.tazId != groupedTazId) {
+                  logger.error(s"The received tazId $tazIdStr from SPM C does not match current tazId $groupedTazId")
                   false
                 } else true
               case _ =>
-                logger.error(s"The received feedback from SPMC is empty. Something is broken!")
+                logger.error(s"The received feedback from SPM Controller is empty. Something is broken!")
                 false
             }
             if (feedback && message.contains("vehicleId")) {
               chargingNetworkHelper
                 .lookUpConnectedVehiclesAt(timeBin)
-                .get(Id.create(message("vehicleId").asInstanceOf[String], classOf[BeamVehicle])) match {
+                .get(Id.create(message("vehicleId").toString, classOf[BeamVehicle])) match {
                 case Some(chargingVehicle) =>
-                  Some(chargingVehicle.vehicle.id -> message("powerInKW").asInstanceOf[PowerInKW])
+                  Some(chargingVehicle.vehicle.id -> message("powerInKW").toString.toDouble)
                 case _ =>
                   logger.error(
                     s"Cannot find vehicle ${message("vehicleId")} obtained from the site power manager controller." +

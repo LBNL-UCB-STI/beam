@@ -4,7 +4,7 @@ import numpy as np
 #=========================================================
 #      SPM control algorithm starts here
 #      objective: minimize peak power
-#=========================================================     
+#=========================================================
 class SPM_Control():
     def __init__(self, time_step_mins, max_power_evse, min_power_evse):
         self.time_step_mins = 1                   # time step: 1 minutes
@@ -13,14 +13,20 @@ class SPM_Control():
         self.min_power_evse   = min_power_evse
         
         self.time_horizon    = 0      # total time horizon in min
-        
-        
+
     def get_evse_setpoint(self, t_dep, energy_req, min_power, max_power):
         N = len(t_dep)      # number of plugged EV
-        self.time_horizon    = max(t_dep)
+        if N > 0:
+            self.time_horizon = max(t_dep)
+        else:
+            self.time_horizon = 0
+            p_evse_opt = min(max(self.max_power_evse), max_power)
+            e_evse_opt = p_evse_opt/60
+            delta_t    = [1]
+            return [p_evse_opt, e_evse_opt, delta_t]
 
-        delta_t = [1]*self.time_horizon
-  
+        delta_t = [1] * int(math.ceil(self.time_horizon))
+
         p_evse_opt = np.array([0.0]*len(delta_t)*N)
         e_evse_opt = np.array([0.0]*len(delta_t)*N)
         
@@ -38,13 +44,19 @@ class SPM_Control():
             if i < len(delta_t)-1:
                 e_req_tmp = np.array(energy_req) - np.array(p_evse_opt[ev_index+i]*delta_t[i]/60)
             
-            t_dep_tmp[t_dep_tmp <=0] = 0
+            t_dep_tmp[t_dep_tmp <= 0] = 0
             e_req_tmp[t_dep_tmp <= 0] = 0
             t_dep = t_dep_tmp
             energy_req = e_req_tmp
-                    
-        return [p_evse_opt, e_evse_opt,delta_t]
 
+        # power setpoint values for ESS and EVSE
+        index = [0]
+        for k in range(1, N):
+            index = index + [k*len(delta_t)]
+
+        ev_charging = [p_evse_opt[i] for i in index]
+
+        return [ev_charging, e_evse_opt, delta_t]
 
     def get_heuristic_pwr_setpoint(self, t_dep, energy_req, min_power, max_power, t):
         
@@ -59,6 +71,5 @@ class SPM_Control():
             
         else:
             p_evse_setpoint = min_pwr_req_evse
-            
-        
+
         return p_evse_setpoint
