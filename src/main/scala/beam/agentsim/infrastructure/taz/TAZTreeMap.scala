@@ -330,10 +330,13 @@ object TAZTreeMap {
     val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
     var currentLength = 0.0
     val stopAt = rand.nextDouble() * totalLength
-    allLinks.takeWhile { lnk =>
-      currentLength += lnk.getLength
-      currentLength <= stopAt
-    }.last.getCoord
+    allLinks
+      .takeWhile { lnk =>
+        currentLength += lnk.getLength
+        currentLength <= stopAt
+      }
+      .last
+      .getCoord
   }
 
   def randomLocationInTAZ(
