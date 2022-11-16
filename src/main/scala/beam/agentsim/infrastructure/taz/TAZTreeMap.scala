@@ -328,7 +328,6 @@ object TAZTreeMap {
     allLinks: Iterable[Link]
   ): Coord = {
     if (allLinks.isEmpty) {
-      logger.warn(s"No links in ${taz.tazId}, generating random point")
       randomLocationInTAZ(taz, rand)
     } else {
       val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
@@ -341,7 +340,7 @@ object TAZTreeMap {
         }
         .lastOption
         .map(_.getCoord)
-        .getOrElse(randomLocationInTAZ(taz, rand))
+        .getOrElse(allLinks.head.getCoord)
     }
   }
 
