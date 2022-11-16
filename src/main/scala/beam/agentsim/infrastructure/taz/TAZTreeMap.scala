@@ -339,8 +339,9 @@ object TAZTreeMap {
           currentLength += lnk.getLength
           currentLength <= stopAt
         }
-        .last
-        .getCoord
+        .lastOption
+        .map(_.getCoord)
+        .getOrElse(randomLocationInTAZ(taz, rand))
     }
   }
 
