@@ -1,5 +1,7 @@
 package beam.utils.scenario.urbansim
 
+import beam.utils.csv.GenericCsvReader.getIfNotNull
+import beam.utils.csv.GenericCsvReader.getOrDefault
 import beam.utils.scenario.InputType
 import beam.utils.scenario.urbansim.DataExchange._
 import beam.utils.{FileUtils, ProfilingUtils}
@@ -95,11 +97,11 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
       val value = getIfNotNull(rec, "sex")
       value == "2" || value == "F"
     }
-    val excludedModes = Try(getIfNotNull(rec, "excludedModes")).getOrElse("")
+    val excludedModes = getOrDefault(rec, "excludedModes", "")
     val rank: Int = 0
     val industry = Option(rec.get("industry"))
     val isWheelchairUser: Boolean = {
-      val value = Try(getIfNotNull(rec, "in_wheelchair")).getOrElse("false")
+      val value = getOrDefault(rec, "in_wheelchair", "false")
       value.toLowerCase == "true" || value == "1"
     }
     PersonInfo(
@@ -133,11 +135,5 @@ object CsvScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val unitId = getIfNotNull(rec, "unit_id")
     val buildingId = getIfNotNull(rec, "building_id")
     UnitInfo(unitId = unitId, buildingId = buildingId)
-  }
-
-  private def getIfNotNull(rec: java.util.Map[String, String], column: String): String = {
-    val v = rec.get(column)
-    assert(v != null, s"Value in column '$column' is null")
-    v
   }
 }
