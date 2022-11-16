@@ -152,8 +152,15 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
           }
           foundTaz match {
             case Some(taz) =>
-              TAZtoLinkIdMapping(taz.tazId).put(linkEndCoord.getX, linkEndCoord.getY, link)
-              linkIdToTAZMapping += (id -> taz.tazId)
+              try {
+                TAZtoLinkIdMapping(taz.tazId).put(linkEndCoord.getX, linkEndCoord.getY, link)
+                linkIdToTAZMapping += (id -> taz.tazId)
+              } catch {
+                case e: Throwable =>
+                  logger.error(s"Exception ${e.toString}. Bad link ${link.toString} in taz ${taz.tazId}")
+              } finally {
+                unmatchedLinkIds += id
+              }
             case _ =>
               unmatchedLinkIds += id
           }
