@@ -19,6 +19,7 @@ object ParkingStallSampling extends ExponentialLazyLogging {
 
   def linkBasedSampling(
     rand: Random,
+    taz: TAZ,
     requestLocation: Location,
     linkQuadTree: QuadTree[Link],
     availabilityRatio: Double
@@ -27,7 +28,7 @@ object ParkingStallSampling extends ExponentialLazyLogging {
       case lnk if rand.nextDouble() <= availabilityRatio => Some(lnk.getCoord)
       case _                                             => None
     }
-    chosenLoc.getOrElse(TAZTreeMap.randomLocationInTAZ(rand, linkQuadTree.values().asScala))
+    chosenLoc.getOrElse(TAZTreeMap.randomLocationInTAZ(taz, rand, linkQuadTree.values().asScala))
 //    val allLinks = linkQuadTree.getDisk(requestLocation.getX, requestLocation.getY, maxDist).asScala
 //    val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
 //    var currentLength = 0.0

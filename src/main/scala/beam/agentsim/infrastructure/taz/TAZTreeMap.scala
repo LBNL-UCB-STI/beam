@@ -323,19 +323,25 @@ object TAZTreeMap {
   }
 
   def randomLocationInTAZ(
+    taz: TAZ,
     rand: scala.util.Random,
     allLinks: Iterable[Link]
   ): Coord = {
-    val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
-    var currentLength = 0.0
-    val stopAt = rand.nextDouble() * totalLength
-    allLinks
-      .takeWhile { lnk =>
-        currentLength += lnk.getLength
-        currentLength <= stopAt
-      }
-      .last
-      .getCoord
+    if (allLinks.isEmpty) {
+      logger.warn(s"No links in ${taz.tazId}, generating random point")
+      randomLocationInTAZ(taz, rand)
+    } else {
+      val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
+      var currentLength = 0.0
+      val stopAt = rand.nextDouble() * totalLength
+      allLinks
+        .takeWhile { lnk =>
+          currentLength += lnk.getLength
+          currentLength <= stopAt
+        }
+        .last
+        .getCoord
+    }
   }
 
   def randomLocationInTAZ(

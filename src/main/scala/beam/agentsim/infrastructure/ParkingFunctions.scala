@@ -170,6 +170,7 @@ class ParkingFunctions(
       if (tazTreeMap.tazListContainsGeoms) {
         ParkingStallSampling.linkBasedSampling(
           new Random(seed),
+          taz,
           inquiry.destinationUtm.loc,
           tazTreeMap.TAZtoLinkIdMapping(taz.tazId),
           availability
