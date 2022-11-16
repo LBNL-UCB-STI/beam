@@ -323,7 +323,6 @@ object TAZTreeMap {
   }
 
   def randomLocationInTAZ(
-    taz: TAZ,
     rand: scala.util.Random,
     allLinks: Iterable[Link]
   ): Coord = {

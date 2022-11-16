@@ -171,7 +171,6 @@ class ParkingFunctions(
         ParkingStallSampling.linkBasedSampling(
           new Random(seed),
           inquiry.destinationUtm.loc,
-          taz,
           tazTreeMap.TAZtoLinkIdMapping(taz.tazId),
           availability
         )

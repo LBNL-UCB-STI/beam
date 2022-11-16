@@ -140,7 +140,6 @@ case class AvailabilityBehaviorBasedRepositioning(
             org.taz.tazId,
             SpaceTime(
               TAZTreeMap.randomLocationInTAZ(
-                dst.taz,
                 rand,
                 beamServices.beamScenario.tazTreeMap.TAZtoLinkIdMapping(dst.taz.tazId).values().asScala
               ),
