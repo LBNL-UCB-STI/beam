@@ -69,12 +69,9 @@ class DefaultSPMC:
         tdep = [(tt - t) / 60.0 for tt in desired_departure_time]
         self.log("Optimizing EVSE setpoints by the regular SPMC")
         [p_evse_opt, e_evse_opt, delta_t] = self.spm_c.get_evse_setpoint(tdep, desired_fuel_level_in_k_wh, pmin_site_in_kw, pmax_site_in_kw)
-        print2("TEST ****")
-        print2(t)
+        print2("**** TEST ****")
+        print2("current simulation time: {}. desired_departure_time: {}. tdep: {}. p_evse_opt: {}".format(t, desired_departure_time, tdep, p_evse_opt))
         print2(charging_events)
-        print2(desired_departure_time)
-        print2(tdep)
-        print2(p_evse_opt)
         i = 0
         for vehicle in charging_events:
             control_commands = control_commands + [{

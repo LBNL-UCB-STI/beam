@@ -53,7 +53,8 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
         t_hour_min = str(int(t / 3600)) + ":" + str(round((t % 3600)/60))
         control_commands_list = []
         received_message = h.helicsInputGetString(subs_charging_events)
-        print2("Message received at simulation time: " + str(t) + " seconds (" + t_hour_min + "). Message length: " + str(len(received_message)))
+        if len(received_message) < 20:
+            print2("Message received at simulation time: " + str(t) + " seconds (" + t_hour_min + "). Message length: " + str(len(received_message)) + ". Message: " + received_message)
         if bool(str(received_message).strip()):
             charging_events_json = parse_json(received_message)
             if not isinstance(charging_events_json, collections.abc.Sequence):
@@ -73,7 +74,7 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
                         control_commands_list = control_commands_list + ride_hail_spm_c_dict[site_id].run(t, list(charging_events))
                 # END LOOP
             elif len(charging_events_json) > 0 and 'vehicleId' not in charging_events_json[0]:
-                logging.debug("No charging events were observed from TAZ: " + str(charging_events_json[0]["tazId"]))
+                # logging.debug("No charging events were observed from TAZ: " + str(charging_events_json[0]["tazId"]))
                 pass
             else:
                 logging.error("The JSON message is not valid. The received message is" + str(charging_events_json))
