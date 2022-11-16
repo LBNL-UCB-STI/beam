@@ -1,8 +1,9 @@
 package beam.agentsim.infrastructure.parking
 
 import scala.util.Random
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
+import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -12,29 +13,33 @@ import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 /**
   * sampling methods for randomly generating stall locations from aggregate information
   */
-object ParkingStallSampling {
+object ParkingStallSampling extends ExponentialLazyLogging {
 
-  val maxOffsetDistance = 600.0 // TODO: Make this a config parameter
+  val maxOffsetDistance = 800.0 // TODO: Make this a config parameter
 
   def linkBasedSampling(
     rand: Random,
     requestLocation: Location,
+    taz: TAZ,
     linkQuadTree: QuadTree[Link],
-    distanceFunction: (Coord, Coord) => Double,
-    availabilityRatio: Double,
-    maxDist: Double = maxOffsetDistance
+    availabilityRatio: Double
   ): Location = {
-    val allLinks = linkQuadTree.getDisk(requestLocation.getX, requestLocation.getY, maxDist).asScala
-    val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
-    var currentLength = 0.0
-    val filteredLinks = rand.shuffle(allLinks).takeWhile { lnk =>
-      currentLength += lnk.getLength
-      currentLength <= totalLength * availabilityRatio
+    val chosenLoc = TAZTreeMap.ringSearch[Link, Coord](linkQuadTree, requestLocation, 100, 5000, 2.0) {
+      case lnk if rand.nextDouble() <= availabilityRatio => Some(lnk.getCoord)
+      case _                                             => None
     }
-    Some(filteredLinks)
-      .filter(_.nonEmpty)
-      .map(_.minBy(lnk => distanceFunction(lnk.getCoord, requestLocation)).getCoord)
-      .getOrElse(requestLocation)
+    chosenLoc.getOrElse(TAZTreeMap.randomLocationInTAZ(taz, rand, linkQuadTree.values().asScala))
+//    val allLinks = linkQuadTree.getDisk(requestLocation.getX, requestLocation.getY, maxDist).asScala
+//    val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
+//    var currentLength = 0.0
+//    val filteredLinks = rand.shuffle(allLinks).takeWhile { lnk =>
+//      currentLength += lnk.getLength
+//      currentLength <= totalLength * availabilityRatio
+//    }
+//    Some(filteredLinks)
+//      .filter(_.nonEmpty)
+//      .map(_.minBy(lnk => distanceFunction(lnk.getCoord, requestLocation)).getCoord)
+//      .getOrElse(requestLocation)
   }
 
   /**

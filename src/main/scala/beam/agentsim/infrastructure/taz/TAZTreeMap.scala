@@ -153,13 +153,14 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
           foundTaz match {
             case Some(taz) =>
               try {
-                TAZtoLinkIdMapping(taz.tazId).put(linkEndCoord.getX, linkEndCoord.getY, link)
-                linkIdToTAZMapping += (id -> taz.tazId)
+                if (link.getAllowedModes.contains("car") & link.getAllowedModes.contains("walk")) {
+                  TAZtoLinkIdMapping(taz.tazId).put(linkEndCoord.getX, linkEndCoord.getY, link)
+                  linkIdToTAZMapping += (id -> taz.tazId)
+                }
               } catch {
                 case e: Throwable =>
                   logger.error(s"Exception ${e.toString}. Bad link ${link.toString} in taz ${taz.tazId}")
-              } finally {
-                unmatchedLinkIds += id
+                  unmatchedLinkIds += id
               }
             case _ =>
               unmatchedLinkIds += id
@@ -319,6 +320,20 @@ object TAZTreeMap {
     val x = r * Math.cos(a)
     val y = r * Math.sin(a)
     new Coord(taz.coord.getX + x, taz.coord.getY + y)
+  }
+
+  def randomLocationInTAZ(
+    taz: TAZ,
+    rand: scala.util.Random,
+    allLinks: Iterable[Link]
+  ): Coord = {
+    val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
+    var currentLength = 0.0
+    val stopAt = rand.nextDouble() * totalLength
+    allLinks.takeWhile { lnk =>
+      currentLength += lnk.getLength
+      currentLength <= stopAt
+    }.last.getCoord
   }
 
   def randomLocationInTAZ(

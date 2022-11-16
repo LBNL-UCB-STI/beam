@@ -10,6 +10,7 @@ import beam.sim.BeamServices
 import org.matsim.api.core.v01.Id
 
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 
 case class AvailabilityBehaviorBasedRepositioning(
   repositionTimeBin: Int,
@@ -137,7 +138,14 @@ case class AvailabilityBehaviorBasedRepositioning(
             _,
             SpaceTime(org.taz.coord, now),
             org.taz.tazId,
-            SpaceTime(TAZTreeMap.randomLocationInTAZ(dst.taz, rand), arrivalTime),
+            SpaceTime(
+              TAZTreeMap.randomLocationInTAZ(
+                dst.taz,
+                rand,
+                beamServices.beamScenario.tazTreeMap.TAZtoLinkIdMapping(dst.taz.tazId).values().asScala
+              ),
+              arrivalTime
+            ),
             dst.taz.tazId
           )
         )
