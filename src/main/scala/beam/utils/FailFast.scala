@@ -4,6 +4,8 @@ import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.util.Try
+
 object FailFast extends LazyLogging {
 
   def run(beamServices: BeamServices): Unit = {
@@ -86,6 +88,21 @@ object FailFast extends LazyLogging {
       throw new RuntimeException(
         "Wrong value of Route History file writing iteration"
       )
+    }
+
+    if (
+      config.beam.debug.stuckAgentDetection.enabled
+      || config.beam.debug.stuckAgentDetection.checkMaxNumberOfMessagesEnabled
+    ) {
+      val failedClasses = config.beam.debug.stuckAgentDetection.thresholds.collect {
+        case t if Try(Class.forName(t.triggerType)).isFailure =>
+          t.triggerType
+      }
+      if (failedClasses.nonEmpty) {
+        throw new RuntimeException(
+          s"Cannot load StuckFinder trigger classes: ${failedClasses.mkString(", ")}.\n Probably they don't exist."
+        )
+      }
     }
   }
 }
