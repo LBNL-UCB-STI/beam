@@ -306,8 +306,7 @@ class ZonalParkingManagerSpec
       val maxSearchRadius = 16093.4 // meters, aka 10 miles
       val zpm = ZonalParkingManager(
         parkingDescription,
-        tazMap.tazQuadTree,
-        tazMap.idToTAZMapping,
+        tazMap,
         boundingBox,
         geo.distUTMInMeters(_, _),
         minSearchRadius,

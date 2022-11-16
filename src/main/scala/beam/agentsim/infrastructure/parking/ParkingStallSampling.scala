@@ -3,7 +3,11 @@ package beam.agentsim.infrastructure.parking
 import scala.util.Random
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
-import org.matsim.api.core.v01.Coord
+import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.core.utils.collections.QuadTree
+
+import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 
 /**
   * sampling methods for randomly generating stall locations from aggregate information
@@ -11,6 +15,27 @@ import org.matsim.api.core.v01.Coord
 object ParkingStallSampling {
 
   val maxOffsetDistance = 600.0 // TODO: Make this a config parameter
+
+  def linkBasedSampling(
+    rand: Random,
+    requestLocation: Location,
+    linkQuadTree: QuadTree[Link],
+    distanceFunction: (Coord, Coord) => Double,
+    availabilityRatio: Double,
+    maxDist: Double = maxOffsetDistance
+  ): Location = {
+    val allLinks = linkQuadTree.getDisk(requestLocation.getX, requestLocation.getY, maxDist).asScala
+    val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
+    var currentLength = 0.0
+    val filteredLinks = rand.shuffle(allLinks).takeWhile { lnk =>
+      currentLength += lnk.getLength
+      currentLength <= totalLength * availabilityRatio
+    }
+    Some(filteredLinks)
+      .filter(_.nonEmpty)
+      .map(_.minBy(lnk => distanceFunction(lnk.getCoord, requestLocation)).getCoord)
+      .getOrElse(requestLocation)
+  }
 
   /**
     * generates stall locations per a sampling technique which induces noise as a function of stall attribute availability

@@ -51,22 +51,7 @@ object ZonalParkingManager extends LazyLogging {
         )
       }
       override val searchFunctions: Option[InfrastructureFunctions] = Some(
-        new ParkingFunctions(
-          tazTreeMap.tazQuadTree,
-          tazTreeMap.idToTAZMapping,
-          parkingZones,
-          distanceFunction,
-          minSearchRadius,
-          maxSearchRadius,
-          0.0,
-          estimatedMinParkingDurationInSeconds,
-          0.0,
-          fractionOfSameTypeZones,
-          minNumberOfSameTypeZones,
-          boundingBox,
-          seed,
-          mnlParkingConfig
-        )
+        new ParkingFunctions(tazTreeMap, parkingZones, distanceFunction, minSearchRadius, maxSearchRadius, 0.0, estimatedMinParkingDurationInSeconds, 0.0, fractionOfSameTypeZones, minNumberOfSameTypeZones, boundingBox, seed, mnlParkingConfig)
       )
     }
   }
