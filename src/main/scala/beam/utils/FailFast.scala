@@ -98,9 +98,11 @@ object FailFast extends LazyLogging {
         case t if Try(Class.forName(t.triggerType)).isFailure =>
           t.triggerType
       }
-      throw new RuntimeException(
-        s"Cannot load StuckFinder trigger classes: ${failedClasses.mkString(", ")}.\n Probably they don't exist."
-      )
+      if (failedClasses.nonEmpty) {
+        throw new RuntimeException(
+          s"Cannot load StuckFinder trigger classes: ${failedClasses.mkString(", ")}.\n Probably they don't exist."
+        )
+      }
     }
   }
 }
