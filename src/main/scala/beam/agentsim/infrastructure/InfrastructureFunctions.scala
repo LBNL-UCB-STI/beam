@@ -12,7 +12,7 @@ import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
   ParkingZoneSearchResult
 }
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
@@ -21,8 +21,7 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.util.Random
 
 abstract class InfrastructureFunctions(
-  geoQuadTree: QuadTree[TAZ],
-  idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+  tazTreeMap: TAZTreeMap,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
@@ -130,7 +129,7 @@ abstract class InfrastructureFunctions(
         mnlMultiplierParameters,
         zoneCollections,
         parkingZones,
-        geoQuadTree,
+        tazTreeMap.tazQuadTree,
         new Random(seed),
         inquiry.departureLocation,
         inquiry.reservedFor
@@ -155,7 +154,7 @@ abstract class InfrastructureFunctions(
     // generates a coordinate for an embodied ParkingStall from a ParkingZone
     val parkingZoneLocSamplingFunction: ParkingZone => Coord =
       (zone: ParkingZone) => {
-        idToGeoMapping.get(zone.tazId) match {
+        tazTreeMap.idToTAZMapping.get(zone.tazId) match {
           case None =>
             logger.error(
               s"somehow have a ParkingZone with tazId ${zone.tazId} which is not found in the idToGeoMapping"
