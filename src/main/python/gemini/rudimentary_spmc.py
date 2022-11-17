@@ -35,6 +35,7 @@ class SPM_Control():
         ev_index   = np.linspace(0, len(delta_t)*(N-1), N).astype(int)
                                        
         for i in range(len(delta_t)):
+            # when i == len(delta_t)-1 => energy_req == np.array(energy_req) * 0
             p_evse_setpoint = self.get_heuristic_pwr_setpoint(t_dep, energy_req, min_power, max_power, i)
             
             p_evse_opt[ev_index+i] = p_evse_setpoint
@@ -43,10 +44,10 @@ class SPM_Control():
                 e_evse_opt[ev_index+i+1] = e_evse_opt[ev_index+i] + p_evse_opt[ev_index+i]*delta_t[i]/60
                                                    
             t_dep_tmp = np.array(t_dep) - delta_t[i]
+            e_req_tmp = np.array(energy_req) * 0
+
             if i < len(delta_t)-1:
                 e_req_tmp = np.array(energy_req) - np.array(p_evse_opt[ev_index+i]*delta_t[i]/60)
-            else:
-                e_req_tmp = np.array(energy_req) * 0
             
             t_dep_tmp[t_dep_tmp <= 0] = 0
             e_req_tmp[t_dep_tmp <= 0] = 0

@@ -6,7 +6,7 @@ import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStat
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.charging.ChargingPointType.getChargingPointInstalledPowerInKw
-import beam.agentsim.infrastructure.parking.ParkingType
+import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZoneId}
 import beam.agentsim.infrastructure.power.PowerManager._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamHelicsInterface.{createFedInfo, enterExecutionMode, getFederate, BeamFederate}
@@ -27,6 +27,15 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   protected val powerController = new PowerManager(chargingNetworkHelper, beamServices.beamConfig)
   protected var powerLimits = Map.empty[ChargingStation, PowerInKW]
   protected var powerCommands = Map.empty[Id[BeamVehicle], PowerInKW]
+
+  protected val siteMap: Map[Id[ParkingZoneId], Id[TAZ]] =
+    chargingNetworkHelper.allChargingStations
+      .groupBy(x => (x.zone.tazId, x.zone.parkingZoneId))
+      .keys
+      .map { case (tazId, parkingZoneId) =>
+        parkingZoneId -> tazId
+      }
+      .toMap
 
   private[power] lazy val beamFederateMap: List[(Id[TAZ], List[ChargingStation], BeamFederate)] =
     spmConfigMaybe match {
@@ -78,39 +87,54 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     }
 
   /**
+    * This method adds hour**(hour - 1) to initial departure time estimate
+    * @param currentTime time of simulation
+    * @param initialDepartureTimeEstimate initial estimate of departure time estimate
+    * @return
+    */
+  def estimateDepartureTime(currentTime: Int, initialDepartureTimeEstimate: Int): Int = {
+    val ceiledInitialEstimate = 60 * Math.ceil(initialDepartureTimeEstimate / 60.0).toInt
+    val additionalHoursForDeparture = if (ceiledInitialEstimate < currentTime) {
+      val hourDifference = ((ceiledInitialEstimate - currentTime) / 3600.0).toInt
+      (1 + hourDifference * (hourDifference - 1)) * 3600
+    } else 0
+    ceiledInitialEstimate + additionalHoursForDeparture
+  }
+
+  /**
     * @param timeBin Int
     */
   def obtainPowerCommandsAndLimits(timeBin: Int): Unit = {
     val numPluggedVehicles = chargingNetworkHelper.allChargingStations.view.map(_.howManyVehiclesAreCharging).sum
-    logger.debug(
-      s"obtainPowerCommandsAndLimits timeBin = $timeBin, numPluggedVehicles = $numPluggedVehicles"
-    )
+    logger.debug(s"obtainPowerCommandsAndLimits timeBin = $timeBin, numPluggedVehicles = $numPluggedVehicles")
     powerCommands = beamFederateMap.par
       .map { case (groupedTazId, stations, federate) =>
-        val currentlyConnectedVehicles = stations.flatMap(_.connectedVehicles.values)
-        val eventsToSend = if (currentlyConnectedVehicles.nonEmpty) currentlyConnectedVehicles.map {
-          case cv @ ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, _, _, _) =>
-            // Sending this message
-            val powerInKW = getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
-            Map(
-              "tazId"                      -> stall.tazId,
-              "siteId"                     -> stall.parkingZoneId,
-              "vehicleId"                  -> vehicle.id,
-              "vehicleType"                -> vehicle.beamVehicleType.id,
-              "primaryFuelLevelInJoules"   -> vehicle.primaryFuelLevelInJoules,
-              "primaryFuelCapacityInJoule" -> vehicle.beamVehicleType.primaryFuelCapacityInJoule,
-              "arrivalTime"                -> arrivalTime,
-              "departureTime"              -> cv.estimatedDepartureTime,
-              "desiredFuelLevelInJoules"   -> (vehicle.beamVehicleType.primaryFuelCapacityInJoule - vehicle.primaryFuelLevelInJoules),
-              "maxPowerInKW" -> vehicle.beamVehicleType.chargingCapability
-                .map(getChargingPointInstalledPowerInKw)
-                .map(Math.min(powerInKW, _))
-                .getOrElse(
-                  powerInKW
-                )
-            )
-        }
-        else List(Map("tazId" -> groupedTazId))
+        val currentlyConnectedVehicles: Map[Id[ParkingZoneId], List[ChargingVehicle]] =
+          stations.flatMap(_.connectedVehicles.values).groupBy(_.chargingStation.zone.parkingZoneId)
+        val eventsToSend: List[Map[String, Any]] = siteMap.flatMap { case (parkingZoneId, tazId) =>
+          currentlyConnectedVehicles
+            .get(parkingZoneId)
+            .map(_.map { case cv @ ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, _, _, _) =>
+              // Sending this message
+              val fuelCapacity = vehicle.beamVehicleType.primaryFuelCapacityInJoule
+              Map(
+                "tazId"                      -> tazId,
+                "siteId"                     -> parkingZoneId,
+                "vehicleId"                  -> vehicle.id,
+                "vehicleType"                -> vehicle.beamVehicleType.id,
+                "primaryFuelLevelInJoules"   -> vehicle.primaryFuelLevelInJoules,
+                "primaryFuelCapacityInJoule" -> vehicle.beamVehicleType.primaryFuelCapacityInJoule,
+                "arrivalTime"                -> arrivalTime,
+                "departureTime"              -> estimateDepartureTime(timeBin, cv.estimatedDepartureTime),
+                "desiredFuelLevelInJoules"   -> (fuelCapacity - vehicle.primaryFuelLevelInJoules),
+                "maxPowerInKW" -> vehicle.beamVehicleType.chargingCapability
+                  .map(getChargingPointInstalledPowerInKw)
+                  .map(Math.min(getChargingPointInstalledPowerInKw(stall.chargingPointType.get), _))
+                  .getOrElse(getChargingPointInstalledPowerInKw(stall.chargingPointType.get))
+              )
+            })
+            .getOrElse(List(Map("tazId" -> tazId, "siteId" -> parkingZoneId)))
+        }.toList
         federate
           .cosimulate(timeBin, eventsToSend)
           .flatMap { message =>

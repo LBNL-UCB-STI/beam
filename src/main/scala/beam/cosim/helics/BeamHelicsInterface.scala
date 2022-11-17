@@ -1,7 +1,6 @@
 package beam.cosim.helics
 
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
-import beam.agentsim.scheduler.Trigger
 import beam.utils.FileUtils
 import com.github.beam.HelicsLoader
 import com.java.helics._

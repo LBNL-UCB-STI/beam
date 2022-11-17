@@ -19,7 +19,7 @@ class DefaultSPMC:
     # Myungsoo is SPMC (NOT RIDE HAIL DEPOT)
     def __init__(self, name, site_id):
         self.site_id = site_id
-        self.site_prefix_logging = name + "[|SITE:" + str(site_id) + "]. "
+        self.site_prefix_logging = name + "[SITE:" + str(site_id) + "]. "
         print2(self.site_prefix_logging + "Initializing the SPMCs...")
         self.spm_c = SPM_Control(time_step_mins=1, max_power_evse=[], min_power_evse=[])
 
@@ -36,24 +36,22 @@ class DefaultSPMC:
         max_power_in_kw = []  # min [plug, vehicle]
         battery_capacity_in_k_wh = []  # TODO Julius @ HL can you please add this to the BEAM output?
 
-        self.log("Received " + str(len(charging_events)) + " charging event(s)")
-
-        for vehicle in charging_events:
-            vehicle_id.append(str(vehicle['vehicleId']))
-            vehicle_type.append(str(vehicle['vehicleType']))
+        for charging_event in charging_events:
+            vehicle_id.append(str(charging_event['vehicleId']))
+            vehicle_type.append(str(charging_event['vehicleType']))
             # MJ: What is this? Is it the current energy level of each EV? Or battery size?
-            primary_fuel_level_in_k_wh.append(int(vehicle['primaryFuelLevelInJoules']) / 3600000)
+            primary_fuel_level_in_k_wh.append(int(charging_event['primaryFuelLevelInJoules']) / 3600000)
             # MJ: Should be in minutes of day. What is the unit of this?
-            arrival_time.append(int(vehicle['arrivalTime']))
+            arrival_time.append(int(charging_event['arrivalTime']))
             # MJ: Should be in minutes of day. What is the unit of this?
-            desired_departure_time.append(int(vehicle['departureTime']))
+            desired_departure_time.append(int(charging_event['departureTime']))
             # MJ: I assume that this is remaining energy to be delivered to each EV
             # and updated each time,right?
-            desired_fuel_level_in_k_wh.append(int(vehicle['desiredFuelLevelInJoules']) / 3600000)
+            desired_fuel_level_in_k_wh.append(int(charging_event['desiredFuelLevelInJoules']) / 3600000)
             # MJ: I assume that this is the EV charging power
-            max_power_in_kw.append(float(vehicle['maxPowerInKW']))
+            max_power_in_kw.append(float(charging_event['maxPowerInKW']))
             # Julius @ HL can you please add this to the BEAM output?
-            battery_capacity_in_k_wh.append(int(vehicle['primaryFuelCapacityInJoule']) / 3600000)
+            battery_capacity_in_k_wh.append(int(charging_event['primaryFuelCapacityInJoule']) / 3600000)
 
         # Myungsoo is SPMC (NOT RIDE HAIL DEPOT)
         control_commands = []
@@ -66,12 +64,10 @@ class DefaultSPMC:
         self.spm_c.min_power_evse = [0] * len(self.spm_c.max_power_evse)
         pmin_site_in_kw = 0
         pmax_site_in_kw = sum(max_power_in_kw)
-        tdep = [tt - t / 60.0 for tt in desired_departure_time]
-        self.log("Optimizing EVSE setpoints by the regular SPMC")
+
+        tdep = [(tt - t) / 60.0 for tt in desired_departure_time]
+        # self.log("Optimizing EVSE setpoints by the regular SPMC")
         [p_evse_opt, e_evse_opt, delta_t] = self.spm_c.get_evse_setpoint(tdep, desired_fuel_level_in_k_wh, pmin_site_in_kw, pmax_site_in_kw)
-        print2("**** TEST ****")
-        print2("simulation time: {}. desired_departure_time: {}. tdep: {}. p_evse_opt: {}".format(t, desired_departure_time, tdep, p_evse_opt))
-        print2(charging_events)
         i = 0
         for vehicle in charging_events:
             control_commands = control_commands + [{
@@ -81,7 +77,11 @@ class DefaultSPMC:
             }]
             i = i + 1
         num_commands = len(control_commands)
-        self.log(str(num_commands) + " EVSE setpoints. Sending:" + str(control_commands))
+        if num_commands > 1:
+            print2("**** TEST ****")
+            print2("simulation time: {}. desired_departure_time: {}. tdep: {}. p_evse_opt: {}".format(t, desired_departure_time, tdep, p_evse_opt))
+            print2(charging_events)
+            print2(str(num_commands) + " EVSE setpoints. Sending:" + str(control_commands))
         return control_commands
 
 
