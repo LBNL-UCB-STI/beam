@@ -1,13 +1,10 @@
 package beam.utils
 
-import java.io.File
-
 import akka.actor.ActorSystem
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.events.eventbuilder.{ComplexEventBuilder, EventBuilderActor}
-import beam.api.{BeamCustomizationAPI, DefaultAPIImplementation}
 import beam.sim.config.{BeamConfig, BeamConfigHolder, MatSimBeamConfigBuilder}
-import beam.sim.{BeamHelper, BeamScenario, BeamServices, BeamServicesImpl, RunBeam}
+import beam.sim._
 import com.google.inject.Injector
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
@@ -16,6 +13,8 @@ import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.scenario.MutableScenario
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, Suite}
+
+import java.io.File
 
 trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll with BeforeAndAfterEach { this: Suite =>
   def config: com.typesafe.config.Config
