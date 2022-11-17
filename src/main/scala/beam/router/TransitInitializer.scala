@@ -1,9 +1,8 @@
 package beam.router
-
+import beam.agentsim.agents.TransitVehicleInitializer
 import java.util
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
-
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.isOnStreetTransit
@@ -171,7 +170,7 @@ class TransitInitializer(
         .filter(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
         .map { tripSchedule =>
           // First create a unique id for this trip which will become the transit agent and vehicle id
-          val tripVehId = Id.create(BeamVehicle.noSpecialChars(tripSchedule.tripId), classOf[BeamVehicle])
+          val tripVehId = TransitVehicleInitializer.gtfsTripIdToBeamVehicleId(tripSchedule.tripId)
           val legs =
             tripSchedule.departures.zipWithIndex
               .sliding(2)
