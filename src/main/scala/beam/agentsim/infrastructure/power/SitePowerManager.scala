@@ -133,7 +133,10 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
                   .getOrElse(getChargingPointInstalledPowerInKw(stall.chargingPointType.get))
               )
             })
-            .getOrElse(List(Map("tazId" -> tazId, "siteId" -> parkingZoneId)))
+            .getOrElse(List(Map(
+              "tazId" -> tazId,
+              "siteId" -> parkingZoneId
+            )))
         }.toList
         federate
           .cosimulate(timeBin, eventsToSend)

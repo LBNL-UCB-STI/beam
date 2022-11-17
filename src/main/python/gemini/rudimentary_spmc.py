@@ -24,7 +24,10 @@ class SPM_Control():
         delta_t = [1]*int(self.time_horizon)
 
         if len(delta_t) == 0:
-            p_evse_opt = [min(max(self.max_power_evse), max_power)]*N
+            if len(self.max_power_evse) == 0:
+                p_evse_opt = [max_power] * N
+            else:
+                p_evse_opt = [min(max(self.max_power_evse), max_power)] * N
             e_evse_opt = [k/60 for k in p_evse_opt]
             delta_t    = []
             return [p_evse_opt, e_evse_opt, delta_t]

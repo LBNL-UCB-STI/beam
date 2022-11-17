@@ -49,7 +49,6 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
 
     # start execution loop
     all_power_commands_list = []
-    initialized = False
     for t in range(0, simulated_day_in_seconds - time_bin_in_seconds, time_bin_in_seconds):
         sync_time(t)
         power_commands_list = []
@@ -68,11 +67,12 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
                     if site_id not in ride_hail_spm_c_dict:
                         ride_hail_spm_c_dict[site_id] = RideHailSPMC("RideHailSPMC", site_id)
 
-                    filtered_charging_events = filter(lambda charging_event: 'vehicleId' in charging_event, charging_events)
-                    if not site_id.lower().startswith('depot'):
-                        power_commands_list = power_commands_list + default_spm_c_dict[site_id].run(t, list(filtered_charging_events))
-                    else:
-                        power_commands_list = power_commands_list + ride_hail_spm_c_dict[site_id].run(t, list(filtered_charging_events))
+                    filtered_charging_events = list(filter(lambda charging_event: 'vehicleId' in charging_event, charging_events))
+                    if len(filtered_charging_events) > 0:
+                        if not site_id.lower().startswith('depot'):
+                            power_commands_list = power_commands_list + default_spm_c_dict[site_id].run(t, filtered_charging_events)
+                        else:
+                            power_commands_list = power_commands_list + ride_hail_spm_c_dict[site_id].run(t, filtered_charging_events)
             else:
                 logging.error("The JSON message is not valid. The received message is" + str(charging_events_json))
                 pass
