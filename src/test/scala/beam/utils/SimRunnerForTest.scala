@@ -42,6 +42,7 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll with BeforeAndA
         List.empty[ComplexEventBuilder]
       )
     )
+    beamScenario.privateVehicles.foreach(_._2.resetState())
   }
 
   override protected def beforeAll(): Unit = {
