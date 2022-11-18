@@ -81,7 +81,9 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
               veh.spaceTime,
               "wherever",
               VehicleManager.getReservedFor(vehicleManagerId).get,
-              triggerId = triggerId
+              triggerId = triggerId,
+              parkingDuration =
+                beamServices.beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
             ) flatMap { case ParkingInquiryResponse(stall, _, triggerId) =>
             veh.useParkingStall(stall)
             self ? ReleaseVehicleAndReply(veh, None, triggerId)

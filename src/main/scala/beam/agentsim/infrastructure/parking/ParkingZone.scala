@@ -4,6 +4,7 @@ import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.power.SitePowerManager
 import beam.agentsim.infrastructure.taz.TAZ
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
@@ -32,7 +33,8 @@ class ParkingZone(
   val chargingPointType: Option[ChargingPointType],
   val pricingModel: Option[PricingModel],
   val timeRestrictions: Map[VehicleCategory, Range],
-  val link: Option[Link]
+  val link: Option[Link],
+  val siteId: Id[SitePowerManager]
 ) {
 
   /**
@@ -52,21 +54,6 @@ class ParkingZone(
       case Some(p) => s" pricingModel = $p"
     }
     s"ParkingZone(parkingZoneId = $parkingZoneId, numStalls = $stallsAvailable, $chargeString, $pricingString)"
-  }
-
-  def makeCopy(maxStalls: Int = -1): ParkingZone = {
-    new ParkingZone(
-      this.parkingZoneId,
-      this.tazId,
-      this.parkingType,
-      this.stallsAvailable,
-      if (maxStalls == -1) this.maxStalls else maxStalls,
-      this.reservedFor,
-      this.chargingPointType,
-      this.pricingModel,
-      this.timeRestrictions,
-      this.link
-    )
   }
 
   override def equals(that: Any): Boolean =
@@ -100,6 +87,7 @@ object ParkingZone extends LazyLogging {
     geoId: Id[TAZ],
     parkingType: ParkingType,
     reservedFor: ReservedFor,
+    siteId: Id[SitePowerManager],
     stallsAvailable: Int = 0,
     maxStalls: Int = 0,
     chargingPointType: Option[ChargingPointType] = None,
@@ -117,7 +105,8 @@ object ParkingZone extends LazyLogging {
       chargingPointType,
       pricingModel,
       timeRestrictions,
-      link
+      link,
+      siteId
     )
 
   def defaultInit(
@@ -130,6 +119,7 @@ object ParkingZone extends LazyLogging {
       geoId,
       parkingType,
       VehicleManager.AnyManager,
+      Some(SitePowerManager.createId(DefaultParkingZoneId.toString)),
       numStalls
     )
   }
@@ -139,6 +129,7 @@ object ParkingZone extends LazyLogging {
     geoId: Id[TAZ],
     parkingType: ParkingType,
     reservedFor: ReservedFor,
+    siteIdMaybe: Option[Id[SitePowerManager]],
     maxStalls: Int = 0,
     chargingPointType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
@@ -147,14 +138,18 @@ object ParkingZone extends LazyLogging {
   ): ParkingZone = {
     val parkingZoneId = parkingZoneIdMaybe match {
       case Some(parkingZoneId) => parkingZoneId
-      case _ =>
-        constructParkingZoneKey(reservedFor, geoId, parkingType, chargingPointType, pricingModel, maxStalls)
+      case _                   => constructParkingZoneKey(reservedFor, geoId, parkingType, chargingPointType, pricingModel, maxStalls)
+    }
+    val siteId = siteIdMaybe match {
+      case Some(siteId) => siteId
+      case _            => SitePowerManager.constructSitePowerKey(reservedFor, geoId, parkingType, chargingPointType)
     }
     ParkingZone(
       parkingZoneId,
       geoId,
       parkingType,
       reservedFor,
+      siteId,
       maxStalls,
       maxStalls,
       chargingPointType,
@@ -220,7 +215,6 @@ object ParkingZone extends LazyLogging {
 
   /**
     * construct ID of a Parking Zone
-    * @param vehicleManagerId Vehicle Manager
     * @param geoId TAZ ID
     * @param parkingType Parking Type
     * @param chargingPointTypeMaybe Charging Point Type Option
@@ -236,11 +230,11 @@ object ParkingZone extends LazyLogging {
     pricingModelMaybe: Option[PricingModel],
     numStalls: Int
   ): Id[ParkingZoneId] = {
-    val chargingPointType = chargingPointTypeMaybe.getOrElse("NA")
-    val pricingModel = pricingModelMaybe.getOrElse("NA")
+    val chargingPointType = chargingPointTypeMaybe.getOrElse("NoCharger")
+    val pricingModel = pricingModelMaybe.getOrElse("Free")
     val costInCents = pricingModelMaybe.map(x => (x.costInDollars * 100).toInt).getOrElse(0)
     createId(
-      s"cs_${reservedFor}_${geoId}_${parkingType}_${chargingPointType}_${pricingModel}_${costInCents}_$numStalls"
+      s"zone-${reservedFor}-${geoId}-${parkingType}-${chargingPointType}-${pricingModel}-${costInCents}-$numStalls"
     )
   }
 
