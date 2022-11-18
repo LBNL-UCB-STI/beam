@@ -48,45 +48,47 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
             return ""
 
     # start execution loop
+    all_power_commands_list = []
     for t in range(0, simulated_day_in_seconds - time_bin_in_seconds, time_bin_in_seconds):
         sync_time(t)
-        t_hour_min = str(int(t / 3600)) + ":" + str(round((t % 3600)/60))
-        control_commands_list = []
+        power_commands_list = []
         received_message = h.helicsInputGetString(subs_charging_events)
-        print2("Message received at simulation time: " + str(t) + " seconds (" + t_hour_min + "). Message length: " + str(len(received_message)))
+        if t % 1800 == 0:
+            print2("Hour " + str(t/3600) + " completed.")
         if bool(str(received_message).strip()):
             charging_events_json = parse_json(received_message)
             if not isinstance(charging_events_json, collections.abc.Sequence):
                 logging.error("Was not able to parse JSON message from BEAM. Something is broken!")
                 pass
-            elif len(charging_events_json) > 0 and 'vehicleId' in charging_events_json[0]:
-                # Reading BEAM values
+            elif len(charging_events_json) > 0:
                 for site_id, charging_events in itertools.groupby(charging_events_json, key_func):
                     if site_id not in default_spm_c_dict:
                         default_spm_c_dict[site_id] = DefaultSPMC("DefaultSPMC", site_id)
                     if site_id not in ride_hail_spm_c_dict:
                         ride_hail_spm_c_dict[site_id] = RideHailSPMC("RideHailSPMC", site_id)
-                    # Running SPM Controllers
-                    if not site_id.lower().startswith('depot'):
-                        control_commands_list = control_commands_list + default_spm_c_dict[site_id].run(t, list(charging_events))
-                    else:
-                        control_commands_list = control_commands_list + ride_hail_spm_c_dict[site_id].run(t, list(charging_events))
-                # END LOOP
-            elif len(charging_events_json) > 0 and 'vehicleId' not in charging_events_json[0]:
-                logging.debug("No charging events were observed from TAZ: " + str(charging_events_json[0]["tazId"]))
-                pass
+
+                    filtered_charging_events = list(filter(lambda charging_event: 'vehicleId' in charging_event, charging_events))
+                    if len(filtered_charging_events) > 0:
+                        if not site_id.lower().startswith('depot'):
+                            power_commands_list = power_commands_list + default_spm_c_dict[site_id].run(t, filtered_charging_events)
+                        else:
+                            power_commands_list = power_commands_list + ride_hail_spm_c_dict[site_id].run(t, filtered_charging_events)
             else:
                 logging.error("The JSON message is not valid. The received message is" + str(charging_events_json))
                 pass
         else:
-            logging.error("SPMC received empty message from BEAM. Something is broken!")
+            logging.error("SPM Controller received empty message from BEAM. Something is broken!")
             pass
 
-        message_to_send = control_commands_list
+        message_to_send = power_commands_list
         if not message_to_send:
             message_to_send = [{}]
         h.helicsPublicationPublishString(pubs_control, json.dumps(message_to_send, separators=(',', ':')))
         sync_time(t + 1)
+        all_power_commands_list = all_power_commands_list + power_commands_list
+
+    control_commands_df = pd.DataFrame(all_power_commands_list)
+    control_commands_df.to_csv('out.csv', index=False)
 
     # close the federate
     h.helicsFederateDisconnect(cfed)
