@@ -115,7 +115,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       updatedLeg.travelPath.distanceInM,
       updatedLeg.duration,
       vehicleType,
-      fuelTypePrices(vehicleType.primaryFuelType)
+      fuelTypePrices.getOrElse(vehicleType.primaryFuelType, 0.0)
     )
     val totalCost = drivingCost + (if (updatedLeg.mode == BeamMode.CAR) toll else 0)
 
@@ -1011,7 +1011,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         beamLeg.travelPath.distanceInM,
         beamLeg.duration,
         vehicleType,
-        fuelTypePrices(vehicleType.primaryFuelType)
+        fuelTypePrices.getOrElse(vehicleType.primaryFuelType, 0.0)
       )
     } else 0.0
     EmbodiedBeamLeg(
