@@ -173,6 +173,7 @@ object PopulationAdjustment extends LazyLogging {
   val EXCLUDE_TRANSIT = "EXCLUDE_TRANSIT"
   val HALF_TRANSIT = "HALF_TRANSIT"
   val EXCLUDED_MODES = "excluded-modes"
+  val RIDEHAIL_SERVICE_SUBSCRIPTION = "ridehail-service-subscription"
   val BEAM_ATTRIBUTES = "beam-attributes"
   val CAR_RIDE_HAIL_ONLY = "CAR_RIDE_HAIL_ONLY"
 
@@ -245,10 +246,18 @@ object PopulationAdjustment extends LazyLogging {
     val availableModes: Seq[BeamMode] = initialAvailableModes.filterNot { mode =>
       excludedModes.exists(em => em.equalsIgnoreCase(mode.value))
     }
+    val rideHailServiceSubscription = AvailableModeUtils.getAttributeAsArrayOfStrings(
+      population,
+      person.getId.toString,
+      PopulationAdjustment.RIDEHAIL_SERVICE_SUBSCRIPTION
+    )
     // Read person attribute "income" and default it to 0 if not set
     val income = Option(personAttributes.getAttribute(person.getId.toString, "income"))
       .map(_.asInstanceOf[Double])
       .getOrElse(0d)
+    // Read person attribute "wheelchairUser" and default it to 0 if not set
+    val wheelchairUser =
+      Option(personAttributes.getAttribute(person.getId.toString, "wheelchairUser")).exists(_.asInstanceOf[Boolean])
     // Read person attribute "modalityStyle"
     val modalityStyle =
       Option(person.getSelectedPlan)
@@ -277,9 +286,11 @@ object PopulationAdjustment extends LazyLogging {
       modalityStyle = modalityStyle,
       isMale = Option(PersonUtils.getSex(person)).getOrElse("M").equalsIgnoreCase("M"),
       availableModes = availableModes,
+      rideHailServiceSubscription = rideHailServiceSubscription,
       valueOfTime = valueOfTime,
       age = Option(PersonUtils.getAge(person)),
-      income = Some(income)
+      income = Some(income),
+      wheelchairUser = wheelchairUser
     )
   }
 

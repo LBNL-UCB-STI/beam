@@ -28,12 +28,12 @@ abstract class InfrastructureFunctions(
   minSearchRadius: Double,
   maxSearchRadius: Double,
   searchMaxDistanceRelativeToEllipseFoci: Double,
-  enrouteDuration: Double,
+  estimatedMinParkingDurationInSeconds: Double,
+  estimatedMeanEnRouteChargingDurationInSeconds: Double,
   fractionOfSameTypeZones: Double,
   minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
-  seed: Int,
-  estimatedMinParkingDurationInSeconds: Double
+  seed: Int
 ) extends StrictLogging {
 
   val zoneCollections: Map[Id[TAZ], ParkingZoneCollection] =
@@ -101,13 +101,13 @@ abstract class InfrastructureFunctions(
       searchMaxDistanceRelativeToEllipseFoci,
       boundingBox,
       distanceFunction,
-      enrouteDuration,
       estimatedMinParkingDurationInSeconds,
+      estimatedMeanEnRouteChargingDurationInSeconds,
       fractionOfSameTypeZones,
       minNumberOfSameTypeZones
     )
 
-  def searchForParkingStall(inquiry: ParkingInquiry): Option[ParkingZoneSearch.ParkingZoneSearchResult] = {
+  def searchForParkingStall(inquiry: ParkingInquiry): ParkingZoneSearch.ParkingZoneSearchResult = {
     // ---------------------------------------------------------------------------------------------
     // a ParkingZoneSearch takes the following as parameters
     //
@@ -219,7 +219,7 @@ abstract class InfrastructureFunctions(
       case _ =>
     }
 
-    result
+    result.get
   }
 
   def claimStall(parkingZone: ParkingZone): Boolean = {

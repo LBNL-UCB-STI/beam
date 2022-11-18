@@ -101,7 +101,7 @@ class RideHailFleetAnalysisInternal(
       case pathTraversalEvent: PathTraversalEvent =>
         if (pathTraversalEvent.mode == BeamMode.CAR) {
           val vehicleTypeId = Id.create(pathTraversalEvent.vehicleType, classOf[BeamVehicleType])
-          val isCAV = vehicleTypes(vehicleTypeId).isCav
+          val isCAV = vehicleTypes(vehicleTypeId).isConnectedAutomatedVehicle
           val vehicle = pathTraversalEvent.vehicleId.toString
           val rideHail = vehicle.contains("rideHail")
           val ev = pathTraversalEvent.primaryFuelType == "Electricity"

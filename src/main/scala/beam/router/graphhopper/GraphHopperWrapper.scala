@@ -159,8 +159,8 @@ abstract class GraphHopperWrapper(
         streetVehicle.mode,
         beamTotalTravelTime,
         BeamPath(
-          linkIds,
-          linkTravelTimes,
+          linkIds.toArray,
+          linkTravelTimes.toArray,
           None,
           SpaceTime(origin, routingRequest.departureTime),
           SpaceTime(destination, routingRequest.departureTime + beamTotalTravelTime),

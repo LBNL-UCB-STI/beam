@@ -68,9 +68,11 @@ object VehicleManager extends LazyLogging {
     if (reservedForMaybe.isEmpty && beamConfigMaybe.isDefined) {
       val cfgAgentSim = beamConfigMaybe.get.beam.agentsim
       val sharedFleets = cfgAgentSim.agents.vehicles.sharedFleets
+      val rideHailManagers = cfgAgentSim.agents.rideHail.managers
       reservedForMaybe = reservedForString match {
-        case cfgAgentSim.agents.freight.name  => Some(createOrGetReservedFor(reservedForString, TypeEnum.Freight))
-        case cfgAgentSim.agents.rideHail.name => Some(createOrGetReservedFor(reservedForString, TypeEnum.RideHail))
+        case cfgAgentSim.agents.freight.name => Some(createOrGetReservedFor(reservedForString, TypeEnum.Freight))
+        case reservedFor if rideHailManagers.exists(_.name == reservedFor) =>
+          Some(createOrGetReservedFor(reservedForString, TypeEnum.RideHail))
         case reservedFor if sharedFleets.exists(_.name == reservedFor) =>
           Some(createOrGetReservedFor(reservedForString, TypeEnum.Shared))
         case _ =>

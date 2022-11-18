@@ -11,8 +11,8 @@ import beam.router.model.RoutingModel.TransitStopsInfo
   * We therefore ignore the first link in estimating travel time.
   */
 case class BeamPath(
-  linkIds: IndexedSeq[Int],
-  linkTravelTime: IndexedSeq[Double],
+  linkIds: Array[Int],
+  linkTravelTime: Array[Double],
   transitStops: Option[TransitStopsInfo],
   startPoint: SpaceTime,
   endPoint: SpaceTime,
@@ -34,7 +34,7 @@ case class BeamPath(
   def duration: Int = endPoint.time - startPoint.time
 
   if (
-    linkTravelTime.size > 1 && math.abs(
+    linkTravelTime.length > 1 && math.abs(
       math.round(linkTravelTime.tail.sum).toInt - (endPoint.time - startPoint.time)
     ) > 2
   ) {
@@ -43,7 +43,7 @@ case class BeamPath(
 
   def toShortString: String = {
     linkIds.headOption match {
-      case Some(head) => s"$head .. ${linkIds(linkIds.size - 1)}"
+      case Some(head) => s"$head .. ${linkIds(linkIds.length - 1)}"
       case None       => ""
     }
   }
@@ -56,7 +56,7 @@ case class BeamPath(
 
   def scaleTravelTimes(scaleBy: Double): BeamPath = {
     val newLinkTimes = this.linkTravelTime.map(travelTime => travelTime * scaleBy)
-    val newDuration = if (newLinkTimes.size > 1) { math.round(newLinkTimes.tail.sum).toInt }
+    val newDuration = if (newLinkTimes.length > 1) { math.round(newLinkTimes.tail.sum).toInt }
     else { 0 }
     this.copy(
       linkTravelTime = newLinkTimes,
@@ -67,7 +67,7 @@ case class BeamPath(
   @SuppressWarnings(Array("UnsafeTraversableMethods"))
   def linkAtTime(tick: Int): Int = {
     tick - startPoint.time match {
-      case secondsAlongPath if secondsAlongPath <= 0 || linkIds.size <= 1 =>
+      case secondsAlongPath if secondsAlongPath <= 0 || linkIds.length <= 1 =>
         // TODO: there is a likely bug here because linkIds.size can be 0(zero)
         linkIds.head
       case secondsAlongPath if secondsAlongPath > linkTravelTime.tail.sum =>
@@ -82,7 +82,7 @@ case class BeamPath(
 
 //case object EmptyBeamPath extends BeamPath(Vector[String](), None, departure = SpaceTime(Double.PositiveInfinity, Double.PositiveInfinity, Long.MaxValue), arrival = SpaceTime(Double.NegativeInfinity, Double.NegativeInfinity, Long.MinValue))
 object BeamPath extends Ordering[BeamPath] {
-  val empty: BeamPath = BeamPath(Vector[Int](), Vector(), None, SpaceTime(0, 0, 0), SpaceTime(2, 2, 2), 0)
+  val empty: BeamPath = BeamPath(Array[Int](), Array[Double](), None, SpaceTime(0, 0, 0), SpaceTime(2, 2, 2), 0)
 
   import scala.annotation.tailrec
 

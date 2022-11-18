@@ -150,7 +150,7 @@ assignPostMilesGeometries <- function(TRUCK_DATA, POSTMILES_SHP) {
   return(TRUCK_DATA)
 }
 
-assignLinkIdToTruckAADTT <- function(NETWORK_CLEANED, NETWORK_CRS, TRUCK_AADTT, MAX_DISTANCE_IN_METER, EXPANSION_FACTOR) {
+assignLinkIdToTruckAADTT <- function(NETWORK_CLEANED, NETWORK_CRS, TRUCK_AADTT, MAX_DISTANCE_IN_METER) {
   network_sf <- st_transform(st_as_sf(
     NETWORK_CLEANED,
     coords = c("fromLocationX", "fromLocationY"),
@@ -165,7 +165,6 @@ assignLinkIdToTruckAADTT <- function(NETWORK_CLEANED, NETWORK_CRS, TRUCK_AADTT, 
 
   network_sf$tempDistance <- NA
   truck_aadtt_sf$linkId <- NA
-  expansionFactor <- EXPANSION_FACTOR
   maxDistanceToSearch <- MAX_DISTANCE_IN_METER
   counter1 <- 0
   counter2 <- 0

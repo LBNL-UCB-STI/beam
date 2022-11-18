@@ -1,9 +1,10 @@
 package beam.router
 
+import beam.agentsim.agents.TransitVehicleInitializer
+
 import java.util
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
-
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.Modes.isOnStreetTransit
@@ -74,8 +75,8 @@ class TransitInitializer(
 
       (departureTime: Int, duration: Int, vehicleId: Id[Vehicle]) =>
         BeamPath(
-          linkIds = Vector(),
-          linkTravelTime = Vector(),
+          linkIds = Array[Int](),
+          linkTravelTime = Array[Double](),
           transitStops = Some(
             TransitStopsInfo(
               "",
@@ -114,12 +115,14 @@ class TransitInitializer(
         )
         val distance = linksTimesAndDistances.distances.tail.sum
         BeamPath(
-          linkIds = edges.map(_.intValue()).toVector,
-          linkTravelTime = TravelTimeUtils.scaleTravelTime(
-            streetSeg.getDuration,
-            math.round(linksTimesAndDistances.travelTimes.tail.sum).toInt,
-            linksTimesAndDistances.travelTimes
-          ),
+          linkIds = edges.map(_.intValue()).toArray,
+          linkTravelTime = TravelTimeUtils
+            .scaleTravelTime(
+              streetSeg.getDuration,
+              math.round(linksTimesAndDistances.travelTimes.tail.sum).toInt,
+              linksTimesAndDistances.travelTimes
+            )
+            .toArray,
           transitStops = Some(
             TransitStopsInfo(
               agencyId = "",
@@ -171,7 +174,7 @@ class TransitInitializer(
         .filter(tripSchedule => activeServicesToday.get(tripSchedule.serviceCode))
         .map { tripSchedule =>
           // First create a unique id for this trip which will become the transit agent and vehicle id
-          val tripVehId = Id.create(BeamVehicle.noSpecialChars(tripSchedule.tripId), classOf[BeamVehicle])
+          val tripVehId = TransitVehicleInitializer.gtfsTripIdToBeamVehicleId(tripSchedule.tripId)
           val legs =
             tripSchedule.departures.zipWithIndex
               .sliding(2)

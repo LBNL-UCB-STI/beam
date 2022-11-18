@@ -109,7 +109,7 @@ class ChargingNetworkSpec
           )
         val response1 = chargingNetwork.processParkingInquiry(firstInquiry)
         assert(
-          response1.get == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId, firstInquiry.triggerId),
+          response1 == ParkingInquiryResponse(expectedFirstStall, firstInquiry.requestId, firstInquiry.triggerId),
           "something is wildly broken"
         )
 
@@ -126,7 +126,7 @@ class ChargingNetworkSpec
         val response2 = chargingNetwork.processParkingInquiry(secondInquiry)
         chargingNetwork.processParkingInquiry(secondInquiry)
         assert(
-          !response2.exists(_.stall.chargingPointType.isDefined),
+          response2.stall.chargingPointType.isEmpty,
           "it should not get an Ultra Fast charging point stall"
         )
       }

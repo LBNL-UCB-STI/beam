@@ -21,11 +21,12 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.vehicles.Vehicle
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.tagobjects.Retryable
 import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.collection.mutable.ArrayBuffer
 
-class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper {
+class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper with Repeated {
   private val bevCarId = Id.create("BEV", classOf[BeamVehicleType])
   private val vehicleId = Id.create("390-1", classOf[Vehicle])
   private val filesPath = s"${System.getenv("PWD")}/test/test-resources/sf-light-1p/input"
@@ -37,7 +38,11 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
          |beam.physsim.skipPhysSim = true
          |beam.agentsim.lastIteration = 0
          |beam.agentsim.tuning.transitCapacity = 0.0
-         |beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet = 0
+         |beam.agentsim.agents.rideHail.managers = [
+         |  {
+         |    initialization.procedural.fractionOfInitialVehicleFleet = 0
+         |  }
+         |]
          |beam.agentsim.agents.vehicles.sharedFleets = []
          |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles.csv.gz"
          |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes.csv"
@@ -102,7 +107,7 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
       services.controler
     }
 
-    "do enroute upon not enough charging" in {
+    "do enroute upon not enough charging" taggedAs Retryable in {
       val enrouteConfig: Config = ConfigFactory
         .parseString(
           s"""
@@ -146,7 +151,7 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
       }
     }
 
-    "avoid enroute upon enough charging" in {
+    "avoid enroute upon enough charging" taggedAs Retryable in {
       var beenToEnroute: Boolean = false
       val controler = buildControler(defaultConfig) {
         case RefuelSessionEvent(_, _, _, _, _, `vehicleId`, _, _, "EnRoute", _) =>

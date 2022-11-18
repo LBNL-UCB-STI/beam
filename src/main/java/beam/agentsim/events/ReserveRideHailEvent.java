@@ -19,6 +19,7 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
     public final static String ATTRIBUTE_PICKUP_LOCATION_Y = "startY";
     public final static String ATTRIBUTE_DROPOUT_LOCATION_X = "endX";
     public final static String ATTRIBUTE_DROPOUT_LOCATION_Y = "endY";
+    public final static String ATTRIBUTE_REQUIRE_WHEELCHAIR = "requireWheelchair";
 
     public final Id<Person> customerId;
     public final long departTime;
@@ -26,19 +27,21 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
     public final double originY;
     public final double destinationX;
     public final double destinationY;
+    public final boolean requireWheelchair;
 
-    public ReserveRideHailEvent(double time, Id<Person> personId, long departTime, Coord pickUpLocation, Coord dropOutLocation) {
+    public ReserveRideHailEvent(double time, Id<Person> personId, long departTime, Coord pickUpLocation, Coord dropOutLocation, boolean requireWheelchair) {
         this(time,
                 personId,
                 departTime,
                 pickUpLocation.getX(),
                 pickUpLocation.getY(),
                 dropOutLocation.getX(),
-                dropOutLocation.getY());
+                dropOutLocation.getY(),
+                requireWheelchair);
     }
 
     public ReserveRideHailEvent(double time, Id<Person> personId, long departTime, double originX,
-                                double originY, double destinationX, double destinationY) {
+                                double originY, double destinationX, double destinationY, boolean requireWheelchair) {
         super(time);
 
         this.customerId = personId;
@@ -47,6 +50,7 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
         this.originY = originY;
         this.destinationX = destinationX;
         this.destinationY = destinationY;
+        this.requireWheelchair = requireWheelchair;
     }
 
     public static ReserveRideHailEvent apply(Event event) {
@@ -58,7 +62,8 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
                     Double.parseDouble(attr.get(ATTRIBUTE_PICKUP_LOCATION_X)),
                     Double.parseDouble(attr.get(ATTRIBUTE_PICKUP_LOCATION_Y)),
                     Double.parseDouble(attr.get(ATTRIBUTE_DROPOUT_LOCATION_X)),
-                    Double.parseDouble(attr.get(ATTRIBUTE_DROPOUT_LOCATION_Y))
+                    Double.parseDouble(attr.get(ATTRIBUTE_DROPOUT_LOCATION_Y)),
+                    Boolean.parseBoolean(attr.get(ATTRIBUTE_REQUIRE_WHEELCHAIR))
             );
         }
         return (ReserveRideHailEvent) event;
@@ -73,6 +78,7 @@ public class ReserveRideHailEvent extends Event implements HasPersonId {
         attr.put(ATTRIBUTE_PICKUP_LOCATION_Y, Double.toString(originY));
         attr.put(ATTRIBUTE_DROPOUT_LOCATION_X, Double.toString(destinationX));
         attr.put(ATTRIBUTE_DROPOUT_LOCATION_Y, Double.toString(destinationY));
+        attr.put(ATTRIBUTE_REQUIRE_WHEELCHAIR, Boolean.toString(requireWheelchair));
         return attr;
     }
 

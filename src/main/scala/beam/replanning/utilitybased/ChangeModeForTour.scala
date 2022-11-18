@@ -2,7 +2,6 @@ package beam.replanning.utilitybased
 
 import java.util
 import java.util.Collections
-
 import beam.agentsim.agents.Population
 import beam.agentsim.agents.choice.mode.TransitFareDefaults
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -11,6 +10,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BUS, CAR, DRIVE_TRANSIT, FERRY, RAIL, RIDE_HAIL, SUBWAY, WALK, WALK_TRANSIT}
 import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes, PopulationAdjustment}
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.MathUtils
 import org.apache.commons.math3.distribution.EnumeratedDistribution
 import org.apache.commons.math3.random.MersenneTwister
 import org.apache.commons.math3.util.Pair
@@ -50,8 +50,8 @@ class ChangeModeForTour(
   private val rideHailConfig =
     beamServices.beamConfig.beam.agentsim.agents.rideHail
 
-  val DefaultRideHailCostPerMile: Double = rideHailConfig.defaultCostPerMile
-  val DefaultRideHailCostPerMinute: Double = rideHailConfig.defaultCostPerMinute
+  val DefaultRideHailCostPerMile: Double = MathUtils.avg(rideHailConfig.managers.map(_.defaultCostPerMile))
+  val DefaultRideHailCostPerMinute: Double = MathUtils.avg(rideHailConfig.managers.map(_.defaultCostPerMinute))
 
   val stageActivityTypes = new CompositeStageActivityTypes()
 
@@ -243,6 +243,10 @@ class ChangeModeForTour(
       .getBeamAttributes(beamServices.matsimServices.getScenario.getPopulation, person.getId.toString)
       .availableModes
 
+    val rideHailServiceSubscription: Seq[String] = PopulationAdjustment
+      .getBeamAttributes(beamServices.matsimServices.getScenario.getPopulation, person.getId.toString)
+      .rideHailServiceSubscription
+
     val income = Option(
       beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
         .getAttribute(person.getId.toString, "income")
@@ -255,6 +259,7 @@ class ChangeModeForTour(
         modalityStyle,
         PersonUtils.getSex(person).equalsIgnoreCase("M"),
         availableModes,
+        rideHailServiceSubscription,
         valueOfTime,
         Option(PersonUtils.getAge(person)),
         income.map { x =>

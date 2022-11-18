@@ -22,21 +22,28 @@ import java.nio.file.Path
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.control.NonFatal
 
-/*
-Example of parameters usage:
- --configPath test/input/beamville/beam.conf
- --input test/input/beamville/input.csv
- --output test/input/beamville/output.csv
- --linkstatsPath test/input/beamville/linkstats.csv
- --ODSkimsPath test/input/beamville/odskims.csv
- --parallelism 2
-
-Note that all csv files can automatically use gzip compression if specified with `csv.gz` extension
-for example "--input test/input/beamville/input.csv.gz"
-
- Run with gradle:
- ./gradlew execute -PmainClass=beam.router.skim.urbansim.BackgroundSkimsCreatorApp -PappArgs=["'--configPath', 'test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf', '--output', 'output.csv', '--input', 'input.csv', '--ODSkimsPath', 'ODSkimsBeamville.csv',  '--linkstatsPath', '0.linkstats.csv'"]
- */
+/**
+  * This app generates full OD skims
+  *
+  * See more details at https://github.com/LBNL-UCB-STI/beam/issues/3193
+  *
+  * Example of parameters usage:
+  * --configPath - path to a config (test/input/beamville/beam.conf)
+  * --input - (optional) input csv file which contains origin, destination, and mode (test/input/beamville/input.csv)
+  * --output - the resulting file path (test/input/beamville/output.csv)
+  * --linkstatsPath - (optional) path to linkstats file (test/input/beamville/linkstats.csv)
+  * --ODSkimsPath - (optional) path to existing skims file (test/input/beamville/odskims.csv)
+  * --parallelism 2
+  *
+  * If `ODSkimsPath` is provided and contains non-zero values for desired OD pair with desired mode then skims are returned from that file,
+  * otherwise they will be calculated.
+  *
+  * Note that all csv files can automatically use gzip compression if specified with `csv.gz` extension
+  * for example "--input test/input/beamville/input.csv.gz"
+  *
+  * Run with gradle:
+  * ./gradlew execute -PmainClass=scripts.BackgroundSkimsCreatorApp -PappArgs=["'--configPath', 'test/input/beamville/beam-with-fullActivitySimBackgroundSkims.conf', '--output', 'output.csv', '--input', 'input.csv', '--ODSkimsPath', 'ODSkimsBeamville.csv',  '--linkstatsPath', '0.linkstats.csv'"]
+  */
 object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
   case class InputParameters(
