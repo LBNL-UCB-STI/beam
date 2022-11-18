@@ -1,7 +1,6 @@
 package beam.cosim.helics
 
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
-import beam.agentsim.scheduler.Trigger
 import beam.utils.FileUtils
 import com.github.beam.HelicsLoader
 import com.java.helics._
@@ -18,6 +17,10 @@ import scala.util.control.NonFatal
 object BeamHelicsInterface {
   // Lazy makes sure that it is initialized only once
   lazy val loadHelicsIfNotAlreadyLoaded: Unit = HelicsLoader.load()
+
+  def messageToJsonString(labeledData: List[Map[String, Any]]): String = {
+    labeledData.toJson(ListMapAnyJsonFormat).compactPrint.stripMargin
+  }
 
   def unloadHelics(): Unit = this.synchronized {
     helics.helicsCleanupLibrary()
