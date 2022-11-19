@@ -14,7 +14,7 @@ import scala.concurrent._
 import scala.concurrent.duration.{Duration, DurationInt}
 import scala.util.control.NonFatal
 
-object BeamHelicsInterface {
+object BeamHelicsInterface extends StrictLogging {
   // Lazy makes sure that it is initialized only once
   lazy val loadHelicsIfNotAlreadyLoaded: Unit = HelicsLoader.load()
 
@@ -22,9 +22,15 @@ object BeamHelicsInterface {
     labeledData.toJson(ListMapAnyJsonFormat).compactPrint.stripMargin
   }
 
-  def unloadHelics(): Unit = this.synchronized {
-    helics.helicsCleanupLibrary()
-    helics.helicsCloseLibrary()
+  def closeHelics(): Unit = this.synchronized {
+    try {
+      helics.helicsCleanupLibrary()
+      helics.helicsCloseLibrary()
+      logger.info("Helics library cleaned and closed.")
+    } catch {
+      case NonFatal(ex) =>
+        logger.error(s"Cannot clean and unload helics library: ${ex.getMessage}")
+    }
   }
 
   /**
@@ -333,21 +339,13 @@ object BeamHelicsInterface {
       * close HELICS library
       */
     def close(): Unit = {
-      logger.info(s"closing BeamFederate $fedName")
+      logger.info(s"Closing BeamFederate $fedName ...")
       if (helics.helicsFederateIsValid(fedComb) == 1) {
         helics.helicsFederateFinalize(fedComb)
         helics.helicsFederateFree(fedComb)
-        helics.helicsCloseLibrary()
-        logger.info(s"BeamFederate $fedName closed")
+        logger.info(s"BeamFederate $fedName closed.")
       } else {
-        logger.info(s"helics federate $fedName is not valid!")
-      }
-      try {
-        logger.info("Destroying BeamFederate $fedName")
-        unloadHelics()
-      } catch {
-        case NonFatal(ex) =>
-          logger.error(s"Cannot destroy BeamFederate $fedName: ${ex.getMessage}")
+        logger.info(s"BeamFederate $fedName is invalid.")
       }
     }
   }

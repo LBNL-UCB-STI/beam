@@ -9,6 +9,7 @@ import beam.agentsim.infrastructure.charging.ChargingPointType.getChargingPointI
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZoneId}
 import beam.agentsim.infrastructure.power.PowerManager._
 import beam.agentsim.infrastructure.taz.TAZ
+import beam.cosim.helics.BeamHelicsInterface
 import beam.cosim.helics.BeamHelicsInterface.{createFedInfo, enterExecutionMode, getFederate, BeamFederate}
 import beam.router.skim.event
 import beam.sim.BeamServices
@@ -133,10 +134,14 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
                   .getOrElse(getChargingPointInstalledPowerInKw(stall.chargingPointType.get))
               )
             })
-            .getOrElse(List(Map(
-              "tazId" -> tazId,
-              "siteId" -> parkingZoneId
-            )))
+            .getOrElse(
+              List(
+                Map(
+                  "tazId"  -> tazId,
+                  "siteId" -> parkingZoneId
+                )
+              )
+            )
         }.toList
         federate
           .cosimulate(timeBin, eventsToSend)
@@ -271,6 +276,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   def close(): Unit = {
     powerController.close()
     beamFederateMap.foreach { case (_, _, federate) => federate.close() }
+    BeamHelicsInterface.closeHelics()
   }
 }
 
