@@ -19,7 +19,7 @@ object HelicsMultiFederateTest extends App {
   loadHelicsIfNotAlreadyLoaded
 
   val spmConfig: SitePowerManagerController = new SitePowerManagerController(
-    "BEAM_FED_TAZ",
+    "BEAM_FEDERATE",
     "CHARGING_VEHICLES",
     "tcp://127.0.0.1",
     10000000,
@@ -28,23 +28,24 @@ object HelicsMultiFederateTest extends App {
     true,
     1,
     true,
-    "SPM_FED_TAZ",
+    "SPM_FEDERATE",
     "CHARGING_COMMANDS",
     1.0
   )
 
   val cnmConfig_timeStepInSeconds = 60
 
-  val numberOfFederates = 4
+  val numberOfFederates = 1
 
-  val numberOfAdditionalMessages = 100
-  val numberOfAdditionalFields = 100
+  // the size of generated message is controlled by these two parameters
+  val numberOfAdditionalMessages = 50
+  val numberOfAdditionalFields = 10
 
-  val selectedTazIds = (1 to numberOfFederates).map(_.toString)
-  val federatesToTaz = getFederatesToTazs(selectedTazIds)
+  val federateIds = (1 to numberOfFederates).map(_.toString)
+  val federatesToIds = getFederatesToIds(federateIds)
 
-  println(s"Initialized ${federatesToTaz.length} federates, now they are going to execution mode.")
-  enterExecutionMode(1.hour, federatesToTaz.map(_._1): _*)
+  println(s"Initialized ${federatesToIds.length} federates, now they are going to execution mode.")
+  enterExecutionMode(1.hour, federatesToIds.map(_._1): _*)
   println("Entered execution mode.")
 
   val numberOfSteps = 3600
@@ -53,7 +54,7 @@ object HelicsMultiFederateTest extends App {
   val timeStart: Long = Platform.currentTime
   def elapsedSecs: Long = (Platform.currentTime - timeStart) / 1000
 
-  val reportProgressSeconds = 10
+  val reportProgressSeconds = 13
   val totalStepsProgressFromAllThreads = new AtomicInteger(0)
   val progressFutureShouldContinue = new AtomicBoolean(true)
 
@@ -66,42 +67,38 @@ object HelicsMultiFederateTest extends App {
     }
   }(ExecutionContext.global)
 
-  sendMessagesInParallel(1.hour, federatesToTaz)
+  sendMessagesInParallel(1.hour, federatesToIds)
+
+  progressFutureShouldContinue.set(false)
+  federatesToIds.map(_._1).foreach(_.close())
+  BeamHelicsInterface.closeHelics()
 
   println("")
   println(s"$numberOfSteps steps with $numberOfFederates federates with time bin size $timeBinSize.")
-  println(s"$numberOfAdditionalFields additional fields in a message.")
-  println(s"$numberOfAdditionalMessages additional messages.")
 
   val messageLen = BeamHelicsInterface.messageToJsonString(getMessageToSend("6")).length
-  val dataSpeed = (1.0 * messageLen * numberOfFederates * numberOfSteps / elapsedSecs).toLong
-  val dataSpeedFormula = s"($messageLen * $numberOfFederates * $numberOfSteps / $elapsedSecs).toInt)"
+  val dataSpeed = (messageLen.toDouble / elapsedSecs * numberOfFederates * numberOfSteps).toLong
+  val dataSpeedFormula = s"($messageLen * $numberOfFederates * $numberOfSteps / $elapsedSecs))"
+  println(s"The message len is $messageLen.")
   println(s"Data transfer speed is: $dataSpeed symbols/sec $dataSpeedFormula.")
+  println(s"Data transfer speed per federate: ${dataSpeed / numberOfFederates} symbols/sec.")
   println(s"Everything took $elapsedSecs seconds")
   println("")
-  println("numberOfFederates,dataSpeed,timeTook,numberOfSteps,messageLen")
-  println(s"$numberOfFederates,$dataSpeed,$elapsedSecs,$numberOfSteps,$messageLen")
+  println("CSV report:")
   println("")
-
-  progressFutureShouldContinue.set(false)
-  federatesToTaz.map(_._1).foreach { _.close() }
-  println("Federates are closed.")
-
-  def getMessageToSend(tazId: String) = {
-    (0 to numberOfAdditionalMessages)
-      .map(_ => getEmptyMessage(tazId))
-      .toList
-  }
+  println("numberOfFederates,numberOfSteps,messageLen,timeTook")
+  println(s"$numberOfFederates,$numberOfSteps,$messageLen,$elapsedSecs")
+  println("")
 
   def sendMessagesInParallel(
     timeout: Duration,
-    federatesToTazs: Seq[(BeamHelicsInterface.BeamFederate, String)]
+    federatesToIds: Seq[(BeamHelicsInterface.BeamFederate, String)]
   ): Unit = {
     import java.util.concurrent.{SynchronousQueue, ThreadPoolExecutor, TimeUnit}
     FileUtils.using(
       new ThreadPoolExecutor(
-        federatesToTazs.size,
-        federatesToTazs.size * 2,
+        federatesToIds.size,
+        federatesToIds.size * 2,
         0,
         TimeUnit.SECONDS,
         new SynchronousQueue[Runnable]
@@ -110,14 +107,15 @@ object HelicsMultiFederateTest extends App {
       _.shutdown()
     ) { executorService =>
       implicit val ec: ExecutionContextExecutorService = ExecutionContext.fromExecutorService(executorService)
-      val futureResults = federatesToTazs.map { case (beamFederate, tazId) =>
+      val futureResults = federatesToIds.map { case (beamFederate, federateId) =>
         Future {
           1 to numberOfSteps foreach { step =>
-            val messageToSend = getMessageToSend(tazId)
+            val messageToSend = getMessageToSend(federateId)
             val messageFromHelics = beamFederate.cosimulate(step * timeBinSize, messageToSend)
-            assert(messageFromHelics.size - 1 == messageToSend.size, "size should be expected")
+
+            assert(messageFromHelics.size - 1 == messageToSend.size, s"Size should be expected.")
             if (numberOfAdditionalMessages > 0) {
-              assert(messageFromHelics(1).size == messageToSend.head.size, "size of child messages should be equal")
+              assert(messageFromHelics(1).size == messageToSend.head.size, s"Size of child messages should be equal.")
             }
 
             totalStepsProgressFromAllThreads.incrementAndGet()
@@ -128,28 +126,34 @@ object HelicsMultiFederateTest extends App {
     }
   }
 
-  def getEmptyMessage(tazId: String): Map[String, String] = {
-    val additionalMap = (0 to numberOfAdditionalFields).map { i =>
-      val textFieldName = "theAnAdditionalTextField#" + i
-      textFieldName -> (textFieldName + "_TextValue")
-    }.toMap
+  def getMessageToSend(federateId: String): List[Map[String, String]] = {
+    def getEmptyMessage(federateId: String): Map[String, String] = {
+      val additionalMap = (0 to numberOfAdditionalFields).map { i =>
+        val textFieldName = "theAnAdditionalTextField#" + i
+        textFieldName -> (textFieldName + "_TextValue")
+      }.toMap
 
-    Map("tazId" -> tazId) ++ additionalMap
+      Map("federateId" -> federateId) ++ additionalMap
+    }
+
+    (0 to numberOfAdditionalMessages)
+      .map(_ => getEmptyMessage(federateId))
+      .toList
   }
 
-  def getFederatesToTazs(selectedTazIds: Seq[String]): Seq[(BeamHelicsInterface.BeamFederate, String)] = {
-    // the same should be in 'all_taz' in src/main/python/gemini/site_power_controller_multi_federate.py:311
-    val numTAZs = selectedTazIds.size
+  def getFederatesToIds(federateIds: Seq[String]): Seq[(BeamHelicsInterface.BeamFederate, String)] = {
+    // the same number of federates should be in according site_power_controller_*.py script
+    val numFederates = federateIds.size
     val fedInfo = createFedInfo(
       spmConfig.coreType,
-      s"--federates=$numTAZs --broker_address=${spmConfig.brokerAddress}",
+      s"--federates=$numFederates --broker_address=${spmConfig.brokerAddress}",
       spmConfig.timeDeltaProperty,
       spmConfig.intLogLevel
     )
-    println(s"Init SitePowerManager Federates for $numTAZs TAZes...")
-    selectedTazIds.map { tazIdStr =>
-      val beamFedName = spmConfig.beamFederatePrefix + tazIdStr //BEAM_FED_TAZ(XXX)
-      val spmFedNameSub = spmConfig.spmFederatePrefix + tazIdStr + "/" + spmConfig.spmFederateSubscription
+    println(s"Init $numFederates SitePowerManager Federates...")
+    federateIds.map { federateId =>
+      val beamFedName = spmConfig.beamFederatePrefix + federateId
+      val spmFedNameSub = spmConfig.spmFederatePrefix + federateId + "/" + spmConfig.spmFederateSubscription
       val federate = getFederate(
         beamFedName,
         fedInfo,
@@ -158,7 +162,7 @@ object HelicsMultiFederateTest extends App {
         Some(spmConfig.beamFederatePublication),
         Some(spmFedNameSub)
       )
-      (federate, tazIdStr)
+      (federate, federateId)
     }
   }
 }
