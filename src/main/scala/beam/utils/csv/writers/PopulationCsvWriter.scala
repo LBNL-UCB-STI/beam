@@ -16,7 +16,16 @@ import ScenarioCsvWriter._
 object PopulationCsvWriter extends ScenarioCsvWriter {
 
   override protected val fields: Seq[String] =
-    Seq("personId", "age", "isFemale", "householdId", "householdRank", "excludedModes", "valueOfTime")
+    Seq(
+      "personId",
+      "age",
+      "isFemale",
+      "householdId",
+      "householdRank",
+      "excludedModes",
+      "rideHailServiceSubscription",
+      "valueOfTime"
+    )
 
   // This method is needed because different sources fill differently
   // matsim xml loader fill the age in the property customAttributes
@@ -56,6 +65,8 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         Option(person.getCustomAttributes.get("beam-attributes"))
           .map(_.asInstanceOf[AttributesOfIndividual])
 
+      val rideHailServiceSubscription = maybeAttribs.fold(Seq.empty[String])(_.rideHailServiceSubscription)
+
       val personAge = readAge(
         maybeAttribs.flatMap(_.age),
         Option(personAttributes.getAttribute(personId.toString, "age")).map(_.toString.toInt)
@@ -82,6 +93,7 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         isFemale = isFemale,
         valueOfTime = Try(valueOfTime.toString.toDouble).getOrElse(0),
         excludedModes = excludedModes,
+        rideHailServiceSubscription = rideHailServiceSubscription,
         industry = None
       )
       toLine(info)
@@ -103,6 +115,9 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         .split(ArrayItemSeparator)
         .mkString(ArrayStartString, ArrayItemSeparator, ArrayEndString)
     }
+    val rideHailServiceSubscription =
+      personInfo.rideHailServiceSubscription.mkString(ArrayStartString, ArrayItemSeparator, ArrayEndString)
+
     val values = Seq(
       personInfo.personId.id,
       personInfo.age,
@@ -110,6 +125,7 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
       personInfo.householdId.id,
       personInfo.rank,
       excludedModes,
+      rideHailServiceSubscription,
       personInfo.valueOfTime
     )
     values.mkString("", FieldSeparator, LineSeparator)

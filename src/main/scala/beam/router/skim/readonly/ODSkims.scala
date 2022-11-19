@@ -17,6 +17,7 @@ import beam.router.Modes.BeamMode.{
   TRANSIT,
   WALK_TRANSIT
 }
+import beam.router.skim.SkimsUtils
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
 import beam.router.skim.core.AbstractSkimmerReadOnly
 import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
@@ -254,10 +255,8 @@ object ODSkims extends BeamHelper {
           beamVehicleType,
           fuelPrice
         )
-      case RIDE_HAIL =>
-        beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0
-      case RIDE_HAIL_POOLED =>
-        beamConfig.beam.agentsim.agents.rideHail.pooledBaseCost + beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMile * travelDistance / 1609.0 + beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMinute * travelTime / 60.0
+      case RIDE_HAIL | RIDE_HAIL_POOLED =>
+        SkimsUtils.getRideHailCost(mode, travelDistance, travelTime, beamConfig)
       case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT => 0.25 * travelDistance / 1609
       case _                                                                         => 0.0
     }
