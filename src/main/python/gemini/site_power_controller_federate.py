@@ -58,7 +58,7 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
         if bool(str(received_message).strip()):
             charging_events_json = parse_json(received_message)
             if not isinstance(charging_events_json, collections.abc.Sequence):
-                logging.error("Was not able to parse JSON message from BEAM. Something is broken!")
+                logging.error("[time:" + str(t) + "] It was not able to parse JSON message from BEAM: " + received_message)
                 pass
             elif len(charging_events_json) > 0:
                 for site_id, charging_events in itertools.groupby(charging_events_json, key_func):
@@ -66,7 +66,7 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
                         default_spm_c_dict[site_id] = DefaultSPMC("DefaultSPMC", site_id)
                     if site_id not in ride_hail_spm_c_dict:
                         ride_hail_spm_c_dict[site_id] = RideHailSPMC("RideHailSPMC", site_id)
-
+                    # Running SPM Controllers
                     filtered_charging_events = list(filter(lambda charging_event: 'vehicleId' in charging_event, charging_events))
                     if len(filtered_charging_events) > 0:
                         if not site_id.lower().startswith('depot'):
@@ -74,10 +74,10 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
                         else:
                             power_commands_list = power_commands_list + ride_hail_spm_c_dict[site_id].run(t, filtered_charging_events)
             else:
-                logging.error("The JSON message is not valid. The received message is" + str(charging_events_json))
+                logging.error("[time:" + str(t) + "] The JSON message is not valid: " + received_message)
                 pass
         else:
-            logging.error("SPM Controller received empty message from BEAM. Something is broken!")
+            logging.error("[time:" + str(t) + "] SPM Controller received empty message from BEAM!")
             pass
 
         message_to_send = power_commands_list
@@ -106,11 +106,6 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
 if __name__ == "__main__":
     logging.basicConfig(filename='site_power_controller_federate.log', level=logging.DEBUG, filemode='w')
     print2("Using helics version " + h.helicsGetVersion())
-    infrastructure_file = "../../../../production/sfbay/parking/sfbay_taz_unlimited_charging_point.csv"
-    print2("Loading infrastructure file: " + infrastructure_file)
-    data = pd.read_csv(infrastructure_file)
-    all_taz = data["taz"].unique()
-    logging.info("Extracted " + str(len(all_taz)) + " TAZs...")
     helics_config = {"coreInitString": f"--federates=1 --broker_address=tcp://127.0.0.1",
                      "coreType": "zmq",
                      "timeDeltaProperty": 1.0,  # smallest discernible interval to this federate
