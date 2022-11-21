@@ -10,9 +10,10 @@ import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZoneId}
 import beam.agentsim.infrastructure.power.PowerManager._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamHelicsInterface
-import beam.cosim.helics.BeamHelicsInterface.{createFedInfo, enterExecutionMode, getFederate, BeamFederate}
+import beam.cosim.helics.BeamHelicsInterface.{BeamFederate, BeamFederateDescriptor, createFedInfo, enterExecutionMode, getFederate}
 import beam.router.skim.event
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig.Beam.Agentsim.ChargingNetworkManager
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -38,57 +39,100 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
       }
       .toMap
 
-  private[power] lazy val beamFederateMap: List[(Id[TAZ], List[ChargingStation], BeamFederate)] =
-    spmConfigMaybe match {
-      case Some(spmConfig) if spmConfig.connect =>
-        logger.warn("ChargingNetworkManager should connect to a site power controller via Helics...")
-        Try {
-          // the same should be in 'all_taz' in src/main/python/gemini/site_power_controller_multi_federate.py:311
-          val tazIdToChargingStations =
-            if (spmConfig.oneFederatePerTAZ)
-              chargingNetworkHelper.allChargingStations.groupBy(_.zone.tazId.toString)
-            else
-              Map[String, List[ChargingStation]]("" -> chargingNetworkHelper.allChargingStations)
-          val numTAZs = tazIdToChargingStations.size
-          val fedInfo = createFedInfo(
-            spmConfig.coreType,
-            s"--federates=$numTAZs --broker_address=${spmConfig.brokerAddress}",
-            spmConfig.timeDeltaProperty,
-            spmConfig.intLogLevel
-          )
-          logger.info(s"Init SitePowerManager Federates for $numTAZs TAZes...")
-          tazIdToChargingStations.map { case (tazIdStr, stations) =>
-            val beamFedName = spmConfig.beamFederatePrefix + tazIdStr //BEAM_FED_TAZ(XXX)
-            val spmFedNameSub = spmConfig.spmFederatePrefix + tazIdStr + "/" + spmConfig.spmFederateSubscription
-            val federate = getFederate(
-              beamFedName,
-              fedInfo,
-              spmConfig.bufferSize,
-              cnmConfig.timeStepInSeconds,
-              Some(spmConfig.beamFederatePublication),
-              if (spmConfig.expectFeedback) Some(spmFedNameSub) else None
-            )
-            logger.debug("Got federate {} for taz {}", federate.fedName, tazIdStr)
-            (Id.create(tazIdStr, classOf[TAZ]), stations, federate)
-          }.seq
-        }.map { federates =>
-          logger.info("Initialized {} federates, now they are going to execution mode", federates.size)
-          val beamFederates = federates.map { case (_, _, beamFederate: BeamFederate) => beamFederate }.toSeq
-          enterExecutionMode(1.hour, beamFederates: _*)
-          logger.info("Entered execution mode")
-          federates.toList
-        }.recoverWith { case e =>
-          logger.warn(
-            s"Cannot initialize BeamFederate: ${e.getMessage}. " +
-            "ChargingNetworkManager is not connected to the SPMC"
-          )
-          Failure(e)
-        }.getOrElse(List.empty[(Id[TAZ], List[ChargingStation], BeamFederate)])
-      case _ => List.empty[(Id[TAZ], List[ChargingStation], BeamFederate)]
+  private[power] lazy val beamFederateMap: List[BeamFederateDescriptor] = spmConfigMaybe match {
+    case Some(spmConfig) if spmConfig.connect => groupChargingStationsAndCreateBeamFederates(spmConfig)
+    case _                                    => List.empty[BeamFederateDescriptor]
+  }
+
+  private def groupChargingStationsAndCreateBeamFederates(
+    spmConfig: ChargingNetworkManager.SitePowerManagerController
+  ): List[BeamFederateDescriptor] = {
+    logger.warn("ChargingNetworkManager should connect to a site power controller via Helics...")
+    val maybeListOfFederateDescriptors = Try {
+      // the same should be in 'all_taz' in src/main/python/gemini/site_power_controller_multi_federate.py:311
+      val tazIdsToChargingStations: Map[Set[Id[TAZ]], List[ChargingStation]] =
+        randomlyGroupChargingStations(spmConfig.numberOfFederates, chargingNetworkHelper.allChargingStations)
+
+      val numFederates = tazIdsToChargingStations.size
+      val fedInfo = createFedInfo(
+        spmConfig.coreType,
+        s"--federates=$numFederates --broker_address=${spmConfig.brokerAddress}",
+        spmConfig.timeDeltaProperty,
+        spmConfig.intLogLevel
+      )
+      logger.info(s"Init $numFederates SitePowerManager Federates ...")
+      tazIdsToChargingStations.zipWithIndex.map { case ((tazIds, stations), idx) =>
+        val beamFedName = spmConfig.beamFederatePrefix + idx
+        val spmFedNameSub = spmConfig.spmFederatePrefix + idx + "/" + spmConfig.spmFederateSubscription
+        val federate = getFederate(
+          beamFedName,
+          fedInfo,
+          spmConfig.bufferSize,
+          cnmConfig.timeStepInSeconds,
+          Some(spmConfig.beamFederatePublication),
+          if (spmConfig.expectFeedback) Some(spmFedNameSub) else None
+        )
+        logger.debug("Got federate {} for taz {}", federate.fedName, tazIds.mkString(","))
+        (tazIds, stations, federate)
+      }.seq
+    }.map { federates =>
+      logger.info("Initialized {} federates, now they are going to execution mode", federates.size)
+      val beamFederates = federates.map { case (_, _, beamFederate: BeamFederate) => beamFederate }.toSeq
+      enterExecutionMode(1.hour, beamFederates: _*)
+      logger.info("Entered execution mode")
+      federates.map { case (tazIds, chargingStations, beamFederate) =>
+        BeamFederateDescriptor(tazIds, chargingStations, beamFederate)
+      }.toList
+    }.recoverWith { case e =>
+      logger.warn(
+        s"Cannot initialize BeamFederate: ${e.getMessage}. ChargingNetworkManager is not connected to the SPMC"
+      )
+      Failure(e)
     }
+
+    maybeListOfFederateDescriptors.getOrElse(List.empty[BeamFederateDescriptor])
+  }
+
+  private def randomlyGroupChargingStations(
+    numberOfGroups: Int,
+    chargingStations: List[ChargingStation]
+  ): Map[Set[Id[TAZ]], List[ChargingStation]] = {
+    val tazIdToStations = chargingStations
+      .groupBy(_.zone.tazId)
+      .toList
+
+    def listOfPairsToPair(
+      pairs: Seq[(Id[TAZ], List[ChargingStation])]
+    ): (Set[Id[TAZ]], List[ChargingStation]) = {
+      val (tazsSet, stationsBuffer) =
+        pairs.foldLeft(mutable.Set.empty[Id[TAZ]], mutable.ListBuffer.empty[ChargingStation]) {
+          case ((allTazs, allStations), (tazId, stations)) =>
+            allTazs.add(tazId)
+            allStations.appendAll(stations)
+            (allTazs, allStations)
+        }
+      (tazsSet.toSet, stationsBuffer.toList)
+    }
+
+    val groupSize = {
+      var groupSize1: Int = tazIdToStations.size / numberOfGroups
+      // because of rounding we might want to slightly increase the size of a group
+      while (groupSize1 * numberOfGroups < tazIdToStations.size) {
+        groupSize1 = groupSize1 + 1
+      }
+      groupSize1
+    }
+
+    val groupedStations = scala.util.Random
+      .shuffle(tazIdToStations)
+      .grouped(groupSize)
+
+    groupedStations.map(listOfPairsToPair).toMap
+  }
 
   /**
     * This method adds hour**(hour - 1) to initial departure time estimate
+    *
     * @param currentTime time of simulation
     * @param initialDepartureTimeEstimate initial estimate of departure time estimate
     * @return
@@ -109,12 +153,12 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     val numPluggedVehicles = chargingNetworkHelper.allChargingStations.view.map(_.howManyVehiclesAreCharging).sum
     logger.debug(s"obtainPowerCommandsAndLimits timeBin = $timeBin, numPluggedVehicles = $numPluggedVehicles")
     powerCommands = beamFederateMap.par
-      .map { case (groupedTazId, stations, federate) =>
+      .map { case BeamFederateDescriptor(groupedTazIds, stations, federate) =>
         val currentlyConnectedVehicles: Map[Id[ParkingZoneId], List[ChargingVehicle]] =
           stations.flatMap(_.connectedVehicles.values).groupBy(_.chargingStation.zone.parkingZoneId)
         val eventsToSend: List[Map[String, Any]] = siteMap.flatMap { case (parkingZoneId, tazId) =>
-          currentlyConnectedVehicles
-            .get(parkingZoneId)
+          val vehiclesInParkingZone: Option[List[ChargingVehicle]] = currentlyConnectedVehicles.get(parkingZoneId)
+          val maybeRequestsForParkedVehicles = vehiclesInParkingZone
             .map(_.map { case cv @ ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, _, _, _) =>
               // Sending this message
               val fuelCapacity = vehicle.beamVehicleType.primaryFuelCapacityInJoule
@@ -134,34 +178,30 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
                   .getOrElse(getChargingPointInstalledPowerInKw(stall.chargingPointType.get))
               )
             })
-            .getOrElse(
-              List(
-                Map(
-                  "tazId"  -> tazId,
-                  "siteId" -> parkingZoneId
-                )
-              )
-            )
+
+          maybeRequestsForParkedVehicles match {
+            case Some(requestsForParkedVehicles) => requestsForParkedVehicles
+            case None                            => List(Map("tazId" -> tazId, "siteId" -> parkingZoneId))
+          }
         }.toList
+
         federate
           .cosimulate(timeBin, eventsToSend)
           .flatMap { message =>
             // Receiving this message
-            val feedback = spmConfigMaybe.get.expectFeedback && (message.get("tazId") match {
-              case Some(tazIdStr) if spmConfigMaybe.get.oneFederatePerTAZ =>
-                val taz = beamServices.beamScenario.tazTreeMap.getTAZ(tazIdStr.toString)
-                if (taz.isEmpty || taz.get.tazId != groupedTazId) {
-                  logger.error(s"The received tazId $tazIdStr from SPM Controller does not match tazId $groupedTazId")
-                  false
-                } else message.contains("vehicleId")
-              case _ =>
-                logger.debug(s"The received feedback from SPM Controller: $message")
-                message.contains("vehicleId")
-            })
-            if (feedback) {
+            val messageContainsExpectedTazId = message.get("tazId") match {
+              case Some(tazIdStr) =>
+                val maybeTaz = beamServices.beamScenario.tazTreeMap.getTAZ(tazIdStr.toString)
+                maybeTaz.exists(taz => groupedTazIds.contains(taz.tazId))
+              case _ => false
+            }
+            val messageContainsVehicleId = message.contains("vehicleId")
+
+            if (spmConfigMaybe.get.expectFeedback && messageContainsVehicleId && messageContainsExpectedTazId) {
+              val vehicleIdFromMessage = Id.create(message("vehicleId").toString, classOf[BeamVehicle])
               chargingNetworkHelper
                 .lookUpConnectedVehiclesAt(timeBin)
-                .get(Id.create(message("vehicleId").toString, classOf[BeamVehicle])) match {
+                .get(vehicleIdFromMessage) match {
                 case Some(chargingVehicle) =>
                   Some(chargingVehicle.vehicle.id -> message("powerInKW").toString.toDouble)
                 case _ =>
@@ -275,7 +315,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
 
   def close(): Unit = {
     powerController.close()
-    beamFederateMap.foreach { case (_, _, federate) => federate.close() }
+    beamFederateMap.foreach { case BeamFederateDescriptor(_, _, federate) => federate.close() }
     BeamHelicsInterface.closeHelics()
   }
 }

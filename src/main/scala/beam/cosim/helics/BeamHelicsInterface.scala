@@ -1,13 +1,15 @@
 package beam.cosim.helics
 
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
+import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.utils.FileUtils
 import com.github.beam.HelicsLoader
 import com.java.helics._
 import com.java.helics.helicsJNI._
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
-import spray.json.DefaultJsonProtocol.{listFormat, mapFormat, JsValueFormat, StringJsonFormat}
+import spray.json.DefaultJsonProtocol.{JsValueFormat, StringJsonFormat, listFormat, mapFormat}
 import spray.json.{JsNumber, JsString, JsValue, _}
 
 import scala.concurrent._
@@ -179,6 +181,12 @@ object BeamHelicsInterface extends StrictLogging {
     }
   }
 
+  case class BeamFederateDescriptor(
+    tazIds: Set[Id[TAZ]],
+    chargingStations: List[ChargingStation],
+    federate: BeamFederate
+  )
+
   case class BeamFederate(
     fedName: String,
     fedInfo: SWIGTYPE_p_void,
@@ -204,29 +212,35 @@ object BeamHelicsInterface extends StrictLogging {
 
     def cosimulate(tick: Int, msgToPublish: List[Map[String, Any]]): List[Map[String, Any]] = {
       def log(message: String): Unit = {
-        logger.debug(s"$message [${System.currentTimeMillis()}]")
+        logger.debug(s"$fedName $message [${System.currentTimeMillis()}]")
       }
-      var msgReceived: Option[List[Map[String, Any]]] = None
-      if (currentBin < tick / simulationStep) {
-        currentBin = tick / simulationStep
-        log(s"Publishing message to the ${dataOutStreamPointMaybe.getOrElse("NA")} at time $tick.")
-        publishJSON(msgToPublish)
-        log(s"publishNestedJSON $msgToPublish.")
-        while (msgReceived.isEmpty) {
-          // SYNC
-          sync(tick)
-          log(s"sync $tick.")
-          // COLLECT
-          msgReceived = collectJSON()
-          log(s"collectedNestedJSON $msgReceived.")
-          if (msgReceived.isEmpty) {
-            // Sleep
-            Thread.sleep(1)
+      try {
+        var msgReceived: Option[List[Map[String, Any]]] = None
+        if (currentBin < tick / simulationStep) {
+          currentBin = tick / simulationStep
+          log(s"Publishing message to the ${dataOutStreamPointMaybe.getOrElse("NA")} at time $tick.")
+          publishJSON(msgToPublish)
+          log(s"publishNestedJSON $msgToPublish.")
+          while (msgReceived.isEmpty) {
+            // SYNC
+            sync(tick)
+            log(s"sync $tick.")
+            // COLLECT
+            msgReceived = collectJSON()
+            log(s"collectedNestedJSON $msgReceived.")
+            if (msgReceived.isEmpty) {
+              // Sleep
+              Thread.sleep(1)
+            }
           }
+          log(s"Message received from ${dataInStreamPointMaybe.getOrElse("NA")}: $msgReceived.")
         }
-        log(s"Message received from ${dataInStreamPointMaybe.getOrElse("NA")}: $msgReceived.")
+        msgReceived.getOrElse(List.empty)
+      } catch {
+        case ex: Exception =>
+          logger.error(s"Exception while cosimulating: $ex")
+          throw ex
       }
-      msgReceived.getOrElse(List.empty)
     }
 
     /**

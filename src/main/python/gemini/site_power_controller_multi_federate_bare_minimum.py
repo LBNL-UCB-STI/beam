@@ -5,7 +5,7 @@ import collections.abc
 import helics as h
 import logging
 import pandas as pd
-from threading import Thread
+from threading import Thread, Lock
 
 import json
 
@@ -16,7 +16,7 @@ def print_and_log(log_message):
 
 
 def create_federate(helics_conf, fed_info, federate_id):
-    fed_name = helics_conf["spmFederatesPrefix"] + federate_id
+    fed_name = helics_conf["spmFederatePrefix"] + federate_id
 
     # create federate
     cfed = h.helicsCreateCombinationFederate(fed_name, fed_info)
@@ -24,22 +24,51 @@ def create_federate(helics_conf, fed_info, federate_id):
 
     # Register a publication of control signals
     # Power in kW
-    pub = helics_conf["spmSubscription"]
+    pub = helics_conf["spmFederateSubscription"]
     h.helicsFederateRegisterTypePublication(cfed, pub, "string", "")
     logging.info("Registered to publication " + pub)
 
     # register subscriptions
     # subscribe to information from TEMPO such that you can map to PyDSS modeled charging stations
     # Power in kW and Energy in Joules
-    sub = helics_conf["federatesPrefix"] + federate_id + "/" + helics_conf["federatesPublication"]
+    sub = helics_conf["beamFederatePrefix"] + federate_id + "/" + helics_conf["beamFederatePublication"]
     h.helicsFederateRegisterSubscription(cfed, sub, "string")
     logging.info("Registered to subscription " + sub)
 
     return cfed
 
 
-def prepare_the_answer(beam_json_message):
-    return beam_json_message
+lock_for_taz_to_power_requests_count = Lock()
+taz_to_power_requests_count = {}
+
+lock_for_taz_empty_requests_count = Lock()
+taz_empty_requests_count = {}
+
+
+def prepare_the_answer(request_as_list_of_maps):
+    response_list = []
+    for request_map in request_as_list_of_maps:
+        tazId = request_map.get("tazId", None)
+        vehicleId = request_map.get("vehicleId", None)
+
+        if tazId and vehicleId:
+            response = {
+                "tazId": tazId,
+                "vehicleId": vehicleId,
+                "powerInKW": 424242424242
+            }
+            response_list.append(response)
+
+            with lock_for_taz_to_power_requests_count:
+                number_of_requests = taz_to_power_requests_count.get(tazId, 0)
+                taz_to_power_requests_count[tazId] = number_of_requests + 1
+
+        elif tazId:
+            with lock_for_taz_empty_requests_count:
+                number_of_requests = taz_empty_requests_count.get(tazId, 0)
+                taz_empty_requests_count[tazId] = number_of_requests + 1
+
+    return response_list
 
 
 def sync_time(cfed, requested_time):
@@ -80,11 +109,14 @@ def run_spm_federate(cfed, federate_id, time_bin_in_seconds, simulated_day_in_se
         else:  # got an empty message
             pass
 
+        to_send = [{"federateId": federate_id}]
         if message_to_send:
-            json_to_send = json.dumps([{"federateId": federate_id}] + message_to_send, separators=(',', ':'))
-            h.helicsPublicationPublishString(pubs_control, json_to_send)
+            to_send = to_send + message_to_send
         else:  # an answer was not prepared
             pass
+
+        json_to_send = json.dumps(to_send, separators=(',', ':'))
+        h.helicsPublicationPublishString(pubs_control, json_to_send)
 
     # close the federate
     h.helicsFederateDisconnect(cfed)
@@ -103,16 +135,17 @@ if __name__ == "__main__":
     print_and_log("Loading infrastructure file: " + infrastructure_file)
     data = pd.read_csv(infrastructure_file)
 
-    federate_ids = list(map(lambda x: str(x), range(1, number_of_federates + 1)))
+    federate_ids = list(map(lambda x: str(x), range(number_of_federates)))
     helics_config = {"coreInitString": f"--federates={len(federate_ids)} --broker_address=tcp://127.0.0.1",
                      "coreType": "zmq",
                      "timeDeltaProperty": 1.0,  # smallest discernible interval to this federate
                      "intLogLevel": 1,
-                     "federatesPrefix": "BEAM_FEDERATE",
-                     "federatesPublication": "CHARGING_VEHICLES",
-                     "spmFederatesPrefix": "SPM_FEDERATE",
-                     "spmSubscription": "CHARGING_COMMANDS",
-                     "timeStepInSeconds": 60}
+                     "beamFederatePrefix": "BEAM_FEDERATE",
+                     "beamFederatePublication": "CHARGING_VEHICLES",
+                     "spmFederatePrefix": "SPM_FEDERATE",
+                     "spmFederateSubscription": "CHARGING_COMMANDS",
+                     "timeStepInSeconds": 60
+                     }
 
     print_and_log(f"Creating {len(federate_ids)} federates ...")
 
@@ -145,3 +178,13 @@ if __name__ == "__main__":
     print_and_log("Closing Helics...")
     h.helicsCloseLibrary()
     print_and_log("Finished.")
+
+    total_number_of_requests = sum(taz_to_power_requests_count.values())
+    print_and_log(f"{len(taz_to_power_requests_count)} taz were affected by {total_number_of_requests} power requests.")
+    for taz_id in sorted(taz_to_power_requests_count.keys()):
+        taz_number_of_requests = taz_to_power_requests_count.get(taz_id)
+        print_and_log(f"taz {taz_id} got {taz_number_of_requests} requests.")
+
+    total_number_of_requests = sum(taz_empty_requests_count.values())
+    print_and_log(
+        f"{len(taz_empty_requests_count)} taz were affected by {total_number_of_requests} requests without a vehicle Id.")

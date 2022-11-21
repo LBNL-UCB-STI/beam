@@ -27,7 +27,7 @@ object HelicsMultiFederateTest extends App {
     "zmq",
     true,
     1,
-    true,
+    10,
     "SPM_FEDERATE",
     "CHARGING_COMMANDS",
     1.0
@@ -35,13 +35,10 @@ object HelicsMultiFederateTest extends App {
 
   val cnmConfig_timeStepInSeconds = 60
 
-  val numberOfFederates = 1
+  // the amount of requests in a single message sent by federate
+  val numberOfMessagesPerStepPerFederate = 10
 
-  // the size of generated message is controlled by these two parameters
-  val numberOfAdditionalMessages = 50
-  val numberOfAdditionalFields = 10
-
-  val federateIds = (1 to numberOfFederates).map(_.toString)
+  val federateIds = (0 until spmConfig.numberOfFederates).map(_.toString)
   val federatesToIds = getFederatesToIds(federateIds)
 
   println(s"Initialized ${federatesToIds.length} federates, now they are going to execution mode.")
@@ -61,7 +58,7 @@ object HelicsMultiFederateTest extends App {
   Future {
     while (progressFutureShouldContinue.get()) {
       val currentProgress = totalStepsProgressFromAllThreads.get()
-      val executedPercentage = (currentProgress * 1.0 / (numberOfSteps * numberOfFederates) * 100).toInt
+      val executedPercentage = (currentProgress * 1.0 / (numberOfSteps * spmConfig.numberOfFederates) * 100).toInt
       println(s"took in total $elapsedSecs secs, executed $executedPercentage%")
       Thread.sleep(reportProgressSeconds * 1000)
     }
@@ -73,13 +70,14 @@ object HelicsMultiFederateTest extends App {
   federatesToIds.map(_._1).foreach(_.close())
   BeamHelicsInterface.closeHelics()
 
+  val numberOfFederates = spmConfig.numberOfFederates
   println("")
   println(s"$numberOfSteps steps with $numberOfFederates federates with time bin size $timeBinSize.")
 
   val messageLen = BeamHelicsInterface.messageToJsonString(getMessageToSend("6")).length
   val dataSpeed = (messageLen.toDouble / elapsedSecs * numberOfFederates * numberOfSteps).toLong
   val dataSpeedFormula = s"($messageLen * $numberOfFederates * $numberOfSteps / $elapsedSecs))"
-  println(s"The message len is $messageLen.")
+  println(s"The message len is $messageLen. Total times sent: ${totalStepsProgressFromAllThreads.get()}")
   println(s"Data transfer speed is: $dataSpeed symbols/sec $dataSpeedFormula.")
   println(s"Data transfer speed per federate: ${dataSpeed / numberOfFederates} symbols/sec.")
   println(s"Everything took $elapsedSecs seconds")
@@ -114,7 +112,7 @@ object HelicsMultiFederateTest extends App {
             val messageFromHelics = beamFederate.cosimulate(step * timeBinSize, messageToSend)
 
             assert(messageFromHelics.size - 1 == messageToSend.size, s"Size should be expected.")
-            if (numberOfAdditionalMessages > 0) {
+            if (numberOfMessagesPerStepPerFederate > 0) {
               assert(messageFromHelics(1).size == messageToSend.head.size, s"Size of child messages should be equal.")
             }
 
@@ -127,17 +125,16 @@ object HelicsMultiFederateTest extends App {
   }
 
   def getMessageToSend(federateId: String): List[Map[String, String]] = {
-    def getEmptyMessage(federateId: String): Map[String, String] = {
-      val additionalMap = (0 to numberOfAdditionalFields).map { i =>
-        val textFieldName = "theAnAdditionalTextField#" + i
-        textFieldName -> (textFieldName + "_TextValue")
-      }.toMap
-
-      Map("federateId" -> federateId) ++ additionalMap
+    def getMessage(federateId: String): Map[String, String] = {
+      Map(
+        "federateId" -> federateId,
+        "tazId"      -> scala.util.Random.nextInt(5).toString,
+        "vehicleId"  -> s"vehicle_${scala.util.Random.nextInt(100)}"
+      )
     }
 
-    (0 to numberOfAdditionalMessages)
-      .map(_ => getEmptyMessage(federateId))
+    (0 until numberOfMessagesPerStepPerFederate)
+      .map(_ => getMessage(federateId))
       .toList
   }
 
