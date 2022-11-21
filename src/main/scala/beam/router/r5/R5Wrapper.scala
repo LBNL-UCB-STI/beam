@@ -1173,7 +1173,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   ): TravelTimeCalculator = {
     new TravelTimeCalculator {
       val ttc = travelTimeByLinkCalculator(vehicleType, shouldAddNoise, shouldApplyBicycleScaleFactor = true)
-      override def getTravelTimeSeconds(edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, req: ProfileRequest): Float = {
+      override def getTravelTimeSeconds(
+        edge: EdgeStore#Edge,
+        durationSeconds: Int,
+        streetMode: StreetMode,
+        req: ProfileRequest
+      ): Float = {
         ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue().ceil
       }
     }
