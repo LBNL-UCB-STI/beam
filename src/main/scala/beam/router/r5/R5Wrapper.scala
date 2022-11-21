@@ -503,9 +503,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           )
           streetRouter.setRoutingVisitor(stopVisitor)
           streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(legMode)
-          logger.error(s"Route size before: ${streetRouter.getRouterBestStatesAtEdgeSize()}")
+          //logger.error(s"Route size before: ${streetRouter.getRouterBestStatesAtEdgeSize()}")
           streetRouter.route()
-          logger.error(s"Route size after: ${streetRouter.getRouterBestStatesAtEdgeSize()}")
+          //logger.error(s"Route size after: ${streetRouter.getRouterBestStatesAtEdgeSize()}")
           accessRouters.put(legMode, streetRouter)
           accessStopsByMode.put(legMode, stopVisitor)
           if (calcDirectRoute && !mainRouteRideHailTransit) {
