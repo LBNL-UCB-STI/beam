@@ -10,7 +10,13 @@ import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZoneId}
 import beam.agentsim.infrastructure.power.PowerManager._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamHelicsInterface
-import beam.cosim.helics.BeamHelicsInterface.{BeamFederate, BeamFederateDescriptor, createFedInfo, enterExecutionMode, getFederate}
+import beam.cosim.helics.BeamHelicsInterface.{
+  createFedInfo,
+  enterExecutionMode,
+  getFederate,
+  BeamFederate,
+  BeamFederateDescriptor
+}
 import beam.router.skim.event
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.ChargingNetworkManager
