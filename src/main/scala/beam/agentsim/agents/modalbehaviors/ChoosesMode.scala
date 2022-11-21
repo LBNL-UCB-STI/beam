@@ -581,7 +581,7 @@ trait ChoosesMode {
               val maybeVehicle =
                 filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), tripMode).headOption
               maybeVehicle match {
-                case Some(vehicle) =>
+                case Some(vehicle) if (vehicle.mode == tripMode) =>
                   router ! matsimLegToEmbodyRequest(
                     networkRoute,
                     vehicle,
@@ -592,6 +592,10 @@ trait ChoosesMode {
                     nextAct.getCoord,
                     triggerId
                   )
+                  responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+                case Some(vehicle) =>
+                  logger.error(s"Agent ${this.id} is on a ${tripMode.value} trip but has vehicle ${vehicle.toString}")
+                  makeRequestWith(withTransit = false, Vector(bodyStreetVehicle))
                   responsePlaceholders = makeResponsePlaceholders(withRouting = true)
                 case _ =>
                   makeRequestWith(withTransit = false, Vector(bodyStreetVehicle))

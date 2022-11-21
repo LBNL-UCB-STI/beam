@@ -41,6 +41,9 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
   val idToTAZMapping: mutable.HashMap[Id[TAZ], TAZ] = mutable.HashMap()
   private val cache: TrieMap[(Double, Double), TAZ] = TrieMap()
   private val linkIdToTAZMapping: mutable.HashMap[Id[Link], Id[TAZ]] = mutable.HashMap.empty[Id[Link], Id[TAZ]]
+
+  val TAZtoLinkIdMapping: mutable.HashMap[Id[TAZ], QuadTree[Link]] =
+    mutable.HashMap.empty[Id[TAZ], QuadTree[Link]]
   private val unmatchedLinkIds: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
   lazy val tazListContainsGeoms: Boolean = tazQuadTree.values().asScala.headOption.exists(_.geometry.isDefined)
   private val failedLinkLookups: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
@@ -125,6 +128,15 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
 
   def mapNetworkToTAZs(network: Network): Unit = {
     if (tazListContainsGeoms) {
+      val extent =
+        (tazQuadTree.getMinEasting, tazQuadTree.getMinNorthing, tazQuadTree.getMaxEasting, tazQuadTree.getMaxNorthing)
+      idToTAZMapping.toList.foreach { case (id, taz) =>
+        val (minX, minY, maxX, maxY) = taz.geometry.map(_.getEnvelope.getEnvelopeInternal) match {
+          case Some(env) => (env.getMinX, env.getMinY, env.getMaxX, env.getMaxY)
+          case _         => extent
+        }
+        TAZtoLinkIdMapping(id) = new QuadTree[Link](minX, minY, maxX, maxY)
+      }
       network.getLinks.asScala.foreach {
         case (id, link) =>
           val linkEndCoord = link.getToNode.getCoord
@@ -140,7 +152,16 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
           }
           foundTaz match {
             case Some(taz) =>
-              linkIdToTAZMapping += (id -> taz.tazId)
+              try {
+                if (link.getAllowedModes.contains("car") & link.getAllowedModes.contains("walk")) {
+                  TAZtoLinkIdMapping(taz.tazId).put(linkEndCoord.getX, linkEndCoord.getY, link)
+                  linkIdToTAZMapping += (id -> taz.tazId)
+                }
+              } catch {
+                case e: Throwable =>
+                  logger.error(s"Exception ${e.toString}. Bad link ${link.toString} in taz ${taz.tazId}")
+                  unmatchedLinkIds += id
+              }
             case _ =>
               unmatchedLinkIds += id
           }
@@ -299,6 +320,28 @@ object TAZTreeMap {
     val x = r * Math.cos(a)
     val y = r * Math.sin(a)
     new Coord(taz.coord.getX + x, taz.coord.getY + y)
+  }
+
+  def randomLocationInTAZ(
+    taz: TAZ,
+    rand: scala.util.Random,
+    allLinks: Iterable[Link]
+  ): Coord = {
+    if (allLinks.isEmpty) {
+      randomLocationInTAZ(taz, rand)
+    } else {
+      val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
+      var currentLength = 0.0
+      val stopAt = rand.nextDouble() * totalLength
+      allLinks
+        .takeWhile { lnk =>
+          currentLength += lnk.getLength
+          currentLength <= stopAt
+        }
+        .lastOption
+        .map(_.getCoord)
+        .getOrElse(allLinks.head.getCoord)
+    }
   }
 
   def randomLocationInTAZ(

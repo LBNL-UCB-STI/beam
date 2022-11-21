@@ -88,8 +88,13 @@ case class FixedNonReservingFleetByTAZ(
           (0 until fleetShare).foreach(_ =>
             initialLocation
               .append(beamServices.beamScenario.tazTreeMap.getTAZ(Id.create(idTaz, classOf[TAZ])) match {
-                case Some(taz) if coord.getX == 0.0 & coord.getY == 0.0 => TAZTreeMap.randomLocationInTAZ(taz, rand)
-                case _                                                  => coord
+                case Some(taz) if coord.getX == 0.0 & coord.getY == 0.0 =>
+                  TAZTreeMap.randomLocationInTAZ(
+                    taz,
+                    rand,
+                    beamServices.beamScenario.tazTreeMap.TAZtoLinkIdMapping(taz.tazId).values().asScala
+                  )
+                case _ => coord
               })
           )
         }
@@ -100,7 +105,13 @@ case class FixedNonReservingFleetByTAZ(
         val tazArray = beamServices.beamScenario.tazTreeMap.getTAZs.toArray
         (1 to config.fleetSize).foreach { _ =>
           val taz = tazArray(rand.nextInt(tazArray.length))
-          initialLocation.prepend(TAZTreeMap.randomLocationInTAZ(taz, rand))
+          initialLocation.prepend(
+            TAZTreeMap.randomLocationInTAZ(
+              taz,
+              rand,
+              beamServices.beamScenario.tazTreeMap.TAZtoLinkIdMapping(taz.tazId).values().asScala
+            )
+          )
         }
     }
 

@@ -5,8 +5,9 @@ import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.config.BeamConfig
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Parking
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -14,8 +15,7 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.util.Random
 
 class ParkingFunctions(
-  geoQuadTree: QuadTree[TAZ],
-  idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+  tazTreeMap: TAZTreeMap,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
@@ -27,10 +27,9 @@ class ParkingFunctions(
   minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
   seed: Int,
-  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit
+  mnlParkingConfig: Parking.MultinomialLogit
 ) extends InfrastructureFunctions(
-      geoQuadTree,
-      idToGeoMapping,
+      tazTreeMap,
       parkingZones,
       distanceFunction,
       minSearchRadius,
@@ -160,20 +159,32 @@ class ParkingFunctions(
   ): Coord = {
     if (parkingZone.link.isDefined)
       parkingZone.link.get.getCoord
-    else if (
-      (parkingZone.reservedFor.managerType == VehicleManager.TypeEnum.Household) ||
-      (inquiry.parkingActivityType == ParkingActivityType.Home && parkingZone.parkingType == ParkingType.Residential) ||
-      (inquiry.parkingActivityType == ParkingActivityType.Work && parkingZone.parkingType == ParkingType.Workplace)
-    )
-      inquiry.destinationUtm.loc
-    else
-      ParkingStallSampling.availabilityAwareSampling(
-        new Random(seed),
-        inquiry.destinationUtm.loc,
-        taz,
-        parkingZone.availability,
-        inClosestZone
-      )
+    else {
+      val availability = if (
+        (parkingZone.reservedFor.managerType == VehicleManager.TypeEnum.Household) ||
+        (inquiry.parkingActivityType == ParkingActivityType.Home && parkingZone.parkingType == ParkingType.Residential) ||
+        (inquiry.parkingActivityType == ParkingActivityType.Work && parkingZone.parkingType == ParkingType.Workplace)
+      ) {
+        1.0
+      } else { parkingZone.availability }
+      if (tazTreeMap.tazListContainsGeoms) {
+        ParkingStallSampling.linkBasedSampling(
+          new Random(seed),
+          taz,
+          inquiry.destinationUtm.loc,
+          tazTreeMap.TAZtoLinkIdMapping(taz.tazId),
+          availability
+        )
+      } else {
+        ParkingStallSampling.availabilityAwareSampling(
+          new Random(seed),
+          inquiry.destinationUtm.loc,
+          taz,
+          availability,
+          inClosestZone
+        )
+      }
+    }
   }
 
   /**
