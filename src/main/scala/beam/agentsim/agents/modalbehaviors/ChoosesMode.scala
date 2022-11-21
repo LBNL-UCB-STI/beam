@@ -581,7 +581,7 @@ trait ChoosesMode {
               val maybeVehicle =
                 filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), tripMode).headOption
               maybeVehicle match {
-                case Some(vehicle) if (vehicle.mode == tripMode) =>
+                case Some(vehicle) if vehicle.mode == tripMode =>
                   router ! matsimLegToEmbodyRequest(
                     networkRoute,
                     vehicle,
