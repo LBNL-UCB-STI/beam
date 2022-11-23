@@ -201,12 +201,12 @@ object BeamHelicsInterface {
         currentBin = tick / simulationStep
         log(s"Publishing message to the ${dataOutStreamPointMaybe.getOrElse("NA")} at time $tick.")
         publishJSON(msgToPublish)
+        sync(tick) // SYNC
         log(s"publishNestedJSON $msgToPublish.")
         while (msgReceived.isEmpty) {
-          // SYNC
-          sync(tick)
           log(s"sync $tick.")
           // COLLECT
+          sync(tick + 1)
           msgReceived = collectJSON()
           log(s"collectedNestedJSON $msgReceived.")
           if (msgReceived.isEmpty) {

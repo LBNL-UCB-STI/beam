@@ -104,15 +104,13 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   /**
     * @param timeBin Int
     */
-  def obtainPowerCommandsAndLimits(timeBin: Int): Unit = {
-    val numPluggedVehicles = chargingNetworkHelper.allChargingStations.view.map(_.howManyVehiclesAreCharging).sum
-    logger.debug(s"obtainPowerCommandsAndLimits timeBin = $timeBin, numPluggedVehicles = $numPluggedVehicles")
+  def obtainPowerCommandsAndLimits(timeBin: Int, connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle]): Unit = {
+    logger.debug(s"obtainPowerCommandsAndLimits timeBin = $timeBin")
+    val parkingZoneToVehiclesMap = connectedVehicles.values.groupBy(_.chargingStation.zone.parkingZoneId)
     powerCommands = beamFederateMap.par
-      .map { case (groupedTazId, stations, federate) =>
-        val currentlyConnectedVehicles: Map[Id[ParkingZoneId], List[ChargingVehicle]] =
-          stations.flatMap(_.connectedVehicles.values).groupBy(_.chargingStation.zone.parkingZoneId)
+      .map { case (groupedTazId, _, federate) =>
         val eventsToSend: List[Map[String, Any]] = siteMap.flatMap { case (parkingZoneId, tazId) =>
-          currentlyConnectedVehicles
+          parkingZoneToVehiclesMap
             .get(parkingZoneId)
             .map(_.map { case cv @ ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, _, _, _) =>
               // Sending this message
@@ -133,10 +131,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
                   .getOrElse(getChargingPointInstalledPowerInKw(stall.chargingPointType.get))
               )
             })
-            .getOrElse(List(Map(
-              "tazId" -> tazId,
-              "siteId" -> parkingZoneId
-            )))
+            .getOrElse(List(Map("tazId" -> tazId, "siteId" -> parkingZoneId)))
         }.toList
         federate
           .cosimulate(timeBin, eventsToSend)
@@ -154,16 +149,12 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
                 message.contains("vehicleId")
             })
             if (feedback) {
-              chargingNetworkHelper
-                .lookUpConnectedVehiclesAt(timeBin)
-                .get(Id.create(message("vehicleId").toString, classOf[BeamVehicle])) match {
+              val vehicleId = Id.create(message("vehicleId").toString, classOf[BeamVehicle])
+              connectedVehicles.get(vehicleId) match {
                 case Some(chargingVehicle) =>
                   Some(chargingVehicle.vehicle.id -> message("powerInKW").toString.toDouble)
                 case _ =>
-                  logger.error(
-                    s"Cannot find vehicle ${message("vehicleId")} obtained from the site power manager controller." +
-                    s"Potentially the vehicle has already disconnected or something is broken"
-                  )
+                  logger.error(s"The vehicle $vehicleId might have already left the station between co-simulation!")
                   None
               }
             } else None

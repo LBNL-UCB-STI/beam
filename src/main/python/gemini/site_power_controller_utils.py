@@ -35,6 +35,7 @@ class DefaultSPMC:
         desired_fuel_level_in_k_wh = []
         max_power_in_kw = []  # min [plug, vehicle]
         battery_capacity_in_k_wh = []  # TODO Julius @ HL can you please add this to the BEAM output?
+        control_commands = []
 
         for charging_event in charging_events:
             vehicle_id.append(str(charging_event['vehicleId']))
@@ -54,7 +55,6 @@ class DefaultSPMC:
             battery_capacity_in_k_wh.append(int(charging_event['primaryFuelCapacityInJoule']) / 3600000)
 
         # Myungsoo is SPMC (NOT RIDE HAIL DEPOT)
-        control_commands = []
         # 1) SPMC takes list(charging_events) (and/or siteId)
         # 2) SPMC returns control_commands
         # 2.a) example
@@ -76,12 +76,11 @@ class DefaultSPMC:
                 'powerInKW': str(p_evse_opt[i])
             }]
             i = i + 1
-        num_commands = len(control_commands)
-        if num_commands > 1:
-            print2("**** TEST ****")
-            print2("simulation time: {}. desired_departure_time: {}. tdep: {}. p_evse_opt: {}".format(t, desired_departure_time, tdep, p_evse_opt))
-            print2(charging_events)
-            print2(str(num_commands) + " EVSE setpoints. Sending:" + str(control_commands))
+        # num_commands = len(control_commands)
+        # print2("**** TEST ****")
+        # print2("simulation time: {}. desired_departure_time: {}. tdep: {}. p_evse_opt: {}".format(t, desired_departure_time, tdep, p_evse_opt))
+        # print2(charging_events)
+        # print2(str(num_commands) + " EVSE setpoints. Sending:" + str(control_commands))
         return control_commands
 
 
