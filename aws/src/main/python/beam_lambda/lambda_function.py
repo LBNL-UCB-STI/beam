@@ -258,7 +258,6 @@ runcmd:
   -   start_json=$(printf "{
         \\"command\\":\\"add\\",
         \\"type\\":\\"beam\\",
-        \\"sheet_id\\":\\"$SHEET_ID\\",
         \\"run\\":{
           \\"status\\":\\"Run Started\\",
           \\"name\\":\\"$TITLED\\",
@@ -327,7 +326,6 @@ runcmd:
   -   stop_json=$(printf "{
         \\"command\\":\\"add\\",
         \\"type\\":\\"beam\\",
-        \\"sheet_id\\":\\"$SHEET_ID\\",
         \\"run\\":{
           \\"status\\":\\"$final_status\\",
           \\"name\\":\\"$TITLED\\",
@@ -914,7 +912,6 @@ def deploy_handler(event, context):
                 .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
                 .replace('$SLACK_TOKEN', os.environ['SLACK_TOKEN']) \
                 .replace('$SLACK_CHANNEL', os.environ['SLACK_CHANNEL']) \
-                .replace('$SHEET_ID', os.environ['SHEET_ID']) \
                 .replace('$STUCK_GUARD_MAX_INACTIVE_TIME_INTERVAL', str(stuck_guard_max_inactive_time_interval)) \
                 .replace('$STUCK_GUARD_MIN_CPU_USAGE', str(stuck_guard_min_cpu_usage)) \
                 .replace('$RUN_JUPYTER', str(run_jupyter)) \
