@@ -581,7 +581,7 @@ trait ChoosesMode {
               val maybeVehicle =
                 filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), tripMode).headOption
               maybeVehicle match {
-                case Some(vehicle) if (vehicle.mode == tripMode) =>
+                case Some(vehicle) if vehicle.mode == tripMode =>
                   router ! matsimLegToEmbodyRequest(
                     networkRoute,
                     vehicle,
@@ -1485,7 +1485,13 @@ trait ChoosesMode {
       }
 
       val itinerariesOfCorrectMode =
-        filteredItinerariesForChoice.filter(itin => availableModesForTrips.contains(itin.tripClassifier))
+        filteredItinerariesForChoice
+          .filter(itin => availableModesForTrips.contains(itin.tripClassifier))
+          .filterNot(itin =>
+            itin.vehiclesInTrip
+              .filterNot(_.toString.startsWith("body"))
+              .exists(veh => personData.failedTrips.flatMap(_.vehiclesInTrip).contains(veh))
+          )
 
       val attributesOfIndividual =
         matsimPlan.getPerson.getCustomAttributes
