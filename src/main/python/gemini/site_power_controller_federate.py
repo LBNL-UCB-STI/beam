@@ -126,8 +126,8 @@ if __name__ == "__main__":
     h.helicsFederateInfoSetTimeProperty(main_fed_info, h.helics_property_time_delta, helics_config["timeDeltaProperty"])
     #
     h.helicsFederateInfoSetIntegerProperty(main_fed_info, h.helics_property_int_log_level, helics_config["intLogLevel"])
-    #
-    fed = create_federate(helics_config, main_fed_info, "")
+    # in BEAM each federate has its ID starting with 0
+    fed = create_federate(helics_config, main_fed_info, "0")
 
     print2("Starting number of thread(s). Each thread is running one federate.")
 
