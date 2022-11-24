@@ -140,9 +140,9 @@ if __name__ == "__main__":
                      "coreType": "zmq",
                      "timeDeltaProperty": 1.0,  # smallest discernible interval to this federate
                      "intLogLevel": 1,
-                     "beamFederatePrefix": "BEAM_FEDERATE",
+                     "beamFederatePrefix": "BEAM_FED",
                      "beamFederatePublication": "CHARGING_VEHICLES",
-                     "spmFederatePrefix": "SPM_FEDERATE",
+                     "spmFederatePrefix": "SPM_FED",
                      "spmFederateSubscription": "CHARGING_COMMANDS",
                      "timeStepInSeconds": 60
                      }
