@@ -199,13 +199,6 @@ runcmd:
   - sudo chmod 644 /var/log/cloud-init-output.log
   - sudo chmod 644 /home/ubuntu/git/beam/cloud-init-output.log
   - cd /home/ubuntu/git/beam
-  - if [ "$COMMIT" = "HEAD" ]
-  - then
-  -   RESOLVED_COMMIT=$(git log -1 --pretty=format:%H)
-  - else
-  -   RESOLVED_COMMIT=$COMMIT
-  - fi
-  - echo "Resolved commit is $RESOLVED_COMMIT"
 
   - 'echo "sudo git fetch"'
   - sudo git fetch
@@ -215,6 +208,15 @@ runcmd:
   - sudo git pull
   - 'echo "sudo git lfs pull"'
   - sudo git lfs pull
+  
+  - if [ "$COMMIT" = "HEAD" ]
+  - then
+  -   RESOLVED_COMMIT=$(git log -1 --pretty=format:%H)
+  - else
+  -   RESOLVED_COMMIT=$COMMIT
+  - fi
+  - echo "Resolved commit is $RESOLVED_COMMIT"
+  
   - echo "sudo git checkout -qf ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
 
