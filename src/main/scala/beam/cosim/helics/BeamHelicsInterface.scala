@@ -203,8 +203,9 @@ object BeamHelicsInterface {
         publishJSON(msgToPublish)
         sync(tick) // SYNC
         log(s"publishNestedJSON $msgToPublish.")
-        while (msgReceived.isEmpty) {
-          log(s"sync $tick.")
+        var counter = 1
+        while (msgReceived.isEmpty && counter <= 10) {
+          log(s"sync ${tick + 1}.")
           // COLLECT
           sync(tick + 1)
           msgReceived = collectJSON()
@@ -212,7 +213,11 @@ object BeamHelicsInterface {
           if (msgReceived.isEmpty) {
             // Sleep
             Thread.sleep(1)
+            counter = counter + 1
           }
+        }
+        if (msgReceived.isEmpty) {
+          logger.error("Either HELICS communication is failing or something wrong with the transmitted message!")
         }
         log(s"Message received from ${dataInStreamPointMaybe.getOrElse("NA")}: $msgReceived.")
       }
@@ -278,14 +283,16 @@ object BeamHelicsInterface {
       */
     def collectJSON(): Option[List[Map[String, Any]]] = {
       val message = collectRaw()
-      if (message.nonEmpty) {
-        try {
-          val messageList = message.replace("\u0000", "").parseJson.convertTo[List[Map[String, Any]]]
-          Some(messageList)
-        } catch {
-          case _: Throwable => None
-        }
-      } else None
+      try {
+        val messageWithoutSpecialCharacter = message.replace("\u0000", "")
+        val messageCleaned = messageWithoutSpecialCharacter.trim.stripPrefix("\"").stripSuffix("\"")
+        if (List("", "[]", "[{}]", "null").contains(messageCleaned)) Some(List.empty[Map[String, Any]])
+        else Some(messageWithoutSpecialCharacter.parseJson.convertTo[List[Map[String, Any]]])
+      } catch {
+        case e: Throwable =>
+          logger.error(s"Failed to process a received message $message from helics, because $e")
+          None
+      }
     }
 
     /**
