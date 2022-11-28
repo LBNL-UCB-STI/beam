@@ -80,12 +80,12 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
             logging.error("[time:" + str(t) + "] SPM Controller received empty message from BEAM!")
             pass
 
+        all_power_commands_list = all_power_commands_list + power_commands_list
         message_to_send = power_commands_list
         if not message_to_send:
             message_to_send = [{}]
         h.helicsPublicationPublishString(pubs_control, json.dumps(message_to_send, separators=(',', ':')))
         sync_time(t + 1)
-        all_power_commands_list = all_power_commands_list + power_commands_list
 
     control_commands_df = pd.DataFrame(all_power_commands_list)
     control_commands_df.to_csv('out.csv', index=False)

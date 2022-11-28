@@ -106,10 +106,11 @@ class ChargingNetworkManager(
     case TriggerWithId(PlanEnergyDispatchTrigger(timeBin), triggerId) =>
       val s = System.currentTimeMillis
       log.debug(s"Planning energy dispatch for vehicles currently connected to a charging point, at t=$timeBin")
-      sitePowerManager.obtainPowerCommandsAndLimits(timeBin)
+      val pluggedInVehicles = chargingNetworkHelper.allChargingStations.flatMap(_.pluggedInVehicles).toMap
+      sitePowerManager.obtainPowerCommandsAndLimits(timeBin, pluggedInVehicles)
       val simulatedParkingInquiries = simulateEventsIfScalingEnabled(timeBin, triggerId)
       // obtaining physical bounds
-      val triggers = chargingNetworkHelper.lookUpConnectedVehiclesAt(timeBin).par.flatMap { case (_, chargingVehicle) =>
+      val triggers = pluggedInVehicles.par.flatMap { case (_, chargingVehicle) =>
         // Refuel
         handleRefueling(chargingVehicle)
         // Calculate the energy to charge and prepare for next current cycle of charging
@@ -145,9 +146,6 @@ class ChargingNetworkManager(
 
     case request @ ChargingPlugRequest(tick, vehicle, stall, personId, triggerId, theSender, _, _) =>
       log.debug(s"ChargingPlugRequest received from vehicle $vehicle at $tick and stall ${vehicle.stall}")
-      println(
-        s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall} (taz: ${stall.tazId})"
-      )
       val responseHasTriggerId = if (vehicle.isEV) {
         // connecting the current vehicle
         val chargingNetwork = chargingNetworkHelper.get(stall.reservedFor.managerId)
@@ -313,17 +311,6 @@ object ChargingNetworkManager extends LazyLogging {
     lazy val allChargingStations: List[ChargingStation] =
       chargingNetwork.chargingStations.filter(_.zone.chargingPointType.isDefined) ++ rideHailNetwork.chargingStations
         .filter(_.zone.chargingPointType.isDefined)
-
-    private var allConnectedVehicles: Option[Map[Id[BeamVehicle], ChargingVehicle]] = None
-    private var currentTime: Double = -1
-
-    def lookUpConnectedVehiclesAt(time: Double): Map[Id[BeamVehicle], ChargingVehicle] = {
-      if (currentTime < time || allConnectedVehicles.isEmpty) {
-        allConnectedVehicles = Some(allChargingStations.flatMap(_.connectedVehicles).toMap)
-        currentTime = time
-      }
-      allConnectedVehicles.get
-    }
 
     /**
       * @param managerId vehicle manager id
