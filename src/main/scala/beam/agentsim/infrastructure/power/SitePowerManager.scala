@@ -23,7 +23,7 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.ChargingNetworkManager
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 
-import scala.collection.mutable
+import scala.collection.{immutable, mutable}
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Try}
 
@@ -163,19 +163,19 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
         val eventsToSend: List[Map[String, Any]] = siteMap.flatMap { case (parkingZoneId, tazId) =>
           parkingZoneToVehiclesMap
             .get(parkingZoneId)
-            .map(_.map { case cv@ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, _, _, _) =>
+            .map(_.map { case cv @ ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, _, _, _) =>
               // Sending this message
               val fuelCapacity = vehicle.beamVehicleType.primaryFuelCapacityInJoule
               Map(
-                "tazId" -> tazId,
-                "siteId" -> parkingZoneId,
-                "vehicleId" -> vehicle.id,
-                "vehicleType" -> vehicle.beamVehicleType.id,
-                "primaryFuelLevelInJoules" -> vehicle.primaryFuelLevelInJoules,
+                "tazId"                      -> tazId,
+                "siteId"                     -> parkingZoneId,
+                "vehicleId"                  -> vehicle.id,
+                "vehicleType"                -> vehicle.beamVehicleType.id,
+                "primaryFuelLevelInJoules"   -> vehicle.primaryFuelLevelInJoules,
                 "primaryFuelCapacityInJoule" -> vehicle.beamVehicleType.primaryFuelCapacityInJoule,
-                "arrivalTime" -> arrivalTime,
-                "departureTime" -> estimateDepartureTime(timeBin, cv.estimatedDepartureTime),
-                "desiredFuelLevelInJoules" -> (fuelCapacity - vehicle.primaryFuelLevelInJoules),
+                "arrivalTime"                -> arrivalTime,
+                "departureTime"              -> estimateDepartureTime(timeBin, cv.estimatedDepartureTime),
+                "desiredFuelLevelInJoules"   -> (fuelCapacity - vehicle.primaryFuelLevelInJoules),
                 "maxPowerInKW" -> vehicle.beamVehicleType.chargingCapability
                   .map(getChargingPointInstalledPowerInKw)
                   .map(Math.min(getChargingPointInstalledPowerInKw(stall.chargingPointType.get), _))
@@ -185,7 +185,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
             .getOrElse(List(Map("tazId" -> tazId, "siteId" -> parkingZoneId)))
         }.toList
 
-        federate
+        val vehicleIdToPowerInKW: immutable.Seq[(Id[BeamVehicle], PowerInKW)] = federate
           .cosimulate(timeBin, eventsToSend)
           .flatMap { message =>
             val messageContainsExpectedTazId = message.get("tazId") match {
@@ -202,14 +202,17 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
                 case Some(chargingVehicle) =>
                   Some(chargingVehicle.vehicle.id -> message("powerInKW").toString.toDouble)
                 case _ =>
-                  logger.error(s"The vehicle $vehicleIdFromMessage might have already left the station between co-simulation!")
+                  logger.error(
+                    s"The vehicle $vehicleIdFromMessage might have already left the station between co-simulation!"
+                  )
                   None
               }
             } else None
           }
-          .toMap
-      }.foldLeft(Map.empty[Id[BeamVehicle], PowerInKW])(_ ++ _)
 
+        vehicleIdToPowerInKW.toMap
+      }
+      .foldLeft(Map.empty[Id[BeamVehicle], PowerInKW])(_ ++ _)
 
     val loadEstimate = chargingNetworkHelper.allChargingStations.par
       .map(station => station -> temporaryLoadEstimate.getOrElse(station, 0.0))
