@@ -159,58 +159,35 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     logger.debug(s"obtainPowerCommandsAndLimits timeBin = $timeBin")
     val parkingZoneToVehiclesMap = connectedVehicles.values.groupBy(_.chargingStation.zone.parkingZoneId)
     powerCommands = beamFederateMap.par
-      .map { case BeamFederateDescriptor(groupedTazIds, stations, federate) =>
-        val currentlyConnectedVehicles: Map[Id[ParkingZoneId], List[ChargingVehicle]] =
-          stations.flatMap(_.connectedVehicles.values).groupBy(_.chargingStation.zone.parkingZoneId)
+      .map { case BeamFederateDescriptor(groupedTazIds, _, federate) =>
         val eventsToSend: List[Map[String, Any]] = siteMap.flatMap { case (parkingZoneId, tazId) =>
           parkingZoneToVehiclesMap
             .get(parkingZoneId)
-          val vehiclesInParkingZone: Option[List[ChargingVehicle]] = currentlyConnectedVehicles.get(parkingZoneId)
-          val maybeRequestsForParkedVehicles = vehiclesInParkingZone
-            .map(_.map { case cv @ ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, _, _, _) =>
+            .map(_.map { case cv@ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, _, _, _) =>
               // Sending this message
               val fuelCapacity = vehicle.beamVehicleType.primaryFuelCapacityInJoule
               Map(
-                "tazId"                      -> tazId,
-                "siteId"                     -> parkingZoneId,
-                "vehicleId"                  -> vehicle.id,
-                "vehicleType"                -> vehicle.beamVehicleType.id,
-                "primaryFuelLevelInJoules"   -> vehicle.primaryFuelLevelInJoules,
+                "tazId" -> tazId,
+                "siteId" -> parkingZoneId,
+                "vehicleId" -> vehicle.id,
+                "vehicleType" -> vehicle.beamVehicleType.id,
+                "primaryFuelLevelInJoules" -> vehicle.primaryFuelLevelInJoules,
                 "primaryFuelCapacityInJoule" -> vehicle.beamVehicleType.primaryFuelCapacityInJoule,
-                "arrivalTime"                -> arrivalTime,
-                "departureTime"              -> estimateDepartureTime(timeBin, cv.estimatedDepartureTime),
-                "desiredFuelLevelInJoules"   -> (fuelCapacity - vehicle.primaryFuelLevelInJoules),
+                "arrivalTime" -> arrivalTime,
+                "departureTime" -> estimateDepartureTime(timeBin, cv.estimatedDepartureTime),
+                "desiredFuelLevelInJoules" -> (fuelCapacity - vehicle.primaryFuelLevelInJoules),
                 "maxPowerInKW" -> vehicle.beamVehicleType.chargingCapability
                   .map(getChargingPointInstalledPowerInKw)
                   .map(Math.min(getChargingPointInstalledPowerInKw(stall.chargingPointType.get), _))
                   .getOrElse(getChargingPointInstalledPowerInKw(stall.chargingPointType.get))
               )
             })
-
-          maybeRequestsForParkedVehicles match {
-            case Some(requestsForParkedVehicles) => requestsForParkedVehicles
-            case None                            => List(Map("tazId" -> tazId, "siteId" -> parkingZoneId))
-          }
+            .getOrElse(List(Map("tazId" -> tazId, "siteId" -> parkingZoneId)))
         }.toList
 
         federate
           .cosimulate(timeBin, eventsToSend)
           .flatMap { message =>
-            // Receiving this message
-            val feedback = spmConfigMaybe.get.expectFeedback && (message.get("tazId") match {
-              case Some(tazIdStr) if spmConfigMaybe.get.oneFederatePerTAZ =>
-                val taz = beamServices.beamScenario.tazTreeMap.getTAZ(tazIdStr.toString)
-                if (taz.isEmpty || taz.get.tazId != groupedTazId) {
-                  logger.error(s"The received tazId $tazIdStr from SPM Controller does not match tazId $groupedTazId")
-                  false
-                } else message.contains("vehicleId")
-              case _ =>
-                logger.debug(s"The received feedback from SPM Controller: $message")
-                message.contains("vehicleId")
-            })
-            if (feedback) {
-              val vehicleId = Id.create(message("vehicleId").toString, classOf[BeamVehicle])
-              connectedVehicles.get(vehicleId) match {
             val messageContainsExpectedTazId = message.get("tazId") match {
               case Some(tazIdStr) =>
                 val maybeTaz = beamServices.beamScenario.tazTreeMap.getTAZ(tazIdStr.toString)
@@ -221,20 +198,18 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
 
             if (spmConfigMaybe.get.expectFeedback && messageContainsVehicleId && messageContainsExpectedTazId) {
               val vehicleIdFromMessage = Id.create(message("vehicleId").toString, classOf[BeamVehicle])
-              chargingNetworkHelper
-                .lookUpConnectedVehiclesAt(timeBin)
-                .get(vehicleIdFromMessage) match {
+              connectedVehicles.get(vehicleIdFromMessage) match {
                 case Some(chargingVehicle) =>
                   Some(chargingVehicle.vehicle.id -> message("powerInKW").toString.toDouble)
                 case _ =>
-                  logger.error(s"The vehicle $vehicleId might have already left the station between co-simulation!")
+                  logger.error(s"The vehicle $vehicleIdFromMessage might have already left the station between co-simulation!")
                   None
               }
             } else None
           }
           .toMap
-      }
-      .foldLeft(Map.empty[Id[BeamVehicle], PowerInKW])(_ ++ _)
+      }.foldLeft(Map.empty[Id[BeamVehicle], PowerInKW])(_ ++ _)
+
 
     val loadEstimate = chargingNetworkHelper.allChargingStations.par
       .map(station => station -> temporaryLoadEstimate.getOrElse(station, 0.0))
