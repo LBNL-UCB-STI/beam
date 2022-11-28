@@ -361,6 +361,7 @@ object BeamHelicsInterface extends StrictLogging {
       } else {
         logger.info(s"BeamFederate $fedName is invalid.")
       }
+      BeamHelicsInterface.closeHelics()
     }
   }
 

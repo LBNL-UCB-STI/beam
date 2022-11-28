@@ -313,7 +313,6 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   def close(): Unit = {
     powerController.close()
     beamFederateMap.foreach { case BeamFederateDescriptor(_, _, federate) => federate.close() }
-    BeamHelicsInterface.closeHelics()
   }
 }
 
