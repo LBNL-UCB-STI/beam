@@ -588,8 +588,8 @@ def add_handler(event):
 
     spreadsheet_id = os.environ['spreadsheet_id']
     current_sheet_id = os.environ['current_sheet_id']
-    current_sheet_name = os.environ.get('current_sheet_name', 'BEAM Instances')
-    archive_sheet_name = os.environ.get('archive_sheet_name', 'BEAM Instances archive')
+    current_sheet_name = os.environ.get('current_sheet_name', 'latest 500')
+    archive_sheet_name = os.environ.get('archive_sheet_name', 'all runs')
     max_rows = int(os.environ.get('max_rows', '500'))
 
     json = event.get('run')
