@@ -5,7 +5,7 @@ Since this lambda function has external dependencies it has to be deployed in a 
 To do that
 
 1. `cd aws/src/main/python/spreadsheetData`
-1. `pip3 install --target ./package requests`
+1. `pip3 install -r requirements.txt --target ./package`
 1. ```
     cd package
     zip -r ../my-deployment-package.zip .

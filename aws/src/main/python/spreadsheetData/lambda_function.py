@@ -398,8 +398,9 @@ def add_beam_row(sheet_api, spreadsheet_id, sheet_name, row_data, max_rows):
 
         last_index = row_count + 1
 
+        dimension_request = None
         # Adjusting number of rows to match the max_rows target (either adding or deleting)
-        if last_index <= max_rows:
+        if row_count < max_rows:
             dimension_request = {
                 "insertDimension": {
                     "inheritFromBefore": True,
@@ -411,7 +412,7 @@ def add_beam_row(sheet_api, spreadsheet_id, sheet_name, row_data, max_rows):
                     },
                 }
             }
-        else:
+        elif row_count > max_rows:
             dimension_request = {
                 "deleteDimension": {
                     "range": {
@@ -446,7 +447,9 @@ def add_beam_row(sheet_api, spreadsheet_id, sheet_name, row_data, max_rows):
                 }
             }
         }]
-        requests.append(dimension_request)
+
+        if dimension_request != None:
+            requests.append(dimension_request)
 
         body = {
             "includeSpreadsheetInResponse": False,
