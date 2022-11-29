@@ -10,6 +10,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import urllib.parse
 import logging
+import json
 
 if len(logging.getLogger().handlers) > 0:
     # The Lambda environment pre-configures a handler logging to stderr. If a handler is already configured,
@@ -359,13 +360,13 @@ def add_beam_row_archive(sheet_api, sheet_id, sheet_name, row_data):
         spreadsheetId=sheet_id, range=f"{sheet_name}!A2:F2",
         valueInputOption="USER_ENTERED", insertDataOption='OVERWRITE', body=empty).execute()
 
-def add_beam_row(sheet_api, spreadsheet_id, sheet_id, sheet_name, row_data, max_rows):
+def add_beam_row(sheet_api, spreadsheet_id, sheet_name, row_data, max_rows):
     timestamp = datetime.now().strftime('%m/%d/%Y, %H:%M:%S')
     def to_value(str):
         return { "userEnteredValue": {"stringValue": str } }
     def to_values(columns):
         return list(map(lambda col : to_value(row_data.get(col, '')), columns))
-    def new_row(is_completed):
+    def new_row(sheet_id, is_completed):
         columns1 = ['status', 'name', 's3_link', 'instance_type']
         columns2 = [
             'host_name',
@@ -395,46 +396,72 @@ def add_beam_row(sheet_api, spreadsheet_id, sheet_id, sheet_name, row_data, max_
 
         values = to_values(columns1) + timestamps + to_values(columns2)
 
-        body = {
-            "includeSpreadsheetInResponse": False,
-            "requests": [{
+        last_index = row_count + 1
+
+        # Adjusting number of rows to match the max_rows target (either adding or deleting)
+        if last_index <= max_rows:
+            dimension_request = {
                 "insertDimension": {
-                    "inheritFromBefore": False,
+                    "inheritFromBefore": True,
                     "range": {
                         "dimension": "ROWS",
                         "sheetId": sheet_id,
-                        "startIndex": 1,
-                        "endIndex": 2
+                        "startIndex": last_index,
+                        "endIndex": max_rows + 1
                     },
                 }
-            }, {
-                "updateCells": {
-                    "rows": [{
-                        "values": values
-                    }],
-                    "fields": "*",
-                    "start": {
-                        "sheetId": sheet_id,
-                        "rowIndex": 1,
-                        "columnIndex": 0
-                    }
-                }
-            }, {
+            }
+        else:
+            dimension_request = {
                 "deleteDimension": {
                     "range": {
                         "dimension": "ROWS",
                         "sheetId": sheet_id,
-                        "startIndex": max_rows,
-                        "endIndex": max_rows + 100
+                        "startIndex": max_rows + 1,
+                        "endIndex": last_index
                     },
                 }
             }
-            ]
+
+        requests = [{
+            "insertDimension": {
+                "inheritFromBefore": False,
+                "range": {
+                    "dimension": "ROWS",
+                    "sheetId": sheet_id,
+                    "startIndex": 1,
+                    "endIndex": 2
+                },
+            }
+        }, {
+            "updateCells": {
+                "rows": [{
+                    "values": values
+                }],
+                "fields": "*",
+                "start": {
+                    "sheetId": sheet_id,
+                    "rowIndex": 1,
+                    "columnIndex": 0
+                }
+            }
+        }]
+        requests.append(dimension_request)
+
+        body = {
+            "includeSpreadsheetInResponse": False,
+            "requests": requests
         }
         sheet_api.batchUpdate(spreadsheetId=spreadsheet_id, body=body).execute()
 
+
+    # Fetching row count and sheet id
+    res = sheet_api.get(spreadsheetId=spreadsheet_id).execute()
+    row_count = res['sheets'][0]['properties']['gridProperties']['rowCount']
+    sheet_id =  res['sheets'][0]['properties']['sheetId']
+
     if row_data.get('status') == 'Run Started':
-        new_row(is_completed=False)
+        new_row(sheet_id, is_completed=False)
     else:
         run_id = f"{row_data.get('host_name')}-{row_data.get('instance_id')}"
         result = sheet_api.values().get(spreadsheetId=spreadsheet_id, range=f'{sheet_name}!A1:Z{max_rows}').execute()
@@ -444,6 +471,7 @@ def add_beam_row(sheet_api, spreadsheet_id, sheet_id, sheet_name, row_data, max_
             hostname_index = columns.index('Host name')
             instance_id_index = columns.index('Instance ID')
             time_completed_index = columns.index('Time completed')
+            s3_url_index = columns.index('S3 Url')
 
             run_ids = list(map(lambda items: f"{items[hostname_index]}-{items[instance_id_index]}", result['values'][1:]))
 
@@ -468,6 +496,20 @@ def add_beam_row(sheet_api, spreadsheet_id, sheet_id, sheet_name, row_data, max_
                         }
                     }
                 }, {
+                   "updateCells": {
+                       "rows": [{
+                           "values": [
+                               {"userEnteredValue": {"stringValue": row_data.get('s3_link') }},
+                           ]
+                       }],
+                       "fields": "*",
+                       "start": {
+                           "sheetId": sheet_id,
+                           "rowIndex": index,
+                           "columnIndex": s3_url_index
+                       }
+                   }
+               },{
                     "updateCells": {
                         "rows": [{
                             "values": [
@@ -487,7 +529,7 @@ def add_beam_row(sheet_api, spreadsheet_id, sheet_id, sheet_name, row_data, max_
         except ValueError as e:
             logger.warning(f"Could not find the existing run with id {run_id} for update, inserting a new row\n" +
                            f"original error: {e}")
-            new_row(is_completed=True)
+            new_row(sheet_id, is_completed=True)
 
 
 def add_pilates_row(sheet_api, spreadsheet_id, row_data):
@@ -564,18 +606,25 @@ def load_creds():
 
 
 def load_service_creds():
-    creds_data = dict(
-        type = "service_account",
-        project_id = os.environ["project_id"],
-        private_key_id = os.environ["private_key_id"],
-        private_key = os.environ["private_key"].replace('\\n', '\n'),
-        client_email = os.environ["client_email"],
-        client_id = os.environ["client_id"],
-        auth_uri = "https://accounts.google.com/o/oauth2/auth",
-        token_uri = "https://oauth2.googleapis.com/token",
-        auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs",
-        client_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/" + urllib.parse.quote(os.environ["client_email"])
-    )
+    key_path = os.environ.get('key_path', None)
+    if key_path == None:
+        creds_data = dict(
+            type = "service_account",
+            project_id = os.environ["project_id"],
+            private_key_id = os.environ["private_key_id"],
+            private_key = os.environ["private_key"].replace('\\n', '\n'),
+            client_email = os.environ["client_email"],
+            client_id = os.environ["client_id"],
+            auth_uri = "https://accounts.google.com/o/oauth2/auth",
+            token_uri = "https://oauth2.googleapis.com/token",
+            auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs",
+            client_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/" + urllib.parse.quote(os.environ["client_email"])
+        )
+    else:
+        f = open(key_path)
+        creds_data = json.load(f)
+        f.close()
+
     creds = service_account.Credentials.from_service_account_info(creds_data, scopes=SCOPES)
     return creds
 
@@ -587,7 +636,6 @@ def add_handler(event):
     sheet_api = service.spreadsheets()
 
     spreadsheet_id = os.environ['spreadsheet_id']
-    current_sheet_id = os.environ['current_sheet_id']
     current_sheet_name = os.environ.get('current_sheet_name', 'latest 500')
     archive_sheet_name = os.environ.get('archive_sheet_name', 'all runs')
     max_rows = int(os.environ.get('max_rows', '500'))
@@ -597,7 +645,7 @@ def add_handler(event):
 
     if row_type == 'beam':
         add_beam_row_archive(sheet_api, spreadsheet_id, archive_sheet_name, json)
-        return add_beam_row(sheet_api, spreadsheet_id, current_sheet_id, current_sheet_name, json, max_rows)
+        return add_beam_row(sheet_api, spreadsheet_id, current_sheet_name, json, max_rows)
     if row_type == 'pilates':
         return add_pilates_row(sheet_api, spreadsheet_id, json)
 
@@ -624,7 +672,14 @@ def lambda_handler(event, context):
 
 
 def main():
+    # For local testing you will need to export these env vars, adjust values to point to copy of deployment spreadsheet:
+
+    # This is a API key file in json format which you can create and download from Google API console
+    # export key_path=~/.rugged-diagram-368211-d5a37637dcec.json
+    # export spreadsheet_id=1gnvfNT8IksOzHzuLzjCSjQ10gefnwahkvstvFW7U0is
+
     # Sample json
+    key_path = '~/.rugged-diagram-368211-d5a37637dcec.json'
     event = {
         "command": "add",
         "type": "beam",
