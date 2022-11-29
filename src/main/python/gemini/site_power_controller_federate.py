@@ -1,32 +1,42 @@
 # this file creates an intermediate federate
 # it maps the coordinates from TEMPO to the nearest charging
 # station modeled in PyDSS
-import time
-import helics as h
-import pandas as pd
-import logging
-import json
-import itertools
-import os
 import collections.abc
-
+import helics as h
+import itertools
+import logging
+import sys
+import pandas as pd
 from threading import Thread
 
-from rudimentary_spmc import SPM_Control
-
-from site_power_controller_utils import print2
-from site_power_controller_utils import create_federate
-from site_power_controller_utils import RideHailSPMC
+import json
 from site_power_controller_utils import DefaultSPMC
+from site_power_controller_utils import RideHailSPMC
+from site_power_controller_utils import create_federate
+from site_power_controller_utils import print2
 
 
 def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
     # enter execution mode
     h.helicsFederateEnterExecutingMode(cfed)
     fed_name = h.helicsFederateGetName(cfed)
-    print2(fed_name + " in execution mode")
+
+    def print_inf(any_to_print):
+        to_print = f"{fed_name}: {str(any_to_print)}"
+        logging.info(to_print)
+        print(to_print)
+
+    def print_err(any_to_print):
+        to_print = f"{fed_name}: {str(any_to_print)}"
+        logging.error(to_print)
+        print(to_print)
+
+    print_inf("In execution mode")
     subs_charging_events = h.helicsFederateGetInputByIndex(cfed, 0)
     pubs_control = h.helicsFederateGetPublicationByIndex(cfed, 0)
+
+    # in case of multiple federates it is still fine to have these dicts as local variables
+    # because each federate will work with a fixed subset of TAZs
     default_spm_c_dict = {}
     ride_hail_spm_c_dict = {}
 
@@ -42,9 +52,7 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
         try:
             return json.loads(message_to_parse)
         except json.decoder.JSONDecodeError as err:
-            error_text = "Message from BEAM is an incorrect JSON, " + str(err)
-            logging.error(error_text)
-            print(error_text)
+            print_err("Message from BEAM is an incorrect JSON, " + str(err))
             return ""
 
     # start execution loop
@@ -54,11 +62,11 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
         power_commands_list = []
         received_message = h.helicsInputGetString(subs_charging_events)
         if t % 1800 == 0:
-            print2("Hour " + str(t/3600) + " completed.")
+            print_inf("Hour " + str(t / 3600) + " completed.")
         if bool(str(received_message).strip()):
             charging_events_json = parse_json(received_message)
             if not isinstance(charging_events_json, collections.abc.Sequence):
-                logging.error("[time:" + str(t) + "] It was not able to parse JSON message from BEAM: " + received_message)
+                print_err(f"[time:{str(t)}] It was not able to parse JSON message from BEAM: " + received_message)
                 pass
             elif len(charging_events_json) > 0:
                 for site_id, charging_events in itertools.groupby(charging_events_json, key_func):
@@ -67,17 +75,20 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
                     if site_id not in ride_hail_spm_c_dict:
                         ride_hail_spm_c_dict[site_id] = RideHailSPMC("RideHailSPMC", site_id)
                     # Running SPM Controllers
-                    filtered_charging_events = list(filter(lambda charging_event: 'vehicleId' in charging_event, charging_events))
+                    filtered_charging_events = list(
+                        filter(lambda charging_event: 'vehicleId' in charging_event, charging_events))
                     if len(filtered_charging_events) > 0:
                         if not site_id.lower().startswith('depot'):
-                            power_commands_list = power_commands_list + default_spm_c_dict[site_id].run(t, filtered_charging_events)
+                            power_commands_list = power_commands_list + \
+                                                  default_spm_c_dict[site_id].run(t, filtered_charging_events)
                         else:
-                            power_commands_list = power_commands_list + ride_hail_spm_c_dict[site_id].run(t, filtered_charging_events)
+                            power_commands_list = power_commands_list + \
+                                                  ride_hail_spm_c_dict[site_id].run(t, filtered_charging_events)
             else:
-                logging.error("[time:" + str(t) + "] The JSON message is not valid: " + received_message)
+                print_err(f"[time:{str(t)}] The JSON message is not valid: " + received_message)
                 pass
         else:
-            logging.error("[time:" + str(t) + "] SPM Controller received empty message from BEAM!")
+            print_err(f"[time:{str(t)}] SPM Controller received empty message from BEAM!")
             pass
 
         all_power_commands_list = all_power_commands_list + power_commands_list
@@ -88,25 +99,28 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
         sync_time(t + 1)
 
     control_commands_df = pd.DataFrame(all_power_commands_list)
-    control_commands_df.to_csv('out.csv', index=False)
+    control_commands_df.to_csv(f'fed_{fed_name}_out.csv', index=False)
 
     # close the federate
     h.helicsFederateDisconnect(cfed)
-    print2("Federate finalized and now saving and finishing")
+    print_inf("Federate finalized and now saving and finishing")
     h.helicsFederateFree(cfed)
-    h.helicsCloseLibrary()
     # depotController: save results
     # TODO uncomment
     # depotController.save()
-    print2("Finished")
+    print_inf("Finished")
 
 
 ###############################################################################
 
 if __name__ == "__main__":
+    number_of_federates = 1
+    if len(sys.argv) > 1:
+        number_of_federates = int(sys.argv[1])
+
     logging.basicConfig(filename='site_power_controller_federate.log', level=logging.DEBUG, filemode='w')
     print2("Using helics version " + h.helicsGetVersion())
-    helics_config = {"coreInitString": f"--federates=1 --broker_address=tcp://127.0.0.1",
+    helics_config = {"coreInitString": f"--federates={number_of_federates} --broker_address=tcp://127.0.0.1",
                      "coreType": "zmq",
                      "timeDeltaProperty": 1.0,  # smallest discernible interval to this federate
                      "intLogLevel": 1,
@@ -116,7 +130,9 @@ if __name__ == "__main__":
                      "spmSubscription": "CHARGING_COMMANDS",
                      "timeStepInSeconds": 60}
 
-    print2("Creating a federate(s) ...")
+    federate_ids = list(map(lambda x: str(x), range(number_of_federates)))
+
+    print2(f"Creating {number_of_federates} federate(s) ...")
     main_fed_info = h.helicsCreateFederateInfo()
     # set core type
     h.helicsFederateInfoSetCoreTypeFromString(main_fed_info, helics_config["coreType"])
@@ -126,15 +142,24 @@ if __name__ == "__main__":
     h.helicsFederateInfoSetTimeProperty(main_fed_info, h.helics_property_time_delta, helics_config["timeDeltaProperty"])
     #
     h.helicsFederateInfoSetIntegerProperty(main_fed_info, h.helics_property_int_log_level, helics_config["intLogLevel"])
-    # in BEAM each federate has its ID starting with 0
-    fed = create_federate(helics_config, main_fed_info, "0")
 
-    print2("Starting number of thread(s). Each thread is running one federate.")
+    feds = [create_federate(helics_config, main_fed_info, fed_id) for fed_id in federate_ids]
+    print2("Starting " + str(len(feds)) + " thread(s). Each thread is running one federate.")
 
     time_bin = helics_config["timeStepInSeconds"]
     simulated_day = 60 * 3600  # 60 hours BEAM Day
+
     # start execution loop
-    run_spm_federate(fed, time_bin, simulated_day)
-    # for [fed, taz_id] in feds:
-    #     thread = Thread(target=run_spm_federate, args=(fed, str(taz_id), time_bin, simulated_day))
-    #     thread.start()
+    threads = []
+    for fed in feds:
+        thread = Thread(target=run_spm_federate, args=(fed, time_bin, simulated_day))
+        thread.start()
+        threads.append(thread)
+
+    # closing helics after all federates are finished
+    for thread in threads:
+        thread.join()
+
+    print2("Closing Helics...")
+    h.helicsCloseLibrary()
+    print2("Finished.")
