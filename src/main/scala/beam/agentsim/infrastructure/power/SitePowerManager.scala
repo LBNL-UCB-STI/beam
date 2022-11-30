@@ -46,11 +46,11 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
       .toMap
 
   private[power] lazy val beamFederateMap: List[BeamFederateDescriptor] = spmConfigMaybe match {
-    case Some(spmConfig) if spmConfig.connect => createBeamFederatesOutOfChargingStationsGroups(spmConfig)
+    case Some(spmConfig) if spmConfig.connect => createBeamFederates(spmConfig)
     case _                                    => List.empty[BeamFederateDescriptor]
   }
 
-  private def createBeamFederatesOutOfChargingStationsGroups(
+  private def createBeamFederates(
     spmConfig: ChargingNetworkManager.SitePowerManagerController
   ): List[BeamFederateDescriptor] = {
     logger.warn("ChargingNetworkManager should connect to a site power controller via Helics...")
