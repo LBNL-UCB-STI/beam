@@ -46,16 +46,15 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
       .toMap
 
   private[power] lazy val beamFederateMap: List[BeamFederateDescriptor] = spmConfigMaybe match {
-    case Some(spmConfig) if spmConfig.connect => groupChargingStationsAndCreateBeamFederates(spmConfig)
+    case Some(spmConfig) if spmConfig.connect => createBeamFederatesOutOfChargingStationsGroups(spmConfig)
     case _                                    => List.empty[BeamFederateDescriptor]
   }
 
-  private def groupChargingStationsAndCreateBeamFederates(
+  private def createBeamFederatesOutOfChargingStationsGroups(
     spmConfig: ChargingNetworkManager.SitePowerManagerController
   ): List[BeamFederateDescriptor] = {
     logger.warn("ChargingNetworkManager should connect to a site power controller via Helics...")
     val maybeListOfFederateDescriptors = Try {
-      // the same should be in 'all_taz' in src/main/python/gemini/site_power_controller_multi_federate.py:311
       val tazIdsToChargingStations: Map[Set[Id[TAZ]], List[ChargingStation]] =
         randomlyGroupChargingStations(spmConfig.numberOfFederates, chargingNetworkHelper.allChargingStations)
 
