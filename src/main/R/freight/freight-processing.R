@@ -139,14 +139,17 @@ pt2$scenario <- "2040"
 ptAll <- rbind(pt, pt2)
 ptAll$energyType <- "Diesel"
 ptAll[startsWith(vehicleType, "freight-BE-")]$energyType <- "Electric"
+ptAll$vehicleType2 <- "Heady Duty"
+ptAll[grepl("MD", vehicleType)]$vehicleType2 <- "Medium Duty"
 
 energy_consumption <- ptAll[,.(fuelGWH=expansionFactor*sum(primaryFuel/3.6e+12)),by=.(energyType,scenario)]
 
 ggplot(energy_consumption, aes(scenario, fuelGWH, fill=energyType)) +
   geom_bar(stat='identity') +
-  labs(y='GW Equivalent',x='Scenario',fill='Energy Type', title='Energy Consumption')+
+  labs(y='GW Equivalent',x='Scenario',fill='Powertrain', title='Energy Consumption')+
   theme_marain()+
-  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+ 
+  scale_fill_manual(values=c("#999999", "#56B4E9"))
 
 energy_vmt <- ptAll[,.(MVMT=expansionFactor*sum(length/1609.344)/1000000),by=.(energyType,scenario)]
 
@@ -154,8 +157,17 @@ ggplot(energy_vmt, aes(scenario, MVMT, fill=energyType)) +
   geom_bar(stat='identity') +
   labs(y='Million VMT',x='Scenario',fill='Energy Type', title='Total VMT')+
   theme_marain()+
-  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+ 
+  scale_fill_manual(values=c("#999999", "#56B4E9"))
 
+energy_vehType_vmt <- ptAll[,.(MVMT=expansionFactor*sum(length/1609.344)/1000000),by=.(energyType,vehicleType2,scenario)]
+
+ggplot(energy_vehType_vmt, aes(scenario, MVMT, fill=paste(energyType,vehicleType2,sep=" "))) +
+  geom_bar(stat='identity') +
+  labs(y='Million VMT',x='Scenario',fill='Energy-Vehicle Type', title='Total VMT')+
+  theme_marain()+
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+ 
+  scale_fill_manual(values=c("azure4", "azure3", "deepskyblue2", "darkturquoise"))
 
 # nrow(freight_pt)
 # all_pt_x <- data.table::as.data.table(rbind(b2b_pt,b2c_pt)[,c("time","vehicle","departureTime","arrivalTime","label")])
