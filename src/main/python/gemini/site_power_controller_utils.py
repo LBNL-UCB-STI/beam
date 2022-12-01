@@ -1,18 +1,11 @@
 # this file creates an intermediate federate
 # it maps the coordinates from TEMPO to the nearest charging
 # station modeled in PyDSS
-import time
 import helics as h
-import pandas as pd
 import logging
-import json
-import itertools
-import os
-import collections.abc
 
 from threading import Thread
-
-from rudimentary_spmc import SPM_Control
+from rudimentary_spmc_rev import SPM_Control
 
 
 class DefaultSPMC:
@@ -86,6 +79,7 @@ class DefaultSPMC:
         i = 0
         for vehicle in charging_events:
             self.control_commands = self.control_commands + [{
+                'time': str(t),
                 'tazId': str(vehicle["tazId"]),
                 'vehicleId': vehicle['vehicleId'],
                 'powerInKW': str(p_evse_opt[i])

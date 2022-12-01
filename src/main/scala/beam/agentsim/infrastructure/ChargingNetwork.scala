@@ -580,10 +580,5 @@ object ChargingNetwork extends LazyLogging {
           false
       }
     }
-
-    override def toString: String = {
-      s"$arrivalTime - ${vehicle.id} - ${stall.parkingZoneId} - $personId - $activityType - " +
-      s"${chargingStatus.lastOption.getOrElse("None")} - ${chargingSessions.lastOption.getOrElse("None")}"
-    }
   }
 }
