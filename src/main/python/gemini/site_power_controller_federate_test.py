@@ -5,6 +5,8 @@ import collections.abc
 import helics as h
 import logging
 import pandas as pd
+import statistics
+import sys
 from threading import Thread, Lock
 
 import json
@@ -38,35 +40,47 @@ def create_federate(helics_conf, fed_info, federate_id):
     return cfed
 
 
-lock_for_taz_to_power_requests_count = Lock()
-taz_to_power_requests_count = {}
-
-lock_for_taz_empty_requests_count = Lock()
-taz_empty_requests_count = {}
+lock_for_requests_count = Lock()
+federate_to_site_to_requests_count = {}
 
 
-def prepare_the_answer(request_as_list_of_maps):
+def prepare_the_answer(federate_id, request_as_list_of_maps):
     response_list = []
     for request_map in request_as_list_of_maps:
-        tazId = request_map.get("tazId", None)
-        vehicleId = request_map.get("vehicleId", None)
+        taz_id = request_map.get("tazId", None)
+        site_id = request_map.get("siteId", None)
+        vehicle_id = request_map.get("vehicleId", None)
 
-        if tazId and vehicleId:
+        number_of_power_requests = 0
+        number_of_empty_requests = 0
+
+        def update_number_of_requests_in_map(requests_map):
+            power_req_count = requests_map.get("power", 0)
+            empty_req_count = requests_map.get("empty", 0)
+            requests_map["power"] = power_req_count + number_of_power_requests
+            requests_map["empty"] = empty_req_count + number_of_empty_requests
+
+        if taz_id and site_id and vehicle_id:
             response = {
-                "tazId": tazId,
-                "vehicleId": vehicleId,
+                "tazId": taz_id,
+                "vehicleId": vehicle_id,
                 "powerInKW": 424242424242
             }
             response_list.append(response)
+            number_of_power_requests += 1
 
-            with lock_for_taz_to_power_requests_count:
-                number_of_requests = taz_to_power_requests_count.get(tazId, 0)
-                taz_to_power_requests_count[tazId] = number_of_requests + 1
+        elif taz_id and site_id:
+            number_of_empty_requests += 1
 
-        elif tazId:
-            with lock_for_taz_empty_requests_count:
-                number_of_requests = taz_empty_requests_count.get(tazId, 0)
-                taz_empty_requests_count[tazId] = number_of_requests + 1
+        else:
+            print_and_log(f"A wrong request without tazId and siteId: {request_map}")
+
+        with lock_for_requests_count:
+            fed_statistic = federate_to_site_to_requests_count.get(federate_id, {})
+            number_of_requests = fed_statistic.get(site_id, {})
+            update_number_of_requests_in_map(number_of_requests)
+            fed_statistic[site_id] = number_of_requests
+            federate_to_site_to_requests_count[federate_id] = fed_statistic
 
     return response_list
 
@@ -93,6 +107,8 @@ def run_spm_federate(cfed, federate_id, time_bin_in_seconds, simulated_day_in_se
     subs_charging_events = h.helicsFederateGetInputByIndex(cfed, 0)
     pubs_control = h.helicsFederateGetPublicationByIndex(cfed, 0)
 
+    number_of_requests_processed = 0
+
     print_and_log(f"FEDERATE{federate_id} {h.helicsFederateGetName(cfed)} in execution mode")
     # start execution loop
     for t in range(0, simulated_day_in_seconds - time_bin_in_seconds, time_bin_in_seconds):
@@ -103,7 +119,8 @@ def run_spm_federate(cfed, federate_id, time_bin_in_seconds, simulated_day_in_se
         if bool(str(received_message).strip()):
             json_message = parse_json(received_message)
             if isinstance(json_message, collections.abc.Sequence):
-                message_to_send = prepare_the_answer(json_message)
+                message_to_send = prepare_the_answer(federate_id, json_message)
+                number_of_requests_processed += 1
             else:  # got not a json message or the message was not parsed as a collection
                 pass
         else:  # got an empty message
@@ -121,7 +138,7 @@ def run_spm_federate(cfed, federate_id, time_bin_in_seconds, simulated_day_in_se
     # close the federate
     h.helicsFederateDisconnect(cfed)
     h.helicsFederateFree(cfed)
-    print_and_log(f"FEDERATE{federate_id} Finished.")
+    print_and_log(f"FEDERATE{federate_id} Finished. {number_of_requests_processed} requests processed.")
 
 
 ###############################################################################
@@ -129,6 +146,8 @@ def run_spm_federate(cfed, federate_id, time_bin_in_seconds, simulated_day_in_se
 if __name__ == "__main__":
     infrastructure_file = "../../../../production/sfbay/parking/sfbay_taz_unlimited_charging_point.csv"
     number_of_federates = 1
+    if len(sys.argv) > 1:
+        number_of_federates = int(sys.argv[1])
 
     logging.basicConfig(filename='site_power_controller_federate.log', level=logging.DEBUG, filemode='w')
     print_and_log("Using helics version " + h.helicsGetVersion())
@@ -179,12 +198,47 @@ if __name__ == "__main__":
     h.helicsCloseLibrary()
     print_and_log("Finished.")
 
-    total_number_of_requests = sum(taz_to_power_requests_count.values())
-    print_and_log(f"{len(taz_to_power_requests_count)} taz were affected by {total_number_of_requests} power requests.")
-    for taz_id in sorted(taz_to_power_requests_count.keys()):
-        taz_number_of_requests = taz_to_power_requests_count.get(taz_id)
-        print_and_log(f"taz {taz_id} got {taz_number_of_requests} requests.")
+    total_number_of_empty_requests = 0
+    total_number_of_power_requests = 0
 
-    total_number_of_requests = sum(taz_empty_requests_count.values())
-    print_and_log(
-        f"{len(taz_empty_requests_count)} taz were affected by {total_number_of_requests} requests without a vehicle Id.")
+    site_id_to_empty_requests = {}
+    site_id_to_power_requests = {}
+
+    for federate_id in federate_to_site_to_requests_count:
+        site_to_statistic = federate_to_site_to_requests_count.get(federate_id)
+
+        fed_power_req_count = 0
+        fed_empty_req_count = 0
+        for site_id in site_to_statistic:
+            site_statistic = site_to_statistic.get(site_id)
+            site_power_req_count = site_statistic.get("power", 0)
+            site_empty_req_count = site_statistic.get("empty", 0)
+
+            total_number_of_power_requests += site_power_req_count
+            total_number_of_empty_requests += site_empty_req_count
+
+            fed_power_req_count += site_power_req_count
+            fed_empty_req_count += site_empty_req_count
+
+            grouped_power_req_count = site_id_to_power_requests.get(site_id, 0)
+            grouped_empty_req_count = site_id_to_empty_requests.get(site_id, 0)
+            site_id_to_power_requests[site_id] = grouped_power_req_count + site_power_req_count
+            site_id_to_empty_requests[site_id] = grouped_empty_req_count + site_empty_req_count
+
+        print_and_log(
+            f"Federate {federate_id} had {fed_power_req_count} power and {fed_empty_req_count} empty requests")
+
+
+    def get_statistic(a_map):
+        all_vals = a_map.values()
+        min_val = min(all_vals)
+        max_val = max(all_vals)
+        avg_val = statistics.mean(all_vals)
+        return f"min value: {min_val}, max value: {max_val}, average value: {avg_val}"
+
+
+    print_and_log(f"Empty requests per siteId statistic: {get_statistic(site_id_to_empty_requests)}")
+    print_and_log(f"Power requests per siteId statistic: {get_statistic(site_id_to_power_requests)}")
+
+    print_and_log(f"Total number of power requests: {total_number_of_power_requests}")
+    print_and_log(f"Total number of empty requests: {total_number_of_empty_requests}")
