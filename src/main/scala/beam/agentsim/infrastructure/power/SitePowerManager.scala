@@ -6,10 +6,9 @@ import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStat
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.charging.ChargingPointType.getChargingPointInstalledPowerInKw
-import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZoneId}
+import beam.agentsim.infrastructure.parking.ParkingType
 import beam.agentsim.infrastructure.power.PowerManager._
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.cosim.helics.BeamHelicsInterface
 import beam.cosim.helics.BeamHelicsInterface.{
   createFedInfo,
   enterExecutionMode,
@@ -35,15 +34,6 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   protected val powerController = new PowerManager(chargingNetworkHelper, beamServices.beamConfig)
   protected var powerLimits = Map.empty[ChargingStation, PowerInKW]
   protected var powerCommands = Map.empty[Id[BeamVehicle], PowerInKW]
-
-  protected val siteMap: Map[Id[ParkingZoneId], Id[TAZ]] =
-    chargingNetworkHelper.allChargingStations
-      .groupBy(x => (x.zone.tazId, x.zone.parkingZoneId))
-      .keys
-      .map { case (tazId, parkingZoneId) =>
-        parkingZoneId -> tazId
-      }
-      .toMap
 
   private[power] lazy val beamFederateMap: List[BeamFederateDescriptor] = spmConfigMaybe match {
     case Some(spmConfig) if spmConfig.connect => createBeamFederates(spmConfig)
@@ -154,20 +144,28 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   /**
     * @param timeBin Int
     */
-  def obtainPowerCommandsAndLimits(timeBin: Int, connectedVehicles: Map[Id[BeamVehicle], ChargingVehicle]): Unit = {
+  def obtainPowerCommandsAndLimits(timeBin: Int, allPluggedInVehicles: Map[Id[BeamVehicle], ChargingVehicle]): Unit = {
     logger.debug(s"obtainPowerCommandsAndLimits timeBin = $timeBin")
-    val parkingZoneToVehiclesMap = connectedVehicles.values.groupBy(_.chargingStation.zone.parkingZoneId)
     powerCommands = beamFederateMap.par
-      .map { case BeamFederateDescriptor(groupedTazIds, _, federate) =>
-        val eventsToSend: List[Map[String, Any]] = siteMap.flatMap { case (parkingZoneId, tazId) =>
-          parkingZoneToVehiclesMap
-            .get(parkingZoneId)
-            .map(_.map { case cv @ ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, _, _, _) =>
+      .map { case BeamFederateDescriptor(groupedTazIds, stations, federate) =>
+        val eventsToSend: List[Map[String, Any]] = if (timeBin <= 0) {
+          // Constructing a list of site ids to initialize the site power manager
+          stations.map(station =>
+            Map(
+              "tazId"         -> station.zone.tazId,
+              "siteId"        -> station.zone.parkingZoneId,
+              "sitePowerInKW" -> station.maxPlugPower * station.numPlugs
+            )
+          )
+        } else {
+          stations.flatMap(_.pluggedInVehicles).map {
+            case (_, cv @ ChargingVehicle(vehicle, stall, station, arrivalTime, _, _, _, _, _, _, _, _, _)) =>
               // Sending this message
               val fuelCapacity = vehicle.beamVehicleType.primaryFuelCapacityInJoule
               Map(
-                "tazId"                      -> tazId,
-                "siteId"                     -> parkingZoneId,
+                "tazId"                      -> stall.tazId,
+                "siteId"                     -> stall.parkingZoneId,
+                "sitePowerInKW"              -> station.maxPlugPower * station.numPlugs,
                 "vehicleId"                  -> vehicle.id,
                 "vehicleType"                -> vehicle.beamVehicleType.id,
                 "primaryFuelLevelInJoules"   -> vehicle.primaryFuelLevelInJoules,
@@ -180,10 +178,8 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
                   .map(Math.min(getChargingPointInstalledPowerInKw(stall.chargingPointType.get), _))
                   .getOrElse(getChargingPointInstalledPowerInKw(stall.chargingPointType.get))
               )
-            })
-            .getOrElse(List(Map("tazId" -> tazId, "siteId" -> parkingZoneId)))
-        }.toList
-
+          }
+        }
         val vehicleIdToPowerInKW: immutable.Seq[(Id[BeamVehicle], PowerInKW)] = federate
           .cosimulate(timeBin, eventsToSend)
           .flatMap { message =>
@@ -197,7 +193,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
 
             if (spmConfigMaybe.get.expectFeedback && messageContainsVehicleId && messageContainsExpectedTazId) {
               val vehicleIdFromMessage = Id.create(message("vehicleId").toString, classOf[BeamVehicle])
-              connectedVehicles.get(vehicleIdFromMessage) match {
+              allPluggedInVehicles.get(vehicleIdFromMessage) match {
                 case Some(chargingVehicle) =>
                   Some(chargingVehicle.vehicle.id -> message("powerInKW").toString.toDouble)
                 case _ =>

@@ -39,6 +39,7 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
     # because each federate will work with a fixed subset of TAZs
     default_spm_c_dict = {}
     ride_hail_spm_c_dict = {}
+    depot_prefix = "depot"
 
     def key_func(k):
         return k['siteId']
@@ -55,51 +56,64 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
             print_err("Message from BEAM is an incorrect JSON, " + str(err))
             return ""
 
+    # INIT
+    def init_spm_controllers(site_id_str):
+        if site_id_str not in default_spm_c_dict:
+            default_spm_c_dict[site_id_str] = DefaultSPMC("DefaultSPMC", site_id_str)
+        if site_id_str not in ride_hail_spm_c_dict:
+            ride_hail_spm_c_dict[site_id_str] = RideHailSPMC("RideHailSPMC", site_id_str)
+
+    # RUN
+    def run_spm_controllers(site_id_str, current_t, received_charging_events):
+        if not site_id_str.lower().startswith(depot_prefix):
+            default_spm_c_dict[site_id_str].run_as_thread(current_t, received_charging_events)
+        else:
+            ride_hail_spm_c_dict[site_id_str].run_as_thread(current_t, received_charging_events)
+
+    # CONTROL COMMANDS
+    def get_power_commands(site_id_str):
+        if not site_id_str.lower().startswith(depot_prefix):
+            return default_spm_c_dict[site_id_str].get_output_from_latest_run()
+        else:
+            return ride_hail_spm_c_dict[site_id_str].get_output_from_latest_run()
+
     # start execution loop
-    all_power_commands_list = []
     for t in range(0, simulated_day_in_seconds - time_bin_in_seconds, time_bin_in_seconds):
         sync_time(t)
         power_commands_list = []
         received_message = h.helicsInputGetString(subs_charging_events)
-        if t % 1800 == 0:
-            print_inf("Hour " + str(t / 3600) + " completed.")
+
         if bool(str(received_message).strip()):
             charging_events_json = parse_json(received_message)
             if not isinstance(charging_events_json, collections.abc.Sequence):
                 print_err(f"[time:{str(t)}] It was not able to parse JSON message from BEAM: " + received_message)
                 pass
             elif len(charging_events_json) > 0:
+                processed_side_ids = []
                 for site_id, charging_events in itertools.groupby(charging_events_json, key_func):
-                    if site_id not in default_spm_c_dict:
-                        default_spm_c_dict[site_id] = DefaultSPMC("DefaultSPMC", site_id)
-                    if site_id not in ride_hail_spm_c_dict:
-                        ride_hail_spm_c_dict[site_id] = RideHailSPMC("RideHailSPMC", site_id)
+                    init_spm_controllers(site_id)
                     # Running SPM Controllers
                     filtered_charging_events = list(
                         filter(lambda charging_event: 'vehicleId' in charging_event, charging_events))
                     if len(filtered_charging_events) > 0:
-                        if not site_id.lower().startswith('depot'):
-                            power_commands_list = power_commands_list + \
-                                                  default_spm_c_dict[site_id].run(t, filtered_charging_events)
-                        else:
-                            power_commands_list = power_commands_list + \
-                                                  ride_hail_spm_c_dict[site_id].run(t, filtered_charging_events)
+                        processed_side_ids = processed_side_ids + [site_id]
+                        run_spm_controllers(site_id, t, filtered_charging_events)
+
+                for site_id in processed_side_ids:
+                    power_commands_list = power_commands_list + get_power_commands(site_id)
             else:
-                print_err(f"[time:{str(t)}] The JSON message is not valid: " + received_message)
+                # print_err("[time:" + str(t) + "] The JSON message is empty")
                 pass
         else:
-            print_err(f"[time:{str(t)}] SPM Controller received empty message from BEAM!")
+            # print_err("[time:" + str(t) + "] SPM Controller received empty message from BEAM!")
             pass
 
-        all_power_commands_list = all_power_commands_list + power_commands_list
-        message_to_send = power_commands_list
-        if not message_to_send:
-            message_to_send = [{}]
-        h.helicsPublicationPublishString(pubs_control, json.dumps(message_to_send, separators=(',', ':')))
+        h.helicsPublicationPublishString(pubs_control, json.dumps(power_commands_list, separators=(',', ':')))
+        if len(power_commands_list) > 0:
+            pd.DataFrame(power_commands_list).to_csv('out.csv', mode='a', index=False, header=False)
         sync_time(t + 1)
-
-    control_commands_df = pd.DataFrame(all_power_commands_list)
-    control_commands_df.to_csv(f'fed_{fed_name}_out.csv', index=False)
+        if t % 1800 == 0:
+            print2("Hour " + str(t/3600) + " completed.")
 
     # close the federate
     h.helicsFederateDisconnect(cfed)
