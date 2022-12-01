@@ -36,7 +36,12 @@ def create_beam_instance(request):
     if parameter_is_not_specified(instance_type): return escape("No instance type provided"), 400
     max_ram = json['forced_max_ram']
     if parameter_is_not_specified(max_ram): max_ram = 32  # todo calculate max ram
-    run_name = json.get('runName', "not-set")
+    run_name = json.get('run_name', "not-set")
+    beam_branch = json.get('beam_branch', "develop")
+    beam_commit = json.get('beam_commit', "HEAD")
+    data_branch = json.get('data_branch', "develop")
+    data_commit = json.get('data_commit', "HEAD")
+    shutdown_wait = json.get('shutdown_wait', "15")
 
     # project = requests.get("http://metadata/computeMetadata/v1/instance/id", headers={'Metadata-Flavor': 'Google'}).text
     project = 'beam-core'
@@ -101,6 +106,21 @@ sudo -u clu bash -c 'cd; ./cloud-init.sh &> cloud-init-output.log'
             },{
                 'key': 'max_ram',
                 'value': max_ram
+            },{
+                'key': 'beam_branch',
+                'value': beam_branch
+            },{
+                'key': 'beam_commit',
+                'value': beam_commit
+            },{
+                'key': 'data_branch',
+                'value': data_branch
+            },{
+                'key': 'data_commit',
+                'value': data_commit
+            },{
+                'key': 'shutdown_wait',
+                'value': shutdown_wait
             },]
         }
     }

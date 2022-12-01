@@ -48,9 +48,14 @@ task deployToGCE {
     def tempInstanceType = "${ext.getParameterValue('instanceType') ?: (project.hasProperty('defaultInstanceType') ? defaultInstanceType : '')}"
     def finalInstanceType = tempInstanceType.isEmpty() ? null : tempInstanceType
     GString pload = """{
-        "runName": "${ext.getParameterValue('runName') + '_' + getCurrentGitUserEmail()}",
+        "run_name": "${ext.getParameterValue('runName') + '_' + getCurrentGitUserEmail()}",
         "instance_type": "${finalInstanceType}",
         "forced_max_ram": "${ext.getParameterValue('forcedMaxRAM')}",
+        "beam_branch": "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}",
+        "beam_commit": "${ext.getParameterValue('beamCommit') ?: 'HEAD'}",
+        "data_branch": "${ext.getParameterValue('dataBranch') ?: 'develop'}",
+        "data_commit": "${ext.getParameterValue('dataCommit') ?: 'HEAD'}",
+        "shutdown_wait": "${ext.getParameterValue('shutdownWait')}",
         "config": "${ext.getParameterValue('beamConfigs')}"
     }"""
     def result = makeJsonPostRequest("https://us-central1-beam-core.cloudfunctions.net/deploy-beam", pload)
