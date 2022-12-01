@@ -814,3 +814,58 @@ View(e1[vehicle==4])
 stats <- readCsv(pp(workDir, "/test/30.linkstats.csv.gz"))
 stats2 <- readCsv(pp(workDir, "/test/30.linkstats 2.csv.gz"))
 res <- stats[,.(tt=mean(traveltime)),by=.(link)]
+
+
+####
+
+dir.out <- "/Users/haitamlaarabi/Workspace/Models/beam/gemini-develop-helics/src/main/python/gemini"
+runtime <- readCsv(pp(dir.out, "/runtime.csv"))
+ggplot(runtime) + geom_line(aes(charging_events_counter, runtime))
+
+ggplot(runtime) + 
+  geom_line(aes(time/3600.0, runtime)) +
+  geom_line(aes(time/3600.0, charging_events_counter))
+
+
+p1 <- ggplot(runtime, aes(x=time/3600.0, y=runtime)) +
+  geom_line(color="#69b3a2", size=2) +
+  ggtitle("Runtime in seconds") 
+
+
+p2 <- ggplot(runtime, aes(x=time/3600.0, y=charging_events_counter)) +
+  geom_line(color="grey",size=2) +
+  ggtitle("Charging Events") 
+
+
+temperatureColor <- "#69b3a2"
+priceColor <- rgb(0.2, 0.6, 0.9, 1)
+ggplot(runtime, aes(x=time/3600.0)) +
+  #geom_bar( aes(y=charging_events_counter), stat="identity", size=.1, color=priceColor, color="black", alpha=.4) +
+  geom_line( aes(y=runtime), size=2, color=temperatureColor) + 
+  geom_line( aes(y=charging_events_counter/100), size=2, color=priceColor) + 
+  scale_y_continuous(name = "Runtime in seconds",
+    sec.axis = sec_axis(~./10000, name="Charging Events")
+  ) + 
+  theme_ipsum() +
+  theme(
+    axis.title.y = element_text(color = temperatureColor, size=13),
+    axis.title.y.right = element_text(color = priceColor, size=13)
+  ) +
+  ggtitle("Runtime") +
+  labs(x = "hours")
+
+ggplot(runtime, aes(x=time/3600.0)) +
+  #geom_bar( aes(y=charging_events_counter), stat="identity", size=.1, color=priceColor, color="black", alpha=.4) +
+  geom_line( aes(y=runtime), size=2, color=temperatureColor) + 
+  scale_y_continuous(name = "Runtime in seconds") + 
+  theme_ipsum() +
+  theme(axis.title.y = element_text(color = temperatureColor, size=13)) +
+  ggtitle("Runtime") +
+  labs(x = "hours")
+
+
+
+output <- readCsv(pp(dir.out, "/out.csv"))
+
+
+
