@@ -10,6 +10,7 @@ import beam.agentsim.events.SpaceTime
 import beam.router.Modes.isOnStreetTransit
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{BeamLeg, BeamPath, RoutingModel}
+import beam.router.r5.TravelTimeByLinkCalculator
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.logging.ExponentialLazyLogging
@@ -29,7 +30,7 @@ class TransitInitializer(
   geo: GeoUtils,
   dates: DateUtils,
   transportNetwork: TransportNetwork,
-  travelTimeByLinkCalculator: (Double, Int, StreetMode) => Double
+  travelTimeByLinkCalculator: TravelTimeByLinkCalculator
 ) extends ExponentialLazyLogging {
   private val numStopsNotFound = new AtomicInteger()
 
