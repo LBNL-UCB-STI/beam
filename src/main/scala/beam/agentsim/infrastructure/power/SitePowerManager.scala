@@ -9,7 +9,6 @@ import beam.agentsim.infrastructure.charging.ChargingPointType.getChargingPointI
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZoneId}
 import beam.agentsim.infrastructure.power.PowerManager._
 import beam.agentsim.infrastructure.taz.TAZ
-import beam.cosim.helics.BeamHelicsInterface
 import beam.cosim.helics.BeamHelicsInterface.{
   createFedInfo,
   enterExecutionMode,
@@ -158,31 +157,32 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     logger.debug(s"obtainPowerCommandsAndLimits timeBin = $timeBin")
     val parkingZoneToVehiclesMap = connectedVehicles.values.groupBy(_.chargingStation.zone.parkingZoneId)
     powerCommands = beamFederateMap.par
-      .map { case BeamFederateDescriptor(groupedTazIds, _, federate) =>
-        val eventsToSend: List[Map[String, Any]] = siteMap.flatMap { case (parkingZoneId, tazId) =>
-          parkingZoneToVehiclesMap
-            .get(parkingZoneId)
+      .map { case BeamFederateDescriptor(groupedTazIds, chargingStations, federate) =>
+        val eventsToSend: List[Map[String, Any]] = chargingStations.flatMap { station =>
+          val maybeChargingVehicles = parkingZoneToVehiclesMap.get(station.zone.parkingZoneId)
+          maybeChargingVehicles
             .map(_.map { case cv @ ChargingVehicle(vehicle, stall, _, arrivalTime, _, _, _, _, _, _, _, _, _) =>
-              // Sending this message
               val fuelCapacity = vehicle.beamVehicleType.primaryFuelCapacityInJoule
+              val maxPowerInKW = vehicle.beamVehicleType.chargingCapability
+                .map(getChargingPointInstalledPowerInKw)
+                .map(Math.min(getChargingPointInstalledPowerInKw(stall.chargingPointType.get), _))
+                .getOrElse(getChargingPointInstalledPowerInKw(stall.chargingPointType.get))
+              // Sending this message
               Map(
-                "tazId"                      -> tazId,
-                "siteId"                     -> parkingZoneId,
+                "tazId"                      -> station.zone.tazId,
+                "siteId"                     -> station.zone.parkingZoneId,
                 "vehicleId"                  -> vehicle.id,
                 "vehicleType"                -> vehicle.beamVehicleType.id,
                 "primaryFuelLevelInJoules"   -> vehicle.primaryFuelLevelInJoules,
-                "primaryFuelCapacityInJoule" -> vehicle.beamVehicleType.primaryFuelCapacityInJoule,
+                "primaryFuelCapacityInJoule" -> fuelCapacity,
                 "arrivalTime"                -> arrivalTime,
                 "departureTime"              -> estimateDepartureTime(timeBin, cv.estimatedDepartureTime),
                 "desiredFuelLevelInJoules"   -> (fuelCapacity - vehicle.primaryFuelLevelInJoules),
-                "maxPowerInKW" -> vehicle.beamVehicleType.chargingCapability
-                  .map(getChargingPointInstalledPowerInKw)
-                  .map(Math.min(getChargingPointInstalledPowerInKw(stall.chargingPointType.get), _))
-                  .getOrElse(getChargingPointInstalledPowerInKw(stall.chargingPointType.get))
+                "maxPowerInKW"               -> maxPowerInKW
               )
             })
-            .getOrElse(List(Map("tazId" -> tazId, "siteId" -> parkingZoneId)))
-        }.toList
+            .getOrElse(List(Map("tazId" -> station.zone.tazId, "siteId" -> station.zone.parkingZoneId)))
+        }
 
         val vehicleIdToPowerInKW: immutable.Seq[(Id[BeamVehicle], PowerInKW)] = federate
           .cosimulate(timeBin, eventsToSend)
@@ -194,8 +194,9 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
               case _ => false
             }
             val messageContainsVehicleId = message.contains("vehicleId")
+            val expectFeedback = spmConfigMaybe.exists(_.expectFeedback)
 
-            if (spmConfigMaybe.get.expectFeedback && messageContainsVehicleId && messageContainsExpectedTazId) {
+            if (expectFeedback && messageContainsVehicleId && messageContainsExpectedTazId) {
               val vehicleIdFromMessage = Id.create(message("vehicleId").toString, classOf[BeamVehicle])
               connectedVehicles.get(vehicleIdFromMessage) match {
                 case Some(chargingVehicle) =>
