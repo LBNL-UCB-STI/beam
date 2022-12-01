@@ -59,3 +59,5 @@ log-path_IS_UNDEFINED/
 thread_dump_from_RunBeam.txt.gz
 test/input/fares/fares.dat
 test/input/sf-light/warmstart/warmstart_*
+*.log
+__pycache__

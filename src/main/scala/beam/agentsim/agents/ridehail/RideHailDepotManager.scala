@@ -279,6 +279,12 @@ trait RideHailDepotManager extends {
     beamVehicle: BeamVehicle,
     triggerId: Long
   ): Future[ParkingInquiryResponse] = {
+    val (chargingTime, _) = beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(
+      Some(ParkingStall.defaultFastChargingStall(whenWhere.loc)),
+      None,
+      None,
+      None
+    )
     val reservedFor = VehicleManager.getReservedFor(beamVehicle.vehicleManagerId.get).get
     val inquiry = ParkingInquiry.init(
       whenWhere,
@@ -288,7 +294,8 @@ trait RideHailDepotManager extends {
       valueOfTime = rideHailConfig.cav.valueOfTime,
       reserveStall = false,
       searchMode = ParkingSearchMode.DestinationCharging,
-      triggerId = triggerId
+      triggerId = triggerId,
+      parkingDuration = chargingTime
     )
     (chargingNetworkManager ? inquiry).mapTo[ParkingInquiryResponse]
   }

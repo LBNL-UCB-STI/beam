@@ -94,7 +94,7 @@ object ParkingInquiry extends LazyLogging {
     remainingTripData: Option[ParkingMNL.RemainingTripData] = None,
     personId: Option[Id[Person]] = None,
     valueOfTime: Double = 0.0,
-    parkingDuration: Double = 0,
+    parkingDuration: Double = 60.0,
     reserveStall: Boolean = true,
     requestId: Int = ParkingManagerIdGenerator.nextId,
     searchMode: ParkingSearchMode = ParkingSearchMode.Parking,

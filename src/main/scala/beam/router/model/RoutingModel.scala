@@ -1,5 +1,6 @@
 package beam.router.model
 
+import beam.router.r5.TravelTimeByLinkCalculator
 import com.conveyal.r5.profile.StreetMode
 import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.Id
@@ -42,7 +43,7 @@ object RoutingModel {
   def linksToTimeAndDistance(
     linkIds: IndexedSeq[Int],
     startTime: Int,
-    travelTimeByEnterTimeAndLinkId: (Double, Int, StreetMode) => Double,
+    travelTimeByEnterTimeAndLinkId: TravelTimeByLinkCalculator,
     mode: StreetMode,
     streetLayer: StreetLayer
   ): LinksTimesDistances = {
