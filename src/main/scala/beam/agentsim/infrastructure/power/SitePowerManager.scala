@@ -35,15 +35,6 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   protected var powerLimits = Map.empty[ChargingStation, PowerInKW]
   protected var powerCommands = Map.empty[Id[BeamVehicle], PowerInKW]
 
-  protected val siteMap: Map[Id[ParkingZoneId], Id[TAZ]] =
-    chargingNetworkHelper.allChargingStations
-      .groupBy(x => (x.zone.tazId, x.zone.parkingZoneId))
-      .keys
-      .map { case (tazId, parkingZoneId) =>
-        parkingZoneId -> tazId
-      }
-      .toMap
-
   private[power] lazy val beamFederateMap: List[BeamFederateDescriptor] = spmConfigMaybe match {
     case Some(spmConfig) if spmConfig.connect => createBeamFederates(spmConfig)
     case _                                    => List.empty[BeamFederateDescriptor]
