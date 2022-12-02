@@ -56,6 +56,7 @@ task deployToGCE {
         "data_branch": "${ext.getParameterValue('dataBranch') ?: 'develop'}",
         "data_commit": "${ext.getParameterValue('dataCommit') ?: 'HEAD'}",
         "shutdown_wait": "${ext.getParameterValue('shutdownWait')}",
+        "storage_size": "${ext.getParameterValue('storageSize')}",
         "config": "${ext.getParameterValue('beamConfigs')}"
     }"""
     def result = makeJsonPostRequest("https://us-central1-beam-core.cloudfunctions.net/deploy-beam", pload)

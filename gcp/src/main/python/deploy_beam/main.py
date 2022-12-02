@@ -42,13 +42,14 @@ def create_beam_instance(request):
     data_branch = json.get('data_branch', "develop")
     data_commit = json.get('data_commit', "HEAD")
     shutdown_wait = json.get('shutdown_wait', "15")
+    storage_size = json.get('storage_size', "100")
 
     # project = requests.get("http://metadata/computeMetadata/v1/instance/id", headers={'Metadata-Flavor': 'Google'}).text
     project = 'beam-core'
     zone = 'us-central1-a'
     name = to_instance_name(run_name)
     machine_type = f"zones/{zone}/machineTypes/{instance_type.strip()}"
-    source_snapshot = f"projects/{project}/global/snapshots/beam-run-sn--01"
+    disk_image_name = f"projects/{project}/global/images/beam-box"
     startup_script = """
 #!/bin/sh
 sudo -u clu bash -c 'cd; wget https://gist.github.com/dimaopen/3e736f1ec1d49c7e162867b280736312/raw/cloud-init.sh'
@@ -66,8 +67,10 @@ sudo -u clu bash -c 'cd; ./cloud-init.sh &> cloud-init-output.log'
                 'boot': True,
                 'autoDelete': True,
                 'initializeParams': {
-                    'sourceSnapshot': source_snapshot,
-                }
+                    'sourceImage': disk_image_name,
+                },
+                # beam disk minimum size is 100 (Gb)
+                "diskSizeGb": storage_size,
             }
         ],
 
@@ -100,34 +103,34 @@ sudo -u clu bash -c 'cd; ./cloud-init.sh &> cloud-init-output.log'
             'items': [{
                 'key': 'startup-script',
                 'value': startup_script
-            },{
+            }, {
                 'key': 'beam_config',
                 'value': beam_config
-            },{
+            }, {
                 'key': 'max_ram',
                 'value': max_ram
-            },{
+            }, {
                 'key': 'beam_branch',
                 'value': beam_branch
-            },{
+            }, {
                 'key': 'beam_commit',
                 'value': beam_commit
-            },{
+            }, {
                 'key': 'data_branch',
                 'value': data_branch
-            },{
+            }, {
                 'key': 'data_commit',
                 'value': data_commit
-            },{
+            }, {
                 'key': 'shutdown_wait',
                 'value': shutdown_wait
-            },]
+            }, ]
         }
     }
 
     service = discovery.build('compute', 'v1')
-    result = service.instances()\
-        .insert(project=project, zone=zone, body=config)\
+    result = service.instances() \
+        .insert(project=project, zone=zone, body=config) \
         .execute()
 
     operation_id = result["id"]
