@@ -362,10 +362,24 @@ def add_beam_row_archive(sheet_api, sheet_id, sheet_name, row_data):
 
 def add_beam_row(sheet_api, spreadsheet_id, sheet_name, row_data, max_rows):
     timestamp = datetime.now().strftime('%m/%d/%Y, %H:%M:%S')
+
     def to_value(str):
-        return { "userEnteredValue": {"stringValue": str } }
+        stripped = str.strip()
+        if stripped.startswith("http://") or stripped.startswith("https://"):
+            return { "userEnteredValue": {"stringValue": str.strip() },
+                     "textFormatRuns": [ {"startIndex": 0, "format": {"link": {"uri": stripped}}} ]}
+        else:
+            return { "userEnteredValue": {"stringValue": stripped } }
+
     def to_values(columns):
         return list(map(lambda col : to_value(row_data.get(col, '')), columns))
+
+    def get_run_id(items):
+        try:
+            return f"{items[hostname_index]}-{items[instance_id_index]}"
+        except IndexError:
+            return ""
+
     def new_row(sheet_id, is_completed):
         columns1 = ['status', 'name', 's3_link', 'instance_type']
         columns2 = [
@@ -476,7 +490,7 @@ def add_beam_row(sheet_api, spreadsheet_id, sheet_name, row_data, max_rows):
             time_completed_index = columns.index('Time completed')
             s3_url_index = columns.index('S3 Url')
 
-            run_ids = list(map(lambda items: f"{items[hostname_index]}-{items[instance_id_index]}", result['values'][1:]))
+            run_ids = list(map(lambda items: get_run_id(items), result['values'][1:]))
 
             # find row number by run id
             index = run_ids.index(run_id) + 1
@@ -487,9 +501,7 @@ def add_beam_row(sheet_api, spreadsheet_id, sheet_name, row_data, max_rows):
                 "requests": [{
                     "updateCells": {
                         "rows": [{
-                            "values": [
-                                {"userEnteredValue": {"stringValue": row_data.get('status')}},
-                            ]
+                            "values": [ to_value(row_data.get('status')) ]
                         }],
                         "fields": "*",
                         "start": {
@@ -501,9 +513,7 @@ def add_beam_row(sheet_api, spreadsheet_id, sheet_name, row_data, max_rows):
                 }, {
                    "updateCells": {
                        "rows": [{
-                           "values": [
-                               {"userEnteredValue": {"stringValue": row_data.get('s3_link') }},
-                           ]
+                           "values": [ to_value(row_data.get('s3_link')) ]
                        }],
                        "fields": "*",
                        "start": {
@@ -515,9 +525,7 @@ def add_beam_row(sheet_api, spreadsheet_id, sheet_name, row_data, max_rows):
                },{
                     "updateCells": {
                         "rows": [{
-                            "values": [
-                                {"userEnteredValue": {"stringValue": timestamp }},
-                            ]
+                            "values": [ to_value(timestamp) ]
                         }],
                         "fields": "*",
                         "start": {
@@ -682,24 +690,23 @@ def main():
     # export spreadsheet_id=1gnvfNT8IksOzHzuLzjCSjQ10gefnwahkvstvFW7U0is
 
     # Sample json
-    key_path = '~/.rugged-diagram-368211-d5a37637dcec.json'
     event = {
         "command": "add",
         "type": "beam",
         "run": {
             "status": "Run Started",
             "name": "test name",
-            "instance_id": "6",
+            "instance_id": "13",
             "instance_type": "r5.2xlarge",
             "host_name": "ec2-18-224-214-6.us-east-2.compute.amazonaws.com",
-            "browser": "browser",
+            "browser": "http://test_url",
             "branch": "branch",
             "commit": "commit",
             "data_branch": "data_branch",
             "data_commit": "data_commit",
             "region": "region",
             "batch": "batch",
-            "s3_link": "s3_link",
+            "s3_link": " https://test_url",
             "max_ram": "max_ram",
             "profiler_type": "profiler_type",
             "config_file": "config_file",
