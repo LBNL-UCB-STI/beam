@@ -311,7 +311,7 @@ dependencies {
 
     implementation group: 'com.zaxxer', name: 'nuprocess', version: '1.2.4'
 
-    def parquet = "1.10.0"
+    def parquet = "1.12.3"
     implementation group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquet
     implementation group: 'org.apache.parquet', name: 'parquet-avro', version: parquet
     implementation(group: 'org.apache.hadoop', name: 'hadoop-client', version: '2.7.3') {
