@@ -100,13 +100,6 @@ object PreviousRunPlanMerger extends LazyLogging {
           }
       }
     }
-
-    //    val unselectedPlanElements =
-//      oldToBeReplaced.groupBy(plan => (plan.personId, plan.planIndex)).flatMap { case (_, elems) =>
-//        elems.toList.sortBy(_.planScore).take(maximumNumberOfPlansToKeep.getOrElse(0)).map { case elem =>
-//          elem.copy(planIndex = elem.planIndex + 1, planSelected = false)
-//        }
-//      }
     oldElements ++ unselectedPlanElements ++ elementsFromExistingPersonsToAdd ++ elementsFromNewPersonsToAdd
   }
 }
