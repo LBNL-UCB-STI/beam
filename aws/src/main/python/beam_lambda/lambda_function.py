@@ -199,13 +199,6 @@ runcmd:
   - sudo chmod 644 /var/log/cloud-init-output.log
   - sudo chmod 644 /home/ubuntu/git/beam/cloud-init-output.log
   - cd /home/ubuntu/git/beam
-  - if [ "$COMMIT" = "HEAD" ]
-  - then
-  -   RESOLVED_COMMIT=$(git log -1 --pretty=format:%H)
-  - else
-  -   RESOLVED_COMMIT=$COMMIT
-  - fi
-  - echo "Resolved commit is $RESOLVED_COMMIT"
 
   - 'echo "sudo git fetch"'
   - sudo git fetch
@@ -215,6 +208,15 @@ runcmd:
   - sudo git pull
   - 'echo "sudo git lfs pull"'
   - sudo git lfs pull
+  
+  - if [ "$COMMIT" = "HEAD" ]
+  - then
+  -   RESOLVED_COMMIT=$(git log -1 --pretty=format:%H)
+  - else
+  -   RESOLVED_COMMIT=$COMMIT
+  - fi
+  - echo "Resolved commit is $RESOLVED_COMMIT"
+  
   - echo "sudo git checkout -qf ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
 
@@ -258,7 +260,6 @@ runcmd:
   -   start_json=$(printf "{
         \\"command\\":\\"add\\",
         \\"type\\":\\"beam\\",
-        \\"sheet_id\\":\\"$SHEET_ID\\",
         \\"run\\":{
           \\"status\\":\\"Run Started\\",
           \\"name\\":\\"$TITLED\\",
@@ -327,7 +328,6 @@ runcmd:
   -   stop_json=$(printf "{
         \\"command\\":\\"add\\",
         \\"type\\":\\"beam\\",
-        \\"sheet_id\\":\\"$SHEET_ID\\",
         \\"run\\":{
           \\"status\\":\\"$final_status\\",
           \\"name\\":\\"$TITLED\\",
@@ -914,7 +914,6 @@ def deploy_handler(event, context):
                 .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
                 .replace('$SLACK_TOKEN', os.environ['SLACK_TOKEN']) \
                 .replace('$SLACK_CHANNEL', os.environ['SLACK_CHANNEL']) \
-                .replace('$SHEET_ID', os.environ['SHEET_ID']) \
                 .replace('$STUCK_GUARD_MAX_INACTIVE_TIME_INTERVAL', str(stuck_guard_max_inactive_time_interval)) \
                 .replace('$STUCK_GUARD_MIN_CPU_USAGE', str(stuck_guard_min_cpu_usage)) \
                 .replace('$RUN_JUPYTER', str(run_jupyter)) \

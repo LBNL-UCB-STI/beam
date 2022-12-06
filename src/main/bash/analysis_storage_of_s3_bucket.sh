@@ -1,11 +1,10 @@
 #!/bin/bash
 # Please use command below to start the shell script
-#   bash analysis_s3_bucket.sh beam beam-outputs/output/ > result.txt
+#   bash analysis_s3_bucket.sh beam beam-outputs/output/ 3 > result.txt
 # The first parameter beam is the profile of aws configured to beam aws resource,
 #   for example: aws s3 ls --profile=beam, then please pass beam as the first parameter to the shell
-# The second parameter path is the profile of aws configured to beam aws resource,
-#   for example: aws s3 ls --profile=beam, then please pass beam as the first parameter to the shell
-# When set directory_depth to 3, the result would be:
+# The second parameter path is the resource path of s3, for example beam-outputs/output/
+# The third parameter depth, default is 3, when set directory_depth to 3, the result would be:
 #beam_outputs/
 #    directoryA/ 10 GiB
 #        directoryA-1/   8 Gib
@@ -36,7 +35,7 @@ echo $folder_name
 alias aws_beam='aws --profile=$beam_profile'
 source /etc/bash.bashrc
 
-directory_depth=3
+directory_depth=${3:-3}
 
 # function to calculate folder size, it would be very slow when the folder is deep and large, for example s3://beam-outputs/output/
 # aws_beam s3 ls  --summarize --human-readable --recursive  s3://beam-outputs/2018-01/
