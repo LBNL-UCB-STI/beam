@@ -17,7 +17,7 @@ from site_power_controller_utils import create_federate
 from site_power_controller_utils import print2
 
 
-def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
+def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_threaded_run):
     # enter execution mode
     h.helicsFederateEnterExecutingMode(cfed)
     fed_name = h.helicsFederateGetName(cfed)
@@ -65,11 +65,17 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
             ride_hail_spm_c_dict[site_id_str] = RideHailSPMC("RideHailSPMC", site_id_str)
 
     # RUN
-    def run_spm_controllers(site_id_str, current_t, received_charging_events):
+    def run_multi_threaded_spm_controllers(site_id_str, current_t, received_charging_events):
         if not site_id_str.lower().startswith(depot_prefix):
             default_spm_c_dict[site_id_str].run_as_thread(current_t, received_charging_events)
         else:
             ride_hail_spm_c_dict[site_id_str].run_as_thread(current_t, received_charging_events)
+
+    def run_spm_controllers(site_id_str, current_t, received_charging_events):
+        if not site_id_str.lower().startswith(depot_prefix):
+            default_spm_c_dict[site_id_str].run(current_t, received_charging_events)
+        else:
+            ride_hail_spm_c_dict[site_id_str].run(current_t, received_charging_events)
 
     # CONTROL COMMANDS
     def get_power_commands(site_id_str):
@@ -83,7 +89,6 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
         sync_time(t)
         power_commands_list = []
         received_message = h.helicsInputGetString(subs_charging_events)
-        start_time_1 = time.time()
         site_id_counter = 0
         charging_events_counter = 0
         if bool(str(received_message).strip()):
@@ -100,12 +105,12 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
                         filter(lambda charging_event: 'vehicleId' in charging_event, charging_events))
                     if len(filtered_charging_events) > 0:
                         processed_side_ids = processed_side_ids + [site_id]
-                        run_spm_controllers(site_id, t, filtered_charging_events)
+                        if multi_threaded_run:
+                            run_multi_threaded_spm_controllers(site_id, t, filtered_charging_events)
+                        else:
+                            run_spm_controllers(site_id, t, filtered_charging_events)
                         site_id_counter = site_id_counter + 1
                         charging_events_counter = charging_events_counter + len(filtered_charging_events)
-                    if len(filtered_charging_events) > 1:
-                        print2("filtered_charging_events length is " + str(len(filtered_charging_events)))
-
                 for site_id in processed_side_ids:
                     power_commands_list = power_commands_list + get_power_commands(site_id)
             else:
@@ -114,21 +119,9 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds):
         else:
             # print_err("[time:" + str(t) + "] SPM Controller received empty message from BEAM!")
             pass
-        end_time_1 = time.time()
-        print2("[1] --- %s seconds ---" % (end_time_1 - start_time_1))
-        print2("[1] site_id_counter: " + str(site_id_counter) + " --- charging_events_counter: " + str(charging_events_counter))
-        runtime_data = [[t, site_id_counter, charging_events_counter, (end_time_1 - start_time_1)]]
-        df = pd.DataFrame(runtime_data, columns=['time', 'site_id_counter', 'charging_events_counter', 'runtime'])
-        df.to_csv('runtime.csv', mode='a', index=False, header=False)
-        start_time_2 = time.time()
         h.helicsPublicationPublishString(pubs_control, json.dumps(power_commands_list, separators=(',', ':')))
-        end_time_2 = time.time()
-        print2("[2] --- %s seconds ---" % (end_time_2 - start_time_2))
-        start_time_3 = time.time()
         if len(power_commands_list) > 0:
             pd.DataFrame(power_commands_list).to_csv('out.csv', mode='a', index=False, header=False)
-        end_time_3 = time.time()
-        print2("[3] --- %s seconds ---" % (end_time_3 - start_time_3))
         sync_time(t + 1)
         if t % 1800 == 0:
             print2("Hour " + str(t/3600) + " completed.")
@@ -184,7 +177,7 @@ if __name__ == "__main__":
     # start execution loop
     threads = []
     for fed in feds:
-        thread = Thread(target=run_spm_federate, args=(fed, time_bin, simulated_day))
+        thread = Thread(target=run_spm_federate, args=(fed, time_bin, simulated_day, False))
         thread.start()
         threads.append(thread)
 

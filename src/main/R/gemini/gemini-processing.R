@@ -10,9 +10,10 @@ library(sjmisc)
 library(ggmap)
 library(sf)
 library(stringr)
+library(hrbrthemes)
 
-workDir <- normalizePath("~/Data/GEMINI")
-activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
+workDir <- normalizePath("~/Workspace/Data/GEMINI")
+activitySimDir <- normalizePath("~/Workspace/Data/ACTIVITYSIM")
 
 source("~/Documents/Workspace/scripts/common/keys.R")
 register_google(key = google_api_key_1)
@@ -819,7 +820,37 @@ res <- stats[,.(tt=mean(traveltime)),by=.(link)]
 ####
 
 dir.out <- "/Users/haitamlaarabi/Workspace/Models/beam/gemini-develop-helics/src/main/python/gemini"
-runtime <- readCsv(pp(dir.out, "/runtime.csv"))
+runtime1 <- readCsv(pp(dir.out, "/runtime_1.csv"))
+runtime2 <- readCsv(pp(dir.out, "/runtime_2.csv"))
+runtime3 <- readCsv(pp(dir.out, "/runtime_3.csv"))
+runtime4 <- readCsv(pp(dir.out, "/runtime_4.csv"))
+runtimeX <- readCsv(pp(dir.out, "/runtime_X.csv"))
+runtime5 <- runtimeX[,.(num_sites=.N, 
+                        num_events=sum(num_events),
+                        runtime_in_seconds=sum(runtime_1+runtime_2+runtime_3+runtime_4)),by=.(time_in_seconds)]
+runtime1$batch <- "No SPMC Call"
+runtime2$batch <- "Single Threaded Rev1"
+runtime3$batch <- "Multi Threaded Rev1"
+runtime4$batch <- "Multi Threaded Rev2"
+runtime5$batch <- "Multi Threaded Rev3"
+runtime <- rbind(runtime1, runtime2, runtime3, runtime4, runtime5)
+runtime <- runtime[time_in_seconds < 180000]
+runtime$hour <- as.integer(runtime$time_in_seconds/3600)
+
+runtime[,.(runtime_in_minutes=sum(runtime_in_seconds)/60.0),by=.(hour, batch)] %>%
+  ggplot(aes(hour, runtime_in_minutes, color=batch)) +
+  geom_line() +
+  labs(x= "time") + 
+  theme_ipsum()
+
+runtime[,.(num_events=sum(num_events),num_sites=sum(num_sites)),by=.(hour, batch)] %>%
+  ggplot(aes(x=hour, color=batch)) +
+  geom_line(aes(y=num_events, linetype = "NumEvents")) +
+  geom_line(aes(y=num_sites, linetype = "NumSites"), ) +
+  scale_linetype_manual("", breaks = c("NumEvents", "NumSites"), values = c("solid", "dashed")) +
+  labs(x= "time", color="batch", linetype="type")
+
+
 ggplot(runtime) + geom_line(aes(charging_events_counter, runtime))
 
 ggplot(runtime) + 

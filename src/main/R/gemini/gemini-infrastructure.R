@@ -6,7 +6,8 @@ library('colinmisc')
 library(dplyr)
 library(ggplot2)
 
-geminiDir <- normalizePath("~/Data/GEMINI")
+dataDir <- normalizePath("~/Workspace/Data")
+geminiDir <- normalizePath("~/Workspace/Data/GEMINI")
 infraDir <- pp(geminiDir,"/2022-07-05/_models/infrastructure")
 
 
@@ -149,3 +150,6 @@ write.csv(
   na="0")
 
 # chargingBehaviorFunc2(refueling)
+
+
+hongcai_siting_input <- readCsv(pp(dataDir,"/DepotSiting/hczhang/beam_ev_rhrf_outputs.csv"))
