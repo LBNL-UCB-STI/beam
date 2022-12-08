@@ -314,6 +314,8 @@ runcmd:
   -   do
   -      export $metric=$count
   -   done < RunHealthAnalysis.txt
+  -   output_dir=`find /home/ubuntu/git/beam/output -name beamLog.out | awk '{ print substr( $0, 1, length($0)-11 ) }'`
+  -   cp RunHealthAnalysis.txt $output_dir
   
   -   curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
   -   s3glip=""
