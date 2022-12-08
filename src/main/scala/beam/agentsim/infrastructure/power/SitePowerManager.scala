@@ -6,7 +6,7 @@ import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStat
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.charging.ChargingPointType.getChargingPointInstalledPowerInKw
-import beam.agentsim.infrastructure.parking.ParkingType
+import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZoneId}
 import beam.agentsim.infrastructure.power.PowerManager._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamHelicsInterface.{
@@ -32,8 +32,8 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   private val temporaryLoadEstimate = mutable.HashMap.empty[ChargingStation, Double]
   private val spmConfigMaybe = cnmConfig.sitePowerManagerController
   protected val powerController = new PowerManager(chargingNetworkHelper, beamServices.beamConfig)
-  protected var powerLimits = Map.empty[ChargingStation, PowerInKW]
-  protected var powerCommands = Map.empty[Id[BeamVehicle], PowerInKW]
+  private var powerLimits = Map.empty[ChargingStation, PowerInKW]
+  private var powerCommands = Map.empty[Id[BeamVehicle], PowerInKW]
 
   private[power] lazy val beamFederateMap: List[BeamFederateDescriptor] = spmConfigMaybe match {
     case Some(spmConfig) if spmConfig.connect => createBeamFederates(spmConfig)
@@ -47,7 +47,6 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     val maybeListOfFederateDescriptors = Try {
       val tazIdsToChargingStations: Map[Set[Id[TAZ]], List[ChargingStation]] =
         randomlyGroupChargingStations(spmConfig.numberOfFederates, chargingNetworkHelper.allChargingStations)
-
       val numFederates = tazIdsToChargingStations.size
       val fedInfo = createFedInfo(
         spmConfig.coreType,
@@ -84,20 +83,19 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
       )
       Failure(e)
     }
-
     maybeListOfFederateDescriptors.getOrElse(List.empty[BeamFederateDescriptor])
   }
 
   private def randomlyGroupChargingStations(
     numberOfGroups: Int,
-    chargingStations: List[ChargingStation]
+    chargingStations: Map[Id[ParkingZoneId], ChargingStation]
   ): Map[Set[Id[TAZ]], List[ChargingStation]] = {
-    val tazIdToStations = chargingStations
+    val tazIdToStations = chargingStations.values
       .groupBy(_.zone.tazId)
       .toList
 
     def listOfPairsToPair(
-      pairs: Seq[(Id[TAZ], List[ChargingStation])]
+      pairs: Seq[(Id[TAZ], Iterable[ChargingStation])]
     ): (Set[Id[TAZ]], List[ChargingStation]) = {
       val (tazsSet, stationsBuffer) =
         pairs.foldLeft(mutable.Set.empty[Id[TAZ]], mutable.ListBuffer.empty[ChargingStation]) {
@@ -132,7 +130,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     * @param initialDepartureTimeEstimate initial estimate of departure time estimate
     * @return
     */
-  def estimateDepartureTime(currentTime: Int, initialDepartureTimeEstimate: Int): Int = {
+  private def estimateDepartureTime(currentTime: Int, initialDepartureTimeEstimate: Int): Int = {
     val ceiledInitialEstimate = 60 * Math.ceil(initialDepartureTimeEstimate / 60.0).toInt
     val additionalHoursForDeparture = if (ceiledInitialEstimate < currentTime) {
       val hourDifference = ((ceiledInitialEstimate - currentTime) / 3600.0).toInt
@@ -144,7 +142,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
   /**
     * @param timeBin Int
     */
-  def obtainPowerCommandsAndLimits(timeBin: Int, allPluggedInVehicles: Map[Id[BeamVehicle], ChargingVehicle]): Unit = {
+  def obtainPowerCommandsAndLimits(timeBin: Int): Unit = {
     logger.debug(s"obtainPowerCommandsAndLimits timeBin = $timeBin")
     powerCommands = beamFederateMap.par
       .map { case BeamFederateDescriptor(groupedTazIds, stations, federate) =>
@@ -158,7 +156,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
             )
           )
         } else {
-          stations.flatMap(_.pluggedInVehicles).map {
+          stations.flatMap(s => s.vehiclesCurrentlyCharging ++ s.vehiclesDoneCharging).map {
             case (_, cv @ ChargingVehicle(vehicle, stall, station, arrivalTime, _, _, _, _, _, _, _, _, _)) =>
               // Sending this message
               val fuelCapacity = vehicle.beamVehicleType.primaryFuelCapacityInJoule
@@ -189,30 +187,25 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
                 maybeTaz.exists(taz => groupedTazIds.contains(taz.tazId))
               case _ => false
             }
-            val messageContainsVehicleId = message.contains("vehicleId")
-
-            if (spmConfigMaybe.get.expectFeedback && messageContainsVehicleId && messageContainsExpectedTazId) {
-              val vehicleIdFromMessage = Id.create(message("vehicleId").toString, classOf[BeamVehicle])
-              allPluggedInVehicles.get(vehicleIdFromMessage) match {
-                case Some(chargingVehicle) =>
-                  Some(chargingVehicle.vehicle.id -> message("powerInKW").toString.toDouble)
+            // chargingNetworkHelper.allChargingStations
+            val messageContainsVehicleAndSiteId = message.contains("vehicleId") && message.contains("siteId")
+            if (spmConfigMaybe.get.expectFeedback && messageContainsVehicleAndSiteId && messageContainsExpectedTazId) {
+              val stationId = Id.create(message("siteId").toString, classOf[ParkingZoneId])
+              val vehicleId = Id.create(message("vehicleId").toString, classOf[BeamVehicle])
+              chargingNetworkHelper.allChargingStations.get(stationId).flatMap(_.vehicles.get(vehicleId)) match {
+                case Some(chargingVehicle) => Some(chargingVehicle.vehicle.id -> message("powerInKW").toString.toDouble)
                 case _ =>
-                  logger.error(
-                    s"The vehicle $vehicleIdFromMessage might have already left the station between co-simulation!"
-                  )
+                  logger.error(s"The vehicle $vehicleId might have already left the station $stationId!")
                   None
               }
             } else None
           }
-
         vehicleIdToPowerInKW.toMap
       }
       .foldLeft(Map.empty[Id[BeamVehicle], PowerInKW])(_ ++ _)
-
-    val loadEstimate = chargingNetworkHelper.allChargingStations.par
-      .map(station => station -> temporaryLoadEstimate.getOrElse(station, 0.0))
-      .seq
-      .toMap
+    val loadEstimate = chargingNetworkHelper.allChargingStations.par.map { case (_, station) =>
+      station -> temporaryLoadEstimate.getOrElse(station, 0.0)
+    }.seq
     logger.debug("Total Load estimated is {} at tick {}", loadEstimate.values.sum, timeBin)
     powerLimits = powerController.obtainPowerPhysicalBounds(timeBin, loadEstimate)
   }
