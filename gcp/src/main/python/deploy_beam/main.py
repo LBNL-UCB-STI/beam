@@ -43,6 +43,7 @@ def create_beam_instance(request):
     data_commit = json.get('data_commit', "HEAD")
     shutdown_wait = json.get('shutdown_wait', "15")
     storage_size = json.get('storage_size', "100")
+    shutdown_behaviour = json.get('shutdown_behaviour', "terminate")
 
     # project = requests.get("http://metadata/computeMetadata/v1/instance/id", headers={'Metadata-Flavor': 'Google'}).text
     project = 'beam-core'
@@ -56,6 +57,25 @@ sudo -u clu bash -c 'cd; wget https://gist.github.com/dimaopen/3e736f1ec1d49c7e1
 sudo -u clu bash -c 'cd; chmod 755 cloud-init.sh'
 sudo -u clu bash -c 'cd; ./cloud-init.sh &> cloud-init-output.log'
     """
+    shutdown_script = """
+#!/bin/bash
+INSTANCE_NAME=$(curl http://metadata/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google")
+INSTANCE_ZONE=$(curl http://metadata/computeMetadata/v1/instance/zone -H "Metadata-Flavor: Google")
+gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
+    """
+
+    metadata = [
+        ('startup-script', startup_script),
+        ('beam_config', beam_config),
+        ('max_ram', max_ram),
+        ('beam_branch', beam_branch),
+        ('beam_commit', beam_commit),
+        ('data_branch', data_branch),
+        ('data_commit', data_commit),
+        ('shutdown_wait', shutdown_wait),
+    ]
+    if shutdown_behaviour.lower() == "terminate":
+        metadata.append(('shutdown-script', shutdown_script))
 
     config = {
         'name': name,
@@ -100,31 +120,7 @@ sudo -u clu bash -c 'cd; ./cloud-init.sh &> cloud-init-output.log'
         ],
 
         'metadata': {
-            'items': [{
-                'key': 'startup-script',
-                'value': startup_script
-            }, {
-                'key': 'beam_config',
-                'value': beam_config
-            }, {
-                'key': 'max_ram',
-                'value': max_ram
-            }, {
-                'key': 'beam_branch',
-                'value': beam_branch
-            }, {
-                'key': 'beam_commit',
-                'value': beam_commit
-            }, {
-                'key': 'data_branch',
-                'value': data_branch
-            }, {
-                'key': 'data_commit',
-                'value': data_commit
-            }, {
-                'key': 'shutdown_wait',
-                'value': shutdown_wait
-            }, ]
+            'items': [{'key': k, 'value': v} for k, v in metadata]
         }
     }
 

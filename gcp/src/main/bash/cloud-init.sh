@@ -52,6 +52,7 @@ for file in "output"/*; do
     finalPath="$path2";
   done;
 done;
+ln -sf ~/cloud-init-output.log "$finalPath"/cloud-init-output.log
 gsutil -m cp -r "$finalPath" gs://beam-core-outputs/"$finalPath"
 
 sudo shutdown -h +"$SHUTDOWN_WAIT"
