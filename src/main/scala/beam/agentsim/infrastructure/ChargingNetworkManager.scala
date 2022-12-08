@@ -144,10 +144,7 @@ class ChargingNetworkManager(
         sender ! CompletionNotice(triggerId)
 
     case request @ ChargingPlugRequest(tick, vehicle, stall, personId, triggerId, theSender, _, _) =>
-      log.debug(s"ChargingPlugRequest received from vehicle $vehicle at $tick and stall ${vehicle.stall}")
-      println(
-        s"ChargingPlugRequest received for vehicle $vehicle at $tick and stall ${vehicle.stall} (taz: ${stall.tazId})"
-      )
+      log.debug("ChargingPlugRequest received from vehicle {} at {} and stall {} (taz: {})", vehicle, tick, vehicle.stall, stall.tazId)
       val responseHasTriggerId = if (vehicle.isEV) {
         // connecting the current vehicle
         val chargingNetwork = chargingNetworkHelper.get(stall.reservedFor.managerId)
