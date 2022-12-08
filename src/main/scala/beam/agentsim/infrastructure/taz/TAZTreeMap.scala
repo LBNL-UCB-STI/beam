@@ -112,7 +112,7 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
       writer.write("linkId,count")
       writer.write(System.lineSeparator())
       failedLinkLookups.toList.groupBy(identity).mapValues(_.size).foreach { case (linkId, count) =>
-        writer.write(Option(linkId).map(_.toString).getOrElse(""))
+        writer.write(Option(linkId).mkString)
         writer.write(",")
         writer.write(count.toString)
         writer.write(System.lineSeparator())
