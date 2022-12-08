@@ -127,7 +127,7 @@ def run_spm_federate(cfed, federate_id, time_bin_in_seconds, simulated_day_in_se
 ###############################################################################
 
 if __name__ == "__main__":
-    infrastructure_file = "../../../../production/sfbay/parking/sfbay_taz_unlimited_charging_point.csv"
+    infrastructure_file = "../../../../../production/sfbay/parking/sfbay_taz_unlimited_charging_point.csv"
     number_of_federates = 1
 
     logging.basicConfig(filename='site_power_controller_federate.log', level=logging.DEBUG, filemode='w')

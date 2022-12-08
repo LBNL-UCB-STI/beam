@@ -9,7 +9,7 @@ import sys
 import pandas as pd
 from threading import Thread
 import json
-import time
+import pathlib
 
 from site_power_controller_utils import DefaultSPMC
 from site_power_controller_utils import RideHailSPMC
@@ -143,7 +143,10 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         number_of_federates = int(sys.argv[1])
 
-    logging.basicConfig(filename='site_power_controller_federate.log', level=logging.DEBUG, filemode='w')
+    current_directory = str(pathlib.Path(__file__).parent.resolve())
+    log_file = current_directory + "/site_power_controller_federate.log"
+    print("Log file will located at: " + log_file)
+    logging.basicConfig(filename=log_file, level=logging.DEBUG, filemode='w')
     print2("Using helics version " + h.helicsGetVersion())
     helics_config = {"coreInitString": f"--federates={number_of_federates} --broker_address=tcp://127.0.0.1",
                      "coreType": "zmq",
