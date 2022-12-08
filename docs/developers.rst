@@ -276,6 +276,12 @@ One needs to define the deploy properties that are similar to the ones for AWS d
 * **forcedMaxRAM**: This parameter must be set according to the **instanceType** memory size.
 * **storageSize**: to specify storage size (Gb) of instance. May be from `100` to `256`. Default value is `100`.
 
+The deployment command is
+
+.. code-block:: bash
+
+ ./gradlew deployToGCE
+
 The simulation output is uploaded to the `Google Cloud Storage <https://console.cloud.google.com/storage/browser/beam-core-outputs/output>`_.
 
 In order to ssh to the running instance one could start the following command::
