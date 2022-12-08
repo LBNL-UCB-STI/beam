@@ -3,14 +3,12 @@
 # station modeled in PyDSS
 import helics as h
 import logging
-import time
 from threading import Thread
 from rudimentary_spmc_rev3 import SPM_Control
-import pandas as pd
 
 
 class DefaultSPMC:
-    # Myungsoo is SPMC (NOT RIDE HAIL DEPOT)
+    # Myungsoo is SPM Controller (NOT RIDE HAIL DEPOT)
     control_commands = []
     thread = Thread()
 
@@ -44,7 +42,6 @@ class DefaultSPMC:
         battery_capacity_in_k_wh = []  # TODO Julius @ HL can you please add this to the BEAM output?
         self.control_commands = []
 
-        start_time_1 = time.time()
         for charging_event in charging_events:
             vehicle_id.append(str(charging_event['vehicleId']))
             vehicle_type.append(str(charging_event['vehicleType']))
@@ -63,31 +60,27 @@ class DefaultSPMC:
             battery_capacity_in_k_wh.append(int(charging_event['primaryFuelCapacityInJoule']) / 3600000)
             # total site power
             site_power_in_kw = float(charging_event['sitePowerInKW'])
-        end_time_1 = time.time()
-        runtime_1 = end_time_1 - start_time_1
-        # Myungsoo is SPMC (NOT RIDE HAIL DEPOT)
-        # 1) SPMC takes list(charging_events) (and/or siteId)
-        # 2) SPMC returns control_commands
+
+        # Myungsoo is SPM Controller (NOT RIDE HAIL DEPOT)
+        # 1) SPM Controller takes list(charging_events) (and/or siteId)
+        # 2) SPM Controller returns control_commands
         # 2.a) example
         # 3) add control_commands to control_commands_list
         # control_commands_list = control_commands_list + control_commands
-        start_time_2 = time.time()
         self.spm_c.max_power_evse = max_power_in_kw
         self.spm_c.min_power_evse = [0] * len(self.spm_c.max_power_evse)
         pmin_site_in_kw = 0
         pmax_site_in_kw = site_power_in_kw
-
         tdep = [(tt - t) / 60.0 for tt in desired_departure_time]
-        # self.log("Optimizing EVSE setpoints by the regular SPMC")
-        end_time_2 = time.time()
-        runtime_2 = end_time_2 - start_time_2
+        # self.log("Optimizing EVSE setpoints by the regular SPM Controller")
 
-        start_time_3 = time.time()
-        [p_evse_opt, e_evse_opt, delta_t] = self.spm_c.get_evse_setpoint(tdep, desired_fuel_level_in_k_wh, pmin_site_in_kw, pmax_site_in_kw)
-        end_time_3 = time.time()
-        runtime_3 = end_time_3 - start_time_3
+        [p_evse_opt, e_evse_opt, delta_t] = self.spm_c.get_evse_setpoint(
+            tdep,
+            desired_fuel_level_in_k_wh,
+            pmin_site_in_kw,
+            pmax_site_in_kw
+        )
 
-        start_time_4 = time.time()
         i = 0
         for vehicle in charging_events:
             self.control_commands = self.control_commands + [{
@@ -97,24 +90,18 @@ class DefaultSPMC:
                 'powerInKW': str(p_evse_opt[i])
             }]
             i = i + 1
-        end_time_4 = time.time()
-        runtime_4 = end_time_4 - start_time_4
-
-        runtime_data = [[t, self.site_id, len(charging_events), runtime_1, runtime_2, runtime_3, runtime_4]]
-        df = pd.DataFrame(runtime_data, columns=['time', 'site_id', 'num_events', 'runtime_1', 'runtime_2', 'runtime_3', 'runtime_4'])
-        df.to_csv('runtime.csv', mode='a', index=False, header=False)
         return self.control_commands
 
 
 class RideHailSPMC:
-    # Julius Is SPMC (IS RIDE HAIL DEPOT)
+    # Julius Is SPM Controller (IS RIDE HAIL DEPOT)
     control_commands = []
     thread = Thread()
 
     def __init__(self, name, site_id):
         self.site_id = site_id
         self.site_prefix_logging = name + "[SITE:" + str(site_id) + "]. "
-        # JULIUS: @HL I initialized my SPMC here
+        # JULIUS: @HL I initialized my SPM Controller here
         # @ HL can you provide the missing information
         # TODO uncomment
         # initMpc = False
@@ -158,12 +145,12 @@ class RideHailSPMC:
         return self.control_commands
 
     def run(self, t, charging_events):
-        # Julius Is SPMC (IS RIDE HAIL DEPOT)
+        # Julius Is SPM Controller (IS RIDE HAIL DEPOT)
         self.control_commands = []
-        # 1) SPMC takes list(charging_events) (and/or siteId)
+        # 1) SPM Controller takes list(charging_events) (and/or siteId)
         # 1.a) Maybe a loop with => juliusObject.arrival(vehicle) and/or juliusObject.departure(vehicle)
         # We decide to share vehicle information every interval and when they disappear they plugged out
-        # 2) SPMC returns control_commands => juliusObject.step(t)
+        # 2) SPM Controller returns control_commands => juliusObject.step(t)
         # 2.a) example
         # 3) add control_commands to control_commands_list
 
@@ -179,7 +166,7 @@ class RideHailSPMC:
         # synchronize vehicles which are at station: Remove vehicles which are not in the vehicle_id
         # list from BEAM anymore
         # Julius @ HL can you please add the actual time here?
-        self.log("Optimizing EVSE setpoints by the ride-hail SPMC")
+        self.log("Optimizing EVSE setpoints by the ride-hail SPM Controller")
         # TODO uncomment
         # depotController.synchronizeVehiclesAtStation(vehicleIdsAtStation=vehicle_id, t_act=t)
         #
@@ -221,7 +208,7 @@ class RideHailSPMC:
         #     }]
         #     control_commands_list_temp = control_commands_list_temp + control_commands
         num_commands = len(self.control_commands)
-        self.log(str(num_commands) + " EVSE setpoints from the ride-hail SPMC")
+        self.log(str(num_commands) + " EVSE setpoints from the ride-hail SPM Controller")
         return self.control_commands
 
 

@@ -42,9 +42,6 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
 
   def chargingStations: Map[Id[ParkingZoneId], ChargingStation] = chargingZoneKeyToChargingStationMap
 
-  def stationMap(parkingZoneId: Id[ParkingZoneId]): Option[ChargingStation] =
-    chargingZoneKeyToChargingStationMap.get(parkingZoneId)
-
   /**
     * all vehicles waiting in line at a charging point
     *
@@ -52,11 +49,6 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
     */
   def waitingLineVehicles: Map[Id[BeamVehicle], ChargingVehicle] =
     chargingZoneKeyToChargingStationMap.flatMap(_._2.vehiclesWaitingInLine)
-
-  /**
-    * @return all vehicles, connected, and the ones waiting in line
-    */
-  def vehicles: Map[Id[BeamVehicle], ChargingVehicle] = chargingZoneKeyToChargingStationMap.flatMap(_._2.vehicles)
 
   /**
     * lookup a station from parking zone Id
