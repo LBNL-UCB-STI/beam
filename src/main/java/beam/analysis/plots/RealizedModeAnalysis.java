@@ -229,7 +229,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     private void processModeChoiceEvent(ModeChoiceEvent event, int hour) {
-        String mode = event.mode;
+        String mode = findMode(event);
         String personId = event.getPersonId().toString();
         Map<String, String> tags = new HashMap<>();
         tags.put("stats-type", "mode-choice");
@@ -260,6 +260,11 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
         modeHours.push(modeHour);
         hourPerson.put(personId, modeHours);
         setHourPersonMode(hour, personId, mode, false);
+    }
+
+    private static String findMode(ModeChoiceEvent event) {
+        if (event.mode.equals("car") && event.getPersonId().toString().startsWith("freightDriver-")) return "freight";
+        else return event.mode;
     }
 
     // adding proportionate of replanning to mode choice
