@@ -47,7 +47,7 @@ object RideHailDepotNetwork {
           beamServices.beamConfig.beam.agentsim.agents.rideHail,
           beamServices.skims,
           beamServices.beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
-          stationMap
+          chargingStations
         )
       )
     }
