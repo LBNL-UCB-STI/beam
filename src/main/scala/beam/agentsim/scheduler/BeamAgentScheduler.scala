@@ -481,6 +481,9 @@ class BeamAgentScheduler(
                   .pow(1000, 3)
               ) / 10.0 + "(GB)"
             )
+            if (nowInSeconds / 3600.0 > 11) {
+              System.exit(0)
+            }
             longestNowUpdateDelay = 0
           }
           doSimStep(nowInSeconds + 1)
