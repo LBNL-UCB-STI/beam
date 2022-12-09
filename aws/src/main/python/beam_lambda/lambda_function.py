@@ -57,7 +57,6 @@ S3_PUBLISH_SCRIPT = '''
   -      sudo cp "$file.zip" "$finalPath"
   -    done;
   -    sudo cp /home/ubuntu/git/beam/gc_* "$finalPath"
-  -    sudo cp /home/ubuntu/git/beam/simulation_health_analysis_result.txt "$finalPath"
   -    sudo cp /var/log/cloud-init-output.log "$finalPath"
   -    sudo cp /home/ubuntu/git/beam/thread_dump_from_RunBeam.txt.gz "$finalPath"    
   -    sudo gzip /home/ubuntu/cpu_ram_usage.csv
@@ -315,8 +314,17 @@ runcmd:
   -   do
   -      export $metric=$count
   -   done < simulation_health_analysis_result.txt
-  -   output_dir=`find /home/ubuntu/git/beam/output -name beamLog.out | awk '{ print substr( $0, 1, length($0)-11 ) }'`
+  -   output_dir=`find output -name beamLog.out | awk '{ print substr( $0, 1, length($0)-11 ) }'`
+  -   echo "xxoutput_dir: " $output_dir
+  -   echo "xxoutput_dir: " $output_dir >> /home/ubuntu/git/beam/ttttt.log
   -   cp simulation_health_analysis_result.txt $output_dir
+  -   sudo aws --region "$S3_REGION" s3 cp simulation_health_analysis_result.txt s3://beam-outputs/"$output_dir"
+  -   echo "mark abc:" >> /home/ubuntu/git/beam/ttttt.log
+  -   ls -l /home/ubuntu/git/beam >> /home/ubuntu/git/beam/ttttt.log
+  -   echo "" >> /home/ubuntu/git/beam/ttttt.log
+  -   echo "output_dir:" $output_dir >> /home/ubuntu/git/beam/ttttt.log
+  -   echo "" >> /home/ubuntu/git/beam/ttttt.log
+
   
   -   curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@simulation_health_analysis_result.txt -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
   -   s3glip=""
