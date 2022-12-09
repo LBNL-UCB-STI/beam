@@ -57,6 +57,7 @@ S3_PUBLISH_SCRIPT = '''
   -      sudo cp "$file.zip" "$finalPath"
   -    done;
   -    sudo cp /home/ubuntu/git/beam/gc_* "$finalPath"
+  -    sudo cp /home/ubuntu/git/beam/simulation_health_analysis_result.txt "$finalPath"
   -    sudo cp /var/log/cloud-init-output.log "$finalPath"
   -    sudo cp /home/ubuntu/git/beam/thread_dump_from_RunBeam.txt.gz "$finalPath"    
   -    sudo gzip /home/ubuntu/cpu_ram_usage.csv
@@ -313,11 +314,11 @@ runcmd:
   -   while IFS="," read -r metric count
   -   do
   -      export $metric=$count
-  -   done < RunHealthAnalysis.txt
+  -   done < simulation_health_analysis_result.txt
   -   output_dir=`find /home/ubuntu/git/beam/output -name beamLog.out | awk '{ print substr( $0, 1, length($0)-11 ) }'`
-  -   cp RunHealthAnalysis.txt $output_dir
+  -   cp simulation_health_analysis_result.txt $output_dir
   
-  -   curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
+  -   curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@simulation_health_analysis_result.txt -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
   -   s3glip=""
   -   if [ "$S3_PUBLISH" = "True" ]
   -   then
