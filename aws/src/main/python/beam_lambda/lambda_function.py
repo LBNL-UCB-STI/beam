@@ -309,11 +309,28 @@ runcmd:
   -      $RUN_SCRIPT
   -    done
   -   echo "-------------------running Health Analysis Script----------------------"
+  -   date "+%Y-%m-%d %H:%M:%S"
   -   python3 src/main/python/general_analysis/simulation_health_analysis.py
+  -   echo "-------------------running Health Analysis Script2----------------------"
+  -   date "+%Y-%m-%d %H:%M:%S"
   -   while IFS="," read -r metric count
   -   do
   -      export $metric=$count
+  -      echo "xxxxxx" $metric $count
   -   done < simulation_health_analysis_result.txt
+  -   echo "-------------------running Health Analysis Script3----------------------"
+  -   date "+%Y-%m-%d %H:%M:%S"
+  -   sleep 1m
+  -   echo "sleep 1m"
+  -   cat simulation_health_analysis_result.txt
+  -   date "+%Y-%m-%d %H:%M:%S"
+  -   sleep 1m
+  -   echo "sleep 1m"
+  -   cat simulation_health_analysis_result.txt
+  -   date "+%Y-%m-%d %H:%M:%S"
+  -   sleep 1m
+  -   echo "sleep 1m"
+  -   cat simulation_health_analysis_result.txt
   -   output_dir=`find output -name beamLog.out | awk '{ print substr( $0, 1, length($0)-11 ) }'`
   -   echo "xxoutput_dir: " $output_dir
   -   echo "xxoutput_dir: " $output_dir >> /home/ubuntu/git/beam/ttttt.log
