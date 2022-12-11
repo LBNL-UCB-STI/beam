@@ -99,11 +99,10 @@ for line in file:
             matric.append(line)
             matric_log[error_type] = matric
 
-with open('simulation_health_analysis_result.txt', 'w') as file:
+with open('RunHealthAnalysis.txt', 'w') as file:
     for detector in detectors:
         file.write(detector + "," + str(len(matric_log.get(detector, []))) + "\n")
 
 beam_output_path = os.path.dirname(log_file_location[0])
-copyfile('simulation_health_analysis_result.txt', beam_output_path + "/simulation_health_analysis_result.txt")
-
+copyfile('RunHealthAnalysis.txt', beam_output_path + "/runHealthAnalysis.txt")
 
