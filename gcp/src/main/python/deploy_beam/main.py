@@ -1,3 +1,5 @@
+import os
+
 from flask import escape
 import functions_framework
 from googleapiclient import discovery
@@ -5,6 +7,7 @@ import re
 import time
 import random
 import string
+import uuid
 from datetime import datetime
 from datetime import timezone
 
@@ -48,6 +51,7 @@ def create_beam_instance(request):
     # project = requests.get("http://metadata/computeMetadata/v1/instance/id", headers={'Metadata-Flavor': 'Google'}).text
     project = 'beam-core'
     zone = 'us-central1-a'
+    uid = str(uuid.uuid4())[:8]
     name = to_instance_name(run_name)
     machine_type = f"zones/{zone}/machineTypes/{instance_type.strip()}"
     disk_image_name = f"projects/{project}/global/images/beam-box"
@@ -66,6 +70,8 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
 
     metadata = [
         ('startup-script', startup_script),
+        ('uid', uid),
+        ('run_name', run_name),
         ('beam_config', beam_config),
         ('max_ram', max_ram),
         ('beam_branch', beam_branch),
@@ -73,6 +79,10 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
         ('data_branch', data_branch),
         ('data_commit', data_commit),
         ('shutdown_wait', shutdown_wait),
+        ('google_api_key', os.environ['GOOGLE_API_KEY']),
+        ('slack_hook_with_token', os.environ['SLACK_HOOK_WITH_TOKEN']),
+        ('slack_token', os.environ['SLACK_TOKEN']),
+        ('slack_channel', os.environ['SLACK_CHANNEL']),
     ]
     if shutdown_behaviour.lower() == "terminate":
         metadata.append(('shutdown-script', shutdown_script))
