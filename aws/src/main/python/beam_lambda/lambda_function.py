@@ -11,31 +11,11 @@ from botocore.errorfactory import ClientError
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-HELICS_RUN = '''sudo /home/ubuntu/install-and-run-helics-scripts.sh
-  -    cd /home/ubuntu/git/beam
+
+GRAFANA_RUN = '''sudo ./gradlew --stacktrace grafanaStart
   -    '''
 
-HELICS_OUTPUT_MOVE_TO_BEAM_OUTPUT = '''
-  -    opth="output"
-  -    echo $opth
-  -    finalPath=""
-  -    for file in $opth/*; do
-  -       for path2 in $file/*; do
-  -         finalPath="$path2";
-  -       done;
-  -    done;
-  -    finalPath="${finalPath}/helics_output"
-  -    mkdir "$finalPath"
-  -    sudo mv /home/ubuntu/git/beam/src/main/python/gemini/*.log "$finalPath"
-  -    sudo mv /home/ubuntu/git/beam/src/main/python/gemini/recording_output.txt "$finalPath"
-  -    cd "$finalPath"
-  -    sudo gzip -9 *
-  -    cd - '''
-
 CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
-
-CONFIG_SCRIPT_WITH_GRAFANA = '''sudo ./gradlew --stacktrace grafanaStart
-  -    ./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
 EXECUTE_SCRIPT = '''./gradlew --stacktrace :execute -PmainClass=$MAIN_CLASS -PappArgs="$cf" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
@@ -56,12 +36,22 @@ S3_PUBLISH_SCRIPT = '''
   -      zip "$file.zip" "$file"
   -      sudo cp "$file.zip" "$finalPath"
   -    done;
-  -    sudo cp /home/ubuntu/git/beam/gc_* "$finalPath"
-  -    sudo cp /var/log/cloud-init-output.log "$finalPath"
-  -    sudo cp /home/ubuntu/git/beam/thread_dump_from_RunBeam.txt.gz "$finalPath"    
-  -    sudo gzip /home/ubuntu/cpu_ram_usage.csv
-  -    sudo cp /home/ubuntu/cpu_ram_usage* "$finalPath"
   -    if [ -d "$finalPath" ]; then
+  -       sudo cp /home/ubuntu/git/beam/gc_* "$finalPath"
+  -       sudo cp /var/log/cloud-init-output.log "$finalPath"
+  -       sudo cp /home/ubuntu/git/beam/thread_dump_from_RunBeam.txt.gz "$finalPath"    
+
+  -       sudo gzip /home/ubuntu/cpu_ram_usage.csv
+  -       sudo cp /home/ubuntu/cpu_ram_usage* "$finalPath"
+
+  -       geminiFinalPath="${finalPath}/gemini_output"
+  -       mkdir "$geminiFinalPath"
+  -       sudo cp /home/ubuntu/git/beam/src/main/python/gemini/cosimulation/*.log "$geminiFinalPath"
+  -       sudo cp /home/ubuntu/git/beam/src/main/python/gemini/cosimulation/*.txt "$geminiFinalPath"
+  -       cd "$geminiFinalPath"
+  -       sudo gzip -9 *
+  -       cd -
+
   -       s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#$finalPath"
   -    else
   -       finalPath="output/cloud-init-logs"
@@ -397,9 +387,6 @@ regions = ['us-east-1', 'us-east-2', 'us-west-2']
 shutdown_behaviours = ['stop', 'terminate']
 instance_operations = ['start', 'stop', 'terminate']
 
-max_system_ram = 50
-percent_towards_system_ram = .25
-
 s3 = boto3.client('s3')
 ec2 = None
 
@@ -410,6 +397,10 @@ def init_ec2(region):
 
 
 def calculate_max_ram(instance_type):
+    # on r5.24xlarge there used to be problems for big simulations with less than 100 Gb left for system
+    max_system_ram = 120
+    percent_towards_system_ram = .25
+
     ram = instance_type_to_memory[instance_type]
     return ram - min(ram * percent_towards_system_ram, max_system_ram)
 
@@ -812,7 +803,7 @@ def deploy_handler(event, context):
     google_api_key = event.get('google_api_key', os.environ['GOOGLE_API_KEY'])
     end_script = event.get('end_script', END_SCRIPT_DEFAULT)
     run_grafana = event.get('run_grafana', False)
-    run_helics = event.get('run_helics', False)
+    cosimulation_shell_script = event.get('cosimulation_shell_script', '')
     run_jupyter = event.get('run_jupyter', False)
     jupyter_token = event.get('jupyter_token', '')
 
@@ -857,10 +848,14 @@ def deploy_handler(event, context):
 
     selected_script = CONFIG_SCRIPT
     if run_grafana:
-        selected_script = CONFIG_SCRIPT_WITH_GRAFANA
+        selected_script = GRAFANA_RUN + selected_script
 
-    if run_helics:
-        selected_script = HELICS_RUN + selected_script + HELICS_OUTPUT_MOVE_TO_BEAM_OUTPUT
+    if cosimulation_shell_script:
+        for start_path in ['src/main/bash','main/bash', 'bash']:
+            if cosimulation_shell_script.startswith(start_path):
+                cosimulation_shell_script = cosimulation_shell_script[len(start_path):]
+
+        selected_script = f'sudo /home/ubuntu/git/beam/sec/main/bash/{cosimulation_shell_script}; {selected_script}'
 
     params = configs
     if s3_publish:
@@ -941,8 +936,8 @@ def deploy_handler(event, context):
                 txt += ' Grafana will be available at http://{dns}:3003/d/dvib8mbWz/beam-simulation-global-view.'.format(
                     dns=host)
 
-            if run_helics:
-                txt += ' Helics scripts with recorder will be run in parallel with BEAM.'
+            if cosimulation_shell_script:
+                txt += f' Cosimulation shell script ({cosimulation_shell_script}) will be run in parallel with BEAM.'
 
             if run_jupyter and run_beam:
                 txt += ' Jupyter will be run in parallel with BEAM. Url: http://{dns}:8888/?token={token}'.format(
