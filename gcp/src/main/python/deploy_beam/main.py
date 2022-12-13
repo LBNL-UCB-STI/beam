@@ -51,7 +51,7 @@ def create_beam_instance(request):
     # project = requests.get("http://metadata/computeMetadata/v1/instance/id", headers={'Metadata-Flavor': 'Google'}).text
     project = 'beam-core'
     zone = 'us-central1-a'
-    uid = str(uuid.uuid4())[:8]
+    batch_uid = str(uuid.uuid4())[:8]
     name = to_instance_name(run_name)
     machine_type = f"zones/{zone}/machineTypes/{instance_type.strip()}"
     disk_image_name = f"projects/{project}/global/images/beam-box"
@@ -70,7 +70,7 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
 
     metadata = [
         ('startup-script', startup_script),
-        ('uid', uid),
+        ('batch_uid', batch_uid),
         ('run_name', run_name),
         ('beam_config', beam_config),
         ('max_ram', max_ram),
