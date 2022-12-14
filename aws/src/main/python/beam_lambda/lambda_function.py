@@ -44,11 +44,11 @@ S3_PUBLISH_SCRIPT = '''
   -       sudo gzip /home/ubuntu/cpu_ram_usage.csv
   -       sudo cp /home/ubuntu/cpu_ram_usage* "$finalPath"
 
-  -       geminiFinalPath="${finalPath}/gemini_output"
-  -       mkdir "$geminiFinalPath"
-  -       sudo cp /home/ubuntu/git/beam/src/main/python/gemini/cosimulation/*.log "$geminiFinalPath"
-  -       sudo cp /home/ubuntu/git/beam/src/main/python/gemini/cosimulation/*.txt "$geminiFinalPath"
-  -       cd "$geminiFinalPath"
+  -       cosimulationFinalPath="${finalPath}/cosimulation_output"
+  -       mkdir "$cosimulationFinalPath"
+  -       sudo cp /home/ubuntu/git/beam/src/main/python/gemini/cosimulation/*.log "$cosimulationFinalPath"
+  -       sudo cp /home/ubuntu/git/beam/src/main/python/gemini/cosimulation/*.txt "$cosimulationFinalPath"
+  -       cd "$cosimulationFinalPath"
   -       sudo gzip -9 *
   -       cd -
 
@@ -106,28 +106,6 @@ write_files:
       path: /tmp/cron_jobs
     - content: |
             #!/bin/bash
-            pip install setuptools
-            pip install strip-hints
-            pip install helics==2.7.1
-            pip install helics-apps==2.7.1
-            cd /home/ubuntu/git/beam/src/main/python
-            sudo chown ubuntu:ubuntu -R gemini
-            cd -
-            cd /home/ubuntu/git/beam/src/main/python/gemini
-            now="$(date +"%Y_%m_%d_%I_%M_%p")"
-            python beam_pydss_broker.py > output_${now}_broker.log &
-            echo "broker started"
-            sleep 5s
-            python beam_to_pydss_federate.py > output_${now}_federate.log &
-            echo "federate started"
-            sleep 5s
-            helics_recorder beam_recorder.txt --output=recording_output.txt > output_${now}_recorder.log &
-            echo "recorder started"
-            sleep 5s
-            cd -
-      path: /home/ubuntu/install-and-run-helics-scripts.sh
-    - content: |
-            #!/bin/bash
             timeout=$1
             echo "date,time,CPU usage,RAM used,RAM available"
             while sleep $timeout
@@ -175,7 +153,6 @@ write_files:
       path: /home/ubuntu/check_simulation_result.sh
 
 runcmd:
-  - sudo chmod +x /home/ubuntu/install-and-run-helics-scripts.sh
   - sudo chmod +x /home/ubuntu/write-cpu-ram-usage.sh
   - sudo chmod +x /home/ubuntu/beam_stuck_guard.sh
   - sudo chmod +x /home/ubuntu/check_simulation_result.sh
@@ -855,7 +832,8 @@ def deploy_handler(event, context):
             if cosimulation_shell_script.startswith(start_path):
                 cosimulation_shell_script = cosimulation_shell_script[len(start_path):]
 
-        selected_script = f'sudo /home/ubuntu/git/beam/src/main/bash/{cosimulation_shell_script}; {selected_script}'
+        full_path_to_cosimulation_script = f"/home/ubuntu/git/beam/src/main/bash/{cosimulation_shell_script}"
+        selected_script = f'sudo chmod +x {full_path_to_cosimulation_script}; sudo {full_path_to_cosimulation_script}; {selected_script}'
 
     params = configs
     if s3_publish:
