@@ -855,7 +855,7 @@ def deploy_handler(event, context):
             if cosimulation_shell_script.startswith(start_path):
                 cosimulation_shell_script = cosimulation_shell_script[len(start_path):]
 
-        selected_script = f'sudo /home/ubuntu/git/beam/sec/main/bash/{cosimulation_shell_script}; {selected_script}'
+        selected_script = f'sudo /home/ubuntu/git/beam/src/main/bash/{cosimulation_shell_script}; {selected_script}'
 
     params = configs
     if s3_publish:
