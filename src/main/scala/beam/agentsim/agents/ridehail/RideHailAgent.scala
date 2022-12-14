@@ -534,7 +534,7 @@ class RideHailAgent(
       startRefueling(
         tickToUse,
         reply.triggerId,
-        sendCompletionNotice = !reply.chargingVehicle.isJustConnectedAfterWaitingLine()
+        sendCompletionNotice = !reply.chargingVehicle.isJustConnectedAfterWaitingLine
       )
       goto(Refueling)
     case ev @ Event(reply: WaitingToCharge, data) =>

@@ -31,7 +31,6 @@ import scala.concurrent.Future
 trait RideHailDepotManager extends {
   this: RideHailManager =>
 
-  val outputRideHailParkingFileName = "ridehailParking.csv"
   val rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail = beamServices.beamConfig.beam.agentsim.agents.rideHail
 
   /*
@@ -40,11 +39,6 @@ trait RideHailDepotManager extends {
    */
   private val parkingZoneIdToParkingZoneDepotData: mutable.Map[Id[ParkingZoneId], ParkingZoneDepotData] =
     mutable.Map.empty[Id[ParkingZoneId], ParkingZoneDepotData]
-
-  ParkingZoneFileUtils.toCsv(
-    rideHailChargingNetwork.parkingZones,
-    beamServices.matsimServices.getControlerIO.getOutputFilename(outputRideHailParkingFileName)
-  )
 
   /*
    *  Maps from VehicleId -> XX
@@ -285,6 +279,12 @@ trait RideHailDepotManager extends {
     beamVehicle: BeamVehicle,
     triggerId: Long
   ): Future[ParkingInquiryResponse] = {
+    val (chargingTime, _) = beamVehicle.refuelingSessionDurationAndEnergyInJoulesForStall(
+      Some(ParkingStall.defaultFastChargingStall(whenWhere.loc)),
+      None,
+      None,
+      None
+    )
     val reservedFor = VehicleManager.getReservedFor(beamVehicle.vehicleManagerId.get).get
     val inquiry = ParkingInquiry.init(
       whenWhere,
@@ -294,7 +294,8 @@ trait RideHailDepotManager extends {
       valueOfTime = rideHailConfig.cav.valueOfTime,
       reserveStall = false,
       searchMode = ParkingSearchMode.DestinationCharging,
-      triggerId = triggerId
+      triggerId = triggerId,
+      parkingDuration = chargingTime
     )
     (chargingNetworkManager ? inquiry).mapTo[ParkingInquiryResponse]
   }

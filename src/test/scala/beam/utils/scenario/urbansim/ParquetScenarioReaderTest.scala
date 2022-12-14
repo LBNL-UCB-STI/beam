@@ -62,7 +62,8 @@ class ParquetScenarioReaderTest extends AnyWordSpec with Matchers {
         Map(
           "person_id"    -> "1".asInstanceOf[AnyRef],
           "household_id" -> "2".asInstanceOf[AnyRef],
-          "age"          -> 3L.asInstanceOf[AnyRef]
+          "age"          -> 3L.asInstanceOf[AnyRef],
+          "sex"          -> 1L.asInstanceOf[AnyRef]
         ).asJava
       )
       ParquetScenarioReader.toPersonInfo(gr) should be(
@@ -72,6 +73,7 @@ class ParquetScenarioReaderTest extends AnyWordSpec with Matchers {
           age = 3,
           rank = 0,
           excludedModes = "",
+          rideHailServiceSubscription = "",
           isFemale = false,
           valueOfTime = 0,
           industry = None

@@ -95,6 +95,10 @@ EXPERIMENT_DEFAULT = 'test/input/beamville/calibration/experiments.yml'
 
 CONFIG_DEFAULT = 'production/application-sfbay/base.conf'
 
+DEFAULT_STUCK_GUARD_MIN_CPU_USAGE = "5"
+
+DEFAULT_STUCK_GUARD_MAX_INACTIVE_TIME_INTERVAL = "10"
+
 initscript = (('''
 #cloud-config
 write_files:
@@ -154,9 +158,10 @@ write_files:
             if [[ -z "${last_completed}" ]]; then
               last_completed=$(tac $log_file | grep -m 1 -Eo '^[0-9]{2}:[0-9]{2}:[0-9]{2}')
             fi
-            beam_status=$(python3 -c "import datetime as dt; diff = dt.datetime.now() - dt.datetime.combine(dt.datetime.today(), dt.time.fromisoformat('$last_completed')); diff = diff + dt.timedelta(days = 1) if diff < dt.timedelta(0) else diff; x = 'OK' if diff < dt.timedelta(hours=10) else 'Bad'; print(x)")
+            beam_status=$(python3 -c "import datetime as dt; diff = dt.datetime.now() - dt.datetime.combine(dt.datetime.today(), dt.time.fromisoformat('$last_completed')); diff = diff + dt.timedelta(days = 1) if diff < dt.timedelta(0) else diff; x = 'OK' if diff < dt.timedelta(hours=$STUCK_GUARD_MAX_INACTIVE_TIME_INTERVAL) else 'Bad'; print(x)")
             pid=$(pgrep -f RunBeam)
-            if [ "$beam_status" == 'Bad' ] && [ "$pid" != "" ]; then
+            cpu_usage=`grep 'cpu ' /proc/stat | awk '{usage=($2+$4)*100/($2+$4+$5)} END {print usage}'`
+            if [ "$beam_status" == 'Bad' ] && [ "$pid" != "" ] && [$cpu_usage < $STUCK_GUARD_MIN_CPU_USAGE]; then
               jstack $pid | gzip > "$out_dir/kill_thread_dump.txt.gz"
               kill $pid
               sleep 5m
@@ -194,13 +199,6 @@ runcmd:
   - sudo chmod 644 /var/log/cloud-init-output.log
   - sudo chmod 644 /home/ubuntu/git/beam/cloud-init-output.log
   - cd /home/ubuntu/git/beam
-  - if [ "$COMMIT" = "HEAD" ]
-  - then
-  -   RESOLVED_COMMIT=$(git log -1 --pretty=format:%H)
-  - else
-  -   RESOLVED_COMMIT=$COMMIT
-  - fi
-  - echo "Resolved commit is $RESOLVED_COMMIT"
 
   - 'echo "sudo git fetch"'
   - sudo git fetch
@@ -210,6 +208,15 @@ runcmd:
   - sudo git pull
   - 'echo "sudo git lfs pull"'
   - sudo git lfs pull
+  
+  - if [ "$COMMIT" = "HEAD" ]
+  - then
+  -   RESOLVED_COMMIT=$(git log -1 --pretty=format:%H)
+  - else
+  -   RESOLVED_COMMIT=$COMMIT
+  - fi
+  - echo "Resolved commit is $RESOLVED_COMMIT"
+  
   - echo "sudo git checkout -qf ..."
   - GIT_LFS_SKIP_SMUDGE=1 sudo git checkout -qf $COMMIT
 
@@ -253,7 +260,6 @@ runcmd:
   -   start_json=$(printf "{
         \\"command\\":\\"add\\",
         \\"type\\":\\"beam\\",
-        \\"sheet_id\\":\\"$SHEET_ID\\",
         \\"run\\":{
           \\"status\\":\\"Run Started\\",
           \\"name\\":\\"$TITLED\\",
@@ -322,7 +328,6 @@ runcmd:
   -   stop_json=$(printf "{
         \\"command\\":\\"add\\",
         \\"type\\":\\"beam\\",
-        \\"sheet_id\\":\\"$SHEET_ID\\",
         \\"run\\":{
           \\"status\\":\\"$final_status\\",
           \\"name\\":\\"$TITLED\\",
@@ -392,7 +397,7 @@ regions = ['us-east-1', 'us-east-2', 'us-west-2']
 shutdown_behaviours = ['stop', 'terminate']
 instance_operations = ['start', 'stop', 'terminate']
 
-max_system_ram = 15
+max_system_ram = 50
 percent_towards_system_ram = .25
 
 s3 = boto3.client('s3')
@@ -777,16 +782,16 @@ def terminate_instance(instance_ids):
 
 
 def deploy_handler(event, context):
-    missing_parameters = []
+    missing_mandatory_parameters = []
 
     def parameter_wasnt_specified(parameter_value):
         # in gradle if parameter wasn't specified then project.findProperty return 'null'
         return parameter_value is None or parameter_value == 'null'
 
-    def get_param(param_name):
+    def get_mandatory_param(param_name):
         param_value = event.get(param_name)
         if parameter_wasnt_specified(param_value):
-            missing_parameters.append(param_name)
+            missing_mandatory_parameters.append(param_name)
         return param_value
 
     branch = event.get('branch', BRANCH_DEFAULT)
@@ -814,17 +819,21 @@ def deploy_handler(event, context):
     profiler_type = event.get('profiler_type', 'null')
     budget_override = event.get('budget_override', False)
 
-    git_user_email = get_param('git_user_email')
+    git_user_email = get_mandatory_param('git_user_email')
     deploy_type_tag = event.get('deploy_type_tag', '')
-    titled = get_param('title')
+    titled = get_mandatory_param('title')
     instance_type = event.get('instance_type')
-    region = get_param('region')
-    shutdown_behaviour = get_param('shutdown_behaviour')
+    region = get_mandatory_param('region')
+    shutdown_behaviour = get_mandatory_param('shutdown_behaviour')
     is_spot = event.get('is_spot', False)
     run_beam = event.get('run_beam', True)
 
-    if missing_parameters:
-        return "Unable to start, missing parameters: " + ", ".join(missing_parameters)
+    # for beam stuck guard shell script
+    stuck_guard_min_cpu_usage = event.get('stuck_guard_min_cpu_usage', DEFAULT_STUCK_GUARD_MIN_CPU_USAGE)
+    stuck_guard_max_inactive_time_interval = event.get('stuck_guard_max_inactive_time_interval', DEFAULT_STUCK_GUARD_MAX_INACTIVE_TIME_INTERVAL)
+
+    if missing_mandatory_parameters:
+        return "Unable to start, missing parameters: " + ", ".join(missing_mandatory_parameters)
 
     if not instance_type and not is_spot:
         return "Unable to start, missing instance_type AND is NOT a spot request"
@@ -905,7 +914,8 @@ def deploy_handler(event, context):
                 .replace('$SLACK_HOOK_WITH_TOKEN', os.environ['SLACK_HOOK_WITH_TOKEN']) \
                 .replace('$SLACK_TOKEN', os.environ['SLACK_TOKEN']) \
                 .replace('$SLACK_CHANNEL', os.environ['SLACK_CHANNEL']) \
-                .replace('$SHEET_ID', os.environ['SHEET_ID']) \
+                .replace('$STUCK_GUARD_MAX_INACTIVE_TIME_INTERVAL', str(stuck_guard_max_inactive_time_interval)) \
+                .replace('$STUCK_GUARD_MIN_CPU_USAGE', str(stuck_guard_min_cpu_usage)) \
                 .replace('$RUN_JUPYTER', str(run_jupyter)) \
                 .replace('$RUN_BEAM', str(run_beam)) \
                 .replace('$JUPYTER_TOKEN', jupyter_token)

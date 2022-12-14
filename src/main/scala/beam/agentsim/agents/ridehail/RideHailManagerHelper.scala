@@ -784,7 +784,7 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
     * @return list of RideHailAgentLocation
     */
   def getCandidateVehiclesForPoolingAssignment: Iterable[RideHailAgentLocation] = {
-    (rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds match {
+    (rideHailManager.managerConfig.allocationManager.requestBufferTimeoutInSeconds match {
       case 0 =>
         getIdleVehiclesAndFilterOutExluded.values
       case _ =>

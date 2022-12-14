@@ -2,7 +2,7 @@ package beam.integration.ridehail
 
 import beam.integration.{IntegrationSpecCommon, StartWithCustomConfig, TestConstants}
 import beam.sim.BeamHelper
-import com.typesafe.config.ConfigValueFactory
+import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import org.scalatest.wordspec.AnyWordSpecLike
@@ -14,14 +14,20 @@ class RideHailNumDriversSpec extends AnyWordSpecLike with Matchers with BeamHelp
       val numDriversAsFractionOfPopulation = Seq(0.1, 1.0)
       val modeChoice = numDriversAsFractionOfPopulation.map(tc =>
         new StartWithCustomConfig(
-          baseConfig
-            .withValue(
-              TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
-              ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable")
-            )
-            .withValue(
-              "beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation",
-              ConfigValueFactory.fromAnyRef(tc)
+          ConfigFactory
+            .parseString(s"""
+                beam.agentsim.agents.rideHail.managers = [
+                  {
+                    initialization.procedural.numDriversAsFractionOfPopulation = $tc
+                  }
+                ]
+              """)
+            .withFallback(
+              baseConfig
+                .withValue(
+                  TestConstants.KEY_AGENT_MODAL_BEHAVIORS_MODE_CHOICE_CLASS,
+                  ConfigValueFactory.fromAnyRef("ModeChoiceRideHailIfAvailable")
+                )
             )
         ).groupedCount
       )

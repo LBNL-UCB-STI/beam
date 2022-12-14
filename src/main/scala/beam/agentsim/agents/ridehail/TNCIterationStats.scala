@@ -7,6 +7,7 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import beam.utils.DebugLib
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.EnumeratedDistribution
@@ -55,12 +56,12 @@ case class TNCIterationStats(
     repositionCircleRadiusInMeters: Double,
     tick: Double,
     timeHorizonToConsiderForIdleVehiclesInSec: Double,
+    managerConfig: Managers$Elm,
     beamServices: BeamServices
   ): Vector[(Id[BeamVehicle], Location)] = {
 
     // logger.debug("whichCoordToRepositionTo.start=======================")
-    val repositioningConfig =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes
+    val repositioningConfig = managerConfig.allocationManager.repositionLowWaitingTimes
 
     val repositioningMethod = repositioningConfig.repositioningMethod // (TOP_SCORES | weighedKMeans)
     val keepMaxTopNScores = repositioningConfig.keepMaxTopNScores

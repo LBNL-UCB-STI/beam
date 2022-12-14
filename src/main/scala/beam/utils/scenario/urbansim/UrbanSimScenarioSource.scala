@@ -38,6 +38,7 @@ class UrbanSimScenarioSource(
         rank = person.rank,
         age = person.age,
         excludedModes = person.excludedModes.split(","),
+        rideHailServiceSubscription = person.rideHailServiceSubscription.split(","),
         isFemale = person.isFemale,
         valueOfTime = person.valueOfTime,
         wheelchairUser = person.wheelchairUser,

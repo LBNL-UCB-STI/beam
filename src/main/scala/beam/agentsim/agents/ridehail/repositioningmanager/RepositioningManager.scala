@@ -14,8 +14,7 @@ abstract class RepositioningManager(
   private val rideHailManager: RideHailManager
 ) {
 
-  val repositionTimeout: Int =
-    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.timeout
+  val repositionTimeout: Int = rideHailManager.managerConfig.repositioningManager.timeout
 
   def repositionVehicles(
     idleVehicles: scala.collection.Map[Id[BeamVehicle], RideHailAgentLocation],

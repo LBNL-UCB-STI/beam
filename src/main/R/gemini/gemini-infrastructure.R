@@ -6,7 +6,8 @@ library('colinmisc')
 library(dplyr)
 library(ggplot2)
 
-geminiDir <- normalizePath("~/Data/GEMINI")
+dataDir <- normalizePath("~/Workspace/Data")
+geminiDir <- normalizePath("~/Workspace/Data/GEMINI")
 infraDir <- pp(geminiDir,"/2022-07-05/_models/infrastructure")
 
 network <-readCsv(pp(geminiDir, "/network.csv.gz"))
@@ -134,19 +135,22 @@ sites[plug.xfc]
 
 ####
 
-events <- readCsv(pp(geminiDir,"/2022-07-05/events/filtered.0.events.7Advanced.csv.gz"))
+events <- readCsv(pp(geminiDir,"/2022-07-05/events/filtered.0.events.8MaxEV.csv.gz"))
 events.sim <- readCsv(pp(geminiDir, "/2022-07-05/sim/events.sim.7Advanced.csv.gz"))
 
 refueling <- events[type == "RefuelSessionEvent"][
   ,.(person,startTime=time-duration,startTime2=time-duration,parkingTaz,chargingPointType,
-     pricingModel,parkingType,locationX,locationY,vehicle,vehicleType,fuel,duration)][
+     pricingModel,parkingType,locationX,locationY,vehicle,vehicleType,fuel,duration,actType)][
        ,`:=`(stallLocationX=locationX,stallLocationY=locationY)]
 
 write.csv(
-  refueling,
-  file = pp(geminiDir,"/2022-07-05/_models/chargingEvents.7Advanced.csv"),
+  refueling[!startsWith(chargingPointType, "depot")],
+  file = pp(geminiDir,"/2022-07-05/_models/chargingEvents.8MaxEV.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="0")
 
+# chargingBehaviorFunc2(refueling)
 
+
+hongcai_siting_input <- readCsv(pp(dataDir,"/DepotSiting/hczhang/beam_ev_rhrf_outputs.csv"))

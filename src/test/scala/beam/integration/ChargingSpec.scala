@@ -40,7 +40,11 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeat
             |beam.physsim.skipPhysSim = true
             |beam.agentsim.lastIteration = 0
             |beam.agentsim.tuning.transitCapacity = 0.0
-            |beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet = 0
+            |beam.agentsim.agents.rideHail.managers = [
+            |  {
+            |     initialization.procedural.fractionOfInitialVehicleFleet = 0
+            |  }
+            |]
             |beam.agentsim.agents.vehicles.sharedFleets = []
             |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles-simple.csv"
             |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes-simple.csv"
@@ -57,9 +61,6 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeat
             |    enabled = true
             |    expansionFactor = 10.0
             |    activitiesLocationFilePath = ""
-            |  }
-            |  helics {
-            |    connectionEnabled = false
             |  }
             |}
             |

@@ -227,6 +227,7 @@ class ODRequester(
       modalityStyle = None,
       isMale = true,
       availableModes = Seq(CAR, WALK_TRANSIT, BIKE, DRIVE_TRANSIT),
+      rideHailServiceSubscription = Seq.empty,
       valueOfTime = personVOTT,
       age = None,
       income = Some(dummyHouseholdAttributes.householdIncome)

@@ -42,7 +42,7 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
       fillBox(boundingBox, getResolution)
     }
   logger.info(
-    s"fillBox for boundingBox $boundingBox with resolution $getResolution gives ${fillBoxResult.size} elemets"
+    s"fillBox for boundingBox $boundingBox with resolution $getResolution gives ${fillBoxResult.size} elements"
   )
 
   private val tazToH3TAZMapping: Map[HexIndex, Id[TAZ]] =
