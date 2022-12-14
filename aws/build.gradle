@@ -104,7 +104,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "profiler_type": "${ext.getParameterValue('profiler_type')}",
   "command": "deploy",
   "run_grafana" : ${ext.getParameterValue('runGrafana') ?: false},
-  "cosimulation_shell_script" : ${ext.getParameterValue('cosimulationShellScript') ?: false},
+  "cosimulation_shell_script" : ${ext.getParameterValue('cosimulationShellScript') ?: ""},
   "run_jupyter" : ${ext.getParameterValue('runJupyter') ?: false},
   "jupyter_token" : "${ext.getParameterValue('jupyterToken') ?: UUID.randomUUID().toString()}",
   "is_spot" : ${ext.getParameterValue('isSpot') ?: false},
