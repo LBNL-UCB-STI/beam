@@ -10,6 +10,7 @@ import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.router.skim.{Skims, SkimsUtils}
+import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
@@ -21,6 +22,7 @@ class ChargingFunctions(
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   parkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking,
+  chargingConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager,
   boundingBox: Envelope,
   seed: Int,
   skims: Option[Skims],
@@ -49,7 +51,7 @@ class ChargingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+  private def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
       if (
         inquiry.reservedFor.managerType == VehicleManager.TypeEnum.RideHail || inquiry.beamVehicle
@@ -67,7 +69,7 @@ class ChargingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifChargeActivityThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+  private def ifChargeActivityThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
       inquiry.parkingActivityType match {
         case Charge => ChargingPointType.isFastCharger(chargingPointType)
@@ -83,7 +85,7 @@ class ChargingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifEnrouteThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+  private def ifEnrouteThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
       inquiry.searchMode match {
         case ParkingSearchMode.EnRouteCharging => ChargingPointType.isFastCharger(chargingPointType)
@@ -99,12 +101,20 @@ class ChargingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifHomeWorkOrLongParkingDurationThenSlowChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+  private def ifHomeWorkOrLongParkingDurationThenSlowChargingOnly(
+    zone: ParkingZone,
+    inquiry: ParkingInquiry
+  ): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
       inquiry.beamVehicle.forall {
         case vehicle
             if !vehicle.isRideHail && (isHomeWorkOrOvernight(inquiry) || hasLongParkingDurationButNotCharge(inquiry)) =>
-          !ChargingPointType.isFastCharger(chargingPointType)
+          !ChargingPointType.isFastCharger(chargingPointType) && zone.link.forall(link =>
+            GeoUtils.minkowskiDistFormula(
+              link.getCoord,
+              inquiry.destinationUtm.loc
+            ) <= chargingConfig.maxDistanceFromHome
+          )
         case _ => true
       }
     )
@@ -117,11 +127,9 @@ class ChargingFunctions(
     * @param beamVehicleMaybe Option[BeamVehicle]
     * @return
     */
-  def hasValidChargingCapability(zone: ParkingZone, beamVehicleMaybe: Option[BeamVehicle]): Boolean = {
+  private def hasValidChargingCapability(zone: ParkingZone, beamVehicleMaybe: Option[BeamVehicle]): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
-      beamVehicleMaybe.forall(
-        _.beamVehicleType.chargingCapability.forall(getPower(_) >= getPower(chargingPointType))
-      )
+      beamVehicleMaybe.forall(_.beamVehicleType.chargingCapability.forall(getPower(_) >= getPower(chargingPointType)))
     )
   }
 

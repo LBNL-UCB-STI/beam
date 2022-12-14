@@ -2097,6 +2097,7 @@ object BeamConfig {
         chargingPointCostScalingFactor: scala.Double,
         chargingPointCountScalingFactor: scala.Double,
         chargingPointFilePath: java.lang.String,
+        maxDistanceFromHome: scala.Double,
         overnightChargingEnabled: scala.Boolean,
         powerManagerController: scala.Option[BeamConfig.Beam.Agentsim.ChargingNetworkManager.PowerManagerController],
         scaleUp: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp,
@@ -2219,6 +2220,8 @@ object BeamConfig {
               else 1.0,
             chargingPointFilePath =
               if (c.hasPathOrNull("chargingPointFilePath")) c.getString("chargingPointFilePath") else "",
+            maxDistanceFromHome =
+              if (c.hasPathOrNull("maxDistanceFromHome")) c.getDouble("maxDistanceFromHome") else 8000,
             overnightChargingEnabled =
               c.hasPathOrNull("overnightChargingEnabled") && c.getBoolean("overnightChargingEnabled"),
             powerManagerController =

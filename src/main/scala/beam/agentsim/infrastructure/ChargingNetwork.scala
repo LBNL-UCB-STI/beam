@@ -159,6 +159,7 @@ object ChargingNetwork extends LazyLogging {
           chargingZones,
           distanceFunction,
           beamConfig.beam.agentsim.agents.parking,
+          beamConfig.beam.agentsim.chargingNetworkManager,
           envelopeInUTM,
           beamConfig.matsim.modules.global.randomSeed,
           skims,
