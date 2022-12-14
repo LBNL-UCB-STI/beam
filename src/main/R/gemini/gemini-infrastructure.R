@@ -9,6 +9,7 @@ library(ggplot2)
 geminiDir <- normalizePath("~/Data/GEMINI")
 infraDir <- pp(geminiDir,"/2022-07-05/_models/infrastructure")
 
+network <-readCsv(pp(geminiDir, "/network.csv.gz"))
 
 infra5aBase <- readCsv(pp(infraDir, "/4a_output_2022_Apr_13_pubClust_withFees_noHousehold.csv"))
 infra5bBase <- readCsv(pp(infraDir, "/4b_output_2022_Apr_13_pubClust_withFees_noHousehold.csv"))
