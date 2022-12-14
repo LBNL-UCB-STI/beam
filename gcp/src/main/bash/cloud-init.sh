@@ -11,6 +11,7 @@ BEAM_BRANCH=$(curl http://metadata/computeMetadata/v1/instance/attributes/beam_b
 BEAM_COMMIT=$(curl http://metadata/computeMetadata/v1/instance/attributes/beam_commit -H "Metadata-Flavor: Google")
 DATA_COMMIT=$(curl http://metadata/computeMetadata/v1/instance/attributes/data_commit -H "Metadata-Flavor: Google")
 DATA_BRANCH=$(curl http://metadata/computeMetadata/v1/instance/attributes/data_branch -H "Metadata-Flavor: Google")
+STORAGE_PUBLISH=$(curl http://metadata/computeMetadata/v1/instance/attributes/storage_publish -H "Metadata-Flavor: Google")
 BATCH_UID=$(curl http://metadata/computeMetadata/v1/instance/attributes/batch_uid -H "Metadata-Flavor: Google")
 MAX_RAM=$(curl http://metadata/computeMetadata/v1/instance/attributes/max_ram -H "Metadata-Flavor: Google")
 SHUTDOWN_WAIT=$(curl http://metadata/computeMetadata/v1/instance/attributes/shutdown_wait -H "Metadata-Flavor: Google")
@@ -66,9 +67,6 @@ do
     esac
 done
 
-#building beam
-./gradlew assemble
-
 #sending message to the slack channel
 hello_msg=$(cat <<EOF
 Run Started
@@ -86,19 +84,35 @@ EOF
 echo "$hello_msg"
 curl -X POST -H 'Content-type: application/json' --data '{"text":"'"$hello_msg"'"}' "$SLACK_HOOK_WITH_TOKEN"
 
+
+#building beam
+./gradlew assemble
 #running beam
 export GOOGLE_API_KEY="$GOOGLE_API_KEY"
 ./gradlew --stacktrace :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM"g
 
 # copy to bucket
-finalPath=""
-for file in "output"/*; do
-  for path2 in "$file"/*; do
-    finalPath="$path2";
+storage_url=""
+if [ "${STORAGE_PUBLISH,,}" != "false" ]; then
+  finalPath=""
+  for file in "output"/*; do
+    for path2 in "$file"/*; do
+      finalPath="$path2";
+    done;
   done;
-done;
-ln -sf ~/cloud-init-output.log "$finalPath"/cloud-init-output.log
-gsutil -m cp -r "$finalPath" gs://beam-core-outputs/"$finalPath"
+
+  if [ -d "$finalPath" ]; then
+    ln -sf ~/cloud-init-output.log "$finalPath"/cloud-init-output.log
+    storage_url="https://console.cloud.google.com/storage/browser/beam-core-outputs/$finalPath"
+  else
+    finalPath="output/cloud-init-logs"
+    mkdir -p "$finalPath"
+    cloudInitName=$(echo "$(date '+%Y-%m-%d_%H-%M-%S')__${BEAM_CONFIG}__cloud-init-output.log" | tr '/' '_' )
+    ln -sf ~/cloud-init-output.log "$finalPath/$cloudInitName"
+    storage_url="https://console.cloud.google.com/storage/browser/beam-core-outputs/$finalPath/$cloudInitName"
+  fi
+  gsutil -m cp -r "$finalPath" "gs://beam-core-outputs/$finalPath"
+fi
 
 #Run and publish analysis
 echo "-------------------running Health Analysis Script----------------------"
@@ -106,7 +120,6 @@ python3 src/main/python/general_analysis/simulation_health_analysis.py
 curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
 
 #Slack message
-storage_url="https://console.cloud.google.com/storage/browser/beam-core-outputs/$finalPath"
 final_status=$(check_simulation_result)
 bye_msg=$(cat <<EOF
 Run Completed

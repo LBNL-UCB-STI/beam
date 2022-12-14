@@ -8,6 +8,7 @@ import time
 import random
 import string
 import uuid
+import json
 from datetime import datetime
 from datetime import timezone
 
@@ -15,7 +16,8 @@ from datetime import timezone
 def to_instance_name(run_name):
     no_spaces = re.sub(r'\s|_', '-', run_name.lower())
     clean = re.sub(r'[^a-z0-9\\-]', '', no_spaces)
-    if not re.search(r'^[a-z]', clean): clean = 'name-' + clean
+    if not re.search(r'^[a-z]', clean):
+        clean = 'name-' + clean
     date_time = datetime.fromtimestamp(time.time(), tz=timezone.utc)
     str_date_time = date_time.strftime("%Y-%m-%d-%H-%M-%S")
     rnd_str = ''.join(random.choices(string.ascii_lowercase, k=3))
@@ -31,28 +33,32 @@ def parameter_is_not_specified(parameter_value):
 
 @functions_framework.http
 def create_beam_instance(request):
-    json = request.get_json(silent=True)
-    if not json: return escape("No valid json payload provided"), 400
-    beam_config = json['config']
-    if parameter_is_not_specified(beam_config): return escape("No beam config provided"), 400
-    instance_type = json['instance_type']
-    if parameter_is_not_specified(instance_type): return escape("No instance type provided"), 400
-    max_ram = json['forced_max_ram']
-    if parameter_is_not_specified(max_ram): max_ram = 32  # todo calculate max ram
-    run_name = json.get('run_name', "not-set")
-    beam_branch = json.get('beam_branch', "develop")
-    beam_commit = json.get('beam_commit', "HEAD")
-    data_branch = json.get('data_branch', "develop")
-    data_commit = json.get('data_commit', "HEAD")
-    shutdown_wait = json.get('shutdown_wait', "15")
-    storage_size = json.get('storage_size', "100")
-    shutdown_behaviour = json.get('shutdown_behaviour', "terminate")
+    request_payload = request.get_json(silent=True)
+    if not request_payload:
+        return escape("No valid json payload provided"), 400
+    beam_config = request_payload['config']
+    if parameter_is_not_specified(beam_config):
+        return escape("No beam config provided"), 400
+    instance_type = request_payload['instance_type']
+    if parameter_is_not_specified(instance_type):
+        return escape("No instance type provided"), 400
+    max_ram = request_payload['forced_max_ram']
+    if parameter_is_not_specified(max_ram):
+        max_ram = 32  # todo calculate max ram
+    run_name = request_payload.get('run_name', "not-set")
+    beam_branch = request_payload.get('beam_branch', "develop")
+    beam_commit = request_payload.get('beam_commit', "HEAD")
+    data_branch = request_payload.get('data_branch', "develop")
+    data_commit = request_payload.get('data_commit', "HEAD")
+    storage_publish = request_payload.get('storage_publish', "true")
+    shutdown_wait = request_payload.get('shutdown_wait', "15")
+    storage_size = request_payload.get('storage_size', "100")
+    shutdown_behaviour = request_payload.get('shutdown_behaviour', "terminate")
 
-    # project = requests.get("http://metadata/computeMetadata/v1/instance/id", headers={'Metadata-Flavor': 'Google'}).text
     project = 'beam-core'
     zone = 'us-central1-a'
     batch_uid = str(uuid.uuid4())[:8]
-    name = to_instance_name(run_name)
+    instance_name = to_instance_name(run_name)
     machine_type = f"zones/{zone}/machineTypes/{instance_type.strip()}"
     disk_image_name = f"projects/{project}/global/images/beam-box"
     startup_script = """
@@ -78,6 +84,7 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
         ('beam_commit', beam_commit),
         ('data_branch', data_branch),
         ('data_commit', data_commit),
+        ('storage_publish', storage_publish),
         ('shutdown_wait', shutdown_wait),
         ('google_api_key', os.environ['GOOGLE_API_KEY']),
         ('slack_hook_with_token', os.environ['SLACK_HOOK_WITH_TOKEN']),
@@ -88,7 +95,7 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
         metadata.append(('shutdown-script', shutdown_script))
 
     config = {
-        'name': name,
+        'name': instance_name,
         'machineType': machine_type,
 
         # Specify the boot disk and the image to use as a source.
@@ -139,6 +146,14 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
         .insert(project=project, zone=zone, body=config) \
         .execute()
 
+    entry = dict(
+        severity="NOTICE",
+        message=result,
+        component="deploy_beam_function"
+    )
+
+    print(json.dumps(entry))
+
     operation_id = result["id"]
     operation_status = result["status"]
     error = None
@@ -149,4 +164,7 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
     if error:
         return escape(f"operation id: {operation_id}, status: {operation_status}, error: {error}")
     else:
-        return escape(f"operation id: {operation_id}, status: {operation_status}")
+        return escape(f'Started batch: {batch_uid}'
+                      f' with run name: {run_name}'
+                      f' for branch/commit {beam_branch}/{beam_commit}'
+                      f' at instance {instance_name}.')

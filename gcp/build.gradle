@@ -59,8 +59,10 @@ tasks.register('deployToGCE') {
         "shutdown_wait": "${ext.getParameterValue('shutdownWait')}",
         "storage_size": "${ext.getParameterValue('storageSize')}",
         "shutdown_behaviour": "${ext.getParameterValue('shutdownBehaviour')}",
+        "storage_publish": ${"false".equalsIgnoreCase(ext.getParameterValue('s3Backup')) ? "false" : "true"},
         "config": "${ext.getParameterValue('beamConfigs')}"
         }"""
+        logger.warn(pload)
         HttpResponse result = makeJsonPostRequest("https://us-central1-beam-core.cloudfunctions.net/deploy-beam", pload)
         logger.warn("response status: ${result.statusCode}, response message: ${result.statusMessage}, payload: ${result.content}")
     }
