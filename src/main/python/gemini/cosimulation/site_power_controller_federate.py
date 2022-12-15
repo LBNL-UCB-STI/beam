@@ -42,9 +42,6 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_
     ride_hail_spm_c_dict = {}
     depot_prefix = "depot"
 
-    def key_func(k):
-        return k['siteId']
-
     def sync_time(requested_time):
         granted_time = -1
         while granted_time < requested_time:
@@ -58,11 +55,11 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_
             return ""
 
     # INIT
-    def init_spm_controllers(site_id_str):
+    def init_spm_controllers(taz_id_str, site_id_str, time_step, sim_dur):
         if site_id_str not in default_spm_c_dict:
-            default_spm_c_dict[site_id_str] = DefaultSPMC("DefaultSPMC", site_id_str)
+            default_spm_c_dict[site_id_str] = DefaultSPMC("DefaultSPMC", taz_id_str, site_id_str)
         if site_id_str not in ride_hail_spm_c_dict:
-            ride_hail_spm_c_dict[site_id_str] = RideHailSPMC("RideHailSPMC", site_id_str)
+            ride_hail_spm_c_dict[site_id_str] = RideHailSPMC("RideHailSPMC", taz_id_str, site_id_str, time_step, sim_dur)
 
     # RUN
     def run_multi_threaded_spm_controllers(site_id_str, current_t, received_charging_events):
@@ -89,8 +86,6 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_
         sync_time(t)
         power_commands_list = []
         received_message = h.helicsInputGetString(subs_charging_events)
-        site_id_counter = 0
-        charging_events_counter = 0
         if bool(str(received_message).strip()):
             charging_events_json = parse_json(received_message)
             if not isinstance(charging_events_json, collections.abc.Sequence):
@@ -98,8 +93,8 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_
                 pass
             elif len(charging_events_json) > 0:
                 processed_side_ids = []
-                for site_id, charging_events in itertools.groupby(charging_events_json, key_func):
-                    init_spm_controllers(site_id)
+                for (taz_id, site_id), charging_events in itertools.groupby(charging_events_json, key= lambda d: (d['tazId'], d['siteId'])):
+                    init_spm_controllers(taz_id, site_id, time_bin_in_seconds, simulated_day_in_seconds)
                     # Running SPM Controllers
                     filtered_charging_events = list(
                         filter(lambda charging_event: 'vehicleId' in charging_event, charging_events))
@@ -109,8 +104,6 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_
                             run_multi_threaded_spm_controllers(site_id, t, filtered_charging_events)
                         else:
                             run_spm_controllers(site_id, t, filtered_charging_events)
-                        site_id_counter = site_id_counter + 1
-                        charging_events_counter = charging_events_counter + len(filtered_charging_events)
                 for site_id in processed_side_ids:
                     power_commands_list = power_commands_list + get_power_commands(site_id)
             else:
