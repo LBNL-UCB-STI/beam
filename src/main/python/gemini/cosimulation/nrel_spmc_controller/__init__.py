@@ -1,2 +1,3 @@
-from .rudimentary_spmc import rudimentary_spmc
-from .rudimentary_spmc_rev3 import rudimentary_spmc_rev3
+from . import rudimentary_spmc
+from . import rudimentary_spmc_rev3
+__all__ = ['rudimentary_spmc', 'rudimentary_spmc_rev3']
