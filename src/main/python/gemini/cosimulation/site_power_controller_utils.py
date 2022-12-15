@@ -87,6 +87,7 @@ class DefaultSPMC:
         for vehicle in charging_events:
             self.control_commands = self.control_commands + [{
                 'time': str(t),
+                'taz_id': str(self.taz_id),
                 'siteId': str(self.site_id),
                 'vehicleId': vehicle['vehicleId'],
                 'powerInKW': str(p_evse_opt[i])
@@ -229,6 +230,7 @@ class RideHailSPMC:
         for i in range(0, len(vehicles)):
             self.control_commands = self.control_commands + [{
                 'time': str(t),
+                'taz_id': str(self.taz_id),
                 'siteId': str(self.site_id),
                 'vehicleId': str(vehicles[i]),
                 'powerInKW': str(power[i]),
