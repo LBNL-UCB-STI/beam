@@ -44,13 +44,13 @@ S3_PUBLISH_SCRIPT = '''
   -       sudo gzip /home/ubuntu/cpu_ram_usage.csv
   -       sudo cp /home/ubuntu/cpu_ram_usage* "$finalPath"
 
-  -       cosimulationFinalPath="${finalPath}/cosimulation_output"
-  -       mkdir "$cosimulationFinalPath"
-  -       sudo cp /home/ubuntu/git/beam/src/main/python/gemini/cosimulation/*.log "$cosimulationFinalPath"
-  -       sudo cp /home/ubuntu/git/beam/src/main/python/gemini/cosimulation/*.txt "$cosimulationFinalPath"
-  -       cd "$cosimulationFinalPath"
-  -       sudo gzip -9 *
-  -       cd -
+  -       cosimulationLogPath = "/home/ubuntu/git/beam/src/main/python/gemini/cosimulation"
+  -       cosimulationOutPath="${finalPath}/cosimulation_output"
+  -       mkdir "$cosimulationOutPath"
+  -       for f in $(find "$cosimulationLogPath/" -iname '*.log' -o -iname '*.txt'); do 
+  -          cp "${f}" "$cosimulationOutPath/"; 
+  -       done;
+  -       sudo gzip "$cosimulationOutPath/*" 2>/dev/null
 
   -       s3p="$s3p, https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#$finalPath"
   -    else
