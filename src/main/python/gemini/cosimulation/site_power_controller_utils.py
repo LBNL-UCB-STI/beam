@@ -6,6 +6,7 @@ import logging
 from threading import Thread
 from nrel_spmc_controller.rudimentary_spmc_rev3 import SPM_Control
 from xfc_btms_saev_controller import components
+import xfc_btms_saev_controller.components
 
 
 class DefaultSPMC:
@@ -101,19 +102,18 @@ class RideHailSPMC:
     control_commands = []
     thread = Thread()
 
-    def __init__(self, name, taz_id, site_id, time_step, simulation_duration):
+    def __init__(self, name, taz_id, site_id, time_step, simulation_duration, output_directory):
         self.taz_id = taz_id
         self.site_id = site_id
         self.site_prefix_logging = name + "[" + str(taz_id) + ":" + str(site_id) + "]. "
         self.time_step = time_step
-        self.simulation_duration = simulation_duration
         # JULIUS: @HL I initialized my SPM Controller here
         # @ HL can you provide the missing information
         # TODO uncomment
         initMpc = False
         t_start = int(0)
         timestep_intervall = int(self.time_step)
-        result_directory = ''
+        result_directory = output_directory
         RideHailDepotId = site_id
         ChBaMaxPower = []  # list of floats in kW for each plug, for first it should be the same maximum power
         # for all -> could set 10 000 kW if message contains data --> list with length of number
@@ -131,7 +131,7 @@ class RideHailSPMC:
             'parkingZoneId': 'category', 'duration': 'float64'
         }  # dictionary containing the data types in the beam prediction file
         # maximum time up to which we simulate (for predicting in MPC)
-        t_max = int(self.simulation_duration - self.time_step)
+        t_max = int(simulation_duration - self.time_step)
         self.depotController = components.GeminiWrapper.ControlWrapper(
             initMpc, t_start, timestep_intervall, result_directory, RideHailDepotId, ChBaMaxPower,
             ChBaParkingZoneId, ChBaNum, path_BeamPredictionFile, dtype_Predictions, t_max)

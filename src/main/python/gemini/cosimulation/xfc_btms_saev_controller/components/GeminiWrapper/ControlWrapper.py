@@ -1,4 +1,8 @@
-import components
+from ... import components
+# from . import SimBrokerDummy
+# from . import VehicleGeneratorBeam
+# from SimBrokerDummy import SimBrokerDummy
+# from VehicleGeneratorBeam import VehicleGeneratorBeam
 from components.ResultWriter import ResultWriter
 from components.SimBroker import SimBroker
 import logging
