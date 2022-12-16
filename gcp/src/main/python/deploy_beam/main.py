@@ -42,9 +42,12 @@ def create_beam_instance(request):
     instance_type = request_payload['instance_type']
     if parameter_is_not_specified(instance_type):
         return escape("No instance type provided"), 400
+    instance_cores, instance_memory = find_instance_cores_and_memory(instance_type)
+    if not instance_memory:
+        return escape(f"Instance type '{instance_type}' is not supported")
     max_ram = request_payload['forced_max_ram']
     if parameter_is_not_specified(max_ram):
-        max_ram = 32  # todo calculate max ram
+        max_ram = calculate_heap_size(instance_cores, instance_memory)
     run_name = request_payload.get('run_name', "not-set")
     beam_branch = request_payload.get('beam_branch', "develop")
     beam_commit = request_payload.get('beam_commit', "HEAD")
@@ -94,7 +97,73 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
     if shutdown_behaviour.lower() == "terminate":
         metadata.append(('shutdown-script', shutdown_script))
 
-    config = {
+    create_instance_request_body = create_instance_request(instance_name, machine_type, disk_image_name, storage_size,
+                                                           metadata)
+
+    service = discovery.build('compute', 'v1')
+    result = service.instances() \
+        .insert(project=project, zone=zone, body=create_instance_request_body) \
+        .execute()
+
+    entry = dict(
+        severity="NOTICE",
+        message=result,
+        component="deploy_beam_function"
+    )
+
+    print(json.dumps(entry))
+
+    operation_id = result["id"]
+    operation_status = result["status"]
+    error = None
+    if result.get("error", None):
+        error_head = result["error"]["errors"][0]
+        error = f"{error_head['code']}, {error_head['location']}, {error_head['message']}"
+
+    if error:
+        return escape(f"operation id: {operation_id}, status: {operation_status}, error: {error}")
+    else:
+        return escape(f'Started batch: {batch_uid}'
+                      f' with run name: {run_name}'
+                      f' for branch/commit {beam_branch}/{beam_commit}'
+                      f' at instance {instance_name}.')
+
+
+def calculate_heap_size(instance_cores: int, instance_memory: float) -> int:
+    max_remaining_memory = instance_cores # 1Gib per core
+    percent_towards_remaining_memory = .25
+    return round(instance_memory - min(instance_memory * percent_towards_remaining_memory, max_remaining_memory))
+
+def find_instance_cores_and_memory(instance_type):
+    instance_type_to_params = {
+        'm1-megamem-96': (96, 1433.6),
+        'm2-ultramem-208': (208, 5888),
+        'm2-ultramem-416': (416, 11776),
+        'm2-megamem-416': (416, 5888),
+        'm2-hypermem-416': (416, 8832),
+    }
+    if instance_type in instance_type_to_params:
+        return instance_type_to_params[instance_type]
+    standard_multipliers = {"highcpu": 2, "standard": 4, "highmem": 8}
+    family_to_multipliers = {
+        "n2": standard_multipliers,
+        "n2d": standard_multipliers,
+        "c2": standard_multipliers,
+        "c2d": standard_multipliers,
+        "m3": {"megamem": 15.25, "ultramem": 30.5},
+        "m1": {"ultramem": 24.025},
+    }
+    split = instance_type.split('-')
+    if len(split) != 3:
+        return None, None
+    family, sub_type, num_cores_str = split
+    num_cores = int(num_cores_str)
+    multiplier = family_to_multipliers.get(family, {}).get(sub_type)
+    return (num_cores, multiplier * num_cores) if multiplier else (num_cores, None)
+
+
+def create_instance_request(instance_name, machine_type, disk_image_name, storage_size, metadata):
+    return {
         'name': instance_name,
         'machineType': machine_type,
 
@@ -140,31 +209,3 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
             'items': [{'key': k, 'value': v} for k, v in metadata]
         }
     }
-
-    service = discovery.build('compute', 'v1')
-    result = service.instances() \
-        .insert(project=project, zone=zone, body=config) \
-        .execute()
-
-    entry = dict(
-        severity="NOTICE",
-        message=result,
-        component="deploy_beam_function"
-    )
-
-    print(json.dumps(entry))
-
-    operation_id = result["id"]
-    operation_status = result["status"]
-    error = None
-    if result.get("error", None):
-        error_head = result["error"]["errors"][0]
-        error = f"{error_head['code']}, {error_head['location']}, {error_head['message']}"
-
-    if error:
-        return escape(f"operation id: {operation_id}, status: {operation_status}, error: {error}")
-    else:
-        return escape(f'Started batch: {batch_uid}'
-                      f' with run name: {run_name}'
-                      f' for branch/commit {beam_branch}/{beam_commit}'
-                      f' at instance {instance_name}.')
