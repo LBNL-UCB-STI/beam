@@ -71,6 +71,7 @@ S3_PUBLISH_SCRIPT = '''
   -       s3p="$s3p, https://beam-outputs.s3.amazonaws.com/$finalPath/$cloudInitName"
   -    fi
   -    echo "copy to s3 '$finalPath'"
+  -    export finalPath=$finalPath
   -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;'''
 
 END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
@@ -309,41 +310,18 @@ runcmd:
   -      $RUN_SCRIPT
   -    done
   -   echo "-------------------running Health Analysis Script----------------------"
-  -   date "+%Y-%m-%d %H:%M:%S"
-  -   python3 src/main/python/general_analysis/simulation_health_analysis.py
-  -   echo "-------------------running Health Analysis Script2----------------------"
-  -   date "+%Y-%m-%d %H:%M:%S"
+  -   simulation_health_analysis_output_file="simulation_health_analysis_result.txt"
+  -   python3 src/main/python/general_analysis/simulation_health_analysis.py $simulation_health_analysis_output_file
   -   while IFS="," read -r metric count
   -   do
   -      export $metric=$count
-  -      echo "xxxxxx" $metric $count
-  -   done < simulation_health_analysis_result.txt
-  -   echo "-------------------running Health Analysis Script3----------------------"
-  -   date "+%Y-%m-%d %H:%M:%S"
-  -   sleep 1m
-  -   echo "sleep 1m"
-  -   cat simulation_health_analysis_result.txt
-  -   date "+%Y-%m-%d %H:%M:%S"
-  -   sleep 1m
-  -   echo "sleep 1m"
-  -   cat simulation_health_analysis_result.txt
-  -   date "+%Y-%m-%d %H:%M:%S"
-  -   sleep 1m
-  -   echo "sleep 1m"
-  -   cat simulation_health_analysis_result.txt
-  -   output_dir=`find output -name beamLog.out | awk '{ print substr( $0, 1, length($0)-11 ) }'`
-  -   echo "xxoutput_dir: " $output_dir
-  -   echo "xxoutput_dir: " $output_dir >> /home/ubuntu/git/beam/ttttt.log
-  -   cp simulation_health_analysis_result.txt $output_dir
-  -   sudo aws --region "$S3_REGION" s3 cp simulation_health_analysis_result.txt s3://beam-outputs/"$output_dir"
-  -   echo "mark abc:" >> /home/ubuntu/git/beam/ttttt.log
-  -   ls -l /home/ubuntu/git/beam >> /home/ubuntu/git/beam/ttttt.log
-  -   echo "" >> /home/ubuntu/git/beam/ttttt.log
-  -   echo "output_dir:" $output_dir >> /home/ubuntu/git/beam/ttttt.log
-  -   echo "" >> /home/ubuntu/git/beam/ttttt.log
+  -   done < $simulation_health_analysis_output_file
+  -   cat $simulation_health_analysis_output_file
+  -   echo "final_path:" $finalPath
+  -   sudo aws --region $S3_REGION s3 cp $simulation_health_analysis_output_file s3://beam-outputs/$finalPath
+  -   echo Finish uploading $simulation_health_analysis_output_file to S3
 
-  
-  -   curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@simulation_health_analysis_result.txt -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
+  -   curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@$simulation_health_analysis_output_file -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
   -   s3glip=""
   -   if [ "$S3_PUBLISH" = "True" ]
   -   then
@@ -418,7 +396,7 @@ instance_type_to_memory = {
     'm5d.large': 8, 'm5d.xlarge': 16, 'm5d.2xlarge': 32, 'm5d.4xlarge': 64, 'm5d.12xlarge': 192, 'm5d.24xlarge': 384,
     'z1d.large': 2, 'z1d.xlarge': 4, 'z1d.2xlarge': 8, 'z1d.3xlarge': 12, 'z1d.6xlarge': 24, 'z1d.12xlarge': 48,
     'r5a.16xlarge': 480, 'r5a.4xlarge': 100,
-    'x2gd.16xlarge': 1024, 'x2gd.8xlarge': 512, 'x2gd.metal': 1024
+    'x2gd.16xlarge': 1024, 'x2gd.8xlarge': 512, 'x2gd.metal': 1024, 'hpc6a.48xlarge': 384, 'c6a.24xlarge': 192
 }
 
 regions = ['us-east-1', 'us-east-2', 'us-west-2']
