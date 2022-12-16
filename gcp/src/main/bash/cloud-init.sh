@@ -105,11 +105,12 @@ if [ "${STORAGE_PUBLISH,,}" != "false" ]; then
     ln -sf ~/cloud-init-output.log "$finalPath"/cloud-init-output.log
     storage_url="https://console.cloud.google.com/storage/browser/beam-core-outputs/$finalPath"
   else
-    finalPath="output/cloud-init-logs"
-    mkdir -p "$finalPath"
-    cloudInitName=$(echo "$(date '+%Y-%m-%d_%H-%M-%S')__${BEAM_CONFIG}__cloud-init-output.log" | tr '/' '_' )
-    ln -sf ~/cloud-init-output.log "$finalPath/$cloudInitName"
-    storage_url="https://console.cloud.google.com/storage/browser/beam-core-outputs/$finalPath/$cloudInitName"
+    log_dir="output/cloud-init-logs"
+    mkdir -p "$log_dir"
+    cloud_init_name=$(echo "$(date '+%Y-%m-%d_%H-%M-%S')__${BEAM_CONFIG}__cloud-init-output.log" | tr '/' '_' )
+    finalPath="$log_dir/$cloud_init_name"
+    ln -sf ~/cloud-init-output.log "$finalPath"
+    storage_url="https://console.cloud.google.com/storage/browser/_details/beam-core-outputs/$finalPath"
   fi
   gsutil -m cp -r "$finalPath" "gs://beam-core-outputs/$finalPath"
 fi
