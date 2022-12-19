@@ -30,7 +30,6 @@ import beam.sim.modules.{BeamAgentModule, UtilsModule}
 import beam.sim.population.PopulationScaling
 import beam.sim.termination.TerminationCriterionProvider
 import beam.utils.BeamVehicleUtils.{readBeamVehicleTypeFile, readFuelTypeFile, readVehiclesFile}
-import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils._
 import beam.utils.csv.readers
 import beam.utils.plan.sampling.AvailableModeUtils
@@ -400,7 +399,10 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     beamConfig: BeamConfig,
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): (TrieMap[Id[BeamVehicle], BeamVehicle], TrieMap[Id[BeamVehicle], Double]) =
-    if (beamConfig.beam.agentsim.agents.population.useVehicleSampling) {
+    if (
+      beamConfig.beam.agentsim.agents.population.useVehicleSampling ||
+      beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath.trim().isEmpty
+    ) {
       TrieMap.empty[Id[BeamVehicle], BeamVehicle] -> TrieMap.empty[Id[BeamVehicle], Double]
     } else {
       val (vehicleIdToVehicle, vehicleIdToSoc) = readVehiclesFile(

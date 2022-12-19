@@ -2017,7 +2017,7 @@ object BeamConfig {
                 else "/test/input/beamville/vehicleTypes.csv",
               vehiclesFilePath =
                 if (c.hasPathOrNull("vehiclesFilePath")) c.getString("vehiclesFilePath")
-                else "/test/input/beamville/vehicles.csv"
+                else ""
             )
           }
 
