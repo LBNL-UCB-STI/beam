@@ -2361,8 +2361,7 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Toll = {
           BeamConfig.Beam.Agentsim.Toll(
-            filePath =
-              if (c.hasPathOrNull("filePath")) c.getString("filePath") else "/test/input/beamville/toll-prices.csv"
+            filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else ""
           )
         }
       }
