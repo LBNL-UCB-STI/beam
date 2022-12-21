@@ -79,7 +79,7 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
     @Override
     public void processStats(Event event) {
         if (event instanceof PathTraversalEvent)
-            processFuelUsage((PathTraversalEvent)event);
+            processFuelUsage((PathTraversalEvent) event);
     }
 
     @Override
@@ -109,16 +109,10 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
 
     private void processFuelUsage(PathTraversalEvent event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        String vehicleType = event.vehicleType();
-        String originalMode = event.mode().value();
-        String vehicleId = event.vehicleId().toString();
-        double lengthInMeters = event.legLength();
         String fuelString = Double.toString(event.primaryFuelConsumed());
 
-        String mode = originalMode;
-        if (mode.equalsIgnoreCase("car") && vehicleId.contains("rideHailVehicle")) {
-            mode = "rideHail";
-        }
+        String mode = BaseModeAnalysis.extractModeForAnalysis(event);
+
         modesFuel.add(mode);
         try {
             Double fuel = Double.parseDouble(fuelString);
@@ -160,7 +154,7 @@ public class FuelUsageAnalysis implements GraphAnalysis, IterationSummaryAnalysi
     public Map<String, Double> getSummaryStats() {
         return fuelConsumedByFuelType.entrySet().stream().collect(Collectors.toMap(
                 e -> "fuelConsumedInMJ_" + e.getKey(),
-                e -> e.getValue()/1.0e6
+                e -> e.getValue() / 1.0e6
         ));
     }
 

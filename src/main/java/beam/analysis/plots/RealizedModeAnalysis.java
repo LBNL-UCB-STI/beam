@@ -229,7 +229,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     private void processModeChoiceEvent(ModeChoiceEvent event, int hour) {
-        String mode = event.mode;
+        String mode = extractModeForAnalysis(event);
         String personId = event.getPersonId().toString();
         Map<String, String> tags = new HashMap<>();
         tags.put("stats-type", "mode-choice");
