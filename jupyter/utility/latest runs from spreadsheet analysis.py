@@ -11,9 +11,10 @@ import matplotlib.pyplot as plt
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
+pd.set_option('max_colwidth', None)
 
 
-# In[3]:
+# In[2]:
 
 
 ## reading exported csv
@@ -21,10 +22,10 @@ pd.set_option('display.width', 1000)
 # to get csv - save 'BEAM Deploy Status and Run Data' as csv
 # if there is not enough permissions - save a copy and then save as csv
 
-data = pd.read_csv("../../../beam-production/jupyter/local_files/Copy of BEAM Deploy Status and Run Data - BEAM Instances.csv", parse_dates=['Time'])
+data = pd.read_csv("../../../beam-production/jupyter/local_files/simulations_spreadsheet.csv", parse_dates=['Time'])
 
 # using only runs from specific data 
-min_time = pd.to_datetime("2022-03-01") # yyyy-mm-dd
+min_time = pd.to_datetime("2022-12-01") # yyyy-mm-dd
 data = data[data['Time'] > min_time].copy()
 
 print(f"there are roughly {len(data) / 2} runs since {min_time}")
@@ -36,7 +37,7 @@ print(f"following data periods are included: {sorted(data['Month Period'].unique
 data.head(3)
 
 
-# In[4]:
+# In[3]:
 
 
 ## getting data frame with each row as one simulation
@@ -66,27 +67,33 @@ df['duration_hours'] = (df['Time Stop'] - df['Time Start']).astype('timedelta64[
 df.head(3)
 
 
-# In[5]:
-
-
-## just a check
-df['Instance type'].unique()
-
-
-# In[6]:
+# In[4]:
 
 
 ## calculating a price in USD of each simulation
 
-instance_to_price = {'r5d.24xlarge':6.912, 
-                     'm5d.24xlarge':5.424, 
-                     'r5.xlarge':0.252, 
-                     'r5.24xlarge':6.048,
-                     'r5.8xlarge':2.016, 
-                     'm5.24xlarge':4.608, 
-                     'r5.2xlarge':0.504, 
-                     'm4.16xlarge':3.20
-                    }
+instance_to_price = {
+    'c5d.24xlarge' : 4.608,
+    'c6a.24xlarge' : 3.672,
+    'hpc6a.48xlarge' : 2.88,
+    'm4.16xlarge' : 3.2,
+    'm5.12xlarge' : 2.304,
+    'm5.24xlarge' : 4.608,
+    'm5d.24xlarge' : 5.424,
+    'r5.24xlarge' : 6.048,
+    'r5.2xlarge' : 0.504,
+    'r5.4xlarge' : 1.008,
+    'r5.8xlarge' : 2.016,
+    'r5.large' : 0.126,
+    'r5.xlarge' : 0.252,
+    'r5d.12xlarge' : 3.456,
+    'r5d.16xlarge' : 4.608,
+    'r5d.24xlarge' : 6.912,
+    't2.medium' : 0.0464                 
+}
+
+# for instance_type in sorted(instance_to_price.keys()):
+#     print(f"'{instance_type}' : {instance_to_price[instance_type]},")
 
 missing_instance_types = set()
 def get_price(row):
@@ -100,47 +107,65 @@ def get_price(row):
 df['aws_price_cost'] = df.apply(get_price, axis=1)
 
 if len(missing_instance_types) > 0:
-    print(f"Can't find price for following instances: {missing_instance_types}")
+    print(f"Can't find price for {len(missing_instance_types)} instance types.")
+    for missing_instance in missing_instance_types:
+        print(f"'{missing_instance}': ,")
     
 df['cost'] = df['duration_hours'] * df['aws_price_cost']
-print(f"The total cost of all instances from df: {int(df['cost'].sum())}")
+total_cost = int(df['cost'].sum())
+
+def print_total_info():
+    dt_interval = f"from {min_time.strftime('%Y-%m-%d')} to {data['Time'].max().strftime('%Y-%m-%d')}"
+    print(f"There are {len(df)} simulations {dt_interval}")
+    print(f"The total cost of all instances time is ${total_cost}")
+
+print_total_info()
+    
 df.head(3)
 
 
-# In[17]:
+# In[5]:
 
 
-## grouping simulations by something
+## grouping simulations by projects
 
 def get_owner(row):
     run_name = row['Run Name']
     if '/' in run_name:
         return run_name.split('/')[0]
-    return "??"
+    return run_name
 
-# df['owner of run'] = df.apply(get_owner, axis=1)
 
 def get_branch_owner(row):
     branch = row['Branch'].split('/')
     if len(branch) > 1:
         return branch[0]
-    return "??"
+    return branch
+
 
 def get_project(row):
     owner = get_owner(row)
     branch_owner = get_branch_owner(row)
-    return f"{owner} | {branch_owner}"
+    project = f"{owner} | {branch_owner}".lower()
     
+    if 'new-york' in project:
+        return "NYC"
+    if 'freight' in project:
+        return "Freight"
+    if 'micro-mobility' in project or 'micromobility' in project and 'j503440616atberkeley_edu' in project:
+        return "micro-mobility by Xuan"
+    if 'shared' in project and 'j503440616atberkeley_edu' in project:
+        return "shared fleet by Xuan"
+    if 'profiling' in project:
+        return "profiling"
+    
+    return project
+    
+print_total_info()
 
 df["project"] = df.apply(get_project, axis=1)
-df_sum = (df.groupby("project")['cost'].sum() / 32355).reset_index().sort_values("cost", ascending=False)
+df_sum = (df.groupby("project")['cost'].sum() / total_cost).reset_index().sort_values("cost", ascending=False)
 df_sum
-
-
-# In[ ]:
-
-
-
 
 
 # In[ ]:
