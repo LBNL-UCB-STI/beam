@@ -61,6 +61,7 @@ S3_PUBLISH_SCRIPT = '''
   -       s3p="$s3p, https://beam-outputs.s3.amazonaws.com/$finalPath/$cloudInitName"
   -    fi
   -    echo "copy to s3 '$finalPath'"
+  -    export finalPath=$finalPath
   -    sudo aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;'''
 
 END_SCRIPT_DEFAULT = '''echo "End script not provided."'''
@@ -276,13 +277,19 @@ runcmd:
   -      $RUN_SCRIPT
   -    done
   -   echo "-------------------running Health Analysis Script----------------------"
-  -   python3 src/main/python/general_analysis/simulation_health_analysis.py
+  -   simulation_health_analysis_output_file="simulation_health_analysis_result.txt"
+  -   python3 src/main/python/general_analysis/simulation_health_analysis.py $simulation_health_analysis_output_file
+  -   health_metrics=""
   -   while IFS="," read -r metric count
   -   do
   -      export $metric=$count
-  -   done < RunHealthAnalysis.txt
-  
-  -   curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
+  -      health_metrics="$health_metrics, $metric:$count"
+  -   done < $simulation_health_analysis_output_file
+  -   health_metrics=\\{$(echo $health_metrics | cut -c3-)\\}
+  -   echo $health_metrics
+  -   sudo aws --region $S3_REGION s3 cp $simulation_health_analysis_output_file s3://beam-outputs/$finalPath/$simulation_health_analysis_output_file
+
+  -   curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@$simulation_health_analysis_output_file -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
   -   s3glip=""
   -   if [ "$S3_PUBLISH" = "True" ]
   -   then
@@ -290,7 +297,7 @@ runcmd:
   -   fi
   -   cd /home/ubuntu
   -   final_status=$(./check_simulation_result.sh)
-  -   bye_msg=$(printf "Run Completed \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT %s \\n Shutdown in $SHUTDOWN_WAIT minutes" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "$s3glip")
+  -   bye_msg=$(printf "Run Completed \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT %s \\n Health Metrics %s \\n Shutdown in $SHUTDOWN_WAIT minutes" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "$s3glip" "$health_metrics")
   -   echo "$bye_msg"
   -   stop_json=$(printf "{
         \\"command\\":\\"add\\",
@@ -357,7 +364,7 @@ instance_type_to_memory = {
     'm5d.large': 8, 'm5d.xlarge': 16, 'm5d.2xlarge': 32, 'm5d.4xlarge': 64, 'm5d.12xlarge': 192, 'm5d.24xlarge': 384,
     'z1d.large': 2, 'z1d.xlarge': 4, 'z1d.2xlarge': 8, 'z1d.3xlarge': 12, 'z1d.6xlarge': 24, 'z1d.12xlarge': 48,
     'r5a.16xlarge': 480, 'r5a.4xlarge': 100,
-    'x2gd.16xlarge': 1024, 'x2gd.8xlarge': 512, 'x2gd.metal': 1024
+    'x2gd.16xlarge': 1024, 'x2gd.8xlarge': 512, 'x2gd.metal': 1024, 'hpc6a.48xlarge': 384, 'c6a.24xlarge': 192
 }
 
 regions = ['us-east-1', 'us-east-2', 'us-west-2']
