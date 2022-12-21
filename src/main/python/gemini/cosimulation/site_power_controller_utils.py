@@ -18,8 +18,8 @@ class DefaultSPMC:
         self.taz_id = taz_id
         self.site_id = site_id
         self.site_prefix_logging = name + "[" + str(taz_id) + ":" + str(site_id) + "]. "
-        print2(self.site_prefix_logging + "Initializing the SPMCs...")
         self.spm_c = SPM_Control(time_step_mins=1, max_power_evse=[], min_power_evse=[])
+        print2(self.site_prefix_logging + "Initialized!")
 
     def log(self, log_message):
         logging.info(self.site_prefix_logging + log_message)
@@ -102,28 +102,33 @@ class RideHailSPMC:
     control_commands = []
     thread = Thread()
 
-    def __init__(self, name, taz_id, site_id, time_step, simulation_duration, output_directory):
+    def __init__(self, name, taz_id, site_id, events, time_step, simulation_duration, output_directory):
         self.taz_id = taz_id
         self.site_id = site_id
         self.site_prefix_logging = name + "[" + str(taz_id) + ":" + str(site_id) + "]. "
         self.time_step = time_step
+        num_plugs = int(events[0]['siteNumPlugs'])
+        site_power = float(events[0]['sitePowerInKW'])
+        plug_power = site_power/num_plugs
         # JULIUS: @HL I initialized my SPM Controller here
         # @ HL can you provide the missing information
         # TODO uncomment
-        initMpc = False
+        init_mpc = False
         t_start = int(0)
-        timestep_intervall = int(self.time_step)
+        timestep_interval = int(self.time_step)
         result_directory = output_directory
-        RideHailDepotId = site_id
-        ChBaMaxPower = []  # list of floats in kW for each plug, for first it should be the same maximum power
+        ride_hail_depot_id = site_id
+        # list of floats in kW for each plug, for first it should be the same maximum power
         # for all -> could set 10 000 kW if message contains data --> list with length of number
         # of plugs from infrastructure file?
-        ChBaParkingZoneId = []  # list of strings, could just be a list of empty strings as not further used so far
-        ChBaNum = len(ChBaMaxPower)  # number of plugs in one depot --> infrastructure file?
+        ch_ba_max_power = [plug_power] * num_plugs
+        # list of strings, could just be a list of empty strings as not further used so far
+        ch_ba_parking_zone_id = [site_id] * num_plugs
+        ch_ba_num = len(ch_ba_max_power)  # number of plugs in one depot --> infrastructure file?
         # only needed for MPC
-        path_BeamPredictionFile = ''  # path to a former run of the same simulation to obtain predicitions.
+        path_beam_prediction_file = ''  # path to a former run of the same simulation to obtain predictions.
         # the beam result file should be reduced before to only contain the relevant data
-        dtype_Predictions = {
+        dtype_predictions = {
             'time': 'int64', 'type': 'category', 'vehicle': 'int64', 'parkingTaz': 'category',
             'chargingPointType': 'category', 'primaryFuelLevel': 'float64', 'mode': 'category',
             'currentTourMode': 'category', 'vehicle_type': 'category', 'arrival_time': 'float64',
@@ -133,8 +138,9 @@ class RideHailSPMC:
         # maximum time up to which we simulate (for predicting in MPC)
         t_max = int(simulation_duration - self.time_step)
         self.depotController = components.GeminiWrapper.ControlWrapper(
-            initMpc, t_start, timestep_intervall, result_directory, RideHailDepotId, ChBaMaxPower,
-            ChBaParkingZoneId, ChBaNum, path_BeamPredictionFile, dtype_Predictions, t_max)
+            init_mpc, t_start, timestep_interval, result_directory, ride_hail_depot_id, ch_ba_max_power,
+            ch_ba_parking_zone_id, ch_ba_num, path_beam_prediction_file, dtype_predictions, t_max)
+        print2(self.site_prefix_logging + "Initialized!")
 
     def log(self, log_message):
         logging.info(self.site_prefix_logging + log_message)

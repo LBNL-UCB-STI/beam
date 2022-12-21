@@ -152,7 +152,8 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
             Map(
               "tazId"         -> station.zone.tazId,
               "siteId"        -> station.zone.parkingZoneId,
-              "sitePowerInKW" -> station.maxPlugPower * station.numPlugs
+              "sitePowerInKW" -> station.maxPlugPower * station.numPlugs,
+              "siteNumPlugs"  -> station.numPlugs
             )
           )
         } else {
@@ -164,6 +165,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
                 "tazId"                      -> stall.tazId,
                 "siteId"                     -> stall.parkingZoneId,
                 "sitePowerInKW"              -> station.maxPlugPower * station.numPlugs,
+                "siteNumPlugs"               -> station.numPlugs,
                 "vehicleId"                  -> vehicle.id,
                 "vehicleType"                -> vehicle.beamVehicleType.id,
                 "primaryFuelLevelInJoules"   -> vehicle.primaryFuelLevelInJoules,

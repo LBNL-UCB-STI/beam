@@ -15,7 +15,7 @@ library(hrbrthemes)
 workDir <- normalizePath("~/Workspace/Data/GEMINI")
 activitySimDir <- normalizePath("~/Workspace/Data/ACTIVITYSIM")
 
-source("~/Documents/Workspace/scripts/common/keys.R")
+source("~/Workspace/Models/scripts/common/keys.R")
 register_google(key = google_api_key_1)
 oaklandMap <- ggmap::get_googlemap("oakland california", zoom = 13, maptype = "roadmap")
 shpFile <- pp(workDir, "/shapefile/Oakland+Alameda+TAZ/Transportation_Analysis_Zones.shp")
@@ -24,9 +24,18 @@ oaklandCbg <- st_read(shpFile)
 
 ###
 #eventsraw <- readCsv(pp(workDir, "/0.events.csv.gz"))
-events1 <- readCsv(pp(workDir, "/2022-04-27-Calibration/events/filtered.0.events.5b4.csv.gz"))
-events2 <- readCsv(pp(workDir, "/2022-04-28/events/filtered.0.events.5bBase.csv.gz"))
-test <- events2[type=="RefuelSessionEvent"][time-duration == 0]
+events1 <- readCsv(pp(workDir, "/events/filtered.9.events.7Advanced.csv.gz"))
+events1_rf <- events1[type=="RefuelSessionEvent"]
+events1_rf[,.N,by=.(chargingPointType)]
+
+events2 <- readCsv(pp(workDir, "/events/filtered.0.events.6HighEV.csv.gz"))
+events2_rf <- events2[type=="RefuelSessionEvent"]
+events2_rf[,.N,by=.(chargingPointType)]
+
+eventsTest <- readCsv(pp(workDir, "/events/pev-siting.0.events.7Advanced.csv.gz"))
+eventsTest_rf <- eventsTest[type=="RefuelSessionEvent"]
+eventsTest_rf[,.N,by=.(chargingPointType)]
+
 
 infra <- readCsv(pp(workDir, "/2022-04/infrastructure/4a_output_2022_Apr_13_pubClust.csv"))
 infra[, c("GEOM", "locationX", "locationY") := tstrsplit(geometry, " ", fixed=TRUE)]

@@ -68,6 +68,15 @@ aggregateInfrastructure <- function(FULL_FILE_NAME) {
 
 aggregateInfrastructure(pp(infraDir, "/scen_7_infrastructure_withFees_noHousehold.csv"))
 
+######
+
+#####
+test7Advanced <- readCsv(pp(workDir,"/_models/nrel_infrastructure/scen_7_infrastructure_withFees_noHousehold_aggregated.csv"))
+test7Advanced[,.N,by=.(chargingPointType)]
+
+test6MidTerm <- readCsv(pp(workDir,"/_models/nrel_infrastructure/6_output_2022_Apr_13_pubClust_withFees_noHousehold_aggregated.csv"))
+test6MidTerm[,.N,by=.(chargingPointType)]
+
 
 ######
 
@@ -219,3 +228,8 @@ write.csv(
   file = pp(workDir, "/events-plus/FCS_planning_results/taz-parking_S80_P300_R250_F74k_Bis.csv"),
   row.names=FALSE,
   quote=FALSE)
+
+
+
+
+

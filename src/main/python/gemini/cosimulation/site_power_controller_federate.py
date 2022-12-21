@@ -55,11 +55,17 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_
             return ""
 
     # INIT
-    def init_spm_controllers(taz_id_str, site_id_str, time_step, sim_dur, output_directory):
-        if site_id_str not in default_spm_c_dict:
-            default_spm_c_dict[site_id_str] = DefaultSPMC("DefaultSPMC", taz_id_str, site_id_str)
-        if site_id_str not in ride_hail_spm_c_dict:
-            ride_hail_spm_c_dict[site_id_str] = RideHailSPMC("RideHailSPMC", taz_id_str, site_id_str, time_step, sim_dur, output_directory)
+    def init_spm_controllers(taz_id_str, site_id_str, events, time_step, sim_dur, output_dir):
+        if not site_id_str.lower().startswith(depot_prefix):
+            if site_id_str not in default_spm_c_dict:
+                default_spm_c_dict[site_id_str] = DefaultSPMC("DefaultSPMC", taz_id_str, site_id_str)
+                ride_hail_spm_c_dict[site_id_str] = RideHailSPMC(
+                    "RideHailSPMC", taz_id_str, site_id_str, events, time_step, sim_dur, output_dir
+                )
+        elif site_id_str not in ride_hail_spm_c_dict:
+            ride_hail_spm_c_dict[site_id_str] = RideHailSPMC(
+                "RideHailSPMC", taz_id_str, site_id_str, events, time_step, sim_dur, output_dir
+            )
 
     # RUN
     def run_multi_threaded_spm_controllers(site_id_str, current_t, received_charging_events):
@@ -94,7 +100,9 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_
             elif len(charging_events_json) > 0:
                 processed_side_ids = []
                 for (taz_id, site_id), charging_events in itertools.groupby(charging_events_json, key= lambda d: (d['tazId'], d['siteId'])):
-                    init_spm_controllers(taz_id, site_id, time_bin_in_seconds, simulated_day_in_seconds, output_directory)
+                    init_spm_controllers(taz_id, site_id, list(charging_events),
+                                         time_bin_in_seconds, simulated_day_in_seconds,
+                                         output_directory)
                     # Running SPM Controllers
                     filtered_charging_events = list(
                         filter(lambda charging_event: 'vehicleId' in charging_event, charging_events))

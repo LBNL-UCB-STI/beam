@@ -27,7 +27,7 @@ expFactor <- (6.015/0.6015)
 severity_order <- c("Public <1MW", "Public 1-5MW", "Public >5MW", "Ridehail Depot <1MW", "Ridehail Depot 1-5MW", "Ridehail Depot >5MW")
 extreme_lab_order <- c("<1MW", "1-5MW", ">5MW")
 
-dataDir <- normalizePath("~/Data/GEMINI/test")
+dataDir <- normalizePath("~/Workspace/Data/GEMINI/2022-07-05")
 #events <- readCsv(pp(dataDir, "/events/0.events.BASE.csv.gz"))
 #eventsDir <- paste(dataDir, "/events",sep="")
 resultsDir <- paste(dataDir, "/results",sep="")
@@ -74,7 +74,7 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 # scenarioNames <- c('5b1', '5b2')
 # scenarioNames <- c('5b3', '5b4', '5b5', '5b6', '5b7')
 
-scenarioNames <- c('BaseXFC', 'HighEV', 'Advanced')
+scenarioNames <- c('BaseXFC', 'HighEV', 'Advanced', 'MaxEV')
 #scenarioBaselineLabel <- 'BaseXFC'
 scenarioBaselineLabel <- 'BaseXFC'
 #all.loads <- all.loads[!is.na(loadType)]
@@ -168,7 +168,7 @@ ggsave(pp(plotsDir,'/baseline-ev-charging-loads-by-space-time.png'),p,width=16,h
 
 
 ## temp
-source("~/Documents/Workspace/scripts/common/keys.R")
+source("~/Workspace/Models/scripts/common/keys.R")
 register_google(key = google_api_key_1)
 oakland_map <- ggmap::get_googlemap("oakland california", zoom = 14, maptype = "roadmap")
 
