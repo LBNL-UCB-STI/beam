@@ -84,7 +84,7 @@ class BeamMobsim @Inject() (
   )
 
   override def run(): Unit = {
-    logger.info("Starting Iteration")
+    logger.info(s"Starting Iteration ${matsimServices.getIterationNumber}")
     startMeasuringIteration()
     logger.info("Preparing new Iteration (Start)")
     startMeasuring("iteration-preparation:mobsim")
@@ -192,7 +192,7 @@ class BeamMobsim @Inject() (
 
     Await.result(iteration ? "Run!", timeout.duration)
 
-    logger.info("Agentsim finished.")
+    logger.info(s"Agentsim finished. Iteration = ${matsimServices.getIterationNumber}.")
     eventsManager.finishProcessing()
     logger.info("Events drained.")
     stopMeasuring("agentsim-events:agentsim")
