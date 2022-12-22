@@ -109,12 +109,12 @@ class ChargingFunctions(
       inquiry.beamVehicle.forall {
         case vehicle
             if !vehicle.isRideHail && (isHomeWorkOrOvernight(inquiry) || hasLongParkingDurationButNotCharge(inquiry)) =>
-          !ChargingPointType.isFastCharger(chargingPointType) && zone.link.forall(link =>
+          !ChargingPointType.isFastCharger(chargingPointType) /*&& zone.link.forall(link =>
             GeoUtils.minkowskiDistFormula(
               link.getCoord,
               inquiry.destinationUtm.loc
             ) <= chargingConfig.maxDistanceFromHome
-          )
+          )*/
         case _ => true
       }
     )

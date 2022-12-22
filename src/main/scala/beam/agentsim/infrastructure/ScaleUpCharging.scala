@@ -6,6 +6,7 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ChargingNetworkManager._
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.{DestinationCharging, EnRouteCharging}
 import beam.agentsim.infrastructure.ParkingInquiry.{activityTypeStringToEnum, ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -290,12 +291,15 @@ trait ScaleUpCharging extends {
     * @param stall   ParkingStall
     */
   protected def collectChargingRequests(inquiry: ParkingInquiry, stall: ParkingStall): Unit = {
-    if (cnmConfig.scaleUp.enabled && inquiry.beamVehicle.exists(v => !isVirtualCar(v.id))) {
+    val scaleUp = cnmConfig.scaleUp.enabled
+    val isNotVirtual = inquiry.beamVehicle.exists(v => !isVirtualCar(v.id))
+    val isReservation = inquiry.reserveStall
+    val isChargingRequest = List(DestinationCharging, EnRouteCharging).contains(inquiry.searchMode)
+    val isChargingStall = stall.chargingPointType.isDefined
+    if (scaleUp && isNotVirtual && isReservation && isChargingRequest && isChargingStall) {
       val vehicle = inquiry.beamVehicle.get
-      val vehicleAlias =
-        if (vehicle.isRideHail) ScaleUpCharging.RIDE_HAIL
-        else if (vehicle.isSharedVehicle) ScaleUpCharging.SHARED
-        else ScaleUpCharging.PERSONAL
+      import ScaleUpCharging.{PERSONAL, RIDE_HAIL, SHARED}
+      val vehicleAlias = if (vehicle.isRideHail) RIDE_HAIL else if (vehicle.isSharedVehicle) SHARED else PERSONAL
       val reservedFor = if (vehicle.isRideHailCAV) {
         VehicleManager
           .getReservedFor(vehicle.vehicleManagerId.get())
