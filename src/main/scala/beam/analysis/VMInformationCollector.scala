@@ -1,8 +1,8 @@
 package beam.analysis
 
 import java.io.IOException
-
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
+import beam.sim.config.BeamConfig
 import beam.utils.csv.CsvWriter
 import beam.utils.{VMClassInfo, VMUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -16,8 +16,11 @@ import org.matsim.core.controler.listener.IterationEndsListener
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
-class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val takeTopClasses: Int = 10)
-    extends LazyLogging
+class VMInformationCollector(
+  beamConfig: BeamConfig,
+  val controllerIO: OutputDirectoryHierarchy,
+  val takeTopClasses: Int = 10
+) extends LazyLogging
     with IterationEndsListener {
 
   val bytesInGb: Double = 1024.0 * 1024.0 * 1024.0
@@ -48,8 +51,7 @@ class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val tak
     }
   }
 
-  def writeHeapDump(iteration: Int, suffix: String): Unit = {
-    val vmInfoCollector = VMUtils()
+  def writeHeapDump(vmInfoCollector: VMUtils, iteration: Int, suffix: String): Unit = {
     val filePath = controllerIO.getIterationFilename(iteration, s"heapDump.$suffix.hprof")
     try {
       vmInfoCollector.dumpHeap(filePath, live = false)
@@ -135,19 +137,27 @@ class VMInformationCollector(val controllerIO: OutputDirectoryHierarchy, val tak
   }
 
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
-    val vmInfoCollector = VMUtils()
-    val classes = vmInfoCollector.gcClassHistogram(takeTopClasses)
+    val createGCClassHistogram = beamConfig.beam.debug.vmInformation.createGCClassHistogram
+    val writeHeapDumpFlag = beamConfig.beam.debug.vmInformation.writeHeapDump
+    if (createGCClassHistogram || writeHeapDumpFlag) {
+      val vmInfoCollector = VMUtils()
+      vmInfoCollector.gcRun()
+      if (writeHeapDumpFlag) {
+        writeHeapDump(vmInfoCollector, event.getIteration, beamConfig.beam.agentsim.simulationName)
+      }
+      val classes = vmInfoCollector.gcClassHistogram(takeTopClasses)
 
-    analyzeVMClassHystogram(classes, event.getIteration)
-    val typeSizeOnHeap = classNameToBytesPerIteration.map { case (className, values) =>
-      (className, values.map(_ / bytesInGb))
-    }.toVector
+      analyzeVMClassHystogram(classes, event.getIteration)
+      val typeSizeOnHeap = classNameToBytesPerIteration.map { case (className, values) =>
+        (className, values.map(_ / bytesInGb))
+      }.toVector
 
-    val csvFilePath = controllerIO.getOutputFilename(s"$baseNumberOfMBytesOfClassOnHeapFileName.csv.gz")
-    writeHeapClassesInformation(typeSizeOnHeap, csvFilePath)
+      val csvFilePath = controllerIO.getOutputFilename(s"$baseNumberOfMBytesOfClassOnHeapFileName.csv.gz")
+      writeHeapClassesInformation(typeSizeOnHeap, csvFilePath)
 
-    val pngFilePath = controllerIO.getOutputFilename(s"$baseNumberOfMBytesOfClassOnHeapFileName.png")
-    val typeSizeOnHeapDataSet = createTypeSizeOnHeapDataset(typeSizeOnHeap)
-    createTypeSizeOnHeapGraph(pngFilePath, typeSizeOnHeapDataSet)
+      val pngFilePath = controllerIO.getOutputFilename(s"$baseNumberOfMBytesOfClassOnHeapFileName.png")
+      val typeSizeOnHeapDataSet = createTypeSizeOnHeapDataset(typeSizeOnHeap)
+      createTypeSizeOnHeapGraph(pngFilePath, typeSizeOnHeapDataSet)
+    }
   }
 }
