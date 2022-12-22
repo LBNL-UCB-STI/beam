@@ -22,7 +22,7 @@ class ChargingFunctions(
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   parkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking,
-  chargingConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager,
+  //chargingConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager,
   boundingBox: Envelope,
   seed: Int,
   skims: Option[Skims],
