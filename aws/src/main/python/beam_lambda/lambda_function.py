@@ -44,7 +44,7 @@ S3_PUBLISH_SCRIPT = '''
   -       sudo gzip /home/ubuntu/cpu_ram_usage.csv
   -       sudo cp /home/ubuntu/cpu_ram_usage* "$finalPath"
 
-  -       cosimulationLogPath = "/home/ubuntu/git/beam/src/main/python/gemini/cosimulation"
+  -       cosimulationLogPath="/home/ubuntu/git/beam/src/main/python/gemini/cosimulation"
   -       cosimulationOutPath="${finalPath}/cosimulation_output"
   -       mkdir "$cosimulationOutPath"
   -       for f in $(find "$cosimulationLogPath/" -iname '*.log' -o -iname '*.txt'); do 
