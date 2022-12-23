@@ -1,10 +1,9 @@
 package beam.physsim.jdeqsim
 
 import java.util.concurrent.{ExecutorService, Executors, LinkedBlockingQueue, TimeUnit}
-
 import beam.agentsim.events.handling._
 import beam.analysis.via.EventWriterXML_viaCompatible
-import beam.physsim.jdeqsim.PhysSimEventWriter.CommonEventWriter
+import beam.physsim.jdeqsim.PhysSimEventWriter.{delayShutdownListener, CommonEventWriter}
 import beam.sim.BeamServices
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.scalalogging.LazyLogging
@@ -21,7 +20,6 @@ import scala.util.Try
 
 class PhysSimEventWriter(writers: Array[CommonEventWriter], itNum: Int)
     extends BasicEventHandler
-    with ShutdownListener
     with EventWriter
     with LazyLogging {
 
@@ -74,14 +72,7 @@ class PhysSimEventWriter(writers: Array[CommonEventWriter], itNum: Int)
     eventQueue.put(event)
   }
 
-  override def notifyShutdown(event: ShutdownEvent): Unit = {
-    logger.debug(s"Iteration $itNum notified about beam shutdown")
-    if (!writerExecutor.isShutdown) {
-      logger.debug(s"Iteration $itNum executor is still running")
-      writerExecutor.awaitTermination(5, TimeUnit.HOURS)
-      logger.debug(s"executor $itNum is terminated")
-    }
-  }
+  def getShutdownListener: ShutdownListener = delayShutdownListener(writerExecutor)
 }
 
 object PhysSimEventWriter extends LazyLogging {
@@ -125,6 +116,12 @@ object PhysSimEventWriter extends LazyLogging {
       case BeamEventsFileFormats.CSV | BeamEventsFileFormats.CSV_GZ =>
         new BeamEventsWriterCSV(path, beamEventLogger, beamServices, null)
       case x => throw new NotImplementedError(s"There is no writer for the file format $x")
+    }
+  }
+
+  def delayShutdownListener(executor: ExecutorService): ShutdownListener = (_: ShutdownEvent) => {
+    if (!executor.isShutdown) {
+      executor.awaitTermination(5, TimeUnit.HOURS)
     }
   }
 }

@@ -96,8 +96,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private final Random rand = MatsimRandom.getRandom();
     private final boolean agentSimPhysSimInterfaceDebuggerEnabled;
 
-    private final List<CompletableFuture> completableFutures = new ArrayList<>();
-
     final Map<String, Boolean> caccVehiclesMap = new TreeMap<>();
     private final Map<Integer, Mean> binSpeed = new HashMap<>();
 
@@ -276,6 +274,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         router.tell(new BeamRouter.UpdateTravelTimeLocal(travelTimeForR5), ActorRef.noSender());
 
+        List<CompletableFuture<Void>> completableFutures = new ArrayList<>();
         completableFutures.add(CompletableFuture.runAsync(() -> linkSpeedStatsGraph.notifyIterationEnds(iterationNumber, travelTimeFromPhysSim)));
 
         completableFutures.add(CompletableFuture.runAsync(() -> linkSpeedDistributionStatsGraph.notifyIterationEnds(iterationNumber, travelTimeFromPhysSim)));
@@ -332,7 +331,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private void writePhyssimPlans(IterationEndsEvent event) {
         if (shouldWritePlans(event.getIteration())) {
             final String plansFilename = controlerIO.getIterationFilename(event.getIteration(), "physsimPlans.xml.gz");
-            completableFutures.add(CompletableFuture.runAsync(() -> new PopulationWriter(jdeqsimPopulation).write(plansFilename)));
+            CompletableFuture.runAsync(() -> new PopulationWriter(jdeqsimPopulation).write(plansFilename));
         }
     }
 
