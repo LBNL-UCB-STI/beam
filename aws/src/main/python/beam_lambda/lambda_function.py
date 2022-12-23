@@ -289,7 +289,6 @@ runcmd:
   -   echo $health_metrics
   -   sudo aws --region $S3_REGION s3 cp $simulation_health_analysis_output_file s3://beam-outputs/$finalPath/$simulation_health_analysis_output_file
 
-  -   curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@$simulation_health_analysis_output_file -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
   -   s3glip=""
   -   if [ "$S3_PUBLISH" = "True" ]
   -   then
