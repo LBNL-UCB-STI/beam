@@ -180,6 +180,20 @@ Automated Cloud Deployment
 BEAM run on EC2
 ~~~~~~~~~~~~~~~
 
+Before running BEAM in the cloud one needs to be sure git is configured locally.
+For the cloud deploy we use git user email as an additional part of a simulation name.
+If the user email is not configured, then 'GitUserEmailNotFound' will be added to the simulation name instead.
+To check that email is configured:
+
+    git config user.email
+
+To set user email:
+
+    git config user.email "your_email@abc.example"
+
+
+
+
 To run a BEAM simulation or experiment on amazon ec2, use following command with some optional parameters::
 
   ./gradlew deploy -P[beamConfigs | beamExperiments]=config-or-experiment-file
@@ -339,13 +353,13 @@ Below is syntax to use the command::
 
 
 Running Jupyter Notebook locally and remotely (EC2)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are 3 options to run Jupyter Notebook via Gradle task.
 
 1. Locally - Jupyter Notebook will be run on the local machine via Docker. To start it use command::
 
-  ./gradlew jupyterStart
+    ./gradlew jupyterStart
 
 There are some additional parameters that can control how Jupyter is started:
 
