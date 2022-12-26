@@ -183,15 +183,15 @@ BEAM run on EC2
 Before running BEAM in the cloud one needs to be sure git is configured locally.
 For the cloud deploy we use git user email as an additional part of a simulation name.
 If the user email is not configured, then 'GitUserEmailNotFound' will be added to the simulation name instead.
+
+
 To check that email is configured:
 
-    git config user.email
+  git config user.email
 
 To set user email:
 
-    git config user.email "your_email@abc.example"
-
-
+  git config user.email "your_email@abc.example"
 
 
 To run a BEAM simulation or experiment on amazon ec2, use following command with some optional parameters::
