@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
+# In[1]:
 
 
 import pandas as pd
@@ -14,7 +14,7 @@ pd.set_option('display.width', 1000)
 pd.set_option('max_colwidth', None)
 
 
-# In[ ]:
+# In[2]:
 
 
 ## reading exported csv
@@ -38,7 +38,7 @@ print(f"following data periods are included: {sorted(data['Month Period'].unique
 data.head(3)
 
 
-# In[ ]:
+# In[3]:
 
 
 ## getting data frame with each row as one simulation
@@ -71,7 +71,7 @@ df['duration_hours'] = (df['Time Stop'] - df['Time Start']).astype('timedelta64[
 df.head(3)
 
 
-# In[ ]:
+# In[4]:
 
 
 ## calculating a price in USD of each simulation
@@ -131,7 +131,7 @@ print_total_info()
 df.head(3)
 
 
-# In[ ]:
+# In[5]:
 
 
 ## applying 'project' to the list of simulations based on simulation name and|or git branch name
@@ -175,7 +175,7 @@ df["project"] = df.apply(get_project, axis=1)
 df.head(2)
 
 
-# In[ ]:
+# In[6]:
 
 
 ### processing simulations in unknown state, i.e. with 'Run Started' status
@@ -228,7 +228,14 @@ print_total_info()
 df_grouped[selected_columns]
 
 
-# In[ ]:
+# In[10]:
+
+
+print_total_info()
+df_grouped[["project","Fraction of total cost"]]
+
+
+# In[7]:
 
 
 df_grouped_by_instance = df.groupby('Instance type').agg(list).reset_index()
