@@ -11,6 +11,7 @@ import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode._
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneId
 import beam.agentsim.infrastructure.power.SitePowerManager
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -74,7 +75,7 @@ class ChargingNetworkManager(
   protected val chargingNetworkHelper: ChargingNetworkHelper = ChargingNetworkHelper(chargingNetwork, rideHailNetwork)
   protected val sitePowerManager = new SitePowerManager(chargingNetworkHelper, beamServices)
   protected var totalHome = 0
-  protected var totalHomeWithCharger = 0
+  protected var totalHomeL1WithCharger = 0
 
   override def postStop(): Unit = {
     maybeDebugReport.foreach(_.cancel())
@@ -106,16 +107,18 @@ class ChargingNetworkManager(
       val response = chargingNetwork.processParkingInquiry(inquiry)
       if (inquiry.activityType.toLowerCase.contains("home")) {
         totalHome = totalHome + 1
-        if (response.stall.chargingPointType.nonEmpty)
-          totalHomeWithCharger = totalHomeWithCharger + 1
+        if (response.stall.chargingPointType.map(ChargingPointType.getChargingPointInstalledPowerInKw).exists(_ < 2))
+          totalHomeL1WithCharger = totalHomeL1WithCharger + 1
       }
+      val fractionHomeCharger: Double = if (totalHome > 0) totalHomeL1WithCharger / totalHome else 0.0
+
       log.info(
         s"parking inquiry, " +
         s"activity: ${inquiry.activityType}, " +
         s"parking activity: ${inquiry.parkingActivityType.toString}, " +
         s"charging stall: ${response.stall.chargingPointType.isDefined}, " +
         s"totalHome: $totalHome," +
-        s"totalHomeWithCharger: $totalHomeWithCharger ($totalHomeWithCharger/$totalHome)"
+        s"totalHomeL1WithCharger: $totalHomeL1WithCharger ($fractionHomeCharger)"
       )
       collectChargingRequests(inquiry, response.stall)
       sender() ! response
