@@ -212,6 +212,22 @@ Steps to add a new configuration :
 
 To add a configuration for a different scenario , follow the above steps and change the folder path to point to the required scenario in program arguments
 
+**Running BEAM unit test from IDE**
+
+BEAM unit test requires some arguments to be specified and the configuration setting can be added as a run configuration inside the IDE.
+
+Steps to add a new configuration :
+
+* Go to Run > Edit Configurations
+* Click Edit configuration templates... and select "ScalaTest"
+* Fill in the following values
+  * Environment Variables : PWD=$PROJECT_DIR$
+  * Shorten command line : JAR manifest
+* Click Ok to save the configuration.
+
+.. image:: _static/figs/scala_test_configuration.png
+
+
 BEAM in Docker image
 ^^^^^^^^^^^^^^^^^^^^
 

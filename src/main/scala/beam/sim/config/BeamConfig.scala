@@ -2782,14 +2782,17 @@ object BeamConfig {
       }
 
       case class VmInformation(
-        createGCClassHistogram: scala.Boolean
+        createGCClassHistogram: scala.Boolean,
+        writeHeapDump: scala.Boolean
       )
 
       object VmInformation {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Debug.VmInformation = {
           BeamConfig.Beam.Debug.VmInformation(
-            createGCClassHistogram = c.hasPathOrNull("createGCClassHistogram") && c.getBoolean("createGCClassHistogram")
+            createGCClassHistogram =
+              c.hasPathOrNull("createGCClassHistogram") && c.getBoolean("createGCClassHistogram"),
+            writeHeapDump = c.hasPathOrNull("writeHeapDump") && c.getBoolean("writeHeapDump")
           )
         }
       }
