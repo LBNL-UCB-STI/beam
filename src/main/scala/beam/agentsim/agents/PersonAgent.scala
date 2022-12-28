@@ -1078,6 +1078,7 @@ class PersonAgent(
       // Declaring a function here because this case is already so convoluted that I require a return
       // statement from within.
       // TODO: Refactor.
+
       def nextState: FSM.State[BeamAgentState, PersonData] = {
         val currentVehicleForNextState =
           if (currentVehicle.isEmpty || currentVehicle.head != nextLeg.beamVehicleId) {
@@ -1101,6 +1102,8 @@ class PersonAgent(
           }
         val legsToInclude = nextLeg +: restOfCurrentTrip.takeWhile(_.beamVehicleId == nextLeg.beamVehicleId)
         val newPassengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg))
+
+
 
         // Enroute block
         // calculate whether enroute charging required or not.
@@ -1131,8 +1134,20 @@ class PersonAgent(
         } else {
           false
         }
+        val isSharedVehicle = vehicle.isSharedVehicle
+
 
         def sendCompletionNoticeAndScheduleStartLegTrigger(): Unit = {
+          val tick = _currentTick.get
+          val triggerId = _currentTriggerId.get
+          scheduler ! CompletionNotice(
+            triggerId,
+            if (nextLeg.beamLeg.endTime > lastTickOfSimulation) Vector.empty
+            else Vector(ScheduleTrigger(StartLegTrigger(tick, nextLeg.beamLeg), self))
+          )
+        }
+
+        if (isSharedVehicle) {
           val tick = _currentTick.get
           val triggerId = _currentTriggerId.get
           scheduler ! CompletionNotice(
