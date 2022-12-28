@@ -10,6 +10,8 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.auth.oauth2.IdTokenCredentials;
 import com.google.auth.oauth2.IdTokenProvider;
 
+apply from: "$rootDir/aws/build.gradle"
+
 group = 'beam'
 version = '0.8.0'
 
@@ -83,23 +85,4 @@ static HttpResponse makeJsonPostRequest(String functionUrl, String requestBody) 
     HttpContent requestContent = ByteArrayContent.fromString("application/json", requestBody)
     HttpRequest request = transport.createRequestFactory(adapter).buildPostRequest(genericUrl, requestContent);
     return request.execute();
-}
-
-def getCurrentGitUserEmail() {
-    def rawGitUserEmail = getGitResultFromWorkingDirUsing('git config user.email', "GitUserEmailNotFound")
-    return rawGitUserEmail
-}
-
-def getGitResultFromWorkingDirUsing(command, defaultResult) {
-    def gitResult = defaultResult
-    try {
-        def workingDir = new File("${project.projectDir}")
-        def result = command.execute(null, workingDir)
-        result.waitFor()
-        if (result.exitValue() == 0) {
-            gitResult = result.text.trim()
-        }
-    } catch (ignored) {
-    }
-    return gitResult
 }

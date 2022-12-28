@@ -2,8 +2,8 @@
 
 INSTANCE_ID=$(curl http://metadata/computeMetadata/v1/instance/id -H "Metadata-Flavor: Google")
 INSTANCE_NAME=$(curl http://metadata/computeMetadata/v1/instance/name -H "Metadata-Flavor: Google")
-INSTANCE_ZONE=$(curl http://metadata/computeMetadata/v1/instance/zone -H "Metadata-Flavor: Google")
-MACHINE_TYPE=$(curl http://metadata/computeMetadata/v1/instance/machine-type -H "Metadata-Flavor: Google")
+INSTANCE_ZONE=$(basename "$(curl http://metadata/computeMetadata/v1/instance/zone -H 'Metadata-Flavor: Google')")
+MACHINE_TYPE=$(basename "$(curl http://metadata/computeMetadata/v1/instance/machine-type -H 'Metadata-Flavor: Google')")
 HOST_NAME=$(curl http://metadata/computeMetadata/v1/instance/hostname -H "Metadata-Flavor: Google")
 RUN_NAME=$(curl http://metadata/computeMetadata/v1/instance/attributes/run_name -H "Metadata-Flavor: Google")
 BEAM_CONFIG=$(curl http://metadata/computeMetadata/v1/instance/attributes/beam_config -H "Metadata-Flavor: Google")
@@ -73,9 +73,9 @@ Run Started
 Run Name **$RUN_NAME**
 Instance name $INSTANCE_NAME
 Instance id $INSTANCE_ID
-Instance type **$(basename "$MACHINE_TYPE")**
+Instance type **$MACHINE_TYPE**
 Host name **$HOST_NAME**
-Zone $(basename "$INSTANCE_ZONE")
+Zone $INSTANCE_ZONE
 Batch $BATCH_UID
 Branch **$BEAM_BRANCH**
 Commit $BEAM_COMMIT
@@ -83,6 +83,37 @@ EOF
 )
 echo "$hello_msg"
 curl -X POST -H 'Content-type: application/json' --data '{"text":"'"$hello_msg"'"}' "$SLACK_HOOK_WITH_TOKEN"
+
+# spreadsheet data
+start_json=$(cat <<EOF
+{
+  "command":"add",
+  "type":"beam",
+  "run":{
+    "status":"Run Started",
+    "name":"$RUN_NAME",
+    "instance_id":"$INSTANCE_NAME",
+    "instance_type":"$MACHINE_TYPE",
+    "host_name":"$HOST_NAME",
+    "browser":"http://$HOST_NAME:8000",
+    "branch":"$BEAM_BRANCH",
+    "commit":"$RESOLVED_COMMIT",
+    "data_branch":"$DATA_BRANCH",
+    "data_commit":"$RESOLVED_DATA_COMMIT",
+    "region":"$INSTANCE_ZONE",
+    "batch":"$BATCH_UID",
+    "s3_link":"",
+    "max_ram":"$MAX_RAM",
+    "profiler_type":"",
+    "config_file":"$BEAM_CONFIG",
+    "sigopt_client_id":"",
+    "sigopt_dev_id":""
+  }
+}
+EOF
+)
+echo "$start_json"
+curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
 
 
 #building beam
@@ -93,13 +124,14 @@ export GOOGLE_API_KEY="$GOOGLE_API_KEY"
 
 # copy to bucket
 storage_url=""
-if [ "${STORAGE_PUBLISH,,}" != "false" ]; then
-  finalPath=""
-  for file in "output"/*; do
-    for path2 in "$file"/*; do
-      finalPath="$path2";
-    done;
+finalPath=""
+for file in "output"/*; do
+  for path2 in "$file"/*; do
+    finalPath="$path2";
   done;
+done;
+
+if [ "${STORAGE_PUBLISH,,}" != "false" ]; then
 
   if [ -d "$finalPath" ]; then
     ln -sf ~/cloud-init-output.log "$finalPath"/cloud-init-output.log
@@ -116,29 +148,85 @@ if [ "${STORAGE_PUBLISH,,}" != "false" ]; then
 fi
 
 #Run and publish analysis
-echo "-------------------running Health Analysis Script----------------------"
-python3 src/main/python/general_analysis/simulation_health_analysis.py
-curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@RunHealthAnalysis.txt -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
+health_metrics=""
+if [ -d "$finalPath" ]; then
+    echo "-------------------running Health Analysis Script----------------------"
+    simulation_health_analysis_output_file="simulation_health_analysis_result.txt"
+    python3 src/main/python/general_analysis/simulation_health_analysis.py $simulation_health_analysis_output_file
+    # load analysis results into variables
+    while IFS="," read -r metric count
+    do
+      export "$metric"="$count"
+      health_metrics="$health_metrics, $metric:$count"
+    done < $simulation_health_analysis_output_file
+    health_metrics="{$(echo "$health_metrics" | cut -c3-)}"
+    echo "$health_metrics"
+    if [ "${STORAGE_PUBLISH,,}" != "false" ]; then
+      gsutil cp "$simulation_health_analysis_output_file" "gs://beam-core-outputs/$finalPath/$simulation_health_analysis_output_file"
+    fi
+    curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@$simulation_health_analysis_output_file -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
+fi
 
 #Slack message
 final_status=$(check_simulation_result)
 bye_msg=$(cat <<EOF
 Run Completed
-Run Name** $RUN_NAME**
+Run Name **$RUN_NAME**
 Instance ID $INSTANCE_ID
-Instance type **$(basename "$MACHINE_TYPE")**
+Instance type **$MACHINE_TYPE**
 Host name **$HOST_NAME**
 Zone $INSTANCE_ZONE
 Batch $BATCH_UID
 Branch **$BEAM_BRANCH**
 Commit $BEAM_COMMIT
 Status $final_status
+Health Metrics $health_metrics
 Output $storage_url
 Shutdown in $SHUTDOWN_WAIT minutes
 EOF
 )
 echo "$bye_msg"
 curl -X POST -H 'Content-type: application/json' --data '{"text":"'"$bye_msg"'"}' "$SLACK_HOOK_WITH_TOKEN"
+
+# spreadsheet data
+stop_json=$(cat <<EOF
+{
+  "command":"add",
+  "type":"beam",
+  "run":{
+    "status":"$final_status",
+    "name":"$RUN_NAME",
+    "instance_id":"$INSTANCE_NAME",
+    "instance_type":"$MACHINE_TYPE",
+    "host_name":"$HOST_NAME",
+    "browser":"http://$HOST_NAME:8000",
+    "branch":"$BEAM_BRANCH",
+    "commit":"$RESOLVED_COMMIT",
+    "data_branch":"$DATA_BRANCH",
+    "data_commit":"$RESOLVED_DATA_COMMIT",
+    "region":"$INSTANCE_ZONE",
+    "batch":"$BATCH_UID",
+    "s3_link":"$storage_url",
+    "max_ram":"$MAX_RAM",
+    "profiler_type":"",
+    "config_file":"$BEAM_CONFIG",
+    "stacktrace":"$stacktrace",
+    "died_actors":"$actorDied",
+    "error":"$error",
+    "warning":"$warn",
+    "sigopt_client_id":"",
+    "sigopt_dev_id":""
+  }
+}
+EOF
+)
+echo "$stop_json"
+curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$stop_json"
+
+# uploading cloud-init-output.log again to have the latest output
+if [ -d "$finalPath" ] && [ "${STORAGE_PUBLISH,,}" != "false" ]; then
+  gsutil cp "$finalPath/cloud-init-output.log" "gs://beam-core-outputs/$finalPath/cloud-init-output.log"
+fi
 
 #shutdown instance
 sudo shutdown -h +"$SHUTDOWN_WAIT"
