@@ -293,7 +293,6 @@ def buildS3ListPayload() {
 }
 
 
-
 def checkInstanceId() {
     if (!project.hasProperty('instanceIds')) {
         throw new GradleException('Please specify instance ids using argument `instanceIds`.')
@@ -320,8 +319,28 @@ def getCurrentGitBranch() {
 }
 
 def getCurrentGitUserEmail() {
-    def rawGitUserEmail = getGitResultFromWorkingDirUsing('git config user.email', "GitUserEmailNotFound")
+    def defaultEmail = "GitUserEmailNotFound"
+    def rawGitUserEmail = getGitResultFromWorkingDirUsing('git config user.email', defaultEmail)
+    if (rawGitUserEmail == defaultEmail) {
+        def warningText = """
+            |\tGit user email is not configured for current git project.
+            |\tFor the cloud deploy we use git user email as an additional part of a simulation name.
+            |\tIf the user email is not configured, then '${defaultEmail}' will be added to the simulation name instead.
+            |\t
+            |\tTo check that email is configured:
+            |\t\tgit config user.email
+            |\t
+            |\tTo set user email:
+            |\t\tgit config user.email "your_email@abc.example"
+            |\t
+            |""".stripMargin()
+        println(warningText)
+    }
     return rawGitUserEmail.replaceAll('@', "AT").replaceAll("\\.", "_")
+}
+
+task PrintCurrentGitUserEmail() {
+    println("Current git user email is: ${getCurrentGitUserEmail()}")
 }
 
 def getGitResultFromWorkingDirUsing(command, defaultResult) {

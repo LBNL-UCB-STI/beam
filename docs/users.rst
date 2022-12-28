@@ -314,7 +314,7 @@ To get started, we will focus your attention on a few of the most commonly used 
     initialization.procedural.fractionOfInitialVehicleFleet=0.05
     defaultCostPerMile=1.25
     defaultCostPerMinute=0.75
-}]
+    }]
   # Scaling and Tuning Params; 1.0 results in no scaling
   beam.agentsim.tuning.transitCapacity = 0.2
   beam.agentsim.tuning.transitPrice = 1.0
@@ -701,10 +701,10 @@ A warm start can be controlled through the following config file parameters::
 Each parameter is defined below:
 
 - `beam.warmStart.type`: This parameter controls the type of warm start, with the possibilities being:
- - **disabled** - completely disable warm start
- - **full** - load all the data from the supplied files for initializing warm start (scenario, skims and linkstats)
- - **linkStatsOnly** - only load link stats data with the rest of the data retrieved from the input directory
- - **linkStatsFromLastRun** - only link stats is loaded from beam.input.lastBaseOutputDir directory
+     - **disabled** - completely disable warm start
+     - **full** - load all the data from the supplied files for initializing warm start (scenario, skims and linkstats)
+     - **linkStatsOnly** - only load link stats data with the rest of the data retrieved from the input directory
+     - **linkStatsFromLastRun** - only link stats is loaded from beam.input.lastBaseOutputDir directory
 
 - `beam.warmStart.path`: This parameter is the path where warm start archive is located. It can be the path of a zip file on s3 or local directory
 
