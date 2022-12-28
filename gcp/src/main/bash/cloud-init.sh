@@ -24,6 +24,7 @@ function check_simulation_result() {
   log_file="$(find output -maxdepth 2 -mindepth 2 -type d -print -quit)/beamLog.out"
   if [[ ! -f $log_file ]]; then
       echo "Unable to start"
+      return
   fi
   last_line=$(tail $log_file -n 1)
   if [[ $last_line == *"Exiting BEAM"* ]]; then
@@ -125,6 +126,7 @@ export GOOGLE_API_KEY="$GOOGLE_API_KEY"
 # copy to bucket
 storage_url=""
 finalPath=""
+cloud_init_output_path=""
 for file in "output"/*; do
   for path2 in "$file"/*; do
     finalPath="$path2";
@@ -133,18 +135,17 @@ done;
 
 if [ "${STORAGE_PUBLISH,,}" != "false" ]; then
 
-  if [ -d "$finalPath" ]; then
-    ln -sf ~/cloud-init-output.log "$finalPath"/cloud-init-output.log
+  if [ -d "$finalPath" ]; then #beam started;
+    # upload everything to the storage
+    cloud_init_output_path="$finalPath/cloud-init-output.log"
     storage_url="https://console.cloud.google.com/storage/browser/beam-core-outputs/$finalPath"
-  else
-    log_dir="output/cloud-init-logs"
-    mkdir -p "$log_dir"
+    gsutil -m cp -r "$finalPath" "gs://beam-core-outputs/$finalPath"
+  else # beam not started
+    # upload the cloud-init-output.log to the storage (at the end of script)
     cloud_init_name=$(echo "$(date '+%Y-%m-%d_%H-%M-%S')__${BEAM_CONFIG}__cloud-init-output.log" | tr '/' '_' )
-    finalPath="$log_dir/$cloud_init_name"
-    ln -sf ~/cloud-init-output.log "$finalPath"
-    storage_url="https://console.cloud.google.com/storage/browser/_details/beam-core-outputs/$finalPath"
+    cloud_init_output_path="output/cloud-init-logs/$cloud_init_name"
+    storage_url="https://console.cloud.google.com/storage/browser/_details/beam-core-outputs/$cloud_init_output_path"
   fi
-  gsutil -m cp -r "$finalPath" "gs://beam-core-outputs/$finalPath"
 fi
 
 #Run and publish analysis
@@ -224,8 +225,8 @@ echo "$stop_json"
 curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$stop_json"
 
 # uploading cloud-init-output.log again to have the latest output
-if [ -d "$finalPath" ] && [ "${STORAGE_PUBLISH,,}" != "false" ]; then
-  gsutil cp "$finalPath/cloud-init-output.log" "gs://beam-core-outputs/$finalPath/cloud-init-output.log"
+if [ "${STORAGE_PUBLISH,,}" != "false" ]; then
+  gsutil cp ~/cloud-init-output.log "gs://beam-core-outputs/$cloud_init_output_path"
 fi
 
 #shutdown instance
