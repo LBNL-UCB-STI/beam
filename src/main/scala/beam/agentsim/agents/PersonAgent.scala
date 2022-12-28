@@ -967,6 +967,10 @@ class PersonAgent(
     case Event(Boarded(vehicle, _), _: BasePersonData) =>
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
       potentiallyChargingBeamVehicles.remove(vehicle.id)
+      // allowing shared bike to be used by multiple agents at the same time
+      if (vehicle.beamVehicleType.vehicleCategory == Bike) {
+        vehicle.unsetDriver()
+      }
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable(_), basePersonData: BasePersonData) =>
       log.debug("{} replanning because vehicle not available when trying to board")
@@ -974,6 +978,12 @@ class PersonAgent(
       eventsManager.processEvent(
         new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
       )
+      // allowing shared bike to be used by multiple agents at the same time
+      if (basePersonData.currentVehicle.exists(_.toString.contains("shared"))) {
+        goto(ProcessingNextLegOrStartActivity)
+      } else {
+        goto(ChoosingMode)
+      }
       val currentCoord =
         beamServices.geo.wgs2Utm(basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
       val nextCoord = nextActivity(basePersonData).get.getCoord
