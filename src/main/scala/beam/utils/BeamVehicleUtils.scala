@@ -122,7 +122,6 @@ object BeamVehicleUtils {
         z += ((vehicleTypeId, bvt))
     }.toMap
   }
-  // I want to make shared vehicle to be able to take several passengers
 
   def readBeamVehicleTypeFile(beamConfig: BeamConfig): Map[Id[BeamVehicleType], BeamVehicleType] = {
     val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
