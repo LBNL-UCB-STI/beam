@@ -51,7 +51,6 @@ import scala.language.postfixOps
   */
 object DrivesVehicle {
 
-
   def resolvePassengerScheduleConflicts(
     stopTick: Int,
     oldPassengerSchedule: PassengerSchedule,
@@ -953,7 +952,3 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   }
 
 }
-
-
-
-
