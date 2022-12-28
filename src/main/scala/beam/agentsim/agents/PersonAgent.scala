@@ -1103,8 +1103,6 @@ class PersonAgent(
         val legsToInclude = nextLeg +: restOfCurrentTrip.takeWhile(_.beamVehicleId == nextLeg.beamVehicleId)
         val newPassengerSchedule = PassengerSchedule().addLegs(legsToInclude.map(_.beamLeg))
 
-
-
         // Enroute block
         // calculate whether enroute charging required or not.
         val vehicle = beamVehicles(nextLeg.beamVehicleId).vehicle
@@ -1135,7 +1133,6 @@ class PersonAgent(
           false
         }
         val isSharedVehicle = vehicle.isSharedVehicle
-
 
         def sendCompletionNoticeAndScheduleStartLegTrigger(): Unit = {
           val tick = _currentTick.get
