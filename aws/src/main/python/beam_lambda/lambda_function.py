@@ -385,7 +385,7 @@ def calculate_max_ram(instance_type):
     percent_towards_system_ram = .25
 
     ram = instance_type_to_memory[instance_type]
-    return ram - min(ram * percent_towards_system_ram, max_system_ram)
+    return int(ram - min(ram * percent_towards_system_ram, max_system_ram))
 
 
 def check_resource(bucket, key):
