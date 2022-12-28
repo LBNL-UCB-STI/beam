@@ -152,9 +152,8 @@ class BeamSim @Inject() (
     beamServices.geo
   )
 
-  val vmInformationWriter: VMInformationCollector = new VMInformationCollector(
-    beamServices.matsimServices.getControlerIO
-  )
+  val vmInformationWriter: VMInformationCollector =
+    new VMInformationCollector(beamServices.beamConfig, beamServices.matsimServices.getControlerIO)
 
   val maybePickUpDropOffCollector =
     if (beamServices.beamConfig.beam.physsim.pickUpDropOffAnalysis.enabled) {
@@ -540,9 +539,7 @@ class BeamSim @Inject() (
 
       writeEventsAnalysisUsing(event)
     }
-    if (beamConfig.beam.debug.vmInformation.createGCClassHistogram) {
-      vmInformationWriter.notifyIterationEnds(event)
-    }
+    vmInformationWriter.notifyIterationEnds(event)
 
     beamServices.skims.parking_skimmer.displaySkimStats()
     beamServices.skims.od_skimmer.displaySkimStats()

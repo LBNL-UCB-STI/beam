@@ -10,9 +10,10 @@ library(sjmisc)
 library(ggmap)
 library(sf)
 library(stringr)
+library(hrbrthemes)
 
-workDir <- normalizePath("~/Data/GEMINI")
-activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
+workDir <- normalizePath("~/Workspace/Data/GEMINI")
+activitySimDir <- normalizePath("~/Workspace/Data/ACTIVITYSIM")
 
 source("~/Documents/Workspace/scripts/common/keys.R")
 register_google(key = google_api_key_1)
@@ -814,3 +815,88 @@ View(e1[vehicle==4])
 stats <- readCsv(pp(workDir, "/test/30.linkstats.csv.gz"))
 stats2 <- readCsv(pp(workDir, "/test/30.linkstats 2.csv.gz"))
 res <- stats[,.(tt=mean(traveltime)),by=.(link)]
+
+
+####
+
+dir.out <- "/Users/haitamlaarabi/Workspace/Models/beam/gemini-develop-helics/src/main/python/gemini"
+runtime1 <- readCsv(pp(dir.out, "/runtime_1.csv"))
+runtime2 <- readCsv(pp(dir.out, "/runtime_2.csv"))
+runtime3 <- readCsv(pp(dir.out, "/runtime_3.csv"))
+runtime4 <- readCsv(pp(dir.out, "/runtime_4.csv"))
+runtimeX <- readCsv(pp(dir.out, "/runtime_X.csv"))
+runtime5 <- runtimeX[,.(num_sites=.N, 
+                        num_events=sum(num_events),
+                        runtime_in_seconds=sum(runtime_1+runtime_2+runtime_3+runtime_4)),by=.(time_in_seconds)]
+runtime1$batch <- "No SPMC Call"
+runtime2$batch <- "Single Threaded Rev1"
+runtime3$batch <- "Multi Threaded Rev1"
+runtime4$batch <- "Multi Threaded Rev2"
+runtime5$batch <- "Multi Threaded Rev3"
+runtime <- rbind(runtime1, runtime2, runtime3, runtime4, runtime5)
+runtime <- runtime[time_in_seconds < 180000]
+runtime$hour <- as.integer(runtime$time_in_seconds/3600)
+
+runtime[,.(runtime_in_minutes=sum(runtime_in_seconds)/60.0),by=.(hour, batch)] %>%
+  ggplot(aes(hour, runtime_in_minutes, color=batch)) +
+  geom_line() +
+  labs(x= "time") + 
+  theme_ipsum()
+
+runtime[,.(num_events=sum(num_events),num_sites=sum(num_sites)),by=.(hour, batch)] %>%
+  ggplot(aes(x=hour, color=batch)) +
+  geom_line(aes(y=num_events, linetype = "NumEvents")) +
+  geom_line(aes(y=num_sites, linetype = "NumSites"), ) +
+  scale_linetype_manual("", breaks = c("NumEvents", "NumSites"), values = c("solid", "dashed")) +
+  labs(x= "time", color="batch", linetype="type")
+
+
+ggplot(runtime) + geom_line(aes(charging_events_counter, runtime))
+
+ggplot(runtime) + 
+  geom_line(aes(time/3600.0, runtime)) +
+  geom_line(aes(time/3600.0, charging_events_counter))
+
+
+p1 <- ggplot(runtime, aes(x=time/3600.0, y=runtime)) +
+  geom_line(color="#69b3a2", size=2) +
+  ggtitle("Runtime in seconds") 
+
+
+p2 <- ggplot(runtime, aes(x=time/3600.0, y=charging_events_counter)) +
+  geom_line(color="grey",size=2) +
+  ggtitle("Charging Events") 
+
+
+temperatureColor <- "#69b3a2"
+priceColor <- rgb(0.2, 0.6, 0.9, 1)
+ggplot(runtime, aes(x=time/3600.0)) +
+  #geom_bar( aes(y=charging_events_counter), stat="identity", size=.1, color=priceColor, color="black", alpha=.4) +
+  geom_line( aes(y=runtime), size=2, color=temperatureColor) + 
+  geom_line( aes(y=charging_events_counter/100), size=2, color=priceColor) + 
+  scale_y_continuous(name = "Runtime in seconds",
+    sec.axis = sec_axis(~./10000, name="Charging Events")
+  ) + 
+  theme_ipsum() +
+  theme(
+    axis.title.y = element_text(color = temperatureColor, size=13),
+    axis.title.y.right = element_text(color = priceColor, size=13)
+  ) +
+  ggtitle("Runtime") +
+  labs(x = "hours")
+
+ggplot(runtime, aes(x=time/3600.0)) +
+  #geom_bar( aes(y=charging_events_counter), stat="identity", size=.1, color=priceColor, color="black", alpha=.4) +
+  geom_line( aes(y=runtime), size=2, color=temperatureColor) + 
+  scale_y_continuous(name = "Runtime in seconds") + 
+  theme_ipsum() +
+  theme(axis.title.y = element_text(color = temperatureColor, size=13)) +
+  ggtitle("Runtime") +
+  labs(x = "hours")
+
+
+
+output <- readCsv(pp(dir.out, "/out.csv"))
+
+
+

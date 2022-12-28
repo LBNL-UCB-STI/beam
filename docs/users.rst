@@ -212,6 +212,22 @@ Steps to add a new configuration :
 
 To add a configuration for a different scenario , follow the above steps and change the folder path to point to the required scenario in program arguments
 
+**Running BEAM unit test from IDE**
+
+BEAM unit test requires some arguments to be specified and the configuration setting can be added as a run configuration inside the IDE.
+
+Steps to add a new configuration :
+
+* Go to Run > Edit Configurations
+* Click Edit configuration templates... and select "ScalaTest"
+* Fill in the following values
+  * Environment Variables : PWD=$PROJECT_DIR$
+  * Shorten command line : JAR manifest
+* Click Ok to save the configuration.
+
+.. image:: _static/figs/scala_test_configuration.png
+
+
 BEAM in Docker image
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -294,9 +310,11 @@ Model Config
 To get started, we will focus your attention on a few of the most commonly used and useful configuration parameters that control beam::
 
   # Ride Hailing Params
-  beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation=0.05
-  beam.agentsim.agents.rideHail.defaultCostPerMile=1.25
-  beam.agentsim.agents.rideHail.defaultCostPerMinute=0.75
+  beam.agentsim.agents.rideHail.managers = [{
+    initialization.procedural.fractionOfInitialVehicleFleet=0.05
+    defaultCostPerMile=1.25
+    defaultCostPerMinute=0.75
+}]
   # Scaling and Tuning Params; 1.0 results in no scaling
   beam.agentsim.tuning.transitCapacity = 0.2
   beam.agentsim.tuning.transitPrice = 1.0
@@ -352,13 +370,13 @@ Factors can be designed however you choose, including adding as many factors or 
       levels:
       - name: Low
         params:
-          beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.001
+          beam.agentsim.agents.rideHail.fractionOfInitialVehicleFleet: 0.001
       - name: Base
         params:
-          beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.01
+          beam.agentsim.agents.rideHail.fractionOfInitialVehicleFleet: 0.01
       - name: High
         params:
-          beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.1
+          beam.agentsim.agents.rideHail.fractionOfInitialVehicleFleet: 0.1
 
 Each level and the baseScenario defines `params`, or a set of key,value pairs. Those keys are either property names from beam.conf or placeholders from any template config files (see below for an example of this). Param names across factors and template files must be unique, otherwise they will overwrite each other.
 
