@@ -22,7 +22,6 @@ class ChargingFunctions(
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   parkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking,
-  //chargingConfig: BeamConfig.Beam.Agentsim.ChargingNetworkManager,
   boundingBox: Envelope,
   seed: Int,
   skims: Option[Skims],
@@ -160,7 +159,7 @@ class ChargingFunctions(
     val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry.beamVehicle)
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
-    rideHailFastChargingOnly && validChargingCapability && canCarParkHere && enRouteFastChargingOnly && chargeFastChargingOnly && overnightStaySlowChargingOnly
+    rideHailFastChargingOnly && validChargingCapability && canCarParkHere && enRouteFastChargingOnly /*&& chargeFastChargingOnly*/ && overnightStaySlowChargingOnly
   }
 
   /**
