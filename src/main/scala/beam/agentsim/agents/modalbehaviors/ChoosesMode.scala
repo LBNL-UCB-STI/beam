@@ -16,6 +16,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.resources.ReservationErrorCode
 import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent, SpaceTime}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
@@ -857,6 +858,10 @@ trait ChoosesMode {
             (requested, seq)
           } else {
             val veh = beamVehicles(leg.beamVehicleId).vehicle
+            val activityType = nextAct.getType
+            val searchModeChargeOrPark =
+              if (isRefuelAtDestinationNeeded(currentBeamVehicle, activityType)) ParkingSearchMode.DestinationCharging
+              else ParkingSearchMode.Parking
             (
               requested + vehicleOnTrip,
               seq :+ (vehicleOnTrip -> ParkingInquiry.init(
@@ -869,6 +874,7 @@ trait ChoosesMode {
                 attributes.valueOfTime,
                 getActivityEndTime(nextAct, beamServices) - leg.beamLeg.endTime,
                 reserveStall = false,
+                searchMode = searchModeChargeOrPark,
                 triggerId = getCurrentTriggerIdOrGenerate
               ))
             )
