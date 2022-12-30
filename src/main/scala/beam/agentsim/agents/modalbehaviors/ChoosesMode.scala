@@ -858,10 +858,6 @@ trait ChoosesMode {
             (requested, seq)
           } else {
             val veh = beamVehicles(leg.beamVehicleId).vehicle
-            val activityType = nextAct.getType
-            val searchModeChargeOrPark =
-              if (isRefuelAtDestinationNeeded(currentBeamVehicle, activityType)) ParkingSearchMode.DestinationCharging
-              else ParkingSearchMode.Parking
             (
               requested + vehicleOnTrip,
               seq :+ (vehicleOnTrip -> ParkingInquiry.init(
@@ -874,7 +870,6 @@ trait ChoosesMode {
                 attributes.valueOfTime,
                 getActivityEndTime(nextAct, beamServices) - leg.beamLeg.endTime,
                 reserveStall = false,
-                searchMode = searchModeChargeOrPark,
                 triggerId = getCurrentTriggerIdOrGenerate
               ))
             )
