@@ -218,15 +218,16 @@ trait ChoosesParking extends {
     if (vehicle.isEV) {
       ParkingInquiry.activityTypeStringToEnum(activityType) match {
         case ParkingActivityType.Home => true
-        case ParkingActivityType.Work =>
-          vehicle.isRefuelNeeded(conf.work.refuelRequiredThresholdInMeters, conf.work.noRefuelThresholdInMeters)
-        case ParkingActivityType.Wherever =>
-          vehicle.isRefuelNeeded(
-            conf.secondary.refuelRequiredThresholdInMeters,
-            conf.secondary.noRefuelThresholdInMeters
-          )
+        case ParkingActivityType.Work => true
+        //vehicle.isRefuelNeeded(conf.work.refuelRequiredThresholdInMeters, conf.work.noRefuelThresholdInMeters)
+        case ParkingActivityType.Wherever => true
+//          vehicle.isRefuelNeeded(
+//            conf.secondary.refuelRequiredThresholdInMeters,
+//            conf.secondary.noRefuelThresholdInMeters
+//          )
         case _ =>
-          vehicle.isRefuelNeeded(conf.refuelRequiredThresholdInMeters, conf.noRefuelThresholdInMeters)
+          true
+//          vehicle.isRefuelNeeded(conf.refuelRequiredThresholdInMeters, conf.noRefuelThresholdInMeters)
       }
     } else false
   }
