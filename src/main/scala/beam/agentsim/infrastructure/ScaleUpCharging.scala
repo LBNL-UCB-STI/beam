@@ -151,7 +151,7 @@ trait ScaleUpCharging extends {
     val allVirtualPersonsByTAZ = new ConcurrentHashMap[Id[TAZ], mutable.HashSet[Id[Person]]]()
     tazTreeMap.getTAZs.foreach(taz => allVirtualPersonsByTAZ.put(taz.tazId, mutable.HashSet.empty[Id[Person]]))
     vehicleRequests
-      .groupBy(_.tazId)
+      .groupBy(t => tazTreeMap.getTAZ(t.tazId))
       .par
       .mapValues { data =>
         val rand = new Random(beamConfig.matsim.modules.global.randomSeed)
@@ -200,11 +200,14 @@ trait ScaleUpCharging extends {
             new CPair[ObservedVehicleTypes, java.lang.Double](vehicleTypes, vehicleTypes.numObservation.toDouble)
           }
           .toVector
-        (pmfObservedActivities, pmfObservedVehicleTypes, rand)
+        val totNumberOfEvents = pmfObservedActivities.map(_.getKey.scaledUpNumObservation).sum
+        (totNumberOfEvents, pmfObservedActivities, pmfObservedVehicleTypes, rand)
       }
       .flatMap {
-        case (tazId, (pmfObservedActivities, pmfObservedVehicleTypes, rand)) if tazTreeMap.getTAZ(tazId).isDefined =>
+        case (tazMaybe, (totNumberOfEvents, pmfObservedActivities, pmfObservedVehicleTypes, rand))
+            if tazMaybe.isDefined && totNumberOfEvents > 0 =>
           val parkingInquiriesTriggers = Vector.newBuilder[ScheduleTrigger]
+          val tazId = tazMaybe.get.tazId
           val activitiesLocationInCurrentTAZ: Map[String, Vector[ActivityLocation]] =
             activitiesLocationMap
               .get(tazId)
@@ -214,65 +217,64 @@ trait ScaleUpCharging extends {
               })
               .map(_.groupBy(_.activityType))
               .getOrElse(Map.empty)
-          val totNumberOfEvents = pmfObservedActivities.map(_.getKey.scaledUpNumObservation).sum
-          if (totNumberOfEvents > 0) {
-            val mersenne: MersenneTwister = new MersenneTwister(beamConfig.matsim.modules.global.randomSeed)
-            val activitiesDistribution =
-              new EnumeratedDistribution[ObservedActivities](mersenne, pmfObservedActivities.asJava)
-            val vehicleTypesDistribution =
-              new EnumeratedDistribution[ObservedVehicleTypes](mersenne, pmfObservedVehicleTypes.asJava)
-            val rate = totNumberOfEvents / timeStepByHour
-            val totDurationInSec =
-              pmfObservedActivities.map(x => x.getKey.scaledUpNumObservation * x.getKey.totDurationInSec).sum
-            var cumulatedDurationInSecs = 0
-            var timeStep = 0
-            while (cumulatedDurationInSecs < totDurationInSec && timeStep < timeStepByHour * 3600) {
-              val activitiesSample = activitiesDistribution.sample()
-              val vehicleTypesSample = vehicleTypesDistribution.sample()
-              val duration = Math.max(
-                activitiesSample.getDuration,
-                beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds.toInt
-              )
-              timeStep += nextTimeStepUsingPoissonProcess(rate, rand)
-              val remainingRangeInMeters = vehicleTypesSample.getRemainingRangeInMeters
-              val reservedFor = vehicleTypesSample.reservedFor
-              val activityType = activitiesSample.activityType
-              val beamVehicle = createBeamVehicle(vehicleTypesSample, remainingRangeInMeters, rand)
-              val (personId, destinationUtm) =
-                activitiesLocationInCurrentTAZ.get(activityType) match {
-                  case Some(activities) if activities.nonEmpty =>
-                    val _ @ActivityLocation(_, personId, _, _, location) = activities(rand.nextInt(activities.size))
-                    allVirtualPersonsByTAZ.get(tazId).add(personId)
-                    val locationUtm = getBeamServices.geo.wgs2Utm(location)
-                    (personId, locationUtm)
-                  case _ =>
-                    val taz = tazTreeMap.getTAZ(tazId).get
-                    val personId = createPerson(beamVehicle.id)
-                    val locationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
-                    (personId, locationUtm)
-                }
-              val startTime = timeBin + timeStep
-              val updatedDuration =
-                if ((startTime + duration) >= endOfSimulationTime)
-                  endOfSimulationTime - startTime
-                else
-                  duration
-              val parkingInquiry = ParkingInquiry(
-                SpaceTime(destinationUtm, startTime),
-                activityType,
-                reservedFor,
-                Some(beamVehicle),
-                None, // remainingTripData
-                Some(personId),
-                1.0, // valueOfTime
-                updatedDuration,
-                searchMode = ParkingSearchMode.DestinationCharging,
-                triggerId = triggerId
-              )
-              cumulatedDurationInSecs += parkingInquiry.parkingDuration.toInt
-              parkingInquiriesTriggers += ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry), self)
-            }
-          } else log.warning(s"There were no observed charging events in TAZ $tazId")
+          val mersenne: MersenneTwister = new MersenneTwister(beamConfig.matsim.modules.global.randomSeed)
+          val activitiesDistribution =
+            new EnumeratedDistribution[ObservedActivities](mersenne, pmfObservedActivities.asJava)
+          val vehicleTypesDistribution =
+            new EnumeratedDistribution[ObservedVehicleTypes](mersenne, pmfObservedVehicleTypes.asJava)
+          val rate = totNumberOfEvents / timeStepByHour
+//          val totDurationInSec =
+//            pmfObservedActivities.map(x => x.getKey.scaledUpNumObservation * x.getKey.totDurationInSec).sum
+//          var cumulatedDurationInSecs = 0
+          var cumulatedNumberOfEvents = 0
+          var timeStep = 0
+          while (cumulatedNumberOfEvents < totNumberOfEvents && timeStep < timeStepByHour * 3600) {
+            val activitiesSample = activitiesDistribution.sample()
+            val vehicleTypesSample = vehicleTypesDistribution.sample()
+            val duration = Math.max(
+              activitiesSample.getDuration,
+              beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds.toInt
+            )
+            timeStep += nextTimeStepUsingPoissonProcess(rate, rand)
+            val remainingRangeInMeters = vehicleTypesSample.getRemainingRangeInMeters
+            val reservedFor = vehicleTypesSample.reservedFor
+            val activityType = activitiesSample.activityType
+            val beamVehicle = createBeamVehicle(vehicleTypesSample, remainingRangeInMeters, rand)
+            val (personId, destinationUtm) =
+              activitiesLocationInCurrentTAZ.get(activityType) match {
+                case Some(activities) if activities.nonEmpty =>
+                  val _ @ActivityLocation(_, personId, _, _, location) = activities(rand.nextInt(activities.size))
+                  allVirtualPersonsByTAZ.get(tazId).add(personId)
+                  val locationUtm = getBeamServices.geo.wgs2Utm(location)
+                  (personId, locationUtm)
+                case _ =>
+                  val taz = tazTreeMap.getTAZ(tazId).get
+                  val personId = createPerson(beamVehicle.id)
+                  val locationUtm = TAZTreeMap.randomLocationInTAZ(taz, rand)
+                  (personId, locationUtm)
+              }
+            val startTime = timeBin + timeStep
+            val updatedDuration =
+              if ((startTime + duration) >= endOfSimulationTime)
+                endOfSimulationTime - startTime
+              else
+                duration
+            val parkingInquiry = ParkingInquiry(
+              SpaceTime(destinationUtm, startTime),
+              activityType,
+              reservedFor,
+              Some(beamVehicle),
+              None, // remainingTripData
+              Some(personId),
+              1.0, // valueOfTime
+              updatedDuration,
+              searchMode = ParkingSearchMode.DestinationCharging,
+              triggerId = triggerId
+            )
+//            cumulatedDurationInSecs += parkingInquiry.parkingDuration.toInt
+            cumulatedNumberOfEvents += 1
+            parkingInquiriesTriggers += ScheduleTrigger(PlanParkingInquiryTrigger(startTime, parkingInquiry), self)
+          }
           parkingInquiriesTriggers.result()
         case (tazId, _) =>
           log.warning(s"The current TAZ $tazId is unrecognizable")
