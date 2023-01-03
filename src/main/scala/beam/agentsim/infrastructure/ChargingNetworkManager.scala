@@ -70,12 +70,12 @@ class ChargingNetworkManager(
 
   protected val chargingNetworkHelper: ChargingNetworkHelper = ChargingNetworkHelper(chargingNetwork, rideHailNetwork)
   protected val sitePowerManager = new SitePowerManager(chargingNetworkHelper, beamServices)
-  protected var totalHome: Double = 0
-  protected var totalHomeL1WithCharger: Double = 0
-  protected var totalHomeL2WithCharger: Double = 0
-  protected var totalPublicL2WithCharger: Double = 0
-  protected var totalWorkL2WithCharger: Double = 0
-  protected var totalFastWithCharger: Double = 0
+//  protected var totalHome: Double = 0
+//  protected var totalHomeL1WithCharger: Double = 0
+//  protected var totalHomeL2WithCharger: Double = 0
+//  protected var totalPublicL2WithCharger: Double = 0
+//  protected var totalWorkL2WithCharger: Double = 0
+//  protected var totalFastWithCharger: Double = 0
 
   override def postStop(): Unit = {
     maybeDebugReport.foreach(_.cancel())
@@ -182,7 +182,7 @@ class ChargingNetworkManager(
         sender ! CompletionNotice(triggerId)
 
     case request @ ChargingPlugRequest(tick, vehicle, stall, personId, triggerId, theSender, _, _) =>
-      log.debugs(s"ChargingPlugRequest received from vehicle $vehicle at $tick and stall ${vehicle.stall}")
+      log.debug(s"ChargingPlugRequest received from vehicle $vehicle at $tick and stall ${vehicle.stall}")
       val responseHasTriggerId = if (vehicle.isEV) {
         // connecting the current vehicle
         val chargingNetwork = chargingNetworkHelper.get(stall.reservedFor.managerId)
