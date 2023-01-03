@@ -41,6 +41,9 @@ trait ScaleUpCharging extends {
 
   private lazy val timeStepByHour = beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds / 3600.0
 
+  private lazy val estimatedMinParkingDurationInSeconds =
+    beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds.toInt
+
   private lazy val scaleUpFactor: Double =
     if (!cnmConfig.scaleUp.enabled) 0.0
     else if (cnmConfig.scaleUp.expansionFactor >= 1.0) cnmConfig.scaleUp.expansionFactor - 1.0
@@ -218,10 +221,7 @@ trait ScaleUpCharging extends {
           while (cumulatedNumberOfEvents < totNumberOfEvents && timeStep < timeStepByHour * 3600) {
             val activitiesSample = activitiesDistribution.sample()
             val vehicleTypesSample = vehicleTypesDistribution.sample()
-            val duration = Math.max(
-              activitiesSample.getDuration,
-              beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds.toInt
-            )
+            val duration = Math.max(activitiesSample.getDuration, estimatedMinParkingDurationInSeconds)
             timeStep += nextTimeStepUsingPoissonProcess(rate, rand)
             val remainingRangeInMeters = vehicleTypesSample.getRemainingRangeInMeters
             val reservedFor = vehicleTypesSample.reservedFor
@@ -290,10 +290,18 @@ trait ScaleUpCharging extends {
       } else if (vehicle.isSharedVehicle) {
         VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).getOrElse(VehicleManager.AnyManager)
       } else VehicleManager.AnyManager
-      val estimatedParkingDuration = Math.max(
-        inquiry.parkingDuration.toInt,
-        beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds.toInt
-      )
+      var estimatedParkingDuration = Math.max(inquiry.parkingDuration.toInt, estimatedMinParkingDurationInSeconds)
+      if (estimatedParkingDuration <= estimatedMinParkingDurationInSeconds) {
+        val powerCommand = sitePowerManager.getPowerFromVehicleLimit(vehicle, stall)
+        val (durationToCharge, _) =
+          vehicle.refuelingSessionDurationAndEnergyInJoulesForStall(
+            Some(stall),
+            None,
+            None,
+            chargingPowerLimit = Some(powerCommand)
+          )
+        estimatedParkingDuration = Math.max(durationToCharge, estimatedParkingDuration)
+      }
       val remainingRangeInMeters = vehicle.getRemainingRange._1
       val activityType =
         if (inquiry.activityType.startsWith(ChargingNetwork.EnRouteLabel))
