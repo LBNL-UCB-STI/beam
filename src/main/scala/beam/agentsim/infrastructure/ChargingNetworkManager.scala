@@ -105,37 +105,37 @@ class ChargingNetworkManager(
       log.debug(s"Received parking inquiry: $inquiry")
       val chargingNetwork = chargingNetworkHelper.get(inquiry.reservedFor.managerId)
       val response = chargingNetwork.processParkingInquiry(inquiry)
-      if (inquiry.activityType.toLowerCase.contains("home")) {
-        totalHome = totalHome + 1
-        if (response.stall.chargingPointType.exists(_.toString.toLowerCase.startsWith("homelevel1")))
-          totalHomeL1WithCharger = totalHomeL1WithCharger + 1
-        else if (response.stall.chargingPointType.exists(_.toString.toLowerCase.startsWith("homelevel2")))
-          totalHomeL2WithCharger = totalHomeL2WithCharger + 1
-        else if (response.stall.chargingPointType.exists(_.toString.toLowerCase.startsWith("worklevel2")))
-          totalWorkL2WithCharger = totalWorkL2WithCharger + 1
-        else if (response.stall.chargingPointType.exists(_.toString.toLowerCase.startsWith("publiclevel2")))
-          totalPublicL2WithCharger = totalPublicL2WithCharger + 1
-        else if (response.stall.chargingPointType.exists(_.toString.toLowerCase.startsWith("public")))
-          totalFastWithCharger = totalFastWithCharger + 1
-
-        val fractionHomeL1Charger: Double = if (totalHome > 0) totalHomeL1WithCharger / totalHome else 0.0
-        val fractionHomeL2Charger: Double = if (totalHome > 0) totalHomeL2WithCharger / totalHome else 0.0
-        val fractionWorkL2Charger: Double = if (totalHome > 0) totalWorkL2WithCharger / totalHome else 0.0
-        val fractionPublicL2Charger: Double = if (totalHome > 0) totalPublicL2WithCharger / totalHome else 0.0
-        val fractionFastCharger: Double = if (totalHome > 0) totalFastWithCharger / totalHome else 0.0
-
-        log.info(
-          s"parking activity: ${inquiry.parkingActivityType.toString}, " +
-          s"activity: ${inquiry.activityType}, " +
-          s"charging stall: ${response.stall.chargingPointType.isDefined}, " +
-          s"totalHome: $totalHome," +
-          s"totalHomeL1WithCharger: $totalHomeL1WithCharger ($fractionHomeL1Charger)," +
-          s"totalHomeL2WithCharger: $totalHomeL2WithCharger ($fractionHomeL2Charger)," +
-          s"totalWorkL2WithCharger: $totalWorkL2WithCharger ($fractionWorkL2Charger)," +
-          s"totalPublicL2WithCharger: $totalPublicL2WithCharger ($fractionPublicL2Charger)," +
-          s"totalFastWithCharger: $totalFastWithCharger ($fractionFastCharger),"
-        )
-      }
+//      if (inquiry.activityType.toLowerCase.contains("home")) {
+//        totalHome = totalHome + 1
+//        if (response.stall.chargingPointType.exists(_.toString.toLowerCase.startsWith("homelevel1")))
+//          totalHomeL1WithCharger = totalHomeL1WithCharger + 1
+//        else if (response.stall.chargingPointType.exists(_.toString.toLowerCase.startsWith("homelevel2")))
+//          totalHomeL2WithCharger = totalHomeL2WithCharger + 1
+//        else if (response.stall.chargingPointType.exists(_.toString.toLowerCase.startsWith("worklevel2")))
+//          totalWorkL2WithCharger = totalWorkL2WithCharger + 1
+//        else if (response.stall.chargingPointType.exists(_.toString.toLowerCase.startsWith("publiclevel2")))
+//          totalPublicL2WithCharger = totalPublicL2WithCharger + 1
+//        else if (response.stall.chargingPointType.exists(_.toString.toLowerCase.startsWith("public")))
+//          totalFastWithCharger = totalFastWithCharger + 1
+//
+//        val fractionHomeL1Charger: Double = if (totalHome > 0) totalHomeL1WithCharger / totalHome else 0.0
+//        val fractionHomeL2Charger: Double = if (totalHome > 0) totalHomeL2WithCharger / totalHome else 0.0
+//        val fractionWorkL2Charger: Double = if (totalHome > 0) totalWorkL2WithCharger / totalHome else 0.0
+//        val fractionPublicL2Charger: Double = if (totalHome > 0) totalPublicL2WithCharger / totalHome else 0.0
+//        val fractionFastCharger: Double = if (totalHome > 0) totalFastWithCharger / totalHome else 0.0
+//
+//        log.info(
+//          s"parking activity: ${inquiry.parkingActivityType.toString}, " +
+//          s"activity: ${inquiry.activityType}, " +
+//          s"charging stall: ${response.stall.chargingPointType.isDefined}, " +
+//          s"totalHome: $totalHome," +
+//          s"totalHomeL1WithCharger: $totalHomeL1WithCharger ($fractionHomeL1Charger)," +
+//          s"totalHomeL2WithCharger: $totalHomeL2WithCharger ($fractionHomeL2Charger)," +
+//          s"totalWorkL2WithCharger: $totalWorkL2WithCharger ($fractionWorkL2Charger)," +
+//          s"totalPublicL2WithCharger: $totalPublicL2WithCharger ($fractionPublicL2Charger)," +
+//          s"totalFastWithCharger: $totalFastWithCharger ($fractionFastCharger),"
+//        )
+//      }
 
       collectChargingRequests(inquiry, response.stall)
       sender() ! response
