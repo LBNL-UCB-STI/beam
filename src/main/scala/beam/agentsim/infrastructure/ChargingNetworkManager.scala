@@ -172,7 +172,7 @@ class ChargingNetworkManager(
       )
 
     case TriggerWithId(ChargingTimeOutTrigger(tick, chargingVehicle), triggerId) =>
-      log.info(s"ChargingTimeOutTrigger for vehicle ${chargingVehicle.vehicle.id} at $tick")
+      log.debug(s"ChargingTimeOutTrigger for vehicle ${chargingVehicle.vehicle.id} at $tick")
       val vehicleEndedCharging = handleEndCharging(tick, chargingVehicle)
       vehicleEndedCharging.foreach(_.theSender ! EndingRefuelSession(tick, chargingVehicle.vehicle.id, triggerId))
       // Do not send completion notice to vehicles in EnRoute mode
@@ -182,7 +182,7 @@ class ChargingNetworkManager(
         sender ! CompletionNotice(triggerId)
 
     case request @ ChargingPlugRequest(tick, vehicle, stall, personId, triggerId, theSender, _, _) =>
-      log.info(s"ChargingPlugRequest received from vehicle $vehicle at $tick and stall ${vehicle.stall}")
+      log.debugs(s"ChargingPlugRequest received from vehicle $vehicle at $tick and stall ${vehicle.stall}")
       val responseHasTriggerId = if (vehicle.isEV) {
         // connecting the current vehicle
         val chargingNetwork = chargingNetworkHelper.get(stall.reservedFor.managerId)
