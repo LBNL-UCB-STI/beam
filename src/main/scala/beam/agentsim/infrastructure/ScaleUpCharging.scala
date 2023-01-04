@@ -290,18 +290,26 @@ trait ScaleUpCharging extends {
       } else if (vehicle.isSharedVehicle) {
         VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).getOrElse(VehicleManager.AnyManager)
       } else VehicleManager.AnyManager
-      var estimatedParkingDuration = Math.max(inquiry.parkingDuration.toInt, estimatedMinParkingDurationInSeconds)
-      if (estimatedParkingDuration <= estimatedMinParkingDurationInSeconds) {
-        val powerCommand = sitePowerManager.getPowerFromVehicleLimit(vehicle, stall)
-        val (durationToCharge, _) =
-          vehicle.refuelingSessionDurationAndEnergyInJoulesForStall(
-            Some(stall),
-            None,
-            None,
-            chargingPowerLimit = Some(powerCommand)
-          )
-        estimatedParkingDuration = Math.max(durationToCharge, estimatedParkingDuration)
-      }
+//      var estimatedParkingDuration = Math.max(inquiry.parkingDuration.toInt, estimatedMinParkingDurationInSeconds)
+//      if (estimatedParkingDuration <= estimatedMinParkingDurationInSeconds) {
+//        val powerCommand = sitePowerManager.getPowerFromVehicleLimit(vehicle, stall)
+//        val (durationToCharge, _) =
+//          vehicle.refuelingSessionDurationAndEnergyInJoulesForStall(
+//            Some(stall),
+//            None,
+//            None,
+//            chargingPowerLimit = Some(powerCommand)
+//          )
+//        estimatedParkingDuration = Math.max(durationToCharge, estimatedParkingDuration)
+//      }
+      val powerCommand = sitePowerManager.getPowerFromVehicleLimit(vehicle, stall)
+      val (estimatedParkingDuration, _) =
+        vehicle.refuelingSessionDurationAndEnergyInJoulesForStall(
+          Some(stall),
+          None,
+          None,
+          chargingPowerLimit = Some(powerCommand)
+        )
       val remainingRangeInMeters = vehicle.getRemainingRange._1
       val activityType =
         if (inquiry.activityType.startsWith(ChargingNetwork.EnRouteLabel))
