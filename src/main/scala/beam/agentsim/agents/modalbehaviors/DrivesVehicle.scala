@@ -691,6 +691,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
             currentBeamVehicle.stall.foreach { theStall =>
               parkingManager ! ReleaseParkingStall(theStall, tick)
             }
+            logger.info(s"Unset parking stall for ${currentBeamVehicle.id}")
             currentBeamVehicle.unsetParkingStall()
           case None =>
         }
