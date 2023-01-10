@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 import pandas as pd
@@ -14,24 +14,21 @@ pd.set_option('display.width', 1000)
 pd.set_option('max_colwidth', None)
 
 
-# In[2]:
+# In[ ]:
 
 
 events_path = "https://beam-outputs.s3.amazonaws.com/output/beamville/beamville__2022-12-27_16-04-11_czt/ITERS/it.0/0.events.csv"
 # !wget "$events_path"
 # !ls
 
-events_all = pd.read_csv(events_path, low_memory=False)
-# print(events_all['type'].unique())
-
+chunks_list = []
 ### filtering only refuel session events,
 ### using only columns with useful data
+for chunk in pd.read_csv(events_path, usecols=['type','time','chargingPointType','price','fuel','duration'], chunksize=500000):
+    chunks_list.append(chunk[chunk['type'] == 'RefuelSessionEvent'])
 
-events_charging = events_all[events_all['type'] == 'RefuelSessionEvent'].copy()
+events_charging = pd.concat(chunks_list)
 events_charging['hour'] = events_charging['time'] // 3600
-
-# for column in events_charging.columns:
-#     print(column, events_charging[column].unique())
 
 selected_columns = ['hour','chargingPointType','price','fuel','duration']
 events_charging = events_charging[selected_columns].copy()
@@ -40,7 +37,7 @@ print(events_charging.shape)
 display(events_charging.head(3))
 
 
-# In[3]:
+# In[ ]:
 
 
 ### preparing the dataframe with charging events to be plot as area
@@ -97,12 +94,15 @@ print(f"there are {len(df_merged)} rows in resulting DataFrame")
 display(df_merged.head(2))
 
 
-# In[4]:
+# In[ ]:
 
 
 ### plotting for count, fuel, duration and price
 
-df = df_merged[df_merged.index < 30]
+df = df_merged.reset_index()
+
+df['hour_24'] = df['hour'] % 24
+df = df.groupby('hour_24').sum()
 
 fig, axs = plt.subplots(nrows=2, ncols=2, figsize=(22,13))
 
@@ -110,7 +110,7 @@ for (figtype, axis) in zip(['count','fuel', 'duration', 'price'], [axs[0,0], axs
     df[[col for col in df.columns if figtype in col]].plot.area(ax=axis)
 
 
-# In[5]:
+# In[ ]:
 
 
 ### an example of an area plot
