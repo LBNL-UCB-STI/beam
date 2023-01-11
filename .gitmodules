@@ -18,3 +18,7 @@
 	path = production/seattle
 	url = git@github.com:LBNL-UCB-STI/beam-data-seattle.git
 	branch = develop
+[submodule "production/avproject-private"]
+	path = production/avproject-private
+	url = git@github.com:LBNL-UCB-STI/beam-data-avproject-private
+	branch = main
