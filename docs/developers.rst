@@ -198,7 +198,7 @@ To run a BEAM simulation or experiment on amazon ec2, use following command with
 
   ./gradlew deploy -P[beamConfigs | beamExperiments]=config-or-experiment-file
 
-The command will start an ec2 instance based on the provided configurations and run all simulations in serial. At the end of each simulation/experiment, outputs are uploaded to a public Amazon S3 bucket_. To run each each simulation/experiment parallel on separate instances, set `beamBatch` to false. For customized runs, you can also use following parameters that can be specified from command line:
+The command will start an ec2 instance based on the provided configurations and run all simulations in serial. At the end of each simulation/experiment, outputs are uploaded to a public Amazon S3 bucket_. The default behavior is to run each simulation/experiment parallel on separate instances. For customized runs, you can also use following parameters that can be specified from command line:
 
 * **propsFile**: to specify file with default values
 * **runName**: to specify instance name.
@@ -212,7 +212,6 @@ The command will start an ec2 instance based on the provided configurations and 
 * **executeClass** and **executeArgs**: to specify class and args to execute if `execute` was chosen as deploy mode
 * **maxRAM**: to specify MAXRAM environment variable for simulation.
 * **storageSize**: to specfy storage size of instance. May be from `64` to `256`.
-* **beamBatch**: Set to `false` in case you want to run as many instances as number of config/experiment files. Default is `true`.
 * **s3Backup**: to specify if copying results to s3 bucket is needed, default is `true`.
 * **instanceType**: to specify s2 instance type.
 * **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.

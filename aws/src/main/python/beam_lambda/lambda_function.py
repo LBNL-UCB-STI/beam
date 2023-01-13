@@ -15,11 +15,11 @@ logger.setLevel(logging.INFO)
 GRAFANA_RUN = '''sudo ./gradlew --stacktrace grafanaStart
   -    '''
 
-CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
+CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$CONFIG']" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
-EXECUTE_SCRIPT = '''./gradlew --stacktrace :execute -PmainClass=$MAIN_CLASS -PappArgs="$cf" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
+EXECUTE_SCRIPT = '''./gradlew --stacktrace :execute -PmainClass=$MAIN_CLASS -PappArgs="$CONFIG" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
-EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
+EXPERIMENT_SCRIPT = '''./bin/experiment.sh $CONFIG cloud'''
 
 S3_PUBLISH_SCRIPT = '''
   -    sleep 10s
@@ -191,25 +191,22 @@ runcmd:
   - production_data_submodules=$(git submodule | awk '{ print $2 }')
   - for i in $production_data_submodules
   -  do
-  -    for cf in $CONFIG
-  -      do
-  -        case $cf in
-  -         '*$i*)'
-  -            echo "Loading remote production data for $i"
-  -            git config submodule.$i.branch $DATA_BRANCH
-  -            git submodule update --init --remote $i
-  -            cd $i
-  -            if [ "$DATA_COMMIT" = "HEAD" ]
-  -            then
-  -              RESOLVED_DATA_COMMIT=$(git log -1 --pretty=format:%H)
-  -            else
-  -              RESOLVED_DATA_COMMIT=$DATA_COMMIT
-  -            fi
-  -            echo "Resolved data commit is $RESOLVED_DATA_COMMIT"
-  -            git checkout $DATA_COMMIT
-  -            cd -
-  -        esac
-  -      done
+  -    case $CONFIG in
+  -     '*$i*)'
+  -        echo "Loading remote production data for $i"
+  -        git config submodule.$i.branch $DATA_BRANCH
+  -        git submodule update --init --remote $i
+  -        cd $i
+  -        if [ "$DATA_COMMIT" = "HEAD" ]
+  -        then
+  -          RESOLVED_DATA_COMMIT=$(git log -1 --pretty=format:%H)
+  -        else
+  -          RESOLVED_DATA_COMMIT=$DATA_COMMIT
+  -        fi
+  -        echo "Resolved data commit is $RESOLVED_DATA_COMMIT"
+  -        git checkout $DATA_COMMIT
+  -        cd -
+  -    esac
   -  done
 
   - if [ "$RUN_JUPYTER" = "True" ]
@@ -271,11 +268,9 @@ runcmd:
   -   /tmp/slack.sh "$hello_msg"
 
   -   s3p=""
-  -   for cf in $CONFIG
-  -    do
-  -      echo "-------------------running $cf----------------------"
-  -      $RUN_SCRIPT
-  -    done
+  -   echo "-------------------running $CONFIG----------------------"
+  -   $RUN_SCRIPT
+
   -   echo "-------------------running Health Analysis Script----------------------"
   -   simulation_health_analysis_output_file="simulation_health_analysis_result.txt"
   -   python3 src/main/python/general_analysis/simulation_health_analysis.py $simulation_health_analysis_output_file
@@ -777,7 +772,6 @@ def deploy_handler(event, context):
     experiments = event.get('experiments', EXPERIMENT_DEFAULT)
     execute_class = event.get('execute_class', EXECUTE_CLASS_DEFAULT)
     execute_args = event.get('execute_args', EXECUTE_ARGS_DEFAULT)
-    batch = event.get('batch', True)
     s3_publish = event.get('s3_publish', True)
     volume_size = event.get('storage_size', 64)
     shutdown_wait = event.get('shutdown_wait', SHUTDOWN_DEFAULT)
@@ -849,10 +843,8 @@ def deploy_handler(event, context):
         selected_script = EXPERIMENT_SCRIPT
         params = experiments
 
-    if batch:
-        params = [params.replace(',', ' ')]
-    else:
-        params = params.split(',')
+    # split the beamConfigs into an array
+    params = params.split(',')
 
     if deploy_mode == 'execute':
         selected_script = EXECUTE_SCRIPT
