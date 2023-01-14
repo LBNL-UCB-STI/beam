@@ -20,5 +20,5 @@
 	branch = develop
 [submodule "production/avproject-private"]
 	path = production/avproject-private
-	url = git@github.com:LBNL-UCB-STI/beam-data-avproject-private.git
+	url = https://github.com/LBNL-UCB-STI/beam-data-avproject-private.git
 	branch = main
