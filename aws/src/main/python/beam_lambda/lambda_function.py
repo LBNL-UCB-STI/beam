@@ -221,7 +221,7 @@ runcmd:
   -   echo "-------------------Starting Beam Sim----------------------"
   -   echo $(date +%s) > /tmp/.starttime
   -   rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat  
-  -   hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  -   hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
   -   start_json=$(printf "{
         \\"command\\":\\"add\\",
         \\"type\\":\\"beam\\",
@@ -237,7 +237,7 @@ runcmd:
           \\"data_branch\\":\\"$DATA_BRANCH\\",
           \\"data_commit\\":\\"$RESOLVED_DATA_COMMIT\\",
           \\"region\\":\\"$REGION\\",
-          \\"batch\\":\\"$UID\\",
+          \\"batch\\":\\"\\",
           \\"s3_link\\":\\"%s\\",
           \\"max_ram\\":\\"$MAX_RAM\\",
           \\"profiler_type\\":\\"$PROFILER\\",
@@ -291,7 +291,7 @@ runcmd:
   -   fi
   -   cd /home/ubuntu
   -   final_status=$(./check_simulation_result.sh)
-  -   bye_msg=$(printf "Run Completed \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT %s \\n Health Metrics %s \\n Shutdown in $SHUTDOWN_WAIT minutes" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "$s3glip" "$health_metrics")
+  -   bye_msg=$(printf "Run Completed \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Branch **$BRANCH** \\n Commit $COMMIT %s \\n Health Metrics %s \\n Shutdown in $SHUTDOWN_WAIT minutes" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "$s3glip" "$health_metrics")
   -   echo "$bye_msg"
   -   stop_json=$(printf "{
         \\"command\\":\\"add\\",
@@ -308,7 +308,7 @@ runcmd:
           \\"data_branch\\":\\"$DATA_BRANCH\\",
           \\"data_commit\\":\\"$RESOLVED_DATA_COMMIT\\",
           \\"region\\":\\"$REGION\\",
-          \\"batch\\":\\"$UID\\",
+          \\"batch\\":\\"\\",
           \\"s3_link\\":\\"%s\\",
           \\"max_ram\\":\\"$MAX_RAM\\",
           \\"profiler_type\\":\\"$PROFILER\\",
@@ -860,7 +860,6 @@ def deploy_handler(event, context):
     if validate(branch) and validate(commit_id):
         runNum = 1
         for arg in params:
-            uid = str(uuid.uuid4())[:8]
             runName = titled
             if len(params) > 1:
                 runName += "-" + str(runNum)
@@ -873,7 +872,6 @@ def deploy_handler(event, context):
                 .replace('$DATA_COMMIT', data_commit) \
                 .replace('$CONFIG', arg) \
                 .replace('$MAIN_CLASS', execute_class) \
-                .replace('$UID', uid) \
                 .replace('$SHUTDOWN_WAIT', str(shutdown_wait)) \
                 .replace('$TITLED', runName) \
                 .replace('$MAX_RAM', str(max_ram)) \
@@ -905,8 +903,8 @@ def deploy_handler(event, context):
             host = get_dns(instance_id)
 
             if run_beam:
-                txt += 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(
-                    branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
+                txt += 'Started simulation with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(
+                    branch=branch, titled=runName, commit=commit_id, dns=host, instance_id=instance_id)
 
             if run_grafana:
                 txt += ' Grafana will be available at http://{dns}:3003/d/dvib8mbWz/beam-simulation-global-view.'.format(
