@@ -18,7 +18,7 @@ import scala.util.{Failure, Success, Try}
 /**
   * Do mapping of taz ids to the polygons in the shape file.
   * If the TAZ center is within a polygon then that TAZ belongs to that polygon.
-  * Each set of tas ids is saved as a separate csv file (named {feature-id}.csv) with a single column (taz).
+  * Each set of TAZ ids is saved as a separate csv file (named {feature-id}.csv) with a single column (taz).
   * You can run it using
   * {{{
   * ./gradlew :execute -PmainClass=scripts.shapefiles.PolygonShapesToTazIdsMapping \
@@ -101,7 +101,7 @@ object PolygonShapesToTazIdsMapping extends App with StrictLogging {
       import builder._
       OParser.sequence(
         programName("shp-to-csv-converter"),
-        head("This program converts an shp file to a csv that contains centroids fo polygons with their ids"),
+        head("This program converts a shape file to a csv that contains centroids fo polygons with their ids"),
         opt[File]('s', "shape-file")
           .required()
           .valueName("<shape-file>")
