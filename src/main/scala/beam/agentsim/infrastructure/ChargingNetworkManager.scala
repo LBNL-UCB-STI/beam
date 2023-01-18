@@ -157,7 +157,7 @@ class ChargingNetworkManager(
             timeBin + beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds
           )
         case (_, chargingVehicle) if chargingVehicle.vehicle.stall.isEmpty =>
-          logger.error(s"ChargingVehicle ${chargingVehicle.vehicle.id} does not have a stall!!!!")
+          log.error(s"ChargingVehicle ${chargingVehicle.vehicle.id} does not have a stall!!!!")
           None
       }
       val nextStepPlanningTriggers =
