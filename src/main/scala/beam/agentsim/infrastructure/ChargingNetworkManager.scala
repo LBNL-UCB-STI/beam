@@ -147,7 +147,7 @@ class ChargingNetworkManager(
       val simulatedParkingInquiries = simulateEventsIfScalingEnabled(timeBin, triggerId)
       // obtaining physical bounds
       val triggers = chargingNetworkHelper.allChargingStations.flatMap(_._2.vehiclesCurrentlyCharging).par.flatMap {
-        case (_, chargingVehicle) =>
+        case (_, chargingVehicle) if chargingVehicle.vehicle.stall.nonEmpty =>
           // Refuel
           handleRefueling(chargingVehicle)
           // Calculate the energy to charge and prepare for next current cycle of charging
@@ -156,6 +156,9 @@ class ChargingNetworkManager(
             timeBin,
             timeBin + beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds
           )
+        case (_, chargingVehicle) if chargingVehicle.vehicle.stall.isEmpty =>
+          logger.error(s"ChargingVehicle ${chargingVehicle.vehicle.id} does not have a stall!!!!")
+          None
       }
       val nextStepPlanningTriggers =
         if (!isEndOfSimulation(timeBin))
