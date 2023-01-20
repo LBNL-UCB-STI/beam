@@ -262,7 +262,7 @@ Your task is going to be added to the queue and when it starts/finishes you rece
 BEAM run on Google Compute Engine
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-In order to run BEAM on GCE one needs to have `cloudfunctions.functions.invoke` permission on function `projects/beam-core/locations/us-central1/functions/deploy-beam`.
+In order to run BEAM on GCE one needs to have `cloudfunctions.functions.invoke` permission on function `projects/beam-core/locations/us-central1/functions/deploy_beam`.
 
 One needs to install `glcoud <https://cloud.google.com/sdk/docs/install>`_ utility in order to be able to authenticate themself against the Google Cloud Platform.
 

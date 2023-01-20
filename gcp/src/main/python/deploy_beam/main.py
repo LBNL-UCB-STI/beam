@@ -3,6 +3,7 @@ import os
 from flask import escape
 import functions_framework
 from googleapiclient import discovery
+from google.auth import jwt
 import re
 import time
 import random
@@ -33,6 +34,9 @@ def parameter_is_not_specified(parameter_value):
 
 @functions_framework.http
 def create_beam_instance(request):
+    user_email = get_user_email(request)
+    if not user_email:
+        return escape("Cannot extract user email from the auth token"), 403
     request_payload = request.get_json(silent=True)
     if not request_payload:
         return escape("No valid json payload provided"), 400
@@ -64,11 +68,16 @@ def create_beam_instance(request):
     instance_name = to_instance_name(run_name)
     machine_type = f"zones/{zone}/machineTypes/{instance_type.strip()}"
     disk_image_name = f"projects/{project}/global/images/beam-box"
+    cloud_init_script_url = os.environ.get('CLOUD_INIT_SCRIPT_URL')
+    if not cloud_init_script_url:
+        cloud_init_script_url = "https://raw.githubusercontent.com/LBNL-UCB-STI/beam/do/%233652-execute-beam-on-google-cloud-compute/gcp/src/main/bash/cloud-init.sh"
+    log(f"cloud_init_script_url: {cloud_init_script_url}")
     startup_script = """
 #!/bin/sh
-sudo -u clu bash -c 'cd; wget https://gist.github.com/dimaopen/3e736f1ec1d49c7e162867b280736312/raw/cloud-init.sh'
-sudo -u clu bash -c 'cd; chmod 755 cloud-init.sh'
-sudo -u clu bash -c 'cd; ./cloud-init.sh &> cloud-init-output.log'
+CLOUD_INIT_SCRIPT_URL=$(curl http://metadata/computeMetadata/v1/instance/attributes/cloud_init_script_url -H "Metadata-Flavor: Google")
+sudo -u clu bash -c "cd; wget $CLOUD_INIT_SCRIPT_URL"
+sudo -u clu bash -c "cd; chmod 755 cloud-init.sh"
+sudo -u clu bash -c "cd; ./cloud-init.sh &> cloud-init-output.log"
     """
     shutdown_script = """
 #!/bin/bash
@@ -79,6 +88,7 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
 
     metadata = [
         ('startup-script', startup_script),
+        ('cloud_init_script_url', cloud_init_script_url),
         ('batch_uid', batch_uid),
         ('run_name', run_name),
         ('beam_config', beam_config),
@@ -93,6 +103,7 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
         ('slack_hook_with_token', os.environ['SLACK_HOOK_WITH_TOKEN']),
         ('slack_token', os.environ['SLACK_TOKEN']),
         ('slack_channel', os.environ['SLACK_CHANNEL']),
+        ('user_email', user_email),
     ]
     if shutdown_behaviour.lower() == "terminate":
         metadata.append(('shutdown-script', shutdown_script))
@@ -105,13 +116,7 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
         .insert(project=project, zone=zone, body=create_instance_request_body) \
         .execute()
 
-    entry = dict(
-        severity="NOTICE",
-        message=result,
-        component="deploy_beam_function"
-    )
-
-    print(json.dumps(entry))
+    log(result)
 
     operation_id = result["id"]
     operation_status = result["status"]
@@ -127,6 +132,15 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
                       f' with run name: {run_name}'
                       f' for branch/commit {beam_branch}/{beam_commit}'
                       f' at instance {instance_name}.')
+
+
+def log(msg, severity="NOTICE"):
+    entry = dict(
+        severity=severity,
+        message=str(msg),
+        component="deploy_beam_function"
+    )
+    print(json.dumps(entry))
 
 
 def calculate_heap_size(instance_cores: int, instance_memory: float) -> int:
@@ -209,3 +223,22 @@ def create_instance_request(instance_name, machine_type, disk_image_name, storag
             'items': [{'key': k, 'value': v} for k, v in metadata]
         }
     }
+
+
+def get_user_email(request):
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        log("no Authorization header")
+        return None
+    token_start = auth_header.lower().find("bearer ")
+    if token_start < 0:
+        log(f"No bearer token")
+        return None
+    token = auth_header[token_start + 7:].strip()
+    try:
+        # decoding the token without verification; token should be verified before it gets to our function
+        idinfo = jwt.decode(token, verify=False)
+        return idinfo['email']
+    except Exception as e:
+        log(e)
+        return None
