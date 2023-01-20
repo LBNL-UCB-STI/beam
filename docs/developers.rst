@@ -274,7 +274,7 @@ There are `some ways to provide credentials <https://cloud.google.com/docs/authe
 
  gcloud auth application-default login
 
-Now all the instance are created in `us-central1-a` zone. One must set **forcedMaxRAM** according to the **instanceType** memory size.
+Now all the instance are created in `us-central1-a` zone.
 Now the deployment script doesn't calculate it automatically.
 One needs to define the deploy properties that are similar to the ones for AWS deploy. These are the properties that is used on GCE:
 
@@ -287,7 +287,7 @@ One needs to define the deploy properties that are similar to the ones for AWS d
 * **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 15 min.
 * **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
 * **instanceType**: To specify GCE instance type.
-* **forcedMaxRAM**: This parameter must be set according to the **instanceType** memory size.
+* **forcedMaxRAM**: This parameter can be set according to the **instanceType** memory size.
 * **storageSize**: to specify storage size (Gb) of instance. May be from `100` to `256`. Default value is `100`.
 
 The deployment command is
