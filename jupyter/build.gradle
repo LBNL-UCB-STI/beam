@@ -49,7 +49,7 @@ static def readMappingFromFile(String filePath, String prefix, String basePath) 
 
 static def getFoldersToMount() {
     LinkedHashMap<Object, Object> volume_mapping = [:]
-    volume_mapping.put('jupyter_home', '/home/jovyan')
+    volume_mapping.put('.jupyter_home', '/home/jovyan')
 
     def beamRootPath = new File(".").getCanonicalPath()
     volume_mapping.put(beamRootPath, '/home/jovyan/beam_root')
