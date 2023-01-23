@@ -27,17 +27,6 @@ class PowerManagerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfter
            |  scaleUp {
            |    enabled = false
            |  }
-           |  helics {
-           |    connectionEnabled = false
-           |    coreInitString = "--federates=1 --broker_address=tcp://127.0.0.1"
-           |    coreType = "zmq"
-           |    timeDeltaProperty = 1.0
-           |    intLogLevel = 1
-           |    federateName = "CNMFederate"
-           |    dataOutStreamPoint = ""
-           |    dataInStreamPoint = ""
-           |    bufferSize = 100
-           |  }
            |}
       """.stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -76,7 +65,7 @@ class PowerManagerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfter
     reset(beamFederateMock)
     when(beamFederateMock.sync(300)).thenReturn(300.0)
     when(beamFederateMock.collectJSON()).thenReturn(Some(List(dummyPhysicalBounds)))
-    when(rideHailNetwork.chargingStations).thenReturn(List())
+    when(rideHailNetwork.chargingStations).thenReturn(Map[Id[ParkingZoneId], ChargingStation]())
     doReturn(
       List[Map[String, Any]](
         Map(
@@ -101,7 +90,8 @@ class PowerManagerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfter
 
   "PowerController when connected to grid" should {
     val chargingNetworkHelper: ChargingNetworkHelper = new ChargingNetworkHelper(chargingNetwork, rideHailNetwork) {
-      override lazy val allChargingStations: List[ChargingStation] = List(dummyChargingStation)
+      override lazy val allChargingStations: Map[Id[ParkingZoneId], ChargingStation] =
+        Map[Id[ParkingZoneId], ChargingStation](dummyChargingStation.zone.parkingZoneId -> dummyChargingStation)
     }
     val powerController: PowerManager =
       new PowerManager(chargingNetworkHelper, beamConfig) {

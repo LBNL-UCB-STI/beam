@@ -1,7 +1,7 @@
 package beam.analysis
 
 import beam.agentsim.events.ModeChoiceEvent
-import beam.analysis.plots.GraphAnalysis
+import beam.analysis.plots.{BaseModeAnalysis, GraphAnalysis}
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.r5.RouteDumper.RoutingRequestEvent
 import beam.utils.FileUtils
@@ -28,7 +28,7 @@ class RoutingRequestAnalysis extends GraphAnalysis {
       case modeChoiceEvent: ModeChoiceEvent =>
         val personId = modeChoiceEvent.personId.toString
         val routingIds = personRoutingIds.remove(personId).getOrElse(Vector.empty)
-        modeChoiceList.append(CsvRow(personId, modeChoiceEvent.mode, routingIds))
+        modeChoiceList.append(CsvRow(personId, BaseModeAnalysis.extractModeForAnalysis(modeChoiceEvent), routingIds))
       case _ =>
     }
   }

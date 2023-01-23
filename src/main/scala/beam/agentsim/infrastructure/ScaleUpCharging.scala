@@ -144,10 +144,9 @@ trait ScaleUpCharging extends {
   protected def simulateEventsIfScalingEnabled(timeBin: Int, triggerId: Long): Vector[ScheduleTrigger] = {
     val allPersonsWhichCarIsChargingByTAZ =
       chargingNetworkHelper.allChargingStations
-        .groupBy(_.zone.tazId)
-        .mapValues(_.flatMap(_.persons).toSet)
-        .view
-        .force
+        .groupBy(_._2.zone.tazId)
+        .mapValues(_.flatMap(_._2.vehicles.map(_._2.personId)).toSet)
+
     val allVirtualPersonsByTAZ = new ConcurrentHashMap[Id[TAZ], mutable.HashSet[Id[Person]]]()
     tazTreeMap.getTAZs.foreach(taz => allVirtualPersonsByTAZ.put(taz.tazId, mutable.HashSet.empty[Id[Person]]))
     vehicleRequests

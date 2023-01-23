@@ -231,8 +231,8 @@ Transit itineraries are returned by the router in the Trip Planning Protocol. In
 3. The Driver sends a ReservationConfirmation directly to the PersonAgent.
 4. When the BeamVehicle makes it to the confirmed stop for boarding, the Driver sends a BoardingNotice to the PersonAgent.
 5. The PersonAgent sends an BoardVehicle message to the Driver.
-7. Also, concurrently, when the BeamVehicle is at the stop, the Driver sends an AlightingNotice to all passengers registered to alight at that stop.
-8. Notified passengers send an AlightVehicle message to the Driver.
+6. Also, concurrently, when the BeamVehicle is at the stop, the Driver sends an AlightingNotice to all passengers registered to alight at that stop.
+7. Notified passengers send an AlightVehicle message to the Driver.
 
 Because the reservation process ensures that vehicles will not exceed capacity, the Driver need not send an acknowledgement to the PersonAgent.
 
