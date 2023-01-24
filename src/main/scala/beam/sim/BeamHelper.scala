@@ -869,7 +869,8 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
               planElement =>
                 planElement.activityEndTime
                   .map(time => planElement.copy(activityEndTime = Some(time / 3600)))
-                  .getOrElse(planElement)
+                  .getOrElse(planElement),
+              Some(beamScenario.network)
             )
             val (scenario, plansMerged) =
               new UrbanSimScenarioLoader(
