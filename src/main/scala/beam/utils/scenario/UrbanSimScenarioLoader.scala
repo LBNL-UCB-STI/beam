@@ -12,9 +12,11 @@ import beam.utils.plan.sampling.AvailableModeUtils
 import beam.utils.scenario.urbansim.HOVModeTransformer
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
-import org.matsim.api.core.v01.population.{Person, Plan, Population}
+import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.population.{Leg, Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.population.PopulationUtils
+import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
@@ -43,7 +45,7 @@ class UrbanSimScenarioLoader(
 
   private val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
-  private val wereCoordinatesInWGS = beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
+  private val wereCoordinatesInWGS = false //beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm // make false
 
   def utmCoord(x: Double, y: Double): Coord = {
     val coord = new Coord(x, y)
@@ -53,6 +55,31 @@ class UrbanSimScenarioLoader(
   def wgsCoord(x: Double, y: Double): Coord = {
     val coord = new Coord(x, y)
     if (wereCoordinatesInWGS) coord else geo.utm2Wgs(coord)
+  }
+
+  private def buildAndAddLegToPlan(currentPlan: Plan, planElement: PlanElement): Leg = {
+    val leg = PopulationUtils.createAndAddLeg(currentPlan, planElement.legMode.getOrElse(""))
+    planElement.legDepartureTime.foreach(v => leg.setDepartureTime(v.toDouble))
+    planElement.legTravelTime.foreach(v => leg.setTravelTime(v.toDouble))
+    planElement.legMode.foreach(v => leg.setMode(v))
+    leg.getAttributes.putAttribute("trip_id", planElement.tripId)
+
+    val legRoute: NetworkRoute = {
+      val links = planElement.legRouteLinks.map(v => Id.create(v, classOf[Link])).asJava
+      if (links.isEmpty) {
+        null
+      } else {
+        RouteUtils.createNetworkRoute(links, beamScenario.network)
+      }
+    }
+    if (legRoute != null) {
+      leg.setRoute(legRoute)
+      planElement.legRouteDistance.foreach(legRoute.setDistance)
+      planElement.legRouteStartLink.foreach(v => legRoute.setStartLinkId(Id.create(v, classOf[Link])))
+      planElement.legRouteEndLink.foreach(v => legRoute.setEndLinkId(Id.create(v, classOf[Link])))
+      planElement.legRouteTravelTime.foreach(v => legRoute.setTravelTime(v))
+    }
+    leg
   }
 
   def loadScenario(): (Scenario, Boolean) = {
@@ -594,18 +621,8 @@ class UrbanSimScenarioLoader(
       if (person != null) {
         val plan = getPlan(person, planInfo)
         val planElement = planInfo.planElementType
-        val tripId = Option(planInfo.tripId).getOrElse("")
         if (planElement == PlanElement.Leg) {
-          planInfo.legMode match {
-            case Some(mode) =>
-              val leg = PopulationUtils.createLeg(mode)
-              leg.getAttributes.putAttribute("trip_id", tripId)
-              plan.addLeg(leg)
-            case None =>
-              val leg = PopulationUtils.createLeg("")
-              leg.getAttributes.putAttribute("trip_id", tripId)
-              plan.addLeg(leg)
-          }
+          buildAndAddLegToPlan(plan, planInfo)
         } else if (planElement == PlanElement.Activity) {
           assert(
             planInfo.activityLocationX.isDefined,
@@ -622,7 +639,6 @@ class UrbanSimScenarioLoader(
             )
           )
           val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
-          plan.getPlanElements.asScala.last.getAttributes.putAttribute("trip_id", tripId)
           planInfo.activityEndTime.foreach { endTime =>
             act.setEndTime(endTime * 60 * 60)
           }

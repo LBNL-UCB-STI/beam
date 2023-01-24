@@ -2,6 +2,7 @@ package beam.utils.scenario
 
 import beam.utils.scenario.generic.readers.{CsvPlanElementReader, XmlPlanElementReader}
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.network.Network
 
 import java.io.IOException
 import java.nio.file.{Files, Path}
@@ -20,7 +21,8 @@ class PreviousRunPlanMerger(
   outputDir: Path,
   dirPrefix: String,
   rnd: Random,
-  adjustForScenario: PlanElement => PlanElement
+  adjustForScenario: PlanElement => PlanElement,
+  network: Option[Network] = None
 ) extends LazyLogging {
   require(0 <= fractionOfNewPlansToUpdate && fractionOfNewPlansToUpdate <= 1.0, "fraction must be in [0, 1]")
 
@@ -35,7 +37,7 @@ class PreviousRunPlanMerger(
         val previousPlans = if (inputPlanPath.getFileName.toString.toLowerCase.contains(".csv")) {
           CsvPlanElementReader.read(inputPlanPath.toString)
         } else {
-          XmlPlanElementReader.read(inputPlanPath.toString)
+          XmlPlanElementReader.read(inputPlanPath.toString, network)
         }
         val maybeExperiencedPlans =
           maybeExperiencedPlanPath.map(path => XmlPlanElementReader.read(path.toString, network))
@@ -145,11 +147,11 @@ object LastRunOutputSource extends LazyLogging {
       (itDir, itNumber) <- findAllLastIterationDirectories(outputPath, dirPrefix)
       plansPath <- findLatestOutputDirectory(outputPath, dirPrefix)
         .filter { p =>
-          val outputPlansLocation = p.resolve("output_plans.xml.gz")
+          val outputPlansLocation = p.resolve("experienced_plans.xml.gz")
           logger.info("Initially looking for plans at {}", outputPlansLocation.toString)
           Files.exists(outputPlansLocation)
         }
-        .map(_.resolve("output_plans.xml.gz")) orElse findFile(itDir, itNumber, "plans.csv.gz")
+        .map(_.resolve("experienced_plans.xml.gz")) orElse findFile(itDir, itNumber, "plans.csv.gz")
     } yield plansPath
     val experiencedPlansPath = for {
       (itDir, itNumber) <- findAllLastIterationDirectories(outputPath, dirPrefix)
