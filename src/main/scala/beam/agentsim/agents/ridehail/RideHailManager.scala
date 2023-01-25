@@ -13,6 +13,7 @@ import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailDepotManager.ParkingStallsClaimedByVehicles
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.{Available, Refueling, RideHailAgentLocation}
+import beam.agentsim.agents.ridehail.RideHailRequest.{projectCoordinateToUtm, projectWgsCoordinateToUtm}
 import beam.agentsim.agents.ridehail.allocation._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{
   CouldNotFindRouteToCustomer,
@@ -43,8 +44,10 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.metrics.SimulationMetricCollector._
 import beam.utils._
+import beam.utils.csv.GenericCsvReader
 import beam.utils.logging.pattern.ask
 import beam.utils.logging.{LogActorState, LoggingMessageActor}
+import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.transit.TransportNetwork
@@ -54,6 +57,7 @@ import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.controler.OutputDirectoryHierarchy
+import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.misc.Time
 
 import java.awt.Color
@@ -83,6 +87,7 @@ object RideHailManager {
     passengerSchedule: PassengerSchedule,
     estimatedPrice: Map[Id[Person], Double],
     maxWaitingTimeInSec: Int,
+    walkToPickupStop: Option[EmbodiedBeamTrip] = None,
     poolingInfo: Option[PoolingInfo] = None
   ) {
 
@@ -102,6 +107,7 @@ object RideHailManager {
       passengerSchedule.legsWithPassenger(passenger).map(_.travelPath.distanceInM).sum
 
     def toEmbodiedBeamLegsForCustomer(passenger: PersonIdWithActorRef): Vector[EmbodiedBeamLeg] = {
+      walkToPickupStop.fold(Vector.empty[EmbodiedBeamLeg])(_.legs.toVector) ++
       passengerSchedule
         .legsWithPassenger(passenger)
         .map { beamLeg =>
@@ -234,6 +240,16 @@ object RideHailManager {
     }
 
   }
+
+  def loadStopFile(filePath: String): QuadTree[Location] = {
+    val coords = GenericCsvReader.readAsSeq[Location](filePath) { rec =>
+      new Location(
+        Option(rec.get("coord-x")).fold(throw new RuntimeException("No coord-x provided"))(_.toDouble),
+        Option(rec.get("coord-y")).fold(throw new RuntimeException("No coord-y provided"))(_.toDouble)
+      )
+    }
+    ShapeUtils.quadTree(coords)
+  }
 }
 
 class RideHailManager(
@@ -345,16 +361,19 @@ class RideHailManager(
   val doNotUseInAllocation: mutable.Set[Id[_]] = collection.mutable.Set[Id[_]]()
 
   // Tracking Inquiries and Reservation Requests
-  val inquiryIdToInquiryAndResponse: mutable.Map[Int, (RideHailRequest, SingleOccupantQuoteAndPoolingInfo)] =
+  private val inquiryIdToInquiryAndResponse: mutable.Map[Int, (RideHailRequest, SingleOccupantQuoteAndPoolingInfo)] =
     mutable.Map()
-  val routeRequestIdToRideHailRequestId: mutable.Map[Int, Int] = mutable.Map()
-  val reservationIdToRequest: mutable.Map[Int, RideHailRequest] = mutable.Map()
+  private val routeRequestIdToRideHailRequestId: mutable.Map[Int, Int] = mutable.Map()
+  private val reservationIdToRequest: mutable.Map[Int, RideHailRequest] = mutable.Map()
+  private val inquiryIdToWalkTrips: mutable.Map[Int, EmbodiedBeamTrip] = mutable.Map()
 
   // Are we in the middle of processing a batch? or repositioning
   var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
   var currentlyProcessingTimeoutWallStartTime: Long = System.nanoTime()
 
   private val vehicleIdToGeofence: mutable.Map[VehicleId, Geofence] = mutable.Map.empty[VehicleId, Geofence]
+  private val bodyTypeId = Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
+  private val rideHailStops: Option[QuadTree[Location]] = managerConfig.stopFilePath.map(RideHailManager.loadStopFile)
 
   // Cache analysis
   private var cacheAttempts = 0
@@ -556,9 +575,37 @@ class RideHailManager(
     case MATSimNetwork(network) =>
       rideHailNetworkApi.setMATSimNetwork(network)
 
+    case inquiry: RideHailRequest if !inquiry.shouldReserveRide && rideHailStops.isDefined =>
+      val pickupStop = rideHailStops.get.getClosest(inquiry.pickUpLocationUTM.getX, inquiry.pickUpLocationUTM.getY)
+      val bodyVehicle = StreetVehicle(
+        BeamVehicle.createId(inquiry.customer.personId, Some("body")),
+        bodyTypeId,
+        SpaceTime(inquiry.pickUpLocationUTM, inquiry.departAt),
+        WALK,
+        asDriver = true,
+        needsToCalculateCost = false
+      )
+      val routingRequest = RoutingRequest(
+        originUTM = inquiry.pickUpLocationUTM,
+        destinationUTM = pickupStop,
+        departureTime = inquiry.departAt,
+        withTransit = false,
+        personId = Some(inquiry.customer.personId),
+        streetVehicles = Vector(bodyVehicle),
+        triggerId = inquiry.triggerId
+      )
+      (router ? routingRequest).mapTo[RoutingResponse].map(_ -> inquiry) pipeTo self
+
+    case (pickupRoute: RoutingResponse, inquiry: RideHailRequest) if !inquiry.shouldReserveRide =>
+      val diff = ProfilingUtils.timeWork(
+        handleRideHailInquiry(inquiry, Some(pickupRoute.itineraries.head))
+      )
+      nHandleRideHailInquiry += 1
+      timeSpendForHandleRideHailInquiryMs += diff
+
     case inquiry: RideHailRequest if !inquiry.shouldReserveRide =>
       val s = System.currentTimeMillis
-      handleRideHailInquiry(inquiry)
+      handleRideHailInquiry(inquiry, None)
       val diff = System.currentTimeMillis - s
       nHandleRideHailInquiry += 1
       timeSpendForHandleRideHailInquiryMs += diff
@@ -639,6 +686,7 @@ class RideHailManager(
               )
             ),
             rideHailResourceAllocationManager.maxWaitTimeInSec,
+            walkToPickupStop = inquiryIdToWalkTrips.get(request.requestId),
             singleOccupantQuoteAndPoolingInfo.poolingInfo
           )
           travelProposalCache.put(request.requestId.toString, travelProposal)
@@ -648,6 +696,7 @@ class RideHailManager(
       request.requester ! rideHailResponse
       rideHailResponseCache.add(rideHailResponse)
       inquiryIdToInquiryAndResponse.remove(request.requestId)
+      inquiryIdToWalkTrips.remove(request.requestId)
       responses.foreach(routingResp => routeRequestIdToRideHailRequestId.remove(routingResp.requestId))
 
     case reserveRide: RideHailRequest if reserveRide.shouldReserveRide =>
@@ -1221,7 +1270,7 @@ class RideHailManager(
 
   /* END: Refueling Logic */
 
-  def handleRideHailInquiry(inquiry: RideHailRequest): Unit = {
+  def handleRideHailInquiry(inquiry: RideHailRequest, mayBeWalkToStop: Option[EmbodiedBeamTrip]): Unit = {
     requestedRideHail += 1
     // Adjust depart time to account for delay from batch processing on a timeout, provides a more accurate quote
     val timeUntilNextDispatch = if (processBufferedRequestsOnTimeout) {
@@ -1240,9 +1289,17 @@ class RideHailManager(
     } else {
       0
     }
-    val inquiryWithUpdatedLoc = RideHailRequest
-      .projectCoordinatesToUtm(inquiry, beamServices)
-      .copy(departAt = inquiry.departAt + timeUntilNextDispatch)
+    val pickUpLocUpdatedUTM =
+      mayBeWalkToStop.fold(projectCoordinateToUtm(inquiry.pickUpLocationUTM, beamServices))(walkTrip =>
+        projectWgsCoordinateToUtm(walkTrip.legs.last.beamLeg.travelPath.endPoint.loc, beamServices)
+      )
+    val actualDepartAt = mayBeWalkToStop.fold(inquiry.departAt)(_.legs.last.beamLeg.travelPath.endPoint.time)
+    val destLocUpdatedUTM: Location = projectCoordinateToUtm(inquiry.destinationUTM, beamServices)
+    val inquiryWithUpdatedLoc = inquiry.copy(
+      pickUpLocationUTM = pickUpLocUpdatedUTM,
+      destinationUTM = destLocUpdatedUTM,
+      departAt = actualDepartAt + timeUntilNextDispatch
+    )
     rideHailResourceAllocationManager.respondToInquiry(inquiryWithUpdatedLoc) match {
       case NoVehiclesAvailable =>
         beamServices.simMetricCollector
@@ -1269,6 +1326,7 @@ class RideHailManager(
         )
         requestRoutes(inquiryWithUpdatedLoc.departAt, routingRequests, inquiry.triggerId)
     }
+    mayBeWalkToStop.foreach(trip => inquiryIdToWalkTrips.put(inquiryWithUpdatedLoc.requestId, trip))
   }
 
   // Returns true if pendingModifyPassengerScheduleAcks is empty and therefore signaling cleanup needed

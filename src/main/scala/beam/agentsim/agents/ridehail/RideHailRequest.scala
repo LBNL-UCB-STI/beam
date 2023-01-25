@@ -71,21 +71,30 @@ object RideHailRequest {
     * @param beamServices an instance of beam services
     */
   def projectCoordinatesToUtm(request: RideHailRequest, beamServices: BeamServices): RideHailRequest = {
-    val linkRadiusMeters = beamServices.beamConfig.beam.routing.r5.linkRadiusMeters
-    val pickUpLocUpdatedUTM = beamServices.geo.wgs2Utm(
-      beamServices.geo.snapToR5Edge(
-        beamServices.beamScenario.transportNetwork.streetLayer,
-        beamServices.geo.utm2Wgs(request.pickUpLocationUTM),
-        linkRadiusMeters
-      )
-    )
-    val destLocUpdatedUTM = beamServices.geo.wgs2Utm(
-      beamServices.geo.snapToR5Edge(
-        beamServices.beamScenario.transportNetwork.streetLayer,
-        beamServices.geo.utm2Wgs(request.destinationUTM),
-        linkRadiusMeters
-      )
-    )
+    val pickUpLocUpdatedUTM: Location = projectCoordinateToUtm(request.pickUpLocationUTM, beamServices)
+    val destLocUpdatedUTM: Location = projectCoordinateToUtm(request.destinationUTM, beamServices)
     request.copy(destinationUTM = destLocUpdatedUTM, pickUpLocationUTM = pickUpLocUpdatedUTM)
+  }
+
+  def projectCoordinateToUtm(location: Location, beamServices: BeamServices): Location = {
+    val linkRadiusMeters = beamServices.beamConfig.beam.routing.r5.linkRadiusMeters
+    beamServices.geo.wgs2Utm(
+      beamServices.geo.snapToR5Edge(
+        beamServices.beamScenario.transportNetwork.streetLayer,
+        beamServices.geo.utm2Wgs(location),
+        linkRadiusMeters
+      )
+    )
+  }
+
+  def projectWgsCoordinateToUtm(location: Location, beamServices: BeamServices): Location = {
+    val linkRadiusMeters = beamServices.beamConfig.beam.routing.r5.linkRadiusMeters
+    beamServices.geo.wgs2Utm(
+      beamServices.geo.snapToR5Edge(
+        beamServices.beamScenario.transportNetwork.streetLayer,
+        location,
+        linkRadiusMeters
+      )
+    )
   }
 }
