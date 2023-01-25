@@ -356,3 +356,7 @@ def getGitResultFromWorkingDirUsing(command, defaultResult) {
     }
     return gitResult
 }
+
+ext {
+    getCurrentGitUserEmail = this.&getCurrentGitUserEmail
+}
