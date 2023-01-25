@@ -1272,6 +1272,10 @@ class RideHailManager(
 
   def handleRideHailInquiry(inquiry: RideHailRequest, mayBeWalkToStop: Option[EmbodiedBeamTrip]): Unit = {
     requestedRideHail += 1
+    if (mayBeWalkToStop.exists(_.totalDistanceInM > managerConfig.maximumWalkDistanceToStopInM)) {
+      respondWithDriverNotFound(inquiry)
+      return
+    }
     // Adjust depart time to account for delay from batch processing on a timeout, provides a more accurate quote
     val timeUntilNextDispatch = if (processBufferedRequestsOnTimeout) {
       val timeoutInterval =
@@ -1302,15 +1306,7 @@ class RideHailManager(
     )
     rideHailResourceAllocationManager.respondToInquiry(inquiryWithUpdatedLoc) match {
       case NoVehiclesAvailable =>
-        beamServices.simMetricCollector
-          .writeIteration("ride-hail-inquiry-not-available", SimulationTime(inquiry.departAt))
-        log.debug("{} -- NoVehiclesAvailable", inquiryWithUpdatedLoc.requestId)
-        inquiryWithUpdatedLoc.requester ! RideHailResponse(
-          inquiryWithUpdatedLoc,
-          None,
-          managerConfig.name,
-          Some(DriverNotFoundError)
-        )
+        respondWithDriverNotFound(inquiry)
       case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, _) =>
         servedRideHail += 1
         beamServices.simMetricCollector.writeIteration("ride-hail-inquiry-served", SimulationTime(inquiry.departAt))
@@ -1327,6 +1323,17 @@ class RideHailManager(
         requestRoutes(inquiryWithUpdatedLoc.departAt, routingRequests, inquiry.triggerId)
     }
     mayBeWalkToStop.foreach(trip => inquiryIdToWalkTrips.put(inquiryWithUpdatedLoc.requestId, trip))
+  }
+
+  private def respondWithDriverNotFound(inquiry: RideHailRequest): Unit = {
+    beamServices.simMetricCollector.writeIteration("ride-hail-inquiry-not-available", SimulationTime(inquiry.departAt))
+    log.debug("{} -- NoVehiclesAvailable", inquiry.requestId)
+    inquiry.requester ! RideHailResponse(
+      inquiry,
+      None,
+      managerConfig.name,
+      Some(DriverNotFoundError)
+    )
   }
 
   // Returns true if pendingModifyPassengerScheduleAcks is empty and therefore signaling cleanup needed

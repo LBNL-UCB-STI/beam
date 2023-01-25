@@ -1094,6 +1094,7 @@ object BeamConfig {
             defaultCostPerMile: scala.Double,
             defaultCostPerMinute: scala.Double,
             initialization: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization,
+            maximumWalkDistanceToStopInM: scala.Int,
             name: java.lang.String,
             pooledBaseCost: scala.Double,
             pooledCostPerMile: scala.Double,
@@ -1459,6 +1460,9 @@ object BeamConfig {
                   if (c.hasPathOrNull("initialization")) c.getConfig("initialization")
                   else com.typesafe.config.ConfigFactory.parseString("initialization{}")
                 ),
+                maximumWalkDistanceToStopInM =
+                  if (c.hasPathOrNull("maximumWalkDistanceToStopInM")) c.getInt("maximumWalkDistanceToStopInM")
+                  else 800,
                 name = if (c.hasPathOrNull("name")) c.getString("name") else "GlobalRHM",
                 pooledBaseCost = if (c.hasPathOrNull("pooledBaseCost")) c.getDouble("pooledBaseCost") else 1.89,
                 pooledCostPerMile =
