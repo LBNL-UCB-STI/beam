@@ -10,6 +10,7 @@ case object DelayedRideHailResponse
 case class RideHailResponse(
   request: RideHailRequest,
   travelProposal: Option[TravelProposal],
+  rideHailManagerName: String,
   error: Option[ReservationError] = None,
   triggersToSchedule: Vector[ScheduleTrigger] = Vector(),
   directTripTravelProposal: Option[TravelProposal] = None
@@ -24,9 +25,9 @@ case class RideHailResponse(
 case class RideHailResponseTrigger(tick: Int, rideHailResponse: RideHailResponse) extends Trigger
 
 object RideHailResponse {
-  val DUMMY: RideHailResponse = RideHailResponse(RideHailRequest.DUMMY, None, None)
+  val DUMMY: RideHailResponse = RideHailResponse(RideHailRequest.DUMMY, None, "_DUMMY_")
 
   def dummyWithError(error: ReservationError): RideHailResponse =
-    RideHailResponse(RideHailRequest.DUMMY, None, Some(error))
+    RideHailResponse(RideHailRequest.DUMMY, None, "_DUMMY_WITH_ERROR_", Some(error))
 
 }

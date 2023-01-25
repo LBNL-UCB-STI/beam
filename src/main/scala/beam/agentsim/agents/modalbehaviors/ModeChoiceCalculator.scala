@@ -3,12 +3,14 @@ package beam.agentsim.agents.modalbehaviors
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel
 import beam.agentsim.agents.choice.logit.LatentClassChoiceModel.Mandatory
 import beam.agentsim.agents.choice.mode._
+import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.sim.BeamServices
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 import beam.sim.population.AttributesOfIndividual
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.core.api.experimental.events.EventsManager
 
@@ -29,15 +31,22 @@ trait ModeChoiceCalculator {
   def getGeneralizedTimeOfTrip(
     embodiedBeamTrip: EmbodiedBeamTrip,
     attributesOfIndividual: Option[AttributesOfIndividual] = None,
-    destinationActivity: Option[Activity] = None
+    destinationActivity: Option[Activity] = None,
+    originActivity: Option[Activity] = None
   ): Double = {
     embodiedBeamTrip.totalTravelTimeInSecs / 3600
   }
 
+  def getCrowdingForTrip(embodiedBeamTrip: EmbodiedBeamTrip): Double = {
+    0.0
+  }
+
   def getGeneralizedTimeOfLeg(
+    embodiedBeamTrip: EmbodiedBeamTrip,
     embodiedBeamLeg: EmbodiedBeamLeg,
     attributesOfIndividual: Option[AttributesOfIndividual],
-    destinationActivity: Option[Activity]
+    destinationActivity: Option[Activity],
+    originActivity: Option[Activity] = None
   ): Double = {
     embodiedBeamLeg.beamLeg.duration / 3600
   }
@@ -54,13 +63,15 @@ trait ModeChoiceCalculator {
     alternatives: IndexedSeq[EmbodiedBeamTrip],
     attributesOfIndividual: AttributesOfIndividual,
     destinationActivity: Option[Activity],
+    originActivity: Option[Activity],
     person: Option[Person] = None
   ): Option[EmbodiedBeamTrip]
 
   def utilityOf(
     alternative: EmbodiedBeamTrip,
     attributesOfIndividual: AttributesOfIndividual,
-    destinationActivity: Option[Activity]
+    destinationActivity: Option[Activity],
+    originActivity: Option[Activity]
   ): Double
 
   def utilityOf(
@@ -120,6 +131,13 @@ object ModeChoiceCalculator {
 
   type ModeChoiceCalculatorFactory = AttributesOfIndividual => ModeChoiceCalculator
 
+  def getTransitVehicleTypeVOTMultipliers(beamServices: BeamServices): Map[Id[BeamVehicleType], Double] =
+    ModeChoiceMultinomialLogit.getTransitVehicleTypeVOTMultipliers(
+      beamServices.beamScenario.vehicleTypes,
+      beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.transitVehicleTypeVOTMultipliers
+        .getOrElse(List.empty)
+    )
+
   def apply(
     classname: String,
     beamServices: BeamServices,
@@ -131,12 +149,13 @@ object ModeChoiceCalculator {
         val lccm = new LatentClassChoiceModel(beamServices)
         (attributesOfIndividual: AttributesOfIndividual) =>
           attributesOfIndividual match {
-            case AttributesOfIndividual(_, Some(modalityStyle), _, _, _, _, _) =>
+            case AttributesOfIndividual(_, Some(modalityStyle), _, _, _, _, _, _, _) =>
               val (model, modeModel) = lccm.modeChoiceModels(Mandatory)(modalityStyle)
               new ModeChoiceMultinomialLogit(
                 beamServices,
                 model,
                 modeModel,
+                getTransitVehicleTypeVOTMultipliers(beamServices),
                 configHolder,
                 beamServices.skims.tc_skimmer,
                 eventsManager
@@ -159,6 +178,7 @@ object ModeChoiceCalculator {
             beamServices,
             routeLogit,
             modeLogit,
+            getTransitVehicleTypeVOTMultipliers(beamServices),
             configHolder,
             beamServices.skims.tc_skimmer,
             eventsManager
@@ -173,18 +193,25 @@ object ModeChoiceCalculator {
   case object DriveToTransit extends ModeVotMultiplier
   case object RideHail extends ModeVotMultiplier // No separate ride hail to transit VOT
   case object Bike extends ModeVotMultiplier
-  sealed trait timeSensitivity
-  case object highSensitivity extends timeSensitivity
-  case object lowSensitivity extends timeSensitivity
-  sealed trait congestionLevel
-  case object highCongestion extends congestionLevel
-  case object lowCongestion extends congestionLevel
-  sealed trait roadwayType
-  case object highway extends roadwayType
-  case object nonHighway extends roadwayType
-  sealed trait automationLevel
-  case object levelLE2 extends automationLevel
-  case object level3 extends automationLevel
-  case object level4 extends automationLevel
-  case object level5 extends automationLevel
+  sealed trait SituationMultiplier extends Product with Serializable
+  sealed trait TripType extends SituationMultiplier
+  case object commuteTrip extends TripType
+  case object nonCommuteTrip extends TripType
+  sealed trait AgeGroup extends SituationMultiplier
+  case object ageGT50 extends AgeGroup
+  case object ageLE50 extends AgeGroup
+  sealed trait TimeSensitivity extends SituationMultiplier
+  case object highSensitivity extends TimeSensitivity
+  case object lowSensitivity extends TimeSensitivity
+  sealed trait CongestionLevel extends SituationMultiplier
+  case object highCongestion extends CongestionLevel
+  case object lowCongestion extends CongestionLevel
+  sealed trait RoadwayType extends SituationMultiplier
+  case object highway extends RoadwayType
+  case object nonHighway extends RoadwayType
+  sealed trait AutomationLevel extends SituationMultiplier
+  case object levelLE2 extends AutomationLevel
+  case object level3 extends AutomationLevel
+  case object level4 extends AutomationLevel
+  case object level5 extends AutomationLevel
 }

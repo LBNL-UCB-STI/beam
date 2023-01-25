@@ -40,7 +40,7 @@ object Models {
   }
 
   case class BlockGroupGeoId(state: State, county: County, tract: String, blockGroup: String) extends GenericGeoId {
-    def asUniqueKey: String = s"${state.value}-${county.value}-$tract-$blockGroup"
+    def asUniqueKey: String = s"${state.value}${county.value}$tract$blockGroup"
   }
 
   case class TazGeoId(state: State, county: County, taz: String) extends GenericGeoId {
@@ -73,5 +73,5 @@ object Models {
   ) {
     val fullId: String = s"${geoId.state.value}-${geoId.county.value}-${geoId.tract}-${geoId.blockGroup}:$id"
   }
-  case class Person(id: String, age: Int, gender: Gender, householdId: String)
+  case class Person(id: String, age: Int, gender: Gender, industry: Option[String], householdId: String)
 }

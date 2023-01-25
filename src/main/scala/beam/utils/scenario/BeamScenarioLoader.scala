@@ -5,6 +5,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManag
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
+import beam.sim.population.PopulationAdjustment.RIDEHAIL_SERVICE_SUBSCRIPTION
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.google.common.annotations.VisibleForTesting
@@ -79,9 +80,14 @@ class BeamScenarioLoader(
     val households: Households = replaceHouseholds(scenario.getHouseholds, newHouseholds)
 
     beamScenario.privateVehicles.clear()
-    vehicles
-      .map(c => buildBeamVehicle(beamScenario.vehicleTypes, c, rand.nextInt))
-      .foreach(v => beamScenario.privateVehicles.put(v.id, v))
+    beamScenario.privateVehicleInitialSoc.clear()
+    for {
+      vehicleInfo <- vehicles
+      vehicle = buildBeamVehicle(beamScenario.vehicleTypes, vehicleInfo, rand.nextInt)
+    } {
+      beamScenario.privateVehicles.put(vehicle.id, vehicle)
+      vehicleInfo.initialSoc.foreach(beamScenario.privateVehicleInitialSoc.put(vehicle.id, _))
+    }
 
     val scenarioPopulation: Population = buildPopulation(personsWithPlans)
     scenario.setPopulation(scenarioPopulation)
@@ -149,9 +155,14 @@ class BeamScenarioLoader(
       personAttributes.putAttribute(personId, "valueOfTime", personInfo.valueOfTime)
       personAttributes.putAttribute(personId, "sex", sexChar)
       personAttributes.putAttribute(personId, "excluded-modes", personInfo.excludedModes.mkString(","))
+      personAttributes.putAttribute(
+        personId,
+        RIDEHAIL_SERVICE_SUBSCRIPTION,
+        personInfo.rideHailServiceSubscription.mkString(",")
+      )
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
-
+      person.getAttributes.putAttribute("industry", personInfo.industry.getOrElse(""))
       result.addPerson(person)
     }
 
@@ -193,22 +204,29 @@ class BeamScenarioLoader(
         case (_, listOfElementsGroupedByPlan) if listOfElementsGroupedByPlan.nonEmpty =>
           val person = population.getPersons.get(Id.createPersonId(personId.id))
 
-          val currentPlan = PopulationUtils.createPlan(person)
-          currentPlan.setScore(listOfElementsGroupedByPlan.head.planScore)
-          person.addPlan(currentPlan)
+          if (person == null) {
+            logger.warn(
+              "Could not find person {} while adding plans (maybe it doesn't belong to any household!?)",
+              personId.id
+            )
+          } else {
+            val currentPlan = PopulationUtils.createPlan(person)
+            currentPlan.setScore(listOfElementsGroupedByPlan.head.planScore)
+            person.addPlan(currentPlan)
 
-          val personWithoutSelectedPlan = person.getSelectedPlan == null
-          val isCurrentPlanIndexSelected = listOfElementsGroupedByPlan.head.planSelected
-          val isLastPlanIteration = person.getPlans.size() == listOfElementsGroupedByPerson.size
-          if (personWithoutSelectedPlan && (isCurrentPlanIndexSelected || isLastPlanIteration)) {
-            person.setSelectedPlan(currentPlan)
-          }
+            val personWithoutSelectedPlan = person.getSelectedPlan == null
+            val isCurrentPlanIndexSelected = listOfElementsGroupedByPlan.head.planSelected
+            val isLastPlanIteration = person.getPlans.size() == listOfElementsGroupedByPerson.size
+            if (personWithoutSelectedPlan && (isCurrentPlanIndexSelected || isLastPlanIteration)) {
+              person.setSelectedPlan(currentPlan)
+            }
 
-          listOfElementsGroupedByPlan.foreach { planElement =>
-            if (planElement.planElementType.equalsIgnoreCase("leg")) {
-              buildAndAddLegToPlan(currentPlan, planElement)
-            } else if (planElement.planElementType.equalsIgnoreCase("activity")) {
-              buildAndAddActivityToPlan(currentPlan, planElement)
+            listOfElementsGroupedByPlan.foreach { planElement =>
+              if (planElement.planElementType == PlanElement.Leg) {
+                buildAndAddLegToPlan(currentPlan, planElement)
+              } else if (planElement.planElementType == PlanElement.Activity) {
+                buildAndAddActivityToPlan(currentPlan, planElement)
+              }
             }
           }
       }

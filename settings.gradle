@@ -2,5 +2,6 @@ include 'beam-gui'
 include 'aws'
 include 'nersc'
 include 'metrics2.0'
+include 'jupyter'
 
 rootProject.name = 'beam'

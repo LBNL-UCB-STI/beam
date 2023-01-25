@@ -5,14 +5,13 @@ import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.plan.sampling.AvailableModeUtils
 import beam.{agentsim, sim}
 import com.typesafe.scalalogging.LazyLogging
-import org.matsim.api.core.v01.population.{Person, Population => MPopulation}
+import org.matsim.api.core.v01.population.{Person, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.population.PersonUtils
 import org.matsim.households.Household
 
 import java.util.Random
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 /**
   * An interface that handles setting/updating attributes for the population.
@@ -29,7 +28,7 @@ trait PopulationAdjustment extends LazyLogging {
     * @param population The population in the scenario
     * @return updated population
     */
-  private def updateAttributes(population: MPopulation): MPopulation = {
+  private def updateAttributes(population: Population): Population = {
     val personHouseholds = scenario.getHouseholds.getHouseholds
       .values()
       .asScala
@@ -50,10 +49,11 @@ trait PopulationAdjustment extends LazyLogging {
     * @param scenario selected scenario
     * @return updated population
     */
-  final def update(scenario: Scenario): MPopulation = {
+  final def update(scenario: Scenario): Population = {
     val populationWithAttributes = updateAttributes(scenario.getPopulation)
     updatePopulation(scenario)
     logModes(populationWithAttributes)
+    populationWithAttributes
   }
 
   /**
@@ -61,37 +61,38 @@ trait PopulationAdjustment extends LazyLogging {
     *
     * @param population population from the scenario
     */
-  protected final def logModes(population: MPopulation): MPopulation = {
-    // initialize all excluded modes to empty map
-    val excludedModeToCount: mutable.Map[String, Int] = new mutable.HashMap[String, Int]()
+  protected[population] final def logModes(population: Population): Unit = {
+    val persons = population.getPersons.asScala
 
-// check if excluded modes is defined for all individuals
-    val allAgentsHaveAttributes = population.getPersons.asScala.forall { entry =>
-      val personExcludedModes = Option(
-        population.getPersonAttributes.getAttribute(entry._1.toString, PopulationAdjustment.EXCLUDED_MODES)
-      ).map(_.toString)
-      // if excluded modes is defined for the person add it to the map
-      if (personExcludedModes.isDefined && personExcludedModes.get.nonEmpty) {
-        personExcludedModes.get.split(",").foreach { em =>
-          excludedModeToCount.update(em, excludedModeToCount.getOrElse(em, 1) + 1)
-        }
+    val excludedModesPerPerson = persons.keys.toList
+      .flatMap { personId =>
+        Option(
+          population.getPersonAttributes.getAttribute(personId.toString, PopulationAdjustment.EXCLUDED_MODES)
+        )
       }
-      personExcludedModes.isDefined
-    }
 
-    if (excludedModeToCount.nonEmpty) {
-      logger.info("Modes excluded:")
-      excludedModeToCount.foreach { case (em, counter) => logger.info(s"$em -> $counter") }
+    val allExcludedModes = excludedModesPerPerson
+      .map {
+        case x: Iterable[_] => x.mkString(",")
+        case x: String      => x
+      }
+      .filter(_.nonEmpty)
+      .flatMap(_.split(","))
+
+    if (allExcludedModes.nonEmpty) {
+      logger.info(s"Modes excluded:")
+      allExcludedModes
+        .groupBy(identity)
+        .foreach { case (mode, modes) => logger.info(s"$mode -> ${modes.size}") }
     }
 
     // log error if excluded modes attributes is missing for at least one person in the population
-    if (!allAgentsHaveAttributes) {
-      logger.warn("Not all agents have person attributes - is attributes file missing ?")
+    if (persons.size != excludedModesPerPerson.size) {
+      logger.error("Not all agents have person attributes - is attributes file missing ?")
     }
-    population
   }
 
-  protected def updatePopulation(scenario: Scenario): MPopulation
+  protected def updatePopulation(scenario: Scenario): Population
 
   /**
     * Adds the given mode to the list of available modes for the person
@@ -100,7 +101,7 @@ trait PopulationAdjustment extends LazyLogging {
     * @param personId the person to whom the above mode needs to be added
     * @param mode mode to be added
     */
-  protected def addMode(population: MPopulation, personId: String, mode: String): MPopulation = {
+  protected def addMode(population: Population, personId: String, mode: String): Population = {
     val person = population.getPersons.get(Id.createPersonId(personId))
     val availableModes = AvailableModeUtils.availableModesForPerson(person)
     if (!availableModes.exists(am => am.value.equalsIgnoreCase(mode))) {
@@ -117,7 +118,7 @@ trait PopulationAdjustment extends LazyLogging {
     * @param personId the person to whom the above mode availability needs to be verified
     * @param modeToCheck mode to be checked
     */
-  protected def existsMode(population: MPopulation, personId: String, modeToCheck: String): Boolean = {
+  protected def existsMode(population: Population, personId: String, modeToCheck: String): Boolean = {
     AvailableModeUtils
       .availableModesForPerson(
         population.getPersons
@@ -133,7 +134,7 @@ trait PopulationAdjustment extends LazyLogging {
     * @param personId the person to whom the above mode needs to be removed
     * @param modeToRemove mode to be removed
     */
-  protected def removeMode(population: MPopulation, personId: String, modeToRemove: String*): Unit = {
+  protected def removeMode(population: Population, personId: String, modeToRemove: String*): Unit = {
     val person = population.getPersons.get(Id.createPersonId(personId))
     val availableModes = AvailableModeUtils.availableModesForPerson(person)
     val newModes: Seq[BeamMode] = availableModes.filterNot(m => modeToRemove.exists(r => r.equalsIgnoreCase(m.value)))
@@ -146,13 +147,13 @@ trait PopulationAdjustment extends LazyLogging {
     * @param population population from the scenario
     * @param modeToRemove mode to be removed
     */
-  protected def removeModeAll(population: MPopulation, modeToRemove: String*): Unit = {
+  protected def removeModeAll(population: Population, modeToRemove: String*): Unit = {
     population.getPersons.keySet().forEach { personId =>
       this.removeMode(population, personId.toString, modeToRemove: _*)
     }
   }
 
-  def assignModeUniformDistribution(population: MPopulation, mode: String, pct: Double): Unit = {
+  def assignModeUniformDistribution(population: Population, mode: String, pct: Double): Unit = {
     val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
     val numPop = population.getPersons.size()
     rand.ints(0, numPop).distinct().limit((numPop * pct).toLong).forEach { num =>
@@ -172,6 +173,7 @@ object PopulationAdjustment extends LazyLogging {
   val EXCLUDE_TRANSIT = "EXCLUDE_TRANSIT"
   val HALF_TRANSIT = "HALF_TRANSIT"
   val EXCLUDED_MODES = "excluded-modes"
+  val RIDEHAIL_SERVICE_SUBSCRIPTION = "ridehail-service-subscription"
   val BEAM_ATTRIBUTES = "beam-attributes"
   val CAR_RIDE_HAIL_ONLY = "CAR_RIDE_HAIL_ONLY"
 
@@ -216,7 +218,7 @@ object PopulationAdjustment extends LazyLogging {
     * @param personId the respective person's id
     * @return custom beam attributes as an instance of [[beam.sim.population.AttributesOfIndividual]]
     */
-  def getBeamAttributes(population: MPopulation, personId: String): AttributesOfIndividual = {
+  def getBeamAttributes(population: Population, personId: String): AttributesOfIndividual = {
     population.getPersons
       .get(Id.createPersonId(personId))
       .getCustomAttributes
@@ -226,7 +228,7 @@ object PopulationAdjustment extends LazyLogging {
 
   def createAttributesOfIndividual(
     beamScenario: BeamScenario,
-    population: MPopulation,
+    population: Population,
     person: Person,
     household: Household
   ): AttributesOfIndividual = {
@@ -244,10 +246,18 @@ object PopulationAdjustment extends LazyLogging {
     val availableModes: Seq[BeamMode] = initialAvailableModes.filterNot { mode =>
       excludedModes.exists(em => em.equalsIgnoreCase(mode.value))
     }
+    val rideHailServiceSubscription = AvailableModeUtils.getAttributeAsArrayOfStrings(
+      population,
+      person.getId.toString,
+      PopulationAdjustment.RIDEHAIL_SERVICE_SUBSCRIPTION
+    )
     // Read person attribute "income" and default it to 0 if not set
     val income = Option(personAttributes.getAttribute(person.getId.toString, "income"))
       .map(_.asInstanceOf[Double])
       .getOrElse(0d)
+    // Read person attribute "wheelchairUser" and default it to 0 if not set
+    val wheelchairUser =
+      Option(personAttributes.getAttribute(person.getId.toString, "wheelchairUser")).exists(_.asInstanceOf[Boolean])
     // Read person attribute "modalityStyle"
     val modalityStyle =
       Option(person.getSelectedPlan)
@@ -276,9 +286,11 @@ object PopulationAdjustment extends LazyLogging {
       modalityStyle = modalityStyle,
       isMale = Option(PersonUtils.getSex(person)).getOrElse("M").equalsIgnoreCase("M"),
       availableModes = availableModes,
+      rideHailServiceSubscription = rideHailServiceSubscription,
       valueOfTime = valueOfTime,
       age = Option(PersonUtils.getAge(person)),
-      income = Some(income)
+      income = Some(income),
+      wheelchairUser = wheelchairUser
     )
   }
 

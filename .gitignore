@@ -56,3 +56,8 @@ src/main/scala/beam/sandbox
 test/scala/beam/sandbox
 log-path_IS_UNDEFINED/
 .Rproj.user
+thread_dump_from_RunBeam.txt.gz
+test/input/fares/fares.dat
+test/input/sf-light/warmstart/warmstart_*
+*.log
+__pycache__

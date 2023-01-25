@@ -49,6 +49,7 @@ class BeamVehicle(
   val vehicleManagerId: AtomicReference[Id[VehicleManager]] = new AtomicReference(VehicleManager.AnyManager.managerId),
   val randomSeed: Int = 0
 ) extends ExponentialLazyLogging {
+
   private val manager: AtomicReference[Option[ActorRef]] = new AtomicReference(None)
   def setManager(value: Option[ActorRef]): Unit = this.manager.set(value)
   def getManager: Option[ActorRef] = this.manager.get
@@ -197,18 +198,6 @@ class BeamVehicle(
     }
   }
 
-  def getChargerConnectedTick(): Int = {
-    chargerRWLock.read {
-      chargerConnectedTick.getOrElse(0)
-    }
-  }
-
-  def getChargerConnectedPrimaryFuel(): Double = {
-    chargerRWLock.read {
-      chargerConnectedPrimaryFuel.getOrElse(0L)
-    }
-  }
-
   /**
     * useFuel
     *
@@ -299,8 +288,6 @@ class BeamVehicle(
     )
   }
 
-  def isRidehailVehicle = id.toString.startsWith("rideHailVehicle")
-
   def addFuel(fuelInJoules: Double): Unit = {
     fuelRWLock.write {
       primaryFuelLevelInJoulesInternal = primaryFuelLevelInJoulesInternal + fuelInJoules
@@ -323,6 +310,8 @@ class BeamVehicle(
   ): (Int, Double) = {
     parkingStall match {
       case Some(theStall) =>
+        val chargingCapacityMaybe =
+          beamVehicleType.chargingCapability.map(ChargingPointType.getChargingPointInstalledPowerInKw)
         theStall.chargingPointType match {
           case Some(chargingPoint) =>
             ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
@@ -333,7 +322,7 @@ class BeamVehicle(
               1e6,
               sessionDurationLimit,
               stateOfChargeLimit,
-              chargingPowerLimit
+              chargingPowerLimit.map(p => Math.min(p, chargingCapacityMaybe.getOrElse(p)))
             )
           case None =>
             (0, 0.0)
@@ -402,19 +391,27 @@ class BeamVehicle(
       case Body =>
         WALK
     }
-    val needsToCalculateCost = beamVehicleType.vehicleCategory == Car || isSharedVehicle
+    val needsToCalculateCost = beamVehicleType.vehicleCategory == Car || beamVehicleType.isSharedVehicle
     StreetVehicle(id, beamVehicleType.id, spaceTime, mode, asDriver = true, needsToCalculateCost = needsToCalculateCost)
   }
 
+  def isRideHail: Boolean = id.toString.startsWith("rideHail")
+
+  def isRideHailCAV: Boolean = isRideHail && isCAV
+
   def isSharedVehicle: Boolean = beamVehicleType.id.toString.startsWith("sharedVehicle")
 
-  def isCAV: Boolean = beamVehicleType.automationLevel >= 4
+  def isCAV: Boolean = beamVehicleType.isConnectedAutomatedVehicle
 
   def isBEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.isEmpty
 
   def isPHEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.contains(Gasoline)
+
+  def isEV: Boolean = isBEV || isPHEV
+
+  def getStateOfCharge: Double = primaryFuelLevelInJoules / beamVehicleType.primaryFuelCapacityInJoule
 
   /**
     * Initialize the vehicle's fuel levels to a given state of charge (between 0.0 and 1.0).
@@ -541,8 +538,27 @@ object BeamVehicle {
                           secondaryLoggingData: IndexedSeq[LoggingData]*/
   )
 
+  val idPrefixSharedTeleportationVehicle = "teleportationSharedVehicle"
+  val idPrefixRideHail = "rideHailVehicle"
+
+  def isRidehailVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
+    val idStr = vehicleId.toString
+    idStr.startsWith(idPrefixRideHail) || idStr == "dummyRH"
+  }
+
+  def isSharedTeleportationVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
+    vehicleId.toString.startsWith(idPrefixSharedTeleportationVehicle)
+  }
+
   def noSpecialChars(theString: String): String =
-    theString.replaceAll("[\\\\|\\\\^]+", ":")
+    theString
+      .replaceAll("[\\\\|\\\\^]+", ":")
+      .replace("[", "")
+      .replace("]", "")
+      .replace("(", "")
+      .replace(")", "")
+      .replace("/", "")
+      .replace("\\", "")
 
   def createId[A](id: Id[A], prefix: Option[String] = None): Id[BeamVehicle] = {
     createId(id.toString, prefix)
@@ -652,4 +668,5 @@ object BeamVehicle {
       case _ => 1.0
     }
   }
+
 }

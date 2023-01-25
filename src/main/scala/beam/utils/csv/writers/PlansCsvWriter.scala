@@ -76,7 +76,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
         val route = Option(leg.getRoute)
         PlanElement(
           tripId = if (leg.getAttributes.getAttribute("trip_id") != null) {
-            leg.getAttributes.getAttribute("trip_id").toString.filter(x => (x.isDigit || x.equals('.')))
+            leg.getAttributes.getAttribute("trip_id").toString.filter(x => x.isDigit || x.equals('.'))
           } else {
             ""
           },
@@ -84,7 +84,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           planIndex = planIndex,
           planScore = planScore,
           planSelected = isSelectedPlan,
-          planElementType = "leg",
+          planElementType = PlanElement.Leg,
           planElementIndex = planeElementIndex,
           activityType = None,
           activityLocationX = None,
@@ -108,7 +108,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           planIndex = planIndex,
           planScore = planScore,
           planSelected = isSelectedPlan,
-          planElementType = "activity",
+          planElementType = PlanElement.Activity,
           planElementIndex = planeElementIndex,
           activityType = Option(act.getType),
           activityLocationX = Option(act.getCoord.getX),

@@ -31,7 +31,17 @@ def check_instance_id(instance_ids):
                 instance_ids.remove(instance['InstanceId'])
     return instance_ids
 
-def start_instance(instance_ids):
+def start_instance(instance_ids, budget_override):
+    if budget_override:
+        ec2.create_tags(
+            Resources=instance_ids,
+            Tags=[
+                {
+                    'Key': 'BudgetOverride',
+                    'Value': 'True'
+                }
+            ]
+        )
     return ec2.start_instances(InstanceIds=instance_ids)
 
 def stop_instance(instance_ids):
@@ -39,6 +49,7 @@ def stop_instance(instance_ids):
 
 def instance_handler(event):
     region = event.get('region', os.environ['REGION'])
+    budget_override = event.get('budget_override', False)
     instance_ids = event.get('instance_ids')
     command_id = event.get('command')
     system_instances = os.environ['SYSTEM_INSTANCES']
@@ -52,7 +63,7 @@ def instance_handler(event):
     allowed_ids = [item for item in valid_ids if item not in system_instances]
 
     if command_id == 'start':
-        start_instance(allowed_ids)
+        start_instance(allowed_ids, budget_override)
         return "Started instance(s) {insts}.".format(insts=', '.join([': '.join(inst) for inst in zip(allowed_ids, list(map(get_dns, allowed_ids)))]))
 
     if command_id == 'stop':

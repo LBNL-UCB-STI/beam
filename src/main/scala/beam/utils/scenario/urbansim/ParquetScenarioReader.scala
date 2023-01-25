@@ -104,19 +104,22 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val householdId = getIfNotNull(rec, "household_id").toString
     val age = getIfNotNull(rec, "age").asInstanceOf[Long].toInt
     val isFemaleValue = {
-      val value = Try(getIfNotNull(rec, "sex").asInstanceOf[Long]).getOrElse(1L)
-      value == 2L
+      val value = Try(getOrDefault(rec, "sex", 1L.asInstanceOf[AnyRef]).asInstanceOf[Number]).getOrElse(1L)
+      value == 2L.asInstanceOf[Number]
     }
-    val excludedModes: String = Try(getIfNotNull(rec, "excludedModes").toString).getOrElse("")
+    val excludedModes: String = getOrDefault(rec, "excludedModes", "").toString
     val rank: Int = 0
+    val industry = Option(rec.get("industry")).map(_.toString)
     PersonInfo(
       personId = personId,
       householdId = householdId,
       rank = rank,
       age = age,
       excludedModes = excludedModes,
+      rideHailServiceSubscription = Option(rec.get("ridehail_service_subscription")).map(_.toString).getOrElse(""),
       isFemale = isFemaleValue,
-      valueOfTime = Try(NumberUtils.toDouble(getIfNotNull(rec, "valueOfTime").toString, 0d)).getOrElse(0d)
+      valueOfTime = Try(NumberUtils.toDouble(getOrDefault(rec, "valueOfTime", "0").toString, 0d)).getOrElse(0d),
+      industry = industry
     )
   }
 
@@ -143,5 +146,10 @@ object ParquetScenarioReader extends UrbanSimScenarioReader with LazyLogging {
     val v = rec.get(column)
     assert(v != null, s"Value in column '$column' is null")
     v
+  }
+
+  private[scenario] def getOrDefault(rec: GenericRecord, column: String, defaultValue: => AnyRef): AnyRef = {
+    val v = rec.get(column)
+    if (v != null) v else defaultValue
   }
 }

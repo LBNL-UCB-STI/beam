@@ -141,6 +141,7 @@ class BeamRouter(
       RoutingWorker.props(
         beamScenario,
         transportNetwork,
+        beamScenario.networks2,
         networkHelper,
         fareCalculator,
         tollCalculator
@@ -151,7 +152,7 @@ class BeamRouter(
     //TODO: Add Deathwatch to remove node
   }
 
-  private var traveTimeOpt: Option[TravelTime] = None
+  private var travelTimeOpt: Option[TravelTime] = None
 
   val kryoSerializer = new KryoSerializer(context.system.asInstanceOf[ExtendedActorSystem])
 
@@ -181,7 +182,7 @@ class BeamRouter(
         )
       }
     case msg: UpdateTravelTimeLocal =>
-      traveTimeOpt = Some(msg.travelTime)
+      travelTimeOpt = Some(msg.travelTime)
       localNodes.foreach(_.forward(msg))
     case UpdateTravelTimeRemote(map) =>
       val nodes = remoteNodes
@@ -194,7 +195,7 @@ class BeamRouter(
     case GetMatSimNetwork =>
       sender ! MATSimNetwork(network)
     case GetTravelTime =>
-      traveTimeOpt match {
+      travelTimeOpt match {
         case Some(travelTime) => sender ! UpdateTravelTimeLocal(travelTime)
         case None             => sender ! R5Network(transportNetwork)
       }
@@ -531,6 +532,7 @@ object BeamRouter {
     requestId: Int,
     request: Option[RoutingRequest],
     isEmbodyWithCurrentTravelTime: Boolean,
+    computedInMs: Long = -1,
     searchedModes: Set[BeamMode] = Set.empty,
     triggerId: Long
   ) extends HasTriggerId
@@ -588,8 +590,8 @@ object BeamRouter {
       mode,
       1,
       BeamPath(
-        linkIds,
-        Vector.empty,
+        linkIds.toArray,
+        Array[Double](),
         None,
         beamServices.geo.utm2Wgs(SpaceTime(originUTM, departTime)),
         beamServices.geo.utm2Wgs(SpaceTime(destinationUTM, departTime + 1)),
@@ -637,8 +639,8 @@ object BeamRouter {
       mode,
       1,
       BeamPath(
-        linkIds,
-        Vector.empty,
+        linkIds.toArray,
+        Array[Double](),
         None,
         beamServices.geo.utm2Wgs(SpaceTime(origin, departTime)),
         beamServices.geo.utm2Wgs(SpaceTime(destination, departTime + 1)),

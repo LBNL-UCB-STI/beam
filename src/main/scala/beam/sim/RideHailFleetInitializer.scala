@@ -1,6 +1,7 @@
 package beam.sim
 
 import akka.actor.ActorRef
+import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailVehicleId, Shift}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
@@ -9,20 +10,23 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.sim.RideHailFleetInitializer.RideHailAgentInitializer
 import beam.sim.common.{GeoUtils, Range}
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.OutputDataDescriptor
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
-import com.google.inject.{Inject, Provider, ProvisionException}
+import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.controler.OutputDirectoryHierarchy
+import org.matsim.households.Household
 
 import java.nio.file.{Files, Paths}
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
+import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 import scala.math.{max, min}
@@ -32,9 +36,14 @@ import scala.util.control.NonFatal
 object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
   type FleetId = String
 
-  private[sim] def toRideHailAgentInputData(rec: java.util.Map[String, String]): RideHailAgentInputData = {
+  private[sim] def toRideHailAgentInputData(
+    rec: java.util.Map[String, String],
+    defaultFleetId: String
+  ): RideHailAgentInputData = {
     val id = GenericCsvReader.getIfNotNull(rec, "id")
-    val rideHailManagerId = GenericCsvReader.getIfNotNull(rec, "rideHailManagerId")
+    val rideHailManagerIdStr = GenericCsvReader.getIfNotNull(rec, "rideHailManagerId")
+    val rideHailManagerId =
+      VehicleManager.createOrGetReservedFor(rideHailManagerIdStr, VehicleManager.TypeEnum.RideHail).managerId
     val vehicleType = GenericCsvReader.getIfNotNull(rec, "vehicleType")
     val initialLocationX = GenericCsvReader.getIfNotNull(rec, "initialLocationX").toDouble
     val initialLocationY = GenericCsvReader.getIfNotNull(rec, "initialLocationY").toDouble
@@ -44,13 +53,12 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     val geofenceRadius = Option(rec.get("geofenceRadius")).map(_.toDouble)
     val geofenceTAZFile = Option(rec.get("geofenceTAZFile"))
     val geofenceTazIds = Option(rec.get("geofenceTAZFile")).map(readTazIdsFile)
-    val fleetId = rec.getOrDefault("fleetId", "default")
+    val fleetId = rec.getOrDefault("fleetId", defaultFleetId)
     val initialStateOfCharge = rec.getOrDefault("initialStateOfCharge", "1.0").toDouble
 
     RideHailAgentInputData(
       id = id,
-      rideHailManagerId =
-        VehicleManager.createOrGetReservedFor(rideHailManagerId, VehicleManager.TypeEnum.RideHail).managerId,
+      rideHailManagerId = rideHailManagerId,
       vehicleType = vehicleType,
       initialLocationX = initialLocationX,
       initialLocationY = initialLocationY,
@@ -150,9 +158,10 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     * @param filePath path to the csv file
     * @return list of [[RideHailAgentInputData]] objects
     */
-  def readFleetFromCSV(filePath: String): List[RideHailAgentInputData] = {
+  def readFleetFromCSV(filePath: String, defaultFleetId: String): List[RideHailAgentInputData] = {
     // This is lazy, to make it to read the data we need to call `.toList`
-    val (iter, toClose) = GenericCsvReader.readAs[RideHailAgentInputData](filePath, toRideHailAgentInputData, _ => true)
+    val (iter, toClose) =
+      GenericCsvReader.readAs[RideHailAgentInputData](filePath, toRideHailAgentInputData(_, defaultFleetId), _ => true)
     try {
       // Read the data
       val fleetData = iter.toList
@@ -302,7 +311,11 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     geofence: Option[Geofence],
     fleetId: String
   ) {
-    val rideHailAgentId: Id[RideHailAgent] = Id.create(s"${RideHailAgent.idPrefix}-$id", classOf[RideHailAgent])
+
+    val rideHailAgentId: Id[RideHailAgent] = if (beamVehicleType.isWheelchairAccessible) {
+      Id.create(s"${RideHailAgent.idPrefix}-accessible-$id", classOf[RideHailAgent])
+    } else Id.create(s"${RideHailAgent.idPrefix}-$id", classOf[RideHailAgent])
+
     val beamVehicleId: Id[BeamVehicle] = RideHailVehicleId(id, fleetId).beamVehicleId
 
     /**
@@ -317,11 +330,13 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
       val powertrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
 
+      val managerIdDependsOnWhetherVehicleIsCav =
+        if (beamVehicleType.isConnectedAutomatedVehicle) rideHailManagerId else VehicleManager.AnyManager.managerId
       val beamVehicle = new BeamVehicle(
         beamVehicleId,
         powertrain,
         beamVehicleType,
-        vehicleManagerId = new AtomicReference(rideHailManagerId),
+        vehicleManagerId = new AtomicReference(managerIdDependsOnWhetherVehicleIsCav),
         randomSeed
       )
 
@@ -518,16 +533,19 @@ trait RideHailFleetInitializer extends LazyLogging {
   * @param beamServices BEAM services
   * @param beamScenario BEAM scenario
   */
-class FileRideHailFleetInitializer(val beamServices: BeamServices, val beamScenario: BeamScenario)
-    extends RideHailFleetInitializer {
+class FileRideHailFleetInitializer(
+  val beamServices: BeamServices,
+  val beamScenario: BeamScenario,
+  managerConfig: Managers$Elm
+) extends RideHailFleetInitializer {
 
   protected def generateRideHailAgentInitializers(
     rideHailManagerId: Id[VehicleManager],
     activityQuadTreeBounds: QuadTreeBounds
   ): IndexedSeq[RideHailAgentInitializer] = {
-    val fleetFilePath = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.filePath
+    val fleetFilePath = managerConfig.initialization.filePath
 
-    val rideHailInputDatas = RideHailFleetInitializer.readFleetFromCSV(fleetFilePath).toIndexedSeq
+    val rideHailInputDatas = RideHailFleetInitializer.readFleetFromCSV(fleetFilePath, managerConfig.name).toIndexedSeq
     rideHailInputDatas.map(_.createRideHailAgentInitializer(beamScenario))
   }
 }
@@ -542,18 +560,27 @@ class FileRideHailFleetInitializer(val beamServices: BeamServices, val beamScena
 class ProceduralRideHailFleetInitializer(
   val beamServices: BeamServices,
   val beamScenario: BeamScenario,
-  val scenario: Scenario
+  val scenario: Scenario,
+  managerConfig: Managers$Elm
 ) extends RideHailFleetInitializer {
 
   val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val realDistribution: UniformRealDistribution = new UniformRealDistribution()
   realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
+  val passengerPopulation: Iterable[Person] = scenario.getPopulation.getPersons
+    .values()
+    .asScala
+    .filterNot(_.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX))
+
+  val passengerHousehold: Iterable[Household] = scenario.getHouseholds.getHouseholds
+    .values()
+    .asScala
+    .filterNot(_.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX))
+
   private def computeNumRideHailAgents: Long = {
     val fleet: Double = beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
-    val initialNumHouseholdVehicles = scenario.getHouseholds.getHouseholds
-      .values()
-      .asScala
+    val initialNumHouseholdVehicles = passengerHousehold
       .flatMap { hh =>
         hh.getVehicleIds.asScala.map { vehId =>
           beamScenario.privateVehicles
@@ -566,7 +593,7 @@ class ProceduralRideHailFleetInitializer(
 
     math.round(
       initialNumHouseholdVehicles *
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet
+      managerConfig.initialization.procedural.fractionOfInitialVehicleFleet
     )
   }
 
@@ -579,8 +606,7 @@ class ProceduralRideHailFleetInitializer(
     val stdLogShiftDurationHours = 0.44
     var equivalentNumberOfDrivers = 0.0
 
-    val personsWithMoreThanOneActivity =
-      scenario.getPopulation.getPersons.values().asScala.filter(_.getSelectedPlan.getPlanElements.size > 1)
+    val personsWithMoreThanOneActivity = passengerPopulation.filter(_.getSelectedPlan.getPlanElements.size > 1)
     val persons: Array[Person] = rand.shuffle(personsWithMoreThanOneActivity).toArray
 
     val activityEndTimes: Array[Int] = persons.flatMap {
@@ -610,20 +636,12 @@ class ProceduralRideHailFleetInitializer(
               realDistribution
             )
             .head
-          if (
-            beamServices.beamConfig.beam.agentsim.agents.rideHail.refuelThresholdInMeters >=
-              (vehicleType.primaryFuelCapacityInJoule / vehicleType.primaryFuelConsumptionInJoulePerMeter) * 0.8
-          ) {
-            logger.error(
-              "Ride Hail refuel threshold is higher than state of energy of a vehicle fueled by a DC fast charger. This will cause an infinite loop"
-            )
-          }
           val rideInitialLocation: Location = getRideInitLocation(person, activityQuadTreeBounds)
 
           val meanSoc = beamServices.beamConfig.beam.agentsim.agents.vehicles.meanRidehailVehicleStartingSOC
           val initialStateOfCharge = BeamVehicle.randomSocFromUniformDistribution(rand, vehicleType, meanSoc)
 
-          val (shiftsOpt, shiftEquivalentNumberOfDrivers) = if (vehicleType.automationLevel >= 4) {
+          val (shiftsOpt, shiftEquivalentNumberOfDrivers) = if (vehicleType.isConnectedAutomatedVehicle) {
             (None, 1.0)
           } else {
             val shiftDuration =
@@ -645,7 +663,7 @@ class ProceduralRideHailFleetInitializer(
             initialStateOfCharge,
             rideInitialLocation,
             geofence = None,
-            fleetId = "default"
+            fleetId = managerConfig.name
           )
 
           rideHailAgentInitializers += rideHailAgentInitializer
@@ -665,10 +683,10 @@ class ProceduralRideHailFleetInitializer(
 
   private def getRideInitLocation(person: Person, activityQuadTreeBounds: QuadTreeBounds): Location = {
     val rideInitialLocation: Location =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name match {
+      managerConfig.initialization.procedural.initialLocation.name match {
         case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_RANDOM_ACTIVITY =>
           val radius =
-            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
+            managerConfig.initialization.procedural.initialLocation.home.radiusInMeters
           val activityLocations: List[Location] =
             person.getSelectedPlan.getPlanElements.asScala
               .collect { case activity: Activity =>
@@ -689,7 +707,7 @@ class ProceduralRideHailFleetInitializer(
               .asInstanceOf[Activity]
               .getCoord
           val radius =
-            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
+            managerConfig.initialization.procedural.initialLocation.home.radiusInMeters
           new Coord(
             personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
             personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
@@ -717,7 +735,7 @@ class ProceduralRideHailFleetInitializer(
               .asInstanceOf[Activity]
               .getCoord
           val radius =
-            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
+            managerConfig.initialization.procedural.initialLocation.home.radiusInMeters
           new Coord(
             personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
             personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
@@ -732,24 +750,28 @@ class RideHailFleetInitializerProvider @Inject() (
   val beamServices: BeamServices,
   val beamScenario: BeamScenario,
   val scenario: Scenario
-) extends Provider[RideHailFleetInitializer] {
+) {
 
-  // Use lazy vals so that they persist across iterations
-  private lazy val proceduralRideHailFleetInitializer =
-    new ProceduralRideHailFleetInitializer(beamServices, beamScenario, scenario)
-  private lazy val fileRideHailFleetInitializer = new FileRideHailFleetInitializer(beamServices, beamScenario)
+  // Keep them so that they persist across iterations
+  private val instances: TrieMap[String, RideHailFleetInitializer] = TrieMap.empty
 
-  def get(): RideHailFleetInitializer = {
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
+  def get(rideHailManagerName: String): RideHailFleetInitializer = {
+    val managerConfig = beamServices.beamConfig.beam.agentsim.agents.rideHail.managers
+      .find(_.name == rideHailManagerName)
+      .getOrElse(throw new IllegalArgumentException(s"$rideHailManagerName is not configured"))
+    managerConfig.initialization.initType match {
       case "PROCEDURAL" =>
-        proceduralRideHailFleetInitializer
-      case "FILE" =>
-        fileRideHailFleetInitializer
-      case _ =>
-        throw new ProvisionException(
-          "Unidentified initialization type : " +
-          beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization
+        instances.getOrElseUpdate(
+          rideHailManagerName,
+          new ProceduralRideHailFleetInitializer(beamServices, beamScenario, scenario, managerConfig)
         )
+      case "FILE" =>
+        instances.getOrElseUpdate(
+          rideHailManagerName,
+          new FileRideHailFleetInitializer(beamServices, beamScenario, managerConfig)
+        )
+      case _ =>
+        throw new IllegalArgumentException("Unidentified initialization type : " + managerConfig.initialization)
     }
   }
 }

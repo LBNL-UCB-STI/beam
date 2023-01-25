@@ -57,7 +57,7 @@ class TollRoutingSpec
     scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
     networkCoordinator = DefaultNetworkCoordinator(beamConfig)
     networkCoordinator.loadNetwork()
-    networkCoordinator.convertFrequenciesToTrips()
+    networkCoordinator.convertFrequenciesToTrips(networkCoordinator.transportNetwork)
 
     val networkHelper = new NetworkHelperImpl(networkCoordinator.network)
 
@@ -107,6 +107,7 @@ class TollRoutingSpec
             None,
             true,
             Vector(BeamMode.CAR),
+            Seq.empty,
             valueOfTime = 10000000.0, // I don't mind tolls at all
             None,
             None
@@ -171,6 +172,7 @@ class TollRoutingSpec
             None,
             true,
             Vector(BeamMode.CAR),
+            Seq.empty,
             // If 1$ is worth more than 144 seconds to me, I should be sent on the alternative route
             // (which takes 288 seconds)
             valueOfTime = 3600.0 / 145.0,

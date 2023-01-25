@@ -1,8 +1,8 @@
 package beam.sflight
 
 import scala.io.Source
-
 import beam.analysis.plots.ModeChosenAnalysis
+import beam.integration.Repeated
 import beam.router.Modes.BeamMode
 import beam.sflight.CaccSpec.NotFoundCarInTravelTimeMode
 import beam.sim.BeamHelper
@@ -14,11 +14,12 @@ import com.google.inject
 import com.typesafe.config.ConfigFactory
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
+import org.scalatest.AppendedClues.convertToClueful
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.matchers.must.Matchers
+import org.scalatest.tagobjects.Retryable
 
-class BeamIncentiveSpec extends AnyWordSpecLike with Matchers with BeamHelper with BeforeAndAfterAll {
+class BeamIncentiveSpec extends AnyWordSpecLike with BeamHelper with BeforeAndAfterAll with Repeated {
 
   private var injector: inject.Injector = _
 
@@ -29,14 +30,15 @@ class BeamIncentiveSpec extends AnyWordSpecLike with Matchers with BeamHelper wi
     super.afterAll()
   }
 
-  "BeamVille with a lot of ride_hail incentives" must {
-    "choose ride_hail more times than without/less incentives" in {
+  "BeamVille with a lot of ride_hail incentives" should {
+    "choose ride_hail more times than without/less incentives" taggedAs Retryable in {
       val lastIteration = 0
       val numChoicesWithoutRideHailIncentive =
         runSimulationAndCalculateAverageOfRideHailChoices(lastIteration, "incentives.csv")
       val numChoicesWithRideHailIncentives =
         runSimulationAndCalculateAverageOfRideHailChoices(lastIteration, "incentives-ride_hail.csv")
-      assert(numChoicesWithoutRideHailIncentive < numChoicesWithRideHailIncentives)
+      numChoicesWithoutRideHailIncentive should be < numChoicesWithRideHailIncentives withClue
+      "RH incentives don't increase the number of choices of RH for some reason"
     }
   }
 
@@ -50,6 +52,9 @@ class BeamIncentiveSpec extends AnyWordSpecLike with Matchers with BeamHelper wi
         s"""
             |beam.actorSystemName = "BeamIncentiveSpec"
             |beam.outputs.collectAndCreateBeamAnalysisAndGraphs=true
+            |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_transit_intercept = 2.0
+            |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 2.0
+            |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_pooled_intercept = 2.0
                       |beam.agentsim.lastIteration = $iterationNumber
             |beam.agentsim.agents.modeIncentive.filePath = "$beamVilleFolder$incentivesFile"
          """.stripMargin

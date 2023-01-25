@@ -11,14 +11,14 @@ import scala.reflect.ClassTag
 trait GenericCsvReader {
 
   def readAs[T](
-    path: String,
+    pathOrUrl: String,
     mapper: java.util.Map[String, String] => T,
     filterPredicate: T => Boolean,
     preference: CsvPreference = CsvPreference.STANDARD_PREFERENCE
   )(implicit
     ct: ClassTag[T]
   ): (Iterator[T], Closeable) = {
-    val csvRdr = new CsvMapReader(FileUtils.readerFromFile(path), preference)
+    val csvRdr = new CsvMapReader(FileUtils.getReader(pathOrUrl), preference)
     read[T](csvRdr, mapper, filterPredicate)
   }
 
@@ -79,6 +79,12 @@ trait GenericCsvReader {
     val v = rec.get(column)
     assert(v != null, s"Value in column '$column' is null")
     v
+  }
+
+  def getOrDefault(rec: java.util.Map[String, String], column: String, defaultValue: String): String = {
+    //we cannot use rec.getOrDefault because it may contain null values.
+    val v = rec.get(column)
+    if (v != null) v else defaultValue
   }
 }
 
