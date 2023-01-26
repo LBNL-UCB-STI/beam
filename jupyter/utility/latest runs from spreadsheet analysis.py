@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 import pandas as pd
@@ -14,7 +14,7 @@ pd.set_option('display.width', 1000)
 pd.set_option('max_colwidth', None)
 
 
-# In[2]:
+# In[ ]:
 
 
 ## reading exported csv
@@ -38,7 +38,7 @@ print(f"following data periods are included: {sorted(data['Month Period'].unique
 data.head(3)
 
 
-# In[3]:
+# In[ ]:
 
 
 ## getting data frame with each row as one simulation
@@ -71,7 +71,7 @@ df['duration_hours'] = (df['Time Stop'] - df['Time Start']).astype('timedelta64[
 df.head(3)
 
 
-# In[4]:
+# In[ ]:
 
 
 ## calculating a price in USD of each simulation
@@ -93,7 +93,10 @@ instance_to_price = {
     'r5d.12xlarge' : 3.456,
     'r5d.16xlarge' : 4.608,
     'r5d.24xlarge' : 6.912,
-    't2.medium' : 0.0464                 
+    't2.medium' : 0.0464,
+    't2.small': 0.023,
+    'n2d-standard-2': 0.0,    # actually 0.084492, but we are interested in AWS only,
+    'n2d-standard-4': 0.0,    # actually 0.168984, but we are interested in AWS only,
 }
 
 # for instance_type in sorted(instance_to_price.keys()):
@@ -119,7 +122,7 @@ df['cost'] = df['duration_hours'] * df['aws_instance_hour_cost']
 total_cost = int(df['cost'].sum())
 
 
-budget_amount_used_from_aws = 35268.65
+budget_amount_used_from_aws = 72228.91
 def print_total_info():
     dt_interval = f"from {min_time.strftime('%Y-%m-%d')} to {data['Time'].max().strftime('%Y-%m-%d')}"
     print(f"There are {len(df)} simulations {dt_interval}")
@@ -131,16 +134,10 @@ print_total_info()
 df.head(3)
 
 
-# In[5]:
+# In[ ]:
 
 
 ## applying 'project' to the list of simulations based on simulation name and|or git branch name
-
-def get_owner(row):
-    run_name = row['Run Name']
-    if '/' in run_name:
-        return run_name.split('/')[0]
-    return run_name
 
 
 def get_branch_owner(row):
@@ -151,31 +148,41 @@ def get_branch_owner(row):
 
 
 def get_project(row):
-    owner = get_owner(row)
+    run_name = row['Run Name']
     branch_owner = get_branch_owner(row)
-    project = f"{owner} | {branch_owner}".lower()
+    project = f"{branch_owner} | {run_name}".lower()
 
     if 'new-york' in project:
-        return f"NYC"
+        return "NYC"
     if 'freight' in project:
         return "Freight"
     if 'gemini' in project:
         return "Gemini"
     if 'micro-mobility' in project or 'micromobility' in project:
-        return "micro-mobility"
+        return "Micro-Mobility"
     if 'shared' in project:
-        return "shared fleet"
+        return "Shared Fleet"
     if 'profiling' in project:
         return "CPU profiling"
+    if 'dimaopenatgmail' in project or 'do | do' in project:
+        return 'other run by Dima'
+    if 'inm' in project:
+        return 'other run by Nikolay'
+    if 'avflanceatgmail' in project:
+        return 'other run by Alex'
+    if 'edward' in project:
+        return 'other run by Edward'
+    if 'xuan' in project:
+        return 'other run by Xuan'
     
     return project
 
 
 df["project"] = df.apply(get_project, axis=1)
-df.head(2)
+sorted(list(df['project'].unique()))
 
 
-# In[6]:
+# In[ ]:
 
 
 ### processing simulations in unknown state, i.e. with 'Run Started' status
@@ -228,14 +235,14 @@ print_total_info()
 df_grouped[selected_columns]
 
 
-# In[10]:
+# In[ ]:
 
 
 print_total_info()
-df_grouped[["project","Fraction of total cost"]]
+df_grouped[df_grouped['Fraction of total cost'] > 0.001][["project","Fraction of total cost", "Instance time cost"]]
 
 
-# In[7]:
+# In[ ]:
 
 
 df_grouped_by_instance = df.groupby('Instance type').agg(list).reset_index()
@@ -251,7 +258,12 @@ df_grouped_by_instance[['Instance type', 'Total cost per instance']]
 # In[ ]:
 
 
+df1 = df[(df['project'] == 'Gemini') | (df['project'] ==  "Freight")].copy()
+df2 = df1[df1['duration_hours'] > 0]
+df3 = df2.sort_values('Time Start')
+display(df3.head(3))
 
+df3.to_csv("gemini_freight_simulations.csv")
 
 
 # In[ ]:
