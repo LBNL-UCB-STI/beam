@@ -191,9 +191,10 @@ dependencies {
         exclude group: 'org.matsim', module: 'matsim'
     }
 
-    implementation(group: 'com.github.wrashid.matsim', name: 'matsim', version: '0.10.1-beam-15') {
+    implementation(group: 'com.github.wrashid.matsim', name: 'matsim', version: '0.10.1-beam-16') {
         exclude group: 'log4j', module: 'log4j'
     }
+
 
     implementation "org.slf4j:slf4j-api:${slf4jVersion}"
     implementation "ch.qos.logback:logback-classic:1.2.3"
