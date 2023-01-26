@@ -30,14 +30,20 @@ class PreviousRunPlanMerger(
     }
 
     LastRunOutputSource.findLastRunOutputPlans(outputDir, dirPrefix) match {
-      case Some(planPath) =>
-        logger.info("Found the plans in the beam output directory: {}", planPath)
-        val previousPlans = if (planPath.getFileName.toString.toLowerCase.contains(".csv")) {
-          CsvPlanElementReader.read(planPath.toString)
+      case (Some(inputPlanPath), maybeExperiencedPlanPath) =>
+        logger.info("Found the plans in the beam output directory: {}", inputPlanPath)
+        val previousPlans = if (inputPlanPath.getFileName.toString.toLowerCase.contains(".csv")) {
+          CsvPlanElementReader.read(inputPlanPath.toString)
         } else {
-          XmlPlanElementReader.read(planPath.toString)
+          XmlPlanElementReader.read(inputPlanPath.toString)
         }
-        val convertedPlans = previousPlans.map(adjustForScenario)
+        val maybeExperiencedPlans =
+          maybeExperiencedPlanPath.map(path => XmlPlanElementReader.read(path.toString, network))
+        val convertedPlans = (maybeExperiencedPlans match {
+          case Some(experiencedPlans) => Array.concat(previousPlans.filterNot(_.planSelected), experiencedPlans)
+          case None                   => previousPlans
+        }).map(adjustForScenario)
+
         PreviousRunPlanMerger.merge(
           convertedPlans,
           plans,
@@ -47,7 +53,7 @@ class PreviousRunPlanMerger(
           rnd,
           planSelectionBeta
         ) -> true
-      case None =>
+      case _ =>
         logger.warn(
           "Not found appropriate output plans in the beam output directory: {}, dirPrefix = {}",
           outputDir,
@@ -134,12 +140,32 @@ object PreviousRunPlanMerger extends LazyLogging {
 
 object LastRunOutputSource extends LazyLogging {
 
-  def findLastRunOutputPlans(outputPath: Path, dirPrefix: String): Option[Path] = {
+  def findLastRunOutputPlans(outputPath: Path, dirPrefix: String): (Option[Path], Option[Path]) = {
     val plansPaths = for {
       (itDir, itNumber) <- findAllLastIterationDirectories(outputPath, dirPrefix)
-      plansPath         <- findFile(itDir, itNumber, "plans.csv.gz") orElse findFile(itDir, itNumber, "plans.xml.gz")
+      plansPath <- findLatestOutputDirectory(outputPath, dirPrefix)
+        .filter { p =>
+          val outputPlansLocation = p.resolve("output_plans.xml.gz")
+          logger.info("Initially looking for plans at {}", outputPlansLocation.toString)
+          Files.exists(outputPlansLocation)
+        }
+        .map(_.resolve("output_plans.xml.gz")) orElse findFile(itDir, itNumber, "plans.csv.gz")
     } yield plansPath
-    plansPaths.headOption
+    val experiencedPlansPath = for {
+      (itDir, itNumber) <- findAllLastIterationDirectories(outputPath, dirPrefix)
+      experiencedPlansPath <- findLatestOutputDirectory(outputPath, dirPrefix)
+        .filter { p =>
+          val outputPlansLocation = p.resolve("experienced_plans.xml.gz")
+          logger.info("Initially looking for plans at {}", outputPlansLocation.toString)
+          Files.exists(outputPlansLocation)
+        }
+        .map(_.resolve("experienced_plans.xml.gz")) orElse findFile(
+        itDir,
+        itNumber,
+        "experienced_plans.xml.gz"
+      )
+    } yield experiencedPlansPath
+    (plansPaths.headOption, experiencedPlansPath.headOption)
   }
 
   def findLastRunLinkStats(outputPath: Path, dirPrefix: String): Option[Path] = {
