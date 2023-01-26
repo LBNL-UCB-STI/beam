@@ -87,7 +87,7 @@ object RideHailManager {
     passengerSchedule: PassengerSchedule,
     estimatedPrice: Map[Id[Person], Double],
     maxWaitingTimeInSec: Int,
-    walkToPickupStop: Option[EmbodiedBeamTrip] = None,
+    walkToFromStop: Option[(EmbodiedBeamTrip, EmbodiedBeamTrip)] = None,
     poolingInfo: Option[PoolingInfo] = None
   ) {
 
@@ -107,21 +107,26 @@ object RideHailManager {
       passengerSchedule.legsWithPassenger(passenger).map(_.travelPath.distanceInM).sum
 
     def toEmbodiedBeamLegsForCustomer(passenger: PersonIdWithActorRef): Vector[EmbodiedBeamLeg] = {
-      walkToPickupStop.fold(Vector.empty[EmbodiedBeamLeg])(_.legs.toVector) ++
-      passengerSchedule
-        .legsWithPassenger(passenger)
-        .map { beamLeg =>
-          EmbodiedBeamLeg(
-            beamLeg,
-            rideHailAgentLocation.vehicleId,
-            rideHailAgentLocation.vehicleType.id,
-            asDriver = false,
-            estimatedPrice(passenger.personId),
-            unbecomeDriverOnCompletion = false,
-            isPooledTrip = passengerSchedule.schedule.values.exists(_.riders.size > 1)
-          )
-        }
-        .toVector
+      val passengerLegs = passengerSchedule.legsWithPassenger(passenger)
+      val (toStopLegs: Vector[EmbodiedBeamLeg], fromStopLegs: Vector[EmbodiedBeamLeg]) = walkToFromStop match {
+        case Some((toStopTrip, fromStopTrip)) =>
+          (toStopTrip.legs.toVector, fromStopTrip.updateStartTime(passengerLegs.last.endTime).legs.toVector)
+        case None =>
+          (Vector.empty, Vector.empty)
+      }
+      toStopLegs ++
+      passengerLegs.map { beamLeg =>
+        EmbodiedBeamLeg(
+          beamLeg,
+          rideHailAgentLocation.vehicleId,
+          rideHailAgentLocation.vehicleType.id,
+          asDriver = false,
+          estimatedPrice(passenger.personId),
+          unbecomeDriverOnCompletion = false,
+          isPooledTrip = passengerSchedule.schedule.values.exists(_.riders.size > 1)
+        )
+      } ++ fromStopLegs
+
     }
 
     override def toString: String =
@@ -241,14 +246,15 @@ object RideHailManager {
 
   }
 
-  def loadStopFile(filePath: String): QuadTree[Location] = {
+  def loadStopFile(filePath: String, beamServices: BeamServices): QuadTree[Location] = {
     val coords = GenericCsvReader.readAsSeq[Location](filePath) { rec =>
       new Location(
         Option(rec.get("coord-x")).fold(throw new RuntimeException("No coord-x provided"))(_.toDouble),
         Option(rec.get("coord-y")).fold(throw new RuntimeException("No coord-y provided"))(_.toDouble)
       )
     }
-    ShapeUtils.quadTree(coords)
+    val projectedCoords = coords.map(coord => projectCoordinateToUtm(coord, beamServices))
+    ShapeUtils.quadTree(projectedCoords)
   }
 }
 
@@ -365,7 +371,7 @@ class RideHailManager(
     mutable.Map()
   private val routeRequestIdToRideHailRequestId: mutable.Map[Int, Int] = mutable.Map()
   private val reservationIdToRequest: mutable.Map[Int, RideHailRequest] = mutable.Map()
-  private val inquiryIdToWalkTrips: mutable.Map[Int, EmbodiedBeamTrip] = mutable.Map()
+  private val inquiryIdToWalkTrips: mutable.Map[Int, (EmbodiedBeamTrip, EmbodiedBeamTrip)] = mutable.Map()
 
   // Are we in the middle of processing a batch? or repositioning
   var currentlyProcessingTimeoutTrigger: Option[TriggerWithId] = None
@@ -373,7 +379,9 @@ class RideHailManager(
 
   private val vehicleIdToGeofence: mutable.Map[VehicleId, Geofence] = mutable.Map.empty[VehicleId, Geofence]
   private val bodyTypeId = Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
-  private val rideHailStops: Option[QuadTree[Location]] = managerConfig.stopFilePath.map(RideHailManager.loadStopFile)
+
+  private val rideHailStops: Option[QuadTree[Location]] =
+    managerConfig.stopFilePath.map(path => RideHailManager.loadStopFile(path, beamServices))
 
   // Cache analysis
   private var cacheAttempts = 0
@@ -577,28 +585,47 @@ class RideHailManager(
 
     case inquiry: RideHailRequest if !inquiry.shouldReserveRide && rideHailStops.isDefined =>
       val pickupStop = rideHailStops.get.getClosest(inquiry.pickUpLocationUTM.getX, inquiry.pickUpLocationUTM.getY)
-      val bodyVehicle = StreetVehicle(
-        BeamVehicle.createId(inquiry.customer.personId, Some("body")),
-        bodyTypeId,
-        SpaceTime(inquiry.pickUpLocationUTM, inquiry.departAt),
-        WALK,
-        asDriver = true,
-        needsToCalculateCost = false
-      )
-      val routingRequest = RoutingRequest(
-        originUTM = inquiry.pickUpLocationUTM,
-        destinationUTM = pickupStop,
-        departureTime = inquiry.departAt,
-        withTransit = false,
-        personId = Some(inquiry.customer.personId),
-        streetVehicles = Vector(bodyVehicle),
-        triggerId = inquiry.triggerId
-      )
-      (router ? routingRequest).mapTo[RoutingResponse].map(_ -> inquiry) pipeTo self
+      val dropoffStop = rideHailStops.get.getClosest(inquiry.destinationUTM.getX, inquiry.destinationUTM.getY)
+      if (pickupStop == dropoffStop) {
+        respondWithDriverNotFound(inquiry)
+      } else {
+        val bodyVehicle = StreetVehicle(
+          BeamVehicle.createId(inquiry.customer.personId, Some("body")),
+          bodyTypeId,
+          SpaceTime(inquiry.pickUpLocationUTM, inquiry.departAt),
+          WALK,
+          asDriver = true,
+          needsToCalculateCost = false
+        )
+        val walkToPickupRequest = RoutingRequest(
+          originUTM = inquiry.pickUpLocationUTM,
+          destinationUTM = pickupStop,
+          departureTime = inquiry.departAt,
+          withTransit = false,
+          personId = Some(inquiry.customer.personId),
+          streetVehicles = Vector(bodyVehicle),
+          triggerId = inquiry.triggerId
+        )
+        val walkFromDropoffRequest = RoutingRequest(
+          originUTM = dropoffStop,
+          destinationUTM = inquiry.destinationUTM,
+          departureTime = inquiry.departAt, //walk routes are hardly depends on departure time
+          withTransit = false,
+          personId = Some(inquiry.customer.personId),
+          streetVehicles = Vector(bodyVehicle),
+          triggerId = inquiry.triggerId
+        )
+        val walkResponsesAndInquiry = for {
+          walkToPickupResponse    <- (router ? walkToPickupRequest).mapTo[RoutingResponse]
+          walkFromDropoffResponse <- (router ? walkFromDropoffRequest).mapTo[RoutingResponse]
+        } yield (walkToPickupResponse, walkFromDropoffResponse, inquiry)
+        walkResponsesAndInquiry pipeTo self
+      }
 
-    case (pickupRoute: RoutingResponse, inquiry: RideHailRequest) if !inquiry.shouldReserveRide =>
+    case (pickupRoute: RoutingResponse, dropoffRoute: RoutingResponse, inquiry: RideHailRequest)
+        if !inquiry.shouldReserveRide =>
       val diff = ProfilingUtils.timeWork(
-        handleRideHailInquiry(inquiry, Some(pickupRoute.itineraries.head))
+        handleRideHailInquiry(inquiry, Some(pickupRoute.itineraries.head, dropoffRoute.itineraries.head))
       )
       nHandleRideHailInquiry += 1
       timeSpendForHandleRideHailInquiryMs += diff
@@ -686,7 +713,7 @@ class RideHailManager(
               )
             ),
             rideHailResourceAllocationManager.maxWaitTimeInSec,
-            walkToPickupStop = inquiryIdToWalkTrips.get(request.requestId),
+            walkToFromStop = inquiryIdToWalkTrips.get(request.requestId),
             singleOccupantQuoteAndPoolingInfo.poolingInfo
           )
           travelProposalCache.put(request.requestId.toString, travelProposal)
@@ -1270,9 +1297,17 @@ class RideHailManager(
 
   /* END: Refueling Logic */
 
-  def handleRideHailInquiry(inquiry: RideHailRequest, mayBeWalkToStop: Option[EmbodiedBeamTrip]): Unit = {
+  def handleRideHailInquiry(
+    inquiry: RideHailRequest,
+    mayBeWalkToFromStop: Option[(EmbodiedBeamTrip, EmbodiedBeamTrip)]
+  ): Unit = {
     requestedRideHail += 1
-    if (mayBeWalkToStop.exists(_.totalDistanceInM > managerConfig.maximumWalkDistanceToStopInM)) {
+    if (
+      mayBeWalkToFromStop.exists { case (toStop, fromStop) =>
+        toStop.totalDistanceInM > managerConfig.maximumWalkDistanceToStopInM ||
+          fromStop.totalDistanceInM > managerConfig.maximumWalkDistanceToStopInM
+      }
+    ) {
       respondWithDriverNotFound(inquiry)
       return
     }
@@ -1293,12 +1328,20 @@ class RideHailManager(
     } else {
       0
     }
-    val pickUpLocUpdatedUTM =
-      mayBeWalkToStop.fold(projectCoordinateToUtm(inquiry.pickUpLocationUTM, beamServices))(walkTrip =>
-        projectWgsCoordinateToUtm(walkTrip.legs.last.beamLeg.travelPath.endPoint.loc, beamServices)
-      )
-    val actualDepartAt = mayBeWalkToStop.fold(inquiry.departAt)(_.legs.last.beamLeg.travelPath.endPoint.time)
-    val destLocUpdatedUTM: Location = projectCoordinateToUtm(inquiry.destinationUTM, beamServices)
+    val (actualDepartAt, pickUpLocUpdatedUTM, destLocUpdatedUTM) = mayBeWalkToFromStop match {
+      case Some((toStop, fromStop)) =>
+        (
+          toStop.legs.last.beamLeg.travelPath.endPoint.time,
+          projectWgsCoordinateToUtm(toStop.legs.last.beamLeg.travelPath.endPoint.loc, beamServices),
+          projectWgsCoordinateToUtm(fromStop.legs.head.beamLeg.travelPath.startPoint.loc, beamServices)
+        )
+      case None =>
+        (
+          inquiry.departAt,
+          projectCoordinateToUtm(inquiry.pickUpLocationUTM, beamServices),
+          projectCoordinateToUtm(inquiry.destinationUTM, beamServices)
+        )
+    }
     val inquiryWithUpdatedLoc = inquiry.copy(
       pickUpLocationUTM = pickUpLocUpdatedUTM,
       destinationUTM = destLocUpdatedUTM,
@@ -1322,7 +1365,7 @@ class RideHailManager(
         )
         requestRoutes(inquiryWithUpdatedLoc.departAt, routingRequests, inquiry.triggerId)
     }
-    mayBeWalkToStop.foreach(trip => inquiryIdToWalkTrips.put(inquiryWithUpdatedLoc.requestId, trip))
+    mayBeWalkToFromStop.foreach(trips => inquiryIdToWalkTrips.put(inquiryWithUpdatedLoc.requestId, trips))
   }
 
   private def respondWithDriverNotFound(inquiry: RideHailRequest): Unit = {
