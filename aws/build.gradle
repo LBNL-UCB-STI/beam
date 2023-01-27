@@ -95,7 +95,6 @@ task deploy(type: AWSLambdaInvokeTask) {
   "execute_args": "${ext.getParameterValue('executeArgs')}",
   "forced_max_ram": "${ext.getParameterValue('forcedMaxRAM')}",
   "storage_size": ${ext.getParameterValue('storageSize')},
-  "batch": ${ext.getParameterValue('beamBatch')},
   "s3_publish": ${ext.getParameterValue('s3Backup') ?: true},
   "instance_type": "${finalInstanceType}",
   "region": "${ext.getParameterValue('region') ?: defaultRegion}",
