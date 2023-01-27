@@ -612,7 +612,7 @@ class RideHailManager(
           departureTime = inquiry.departAt, //walk routes are hardly depends on departure time
           withTransit = false,
           personId = Some(inquiry.customer.personId),
-          streetVehicles = Vector(bodyVehicle),
+          streetVehicles = Vector(bodyVehicle.copy(locationUTM = bodyVehicle.locationUTM.copy(loc = dropoffStop))),
           triggerId = inquiry.triggerId
         )
         val walkResponsesAndInquiry = for {
@@ -624,9 +624,7 @@ class RideHailManager(
 
     case (pickupRoute: RoutingResponse, dropoffRoute: RoutingResponse, inquiry: RideHailRequest)
         if !inquiry.shouldReserveRide =>
-      val diff = ProfilingUtils.timeWork(
-        handleRideHailInquiry(inquiry, Some(pickupRoute.itineraries.head, dropoffRoute.itineraries.head))
-      )
+      val diff = ProfilingUtils.timeWork(handleRideHailInquiry(inquiry, Some(pickupRoute, dropoffRoute)))
       nHandleRideHailInquiry += 1
       timeSpendForHandleRideHailInquiryMs += diff
 
@@ -1299,13 +1297,13 @@ class RideHailManager(
 
   def handleRideHailInquiry(
     inquiry: RideHailRequest,
-    mayBeWalkToFromStop: Option[(EmbodiedBeamTrip, EmbodiedBeamTrip)]
+    mayBeWalkToFromStop: Option[(RoutingResponse, RoutingResponse)]
   ): Unit = {
     requestedRideHail += 1
     if (
       mayBeWalkToFromStop.exists { case (toStop, fromStop) =>
-        toStop.totalDistanceInM > managerConfig.maximumWalkDistanceToStopInM ||
-          fromStop.totalDistanceInM > managerConfig.maximumWalkDistanceToStopInM
+        toStop.itineraries.head.totalDistanceInM > managerConfig.maximumWalkDistanceToStopInM ||
+          fromStop.itineraries.head.totalDistanceInM > managerConfig.maximumWalkDistanceToStopInM
       }
     ) {
       respondWithDriverNotFound(inquiry)
@@ -1331,9 +1329,17 @@ class RideHailManager(
     val (actualDepartAt, pickUpLocUpdatedUTM, destLocUpdatedUTM) = mayBeWalkToFromStop match {
       case Some((toStop, fromStop)) =>
         (
-          toStop.legs.last.beamLeg.travelPath.endPoint.time,
-          projectWgsCoordinateToUtm(toStop.legs.last.beamLeg.travelPath.endPoint.loc, beamServices),
-          projectWgsCoordinateToUtm(fromStop.legs.head.beamLeg.travelPath.startPoint.loc, beamServices)
+          // take the stop coordinates from the RoutingRequests (they are already snapped)
+          toStop.itineraries.head.legs.last.beamLeg.travelPath.endPoint.time,
+          toStop.request.fold(
+            projectWgsCoordinateToUtm(toStop.itineraries.head.legs.last.beamLeg.travelPath.endPoint.loc, beamServices)
+          )(_.destinationUTM),
+          fromStop.request.fold(
+            projectWgsCoordinateToUtm(
+              fromStop.itineraries.head.legs.head.beamLeg.travelPath.startPoint.loc,
+              beamServices
+            )
+          )(_.originUTM)
         )
       case None =>
         (
@@ -1365,7 +1371,9 @@ class RideHailManager(
         )
         requestRoutes(inquiryWithUpdatedLoc.departAt, routingRequests, inquiry.triggerId)
     }
-    mayBeWalkToFromStop.foreach(trips => inquiryIdToWalkTrips.put(inquiryWithUpdatedLoc.requestId, trips))
+    mayBeWalkToFromStop.foreach { case (toStop, fromStop) =>
+      inquiryIdToWalkTrips.put(inquiryWithUpdatedLoc.requestId, (toStop.itineraries.head, fromStop.itineraries.head))
+    }
   }
 
   private def respondWithDriverNotFound(inquiry: RideHailRequest): Unit = {

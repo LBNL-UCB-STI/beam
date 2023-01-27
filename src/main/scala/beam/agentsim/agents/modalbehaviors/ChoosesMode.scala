@@ -1218,16 +1218,18 @@ trait ChoosesMode {
           (travelProposal.poolingInfo match {
             case Some(poolingInfo) if !choosesModeData.personData.currentTourMode.contains(RIDE_HAIL) =>
               val pooledLegs = origLegs.map { origLeg =>
-                origLeg.copy(
-                  cost = origLeg.cost * poolingInfo.costFactor,
-                  isPooledTrip = origLeg.isRideHail,
-                  beamLeg = origLeg.beamLeg.scaleLegDuration(poolingInfo.timeFactor)
-                )
+                if (origLeg.isRideHail)
+                  origLeg.copy(
+                    cost = origLeg.cost * poolingInfo.costFactor,
+                    isPooledTrip = true,
+                    beamLeg = origLeg.beamLeg.scaleLegDuration(poolingInfo.timeFactor)
+                  )
+                else origLeg
               }
               Vector(origLegs, EmbodiedBeamLeg.makeLegsConsistent(pooledLegs))
             case _ =>
               Vector(origLegs)
-          }).map(surroundWithWalkLegsIfNeeded)
+          }).map(surroundWithWalkLegsIfNeededAndMakeTrip)
         case _ =>
           Vector()
       }
@@ -1401,7 +1403,7 @@ trait ChoosesMode {
       }
   }
 
-  private def surroundWithWalkLegsIfNeeded(partialItin: Vector[EmbodiedBeamLeg]): EmbodiedBeamTrip = {
+  private def surroundWithWalkLegsIfNeededAndMakeTrip(partialItin: Vector[EmbodiedBeamLeg]): EmbodiedBeamTrip = {
     val firstLegWalk = partialItin.head.beamLeg.mode == WALK
     val lastLegWalk = partialItin.last.beamLeg.mode == WALK
     val startLeg: Option[EmbodiedBeamLeg] =
