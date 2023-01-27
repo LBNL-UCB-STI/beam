@@ -41,8 +41,12 @@ class PreviousRunPlanMerger(
         val maybeExperiencedPlans =
           maybeExperiencedPlanPath.map(path => XmlPlanElementReader.read(path.toString, network))
         val convertedPlans = (maybeExperiencedPlans match {
-          case Some(experiencedPlans) => Array.concat(previousPlans.filterNot(_.planSelected), experiencedPlans)
-          case None                   => previousPlans
+          case Some(experiencedPlans) =>
+            Array.concat(
+              previousPlans.filterNot(_.planSelected).map(elem => elem.copy(planIndex = elem.planIndex + 1)),
+              experiencedPlans
+            )
+          case None => previousPlans
         }).map(adjustForScenario)
 
         PreviousRunPlanMerger.merge(
