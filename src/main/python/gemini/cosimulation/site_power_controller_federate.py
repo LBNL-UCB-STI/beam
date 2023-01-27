@@ -11,7 +11,7 @@ from threading import Thread
 import json
 import pathlib
 
-from site_power_controller_utils import DefaultSPMC
+from site_power_controller_utils import RudimentarySPMC
 from site_power_controller_utils import RideHailSPMC
 from site_power_controller_utils import create_federate
 from site_power_controller_utils import print2
@@ -55,37 +55,34 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_
             return ""
 
     # INIT
-    def init_spm_controllers(taz_id_str, site_id_str, events, time_step, sim_dur, output_dir):
-        if not site_id_str.lower().startswith(depot_prefix):
-            if site_id_str not in default_spm_c_dict:
-                default_spm_c_dict[site_id_str] = DefaultSPMC("DefaultSPMC", taz_id_str, site_id_str)
-                ride_hail_spm_c_dict[site_id_str] = RideHailSPMC(
-                    "RideHailSPMC", taz_id_str, site_id_str, events, time_step, sim_dur, output_dir
+    def init_spm_controllers(taz_id_str, parking_zone_id_str, events, time_step, sim_dur, output_dir):
+        if parking_zone_id_str.lower().startswith(depot_prefix):
+            if parking_zone_id_str not in ride_hail_spm_c_dict:
+                ride_hail_spm_c_dict[parking_zone_id_str] = RideHailSPMC(
+                    "RideHailSPMC", taz_id_str, parking_zone_id_str, events, time_step, sim_dur, output_dir
                 )
-        elif site_id_str not in ride_hail_spm_c_dict:
-            ride_hail_spm_c_dict[site_id_str] = RideHailSPMC(
-                "RideHailSPMC", taz_id_str, site_id_str, events, time_step, sim_dur, output_dir
-            )
-
+        elif parking_zone_id_str not in default_spm_c_dict:
+            default_spm_c_dict[parking_zone_id_str] = RudimentarySPMC("DefaultSPMC", taz_id_str, parking_zone_id_str)
+            
     # RUN
-    def run_multi_threaded_spm_controllers(site_id_str, current_t, received_charging_events):
-        if not site_id_str.lower().startswith(depot_prefix):
-            default_spm_c_dict[site_id_str].run_as_thread(current_t, received_charging_events)
+    def run_multi_threaded_spm_controllers(parking_zone_id_str, current_t, received_charging_events):
+        if parking_zone_id_str.lower().startswith(depot_prefix):
+            ride_hail_spm_c_dict[parking_zone_id_str].run_as_thread(current_t, received_charging_events)
         else:
-            ride_hail_spm_c_dict[site_id_str].run_as_thread(current_t, received_charging_events)
+            default_spm_c_dict[parking_zone_id_str].run_as_thread(current_t, received_charging_events)
 
-    def run_spm_controllers(site_id_str, current_t, received_charging_events):
-        if not site_id_str.lower().startswith(depot_prefix):
-            default_spm_c_dict[site_id_str].run(current_t, received_charging_events)
+    def run_spm_controllers(parking_zone_id_str, current_t, received_charging_events):
+        if parking_zone_id_str.lower().startswith(depot_prefix):
+            ride_hail_spm_c_dict[parking_zone_id_str].run(current_t, received_charging_events)
         else:
-            ride_hail_spm_c_dict[site_id_str].run(current_t, received_charging_events)
+            default_spm_c_dict[parking_zone_id_str].run(current_t, received_charging_events)
 
     # CONTROL COMMANDS
-    def get_power_commands(site_id_str):
-        if not site_id_str.lower().startswith(depot_prefix):
-            return default_spm_c_dict[site_id_str].get_output_from_latest_run()
+    def get_power_commands(parking_zone_id_str):
+        if not parking_zone_id_str.lower().startswith(depot_prefix):
+            return default_spm_c_dict[parking_zone_id_str].get_output_from_latest_run()
         else:
-            return ride_hail_spm_c_dict[site_id_str].get_output_from_latest_run()
+            return ride_hail_spm_c_dict[parking_zone_id_str].get_output_from_latest_run()
 
     # start execution loop
     for t in range(0, simulated_day_in_seconds - time_bin_in_seconds, time_bin_in_seconds):
@@ -99,21 +96,21 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_
                 pass
             elif len(charging_events_json) > 0:
                 processed_side_ids = []
-                for (taz_id, site_id), charging_events in itertools.groupby(charging_events_json, key= lambda d: (d['tazId'], d['siteId'])):
-                    init_spm_controllers(taz_id, site_id, list(charging_events),
+                for (taz_id, parking_zone_id), charging_events in itertools.groupby(charging_events_json, key= lambda d: (d['tazId'], d['parkingZoneId'])):
+                    init_spm_controllers(taz_id, parking_zone_id, list(charging_events),
                                          time_bin_in_seconds, simulated_day_in_seconds,
                                          output_directory)
                     # Running SPM Controllers
                     filtered_charging_events = list(
                         filter(lambda charging_event: 'vehicleId' in charging_event, charging_events))
                     if len(filtered_charging_events) > 0:
-                        processed_side_ids = processed_side_ids + [site_id]
+                        processed_side_ids = processed_side_ids + [parking_zone_id]
                         if multi_threaded_run:
-                            run_multi_threaded_spm_controllers(site_id, t, filtered_charging_events)
+                            run_multi_threaded_spm_controllers(parking_zone_id, t, filtered_charging_events)
                         else:
-                            run_spm_controllers(site_id, t, filtered_charging_events)
-                for site_id in processed_side_ids:
-                    power_commands_list = power_commands_list + get_power_commands(site_id)
+                            run_spm_controllers(parking_zone_id, t, filtered_charging_events)
+                for parking_zone_id in processed_side_ids:
+                    power_commands_list = power_commands_list + get_power_commands(parking_zone_id)
             else:
                 # print_err("[time:" + str(t) + "] The JSON message is empty")
                 pass

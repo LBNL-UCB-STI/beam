@@ -17,7 +17,7 @@ def read_csv_file(filename):
 
 projectDir = os.path.expanduser("~/Workspace/Data/GEMINI")
 workdir = projectDir + "/2022-07-05/_models/nrel_infrastructure/"
-nrel_file_input = workdir + 'scen_8_infrastructure.csv'
+nrel_file_input = workdir + '8_low_init1_pubClust_wFix.csv'
 smart_file_input = projectDir + "/stations/taz-parking-sparse-fast-limited-l2-150-lowtech-b.csv"
 nrel_file_converted_input = os.path.expanduser(nrel_file_input.split(".")[0] + "_converted.csv")
 smart_file_updated_input = os.path.expanduser(smart_file_input.split(".")[0] + "_updated.csv")

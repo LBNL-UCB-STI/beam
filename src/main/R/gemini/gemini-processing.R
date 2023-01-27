@@ -24,13 +24,19 @@ oaklandCbg <- st_read(shpFile)
 
 ###
 #eventsraw <- readCsv(pp(workDir, "/0.events.csv.gz"))
-events1 <- readCsv(pp(workDir, "/events/filtered.9.events.7Advanced.csv.gz"))
+events1 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.5b1.csv.gz"))
 events1_rf <- events1[type=="RefuelSessionEvent"]
-events1_rf[,.N,by=.(chargingPointType)]
+#events1_rf[,.N,by=.(chargingPointType)]
+#events1_rf[,.(hour=sum(duration)/3600000.0),by=.(chargingPointType)]
+events1_rf[,.(minute=mean(duration)/60.0),by=.(chargingPointType)]
 
-events2 <- readCsv(pp(workDir, "/events/filtered.0.events.6HighEV.csv.gz"))
+events2 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.5bBase.csv.gz"))
 events2_rf <- events2[type=="RefuelSessionEvent"]
-events2_rf[,.N,by=.(chargingPointType)]
+#events2_rf[,.N,by=.(chargingPointType)]
+#events2_rf[,.(hour=sum(duration)/3600000.0),by=.(chargingPointType)]
+events2_rf[,.(minute=mean(duration)/60.0),by=.(chargingPointType)]
+
+
 
 eventsTest <- readCsv(pp(workDir, "/events/pev-siting.0.events.7Advanced.csv.gz"))
 eventsTest_rf <- eventsTest[type=="RefuelSessionEvent"]

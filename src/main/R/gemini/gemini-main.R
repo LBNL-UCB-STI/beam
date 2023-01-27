@@ -75,6 +75,9 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 # scenarioNames <- c('5b3', '5b4', '5b5', '5b6', '5b7')
 
 scenarioNames <- c('BaseXFC', 'HighEV', 'Advanced', 'MaxEV')
+#scenarioNames <- c('BaseXFC', 'HighEV', '5b1', '5b2', '5b3')
+#scenarioNames <- c('5b1', '5b2', '5b3')
+
 #scenarioBaselineLabel <- 'BaseXFC'
 scenarioBaselineLabel <- 'BaseXFC'
 #all.loads <- all.loads[!is.na(loadType)]
@@ -82,6 +85,21 @@ scenarioBaselineLabel <- 'BaseXFC'
 # LOADS & ENERGY
 ##########################################
 
+## **************************************
+##  public charging by scenario
+#scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5', '5b6', '5b7')
+#scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5', '5b6', '5b7')
+p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
+  ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
+  theme_marain() +
+  geom_area(colour="black", size=0.3) +
+  scale_fill_manual(values = chargingTypes.colors, name = "") +
+  labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
+  theme(strip.text = element_text(size=rel(1.2))) +
+  facet_wrap(~factor(name,scenarioNames),ncol = 2)
+ggsave(pp(plotsDir,'/public-charging-by-scenario-2.png'),p,width=8,height=4,units='in')
+
+###############################
 ## Baseline XFC hours per site per day
 #scenarioBaselineLabel <- 'BaseXFC'
 toplot <- all.loads[name==scenarioBaselineLabel]
@@ -207,19 +225,7 @@ ggsave(pp(plotsDir,'/baseline-ev-charging-loads-by-space-time-in-oakland.png'),p
 #   facet_wrap(~factor(name,scenarioNames),ncol = 2,labeller = labeller(.cols = thelabeller))
 # ggsave(pp(plotsDir,'/public-charging-by-scenario.png'),p,width=8,height=5,units='in')
 
-## **************************************
-##  public charging by scenario
-#scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5', '5b6', '5b7')
-#scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5', '5b6', '5b7')
-p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
-  ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
-  theme_marain() +
-  geom_area(colour="black", size=0.3) +
-  scale_fill_manual(values = chargingTypes.colors, name = "") +
-  labs(x = "hour", y = "GW", fill="load severity", title="Public Charging") +
-  theme(strip.text = element_text(size=rel(1.2))) +
-  facet_wrap(~factor(name,scenarioNames),ncol = 2)
-ggsave(pp(plotsDir,'/public-charging-by-scenario-2.png'),p,width=8,height=4,units='in')
+
 
 
 ## public  daily charging by scenario

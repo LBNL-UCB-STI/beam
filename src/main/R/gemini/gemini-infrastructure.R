@@ -17,26 +17,18 @@ infraDir <- pp(workDir,"/_models/nrel_infrastructure")
 ###########################
 
 #infra8MaxEV <- readCsv(pp(infraDir, "/scen_8_infrastructure_withFees.csv.gz"))
-infra_converted_withFees <- readCsv(pp(infraDir, "/scen_8_infrastructure_withFees.csv.gz"))
+infra_converted_withFees <- readCsv(pp(infraDir, "/8_low_init1_pubClust_wFix_withFees.csv.gz"))
 infra_converted_withFees[startsWith(reservedFor,"household")]$reservedFor <- "Any"
 infra_converted_withFees_noHousehold <- infra_converted_withFees[
   ,.(parkingZoneId=first(parkingZoneId),feeInCents=mean(feeInCents),numStalls=sum(numStalls))
-  ,b=.(taz,parkingType,chargingPointType,X,Y,reservedFor,pricingModel)]
-names(infra_converted_withFees_noHousehold)[names(infra_converted_withFees_noHousehold) == "X"] <- "locationX"
-names(infra_converted_withFees_noHousehold)[names(infra_converted_withFees_noHousehold) == "Y"] <- "locationY"
+  ,b=.(taz,parkingType,chargingPointType,locationX,locationY,reservedFor,pricingModel)]
 write.csv(
   infra_converted_withFees_noHousehold,
-  file = pp(infraDir, "/scen_8_infrastructure_withFees_noHousehold.csv"),
+  file = pp(infraDir, "/8_low_init1_pubClust_wFix_withFees_noHousehold.csv"),
   row.names=FALSE,
   quote=FALSE)
 
 ###########################
-
-infra5aBase <- readCsv(pp(infraDir, "/4a_output_2022_Apr_13_pubClust_withFees_noHousehold.csv"))
-infra5bBase <- readCsv(pp(infraDir, "/4b_output_2022_Apr_13_pubClust_withFees_noHousehold.csv"))
-infra6Base <- readCsv(pp(infraDir, "/6_output_2022_Apr_13_pubClust_withFees_noHousehold.csv"))
-infra7Advanced <- readCsv(pp(infraDir,"/scen_7_infrastructure_withFees_noHousehold.csv"))
-infra8MaxEV <- readCsv(pp(infraDir,"/scen_8_infrastructure_withFees_noHousehold.csv"))
 
 aggregateInfrastructure <- function(FULL_FILE_NAME) {
   DATA <- readCsv(FULL_FILE_NAME)
@@ -66,7 +58,21 @@ aggregateInfrastructure <- function(FULL_FILE_NAME) {
   print("END aggregateInfrastructure")
 }
 
-aggregateInfrastructure(pp(infraDir, "/scen_7_infrastructure_withFees_noHousehold.csv"))
+aggregateInfrastructure(pp(infraDir, "/7_low_init1_pubClust_wFix_withFees_noHousehold.csv"))
+
+
+
+infra5aBase <- readCsv(pp(infraDir, "/4a_output_2022_Apr_13_pubClust_withFees_noHousehold.csv"))
+infra5bBase <- readCsv(pp(infraDir, "/4b_output_2022_Apr_13_pubClust_withFees_noHousehold.csv"))
+infra6Base <- readCsv(pp(infraDir, "/6_output_2022_Apr_13_pubClust_withFees_noHousehold.csv"))
+infra7Advanced <- readCsv(pp(infraDir,"/7_low_init1_pubClust_wFix_withFees_noHousehold.csv"))
+infra8MaxEV <- readCsv(pp(infraDir,"/8_low_init1_pubClust_wFix_withFees_noHousehold.csv"))
+
+infra7Advanced[,.(numStalls=sum(numStalls)),by=.(chargingPointType)]
+infra8MaxEV[,.(numStalls=sum(numStalls)),by=.(chargingPointType)]
+
+infra7Advanced[,.(feeInCents=mean(feeInCents)),by=.(chargingPointType)]
+infra8MaxEV[,.(feeInCents=mean(feeInCents)),by=.(chargingPointType)]
 
 ######
 
@@ -131,8 +137,8 @@ sites[plug.xfc]
 
 ####
 
-events <- readCsv(pp(geminiDir,"/2022-07-05/events/filtered.0.events.8MaxEV.csv.gz"))
-events.sim <- readCsv(pp(geminiDir, "/2022-07-05/sim/events.sim.7Advanced.csv.gz"))
+events <- readCsv(pp(workDir,"/events/filtered.0.events.7Advanced.csv.gz"))
+#events.sim <- readCsv(pp(geminiDir, "/2022-07-05/sim/events.sim.7Advanced.csv.gz"))
 
 refueling <- events[type == "RefuelSessionEvent"][
   ,.(person,startTime=time-duration,startTime2=time-duration,parkingTaz,chargingPointType,
@@ -141,7 +147,7 @@ refueling <- events[type == "RefuelSessionEvent"][
 
 write.csv(
   refueling[!startsWith(chargingPointType, "depot")],
-  file = pp(geminiDir,"/2022-07-05/_models/chargingEvents.8MaxEV.csv"),
+  file = pp(workDir,"/_models/chargingEvents.7Advanced.csv"),
   row.names=FALSE,
   quote=FALSE,
   na="0")
@@ -184,19 +190,19 @@ convertToFCSPlanInput <- function(DT, run_name) {
   return(DT2)
 }
 
-hongcai_siting_input <- readCsv(pp(dataDir,"/DepotSiting/hczhang/beam_ev_rhrf_outputs.csv"))
-
+# hongcai_siting_input <- readCsv(pp(dataDir,"/DepotSiting/hczhang/beam_ev_rhrf_outputs.csv"))
+# 
 work_dir <- pp(dataDir,"/GEMINI/2022-07-05")
 events_plus_dir <- pp(work_dir,"/events-plus")
-
+# 
 gemini7Advanced <- readCsv(pp(events_plus_dir,"/rhev-siting.0.events.7Advanced.csv.gz"))
 gemini8MaxEV <- readCsv(pp(events_plus_dir,"/rhev-siting.0.events.8MaxEV.csv.gz"))
 
 gemini7AdvancedFiltered <- gemini7Advanced[startsWith(vehicleType, "ev-") | startsWith(vehicleType, "phev-")]
 gemini8MaxEVFiltered <- gemini8MaxEV[startsWith(vehicleType, "ev-") | startsWith(vehicleType, "phev-")]
-
-gemini7AdvancedNumVeh <- length(unique(gemini7AdvancedFiltered$vehicle))
-gemini8MaxEVNumVeh <- length(unique(gemini8MaxEVFiltered$vehicle))
+# 
+# gemini7AdvancedNumVeh <- length(unique(gemini7AdvancedFiltered$vehicle))
+# gemini8MaxEVNumVeh <- length(unique(gemini8MaxEVFiltered$vehicle))
 
 
 gemini7Advanced1 <- convertToFCSPlanInput(gemini7AdvancedFiltered, "chargerLevel_400kW__vehicleRange_300mi__ridehailNumber_35k")
@@ -216,16 +222,16 @@ write.csv(
   quote=FALSE)
 
 
-rh7Advanced_file <- pp(workDir,"/events-plus/FCS_planning_results/taz-parking_S80_P300_R250_F35k.csv")
-rh8MaxEV_file <- pp(workDir,"/events-plus/FCS_planning_results/taz-parking_S80_P300_R250_F74k.csv")
+rh7Advanced_file <- pp(workDir,"/_models/FCS_planning_results/taz-parking_S80_P300_R250_F35k_SC7.csv")
+rh8MaxEV_file <- pp(workDir,"/_models/FCS_planning_results/taz-parking_S80_P300_R250_F74k.csv")
 
-rhInfra <- readCsv(rh8MaxEV_file)
-rhInfra$parkingZoneId2 <- apply(rhInfra[,c("taz","parkingZoneId")],1,paste,collapse="-")
+rhInfra <- readCsv(rh7Advanced_file)
+rhInfra$parkingZoneId2 <- paste("depot", rhInfra$taz, rhInfra$parkingZoneId, sep="-")
 rhInfra$parkingZoneId <- rhInfra$parkingZoneId2
 rhInfra <- rhInfra[,-c("parkingZoneId2")]
 write.csv(
   rhInfra,
-  file = pp(workDir, "/events-plus/FCS_planning_results/taz-parking_S80_P300_R250_F74k_Bis.csv"),
+  file = pp(workDir, "/_models/FCS_planning_results/taz-parking_S80_P300_R250_F35k_Bis.csv"),
   row.names=FALSE,
   quote=FALSE)
 

@@ -9,8 +9,23 @@ from xfc_btms_saev_controller import components
 import xfc_btms_saev_controller.components
 
 
-class DefaultSPMC:
-    # Myungsoo is SPM Controller (NOT RIDE HAIL DEPOT)
+class AdvancedSPMC:
+    # Myungsoo's advanced SPM Controller
+    control_commands = []
+    thread = Thread()
+
+    def __init__(self, name, taz_id, site_id):
+        self.taz_id = taz_id
+        self.site_id = site_id
+        self.site_prefix_logging = name + "[" + str(taz_id) + ":" + str(site_id) + "]. "
+        Pmax = [20, 25, 15, 20]  # max EV charging power (EVSE power rate)
+        Pmin = [0, 0, 0, 0]  # min EV charging power
+        ESS_capacity = 50  # in kWh
+        self.spm_c = SPM_Control(time_step_mins=15, num_ess=1, ess_size=ESS_capacity, max_power_evse=Pmax, min_power_evse=Pmin)
+        print2(self.site_prefix_logging + "Initialized!")
+
+class RudimentarySPMC:
+    # Myungsoo's rudimentary SPM Controller
     control_commands = []
     thread = Thread()
 
@@ -62,7 +77,7 @@ class DefaultSPMC:
             # Julius @ HL can you please add this to the BEAM output?
             battery_capacity_in_k_wh.append(int(charging_event['primaryFuelCapacityInJoule']) / 3600000)
             # total site power
-            site_power_in_kw = float(charging_event['sitePowerInKW'])
+            site_power_in_kw = float(charging_event['parkingZonePowerInKW'])
 
         # Myungsoo is SPM Controller (NOT RIDE HAIL DEPOT)
         # 1) SPM Controller takes list(charging_events) (and/or siteId)
@@ -107,8 +122,8 @@ class RideHailSPMC:
         self.site_id = site_id
         self.site_prefix_logging = name + "[" + str(taz_id) + ":" + str(site_id) + "]. "
         self.time_step = time_step
-        num_plugs = int(events[0]['siteNumPlugs'])
-        site_power = float(events[0]['sitePowerInKW'])
+        num_plugs = int(events[0]['parkingZoneNumPlugs'])
+        site_power = float(events[0]['parkingZonePowerInKW'])
         plug_power = site_power/num_plugs
         # JULIUS: @HL I initialized my SPM Controller here
         # @ HL can you provide the missing information
