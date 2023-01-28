@@ -113,12 +113,12 @@ class UrbanSimScenarioLoader(
     val households = Await.result(householdsF, timeOutSeconds.seconds)
     logger.info(s"Reading households done.")
 
-    val (mergedPlans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
-
-    val plans = {
+    val inputPlansCorrected = {
       HOVModeTransformer.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
-      HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(mergedPlans)
+      HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(inputPlans)
     }
+
+    val (plans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlansCorrected)).getOrElse(inputPlans -> false)
 
     val householdIds = households.map(_.householdId.id).toSet
 
@@ -601,6 +601,7 @@ class UrbanSimScenarioLoader(
         val index = states.zipWithIndex.find(_._1 == lookingFor).map(_._2).getOrElse {
           // couldn't find in store, create new plan
           val newPlan = PopulationUtils.createPlan(person)
+          newPlan.setScore(planInfo.planScore)
           person.addPlan(newPlan)
           if (planInfo.planSelected) {
             person.setSelectedPlan(newPlan)
