@@ -363,6 +363,7 @@ There are 3 options to run Jupyter Notebook via Gradle task.
 There are some additional parameters that can control how Jupyter is started:
 
 * **jupyterToken**: to specify a custom token for Jupyter, if not set a random UUID will be generated as a token
+* **jupyterImage**: to specify an arbitrary Jupyter docker image
 * **user**: to specify a custom user for running Jupyter in Docker
 
 Jupyter will be run in the background. To stop it use command::
@@ -385,7 +386,8 @@ These are parameters for this task, many of them are inherited from `deploy` tas
 * **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
 * **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
 * **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
-* **jupyter_token**: to specify a custom token for Jupyter, if not set a random UUID will be generated as a token
+* **jupyterToken**: to specify a custom token for Jupyter, if not set a random UUID will be generated as a token
+* **jupyterImage**: to specify an arbitrary Jupyter docker image
 * **budgetOverride**: Set to `true` to override budget limitations, see `Documentation of AWS budget management` section in `DevOps guide <https://beam.readthedocs.io/en/latest/devops.html>`_, default is `false`
 
 3. Remotely on EC2 together with a simulation. Use `-PrunJupyter=true` option for deploy command.
