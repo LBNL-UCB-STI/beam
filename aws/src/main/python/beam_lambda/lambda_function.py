@@ -212,7 +212,7 @@ runcmd:
   - if [ "$RUN_JUPYTER" = "True" ]
   - then
   -   echo "Starting Jupyter"
-  -   sudo ./gradlew jupyterStart -Puser=root -PjupyterToken=$JUPYTER_TOKEN
+  -   sudo ./gradlew jupyterStart -Puser=root -PjupyterToken=$JUPYTER_TOKEN -PjupyterImage=$JUPYTER_IMAGE
   - fi
   
   - if [ "$RUN_BEAM" = "True" ]
@@ -783,6 +783,7 @@ def deploy_handler(event, context):
     cosimulation_shell_script = event.get('cosimulation_shell_script', '')
     run_jupyter = event.get('run_jupyter', False)
     jupyter_token = event.get('jupyter_token', '')
+    jupyter_image = event.get('jupyter_image', '')
 
     profiler_type = event.get('profiler_type', 'null')
     budget_override = event.get('budget_override', False)
@@ -887,7 +888,8 @@ def deploy_handler(event, context):
                 .replace('$STUCK_GUARD_MIN_CPU_USAGE', str(stuck_guard_min_cpu_usage)) \
                 .replace('$RUN_JUPYTER', str(run_jupyter)) \
                 .replace('$RUN_BEAM', str(run_beam)) \
-                .replace('$JUPYTER_TOKEN', jupyter_token)
+                .replace('$JUPYTER_TOKEN', jupyter_token) \
+                .replace('$JUPYTER_IMAGE', jupyter_image)
             if is_spot:
                 min_cores = event.get('min_cores', 0)
                 max_cores = event.get('max_cores', 0)

@@ -262,6 +262,7 @@ task jupyterEC2(type: AWSLambdaInvokeTask) {
           "run_jupyter" : true,
           "run_beam": false,
           "jupyter_token" : "${project.findProperty("jupyterToken") ?: UUID.randomUUID().toString()}",
+          "jupyter_image" : "${project.findProperty("jupyterImage") ?: defaultJupyterImage}",
           "is_spot" : false,
           "budget_override": ${project.findProperty('budgetOverride') ?: false}
         }"""
