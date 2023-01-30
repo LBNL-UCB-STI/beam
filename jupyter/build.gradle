@@ -15,8 +15,7 @@ plugins {
 
 def port = '8888'
 def containerName = 'jupyter-for-beam'
-def defaultDockerImage = 'irishwithaxe/jupyter-enhanced:1'
-def dockerImage = project.hasProperty("imageName") ? imageName : defaultDockerImage
+def dockerImage = project.hasProperty("jupyterImage") ? imageName : defaultJupyterImage
 def token = project.hasProperty("jupyterToken") ? jupyterToken : UUID.randomUUID().toString()
 def dockerArguments = project.hasProperty("user") ? ["--group-add=users", "--user=${project.property("user")}"] as String[] : "--group-add=users"
 
