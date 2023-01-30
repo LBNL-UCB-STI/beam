@@ -106,7 +106,6 @@ object RunCalibration extends ExperimentApp with LazyLogging {
            -PbeamCommit=${experimentData.experimentDef.header.deployParams.get("beamCommit")}
            -PdeployMode=${experimentData.experimentDef.header.deployParams.get("deployMode")}
            -PexecuteClass=${experimentData.experimentDef.header.deployParams.get("executeClass")}
-           -PbeamBatch=${experimentData.experimentDef.header.deployParams.get("beamBatch")}
            -PshutdownWait=${experimentData.experimentDef.header.deployParams.get("shutdownWait")}
            -PshutdownBehavior=${experimentData.experimentDef.header.deployParams.get("shutdownBehavior")}
            -Ps3Backup=${experimentData.experimentDef.header.deployParams.get("s3Backup")}
