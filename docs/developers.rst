@@ -393,6 +393,21 @@ These are parameters for this task, many of them are inherited from `deploy` tas
 3. Remotely on EC2 together with a simulation. Use `-PrunJupyter=true` option for deploy command.
 
 
+Organizing jupyter notebooks
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+1. It is better to keep jupyter notebooks inside jupyter folder, organized by subfolders. The 'local_files' folder configured to be ignored by git.
+
+2. In order to keep jupyter notebooks changed on AWS instance under version control one needs to download required notebooks (both .ipynb and .py files) from the instance and commit and push them locally.
+
+3. Before pushing changed notebooks it is recommended to clear outputs, to make it easier to review and to reduce the size.
+
+4. It is possible to mount local folders to jupyter.
+One needs to copy 'jupyter/.foldersToMapInJupyter.txt' file to 'jupyter/local_files' folder and fill the file with all required folder to be mounted,
+one location per row. Folders will be mounted during execution of jupyterStar gradle command.
+For windows users - be sure docker is updated and configured to use linux containers.
+
+
 Performance Monitoring
 ^^^^^^^^^^^^^^^^^^^^^^
 
