@@ -20,7 +20,6 @@ header:
       beamCommit: "HEAD"
       deployMode: "execute"
       executeClass: "beam.calibration.RunCalibration"
-      beamBatch: "false"
       shutdownWait: "15"
       shutdownBehavior: "terminate"
       s3Backup: "true"

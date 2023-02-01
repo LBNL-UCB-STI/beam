@@ -13,9 +13,9 @@ plugins {
     id 'com.palantir.docker-run' version '0.32.0'
 }
 
-def imageName = 'jupyter/scipy-notebook:2022-04-02'
-def containerName = 'jupyter-for-beam'
 def port = '8888'
+def containerName = 'jupyter-for-beam'
+def dockerImage = project.hasProperty("jupyterImage") ? jupyterImage : defaultJupyterImage
 def token = project.hasProperty("jupyterToken") ? jupyterToken : UUID.randomUUID().toString()
 def dockerArguments = project.hasProperty("user") ? ["--group-add=users", "--user=${project.property("user")}"] as String[] : "--group-add=users"
 
@@ -49,7 +49,7 @@ static def readMappingFromFile(String filePath, String prefix, String basePath) 
 
 static def getFoldersToMount() {
     LinkedHashMap<Object, Object> volume_mapping = [:]
-    volume_mapping.put('jupyter_home', '/home/jovyan')
+    volume_mapping.put('.jupyter_home', '/home/jovyan')
 
     def beamRootPath = new File(".").getCanonicalPath()
     volume_mapping.put(beamRootPath, '/home/jovyan/beam_root')
@@ -65,7 +65,7 @@ def (foldersToMount, mountingErrors) = getFoldersToMount()
 
 dockerRun {
     name "$containerName"
-    image "$imageName"
+    image "$dockerImage"
     volumes foldersToMount
     ports "$port:8888"
     daemonize true
@@ -85,7 +85,7 @@ task jupyterStart(dependsOn: ['dockerRun']) {
         println ""
         mountingErrors.forEach { err -> println(err) }
         println ""
-        println """Jupyter Lab from image '$imageName' started with container name '$containerName'."""
+        println """Jupyter Lab from image '$dockerImage' started with container name '$containerName'."""
         println """The token is the following: $token"""
         println """Lab web interface is here: http://127.0.0.1:$port/lab?token=$token"""
     }
