@@ -493,7 +493,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val numStalls = calculateNumStalls(numStallsString.toDouble, reservedFor, parkingStallCountScalingFactor)
       val siteIdMaybe =
         if (siteIdString == null || siteIdString.isEmpty) None
-        else Some(SitePowerManager.createId(siteIdString))
+        else Some(SitePowerManager.createSiteId(siteIdString))
       val parkingZoneIdMaybe =
         if (parkingZoneIdString == null || parkingZoneIdString.isEmpty)
           Some(ParkingZone.createId(rowNumber.toString))

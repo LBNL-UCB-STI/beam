@@ -3,16 +3,18 @@ package beam.agentsim.infrastructure.power
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
-import beam.agentsim.infrastructure.parking.ParkingZone.createId
+import beam.agentsim.infrastructure.parking.ParkingZoneId
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.Id
 
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Try}
 
 class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: BeamConfig) extends LazyLogging {
   import PowerManager._
+  import SitePowerManager._
   private val pmcConfigMaybe = beamConfig.beam.agentsim.chargingNetworkManager.powerManagerController
 
   private[power] lazy val beamFederateOption: Option[BeamFederate] =
@@ -68,7 +70,7 @@ class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: Bea
   def obtainPowerPhysicalBounds(
     currentTime: Int,
     estimatedLoad: Map[ChargingStation, PowerInKW]
-  ): Map[ChargingStation, PowerInKW] = {
+  ): Map[Id[ParkingZoneId], ZonalPowerLimit] = {
     beamFederateOption
       .map { beamFederate =>
         val messageToSend = estimatedLoad.map { case (station, powerInKW) =>
@@ -84,14 +86,14 @@ class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: Bea
           // Receiving this message
           val reservedFor = message("reservedFor").toString match {
             case managerIdString if managerIdString.isEmpty => VehicleManager.AnyManager
-            case managerIdString =>
-              VehicleManager.createOrGetReservedFor(managerIdString, Some(beamConfig)).get
+            case managerIdString                            => VehicleManager.createOrGetReservedFor(managerIdString, Some(beamConfig)).get
           }
+          val parkingZoneId = Id.create(message("parkingZoneId").toString, classOf[ParkingZoneId])
+          val powerLimit = message("power_limit_upper").asInstanceOf[PowerInKW]
           chargingNetworkHelper
             .get(reservedFor)
-            .lookupStation(createId(message("parkingZoneId").toString)) match {
-            case Some(station) =>
-              Some(station -> message("power_limit_upper").asInstanceOf[PowerInKW])
+            .lookupStation(parkingZoneId) match {
+            case Some(station) => Some(parkingZoneId -> ZonalPowerLimit(parkingZoneId, station.numPlugs, powerLimit))
             case _ =>
               logger.error(
                 "Cannot find the charging station correspondent to what has been received from the co-simulation"
@@ -102,7 +104,7 @@ class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: Bea
       }
       .getOrElse {
         logger.debug("Not connected to grid, falling to default physical bounds at time {}...", currentTime)
-        Map.empty[ChargingStation, PowerInKW]
+        Map.empty[Id[ParkingZoneId], ZonalPowerLimit]
       }
   }
 
@@ -116,6 +118,4 @@ class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: Bea
 
 object PowerManager {
   type PowerInKW = Double
-  type EnergyInJoules = Double
-  type ChargingDurationInSec = Int
 }

@@ -32,7 +32,7 @@ def npmrds_screeline_validation(npmrds_data, model_network, output_dir, label, s
     return npmrds_data_hourly
     
 
-def beam_screeline_validation(modeled_vmt, model_network, output_dir, label, percent_of_samples, show_plots = False):
+def beam_screeline_validation(modeled_vmt, model_network, output_dir, label, passenger_sample_fraction, freight_sample_fraction, show_plots = False):
     meter_to_mile = 0.000621371
     mps_to_mph = 2.23694
     hourly_vol_to_check = modeled_vmt.groupby('hour')[['volume']].sum()
@@ -41,11 +41,12 @@ def beam_screeline_validation(modeled_vmt, model_network, output_dir, label, per
     model_network.loc[:, 'fromNodeId'] = model_network.loc[:, 'fromNodeId'].astype(int)
     model_network.loc[:, 'toNodeId'] = model_network.loc[:, 'toNodeId'].astype(int)
     model_vmt_24_hour = pd.merge(model_vmt_24_hour, model_network, left_on = ['link', 'from', 'to'], right_on = ['linkId', 'fromNodeId', 'toNodeId'], how = 'inner')
-    demand_scaling = 1/percent_of_samples
+    demand_scaling = 1/passenger_sample_fraction
+    freight_scaling = 1/freight_sample_fraction
     # activate this for freight runs
     model_vmt_24_hour.loc[:, 'combined_volume'] = model_vmt_24_hour.loc[:, 'volume'] * demand_scaling
     if 'TruckVolume' in model_vmt_24_hour.columns:
-        model_vmt_24_hour.loc[:, 'combined_volume'] = model_vmt_24_hour.loc[:, 'combined_volume'] + model_vmt_24_hour.loc[:, 'TruckVolume']
+        model_vmt_24_hour.loc[:, 'combined_volume'] = model_vmt_24_hour.loc[:, 'combined_volume'] + model_vmt_24_hour.loc[:, 'TruckVolume'] * freight_scaling
     model_vmt_24_hour.loc[:, 'hourly volume'] = model_vmt_24_hour.loc[:, 'volume']/model_vmt_24_hour.loc[:, 'numberOfLanes']
     model_vmt_24_hour.loc[:, 'VMT'] = demand_scaling * meter_to_mile * model_vmt_24_hour.loc[:, 'linkLength'] * model_vmt_24_hour.loc[:, 'combined_volume']
     # model_vmt_24_hour.loc[:, 'travel_time (hr)'] = model_vmt_24_hour.loc[:, 'linkLength'] /3600

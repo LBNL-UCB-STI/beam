@@ -29,7 +29,7 @@ trait ChargingNetworkManagerHelper extends {
     * @param cycle the latest charging cycle
     * @return
     */
-  protected def chargingNotCompleteUsing(cycle: ChargingCycle): Boolean =
+  private def chargingNotCompleteUsing(cycle: ChargingCycle): Boolean =
     (cycle.endTime - cycle.startTime) >= cycle.maxDuration
 
   /**
@@ -70,6 +70,9 @@ trait ChargingNetworkManagerHelper extends {
     val maxCycleDuration = shouldEndAtMaybe match {
       case Some(shouldEndAt) => Math.min(nextTimeBin(startTime) - startTime, shouldEndAt - startTime)
       case None              => nextTimeBin(startTime) - startTime
+    }
+    if (chargingVehicle.vehicle.stall.isEmpty){
+      log.info(s"The charging vehicle ${chargingVehicle.vehicle.id} does not have a stall!")
     }
     val newCycle = sitePowerManager.dispatchEnergy(startTime, updatedEndTime, maxCycleDuration, chargingVehicle)
     log.debug(

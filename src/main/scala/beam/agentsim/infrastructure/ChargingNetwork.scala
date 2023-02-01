@@ -159,6 +159,7 @@ object ChargingNetwork extends LazyLogging {
           chargingZones,
           distanceFunction,
           beamConfig.beam.agentsim.agents.parking,
+          //beamConfig.beam.agentsim.chargingNetworkManager,
           envelopeInUTM,
           beamConfig.matsim.modules.global.randomSeed,
           skims,
@@ -321,6 +322,11 @@ object ChargingNetwork extends LazyLogging {
             )
           vehiclesInternal.put(vehicle.id, chargingVehicle)
           if (numAvailableChargers > 0) {
+            if (chargingVehicle.vehicle.stall.isEmpty) {
+              logger.error(s"Chargin vehicle does not have a stall1!")
+              chargingVehicle.vehicle.useParkingStall(stall)
+            }
+
             vehiclesCurrentlyChargingInternal.put(vehicle.id, chargingVehicle)
             chargingVehicle.updateStatus(Connected, tick)
           } else {
@@ -377,6 +383,10 @@ object ChargingNetwork extends LazyLogging {
     private[ChargingNetwork] def connectFromWaitingLine(tick: Int): List[ChargingVehicle] = this.synchronized {
       (1 to Math.min(vehiclesWaitingInLineInternal.size, numAvailableChargers)).map { _ =>
         val v = vehiclesWaitingInLineInternal.dequeue()
+        if (v.vehicle.stall.isEmpty) {
+          logger.error(s"Chargin vehicle does not have a stall2!")
+          v.vehicle.useParkingStall(v.stall)
+        }
         vehiclesCurrentlyChargingInternal.put(v.vehicle.id, v)
         v.updateStatus(Connected, tick)
       }.toList

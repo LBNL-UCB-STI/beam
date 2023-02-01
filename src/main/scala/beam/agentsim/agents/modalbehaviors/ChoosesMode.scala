@@ -16,6 +16,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.resources.ReservationErrorCode
 import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent, SpaceTime}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._

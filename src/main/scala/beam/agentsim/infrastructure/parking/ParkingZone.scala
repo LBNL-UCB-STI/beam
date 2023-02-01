@@ -119,7 +119,7 @@ object ParkingZone extends LazyLogging {
       geoId,
       parkingType,
       VehicleManager.AnyManager,
-      Some(SitePowerManager.createId(DefaultParkingZoneId.toString)),
+      Some(SitePowerManager.createSiteId(DefaultParkingZoneId.toString)),
       numStalls
     )
   }
