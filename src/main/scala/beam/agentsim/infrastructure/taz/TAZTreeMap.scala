@@ -41,6 +41,9 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
   val idToTAZMapping: mutable.HashMap[Id[TAZ], TAZ] = mutable.HashMap()
   private val cache: TrieMap[(Double, Double), TAZ] = TrieMap()
   private val linkIdToTAZMapping: mutable.HashMap[Id[Link], Id[TAZ]] = mutable.HashMap.empty[Id[Link], Id[TAZ]]
+
+  val TAZtoLinkIdMapping: mutable.HashMap[Id[TAZ], QuadTree[Link]] =
+    mutable.HashMap.empty[Id[TAZ], QuadTree[Link]]
   private val unmatchedLinkIds: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
   lazy val tazListContainsGeoms: Boolean = tazQuadTree.values().asScala.headOption.exists(_.geometry.isDefined)
   private val failedLinkLookups: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
@@ -130,6 +133,15 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
 
   def mapNetworkToTAZs(network: Network): Unit = {
     if (tazListContainsGeoms) {
+      val extent =
+        (tazQuadTree.getMinEasting, tazQuadTree.getMinNorthing, tazQuadTree.getMaxEasting, tazQuadTree.getMaxNorthing)
+      idToTAZMapping.toList.foreach { case (id, taz) =>
+        val (minX, minY, maxX, maxY) = taz.geometry.map(_.getEnvelope.getEnvelopeInternal) match {
+          case Some(env) => (env.getMinX, env.getMinY, env.getMaxX, env.getMaxY)
+          case _         => extent
+        }
+        TAZtoLinkIdMapping(id) = new QuadTree[Link](minX, minY, maxX, maxY)
+      }
       network.getLinks.asScala.foreach {
         case (id, link) =>
           val linkEndCoord = link.getToNode.getCoord
@@ -145,6 +157,7 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
           }
           foundTaz match {
             case Some(taz) =>
+              TAZtoLinkIdMapping(taz.tazId).put(linkEndCoord.getX, linkEndCoord.getY, link)
               linkIdToTAZMapping += (id -> taz.tazId)
             case _ =>
               unmatchedLinkIds += id

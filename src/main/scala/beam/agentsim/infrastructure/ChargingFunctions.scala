@@ -7,7 +7,7 @@ import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.router.skim.{Skims, SkimsUtils}
 import beam.sim.config.BeamConfig
@@ -16,31 +16,15 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
 class ChargingFunctions(
-  geoQuadTree: QuadTree[TAZ],
-  idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
-  parkingZones: Map[Id[ParkingZoneId], ParkingZone],
-  distanceFunction: (Coord, Coord) => Double,
-  parkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking,
-  boundingBox: Envelope,
-  seed: Int,
-  skims: Option[Skims],
-  fuelPrice: Map[FuelType, Double]
-) extends ParkingFunctions(
-      geoQuadTree,
-      idToGeoMapping,
-      parkingZones,
-      distanceFunction,
-      parkingConfig.minSearchRadius,
-      parkingConfig.maxSearchRadius,
-      parkingConfig.searchMaxDistanceRelativeToEllipseFoci,
-      parkingConfig.estimatedMinParkingDurationInSeconds,
-      parkingConfig.estimatedMeanEnRouteChargingDurationInSeconds,
-      parkingConfig.fractionOfSameTypeZones,
-      parkingConfig.minNumberOfSameTypeZones,
-      boundingBox,
-      seed,
-      parkingConfig.multinomialLogit
-    ) {
+                         tazTreeMap: TAZTreeMap,
+                         parkingZones: Map[Id[ParkingZoneId], ParkingZone],
+                         distanceFunction: (Coord, Coord) => Double,
+                         parkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking,
+                         boundingBox: Envelope,
+                         seed: Int,
+                         skims: Option[Skims],
+                         fuelPrice: Map[FuelType, Double]
+) extends ParkingFunctions(tazTreeMap, parkingZones, distanceFunction, parkingConfig.minSearchRadius, parkingConfig.maxSearchRadius, parkingConfig.searchMaxDistanceRelativeToEllipseFoci, parkingConfig.estimatedMinParkingDurationInSeconds, parkingConfig.estimatedMeanEnRouteChargingDurationInSeconds, parkingConfig.fractionOfSameTypeZones, parkingConfig.minNumberOfSameTypeZones, boundingBox, seed, parkingConfig.multinomialLogit) {
 
   /**
     * function that verifies if RideHail Then Fast Charging Only
