@@ -8,7 +8,6 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.BeamVehicleUtils
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
-import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.population.{Activity, Person, Plan, PopulationFactory}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.{Household, HouseholdImpl, HouseholdsFactory}
@@ -67,8 +66,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
 
   val rnd = new Random(2333L)
 
-  val snapLocationHelperMock = Mockito.mock(classOf[SnapLocationHelper])
-  val streetLayerMock = Mockito.mock(classOf[StreetLayer])
+  private val snapLocationHelperMock = Mockito.mock(classOf[SnapLocationHelper])
 
   private val reader =
     new GenericFreightReader(
@@ -142,7 +140,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
       carrier2.plansPerTour should have size 1
     }
 
-    "read freight carriers with all vehicle types on one file" in {
+    "read freight carriers with all vehicle types in one file" in {
       val freightCarriers: scala.IndexedSeq[FreightCarrier] =
         readCarriers(s"$freightInputDir/vehicleTypes.csv", freightConfig)
       checkFreightCarriers(freightCarriers)
