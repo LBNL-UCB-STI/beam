@@ -109,7 +109,8 @@ object BeamConfig {
           reader: java.lang.String,
           replanning: BeamConfig.Beam.Agentsim.Agents.Freight.Replanning,
           tourSampleSizeAsFractionOfTotal: scala.Double,
-          toursFilePath: java.lang.String
+          toursFilePath: java.lang.String,
+          vehicleTypesFilePath: java.lang.String
         )
 
         object Freight {
@@ -159,7 +160,9 @@ object BeamConfig {
                 else 1.0,
               toursFilePath =
                 if (c.hasPathOrNull("toursFilePath")) c.getString("toursFilePath")
-                else "/test/input/beamville/freight/freight-tours.csv"
+                else "/test/input/beamville/freight/freight-tours.csv",
+              vehicleTypesFilePath =
+                if (c.hasPathOrNull("vehicleTypesFilePath")) c.getString("vehicleTypesFilePath") else ""
             )
           }
         }

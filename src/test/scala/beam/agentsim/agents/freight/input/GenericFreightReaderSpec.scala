@@ -2,11 +2,13 @@ package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight._
 import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.sim.BeamHelper
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.BeamVehicleUtils
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
+import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.population.{Activity, Person, Plan, PopulationFactory}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.households.{Household, HouseholdImpl, HouseholdsFactory}
@@ -23,7 +25,7 @@ import scala.util.Random
 /**
   * @author Dmitry Openkov
   */
-class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
+class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHelper {
   private val freightInputDir = s"${System.getenv("PWD")}/test/test-resources/beam/agentsim/freight"
   private val tazMap: TAZTreeMap = TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
 
@@ -43,12 +45,30 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
     reader = "Generic",
     replanning = new Freight.Replanning(departureTime = 0, disableAfterIteration = -1, strategy = ""),
     generateFixedActivitiesDurations = false,
-    tourSampleSizeAsFractionOfTotal = 1.0
+    tourSampleSizeAsFractionOfTotal = 1.0,
+    vehicleTypesFilePath = ""
+  )
+
+  private val freightConfigWithFreightVehicleTypes: Freight = new Freight(
+    carrierParkingFilePath = None,
+    carriersFilePath = s"$freightInputDir/freight-carriers.csv",
+    plansFilePath = s"$freightInputDir/payload-plans.csv",
+    toursFilePath = s"$freightInputDir/freight-tours.csv",
+    isWgs = false,
+    enabled = true,
+    name = "Freight",
+    nonHGVLinkWeightMultiplier = 2.0,
+    reader = "Generic",
+    replanning = new Freight.Replanning(departureTime = 0, disableAfterIteration = -1, strategy = ""),
+    generateFixedActivitiesDurations = false,
+    tourSampleSizeAsFractionOfTotal = 1.0,
+    vehicleTypesFilePath = s"$freightInputDir/vehicleTypesFreightOnly.csv"
   )
 
   val rnd = new Random(2333L)
 
-  val snapLocationHelper = Mockito.mock(classOf[SnapLocationHelper])
+  val snapLocationHelperMock = Mockito.mock(classOf[SnapLocationHelper])
+  val streetLayerMock = Mockito.mock(classOf[StreetLayer])
 
   private val reader =
     new GenericFreightReader(
@@ -57,7 +77,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
       rnd,
       tazMap,
       snapLocationAndRemoveInvalidInputs = false,
-      snapLocationHelper
+      snapLocationHelperMock
     )
 
   "PayloadPlansConverter" should {
@@ -86,8 +106,14 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
       tour3.maxTourDurationInSec should be(36000)
     }
 
-    "readFreightCarriers" in {
-      val freightCarriers: scala.IndexedSeq[FreightCarrier] = readCarriers
+    "fail to read freight carriers" in {
+      an[IllegalArgumentException] should be thrownBy readCarriers(
+        s"$freightInputDir/vehicleTypesWithoutFreight.csv",
+        freightConfig
+      )
+    }
+
+    def checkFreightCarriers(freightCarriers: scala.IndexedSeq[FreightCarrier]): Unit = {
       freightCarriers should have size 2
       val result = freightCarriers.find(_.carrierId == "freightCarrier-1".createId[FreightCarrier])
       result should be('defined)
@@ -116,6 +142,18 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
       carrier2.plansPerTour should have size 1
     }
 
+    "read freight carriers with all vehicle types on one file" in {
+      val freightCarriers: scala.IndexedSeq[FreightCarrier] =
+        readCarriers(s"$freightInputDir/vehicleTypes.csv", freightConfig)
+      checkFreightCarriers(freightCarriers)
+    }
+
+    "read freight carriers with freight vehicle types in separate file" in {
+      val freightCarriers: scala.IndexedSeq[FreightCarrier] =
+        readCarriers(s"$freightInputDir/vehicleTypesWithoutFreight.csv", freightConfigWithFreightVehicleTypes)
+      checkFreightCarriers(freightCarriers)
+    }
+
     "generate Population" in {
       val personPlans = mutable.Map.empty[Id[Person], Plan]
 
@@ -141,7 +179,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
       }
 
       reader.generatePopulation(
-        readCarriers,
+        readCarriers(s"$freightInputDir/vehicleTypes.csv", freightConfig),
         populationFactory,
         householdFactory
       )
@@ -164,18 +202,18 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
     }
   }
 
-  private def readCarriers: IndexedSeq[FreightCarrier] = {
+  private def readCarriers(vehicleTypesFilePath: String, freightConfig: Freight): IndexedSeq[FreightCarrier] = {
     val converter = new GenericFreightReader(
       freightConfig,
       geoUtils,
       new Random(4324L),
       tazMap,
       snapLocationAndRemoveInvalidInputs = false,
-      snapLocationHelper
+      snapLocationHelperMock
     )
     val payloadPlans: Map[Id[PayloadPlan], PayloadPlan] = converter.readPayloadPlans()
     val tours = converter.readFreightTours()
-    val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile("test/input/beamville/vehicleTypes.csv")
+    val vehicleTypes = BeamVehicleUtils.readBeamVehicleTypeFile(vehicleTypesFilePath)
     val freightCarriers: IndexedSeq[FreightCarrier] =
       new GenericFreightReader(
         freightConfig,
@@ -183,7 +221,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers {
         new Random(73737L),
         tazMap,
         snapLocationAndRemoveInvalidInputs = false,
-        snapLocationHelper
+        snapLocationHelperMock
       ).readFreightCarriers(
         tours,
         payloadPlans,
