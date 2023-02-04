@@ -1,10 +1,12 @@
 #!/bin/bash
 
-echo "installing helics ..."
-pip install setuptools
-pip install strip-hints
-pip install helics==3.3.0
-pip install helics-apps==3.3.0
+echo "installing helics and dependencies ..."
+apt install python3-pip -y
+
+pip3 install setuptools
+pip3 install strip-hints
+pip3 install helics==3.3.0
+pip3 install helics-apps==3.3.0
 
 python3 -c "import helics; print('the version of installed helics: ' + helics.helicsGetVersion())"
 
