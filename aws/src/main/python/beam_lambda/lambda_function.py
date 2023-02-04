@@ -829,7 +829,7 @@ def deploy_handler(event, context):
         selected_script = GRAFANA_RUN + selected_script
 
     if cosimulation_shell_script:
-        for start_path in ['src/main/bash','main/bash', 'bash']:
+        for start_path in ['src/main/bash/','main/bash/', 'bash/']:
             if cosimulation_shell_script.startswith(start_path):
                 cosimulation_shell_script = cosimulation_shell_script[len(start_path):]
 
