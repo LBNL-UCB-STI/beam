@@ -3,7 +3,6 @@ package beam.router.skim.core
 import beam.agentsim.events.RideHailReservationConfirmationEvent.{Pooled, RideHailReservationType, Solo}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.Skims
-import beam.router.skim.core.AbstractSkimmer.Aggregator
 import beam.router.skim.readonly.RideHailSkims
 import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
@@ -24,7 +23,7 @@ class RideHailSkimmer @Inject() (
   override protected val skimFileBaseName: String = RideHailSkimmer.fileBaseName
 
   override protected val skimFileHeader =
-    "tazId,hour,reservationType,wheelchairRequired,waitTime,costPerMile,unmatchedRequestsPercent,accessibleVehiclesPercent,observations,iterations"
+    "tazId,hour,reservationType,wheelchairRequired,serviceName,waitTime,costPerMile,unmatchedRequestsPercent,accessibleVehiclesPercent,observations,iterations"
   override protected val skimName: String = RideHailSkimmer.name
   override protected val skimType: Skims.SkimType.Value = Skims.SkimType.RH_SKIMMER
 
@@ -36,11 +35,12 @@ class RideHailSkimmer @Inject() (
         tazId = line("tazId").createId,
         hour = line("hour").toInt,
         reservationType = if (line("reservationType").equalsIgnoreCase("pooled")) Pooled else Solo,
-        line("wheelchairRequired").toBoolean
+        line("wheelchairRequired").toBoolean,
+        serviceName = line.getOrElse("serviceName", "GlobalRHM")
       ),
       RidehailSkimmerInternal(
-        waitTime = line("waitTime").toDouble,
-        costPerMile = line("costPerMile").toDouble,
+        waitTime = Option(line("waitTime")).map(_.toDouble).getOrElse(Double.NaN),
+        costPerMile = Option(line("costPerMile")).map(_.toDouble).getOrElse(Double.NaN),
         unmatchedRequestsPercent = line("unmatchedRequestsPercent").toDouble,
         accessibleVehiclePercent = line("accessibleVehiclePercent").toDouble,
         observations = line("observations").toInt,
@@ -87,7 +87,8 @@ object RideHailSkimmer extends LazyLogging {
     tazId: Id[TAZ],
     hour: Int,
     reservationType: RideHailReservationType,
-    wheelchairRequired: Boolean
+    wheelchairRequired: Boolean,
+    serviceName: String
   ) extends AbstractSkimmerKey {
     override def toCsv: String = productIterator.mkString(",")
   }

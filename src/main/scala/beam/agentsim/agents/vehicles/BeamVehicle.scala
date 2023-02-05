@@ -310,6 +310,8 @@ class BeamVehicle(
   ): (Int, Double) = {
     parkingStall match {
       case Some(theStall) =>
+        val chargingCapacityMaybe =
+          beamVehicleType.chargingCapability.map(ChargingPointType.getChargingPointInstalledPowerInKw)
         theStall.chargingPointType match {
           case Some(chargingPoint) =>
             ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
@@ -320,7 +322,7 @@ class BeamVehicle(
               1e6,
               sessionDurationLimit,
               stateOfChargeLimit,
-              chargingPowerLimit
+              chargingPowerLimit.map(p => Math.min(p, chargingCapacityMaybe.getOrElse(p)))
             )
           case None =>
             (0, 0.0)
@@ -393,11 +395,13 @@ class BeamVehicle(
     StreetVehicle(id, beamVehicleType.id, spaceTime, mode, asDriver = true, needsToCalculateCost = needsToCalculateCost)
   }
 
-  def isRidehail: Boolean = beamVehicleType.id.toString.startsWith("rideHail")
+  def isRideHail: Boolean = id.toString.startsWith("rideHail")
+
+  def isRideHailCAV: Boolean = isRideHail && isCAV
 
   def isSharedVehicle: Boolean = beamVehicleType.id.toString.startsWith("sharedVehicle")
 
-  def isCAV: Boolean = beamVehicleType.isCav
+  def isCAV: Boolean = beamVehicleType.isConnectedAutomatedVehicle
 
   def isBEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.isEmpty
@@ -538,7 +542,8 @@ object BeamVehicle {
   val idPrefixRideHail = "rideHailVehicle"
 
   def isRidehailVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
-    vehicleId.toString.startsWith(idPrefixRideHail)
+    val idStr = vehicleId.toString
+    idStr.startsWith(idPrefixRideHail) || idStr == "dummyRH"
   }
 
   def isSharedTeleportationVehicle(vehicleId: Id[BeamVehicle]): Boolean = {

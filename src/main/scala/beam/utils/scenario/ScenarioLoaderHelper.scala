@@ -1,17 +1,21 @@
 package beam.utils.scenario
 
+import beam.sim.BeamScenario
+import beam.sim.common.GeoUtilsImpl
 import beam.utils.SnapCoordinateUtils
-import beam.utils.SnapCoordinateUtils.{Category, CsvFile, Error, ErrorInfo, SnapLocationHelper}
-import com.typesafe.scalalogging.LazyLogging
+import beam.utils.SnapCoordinateUtils.{Category, CsvFile, ErrorInfo, SnapLocationHelper}
+import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households.{Household, HouseholdsFactoryImpl}
 
+import scala.collection.compat.IterableFactoryExtensionMethods
+import scala.collection.immutable.HashSet
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
 
-object ScenarioLoaderHelper extends LazyLogging {
+object ScenarioLoaderHelper extends ExponentialLazyLogging {
 
   import org.matsim.api.core.v01.population.PlanElement
 
@@ -29,7 +33,8 @@ object ScenarioLoaderHelper extends LazyLogging {
   private def updatePlanElementCoord(
     personId: Id[Person],
     elements: Vector[PlanElement],
-    snapLocationHelper: SnapLocationHelper
+    snapLocationHelper: SnapLocationHelper,
+    convertWgs2Utm: Boolean
   ): Vector[ErrorInfo] = {
     val errors = elements.foldLeft[Vector[ErrorInfo]](Vector.empty) { (errors, element) =>
       element match {
@@ -56,7 +61,7 @@ object ScenarioLoaderHelper extends LazyLogging {
       elements.foreach {
         case a: Activity =>
           val planCoord = a.getCoord
-          snapLocationHelper.find(planCoord) match {
+          snapLocationHelper.find(planCoord, !convertWgs2Utm) match {
             case Some(coord) =>
               a.setCoord(coord)
             case None =>
@@ -71,9 +76,15 @@ object ScenarioLoaderHelper extends LazyLogging {
 
   def validateScenario(
     scenario: MutableScenario,
-    snapLocationHelper: SnapLocationHelper,
+    beamScenario: BeamScenario,
     outputDirMaybe: Option[String] = None
-  ): Unit = {
+  ): SnapLocationHelper = {
+
+    val snapLocationHelper = SnapLocationHelper(
+      new GeoUtilsImpl(beamScenario.beamConfig),
+      beamScenario.transportNetwork.streetLayer,
+      beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
+    )
 
     val planErrors: ListBuffer[ErrorInfo] = ListBuffer()
 
@@ -82,7 +93,12 @@ object ScenarioLoaderHelper extends LazyLogging {
       val plans = person.getPlans.asScala.toList
       plans.foreach { plan =>
         val elements: Vector[PlanElement] = plan.getPlanElements.asScala.toVector
-        val errors: Vector[ErrorInfo] = updatePlanElementCoord(person.getId, elements, snapLocationHelper)
+        val errors: Vector[ErrorInfo] = updatePlanElementCoord(
+          person.getId,
+          elements,
+          snapLocationHelper,
+          beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
+        )
         if (errors.nonEmpty) {
           planErrors.appendAll(errors)
           person.removePlan(plan)
@@ -99,12 +115,12 @@ object ScenarioLoaderHelper extends LazyLogging {
       else SnapCoordinateUtils.writeToCsv(s"$path/${CsvFile.Plans}", planErrors)
     }
 
-    val validPeople: Set[Id[Person]] = scenario.getPopulation.getPersons.values().asScala.map(_.getId).toSet
+    val validPeople: HashSet[Id[Person]] = HashSet.from(scenario.getPopulation.getPersons.values().asScala.map(_.getId))
 
     val households: List[Household] = scenario.getHouseholds.getHouseholds.values().asScala.toList
     households.par.foreach { household =>
       val members = household.getMemberIds.asScala.toSet
-      val validMembers = validPeople.intersect(members)
+      val validMembers = members.filter(validPeople)
 
       if (validMembers.isEmpty) {
         scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(household.getId.toString)
@@ -149,6 +165,7 @@ object ScenarioLoaderHelper extends LazyLogging {
       else SnapCoordinateUtils.writeToCsv(s"$path/${CsvFile.Households}", householdErrors)
     }
 
+    snapLocationHelper
   }
 
 }

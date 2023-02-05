@@ -45,8 +45,8 @@ object ParkingZoneSearch {
     searchMaxDistanceRelativeToEllipseFoci: Double,
     boundingBox: Envelope,
     distanceFunction: (Coord, Coord) => Double,
-    enrouteDuration: Double,
     estimatedMinParkingDurationInSeconds: Double,
+    estimatedMeanEnRouteChargingDurationInSeconds: Double,
     fractionOfSameTypeZones: Double,
     minNumberOfSameTypeZones: Int,
     searchExpansionFactor: Double = 2.0
@@ -169,7 +169,7 @@ object ParkingZoneSearch {
               val parkingDuration = Math.max(
                 config.estimatedMinParkingDurationInSeconds.toInt, // at least a small duration of charging
                 params.searchMode match {
-                  case ParkingSearchMode.EnRouteCharging => config.enrouteDuration.toInt
+                  case ParkingSearchMode.EnRouteCharging => config.estimatedMeanEnRouteChargingDurationInSeconds.toInt
                   case _                                 => params.parkingDuration.toInt
                 }
               )

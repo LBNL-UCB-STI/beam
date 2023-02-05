@@ -5,8 +5,9 @@ import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.config.BeamConfig
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Parking
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -14,34 +15,32 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.util.Random
 
 class ParkingFunctions(
-  geoQuadTree: QuadTree[TAZ],
-  idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+  tazTreeMap: TAZTreeMap,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
   searchMaxDistanceRelativeToEllipseFoci: Double,
-  enrouteDuration: Double,
+  estimatedMinParkingDurationInSeconds: Double,
+  estimatedMeanEnRouteChargingDurationInSeconds: Double,
   fractionOfSameTypeZones: Double,
   minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
   seed: Int,
-  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
-  estimatedMinParkingDurationInSeconds: Double
+  mnlParkingConfig: Parking.MultinomialLogit
 ) extends InfrastructureFunctions(
-      geoQuadTree,
-      idToGeoMapping,
+      tazTreeMap,
       parkingZones,
       distanceFunction,
       minSearchRadius,
       maxSearchRadius,
       searchMaxDistanceRelativeToEllipseFoci,
-      enrouteDuration,
+      estimatedMinParkingDurationInSeconds,
+      estimatedMeanEnRouteChargingDurationInSeconds,
       fractionOfSameTypeZones,
       minNumberOfSameTypeZones,
       boundingBox,
-      seed,
-      estimatedMinParkingDurationInSeconds
+      seed
     ) {
 
   override protected val mnlMultiplierParameters: Map[ParkingMNL.Parameters, UtilityFunctionOperation] = Map(
@@ -116,6 +115,7 @@ class ParkingFunctions(
 
   /**
     * Generic method that specifies the behavior when MNL returns a ParkingZoneSearchResult
+    *
     * @param parkingZoneSearchResult ParkingZoneSearchResult
     */
   override protected def processParkingZoneSearchResult(
@@ -149,7 +149,7 @@ class ParkingFunctions(
     *
     * @param inquiry     ParkingInquiry
     * @param parkingZone ParkingZone
-    * @param taz TAZ
+    * @param taz         TAZ
     */
   override protected def sampleParkingStallLocation(
     inquiry: ParkingInquiry,
@@ -165,7 +165,15 @@ class ParkingFunctions(
       (inquiry.parkingActivityType == ParkingActivityType.Work && parkingZone.parkingType == ParkingType.Workplace)
     )
       inquiry.destinationUtm.loc
-    else
+    else if (tazTreeMap.tazListContainsGeoms) {
+      ParkingStallSampling.linkBasedSampling(
+        new Random(seed),
+        inquiry.destinationUtm.loc,
+        tazTreeMap.TAZtoLinkIdMapping(taz.tazId),
+        distanceFunction,
+        parkingZone.availability
+      )
+    } else {
       ParkingStallSampling.availabilityAwareSampling(
         new Random(seed),
         inquiry.destinationUtm.loc,
@@ -173,12 +181,14 @@ class ParkingFunctions(
         parkingZone.availability,
         inClosestZone
       )
+    }
   }
 
   /**
     * Can This Car Park Here
-    * @param zone ParkingZone
-    * @param inquiry ParkingInquiry
+    *
+    * @param zone                  ParkingZone
+    * @param inquiry               ParkingInquiry
     * @param preferredParkingTypes Set[ParkingType]
     * @return
     */
@@ -200,6 +210,7 @@ class ParkingFunctions(
 
   /**
     * Preferred Parking Types
+    *
     * @param inquiry ParkingInquiry
     * @return
     */

@@ -28,7 +28,6 @@ import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.misc.Time
 
-import scala.concurrent.ExecutionContext
 import scala.collection.JavaConverters._
 import scala.util.Try
 
@@ -85,9 +84,10 @@ class JDEQSimRunner(
 
     val maybeEventWriter = if (writeEvents) {
       val writer = PhysSimEventWriter(beamServices, jdeqsimEvents)
-      //adding this writer as a BEAM shutdown listener so that it could prevent BEAM from exiting
+      //adding the listener so that it could prevent BEAM from exiting
       //before the writer writes everything to disk.
-      beamServices.matsimServices.addControlerListener(writer)
+      //we cannot make the writer a shutdown listener because Matsim will keep it until the program end
+      beamServices.matsimServices.addControlerListener(writer.getShutdownListener)
       jdeqsimEvents.addHandler(writer)
       Some(writer)
     } else None
@@ -105,7 +105,11 @@ class JDEQSimRunner(
       }
 
     val simName = beamConfig.beam.physsim.name
-    jdeqsimEvents.initProcessing()
+    if (simName != "JDEQSim") {
+      // JDEQSim initializes the event manager itself. If we do it twice a memory leak is possible
+      // due to abandoning event processing threads, see org.matsim.core.events.ParallelEventsManagerImpl.initProcessing
+      jdeqsimEvents.initProcessing()
+    }
     try {
       ProfilingUtils.timed(
         s"PhysSim iteration $currentPhysSimIter for ${population.getPersons.size()} people",

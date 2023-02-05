@@ -148,7 +148,7 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
 
     private void processModeChoice(ModeChoiceEvent event) {
         int hour = GraphsStatsAgentSimEventsListener.getEventHour(event.getTime());
-        String mode = event.mode;
+        String mode = extractModeForAnalysis(event);
 
         HashMap<String, String> tags = new HashMap<>();
         tags.put("mode", mode);
@@ -169,7 +169,9 @@ public class ModeChosenAnalysis extends BaseModeAnalysis {
         hourData.put(mode, frequency);
         hourModeFrequency.put(hour, hourData);
 
-        modeChosenAvailableAlternativesCount.merge(new ModeChosenAvailableAlternatives(mode, event.availableAlternatives), 1, Integer::sum);
+        String alternatives = mode.equals("freight") && event.availableAlternatives.equalsIgnoreCase("car") ?
+                "FREIGHT" : event.availableAlternatives;
+        modeChosenAvailableAlternativesCount.merge(new ModeChosenAvailableAlternatives(mode, alternatives), 1, Integer::sum);
     }
 
     //    accumulating data for each iteration

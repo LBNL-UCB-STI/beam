@@ -41,7 +41,7 @@ class ParkingManagerBenchmark(
   def benchmark(): List[ParkingInquiryResponse] = {
     val parkingResponses =
       ProfilingUtils.timed(s"Computed ${possibleParkingLocations.length} parking locations", x => println(x)) {
-        possibleParkingLocations.flatMap { case (coord, actType) =>
+        possibleParkingLocations.map { case (coord, actType) =>
           parkingNetwork.processParkingInquiry(
             ParkingInquiry.init(
               SpaceTime(coord, 0),
@@ -162,8 +162,7 @@ object ParkingManagerBenchmark extends StrictLogging {
         val zones = loadZones(tazTreeMap.tazQuadTree, pathToTazParking, beamConfig)
         val parkingNetwork = ZonalParkingManager(
           zones,
-          tazTreeMap.tazQuadTree,
-          tazTreeMap.idToTAZMapping,
+          tazTreeMap,
           boundingBox,
           beamConfig,
           geoUtils.distUTMInMeters(_, _)

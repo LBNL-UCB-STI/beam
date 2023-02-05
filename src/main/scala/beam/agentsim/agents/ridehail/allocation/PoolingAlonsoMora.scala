@@ -5,7 +5,7 @@ import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailMatching.CustomerRequest
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.Modes.BeamMode.CAR
@@ -20,14 +20,8 @@ import scala.concurrent.{Await, TimeoutException}
 class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
-  val matchingAlgorithm: String =
-    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm
+  val matchingAlgorithm: String = rideHailManager.managerConfig.allocationManager.matchingAlgorithm
   val tempScheduleStore: mutable.Map[Int, List[MobilityRequest]] = mutable.Map()
-
-  val defaultBeamVehilceTypeId: Id[BeamVehicleType] = Id.create(
-    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-    classOf[BeamVehicleType]
-  )
 
   override def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
     rideHailManager.rideHailManagerHelper
@@ -66,6 +60,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         new AsyncGreedyVehicleCentricMatching(
           spatialPoolCustomerReqs,
           availVehicles,
+          rideHailManager.managerConfig,
           rideHailManager.beamServices
         )
       // This is default: ALONSO_MORA_MATCHING_WITH_ASYNC_GREEDY_ASSIGNMENT
@@ -73,12 +68,14 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         new AlonsoMoraMatchingWithAsyncGreedyAssignment(
           spatialPoolCustomerReqs,
           availVehicles,
+          rideHailManager.managerConfig,
           rideHailManager.beamServices
         )
       case "ALONSO_MORA_MATCHING_WITH_MIP_ASSIGNMENT" =>
         new AlonsoMoraMatchingWithMIPAssignment(
           spatialPoolCustomerReqs,
           availVehicles,
+          rideHailManager.managerConfig,
           rideHailManager.beamServices
         )
       case algorithmName =>

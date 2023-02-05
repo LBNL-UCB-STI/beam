@@ -1,12 +1,12 @@
 package beam.agentsim.agents.ridehail
 
-import java.math.BigInteger
 import beam.agentsim.agents.ridehail.RideHailMatching.{CustomerRequest, RideHailTrip, VehicleAndSchedule}
 import beam.sim.BeamServices
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import org.matsim.core.utils.collections.QuadTree
 
+import java.math.BigInteger
 import scala.collection.JavaConverters._
-import scala.collection.immutable.List
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -15,8 +15,9 @@ import scala.concurrent.Future
 class AsyncGreedyVehicleCentricMatching(
   demand: QuadTree[CustomerRequest],
   supply: List[VehicleAndSchedule],
+  managerConfig: Managers$Elm,
   services: BeamServices
-) extends RideHailMatching(services) {
+) extends RideHailMatching(services, managerConfig) {
 
   private implicit val beamServices: BeamServices = services
 
@@ -58,7 +59,7 @@ class AsyncGreedyVehicleCentricMatching(
     val potentialTrips = mutable.ListBuffer.empty[(RideHailTrip, Double)]
     // consider solo rides as initial potential trips
     customers
-      .flatten(c => RideHailMatching.getRideHailTrip(v, List(c), services))
+      .flatten(c => RideHailMatching.getRideHailTrip(v, List(c), managerConfig, services))
       .foreach(t => potentialTrips.append((t, computeCost(t))))
 
     // if no solo ride is possible, returns
@@ -85,7 +86,7 @@ class AsyncGreedyVehicleCentricMatching(
           val temp = t1.requests ++ t2.requests
           val matchId = temp.sortBy(_.getId).map(_.getId).mkString(",")
           if (!combinations.contains(matchId)) {
-            RideHailMatching.getRideHailTrip(v, temp, services).foreach { t =>
+            RideHailMatching.getRideHailTrip(v, temp, managerConfig, services).foreach { t =>
               combinations.append(t.matchId)
               val cost = computeCost(t)
               if (tripsWithKPassengers.size == solutionSizePerPool) {

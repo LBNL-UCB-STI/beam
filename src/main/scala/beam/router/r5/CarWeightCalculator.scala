@@ -33,8 +33,7 @@ class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: D
     travelTime: TravelTime,
     vehicleType: Option[BeamVehicleType],
     time: Double,
-    shouldAddNoise: Boolean,
-    heavyGoodsVehicle: Boolean = false
+    shouldAddNoise: Boolean
   ): Double = {
     val link = networkHelper.getLinkUnsafe(linkId)
     assert(link != null)
@@ -58,11 +57,6 @@ class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: D
     val linkTravelTime = Math.max(physSimTravelTimeWithNoise, minTravelTime)
     val result = Math.min(linkTravelTime, maxTravelTime)
 
-    if (heavyGoodsVehicle) {
-      // TODO this is only prototype
-      val isLinkHgv = Try(link.getAttributes.getAttribute("hgv")).map(_.asInstanceOf[Boolean]).getOrElse(false)
-      if (isLinkHgv) result / 10 else result * 10
-    } else
-      result
+    result
   }
 }

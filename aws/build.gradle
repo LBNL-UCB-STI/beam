@@ -104,7 +104,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "profiler_type": "${ext.getParameterValue('profiler_type')}",
   "command": "deploy",
   "run_grafana" : ${ext.getParameterValue('runGrafana') ?: false},
-  "run_helics" : ${ext.getParameterValue('runHelics') ?: false},
+  "cosimulation_shell_script" : ${ext.getParameterValue('cosimulationShellScript') ?: ""},
   "run_jupyter" : ${ext.getParameterValue('runJupyter') ?: false},
   "jupyter_token" : "${ext.getParameterValue('jupyterToken') ?: UUID.randomUUID().toString()}",
   "is_spot" : ${ext.getParameterValue('isSpot') ?: false},
@@ -112,6 +112,8 @@ task deploy(type: AWSLambdaInvokeTask) {
   "max_cores": ${ext.getParameterValue('maxCores') ?: 0},
   "min_memory": ${ext.getParameterValue('minMemory') ?: 0},
   "max_memory": ${ext.getParameterValue('maxMemory') ?: 0},
+  "stuck_guard_min_cpu_usage": ${ext.getParameterValue('stuckGuardMinCpuUsage') ?: 1},
+  "stuck_guard_max_inactive_time_interval": ${ext.getParameterValue('stuckGuardMaxInactiveTimeInterval') ?: 5},
   "budget_override": ${ext.getParameterValue('budgetOverride') ?: false}
 }"""
         payload = pload
@@ -257,7 +259,7 @@ task jupyterEC2(type: AWSLambdaInvokeTask) {
           "shutdown_wait": ${project.findProperty('shutdownWait') ?: 480},
           "command": "deploy",
           "run_grafana" : false,
-          "run_helics" : false,
+          "cosimulation_shell_script" : "",
           "run_jupyter" : true,
           "run_beam": false,
           "jupyter_token" : "${project.findProperty("jupyterToken") ?: UUID.randomUUID().toString()}",
@@ -291,7 +293,6 @@ def buildS3ListPayload() {
 }
 
 
-
 def checkInstanceId() {
     if (!project.hasProperty('instanceIds')) {
         throw new GradleException('Please specify instance ids using argument `instanceIds`.')
@@ -318,8 +319,28 @@ def getCurrentGitBranch() {
 }
 
 def getCurrentGitUserEmail() {
-    def rawGitUserEmail = getGitResultFromWorkingDirUsing('git config user.email', "GitUserEmailNotFound")
+    def defaultEmail = "GitUserEmailNotFound"
+    def rawGitUserEmail = getGitResultFromWorkingDirUsing('git config user.email', defaultEmail)
+    if (rawGitUserEmail == defaultEmail) {
+        def warningText = """
+            |\tGit user email is not configured for current git project.
+            |\tFor the cloud deploy we use git user email as an additional part of a simulation name.
+            |\tIf the user email is not configured, then '${defaultEmail}' will be added to the simulation name instead.
+            |\t
+            |\tTo check that email is configured:
+            |\t\tgit config user.email
+            |\t
+            |\tTo set user email:
+            |\t\tgit config user.email "your_email@abc.example"
+            |\t
+            |""".stripMargin()
+        println(warningText)
+    }
     return rawGitUserEmail.replaceAll('@', "AT").replaceAll("\\.", "_")
+}
+
+task PrintCurrentGitUserEmail() {
+    println("Current git user email is: ${getCurrentGitUserEmail()}")
 }
 
 def getGitResultFromWorkingDirUsing(command, defaultResult) {
@@ -334,4 +355,8 @@ def getGitResultFromWorkingDirUsing(command, defaultResult) {
     } catch (ignored) {
     }
     return gitResult
+}
+
+ext {
+    getCurrentGitUserEmail = this.&getCurrentGitUserEmail
 }

@@ -7,6 +7,7 @@ import beam.agentsim.infrastructure.HierarchicalParkingManager._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking._
+import beam.agentsim.infrastructure.power.SitePowerManager
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
@@ -47,22 +48,7 @@ class HierarchicalParkingManager(
     )
 
   override protected val searchFunctions: Option[InfrastructureFunctions] = Some(
-    new ParkingFunctions(
-      tazMap.tazQuadTree,
-      tazMap.idToTAZMapping,
-      tazParkingZones,
-      distanceFunction,
-      minSearchRadius,
-      maxSearchRadius,
-      0.0,
-      0.0,
-      1.0,
-      1,
-      boundingBox,
-      seed,
-      mnlParkingConfig,
-      estimatedMinParkingDurationInSeconds
-    )
+    new ParkingFunctions(tazMap, tazParkingZones, distanceFunction, minSearchRadius, maxSearchRadius, 0.0, 0.0, estimatedMinParkingDurationInSeconds, 1.0, 1, boundingBox, seed, mnlParkingConfig)
   )
 
   val DefaultParkingZone: ParkingZone =
@@ -92,14 +78,13 @@ class HierarchicalParkingManager(
     */
   override def processParkingInquiry(
     inquiry: ParkingInquiry,
-    doNotReserveStallWithoutChargingPoint: Boolean = false,
     parallelizationCounterOption: Option[SimpleCounter] = None
-  ): Option[ParkingInquiryResponse] = {
+  ): ParkingInquiryResponse = {
     logger.debug("Received parking inquiry: {}", inquiry)
 
     //searchForParkingStall always returns a ParkingZoneSearchResult. It may contain either a real parkingStall
     // (success) or emergency parking stall (not found an appropriate one)
-    val Some(ParkingZoneSearch.ParkingZoneSearchResult(tazParkingStall, tazParkingZone, _, _, _)) =
+    val ParkingZoneSearch.ParkingZoneSearchResult(tazParkingStall, tazParkingZone, _, _, _) =
       searchFunctions.get.searchForParkingStall(inquiry)
 
     val (parkingStall: ParkingStall, parkingZone: ParkingZone) =
@@ -134,7 +119,7 @@ class HierarchicalParkingManager(
       searchFunctions.get.claimStall(tazParkingZone)
     }
 
-    Some(ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId))
+    ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId)
   }
 
   def findStartingPoint(taz: TAZ, destination: Coord): Coord = {
@@ -235,7 +220,8 @@ object HierarchicalParkingManager {
     reservedFor: ReservedFor,
     chargingPointType: Option[ChargingPointType],
     pricingModel: Option[PricingModel],
-    timeRestrictions: Map[VehicleCategory, Range]
+    timeRestrictions: Map[VehicleCategory, Range],
+    siteId: Id[SitePowerManager]
   )
 
   object ParkingZoneDescription {
@@ -246,7 +232,8 @@ object HierarchicalParkingManager {
         zone.reservedFor,
         zone.chargingPointType,
         zone.pricingModel,
-        zone.timeRestrictions
+        zone.timeRestrictions,
+        zone.siteId
       )
     }
   }
@@ -328,6 +315,7 @@ object HierarchicalParkingManager {
         parkingType = description.parkingType,
         maxStalls = numStalls,
         reservedFor = description.reservedFor,
+        siteIdMaybe = Some(description.siteId),
         chargingPointType = description.chargingPointType,
         pricingModel = description.pricingModel,
         timeRestrictions = description.timeRestrictions

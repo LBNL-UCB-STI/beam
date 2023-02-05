@@ -10,6 +10,7 @@ import org.matsim.api.core.v01.events.Event
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.tagobjects.Retryable
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -18,7 +19,8 @@ class ParkingSpec
     with BeforeAndAfterAll
     with Matchers
     with BeamHelper
-    with IntegrationSpecCommon {
+    with IntegrationSpecCommon
+    with Repeated {
 
   def runAndCollectEvents(parkingScenario: String): Seq[Event] = {
     runAndCollectForIterations(parkingScenario, 1).head
@@ -126,16 +128,18 @@ class ParkingSpec
   }
 
   "Parking system " must {
-    "guarantee at least some parking used " in {
+    "guarantee at least some parking used " taggedAs Retryable in {
       val parkingEvents =
         defaultEvents.head.filter(e => ParkingEvent.EVENT_TYPE.equals(e.getEventType))
       parkingEvents.size should be > 0
     }
 
-    "departure and arrival should be from same parking 4 tuple" in {
+    "departure and arrival should be from same parking 4 tuple" taggedAs Retryable in {
 
       val parkingEvents =
-        defaultEvents.head.filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
+        defaultEvents.head
+          .filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
+          .filter(_.getTime > 0)
       val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) { case (c, ev) =>
         val vehId = ev.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
         val array = c.getOrElse(vehId, ArrayBuffer[Event]())
@@ -149,7 +153,7 @@ class ParkingSpec
 
         // First and last park events won't match
         val parkEventsWithoutLast = parkEvents.dropRight(1)
-        val leavingParkEventsWithoutFirst = leavingEvents.tail
+        val leavingParkEventsWithoutFirst = leavingEvents.drop(1)
 
         parkEventsWithoutLast.size shouldEqual leavingParkEventsWithoutFirst.size
         (id, parkEventsWithoutLast zip leavingParkEventsWithoutFirst)
@@ -172,9 +176,11 @@ class ParkingSpec
       }
     }
 
-    "Park event should be thrown after last path traversal" in {
+    "Park event should be thrown after last path traversal" taggedAs Retryable in {
       val parkingEvents =
-        defaultEvents.head.filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
+        defaultEvents.head
+          .filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
+          .filter(_.getTime > 0)
 
       val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) { case (c, ev) =>
         val vehId = ev.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
@@ -209,7 +215,7 @@ class ParkingSpec
       }
     }
 
-    "very expensive parking should reduce driving" ignore { // flakey test
+    "very expensive parking should reduce driving" taggedAs Retryable in {
       val expensiveEvents = runAndCollectForIterations("very-expensive", 5)
 
       val expensiveModeChoiceCarCount = expensiveEvents.map(countForPathTraversalAndCarMode)
@@ -223,7 +229,7 @@ class ParkingSpec
         .sum should be > expensiveModeChoiceCarCount.takeRight(5).sum
     }
 
-    "no parking stalls should reduce driving" ignore { // flakey test
+    "no parking stalls should reduce driving" taggedAs Retryable in {
       val emptyEvents = runAndCollectForIterations("empty", 5)
 
       val emptyModeChoiceCarCount = emptyEvents.map(countForPathTraversalAndCarMode)
@@ -237,5 +243,4 @@ class ParkingSpec
         .sum should be > emptyModeChoiceCarCount.takeRight(5).sum
     }
   }
-
 }

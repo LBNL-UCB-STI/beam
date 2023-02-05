@@ -5,6 +5,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManag
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
+import beam.sim.population.PopulationAdjustment.RIDEHAIL_SERVICE_SUBSCRIPTION
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.plan.sampling.AvailableModeUtils
 import com.google.common.annotations.VisibleForTesting
@@ -154,6 +155,11 @@ class BeamScenarioLoader(
       personAttributes.putAttribute(personId, "valueOfTime", personInfo.valueOfTime)
       personAttributes.putAttribute(personId, "sex", sexChar)
       personAttributes.putAttribute(personId, "excluded-modes", personInfo.excludedModes.mkString(","))
+      personAttributes.putAttribute(
+        personId,
+        RIDEHAIL_SERVICE_SUBSCRIPTION,
+        personInfo.rideHailServiceSubscription.mkString(",")
+      )
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
       person.getAttributes.putAttribute("industry", personInfo.industry.getOrElse(""))
@@ -228,7 +234,7 @@ class BeamScenarioLoader(
     population
   }
 
-  private def buildAndAddActivityToPlan(currentPlan: Plan, planElement: PlanElement): Activity = {
+  def buildAndAddActivityToPlan(currentPlan: Plan, planElement: PlanElement): Activity = {
     assertActivityHasLocation(planElement)
     val coord = if (beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
       geo.wgs2Utm(new Coord(planElement.activityLocationX.get, planElement.activityLocationY.get))

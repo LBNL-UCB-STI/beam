@@ -1,4 +1,5 @@
 import os
+import sys
 from glob import glob
 from shutil import copyfile
 
@@ -63,6 +64,7 @@ def detect_all_error_types():
     return error_list
 
 
+output_file = sys.argv[1]
 log_file_location = glob(beam_home + "/output/*/*/beamLog.out")
 log_file_location.sort(key=lambda x: os.path.getmtime(x), reverse=True)
 with open(log_file_location[0]) as file:
@@ -99,11 +101,10 @@ for line in file:
             matric.append(line)
             matric_log[error_type] = matric
 
-with open('RunHealthAnalysis.txt', 'w') as file:
+with open(output_file, 'w') as file:
     for detector in detectors:
         file.write(detector + "," + str(len(matric_log.get(detector, []))) + "\n")
 
 beam_output_path = os.path.dirname(log_file_location[0])
-copyfile('RunHealthAnalysis.txt', beam_output_path + "/runHealthAnalysis.txt")
-
+copyfile(output_file, beam_output_path + "/" + output_file)
 

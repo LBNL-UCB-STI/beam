@@ -180,6 +180,20 @@ Automated Cloud Deployment
 BEAM run on EC2
 ~~~~~~~~~~~~~~~
 
+Before running BEAM in the cloud one needs to be sure git is configured locally.
+For the cloud deploy we use git user email as an additional part of a simulation name.
+If the user email is not configured, then 'GitUserEmailNotFound' will be added to the simulation name instead.
+
+
+To check that email is configured:
+
+  git config user.email
+
+To set user email:
+
+  git config user.email "your_email@abc.example"
+
+
 To run a BEAM simulation or experiment on amazon ec2, use following command with some optional parameters::
 
   ./gradlew deploy -P[beamConfigs | beamExperiments]=config-or-experiment-file
@@ -197,15 +211,17 @@ The command will start an ec2 instance based on the provided configurations and 
 * **beamExperiments**: A comma `,` separated list of `experiment.yml` files. It should be relative path under the project home.You can create branch level defaults same as configs by specifying the branch name with `.experiments` suffix like `master.experiments`. Branch level default will be used if `beamExperiments` is not present. `beamConfigs` has priority over this, in other words, if both are provided then `beamConfigs` will be used.
 * **executeClass** and **executeArgs**: to specify class and args to execute if `execute` was chosen as deploy mode
 * **maxRAM**: to specify MAXRAM environment variable for simulation.
-* **storageSize**: to specfy storage size of instance. May be from `64` to `256`.
+* **storageSize**: to specify storage size of instance. May be from `64` to `256`.
 * **beamBatch**: Set to `false` in case you want to run as many instances as number of config/experiment files. Default is `true`.
 * **s3Backup**: to specify if copying results to s3 bucket is needed, default is `true`.
-* **instanceType**: to specify s2 instance type.
+* **instanceType**: to specify EC2 instance type.
 * **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
 * **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
 * **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
 * **runJupyter**: Should it launch Jupyter Notebook along with a simulation, default is `false`.
 * **budgetOverride**: Set to `true` to override budget limitations, see `Documentation of AWS budget management` section in `DevOps guide <https://beam.readthedocs.io/en/latest/devops.html>`_, default is `false`
+* **stuckGuardMinCpuUsage**: Set to a number to override the value of minimal CPU usage, if the current CPU usage is less than the number, beam stuck guard will shutdown the simulation, default is 1
+* **stuckGuardMaxInactiveTimeInterval**: Set to a number as hours with no output logs then beam stuck guard will shutdown the simulation, default is 5 hours
 
 There is a default file to specify parameters for task: gradle.deploy.properties_ and it is advised to use it (or custom) file to specify all default values for `deploy` task and not use gradle.properties_ file because latter used as a source of default values for all gradle tasks.
 
@@ -242,6 +258,49 @@ You need to define the deploy properties that are similar to the ones for AWS de
 * **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
 
 Your task is going to be added to the queue and when it starts/finishes you receive a notification on your git user email. It may take 1-24 hours (or even more) for the task to get started. It depends on the NERSC workload. In your user home directory on NERSC you can find the output file of your task that looks like `slurm-<job id>.out`. The BEAM output directory is resides at `$SCRATCH/beam_runs/`. Also the output is uploaded to s3 if `s3Backup` is set to true.
+
+BEAM run on Google Compute Engine
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In order to run BEAM on GCE one needs to have `cloudfunctions.functions.invoke` permission on function `projects/beam-core/locations/us-central1/functions/deploy_beam`.
+
+One needs to install `glcoud <https://cloud.google.com/sdk/docs/install>`_ utility in order to be able to authenticate themself against the Google Cloud Platform.
+
+The project id is `beam-core`. One can set it using::
+
+ gcloud config set project beam-core
+
+There are `some ways to provide credentials <https://cloud.google.com/docs/authentication/provide-credentials-adc>`_. One option is just run the following command::
+
+ gcloud auth application-default login
+
+Now all the instance are created in `us-central1-a` zone.
+Now the deployment script doesn't calculate it automatically.
+One needs to define the deploy properties that are similar to the ones for AWS deploy. These are the properties that is used on GCE:
+
+* **runName**: to specify instance name.
+* **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
+* **beamCommit**: The commit SHA to run simulation. Comment it out if you want to run with latest commit.
+* **dataBranch**: To specify the branch for production data, 'develop' branch will be used as default branch.
+* **dataCommit**: The commit SHA for the the data branch, default is `HEAD`
+* **beamConfigs**: The `beam.conf` file. It should be relative path under the project home. A single file is supported right now.
+* **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 15 min.
+* **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
+* **instanceType**: To specify GCE instance type.
+* **forcedMaxRAM**: This parameter can be set according to the **instanceType** memory size.
+* **storageSize**: to specify storage size (Gb) of instance. May be from `100` to `256`. Default value is `100`.
+
+The deployment command is
+
+.. code-block:: bash
+
+ ./gradlew deployToGCE
+
+The simulation output is uploaded to the `Google Cloud Storage <https://console.cloud.google.com/storage/browser/beam-core-outputs/output>`_.
+
+In order to ssh to the running instance one could start the following command::
+
+ gcloud compute ssh --zone=us-central1-a clu@<instance_name>
 
 
 PILATES run on EC2
@@ -337,13 +396,13 @@ Below is syntax to use the command::
 
 
 Running Jupyter Notebook locally and remotely (EC2)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are 3 options to run Jupyter Notebook via Gradle task.
 
 1. Locally - Jupyter Notebook will be run on the local machine via Docker. To start it use command::
 
-  ./gradlew jupyterStart
+    ./gradlew jupyterStart
 
 There are some additional parameters that can control how Jupyter is started:
 

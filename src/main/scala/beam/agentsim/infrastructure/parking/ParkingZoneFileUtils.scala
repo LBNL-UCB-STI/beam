@@ -5,6 +5,7 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ZoneSearchTree
+import beam.agentsim.infrastructure.power.SitePowerManager
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
@@ -12,10 +13,10 @@ import beam.utils.csv.GenericCsvReader
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import beam.utils.{FileUtils, MathUtils}
+import org.apache.commons.lang3.StringUtils.isBlank
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.utils.io.IOUtils
-import org.apache.commons.lang3.StringUtils.isBlank
 
 import java.io.{BufferedReader, File, IOException}
 import java.text.{DecimalFormat, DecimalFormatSymbols}
@@ -43,7 +44,8 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     "timeRestrictions",
     "parkingZoneId",
     "locationX",
-    "locationY"
+    "locationY",
+    "siteId"
   ).mkString(",")
 
   /**
@@ -68,6 +70,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       ParkingZone.UbiqiutousParkingAvailability.toString,
       "0",
       defaultReservedFor.toString,
+      "",
       "",
       "",
       "",
@@ -153,6 +156,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
         val parkingZoneIdStr = parkingZone.parkingZoneId.toString
         val (locationXStr, locationYStr) =
           parkingZone.link.map(link => (link.getCoord.getX.toString, link.getCoord.getY.toString)).getOrElse(("", ""))
+        val siteId = parkingZone.siteId.toString
         List(
           tazId.toString,
           parkingType.toString,
@@ -164,7 +168,8 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           timeRestrictions,
           parkingZoneIdStr,
           locationXStr,
-          locationYStr
+          locationYStr,
+          siteId
         ).mkString(",")
       }
     } match {
@@ -194,6 +199,26 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @return table and tree
     */
   def fromFile(
+    filePath: String,
+    rand: Random,
+    beamConfig: Option[BeamConfig],
+    beamServices: Option[BeamServices],
+    parkingStallCountScalingFactor: Double = 1.0,
+    parkingCostScalingFactor: Double = 1.0
+  ): (Map[Id[ParkingZoneId], ParkingZone], ZoneSearchTree[TAZ]) = {
+    val parkingLoadingAccumulator =
+      fromFileToAccumulator(
+        filePath,
+        rand,
+        beamConfig,
+        beamServices,
+        parkingStallCountScalingFactor,
+        parkingCostScalingFactor
+      )
+    (parkingLoadingAccumulator.zones.toMap, parkingLoadingAccumulator.tree)
+  }
+
+  def fromFiles(
     filePath: String,
     rand: Random,
     beamConfig: Option[BeamConfig],
@@ -454,6 +479,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     val parkingZoneIdString = csvRow.get("parkingZoneId")
     val locationXString = csvRow.get("locationX")
     val locationYString = csvRow.get("locationY")
+    val siteIdString = csvRow.get("siteId")
     Try {
       val feeInCents = feeInCentsString.toDouble
       val newCostInDollarsString = (feeInCents * parkingCostScalingFactor / 100.0).toString
@@ -465,6 +491,9 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val timeRestrictions = parseTimeRestrictions(timeRestrictionsString)
       val chargingPoint = ChargingPointType(chargingTypeString)
       val numStalls = calculateNumStalls(numStallsString.toDouble, reservedFor, parkingStallCountScalingFactor)
+      val siteIdMaybe =
+        if (siteIdString == null || siteIdString.isEmpty) None
+        else Some(SitePowerManager.createId(siteIdString))
       val parkingZoneIdMaybe =
         if (parkingZoneIdString == null || parkingZoneIdString.isEmpty)
           Some(ParkingZone.createId(rowNumber.toString))
@@ -488,6 +517,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           taz,
           parkingType,
           reservedFor,
+          siteIdMaybe,
           numStalls,
           chargingPoint,
           pricingModel,

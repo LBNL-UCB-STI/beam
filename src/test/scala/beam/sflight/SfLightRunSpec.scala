@@ -39,16 +39,18 @@ class SfLightRunSpec extends AnyWordSpecLike with Matchers with BeamHelper with 
 
   "SF Light" must {
     "run 0.5k scenario for one iteration and at least one person chooses car mode" in {
-      val config = ConfigFactory
-        .parseString(
-          """
+      val config = beam.sim.BeamHelper.updateConfigToCurrentVersion(
+        ConfigFactory
+          .parseString(
+            """
           |beam.actorSystemName = "SfLightRunSpec"
           |beam.outputs.events.fileOutputFormats = xml
           |beam.agentsim.lastIteration = 0
         """.stripMargin
-        )
-        .withFallback(testConfig("test/input/sf-light/sf-light-0.5k.conf"))
-        .resolve()
+          )
+          .withFallback(testConfig("test/input/sf-light/sf-light-0.5k.conf"))
+          .resolve()
+      )
       val configBuilder = new MatSimBeamConfigBuilder(config)
       val matsimConfig = configBuilder.buildMatSimConf()
       matsimConfig.planCalcScore().setMemorizingExperiencedPlans(true)

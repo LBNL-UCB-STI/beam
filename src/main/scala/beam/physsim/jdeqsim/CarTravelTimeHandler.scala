@@ -1,9 +1,10 @@
 package beam.physsim.jdeqsim
 
+import beam.agentsim.events.BeamPersonDepartureEvent
 import beam.utils.Statistics
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent}
+import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent}
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.events.handler.BasicEventHandler
 
@@ -30,7 +31,7 @@ class CarTravelTimeHandler(isCACCVehicle: scala.collection.Map[String, Boolean])
         if (shouldTakeThisEvent(pae.getPersonId)) {
           events += ArrivalDepartureEvent(pae.getPersonId.toString, pae.getTime.toInt, "arrival")
         }
-      case pde: PersonDepartureEvent =>
+      case pde: BeamPersonDepartureEvent =>
         if (shouldTakeThisEvent(pde.getPersonId)) {
           events += ArrivalDepartureEvent(pde.getPersonId.toString, pde.getTime.toInt, "departure")
         }

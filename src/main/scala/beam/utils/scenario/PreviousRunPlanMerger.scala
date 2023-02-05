@@ -2,6 +2,7 @@ package beam.utils.scenario
 
 import beam.utils.scenario.generic.readers.{CsvPlanElementReader, XmlPlanElementReader}
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.network.Network
 
 import java.io.IOException
 import java.nio.file.{Files, Path}
@@ -15,10 +16,12 @@ import scala.util.{Random, Try}
 class PreviousRunPlanMerger(
   fractionOfNewPlansToUpdate: Double,
   sampleFraction: Double,
+  maximumNumberOfPlansToKeep: Option[Int],
   outputDir: Path,
   dirPrefix: String,
   rnd: Random,
-  adjustForScenario: PlanElement => PlanElement
+  adjustForScenario: PlanElement => PlanElement,
+  network: Option[Network] = None
 ) extends LazyLogging {
   require(0 <= fractionOfNewPlansToUpdate && fractionOfNewPlansToUpdate <= 1.0, "fraction must be in [0, 1]")
 
@@ -28,16 +31,33 @@ class PreviousRunPlanMerger(
     }
 
     LastRunOutputSource.findLastRunOutputPlans(outputDir, dirPrefix) match {
-      case Some(planPath) =>
-        logger.info("Found the plans in the beam output directory: {}", planPath)
-        val previousPlans = if (planPath.getFileName.toString.toLowerCase.contains(".csv")) {
-          CsvPlanElementReader.read(planPath.toString)
+      case (Some(inputPlanPath), maybeExperiencedPlanPath) =>
+        logger.info("Found the plans in the beam output directory: {}", inputPlanPath)
+        val previousPlans = if (inputPlanPath.getFileName.toString.toLowerCase.contains(".csv")) {
+          CsvPlanElementReader.read(inputPlanPath.toString)
         } else {
-          XmlPlanElementReader.read(planPath.toString)
+          XmlPlanElementReader.read(inputPlanPath.toString, network)
         }
-        val convertedPlans = previousPlans.map(adjustForScenario)
-        PreviousRunPlanMerger.merge(convertedPlans, plans, fractionOfNewPlansToUpdate, sampleFraction, rnd) -> true
-      case None =>
+        val maybeExperiencedPlans =
+          maybeExperiencedPlanPath.map(path => XmlPlanElementReader.read(path.toString, network))
+        val convertedPlans = (maybeExperiencedPlans match {
+          case Some(experiencedPlans) =>
+            Array.concat(
+              previousPlans.filterNot(_.planSelected).map(elem => elem.copy(planIndex = elem.planIndex + 1)),
+              experiencedPlans
+            )
+          case None => previousPlans
+        }).map(adjustForScenario)
+
+        PreviousRunPlanMerger.merge(
+          convertedPlans,
+          plans,
+          fractionOfNewPlansToUpdate,
+          sampleFraction,
+          maximumNumberOfPlansToKeep,
+          rnd
+        ) -> true
+      case _ =>
         logger.warn(
           "Not found appropriate output plans in the beam output directory: {}, dirPrefix = {}",
           outputDir,
@@ -55,6 +75,7 @@ object PreviousRunPlanMerger extends LazyLogging {
     plansToMerge: Iterable[PlanElement],
     fractionOfPlansToUpdate: Double,
     populationSample: Double,
+    maximumNumberOfPlansToKeep: Option[Int],
     random: Random
   ): Iterable[PlanElement] = {
     val persons = plans.map(_.personId).toSet
@@ -72,17 +93,33 @@ object PreviousRunPlanMerger extends LazyLogging {
     )
     val shouldReplace = (plan: PlanElement) => personIdsToReplace.contains(plan.personId)
     val (oldToBeReplaced, oldElementsToKeep) = plans.partition(shouldReplace)
-    val elementsFromExistingPersonsToAdd = plansToMerge.filter(shouldReplace)
+    val elementsFromExistingPersonsToAdd =
+      plansToMerge.filter(shouldReplace).map(_.copy(planSelected = true, planIndex = 0))
     val shouldAdd = (plan: PlanElement) => personIdsToAdd.contains(plan.personId)
-    val elementsFromNewPersonsToAdd = plansToMerge.filter(shouldAdd)
-    val unselectedPlanElements = oldToBeReplaced.map(_.copy(planSelected = false))
+    val elementsFromNewPersonsToAdd = plansToMerge.filter(shouldAdd).map(_.copy(planSelected = true, planIndex = 0))
+    val unselectedPlanElements = {
+      oldToBeReplaced.groupBy(_.personId).flatMap { case (_, elements) =>
+        elements
+          .groupBy(_.planIndex)
+          .toList
+          .sortBy { case (_, elements) => -elements.head.planScore }
+          .zipWithIndex
+          .take(maximumNumberOfPlansToKeep.getOrElse(0))
+          .flatMap { case ((_, elems), idx) =>
+            elems.map { case elem =>
+              elem.copy(planIndex = idx + 1, planSelected = false)
+            }
+          }
+      }
+    }
+
     oldElementsToKeep ++ unselectedPlanElements ++ elementsFromExistingPersonsToAdd ++ elementsFromNewPersonsToAdd
   }
 }
 
 object LastRunOutputSource extends LazyLogging {
 
-  def findLastRunOutputPlans(outputPath: Path, dirPrefix: String): Option[Path] = {
+  def findLastRunOutputPlans(outputPath: Path, dirPrefix: String): (Option[Path], Option[Path]) = {
     val plansPaths = for {
       (itDir, itNumber) <- findAllLastIterationDirectories(outputPath, dirPrefix)
       plansPath <- findLatestOutputDirectory(outputPath, dirPrefix)
@@ -91,13 +128,23 @@ object LastRunOutputSource extends LazyLogging {
           logger.info("Initially looking for plans at {}", outputPlansLocation.toString)
           Files.exists(outputPlansLocation)
         }
-        .map(_.resolve("output_plans.xml.gz")) orElse findFile(
+        .map(_.resolve("output_plans.xml.gz")) orElse findFile(itDir, itNumber, "plans.csv.gz")
+    } yield plansPath
+    val experiencedPlansPath = for {
+      (itDir, itNumber) <- findAllLastIterationDirectories(outputPath, dirPrefix)
+      experiencedPlansPath <- findLatestOutputDirectory(outputPath, dirPrefix)
+        .filter { p =>
+          val outputPlansLocation = p.resolve("experienced_plans.xml.gz")
+          logger.info("Initially looking for plans at {}", outputPlansLocation.toString)
+          Files.exists(outputPlansLocation)
+        }
+        .map(_.resolve("experienced_plans.xml.gz")) orElse findFile(
         itDir,
         itNumber,
-        "plans.xml.gz"
-      ) orElse findFile(itDir, itNumber, "plans.csv.gz")
-    } yield plansPath
-    plansPaths.headOption
+        "experienced_plans.xml.gz"
+      )
+    } yield experiencedPlansPath
+    (plansPaths.headOption, experiencedPlansPath.headOption)
   }
 
   def findLastRunLinkStats(outputPath: Path, dirPrefix: String, initialLinkstatsPath: Option[Path]): Option[Path] = {

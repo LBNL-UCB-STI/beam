@@ -139,11 +139,11 @@ class RideHailModifyPassengerScheduleManager(
     val timerTrigger = batchDispatchType match {
       case BatchedReservation =>
         BufferedRideHailRequestsTrigger(
-          currentTick + beamConfig.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds
+          currentTick + rideHailManager.managerConfig.allocationManager.requestBufferTimeoutInSeconds
         )
       case Reposition =>
         RideHailRepositioningTrigger(
-          currentTick + beamConfig.beam.agentsim.agents.rideHail.repositioningManager.timeout
+          currentTick + rideHailManager.managerConfig.repositioningManager.timeout
         )
       case _ =>
         throw new RuntimeException("Should not attempt to send completion when doing single reservations")
@@ -274,7 +274,6 @@ class RideHailModifyPassengerScheduleManager(
                 )
                 rideHailManager.ridehailManagerCustomizationAPI
                   .sendNewPassengerScheduleToVehicleWhenSuccessCaseHook(status.vehicleId, passengerSchedule)
-
             }
           case _ =>
             log.error(

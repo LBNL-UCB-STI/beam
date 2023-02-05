@@ -37,7 +37,7 @@ class MyDebugRoutingVisitor extends RoutingVisitor {
 //  - App with Main method in IntelliJ IDEA. You need to provide config as Program Arguments: `--config test/input/texas/austin-prod-100k.conf`
 //  - Run it from gradle:
 /*
-./gradlew :execute -PmainClass=beam.router.R5Requester -PmaxRAM=24 -PappArgs="['--config', 'test/input/newyork/new-york-PROD-baseline-one-r5.conf']" \
+./gradlew :execute -PmainClass=scripts.R5Requester -PmaxRAM=24 -PappArgs="['--config', 'test/input/newyork/new-york-PROD-baseline-one-r5.conf']" \
 	-PlogbackCfg=logback.xml -Dplans=test/input/newyork/generic_scenario/1049k-NYC-related/plans.csv.gz -DconvertToWgs=false
  */
 object R5Requester extends BeamHelper {
@@ -53,6 +53,7 @@ object R5Requester extends BeamHelper {
       modalityStyle = None,
       isMale = true,
       availableModes = Seq(BeamMode.CAR, BeamMode.WALK_TRANSIT, BeamMode.BIKE),
+      rideHailServiceSubscription = Seq.empty,
       valueOfTime = 17.15686274509804,
       age = None,
       income = Some(70000.0)

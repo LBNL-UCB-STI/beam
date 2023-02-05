@@ -74,6 +74,7 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
                     val javaLinkIds = beamLeg.travelPath.linkIds
                       .map(beamServices.networkHelper.getLinkUnsafe)
                       .map(_.getId)
+                      .toList
                       .asJava
                     val newRoute = RouteUtils
                       .createNetworkRoute(javaLinkIds, beamServices.matsimServices.getScenario.getNetwork)
