@@ -26,6 +26,7 @@ import scala.collection.{immutable, mutable}
 import scala.concurrent.duration.DurationInt
 import scala.util.{Failure, Try}
 
+// TODO: add documentation
 class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamServices: BeamServices) extends LazyLogging {
 
   private val cnmConfig = beamServices.beamConfig.beam.agentsim.chargingNetworkManager

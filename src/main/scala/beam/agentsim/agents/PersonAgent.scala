@@ -167,7 +167,7 @@ object PersonAgent {
 
   /**
     * holds information for agent enroute
-    * @param isInEnrouteState flag to indicate whether agent is in enroute node
+    * @param isInEnrouteState flag to indicate whether agent is in enroute mode
     * @param hasReservedFastChargerStall flag indicate if the agent has reserved a stall with fast charger point
     * @param stall2DestLegs car legs from enroute charging stall to original destination
     */
@@ -1114,7 +1114,7 @@ class PersonAgent(
           val distanceWrtBatteryCapacity = totalDistance / vehicle.beamVehicleType.getTotalRange
           if (
             distanceWrtBatteryCapacity > enrouteConfig.remainingDistanceWrtBatteryCapacityThreshold ||
-            totalDistance < enrouteConfig.noRefuelAtRemainingDistanceThresholdInMeters ||
+            totalDistance < enrouteConfig.noRefuelAtRemainingDistanceThresholdInMeters || // is this obsolete, as next distance is always smaller? => maybe here, because of some discrepancies in length property of links in network? - maybe git history has more info
             distUtm < enrouteConfig.noRefuelAtRemainingDistanceThresholdInMeters
           ) false
           else vehicle.isRefuelNeeded(refuelRequiredThresholdInMeters, noRefuelThresholdInMeters)

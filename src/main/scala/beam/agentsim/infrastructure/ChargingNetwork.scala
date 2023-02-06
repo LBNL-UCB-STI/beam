@@ -27,6 +27,7 @@ import scala.util.Random
 
 /**
   * Created by haitamlaarabi
+  * Provides system wide access to charging stations.
   */
 class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) extends ParkingNetwork(parkingZones) {
 
@@ -121,7 +122,7 @@ class ChargingNetwork(val parkingZones: Map[Id[ParkingZoneId], ParkingZone]) ext
   }
 
   /**
-    * transfer vehciles from waiting line to connected
+    * transfer vehicles from waiting line to connected
     *
     * @param station the corresponding station
     * @return list of vehicle that connected
@@ -217,6 +218,10 @@ object ChargingNetwork extends LazyLogging {
     )
   }
 
+  // TODO: add documentation!
+  // Charging station, including waiting queues.
+  // TODO: Question: Many methods are marked private for access only by [[ChargingNetwork]], but somethings exposed to whole package
+  // is this necessary/could we include them in ChargingNetwork "api"?
   final case class ChargingStation(zone: ParkingZone) {
     import ChargingStatus._
 
@@ -390,6 +395,7 @@ object ChargingNetwork extends LazyLogging {
     }
   }
 
+  //
   final case class ChargingCycle(
     startTime: Int,
     endTime: Int,
