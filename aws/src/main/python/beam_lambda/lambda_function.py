@@ -841,7 +841,8 @@ def deploy_handler(event, context):
         selected_script = f'sudo chmod +x {fixed_script_path}; sudo {fixed_script_path}; {selected_script}'
 
     if end_script != END_SCRIPT_DEFAULT:
-        end_script = fix_script_path(end_script)
+        fixed_script_path = fix_script_path(end_script)
+        end_script = f'sudo chmod +x {fixed_script_path}; sudo {fixed_script_path}'
 
     params = configs
     if s3_publish:
