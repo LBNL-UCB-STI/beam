@@ -1,22 +1,23 @@
 package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight._
+import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_ID_PREFIX
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
+import beam.utils.BeamVehicleUtils.readBeamVehicleTypeFile
 import beam.utils.SnapCoordinateUtils
 import beam.utils.SnapCoordinateUtils._
 import beam.utils.csv.GenericCsvReader
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.lang3.StringUtils.isBlank
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.households.Household
-import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_ID_PREFIX
 import org.matsim.core.network.NetworkUtils
-import org.matsim.api.core.v01.network.Network
+import org.matsim.households.Household
 
 import scala.collection.mutable.ListBuffer
 import scala.util.Random
@@ -178,6 +179,11 @@ class GenericFreightReader(
     allPlans: Map[Id[PayloadPlan], PayloadPlan],
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): IndexedSeq[FreightCarrier] = {
+    val freightVehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = config.vehicleTypesFilePath match {
+      case Some(filePath) => vehicleTypes ++ readBeamVehicleTypeFile(filePath)
+      case None           => vehicleTypes
+    }
+
     val existingTours: Set[Id[FreightTour]] = allTours.keySet.intersect(allPlans.map(_._2.tourId).toSet)
     val plans: Map[Id[PayloadPlan], PayloadPlan] = allPlans.filter { case (_, plan) =>
       existingTours.contains(plan.tourId)
@@ -206,7 +212,7 @@ class GenericFreightReader(
         .groupBy(_.vehicleId)
         .map { case (vehicleId, rows) =>
           val firstRow = rows.head
-          val vehicleType = vehicleTypes.getOrElse(
+          val vehicleType = freightVehicleTypes.getOrElse(
             firstRow.vehicleTypeId,
             throw new IllegalArgumentException(
               s"Vehicle type for vehicle $vehicleId not found: ${firstRow.vehicleTypeId}"

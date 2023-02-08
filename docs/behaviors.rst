@@ -54,21 +54,21 @@ Parking
 
 In BEAM, parking is issued at the granularity of a Traffic Analysis Zone (TAZ). Upon initialization, parking alternatives are read in from the CSV file listed in the BEAM config parameter *beam.agentsim.taz.parking*. Each row identifies the attributes of a parking alternative for a given TAZ, of which a given combination of attributes should be unique. Parking attributes include the following:
 
-+----------------+----------------------------------------------+
-| attribute      | values                                       |
-+================+==============================================+
-| *parkingType*  | Workplace, Public, Residential               |
-+----------------+----------------------------------------------+
-| *pricingModel* | FlatFee, Block                               |
-+----------------+----------------------------------------------+
++---------------------+----------------------------------------------+
+| attribute           | values                                       |
++=====================+==============================================+
+| *parkingType*       | Workplace, Public, Residential               |
++---------------------+----------------------------------------------+
+| *pricingModel*      | FlatFee, Block                               |
++---------------------+----------------------------------------------+
 | *chargingPointType* | NoCharger, Level1, Level2, DCFast, UltraFast |
-+----------------+----------------------------------------------+
-| *numStalls*    | *integer*                                    |
-+----------------+----------------------------------------------+
-| *feeInCents*   | *integer*                                    |
-+----------------+----------------------------------------------+
-| *reservedFor*  | Any, RideHailManager                         |
-+----------------+----------------------------------------------+
++---------------------+----------------------------------------------+
+| *numStalls*         | *integer*                                    |
++---------------------+----------------------------------------------+
+| *feeInCents*        | *integer*                                    |
++---------------------+----------------------------------------------+
+| *reservedFor*       | Any, RideHailManager                         |
++---------------------+----------------------------------------------+
 
 BEAM agents seek parking mid-tour, from within a leg of their trip. A search is run which starts at the trip destination and expands outward, seeking to find the closest TAZ centers with increasing search radii. Agents will pick the closest and cheapest parking alternative with attributes which match their use case.
 

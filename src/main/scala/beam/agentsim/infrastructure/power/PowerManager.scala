@@ -28,11 +28,11 @@ class PowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamConfig: Bea
             pmcConfig.intLogLevel
           )
           getFederate(
-            pmcConfig.federateName,
+            pmcConfig.beamFederateName,
             fedInfo,
             pmcConfig.bufferSize,
             beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds,
-            pmcConfig.federatePublication match {
+            pmcConfig.beamFederatePublication match {
               case s: String if s.nonEmpty => Some(s)
               case _                       => None
             },

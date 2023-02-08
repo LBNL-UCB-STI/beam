@@ -4,14 +4,18 @@ import com.github.beam.HelicsLoader
 import com.java.helics.helicsJNI.{HELICS_PROPERTY_INT_LOG_LEVEL_get, HELICS_PROPERTY_TIME_DELTA_get}
 import com.java.helics.{helics, HelicsDataTypes, SWIGTYPE_p_void}
 
-object HelicsTester extends App {
+/*
+To do a basic test with as few dependencies on BEAM code as possible.
+The test require the helics broker to be run externally, for example by a python script.
+ */
+object HelicsBasicTest extends App {
 
   loadHelics()
   val fedInfo = getFederateInfo()
-  val fedName = "FED_BEAM_1"
+  val fedName = "SOME_RANDOM_FEDERATE_NAME"
   val fedComb: SWIGTYPE_p_void = helics.helicsCreateCombinationFederate(fedName, fedInfo)
 
-  val publicationName = "CHARGING_VEHICLES"
+  val publicationName = "CHARGING_VEHICLES_PUBLICATION_42"
 
   val dataOutStreamHandle = Some(
     helics.helicsFederateRegisterPublication(fedComb, publicationName, HelicsDataTypes.HELICS_DATA_TYPE_STRING, "")

@@ -15,6 +15,7 @@ import scala.util.{Random, Try}
 class PreviousRunPlanMerger(
   fractionOfNewPlansToUpdate: Double,
   sampleFraction: Double,
+  maximumNumberOfPlansToKeep: Option[Int],
   outputDir: Path,
   dirPrefix: String,
   rnd: Random,
@@ -36,7 +37,14 @@ class PreviousRunPlanMerger(
           XmlPlanElementReader.read(planPath.toString)
         }
         val convertedPlans = previousPlans.map(adjustForScenario)
-        PreviousRunPlanMerger.merge(convertedPlans, plans, fractionOfNewPlansToUpdate, sampleFraction, rnd) -> true
+        PreviousRunPlanMerger.merge(
+          convertedPlans,
+          plans,
+          fractionOfNewPlansToUpdate,
+          sampleFraction,
+          maximumNumberOfPlansToKeep,
+          rnd
+        ) -> true
       case None =>
         logger.warn(
           "Not found appropriate output plans in the beam output directory: {}, dirPrefix = {}",
@@ -55,6 +63,7 @@ object PreviousRunPlanMerger extends LazyLogging {
     plansToMerge: Iterable[PlanElement],
     fractionOfPlansToUpdate: Double,
     populationSample: Double,
+    maximumNumberOfPlansToKeep: Option[Int],
     random: Random
   ): Iterable[PlanElement] = {
     val persons = plans.map(_.personId).toSet
@@ -72,10 +81,25 @@ object PreviousRunPlanMerger extends LazyLogging {
     )
     val shouldReplace = (plan: PlanElement) => personIdsToReplace.contains(plan.personId)
     val (oldToBeReplaced, oldElements) = plans.partition(shouldReplace)
-    val elementsFromExistingPersonsToAdd = plansToMerge.filter(shouldReplace)
+    val elementsFromExistingPersonsToAdd =
+      plansToMerge.filter(shouldReplace).map(_.copy(planSelected = true, planIndex = 0))
     val shouldAdd = (plan: PlanElement) => personIdsToAdd.contains(plan.personId)
-    val elementsFromNewPersonsToAdd = plansToMerge.filter(shouldAdd)
-    val unselectedPlanElements = oldToBeReplaced.map(_.copy(planSelected = false))
+    val elementsFromNewPersonsToAdd = plansToMerge.filter(shouldAdd).map(_.copy(planSelected = true, planIndex = 0))
+    val unselectedPlanElements = {
+      oldToBeReplaced.groupBy(_.personId).flatMap { case (_, elements) =>
+        elements
+          .groupBy(_.planIndex)
+          .toList
+          .sortBy { case (_, elements) => -elements.head.planScore }
+          .zipWithIndex
+          .take(maximumNumberOfPlansToKeep.getOrElse(0))
+          .flatMap { case ((_, elems), idx) =>
+            elems.map { case elem =>
+              elem.copy(planIndex = idx + 1, planSelected = false)
+            }
+          }
+      }
+    }
     oldElements ++ unselectedPlanElements ++ elementsFromExistingPersonsToAdd ++ elementsFromNewPersonsToAdd
   }
 }
