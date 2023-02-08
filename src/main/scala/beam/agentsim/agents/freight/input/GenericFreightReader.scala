@@ -179,11 +179,9 @@ class GenericFreightReader(
     allPlans: Map[Id[PayloadPlan], PayloadPlan],
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): IndexedSeq[FreightCarrier] = {
-    val freightVehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = {
-      config.vehicleTypesFilePath match {
-        case Some(filePath) => vehicleTypes ++ readBeamVehicleTypeFile(filePath)
-        case None           => vehicleTypes
-      }
+    val freightVehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = config.vehicleTypesFilePath match {
+      case Some(filePath) => vehicleTypes ++ readBeamVehicleTypeFile(filePath)
+      case None           => vehicleTypes
     }
 
     val existingTours: Set[Id[FreightTour]] = allTours.keySet.intersect(allPlans.map(_._2.tourId).toSet)
