@@ -45,7 +45,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
     replanning = new Freight.Replanning(departureTime = 0, disableAfterIteration = -1, strategy = ""),
     generateFixedActivitiesDurations = false,
     tourSampleSizeAsFractionOfTotal = 1.0,
-    vehicleTypesFilePath = ""
+    vehicleTypesFilePath = None
   )
 
   private val freightConfigWithFreightVehicleTypes: Freight = new Freight(
@@ -61,7 +61,7 @@ class GenericFreightReaderSpec extends AnyWordSpecLike with Matchers with BeamHe
     replanning = new Freight.Replanning(departureTime = 0, disableAfterIteration = -1, strategy = ""),
     generateFixedActivitiesDurations = false,
     tourSampleSizeAsFractionOfTotal = 1.0,
-    vehicleTypesFilePath = s"$freightInputDir/vehicleTypesFreightOnly.csv"
+    vehicleTypesFilePath = Some(s"$freightInputDir/vehicleTypesFreightOnly.csv")
   )
 
   val rnd = new Random(2333L)

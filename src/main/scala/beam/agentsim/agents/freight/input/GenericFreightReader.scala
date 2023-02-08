@@ -180,11 +180,9 @@ class GenericFreightReader(
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): IndexedSeq[FreightCarrier] = {
     val freightVehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = {
-      if (config.vehicleTypesFilePath.nonEmpty) {
-        val additionalVehTypes = readBeamVehicleTypeFile(config.vehicleTypesFilePath)
-        vehicleTypes ++ additionalVehTypes
-      } else {
-        vehicleTypes
+      config.vehicleTypesFilePath match {
+        case Some(filePath) => vehicleTypes ++ readBeamVehicleTypeFile(filePath)
+        case None           => vehicleTypes
       }
     }
 
