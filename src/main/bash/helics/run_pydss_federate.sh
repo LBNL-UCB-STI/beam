@@ -2,8 +2,7 @@
 
 echo "installing helics and dependencies ..."
 apt install python3-pip -y
-pip3 install setuptools strip-hints numpy helics==3.3.0 helics-apps==3.3.0
-
+pip3 install setuptools pandas strip-hints numpy helics==3.3.0 helics-apps==3.3.0
 
 python3 -c "import helics; print('the version of installed helics: ' + helics.helicsGetVersion())"
 
