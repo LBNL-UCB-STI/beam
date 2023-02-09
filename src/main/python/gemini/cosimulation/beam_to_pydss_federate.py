@@ -1,6 +1,7 @@
 # this file creates an intermediate federate
 # it maps the coordinates from TEMPO to the nearest charging
 # station modeled in PyDSS
+import collections.abc
 import time
 import helics as h
 import numpy as np
@@ -51,36 +52,49 @@ def run_beam_to_pydss_federate():
         while grantedtime < requestedtime:
             grantedtime = h.helicsFederateRequestTime(cfed, requestedtime)
 
+    def parse_json(message_to_parse):
+        try:
+            return json.loads(message_to_parse)
+        except json.decoder.JSONDecodeError as err:
+            logging.error("Message from BEAM is an incorrect JSON, " + str(err))
+            return ""
+
     timebin = 300
     # start execution loop
     for t in range(0, 60 * 3600 - timebin, timebin):
         sync_time(t)
         print("charger loads received at currenttime: " + str(t) + " seconds")
         logging.info("charger loads received at currenttime: " + str(t) + " seconds")
-        charger_load_json = json.loads(h.helicsInputGetString(subs_charger_loads))
-        logging.info('Logging this as CSV')
-        logging.info('stationId,estimatedLoad,currentTime')
-        for station in charger_load_json:
-            reservedFor = station['reservedFor']
-            parkingZoneId = station['parkingZoneId']
-            station_load = station['estimatedLoad']
-            logging.info(str(parkingZoneId) + ',' + str(station_load) + ',' + str(reservedFor) + ',' + str(t))
-
-        ############### This section should be un-commented and debugged when we have a controller signal to send to BEAM
-        ## format appropriately here
-        #
-        # Let's uncomment this and send dummy control signal to BEAM
-        ## send updated signal to BEAM
+        received_message = h.helicsInputGetString(subs_charger_loads)
+        charger_load_json = parse_json(received_message)
         all_stations_with_control = []
-        for station in charger_load_json:
-            station_with_control = {
-                'parkingZoneId': str(station['parkingZoneId']),
-                'reservedFor': str(station['reservedFor']),
-                'power_limit_upper': station['estimatedLoad'],
-                'power_limit_lower': station['estimatedLoad'],
-                'lmp_with_control_signal': 0
-            }
-            all_stations_with_control.append(station_with_control)
+
+        if not isinstance(charger_load_json, collections.abc.Sequence):
+            print_err(f"[time:{str(t)}] It was not able to parse JSON message from BEAM: " + received_message)
+            pass
+        else:
+            logging.info('Logging this as CSV')
+            logging.info('stationId,estimatedLoad,currentTime')
+            for station in charger_load_json:
+                reservedFor = station['reservedFor']
+                parkingZoneId = station['parkingZoneId']
+                station_load = station['estimatedLoad']
+                logging.info(str(parkingZoneId) + ',' + str(station_load) + ',' + str(reservedFor) + ',' + str(t))
+
+            ############### This section should be un-commented and debugged when we have a controller signal to send to BEAM
+            ## format appropriately here
+            #
+            # Let's uncomment this and send dummy control signal to BEAM
+            ## send updated signal to BEAM
+            for station in charger_load_json:
+                station_with_control = {
+                    'parkingZoneId': str(station['parkingZoneId']),
+                    'reservedFor': str(station['reservedFor']),
+                    'power_limit_upper': station['estimatedLoad'],
+                    'power_limit_lower': station['estimatedLoad'],
+                    'lmp_with_control_signal': 0
+                }
+                all_stations_with_control.append(station_with_control)
 
         h.helicsPublicationPublishString(pubs_control, json.dumps(all_stations_with_control, separators=(',', ':')))
         sync_time(t + 1)
