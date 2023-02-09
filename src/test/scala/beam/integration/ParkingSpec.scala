@@ -215,7 +215,7 @@ class ParkingSpec
       }
     }
 
-    "very expensive parking should reduce driving" taggedAs Retryable ignore { // flakey test
+    "very expensive parking should reduce driving" taggedAs Retryable in {
       val expensiveEvents = runAndCollectForIterations("very-expensive", 5)
 
       val expensiveModeChoiceCarCount = expensiveEvents.map(countForPathTraversalAndCarMode)
@@ -229,7 +229,7 @@ class ParkingSpec
         .sum should be > expensiveModeChoiceCarCount.takeRight(5).sum
     }
 
-    "no parking stalls should reduce driving" taggedAs Retryable ignore { // flakey test
+    "no parking stalls should reduce driving" taggedAs Retryable in {
       val emptyEvents = runAndCollectForIterations("empty", 5)
 
       val emptyModeChoiceCarCount = emptyEvents.map(countForPathTraversalAndCarMode)

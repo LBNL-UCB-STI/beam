@@ -1,0 +1,5 @@
+*
+*/
+!.gitignore
+!.jupyter/jupyter_nbconvert_config.py
+!.jupyter/jupyter_notebook_config.py
