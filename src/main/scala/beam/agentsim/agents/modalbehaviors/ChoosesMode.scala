@@ -235,7 +235,7 @@ trait ChoosesMode {
           ) =>
         implicit val executionContext: ExecutionContext = context.system.dispatcher
         plansModeOption match {
-          case Some(CAR | DRIVE_TRANSIT) =>
+          case Some(CAR | DRIVE_TRANSIT | CAR_HOV2 | CAR_HOV3) => // TODO: Add HOV modes here too
             requestAvailableVehicles(
               vehicleFleets,
               currentLocation,
