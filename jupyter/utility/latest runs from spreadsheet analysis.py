@@ -24,6 +24,7 @@ pd.set_option('max_colwidth', None)
 
 local_path = '../local_files/latest_all_runs.csv'
 data = pd.read_csv(local_path, parse_dates=['Time'])
+data['unique_key'] = data.apply(lambda r: f"{r['Host name']}|{r['Run Name']}|{r['Batch']}", axis=1)
 
 # using only runs from specific data 
 min_time = pd.to_datetime("2022-02-01") # yyyy-mm-dd
@@ -44,7 +45,7 @@ data.head(2)
 
 take_first_columns = ['Run Name','Month Period','Branch','Instance type']
 
-df = data.groupby("Host name").agg(list)
+df = data.groupby("unique_key").agg(list)
 for col in take_first_columns:
     df[col] = df.apply(lambda r: r[col][0], axis=1)
 
@@ -53,7 +54,7 @@ df['Time Stop'] = df.apply(lambda r: r['Time'][-1], axis=1)
 df['Status'] = df.apply(lambda r: r['Status'][-1], axis=1)
 
 all_columns = set(df.columns)
-taken_columns = take_first_columns + ['Time Start', 'Time Stop', 'Status']
+taken_columns = take_first_columns + ['Time Start', 'Time Stop', 'Status', 'Time']
 
 df = df[taken_columns].copy()
 
@@ -68,7 +69,7 @@ for v in ['ec2-18-221-208-40.us-east-2.compute.amazonaws.com',
     df.replace(to_replace=v, value='r5d.24xlarge', inplace=True)
 
 df['duration_hours'] = (df['Time Stop'] - df['Time Start']).astype('timedelta64[h]')
-
+print(f"duration in hours total: {df['duration_hours'].sum()}")
 df.head(2)
 
 
@@ -213,8 +214,10 @@ def print_total_info(total_cost_fixed=None):
         print(f"The total cost of all instances time is ${total_cost}")
 
 print_total_info()
-    
-df.head(2)
+
+print(f"aws core hours: {df['aws_corehours_per_simulation'].sum()}")
+print(f"total cost: {df['cost'].sum()}")
+df.groupby('Month Period').agg({'cost':['sum','count']})
 
 
 # In[ ]:
@@ -323,44 +326,32 @@ df_grouped[selected_columns]
 ### a short version
 
 print_total_info(total_cost_fixed="???")
-df_grouped[["project", "Fraction of total cost", "AWS Core-Hours", "Duration Hours Total"]]
+df_grouped[["project", "Fraction of total cost", "AWS Core-Hours"]]
 
 
 # In[ ]:
 
 
-
-
-
-# In[ ]:
-
-
-print_total_info()
-df_grouped[df_grouped['Fraction of total cost'] > 0.001][["project","Fraction of total cost", "Instance time cost"]]
-
-
-# In[ ]:
-
+### grouped by instance type
 
 df_grouped_by_instance = df.groupby('Instance type').agg(list).reset_index()
-# ['Instance type', 'Run Name', 'Month Period', 'Branch', 'Time Start', 'Time Stop', 'Status', 'duration_hours', 'aws_instance_hour_cost', 'cost', 'project', 'Status Fixed']
 
-df_grouped_by_instance['Total cost per instance'] = df_grouped_by_instance.apply(lambda r: sum(r['cost']), axis=1)
-df_grouped_by_instance = df_grouped_by_instance.sort_values('Total cost per instance', ascending=False).reset_index()
 
-print_total_info()
-df_grouped_by_instance[['Instance type', 'Total cost per instance']]
+df_grouped_by_instance['cost_per_instance_type'] = df_grouped_by_instance.apply(lambda r: sum(r['cost']), axis=1)
+total_cost = df_grouped_by_instance['cost_per_instance_type'].sum()
+df_grouped_by_instance['Fraction of Total Cost'] = df_grouped_by_instance.apply(lambda r: r['cost_per_instance_type'] / total_cost, axis=1)
+
+df_grouped_by_instance.sort_values('Fraction of Total Cost', ascending=False, inplace=True)
+df_grouped_by_instance.reset_index(inplace=True)
+
+# print_total_info()
+df_grouped_by_instance[['Instance type', 'Fraction of Total Cost']].head(5)
 
 
 # In[ ]:
 
 
-df1 = df[(df['project'] == 'Gemini') | (df['project'] ==  "Freight")].copy()
-df2 = df1[df1['duration_hours'] > 0]
-df3 = df2.sort_values('Time Start')
-display(df3.head(3))
-
-df3.to_csv("gemini_freight_simulations.csv")
+df_grouped_by_instance.groupby
 
 
 # In[ ]:
