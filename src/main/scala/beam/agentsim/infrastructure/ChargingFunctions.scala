@@ -224,10 +224,15 @@ class ChargingFunctions(
         .map(_.rangeAnxiety(withAddedFuelInJoules = addedEnergy))
         .getOrElse(0.0) // default no anxiety if no remaining trip data provided
 
-    super[ParkingFunctions].setupMNLParameters(parkingAlternative, inquiry) ++ Map(
+    val params = super[ParkingFunctions].setupMNLParameters(parkingAlternative, inquiry) ++ Map(
       ParkingMNL.Parameters.EnrouteDetourCost -> enrouteFactor,
       ParkingMNL.Parameters.RangeAnxietyCost  -> rangeAnxietyFactor
     )
+    inquiry.searchMode match {
+      case ParkingSearchMode.EnRouteCharging =>
+        params ++ Map(ParkingMNL.Parameters.WalkingEgressCost -> 0.0)
+      case _ => params
+    }
   }
 
   /**
