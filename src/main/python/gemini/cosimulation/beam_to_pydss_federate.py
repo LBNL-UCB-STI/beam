@@ -99,7 +99,6 @@ def run_beam_to_pydss_federate(helics_conf):
                 all_stations_with_control.append(station_with_control)
 
         message_to_send = json.dumps(all_stations_with_control, separators=(',', ':'))
-        logging.info(f"Sending to [{pubs_control}]: {message_to_send}")
         h.helicsPublicationPublishString(pubs_control, message_to_send)
         sync_time(t + 1)
 
