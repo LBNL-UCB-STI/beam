@@ -110,6 +110,7 @@ class RideHailMaster(
       }
 
     case reserveRide: RideHailRequest if reserveRide.shouldReserveRide =>
+      //in case of ReserveRide type requester equals customer.personRef
       rideHailResponseCache.removeOriginalResponseFromCache(reserveRide) match {
         case Some(originalResponse) =>
           rideHailManagers(originalResponse.rideHailManagerName) forward reserveRide

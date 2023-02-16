@@ -16,6 +16,9 @@ case class RideHailResponse(
   directTripTravelProposal: Option[TravelProposal] = None
 ) extends HasTriggerId {
 
+  def isFailed: Boolean = error.isDefined
+  def isSuccessful: Boolean = !isFailed && travelProposal.isDefined
+
   override def toString: String =
     s"RideHailResponse(request: $request, error: $error, travelProposal: $travelProposal)"
 

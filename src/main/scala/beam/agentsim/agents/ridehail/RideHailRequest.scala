@@ -20,7 +20,7 @@ case class RideHailRequest(
   withWheelchair: Boolean = false,
   groupedWithOtherRequests: List[RideHailRequest] = List(),
   requestId: Int = RideHailRequestIdGenerator.nextId,
-  requestTime: Option[Int] = None,
+  requestTime: Int,
   quotedWaitTime: Option[Int] = None,
   rideHailServiceSubscription: Seq[String],
   requester: ActorRef,
@@ -30,7 +30,7 @@ case class RideHailRequest(
 
   def addSubRequest(subRequest: RideHailRequest): RideHailRequest =
     this.copy(requestId = this.requestId, groupedWithOtherRequests = this.groupedWithOtherRequests :+ subRequest)
-  def thisRequestWithGroupedRequests: List[RideHailRequest] = this :: groupedWithOtherRequests
+  def group: List[RideHailRequest] = this :: groupedWithOtherRequests
   override def equals(that: Any): Boolean = this.requestId == that.asInstanceOf[RideHailRequest].requestId
   override def hashCode: Int = requestId
 
@@ -40,26 +40,13 @@ case class RideHailRequest(
 
 object RideHailRequest {
 
-  def fromCustomerRequest(customerRequest: CustomerRequest, asPooled: Boolean): RideHailRequest = {
-    RideHailRequest(
-      ReserveRide,
-      customerRequest.person,
-      customerRequest.pickup.activity.getCoord,
-      customerRequest.pickup.activity.getEndTime.toInt,
-      customerRequest.dropoff.activity.getCoord,
-      asPooled,
-      requester = customerRequest.person.personRef,
-      rideHailServiceSubscription = Seq.empty,
-      triggerId = customerRequest.triggerId
-    )
-  }
-
   val DUMMY: RideHailRequest = RideHailRequest(
     RideHailInquiry,
     PersonIdWithActorRef(Id.create("dummy", classOf[Person]), ActorRef.noSender),
-    new Coord(Double.NaN, Double.NaN),
-    Int.MaxValue,
-    new Coord(Double.NaN, Double.NaN),
+    pickUpLocationUTM = new Coord(Double.NaN, Double.NaN),
+    departAt = Int.MaxValue,
+    destinationUTM = new Coord(Double.NaN, Double.NaN),
+    requestTime = -1,
     requester = ActorRef.noSender,
     rideHailServiceSubscription = Seq.empty,
     triggerId = -1

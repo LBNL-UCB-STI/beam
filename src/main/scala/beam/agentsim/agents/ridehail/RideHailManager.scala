@@ -222,7 +222,7 @@ object RideHailManager {
 
     def getActualResponses(request: RideHailRequest): IndexedSeq[RideHailResponse] = {
       val previousResponses = rideHailResponseCache.getOrElse(request.customer.personId, IndexedSeq.empty)
-      val currentTime = request.requestTime.getOrElse(0)
+      val currentTime = request.requestTime
       previousResponses.filter(_.request.departAt >= currentTime)
     }
 
@@ -521,18 +521,14 @@ class RideHailManager(
       )
       rideHailResourceAllocationManager.getUnprocessedCustomers.foreach { request =>
         modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
-          ScheduleTrigger(
-            RideHailResponseTrigger(
-              tick,
-              RideHailResponse(
-                request,
-                None,
-                managerConfig.name,
-                Some(CouldNotFindRouteToCustomer)
-              )
-            ),
-            request.customer.personRef
-          )
+          tick,
+          RideHailResponse(
+            request,
+            None,
+            managerConfig.name,
+            Some(CouldNotFindRouteToCustomer)
+          ),
+          request.customer.personRef
         )
         rideHailResourceAllocationManager.removeRequestFromBuffer(request)
       }
@@ -1585,16 +1581,24 @@ class RideHailManager(
           rideHailResponseCache.removeOriginalResponseFromCache(response.request).flatMap(_.travelProposal)
         if (processBufferedRequestsOnTimeout) {
           modifyPassengerScheduleManager.addTriggersToSendWithCompletion(finalTriggersToSchedule)
-          response.request.requester ! response.copy(
-            triggersToSchedule = Vector(),
-            directTripTravelProposal = directTrip
+          modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
+            tick,
+            response.copy(
+              triggersToSchedule = Vector(),
+              directTripTravelProposal = directTrip
+            ),
+            response.request.requester
           )
           response.request.groupedWithOtherRequests.foreach { subReq =>
             val subDirectTrip = rideHailResponseCache.removeOriginalResponseFromCache(subReq).flatMap(_.travelProposal)
-            subReq.requester ! response.copy(
-              request = subReq,
-              triggersToSchedule = Vector(),
-              directTripTravelProposal = subDirectTrip
+            modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
+              tick,
+              response.copy(
+                request = subReq,
+                triggersToSchedule = Vector(),
+                directTripTravelProposal = subDirectTrip
+              ),
+              subReq.requester
             )
           }
         } else {
@@ -1635,7 +1639,7 @@ class RideHailManager(
       if (currentlyProcessingTimeoutTrigger.isEmpty) {
         // We always use the request buffer even if we will process these requests immediately
         rideHailResourceAllocationManager.addRequestToBuffer(request)
-        findAllocationsAndProcess(request.departAt, triggerId)
+        findAllocationsAndProcess(request.requestTime, triggerId) //todome request.requestTime
       } else {
         // We're in middle of repositioning, so stash this message until we're done (method "cleanup" called)
         stash()
@@ -1875,7 +1879,7 @@ class RideHailManager(
     TravelProposal(
       alloc.rideHailAgentLocation,
       updatedPassengerSchedule,
-      alloc.request.thisRequestWithGroupedRequests
+      alloc.request.group
         .map(calcFare(_, alloc.rideHailAgentLocation.vehicleType.id, updatedPassengerSchedule, baseFare))
         .toMap,
       rideHailResourceAllocationManager.maxWaitTimeInSec,
@@ -1930,27 +1934,16 @@ class RideHailManager(
   def failedAllocation(request: RideHailRequest, tick: Int): Unit = {
     val theResponse = RideHailResponse(request, None, managerConfig.name, Some(DriverNotFoundError))
     if (processBufferedRequestsOnTimeout) {
-      modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
-        ScheduleTrigger(
-          RideHailResponseTrigger(tick, theResponse),
-          request.customer.personRef
-        )
-      )
-      request.groupedWithOtherRequests.foreach { subReq =>
-        modifyPassengerScheduleManager.addTriggerToSendWithCompletion(
-          ScheduleTrigger(
-            RideHailResponseTrigger(tick, theResponse),
-            subReq.customer.personRef
-          )
-        )
+      request.group.foreach { subReq =>
+        //in case of ReserveRide type requester equals customer.personRef
+        modifyPassengerScheduleManager.addTriggerToSendWithCompletion(tick, theResponse, subReq.customer.personRef)
       }
     } else {
-      request.customer.personRef ! theResponse
-      request.groupedWithOtherRequests.foreach { subReq =>
+      request.group.foreach { subReq =>
         subReq.customer.personRef ! theResponse
       }
     }
-    request.thisRequestWithGroupedRequests.foreach { req =>
+    request.group.foreach { req =>
       rideHailResponseCache.remove(req.customer.personId)
     }
     rideHailResourceAllocationManager.removeRequestFromBuffer(request)
