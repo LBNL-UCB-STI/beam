@@ -641,7 +641,8 @@ object BeamConfig {
               transit_crowding_VOT_threshold: scala.Double,
               transit_crowding_percentile: scala.Double,
               walk_intercept: scala.Double,
-              walk_transit_intercept: scala.Double
+              walk_transit_intercept: scala.Double,
+              ride_hail_subscription: Double
             )
 
             object Params {
@@ -679,7 +680,8 @@ object BeamConfig {
                     else 90.0,
                   walk_intercept = if (c.hasPathOrNull("walk_intercept")) c.getDouble("walk_intercept") else 0.0,
                   walk_transit_intercept =
-                    if (c.hasPathOrNull("walk_transit_intercept")) c.getDouble("walk_transit_intercept") else 0.0
+                    if (c.hasPathOrNull("walk_transit_intercept")) c.getDouble("walk_transit_intercept") else 0.0,
+                  ride_hail_subscription = if (c.hasPathOrNull("ride_hail_subscription")) c.getDouble("ride_hail_subscription") else 0.0
                 )
               }
             }
@@ -972,7 +974,8 @@ object BeamConfig {
           linkFleetStateAcrossIterations: scala.Boolean,
           managers: scala.List[BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm],
           rangeBufferForDispatchInMeters: scala.Int,
-          surgePricing: BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing
+          surgePricing: BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing,
+          bestResponseType: java.lang.String
         )
 
         object RideHail {
@@ -1528,7 +1531,10 @@ object BeamConfig {
               surgePricing = BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing(
                 if (c.hasPathOrNull("surgePricing")) c.getConfig("surgePricing")
                 else com.typesafe.config.ConfigFactory.parseString("surgePricing{}")
-              )
+              ),
+              bestResponseType =
+                if (c.hasPathOrNull("bestResponseType")) c.getString("bestResponseType")
+                else "MIN_COST"
             )
           }
 
