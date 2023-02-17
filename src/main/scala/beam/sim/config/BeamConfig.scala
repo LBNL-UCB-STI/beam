@@ -109,7 +109,8 @@ object BeamConfig {
           reader: java.lang.String,
           replanning: BeamConfig.Beam.Agentsim.Agents.Freight.Replanning,
           tourSampleSizeAsFractionOfTotal: scala.Double,
-          toursFilePath: java.lang.String
+          toursFilePath: java.lang.String,
+          vehicleTypesFilePath: scala.Option[java.lang.String]
         )
 
         object Freight {
@@ -159,7 +160,9 @@ object BeamConfig {
                 else 1.0,
               toursFilePath =
                 if (c.hasPathOrNull("toursFilePath")) c.getString("toursFilePath")
-                else "/test/input/beamville/freight/freight-tours.csv"
+                else "/test/input/beamville/freight/freight-tours.csv",
+              vehicleTypesFilePath =
+                if (c.hasPathOrNull("vehicleTypesFilePath")) Some(c.getString("vehicleTypesFilePath")) else None
             )
           }
         }
@@ -2782,14 +2785,17 @@ object BeamConfig {
       }
 
       case class VmInformation(
-        createGCClassHistogram: scala.Boolean
+        createGCClassHistogram: scala.Boolean,
+        writeHeapDump: scala.Boolean
       )
 
       object VmInformation {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Debug.VmInformation = {
           BeamConfig.Beam.Debug.VmInformation(
-            createGCClassHistogram = c.hasPathOrNull("createGCClassHistogram") && c.getBoolean("createGCClassHistogram")
+            createGCClassHistogram =
+              c.hasPathOrNull("createGCClassHistogram") && c.getBoolean("createGCClassHistogram"),
+            writeHeapDump = c.hasPathOrNull("writeHeapDump") && c.getBoolean("writeHeapDump")
           )
         }
       }

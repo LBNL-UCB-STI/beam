@@ -1,13 +1,10 @@
-# this file creates an intermediate federate
-# it maps the coordinates from TEMPO to the nearest charging
-# station modeled in PyDSS
+# this file created for testing the performance of beam-helics interactions
 import collections.abc
-import helics as h
+import json
 import logging
-import pandas as pd
 from threading import Thread, Lock
 
-import json
+import helics as h
 
 
 def print_and_log(log_message):
@@ -48,25 +45,25 @@ taz_empty_requests_count = {}
 def prepare_the_answer(request_as_list_of_maps):
     response_list = []
     for request_map in request_as_list_of_maps:
-        tazId = request_map.get("tazId", None)
-        vehicleId = request_map.get("vehicleId", None)
+        taz_id = request_map.get("tazId", None)
+        vehicle_id = request_map.get("vehicleId", None)
 
-        if tazId and vehicleId:
+        if taz_id and vehicle_id:
             response = {
-                "tazId": tazId,
-                "vehicleId": vehicleId,
+                "tazId": taz_id,
+                "vehicleId": vehicle_id,
                 "powerInKW": 424242424242
             }
             response_list.append(response)
 
             with lock_for_taz_to_power_requests_count:
-                number_of_requests = taz_to_power_requests_count.get(tazId, 0)
-                taz_to_power_requests_count[tazId] = number_of_requests + 1
+                number_of_requests = taz_to_power_requests_count.get(taz_id, 0)
+                taz_to_power_requests_count[taz_id] = number_of_requests + 1
 
-        elif tazId:
+        elif taz_id:
             with lock_for_taz_empty_requests_count:
-                number_of_requests = taz_empty_requests_count.get(tazId, 0)
-                taz_empty_requests_count[tazId] = number_of_requests + 1
+                number_of_requests = taz_empty_requests_count.get(taz_id, 0)
+                taz_empty_requests_count[taz_id] = number_of_requests + 1
 
     return response_list
 
@@ -118,7 +115,6 @@ def run_spm_federate(cfed, federate_id, time_bin_in_seconds, simulated_day_in_se
         json_to_send = json.dumps(to_send, separators=(',', ':'))
         h.helicsPublicationPublishString(pubs_control, json_to_send)
 
-    # close the federate
     h.helicsFederateDisconnect(cfed)
     h.helicsFederateFree(cfed)
     print_and_log(f"FEDERATE{federate_id} Finished.")
@@ -127,13 +123,10 @@ def run_spm_federate(cfed, federate_id, time_bin_in_seconds, simulated_day_in_se
 ###############################################################################
 
 if __name__ == "__main__":
-    infrastructure_file = "../../../../../production/sfbay/parking/sfbay_taz_unlimited_charging_point.csv"
     number_of_federates = 1
 
     logging.basicConfig(filename='site_power_controller_federate.log', level=logging.DEBUG, filemode='w')
     print_and_log("Using helics version " + h.helicsGetVersion())
-    print_and_log("Loading infrastructure file: " + infrastructure_file)
-    data = pd.read_csv(infrastructure_file)
 
     federate_ids = list(map(lambda x: str(x), range(number_of_federates)))
     helics_config = {"coreInitString": f"--federates={len(federate_ids)} --broker_address=tcp://127.0.0.1",
@@ -181,10 +174,10 @@ if __name__ == "__main__":
 
     total_number_of_requests = sum(taz_to_power_requests_count.values())
     print_and_log(f"{len(taz_to_power_requests_count)} taz were affected by {total_number_of_requests} power requests.")
-    for taz_id in sorted(taz_to_power_requests_count.keys()):
-        taz_number_of_requests = taz_to_power_requests_count.get(taz_id)
-        print_and_log(f"taz {taz_id} got {taz_number_of_requests} requests.")
+    for taz in sorted(taz_to_power_requests_count.keys()):
+        taz_number_of_requests = taz_to_power_requests_count.get(taz)
+        print_and_log(f"taz {taz} got {taz_number_of_requests} requests.")
 
     total_number_of_requests = sum(taz_empty_requests_count.values())
     print_and_log(
-        f"{len(taz_empty_requests_count)} taz were affected by {total_number_of_requests} requests without a vehicle Id.")
+        f"{len(taz_empty_requests_count)} TAZ got {total_number_of_requests} requests without a vehicle Id.")

@@ -124,7 +124,7 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_
         if t % 1800 == 0:
             print2("Hour " + str(t/3600) + " completed.")
 
-    # close the federate
+    # close the helics federate
     h.helicsFederateDisconnect(cfed)
     print_inf("Federate finalized and now saving and finishing")
     h.helicsFederateFree(cfed)
