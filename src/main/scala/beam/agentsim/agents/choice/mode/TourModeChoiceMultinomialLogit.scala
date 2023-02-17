@@ -6,21 +6,23 @@ import beam.router.Modes.BeamMode
 import beam.router.TourModes.BeamTourMode
 import beam.router.skim.core.ODSkimmer.ODSkimmerTimeCostTransfer
 import beam.sim.population.AttributesOfIndividual
-import scripts.NetworkEdgeOutputGenerator.beamConfig
+import beam.sim.config.{BeamConfig, BeamConfigHolder}
+
 
 import scala.collection.{Seq, mutable}
 import scala.util.Random
 
 class TourModeChoiceMultinomialLogit(
   val attributesOfIndividual: AttributesOfIndividual,
-  val tourModeChoiceModel: TourModeChoiceModel
+  val tourModeChoiceModel: TourModeChoiceModel,
+  beamConfigHolder: BeamConfigHolder
 ) {
   val rnd: Random = new scala.util.Random(System.currentTimeMillis())
 
   val tourModeLogit = MultinomialLogit[BeamTourMode, TourModeChoiceModel.TourModeParameters](
     Map.empty[BeamTourMode, Map[TourModeParameters, UtilityFunctionOperation]],
     tourModeChoiceModel.DefaultMNLParameters,
-    beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.utility_scale_factor
+    beamConfigHolder.beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.utility_scale_factor
   )
 
   def chooseTourMode(
