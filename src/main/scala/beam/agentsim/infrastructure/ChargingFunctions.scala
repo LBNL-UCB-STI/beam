@@ -10,6 +10,7 @@ import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
 import beam.router.skim.{Skims, SkimsUtils}
+import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
@@ -49,11 +50,11 @@ class ChargingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+  private def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
       if (
-        inquiry.reservedFor.managerType == VehicleManager.TypeEnum.RideHail || inquiry.beamVehicle
-          .exists(v => v.isRideHail && (inquiry.parkingDuration <= 3600 || v.isCAV))
+        inquiry.parkingDuration <= 3600 && (inquiry.reservedFor.managerType == VehicleManager.TypeEnum.RideHail || inquiry.beamVehicle
+          .exists(_.isRideHail))
       )
         ChargingPointType.isFastCharger(chargingPointType)
       else true // not a ride hail vehicle seeking charging or parking for two then it is fine to park at slow charger
@@ -67,7 +68,7 @@ class ChargingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifChargeActivityThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+  private def ifChargeActivityThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
       inquiry.parkingActivityType match {
         case Charge => ChargingPointType.isFastCharger(chargingPointType)
@@ -83,7 +84,7 @@ class ChargingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifEnrouteThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+  private def ifEnrouteThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
       inquiry.searchMode match {
         case ParkingSearchMode.EnRouteCharging => ChargingPointType.isFastCharger(chargingPointType)
@@ -99,11 +100,13 @@ class ChargingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifHomeWorkOrLongParkingDurationThenSlowChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+  private def ifHomeWorkOrLongParkingDurationThenSlowChargingOnly(
+    zone: ParkingZone,
+    inquiry: ParkingInquiry
+  ): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
       inquiry.beamVehicle.forall {
-        case vehicle
-            if !vehicle.isRideHail && (isHomeWorkOrOvernight(inquiry) || hasLongParkingDurationButNotCharge(inquiry)) =>
+        case vehicle if !vehicle.isRideHail && (isHomeWorkOrOvernight(inquiry) || hasLongParkingDuration(inquiry)) =>
           !ChargingPointType.isFastCharger(chargingPointType)
         case _ => true
       }
@@ -117,11 +120,9 @@ class ChargingFunctions(
     * @param beamVehicleMaybe Option[BeamVehicle]
     * @return
     */
-  def hasValidChargingCapability(zone: ParkingZone, beamVehicleMaybe: Option[BeamVehicle]): Boolean = {
+  private def hasValidChargingCapability(zone: ParkingZone, beamVehicleMaybe: Option[BeamVehicle]): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
-      beamVehicleMaybe.forall(
-        _.beamVehicleType.chargingCapability.forall(getPower(_) >= getPower(chargingPointType))
-      )
+      beamVehicleMaybe.forall(_.beamVehicleType.chargingCapability.forall(getPower(_) >= getPower(chargingPointType)))
     )
   }
 
@@ -135,7 +136,7 @@ class ChargingFunctions(
     isHomeOrWork || isOvernight
   }
 
-  private def hasLongParkingDurationButNotCharge(inquiry: ParkingInquiry): Boolean = {
+  private def hasLongParkingDuration(inquiry: ParkingInquiry): Boolean = {
     inquiry.parkingDuration > 3600.0 && inquiry.searchMode != ParkingSearchMode.EnRouteCharging && inquiry.parkingActivityType != Charge
   }
 
