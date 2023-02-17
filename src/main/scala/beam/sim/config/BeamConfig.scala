@@ -681,7 +681,8 @@ object BeamConfig {
                   walk_intercept = if (c.hasPathOrNull("walk_intercept")) c.getDouble("walk_intercept") else 0.0,
                   walk_transit_intercept =
                     if (c.hasPathOrNull("walk_transit_intercept")) c.getDouble("walk_transit_intercept") else 0.0,
-                  ride_hail_subscription = if (c.hasPathOrNull("ride_hail_subscription")) c.getDouble("ride_hail_subscription") else 0.0
+                  ride_hail_subscription =
+                    if (c.hasPathOrNull("ride_hail_subscription")) c.getDouble("ride_hail_subscription") else 0.0
                 )
               }
             }
