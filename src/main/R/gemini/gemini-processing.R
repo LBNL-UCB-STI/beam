@@ -15,26 +15,130 @@ library(hrbrthemes)
 workDir <- normalizePath("~/Workspace/Data/GEMINI")
 activitySimDir <- normalizePath("~/Workspace/Data/ACTIVITYSIM")
 
-source("~/Workspace/Models/scripts/common/keys.R")
-register_google(key = google_api_key_1)
-oaklandMap <- ggmap::get_googlemap("oakland california", zoom = 13, maptype = "roadmap")
-shpFile <- pp(workDir, "/shapefile/Oakland+Alameda+TAZ/Transportation_Analysis_Zones.shp")
-oaklandCbg <- st_read(shpFile)
+###
+
+process_evs <- function(DATA_) {
+  DATA_$isRideHail <- FALSE
+  DATA_[startsWith(vehicle,"rideHail")]$isRideHail <- TRUE
+  DATA_$vehicleType2 <- "TRANSIT"
+  DATA_[startsWith(vehicleType, "ev-")]$vehicleType2 <- "PEV"
+  DATA_[startsWith(vehicleType, "ev-")&startsWith(vehicle,"rideHail")]$vehicleType2 <- "PEV-RH"
+  DATA_[startsWith(vehicleType, "phev-")]$vehicleType2 <- "PEV"
+  DATA_[startsWith(vehicleType, "phev-")&startsWith(vehicle,"rideHail")]$vehicleType2 <- "PEV-RH"
+  DATA_[startsWith(vehicleType, "hev-")]$vehicleType2 <- "CONV"
+  DATA_[startsWith(vehicleType, "hev-")&startsWith(vehicle,"rideHail")]$vehicleType2 <- "CONV-RH"
+  DATA_[startsWith(vehicleType, "conv-")]$vehicleType2 <- "CONV"
+  DATA_[startsWith(vehicleType, "conv-")&startsWith(vehicle,"rideHail")]$vehicleType2 <- "CONV-RH"
+  DATA_[startsWith(vehicleType, "BODY-")]$vehicleType2 <- "WALK"
+  DATA_[startsWith(vehicleType, "BIKE-")]$vehicleType2 <- "BIKE"
+  return (DATA_)
+}
+
+###
+
+# source("~/Workspace/Models/scripts/common/keys.R")
+# register_google(key = google_api_key_1)
+# oaklandMap <- ggmap::get_googlemap("oakland california", zoom = 13, maptype = "roadmap")
+# shpFile <- pp(workDir, "/shapefile/Oakland+Alameda+TAZ/Transportation_Analysis_Zones.shp")
+# oaklandCbg <- st_read(shpFile)
+
+events6HighEV <- readCsv(pp(workDir, "/2022-07-05/events-plus/rhev-siting.0.events.6HighEVB1.csv.gz"))
+events7AdvancedB4 <- readCsv(pp(workDir, "/2022-07-05/events-plus/rhev-siting.0.events.7AdvancedB4.csv.gz"))
+events7AdvancedB5 <- readCsv(pp(workDir, "/2022-07-05/events-plus/rhev-siting.0.events.7AdvancedB5.csv.gz"))
+
+events7AdvancedB4Same <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.7Advanced.csv.gz"))
+
+
+#events6HighEV <- process_evs(events6HighEV)
+#events7AdvancedB4 <- process_evs(events7AdvancedB4)
+#events7AdvancedB5_pt <- process_evs(events7AdvancedB5)
+
+
+events6HighEV_rs <- events6HighEV[type=="RefuelSessionEvent"][,starTime:=time-duration]
+events6HighEV_rs_sum <- events6HighEV_rs[,.(count=.N),by=.(starTimeBin=as.integer(starTime/3600))]
+events6HighEV_rs_sum$scenario <- "6HighEV"
+
+events7AdvancedB4_rs <- events7AdvancedB4[type=="RefuelSessionEvent"][,starTime:=time-duration]
+events7AdvancedB4_rs_sum <- events7AdvancedB4_rs[,.(count=.N),by=.(starTimeBin=as.integer(starTime/3600))]
+events7AdvancedB4_rs_sum$scenario <- "7AdvancedB4"
+
+events7AdvancedB5_rs <- events7AdvancedB5[type=="RefuelSessionEvent"][,starTime:=time-duration]
+events7AdvancedB5_rs_sum <- events7AdvancedB5_rs[,.(count=.N),by=.(starTimeBin=as.integer(starTime/3600))]
+events7AdvancedB5_rs_sum$scenario <- "7AdvancedB5"
+
+ggplot(rbind(events6HighEV_rs_sum, events7AdvancedB4_rs_sum, events7AdvancedB5_rs_sum)) +
+  geom_line(aes(starTimeBin,count,color=scenario))
+
+sum(events6HighEV[type=="RefuelSessionEvent"]$fuel)/3.6e+12
+sum(events7AdvancedB4[type=="RefuelSessionEvent"]$fuel)/3.6e+12
+sum(events7AdvancedB5[type=="RefuelSessionEvent"]$fuel)/3.6e+12
+
+sum(events7AdvancedB4Same[startsWith(vehicle,"rideHail")][type=="RefuelSessionEvent"]$fuel)/3.6e+12
+
+
+sum(events6HighEV[type=="PathTraversal"]$length)/1609
+sum(events7AdvancedB4[type=="PathTraversal"]$length)/1609
+sum(events7AdvancedB5[type=="PathTraversal"]$length)/1609
 
 
 ###
+infra1 <- readCsv(pp(workDir, "/2022-07-05/_models/nrel_infrastructure/6_output_2022_Apr_13_pubClust_withFees_noHousehold_aggregated.csv"))
+infra1[,.(stalls=sum(numStalls)),by=.(chargingPointType)][order(chargingPointType)]
 #eventsraw <- readCsv(pp(workDir, "/0.events.csv.gz"))
-events1 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.5b1.csv.gz"))
+events1 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.6HighEV.csv.gz"))
+#
 events1_rf <- events1[type=="RefuelSessionEvent"]
-#events1_rf[,.N,by=.(chargingPointType)]
-#events1_rf[,.(hour=sum(duration)/3600000.0),by=.(chargingPointType)]
-events1_rf[,.(minute=mean(duration)/60.0),by=.(chargingPointType)]
+#events1_rf[,.(minute=mean(duration)/60.0),by=.(chargingPointType)]
+events1_rf[,.(fuel=sum(fuel)/3.6e+9),by=.(chargingPointType)][order(chargingPointType)]
+sum(events1_rf[startsWith(vehicle,"rideHail")]$fuel)/3.6e+9
+nrow(events1_rf[startsWith(vehicle,"rideHail")])
 
-events2 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.5bBase.csv.gz"))
+
+events1_rf$isRideHail <- FALSE
+events1_rf[startsWith(vehicle,"rideHail")]$isRideHail <- TRUE
+options(scipen = 100, digits = 4)
+events1_rf[,.(fuelMW=sum(fuel)/3.6e+9),by=.(chargingPointType, isRideHail)][order(chargingPointType)]
+#
+events1_pt <- events1[type=="PathTraversal"]
+sum(events1_pt[startsWith(vehicle,"rideHail")]$length)/1609
+
+events1_pt[,.(VMT=sum(length)/1609),by=.(vehicleType2)][order(vehicleType2)]
+
+
+#
+infra2 <- readCsv(pp(workDir, "/2022-07-05/_models/nrel_infrastructure/7_low_init1_pubClust_wFix_forcedL1_withFees_noHousehold_aggregated.csv"))
+infra2[,.(stalls=sum(numStalls)),by=.(chargingPointType)][order(chargingPointType)]
+###
+events2 <- readCsv(pp(workDir, "/2022-07-05/events/filtered.0.events.7Advanced.csv.gz"))
+#
 events2_rf <- events2[type=="RefuelSessionEvent"]
 #events2_rf[,.N,by=.(chargingPointType)]
-#events2_rf[,.(hour=sum(duration)/3600000.0),by=.(chargingPointType)]
-events2_rf[,.(minute=mean(duration)/60.0),by=.(chargingPointType)]
+#events2_rf[,.(minute=mean(duration)/60.0),by=.(chargingPointType)]
+events2_rf[,.(fuelMW=sum(fuel)/3.6e+9),by=.(chargingPointType)][order(chargingPointType)]
+events2_rf$isRideHail <- FALSE
+events2_rf[startsWith(vehicle,"rideHail")]$isRideHail <- TRUE
+options(scipen = 100, digits = 4)
+events2_rf[,.(fuelMW=sum(fuel)/3.6e+9),by=.(chargingPointType, isRideHail)][order(chargingPointType)]
+sum(events2_rf[startsWith(vehicle,"rideHail")]$fuel)/3.6e+9
+nrow(events2_rf[startsWith(vehicle,"rideHail")])
+#
+events2_pt <- events2[type=="PathTraversal"]
+sum(events2_pt[startsWith(vehicle,"rideHail")]$length)/1609
+
+events2_pt$vehicleType2 <- "TRANSIT"
+events2_pt[startsWith(vehicleType, "ev-")]$vehicleType2 <- "PEV"
+events2_pt[startsWith(vehicleType, "ev-") & startsWith(vehicle,"rideHail")]$vehicleType2 <- "PEV-RH"
+events2_pt[startsWith(vehicleType, "phev-")]$vehicleType2 <- "PEV"
+events2_pt[startsWith(vehicleType, "phev-") & startsWith(vehicle,"rideHail")]$vehicleType2 <- "PEV-RH"
+events2_pt[startsWith(vehicleType, "hev-")]$vehicleType2 <- "CONV"
+events2_pt[startsWith(vehicleType, "hev-") & startsWith(vehicle,"rideHail")]$vehicleType2 <- "CONV-RH"
+events2_pt[startsWith(vehicleType, "conv-")]$vehicleType2 <- "CONV"
+events2_pt[startsWith(vehicleType, "conv-") & startsWith(vehicle,"rideHail")]$vehicleType2 <- "CONV-RH"
+events2_pt[startsWith(vehicleType, "BODY-")]$vehicleType2 <- "WALK"
+events2_pt[startsWith(vehicleType, "BIKE-")]$vehicleType2 <- "BIKE"
+
+events2_pt[,.(VMT=sum(length)/1609),by=.(vehicleType2)][order(vehicleType2)]
+
 
 
 

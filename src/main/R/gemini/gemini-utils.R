@@ -7,6 +7,7 @@ siteXFCInKW <- 1000
 plugXFCInKW <- 200
 time.bins <- data.table(time=seq(0,61,by=binsInterval)*3600,quarter.hour=seq(0,61,by=binsInterval))
 
+
 #chargingTypes.colors <- c("goldenrod2", "#66CCFF", "#669900", "#660099", "#FFCC33", "#CC3300", "#0066CC")
 #names(chargingTypes.colors) <- c("XFC", "DCFC", "Public-L2", "Work-L2", "Work-L1", "Home-L2", "Home-L1")
 chargingTypes.colors <- c("goldenrod2", "#66CCFF", "#669900", "#660099", "#CC3300", "#0066CC")

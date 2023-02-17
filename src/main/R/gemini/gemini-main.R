@@ -63,7 +63,7 @@ for(j in 1:nrow(publicLoads)){
 }
 scens <- as.data.table(readCsv(pp(resultsDir,'/../scenarios.csv')))
 all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
-
+sum(all.loads[code=="7Advanced"][chargingPointType=="depotxfc(300.0|DC)"]$fuel)/3.6e+12
 # let’s squeeze a short date some time this weeklet’s squeeze a short date some time this week
 #####
 # scenarioNames <- c('Scenario2', 'Scenario2-010', 'Scenario2-025', 'Scenario2-050')
@@ -74,7 +74,8 @@ all.loads <- as.data.table(all.loads[scens, on="code", mult="all"])
 # scenarioNames <- c('5b1', '5b2')
 # scenarioNames <- c('5b3', '5b4', '5b5', '5b6', '5b7')
 
-scenarioNames <- c('BaseXFC', 'HighEV', 'Advanced', 'MaxEV')
+scenarioNames <- c('BaseXFC', 'HighEV', 'Advanced')
+#scenarioNames <- c('BaseXFC', 'HighEV', 'Advanced', 'MaxEV')
 #scenarioNames <- c('BaseXFC', 'HighEV', '5b1', '5b2', '5b3')
 #scenarioNames <- c('5b1', '5b2', '5b3')
 
@@ -89,7 +90,7 @@ scenarioBaselineLabel <- 'BaseXFC'
 ##  public charging by scenario
 #scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5', '5b6', '5b7')
 #scenarioNames <- c('5b1', '5b2', '5b3', '5b4', '5b5', '5b6', '5b7')
-p <- all.loads[site=='public'&name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
+p <- all.loads[name%in%scenarioNames][,.(kw=sum(kw)),by=c('loadType','hour.bin2','name')] %>%
   ggplot(aes(x=hour.bin2,y=kw/1e6,fill=factor(loadType, levels = names(chargingTypes.colors))))+
   theme_marain() +
   geom_area(colour="black", size=0.3) +

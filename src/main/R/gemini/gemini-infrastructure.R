@@ -16,20 +16,6 @@ infraDir <- pp(workDir,"/_models/nrel_infrastructure")
 ###########################
 ###########################
 
-#infra8MaxEV <- readCsv(pp(infraDir, "/scen_8_infrastructure_withFees.csv.gz"))
-infra_converted_withFees <- readCsv(pp(infraDir, "/8_low_init1_pubClust_wFix_withFees.csv.gz"))
-infra_converted_withFees[startsWith(reservedFor,"household")]$reservedFor <- "Any"
-infra_converted_withFees_noHousehold <- infra_converted_withFees[
-  ,.(parkingZoneId=first(parkingZoneId),feeInCents=mean(feeInCents),numStalls=sum(numStalls))
-  ,b=.(taz,parkingType,chargingPointType,locationX,locationY,reservedFor,pricingModel)]
-write.csv(
-  infra_converted_withFees_noHousehold,
-  file = pp(infraDir, "/8_low_init1_pubClust_wFix_withFees_noHousehold.csv"),
-  row.names=FALSE,
-  quote=FALSE)
-
-###########################
-
 aggregateInfrastructure <- function(FULL_FILE_NAME) {
   DATA <- readCsv(FULL_FILE_NAME)
   DATA_agg <- DATA[,.(feeInCents=mean(feeInCents),numStalls=sum(numStalls)),by=.(taz,parkingType,chargingPointType,reservedFor,pricingModel)]
@@ -58,9 +44,28 @@ aggregateInfrastructure <- function(FULL_FILE_NAME) {
   print("END aggregateInfrastructure")
 }
 
-aggregateInfrastructure(pp(infraDir, "/7_low_init1_pubClust_wFix_withFees_noHousehold.csv"))
+###########################
+###########################
+###########################
 
+#infra8MaxEV <- readCsv(pp(infraDir, "/scen_8_infrastructure_withFees.csv.gz"))
+infra_converted_name <- "7_low_init1_pubClust_wFix_forcedL1_withFees"
+infra_converted_withFees <- readCsv(pp(infraDir, "/", infra_converted_name, ".csv.gz"))
+infra_converted_withFees[startsWith(reservedFor,"household")]$reservedFor <- "Any"
+infra_converted_withFees_noHousehold <- infra_converted_withFees[
+  ,.(parkingZoneId=first(parkingZoneId),feeInCents=mean(feeInCents),numStalls=sum(numStalls))
+  ,b=.(taz,parkingType,chargingPointType,locationX,locationY,reservedFor,pricingModel)]
+write.csv(
+  infra_converted_withFees_noHousehold,
+  file = pp(infraDir, "/", infra_converted_name, "_noHousehold.csv"),
+  row.names=FALSE,
+  quote=FALSE)
 
+###########################
+
+aggregateInfrastructure(pp(infraDir, "/", infra_converted_name, "_noHousehold.csv"))
+
+###########################
 
 infra5aBase <- readCsv(pp(infraDir, "/4a_output_2022_Apr_13_pubClust_withFees_noHousehold.csv"))
 infra5bBase <- readCsv(pp(infraDir, "/4b_output_2022_Apr_13_pubClust_withFees_noHousehold.csv"))
