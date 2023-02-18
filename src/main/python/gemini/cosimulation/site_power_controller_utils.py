@@ -7,7 +7,6 @@ from threading import Thread
 from nrel_spmc_controller.rudimentary_spmc_rev3 import SPM_Control as SPM_Control_Rudimentary
 from nrel_spmc_controller.spmc_v4 import SPM_Control as SPM_Control_Advanced
 from xfc_btms_saev_controller import components
-import xfc_btms_saev_controller.components
 from abc import abstractmethod
 
 
