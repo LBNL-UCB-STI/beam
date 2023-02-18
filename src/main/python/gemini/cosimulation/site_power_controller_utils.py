@@ -59,7 +59,8 @@ class DataForSPMC:
     site_power_in_kw = 0
     battery_capacity_in_k_wh = []  # TODO Julius @ HL can you please add this to the BEAM output?
 
-    def __init__(self):
+    def __init__(self, ess_soc):
+        self.ess_soc = ess_soc
         pass
 
 
@@ -90,9 +91,9 @@ class AbstractSPMC:
             self.thread.join()
         return self.control_commands
 
-    def run(self, t, charging_events):
+    def run(self, t, charging_events, ess_soc):
         self.control_commands = []
-        data_for_spmc = DataForSPMC()
+        data_for_spmc = DataForSPMC(ess_soc)
 
         for charging_event in charging_events:
             data_for_spmc.vehicle_id.append(str(charging_event['vehicleId']))
@@ -123,21 +124,24 @@ class AdvancedSPMC(AbstractSPMC):
     control_commands = []
     thread = Thread()
 
-    def __init__(self, name, taz_id, site_id):
-        Pmax = [20, 25, 15, 20]  # max EV charging power (EVSE power rate)
-        Pmin = [0, 0, 0, 0]  # min EV charging power
-        ESS_capacity = 50  # in kWh
-        self.spm_c = SPM_Control_Advanced(time_step_mins=15, num_ess=1, ess_size=ESS_capacity, max_power_evse=Pmax, min_power_evse=Pmin)
+    def __init__(self, name, taz_id, site_id, events):
+        num_plugs = int(events[0]['parkingZoneNumPlugs'])
+        self.site_power = float(events[0]['parkingZonePowerInKW'])
+        plug_power = self.site_power/num_plugs
+        p_max = [plug_power] * num_plugs  # max EV charging power (EVSE power rate)
+        p_min = [0] * num_plugs  # min EV charging power
+        ess_capacity = float(events[0]['energyStorageSystemInKWh'])  # in kWh
+        self.spm_c = SPM_Control_Advanced(time_step_mins=15, num_ess=1, ess_size=ess_capacity, max_power_evse=p_max, min_power_evse=p_min)
         AbstractSPMC.__init__(self, name, taz_id, site_id)
 
     def run_model(self, t, vehicles, data_for_spmc):
         t_dep = [(tt - t) / 60.0 for tt in data_for_spmc.desired_departure_time] # departure time in minute from the current time
         e_req = data_for_spmc.desired_fuel_level_in_k_wh # energy remaining for each EV
-        Pmax_site = 30
-        Pmin_site = 0
-        ESS_soc = 0.7
+        p_max_site = self.site_power
+        p_min_site = 0
+        ess_soc = data_for_spmc.ess_soc
         [p_evse_setpoint, p_ess_setpoint, p_evse_opt, e_evse_opt, p_ess_opt, e_ess_opt, delta_t, flag] = \
-            self.spm_c.get_evse_setpoint(t_dep, e_req, Pmin_site, Pmax_site, ESS_soc)
+            self.spm_c.get_evse_setpoint(t_dep, e_req, p_min_site, p_max_site, ess_soc)
         i = 0
         spmc_commands = []
         for vehicle in vehicles:

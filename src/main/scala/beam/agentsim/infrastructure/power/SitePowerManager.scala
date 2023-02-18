@@ -153,10 +153,11 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
           // Constructing a list of Parking Zone ids to initialize the site power manager
           stations.map(station =>
             Map(
-              "tazId"                -> station.zone.tazId,
-              "parkingZoneId"        -> station.zone.parkingZoneId,
-              "parkingZonePowerInKW" -> station.maxPlugPower * station.numPlugs,
-              "parkingZoneNumPlugs"  -> station.numPlugs
+              "tazId"                    -> station.zone.tazId,
+              "parkingZoneId"            -> station.zone.parkingZoneId,
+              "parkingZonePowerInKW"     -> station.maxPlugPower * station.numPlugs,
+              "parkingZoneNumPlugs"      -> station.numPlugs,
+              "energyStorageSystemInKWh" -> 50 // TODO This should be defined in the infrastructure file!!
             )
           )
         } else {

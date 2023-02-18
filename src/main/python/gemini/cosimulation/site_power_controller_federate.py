@@ -11,7 +11,8 @@ from threading import Thread
 import json
 import pathlib
 
-from site_power_controller_utils import RudimentarySPMC
+# from site_power_controller_utils import RudimentarySPMC
+from site_power_controller_utils import AdvancedSPMC
 from site_power_controller_utils import RideHailSPMC
 from site_power_controller_utils import create_federate
 from site_power_controller_utils import print2
@@ -62,7 +63,10 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_
                     "RideHailSPMC", taz_id_str, parking_zone_id_str, events, time_step, sim_dur, output_dir
                 )
         elif parking_zone_id_str not in default_spm_c_dict:
-            default_spm_c_dict[parking_zone_id_str] = RudimentarySPMC("DefaultSPMC", taz_id_str, parking_zone_id_str)
+            # default_spm_c_dict[parking_zone_id_str] = RudimentarySPMC("DefaultSPMC", taz_id_str, parking_zone_id_str)
+            default_spm_c_dict[parking_zone_id_str] = AdvancedSPMC(
+                "AdvancedSPMC", taz_id_str, parking_zone_id_str, events
+            )
             
     # RUN
     def run_multi_threaded_spm_controllers(parking_zone_id_str, current_t, received_charging_events):
