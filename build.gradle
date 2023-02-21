@@ -740,10 +740,10 @@ jmh {
 }
 
 tasks.register('deploy') {
-    def cloudProvider = null
-    def paramName = "cloudProvider"
+    def cloudPlatform = null
+    def paramName = "cloudPlatform"
     if (project.hasProperty(paramName)) {
-        cloudProvider = project.findProperty(paramName)
+        cloudPlatform = project.findProperty(paramName)
     } else {
         def propsFileName = "./gradle.deploy.properties"
         if (project.hasProperty('propsFile')) {
@@ -751,13 +751,13 @@ tasks.register('deploy') {
         }
         def propsFile = new Properties()
         propsFile.load(project.file(propsFileName).newDataInputStream())
-        cloudProvider = propsFile.getProperty(paramName)
+        cloudPlatform = propsFile.getProperty(paramName)
     }
-    if (cloudProvider == null) {
-        cloudProvider = ""
+    if (cloudPlatform == null) {
+        cloudPlatform = ""
     }
 
-    switch (cloudProvider.trim().toLowerCase()) {
+    switch (cloudPlatform.trim().toLowerCase()) {
         case "amazon":
             dependsOn ':aws:deployToEC2'
             break
@@ -765,7 +765,7 @@ tasks.register('deploy') {
             dependsOn ':gcp:deployToGCE'
             break
         default:
-            throw new InvalidUserDataException("Cannot deploy! Please specify cloudProvider property to one of [Google, Amazon]")
+            throw new InvalidUserDataException("Cannot deploy! Please specify cloudPlatform property to one of [Google, Amazon]")
             break
     }
 }

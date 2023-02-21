@@ -201,6 +201,7 @@ To run a BEAM simulation or experiment on amazon ec2, use following command with
 The command will start an ec2 instance based on the provided configurations and run all simulations in serial. At the end of each simulation/experiment, outputs are uploaded to a public Amazon S3 bucket_. The default behavior is to run each simulation/experiment parallel on separate instances. For customized runs, you can also use following parameters that can be specified from command line:
 
 * **propsFile**: to specify file with default values
+* **cloudPlatform**: Amazon
 * **runName**: to specify instance name.
 * **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
 * **beamCommit**: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
@@ -231,11 +232,11 @@ The order which will be used to look for parameter values is follow:
 
 To run a batch simulation, you can specify multiple configuration files separated by commas::
 
-  ./gradlew deploy -PbeamConfigs=test/input/beamville/beam.conf,test/input/sf-light/sf-light.conf
+  ./gradlew deploy -PcloudPlatform=Amazon -PbeamConfigs=test/input/beamville/beam.conf,test/input/sf-light/sf-light.conf
 
 Similarly for experiment batch, you can specify comma-separated experiment files::
 
-  ./gradlew deploy -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
+  ./gradlew deploy -PcloudPlatform=Amazon -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
 
 For demo and presentation material, please follow the link_ on google drive.
 
@@ -277,6 +278,8 @@ Now all the instance are created in `us-central1-a` zone.
 Now the deployment script doesn't calculate it automatically.
 One needs to define the deploy properties that are similar to the ones for AWS deploy. These are the properties that is used on GCE:
 
+* **propsFile**: to specify file with default values
+* **cloudPlatform**: Google
 * **runName**: to specify instance name.
 * **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
 * **beamCommit**: The commit SHA to run simulation. Comment it out if you want to run with latest commit.
@@ -293,7 +296,7 @@ The deployment command is
 
 .. code-block:: bash
 
- ./gradlew deployToGCE
+ ./gradlew -PcloudPlatform=Google deploy
 
 The simulation output is uploaded to the `Google Cloud Storage <https://console.cloud.google.com/storage/browser/beam-core-outputs/output>`_.
 
