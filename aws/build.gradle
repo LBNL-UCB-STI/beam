@@ -32,7 +32,7 @@ lambda {
     socketTimeout = 900000
 }
 
-task deploy(type: AWSLambdaInvokeTask) {
+tasks.register('deployToEC2', AWSLambdaInvokeTask) {
     doFirst {
         def propsFileName = "../gradle.deploy.properties"
         if (project.hasProperty('propsFile')) {

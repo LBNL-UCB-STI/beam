@@ -738,3 +738,34 @@ jmh {
     duplicateClassesStrategy = 'exclude'
     zip64 = true
 }
+
+tasks.register('deploy') {
+    def cloudProvider = null
+    def paramName = "cloudProvider"
+    if (project.hasProperty(paramName)) {
+        cloudProvider = project.findProperty(paramName)
+    } else {
+        def propsFileName = "./gradle.deploy.properties"
+        if (project.hasProperty('propsFile')) {
+            propsFileName = project.findProperty('propsFile')
+        }
+        def propsFile = new Properties()
+        propsFile.load(project.file(propsFileName).newDataInputStream())
+        cloudProvider = propsFile.getProperty(paramName)
+    }
+    if (cloudProvider == null) {
+        cloudProvider = ""
+    }
+
+    switch (cloudProvider.trim().toLowerCase()) {
+        case "amazon":
+            dependsOn ':aws:deployToEC2'
+            break
+        case "google":
+            dependsOn ':gcp:deployToGCE'
+            break
+        default:
+            throw new InvalidUserDataException("Cannot deploy! Please specify cloudProvider property to one of [Google, Amazon]")
+            break
+    }
+}
