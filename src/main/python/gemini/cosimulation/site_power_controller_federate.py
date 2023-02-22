@@ -11,7 +11,7 @@ from threading import Thread
 import json
 import pathlib
 
-# from site_power_controller_utils import RudimentarySPMC
+from site_power_controller_utils import RudimentarySPMC
 from site_power_controller_utils import AdvancedSPMC
 from site_power_controller_utils import RideHailSPMC
 from site_power_controller_utils import create_federate
@@ -59,14 +59,13 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_
     def init_spm_controllers(taz_id_str, parking_zone_id_str, events, time_step, sim_dur, output_dir):
         if parking_zone_id_str.lower().startswith(depot_prefix):
             if parking_zone_id_str not in ride_hail_spm_c_dict:
-                ride_hail_spm_c_dict[parking_zone_id_str] = RideHailSPMC(
-                    "RideHailSPMC", taz_id_str, parking_zone_id_str, events, time_step, sim_dur, output_dir
-                )
+                # ride_hail_spm_c_dict[parking_zone_id_str] = RideHailSPMC(
+                #     "RideHailSPMC", taz_id_str, parking_zone_id_str, events, time_step, sim_dur, output_dir
+                # )
+                ride_hail_spm_c_dict[parking_zone_id_str] = RudimentarySPMC("RideHailSPMC", taz_id_str, parking_zone_id_str, events)
         elif parking_zone_id_str not in default_spm_c_dict:
             # default_spm_c_dict[parking_zone_id_str] = RudimentarySPMC("DefaultSPMC", taz_id_str, parking_zone_id_str)
-            default_spm_c_dict[parking_zone_id_str] = AdvancedSPMC(
-                "AdvancedSPMC", taz_id_str, parking_zone_id_str, events
-            )
+            default_spm_c_dict[parking_zone_id_str] = AdvancedSPMC("AdvancedSPMC", taz_id_str, parking_zone_id_str, events)
             
     # RUN
     def run_multi_threaded_spm_controllers(parking_zone_id_str, current_t, received_charging_events):
@@ -100,13 +99,24 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_
                 pass
             elif len(charging_events_json) > 0:
                 processed_side_ids = []
-                for (taz_id, parking_zone_id), charging_events in itertools.groupby(charging_events_json, key= lambda d: (d['tazId'], d['parkingZoneId'])):
-                    init_spm_controllers(taz_id, parking_zone_id, list(charging_events),
-                                         time_bin_in_seconds, simulated_day_in_seconds,
-                                         output_directory)
+                grouped_events = [
+                    (k[0], k[1], list(v)) for k, v in itertools.groupby(
+                        charging_events_json, key= lambda d: (d['tazId'], d['parkingZoneId'])
+                    )
+                ]
+                for taz_id, parking_zone_id, charging_events in grouped_events:
+                    # taz_id = k[0]
+                    # parking_zone_id = k[1]
+                    # charging_events = list(v)
+                    init_spm_controllers(taz_id, parking_zone_id, charging_events, time_bin_in_seconds,
+                                         simulated_day_in_seconds, output_directory)
                     # Running SPM Controllers
                     filtered_charging_events = list(
                         filter(lambda charging_event: 'vehicleId' in charging_event, charging_events))
+                    if t > 0:
+                        print2("taz_id " + str(taz_id))
+                        print2("parking_zone_id " + str(parking_zone_id))
+                        print2("charging_events " + str(list(charging_events)))
                     if len(filtered_charging_events) > 0:
                         processed_side_ids = processed_side_ids + [parking_zone_id]
                         if multi_threaded_run:
