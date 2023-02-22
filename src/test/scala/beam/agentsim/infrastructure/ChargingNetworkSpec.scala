@@ -145,7 +145,7 @@ class ChargingNetworkSpec
     val baseConfig = system.settings.config
     val beamConfig = BeamConfig(baseConfig)
 
-    it("should happen with the expected probability in respect to the WalkingEgressCost") {
+    it("should happen with the expected probability in respect to WalkingEgressCost") {
 
       val (tazTreeMap, _, searchRadius, tazSpacing) = createTazGrid()
       // increases valueOfTime to amplify the differences between parking options
@@ -201,7 +201,7 @@ class ChargingNetworkSpec
 
     }
 
-    it("should happen with the expected probability in respect to the ParkingTicketCost") {
+    it("should happen with the expected probability in respect to ParkingTicketCost") {
 
       val (tazTreeMap, _, searchRadius, tazSpacing) = createTazGrid(horizontalCount = 1, verticalCount = 1)
 
@@ -260,7 +260,63 @@ class ChargingNetworkSpec
 
     }
 
-    it("should happen with the expected probability in respect to the EnrouteDetourCost") {
+    it("should happen with the expected probability in respect to HomeActivityPrefersResidentialParking") {
+
+      val (tazTreeMap, _, searchRadius, tazSpacing) = createTazGrid(horizontalCount = 1, verticalCount = 1)
+
+      val nStalls: Int = 10
+
+      val destinationSpaceTime = centerSpaceTime
+      val originSpaceTime =
+        SpaceTime(centerSpaceTime.loc.getX - tazSpacing / 2, centerSpaceTime.loc.getY - tazSpacing / 2, 0)
+
+      val vehicle = createBEV(originSpaceTime)
+
+      val tazId = tazTreeMap.idToTAZMapping.head._1.toString
+      var sumExpUtility = 0.0
+      val expectedProbability = new mutable.ListMap[Id[ParkingZoneId], Double]()
+      val parkingOptions = new ListBuffer[String]()
+      parkingOptions += "taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,parkingZoneId"
+      for (stallIndex <- 0 until nStalls) {
+        val homeStall = stallIndex == 0
+
+        parkingOptions += s"$tazId,${if (homeStall) "Residential" else "Public"},FlatFee,Level1(2.3|AC),9999,0,,$stallIndex"
+
+        val expUtility =
+          math.exp(
+            (if (homeStall) 1.0 else 0.0) *
+            beamConfig.beam.agentsim.agents.parking.multinomialLogit.params.homeActivityPrefersResidentialParkingMultiplier
+          )
+        sumExpUtility += expUtility
+        expectedProbability += Id.create[ParkingZoneId](s"$stallIndex", classOf[ParkingZoneId]) -> expUtility
+      }
+      expectedProbability.foreach(zoneId_prob => expectedProbability(zoneId_prob._1) /= sumExpUtility)
+
+      val parkingInquiry = ParkingInquiry.init(
+        destinationSpaceTime,
+        "Home",
+        beamVehicle = Some(vehicle),
+        triggerId = 49238
+      )
+      val configWithSeedFunction: Int => String =
+        (seed: Int) => s"""|matsim.modules.global.randomSeed = $seed
+
+              |beam.agentsim.agents.parking.minSearchRadius = $searchRadius
+
+              |beam.agentsim.agents.parking.maxSearchRadius = $searchRadius""".stripMargin
+
+      runParkingSelectionTest(
+        baseConfig,
+        configWithSeedFunction,
+        tazTreeMap,
+        parkingOptions,
+        parkingInquiry,
+        expectedProbability
+      )
+
+    }
+
+    it("should happen with the expected probability in respect to EnrouteDetourCost") {
 
       val (tazTreeMap, boundingBox, searchRadius, _) = createTazGrid()
       val valueOfTime = beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
@@ -332,6 +388,8 @@ class ChargingNetworkSpec
       )
 
     }
+
+    it("should happen with the expected probability in respect to RangeAnxietyCost") {}
   }
 
   def runParkingSelectionTest(
