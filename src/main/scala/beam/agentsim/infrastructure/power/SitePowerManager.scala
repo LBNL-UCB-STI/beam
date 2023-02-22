@@ -248,9 +248,9 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     chargingVehicle: ChargingVehicle
   ): ChargingCycle = {
     val vehicle = chargingVehicle.vehicle
-    val constrainedPowerAtZoneLevel = getPowerFromZoneLimit(vehicle.stall.get)
+    val constrainedPowerAtZoneLevel = getPowerFromZoneLimit(chargingVehicle.stall)
     val constrainedPowerAtVehicleLevel =
-      getPowerFromVehicleLimit(vehicle, vehicle.stall.get, Some(constrainedPowerAtZoneLevel))
+      getPowerFromVehicleLimit(vehicle, chargingVehicle.stall, Some(constrainedPowerAtZoneLevel))
     val duration = Math.max(0, cycleEndTime - cycleStartTime)
     val (chargingDuration, energyToCharge) = vehicle.refuelingSessionDurationAndEnergyInJoules(
       sessionDurationLimit = Some(duration),
