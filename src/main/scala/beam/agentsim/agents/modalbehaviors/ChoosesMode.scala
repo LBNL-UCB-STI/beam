@@ -881,6 +881,7 @@ trait ChoosesMode {
     }
   }
 
+
   private def generateRoutingRequestsForEgress(
     newTrips: Seq[EmbodiedBeamTrip]
   ): Map[RoutingRequest, TripIdentifier] = {

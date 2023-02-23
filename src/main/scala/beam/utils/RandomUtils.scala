@@ -2,6 +2,7 @@ package beam.utils
 
 import scala.annotation.tailrec
 
+// Dead code - delete?
 object RandomUtils {
 
   def multiSpan[A](xs: List[A])(splitOn: A => Boolean): List[List[A]] = {

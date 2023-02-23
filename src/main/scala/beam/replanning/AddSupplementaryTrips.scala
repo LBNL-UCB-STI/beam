@@ -20,7 +20,7 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
       log.debug("Before Replanning AddNewActivities: Person-" + person.getId + " - " + person.getPlans.size())
       ReplanningUtil.makeExperiencedMobSimCompatible(person)
 
-      val simplifiedPlan = mandatoryTour(person.getSelectedPlan)
+      val simplifiedPlan = mandatoryTour(person.getSelectedPlan) // remove all activities besides home and work
 
       val newPlan = ReplanningUtil.addNoModeBeamTripsToPlanWithOnlyActivities(
         addSecondaryActivities(simplifiedPlan)
