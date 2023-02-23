@@ -1,5 +1,6 @@
 package beam.router.skim.event
 
+import beam.agentsim.agents.ridehail.RideHailVehicleId
 import beam.router.Modes
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.WALK
@@ -43,7 +44,11 @@ case class ODSkimmerEvent(
     val origLeg = beamLegs.head
     val timeBin = SkimsUtils.timeToBin(origLeg.startTime)
     val dist = beamLegs.map(_.travelPath.distanceInM).sum
-    val key = ODSkimmerKey(timeBin, mode, origin, destination)
+    val rideHailName =
+      if (mode.isRideHail) RideHailVehicleId(trip.legs.find(_.isRideHail).get.beamVehicleId).fleetId
+      else ""
+
+    val key = ODSkimmerKey(timeBin, mode, rideHailName, origin, destination)
     val payload =
       ODSkimmerInternal(
         travelTimeInS = correctedTrip.totalTravelTimeInSecs.toDouble,
@@ -58,6 +63,19 @@ case class ODSkimmerEvent(
         failedTrips = if (failedTrip) 1 else 0
       )
     (key, payload)
+  }
+
+  /**
+    * Creates the same event without RideHail name. We need this to keep skims for generic RideHail mode (not tied
+    * to any particular RideHail)
+    * @return OD SkimmerEvent without RideHail name
+    */
+  def genericRideHailEvent(): AbstractSkimmerEvent = new AbstractSkimmerEvent(eventTime) {
+    override protected val skimName: String = ODSkimmerEvent.this.skimName
+
+    override def getKey: AbstractSkimmerKey = key.copy(rideHailName = "")
+
+    override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
   }
 }
 
@@ -128,7 +146,7 @@ case class ODSkimmerFailedTripEvent(
 ) extends AbstractSkimmerEvent(eventTime) {
 
   override def getKey: AbstractSkimmerKey =
-    ODSkimmerKey(SkimsUtils.timeToBin(Math.round(eventTime).toInt), mode, origin, destination)
+    ODSkimmerKey(SkimsUtils.timeToBin(Math.round(eventTime).toInt), mode, "", origin, destination)
 
   override def getSkimmerInternal: AbstractSkimmerInternal = {
     ODSkimmerInternal(
