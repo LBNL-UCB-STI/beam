@@ -32,11 +32,13 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
 
   def getSkimDefaultValue(
     mode: BeamMode,
+    rideHailName: String,
     originUTM: Location,
     destinationUTM: Location,
     beamVehicleType: BeamVehicleType,
     fuelPrice: Double
-  ): Skim = ODSkims.getSkimDefaultValue(beamConfig, mode, originUTM, destinationUTM, beamVehicleType, fuelPrice)
+  ): Skim =
+    ODSkims.getSkimDefaultValue(beamConfig, mode, rideHailName, originUTM, destinationUTM, beamVehicleType, fuelPrice)
 
   def getRideHailPoolingTimeAndCostRatios(
     origin: Location,
@@ -59,7 +61,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
           generalizedTimeInS = 0,
           generalizedCost = 0,
           distanceInM = travelDistance.toDouble,
-          cost = getRideHailCost(RIDE_HAIL, travelDistance, travelTime, beamConfig),
+          cost = getRideHailCost(RIDE_HAIL, travelDistance, travelTime, rideHailName, beamConfig),
           payloadWeightInKg = 0.0,
           energy = 0.0,
           level4CavTravelTimeScalingFactor = 1.0,
@@ -83,6 +85,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
             RIDE_HAIL_POOLED,
             solo.distanceInM,
             solo.travelTimeInS * poolingTravelTimeOveheadFactor,
+            rideHailName,
             beamConfig
           ),
           payloadWeightInKg = 0.0,
@@ -131,6 +134,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
       case None =>
         getSkimDefaultValue(
           mode,
+          "",
           originUTM,
           new Coord(destinationUTM.getX, destinationUTM.getY),
           vehicleType,
@@ -166,6 +170,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
 
           getSkimDefaultValue(
             mode,
+            "",
             origin.coord,
             adjustedDestCoord,
             vehicleType,
@@ -247,6 +252,7 @@ object ODSkims extends BeamHelper {
   def getSkimDefaultValue(
     beamConfig: BeamConfig,
     mode: BeamMode,
+    rideHailName: String,
     originUTM: Location,
     destinationUTM: Location,
     beamVehicleType: BeamVehicleType,
@@ -266,7 +272,7 @@ object ODSkims extends BeamHelper {
           fuelPrice
         )
       case RIDE_HAIL | RIDE_HAIL_POOLED =>
-        SkimsUtils.getRideHailCost(mode, travelDistance, travelTime, beamConfig)
+        SkimsUtils.getRideHailCost(mode, travelDistance, travelTime, rideHailName, beamConfig)
       case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT => 0.25 * travelDistance / 1609
       case _                                                                         => 0.0
     }

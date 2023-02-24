@@ -1429,6 +1429,7 @@ trait ChoosesMode {
     val skim: ODSkimmer.Skim = ODSkims.getSkimDefaultValue(
       beamServices.beamConfig,
       mode,
+      "",
       originLocation,
       destinationLocation,
       beamScenario.vehicleTypes(dummyRHVehicle.vehicleTypeId),

@@ -263,6 +263,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
                 .asInstanceOf[ODSkims]
                 .getSkimDefaultValue(
                   mode,
+                  rideHailName,
                   origin.center,
                   destCoord,
                   vehicleType,
@@ -272,7 +273,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
 
         //     "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,level4CavTravelTimeScalingFactor,observations,iterations"
         writer.write(
-          s"$timeBin,$mode,${origin.id},${destination.id},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedCost},${theSkim.distance},${theSkim.payloadWeight},${theSkim.energy},${theSkim.level4CavTravelTimeScalingFactor},${theSkim.failedTrips},${theSkim.count}\n"
+          s"$timeBin,$mode,$rideHailName,${origin.id},${destination.id},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedCost},${theSkim.distance},${theSkim.payloadWeight},${theSkim.energy},${theSkim.level4CavTravelTimeScalingFactor},${theSkim.failedTrips},${theSkim.count},${theSkim}\n"
         )
       }
   }
@@ -338,6 +339,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
             .asInstanceOf[ODSkims]
             .getSkimDefaultValue(
               mode,
+              "",
               origin.coord,
               adjustedDestCoord,
               beamScenario.vehicleTypes(dummyId),
