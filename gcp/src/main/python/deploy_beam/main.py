@@ -48,7 +48,7 @@ def create_beam_instance(request):
         return escape("No instance type provided"), 400
     instance_cores, instance_memory = find_instance_cores_and_memory(instance_type)
     if not instance_memory:
-        return escape(f"Instance type '{instance_type}' is not supported")
+        return escape(f"Instance type '{instance_type}' is not supported"), 400
     max_ram = request_payload['forced_max_ram']
     if parameter_is_not_specified(max_ram):
         max_ram = calculate_heap_size(instance_cores, instance_memory)
@@ -70,7 +70,7 @@ def create_beam_instance(request):
     disk_image_name = f"projects/{project}/global/images/beam-box"
     cloud_init_script_url = os.environ.get('CLOUD_INIT_SCRIPT_URL')
     if not cloud_init_script_url:
-        cloud_init_script_url = "https://raw.githubusercontent.com/LBNL-UCB-STI/beam/do/%233652-execute-beam-on-google-cloud-compute/gcp/src/main/bash/cloud-init.sh"
+        cloud_init_script_url = "https://raw.githubusercontent.com/LBNL-UCB-STI/beam/develop/gcp/src/main/bash/cloud-init.sh"
     log(f"cloud_init_script_url: {cloud_init_script_url}")
     startup_script = """
 #!/bin/sh
@@ -126,7 +126,7 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
         error = f"{error_head['code']}, {error_head['location']}, {error_head['message']}"
 
     if error:
-        return escape(f"operation id: {operation_id}, status: {operation_status}, error: {error}")
+        return escape(f"operation id: {operation_id}, status: {operation_status}, error: {error}"), 500
     else:
         return escape(f'Started batch: {batch_uid}'
                       f' with run name: {run_name}'
