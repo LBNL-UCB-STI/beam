@@ -70,7 +70,7 @@ def create_beam_instance(request):
     disk_image_name = f"projects/{project}/global/images/beam-box"
     cloud_init_script_url = os.environ.get('CLOUD_INIT_SCRIPT_URL')
     if not cloud_init_script_url:
-        cloud_init_script_url = "https://raw.githubusercontent.com/LBNL-UCB-STI/beam/do/%233652-execute-beam-on-google-cloud-compute/gcp/src/main/bash/cloud-init.sh"
+        cloud_init_script_url = "https://raw.githubusercontent.com/LBNL-UCB-STI/beam/develop/gcp/src/main/bash/cloud-init.sh"
     log(f"cloud_init_script_url: {cloud_init_script_url}")
     startup_script = """
 #!/bin/sh
