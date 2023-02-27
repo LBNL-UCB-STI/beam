@@ -1193,7 +1193,8 @@ class RideHailManager(
     var costPerSecond = 0.0
     var costPerMile = 0.0
     var baseCost = 0.0
-    if (request.asPooled) {
+    val pooled = trip.schedule.values.exists(_.riders.size > 1)
+    if (pooled) {
       costPerSecond = pooledCostPerSecond
       costPerMile = pooledCostPerMile
       baseCost = pooledBaseCost
