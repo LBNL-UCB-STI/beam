@@ -1257,7 +1257,8 @@ object BeamConfig {
                 fractionOfInitialVehicleFleet: scala.Double,
                 initialLocation: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation,
                 vehicleTypeId: java.lang.String,
-                vehicleTypePrefix: java.lang.String
+                vehicleTypePrefix: java.lang.String,
+                vehicleAdjustmentMethod: java.lang.String
               )
 
               object Procedural {
@@ -1315,7 +1316,8 @@ object BeamConfig {
                       ),
                     vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "Car",
                     vehicleTypePrefix =
-                      if (c.hasPathOrNull("vehicleTypePrefix")) c.getString("vehicleTypePrefix") else "RH"
+                      if (c.hasPathOrNull("vehicleTypePrefix")) c.getString("vehicleTypePrefix") else "RH",
+                    vehicleAdjustmentMethod = if (c.hasPathOrNull("vehicleAdjustmentMethod")) c.getString("vehicleAdjustmentMethod") else ""
                   )
                 }
               }

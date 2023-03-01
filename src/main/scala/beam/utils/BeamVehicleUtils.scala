@@ -91,6 +91,7 @@ object BeamVehicleUtils {
         val chargingCapability = Option(line.get("chargingCapability")).flatMap(ChargingPointType(_))
         val payloadCapacity = Option(line.get("payloadCapacityInKg")).map(_.toDouble)
         val wheelchairAccessible = Option(line.get("wheelchairAccessible")).map(_.toBoolean)
+        val restrictRoadsByMaxVelocity = Option(line.get("restrictRoadsByMaxVelocity")).map(_.toBoolean)
 
         val bvt = BeamVehicleType(
           vehicleTypeId,
@@ -117,7 +118,8 @@ object BeamVehicleUtils {
           sampleProbabilityString,
           chargingCapability,
           payloadCapacity,
-          wheelchairAccessible
+          wheelchairAccessible,
+          restrictRoadsByMaxVelocity
         )
         z += ((vehicleTypeId, bvt))
     }.toMap

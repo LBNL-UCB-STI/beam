@@ -7,9 +7,12 @@ import beam.sim.{BeamScenario, BeamServices}
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.{Coord, Id}
 
-case class SingleTypeVehiclesAdjustment(beamScenario: BeamScenario, vehicleType: String)
+case class SingleTypeVehiclesAdjustment(beamScenario: BeamScenario, vehicleType: Option[String])
   extends VehiclesAdjustment {
-  val vehicleId: Id[BeamVehicleType] = Id.create(vehicleType, classOf[BeamVehicleType])
+  val vehicleId: Id[BeamVehicleType] = vehicleType match {
+    case Some(vehType) => Id.create(vehType, classOf[BeamVehicleType])
+    case None => Id.create("Car", classOf[BeamVehicleType])
+  }
   val vehicleTypesByCategory: BeamVehicleType = beamScenario.vehicleTypes.values.find(vt => vt.id == vehicleId).get
 
   override def sampleVehicleTypes(numVehicles: Int,vehicleCategory: VehicleCategory,realDistribution: UniformRealDistribution): List[BeamVehicleType] = {
