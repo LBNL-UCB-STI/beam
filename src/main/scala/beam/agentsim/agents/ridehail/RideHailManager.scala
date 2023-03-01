@@ -314,6 +314,7 @@ class RideHailManager(
       this
     )
 
+
   private val defaultBaseCost = managerConfig.defaultBaseCost
   private val defaultCostPerMile = managerConfig.defaultCostPerMile
   private val defaultCostPerMinute = managerConfig.defaultCostPerMinute

@@ -972,7 +972,8 @@ object BeamConfig {
           linkFleetStateAcrossIterations: scala.Boolean,
           managers: scala.List[BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm],
           rangeBufferForDispatchInMeters: scala.Int,
-          surgePricing: BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing
+          surgePricing: BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing,
+          maxVelocityLinkWeightMultiplier: scala.Double
         )
 
         object RideHail {
@@ -1528,7 +1529,10 @@ object BeamConfig {
               surgePricing = BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing(
                 if (c.hasPathOrNull("surgePricing")) c.getConfig("surgePricing")
                 else com.typesafe.config.ConfigFactory.parseString("surgePricing{}")
-              )
+              ),
+              maxVelocityLinkWeightMultiplier =
+                if (c.hasPathOrNull("maxVelocityLinkWeightMultiplier")) c.getDouble("maxVelocityLinkWeightMultiplier")
+                else 10.0
             )
           }
 
