@@ -162,6 +162,12 @@ class SPM_Control():
         return [p_evse_setpoint, p_ess_setpoint, p_evse_opt, e_evse_opt, p_ess_opt, e_ess_opt, delta_t, flag]
     
     def get_heuristic_evse_setpoint(self, t_dep, energy_req, min_power, max_power, soc_ess):
+        print("np.array(energy_req) SIZE: " + str(len(np.array(energy_req))))
+        print("np.array(energy_req): " + str(np.array(energy_req)))
+        print("np.array(t_dep) SIZE: " + str(len(np.array(t_dep))))
+        print("np.array(t_dep): " + str(np.array(t_dep)))
+        print("np.array(self.max_power_evse) SIZE: " + str(len(np.array(self.max_power_evse))))
+        print("np.array(self.max_power_evse): " + str(np.array(self.max_power_evse)))
         min_pwr_req_evse = np.minimum(np.nan_to_num(np.array(energy_req)/(np.array(t_dep)/60)), np.array(self.max_power_evse))
         ev_complete = np.array(t_dep) <= 0
         min_pwr_req_evse[ev_complete] = 0

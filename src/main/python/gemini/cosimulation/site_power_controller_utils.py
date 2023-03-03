@@ -48,6 +48,14 @@ def create_federate(helics_conf, fed_info, taz_id):
     # Z* = Mean(kW_i) => Load
     return cfed
 
+
+class ConfigForSPMC:
+    def __init__(self, time_step, sim_dur, output_dir, is_multi_threaded):
+        self.time_step = time_step
+        self.sim_dur = sim_dur
+        self.output_dir = output_dir
+        self.is_multi_threaded = is_multi_threaded
+
 class DataForSPMC:
     vehicle_id = []
     vehicle_type = []
@@ -59,7 +67,10 @@ class DataForSPMC:
     site_power_in_kw = 0
     battery_capacity_in_k_wh = []  # TODO Julius @ HL can you please add this to the BEAM output?
 
-    def __init__(self):
+    def __init__(self, initial_ess_soc, updated_ess_soc, updated_power_limits_from_derms):
+        self.updated_ess_soc_internal = initial_ess_soc
+        self.updated_ess_soc_from_dss = updated_ess_soc
+        self.updated_power_limits_from_derms = updated_power_limits_from_derms
         pass
 
 
@@ -72,28 +83,34 @@ class AbstractSPMC:
     def run_model(self, t, vehicles, data_for_spmc):
         return []
 
-    def __init__(self, name, taz_id, site_id, events):
+    def __init__(self, name, taz_id, site_id, events, config_for_spmc):
+        self.config_for_spmc = config_for_spmc
         self.taz_id = taz_id
         self.site_id = site_id
         self.site_prefix_logging = name + "[" + str(taz_id) + ":" + str(site_id) + "]. "
         self.num_plugs = int(events[0]['parkingZoneNumPlugs'])
         self.site_power = float(events[0]['parkingZonePowerInKW'])
+        self.ess_size = float(events[0]['energyStorageSystemCapacityInKWh'])  # in kWh
+        self.initial_ess_soc = float(events[0]['energyStorageSystemSOC'])  #
 
     def log(self, log_message):
         logging.info(self.site_prefix_logging + log_message)
 
-    def run_as_thread(self, t, charging_events):
-        self.thread = Thread(target=self.run, args=(t, charging_events))
-        self.thread.start()
+    def run_as_a_thread(self, t, charging_events, updated_ess_soc_from_dss, updated_power_limits_from_derms):
+        if self.config_for_spmc.is_multi_threaded:
+            self.thread = Thread(target=self.run, args=(t, charging_events, updated_ess_soc_from_dss, updated_power_limits_from_derms))
+            self.thread.start()
+        else:
+            self.run(t, charging_events, updated_ess_soc_from_dss, updated_power_limits_from_derms)
 
     def get_output_from_latest_run(self):
         if self.thread.is_alive():
             self.thread.join()
         return self.control_commands
 
-    def run(self, t, charging_events):
+    def run(self, t, charging_events, updated_ess_soc_from_dss, updated_power_limits_from_derms):
         self.control_commands = []
-        data_for_spmc = DataForSPMC()
+        data_for_spmc = DataForSPMC(self.initial_ess_soc, updated_ess_soc_from_dss, updated_power_limits_from_derms)
 
         for charging_event in charging_events:
             data_for_spmc.vehicle_id.append(str(charging_event['vehicleId']))
@@ -128,24 +145,34 @@ class AdvancedSPMC(AbstractSPMC):
     control_commands = []
     thread = Thread()
 
-    def __init__(self, name, taz_id, site_id, events):
-        AbstractSPMC.__init__(self, name, taz_id, site_id, events)
+    def __init__(self, name, taz_id, site_id, events, config_for_spmc):
+        AbstractSPMC.__init__(self, name, taz_id, site_id, events, config_for_spmc)
         plug_power = self.site_power/self.num_plugs
-        p_max = [plug_power] * self.num_plugs  # max EV charging power (EVSE power rate)
+        self.p_max = [plug_power] * self.num_plugs  # max EV charging power (EVSE power rate)
         p_min = [0] * self.num_plugs  # min EV charging power
-        ess_capacity = float(events[0]['energyStorageSystemCapacityInKWh'])  # in kWh
-        self.current_ess_soc = float(events[0]['energyStorageSystemSOC'])  #
-        self.spm_c = SPM_Control_Advanced(time_step_mins=15, num_ess=1, ess_size=ess_capacity, max_power_evse=p_max, min_power_evse=p_min)
+        self.spm_c = SPM_Control_Advanced(time_step_mins=15, num_ess=1, ess_size=self.ess_size, max_power_evse=self.p_max, min_power_evse=p_min)
         print2(self.site_prefix_logging + " Initialized!")
 
     def run_model(self, t, vehicles, data_for_spmc):
         t_dep = [(tt - t) / 60.0 for tt in data_for_spmc.desired_departure_time] # departure time in minute from the current time
         e_req = data_for_spmc.desired_fuel_level_in_k_wh # energy remaining for each EV
+        print2("size t_dep: " + str(len(t_dep)))
+        print2("size e_req: " + str(len(e_req)))
+        print2("size p_max: " + str(len(self.p_max)))
         p_max_site = self.site_power
+        if data_for_spmc.updated_power_limits_from_derms is not None:
+            if data_for_spmc.updated_power_limits_from_derms > p_max_site:
+                logging.error("This should not happen: updated_power_limits_from_derms > p_max_site")
+            else:
+                p_max_site = data_for_spmc.updated_power_limits_from_derms
         p_min_site = 0
+        current_ess_soc = data_for_spmc.updated_ess_soc_internal
+        if data_for_spmc.updated_ess_soc_from_dss is not None:
+            current_ess_soc = data_for_spmc.updated_ess_soc_from_dss
         [p_evse_setpoint, p_ess_setpoint, p_evse_opt, e_evse_opt, p_ess_opt, e_ess_opt, delta_t, flag] = \
-            self.spm_c.get_evse_setpoint(t_dep, e_req, p_min_site, p_max_site, self.current_ess_soc)
-        self.current_ess_soc = p_ess_opt # Double check with Myungsoo !!!!
+            self.spm_c.get_evse_setpoint(t_dep, e_req, p_min_site, p_max_site, current_ess_soc)
+        # update ESS SOC internally in case the DSS does not do that
+        data_for_spmc.updated_ess_soc_internal = current_ess_soc + p_ess_setpoint * (self.config_for_spmc.time_step / 3600.0) / self.ess_size
         i = 0
         spmc_commands = []
         for vehicle in vehicles:
@@ -165,8 +192,8 @@ class RudimentarySPMC(AbstractSPMC):
     control_commands = []
     thread = Thread()
 
-    def __init__(self, name, taz_id, site_id, events):
-        AbstractSPMC.__init__(self, name, taz_id, site_id, events)
+    def __init__(self, name, taz_id, site_id, events, config_for_spmc):
+        AbstractSPMC.__init__(self, name, taz_id, site_id, events, config_for_spmc)
         self.spm_c = SPM_Control_Rudimentary(time_step_mins=1, max_power_evse=[], min_power_evse=[])
         print2(self.site_prefix_logging + " Initialized!")
 
@@ -209,17 +236,16 @@ class RideHailSPMC(AbstractSPMC):
     control_commands = []
     thread = Thread()
 
-    def __init__(self, name, taz_id, site_id, events, time_step, simulation_duration, output_directory):
-        AbstractSPMC.__init__(self, name, taz_id, site_id, events)
-        self.time_step = time_step
+    def __init__(self, name, taz_id, site_id, events, config_for_spmc):
+        AbstractSPMC.__init__(self, name, taz_id, site_id, events, config_for_spmc)
         plug_power = self.site_power/self.num_plugs
         # JULIUS: @HL I initialized my SPM Controller here
         # @ HL can you provide the missing information
         # TODO uncomment
         init_mpc = False
         t_start = int(0)
-        timestep_interval = int(self.time_step)
-        result_directory = output_directory
+        timestep_interval = int(self.config_for_spmc.time_step)
+        result_directory = self.config_for_spmc.output_directory
         ride_hail_depot_id = self.site_id
         # list of floats in kW for each plug, for first it should be the same maximum power
         # for all -> could set 10 000 kW if message contains data --> list with length of number
@@ -239,7 +265,7 @@ class RideHailSPMC(AbstractSPMC):
             'parkingZoneId': 'category', 'duration': 'float64'
         }  # dictionary containing the data types in the beam prediction file
         # maximum time up to which we simulate (for predicting in MPC)
-        t_max = int(simulation_duration - self.time_step)
+        t_max = int(self.config_for_spmc.simulation_duration - self.config_for_spmc.time_step)
         self.depotController = components.GeminiWrapper.ControlWrapper(
             init_mpc, t_start, timestep_interval, result_directory, ride_hail_depot_id, ch_ba_max_power,
             ch_ba_parking_zone_id, ch_ba_num, path_beam_prediction_file, dtype_predictions, t_max)
@@ -291,7 +317,7 @@ class RideHailSPMC(AbstractSPMC):
         #
         # # OBTAIN CONTROL COMMANDS
         vehicles, power, release = self.depotController.step(
-            timestep=int(self.time_step),  # julius @ HL can you provide the timestep,
+            timestep=int(self.config_for_spmc.time_step),  # julius @ HL can you provide the timestep,
             t_act=int(t),  # julius @ HL can you provide the actual time)
             GridPowerUpper=1e10,  # Update from DERMS, for the first we turn this off with a big number
             GridPowerLower=-1e10,  # Update from DERMS, for the first we turn this off with a big number

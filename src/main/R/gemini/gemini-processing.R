@@ -36,6 +36,8 @@ process_evs <- function(DATA_) {
 
 ###
 
+eventsTest <- readCsv(pp(workDir, "/2021-22-Oakland/BATCH3Bis/events/filtered.0.events.SC2.csv.gz"))
+
 # source("~/Workspace/Models/scripts/common/keys.R")
 # register_google(key = google_api_key_1)
 # oaklandMap <- ggmap::get_googlemap("oakland california", zoom = 13, maptype = "roadmap")
