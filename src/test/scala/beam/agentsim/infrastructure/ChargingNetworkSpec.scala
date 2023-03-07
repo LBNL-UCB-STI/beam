@@ -185,10 +185,7 @@ class ChargingNetworkSpec
         triggerId = 49238,
         valueOfTime = valueOfTime
       )
-      val configWithSeedFunction: Int => String =
-        (seed: Int) => s"""|matsim.modules.global.randomSeed = $seed
-              |beam.agentsim.agents.parking.minSearchRadius = $searchRadius
-              |beam.agentsim.agents.parking.maxSearchRadius = $searchRadius""".stripMargin
+      val configWithSeedFunction = createConfigWithSeedFunction(searchRadius)
 
       runParkingSelectionTest(
         baseConfig,
@@ -244,10 +241,7 @@ class ChargingNetworkSpec
         beamVehicle = Some(vehicle),
         triggerId = 49238
       )
-      val configWithSeedFunction: Int => String =
-        (seed: Int) => s"""|matsim.modules.global.randomSeed = $seed
-              |beam.agentsim.agents.parking.minSearchRadius = $searchRadius
-              |beam.agentsim.agents.parking.maxSearchRadius = $searchRadius""".stripMargin
+      val configWithSeedFunction = createConfigWithSeedFunction(searchRadius)
 
       runParkingSelectionTest(
         baseConfig,
@@ -298,12 +292,7 @@ class ChargingNetworkSpec
         beamVehicle = Some(vehicle),
         triggerId = 49238
       )
-      val configWithSeedFunction: Int => String =
-        (seed: Int) => s"""|matsim.modules.global.randomSeed = $seed
-
-              |beam.agentsim.agents.parking.minSearchRadius = $searchRadius
-
-              |beam.agentsim.agents.parking.maxSearchRadius = $searchRadius""".stripMargin
+      val configWithSeedFunction = createConfigWithSeedFunction(searchRadius)
 
       runParkingSelectionTest(
         baseConfig,
@@ -373,10 +362,7 @@ class ChargingNetworkSpec
         searchMode = ParkingSearchMode.EnRouteCharging,
         originUtm = Some(originSpaceTime)
       )
-      val configWithSeedFunction: Int => String =
-        (seed: Int) => s"""|matsim.modules.global.randomSeed = $seed
-              |beam.agentsim.agents.parking.minSearchRadius = $searchRadius
-              |beam.agentsim.agents.parking.maxSearchRadius = $searchRadius""".stripMargin
+      val configWithSeedFunction = createConfigWithSeedFunction(searchRadius)
 
       runParkingSelectionTest(
         baseConfig,
@@ -386,10 +372,7 @@ class ChargingNetworkSpec
         parkingInquiry,
         expectedProbability
       )
-
     }
-
-    it("should happen with the expected probability in respect to RangeAnxietyCost") {}
   }
 
   def runParkingSelectionTest(
@@ -399,8 +382,8 @@ class ChargingNetworkSpec
     parkingOptions: ListBuffer[String],
     parkingInquiry: ParkingInquiry,
     expectedProbability: mutable.ListMap[Id[ParkingZoneId], Double],
-    maxDeviation: Double = 15e-2,
-    iterations: Int = 1000
+    maxDeviation: Double = 6e-2,
+    iterations: Int = 10000 // takes about 16s
   ): Unit = {
 
     val rand = new Random()
@@ -486,15 +469,32 @@ class ChargingNetworkSpec
     (tazTreeMap, boundingBox, searchRadius, tazSpacing)
   }
 
-  def createBEV(originSpaceTime: SpaceTime, joulesPerMeter: Double = 0.0, id: String = "car-00"): BeamVehicle = {
+  def createBEV(
+    originSpaceTime: SpaceTime,
+    rangeRemainingMeters: Double = Double.PositiveInfinity,
+    id: String = "car-00"
+  ): BeamVehicle = {
     val vehicleType = beamScenario.vehicleTypes(Id.create("BEV", classOf[BeamVehicleType]))
     val vehicle = new BeamVehicle(
       id = Id.createVehicleId(id),
-      powerTrain = new Powertrain(joulesPerMeter),
+      powerTrain = new Powertrain(
+        if (rangeRemainingMeters.isPosInfinity) 0.0 else vehicleType.primaryFuelConsumptionInJoulePerMeter
+      ),
       beamVehicleType = vehicleType
     )
+    val initialSoc = math.min(
+      1.0,
+      rangeRemainingMeters * vehicleType.primaryFuelConsumptionInJoulePerMeter / vehicleType.primaryFuelCapacityInJoule
+    )
+    vehicle.initializeFuelLevels(initialSoc)
     vehicle.spaceTime = originSpaceTime
     vehicle
+  }
+
+  def createConfigWithSeedFunction(searchRadius: Double): Int => String = { (seed: Int) =>
+    s"""|matsim.modules.global.randomSeed = $seed
+        |beam.agentsim.agents.parking.minSearchRadius = $searchRadius
+        |beam.agentsim.agents.parking.maxSearchRadius = $searchRadius""".stripMargin
   }
 }
 
