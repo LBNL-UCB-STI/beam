@@ -31,7 +31,7 @@ case class BeamVehicleType(
   chargingCapability: Option[ChargingPointType] = None,
   payloadCapacityInKg: Option[Double] = None,
   wheelchairAccessible: Option[Boolean] = None,
-  restrictRoadsByMaxVelocity: Option[Boolean] = None
+  restrictRoadsByFreeSpeedInMeterPerSecond: Option[Double] = None
 ) {
   def isSharedVehicle: Boolean = id.toString.startsWith("sharedVehicle")
 
@@ -41,12 +41,6 @@ case class BeamVehicleType(
 
   def isWheelchairAccessible: Boolean = {
     wheelchairAccessible.getOrElse(true)
-  }
-
-  def restrictRoadsByVelocity: Boolean = {
-    if (maxVelocity.getOrElse(0.0)>0.0){restrictRoadsByMaxVelocity.getOrElse(false)}
-    else false
-
   }
 
   def getTotalRange: Double = {

@@ -967,13 +967,13 @@ object BeamConfig {
         case class RideHail(
           cav: BeamConfig.Beam.Agentsim.Agents.RideHail.Cav,
           charging: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging,
+          freeSpeedLinkWeightMultiplier: scala.Double,
           human: BeamConfig.Beam.Agentsim.Agents.RideHail.Human,
           iterationStats: BeamConfig.Beam.Agentsim.Agents.RideHail.IterationStats,
           linkFleetStateAcrossIterations: scala.Boolean,
           managers: scala.List[BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm],
           rangeBufferForDispatchInMeters: scala.Int,
-          surgePricing: BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing,
-          maxVelocityLinkWeightMultiplier: scala.Double
+          surgePricing: BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing
         )
 
         object RideHail {
@@ -1256,9 +1256,9 @@ object BeamConfig {
               case class Procedural(
                 fractionOfInitialVehicleFleet: scala.Double,
                 initialLocation: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation,
+                vehicleAdjustmentMethod: java.lang.String,
                 vehicleTypeId: java.lang.String,
-                vehicleTypePrefix: java.lang.String,
-                vehicleAdjustmentMethod: java.lang.String
+                vehicleTypePrefix: java.lang.String
               )
 
               object Procedural {
@@ -1314,10 +1314,11 @@ object BeamConfig {
                         if (c.hasPathOrNull("initialLocation")) c.getConfig("initialLocation")
                         else com.typesafe.config.ConfigFactory.parseString("initialLocation{}")
                       ),
+                    vehicleAdjustmentMethod =
+                      if (c.hasPathOrNull("vehicleAdjustmentMethod")) c.getString("vehicleAdjustmentMethod") else "",
                     vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "Car",
                     vehicleTypePrefix =
-                      if (c.hasPathOrNull("vehicleTypePrefix")) c.getString("vehicleTypePrefix") else "RH",
-                    vehicleAdjustmentMethod = if (c.hasPathOrNull("vehicleAdjustmentMethod")) c.getString("vehicleAdjustmentMethod") else ""
+                      if (c.hasPathOrNull("vehicleTypePrefix")) c.getString("vehicleTypePrefix") else "RH"
                   )
                 }
               }
@@ -1514,6 +1515,9 @@ object BeamConfig {
                 if (c.hasPathOrNull("charging")) c.getConfig("charging")
                 else com.typesafe.config.ConfigFactory.parseString("charging{}")
               ),
+              freeSpeedLinkWeightMultiplier =
+                if (c.hasPathOrNull("freeSpeedLinkWeightMultiplier")) c.getDouble("freeSpeedLinkWeightMultiplier")
+                else 2.0,
               human = BeamConfig.Beam.Agentsim.Agents.RideHail.Human(
                 if (c.hasPathOrNull("human")) c.getConfig("human")
                 else com.typesafe.config.ConfigFactory.parseString("human{}")
@@ -1531,10 +1535,7 @@ object BeamConfig {
               surgePricing = BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing(
                 if (c.hasPathOrNull("surgePricing")) c.getConfig("surgePricing")
                 else com.typesafe.config.ConfigFactory.parseString("surgePricing{}")
-              ),
-              maxVelocityLinkWeightMultiplier =
-                if (c.hasPathOrNull("maxVelocityLinkWeightMultiplier")) c.getDouble("maxVelocityLinkWeightMultiplier")
-                else 10.0
+              )
             )
           }
 

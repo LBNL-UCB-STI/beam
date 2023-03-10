@@ -33,10 +33,14 @@ object VehiclesAdjustment {
   val INCOME_BASED_ADJUSTMENT = "INCOME_BASED"
   val SINGLE_TYPE = "SINGLE_TYPE"
 
-  def getVehicleAdjustment(beamScenario: BeamScenario, adjustmentType: String = "", vehicleType: Option[String] = None): VehiclesAdjustment = {
-    val adjustmentMethod = adjustmentType match{
+  def getVehicleAdjustment(
+    beamScenario: BeamScenario,
+    adjustmentType: String = "",
+    vehicleType: Option[String] = None
+  ): VehiclesAdjustment = {
+    val adjustmentMethod = adjustmentType match {
       case "" => beamScenario.beamConfig.beam.agentsim.agents.vehicles.vehicleAdjustmentMethod
-      case _ => adjustmentType
+      case _  => adjustmentType
     }
 
     adjustmentMethod match {
