@@ -112,7 +112,7 @@ object RideHailManager {
             asDriver = false,
             estimatedPrice(passenger.personId),
             unbecomeDriverOnCompletion = false,
-            isPooledTrip = passengerSchedule.schedule.values.exists(_.riders.size > 1)
+            isPooledTrip = passengerSchedule.isPooledTrip
           )
         }
         .toVector
@@ -1193,8 +1193,7 @@ class RideHailManager(
     var costPerSecond = 0.0
     var costPerMile = 0.0
     var baseCost = 0.0
-    val pooled = trip.schedule.values.exists(_.riders.size > 1)
-    if (pooled) {
+    if (trip.isPooledTrip) {
       costPerSecond = pooledCostPerSecond
       costPerMile = pooledCostPerMile
       baseCost = pooledBaseCost
