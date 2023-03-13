@@ -76,4 +76,6 @@ case object ReservationErrorCode extends Enum[ReservationErrorCode] {
 
   case object HouseholdVehicleNotAvailable extends ReservationErrorCode
 
+  case object RouteNotAvailableForChosenMode extends ReservationErrorCode
+
 }
