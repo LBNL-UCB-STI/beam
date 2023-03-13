@@ -618,7 +618,9 @@ trait ChoosesMode {
                     getReplanningReasonFrom(
                       choosesModeData.personData,
                       ReservationErrorCode.HouseholdVehicleNotAvailable.entryName
-                    )
+                    ),
+                    currentPersonLocation.loc.getX,
+                    currentPersonLocation.loc.getY
                   )
                 )
                 householdVehiclesWereNotAvailable = true
@@ -1551,7 +1553,21 @@ trait ChoosesMode {
             case Some(_) =>
               val correctedTripMode = correctCurrentTripModeAccordingToRules(None, personData, availableModesForTrips)
               if (correctedTripMode != personData.currentTripMode) {
-                //give another chance to make a choice without predefined mode
+                val nextActLoc = nextActivity(choosesModeData.personData).get.getCoord
+              eventsManager.processEvent(
+                new ReplanningEvent(
+                  _currentTick.get,
+                  Id.createPersonId(id),
+                  getReplanningReasonFrom(
+                    choosesModeData.personData,
+                    ReservationErrorCode.RouteNotAvailableForChosenMode.entryName
+                  ),
+                  choosesModeData.currentLocation.loc.getX,
+                  choosesModeData.currentLocation.loc.getY,
+                  nextActLoc.getX,
+                  nextActLoc.getY
+                )
+              )//give another chance to make a choice without predefined mode
                 //TODO: Do we need to do anything with tour mode here?
                 gotoChoosingModeWithoutPredefinedMode(choosesModeData)
               } else {
