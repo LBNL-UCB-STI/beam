@@ -404,17 +404,17 @@ object ODSkimmer extends LazyLogging {
   }
 
   case class ODSkimmerInternal(
-                                travelTimeInS: Double,
-                                generalizedTimeInS: Double,
-                                generalizedCost: Double,
-                                distanceInM: Double,
-                                cost: Double,
-                                payloadWeightInKg: Double,
-                                energy: Double,
-                                level4CavTravelTimeScalingFactor: Double,
-                                failedTrips: Int = 0,
-                                completedTrips: Int = 1,
-                                iterations: Int = 0
+    travelTimeInS: Double,
+    generalizedTimeInS: Double,
+    generalizedCost: Double,
+    distanceInM: Double,
+    cost: Double,
+    payloadWeightInKg: Double,
+    energy: Double,
+    level4CavTravelTimeScalingFactor: Double,
+    failedTrips: Int = 0,
+    completedTrips: Int = 1,
+    iterations: Int = 0
   ) extends AbstractSkimmerInternal {
 
     //NOTE: All times in seconds here

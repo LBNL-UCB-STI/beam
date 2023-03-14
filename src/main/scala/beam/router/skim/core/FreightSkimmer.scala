@@ -87,13 +87,13 @@ object FreightSkimmer extends LazyLogging {
   }
 
   case class FreightSkimmerInternal(
-                                     numberOfLoadings: Double,
-                                     numberOfUnloadings: Double,
-                                     costPerMile: Double,
-                                     walkAccessDistanceInM: Double,
-                                     parkingCostPerHour: Double,
-                                     completedTrips: Int = 1,
-                                     iterations: Int = 1
+    numberOfLoadings: Double,
+    numberOfUnloadings: Double,
+    costPerMile: Double,
+    walkAccessDistanceInM: Double,
+    parkingCostPerHour: Double,
+    completedTrips: Int = 1,
+    iterations: Int = 1
   ) extends AbstractSkimmerInternal {
     override def toCsv: String = AbstractSkimmer.toCsv(productIterator)
   }
