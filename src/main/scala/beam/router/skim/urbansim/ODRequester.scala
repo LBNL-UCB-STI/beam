@@ -173,7 +173,7 @@ class ODRequester(
     val streetVehicle: StreetVehicle = mode match {
       case BeamMode.CAR | BeamMode.DRIVE_TRANSIT =>
         StreetVehicle(
-          Id.createVehicleId("dummy-car-for-skim-observations"),
+          Id.createVehicleId("dummy-car-for-skim-completedTrips"),
           dummyCarVehicleType.id,
           new SpaceTime(srcCoord, requestTime),
           BeamMode.CAR,
@@ -182,7 +182,7 @@ class ODRequester(
         )
       case BeamMode.BIKE =>
         StreetVehicle(
-          Id.createVehicleId("dummy-bike-for-skim-observations"),
+          Id.createVehicleId("dummy-bike-for-skim-completedTrips"),
           dummyBikeVehicleType.id,
           new SpaceTime(srcCoord, requestTime),
           BeamMode.BIKE,
@@ -191,7 +191,7 @@ class ODRequester(
         )
       case BeamMode.WALK | BeamMode.WALK_TRANSIT =>
         StreetVehicle(
-          Id.createVehicleId("dummy-body-for-skim-observations"),
+          Id.createVehicleId("dummy-body-for-skim-completedTrips"),
           dummyBodyVehicleType.id,
           new SpaceTime(srcCoord, requestTime),
           WALK,

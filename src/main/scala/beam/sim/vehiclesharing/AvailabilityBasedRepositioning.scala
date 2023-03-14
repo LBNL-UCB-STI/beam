@@ -29,14 +29,14 @@ case class AvailabilityBasedRepositioning(
     (0 to 108000 / repositionTimeBin).foreach { i =>
       val time = i * repositionTimeBin
       val availVal = getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.availability)
-      val availValMin = availVal.drop(1).foldLeft(availVal.headOption.map(_.observations).getOrElse(0)) { (minV, cur) =>
-        Math.min(minV, cur.observations)
+      val availValMin = availVal.drop(1).foldLeft(availVal.headOption.map(_.completedTrips).getOrElse(0)) { (minV, cur) =>
+        Math.min(minV, cur.completedTrips)
       }
       minAvailabilityMap.put((i, taz.tazId), availValMin)
       val inquiryVal =
-        getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.inquiry).map(_.observations).sum
+        getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.inquiry).map(_.completedTrips).sum
       val boardingVal =
-        getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.boarded).map(_.observations).sum
+        getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.boarded).map(_.completedTrips).sum
       unboardedVehicleInquiry.put((i, taz.tazId), inquiryVal - boardingVal)
     }
   }

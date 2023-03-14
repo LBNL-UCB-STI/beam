@@ -22,7 +22,7 @@ class FreightSkimmer @Inject() (
   override protected val skimFileBaseName: String = FreightSkimmer.fileBaseName
 
   override protected val skimFileHeader =
-    "tazId,hour,numberOfLoadings,numberOfUnloadings,costPerMile,walkAccessDistanceInM,parkingCostPerHour,observations,iterations"
+    "tazId,hour,numberOfLoadings,numberOfUnloadings,costPerMile,walkAccessDistanceInM,parkingCostPerHour,completedTrips,iterations"
   override protected val skimName: String = FreightSkimmer.name
   override protected val skimType: Skims.SkimType.Value = Skims.SkimType.FREIGHT_SKIMMER
 
@@ -40,7 +40,7 @@ class FreightSkimmer @Inject() (
         costPerMile = line("costPerMile").toDouble,
         walkAccessDistanceInM = line("walkAccessDistanceInM").toDouble,
         parkingCostPerHour = line("parkingCostPerHour").toDouble,
-        observations = line("observations").toInt,
+        completedTrips = line("completedTrips").toInt,
         iterations = line("iterations").toInt
       )
     )
@@ -57,7 +57,7 @@ class FreightSkimmer @Inject() (
         costPerMile = agg.aggregate(_.costPerMile),
         walkAccessDistanceInM = agg.aggregate(_.walkAccessDistanceInM),
         parkingCostPerHour = agg.aggregate(_.parkingCostPerHour),
-        observations = agg.aggregate(_.observations),
+        completedTrips = agg.aggregate(_.completedTrips),
         iterations = agg.aggregateObservations
       )
     }
@@ -73,7 +73,7 @@ class FreightSkimmer @Inject() (
         costPerMile = agg.aggregate(_.costPerMile),
         walkAccessDistanceInM = agg.aggregate(_.walkAccessDistanceInM),
         parkingCostPerHour = agg.aggregate(_.parkingCostPerHour),
-        observations = agg.aggregateObservations
+        completedTrips = agg.aggregateObservations
       )
     }
 }
@@ -87,13 +87,13 @@ object FreightSkimmer extends LazyLogging {
   }
 
   case class FreightSkimmerInternal(
-    numberOfLoadings: Double,
-    numberOfUnloadings: Double,
-    costPerMile: Double,
-    walkAccessDistanceInM: Double,
-    parkingCostPerHour: Double,
-    observations: Int = 1,
-    iterations: Int = 1
+                                     numberOfLoadings: Double,
+                                     numberOfUnloadings: Double,
+                                     costPerMile: Double,
+                                     walkAccessDistanceInM: Double,
+                                     parkingCostPerHour: Double,
+                                     completedTrips: Int = 1,
+                                     iterations: Int = 1
   ) extends AbstractSkimmerInternal {
     override def toCsv: String = AbstractSkimmer.toCsv(productIterator)
   }

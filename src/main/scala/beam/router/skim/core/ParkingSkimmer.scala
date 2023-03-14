@@ -26,7 +26,7 @@ class ParkingSkimmer @Inject() (
   override protected val skimFileBaseName: String = ParkingSkimmer.fileBaseName
 
   override protected val skimFileHeader =
-    "tazId,hour,chargerType,walkAccessDistanceInM,parkingCostPerHour,observations,iterations"
+    "tazId,hour,chargerType,walkAccessDistanceInM,parkingCostPerHour,completedTrips,iterations"
   override protected val skimName: String = ParkingSkimmer.name
   override protected val skimType: Skims.SkimType.Value = Skims.SkimType.PARKING_SKIMMER
 
@@ -42,7 +42,7 @@ class ParkingSkimmer @Inject() (
       ParkingSkimmerInternal(
         walkAccessDistanceInM = line("walkAccessDistanceInM").toDouble,
         parkingCostPerHour = line("parkingCostPerHour").toDouble,
-        observations = line("observations").toInt,
+        completedTrips = line("completedTrips").toInt,
         iterations = line("iterations").toInt
       )
     )
@@ -56,7 +56,7 @@ class ParkingSkimmer @Inject() (
       ParkingSkimmerInternal(
         walkAccessDistanceInM = agg.aggregate(_.walkAccessDistanceInM),
         parkingCostPerHour = agg.aggregate(_.parkingCostPerHour),
-        observations = agg.aggregate(_.observations),
+        completedTrips = agg.aggregate(_.completedTrips),
         iterations = agg.aggregateObservations
       )
     }
@@ -69,7 +69,7 @@ class ParkingSkimmer @Inject() (
       ParkingSkimmerInternal(
         walkAccessDistanceInM = agg.aggregate(_.walkAccessDistanceInM),
         parkingCostPerHour = agg.aggregate(_.parkingCostPerHour),
-        observations = agg.aggregateObservations
+        completedTrips = agg.aggregateObservations
       )
     }
 }
@@ -83,10 +83,10 @@ object ParkingSkimmer extends LazyLogging {
   }
 
   case class ParkingSkimmerInternal(
-    walkAccessDistanceInM: Double,
-    parkingCostPerHour: Double,
-    observations: Int = 1,
-    iterations: Int = 1
+                                     walkAccessDistanceInM: Double,
+                                     parkingCostPerHour: Double,
+                                     completedTrips: Int = 1,
+                                     iterations: Int = 1
   ) extends AbstractSkimmerInternal {
     override def toCsv: String = AbstractSkimmer.toCsv(productIterator)
   }
