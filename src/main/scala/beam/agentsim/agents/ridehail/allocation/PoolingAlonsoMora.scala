@@ -162,7 +162,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val soloCustomer = toAllocate.filterNot(_.asPooled)
       s = System.currentTimeMillis()
       toAllocate.filterNot(_.asPooled).foreach { req =>
-        Pooling.serveOneRequest(req, tick, alreadyAllocated, rideHailManager, beamServices, maxWaitTimeInSec) match {
+        val pickupTime = math.max(tick, req.departAt)
+        Pooling
+          .serveOneRequest(req, pickupTime, alreadyAllocated, rideHailManager, beamServices, maxWaitTimeInSec) match {
           case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
             allocResponses = allocResponses :+ res
             alreadyAllocated = alreadyAllocated + routes.head.streetVehicles.head.id
@@ -299,9 +301,10 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val nonAllocated = toAllocate.filter(_.asPooled).filterNot(req => wereAllocated.contains(req.requestId))
       s = System.currentTimeMillis()
       nonAllocated.foreach { unsatisfiedReq =>
+        val pickupTime = math.max(tick, unsatisfiedReq.departAt)
         Pooling.serveOneRequest(
           unsatisfiedReq,
-          tick,
+          pickupTime,
           alreadyAllocated,
           rideHailManager,
           beamServices,
