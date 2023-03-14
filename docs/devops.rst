@@ -27,15 +27,15 @@ Setup git-lfs Server
 
 11.  Add NodeSource APT repository for Debian-based distributions repository AND the PGP key for verifying packages::
 
-    $ curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
+        $ curl -sL https://deb.nodesource.com/setup_6.x | sudo -E bash -
 
 12.  Install Node.js from the Debian-based distributions repository::
 
-    $ sudo apt-get install -y nodejs
+        $ sudo apt-get install -y nodejs
 
 13.  To confirm that Node.js was successfully installed on your system, you can run the following command::
 
-    $ node -v
+        $ node -v
 
 If Node is installed, this command should print out something like this:
 
@@ -43,38 +43,38 @@ If Node is installed, this command should print out something like this:
 
 14.  To get the most up-to-date npm, you can run the command::
 
-    $ sudo npm install npm --global
+        $ sudo npm install npm --global
 
 15.  Next, you can directly install git-lfs server using node package manager by executing following command::
 
-    $ sudo npm install node-git-lfs
+        $ sudo npm install node-git-lfs
 
 16.  Git LFS server offers two method of configuration, via environment variable or configuration file. At this step you have to define some environment variables to configure the server::
 
-   -  LFS_BASE_URL - URL of the LFS server - **required**
-   -  LFS_PORT - HTTP portal of the LFS server, default to 3000 - **required**
-   -  LFS_STORE_TYPE - Object store type, can be either s3 (for AWS S3) or grid (for MongoDB GridFS), default to s3 - **required**
-   -  LFS_AUTHENTICATOR_TYPE - Authenticator type, can be basic (for basic username and password), none (for no authentication), default to none - **required**
-   -  LFS_AUTHENTICATOR_USERNAME - Username - **required**
-   -  LFS_AUTHENTICATOR_PASSWORD - Password - **required**
-   -  AWS_ACCESS_KEY - AWS access key - **required**
-   -  AWS_SECRET_KEY - AWS secret key - **required**
-   -  LFS_STORE_S3_BUCKET - AWS S3 bucket - **required**
-   -  LFS_STORE_S3_ENDPOINT - AWS S3 endpoint, normally this will be set by region
-   -  LFS_STORE_S3_REGION - AWS S3 region
+       -  LFS_BASE_URL - URL of the LFS server - **required**
+       -  LFS_PORT - HTTP portal of the LFS server, default to 3000 - **required**
+       -  LFS_STORE_TYPE - Object store type, can be either s3 (for AWS S3) or grid (for MongoDB GridFS), default to s3 - **required**
+       -  LFS_AUTHENTICATOR_TYPE - Authenticator type, can be basic (for basic username and password), none (for no authentication), default to none - **required**
+       -  LFS_AUTHENTICATOR_USERNAME - Username - **required**
+       -  LFS_AUTHENTICATOR_PASSWORD - Password - **required**
+       -  AWS_ACCESS_KEY - AWS access key - **required**
+       -  AWS_SECRET_KEY - AWS secret key - **required**
+       -  LFS_STORE_S3_BUCKET - AWS S3 bucket - **required**
+       -  LFS_STORE_S3_ENDPOINT - AWS S3 endpoint, normally this will be set by region
+       -  LFS_STORE_S3_REGION - AWS S3 region
 
 Set Aws access key, secret ky and s3 details based on previous steps.
 
 17.  Now start git lfs server::
 
-    $ node-git-lfs
+        $ node-git-lfs
 
 18.  At the end, create file named .lfsconfig in you repository with following contents, update host and port based on your environment.
 
-    [lfs]
-        url = "http://host:port/LBNL-UCB-STI/beam.git"
-        batch = true
-        access = basic
+        [lfs]
+            url = "http://host:port/LBNL-UCB-STI/beam.git"
+            batch = true
+            access = basic
 
 This will setup everything you need to setup and install a custom gitl-lfs server on Amazon instance and github repository will start pointing to the your custom server. There is no special installation or requirement for the clint, only thing that you need is to provide lfs user name and password on you client when you pull your contents for the first time.
 
@@ -124,10 +124,10 @@ Setup Jenkins Server
 
 12. If everything went well, the beginning of the output should show that the service is active and configured to start at boot::
 
-  jenkins.service - LSB: Start Jenkins at boot time
-  Loaded: loaded (/etc/init.d/jenkins; bad; vendor preset: enabled)
-  Active:active (exited) since Thu 2017-04-20 16:51:13 UTC; 2min 7s ago
-  Docs: man:systemd-sysv-generator(8)
+      jenkins.service - LSB: Start Jenkins at boot time
+      Loaded: loaded (/etc/init.d/jenkins; bad; vendor preset: enabled)
+      Active:active (exited) since Thu 2017-04-20 16:51:13 UTC; 2min 7s ago
+      Docs: man:systemd-sysv-generator(8)
 
 13. To set up installation, visit Jenkins on its default port, 8080, using the server domain name or IP address:
 
@@ -185,39 +185,39 @@ At this point, Jenkins has been successfully installed.
 
 25. Update the file with following contents::
 
-  server {
-    listen 80;
-    return 301 https://$host$request_uri;
-  }
+      server {
+        listen 80;
+        return 301 https://$host$request_uri;
+      }
 
-  server {
-    listen 443;
-    server_name beam-ci.tk;
+      server {
+        listen 443;
+        server_name beam-ci.tk;
 
-    ssl_certificate           /etc/nginx/cert.crt;
-    ssl_certificate_key       /etc/nginx/cert.key;
+        ssl_certificate           /etc/nginx/cert.crt;
+        ssl_certificate_key       /etc/nginx/cert.key;
 
-    ssl on;
-    ssl_session_cache  builtin:1000  shared:SSL:10m;
-    ssl_protocols  TLSv1 TLSv1.1 TLSv1.2;
-    ssl_ciphers HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
-    ssl_prefer_server_ciphers on;
+        ssl on;
+        ssl_session_cache  builtin:1000  shared:SSL:10m;
+        ssl_protocols  TLSv1 TLSv1.1 TLSv1.2;
+        ssl_ciphers HIGH:!aNULL:!eNULL:!EXPORT:!CAMELLIA:!DES:!MD5:!PSK:!RC4;
+        ssl_prefer_server_ciphers on;
 
-    access_log            /var/log/nginx/jenkins.access.log;
+        access_log            /var/log/nginx/jenkins.access.log;
 
-    location / {
-      proxy_set_header        Host $host;
-      proxy_set_header        X-Real-IP $remote_addr;
-      proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
-      proxy_set_header        X-Forwarded-Proto $scheme;
+        location / {
+          proxy_set_header        Host $host;
+          proxy_set_header        X-Real-IP $remote_addr;
+          proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
+          proxy_set_header        X-Forwarded-Proto $scheme;
 
-      # Fix the “It appears that your reverse proxy set up is broken" error.
-      proxy_pass          http://localhost:8080;
-      proxy_read_timeout  90;
+          # Fix the “It appears that your reverse proxy set up is broken" error.
+          proxy_pass          http://localhost:8080;
+          proxy_read_timeout  90;
 
-      proxy_redirect      http://localhost:8080 https://beam-ci.tk;
-    }
-  }
+          proxy_redirect      http://localhost:8080 https://beam-ci.tk;
+        }
+      }
 
 26. For Jenkins to work with Nginx, you need to update the Jenkins config to listen only on the localhost interface instead of all (0.0.0.0), to ensure traffic gets handled properly. This is an important step because if Jenkins is still listening on all interfaces, then it will still potentially be accessible via its original port (8080).
 
@@ -323,19 +323,19 @@ Now start configuring Jenkins master, so it can spawn new slave instance on dema
 
 |image10|
 
-3. Select the checkbox next to Amazon EC2 plugin, and then click Install without restart.
-4. Once the installation is done, click Go back to the top page.
-4. On the sidebar, click on Credentials, hover (global) for finding the sub menu and add a credential.
+4. Select the checkbox next to Amazon EC2 plugin, and then click Install without restart.
+5. Once the installation is done, click Go back to the top page.
+6. On the sidebar, click on Credentials, hover (global) for finding the sub menu and add a credential.
 
 |image11|
 
-6. Choose AWS Credentials, and limit the scope to System, complete the form, if you make an error, Jenkins will add an error below the   secret key. Jenkins uses access key ID and secret access key to interface with Amazon EC2.
+7. Choose AWS Credentials, and limit the scope to System, complete the form, if you make an error, Jenkins will add an error below the   secret key. Jenkins uses access key ID and secret access key to interface with Amazon EC2.
 
 |image12|
 
-7. Click on Manage Jenkins, and then Configure System.
-8. Scroll all the way down to the section that says Cloud.
-9. Click Add a new cloud, and select Amazon EC2. A collection of new fields appears.
+8. Click on Manage Jenkins, and then Configure System.
+9. Scroll all the way down to the section that says Cloud.
+10. Click Add a new cloud, and select Amazon EC2. A collection of new fields appears.
 
 |image13|
 
@@ -490,13 +490,13 @@ You can schedule any Jenkins job to run periodically based on provided schedule.
 
 4. You have to specify a schedule by following the similar syntax of cron job as a line consists of 5 fields separated by TAB or whitespace::
 
-   MINUTE HOUR DOM MONTH DOW
+       MINUTE HOUR DOM MONTH DOW
 
-   - MINUTE	Minutes within the hour (0–59)
-   - HOUR	The hour of the day (0–23)
-   - DOM	The day of the month (1–31)
-   - MONTH	The month (1–12)
-   - DOW	The day of the week (0–7) where 0 and 7 are Sunday.
+       - MINUTE	Minutes within the hour (0–59)
+       - HOUR	The hour of the day (0–23)
+       - DOM	The day of the month (1–31)
+       - MONTH	The month (1–12)
+       - DOW	The day of the week (0–7) where 0 and 7 are Sunday.
 
 To schedule once daily every 24 hours for only 5 working days, we need to specify some thing like::
 
@@ -578,9 +578,8 @@ This process is designed to get latest LFS files from different branches. To add
 AWS Budget Control
 ^^^^^^^^^^^^^^^^^^
 
-====
 Documentation of AWS budget management
-====
+============================================
 There are a few levels of budget protection in place:
 
 1. Alert notifications are sent at 60%-150% of monthly spend (at 10% increments) via a `Billing Budget <https://us-east-1.console.aws.amazon.com/billing/home?region=us-east-1#/budgets/overview>`_ named ``Total Monthly Budget``

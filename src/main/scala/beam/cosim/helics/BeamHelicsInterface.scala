@@ -1,7 +1,8 @@
 package beam.cosim.helics
 
 import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
-import beam.agentsim.scheduler.Trigger
+import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.utils.FileUtils
 import com.github.beam.HelicsLoader
 import com.java.helics._
@@ -15,13 +16,23 @@ import scala.concurrent._
 import scala.concurrent.duration.{Duration, DurationInt}
 import scala.util.control.NonFatal
 
-object BeamHelicsInterface {
+object BeamHelicsInterface extends StrictLogging {
   // Lazy makes sure that it is initialized only once
   lazy val loadHelicsIfNotAlreadyLoaded: Unit = HelicsLoader.load()
 
-  def unloadHelics(): Unit = this.synchronized {
-    helics.helicsCleanupLibrary()
-    helics.helicsCloseLibrary()
+  def messageToJsonString(labeledData: List[Map[String, Any]]): String = {
+    labeledData.toJson(ListMapAnyJsonFormat).compactPrint.stripMargin
+  }
+
+  def closeHelics(): Unit = this.synchronized {
+    try {
+      helics.helicsCleanupLibrary()
+      helics.helicsCloseLibrary()
+      logger.info("Helics library cleaned and closed.")
+    } catch {
+      case NonFatal(ex) =>
+        logger.error(s"Cannot clean and unload helics library: ${ex.getMessage}")
+    }
   }
 
   /**
@@ -170,6 +181,12 @@ object BeamHelicsInterface {
     }
   }
 
+  case class BeamFederateDescriptor(
+    tazIds: Set[Id[TAZ]],
+    chargingStations: List[ChargingStation],
+    federate: BeamFederate
+  )
+
   case class BeamFederate(
     fedName: String,
     fedInfo: SWIGTYPE_p_void,
@@ -195,29 +212,40 @@ object BeamHelicsInterface {
 
     def cosimulate(tick: Int, msgToPublish: List[Map[String, Any]]): List[Map[String, Any]] = {
       def log(message: String): Unit = {
-        logger.debug(s"$message [${System.currentTimeMillis()}]")
+        logger.debug(s"$fedName $message [${System.currentTimeMillis()}]")
       }
-      var msgReceived: Option[List[Map[String, Any]]] = None
-      if (currentBin < tick / simulationStep) {
-        currentBin = tick / simulationStep
-        log(s"Publishing message to the ${dataOutStreamPointMaybe.getOrElse("NA")} at time $tick.")
-        publishJSON(msgToPublish)
-        log(s"publishNestedJSON $msgToPublish.")
-        while (msgReceived.isEmpty) {
-          // SYNC
-          sync(tick)
-          log(s"sync $tick.")
-          // COLLECT
-          msgReceived = collectJSON()
-          log(s"collectedNestedJSON $msgReceived.")
-          if (msgReceived.isEmpty) {
-            // Sleep
-            Thread.sleep(1)
+      try {
+        var msgReceived: Option[List[Map[String, Any]]] = None
+        if (currentBin < tick / simulationStep) {
+          currentBin = tick / simulationStep
+          log(s"Publishing message to the ${dataOutStreamPointMaybe.getOrElse("NA")} at time $tick.")
+          publishJSON(msgToPublish)
+          sync(tick) // SYNC
+          log(s"publishNestedJSON $msgToPublish.")
+          var counter = 1
+          while (msgReceived.isEmpty && counter <= 10) {
+            log(s"sync ${tick + 1}.")
+            // COLLECT
+            sync(tick + 1)
+            msgReceived = collectJSON()
+            log(s"collectedNestedJSON $msgReceived.")
+            if (msgReceived.isEmpty) {
+              // Sleep
+              Thread.sleep(1)
+              counter = counter + 1
+            }
           }
+          if (msgReceived.isEmpty) {
+            logger.error("Either HELICS communication is failing or something wrong with the transmitted message!")
+          }
+          log(s"Message received from ${dataInStreamPointMaybe.getOrElse("NA")}: $msgReceived.")
         }
-        log(s"Message received from ${dataInStreamPointMaybe.getOrElse("NA")}: $msgReceived.")
+        msgReceived.getOrElse(List.empty)
+      } catch {
+        case ex: Exception =>
+          logger.error(s"Exception while cosimulating: $ex")
+          throw ex
       }
-      msgReceived.getOrElse(List.empty)
     }
 
     /**
@@ -279,14 +307,16 @@ object BeamHelicsInterface {
       */
     def collectJSON(): Option[List[Map[String, Any]]] = {
       val message = collectRaw()
-      if (message.nonEmpty) {
-        try {
-          val messageList = message.replace("\u0000", "").parseJson.convertTo[List[Map[String, Any]]]
-          Some(messageList)
-        } catch {
-          case _: Throwable => None
-        }
-      } else None
+      try {
+        val messageWithoutSpecialCharacter = message.replace("\u0000", "")
+        val messageCleaned = messageWithoutSpecialCharacter.trim.stripPrefix("\"").stripSuffix("\"")
+        if (List("", "[]", "[{}]", "null").contains(messageCleaned)) Some(List.empty[Map[String, Any]])
+        else Some(messageWithoutSpecialCharacter.parseJson.convertTo[List[Map[String, Any]]])
+      } catch {
+        case e: Throwable =>
+          logger.error(s"Failed to process a received message $message from helics, because $e")
+          None
+      }
     }
 
     /**
@@ -330,22 +360,15 @@ object BeamHelicsInterface {
       * close HELICS library
       */
     def close(): Unit = {
-      logger.info(s"closing BeamFederate $fedName")
+      logger.info(s"Closing BeamFederate $fedName ...")
       if (helics.helicsFederateIsValid(fedComb) == 1) {
         helics.helicsFederateFinalize(fedComb)
         helics.helicsFederateFree(fedComb)
-        helics.helicsCloseLibrary()
-        logger.info(s"BeamFederate $fedName closed")
+        logger.info(s"BeamFederate $fedName closed.")
       } else {
-        logger.info(s"helics federate $fedName is not valid!")
+        logger.info(s"BeamFederate $fedName is invalid.")
       }
-      try {
-        logger.info("Destroying BeamFederate $fedName")
-        unloadHelics()
-      } catch {
-        case NonFatal(ex) =>
-          logger.error(s"Cannot destroy BeamFederate $fedName: ${ex.getMessage}")
-      }
+      BeamHelicsInterface.closeHelics()
     }
   }
 

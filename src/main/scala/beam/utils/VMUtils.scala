@@ -149,7 +149,6 @@ class VMUtils(val mbeanObjectName: ObjectName) {
   }
 
   def gcClassHistogram(takeTopClasses: Int): Seq[VMClassInfo] = {
-    gcRun()
     parseClassHistogram(invoke(JFRCommandWithoutArguments.GcClassHistogram), takeTopClasses)
   }
 

@@ -109,7 +109,8 @@ object BeamConfig {
           reader: java.lang.String,
           replanning: BeamConfig.Beam.Agentsim.Agents.Freight.Replanning,
           tourSampleSizeAsFractionOfTotal: scala.Double,
-          toursFilePath: java.lang.String
+          toursFilePath: java.lang.String,
+          vehicleTypesFilePath: scala.Option[java.lang.String]
         )
 
         object Freight {
@@ -159,7 +160,9 @@ object BeamConfig {
                 else 1.0,
               toursFilePath =
                 if (c.hasPathOrNull("toursFilePath")) c.getString("toursFilePath")
-                else "/test/input/beamville/freight/freight-tours.csv"
+                else "/test/input/beamville/freight/freight-tours.csv",
+              vehicleTypesFilePath =
+                if (c.hasPathOrNull("vehicleTypesFilePath")) Some(c.getString("vehicleTypesFilePath")) else None
             )
           }
         }
@@ -2109,12 +2112,12 @@ object BeamConfig {
       object ChargingNetworkManager {
 
         case class PowerManagerController(
+          beamFederateName: java.lang.String,
+          beamFederatePublication: java.lang.String,
           brokerAddress: java.lang.String,
           bufferSize: scala.Int,
           connect: scala.Boolean,
           coreType: java.lang.String,
-          federateName: java.lang.String,
-          federatePublication: java.lang.String,
           feedbackEnabled: scala.Boolean,
           intLogLevel: scala.Int,
           pmcFederateName: java.lang.String,
@@ -2128,16 +2131,18 @@ object BeamConfig {
             c: com.typesafe.config.Config
           ): BeamConfig.Beam.Agentsim.ChargingNetworkManager.PowerManagerController = {
             BeamConfig.Beam.Agentsim.ChargingNetworkManager.PowerManagerController(
+              beamFederateName =
+                if (c.hasPathOrNull("beamFederateName")) c.getString("beamFederateName") else "BEAM_FED",
+              beamFederatePublication =
+                if (c.hasPathOrNull("beamFederatePublication")) c.getString("beamFederatePublication")
+                else "LOAD_DEMAND",
               brokerAddress = if (c.hasPathOrNull("brokerAddress")) c.getString("brokerAddress") else "tcp://127.0.0.1",
-              bufferSize = if (c.hasPathOrNull("bufferSize")) c.getInt("bufferSize") else 1000,
+              bufferSize = if (c.hasPathOrNull("bufferSize")) c.getInt("bufferSize") else 10000000,
               connect = c.hasPathOrNull("connect") && c.getBoolean("connect"),
               coreType = if (c.hasPathOrNull("coreType")) c.getString("coreType") else "zmq",
-              federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "FED_BEAM",
-              federatePublication =
-                if (c.hasPathOrNull("federatePublication")) c.getString("federatePublication") else "LOAD_DEMAND",
               feedbackEnabled = !c.hasPathOrNull("feedbackEnabled") || c.getBoolean("feedbackEnabled"),
               intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
-              pmcFederateName = if (c.hasPathOrNull("pmcFederateName")) c.getString("pmcFederateName") else "FED_GRID",
+              pmcFederateName = if (c.hasPathOrNull("pmcFederateName")) c.getString("pmcFederateName") else "GRID_FED",
               pmcFederateSubscription =
                 if (c.hasPathOrNull("pmcFederateSubscription")) c.getString("pmcFederateSubscription")
                 else "POWER_LIMITS",
@@ -2165,16 +2170,17 @@ object BeamConfig {
         }
 
         case class SitePowerManagerController(
+          beamFederatePrefix: java.lang.String,
+          beamFederatePublication: java.lang.String,
           brokerAddress: java.lang.String,
           bufferSize: scala.Int,
           connect: scala.Boolean,
           coreType: java.lang.String,
           expectFeedback: scala.Boolean,
-          federatesPrefix: java.lang.String,
-          federatesPublication: java.lang.String,
           intLogLevel: scala.Int,
-          spmFederatesPrefix: java.lang.String,
-          spmSubscription: java.lang.String,
+          numberOfFederates: scala.Int,
+          spmFederatePrefix: java.lang.String,
+          spmFederateSubscription: java.lang.String,
           timeDeltaProperty: scala.Double
         )
 
@@ -2184,20 +2190,23 @@ object BeamConfig {
             c: com.typesafe.config.Config
           ): BeamConfig.Beam.Agentsim.ChargingNetworkManager.SitePowerManagerController = {
             BeamConfig.Beam.Agentsim.ChargingNetworkManager.SitePowerManagerController(
+              beamFederatePrefix =
+                if (c.hasPathOrNull("beamFederatePrefix")) c.getString("beamFederatePrefix") else "BEAM_FED",
+              beamFederatePublication =
+                if (c.hasPathOrNull("beamFederatePublication")) c.getString("beamFederatePublication")
+                else "CHARGING_VEHICLES",
               brokerAddress = if (c.hasPathOrNull("brokerAddress")) c.getString("brokerAddress") else "tcp://127.0.0.1",
-              bufferSize = if (c.hasPathOrNull("bufferSize")) c.getInt("bufferSize") else 1000,
+              bufferSize = if (c.hasPathOrNull("bufferSize")) c.getInt("bufferSize") else 10000000,
               connect = c.hasPathOrNull("connect") && c.getBoolean("connect"),
               coreType = if (c.hasPathOrNull("coreType")) c.getString("coreType") else "zmq",
               expectFeedback = !c.hasPathOrNull("expectFeedback") || c.getBoolean("expectFeedback"),
-              federatesPrefix = if (c.hasPathOrNull("federatesPrefix")) c.getString("federatesPrefix") else "FED_BEAM_",
-              federatesPublication =
-                if (c.hasPathOrNull("federatesPublication")) c.getString("federatesPublication")
-                else "CHARGING_VEHICLES",
               intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
-              spmFederatesPrefix =
-                if (c.hasPathOrNull("spmFederatesPrefix")) c.getString("spmFederatesPrefix") else "FED_SPM_",
-              spmSubscription =
-                if (c.hasPathOrNull("spmSubscription")) c.getString("spmSubscription") else "CHARGING_COMMANDS",
+              numberOfFederates = if (c.hasPathOrNull("numberOfFederates")) c.getInt("numberOfFederates") else 1,
+              spmFederatePrefix =
+                if (c.hasPathOrNull("spmFederatePrefix")) c.getString("spmFederatePrefix") else "SPM_FED_TAZ",
+              spmFederateSubscription =
+                if (c.hasPathOrNull("spmFederateSubscription")) c.getString("spmFederateSubscription")
+                else "CHARGING_COMMANDS",
               timeDeltaProperty = if (c.hasPathOrNull("timeDeltaProperty")) c.getDouble("timeDeltaProperty") else 1.0
             )
           }
@@ -2776,14 +2785,17 @@ object BeamConfig {
       }
 
       case class VmInformation(
-        createGCClassHistogram: scala.Boolean
+        createGCClassHistogram: scala.Boolean,
+        writeHeapDump: scala.Boolean
       )
 
       object VmInformation {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Debug.VmInformation = {
           BeamConfig.Beam.Debug.VmInformation(
-            createGCClassHistogram = c.hasPathOrNull("createGCClassHistogram") && c.getBoolean("createGCClassHistogram")
+            createGCClassHistogram =
+              c.hasPathOrNull("createGCClassHistogram") && c.getBoolean("createGCClassHistogram"),
+            writeHeapDump = c.hasPathOrNull("writeHeapDump") && c.getBoolean("writeHeapDump")
           )
         }
       }

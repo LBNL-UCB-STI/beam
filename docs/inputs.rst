@@ -131,11 +131,9 @@ Mode choice parameters
 * minimumValueOfTime: value of time cannot be lower than this value
 * modeVotMultiplier: allow to modify value of time for a particular trip mode
 * modeVotMultiplier.waiting: not used now
-* overrideAutomationLevel: the value to be used to override the vehicle automation level when calculating generalized time
-of ride-hail legs
+* overrideAutomationLevel: the value to be used to override the vehicle automation level when calculating generalized time of ride-hail legs
 * overrideAutomationForVOTT: enabled overriding of automation level (see overrideAutomationLevel)
-* poolingMultiplier: this multiplier is used when calculating generalized time for pooled ride-hail trip for a particular
-vehicle automation level
+* poolingMultiplier: this multiplier is used when calculating generalized time for pooled ride-hail trip for a particular vehicle automation level
 * highTimeSensitivity.highCongestion.highwayFactor.Level5 when a person go by car (not ride-hail) these params allow to set generalized time multiplier for a particular link for different situations: work trip/other trips, high/low traffic, highway or not, vehicle automation level
 * params.transfer: Constant utility (where 1 util = 1 dollar) of making transfers during a transit trip.
 * params.car_intercept: Constant utility (where 1 util = 1 dollar) of driving.
