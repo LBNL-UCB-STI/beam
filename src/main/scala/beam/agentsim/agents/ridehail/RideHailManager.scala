@@ -635,6 +635,7 @@ class RideHailManager(
                 request,
                 singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation.vehicleType.id,
                 driverPassengerSchedule,
+                isPooledTrip = false,
                 baseFare
               )
             ),
@@ -1188,12 +1189,13 @@ class RideHailManager(
     request: RideHailRequest,
     rideHailVehicleTypeId: Id[BeamVehicleType],
     trip: PassengerSchedule,
+    isPooledTrip: Boolean,
     additionalCost: Double
   ): (Id[Person], Double) = {
     var costPerSecond = 0.0
     var costPerMile = 0.0
     var baseCost = 0.0
-    if (trip.isPooledTrip) {
+    if (isPooledTrip) {
       costPerSecond = pooledCostPerSecond
       costPerMile = pooledCostPerMile
       baseCost = pooledBaseCost
@@ -1760,7 +1762,15 @@ class RideHailManager(
       alloc.rideHailAgentLocation,
       updatedPassengerSchedule,
       alloc.request.thisRequestWithGroupedRequests
-        .map(calcFare(_, alloc.rideHailAgentLocation.vehicleType.id, updatedPassengerSchedule, baseFare))
+        .map(request =>
+          calcFare(
+            request,
+            alloc.rideHailAgentLocation.vehicleType.id,
+            updatedPassengerSchedule,
+            isPooledTrip = request.asPooled,
+            baseFare
+          )
+        )
         .toMap,
       rideHailResourceAllocationManager.maxWaitTimeInSec,
       None
