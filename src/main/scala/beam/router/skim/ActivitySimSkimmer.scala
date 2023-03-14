@@ -404,13 +404,13 @@ object ActivitySimSkimmer extends LazyLogging {
       metric match {
         case ActivitySimMetric.TOTIVT   => weightedTotalInVehicleTime
         case ActivitySimMetric.FERRYIVT => weightedFerryInVehicleTimeInMinutes
-        case ActivitySimMetric.FAR      => weightedGeneralizedCost
-        case ActivitySimMetric.KEYIVT   => weightedLightRailInVehicleTimeInMinutes
+        case ActivitySimMetric.FAR      => weightedTotalCost
+        case ActivitySimMetric.KEYIVT   => weightedKeyInVehicleTimeInMinutes
         case ActivitySimMetric.DTIM     => weightedDriveTimeInMinutes
         case ActivitySimMetric.BOARDS   => weightedTransitBoardingsCount
         case ActivitySimMetric.DDIST    => weightedDriveDistanceInMeters
         case ActivitySimMetric.WAUX     => weightedWalkAuxiliary
-        case ActivitySimMetric.TIME     => weightedGeneralizedTime
+        case ActivitySimMetric.TIME     => weightedTotalTime
         case ActivitySimMetric.DIST     => weightedDistance
         case ActivitySimMetric.WEGR     => weightedWalkEgress
         case ActivitySimMetric.WACC     => weightedWalkAccess

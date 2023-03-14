@@ -7,7 +7,7 @@ import beam.router.Modes.BeamMode
 import beam.router.skim.ActivitySimSkimmer.ExcerptData
 import beam.router.skim._
 import beam.router.skim.core.{AbstractSkimmer, ODSkimmer}
-import beam.router.skim.urbansim.BackgroundSkimsCreator
+import beam.router.skim.urbansim.{ActivitySimOmxWriter, BackgroundSkimsCreator}
 import beam.router.{FreeFlowTravelTime, LinkTravelTimeContainer}
 import beam.sim.config.BeamExecutionConfig
 import beam.sim.{BeamHelper, BeamServices}
