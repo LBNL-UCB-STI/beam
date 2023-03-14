@@ -291,7 +291,7 @@ object SkimmerSpec extends LazyLogging {
       DriveTimeSkimmerInternal(
         timeSimulated = row("timeSimulated").toDouble,
         timeObserved = row("timeObserved").toDouble,
-        observations = row("counts").toInt,
+        completedTrips = row("counts").toInt,
         iterations = row("iterations").toInt
       )
     )

@@ -20,8 +20,9 @@ import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, Zon
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{WALK, _}
+import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.ActivitySimPathType.determineActivitySimPathTypesFromBeamMode
 import beam.router.skim.{ActivitySimPathType, ActivitySimSkimmerFailedTripEvent}
 import beam.router.skim.core.ODSkimmer
 import beam.router.skim.event.{ODSkimmerEvent, ODSkimmerFailedTripEvent}
@@ -1172,52 +1173,6 @@ trait ChoosesMode {
     }
   }
 
-  def determineActivitySimPathType(
-    choosesModeData: ChoosesModeData
-  ): Seq[ActivitySimPathType] = {
-    val currentMode = choosesModeData.personData.currentTourMode
-    val currentActivityType = currentActivity(choosesModeData.personData).getType.toLowerCase()
-    currentMode match {
-      case Some(WALK)               => Seq(ActivitySimPathType.WALK)
-      case Some(CAR)                => Seq(ActivitySimPathType.SOV)
-      case Some(CAR_HOV2)           => Seq(ActivitySimPathType.HOV2)
-      case Some(CAR_HOV3)           => Seq(ActivitySimPathType.HOV3)
-      case Some(HOV2_TELEPORTATION) => Seq(ActivitySimPathType.HOV2)
-      case Some(HOV3_TELEPORTATION) => Seq(ActivitySimPathType.HOV3)
-      case Some(WALK_TRANSIT) =>
-        Seq(
-          ActivitySimPathType.WLK_LOC_WLK,
-          ActivitySimPathType.WLK_HVY_WLK,
-          ActivitySimPathType.WLK_COM_WLK,
-          ActivitySimPathType.WLK_LRF_WLK,
-          ActivitySimPathType.WLK_EXP_WLK,
-          ActivitySimPathType.WLK_TRN_WLK
-        )
-      case Some(DRIVE_TRANSIT) =>
-        currentActivityType match {
-          case "home" =>
-            Seq(
-              ActivitySimPathType.DRV_LOC_WLK,
-              ActivitySimPathType.DRV_HVY_WLK,
-              ActivitySimPathType.DRV_COM_WLK,
-              ActivitySimPathType.DRV_LRF_WLK,
-              ActivitySimPathType.DRV_EXP_WLK
-            )
-          case _ =>
-            Seq(
-              ActivitySimPathType.WLK_LOC_DRV,
-              ActivitySimPathType.WLK_HVY_DRV,
-              ActivitySimPathType.WLK_COM_DRV,
-              ActivitySimPathType.WLK_LRF_DRV,
-              ActivitySimPathType.WLK_EXP_DRV
-            )
-        }
-      case _ =>
-        Seq.empty[ActivitySimPathType]
-    }
-
-  }
-
   def completeChoiceIfReady: PartialFunction[State, State] = {
     case FSM.State(
           _,
@@ -1420,7 +1375,8 @@ trait ChoosesMode {
             case Some(mode) =>
               val currentAct = currentActivity(personData)
               val odFailedSkimmerEvent = createFailedODSkimmerEvent(currentAct, nextAct, mode)
-              val possibleActivitySimModes = determineActivitySimPathType(choosesModeData)
+              val possibleActivitySimModes =
+                determineActivitySimPathTypesFromBeamMode(choosesModeData.personData.currentTourMode, currentAct)
               eventsManager.processEvent(
                 odFailedSkimmerEvent
               )

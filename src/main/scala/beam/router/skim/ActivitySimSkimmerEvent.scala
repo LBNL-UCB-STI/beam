@@ -160,10 +160,10 @@ case class ActivitySimSkimmerFailedTripEvent(
   override val skimName: String
 ) extends AbstractSkimmerEvent(eventTime) {
 
-  override def getKey: AbstractSkimmerKey =
+  override def getKey: ActivitySimSkimmerKey =
     ActivitySimSkimmerKey(SkimsUtils.timeToBin(Math.round(eventTime).toInt), activitySimPathType, origin, destination)
 
-  override def getSkimmerInternal: AbstractSkimmerInternal = {
+  override def getSkimmerInternal: ActivitySimSkimmerInternal = {
     ActivitySimSkimmerInternal(
       0.0,
       0.0,
