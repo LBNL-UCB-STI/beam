@@ -21,10 +21,30 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
       val tazMap = TAZTreeMap.getTazTreeMap("test/input/sf-light/taz-centers.csv")
       val geoUnits = SortedSet[String](tazMap.getTAZs.map(_.tazId.toString).toSeq: _*)
       val excerptData = IndexedSeq(
-        ExcerptData("AM", DRV_COM_WLK, "100827", "100413", 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 4, 3),
-        ExcerptData("AM", DRV_COM_WLK, "100413", "100827", 120, 190, 180, 170, 160, 150, 140, 130, 120, 110, 50, 40, 1),
-        ExcerptData("PM", DRV_COM_WLK, "100627", "100413", 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 4, 3),
-        ExcerptData("MD", DRV_LRF_WLK, "100574", "10069A", 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 4, 3)
+        ExcerptData("AM", DRV_COM_WLK, "100827", "100413", 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 4, 3, 2, 1),
+        ExcerptData(
+          "AM",
+          DRV_COM_WLK,
+          "100413",
+          "100827",
+          120,
+          190,
+          180,
+          170,
+          160,
+          150,
+          140,
+          130,
+          120,
+          110,
+          50,
+          40,
+          1,
+          2,
+          1
+        ),
+        ExcerptData("PM", DRV_COM_WLK, "100627", "100413", 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 4, 3, 2, 1),
+        ExcerptData("MD", DRV_LRF_WLK, "100574", "10069A", 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 4, 3, 2, 1)
       )
       val path = "output/test/activitysim_skims.omx"
       ActivitySimOmxWriter.writeToOmx(path, excerptData.iterator, geoUnits)
