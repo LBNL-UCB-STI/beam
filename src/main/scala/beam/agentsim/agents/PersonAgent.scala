@@ -1404,7 +1404,11 @@ class PersonAgent(
     * Do RH reservation
     * @param restOfCurrentTrip it must start with a RH leg that is the subject of reservation
     */
-  private def doRideHailReservation(currentTick: Int, departureTime: Int, restOfCurrentTrip: List[EmbodiedBeamLeg]): Unit = {
+  private def doRideHailReservation(
+    currentTick: Int,
+    departureTime: Int,
+    restOfCurrentTrip: List[EmbodiedBeamLeg]
+  ): Unit = {
     val rideHailLeg = restOfCurrentTrip.head
     val rhVehicleId = rideHailLeg.beamVehicleId
     val rideHailLegEndpoint =
