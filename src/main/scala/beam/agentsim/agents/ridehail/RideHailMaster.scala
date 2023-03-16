@@ -169,15 +169,15 @@ class RideHailMaster(
   ): Map[RideHailResponse, Map[String, Double]] = {
     val person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(customer)
     val customerAttributes = person.getCustomAttributes.get(BEAM_ATTRIBUTES).asInstanceOf[AttributesOfIndividual]
-    responses.zipWithIndex.map { alt =>
-      val cost: Double = alt._1.travelProposal.get.estimatedPrice.getOrElse(customer, 0.0)
+    responses.map { alt =>
+      val cost: Double = alt.travelProposal.get.estimatedPrice.getOrElse(customer, 0.0)
       val scaledTime: Double = customerAttributes.getVOT(
-        getGeneralizedTimeOfProposalInHours(alt._1.request.customer, alt._1.travelProposal)
+        getGeneralizedTimeOfProposalInHours(alt.request.customer, alt.travelProposal)
       )
       val hasSubscription =
-        if (alt._1.request.rideHailServiceSubscription.contains(alt._1.rideHailManagerName)) 1.0 else 0.0
+        if (alt.request.rideHailServiceSubscription.contains(alt.rideHailManagerName)) 1.0 else 0.0
 
-      alt._1 ->
+      alt ->
       Map(
         "cost"         -> (cost + scaledTime),
         "subscription" -> hasSubscription * beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_subscription

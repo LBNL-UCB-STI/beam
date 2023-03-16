@@ -634,6 +634,7 @@ object BeamConfig {
               drive_transit_intercept: scala.Double,
               ride_hail_intercept: scala.Double,
               ride_hail_pooled_intercept: scala.Double,
+              ride_hail_subscription: scala.Double,
               ride_hail_transit_intercept: scala.Double,
               transfer: scala.Double,
               transit_crowding: scala.Double,
@@ -641,8 +642,7 @@ object BeamConfig {
               transit_crowding_VOT_threshold: scala.Double,
               transit_crowding_percentile: scala.Double,
               walk_intercept: scala.Double,
-              walk_transit_intercept: scala.Double,
-              ride_hail_subscription: Double
+              walk_transit_intercept: scala.Double
             )
 
             object Params {
@@ -663,6 +663,8 @@ object BeamConfig {
                   ride_hail_pooled_intercept =
                     if (c.hasPathOrNull("ride_hail_pooled_intercept")) c.getDouble("ride_hail_pooled_intercept")
                     else 0.0,
+                  ride_hail_subscription =
+                    if (c.hasPathOrNull("ride_hail_subscription")) c.getDouble("ride_hail_subscription") else 0.0,
                   ride_hail_transit_intercept =
                     if (c.hasPathOrNull("ride_hail_transit_intercept")) c.getDouble("ride_hail_transit_intercept")
                     else 0.0,
@@ -680,9 +682,7 @@ object BeamConfig {
                     else 90.0,
                   walk_intercept = if (c.hasPathOrNull("walk_intercept")) c.getDouble("walk_intercept") else 0.0,
                   walk_transit_intercept =
-                    if (c.hasPathOrNull("walk_transit_intercept")) c.getDouble("walk_transit_intercept") else 0.0,
-                  ride_hail_subscription =
-                    if (c.hasPathOrNull("ride_hail_subscription")) c.getDouble("ride_hail_subscription") else 0.0
+                    if (c.hasPathOrNull("walk_transit_intercept")) c.getDouble("walk_transit_intercept") else 0.0
                 )
               }
             }
@@ -968,6 +968,7 @@ object BeamConfig {
         }
 
         case class RideHail(
+          bestResponseType: java.lang.String,
           cav: BeamConfig.Beam.Agentsim.Agents.RideHail.Cav,
           charging: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging,
           human: BeamConfig.Beam.Agentsim.Agents.RideHail.Human,
@@ -975,8 +976,7 @@ object BeamConfig {
           linkFleetStateAcrossIterations: scala.Boolean,
           managers: scala.List[BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm],
           rangeBufferForDispatchInMeters: scala.Int,
-          surgePricing: BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing,
-          bestResponseType: java.lang.String
+          surgePricing: BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing
         )
 
         object RideHail {
@@ -1507,6 +1507,8 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail = {
             BeamConfig.Beam.Agentsim.Agents.RideHail(
+              bestResponseType =
+                if (c.hasPathOrNull("bestResponseType")) c.getString("bestResponseType") else "MIN_COST",
               cav = BeamConfig.Beam.Agentsim.Agents.RideHail.Cav(
                 if (c.hasPathOrNull("cav")) c.getConfig("cav")
                 else com.typesafe.config.ConfigFactory.parseString("cav{}")
@@ -1532,10 +1534,7 @@ object BeamConfig {
               surgePricing = BeamConfig.Beam.Agentsim.Agents.RideHail.SurgePricing(
                 if (c.hasPathOrNull("surgePricing")) c.getConfig("surgePricing")
                 else com.typesafe.config.ConfigFactory.parseString("surgePricing{}")
-              ),
-              bestResponseType =
-                if (c.hasPathOrNull("bestResponseType")) c.getString("bestResponseType")
-                else "MIN_COST"
+              )
             )
           }
 
