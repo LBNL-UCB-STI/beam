@@ -828,13 +828,21 @@ def deploy_handler(event, context):
     if run_grafana:
         selected_script = GRAFANA_RUN + selected_script
 
-    if cosimulation_shell_script:
-        for start_path in ['src/main/bash','main/bash', 'bash']:
-            if cosimulation_shell_script.startswith(start_path):
-                cosimulation_shell_script = cosimulation_shell_script[len(start_path):]
+    def fix_script_path(original_script_path):
+        fixed_path = original_script_path
+        for start_path in ['src/main/bash/','main/bash/', 'bash/']:
+            if original_script_path.startswith(start_path):
+                fixed_path = original_script_path[len(start_path):]
 
-        full_path_to_cosimulation_script = f"/home/ubuntu/git/beam/src/main/bash/{cosimulation_shell_script}"
-        selected_script = f'sudo chmod +x {full_path_to_cosimulation_script}; sudo {full_path_to_cosimulation_script}; {selected_script}'
+        return f"/home/ubuntu/git/beam/src/main/bash/{fixed_path}"
+
+    if cosimulation_shell_script:
+        fixed_script_path = fix_script_path(cosimulation_shell_script)
+        selected_script = f'sudo chmod +x {fixed_script_path}; sudo {fixed_script_path}; {selected_script}'
+
+    if end_script != END_SCRIPT_DEFAULT:
+        fixed_script_path = fix_script_path(end_script)
+        end_script = f'sudo chmod +x {fixed_script_path}; sudo {fixed_script_path}'
 
     params = configs
     if s3_publish:
@@ -850,9 +858,6 @@ def deploy_handler(event, context):
     if deploy_mode == 'execute':
         selected_script = EXECUTE_SCRIPT
         params = ['"{args}"'.format(args=execute_args)]
-
-    if end_script != END_SCRIPT_DEFAULT:
-        end_script = '/home/ubuntu/git/beam/sec/main/bash/' + end_script
 
     txt = ''
 
