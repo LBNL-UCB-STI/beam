@@ -201,6 +201,7 @@ To run a BEAM simulation or experiment on amazon ec2, use following command with
 The command will start an ec2 instance based on the provided configurations and run all simulations in serial. At the end of each simulation/experiment, outputs are uploaded to a public Amazon S3 bucket_. The default behavior is to run each simulation/experiment parallel on separate instances. For customized runs, you can also use following parameters that can be specified from command line:
 
 * **propsFile**: to specify file with default values
+* **cloudPlatform**: Amazon
 * **runName**: to specify instance name.
 * **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
 * **beamCommit**: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
@@ -211,9 +212,9 @@ The command will start an ec2 instance based on the provided configurations and 
 * **beamExperiments**: A comma `,` separated list of `experiment.yml` files. It should be relative path under the project home.You can create branch level defaults same as configs by specifying the branch name with `.experiments` suffix like `master.experiments`. Branch level default will be used if `beamExperiments` is not present. `beamConfigs` has priority over this, in other words, if both are provided then `beamConfigs` will be used.
 * **executeClass** and **executeArgs**: to specify class and args to execute if `execute` was chosen as deploy mode
 * **maxRAM**: to specify MAXRAM environment variable for simulation.
-* **storageSize**: to specfy storage size of instance. May be from `64` to `256`.
+* **storageSize**: to specify storage size of instance. May be from `64` to `256`.
 * **s3Backup**: to specify if copying results to s3 bucket is needed, default is `true`.
-* **instanceType**: to specify s2 instance type.
+* **instanceType**: to specify EC2 instance type.
 * **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
 * **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
 * **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
@@ -231,11 +232,11 @@ The order which will be used to look for parameter values is follow:
 
 To run a batch simulation, you can specify multiple configuration files separated by commas::
 
-  ./gradlew deploy -PbeamConfigs=test/input/beamville/beam.conf,test/input/sf-light/sf-light.conf
+  ./gradlew deploy -PcloudPlatform=Amazon -PbeamConfigs=test/input/beamville/beam.conf,test/input/sf-light/sf-light.conf
 
 Similarly for experiment batch, you can specify comma-separated experiment files::
 
-  ./gradlew deploy -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
+  ./gradlew deploy -PcloudPlatform=Amazon -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
 
 For demo and presentation material, please follow the link_ on google drive.
 
@@ -257,6 +258,51 @@ You need to define the deploy properties that are similar to the ones for AWS de
 * **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
 
 Your task is going to be added to the queue and when it starts/finishes you receive a notification on your git user email. It may take 1-24 hours (or even more) for the task to get started. It depends on the NERSC workload. In your user home directory on NERSC you can find the output file of your task that looks like `slurm-<job id>.out`. The BEAM output directory is resides at `$SCRATCH/beam_runs/`. Also the output is uploaded to s3 if `s3Backup` is set to true.
+
+BEAM run on Google Compute Engine
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In order to run BEAM on GCE one needs to have `cloudfunctions.functions.invoke` permission on function `projects/beam-core/locations/us-central1/functions/deploy_beam`.
+
+One needs to install `glcoud <https://cloud.google.com/sdk/docs/install>`_ utility in order to be able to authenticate themself against the Google Cloud Platform.
+
+The project id is `beam-core`. One can set it using::
+
+ gcloud config set project beam-core
+
+There are `some ways to provide credentials <https://cloud.google.com/docs/authentication/provide-credentials-adc>`_. One option is just run the following command::
+
+ gcloud auth application-default login
+
+Now all the instance are created in `us-central1-a` zone.
+Now the deployment script doesn't calculate it automatically.
+One needs to define the deploy properties that are similar to the ones for AWS deploy. These are the properties that is used on GCE:
+
+* **propsFile**: to specify file with default values
+* **cloudPlatform**: Google
+* **runName**: to specify instance name.
+* **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
+* **beamCommit**: The commit SHA to run simulation. Comment it out if you want to run with latest commit.
+* **dataBranch**: To specify the branch for production data, 'develop' branch will be used as default branch.
+* **dataCommit**: The commit SHA for the the data branch, default is `HEAD`
+* **beamConfigs**: The `beam.conf` file. It should be relative path under the project home. A single file is supported right now.
+* **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 15 min.
+* **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
+* **instanceType**: To specify GCE instance type.
+* **forcedMaxRAM**: This parameter can be set according to the **instanceType** memory size.
+* **storageSize**: to specify storage size (Gb) of instance. May be from `100` to `256`. Default value is `100`.
+
+The deployment command is
+
+.. code-block:: bash
+
+ ./gradlew -PcloudPlatform=Google deploy
+
+The simulation output is uploaded to the `Google Cloud Storage <https://console.cloud.google.com/storage/browser/beam-core-outputs/output>`_.
+
+In order to ssh to the running instance one could start the following command::
+
+ gcloud compute ssh --zone=us-central1-a clu@<instance_name>
 
 
 PILATES run on EC2
