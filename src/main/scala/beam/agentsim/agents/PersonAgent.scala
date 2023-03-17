@@ -1494,14 +1494,6 @@ class PersonAgent(
       }
   }
 
-//  def createActivitySimSkimmerEvent(
-//    currentActivity: Activity,
-//    nextActivity: Activity,
-//    ODSkimmerEvent: ODSkimmerEvent
-//  ): Unit = {
-//    println("Look!!!")
-//  }
-
   def generateSkimData(
     tick: Int,
     trip: EmbodiedBeamTrip,

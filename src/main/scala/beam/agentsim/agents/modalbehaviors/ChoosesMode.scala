@@ -1260,8 +1260,6 @@ trait ChoosesMode {
         parkingResponses
       ) ++ rideHail2TransitIinerary.toVector
 
-      def isAvailable(mode: BeamMode): Boolean = combinedItinerariesForChoice.exists(_.tripClassifier == mode)
-
       val availableModesForTrips: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson)
         .filterNot(mode => choosesModeData.excludeModes.contains(mode))
 
@@ -1380,9 +1378,11 @@ trait ChoosesMode {
               eventsManager.processEvent(
                 odFailedSkimmerEvent
               )
-              createFailedActivitySimSkimmerEvent(odFailedSkimmerEvent, possibleActivitySimModes).foreach(ev =>
-                eventsManager.processEvent(ev)
-              )
+              if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
+                createFailedActivitySimSkimmerEvent(odFailedSkimmerEvent, possibleActivitySimModes).foreach(ev =>
+                  eventsManager.processEvent(ev)
+                )
+              }
               eventsManager.processEvent(
                 new ReplanningEvent(
                   _currentTick.get,
