@@ -165,10 +165,10 @@ object DriveTimeSkimmer extends LazyLogging {
   }
 
   case class DriveTimeSkimmerInternal(
-                                       timeSimulated: Double,
-                                       timeObserved: Double,
-                                       observations: Int = 0,
-                                       iterations: Int = 0
+    timeSimulated: Double,
+    timeObserved: Double,
+    observations: Int = 0,
+    iterations: Int = 0
   ) extends AbstractSkimmerInternal {
     override def toCsv: String = timeSimulated + "," + timeObserved + "," + observations + "," + iterations
   }

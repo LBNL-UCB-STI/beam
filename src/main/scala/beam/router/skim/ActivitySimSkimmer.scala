@@ -346,27 +346,27 @@ object ActivitySimSkimmer extends LazyLogging {
   }
 
   case class ActivitySimSkimmerInternal(
-                                         travelTimeInMinutes: Double,
-                                         generalizedTimeInMinutes: Double,
-                                         generalizedCost: Double,
-                                         distanceInMeters: Double,
-                                         cost: Double,
-                                         energy: Double,
-                                         walkAccessInMinutes: Double,
-                                         walkEgressInMinutes: Double,
-                                         walkAuxiliaryInMinutes: Double,
-                                         waitInitialInMinutes: Double,
-                                         waitAuxiliaryInMinutes: Double,
-                                         totalInVehicleTimeInMinutes: Double,
-                                         driveTimeInMinutes: Double,
-                                         driveDistanceInMeters: Double,
-                                         ferryInVehicleTimeInMinutes: Double,
-                                         keyInVehicleTimeInMinutes: Double,
-                                         transitBoardingsCount: Double,
-                                         failedTrips: Int = 0,
-                                         observations: Int = 1,
-                                         iterations: Int = 0,
-                                         debugText: String = ""
+    travelTimeInMinutes: Double,
+    generalizedTimeInMinutes: Double,
+    generalizedCost: Double,
+    distanceInMeters: Double,
+    cost: Double,
+    energy: Double,
+    walkAccessInMinutes: Double,
+    walkEgressInMinutes: Double,
+    walkAuxiliaryInMinutes: Double,
+    waitInitialInMinutes: Double,
+    waitAuxiliaryInMinutes: Double,
+    totalInVehicleTimeInMinutes: Double,
+    driveTimeInMinutes: Double,
+    driveDistanceInMeters: Double,
+    ferryInVehicleTimeInMinutes: Double,
+    keyInVehicleTimeInMinutes: Double,
+    transitBoardingsCount: Double,
+    failedTrips: Int = 0,
+    observations: Int = 1,
+    iterations: Int = 0,
+    debugText: String = ""
   ) extends AbstractSkimmerInternal {
 
     override def toCsv: String =
