@@ -428,6 +428,8 @@ object ActivitySimSkimmer extends LazyLogging {
         case ActivitySimMetric.DIST     => weightedDistance
         case ActivitySimMetric.WEGR     => weightedWalkEgress
         case ActivitySimMetric.WACC     => weightedWalkAccess
+        case ActivitySimMetric.TRIPS    => completedTrips
+        case ActivitySimMetric.FAILURES => failedTrips
         case _                          => Double.NaN
       }
     }
@@ -451,7 +453,9 @@ object ActivitySimSkimmer extends LazyLogging {
       ActivitySimMetric.TIME,
       ActivitySimMetric.DIST,
       ActivitySimMetric.WEGR,
-      ActivitySimMetric.WACC
+      ActivitySimMetric.WACC,
+      ActivitySimMetric.TRIPS,
+      ActivitySimMetric.FAILURES
     )
 
     val csvHeaderSeq: Seq[String] = Seq(
