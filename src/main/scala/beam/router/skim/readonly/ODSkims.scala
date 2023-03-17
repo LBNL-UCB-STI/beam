@@ -49,7 +49,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
     val origTaz = tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
     val destTaz = tazTreeMap.getTAZ(destination.getX, destination.getY).tazId
     val solo = getSkimValue(departureTime, RIDE_HAIL, origTaz, destTaz) match {
-      case Some(skimValue) if skimValue.completedTrips > 5 =>
+      case Some(skimValue) if skimValue.observations > 5 =>
         skimValue
       case _ =>
         val (travelDistance, travelTime) = distanceAndTime(RIDE_HAIL, origin, destination)
@@ -63,12 +63,12 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
           energy = 0.0,
           level4CavTravelTimeScalingFactor = 1.0,
           failedTrips = 0,
-          completedTrips = 0,
+          observations = 0,
           iterations = beamServices.matsimServices.getIterationNumber
         )
     }
     val pooled = getSkimValue(departureTime, RIDE_HAIL_POOLED, origTaz, destTaz) match {
-      case Some(skimValue) if skimValue.completedTrips > 5 =>
+      case Some(skimValue) if skimValue.observations > 5 =>
         skimValue
       case _ =>
         val poolingTravelTimeOveheadFactor =
@@ -88,7 +88,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
           energy = 0.0,
           level4CavTravelTimeScalingFactor = 1.0,
           failedTrips = 0,
-          completedTrips = 0,
+          observations = 0,
           iterations = beamServices.matsimServices.getIterationNumber
         )
     }

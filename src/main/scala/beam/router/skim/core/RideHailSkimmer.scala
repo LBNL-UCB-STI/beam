@@ -23,7 +23,7 @@ class RideHailSkimmer @Inject() (
   override protected val skimFileBaseName: String = RideHailSkimmer.fileBaseName
 
   override protected val skimFileHeader =
-    "tazId,hour,reservationType,wheelchairRequired,serviceName,waitTime,costPerMile,unmatchedRequestsPercent,accessibleVehiclesPercent,completedTrips,iterations"
+    "tazId,hour,reservationType,wheelchairRequired,serviceName,waitTime,costPerMile,unmatchedRequestsPercent,accessibleVehiclesPercent,observations,iterations"
   override protected val skimName: String = RideHailSkimmer.name
   override protected val skimType: Skims.SkimType.Value = Skims.SkimType.RH_SKIMMER
 
@@ -43,7 +43,7 @@ class RideHailSkimmer @Inject() (
         costPerMile = Option(line("costPerMile")).map(_.toDouble).getOrElse(Double.NaN),
         unmatchedRequestsPercent = line("unmatchedRequestsPercent").toDouble,
         accessibleVehiclePercent = line("accessibleVehiclePercent").toDouble,
-        completedTrips = line("completedTrips").toInt,
+        observations = line("observations").toInt,
         iterations = line("iterations").toInt
       )
     )
@@ -59,7 +59,7 @@ class RideHailSkimmer @Inject() (
         costPerMile = agg.aggregate(_.costPerMile),
         unmatchedRequestsPercent = agg.aggregate(_.unmatchedRequestsPercent),
         accessibleVehiclePercent = agg.aggregate(_.accessibleVehiclePercent),
-        completedTrips = agg.aggregate(_.completedTrips),
+        observations = agg.aggregate(_.observations),
         iterations = agg.aggregateObservations
       )
     }
@@ -74,7 +74,7 @@ class RideHailSkimmer @Inject() (
         costPerMile = agg.aggregate(_.costPerMile),
         unmatchedRequestsPercent = agg.aggregate(_.unmatchedRequestsPercent),
         accessibleVehiclePercent = agg.aggregate(_.accessibleVehiclePercent),
-        completedTrips = agg.aggregateObservations
+        observations = agg.aggregateObservations
       )
     }
 }
@@ -94,12 +94,12 @@ object RideHailSkimmer extends LazyLogging {
   }
 
   case class RidehailSkimmerInternal(
-    waitTime: Double,
-    costPerMile: Double,
-    unmatchedRequestsPercent: Double,
-    accessibleVehiclePercent: Double,
-    completedTrips: Int = 1,
-    iterations: Int = 1
+                                      waitTime: Double,
+                                      costPerMile: Double,
+                                      unmatchedRequestsPercent: Double,
+                                      accessibleVehiclePercent: Double,
+                                      observations: Int = 1,
+                                      iterations: Int = 1
   ) extends AbstractSkimmerInternal {
     override def toCsv: String = AbstractSkimmer.toCsv(productIterator)
   }

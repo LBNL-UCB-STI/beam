@@ -145,7 +145,7 @@ case class ActivitySimSkimmerEvent(
         keyInVehicleTimeInMinutes = keyInVehicleTimeInSeconds / 60.0,
         transitBoardingsCount = numberOfTransitTrips,
         failedTrips = 0,
-        completedTrips = 1
+        observations = 1
       )
     (key, payload)
   }
@@ -183,7 +183,7 @@ case class ActivitySimSkimmerFailedTripEvent(
       0.0,
       0.0,
       failedTrips = 1,
-      completedTrips = 0
+      observations = 0
     )
   }
 }

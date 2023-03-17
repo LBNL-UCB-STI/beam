@@ -140,7 +140,7 @@ case class ODSkimmerFailedTripEvent(
       0.0,
       1.0,
       failedTrips = 1,
-      completedTrips = 0
+      observations = 0
     )
   }
 }

@@ -125,7 +125,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     event.getSkimmerInternal.totalInVehicleTimeInMinutes shouldBe 0.0
     event.getSkimmerInternal.keyInVehicleTimeInMinutes shouldBe 0.0
     event.getSkimmerInternal.failedTrips shouldBe 1
-    event.getSkimmerInternal.completedTrips shouldBe 0
+    event.getSkimmerInternal.observations shouldBe 0
     event.getKey.pathType shouldBe ActivitySimPathType.SOV
   }
 
@@ -147,7 +147,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     event.getSkimmerInternal.totalInVehicleTimeInMinutes shouldBe 0.0
     event.getSkimmerInternal.keyInVehicleTimeInMinutes shouldBe 0.0
     event.getSkimmerInternal.failedTrips shouldBe 1
-    event.getSkimmerInternal.completedTrips shouldBe 0
+    event.getSkimmerInternal.observations shouldBe 0
     event.getKey.pathType shouldBe ActivitySimPathType.WLK_LOC_WLK
   }
 
@@ -171,7 +171,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     event.getSkimmerInternal.totalInVehicleTimeInMinutes shouldBe 0.0
     event.getSkimmerInternal.keyInVehicleTimeInMinutes shouldBe 0.0
     event.getSkimmerInternal.failedTrips shouldBe 1
-    event.getSkimmerInternal.completedTrips shouldBe 0
+    event.getSkimmerInternal.observations shouldBe 0
     event.getKey.pathType shouldBe ActivitySimPathType.DRV_LOC_WLK
   }
 
@@ -195,7 +195,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     event.getSkimmerInternal.totalInVehicleTimeInMinutes shouldBe 0.0
     event.getSkimmerInternal.keyInVehicleTimeInMinutes shouldBe 0.0
     event.getSkimmerInternal.failedTrips shouldBe 1
-    event.getSkimmerInternal.completedTrips shouldBe 0
+    event.getSkimmerInternal.observations shouldBe 0
     event.getKey.pathType shouldBe ActivitySimPathType.WLK_LOC_DRV
   }
 }

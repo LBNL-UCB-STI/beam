@@ -42,7 +42,7 @@ case class DriveTimeSkimmerEvent(eventTime: Double, beamServices: BeamServices, 
     val skimmerInternal = DriveTimeSkimmerInternal(
       timeSimulated = timeSimulated,
       timeObserved = 0,
-      completedTrips = 1,
+      observations = 1,
       iterations = beamServices.matsimServices.getIterationNumber + 1
     )
     (skimmerKey, skimmerInternal)

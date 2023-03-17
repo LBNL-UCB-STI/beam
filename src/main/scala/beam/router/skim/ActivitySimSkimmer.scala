@@ -47,7 +47,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     val prevSkim = prevIteration
       .map(_.asInstanceOf[ActivitySimSkimmerInternal])
       .getOrElse(
-        ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, completedTrips = 0)
+        ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, observations = 0)
       )
     val currSkim =
       currIteration
@@ -71,7 +71,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
             0,
             0,
             0,
-            completedTrips = 0,
+            observations = 0,
             iterations = 1
           )
         )
@@ -102,8 +102,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       transitBoardingsCount = aggregate(_.transitBoardingsCount),
       failedTrips =
         (prevSkim.failedTrips * prevSkim.iterations + currSkim.failedTrips * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
-      completedTrips =
-        (prevSkim.completedTrips * prevSkim.iterations + currSkim.completedTrips * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      observations =
+        (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       iterations = prevSkim.iterations + currSkim.iterations
     )
   }
@@ -118,9 +118,9 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     val currSkim = currObservation.asInstanceOf[ActivitySimSkimmerInternal]
 
     def aggregatedDoubleSkimValue(getValue: ActivitySimSkimmerInternal => Double): Double = {
-      (getValue(prevSkim) * prevSkim.completedTrips + getValue(
+      (getValue(prevSkim) * prevSkim.observations + getValue(
         currSkim
-      ) * currSkim.completedTrips) / (prevSkim.completedTrips + currSkim.completedTrips)
+      ) * currSkim.observations) / (prevSkim.observations + currSkim.observations)
     }
 
     ActivitySimSkimmerInternal(
@@ -142,7 +142,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       keyInVehicleTimeInMinutes = aggregatedDoubleSkimValue(_.keyInVehicleTimeInMinutes),
       transitBoardingsCount = aggregatedDoubleSkimValue(_.transitBoardingsCount),
       failedTrips = prevSkim.failedTrips + currSkim.failedTrips,
-      completedTrips = prevSkim.completedTrips + currSkim.completedTrips,
+      observations = prevSkim.observations + currSkim.observations,
       iterations = matsimServices.getIterationNumber + 1,
       debugText = Seq(prevSkim.debugText, currSkim.debugText).mkString("|")
     )
@@ -251,7 +251,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     pathType: ActivitySimPathType,
     individualSkims: List[ActivitySimSkimmerInternal]
   ) = {
-    val weights = individualSkims.map(sk => sk.completedTrips)
+    val weights = individualSkims.map(sk => sk.observations)
     val sumWeights = if (weights.sum == 0) 1 else weights.sum
 
     def getWeightedSkimsValue(getValue: ActivitySimSkimmerInternal => Double): Double =
@@ -272,7 +272,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     val weightedFerryTime = getWeightedSkimsValue(_.ferryInVehicleTimeInMinutes)
     val weightedTransitBoardingsCount = getWeightedSkimsValue(_.transitBoardingsCount)
     val failedTrips = individualSkims.map(_.failedTrips).sum
-    val completedTrips = individualSkims.map(_.completedTrips).sum
+    val completedTrips = individualSkims.map(_.observations).sum
     val debugText = individualSkims.map(_.debugText).filter(t => t != "").mkString("|")
 
     ExcerptData(
@@ -346,32 +346,32 @@ object ActivitySimSkimmer extends LazyLogging {
   }
 
   case class ActivitySimSkimmerInternal(
-    travelTimeInMinutes: Double,
-    generalizedTimeInMinutes: Double,
-    generalizedCost: Double,
-    distanceInMeters: Double,
-    cost: Double,
-    energy: Double,
-    walkAccessInMinutes: Double,
-    walkEgressInMinutes: Double,
-    walkAuxiliaryInMinutes: Double,
-    waitInitialInMinutes: Double,
-    waitAuxiliaryInMinutes: Double,
-    totalInVehicleTimeInMinutes: Double,
-    driveTimeInMinutes: Double,
-    driveDistanceInMeters: Double,
-    ferryInVehicleTimeInMinutes: Double,
-    keyInVehicleTimeInMinutes: Double,
-    transitBoardingsCount: Double,
-    failedTrips: Int = 0,
-    completedTrips: Int = 1,
-    iterations: Int = 0,
-    debugText: String = ""
+                                         travelTimeInMinutes: Double,
+                                         generalizedTimeInMinutes: Double,
+                                         generalizedCost: Double,
+                                         distanceInMeters: Double,
+                                         cost: Double,
+                                         energy: Double,
+                                         walkAccessInMinutes: Double,
+                                         walkEgressInMinutes: Double,
+                                         walkAuxiliaryInMinutes: Double,
+                                         waitInitialInMinutes: Double,
+                                         waitAuxiliaryInMinutes: Double,
+                                         totalInVehicleTimeInMinutes: Double,
+                                         driveTimeInMinutes: Double,
+                                         driveDistanceInMeters: Double,
+                                         ferryInVehicleTimeInMinutes: Double,
+                                         keyInVehicleTimeInMinutes: Double,
+                                         transitBoardingsCount: Double,
+                                         failedTrips: Int = 0,
+                                         observations: Int = 1,
+                                         iterations: Int = 0,
+                                         debugText: String = ""
   ) extends AbstractSkimmerInternal {
 
     override def toCsv: String =
       travelTimeInMinutes + "," + generalizedTimeInMinutes + "," + cost + "," + generalizedCost + "," +
-      distanceInMeters + "," + energy + "," + failedTrips + "," + completedTrips + "," + iterations
+      distanceInMeters + "," + energy + "," + failedTrips + "," + observations + "," + iterations
   }
 
   object ActivitySimSkimmerInternal {
