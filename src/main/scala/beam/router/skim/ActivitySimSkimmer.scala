@@ -49,7 +49,9 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
 
     val prevSkim = prevIteration
       .map(_.asInstanceOf[ActivitySimSkimmerInternal])
-      .getOrElse(ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, observations = 0))
+      .getOrElse(
+        ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, completedTrips = 0)
+      )
     val currSkim =
       currIteration
         .map(_.asInstanceOf[ActivitySimSkimmerInternal])
@@ -72,7 +74,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
             0,
             0,
             0,
-            observations = 0,
+            completedTrips = 0,
             iterations = 1
           )
         )
@@ -101,8 +103,10 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       ferryInVehicleTimeInMinutes = aggregate(_.ferryInVehicleTimeInMinutes),
       keyInVehicleTimeInMinutes = aggregate(_.keyInVehicleTimeInMinutes),
       transitBoardingsCount = aggregate(_.transitBoardingsCount),
-      observations =
-        (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      failedTrips =
+        (prevSkim.failedTrips * prevSkim.iterations + currSkim.failedTrips * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      completedTrips =
+        (prevSkim.completedTrips * prevSkim.iterations + currSkim.completedTrips * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       iterations = prevSkim.iterations + currSkim.iterations
     )
   }
@@ -117,9 +121,9 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     val currSkim = currObservation.asInstanceOf[ActivitySimSkimmerInternal]
 
     def aggregatedDoubleSkimValue(getValue: ActivitySimSkimmerInternal => Double): Double = {
-      (getValue(prevSkim) * prevSkim.observations + getValue(
+      (getValue(prevSkim) * prevSkim.completedTrips + getValue(
         currSkim
-      ) * currSkim.observations) / (prevSkim.observations + currSkim.observations)
+      ) * currSkim.completedTrips) / (prevSkim.completedTrips + currSkim.completedTrips)
     }
 
     ActivitySimSkimmerInternal(
@@ -140,7 +144,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       ferryInVehicleTimeInMinutes = aggregatedDoubleSkimValue(_.ferryInVehicleTimeInMinutes),
       keyInVehicleTimeInMinutes = aggregatedDoubleSkimValue(_.keyInVehicleTimeInMinutes),
       transitBoardingsCount = aggregatedDoubleSkimValue(_.transitBoardingsCount),
-      observations = prevSkim.observations + currSkim.observations,
+      failedTrips = prevSkim.failedTrips + currSkim.failedTrips,
+      completedTrips = prevSkim.completedTrips + currSkim.completedTrips,
       iterations = matsimServices.getIterationNumber + 1,
       debugText = Seq(prevSkim.debugText, currSkim.debugText).mkString("|")
     )
@@ -255,7 +260,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     pathType: ActivitySimPathType,
     individualSkims: List[ActivitySimSkimmerInternal]
   ) = {
-    val weights = individualSkims.map(sk => sk.observations)
+    val weights = individualSkims.map(sk => sk.completedTrips)
     val sumWeights = if (weights.sum == 0) 1 else weights.sum
 
     def getWeightedSkimsValue(getValue: ActivitySimSkimmerInternal => Double): Double =
@@ -275,6 +280,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     val weightedKeyInVehicleTime = getWeightedSkimsValue(_.keyInVehicleTimeInMinutes)
     val weightedFerryTime = getWeightedSkimsValue(_.ferryInVehicleTimeInMinutes)
     val weightedTransitBoardingsCount = getWeightedSkimsValue(_.transitBoardingsCount)
+    val failedTrips = individualSkims.map(_.failedTrips).sum
+    val completedTrips = individualSkims.map(_.completedTrips).sum
     val debugText = individualSkims.map(_.debugText).filter(t => t != "").mkString("|")
 
     ExcerptData(
@@ -297,6 +304,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       weightedFerryInVehicleTimeInMinutes = weightedFerryTime,
       weightedTransitBoardingsCount = weightedTransitBoardingsCount,
       weightedCost = weightedCost,
+      failedTrips = failedTrips,
+      completedTrips = completedTrips,
       debugText = debugText
     )
   }
@@ -313,6 +322,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
         pathType,
         origin.id,
         destination.id,
+        0,
+        0,
         0,
         0,
         0,
@@ -361,20 +372,21 @@ object ActivitySimSkimmer extends LazyLogging {
     ferryInVehicleTimeInMinutes: Double,
     keyInVehicleTimeInMinutes: Double,
     transitBoardingsCount: Double,
-    observations: Int = 1,
+    failedTrips: Int = 0,
+    completedTrips: Int = 1,
     iterations: Int = 0,
     debugText: String = ""
   ) extends AbstractSkimmerInternal {
 
     override def toCsv: String =
       travelTimeInMinutes + "," + generalizedTimeInMinutes + "," + cost + "," + generalizedCost + "," +
-      distanceInMeters + "," + energy + "," + observations + "," + iterations
+      distanceInMeters + "," + energy + "," + failedTrips + "," + completedTrips + "," + iterations
   }
 
   object ActivitySimSkimmerInternal {
 
     def empty: ActivitySimSkimmerInternal =
-      ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+      ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
   }
 
   case class ExcerptData(
@@ -397,6 +409,8 @@ object ActivitySimSkimmer extends LazyLogging {
     weightedFerryInVehicleTimeInMinutes: Double,
     weightedTransitBoardingsCount: Double,
     weightedCost: Double,
+    failedTrips: Int,
+    completedTrips: Int,
     debugText: String = ""
   ) {
 
@@ -460,6 +474,8 @@ object ActivitySimSkimmer extends LazyLogging {
       "FERRYIVT_minutes",
       "BOARDS",
       "WeightedCost",
+      "failedTrips",
+      "completedTrips",
       "DEBUG_TEXT"
     )
 

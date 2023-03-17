@@ -31,7 +31,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
   override protected val skimFileBaseName: String = config.origin_destination_skimmer.fileBaseName
 
   override protected val skimFileHeader: String =
-    "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,payloadWeightInKg,energy,level4CavTravelTimeScalingFactor,failedTrips,observations,iterations"
+    "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,payloadWeightInKg,energy,level4CavTravelTimeScalingFactor,failedTrips,completedTrips,iterations"
 
   protected lazy val dummyId = Id.create(
     beamScenario.beamConfig.beam.agentsim.agents.rideHail.managers.head.initialization.procedural.vehicleTypeId,
@@ -80,11 +80,11 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
   ): AbstractSkimmerInternal = {
     val prevSkim = prevIteration
       .map(_.asInstanceOf[ODSkimmerInternal])
-      .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 1, 0, observations = 0))
+      .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 1, 0, completedTrips = 0))
     val currSkim =
       currIteration
         .map(_.asInstanceOf[ODSkimmerInternal])
-        .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 1, 0, observations = 0, iterations = 1))
+        .getOrElse(ODSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 1, 0, completedTrips = 0, iterations = 1))
     ODSkimmerInternal(
       travelTimeInS =
         (prevSkim.travelTimeInS * prevSkim.iterations + currSkim.travelTimeInS * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
@@ -104,8 +104,8 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
         (prevSkim.level4CavTravelTimeScalingFactor * prevSkim.iterations + currSkim.level4CavTravelTimeScalingFactor * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       failedTrips =
         (prevSkim.failedTrips * prevSkim.iterations + currSkim.failedTrips * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
-      observations =
-        (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      completedTrips =
+        (prevSkim.completedTrips * prevSkim.iterations + currSkim.completedTrips * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       iterations = prevSkim.iterations + currSkim.iterations
     )
   }
@@ -119,28 +119,28 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
       case None => currSkim.copy(iterations = matsimServices.getIterationNumber + 1)
       case Some(prevSkim) if currSkim.failedTrips > 0 =>
         aggregateFailedOnly(skim = prevSkim, failedData = currSkim)
-      case Some(prevSkim) if MathUtils.doubleToInt(prevSkim.failedTrips) == prevSkim.observations =>
+      case Some(prevSkim) if MathUtils.doubleToInt(prevSkim.failedTrips) == prevSkim.completedTrips =>
         aggregateFailedOnly(skim = currSkim, failedData = prevSkim)
       case Some(prevSkim) =>
         ODSkimmerInternal(
           travelTimeInS =
-            (prevSkim.travelTimeInS * prevSkim.observations + currSkim.travelTimeInS * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+            (prevSkim.travelTimeInS * prevSkim.completedTrips + currSkim.travelTimeInS * currSkim.completedTrips) / (prevSkim.completedTrips + currSkim.completedTrips),
           generalizedTimeInS =
-            (prevSkim.generalizedTimeInS * prevSkim.observations + currSkim.generalizedTimeInS * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+            (prevSkim.generalizedTimeInS * prevSkim.completedTrips + currSkim.generalizedTimeInS * currSkim.completedTrips) / (prevSkim.completedTrips + currSkim.completedTrips),
           generalizedCost =
-            (prevSkim.generalizedCost * prevSkim.observations + currSkim.generalizedCost * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+            (prevSkim.generalizedCost * prevSkim.completedTrips + currSkim.generalizedCost * currSkim.completedTrips) / (prevSkim.completedTrips + currSkim.completedTrips),
           distanceInM =
-            (prevSkim.distanceInM * prevSkim.observations + currSkim.distanceInM * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+            (prevSkim.distanceInM * prevSkim.completedTrips + currSkim.distanceInM * currSkim.completedTrips) / (prevSkim.completedTrips + currSkim.completedTrips),
           cost =
-            (prevSkim.cost * prevSkim.observations + currSkim.cost * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+            (prevSkim.cost * prevSkim.completedTrips + currSkim.cost * currSkim.completedTrips) / (prevSkim.completedTrips + currSkim.completedTrips),
           energy =
-            (prevSkim.energy * prevSkim.observations + currSkim.energy * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+            (prevSkim.energy * prevSkim.completedTrips + currSkim.energy * currSkim.completedTrips) / (prevSkim.completedTrips + currSkim.completedTrips),
           payloadWeightInKg =
-            (prevSkim.payloadWeightInKg * prevSkim.observations + currSkim.payloadWeightInKg * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+            (prevSkim.payloadWeightInKg * prevSkim.completedTrips + currSkim.payloadWeightInKg * currSkim.completedTrips) / (prevSkim.completedTrips + currSkim.completedTrips),
           level4CavTravelTimeScalingFactor =
-            (prevSkim.level4CavTravelTimeScalingFactor * prevSkim.observations + currSkim.level4CavTravelTimeScalingFactor * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+            (prevSkim.level4CavTravelTimeScalingFactor * prevSkim.completedTrips + currSkim.level4CavTravelTimeScalingFactor * currSkim.completedTrips) / (prevSkim.completedTrips + currSkim.completedTrips),
           failedTrips = prevSkim.failedTrips + currSkim.failedTrips,
-          observations = prevSkim.observations + currSkim.observations,
+          completedTrips = prevSkim.completedTrips + currSkim.completedTrips,
           iterations = matsimServices.getIterationNumber + 1
         )
     }
@@ -149,7 +149,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
   private def aggregateFailedOnly(skim: ODSkimmerInternal, failedData: ODSkimmerInternal): ODSkimmerInternal =
     skim.copy(
       failedTrips = skim.failedTrips + failedData.failedTrips,
-      observations = skim.observations + failedData.observations,
+      completedTrips = skim.completedTrips + failedData.completedTrips,
       iterations = matsimServices.getIterationNumber + 1
     )
 
@@ -161,7 +161,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
     val nonPeakHours = (0 to 6).toList ++ (9 to 14).toList ++ (17 to 23).toList
     val modes = BeamMode.allModes
     val fileHeader =
-      "period,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,failedTrips,observations,payloadWeightInKg,energy"
+      "period,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,failedTrips,completedTrips,payloadWeightInKg,energy"
     val filePath = event.getServices.getControlerIO.getIterationFilename(
       event.getServices.getIterationNumber,
       skimFileBaseName + "Excerpt.csv.gz"
@@ -256,7 +256,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
                 )
             }
 
-        //     "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,level4CavTravelTimeScalingFactor,observations,iterations"
+        //     "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,level4CavTravelTimeScalingFactor,completedTrips,iterations"
         writer.write(
           s"$timeBin,$mode,${origin.id},${destination.id},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedCost},${theSkim.distance},${theSkim.payloadWeight},${theSkim.energy},${theSkim.level4CavTravelTimeScalingFactor},${theSkim.failedTrips},${theSkim.count}\n"
         )
@@ -396,8 +396,8 @@ object ODSkimmer extends LazyLogging {
         energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
         payloadWeightInKg = row.get("payloadWeightInKg").map(_.toDouble).getOrElse(0.0),
         level4CavTravelTimeScalingFactor = row.get("level4CavTravelTimeScalingFactor").map(_.toDouble).getOrElse(1.0),
-        failedTrips = row.get("failedTrips").map(_.toDouble).getOrElse(0.0),
-        observations = NumberUtils.toInt(row("observations"), 0),
+        failedTrips = NumberUtils.toInt(row("failedTrips"), 0),
+        completedTrips = NumberUtils.toInt(row("completedTrips"), 0),
         iterations = NumberUtils.toInt(row("iterations"), 1)
       )
     )
@@ -412,8 +412,8 @@ object ODSkimmer extends LazyLogging {
     payloadWeightInKg: Double,
     energy: Double,
     level4CavTravelTimeScalingFactor: Double,
-    failedTrips: Double,
-    observations: Int = 1,
+    failedTrips: Int = 0,
+    completedTrips: Int = 1,
     iterations: Int = 0
   ) extends AbstractSkimmerInternal {
 
@@ -426,7 +426,7 @@ object ODSkimmer extends LazyLogging {
         distanceInM,
         cost,
         failedTrips,
-        observations,
+        completedTrips,
         payloadWeightInKg,
         energy,
         level4CavTravelTimeScalingFactor
@@ -440,14 +440,14 @@ object ODSkimmer extends LazyLogging {
         distanceInM,
         cost,
         failedTrips,
-        observations,
+        completedTrips,
         payloadWeightInKg,
         energy,
         level4CavTravelTimeScalingFactor
       )
 
     override def toCsv: String =
-      travelTimeInS + "," + generalizedTimeInS + "," + cost + "," + generalizedCost + "," + distanceInM + "," + payloadWeightInKg + "," + energy + "," + level4CavTravelTimeScalingFactor + "," + failedTrips + "," + observations + "," + iterations
+      travelTimeInS + "," + generalizedTimeInS + "," + cost + "," + generalizedCost + "," + distanceInM + "," + payloadWeightInKg + "," + energy + "," + level4CavTravelTimeScalingFactor + "," + failedTrips + "," + completedTrips + "," + iterations
   }
 
   case class Skim(

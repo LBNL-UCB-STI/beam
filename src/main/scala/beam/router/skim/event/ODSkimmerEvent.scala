@@ -122,7 +122,6 @@ case class ODSkimmerFailedTripEvent(
   destination: String,
   eventTime: Double,
   mode: BeamMode,
-  skim: ODSkimmer.Skim,
   iterationNumber: Int,
   override val skimName: String
 ) extends AbstractSkimmerEvent(eventTime) {
@@ -132,15 +131,16 @@ case class ODSkimmerFailedTripEvent(
 
   override def getSkimmerInternal: AbstractSkimmerInternal = {
     ODSkimmerInternal(
-      skim.time,
-      skim.generalizedTime,
-      skim.generalizedCost,
-      skim.distance,
-      skim.cost,
-      skim.payloadWeight,
-      skim.energy,
-      skim.level4CavTravelTimeScalingFactor,
-      failedTrips = 1
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      failedTrips = 1,
+      completedTrips = 0
     )
   }
 }

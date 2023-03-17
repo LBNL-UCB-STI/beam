@@ -274,8 +274,8 @@ object SkimmerSpec extends LazyLogging {
         energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
         level4CavTravelTimeScalingFactor =
           Option(row("level4CavTravelTimeScalingFactor")).map(_.toDouble).getOrElse(1.0),
-        failedTrips = 0,
-        observations = row("observations").toInt,
+        failedTrips = row("failedTrips").toInt,
+        completedTrips = row("completedTrips").toInt,
         iterations = row("iterations").toInt
       )
     )
@@ -291,7 +291,7 @@ object SkimmerSpec extends LazyLogging {
       DriveTimeSkimmerInternal(
         timeSimulated = row("timeSimulated").toDouble,
         timeObserved = row("timeObserved").toDouble,
-        observations = row("counts").toInt,
+        completedTrips = row("counts").toInt,
         iterations = row("iterations").toInt
       )
     )
@@ -300,7 +300,7 @@ object SkimmerSpec extends LazyLogging {
   private def getCountSkimPair(row: Map[String, String]): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     (
       TAZSkimmerKey(row("time").toInt, row("geoId"), row("actor"), row("key")),
-      TAZSkimmerInternal(row("value").toDouble, row("observations").toInt, row("iterations").toInt)
+      TAZSkimmerInternal(row("value").toDouble, row("completedTrips").toInt, row("iterations").toInt)
     )
   }
 }
