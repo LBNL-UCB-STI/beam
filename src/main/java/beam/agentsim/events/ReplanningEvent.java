@@ -74,10 +74,10 @@ public class ReplanningEvent extends Event implements HasPersonId {
             return new ReplanningEvent(event.getTime(),
                     Id.createPersonId(attr.get(ATTRIBUTE_PERSON)),
                     attr.get(ATTRIBUTE_REPLANNING_REASON),
-                    Double.valueOf(attr.get(ATTRIBUTE_START_COORDINATE_X)),
-                    Double.valueOf(attr.get(ATTRIBUTE_START_COORDINATE_Y)),
-                    Double.valueOf(attr.get(ATTRIBUTE_END_COORDINATE_X)),
-                    Double.valueOf(attr.get(ATTRIBUTE_END_COORDINATE_Y))
+                    Double.valueOf(attr.getOrDefault(ATTRIBUTE_START_COORDINATE_X, "0.0")),
+                    Double.valueOf(attr.getOrDefault(ATTRIBUTE_START_COORDINATE_Y, "0.0")),
+                    Double.valueOf(attr.getOrDefault(ATTRIBUTE_END_COORDINATE_X, "0.0")),
+                    Double.valueOf(attr.getOrDefault(ATTRIBUTE_END_COORDINATE_Y, "0.0"))
             );
         }
         return (ReplanningEvent) event;
