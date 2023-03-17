@@ -62,8 +62,8 @@ class DriveTimeSkimmer @Inject() (
                   val theSkimKey = DriveTimeSkimmerKey(origin.tazId, destination.tazId, timeBin * 3600)
                   getCurrentSkimValue(theSkimKey).map(_.asInstanceOf[DriveTimeSkimmerInternal]).foreach {
                     theSkimInternal =>
-                      series += ((theSkimInternal.completedTrips, theSkimInternal.timeSimulated, timeObserved))
-                      for (_ <- 1 to theSkimInternal.completedTrips)
+                      series += ((theSkimInternal.observations, theSkimInternal.timeSimulated, timeObserved))
+                      for (_ <- 1 to theSkimInternal.observations)
                         deltasOfObservedSimulatedTimes += theSkimInternal.timeSimulated - timeObserved
                       currentSkimInternal.put(theSkimKey, theSkimInternal.copy(timeObserved = timeObserved))
                   }
@@ -102,7 +102,7 @@ class DriveTimeSkimmer @Inject() (
       DriveTimeSkimmerInternal(
         timeSimulated = line("timeSimulated").toDouble,
         timeObserved = line("timeObserved").toDouble,
-        completedTrips = line("counts").toInt,
+        observations = line("counts").toInt,
         iterations = line("iterations").toInt
       )
     )
@@ -128,8 +128,8 @@ class DriveTimeSkimmer @Inject() (
       timeSimulated =
         (prevSkim.timeSimulated * prevSkim.iterations + currSkim.timeSimulated * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       timeObserved = if (currSkim.timeObserved != 0) currSkim.timeObserved else prevSkim.timeObserved,
-      completedTrips =
-        (prevSkim.completedTrips * prevSkim.iterations + currSkim.completedTrips * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      observations =
+        (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       iterations = prevSkim.iterations + currSkim.iterations
     )
   }
@@ -150,9 +150,9 @@ class DriveTimeSkimmer @Inject() (
     val currSkim = currObservation.asInstanceOf[DriveTimeSkimmerInternal]
     DriveTimeSkimmerInternal(
       timeSimulated =
-        (prevSkim.timeSimulated * prevSkim.completedTrips + currSkim.timeSimulated * currSkim.completedTrips) / (prevSkim.completedTrips + currSkim.completedTrips),
+        (prevSkim.timeSimulated * prevSkim.observations + currSkim.timeSimulated * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       timeObserved = if (currSkim.timeObserved != 0) currSkim.timeObserved else prevSkim.timeObserved,
-      completedTrips = prevSkim.completedTrips + currSkim.completedTrips,
+      observations = prevSkim.observations + currSkim.observations,
       iterations = prevSkim.iterations
     )
   }
@@ -167,10 +167,10 @@ object DriveTimeSkimmer extends LazyLogging {
   case class DriveTimeSkimmerInternal(
     timeSimulated: Double,
     timeObserved: Double,
-    completedTrips: Int = 0,
+    observations: Int = 0,
     iterations: Int = 0
   ) extends AbstractSkimmerInternal {
-    override def toCsv: String = timeSimulated + "," + timeObserved + "," + completedTrips + "," + iterations
+    override def toCsv: String = timeSimulated + "," + timeObserved + "," + observations + "," + iterations
   }
 
 }

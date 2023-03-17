@@ -32,7 +32,7 @@ trait AbstractSkimmerKey {
 }
 
 trait AbstractSkimmerInternal {
-  val completedTrips: Int
+  val observations: Int
   val iterations: Int
 
   def toCsv: String
@@ -261,7 +261,7 @@ object AbstractSkimmer {
     val maybePrevSkim = prevObservation.asInstanceOf[Option[T]]
     maybePrevSkim.fold(currObservation) { prevSkim =>
       val currSkim = currObservation.asInstanceOf[T]
-      aggregate(new Aggregator(prevSkim, currSkim, prevSkim.completedTrips, currSkim.completedTrips))
+      aggregate(new Aggregator(prevSkim, currSkim, prevSkim.observations, currSkim.observations))
     }
   }
 

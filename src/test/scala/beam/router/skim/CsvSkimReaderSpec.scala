@@ -36,7 +36,7 @@ class CsvSkimReaderSpec extends AnyFlatSpec with Matchers with BeamHelper {
     checkSkimmerField[Double, ODSkimmerInternal]("distanceInM", 1175.0, 2500, skims.values, x => x.distanceInM)
     checkSkimmerField[Double, ODSkimmerInternal]("energy", 10, 2000, skims.values, x => x.energy)
     checkSkimmerField[Int, ODSkimmerInternal]("failedTrips", 0, 1, skims.values, x => x.failedTrips)
-    checkSkimmerField[Int, ODSkimmerInternal]("completedTrips", 0, 50, skims.values, x => x.completedTrips)
+    checkSkimmerField[Int, ODSkimmerInternal]("observations", 0, 50, skims.values, x => x.observations)
     checkSkimmerField[Int, ODSkimmerInternal]("iterations", 2, 5, skims.values, x => x.iterations)
     checkSkimmerField[Double, ODSkimmerInternal](
       "generalizedTimeInS",

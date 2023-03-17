@@ -17,7 +17,7 @@ class TAZSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: BeamConf
   override protected val skimType: Skims.SkimType.Value = Skims.SkimType.TAZ_SKIMMER
   override protected val skimFileBaseName: String = config.taz_skimmer.fileBaseName
 
-  override protected val skimFileHeader: String = "time,geoId,actor,key,value,completedTrips,iterations"
+  override protected val skimFileHeader: String = "time,geoId,actor,key,value,observations,iterations"
 
   override def fromCsv(
     line: scala.collection.Map[String, String]
@@ -31,7 +31,7 @@ class TAZSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: BeamConf
       ),
       TAZSkimmerInternal(
         line("value").toDouble,
-        line("completedTrips").toInt,
+        line("observations").toInt,
         line("iterations").toInt
       )
     )
@@ -52,8 +52,8 @@ class TAZSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: BeamConf
     TAZSkimmerInternal(
       value =
         (prevSkim.value * prevSkim.iterations + currSkim.value * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
-      completedTrips =
-        (prevSkim.completedTrips * prevSkim.iterations + currSkim.completedTrips * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      observations =
+        (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       iterations = prevSkim.iterations + currSkim.iterations
     )
   }
@@ -68,8 +68,8 @@ class TAZSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: BeamConf
     val currSkim = currObservation.asInstanceOf[TAZSkimmerInternal]
     TAZSkimmerInternal(
       value =
-        (prevSkim.value * prevSkim.completedTrips + currSkim.value * currSkim.completedTrips) / (prevSkim.completedTrips + currSkim.completedTrips),
-      completedTrips = prevSkim.completedTrips + currSkim.completedTrips,
+        (prevSkim.value * prevSkim.observations + currSkim.value * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+      observations = prevSkim.observations + currSkim.observations,
       iterations = prevSkim.iterations
     )
   }
@@ -81,8 +81,8 @@ object TAZSkimmer extends LazyLogging {
     override def toCsv: String = time + "," + geoId + "," + actor + "," + key
   }
 
-  case class TAZSkimmerInternal(value: Double, completedTrips: Int = 0, iterations: Int = 0)
+  case class TAZSkimmerInternal(value: Double, observations: Int = 0, iterations: Int = 0)
       extends AbstractSkimmerInternal {
-    override def toCsv: String = value + "," + completedTrips + "," + iterations
+    override def toCsv: String = value + "," + observations + "," + iterations
   }
 }
