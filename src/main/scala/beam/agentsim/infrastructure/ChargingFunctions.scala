@@ -99,15 +99,24 @@ class ChargingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifHomeWorkOrLongParkingDurationThenSlowChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
-    zone.chargingPointType.forall(chargingPointType =>
-      inquiry.beamVehicle.forall {
-        case vehicle
-            if !vehicle.isRideHail && (isHomeWorkOrOvernight(inquiry) || hasLongParkingDurationButNotCharge(inquiry)) =>
-          !ChargingPointType.isFastCharger(chargingPointType)
-        case _ => true
-      }
-    )
+  def ifHomeWorkOrLongParkingDurationThenSlowChargingOnlyUnlessEnrouting(
+    zone: ParkingZone,
+    inquiry: ParkingInquiry
+  ): Boolean = {
+    inquiry.searchMode match {
+      case ParkingSearchMode.EnRouteCharging => true
+      case _ =>
+        zone.chargingPointType.forall(chargingPointType =>
+          inquiry.beamVehicle.forall {
+            case vehicle
+                if !vehicle.isRideHail && (isHomeWorkOrOvernight(inquiry) || hasLongParkingDurationButNotCharge(
+                  inquiry
+                )) =>
+              !ChargingPointType.isFastCharger(chargingPointType)
+            case _ => true
+          }
+        )
+    }
   }
 
   /**
@@ -153,7 +162,8 @@ class ChargingFunctions(
     val rideHailFastChargingOnly: Boolean = ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone, inquiry)
     val enRouteFastChargingOnly: Boolean = ifEnrouteThenFastChargingOnly(zone, inquiry)
     val chargeFastChargingOnly: Boolean = ifChargeActivityThenFastChargingOnly(zone, inquiry)
-    val overnightStaySlowChargingOnly: Boolean = ifHomeWorkOrLongParkingDurationThenSlowChargingOnly(zone, inquiry)
+    val overnightStaySlowChargingOnly: Boolean =
+      ifHomeWorkOrLongParkingDurationThenSlowChargingOnlyUnlessEnrouting(zone, inquiry)
     val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry.beamVehicle)
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
