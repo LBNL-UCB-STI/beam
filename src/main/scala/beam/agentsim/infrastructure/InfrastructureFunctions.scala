@@ -122,6 +122,11 @@ abstract class InfrastructureFunctions(
     //     based on this.
     // ---------------------------------------------------------------------------------------------
 
+    val inquiryHash = inquiry.personId match {
+      case Some(id) => id.hashCode() + inquiry.destinationUtm.time
+      case _        => inquiry.destinationUtm.time
+    }
+
     val parkingZoneSearchParams: ParkingZoneSearchParams =
       ParkingZoneSearchParams(
         inquiry.destinationUtm.loc,
@@ -131,7 +136,7 @@ abstract class InfrastructureFunctions(
         zoneCollections,
         parkingZones,
         geoQuadTree,
-        new Random(seed),
+        new Random(seed + inquiryHash),
         inquiry.departureLocation,
         inquiry.reservedFor
       )
