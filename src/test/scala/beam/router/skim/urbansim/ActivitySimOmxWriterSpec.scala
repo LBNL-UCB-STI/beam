@@ -98,37 +98,37 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
       omxFile.openReadOnly()
       val matrixNames = omxFile.getMatrixNames.asScala.toList
       matrixNames should contain theSameElementsAs List(
-        "DRV_LRF_WLK_MD__FERRYIVT",
-        "DRV_COM_WLK_PM__DDIST",
-        "DRV_LRF_WLK_MD__WAUX",
-        "DRV_COM_WLK_AM__DDIST",
-        "DRV_COM_WLK_AM__FAR",
-        "DRV_COM_WLK_PM__KEYIVT",
-        "DRV_LRF_WLK_MD__TOTIVT",
-        "DRV_LRF_WLK_MD__BOARDS",
-        "DRV_LRF_WLK_MD__FAR",
-        "DRV_COM_WLK_AM__KEYIVT",
-        "DRV_COM_WLK_AM__BOARDS",
-        "DRV_LRF_WLK_MD__DDIST",
-        "DRV_COM_WLK_PM__WAUX",
-        "DRV_LRF_WLK_MD__KEYIVT",
-        "DRV_LRF_WLK_MD__DTIM",
-        "DRV_COM_WLK_PM__TOTIVT",
-        "DRV_COM_WLK_PM__BOARDS",
-        "DRV_COM_WLK_PM__DTIM",
-        "DRV_COM_WLK_AM__DTIM",
-        "DRV_COM_WLK_AM__TOTIVT",
-        "DRV_COM_WLK_AM__WAUX",
-        "DRV_COM_WLK_PM__FAR",
-        "DRV_LRF_WLK_MD__TRIPS",
-        "DRV_LRF_WLK_MD__FAILURES",
-        "DRV_COM_WLK_AM__TRIPS",
-        "DRV_COM_WLK_AM__FAILURES",
-        "DRV_COM_WLK_PM__TRIPS",
-        "DRV_COM_WLK_PM__FAILURES"
+        "DRV_LRF_WLK_FERRYIVT__MD",
+        "DRV_COM_WLK_DDIST__PM",
+        "DRV_LRF_WLK_WAUX__MD",
+        "DRV_COM_WLK_DDIST__AM",
+        "DRV_COM_WLK_FAR__AM",
+        "DRV_COM_WLK_KEYIVT__PM",
+        "DRV_LRF_WLK_TOTIVT__MD",
+        "DRV_LRF_WLK_BOARDS__MD",
+        "DRV_LRF_WLK_FAR__MD",
+        "DRV_COM_WLK_KEYIVT__AM",
+        "DRV_COM_WLK_BOARDS__AM",
+        "DRV_LRF_WLK_DDIST__MD",
+        "DRV_COM_WLK_WAUX__PM",
+        "DRV_LRF_WLK_KEYIVT__MD",
+        "DRV_LRF_WLK_DTIM__MD",
+        "DRV_COM_WLK_TOTIVT__PM",
+        "DRV_COM_WLK_BOARDS__PM",
+        "DRV_COM_WLK_DTIM__PM",
+        "DRV_COM_WLK_DTIM__AM",
+        "DRV_COM_WLK_TOTIVT__AM",
+        "DRV_COM_WLK_WAUX__AM",
+        "DRV_COM_WLK_FAR__PM",
+        "DRV_LRF_WLK_TRIPS__MD",
+        "DRV_LRF_WLK_FAILURES__MD",
+        "DRV_COM_WLK_TRIPS__AM",
+        "DRV_COM_WLK_FAILURES__AM",
+        "DRV_COM_WLK_TRIPS__PM",
+        "DRV_COM_WLK_FAILURE__PMS"
       )
       //total in vehicle time data for path type DRV_LRF_WLK and time bin MD
-      val matrix = omxFile.getMatrix("DRV_LRF_WLK_MD__TOTIVT").asInstanceOf[OmxDoubleMatrix]
+      val matrix = omxFile.getMatrix("DRV_LRF_WLK_TOTIVT__MD").asInstanceOf[OmxDoubleMatrix]
       matrix.getShape()(0) shouldBe 864
       matrix.getShape()(1) shouldBe 864
       val mapping = geoUnits.zipWithIndex.toMap

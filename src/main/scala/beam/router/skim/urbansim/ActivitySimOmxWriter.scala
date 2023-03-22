@@ -38,7 +38,7 @@ object ActivitySimOmxWriter {
         } yield pathType -> limitedData
       ).toMap
 
-      val allMatrices = mutable.Map.empty[String, OmxMatrix.OmxDoubleMatrix]
+      val allMatrices = mutable.Map.empty[String, OmxMatrix.OmxFloatMatrix]
       for {
         excerptData <- skimData
         matrixData  <- pathTypeToMatrixData.get(excerptData.pathType).toIterable
@@ -47,25 +47,32 @@ object ActivitySimOmxWriter {
         metric      <- matrixData.metrics
       } {
         val matrix = getOrCreateMatrix(allMatrices, excerptData.pathType, excerptData.timePeriodString, metric, shape)
-        matrix.getData()(row)(column) = excerptData.getValue(metric)
+        matrix.getData()(row)(column) = excerptData.getValue(metric).toFloat * getUnitConversion(metric)
       }
       allMatrices.values.foreach(omxFile.addMatrix)
     }
 
   }
 
+  private def getUnitConversion(metric: ActivitySimMetric): Float = {
+    metric match {
+      case DIST | DDIST => 1f / 1609.34f
+      case _ => 1f
+    }
+  }
+
   private def getOrCreateMatrix(
-    matrixMap: mutable.Map[String, OmxMatrix.OmxDoubleMatrix],
+    matrixMap: mutable.Map[String, OmxMatrix.OmxFloatMatrix],
     pathType: ActivitySimPathType,
     timeBin: String,
     metric: ActivitySimMetric,
     shape: Array[Int]
-  ): OmxMatrix.OmxDoubleMatrix = {
-    val matrixName = s"${pathType}_${timeBin}__$metric"
+  ): OmxMatrix.OmxFloatMatrix = {
+    val matrixName = s"${pathType}_${metric}__$timeBin"
     matrixMap.getOrElseUpdate(
       matrixName, {
-        val valuesDouble = Array.fill[Double](shape(0), shape(1))(Double.NaN)
-        new OmxMatrix.OmxDoubleMatrix(matrixName, valuesDouble, -1.0)
+        val valuesFloat = Array.fill[Float](shape(0), shape(1))(Float.NaN)
+        new OmxMatrix.OmxFloatMatrix(matrixName, valuesFloat, -1.0f)
       }
     )
   }
