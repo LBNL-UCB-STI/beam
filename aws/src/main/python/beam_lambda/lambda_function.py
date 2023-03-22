@@ -1,4 +1,4 @@
-# coding=utf-8
+# coding=utf-8 
 import boto3
 import logging
 import time
@@ -15,11 +15,11 @@ logger.setLevel(logging.INFO)
 GRAFANA_RUN = '''sudo ./gradlew --stacktrace grafanaStart
   -    '''
 
-CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$cf']" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
+CONFIG_SCRIPT = '''./gradlew --stacktrace :run -PappArgs="['--config', '$CONFIG']" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
-EXECUTE_SCRIPT = '''./gradlew --stacktrace :execute -PmainClass=$MAIN_CLASS -PappArgs="$cf" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
+EXECUTE_SCRIPT = '''./gradlew --stacktrace :execute -PmainClass=$MAIN_CLASS -PappArgs="$CONFIG" -PmaxRAM=$MAX_RAM -Pprofiler_type=$PROFILER'''
 
-EXPERIMENT_SCRIPT = '''./bin/experiment.sh $cf cloud'''
+EXPERIMENT_SCRIPT = '''./bin/experiment.sh $CONFIG cloud'''
 
 S3_PUBLISH_SCRIPT = '''
   -    sleep 10s
@@ -191,31 +191,28 @@ runcmd:
   - production_data_submodules=$(git submodule | awk '{ print $2 }')
   - for i in $production_data_submodules
   -  do
-  -    for cf in $CONFIG
-  -      do
-  -        case $cf in
-  -         '*$i*)'
-  -            echo "Loading remote production data for $i"
-  -            git config submodule.$i.branch $DATA_BRANCH
-  -            git submodule update --init --remote $i
-  -            cd $i
-  -            if [ "$DATA_COMMIT" = "HEAD" ]
-  -            then
-  -              RESOLVED_DATA_COMMIT=$(git log -1 --pretty=format:%H)
-  -            else
-  -              RESOLVED_DATA_COMMIT=$DATA_COMMIT
-  -            fi
-  -            echo "Resolved data commit is $RESOLVED_DATA_COMMIT"
-  -            git checkout $DATA_COMMIT
-  -            cd -
-  -        esac
-  -      done
+  -    case $CONFIG in
+  -     '*$i*)'
+  -        echo "Loading remote production data for $i"
+  -        git config submodule.$i.branch $DATA_BRANCH
+  -        git submodule update --init --remote $i
+  -        cd $i
+  -        if [ "$DATA_COMMIT" = "HEAD" ]
+  -        then
+  -          RESOLVED_DATA_COMMIT=$(git log -1 --pretty=format:%H)
+  -        else
+  -          RESOLVED_DATA_COMMIT=$DATA_COMMIT
+  -        fi
+  -        echo "Resolved data commit is $RESOLVED_DATA_COMMIT"
+  -        git checkout $DATA_COMMIT
+  -        cd -
+  -    esac
   -  done
 
   - if [ "$RUN_JUPYTER" = "True" ]
   - then
   -   echo "Starting Jupyter"
-  -   sudo ./gradlew jupyterStart -Puser=root -PjupyterToken=$JUPYTER_TOKEN
+  -   sudo ./gradlew jupyterStart -Puser=root -PjupyterToken=$JUPYTER_TOKEN -PjupyterImage=$JUPYTER_IMAGE
   - fi
   
   - if [ "$RUN_BEAM" = "True" ]
@@ -224,7 +221,7 @@ runcmd:
   -   echo "-------------------Starting Beam Sim----------------------"
   -   echo $(date +%s) > /tmp/.starttime
   -   rm -rf /home/ubuntu/git/beam/test/input/sf-light/r5/network.dat  
-  -   hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
+  -   hello_msg=$(printf "Run Started \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Branch **$BRANCH** \\n Commit $COMMIT" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname))
   -   start_json=$(printf "{
         \\"command\\":\\"add\\",
         \\"type\\":\\"beam\\",
@@ -240,7 +237,7 @@ runcmd:
           \\"data_branch\\":\\"$DATA_BRANCH\\",
           \\"data_commit\\":\\"$RESOLVED_DATA_COMMIT\\",
           \\"region\\":\\"$REGION\\",
-          \\"batch\\":\\"$UID\\",
+          \\"batch\\":\\"\\",
           \\"s3_link\\":\\"%s\\",
           \\"max_ram\\":\\"$MAX_RAM\\",
           \\"profiler_type\\":\\"$PROFILER\\",
@@ -271,11 +268,9 @@ runcmd:
   -   /tmp/slack.sh "$hello_msg"
 
   -   s3p=""
-  -   for cf in $CONFIG
-  -    do
-  -      echo "-------------------running $cf----------------------"
-  -      $RUN_SCRIPT
-  -    done
+  -   echo "-------------------running $CONFIG----------------------"
+  -   $RUN_SCRIPT
+
   -   echo "-------------------running Health Analysis Script----------------------"
   -   simulation_health_analysis_output_file="simulation_health_analysis_result.txt"
   -   python3 src/main/python/general_analysis/simulation_health_analysis.py $simulation_health_analysis_output_file
@@ -296,7 +291,7 @@ runcmd:
   -   fi
   -   cd /home/ubuntu
   -   final_status=$(./check_simulation_result.sh)
-  -   bye_msg=$(printf "Run Completed \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Batch $UID \\n Branch **$BRANCH** \\n Commit $COMMIT %s \\n Health Metrics %s \\n Shutdown in $SHUTDOWN_WAIT minutes" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "$s3glip" "$health_metrics")
+  -   bye_msg=$(printf "Run Completed \\n Run Name** $TITLED** \\n Instance ID %s \\n Instance type **%s** \\n Host name **%s** \\n Web browser ** http://%s:8000 ** \\n Region $REGION \\n Branch **$BRANCH** \\n Commit $COMMIT %s \\n Health Metrics %s \\n Shutdown in $SHUTDOWN_WAIT minutes" $(ec2metadata --instance-id) $(ec2metadata --instance-type) $(ec2metadata --public-hostname) $(ec2metadata --public-hostname) "$s3glip" "$health_metrics")
   -   echo "$bye_msg"
   -   stop_json=$(printf "{
         \\"command\\":\\"add\\",
@@ -313,7 +308,7 @@ runcmd:
           \\"data_branch\\":\\"$DATA_BRANCH\\",
           \\"data_commit\\":\\"$RESOLVED_DATA_COMMIT\\",
           \\"region\\":\\"$REGION\\",
-          \\"batch\\":\\"$UID\\",
+          \\"batch\\":\\"\\",
           \\"s3_link\\":\\"%s\\",
           \\"max_ram\\":\\"$MAX_RAM\\",
           \\"profiler_type\\":\\"$PROFILER\\",
@@ -777,7 +772,6 @@ def deploy_handler(event, context):
     experiments = event.get('experiments', EXPERIMENT_DEFAULT)
     execute_class = event.get('execute_class', EXECUTE_CLASS_DEFAULT)
     execute_args = event.get('execute_args', EXECUTE_ARGS_DEFAULT)
-    batch = event.get('batch', True)
     s3_publish = event.get('s3_publish', True)
     volume_size = event.get('storage_size', 64)
     shutdown_wait = event.get('shutdown_wait', SHUTDOWN_DEFAULT)
@@ -789,6 +783,7 @@ def deploy_handler(event, context):
     cosimulation_shell_script = event.get('cosimulation_shell_script', '')
     run_jupyter = event.get('run_jupyter', False)
     jupyter_token = event.get('jupyter_token', '')
+    jupyter_image = event.get('jupyter_image', '')
 
     profiler_type = event.get('profiler_type', 'null')
     budget_override = event.get('budget_override', False)
@@ -833,13 +828,21 @@ def deploy_handler(event, context):
     if run_grafana:
         selected_script = GRAFANA_RUN + selected_script
 
-    if cosimulation_shell_script:
-        for start_path in ['src/main/bash','main/bash', 'bash']:
-            if cosimulation_shell_script.startswith(start_path):
-                cosimulation_shell_script = cosimulation_shell_script[len(start_path):]
+    def fix_script_path(original_script_path):
+        fixed_path = original_script_path
+        for start_path in ['src/main/bash/','main/bash/', 'bash/']:
+            if original_script_path.startswith(start_path):
+                fixed_path = original_script_path[len(start_path):]
 
-        full_path_to_cosimulation_script = f"/home/ubuntu/git/beam/src/main/bash/{cosimulation_shell_script}"
-        selected_script = f'sudo chmod +x {full_path_to_cosimulation_script}; sudo {full_path_to_cosimulation_script}; {selected_script}'
+        return f"/home/ubuntu/git/beam/src/main/bash/{fixed_path}"
+
+    if cosimulation_shell_script:
+        fixed_script_path = fix_script_path(cosimulation_shell_script)
+        selected_script = f'sudo chmod +x {fixed_script_path}; sudo {fixed_script_path}; {selected_script}'
+
+    if end_script != END_SCRIPT_DEFAULT:
+        fixed_script_path = fix_script_path(end_script)
+        end_script = f'sudo chmod +x {fixed_script_path}; sudo {fixed_script_path}'
 
     params = configs
     if s3_publish:
@@ -849,17 +852,12 @@ def deploy_handler(event, context):
         selected_script = EXPERIMENT_SCRIPT
         params = experiments
 
-    if batch:
-        params = [params.replace(',', ' ')]
-    else:
-        params = params.split(',')
+    # split the beamConfigs into an array
+    params = params.split(',')
 
     if deploy_mode == 'execute':
         selected_script = EXECUTE_SCRIPT
         params = ['"{args}"'.format(args=execute_args)]
-
-    if end_script != END_SCRIPT_DEFAULT:
-        end_script = '/home/ubuntu/git/beam/sec/main/bash/' + end_script
 
     txt = ''
 
@@ -868,7 +866,6 @@ def deploy_handler(event, context):
     if validate(branch) and validate(commit_id):
         runNum = 1
         for arg in params:
-            uid = str(uuid.uuid4())[:8]
             runName = titled
             if len(params) > 1:
                 runName += "-" + str(runNum)
@@ -881,7 +878,6 @@ def deploy_handler(event, context):
                 .replace('$DATA_COMMIT', data_commit) \
                 .replace('$CONFIG', arg) \
                 .replace('$MAIN_CLASS', execute_class) \
-                .replace('$UID', uid) \
                 .replace('$SHUTDOWN_WAIT', str(shutdown_wait)) \
                 .replace('$TITLED', runName) \
                 .replace('$MAX_RAM', str(max_ram)) \
@@ -897,7 +893,8 @@ def deploy_handler(event, context):
                 .replace('$STUCK_GUARD_MIN_CPU_USAGE', str(stuck_guard_min_cpu_usage)) \
                 .replace('$RUN_JUPYTER', str(run_jupyter)) \
                 .replace('$RUN_BEAM', str(run_beam)) \
-                .replace('$JUPYTER_TOKEN', jupyter_token)
+                .replace('$JUPYTER_TOKEN', jupyter_token) \
+                .replace('$JUPYTER_IMAGE', jupyter_image)
             if is_spot:
                 min_cores = event.get('min_cores', 0)
                 max_cores = event.get('max_cores', 0)
@@ -913,8 +910,8 @@ def deploy_handler(event, context):
             host = get_dns(instance_id)
 
             if run_beam:
-                txt += 'Started batch: {batch} with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(
-                    branch=branch, titled=runName, commit=commit_id, dns=host, batch=uid, instance_id=instance_id)
+                txt += 'Started simulation with run name: {titled} for branch/commit {branch}/{commit} at host {dns} (InstanceID: {instance_id}). '.format(
+                    branch=branch, titled=runName, commit=commit_id, dns=host, instance_id=instance_id)
 
             if run_grafana:
                 txt += ' Grafana will be available at http://{dns}:3003/d/dvib8mbWz/beam-simulation-global-view.'.format(

@@ -173,7 +173,7 @@ object FreightReader {
     beamConfig: BeamConfig,
     geoUtils: GeoUtils,
     streetLayer: StreetLayer,
-    network: Network,
+    network: Option[Network],
     tazMap: TAZTreeMap,
     outputDirMaybe: Option[String]
   ): FreightReader = {
@@ -193,7 +193,7 @@ object FreightReader {
           tazMap,
           beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs,
           snapLocationHelper,
-          Some(network),
+          network,
           outputDirMaybe
         )
       case s =>
@@ -205,7 +205,7 @@ object FreightReader {
     beamConfig: BeamConfig,
     geoUtils: GeoUtils,
     streetLayer: StreetLayer,
-    network: Network,
+    network: Option[Network],
     outputDirMaybe: Option[String]
   ): FreightReader = {
     val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
@@ -217,7 +217,7 @@ object FreightReader {
       beamServices.beamConfig,
       beamServices.geo,
       beamServices.beamScenario.transportNetwork.streetLayer,
-      beamServices.beamScenario.network,
+      Some(beamServices.beamScenario.network),
       beamServices.beamScenario.tazTreeMap,
       None
     )

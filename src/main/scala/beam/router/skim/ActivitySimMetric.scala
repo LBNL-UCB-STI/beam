@@ -30,4 +30,6 @@ object ActivitySimMetric extends Enum[ActivitySimMetric] {
   case object WEGR extends ActivitySimMetric
   case object WACC extends ActivitySimMetric
   case object IVT extends ActivitySimMetric
+  case object TRIPS extends ActivitySimMetric
+  case object FAILURES extends ActivitySimMetric
 }

@@ -21,10 +21,76 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
       val tazMap = TAZTreeMap.getTazTreeMap("test/input/sf-light/taz-centers.csv")
       val geoUnits = SortedSet[String](tazMap.getTAZs.map(_.tazId.toString).toSeq: _*)
       val excerptData = IndexedSeq(
-        ExcerptData("AM", DRV_COM_WLK, "100827", "100413", 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 4, 3),
-        ExcerptData("AM", DRV_COM_WLK, "100413", "100827", 120, 190, 180, 170, 160, 150, 140, 130, 120, 110, 50, 40, 1),
-        ExcerptData("PM", DRV_COM_WLK, "100627", "100413", 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 4, 3),
-        ExcerptData("MD", DRV_LRF_WLK, "100574", "10069A", 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 4, 3)
+        ExcerptData(
+          "AM",
+          DRV_COM_WLK,
+          "100827",
+          "100413",
+          100,
+          90,
+          80,
+          70,
+          60,
+          50,
+          40,
+          30,
+          20,
+          10,
+          5,
+          4,
+          3,
+          2,
+          1,
+          1,
+          0
+        ),
+        ExcerptData(
+          "AM",
+          DRV_COM_WLK,
+          "100413",
+          "100827",
+          120,
+          190,
+          180,
+          170,
+          160,
+          150,
+          140,
+          130,
+          120,
+          110,
+          50,
+          40,
+          1,
+          2,
+          1,
+          1,
+          0
+        ),
+        ExcerptData(
+          "PM",
+          DRV_COM_WLK,
+          "100627",
+          "100413",
+          100,
+          90,
+          80,
+          70,
+          60,
+          50,
+          40,
+          30,
+          20,
+          10,
+          5,
+          4,
+          3,
+          2,
+          1,
+          1,
+          0
+        ),
+        ExcerptData("MD", DRV_LRF_WLK, "100574", "10069A", 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 4, 3, 2, 1, 1, 0)
       )
       val path = "output/test/activitysim_skims.omx"
       ActivitySimOmxWriter.writeToOmx(path, excerptData.iterator, geoUnits)
@@ -32,31 +98,37 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
       omxFile.openReadOnly()
       val matrixNames = omxFile.getMatrixNames.asScala.toList
       matrixNames should contain theSameElementsAs List(
-        "DRV_LRF_WLK_MD__FERRYIVT",
-        "DRV_COM_WLK_PM__DDIST",
-        "DRV_LRF_WLK_MD__WAUX",
-        "DRV_COM_WLK_AM__DDIST",
-        "DRV_COM_WLK_AM__FAR",
-        "DRV_COM_WLK_PM__KEYIVT",
-        "DRV_LRF_WLK_MD__TOTIVT",
-        "DRV_LRF_WLK_MD__BOARDS",
-        "DRV_LRF_WLK_MD__FAR",
-        "DRV_COM_WLK_AM__KEYIVT",
-        "DRV_COM_WLK_AM__BOARDS",
-        "DRV_LRF_WLK_MD__DDIST",
-        "DRV_COM_WLK_PM__WAUX",
-        "DRV_LRF_WLK_MD__KEYIVT",
-        "DRV_LRF_WLK_MD__DTIM",
-        "DRV_COM_WLK_PM__TOTIVT",
-        "DRV_COM_WLK_PM__BOARDS",
-        "DRV_COM_WLK_PM__DTIM",
-        "DRV_COM_WLK_AM__DTIM",
-        "DRV_COM_WLK_AM__TOTIVT",
-        "DRV_COM_WLK_AM__WAUX",
-        "DRV_COM_WLK_PM__FAR"
+        "DRV_LRF_WLK_FERRYIVT__MD",
+        "DRV_COM_WLK_DDIST__PM",
+        "DRV_LRF_WLK_WAUX__MD",
+        "DRV_COM_WLK_DDIST__AM",
+        "DRV_COM_WLK_FAR__AM",
+        "DRV_COM_WLK_KEYIVT__PM",
+        "DRV_LRF_WLK_TOTIVT__MD",
+        "DRV_LRF_WLK_BOARDS__MD",
+        "DRV_LRF_WLK_FAR__MD",
+        "DRV_COM_WLK_KEYIVT__AM",
+        "DRV_COM_WLK_BOARDS__AM",
+        "DRV_LRF_WLK_DDIST__MD",
+        "DRV_COM_WLK_WAUX__PM",
+        "DRV_LRF_WLK_KEYIVT__MD",
+        "DRV_LRF_WLK_DTIM__MD",
+        "DRV_COM_WLK_TOTIVT__PM",
+        "DRV_COM_WLK_BOARDS__PM",
+        "DRV_COM_WLK_DTIM__PM",
+        "DRV_COM_WLK_DTIM__AM",
+        "DRV_COM_WLK_TOTIVT__AM",
+        "DRV_COM_WLK_WAUX__AM",
+        "DRV_COM_WLK_FAR__PM",
+        "DRV_LRF_WLK_TRIPS__MD",
+        "DRV_LRF_WLK_FAILURES__MD",
+        "DRV_COM_WLK_TRIPS__AM",
+        "DRV_COM_WLK_FAILURES__AM",
+        "DRV_COM_WLK_TRIPS__PM",
+        "DRV_COM_WLK_FAILURE__PMS"
       )
       //total in vehicle time data for path type DRV_LRF_WLK and time bin MD
-      val matrix = omxFile.getMatrix("DRV_LRF_WLK_MD__TOTIVT").asInstanceOf[OmxDoubleMatrix]
+      val matrix = omxFile.getMatrix("DRV_LRF_WLK_TOTIVT__MD").asInstanceOf[OmxDoubleMatrix]
       matrix.getShape()(0) shouldBe 864
       matrix.getShape()(1) shouldBe 864
       val mapping = geoUnits.zipWithIndex.toMap

@@ -725,8 +725,17 @@ class PersonAgent(
         serviceName = response.rideHailManagerName
       )
     )
-    eventsManager.processEvent(new ReplanningEvent(tick, Id.createPersonId(id), replanningReason))
     val currentCoord = beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
+
+    eventsManager.processEvent(
+      new ReplanningEvent(
+        tick,
+        Id.createPersonId(id),
+        replanningReason,
+        currentCoord.getX,
+        currentCoord.getY
+      )
+    )
     val nextCoord = nextActivity(data).get.getCoord
     goto(ChoosingMode) using ChoosesModeData(
       data.copy(currentTourMode = None, numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
@@ -752,12 +761,20 @@ class PersonAgent(
         ) =>
       logDebug(s"replanning because ${firstErrorResponse.errorCode}")
 
-      val replanningReason = getReplanningReasonFrom(data, firstErrorResponse.errorCode.entryName)
-      eventsManager.processEvent(
-        new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
-      )
       val currentCoord = beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc
       val nextCoord = nextActivity(data).get.getCoord
+      val replanningReason = getReplanningReasonFrom(data, firstErrorResponse.errorCode.entryName)
+      eventsManager.processEvent(
+        new ReplanningEvent(
+          _currentTick.get,
+          Id.createPersonId(id),
+          replanningReason,
+          currentCoord.getX,
+          currentCoord.getY,
+          nextCoord.getX,
+          nextCoord.getY
+        )
+      )
       goto(ChoosingMode) using ChoosesModeData(
         data.copy(numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1),
         currentLocation = SpaceTime(currentCoord, _currentTick.get),
@@ -994,11 +1011,18 @@ class PersonAgent(
     case Event(NotAvailable(_), basePersonData: BasePersonData) =>
       log.debug("{} replanning because vehicle not available when trying to board")
       val replanningReason = getReplanningReasonFrom(basePersonData, ReservationErrorCode.ResourceUnavailable.entryName)
-      eventsManager.processEvent(
-        new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
-      )
       val currentCoord =
         beamServices.geo.wgs2Utm(basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
+      eventsManager.processEvent(
+        new ReplanningEvent(
+          _currentTick.get,
+          Id.createPersonId(id),
+          replanningReason,
+          currentCoord.getX,
+          currentCoord.getY
+        )
+      )
+
       val nextCoord = nextActivity(basePersonData).get.getCoord
       goto(ChoosingMode) using ChoosesModeData(
         basePersonData.copy(
@@ -1187,10 +1211,17 @@ class PersonAgent(
       log.debug("Missed transit pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
 
       val replanningReason = getReplanningReasonFrom(data, ReservationErrorCode.MissedTransitPickup.entryName)
-      eventsManager.processEvent(
-        new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
-      )
       val currentCoord = beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc
+      eventsManager.processEvent(
+        new ReplanningEvent(
+          _currentTick.get,
+          Id.createPersonId(id),
+          replanningReason,
+          currentCoord.getX,
+          currentCoord.getY
+        )
+      )
+
       val nextCoord = nextActivity(data).get.getCoord
       goto(ChoosingMode) using ChoosesModeData(
         personData = data
@@ -1253,10 +1284,17 @@ class PersonAgent(
       log.warning("Missed CAV pickup, late by {} sec", _currentTick.get - nextLeg.beamLeg.startTime)
 
       val replanningReason = getReplanningReasonFrom(data, ReservationErrorCode.MissedTransitPickup.entryName)
-      eventsManager.processEvent(
-        new ReplanningEvent(_currentTick.get, Id.createPersonId(id), replanningReason)
-      )
       val currentCoord = beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc
+      eventsManager.processEvent(
+        new ReplanningEvent(
+          _currentTick.get,
+          Id.createPersonId(id),
+          replanningReason,
+          currentCoord.getX,
+          currentCoord.getY
+        )
+      )
+
       val nextCoord = nextActivity(data).get.getCoord
       goto(ChoosingMode) using ChoosesModeData(
         personData = data

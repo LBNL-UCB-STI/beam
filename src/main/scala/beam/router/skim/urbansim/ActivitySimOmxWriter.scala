@@ -38,7 +38,7 @@ object ActivitySimOmxWriter {
         } yield pathType -> limitedData
       ).toMap
 
-      val allMatrices = mutable.Map.empty[String, OmxMatrix.OmxDoubleMatrix]
+      val allMatrices = mutable.Map.empty[String, OmxMatrix.OmxFloatMatrix]
       for {
         excerptData <- skimData
         matrixData  <- pathTypeToMatrixData.get(excerptData.pathType).toIterable
@@ -47,25 +47,32 @@ object ActivitySimOmxWriter {
         metric      <- matrixData.metrics
       } {
         val matrix = getOrCreateMatrix(allMatrices, excerptData.pathType, excerptData.timePeriodString, metric, shape)
-        matrix.getData()(row)(column) = excerptData.getValue(metric)
+        matrix.getData()(row)(column) = excerptData.getValue(metric).toFloat * getUnitConversion(metric)
       }
       allMatrices.values.foreach(omxFile.addMatrix)
     }
 
   }
 
+  private def getUnitConversion(metric: ActivitySimMetric): Float = {
+    metric match {
+      case DIST | DDIST => 1f / 1609.34f
+      case _ => 1f
+    }
+  }
+
   private def getOrCreateMatrix(
-    matrixMap: mutable.Map[String, OmxMatrix.OmxDoubleMatrix],
+    matrixMap: mutable.Map[String, OmxMatrix.OmxFloatMatrix],
     pathType: ActivitySimPathType,
     timeBin: String,
     metric: ActivitySimMetric,
     shape: Array[Int]
-  ): OmxMatrix.OmxDoubleMatrix = {
-    val matrixName = s"${pathType}_${timeBin}__$metric"
+  ): OmxMatrix.OmxFloatMatrix = {
+    val matrixName = s"${pathType}_${metric}__$timeBin"
     matrixMap.getOrElseUpdate(
       matrixName, {
-        val valuesDouble = Array.fill[Double](shape(0), shape(1))(Double.NaN)
-        new OmxMatrix.OmxDoubleMatrix(matrixName, valuesDouble, -1.0)
+        val valuesFloat = Array.fill[Float](shape(0), shape(1))(Float.NaN)
+        new OmxMatrix.OmxFloatMatrix(matrixName, valuesFloat, -1.0f)
       }
     )
   }
@@ -87,43 +94,43 @@ object ActivitySimOmxWriter {
     MatrixData(
       Set(DRV_COM_WLK, DRV_EXP_WLK, DRV_HVY_WLK, WLK_COM_DRV, WLK_EXP_DRV, WLK_HVY_DRV),
       ActivitySimTimeBin.values.toSet,
-      Set(TOTIVT, FAR, WAIT, XWAIT, KEYIVT, IWAIT, DTIM, BOARDS, DDIST, WAUX)
+      Set(TOTIVT, FAR, WAIT, XWAIT, KEYIVT, IWAIT, DTIM, BOARDS, DDIST, WAUX, TRIPS, FAILURES)
     ),
     MatrixData(
       Set(DRV_LOC_WLK, WLK_LOC_DRV),
       ActivitySimTimeBin.values.toSet,
-      Set(TOTIVT, FAR, WAIT, XWAIT, IWAIT, DTIM, BOARDS, DDIST, WAUX)
+      Set(TOTIVT, FAR, WAIT, XWAIT, IWAIT, DTIM, BOARDS, DDIST, WAUX, TRIPS, FAILURES)
     ),
     MatrixData(
       Set(DRV_LRF_WLK, WLK_LRF_DRV),
       ActivitySimTimeBin.values.toSet,
-      Set(TOTIVT, FERRYIVT, FAR, WAIT, XWAIT, KEYIVT, DTIM, IWAIT, BOARDS, DDIST, WAUX)
+      Set(TOTIVT, FERRYIVT, FAR, WAIT, XWAIT, KEYIVT, DTIM, IWAIT, BOARDS, DDIST, WAUX, TRIPS, FAILURES)
     ),
     MatrixData(
       Set(HOV2TOLL, HOV3TOLL, SOVTOLL),
       ActivitySimTimeBin.values.toSet,
       Set(BTOLL, VTOLL, TIME, DIST)
     ),
-    MatrixData(Set(HOV2, HOV3, SOV), ActivitySimTimeBin.values.toSet, Set(BTOLL, TIME, DIST)),
+    MatrixData(Set(HOV2, HOV3, SOV), ActivitySimTimeBin.values.toSet, Set(BTOLL, TIME, DIST, TRIPS, FAILURES)),
     MatrixData(
       Set(WLK_COM_WLK, WLK_EXP_WLK, WLK_HVY_WLK),
       ActivitySimTimeBin.values.toSet,
-      Set(TOTIVT, FAR, WAIT, XWAIT, KEYIVT, IWAIT, BOARDS, WAUX)
+      Set(TOTIVT, FAR, WAIT, XWAIT, KEYIVT, IWAIT, BOARDS, WAUX, TRIPS, FAILURES)
     ),
     MatrixData(
       Set(WLK_LOC_WLK),
       ActivitySimTimeBin.values.toSet,
-      Set(TOTIVT, WAIT, FAR, XWAIT, IWAIT, BOARDS, WAUX)
+      Set(TOTIVT, WAIT, FAR, XWAIT, IWAIT, BOARDS, WAUX, TRIPS, FAILURES)
     ),
     MatrixData(
       Set(WLK_LRF_WLK),
       ActivitySimTimeBin.values.toSet,
-      Set(TOTIVT, FERRYIVT, FAR, WAIT, XWAIT, KEYIVT, IWAIT, BOARDS, WAUX)
+      Set(TOTIVT, FERRYIVT, FAR, WAIT, XWAIT, KEYIVT, IWAIT, BOARDS, WAUX, TRIPS, FAILURES)
     ),
     MatrixData(
       Set(WLK_TRN_WLK),
       Set(PM_PEAK, MIDDAY, AM_PEAK),
-      Set(WACC, IVT, XWAIT, IWAIT, WEGR, WAUX)
+      Set(WACC, IVT, XWAIT, IWAIT, WEGR, WAUX, TRIPS, FAILURES)
     )
   )
 }

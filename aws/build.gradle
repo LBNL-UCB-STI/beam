@@ -32,7 +32,7 @@ lambda {
     socketTimeout = 900000
 }
 
-task deploy(type: AWSLambdaInvokeTask) {
+tasks.register('deployToEC2', AWSLambdaInvokeTask) {
     doFirst {
         def propsFileName = "../gradle.deploy.properties"
         if (project.hasProperty('propsFile')) {
@@ -95,7 +95,6 @@ task deploy(type: AWSLambdaInvokeTask) {
   "execute_args": "${ext.getParameterValue('executeArgs')}",
   "forced_max_ram": "${ext.getParameterValue('forcedMaxRAM')}",
   "storage_size": ${ext.getParameterValue('storageSize')},
-  "batch": ${ext.getParameterValue('beamBatch')},
   "s3_publish": ${ext.getParameterValue('s3Backup') ?: true},
   "instance_type": "${finalInstanceType}",
   "region": "${ext.getParameterValue('region') ?: defaultRegion}",
@@ -104,7 +103,7 @@ task deploy(type: AWSLambdaInvokeTask) {
   "profiler_type": "${ext.getParameterValue('profiler_type')}",
   "command": "deploy",
   "run_grafana" : ${ext.getParameterValue('runGrafana') ?: false},
-  "cosimulation_shell_script" : ${ext.getParameterValue('cosimulationShellScript') ?: ""},
+  "cosimulation_shell_script": "${ext.getParameterValue('cosimulationShellScript')}",
   "run_jupyter" : ${ext.getParameterValue('runJupyter') ?: false},
   "jupyter_token" : "${ext.getParameterValue('jupyterToken') ?: UUID.randomUUID().toString()}",
   "is_spot" : ${ext.getParameterValue('isSpot') ?: false},
@@ -263,6 +262,7 @@ task jupyterEC2(type: AWSLambdaInvokeTask) {
           "run_jupyter" : true,
           "run_beam": false,
           "jupyter_token" : "${project.findProperty("jupyterToken") ?: UUID.randomUUID().toString()}",
+          "jupyter_image" : "${project.findProperty("jupyterImage") ?: defaultJupyterImage}",
           "is_spot" : false,
           "budget_override": ${project.findProperty('budgetOverride') ?: false}
         }"""
