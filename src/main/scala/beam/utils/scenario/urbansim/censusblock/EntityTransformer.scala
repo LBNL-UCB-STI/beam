@@ -12,7 +12,7 @@ trait EntityTransformer[T] {
   val columnNameToIndex = mutable.Map.empty[String, Int]
 
   def getColumnIndexBy(columnName: String, recordMetaData: RecordMetaData) = {
-    columnNameToIndex.getOrElseUpdate(columnName, recordMetaData.indexOf(columnName))
+    columnNameToIndex.getOrElseUpdate(columnName, try{ recordMetaData.indexOf(columnName) } catch{ case _ : IllegalArgumentException => -1})
   }
 
   private def getString(rec: Record, columnName: String): String = {
