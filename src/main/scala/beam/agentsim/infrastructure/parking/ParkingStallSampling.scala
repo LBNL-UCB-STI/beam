@@ -35,7 +35,7 @@ object ParkingStallSampling {
     Some(filteredLinks)
       .filter(_.nonEmpty)
       .map(
-        _.map(lnk => getClosestPointAlongLink(lnk, requestLocation)).minBy(loc =>
+        _.map(lnk => getClosestPointAlongLink(lnk, requestLocation, distanceFunction)).minBy(loc =>
           distanceFunction(loc, requestLocation)
         )
       )
@@ -47,19 +47,48 @@ object ParkingStallSampling {
 //      .getOrElse(requestLocation)
   }
 
-  private def getClosestPointAlongLink(link: Link, requestLocation: Location): Location = {
+  private def getClosestPointAlongLink(
+    link: Link,
+    requestLocation: Location,
+    distanceFunction: (Coord, Coord) => Double
+  ): Location = {
     val (p1, p2) = (link.getToNode.getCoord, link.getFromNode.getCoord)
-    val (dx, dy) = (p2.getX - p1.getX, p2.getY - p1.getY) // vector between p1 and p2
-    val (diffx, diffy) = (requestLocation.getX - p1.getX, requestLocation.getY - p1.getY) // vector between p1 and p3
-    val c1 = (dx * diffx + dy * diffy) / (pow(dx, 2) + pow(dy, 2)) // projection of w onto v
-    if (c1 < 0) { p1 }
-    else if (c1 > 1) { p2 }
-    else {
-      val x = p1.getX + c1 * dx // closest point on line to p3
-      val y = p1.getY + c1 * dy // closest point on line to p3
-      new Coord(x, y)
+    val (closestPointOption, closestDistance) = List(p1, p2).foldLeft(None: Option[Coord], Double.PositiveInfinity) {
+      (accumulator, endPoint) =>
+        val dist = distanceFunction(endPoint, requestLocation)
+        if (dist < accumulator._2) {
+          (Some(endPoint), dist)
+        } else {
+          accumulator
+        }
     }
 
+    closestPointOption match {
+      case Some(closestPoint) =>
+        if (closestDistance < 100) {
+          closestPoint
+        } else {
+          val (dx, dy) = (p2.getX - p1.getX, p2.getY - p1.getY) // vector between p1 and p2
+          val (diffx, diffy) =
+            (requestLocation.getX - p1.getX, requestLocation.getY - p1.getY) // vector between p1 and p3
+          val c1 = (dx * diffx + dy * diffy) / (pow(dx, 2) + pow(dy, 2)) // projection of w onto v
+          if (c1 < 0) {
+            p1
+          } else if (c1 > 1) {
+            p2
+          } else {
+            val x = p1.getX + c1 * dx // closest point on line to p3
+            val y = p1.getY + c1 * dy // closest point on line to p3
+            if ((!x.isNaN) && (!y.isNaN)) {
+              new Coord(x, y)
+            } else {
+              closestPoint
+            }
+          }
+        }
+      case None =>
+        requestLocation
+    }
   }
 
   /**
