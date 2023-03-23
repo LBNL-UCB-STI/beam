@@ -115,10 +115,14 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
       writer.write("linkId,count")
       writer.write(System.lineSeparator())
       failedLinkLookups.toList.groupBy(identity).mapValues(_.size).foreach { case (linkId, count) =>
-        writer.write(Option(linkId).mkString)
-        writer.write(",")
-        writer.write(count.toString)
-        writer.write(System.lineSeparator())
+        try {
+          writer.write(Option(linkId).mkString)
+          writer.write(",")
+          writer.write(count.toString)
+          writer.write(System.lineSeparator())
+        } catch {
+          case e: Throwable => logger.warn(s"Error: ${e.getMessage}. Could not write link $linkId")
+        }
       }
       writer.flush()
       writer.close()
@@ -135,11 +139,15 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
           case Some(env) => (env.getMinX, env.getMinY, env.getMaxX, env.getMaxY)
           case _         => extent
         }
-        TAZtoLinkIdMapping(id) = new QuadTree[Link](minX, minY, maxX, maxY)
+        TAZtoLinkIdMapping(id) = new QuadTree[Link](minX - 2e3, minY - 2e3, maxX + 2e3, maxY + 2e3)
       }
       network.getLinks.asScala.foreach {
         case (id, link) =>
           val linkEndCoord = link.getToNode.getCoord
+          val linkMidpoint = new Coord(
+            0.5 * (link.getToNode.getCoord.getX + link.getFromNode.getCoord.getX),
+            0.5 * (link.getToNode.getCoord.getY + link.getFromNode.getCoord.getY)
+          )
           val foundTaz = TAZTreeMap.ringSearch(
             tazQuadTree,
             linkEndCoord,
@@ -155,7 +163,11 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
               try {
                 if (link.getAllowedModes.contains("car") & link.getAllowedModes.contains("walk")) {
                   TAZtoLinkIdMapping(taz.tazId).put(linkEndCoord.getX, linkEndCoord.getY, link)
-                  linkIdToTAZMapping += (id -> taz.tazId)
+                  try {
+                TAZtoLinkIdMapping(taz.tazId).put(linkMidpoint.getX, linkMidpoint.getY, link)
+              } catch {
+                case e: Throwable => logger.warn(e.toString)
+              }linkIdToTAZMapping += (id -> taz.tazId)
                 }
               } catch {
                 case e: Throwable =>
@@ -207,10 +219,10 @@ object TAZTreeMap {
     val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromShapeFile(features)
 
     val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
-      quadTreeBounds.minx,
-      quadTreeBounds.miny,
-      quadTreeBounds.maxx,
-      quadTreeBounds.maxy
+      quadTreeBounds.minx - 2e4,
+      quadTreeBounds.miny - 2e4,
+      quadTreeBounds.maxx + 2e4,
+      quadTreeBounds.maxy + 2e4
     )
 
     for (f <- features.asScala) {
