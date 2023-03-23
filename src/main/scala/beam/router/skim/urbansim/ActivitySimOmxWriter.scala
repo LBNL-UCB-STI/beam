@@ -47,6 +47,9 @@ object ActivitySimOmxWriter {
         metric      <- matrixData.metrics
       } {
         val matrix = getOrCreateMatrix(allMatrices, excerptData.pathType, excerptData.timePeriodString, metric, shape)
+        matrix.setAttribute("mode", excerptData.pathType.toString)
+        matrix.setAttribute("timePeriod", excerptData.timePeriodString)
+        matrix.setAttribute("measure", metric.toString)
         matrix.getData()(row)(column) = excerptData.getValue(metric).toFloat * getUnitConversion(metric)
       }
       allMatrices.values.foreach(omxFile.addMatrix)
@@ -57,7 +60,7 @@ object ActivitySimOmxWriter {
   private def getUnitConversion(metric: ActivitySimMetric): Float = {
     metric match {
       case DIST | DDIST => 1f / 1609.34f
-      case _ => 1f
+      case _            => 1f
     }
   }
 
