@@ -1,7 +1,6 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import java.io.{File, FileWriter}
-
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.ridehail.repositioningmanager.DemandFollowingRepositioningManager
@@ -10,12 +9,11 @@ import beam.router.BeamRouter.Location
 import beam.sim.RideHailState
 import beam.utils._
 import com.typesafe.scalalogging.LazyLogging
+import com.univocity.parsers.csv.{CsvWriter, CsvWriterSettings}
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.utils.collections.QuadTree
-import org.supercsv.io.CsvMapWriter
-import org.supercsv.prefs.CsvPreference
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -566,14 +564,14 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
     val exist = file.exists()
     val fileWriter = new FileWriter(file, true)
 
-    FileUtils.using(new CsvMapWriter(fileWriter, CsvPreference.STANDARD_PREFERENCE)) { writer =>
+    FileUtils.using(new CsvWriter(fileWriter, new CsvWriterSettings)){ writer =>
       if (!exist) {
-        writer.writeHeader(headers: _*)
+        writer.writeHeaders(headers: _*)
       }
-      val headersArray = headers.toArray
 
       rows.foreach { row =>
-        writer.write(row.asJava, headersArray: _*)
+        row.foreach(writer.addValue)
+        writer.writeValuesToRow();
       }
     }
   }

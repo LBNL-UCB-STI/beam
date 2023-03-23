@@ -2,21 +2,28 @@ package beam.utils.scenario.urbansim.censusblock.reader
 
 import beam.utils.FileUtils
 import beam.utils.scenario.urbansim.censusblock.EntityTransformer
-import org.supercsv.io.CsvMapReader
-import org.supercsv.prefs.CsvPreference
+
+import java.io.BufferedReader
+import com.univocity.parsers.csv.CsvParser
+import com.univocity.parsers.csv.CsvParserSettings
+
+import scala.collection.JavaConverters._
 
 abstract class BaseCsvReader[T](path: String) extends Reader[T] {
   val transformer: EntityTransformer[T]
 
-  private val csvReader = new CsvMapReader(FileUtils.readerFromFile(path), CsvPreference.STANDARD_PREFERENCE)
+  private val parser = new CsvParser(new CsvParserSettings)
+  private val reader: BufferedReader = FileUtils.readerFromFile(path)
 
   override def iterator(): Iterator[T] = {
-    val headers = csvReader.getHeader(true)
-    Iterator
-      .continually(csvReader.read(headers: _*))
-      .takeWhile(data => data != null)
+    parser.beginParsing(reader)
+    parser.iterateRecords(reader)
+      .iterator.asScala
       .map(transformer.transform)
   }
 
-  override def close(): Unit = csvReader.close()
+  override def close(): Unit = {
+    parser.stopParsing()
+    reader.close()
+  }
 }

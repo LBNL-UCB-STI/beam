@@ -1,6 +1,6 @@
 package beam.utils.scenario.urbansim.censusblock.entities
 
-import java.util
+import com.univocity.parsers.common.record.Record
 
 import beam.utils.scenario.urbansim.censusblock.EntityTransformer
 
@@ -18,16 +18,16 @@ case class InputPlanElement(
 
 object InputPlanElement extends EntityTransformer[InputPlanElement] {
 
-  override def transform(m: util.Map[String, String]): InputPlanElement = {
-    val tripId = getOptional(m, "trip_id")
-    val personId = getIfNotNull(m, "person_id").split("\\.").apply(0)
-    val planElementIndex = getIfNotNull(m, "PlanElementIndex").toInt
-    val activityElement = ActivityType.determineActivity(getIfNotNull(m, "ActivityElement"))
-    val tripMode = getOptional(m, "trip_mode")
-    val activityType = getOptional(m, "ActivityType")
-    val xWgs = getOptional(m, "x").map(_.toDouble)
-    val yWgs = getOptional(m, "y").map(_.toDouble)
-    val departureTime = getOptional(m, "departure_time").map(_.toDouble)
+  override def transform(m: Record): InputPlanElement = {
+    val tripId = getStringOptional(m, "trip_id")
+    val personId = getStringIfNotNull(m, "person_id").split("\\.").apply(0)
+    val planElementIndex = getIntIfNotNull(m, "PlanElementIndex")
+    val activityElement = ActivityType.determineActivity(getStringIfNotNull(m, "ActivityElement"))
+    val tripMode = getStringOptional(m, "trip_mode")
+    val activityType = getStringOptional(m, "ActivityType")
+    val xWgs = getDoubleOptional(m, "x")
+    val yWgs = getDoubleOptional(m, "y")
+    val departureTime = getDoubleOptional(m, "departure_time")
 
     InputPlanElement(
       tripId,

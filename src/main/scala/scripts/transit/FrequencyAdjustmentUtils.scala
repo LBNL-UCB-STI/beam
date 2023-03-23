@@ -59,12 +59,12 @@ object FrequencyAdjustmentUtils {
     CsvFileUtils
       .readCsvFileByLineToList(freqAdjustmentFilePath) { row =>
         FrequencyAdjustment(
-          row.get("trip_id").split("-").head,
-          row.get("trip_id"),
-          LocalTime.parse(row.get("start_time")),
-          LocalTime.parse(row.get("end_time")),
-          row.get("headway_secs").toInt,
-          Option(row.get("exact_times")).map(_.toInt)
+          row("trip_id").split("-").head,
+          row("trip_id"),
+          LocalTime.parse(row("start_time")),
+          LocalTime.parse(row("end_time")),
+          row("headway_secs").toInt,
+          row.get("exact_times").map(_.toInt)
         )
       }
       .toSet

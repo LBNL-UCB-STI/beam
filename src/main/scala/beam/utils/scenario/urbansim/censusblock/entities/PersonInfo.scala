@@ -1,6 +1,6 @@
 package beam.utils.scenario.urbansim.censusblock.entities
 
-import java.util
+import com.univocity.parsers.common.record.Record
 
 import beam.utils.scenario.urbansim.censusblock.EntityTransformer
 
@@ -36,12 +36,12 @@ case class InputPersonInfo(
 
 object InputPersonInfo extends EntityTransformer[InputPersonInfo] {
 
-  override def transform(rec: util.Map[String, String]): InputPersonInfo = {
-    val personId = getIfNotNull(rec, "person_id")
-    val householdId = getIfNotNull(rec, "household_id")
-    val age = getIfNotNull(rec, "age").toInt
-    val sex = Sex.determineSex(getIfNotNull(rec, "sex").toInt)
-    val industry = Option(rec.get("industry"))
+  override def transform(rec: Record): InputPersonInfo = {
+    val personId = getStringIfNotNull(rec, "person_id")
+    val householdId = getStringIfNotNull(rec, "household_id")
+    val age = getIntIfNotNull(rec, "age")
+    val sex = Sex.determineSex(getIntIfNotNull(rec, "sex"))
+    val industry = getStringOptional(rec, "industry")
 
     InputPersonInfo(personId, householdId, age, sex, industry)
   }

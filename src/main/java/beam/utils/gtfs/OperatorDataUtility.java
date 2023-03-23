@@ -1,15 +1,16 @@
 package beam.utils.gtfs;
 
 import beam.sim.config.BeamConfig;
+import com.univocity.parsers.common.processor.RowListProcessor;
+import com.univocity.parsers.csv.CsvParserSettings;
+import com.univocity.parsers.csv.CsvWriter;
+import com.univocity.parsers.csv.CsvWriterSettings;
+import com.univocity.parsers.csv.CsvParser;
 import org.matsim.core.utils.io.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.supercsv.io.CsvMapReader;
-import org.supercsv.io.CsvMapWriter;
-import org.supercsv.prefs.CsvPreference;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -47,25 +48,37 @@ public class OperatorDataUtility {
 
     private void saveOperatorMap(String opMapPath, Map<String, String> operatorMap) {
         try {
-            CsvMapWriter csvMapWriter = new CsvMapWriter(IOUtils.getBufferedWriter(opMapPath), CsvPreference.STANDARD_PREFERENCE);
+            CsvWriter csvWriter = new CsvWriter(IOUtils.getBufferedWriter(opMapPath), new CsvWriterSettings());
             final String[] opKeyArray = operatorMap.keySet().toArray(new String[0]);
-            csvMapWriter.writeHeader(opKeyArray);
-            csvMapWriter.write(operatorMap, opKeyArray);
-            csvMapWriter.flush();
-        } catch (IOException e) {
+            csvWriter.writeHeaders(opKeyArray);
+            for (Map.Entry<String, String> entry : operatorMap.entrySet()) {
+                csvWriter.addValue(entry.getKey(), entry.getValue());
+            }
+            csvWriter.writeValuesToRow();
+            csvWriter.close();
+        } catch (Exception e) {
             log.error("exception occurred due to ", e);
         }
         log.info(String.format("Operator key file saved at %s", opMapPath));
     }
 
     private Map<String, String> readOperatorMapFromFile(String opMapPath) {
-        CsvMapReader mapReader = new CsvMapReader(IOUtils.getBufferedReader(opMapPath), CsvPreference.STANDARD_PREFERENCE);
-        final String[] header;
+        CsvParserSettings csvParserSettings = new CsvParserSettings();
+        csvParserSettings.setHeaderExtractionEnabled(true);
+        RowListProcessor rowProcessor = new RowListProcessor();
+        csvParserSettings.setProcessor(rowProcessor);
+        CsvParser csvParser = new CsvParser(csvParserSettings);
+        final String[] headers;
         Map<String, String> res = null;
         try {
-            header = mapReader.getHeader(true);
-            res = mapReader.read(header);
-        } catch (IOException e) {
+            csvParser.parse(IOUtils.getBufferedReader(opMapPath));
+            headers = rowProcessor.getHeaders();
+            String[] rows = rowProcessor.getRows().get(0);
+            int index = 0;
+            for (String header : headers){
+                res.put(header, rows[index++]);
+            }
+        } catch (Exception e) {
             log.error("exception occurred due to ", e);
         }
         return res;
