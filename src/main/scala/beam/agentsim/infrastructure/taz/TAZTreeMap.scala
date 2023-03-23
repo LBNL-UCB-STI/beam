@@ -140,11 +140,15 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
           case Some(env) => (env.getMinX, env.getMinY, env.getMaxX, env.getMaxY)
           case _         => extent
         }
-        TAZtoLinkIdMapping(id) = new QuadTree[Link](minX, minY, maxX, maxY)
+        TAZtoLinkIdMapping(id) = new QuadTree[Link](minX - 2e3, minY - 2e3, maxX + 2e3, maxY + 2e3)
       }
       network.getLinks.asScala.foreach {
         case (id, link) =>
           val linkEndCoord = link.getToNode.getCoord
+          val linkMidpoint = new Coord(
+            0.5 * (link.getToNode.getCoord.getX + link.getFromNode.getCoord.getX),
+            0.5 * (link.getToNode.getCoord.getY + link.getFromNode.getCoord.getY)
+          )
           val foundTaz = TAZTreeMap.ringSearch(
             tazQuadTree,
             linkEndCoord,
@@ -158,6 +162,11 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
           foundTaz match {
             case Some(taz) =>
               TAZtoLinkIdMapping(taz.tazId).put(linkEndCoord.getX, linkEndCoord.getY, link)
+              try {
+                TAZtoLinkIdMapping(taz.tazId).put(linkMidpoint.getX, linkMidpoint.getY, link)
+              } catch {
+                case e: Throwable => logger.warn(e.toString)
+              }
               linkIdToTAZMapping += (id -> taz.tazId)
             case _ =>
               unmatchedLinkIds += id
@@ -195,10 +204,10 @@ object TAZTreeMap {
     val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromShapeFile(features)
 
     val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
-      quadTreeBounds.minx,
-      quadTreeBounds.miny,
-      quadTreeBounds.maxx,
-      quadTreeBounds.maxy
+      quadTreeBounds.minx - 2e4,
+      quadTreeBounds.miny - 2e4,
+      quadTreeBounds.maxx + 2e4,
+      quadTreeBounds.maxy + 2e4
     )
 
     for (f <- features.asScala) {
