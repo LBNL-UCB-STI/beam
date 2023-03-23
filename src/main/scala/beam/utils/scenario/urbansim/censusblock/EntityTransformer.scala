@@ -34,7 +34,7 @@ trait EntityTransformer[T] {
       }
   }
 
-  private def getDouble(rec: Record, columnName: String): Double = {
+  private def getDouble(rec: Record, columnName: String): java.lang.Double = {
     val index = getColumnIndexBy(columnName, rec.getMetaData)
     if (index >= 0) rec.getDouble(index)
     else null
@@ -53,7 +53,7 @@ trait EntityTransformer[T] {
     }
   }
 
-  private def getLong(rec: Record, columnName: String): Long = {
+  private def getLong(rec: Record, columnName: String): java.lang.Long = {
     val index = getColumnIndexBy(columnName, rec.getMetaData)
     if (index >= 0) rec.getLong(index)
     else null
@@ -72,7 +72,7 @@ trait EntityTransformer[T] {
     }
   }
 
-  private def getInt(rec: Record, columnName: String): Int = {
+  private def getInt(rec: Record, columnName: String): java.lang.Integer = {
     val index = getColumnIndexBy(columnName, rec.getMetaData)
     if (index >= 0) rec.getInt(index)
     else null
@@ -91,7 +91,7 @@ trait EntityTransformer[T] {
     }
   }
 
-  private def getFloat(rec: Record, columnName: String): Float = {
+  private def getFloat(rec: Record, columnName: String): java.lang.Float = {
     val index = getColumnIndexBy(columnName, rec.getMetaData)
     if (index >= 0) rec.getFloat(index)
     else null
@@ -112,7 +112,7 @@ trait EntityTransformer[T] {
 
   def getStringOptional(rec: Record, column: String): Option[String] = Option(getString(rec, column))
 
-  def getDoubleOptional(rec: Record, column: String): Option[Double] = Option(getDouble(rec, column))
+  def getDoubleOptional(rec: Record, column: String): Option[java.lang.Double] = Option(getDouble(rec, column))
 
   def transform(rec: Record): T
 }
