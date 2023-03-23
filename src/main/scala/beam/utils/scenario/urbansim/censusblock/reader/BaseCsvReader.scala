@@ -12,7 +12,9 @@ import scala.collection.JavaConverters._
 abstract class BaseCsvReader[T](path: String) extends Reader[T] {
   val transformer: EntityTransformer[T]
 
-  private val parser = new CsvParser(new CsvParserSettings)
+  private val csvParserSettings = new CsvParserSettings
+  csvParserSettings.setHeaderExtractionEnabled(true)
+  private val parser = new CsvParser(csvParserSettings)
   private val reader: BufferedReader = FileUtils.readerFromFile(path)
 
   override def iterator(): Iterator[T] = {
