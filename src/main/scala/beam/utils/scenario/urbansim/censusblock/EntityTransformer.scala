@@ -112,7 +112,7 @@ trait EntityTransformer[T] {
 
   def getStringOptional(rec: Record, column: String): Option[String] = Option(getString(rec, column))
 
-  def getDoubleOptional(rec: Record, column: String): Option[java.lang.Double] = Option(getDouble(rec, column))
+  def getDoubleOptional(rec: Record, column: String): Option[Double] = Option(getDouble(rec, column))
 
   def transform(rec: Record): T
 }
