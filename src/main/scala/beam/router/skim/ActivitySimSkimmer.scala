@@ -261,10 +261,19 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     individualSkims: List[ActivitySimSkimmerInternal]
   ) = {
     val weights = individualSkims.map(sk => sk.observations)
-    val sumWeights = if (weights.sum == 0) 1 else weights.sum
+    val sumWeights = weights.sum
 
-    def getWeightedSkimsValue(getValue: ActivitySimSkimmerInternal => Double): Double =
-      individualSkims.map(getValue).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    def getWeightedSkimsValue(getValue: ActivitySimSkimmerInternal => Double): Double = {
+      if (weights.sum == 0) { 0 }
+      else {
+        individualSkims
+          .map(getValue)
+          .zip(weights)
+          .map { case (value, weight) => value * weight }
+          .filter(!_.isNaN)
+          .foldLeft(0d)(_ + _) / sumWeights
+      }
+    }
 
     val weightedDistance = getWeightedSkimsValue(_.distanceInMeters)
     val weightedTotalTime = getWeightedSkimsValue(_.travelTimeInMinutes)
