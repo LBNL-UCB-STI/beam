@@ -55,7 +55,15 @@ trait GeoUtils extends ExponentialLazyLogging {
   def utm2Wgs(spacetime: SpaceTime): SpaceTime = SpaceTime(utm2Wgs(spacetime.loc), spacetime.time)
 
   def utm2Wgs(coord: Coord): Coord = {
-    utm2Wgs.transform(coord)
+    try {
+      utm2Wgs.transform(coord)
+    } catch {
+      case e: Throwable =>
+        logger.warn(e.getMessage)
+        logger.warn(s"Coordinate cannot be converged from UTM -> WGS. No conversion will happen: $coord")
+        coord
+    }
+
   }
 
   def distUTMInMeters(coord1: Coord, coord2: Coord): Double = GeoUtils.distUTMInMeters(coord1, coord2)
