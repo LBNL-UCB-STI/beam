@@ -8,6 +8,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
+import scala.math.pow
 
 /**
   * sampling methods for randomly generating stall locations from aggregate information
@@ -33,8 +34,32 @@ object ParkingStallSampling {
     }
     Some(filteredLinks)
       .filter(_.nonEmpty)
-      .map(_.minBy(lnk => distanceFunction(lnk.getCoord, requestLocation)).getCoord)
+      .map(
+        _.map(lnk => getClosestPointAlongLink(lnk, requestLocation)).minBy(loc =>
+          distanceFunction(loc, requestLocation)
+        )
+      )
       .getOrElse(requestLocation)
+
+//    Some(filteredLinks)
+//      .filter(_.nonEmpty)
+//      .map(_.minBy(lnk => distanceFunction(lnk.getCoord, requestLocation)).getCoord)
+//      .getOrElse(requestLocation)
+  }
+
+  private def getClosestPointAlongLink(link: Link, requestLocation: Location): Location = {
+    val (p1, p2) = (link.getToNode.getCoord, link.getFromNode.getCoord)
+    val (dx, dy) = (p2.getX - p1.getX, p2.getY - p1.getY) // vector between p1 and p2
+    val (diffx, diffy) = (requestLocation.getX - p1.getX, requestLocation.getY - p1.getY) // vector between p1 and p3
+    val c1 = (dx * diffx + dy * diffy) / (pow(dx, 2) + pow(dy, 2)) // projection of w onto v
+    if (c1 < 0) { p1 }
+    else if (c1 > 1) { p2 }
+    else {
+      val x = p1.getX + c1 * dx // closest point on line to p3
+      val y = p1.getY + c1 * dy // closest point on line to p3
+      new Coord(x, y)
+    }
+
   }
 
   /**
