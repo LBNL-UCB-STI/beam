@@ -62,7 +62,7 @@ class HouseholdCAVDriverAgent(
     logDebug(s" $id has been initialized, going to Waiting state")
     beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
     eventsManager.processEvent(
-      new BeamPersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_household_cav_driver","")
+      new BeamPersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_household_cav_driver", "")
     )
     goto(Idle) using data
       .copy(currentVehicle = Vector(vehicle.id))
