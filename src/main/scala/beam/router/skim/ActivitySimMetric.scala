@@ -15,7 +15,6 @@ object ActivitySimMetric extends Enum[ActivitySimMetric] {
   case object TOTIVT extends ActivitySimMetric
   case object FERRYIVT extends ActivitySimMetric
   case object FAR extends ActivitySimMetric
-  case object WAIT extends ActivitySimMetric
   case object XWAIT extends ActivitySimMetric
   case object KEYIVT extends ActivitySimMetric
   case object DTIM extends ActivitySimMetric

@@ -104,17 +104,17 @@ object ActivitySimOmxWriter {
     MatrixData(
       Set(DRV_COM_WLK, DRV_EXP_WLK, DRV_HVY_WLK, WLK_COM_DRV, WLK_EXP_DRV, WLK_HVY_DRV),
       ActivitySimTimeBin.values.toSet,
-      Set(TOTIVT, FAR, WAIT, XWAIT, KEYIVT, IWAIT, DTIM, BOARDS, DDIST, WAUX, TRIPS, FAILURES)
+      Set(TOTIVT, FAR, XWAIT, KEYIVT, IWAIT, DTIM, BOARDS, DDIST, WAUX, TRIPS, FAILURES)
     ),
     MatrixData(
       Set(DRV_LOC_WLK, WLK_LOC_DRV),
       ActivitySimTimeBin.values.toSet,
-      Set(TOTIVT, FAR, WAIT, XWAIT, IWAIT, DTIM, BOARDS, DDIST, WAUX, TRIPS, FAILURES)
+      Set(TOTIVT, FAR, XWAIT, IWAIT, DTIM, BOARDS, DDIST, WAUX, TRIPS, FAILURES)
     ),
     MatrixData(
       Set(DRV_LRF_WLK, WLK_LRF_DRV),
       ActivitySimTimeBin.values.toSet,
-      Set(TOTIVT, FERRYIVT, FAR, WAIT, XWAIT, KEYIVT, DTIM, IWAIT, BOARDS, DDIST, WAUX, TRIPS, FAILURES)
+      Set(TOTIVT, FERRYIVT, FAR, XWAIT, KEYIVT, DTIM, IWAIT, BOARDS, DDIST, WAUX, TRIPS, FAILURES)
     ),
     MatrixData(
       Set(HOV2TOLL, HOV3TOLL, SOVTOLL),
@@ -130,17 +130,17 @@ object ActivitySimOmxWriter {
     MatrixData(
       Set(WLK_COM_WLK, WLK_EXP_WLK, WLK_HVY_WLK),
       ActivitySimTimeBin.values.toSet,
-      Set(TOTIVT, FAR, WAIT, XWAIT, KEYIVT, IWAIT, BOARDS, WAUX, TRIPS, FAILURES)
+      Set(TOTIVT, FAR, XWAIT, KEYIVT, IWAIT, BOARDS, WAUX, TRIPS, FAILURES)
     ),
     MatrixData(
       Set(WLK_LOC_WLK),
       ActivitySimTimeBin.values.toSet,
-      Set(TOTIVT, WAIT, FAR, XWAIT, IWAIT, BOARDS, WAUX, TRIPS, FAILURES)
+      Set(TOTIVT, FAR, XWAIT, IWAIT, BOARDS, WAUX, TRIPS, FAILURES)
     ),
     MatrixData(
       Set(WLK_LRF_WLK),
       ActivitySimTimeBin.values.toSet,
-      Set(TOTIVT, FERRYIVT, FAR, WAIT, XWAIT, KEYIVT, IWAIT, BOARDS, WAUX, TRIPS, FAILURES)
+      Set(TOTIVT, FERRYIVT, FAR, XWAIT, KEYIVT, IWAIT, BOARDS, WAUX, TRIPS, FAILURES)
     ),
     MatrixData(
       Set(WLK_TRN_WLK),
