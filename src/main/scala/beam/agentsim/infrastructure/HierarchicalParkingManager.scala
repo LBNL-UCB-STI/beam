@@ -48,7 +48,21 @@ class HierarchicalParkingManager(
     )
 
   override protected val searchFunctions: Option[InfrastructureFunctions] = Some(
-    new ParkingFunctions(tazMap, tazParkingZones, distanceFunction, minSearchRadius, maxSearchRadius, 0.0, 0.0, estimatedMinParkingDurationInSeconds, 1.0, 1, boundingBox, seed, mnlParkingConfig)
+    new ParkingFunctions(
+      tazMap,
+      tazParkingZones,
+      distanceFunction,
+      minSearchRadius,
+      maxSearchRadius,
+      0.0,
+      0.0,
+      estimatedMinParkingDurationInSeconds,
+      1.0,
+      1,
+      boundingBox,
+      seed,
+      mnlParkingConfig
+    )
   )
 
   val DefaultParkingZone: ParkingZone =

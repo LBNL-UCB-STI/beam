@@ -1470,10 +1470,15 @@ trait ChoosesMode {
           .getTAZfromLink(startLink)
           .map(_.tazId.toString)
           .getOrElse("NA")
+        val nearestEdgeToDest = beamServices.geo.getNearestR5EdgeToUTMCoord(
+          beamServices.beamScenario.transportNetwork.streetLayer,
+          destinationActivity.getCoord,
+          beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
+        )
         val destGeo = beamScenario.tazTreeMap
-          .getTAZfromLink(endLink)
+          .getTAZfromLink(Id.createLinkId(nearestEdgeToDest.toString))
           .map(_.tazId.toString)
-          .getOrElse("NA")
+          .getOrElse(beamScenario.tazTreeMap.getTAZ(destinationActivity.getCoord).tazId.toString)
         (origGeo, destGeo)
       } else {
         beamScenario.exchangeGeoMap match {
