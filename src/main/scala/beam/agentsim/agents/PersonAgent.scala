@@ -25,6 +25,7 @@ import beam.agentsim.events._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.parking.ParkingMNL
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingNetworkManager, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -1494,6 +1495,24 @@ class PersonAgent(
       }
   }
 
+  def getTazFromActivity(activity: Activity): Id[TAZ] = {
+    val linkId = Option(activity.getLinkId).getOrElse(
+      Id.createLinkId(
+        beamServices.geo
+          .getNearestR5EdgeToUTMCoord(
+            beamServices.beamScenario.transportNetwork.streetLayer,
+            activity.getCoord,
+            beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
+          )
+          .toString
+      )
+    )
+    beamScenario.tazTreeMap
+      .getTAZfromLink(linkId)
+      .map(_.tazId)
+      .getOrElse(beamScenario.tazTreeMap.getTAZ(activity.getCoord).tazId)
+  }
+
   def generateSkimData(
     tick: Int,
     trip: EmbodiedBeamTrip,
@@ -1523,18 +1542,10 @@ class PersonAgent(
     )
     eventsManager.processEvent(odSkimmerEvent)
     if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
-      val startLink = currentActivity.getLinkId
-      val endLinkOption = nextActivity.map(_.getLinkId)
       val (origin, destination) =
-        if (beamScenario.tazTreeMap.tazListContainsGeoms && endLinkOption.isDefined) {
-          val origGeo = beamScenario.tazTreeMap
-            .getTAZfromLink(startLink)
-            .map(_.tazId.toString)
-            .getOrElse("NA")
-          val destGeo = beamScenario.tazTreeMap
-            .getTAZfromLink(endLinkOption.get)
-            .map(_.tazId.toString)
-            .getOrElse("NA")
+        if (beamScenario.tazTreeMap.tazListContainsGeoms) {
+          val origGeo = getTazFromActivity(currentActivity).toString
+          val destGeo = nextActivity.map(getTazFromActivity(_).toString).getOrElse("NA")
           (origGeo, destGeo)
         } else {
           beamScenario.exchangeGeoMap match {
