@@ -59,6 +59,7 @@ case class ActivitySimSkimmerEvent(
         }
       }
 
+      // TODO: This misses some cases where we don't have a walk leg between transit legs
       if (transitModes.contains(leg.beamLeg.mode)) {
         if (!travelingInTransit) {
           travelingInTransit = true

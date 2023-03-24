@@ -121,6 +121,11 @@ object ActivitySimOmxWriter {
       ActivitySimTimeBin.values.toSet,
       Set(BTOLL, VTOLL, TIME, DIST)
     ),
+    MatrixData(
+      Set(BIKE),
+      ActivitySimTimeBin.values.toSet,
+      Set(TIME, DIST)
+    ),
     MatrixData(Set(HOV2, HOV3, SOV), ActivitySimTimeBin.values.toSet, Set(BTOLL, TIME, DIST, TRIPS, FAILURES)),
     MatrixData(
       Set(WLK_COM_WLK, WLK_EXP_WLK, WLK_HVY_WLK),
