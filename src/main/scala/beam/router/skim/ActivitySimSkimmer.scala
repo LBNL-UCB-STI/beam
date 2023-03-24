@@ -277,7 +277,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
 
     val weightedDistance = getWeightedSkimsValue(_.distanceInMeters)
     val weightedTotalTime = getWeightedSkimsValue(_.travelTimeInMinutes)
-    val weightedCost = getWeightedSkimsValue(_.cost)
+    val weightedCostInDollars = getWeightedSkimsValue(_.cost)
     val weightedWalkAccessTime = getWeightedSkimsValue(_.walkAccessInMinutes)
     val weightedWalkEgressTime = getWeightedSkimsValue(_.walkEgressInMinutes)
     val weightedWalkAuxiliaryTime = getWeightedSkimsValue(_.walkAuxiliaryInMinutes)
@@ -300,7 +300,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       destinationId = destinationId,
       weightedTotalTime = weightedTotalTime,
       weightedTotalInVehicleTime = weightedTotalInVehicleTime,
-      weightedTotalCost = weightedCost,
+      weightedTotalFareInCents = weightedCostInDollars * 100,
       weightedDistance = weightedDistance,
       weightedWalkAccess = weightedWalkAccessTime,
       weightedWalkAuxiliary = weightedWalkAuxiliaryTime,
@@ -312,7 +312,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       weightedKeyInVehicleTimeInMinutes = weightedKeyInVehicleTime,
       weightedFerryInVehicleTimeInMinutes = weightedFerryTime,
       weightedTransitBoardingsCount = weightedTransitBoardingsCount,
-      weightedCost = weightedCost,
+      weightedCost = weightedCostInDollars,
       failedTrips = failedTrips,
       completedTrips = completedTrips,
       debugText = debugText
@@ -405,7 +405,7 @@ object ActivitySimSkimmer extends LazyLogging {
     destinationId: String,
     weightedTotalTime: Double,
     weightedTotalInVehicleTime: Double,
-    weightedTotalCost: Double,
+    weightedTotalFareInCents: Double,
     weightedDistance: Double,
     weightedWalkAccess: Double,
     weightedWalkAuxiliary: Double,
@@ -427,7 +427,7 @@ object ActivitySimSkimmer extends LazyLogging {
       metric match {
         case ActivitySimMetric.TOTIVT   => weightedTotalInVehicleTime
         case ActivitySimMetric.FERRYIVT => weightedFerryInVehicleTimeInMinutes
-        case ActivitySimMetric.FAR      => weightedTotalCost
+        case ActivitySimMetric.FAR      => weightedTotalFareInCents
         case ActivitySimMetric.KEYIVT   => weightedKeyInVehicleTimeInMinutes
         case ActivitySimMetric.DTIM     => weightedDriveTimeInMinutes
         case ActivitySimMetric.BOARDS   => weightedTransitBoardingsCount
@@ -437,6 +437,8 @@ object ActivitySimSkimmer extends LazyLogging {
         case ActivitySimMetric.DIST     => weightedDistance
         case ActivitySimMetric.WEGR     => weightedWalkEgress
         case ActivitySimMetric.WACC     => weightedWalkAccess
+        case ActivitySimMetric.IWAIT    => weightedWaitInitial
+        case ActivitySimMetric.XWAIT    => weightedWaitTransfer
         case ActivitySimMetric.TRIPS    => completedTrips
         case ActivitySimMetric.FAILURES => failedTrips
         case _                          => Double.NaN
@@ -463,6 +465,8 @@ object ActivitySimSkimmer extends LazyLogging {
       ActivitySimMetric.DIST,
       ActivitySimMetric.WEGR,
       ActivitySimMetric.WACC,
+      ActivitySimMetric.IWAIT,
+      ActivitySimMetric.XWAIT,
       ActivitySimMetric.TRIPS,
       ActivitySimMetric.FAILURES
     )

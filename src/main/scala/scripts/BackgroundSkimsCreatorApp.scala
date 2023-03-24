@@ -101,7 +101,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       destinationId = rec.get("destination"),
       weightedTotalTime = rec.get("TIME_minutes").toDouble,
       weightedTotalInVehicleTime = rec.get("TOTIVT_IVT_minutes").toDouble,
-      weightedTotalCost = rec.get("VTOLL_FAR").toDouble,
+      weightedTotalFareInCents = rec.get("VTOLL_FAR").toDouble,
       weightedDistance = rec.get("DIST_meters").toDouble,
       weightedWalkAccess = rec.get("WACC_minutes").toDouble,
       weightedWalkAuxiliary = rec.get("WAUX_minutes").toDouble,
