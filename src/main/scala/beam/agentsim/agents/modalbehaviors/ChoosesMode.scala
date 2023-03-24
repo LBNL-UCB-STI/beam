@@ -16,6 +16,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.resources.ReservationErrorCode
 import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent, SpaceTime}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
@@ -1462,24 +1463,12 @@ trait ChoosesMode {
     destinationActivity: Activity,
     mode: BeamMode
   ): ODSkimmerFailedTripEvent = {
-    val (startLink, endLink) = (originActivity.getLinkId, destinationActivity.getLinkId)
     val (origCoord, destCoord) = (originActivity.getCoord, destinationActivity.getCoord)
     val (origin, destination) =
       if (beamScenario.tazTreeMap.tazListContainsGeoms) {
-        val origGeo = beamScenario.tazTreeMap
-          .getTAZfromLink(startLink)
-          .map(_.tazId.toString)
-          .getOrElse("NA")
-        val nearestEdgeToDest = beamServices.geo.getNearestR5EdgeToUTMCoord(
-          beamServices.beamScenario.transportNetwork.streetLayer,
-          destinationActivity.getCoord,
-          beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
-        )
-        val destGeo = beamScenario.tazTreeMap
-          .getTAZfromLink(Id.createLinkId(nearestEdgeToDest.toString))
-          .map(_.tazId.toString)
-          .getOrElse(beamScenario.tazTreeMap.getTAZ(destinationActivity.getCoord).tazId.toString)
-        (origGeo, destGeo)
+        val startTaz = getTazFromActivity(originActivity)
+        val endTaz = getTazFromActivity(destinationActivity)
+        (startTaz.toString, endTaz.toString)
       } else {
         beamScenario.exchangeGeoMap match {
           case Some(geoMap) =>
