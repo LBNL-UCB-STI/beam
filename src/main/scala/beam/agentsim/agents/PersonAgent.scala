@@ -1433,7 +1433,7 @@ class PersonAgent(
       new ReserveRideHailEvent(
         currentTick.toDouble,
         id,
-        rideHailLeg.beamLeg.startTime,
+        departureTime,
         rideHailLeg.beamLeg.travelPath.startPoint.loc,
         rideHailLegEndpoint,
         wheelchairUser
