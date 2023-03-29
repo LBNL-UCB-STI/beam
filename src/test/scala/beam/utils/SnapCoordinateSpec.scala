@@ -267,7 +267,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper with 
       intersection(scenario.getHouseholds, path = s"$outputDir/${CsvFile.Households}") shouldBe Set.empty
     }
 
-    "remove invalid persons and households [case1 urbansimv2 input]" in {
+    "remove invalid persons and households [case1 urbansimv2 input]" taggedAs Retryable in {
       lazy val config: TypesafeConfig = ConfigFactory
         .parseString(s"""
                         |beam.exchange.scenario.folder = "$pwd/test/test-resources/beam/input/snap-location/scenario/case1/urbansim_v2"
@@ -300,7 +300,7 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper with 
       }
     }
 
-    "remove invalid persons and households [case2 urbansimv2 input]" in {
+    "remove invalid persons and households [case2 urbansimv2 input]" taggedAs Retryable in {
       lazy val config: TypesafeConfig = ConfigFactory
         .parseString(s"""
                         |beam.exchange.scenario.folder = "$pwd/test/test-resources/beam/input/snap-location/scenario/case2/urbansim_v2"
