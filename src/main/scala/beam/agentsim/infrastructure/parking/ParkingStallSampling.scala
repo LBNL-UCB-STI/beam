@@ -9,6 +9,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
+import scala.math.pow
 
 /**
   * sampling methods for randomly generating stall locations from aggregate information
@@ -19,14 +20,18 @@ object ParkingStallSampling extends ExponentialLazyLogging {
 
   def linkBasedSampling(
     rand: Random,
-    taz: TAZ,
     requestLocation: Location,
     linkQuadTree: QuadTree[Link],
-    availabilityRatio: Double
+    distanceFunction: (Coord, Coord) => Double,
+    availabilityRatio: Double,
+    maxDist: Double = maxOffsetDistance
   ): Location = {
-    val chosenLoc = TAZTreeMap.ringSearch[Link, Coord](linkQuadTree, requestLocation, 100, 5000, 2.0) {
-      case lnk if rand.nextDouble() <= availabilityRatio => Some(lnk.getCoord)
-      case _                                             => None
+    val allLinks = linkQuadTree.getDisk(requestLocation.getX, requestLocation.getY, maxDist).asScala
+    val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
+    var currentLength = 0.0
+    val filteredLinks = rand.shuffle(allLinks).takeWhile { lnk =>
+      currentLength += lnk.getLength
+      currentLength <= totalLength * availabilityRatio
     }
     Some(filteredLinks)
       .filter(_.nonEmpty)
@@ -36,11 +41,6 @@ object ParkingStallSampling extends ExponentialLazyLogging {
         )
       )
       .getOrElse(requestLocation)
-
-//    Some(filteredLinks)
-//      .filter(_.nonEmpty)
-//      .map(_.minBy(lnk => distanceFunction(lnk.getCoord, requestLocation)).getCoord)
-//      .getOrElse(requestLocation)
   }
 
   private def getClosestPointAlongLink(
