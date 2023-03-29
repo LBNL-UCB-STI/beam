@@ -5,7 +5,7 @@ import helics as h
 import logging
 from threading import Thread
 from nrel_spmc_controller.rudimentary_spmc_rev3 import SPM_Control as SPM_Control_Rudimentary
-from nrel_spmc_controller.spmc_v4 import SPM_Control as SPM_Control_Advanced
+from nrel_spmc_controller.spmc_v5 import SPM_Control as SPM_Control_Advanced
 from xfc_btms_saev_controller import components
 from abc import abstractmethod
 
@@ -150,15 +150,12 @@ class AdvancedSPMC(AbstractSPMC):
         plug_power = self.site_power/self.num_plugs
         self.p_max = [plug_power] * self.num_plugs  # max EV charging power (EVSE power rate)
         p_min = [0] * self.num_plugs  # min EV charging power
-        self.spm_c = SPM_Control_Advanced(time_step_mins=15, num_ess=1, ess_size=self.ess_size, max_power_evse=self.p_max, min_power_evse=p_min)
+        self.spm_c = SPM_Control_Advanced(max_power_evse=self.p_max, min_power_evse=p_min, time_step_mins=15, num_ess=1, ess_size=self.ess_size)
         print2(self.site_prefix_logging + " Initialized!")
 
     def run_model(self, t, vehicles, data_for_spmc):
         t_dep = [(tt - t) / 60.0 for tt in data_for_spmc.desired_departure_time] # departure time in minute from the current time
         e_req = data_for_spmc.desired_fuel_level_in_k_wh # energy remaining for each EV
-        print2("size t_dep: " + str(len(t_dep)))
-        print2("size e_req: " + str(len(e_req)))
-        print2("size p_max: " + str(len(self.p_max)))
         p_max_site = self.site_power
         if data_for_spmc.updated_power_limits_from_derms is not None:
             if data_for_spmc.updated_power_limits_from_derms > p_max_site:
@@ -169,11 +166,16 @@ class AdvancedSPMC(AbstractSPMC):
         current_ess_soc = data_for_spmc.updated_ess_soc_internal
         if data_for_spmc.updated_ess_soc_from_dss is not None:
             current_ess_soc = data_for_spmc.updated_ess_soc_from_dss
+        max_power_evse = data_for_spmc.max_power_in_kw
+        min_power_evse = [0] * len(max_power_evse)
         [p_evse_setpoint, p_ess_setpoint, p_evse_opt, e_evse_opt, p_ess_opt, e_ess_opt, delta_t, flag] = \
-            self.spm_c.get_evse_setpoint(t_dep, e_req, p_min_site, p_max_site, current_ess_soc)
+            self.spm_c.get_evse_setpoint(t_dep, e_req, p_min_site, p_max_site, current_ess_soc, min_power_evse=min_power_evse, max_power_evse=max_power_evse)
         # update ESS SOC internally in case the DSS does not do that
         data_for_spmc.updated_ess_soc_internal = current_ess_soc + p_ess_setpoint * (self.config_for_spmc.time_step / 3600.0) / self.ess_size
         i = 0
+        print2("vehicles size: " + str(len(vehicles)))
+        print2("p_evse_opt size: " + str(len(p_evse_opt)))
+        print2("p_evse_opt: " + str(p_evse_opt))
         spmc_commands = []
         for vehicle in vehicles:
             spmc_commands = spmc_commands + [{

@@ -69,8 +69,7 @@ class SPM_Control():
         ### variable initialization
         for i in range(T):
             for k in range(N):
-                p_evse[i + k*T] = m.Var(value=min_power_evse[k], lb=min_power_evse[k], 
-                                                                      ub=max_power_evse[k])
+                p_evse[i + k*T] = m.Var(value=min_power_evse[k], lb=min_power_evse[k], ub=max_power_evse[k])
                 e_evse[i + k*T]  = m.Var(value=0, lb=0, ub=energy_req[k])
             
             if self.num_ess > 0:
