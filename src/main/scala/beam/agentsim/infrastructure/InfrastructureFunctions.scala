@@ -108,6 +108,19 @@ abstract class InfrastructureFunctions(
     )
 
   def searchForParkingStall(inquiry: ParkingInquiry): ParkingZoneSearch.ParkingZoneSearchResult = {
+
+    // creates a hash code dependent on the personId and the intended time to reach the destination
+    // this is used to create a new seed to create some variability on the selected parking spot
+    // since the parkingZoneSearchParams always uses a set seed for the Random object, every single parking inquiry
+    // would have the same random draw to select from the available parking zones.
+    // This also maintains the result deterministic for a set seed, as opposed to creating a Random object as a field
+    // on this class, since due to race conditions we would process parking inquiries in different order
+    // depending on the run.
+    val inquiryHash = inquiry.personId match {
+      case Some(id) => id.hashCode() + inquiry.destinationUtm.time
+      case _        => inquiry.destinationUtm.time
+    }
+
     // ---------------------------------------------------------------------------------------------
     // a ParkingZoneSearch takes the following as parameters
     //
@@ -121,12 +134,6 @@ abstract class InfrastructureFunctions(
     //     utility function parameters. all alternatives are sampled in a multinomial logit function
     //     based on this.
     // ---------------------------------------------------------------------------------------------
-
-    val inquiryHash = inquiry.personId match {
-      case Some(id) => id.hashCode() + inquiry.destinationUtm.time
-      case _        => inquiry.destinationUtm.time
-    }
-
     val parkingZoneSearchParams: ParkingZoneSearchParams =
       ParkingZoneSearchParams(
         inquiry.destinationUtm.loc,
