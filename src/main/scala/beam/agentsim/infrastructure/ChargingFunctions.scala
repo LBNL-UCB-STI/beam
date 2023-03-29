@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
+import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleManager}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.{Charge, Home, Work}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.charging.ChargingPointType
@@ -122,16 +122,43 @@ class ChargingFunctions(
   /**
     * Method that verifies if the vehicle has valid charging capability
     *
-    * @param zone             ParkingZone
-    * @param beamVehicleMaybe Option[BeamVehicle]
+    * @param zone    ParkingZone
+    * @param inquiry ParkingInquiry
     * @return
     */
-  def hasValidChargingCapability(zone: ParkingZone, beamVehicleMaybe: Option[BeamVehicle]): Boolean = {
-    zone.chargingPointType.forall(chargingPointType =>
-      beamVehicleMaybe.forall(
-        _.beamVehicleType.chargingCapability.forall(getPower(_) >= getPower(chargingPointType))
-      )
-    )
+  def hasValidChargingCapability(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+    // only verify charging capability if the vehicle is defined and contains a chargingCapability in the first place
+    // also, we only verify the capability if we are either enrouting or on a charge activity.
+    val verifyCharger =
+      if (
+        inquiry.beamVehicle.isDefined &&
+        inquiry.beamVehicle.get.beamVehicleType.chargingCapability.isDefined
+      ) {
+        inquiry.searchMode match {
+          case ParkingSearchMode.EnRouteCharging => true
+          case _ =>
+            inquiry.activityType match {
+              case "charge"  => true
+              case "enroute" => true
+              case _         => false
+            }
+        }
+      } else {
+        false
+      }
+
+    if (verifyCharger) {
+      zone.chargingPointType match {
+        case Some(chargerType) =>
+          // if the charger can provide a power equal to or greater than what the vehicle is rated for, this is a valid charger
+          getPower(chargerType) >= getPower(inquiry.beamVehicle.get.beamVehicleType.chargingCapability.get)
+        case _ =>
+          // if there is no chargingPoint this is unsuitable
+          false
+      }
+    } else {
+      true
+    }
   }
 
   private def getPower(implicit chargingCapability: ChargingPointType): Double = {
@@ -164,7 +191,7 @@ class ChargingFunctions(
     val chargeFastChargingOnly: Boolean = ifChargeActivityThenFastChargingOnly(zone, inquiry)
     val overnightStaySlowChargingOnly: Boolean =
       ifHomeWorkOrLongParkingDurationThenSlowChargingOnlyUnlessEnrouting(zone, inquiry)
-    val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry.beamVehicle)
+    val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry)
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
     rideHailFastChargingOnly && validChargingCapability && canCarParkHere && enRouteFastChargingOnly && chargeFastChargingOnly && overnightStaySlowChargingOnly
