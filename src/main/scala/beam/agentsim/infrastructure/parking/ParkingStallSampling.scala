@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure.parking
 import scala.util.Random
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
-import beam.utils.logging.ExponentialLazyLogging
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -14,7 +14,7 @@ import scala.math.pow
 /**
   * sampling methods for randomly generating stall locations from aggregate information
   */
-object ParkingStallSampling extends ExponentialLazyLogging {
+object ParkingStallSampling extends LazyLogging {
 
   val maxOffsetDistance = 1000.0 // TODO: Make this a config parameter
 
@@ -42,12 +42,10 @@ object ParkingStallSampling extends ExponentialLazyLogging {
           distanceFunction(loc, requestLocation)
         )
       )
-      .getOrElse(requestLocation)
-
-//    Some(filteredLinks)
-//      .filter(_.nonEmpty)
-//      .map(_.minBy(lnk => distanceFunction(lnk.getCoord, requestLocation)).getCoord)
-//      .getOrElse(requestLocation)
+      .getOrElse {
+        logger.warn(s"Could not find a link for parking request at location: $requestLocation")
+        requestLocation
+      }
   }
 
   private def getClosestPointAlongLink(
@@ -90,7 +88,7 @@ object ParkingStallSampling extends ExponentialLazyLogging {
           }
         }
       case None =>
-        requestLocation
+        p1
     }
   }
 
