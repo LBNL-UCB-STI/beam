@@ -16,7 +16,7 @@ import scala.math.pow
   */
 object ParkingStallSampling extends LazyLogging {
 
-  val maxOffsetDistance = 800.0 // TODO: Make this a config parameter
+  val maxOffsetDistance = 1000.0 // TODO: Make this a config parameter
 
   def linkBasedSampling(
     rand: Random,
@@ -26,24 +26,30 @@ object ParkingStallSampling extends LazyLogging {
     availabilityRatio: Double,
     maxDist: Double = maxOffsetDistance
   ): Location = {
-    val allLinks = linkQuadTree.getDisk(requestLocation.getX, requestLocation.getY, maxDist).asScala
-    val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
-    var currentLength = 0.0
-    val filteredLinks = rand.shuffle(allLinks).takeWhile { lnk =>
-      currentLength += lnk.getLength
-      currentLength <= totalLength * availabilityRatio
+    val walkableLinks = linkQuadTree.getDisk(requestLocation.getX, requestLocation.getY, maxDist).asScala
+    walkableLinks match {
+      case Nil =>
+        val allLinks = linkQuadTree.values().asScala.toList
+        allLinks(Random.nextInt(allLinks.size)).getCoord
+      case _ =>
+        val totalLength = walkableLinks.foldRight(0.0)(_.getLength + _)
+        var currentLength = 0.0
+        val filteredLinks = rand.shuffle(walkableLinks).takeWhile { lnk =>
+          currentLength += lnk.getLength
+          currentLength <= totalLength * availabilityRatio
+        }
+        Some(filteredLinks)
+          .filter(_.nonEmpty)
+          .map(
+            _.map(lnk => getClosestPointAlongLink(lnk, requestLocation, distanceFunction)).minBy(loc =>
+              distanceFunction(loc, requestLocation)
+            )
+          )
+          .getOrElse {
+            logger.warn(s"Could not find a link for parking request at location: $requestLocation")
+            requestLocation
+          }
     }
-    Some(filteredLinks)
-      .filter(_.nonEmpty)
-      .map(
-        _.map(lnk => getClosestPointAlongLink(lnk, requestLocation, distanceFunction)).minBy(loc =>
-          distanceFunction(loc, requestLocation)
-        )
-      )
-      .getOrElse {
-        logger.warn(s"Could not find a link for parking request at location: $requestLocation")
-        requestLocation
-      }
   }
 
   private def getClosestPointAlongLink(
