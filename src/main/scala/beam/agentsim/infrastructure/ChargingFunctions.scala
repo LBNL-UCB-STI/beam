@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleManager}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.{Charge, Home, Work}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.{Charge, EnRoute, Home, Work}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
@@ -137,10 +137,10 @@ class ChargingFunctions(
         inquiry.searchMode match {
           case ParkingSearchMode.EnRouteCharging => true
           case _ =>
-            inquiry.activityType match {
-              case "charge"  => true
-              case "enroute" => true
-              case _         => false
+            inquiry.parkingActivityType match {
+              case Charge  => true
+              case EnRoute => true
+              case _       => false
             }
         }
       } else {
