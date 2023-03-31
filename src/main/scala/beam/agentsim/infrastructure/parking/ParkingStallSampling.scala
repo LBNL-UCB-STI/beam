@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure.parking
 import scala.util.Random
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
-import com.typesafe.scalalogging.LazyLogging
+import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -14,7 +14,7 @@ import scala.math.pow
 /**
   * sampling methods for randomly generating stall locations from aggregate information
   */
-object ParkingStallSampling extends LazyLogging {
+object ParkingStallSampling extends ExponentialLazyLogging {
 
   val maxOffsetDistance = 1000.0 // TODO: Make this a config parameter
 
@@ -24,31 +24,37 @@ object ParkingStallSampling extends LazyLogging {
     linkQuadTree: QuadTree[Link],
     distanceFunction: (Coord, Coord) => Double,
     availabilityRatio: Double,
+    taz: TAZ,
+    inClosestZone: Boolean,
     maxDist: Double = maxOffsetDistance
   ): Location = {
     val walkableLinks = linkQuadTree.getDisk(requestLocation.getX, requestLocation.getY, maxDist).asScala
-    walkableLinks match {
-      case Nil =>
-        val allLinks = linkQuadTree.values().asScala.toList
-        allLinks(Random.nextInt(allLinks.size)).getCoord
-      case _ =>
-        val totalLength = walkableLinks.foldRight(0.0)(_.getLength + _)
-        var currentLength = 0.0
-        val filteredLinks = rand.shuffle(walkableLinks).takeWhile { lnk =>
-          currentLength += lnk.getLength
-          currentLength <= totalLength * availabilityRatio
-        }
-        Some(filteredLinks)
-          .filter(_.nonEmpty)
-          .map(
-            _.map(lnk => getClosestPointAlongLink(lnk, requestLocation, distanceFunction)).minBy(loc =>
-              distanceFunction(loc, requestLocation)
-            )
+    if (walkableLinks.isEmpty) {
+      val allLinks = linkQuadTree.values().asScala.toList
+      if (allLinks.isEmpty) {
+        logger.warn(
+          s"Could not find a link in TAZ ${taz.tazId.toString} for parking request at location: $requestLocation"
+        )
+        availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
+      } else { allLinks(Random.nextInt(allLinks.size)).getCoord }
+    } else {
+      val totalLength = walkableLinks.foldRight(0.0)(_.getLength + _)
+      var currentLength = 0.0
+      val filteredLinks = rand.shuffle(walkableLinks).takeWhile { lnk =>
+        currentLength += lnk.getLength
+        currentLength <= totalLength * availabilityRatio
+      }
+      Some(filteredLinks)
+        .filter(_.nonEmpty)
+        .map(
+          _.map(lnk => getClosestPointAlongLink(lnk, requestLocation, distanceFunction)).minBy(loc =>
+            distanceFunction(loc, requestLocation)
           )
-          .getOrElse {
-            logger.warn(s"Could not find a link for parking request at location: $requestLocation")
-            requestLocation
-          }
+        )
+        .getOrElse {
+          logger.warn(s"Could not find a link for parking request at location: $requestLocation")
+          requestLocation
+        }
     }
   }
 
