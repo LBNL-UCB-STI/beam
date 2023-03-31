@@ -28,8 +28,10 @@ object ParkingStallSampling extends LazyLogging {
     inClosestZone: Boolean,
     maxDist: Double = maxOffsetDistance
   ): Location = {
-    val allLinks = linkQuadTree.getDisk(requestLocation.getX, requestLocation.getY, maxDist).asScala
-    val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
+    maybeLinkQuadTree match {
+      case Some(linkQuadTree) =>
+        val allLinks = linkQuadTree.getDisk(requestLocation.getX, requestLocation.getY, maxDist).asScala
+        val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
     var currentLength = 0.0
     val filteredLinks = rand.shuffle(allLinks).takeWhile { lnk =>
       currentLength += lnk.getLength
@@ -44,7 +46,11 @@ object ParkingStallSampling extends LazyLogging {
       )
       .getOrElse {
         logger.warn(s"Could not find a link for parking request at location: $requestLocation")
-        requestLocation
+        availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
+            }
+        }
+      case _ =>
+        availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
       }
   }
 
