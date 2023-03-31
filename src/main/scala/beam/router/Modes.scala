@@ -313,6 +313,24 @@ object TourModes {
             // on the whole tour, otherwise they'll rely on a shared vehicle
             (Some(BIKE_BASED), availableVehicles.find(!_.vehicle.isSharedVehicle).map(_.vehicle))
           } else (Some(WALK_BASED), None)
+        case DRIVE_TRANSIT =>
+          (
+            Some(WALK_BASED),
+            availableVehicles
+              .find(veh =>
+                (veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car) & !veh.vehicle.isSharedVehicle
+              )
+              .map(_.vehicle)
+          )
+        case BIKE_TRANSIT =>
+          (
+            Some(WALK_BASED),
+            availableVehicles
+              .find(veh =>
+                (veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike) & !veh.vehicle.isSharedVehicle
+              )
+              .map(_.vehicle)
+          )
         case _ => (Some(WALK_BASED), None)
       }
     }

@@ -133,6 +133,10 @@ class BeamPlan extends Plan {
         nextTour.addTrip(nextTrip)
         if (atHome(activity)) {
           // TODO: Also trigger this if we return to a location already present in the tour
+//          val tripModes = nextTour.trips.flatMap(_.leg.map(_.getMode.map(_.toString.trim)).filter(_.nonEmpty))
+//          if (tripModes.nonEmpty) {
+//            println("SDFSF")
+//          }
           tours = tours :+ nextTour
           putStrategy(nextTour, TourModeChoiceStrategy(None))
           nextTour = new Tour(originActivity = Some(activity))

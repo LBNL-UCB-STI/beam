@@ -268,8 +268,25 @@ trait ChoosesMode {
       // duplicative, but the long run goal should be to remove trip/tour mode and personal vehicle from persondata
       // anyway and just keep it in the experiencedBeamPlan
       val currentTourStrategy = _experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](nextAct)
+      val currentTripStrategy = _experiencedBeamPlan.getTourStrategy[TripModeChoiceStrategy](nextAct)
 
-      var currentTripMode = personData.currentTripMode
+      var currentTripMode = (currentTripStrategy.mode, personData.currentTripMode) match {
+        case (None, None) => None
+        case (Some(strategyMode), None) =>
+          Some(strategyMode)
+        case (Some(strategyMode), Some(dataMode)) if strategyMode == dataMode =>
+          Some(strategyMode)
+        case (None, Some(dataMode)) =>
+          val updatedTripStrategy =
+            TripModeChoiceStrategy(Some(dataMode))
+          _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTripContaining(nextAct), updatedTripStrategy)
+          Some(dataMode)
+        case _ =>
+          log.error(
+            "Unexpected behavior"
+          ) // This can happen during replanning where tripModeChocieStrategy is none but trip mode stays
+          None
+      }
 
       var availablePersonalStreetVehicles =
         currentTripMode match {
@@ -288,13 +305,6 @@ trait ChoosesMode {
           case _ =>
             Vector()
         }
-
-      if (currentTourStrategy.tourMode != personData.currentTourMode) {
-        logger.warn(
-          s"Tour mode ${currentTourStrategy.tourMode} from _experiencedBeamPlan does not match " +
-          s"${personData.currentTourMode} from personData. Sticking with _experiencedBeamPlan"
-        )
-      }
 
       val chosenCurrentTourMode: Option[BeamTourMode] = currentTourStrategy.tourMode match {
         case Some(tourMode) => Some(tourMode)
@@ -384,17 +394,6 @@ trait ChoosesMode {
                 currentActivity(personData)
               )
               eventsManager.processEvent(tourModeChoiceEvent)
-              chosenTourMode match {
-                case Some(CAR_BASED)
-                    if !availablePersonalStreetVehicles
-                      .exists(_.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car) =>
-                  logger.error("We're on a car based tour without any cars -- this is bad!")
-                case Some(BIKE_BASED)
-                    if !availablePersonalStreetVehicles
-                      .exists(_.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike) =>
-                  logger.error("We're on a bike based tour without any bikes -- this is bad!")
-                case _ =>
-              }
               chosenTourMode
           }
 
