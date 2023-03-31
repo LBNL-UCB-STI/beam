@@ -171,8 +171,9 @@ class ParkingFunctions(
         inquiry.destinationUtm.loc,
         tazTreeMap.TAZtoLinkIdMapping.get(taz.tazId),
         distanceFunction,
-        parkingZone.availability
-      )
+        parkingZone.availability,
+      taz,
+          inClosestZone)
     } else {
       ParkingStallSampling.availabilityAwareSampling(
         new Random(seed),
