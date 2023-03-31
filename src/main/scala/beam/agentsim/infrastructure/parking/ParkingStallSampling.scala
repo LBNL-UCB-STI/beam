@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure.parking
 import scala.util.Random
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
-import com.typesafe.scalalogging.LazyLogging
+import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -14,7 +14,7 @@ import scala.math.pow
 /**
   * sampling methods for randomly generating stall locations from aggregate information
   */
-object ParkingStallSampling extends LazyLogging {
+object ParkingStallSampling extends ExponentialLazyLogging {
 
   val maxOffsetDistance = 1000.0 // TODO: Make this a config parameter
 
