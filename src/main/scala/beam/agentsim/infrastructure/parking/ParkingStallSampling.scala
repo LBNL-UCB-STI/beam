@@ -21,41 +21,49 @@ object ParkingStallSampling extends ExponentialLazyLogging {
   def linkBasedSampling(
     rand: Random,
     requestLocation: Location,
-    linkQuadTree: QuadTree[Link],
+    maybeLinkQuadTree: Option[QuadTree[Link]],
     distanceFunction: (Coord, Coord) => Double,
     availabilityRatio: Double,
     taz: TAZ,
     inClosestZone: Boolean,
     maxDist: Double = maxOffsetDistance
   ): Location = {
-    val walkableLinks = linkQuadTree.getDisk(requestLocation.getX, requestLocation.getY, maxDist).asScala
-    if (walkableLinks.isEmpty) {
-      val allLinks = linkQuadTree.values().asScala.toList
-      if (allLinks.isEmpty) {
-        logger.warn(
-          s"Could not find a link in TAZ ${taz.tazId.toString} for parking request at location: $requestLocation"
-        )
-        availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
-      } else { allLinks(Random.nextInt(allLinks.size)).getCoord }
-    } else {
-      val totalLength = walkableLinks.foldRight(0.0)(_.getLength + _)
-      var currentLength = 0.0
-      val filteredLinks = rand.shuffle(walkableLinks).takeWhile { lnk =>
-        currentLength += lnk.getLength
-        currentLength <= totalLength * availabilityRatio
-      }
-      Some(filteredLinks)
-        .filter(_.nonEmpty)
-        .map(
-          _.map(lnk => getClosestPointAlongLink(lnk, requestLocation, distanceFunction)).minBy(loc =>
-            distanceFunction(loc, requestLocation)
-          )
-        )
-        .getOrElse {
-          logger.warn(s"Could not find a link for parking request at location: $requestLocation")
-          requestLocation
+    maybeLinkQuadTree match {
+      case Some(linkQuadTree) =>
+        val walkableLinks = linkQuadTree.getDisk(requestLocation.getX, requestLocation.getY, maxDist).asScala
+        if (walkableLinks.isEmpty) {
+          val allLinks = linkQuadTree.values().asScala.toList
+          if (allLinks.isEmpty) {
+            logger.warn(
+              s"Could not find a link in TAZ ${taz.tazId.toString} for parking request at location: $requestLocation"
+            )
+            availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
+          } else {
+            allLinks(Random.nextInt(allLinks.size)).getCoord
+          }
+        } else {
+          val totalLength = walkableLinks.foldRight(0.0)(_.getLength + _)
+          var currentLength = 0.0
+          val filteredLinks = rand.shuffle(walkableLinks).takeWhile { lnk =>
+            currentLength += lnk.getLength
+            currentLength <= totalLength * availabilityRatio
+          }
+          Some(filteredLinks)
+            .filter(_.nonEmpty)
+            .map(
+              _.map(lnk => getClosestPointAlongLink(lnk, requestLocation, distanceFunction)).minBy(loc =>
+                distanceFunction(loc, requestLocation)
+              )
+            )
+            .getOrElse {
+              logger.warn(s"Could not find a link for parking request at location: $requestLocation")
+              availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
+            }
         }
+      case _ =>
+        availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
     }
+
   }
 
   private def getClosestPointAlongLink(
