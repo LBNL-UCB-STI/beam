@@ -79,6 +79,8 @@ class ElectricVehicleChargingBehaviorTest
 
     val homeTaz = "10"
     val workTaz = "11"
+    val unsuitableChargersTAZs = List("18", "28", "38")
+    val fastChargersTAZs = List("15", "16", "20", "21", "30", "31")
 
     val homePluginEvents = filterEvents(
       events,
@@ -90,9 +92,26 @@ class ElectricVehicleChargingBehaviorTest
       ("type", a => a.equals("ChargingPlugInEvent")),
       ("parkingTaz", a => a.equals(workTaz))
     )
+    val unsuitablePluginEvents = filterEvents(
+      events,
+      ("type", a => a.equals("ChargingPlugInEvent")),
+      ("parkingTaz", (a: String) => unsuitableChargersTAZs.contains(a))
+    )
+    val fastChargerPluginEvents = filterEvents(
+      events,
+      ("type", a => a.equals("ChargingPlugInEvent")),
+      ("parkingTaz", (a: String) => fastChargersTAZs.contains(a))
+    )
 
     val vehicleIds = findAllElectricVehicles(events).map(id => id.toString)
     vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
+
+    unsuitablePluginEvents.size shouldEqual 0 withClue
+    ", vehicles should not be enrouting, specially to chargers without sufficient power rating, neither should they " +
+    "home, work or long park on fast chargers."
+
+    fastChargerPluginEvents.size shouldEqual 0 withClue
+    ", vehicles should not be enrouting, neither should they home, work or long park on fast chargers."
 
     homePluginEvents.size shouldEqual 100 withClue ", expecting 2 home plug-in events for each of the 50 vehicles."
     workPluginEvents.size shouldEqual 100 withClue ", expecting 2 work plug-in events for each of the 50 vehicles."
