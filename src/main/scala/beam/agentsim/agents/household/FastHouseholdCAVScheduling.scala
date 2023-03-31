@@ -486,10 +486,10 @@ object HouseholdTripsHelper {
       beamServices.beamScenario.fuelTypePrices(beamVehicleType.primaryFuelType)
     )
 
-    val startTime = prevTrip.activity.getEndTime.toInt
+    val startTime = prevTrip.activity.getEndTime.seconds().toInt
     val arrivalTime = startTime + skim.time
 
-    val nextTripStartTime: Double = curTrip.activity.getEndTime
+    val nextTripStartTime: Double = curTrip.activity.getEndTime.seconds()
     if (!nextTripStartTime.isNegInfinity && startTime >= nextTripStartTime.toInt) {
       logger.warn(
         s"Illegal plan for person ${plan.getPerson.getId.toString}, activity ends at $startTime which is later than the next activity ending at $nextTripStartTime"

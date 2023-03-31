@@ -151,7 +151,7 @@ object DiffusionPotentialPopulationAdjustment {
   }
 
   def activityDuration(activities: List[Activity]): Double = {
-    if (activities.size < 2) 0 else activities(1).getEndTime - activities.head.getEndTime
+    if (activities.size < 2) 0 else activities(1).getEndTime.seconds() - activities.head.getEndTime.seconds()
   }
 
   def hasChildUnder8(household: Household, population: Population): Boolean = {

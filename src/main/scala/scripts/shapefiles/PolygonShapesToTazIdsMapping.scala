@@ -4,8 +4,8 @@ import beam.agentsim.infrastructure.taz.CsvTaz
 import beam.utils.csv.CsvWriter
 import beam.utils.map.ShapefileReader
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.{Geometry, MultiPolygon, Polygon, Polygonal}
-import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory
+import org.locationtech.jts.geom.{Geometry, MultiPolygon, Polygon, Polygonal}
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory
 import org.geotools.geometry.jts.JTS
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.opengis.feature.simple.SimpleFeature

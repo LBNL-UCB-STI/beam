@@ -12,7 +12,7 @@ import com.google.common.annotations.VisibleForTesting
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
-import org.matsim.core.population.PopulationUtils
+import org.matsim.core.population.{PersonUtils, PopulationUtils}
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder}
 import org.matsim.households._
@@ -144,25 +144,25 @@ class BeamScenarioLoader(
 
     persons.foreach { personInfo =>
       val person = result.getFactory.createPerson(Id.createPersonId(personInfo.personId.id))
-      val personId = person.getId.toString
 
       val sexChar = if (personInfo.isFemale) "F" else "M"
 
-      val personAttributes = result.getPersonAttributes
-      personAttributes.putAttribute(personId, "householdId", personInfo.householdId)
-      personAttributes.putAttribute(personId, "rank", personInfo.rank)
-      personAttributes.putAttribute(personId, "age", personInfo.age)
-      personAttributes.putAttribute(personId, "valueOfTime", personInfo.valueOfTime)
-      personAttributes.putAttribute(personId, "sex", sexChar)
-      personAttributes.putAttribute(personId, "excluded-modes", personInfo.excludedModes.mkString(","))
-      personAttributes.putAttribute(
-        personId,
+      PopulationUtils.putPersonAttribute(person, "householdId", personInfo.householdId)
+      PopulationUtils.putPersonAttribute(person, "householdId", personInfo.householdId)
+      PopulationUtils.putPersonAttribute(person, "rank", personInfo.rank)
+      PopulationUtils.putPersonAttribute(person, "age", personInfo.age)
+      PopulationUtils.putPersonAttribute(person, "valueOfTime", personInfo.valueOfTime)
+      PopulationUtils.putPersonAttribute(person, "sex", sexChar)
+      PopulationUtils.putPersonAttribute(person, "excluded-modes", personInfo.excludedModes.mkString(","))
+      PopulationUtils.putPersonAttribute(
+        person,
         RIDEHAIL_SERVICE_SUBSCRIPTION,
         personInfo.rideHailServiceSubscription.mkString(",")
       )
-      person.getAttributes.putAttribute("sex", sexChar)
-      person.getAttributes.putAttribute("age", personInfo.age)
-      person.getAttributes.putAttribute("industry", personInfo.industry.getOrElse(""))
+      PopulationUtils.putPersonAttribute(person, "sex", sexChar)
+      PopulationUtils.putPersonAttribute(person, "age", personInfo.age)
+      PopulationUtils.putPersonAttribute(person, "industry", personInfo.industry.getOrElse(""))
+
       result.addPerson(person)
     }
 
@@ -186,7 +186,6 @@ class BeamScenarioLoader(
         beamScenario,
         person,
         personHouseholds(person.getId),
-        population,
         availableModes
       )
     }

@@ -8,9 +8,9 @@ import beam.sim.common.GeoUtils.toJtsCoordinate
 import beam.sim.config.BeamConfig
 import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.algorithm.ConvexHull
-import com.vividsolutions.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
-import com.vividsolutions.jts.geom.{Coordinate, Envelope, GeometryFactory}
+import org.locationtech.jts.algorithm.ConvexHull
+import org.locationtech.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
+import org.locationtech.jts.geom.{Coordinate, Envelope, GeometryFactory}
 import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.KMeansElkan
 import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.initialization.RandomUniformGeneratedInitialMeans
 import de.lmu.ifi.dbs.elki.data.`type`.TypeUtil

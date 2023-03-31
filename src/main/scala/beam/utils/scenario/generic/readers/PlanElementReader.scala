@@ -1,6 +1,7 @@
 package beam.utils.scenario.generic.readers
 
 import beam.utils.FileUtils
+import beam.utils.OptionalUtils._
 import beam.utils.csv.writers.ScenarioCsvWriter.ArrayItemSeparator
 import beam.utils.scenario.{PersonId, PlanElement}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan}
@@ -118,7 +119,7 @@ object XmlPlanElementReader extends PlanElementReader {
       activityType = Option(activity.getType),
       activityLocationX = Option(activity.getCoord).map(_.getX),
       activityLocationY = Option(activity.getCoord).map(_.getY),
-      activityEndTime = Option(activity.getEndTime),
+      activityEndTime = activity.getEndTime.toOption,
       legMode = None,
       legDepartureTime = None,
       legTravelTime = None,
@@ -154,7 +155,7 @@ object XmlPlanElementReader extends PlanElementReader {
       legRouteType = Option(leg.getRoute).map(_.getRouteType),
       legRouteStartLink = Option(leg.getRoute).map(_.getStartLinkId.toString),
       legRouteEndLink = Option(leg.getRoute).map(_.getEndLinkId.toString),
-      legRouteTravelTime = Option(leg.getRoute).map(_.getTravelTime),
+      legRouteTravelTime = leg.getRoute.getTravelTime.toOption,
       legRouteDistance = Option(leg.getRoute).map(_.getDistance),
       legRouteLinks = leg.getRoute match {
         case route: NetworkRoute => route.getLinkIds.asScala.map(_.toString).toSeq

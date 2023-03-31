@@ -7,7 +7,7 @@ import beam.utils.matsim_conversion.{MatsimConversionTool, ShapeUtils}
 import beam.utils.plan.sampling.AvailableModeUtils
 import scripts.HouseholdAttrib.{HomeCoordX, HomeCoordY, HousingType}
 import scripts.PopulationAttrib.Rank
-import com.vividsolutions.jts.geom.{Envelope, Geometry, GeometryCollection, GeometryFactory, Point}
+import org.locationtech.jts.geom.{Envelope, Geometry, GeometryCollection, GeometryFactory, Point}
 import enumeratum.EnumEntry._
 import enumeratum._
 import org.apache.commons.math3.distribution.EnumeratedDistribution
@@ -21,7 +21,7 @@ import org.matsim.core.config.{Config, ConfigUtils}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.population.io.PopulationWriter
 import org.matsim.core.population.{PersonUtils, PopulationUtils}
-import org.matsim.core.router.StageActivityTypesImpl
+import org.matsim.core.router.TripStructureUtils.StageActivityHandling
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.CoordUtils
@@ -33,7 +33,7 @@ import org.matsim.core.utils.misc.Counter
 import org.matsim.households.Income.IncomePeriod.year
 import org.matsim.households._
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
-import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
+import org.matsim.vehicles.{MatsimVehicleWriter, Vehicle, VehicleUtils, Vehicles}
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 
@@ -329,7 +329,6 @@ object PlansSampler {
 
   private val sc: MutableScenario = ScenarioUtils.createMutableScenario(conf)
   private val newPop: Population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
-  val newPopAttributes: ObjectAttributes = newPop.getPersonAttributes
   val newVehicles: Vehicles = VehicleUtils.createVehiclesContainer()
   val newHHFac: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   val newHH: HouseholdsImpl = new HouseholdsImpl()
@@ -381,7 +380,7 @@ object PlansSampler {
   private def snapPlanActivityLocsToNearestLink(plan: Plan): Plan = {
 
     val allActivities =
-      PopulationUtils.getActivities(plan, new StageActivityTypesImpl(""))
+      PopulationUtils.getActivities(plan, StageActivityHandling.StagesAsNormalActivities)
 
     allActivities.forEach(x => {
       val nearestLink = NetworkUtils.getNearestLink(sc.getNetwork, x.getCoord)
@@ -465,7 +464,7 @@ object PlansSampler {
       .getPermissibleModes(person.getSelectedPlan)
       .asScala
       .filterNot(pm => PersonUtils.getAge(person) < 16 && BeamMode.isCar(pm))
-    AvailableModeUtils.setAvailableModesForPerson(person, newPop, filteredPermissibleModes.toSeq)
+    AvailableModeUtils.setAvailableModesForPerson(person, filteredPermissibleModes.toSeq)
   }
 
   def filterPopulationActivities() {
@@ -483,7 +482,7 @@ object PlansSampler {
         } else {
           val actCoord = new Coord(oldActivity.getCoord.getX, oldActivity.getCoord.getY)
           val activity = factory.createActivityFromCoord(oldActivity.getType, actCoord)
-          activity.setEndTime(oldActivity.getEndTime)
+          activity.setEndTime(oldActivity.getEndTime.seconds())
           newPlan.addActivity(activity)
         }
 
@@ -545,8 +544,7 @@ object PlansSampler {
           val newPerson = newPop.getFactory.createPerson(newPersonId)
           newPop.addPerson(newPerson)
           spHH.getMemberIds.add(newPersonId)
-          newPopAttributes
-            .putAttribute(newPersonId.toString, Rank.entryName, ranks(idx))
+          PopulationUtils.putPersonAttribute(newPerson, Rank.entryName, ranks(idx))
 
           // Create a new plan for household member based on selected plan of first person
           val newPlan = PopulationUtils.createPlan(newPerson)
@@ -590,9 +588,8 @@ object PlansSampler {
           }
           // TODO: Include non-binary gender if data available
           PersonUtils.setSex(newPerson, sex)
-          newPopAttributes
-            .putAttribute(newPerson.getId.toString, "valueOfTime", synthPerson.valueOfTime)
-          newPopAttributes.putAttribute(newPerson.getId.toString, "income", synthPerson.income)
+          PopulationUtils.putPersonAttribute(newPerson, "valueOfTime", synthPerson.valueOfTime)
+          PopulationUtils.putPersonAttribute(newPerson, "income", synthPerson.income)
           addModeExclusions(newPerson)
         }
 
@@ -608,10 +605,18 @@ object PlansSampler {
     new HouseholdsWriterV10(newHH).writeFile(s"$outDir/households.xml.gz")
     new PopulationWriter(newPop).write(s"$outDir/population.xml.gz")
     PopulationWriterCSV(newPop).write(s"$outDir/population.csv.gz")
-    new VehicleWriterV1(newVehicles).writeFile(s"$outDir/vehicles.xml.gz")
+    new MatsimVehicleWriter(newVehicles).writeFile(s"$outDir/vehicles.xml.gz")
     new ObjectAttributesXmlWriter(newHHAttributes)
       .writeFile(s"$outDir/householdAttributes.xml.gz")
-    new ObjectAttributesXmlWriter(newPopAttributes)
+
+    val attributes = new ObjectAttributes
+    newPop.getPersons.values.asScala.map { person =>
+      person.getCustomAttributes.asScala.map { case (key, value) =>
+        attributes.putAttribute(person.getId.toString, key, value)
+      }
+    }
+
+    new ObjectAttributesXmlWriter(attributes)
       .writeFile(s"$outDir/populationAttributes.xml.gz")
 
   }

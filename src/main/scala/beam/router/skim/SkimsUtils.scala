@@ -27,13 +27,13 @@ import beam.sim.config.BeamConfig
 import beam.utils.MathUtils.avg
 import beam.utils.{FileUtils, GeoJsonReader, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.geom.Geometry
+import org.locationtech.jts.geom.Geometry
 import org.jfree.chart.ChartFactory
 import org.jfree.chart.annotations.{XYLineAnnotation, XYTextAnnotation}
 import org.jfree.chart.plot.{PlotOrientation, XYPlot}
 import org.jfree.data.statistics.{HistogramDataset, HistogramType}
 import org.jfree.data.xy.{XYSeries, XYSeriesCollection}
-import org.jfree.ui.RectangleInsets
+import org.jfree.chart.ui.RectangleInsets
 import org.matsim.api.core.v01.{Coord, Id}
 import org.opengis.feature.Feature
 import org.opengis.feature.simple.SimpleFeature

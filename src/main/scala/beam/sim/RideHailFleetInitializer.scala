@@ -612,7 +612,7 @@ class ProceduralRideHailFleetInitializer(
     val activityEndTimes: Array[Int] = persons.flatMap {
       _.getSelectedPlan.getPlanElements.asScala
         .collect {
-          case activity: Activity if activity.getEndTime.toInt > 0 => activity.getEndTime.toInt
+          case activity: Activity if activity.getEndTime.seconds().toInt > 0 => activity.getEndTime.seconds().toInt
         }
     }
 

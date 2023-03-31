@@ -16,7 +16,7 @@ import org.matsim.core.utils.misc.Counter
 import org.matsim.households.Income.IncomePeriod.year
 import org.matsim.households._
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
-import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
+import org.matsim.vehicles.{MatsimVehicleWriter, Vehicle, VehicleUtils, Vehicles}
 
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
@@ -34,7 +34,7 @@ object PlansBuilder {
 
   private val newPop: Population =
     PopulationUtils.createPopulation(ConfigUtils.createConfig())
-  val newPopAttributes: ObjectAttributes = newPop.getPersonAttributes
+  val newPopAttributes: ObjectAttributes = new ObjectAttributes()
   val newVehicles: Vehicles = VehicleUtils.createVehiclesContainer()
   val newHHFac: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   val newHH: HouseholdsImpl = new HouseholdsImpl()
@@ -120,7 +120,7 @@ object PlansBuilder {
     val permissibleModes = modeAllocator
       .getPermissibleModes(person.getSelectedPlan)
       .asScala
-    AvailableModeUtils.setAvailableModesForPerson(person, newPop, permissibleModes.toSeq)
+    AvailableModeUtils.setAvailableModesForPerson(person, permissibleModes.toSeq)
   }
 
   def run(): Unit = {
@@ -136,7 +136,9 @@ object PlansBuilder {
       .collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values())
       .head
     carVehicleType.setFlowEfficiencyFactor(1069)
-    carVehicleType.getEngineInformation.setGasConsumption(1069)
+    carVehicleType.getEngineInformation.getAttributes
+      .putAttribute("fuelConsumptionLitersPerMeter", 1069)
+
     newVehicles.addVehicleType(carVehicleType)
 
     synthHouseholds.foreach(sh => {
@@ -219,7 +221,7 @@ object PlansBuilder {
     new HouseholdsWriterV10(newHH).writeFile(s"$outDir/households.xml.gz")
     new PopulationWriter(newPop).write(s"$outDir/population.xml.gz")
     PopulationWriterCSV(newPop).write(s"$outDir/population.csv.gz")
-    new VehicleWriterV1(newVehicles).writeFile(s"$outDir/vehicles.xml.gz")
+    new MatsimVehicleWriter(newVehicles).writeFile(s"$outDir/vehicles.xml.gz")
     new ObjectAttributesXmlWriter(newHHAttributes)
       .writeFile(s"$outDir/householdAttributes.xml.gz")
     new ObjectAttributesXmlWriter(newPopAttributes)

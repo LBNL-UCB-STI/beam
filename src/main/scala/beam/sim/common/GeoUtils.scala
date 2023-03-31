@@ -10,7 +10,7 @@ import com.conveyal.r5.streets.{EdgeStore, Split, StreetLayer}
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.{ImplementedBy, Inject}
 import com.typesafe.scalalogging.Logger
-import com.vividsolutions.jts.geom.{Coordinate, Envelope}
+import org.locationtech.jts.geom.{Coordinate, Envelope}
 import org.matsim.api.core.v01
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.network.Link

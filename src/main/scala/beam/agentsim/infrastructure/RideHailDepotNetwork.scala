@@ -3,7 +3,7 @@ package beam.agentsim.infrastructure
 import beam.agentsim.infrastructure.parking.{ParkingZone, ParkingZoneId}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.BeamServices
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 

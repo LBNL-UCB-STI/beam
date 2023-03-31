@@ -4,18 +4,16 @@ import beam.agentsim.agents.memberships.HouseholdMembershipAllocator
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.replanning.utilitybased.ChainBasedTourVehicleAllocator.{SubtourRecord, VehicleRecord, VehicleRecordFactory}
 import beam.router.Modes.BeamMode
+import beam.utils.OptionalUtils._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population._
 import org.matsim.core.population.routes.LinkNetworkRouteFactory
 import org.matsim.core.router.TripStructureUtils._
-import org.matsim.core.router.CompositeStageActivityTypes
-import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, Vehicles}
 
 import scala.collection.{mutable, JavaConverters}
-import scala.util.Try
 
 case class ChainBasedTourVehicleAllocator(
   vehicles: Vehicles,
@@ -24,8 +22,6 @@ case class ChainBasedTourVehicleAllocator(
 ) {
 
   import beam.agentsim.agents.memberships.Memberships.RankedGroup._
-
-  val stageActivitytypes = new CompositeStageActivityTypes()
 
   val linkNetworkRouteFactory = new LinkNetworkRouteFactory()
 
@@ -103,7 +99,7 @@ case class ChainBasedTourVehicleAllocator(
       (for {
         plan: Plan <- householdPlans
         subtour: Subtour <- JavaConverters.collectionAsScalaIterable(
-          getSubtours(plan, stageActivitytypes)
+          getSubtours(plan.getPlanElements)
         )
       } yield {
         for { _ <- JavaConverters.collectionAsScalaIterable(subtour.getTrips) } yield {
@@ -172,27 +168,22 @@ object ChainBasedTourVehicleAllocator {
 
       @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val lastTrip = trips.toList.reverse.head
-      val endTime = lastTrip.getOriginActivity.getEndTime + JavaConverters
+      val endTime = lastTrip.getOriginActivity.getEndTime.seconds() + JavaConverters
         .collectionAsScalaIterable(lastTrip.getTripElements)
         .map({
           case act: Activity =>
-            Option(act.getEndTime).getOrElse(
+            act.getEndTime.toOption.getOrElse(
               throw new RuntimeException(s"could not get time from $act")
             )
           case leg: Leg =>
             Option(leg)
               .flatMap(leg => Option(leg.getRoute))
-              .filterNot(route =>
-                Time.isUndefinedTime(Try {
-                  route.getTravelTime
-                }.getOrElse(Double.NegativeInfinity))
-              )
-              .map(_.getTravelTime)
-              .filterNot(Time.isUndefinedTime)
+              .filterNot(_.getTravelTime.isUndefined)
+              .map(_.getTravelTime.seconds())
               .getOrElse(0.0)
         })
         .sum
-      new SubtourRecord(startTime, endTime, possibleVehicles, subtour, None)
+      new SubtourRecord(startTime.seconds(), endTime, possibleVehicles, subtour, None)
     }
   }
 }

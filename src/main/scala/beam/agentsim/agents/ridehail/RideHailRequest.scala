@@ -45,7 +45,7 @@ object RideHailRequest {
       ReserveRide,
       customerRequest.person,
       customerRequest.pickup.activity.getCoord,
-      customerRequest.pickup.activity.getEndTime.toInt,
+      customerRequest.pickup.activity.getEndTime.seconds().toInt,
       customerRequest.dropoff.activity.getCoord,
       asPooled,
       requester = customerRequest.person.personRef,

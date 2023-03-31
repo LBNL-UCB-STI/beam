@@ -524,7 +524,12 @@ class BeamSim @Inject() (
     val activityEndTimesNonNegativeCheck: Iterable[Plan] = persons.toList.flatMap(_.getPlans.asScala.toList) filter {
       plan =>
         val activities = plan.getPlanElements.asScala.filter(_.isInstanceOf[Activity])
-        activities.dropRight(1).exists(_.asInstanceOf[Activity].getEndTime < 0)
+        activities
+          .dropRight(1)
+          .exists(a => {
+            val endTime = a.asInstanceOf[Activity].getEndTime
+            endTime.isUndefined || endTime.seconds() < 0
+          })
     }
 
     if (activityEndTimesNonNegativeCheck.isEmpty) {

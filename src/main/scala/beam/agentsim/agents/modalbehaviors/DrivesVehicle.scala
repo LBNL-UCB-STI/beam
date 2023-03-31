@@ -406,8 +406,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                       case agent: PersonAgent => agent.nextActivity(personData)
                       case _                  => None
                     }
-                    nextActivityEndTime = nextActivity.getEndTime
-                    if !Time.isUndefinedTime(nextActivityEndTime) &&
+                    nextActivityEndTime = nextActivity.getEndTime.seconds()
+                    if !nextActivity.getEndTime.isUndefined &&
                     nextActivityEndTime <= tick + beamConfig.beam.agentsim.schedulerParallelismWindow
                   } {
                     log.warning(

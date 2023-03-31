@@ -1476,7 +1476,7 @@ trait ChoosesMode {
       ) {
         //we need to start trip as soon as our activity finishes (current tick) in order to
         //correctly show waiting time for the transit in the OD skims
-        val activityEndTime = currentActivity(data.personData).getEndTime
+        val activityEndTime = currentActivity(data.personData).getEndTime.seconds()
         val legStartTime = Math.max(tick, activityEndTime)
         pendingTrip.updatePersonalLegsStartTime(legStartTime.toInt)
       } else {
@@ -1749,10 +1749,10 @@ object ChoosesMode {
   case class CavTripLegsResponse(cavOpt: Option[BeamVehicle], legs: List[EmbodiedBeamLeg])
 
   def getActivityEndTime(activity: Activity, beamServices: BeamServices): Int = {
-    (if (activity.getEndTime.equals(Double.NegativeInfinity))
+    (if (activity.getEndTime.seconds().equals(Double.NegativeInfinity))
        Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime)
      else
-       activity.getEndTime).toInt
+       activity.getEndTime.seconds()).toInt
   }
 
 }

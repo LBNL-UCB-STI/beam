@@ -297,7 +297,7 @@ class PopulationScaling extends LazyLogging {
         //Keep only first activity of day
         val daysFirstActivity = planElements.head.asInstanceOf[Activity]
         val newPlan = PopulationUtils.createPlan(originalPlan.getPerson)
-        daysFirstActivity.setEndTime(Double.NegativeInfinity)
+        daysFirstActivity.setEndTimeUndefined()
         newPlan.addActivity(daysFirstActivity)
         person.addPlan(newPlan)
         person.removePlan(originalPlan)

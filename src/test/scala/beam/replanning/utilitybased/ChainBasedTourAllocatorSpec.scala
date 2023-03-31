@@ -139,7 +139,7 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
     val plan = f.pop.getPersons.get(personWithAnyRank).getPlans.get(0)
     val subtour = JavaConverters
       .collectionAsScalaIterable(
-        TripStructureUtils.getSubtours(plan, f.chainBasedTourVehicleAllocator.stageActivitytypes)
+        TripStructureUtils.getSubtours(plan.getPlanElements)
       )
       .toIndexedSeq(0)
     f.chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(
@@ -195,7 +195,7 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
     val highRankSubtour = JavaConverters
       .collectionAsScalaIterable(
         TripStructureUtils
-          .getSubtours(highRankPlan, f.chainBasedTourVehicleAllocator.stageActivitytypes)
+          .getSubtours(highRankPlan.getPlanElements)
       )
       .toIndexedSeq(0)
     f.chainBasedTourVehicleAllocator.allocateChainBasedModesforHouseholdMember(

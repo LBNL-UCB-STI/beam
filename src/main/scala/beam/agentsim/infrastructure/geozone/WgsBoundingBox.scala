@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.geozone
 
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 
 case class WgsBoundingBox(topLeft: WgsCoordinate, bottomRight: WgsCoordinate) {
 

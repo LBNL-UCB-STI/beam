@@ -54,7 +54,7 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
         case Some(lastAct) =>
           if (lastAct.getType == currentAct.getType) {
             val lastActivity = PopulationUtils.createActivity(lastAct)
-            lastActivity.setEndTime(currentAct.getEndTime)
+            lastActivity.setEndTime(currentAct.getEndTime.seconds())
             val newList = listOfAct.dropRight(1)
             newList :+ lastActivity
           } else {
@@ -95,9 +95,9 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
   private def addSubtourToActivity(
     activity: Activity
   ): List[Activity] = {
-    val startTime = if (activity.getStartTime > 0) { activity.getStartTime }
+    val startTime = if (activity.getStartTime.seconds() > 0) { activity.getStartTime.seconds() }
     else { 0 }
-    val endTime = if (activity.getEndTime > 0) { activity.getEndTime }
+    val endTime = if (activity.getEndTime.seconds() > 0) { activity.getEndTime.seconds() }
     else { 3600 * 24 }
 
     val newStartTime = (endTime - startTime) / 2 - 1 + startTime
@@ -116,11 +116,11 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
     val activityAfterNewActivity =
       PopulationUtils.createActivityFromCoord(activity.getType, activity.getCoord)
 
-    activityBeforeNewActivity.setStartTime(activity.getStartTime)
+    activityBeforeNewActivity.setStartTime(activity.getStartTime.seconds())
     activityBeforeNewActivity.setEndTime(newStartTime)
 
     activityAfterNewActivity.setStartTime(newEndTime)
-    activityAfterNewActivity.setEndTime(activity.getEndTime)
+    activityAfterNewActivity.setEndTime(activity.getEndTime.seconds())
 
     List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
   }
@@ -133,11 +133,11 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
     val nonWorker = elements.length == 1
     val newActivitiesToAdd = elements.zipWithIndex.map { case (planElement, idx) =>
       val prevEndTime = if (idx > 0) {
-        (elements(idx - 1).getEndTime + 1).max(0)
+        (elements(idx - 1).getEndTime.seconds() + 1).max(0)
       } else {
         0
       }
-      planElement.setMaximumDuration(planElement.getEndTime - prevEndTime)
+      planElement.setMaximumDuration(planElement.getEndTime.seconds() - prevEndTime)
       planElement.setStartTime(prevEndTime)
       definitelyAddSubtours(planElement, nonWorker)
     }

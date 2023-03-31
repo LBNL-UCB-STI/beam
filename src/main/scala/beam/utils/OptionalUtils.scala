@@ -1,5 +1,7 @@
 package beam.utils
 
+import org.matsim.core.utils.misc.OptionalTime
+
 object OptionalUtils {
   import java.util.Optional
 
@@ -29,5 +31,9 @@ object OptionalUtils {
       * Transform this Optional to an equivalent Scala Option
       */
     def toOption: Option[T] = if (opt.isPresent) Some(opt.get()) else None
+  }
+
+  implicit class RichOptionalTime(opt: OptionalTime) {
+    def toOption: Option[Double] = if (opt.isDefined) Some(opt.seconds()) else None
   }
 }

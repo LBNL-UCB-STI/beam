@@ -32,6 +32,8 @@ class ConsecutivePopulationLoader(
     newPop
   }
 
+  private val fullPopulationPersons = fullPopulation.getPersons
+
   private val personIdToHousehold: Map[Id[Person], Household] = scenario.getHouseholds.getHouseholds
     .values()
     .asScala
@@ -83,24 +85,12 @@ class ConsecutivePopulationLoader(
         peopleWhichCanBeTaken.remove(personToAdd)
         // Add to the population
         scenario.getPopulation.addPerson(personToAdd)
-        copyPeronAttribute(
-          fullPopulation.getPersonAttributes,
-          scenario.getPopulation.getPersonAttributes,
-          personToAdd.getId,
-          "excluded-modes"
-        )
-        copyPeronAttribute(
-          fullPopulation.getPersonAttributes,
-          scenario.getPopulation.getPersonAttributes,
-          personToAdd.getId,
-          "rank"
-        )
-        copyPeronAttribute(
-          fullPopulation.getPersonAttributes,
-          scenario.getPopulation.getPersonAttributes,
-          personToAdd.getId,
-          "valueOfTime"
-        )
+
+        val attributes = fullPopulationPersons.get(personToAdd.getId).getCustomAttributes
+        copyPersonAttribute(attributes, personToAdd, "excluded-modes")
+
+        copyPersonAttribute(attributes, personToAdd, "rank")
+        copyPersonAttribute(attributes, personToAdd, "valueOfTime")
 
         personIdToHousehold.get(personToAdd.getId).foreach { hh =>
           val map = scenario.getHouseholds.getHouseholds
@@ -141,7 +131,6 @@ class ConsecutivePopulationLoader(
     val peopleToRemove = population.getPersons.keySet().asScala.toVector
     peopleToRemove.foreach { personId =>
       population.removePerson(personId)
-      population.getPersonAttributes.removeAllAttributes(personId.toString)
 
       personIdToHousehold.get(personId).foreach { hh =>
         hh.asInstanceOf[HouseholdImpl].setMemberIds(java.util.Collections.emptyList())
@@ -155,29 +144,27 @@ class ConsecutivePopulationLoader(
     src.getPersons.values.asScala.foreach { person =>
       val copiedPerson: Person = createCopyOfPerson(person, dest.getFactory)
       dest.addPerson(copiedPerson)
-      copyPeronAttributes(src.getPersonAttributes, dest.getPersonAttributes, person.getId)
+      copyPersonAttributes(src.getPersons.get(person).getCustomAttributes, person)
 
       person.getCustomAttributes.forEach((k, v) => copiedPerson.getCustomAttributes.put(k, v))
     }
   }
 
-  private def copyPeronAttributes(src: ObjectAttributes, dest: ObjectAttributes, person: Id[Person]): Unit = {
-    copyPeronAttribute(src, dest, person, "excluded-modes")
-    copyPeronAttribute(src, dest, person, "rank")
-    copyPeronAttribute(src, dest, person, "valueOfTime")
+  private def copyPersonAttributes(src: java.util.Map[String, Object], person: Person): Unit = {
+    copyPersonAttribute(src, person, "excluded-modes")
+    copyPersonAttribute(src, person, "rank")
+    copyPersonAttribute(src, person, "valueOfTime")
   }
 
-  private def copyPeronAttribute(
-    srcPersonAttributes: ObjectAttributes,
-    dstPersonAttributes: ObjectAttributes,
-    person: Id[Person],
+  private def copyPersonAttribute(
+    srcPersonAttributes: java.util.Map[String, Object],
+    person: Person,
     name: String
   ): Unit = {
     val personIdStr = person.toString
-    val attribValue = srcPersonAttributes.getAttribute(personIdStr, name)
+    val attribValue = srcPersonAttributes.get(name)
     if (attribValue != null) {
-      dstPersonAttributes.putAttribute(personIdStr, name, attribValue)
-
+      PopulationUtils.putPersonAttribute(person, name, attribValue)
     }
   }
 

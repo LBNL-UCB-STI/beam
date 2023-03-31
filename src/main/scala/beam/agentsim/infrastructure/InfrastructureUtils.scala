@@ -10,7 +10,7 @@ import beam.sim.config.BeamConfig
 import beam.sim.vehiclesharing.Fleets
 import beam.sim.{BeamScenario, BeamServices}
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 
