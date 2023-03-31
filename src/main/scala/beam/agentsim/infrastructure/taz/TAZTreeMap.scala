@@ -168,6 +168,14 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
           }
         case _ =>
       }
+      val linksToTazMapping = TAZtoLinkIdMapping
+        .map { case (x, y) => (x, y.size()) }
+        .groupBy(x => Math.min(x._2, 10))
+        .map { case (x, y) =>
+          (x, y.keys.map(_.toString))
+        }
+        .toSeq
+        .sortBy(_._1)
       logger.info(
         "Completed mapping links to TAZs. Matched "
         + linkIdToTAZMapping.size.toString +
@@ -175,6 +183,7 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
         + unmatchedLinkIds.size.toString +
         " links"
       )
+      logger.info(s"Mapping of links to TAZs: $linksToTazMapping")
     }
   }
 }
