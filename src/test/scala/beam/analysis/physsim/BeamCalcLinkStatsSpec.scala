@@ -48,7 +48,10 @@ class BeamCalcLinkStatsSpec extends AnyWordSpecLike with Matchers with BeforeAnd
 
     //Start traveltime calculator
     val ttccg = _config.travelTimeCalculator()
-    val travelTimeCalculator = new TravelTimeCalculator(network, ttccg)
+
+    val travelTimeCalculatorBuilder = new TravelTimeCalculator.Builder(network)
+    travelTimeCalculatorBuilder.configure(ttccg)
+    val travelTimeCalculator = travelTimeCalculatorBuilder.build()
 
     //Start eventsmanager
     val events = EventsUtils.createEventsManager()
@@ -62,7 +65,7 @@ class BeamCalcLinkStatsSpec extends AnyWordSpecLike with Matchers with BeforeAnd
     val reader = new MatsimEventsReader(events)
     reader.readFile(EVENTS_FILE_PATH)
 
-    fileCsvPath = outputDirectoryHierarchy.getIterationFilename(0, Controler.FILENAME_LINKSTATS)
+    fileCsvPath = outputDirectoryHierarchy.getIterationFilename(0, Controler.DefaultFiles.linkstats)
     new File(fileCsvPath).getParentFile.mkdirs()
 
     beamCalcLinkStats.addData(volumes, travelTimeCalculator.getLinkTravelTimes)

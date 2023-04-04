@@ -148,7 +148,6 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
     override def getPersons: util.Map[Id[Person], Person] = persons.asJava
     override def addPerson(p: Person): Unit = ???
     override def removePerson(personId: Id[Person]): Person = ???
-    override def getPersonAttributes: ObjectAttributes = personAttributes
     override def getAttributes: Attributes = attributes
   }
 }

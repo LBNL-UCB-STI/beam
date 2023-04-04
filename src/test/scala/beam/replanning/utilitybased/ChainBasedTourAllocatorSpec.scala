@@ -6,11 +6,11 @@ import beam.sim.BeamHelper
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population._
 import org.matsim.core.config.ConfigUtils
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
 import org.matsim.core.router.TripStructureUtils
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.households.{Household, HouseholdImpl, HouseholdsImpl}
-import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils, Vehicles}
 import org.scalatest.GivenWhenThen
 import org.scalatest.flatspec.AnyFlatSpec
@@ -27,7 +27,6 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
   trait ChainBasedTourAllocatorTestFixture {
     lazy val pop: Population = ScenarioUtils.createScenario(ConfigUtils.createConfig).getPopulation
     lazy val popFact: PopulationFactory = pop.getFactory
-    lazy val persAttr: ObjectAttributes = pop.getPersonAttributes
     lazy val vehs: Vehicles = VehicleUtils.createVehiclesContainer()
 
     // These are unique to each test case
@@ -49,7 +48,7 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
         plan.setPerson(person)
         person.addPlan(plan)
         pop.addPerson(person)
-        pop.getPersonAttributes.putAttribute(s"$id", "rank", id.toString.toLong)
+        PopulationUtils.putPersonAttribute(person, "rank", id.toString.toLong)
       })
 
       // Create vehicles
@@ -126,7 +125,7 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
     val idRankNum = rng.nextInt(5) + 1
 
     val personWithAnyRank = Id.createPersonId(idRankNum)
-    f.persAttr.getAttribute(personWithAnyRank.toString, "rank") should be(idRankNum)
+    PopulationUtils.getPersonAttribute(f.pop.getPersons.get(personWithAnyRank), "rank") should be(idRankNum)
 
     And("the person would like to know which chain-based modes are available")
     val availableVehicleModes =
@@ -172,11 +171,11 @@ class ChainBasedTourAllocatorSpec extends AnyFlatSpec with Matchers with BeamHel
 
     And("a household member of high rank")
     val personWithHighRank = Id.createPersonId(5)
-    f.persAttr.getAttribute(personWithHighRank.toString, "rank") should be(5)
+    PopulationUtils.getPersonAttribute(f.pop.getPersons.get(personWithHighRank), "rank") should be(5)
 
     And("a household member of low rank")
     val personWithLowRank = Id.createPersonId(1)
-    f.persAttr.getAttribute(personWithLowRank.toString, "rank") should be(1)
+    PopulationUtils.getPersonAttribute(f.pop.getPersons.get(personWithLowRank), "rank") should be(1)
 
     And("the two members would like to know which chain-based modes are available")
     val availableLowRankModes = f.chainBasedTourVehicleAllocator
