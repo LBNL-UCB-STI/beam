@@ -174,7 +174,7 @@ class EventsFileSpec
         case Seq(activity: Activity, leg: Leg) =>
           assert(activity.getEndTime == leg.getDepartureTime)
         case Seq(leg: Leg, activity: Activity) =>
-          assert(leg.getDepartureTime + leg.getTravelTime == activity.getStartTime)
+          assert(leg.getDepartureTime.seconds() + leg.getTravelTime.seconds() == activity.getStartTime.seconds())
           if (leg.getMode == CAR.matsimMode) {
             assert(leg.getRoute.isInstanceOf[NetworkRoute])
             nCarTrips += 1

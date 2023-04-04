@@ -47,8 +47,8 @@ version = '0.8.6.13'
 
 description = """"""
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+//sourceCompatibility = 1.8
+//targetCompatibility = 1.8
 
 compileScala.options.encoding = 'UTF-8'
 compileScala.scalaCompileOptions.additionalParameters = ["-Xmx1g", "-W"]
@@ -56,7 +56,7 @@ compileScala.scalaCompileOptions.additionalParameters = ["-Xmx1g", "-W"]
 //compileScala.scalaCompileOptions.deprecation = false
 
 def scalaBinaryVersion = "2.12"
-def scalaBinaryFullVersion = "${scalaBinaryVersion}.12"
+def scalaBinaryFullVersion = "${scalaBinaryVersion}.17"
 def akkaBinaryVersion = "2.6.6"
 def circeBinaryVersion = "0.13.0"
 def slf4jVersion = "1.7.25"
@@ -115,6 +115,8 @@ allprojects {
         maven { url "https://download.java.net/maven/2/" }
         maven { url "https://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
         maven { url "https://maven.geo-solutions.it" }
+        maven { url "https://mvn.topobyte.de" }
+        maven { url "https://mvn.slimjars.com" }
         mavenLocal()
         maven { url "https://jitpack.io" }
     }
@@ -141,9 +143,11 @@ configurations.all {
 
 dependencies {
 
+    // TODO FIXME
     implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.19') {
         exclude group: 'com.github.LBNL-UCB-STI', module: 'r5'
         exclude group: 'org.matsim', module: 'matsim'
+        exclude group: 'com.github.wrashid.matsim', module: 'matsim'
     }
 
     ////////////////////////////

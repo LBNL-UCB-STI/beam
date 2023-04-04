@@ -7,6 +7,7 @@ import ch.qos.logback.classic.{Level, Logger}
 import ch.qos.logback.core.read.ListAppender
 import org.matsim.api.core.v01.population.{Person, Plan, Population, PopulationFactory}
 import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.scalatest.BeforeAndAfterEach
@@ -36,7 +37,8 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
   "PopulationAdjustment" should {
     "logs excluded modes defined as strings" in {
       val population = createPopulation(persons)
-      persons.keys.map(_.toString.toInt).foreach { id =>
+      persons.values.foreach { person =>
+        val id = person.getId.toString.toInt
         // bike is excluded for 2 persons
         // car is excluded for 5 persons
         val excludedModes = (id % 5, id % 2) match {
@@ -45,7 +47,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
           case (_, 0) => "car"
           case (_, _) => ""
         }
-        population.getPersonAttributes.putAttribute(id.toString, PopulationAdjustment.EXCLUDED_MODES, excludedModes)
+        PopulationUtils.putPersonAttribute(person, PopulationAdjustment.EXCLUDED_MODES, excludedModes)
       }
 
       TestPopulationAdjustment.logModes(population)
@@ -58,7 +60,8 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
 
     "logs excluded modes defined as iterable" in {
       val population = createPopulation(persons)
-      persons.keys.map(_.toString.toInt).foreach { id =>
+      persons.values.foreach { person =>
+        val id = person.getId.toString.toInt
         // bike is excluded for 5 persons
         // car is excluded for 2 persons
         val excludedModes = (id % 2, id % 5) match {
@@ -67,7 +70,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
           case (_, 0) => mutable.Buffer("car")
           case (_, _) => Set.empty
         }
-        population.getPersonAttributes.putAttribute(id.toString, PopulationAdjustment.EXCLUDED_MODES, excludedModes)
+        PopulationUtils.putPersonAttribute(person, PopulationAdjustment.EXCLUDED_MODES, excludedModes)
       }
 
       TestPopulationAdjustment.logModes(population)
@@ -80,7 +83,8 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
 
     "logs excluded modes and alarms not all persons have required attribute" in {
       val population = createPopulation(persons)
-      persons.keys.map(_.toString.toInt).foreach { id =>
+      persons.values.foreach { person =>
+        val id = person.getId.toString.toInt
         // bike is excluded for 2 persons
         // car is excluded for 3 persons
         val excludedModes = (id % 5, id % 3) match {
@@ -90,7 +94,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
           case (_, _) => None
         }
         excludedModes.foreach { mode =>
-          population.getPersonAttributes.putAttribute(id.toString, PopulationAdjustment.EXCLUDED_MODES, mode)
+          PopulationUtils.putPersonAttribute(person, PopulationAdjustment.EXCLUDED_MODES, mode)
         }
       }
 

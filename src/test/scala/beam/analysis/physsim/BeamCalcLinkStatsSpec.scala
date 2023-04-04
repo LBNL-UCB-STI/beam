@@ -3,6 +3,7 @@ package beam.analysis.physsim
 import beam.utils.{BeamCalcLinkStats, VolumesAnalyzerFixed}
 import beam.utils.TestConfigUtils.testOutputDir
 import org.matsim.core.config.ConfigUtils
+import org.matsim.core.config.groups.ControlerConfigGroup
 import org.matsim.core.controler.{Controler, OutputDirectoryHierarchy}
 import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 import org.matsim.core.network.io.MatsimNetworkReader
@@ -37,7 +38,7 @@ class BeamCalcLinkStatsSpec extends AnyWordSpecLike with Matchers with BeforeAnd
     val overwriteExistingFiles =
       OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles
     val outputDirectoryHierarchy =
-      new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, overwriteExistingFiles)
+      new OutputDirectoryHierarchy(OUTPUT_DIR_PATH, overwriteExistingFiles, ControlerConfigGroup.CompressionType.none)
 
     //Read network
     val sc = ScenarioUtils.createScenario(_config)

@@ -10,6 +10,9 @@ import org.matsim.core.router.util.{LinkToLinkTravelTime, TravelTime}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.vehicles.Vehicle
 
+import scala.annotation.nowarn
+
+@nowarn
 class FakeTravelTimeCalculator(network: Network, ttconfigGroup: TravelTimeCalculatorConfigGroup)
     extends TravelTimeCalculator(network, ttconfigGroup) {
 
