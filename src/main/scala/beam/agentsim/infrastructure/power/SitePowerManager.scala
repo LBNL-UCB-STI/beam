@@ -135,7 +135,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
     */
   private def estimateDepartureTime(currentTime: Int, initialDepartureTimeEstimate: Int): Int = {
     val ceiledInitialEstimate = 60 * Math.ceil(initialDepartureTimeEstimate / 60.0).toInt
-    val additionalHoursForDeparture = if (ceiledInitialEstimate < currentTime) {
+    val additionalHoursForDeparture = if (ceiledInitialEstimate <= currentTime) {
       val hourDifference = ((ceiledInitialEstimate - currentTime) / 3600.0).toInt
       (1 + hourDifference * (hourDifference - 1)) * 3600
     } else 0

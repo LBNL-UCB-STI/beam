@@ -10,6 +10,7 @@ import pandas as pd
 from threading import Thread
 import json
 import pathlib
+import time
 
 from site_power_controller_utils import ConfigForSPMC
 from site_power_controller_utils import RudimentarySPMC
@@ -104,6 +105,7 @@ def run_spm_federate(cfed, spm: SitePowerManager):
             return ""
 
     config = spm.config_for_spmc
+    cum_runtime = 0
     # start execution loop
     for t in range(0, config.sim_dur - config.time_step, config.time_step):
         sync_time(t)

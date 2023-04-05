@@ -56,29 +56,25 @@ class ConfigForSPMC:
         self.output_dir = output_dir
         self.is_multi_threaded = is_multi_threaded
 
-class DataForSPMC:
-    vehicle_id = []
-    vehicle_type = []
-    primary_fuel_level_in_k_wh = []
-    arrival_time = []
-    desired_departure_time = []
-    desired_fuel_level_in_k_wh = []
-    max_power_in_kw = []  # min [plug, vehicle]
-    site_power_in_kw = 0
-    battery_capacity_in_k_wh = []  # TODO Julius @ HL can you please add this to the BEAM output?
 
+class DataForSPMC:
     def __init__(self, initial_ess_soc, updated_ess_soc, updated_power_limits_from_derms):
         self.updated_ess_soc_internal = initial_ess_soc
         self.updated_ess_soc_from_dss = updated_ess_soc
         self.updated_power_limits_from_derms = updated_power_limits_from_derms
+        self.vehicle_id = []
+        self.vehicle_type = []
+        self.primary_fuel_level_in_k_wh = []
+        self.arrival_time = []
+        self.desired_departure_time = []
+        self.desired_fuel_level_in_k_wh = []
+        self.max_power_in_kw = []  # min [plug, vehicle]
+        self.site_power_in_kw = 0
+        self.battery_capacity_in_k_wh = []  # TODO Julius @ HL can you please add this to the BEAM output?
         pass
 
 
 class AbstractSPMC:
-    # Myungsoo's advanced SPM Controller
-    control_commands = []
-    thread = Thread()
-
     @abstractmethod
     def run_model(self, t, vehicles, data_for_spmc):
         return []
@@ -92,6 +88,8 @@ class AbstractSPMC:
         self.site_power = float(events[0]['parkingZonePowerInKW'])
         self.ess_size = float(events[0]['energyStorageSystemCapacityInKWh'])  # in kWh
         self.initial_ess_soc = float(events[0]['energyStorageSystemSOC'])  #
+        self.control_commands = []
+        self.thread = Thread()
 
     def log(self, log_message):
         logging.info(self.site_prefix_logging + log_message)
@@ -139,12 +137,8 @@ class AbstractSPMC:
 # **********************************************************************************
 # **********************************************************************************
 # **********************************************************************************
-
 class AdvancedSPMC(AbstractSPMC):
     # Myungsoo's advanced SPM Controller
-    control_commands = []
-    thread = Thread()
-
     def __init__(self, name, taz_id, site_id, events, config_for_spmc):
         AbstractSPMC.__init__(self, name, taz_id, site_id, events, config_for_spmc)
         plug_power = self.site_power/self.num_plugs
@@ -172,10 +166,12 @@ class AdvancedSPMC(AbstractSPMC):
             self.spm_c.get_evse_setpoint(t_dep, e_req, p_min_site, p_max_site, current_ess_soc, min_power_evse=min_power_evse, max_power_evse=max_power_evse)
         # update ESS SOC internally in case the DSS does not do that
         data_for_spmc.updated_ess_soc_internal = current_ess_soc + p_ess_setpoint * (self.config_for_spmc.time_step / 3600.0) / self.ess_size
+
+        power_commands = p_evse_setpoint
+        if flag > 0:
+            power_commands = p_evse_opt
+
         i = 0
-        print2("vehicles size: " + str(len(vehicles)))
-        print2("p_evse_opt size: " + str(len(p_evse_opt)))
-        print2("p_evse_opt: " + str(p_evse_opt))
         spmc_commands = []
         for vehicle in vehicles:
             spmc_commands = spmc_commands + [{
@@ -183,7 +179,7 @@ class AdvancedSPMC(AbstractSPMC):
                 'tazId': str(self.taz_id),
                 'siteId': str(self.site_id),
                 'vehicleId': vehicle['vehicleId'],
-                'powerInKW': str(p_evse_opt[i])
+                'powerInKW': str(power_commands[i])
             }]
             i = i + 1
         return spmc_commands
@@ -191,8 +187,6 @@ class AdvancedSPMC(AbstractSPMC):
 
 class RudimentarySPMC(AbstractSPMC):
     # Myungsoo's rudimentary SPM Controller
-    control_commands = []
-    thread = Thread()
 
     def __init__(self, name, taz_id, site_id, events, config_for_spmc):
         AbstractSPMC.__init__(self, name, taz_id, site_id, events, config_for_spmc)
@@ -213,12 +207,14 @@ class RudimentarySPMC(AbstractSPMC):
         tdep = [(tt - t) / 60.0 for tt in data_for_spmc.desired_departure_time]
         # self.log("Optimizing EVSE setpoints by the regular SPM Controller")
 
-        [p_evse_opt, e_evse_opt, delta_t] = self.spm_c.get_evse_setpoint(
+        [p_evse_setpoint, e_evse_opt, delta_t] = self.spm_c.get_evse_setpoint(
             tdep,
             data_for_spmc.desired_fuel_level_in_k_wh,
             pmin_site_in_kw,
             pmax_site_in_kw
         )
+        power_commands = p_evse_setpoint
+
         i = 0
         spmc_commands = []
         for vehicle in vehicles:
@@ -227,7 +223,7 @@ class RudimentarySPMC(AbstractSPMC):
                 'tazId': str(self.taz_id),
                 'siteId': str(self.site_id),
                 'vehicleId': vehicle['vehicleId'],
-                'powerInKW': str(p_evse_opt[i])
+                'powerInKW': str(power_commands[i])
             }]
             i = i + 1
         return spmc_commands
@@ -235,8 +231,6 @@ class RudimentarySPMC(AbstractSPMC):
 
 class RideHailSPMC(AbstractSPMC):
     # Julius Is SPM Controller (IS RIDE HAIL DEPOT)
-    control_commands = []
-    thread = Thread()
 
     def __init__(self, name, taz_id, site_id, events, config_for_spmc):
         AbstractSPMC.__init__(self, name, taz_id, site_id, events, config_for_spmc)
