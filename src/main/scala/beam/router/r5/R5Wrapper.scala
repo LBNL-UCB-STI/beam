@@ -74,6 +74,19 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       osmId -> isLinkHgv
     }
 
+  private lazy val osmIdToFreespeed: Map[Long, Double] = networkHelper.allLinks
+    .flatMap { link =>
+      Try(link.getAttributes.getAttribute("origid").toString.toLong).toOption.map { osmId =>
+        val linkFreespeed = Try(link.getFreespeed).getOrElse(0.0)
+        osmId -> linkFreespeed
+      }
+    }
+    .groupBy { case (osmId, _) => osmId }
+    .map { case (osmId, list) =>
+      val (_, linkFreespeed) = list.head
+      osmId -> linkFreespeed
+    }
+
   private val linkRadiusMeters: Double =
     beamConfig.beam.routing.r5.linkRadiusMeters
 
@@ -1226,10 +1239,20 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           case _           => 1f
         }
       } else 1f
+
+      val roadVelocityRestrictionWeightMultiplier: Float =
+        if (vehicleType.restrictRoadsByFreeSpeedInMeterPerSecond.isDefined) {
+          osmIdToFreespeed.get(edge.getOSMID) match {
+            case Some(freeSpeedValue) if freeSpeedValue > vehicleType.restrictRoadsByFreeSpeedInMeterPerSecond.get =>
+              beamConfig.beam.agentsim.agents.rideHail.freeSpeedLinkWeightMultiplier.toFloat
+            case _ => 1f
+          }
+        } else 1f
+
       (traversalTimeSeconds + (timeValueOfMoney * tollCalculator.calcTollByLinkId(
         edge.getEdgeIndex,
         startTime + legDurationSeconds
-      )).toFloat) * nonHGVLinkWeightMultiplier
+      )).toFloat) * nonHGVLinkWeightMultiplier * roadVelocityRestrictionWeightMultiplier
     }
   }
 }
