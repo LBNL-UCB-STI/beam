@@ -1202,11 +1202,7 @@ class RideHailManager(
       costPerMile = defaultCostPerMile
       baseCost = defaultBaseCost
     }
-    val timeFare = costPerSecond * surgePricingManager
-      .getSurgeLevel(
-        request.pickUpLocationUTM,
-        request.departAt
-      ) * trip.legsWithPassenger(request.customer).map(_.duration).sum.toDouble
+    val timeFare = costPerSecond * trip.legsWithPassenger(request.customer).map(_.duration).sum.toDouble
     val distanceFare = costPerMile * trip.schedule.keys.map(_.travelPath.distanceInM / 1609).sum
 
     val timeFareAdjusted = beamScenario.vehicleTypes.get(rideHailVehicleTypeId) match {
@@ -1215,7 +1211,11 @@ class RideHailManager(
       case _ =>
         timeFare
     }
-    val fare = distanceFare + timeFareAdjusted + additionalCost + baseCost
+    val fare = (distanceFare + timeFareAdjusted + additionalCost + baseCost) * surgePricingManager
+      .getSurgeLevel(
+        request.pickUpLocationUTM,
+        request.departAt
+      )
     request.customer.personId -> fare
   }
 
