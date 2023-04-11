@@ -15,6 +15,7 @@ class RideHailSurgePricingManager @Inject() (val beamConfig: BeamConfig, val bea
   import RideHailSurgePricingManager._
 
   val rideHailConfig: Option[Agents.RideHail.Managers$Elm] = beamConfig.beam.agentsim.agents.rideHail.managers.find(_.name == managerName)
+  val surgePricing = rideHailConfig.map(_.surgePricing).getOrElse(throw new Exception("Ride hail config not found"))
 
   // TODO:
 
@@ -28,13 +29,12 @@ class RideHailSurgePricingManager @Inject() (val beamConfig: BeamConfig, val bea
   // TODO: can we allow any other class to inject taz as well, without loading multiple times? (Done)
   val timeBinSize: Int =
     beamConfig.beam.agentsim.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
-  val numberOfCategories: Int =
-    rideHailConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
+  val numberOfCategories: Int = surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
   val numberOfTimeBins: Int = Math
     .floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize)
     .toInt + 1
-  val surgeLevelAdaptionStep: Double = rideHailConfig.surgePricing.surgeLevelAdaptionStep
-  val minimumSurgeLevel: Double = rideHailConfig.surgePricing.minimumSurgeLevel
+  val surgeLevelAdaptionStep: Double = surgePricing.surgeLevelAdaptionStep
+  val minimumSurgeLevel: Double = surgePricing.minimumSurgeLevel
   // TODO: implement all cases for these surge prices properly
   val CONTINUES_DEMAND_SUPPLY_MATCHING = "CONTINUES_DEMAND_SUPPLY_MATCHING"
   val KEEP_PRICE_LEVEL_FIXED_AT_ONE = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
@@ -62,7 +62,7 @@ class RideHailSurgePricingManager @Inject() (val beamConfig: BeamConfig, val bea
 
   // TODO: initialize all bins (price levels and iteration revenues)!
   var totalSurgePricingLevel: Double = 0
-  var priceAdjustmentStrategy: String = rideHailConfig.surgePricing.priceAdjustmentStrategy
+  var priceAdjustmentStrategy: String = surgePricing.priceAdjustmentStrategy
 
   // this should be invoked after each iteration
   // TODO: initialize in BEAMSim and also reset there after each iteration?
