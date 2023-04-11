@@ -197,17 +197,17 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
 //          bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
 
-          if (beamConfig.beam.agentsim.agents.rideHail.managers.size == 1) {
-            bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
-          }else{
-            val rideHailSurgePricingManagersMap = beamConfig.beam.agentsim.agents.rideHail.managers.map { managerConfig =>
-              managerConfig.name -> new RideHailSurgePricingManager(beamConfig, beamScenario, managerConfig.name)
-            }.toMap
+//          if (beamConfig.beam.agentsim.agents.rideHail.managers.size == 1) {
+//            bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
+//          }else{
+          val rideHailSurgePricingManagersMap = beamConfig.beam.agentsim.agents.rideHail.managers.map { managerConfig =>
+            managerConfig.name -> new RideHailSurgePricingManager(beamConfig, beamScenario, managerConfig.name)
+          }.toMap
 
-            val mapBinder = binder().asInstanceOf[AnnotatedBindingBuilder[Map[String, RideHailSurgePricingManager]]]
-            mapBinder.toInstance(rideHailSurgePricingManagersMap)
-            mapBinder.asEagerSingleton()
-          }
+          val mapBinder = binder().asInstanceOf[AnnotatedBindingBuilder[Map[String, RideHailSurgePricingManager]]]
+          mapBinder.toInstance(rideHailSurgePricingManagersMap)
+          mapBinder.asEagerSingleton()
+//          }
 
           addControlerListenerBinding().to(classOf[BeamSim])
           addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])

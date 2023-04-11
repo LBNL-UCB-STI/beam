@@ -14,7 +14,7 @@ import scala.util.Random
 class RideHailSurgePricingManager @Inject() (val beamConfig: BeamConfig, val beamScenario: BeamScenario, val managerName: String) {
   import RideHailSurgePricingManager._
 
-  val rideHailConfig: Agents.RideHail = beamConfig.beam.agentsim.agents.rideHail
+  val rideHailConfig: Option[Agents.RideHail.Managers$Elm] = beamConfig.beam.agentsim.agents.rideHail.managers.find(_.name == managerName)
 
   // TODO:
 
