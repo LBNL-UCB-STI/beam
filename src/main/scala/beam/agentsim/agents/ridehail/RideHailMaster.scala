@@ -40,7 +40,8 @@ class RideHailMaster(
   val chargingNetworkManager: ActorRef,
   val boundingBox: Envelope,
   val activityQuadTreeBounds: QuadTreeBounds,
-  val surgePricingManager: RideHailSurgePricingManager,
+//  val surgePricingManager: RideHailSurgePricingManager,
+  val rideHailSurgePricingManagers: Map[String, RideHailSurgePricingManager],
   val tncIterationStats: Option[TNCIterationStats],
   val routeHistory: RouteHistory,
   val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider
@@ -52,6 +53,7 @@ class RideHailMaster(
       val rideHailManagerId =
         VehicleManager.createOrGetReservedFor(managerConfig.name, VehicleManager.TypeEnum.RideHail).managerId
       val rideHailFleetInitializer = rideHailFleetInitializerProvider.get(managerConfig.name)
+      val surgePricingManager = rideHailSurgePricingManagers(managerConfig.name)
       managerConfig.name -> context.actorOf(
         Props(
           new RideHailManager(
