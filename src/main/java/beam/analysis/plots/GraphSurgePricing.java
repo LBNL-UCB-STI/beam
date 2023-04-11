@@ -71,7 +71,7 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
         min = null;
 
         numberOfTimeBins = this.surgePricingManager.numberOfTimeBins();
-        this.writeGraph = surgePricingManager.beamServices().beamConfig().beam().outputs().writeGraphs();
+        this.writeGraph = surgePricingManager.beamConfig().beam().outputs().writeGraphs();
     }
 
     @Override
@@ -85,11 +85,11 @@ public class GraphSurgePricing implements ControlerListener, IterationEndsListen
 
         OutputDirectoryHierarchy odh = event.getServices().getControlerIO();
 
-        graphImageFile = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.png");
-        surgePricingCsvFileName = odh.getIterationFilename(iNo, "rideHailSurgePriceLevel.csv");
-        surgePricingAndRevenueWithTaz = odh.getIterationFilename(iNo, "tazRideHailSurgePriceLevel.csv.gz");
-        revenueGraphImageFile = odh.getIterationFilename(iNo, "rideHailRevenue.png");
-        revenueCsvFileName = odh.getIterationFilename(iNo, "rideHailRevenue.csv");
+        graphImageFile = odh.getIterationFilename(iNo, String.format("rideHailSurgePriceLevel_%s.png", this.surgePricingManager.managerName()));
+        surgePricingCsvFileName = odh.getIterationFilename(iNo, String.format("rideHailSurgePriceLevel_%s.csv", this.surgePricingManager.managerName()));
+        surgePricingAndRevenueWithTaz = odh.getIterationFilename(iNo, String.format("tazRideHailSurgePriceLevel_%s.csv.gz", this.surgePricingManager.managerName()));
+        revenueGraphImageFile = odh.getIterationFilename(iNo, String.format("rideHailRevenue_%s.png", this.surgePricingManager.managerName()));
+        revenueCsvFileName = odh.getIterationFilename(iNo, String.format("rideHailRevenue_%s.csv", this.surgePricingManager.managerName()));
 
         this.createGraphs();
 

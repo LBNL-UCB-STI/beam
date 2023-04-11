@@ -214,9 +214,24 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
           addControlerListenerBinding().to(classOf[RouteHistory])
 
           addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
-          addControlerListenerBinding().to(classOf[GraphSurgePricing])
+
+          val graphSurgePricingMap = beamConfig.beam.agentsim.agents.rideHail.managers.map { managerConfig =>
+            managerConfig.name -> new GraphSurgePricing(rideHailSurgePricingManagersMap(managerConfig.name))
+          }.toMap
+
+          val graphMapBinder = binder().asInstanceOf[AnnotatedBindingBuilder[Map[String, GraphSurgePricing]]]
+          graphMapBinder.toInstance(graphSurgePricingMap)
+          graphMapBinder.asEagerSingleton()
+//          addControlerListenerBinding().to(classOf[GraphSurgePricing])
           bind(classOf[BeamOutputDataDescriptionGenerator])
-          addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
+          val rideHailRevenueAnalysisMap = beamConfig.beam.agentsim.agents.rideHail.managers.map { managerConfig =>
+            managerConfig.name -> new RideHailRevenueAnalysis(rideHailSurgePricingManagersMap(managerConfig.name))
+          }.toMap
+
+          val revenueMapBinder = binder().asInstanceOf[AnnotatedBindingBuilder[Map[String, RideHailRevenueAnalysis]]]
+          revenueMapBinder.toInstance(rideHailRevenueAnalysisMap)
+          revenueMapBinder.asEagerSingleton()
+//          addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
           bind(classOf[ModeIterationPlanCleaner])
 
           bindMobsim().to(classOf[BeamMobsim])
