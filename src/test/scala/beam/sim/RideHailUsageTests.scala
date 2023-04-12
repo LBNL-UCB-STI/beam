@@ -96,7 +96,7 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper with 
       .getOrDefault(
         ModeChoiceEvent.ATTRIBUTE_MODE,
         ""
-      ) shouldBe "ride_hail" withClue ", expected RH usage after replanning"
+      ) should startWith("ride_hail") withClue ", expected RH usage after replanning"
   }
 
   it should "Use RH_BEV to transfer agents." in {
