@@ -197,17 +197,12 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
 //          bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
 
-//          if (beamConfig.beam.agentsim.agents.rideHail.managers.size == 1) {
-//            bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
-//          }else{
           val rideHailSurgePricingManagersMap = beamConfig.beam.agentsim.agents.rideHail.managers.map { managerConfig =>
             managerConfig.name -> new RideHailSurgePricingManager(beamConfig, beamScenario, managerConfig.name)
           }.toMap
-
-          val mapBinder = binder().asInstanceOf[AnnotatedBindingBuilder[Map[String, RideHailSurgePricingManager]]]
+          val mapBinder = binder().bind(classOf[Map[String, RideHailSurgePricingManager]])
           mapBinder.toInstance(rideHailSurgePricingManagersMap)
           mapBinder.asEagerSingleton()
-//          }
 
           addControlerListenerBinding().to(classOf[BeamSim])
           addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
@@ -215,23 +210,9 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
 
           addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
 
-          val graphSurgePricingMap = beamConfig.beam.agentsim.agents.rideHail.managers.map { managerConfig =>
-            managerConfig.name -> new GraphSurgePricing(rideHailSurgePricingManagersMap(managerConfig.name))
-          }.toMap
-
-          val graphMapBinder = binder().asInstanceOf[AnnotatedBindingBuilder[Map[String, GraphSurgePricing]]]
-          graphMapBinder.toInstance(graphSurgePricingMap)
-          graphMapBinder.asEagerSingleton()
-//          addControlerListenerBinding().to(classOf[GraphSurgePricing])
+          addControlerListenerBinding().to(classOf[GraphSurgePricing])
           bind(classOf[BeamOutputDataDescriptionGenerator])
-          val rideHailRevenueAnalysisMap = beamConfig.beam.agentsim.agents.rideHail.managers.map { managerConfig =>
-            managerConfig.name -> new RideHailRevenueAnalysis(rideHailSurgePricingManagersMap(managerConfig.name))
-          }.toMap
-
-          val revenueMapBinder = binder().asInstanceOf[AnnotatedBindingBuilder[Map[String, RideHailRevenueAnalysis]]]
-          revenueMapBinder.toInstance(rideHailRevenueAnalysisMap)
-          revenueMapBinder.asEagerSingleton()
-//          addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
+          addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
           bind(classOf[ModeIterationPlanCleaner])
 
           bindMobsim().to(classOf[BeamMobsim])

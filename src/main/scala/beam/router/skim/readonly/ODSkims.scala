@@ -48,6 +48,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
     val beamConfig = beamServices.beamConfig
     val origTaz = tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
     val destTaz = tazTreeMap.getTAZ(destination.getX, destination.getY).tazId
+//    val surgeLevel = beamServices.getSurgeLevel(origTaz, departureTime)
     val solo = getSkimValue(departureTime, RIDE_HAIL, origTaz, destTaz) match {
       case Some(skimValue) if skimValue.observations > 5 =>
         skimValue
@@ -82,6 +83,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
             RIDE_HAIL_POOLED,
             solo.distanceInM,
             solo.travelTimeInS * poolingTravelTimeOveheadFactor,
+//            surgeLevel,
             beamConfig
           ),
           payloadWeightInKg = 0.0,

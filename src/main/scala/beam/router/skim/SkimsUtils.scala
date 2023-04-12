@@ -104,6 +104,7 @@ object SkimsUtils extends LazyLogging {
     mode: BeamMode,
     distanceInMeters: Double,
     timeInSeconds: Double,
+//    surgeLevel: Double,
     beamConfig: BeamConfig
   ): Double = {
     mode match {
