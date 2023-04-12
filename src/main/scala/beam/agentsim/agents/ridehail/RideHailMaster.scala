@@ -136,9 +136,17 @@ class RideHailMaster(
 
   private def findBestProposal(customer: Id[Person], responses: IndexedSeq[RideHailResponse]) = {
     val responsesInRandomOrder = rand.shuffle(responses)
-    val withProposals = responsesInRandomOrder.filter(_.travelProposal.isDefined)
+    val withProposals = responses.filter(_.travelProposal.isDefined)
     if (withProposals.isEmpty) responsesInRandomOrder.head
-    else withProposals.minBy(_.travelProposal.get.estimatedPrice(customer))
+    else
+      withProposals.minBy { response =>
+        val travelProposal = response.travelProposal.get
+        val price = travelProposal.estimatedPrice(customer)
+        if (travelProposal.poolingInfo.isDefined && response.request.asPooled)
+          Math.min(price, price * travelProposal.poolingInfo.get.costFactor)
+        else
+          price
+      }
   }
 }
 
