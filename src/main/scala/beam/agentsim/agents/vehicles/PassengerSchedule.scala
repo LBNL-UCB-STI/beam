@@ -63,6 +63,8 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     new PassengerSchedule(newSchedule)
   }
 
+  def isPooledTrip: Boolean = schedule.values.exists(_.riders.size > 1)
+
   def uniquePassengers: Set[PersonIdWithActorRef] = schedule.values.flatMap(_.riders).toSet
 
   def passengersWhoNeverBoard: Set[PersonIdWithActorRef] = {

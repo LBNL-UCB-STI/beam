@@ -697,6 +697,7 @@ class PersonAgent(
       new RideHailReservationConfirmationEvent(
         tick,
         Id.createPersonId(id),
+        None,
         RideHailReservationConfirmationEvent.typeWhenPooledIs(response.request.asPooled),
         Some(error.errorCode),
         response.request.requestTime,
@@ -709,6 +710,7 @@ class PersonAgent(
         response.directTripTravelProposal.map(proposal =>
           proposal.travelTimeForCustomer(bodyVehiclePersonId) + proposal.timeToCustomer(bodyVehiclePersonId)
         ),
+        None,
         response.request.withWheelchair
       )
     )
@@ -808,6 +810,7 @@ class PersonAgent(
       new RideHailReservationConfirmationEvent(
         tick,
         Id.createPersonId(id),
+        travelProposal.rideHailAgentLocation.vehicleId,
         RideHailReservationConfirmationEvent.typeWhenPooledIs(req.asPooled),
         None,
         tick,
@@ -818,6 +821,7 @@ class PersonAgent(
         Some(actualRideHailLegs.head.beamLeg.startTime),
         response.directTripTravelProposal.map(_.travelDistanceForCustomer(bodyVehiclePersonId)),
         response.directTripTravelProposal.map(_.travelTimeForCustomer(bodyVehiclePersonId)),
+        travelProposal.estimatedPrice(req.customer.personId),
         req.withWheelchair
       )
     )

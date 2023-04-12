@@ -346,7 +346,7 @@ trait ChoosesMode {
           requester = self,
           rideHailServiceSubscription = attributes.rideHailServiceSubscription,
           triggerId = getCurrentTriggerIdOrGenerate,
-          asPooled = true
+          asPooled = !choosesModeData.personData.currentTourMode.contains(RIDE_HAIL)
         )
         //        println(s"requesting: ${inquiry.requestId}")
         rideHailManager ! inquiry
@@ -1416,6 +1416,7 @@ trait ChoosesMode {
     val skim: ODSkimmer.Skim = ODSkims.getSkimDefaultValue(
       beamServices.beamConfig,
       mode,
+      "",
       originLocation,
       destinationLocation,
       beamScenario.vehicleTypes(dummyRHVehicle.vehicleTypeId),

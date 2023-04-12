@@ -64,7 +64,6 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg], router: Option[St
     val personalLegs = legs.takeWhile(leg =>
       !leg.beamLeg.mode.isTransit
       && !leg.beamLeg.mode.isRideHail
-      && leg.beamLeg.mode != RIDE_HAIL_POOLED
       && leg.beamLeg.mode != CAV
     )
     val updatedLegs = personalLegs.map { leg =>
