@@ -235,8 +235,7 @@ object HierarchicalParkingManager {
     reservedFor: ReservedFor,
     chargingPointType: Option[ChargingPointType],
     pricingModel: Option[PricingModel],
-    timeRestrictions: Map[VehicleCategory, Range],
-    siteId: Id[SitePowerManager]
+    timeRestrictions: Map[VehicleCategory, Range]
   )
 
   object ParkingZoneDescription {
@@ -247,8 +246,7 @@ object HierarchicalParkingManager {
         zone.reservedFor,
         zone.chargingPointType,
         zone.pricingModel,
-        zone.timeRestrictions,
-        zone.siteId
+        zone.timeRestrictions
       )
     }
   }
@@ -330,7 +328,6 @@ object HierarchicalParkingManager {
         parkingType = description.parkingType,
         maxStalls = numStalls,
         reservedFor = description.reservedFor,
-        siteIdMaybe = Some(description.siteId),
         chargingPointType = description.chargingPointType,
         pricingModel = description.pricingModel,
         timeRestrictions = description.timeRestrictions

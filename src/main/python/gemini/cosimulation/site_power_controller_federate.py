@@ -14,8 +14,9 @@ import time
 
 from site_power_controller_utils import ConfigForSPMC
 from site_power_controller_utils import RudimentarySPMC
-from site_power_controller_utils import AdvancedSPMC
+from site_power_controller_utils import ControlledSPMC
 from site_power_controller_utils import RideHailSPMC
+from site_power_controller_utils import AbstractSPMC
 from site_power_controller_utils import create_federate
 from site_power_controller_utils import print2
 
@@ -29,9 +30,6 @@ class SitePowerManager:
     ess_soc_from_dss = {} # It needs to be updated through DSS @TODO NADIA
     power_limits_from_derms = {} # It needs to be updated through DSS @TODO KEITH
     depot_prefix = "depot"
-    #spmc: advanced, rudimentary, ridehail
-    public_spmc = "advanced"
-    ridehail_spmc = "rudimentary"
 
     def __init__(self, time_step, sim_dur, output_dir, is_multi_threaded):
         self.config_for_spmc = ConfigForSPMC(time_step, sim_dur, output_dir, is_multi_threaded)
@@ -39,23 +37,11 @@ class SitePowerManager:
     def init_an_spmc(self, taz_id_str, parking_zone_id_str, events):
         if parking_zone_id_str.lower().startswith(self.depot_prefix):
             if parking_zone_id_str not in self.ride_hail_spmc_dict:
-                if self.ridehail_spmc == "advanced":
-                    self.ride_hail_spmc_dict[parking_zone_id_str] = AdvancedSPMC("RideHailSPMC", taz_id_str,
-                                                                              parking_zone_id_str, events,
-                                                                              self.config_for_spmc)
-                elif self.ridehail_spmc == "rudimentary":
-                    self.ride_hail_spmc_dict[parking_zone_id_str] = RudimentarySPMC("RideHailSPMC", taz_id_str,
-                                                                                    parking_zone_id_str, events,
-                                                                                    self.config_for_spmc)
-                else:
-                    self.ride_hail_spmc_dict[parking_zone_id_str] = RideHailSPMC("RideHailSPMC", taz_id_str,
-                                                                                  parking_zone_id_str, events,
-                                                                                  self.config_for_spmc)
+                self.ride_hail_spmc_dict[parking_zone_id_str] = AbstractSPMC.create(taz_id_str, parking_zone_id_str,
+                                                                                    events, self.config_for_spmc)
         elif parking_zone_id_str not in self.public_spmc_dict:
-            if self.public_spmc == "advanced":
-                self.public_spmc_dict[parking_zone_id_str] = AdvancedSPMC("PublicSPMC", taz_id_str, parking_zone_id_str, events, self.config_for_spmc)
-            else:
-                self.public_spmc_dict[parking_zone_id_str] = RudimentarySPMC("PublicSPMC", taz_id_str, parking_zone_id_str, self.config_for_spmc)
+            self.public_spmc_dict[parking_zone_id_str] = AbstractSPMC.create(taz_id_str, parking_zone_id_str, events,
+                                                                             self.config_for_spmc)
 
     def run_an_spmc(self, current_t, zone_id_str, charging_events):
         ess_soc = self.ess_soc_from_dss.get(zone_id_str)

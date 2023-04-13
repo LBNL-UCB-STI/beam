@@ -34,7 +34,9 @@ class ParkingZone(
   val pricingModel: Option[PricingModel],
   val timeRestrictions: Map[VehicleCategory, Range],
   val link: Option[Link],
-  val siteId: Id[SitePowerManager]
+  val loadManagement: Option[String],
+  val energyStorageCapacityInKWh: Option[Double],
+  val energyStorageSOC: Option[Double]
 ) {
 
   /**
@@ -87,13 +89,15 @@ object ParkingZone extends LazyLogging {
     geoId: Id[TAZ],
     parkingType: ParkingType,
     reservedFor: ReservedFor,
-    siteId: Id[SitePowerManager],
     stallsAvailable: Int = 0,
     maxStalls: Int = 0,
     chargingPointType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
     timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
-    link: Option[Link] = None
+    link: Option[Link] = None,
+    loadManagement: Option[String] = None,
+    energyStorageCapacityInKWh: Option[Double] = None,
+    energyStorageSOC: Option[Double] = None
   ): ParkingZone =
     new ParkingZone(
       parkingZoneId,
@@ -106,7 +110,9 @@ object ParkingZone extends LazyLogging {
       pricingModel,
       timeRestrictions,
       link,
-      siteId
+      loadManagement,
+      energyStorageCapacityInKWh,
+      energyStorageSOC
     )
 
   def defaultInit(
@@ -119,7 +125,6 @@ object ParkingZone extends LazyLogging {
       geoId,
       parkingType,
       VehicleManager.AnyManager,
-      Some(SitePowerManager.createId(DefaultParkingZoneId.toString)),
       numStalls
     )
   }
@@ -129,33 +134,33 @@ object ParkingZone extends LazyLogging {
     geoId: Id[TAZ],
     parkingType: ParkingType,
     reservedFor: ReservedFor,
-    siteIdMaybe: Option[Id[SitePowerManager]],
     maxStalls: Int = 0,
     chargingPointType: Option[ChargingPointType] = None,
     pricingModel: Option[PricingModel] = None,
     timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
-    link: Option[Link] = None
+    link: Option[Link] = None,
+    loadManagement: Option[String] = None,
+    energyStorageCapacityInKWh: Option[Double] = None,
+    energyStorageSOC: Option[Double] = None
   ): ParkingZone = {
     val parkingZoneId = parkingZoneIdMaybe match {
       case Some(parkingZoneId) => parkingZoneId
       case _                   => constructParkingZoneKey(reservedFor, geoId, parkingType, chargingPointType, pricingModel, maxStalls)
-    }
-    val siteId = siteIdMaybe match {
-      case Some(siteId) => siteId
-      case _            => SitePowerManager.constructSitePowerKey(reservedFor, geoId, parkingType, chargingPointType)
     }
     ParkingZone(
       parkingZoneId,
       geoId,
       parkingType,
       reservedFor,
-      siteId,
       maxStalls,
       maxStalls,
       chargingPointType,
       pricingModel,
       timeRestrictions,
-      link
+      link,
+      loadManagement,
+      energyStorageCapacityInKWh,
+      energyStorageSOC
     )
   }
 
@@ -222,7 +227,7 @@ object ParkingZone extends LazyLogging {
     * @param numStalls number of stalls
     * @return
     */
-  def constructParkingZoneKey(
+  private def constructParkingZoneKey(
     reservedFor: ReservedFor,
     geoId: Id[_],
     parkingType: ParkingType,

@@ -1,13 +1,12 @@
 package beam.agentsim.infrastructure.power
 
 import beam.agentsim.agents.vehicles.BeamVehicle
-import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingCycle, ChargingStation, ChargingVehicle}
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.charging.ChargingPointType.getChargingPointInstalledPowerInKw
-import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZoneId}
+import beam.agentsim.infrastructure.parking.ParkingZoneId
 import beam.agentsim.infrastructure.power.PowerManager._
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamHelicsInterface.{
@@ -153,12 +152,13 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
           // Constructing a list of Parking Zone ids to initialize the site power manager
           stations.map(station =>
             Map(
-              "tazId"                            -> station.zone.tazId,
-              "parkingZoneId"                    -> station.zone.parkingZoneId,
-              "parkingZonePowerInKW"             -> station.maxPlugPower * station.numPlugs,
-              "parkingZoneNumPlugs"              -> station.numPlugs,
-              "energyStorageSystemCapacityInKWh" -> 50, // TODO This should be defined in the infrastructure file!!
-              "energyStorageSystemSOC"           -> 1.0 // TODO This should be defined in the infrastructure file!!
+              "tazId"                      -> station.zone.tazId,
+              "parkingZoneId"              -> station.zone.parkingZoneId,
+              "parkingZonePowerInKW"       -> station.maxPlugPower * station.numPlugs,
+              "parkingZoneNumPlugs"        -> station.numPlugs,
+              "loadManagement"             -> station.zone.loadManagement.getOrElse("None"),
+              "energyStorageCapacityInKWh" -> station.zone.energyStorageCapacityInKWh.getOrElse(0.0),
+              "energyStorageSOC"           -> station.zone.energyStorageSOC.getOrElse(0.0)
             )
           )
         } else {
@@ -329,20 +329,4 @@ object SitePowerManager {
   case class ZonalPowerLimit(parkingZoneId: Id[ParkingZoneId], numPlugs: Int, totPowerInKW: PowerInKW) {
     def getPlugPower: PowerInKW = totPowerInKW / numPlugs
   }
-
-  def constructSitePowerKey(
-    reservedFor: ReservedFor,
-    geoId: Id[_],
-    parkingType: ParkingType,
-    chargingPointTypeMaybe: Option[ChargingPointType]
-  ): Id[SitePowerManager] = {
-    val chargingLevel = chargingPointTypeMaybe match {
-      case Some(chargingPointType) if ChargingPointType.isFastCharger(chargingPointType) => "Fast"
-      case Some(_)                                                                       => "Slow"
-      case _                                                                             => "NoCharger"
-    }
-    createId(s"site-$reservedFor-$geoId-$parkingType-$chargingLevel")
-  }
-
-  def createId(siteId: String): Id[SitePowerManager] = Id.create(siteId, classOf[SitePowerManager])
 }

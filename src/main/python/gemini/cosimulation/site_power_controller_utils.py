@@ -75,6 +75,11 @@ class DataForSPMC:
 
 
 class AbstractSPMC:
+    public_controlled_spmc_label = "PublicControlledSPMC"
+    ride_hail_controlled_spmc_label = "RideHailControlledSPMC"
+    ride_hail_using_public_controlled_spmc_label = "RideHailUsingPublicControlledSPMC"
+    public_rudimentary_spmc_label = "PublicRudimentarySPMC"
+    ride_hail_rudimentary_spmc_label = "RideHailRudimentarySPMC"
     @abstractmethod
     def run_model(self, t, vehicles, data_for_spmc):
         return []
@@ -86,10 +91,26 @@ class AbstractSPMC:
         self.site_prefix_logging = name + "[" + str(taz_id) + ":" + str(site_id) + "]. "
         self.num_plugs = int(events[0]['parkingZoneNumPlugs'])
         self.site_power = float(events[0]['parkingZonePowerInKW'])
-        self.ess_size = float(events[0]['energyStorageSystemCapacityInKWh'])  # in kWh
-        self.initial_ess_soc = float(events[0]['energyStorageSystemSOC'])  #
+        self.ess_size = float(events[0]['energyStorageCapacityInKWh'])  # in kWh
+        self.initial_ess_soc = float(events[0]['energyStorageSOC'])  #
         self.control_commands = []
         self.thread = Thread()
+
+    @staticmethod
+    def create(taz_id_str, parking_zone_id_str, events, config_for_spmc):
+        load_management = str(events[0]['loadManagement'])  #
+        if load_management == AbstractSPMC.public_controlled_spmc_label:
+            return ControlledSPMC("PublicSPMC", taz_id_str, parking_zone_id_str, events, config_for_spmc)
+        elif load_management == AbstractSPMC.public_rudimentary_spmc_label:
+            return RudimentarySPMC("PublicSPMC", taz_id_str, parking_zone_id_str, events, config_for_spmc)
+        elif load_management == AbstractSPMC.ride_hail_controlled_spmc_label:
+            return RideHailSPMC("RideHailSPMC", taz_id_str, parking_zone_id_str, events, config_for_spmc)
+        elif load_management == AbstractSPMC.ride_hail_using_public_controlled_spmc_label:
+            return ControlledSPMC("RideHailSPMC", taz_id_str, parking_zone_id_str, events, config_for_spmc)
+        elif load_management == AbstractSPMC.ride_hail_rudimentary_spmc_label:
+            return RudimentarySPMC("RideHailSPMC", taz_id_str, parking_zone_id_str, events, config_for_spmc)
+        else:
+            return AbstractSPMC("DoNothingSPMC", taz_id_str, parking_zone_id_str, events, config_for_spmc)
 
     def log(self, log_message):
         logging.info(self.site_prefix_logging + log_message)
@@ -137,7 +158,7 @@ class AbstractSPMC:
 # **********************************************************************************
 # **********************************************************************************
 # **********************************************************************************
-class AdvancedSPMC(AbstractSPMC):
+class ControlledSPMC(AbstractSPMC):
     # Myungsoo's advanced SPM Controller
     def __init__(self, name, taz_id, site_id, events, config_for_spmc):
         AbstractSPMC.__init__(self, name, taz_id, site_id, events, config_for_spmc)
