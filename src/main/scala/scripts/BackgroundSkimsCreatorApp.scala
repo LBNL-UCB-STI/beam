@@ -307,7 +307,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
             rows.foreach { case ODRow(origin, destination) =>
               BeamMode.allModes.foreach { beamMode =>
-                writeSkimRow(writer, uniqueTimeBins, origin, destination, beamMode)
+                writeSkimRow(writer, uniqueTimeBins, origin, destination, beamMode, "")
               }
             }
           } catch {
