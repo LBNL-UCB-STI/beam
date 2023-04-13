@@ -11,10 +11,15 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
-class RideHailSurgePricingManager @Inject() (val beamConfig: BeamConfig, val beamScenario: BeamScenario, val managerName: String) {
+class RideHailSurgePricingManager @Inject() (
+  val beamConfig: BeamConfig,
+  val beamScenario: BeamScenario,
+  val managerName: String
+) {
   import RideHailSurgePricingManager._
 
-  val rideHailConfig: Option[Agents.RideHail.Managers$Elm] = beamConfig.beam.agentsim.agents.rideHail.managers.find(_.name == managerName)
+  val rideHailConfig: Option[Agents.RideHail.Managers$Elm] =
+    beamConfig.beam.agentsim.agents.rideHail.managers.find(_.name == managerName)
   val surgePricing = rideHailConfig.map(_.surgePricing).getOrElse(throw new Exception("Ride hail config not found"))
 
   // TODO:
