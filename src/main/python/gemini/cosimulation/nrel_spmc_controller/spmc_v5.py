@@ -148,7 +148,7 @@ class SPM_Control():
                 p_evse_setpoint[k] = p_evse_opt[k*T]
             
         except:
-            print('No solution found.')
+            #print('No solution found.')
             flag = -1
             
             [p_evse_setpoint, p_ess_setpoint] = self.get_heuristic_evse_setpoint(t_dep, energy_req, min_power, max_power, soc_ess, min_power_evse, max_power_evse)

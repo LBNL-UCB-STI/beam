@@ -34,7 +34,7 @@ class ParkingZone(
   val pricingModel: Option[PricingModel],
   val timeRestrictions: Map[VehicleCategory, Range],
   val link: Option[Link],
-  val loadManagement: Option[String],
+  val sitePowerManager: Option[String],
   val energyStorageCapacityInKWh: Option[Double],
   val energyStorageSOC: Option[Double]
 ) {
@@ -95,7 +95,7 @@ object ParkingZone extends LazyLogging {
     pricingModel: Option[PricingModel] = None,
     timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
     link: Option[Link] = None,
-    loadManagement: Option[String] = None,
+    sitePowerManager: Option[String] = None,
     energyStorageCapacityInKWh: Option[Double] = None,
     energyStorageSOC: Option[Double] = None
   ): ParkingZone =
@@ -110,7 +110,7 @@ object ParkingZone extends LazyLogging {
       pricingModel,
       timeRestrictions,
       link,
-      loadManagement,
+      sitePowerManager,
       energyStorageCapacityInKWh,
       energyStorageSOC
     )
@@ -139,7 +139,7 @@ object ParkingZone extends LazyLogging {
     pricingModel: Option[PricingModel] = None,
     timeRestrictions: Map[VehicleCategory, Range] = Map.empty,
     link: Option[Link] = None,
-    loadManagement: Option[String] = None,
+    sitePowerManager: Option[String] = None,
     energyStorageCapacityInKWh: Option[Double] = None,
     energyStorageSOC: Option[Double] = None
   ): ParkingZone = {
@@ -158,7 +158,7 @@ object ParkingZone extends LazyLogging {
       pricingModel,
       timeRestrictions,
       link,
-      loadManagement,
+      sitePowerManager,
       energyStorageCapacityInKWh,
       energyStorageSOC
     )

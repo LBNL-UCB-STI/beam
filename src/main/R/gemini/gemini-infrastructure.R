@@ -79,7 +79,20 @@ infra8MaxEV[,.(numStalls=sum(numStalls)),by=.(chargingPointType)]
 infra7Advanced[,.(feeInCents=mean(feeInCents)),by=.(chargingPointType)]
 infra8MaxEV[,.(feeInCents=mean(feeInCents)),by=.(chargingPointType)]
 
-######
+##### SAMPLING ESS
+# PublicControlledSPMC
+# RideHailRudimentarySPMC
+# RideHailUsingPublicControlledSPMC
+filename_to_update <- pp(infraDir, "/../scen_8_infrastructure_withFees_noHousehold_aggregated.csv")
+infra <- readCsv(filename_to_update)[,-c("sitePowerManager", "energyStorageCapacityInKWh", "energyStorageSOC")]
+infra$sitePowerManager <- ""
+infra$energyStorageCapacityInKWh <- ""
+infra$energyStorageSOC <- ""
+infra[grepl("fc", chargingPointType)&taz>=900&taz<=1000, 
+      `:=`(sitePowerManager="PublicControlledSPMC", 
+       energyStorageCapacityInKWh=50,
+       energyStorageSOC=1)]
+write.csv(infra, file = filename_to_update, row.names=FALSE, quote=FALSE)
 
 #####
 test7Advanced <- readCsv(pp(workDir,"/_models/nrel_infrastructure/scen_7_infrastructure_withFees_noHousehold_aggregated.csv"))

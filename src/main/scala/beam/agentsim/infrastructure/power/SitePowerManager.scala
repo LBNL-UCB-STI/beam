@@ -156,7 +156,7 @@ class SitePowerManager(chargingNetworkHelper: ChargingNetworkHelper, beamService
               "parkingZoneId"              -> station.zone.parkingZoneId,
               "parkingZonePowerInKW"       -> station.maxPlugPower * station.numPlugs,
               "parkingZoneNumPlugs"        -> station.numPlugs,
-              "loadManagement"             -> station.zone.loadManagement.getOrElse("None"),
+              "sitePowerManager"           -> station.zone.sitePowerManager.getOrElse("None"),
               "energyStorageCapacityInKWh" -> station.zone.energyStorageCapacityInKWh.getOrElse(0.0),
               "energyStorageSOC"           -> station.zone.energyStorageSOC.getOrElse(0.0)
             )

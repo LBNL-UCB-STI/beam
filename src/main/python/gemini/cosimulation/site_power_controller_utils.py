@@ -98,17 +98,17 @@ class AbstractSPMC:
 
     @staticmethod
     def create(taz_id_str, parking_zone_id_str, events, config_for_spmc):
-        load_management = str(events[0]['loadManagement'])  #
+        load_management = str(events[0]['sitePowerManager'])  #
         if load_management == AbstractSPMC.public_controlled_spmc_label:
-            return ControlledSPMC("PublicSPMC", taz_id_str, parking_zone_id_str, events, config_for_spmc)
+            return ControlledSPMC(load_management, taz_id_str, parking_zone_id_str, events, config_for_spmc)
         elif load_management == AbstractSPMC.public_rudimentary_spmc_label:
-            return RudimentarySPMC("PublicSPMC", taz_id_str, parking_zone_id_str, events, config_for_spmc)
+            return RudimentarySPMC(load_management, taz_id_str, parking_zone_id_str, events, config_for_spmc)
         elif load_management == AbstractSPMC.ride_hail_controlled_spmc_label:
-            return RideHailSPMC("RideHailSPMC", taz_id_str, parking_zone_id_str, events, config_for_spmc)
+            return RideHailSPMC(load_management, taz_id_str, parking_zone_id_str, events, config_for_spmc)
         elif load_management == AbstractSPMC.ride_hail_using_public_controlled_spmc_label:
-            return ControlledSPMC("RideHailSPMC", taz_id_str, parking_zone_id_str, events, config_for_spmc)
+            return ControlledSPMC(load_management, taz_id_str, parking_zone_id_str, events, config_for_spmc)
         elif load_management == AbstractSPMC.ride_hail_rudimentary_spmc_label:
-            return RudimentarySPMC("RideHailSPMC", taz_id_str, parking_zone_id_str, events, config_for_spmc)
+            return RudimentarySPMC(load_management, taz_id_str, parking_zone_id_str, events, config_for_spmc)
         else:
             return AbstractSPMC("DoNothingSPMC", taz_id_str, parking_zone_id_str, events, config_for_spmc)
 
@@ -189,7 +189,8 @@ class ControlledSPMC(AbstractSPMC):
         data_for_spmc.updated_ess_soc_internal = current_ess_soc + p_ess_setpoint * (self.config_for_spmc.time_step / 3600.0) / self.ess_size
 
         power_commands = p_evse_setpoint
-        if flag > 0:
+        if flag != -1:
+            print2("Solution found!")
             power_commands = p_evse_opt
 
         i = 0

@@ -45,7 +45,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     "parkingZoneId",
     "locationX",
     "locationY",
-    "loadManagement",
+    "sitePowerManager",
     "energyStorageCapacityInKWh",
     "energyStorageSOC"
   ).mkString(",")
@@ -76,7 +76,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       "", // parkingZoneId
       "", // locationX
       "", // locationY
-      "", // loadManagement
+      "", // sitePowerManager
       "", // energyStorageCapacityInKWh
       "" // energyStorageSOC
     ).mkString(",")
@@ -481,7 +481,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     val parkingZoneIdString = csvRow.get("parkingZoneId")
     val locationXString = csvRow.get("locationX")
     val locationYString = csvRow.get("locationY")
-    val loadManagementString = csvRow.get("loadManagement")
+    val sitePowerManagerString = csvRow.get("sitePowerManager")
     val energyStorageCapacityString = csvRow.get("energyStorageCapacityInKWh")
     val energyStorageSOCString = csvRow.get("energyStorageSOC")
     Try {
@@ -511,7 +511,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           }
         case _ => None
       }
-      val loadManagementMaybe = if (isBlank(loadManagementString)) None else Some(loadManagementString)
+      val sitePowerManagerMaybe = if (isBlank(sitePowerManagerString)) None else Some(sitePowerManagerString)
       val energyStorageCapacityMaybe =
         if (isBlank(energyStorageCapacityString)) None else Some(energyStorageCapacityString.toDouble)
       val energyStorageSOCMaybe = if (isBlank(energyStorageSOCString)) None else Some(energyStorageSOCString.toDouble)
@@ -526,7 +526,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           pricingModel,
           timeRestrictions,
           linkMaybe,
-          loadManagementMaybe,
+          sitePowerManagerMaybe,
           energyStorageCapacityMaybe,
           energyStorageSOCMaybe
         )
@@ -709,7 +709,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           parkingZone.parkingZoneId,
           linkCoordMaybe.map(_.getX.toString).getOrElse(""),
           linkCoordMaybe.map(_.getY.toString).getOrElse(""),
-          parkingZone.loadManagement.getOrElse(""),
+          parkingZone.sitePowerManager.getOrElse(""),
           parkingZone.energyStorageCapacityInKWh.map(_.toString).getOrElse(""),
           parkingZone.energyStorageSOC.map(_.toString).getOrElse("")
         ).mkString(",")
