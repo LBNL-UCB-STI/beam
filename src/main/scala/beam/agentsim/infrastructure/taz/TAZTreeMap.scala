@@ -160,19 +160,15 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
           }
           foundTaz match {
             case Some(taz) =>
-              try {
-                if (link.getAllowedModes.contains("car") & link.getAllowedModes.contains("walk")) {
-                  TAZtoLinkIdMapping(taz.tazId).put(linkEndCoord.getX, linkEndCoord.getY, link)
-                  try {
-                TAZtoLinkIdMapping(taz.tazId).put(linkMidpoint.getX, linkMidpoint.getY, link)
-              } catch {
-                case e: Throwable => logger.warn(e.toString)
-              }linkIdToTAZMapping += (id -> taz.tazId)
+              if (link.getAllowedModes.contains("car") & link.getAllowedModes.contains("walk")) {
+                try {
+                  TAZtoLinkIdMapping(taz.tazId).put(linkMidpoint.getX, linkMidpoint.getY, link)
+                  linkIdToTAZMapping += (id -> taz.tazId)
+                } catch {
+                  case e: Throwable =>
+                    logger.error(s"Exception ${e.toString}. Bad link ${link.toString} in taz ${taz.tazId}")
+                    unmatchedLinkIds += id
                 }
-              } catch {
-                case e: Throwable =>
-                  logger.error(s"Exception ${e.toString}. Bad link ${link.toString} in taz ${taz.tazId}")
-                  unmatchedLinkIds += id
               }
             case _ =>
               unmatchedLinkIds += id
