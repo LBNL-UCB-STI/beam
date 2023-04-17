@@ -32,26 +32,25 @@ object ParkingStallSampling extends ExponentialLazyLogging {
       case Some(linkQuadTree) =>
         val allLinks = linkQuadTree.getDisk(requestLocation.getX, requestLocation.getY, maxDist).asScala
         val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
-    var currentLength = 0.0
-    val filteredLinks = rand.shuffle(allLinks).takeWhile { lnk =>
-      currentLength += lnk.getLength
-      currentLength <= totalLength * availabilityRatio
-    }
-    Some(filteredLinks)
-      .filter(_.nonEmpty)
-      .map(
-        _.map(lnk => getClosestPointAlongLink(lnk, requestLocation, distanceFunction)).minBy(loc =>
-          distanceFunction(loc, requestLocation)
-        )
-      )
-      .getOrElse {
-        logger.warn(s"Could not find a link for parking request at location: $requestLocation")
-        availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
-            }
+        var currentLength = 0.0
+        val filteredLinks = rand.shuffle(allLinks).takeWhile { lnk =>
+          currentLength += lnk.getLength
+          currentLength <= totalLength * availabilityRatio
         }
+        Some(filteredLinks)
+          .filter(_.nonEmpty)
+          .map(
+            _.map(lnk => getClosestPointAlongLink(lnk, requestLocation, distanceFunction)).minBy(loc =>
+              distanceFunction(loc, requestLocation)
+            )
+          )
+          .getOrElse {
+            logger.warn(s"Could not find a link for parking request at location: $requestLocation")
+            availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
+          }
       case _ =>
         availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
-      }
+    }
   }
 
   private def getClosestPointAlongLink(

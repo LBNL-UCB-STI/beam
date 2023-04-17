@@ -239,7 +239,7 @@ class HouseholdFleetManager(
       // and complete initialization only when I got them all.
       val responseFuture = parkingManager ? ParkingInquiry.init(
         inquiry.whereWhen,
-        "wherever",
+        "home",
         VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).get,
         Some(vehicle),
         triggerId = inquiry.triggerId,
