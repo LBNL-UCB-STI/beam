@@ -19,6 +19,11 @@ SLACK_HOOK_WITH_TOKEN=$(curl http://metadata/computeMetadata/v1/instance/attribu
 SLACK_TOKEN=$(curl http://metadata/computeMetadata/v1/instance/attributes/slack_token -H "Metadata-Flavor: Google")
 SLACK_CHANNEL=$(curl http://metadata/computeMetadata/v1/instance/attributes/slack_channel -H "Metadata-Flavor: Google")
 GOOGLE_API_KEY=$(curl http://metadata/computeMetadata/v1/instance/attributes/google_api_key -H "Metadata-Flavor: Google")
+RUN_JUPYTER=$(curl http://metadata/computeMetadata/v1/instance/attributes/run_jupyter -H "Metadata-Flavor: Google")
+RUN_BEAM=$(curl http://metadata/computeMetadata/v1/instance/attributes/run_beam -H "Metadata-Flavor: Google")
+JUPYTER_TOKEN=$(curl http://metadata/computeMetadata/v1/instance/attributes/jupyter_token -H "Metadata-Flavor: Google")
+JUPYTER_IMAGE=$(curl http://metadata/computeMetadata/v1/instance/attributes/jupyter_image -H "Metadata-Flavor: Google")
+
 
 function check_simulation_result() {
   log_file="$(find output -maxdepth 2 -mindepth 2 -type d -print -quit)/beamLog.out"
@@ -119,9 +124,17 @@ curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/
 
 #building beam
 ./gradlew assemble
-#running beam
-export GOOGLE_API_KEY="$GOOGLE_API_KEY"
-./gradlew --stacktrace :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM"g
+if [ "$RUN_JUPYTER" = "True" ]; then
+  echo "Starting Jupyter"
+  export GOOGLE_API_KEY="$GOOGLE_API_KEY"
+  sudo ./gradlew jupyterStart -Puser=root -PjupyterToken=$JUPYTER_TOKEN -PjupyterImage=$JUPYTER_IMAGE
+fi
+
+if [ "$RUN_BEAM" = "True" ]; then
+  echo "Running BEAM"
+  export GOOGLE_API_KEY="$GOOGLE_API_KEY"
+  ./gradlew --stacktrace :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM"g
+fi
 
 # copy to bucket
 storage_url=""

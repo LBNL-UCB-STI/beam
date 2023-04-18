@@ -61,6 +61,10 @@ def create_beam_instance(request):
     shutdown_wait = request_payload.get('shutdown_wait', "15")
     storage_size = request_payload.get('storage_size', "100")
     shutdown_behaviour = request_payload.get('shutdown_behaviour', "terminate")
+    run_jupyter = request_payload.get('run_jupyter', False)
+    run_beam = request_payload.get('run_beam', True)
+    jupyter_token = request_payload.get('jupyter_token', '')
+    jupyter_image = request_payload.get('jupyter_image', '')
 
     project = 'beam-core'
     zone = 'us-central1-a'
@@ -104,6 +108,10 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
         ('slack_token', os.environ['SLACK_TOKEN']),
         ('slack_channel', os.environ['SLACK_CHANNEL']),
         ('user_email', user_email),
+        ('run_beam', run_beam),
+        ('run_jupyter', run_jupyter),
+        ('jupyter_token', jupyter_token),
+        ('jupyter_image', jupyter_image),
     ]
     if shutdown_behaviour.lower() == "terminate":
         metadata.append(('shutdown-script', shutdown_script))
