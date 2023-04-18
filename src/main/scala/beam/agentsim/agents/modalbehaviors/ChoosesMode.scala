@@ -1666,7 +1666,7 @@ trait ChoosesMode {
         numberOfReplanningAttempts = choosesModeData.personData.numberOfReplanningAttempts + 1
       ),
       currentLocation = choosesModeData.currentLocation,
-      excludeModes = choosesModeData.excludeModes
+      excludeModes = choosesModeData.excludeModes ++ choosesModeData.personData.currentTripMode
     )
 
   }
