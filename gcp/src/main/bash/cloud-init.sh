@@ -122,18 +122,25 @@ echo "$start_json"
 curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
 
 
-#building beam
+# building beam
 ./gradlew assemble
-if [ "$RUN_JUPYTER" = "True" ]; then
+
+echo "Going to decide what to do. To run jupyter ('$RUN_JUPYTER' '${RUN_JUPYTER,,}') or to run BEAM ('$RUN_BEAM' '${RUN_BEAM,,}')"
+
+if [ "${RUN_JUPYTER,,}" = "true" ]; then
   echo "Starting Jupyter"
   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
-  sudo ./gradlew jupyterStart -Puser=root -PjupyterToken=$JUPYTER_TOKEN -PjupyterImage=$JUPYTER_IMAGE
+  sudo ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN" -PjupyterImage="$JUPYTER_IMAGE"
+else
+  echo "NOT going to start jupyter."
 fi
 
-if [ "$RUN_BEAM" = "True" ]; then
+if [ "${RUN_BEAM,,}" = "true" ]; then
   echo "Running BEAM"
   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
   ./gradlew --stacktrace :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM"g
+else
+  echo "NOT going to start BEAM."
 fi
 
 # copy to bucket
