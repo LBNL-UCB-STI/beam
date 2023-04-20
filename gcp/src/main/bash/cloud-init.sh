@@ -128,6 +128,26 @@ curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/
 echo "Going to decide what to do. To run jupyter ('$RUN_JUPYTER' '${RUN_JUPYTER,,}') or to run BEAM ('$RUN_BEAM' '${RUN_BEAM,,}')"
 
 if [ "${RUN_JUPYTER,,}" = "true" ]; then
+
+  echo "TODO installation of docker should not be here - it is a test."
+  echo "Preparing to run Jupyter - installing docker"
+  sudo apt-get remove docker docker-engine docker.io containerd runc
+  sudo apt-get update
+  sudo apt-get install ca-certificates curl gnupg
+  sudo install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  sudo chmod a+r /etc/apt/keyrings/docker.gpg
+  echo \
+    "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+    "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  sudo apt-get update
+  sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+  echo "Checking docker is working"
+  sudo docker run hello-world
+  echo "TODO The end of the section that should not be here"
+
   echo "Starting Jupyter"
   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
   sudo ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN" -PjupyterImage="$JUPYTER_IMAGE"
