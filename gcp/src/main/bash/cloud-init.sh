@@ -134,7 +134,7 @@ if [ "${RUN_JUPYTER,,}" = "true" ]; then
   sudo apt-get remove docker docker-engine docker.io containerd runc -y
   sudo apt-get update -y
   sudo apt-get install ca-certificates curl gnupg -y
-  sudo install -m 0755 -d /etc/apt/keyrings -y
+  sudo install -m 0755 -d /etc/apt/keyrings
   curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
   sudo chmod a+r /etc/apt/keyrings/docker.gpg
   echo \
