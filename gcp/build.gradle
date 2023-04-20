@@ -97,7 +97,7 @@ tasks.register('jupyterGCE') {
         def tempInstanceType = "${ext.getParameterValue('instanceType') ?: 'n2-highmem-4'}"
         def finalInstanceType = tempInstanceType.isEmpty() ? null : tempInstanceType
         GString pload = """{
-        "run_name": "${ext.getParameterValue('runName') + '_' + getCurrentGitUserEmail()}",
+        "run_name": "${(ext.getParameterValue('runName') ?: 'jupyter')  + '_' + getCurrentGitUserEmail()}",
         "instance_type": "${finalInstanceType}",
         "forced_max_ram": "${ext.getParameterValue('forcedMaxRAM')}",
         "beam_branch": "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}",
@@ -107,10 +107,10 @@ tasks.register('jupyterGCE') {
         "run_beam": "false",
         "run_jupyter" : "true",
         "jupyter_token" : "${ext.getParameterValue('jupyterToken') ?: UUID.randomUUID().toString()}",
-        "shutdown_wait": "${ext.getParameterValue('shutdownWait')}",
+        "shutdown_wait": "${ext.getParameterValue('jupyterShutdownWait') ?: 60 * 8}",
         "storage_size": "${ext.getParameterValue('storageSize')}",
         "shutdown_behaviour": "${ext.getParameterValue('shutdownBehaviour')}",
-        "storage_publish": ${"false".equalsIgnoreCase(ext.getParameterValue('s3Backup')) ? "false" : "true"},
+        "storage_publish": ${"false".equalsIgnoreCase(ext.getParameterValue('s3Backup')) ? "false" : "true"}
         }"""
         logger.warn(pload)
         HttpResponse result = makeJsonPostRequest(deploy_function_url, pload)
