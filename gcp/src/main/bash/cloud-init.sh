@@ -131,28 +131,28 @@ if [ "${RUN_JUPYTER,,}" = "true" ]; then
 
   echo "TODO installation of docker should not be here - it is a test."
   echo "Preparing to run Jupyter - installing docker"
-  sudo apt-get remove docker docker-engine docker.io containerd runc
-  sudo apt-get update
-  sudo apt-get install ca-certificates curl gnupg
-  sudo install -m 0755 -d /etc/apt/keyrings
+  sudo apt-get remove docker docker-engine docker.io containerd runc -y
+  sudo apt-get update -y
+  sudo apt-get install ca-certificates curl gnupg -y
+  sudo install -m 0755 -d /etc/apt/keyrings -y
   curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
   sudo chmod a+r /etc/apt/keyrings/docker.gpg
   echo \
     "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
     "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
     sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-  sudo apt-get update
-  sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  sudo apt-get update -y
+  sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
 
   echo "Checking docker is working"
   sudo docker run hello-world
   echo "TODO The end of the section that should not be here"
 
-  echo "Starting Jupyter"
+  echo "Starting Jupyter: sudo ./gradlew jupyterStart -Puser=root -PjupyterToken='$JUPYTER_TOKEN' -PjupyterImage='$JUPYTER_IMAGE'"
   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
   sudo ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN" -PjupyterImage="$JUPYTER_IMAGE"
 else
-  echo "NOT going to start jupyter."
+  echo "NOT going to start jupyter. [RUN_JUPYTER ('${RUN_JUPYTER,,}') not equal to 'true']"
 fi
 
 if [ "${RUN_BEAM,,}" = "true" ]; then
@@ -160,7 +160,7 @@ if [ "${RUN_BEAM,,}" = "true" ]; then
   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
   ./gradlew --stacktrace :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM"g
 else
-  echo "NOT going to start BEAM."
+  echo "NOT going to start BEAM. [RUN_BEAM ('${RUN_BEAM,,}') not equal to 'true']"
 fi
 
 # copy to bucket
