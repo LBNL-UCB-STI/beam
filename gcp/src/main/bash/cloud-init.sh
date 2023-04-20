@@ -152,9 +152,21 @@ if [ "${RUN_JUPYTER,,}" = "true" ]; then
   set +x
   echo "TODO The end of the section that should not be here"
 
-  echo "Starting Jupyter: sudo ./gradlew jupyterStart -Puser=root -PjupyterToken='$JUPYTER_TOKEN' -PjupyterImage='$JUPYTER_IMAGE'"
+  if [ -n "$JUPYTER_TOKEN" ]; then
+    jupyter_token="-PjupyterToken='$JUPYTER_TOKEN'"
+  else
+    jupyter_token=""
+  fi
+
+  if [ -n "$JUPYTER_IMAGE" ]; then
+    jupyter_image="-PjupyterImage='$JUPYTER_IMAGE'"
+  else
+    jupyter_image=""
+  fi
+
+  echo "Starting Jupyter: sudo ./gradlew jupyterStart -Puser=root $jupyter_token $jupyter_image"
   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
-  sudo ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN" -PjupyterImage="$JUPYTER_IMAGE"
+  sudo ./gradlew jupyterStart -Puser=root "$jupyter_token" "$jupyter_image"
 else
   echo "NOT going to start jupyter. [RUN_JUPYTER ('${RUN_JUPYTER,,}') not equal to 'true']"
 fi
