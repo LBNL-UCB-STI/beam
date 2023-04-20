@@ -131,6 +131,8 @@ if [ "${RUN_JUPYTER,,}" = "true" ]; then
 
   echo "TODO installation of docker should not be here - it is a test."
   echo "Preparing to run Jupyter - installing docker"
+  set -x
+
   sudo apt-get remove docker docker-engine docker.io containerd runc -y
   sudo apt-get update -y
   sudo apt-get install ca-certificates curl gnupg -y
@@ -146,6 +148,8 @@ if [ "${RUN_JUPYTER,,}" = "true" ]; then
 
   echo "Checking docker is working"
   sudo docker run hello-world
+
+  set +x
   echo "TODO The end of the section that should not be here"
 
   echo "Starting Jupyter: sudo ./gradlew jupyterStart -Puser=root -PjupyterToken='$JUPYTER_TOKEN' -PjupyterImage='$JUPYTER_IMAGE'"
