@@ -30,7 +30,8 @@ case class BeamVehicleType(
   sampleProbabilityString: Option[String] = None,
   chargingCapability: Option[ChargingPointType] = None,
   payloadCapacityInKg: Option[Double] = None,
-  wheelchairAccessible: Option[Boolean] = None
+  wheelchairAccessible: Option[Boolean] = None,
+  restrictRoadsByFreeSpeedInMeterPerSecond: Option[Double] = None
 ) {
   def isSharedVehicle: Boolean = id.toString.startsWith("sharedVehicle")
 
