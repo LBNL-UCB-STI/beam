@@ -166,7 +166,7 @@ if [ "${RUN_JUPYTER,,}" = "true" ]; then
 
   echo "Starting Jupyter: sudo ./gradlew jupyterStart -Puser=root $jupyter_token $jupyter_image"
   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
-  sudo ./gradlew jupyterStart -Puser=root "$jupyter_token" "$jupyter_image"
+  sudo ./gradlew jupyterStart -Puser=root
 else
   echo "NOT going to start jupyter. [RUN_JUPYTER ('${RUN_JUPYTER,,}') not equal to 'true']"
 fi
