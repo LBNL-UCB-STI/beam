@@ -79,11 +79,17 @@ def create_beam_instance(request):
     batch_uid = str(uuid.uuid4())[:8]
     instance_name = to_instance_name(run_name)
     machine_type = f"zones/{zone}/machineTypes/{instance_type.strip()}"
-    disk_image_name = f"projects/{project}/global/images/beam-box"
+
+    disk_image_name = os.environ.get('DISK_IMAGE_NAME')
+    if not disk_image_name:
+        disk_image_name = f"projects/{project}/global/images/beam-box"
+    log(f"disk image: {disk_image_name}")
+
     cloud_init_script_url = os.environ.get('CLOUD_INIT_SCRIPT_URL')
     if not cloud_init_script_url:
         cloud_init_script_url = "https://raw.githubusercontent.com/LBNL-UCB-STI/beam/develop/gcp/src/main/bash/cloud-init.sh"
     log(f"cloud_init_script_url: {cloud_init_script_url}")
+
     startup_script = """
 #!/bin/sh
 CLOUD_INIT_SCRIPT_URL=$(curl http://metadata/computeMetadata/v1/instance/attributes/cloud_init_script_url -H "Metadata-Flavor: Google")
