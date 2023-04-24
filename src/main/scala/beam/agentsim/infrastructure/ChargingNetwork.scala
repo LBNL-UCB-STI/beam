@@ -10,7 +10,7 @@ import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.EnRouteChar
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.power.PowerManager.PowerInKW
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.skim.Skims
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
@@ -143,8 +143,7 @@ object ChargingNetwork extends LazyLogging {
 
   def apply(
     chargingZones: Map[Id[ParkingZoneId], ParkingZone],
-    geoQuadTree: QuadTree[TAZ],
-    idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+    tazTreeMap: TAZTreeMap,
     envelopeInUTM: Envelope,
     beamConfig: BeamConfig,
     distanceFunction: (Coord, Coord) => Double,
@@ -154,8 +153,7 @@ object ChargingNetwork extends LazyLogging {
     new ChargingNetwork(chargingZones) {
       override val searchFunctions: Option[InfrastructureFunctions] = Some(
         new ChargingFunctions(
-          geoQuadTree,
-          idToGeoMapping,
+          tazTreeMap,
           chargingZones,
           distanceFunction,
           beamConfig.beam.agentsim.agents.parking,
@@ -170,8 +168,7 @@ object ChargingNetwork extends LazyLogging {
 
   def apply(
     parkingDescription: Iterator[String],
-    geoQuadTree: QuadTree[TAZ],
-    idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+    TAZTreeMap: TAZTreeMap,
     envelopeInUTM: Envelope,
     beamConfig: BeamConfig,
     beamServicesMaybe: Option[BeamServices],
@@ -190,8 +187,7 @@ object ChargingNetwork extends LazyLogging {
     )
     ChargingNetwork(
       parking.zones.toMap,
-      geoQuadTree,
-      idToGeoMapping,
+      TAZTreeMap,
       envelopeInUTM,
       beamConfig,
       distanceFunction,
@@ -207,8 +203,7 @@ object ChargingNetwork extends LazyLogging {
   ): ChargingNetwork = {
     ChargingNetwork(
       chargingZones,
-      beamServices.beamScenario.tazTreeMap.tazQuadTree,
-      beamServices.beamScenario.tazTreeMap.idToTAZMapping,
+      beamServices.beamScenario.tazTreeMap,
       envelopeInUTM,
       beamServices.beamConfig,
       beamServices.geo.distUTMInMeters(_, _),
