@@ -32,8 +32,6 @@ object ZonalParkingManager extends LazyLogging {
   def apply(
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
     tazTreeMap: TAZTreeMap,
-//    geoQuadTree: QuadTree[TAZ],
-//    idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
     distanceFunction: (Coord, Coord) => Double,
     boundingBox: Envelope,
     minSearchRadius: Double,
@@ -78,8 +76,6 @@ object ZonalParkingManager extends LazyLogging {
   def apply(
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
     TAZTreeMap: TAZTreeMap,
-//    geoQuadTree: QuadTree[TAZ],
-//    idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
     envelopeInUTM: Envelope,
     beamConfig: BeamConfig,
     distanceFunction: (Coord, Coord) => Double
@@ -108,8 +104,6 @@ object ZonalParkingManager extends LazyLogging {
   def apply(
     parkingDescription: Iterator[String],
     TAZTreeMap: TAZTreeMap,
-//    geoQuadTree: QuadTree[TAZ],
-//    idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
     boundingBox: Envelope,
     distanceFunction: (Coord, Coord) => Double,
     minSearchRadius: Double,
@@ -128,8 +122,6 @@ object ZonalParkingManager extends LazyLogging {
     ZonalParkingManager(
       parking.zones.filter(_._2.chargingPointType.isEmpty).toMap,
       TAZTreeMap,
-//      geoQuadTree,
-//      idToGeoMapping,
       distanceFunction,
       boundingBox,
       minSearchRadius,
@@ -154,8 +146,7 @@ object ZonalParkingManager extends LazyLogging {
   ): ZonalParkingManager = {
     ZonalParkingManager(
       parkingZones,
-      beamServices.beamScenario.tazTreeMap, //.tazQuadTree,
-//      beamServices.beamScenario.tazTreeMap.idToTAZMapping,
+      beamServices.beamScenario.tazTreeMap,
       envelopeInUTM,
       beamServices.beamConfig,
       beamServices.geo.distUTMInMeters
