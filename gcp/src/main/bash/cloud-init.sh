@@ -129,44 +129,19 @@ echo "Going to decide what to do. To run jupyter ('$RUN_JUPYTER' '${RUN_JUPYTER,
 
 if [ "${RUN_JUPYTER,,}" = "true" ]; then
 
-  echo "TODO installation of docker should not be here - it is a test."
-  echo "Preparing to run Jupyter - installing docker"
-  set -x
-
-  #  sudo apt-get remove docker docker-engine docker.io containerd runc -y
-  #  sudo apt-get update -y
-  #  sudo apt-get install ca-certificates curl gnupg -y
-  #  sudo install -m 0755 -d /etc/apt/keyrings
-  #  curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  #  sudo chmod a+r /etc/apt/keyrings/docker.gpg
-  #  echo \
-  #    "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
-  #    "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
-  #    sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-  #  sudo apt-get update -y
-  #  sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
-
-  echo "Checking docker is working"
-  sudo docker run hello-world
-
-  set +x
-  echo "TODO The end of the section that should not be here"
-
-  if [ -n "$JUPYTER_TOKEN" ]; then
-    jupyter_token="-PjupyterToken='$JUPYTER_TOKEN'"
-  else
-    jupyter_token=""
-  fi
-
-  if [ -n "$JUPYTER_IMAGE" ]; then
-    jupyter_image="-PjupyterImage='$JUPYTER_IMAGE'"
-  else
-    jupyter_image=""
-  fi
-
-  echo "Starting Jupyter: sudo ./gradlew jupyterStart -Puser=root $jupyter_token $jupyter_image"
   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
-  sudo ./gradlew jupyterStart -Puser=root
+
+  set -x
+  if [ -n "$JUPYTER_TOKEN" ] && [ -n "$JUPYTER_IMAGE" ]
+  then sudo ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN" -PjupyterImage="$JUPYTER_IMAGE"
+  elif [ -n "$JUPYTER_TOKEN" ]
+  then sudo ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN"
+  elif [ -n "$JUPYTER_IMAGE" ]
+  then sudo ./gradlew jupyterStart -Puser=root -PjupyterImage="$JUPYTER_IMAGE"
+  else sudo ./gradlew jupyterStart -Puser=root
+  fi
+  set +x
+
 else
   echo "NOT going to start jupyter. [RUN_JUPYTER ('${RUN_JUPYTER,,}') not equal to 'true']"
 fi
