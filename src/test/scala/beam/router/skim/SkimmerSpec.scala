@@ -102,7 +102,10 @@ class SkimmerSpec extends AnyFlatSpec with Matchers with BeamHelper {
       s"${SkimType.OD_SKIMMER}: the written skim has a different size from memory"
     )
     odSkimsFromMem.foreach { case (key, value) =>
-      assume(value == odSkimsFromDisk(key), s"${SkimType.OD_SKIMMER}: the written skim is different from memory")
+      assume(
+        value == odSkimsFromDisk(key),
+        s"${SkimType.OD_SKIMMER}: the written skim is different from memory for key $key"
+      )
     }
   }
 
@@ -261,6 +264,7 @@ object SkimmerSpec extends LazyLogging {
       ODSkimmerKey(
         hour = row("hour").toInt,
         mode = BeamMode.fromString(row("mode").toLowerCase()).get,
+        rideHailName = Option(row.getOrElse("rideHailName", "")).getOrElse(""),
         origin = row("origTaz"),
         destination = row("destTaz")
       ),
@@ -274,7 +278,7 @@ object SkimmerSpec extends LazyLogging {
         energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
         level4CavTravelTimeScalingFactor =
           Option(row("level4CavTravelTimeScalingFactor")).map(_.toDouble).getOrElse(1.0),
-        failedTrips = 0,
+        failedTrips = row.get("failedTrips").map(_.toDouble).getOrElse(0.0),
         observations = row("observations").toInt,
         iterations = row("iterations").toInt
       )
