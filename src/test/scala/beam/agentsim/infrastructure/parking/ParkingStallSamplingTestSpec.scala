@@ -9,7 +9,7 @@ import org.matsim.core.network.{LinkFactory, NetworkUtils}
 import org.matsim.core.utils.collections.QuadTree
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-
+import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
@@ -51,6 +51,9 @@ class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
           numberOfTimesAtClosestLink should be >= 50
           val numberOfTimesAtFartherLinks = distances.count(x => (x != 100.0) & (x != 150.0))
           numberOfTimesAtFartherLinks should be <= 30
+          // There is a highway link that runs closest to the query point. This should not be available for parking
+          val numberOfTimesOnHighway = distances.count(x => x < 100.0)
+          numberOfTimesOnHighway shouldBe 0
         }
       }
       "30% availability" should {
@@ -252,6 +255,14 @@ object ParkingStallSamplingTestSpec {
     val link34 = network.getFactory.createLink(Id.createLinkId("34"), n3, n4)
     val link65 = network.getFactory.createLink(Id.createLinkId("65"), n6, n5)
     val link78 = network.getFactory.createLink(Id.createLinkId("78"), n8, n7)
+    val link13 = network.getFactory.createLink(Id.createLinkId("13"), n1, n7)
+    link12.setAllowedModes(scala.collection.immutable.Set("car", "walk").asJava)
+    link34.setAllowedModes(scala.collection.immutable.Set("car", "walk").asJava)
+    link65.setAllowedModes(scala.collection.immutable.Set("car", "walk").asJava)
+    link78.setAllowedModes(scala.collection.immutable.Set("car", "walk").asJava)
+
+    // This (highway) link doesn't allow walk so shouldn't allow parking
+    link13.setAllowedModes(scala.collection.immutable.Set("car").asJava)
 
     network.addNode(n1)
     network.addNode(n2)
@@ -265,6 +276,7 @@ object ParkingStallSamplingTestSpec {
     network.addLink(link34)
     network.addLink(link65)
     network.addLink(link78)
+    network.addLink(link13)
 
     val taz: TAZ = new TAZ(
       Id.create("taz", classOf[TAZ]),
