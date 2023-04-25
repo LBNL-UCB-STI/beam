@@ -443,7 +443,7 @@ object ODSkimmer extends LazyLogging {
         energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
         payloadWeightInKg = row.get("payloadWeightInKg").map(_.toDouble).getOrElse(0.0),
         level4CavTravelTimeScalingFactor = row.get("level4CavTravelTimeScalingFactor").map(_.toDouble).getOrElse(1.0),
-        failedTrips = row.get("failedTrips").map(_.toDouble).getOrElse(0.0),
+        failedTrips = NumberUtils.toInt(row("failedTrips"), 0),
         observations = NumberUtils.toInt(row("observations"), 0),
         iterations = NumberUtils.toInt(row("iterations"), 1)
       )
@@ -459,7 +459,7 @@ object ODSkimmer extends LazyLogging {
     payloadWeightInKg: Double,
     energy: Double,
     level4CavTravelTimeScalingFactor: Double,
-    failedTrips: Double,
+    failedTrips: Int = 0,
     observations: Int = 1,
     iterations: Int = 0
   ) extends AbstractSkimmerInternal {

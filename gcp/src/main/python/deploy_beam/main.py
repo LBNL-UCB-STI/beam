@@ -180,6 +180,9 @@ def create_instance_request(instance_name, machine_type, disk_image_name, storag
     return {
         'name': instance_name,
         'machineType': machine_type,
+        'tags': {
+            'items': ['http-server']
+        },
 
         # Specify the boot disk and the image to use as a source.
         'disks': [
