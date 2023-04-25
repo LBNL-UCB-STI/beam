@@ -1638,7 +1638,7 @@ trait ChoosesMode {
 
   private def gotoChoosingModeWithoutPredefinedMode(choosesModeData: ChoosesModeData) = {
     val (newTourVehicle, abandonedVehicle) = choosesModeData.personData.currentTourPersonalVehicle match {
-      case Some(id) =>
+      case Some(id) if beamVehicles.contains(id) =>
         logger.warn(
           s"Abandoning vehicle $id because no return ${choosesModeData.personData.currentTripMode} " +
           s"itinerary is available"
