@@ -21,6 +21,7 @@ import beam.router.RouteHistory
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model._
 import beam.router.skim.core.AbstractSkimmerEvent
+import beam.sim.config.BeamConfigHolder
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
@@ -71,6 +72,8 @@ class PersonAndTransitDriverSpec
 
   private var parkingNetwork: ParkingNetwork = _
   private var parkingManager: ActorRef = _
+
+  private val configHolder = injector.getInstance[BeamConfigHolder](classOf[BeamConfigHolder])
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
@@ -303,7 +306,8 @@ class PersonAndTransitDriverSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+          configHolder
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)

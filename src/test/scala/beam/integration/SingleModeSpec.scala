@@ -10,6 +10,7 @@ import beam.router.Modes.BeamMode
 import beam.router.RouteHistory
 import beam.sflight.RouterForTest
 import beam.sim.common.GeoUtilsImpl
+import beam.sim.config.BeamConfigHolder
 import beam.sim.{BeamHelper, BeamMobsim, RideHailFleetInitializerProvider}
 import beam.utils.{MathUtils, SimRunnerForTest}
 import beam.utils.TestConfigUtils.testConfig
@@ -39,6 +40,8 @@ class SingleModeSpec
       .withFallback(testConfig("test/input/sf-light/sf-light.conf").resolve())
 
   def outputDirPath: String = basePath + "/" + testOutputDir + "single-mode-test"
+
+  private val configHolder = injector.getInstance[BeamConfigHolder](classOf[BeamConfigHolder])
 
   lazy implicit val system: ActorSystem = ActorSystem("SingleModeSpec", config)
 
@@ -81,7 +84,8 @@ class SingleModeSpec
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
         services.networkHelper,
-        new RideHailFleetInitializerProvider(services, beamScenario, scenario)
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario),
+        configHolder
       )
       mobsim.run()
 
@@ -128,7 +132,8 @@ class SingleModeSpec
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
         services.networkHelper,
-        new RideHailFleetInitializerProvider(services, beamScenario, scenario)
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario),
+        configHolder
       )
       mobsim.run()
 
@@ -197,7 +202,8 @@ class SingleModeSpec
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
         services.networkHelper,
-        new RideHailFleetInitializerProvider(services, beamScenario, scenario)
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario),
+        configHolder
       )
       mobsim.run()
 
@@ -268,7 +274,8 @@ class SingleModeSpec
         new GeoUtilsImpl(services.beamConfig),
         new ModeIterationPlanCleaner(beamConfig, scenario),
         services.networkHelper,
-        new RideHailFleetInitializerProvider(services, beamScenario, scenario)
+        new RideHailFleetInitializerProvider(services, beamScenario, scenario),
+        configHolder
       )
       mobsim.run()
 

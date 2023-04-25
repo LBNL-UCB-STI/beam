@@ -21,6 +21,7 @@ import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.skim.core.AbstractSkimmerEvent
+import beam.sim.config.BeamConfigHolder
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.tags.FlakyTest
 import beam.utils.TestConfigUtils.testConfig
@@ -68,8 +69,10 @@ class PersonAgentSpec
 
   private lazy val modeChoiceCalculator = new ModeChoiceUniformRandom(beamConfig)
 
+  private val configHolder = injector.getInstance[BeamConfigHolder](classOf[BeamConfigHolder])
+
   private lazy val tourModeChoiceCalculator =
-    new TourModeChoiceMultinomialLogit(attributesOfIndividual, tourModeChoiceModel)
+    new TourModeChoiceMultinomialLogit(attributesOfIndividual, tourModeChoiceModel, configHolder)
 
   // Mock a transit driver (who has to be a child of a mock router)
   private lazy val transitDriverProps = Props(new ForwardActor(self))
@@ -193,7 +196,8 @@ class PersonAgentSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+          configHolder
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -405,7 +409,8 @@ class PersonAgentSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+          configHolder
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -692,7 +697,8 @@ class PersonAgentSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+          configHolder
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)

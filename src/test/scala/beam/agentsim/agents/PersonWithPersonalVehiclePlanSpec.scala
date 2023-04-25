@@ -36,6 +36,7 @@ import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.funspec.AnyFunSpecLike
 import beam.agentsim.agents.household.HouseholdFleetManager
+import beam.sim.config.BeamConfigHolder
 
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.{mutable, JavaConverters}
@@ -64,6 +65,8 @@ class PersonWithPersonalVehiclePlanSpec
   lazy implicit val system: ActorSystem = ActorSystem("PersonWithPersonalVehiclePlanSpec", config)
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
+
+  private val configHolder = injector.getInstance[BeamConfigHolder](classOf[BeamConfigHolder])
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
@@ -133,7 +136,8 @@ class PersonWithPersonalVehiclePlanSpec
             Vector(),
             Set.empty,
             new RouteHistory(beamConfig),
-            VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+            VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+            configHolder
           )
         )
       )
@@ -374,7 +378,8 @@ class PersonWithPersonalVehiclePlanSpec
             Vector(),
             Set.empty,
             new RouteHistory(beamConfig),
-            VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+            VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+            configHolder
           )
         )
       )
@@ -527,7 +532,8 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+          configHolder
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -640,7 +646,8 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           Set(vehicleType),
           new RouteHistory(beamConfig),
-          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+          configHolder
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -755,7 +762,8 @@ class PersonWithPersonalVehiclePlanSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+          configHolder
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)

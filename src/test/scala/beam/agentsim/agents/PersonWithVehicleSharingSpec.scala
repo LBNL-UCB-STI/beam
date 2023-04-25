@@ -26,6 +26,7 @@ import beam.router.Modes.BeamMode.{CAR, WALK}
 import beam.router.RouteHistory
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.skim.core.AbstractSkimmerEvent
+import beam.sim.config.BeamConfigHolder
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.{SimRunnerForTest, StuckFinder, TestConfigUtils}
@@ -73,6 +74,8 @@ class PersonWithVehicleSharingSpec
   lazy implicit val system: ActorSystem = ActorSystem("PersonWithVehicleSharingSpec", config)
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
+
+  private val configHolder = injector.getInstance[BeamConfigHolder](classOf[BeamConfigHolder])
 
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
@@ -139,7 +142,8 @@ class PersonWithVehicleSharingSpec
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             Set(beamScenario.vehicleTypes(Id.create("sharedVehicle-sharedCar", classOf[BeamVehicleType]))),
             new RouteHistory(beamConfig),
-            VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+            VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+            configHolder
           )
         )
       )
@@ -298,7 +302,8 @@ class PersonWithVehicleSharingSpec
             sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
             Set(beamScenario.vehicleTypes(Id.create("sharedVehicle-sharedCar", classOf[BeamVehicleType]))),
             new RouteHistory(beamConfig),
-            VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+            VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+            configHolder
           )
         )
       )
@@ -563,7 +568,8 @@ class PersonWithVehicleSharingSpec
           Vector(mockSharedVehicleFleet.ref),
           Set(beamScenario.vehicleTypes(Id.create("sharedVehicle-sharedCar", classOf[BeamVehicleType]))),
           new RouteHistory(beamConfig),
-          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+          configHolder
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
