@@ -130,10 +130,10 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
 
   def mapNetworkToTAZs(network: Network): Unit = {
     if (tazListContainsGeoms) {
-      val extent =
+      val extentOfEntireRegion =
         (tazQuadTree.getMinEasting, tazQuadTree.getMinNorthing, tazQuadTree.getMaxEasting, tazQuadTree.getMaxNorthing)
       idToTAZMapping.toList.foreach { case (id, taz) =>
-        val (minX, minY, maxX, maxY) = taz.geometry.map(_.getEnvelope.getEnvelopeInternal) match {
+        val (minXofTAZ, minYofTAZ, maxXofTAZ, maxYofTAZ) = taz.geometry.map(_.getEnvelope.getEnvelopeInternal) match {
           case Some(env) =>
             (
               env.getMinX - tazBoundingBoxBufferMeters,
@@ -141,9 +141,9 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
               env.getMaxX + tazBoundingBoxBufferMeters,
               env.getMaxY + tazBoundingBoxBufferMeters
             )
-          case _ => extent
+          case _ => extentOfEntireRegion
         }
-        tazToLinkIdMapping(id) = new QuadTree[Link](minX, minY, maxX, maxY)
+        tazToLinkIdMapping(id) = new QuadTree[Link](minXofTAZ, minYofTAZ, maxXofTAZ, maxYofTAZ)
       }
       network.getLinks.asScala.foreach {
         case (id, link) =>
