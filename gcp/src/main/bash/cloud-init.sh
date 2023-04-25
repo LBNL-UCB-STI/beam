@@ -121,8 +121,6 @@ EOF
 echo "$start_json"
 curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
 
-
-# building beam
 ./gradlew assemble
 
 echo "Going to decide what to do. To run jupyter ('$RUN_JUPYTER' '${RUN_JUPYTER,,}') or to run BEAM ('$RUN_BEAM' '${RUN_BEAM,,}')"
@@ -146,6 +144,7 @@ else
   echo "NOT going to start jupyter. [RUN_JUPYTER ('${RUN_JUPYTER,,}') not equal to 'true']"
 fi
 
+
 if [ "${RUN_BEAM,,}" = "true" ]; then
   echo "Running BEAM"
   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
@@ -153,6 +152,7 @@ if [ "${RUN_BEAM,,}" = "true" ]; then
 else
   echo "NOT going to start BEAM. [RUN_BEAM ('${RUN_BEAM,,}') not equal to 'true']"
 fi
+
 
 # copy to bucket
 storage_url=""
@@ -163,6 +163,7 @@ for file in "output"/*; do
     finalPath="$path2";
   done;
 done;
+
 
 if [ "${STORAGE_PUBLISH,,}" != "false" ]; then
 
@@ -178,6 +179,7 @@ if [ "${STORAGE_PUBLISH,,}" != "false" ]; then
     storage_url="https://console.cloud.google.com/storage/browser/_details/beam-core-outputs/$cloud_init_output_path"
   fi
 fi
+
 
 #Run and publish analysis
 health_metrics=""
@@ -199,6 +201,7 @@ if [ -d "$finalPath" ]; then
     curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@$simulation_health_analysis_output_file -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
 fi
 
+
 #Slack message
 final_status=$(check_simulation_result)
 bye_msg=$(cat <<EOF
@@ -219,6 +222,7 @@ EOF
 )
 echo "$bye_msg"
 curl -X POST -H 'Content-type: application/json' --data '{"text":"'"$bye_msg"'"}' "$SLACK_HOOK_WITH_TOKEN"
+
 
 # spreadsheet data
 stop_json=$(cat <<EOF
@@ -255,10 +259,12 @@ EOF
 echo "$stop_json"
 curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$stop_json"
 
+
 # uploading cloud-init-output.log again to have the latest output
 if [ "${STORAGE_PUBLISH,,}" != "false" ]; then
   gsutil cp ~/cloud-init-output.log "gs://beam-core-outputs/$cloud_init_output_path"
 fi
+
 
 #shutdown instance
 sudo shutdown -h +"$SHUTDOWN_WAIT"
