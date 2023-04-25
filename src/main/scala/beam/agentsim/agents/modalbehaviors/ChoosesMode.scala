@@ -1461,9 +1461,9 @@ trait ChoosesMode {
       def isAvailable(mode: BeamMode): Boolean = combinedItinerariesForChoice.exists(_.tripClassifier == mode)
 
       choosesModeData.personData.currentTripMode match {
-        case Some(expectedMode) if expectedMode.isTransit && !isAvailable(expectedMode) =>
+        case Some(expectedMode) if !isAvailable(expectedMode) =>
           eventsManager.processEvent(
-            createFailedTransitODSkimmerEvent(currentPersonLocation.loc, nextAct.getCoord, expectedMode)
+            createFailedODSkimmerEvent(currentActivity(personData), nextAct, expectedMode)
           )
         case _ =>
       }
@@ -1572,7 +1572,7 @@ trait ChoosesMode {
                 val currentAct = currentActivity(personData)
                 val odFailedSkimmerEvent = createFailedODSkimmerEvent(currentAct, nextAct, mode)
                 val possibleActivitySimModes =
-                  determineActivitySimPathTypesFromBeamMode(choosesModeData.personData.currentTourMode, currentAct)
+                  determineActivitySimPathTypesFromBeamMode(choosesModeData.personData.currentTripMode, currentAct)
                 eventsManager.processEvent(
                   odFailedSkimmerEvent
                 )
