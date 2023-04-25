@@ -41,8 +41,6 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
   val idToTAZMapping: mutable.HashMap[Id[TAZ], TAZ] = mutable.HashMap()
   private val cache: TrieMap[(Double, Double), TAZ] = TrieMap()
   private val linkIdToTAZMapping: mutable.HashMap[Id[Link], Id[TAZ]] = mutable.HashMap.empty[Id[Link], Id[TAZ]]
-  private val tazBoundingBoxBufferMeters: Double = 2e3 // Some links extend outside of their assigned TAZ, so we
-  // add a buffer to the quadTree to capture more of them. The specific value isn't particularly important
 
   val tazToLinkIdMapping: mutable.HashMap[Id[TAZ], QuadTree[Link]] =
     mutable.HashMap.empty[Id[TAZ], QuadTree[Link]]
@@ -130,20 +128,13 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
 
   def mapNetworkToTAZs(network: Network): Unit = {
     if (tazListContainsGeoms) {
-      val extentOfEntireRegion =
-        (tazQuadTree.getMinEasting, tazQuadTree.getMinNorthing, tazQuadTree.getMaxEasting, tazQuadTree.getMaxNorthing)
-      idToTAZMapping.toList.foreach { case (id, taz) =>
-        val (minXofTAZ, minYofTAZ, maxXofTAZ, maxYofTAZ) = taz.geometry.map(_.getEnvelope.getEnvelopeInternal) match {
-          case Some(env) =>
-            (
-              env.getMinX - tazBoundingBoxBufferMeters,
-              env.getMinY - tazBoundingBoxBufferMeters,
-              env.getMaxX + tazBoundingBoxBufferMeters,
-              env.getMaxY + tazBoundingBoxBufferMeters
-            )
-          case _ => extentOfEntireRegion
-        }
-        tazToLinkIdMapping(id) = new QuadTree[Link](minXofTAZ, minYofTAZ, maxXofTAZ, maxYofTAZ)
+      idToTAZMapping.keySet.foreach { id =>
+        tazToLinkIdMapping(id) = new QuadTree[Link](
+          tazQuadTree.getMinEasting,
+          tazQuadTree.getMinNorthing,
+          tazQuadTree.getMaxEasting,
+          tazQuadTree.getMaxNorthing
+        )
       }
       network.getLinks.asScala.foreach {
         case (id, link) =>
