@@ -37,17 +37,14 @@ object ParkingStallSampling extends ExponentialLazyLogging {
           currentLength += lnk.getLength
           currentLength <= totalLength * availabilityRatio
         }
-        Some(filteredLinks)
-          .filter(_.nonEmpty)
-          .map(
-            _.map(lnk => getClosestPointAlongLink(lnk, requestLocation, distanceFunction)).minBy(loc =>
-              distanceFunction(loc, requestLocation)
-            )
-          )
-          .getOrElse {
-            logger.warn(s"Could not find a link for parking request at location: $requestLocation")
-            availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
-          }
+        if (filteredLinks.isEmpty) {
+          logger.warn(s"Could not find a link for parking request at location: $requestLocation")
+          availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
+        } else {
+          filteredLinks
+            .map(lnk => getClosestPointAlongLink(lnk, requestLocation, distanceFunction))
+            .minBy(loc => distanceFunction(loc, requestLocation))
+        }
       case _ =>
         availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
     }
@@ -77,14 +74,14 @@ object ParkingStallSampling extends ExponentialLazyLogging {
           val (dx, dy) = (p2.getX - p1.getX, p2.getY - p1.getY) // vector between p1 and p2
           val (diffx, diffy) =
             (requestLocation.getX - p1.getX, requestLocation.getY - p1.getY) // vector between p1 and p3
-          val c1 = (dx * diffx + dy * diffy) / (pow(dx, 2) + pow(dy, 2)) // projection of w onto v
+          val c1 = ((dx * diffx) + (dy * diffy)) / (pow(dx, 2d) + pow(dy, 2d)) // projection of w onto v
           if (c1 < 0) {
             p1
           } else if (c1 > 1) {
             p2
           } else {
-            val x = p1.getX + c1 * dx // closest point on line to p3
-            val y = p1.getY + c1 * dy // closest point on line to p3
+            val x = p1.getX + (c1 * dx) // closest point on line to p3
+            val y = p1.getY + (c1 * dy) // closest point on line to p3
             if ((!x.isNaN) && (!y.isNaN)) {
               new Coord(x, y)
             } else {

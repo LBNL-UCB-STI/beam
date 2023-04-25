@@ -22,7 +22,7 @@ class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
           val result: Coord = ParkingStallSampling.linkBasedSampling(
             random,
             agent,
-            tazTreeMap.TAZtoLinkIdMapping.get(taz.tazId),
+            tazTreeMap.tazToLinkIdMapping.get(taz.tazId),
             distance,
             availabilityRatio,
             taz,
@@ -38,7 +38,7 @@ class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
             val result: Coord = ParkingStallSampling.linkBasedSampling(
               random,
               agent,
-              tazTreeMap.TAZtoLinkIdMapping.get(taz.tazId),
+              tazTreeMap.tazToLinkIdMapping.get(taz.tazId),
               distance,
               availabilityRatio,
               taz,
@@ -60,7 +60,7 @@ class ParkingStallSamplingTestSpec extends AnyWordSpec with Matchers {
             val result: Coord = ParkingStallSampling.linkBasedSampling(
               random,
               agent,
-              tazTreeMap.TAZtoLinkIdMapping.get(taz.tazId),
+              tazTreeMap.tazToLinkIdMapping.get(taz.tazId),
               distance,
               availabilityRatio,
               taz,
