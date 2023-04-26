@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, PoisonPill, Props}
 import akka.testkit.TestActors.ForwardActor
 import akka.testkit.{ImplicitSender, TestActorRef, TestFSMRef, TestKitBase, TestProbe}
 import beam.agentsim.agents.PersonTestUtil._
-import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
+import beam.agentsim.agents.choice.mode.{ModeChoiceUniformRandom, TourModeChoiceMultinomialLogit}
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
@@ -21,6 +21,7 @@ import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model.{EmbodiedBeamLeg, _}
 import beam.router.osm.TollCalculator
 import beam.router.skim.core.AbstractSkimmerEvent
+import beam.sim.config.BeamConfigHolder
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.tags.FlakyTest
 import beam.utils.TestConfigUtils.testConfig
@@ -68,6 +69,9 @@ class PersonAgentSpec
 
   private lazy val modeChoiceCalculator = new ModeChoiceUniformRandom(beamConfig)
 
+  private lazy val tourModeChoiceCalculator =
+    new TourModeChoiceMultinomialLogit(attributesOfIndividual, tourModeChoiceModel, configHolder)
+
   // Mock a transit driver (who has to be a child of a mock router)
   private lazy val transitDriverProps = Props(new ForwardActor(self))
 
@@ -102,7 +106,7 @@ class PersonAgentSpec
       val parkingManager = system.actorOf(Props(new TrivialParkingManager))
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       putDefaultBeamAttributes(person, Vector(WALK))
-      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
+      val homeActivity = createActivity("home", 1)
       homeActivity.setStartTime(1.0)
       homeActivity.setEndTime(10.0)
       val plan = PopulationUtils.getFactory.createPlan()
@@ -114,6 +118,7 @@ class PersonAgentSpec
           services,
           beamScenario,
           modeChoiceCalculator,
+          tourModeChoiceCalculator,
           beamScenario.transportNetwork,
           self,
           self,
@@ -153,11 +158,8 @@ class PersonAgentSpec
       val person = PopulationUtils.getFactory.createPerson(Id.createPersonId("dummyAgent"))
       putDefaultBeamAttributes(person, Vector(RIDE_HAIL, RIDE_HAIL_TRANSIT, WALK))
       val plan = PopulationUtils.getFactory.createPlan()
-      val homeActivity = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
-      homeActivity.setEndTime(28800) // 8:00:00 AM
-      plan.addActivity(homeActivity)
-      val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
-      plan.addActivity(workActivity)
+      plan.addActivity(createActivity("home", 1, 28800))
+      plan.addActivity(createActivity("work", 2))
       person.addPlan(plan)
       population.addPerson(person)
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
@@ -192,7 +194,8 @@ class PersonAgentSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+          configHolder
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -404,7 +407,8 @@ class PersonAgentSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+          configHolder
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -691,7 +695,8 @@ class PersonAgentSpec
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
-          VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+          VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+          configHolder
         )
       )
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
@@ -871,6 +876,15 @@ class PersonAgentSpec
       events.expectMsgType[ActivityStartEvent]
     }
 
+  }
+
+  private def createActivity(activity: String, linkId: Int, endTime: Int = -1) = {
+    val homeActivity = PopulationUtils.createActivityFromLinkId(activity, Id.createLinkId(linkId))
+    homeActivity.setCoord(services.networkHelper.getLink(linkId).get.getCoord)
+    if (endTime > 0) {
+      homeActivity.setEndTime(endTime)
+    }
+    homeActivity
   }
 
   after {

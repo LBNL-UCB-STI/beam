@@ -1862,7 +1862,7 @@ object BeamConfig {
                 c: com.typesafe.config.Config
               ): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetByTaz = {
                 BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetByTaz(
-                  fleetSize = if (c.hasPathOrNull("fleetSize")) c.getInt("fleetSize") else 10,
+                  fleetSize = 60,
                   maxWalkingDistance =
                     if (c.hasPathOrNull("maxWalkingDistance")) c.getInt("maxWalkingDistance") else 500,
                   vehicleTypeId =
@@ -4343,8 +4343,8 @@ object BeamConfig {
               bike = if (c.hasPathOrNull("bike")) c.getInt("bike") else 60,
               bike_rent = if (c.hasPathOrNull("bike_rent")) c.getInt("bike_rent") else 180,
               car = if (c.hasPathOrNull("car")) c.getInt("car") else 300,
-              ride_hail = if (c.hasPathOrNull("ride_hail")) c.getInt("ride_hail") else 0,
-              walk = if (c.hasPathOrNull("walk")) c.getInt("walk") else 0
+              ride_hail = if (c.hasPathOrNull("ride_hail")) c.getInt("ride_hail") else 30,
+              walk = if (c.hasPathOrNull("walk")) c.getInt("walk") else 1
             )
           }
         }

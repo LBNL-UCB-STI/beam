@@ -44,6 +44,8 @@ class ModeChoiceMultinomialLogit(
 
   override lazy val beamConfig: BeamConfig = beamConfigHolder.beamConfig
 
+  override val modeChoiceLogit: MultinomialLogit[BeamMode, String] = modeModel
+
   var expectedMaximumUtility: Double = 0.0
   val modalBehaviors: ModalBehaviors = beamConfig.beam.agentsim.agents.modalBehaviors
 

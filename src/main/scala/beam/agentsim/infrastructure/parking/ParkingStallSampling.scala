@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure.parking
 
 import scala.util.Random
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.network.Link
@@ -16,7 +16,7 @@ import scala.math.pow
   */
 object ParkingStallSampling extends ExponentialLazyLogging {
 
-  val maxOffsetDistance = 600.0 // TODO: Make this a config parameter
+  val maxOffsetDistance = 1000.0 // TODO: Make this a config parameter
 
   def linkBasedSampling(
     rand: Random,

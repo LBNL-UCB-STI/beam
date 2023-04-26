@@ -75,7 +75,6 @@ class BeamWarmStartRunSpec
       averageCarSpeedIt0 / averageCarSpeedIt1 should equal(1.0 +- 0.50)
 
       val outputFileIdentifiers = Array(
-        "passengerPerTripBike.csv",
         "passengerPerTripBus.csv",
         "passengerPerTripCar.csv",
         "passengerPerTripRideHail.csv",

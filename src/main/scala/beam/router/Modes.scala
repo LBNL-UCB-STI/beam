@@ -1,6 +1,8 @@
 package beam.router
 
-import beam.router.Modes.BeamMode.{BIKE, CAR, CAR_HOV2, CAR_HOV3, CAV, WALK}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, VehicleOrToken}
+import beam.agentsim.agents.vehicles.{BeamVehicle, VehicleCategory}
+import beam.agentsim.agents.vehicles.VehicleCategory._
 import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import com.conveyal.r5.profile.StreetMode
 import enumeratum.values._
@@ -125,6 +127,10 @@ object Modes {
 
     val chainBasedModes = Seq(CAR, BIKE)
 
+    val personalVehicleModes = Seq(CAR, BIKE, DRIVE_TRANSIT, BIKE_TRANSIT)
+
+    val nonPersonalVehicleModes = Seq(WALK, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK_TRANSIT)
+
     val transitModes =
       Seq(BUS, FUNICULAR, GONDOLA, CABLE_CAR, FERRY, TRAM, TRANSIT, RAIL, SUBWAY)
 
@@ -162,6 +168,8 @@ object Modes {
 
   def isChainBasedMode(beamMode: BeamMode): Boolean = BeamMode.chainBasedModes.contains(beamMode)
 
+  def isPersonalVehicleMode(beamMode: BeamMode): Boolean = BeamMode.personalVehicleModes.contains(beamMode)
+
   implicit def beamMode2R5Mode(beamMode: BeamMode): Either[LegMode, TransitModes] =
     beamMode.r5Mode.get
 
@@ -198,11 +206,11 @@ object Modes {
   }
 
   def toR5StreetMode(mode: BeamMode): StreetMode = mode match {
-    case BIKE => StreetMode.BICYCLE
-    case WALK => StreetMode.WALK
-    case CAR  => StreetMode.CAR
-    case CAV  => StreetMode.CAR
-    case _    => throw new IllegalArgumentException
+    case BeamMode.BIKE => StreetMode.BICYCLE
+    case BeamMode.WALK => StreetMode.WALK
+    case BeamMode.CAR  => StreetMode.CAR
+    case BeamMode.CAV  => StreetMode.CAR
+    case _             => throw new IllegalArgumentException
   }
 
   def toR5StreetMode(mode: LegMode): StreetMode = mode match {
@@ -238,6 +246,154 @@ object Modes {
     case BeamMode.RIDE_HAIL_TRANSIT => BeamMode.CAR
     case BeamMode.BIKE_TRANSIT      => BeamMode.BIKE
     case _                          => throw new IllegalArgumentException("not a transit mode: " + mode.value)
+  }
+
+}
+
+object TourModes {
+  import beam.router.Modes.BeamMode
+  import beam.router.Modes.BeamMode._
+
+  sealed abstract class BeamTourMode(
+    val value: String,
+    val vehicleCategory: VehicleCategory,
+    val allowedBeamModes: Seq[BeamMode],
+    val allowedBeamModesForFirstAndLastLeg: Seq[BeamMode]
+  ) extends StringEnumEntry {
+
+    import BeamTourMode._
+
+    def getModeFromVehicle(beamVehicle: BeamVehicle): BeamMode = {
+      beamVehicle.beamVehicleType.vehicleCategory match {
+        case VehicleCategory.Car  => CAR
+        case VehicleCategory.Bike => BIKE
+        case _                    => WALK
+      }
+    }
+
+    def allowedBeamModesGivenAvailableVehicles(
+      vehicles: Vector[VehicleOrToken],
+      firstOrLastLeg: Boolean
+    ): Seq[BeamMode] = {
+      val relevantModes = if (firstOrLastLeg) { allowedBeamModesForFirstAndLastLeg }
+      else allowedBeamModes
+      if (
+        vehicles
+          .exists { vehOrToken =>
+            !vehOrToken.vehicle.isSharedVehicle && getModeFromVehicle(vehOrToken.vehicle).in(relevantModes)
+          }
+      ) { relevantModes }
+      else { Seq.empty[BeamMode] }
+    }
+
+    def isVehicleBased: Boolean = this match {
+      case WALK_BASED => false
+      case _          => true
+    }
+  }
+
+  object BeamTourMode extends StringEnum[BeamTourMode] with StringCirceEnum[BeamTourMode] {
+
+    override val values: immutable.IndexedSeq[BeamTourMode] = findValues
+
+    def getTourMode(
+      tripMode: BeamMode,
+      availableVehicles: Vector[VehicleOrToken] = Vector.empty[VehicleOrToken]
+    ): (Option[BeamTourMode], Option[BeamVehicle]) = {
+      tripMode match {
+        case CAR | CAR_HOV2 | CAR_HOV3 =>
+          if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
+            // Assume that if they have access to a personal vehicle they'll take it
+            // on the whole tour, otherwise they'll rely on a shared vehicle
+            (Some(CAR_BASED), availableVehicles.find(!_.vehicle.isSharedVehicle).map(_.vehicle))
+          } else (Some(WALK_BASED), None)
+        case BIKE =>
+          if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
+            // Assume that if they have access to a personal vehicle they'll take it
+            // on the whole tour, otherwise they'll rely on a shared vehicle
+            (Some(BIKE_BASED), availableVehicles.find(!_.vehicle.isSharedVehicle).map(_.vehicle))
+          } else (Some(WALK_BASED), None)
+        case DRIVE_TRANSIT =>
+          (
+            Some(WALK_BASED),
+            availableVehicles
+              .find(veh =>
+                (veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car) & !veh.vehicle.isSharedVehicle
+              )
+              .map(_.vehicle)
+          )
+        case BIKE_TRANSIT =>
+          (
+            Some(WALK_BASED),
+            availableVehicles
+              .find(veh =>
+                (veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike) & !veh.vehicle.isSharedVehicle
+              )
+              .map(_.vehicle)
+          )
+        case _ => (Some(WALK_BASED), None)
+      }
+    }
+
+    val enabledModes: Map[BeamMode, Seq[BeamMode]] =
+      Map[BeamMode, Seq[BeamMode]](CAR -> Seq(DRIVE_TRANSIT), BIKE -> Seq(BIKE_TRANSIT))
+
+    // TODO: Also allow use of shared bikes/cars in walk based tours
+    case object WALK_BASED
+        extends BeamTourMode(
+          "walk_based",
+          Body,
+          Seq[BeamMode](
+            WALK,
+            WALK_TRANSIT,
+            RIDE_HAIL,
+            RIDE_HAIL_POOLED,
+            RIDE_HAIL_TRANSIT,
+            HOV2_TELEPORTATION,
+            HOV3_TELEPORTATION
+          ),
+          Seq[BeamMode](
+            WALK,
+            WALK_TRANSIT,
+            RIDE_HAIL,
+            RIDE_HAIL_POOLED,
+            RIDE_HAIL_TRANSIT,
+            DRIVE_TRANSIT,
+            BIKE_TRANSIT,
+            HOV2_TELEPORTATION,
+            HOV3_TELEPORTATION
+          )
+        ) {
+
+      // When we're on a walk based tour, we can still use shared vehicles
+      override def allowedBeamModesGivenAvailableVehicles(
+        vehicles: Vector[VehicleOrToken],
+        firstOrLastLeg: Boolean
+      ): Seq[BeamMode] = {
+        vehicles.flatMap { veh =>
+          if (firstOrLastLeg) {
+            if (veh.vehicle.isSharedVehicle) {
+              Seq(veh.streetVehicle.mode) ++ enabledModes(veh.streetVehicle.mode)
+            } else {
+              enabledModes(veh.streetVehicle.mode)
+            }
+          } else {
+            Seq.empty[BeamMode]
+          }
+        } ++ allowedBeamModes
+      }
+    }
+
+    case object CAR_BASED
+        extends BeamTourMode(
+          "car_based",
+          Car,
+          Seq[BeamMode](CAR, CAR_HOV2, CAR_HOV3),
+          Seq[BeamMode](CAR, CAR_HOV2, CAR_HOV3)
+        )
+
+    case object BIKE_BASED extends BeamTourMode("bike_based", Bike, Seq[BeamMode](BIKE), Seq[BeamMode](BIKE))
+
   }
 
 }

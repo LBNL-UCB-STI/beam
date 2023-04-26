@@ -399,12 +399,19 @@ object HOVModeTransformer extends LazyLogging {
         }
       }
 
-      trip.map { planElement =>
-        planElement.legMode match {
-          case Some(value) if isHOV2(value) => planElement.copy(legMode = Some(getHOV2CarOrTeleportation))
-          case Some(value) if isHOV3(value) => planElement.copy(legMode = Some(getHOV3CarOrTeleportation))
-          case _                            => planElement
-        }
+      val modeForTour = trip.view.flatMap(_.legMode).headOption match {
+        case Some(value) if isHOV2(value) => Some(getHOV2CarOrTeleportation)
+        case Some(value) if isHOV3(value) => Some(getHOV3CarOrTeleportation)
+        case _                            => None
+      }
+
+      trip.map {
+        case planElement if planElement.planElementType == PlanElement.Leg =>
+          modeForTour match {
+            case Some(value) => planElement.copy(legMode = Some(value))
+            case _           => planElement
+          }
+        case planElement: PlanElement => planElement
       }
     }
   }

@@ -1,6 +1,8 @@
 package beam.agentsim.planning
 
 import beam.agentsim.agents.planning.BeamPlan
+import beam.agentsim.agents.planning.Strategy.TripModeChoiceStrategy
+import beam.router.Modes.BeamMode.CAR
 import beam.sim.BeamHelper
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.{Activity, Plan}
@@ -35,6 +37,8 @@ class BeamPlanSpec extends AnyWordSpecLike with Matchers with BeamHelper {
     PopulationUtils.createAndAddLeg(matsimPlan, "car")
     PopulationUtils.createAndAddActivityFromCoord(matsimPlan, "Home", new Coord(0.0, 0.0))
 
+    val strat = TripModeChoiceStrategy(Some(CAR))
+
     "should contain the same activities and legs as the MATSimn plan used in creation" in {
       val beamPlan = BeamPlan(matsimPlan)
       beamPlan.getPlanElements.asScala
@@ -44,7 +48,57 @@ class BeamPlanSpec extends AnyWordSpecLike with Matchers with BeamHelper {
         .zip(beamPlan.getPlanElements.asScala)
         .forall(both => both._1.equals(both._2)) should be(true)
     }
-
+    "should attach a strategy to an activity" in {
+      val beamPlan = BeamPlan(matsimPlan)
+      val act = beamPlan.activities.head
+      beamPlan.putStrategy(act, strat)
+      beamPlan.getStrategy[TripModeChoiceStrategy](act) should be(strat)
+    }
+    "should attach a strategy to a leg" in {
+      val beamPlan = BeamPlan(matsimPlan)
+      val leg = beamPlan.legs.head
+      beamPlan.putStrategy(leg, strat)
+      beamPlan.getStrategy[TripModeChoiceStrategy](leg) should be(strat)
+    }
+    "should attach a strategy to a trip" in {
+      val beamPlan = BeamPlan(matsimPlan)
+      val trip = beamPlan.trips.head
+      beamPlan.putStrategy(trip, strat)
+      beamPlan.getStrategy[TripModeChoiceStrategy](trip) should be(strat)
+    }
+    "should attach a strategy to a tour" in {
+      val beamPlan = BeamPlan(matsimPlan)
+      val tour = beamPlan.tours.head
+      beamPlan.putStrategy(tour, strat)
+      beamPlan.getStrategy[TripModeChoiceStrategy](tour) should be(strat)
+    }
+    "should attach a strategy to a trip and the trip's activity and leg" in {
+      val beamPlan = BeamPlan(matsimPlan)
+      val trip = beamPlan.trips.head
+      beamPlan.putStrategy(trip, strat)
+      beamPlan.getStrategy[TripModeChoiceStrategy](trip.activity) should be(strat)
+      trip.leg match {
+        case Some(leg) =>
+          beamPlan.getStrategy[TripModeChoiceStrategy](leg) should be(strat)
+        case None =>
+      }
+    }
+    "should not attach a strategy to tour's trips, activities, and legs" in {
+      val beamPlan = BeamPlan(matsimPlan)
+      val tour = beamPlan.tours(1)
+      val strategy = TripModeChoiceStrategy(None)
+      beamPlan.putStrategy(tour, strategy)
+      beamPlan.getStrategy[TripModeChoiceStrategy](tour) should be(strategy)
+      tour.trips.foreach { trip =>
+        beamPlan.getStrategy[TripModeChoiceStrategy](trip) should be(strat)
+        beamPlan.getStrategy[TripModeChoiceStrategy](trip.activity) should be(strat)
+        trip.leg match {
+          case Some(leg) =>
+            beamPlan.getStrategy[TripModeChoiceStrategy](leg) should be(strat)
+          case None =>
+        }
+      }
+    }
     "should return a trip or tour containing a leg" in {
       val beamPlan = BeamPlan(matsimPlan)
       val tour = beamPlan.tours(2)

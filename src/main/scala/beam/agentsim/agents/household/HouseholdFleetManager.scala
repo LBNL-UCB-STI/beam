@@ -64,7 +64,7 @@ class HouseholdFleetManager(
         val veh = vehiclesInternal(id)
         veh.setManager(Some(self))
         veh.spaceTime = SpaceTime(resp.stall.locationUTM.getX, resp.stall.locationUTM.getY, 0)
-        veh.setMustBeDrivenHome(true)
+        veh.setMustBeDrivenHome(false)
         veh.useParkingStall(resp.stall)
         val parkEvent = ParkingEvent(
           time = 0,
@@ -182,10 +182,11 @@ class HouseholdFleetManager(
         case None if createAnEmergencyVehicle(inquiry).nonEmpty =>
           logger.debug(s"An emergency vehicle has been created!")
         case _ =>
-          if (availableVehicles.isEmpty)
-            logger.warn(
-              s"The list of vehicles should not be empty, activate emergency personal vehicles generation as a temporary solution"
-            )
+          // I don't think this is actually a problem????
+//          if (availableVehicles.isEmpty)
+//            logger.warn(
+//              s"The list of vehicles should not be empty, activate emergency personal vehicles generation as a temporary solution"
+//            )
           logger.debug(s"Not returning vehicle because no default for  is defined")
           sender() ! MobilityStatusResponse(Vector(), triggerId)
       }
@@ -238,7 +239,7 @@ class HouseholdFleetManager(
       // and complete initialization only when I got them all.
       val responseFuture = parkingManager ? ParkingInquiry.init(
         inquiry.whereWhen,
-        "wherever",
+        "home",
         VehicleManager.getReservedFor(vehicle.vehicleManagerId.get()).get,
         Some(vehicle),
         triggerId = inquiry.triggerId,
@@ -246,6 +247,7 @@ class HouseholdFleetManager(
       )
 
       responseFuture.collect { case ParkingInquiryResponse(stall, _, otherTriggerId) =>
+        vehicle.setMustBeDrivenHome(false)
         vehicle.useParkingStall(stall)
         logger.debug("Vehicle {} is now taken, which was just created", vehicle.id)
         vehicle.becomeDriver(mobilityRequester)

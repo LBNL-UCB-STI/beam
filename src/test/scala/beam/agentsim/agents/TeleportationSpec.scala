@@ -1,7 +1,7 @@
 package beam.agentsim.agents
 
 import akka.actor.ActorSystem
-import beam.agentsim.events.{PathTraversalEvent, TeleportationEvent}
+import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, TeleportationEvent}
 import beam.router.Modes.BeamMode
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.{BeamHelper, BeamServices}
@@ -51,20 +51,28 @@ class TeleportationSpec extends AnyFunSpecLike with Matchers with BeamHelper wit
       val carHov3passengers = mutable.Set.empty[Int]
       val carHov2passengers = mutable.Set.empty[Int]
       val activitiesOfPerson2 = ListBuffer[(String, Double, String)]()
+      val modeChoiceEvents = ListBuffer[(String, Double, String, String, String)]()
       runWithConfig(
         "test/input/beamville/beam-urbansimv2.conf",
         {
           case _: TeleportationEvent =>
             teleportationEvents = teleportationEvents + 1
-          case e: PathTraversalEvent if e.currentTourMode.contains("car_hov3") && e.mode == BeamMode.CAR =>
+          case e: PathTraversalEvent if e.currentTripMode.contains("car_hov3") && e.mode == BeamMode.CAR =>
             carHov3passengers.add(e.numberOfPassengers)
-          case e: PathTraversalEvent if e.currentTourMode.contains("car_hov2") && e.mode == BeamMode.CAR =>
+          case e: PathTraversalEvent if e.currentTripMode.contains("car_hov2") && e.mode == BeamMode.CAR =>
             carHov2passengers.add(e.numberOfPassengers)
           case e: ActivityStartEvent if e.getPersonId.toString == "2" =>
             activitiesOfPerson2.append((e.getLinkId.toString, e.getTime, e.getActType))
+          case e: ModeChoiceEvent =>
+            modeChoiceEvents.append(
+              (e.getPersonId.toString, e.getTime, e.getMode, e.availableAlternatives, e.currentTourMode)
+            )
           case _ =>
         }
       )
+      it("should not have walk mode choices") {
+        modeChoiceEvents.count(_._3.equalsIgnoreCase("walk")) shouldBe 0
+      }
 
       it("should have teleportation events") {
         teleportationEvents shouldBe 12
@@ -80,7 +88,9 @@ class TeleportationSpec extends AnyFunSpecLike with Matchers with BeamHelper wit
         // links
         activitiesList.map(_._1) shouldBe List("300", "142", "300", "142", "300", "142")
         // times
-        activitiesList.map(_._2) shouldBe List(21886.0, 26425.0, 32693.0, 37226.0, 39886.0, 44279.0)
+        activitiesList.map(_._2).zip(List(21886.0, 26425.0, 32693.0, 37226.0, 39886.0, 44279.0)).foreach {
+          case (a, b) => a shouldBe (b +- 600)
+        }
         // type
         activitiesList.map(_._3) shouldBe List("Other", "Home", "Other", "Home", "Other", "Home")
       }

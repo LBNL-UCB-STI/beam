@@ -1,13 +1,21 @@
 package beam.agentsim.agents.planning
 
-import java.{lang, util}
+import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
+import beam.agentsim.agents.planning.BeamPlan.atHome
 
+import java.{lang, util}
+import beam.agentsim.agents.planning.Strategy.{Strategy, TourModeChoiceStrategy, TripModeChoiceStrategy}
+import beam.router.Modes.{isPersonalVehicleMode, BeamMode}
+import beam.router.TourModes.BeamTourMode
+import beam.router.TourModes.BeamTourMode._
 import org.matsim.api.core.v01.population._
 import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.attributable.Attributes
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.reflect.ClassTag
 
 /**
   * BeamPlan
@@ -28,11 +36,19 @@ object BeamPlan {
   def apply(matsimPlan: Plan): BeamPlan = {
     val beamPlan = new BeamPlan
     beamPlan.setPerson(matsimPlan.getPerson)
-    matsimPlan.getPlanElements.asScala.foreach {
-      case activity: Activity =>
-        beamPlan.addActivity(activity)
-      case leg: Leg =>
-        beamPlan.addLeg(leg)
+    matsimPlan.getPlanElements.asScala.headOption match {
+      case Some(a1: Activity) => beamPlan.addActivity(a1)
+      case _                  =>
+    }
+    matsimPlan.getPlanElements.asScala.sliding(2).foreach {
+      case mutable.Buffer(_: Activity, a2: Activity) =>
+        beamPlan.addLeg(PopulationUtils.createLeg(""))
+        beamPlan.addActivity(a2)
+      case mutable.Buffer(a1: Activity, l1: Leg) =>
+        beamPlan.addLeg(l1)
+      case mutable.Buffer(l1: Leg, a1: Activity) =>
+        beamPlan.addActivity(a1)
+      case _ =>
     }
     beamPlan.setScore(matsimPlan.getScore)
     beamPlan.setType(matsimPlan.getType)
@@ -83,6 +99,8 @@ object BeamPlan {
     newPlan.setScore(plan.getScore)
     newPlan
   }
+
+  def atHome(activity: Activity): Boolean = activity.getType.equalsIgnoreCase("home")
 }
 
 class BeamPlan extends Plan {
@@ -90,13 +108,15 @@ class BeamPlan extends Plan {
   //////////////////////////////////////////////////////////////////////
   // Beam-Specific methods
   //////////////////////////////////////////////////////////////////////
-  lazy val trips: Array[Trip] = tours.flatMap(_.trips)
-  lazy val activities: Array[Activity] = tours.flatMap(_.trips.map(_.activity))
-  lazy val legs: Array[Leg] = tours.flatMap(_.trips.map(_.leg)).flatten
+  lazy val trips: Vector[Trip] = tours.flatMap(_.trips)
+  lazy val activities: Vector[Activity] = tours.flatMap(_.trips.map(_.activity))
+  lazy val legs: Vector[Leg] = tours.flatMap(_.trips.map(_.leg)).flatten
   private val actsLegToTrip: mutable.Map[PlanElement, Trip] = mutable.Map()
 
+  private val strategies: mutable.Map[PlanElement, mutable.Map[Class[_ <: Strategy], Strategy]] =
+    mutable.Map()
   // Beam-Specific members
-  var tours: Array[Tour] = Array()
+  var tours: Vector[Tour] = Vector()
   // Implementation of Legacy Interface
   private var person: Person = _
   private var actsLegs: Vector[PlanElement] = Vector()
@@ -104,23 +124,33 @@ class BeamPlan extends Plan {
   private var planType: String = ""
 
   def createToursFromMatsimPlan(): Unit = {
-    val toursBuilder = mutable.ArrayBuilder.make[Tour]()
+    tours = Vector()
     var nextTour = new Tour
     var nextLeg: Option[Leg] = None
     actsLegs.foreach {
       case activity: Activity =>
         val nextTrip = Trip(activity, nextLeg, nextTour)
         nextTour.addTrip(nextTrip)
-        if (activity.getType.equalsIgnoreCase("home")) {
-          toursBuilder += nextTour
-          nextTour = new Tour
+        if (atHome(activity)) {
+          // TODO: Also trigger this if we return to a location already present in the tour
+//          val tripModes = nextTour.trips.flatMap(_.leg.map(_.getMode.map(_.toString.trim)).filter(_.nonEmpty))
+//          if (tripModes.nonEmpty) {
+//            println("SDFSF")
+//          }
+          tours = tours :+ nextTour
+          putStrategy(nextTour, TourModeChoiceStrategy(None))
+          nextTour = new Tour(originActivity = Some(activity))
         }
       case leg: Leg =>
         nextLeg = Some(leg)
     }
-    if (nextTour.trips.nonEmpty) toursBuilder += nextTour
-    tours = toursBuilder.result()
+    if (nextTour.trips.nonEmpty) tours = tours :+ nextTour
     indexBeamPlan()
+    actsLegs.foreach {
+      case l: Leg =>
+        putStrategy(actsLegToTrip(l), TripModeChoiceStrategy(BeamMode.fromString(l.getMode)))
+      case _ =>
+    }
   }
 
   def indexTrip(trip: Trip): Unit = {
@@ -134,6 +164,40 @@ class BeamPlan extends Plan {
 
   def indexBeamPlan(): Unit = {
     tours.foreach(tour => tour.trips.foreach(indexTrip))
+  }
+
+  def putStrategy(planElement: PlanElement, strategy: Strategy): Unit = {
+    val planElementMap = strategies.getOrElseUpdate(planElement, mutable.Map.empty[Class[_ <: Strategy], Strategy])
+    planElementMap.put(strategy.getClass, strategy)
+
+    (strategy, planElement) match {
+      case (tripModeChoiceStrategy: TripModeChoiceStrategy, tour: Tour) =>
+        tripModeChoiceStrategy.tripStrategies(tour, this).foreach { case (trip, _) =>
+          putStrategy(trip, tripModeChoiceStrategy)
+        }
+      case (tripModeChoiceStrategy: TripModeChoiceStrategy, trip: Trip) =>
+        putStrategy(trip.activity, tripModeChoiceStrategy) // I don't think this gets used
+        trip.leg.foreach(theLeg => putStrategy(theLeg, tripModeChoiceStrategy))
+      case (_: TourModeChoiceStrategy, _: Trip) =>
+        throw new RuntimeException("Can only set tour mode strategy from within a tour")
+      case _ =>
+    }
+  }
+
+  def getStrategy[T <: Strategy: ClassTag](planElement: PlanElement): T = {
+    val forClass: Class[T] = implicitly[ClassTag[T]].runtimeClass.asInstanceOf[Class[T]]
+    strategies
+      .getOrElse(planElement, Map.empty[Class[_ <: Strategy], Strategy])
+      .getOrElse(forClass, forClass.getConstructor().newInstance())
+      .asInstanceOf[T]
+  }
+
+  def getTripStrategy[T <: Strategy: ClassTag](activity: Activity): T = {
+    getStrategy(actsLegToTrip(activity))
+  }
+
+  def getTourStrategy[T <: Strategy: ClassTag](activity: Activity): T = {
+    getStrategy(getTourContaining(activity))
   }
 
   def isLastElementInTour(planElement: PlanElement): Boolean = {
@@ -174,6 +238,31 @@ class BeamPlan extends Plan {
         }
     }
   }
+
+  def getTourContaining(index: Int): Tour = {
+    getTourContaining(activities(index))
+  }
+
+  def getTripContaining(index: Int): Trip = {
+    getTripContaining(activities(index))
+  }
+
+//  def getTourModeFromTourLegs(tour: Tour): Option[BeamTourMode] = {
+//    // TODO: Should this just look at the first/last mode of legs?
+//    var tourMode: Option[BeamTourMode] = None
+////    if (tour.trips.exists(trip => trip.leg.isDefined)) {
+////      tour.trips.foreach(trip =>
+////        trip.leg match {
+////          case Some(leg) if leg.getMode.equalsIgnoreCase("car") => tourMode = Some(CAR_BASED)
+////          case Some(leg) if leg.getMode.equalsIgnoreCase("bike") && !tourMode.contains(CAR_BASED) =>
+////            tourMode = Some(BIKE_BASED)
+////          case Some(_) => tourMode = Some(WALK_BASED)
+////          case _       =>
+////        }
+////      )
+////    }
+//    tourMode
+//  }
 
   //////////////////////////////////////////////////////////////////////
   // Supporting legacy interface
