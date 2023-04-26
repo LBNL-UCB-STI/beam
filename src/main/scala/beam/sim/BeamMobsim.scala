@@ -8,7 +8,12 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.freight.FreightReplanner
 import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
-import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailMaster, RideHailSurgePricingManager}
+import beam.agentsim.agents.ridehail.{
+  RideHailIterationHistory,
+  RideHailManager,
+  RideHailMaster,
+  RideHailSurgePricingManager
+}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.events.eventbuilder.EventBuilderActor.{EventBuilderActorCompleted, FlushEvents}
@@ -23,7 +28,6 @@ import beam.router.osm.TollCalculator
 import beam.router.skim.TAZSkimsCollector
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
-import beam.sim.config.BeamConfigHolder
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
 import beam.sim.metrics.{Metrics, MetricsSupport, SimulationMetricCollector}
 import beam.sim.monitoring.ErrorListener
@@ -64,8 +68,7 @@ class BeamMobsim @Inject() (
   val geo: GeoUtils,
   val planCleaner: ModeIterationPlanCleaner,
   val networkHelper: NetworkHelper,
-  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider,
-  beamConfigHolder: BeamConfigHolder
+  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider
 ) extends Mobsim
     with LazyLogging
     with MetricsSupport {
@@ -181,8 +184,7 @@ class BeamMobsim @Inject() (
           rideHailSurgePricingManager,
           rideHailIterationHistory,
           routeHistory,
-          rideHailFleetInitializerProvider,
-          beamConfigHolder
+          rideHailFleetInitializerProvider
         )
       ),
       "BeamMobsim.iteration"
@@ -364,8 +366,7 @@ class BeamMobsimIteration(
   val rideHailSurgePricingManager: RideHailSurgePricingManager,
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory,
-  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider,
-  beamConfigHolder: BeamConfigHolder
+  val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider
 ) extends LoggingMessageActor
     with ActorLogging
     with MetricsSupport {
@@ -558,8 +559,7 @@ class BeamMobsimIteration(
       chargingNetworkManager,
       sharedVehicleFleets,
       matsimServices.getEvents,
-      routeHistory,
-      beamConfigHolder
+      routeHistory
     ),
     "population"
   )

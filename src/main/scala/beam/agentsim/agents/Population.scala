@@ -13,7 +13,6 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
-import beam.sim.config.BeamConfigHolder
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.MathUtils
@@ -41,8 +40,7 @@ class Population(
   val chargingNetworkManager: ActorRef,
   val sharedVehicleFleets: Seq[ActorRef],
   val eventsManager: EventsManager,
-  val routeHistory: RouteHistory,
-  beamConfigHolder: BeamConfigHolder
+  val routeHistory: RouteHistory
 ) extends LoggingMessageActor
     with ActorLogging {
 
@@ -155,8 +153,7 @@ class Population(
           sharedVehicleFleets,
           sharedVehicleTypes,
           routeHistory,
-          vehicleAdjustment,
-          beamConfigHolder
+          vehicleAdjustment
         ),
         household.getId.toString
       )
@@ -213,8 +210,7 @@ object Population {
     chargingNetworkManager: ActorRef,
     sharedVehicleFleets: Seq[ActorRef],
     eventsManager: EventsManager,
-    routeHistory: RouteHistory,
-    beamConfigHolder: BeamConfigHolder
+    routeHistory: RouteHistory
   ): Props = {
     Props(
       new Population(
@@ -230,8 +226,7 @@ object Population {
         chargingNetworkManager,
         sharedVehicleFleets,
         eventsManager,
-        routeHistory,
-        beamConfigHolder
+        routeHistory
       )
     )
   }
