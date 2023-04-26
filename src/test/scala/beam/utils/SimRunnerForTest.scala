@@ -1,9 +1,16 @@
 package beam.utils
 
+import java.io.File
 import akka.actor.ActorSystem
+import beam.agentsim.agents.choice.logit.TourModeChoiceModel
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.events.eventbuilder.{ComplexEventBuilder, EventBuilderActor}
+import beam.api.{BeamCustomizationAPI, DefaultAPIImplementation}
+import beam.router.Modes.BeamMode
 import beam.sim.config.{BeamConfig, BeamConfigHolder, MatSimBeamConfigBuilder}
+import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
+import beam.sim.{BeamHelper, BeamScenario, BeamServices, BeamServicesImpl, RunBeam}
+import com.conveyal.r5.api.util.{LegMode, TransitModes}
 import beam.sim._
 import com.google.inject.Injector
 import org.matsim.core.api.experimental.events.EventsManager
@@ -26,6 +33,18 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll with BeforeAndA
 
   // Next things are pretty cheap in initialization, so let it be non-lazy
   val beamConfig: BeamConfig = BeamConfig(config)
+
+  val attributesOfIndividual: AttributesOfIndividual = AttributesOfIndividual(
+    householdAttributes = HouseholdAttributes("", 0.0, 0, 0, 0),
+    Option(""),
+    false,
+    Seq(BeamMode.CAR),
+    Seq.empty,
+    valueOfTime = 0.0,
+    age = Option(0),
+    income = Option(0)
+  )
+  val tourModeChoiceModel: TourModeChoiceModel = TourModeChoiceModel(beamConfig)
   val matsimConfig: Config = new MatSimBeamConfigBuilder(config).buildMatSimConf()
   matsimConfig.controler.setOutputDirectory(outputDirPath)
   matsimConfig.controler.setOverwriteFileSetting(OverwriteFileSetting.overwriteExistingFiles)
@@ -35,6 +54,7 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll with BeforeAndA
   var injector: Injector = _
   var services: BeamServices = _
   var eventsManager: EventsManager = _
+  var configHolder: BeamConfigHolder = _
 
   override protected def beforeEach(): Unit = {
     services.eventBuilderActor = system.actorOf(
@@ -52,10 +72,11 @@ trait SimRunnerForTest extends BeamHelper with BeforeAndAfterAll with BeforeAndA
     injector = buildInjector(config, beamConfig, scenario, beamScenario, Some(abstractModule))
     services = new BeamServicesImpl(injector)
     eventsManager = new EventsManagerImpl
+    configHolder = injector.getInstance[BeamConfigHolder](classOf[BeamConfigHolder])
     services.modeChoiceCalculatorFactory = ModeChoiceCalculator(
       services.beamConfig.beam.agentsim.agents.modalBehaviors.modeChoiceClass,
       services,
-      injector.getInstance[BeamConfigHolder](classOf[BeamConfigHolder]),
+      configHolder,
       eventsManager
     )
   }
