@@ -375,7 +375,7 @@ object TourModes {
             Seq(veh.streetVehicle.mode) ++ enabledModes(veh.streetVehicle.mode)
           } else if (firstOrLastLeg) {
             Seq(veh.streetVehicle.mode) ++ enabledModes(veh.streetVehicle.mode)
-          } else {
+           else {
             Seq.empty[BeamMode]
           }
         } ++ allowedBeamModes
