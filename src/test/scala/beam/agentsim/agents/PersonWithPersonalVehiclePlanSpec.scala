@@ -65,7 +65,7 @@ class PersonWithPersonalVehiclePlanSpec
   lazy implicit val system: ActorSystem = ActorSystem("PersonWithPersonalVehiclePlanSpec", config)
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
-  
+
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
   private lazy val modeChoiceCalculator = new ModeChoiceUniformRandom(beamConfig)

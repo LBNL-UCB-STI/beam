@@ -72,7 +72,7 @@ class PersonAndTransitDriverSpec
 
   private var parkingNetwork: ParkingNetwork = _
   private var parkingManager: ActorRef = _
-  
+
   private val householdsFactory: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
 
   private lazy val modeChoiceCalculator = new ModeChoiceUniformRandom(beamConfig)

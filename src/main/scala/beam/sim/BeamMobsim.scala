@@ -8,7 +8,12 @@ import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.freight.FreightReplanner
 import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
-import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailManager, RideHailMaster, RideHailSurgePricingManager}
+import beam.agentsim.agents.ridehail.{
+  RideHailIterationHistory,
+  RideHailManager,
+  RideHailMaster,
+  RideHailSurgePricingManager
+}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.agents.{BeamAgent, InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.events.eventbuilder.EventBuilderActor.{EventBuilderActorCompleted, FlushEvents}

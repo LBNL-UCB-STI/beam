@@ -8,8 +8,7 @@ import beam.router.skim.core.ODSkimmer.ODSkimmerTimeCostTransfer
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.config.{BeamConfig, BeamConfigHolder}
 
-
-import scala.collection.{Seq, mutable}
+import scala.collection.{mutable, Seq}
 import scala.util.Random
 
 class TourModeChoiceMultinomialLogit(
