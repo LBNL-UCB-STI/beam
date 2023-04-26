@@ -143,7 +143,7 @@ case class AvailabilityBehaviorBasedRepositioning(
               TAZTreeMap.randomLocationInTAZ(
                 dst.taz,
                 rand,
-                beamServices.beamScenario.tazTreeMap.TAZtoLinkIdMapping(dst.taz.tazId).values().asScala
+                beamServices.beamScenario.tazTreeMap.tazToLinkIdMapping(dst.taz.tazId).values().asScala
               ),
               arrivalTime
             ),

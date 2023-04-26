@@ -92,7 +92,7 @@ case class FixedNonReservingFleetByTAZ(
                   TAZTreeMap.randomLocationInTAZ(
                     taz,
                     rand,
-                    beamServices.beamScenario.tazTreeMap.TAZtoLinkIdMapping(taz.tazId).values().asScala
+                    beamServices.beamScenario.tazTreeMap.tazToLinkIdMapping(taz.tazId).values().asScala
                   )
                 case _ => coord
               })
@@ -109,7 +109,7 @@ case class FixedNonReservingFleetByTAZ(
             TAZTreeMap.randomLocationInTAZ(
               taz,
               rand,
-              beamServices.beamScenario.tazTreeMap.TAZtoLinkIdMapping(taz.tazId).values().asScala
+              beamServices.beamScenario.tazTreeMap.tazToLinkIdMapping(taz.tazId).values().asScala
             )
           )
         }
