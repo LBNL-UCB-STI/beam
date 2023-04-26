@@ -14,11 +14,7 @@ import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavT
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.agents.ridehail.RideHailAgent.{
-  ModifyPassengerSchedule,
-  ModifyPassengerScheduleAck,
-  ModifyPassengerScheduleAcks
-}
+import beam.agentsim.agents.ridehail.RideHailAgent.{ModifyPassengerSchedule, ModifyPassengerScheduleAck, ModifyPassengerScheduleAcks}
 import beam.agentsim.agents.ridehail.RideHailManager.RoutingResponses
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.{VehicleCategory, _}
@@ -37,6 +33,7 @@ import beam.router.RouteHistory
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import beam.router.osm.TollCalculator
 import beam.sim.config.BeamConfig.Beam.Debug
+import beam.sim.config.BeamConfigHolder
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.sim.{BeamScenario, BeamServices}
@@ -80,7 +77,8 @@ object HouseholdActor {
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
-    vehiclesAdjustment: VehiclesAdjustment
+    vehiclesAdjustment: VehiclesAdjustment,
+    beamConfigHolder: BeamConfigHolder
   ): Props = {
     Props(
       new HouseholdActor(
@@ -102,7 +100,8 @@ object HouseholdActor {
         sharedVehicleFleets,
         possibleSharedVehicleTypes,
         routeHistory,
-        vehiclesAdjustment
+        vehiclesAdjustment,
+        beamConfigHolder
       )
     )
   }
@@ -158,7 +157,8 @@ object HouseholdActor {
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
-    vehiclesAdjustment: VehiclesAdjustment
+    vehiclesAdjustment: VehiclesAdjustment,
+    beamConfigHolder: BeamConfigHolder
   ) extends LoggingMessageActor
       with HasTickAndTrigger
       with ActorLogging {
@@ -409,7 +409,7 @@ object HouseholdActor {
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
           val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
           val tourModeChoiceCalculator =
-            new TourModeChoiceMultinomialLogit(attributes, new TourModeChoiceModel(beamScenario.beamConfig))
+            new TourModeChoiceMultinomialLogit(attributes, new TourModeChoiceModel(beamScenario.beamConfig), beamConfigHolder)
           val selectedPlan = person.getSelectedPlan
           // Set zero endTime for plans with one activity. In other case agent sim will be started
           // before all InitializeTrigger's are completed
