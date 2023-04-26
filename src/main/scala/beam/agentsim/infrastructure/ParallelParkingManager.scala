@@ -67,8 +67,7 @@ class ParallelParkingManager(
     val tazTreeMap = TAZTreeMap.fromSeq(cluster.tazes)
     val parkingNetwork = ZonalParkingManager(
       parkingZones,
-      tazTreeMap.tazQuadTree,
-      tazTreeMap.idToTAZMapping,
+      tazTreeMap,
       distanceFunction,
       boundingBox,
       minSearchRadius,
