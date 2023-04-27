@@ -123,28 +123,46 @@ class BeamPlan extends Plan {
   private var score: Double = Double.NaN
   private var planType: String = ""
 
+  private def getTourIdFromMatsimLeg(legOption: Option[Leg]): Option[Int] = {
+    legOption.flatMap(leg => Option(leg.getAttributes.getAttribute("tour_id")).map(_.toString.toInt))
+  }
+
   def createToursFromMatsimPlan(): Unit = {
     tours = Vector()
-    var nextTour = new Tour
+    var currentTourId = -1
+    var currentTour = new Tour(-1)
+    var lastLeg: Option[Leg] = None
     var nextLeg: Option[Leg] = None
     actsLegs.foreach {
       case activity: Activity =>
-        val nextTrip = Trip(activity, nextLeg, nextTour)
-        nextTour.addTrip(nextTrip)
-        if (atHome(activity)) {
-          // TODO: Also trigger this if we return to a location already present in the tour
-//          val tripModes = nextTour.trips.flatMap(_.leg.map(_.getMode.map(_.toString.trim)).filter(_.nonEmpty))
-//          if (tripModes.nonEmpty) {
-//            println("SDFSF")
-//          }
-          tours = tours :+ nextTour
-          putStrategy(nextTour, TourModeChoiceStrategy(None))
-          nextTour = new Tour(originActivity = Some(activity))
+        (getTourIdFromMatsimLeg(lastLeg), getTourIdFromMatsimLeg(nextLeg)) match {
+          case (Some(id1), Some(id2)) if id1 == id2 =>
+            val nextTrip = Trip(activity, nextLeg, currentTour)
+            currentTour.addTrip(nextTrip)
+          case (None, Some(id2)) =>
+            val nextTrip = Trip(activity, nextLeg, currentTour)
+            currentTour.addTrip(nextTrip)
+          case (None, None) if !atHome(activity) || nextLeg.isEmpty =>
+            val nextTrip = Trip(activity, nextLeg, currentTour)
+            currentTour.addTrip(nextTrip)
+          case (lastLegTourId, nextLegTourId) =>
+            tours = tours :+ currentTour
+            putStrategy(currentTour, TourModeChoiceStrategy(None))
+            currentTour = new Tour(nextLegTourId.getOrElse(-1), originActivity = Some(activity))
+            nextLegTourId.foreach { x =>
+              currentTourId = x
+            }
+            val nextTrip = Trip(activity, nextLeg, currentTour)
+            currentTour.addTrip(nextTrip)
         }
+
       case leg: Leg =>
+        val planElementTourId = Option(leg.getAttributes.getAttribute("tour_id")).map(_.toString.toInt)
+        lastLeg = nextLeg
         nextLeg = Some(leg)
+        planElementTourId.foreach { x => currentTourId = x }
     }
-    if (nextTour.trips.nonEmpty) tours = tours :+ nextTour
+    if (currentTour.trips.nonEmpty) tours = tours :+ currentTour
     indexBeamPlan()
     actsLegs.foreach {
       case l: Leg =>
