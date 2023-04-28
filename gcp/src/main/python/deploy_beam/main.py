@@ -141,6 +141,26 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
 
     log(result)
 
+    instance_public_ip = ''
+    need_to_run_jupyter = run_jupyter.lower() == 'true'
+    need_to_run_beam = run_beam.lower() == 'true'
+
+    def try_to_get_public_ip():
+        response_1 = service.instances() \
+            .get(project=project, zone=zone, instance=instance_name) \
+            .execute()
+        # expected 'accessConfigs[0]' to be something like that
+        # but natIP might be missing while instance is starting
+        # "{'kind': 'compute#accessConfig', 'type': 'ONE_TO_ONE_NAT', 'name': 'external-nat', 'natIP': '34.70.109.120', 'networkTier': 'PREMIUM'}"
+        access_configs = response_1['networkInterfaces'][0]['accessConfigs'][0]
+        return access_configs.get('natIP', '')
+
+    attempts = 0
+    while need_to_run_jupyter and not instance_public_ip and attempts < 10:
+        attempts += 1
+        time.sleep(1)
+        instance_public_ip = try_to_get_public_ip()
+
     operation_id = result["id"]
     operation_status = result["status"]
     error = None
@@ -151,24 +171,15 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
     if error:
         return escape(f"operation id: {operation_id}, status: {operation_status}, error: {error}"), 500
     else:
-        #     if run_jupyter and run_beam:
-        # txt += ' Jupyter will be run in parallel with BEAM. Url: http://{dns}:8888/?token={token}'.format(
-        #     dns=host, token=jupyter_token)
-        #
-        # if run_jupyter and not run_beam:
-        #     txt += ' Jupyter is starting. Url: http://{dns}:8888/?token={token}'.format(dns=host,
-        #                                                                                 token=jupyter_token)
-        if run_jupyter.lower() == 'true':
-            return escape(f'Started batch: {batch_uid}'
-                          f' with run name: {run_name}'
-                          f' for branch/commit {beam_branch}/{beam_commit}'
-                          f' at instance {instance_name}'
-                          f' jupyter is starting at .')
-        else:
-            return escape(f'Started batch: {batch_uid}'
-                          f' with run name: {run_name}'
-                          f' for branch/commit {beam_branch}/{beam_commit}'
-                          f' at instance {instance_name}.')
+        response_text = f"Started instance '{instance_name}'"
+        if need_to_run_beam:
+            response_text += f" with run name: '{run_name}'"
+        if need_to_run_beam or need_to_run_jupyter:
+            response_text += f" for branch/commit {beam_branch}/{beam_commit}"
+        if need_to_run_jupyter:
+            response_text += f" jupyter is starting at 'https://{instance_public_ip}:8888/lab?token={jupyter_token}'"
+
+        return escape(response_text)
 
 
 def log(msg, severity="NOTICE"):
