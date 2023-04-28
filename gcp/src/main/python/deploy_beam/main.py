@@ -171,13 +171,13 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
     if error:
         return escape(f"operation id: {operation_id}, status: {operation_status}, error: {error}"), 500
     else:
-        response_text = f"Started instance '{instance_name}'"
+        response_text = f"Started instance {instance_name}"
         if need_to_run_beam:
-            response_text += f" with run name: '{run_name}'"
+            response_text += f" with run name: {run_name}"
         if need_to_run_beam or need_to_run_jupyter:
             response_text += f" for branch/commit {beam_branch}/{beam_commit}"
         if need_to_run_jupyter:
-            response_text += f" jupyter is starting at 'https://{instance_public_ip}:8888/lab?token={jupyter_token}'"
+            response_text += f" jupyter is starting at http://{instance_public_ip}:8888/lab?token={jupyter_token}"
 
         return escape(response_text)
 
