@@ -39,6 +39,8 @@ function check_simulation_result() {
   fi
 }
 
+nohup python3 -m http.server 8000 -d /home &> /dev/null &
+
 #get beam sources
 cd ~/sources/beam
 echo "git fetch"
