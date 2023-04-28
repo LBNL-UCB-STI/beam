@@ -129,40 +129,49 @@ class BeamPlan extends Plan {
 
   def createToursFromMatsimPlan(): Unit = {
     tours = Vector()
-    var currentTourId = -1
+    var currentTourIndex = -1
     var currentTour = new Tour(-1)
-    var lastLeg: Option[Leg] = None
-    var nextLeg: Option[Leg] = None
-    actsLegs.foreach {
-      case activity: Activity =>
-        (getTourIdFromMatsimLeg(lastLeg), getTourIdFromMatsimLeg(nextLeg)) match {
-          case (Some(id1), Some(id2)) if id1 == id2 =>
-            val nextTrip = Trip(activity, nextLeg, currentTour)
-            currentTour.addTrip(nextTrip)
-          case (None, Some(id2)) =>
-            val nextTrip = Trip(activity, nextLeg, currentTour)
-            currentTour.addTrip(nextTrip)
-          case (None, None) if !atHome(activity) || nextLeg.isEmpty =>
-            val nextTrip = Trip(activity, nextLeg, currentTour)
-            currentTour.addTrip(nextTrip)
-          case (lastLegTourId, nextLegTourId) =>
-            tours = tours :+ currentTour
-            putStrategy(currentTour, TourModeChoiceStrategy(None))
-            currentTour = new Tour(nextLegTourId.getOrElse(-1), originActivity = Some(activity))
-            nextLegTourId.foreach { x =>
-              currentTourId = x
-            }
-            val nextTrip = Trip(activity, nextLeg, currentTour)
-            currentTour.addTrip(nextTrip)
+    var currentLeg: Option[Leg] = None
+    actsLegs.sliding(2).foreach {
+      case Vector(activity: Activity, nextLeg: Leg) =>
+        val nextTrip = Trip(activity, Some(nextLeg), currentTour)
+        currentTour.addTrip(nextTrip)
+        val startNewTour = (getTourIdFromMatsimLeg(Some(nextLeg)), currentLeg) match {
+          case (_, None)                                                                => true
+          case (Some(nextId), cleg) if getTourIdFromMatsimLeg(cleg).exists(_ != nextId) => true
+          case (None, _) if atHome(activity)                                            => true
+          case _                                                                        => false
         }
-
-      case leg: Leg =>
-        val planElementTourId = Option(leg.getAttributes.getAttribute("tour_id")).map(_.toString.toInt)
-        lastLeg = nextLeg
-        nextLeg = Some(leg)
-        planElementTourId.foreach { x => currentTourId = x }
+        if (startNewTour) {
+          currentTourIndex += 1
+          currentTour.setTourId(
+            getTourIdFromMatsimLeg(currentLeg).getOrElse(currentTourIndex)
+          )
+          tours = tours :+ currentTour
+          putStrategy(currentTour, TourModeChoiceStrategy(None))
+          currentTour = new Tour(originActivity = Some(activity))
+        }
+      case Vector(leg: Leg, _: Activity) =>
+        currentLeg = Some(leg)
+      case Vector(onlyActivity: Activity) =>
+        val nextTrip = Trip(onlyActivity, currentLeg, currentTour)
+        currentTour.addTrip(nextTrip)
+      case _ =>
+        throw new IllegalArgumentException("Poorly formed input plans")
     }
-    if (currentTour.trips.nonEmpty) tours = tours :+ currentTour
+    actsLegs.lastOption match {
+      case Some(lastAct: Activity) =>
+        val nextTrip = Trip(lastAct, currentLeg, currentTour)
+        currentTour.addTrip(nextTrip)
+      case _ =>
+    }
+
+    if (currentTour.trips.nonEmpty) {
+      currentTour.setTourId(
+        getTourIdFromMatsimLeg(currentLeg).getOrElse(currentTourIndex)
+      )
+      tours = tours :+ currentTour
+    }
     indexBeamPlan()
     actsLegs.foreach {
       case l: Leg =>
@@ -180,7 +189,7 @@ class BeamPlan extends Plan {
     }
   }
 
-  def indexBeamPlan(): Unit = {
+  private def indexBeamPlan(): Unit = {
     tours.foreach(tour => tour.trips.foreach(indexTrip))
   }
 

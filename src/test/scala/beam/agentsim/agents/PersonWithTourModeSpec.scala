@@ -354,22 +354,6 @@ class PersonWithTourModeSpec
     homeActivity2.setCoord(homeLocation)
     homeActivity2.setEndTime(65200)
     plan.addActivity(homeActivity2)
-    val leg3 = PopulationUtils.createLeg(mode.map(_.matsimMode).getOrElse(""))
-    leg3.getAttributes.putAttribute("tour_id", 101)
-    leg3.getAttributes.putAttribute("tour_mode", "")
-    plan.addLeg(leg3)
-    val workActivity2 = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
-    println(tourMode.getOrElse("LOOKATME"))
-    workActivity2.setEndTime(71200) //5:00:00 PM
-    workActivity2.setCoord(workLocation)
-    plan.addActivity(workActivity2)
-    val leg4 = PopulationUtils.createLeg(mode.map(_.matsimMode).getOrElse(""))
-    leg4.getAttributes.putAttribute("tour_id", 101)
-    leg4.getAttributes.putAttribute("tour_mode", "")
-    plan.addLeg(leg4)
-    val homeActivity3 = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
-    homeActivity3.setCoord(homeLocation)
-    plan.addActivity(homeActivity3)
     person.addPlan(plan)
     person
   }
