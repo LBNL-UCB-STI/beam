@@ -14,7 +14,6 @@ apply from: "$rootDir/aws/build.gradle"
 
 group = 'beam'
 version = '0.8.0'
-def deploy_function_url = 'https://us-central1-beam-core.cloudfunctions.net/deploy_beam-for-tests'
 
 buildscript {
     repositories {
@@ -68,7 +67,7 @@ tasks.register('deployToGCE') {
         "config": "${ext.getParameterValue('beamConfigs')}"
         }"""
         logger.warn(pload)
-        HttpResponse result = makeJsonPostRequest(deploy_function_url, pload)
+        HttpResponse result = makeJsonPostRequest("https://us-central1-beam-core.cloudfunctions.net/deploy_beam", pload)
         logger.warn("response status: ${result.statusCode}, response message: ${result.statusMessage}, payload: ${result.content}")
     }
 }
@@ -113,7 +112,7 @@ tasks.register('jupyterGCE') {
         "storage_publish": ${"false".equalsIgnoreCase(ext.getParameterValue('s3Backup')) ? "false" : "true"}
         }"""
         logger.warn(pload)
-        HttpResponse result = makeJsonPostRequest(deploy_function_url, pload)
+        HttpResponse result = makeJsonPostRequest("https://us-central1-beam-core.cloudfunctions.net/deploy_beam", pload)
         logger.warn("response status: ${result.statusCode}, response message: ${result.statusMessage}, payload: ${result.content}")
     }
 }
