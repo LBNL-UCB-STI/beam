@@ -125,8 +125,6 @@ curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/
 
 ./gradlew assemble
 
-echo "Going to decide what to do. To run jupyter ('$RUN_JUPYTER' '${RUN_JUPYTER,,}') or to run BEAM ('$RUN_BEAM' '${RUN_BEAM,,}')"
-
 if [ "${RUN_JUPYTER,,}" = "true" ]; then
 
   export GOOGLE_API_KEY="$GOOGLE_API_KEY"

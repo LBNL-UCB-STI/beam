@@ -146,13 +146,13 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
     need_to_run_beam = run_beam.lower() == 'true'
 
     def try_to_get_public_ip():
-        response_1 = service.instances() \
+        instance_info_response = service.instances() \
             .get(project=project, zone=zone, instance=instance_name) \
             .execute()
-        # expected 'accessConfigs[0]' to be something like that
-        # but natIP might be missing while instance is starting
-        # "{'kind': 'compute#accessConfig', 'type': 'ONE_TO_ONE_NAT', 'name': 'external-nat', 'natIP': '34.70.109.120', 'networkTier': 'PREMIUM'}"
-        access_configs = response_1['networkInterfaces'][0]['accessConfigs'][0]
+        # expected 'accessConfigs[0]' to be something like that: "{'kind': 'compute#accessConfig',
+        # 'type': 'ONE_TO_ONE_NAT', 'name': 'external-nat', 'natIP': '34.70.109.120', 'networkTier': 'PREMIUM'}" ,
+        # but 'natIP' might be missing while instance is starting.
+        access_configs = instance_info_response['networkInterfaces'][0]['accessConfigs'][0]
         return access_configs.get('natIP', '')
 
     attempts = 0
@@ -177,9 +177,10 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
         if need_to_run_beam or need_to_run_jupyter:
             response_text += f", for branch/commit {beam_branch}/{beam_commit}"
         if need_to_run_jupyter:
-            response_text += f", jupyter is starting at http://{instance_public_ip}:8888/lab?token={jupyter_token}"
+            jupyter_url = f"http://{instance_public_ip}:8888/lab?token={jupyter_token}"
+            response_text += f", jupyter will be available at {jupyter_url} in few minutes"
 
-        return escape(response_text)
+        return escape(response_text + ".")
 
 
 def log(msg, severity="NOTICE"):
