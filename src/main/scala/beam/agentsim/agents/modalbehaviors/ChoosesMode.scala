@@ -16,14 +16,17 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.resources.ReservationErrorCode
 import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent, SpaceTime}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{WALK, _}
+import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.ActivitySimPathType.determineActivitySimPathTypesFromBeamMode
+import beam.router.skim.{ActivitySimPathType, ActivitySimSkimmerFailedTripEvent}
 import beam.router.skim.core.ODSkimmer
-import beam.router.skim.event.ODSkimmerFailedTripEvent
+import beam.router.skim.event.{ODSkimmerEvent, ODSkimmerFailedTripEvent}
 import beam.router.skim.readonly.ODSkims
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.population.AttributesOfIndividual
@@ -373,7 +376,7 @@ trait ChoosesMode {
           requester = self,
           rideHailServiceSubscription = attributes.rideHailServiceSubscription,
           triggerId = getCurrentTriggerIdOrGenerate,
-          asPooled = true
+          asPooled = !choosesModeData.personData.currentTourMode.contains(RIDE_HAIL)
         )
         //        println(s"requesting: ${inquiry.requestId}")
         rideHailManager ! inquiry
@@ -505,7 +508,9 @@ trait ChoosesMode {
                     getReplanningReasonFrom(
                       choosesModeData.personData,
                       ReservationErrorCode.HouseholdVehicleNotAvailable.entryName
-                    )
+                    ),
+                    currentPersonLocation.loc.getX,
+                    currentPersonLocation.loc.getY
                   )
                 )
                 householdVehiclesWereNotAvailable = true
@@ -1256,16 +1261,6 @@ trait ChoosesMode {
         parkingResponses
       ) ++ rideHail2TransitIinerary.toVector
 
-      def isAvailable(mode: BeamMode): Boolean = combinedItinerariesForChoice.exists(_.tripClassifier == mode)
-
-      choosesModeData.personData.currentTourMode match {
-        case Some(expectedMode) if expectedMode.isTransit && !isAvailable(expectedMode) =>
-          eventsManager.processEvent(
-            createFailedTransitODSkimmerEvent(currentPersonLocation.loc, nextAct.getCoord, expectedMode)
-          )
-        case _ =>
-      }
-
       val availableModesForTrips: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson)
         .filterNot(mode => choosesModeData.excludeModes.contains(mode))
 
@@ -1377,6 +1372,32 @@ trait ChoosesMode {
                 )
               }
             case Some(mode) =>
+              val currentAct = currentActivity(personData)
+              val odFailedSkimmerEvent = createFailedODSkimmerEvent(currentAct, nextAct, mode)
+              val possibleActivitySimModes =
+                determineActivitySimPathTypesFromBeamMode(choosesModeData.personData.currentTourMode, currentAct)
+              eventsManager.processEvent(
+                odFailedSkimmerEvent
+              )
+              if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
+                createFailedActivitySimSkimmerEvent(odFailedSkimmerEvent, possibleActivitySimModes).foreach(ev =>
+                  eventsManager.processEvent(ev)
+                )
+              }
+              eventsManager.processEvent(
+                new ReplanningEvent(
+                  _currentTick.get,
+                  Id.createPersonId(id),
+                  getReplanningReasonFrom(
+                    choosesModeData.personData,
+                    ReservationErrorCode.RouteNotAvailableForChosenMode.entryName
+                  ),
+                  choosesModeData.currentLocation.loc.getX,
+                  choosesModeData.currentLocation.loc.getY,
+                  nextAct.getCoord.getX,
+                  nextAct.getCoord.getY
+                )
+              )
               //give another chance to make a choice without predefined mode
               val availableVehicles =
                 if (mode.isTeleportation)
@@ -1421,35 +1442,54 @@ trait ChoosesMode {
       }
   }
 
-  private def createFailedTransitODSkimmerEvent(
-    originLocation: Location,
-    destinationLocation: Location,
+  private def createFailedODSkimmerEvent(
+    originActivity: Activity,
+    destinationActivity: Activity,
     mode: BeamMode
   ): ODSkimmerFailedTripEvent = {
-    val skim: ODSkimmer.Skim = ODSkims.getSkimDefaultValue(
-      beamServices.beamConfig,
-      mode,
-      originLocation,
-      destinationLocation,
-      beamScenario.vehicleTypes(dummyRHVehicle.vehicleTypeId),
-      0
-    )
+    val (origCoord, destCoord) = (originActivity.getCoord, destinationActivity.getCoord)
+    val (origin, destination) =
+      if (beamScenario.tazTreeMap.tazListContainsGeoms) {
+        val startTaz = getTazFromActivity(originActivity)
+        val endTaz = getTazFromActivity(destinationActivity)
+        (startTaz.toString, endTaz.toString)
+      } else {
+        beamScenario.exchangeGeoMap match {
+          case Some(geoMap) =>
+            val origGeo = geoMap.getTAZ(origCoord)
+            val destGeo = geoMap.getTAZ(destCoord)
+            (origGeo.tazId.toString, destGeo.tazId.toString)
+          case None =>
+            val origGeo = beamScenario.tazTreeMap.getTAZ(origCoord)
+            val destGeo = beamScenario.tazTreeMap.getTAZ(destCoord)
+            (origGeo.tazId.toString, destGeo.tazId.toString)
+        }
+      }
 
-    val origTazId = beamScenario.tazTreeMap
-      .getTAZ(originLocation.getX, originLocation.getY)
-      .tazId
-    val destTazId = beamScenario.tazTreeMap
-      .getTAZ(destinationLocation.getX, destinationLocation.getY)
-      .tazId
     ODSkimmerFailedTripEvent(
-      origin = origTazId.toString,
-      destination = destTazId.toString,
+      origin = origin,
+      destination = destination,
       eventTime = _currentTick.get,
       mode = mode,
-      skim,
       beamServices.matsimServices.getIterationNumber,
       skimName = beamServices.beamConfig.beam.router.skim.origin_destination_skimmer.name
     )
+  }
+
+  private def createFailedActivitySimSkimmerEvent(
+    failedODSkimmerEvent: ODSkimmerFailedTripEvent,
+    modes: Seq[ActivitySimPathType]
+  ): Seq[ActivitySimSkimmerFailedTripEvent] = {
+    modes.map { pathType =>
+      ActivitySimSkimmerFailedTripEvent(
+        origin = failedODSkimmerEvent.origin,
+        destination = failedODSkimmerEvent.destination,
+        eventTime = _currentTick.get,
+        activitySimPathType = pathType,
+        iterationNumber = beamServices.matsimServices.getIterationNumber,
+        skimName = beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
+      )
+    }
   }
 
   private def allRequiredParkingResponsesReceived(

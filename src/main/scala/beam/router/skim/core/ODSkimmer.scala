@@ -4,6 +4,7 @@ import java.io.BufferedWriter
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes.BeamMode
+import beam.router.skim.event.ODSkimmerEvent
 import beam.router.skim.{readonly, GeoUnit, Skims}
 import beam.router.skim.readonly.ODSkims
 import beam.sim.BeamScenario
@@ -15,6 +16,7 @@ import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.apache.commons.lang3.math.NumberUtils
+import org.matsim.api.core.v01.events.Event
 
 import scala.util.control.NonFatal
 
@@ -31,12 +33,22 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
   override protected val skimFileBaseName: String = config.origin_destination_skimmer.fileBaseName
 
   override protected val skimFileHeader: String =
-    "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,payloadWeightInKg,energy,level4CavTravelTimeScalingFactor,failedTrips,observations,iterations"
+    "hour,mode,rideHailName,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,payloadWeightInKg,energy,level4CavTravelTimeScalingFactor,failedTrips,observations,iterations"
 
   protected lazy val dummyId = Id.create(
     beamScenario.beamConfig.beam.agentsim.agents.rideHail.managers.head.initialization.procedural.vehicleTypeId,
     classOf[BeamVehicleType]
   )
+
+  override def handleEvent(event: Event): Unit = {
+    super.handleEvent(event)
+    //we also duplicate a RideHail mode event to keep track of generic RideHail mode
+    event match {
+      case odEvent: ODSkimmerEvent if odEvent.trip.tripClassifier.isRideHail && odEvent.key.rideHailName.nonEmpty =>
+        super.handleEvent(odEvent.genericRideHailEvent())
+      case _ =>
+    }
+  }
 
   override def writeToDisk(event: IterationEndsEvent): Unit = {
     super.writeToDisk(event)
@@ -62,8 +74,9 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
         val origins = beamScenario.tazTreeMap.getTAZs
           .map(taz => GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
           .toSeq
+        val rideHailNames = getODSkimmerRideHailNames(beamConfig)
         // Yes, we pass origin also as destinations because we want skims between all possible taz pairs
-        writeFullSkims(origins, origins, uniqueTimeBins, filePath)
+        writeFullSkims(origins, origins, uniqueTimeBins, rideHailNames, filePath)
       }
     }
   }
@@ -226,14 +239,15 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
     uniqueTimeBins: Seq[Int],
     origin: GeoUnit,
     destination: GeoUnit,
-    mode: BeamMode
+    mode: BeamMode,
+    rideHailName: String
   ): Unit = {
     val vehicleType: BeamVehicleType = beamScenario.vehicleTypes(dummyId)
     val fuelPrice = beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
     uniqueTimeBins
       .foreach { timeBin =>
         val theSkim: ODSkimmer.Skim =
-          getCurrentSkimValue(ODSkimmerKey(timeBin, mode, origin.id, destination.id))
+          getCurrentSkimValue(ODSkimmerKey(timeBin, mode, rideHailName, origin.id, destination.id))
             .map(_.asInstanceOf[ODSkimmerInternal].toSkimExternal)
             .getOrElse {
               val destCoord =
@@ -249,6 +263,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
                 .asInstanceOf[ODSkims]
                 .getSkimDefaultValue(
                   mode,
+                  rideHailName,
                   origin.center,
                   destCoord,
                   vehicleType,
@@ -258,7 +273,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
 
         //     "hour,mode,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,energy,level4CavTravelTimeScalingFactor,observations,iterations"
         writer.write(
-          s"$timeBin,$mode,${origin.id},${destination.id},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedCost},${theSkim.distance},${theSkim.payloadWeight},${theSkim.energy},${theSkim.level4CavTravelTimeScalingFactor},${theSkim.failedTrips},${theSkim.count}\n"
+          s"$timeBin,$mode,$rideHailName,${origin.id},${destination.id},${theSkim.time},${theSkim.generalizedTime},${theSkim.cost},${theSkim.generalizedCost},${theSkim.distance},${theSkim.payloadWeight},${theSkim.energy},${theSkim.level4CavTravelTimeScalingFactor},${theSkim.failedTrips},${theSkim.count},${theSkim}\n"
         )
       }
   }
@@ -267,6 +282,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
     origins: Seq[GeoUnit],
     destinations: Seq[GeoUnit],
     uniqueTimeBins: Seq[Int],
+    rideHailNames: Seq[String],
     filePath: String
   ): Unit = {
     val uniqueModes = currentSkim.keys.collect { case e: ODSkimmerKey => e.mode }.toList.distinct
@@ -280,7 +296,12 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
       origins.foreach { origin =>
         destinations.foreach { destination =>
           uniqueModes.foreach { mode =>
-            writeSkimRow(writer, uniqueTimeBins, origin, destination, mode)
+            if (mode.isRideHail)
+              rideHailNames.foreach { name =>
+                writeSkimRow(writer, uniqueTimeBins, origin, destination, mode, name)
+              }
+            else
+              writeSkimRow(writer, uniqueTimeBins, origin, destination, mode, "")
           }
         }
       }
@@ -303,7 +324,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
   ): ExcerptData = {
     import scala.language.implicitConversions
     val individualSkims = hoursIncluded.map { timeBin =>
-      getCurrentSkimValue(ODSkimmerKey(timeBin, mode, origin.tazId.toString, destination.tazId.toString))
+      getCurrentSkimValue(ODSkimmerKey(timeBin, mode, "", origin.tazId.toString, destination.tazId.toString))
         .map(_.asInstanceOf[ODSkimmerInternal].toSkimExternal)
         .getOrElse {
           val adjustedDestCoord = if (origin.equals(destination)) {
@@ -318,6 +339,7 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
             .asInstanceOf[ODSkims]
             .getSkimDefaultValue(
               mode,
+              "",
               origin.coord,
               adjustedDestCoord,
               beamScenario.vehicleTypes(dummyId),
@@ -373,8 +395,9 @@ class ODSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamSce
 object ODSkimmer extends LazyLogging {
 
   // cases
-  case class ODSkimmerKey(hour: Int, mode: BeamMode, origin: String, destination: String) extends AbstractSkimmerKey {
-    override def toCsv: String = hour + "," + mode + "," + origin + "," + destination
+  case class ODSkimmerKey(hour: Int, mode: BeamMode, rideHailName: String, origin: String, destination: String)
+      extends AbstractSkimmerKey {
+    override def toCsv: String = hour + "," + mode + "," + rideHailName + "," + origin + "," + destination
   }
 
   def fromCsv(
@@ -384,6 +407,7 @@ object ODSkimmer extends LazyLogging {
       ODSkimmerKey(
         hour = row("hour").toInt,
         mode = BeamMode.fromString(row("mode").toLowerCase()).get,
+        rideHailName = Option(row.getOrElse("rideHailName", "")).getOrElse(""),
         origin = row("origTaz"),
         destination = row("destTaz")
       ),
@@ -396,7 +420,7 @@ object ODSkimmer extends LazyLogging {
         energy = Option(row("energy")).map(_.toDouble).getOrElse(0.0),
         payloadWeightInKg = row.get("payloadWeightInKg").map(_.toDouble).getOrElse(0.0),
         level4CavTravelTimeScalingFactor = row.get("level4CavTravelTimeScalingFactor").map(_.toDouble).getOrElse(1.0),
-        failedTrips = row.get("failedTrips").map(_.toDouble).getOrElse(0.0),
+        failedTrips = NumberUtils.toInt(row("failedTrips"), 0),
         observations = NumberUtils.toInt(row("observations"), 0),
         iterations = NumberUtils.toInt(row("iterations"), 1)
       )
@@ -412,7 +436,7 @@ object ODSkimmer extends LazyLogging {
     payloadWeightInKg: Double,
     energy: Double,
     level4CavTravelTimeScalingFactor: Double,
-    failedTrips: Double,
+    failedTrips: Int = 0,
     observations: Int = 1,
     iterations: Int = 0
   ) extends AbstractSkimmerInternal {
@@ -494,4 +518,8 @@ object ODSkimmer extends LazyLogging {
     weightedEnergy: Double,
     weightedLevel4TravelTimeScaleFactor: Double
   )
+
+  def getODSkimmerRideHailNames(beamConfig: BeamConfig) = {
+    "" :: beamConfig.beam.agentsim.agents.rideHail.managers.map(_.name)
+  }
 }

@@ -93,7 +93,7 @@ abstract class AbstractSkimmer(beamConfig: BeamConfig, ioController: OutputDirec
   protected val skimFileHeader: String
   protected val skimName: String
   protected val skimType: SkimType.Value
-  private lazy val eventType = skimName + "-event"
+  protected lazy val eventType: String = skimName + "-event"
 
   private val awaitSkimLoading = 20.minutes
   private val skimCfg = beamConfig.beam.router.skim

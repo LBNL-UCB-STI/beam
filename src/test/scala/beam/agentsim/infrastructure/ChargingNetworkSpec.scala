@@ -509,8 +509,7 @@ object ChargingNetworkSpec {
   ): ChargingNetwork = {
     ChargingNetwork(
       parkingDescription,
-      tazTreeMap.tazQuadTree,
-      tazTreeMap.idToTAZMapping,
+      tazTreeMap,
       boundingBox,
       beamConfig,
       None,
