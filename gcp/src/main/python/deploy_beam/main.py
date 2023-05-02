@@ -42,13 +42,13 @@ def create_beam_instance(request):
     if not request_payload:
         return escape("No valid json payload provided"), 400
 
-    run_jupyter = request_payload.get('run_jupyter', 'false')
-    run_beam = request_payload.get('run_beam', 'true')
+    run_jupyter = request_payload.get('run_jupyter', False)
+    run_beam = request_payload.get('run_beam', True)
 
-    log(f"run_beam:{run_beam}, run_jupyter:{run_jupyter}, request_json:{request_payload}")
+    log(f"run_beam: {run_beam}, run_jupyter: {run_jupyter}, request_json:{request_payload}")
 
     beam_config = request_payload.get('config', None)
-    if parameter_is_not_specified(beam_config) and run_beam.lower() == 'true':
+    if parameter_is_not_specified(beam_config) and run_beam:
         return escape("No beam config provided"), 400
 
     instance_type = request_payload.get('instance_type', None)
@@ -142,8 +142,6 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
     log(result)
 
     instance_public_ip = ''
-    need_to_run_jupyter = run_jupyter.lower() == 'true'
-    need_to_run_beam = run_beam.lower() == 'true'
 
     def try_to_get_public_ip():
         instance_info_response = service.instances() \
@@ -156,7 +154,7 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
         return access_configs.get('natIP', '')
 
     attempts = 0
-    while need_to_run_jupyter and not instance_public_ip and attempts < 10:
+    while run_jupyter and not instance_public_ip and attempts < 10:
         attempts += 1
         time.sleep(1)
         instance_public_ip = try_to_get_public_ip()
@@ -172,11 +170,11 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
         return escape(f"operation id: {operation_id}, status: {operation_status}, error: {error}"), 500
     else:
         response_text = f"Started instance {instance_name}"
-        if need_to_run_beam:
+        if run_beam:
             response_text += f", with run name: {run_name}"
-        if need_to_run_beam or need_to_run_jupyter:
+        if run_beam or run_jupyter:
             response_text += f", for branch/commit {beam_branch}/{beam_commit}"
-        if need_to_run_jupyter:
+        if run_jupyter:
             jupyter_url = f"http://{instance_public_ip}:8888/lab?token={jupyter_token}"
             response_text += f", jupyter will be available at {jupyter_url} in few minutes"
 
