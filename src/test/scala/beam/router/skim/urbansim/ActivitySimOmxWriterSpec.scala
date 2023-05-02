@@ -4,7 +4,7 @@ import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.skim.ActivitySimPathType.{DRV_COM_WLK, DRV_LRF_WLK}
 import beam.router.skim.ActivitySimSkimmer.ExcerptData
 import omx.OmxFile
-import omx.OmxMatrix.OmxDoubleMatrix
+import omx.OmxMatrix.OmxFloatMatrix
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
@@ -134,7 +134,7 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
         "DRV_LRF_WLK_IWAIT__MD"
       )
       //total in vehicle time data for path type DRV_LRF_WLK and time bin MD
-      val matrix = omxFile.getMatrix("DRV_LRF_WLK_TOTIVT__MD").asInstanceOf[OmxDoubleMatrix]
+      val matrix = omxFile.getMatrix("DRV_LRF_WLK_TOTIVT__MD").asInstanceOf[OmxFloatMatrix]
       matrix.getShape()(0) shouldBe 864
       matrix.getShape()(1) shouldBe 864
       val mapping = geoUnits.zipWithIndex.toMap
