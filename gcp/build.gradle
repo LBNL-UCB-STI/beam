@@ -1,14 +1,9 @@
-import com.google.api.client.http.GenericUrl;
-import com.google.api.client.http.HttpRequest;
-import com.google.api.client.http.HttpResponse;
-import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.HttpContent;
-import com.google.api.client.http.ByteArrayContent;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.auth.http.HttpCredentialsAdapter;
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.auth.oauth2.IdTokenCredentials;
-import com.google.auth.oauth2.IdTokenProvider;
+import com.google.api.client.http.*
+import com.google.api.client.http.javanet.NetHttpTransport
+import com.google.auth.http.HttpCredentialsAdapter
+import com.google.auth.oauth2.GoogleCredentials
+import com.google.auth.oauth2.IdTokenCredentials
+import com.google.auth.oauth2.IdTokenProvider
 
 apply from: "$rootDir/aws/build.gradle"
 
@@ -40,9 +35,8 @@ tasks.register('deployToGCE') {
         ext.getParameterValue = { paramName ->
             if (project.hasProperty(paramName)) {
                 return project.findProperty(paramName)
-            } else {
-                return propsFile.getProperty(paramName)
             }
+            return propsFile.getProperty(paramName)
         }
 
         if (!ext.getParameterValue('runName')) {
@@ -58,7 +52,8 @@ tasks.register('deployToGCE') {
         "beam_commit": "${ext.getParameterValue('beamCommit') ?: 'HEAD'}",
         "data_branch": "${ext.getParameterValue('dataBranch') ?: 'develop'}",
         "data_commit": "${ext.getParameterValue('dataCommit') ?: 'HEAD'}",
-        "run_jupyter" : ${ext.getParameterValue('runJupyter') ?: false},
+        "run_jupyter" : ${ext.getParameterValue('runJupyter') ?: 'false'},
+        "run_beam": ${ext.getParameterValue('runBeam') ?: 'true'},
         "jupyter_token" : "${ext.getParameterValue('jupyterToken') ?: UUID.randomUUID().toString()}",
         "shutdown_wait": "${ext.getParameterValue('shutdownWait')}",
         "storage_size": "${ext.getParameterValue('storageSize')}",
@@ -72,48 +67,29 @@ tasks.register('deployToGCE') {
     }
 }
 
-tasks.register('jupyterGCE') {
+tasks.register("jupyterGCE") {
     doLast {
-        def propsFileName = "../gradle.deploy.properties"
-        if (project.hasProperty('propsFile')) {
-            propsFileName = project.findProperty('propsFile')
+        project.ext."runJupyter" = "true"
+        project.ext."runBeam" = "false"
+        project.ext."beamConfigs" = ""
+
+        if (!project.hasProperty("shutdownWait")) {
+            project.ext."shutdownWait" = 60 * 8
+        }
+        if (!project.hasProperty("runName")) {
+            project.ext."runName" = "jupyter"
+        }
+        if (!project.hasProperty("instanceType")) {
+            project.ext."instanceType" = "n2-highmem-4"
+        }
+        if (!project.hasProperty("s3Backup")) {
+            project.ext."s3Backup" = "false"
+        }
+        if (!project.hasProperty("shutdownBehaviour")) {
+            project.ext."shutdownBehaviour" = "stop"
         }
 
-        def propsFile = new Properties()
-        propsFile.load(project.file(propsFileName).newDataInputStream())
-
-        ext.getParameterValue = { paramName ->
-            if (project.hasProperty(paramName)) {
-                return project.findProperty(paramName)
-            } else {
-                return propsFile.getProperty(paramName)
-            }
-        }
-
-        if (!ext.getParameterValue('runName')) {
-            throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
-        }
-        def tempInstanceType = "${ext.getParameterValue('instanceType') ?: 'n2-highmem-4'}"
-        def finalInstanceType = tempInstanceType.isEmpty() ? null : tempInstanceType
-        GString pload = """{
-        "run_name": "${(ext.getParameterValue('runName') ?: 'jupyter')  + '_' + getCurrentGitUserEmail()}",
-        "instance_type": "${finalInstanceType}",
-        "forced_max_ram": "${ext.getParameterValue('forcedMaxRAM')}",
-        "beam_branch": "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}",
-        "beam_commit": "${ext.getParameterValue('beamCommit') ?: 'HEAD'}",
-        "data_branch": "${ext.getParameterValue('dataBranch') ?: 'develop'}",
-        "data_commit": "${ext.getParameterValue('dataCommit') ?: 'HEAD'}",
-        "run_beam": "false",
-        "run_jupyter" : "true",
-        "jupyter_token" : "${ext.getParameterValue('jupyterToken') ?: UUID.randomUUID().toString()}",
-        "shutdown_wait": "${ext.getParameterValue('jupyterShutdownWait') ?: 60 * 8}",
-        "storage_size": "${ext.getParameterValue('storageSize')}",
-        "shutdown_behaviour": "${ext.getParameterValue('shutdownBehaviour')}",
-        "storage_publish": ${"false".equalsIgnoreCase(ext.getParameterValue('s3Backup')) ? "false" : "true"}
-        }"""
-        logger.warn(pload)
-        HttpResponse result = makeJsonPostRequest("https://us-central1-beam-core.cloudfunctions.net/deploy_beam", pload)
-        logger.warn("response status: ${result.statusCode}, response message: ${result.statusMessage}, payload: ${result.content}")
+        dependsOn ':gcp:deployToGCE'
     }
 }
 
