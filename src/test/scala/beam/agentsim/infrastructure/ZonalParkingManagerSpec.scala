@@ -306,8 +306,7 @@ class ZonalParkingManagerSpec
       val maxSearchRadius = 16093.4 // meters, aka 10 miles
       val zpm = ZonalParkingManager(
         parkingDescription,
-        tazMap.tazQuadTree,
-        tazMap.idToTAZMapping,
+        tazMap,
         boundingBox,
         geo.distUTMInMeters(_, _),
         minSearchRadius,
@@ -365,8 +364,7 @@ class ZonalParkingManagerSpec
       val maxSearchRadius = 16093.4 // meters, aka 10 miles
       val zpm = ZonalParkingManager(
         parkingDescription,
-        tazMap.tazQuadTree,
-        tazMap.idToTAZMapping,
+        tazMap,
         boundingBox,
         geo.distUTMInMeters(_, _),
         minSearchRadius,
@@ -418,8 +416,7 @@ class ZonalParkingManagerSpec
       val parkingZones = InfrastructureUtils.loadParkingStalls(stalls)
       val zonesMap = ZonalParkingManager(
         parkingZones,
-        tazMap.tazQuadTree,
-        tazMap.idToTAZMapping,
+        tazMap,
         geo.distUTMInMeters(_, _),
         boundingBox,
         beamConfig.beam.agentsim.agents.parking.minSearchRadius,
@@ -534,8 +531,7 @@ object ZonalParkingManagerSpec {
     val maxSearchRadius = 16093.4 // meters, aka 10 miles
     ZonalParkingManager(
       parkingDescription,
-      tazTreeMap.tazQuadTree,
-      tazTreeMap.idToTAZMapping,
+      tazTreeMap,
       boundingBox,
       geo.distUTMInMeters(_, _),
       minSearchRadius,
@@ -621,6 +617,7 @@ object ZonalParkingManagerSpec {
               taz.tazId,
               ParkingType.Workplace,
               reservedFor,
+              None,
               5,
               pricingModel = Some(FlatFee(3.0))
             )

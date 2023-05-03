@@ -131,11 +131,9 @@ Mode choice parameters
 * minimumValueOfTime: value of time cannot be lower than this value
 * modeVotMultiplier: allow to modify value of time for a particular trip mode
 * modeVotMultiplier.waiting: not used now
-* overrideAutomationLevel: the value to be used to override the vehicle automation level when calculating generalized time
-of ride-hail legs
+* overrideAutomationLevel: the value to be used to override the vehicle automation level when calculating generalized time of ride-hail legs
 * overrideAutomationForVOTT: enabled overriding of automation level (see overrideAutomationLevel)
-* poolingMultiplier: this multiplier is used when calculating generalized time for pooled ride-hail trip for a particular
-vehicle automation level
+* poolingMultiplier: this multiplier is used when calculating generalized time for pooled ride-hail trip for a particular vehicle automation level
 * highTimeSensitivity.highCongestion.highwayFactor.Level5 when a person go by car (not ride-hail) these params allow to set generalized time multiplier for a particular link for different situations: work trip/other trips, high/low traffic, highway or not, vehicle automation level
 * params.transfer: Constant utility (where 1 util = 1 dollar) of making transfers during a transit trip.
 * params.car_intercept: Constant utility (where 1 util = 1 dollar) of driving.
@@ -303,76 +301,76 @@ Ride hail management
 ^^^^^^^^^^^^^^^^^^^^
 ::
 
-   ##################################################################
-   # RideHail
-   ##################################################################
-   # Ride Hailing General Params
-   beam.agentsim.agents.rideHail.name = "GlobalRHM"
-   beam.agentsim.agents.rideHail.initialization.initType = "PROCEDURAL" # Other possible values - FILE
-   beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypePrefix = "RH"
-   beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId = "Car"
-   beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet = "double | 0.1"
-   beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name = "HOME"
-   beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters = 10000
-   beam.agentsim.agents.rideHail.initialization.filePath = ""
-   beam.agentsim.agents.rideHail.initialization.parking.filePath = ""
-
-   beam.agentsim.agents.rideHail.defaultCostPerMile=1.25
-   beam.agentsim.agents.rideHail.defaultCostPerMinute=0.75
-   beam.agentsim.agents.rideHail.defaultBaseCost = 1.8
-   beam.agentsim.agents.rideHail.pooledBaseCost = 1.89
-   beam.agentsim.agents.rideHail.pooledCostPerMile = 1.11
-   beam.agentsim.agents.rideHail.pooledCostPerMinute = 0.07
-
-   beam.agentsim.agents.rideHail.rideHailManager.radiusInMeters=5000
-
-   # initialLocation(HOME | UNIFORM_RANDOM | ALL_AT_CENTER | ALL_IN_CORNER)
-   beam.agentsim.agents.rideHail.initialLocation.name="HOME"
-   beam.agentsim.agents.rideHail.initialLocation.home.radiusInMeters=10000
-
-   # allocationManager(DEFAULT_MANAGER | REPOSITIONING_LOW_WAITING_TIMES | EV_MANAGER)
-   beam.agentsim.agents.rideHail.allocationManager.name = "DEFAULT_MANAGER"
-   beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 900
-   beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.5 # up to +50%
-   beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds = 0
-   # ASYNC_GREEDY_VEHICLE_CENTRIC_MATCHING, ALONSO_MORA_MATCHING_WITH_ASYNC_GREEDY_ASSIGNMENT, ALONSO_MORA_MATCHING_WITH_MIP_ASSIGNMENT
-   beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "ALONSO_MORA_MATCHING_WITH_ASYNC_GREEDY_ASSIGNMENT"
-   # ALONSO MORA
-   beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 5
-   # Reposition
-   beam.agentsim.agents.rideHail.allocationManager.pooledRideHailIntervalAsMultipleOfSoloRideHail = 1
-
-   beam.agentsim.agents.rideHail.linkFleetStateAcrossIterations = false
-
-   beam.agentsim.agents.rideHail.repositioningManager.name = "DEFAULT_REPOSITIONING_MANAGER"
-   beam.agentsim.agents.rideHail.repositioningManager.timeout = 0
-   # Larger value increase probability of the ride-hail vehicle to reposition
-   beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.sensitivityOfRepositioningToDemand = 1
-   beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.sensitivityOfRepositioningToDemandForCAVs = 1
-   beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.numberOfClustersForDemand = 30
-   beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.fractionOfClosestClustersToConsider = 0.2
-   beam.agentsim.agents.rideHail.repositioningManager.demandFollowingRepositioningManager.horizon = 1200
-   # inverse Square Distance Repositioning Factor
-   beam.agentsim.agents.rideHail.repositioningManager.inverseSquareDistanceRepositioningFactor.sensitivityOfRepositioningToDemand = 0.4
-   beam.agentsim.agents.rideHail.repositioningManager.inverseSquareDistanceRepositioningFactor.sensitivityOfRepositioningToDistance = 0.9
-   beam.agentsim.agents.rideHail.repositioningManager.inverseSquareDistanceRepositioningFactor.predictionHorizon = 3600
-   # reposition Low Waiting Times
-   beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.repositionCircleRadiusInMeters = 3000
-   beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThresholdForRepositioning = 1
-   beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.repositionCircleRadisInMeters=3000.0
-   beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning=1
-   beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition=1.0
-   beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning=1200
-   beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.allowIncreasingRadiusIfDemandInRadiusLow=true
-   beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.minDemandPercentageInRadius=0.1
-   # repositioningMethod(TOP_SCORES | KMEANS)
-   beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.repositioningMethod="TOP_SCORES"
-   beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.keepMaxTopNScores=5
-   beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning=0.00001
-   beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.distanceWeight=0.01
-   beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.waitingTimeWeight=4.0
-   beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.demandWeight=4.0
-   beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes.produceDebugImages=true
+  ##################################################################
+  # RideHail
+  ##################################################################
+  # Ride Hailing General Params
+  beam.agentsim.agents.rideHail.managers = [{
+     name = "GlobalRHM"
+     initialization.initType = "PROCEDURAL" # Other possible values - FILE
+     initialization.procedural.vehicleTypePrefix = "RH"
+     initialization.procedural.vehicleTypeId = "Car"
+     initialization.procedural.fractionOfInitialVehicleFleet = "double | 0.1"
+     initialization.procedural.initialLocation.name = "HOME"
+     initialization.procedural.initialLocation.home.radiusInMeters = 10000
+     initialization.filePath = ""
+     initialization.parking.filePath = ""
+     
+     defaultCostPerMile=1.25
+     defaultCostPerMinute=0.75
+     defaultBaseCost = 1.8
+     pooledBaseCost = 1.89
+     pooledCostPerMile = 1.11
+     pooledCostPerMinute = 0.07
+     
+     rideHailManager.radiusInMeters=5000
+     
+     # initialLocation(HOME | UNIFORM_RANDOM | ALL_AT_CENTER | ALL_IN_CORNER)
+     initialLocation.name="HOME"
+     initialLocation.home.radiusInMeters=10000
+     
+     # allocationManager(DEFAULT_MANAGER | REPOSITIONING_LOW_WAITING_TIMES | EV_MANAGER)
+     allocationManager.name = "DEFAULT_MANAGER"
+     allocationManager.maxWaitingTimeInSec = 900
+     allocationManager.maxExcessRideTime = 0.5 # up to +50%
+     allocationManager.requestBufferTimeoutInSeconds = 0
+     # ASYNC_GREEDY_VEHICLE_CENTRIC_MATCHING, ALONSO_MORA_MATCHING_WITH_ASYNC_GREEDY_ASSIGNMENT, ALONSO_MORA_MATCHING_WITH_MIP_ASSIGNMENT
+     allocationManager.matchingAlgorithm = "ALONSO_MORA_MATCHING_WITH_ASYNC_GREEDY_ASSIGNMENT"
+     # ALONSO MORA
+     allocationManager.alonsoMora.maxRequestsPerVehicle = 5
+     # Reposition
+     allocationManager.pooledRideHailIntervalAsMultipleOfSoloRideHail = 1
+     
+     repositioningManager.name = "DEFAULT_REPOSITIONING_MANAGER"
+     repositioningManager.timeout = 0
+     # Larger value increase probability of the ride-hail vehicle to reposition
+     repositioningManager.demandFollowingRepositioningManager.sensitivityOfRepositioningToDemand = 1
+     repositioningManager.demandFollowingRepositioningManager.sensitivityOfRepositioningToDemandForCAVs = 1
+     repositioningManager.demandFollowingRepositioningManager.numberOfClustersForDemand = 30
+     repositioningManager.demandFollowingRepositioningManager.fractionOfClosestClustersToConsider = 0.2
+     repositioningManager.demandFollowingRepositioningManager.horizon = 1200
+     # inverse Square Distance Repositioning Factor
+     repositioningManager.inverseSquareDistanceRepositioningFactor.sensitivityOfRepositioningToDemand = 0.4
+     repositioningManager.inverseSquareDistanceRepositioningFactor.sensitivityOfRepositioningToDistance = 0.9
+     repositioningManager.inverseSquareDistanceRepositioningFactor.predictionHorizon = 3600
+     # reposition Low Waiting Times
+     allocationManager.repositionLowWaitingTimes.repositionCircleRadiusInMeters = 3000
+     allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThresholdForRepositioning = 1
+     allocationManager.repositionLowWaitingTimes.repositionCircleRadisInMeters=3000.0
+     allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning=1
+     allocationManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition=1.0
+     allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning=1200
+     allocationManager.repositionLowWaitingTimes.allowIncreasingRadiusIfDemandInRadiusLow=true
+     allocationManager.repositionLowWaitingTimes.minDemandPercentageInRadius=0.1
+     # repositioningMethod(TOP_SCORES | KMEANS)
+     allocationManager.repositionLowWaitingTimes.repositioningMethod="TOP_SCORES"
+     allocationManager.repositionLowWaitingTimes.keepMaxTopNScores=5
+     allocationManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning=0.00001
+     allocationManager.repositionLowWaitingTimes.distanceWeight=0.01
+     allocationManager.repositionLowWaitingTimes.waitingTimeWeight=4.0
+     allocationManager.repositionLowWaitingTimes.demandWeight=4.0
+     allocationManager.repositionLowWaitingTimes.produceDebugImages=true
+  }]
 
    beam.agentsim.agents.rideHail.cav.valueOfTime = 1.00
    # when range below refuelRequiredThresholdInMeters, EV Ride Hail CAVs will charge
@@ -384,22 +382,20 @@ Ride hail management
    beam.agentsim.agents.rideHail.cav.noRefuelThresholdInMeters = 96540.0 # 60 miles
    beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters = 10000 # do not dispatch vehicles below this range to ensure enough available to get to charger
 
+   beam.agentsim.agents.rideHail.linkFleetStateAcrossIterations = false
+
    # priceAdjustmentStrategy(KEEP_PRICE_LEVEL_FIXED_AT_ONE | CONTINUES_DEMAND_SUPPLY_MATCHING)
    beam.agentsim.agents.rideHail.surgePricing.priceAdjustmentStrategy="KEEP_PRICE_LEVEL_FIXED_AT_ONE"
    # SurgePricing parameters
    beam.agentsim.agents.rideHail.surgePricing.surgeLevelAdaptionStep=0.1
    beam.agentsim.agents.rideHail.surgePricing.minimumSurgeLevel=0.1
-   beam.agentsim.agents.rideHail.surgePricing.priceAdjustmentStrategy = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
    beam.agentsim.agents.rideHail.surgePricing.numberOfCategories = 6
-
-   beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.drivingTimeMultiplier = -0.01666667 // one minute of driving is one util
-   beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.queueingTimeMultiplier = -0.01666667 // one minute of queueing is one util
-   beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.chargingTimeMultiplier = -0.01666667 // one minute of charging is one util
-   beam.agentsim.agents.rideHail.charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.insufficientRangeMultiplier = -60.0 // indicator variable so straight 60 minute penalty if out of range
 
    beam.agentsim.agents.rideHail.iterationStats.timeBinSizeInSec = 3600.0
 
-* name: RH vehicles prefer parking on parking zones with reservedFor parameter equals to this value
+One can add multiple different RH fleets into the array **beam.agentsim.agents.rideHail.managers** above.
+
+* name: RH manager name. It should be different for each RH config. RH vehicles prefer parking on parking zones with reservedFor parameter equals to this value. A person can be subscribed to a limited set of RH fleets. For Beam scenario one need to put a corresponding attribute (ridehail-service-subscription) to populationAttributes.xml. For Urbansim scenario one need to put attribute (ridehail_service_subscription) to person.csv file. Value of this attribute should contain a comma separated list of RH manager names. If this attribute is not set then the person subscribes to all the RH fleets.
 * initialization.initType: type of ridehail fleet initialization
 * initialization.procedural.vehicleTypePrefix: the vehicle type prefix that indicates ridehail vehicles
 * initialization.procedural.vehicleTypeId: default ridehail vehicle type
@@ -414,10 +410,6 @@ Ride hail management
 * pooledBaseCost: base RH cost for pooled riders
 * pooledCostPerMile: cost per mile for ride hail price calculation for pooled riders.
 * pooledCostPerMinute: cost per minute for ride hail price calculation for pooled riders.
-* surgePricing.priceAdjustmentStrategy: defines different price adjustment strategies
-* surgePricing.surgeLevelAdaptionStep:
-* surgePricing.minimumSurgeLevel:
-* surgePricing.numberOfCategories:
 * radiusInMeters: used during vehicle allocation: considered vehicles that are not further from the request location
   than this value
 * allocationManager.name: RideHail resource allocation manager: DEFAULT_MANAGER, POOLING, POOLING_ALONSO_MORA
@@ -427,7 +419,6 @@ Ride hail management
 * allocationManager.matchingAlgorithm: matching algorithm
 * allocationManager.alonsoMora.maxRequestsPerVehicle: the maximum number of requests that can be considered for a single vehicle
 * allocationManager.pooledRideHailIntervalAsMultipleOfSoloRideHail:
-* linkFleetStateAcrossIterations: if it is set to true then in the next iteration ride-hail fleet state of charge is initialized with the value from the end of previous iteration
 * repositioningManager.name: repositioning manager name (DEFAULT_REPOSITIONING_MANAGER, DEMAND_FOLLOWING_REPOSITIONING_MANAGER, INVERSE_SQUARE_DISTANCE_REPOSITIONING_FACTOR, REPOSITIONING_LOW_WAITING_TIMES, THE_SAME_LOCATION_REPOSITIONING_MANAGER, ALWAYS_BE_REPOSITIONING_MANAGER)
 * repositioningManager.timeout: time interval of repositioning
 * repositioningManager.demandFollowingRepositioningManager.sensitivityOfRepositioningToDemand: should be in [0, 1]; larger value increase probability of the ride-hail vehicle to reposition
@@ -453,6 +444,13 @@ Ride hail management
 * allocationManager.repositionLowWaitingTimes.waitingTimeWeight:
 * allocationManager.repositionLowWaitingTimes.demandWeight:
 * allocationManager.repositionLowWaitingTimes.produceDebugImages:
+
+
+* surgePricing.priceAdjustmentStrategy: defines different price adjustment strategies
+* surgePricing.surgeLevelAdaptionStep:
+* surgePricing.minimumSurgeLevel:
+* surgePricing.numberOfCategories:
+* linkFleetStateAcrossIterations: if it is set to true then in the next iteration ride-hail fleet state of charge is initialized with the value from the end of previous iteration
 * cav.valueOfTime: is used when searching a parking stall for CAVs
 * human.refuelRequiredThresholdInMeters: when range below this value, ride-hail vehicle driven by a human will charge
 * human.noRefuelThresholdInMeters: when range above noRefuelThresholdInMeters, ride-hail vehicle driven by a human will not charge

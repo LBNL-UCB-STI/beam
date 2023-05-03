@@ -73,6 +73,7 @@ trait ScaleUpCharging extends {
         case Some(parkingInquiry) if stall.chargingPointType.isDefined =>
           log.debug(s"parking inquiry with requestId $requestId returned a stall with charging point.")
           val beamVehicle = parkingInquiry.beamVehicle.get
+          val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
           val personId =
             parkingInquiry.personId.map(Id.create(_, classOf[Person])).getOrElse(Id.create("", classOf[Person]))
           self ! ChargingPlugRequest(
@@ -85,7 +86,6 @@ trait ScaleUpCharging extends {
             NotApplicable,
             None
           )
-          val endTime = (parkingInquiry.destinationUtm.time + parkingInquiry.parkingDuration).toInt
           ScheduleTrigger(PlanChargingUnplugRequestTrigger(endTime, beamVehicle, personId), self)
         case Some(_) if stall.chargingPointType.isEmpty =>
           log.debug(s"parking inquiry with requestId $requestId returned a NoCharger stall")
@@ -144,10 +144,9 @@ trait ScaleUpCharging extends {
   protected def simulateEventsIfScalingEnabled(timeBin: Int, triggerId: Long): Vector[ScheduleTrigger] = {
     val allPersonsWhichCarIsChargingByTAZ =
       chargingNetworkHelper.allChargingStations
-        .groupBy(_.zone.tazId)
-        .mapValues(_.flatMap(_.persons).toSet)
-        .view
-        .force
+        .groupBy(_._2.zone.tazId)
+        .mapValues(_.flatMap(_._2.vehicles.map(_._2.personId)).toSet)
+
     val allVirtualPersonsByTAZ = new ConcurrentHashMap[Id[TAZ], mutable.HashSet[Id[Person]]]()
     tazTreeMap.getTAZs.foreach(taz => allVirtualPersonsByTAZ.put(taz.tazId, mutable.HashSet.empty[Id[Person]]))
     vehicleRequests

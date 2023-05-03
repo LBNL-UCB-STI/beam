@@ -561,15 +561,23 @@ class UrbanSimScenarioLoader(
       val (plan, state) = if (currentPlanSize == 0) {
         val newState = State(planInfo.planIndex, planInfo.planSelected)
         val plan = PopulationUtils.createPlan(person)
+        plan.setScore(planInfo.planScore)
         store += (planInfo.personId -> Vector(newState))
         person.addPlan(plan)
+        if (planInfo.planSelected) {
+          person.setSelectedPlan(plan)
+        }
         plan -> newState
       } else {
         val lookingFor = State(planInfo.planIndex, planInfo.planSelected)
         val states = store(planInfo.personId)
         val index = states.zipWithIndex.find(_._1 == lookingFor).map(_._2).getOrElse {
           // couldn't find in store, create new plan
-          person.addPlan(PopulationUtils.createPlan(person))
+          val newPlan = PopulationUtils.createPlan(person)
+          person.addPlan(newPlan)
+          if (planInfo.planSelected) {
+            person.setSelectedPlan(newPlan)
+          }
           store += (planInfo.personId -> (states :+ lookingFor))
           currentPlanSize
         }
@@ -593,11 +601,10 @@ class UrbanSimScenarioLoader(
               val leg = PopulationUtils.createLeg(mode)
               leg.getAttributes.putAttribute("trip_id", tripId)
               plan.addLeg(leg)
-              plan.getAttributes.putAttribute("trip_id", tripId)
             case None =>
               val leg = PopulationUtils.createLeg("")
               leg.getAttributes.putAttribute("trip_id", tripId)
-              plan.getAttributes.putAttribute("trip_id", tripId)
+              plan.addLeg(leg)
           }
         } else if (planElement == PlanElement.Activity) {
           assert(

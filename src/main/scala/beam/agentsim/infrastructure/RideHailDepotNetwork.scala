@@ -1,7 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.infrastructure.parking.{ParkingZone, ParkingZoneId}
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.BeamServices
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
@@ -25,16 +25,14 @@ object RideHailDepotNetwork {
 
   def apply(
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
-    geoQuadTree: QuadTree[TAZ],
-    idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+    tazTreeMap: TAZTreeMap,
     boundingBox: Envelope,
     beamServices: BeamServices
   ): RideHailDepotNetwork = {
     new RideHailDepotNetwork(parkingZones) {
       override val searchFunctions: Option[InfrastructureFunctions] = Some(
         new RideHailDepotFunctions(
-          geoQuadTree,
-          idToGeoMapping,
+          tazTreeMap,
           parkingZones,
           beamServices.geo.distUTMInMeters,
           SearchStartRadius,
@@ -47,7 +45,7 @@ object RideHailDepotNetwork {
           beamServices.beamConfig.beam.agentsim.agents.rideHail,
           beamServices.skims,
           beamServices.beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
-          stationMap
+          chargingStations
         )
       )
     }
@@ -60,8 +58,7 @@ object RideHailDepotNetwork {
   ): RideHailDepotNetwork = {
     RideHailDepotNetwork(
       parkingZones,
-      beamServices.beamScenario.tazTreeMap.tazQuadTree,
-      beamServices.beamScenario.tazTreeMap.idToTAZMapping,
+      beamServices.beamScenario.tazTreeMap,
       boundingBox,
       beamServices
     )

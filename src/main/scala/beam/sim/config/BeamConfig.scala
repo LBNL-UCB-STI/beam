@@ -109,7 +109,8 @@ object BeamConfig {
           reader: java.lang.String,
           replanning: BeamConfig.Beam.Agentsim.Agents.Freight.Replanning,
           tourSampleSizeAsFractionOfTotal: scala.Double,
-          toursFilePath: java.lang.String
+          toursFilePath: java.lang.String,
+          vehicleTypesFilePath: scala.Option[java.lang.String]
         )
 
         object Freight {
@@ -159,7 +160,9 @@ object BeamConfig {
                 else 1.0,
               toursFilePath =
                 if (c.hasPathOrNull("toursFilePath")) c.getString("toursFilePath")
-                else "/test/input/beamville/freight/freight-tours.csv"
+                else "/test/input/beamville/freight/freight-tours.csv",
+              vehicleTypesFilePath =
+                if (c.hasPathOrNull("vehicleTypesFilePath")) Some(c.getString("vehicleTypesFilePath")) else None
             )
           }
         }
@@ -964,6 +967,7 @@ object BeamConfig {
         case class RideHail(
           cav: BeamConfig.Beam.Agentsim.Agents.RideHail.Cav,
           charging: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging,
+          freeSpeedLinkWeightMultiplier: scala.Double,
           human: BeamConfig.Beam.Agentsim.Agents.RideHail.Human,
           iterationStats: BeamConfig.Beam.Agentsim.Agents.RideHail.IterationStats,
           linkFleetStateAcrossIterations: scala.Boolean,
@@ -1252,6 +1256,7 @@ object BeamConfig {
               case class Procedural(
                 fractionOfInitialVehicleFleet: scala.Double,
                 initialLocation: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation,
+                vehicleAdjustmentMethod: java.lang.String,
                 vehicleTypeId: java.lang.String,
                 vehicleTypePrefix: java.lang.String
               )
@@ -1309,6 +1314,8 @@ object BeamConfig {
                         if (c.hasPathOrNull("initialLocation")) c.getConfig("initialLocation")
                         else com.typesafe.config.ConfigFactory.parseString("initialLocation{}")
                       ),
+                    vehicleAdjustmentMethod =
+                      if (c.hasPathOrNull("vehicleAdjustmentMethod")) c.getString("vehicleAdjustmentMethod") else "",
                     vehicleTypeId = if (c.hasPathOrNull("vehicleTypeId")) c.getString("vehicleTypeId") else "Car",
                     vehicleTypePrefix =
                       if (c.hasPathOrNull("vehicleTypePrefix")) c.getString("vehicleTypePrefix") else "RH"
@@ -1508,6 +1515,9 @@ object BeamConfig {
                 if (c.hasPathOrNull("charging")) c.getConfig("charging")
                 else com.typesafe.config.ConfigFactory.parseString("charging{}")
               ),
+              freeSpeedLinkWeightMultiplier =
+                if (c.hasPathOrNull("freeSpeedLinkWeightMultiplier")) c.getDouble("freeSpeedLinkWeightMultiplier")
+                else 2.0,
               human = BeamConfig.Beam.Agentsim.Agents.RideHail.Human(
                 if (c.hasPathOrNull("human")) c.getConfig("human")
                 else com.typesafe.config.ConfigFactory.parseString("human{}")
@@ -2097,45 +2107,52 @@ object BeamConfig {
         chargingPointCostScalingFactor: scala.Double,
         chargingPointCountScalingFactor: scala.Double,
         chargingPointFilePath: java.lang.String,
-        helics: BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics,
         overnightChargingEnabled: scala.Boolean,
+        powerManagerController: scala.Option[BeamConfig.Beam.Agentsim.ChargingNetworkManager.PowerManagerController],
         scaleUp: BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp,
+        sitePowerManagerController: scala.Option[
+          BeamConfig.Beam.Agentsim.ChargingNetworkManager.SitePowerManagerController
+        ],
         timeStepInSeconds: scala.Int
       )
 
       object ChargingNetworkManager {
 
-        case class Helics(
+        case class PowerManagerController(
+          beamFederateName: java.lang.String,
+          beamFederatePublication: java.lang.String,
+          brokerAddress: java.lang.String,
           bufferSize: scala.Int,
-          connectionEnabled: scala.Boolean,
-          coreInitString: java.lang.String,
+          connect: scala.Boolean,
           coreType: java.lang.String,
-          dataInStreamPoint: java.lang.String,
-          dataOutStreamPoint: java.lang.String,
-          federateName: java.lang.String,
           feedbackEnabled: scala.Boolean,
           intLogLevel: scala.Int,
+          pmcFederateName: java.lang.String,
+          pmcFederateSubscription: java.lang.String,
           timeDeltaProperty: scala.Double
         )
 
-        object Helics {
+        object PowerManagerController {
 
-          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics = {
-            BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
-              bufferSize = if (c.hasPathOrNull("bufferSize")) c.getInt("bufferSize") else 1000,
-              connectionEnabled = c.hasPathOrNull("connectionEnabled") && c.getBoolean("connectionEnabled"),
-              coreInitString =
-                if (c.hasPathOrNull("coreInitString")) c.getString("coreInitString")
-                else "--federates=1 --broker_address=tcp://127.0.0.1",
+          def apply(
+            c: com.typesafe.config.Config
+          ): BeamConfig.Beam.Agentsim.ChargingNetworkManager.PowerManagerController = {
+            BeamConfig.Beam.Agentsim.ChargingNetworkManager.PowerManagerController(
+              beamFederateName =
+                if (c.hasPathOrNull("beamFederateName")) c.getString("beamFederateName") else "BEAM_FED",
+              beamFederatePublication =
+                if (c.hasPathOrNull("beamFederatePublication")) c.getString("beamFederatePublication")
+                else "LOAD_DEMAND",
+              brokerAddress = if (c.hasPathOrNull("brokerAddress")) c.getString("brokerAddress") else "tcp://127.0.0.1",
+              bufferSize = if (c.hasPathOrNull("bufferSize")) c.getInt("bufferSize") else 10000000,
+              connect = c.hasPathOrNull("connect") && c.getBoolean("connect"),
               coreType = if (c.hasPathOrNull("coreType")) c.getString("coreType") else "zmq",
-              dataInStreamPoint =
-                if (c.hasPathOrNull("dataInStreamPoint")) c.getString("dataInStreamPoint")
-                else "GridFed/PhysicalBounds",
-              dataOutStreamPoint =
-                if (c.hasPathOrNull("dataOutStreamPoint")) c.getString("dataOutStreamPoint") else "PowerDemand",
-              federateName = if (c.hasPathOrNull("federateName")) c.getString("federateName") else "CNMFederate",
               feedbackEnabled = !c.hasPathOrNull("feedbackEnabled") || c.getBoolean("feedbackEnabled"),
               intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
+              pmcFederateName = if (c.hasPathOrNull("pmcFederateName")) c.getString("pmcFederateName") else "GRID_FED",
+              pmcFederateSubscription =
+                if (c.hasPathOrNull("pmcFederateSubscription")) c.getString("pmcFederateSubscription")
+                else "POWER_LIMITS",
               timeDeltaProperty = if (c.hasPathOrNull("timeDeltaProperty")) c.getDouble("timeDeltaProperty") else 1.0
             )
           }
@@ -2159,6 +2176,49 @@ object BeamConfig {
           }
         }
 
+        case class SitePowerManagerController(
+          beamFederatePrefix: java.lang.String,
+          beamFederatePublication: java.lang.String,
+          brokerAddress: java.lang.String,
+          bufferSize: scala.Int,
+          connect: scala.Boolean,
+          coreType: java.lang.String,
+          expectFeedback: scala.Boolean,
+          intLogLevel: scala.Int,
+          numberOfFederates: scala.Int,
+          spmFederatePrefix: java.lang.String,
+          spmFederateSubscription: java.lang.String,
+          timeDeltaProperty: scala.Double
+        )
+
+        object SitePowerManagerController {
+
+          def apply(
+            c: com.typesafe.config.Config
+          ): BeamConfig.Beam.Agentsim.ChargingNetworkManager.SitePowerManagerController = {
+            BeamConfig.Beam.Agentsim.ChargingNetworkManager.SitePowerManagerController(
+              beamFederatePrefix =
+                if (c.hasPathOrNull("beamFederatePrefix")) c.getString("beamFederatePrefix") else "BEAM_FED",
+              beamFederatePublication =
+                if (c.hasPathOrNull("beamFederatePublication")) c.getString("beamFederatePublication")
+                else "CHARGING_VEHICLES",
+              brokerAddress = if (c.hasPathOrNull("brokerAddress")) c.getString("brokerAddress") else "tcp://127.0.0.1",
+              bufferSize = if (c.hasPathOrNull("bufferSize")) c.getInt("bufferSize") else 10000000,
+              connect = c.hasPathOrNull("connect") && c.getBoolean("connect"),
+              coreType = if (c.hasPathOrNull("coreType")) c.getString("coreType") else "zmq",
+              expectFeedback = !c.hasPathOrNull("expectFeedback") || c.getBoolean("expectFeedback"),
+              intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
+              numberOfFederates = if (c.hasPathOrNull("numberOfFederates")) c.getInt("numberOfFederates") else 1,
+              spmFederatePrefix =
+                if (c.hasPathOrNull("spmFederatePrefix")) c.getString("spmFederatePrefix") else "SPM_FED_TAZ",
+              spmFederateSubscription =
+                if (c.hasPathOrNull("spmFederateSubscription")) c.getString("spmFederateSubscription")
+                else "CHARGING_COMMANDS",
+              timeDeltaProperty = if (c.hasPathOrNull("timeDeltaProperty")) c.getDouble("timeDeltaProperty") else 1.0
+            )
+          }
+        }
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager = {
           BeamConfig.Beam.Agentsim.ChargingNetworkManager(
             chargingPointCostScalingFactor =
@@ -2169,16 +2229,26 @@ object BeamConfig {
               else 1.0,
             chargingPointFilePath =
               if (c.hasPathOrNull("chargingPointFilePath")) c.getString("chargingPointFilePath") else "",
-            helics = BeamConfig.Beam.Agentsim.ChargingNetworkManager.Helics(
-              if (c.hasPathOrNull("helics")) c.getConfig("helics")
-              else com.typesafe.config.ConfigFactory.parseString("helics{}")
-            ),
             overnightChargingEnabled =
               c.hasPathOrNull("overnightChargingEnabled") && c.getBoolean("overnightChargingEnabled"),
+            powerManagerController =
+              if (c.hasPathOrNull("powerManagerController"))
+                scala.Some(
+                  BeamConfig.Beam.Agentsim.ChargingNetworkManager
+                    .PowerManagerController(c.getConfig("powerManagerController"))
+                )
+              else None,
             scaleUp = BeamConfig.Beam.Agentsim.ChargingNetworkManager.ScaleUp(
               if (c.hasPathOrNull("scaleUp")) c.getConfig("scaleUp")
               else com.typesafe.config.ConfigFactory.parseString("scaleUp{}")
             ),
+            sitePowerManagerController =
+              if (c.hasPathOrNull("sitePowerManagerController"))
+                scala.Some(
+                  BeamConfig.Beam.Agentsim.ChargingNetworkManager
+                    .SitePowerManagerController(c.getConfig("sitePowerManagerController"))
+                )
+              else None,
             timeStepInSeconds = if (c.hasPathOrNull("timeStepInSeconds")) c.getInt("timeStepInSeconds") else 300
           )
         }
@@ -2585,6 +2655,7 @@ object BeamConfig {
       clearRoutedOutstandingWorkEnabled: scala.Boolean,
       debugActorTimerIntervalInSec: scala.Int,
       debugEnabled: scala.Boolean,
+      maxSimulationStepTimeBeforeConsideredStuckAtInitializationMin: scala.Int,
       maxSimulationStepTimeBeforeConsideredStuckMin: scala.Int,
       memoryConsumptionDisplayTimeoutInSec: scala.Int,
       messageLogging: scala.Boolean,
@@ -2721,14 +2792,17 @@ object BeamConfig {
       }
 
       case class VmInformation(
-        createGCClassHistogram: scala.Boolean
+        createGCClassHistogram: scala.Boolean,
+        writeHeapDump: scala.Boolean
       )
 
       object VmInformation {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Debug.VmInformation = {
           BeamConfig.Beam.Debug.VmInformation(
-            createGCClassHistogram = c.hasPathOrNull("createGCClassHistogram") && c.getBoolean("createGCClassHistogram")
+            createGCClassHistogram =
+              c.hasPathOrNull("createGCClassHistogram") && c.getBoolean("createGCClassHistogram"),
+            writeHeapDump = c.hasPathOrNull("writeHeapDump") && c.getBoolean("writeHeapDump")
           )
         }
       }
@@ -2746,6 +2820,10 @@ object BeamConfig {
           debugActorTimerIntervalInSec =
             if (c.hasPathOrNull("debugActorTimerIntervalInSec")) c.getInt("debugActorTimerIntervalInSec") else 0,
           debugEnabled = c.hasPathOrNull("debugEnabled") && c.getBoolean("debugEnabled"),
+          maxSimulationStepTimeBeforeConsideredStuckAtInitializationMin =
+            if (c.hasPathOrNull("maxSimulationStepTimeBeforeConsideredStuckAtInitializationMin"))
+              c.getInt("maxSimulationStepTimeBeforeConsideredStuckAtInitializationMin")
+            else 600,
           maxSimulationStepTimeBeforeConsideredStuckMin =
             if (c.hasPathOrNull("maxSimulationStepTimeBeforeConsideredStuckMin"))
               c.getInt("maxSimulationStepTimeBeforeConsideredStuckMin")

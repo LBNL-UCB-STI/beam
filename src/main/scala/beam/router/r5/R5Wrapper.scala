@@ -36,6 +36,10 @@ import scala.collection.mutable.ArrayBuffer
 import scala.language.postfixOps
 import scala.util.Try
 
+trait TravelTimeByLinkCalculator {
+  def apply(time: Double, linkId: Int, streetMode: StreetMode): Double
+}
+
 class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNoiseFraction: Double)
     extends MetricsSupport
     with StrictLogging
@@ -68,6 +72,19 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     .map { case (osmId, list) =>
       val (_, isLinkHgv) = list.head
       osmId -> isLinkHgv
+    }
+
+  private lazy val osmIdToFreespeed: Map[Long, Double] = networkHelper.allLinks
+    .flatMap { link =>
+      Try(link.getAttributes.getAttribute("origid").toString.toLong).toOption.map { osmId =>
+        val linkFreespeed = Try(link.getFreespeed).getOrElse(0.0)
+        osmId -> linkFreespeed
+      }
+    }
+    .groupBy { case (osmId, _) => osmId }
+    .map { case (osmId, list) =>
+      val (_, linkFreespeed) = list.head
+      osmId -> linkFreespeed
     }
 
   private val linkRadiusMeters: Double =
@@ -115,7 +132,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       updatedLeg.travelPath.distanceInM,
       updatedLeg.duration,
       vehicleType,
-      fuelTypePrices(vehicleType.primaryFuelType)
+      fuelTypePrices.getOrElse(vehicleType.primaryFuelType, 0.0)
     )
     val totalCost = drivingCost + (if (updatedLeg.mode == BeamMode.CAR) toll else 0)
 
@@ -1167,9 +1184,16 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     startTime: Int,
     shouldAddNoise: Boolean
   ): TravelTimeCalculator = {
-    val ttc = travelTimeByLinkCalculator(vehicleType, shouldAddNoise, shouldApplyBicycleScaleFactor = true)
-    (edge: EdgeStore#Edge, durationSeconds: Int, streetMode: StreetMode, _) => {
-      ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue().ceil
+    new TravelTimeCalculator {
+      val ttc = travelTimeByLinkCalculator(vehicleType, shouldAddNoise, shouldApplyBicycleScaleFactor = true)
+      override def getTravelTimeSeconds(
+        edge: EdgeStore#Edge,
+        durationSeconds: Int,
+        streetMode: StreetMode,
+        req: ProfileRequest
+      ): Float = {
+        ttc(startTime + durationSeconds, edge.getEdgeIndex, streetMode).floatValue().ceil
+      }
     }
   }
 
@@ -1177,19 +1201,21 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     vehicleType: BeamVehicleType,
     shouldAddNoise: Boolean,
     shouldApplyBicycleScaleFactor: Boolean = false
-  ): (Double, Int, StreetMode) => Double = {
+  ): TravelTimeByLinkCalculator = {
     val profileRequest = createProfileRequest
-    (time: Double, linkId: Int, streetMode: StreetMode) => {
-      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-      val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
-      val minTravelTime = edge.getLengthM / maxSpeed
-      if (streetMode == StreetMode.CAR) {
-        carWeightCalculator.calcTravelTime(linkId, travelTime, Some(vehicleType), time, shouldAddNoise)
-      } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
-        val scaleFactor = bikeLanesAdjustment.scaleFactor(vehicleType, linkId)
-        minTravelTime * scaleFactor
-      } else {
-        minTravelTime
+    new TravelTimeByLinkCalculator {
+      override def apply(time: Double, linkId: Int, streetMode: StreetMode): Double = {
+        val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+        val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
+        val minTravelTime = edge.getLengthM / maxSpeed
+        if (streetMode == StreetMode.CAR) {
+          carWeightCalculator.calcTravelTime(linkId, travelTime, Some(vehicleType), time, shouldAddNoise)
+        } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
+          val scaleFactor = bikeLanesAdjustment.scaleFactor(vehicleType, linkId)
+          minTravelTime * scaleFactor
+        } else {
+          minTravelTime
+        }
       }
     }
   }
@@ -1213,10 +1239,20 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           case _           => 1f
         }
       } else 1f
+
+      val roadVelocityRestrictionWeightMultiplier: Float =
+        if (vehicleType.restrictRoadsByFreeSpeedInMeterPerSecond.isDefined) {
+          osmIdToFreespeed.get(edge.getOSMID) match {
+            case Some(freeSpeedValue) if freeSpeedValue > vehicleType.restrictRoadsByFreeSpeedInMeterPerSecond.get =>
+              beamConfig.beam.agentsim.agents.rideHail.freeSpeedLinkWeightMultiplier.toFloat
+            case _ => 1f
+          }
+        } else 1f
+
       (traversalTimeSeconds + (timeValueOfMoney * tollCalculator.calcTollByLinkId(
         edge.getEdgeIndex,
         startTime + legDurationSeconds
-      )).toFloat) * nonHGVLinkWeightMultiplier
+      )).toFloat) * nonHGVLinkWeightMultiplier * roadVelocityRestrictionWeightMultiplier
     }
   }
 }

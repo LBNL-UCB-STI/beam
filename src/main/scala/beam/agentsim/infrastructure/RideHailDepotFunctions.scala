@@ -7,7 +7,7 @@ import beam.agentsim.infrastructure.RideHailDepotFunctions.mnlMultiplierParamete
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingZoneSearchResult
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode.CAR
 import beam.router.skim.Skims
 import beam.sim.config.BeamConfig
@@ -18,8 +18,7 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.util.Random
 
 class RideHailDepotFunctions(
-  geoQuadTree: QuadTree[TAZ],
-  idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+  tazTreeMap: TAZTreeMap,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
@@ -32,10 +31,9 @@ class RideHailDepotFunctions(
   rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail,
   skims: Skims,
   estimatedMinParkingDurationInSeconds: Double,
-  depotFunction: Id[ParkingZoneId] => Option[ChargingStation]
+  depotsMap: Map[Id[ParkingZoneId], ChargingStation]
 ) extends InfrastructureFunctions(
-      geoQuadTree,
-      idToGeoMapping,
+      tazTreeMap,
       parkingZones,
       distanceFunction,
       minSearchRadius,
@@ -188,17 +186,18 @@ class RideHailDepotFunctions(
     parkingZone: ParkingZone,
     tick: Int
   ): Int = {
-    val chargingVehicles = depotFunction(parkingZone.parkingZoneId).map(_.howManyVehiclesAreCharging).getOrElse(0)
+    val chargingVehicles = depotsMap.get(parkingZone.parkingZoneId).map(_.howManyVehiclesAreCharging).getOrElse(0)
     val remainingChargeDurationFromPluggedInVehicles = if (chargingVehicles < parkingZone.maxStalls) {
       0
     } else {
-      depotFunction(parkingZone.parkingZoneId).map(_.remainingChargeDurationFromPluggedInVehicles(tick)).sum
+      depotsMap.get(parkingZone.parkingZoneId).map(_.remainingChargeDurationFromPluggedInVehicles(tick)).sum
     }
     val chargeDurationFromQueue =
-      depotFunction(parkingZone.parkingZoneId).map(_.remainingChargeDurationForVehiclesFromQueue).sum
-    val numVehiclesOnWayToDepot = depotFunction(parkingZone.parkingZoneId).map(_.howManyVehiclesOnTheWayToStation).sum
+      depotsMap.get(parkingZone.parkingZoneId).map(_.remainingChargeDurationForVehiclesFromQueue).sum
+    val numVehiclesOnWayToDepot =
+      depotsMap.get(parkingZone.parkingZoneId).map(_.howManyVehiclesOnTheWayToStation).sum
     val chargingQueue =
-      depotFunction(parkingZone.parkingZoneId).map(_.howManyVehiclesAreWaiting).getOrElse(0)
+      depotsMap.get(parkingZone.parkingZoneId).map(_.howManyVehiclesAreWaiting).getOrElse(0)
     val vehiclesOnWayAdjustmentFactor = chargingQueue match {
       case numInQueue if numInQueue == 0 =>
         1.0
@@ -223,7 +222,7 @@ class RideHailDepotFunctions(
   def getParkingZoneLocationUtm(parkingZoneId: Id[ParkingZoneId]): Coord = {
     val parkingZone = parkingZones(parkingZoneId)
     parkingZone.link.fold {
-      idToGeoMapping(parkingZone.tazId).coord
+      tazTreeMap.idToTAZMapping(parkingZone.tazId).coord
     } {
       _.getCoord
     }

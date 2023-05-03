@@ -299,7 +299,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       readFreights(
         beamConfig,
         networkCoordinator.transportNetwork.streetLayer,
-        networkCoordinator.network,
+        Some(networkCoordinator.network),
         vehicleTypes,
         outputDirMaybe
       )
@@ -343,7 +343,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
   def readFreights(
     beamConfig: BeamConfig,
     streetLayer: StreetLayer,
-    network: Network,
+    networkMaybe: Option[Network],
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
     outputDirMaybe: Option[String]
   ): (IndexedSeq[FreightCarrier], Map[String, Double]) = {
@@ -351,7 +351,8 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
 
     if (freightConfig.enabled) {
       val geoUtils = new GeoUtilsImpl(beamConfig)
-      val freightReader = FreightReader(beamConfig, geoUtils, streetLayer, network, outputDirMaybe)
+      val random = new Random(beamConfig.matsim.modules.global.randomSeed)
+      val freightReader = FreightReader(beamConfig, geoUtils, streetLayer, networkMaybe, outputDirMaybe)
       val tours = freightReader.readFreightTours()
       val plans = freightReader.readPayloadPlans()
       logger.info(s"Freight before sampling: ${tours.size} tours. ${plans.size} payloads")
@@ -731,7 +732,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
         beamServices.beamConfig,
         beamServices.geo,
         beamServices.beamScenario.transportNetwork.streetLayer,
-        beamServices.beamScenario.network,
+        Some(beamServices.beamScenario.network),
         beamServices.beamScenario.tazTreeMap,
         Some(outputDir)
       )
@@ -857,6 +858,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
             val merger = new PreviousRunPlanMerger(
               beamConfig.beam.agentsim.agents.plans.merge.fraction,
               beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation,
+              Some(beamConfig.beam.replanning.maxAgentPlanMemorySize),
               Paths.get(beamConfig.beam.input.lastBaseOutputDir),
               beamConfig.beam.input.simulationPrefix,
               new Random(),

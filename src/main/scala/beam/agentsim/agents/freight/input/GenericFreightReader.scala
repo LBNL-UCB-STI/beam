@@ -6,6 +6,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
+import beam.utils.BeamVehicleUtils.readBeamVehicleTypeFile
 import beam.utils.SnapCoordinateUtils
 import beam.utils.SnapCoordinateUtils._
 import beam.utils.csv.GenericCsvReader
@@ -178,6 +179,11 @@ class GenericFreightReader(
     allPlans: Map[Id[PayloadPlan], PayloadPlan],
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): IndexedSeq[FreightCarrier] = {
+    val freightVehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType] = config.vehicleTypesFilePath match {
+      case Some(filePath) => vehicleTypes ++ readBeamVehicleTypeFile(filePath)
+      case None           => vehicleTypes
+    }
+
     val existingAllTours: Set[Id[FreightTour]] = allTours.keySet.intersect(allPlans.map(_._2.tourId).toSet)
     // ****
     val sampledToursNum = (allTours.size * config.tourSampleSizeAsFractionOfTotal).round.toInt
@@ -211,7 +217,7 @@ class GenericFreightReader(
         .groupBy(_.vehicleId)
         .map { case (vehicleId, rows) =>
           val firstRow = rows.head
-          val vehicleType = vehicleTypes.getOrElse(
+          val vehicleType = freightVehicleTypes.getOrElse(
             firstRow.vehicleTypeId,
             throw new IllegalArgumentException(
               s"Vehicle type for vehicle $vehicleId not found: ${firstRow.vehicleTypeId}"

@@ -115,6 +115,7 @@ object BeamIncentiveSpec {
     allHourAvg.sum
   }
 
-  def isRideHail(value: String): Boolean = value.startsWith(BeamMode.RIDE_HAIL.value + ",")
+  def isRideHail(value: String): Boolean = rideHailLineStart.exists(value.startsWith)
 
+  private val rideHailLineStart = List(BeamMode.RIDE_HAIL, BeamMode.RIDE_HAIL_POOLED).map(_.value + ",")
 }
