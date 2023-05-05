@@ -125,10 +125,6 @@ curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/
 
 set -x
 
-# sudo ./gradlew --stop
-./gradlew --stop
-
-
 ./gradlew assemble
 
 if [ "${RUN_JUPYTER,,}" = "true" ]; then
@@ -147,6 +143,9 @@ if [ "${RUN_JUPYTER,,}" = "true" ]; then
 else
   echo "NOT going to start jupyter. [RUN_JUPYTER ('${RUN_JUPYTER,,}') not equal to 'true']"
 fi
+
+# sudo ./gradlew --stop
+./gradlew --stop
 
 
 if [ "${RUN_BEAM,,}" = "true" ]; then
