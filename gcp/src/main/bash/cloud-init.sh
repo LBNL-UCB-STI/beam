@@ -131,12 +131,12 @@ if [ "${RUN_JUPYTER,,}" = "true" ]; then
 
   set -x
   if [ -n "$JUPYTER_TOKEN" ] && [ -n "$JUPYTER_IMAGE" ]
-  then sudo ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN" -PjupyterImage="$JUPYTER_IMAGE"
+  then ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN" -PjupyterImage="$JUPYTER_IMAGE"
   elif [ -n "$JUPYTER_TOKEN" ]
-  then sudo ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN"
+  then ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN"
   elif [ -n "$JUPYTER_IMAGE" ]
-  then sudo ./gradlew jupyterStart -Puser=root -PjupyterImage="$JUPYTER_IMAGE"
-  else sudo ./gradlew jupyterStart -Puser=root
+  then ./gradlew jupyterStart -Puser=root -PjupyterImage="$JUPYTER_IMAGE"
+  else ./gradlew jupyterStart -Puser=root
   fi
   set +x
 
