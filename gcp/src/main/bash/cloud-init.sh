@@ -123,13 +123,18 @@ EOF
 echo "$start_json"
 curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
 
+set -x
+
+# sudo ./gradlew --stop
+./gradlew --stop
+
+
 ./gradlew assemble
 
 if [ "${RUN_JUPYTER,,}" = "true" ]; then
-
+  echo "Running Jupyter"
   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
 
-  set -x
   if [ -n "$JUPYTER_TOKEN" ] && [ -n "$JUPYTER_IMAGE" ]
   then ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN" -PjupyterImage="$JUPYTER_IMAGE"
   elif [ -n "$JUPYTER_TOKEN" ]
@@ -138,7 +143,6 @@ if [ "${RUN_JUPYTER,,}" = "true" ]; then
   then ./gradlew jupyterStart -Puser=root -PjupyterImage="$JUPYTER_IMAGE"
   else ./gradlew jupyterStart -Puser=root
   fi
-  set +x
 
 else
   echo "NOT going to start jupyter. [RUN_JUPYTER ('${RUN_JUPYTER,,}') not equal to 'true']"
@@ -152,6 +156,9 @@ if [ "${RUN_BEAM,,}" = "true" ]; then
 else
   echo "NOT going to start BEAM. [RUN_BEAM ('${RUN_BEAM,,}') not equal to 'true']"
 fi
+
+
+set +x
 
 
 # copy to bucket
