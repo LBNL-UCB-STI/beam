@@ -20,8 +20,8 @@ while read in; do
         size=$(du -sb "$dir_name" | awk '{print $1;}')
         exp_size=$((size + 100000))
         tar -cf - "$dir_name" | aws s3 cp - "s3://$arch_bucket/$new_path.tar" --storage-class DEEP_ARCHIVE --no-progress --expected-size $exp_size || exit 1
-        rm -r "$dir_name" || exit 1
         aws s3 rm --quiet --recursive "s3://$bucket/$in" || exit 1
+        rm -r "$dir_name" || exit 1
       else
         echo "empty $dir_name"
         rm -r "$dir_name"
