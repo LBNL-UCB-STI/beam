@@ -138,12 +138,15 @@ class BeamPlan extends Plan {
     tours = Vector()
     var currentTourIndex = -1
     var currentTour = new Tour(-1)
-    var currentLeg: Option[Leg] = None
+    var previousLeg: Option[Leg] = None
     actsLegs.sliding(2).foreach {
-      case Vector(activity: Activity, nextLeg: Leg) =>
-        val nextTrip = Trip(activity, Some(nextLeg), currentTour)
+      case Vector(leg: Leg, _: Activity) =>
+        previousLeg = Some(leg)
+
+      case Vector(activity: Activity, leg: Leg) =>
+        val nextTrip = Trip(activity, previousLeg, currentTour)
         currentTour.addTrip(nextTrip)
-        val startNewTour = (getTourIdFromMatsimLeg(Some(nextLeg)), currentLeg) match {
+        val startNewTour = (getTourIdFromMatsimLeg(Some(leg)), previousLeg) match {
           case (_, None)                                                                => true
           case (Some(nextId), cleg) if getTourIdFromMatsimLeg(cleg).exists(_ != nextId) => true
           case (None, _) if atHome(activity)                                            => true
@@ -152,33 +155,31 @@ class BeamPlan extends Plan {
         if (startNewTour) {
           currentTourIndex += 1
           currentTour.setTourId(
-            getTourIdFromMatsimLeg(currentLeg).getOrElse(currentTourIndex)
+            getTourIdFromMatsimLeg(Some(leg)).getOrElse(currentTourIndex)
           )
           tours = tours :+ currentTour
           currentTour = new Tour(originActivity = Some(activity))
           putStrategy(
             currentTour,
-            TourModeChoiceStrategy(getTourModeFromMatsimLeg(nextLeg), getTourVehicleFromMatsimLeg(nextLeg))
+            TourModeChoiceStrategy(getTourModeFromMatsimLeg(leg), getTourVehicleFromMatsimLeg(leg))
           )
         }
-      case Vector(leg: Leg, _: Activity) =>
-        currentLeg = Some(leg)
       case Vector(onlyActivity: Activity) =>
-        val nextTrip = Trip(onlyActivity, currentLeg, currentTour)
+        val nextTrip = Trip(onlyActivity, previousLeg, currentTour)
         currentTour.addTrip(nextTrip)
       case _ =>
         throw new IllegalArgumentException("Poorly formed input plans")
     }
     actsLegs.lastOption match {
       case Some(lastAct: Activity) =>
-        val nextTrip = Trip(lastAct, currentLeg, currentTour)
+        val nextTrip = Trip(lastAct, previousLeg, currentTour)
         currentTour.addTrip(nextTrip)
       case _ =>
     }
 
     if (currentTour.trips.nonEmpty) {
       currentTour.setTourId(
-        getTourIdFromMatsimLeg(currentLeg).getOrElse(currentTourIndex)
+        getTourIdFromMatsimLeg(previousLeg).getOrElse(currentTourIndex)
       )
       tours = tours :+ currentTour
     }

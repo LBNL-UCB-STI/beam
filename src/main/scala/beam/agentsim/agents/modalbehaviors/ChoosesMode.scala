@@ -268,7 +268,7 @@ trait ChoosesMode {
       // duplicative, but the long run goal should be to remove trip/tour mode and personal vehicle from persondata
       // anyway and just keep it in the experiencedBeamPlan
       val currentTourStrategy = _experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](nextAct)
-      val currentTripStrategy = _experiencedBeamPlan.getTourStrategy[TripModeChoiceStrategy](nextAct)
+      val currentTripStrategy = _experiencedBeamPlan.getTripStrategy[TripModeChoiceStrategy](nextAct)
 
       var currentTripMode = (currentTripStrategy.mode, personData.currentTripMode) match {
         case (None, None) => None
