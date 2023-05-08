@@ -4,7 +4,7 @@ import beam.agentsim.events.PathTraversalEvent
 import beam.sim.BeamHelper
 import beam.utils.EventReader
 import beam.utils.TestConfigUtils.testConfig
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.vehicles.Vehicle
@@ -15,9 +15,10 @@ import org.scalatest.matchers.must.Matchers
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 
 import scala.util.Random
+import scala.util.matching.Regex
 
 class ElectricVehicleChargingBehaviorTest
-  extends AnyFlatSpec
+    extends AnyFlatSpec
     with Matchers
     with BeamHelper
     with BeforeAndAfterAllConfigMap {
@@ -26,38 +27,100 @@ class ElectricVehicleChargingBehaviorTest
 
   private val seed = Random.nextInt()
 
-  private val defaultConfig: Config =
-    ConfigFactory
-      .parseString(
-        s"""
-           |matsim.modules.global.randomSeed = $seed
-           |beam.outputs.events.fileOutputFormats = xml
-           |beam.physsim.skipPhysSim = true
-           |beam.routing.transitOnStreetNetwork = false
-           |beam.agentsim.lastIteration = 0
-           |beam.agentsim.tuning.transitCapacity = 0.0
-           |beam.agentsim.agents.rideHail.managers = [
-           |  {
-           |    initialization.procedural.fractionOfInitialVehicleFleet = 0
-           |    initialization.procedural.vehicleTypeId = "beamVilleCar"
-           |  }
-           |]
-           |beam.agentsim.agents.vehicles.sharedFleets = []
-           |beam.agentsim.agents.vehicles.enroute.noRefuelThresholdOffsetInMeters = 0.0
-           |beam.agentsim.agents.plans {
-           |  inputPlansFilePath = $filesPath/population.xml"
-           |  inputPersonAttributesFilePath = $filesPath/populationAttributes.xml"
-           |}
-           |beam.agentsim.agents.households {
-           |  inputFilePath = $filesPath/households.xml"
-           |  inputHouseholdAttributesFilePath = $filesPath/householdAttributes.xml"
-           |}
-           |beam.agentsim.taz.filePath=$filesPath/taz-centers.csv"
-           |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath/vehicles.csv"
+  private val baseConfig: String =
+    s"""
+       |matsim.modules.global.randomSeed = $seed
+       |beam.outputs.events.fileOutputFormats = xml
+       |beam.physsim.skipPhysSim = true
+       |beam.agentsim.lastIteration = 0
+       |beam.agentsim.agents.vehicles.sharedFleets = []
+       |beam.agentsim.taz.filePath=$filesPath/taz-centers.csv"
+        """
+
+  private val personalConfig = ConfigFactory
+    .parseString(
+      s"""$baseConfig
+         |beam.agentsim.agents.vehicles.enroute.noRefuelThresholdOffsetInMeters = 0.0
+         |beam.agentsim.agents.plans {
+         |  inputPlansFilePath = $filesPath/population.xml"
+         |  inputPersonAttributesFilePath = $filesPath/populationAttributes.xml"
+         |}
+         |beam.agentsim.agents.households {
+         |  inputFilePath = $filesPath/households.xml"
+         |  inputHouseholdAttributesFilePath = $filesPath/householdAttributes.xml"
+         |}
+         |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath/vehicles.csv"
+         |beam.agentsim.agents.rideHail.managers = [
+         |  {
+         |    initialization.procedural.fractionOfInitialVehicleFleet = 0
+         |    initialization.procedural.vehicleTypeId = "beamVilleCar"
+         |  }
+         |]
         """.stripMargin
-      )
-      .withFallback(testConfig("test/input/beamville/beam.conf"))
-      .resolve()
+    )
+    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .resolve()
+
+  private val rideHailConfig = ConfigFactory
+    .parseString(
+      s"""$baseConfig
+         |beam.agentsim.agents.rideHail.managers = [
+         |  {
+         |    iterationStats.timeBinSizeInSec = 3600
+         |    defaultCostPerMile = 1.25
+         |    defaultCostPerMinute = 0.75
+         |    rideHailManager.radiusInMeters = 50000
+         |    # allocationManager(DEFAULT_MANAGER | EV_MANAGER | POOLING_ALONSO_MORA)
+         |    allocationManager.name = "POOLING_ALONSO_MORA"
+         |    allocationManager.requestBufferTimeoutInSeconds = 200
+         |    allocationManager.maxWaitingTimeInSec = 18000
+         |    allocationManager.maxExcessRideTime = 0.5 # up to +50%
+         |    allocationManager.matchingAlgorithm = "ALONSO_MORA_MATCHING_WITH_ASYNC_GREEDY_ASSIGNMENT"
+         |    allocationManager.alonsoMora.maxRequestsPerVehicle = 5
+         |    repositioningManager.name = "DEMAND_FOLLOWING_REPOSITIONING_MANAGER"
+         |    repositioningManager.timeout = 300
+         |    # DEMAND_FOLLOWING_REPOSITIONING_MANAGER
+         |    repositioningManager.demandFollowingRepositioningManager.sensitivityOfRepositioningToDemand = 1
+         |    repositioningManager.demandFollowingRepositioningManager.numberOfClustersForDemand = 30
+         |    # REPOSITIONING_LOW_WAITING_TIMES
+         |    allocationManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition = 0.0
+         |    allocationManager.repositionLowWaitingTimes.repositionCircleRadiusInMeters = 100
+         |    allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning = 12000
+         |    allocationManager.repositionLowWaitingTimes.allowIncreasingRadiusIfDemandInRadiusLow = true
+         |    allocationManager.repositionLowWaitingTimes.minDemandPercentageInRadius = 0.1
+         |    allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThresholdForRepositioning = 1000
+         |    allocationManager.repositionLowWaitingTimes.repositioningMethod = "TOP_SCORES"
+         |    allocationManager.repositionLowWaitingTimes.keepMaxTopNScores = 5
+         |    allocationManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning = 100000000.0
+         |    allocationManager.repositionLowWaitingTimes.distanceWeight = 0.01
+         |    allocationManager.repositionLowWaitingTimes.waitingTimeWeight = 4.0
+         |    allocationManager.repositionLowWaitingTimes.demandWeight = 4.0
+         |    allocationManager.repositionLowWaitingTimes.produceDebugImages = true
+         |    initialization.filePath = $filesPath/rideHailFleet.csv"
+         |    initialization.initType="FILE"
+         |    initialization.parking.filePath=$filesPath/taz-parking-empty.csv"
+         |  }
+         |]
+         |beam.agentsim.agents.plans {
+         |  inputPlansFilePath = $filesPath/populationRideHail.xml"
+         |  inputPersonAttributesFilePath = $filesPath/populationAttributes.xml"
+         |}
+         |beam.agentsim.agents.households {
+         |  inputFilePath = $filesPath/householdsNoVehicles.xml"
+         |  inputHouseholdAttributesFilePath = $filesPath/householdAttributes.xml"
+         |}
+         |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath/vehicles-empty.csv"
+         |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 10000000
+         |beam.agentsim.agents.rideHail.human.refuelRequiredThresholdInMeters = 1000.0
+         |beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters = 1300.0
+         |beam.agentsim.agents.rideHail.cav.refuelRequiredThresholdInMeters = 1000.0
+         |beam.agentsim.agents.rideHail.cav.noRefuelThresholdInMeters = 1300.0
+         |beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters = 0
+         |beam.agentsim.tuning.rideHailPrice = 0.0
+          """.stripMargin
+    )
+    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .resolve()
 
   /*
 
@@ -83,7 +146,7 @@ class ElectricVehicleChargingBehaviorTest
            |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath/vehicleTypes-low-capacity.csv"
           """.stripMargin
       )
-      .withFallback(defaultConfig)
+      .withFallback(personalConfig)
       .resolve()
 
     val (matsimConfig, _, _) = runBeamWithConfig(config)
@@ -122,11 +185,11 @@ class ElectricVehicleChargingBehaviorTest
     vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
 
     unsuitablePluginEvents.size shouldEqual 0 withClue
-      ", vehicles should not be enrouting, specially to chargers without sufficient power rating, neither should they " +
-        "home, work or long park on fast chargers."
+    ", vehicles should not be enrouting, specially to chargers without sufficient power rating, neither should they " +
+    "home, work or long park on fast chargers."
 
     fastChargerPluginEvents.size shouldEqual 0 withClue
-      ", vehicles should not be enrouting, neither should they home, work or long park on fast chargers."
+    ", vehicles should not be enrouting, neither should they home, work or long park on fast chargers."
 
     homePluginEvents.size shouldEqual 100 withClue ", expecting 2 home plug-in events for each of the 50 vehicles."
     workPluginEvents.size shouldEqual 100 withClue ", expecting 2 work plug-in events for each of the 50 vehicles."
@@ -150,7 +213,7 @@ class ElectricVehicleChargingBehaviorTest
            |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath/vehicleTypes-very-low-capacity.csv"
         """.stripMargin
       )
-      .withFallback(defaultConfig)
+      .withFallback(personalConfig)
       .resolve()
 
     val (matsimConfig, _, _) = runBeamWithConfig(config)
@@ -185,10 +248,10 @@ class ElectricVehicleChargingBehaviorTest
     unsuitablePluginEvents.size shouldEqual 0 withClue ", vehicles should not be connecting to chargers without sufficient power rating."
 
     centerPluginEvents.size + borderPluginEvents.size shouldEqual 200 withClue
-      ", expecting 4 enroute events for each of the 50 vehicles."
+    ", expecting 4 enroute events for each of the 50 vehicles."
 
     centerPluginEvents.size should be > borderPluginEvents.size withClue
-      ", agents should prefer center chargers for enrouting (smaller EnrouteDetourCost)."
+    ", agents should prefer center chargers for enrouting (smaller EnrouteDetourCost)."
   }
 
   "Electric vehicles" should "always enroute when there is not enough energy to reach their destination choosing smaller ParkingTicketCost." in {
@@ -199,7 +262,7 @@ class ElectricVehicleChargingBehaviorTest
            |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath/vehicleTypes-very-low-capacity.csv"
         """.stripMargin
       )
-      .withFallback(defaultConfig)
+      .withFallback(personalConfig)
       .resolve()
 
     val (matsimConfig, _, _) = runBeamWithConfig(config)
@@ -232,13 +295,83 @@ class ElectricVehicleChargingBehaviorTest
     vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
 
     unsuitablePluginEvents.size shouldEqual 0 withClue
-      ", vehicles should not be connecting to chargers without sufficient power rating."
+    ", vehicles should not be connecting to chargers without sufficient power rating."
 
     freePluginEvents.size + expensivePluginEvents.size should be >= 200 withClue
-      ", expecting at least 4 enroute events for each of the 50 vehicles."
+    ", expecting at least 4 enroute events for each of the 50 vehicles."
 
     freePluginEvents.size should be > expensivePluginEvents.size withClue
-      ", agents should prefer top chargers for enrouting (smaller ParkingTicketCost)."
+    ", agents should prefer top chargers for enrouting (smaller ParkingTicketCost)."
+  }
+
+  "Ride Hail Electric vehicles" should "only recharge at suitable charging stations." in {
+
+    val config = ConfigFactory
+      .parseString(
+        s"""
+           |beam.agentsim.taz.parkingFilePath = $filesPath/taz-parking-ride-hail.csv"
+           |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath/vehicleTypes-low-capacity.csv"
+      """.stripMargin
+      )
+      .withFallback(rideHailConfig)
+      .resolve()
+
+    val (matsimConfig, _, _) = runBeamWithConfig(config)
+
+    val events = EventReader.fromXmlFile(
+      EventReader.getEventsFilePath(matsimConfig, "events", "xml").getAbsolutePath
+    )
+
+    val cavRegex: Regex = """^rideHailVehicle-\d+-L5@GlobalRHM\Z""".r
+    val humanRegex: Regex = """^rideHailVehicle-\d+@GlobalRHM\Z""".r
+
+    val unsuitableChargersTAZs = List("8", "9", "18", "19", "28", "29", "38", "39")
+    val cavReservedTAZs = List("12", "13", "22", "23", "32", "33")
+    val humanReservedTAZs = List("10", "11", "20", "21", "30", "31")
+
+    val vehicleIds = findAllElectricVehicles(events).map(id => id.toString)
+    vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
+
+    val unsuitablePluginEvents = filterEvents(
+      events,
+      ("type", a => a.equals("ChargingPlugInEvent")),
+      ("parkingTaz", (a: String) => unsuitableChargersTAZs.contains(a))
+    )
+
+    unsuitablePluginEvents.size shouldEqual 0 withClue
+    ", ride hail vehicles should not be charging on slow chargers"
+
+    val cavReservedPluginEvents = filterEvents(
+      events,
+      ("type", a => a.equals("ChargingPlugInEvent")),
+      ("parkingTaz", (a: String) => cavReservedTAZs.contains(a))
+    )
+    val humanReservedPluginEvents = filterEvents(
+      events,
+      ("type", a => a.equals("ChargingPlugInEvent")),
+      ("parkingTaz", (a: String) => humanReservedTAZs.contains(a))
+    )
+
+    cavReservedPluginEvents.size shouldEqual filterEvents(
+      cavReservedPluginEvents,
+      ("vehicle", a => cavRegex.findFirstMatchIn(a).isDefined)
+    ).size withClue
+    ", only L5 automated vehicles should be charging on ride hail reserved parking zones."
+
+    humanReservedPluginEvents.size shouldEqual filterEvents(
+      humanReservedPluginEvents,
+      ("vehicle", a => humanRegex.findFirstMatchIn(a).isDefined)
+    ).size withClue
+    ", L5 automated vehicles should not be charging on unreserved parking zones."
+
+    val rideHailArrivalEvents = filterEvents(
+      events,
+      ("type", a => a.equals("arrival")),
+      ("legMode", a => a.equals("ride_hail"))
+    )
+
+    rideHailArrivalEvents.size shouldEqual 200 withClue
+    ", expecting 4 ride hail legs for each of the 50 people."
   }
 
   def filterEvents(events: IndexedSeq[Event], filters: (String, String => Boolean)*): IndexedSeq[Event] = {
