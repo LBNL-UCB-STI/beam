@@ -17,7 +17,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import scala.util.Random
 
 class ElectricVehicleChargingBehaviorTest
-  extends AnyFlatSpec
+    extends AnyFlatSpec
     with Matchers
     with BeamHelper
     with BeforeAndAfterAllConfigMap {
@@ -122,11 +122,11 @@ class ElectricVehicleChargingBehaviorTest
     vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
 
     unsuitablePluginEvents.size shouldEqual 0 withClue
-      ", vehicles should not be enrouting, specially to chargers without sufficient power rating, neither should they " +
-        "home, work or long park on fast chargers."
+    ", vehicles should not be enrouting, specially to chargers without sufficient power rating, neither should they " +
+    "home, work or long park on fast chargers."
 
     fastChargerPluginEvents.size shouldEqual 0 withClue
-      ", vehicles should not be enrouting, neither should they home, work or long park on fast chargers."
+    ", vehicles should not be enrouting, neither should they home, work or long park on fast chargers."
 
     homePluginEvents.size shouldEqual 100 withClue ", expecting 2 home plug-in events for each of the 50 vehicles."
     workPluginEvents.size shouldEqual 100 withClue ", expecting 2 work plug-in events for each of the 50 vehicles."
@@ -185,10 +185,10 @@ class ElectricVehicleChargingBehaviorTest
     unsuitablePluginEvents.size shouldEqual 0 withClue ", vehicles should not be connecting to chargers without sufficient power rating."
 
     centerPluginEvents.size + borderPluginEvents.size shouldEqual 200 withClue
-      ", expecting 4 enroute events for each of the 50 vehicles."
+    ", expecting 4 enroute events for each of the 50 vehicles."
 
     centerPluginEvents.size should be > borderPluginEvents.size withClue
-      ", agents should prefer center chargers for enrouting (smaller EnrouteDetourCost)."
+    ", agents should prefer center chargers for enrouting (smaller EnrouteDetourCost)."
   }
 
   "Electric vehicles" should "always enroute when there is not enough energy to reach their destination choosing smaller ParkingTicketCost." in {
@@ -232,13 +232,13 @@ class ElectricVehicleChargingBehaviorTest
     vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
 
     unsuitablePluginEvents.size shouldEqual 0 withClue
-      ", vehicles should not be connecting to chargers without sufficient power rating."
+    ", vehicles should not be connecting to chargers without sufficient power rating."
 
     freePluginEvents.size + expensivePluginEvents.size should be >= 200 withClue
-      ", expecting at least 4 enroute events for each of the 50 vehicles."
+    ", expecting at least 4 enroute events for each of the 50 vehicles."
 
     freePluginEvents.size should be > expensivePluginEvents.size withClue
-      ", agents should prefer top chargers for enrouting (smaller ParkingTicketCost)."
+    ", agents should prefer top chargers for enrouting (smaller ParkingTicketCost)."
   }
 
   def filterEvents(events: IndexedSeq[Event], filters: (String, String => Boolean)*): IndexedSeq[Event] = {
