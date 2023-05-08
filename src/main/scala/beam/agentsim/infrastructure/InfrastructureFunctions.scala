@@ -4,25 +4,17 @@ import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
-  ParkingAlternative,
-  ParkingZoneCollection,
-  ParkingZoneSearchConfiguration,
-  ParkingZoneSearchParams,
-  ParkingZoneSearchResult
-}
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch._
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import com.typesafe.scalalogging.StrictLogging
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
 abstract class InfrastructureFunctions(
-  geoQuadTree: QuadTree[TAZ],
-  idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+  tazTreeMap: TAZTreeMap,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
@@ -134,6 +126,7 @@ abstract class InfrastructureFunctions(
     //     utility function parameters. all alternatives are sampled in a multinomial logit function
     //     based on this.
     // ---------------------------------------------------------------------------------------------
+
     val parkingZoneSearchParams: ParkingZoneSearchParams =
       ParkingZoneSearchParams(
         inquiry.destinationUtm.loc,
@@ -142,7 +135,7 @@ abstract class InfrastructureFunctions(
         mnlMultiplierParameters,
         zoneCollections,
         parkingZones,
-        geoQuadTree,
+        tazTreeMap.tazQuadTree,
         new Random(seed + inquiryHash),
         inquiry.departureLocation,
         inquiry.reservedFor
@@ -167,7 +160,7 @@ abstract class InfrastructureFunctions(
     // generates a coordinate for an embodied ParkingStall from a ParkingZone
     val parkingZoneLocSamplingFunction: ParkingZone => Coord =
       (zone: ParkingZone) => {
-        idToGeoMapping.get(zone.tazId) match {
+        tazTreeMap.idToTAZMapping.get(zone.tazId) match {
           case None =>
             logger.error(
               s"somehow have a ParkingZone with tazId ${zone.tazId} which is not found in the idToGeoMapping"
