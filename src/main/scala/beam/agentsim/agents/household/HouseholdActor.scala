@@ -118,6 +118,8 @@ object HouseholdActor {
     triggerId: Long
   ) extends HasTriggerId
 
+  // TODO: Extend this to allow you to request a specific vehicle id
+
   case class ReleaseVehicle(vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
 
   case class ReleaseVehicleAndReply(vehicle: BeamVehicle, tick: Option[Int] = None, triggerId: Long)

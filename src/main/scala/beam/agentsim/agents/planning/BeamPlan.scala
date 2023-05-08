@@ -1,14 +1,13 @@
 package beam.agentsim.agents.planning
 
-import beam.agentsim.agents.modalbehaviors.ChoosesMode.ChoosesModeData
-import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.planning.BeamPlan.atHome
 
 import java.{lang, util}
 import beam.agentsim.agents.planning.Strategy.{Strategy, TourModeChoiceStrategy, TripModeChoiceStrategy}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.Modes.{isPersonalVehicleMode, BeamMode}
 import beam.router.TourModes.BeamTourMode
-import beam.router.TourModes.BeamTourMode._
+import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population._
 import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.attributable.Attributes
@@ -127,6 +126,14 @@ class BeamPlan extends Plan {
     legOption.flatMap(leg => Option(leg.getAttributes.getAttribute("tour_id")).map(_.toString.toInt))
   }
 
+  private def getTourModeFromMatsimLeg(leg: Leg): Option[BeamTourMode] = {
+    Option(leg.getAttributes.getAttribute("tour_mode")).flatMap(x => BeamTourMode.fromString(x.toString))
+  }
+
+  private def getTourVehicleFromMatsimLeg(leg: Leg): Option[Id[BeamVehicle]] = {
+    Option(leg.getAttributes.getAttribute("tour_vehicle")).map(x => Id.create(x.toString, classOf[BeamVehicle]))
+  }
+
   def createToursFromMatsimPlan(): Unit = {
     tours = Vector()
     var currentTourIndex = -1
@@ -148,8 +155,11 @@ class BeamPlan extends Plan {
             getTourIdFromMatsimLeg(currentLeg).getOrElse(currentTourIndex)
           )
           tours = tours :+ currentTour
-          putStrategy(currentTour, TourModeChoiceStrategy(None))
           currentTour = new Tour(originActivity = Some(activity))
+          putStrategy(
+            currentTour,
+            TourModeChoiceStrategy(getTourModeFromMatsimLeg(nextLeg), getTourVehicleFromMatsimLeg(nextLeg))
+          )
         }
       case Vector(leg: Leg, _: Activity) =>
         currentLeg = Some(leg)

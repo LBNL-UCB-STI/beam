@@ -394,6 +394,20 @@ object TourModes {
 
     case object BIKE_BASED extends BeamTourMode("bike_based", Bike, Seq[BeamMode](BIKE), Seq[BeamMode](BIKE))
 
+    def fromString(stringMode: String): Option[BeamTourMode] = {
+      if (stringMode.equals("") || stringMode.equals("other")) {
+        None
+      } else if (stringMode.equalsIgnoreCase("walk_based")) {
+        Some(WALK_BASED)
+      } else if (stringMode.equalsIgnoreCase("bike_based")) {
+        Some(BIKE_BASED)
+      } else if (stringMode.equalsIgnoreCase("car_based")) {
+        Some(CAR_BASED)
+      } else {
+        Some(BeamTourMode.withValue(stringMode))
+      }
+    }
+
   }
 
 }

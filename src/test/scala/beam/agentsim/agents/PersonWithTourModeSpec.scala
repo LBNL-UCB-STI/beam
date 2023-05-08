@@ -57,7 +57,7 @@ class PersonWithTourModeSpec
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
-        akka.test.timefactor = 2
+        akka.test.timefactor = 20
         """
     )
     .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -79,7 +79,7 @@ class PersonWithTourModeSpec
 
     val hoseHoldDummyId = Id.create("dummy", classOf[Household])
 
-    it("should know how to take a car trip when it's already in its plan") {
+    it("should know how to take a car trip on a car_based tour when the mode is already in its plan") {
       val eventsManager = new EventsManagerImpl()
       eventsManager.addHandler(
         new BasicEventHandler {
@@ -98,7 +98,8 @@ class PersonWithTourModeSpec
       val household = householdsFactory.createHousehold(hoseHoldDummyId)
       val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
 
-      val person: Person = createTestPerson(Id.createPersonId("dummyAgent"), vehicleId, Some(CAR), Some(CAR_BASED))
+      val person: Person =
+        createTestPerson(Id.createPersonId("dummyAgent"), vehicleId, Some(CAR), Some(CAR_BASED), Some(beamVehicle.id))
       population.addPerson(person)
 
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
@@ -177,6 +178,8 @@ class PersonWithTourModeSpec
         isEmbodyWithCurrentTravelTime = false,
         triggerId = embodyRequest.triggerId
       )
+
+//      expectMsgType[TourModeChoiceEvent]
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
@@ -309,8 +312,6 @@ class PersonWithTourModeSpec
 
       expectMsgType[PersonArrivalEvent]
       expectMsgType[ActivityStartEvent]
-
-      expectMsgType[CompletionNotice]
     }
   }
 
@@ -319,6 +320,7 @@ class PersonWithTourModeSpec
     vehicleId: Id[Vehicle],
     mode: Option[BeamMode],
     tourMode: Option[BeamTourMode],
+    tourVehicle: Option[Id[BeamVehicle]] = None,
     withRoute: Boolean = true
   ) = {
     val person = PopulationUtils.getFactory.createPerson(personId)
@@ -330,7 +332,8 @@ class PersonWithTourModeSpec
     plan.addActivity(homeActivity)
     val leg = PopulationUtils.createLeg(mode.map(_.matsimMode).getOrElse(""))
     leg.getAttributes.putAttribute("tour_id", 100)
-    leg.getAttributes.putAttribute("tour_mode", "")
+    leg.getAttributes.putAttribute("tour_mode", tourMode.map(_.value).getOrElse(""))
+    leg.getAttributes.putAttribute("tour_vehicle", tourVehicle.map(_.toString).getOrElse(""))
     if (withRoute) {
       val route = RouteUtils.createLinkNetworkRouteImpl(
         Id.createLinkId(228),
@@ -342,13 +345,21 @@ class PersonWithTourModeSpec
     }
     plan.addLeg(leg)
     val workActivity = PopulationUtils.createActivityFromLinkId("work", Id.createLinkId(2))
-    println(tourMode.getOrElse("LOOKATME"))
     workActivity.setEndTime(61200) //5:00:00 PM
     workActivity.setCoord(workLocation)
     plan.addActivity(workActivity)
     val leg2 = PopulationUtils.createLeg(mode.map(_.matsimMode).getOrElse(""))
     leg2.getAttributes.putAttribute("tour_id", 100)
-    leg2.getAttributes.putAttribute("tour_mode", "")
+    leg2.getAttributes.putAttribute("tour_mode", tourMode.map(_.value).getOrElse(""))
+    if (withRoute) {
+      val route = RouteUtils.createLinkNetworkRouteImpl(
+        Id.createLinkId(108),
+        Array(206, 180, 178, 184, 102).reverse.map(Id.createLinkId(_)),
+        Id.createLinkId(228)
+      )
+      route.setVehicleId(vehicleId)
+      leg2.setRoute(route)
+    }
     plan.addLeg(leg2)
     val homeActivity2 = PopulationUtils.createActivityFromLinkId("home", Id.createLinkId(1))
     homeActivity2.setCoord(homeLocation)

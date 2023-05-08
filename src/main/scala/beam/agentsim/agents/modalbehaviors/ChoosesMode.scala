@@ -142,15 +142,12 @@ trait ChoosesMode {
       // Unless it's a walk based tour and I used that vehicle for egress on my first trip
       case (data: ChoosesModeData, _, tourMode @ Some(CAR_BASED | BIKE_BASED)) =>
         if (data.personData.currentTourPersonalVehicle.isDefined) {
+          val currentTourVehicle = Vector(beamVehicles(data.personData.currentTourPersonalVehicle.get))
           self ! MobilityStatusResponse(
-            Vector(beamVehicles(data.personData.currentTourPersonalVehicle.get)),
+            currentTourVehicle,
             getCurrentTriggerIdOrGenerate
           )
         } else {
-          logger.warn(
-            s"Currently on a $tourMode tour and $currentTripMode trip but " +
-            s"don't have a tour vehicle defined. This is a problem"
-          )
           implicit val executionContext: ExecutionContext = context.system.dispatcher
           requestAvailableVehicles(
             vehicleFleets,
@@ -291,23 +288,48 @@ trait ChoosesMode {
           None
       }
 
-      var availablePersonalStreetVehicles =
-        currentTripMode match {
-          case None | Some(CAR | BIKE) =>
-            // In these cases, a personal vehicle will be involved, but filter out teleportation vehicles
-            newlyAvailableBeamVehicles.filterNot(v => BeamVehicle.isSharedTeleportationVehicle(v.id))
-          case Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION) =>
-            // In these cases, also include teleportation vehicles
-            newlyAvailableBeamVehicles
-          case Some(DRIVE_TRANSIT | BIKE_TRANSIT) =>
-            if (isFirstOrLastTripWithinTour(nextAct)) {
-              newlyAvailableBeamVehicles
-            } else {
-              Vector()
-            }
+      var availablePersonalStreetVehicles = {
+        currentTourStrategy.tourVehicle match {
+          case Some(vehId) =>
+            newlyAvailableBeamVehicles.filter(_.id == vehId)
           case _ =>
-            Vector()
+            currentTripMode match {
+              case None | Some(CAR | BIKE) =>
+                // In these cases, a personal vehicle will be involved, but filter out teleportation vehicles
+                newlyAvailableBeamVehicles.filterNot(v => BeamVehicle.isSharedTeleportationVehicle(v.id))
+              case Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION) =>
+                // In these cases, also include teleportation vehicles
+                newlyAvailableBeamVehicles
+              case Some(DRIVE_TRANSIT | BIKE_TRANSIT) =>
+                if (isFirstOrLastTripWithinTour(nextAct)) {
+                  newlyAvailableBeamVehicles
+                } else {
+                  Vector()
+                }
+              case _ =>
+                Vector()
+            }
         }
+      }
+
+//      var availablePersonalStreetVehicles = {
+//        currentTripMode match {
+//          case None | Some(CAR | BIKE) =>
+//            // In these cases, a personal vehicle will be involved, but filter out teleportation vehicles
+//            newlyAvailableBeamVehicles.filterNot(v => BeamVehicle.isSharedTeleportationVehicle(v.id))
+//          case Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION) =>
+//            // In these cases, also include teleportation vehicles
+//            newlyAvailableBeamVehicles
+//          case Some(DRIVE_TRANSIT | BIKE_TRANSIT) =>
+//            if (isFirstOrLastTripWithinTour(nextAct)) {
+//              newlyAvailableBeamVehicles
+//            } else {
+//              Vector()
+//            }
+//          case _ =>
+//            Vector()
+//        }
+//      }
 
       val (chosenCurrentTourMode, chosenCurrentTourPersonalVehicle) =
         currentTourStrategy.tourMode match {
