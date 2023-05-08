@@ -205,8 +205,14 @@ if [ -d "$finalPath" ]; then
 fi
 
 
+if [ "${RUN_BEAM,,}" != "true" ] && [ "${RUN_JUPYTER,,}" = "true" ]; then
+  final_status="Jupyter Instance"
+else
+  final_status=$(check_simulation_result)
+fi
+
+
 #Slack message
-final_status=$(check_simulation_result)
 bye_msg=$(cat <<EOF
 Run Completed
 Run Name **$RUN_NAME**
