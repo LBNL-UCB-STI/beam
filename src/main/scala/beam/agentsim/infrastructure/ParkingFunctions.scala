@@ -132,10 +132,10 @@ class ParkingFunctions(
           case _ =>
             // didn't find any stalls, so, as a last resort, create a very expensive stall
             val boxAroundRequest = new Envelope(
-              inquiry.destinationUtm.loc.getX + 2000,
-              inquiry.destinationUtm.loc.getX - 2000,
-              inquiry.destinationUtm.loc.getY + 2000,
-              inquiry.destinationUtm.loc.getY - 2000
+              inquiry.destinationUtm.loc.getX + 100,
+              inquiry.destinationUtm.loc.getX - 100,
+              inquiry.destinationUtm.loc.getY + 100,
+              inquiry.destinationUtm.loc.getY - 100
             )
             val newStall = ParkingStall.lastResortStall(boxAroundRequest, new Random(seed))
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
@@ -159,30 +159,33 @@ class ParkingFunctions(
   ): Coord = {
     if (parkingZone.link.isDefined)
       parkingZone.link.get.getCoord
-    else if (
-      (parkingZone.reservedFor.managerType == VehicleManager.TypeEnum.Household) ||
-      (inquiry.parkingActivityType == ParkingActivityType.Home && parkingZone.parkingType == ParkingType.Residential) ||
-      (inquiry.parkingActivityType == ParkingActivityType.Work && parkingZone.parkingType == ParkingType.Workplace)
-    )
-      inquiry.destinationUtm.loc
-    else if (tazTreeMap.tazListContainsGeoms) {
-      ParkingStallSampling.linkBasedSampling(
-        new Random(seed),
-        inquiry.destinationUtm.loc,
-        tazTreeMap.tazToLinkIdMapping.get(taz.tazId),
-        distanceFunction,
-        parkingZone.availability,
-        taz,
-        inClosestZone
-      )
-    } else {
-      ParkingStallSampling.availabilityAwareSampling(
-        new Random(seed),
-        inquiry.destinationUtm.loc,
-        taz,
-        parkingZone.availability,
-        inClosestZone
-      )
+    else {
+      val availability = if (
+        (parkingZone.reservedFor.managerType == VehicleManager.TypeEnum.Household) ||
+        (inquiry.parkingActivityType == ParkingActivityType.Home && parkingZone.parkingType == ParkingType.Residential) ||
+        (inquiry.parkingActivityType == ParkingActivityType.Work && parkingZone.parkingType == ParkingType.Workplace)
+      ) {
+        1.0
+      } else { parkingZone.availability }
+      if (tazTreeMap.tazListContainsGeoms) {
+        ParkingStallSampling.linkBasedSampling(
+          new Random(seed),
+          inquiry.destinationUtm.loc,
+          tazTreeMap.tazToLinkIdMapping.get(taz.tazId),
+          distanceFunction,
+          availability,
+          taz,
+          inClosestZone
+        )
+      } else {
+        ParkingStallSampling.availabilityAwareSampling(
+          new Random(seed),
+          inquiry.destinationUtm.loc,
+          taz,
+          availability,
+          inClosestZone
+        )
+      }
     }
   }
 

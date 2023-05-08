@@ -7,6 +7,8 @@ import akka.util.Timeout
 import beam.agentsim.Resource.NotifyVehicleIdle
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents._
+import beam.agentsim.agents.choice.logit.TourModeChoiceModel
+import beam.agentsim.agents.choice.mode.TourModeChoiceMultinomialLogit
 import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
@@ -35,6 +37,7 @@ import beam.router.RouteHistory
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg}
 import beam.router.osm.TollCalculator
 import beam.sim.config.BeamConfig.Beam.Debug
+import beam.sim.config.BeamConfigHolder
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.sim.{BeamScenario, BeamServices}
@@ -78,7 +81,8 @@ object HouseholdActor {
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
-    vehiclesAdjustment: VehiclesAdjustment
+    vehiclesAdjustment: VehiclesAdjustment,
+    beamConfigHolder: BeamConfigHolder
   ): Props = {
     Props(
       new HouseholdActor(
@@ -100,7 +104,8 @@ object HouseholdActor {
         sharedVehicleFleets,
         possibleSharedVehicleTypes,
         routeHistory,
-        vehiclesAdjustment
+        vehiclesAdjustment,
+        beamConfigHolder
       )
     )
   }
@@ -112,6 +117,8 @@ object HouseholdActor {
     requireVehicleCategoryAvailable: Option[VehicleCategory],
     triggerId: Long
   ) extends HasTriggerId
+
+  // TODO: Extend this to allow you to request a specific vehicle id
 
   case class ReleaseVehicle(vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
 
@@ -156,7 +163,8 @@ object HouseholdActor {
     sharedVehicleFleets: Seq[ActorRef] = Vector(),
     possibleSharedVehicleTypes: Set[BeamVehicleType],
     routeHistory: RouteHistory,
-    vehiclesAdjustment: VehiclesAdjustment
+    vehiclesAdjustment: VehiclesAdjustment,
+    beamConfigHolder: BeamConfigHolder
   ) extends LoggingMessageActor
       with HasTickAndTrigger
       with ActorLogging {
@@ -406,6 +414,12 @@ object HouseholdActor {
         household.members.foreach { person =>
           val attributes = person.getCustomAttributes.get("beam-attributes").asInstanceOf[AttributesOfIndividual]
           val modeChoiceCalculator = modeChoiceCalculatorFactory(attributes)
+          val tourModeChoiceCalculator =
+            new TourModeChoiceMultinomialLogit(
+              attributes,
+              new TourModeChoiceModel(beamScenario.beamConfig),
+              beamConfigHolder
+            )
           val selectedPlan = person.getSelectedPlan
           // Set zero endTime for plans with one activity. In other case agent sim will be started
           // before all InitializeTrigger's are completed
@@ -422,6 +436,7 @@ object HouseholdActor {
               beamServices,
               beamScenario,
               modeChoiceCalculator,
+              tourModeChoiceCalculator,
               transportNetwork,
               tollCalculator,
               router,

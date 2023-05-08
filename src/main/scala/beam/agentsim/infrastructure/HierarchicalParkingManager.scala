@@ -210,10 +210,10 @@ class HierarchicalParkingManager(
 
   private def lastResortStallAndZone(location: Location) = {
     val boxAroundRequest = new Envelope(
-      location.getX + 2000,
-      location.getX - 2000,
-      location.getY + 2000,
-      location.getY - 2000
+      location.getX + 100,
+      location.getX - 100,
+      location.getY + 100,
+      location.getY - 100
     )
     val newStall = ParkingStall.lastResortStall(boxAroundRequest, new Random(seed))
     newStall -> DefaultParkingZone

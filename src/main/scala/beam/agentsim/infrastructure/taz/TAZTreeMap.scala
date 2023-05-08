@@ -115,10 +115,14 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
       writer.write("linkId,count")
       writer.write(System.lineSeparator())
       failedLinkLookups.toList.groupBy(identity).mapValues(_.size).foreach { case (linkId, count) =>
-        writer.write(Option(linkId).mkString)
-        writer.write(",")
-        writer.write(count.toString)
-        writer.write(System.lineSeparator())
+        try {
+          writer.write(Option(linkId).mkString)
+          writer.write(",")
+          writer.write(count.toString)
+          writer.write(System.lineSeparator())
+        } catch {
+          case e: Throwable => logger.warn(s"Error: ${e.getMessage}. Could not write link $linkId")
+        }
       }
       writer.flush()
       writer.close()
@@ -332,6 +336,28 @@ object TAZTreeMap {
     val x = r * Math.cos(a)
     val y = r * Math.sin(a)
     new Coord(taz.coord.getX + x, taz.coord.getY + y)
+  }
+
+  def randomLocationInTAZ(
+    taz: TAZ,
+    rand: scala.util.Random,
+    allLinks: Iterable[Link]
+  ): Coord = {
+    if (allLinks.isEmpty) {
+      randomLocationInTAZ(taz, rand)
+    } else {
+      val totalLength = allLinks.foldRight(0.0)(_.getLength + _)
+      var currentLength = 0.0
+      val stopAt = rand.nextDouble() * totalLength
+      allLinks
+        .takeWhile { lnk =>
+          currentLength += lnk.getLength
+          currentLength <= stopAt
+        }
+        .lastOption
+        .map(_.getCoord)
+        .getOrElse(allLinks.head.getCoord)
+    }
   }
 
   def randomLocationInTAZ(

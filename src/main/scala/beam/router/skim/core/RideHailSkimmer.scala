@@ -35,14 +35,14 @@ class RideHailSkimmer @Inject() (
         tazId = line("tazId").createId,
         hour = line("hour").toInt,
         reservationType = if (line("reservationType").equalsIgnoreCase("pooled")) Pooled else Solo,
-        line("wheelchairRequired").toBoolean,
+        line.get("wheelchairRequired").exists(_.toBoolean),
         serviceName = line.getOrElse("serviceName", "GlobalRHM")
       ),
       RidehailSkimmerInternal(
         waitTime = Option(line("waitTime")).map(_.toDouble).getOrElse(Double.NaN),
         costPerMile = Option(line("costPerMile")).map(_.toDouble).getOrElse(Double.NaN),
         unmatchedRequestsPercent = line("unmatchedRequestsPercent").toDouble,
-        accessibleVehiclePercent = line("accessibleVehiclePercent").toDouble,
+        accessibleVehiclePercent = line.get("accessibleVehiclePercent").map(_.toDouble).getOrElse(0.0),
         observations = line("observations").toInt,
         iterations = line("iterations").toInt
       )

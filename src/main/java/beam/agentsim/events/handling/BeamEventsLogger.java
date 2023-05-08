@@ -128,6 +128,9 @@ public class BeamEventsLogger implements BeamEventsLoggingSettings {
                     case "ModeChoiceEvent":
                         eventClass = ModeChoiceEvent.class;
                         break;
+                    case "TourModeChoiceEvent":
+                        eventClass = TourModeChoiceEvent.class;
+                        break;
                     case "ParkingEvent":
                         eventClass = ParkingEvent.class;
                         break;
