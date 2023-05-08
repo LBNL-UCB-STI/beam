@@ -17,7 +17,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import scala.util.Random
 
 class ElectricVehicleChargingBehaviorTest
-    extends AnyFlatSpec
+  extends AnyFlatSpec
     with Matchers
     with BeamHelper
     with BeforeAndAfterAllConfigMap {
@@ -59,6 +59,21 @@ class ElectricVehicleChargingBehaviorTest
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
 
+  /*
+
+    TAZ MAP:
+                     -------- 20, 22, 28 -------- 21, 23, 29 --------
+                     |      167692.88,2213.6    168807.15,2213.6    |
+             home(8) -------- 10, 12, 18 -------- 11, 13, 19 -------- work(9)
+    166021.46,1106.8 |      167692.88,1106.8    168807.15,1106.8    | 169921.40,1106.8
+                     -------- 30, 32, 38 -------- 31, 33, 39 --------
+                            167692.88,5.53      168807.15,5.53
+
+    TAZs are used to identify different parking zones by ensuring there is at most one parking zone on each TAZ.
+    Parking zone coordinates are defined to be exactly on the center of each TAZ by setting TAZs area to zero.
+
+   */
+
   "Electric vehicles" should "charge at their destination and should not run out of energy" in {
 
     val config = ConfigFactory
@@ -77,10 +92,10 @@ class ElectricVehicleChargingBehaviorTest
       EventReader.getEventsFilePath(matsimConfig, "events", "xml").getAbsolutePath
     )
 
-    val homeTaz = "10"
-    val workTaz = "11"
-    val unsuitableChargersTAZs = List("18", "28", "38")
-    val fastChargersTAZs = List("15", "16", "20", "21", "30", "31")
+    val homeTaz = "8"
+    val workTaz = "9"
+    val unsuitableChargersTAZs = List("18", "19", "28", "29", "38", "39")
+    val fastChargersTAZs = List("10", "11", "20", "21", "30", "31")
 
     val homePluginEvents = filterEvents(
       events,
@@ -107,11 +122,11 @@ class ElectricVehicleChargingBehaviorTest
     vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
 
     unsuitablePluginEvents.size shouldEqual 0 withClue
-    ", vehicles should not be enrouting, specially to chargers without sufficient power rating, neither should they " +
-    "home, work or long park on fast chargers."
+      ", vehicles should not be enrouting, specially to chargers without sufficient power rating, neither should they " +
+        "home, work or long park on fast chargers."
 
     fastChargerPluginEvents.size shouldEqual 0 withClue
-    ", vehicles should not be enrouting, neither should they home, work or long park on fast chargers."
+      ", vehicles should not be enrouting, neither should they home, work or long park on fast chargers."
 
     homePluginEvents.size shouldEqual 100 withClue ", expecting 2 home plug-in events for each of the 50 vehicles."
     workPluginEvents.size shouldEqual 100 withClue ", expecting 2 work plug-in events for each of the 50 vehicles."
@@ -144,9 +159,9 @@ class ElectricVehicleChargingBehaviorTest
       EventReader.getEventsFilePath(matsimConfig, "events", "xml").getAbsolutePath
     )
 
-    val centerTAZs = List("15", "16")
+    val centerTAZs = List("10", "11")
     val borderTAZs = List("20", "21", "30", "31")
-    val unsuitableChargersTAZs = List("18", "28", "38")
+    val unsuitableChargersTAZs = List("18", "19", "28", "29", "38", "39")
 
     val centerPluginEvents = filterEvents(
       events,
@@ -170,10 +185,10 @@ class ElectricVehicleChargingBehaviorTest
     unsuitablePluginEvents.size shouldEqual 0 withClue ", vehicles should not be connecting to chargers without sufficient power rating."
 
     centerPluginEvents.size + borderPluginEvents.size shouldEqual 200 withClue
-    ", expecting 4 enroute events for each of the 50 vehicles."
+      ", expecting 4 enroute events for each of the 50 vehicles."
 
     centerPluginEvents.size should be > borderPluginEvents.size withClue
-    ", agents should prefer center chargers for enrouting (smaller EnrouteDetourCost)."
+      ", agents should prefer center chargers for enrouting (smaller EnrouteDetourCost)."
   }
 
   "Electric vehicles" should "always enroute when there is not enough energy to reach their destination choosing smaller ParkingTicketCost." in {
@@ -193,9 +208,9 @@ class ElectricVehicleChargingBehaviorTest
       EventReader.getEventsFilePath(matsimConfig, "events", "xml").getAbsolutePath
     )
 
-    val freeChargersTAZs = List("20", "31")
-    val expensiveChargersTAZs = List("30", "21")
-    val unsuitableChargersTAZs = List("15", "16", "18", "28", "38")
+    val freeChargersTAZs = List("20", "21", "30", "31")
+    val expensiveChargersTAZs = List("22", "23", "32", "33")
+    val unsuitableChargersTAZs = List("10", "11", "18", "19", "28", "29", "38", "39")
 
     val freePluginEvents = filterEvents(
       events,
@@ -217,13 +232,13 @@ class ElectricVehicleChargingBehaviorTest
     vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
 
     unsuitablePluginEvents.size shouldEqual 0 withClue
-    ", vehicles should not be connecting to chargers without sufficient power rating."
+      ", vehicles should not be connecting to chargers without sufficient power rating."
 
     freePluginEvents.size + expensivePluginEvents.size should be >= 200 withClue
-    ", expecting at least 4 enroute events for each of the 50 vehicles."
+      ", expecting at least 4 enroute events for each of the 50 vehicles."
 
     freePluginEvents.size should be > expensivePluginEvents.size withClue
-    ", agents should prefer top chargers for enrouting (smaller ParkingTicketCost)."
+      ", agents should prefer top chargers for enrouting (smaller ParkingTicketCost)."
   }
 
   def filterEvents(events: IndexedSeq[Event], filters: (String, String => Boolean)*): IndexedSeq[Event] = {
