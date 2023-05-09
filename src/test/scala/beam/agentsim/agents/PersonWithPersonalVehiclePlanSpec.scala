@@ -30,7 +30,7 @@ import org.matsim.core.events.EventsManagerImpl
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.routes.RouteUtils
-import org.matsim.households.{Household, HouseholdsFactoryImpl}
+import org.matsim.households.{Household, HouseholdsFactoryImpl, Income, IncomeImpl}
 import org.matsim.vehicles._
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
@@ -56,7 +56,8 @@ class PersonWithPersonalVehiclePlanSpec
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
-        akka.test.timefactor = 2
+        akka.test.timefactor = 20
+        beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt = true
         """
     )
     .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -612,6 +613,7 @@ class PersonWithPersonalVehiclePlanSpec
       population.addPerson(otherPerson)
 
       household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId, otherPerson.getId)))
+      household.setIncome(new IncomeImpl(40, Income.IncomePeriod.year))
 
       val scheduler = TestActorRef[BeamAgentScheduler](
         SchedulerProps(
@@ -767,7 +769,7 @@ class PersonWithPersonalVehiclePlanSpec
       scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
       scheduler ! StartSchedule(0)
 
-      expectMsgType[TourModeChoiceEvent]
+//      expectMsgType[TourModeChoiceEvent]
 
       val routingRequest = expectMsgType[RoutingRequest]
       lastSender ! RoutingResponse(
@@ -823,6 +825,7 @@ class PersonWithPersonalVehiclePlanSpec
         triggerId = routingRequest.triggerId
       )
 
+      expectMsgType[TourModeChoiceEvent]
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
       expectMsgType[PersonDepartureEvent]

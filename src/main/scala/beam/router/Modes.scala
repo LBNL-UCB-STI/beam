@@ -263,7 +263,7 @@ object TourModes {
 
     import BeamTourMode._
 
-    def getModeFromVehicle(beamVehicle: BeamVehicle): BeamMode = {
+    private def getModeFromVehicle(beamVehicle: BeamVehicle): BeamMode = {
       beamVehicle.beamVehicleType.vehicleCategory match {
         case VehicleCategory.Car  => CAR
         case VehicleCategory.Bike => BIKE
@@ -304,13 +304,13 @@ object TourModes {
         case CAR | CAR_HOV2 | CAR_HOV3 =>
           if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
             // Assume that if they have access to a personal vehicle they'll take it
-            // on the whole tour, otherwise they'll rely on a shared vehicle
+            // on the whole tour, otherwise they'll need to use an emergency vehicle
             (Some(CAR_BASED), availableVehicles.find(!_.vehicle.isSharedVehicle).map(_.vehicle))
-          } else (Some(WALK_BASED), None)
+          } else (Some(CAR_BASED), None)
         case BIKE =>
           if (availableVehicles.exists(!_.vehicle.isSharedVehicle)) {
             // Assume that if they have access to a personal vehicle they'll take it
-            // on the whole tour, otherwise they'll rely on a shared vehicle
+            // on the whole tour, otherwise they'll rely on a shared vehicle // TODO: Check
             (Some(BIKE_BASED), availableVehicles.find(!_.vehicle.isSharedVehicle).map(_.vehicle))
           } else (Some(WALK_BASED), None)
         case DRIVE_TRANSIT =>
