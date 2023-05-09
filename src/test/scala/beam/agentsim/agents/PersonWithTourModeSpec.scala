@@ -2,17 +2,25 @@ package beam.agentsim.agents
 
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
+
+import scala.concurrent.duration._
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.logit.TourModeChoiceModel
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
-import beam.agentsim.agents.ridehail.{RideHailRequest, RideHailResponse}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.{AnotherTrivialParkingManager, TrivialParkingManager}
-import beam.agentsim.scheduler.BeamAgentScheduler
-import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
+import beam.agentsim.scheduler.{BeamAgentScheduler, HasTriggerId}
+import beam.agentsim.scheduler.BeamAgentScheduler.{
+  CompletionNotice,
+  ScheduleKillTrigger,
+  ScheduleTrigger,
+  SchedulerMessage,
+  SchedulerProps,
+  StartSchedule
+}
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
@@ -41,8 +49,8 @@ import org.scalatest.funspec.AnyFunSpecLike
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 
-import java.util.concurrent.atomic.AtomicReference
 import scala.collection.{mutable, JavaConverters}
+import scala.language.postfixOps
 
 class PersonWithTourModeSpec
     extends AnyFunSpecLike
@@ -59,7 +67,7 @@ class PersonWithTourModeSpec
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
-        akka.test.timefactor = 20
+        akka.test.timefactor = 2
         """
     )
     .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -311,6 +319,12 @@ class PersonWithTourModeSpec
 
       expectMsgType[PersonArrivalEvent]
       expectMsgType[ActivityStartEvent]
+      lastSender ! ScheduleKillTrigger(lastSender, walkFromParkingRoutingRequest.triggerId)
+      receiveWhile(500 millis) {
+        case _: SchedulerMessage =>
+        case x: Event            => println(x.toString)
+        case x: HasTriggerId     => println(x.toString)
+      }
     }
     it("should choose a car_based tour when a car trip is already in its plan") {
       val eventsManager = new EventsManagerImpl()
@@ -547,6 +561,13 @@ class PersonWithTourModeSpec
 
       expectMsgType[PersonArrivalEvent]
       expectMsgType[ActivityStartEvent]
+      lastSender ! ScheduleKillTrigger(lastSender, walkFromParkingRoutingRequest.triggerId)
+
+      receiveWhile(500 millis) {
+        case _: SchedulerMessage =>
+        case x: Event            => println(x.toString)
+        case x: HasTriggerId     => println(x.toString)
+      }
     }
     it("should choose a car trip when a car_based tour is already in its plan") {
       val eventsManager = new EventsManagerImpl()
@@ -672,6 +693,13 @@ class PersonWithTourModeSpec
       expectMsgType[LinkEnterEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
+      lastSender ! ScheduleKillTrigger(lastSender, routingRequest.triggerId)
+
+      receiveWhile(500 millis) {
+        case _: SchedulerMessage =>
+        case x: Event            => println(x.toString)
+        case x: HasTriggerId     => println(x.toString)
+      }
     }
     it("should choose a walk trip when a walk_based tour is already in its plan") {
       val eventsManager = new EventsManagerImpl()
@@ -739,13 +767,6 @@ class PersonWithTourModeSpec
 
       scheduler ! StartSchedule(0)
 
-//      expectMsgType[RideHailRequest]
-//      lastSender ! RideHailResponse.DUMMY
-//      expectMsgType[RoutingRequest]
-//      lastSender ! RoutingResponse.dummyRoutingResponse
-//      expectMsgType[RoutingRequest]
-//      lastSender ! RoutingResponse.dummyRoutingResponse
-//      lastSender ! RoutingResponse.dummyRoutingResponse
       val routingRequest = expectMsgType[RoutingRequest]
       assert(routingRequest.withTransit === true)
       val personVehicle = routingRequest.streetVehicles.find(_.mode == WALK).get
@@ -791,6 +812,12 @@ class PersonWithTourModeSpec
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
+      lastSender ! ScheduleKillTrigger(lastSender, routingRequest.triggerId)
+      receiveWhile(500 millis) {
+        case _: SchedulerMessage =>
+        case x: Event            => println(x.toString)
+        case x: HasTriggerId     => println(x.toString)
+      }
     }
     it("should choose between a walk and car trip when tour mode is not set in plan") {
       val eventsManager = new EventsManagerImpl()
@@ -858,13 +885,6 @@ class PersonWithTourModeSpec
 
       scheduler ! StartSchedule(0)
 
-      //      expectMsgType[RideHailRequest]
-      //      lastSender ! RideHailResponse.DUMMY
-      //      expectMsgType[RoutingRequest]
-      //      lastSender ! RoutingResponse.dummyRoutingResponse
-      //      expectMsgType[RoutingRequest]
-      //      lastSender ! RoutingResponse.dummyRoutingResponse
-      //      lastSender ! RoutingResponse.dummyRoutingResponse
       val tmc = expectMsgType[TourModeChoiceEvent]
       val modeUtilities = tmc.tourModeToUtilityString
         .replace(" ", "")
@@ -920,6 +940,13 @@ class PersonWithTourModeSpec
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
+      lastSender ! ScheduleKillTrigger(lastSender, routingRequest.triggerId)
+
+      receiveWhile(500 millis) {
+        case _: SchedulerMessage =>
+        case x: Event            => println(x.toString)
+        case x: HasTriggerId     => println(x.toString)
+      }
     }
   }
 
