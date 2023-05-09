@@ -19,6 +19,11 @@ SLACK_HOOK_WITH_TOKEN=$(curl http://metadata/computeMetadata/v1/instance/attribu
 SLACK_TOKEN=$(curl http://metadata/computeMetadata/v1/instance/attributes/slack_token -H "Metadata-Flavor: Google")
 SLACK_CHANNEL=$(curl http://metadata/computeMetadata/v1/instance/attributes/slack_channel -H "Metadata-Flavor: Google")
 GOOGLE_API_KEY=$(curl http://metadata/computeMetadata/v1/instance/attributes/google_api_key -H "Metadata-Flavor: Google")
+RUN_JUPYTER=$(curl http://metadata/computeMetadata/v1/instance/attributes/run_jupyter -H "Metadata-Flavor: Google")
+RUN_BEAM=$(curl http://metadata/computeMetadata/v1/instance/attributes/run_beam -H "Metadata-Flavor: Google")
+JUPYTER_TOKEN=$(curl http://metadata/computeMetadata/v1/instance/attributes/jupyter_token -H "Metadata-Flavor: Google")
+JUPYTER_IMAGE=$(curl http://metadata/computeMetadata/v1/instance/attributes/jupyter_image -H "Metadata-Flavor: Google")
+
 
 function check_simulation_result() {
   log_file="$(find output -maxdepth 2 -mindepth 2 -type d -print -quit)/beamLog.out"
@@ -118,12 +123,36 @@ EOF
 echo "$start_json"
 curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
 
-
-#building beam
 ./gradlew assemble
-#running beam
-export GOOGLE_API_KEY="$GOOGLE_API_KEY"
-./gradlew --stacktrace :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM"g
+
+if [ "${RUN_JUPYTER,,}" = "true" ]; then
+
+  export GOOGLE_API_KEY="$GOOGLE_API_KEY"
+
+  set -x
+  if [ -n "$JUPYTER_TOKEN" ] && [ -n "$JUPYTER_IMAGE" ]
+  then sudo ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN" -PjupyterImage="$JUPYTER_IMAGE"
+  elif [ -n "$JUPYTER_TOKEN" ]
+  then sudo ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN"
+  elif [ -n "$JUPYTER_IMAGE" ]
+  then sudo ./gradlew jupyterStart -Puser=root -PjupyterImage="$JUPYTER_IMAGE"
+  else sudo ./gradlew jupyterStart -Puser=root
+  fi
+  set +x
+
+else
+  echo "NOT going to start jupyter. [RUN_JUPYTER ('${RUN_JUPYTER,,}') not equal to 'true']"
+fi
+
+
+if [ "${RUN_BEAM,,}" = "true" ]; then
+  echo "Running BEAM"
+  export GOOGLE_API_KEY="$GOOGLE_API_KEY"
+  ./gradlew --stacktrace :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM"g
+else
+  echo "NOT going to start BEAM. [RUN_BEAM ('${RUN_BEAM,,}') not equal to 'true']"
+fi
+
 
 # copy to bucket
 storage_url=""
@@ -134,6 +163,7 @@ for file in "output"/*; do
     finalPath="$path2";
   done;
 done;
+
 
 if [ "${STORAGE_PUBLISH,,}" != "false" ]; then
 
@@ -149,6 +179,7 @@ if [ "${STORAGE_PUBLISH,,}" != "false" ]; then
     storage_url="https://console.cloud.google.com/storage/browser/_details/beam-core-outputs/$cloud_init_output_path"
   fi
 fi
+
 
 #Run and publish analysis
 health_metrics=""
@@ -170,6 +201,7 @@ if [ -d "$finalPath" ]; then
     curl -H "Authorization:Bearer $SLACK_TOKEN" -F file=@$simulation_health_analysis_output_file -F initial_comment="Beam Health Analysis" -F channels="$SLACK_CHANNEL" "https://slack.com/api/files.upload"
 fi
 
+
 #Slack message
 final_status=$(check_simulation_result)
 bye_msg=$(cat <<EOF
@@ -190,6 +222,7 @@ EOF
 )
 echo "$bye_msg"
 curl -X POST -H 'Content-type: application/json' --data '{"text":"'"$bye_msg"'"}' "$SLACK_HOOK_WITH_TOKEN"
+
 
 # spreadsheet data
 stop_json=$(cat <<EOF
@@ -226,10 +259,12 @@ EOF
 echo "$stop_json"
 curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$stop_json"
 
+
 # uploading cloud-init-output.log again to have the latest output
 if [ "${STORAGE_PUBLISH,,}" != "false" ]; then
   gsutil cp ~/cloud-init-output.log "gs://beam-core-outputs/$cloud_init_output_path"
 fi
+
 
 #shutdown instance
 sudo shutdown -h +"$SHUTDOWN_WAIT"
