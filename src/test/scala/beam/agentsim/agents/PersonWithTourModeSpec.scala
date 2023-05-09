@@ -1,17 +1,19 @@
 package beam.agentsim.agents
 
 import akka.actor.{ActorSystem, Props}
+import akka.pattern.{ask, pipe}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
+import akka.util.Timeout
 
 import scala.concurrent.duration._
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.logit.TourModeChoiceModel
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
-import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
+import beam.agentsim.agents.household.HouseholdActor.{HouseholdActor, MobilityStatusInquiry, MobilityStatusResponse}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.{AnotherTrivialParkingManager, TrivialParkingManager}
+import beam.agentsim.infrastructure._
 import beam.agentsim.scheduler.{BeamAgentScheduler, HasTriggerId}
 import beam.agentsim.scheduler.BeamAgentScheduler.{
   CompletionNotice,
@@ -24,6 +26,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{BIKE, CAR, WALK}
+import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token}
 import beam.router.RouteHistory
 import beam.router.TourModes.BeamTourMode
 import beam.router.TourModes.BeamTourMode.{CAR_BASED, WALK_BASED}
@@ -49,7 +52,10 @@ import org.scalatest.funspec.AnyFunSpecLike
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.{mutable, JavaConverters}
+import scala.concurrent.ExecutionContext
 import scala.language.postfixOps
 
 class PersonWithTourModeSpec
@@ -60,6 +66,9 @@ class PersonWithTourModeSpec
     with BeforeAndAfter
     with ImplicitSender
     with BeamvilleFixtures {
+
+  private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
+  private implicit val executionContext: ExecutionContext = system.dispatcher
 
   lazy val config: Config = ConfigFactory
     .parseString(
@@ -940,6 +949,158 @@ class PersonWithTourModeSpec
       expectMsgType[VehicleEntersTrafficEvent]
       expectMsgType[VehicleLeavesTrafficEvent]
       expectMsgType[PathTraversalEvent]
+      lastSender ! ScheduleKillTrigger(lastSender, routingRequest.triggerId)
+
+      receiveWhile(500 millis) {
+        case _: SchedulerMessage =>
+        case x: Event            => println(x.toString)
+        case x: HasTriggerId     => println(x.toString)
+      }
+    }
+    it("should only consider walk_based tours if given only a shared car") {
+      val eventsManager = new EventsManagerImpl()
+      eventsManager.addHandler(
+        new BasicEventHandler {
+          override def handleEvent(event: Event): Unit = {
+            event match {
+              case _: AbstractSkimmerEvent => // ignore
+              case _                       => self ! event
+            }
+          }
+        }
+      )
+      val personalVehicleId = Id.createVehicleId("car-dummyAgent")
+//      val personalVehicleType = beamScenario.vehicleTypes(Id.create("beamVilleCar", classOf[BeamVehicleType]))
+//      val beamVehicle = new BeamVehicle(personalVehicleId, new Powertrain(0.0), personalVehicleType)
+
+      val household = householdsFactory.createHousehold(hoseHoldDummyId)
+      val population = PopulationUtils.createPopulation(ConfigUtils.createConfig())
+
+      val person: Person =
+        createTestPerson(Id.createPersonId("dummyAgent"), personalVehicleId, None, None, None, withRoute = false)
+      population.addPerson(person)
+
+      household.setMemberIds(JavaConverters.bufferAsJavaList(mutable.Buffer(person.getId)))
+
+      val scheduler = TestActorRef[BeamAgentScheduler](
+        SchedulerProps(
+          beamConfig,
+          stopTick = 24 * 60 * 60,
+          maxWindow = 10,
+          new StuckFinder(beamConfig.beam.debug.stuckAgentDetection)
+        )
+      )
+      val parkingLocation = new Coord(167138.4, 1117.0)
+      val parkingManager = system.actorOf(Props(new AnotherTrivialParkingManager(parkingLocation)))
+      val mockSharedVehicleFleet = TestProbe()
+
+      val householdActor = TestActorRef[HouseholdActor](
+        Props(
+          new HouseholdActor(
+            services,
+            beamScenario,
+            _ => modeChoiceCalculator,
+            scheduler,
+            beamScenario.transportNetwork,
+            services.tollCalculator,
+            self,
+            self,
+            parkingManager,
+            self,
+            eventsManager,
+            population,
+            household,
+            Map(),
+            new Coord(0.0, 0.0),
+            sharedVehicleFleets = Vector(mockSharedVehicleFleet.ref),
+            Set(beamScenario.vehicleTypes(Id.create("sharedVehicle-sharedCar", classOf[BeamVehicleType]))),
+            new RouteHistory(beamConfig),
+            VehiclesAdjustment.getVehicleAdjustment(beamScenario),
+            configHolder
+          )
+        )
+      )
+      scheduler ! ScheduleTrigger(InitializeTrigger(0), householdActor)
+
+      scheduler ! StartSchedule(0)
+
+      val inq = mockSharedVehicleFleet.expectMsgType[MobilityStatusInquiry]
+
+      val vehicleType = beamScenario.vehicleTypes(Id.create("sharedVehicle-sharedCar", classOf[BeamVehicleType]))
+      val managerId = VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared).managerId
+      // I give it a car to use.
+      val vehicle = new BeamVehicle(
+        Id.create("sharedVehicle-sharedCar", classOf[BeamVehicle]),
+        new Powertrain(0.0),
+        vehicleType,
+        vehicleManagerId = new AtomicReference(managerId)
+      )
+      vehicle.setManager(Some(mockSharedVehicleFleet.ref))
+
+      (parkingManager ? ParkingInquiry.init(
+        SpaceTime(0.0, 0.0, 28800),
+        "wherever",
+        triggerId = 0
+      )).collect { case ParkingInquiryResponse(stall, _, triggerId) =>
+        vehicle.useParkingStall(stall)
+        MobilityStatusResponse(Vector(ActualVehicle(vehicle)), triggerId)
+      } pipeTo mockSharedVehicleFleet.lastSender
+
+      val tmc = expectMsgType[TourModeChoiceEvent]
+      val modeUtilities = tmc.tourModeToUtilityString
+        .replace(" ", "")
+        .split("->")
+        .flatMap(_.split(";"))
+        .sliding(2, 2)
+        .map { x => x(0) -> x(1).toDouble }
+        .toMap
+
+      val chosenTourMode = tmc.tourMode
+      assert(modeUtilities("CAR_BASED") === Double.NegativeInfinity)
+      assert(modeUtilities("WALK_BASED") > Double.NegativeInfinity)
+      assert(modeUtilities("BIKE_BASED") === Double.NegativeInfinity)
+      val routingRequest = expectMsgType[RoutingRequest]
+      val personVehicle = routingRequest.streetVehicles.find(_.mode == WALK).get
+      val linkIds = Array[Int](228, 206, 180, 178, 184, 102)
+      lastSender ! RoutingResponse(
+        Vector(
+          EmbodiedBeamTrip(
+            legs = Vector(
+              EmbodiedBeamLeg.dummyLegAt(
+                routingRequest.departureTime,
+                routingRequest.streetVehicles.find(_.mode == WALK).get.id,
+                false,
+                services.geo.utm2Wgs(routingRequest.originUTM),
+                WALK,
+                personVehicle.vehicleTypeId
+              ),
+              createEmbodiedBeamLeg(routingRequest, vehicle.toStreetVehicle, linkIds, 50d),
+              EmbodiedBeamLeg.dummyLegAt(
+                routingRequest.departureTime + 250,
+                routingRequest.streetVehicles.find(_.mode == WALK).get.id,
+                true,
+                services.geo.utm2Wgs(routingRequest.destinationUTM),
+                WALK,
+                personVehicle.vehicleTypeId
+              )
+            )
+          ),
+          EmbodiedBeamTrip(legs = Vector(createEmbodiedBeamLeg(routingRequest, personVehicle, linkIds, 150d)))
+        ),
+        requestId = 1,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false,
+        triggerId = routingRequest.triggerId
+      )
+      val mce = expectMsgType[ModeChoiceEvent]
+      assert(mce.currentTourMode === "walk_based")
+      // Make sure that they consider using the shared car, even though they are on a walk_based tour (they can do this
+      // because they don't need to bring the car home, so they can take any walk_based mode for the rest of the tour)
+      assert(mce.availableAlternatives contains "CAR")
+      assert(mce.availableAlternatives contains "WALK")
+      expectMsgType[ActivityEndEvent]
+      expectMsgType[PersonDepartureEvent]
+
       lastSender ! ScheduleKillTrigger(lastSender, routingRequest.triggerId)
 
       receiveWhile(500 millis) {
