@@ -37,6 +37,8 @@ class ElectricVehicleChargingBehaviorTest
        |beam.agentsim.taz.filePath=$filesPath/taz-centers.csv"
         """
 
+  private val beamvilleConfig = testConfig("test/input/beamville/beam.conf")
+
   private val personalConfig = ConfigFactory
     .parseString(
       s"""$baseConfig
@@ -58,69 +60,59 @@ class ElectricVehicleChargingBehaviorTest
          |]
         """.stripMargin
     )
-    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .withFallback(beamvilleConfig)
     .resolve()
 
-  private val rideHailConfig = ConfigFactory
-    .parseString(
-      s"""$baseConfig
-         |beam.agentsim.agents.rideHail.managers = [
-         |  {
-         |    iterationStats.timeBinSizeInSec = 3600
-         |    defaultCostPerMile = 1.25
-         |    defaultCostPerMinute = 0.75
-         |    rideHailManager.radiusInMeters = 50000
-         |    # allocationManager(DEFAULT_MANAGER | EV_MANAGER | POOLING_ALONSO_MORA)
-         |    allocationManager.name = "POOLING_ALONSO_MORA"
-         |    allocationManager.requestBufferTimeoutInSeconds = 200
-         |    allocationManager.maxWaitingTimeInSec = 18000
-         |    allocationManager.maxExcessRideTime = 0.5 # up to +50%
-         |    allocationManager.matchingAlgorithm = "ALONSO_MORA_MATCHING_WITH_ASYNC_GREEDY_ASSIGNMENT"
-         |    allocationManager.alonsoMora.maxRequestsPerVehicle = 5
-         |    repositioningManager.name = "DEMAND_FOLLOWING_REPOSITIONING_MANAGER"
-         |    repositioningManager.timeout = 300
-         |    # DEMAND_FOLLOWING_REPOSITIONING_MANAGER
-         |    repositioningManager.demandFollowingRepositioningManager.sensitivityOfRepositioningToDemand = 1
-         |    repositioningManager.demandFollowingRepositioningManager.numberOfClustersForDemand = 30
-         |    # REPOSITIONING_LOW_WAITING_TIMES
-         |    allocationManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition = 0.0
-         |    allocationManager.repositionLowWaitingTimes.repositionCircleRadiusInMeters = 100
-         |    allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning = 12000
-         |    allocationManager.repositionLowWaitingTimes.allowIncreasingRadiusIfDemandInRadiusLow = true
-         |    allocationManager.repositionLowWaitingTimes.minDemandPercentageInRadius = 0.1
-         |    allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThresholdForRepositioning = 1000
-         |    allocationManager.repositionLowWaitingTimes.repositioningMethod = "TOP_SCORES"
-         |    allocationManager.repositionLowWaitingTimes.keepMaxTopNScores = 5
-         |    allocationManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning = 100000000.0
-         |    allocationManager.repositionLowWaitingTimes.distanceWeight = 0.01
-         |    allocationManager.repositionLowWaitingTimes.waitingTimeWeight = 4.0
-         |    allocationManager.repositionLowWaitingTimes.demandWeight = 4.0
-         |    allocationManager.repositionLowWaitingTimes.produceDebugImages = true
-         |    initialization.filePath = $filesPath/rideHailFleet.csv"
-         |    initialization.initType="FILE"
-         |    initialization.parking.filePath=$filesPath/taz-parking-empty.csv"
-         |  }
-         |]
-         |beam.agentsim.agents.plans {
-         |  inputPlansFilePath = $filesPath/populationRideHail.xml"
-         |  inputPersonAttributesFilePath = $filesPath/populationAttributes.xml"
-         |}
-         |beam.agentsim.agents.households {
-         |  inputFilePath = $filesPath/householdsNoVehicles.xml"
-         |  inputHouseholdAttributesFilePath = $filesPath/householdAttributes.xml"
-         |}
-         |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath/vehicles-empty.csv"
-         |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 10000000
-         |beam.agentsim.agents.rideHail.human.refuelRequiredThresholdInMeters = 1000.0
-         |beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters = 1300.0
-         |beam.agentsim.agents.rideHail.cav.refuelRequiredThresholdInMeters = 1000.0
-         |beam.agentsim.agents.rideHail.cav.noRefuelThresholdInMeters = 1300.0
-         |beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters = 0
-         |beam.agentsim.tuning.rideHailPrice = 0.0
-          """.stripMargin
-    )
-    .withFallback(testConfig("test/input/beamville/beam.conf"))
-    .resolve()
+  private val rideHailConfig =
+    s"""$baseConfig
+       |beam.agentsim.agents.rideHail.managers = [
+       |  {
+       |    iterationStats.timeBinSizeInSec = 3600
+       |    defaultCostPerMile = 1.25
+       |    defaultCostPerMinute = 0.75
+       |    rideHailManager.radiusInMeters = 50000
+       |    # allocationManager(DEFAULT_MANAGER | EV_MANAGER | POOLING_ALONSO_MORA)
+       |    allocationManager.name = "POOLING_ALONSO_MORA"
+       |    allocationManager.requestBufferTimeoutInSeconds = 200
+       |    allocationManager.maxWaitingTimeInSec = 18000
+       |    allocationManager.maxExcessRideTime = 0.5 # up to +50%
+       |    allocationManager.matchingAlgorithm = "ALONSO_MORA_MATCHING_WITH_ASYNC_GREEDY_ASSIGNMENT"
+       |    allocationManager.alonsoMora.maxRequestsPerVehicle = 5
+       |    repositioningManager.name = "DEMAND_FOLLOWING_REPOSITIONING_MANAGER"
+       |    repositioningManager.timeout = 300
+       |    # DEMAND_FOLLOWING_REPOSITIONING_MANAGER
+       |    repositioningManager.demandFollowingRepositioningManager.sensitivityOfRepositioningToDemand = 1
+       |    repositioningManager.demandFollowingRepositioningManager.numberOfClustersForDemand = 30
+       |    # REPOSITIONING_LOW_WAITING_TIMES
+       |    allocationManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition = 0.0
+       |    allocationManager.repositionLowWaitingTimes.repositionCircleRadiusInMeters = 100
+       |    allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning = 12000
+       |    allocationManager.repositionLowWaitingTimes.allowIncreasingRadiusIfDemandInRadiusLow = true
+       |    allocationManager.repositionLowWaitingTimes.minDemandPercentageInRadius = 0.1
+       |    allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThresholdForRepositioning = 1000
+       |    allocationManager.repositionLowWaitingTimes.repositioningMethod = "TOP_SCORES"
+       |    allocationManager.repositionLowWaitingTimes.keepMaxTopNScores = 5
+       |    allocationManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning = 100000000.0
+       |    allocationManager.repositionLowWaitingTimes.distanceWeight = 0.01
+       |    allocationManager.repositionLowWaitingTimes.waitingTimeWeight = 4.0
+       |    allocationManager.repositionLowWaitingTimes.demandWeight = 4.0
+       |    allocationManager.repositionLowWaitingTimes.produceDebugImages = true
+       |    initialization.filePath = $filesPath/RIDE_HAIL_FLEET_FILE"
+       |    initialization.initType="FILE"
+       |    initialization.parking.filePath=$filesPath/taz-parking-empty.csv"
+       |  }
+       |]
+       |beam.agentsim.agents.plans {
+       |  inputPlansFilePath = $filesPath/populationRideHail.xml"
+       |  inputPersonAttributesFilePath = $filesPath/populationAttributes.xml"
+       |}
+       |beam.agentsim.agents.households {
+       |  inputFilePath = $filesPath/householdsNoVehicles.xml"
+       |  inputHouseholdAttributesFilePath = $filesPath/householdAttributes.xml"
+       |}
+       |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath/vehicles-empty.csv"
+       |beam.agentsim.agents.parking.minSearchRadius = 8000
+        """.stripMargin
 
   /*
 
@@ -138,7 +130,6 @@ class ElectricVehicleChargingBehaviorTest
    */
 
   "Electric vehicles" should "charge at their destination and should not run out of energy" in {
-
     val config = ConfigFactory
       .parseString(
         s"""
@@ -305,15 +296,21 @@ class ElectricVehicleChargingBehaviorTest
   }
 
   "Ride Hail Electric vehicles" should "only recharge at suitable charging stations." in {
-
     val config = ConfigFactory
       .parseString(
-        s"""
+        s"""$rideHailConfig
            |beam.agentsim.taz.parkingFilePath = $filesPath/taz-parking-ride-hail.csv"
            |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath/vehicleTypes-low-capacity.csv"
-      """.stripMargin
+           |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 10000000
+           |beam.agentsim.agents.rideHail.human.refuelRequiredThresholdInMeters = 1000.0
+           |beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters = 1300.0
+           |beam.agentsim.agents.rideHail.cav.refuelRequiredThresholdInMeters = 1000.0
+           |beam.agentsim.agents.rideHail.cav.noRefuelThresholdInMeters = 1300.0
+           |beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters = 0
+           |beam.agentsim.tuning.rideHailPrice = 0.0
+      """.stripMargin.replace("RIDE_HAIL_FLEET_FILE", "rideHailFleet.csv")
       )
-      .withFallback(rideHailConfig)
+      .withFallback(beamvilleConfig)
       .resolve()
 
     val (matsimConfig, _, _) = runBeamWithConfig(config)
@@ -364,6 +361,14 @@ class ElectricVehicleChargingBehaviorTest
     ).size withClue
     ", L5 automated vehicles should not be charging on unreserved parking zones."
 
+    val distinctVehiclesCharged = filterEvents(
+      events,
+      ("type", a => a.equals("ChargingPlugInEvent"))
+    ).map(_.getAttributes.get("vehicle")).distinct
+
+    distinctVehiclesCharged.size should be >= 45 withClue
+    ", expecting that almost every vehicle recharges at least once."
+
     val rideHailArrivalEvents = filterEvents(
       events,
       ("type", a => a.equals("arrival")),
@@ -372,6 +377,96 @@ class ElectricVehicleChargingBehaviorTest
 
     rideHailArrivalEvents.size shouldEqual 200 withClue
     ", expecting 4 ride hail legs for each of the 50 people."
+  }
+
+  "Ride Hail Electric vehicles" should "pick chargers choosing smaller DrivingTimeCost." in {
+    // this config is only interested on the first charging plugin event when
+    // vehicles are at known coordinates, population plans are set to walk to not interfere with ride hail.
+    val config = ConfigFactory
+      .parseString(
+        s"""$rideHailConfig
+           |beam.agentsim.agents.plans.inputPlansFilePath = $filesPath/populationWalk.xml"
+           |beam.agentsim.taz.parkingFilePath = $filesPath/taz-parking-ride-hail-driving-time-cost.csv"
+           |# 15 Km range
+           |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath/vehicleTypes-low-capacity.csv"
+           |# default value is -0.01666667, this is increased to enhance the effect, specially since beamville map is
+           |# small, the difference in time/distance between chargers is not very big
+           |beam.agentsim.agents.rideHail.charging.multinomialLogit.params.drivingTimeMultiplier = -0.01666667
+           |
+           |# initial SoC is 0.7 or 10.5 Km, vehicles should immediately pick a charging station
+           |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 0
+           |beam.agentsim.agents.rideHail.human.refuelRequiredThresholdInMeters = 11000.0
+           |beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters = 12000.0
+           |beam.agentsim.agents.rideHail.cav.refuelRequiredThresholdInMeters = 11000.0
+           |beam.agentsim.agents.rideHail.cav.noRefuelThresholdInMeters = 12000.0
+           |beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters = 0
+      """.stripMargin.replace("RIDE_HAIL_FLEET_FILE", "rideHailFleet0.7soc.csv")
+      )
+      .withFallback(beamvilleConfig)
+      .resolve()
+
+    val (matsimConfig, _, _) = runBeamWithConfig(config)
+
+    val events = EventReader.fromXmlFile(
+      EventReader.getEventsFilePath(matsimConfig, "events", "xml").getAbsolutePath
+    )
+
+    val closestTAZsHuman = List("10")
+    val closestTAZsCAV = List("12")
+    val furtherTAZsHuman = List("11", "21", "31")
+    val furtherTAZsCAV = List("13", "23", "33")
+    val unsuitableChargersTAZs = List("8", "9", "18", "19", "28", "29", "38", "39", "20", "22", "30", "32")
+
+    val vehicleIds = findAllElectricVehicles(events).map(id => id.toString)
+    vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
+
+    val vehiclesCharged = filterEvents(
+      events,
+      ("type", a => a.equals("ChargingPlugInEvent"))
+    ).map(e => e.getAttributes.get("vehicle")).distinct
+
+    vehiclesCharged.size shouldEqual 50 withClue ", every single vehicle should had charged at least once."
+
+    val unsuitablePluginEvents = filterEvents(
+      events,
+      ("type", a => a.equals("ChargingPlugInEvent")),
+      ("parkingTaz", (a: String) => unsuitableChargersTAZs.contains(a))
+    )
+
+    unsuitablePluginEvents.size shouldEqual 0 withClue
+    ", ride hail vehicles should not be charging on slow chargers"
+
+    val firstPluginEvents = vehicleIds.foldLeft(List[Event]()) { (plugIns, vid) =>
+      val firstPlugIn = filterEvents(
+        events,
+        ("type", a => a.equals("ChargingPlugInEvent")),
+        ("vehicle", a => a.equals(vid))
+      ).head
+      plugIns :+ firstPlugIn
+    }
+
+    val pluginCountByTAZ = firstPluginEvents.map(_.getAttributes.get("parkingTaz")).groupBy(identity).mapValues(_.size)
+
+    val closeTazPluginCAVCount = closestTAZsCAV.foldLeft(0) { (count, taz) =>
+      count + pluginCountByTAZ.getOrElse(taz, 0)
+    }
+    val farTazPluginCAVCount = furtherTAZsCAV.foldLeft(0) { (count, taz) =>
+      count + pluginCountByTAZ.getOrElse(taz, 0)
+    }
+
+    closeTazPluginCAVCount should be > farTazPluginCAVCount withClue
+    ", vehicles should be picking the closest charger more often than the farther ones."
+
+    val closeTazPluginHumanCount = closestTAZsHuman.foldLeft(0) { (count, taz) =>
+      count + pluginCountByTAZ.getOrElse(taz, 0)
+    }
+    val farTazPluginHumanCount = furtherTAZsHuman.foldLeft(0) { (count, taz) =>
+      count + pluginCountByTAZ.getOrElse(taz, 0)
+    }
+
+    //currently,there is no parameter to get influenced by the distance for human ride hail
+    //closeTazPluginHumanCount should be > farTazPluginHumanCount withClue
+    //", vehicles should be picking the closest charger more often than the farther ones."
   }
 
   def filterEvents(events: IndexedSeq[Event], filters: (String, String => Boolean)*): IndexedSeq[Event] = {
