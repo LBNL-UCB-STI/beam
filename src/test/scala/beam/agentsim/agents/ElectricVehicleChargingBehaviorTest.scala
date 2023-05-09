@@ -380,7 +380,7 @@ class ElectricVehicleChargingBehaviorTest
   }
 
   "Ride Hail Electric vehicles" should "pick chargers choosing smaller DrivingTimeCost." in {
-    // this config is only interested on the first charging plugin event when
+    // this config is only interested on the first charging plugin event when,
     // vehicles are at known coordinates, population plans are set to walk to not interfere with ride hail.
     val config = ConfigFactory
       .parseString(
@@ -389,10 +389,7 @@ class ElectricVehicleChargingBehaviorTest
            |beam.agentsim.taz.parkingFilePath = $filesPath/taz-parking-ride-hail-driving-time-cost.csv"
            |# 15 Km range
            |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath/vehicleTypes-low-capacity.csv"
-           |# default value is -0.01666667, this is increased to enhance the effect, specially since beamville map is
-           |# small, the difference in time/distance between chargers is not very big
-           |beam.agentsim.agents.rideHail.charging.multinomialLogit.params.drivingTimeMultiplier = -0.01666667
-           |
+           |beam.agentsim.agents.rideHail.charging.multinomialLogit.params.drivingTimeMultiplier = -0.01666667 # default
            |# initial SoC is 0.7 or 10.5 Km, vehicles should immediately pick a charging station
            |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 0
            |beam.agentsim.agents.rideHail.human.refuelRequiredThresholdInMeters = 11000.0
@@ -467,6 +464,58 @@ class ElectricVehicleChargingBehaviorTest
     //currently,there is no parameter to get influenced by the distance for human ride hail
     //closeTazPluginHumanCount should be > farTazPluginHumanCount withClue
     //", vehicles should be picking the closest charger more often than the farther ones."
+  }
+
+  "Ride Hail Electric vehicles" should "pick chargers choosing smaller ChargingTimeCost." in {
+    val config = ConfigFactory
+      .parseString(
+        s"""$rideHailConfig
+           |beam.agentsim.taz.parkingFilePath = $filesPath/taz-parking-ride-hail-charging-time-cost.csv"
+           |# 5 Km range
+           |beam.agentsim.agents.vehicles.vehicleTypesFilePath =  $filesPath/vehicleTypes-high-capacity-low-range.csv"
+           |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 0
+           |beam.agentsim.agents.rideHail.human.refuelRequiredThresholdInMeters = 1000.0
+           |beam.agentsim.agents.rideHail.human.noRefuelThresholdInMeters = 1500.0
+           |beam.agentsim.agents.rideHail.cav.refuelRequiredThresholdInMeters = 1000.0
+           |beam.agentsim.agents.rideHail.cav.noRefuelThresholdInMeters = 1500.0
+           |beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters = 0
+      """.stripMargin.replace("RIDE_HAIL_FLEET_FILE", "rideHailFleet0soc.csv")
+      )
+      .withFallback(beamvilleConfig)
+      .resolve()
+
+    val (matsimConfig, _, _) = runBeamWithConfig(config)
+
+    val events = EventReader.fromXmlFile(
+      EventReader.getEventsFilePath(matsimConfig, "events", "xml").getAbsolutePath
+    )
+
+    val ultrafastTAZs = List("10", "11", "20", "21", "30", "31")
+    val fastTAZs = List("12", "18", "13", "19", "22", "28", "23", "29", "32", "38", "33", "39")
+
+    val vehicleIds = findAllElectricVehicles(events).map(id => id.toString)
+    vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
+
+    val pluginEvents = filterEvents(
+      events,
+      ("type", a => a.equals("ChargingPlugInEvent"))
+    )
+
+    val vehiclesCharged = pluginEvents.map(e => e.getAttributes.get("vehicle")).distinct
+
+    vehiclesCharged.size shouldEqual 50 withClue ", every single L5 automated vehicle should had charged at least once."
+
+    val pluginCountByTAZ = pluginEvents.map(_.getAttributes.get("parkingTaz")).groupBy(identity).mapValues(_.size)
+
+    val ultrafastTazPluginCAVCount = ultrafastTAZs.foldLeft(0) { (count, taz) =>
+      count + pluginCountByTAZ.getOrElse(taz, 0)
+    }
+    val fastTazPluginCAVCount = fastTAZs.foldLeft(0) { (count, taz) =>
+      count + pluginCountByTAZ.getOrElse(taz, 0)
+    }
+
+    ultrafastTazPluginCAVCount should be > fastTazPluginCAVCount withClue
+    ", vehicles should be picking the faster chargers (more power output) more often than the slower ones."
   }
 
   def filterEvents(events: IndexedSeq[Event], filters: (String, String => Boolean)*): IndexedSeq[Event] = {
