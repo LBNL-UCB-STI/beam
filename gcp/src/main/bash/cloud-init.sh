@@ -150,6 +150,7 @@ if [ "${RUN_BEAM,,}" = "true" ]; then
   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
   # somehow there are not enough permissions for gradle lock file if jupyter was run before
   sudo ./gradlew --stacktrace :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM"g
+  sudo chmod -R 777 output
 else
   echo "NOT going to start BEAM. [RUN_BEAM ('${RUN_BEAM,,}') not equal to 'true']"
 fi
@@ -197,12 +198,12 @@ if [ -d "$finalPath" ]; then
     # load analysis results into variables
     while IFS="," read -r metric count
     do
-      echo "exporting '$metric'='$count'"
+      echo "exporting $metric = $count"
       export "$metric"="$count"
       health_metrics="$health_metrics, $metric:$count"
     done < $simulation_health_analysis_output_file
     health_metrics="{$(echo "$health_metrics" | cut -c3-)}"
-    echo "$health_metrics"
+    echo "Health Metrics: $health_metrics"
     if [ "${STORAGE_PUBLISH,,}" != "false" ]; then
       gsutil cp "$simulation_health_analysis_output_file" "gs://beam-core-outputs/$finalPath/$simulation_health_analysis_output_file"
     fi
