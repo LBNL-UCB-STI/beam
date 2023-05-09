@@ -197,6 +197,7 @@ if [ -d "$finalPath" ]; then
     # load analysis results into variables
     while IFS="," read -r metric count
     do
+      echo "exporting '$metric'='$count'"
       export "$metric"="$count"
       health_metrics="$health_metrics, $metric:$count"
     done < $simulation_health_analysis_output_file
