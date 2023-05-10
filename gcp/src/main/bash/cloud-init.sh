@@ -140,17 +140,16 @@ if [ "${RUN_JUPYTER,,}" = "true" ]; then
   else ./gradlew jupyterStart -Puser=root
   fi
 
+  # somehow there are not enough permissions for gradle lock file if jupyter was run before
+  sudo chmod -R 777 .
 else
   echo "NOT going to start jupyter. [RUN_JUPYTER ('${RUN_JUPYTER,,}') not equal to 'true']"
 fi
 
-
 if [ "${RUN_BEAM,,}" = "true" ]; then
   echo "Running BEAM"
   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
-  # somehow there are not enough permissions for gradle lock file if jupyter was run before
-  sudo ./gradlew --stacktrace :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM"g
-  sudo chmod -R 777 output
+  ./gradlew --stacktrace :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM"g
 else
   echo "NOT going to start BEAM. [RUN_BEAM ('${RUN_BEAM,,}') not equal to 'true']"
 fi
