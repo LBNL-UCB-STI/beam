@@ -149,14 +149,13 @@ fi
 if [ "${RUN_BEAM,,}" = "true" ]; then
   echo "Running BEAM"
   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
+
   ./gradlew --stacktrace :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM"g
 else
   echo "NOT going to start BEAM. [RUN_BEAM ('${RUN_BEAM,,}') not equal to 'true']"
 fi
 
-
 set +x
-
 
 # copy to bucket
 storage_url=""
@@ -190,14 +189,10 @@ health_metrics=""
 if [ -d "$finalPath" ]; then
     echo "-------------------running Health Analysis Script----------------------"
     simulation_health_analysis_output_file="simulation_health_analysis_result.txt"
-    # somehow there are not enough permissions to create this file if jupyter was run before
-    sudo touch $simulation_health_analysis_output_file
-    sudo chmod 777 $simulation_health_analysis_output_file
     python3 src/main/python/general_analysis/simulation_health_analysis.py $simulation_health_analysis_output_file
     # load analysis results into variables
     while IFS="," read -r metric count
     do
-      echo "exporting $metric = $count"
       export "$metric"="$count"
       health_metrics="$health_metrics, $metric:$count"
     done < $simulation_health_analysis_output_file
