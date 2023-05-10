@@ -68,7 +68,7 @@ tasks.register('deployToGCE') {
 }
 
 tasks.register("jupyterGCE") {
-    doLast {
+    doFirst {
         project.ext."runJupyter" = "true"
         project.ext."runBeam" = "false"
         project.ext."beamConfigs" = ""
@@ -88,10 +88,10 @@ tasks.register("jupyterGCE") {
         if (!project.hasProperty("shutdownBehaviour")) {
             project.ext."shutdownBehaviour" = "stop"
         }
-
-        dependsOn ':gcp:deployToGCE'
     }
 }
+
+jupyterGCE.finalizedBy(deployToGCE)
 
 static HttpResponse makeJsonPostRequest(String functionUrl, String requestBody) {
     GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
