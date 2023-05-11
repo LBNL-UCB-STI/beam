@@ -145,14 +145,15 @@ class RideHailMaster(
     if (withProposals.isEmpty) responsesInRandomOrder.head
     else
       bestResponseType match {
-        case "MIN_COST" => withProposals.minBy { response =>
-          val travelProposal = response.travelProposal.get
-          val price = travelProposal.estimatedPrice(customer)
-          if (travelProposal.poolingInfo.isDefined && response.request.asPooled)
-            Math.min(price, price * travelProposal.poolingInfo.get.costFactor)
-          else
-            price
-        }
+        case "MIN_COST" =>
+          withProposals.minBy { response =>
+            val travelProposal = response.travelProposal.get
+            val price = travelProposal.estimatedPrice(customer)
+            if (travelProposal.poolingInfo.isDefined && response.request.asPooled)
+              Math.min(price, price * travelProposal.poolingInfo.get.costFactor)
+            else
+              price
+          }
         case "MIN_UTILITY" => sampleProposals(customer, withProposals)
       }
   }
@@ -161,7 +162,7 @@ class RideHailMaster(
     val proposalsToSample: Map[RideHailResponse, Map[String, Double]] =
       proposalsToResponseAlternatives(customer, responses)
     val mnlParams = Map(
-      "cost" -> UtilityFunctionOperation.Multiplier(-1.0),
+      "cost"         -> UtilityFunctionOperation.Multiplier(-1.0),
       "subscription" -> UtilityFunctionOperation.Multiplier(1.0)
     )
     val mnl: MultinomialLogit[RideHailResponse, String] = MultinomialLogit(Map.empty, mnlParams)
@@ -171,9 +172,9 @@ class RideHailMaster(
   }
 
   private def proposalsToResponseAlternatives(
-                                               customer: Id[Person],
-                                               responses: IndexedSeq[RideHailResponse]
-                                             ): Map[RideHailResponse, Map[String, Double]] = {
+    customer: Id[Person],
+    responses: IndexedSeq[RideHailResponse]
+  ): Map[RideHailResponse, Map[String, Double]] = {
     val person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(customer)
     val customerAttributes = person.getCustomAttributes.get(BEAM_ATTRIBUTES).asInstanceOf[AttributesOfIndividual]
     responses.map { alt =>
