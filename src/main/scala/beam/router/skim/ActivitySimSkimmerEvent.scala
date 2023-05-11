@@ -5,7 +5,6 @@ import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.ActivitySimPathType.{toBeamMode, toKeyMode}
 import beam.router.skim.ActivitySimSkimmer.{ActivitySimSkimmerInternal, ActivitySimSkimmerKey}
 import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey}
-import beam.router.skim.event.ODSkimmerEvent
 import com.typesafe.scalalogging.LazyLogging
 
 case class ActivitySimSkimmerEvent(
@@ -126,8 +125,11 @@ case class ActivitySimSkimmerEvent(
         travelTimeInMinutes = trip.totalTravelTimeInSecs.toDouble / 60.0,
         generalizedTimeInMinutes = generalizedTimeInHours * 60,
         generalizedCost = generalizedCost,
-        distanceInMeters = if (distInMeters > 0.0) { distInMeters }
-        else { 1.0 },
+        distanceInMeters = if (distInMeters > 0.0) {
+          distInMeters
+        } else {
+          1.0
+        },
         cost = trip.costEstimate,
         energy = energyConsumption,
         walkAccessInMinutes = walkAccess / 60.0,
@@ -140,9 +142,48 @@ case class ActivitySimSkimmerEvent(
         driveDistanceInMeters = driveDistanceInMeters,
         ferryInVehicleTimeInMinutes = ferryTimeInSeconds / 60.0,
         keyInVehicleTimeInMinutes = keyInVehicleTimeInSeconds / 60.0,
-        transitBoardingsCount = numberOfTransitTrips
+        transitBoardingsCount = numberOfTransitTrips,
+        failedTrips = 0,
+        observations = 1
       )
     (key, payload)
+  }
+}
+
+case class ActivitySimSkimmerFailedTripEvent(
+  origin: String,
+  destination: String,
+  eventTime: Double,
+  activitySimPathType: ActivitySimPathType,
+  iterationNumber: Int,
+  override val skimName: String
+) extends AbstractSkimmerEvent(eventTime) {
+
+  override def getKey: ActivitySimSkimmerKey =
+    ActivitySimSkimmerKey(SkimsUtils.timeToBin(Math.round(eventTime).toInt), activitySimPathType, origin, destination)
+
+  override def getSkimmerInternal: ActivitySimSkimmerInternal = {
+    ActivitySimSkimmerInternal(
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      failedTrips = 1,
+      observations = 0
+    )
   }
 }
 

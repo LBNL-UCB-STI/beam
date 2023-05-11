@@ -99,20 +99,22 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       originId = rec.get("origin"),
       destinationId = rec.get("destination"),
       weightedTotalTime = rec.get("TIME_minutes").toDouble,
+      weightedTotalInVehicleTime = rec.get("TOTIVT_IVT_minutes").toDouble,
       weightedTotalCost = rec.get("VTOLL_FAR").toDouble,
       weightedDistance = rec.get("DIST_meters").toDouble,
       weightedWalkAccess = rec.get("WACC_minutes").toDouble,
-      weightedWalkEgress = rec.get("WEGR_minutes").toDouble,
       weightedWalkAuxiliary = rec.get("WAUX_minutes").toDouble,
+      weightedWalkEgress = rec.get("WEGR_minutes").toDouble,
       weightedWaitInitial = rec.getOrDefault("IWAIT_minutes", "0").toDouble,
       weightedWaitTransfer = rec.getOrDefault("XWAIT_minutes", "0").toDouble,
-      weightedTotalInVehicleTime = rec.get("TOTIVT_IVT_minutes").toDouble,
       weightedDriveTimeInMinutes = rec.get("DTIM_minutes").toDouble,
       weightedDriveDistanceInMeters = rec.get("DDIST_meters").toDouble,
-      weightedFerryInVehicleTimeInMinutes = rec.get("FERRYIVT_minutes").toDouble,
       weightedKeyInVehicleTimeInMinutes = rec.get("KEYIVT_minutes").toDouble,
+      weightedFerryInVehicleTimeInMinutes = rec.get("FERRYIVT_minutes").toDouble,
       weightedTransitBoardingsCount = rec.get("BOARDS").toDouble,
       weightedCost = Option(rec.get("WeightedCost")).map(_.toDouble).getOrElse(0.0d),
+      failedTrips = Option(rec.get("FailedTrips")).map(_.toInt).getOrElse(0),
+      completedTrips = Option(rec.get("CompletedTrips")).map(_.toInt).getOrElse(0),
       debugText = rec.get("DEBUG_TEXT")
     )
 
@@ -307,7 +309,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
 
             rows.foreach { case ODRow(origin, destination) =>
               BeamMode.allModes.foreach { beamMode =>
-                writeSkimRow(writer, uniqueTimeBins, origin, destination, beamMode)
+                writeSkimRow(writer, uniqueTimeBins, origin, destination, beamMode, "")
               }
             }
           } catch {

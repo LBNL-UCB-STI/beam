@@ -2,6 +2,7 @@ package beam.router.skim
 
 import beam.router.Modes.BeamMode
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import org.matsim.api.core.v01.population.Activity
 
 sealed trait ActivitySimPathType
 
@@ -147,6 +148,69 @@ object ActivitySimPathType {
       case WLK_LRF_WLK => Some(BeamMode.TRAM)
       case WLK_TRN_WLK => Some(BeamMode.RAIL)
       case _           => None
+    }
+  }
+
+  def determineActivitySimPathTypesFromBeamMode(
+    currentMode: Option[BeamMode],
+    currentActivity: Activity
+  ): Seq[ActivitySimPathType] = {
+    val currentActivityType = currentActivity.getType.toLowerCase()
+    currentMode match {
+      case Some(BeamMode.WALK) => Seq(ActivitySimPathType.WALK)
+      case Some(BeamMode.CAR)  =>
+        // Note: Attempt to future-proof this in case there are some routes that can only be accomplished by HOVs.
+        // The reverse shouldn't ever be the case, where a route cant be accomplished by HOVs
+        Seq(
+          ActivitySimPathType.SOV,
+          ActivitySimPathType.SOVTOLL
+        )
+      case Some(BeamMode.CAR_HOV2) =>
+        Seq(
+          ActivitySimPathType.HOV2,
+          ActivitySimPathType.HOV2TOLL,
+          ActivitySimPathType.SOV,
+          ActivitySimPathType.SOVTOLL
+        )
+      case Some(BeamMode.CAR_HOV3) =>
+        Seq(
+          ActivitySimPathType.HOV3,
+          ActivitySimPathType.HOV3TOLL,
+          ActivitySimPathType.HOV2,
+          ActivitySimPathType.HOV2TOLL,
+          ActivitySimPathType.SOV,
+          ActivitySimPathType.SOVTOLL
+        )
+      case Some(BeamMode.WALK_TRANSIT) =>
+        Seq(
+          ActivitySimPathType.WLK_LOC_WLK,
+          ActivitySimPathType.WLK_HVY_WLK,
+          ActivitySimPathType.WLK_COM_WLK,
+          ActivitySimPathType.WLK_LRF_WLK,
+          ActivitySimPathType.WLK_EXP_WLK,
+          ActivitySimPathType.WLK_TRN_WLK
+        )
+      case Some(BeamMode.DRIVE_TRANSIT) =>
+        currentActivityType match {
+          case "home" =>
+            Seq(
+              ActivitySimPathType.DRV_LOC_WLK,
+              ActivitySimPathType.DRV_HVY_WLK,
+              ActivitySimPathType.DRV_COM_WLK,
+              ActivitySimPathType.DRV_LRF_WLK,
+              ActivitySimPathType.DRV_EXP_WLK
+            )
+          case _ =>
+            Seq(
+              ActivitySimPathType.WLK_LOC_DRV,
+              ActivitySimPathType.WLK_HVY_DRV,
+              ActivitySimPathType.WLK_COM_DRV,
+              ActivitySimPathType.WLK_LRF_DRV,
+              ActivitySimPathType.WLK_EXP_DRV
+            )
+        }
+      case _ =>
+        Seq.empty[ActivitySimPathType]
     }
   }
 
