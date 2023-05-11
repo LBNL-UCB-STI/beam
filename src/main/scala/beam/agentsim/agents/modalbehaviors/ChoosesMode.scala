@@ -361,7 +361,7 @@ trait ChoosesMode {
                         .intersect(modesToQuery)
                     )
                     .toMap
-                val firstAndLastTripModeToTourModeOption = BeamTourMode.values
+                val firstAndLastTripModeToTourMode = BeamTourMode.values
                   .map(tourMode =>
                     tourMode -> tourMode
                       .allowedBeamModesGivenAvailableVehicles(availablePersonalStreetVehicles, true)
@@ -372,7 +372,7 @@ trait ChoosesMode {
                   tourModeCosts,
                   modeChoiceCalculator.modeChoiceLogit,
                   modeToTourMode,
-                  Some(firstAndLastTripModeToTourModeOption)
+                  Some(firstAndLastTripModeToTourMode)
                 )
                 val out = tourModeChoiceCalculator(tourModeUtils)
                 // We need to keep track of the chosen vehicle Id in PersonData so that we can release it and
@@ -1411,7 +1411,7 @@ trait ChoosesMode {
             Some(rideHail2TransitEgressResult),
             _,
             _,
-            _,
+            allAvailableStreetVehicles,
             _,
             _,
             Some(cavTripLegs),
@@ -1587,6 +1587,12 @@ trait ChoosesMode {
                 )
                 gotoFinishingModeChoice(bushwhackingTrip)
               }
+            case Some(CAR) if allAvailableStreetVehicles.isEmpty =>
+              logger.warn(
+                "Ended up stuck without a car despite having car in plans, so sending the request " +
+                "back through in order to create an emergency vehicle"
+              )
+              goto(ChoosingMode)
             case Some(mode) =>
               val correctedTripMode = correctCurrentTripModeAccordingToRules(None, personData, availableModesForTrips)
               if (correctedTripMode != personData.currentTripMode) {
