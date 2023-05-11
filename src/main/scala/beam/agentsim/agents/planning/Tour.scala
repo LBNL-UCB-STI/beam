@@ -4,7 +4,7 @@ import org.matsim.api.core.v01.population.{Activity, PlanElement}
 import org.matsim.utils.objectattributes.attributable.Attributes
 
 class Tour(
-  private var tourId: Int = 0,
+  var tourId: Int = 0,
   private var tripsInternal: Vector[Trip] = Vector(),
   val originActivity: Option[Activity] = None
 ) extends PlanElement {

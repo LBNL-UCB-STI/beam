@@ -104,8 +104,10 @@ class PersonWithTourModeSpec
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
             event match {
-              case _: AbstractSkimmerEvent => // ignore
-              case _                       => self ! event
+              case _: ModeChoiceEvent | _: TourModeChoiceEvent | _: ActivityEndEvent | _: ActivityStartEvent |
+                  _: ReplanningEvent =>
+                self ! event
+              case _ =>
             }
           }
         }
@@ -199,28 +201,6 @@ class PersonWithTourModeSpec
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
-      expectMsgType[PersonDepartureEvent]
-
-      expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
-
-      expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[LeavingParkingEvent]
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
 
       val parkingRoutingRequest = expectMsgType[RoutingRequest]
       assert(parkingRoutingRequest.destinationUTM == parkingLocation)
@@ -303,31 +283,8 @@ class PersonWithTourModeSpec
         triggerId = walkFromParkingRoutingRequest.triggerId
       )
 
-      expectMsgType[LeavingParkingEvent]
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
-      expectMsgType[ParkingEvent]
-      expectMsgType[PersonCostEvent]
-      expectMsgType[PersonLeavesVehicleEvent]
-
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
-
-      expectMsgType[PersonLeavesVehicleEvent]
-      expectMsgType[TeleportationArrivalEvent]
-
-      expectMsgType[PersonArrivalEvent]
       expectMsgType[ActivityStartEvent]
+
       lastSender ! ScheduleKillTrigger(lastSender, walkFromParkingRoutingRequest.triggerId)
       receiveWhile(500 millis) {
         case _: SchedulerMessage =>
@@ -341,8 +298,10 @@ class PersonWithTourModeSpec
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
             event match {
-              case _: AbstractSkimmerEvent => // ignore
-              case _                       => self ! event
+              case _: ModeChoiceEvent | _: TourModeChoiceEvent | _: ActivityEndEvent | _: ActivityStartEvent |
+                  _: ReplanningEvent =>
+                self ! event
+              case _ =>
             }
           }
         }
@@ -441,28 +400,6 @@ class PersonWithTourModeSpec
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
-      expectMsgType[PersonDepartureEvent]
-
-      expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
-
-      expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[LeavingParkingEvent]
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
 
       val parkingRoutingRequest = expectMsgType[RoutingRequest]
       assert(parkingRoutingRequest.destinationUTM == parkingLocation)
@@ -545,30 +482,6 @@ class PersonWithTourModeSpec
         triggerId = walkFromParkingRoutingRequest.triggerId
       )
 
-      expectMsgType[LeavingParkingEvent]
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
-      expectMsgType[ParkingEvent]
-      expectMsgType[PersonCostEvent]
-      expectMsgType[PersonLeavesVehicleEvent]
-
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
-
-      expectMsgType[PersonLeavesVehicleEvent]
-      expectMsgType[TeleportationArrivalEvent]
-
-      expectMsgType[PersonArrivalEvent]
       expectMsgType[ActivityStartEvent]
       lastSender ! ScheduleKillTrigger(lastSender, walkFromParkingRoutingRequest.triggerId)
 
@@ -584,8 +497,10 @@ class PersonWithTourModeSpec
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
             event match {
-              case _: AbstractSkimmerEvent => // ignore
-              case _                       => self ! event
+              case _: ModeChoiceEvent | _: TourModeChoiceEvent | _: ActivityEndEvent | _: ActivityStartEvent |
+                  _: ReplanningEvent =>
+                self ! event
+              case _ =>
             }
           }
         }
@@ -684,24 +599,86 @@ class PersonWithTourModeSpec
       assert(mce.currentTourMode === "car_based")
       assert(mce.availableAlternatives === "CAR")
       expectMsgType[ActivityEndEvent]
-      expectMsgType[PersonDepartureEvent]
 
-      expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
+      val parkingRoutingRequest = expectMsgType[RoutingRequest]
+      assert(parkingRoutingRequest.destinationUTM == parkingLocation)
+      lastSender ! RoutingResponse(
+        itineraries = Vector(
+          EmbodiedBeamTrip(
+            legs = Vector(
+              EmbodiedBeamLeg(
+                beamLeg = BeamLeg(
+                  startTime = parkingRoutingRequest.departureTime,
+                  mode = BeamMode.CAR,
+                  duration = 50,
+                  travelPath = BeamPath(
+                    linkIds = Array(142, 60, 58, 62, 80),
+                    linkTravelTime = Array(50, 50, 50, 50, 50),
+                    transitStops = None,
+                    startPoint = SpaceTime(
+                      services.geo.utm2Wgs(parkingRoutingRequest.originUTM),
+                      parkingRoutingRequest.departureTime
+                    ),
+                    endPoint =
+                      SpaceTime(services.geo.utm2Wgs(parkingLocation), parkingRoutingRequest.departureTime + 200),
+                    distanceInM = 1000d
+                  )
+                ),
+                beamVehicleId = Id.createVehicleId("car-1"),
+                Id.create("TRANSIT-TYPE-DEFAULT", classOf[BeamVehicleType]),
+                asDriver = true,
+                cost = 0.0,
+                unbecomeDriverOnCompletion = true
+              )
+            )
+          )
+        ),
+        requestId = parkingRoutingRequest.requestId,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false,
+        triggerId = parkingRoutingRequest.triggerId
+      )
 
-      expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[LeavingParkingEvent]
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[LinkLeaveEvent]
-      expectMsgType[LinkEnterEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
+      val walkFromParkingRoutingRequest = expectMsgType[RoutingRequest]
+      lastSender ! RoutingResponse(
+        itineraries = Vector(
+          EmbodiedBeamTrip(
+            legs = Vector(
+              EmbodiedBeamLeg(
+                beamLeg = BeamLeg(
+                  startTime = walkFromParkingRoutingRequest.departureTime,
+                  mode = BeamMode.WALK,
+                  duration = 50,
+                  travelPath = BeamPath(
+                    linkIds = Array(80, 62, 58, 60, 142),
+                    linkTravelTime = Array(50, 50, 50, 50, 50),
+                    transitStops = None,
+                    startPoint =
+                      SpaceTime(services.geo.utm2Wgs(parkingLocation), walkFromParkingRoutingRequest.departureTime),
+                    endPoint = SpaceTime(
+                      services.geo.utm2Wgs(walkFromParkingRoutingRequest.destinationUTM),
+                      walkFromParkingRoutingRequest.departureTime + 200
+                    ),
+                    distanceInM = 1000d
+                  )
+                ),
+                beamVehicleId = walkFromParkingRoutingRequest.streetVehicles.find(_.mode == WALK).get.id,
+                walkFromParkingRoutingRequest.streetVehicles.find(_.mode == WALK).get.vehicleTypeId,
+                asDriver = true,
+                cost = 0.0,
+                unbecomeDriverOnCompletion = true
+              )
+            )
+          )
+        ),
+        requestId = parkingRoutingRequest.requestId,
+        request = None,
+        isEmbodyWithCurrentTravelTime = false,
+        triggerId = walkFromParkingRoutingRequest.triggerId
+      )
+
+      expectMsgType[ActivityStartEvent]
+
       lastSender ! ScheduleKillTrigger(lastSender, routingRequest.triggerId)
 
       receiveWhile(500 millis) {
@@ -716,8 +693,10 @@ class PersonWithTourModeSpec
         new BasicEventHandler {
           override def handleEvent(event: Event): Unit = {
             event match {
-              case _: AbstractSkimmerEvent => // ignore
-              case _                       => self ! event
+              case _: ModeChoiceEvent | _: TourModeChoiceEvent | _: ActivityEndEvent | _: ActivityStartEvent |
+                  _: ReplanningEvent =>
+                self ! event
+              case _ =>
             }
           }
         }
@@ -815,12 +794,7 @@ class PersonWithTourModeSpec
       assert(mce.currentTourMode === "walk_based")
       assert(mce.availableAlternatives === "WALK")
       expectMsgType[ActivityEndEvent]
-      expectMsgType[PersonDepartureEvent]
 
-      expectMsgType[PersonEntersVehicleEvent]
-      expectMsgType[VehicleEntersTrafficEvent]
-      expectMsgType[VehicleLeavesTrafficEvent]
-      expectMsgType[PathTraversalEvent]
       lastSender ! ScheduleKillTrigger(lastSender, routingRequest.triggerId)
       receiveWhile(500 millis) {
         case _: SchedulerMessage =>

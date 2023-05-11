@@ -108,8 +108,6 @@ class BeamPlan extends Plan {
   // Beam-Specific methods
   //////////////////////////////////////////////////////////////////////
   lazy val trips: Vector[Trip] = tours.flatMap(_.trips)
-  lazy val activities: Vector[Activity] = tours.flatMap(_.trips.map(_.activity))
-  lazy val legs: Vector[Leg] = tours.flatMap(_.trips.map(_.leg)).flatten
   private val actsLegToTrip: mutable.Map[PlanElement, Trip] = mutable.Map()
 
   private val strategies: mutable.Map[PlanElement, mutable.Map[Class[_ <: Strategy], Strategy]] =
@@ -121,6 +119,16 @@ class BeamPlan extends Plan {
   private var actsLegs: Vector[PlanElement] = Vector()
   private var score: Double = Double.NaN
   private var planType: String = ""
+
+  lazy val legs: Vector[Leg] = actsLegs flatMap {
+    case leg: Leg => Some(leg)
+    case _        => None
+  }
+
+  lazy val activities: Vector[Activity] = actsLegs flatMap {
+    case act: Activity => Some(act)
+    case _             => None
+  }
 
   private def getTourIdFromMatsimLeg(legOption: Option[Leg]): Option[Int] = {
     legOption.flatMap(leg => Option(leg.getAttributes.getAttribute("tour_id")).map(_.toString.toInt))
@@ -147,18 +155,24 @@ class BeamPlan extends Plan {
         val nextTrip = Trip(activity, previousLeg, currentTour)
         currentTour.addTrip(nextTrip)
         val startNewTour = (getTourIdFromMatsimLeg(Some(leg)), previousLeg) match {
-          case (_, None)                                                                => true
-          case (Some(nextId), cleg) if getTourIdFromMatsimLeg(cleg).exists(_ != nextId) => true
-          case (None, _) if atHome(activity)                                            => true
-          case _                                                                        => false
+          case (_, None)                                                                            => true
+          case (Some(nextId), currentLeg) if getTourIdFromMatsimLeg(currentLeg).exists(_ != nextId) => true
+          case (None, _) if atHome(activity)                                                        => true
+          case _                                                                                    => false
         }
         if (startNewTour) {
           currentTourIndex += 1
           currentTour.setTourId(
-            getTourIdFromMatsimLeg(Some(leg)).getOrElse(currentTourIndex)
+            getTourIdFromMatsimLeg(previousLeg).getOrElse(currentTourIndex)
           )
-          tours = tours :+ currentTour
-          currentTour = new Tour(originActivity = Some(activity))
+          if (!tours.map(_.tourId).contains(currentTour.tourId)) {
+            tours = tours :+ currentTour
+          }
+          val previousTourWithSameId = tours.find(x => getTourIdFromMatsimLeg(Some(leg)).contains(x.tourId))
+          currentTour = previousTourWithSameId match {
+            case Some(matchedTour) => matchedTour
+            case _                 => new Tour(originActivity = Some(activity))
+          }
           putStrategy(
             currentTour,
             TourModeChoiceStrategy(getTourModeFromMatsimLeg(leg), getTourVehicleFromMatsimLeg(leg))
@@ -178,10 +192,13 @@ class BeamPlan extends Plan {
     }
 
     if (currentTour.trips.nonEmpty) {
+      currentTourIndex += 1
       currentTour.setTourId(
         getTourIdFromMatsimLeg(previousLeg).getOrElse(currentTourIndex)
       )
-      tours = tours :+ currentTour
+      if (!tours.map(_.tourId).contains(currentTour.tourId)) {
+        tours = tours :+ currentTour
+      }
     }
     indexBeamPlan()
     actsLegs.foreach {
