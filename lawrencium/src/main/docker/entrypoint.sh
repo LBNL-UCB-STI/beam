@@ -1,26 +1,26 @@
 #!/bin/bash
 
-TITLED="??"
-INSTANCE_ID="??"
-INSTANCE_TYPE="??"
-HOST_NAME="??"
+INSTANCE_ID=$SLURMD_NODENAME
+INSTANCE_TYPE=$SLURM_JOB_PARTITION
+HOST_NAME=$HOSTNAME
 WEB_BROWSER="??" # i.e. "http://$HOST_NAME:8000"
-REGION="??"
-SHUTDOWN_WAIT="??"
+REGION=""
+SHUTDOWN_WAIT=0
 
 SIMULATION_OUTPUT_LINK="TODO" ## the link to be able to view progress of simulation
 
-MAX_RAM="??"
 PROFILER="??"
 SIGOPT_CLIENT_ID="??"
 SIGOPT_DEV_ID="??"
 
+env
 
 echo "Selected branch '$BEAM_BRANCH_NAME' with commit '$BEAM_COMMIT_SHA'"
 echo "Selected data branch '$BEAM_DATA_BRANCH_NAME' with commit '$BEAM_DATA_COMMIT_SHA'"
 echo "Selected config: '$BEAM_CONFIG'"
 echo "S3 backup set to '$S3_PUBLISH' with region '$S3_REGION'"
 echo "The title is '$TITLED'"
+echo "The max ram is $MAX_RAM"
 
 function send_slack_notification() {
   json_data="{\"text\":\"$1\"}"
@@ -92,7 +92,6 @@ send_slack_notification "Run Started
   Instance type $INSTANCE_TYPE
   Host name $HOST_NAME
   Web browser $WEB_BROWSER
-  Region $REGION
   Branch $BEAM_BRANCH_NAME
   Commit $BEAM_COMMIT_SHA"
 
@@ -119,7 +118,7 @@ send_json_to_spreadsheet "\"status\":\"Run Started\",
 
 ## we shouldn't use the gradle daemon on NERSC, it seems that it's somehow shared within different nodes
 ## and all the subsequent runs have output dir somewhere else.
-./gradlew --no-daemon --gradle-user-home="$GRADLE_CACHE_PATH" clean :run -PappArgs="['--config', '$BEAM_CONFIG']"
+./gradlew --no-daemon --gradle-user-home="$GRADLE_CACHE_PATH" clean :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM"
 
 ## Calculate the final status of simulation
 log_file="$(find "$PATH_TO_PROJECT_PARENT"/beam/output -maxdepth 2 -mindepth 2 -type d -print -quit)/beamLog.out"
@@ -176,7 +175,6 @@ send_slack_notification "Run Completed
   Instance type $INSTANCE_TYPE
   Host name $HOST_NAME
   Web browser $WEB_BROWSER
-  Region $REGION
   Branch $BEAM_BRANCH_NAME
   Commit $BEAM_COMMIT_SHA
   Health Metrics $health_metrics_for_slack_notification

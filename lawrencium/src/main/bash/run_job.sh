@@ -1,7 +1,8 @@
 #!/bin/bash
+# how to run the job (last param is time limit, 1 hour in this case):
+# run_job.sh run_environment.sh 1:00:00
 #PARTITION="lr_bigmem"
 #QOS="lr_normal"
-#MEMORY_LIMIT="400G"  ## i.e. 200G
 
 PARTITION="es1"
 QOS="es_normal"
@@ -24,4 +25,4 @@ sbatch --partition="$PARTITION" \
     --job-name="$JOBNAME" \
     --output="$OUTPUT" \
     --time="$EXPECTED_TIME" \
-    "$SCRIPT" "$DATETIME"
+    "$SCRIPT" "$MEMORY_LIMIT"
