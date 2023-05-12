@@ -136,6 +136,7 @@ trait ChoosesMode {
     val currentTourStrategy = _experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](nextAct)
     val currentTripMode = _experiencedBeamPlan.getTripStrategy[TripModeChoiceStrategy](nextAct).mode
     val currentTourMode = currentTourStrategy.tourMode
+    val parentTour = getParentTour(nextAct)
 
     (nextStateData, currentTripMode, currentTourMode) match {
       // If I am already on a tour in a vehicle, only that vehicle is available to me
@@ -190,10 +191,10 @@ trait ChoosesMode {
           Some(VehicleCategory.Bike)
         ) pipeTo self
       // If we're on a walk based tour and have an egress vehicle defined we NEED to bring it home
-      case (data: ChoosesModeData, None, Some(WALK_BASED))
-          if data.personData.currentTourPersonalVehicle.isDefined && isLastTripWithinTour(nextAct) =>
+
+      case (_, None, Some(WALK_BASED)) if currentTourStrategy.tourVehicle.isDefined && isLastTripWithinTour(nextAct) =>
         self ! MobilityStatusResponse(
-          Vector(beamVehicles(data.personData.currentTourPersonalVehicle.get)),
+          Vector(beamVehicles(currentTourStrategy.tourVehicle.get)),
           getCurrentTriggerIdOrGenerate
         )
       // Finally, if we're starting from scratch, request all available vehicles
@@ -752,7 +753,13 @@ trait ChoosesMode {
           .copy(
             currentTripMode = currentTripMode,
             currentTourMode = chosenCurrentTourMode,
-            currentTourPersonalVehicle = chosenCurrentTourPersonalVehicle
+            currentTourPersonalVehicle = chosenCurrentTourMode match {
+              // if they're on a walk based tour we let them keep access to whatever personal vehicle they used on the
+              // first leg or in a parent tour
+              case Some(WALK_BASED) => choosesModeData.personData.currentTourPersonalVehicle
+              // Otherwise they keep track of the chosen vehicle
+              case _ => chosenCurrentTourPersonalVehicle
+            }
           ),
         availablePersonalStreetVehicles = availablePersonalStreetVehicles,
         allAvailableStreetVehicles = newlyAvailableBeamVehicles,
@@ -1990,9 +1997,17 @@ trait ChoosesMode {
           val updatedTripStrategy =
             TripModeChoiceStrategy(Some(chosenTrip.tripClassifier))
           _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTripContaining(nextAct), updatedTripStrategy)
+
+          //TODO: Only do this on first trip of tour unless something changed (e.g. we needed to abandon a vehicle)
+          // ----------
           val updatedTourStrategy =
-            TourModeChoiceStrategy(data.personData.currentTourMode, currentTourPersonalVehicle)
+            TourModeChoiceStrategy(
+              data.personData.currentTourMode,
+              currentTourPersonalVehicle.filter(vehiclesUsed.contains)
+            )
           _experiencedBeamPlan.putStrategy(_experiencedBeamPlan.getTourContaining(nextAct), updatedTourStrategy)
+          // ----------
+
           goto(WaitingForDeparture) using data.personData.copy(
             currentTrip = Some(chosenTrip),
             restOfCurrentTrip = chosenTrip.legs.toList,

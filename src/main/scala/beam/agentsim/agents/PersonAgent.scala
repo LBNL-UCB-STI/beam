@@ -497,6 +497,10 @@ class PersonAgent(
     tripIndexOfElement == 0
   }
 
+  def getParentTour(nextAct: Activity): Option[Tour] = {
+    _experiencedBeamPlan.getTourContaining(nextAct).originActivity.map(_experiencedBeamPlan.getTourContaining(_))
+  }
+
   def isLastTripWithinTour(nextAct: Activity): Boolean = {
     val (tripIndexOfElement: Int, lastTripIndex: Int) = currentTripIndexWithinTour(nextAct)
     tripIndexOfElement == lastTripIndex
@@ -1049,7 +1053,7 @@ class PersonAgent(
       // Have to give up my mode as well, perhaps there's no option left for driving.
       _experiencedBeamPlan.putStrategy(nextAct, TripModeChoiceStrategy(mode = None))
       val (updatedTourMode, updatedTourPersonalVehicle): (Option[BeamTourMode], Option[Id[BeamVehicle]]) =
-        if (isFirstTripWithinTour(nextAct)) { (None, None) }
+        if (nextAct.getType.equalsIgnoreCase("Home")) { (None, None) }
         else { (basePersonData.currentTourMode, basePersonData.currentTourPersonalVehicle) }
       goto(ChoosingMode) using ChoosesModeData(
         basePersonData.copy(
