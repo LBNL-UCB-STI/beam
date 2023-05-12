@@ -1749,7 +1749,7 @@ object ChoosesMode {
   case class CavTripLegsResponse(cavOpt: Option[BeamVehicle], legs: List[EmbodiedBeamLeg])
 
   def getActivityEndTime(activity: Activity, beamServices: BeamServices): Int = {
-    (if (activity.getEndTime.seconds().equals(Double.NegativeInfinity))
+    (if (activity.getEndTime.isUndefined)
        Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime)
      else
        activity.getEndTime.seconds()).toInt

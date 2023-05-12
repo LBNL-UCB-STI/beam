@@ -16,6 +16,7 @@ import beam.utils.logging.ExponentialLoggerWrapperImpl
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Leg, Person}
+import org.matsim.core.utils.misc.OptionalTime
 import org.matsim.households.Household
 
 import scala.collection.JavaConverters._
@@ -489,13 +490,13 @@ object HouseholdTripsHelper {
     val startTime = prevTrip.activity.getEndTime.seconds().toInt
     val arrivalTime = startTime + skim.time
 
-    val nextTripStartTime: Double = curTrip.activity.getEndTime.seconds()
-    if (!nextTripStartTime.isNegInfinity && startTime >= nextTripStartTime.toInt) {
+    val nextTripStartTime: OptionalTime = curTrip.activity.getEndTime
+    if (nextTripStartTime.isDefined && startTime >= nextTripStartTime.seconds().toInt) {
       logger.warn(
         s"Illegal plan for person ${plan.getPerson.getId.toString}, activity ends at $startTime which is later than the next activity ending at $nextTripStartTime"
       )
       break
-    } else if (!nextTripStartTime.isNegInfinity && arrivalTime > nextTripStartTime.toInt) {
+    } else if (nextTripStartTime.isDefined && arrivalTime > nextTripStartTime.seconds().toInt) {
       logger.warn(
         "The necessary travel time to arrive to the next activity is beyond the end time of the same activity"
       )

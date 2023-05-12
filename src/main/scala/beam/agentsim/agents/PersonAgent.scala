@@ -499,10 +499,10 @@ class PersonAgent(
 
   def calculateActivityEndTime(activity: Activity, tick: Double): Double = {
     def activityEndTime = {
-      val endTimeSeconds = activity.getEndTime.seconds()
-      if (endTimeSeconds >= tick && Math.abs(endTimeSeconds) < Double.PositiveInfinity) {
-        endTimeSeconds
-      } else if (endTimeSeconds >= 0.0 && endTimeSeconds < tick) {
+      val endTime = activity.getEndTime
+      if (endTime.isDefined && endTime.seconds() >= tick) {
+        endTime.seconds()
+      } else if (endTime.isDefined && endTime.seconds() >= 0.0 && endTime.seconds() < tick) {
         tick
       } else {
         // logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")

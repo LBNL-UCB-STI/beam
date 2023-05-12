@@ -47,7 +47,7 @@ object ActivitySegment {
   def apply(scenario: Scenario, binSize: Int): ActivitySegment = {
     val activities = scenario.getPopulation.getPersons.values.asScala.flatMap { person =>
       person.getSelectedPlan.getPlanElements.asScala.collect {
-        case act: Activity if !act.getEndTime.seconds().isNegInfinity => act
+        case act: Activity if act.getEndTime.isDefined => act
       }
     }.toArray
     new ActivitySegment(activities, binSize)

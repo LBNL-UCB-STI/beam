@@ -37,7 +37,10 @@ object ReplanningUtil {
       plannedActivities.zip(experiencedActivities).foreach {
         case (plannedActivity: Activity, experiencedActivity: Activity) =>
           experiencedActivity.setCoord(plannedActivity.getCoord)
-          experiencedActivity.setEndTime(plannedActivity.getEndTime.seconds())
+          if (plannedActivity.getEndTime.isDefined)
+            experiencedActivity.setEndTime(plannedActivity.getEndTime.seconds())
+          else
+            experiencedActivity.setEndTimeUndefined()
         case (_, _) =>
       }
       val attributes = experiencedPlan.getAttributes

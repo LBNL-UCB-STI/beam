@@ -144,11 +144,7 @@ configurations.all {
 dependencies {
 
     // TODO FIXME
-    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.19') {
-        exclude group: 'com.github.LBNL-UCB-STI', module: 'r5'
-        exclude group: 'org.matsim', module: 'matsim'
-        exclude group: 'com.github.wrashid.matsim', module: 'matsim'
-    }
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: '0.3.0')
 
     ////////////////////////////
     // Java dependencies
@@ -164,10 +160,10 @@ dependencies {
     implementation group: 'com.univocity', name: 'univocity-parsers', version: '2.9.1'
 
     // LGPL
-    implementation group: 'org.geotools', name: 'gt-main', version: '14.5'
-    implementation group: 'org.geotools', name: 'gt-shapefile', version: '14.5'
-    implementation group: 'org.geotools', name: 'gt-referencing', version: '15.2'
-    implementation group: 'org.geotools', name: 'gt-epsg-wkt', version: '15.2'
+    implementation group: 'org.geotools', name: 'gt-main', version: '21.5'
+    implementation group: 'org.geotools', name: 'gt-shapefile', version: '21.5'
+    implementation group: 'org.geotools', name: 'gt-referencing', version: '21.5'
+    implementation group: 'org.geotools', name: 'gt-epsg-wkt', version: '21.5'
     implementation group: 'org.jfree', name: 'jfreechart', version: '1.0.14'
 
     implementation group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.12.3'
@@ -349,19 +345,6 @@ dependencies {
 
 scalafmt {
     // configFilePath = ".scalafmt.conf" // .scalafmt.conf in the project root is default value, provide only if other location is needed
-}
-
-configurations.all {
-    resolutionStrategy {
-        eachDependency { DependencyResolveDetails dependencyResolveDetails ->
-            final requestedDependency = dependencyResolveDetails.requested
-            if (requestedDependency.name != 'beam-utilities') {
-                force 'javax.media:jai_core:1.1.3'
-            }
-        }
-    }
-    exclude group: 'javax.media', module: 'jai_codec'
-    exclude group: 'javax.media', module: 'jai_imageio'
 }
 
 //compileScala.dependsOn(scalafmtAll)
@@ -555,7 +538,7 @@ def getCurrentTimestamp = {
             .format(Instant.now())
 }
 
-def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getCurrentTimestamp()}.log"]
+def logGC = ["-XX:+PrintGCDetails", "-Xloggc:gc_${getCurrentTimestamp()}.log"]
 
 // Use following for remote debug mode
 def remoteDebug = ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
