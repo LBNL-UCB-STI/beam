@@ -312,6 +312,14 @@ trait ChoosesMode {
         }
       }
 
+      val availableVehicleFromParentTour = currentTourStrategy.tourMode match {
+        case Some(_) => Vector()
+        case None =>
+          personData.currentTourPersonalVehicle.map(vehId => beamVehicles(vehId)).toVector
+      }
+      //TODO: Check logic: What if we're on a new subtour, so we already have a currentTourVehicle from the parent tour
+      availablePersonalStreetVehicles ++= availableVehicleFromParentTour
+
 //      var availablePersonalStreetVehicles = {
 //        currentTripMode match {
 //          case None | Some(CAR | BIKE) =>
