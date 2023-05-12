@@ -131,12 +131,10 @@ trait ChoosesMode {
 
   onTransition { case _ -> ChoosingMode =>
     val choosesModeData: ChoosesModeData = nextStateData.asInstanceOf[ChoosesModeData]
-    val availableModes: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson, choosesModeData.excludeModes)
     val nextAct = nextActivity(choosesModeData.personData).get
     val currentTourStrategy = _experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](nextAct)
     val currentTripMode = _experiencedBeamPlan.getTripStrategy[TripModeChoiceStrategy](nextAct).mode
     val currentTourMode = currentTourStrategy.tourMode
-    val parentTour = getParentTour(nextAct)
 
     (nextStateData, currentTripMode, currentTourMode) match {
       // If I am already on a tour in a vehicle, only that vehicle is available to me
@@ -270,6 +268,9 @@ trait ChoosesMode {
       // anyway and just keep it in the experiencedBeamPlan
       val currentTourStrategy = _experiencedBeamPlan.getTourStrategy[TourModeChoiceStrategy](nextAct)
       val currentTripStrategy = _experiencedBeamPlan.getTripStrategy[TripModeChoiceStrategy](nextAct)
+      if (currentTripStrategy.mode != personData.currentTripMode) {
+        logger.debug("Why are the trip mode from the beamPlan and personData different?")
+      }
 
       var currentTripMode = (currentTripStrategy.mode, personData.currentTripMode) match {
         case (None, None) => None

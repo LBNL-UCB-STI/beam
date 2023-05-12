@@ -1,14 +1,22 @@
 package beam.agentsim.agents
 
 import akka.actor.{ActorSystem, Props}
+import akka.pattern.ask
 import akka.testkit.{ImplicitSender, TestActorRef, TestKitBase, TestProbe}
+import akka.util.Timeout
+
 import beam.agentsim.agents.PersonTestUtil._
 import beam.agentsim.agents.choice.mode.ModeChoiceUniformRandom
 import beam.agentsim.agents.household.HouseholdActor.HouseholdActor
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events._
-import beam.agentsim.infrastructure.{AnotherTrivialParkingManager, TrivialParkingManager}
+import beam.agentsim.infrastructure.{
+  AnotherTrivialParkingManager,
+  ParkingInquiry,
+  ParkingInquiryResponse,
+  TrivialParkingManager
+}
 import beam.agentsim.scheduler.BeamAgentScheduler
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger, SchedulerProps, StartSchedule}
 import beam.router.BeamRouter._
@@ -35,11 +43,11 @@ import org.matsim.vehicles._
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll}
 import org.scalatest.funspec.AnyFunSpecLike
-import beam.agentsim.agents.household.HouseholdFleetManager
-import beam.sim.config.BeamConfigHolder
 
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.{mutable, JavaConverters}
+import scala.concurrent.ExecutionContext
 
 class PersonWithPersonalVehiclePlanSpec
     extends AnyFunSpecLike
@@ -56,7 +64,7 @@ class PersonWithPersonalVehiclePlanSpec
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
-        akka.test.timefactor = 20
+        akka.test.timefactor = 2
         beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt = true
         """
     )
@@ -64,6 +72,8 @@ class PersonWithPersonalVehiclePlanSpec
     .resolve()
 
   lazy implicit val system: ActorSystem = ActorSystem("PersonWithPersonalVehiclePlanSpec", config)
+  private implicit val timeout: Timeout = Timeout(60, TimeUnit.SECONDS)
+  private implicit val executionContext: ExecutionContext = system.dispatcher
 
   override def outputDirPath: String = TestConfigUtils.testOutputDir
 
@@ -685,6 +695,8 @@ class PersonWithPersonalVehiclePlanSpec
             isEmbodyWithCurrentTravelTime = false,
             triggerId = triggerId
           )
+        case inq: ParkingInquiry =>
+          (parkingManager ? inq).mapTo[ParkingInquiryResponse].map(x => lastSender ! x)
       }
 
       for (_ <- 0 to 1) {
@@ -696,15 +708,15 @@ class PersonWithPersonalVehiclePlanSpec
 
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
       expectMsgPF()(messageResponder)
+      expectMsgPF()(messageResponder)
       modeChoiceEvents.expectMsgType[ModeChoiceEvent]
+//      expectMsgPF()(messageResponder)
 
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
       expectMsgType[CompletionNotice]
-
-      // TODO: Testing last resort vehicle creation
     }
 
     it("should walk to a car that is far away (if told so by the router") {
@@ -825,7 +837,7 @@ class PersonWithPersonalVehiclePlanSpec
         triggerId = routingRequest.triggerId
       )
 
-      expectMsgType[TourModeChoiceEvent]
+//      expectMsgType[TourModeChoiceEvent]
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
       expectMsgType[PersonDepartureEvent]

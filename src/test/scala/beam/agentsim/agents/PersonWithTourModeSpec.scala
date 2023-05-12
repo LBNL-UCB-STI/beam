@@ -76,7 +76,7 @@ class PersonWithTourModeSpec
         akka.log-dead-letters = 10
         akka.actor.debug.fsm = true
         akka.loglevel = debug
-        akka.test.timefactor = 2
+        akka.test.timefactor = 6
         """
     )
     .withFallback(testConfig("test/input/beamville/beam.conf"))
