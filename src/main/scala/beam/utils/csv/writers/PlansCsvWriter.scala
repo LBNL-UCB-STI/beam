@@ -97,7 +97,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           legRouteType = route.map(_.getRouteType),
           legRouteStartLink = route.map(_.getStartLinkId.toString),
           legRouteEndLink = route.map(_.getEndLinkId.toString),
-          legRouteTravelTime = route.map(_.getTravelTime.seconds()),
+          legRouteTravelTime = route.flatMap(_.getTravelTime.toOption),
           legRouteDistance = route.map(_.getDistance),
           legRouteLinks = routeLinks,
           geoId = None

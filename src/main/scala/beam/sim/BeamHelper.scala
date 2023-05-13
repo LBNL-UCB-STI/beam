@@ -194,6 +194,10 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
           bind(classOf[TerminationCriterion]).toProvider(classOf[TerminationCriterionProvider])
 
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
+
+          // TODO temporary turning off PrepareForMobsim
+          bind(classOf[PrepareForMobsim]).toInstance(() => {})
+
           bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
 
           addControlerListenerBinding().to(classOf[BeamSim])
