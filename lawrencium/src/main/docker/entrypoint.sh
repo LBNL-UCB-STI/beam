@@ -216,7 +216,7 @@ for file in "$BEAM_PATH"/*.jfr; do
 done;
 mv "$BEAM_PATH"/gc_* "$FINAL_PATH"
 mv "$CPU_RAM_LOG" "$FINAL_PATH"
-
+chmod 777 -R "$FINAL_PATH"
 
 # uploading output to s3 if enabled
 if [ "$S3_PUBLISH" = true ]; then

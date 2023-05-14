@@ -38,8 +38,8 @@ if [ "$run_with_local_code_data" = true ]; then
     --env S3_PUBLISH=false \
     --env SEND_NOTIFICATION=false \
     --mount source="$EXISTING_CODE_PATH",destination=/app/sources,type=bind \
+    --mount source="$EXISTING_DATA_PATH",destination=/app/data,type=bind \
     $BEAM_IMAGE
 
-    # --mount source="$EXISTING_DATA_PATH",destination=/app/data,type=bind \
 
 fi

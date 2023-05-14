@@ -1,9 +1,9 @@
 FROM openjdk:8
 RUN apt-get update
-RUN apt-get -y install awscli build-essential
 RUN wget -O git-lfs.deb https://packagecloud.io/github/git-lfs/packages/debian/stretch/git-lfs_2.3.4_amd64.deb/download
-RUN dpkg -i git-lfs.deb
-RUN rm git-lfs.deb
+RUN dpkg -i git-lfs.deb && rm git-lfs.deb
+RUN apt-get -y install awscli build-essential python3 python3-pandas
+RUN pip install plotly kaleido psutil
 WORKDIR /app
 VOLUME /app/sources
 VOLUME /app/data
