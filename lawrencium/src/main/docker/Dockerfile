@@ -6,6 +6,7 @@ RUN dpkg -i git-lfs.deb
 RUN rm git-lfs.deb
 WORKDIR /app
 VOLUME /app/sources
+VOLUME /app/data
 ADD write_cpu_ram_usage.sh /app
 RUN chmod +x /app/write_cpu_ram_usage.sh
 ADD entrypoint.sh /app

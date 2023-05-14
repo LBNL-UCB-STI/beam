@@ -10,7 +10,6 @@ REGION=""
 SHUTDOWN_WAIT=0
 
 SIMULATION_OUTPUT_LINK="TODO" ## the link to be able to view progress of simulation
-
 PROFILER="TODO"
 
 # TODO maybe completely remove these
@@ -33,6 +32,7 @@ echo "S3 backup set to '$S3_PUBLISH' with region '$S3_REGION'"
 echo "The title is '$TITLED'"
 echo "The max ram is $MAX_RAM"
 
+
 function send_slack_notification() {
   json_data="{\"text\":\"$1\"}"
   printf "\nSending the following json to slack:"
@@ -49,12 +49,15 @@ function send_json_to_spreadsheet() {
   curl -X POST -H 'Content-type:application/json' --data "$json_data" "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet"
 }
 
+
 # monitoring CPU | RAM usage
-/app/write_cpu_ram_usage.sh > /app/sources/cpu_ram_usage.csv &
+CPU_RAM_LOG="/app/sources/cpu_ram_usage.csv"
+/app/write_cpu_ram_usage.sh > "$CPU_RAM_LOG" &
+
 
 PATH_TO_PROJECT_PARENT="/app/sources"
-
 cd "$PATH_TO_PROJECT_PARENT" || echo "ERROR: The path '$PATH_TO_PROJECT_PARENT' is not available"
+
 
 # either pull the code or use the code from mounted folder
 if [ "$PULL_CODE" = true ]; then
@@ -77,8 +80,13 @@ else
   echo "Using the latest commit in the branch '$BEAM_BRANCH_NAME' - '$BEAM_COMMIT_SHA'"
 fi
 
-echo "Working from $(pwd)"
 
+# remember the BEAM working folder location
+BEAM_PATH=$(pwd)
+echo "Working from '$BEAM_PATH'"
+
+
+# pulling data from github if enabled or checking if data location was mounted separately
 if [ "$PULL_DATA" = true ]; then
   echo "Pulling the data from github (PULL_DATA set to '$PULL_DATA')."
   production_data_submodules=$(git submodule | awk '{ print $2 }')
@@ -105,7 +113,16 @@ if [ "$PULL_DATA" = true ]; then
   git lfs pull
 else
   echo "Pulling the data from github is disabled (PULL_DATA set to '$PULL_DATA')."
+  COMBINED_CONFIG_PATH="/app/data/${BEAM_CONFIG#*/}"
+  echo "Trying combined path from data volume: '$COMBINED_CONFIG_PATH'"
+  if [ -e "$COMBINED_CONFIG_PATH" ]; then
+    BEAM_CONFIG=$COMBINED_CONFIG_PATH
+    echo "File exist, using config from mounted data volume - '$BEAM_CONFIG'"
+  else
+    echo "File does not exist, going to use data from inside beam folder."
+  fi
 fi
+
 
 if [ "$SEND_NOTIFICATION" = true ]; then
   send_slack_notification "Run Started
@@ -139,21 +156,24 @@ else
   echo "Sending notifications is disabled (SEND_NOTIFICATION set to '$SEND_NOTIFICATION')."
 fi
 
-# where the gradle cache should be
+
+# calculating a location for gradle cache
 if [[ -z "$GRADLE_CACHE_PATH" ]]; then
-  GRADLE_CACHE_PATH="$(pwd)/.gradle"
+  GRADLE_CACHE_PATH="$BEAM_PATH/.gradle"
   echo "GRADLE_CACHE_PATH is not set, creating and using directory by path '$GRADLE_CACHE_PATH'"
   mkdir -p "$GRADLE_CACHE_PATH"
 else
   echo "GRADLE_CACHE_PATH set, using directory by path '$GRADLE_CACHE_PATH'"
 fi
 
+
 ## we shouldn't use the gradle daemon on NERSC, it seems that it's somehow shared within different nodes
 ## and all the subsequent runs have output dir somewhere else.
 ./gradlew --no-daemon --gradle-user-home="$GRADLE_CACHE_PATH" clean :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM"
 
+
 ## Calculate the final status of simulation
-log_file="$(find "$(pwd)/output" -maxdepth 2 -mindepth 2 -type d -print -quit)/beamLog.out"
+log_file="$(find "$BEAM_PATH/output" -maxdepth 2 -mindepth 2 -type d -print -quit)/beamLog.out"
 if [[ ! -f $log_file ]]; then
     echo "Unable to locate the beamLog.out file"
     final_status="Unable to start"
@@ -165,8 +185,8 @@ else
       final_status="Run Failed"
   fi
 fi
-
 echo "The final status of simulation is '$final_status'"
+
 
 ## TODO calculate health metrics
 health_metrics_for_slack_notification="TODO"
@@ -176,28 +196,37 @@ error="TODO"
 warning="TODO"
 
 
+# looking for output
+sleep 10s
+FINAL_PATH=""
+for file in "$BEAM_PATH"/output/*; do
+   for path2 in "$file"/*; do
+     FINAL_PATH="$path2";
+   done;
+done;
+echo "Found output dir: $FINAL_PATH"
+
+
+echo "Moving debug files to output folder"
+for file in "$BEAM_PATH"/*.jfr; do
+  [ -e "$file" ] || continue
+  echo "Zipping $file"
+  zip "$file.zip" "$file"
+  mv "$file.zip" "$FINAL_PATH"
+done;
+mv "$BEAM_PATH"/gc_* "$FINAL_PATH"
+mv "$CPU_RAM_LOG" "$FINAL_PATH"
+
+
+# uploading output to s3 if enabled
 if [ "$S3_PUBLISH" = true ]; then
-  sleep 10s
-  finalPath=""
-  for file in output/*; do
-     for path2 in "$file"/*; do
-       finalPath="$path2";
-     done;
-  done;
-  echo "Found output dir: $finalPath"
-  for file in "$PATH_TO_PROJECT_PARENT"/beam/*.jfr; do
-    [ -e "$file" ] || continue
-    echo "Zipping $file"
-    zip "$file.zip" "$file"
-    cp "$file.zip" "$finalPath"
-  done;
-  cp "$PATH_TO_PROJECT_PARENT"/beam/gc_* "$finalPath"
-  aws --region "$S3_REGION" s3 cp "$finalPath" s3://beam-outputs/"$finalPath" --recursive;
-  s3output_url="https://s3.$S3_REGION.amazonaws.com/beam-outputs/index.html#$finalPath"
+  aws --region "$S3_REGION" s3 cp "$FINAL_PATH" s3://beam-outputs/"$FINAL_PATH" --recursive;
+  s3output_url="https://s3.$S3_REGION.amazonaws.com/beam-outputs/index.html#$FINAL_PATH"
   echo "Uploaded to $s3output_url"
 else
   echo "S3 publishing is disabled (S3_PUBLISH set to '$S3_PUBLISH')."
 fi
+
 
 if [ "$SEND_NOTIFICATION" = true ]; then
   send_slack_notification "Run Completed
@@ -238,6 +267,7 @@ if [ "$SEND_NOTIFICATION" = true ]; then
 else
   echo "Sending notifications is disabled (SEND_NOTIFICATION set to '$SEND_NOTIFICATION')."
 fi
+
 
 echo ""
 echo "Completed at $(date "+%Y-%m-%d-%H:%M:%S")"

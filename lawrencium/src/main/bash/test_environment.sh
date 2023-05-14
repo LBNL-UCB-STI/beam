@@ -1,15 +1,15 @@
 #!/bin/bash
 
 BEAM_CONFIG="test/input/beamville/beam.conf"
-BEAM_IMAGE="irishwithaxe/beam-environment:latest"
+BEAM_IMAGE="beam-environment:latest"
 
-OUT_PATH="$(pwd)/test_beam_folder"
-mkdir -m 777 "$OUT_PATH" 2>/dev/null
+pull_from_github_and_run=false
+run_with_local_code_data=true
 
-runtest1=false
-runtest2=true
+if [ "$pull_from_github_and_run" = true ]; then
+  OUT_PATH="$(pwd)/test_beam_folder"
+  mkdir -m 777 "$OUT_PATH" 2>/dev/null
 
-if [ "$runtest1" ]; then
   docker run \
     --network host \
     --env MAX_RAM="16" \
@@ -24,17 +24,22 @@ if [ "$runtest1" ]; then
     $BEAM_IMAGE
 fi
 
-EXISTING_CODE_PATH="$OUT_PATH/beam"
+EXISTING_CODE_PATH="/mnt/data/work/beam/beam"
+EXISTING_DATA_PATH="/mnt/data/work/beam/beam-production/test"
 
-docker run \
-  --network host \
-  --env MAX_RAM="16" \
-  --env BEAM_CONFIG=$BEAM_CONFIG \
-  --env BEAM_BRANCH_NAME="develop" \
-  --env TITLED="test2" \
-  --env PULL_CODE=false \
-  --env PULL_DATA=false \
-  --env S3_PUBLISH=false \
-  --env SEND_NOTIFICATION=false \
-  --mount source="$EXISTING_CODE_PATH",destination=/app/sources,type=bind \
-  $BEAM_IMAGE
+if [ "$run_with_local_code_data" = true ]; then
+  docker run \
+    --network host \
+    --env MAX_RAM="16" \
+    --env BEAM_CONFIG=$BEAM_CONFIG \
+    --env TITLED="test2" \
+    --env PULL_CODE=false \
+    --env PULL_DATA=false \
+    --env S3_PUBLISH=false \
+    --env SEND_NOTIFICATION=false \
+    --mount source="$EXISTING_CODE_PATH",destination=/app/sources,type=bind \
+    $BEAM_IMAGE
+
+    # --mount source="$EXISTING_DATA_PATH",destination=/app/data,type=bind \
+
+fi
