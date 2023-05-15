@@ -467,6 +467,7 @@ object ActivitySimSkimmer extends LazyLogging {
 
     val supportedActivitySimMetric: Set[ActivitySimMetric] = Set(
       ActivitySimMetric.TOTIVT,
+      ActivitySimMetric.IVT,
       ActivitySimMetric.FERRYIVT,
       ActivitySimMetric.FAR,
       ActivitySimMetric.KEYIVT,
