@@ -1,7 +1,7 @@
 package beam.router.skim.urbansim
 
 import beam.agentsim.infrastructure.taz.TAZTreeMap
-import beam.router.skim.ActivitySimPathType.{DRV_COM_WLK, DRV_LRF_WLK}
+import beam.router.skim.ActivitySimPathType.{DRV_COM_WLK, DRV_LOC_WLK, WLK_LOC_WLK, WLK_LRF_WLK}
 import beam.router.skim.ActivitySimSkimmer.ExcerptData
 import omx.OmxFile
 import omx.OmxMatrix.OmxFloatMatrix
@@ -90,7 +90,7 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
           1,
           0
         ),
-        ExcerptData("MD", DRV_LRF_WLK, "100574", "10069A", 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 4, 3, 2, 1, 1, 0)
+        ExcerptData("MD", WLK_LOC_WLK, "100574", "10069A", 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 4, 3, 2, 1, 1, 0)
       )
       val path = "output/test/activitysim_skims.omx"
       ActivitySimOmxWriter.writeToOmx(path, excerptData.iterator, geoUnits)
@@ -98,21 +98,17 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
       omxFile.openReadOnly()
       val matrixNames = omxFile.getMatrixNames.asScala.toList
       matrixNames should contain theSameElementsAs List(
-        "DRV_LRF_WLK_FERRYIVT__MD",
         "DRV_COM_WLK_DDIST__PM",
-        "DRV_LRF_WLK_WAUX__MD",
+        "WLK_LOC_WLK_WAUX__MD",
         "DRV_COM_WLK_DDIST__AM",
         "DRV_COM_WLK_FAR__AM",
         "DRV_COM_WLK_KEYIVT__PM",
-        "DRV_LRF_WLK_TOTIVT__MD",
-        "DRV_LRF_WLK_BOARDS__MD",
-        "DRV_LRF_WLK_FAR__MD",
+        "WLK_LOC_WLK_TOTIVT__MD",
+        "WLK_LOC_WLK_BOARDS__MD",
+        "WLK_LOC_WLK_FAR__MD",
         "DRV_COM_WLK_KEYIVT__AM",
         "DRV_COM_WLK_BOARDS__AM",
-        "DRV_LRF_WLK_DDIST__MD",
         "DRV_COM_WLK_WAUX__PM",
-        "DRV_LRF_WLK_KEYIVT__MD",
-        "DRV_LRF_WLK_DTIM__MD",
         "DRV_COM_WLK_TOTIVT__PM",
         "DRV_COM_WLK_BOARDS__PM",
         "DRV_COM_WLK_DTIM__PM",
@@ -120,21 +116,29 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
         "DRV_COM_WLK_TOTIVT__AM",
         "DRV_COM_WLK_WAUX__AM",
         "DRV_COM_WLK_FAR__PM",
-        "DRV_LRF_WLK_TRIPS__MD",
-        "DRV_LRF_WLK_FAILURES__MD",
+        "WLK_LOC_WLK_TRIPS__MD",
+        "WLK_LOC_WLK_FAILURES__MD",
         "DRV_COM_WLK_TRIPS__AM",
         "DRV_COM_WLK_FAILURES__AM",
         "DRV_COM_WLK_TRIPS__PM",
         "DRV_COM_WLK_FAILURES__PM",
-        "DRV_LRF_WLK_XWAIT__MD",
+        "WLK_LOC_WLK_XWAIT__MD",
         "DRV_COM_WLK_XWAIT__AM",
         "DRV_COM_WLK_IWAIT__PM",
         "DRV_COM_WLK_XWAIT__PM",
         "DRV_COM_WLK_IWAIT__AM",
-        "DRV_LRF_WLK_IWAIT__MD"
+        "WLK_LOC_WLK_IWAIT__MD",
+        "WLK_TRN_WLK_IVT__MD",
+        "WLK_TRN_WLK_XWAIT__MD",
+        "WLK_TRN_WLK_IWAIT__MD",
+        "DRV_TRN_WLK_WAUX__MD",
+        "DRV_TRN_WLK_WACC__MD",
+        "DRV_TRN_WLK_WEGR__MD",
+        "WLK_TRN_WLK_TRIPS__MD",
+        "WLK_TRN_WLK_FAILURES__MD"
       )
-      //total in vehicle time data for path type DRV_LRF_WLK and time bin MD
-      val matrix = omxFile.getMatrix("DRV_LRF_WLK_TOTIVT__MD").asInstanceOf[OmxFloatMatrix]
+      //total in vehicle time data for path type DRV_LOC_WLK and time bin MD
+      val matrix = omxFile.getMatrix("WLK_LOC_WLK_TOTIVT__MD").asInstanceOf[OmxFloatMatrix]
       matrix.getShape()(0) shouldBe 864
       matrix.getShape()(1) shouldBe 864
       val mapping = geoUnits.zipWithIndex.toMap

@@ -1,5 +1,6 @@
 package beam.router.skim
 
+import beam.router.skim.ActivitySimPathType.{isWalkTransit, WLK_TRN_WLK}
 import beam.router.skim.core.{AbstractSkimmer, AbstractSkimmerInternal, AbstractSkimmerKey, AbstractSkimmerReadOnly}
 import beam.router.skim.urbansim.ActivitySimOmxWriter
 import beam.sim.BeamScenario
@@ -200,6 +201,17 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     ProfilingUtils.timed("Writing skims that are created during simulation ", x => logger.info(x)) {
       val excerptData = currentSkim
         .asInstanceOf[Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal]]
+        .flatMap {
+          case (key, value) if isWalkTransit(key.pathType) =>
+            // The WLK_TRN_WLK skim is a catch-all for all transit trips, so rather than storing extra in the skims we
+            // just duplicate the appropriate values when aggregating them up
+            Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal](
+              key                              -> value,
+              key.copy(pathType = WLK_TRN_WLK) -> value
+            )
+          case (key, value) =>
+            Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal](key -> value)
+        }
         .groupBy { case (key, _) =>
           val asTimeBin = ActivitySimTimeBin.toTimeBin(key.hour)
           ActivitySimKey(asTimeBin, key.pathType, key.origin, key.destination)
@@ -426,6 +438,7 @@ object ActivitySimSkimmer extends LazyLogging {
     def getValue(metric: ActivitySimMetric): Double = {
       metric match {
         case ActivitySimMetric.TOTIVT   => weightedTotalInVehicleTime
+        case ActivitySimMetric.IVT      => weightedTotalInVehicleTime
         case ActivitySimMetric.FERRYIVT => weightedFerryInVehicleTimeInMinutes
         case ActivitySimMetric.FAR      => weightedTotalFareInCents
         case ActivitySimMetric.KEYIVT   => weightedKeyInVehicleTimeInMinutes
