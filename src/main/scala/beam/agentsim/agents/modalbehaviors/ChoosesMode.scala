@@ -376,7 +376,7 @@ trait ChoosesMode {
           requester = self,
           rideHailServiceSubscription = attributes.rideHailServiceSubscription,
           triggerId = getCurrentTriggerIdOrGenerate,
-          asPooled = true
+          asPooled = !choosesModeData.personData.currentTourMode.contains(RIDE_HAIL)
         )
         //        println(s"requesting: ${inquiry.requestId}")
         rideHailManager ! inquiry

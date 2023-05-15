@@ -5,7 +5,6 @@ import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.ActivitySimPathType.{toBeamMode, toKeyMode}
 import beam.router.skim.ActivitySimSkimmer.{ActivitySimSkimmerInternal, ActivitySimSkimmerKey}
 import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey}
-import beam.router.skim.event.ODSkimmerEvent
 import com.typesafe.scalalogging.LazyLogging
 
 case class ActivitySimSkimmerEvent(

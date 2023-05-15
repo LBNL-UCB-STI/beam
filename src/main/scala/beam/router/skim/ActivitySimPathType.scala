@@ -2,6 +2,7 @@ package beam.router.skim
 
 import beam.router.Modes.BeamMode
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.ActivitySimMetric._
 import org.matsim.api.core.v01.population.Activity
 
 sealed trait ActivitySimPathType
@@ -114,7 +115,7 @@ object ActivitySimPathType {
 
     // so far not used:
     //    WLK_EXP_WLK, = express bus
-    //    WLK_TRN_WLK  = train ??
+    //    WLK_TRN_WLK  = walk transit (general)
 
     val (longestWalkTransitLeg, _) = tryGetLongestLegId(trip, isWalkTransit)
     longestWalkTransitLeg.map(leg => leg.beamLeg.mode) match {
@@ -280,6 +281,14 @@ object ActivitySimPathType {
     }
   }
 
+  val walkTransitPathTypes: Seq[ActivitySimPathType] = Seq(
+    WLK_COM_WLK,
+    WLK_HVY_WLK,
+    WLK_EXP_WLK,
+    WLK_LOC_WLK,
+    WLK_LRF_WLK
+  )
+
   val allPathTypes: Seq[ActivitySimPathType] = Seq(
     DRV_COM_WLK,
     DRV_HVY_WLK,
@@ -304,11 +313,13 @@ object ActivitySimPathType {
     WLK_LOC_WLK,
     WLK_LRF_DRV,
     WLK_LRF_WLK,
-    // ignored because we did not understand what kind of vehicles are TRN yet
-    //    WLK_TRN_WLK
+    // UPDATE: TRN is a catch-all for all walk-transit trips
+    WLK_TRN_WLK,
     WALK,
     BIKE
   )
+
+  def isWalkTransit(pathType: ActivitySimPathType): Boolean = walkTransitPathTypes.contains(pathType)
 
   val allPathTypesMap: Map[String, ActivitySimPathType] =
     allPathTypes.map(x => x.toString -> x).toMap
