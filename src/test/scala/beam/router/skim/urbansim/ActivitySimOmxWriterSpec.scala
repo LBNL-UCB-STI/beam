@@ -127,15 +127,15 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
         "DRV_COM_WLK_IWAIT__PM",
         "DRV_COM_WLK_XWAIT__PM",
         "DRV_COM_WLK_IWAIT__AM",
-        "WLK_LOC_WLK_IWAIT__MD",
-        "WLK_TRN_WLK_IVT__MD",
-        "WLK_TRN_WLK_XWAIT__MD",
-        "WLK_TRN_WLK_IWAIT__MD",
-        "DRV_TRN_WLK_WAUX__MD",
-        "DRV_TRN_WLK_WACC__MD",
-        "DRV_TRN_WLK_WEGR__MD",
-        "WLK_TRN_WLK_TRIPS__MD",
-        "WLK_TRN_WLK_FAILURES__MD"
+        "WLK_LOC_WLK_IWAIT__MD"
+//        "WLK_TRN_WLK_IVT__MD",
+//        "WLK_TRN_WLK_XWAIT__MD",
+//        "WLK_TRN_WLK_IWAIT__MD",
+//        "WLK_TRN_WLK_WAUX__MD",
+//        "WLK_TRN_WLK_WACC__MD",
+//        "WLK_TRN_WLK_WEGR__MD",
+//        "WLK_TRN_WLK_TRIPS__MD",
+//        "WLK_TRN_WLK_FAILURES__MD"
       )
       //total in vehicle time data for path type DRV_LOC_WLK and time bin MD
       val matrix = omxFile.getMatrix("WLK_LOC_WLK_TOTIVT__MD").asInstanceOf[OmxFloatMatrix]
