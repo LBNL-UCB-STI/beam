@@ -123,36 +123,39 @@ EOF
 echo "$start_json"
 curl -X POST "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet" -H "Content-Type:application/json" --data "$start_json"
 
+set -x
+
 ./gradlew assemble
 
 if [ "${RUN_JUPYTER,,}" = "true" ]; then
-
+  echo "Running Jupyter"
   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
 
-  set -x
   if [ -n "$JUPYTER_TOKEN" ] && [ -n "$JUPYTER_IMAGE" ]
-  then sudo ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN" -PjupyterImage="$JUPYTER_IMAGE"
+  then ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN" -PjupyterImage="$JUPYTER_IMAGE"
   elif [ -n "$JUPYTER_TOKEN" ]
-  then sudo ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN"
+  then ./gradlew jupyterStart -Puser=root -PjupyterToken="$JUPYTER_TOKEN"
   elif [ -n "$JUPYTER_IMAGE" ]
-  then sudo ./gradlew jupyterStart -Puser=root -PjupyterImage="$JUPYTER_IMAGE"
-  else sudo ./gradlew jupyterStart -Puser=root
+  then ./gradlew jupyterStart -Puser=root -PjupyterImage="$JUPYTER_IMAGE"
+  else ./gradlew jupyterStart -Puser=root
   fi
-  set +x
 
+  # somehow there are not enough permissions for gradle lock file if jupyter was run before
+  sudo chmod -R 777 .
 else
   echo "NOT going to start jupyter. [RUN_JUPYTER ('${RUN_JUPYTER,,}') not equal to 'true']"
 fi
 
-
 if [ "${RUN_BEAM,,}" = "true" ]; then
   echo "Running BEAM"
   export GOOGLE_API_KEY="$GOOGLE_API_KEY"
+
   ./gradlew --stacktrace :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM"g
 else
   echo "NOT going to start BEAM. [RUN_BEAM ('${RUN_BEAM,,}') not equal to 'true']"
 fi
 
+set +x
 
 # copy to bucket
 storage_url=""
@@ -194,7 +197,7 @@ if [ -d "$finalPath" ]; then
       health_metrics="$health_metrics, $metric:$count"
     done < $simulation_health_analysis_output_file
     health_metrics="{$(echo "$health_metrics" | cut -c3-)}"
-    echo "$health_metrics"
+    echo "Health Metrics: $health_metrics"
     if [ "${STORAGE_PUBLISH,,}" != "false" ]; then
       gsutil cp "$simulation_health_analysis_output_file" "gs://beam-core-outputs/$finalPath/$simulation_health_analysis_output_file"
     fi
@@ -202,8 +205,14 @@ if [ -d "$finalPath" ]; then
 fi
 
 
+if [ "${RUN_BEAM,,}" != "true" ] && [ "${RUN_JUPYTER,,}" = "true" ]; then
+  final_status="Jupyter Instance"
+else
+  final_status=$(check_simulation_result)
+fi
+
+
 #Slack message
-final_status=$(check_simulation_result)
 bye_msg=$(cat <<EOF
 Run Completed
 Run Name **$RUN_NAME**

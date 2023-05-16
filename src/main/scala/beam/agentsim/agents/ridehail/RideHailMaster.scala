@@ -3,10 +3,14 @@ package beam.agentsim.agents.ridehail
 import akka.actor.{ActorRef, Props, Terminated}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
+import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
 import beam.agentsim.agents.ridehail.RideHailManager.ResponseCache
+import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail.RideHailMaster.RequestWithResponses
 import beam.agentsim.agents.vehicles.AccessErrorCodes.UnknownInquiryIdError
-import beam.agentsim.agents.vehicles.VehicleManager
+import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, VehicleManager}
+import beam.sim.population.AttributesOfIndividual
+import beam.sim.population.PopulationAdjustment._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.RouteHistory
@@ -84,6 +88,7 @@ class RideHailMaster(
   private val inquiriesWithResponses: mutable.Map[Int, RequestWithResponses] = mutable.Map.empty
   private val rideHailResponseCache = new ResponseCache
   val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+  private val bestResponseType: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.bestResponseType
 
   override def loggedReceive: Receive = {
     case TriggerWithId(trigger: InitializeTrigger, triggerId) =>
@@ -136,17 +141,79 @@ class RideHailMaster(
 
   private def findBestProposal(customer: Id[Person], responses: IndexedSeq[RideHailResponse]) = {
     val responsesInRandomOrder = rand.shuffle(responses)
-    val withProposals = responses.filter(_.travelProposal.isDefined)
+    val withProposals = responsesInRandomOrder.filter(_.travelProposal.isDefined)
     if (withProposals.isEmpty) responsesInRandomOrder.head
     else
-      withProposals.minBy { response =>
-        val travelProposal = response.travelProposal.get
+      bestResponseType match {
+        case "MIN_COST" =>
+          withProposals.minBy { response =>
+            val travelProposal = response.travelProposal.get
+            val price = travelProposal.estimatedPrice(customer)
+            if (travelProposal.poolingInfo.isDefined && response.request.asPooled)
+              Math.min(price, price * travelProposal.poolingInfo.get.costFactor)
+            else
+              price
+          }
+        case "MIN_UTILITY" => sampleProposals(customer, withProposals)
+      }
+  }
+
+  private def sampleProposals(customer: Id[Person], responses: IndexedSeq[RideHailResponse]): RideHailResponse = {
+    val proposalsToSample: Map[RideHailResponse, Map[String, Double]] =
+      proposalsToResponseAlternatives(customer, responses)
+    val mnlParams = Map(
+      "cost"         -> UtilityFunctionOperation.Multiplier(-1.0),
+      "subscription" -> UtilityFunctionOperation.Multiplier(1.0)
+    )
+    val mnl: MultinomialLogit[RideHailResponse, String] = MultinomialLogit(Map.empty, mnlParams)
+    val proposalsWithUtility = mnl.calcAlternativesWithUtility(proposalsToSample)
+    val chosenProposal = mnl.sampleAlternative(proposalsWithUtility, rand)
+    chosenProposal.get.alternativeType
+  }
+
+  private def proposalsToResponseAlternatives(
+    customer: Id[Person],
+    responses: IndexedSeq[RideHailResponse]
+  ): Map[RideHailResponse, Map[String, Double]] = {
+    val person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(customer)
+    val customerAttributes = person.getCustomAttributes.get(BEAM_ATTRIBUTES).asInstanceOf[AttributesOfIndividual]
+    responses.map { alt =>
+      val cost: Double = {
+        val travelProposal = alt.travelProposal.get
         val price = travelProposal.estimatedPrice(customer)
-        if (travelProposal.poolingInfo.isDefined && response.request.asPooled)
+        if (travelProposal.poolingInfo.isDefined && alt.request.asPooled)
           Math.min(price, price * travelProposal.poolingInfo.get.costFactor)
         else
           price
       }
+      val scaledTime: Double = customerAttributes.getVOT(
+        getGeneralizedTimeOfProposalInHours(alt.request.customer, alt.travelProposal)
+      )
+      val hasSubscription =
+        if (alt.request.rideHailServiceSubscription.contains(alt.rideHailManagerName)) 1.0 else 0.0
+
+      alt ->
+      Map(
+        "cost"         -> (cost + scaledTime),
+        "subscription" -> hasSubscription * beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_subscription
+      )
+
+    }.toMap
+  }
+
+  private def getGeneralizedTimeOfProposalInHours(
+    passenger: PersonIdWithActorRef,
+    proposal: Option[TravelProposal]
+  ): Double = {
+    // TODO: add walking time once walk-to-point service is implemented
+    proposal match {
+      case Some(proposal) =>
+        val wait = proposal.maxWaitingTimeInSec
+        val duration = proposal.travelTimeForCustomer(passenger)
+        (duration + (wait * beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.modeVotMultiplier.waiting)) / 3600
+      case _ => 0.0
+    }
+
   }
 }
 

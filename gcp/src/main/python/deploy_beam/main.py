@@ -93,6 +93,7 @@ def create_beam_instance(request):
     startup_script = """
 #!/bin/sh
 CLOUD_INIT_SCRIPT_URL=$(curl http://metadata/computeMetadata/v1/instance/attributes/cloud_init_script_url -H "Metadata-Flavor: Google")
+sudo chown -R clu:clu /home/clu
 sudo -u clu bash -c "cd; wget $CLOUD_INIT_SCRIPT_URL"
 sudo -u clu bash -c "cd; chmod 755 cloud-init.sh"
 sudo -u clu bash -c "cd; ./cloud-init.sh &> cloud-init-output.log"
