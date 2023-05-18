@@ -1,14 +1,9 @@
-import com.google.api.client.http.GenericUrl;
-import com.google.api.client.http.HttpRequest;
-import com.google.api.client.http.HttpResponse;
-import com.google.api.client.http.HttpTransport;
-import com.google.api.client.http.HttpContent;
-import com.google.api.client.http.ByteArrayContent;
-import com.google.api.client.http.javanet.NetHttpTransport;
-import com.google.auth.http.HttpCredentialsAdapter;
-import com.google.auth.oauth2.GoogleCredentials;
-import com.google.auth.oauth2.IdTokenCredentials;
-import com.google.auth.oauth2.IdTokenProvider;
+import com.google.api.client.http.*
+import com.google.api.client.http.javanet.NetHttpTransport
+import com.google.auth.http.HttpCredentialsAdapter
+import com.google.auth.oauth2.GoogleCredentials
+import com.google.auth.oauth2.IdTokenCredentials
+import com.google.auth.oauth2.IdTokenProvider
 
 apply from: "$rootDir/aws/build.gradle"
 
@@ -40,9 +35,8 @@ tasks.register('deployToGCE') {
         ext.getParameterValue = { paramName ->
             if (project.hasProperty(paramName)) {
                 return project.findProperty(paramName)
-            } else {
-                return propsFile.getProperty(paramName)
             }
+            return propsFile.getProperty(paramName)
         }
 
         if (!ext.getParameterValue('runName')) {
@@ -58,6 +52,9 @@ tasks.register('deployToGCE') {
         "beam_commit": "${ext.getParameterValue('beamCommit') ?: 'HEAD'}",
         "data_branch": "${ext.getParameterValue('dataBranch') ?: 'develop'}",
         "data_commit": "${ext.getParameterValue('dataCommit') ?: 'HEAD'}",
+        "run_jupyter" : ${ext.getParameterValue('runJupyter') ?: 'false'},
+        "run_beam": ${ext.getParameterValue('runBeam') ?: 'true'},
+        "jupyter_token" : "${ext.getParameterValue('jupyterToken') ?: UUID.randomUUID().toString()}",
         "shutdown_wait": "${ext.getParameterValue('shutdownWait')}",
         "storage_size": "${ext.getParameterValue('storageSize')}",
         "shutdown_behaviour": "${ext.getParameterValue('shutdownBehaviour')}",
@@ -69,6 +66,32 @@ tasks.register('deployToGCE') {
         logger.warn("response status: ${result.statusCode}, response message: ${result.statusMessage}, payload: ${result.content}")
     }
 }
+
+tasks.register("jupyterGCE") {
+    doFirst {
+        project.ext."runJupyter" = "true"
+        project.ext."runBeam" = "false"
+        project.ext."beamConfigs" = ""
+
+        if (!project.hasProperty("shutdownWait")) {
+            project.ext."shutdownWait" = 60 * 8
+        }
+        if (!project.hasProperty("runName")) {
+            project.ext."runName" = "jupyter"
+        }
+        if (!project.hasProperty("instanceType")) {
+            project.ext."instanceType" = "n2-highmem-4"
+        }
+        if (!project.hasProperty("s3Backup")) {
+            project.ext."s3Backup" = "false"
+        }
+        if (!project.hasProperty("shutdownBehaviour")) {
+            project.ext."shutdownBehaviour" = "stop"
+        }
+    }
+}
+
+jupyterGCE.finalizedBy(deployToGCE)
 
 static HttpResponse makeJsonPostRequest(String functionUrl, String requestBody) {
     GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();

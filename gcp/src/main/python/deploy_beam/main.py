@@ -37,21 +37,31 @@ def create_beam_instance(request):
     user_email = get_user_email(request)
     if not user_email:
         return escape("Cannot extract user email from the auth token"), 403
+
     request_payload = request.get_json(silent=True)
     if not request_payload:
         return escape("No valid json payload provided"), 400
-    beam_config = request_payload['config']
-    if parameter_is_not_specified(beam_config):
+
+    run_jupyter = request_payload.get('run_jupyter', False)
+    run_beam = request_payload.get('run_beam', True)
+
+    log(f"run_beam: {run_beam}, run_jupyter: {run_jupyter}, request_json:{request_payload}")
+
+    beam_config = request_payload.get('config', None)
+    if parameter_is_not_specified(beam_config) and run_beam:
         return escape("No beam config provided"), 400
-    instance_type = request_payload['instance_type']
+
+    instance_type = request_payload.get('instance_type', None)
     if parameter_is_not_specified(instance_type):
         return escape("No instance type provided"), 400
     instance_cores, instance_memory = find_instance_cores_and_memory(instance_type)
     if not instance_memory:
         return escape(f"Instance type '{instance_type}' is not supported"), 400
-    max_ram = request_payload['forced_max_ram']
+
+    max_ram = request_payload.get('forced_max_ram', None)
     if parameter_is_not_specified(max_ram):
         max_ram = calculate_heap_size(instance_cores, instance_memory)
+
     run_name = request_payload.get('run_name', "not-set")
     beam_branch = request_payload.get('beam_branch', "develop")
     beam_commit = request_payload.get('beam_commit', "HEAD")
@@ -61,20 +71,29 @@ def create_beam_instance(request):
     shutdown_wait = request_payload.get('shutdown_wait', "15")
     storage_size = request_payload.get('storage_size', "100")
     shutdown_behaviour = request_payload.get('shutdown_behaviour', "terminate")
+    jupyter_token = request_payload.get('jupyter_token', '')
+    jupyter_image = request_payload.get('jupyter_image', '')
 
     project = 'beam-core'
     zone = 'us-central1-a'
     batch_uid = str(uuid.uuid4())[:8]
     instance_name = to_instance_name(run_name)
     machine_type = f"zones/{zone}/machineTypes/{instance_type.strip()}"
-    disk_image_name = f"projects/{project}/global/images/beam-box"
+
+    disk_image_name = os.environ.get('DISK_IMAGE_NAME')
+    if not disk_image_name:
+        disk_image_name = f"projects/{project}/global/images/beam-box"
+    log(f"disk image: {disk_image_name}")
+
     cloud_init_script_url = os.environ.get('CLOUD_INIT_SCRIPT_URL')
     if not cloud_init_script_url:
         cloud_init_script_url = "https://raw.githubusercontent.com/LBNL-UCB-STI/beam/develop/gcp/src/main/bash/cloud-init.sh"
     log(f"cloud_init_script_url: {cloud_init_script_url}")
+
     startup_script = """
 #!/bin/sh
 CLOUD_INIT_SCRIPT_URL=$(curl http://metadata/computeMetadata/v1/instance/attributes/cloud_init_script_url -H "Metadata-Flavor: Google")
+sudo chown -R clu:clu /home/clu
 sudo -u clu bash -c "cd; wget $CLOUD_INIT_SCRIPT_URL"
 sudo -u clu bash -c "cd; chmod 755 cloud-init.sh"
 sudo -u clu bash -c "cd; ./cloud-init.sh &> cloud-init-output.log"
@@ -104,7 +123,12 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
         ('slack_token', os.environ['SLACK_TOKEN']),
         ('slack_channel', os.environ['SLACK_CHANNEL']),
         ('user_email', user_email),
+        ('run_beam', run_beam),
+        ('run_jupyter', run_jupyter),
+        ('jupyter_token', jupyter_token),
+        ('jupyter_image', jupyter_image),
     ]
+
     if shutdown_behaviour.lower() == "terminate":
         metadata.append(('shutdown-script', shutdown_script))
 
@@ -118,6 +142,24 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
 
     log(result)
 
+    instance_public_ip = ''
+
+    def try_to_get_public_ip():
+        instance_info_response = service.instances() \
+            .get(project=project, zone=zone, instance=instance_name) \
+            .execute()
+        # expected 'accessConfigs[0]' to be something like that: "{'kind': 'compute#accessConfig',
+        # 'type': 'ONE_TO_ONE_NAT', 'name': 'external-nat', 'natIP': '34.70.109.120', 'networkTier': 'PREMIUM'}" ,
+        # but 'natIP' might be missing while instance is starting.
+        access_configs = instance_info_response['networkInterfaces'][0]['accessConfigs'][0]
+        return access_configs.get('natIP', '')
+
+    attempts = 0
+    while run_jupyter and not instance_public_ip and attempts < 10:
+        attempts += 1
+        time.sleep(1)
+        instance_public_ip = try_to_get_public_ip()
+
     operation_id = result["id"]
     operation_status = result["status"]
     error = None
@@ -128,10 +170,16 @@ gcloud --quiet compute instances delete --zone="$INSTANCE_ZONE" "$INSTANCE_NAME"
     if error:
         return escape(f"operation id: {operation_id}, status: {operation_status}, error: {error}"), 500
     else:
-        return escape(f'Started batch: {batch_uid}'
-                      f' with run name: {run_name}'
-                      f' for branch/commit {beam_branch}/{beam_commit}'
-                      f' at instance {instance_name}.')
+        response_text = f"Started instance {instance_name}"
+        if run_beam:
+            response_text += f", with run name: {run_name}"
+        if run_beam or run_jupyter:
+            response_text += f", for branch/commit {beam_branch}/{beam_commit}"
+        if run_jupyter:
+            jupyter_url = f"http://{instance_public_ip}:8888/lab?token={jupyter_token}"
+            response_text += f", jupyter will be available at {jupyter_url} in few minutes"
+
+        return escape(response_text + ".")
 
 
 def log(msg, severity="NOTICE"):
