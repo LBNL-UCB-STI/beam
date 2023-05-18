@@ -390,14 +390,14 @@ trait ChoosesMode {
                 val chosenTourVehicle: Option[Id[BeamVehicle]] = out match {
                   case Some(CAR_BASED) =>
                     availablePersonalStreetVehicles
-                      .find(
-                        _.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car
+                      .find(veh =>
+                        (veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Car) & (!veh.vehicle.isSharedVehicle)
                       )
                       .map(_.id)
                   case Some(BIKE_BASED) =>
                     availablePersonalStreetVehicles
-                      .find(
-                        _.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike
+                      .find(veh =>
+                        (veh.vehicle.beamVehicleType.vehicleCategory == VehicleCategory.Bike) & (!veh.vehicle.isSharedVehicle)
                       )
                       .map(_.id)
                   case _ =>
