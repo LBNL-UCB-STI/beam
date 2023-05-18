@@ -149,7 +149,7 @@ trait ChoosesMode {
         } else {
           implicit val executionContext: ExecutionContext = context.system.dispatcher
           requestAvailableVehicles(
-            vehicleFleets,
+            fleetManagers,
             data.currentLocation,
             currentActivity(data.personData),
             tourMode match {
