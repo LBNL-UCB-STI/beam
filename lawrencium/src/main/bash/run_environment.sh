@@ -8,8 +8,6 @@ export BEAM_CONFIG="test/input/beamville/beam.conf"
 # export BEAM_CONFIG="test/input/sf-light/sf-light-25k-modified.conf"
 
 export GOOGLE_API_KEY=""
-export AWS_SECRET_ACCESS_KEY=""
-export AWS_ACCESS_KEY_ID=""
 
 export S3_PUBLISH="true"
 export S3_REGION="us-east-2"
