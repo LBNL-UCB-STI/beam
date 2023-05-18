@@ -7,11 +7,8 @@ export BEAM_CONFIG="test/input/beamville/beam.conf"
 # export BEAM_CONFIG="production/sfbay/gemini/gemini-scenario-7-Advanced-05p.conf"
 # export BEAM_CONFIG="test/input/sf-light/sf-light-25k-modified.conf"
 
-export GOOGLE_API_KEY=""
-
 export S3_PUBLISH="true"
 export S3_REGION="us-east-2"
-export SLACK_HOOK_WITH_TOKEN="https://hooks.slack.com/services/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"
 export SHUTDOWN_WAIT="0"
 
 # getting some of values for running image from environment

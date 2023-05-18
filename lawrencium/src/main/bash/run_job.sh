@@ -11,8 +11,11 @@ SCRIPT="$1"
 TITLED="$2"
 EXPECTED_TIME="${3:-3-00:00:00}"
 
+export GOOGLE_API_KEY=""
 export AWS_SECRET_ACCESS_KEY=""
 export AWS_ACCESS_KEY_ID=""
+export SLACK_HOOK_WITH_TOKEN=""
+
 
 RANDOM_PART=$(tr -dc A-Z0-9 </dev/urandom | head -c 8)
 DATETIME=$(date "+%Y.%m.%d-%H.%M.%S")
