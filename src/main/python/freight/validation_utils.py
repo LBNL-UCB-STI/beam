@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 plt.style.use('ggplot')
 import numpy as np
 
+meter_to_mile = 0.000621371
+mps_to_mph = 2.23694
 
 def npmrds_screeline_validation(npmrds_data, model_network, output_dir, label, show_plots = False):
     list_of_tmcs = model_network.loc[:, 'Tmc'].unique()
@@ -32,9 +34,7 @@ def npmrds_screeline_validation(npmrds_data, model_network, output_dir, label, s
     return npmrds_data_hourly
 
 
-def beam_screeline_validation(modeled_vmt, model_network, output_dir, label, passenger_sample_fraction, freight_sample_fraction, show_plots = False):
-    meter_to_mile = 0.000621371
-    mps_to_mph = 2.23694
+def build_model_vmt_24_hour(modeled_vmt, model_network, output_dir, label, passenger_sample_fraction, freight_sample_fraction, show_plots = False):
     hourly_vol_to_check = modeled_vmt.groupby('hour')[['volume']].sum()
     model_vmt_24_hour = modeled_vmt.loc[(modeled_vmt['hour'] <= 28) & (modeled_vmt['hour'] >= 5)]
     model_vmt_24_hour.loc[model_vmt_24_hour['hour']>=24, 'hour'] -= 24
@@ -61,6 +61,11 @@ def beam_screeline_validation(modeled_vmt, model_network, output_dir, label, pas
     else:
         plt.clf()
 
+    return model_vmt_24_hour
+
+
+def beam_screeline_validation(modeled_vmt, model_network, output_dir, label, passenger_sample_fraction, freight_sample_fraction, show_plots = False):
+    model_vmt_24_hour = build_model_vmt_24_hour(modeled_vmt, model_network, output_dir, label, passenger_sample_fraction, freight_sample_fraction, show_plots)
     model_vmt_hour_volume = model_vmt_24_hour.groupby(['Tmc', 'hour'])[['hourly volume', 'VMT']].mean()
     model_vmt_hour_volume = model_vmt_hour_volume.reset_index()
     model_vmt_hour_volume.columns = ['Tmc', 'hour', 'Volume (veh/lane/hour)', 'VMT']
@@ -92,3 +97,67 @@ def beam_screeline_validation(modeled_vmt, model_network, output_dir, label, pas
     # compare two datasets
     beam_data_hourly.loc[:, 'source'] = label
     return beam_data_hourly
+
+
+def beam_screeline_validation_per_road_class(npmrds_data_hourly_speed, modeled_vmt, model_network, output_dir, label, passenger_sample_fraction, freight_sample_fraction, show_plots = False):
+    model_vmt_24_hour = build_model_vmt_24_hour(modeled_vmt, model_network, output_dir, label, passenger_sample_fraction, freight_sample_fraction, show_plots)
+    model_vmt_hour_volume = model_vmt_24_hour.groupby(['Tmc', 'hour'])[['hourly volume', 'VMT']].mean()
+    model_vmt_hour_volume = model_vmt_hour_volume.reset_index()
+    model_vmt_hour_volume.columns = ['Tmc', 'hour', 'Volume (veh/lane/hour)', 'VMT']
+    model_vmt_24_hour_filtered = model_vmt_24_hour.loc[model_vmt_24_hour['volume']>0]
+
+    model_vmt_hour_speed = model_vmt_24_hour_filtered.groupby(['Tmc', 'hour']).apply(lambda x: np.average(x.speed, weights=x.combined_volume))
+    model_vmt_hour_speed = model_vmt_hour_speed.reset_index()
+    model_vmt_hour_speed.columns = ['Tmc', 'hour', 'Avg.Speed (mph)']
+    model_vmt_hour_speed.loc[:, 'Avg.Speed (mph)'] *= mps_to_mph
+
+    model_network = model_network.drop_duplicates(subset=['linkId'])
+    modeled_roadtype_lookup = {'tertiary': 'Minor collector',
+                               'trunk_link': 'Freeway and major arterial',
+                               'residential': 'Local',
+                               'track': 'Local',
+                               'footway': 'Local',
+                               'motorway': 'Freeway and major arterial',
+                               'secondary': 'Major collector',
+                               'unclassified': 'Local',
+                               'path': 'Local',
+                               'secondary_link': 'Major collector',
+                               'primary': 'Minor arterial',
+                               'motorway_link': 'Freeway and major arterial',
+                               'primary_link': 'Minor arterial',
+                               'trunk': 'Freeway and major arterial',
+                               'pedestrian': 'Local',
+                               'tertiary_link': 'Minor collector',
+                               'cycleway': 'Local',
+                               np.nan: 'Local',
+                               'steps': 'Local',
+                               'living_street': 'Local',
+                               'bus_stop': 'Local',
+                               'corridor': 'Local',
+                               'road': 'Local',
+                               'bridleway': 'Local'}
+
+    model_network.loc[:, 'road_class'] = model_network.loc[:, 'attributeOrigType'].map(modeled_roadtype_lookup)
+    tmc_county_lookup = model_network.loc[:, ['NAME', 'Tmc', 'road_class']]
+    tmc_county_lookup = tmc_county_lookup.drop_duplicates(subset=['Tmc'])
+
+    model_vmt_hour_data = pd.merge(model_vmt_hour_volume, model_vmt_hour_speed, on = ['Tmc', 'hour'], how = 'left')
+    paired_data_for_comparison = pd.merge(npmrds_data_hourly_speed, model_vmt_hour_data, on = ['Tmc', 'hour'], how = 'left')
+    paired_data_for_comparison = pd.merge(paired_data_for_comparison, tmc_county_lookup, on = 'Tmc', how = 'left')
+    paired_data_for_comparison = paired_data_for_comparison.rename(columns = {'Avg.Speed (mph)_x': 'SF NPMRDS speed', 'Avg.Speed (mph)_y': 'BEAM speed'})
+    paired_data_for_comparison = paired_data_for_comparison.dropna(subset = ['BEAM speed'])
+    # paired_data_for_comparison["KITS ID"] = paired_data_for_comparison["KITS ID"].astype(str)
+    # paired_data_for_comparison.head(5)
+    paired_data_melt = pd.melt(paired_data_for_comparison,
+                                id_vars = ['Tmc', 'hour', 'road_class'],
+                                value_vars = ["SF NPMRDS speed", "BEAM speed"],
+                                var_name = 'source',
+                                value_name = 'speed (mph)')
+    paired_data_melt = paired_data_melt.reset_index()
+    paired_data_melt = paired_data_melt.sort_values('road_class')
+    paired_data_melt.loc[:, 'source'] = label
+
+    VMT_by_hour = paired_data_for_comparison.groupby(['hour', 'road_class'])[['VMT']].sum()
+    VMT_by_hour = VMT_by_hour.reset_index()
+    VMT_by_hour.loc[:, 'source'] = label
+    return VMT_by_hour

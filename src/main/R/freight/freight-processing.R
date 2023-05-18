@@ -15,6 +15,7 @@ getHPMSAADT <- function(linkAADT) {
   linkAADT$VMT_hpms <- linkAADT$Volume_hpms * as.numeric(st_length(linkAADT))/1609.0
   return(data.table::as.data.table(linkAADT))
 }
+
 getTDoxAADT <- function(linkAADT) {
   linkAADT$Volume_hpms <- linkAADT$AADT_TRUCK
   linkAADT$VMT_hpms <- linkAADT$Volume_hpms * as.numeric(st_length(linkAADT))/1609.0
@@ -146,38 +147,81 @@ if (nrow(pt[grepl("-emergency-",vehicle)]) > 0) {
 
 unique(pt$vehicleType)
 pt$energyType <- "Diesel"
+pt$energyType2 <- "Diesel"
 pt[grepl("E-BE", vehicleType)]$energyType <- "Electric"
+pt[grepl("E-BE", vehicleType)]$energyType2 <- "BEV"
 pt[grepl("E-PHEV", vehicleType)]$energyType <- "Electric"
-pt[grepl("H2FC", vehicleType)]$energyType <- "H2"
+pt[grepl("E-PHEV", vehicleType)]$energyType2 <- "PHEV"
+pt[grepl("H2FC", vehicleType)]$energyType <- "Hydrogen"
+pt[grepl("H2FC", vehicleType)]$energyType2 <- "H2FC"
 pt$vehicleType2 <- "Heady Duty"
+pt$vehicleType3 <- "Class 4-6 Vocational"
 pt[grepl("-md-", vehicleType)]$vehicleType2 <- "Medium Duty"
-
+pt[grepl("-hdt-", vehicleType)]$vehicleType3 <- "Class 7&8 Tractor"
+pt[grepl("-hdv-", vehicleType)]$vehicleType3 <- "Class 7&8 Vocational"
+pt$scenario2 <- "Base"
+pt[scenario=="2050_central"]$scenario2 <- "Central tech"
+pt[scenario=="2050_high"]$scenario2 <- "High tech"
 
 pt[,.N,by=.(vehicle,scenario)][,.(count=.N*2),by=.(scenario)]
 
-energy_consumption <- pt[,.(fuelGWH=expansionFactor*sum(primaryFuel/3.6e+12)),by=.(energyType,scenario)]
-ggplot(energy_consumption, aes(scenario, fuelGWH, fill=energyType)) +
-  geom_bar(stat='identity') +
-  labs(y='GW Equivalent',x='Scenario',fill='Powertrain', title='Energy Consumption')+
-  theme_marain()+
-  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+ 
-  scale_fill_manual(values=c("#999999", "#56B4E9"))
+energy_consumption <- pt[,.(fuelGWH=expansionFactor*sum(primaryFuel/3.6e+12)),by=.(energyType,scenario2)]
+write.csv(
+  energy_consumption,
+  file = pp(runOutput,'/', pp(iteration,".freight-energy-consumption-by-powertrain",run,".csv")),
+  row.names=F,
+  quote=T)
 
-energy_vmt <- pt[,.(MVMT=expansionFactor*sum(length/1609.344)/1000000),by=.(energyType,scenario)]
-ggplot(energy_vmt, aes(scenario, MVMT, fill=energyType)) +
+p<-ggplot(energy_consumption, aes(scenario2, fuelGWH, fill=energyType)) +
   geom_bar(stat='identity') +
-  labs(y='Million VMT',x='Scenario',fill='Energy Type', title='Total VMT')+
+  labs(y='GWe',x='Scenario',fill='Powertrain', title='Freight Energy Consumption')+
   theme_marain()+
-  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+ 
-  scale_fill_manual(values=c("#999999", "#56B4E9"))
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+
+  scale_fill_manual(values=c("#999999", "#56B4E9", "#66A61E"))
+ggsave(pp(runOutput,'/', pp(iteration,".freight-energy-consumption-by-powertrain",run,".png")),p,width=5,height=4,units='in')
 
-energy_vehType_vmt <- pt[,.(MVMT=expansionFactor*sum(length/1609.344)/1000000),by=.(energyType,vehicleType2,scenario)]
-ggplot(energy_vehType_vmt, aes(scenario, MVMT, fill=paste(energyType,vehicleType2,sep=" "))) +
+energy_vmt <- pt[,.(MVMT=expansionFactor*sum(length/1609.344)/1000000),by=.(energyType,scenario2)]
+write.csv(
+  energy_vmt,
+  file = pp(runOutput,'/', pp(iteration,".freight-VMT-by-powertrain",run,".csv")),
+  row.names=F,
+  quote=T)
+
+p <- ggplot(energy_vmt, aes(scenario2, MVMT, fill=energyType)) +
   geom_bar(stat='identity') +
-  labs(y='Million VMT',x='Scenario',fill='Energy-Vehicle Type', title='Total VMT')+
+  labs(y='Million VMT',x='Scenario',fill='Energy Type', title='Freight VMT')+
   theme_marain()+
-  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+ 
-  scale_fill_manual(values=c("azure4", "azure3", "deepskyblue2", "darkturquoise"))
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+
+  scale_fill_manual(values=c("#999999", "#56B4E9", "#66A61E"))
+ggsave(pp(runOutput,'/', pp(iteration,".freight-VMT-by-powertrain",run,".png")),p,width=5,height=4,units='in')
+
+energy_vehType_vmt <- pt[,.(MVMT=expansionFactor*sum(length/1609.344)/1000000),by=.(energyType2,vehicleType3,scenario2)]
+energy_vehType_vmt[,totVMTByScenario:=sum(MVMT),by=.(scenario2)]
+energy_vehType_vmt[,EnergyAndVehiclesTypes:=paste(energyType2,vehicleType3,sep=" ")]
+energy_vehType_levels <- c("BEV Class 4-6 Vocational", "BEV Class 7&8 Vocational", "BEV Class 7&8 Tractor",
+                           "PHEV Class 4-6 Vocational", "PHEV Class 7&8 Vocational", "PHEV Class 7&8 Tractor",
+                           "H2FC Class 4-6 Vocational", "H2FC Class 7&8 Vocational", "H2FC Class 7&8 Tractor",
+                           "Diesel Class 4-6 Vocational", "Diesel Class 7&8 Vocational", "Diesel Class 7&8 Tractor")
+energy_vehType_vmt$EnergyAndVehiclesTypes <- factor(energy_vehType_vmt$EnergyAndVehiclesTypes, levels = energy_vehType_levels)
+write.csv(
+  energy_vehType_vmt,
+  file = pp(runOutput,'/', pp(iteration,".freight-VMT-by-powertrain-vehicletypes",run,".csv")),
+  row.names=F,
+  quote=T)
+
+p<-ggplot(energy_vehType_vmt, aes(scenario2, MVMT/totVMTByScenario, fill=EnergyAndVehiclesTypes)) +
+  geom_bar(stat='identity') +
+  labs(y='Relative VMT Share',x='Scenario',fill='Energy-Vehicle Type', title='Freight Volume')+
+  theme_marain()+
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+
+  scale_fill_manual(values=c("deepskyblue2","deepskyblue3", "deepskyblue4",
+                             "goldenrod2", "goldenrod3", "goldenrod4",
+                             "chartreuse2", "chartreuse3","chartreuse4",
+                             "azure3","darkgray", "azure4"
+                             ))
+ggsave(pp(runOutput,'/', pp(iteration,".freight-VMT-by-powertrain-vehicletypes",run,".png")),p,width=7,height=4,units='in')
+
+energy_vehType_vmt[,.(MVMT=sum(MVMT)),by=.(energyType2,totVMTByScenario,scenario2)]
 
 # nrow(freight_pt)
 # all_pt_x <- data.table::as.data.table(rbind(b2b_pt,b2c_pt)[,c("time","vehicle","departureTime","arrivalTime","label")])
