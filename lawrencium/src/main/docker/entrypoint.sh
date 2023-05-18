@@ -1,29 +1,42 @@
 #!/bin/bash
 
-# TODO use more universal approach for instance Id and Type
-INSTANCE_ID=$SLURMD_NODENAME
-INSTANCE_TYPE=$SLURM_JOB_PARTITION
+required_variables_from_outside=(
+  BEAM_BRANCH_NAME BEAM_COMMIT_SHA BEAM_DATA_BRANCH_NAME BEAM_DATA_COMMIT_SHA
+  INSTANCE_ID INSTANCE_TYPE HOST_NAME BEAM_CONFIG TITLED MAX_RAM
+  S3_PUBLISH S3_REGION
+  WEB_BROWSER INSTANCE_REGION
+  SHUTDOWN_WAIT PROFILER
+  SIGOPT_CLIENT_ID SIGOPT_DEV_ID  # TODO maybe completely remove
+)
+echo "Following variables might be set only outside of the image (variable name -> 'current value'):"
+for v in "${required_variables_from_outside[@]}" ; do
+  vval1="$v"
+  vval="${!vval1}"
+  echo "$v -> '$vval'"
+done
 
-HOST_NAME=$HOSTNAME
-WEB_BROWSER="??" # i.e. "http://$HOST_NAME:8000"
-REGION=""
-SHUTDOWN_WAIT=0
 
-SIMULATION_OUTPUT_LINK="TODO" ## the link to be able to view progress of simulation
-PROFILER="TODO"
+if [[ -z "$MAX_RAM" ]]; then MAX_RAM="8"; echo "MAX_RAM was not set, using default value: '$MAX_RAM'"; fi
 
-# TODO maybe completely remove these
-SIGOPT_CLIENT_ID=""
-SIGOPT_DEV_ID=""
 
-if [[ -z "$PULL_CODE" ]]; then PULL_CODE=true; fi
-if [[ -z "$PULL_DATA" ]]; then PULL_DATA=true; fi
-if [[ -z "$SEND_NOTIFICATION" ]]; then SEND_NOTIFICATION=true; fi
-if [[ -z "$MAX_RAM" ]]; then MAX_RAM="8"; fi
+optional_variables_from_outside=( PULL_CODE PULL_DATA SEND_NOTIFICATION )
+echo "Following OPTIONAL variables might be set only outside of the image (variable name -> 'current value'):"
+for v in "${optional_variables_from_outside[@]}" ; do
+  vval1="$v"
+  vval="${!vval1}"
+  if [[ -z "$vval" ]]; then
+    eval "$v=true"
+    vval1="$v"
+    vval="${!vval1}"
+    echo "$v -> '$vval'  (using default value)"
+  else
+    echo "$v -> '$vval'"
+  fi
+done
 
 echo "Started at $(date "+%Y-%m-%d-%H:%M:%S")"
 
-env
+# env
 
 echo "Selected branch '$BEAM_BRANCH_NAME' with commit '$BEAM_COMMIT_SHA'"
 echo "Selected data branch '$BEAM_DATA_BRANCH_NAME' with commit '$BEAM_DATA_COMMIT_SHA'"
@@ -144,9 +157,9 @@ if [ "$SEND_NOTIFICATION" = true ]; then
     \"commit\":\"$BEAM_COMMIT_SHA\",
     \"data_branch\":\"$BEAM_DATA_BRANCH_NAME\",
     \"data_commit\":\"$BEAM_DATA_COMMIT_SHA\",
-    \"region\":\"$REGION\",
+    \"region\":\"$INSTANCE_REGION\",
     \"batch\":\"\",
-    \"s3_link\":\"$SIMULATION_OUTPUT_LINK\",
+    \"s3_link\":\"\",
     \"max_ram\":\"$MAX_RAM\",
     \"profiler_type\":\"$PROFILER\",
     \"config_file\":\"$BEAM_CONFIG\",
@@ -199,7 +212,7 @@ warning="TODO"
 # looking for output
 sleep 10s
 FINAL_PATH=""
-for file in "$BEAM_PATH"/output/*; do
+for file in output/*; do
    for path2 in "$file"/*; do
      FINAL_PATH="$path2";
    done;
@@ -222,6 +235,7 @@ chmod 777 -R "$FINAL_PATH"
 if [ "$S3_PUBLISH" = true ]; then
   aws --region "$S3_REGION" s3 cp "$FINAL_PATH" s3://beam-outputs/"$FINAL_PATH" --recursive;
   s3output_url="https://s3.$S3_REGION.amazonaws.com/beam-outputs/index.html#$FINAL_PATH"
+  SIMULATION_OUTPUT_LINK="$s3output_url"
   echo "Uploaded to $s3output_url"
 else
   echo "S3 publishing is disabled (S3_PUBLISH set to '$S3_PUBLISH')."
@@ -252,7 +266,7 @@ if [ "$SEND_NOTIFICATION" = true ]; then
     \"commit\":\"$BEAM_COMMIT_SHA\",
     \"data_branch\":\"$BEAM_DATA_BRANCH_NAME\",
     \"data_commit\":\"$BEAM_DATA_COMMIT_SHA\",
-    \"region\":\"$REGION\",
+    \"region\":\"$INSTANCE_REGION\",
     \"batch\":\"\",
     \"s3_link\":\"$SIMULATION_OUTPUT_LINK\",
     \"max_ram\":\"$MAX_RAM\",

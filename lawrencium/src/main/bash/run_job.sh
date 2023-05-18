@@ -1,28 +1,32 @@
-#!/bin/bash
-# how to run the job (last param is time limit, 1 hour in this case):
-# run_job.sh run_environment.sh 1:00:00
-#PARTITION="lr_bigmem"
-#QOS="lr_normal"
-
+#!/bin/bash -x
 PARTITION="es1"
 QOS="es_normal"
-MEMORY_LIMIT="500G"  ## i.e. 200G
+
+MEMORY_LIMIT="480"  ## in G
+MEMORY_LIMIT_BEAM="$MEMORY_LIMIT"
 
 ACCOUNT="pc_beamcore"
 
 SCRIPT="$1"
+TITLED="$2"
+EXPECTED_TIME="${3:-3-00:00:00}"
 
-EXPECTED_TIME="${2:-0:0:10}"
-DATETIME=$(date "+%Y%m%d-%H%M%S")
-OUTPUT="out.log.$SCRIPT.$DATETIME.log"
-JOBNAME="$SCRIPT.$DATETIME"
+export AWS_SECRET_ACCESS_KEY=""
+export AWS_ACCESS_KEY_ID=""
+
+RANDOM_PART=$(tr -dc A-Z0-9 </dev/urandom | head -c 8)
+DATETIME=$(date "+%Y.%m.%d-%H.%M.%S")
+SUFFIX="$DATETIME.$RANDOM_PART.$PARTITION.$QOS.$MEMORY_LIMIT"
+OUTPUT="out.log.$SCRIPT.$SUFFIX.log"
+JOBNAME="$RANDOM_PART.$SCRIPT.$DATETIME"
 
 # srun - sync run a job
 sbatch --partition="$PARTITION" \
-    --mem="$MEMORY_LIMIT" \
+    --exclusive \
+    --mem="${MEMORY_LIMIT}G" \
     --qos="$QOS" \
     --account="$ACCOUNT" \
     --job-name="$JOBNAME" \
     --output="$OUTPUT" \
     --time="$EXPECTED_TIME" \
-    "$SCRIPT" "$MEMORY_LIMIT"
+    "$SCRIPT" "$MEMORY_LIMIT_BEAM" "$TITLED" "$SUFFIX"
