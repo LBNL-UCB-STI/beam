@@ -3,13 +3,14 @@ import os
 
 city = "austin"
 # city = "sfbay"
-scenario = "2040"
-batch = "Oct30"
-iteration = 6
+scenario = "2030_low"
+# batch = "Oct30/"
+batch = ""
+iteration = 0
 prefix = ""
 filename = prefix+str(iteration)+'.events.csv.gz'
 
-work_directory = '~/Data/FREIGHT/'+city+'/beam/runs/'+scenario+'/'+str(batch)+"/"
+work_directory = '~/Workspace/Data/FREIGHT/'+city+'/beam/runs/'+scenario+'/'+batch
 
 full_filename = os.path.expanduser(work_directory + filename)
 compression = None

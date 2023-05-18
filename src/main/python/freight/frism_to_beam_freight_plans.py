@@ -1,7 +1,7 @@
 import pandas as pd
 import os
 from pathlib import Path
-
+import numpy as np
 
 def read_csv_file(filename_):
     compression = None
@@ -34,12 +34,13 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
     return new
 
 
-directory_input = os.path.expanduser('~/Data/FREIGHT/austin/frism/2018/Tour_plan_AT_2018')
-directory_output = os.path.expanduser('~/Data/FREIGHT/austin/beam_freight/2018')
+directory_input = os.path.expanduser('~/Workspace/Data/FREIGHT/austin/frism/vehtech-scenarios/2030_low')
+directory_output = os.path.expanduser('~/Workspace/Data/FREIGHT/austin/beam_freight/2030_low')
 Path(directory_output).mkdir(parents=True, exist_ok=True)
 carriers = None
 payload_plans = None
 tours = None
+vehicle_types = None
 tourId_with_prefix = {}
 
 for filename in sorted(os.listdir(directory_input)):
@@ -86,8 +87,44 @@ for filename in sorted(os.listdir(directory_input)):
         else:
             payload_plans = pd.concat([payload_plans, df])
         tourId_with_prefix = {}
+    elif "vehicle_types" in filename:
+        df = pd.read_csv(filepath)
+        empty_vectors = list(np.repeat("", len(df.index)))
+        # JoulePerMeter = 121300000/(mpgge*1609.34)
+        vehicles_techs = {
+            "vehicleTypeId": df.apply(lambda row: add_prefix('freight-', 'veh_type_id', row, to_num=True, store_dict=None, veh_type=True), axis=1),
+            "seatingCapacity": list(np.repeat(1, len(df.index))),
+            "standingRoomCapacity": list(np.repeat(0, len(df.index))),
+            "lengthInMeter": list(np.repeat(12, len(df.index))),
+            "primaryFuelType": df["primary_fuel_type"],
+            "primaryFuelConsumptionInJoulePerMeter": np.divide(121300000, np.float_(df["primary_fuel_rate"])*1609.34),
+            "primaryFuelCapacityInJoule": list(np.repeat(12000000000000000, len(df.index))),
+            "primaryVehicleEnergyFile": empty_vectors,
+            "secondaryFuelType": empty_vectors,
+            "secondaryFuelConsumptionInJoulePerMeter": empty_vectors,
+            "secondaryVehicleEnergyFile": empty_vectors,
+            "secondaryFuelCapacityInJoule": empty_vectors,
+            "automationLevel": list(np.repeat(1, len(df.index))),
+            "maxVelocity": df["max_speed(mph)"], # convert to meter per second
+            "passengerCarUnit": empty_vectors,
+            "rechargeLevel2RateLimitInWatts": empty_vectors,
+            "rechargeLevel3RateLimitInWatts": empty_vectors,
+            "vehicleCategory": list(np.repeat("LightDutyTruck", len(df.index))),
+            "sampleProbabilityWithinCategory": empty_vectors,
+            "sampleProbabilityString": empty_vectors,
+            "payloadCapacityInKg": df["payload_capacity_weight"]
+        }
+        df2 = pd.DataFrame(vehicles_techs)
+        df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('hd'), 'HeavyDutyTruck', df2.vehicleCategory)
+        if vehicle_types is None:
+            vehicle_types = df2
+        else:
+            vehicle_types = pd.concat([vehicle_types, df2])
     else:
-        print(f'SKIPPING {filetype}')
+        print(f'SKIPPING {filename}')
+
+
+vehicle_types.to_csv(f'{directory_output}/freight-vehicles-types.csv', index=False)
 
 
 # In[9]:

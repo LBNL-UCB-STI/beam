@@ -183,9 +183,8 @@ class GenericFreightReader(
       case Some(filePath) => vehicleTypes ++ readBeamVehicleTypeFile(filePath)
       case None           => vehicleTypes
     }
-
-    val existingAllTours: Set[Id[FreightTour]] = allTours.keySet.intersect(allPlans.map(_._2.tourId).toSet)
     // ****
+    val existingAllTours: Set[Id[FreightTour]] = allTours.keySet.intersect(allPlans.map(_._2.tourId).toSet)
     val sampledToursNum = (allTours.size * config.tourSampleSizeAsFractionOfTotal).round.toInt
     val sampledTours = rnd.shuffle(allTours).take(sampledToursNum).toMap
     logger.info(s"Freight after sampling: ${sampledTours.size} tours")

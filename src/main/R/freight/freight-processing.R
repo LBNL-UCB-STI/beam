@@ -30,30 +30,48 @@ isCav <- function(x) {
 # batch <- 5
 city <- "austin"
 linkAADTFile <- "/hpms/austin_hpms_inventory.geojson"
-batch <- "Oct30"
+#batch <- "/Oct30"
+batch <- ""
 cityCRS <- 26910
-scenario <- "2018"
-batch2 <- "Oct30"
-scenario2 <- "2040"
-iteration <- 6
+#scenario <- "2030_low"
+#batch2 <- "/Oct30"
+# batch2 <- ""
+# scenario2 <- "2040"
+iteration <- 0
 run <- ""
+expansionFactor <- 1/0.5
 
 ## PATHS
-activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
-workDir <- normalizePath(pp("~/Data/FREIGHT/",city))
+mainDir <- normalizePath("~/Workspace/Data")
+activitySimDir <- pp(mainDir, "/ACTIVITYSIM")
+workDir <- pp(mainDir, "/FREIGHT/", city)
 validationDir <- pp(workDir,"/validation")
-runDir <- pp(workDir,"/beam/runs/",scenario,"/",batch)
-runOutput <- pp(runDir,"/output")
-runDir2 <- pp(workDir,"/beam/runs/",scenario2,"/",batch2)
-runOutput2 <- pp(runDir2,"/output")
-dir.create(runOutput, showWarnings = FALSE)
-freightDir <- pp(workDir,"/beam_freight/",scenario)
+#freightDir <- pp(workDir,"/beam_freight/",scenario)
 eventsFile <- pp(run,iteration,".events.csv.gz")
 linkStatsFile <- pp(run,iteration,".linkstats.csv.gz")
-eventsFile2 <- pp(run,iteration,".events.csv.gz")
-linkStatsFile2 <- pp(run,iteration,".linkstats.csv.gz")
+runOutput <- pp(workDir,"/beam/runs/output")
+dir.create(runOutput, showWarnings = FALSE)
+scenarios <- c("2030_low", "2050_central", "2050_high")
+events_filtered_all <- data.table::data.table()
+linkStats_all <- data.table::data.table()
+for(scenario in scenarios) {
+  print(scenario)
+  runDir <- pp(workDir,"/beam/runs/",scenario,batch)
+  events_filtered <- readCsv(pp(runDir, "/filtered.",eventsFile))
+  events_filtered$scenario <- scenario
+  events_filtered_all <- rbind(events_filtered_all, events_filtered)
+  linkStats <- readCsv(normalizePath(pp(runDir,"/",linkStatsFile)))
+  linkStats$scenario <- scenario
+  linkStats_all <- rbind(linkStats_all, linkStats)
+}
 
-expansionFactor <- 1/0.3
+# runDir2 <- pp(workDir,"/beam/runs/",scenario2,batch2)
+# runOutput2 <- pp(runDir2,"/output")
+
+# eventsFile2 <- pp(run,iteration,".events.csv.gz")
+# linkStatsFile2 <- pp(run,iteration,".linkstats.csv.gz")
+
+
 
 ## READING
 linkAADT <- st_read(pp(validationDir, linkAADTFile))
@@ -69,8 +87,7 @@ linkAADT <- st_read(pp(validationDir, linkAADTFile))
 
 #events[type=="PathTraversal"&grepl("freight",vehicle),.N,by=.(vehicle)]
 
-events_filtered <- readCsv(pp(runDir, "/filtered.",eventsFile))
-linkStats <- readCsv(normalizePath(pp(runDir,"/",linkStatsFile)))
+
 network <- readCsv(normalizePath(pp(workDir,"/beam/network.csv.gz")))
 network$linkFreeSpeedTravelTime <- network$linkLength/network$linkFreeSpeed
 # ggplot(network, aes(x=linkFreeSpeed*2.237)) + 
@@ -79,8 +96,8 @@ network$linkFreeSpeedTravelTime <- network$linkLength/network$linkFreeSpeed
 # ggplot(network[linkFreeSpeedTravelTime<=5*60], aes(x=linkFreeSpeedTravelTime/60.0)) + 
 #   geom_histogram(color="black", fill="white")
 
-events_filtered2 <- readCsv(pp(runDir2, "/filtered.",eventsFile))
-linkStats2 <- readCsv(normalizePath(pp(runDir2,"/",linkStatsFile)))
+# events_filtered2 <- readCsv(pp(runDir2, "/filtered.",eventsFile))
+# linkStats2 <- readCsv(normalizePath(pp(runDir2,"/",linkStatsFile)))
 
 
 networkFiltered<- network[
@@ -120,30 +137,25 @@ columns <- c("time","type","vehicleType","vehicle","secondaryFuelLevel",
              "primaryFuelLevel","driver","mode","seatingCapacity","startX",
              "startY", "endX", "endY", "capacity", "arrivalTime", "departureTime",
              "secondaryFuel", "secondaryFuelType", "primaryFuelType",
-             "numPassengers", "length", "primaryFuel")
-pt <- events_filtered[type=="PathTraversal"][,..columns]
-freight_pt <- pt[startsWith(vehicle,"freight")]
-if (nrow(freight_pt[grepl("-emergency-",vehicle)]) > 0) {
+             "numPassengers", "length", "primaryFuel","scenario")
+pt <- data.table::as.data.table(events_filtered_all[type=="PathTraversal"][startsWith(vehicle,"freight")][,..columns])
+if (nrow(pt[grepl("-emergency-",vehicle)]) > 0) {
   println("This is a bug")
 }
 
-pt2 <- events_filtered2[type=="PathTraversal"][,..columns]
-freight_pt2 <- pt2[startsWith(vehicle,"freight")]
-if (nrow(freight_pt2[grepl("-emergency-",vehicle)]) > 0) {
-  println("This is a bug")
-}
 
-pt$scenario <- "2018"
-pt2$scenario <- "2040"
+unique(pt$vehicleType)
+pt$energyType <- "Diesel"
+pt[grepl("E-BE", vehicleType)]$energyType <- "Electric"
+pt[grepl("E-PHEV", vehicleType)]$energyType <- "Electric"
+pt[grepl("H2FC", vehicleType)]$energyType <- "H2"
+pt$vehicleType2 <- "Heady Duty"
+pt[grepl("-md-", vehicleType)]$vehicleType2 <- "Medium Duty"
 
-ptAll <- rbind(pt, pt2)
-ptAll$energyType <- "Diesel"
-ptAll[startsWith(vehicleType, "freight-BE-")]$energyType <- "Electric"
-ptAll$vehicleType2 <- "Heady Duty"
-ptAll[grepl("MD", vehicleType)]$vehicleType2 <- "Medium Duty"
 
-energy_consumption <- ptAll[,.(fuelGWH=expansionFactor*sum(primaryFuel/3.6e+12)),by=.(energyType,scenario)]
+pt[,.N,by=.(vehicle,scenario)][,.(count=.N*2),by=.(scenario)]
 
+energy_consumption <- pt[,.(fuelGWH=expansionFactor*sum(primaryFuel/3.6e+12)),by=.(energyType,scenario)]
 ggplot(energy_consumption, aes(scenario, fuelGWH, fill=energyType)) +
   geom_bar(stat='identity') +
   labs(y='GW Equivalent',x='Scenario',fill='Powertrain', title='Energy Consumption')+
@@ -151,8 +163,7 @@ ggplot(energy_consumption, aes(scenario, fuelGWH, fill=energyType)) +
   theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+ 
   scale_fill_manual(values=c("#999999", "#56B4E9"))
 
-energy_vmt <- ptAll[,.(MVMT=expansionFactor*sum(length/1609.344)/1000000),by=.(energyType,scenario)]
-
+energy_vmt <- pt[,.(MVMT=expansionFactor*sum(length/1609.344)/1000000),by=.(energyType,scenario)]
 ggplot(energy_vmt, aes(scenario, MVMT, fill=energyType)) +
   geom_bar(stat='identity') +
   labs(y='Million VMT',x='Scenario',fill='Energy Type', title='Total VMT')+
@@ -160,8 +171,7 @@ ggplot(energy_vmt, aes(scenario, MVMT, fill=energyType)) +
   theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+ 
   scale_fill_manual(values=c("#999999", "#56B4E9"))
 
-energy_vehType_vmt <- ptAll[,.(MVMT=expansionFactor*sum(length/1609.344)/1000000),by=.(energyType,vehicleType2,scenario)]
-
+energy_vehType_vmt <- pt[,.(MVMT=expansionFactor*sum(length/1609.344)/1000000),by=.(energyType,vehicleType2,scenario)]
 ggplot(energy_vehType_vmt, aes(scenario, MVMT, fill=paste(energyType,vehicleType2,sep=" "))) +
   geom_bar(stat='identity') +
   labs(y='Million VMT',x='Scenario',fill='Energy-Vehicle Type', title='Total VMT')+
@@ -397,9 +407,11 @@ sfBayTAZs <- st_read(pp(validationDir, "/TAZs/Transportation_Analysis_Zones.shp"
 ## ***************************
 #FRISM
 ## ***************************
+freightDir <- pp(workDir,"/beam_freight/","2050_high")
 carriers <- readCsv(pp(freightDir, "/freight-merged-carriers.csv"))
 payload <- readCsv(pp(freightDir, "/freight-merged-payload-plans.csv"))
 tours <- readCsv(pp(freightDir, "/freight-merged-tours.csv"))
+vehiclesTypes <- readCsv(pp(freightDir, "/freight-vehicles-types.csv"))
 
 tours_carriers <- tours[carriers, on="tourId"]
 tours_carriers[departureTimeInSec <= 3*3600][,.N,by=.(vehicleTypeId)]
