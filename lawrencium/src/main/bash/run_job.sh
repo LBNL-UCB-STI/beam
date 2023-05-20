@@ -1,21 +1,15 @@
 #!/bin/bash -x
 PARTITION="es1"
 QOS="es_normal"
-
 MEMORY_LIMIT="480"  ## in G
+
 MEMORY_LIMIT_BEAM="$MEMORY_LIMIT"
 
 ACCOUNT="pc_beamcore"
 
 SCRIPT="$1"
 TITLED="$2"
-EXPECTED_TIME="${3:-3-00:00:00}"
-
-export GOOGLE_API_KEY=""
-export AWS_SECRET_ACCESS_KEY=""
-export AWS_ACCESS_KEY_ID=""
-export SLACK_HOOK_WITH_TOKEN=""
-
+EXPECTED_TIME="$3" # i.e. for 3 days => 3-00:00:00
 
 RANDOM_PART=$(tr -dc A-Z0-9 </dev/urandom | head -c 8)
 DATETIME=$(date "+%Y.%m.%d-%H.%M.%S")

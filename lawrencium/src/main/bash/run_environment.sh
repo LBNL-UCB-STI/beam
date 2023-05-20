@@ -9,6 +9,13 @@ export BEAM_CONFIG="test/input/beamville/beam.conf"
 
 export S3_PUBLISH="true"
 export S3_REGION="us-east-2"
+export AWS_SECRET_ACCESS_KEY=""
+export AWS_ACCESS_KEY_ID=""
+
+export SEND_NOTIFICATION="true"
+export SLACK_HOOK_WITH_TOKEN=""
+
+export GOOGLE_API_KEY=""
 export SHUTDOWN_WAIT="0"
 
 # getting some of values for running image from environment
