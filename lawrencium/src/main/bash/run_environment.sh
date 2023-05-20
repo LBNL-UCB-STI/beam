@@ -7,12 +7,12 @@ export BEAM_CONFIG="test/input/beamville/beam.conf"
 # export BEAM_CONFIG="production/sfbay/gemini/gemini-scenario-7-Advanced-05p.conf"
 # export BEAM_CONFIG="test/input/sf-light/sf-light-25k-modified.conf"
 
-export S3_PUBLISH="true"
 export S3_REGION="us-east-2"
+export S3_PUBLISH="false"
 export AWS_SECRET_ACCESS_KEY=""
 export AWS_ACCESS_KEY_ID=""
 
-export SEND_NOTIFICATION="true"
+export SEND_NOTIFICATION="false"
 export SLACK_HOOK_WITH_TOKEN=""
 
 export GOOGLE_API_KEY=""
