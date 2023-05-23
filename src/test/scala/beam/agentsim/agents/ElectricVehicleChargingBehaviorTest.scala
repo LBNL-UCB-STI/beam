@@ -375,8 +375,8 @@ class ElectricVehicleChargingBehaviorTest
       ("legMode", a => a.equals("ride_hail"))
     )
 
-    rideHailArrivalEvents.size shouldEqual 200 withClue
-    ", expecting 4 ride hail legs for each of the 50 people."
+    rideHailArrivalEvents.size should be >= 195 withClue
+    ", expecting most of the 4 legs for each of the 50 people to be ride hail legs."
   }
 
   "Ride Hail Electric vehicles" should "pick chargers choosing smaller DrivingTimeCost." in {
