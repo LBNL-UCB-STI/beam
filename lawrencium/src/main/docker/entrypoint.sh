@@ -1,5 +1,8 @@
 #!/bin/bash
 
+echo "Starting entrypoint script, at $(date "+%Y-%m-%d-%H:%M:%S")"
+
+
 required_variables_from_outside=(
   BEAM_BRANCH_NAME BEAM_COMMIT_SHA BEAM_DATA_BRANCH_NAME BEAM_DATA_COMMIT_SHA
   INSTANCE_ID INSTANCE_TYPE HOST_NAME BEAM_CONFIG TITLED MAX_RAM
@@ -33,8 +36,6 @@ for v in "${optional_variables_from_outside[@]}" ; do
     echo "$v -> '$vval'"
   fi
 done
-
-echo "Started at $(date "+%Y-%m-%d-%H:%M:%S")"
 
 # env
 

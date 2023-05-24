@@ -48,5 +48,14 @@ BEAM_DIR="/global/scratch/users/$USER/out_beam_$SUFFIX"
 mkdir "$BEAM_DIR"
 
 MOUNTED_DIR=$(realpath "$BEAM_DIR")
-IMAGE_NAME="beam-environment_2.0.sif"
-singularity run -B "$MOUNTED_DIR:/app/sources" "$IMAGE_NAME"
+
+IMAGE_NAME="beam-environment"
+IMAGE_TAG="latest"
+DOCKER_IMAGE_NAME="docker://beammodel/${IMAGE_NAME}:${IMAGE_TAG}"
+SINGULARITY_IMAGE_NAME="${IMAGE_NAME}_${IMAGE_TAG}.sif"
+
+echo "Pulling docker image '$DOCKER_IMAGE_NAME' ..."
+singularity pull --force "$DOCKER_IMAGE_NAME"
+
+echo "Running singularity image '$SINGULARITY_IMAGE_NAME' ..."
+singularity run -B "$MOUNTED_DIR:/app/sources" "$SINGULARITY_IMAGE_NAME"
