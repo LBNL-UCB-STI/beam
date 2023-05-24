@@ -9,6 +9,7 @@ required_variables_from_outside=(
   S3_PUBLISH S3_REGION
   WEB_BROWSER INSTANCE_REGION
   SHUTDOWN_WAIT PROFILER
+  SIMULATIONS_SPREADSHEET_UPDATE_URL SLACK_HOOK_WITH_TOKEN
   SIGOPT_CLIENT_ID SIGOPT_DEV_ID  # TODO maybe completely remove
 )
 echo "Following variables might be set only outside of the image (variable name -> 'current value'):"
@@ -48,19 +49,27 @@ echo "The max ram is $MAX_RAM"
 
 
 function send_slack_notification() {
-  json_data="{\"text\":\"$1\"}"
-  printf "\nSending the following json to slack:"
-  echo "$json_data"
-  echo " "
-  curl -X POST -H 'Content-type:application/json' --data "$json_data" "$SLACK_HOOK_WITH_TOKEN"
+  if [[ -z "$SLACK_HOOK_WITH_TOKEN" ]]; then
+    echo "WARNING: Can't send notifications to slack, SLACK_HOOK_WITH_TOKEN is not set!"
+  else
+    json_data="{\"text\":\"$1\"}"
+    printf "\nSending the following json to slack:"
+    echo "$json_data"
+    echo " "
+    curl -X POST -H 'Content-type:application/json' --data "$json_data" "$SLACK_HOOK_WITH_TOKEN"
+  fi
 }
 
 function send_json_to_spreadsheet() {
-  json_data="{\"command\":\"add\",\"type\":\"beam\",\"run\":{ $1 } }"
-  printf "\nSending the following json to the spreadsheet:"
-  echo "$json_data"
-  echo " "
-  curl -X POST -H 'Content-type:application/json' --data "$json_data" "https://ca4ircx74d.execute-api.us-east-2.amazonaws.com/production/spreadsheet"
+  if [[ -z "$SIMULATIONS_SPREADSHEET_UPDATE_URL" ]]; then
+    echo "WARNING: Can't send updates to the spreadsheet, SIMULATIONS_SPREADSHEET_UPDATE_URL is not set!"
+  else
+    json_data="{\"command\":\"add\",\"type\":\"beam\",\"run\":{ $1 } }"
+    printf "\nSending the following json to the spreadsheet:"
+    echo "$json_data"
+    echo " "
+    curl -X POST -H 'Content-type:application/json' --data "$json_data" "$SIMULATIONS_SPREADSHEET_UPDATE_URL"
+  fi
 }
 
 
