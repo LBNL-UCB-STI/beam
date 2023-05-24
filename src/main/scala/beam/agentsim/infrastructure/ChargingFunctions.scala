@@ -13,7 +13,6 @@ import beam.router.skim.{Skims, SkimsUtils}
 import beam.sim.config.BeamConfig
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.utils.collections.QuadTree
 
 class ChargingFunctions(
   tazTreeMap: TAZTreeMap,
@@ -219,7 +218,7 @@ class ChargingFunctions(
           origin.time + travelTime1,
           beamVehicle.beamVehicleType
         )
-        (travelTime1 + travelTime2) * inquiry.valueOfTime / ZonalParkingManager.HourInSeconds
+        ((travelTime1 + travelTime2) / ZonalParkingManager.HourInSeconds.toDouble) * inquiry.valueOfTime
       case _ => 0.0
     }
 
