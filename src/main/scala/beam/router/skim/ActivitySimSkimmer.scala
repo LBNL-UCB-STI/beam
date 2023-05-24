@@ -224,7 +224,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
         val csvWriter = new CsvWriter(filePath, ExcerptData.csvHeaderSeq)
         csvWriter.writeAllAndClose(excerptData.map(_.toCsvSeq))
       } else {
-        val geoUnits = SortedSet[String](beamScenario.tazTreeMap.getTAZs.map(_.tazId.toString).toSeq: _*)
+        val geoUnits = beamScenario.tazTreeMap.getOrderedTazIds
         ActivitySimOmxWriter.writeToOmx(filePath, excerptData.iterator, geoUnits)
       }
       writeResult match {

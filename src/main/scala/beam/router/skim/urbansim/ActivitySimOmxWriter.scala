@@ -20,7 +20,7 @@ object ActivitySimOmxWriter {
   def writeToOmx(
     filePath: String,
     skimData: Iterator[ExcerptData],
-    geoUnits: SortedSet[String]
+    geoUnits: Seq[String]
   ): Try[Unit] = Try {
     val pathTypeToMatrixData: Map[ActivitySimPathType, MatrixData] = (
       for {
