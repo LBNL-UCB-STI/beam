@@ -22,7 +22,6 @@ full_filename = os.path.expanduser('~/Data/GEMINI/2022-07-05/0.events.a.csv.gz')
 if len(sys.argv) >= 2:
     full_filename = str(sys.argv[1])
 
-
 def print2(msg):
     with open(full_filename + ".out", 'w') as f:
         print(msg)
