@@ -10,8 +10,8 @@ batch = "2050_HOP_highp4/"
 iteration = 0
 prefix = ""
 filename = prefix+str(iteration)+'.events.csv.gz'
-work_directory = '~/Workspace/Data/FREIGHT/'+city+'/beam/runs/'+scenario+'/'+batch
-full_filename = os.path.expanduser(work_directory + filename)
+local_work_directory = '~/Workspace/Data/FREIGHT/'+city+'/beam/runs/'+scenario+'/'+batch
+full_filename = os.path.expanduser(local_work_directory + filename)
 
 if len(sys.argv) >= 2:
     full_filename = str(sys.argv[1])
@@ -46,6 +46,6 @@ print2(data_filtered.type.unique())
 #      "numPassengers", "length", "primaryFuel", "actType", "fuel", "person",
 #      "locationY", "locationX", "duration", "chargingPointType", "parkingType", "parkingTaz"]
 # ]
-print2("writing to " + work_directory + "filtered." + filename)
-data_filtered2.to_csv(work_directory + "filtered." + filename)
+print2("writing to " + dirname + "/" + "filtered." + basename)
+data_filtered2.to_csv(dirname + "/" + "filtered." + basename)
 print2("END")

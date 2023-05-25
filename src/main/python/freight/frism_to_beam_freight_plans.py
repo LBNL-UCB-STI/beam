@@ -27,15 +27,18 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
     #         second_prefix = '-MD-'
     #     else:
     #         second_prefix = '-HD-'
-    first_prefix = prefix.replace('county', 'cty')
+    first_prefix = prefix
+    if 'county' in prefix:
+        first_prefix = first_prefix.replace('county', 'cty')
+
     new = f"{first_prefix}{second_prefix}{old_updated}"
     if store_dict is not None:
         store_dict[old] = new
     return new
 
 
-directory_input = os.path.expanduser('~/Workspace/Data/FREIGHT/austin/frism/vehtech-scenarios/2030_low')
-directory_output = os.path.expanduser('~/Workspace/Data/FREIGHT/austin/beam_freight/2030_low')
+directory_input = os.path.expanduser('~/Workspace/Data/FREIGHT/austin/frism/cost-sensitivity/2050_Ref_highp10')
+directory_output = os.path.expanduser('~/Workspace/Data/FREIGHT/austin/beam_freight/cost-sensitivity/2050_Ref_highp10')
 Path(directory_output).mkdir(parents=True, exist_ok=True)
 carriers = None
 payload_plans = None
