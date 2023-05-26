@@ -126,10 +126,12 @@ class ChargingFunctions(
   def hasValidChargingCapability(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     // only verify charging capability if the vehicle is defined and contains a chargingCapability in the first place
     // also, we only verify the capability if we are either enrouting or on a charge activity.
-        val verifyCharging = (
-          (inquiry.beamVehicle.isDefined && inquiry.beamVehicle.get.beamVehicleType.chargingCapability.isDefined
-      ) 
-          && (inquiry.searchMode == ParkingSearchMode.EnRouteCharging || inquiry.parkingActivityType == Charge || inquiry.parkingActivityType == EnRoute) 
+    val verifyCharger = inquiry.beamVehicle.isDefined &&
+      inquiry.beamVehicle.get.beamVehicleType.chargingCapability.isDefined && (
+        inquiry.searchMode == ParkingSearchMode.EnRouteCharging ||
+        inquiry.parkingActivityType == Charge ||
+        inquiry.parkingActivityType == EnRoute
+      )
 
     if (verifyCharger) {
       zone.chargingPointType match {
