@@ -13,7 +13,6 @@ import beam.router.skim.{Skims, SkimsUtils}
 import beam.sim.config.BeamConfig
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.utils.collections.QuadTree
 
 class ChargingFunctions(
   tazTreeMap: TAZTreeMap,
@@ -127,23 +126,12 @@ class ChargingFunctions(
   def hasValidChargingCapability(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     // only verify charging capability if the vehicle is defined and contains a chargingCapability in the first place
     // also, we only verify the capability if we are either enrouting or on a charge activity.
-    val verifyCharger =
-      if (
-        inquiry.beamVehicle.isDefined &&
-        inquiry.beamVehicle.get.beamVehicleType.chargingCapability.isDefined
-      ) {
-        inquiry.searchMode match {
-          case ParkingSearchMode.EnRouteCharging => true
-          case _ =>
-            inquiry.parkingActivityType match {
-              case Charge  => true
-              case EnRoute => true
-              case _       => false
-            }
-        }
-      } else {
-        false
-      }
+    val verifyCharger = inquiry.beamVehicle.isDefined &&
+      inquiry.beamVehicle.get.beamVehicleType.chargingCapability.isDefined && (
+        inquiry.searchMode == ParkingSearchMode.EnRouteCharging ||
+        inquiry.parkingActivityType == Charge ||
+        inquiry.parkingActivityType == EnRoute
+      )
 
     if (verifyCharger) {
       zone.chargingPointType match {
@@ -219,7 +207,7 @@ class ChargingFunctions(
           origin.time + travelTime1,
           beamVehicle.beamVehicleType
         )
-        (travelTime1 + travelTime2) * inquiry.valueOfTime / ZonalParkingManager.HourInSeconds
+        ((travelTime1 + travelTime2) / ZonalParkingManager.HourInSeconds.toDouble) * inquiry.valueOfTime
       case _ => 0.0
     }
 
