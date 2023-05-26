@@ -9,8 +9,8 @@ import org.matsim.api.core.v01.population.{Person, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.population.PersonUtils
 import org.matsim.households.Household
-
 import java.util.Random
+import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_POOLED}
 import scala.collection.JavaConverters._
 
 /**
@@ -226,6 +226,14 @@ object PopulationAdjustment extends LazyLogging {
       .asInstanceOf[AttributesOfIndividual]
   }
 
+  def getNotSupportedModesByRideHailManagers(beamScenario: BeamScenario)={
+    val supportedRideHailModes=beamScenario.beamConfig.beam.agentsim.agents.rideHail.managers.map(_.supportedModes.split(",")).flatten.map(_.trim).toSet
+
+    val allRideHailModes=Set(RIDE_HAIL.value,RIDE_HAIL_POOLED.value)
+
+    allRideHailModes.diff(supportedRideHailModes)
+  }
+
   def createAttributesOfIndividual(
     beamScenario: BeamScenario,
     population: Population,
@@ -234,7 +242,11 @@ object PopulationAdjustment extends LazyLogging {
   ): AttributesOfIndividual = {
     val personAttributes = population.getPersonAttributes
     // Read excluded-modes set for the person and calculate the possible available modes for the person
-    val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString)
+    // If a rideHail mode is not supported by any rideHail manager, we exclude that mode, as otherwise due to the current logic in person agent it might still be requested.
+    // TODO: fixing this in the proper way requires changes to the ridehail inquiry message protocol
+    // TODO: also 'RIDE_HAIL_TRANSIT' is kind of in the in the limbo here...
+    val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString).toSet ++ getNotSupportedModesByRideHailManagers(beamScenario)
+
     val initialAvailableModes: Seq[BeamMode] =
       if (person.getCustomAttributes.isEmpty) BeamMode.allModes
       else if (person.getCustomAttributes.containsKey("beam-attributes")) {
