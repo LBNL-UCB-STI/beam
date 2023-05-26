@@ -1004,7 +1004,7 @@ object BeamConfig {
                 pooledCostPerMinute  = if(c.hasPathOrNull("pooledCostPerMinute")) c.getDouble("pooledCostPerMinute") else 0.07,
                 repositioningManager = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager(if(c.hasPathOrNull("repositioningManager")) c.getConfig("repositioningManager") else com.typesafe.config.ConfigFactory.parseString("repositioningManager{}")),
                 rideHailManager      = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager(if(c.hasPathOrNull("rideHailManager")) c.getConfig("rideHailManager") else com.typesafe.config.ConfigFactory.parseString("rideHailManager{}")),
-                supportedModes       = if(c.hasPathOrNull("supportedModes")) c.getString("supportedModes") else "RIDE_HAIL,RIDE_HAIL_POOLED"
+                supportedModes       = if(c.hasPathOrNull("supportedModes")) c.getString("supportedModes") else "ride_hail,ride_hail_pooled"
               )
             }
           }
