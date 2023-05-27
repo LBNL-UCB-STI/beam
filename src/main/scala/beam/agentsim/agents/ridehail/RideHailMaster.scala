@@ -13,6 +13,7 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_POOLED}
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.sim.{BeamScenario, BeamServices, RideHailFleetInitializerProvider}
@@ -117,7 +118,18 @@ class RideHailMaster(
     case reserveRide: RideHailRequest if reserveRide.shouldReserveRide =>
       rideHailResponseCache.removeOriginalResponseFromCache(reserveRide) match {
         case Some(originalResponse) =>
-          rideHailManagers(originalResponse.rideHailManagerName) forward reserveRide
+          val updatedReserveRideRequest =
+          if ((reserveRide.asPooled && supportsPooledRide(originalResponse.rideHailManagerName)) || (!reserveRide.asPooled && supportsSoloRide(originalResponse.rideHailManagerName))){
+            // if the selected rideHail manager supports pooled, then reserve, otherwise select non-pooled
+            reserveRide
+          } else {
+            // assumption: ride hail manager supports always at least one alternative mode
+            // TODO: this is a temporary solution: ideally we want to not resort to this option, as the selection
+            // made by agent should already be optimal, e.g. update 'findBestProposal' or make update upstream
+            reserveRide.copy(asPooled = !reserveRide.asPooled)
+          }
+
+          rideHailManagers(originalResponse.rideHailManagerName) forward updatedReserveRideRequest
         case None =>
           logger.error(s"Cannot find originalResponse for $reserveRide")
           sender() ! RideHailResponse.dummyWithError(UnknownInquiryIdError)
@@ -132,6 +144,26 @@ class RideHailMaster(
 
     case anyOtherMessage =>
       rideHailManagers.values.foreach(_.forward(anyOtherMessage))
+  }
+
+  // TODO: extract method and reuse same method here and PopulationAdjustment.getNotSupportedModesByRideHailManagers!
+  val rideHailManagerSupportedModes = {
+
+    val res= new mutable.HashMap[String, Set[String]]
+
+    beamScenario.beamConfig.beam.agentsim.agents.rideHail.managers.foreach{
+      rhm => res.put(rhm.name,rhm.supportedModes.split(",").map(_.trim).toSet)
+    }
+
+    res
+  }
+
+  private def supportsSoloRide(ridehailManagerName:String):Boolean={
+    rideHailManagerSupportedModes.get(ridehailManagerName).get.contains(RIDE_HAIL.value) //TODO: refactor to avoid .get
+  }
+
+  private def supportsPooledRide(ridehailManagerName:String):Boolean={
+    rideHailManagerSupportedModes.get(ridehailManagerName).get.contains(RIDE_HAIL_POOLED.value) //TODO: refactor to avoid .get
   }
 
   private def getCustomerRideHailManagers(subscription: Seq[String]): Iterable[ActorRef] = {
