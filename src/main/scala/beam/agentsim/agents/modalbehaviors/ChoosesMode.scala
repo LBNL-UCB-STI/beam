@@ -1230,7 +1230,7 @@ trait ChoosesMode {
                 )
               }
 
-              if (travelProposal.onlyPooledSupported){
+              if (travelProposal.onlyPooledSupported) {
                 Vector(EmbodiedBeamLeg.makeLegsConsistent(pooledLegs))
               } else {
                 Vector(origLegs, EmbodiedBeamLeg.makeLegsConsistent(pooledLegs))
