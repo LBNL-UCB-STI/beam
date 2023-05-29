@@ -9,7 +9,7 @@
 # The output folder will be created before running the docker image.
 #
 
-OUT_PATH="$(pwd)/test_beam_folder"
+OUT_PATH="$(pwd)/test_beam_folder--$(date "+%Y-%m-%d--%H-%M-%S")"
 mkdir -m 777 "$OUT_PATH" 2>/dev/null
 
 MAX_RAM="16"
