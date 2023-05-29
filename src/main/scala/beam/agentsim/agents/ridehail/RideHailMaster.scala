@@ -135,7 +135,6 @@ class RideHailMaster(
       rideHailManagers.values.foreach(_.forward(anyOtherMessage))
   }
 
-  // TODO: extract method and reuse same method here and PopulationAdjustment.getNotSupportedModesByRideHailManagers!
   val rideHailManagerSupportedModes = {
 
     val res= new mutable.HashMap[String, Set[String]]
