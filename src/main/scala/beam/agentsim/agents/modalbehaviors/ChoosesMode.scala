@@ -1229,7 +1229,13 @@ trait ChoosesMode {
                   beamLeg = origLeg.beamLeg.scaleLegDuration(poolingInfo.timeFactor)
                 )
               }
-              Vector(origLegs, EmbodiedBeamLeg.makeLegsConsistent(pooledLegs))
+
+              if (travelProposal.onlyPooledSupported){
+                Vector(EmbodiedBeamLeg.makeLegsConsistent(pooledLegs))
+              } else {
+                Vector(origLegs, EmbodiedBeamLeg.makeLegsConsistent(pooledLegs))
+              }
+
             case _ =>
               Vector(origLegs)
           }).map { partialItin =>

@@ -118,18 +118,7 @@ class RideHailMaster(
     case reserveRide: RideHailRequest if reserveRide.shouldReserveRide =>
       rideHailResponseCache.removeOriginalResponseFromCache(reserveRide) match {
         case Some(originalResponse) =>
-          val updatedReserveRideRequest =
-          if ((reserveRide.asPooled && supportsPooledRide(originalResponse.rideHailManagerName)) || (!reserveRide.asPooled && supportsSoloRide(originalResponse.rideHailManagerName))){
-            // if the selected rideHail manager supports pooled, then reserve, otherwise select non-pooled
-            reserveRide
-          } else {
-            // assumption: ride hail manager supports always at least one alternative mode
-            // TODO: this is a temporary solution: ideally we want to not resort to this option, as the selection
-            // made by agent should already be optimal, e.g. update 'findBestProposal' or make update upstream
-            reserveRide.copy(asPooled = !reserveRide.asPooled)
-          }
-
-          rideHailManagers(originalResponse.rideHailManagerName) forward updatedReserveRideRequest
+          rideHailManagers(originalResponse.rideHailManagerName) forward reserveRide
         case None =>
           logger.error(s"Cannot find originalResponse for $reserveRide")
           sender() ! RideHailResponse.dummyWithError(UnknownInquiryIdError)
@@ -158,36 +147,64 @@ class RideHailMaster(
     res
   }
 
-  private def supportsSoloRide(ridehailManagerName:String):Boolean={
-    rideHailManagerSupportedModes.get(ridehailManagerName).get.contains(RIDE_HAIL.value) //TODO: refactor to avoid .get
+
+  private def supportsOnlyPooledRide(rideHailManagerName:String):Boolean={
+    supportsPooledRide(rideHailManagerName) && rideHailManagerSupportedModes(rideHailManagerName).size==1
   }
 
-  private def supportsPooledRide(ridehailManagerName:String):Boolean={
-    rideHailManagerSupportedModes.get(ridehailManagerName).get.contains(RIDE_HAIL_POOLED.value) //TODO: refactor to avoid .get
+  private def supportsOnlySoloRide(rideHailManagerName:String):Boolean={
+    supportsSoloRide(rideHailManagerName) && rideHailManagerSupportedModes(rideHailManagerName).size==1
   }
+
+  private def supportsSoloRide(rideHailManagerName:String):Boolean={
+    rideHailManagerSupportedModes(rideHailManagerName).contains(RIDE_HAIL.value)
+  }
+
+  private def supportsPooledRide(rideHailManagerName:String):Boolean={
+    rideHailManagerSupportedModes(rideHailManagerName).contains(RIDE_HAIL_POOLED.value)
+  }
+
 
   private def getCustomerRideHailManagers(subscription: Seq[String]): Iterable[ActorRef] = {
     val subscribedTo = subscription.collect(rideHailManagers)
     if (subscribedTo.isEmpty) rideHailManagers.values else subscribedTo
   }
 
-  private def findBestProposal(customer: Id[Person], responses: IndexedSeq[RideHailResponse]) = {
+  private def findBestProposal(customer: Id[Person], responses: IndexedSeq[RideHailResponse])
+  : RideHailResponse = {
     val responsesInRandomOrder = rand.shuffle(responses)
     val withProposals = responsesInRandomOrder.filter(_.travelProposal.isDefined)
-    if (withProposals.isEmpty) responsesInRandomOrder.head
+    val response=if (withProposals.isEmpty) responsesInRandomOrder.head
     else
       bestResponseType match {
         case "MIN_COST" =>
           withProposals.minBy { response =>
             val travelProposal = response.travelProposal.get
             val price = travelProposal.estimatedPrice(customer)
-            if (travelProposal.poolingInfo.isDefined && response.request.asPooled)
+            if (travelProposal.poolingInfo.isDefined && response.request.asPooled) // pooling is supported by RHM and person has choice to pick pooled as not assigned some other tour mode
               Math.min(price, price * travelProposal.poolingInfo.get.costFactor)
             else
               price
           }
+
+
         case "MIN_UTILITY" => sampleProposals(customer, withProposals)
       }
+
+
+    val travelProposal= response.travelProposal.map { travelProposal =>
+      if (supportsOnlyPooledRide(response.rideHailManagerName)){
+        travelProposal.copy(onlyPooledSupported=true)
+      } else {
+        if (supportsOnlySoloRide(response.rideHailManagerName)){
+          travelProposal.copy(poolingInfo=None)
+        } else {
+          travelProposal
+        }
+      }
+    }
+
+    response.copy(travelProposal=travelProposal)
   }
 
   private def sampleProposals(customer: Id[Person], responses: IndexedSeq[RideHailResponse]): RideHailResponse = {
