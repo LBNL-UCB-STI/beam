@@ -83,7 +83,8 @@ object RideHailManager {
     passengerSchedule: PassengerSchedule,
     estimatedPrice: Map[Id[Person], Double],
     maxWaitingTimeInSec: Int,
-    poolingInfo: Option[PoolingInfo] = None
+    poolingInfo: Option[PoolingInfo] = None,
+    onlyPooledSupported:Boolean=false // TODO: refactor this (at least create issue before merging)
   ) {
 
     def timeToCustomer(passenger: PersonIdWithActorRef): Int =
