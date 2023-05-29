@@ -147,7 +147,7 @@ class RideHailMaster(
     res
   }
 
-
+  // TODO: add tests for beam.agentsim.agents.rideHail.managers.supportedModes before merging or at least add issue for it
   private def supportsOnlyPooledRide(rideHailManagerName:String):Boolean={
     supportsPooledRide(rideHailManagerName) && rideHailManagerSupportedModes(rideHailManagerName).size==1
   }
