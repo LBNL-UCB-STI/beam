@@ -270,17 +270,15 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
   def loadScenario(beamConfig: BeamConfig, outputDirMaybe: Option[String] = None): BeamScenario = {
     val vehicleTypes = maybeScaleTransit(beamConfig, readBeamVehicleTypeFile(beamConfig))
     val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-    var vehiclePaths = IndexedSeq(
+    // TODO This needs to change. We always assume that vehicle fuel consumption are in the same folder ass vehicleTypes
+    val vehicleTypesBasePaths = IndexedSeq(
       Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent.toString
     )
-    beamConfig.beam.agentsim.agents.freight.vehicleTypesFilePath
-      .map(freightVehicleTypesFilePath => Paths.get(freightVehicleTypesFilePath).getParent.toString)
-      .foreach(freightVehiclePath => vehiclePaths = vehiclePaths :+ freightVehiclePath)
 
     val consumptionRateFilterStore =
       new ConsumptionRateFilterStoreImpl(
         vehicleCsvReader.getVehicleEnergyRecordsUsing,
-        vehiclePaths,
+        vehicleTypesBasePaths,
         primaryConsumptionRateFilePathsByVehicleType =
           vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
         secondaryConsumptionRateFilePathsByVehicleType =
