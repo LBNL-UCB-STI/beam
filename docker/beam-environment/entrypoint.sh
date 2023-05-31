@@ -10,6 +10,7 @@ required_variables_from_outside=(
   WEB_BROWSER INSTANCE_REGION
   SHUTDOWN_WAIT PROFILER
   SIMULATIONS_SPREADSHEET_UPDATE_URL SLACK_HOOK_WITH_TOKEN
+  SIMULATION_LOG_PATH
   SIGOPT_CLIENT_ID SIGOPT_DEV_ID  # TODO maybe completely remove
 )
 echo "Following variables might be set only outside of the image (variable name -> 'current value'):"
@@ -57,6 +58,7 @@ function send_slack_notification() {
     echo "$json_data"
     echo " "
     curl -X POST -H 'Content-type:application/json' --data "$json_data" "$SLACK_HOOK_WITH_TOKEN"
+    echo " "
   fi
 }
 
@@ -69,6 +71,7 @@ function send_json_to_spreadsheet() {
     echo "$json_data"
     echo " "
     curl -X POST -H 'Content-type:application/json' --data "$json_data" "$SIMULATIONS_SPREADSHEET_UPDATE_URL"
+    echo " "
   fi
 }
 
@@ -237,9 +240,13 @@ for file in "$BEAM_PATH"/*.jfr; do
   zip "$file.zip" "$file"
   mv "$file.zip" "$FINAL_PATH"
 done;
-mv "$BEAM_PATH"/gc_* "$FINAL_PATH"
-gzip "$CPU_RAM_LOG"
-mv "$CPU_RAM_LOG.gz" "$FINAL_PATH"
+## cp garbage collection logs
+cp "$BEAM_PATH"/gc_* "$FINAL_PATH"
+## cp CPU and RAM used/available collected during simulation
+gzip "$CPU_RAM_LOG"           && cp "$CPU_RAM_LOG"* "$FINAL_PATH"
+## cp log of simulation from host computer (cloud-init log or analog)
+gzip "$SIMULATION_LOG_PATH"   && cp "$SIMULATION_LOG_PATH"* "$FINAL_PATH"
+## fixing permission issues related to access to files created from inside of image
 chmod 777 -R "$FINAL_PATH"
 
 # uploading output to s3 if enabled
@@ -296,3 +303,4 @@ fi
 
 echo ""
 echo "Completed at $(date "+%Y-%m-%d-%H:%M:%S")"
+echo ""
