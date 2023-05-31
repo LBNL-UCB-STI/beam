@@ -270,12 +270,17 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
   def loadScenario(beamConfig: BeamConfig, outputDirMaybe: Option[String] = None): BeamScenario = {
     val vehicleTypes = maybeScaleTransit(beamConfig, readBeamVehicleTypeFile(beamConfig))
     val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-    val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
+    var vehiclePaths = IndexedSeq(
+      Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent.toString
+    )
+    beamConfig.beam.agentsim.agents.freight.vehicleTypesFilePath
+      .map(freightVehicleTypesFilePath => Paths.get(freightVehicleTypesFilePath).getParent.toString)
+      .foreach(freightVehiclePath => vehiclePaths = vehiclePaths :+ freightVehiclePath)
 
     val consumptionRateFilterStore =
       new ConsumptionRateFilterStoreImpl(
         vehicleCsvReader.getVehicleEnergyRecordsUsing,
-        Option(baseFilePath.toString),
+        vehiclePaths,
         primaryConsumptionRateFilePathsByVehicleType =
           vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
         secondaryConsumptionRateFilePathsByVehicleType =
@@ -351,7 +356,6 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
 
     if (freightConfig.enabled) {
       val geoUtils = new GeoUtilsImpl(beamConfig)
-      val random = new Random(beamConfig.matsim.modules.global.randomSeed)
       val freightReader = FreightReader(beamConfig, geoUtils, streetLayer, networkMaybe, outputDirMaybe)
       val tours = freightReader.readFreightTours()
       val plans = freightReader.readPayloadPlans()
@@ -374,12 +378,18 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
   }
 
   def vehicleEnergy(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]): VehicleEnergy = {
-    val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
+    var vehiclePaths = IndexedSeq(
+      Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent.toString
+    )
+    beamConfig.beam.agentsim.agents.freight.vehicleTypesFilePath
+      .map(freightVehicleTypesFilePath => Paths.get(freightVehicleTypesFilePath).getParent.toString)
+      .foreach(freightVehiclePath => vehiclePaths = vehiclePaths :+ freightVehiclePath)
+
     val vehicleCsvReader = new VehicleCsvReader(beamConfig)
     val consumptionRateFilterStore =
       new ConsumptionRateFilterStoreImpl(
         vehicleCsvReader.getVehicleEnergyRecordsUsing,
-        Option(baseFilePath.toString),
+        vehiclePaths,
         primaryConsumptionRateFilePathsByVehicleType =
           vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
         secondaryConsumptionRateFilePathsByVehicleType =
