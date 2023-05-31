@@ -3,9 +3,13 @@
 echo "Starting entrypoint script, at $(date "+%Y-%m-%d-%H:%M:%S")"
 
 
+##
+## print variables that might be set only outside of image
+##
 required_variables_from_outside=(
   BEAM_BRANCH_NAME BEAM_COMMIT_SHA BEAM_DATA_BRANCH_NAME BEAM_DATA_COMMIT_SHA
-  INSTANCE_ID INSTANCE_TYPE HOST_NAME BEAM_CONFIG TITLED MAX_RAM
+  BEAM_CONFIG TITLED MAX_RAM
+  INSTANCE_ID INSTANCE_TYPE HOST_NAME
   S3_PUBLISH S3_REGION
   WEB_BROWSER INSTANCE_REGION
   SHUTDOWN_WAIT PROFILER
@@ -21,9 +25,15 @@ for v in "${required_variables_from_outside[@]}" ; do
 done
 
 
+##
+## fix max ram if not set
+##
 if [[ -z "$MAX_RAM" ]]; then MAX_RAM="8"; echo "MAX_RAM was not set, using default value: '$MAX_RAM'"; fi
 
 
+##
+## print optional variables that might be set only outside of image
+##
 optional_variables_from_outside=( PULL_CODE PULL_DATA SEND_NOTIFICATION )
 echo "Following OPTIONAL variables might be set only outside of the image (variable name -> 'current value'):"
 for v in "${optional_variables_from_outside[@]}" ; do
@@ -38,15 +48,6 @@ for v in "${optional_variables_from_outside[@]}" ; do
     echo "$v -> '$vval'"
   fi
 done
-
-# env
-
-echo "Selected branch '$BEAM_BRANCH_NAME' with commit '$BEAM_COMMIT_SHA'"
-echo "Selected data branch '$BEAM_DATA_BRANCH_NAME' with commit '$BEAM_DATA_COMMIT_SHA'"
-echo "Selected config: '$BEAM_CONFIG'"
-echo "S3 backup set to '$S3_PUBLISH' with region '$S3_REGION'"
-echo "The title is '$TITLED'"
-echo "The max ram is $MAX_RAM"
 
 
 function send_slack_notification() {
@@ -76,16 +77,23 @@ function send_json_to_spreadsheet() {
 }
 
 
-# monitoring CPU | RAM usage
+##
+## logging CPU | RAM usage during simulation
+##
 CPU_RAM_LOG="/app/sources/cpu_ram_usage.csv"
 /app/write_cpu_ram_usage.sh > "$CPU_RAM_LOG" &
 
 
+##
+## location to project folder
+##
 PATH_TO_PROJECT_PARENT="/app/sources"
 cd "$PATH_TO_PROJECT_PARENT" || echo "ERROR: The path '$PATH_TO_PROJECT_PARENT' is not available"
 
 
-# either pull the code or use the code from mounted folder
+##
+## either pull the code or use the code from mounted folder
+##
 if [ "$PULL_CODE" = true ]; then
   BEAM_NAME="beam"
   echo "Pulling the code from github (PULL_CODE set to '$PULL_CODE'), cloning BEAM into $(pwd)/$BEAM_NAME"
@@ -107,12 +115,16 @@ else
 fi
 
 
-# remember the BEAM working folder location
+##
+## remember the BEAM working folder location
+##
 BEAM_PATH=$(pwd)
 echo "Working from '$BEAM_PATH'"
 
 
-# pulling data from github if enabled or checking if data location was mounted separately
+##
+## pulling data from github if enabled or checking if data location was mounted separately
+##
 if [ "$PULL_DATA" = true ]; then
   echo "Pulling the data from github (PULL_DATA set to '$PULL_DATA')."
   production_data_submodules=$(git submodule | awk '{ print $2 }')
@@ -150,6 +162,9 @@ else
 fi
 
 
+##
+## notification
+##
 if [ "$SEND_NOTIFICATION" = true ]; then
   send_slack_notification "Run Started
     Run Name $TITLED
@@ -183,7 +198,9 @@ else
 fi
 
 
-# calculating a location for gradle cache
+##
+## calculating a location for gradle cache
+##
 if [[ -z "$GRADLE_CACHE_PATH" ]]; then
   GRADLE_CACHE_PATH="$BEAM_PATH/.gradle"
   echo "GRADLE_CACHE_PATH is not set, creating and using directory by path '$GRADLE_CACHE_PATH'"
@@ -193,12 +210,16 @@ else
 fi
 
 
+##
 ## we shouldn't use the gradle daemon on NERSC, it seems that it's somehow shared within different nodes
 ## and all the subsequent runs have output dir somewhere else.
+##
 ./gradlew --no-daemon --gradle-user-home="$GRADLE_CACHE_PATH" clean :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM"
 
 
+##
 ## Calculate the final status of simulation
+##
 log_file="$(find "$BEAM_PATH/output" -maxdepth 2 -mindepth 2 -type d -print -quit)/beamLog.out"
 if [[ ! -f $log_file ]]; then
     echo "Unable to locate the beamLog.out file"
@@ -214,15 +235,28 @@ fi
 echo "The final status of simulation is '$final_status'"
 
 
-## TODO calculate health metrics
-health_metrics_for_slack_notification="TODO"
-stacktrace="TODO"
-died_actors="TODO"
-error="TODO"
-warning="TODO"
+##
+## calculating the health of simulation
+##
+error="?"
+warning="?"
+stacktrace="?"
+died_actors="?"
+health_metrics=""
+simulation_health_analysis_output_file="simulation_health_analysis_result.txt"
+python3 src/main/python/general_analysis/simulation_health_analysis.py $simulation_health_analysis_output_file
+while IFS="," read -r metric count; do
+  echo "Health metric exporting: '$metric=$count'"
+  export "$metric=$count"
+  health_metrics="$health_metrics, $metric:$count"
+done < $simulation_health_analysis_output_file
+health_metrics="$(echo "$health_metrics" | cut -c3-)"
+echo "Health metrics: '$health_metrics'"
 
 
-# looking for output
+##
+## Working with output of simulation
+##
 sleep 10s
 FINAL_PATH=""
 for file in output/*; do
@@ -232,24 +266,33 @@ for file in output/*; do
 done;
 echo "Found output dir: $FINAL_PATH"
 
-
-echo "Moving debug files to output folder"
+echo "Moving debug files to output folder."
 for file in "$BEAM_PATH"/*.jfr; do
   [ -e "$file" ] || continue
   echo "Zipping $file"
   zip "$file.zip" "$file"
   mv "$file.zip" "$FINAL_PATH"
 done;
-## cp garbage collection logs
+
+echo "Copy health metrics."
+cp "$simulation_health_analysis_output_file" "$FINAL_PATH"
+
+echo "Copy garbage collection logs."
 cp "$BEAM_PATH"/gc_* "$FINAL_PATH"
-## cp CPU and RAM used/available collected during simulation
+
+echo "Copy CPU and RAM used/available collected during simulation."
 gzip "$CPU_RAM_LOG"           && cp "$CPU_RAM_LOG"* "$FINAL_PATH"
-## cp log of simulation from host computer (cloud-init log or analog)
+
+echo "Copy log of simulation from host computer (cloud-init log or analog)."
 gzip "$SIMULATION_LOG_PATH"   && cp "$SIMULATION_LOG_PATH"* "$FINAL_PATH"
-## fixing permission issues related to access to files created from inside of image
+
+echo "Fixing permission issues related to access to files created from inside of image."
 chmod 777 -R "$FINAL_PATH"
 
-# uploading output to s3 if enabled
+
+##
+## uploading output to s3 if enabled
+##
 if [ "$S3_PUBLISH" = true ]; then
   aws --region "$S3_REGION" s3 cp "$FINAL_PATH" s3://beam-outputs/"$FINAL_PATH" --recursive;
   s3output_url="https://s3.$S3_REGION.amazonaws.com/beam-outputs/index.html#$FINAL_PATH"
@@ -260,6 +303,9 @@ else
 fi
 
 
+##
+## notification
+##
 if [ "$SEND_NOTIFICATION" = true ]; then
   send_slack_notification "Run Completed
     Run Name $TITLED
@@ -269,7 +315,7 @@ if [ "$SEND_NOTIFICATION" = true ]; then
     Web browser $WEB_BROWSER
     Branch $BEAM_BRANCH_NAME
     Commit $BEAM_COMMIT_SHA
-    Health Metrics $health_metrics_for_slack_notification
+    Health Metrics $health_metrics
     S3 output url $s3output_url
     Shutdown in $SHUTDOWN_WAIT minutes"
 
