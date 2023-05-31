@@ -66,7 +66,7 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
 
   RANDOM_PART=$(tr -dc A-Z0-9 </dev/urandom | head -c 8)
   DATETIME=$(date "+%Y.%m.%d-%H.%M.%S")
-  export NAME_SUFFIX="$DATETIME.$RANDOM_PART.$PARTITION.$QOS.$MEMORY_LIMIT"
+  NAME_SUFFIX="$DATETIME.$RANDOM_PART.$PARTITION.$QOS.$MEMORY_LIMIT"
 
   # The TEMP directory for this simulation, there will be stored code and data.
   # The simulation output will be there as well.
@@ -82,6 +82,7 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   ln -s "$JOB_LOG_FILE_PATH" "$LINK_TO_JOB_LOG_FILE"
   SIMULATION_LOG_FILE="/app/sources/$JOB_LOG_FILE_NAME"
 
+  export BEAM_DIR
   export JOB_LOG_FILE_PATH
   export SIMULATION_LOG_FILE
   export LINK_TO_JOB_LOG_FILE
