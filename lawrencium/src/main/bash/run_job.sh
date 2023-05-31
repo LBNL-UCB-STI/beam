@@ -13,17 +13,6 @@ CODE_PHRASE="Execute the body of the job."
 if [[ "$1" != "$CODE_PHRASE" ]]; then
   echo "Starting the job .."
 
-  PARTITION="es1"
-  QOS="es_normal"
-  MEMORY_LIMIT="480"  ## in G
-
-  ACCOUNT="pc_beamcore"
-
-  # INPUT Argument #1 - run name
-  RUN_NAME="$1"
-  # INPUT Argument #2 - expected simulation duration
-  EXPECTED_TIME="$2" # D-HH:MM:SS, i.e. for 1 day, 2 hours and 30 minutes => 1-02:30:00
-
   # what code, data and config to use for simulation
   export BEAM_BRANCH_NAME="develop"
   export BEAM_COMMIT_SHA
@@ -32,6 +21,10 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   export BEAM_CONFIG="test/input/beamville/beam.conf"
   # export BEAM_CONFIG="production/sfbay/gemini/gemini-scenario-7-Advanced-05p.conf"
   # export BEAM_CONFIG="test/input/sf-light/sf-light-25k-modified.conf"
+
+  PARTITION="es1"
+  QOS="es_normal"
+  MEMORY_LIMIT="480"  ## in G
 
   # if uploading to s3 required - both AWS key parts should be set
   export S3_REGION="us-east-2"
@@ -44,6 +37,13 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   export SEND_NOTIFICATION="false"
   export SLACK_HOOK_WITH_TOKEN
   export SIMULATIONS_SPREADSHEET_UPDATE_URL
+
+  ACCOUNT="pc_beamcore"
+
+  # INPUT Argument #1 - run name
+  RUN_NAME="$1"
+  # INPUT Argument #2 - expected simulation duration
+  EXPECTED_TIME="$2" # D-HH:MM:SS, i.e. for 1 day, 2 hours and 30 minutes => 1-02:30:00
 
   # required for doing speed comparison (BEAM simulation vs Google observations)
   export GOOGLE_API_KEY
@@ -68,7 +68,7 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   DATETIME=$(date "+%Y.%m.%d-%H.%M.%S")
   export NAME_SUFFIX="$DATETIME.$RANDOM_PART.$PARTITION.$QOS.$MEMORY_LIMIT"
 
-  OUTPUT="out.log.$NAME_SUFFIX.log"
+  export OUTPUT_LOG_PATH="out.log.$NAME_SUFFIX.log"
   JOB_NAME="$RANDOM_PART.$DATETIME"
 
   # Two SLURM commands to run a job:
@@ -83,7 +83,7 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
       --qos="$QOS" \
       --account="$ACCOUNT" \
       --job-name="$JOB_NAME" \
-      --output="$OUTPUT" \
+      --output="$OUTPUT_LOG_PATH" \
       --time="$EXPECTED_TIME" \
       "$0" "$CODE_PHRASE"
   set +x
