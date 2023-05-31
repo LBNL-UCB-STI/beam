@@ -14,7 +14,7 @@ required_variables_from_outside=(
   WEB_BROWSER INSTANCE_REGION
   SHUTDOWN_WAIT PROFILER
   SIMULATIONS_SPREADSHEET_UPDATE_URL SLACK_HOOK_WITH_TOKEN
-  SIMULATION_LOG_PATH
+  LINK_TO_SIMULATION_LOG_FILE
   SIGOPT_CLIENT_ID SIGOPT_DEV_ID  # TODO maybe completely remove
 )
 echo "Following variables might be set only outside of the image (variable name -> 'current value'):"
@@ -281,10 +281,10 @@ echo "Copy garbage collection logs."
 cp "$BEAM_PATH"/gc_* "$FINAL_PATH"
 
 echo "Copy CPU and RAM used/available collected during simulation."
-gzip "$CPU_RAM_LOG"           && cp "$CPU_RAM_LOG"* "$FINAL_PATH"
+gzip "$CPU_RAM_LOG" && cp "$CPU_RAM_LOG"* "$FINAL_PATH"
 
 echo "Copy log of simulation from host computer (cloud-init log or analog)."
-gzip "$SIMULATION_LOG_PATH"   && cp "$SIMULATION_LOG_PATH"* "$FINAL_PATH"
+cp -L "$LINK_TO_SIMULATION_LOG_FILE" "$FINAL_PATH"
 
 echo "Fixing permission issues related to access to files created from inside of image."
 chmod 777 -R "$FINAL_PATH"
