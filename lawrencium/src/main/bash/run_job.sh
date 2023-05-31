@@ -80,12 +80,12 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   JOB_LOG_FILE_PATH="$BEAM_DIR/$JOB_LOG_FILE_NAME"
   LINK_TO_JOB_LOG_FILE="$(pwd)/out.log.$NAME_SUFFIX.log"
   ln -s "$JOB_LOG_FILE_PATH" "$LINK_TO_JOB_LOG_FILE"
-  SIMULATION_LOG_FILE="/app/sources/$JOB_LOG_FILE_NAME"
+  SIMULATION_HOST_LOG_FILE="/app/sources/$JOB_LOG_FILE_NAME"
 
   export BEAM_DIR
   export JOB_LOG_FILE_PATH
-  export SIMULATION_LOG_FILE
   export LINK_TO_JOB_LOG_FILE
+  export SIMULATION_HOST_LOG_FILE
 
   # Job name starts from random part which is generated GUID for this job
   # It is made for convenience because this way it is easier to match beam output to the job info from the cluster
