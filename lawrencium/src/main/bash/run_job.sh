@@ -68,10 +68,26 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   DATETIME=$(date "+%Y.%m.%d-%H.%M.%S")
   export NAME_SUFFIX="$DATETIME.$RANDOM_PART.$PARTITION.$QOS.$MEMORY_LIMIT"
 
-  OUTPUT_LOG_PATH="out.log.$NAME_SUFFIX.log"
-  FULL_OUTPUT_LOG_PATH="$(pwd)/$OUTPUT_LOG_PATH"
-  export FULL_OUTPUT_LOG_PATH
+  # The TEMP directory for this simulation, there will be stored code and data.
+  # The simulation output will be there as well.
+  # /global/scratch will be cleaned after some inactive time, so, it is no advised to be used long-term.
+  BEAM_DIR="/global/scratch/users/$USER/out_beam_$NAME_SUFFIX"
+  mkdir "$BEAM_DIR"
 
+  # Log file will be inside of image mounted folder initially
+  # In current folder will be only a link, which will be deleted at the end of this script.
+  JOB_LOG_FILE_NAME="cluster-log-file.log"
+  JOB_LOG_FILE_PATH="$BEAM_DIR/$JOB_LOG_FILE_NAME"
+  LINK_TO_JOB_LOG_FILE="$(pwd)/out.log.$NAME_SUFFIX.log"
+  ln -s "$JOB_LOG_FILE_PATH" "$LINK_TO_JOB_LOG_FILE"
+  SIMULATION_LOG_FILE="/app/sources/$JOB_LOG_FILE_NAME"
+
+  export JOB_LOG_FILE_PATH
+  export SIMULATION_LOG_FILE
+  export LINK_TO_JOB_LOG_FILE
+
+  # Job name starts from random part which is generated GUID for this job
+  # It is made for convenience because this way it is easier to match beam output to the job info from the cluster
   JOB_NAME="$RANDOM_PART.$DATETIME"
 
   # Two SLURM commands to run a job:
@@ -80,13 +96,14 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
 
   set -x
   # The last row in this command is the script name itself with a special argument.
+  # See comments to if-else blocks.
   sbatch --partition="$PARTITION" \
       --exclusive \
       --mem="${MEMORY_LIMIT}G" \
       --qos="$QOS" \
       --account="$ACCOUNT" \
       --job-name="$JOB_NAME" \
-      --output="$OUTPUT_LOG_PATH" \
+      --output="$JOB_LOG_FILE_PATH" \
       --time="$EXPECTED_TIME" \
       "$0" "$CODE_PHRASE"
   set +x
@@ -106,18 +123,6 @@ else # this shell script is used as a BODY for the job which will be executed on
   # there is no shutdown wait when we using Lawrencium
   export SHUTDOWN_WAIT
 
-  # The TEMP directory for this simulation, there will be stored code and data.
-  # The simulation output will be there as well.
-  # /global/scratch will be cleaned after some inactive time, so, it is no advised to be used long-term.
-  BEAM_DIR="/global/scratch/users/$USER/out_beam_$NAME_SUFFIX"
-
-  mkdir "$BEAM_DIR"
-  MOUNTED_DIR=$(realpath "$BEAM_DIR")
-
-  ## LINK_TO_SIMULATION_LOG_FILE should point to a simulation log file from host machine (i.e. cloud-init log)
-  ln -s "$FULL_OUTPUT_LOG_PATH" "$MOUNTED_DIR/cluster-log-file.log"
-  export LINK_TO_SIMULATION_LOG_FILE="$MOUNTED_DIR/cluster-log-file.log"
-
   IMAGE_NAME="beam-environment"
   IMAGE_TAG="latest"
   DOCKER_IMAGE_NAME="docker://beammodel/${IMAGE_NAME}:${IMAGE_TAG}"
@@ -127,8 +132,11 @@ else # this shell script is used as a BODY for the job which will be executed on
   singularity pull --force "$DOCKER_IMAGE_NAME"
 
   echo "Running singularity image '$SINGULARITY_IMAGE_NAME' ..."
-  singularity run -B "$MOUNTED_DIR:/app/sources" "$SINGULARITY_IMAGE_NAME"
+  singularity run -B "$BEAM_DIR:/app/sources" "$SINGULARITY_IMAGE_NAME"
 
+  echo "Removing a link to the job's log file."
+  echo "The original job log file is in '$JOB_LOG_FILE_PATH'"
+  rm "$LINK_TO_JOB_LOG_FILE"
 
-  echo "Done"
+  echo "Done."
 fi
