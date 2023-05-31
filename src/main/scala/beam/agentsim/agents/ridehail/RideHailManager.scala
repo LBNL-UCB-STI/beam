@@ -31,6 +31,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{HasTriggerId, Trigger}
 import beam.api.agentsim.agents.ridehail.RidehailManagerCustomizationAPI
 import beam.router.BeamRouter._
+import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
@@ -83,8 +84,8 @@ object RideHailManager {
     passengerSchedule: PassengerSchedule,
     estimatedPrice: Map[Id[Person], Double],
     maxWaitingTimeInSec: Int,
-    poolingInfo: Option[PoolingInfo] = None,
-    onlyPooledSupported: Boolean = false // TODO: refactor this (at least create issue before merging)
+    modeOptions: Set[BeamMode],
+    poolingInfo: Option[PoolingInfo] = None
   ) {
 
     def timeToCustomer(passenger: PersonIdWithActorRef): Int =
@@ -448,6 +449,15 @@ class RideHailManager(
   var currReposTick: Int = 0
   var nRepositioned: Int = 0
 
+  val supportedModes: Set[BeamMode] = managerConfig.supportedModes
+    .split(',')
+    .map(_.trim.toLowerCase)
+    .flatMap(BeamMode.fromString)
+    .filter(_.isRideHail)
+    .toSet
+  if (supportedModes.isEmpty)
+    throw new IllegalArgumentException(s"Wrong supported modes: ${managerConfig.supportedModes}")
+
   override def loggedReceive: Receive = super[RideHailDepotManager].loggedReceive orElse BeamLoggingReceive {
     case DebugReport =>
       log.debug(
@@ -641,7 +651,8 @@ class RideHailManager(
               )
             ),
             rideHailResourceAllocationManager.maxWaitTimeInSec,
-            singleOccupantQuoteAndPoolingInfo.poolingInfo
+            modeOptions = supportedModes,
+            if (supportedModes.forall(_ == RIDE_HAIL)) None else singleOccupantQuoteAndPoolingInfo.poolingInfo
           )
           travelProposalCache.put(request.requestId.toString, travelProposal)
 
@@ -1257,6 +1268,18 @@ class RideHailManager(
           managerConfig.name,
           Some(DriverNotFoundError)
         )
+      case SingleOccupantQuoteAndPoolingInfo(_, None) if supportedModes.forall(_ == RIDE_HAIL_POOLED) =>
+        log.debug(
+          "No pooling info returned person={} for requestId={}",
+          inquiryWithUpdatedLoc.customer.personId,
+          inquiryWithUpdatedLoc.requestId
+        )
+        inquiryWithUpdatedLoc.requester ! RideHailResponse(
+          inquiryWithUpdatedLoc,
+          None,
+          managerConfig.name,
+          Some(DriverNotFoundError)
+        )
       case inquiryResponse @ SingleOccupantQuoteAndPoolingInfo(agentLocation, _) =>
         servedRideHail += 1
         beamServices.simMetricCollector.writeIteration("ride-hail-inquiry-served", SimulationTime(inquiry.departAt))
@@ -1774,7 +1797,8 @@ class RideHailManager(
         )
         .toMap,
       rideHailResourceAllocationManager.maxWaitTimeInSec,
-      None
+      modeOptions = supportedModes,
+      poolingInfo = None
     )
   }
 

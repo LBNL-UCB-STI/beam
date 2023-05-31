@@ -13,7 +13,7 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_POOLED}
+import beam.router.Modes.BeamMode.RIDE_HAIL_POOLED
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.sim.{BeamScenario, BeamServices, RideHailFleetInitializerProvider}
@@ -135,75 +135,20 @@ class RideHailMaster(
       rideHailManagers.values.foreach(_.forward(anyOtherMessage))
   }
 
-  val rideHailManagerSupportedModes = {
-
-    val res= new mutable.HashMap[String, Set[String]]
-
-    beamScenario.beamConfig.beam.agentsim.agents.rideHail.managers.foreach{
-      rhm => res.put(rhm.name,rhm.supportedModes.split(",").map(_.trim).toSet)
-    }
-
-    res
-  }
-
-  // TODO: add tests for beam.agentsim.agents.rideHail.managers.supportedModes before merging or at least add issue for it
-  private def supportsOnlyPooledRide(rideHailManagerName:String):Boolean={
-    supportsPooledRide(rideHailManagerName) && rideHailManagerSupportedModes(rideHailManagerName).size==1
-  }
-
-  private def supportsOnlySoloRide(rideHailManagerName:String):Boolean={
-    supportsSoloRide(rideHailManagerName) && rideHailManagerSupportedModes(rideHailManagerName).size==1
-  }
-
-  private def supportsSoloRide(rideHailManagerName:String):Boolean={
-    rideHailManagerSupportedModes(rideHailManagerName).contains(RIDE_HAIL.value)
-  }
-
-  private def supportsPooledRide(rideHailManagerName:String):Boolean={
-    rideHailManagerSupportedModes(rideHailManagerName).contains(RIDE_HAIL_POOLED.value)
-  }
-
-
   private def getCustomerRideHailManagers(subscription: Seq[String]): Iterable[ActorRef] = {
     val subscribedTo = subscription.collect(rideHailManagers)
     if (subscribedTo.isEmpty) rideHailManagers.values else subscribedTo
   }
 
-  private def findBestProposal(customer: Id[Person], responses: IndexedSeq[RideHailResponse])
-  : RideHailResponse = {
+  private def findBestProposal(customer: Id[Person], responses: IndexedSeq[RideHailResponse]): RideHailResponse = {
     val responsesInRandomOrder = rand.shuffle(responses)
     val withProposals = responsesInRandomOrder.filter(_.travelProposal.isDefined)
-    val response=if (withProposals.isEmpty) responsesInRandomOrder.head
+    if (withProposals.isEmpty) responsesInRandomOrder.head
     else
       bestResponseType match {
-        case "MIN_COST" =>
-          withProposals.minBy { response =>
-            val travelProposal = response.travelProposal.get
-            val price = travelProposal.estimatedPrice(customer)
-            if (travelProposal.poolingInfo.isDefined && response.request.asPooled) // pooling is supported by RHM and person has choice to pick pooled as not assigned some other tour mode
-              Math.min(price, price * travelProposal.poolingInfo.get.costFactor)
-            else
-              price
-          }
-
-
+        case "MIN_COST"    => withProposals.minBy(findCost(customer, _))
         case "MIN_UTILITY" => sampleProposals(customer, withProposals)
       }
-
-
-    val travelProposal= response.travelProposal.map { travelProposal =>
-      if (supportsOnlyPooledRide(response.rideHailManagerName)){
-        travelProposal.copy(onlyPooledSupported=true)
-      } else {
-        if (supportsOnlySoloRide(response.rideHailManagerName)){
-          travelProposal.copy(poolingInfo=None)
-        } else {
-          travelProposal
-        }
-      }
-    }
-
-    response.copy(travelProposal=travelProposal)
   }
 
   private def sampleProposals(customer: Id[Person], responses: IndexedSeq[RideHailResponse]): RideHailResponse = {
@@ -226,14 +171,7 @@ class RideHailMaster(
     val person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(customer)
     val customerAttributes = person.getCustomAttributes.get(BEAM_ATTRIBUTES).asInstanceOf[AttributesOfIndividual]
     responses.map { alt =>
-      val cost: Double = {
-        val travelProposal = alt.travelProposal.get
-        val price = travelProposal.estimatedPrice(customer)
-        if (travelProposal.poolingInfo.isDefined && alt.request.asPooled)
-          Math.min(price, price * travelProposal.poolingInfo.get.costFactor)
-        else
-          price
-      }
+      val cost: Double = findCost(customer, alt)
       val scaledTime: Double = customerAttributes.getVOT(
         getGeneralizedTimeOfProposalInHours(alt.request.customer, alt.travelProposal)
       )
@@ -247,6 +185,19 @@ class RideHailMaster(
       )
 
     }.toMap
+  }
+
+  private def findCost(customer: Id[Person], response: RideHailResponse): Double = {
+    val travelProposal = response.travelProposal.get
+    val price = travelProposal.estimatedPrice(customer)
+    if (
+      travelProposal.modeOptions.contains(RIDE_HAIL_POOLED)
+      && travelProposal.poolingInfo.isDefined
+      && response.request.asPooled
+    ) // pooling is supported by RHM and person has choice to pick pooled as not assigned some other tour mode
+      Math.min(price, price * travelProposal.poolingInfo.get.costFactor)
+    else
+      price
   }
 
   private def getGeneralizedTimeOfProposalInHours(

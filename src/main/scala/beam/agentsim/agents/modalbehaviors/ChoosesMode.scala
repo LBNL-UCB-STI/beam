@@ -1221,7 +1221,9 @@ trait ChoosesMode {
             ) <= travelProposal.maxWaitingTimeInSec =>
           val origLegs = travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
           (travelProposal.poolingInfo match {
-            case Some(poolingInfo) if !choosesModeData.personData.currentTourMode.contains(RIDE_HAIL) =>
+            case Some(poolingInfo)
+                if !choosesModeData.personData.currentTourMode.contains(RIDE_HAIL)
+                  && travelProposal.modeOptions.contains(RIDE_HAIL_POOLED) =>
               val pooledLegs = origLegs.map { origLeg =>
                 origLeg.copy(
                   cost = origLeg.cost * poolingInfo.costFactor,
@@ -1229,13 +1231,12 @@ trait ChoosesMode {
                   beamLeg = origLeg.beamLeg.scaleLegDuration(poolingInfo.timeFactor)
                 )
               }
-
-              if (travelProposal.onlyPooledSupported) {
-                Vector(EmbodiedBeamLeg.makeLegsConsistent(pooledLegs))
+              val consistentPooledLegs = EmbodiedBeamLeg.makeLegsConsistent(pooledLegs)
+              if (travelProposal.modeOptions.contains(RIDE_HAIL)) {
+                Vector(origLegs, consistentPooledLegs)
               } else {
-                Vector(origLegs, EmbodiedBeamLeg.makeLegsConsistent(pooledLegs))
+                Vector(consistentPooledLegs)
               }
-
             case _ =>
               Vector(origLegs)
           }).map { partialItin =>
