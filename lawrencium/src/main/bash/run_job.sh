@@ -68,7 +68,10 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   DATETIME=$(date "+%Y.%m.%d-%H.%M.%S")
   export NAME_SUFFIX="$DATETIME.$RANDOM_PART.$PARTITION.$QOS.$MEMORY_LIMIT"
 
-  export OUTPUT_LOG_PATH="out.log.$NAME_SUFFIX.log"
+  OUTPUT_LOG_PATH="out.log.$NAME_SUFFIX.log"
+  FULL_OUTPUT_LOG_PATH="$(pwd)/$OUTPUT_LOG_PATH"
+  export FULL_OUTPUT_LOG_PATH
+
   JOB_NAME="$RANDOM_PART.$DATETIME"
 
   # Two SLURM commands to run a job:
@@ -110,6 +113,10 @@ else # this shell script is used as a BODY for the job which will be executed on
 
   mkdir "$BEAM_DIR"
   MOUNTED_DIR=$(realpath "$BEAM_DIR")
+
+  ## should point to a simulation log file from host machine (cloud-init or a log from cluster job)
+  ## locally the log path is there - FULL_OUTPUT_LOG_PATH
+  export SIMULATION_LOG_PATH=""
 
   IMAGE_NAME="beam-environment"
   IMAGE_TAG="latest"
