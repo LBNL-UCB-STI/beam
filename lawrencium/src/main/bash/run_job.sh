@@ -108,15 +108,15 @@ else # this shell script is used as a BODY for the job which will be executed on
 
   # The TEMP directory for this simulation, there will be stored code and data.
   # The simulation output will be there as well.
-  # SCRATCH will be cleaned after some inactive time, so, it is no advised to be used long-term.
+  # /global/scratch will be cleaned after some inactive time, so, it is no advised to be used long-term.
   BEAM_DIR="/global/scratch/users/$USER/out_beam_$NAME_SUFFIX"
 
   mkdir "$BEAM_DIR"
   MOUNTED_DIR=$(realpath "$BEAM_DIR")
 
-  ## should point to a simulation log file from host machine (cloud-init or a log from cluster job)
-  ## locally the log path is there - FULL_OUTPUT_LOG_PATH
-  export SIMULATION_LOG_PATH=""
+  ## LINK_TO_SIMULATION_LOG_FILE should point to a simulation log file from host machine (i.e. cloud-init log)
+  ln -s "$FULL_OUTPUT_LOG_PATH" "$MOUNTED_DIR/cluster-log-file.log"
+  export LINK_TO_SIMULATION_LOG_FILE="$MOUNTED_DIR/cluster-log-file.log"
 
   IMAGE_NAME="beam-environment"
   IMAGE_TAG="latest"
@@ -128,4 +128,7 @@ else # this shell script is used as a BODY for the job which will be executed on
 
   echo "Running singularity image '$SINGULARITY_IMAGE_NAME' ..."
   singularity run -B "$MOUNTED_DIR:/app/sources" "$SINGULARITY_IMAGE_NAME"
+
+
+  echo "Done"
 fi
