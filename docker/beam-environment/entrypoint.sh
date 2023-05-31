@@ -238,10 +238,10 @@ echo "The final status of simulation is '$final_status'"
 ##
 ## calculating the health of simulation
 ##
+warn="?"
 error="?"
-warning="?"
+actorDied="?"
 stacktrace="?"
-died_actors="?"
 health_metrics=""
 simulation_health_analysis_output_file="simulation_health_analysis_result.txt"
 python3 src/main/python/general_analysis/simulation_health_analysis.py $simulation_health_analysis_output_file
@@ -336,9 +336,9 @@ if [ "$SEND_NOTIFICATION" = true ]; then
     \"max_ram\":\"$MAX_RAM\",
     \"profiler_type\":\"$PROFILER\",
     \"stacktrace\":\"$stacktrace\",
-    \"died_actors\":\"$died_actors\",
+    \"died_actors\":\"$actorDied\",
     \"error\":\"$error\",
-    \"warning\":\"$warning\",
+    \"warning\":\"$warn\",
     \"config_file\":\"$BEAM_CONFIG\",
     \"sigopt_client_id\":\"$SIGOPT_CLIENT_ID\",
     \"sigopt_dev_id\":\"$SIGOPT_DEV_ID\""
