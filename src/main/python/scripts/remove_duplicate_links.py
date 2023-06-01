@@ -1,12 +1,16 @@
-import sys
+import argparse
 import shapefile
 
-if len(sys.argv) != 3:
-    print("python remove_duplicate_links.py <input shapefile> <output location>")
-    exit()
+parser = argparse.ArgumentParser()
 
-reader = shapefile.Reader(sys.argv[1])
-writer = shapefile.Writer(sys.argv[2])
+parser.add_argument("-i", "--inputshapefile", help="Path to input shapefile", required=True)
+parser.add_argument("-o", "--outputshapefile", help="Path to output shapefile", required=True)
+parser.add_argument("-c", "--capacity", help="Default capacity value (cars/hr/lane) for zero values in the input shapefile", type=float, required=False, default=1500.0)
+
+args=parser.parse_args()
+
+reader = shapefile.Reader(args.inputshapefile)
+writer = shapefile.Writer(args.outputshapefile)
 
 # START
 # accumulate adjacent links max_speed
@@ -37,14 +41,21 @@ writer.field('LANES', 'N', 35, 7)
 writer.field('DATA1', 'N', 35, 7) # hourly capacity per lane
 writer.field('DATA2', 'C', 35, 7) # add mph
 
+shapeRecords = reader.shapeRecords()
+# to keep non-zero capacity links at the top for processing
+shapeRecords.sort(key=lambda x: x.record['DATA1'], reverse=True)
 s = set()
-for n in reader.iterShapeRecords():
+
+for n in shapeRecords:
     record = n.record
     shape = n.shape
     if record['ID'] not in s:
         s.add(f"{record['JNODE']}-{record['INODE']}")
+
+        if record['DATA1'] == 0:
+            record['DATA1'] = args.capacity
+
         if record['DATA2'] == 0:
-            #print(f"Calculating average... [{record['ID']}]")
             from_node = str(record['INODE'])
             has_from_node = from_node in inbound_links
             ilinks = set()
@@ -59,10 +70,7 @@ for n in reader.iterShapeRecords():
 
             if has_from_node or has_to_node:
                 links = ilinks.union(olinks)
-                #print(f"BEFORE: {record['DATA2']}")
-                #print(f"link speed: {links}")
                 record['DATA2'] = sum(links) / len(links)
-                #print(f" AFTER: {record['DATA2']}")
 
         writer.record(
             record['ID'],
