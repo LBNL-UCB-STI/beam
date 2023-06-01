@@ -19,8 +19,7 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   export BEAM_DATA_BRANCH_NAME="develop"
   export BEAM_DATA_COMMIT_SHA
   export BEAM_CONFIG="test/input/beamville/beam.conf"
-  # export BEAM_CONFIG="production/sfbay/gemini/gemini-scenario-7-Advanced-05p.conf"
-  # export BEAM_CONFIG="test/input/sf-light/sf-light-25k-modified.conf"
+  export PROFILER # either empty, 'cpu' or 'cpumem'
 
   PARTITION="es1"
   QOS="es_normal"
@@ -117,7 +116,6 @@ else # this shell script is used as a BODY for the job which will be executed on
   export HOST_NAME=$HOSTNAME
 
   export WEB_BROWSER="TODO"
-  export PROFILER="TODO"
 
   # instance (node) has no region when we using Lawrencium
   export INSTANCE_REGION

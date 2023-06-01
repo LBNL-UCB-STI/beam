@@ -214,7 +214,7 @@ fi
 ## we shouldn't use the gradle daemon on NERSC, it seems that it's somehow shared within different nodes
 ## and all the subsequent runs have output dir somewhere else.
 ##
-./gradlew --no-daemon --gradle-user-home="$GRADLE_CACHE_PATH" clean :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM"
+./gradlew --no-daemon --gradle-user-home="$GRADLE_CACHE_PATH" clean :run -PappArgs="['--config', '$BEAM_CONFIG']" -PmaxRAM="$MAX_RAM" -Pprofiler_type="$PROFILER"
 
 
 ##
