@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[5]:
 
 
 # %pip install boto3
@@ -31,7 +31,7 @@ aws_access_key_id = ""
 aws_secret_access_key = ""
 
 
-# In[4]:
+# In[2]:
 
 
 bucket_name = 'beam-outputs'
@@ -52,10 +52,7 @@ class PrefixContent:
     objects: []
     folders: []
     last_modified: datetime
-@dataclass
-class BeamFolder:
-    path: str
-    last_modified: datetime
+    storage_class: str
 
 
 def find_content(prefix: str):
@@ -63,27 +60,30 @@ def find_content(prefix: str):
     objects = []
     folders = []
     last_modified = None
+    storage_class = "STANDARD"
     for page in pages:
         if "Contents" in page:
             for obj in page["Contents"]:
                 objects.append(obj["Key"])
                 if not last_modified:
                     last_modified = obj["LastModified"]
+                if obj["StorageClass"] != "STANDARD":
+                    storage_class = obj["StorageClass"]
         if "CommonPrefixes" in page:
             for obj in page["CommonPrefixes"]:
                 folders.append(obj["Prefix"])
 
-    return PrefixContent(prefix, objects, folders, last_modified)
+    return PrefixContent(prefix, objects, folders, last_modified, storage_class)
 
 
 # 
 
-# In[6]:
+# In[4]:
 
 
 # Searches for beam folders on S3 bucket and saves path/last_modified/size to a csv file (local_files dir)
 # using low level API to get only the first level of subfolders
-search_prefix = 'back'
+search_prefix = 'output/sfbay'
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -92,14 +92,15 @@ from datetime import datetime
 class BeamFolder:
     path: str
     last_modified: datetime
+    storage_class: str
 
 
 def find_beam_folders(prefix: str):
     content = find_content(prefix)
     if any(x for x in content.folders if x.endswith("/ITERS/")) | any(
             x for x in content.objects if x.endswith("/beamLog.out")):
-        beam_folder = BeamFolder(content.prefix, content.last_modified)
-        print(beam_folder)
+        beam_folder = BeamFolder(content.prefix, content.last_modified, content.storage_class)
+        # print(beam_folder)
         return [beam_folder]
     else:
         return [x for folder in content.folders for x in find_beam_folders(folder)]
@@ -107,9 +108,9 @@ def find_beam_folders(prefix: str):
 
 beam_folders = find_beam_folders(search_prefix)
 
-result = [[x.path, x.last_modified] for x in beam_folders]
+result = [[x.path, x.last_modified, x.storage_class] for x in beam_folders]
 
-df = pd.DataFrame(result, columns=["path", "date"])
+df = pd.DataFrame(result, columns=["path", "date", "storage_class"])
 file_name = search_prefix.split('/')[-1] + ".csv"
 docker_path = "/home/jovyan/local_files"
 dir_to_save = docker_path if os.path.isdir(docker_path) else "../local_files"
@@ -124,7 +125,7 @@ df.to_csv(os.path.join(dir_to_save, file_name), index=False)
 #     print("Objects:", list(obj["Key"] for obj in page["Contents"]))
 
 
-# In[23]:
+# In[6]:
 
 
 # for a list of aws folders
@@ -134,7 +135,7 @@ input_folders = pd.read_csv("../local_files/%s.csv" % input, names=['path', 'dat
 # input_folders['date'] = input_folders['date'].dt.tz_convert("UTC")
 
 def get_last_modified(prefix: str):
-    print(prefix)
+    #print(prefix)
     content = find_content(prefix)
     if content.last_modified:
         return content.last_modified
