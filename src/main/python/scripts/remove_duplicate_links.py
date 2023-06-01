@@ -17,12 +17,12 @@ writer = shapefile.Writer(args.outputshapefile)
 inbound_links = dict()
 outbound_links = dict()
 
-def adjacent_links(d, key, value):
-    if key not in d:
-        d[key] = set([value])
+def adjacent_links(links_dict, node_id, link_speed):
+    if node_id not in links_dict:
+        links_dict[node_id] = set([link_speed])
     else:
-        s = d[key]
-        s.add(value)
+        s = links_dict[node_id]
+        s.add(link_speed)
 
 for record in reader.iterRecords():
     [from_node, to_node] = record['ID'].split('-')
