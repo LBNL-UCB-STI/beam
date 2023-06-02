@@ -96,8 +96,9 @@ cd "$PATH_TO_PROJECT_PARENT" || echo "ERROR: The path '$PATH_TO_PROJECT_PARENT' 
 ##
 if [ "$PULL_CODE" = true ]; then
   BEAM_NAME="beam"
-  echo "Pulling the code from github (PULL_CODE set to '$PULL_CODE'), cloning BEAM into $(pwd)/$BEAM_NAME"
-  git clone --single-branch --branch "$BEAM_BRANCH_NAME" https://github.com/LBNL-UCB-STI/beam.git "$BEAM_NAME"
+  if [ -z "$BEAM_CODE_URL" ]; then BEAM_CODE_URL="https://github.com/LBNL-UCB-STI/beam.git"; fi
+  echo "Pulling the code from github (PULL_CODE set to '$PULL_CODE'), cloning '$BEAM_CODE_URL' into $(pwd)/$BEAM_NAME"
+  git clone --single-branch --branch "$BEAM_BRANCH_NAME" "$BEAM_CODE_URL" "$BEAM_NAME"
   cd "$BEAM_NAME" || echo "ERROR: The dir '$BEAM_NAME' is not available"
 
   if [[ $BEAM_COMMIT_SHA ]]; then
@@ -120,6 +121,15 @@ fi
 ##
 BEAM_PATH=$(pwd)
 echo "Working from '$BEAM_PATH'"
+
+
+##
+## Required to avoid configuring ssh keys because by-default all our git data submodules configured to use ssh.
+##
+if [ "$ENFORCE_HTTPS_FOR_DATA_REPOSITORY" = true ]; then
+  echo "Forcing git to use https over ssh\git url. In order to pull public repository without configuring ssh keys."
+  git config --global url."https://github.com/LBNL-UCB-STI".insteadOf "git@github.com:LBNL-UCB-STI"
+fi
 
 
 ##
