@@ -161,7 +161,7 @@ columns <- c("time","type","vehicleType","vehicle","secondaryFuelLevel",
              "primaryFuelLevel","driver","mode","seatingCapacity","startX",
              "startY", "endX", "endY", "capacity", "arrivalTime", "departureTime",
              "secondaryFuel", "secondaryFuelType", "primaryFuelType",
-             "numPassengers", "length", "primaryFuel","run", "runLabel")
+             "numPassengers", "length", "primaryFuel", "run", "runLabel")
 pt <- data.table::as.data.table(events_filtered_all[type=="PathTraversal"][startsWith(vehicle,"freight")][,..columns])
 if (nrow(pt[grepl("-emergency-",vehicle)]) > 0) {
   println("This is a bug")
