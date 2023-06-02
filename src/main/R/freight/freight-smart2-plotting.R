@@ -12,21 +12,13 @@ library(ggmap)
 library(sf)
 library(stringr)
 
-# city <- "sfbay"
-# linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
-# batch <- 5
+expansionFactor <- 1/0.5
 city <- "austin"
-linkAADTFile <- "/hpms/austin_hpms_inventory.geojson"
 #batch <- "/Oct30"
 batch <- ""
 cityCRS <- 26910
-#scenario <- "2030_low"
-#batch2 <- "/Oct30"
-# batch2 <- ""
-# scenario2 <- "2040"
 iteration <- 0
 eventsPrefix <- ""
-expansionFactor <- 1/0.5
 scenario <- "price-sensitivity"
 
 ## PATHS
@@ -34,9 +26,8 @@ mainDir <- normalizePath("~/Workspace/Data")
 activitySimDir <- pp(mainDir, "/ACTIVITYSIM")
 workDir <- pp(mainDir, "/FREIGHT/", city)
 validationDir <- pp(workDir,"/validation")
-#freightDir <- pp(workDir,"/beam_freight/",scenario)
 eventsFile <- pp(eventsPrefix,iteration,".events.csv.gz")
-linkStatsFile <- pp(eventsPrefix,iteration,".linkstats.csv.gz")
+#linkStatsFile <- pp(eventsPrefix,iteration,".linkstats.csv.gz")
 runOutput <- pp(workDir,"/beam/runs/",scenario,"/output/")
 dir.create(runOutput, showWarnings = FALSE)
 
@@ -49,7 +40,7 @@ runs_label <- c(
 "HOP-p2",  "HOP-p4", "HOP-p6", "HOP-p8", "HOP-p10"
 )
 events_filtered_all <- data.table::data.table()
-linkStats_all <- data.table::data.table()
+#linkStats_all <- data.table::data.table()
 i<-0
 for(r in runs) {
   i<-i+1
@@ -59,20 +50,20 @@ for(r in runs) {
   events_filtered$run <- r
   events_filtered$runLabel <- runs_label[i]
   events_filtered_all <- rbind(events_filtered_all, events_filtered)
-  linkStats <- readCsv(normalizePath(pp(runDir,"/",linkStatsFile)))
-  linkStats$run <- r
-  linkStats_all <- rbind(linkStats_all, linkStats)
+  #linkStats <- readCsv(normalizePath(pp(runDir,"/",linkStatsFile)))
+  #linkStats$run <- r
+  #linkStats_all <- rbind(linkStats_all, linkStats)
 }
 write.csv(
   events_filtered_all,
   file = pp(runOutput,'/', pp(iteration,".events_filtered_all",eventsPrefix,".csv")),
   row.names=F,
   quote=T)
-fwrite(
-  linkStats_all,
-  file = pp(runOutput,'/', pp(iteration,".linkStats_all",eventsPrefix,".csv")),
-  row.names=F,
-  quote=T)
+# fwrite(
+#   linkStats_all,
+#   file = pp(runOutput,'/', pp(iteration,".linkStats_all",eventsPrefix,".csv")),
+#   row.names=F,
+#   quote=T)
 
 
 columns <- c("time","type","vehicleType","vehicle","secondaryFuelLevel",
@@ -85,8 +76,7 @@ if (nrow(pt[grepl("-emergency-",vehicle)]) > 0) {
   println("This is a bug")
 }
 
-unique(pt$vehicleType)
-
+#unique(pt$vehicleType)
 pt$energyType <- "Diesel"
 pt$energyTypeCode <- "Diesel"
 pt[grepl("E-BE", toupper(vehicleType))]$energyType <- "Electric"
@@ -100,12 +90,8 @@ pt$vehicleClass <- "Class 4-6 Vocational"
 pt[grepl("-md-", vehicleType)]$vehicleCategory <- "Medium Duty"
 pt[grepl("-hdt-", vehicleType)]$vehicleClass <- "Class 7&8 Tractor"
 pt[grepl("-hdv-", vehicleType)]$vehicleClass <- "Class 7&8 Vocational"
-#pt$scenario2 <- "Base"
-#pt[scenario=="2050_central"]$scenario2 <- "Central tech"
-#pt[scenario=="2050_high"]$scenario2 <- "High tech"
 
-pt[,.N,by=.(vehicle,run)][,.(count=.N*2),by=.(run)]
-
+#pt[,.N,by=.(vehicle,run)][,.(count=.N*2),by=.(run)]
 ## ***
 energy_consumption <- pt[,.(fuelGWH=expansionFactor*sum(primaryFuel/3.6e+12)),by=.(energyType,runLabel)]
 write.csv(
