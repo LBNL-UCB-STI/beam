@@ -127,6 +127,9 @@ else # this shell script is used as a BODY for the job which will be executed on
   DOCKER_IMAGE_NAME="docker://beammodel/${IMAGE_NAME}:${IMAGE_TAG}"
   SINGULARITY_IMAGE_NAME="${IMAGE_NAME}_${IMAGE_TAG}.sif"
 
+  # to use https for pulling data repository
+  export ENFORCE_HTTPS_FOR_DATA_REPOSITORY="true"
+
   echo "Pulling docker image '$DOCKER_IMAGE_NAME' ..."
   singularity pull --force "$DOCKER_IMAGE_NAME"
 
