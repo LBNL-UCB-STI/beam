@@ -2,7 +2,7 @@ package beam.router.skim
 
 import beam.router.Modes.BeamMode
 import beam.router.model.EmbodiedBeamTrip
-import beam.router.skim.ActivitySimPathType.{toBeamMode, toKeyMode}
+import beam.router.skim.ActivitySimPathType._
 import beam.router.skim.ActivitySimSkimmer.{ActivitySimSkimmerInternal, ActivitySimSkimmerKey}
 import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey}
 import com.typesafe.scalalogging.LazyLogging
@@ -123,14 +123,18 @@ case class ActivitySimSkimmerEvent(
 
     val payload =
       ActivitySimSkimmerInternal(
-        travelTimeInMinutes = trip.totalTravelTimeInSecs.toDouble / 60.0,
+        travelTimeInMinutes = pathType match {
+          case SOV | HOV2 | HOV3 | SOVTOLL | HOV2TOLL | HOV3TOLL => totalInVehicleTime
+          case _                                                 => trip.totalTravelTimeInSecs.toDouble / 60.0
+        },
         generalizedTimeInMinutes = generalizedTimeInHours * 60,
         generalizedCost = generalizedCost,
-        distanceInMeters = if (distInMeters > 0.0) {
-          distInMeters
-        } else {
-          1.0
-        },
+        distanceInMeters = {
+          pathType match {
+            case SOV | HOV2 | HOV3 | SOVTOLL | HOV2TOLL | HOV3TOLL => driveDistanceInMeters
+            case _                                                 => distInMeters
+          }
+        } max 1.0,
         cost = trip.costEstimate,
         energy = energyConsumption,
         walkAccessInMinutes = walkAccess / 60.0,
