@@ -45,8 +45,11 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
 
   # INPUT Argument #1 - run name
   RUN_NAME="$1"
-  # INPUT Argument #2 - expected simulation duration
-  EXPECTED_TIME="$2" # D-HH:MM:SS, i.e. for 1 day, 2 hours and 30 minutes => 1-02:30:00
+  # INPUT Argument #2 - expected simulation duration, needed for the cluster 
+  #     to understand an order of running jobs if there are not enough nodes.
+  # The duration should be a bit longer than simulation should take (approximately).
+  # But not longer than maximum possible duration - 3 days for now (3-00:00:00).
+  EXPECTED_EXECUTION_DURATION="$2" # D-HH:MM:SS, i.e. for 1 day, 2 hours and 30 minutes => 1-02:30:00
 
   # required for doing speed comparison (BEAM simulation vs Google observations)
   export GOOGLE_API_KEY=""
@@ -108,7 +111,7 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
       --account="$ACCOUNT" \
       --job-name="$JOB_NAME" \
       --output="$JOB_LOG_FILE_PATH" \
-      --time="$EXPECTED_TIME" \
+      --time="$EXPECTED_EXECUTION_DURATION" \
       "$0" "$CODE_PHRASE"
   set +x
 
