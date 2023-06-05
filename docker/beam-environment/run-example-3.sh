@@ -13,17 +13,13 @@
 
 MAX_RAM="16"
 BEAM_CONFIG="test/input/beamville/beam.conf"
-EXISTING_CODE_PATH="/mnt/data/work/beam/beam"
+EXISTING_CODE_PATH="/mnt/data/work/beam/beam_test_folder--2023-06-05--18-44-21"
 EXISTING_DATA_PATH="/mnt/data/work/beam/beam-production/test"
 
 docker run \
   --network host \
   --env MAX_RAM=$MAX_RAM \
   --env BEAM_CONFIG=$BEAM_CONFIG \
-  --env PULL_CODE=false \
-  --env PULL_DATA=false \
-  --env S3_PUBLISH=false \
-  --env SEND_NOTIFICATION=false \
   --mount source="$EXISTING_CODE_PATH",destination=/app/sources,type=bind \
   --mount source="$EXISTING_DATA_PATH",destination=/app/data,type=bind \
   "beammodel/beam-environment:latest"

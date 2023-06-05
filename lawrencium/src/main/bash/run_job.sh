@@ -15,27 +15,31 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
 
   # what code, data and config to use for simulation
   export BEAM_BRANCH_NAME="develop"
-  export BEAM_COMMIT_SHA
+  export BEAM_COMMIT_SHA=""
   export BEAM_DATA_BRANCH_NAME="develop"
-  export BEAM_DATA_COMMIT_SHA
+  export BEAM_DATA_COMMIT_SHA=""
   export BEAM_CONFIG="test/input/beamville/beam.conf"
-  export PROFILER # either empty, 'cpu' or 'cpumem'
+  export PROFILER       # either empty, 'cpu' or 'cpumem'
 
+  export PULL_CODE="true"
+  export PULL_DATA="true"
+
+  # In order to see which partition and queue are available for current user - sacctmgr show association -p user=$USER.
   PARTITION="es1"
   QOS="es_normal"
-  MEMORY_LIMIT="480"  ## in G
+  MEMORY_LIMIT="480"  ## in GB
 
   # if uploading to s3 required - both AWS key parts should be set
   export S3_REGION="us-east-2"
   export S3_PUBLISH="false"
-  export AWS_SECRET_ACCESS_KEY
-  export AWS_ACCESS_KEY_ID
+  export AWS_SECRET_ACCESS_KEY=""
+  export AWS_ACCESS_KEY_ID=""
 
   # for sending notifications to slack SLACK_HOOK required
   # for sending updates to the spreadsheet SIMULATIONS_SPREADSHEET_UPDATE_URL required
   export SEND_NOTIFICATION="false"
-  export SLACK_HOOK_WITH_TOKEN
-  export SIMULATIONS_SPREADSHEET_UPDATE_URL
+  export SLACK_HOOK_WITH_TOKEN=""
+  export SIMULATIONS_SPREADSHEET_UPDATE_URL=""
 
   ACCOUNT="pc_beamcore"
 
@@ -45,7 +49,7 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   EXPECTED_TIME="$2" # D-HH:MM:SS, i.e. for 1 day, 2 hours and 30 minutes => 1-02:30:00
 
   # required for doing speed comparison (BEAM simulation vs Google observations)
-  export GOOGLE_API_KEY
+  export GOOGLE_API_KEY=""
 
   if [[ -z "$MEMORY_LIMIT" ]]; then
     echo "Error: MEMORY_LIMIT is not set."
@@ -60,7 +64,7 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
     exit 1
   else
     # adding current user name as part of simulation title
-    export TITLED="$USER/$RUN_NAME"
+    export NOTIFICATION_TITLED="$USER/$RUN_NAME"
   fi
 
   RANDOM_PART=$(tr -dc A-Z0-9 </dev/urandom | head -c 8)
@@ -111,23 +115,23 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
 else # this shell script is used as a BODY for the job which will be executed on a cluster node
   echo "Executing the job .."
 
-  export INSTANCE_ID=$SLURMD_NODENAME
-  export INSTANCE_TYPE="Lawrencium $SLURM_JOB_PARTITION"
-  export HOST_NAME=$HOSTNAME
+  export NOTIFICATION_INSTANCE_ID=$SLURMD_NODENAME
+  export NOTIFICATION_INSTANCE_TYPE="Lawrencium $SLURM_JOB_PARTITION"
+  export NOTIFICATION_HOST_NAME=$HOSTNAME
 
-  export WEB_BROWSER="TODO"
+  export NOTIFICATION_WEB_BROWSER="TODO"
 
   # instance (node) has no region when we using Lawrencium
-  export INSTANCE_REGION
+  export NOTIFICATION_INSTANCE_REGION=""
   # there is no shutdown wait when we using Lawrencium
-  export SHUTDOWN_WAIT
+  export NOTIFICATION_SHUTDOWN_WAIT=""
 
   IMAGE_NAME="beam-environment"
   IMAGE_TAG="latest"
   DOCKER_IMAGE_NAME="docker://beammodel/${IMAGE_NAME}:${IMAGE_TAG}"
   SINGULARITY_IMAGE_NAME="${IMAGE_NAME}_${IMAGE_TAG}.sif"
 
-  # to use https for pulling data repository
+  # to use https for pulling data repository despite a url configured for it
   export ENFORCE_HTTPS_FOR_DATA_REPOSITORY="true"
 
   echo "Pulling docker image '$DOCKER_IMAGE_NAME' ..."

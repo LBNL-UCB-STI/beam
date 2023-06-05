@@ -9,8 +9,10 @@
 # The output folder will be created before running the docker image.
 #
 
-OUT_PATH="$(pwd)/test_beam_folder--$(date "+%Y-%m-%d--%H-%M-%S")"
-mkdir -m 777 "$OUT_PATH" 2>/dev/null
+OUT_PATH="$(pwd)/../../../beam_test_folder--$(date "+%Y-%m-%d--%H-%M-%S")"
+OUT_PATH=$(realpath "$OUT_PATH")
+mkdir -m 777 "$OUT_PATH"
+echo "Using folder for beam at '$OUT_PATH'"
 
 MAX_RAM="16"
 BEAM_CONFIG="test/input/beamville/beam.conf"
@@ -22,8 +24,5 @@ docker run \
   --env BEAM_CONFIG="$BEAM_CONFIG" \
   --env BEAM_BRANCH_NAME=$BEAM_BRANCH_NAME \
   --env PULL_CODE=true \
-  --env PULL_DATA=false \
-  --env S3_PUBLISH=false \
-  --env SEND_NOTIFICATION=false \
   --mount source="$OUT_PATH",destination=/app/sources,type=bind \
   "beammodel/beam-environment:latest"
