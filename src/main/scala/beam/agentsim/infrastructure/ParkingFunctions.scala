@@ -173,7 +173,7 @@ class ParkingFunctions(
         distanceFunction,
         parkingZone.availability,
         taz,
-          inClosestZone
+        inClosestZone
       )
     } else {
       ParkingStallSampling.availabilityAwareSampling(
