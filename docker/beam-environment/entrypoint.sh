@@ -232,12 +232,13 @@ fi
 ##
 ## calculating a location for gradle cache
 ##
-if [[ -z "$GRADLE_CACHE_PATH" ]]; then
-  GRADLE_CACHE_PATH="$beam_path/.gradle"
-  echo "GRADLE_CACHE_PATH is not set, using directory by path '$GRADLE_CACHE_PATH'"
+if [ -n "$GRADLE_CACHE_PATH" ]; then
+  echo "GRADLE_CACHE_PATH set, using directory by path '$GRADLE_CACHE_PATH'"
   mkdir -p "$GRADLE_CACHE_PATH"
 else
-  echo "GRADLE_CACHE_PATH set, using directory by path '$GRADLE_CACHE_PATH'"
+  GRADLE_CACHE_PATH="$beam_path/.gradle"
+  echo "GRADLE_CACHE_PATH is not set, using directory by default path '$GRADLE_CACHE_PATH'"
+  mkdir -p "$GRADLE_CACHE_PATH"
 fi
 
 
