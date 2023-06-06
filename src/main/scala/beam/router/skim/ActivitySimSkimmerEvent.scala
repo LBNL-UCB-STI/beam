@@ -124,7 +124,7 @@ case class ActivitySimSkimmerEvent(
     val payload =
       ActivitySimSkimmerInternal(
         travelTimeInMinutes = pathType match {
-          case SOV | HOV2 | HOV3 | SOVTOLL | HOV2TOLL | HOV3TOLL => totalInVehicleTime
+          case SOV | HOV2 | HOV3 | SOVTOLL | HOV2TOLL | HOV3TOLL => totalInVehicleTime / 60.0
           case _                                                 => trip.totalTravelTimeInSecs.toDouble / 60.0
         },
         generalizedTimeInMinutes = generalizedTimeInHours * 60,
