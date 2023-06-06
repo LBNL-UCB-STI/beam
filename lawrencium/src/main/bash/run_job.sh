@@ -19,7 +19,7 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   export BEAM_DATA_BRANCH_NAME="develop"
   export BEAM_DATA_COMMIT_SHA=""
   export BEAM_CONFIG="test/input/beamville/beam.conf"
-  export PROFILER       # either empty, 'cpu' or 'cpumem'
+  export PROFILER=""    # either empty, 'cpu' or 'cpumem'
 
   export PULL_CODE="true"
   export PULL_DATA="true"
@@ -77,18 +77,18 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   # The TEMP directory for this simulation, there will be stored code and data.
   # The simulation output will be there as well.
   # /global/scratch will be cleaned after some inactive time, so, it is no advised to be used long-term.
-  BEAM_DIR="/global/scratch/users/$USER/out_beam_$NAME_SUFFIX"
-  mkdir "$BEAM_DIR"
+  BEAM_BASE_DIR="/global/scratch/users/$USER/out_beam_$NAME_SUFFIX"
+  export BEAM_DIR="$BEAM_BASE_DIR/beam"
+  mkdir -p "$BEAM_DIR"
 
   # Log file will be inside of image mounted folder initially
   # In current folder will be only a link, which will be deleted at the end of this script.
   JOB_LOG_FILE_NAME="cluster-log-file.log"
-  JOB_LOG_FILE_PATH="$BEAM_DIR/$JOB_LOG_FILE_NAME"
+  JOB_LOG_FILE_PATH="$BEAM_BASE_DIR/$JOB_LOG_FILE_NAME"
   LINK_TO_JOB_LOG_FILE="$(pwd)/out.log.$NAME_SUFFIX.log"
   ln -s "$JOB_LOG_FILE_PATH" "$LINK_TO_JOB_LOG_FILE"
   SIMULATION_HOST_LOG_FILE="/app/sources/$JOB_LOG_FILE_NAME"
 
-  export BEAM_DIR
   export JOB_LOG_FILE_PATH
   export LINK_TO_JOB_LOG_FILE
   export SIMULATION_HOST_LOG_FILE
@@ -138,7 +138,9 @@ else # this shell script is used as a BODY for the job which will be executed on
   export ENFORCE_HTTPS_FOR_DATA_REPOSITORY="true"
 
   echo "Pulling docker image '$DOCKER_IMAGE_NAME' ..."
+  set -x
   singularity pull --force "$DOCKER_IMAGE_NAME"
+  set +x
 
   echo "Running singularity image '$SINGULARITY_IMAGE_NAME' ..."
   singularity run -B "$BEAM_DIR:/app/sources" "$SINGULARITY_IMAGE_NAME"
