@@ -86,8 +86,11 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   JOB_LOG_FILE_NAME="cluster-log-file.log"
   JOB_LOG_FILE_PATH="$BEAM_BASE_DIR/$JOB_LOG_FILE_NAME"
   LINK_TO_JOB_LOG_FILE="$(pwd)/out.log.$NAME_SUFFIX.log"
-  ln -s "$JOB_LOG_FILE_PATH" "$LINK_TO_JOB_LOG_FILE"
   SIMULATION_HOST_LOG_FILE="/app/sources/$JOB_LOG_FILE_NAME"
+
+  # creating an empty log file and a link to it
+  touch "$JOB_LOG_FILE_PATH"
+  ln -s "$JOB_LOG_FILE_PATH" "$LINK_TO_JOB_LOG_FILE"
 
   export JOB_LOG_FILE_PATH
   export LINK_TO_JOB_LOG_FILE
