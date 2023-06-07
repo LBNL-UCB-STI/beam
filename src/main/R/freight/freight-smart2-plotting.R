@@ -11,6 +11,7 @@ library(sjmisc)
 library(ggmap)
 library(sf)
 library(stringr)
+library(tidyr)
 
 expansionFactor <- 1/0.5
 city <- "austin"
@@ -19,7 +20,7 @@ batch <- ""
 cityCRS <- 26910
 iteration <- 0
 eventsPrefix <- ""
-scenario <- "price-sensitivity"
+scenario <- "cost-sensitivity"
 
 ## PATHS
 mainDir <- normalizePath("~/Workspace/Data")
@@ -28,7 +29,7 @@ workDir <- pp(mainDir, "/FREIGHT/", city)
 validationDir <- pp(workDir,"/validation")
 eventsFile <- pp(eventsPrefix,iteration,".events.csv.gz")
 #linkStatsFile <- pp(eventsPrefix,iteration,".linkstats.csv.gz")
-runOutput <- pp(workDir,"/beam/runs/",scenario,"/output/")
+runOutput <- pp(workDir, "/beam/runs/", scenario, "/output/")
 dir.create(runOutput, showWarnings = FALSE)
 
 runs <- c(
@@ -102,7 +103,7 @@ write.csv(
 
 p<-ggplot(energy_consumption, aes(factor(runLabel, level=runs_label), fuelGWH, fill=energyType)) +
   geom_bar(stat='identity') +
-  labs(y='GWe',x='Scenario',fill='Powertrain', title='Freight Energy Consumptio - 2050 HighTechn')+
+  labs(y='GWh',x='Scenario',fill='Powertrain', title='Freight Energy Consumptio - 2050 HighTechn')+
   theme_marain()+
   theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+
   scale_fill_manual(values=c("#999999", "#56B4E9", "#66A61E"))
@@ -152,3 +153,21 @@ p<-ggplot(energy_vehType_vmt, aes(factor(runLabel, level=runs_label), MVMT/totVM
                              "azure3","darkgray", "azure4"
                              ))
 ggsave(pp(runOutput,'/', pp(iteration,".freight-VMT-by-powertrain-vehicletypes",eventsPrefix,".png")),p,width=10,height=4,units='in')
+
+## *** Cost Sensitivity
+
+opcost_sensitivity_analysis <- readCsv(pp(workDir, "/frism/cost-sensitivity/opcost_sensitivity_analysis.csv"))
+runs_label_2 <- c("Ref_p2", "Ref_p4", "Ref_p6", "Ref_p8", "Ref_p10", "HOP_p2",  "HOP_p4", "HOP_p6", "HOP_p8", "HOP_p10")
+
+df <- data.table::data.table(gather(opcost_sensitivity_analysis, "label_unit", "cost", -Scenario_ID, -Diesel_Scenario, -Elec_Scenario))
+
+df_filtered <- df[!label_unit %in% c("Diesel truck OP cost ($/mile)", "Non-fuel OP cost ($/mile)", "Rail OP cost ($/tonmile)")]
+ggplot(df_filtered, aes(factor(Scenario_ID, level=runs_label_2), cost, fill=label_unit)) + 
+  geom_bar(stat='identity', position = "dodge2") +
+  theme_marain() + 
+  labs(x = "Scenarios", y = "Cost", fill="Label") +
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5), 
+        strip.text = element_text(size=rel(1.2))
+        )
+
+
