@@ -96,7 +96,7 @@ class ChargingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifHomeWorkOrLongParkingDurationThenSlowChargingOnlyUnlessEnrouting(
+  def filterBasedOnChargerSpeed(
     zone: ParkingZone,
     inquiry: ParkingInquiry
   ): Boolean = {
@@ -175,8 +175,7 @@ class ChargingFunctions(
     val rideHailFastChargingOnly: Boolean = ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone, inquiry)
     val enRouteFastChargingOnly: Boolean = ifEnrouteThenFastChargingOnly(zone, inquiry)
     val chargeFastChargingOnly: Boolean = ifChargeActivityThenFastChargingOnly(zone, inquiry)
-    val overnightStaySlowChargingOnly: Boolean =
-      ifHomeWorkOrLongParkingDurationThenSlowChargingOnlyUnlessEnrouting(zone, inquiry)
+    val overnightStaySlowChargingOnly: Boolean = filterBasedOnChargerSpeed(zone, inquiry)
     val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry)
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
