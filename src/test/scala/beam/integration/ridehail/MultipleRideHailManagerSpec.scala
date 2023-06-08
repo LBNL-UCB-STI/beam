@@ -24,7 +24,7 @@ class MultipleRideHailManagerSpec extends AnyWordSpecLike with Matchers with Bea
         case pte: PathTraversalEvent if pte.vehicleId.toString.startsWith("rideHail") => pte
       }
       val groupedByFleetId = rhPTE.groupBy(pte => getFleetId(pte.vehicleId))
-      groupedByFleetId.keySet shouldBe Set("Uber", "Lyft")
+      groupedByFleetId.keySet shouldBe Set("Uber", "Lyft", "Cruise")
     }
   }
 

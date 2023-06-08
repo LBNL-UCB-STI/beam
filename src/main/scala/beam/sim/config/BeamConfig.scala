@@ -634,6 +634,7 @@ object BeamConfig {
               drive_transit_intercept: scala.Double,
               ride_hail_intercept: scala.Double,
               ride_hail_pooled_intercept: scala.Double,
+              ride_hail_subscription: scala.Double,
               ride_hail_transit_intercept: scala.Double,
               transfer: scala.Double,
               transit_crowding: scala.Double,
@@ -662,6 +663,8 @@ object BeamConfig {
                   ride_hail_pooled_intercept =
                     if (c.hasPathOrNull("ride_hail_pooled_intercept")) c.getDouble("ride_hail_pooled_intercept")
                     else 0.0,
+                  ride_hail_subscription =
+                    if (c.hasPathOrNull("ride_hail_subscription")) c.getDouble("ride_hail_subscription") else 0.0,
                   ride_hail_transit_intercept =
                     if (c.hasPathOrNull("ride_hail_transit_intercept")) c.getDouble("ride_hail_transit_intercept")
                     else 0.0,
@@ -965,6 +968,7 @@ object BeamConfig {
         }
 
         case class RideHail(
+          bestResponseType: java.lang.String,
           cav: BeamConfig.Beam.Agentsim.Agents.RideHail.Cav,
           charging: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging,
           freeSpeedLinkWeightMultiplier: scala.Double,
@@ -1507,6 +1511,8 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail = {
             BeamConfig.Beam.Agentsim.Agents.RideHail(
+              bestResponseType =
+                if (c.hasPathOrNull("bestResponseType")) c.getString("bestResponseType") else "MIN_COST",
               cav = BeamConfig.Beam.Agentsim.Agents.RideHail.Cav(
                 if (c.hasPathOrNull("cav")) c.getConfig("cav")
                 else com.typesafe.config.ConfigFactory.parseString("cav{}")
@@ -2025,9 +2031,7 @@ object BeamConfig {
               vehicleTypesFilePath =
                 if (c.hasPathOrNull("vehicleTypesFilePath")) c.getString("vehicleTypesFilePath")
                 else "/test/input/beamville/vehicleTypes.csv",
-              vehiclesFilePath =
-                if (c.hasPathOrNull("vehiclesFilePath")) c.getString("vehiclesFilePath")
-                else "/test/input/beamville/vehicles.csv"
+              vehiclesFilePath = if (c.hasPathOrNull("vehiclesFilePath")) c.getString("vehiclesFilePath") else ""
             )
           }
 
@@ -2371,8 +2375,7 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Toll = {
           BeamConfig.Beam.Agentsim.Toll(
-            filePath =
-              if (c.hasPathOrNull("filePath")) c.getString("filePath") else "/test/input/beamville/toll-prices.csv"
+            filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else ""
           )
         }
       }
