@@ -291,12 +291,7 @@ object ActivitySimPathType {
     WLK_HVY_DRV,
     WLK_COM_DRV,
     WLK_LRF_DRV,
-    WLK_EXP_DRV,
-    DRV_LOC_WLK,
-    DRV_HVY_WLK,
-    DRV_COM_WLK,
-    DRV_LRF_WLK,
-    DRV_EXP_WLK
+    WLK_EXP_DRV
   )
 
   val transitPathTypes: Seq[ActivitySimPathType] = Seq(
@@ -308,7 +303,12 @@ object ActivitySimPathType {
     DRV_COM_WLK,
     DRV_HVY_WLK,
     DRV_LOC_WLK,
-    DRV_LRF_WLK
+    DRV_LRF_WLK,
+    DRV_LOC_WLK,
+    DRV_HVY_WLK,
+    DRV_COM_WLK,
+    DRV_LRF_WLK,
+    DRV_EXP_WLK
   )
 
   val allPathTypes: Seq[ActivitySimPathType] = Seq(
