@@ -193,6 +193,7 @@ class RideHailMaster(
       val hasSubscription =
         if (alt.request.rideHailServiceSubscription.contains(alt.rideHailManagerName)) 1.0 else 0.0
 
+
       alt ->
       Map(
         "cost"         -> (cost + scaledTime),
