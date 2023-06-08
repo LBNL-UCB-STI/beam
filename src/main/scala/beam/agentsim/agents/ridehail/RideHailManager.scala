@@ -345,7 +345,9 @@ class RideHailManager(
   tncIterationStats.foreach(_.logMap())
   private val defaultCostPerSecond = defaultCostPerMinute / 60.0d
   private val pooledCostPerSecond = pooledCostPerMinute / 60.0d
-  private val savCoefficientMultiplier = managerConfig.savCoefficientMultiplier*beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.params.sav_coefficient
+
+  private val savCoefficientMultiplier =
+    managerConfig.savCoefficientMultiplier * beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.params.sav_coefficient
 
   beamServices.beamCustomizationAPI.getRidehailManagerCustomizationAPI.init(this)
 

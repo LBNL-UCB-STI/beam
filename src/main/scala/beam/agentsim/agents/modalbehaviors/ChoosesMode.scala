@@ -1430,8 +1430,8 @@ trait ChoosesMode {
   }
 
   private def createFailedODSkimmerEvent(
-                                          originActivity: Activity,
-                                          destinationActivity: Activity,
+    originActivity: Activity,
+    destinationActivity: Activity,
     mode: BeamMode
   ): ODSkimmerFailedTripEvent = {
     val (origCoord, destCoord) = (originActivity.getCoord, destinationActivity.getCoord)
