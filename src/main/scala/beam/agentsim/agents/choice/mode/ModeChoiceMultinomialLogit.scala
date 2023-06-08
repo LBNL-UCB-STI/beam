@@ -689,10 +689,8 @@ object ModeChoiceMultinomialLogit extends StrictLogging {
               val multiplier = curr.substring(separator + 1).toDouble
               Some((vehicleTypeId, multiplier))
             case None =>
-              logger.warn(s"Can't find vehicle type '${vehicleTypeStr}'")
               None
           }
-
         }
       }
       vehTypeToMultiplier.toMap

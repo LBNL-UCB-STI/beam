@@ -4168,6 +4168,7 @@ object BeamConfig {
 
         case class ActivitySimSkimmer(
           fileBaseName: java.lang.String,
+          fileOutputFormat: java.lang.String,
           name: java.lang.String
         )
 
@@ -4176,6 +4177,7 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.ActivitySimSkimmer = {
             BeamConfig.Beam.Router.Skim.ActivitySimSkimmer(
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "activitySimODSkims",
+              fileOutputFormat = if (c.hasPathOrNull("fileOutputFormat")) c.getString("fileOutputFormat") else "csv",
               name = if (c.hasPathOrNull("name")) c.getString("name") else "activity-sim-skimmer"
             )
           }
@@ -4705,6 +4707,7 @@ object BeamConfig {
     }
 
     case class WarmStart(
+      initialLinkstatsFilePath: java.lang.String,
       path: java.lang.String,
       prepareData: scala.Boolean,
       samplePopulationIntegerFlag: scala.Int,
@@ -4731,6 +4734,8 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.WarmStart = {
         BeamConfig.Beam.WarmStart(
+          initialLinkstatsFilePath =
+            if (c.hasPathOrNull("initialLinkstatsFilePath")) c.getString("initialLinkstatsFilePath") else "",
           path = if (c.hasPathOrNull("path")) c.getString("path") else "",
           prepareData = c.hasPathOrNull("prepareData") && c.getBoolean("prepareData"),
           samplePopulationIntegerFlag =
