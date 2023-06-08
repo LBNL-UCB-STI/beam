@@ -212,7 +212,7 @@ object ActivitySimPathType {
       case WLK_HVY_WLK => Some(BeamMode.SUBWAY)
       case WLK_LOC_WLK => Some(BeamMode.BUS)
       case WLK_LRF_WLK => Some(BeamMode.TRAM)
-      case WLK_TRN_WLK => Some(BeamMode.RAIL)
+      case WLK_TRN_WLK => None
       case _           => None
     }
   }
@@ -286,7 +286,29 @@ object ActivitySimPathType {
     WLK_HVY_WLK,
     WLK_EXP_WLK,
     WLK_LOC_WLK,
-    WLK_LRF_WLK
+    WLK_LRF_WLK,
+    WLK_LOC_DRV,
+    WLK_HVY_DRV,
+    WLK_COM_DRV,
+    WLK_LRF_DRV,
+    WLK_EXP_DRV,
+    DRV_LOC_WLK,
+    DRV_HVY_WLK,
+    DRV_COM_WLK,
+    DRV_LRF_WLK,
+    DRV_EXP_WLK
+  )
+
+  val transitPathTypes: Seq[ActivitySimPathType] = Seq(
+    WLK_COM_WLK,
+    WLK_HVY_WLK,
+    WLK_EXP_WLK,
+    WLK_LOC_WLK,
+    WLK_LRF_WLK,
+    DRV_COM_WLK,
+    DRV_HVY_WLK,
+    DRV_LOC_WLK,
+    DRV_LRF_WLK
   )
 
   val allPathTypes: Seq[ActivitySimPathType] = Seq(
@@ -320,6 +342,8 @@ object ActivitySimPathType {
   )
 
   def isWalkTransit(pathType: ActivitySimPathType): Boolean = walkTransitPathTypes.contains(pathType)
+
+  def isTransit(pathType: ActivitySimPathType): Boolean = transitPathTypes.contains(pathType)
 
   val allPathTypesMap: Map[String, ActivitySimPathType] =
     allPathTypes.map(x => x.toString -> x).toMap

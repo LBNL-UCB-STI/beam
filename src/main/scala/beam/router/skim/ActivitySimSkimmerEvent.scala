@@ -121,36 +121,66 @@ case class ActivitySimSkimmerEvent(
     val (walkAccess, walkAuxiliary, walkEgress, totalInVehicleTime, waitInitial, waitAuxiliary, numberOfTransitTrips) =
       calcTimes(trip)
 
-    val payload =
-      ActivitySimSkimmerInternal(
-        travelTimeInMinutes = pathType match {
-          case SOV | HOV2 | HOV3 | SOVTOLL | HOV2TOLL | HOV3TOLL => totalInVehicleTime / 60.0
-          case _                                                 => trip.totalTravelTimeInSecs.toDouble / 60.0
-        },
-        generalizedTimeInMinutes = generalizedTimeInHours * 60,
-        generalizedCost = generalizedCost,
-        distanceInMeters = {
-          pathType match {
-            case SOV | HOV2 | HOV3 | SOVTOLL | HOV2TOLL | HOV3TOLL => driveDistanceInMeters
-            case _                                                 => distInMeters
-          }
-        } max 1.0,
-        cost = trip.costEstimate,
-        energy = energyConsumption,
-        walkAccessInMinutes = walkAccess / 60.0,
-        walkEgressInMinutes = walkEgress / 60.0,
-        walkAuxiliaryInMinutes = walkAuxiliary / 60.0,
-        waitInitialInMinutes = waitInitial / 60.0,
-        waitAuxiliaryInMinutes = waitAuxiliary / 60.0,
-        totalInVehicleTimeInMinutes = totalInVehicleTime / 60.0,
-        driveTimeInMinutes = driveTimeInSeconds / 60.0,
-        driveDistanceInMeters = driveDistanceInMeters,
-        ferryInVehicleTimeInMinutes = ferryTimeInSeconds / 60.0,
-        keyInVehicleTimeInMinutes = keyInVehicleTimeInSeconds / 60.0,
-        transitBoardingsCount = numberOfTransitTrips,
-        failedTrips = 0,
-        observations = 1
-      )
+    val payload = {
+      if (isTransit(pathType) & ((totalInVehicleTime <= 0) || (keyInVehicleTimeInSeconds <= 0))) {
+        logger.warn(
+          "Observed an activitySimSkimmerEvent for path type {}, but found that IVT was zero. Event {}",
+          pathType.toString,
+          trip.toString
+        )
+        ActivitySimSkimmerInternal(
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          failedTrips = 1,
+          observations = 0
+        )
+      } else {
+        ActivitySimSkimmerInternal(
+          travelTimeInMinutes = pathType match {
+            case SOV | HOV2 | HOV3 | SOVTOLL | HOV2TOLL | HOV3TOLL => totalInVehicleTime / 60.0
+            case _                                                 => trip.totalTravelTimeInSecs.toDouble / 60.0
+          },
+          generalizedTimeInMinutes = generalizedTimeInHours * 60,
+          generalizedCost = generalizedCost,
+          distanceInMeters = {
+            pathType match {
+              case SOV | HOV2 | HOV3 | SOVTOLL | HOV2TOLL | HOV3TOLL => driveDistanceInMeters
+              case _                                                 => distInMeters
+            }
+          } max 1.0,
+          cost = trip.costEstimate,
+          energy = energyConsumption,
+          walkAccessInMinutes = walkAccess / 60.0,
+          walkEgressInMinutes = walkEgress / 60.0,
+          walkAuxiliaryInMinutes = walkAuxiliary / 60.0,
+          waitInitialInMinutes = waitInitial / 60.0,
+          waitAuxiliaryInMinutes = waitAuxiliary / 60.0,
+          totalInVehicleTimeInMinutes = totalInVehicleTime / 60.0,
+          driveTimeInMinutes = driveTimeInSeconds / 60.0,
+          driveDistanceInMeters = driveDistanceInMeters,
+          ferryInVehicleTimeInMinutes = ferryTimeInSeconds / 60.0,
+          keyInVehicleTimeInMinutes = keyInVehicleTimeInSeconds / 60.0,
+          transitBoardingsCount = numberOfTransitTrips,
+          failedTrips = 0,
+          observations = 1
+        )
+      }
+    }
     (key, payload)
   }
 }
