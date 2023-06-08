@@ -372,7 +372,7 @@ trait ChoosesMode {
           departTime,
           nextAct.getCoord,
           withWheelchair = wheelchairUser,
-          requestTime = _currentTick,
+          requestTime = _currentTick.getOrElse(0),
           requester = self,
           rideHailServiceSubscription = attributes.rideHailServiceSubscription,
           triggerId = getCurrentTriggerIdOrGenerate,
@@ -1018,7 +1018,7 @@ trait ChoosesMode {
       legs.head.startTime,
       beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc),
       wheelchairUser,
-      requestTime = _currentTick,
+      requestTime = _currentTick.getOrElse(0),
       requester = self,
       rideHailServiceSubscription = attributes.rideHailServiceSubscription,
       triggerId = getCurrentTriggerIdOrGenerate
