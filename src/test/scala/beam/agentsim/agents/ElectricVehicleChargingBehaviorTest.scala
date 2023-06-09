@@ -292,7 +292,7 @@ class ElectricVehicleChargingBehaviorTest
     ", expecting at least 4 enroute events for each of the 50 vehicles."
 
     freePluginEvents.size should be > expensivePluginEvents.size withClue
-    ", agents should prefer top chargers for enrouting (smaller ParkingTicketCost)."
+    ", agents should prefer cheaper chargers for enrouting (smaller ParkingTicketCost)."
   }
 
   "Ride Hail Electric vehicles" should "only recharge at suitable charging stations." in {
