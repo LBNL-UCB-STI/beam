@@ -36,8 +36,8 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
         store_dict[old] = new
     return new
 
-scenario_name = "demand-growth"
-run_name = "2040_b2c_growth_base"
+scenario_name = "locker-delivery"
+run_name = "2040_Con_p60_e0"
 directory_input = os.path.expanduser('~/Workspace/Data/FREIGHT/austin/frism/'+scenario_name+"/"+run_name)
 directory_output = os.path.expanduser('~/Workspace/Data/FREIGHT/austin/beam_freight/'+scenario_name+"/"+run_name)
 Path(directory_output).mkdir(parents=True, exist_ok=True)
