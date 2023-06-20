@@ -1,7 +1,7 @@
 #!/bin/bash
 
-config=$1
-beam_image="beammodel/beam:0.8.6"
+config="test/input/beamville/beam.conf"
+beam_image="beammodel/beam:1.0"
 input_folder_name="test"
 output_folder_name="beam_output"
 mkdir -m 777 $output_folder_name 2>/dev/null

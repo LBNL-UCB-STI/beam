@@ -138,7 +138,7 @@ configurations.all {
 
 dependencies {
 
-    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.17') {
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.19') {
         exclude group: 'com.github.LBNL-UCB-STI', module: 'r5'
         exclude group: 'org.matsim', module: 'matsim'
     }
@@ -195,7 +195,6 @@ dependencies {
         exclude group: 'log4j', module: 'log4j'
     }
 
-
     implementation "org.slf4j:slf4j-api:${slf4jVersion}"
     implementation "ch.qos.logback:logback-classic:1.2.3"
     implementation "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
@@ -209,7 +208,7 @@ dependencies {
     implementation "com.sigopt:sigopt-java:4.9.0"
     implementation group: 'com.graphhopper', name: 'graphhopper-reader-osm', version: '1.0'
 
-    implementation("com.uber:h3:3.4.1")
+    implementation("com.uber:h3:3.7.2")
     implementation("com.github.LBNL-UCB-STI:jsprit-wrapper:v0.5.1")
     implementation("com.github.LBNL-UCB-STI:omx-java:v2.0.1")
 
@@ -225,11 +224,11 @@ dependencies {
     /////////////////////////////////
 
     // CORE Scala //
-    implementation "org.scala-lang:scala-library:2.12.13"
+    implementation "org.scala-lang:scala-library:2.12.16"
     implementation group: 'org.scala-lang.modules', name: "scala-xml_${scalaBinaryVersion}", version: '1.0.6'
 
     // NEEDED FOR USING REPL //
-    implementation "org.scala-lang:scala-compiler:2.12.13"
+    implementation "org.scala-lang:scala-compiler:2.12.16"
 
     // TEST Scala //
     testImplementation group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.2.9'
