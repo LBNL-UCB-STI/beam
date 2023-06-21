@@ -59,7 +59,7 @@ class UnmatchedRideHailRequestSkimmerEvent(
     RidehailSkimmerInternal(
       waitTimeForRequests = if (isReservation) Double.NaN else 0,
       costPerMileForRequests = if (isReservation) Double.NaN else 0,
-      unmatchedRequestsPercent = if (isReservation) Double.NaN else 0,
+      unmatchedRequestsPercent = if (isReservation) 100.0 else 0,
       waitTimeForQuotes = Double.NaN,
       costPerMileForQuotes = Double.NaN,
       unmatchedQuotesPercent = 100.0,
