@@ -23,7 +23,7 @@ class RideHailSkimmer @Inject() (
   override protected val skimFileBaseName: String = RideHailSkimmer.fileBaseName
 
   override protected val skimFileHeader =
-    "tazId,hour,reservationType,wheelchairRequired,serviceName,waitTimeForRequests,costPerMileForRequests,unmatchedRequestsPercent,waitTimeForQuotes,costPerMileForQuotes,unmatchedQuotesPercent,accessibleVehiclesPercent,numberOfQuotesRequested,numberOfQuotesReturned,observations,iterations"
+    "tazId,hour,reservationType,wheelchairRequired,serviceName,waitTimeForRequests,costPerMileForRequests,unmatchedRequestsPercent,waitTimeForQuotes,costPerMileForQuotes,unmatchedQuotesPercent,accessibleVehiclesPercent,numberOfReservationsRequested,numberOfReservationsReturned,observations,iterations"
   override protected val skimName: String = RideHailSkimmer.name
   override protected val skimType: Skims.SkimType.Value = Skims.SkimType.RH_SKIMMER
 
@@ -46,8 +46,8 @@ class RideHailSkimmer @Inject() (
         costPerMileForQuotes = Option(line("costPerMileForQuotes")).map(_.toDouble).getOrElse(Double.NaN),
         unmatchedQuotesPercent = line("unmatchedQuotesPercent").toDouble,
         accessibleVehiclePercent = line("accessibleVehiclePercent").toDouble,
-        numberOfReservationsRequested = line("numberOfQuotesRequested").toInt,
-        numberOfReservationsReturned = line("numberOfQuotesReturned").toInt,
+        numberOfReservationsRequested = line("numberOfReservationsRequested").toInt,
+        numberOfReservationsReturned = line("numberOfReservationsReturned").toInt,
         observations = line("observations").toInt,
         iterations = line("iterations").toInt
       )
@@ -82,8 +82,10 @@ class RideHailSkimmer @Inject() (
       RidehailSkimmerInternal(
         waitTimeForRequests =
           agg.aggregate(_.waitTimeForRequests, (x: RidehailSkimmerInternal) => x.numberOfReservationsRequested),
-        costPerMileForRequests = agg.aggregate(_.costPerMileForRequests),
-        unmatchedRequestsPercent = agg.aggregate(_.unmatchedRequestsPercent),
+        costPerMileForRequests =
+          agg.aggregate(_.costPerMileForRequests, (x: RidehailSkimmerInternal) => x.numberOfReservationsRequested),
+        unmatchedRequestsPercent =
+          agg.aggregate(_.unmatchedRequestsPercent, (x: RidehailSkimmerInternal) => x.numberOfReservationsRequested),
         waitTimeForQuotes = agg.aggregate(_.waitTimeForQuotes),
         costPerMileForQuotes = agg.aggregate(_.costPerMileForQuotes),
         unmatchedQuotesPercent = agg.aggregate(_.unmatchedQuotesPercent),

@@ -17,7 +17,7 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode.RIDE_HAIL_POOLED
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
-import beam.router.skim.event.RideHailSkimmerEvent
+import beam.router.skim.event.{RideHailSkimmerEvent, UnmatchedRideHailRequestSkimmerEvent}
 import beam.sim.{BeamScenario, BeamServices, RideHailFleetInitializerProvider}
 import beam.utils.MeasureUnitConversion.METERS_IN_MILE
 import beam.utils.logging.LoggingMessageActor
@@ -112,24 +112,30 @@ class RideHailMaster(
         inquiriesWithResponses.remove(requestId)
         newRequestWithResponses.responses.foreach { response =>
           eventsManager.processEvent(
-            new RideHailSkimmerEvent(
-              eventTime = response.request.requestTime,
-              tazId = beamScenario.tazTreeMap.getTAZ(response.request.pickUpLocationUTM).tazId,
-              reservationType = if (response.request.asPooled) Pooled else Solo,
-              wheelchairRequired = response.request.withWheelchair,
-              serviceName = response.rideHailManagerName,
-              waitTime =
-                response.travelProposal.map(_.timeToCustomer(response.request.customer)).getOrElse(Int.MaxValue),
-              costPerMile = response.travelProposal
-                .map { prop =>
-                  prop.estimatedPrice(response.request.customer.personId) /
-                  prop.travelDistanceForCustomer(response.request.customer) * METERS_IN_MILE
-                }
-                .getOrElse(Double.NaN),
-              vehicleIsWheelchairAccessible =
-                response.travelProposal.exists(_.rideHailAgentLocation.vehicleType.isWheelchairAccessible),
-              isReservation = false
-            )
+            response.travelProposal match {
+              case Some(prop) =>
+                new RideHailSkimmerEvent(
+                  eventTime = response.request.requestTime,
+                  tazId = beamScenario.tazTreeMap.getTAZ(response.request.pickUpLocationUTM).tazId,
+                  reservationType = if (response.request.asPooled) Pooled else Solo,
+                  wheelchairRequired = response.request.withWheelchair,
+                  serviceName = response.rideHailManagerName,
+                  waitTime = prop.timeToCustomer(response.request.customer),
+                  costPerMile = prop.estimatedPrice(response.request.customer.personId) /
+                    prop.travelDistanceForCustomer(response.request.customer) * METERS_IN_MILE,
+                  vehicleIsWheelchairAccessible = prop.rideHailAgentLocation.vehicleType.isWheelchairAccessible,
+                  isReservation = false
+                )
+              case None =>
+                new UnmatchedRideHailRequestSkimmerEvent(
+                  eventTime = response.request.requestTime,
+                  tazId = beamScenario.tazTreeMap.getTAZ(response.request.pickUpLocationUTM).tazId,
+                  reservationType = if (response.request.asPooled) Pooled else Solo,
+                  wheelchairRequired = response.request.withWheelchair,
+                  serviceName = response.rideHailManagerName,
+                  isReservation = false
+                )
+            }
           )
         }
         val bestResponse: RideHailResponse =
