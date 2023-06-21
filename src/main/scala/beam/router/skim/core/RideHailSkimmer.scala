@@ -109,7 +109,7 @@ class RideHailSkimmer @Inject() (
         numberOfReservationsReturned = agg.aggregate(_.numberOfReservationsReturned, weighted = false),
         numberOfQuotesRequested = agg.aggregate(_.numberOfQuotesRequested, weighted = false),
         numberOfQuotesReturned = agg.aggregate(_.numberOfQuotesReturned, weighted = false),
-        observations = agg.aggregate(_.observations)
+        observations = agg.aggregate(_.observations, weighted = false)
       )
     }
 }
