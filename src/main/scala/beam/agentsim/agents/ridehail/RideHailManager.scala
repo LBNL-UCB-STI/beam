@@ -723,7 +723,6 @@ class RideHailManager(
             ),
             rideHailResourceAllocationManager.maxWaitTimeInSec,
             walkToFromStop = inquiryIdToWalkTrips.get(request.requestId),
-            singleOccupantQuoteAndPoolingInfo.poolingInfo,
             modeOptions = supportedModes,
             if (supportedModes.forall(_ == RIDE_HAIL)) None else singleOccupantQuoteAndPoolingInfo.poolingInfo
           )

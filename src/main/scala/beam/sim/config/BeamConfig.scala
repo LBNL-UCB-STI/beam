@@ -1111,10 +1111,9 @@ object BeamConfig {
             pooledCostPerMinute: scala.Double,
             repositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager,
             rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager,
-            supportedModes: java.lang.String,
-            rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager,
             savCoefficientMultiplier: scala.Double,
-            stopFilePath: scala.Option[java.lang.String]
+            stopFilePath: scala.Option[java.lang.String],
+            supportedModes: java.lang.String
           )
 
           object Managers$Elm {
@@ -1495,8 +1494,7 @@ object BeamConfig {
                 ),
                 savCoefficientMultiplier =
                   if (c.hasPathOrNull("savCoefficientMultiplier")) c.getDouble("savCoefficientMultiplier") else 0.0,
-                stopFilePath = if (c.hasPathOrNull("stopFilePath")) Some(c.getString("stopFilePath")) else None
-                ),
+                stopFilePath = if (c.hasPathOrNull("stopFilePath")) Some(c.getString("stopFilePath")) else None,
                 supportedModes =
                   if (c.hasPathOrNull("supportedModes")) c.getString("supportedModes")
                   else "ride_hail, ride_hail_pooled"
