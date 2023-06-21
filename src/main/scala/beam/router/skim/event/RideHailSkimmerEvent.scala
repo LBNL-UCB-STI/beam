@@ -31,7 +31,7 @@ class RideHailSkimmerEvent(
     RidehailSkimmerInternal(
       waitTimeForRequests = if (isReservation) waitTime else 0,
       costPerMileForRequests = if (isReservation) costPerMile else 0,
-      unmatchedRequestsPercent = 0,
+      unmatchedRequestsPercent = 0.0,
       waitTimeForQuotes = waitTime,
       costPerMileForQuotes = costPerMile,
       unmatchedQuotesPercent = 0.0,
