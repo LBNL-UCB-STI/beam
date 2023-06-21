@@ -18,7 +18,8 @@ class RideHailSkimmerEvent(
   serviceName: String,
   waitTime: Int,
   costPerMile: Double,
-  vehicleIsWheelchairAccessible: Boolean
+  vehicleIsWheelchairAccessible: Boolean,
+  isReservation: Boolean
 ) extends AbstractSkimmerEvent(eventTime) {
 
   override protected val skimName: String = RideHailSkimmer.name
@@ -27,7 +28,17 @@ class RideHailSkimmerEvent(
     RidehailSkimmerKey(tazId, SkimsUtils.timeToBin(eventTime.toInt), reservationType, wheelchairRequired, serviceName)
 
   override val getSkimmerInternal: AbstractSkimmerInternal =
-    RidehailSkimmerInternal(waitTime, costPerMile, 0, if (vehicleIsWheelchairAccessible) 1.0 else 0.0)
+    RidehailSkimmerInternal(
+      waitTimeForRequests = if (isReservation) waitTime else 0,
+      costPerMileForRequests = if (isReservation) costPerMile else 0,
+      unmatchedRequestsPercent = 0,
+      waitTimeForQuotes = waitTime,
+      costPerMileForQuotes = costPerMile,
+      unmatchedQuotesPercent = 0,
+      accessibleVehiclePercent = if (vehicleIsWheelchairAccessible) 1.0 else 0.0,
+      numberOfReservationsRequested = if (isReservation) 1 else 0,
+      numberOfReservationsReturned = 1
+    )
 }
 
 class UnmatchedRideHailRequestSkimmerEvent(
@@ -35,7 +46,8 @@ class UnmatchedRideHailRequestSkimmerEvent(
   tazId: Id[TAZ],
   reservationType: RideHailReservationType,
   wheelchairRequired: Boolean,
-  serviceName: String
+  serviceName: String,
+  isReservation: Boolean
 ) extends AbstractSkimmerEvent(eventTime) {
 
   override protected val skimName: String = RideHailSkimmer.name
@@ -44,5 +56,15 @@ class UnmatchedRideHailRequestSkimmerEvent(
     RidehailSkimmerKey(tazId, SkimsUtils.timeToBin(eventTime.toInt), reservationType, wheelchairRequired, serviceName)
 
   override val getSkimmerInternal: AbstractSkimmerInternal =
-    RidehailSkimmerInternal(Double.NaN, Double.NaN, 100.0, Double.NaN)
+    RidehailSkimmerInternal(
+      waitTimeForRequests = if (isReservation) Double.NaN else 0,
+      costPerMileForRequests = if (isReservation) Double.NaN else 0,
+      unmatchedRequestsPercent = if (isReservation) Double.NaN else 0,
+      waitTimeForQuotes = Double.NaN,
+      costPerMileForQuotes = Double.NaN,
+      unmatchedQuotesPercent = 100.0,
+      accessibleVehiclePercent = Double.NaN,
+      numberOfReservationsRequested = 1,
+      numberOfReservationsReturned = if (isReservation) 1 else 0
+    )
 }
