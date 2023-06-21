@@ -74,14 +74,13 @@ class RideHailSkimmer @Inject() (
           agg.aggregate(_.costPerMileForQuotes, (x: RidehailSkimmerInternal) => x.numberOfQuotesReturned),
         unmatchedQuotesPercent =
           agg.aggregate(_.unmatchedQuotesPercent, (x: RidehailSkimmerInternal) => x.numberOfQuotesRequested),
-        accessibleVehiclePercent = agg.aggregate(_.accessibleVehiclePercent),
-        numberOfReservationsRequested =
-          agg.aggregate(_.numberOfReservationsRequested, (_: RidehailSkimmerInternal) => -1),
-        numberOfReservationsReturned =
-          agg.aggregate(_.numberOfReservationsReturned, (_: RidehailSkimmerInternal) => -1),
-        numberOfQuotesRequested = agg.aggregate(_.numberOfQuotesRequested, (_: RidehailSkimmerInternal) => -1),
-        numberOfQuotesReturned = agg.aggregate(_.numberOfQuotesReturned, (_: RidehailSkimmerInternal) => -1),
-        observations = agg.aggregate(_.observations, (_: RidehailSkimmerInternal) => 1),
+        accessibleVehiclePercent =
+          agg.aggregate(_.accessibleVehiclePercent, (x: RidehailSkimmerInternal) => x.numberOfQuotesRequested),
+        numberOfReservationsRequested = agg.aggregate(_.numberOfReservationsRequested, weighted = false),
+        numberOfReservationsReturned = agg.aggregate(_.numberOfReservationsReturned, weighted = false),
+        numberOfQuotesRequested = agg.aggregate(_.numberOfQuotesRequested, weighted = false),
+        numberOfQuotesReturned = agg.aggregate(_.numberOfQuotesReturned, weighted = false),
+        observations = agg.aggregate(_.observations, weighted = false),
         iterations = agg.aggregateObservations
       )
     }
@@ -104,13 +103,12 @@ class RideHailSkimmer @Inject() (
           agg.aggregate(_.costPerMileForQuotes, (x: RidehailSkimmerInternal) => x.numberOfQuotesReturned),
         unmatchedQuotesPercent =
           agg.aggregate(_.unmatchedQuotesPercent, (x: RidehailSkimmerInternal) => x.numberOfQuotesRequested),
-        accessibleVehiclePercent = agg.aggregate(_.accessibleVehiclePercent),
-        numberOfReservationsRequested =
-          agg.aggregate(_.numberOfReservationsRequested, (_: RidehailSkimmerInternal) => -1),
-        numberOfReservationsReturned =
-          agg.aggregate(_.numberOfReservationsReturned, (_: RidehailSkimmerInternal) => -1),
-        numberOfQuotesRequested = agg.aggregate(_.numberOfQuotesRequested, (_: RidehailSkimmerInternal) => -1),
-        numberOfQuotesReturned = agg.aggregate(_.numberOfQuotesReturned, (_: RidehailSkimmerInternal) => -1),
+        accessibleVehiclePercent =
+          agg.aggregate(_.accessibleVehiclePercent, (x: RidehailSkimmerInternal) => x.numberOfQuotesRequested),
+        numberOfReservationsRequested = agg.aggregate(_.numberOfReservationsRequested, weighted = false),
+        numberOfReservationsReturned = agg.aggregate(_.numberOfReservationsReturned, weighted = false),
+        numberOfQuotesRequested = agg.aggregate(_.numberOfQuotesRequested, weighted = false),
+        numberOfQuotesReturned = agg.aggregate(_.numberOfQuotesReturned, weighted = false),
         observations = agg.aggregate(_.observations)
       )
     }
