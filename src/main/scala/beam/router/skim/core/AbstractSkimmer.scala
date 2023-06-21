@@ -269,13 +269,12 @@ object AbstractSkimmer {
 
   def aggregateWithinIteration[T <: AbstractSkimmerInternal](
     prevObservation: Option[AbstractSkimmerInternal],
-    currObservation: AbstractSkimmerInternal,
-    aggregatorFunction: T => Int = (x: AbstractSkimmerInternal) => x.observations
+    currObservation: AbstractSkimmerInternal
   )(aggregate: Aggregator[T] => T): AbstractSkimmerInternal = {
     val maybePrevSkim = prevObservation.asInstanceOf[Option[T]]
     maybePrevSkim.fold(currObservation) { prevSkim =>
       val currSkim = currObservation.asInstanceOf[T]
-      aggregate(new Aggregator(prevSkim, currSkim, aggregatorFunction(prevSkim), aggregatorFunction(currSkim)))
+      aggregate(new Aggregator(prevSkim, currSkim, prevSkim.observations, currSkim.observations))
     }
   }
 
