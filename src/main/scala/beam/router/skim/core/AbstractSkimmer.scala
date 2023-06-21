@@ -265,7 +265,8 @@ object AbstractSkimmer {
   def aggregate(a: Double, b: Double, aObservations: Int, bObservations: Int): Double =
     if (b.isNaN) a
     else if (a.isNaN) b
-    else if (aObservations + bObservations == 0) Double.NaN
+    else if ((aObservations == 0) && (bObservations == 0)) Double.NaN
+    else if ((aObservations < 0) || (bObservations < 0)) a + b
     else (a * aObservations + b * bObservations) / (aObservations + bObservations)
 
   def aggregateWithinIteration[T <: AbstractSkimmerInternal](
