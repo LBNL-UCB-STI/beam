@@ -34,11 +34,12 @@ class RideHailSkimmerEvent(
       unmatchedRequestsPercent = 0,
       waitTimeForQuotes = waitTime,
       costPerMileForQuotes = costPerMile,
-      unmatchedQuotesPercent = 0,
+      unmatchedQuotesPercent = 0.0,
       accessibleVehiclePercent = if (vehicleIsWheelchairAccessible) 1.0 else 0.0,
       numberOfReservationsRequested = if (isReservation) 1 else 0,
       numberOfReservationsReturned = if (isReservation) 1 else 0,
-      observations = if (isReservation) 0 else 1
+      numberOfQuotesRequested = if (isReservation) 0 else 1,
+      numberOfQuotesReturned = if (isReservation) 0 else 1
     )
 }
 
@@ -67,6 +68,7 @@ class UnmatchedRideHailRequestSkimmerEvent(
       accessibleVehiclePercent = if (wheelchairRequired) 100.0 else 0.0,
       numberOfReservationsRequested = if (isReservation) 1 else 0,
       numberOfReservationsReturned = 0,
-      observations = if (isReservation) 0 else 1
+      numberOfQuotesRequested = if (isReservation) 0 else 1,
+      numberOfQuotesReturned = 0
     )
 }

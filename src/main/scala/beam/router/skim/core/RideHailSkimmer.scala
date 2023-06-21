@@ -23,7 +23,7 @@ class RideHailSkimmer @Inject() (
   override protected val skimFileBaseName: String = RideHailSkimmer.fileBaseName
 
   override protected val skimFileHeader =
-    "tazId,hour,reservationType,wheelchairRequired,serviceName,waitTimeForRequests,costPerMileForRequests,unmatchedRequestsPercent,waitTimeForQuotes,costPerMileForQuotes,unmatchedQuotesPercent,accessibleVehiclesPercent,numberOfReservationsRequested,numberOfReservationsReturned,observations,iterations"
+    "tazId,hour,reservationType,wheelchairRequired,serviceName,waitTimeForRequests,costPerMileForRequests,unmatchedRequestsPercent,waitTimeForQuotes,costPerMileForQuotes,unmatchedQuotesPercent,accessibleVehiclesPercent,numberOfReservationsRequested,numberOfReservationsReturned,numberOfQuotesRequested,numberOfQuotesReturned,observations,iterations"
   override protected val skimName: String = RideHailSkimmer.name
   override protected val skimType: Skims.SkimType.Value = Skims.SkimType.RH_SKIMMER
 
@@ -48,6 +48,8 @@ class RideHailSkimmer @Inject() (
         accessibleVehiclePercent = line("accessibleVehiclePercent").toDouble,
         numberOfReservationsRequested = line("numberOfReservationsRequested").toInt,
         numberOfReservationsReturned = line("numberOfReservationsReturned").toInt,
+        numberOfQuotesRequested = line("numberOfQuotesRequested").toInt,
+        numberOfQuotesReturned = line("numberOfQuotesReturned").toInt,
         observations = line("observations").toInt,
         iterations = line("iterations").toInt
       )
@@ -60,16 +62,25 @@ class RideHailSkimmer @Inject() (
   ): AbstractSkimmerInternal =
     AbstractSkimmer.aggregateOverIterations[RidehailSkimmerInternal](prevIteration, currIteration) { agg =>
       RidehailSkimmerInternal(
-        waitTimeForRequests = agg.aggregate(_.waitTimeForRequests),
-        costPerMileForRequests = agg.aggregate(_.costPerMileForRequests),
-        unmatchedRequestsPercent = agg.aggregate(_.unmatchedRequestsPercent),
-        waitTimeForQuotes = agg.aggregate(_.waitTimeForQuotes),
-        costPerMileForQuotes = agg.aggregate(_.costPerMileForQuotes),
-        unmatchedQuotesPercent = agg.aggregate(_.unmatchedQuotesPercent),
+        waitTimeForRequests =
+          agg.aggregate(_.waitTimeForRequests, (x: RidehailSkimmerInternal) => x.numberOfReservationsReturned),
+        costPerMileForRequests =
+          agg.aggregate(_.costPerMileForRequests, (x: RidehailSkimmerInternal) => x.numberOfReservationsReturned),
+        unmatchedRequestsPercent =
+          agg.aggregate(_.unmatchedRequestsPercent, (x: RidehailSkimmerInternal) => x.numberOfReservationsRequested),
+        waitTimeForQuotes =
+          agg.aggregate(_.waitTimeForQuotes, (x: RidehailSkimmerInternal) => x.numberOfQuotesReturned),
+        costPerMileForQuotes =
+          agg.aggregate(_.costPerMileForQuotes, (x: RidehailSkimmerInternal) => x.numberOfQuotesReturned),
+        unmatchedQuotesPercent =
+          agg.aggregate(_.unmatchedQuotesPercent, (x: RidehailSkimmerInternal) => x.numberOfQuotesRequested),
         accessibleVehiclePercent = agg.aggregate(_.accessibleVehiclePercent),
-        numberOfReservationsRequested = agg.aggregate(_.numberOfReservationsRequested),
-        numberOfReservationsReturned = agg.aggregate(_.numberOfReservationsReturned),
-        observations = agg.aggregate(_.observations),
+        numberOfReservationsRequested =
+          agg.aggregate(_.numberOfReservationsRequested, (_: RidehailSkimmerInternal) => 1),
+        numberOfReservationsReturned = agg.aggregate(_.numberOfReservationsReturned, (_: RidehailSkimmerInternal) => 1),
+        numberOfQuotesRequested = agg.aggregate(_.numberOfQuotesRequested, (_: RidehailSkimmerInternal) => 1),
+        numberOfQuotesReturned = agg.aggregate(_.numberOfQuotesReturned, (_: RidehailSkimmerInternal) => 1),
+        observations = agg.aggregate(_.observations, (_: RidehailSkimmerInternal) => 1),
         iterations = agg.aggregateObservations
       )
     }
@@ -81,18 +92,24 @@ class RideHailSkimmer @Inject() (
     AbstractSkimmer.aggregateWithinIteration[RidehailSkimmerInternal](prevObservation, currObservation) { agg =>
       RidehailSkimmerInternal(
         waitTimeForRequests =
-          agg.aggregate(_.waitTimeForRequests, (x: RidehailSkimmerInternal) => x.numberOfReservationsRequested),
+          agg.aggregate(_.waitTimeForRequests, (x: RidehailSkimmerInternal) => x.numberOfReservationsReturned),
         costPerMileForRequests =
-          agg.aggregate(_.costPerMileForRequests, (x: RidehailSkimmerInternal) => x.numberOfReservationsRequested),
+          agg.aggregate(_.costPerMileForRequests, (x: RidehailSkimmerInternal) => x.numberOfReservationsReturned),
         unmatchedRequestsPercent =
           agg.aggregate(_.unmatchedRequestsPercent, (x: RidehailSkimmerInternal) => x.numberOfReservationsRequested),
-        waitTimeForQuotes = agg.aggregate(_.waitTimeForQuotes),
-        costPerMileForQuotes = agg.aggregate(_.costPerMileForQuotes),
-        unmatchedQuotesPercent = agg.aggregate(_.unmatchedQuotesPercent),
+        waitTimeForQuotes =
+          agg.aggregate(_.waitTimeForQuotes, (x: RidehailSkimmerInternal) => x.numberOfQuotesReturned),
+        costPerMileForQuotes =
+          agg.aggregate(_.costPerMileForQuotes, (x: RidehailSkimmerInternal) => x.numberOfQuotesReturned),
+        unmatchedQuotesPercent =
+          agg.aggregate(_.unmatchedQuotesPercent, (x: RidehailSkimmerInternal) => x.numberOfQuotesRequested),
         accessibleVehiclePercent = agg.aggregate(_.accessibleVehiclePercent),
-        numberOfReservationsRequested = agg.aggregate(_.numberOfReservationsRequested),
-        numberOfReservationsReturned = agg.aggregate(_.numberOfReservationsReturned),
-        observations = agg.aggregateObservations
+        numberOfReservationsRequested =
+          agg.aggregate(_.numberOfReservationsRequested, (_: RidehailSkimmerInternal) => 1),
+        numberOfReservationsReturned = agg.aggregate(_.numberOfReservationsReturned, (_: RidehailSkimmerInternal) => 1),
+        numberOfQuotesRequested = agg.aggregate(_.numberOfQuotesRequested, (_: RidehailSkimmerInternal) => 1),
+        numberOfQuotesReturned = agg.aggregate(_.numberOfQuotesReturned, (_: RidehailSkimmerInternal) => 1),
+        observations = agg.aggregate(_.observations)
       )
     }
 }
@@ -121,7 +138,9 @@ object RideHailSkimmer extends LazyLogging {
     unmatchedQuotesPercent: Double,
     numberOfReservationsRequested: Int,
     numberOfReservationsReturned: Int,
-    observations: Int = 1, // Note: We are defining an observation as a quote requested
+    numberOfQuotesRequested: Int,
+    numberOfQuotesReturned: Int,
+    observations: Int = 1,
     iterations: Int = 1
   ) extends AbstractSkimmerInternal {
     override def toCsv: String = AbstractSkimmer.toCsv(productIterator)
