@@ -37,7 +37,8 @@ class RideHailSkimmerEvent(
       unmatchedQuotesPercent = 0,
       accessibleVehiclePercent = if (vehicleIsWheelchairAccessible) 1.0 else 0.0,
       numberOfReservationsRequested = if (isReservation) 1 else 0,
-      numberOfReservationsReturned = 1
+      numberOfReservationsReturned = if (isReservation) 1 else 0,
+      observations = if (isReservation) 0 else 1
     )
 }
 
@@ -57,14 +58,15 @@ class UnmatchedRideHailRequestSkimmerEvent(
 
   override val getSkimmerInternal: AbstractSkimmerInternal =
     RidehailSkimmerInternal(
-      waitTimeForRequests = if (isReservation) Double.NaN else 0,
-      costPerMileForRequests = if (isReservation) Double.NaN else 0,
-      unmatchedRequestsPercent = if (isReservation) 100.0 else 0,
-      waitTimeForQuotes = Double.NaN,
-      costPerMileForQuotes = Double.NaN,
-      unmatchedQuotesPercent = 100.0,
-      accessibleVehiclePercent = Double.NaN,
-      numberOfReservationsRequested = 1,
-      numberOfReservationsReturned = if (isReservation) 1 else 0
+      waitTimeForRequests = 0,
+      costPerMileForRequests = 0,
+      unmatchedRequestsPercent = if (isReservation) 100.0 else 0.0,
+      waitTimeForQuotes = 0,
+      costPerMileForQuotes = 0,
+      unmatchedQuotesPercent = if (isReservation) 0.0 else 100.0,
+      accessibleVehiclePercent = if (wheelchairRequired) 100.0 else 0.0,
+      numberOfReservationsRequested = if (isReservation) 1 else 0,
+      numberOfReservationsReturned = 0,
+      observations = if (isReservation) 0 else 1
     )
 }

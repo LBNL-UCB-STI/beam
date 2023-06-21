@@ -121,7 +121,7 @@ object RideHailSkimmer extends LazyLogging {
     unmatchedQuotesPercent: Double,
     numberOfReservationsRequested: Int,
     numberOfReservationsReturned: Int,
-    observations: Int = 1,
+    observations: Int = 1, // Note: We are defining an observation as a quote requested
     iterations: Int = 1
   ) extends AbstractSkimmerInternal {
     override def toCsv: String = AbstractSkimmer.toCsv(productIterator)
