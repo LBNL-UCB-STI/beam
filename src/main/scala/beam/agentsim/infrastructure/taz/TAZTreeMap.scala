@@ -2,6 +2,7 @@ package beam.agentsim.infrastructure.taz
 
 import beam.agentsim.infrastructure.taz.TAZTreeMap.logger
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
+import beam.utils.SortingUtil
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.{HasQuadBounds, QuadTreeBounds}
 import com.vividsolutions.jts.geom.Geometry
@@ -50,7 +51,11 @@ class TAZTreeMap(
   private val unmatchedLinkIds: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
   lazy val tazListContainsGeoms: Boolean = tazQuadTree.values().asScala.headOption.exists(_.geometry.isDefined)
   private val failedLinkLookups: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
-  private val zoneOrdering = maybeZoneOrdering.getOrElse(tazQuadTree.values().asScala.map(_.tazId))
+
+  val orderedTazIds: Seq[String] = {
+    val tazIds = tazQuadTree.values().asScala.map(_.tazId.toString).toSeq
+    maybeZoneOrdering.fold(SortingUtil.sortAsIntegers(tazIds).getOrElse(tazIds.sorted))(_.map(_.toString))
+  }
 
   def getTAZfromLink(linkId: Id[Link]): Option[TAZ] = {
     linkIdToTAZMapping.get(linkId) match {
@@ -63,10 +68,6 @@ class TAZTreeMap(
 
   def getTAZs: Iterable[TAZ] = {
     tazQuadTree.values().asScala
-  }
-
-  def getOrderedTazIds: Seq[String] = {
-    zoneOrdering.map(_.toString).toSeq
   }
 
   for (taz: TAZ <- tazQuadTree.values().asScala) {
