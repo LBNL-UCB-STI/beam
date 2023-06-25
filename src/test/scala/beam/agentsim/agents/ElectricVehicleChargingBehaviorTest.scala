@@ -408,9 +408,9 @@ class ElectricVehicleChargingBehaviorTest
       EventReader.getEventsFilePath(matsimConfig, "events", "xml").getAbsolutePath
     )
 
-    val closestTAZsHuman = List("10")
+    //val closestTAZsHuman = List("10")
     val closestTAZsCAV = List("12")
-    val furtherTAZsHuman = List("11", "21", "31")
+    //val furtherTAZsHuman = List("11", "21", "31")
     val furtherTAZsCAV = List("13", "23", "33")
     val unsuitableChargersTAZs = List("8", "9", "18", "19", "28", "29", "38", "39", "20", "22", "30", "32")
 
@@ -454,14 +454,14 @@ class ElectricVehicleChargingBehaviorTest
     closeTazPluginCAVCount should be > farTazPluginCAVCount withClue
     ", vehicles should be picking the closest charger more often than the farther ones."
 
-    val closeTazPluginHumanCount = closestTAZsHuman.foldLeft(0) { (count, taz) =>
-      count + pluginCountByTAZ.getOrElse(taz, 0)
-    }
-    val farTazPluginHumanCount = furtherTAZsHuman.foldLeft(0) { (count, taz) =>
-      count + pluginCountByTAZ.getOrElse(taz, 0)
-    }
-
-    //currently,there is no parameter to get influenced by the distance for human ride hail
+    // currently,there is no parameter to get influenced by the distance for human ride hail
+    // this parameter should exist, when the search is updated this should be turned into active code.
+    //val closeTazPluginHumanCount = closestTAZsHuman.foldLeft(0) { (count, taz) =>
+    //  count + pluginCountByTAZ.getOrElse(taz, 0)
+    //}
+    //val farTazPluginHumanCount = furtherTAZsHuman.foldLeft(0) { (count, taz) =>
+    //  count + pluginCountByTAZ.getOrElse(taz, 0)
+    //}
     //closeTazPluginHumanCount should be > farTazPluginHumanCount withClue
     //", vehicles should be picking the closest charger more often than the farther ones."
   }
