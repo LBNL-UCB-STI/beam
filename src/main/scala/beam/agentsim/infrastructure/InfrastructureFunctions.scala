@@ -110,7 +110,11 @@ abstract class InfrastructureFunctions(
     // depending on the run.
     val inquiryHash = inquiry.personId match {
       case Some(id) => id.hashCode() + inquiry.destinationUtm.time
-      case _        => inquiry.destinationUtm.time
+      case _ =>
+        inquiry.beamVehicle match {
+          case Some(vehicle) => vehicle.id.hashCode() + inquiry.destinationUtm.time
+          case _             => inquiry.destinationUtm.time
+        }
     }
 
     // ---------------------------------------------------------------------------------------------
