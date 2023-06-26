@@ -45,7 +45,8 @@ class WriterTest extends AnyFunSuite with Matchers {
     eventsCollection.getSortedEvents
   }
 
-  test("testWriteViaEventsQueue", Retryable)  {
+  // TODO: Investigate, There might be an issue hidden in this flaky test. Retryable tag was added to pass an unrelated PR
+  test("testWriteViaEventsQueue", Retryable) {
     val experimentLen = 2 * 1000000
     def getUnsortedSeq: Seq[ViaEvent] = (0 until experimentLen).map { _ => VEvent(math.random()) }
     val unsorted1 = getUnsortedSeq
