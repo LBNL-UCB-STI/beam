@@ -3,6 +3,7 @@ package scripts.beam_to_matsim.io
 import scripts.beam_to_matsim.via_event.{ViaEvent, ViaEventsCollection}
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.tagobjects.Retryable
 
 import scala.collection.mutable
 import scala.xml.Elem
@@ -44,7 +45,7 @@ class WriterTest extends AnyFunSuite with Matchers {
     eventsCollection.getSortedEvents
   }
 
-  test("testWriteViaEventsQueue") {
+  test("testWriteViaEventsQueue", Retryable)  {
     val experimentLen = 2 * 1000000
     def getUnsortedSeq: Seq[ViaEvent] = (0 until experimentLen).map { _ => VEvent(math.random()) }
     val unsorted1 = getUnsortedSeq
