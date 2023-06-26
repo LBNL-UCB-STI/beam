@@ -13,7 +13,7 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.Modes.BeamMode.RIDE_HAIL_POOLED
+import beam.router.Modes.BeamMode.{RIDE_HAIL_POOLED, RIDE_HAIL}
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.sim.{BeamScenario, BeamServices, RideHailFleetInitializerProvider}
@@ -143,11 +143,18 @@ class RideHailMaster(
   private def findBestProposal(customer: Id[Person], responses: IndexedSeq[RideHailResponse]): RideHailResponse = {
     val responsesInRandomOrder = rand.shuffle(responses)
     val withProposals = responsesInRandomOrder.filter(_.travelProposal.isDefined)
+    val availableProposals = withProposals.filter(x =>
+      if(x.request.asPooled){
+        x.travelProposal.exists(_.modeOptions.contains(RIDE_HAIL_POOLED))
+      } else {
+        x.travelProposal.exists(_.modeOptions.contains(RIDE_HAIL))
+      }
+    )
     if (withProposals.isEmpty) responsesInRandomOrder.head
     else
       bestResponseType match {
-        case "MIN_COST"    => withProposals.minBy(findCost(customer, _))
-        case "MIN_UTILITY" => sampleProposals(customer, withProposals)
+        case "MIN_COST"    => availableProposals.minBy(findCost(customer, _))
+        case "MIN_UTILITY" => sampleProposals(customer, availableProposals)
       }
   }
 
