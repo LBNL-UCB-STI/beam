@@ -150,7 +150,7 @@ class RideHailMaster(
         x.travelProposal.exists(_.modeOptions.contains(RIDE_HAIL))
       }
     )
-    if (withProposals.isEmpty) responsesInRandomOrder.head
+    if (availableProposals.isEmpty) responsesInRandomOrder.head
     else
       bestResponseType match {
         case "MIN_COST"    => availableProposals.minBy(findCost(customer, _))
