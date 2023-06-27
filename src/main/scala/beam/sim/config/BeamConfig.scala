@@ -636,6 +636,7 @@ object BeamConfig {
               ride_hail_pooled_intercept: scala.Double,
               ride_hail_subscription: scala.Double,
               ride_hail_transit_intercept: scala.Double,
+              sav_coefficient: scala.Double,
               transfer: scala.Double,
               transit_crowding: scala.Double,
               transit_crowding_VOT_multiplier: scala.Double,
@@ -668,6 +669,7 @@ object BeamConfig {
                   ride_hail_transit_intercept =
                     if (c.hasPathOrNull("ride_hail_transit_intercept")) c.getDouble("ride_hail_transit_intercept")
                     else 0.0,
+                  sav_coefficient = if (c.hasPathOrNull("sav_coefficient")) c.getDouble("sav_coefficient") else 0.0,
                   transfer = if (c.hasPathOrNull("transfer")) c.getDouble("transfer") else -1.4,
                   transit_crowding = if (c.hasPathOrNull("transit_crowding")) c.getDouble("transit_crowding") else 0.0,
                   transit_crowding_VOT_multiplier =
@@ -1102,12 +1104,15 @@ object BeamConfig {
             defaultCostPerMile: scala.Double,
             defaultCostPerMinute: scala.Double,
             initialization: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization,
+            maximumWalkDistanceToStopInM: scala.Int,
             name: java.lang.String,
             pooledBaseCost: scala.Double,
             pooledCostPerMile: scala.Double,
             pooledCostPerMinute: scala.Double,
             repositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager,
             rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager,
+            savCoefficientMultiplier: scala.Double,
+            stopFilePath: scala.Option[java.lang.String],
             supportedModes: java.lang.String
           )
 
@@ -1470,6 +1475,9 @@ object BeamConfig {
                   if (c.hasPathOrNull("initialization")) c.getConfig("initialization")
                   else com.typesafe.config.ConfigFactory.parseString("initialization{}")
                 ),
+                maximumWalkDistanceToStopInM =
+                  if (c.hasPathOrNull("maximumWalkDistanceToStopInM")) c.getInt("maximumWalkDistanceToStopInM")
+                  else 800,
                 name = if (c.hasPathOrNull("name")) c.getString("name") else "GlobalRHM",
                 pooledBaseCost = if (c.hasPathOrNull("pooledBaseCost")) c.getDouble("pooledBaseCost") else 1.89,
                 pooledCostPerMile =
@@ -1484,6 +1492,9 @@ object BeamConfig {
                   if (c.hasPathOrNull("rideHailManager")) c.getConfig("rideHailManager")
                   else com.typesafe.config.ConfigFactory.parseString("rideHailManager{}")
                 ),
+                savCoefficientMultiplier =
+                  if (c.hasPathOrNull("savCoefficientMultiplier")) c.getDouble("savCoefficientMultiplier") else 0.0,
+                stopFilePath = if (c.hasPathOrNull("stopFilePath")) Some(c.getString("stopFilePath")) else None,
                 supportedModes =
                   if (c.hasPathOrNull("supportedModes")) c.getString("supportedModes")
                   else "ride_hail, ride_hail_pooled"

@@ -43,7 +43,7 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '0.9.6'
+version = '0.9.6-cruise'
 
 description = """"""
 
@@ -712,6 +712,7 @@ task buildImage(type: DockerTagImage, dependsOn: buildImageWithoutTags) {
 }
 
 dockerSyncBuildContext {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     from('src/main/python') {
         into('src/main/python')
     }
@@ -796,6 +797,7 @@ dockerSyncBuildContext {
     }
     from file('docker/entrypoint.sh')
 }
+
 
 ext.getDockerTag = { ->
     if (project.hasProperty("tag")) {
