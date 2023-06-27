@@ -116,9 +116,9 @@ class BackgroundSkimsCreator(
 
   val skimmerEventFactory: AbstractSkimmerEventFactory =
     beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.skimsKind match {
-      case "od"          => new ODSkimmerEventFactory
-      case "activitySim" => new ActivitySimSkimmerEventFactory(beamServices.beamConfig)
-      case kind @ _      => throw new IllegalArgumentException(s"Unexpected skims kind: $kind")
+      case "od"                             => new ODSkimmerEventFactory
+      case "activitySim" | "activitySimOmx" => new ActivitySimSkimmerEventFactory(beamServices.beamConfig)
+      case kind @ _                         => throw new IllegalArgumentException(s"Unexpected skims kind: $kind")
     }
 
   var odRequester: ODRequester = new ODRequester(

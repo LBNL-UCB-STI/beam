@@ -60,7 +60,13 @@ import beam.utils.MeasureUnitConversion._
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.events._
+import org.matsim.api.core.v01.events.{
+  ActivityEndEvent,
+  ActivityStartEvent,
+  PersonArrivalEvent,
+  PersonEntersVehicleEvent,
+  PersonLeavesVehicleEvent
+}
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
@@ -527,6 +533,13 @@ class PersonAgent(
   ): Unit = {
     assert(currentActivity(data).getLinkId != null)
 
+    val tripId: String = _experiencedBeamPlan.trips
+      .lift(data.currentActivityIndex + 1) match {
+      case Some(trip) =>
+        trip.leg.map(l => Option(l.getAttributes.getAttribute("trip_id")).getOrElse("").toString).getOrElse("")
+      case None => ""
+    }
+
     // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
     // hail a ride. We stay at the party until our Uber is there.
 
@@ -539,14 +552,15 @@ class PersonAgent(
         currentActivity(data).getType
       )
     )
-
+    val pde = new BeamPersonDepartureEvent(
+      tick,
+      id,
+      currentActivity(data).getLinkId,
+      currentTrip.tripClassifier.value,
+      tripId
+    )
     eventsManager.processEvent(
-      new PersonDepartureEvent(
-        tick,
-        id,
-        currentActivity(data).getLinkId,
-        currentTrip.tripClassifier.value
-      )
+      pde
     )
   }
 
@@ -925,7 +939,16 @@ class PersonAgent(
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
         val vehicleToExit = data.currentVehicle.head
         currentBeamVehicle.unsetDriver()
-        nextNotifyVehicleResourceIdle.foreach(currentBeamVehicle.getManager.get ! _)
+        nextNotifyVehicleResourceIdle.foreach(notifyVehicleIdle =>
+          currentBeamVehicle.getManager match {
+            case Some(manager) => manager ! notifyVehicleIdle
+            case None =>
+              logger.error(
+                s"Vehicle ${currentBeamVehicle.id} does not have a manager, " +
+                s"so I can't notify anyone it is idle"
+              )
+          }
+        )
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), vehicleToExit)
         )
@@ -1442,7 +1465,6 @@ class PersonAgent(
             currentActivity(data),
             nextActivity(data)
           )
-
           resetFuelConsumed()
           val activityStartEvent = new ActivityStartEvent(
             tick,

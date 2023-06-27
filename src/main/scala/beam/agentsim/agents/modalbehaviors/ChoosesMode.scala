@@ -238,7 +238,7 @@ trait ChoosesMode {
           ) =>
         implicit val executionContext: ExecutionContext = context.system.dispatcher
         plansModeOption match {
-          case Some(CAR | DRIVE_TRANSIT) =>
+          case Some(CAR | DRIVE_TRANSIT | CAR_HOV2 | CAR_HOV3) => // TODO: Add HOV modes here too
             requestAvailableVehicles(
               vehicleFleets,
               currentLocation,
@@ -489,6 +489,11 @@ trait ChoosesMode {
                 case _ =>
                   makeRequestWith(withTransit = false, Vector(bodyStreetVehicle))
                   responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+                  logger.error(
+                    "No vehicle available for existing route of person {} trip of mode {} even though it was created in their plans",
+                    body.id,
+                    tourMode
+                  )
               }
             case _ =>
               val vehicles = filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), tourMode)
@@ -1142,12 +1147,14 @@ trait ChoosesMode {
             .toMap
           val newLegs = itin.legs.map { leg =>
             if (parkingLegs.contains(leg)) {
+              if (leg.beamLeg.duration < 0) { logger.error("Negative parking leg duration {}", leg) }
               leg.copy(
                 cost = leg.cost + parkingResponses(
                   VehicleOnTrip(leg.beamVehicleId, TripIdentifier(itin))
                 ).stall.costInDollars
               )
             } else if (walkLegsAfterParkingWithParkingResponses.contains(leg)) {
+              if (leg.beamLeg.duration < 0) { logger.error("Negative walk after parking leg duration {}", leg) }
               val dist = geo.distUTMInMeters(
                 geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc),
                 walkLegsAfterParkingWithParkingResponses(leg).stall.locationUTM
@@ -1155,6 +1162,7 @@ trait ChoosesMode {
               val travelTime: Int = (dist / ZonalParkingManager.AveragePersonWalkingSpeed).toInt
               leg.copy(beamLeg = leg.beamLeg.scaleToNewDuration(travelTime))
             } else {
+              if (leg.beamLeg.duration < 0) { logger.error("Negative non-parking leg duration {}", leg) }
               leg
             }
           }
@@ -1414,6 +1422,11 @@ trait ChoosesMode {
                   )
                 else choosesModeData.allAvailableStreetVehicles
               self ! MobilityStatusResponse(availableVehicles, getCurrentTriggerId.get)
+              logger.debug(
+                "Person {} replanning because planned mode {} not available",
+                body.id,
+                mode.toString
+              )
               stay() using ChoosesModeData(
                 personData = personData.copy(currentTourMode = None),
                 currentLocation = choosesModeData.currentLocation,
@@ -1440,7 +1453,10 @@ trait ChoosesMode {
               val expensiveWalkTrip = EmbodiedBeamTrip(
                 Vector(originalWalkTripLeg.copy(replanningPenalty = 10.0))
               )
-
+              logger.warn(
+                "Person {} forced into long walk trip because nothing is available",
+                body.id
+              )
               goto(FinishingModeChoice) using choosesModeData.copy(
                 pendingChosenTrip = Some(expensiveWalkTrip),
                 availableAlternatives = availableAlts
@@ -1572,9 +1588,12 @@ trait ChoosesMode {
         )
     }
 
-    val tripId = Option(
-      _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getAttributes.getAttribute("trip_id")
-    ).getOrElse("").toString
+    val tripId: String = _experiencedBeamPlan.trips
+      .lift(data.personData.currentActivityIndex + 1) match {
+      case Some(trip) =>
+        trip.leg.map(l => Option(l.getAttributes.getAttribute("trip_id")).getOrElse("").toString).getOrElse("")
+      case None => ""
+    }
 
     val modeChoiceEvent = new ModeChoiceEvent(
       tick,

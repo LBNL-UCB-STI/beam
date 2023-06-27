@@ -8,6 +8,7 @@ import beam.agentsim.agents.TransitDriverAgent.TransitDriverData
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, StartLegTrigger}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule, ReservationRequest, TransitReservationRequest}
+import beam.agentsim.events.BeamPersonDepartureEvent
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
@@ -17,7 +18,7 @@ import beam.sim.common.GeoUtils
 import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{PersonDepartureEvent, PersonEntersVehicleEvent}
+import org.matsim.api.core.v01.events.PersonEntersVehicleEvent
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
@@ -134,7 +135,7 @@ class TransitDriverAgent(
     beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
     vehicle.becomeDriver(self)
     eventsManager.processEvent(
-      new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_transit_driver")
+      new BeamPersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_transit_driver", "")
     )
     eventsManager.processEvent(new PersonEntersVehicleEvent(tick, Id.createPersonId(id), vehicle.id))
     val schedule = data.passengerSchedule.addLegs(legs)

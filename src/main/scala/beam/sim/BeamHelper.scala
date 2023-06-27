@@ -399,7 +399,10 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     beamConfig: BeamConfig,
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): (TrieMap[Id[BeamVehicle], BeamVehicle], TrieMap[Id[BeamVehicle], Double]) =
-    if (beamConfig.beam.agentsim.agents.population.useVehicleSampling) {
+    if (
+      beamConfig.beam.agentsim.agents.population.useVehicleSampling ||
+      beamConfig.beam.agentsim.agents.vehicles.vehiclesFilePath.trim().isEmpty
+    ) {
       TrieMap.empty[Id[BeamVehicle], BeamVehicle] -> TrieMap.empty[Id[BeamVehicle], Double]
     } else {
       val (vehicleIdToVehicle, vehicleIdToSoc) = readVehiclesFile(
@@ -868,7 +871,8 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
               planElement =>
                 planElement.activityEndTime
                   .map(time => planElement.copy(activityEndTime = Some(time / 3600)))
-                  .getOrElse(planElement)
+                  .getOrElse(planElement),
+              Some(beamScenario.network)
             )
             val (scenario, plansMerged) =
               new UrbanSimScenarioLoader(
