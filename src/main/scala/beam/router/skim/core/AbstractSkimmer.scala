@@ -234,8 +234,23 @@ object AbstractSkimmer {
 
   class Aggregator[T](val a: T, val b: T, val aObservations: Int, val bObservations: Int) {
 
-    def aggregate(extractValue: T => Double): Double =
+    def aggregate(extractValue: T => Double): Double = {
       AbstractSkimmer.aggregate(extractValue(a), extractValue(b), aObservations, bObservations)
+    }
+
+    def aggregate(extractValue: T => Int, weighted: Boolean): Int = {
+      if (weighted) {
+        IntMath.divide(
+          extractValue(a) * aObservations + extractValue(b) * bObservations,
+          aggregateObservations,
+          RoundingMode.HALF_UP
+        )
+      } else AbstractSkimmer.aggregate(extractValue(a), extractValue(b))
+    }
+
+    def aggregate(extractValue: T => Double, observationFunction: T => Int): Double = {
+      AbstractSkimmer.aggregate(extractValue(a), extractValue(b), observationFunction(a), observationFunction(b))
+    }
 
     def aggregate(extractValue: T => Int): Int =
       IntMath.divide(
@@ -244,14 +259,26 @@ object AbstractSkimmer {
         RoundingMode.HALF_UP
       )
 
+    def aggregate(extractValue: T => Int, observationFunction: T => Int): Int = {
+      IntMath.divide(
+        extractValue(a) * observationFunction(a) + extractValue(b) * observationFunction(b),
+        aggregateObservations,
+        RoundingMode.HALF_UP
+      )
+    }
+
     def sum(extractValue: T => Double): Double = extractValue(a) + extractValue(b)
 
     val aggregateObservations: Int = aObservations + bObservations
   }
 
+  def aggregate(a: Int, b: Int): Int =
+    a + b
+
   def aggregate(a: Double, b: Double, aObservations: Int, bObservations: Int): Double =
     if (b.isNaN) a
     else if (a.isNaN) b
+    else if ((aObservations == 0) && (bObservations == 0)) Double.NaN
     else (a * aObservations + b * bObservations) / (aObservations + bObservations)
 
   def aggregateWithinIteration[T <: AbstractSkimmerInternal](

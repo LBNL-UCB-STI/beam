@@ -18,7 +18,8 @@ class RideHailSkimmerEvent(
   serviceName: String,
   waitTime: Int,
   costPerMile: Double,
-  vehicleIsWheelchairAccessible: Boolean
+  vehicleIsWheelchairAccessible: Boolean,
+  isReservation: Boolean
 ) extends AbstractSkimmerEvent(eventTime) {
 
   override protected val skimName: String = RideHailSkimmer.name
@@ -27,7 +28,19 @@ class RideHailSkimmerEvent(
     RidehailSkimmerKey(tazId, SkimsUtils.timeToBin(eventTime.toInt), reservationType, wheelchairRequired, serviceName)
 
   override val getSkimmerInternal: AbstractSkimmerInternal =
-    RidehailSkimmerInternal(waitTime, costPerMile, 0, if (vehicleIsWheelchairAccessible) 1.0 else 0.0)
+    RidehailSkimmerInternal(
+      waitTimeForRequests = if (isReservation) waitTime else 0,
+      costPerMileForRequests = if (isReservation) costPerMile else 0,
+      unmatchedRequestsPercent = 0.0,
+      waitTimeForQuotes = if (isReservation) 0 else waitTime,
+      costPerMileForQuotes = if (isReservation) 0 else costPerMile,
+      unmatchedQuotesPercent = 0.0,
+      accessibleVehiclePercent = if (vehicleIsWheelchairAccessible) 1.0 else 0.0,
+      numberOfReservationsRequested = if (isReservation) 1 else 0,
+      numberOfReservationsReturned = if (isReservation) 1 else 0,
+      numberOfQuotesRequested = if (isReservation) 0 else 1,
+      numberOfQuotesReturned = if (isReservation) 0 else 1
+    )
 }
 
 class UnmatchedRideHailRequestSkimmerEvent(
@@ -35,7 +48,8 @@ class UnmatchedRideHailRequestSkimmerEvent(
   tazId: Id[TAZ],
   reservationType: RideHailReservationType,
   wheelchairRequired: Boolean,
-  serviceName: String
+  serviceName: String,
+  isReservation: Boolean
 ) extends AbstractSkimmerEvent(eventTime) {
 
   override protected val skimName: String = RideHailSkimmer.name
@@ -44,5 +58,17 @@ class UnmatchedRideHailRequestSkimmerEvent(
     RidehailSkimmerKey(tazId, SkimsUtils.timeToBin(eventTime.toInt), reservationType, wheelchairRequired, serviceName)
 
   override val getSkimmerInternal: AbstractSkimmerInternal =
-    RidehailSkimmerInternal(Double.NaN, Double.NaN, 100.0, Double.NaN)
+    RidehailSkimmerInternal(
+      waitTimeForRequests = 0,
+      costPerMileForRequests = 0,
+      unmatchedRequestsPercent = if (isReservation) 100.0 else 0.0,
+      waitTimeForQuotes = 0,
+      costPerMileForQuotes = 0,
+      unmatchedQuotesPercent = if (isReservation) 0.0 else 100.0,
+      accessibleVehiclePercent = if (wheelchairRequired) 100.0 else 0.0,
+      numberOfReservationsRequested = if (isReservation) 1 else 0,
+      numberOfReservationsReturned = 0,
+      numberOfQuotesRequested = if (isReservation) 0 else 1,
+      numberOfQuotesReturned = 0
+    )
 }
