@@ -1017,7 +1017,7 @@ trait ChoosesMode {
       beamServices.geo.wgs2Utm(legs.head.travelPath.startPoint.loc),
       legs.head.startTime,
       beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc),
-      wheelchairUser,
+      withWheelchair = wheelchairUser,
       requestTime = _currentTick.getOrElse(0),
       requester = self,
       rideHailServiceSubscription = attributes.rideHailServiceSubscription,
