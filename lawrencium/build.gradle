@@ -1,0 +1,84 @@
+group = 'beam'
+version = '0.8.0'
+
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath 'org.hidetake:gradle-ssh-plugin:2.10.1'
+    }
+}
+
+apply plugin: 'org.hidetake.ssh'
+
+if (!project.hasProperty("lawrenciumUser")) {
+    ext.lawrenciumUser = "nikolay"
+}
+
+remotes {
+    lawrenciumLoginNode {
+        host = 'lrc-login.lbl.gov'
+        user = "${lawrenciumUser}"
+    }
+//    require ssh.settings.authentications to include "password"
+//    execute from ssh.run inside session -> put from: "${project.rootDir}/lawrencium/src/main/bash/slurm_job.sh", into: "slurm_job.sh"
+//    execute from ssh.run inside session -> put from: "${project.rootDir}/lawrencium/src/main/bash/slurm_job_runner.sh", into: "slurm_job_runner.sh"
+//    lawrenciumTransferNode {
+//        host = 'lrc-xfer.lbl.gov'
+//        user = "${lawrenciumUser}"
+//    }
+}
+
+tasks.register("ltest") {
+    doLast {
+        ssh.run {
+            settings {
+                authentications = [ "keyboard-interactive" ]
+                knownHosts = allowAnyHosts
+                fileTransfer = "scp"
+                password = "Zomb1986" + project.findProperty("otp")
+            }
+
+            def job_url = "https://github.com/LBNL-UCB-STI/beam/blob/16ad59323af0e92ff41ea72144a9ac33e9dbab9b/lawrencium/src/main/bash/slurm_job.sh"
+            def job_runner_url = "https://github.com/LBNL-UCB-STI/beam/blob/16ad59323af0e92ff41ea72144a9ac33e9dbab9b/lawrencium/src/main/bash/slurm_job_runner.sh"
+
+            session(remotes.lawrenciumLoginNode) {
+                execute "rm slurm_job.sh slurm_job_runner.sh"
+                execute "ls -lah"
+                execute "wget $job_url"
+                execute "wget $job_runner_url"
+                execute "ls -lah"
+                execute "chmod +x slurm_job_runner.sh slurm_job.sh"
+                execute "ls -lah"
+                execute "./slurm_job_runner.sh \
+                              --BEAM_BRANCH_NAME='develop' \
+                              --BEAM_COMMIT_SHA='' \
+                              --BEAM_DATA_BRANCH_NAME='develop' \
+                              --BEAM_DATA_COMMIT_SHA='' \
+                              --BEAM_CONFIG='test/input/beamville/beam.conf' \
+                              --RUN_NAME='beamville_test' \
+                              --PROFILER='' \
+                              --PULL_CODE='true' \
+                              --PULL_DATA='true' \
+                              --ACCOUNT='pc_beamcore' \
+                              --PARTITION='es1' \
+                              --QOS='es_normal' \
+                              --MEMORY_LIMIT='480' \
+                              --EXPECTED_EXECUTION_DURATION='0-00:30:00' \
+                              --DOCKER_IMAGE_NAME='beammodel/beam-environment' \
+                              --DOCKER_IMAGE_TAG='latest' \
+                              --S3_REGION='us-east-2' \
+                              --S3_PUBLISH='false' \
+                              --AWS_SECRET_ACCESS_KEY='' \
+                              --AWS_ACCESS_KEY_ID='' \
+                              --SEND_NOTIFICATION='false' \
+                              --SLACK_HOOK_WITH_TOKEN='' \
+                              --SIMULATIONS_SPREADSHEET_UPDATE_URL=''"
+            }
+        }
+    }
+}
