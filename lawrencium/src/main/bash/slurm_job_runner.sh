@@ -1,13 +1,19 @@
 #!/bin/bash
 
+# Full list of optional input parameters
+optional_input_parameters=(
+  BEAM_COMMIT_SHA
+  BEAM_DATA_COMMIT_SHA
+)
+
 # Full list of input parameters required to run the script
 input_parameters=(
-  BEAM_BRANCH_NAME BEAM_COMMIT_SHA  # code branch and commit
-  BEAM_DATA_BRANCH_NAME BEAM_DATA_COMMIT_SHA  # data branch and commit
-  BEAM_CONFIG # path to beam config
-  RUN_NAME # the name of simulation (will be used in notifications)
-  PROFILER  # either empty, 'cpu' or 'cpumem'
-  MAX_RAM # max ram for beam
+  BEAM_BRANCH_NAME        # code branch
+  BEAM_DATA_BRANCH_NAME   # data branch
+  BEAM_CONFIG   # path to beam config
+  RUN_NAME    # the name of simulation (will be used in notifications)
+  PROFILER    # either empty, 'cpu' or 'cpumem'
+  MAX_RAM     # max ram for beam
 
   # BEAM-environment docker image name and docker image tag separately
   # i.e. 'beammodel/beam-environment' and 'latest'
@@ -37,6 +43,21 @@ input_parameters=(
 # Read variables are exported into environment.
 while [ $# -gt 0 ]; do
   for var_name in "${input_parameters[@]}"; do
+    var_value=${1#*=}
+    # check if variable name in lower case and '=' symbol are in parameter
+    # check if variable value is not empty
+    if [[ ${1,,} == --"${var_name,,}="* && -n "$var_value" ]] ; then
+      export "$var_name"="$var_value"
+    fi
+  done
+  shift
+done
+
+
+# Reading optional variables case-insensitively from input parameters according to optional_input_parameters list.
+# Read variables are exported into environment.
+while [ $# -gt 0 ]; do
+  for var_name in "${optional_input_parameters[@]}"; do
     var_value=${1#*=}
     # check if variable name in lower case and '=' symbol are in parameter
     # check if variable value is not empty
