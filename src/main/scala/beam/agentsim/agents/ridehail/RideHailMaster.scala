@@ -7,14 +7,14 @@ import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOpera
 import beam.agentsim.agents.ridehail.RideHailManager.ResponseCache
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail.RideHailMaster.RequestWithResponses
-import beam.agentsim.agents.vehicles.AccessErrorCodes.UnknownInquiryIdError
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{RideHailServiceUnavailableError, UnknownInquiryIdError}
 import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, VehicleManager}
 import beam.agentsim.events.RideHailReservationConfirmationEvent.{Pooled, Solo}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.Modes.BeamMode.{RIDE_HAIL_POOLED, RIDE_HAIL}
+import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_POOLED}
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.router.skim.event.{RideHailSkimmerEvent, UnmatchedRideHailRequestSkimmerEvent}
@@ -176,18 +176,18 @@ class RideHailMaster(
     val responsesInRandomOrder = rand.shuffle(responses)
     val withProposals = responsesInRandomOrder.filter(_.travelProposal.isDefined)
     val availableProposals = withProposals.filter(x =>
-      if(x.request.asPooled){
+      if (x.request.asPooled) {
         x.travelProposal.exists(_.modeOptions.contains(RIDE_HAIL_POOLED))
       } else {
         x.travelProposal.exists(_.modeOptions.contains(RIDE_HAIL))
       }
     )
-    if (availableProposals.isEmpty){
-      val responseWithNullProposal = responsesInRandomOrder.head.copy(travelProposal = None)
+    if (availableProposals.isEmpty) {
+      val responseWithNullProposal =
+        responsesInRandomOrder.head.copy(travelProposal = None, error = Some(RideHailServiceUnavailableError))
       responseWithNullProposal
 //      responsesInRandomOrder.head
-    }
-    else
+    } else
       bestResponseType match {
         case "MIN_COST"    => availableProposals.minBy(findCost(customer, _))
         case "MIN_UTILITY" => sampleProposals(customer, availableProposals)

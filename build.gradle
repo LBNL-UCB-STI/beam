@@ -43,7 +43,7 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '0.9.6-cruise'
+version = '0.9.7-cruise'
 
 description = """"""
 
