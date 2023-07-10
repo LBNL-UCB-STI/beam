@@ -67,8 +67,8 @@ export MAX_RAM="$MEMORY_LIMIT"
 export NOTIFICATION_TITLED="$USER/$RUN_NAME"
 
 
-RANDOM_PART=$(tr -dc A-Z0-9 </dev/urandom | head -c 8)
-DATETIME=$(date "+%Y.%m.%d-%H.%M.%S")
+RANDOM_PART="$(tr -dc A-Z0-9 </dev/urandom | head -c 8)"
+DATETIME="$(date "+%Y.%m.%d-%H.%M.%S")"
 NAME_SUFFIX="$DATETIME.$RANDOM_PART.$PARTITION.$QOS.$MEMORY_LIMIT"
 
 
