@@ -4,6 +4,7 @@
 optional_input_parameters=(
   BEAM_COMMIT_SHA
   BEAM_DATA_COMMIT_SHA
+  PROFILER    # either empty, 'cpu' or 'cpumem'
 )
 
 # Full list of input parameters required to run the script
@@ -12,7 +13,6 @@ input_parameters=(
   BEAM_DATA_BRANCH_NAME   # data branch
   BEAM_CONFIG   # path to beam config
   RUN_NAME    # the name of simulation (will be used in notifications)
-  PROFILER    # either empty, 'cpu' or 'cpumem'
   MAX_RAM     # max ram for beam
 
   # BEAM-environment docker image name and docker image tag separately
