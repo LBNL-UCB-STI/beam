@@ -129,7 +129,7 @@ trait ChoosesMode {
     nextStateData match {
       // If I am already on a tour in a vehicle, only that vehicle is available to me
       case ChoosesModeData(
-            BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _, _, _, _, _, _),
+            data: BasePersonData,
             _,
             _,
             _,
@@ -151,26 +151,14 @@ trait ChoosesMode {
             _,
             _,
             _
-          ) =>
-        self ! MobilityStatusResponse(Vector(beamVehicles(vehicle)), getCurrentTriggerIdOrGenerate)
+          ) if data.currentTourPersonalVehicle.isDefined =>
+        self ! MobilityStatusResponse(
+          Vector(beamVehicles(data.currentTourPersonalVehicle.get)),
+          getCurrentTriggerIdOrGenerate
+        )
       // Only need to get available street vehicles if our mode requires such a vehicle
       case ChoosesModeData(
-            BasePersonData(
-              _,
-              _,
-              _,
-              _,
-              Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION),
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _
-            ),
+            data: BasePersonData,
             currentLocation,
             _,
             _,
@@ -192,28 +180,13 @@ trait ChoosesMode {
             _,
             _,
             _
-          ) =>
+          ) if data.currentTourModeIsIn(HOV2_TELEPORTATION, HOV3_TELEPORTATION) =>
         val teleportationVehicle = createSharedTeleportationVehicle(currentLocation)
         val vehicles = Vector(ActualVehicle(teleportationVehicle))
         self ! MobilityStatusResponse(vehicles, getCurrentTriggerIdOrGenerate)
       // Only need to get available street vehicles if our mode requires such a vehicle
       case ChoosesModeData(
-            BasePersonData(
-              currentActivityIndex,
-              _,
-              _,
-              _,
-              plansModeOption @ (None | Some(CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT)),
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _,
-              _
-            ),
+            data: BasePersonData,
             currentLocation,
             _,
             _,
@@ -235,28 +208,28 @@ trait ChoosesMode {
             _,
             _,
             _
-          ) =>
+          ) if data.currentTourMode.isEmpty || data.currentTourModeIsIn(CAR, BIKE, DRIVE_TRANSIT, BIKE_TRANSIT) =>
         implicit val executionContext: ExecutionContext = context.system.dispatcher
-        plansModeOption match {
+        data.currentTourMode match {
           case Some(CAR | DRIVE_TRANSIT) =>
             requestAvailableVehicles(
               vehicleFleets,
               currentLocation,
-              _experiencedBeamPlan.activities(currentActivityIndex),
+              _experiencedBeamPlan.activities(data.currentActivityIndex),
               Some(VehicleCategory.Car)
             ) pipeTo self
           case Some(BIKE | BIKE_TRANSIT) =>
             requestAvailableVehicles(
               vehicleFleets,
               currentLocation,
-              _experiencedBeamPlan.activities(currentActivityIndex),
+              _experiencedBeamPlan.activities(data.currentActivityIndex),
               Some(VehicleCategory.Bike)
             ) pipeTo self
           case _ =>
             requestAvailableVehicles(
               vehicleFleets,
               currentLocation,
-              _experiencedBeamPlan.activities(currentActivityIndex)
+              _experiencedBeamPlan.activities(data.currentActivityIndex)
             ) pipeTo self
         }
 
@@ -372,7 +345,7 @@ trait ChoosesMode {
           departTime,
           nextAct.getCoord,
           withWheelchair = wheelchairUser,
-          requestTime = _currentTick,
+          requestTime = _currentTick.get,
           requester = self,
           rideHailServiceSubscription = attributes.rideHailServiceSubscription,
           triggerId = getCurrentTriggerIdOrGenerate,
@@ -1013,7 +986,7 @@ trait ChoosesMode {
       legs.head.startTime,
       beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc),
       wheelchairUser,
-      requestTime = _currentTick,
+      requestTime = _currentTick.get,
       requester = self,
       rideHailServiceSubscription = attributes.rideHailServiceSubscription,
       triggerId = getCurrentTriggerIdOrGenerate
@@ -1223,36 +1196,18 @@ trait ChoosesMode {
           (travelProposal.poolingInfo match {
             case Some(poolingInfo) if !choosesModeData.personData.currentTourMode.contains(RIDE_HAIL) =>
               val pooledLegs = origLegs.map { origLeg =>
-                origLeg.copy(
-                  cost = origLeg.cost * poolingInfo.costFactor,
-                  isPooledTrip = origLeg.isRideHail,
-                  beamLeg = origLeg.beamLeg.scaleLegDuration(poolingInfo.timeFactor)
-                )
+                if (origLeg.isRideHail)
+                  origLeg.copy(
+                    cost = origLeg.cost * poolingInfo.costFactor,
+                    isPooledTrip = true,
+                    beamLeg = origLeg.beamLeg.scaleLegDuration(poolingInfo.timeFactor)
+                  )
+                else origLeg
               }
               Vector(origLegs, EmbodiedBeamLeg.makeLegsConsistent(pooledLegs))
             case _ =>
               Vector(origLegs)
-          }).map { partialItin =>
-            EmbodiedBeamTrip(
-              EmbodiedBeamLeg.dummyLegAt(
-                start = _currentTick.get,
-                vehicleId = body.id,
-                isLastLeg = false,
-                location = partialItin.head.beamLeg.travelPath.startPoint.loc,
-                mode = WALK,
-                vehicleTypeId = body.beamVehicleType.id
-              ) +:
-              partialItin :+
-              EmbodiedBeamLeg.dummyLegAt(
-                start = partialItin.last.beamLeg.endTime,
-                vehicleId = body.id,
-                isLastLeg = true,
-                location = partialItin.last.beamLeg.travelPath.endPoint.loc,
-                mode = WALK,
-                vehicleTypeId = body.beamVehicleType.id
-              )
-            )
-          }
+          }).map(surroundWithWalkLegsIfNeededAndMakeTrip)
         case _ =>
           Vector()
       }
@@ -1440,6 +1395,38 @@ trait ChoosesMode {
               )
           }
       }
+  }
+
+  private def surroundWithWalkLegsIfNeededAndMakeTrip(partialItin: Vector[EmbodiedBeamLeg]): EmbodiedBeamTrip = {
+    val firstLegWalk = partialItin.head.beamLeg.mode == WALK
+    val lastLegWalk = partialItin.last.beamLeg.mode == WALK
+    val startLeg: Option[EmbodiedBeamLeg] =
+      if (firstLegWalk) None
+      else
+        Some(
+          EmbodiedBeamLeg.dummyLegAt(
+            start = _currentTick.get,
+            vehicleId = body.id,
+            isLastLeg = false,
+            location = partialItin.head.beamLeg.travelPath.startPoint.loc,
+            mode = WALK,
+            vehicleTypeId = body.beamVehicleType.id
+          )
+        )
+    val endLeg =
+      if (lastLegWalk) None
+      else
+        Some(
+          EmbodiedBeamLeg.dummyLegAt(
+            start = partialItin.last.beamLeg.endTime,
+            vehicleId = body.id,
+            isLastLeg = true,
+            location = partialItin.last.beamLeg.travelPath.endPoint.loc,
+            mode = WALK,
+            vehicleTypeId = body.beamVehicleType.id
+          )
+        )
+    EmbodiedBeamTrip((startLeg ++: partialItin) ++ endLeg)
   }
 
   private def createFailedODSkimmerEvent(
