@@ -32,7 +32,7 @@ lambda {
     socketTimeout = 900000
 }
 
-task deploy(type: AWSLambdaInvokeTask) {
+tasks.register('deployToEC2', AWSLambdaInvokeTask) {
     doFirst {
         def propsFileName = "../gradle.deploy.properties"
         if (project.hasProperty('propsFile')) {
@@ -340,7 +340,9 @@ def getCurrentGitUserEmail() {
 }
 
 task PrintCurrentGitUserEmail() {
-    println("Current git user email is: ${getCurrentGitUserEmail()}")
+    doLast {
+        println("Current git user email is: ${getCurrentGitUserEmail()}")
+    }
 }
 
 def getGitResultFromWorkingDirUsing(command, defaultResult) {
@@ -355,4 +357,8 @@ def getGitResultFromWorkingDirUsing(command, defaultResult) {
     } catch (ignored) {
     }
     return gitResult
+}
+
+ext {
+    getCurrentGitUserEmail = this.&getCurrentGitUserEmail
 }
