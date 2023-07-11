@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleManager}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.{Charge, EnRoute, Home, Work}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.{Charge, Home, Work}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
@@ -10,7 +10,6 @@ import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode
 import beam.router.skim.{Skims, SkimsUtils}
-import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
@@ -48,14 +47,14 @@ class ChargingFunctions(
     * @return
     */
   private def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
-    zone.chargingPointType.forall(chargingPointType =>
-      if (
-        inquiry.parkingDuration <= 3600 && (inquiry.reservedFor.managerType == VehicleManager.TypeEnum.RideHail || inquiry.beamVehicle
-          .exists(_.isRideHail))
-      )
-        ChargingPointType.isFastCharger(chargingPointType)
-      else true // not a ride hail vehicle seeking charging or parking for two then it is fine to park at slow charger
-    )
+    zone.chargingPointType.forall { chargingPointType =>
+      val isRideHail =
+        inquiry.reservedFor.managerType == VehicleManager.TypeEnum.RideHail || inquiry.beamVehicle.exists(_.isRideHail)
+      val notIdleCharging = inquiry.searchMode != ParkingSearchMode.Init || inquiry.parkingDuration <= 3600
+      if (isRideHail && notIdleCharging) ChargingPointType.isFastCharger(chargingPointType)
+      else true
+    // not a ride hail vehicle seeking charging or parking for two then it is fine to park at slow charger
+    }
   }
 
   /**
@@ -126,8 +125,8 @@ class ChargingFunctions(
     zone.chargingPointType.forall(chargingPointType =>
       inquiry.beamVehicle.forall {
         case beamVehicle if beamVehicle.isEV =>
-          val vehicleChargingCapabilityMaybe = beamVehicle.beamVehicleType.chargingCapability
-          val vehicleHasDCFasChargingCapability = vehicleChargingCapabilityMaybe.forall(ChargingPointType.isFastCharger)
+          val vehicleHasDCFasChargingCapability =
+            beamVehicle.beamVehicleType.chargingCapability.forall(ChargingPointType.isFastCharger)
           val stationHasDCFasChargingCapability = ChargingPointType.isFastCharger(chargingPointType)
           val hasInvalidChargingCapability = !vehicleHasDCFasChargingCapability && stationHasDCFasChargingCapability
           !hasInvalidChargingCapability
