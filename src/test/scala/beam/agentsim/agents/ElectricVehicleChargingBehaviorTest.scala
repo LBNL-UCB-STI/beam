@@ -453,7 +453,7 @@ class ElectricVehicleChargingBehaviorTest
       ("type", a => a.equals("ChargingPlugInEvent"))
     ).map(e => e.getAttributes.get("vehicle")).distinct
 
-    vehiclesCharged.size should be > 0 withClue ", every single vehicle should had charged at least once."
+    vehiclesCharged.size should be > 0 withClue ", some vehicles should had charged at least once."
 
     // PHEV vehicles are supposed to have a level2 charging capability
     // therefore they don't have capability to charge in fast charging stations
