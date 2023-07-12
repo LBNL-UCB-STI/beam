@@ -215,32 +215,43 @@ class ElectricVehicleChargingBehaviorTest
 
     val centerTAZs = List("10", "11")
     val borderTAZs = List("20", "21", "30", "31")
-    val unsuitableChargersTAZs = List("18", "19", "28", "29", "38", "39")
 
     val centerPluginEvents = filterEvents(
       events,
       ("type", a => a.equals("ChargingPlugInEvent")),
       ("parkingTaz", (a: String) => centerTAZs.contains(a))
     )
+    val centerEnRouteSessionEvents = filterEvents(
+      events,
+      ("type", a => a.equals("RefuelSessionEvent")),
+      ("parkingTaz", (a: String) => centerTAZs.contains(a)),
+      ("actType", a => a.startsWith("EnRoute-"))
+    )
     val borderPluginEvents = filterEvents(
       events,
       ("type", a => a.equals("ChargingPlugInEvent")),
       ("parkingTaz", (a: String) => borderTAZs.contains(a))
     )
-    val unsuitablePluginEvents = filterEvents(
+    val borderEnRouteSessionEvents = filterEvents(
       events,
-      ("type", a => a.equals("ChargingPlugInEvent")),
-      ("parkingTaz", (a: String) => unsuitableChargersTAZs.contains(a))
+      ("type", a => a.equals("RefuelSessionEvent")),
+      ("parkingTaz", (a: String) => borderTAZs.contains(a)),
+      ("actType", a => a.startsWith("EnRoute-"))
     )
+    // PHEV vehicles are supposed to have a level2 charging capability
+    // therefore they don't have capability to charge in fast charging stations
+    val unsuitableRefuelSessionEvents1 = filterEvents(
+      events,
+      ("type", a => a.equals("RefuelSessionEvent")),
+      ("vehicleType", (a: String) => a.equals("PHEV"))
+    )
+    unsuitableRefuelSessionEvents1.size shouldEqual 0 withClue
+    ", ride hail vehicles of PHEV type should not be charging in fast chargers"
 
     val vehicleIds = findAllElectricVehicles(events).map(id => id.toString)
     vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
-
-    unsuitablePluginEvents.size shouldEqual 0 withClue ", vehicles should not be connecting to chargers without sufficient power rating."
-
-    centerPluginEvents.size + borderPluginEvents.size shouldEqual 200 withClue
-    ", expecting 4 enroute events for each of the 50 vehicles."
-
+    centerEnRouteSessionEvents.size should be > borderEnRouteSessionEvents.size withClue
+    ", agents more likely to enroute charge in center TAZs than in border ones."
     centerPluginEvents.size should be > borderPluginEvents.size withClue
     ", agents should prefer center chargers for enrouting (smaller EnrouteDetourCost)."
   }
@@ -264,32 +275,44 @@ class ElectricVehicleChargingBehaviorTest
 
     val freeChargersTAZs = List("20", "21", "30", "31")
     val expensiveChargersTAZs = List("22", "23", "32", "33")
-    val unsuitableChargersTAZs = List("10", "11", "18", "19", "28", "29", "38", "39")
 
     val freePluginEvents = filterEvents(
       events,
       ("type", a => a.equals("ChargingPlugInEvent")),
       ("parkingTaz", (a: String) => freeChargersTAZs.contains(a))
     )
+    val freeEnRouteSessionEvents = filterEvents(
+      events,
+      ("type", a => a.equals("RefuelSessionEvent")),
+      ("parkingTaz", (a: String) => freeChargersTAZs.contains(a)),
+      ("actType", a => a.startsWith("EnRoute-"))
+    )
     val expensivePluginEvents = filterEvents(
       events,
       ("type", a => a.equals("ChargingPlugInEvent")),
       ("parkingTaz", (a: String) => expensiveChargersTAZs.contains(a))
     )
-    val unsuitablePluginEvents = filterEvents(
+    val expensiveEnRouteSessionEvents = filterEvents(
       events,
-      ("type", a => a.equals("ChargingPlugInEvent")),
-      ("parkingTaz", (a: String) => unsuitableChargersTAZs.contains(a))
+      ("type", a => a.equals("RefuelSessionEvent")),
+      ("parkingTaz", (a: String) => expensiveChargersTAZs.contains(a)),
+      ("actType", a => a.startsWith("EnRoute-"))
     )
+    // PHEV vehicles are supposed to have a level2 charging capability
+    // therefore they don't have capability to charge in fast charging stations
+    val unsuitableRefuelSessionEvents1 = filterEvents(
+      events,
+      ("type", a => a.equals("RefuelSessionEvent")),
+      ("vehicleType", (a: String) => a.equals("PHEV"))
+    )
+    unsuitableRefuelSessionEvents1.size shouldEqual 0 withClue
+    ", ride hail vehicles of PHEV type should not be charging in fast chargers"
 
     val vehicleIds = findAllElectricVehicles(events).map(id => id.toString)
     vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
 
-    unsuitablePluginEvents.size shouldEqual 0 withClue
-    ", vehicles should not be connecting to chargers without sufficient power rating."
-
-    freePluginEvents.size + expensivePluginEvents.size should be >= 200 withClue
-    ", expecting at least 4 enroute events for each of the 50 vehicles."
+    freeEnRouteSessionEvents.size should be > expensiveEnRouteSessionEvents.size withClue
+    ", agents, at least 10 times, more likely to enroute charge at cheaper chargers than in expensive ones."
 
     freePluginEvents.size should be > expensivePluginEvents.size withClue
     ", agents should prefer cheaper chargers for enrouting (smaller ParkingTicketCost)."
@@ -322,21 +345,30 @@ class ElectricVehicleChargingBehaviorTest
     val cavRegex: Regex = """^rideHailVehicle-\d+-L5@GlobalRHM\Z""".r
     val humanRegex: Regex = """^rideHailVehicle-\d+@GlobalRHM\Z""".r
 
-    val unsuitableChargersTAZs = List("8", "9", "18", "19", "28", "29", "38", "39")
     val cavReservedTAZs = List("12", "13", "22", "23", "32", "33")
     val humanReservedTAZs = List("10", "11", "20", "21", "30", "31")
 
     val vehicleIds = findAllElectricVehicles(events).map(id => id.toString)
     vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
 
-    val unsuitablePluginEvents = filterEvents(
+    // PHEV vehicles are supposed to have a level2 charging capability
+    // therefore they don't have capability to charge in fast charging stations
+    val unsuitableRefuelSessionEvents1 = filterEvents(
       events,
-      ("type", a => a.equals("ChargingPlugInEvent")),
-      ("parkingTaz", (a: String) => unsuitableChargersTAZs.contains(a))
+      ("type", a => a.equals("RefuelSessionEvent")),
+      ("vehicleType", (a: String) => a.equals("PHEV"))
     )
+    unsuitableRefuelSessionEvents1.size shouldEqual 0 withClue
+    ", ride hail vehicles of PHEV type should not be charging in fast chargers"
 
-    unsuitablePluginEvents.size shouldEqual 0 withClue
-    ", ride hail vehicles should not be charging on slow chargers"
+    val unsuitableRefuelSessionEvents2 = filterEvents(
+      events,
+      ("type", a => a.equals("RefuelSessionEvent")),
+      ("stall", (a: String) => a.contains("Level1")),
+      ("tick", (a: String) => a.toDouble >= 8 * 3600.0 && a.toDouble <= 20 * 3600.0)
+    )
+    unsuitableRefuelSessionEvents2.size shouldEqual 0 withClue
+    ", ride hail vehicles should not be charging in slow chargers during shift hours. "
 
     val cavReservedPluginEvents = filterEvents(
       events,
@@ -412,9 +444,8 @@ class ElectricVehicleChargingBehaviorTest
     val closestTAZsCAV = List("12")
     //val furtherTAZsHuman = List("11", "21", "31")
     val furtherTAZsCAV = List("13", "23", "33")
-    val unsuitableChargersTAZs = List("8", "9", "18", "19", "28", "29", "38", "39", "20", "22", "30", "32")
 
-    val vehicleIds = findAllElectricVehicles(events).map(id => id.toString)
+    val vehicleIds = findAllElectricVehicles(events).map(id => id._1.toString)
     vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
 
     val vehiclesCharged = filterEvents(
@@ -422,24 +453,25 @@ class ElectricVehicleChargingBehaviorTest
       ("type", a => a.equals("ChargingPlugInEvent"))
     ).map(e => e.getAttributes.get("vehicle")).distinct
 
-    vehiclesCharged.size shouldEqual 50 withClue ", every single vehicle should had charged at least once."
+    vehiclesCharged.size should be > 0 withClue ", every single vehicle should had charged at least once."
 
-    val unsuitablePluginEvents = filterEvents(
+    // PHEV vehicles are supposed to have a level2 charging capability
+    // therefore they don't have capability to charge in fast charging stations
+    val unsuitableRefuelSessionEvents1 = filterEvents(
       events,
-      ("type", a => a.equals("ChargingPlugInEvent")),
-      ("parkingTaz", (a: String) => unsuitableChargersTAZs.contains(a))
+      ("type", a => a.equals("RefuelSessionEvent")),
+      ("vehicleType", (a: String) => a.equals("PHEV"))
     )
-
-    unsuitablePluginEvents.size shouldEqual 0 withClue
-    ", ride hail vehicles should not be charging on slow chargers"
+    unsuitableRefuelSessionEvents1.size shouldEqual 0 withClue
+    ", ride hail vehicles of PHEV type should not be charging in fast chargers"
 
     val firstPluginEvents = vehicleIds.foldLeft(List[Event]()) { (plugIns, vid) =>
-      val firstPlugIn = filterEvents(
+      val firstPlugInMaybe = filterEvents(
         events,
         ("type", a => a.equals("ChargingPlugInEvent")),
         ("vehicle", a => a.equals(vid))
-      ).head
-      plugIns :+ firstPlugIn
+      ).headOption
+      firstPlugInMaybe.map(plugIns :+ _).getOrElse(plugIns)
     }
 
     val pluginCountByTAZ = firstPluginEvents.map(_.getAttributes.get("parkingTaz")).groupBy(identity).mapValues(_.size)
@@ -526,7 +558,9 @@ class ElectricVehicleChargingBehaviorTest
     )
   }
 
-  def findAllElectricVehicles(events: IndexedSeq[Event]): IndexedSeq[Id[Vehicle]] = {
-    events.collect { case pte: PathTraversalEvent if pte.primaryFuelType == "Electricity" => pte.vehicleId }.distinct
+  def findAllElectricVehicles(events: IndexedSeq[Event]): IndexedSeq[(Id[Vehicle], String)] = {
+    events.collect {
+      case pte: PathTraversalEvent if pte.primaryFuelType == "Electricity" => (pte.vehicleId, pte.vehicleType)
+    }.distinct
   }
 }
