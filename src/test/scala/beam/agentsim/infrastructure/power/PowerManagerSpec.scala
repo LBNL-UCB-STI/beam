@@ -42,7 +42,6 @@ class PowerManagerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfter
     tazFromBeamville.tazId,
     ParkingType.Public,
     VehicleManager.AnyManager,
-    None,
     maxStalls = 1,
     chargingPointType = Some(ChargingPointType.ChargingStationType1),
     pricingModel = Some(PricingModel.FlatFee(0.0))

@@ -58,7 +58,7 @@ class ZonalParkingManagerSpec
 
   // a coordinate in the center of the UTM coordinate system
   val coordCenterOfUTM = new Coord(500000, 5000000)
-  val centerSpaceTime = SpaceTime(coordCenterOfUTM, 0)
+  val centerSpaceTime: SpaceTime = SpaceTime(coordCenterOfUTM, 0)
 
   val geo = new GeoUtilsImpl(beamConfig)
 
@@ -160,7 +160,7 @@ class ZonalParkingManagerSpec
         // since only stall is in use, the second inquiry will be handled with the emergency stall
         val secondInquiry =
           ParkingInquiry.init(centerSpaceTime, "work", triggerId = 123709)
-        val response2 @ ParkingInquiryResponse(stall, responseId, triggerId) =
+        val _ @ParkingInquiryResponse(stall, responseId, triggerId) =
           zonalParkingManager.processParkingInquiry(secondInquiry)
         assert(
           stall.tazId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId
@@ -620,14 +620,13 @@ object ZonalParkingManagerSpec {
     val result = treeMap.getTAZs
       .zip(zones)
       .foldLeft(Map.empty[Id[ParkingZoneId], ParkingZone]) { case (acc, (taz, numZones)) =>
-        val parkingZones = (0 until numZones).map { i =>
+        val parkingZones = (0 until numZones).map { _ =>
           val zone = ParkingZone
             .init(
               None,
               taz.tazId,
               ParkingType.Workplace,
               reservedFor,
-              None,
               5,
               pricingModel = Some(FlatFee(3.0))
             )
