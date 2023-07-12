@@ -957,8 +957,8 @@ class PersonAgent(
             _,
             _,
             _,
-            _,
             currentCost,
+            _,
             _,
             _,
             enrouteData
@@ -967,12 +967,12 @@ class PersonAgent(
       val (trip, cost) = if (enrouteData.isInEnrouteState) {
         log.debug("ReadyToChooseParking, enroute trip: {}", currentTrip.toString())
         // if enroute, keep the original trip and cost
-        (currentTrip, currentCost.toDouble)
+        (currentTrip, currentCost)
       } else {
         log.debug("ReadyToChooseParking, trip: {}", restOfCurrentTrip.toString())
         // "head" of the current trip is travelled, and returning rest of the trip
         // adding the cost of the "head" of the trip to the current cost
-        (restOfCurrentTrip, currentCost.toDouble + headOfCurrentTrip.cost)
+        (restOfCurrentTrip, currentCost + headOfCurrentTrip.cost)
       }
 
       goto(ChoosingParkingSpot) using data.copy(
