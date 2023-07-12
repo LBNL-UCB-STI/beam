@@ -15,9 +15,9 @@ input_parameters=(
   RUN_NAME    # the name of simulation (will be used in notifications)
   MAX_RAM     # max ram for beam
 
-  # BEAM-environment docker image name and docker image tag separately
-  # i.e. 'beammodel/beam-environment' and 'latest'
-  DOCKER_IMAGE_NAME DOCKER_IMAGE_TAG
+  # BEAM-environment docker image namespace, name and docker image tag separately
+  # i.e. 'beammodel' for namespace, 'beam-environment' for name and 'latest' as a tag
+  DOCKER_IMAGE_NAMESPACE DOCKER_IMAGE_NAME DOCKER_IMAGE_TAG
 
   S3_REGION S3_PUBLISH  # if uploading to s3 required - both AWS key parts should be set
   AWS_SECRET_ACCESS_KEY AWS_ACCESS_KEY_ID

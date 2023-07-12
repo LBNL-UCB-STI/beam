@@ -19,7 +19,7 @@ export NOTIFICATION_INSTANCE_REGION=""
 # there is no shutdown wait when we using Lawrencium
 export NOTIFICATION_SHUTDOWN_WAIT=""
 
-FULL_DOCKER_IMAGE_NAME="docker://${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
+FULL_DOCKER_IMAGE_NAME="docker://${DOCKER_IMAGE_NAMESPACE}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}"
 SINGULARITY_IMAGE_NAME="${DOCKER_IMAGE_NAME}_${DOCKER_IMAGE_TAG}.sif"
 
 # to use https for pulling data repository despite a url configured for it
