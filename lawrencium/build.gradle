@@ -43,41 +43,42 @@ tasks.register("ltest") {
                 password = "Zomb1986" + project.findProperty("otp")
             }
 
-            def job_url = "https://github.com/LBNL-UCB-STI/beam/blob/16ad59323af0e92ff41ea72144a9ac33e9dbab9b/lawrencium/src/main/bash/slurm_job.sh"
-            def job_runner_url = "https://github.com/LBNL-UCB-STI/beam/blob/16ad59323af0e92ff41ea72144a9ac33e9dbab9b/lawrencium/src/main/bash/slurm_job_runner.sh"
+            def base_path = "https://raw.githubusercontent.com/LBNL-UCB-STI/beam/inm/lawrencium-automatization/lawrencium/src/main/bash"
 
             session(remotes.lawrenciumLoginNode) {
-                execute "rm slurm_job.sh slurm_job_runner.sh"
-                execute "ls -lah"
-                execute "wget $job_url"
-                execute "wget $job_runner_url"
-                execute "ls -lah"
+                execute "rm -f slurm_job.sh"
+                execute "rm -f slurm_job_runner.sh"
+                execute "wget $base_path/slurm_job.sh"
+                execute "wget $base_path/slurm_job_runner.sh"
                 execute "chmod +x slurm_job_runner.sh slurm_job.sh"
                 execute "ls -lah"
-                execute "./slurm_job_runner.sh \
-                              --BEAM_BRANCH_NAME='develop' \
-                              --BEAM_COMMIT_SHA='' \
-                              --BEAM_DATA_BRANCH_NAME='develop' \
-                              --BEAM_DATA_COMMIT_SHA='' \
-                              --BEAM_CONFIG='test/input/beamville/beam.conf' \
-                              --RUN_NAME='beamville_test' \
-                              --PROFILER='' \
-                              --PULL_CODE='true' \
-                              --PULL_DATA='true' \
-                              --ACCOUNT='pc_beamcore' \
-                              --PARTITION='es1' \
-                              --QOS='es_normal' \
-                              --MEMORY_LIMIT='480' \
-                              --EXPECTED_EXECUTION_DURATION='0-00:30:00' \
-                              --DOCKER_IMAGE_NAME='beammodel/beam-environment' \
-                              --DOCKER_IMAGE_TAG='latest' \
-                              --S3_REGION='us-east-2' \
-                              --S3_PUBLISH='false' \
-                              --AWS_SECRET_ACCESS_KEY='' \
-                              --AWS_ACCESS_KEY_ID='' \
-                              --SEND_NOTIFICATION='false' \
-                              --SLACK_HOOK_WITH_TOKEN='' \
-                              --SIMULATIONS_SPREADSHEET_UPDATE_URL=''"
+                execute "./slurm_job_runner.sh " +
+                        "--BEAM_BRANCH_NAME='develop' " +
+                        "--BEAM_COMMIT_SHA='' " +
+                        "--BEAM_DATA_BRANCH_NAME='develop' " +
+                        "--BEAM_DATA_COMMIT_SHA='' " +
+                        "--BEAM_CONFIG='test/input/beamville/beam.conf' " +
+                        "--RUN_NAME='beamville_test' " +
+                        "--MAX_RAM='16' " +
+                        "--PROFILER='' " +
+                        "--PULL_CODE='true' " +
+                        "--PULL_DATA='true' " +
+                        "--ACCOUNT='pc_beamcore' " +
+                        "--PARTITION='es1' " +
+                        "--QOS='es_normal' " +
+                        "--MEMORY_LIMIT='480' " +
+                        "--EXPECTED_EXECUTION_DURATION='0-00:30:00' " +
+                        "--DOCKER_IMAGE_NAMESPACE='beammodel' " +
+                        "--DOCKER_IMAGE_NAME='beam-environment' " +
+                        "--DOCKER_IMAGE_TAG='latest' " +
+                        "--S3_REGION='us-east-2' " +
+                        "--S3_PUBLISH='false' " +
+                        "--AWS_SECRET_ACCESS_KEY='?' " +
+                        "--AWS_ACCESS_KEY_ID='?' " +
+                        "--SLACK_HOOK_WITH_TOKEN='?' " +
+                        "--SEND_NOTIFICATION='false' " +
+                        "--SLACK_HOOK_WITH_TOKEN='' " +
+                        "--SIMULATIONS_SPREADSHEET_UPDATE_URL='?' "
             }
         }
     }
