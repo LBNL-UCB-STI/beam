@@ -225,8 +225,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       updateLatestObservedTick(tick)
 
       val dataForNextLegOrActivity: BasePersonData = data.copy(
-        currentVehicle = Vector(),
-        currentTripCosts = 0.0
+        currentVehicle = Vector()
       )
 
       holdTickAndTriggerId(tick, triggerId)

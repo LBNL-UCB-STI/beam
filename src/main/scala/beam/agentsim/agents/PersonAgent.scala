@@ -190,12 +190,20 @@ object PersonAgent {
     passengerSchedule: PassengerSchedule = PassengerSchedule(),
     currentLegPassengerScheduleIndex: Int = 0,
     hasDeparted: Boolean = false,
-    currentTripCosts: Double = 0.0,
     numberOfReplanningAttempts: Int = 0,
     failedTrips: IndexedSeq[EmbodiedBeamTrip] = IndexedSeq.empty,
     lastUsedParkingStall: Option[ParkingStall] = None,
     enrouteData: EnrouteData = EnrouteData()
   ) extends PersonData {
+
+    def currentTripCosts(): Double = {
+      currentTrip match {
+        case Some(trip) =>
+          trip.costEstimate
+        case _ =>
+          0.0
+      }
+    }
 
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
       copy(passengerSchedule = newPassengerSchedule)
@@ -607,7 +615,7 @@ class PersonAgent(
   when(Teleporting) {
     case Event(
           TriggerWithId(PersonDepartureTrigger(tick), triggerId),
-          data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _, _, _, _)
+          data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _, _, _)
         ) =>
       endActivityAndDepart(tick, currentTrip, data)
 
@@ -621,7 +629,7 @@ class PersonAgent(
 
     case Event(
           TriggerWithId(TeleportationEndsTrigger(tick), triggerId),
-          data @ BasePersonData(_, Some(currentTrip), _, _, maybeCurrentTourMode, _, _, _, true, _, _, _, _, _)
+          data @ BasePersonData(_, Some(currentTrip), _, _, maybeCurrentTourMode, _, _, _, true, _, _, _, _)
         ) =>
       holdTickAndTriggerId(tick, triggerId)
 
@@ -653,7 +661,7 @@ class PersonAgent(
       */
     case Event(
           TriggerWithId(PersonDepartureTrigger(tick), triggerId),
-          data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _, _, _, _)
+          data @ BasePersonData(_, Some(currentTrip), _, _, _, _, _, _, false, _, _, _, _)
         ) =>
       endActivityAndDepart(tick, currentTrip, data)
 
@@ -662,7 +670,7 @@ class PersonAgent(
 
     case Event(
           TriggerWithId(PersonDepartureTrigger(tick), triggerId),
-          BasePersonData(_, _, restOfCurrentTrip, _, _, _, _, _, true, _, _, _, _, _)
+          BasePersonData(_, _, restOfCurrentTrip, _, _, _, _, _, true, _, _, _, _)
         ) =>
       // We're coming back from replanning, i.e. we are already on the trip, so we don't throw a departure event
       logDebug(s"replanned to leg ${restOfCurrentTrip.head}")
@@ -746,7 +754,7 @@ class PersonAgent(
     // TRANSIT FAILURE
     case Event(
           ReservationResponse(Left(firstErrorResponse), _),
-          data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, _, _)
+          data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, _)
         ) =>
       logDebug(s"replanning because ${firstErrorResponse.errorCode}")
 
@@ -837,7 +845,7 @@ class PersonAgent(
     // RIDE HAIL FAILURE
     case Event(
           response @ RideHailResponse(_, _, _, Some(error), _, _),
-          data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _, _, _)
+          data @ BasePersonData(_, _, _, _, _, _, _, _, _, _, _, _, _)
         ) =>
       handleFailedRideHailReservation(error, response, data)
   }
@@ -848,7 +856,7 @@ class PersonAgent(
      */
     case Event(
           TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter), triggerId),
-          data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _, _, _, _)
+          data @ BasePersonData(_, _, currentLeg :: _, currentVehicle, _, _, _, _, _, _, _, _, _)
         ) =>
       logDebug(s"PersonEntersVehicle: $vehicleToEnter @ $tick")
       eventsManager.processEvent(new PersonEntersVehicleEvent(tick, id, vehicleToEnter))
@@ -881,7 +889,7 @@ class PersonAgent(
      */
     case Event(
           TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, energyConsumedOption), triggerId),
-          data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _, _, _, _)
+          data @ BasePersonData(_, _, _ :: restOfCurrentTrip, currentVehicle, _, _, _, _, _, _, _, _, _)
         ) if vehicleToExit.equals(currentVehicle.head) =>
       updateFuelConsumed(energyConsumedOption)
       logDebug(s"PersonLeavesVehicle: $vehicleToExit @ $tick")
@@ -897,7 +905,7 @@ class PersonAgent(
   when(PassengerScheduleEmpty) {
     case Event(PassengerScheduleEmptyMessage(_, toll, triggerId, energyConsumedOption), data: BasePersonData) =>
       updateFuelConsumed(energyConsumedOption)
-      val netTripCosts = data.currentTripCosts // This includes tolls because it comes from leg.cost
+      val netTripCosts = data.currentTripCosts() // This includes tolls because it comes from leg.cost
       if (toll > 0.0 || netTripCosts > 0.0)
         eventsManager.processEvent(
           new PersonCostEvent(
@@ -912,14 +920,12 @@ class PersonAgent(
       val dataForNextLegOrActivity = if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
         data.copy(
           restOfCurrentTrip = data.restOfCurrentTrip.tail,
-          currentVehicle = if (data.currentVehicle.size > 1) data.currentVehicle.tail else Vector(),
-          currentTripCosts = 0.0
+          currentVehicle = if (data.currentVehicle.size > 1) data.currentVehicle.tail else Vector()
         )
       } else {
         data.copy(
           restOfCurrentTrip = data.restOfCurrentTrip.tail,
-          currentVehicle = Vector(body.id),
-          currentTripCosts = 0.0
+          currentVehicle = Vector(body.id)
         )
       }
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
@@ -957,27 +963,24 @@ class PersonAgent(
             _,
             _,
             _,
-            currentCost,
             _,
             _,
             _,
             enrouteData
           )
         ) =>
-      val (trip, cost) = if (enrouteData.isInEnrouteState) {
+      val trip = if (enrouteData.isInEnrouteState) {
         log.debug("ReadyToChooseParking, enroute trip: {}", currentTrip.toString())
-        // if enroute, keep the original trip and cost
-        (currentTrip, currentCost)
+        currentTrip
       } else {
         log.debug("ReadyToChooseParking, trip: {}", restOfCurrentTrip.toString())
         // "head" of the current trip is travelled, and returning rest of the trip
         // adding the cost of the "head" of the trip to the current cost
-        (restOfCurrentTrip, currentCost + headOfCurrentTrip.cost)
+        restOfCurrentTrip
       }
 
       goto(ChoosingParkingSpot) using data.copy(
-        restOfCurrentTrip = trip,
-        currentTripCosts = cost
+        restOfCurrentTrip = trip
       )
   }
 
@@ -1090,7 +1093,6 @@ class PersonAgent(
             _,
             _,
             _,
-            _,
             _
           )
         ) if nextLeg.asDriver =>
@@ -1185,7 +1187,7 @@ class PersonAgent(
       nextState
 
     // TRANSIT but too late
-    case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, _, _))
+    case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, _))
         if nextLeg.beamLeg.mode.isTransit && nextLeg.beamLeg.startTime < _currentTick.get =>
       // We've missed the bus. This occurs when something takes longer than planned (based on the
       // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our non-transit
@@ -1215,7 +1217,7 @@ class PersonAgent(
           else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)
       )
     // TRANSIT
-    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, _, _))
+    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, _))
         if nextLeg.beamLeg.mode.isTransit =>
       val resRequest = TransitReservationRequest(
         nextLeg.beamLeg.travelPath.transitStops.get.fromIdx,
@@ -1226,7 +1228,7 @@ class PersonAgent(
       TransitDriverAgent.selectByVehicleId(nextLeg.beamVehicleId) ! resRequest
       goto(WaitingForReservationConfirmation)
     // RIDE_HAIL
-    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _, _, _, _))
+    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _, _, _))
         if nextLeg.isRideHail =>
       val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
 
@@ -1258,7 +1260,7 @@ class PersonAgent(
       goto(WaitingForReservationConfirmation)
     // CAV but too late
     // TODO: Refactor so it uses literally the same code block as transit
-    case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, _, _))
+    case Event(StateTimeout, data @ BasePersonData(_, _, nextLeg :: _, _, _, _, _, _, _, _, _, _, _))
         if nextLeg.beamLeg.startTime < _currentTick.get =>
       // We've missed the CAV. This occurs when something takes longer than planned (based on the
       // initial inquiry). So we replan but change tour mode to WALK_TRANSIT since we've already done our non-transit
@@ -1289,7 +1291,7 @@ class PersonAgent(
       )
     // CAV
     // TODO: Refactor so it uses literally the same code block as transit
-    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _, _, _, _)) =>
+    case Event(StateTimeout, BasePersonData(_, _, nextLeg :: tailOfCurrentTrip, _, _, _, _, _, _, _, _, _, _)) =>
       val legSegment = nextLeg :: tailOfCurrentTrip.takeWhile(leg => leg.beamVehicleId == nextLeg.beamVehicleId)
       val resRequest = ReservationRequest(
         legSegment.head.beamLeg,
@@ -1310,7 +1312,6 @@ class PersonAgent(
             _,
             _,
             currentTourMode @ Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION),
-            _,
             _,
             _,
             _,
@@ -1381,7 +1382,6 @@ class PersonAgent(
             _,
             currentTourMode,
             currentTourPersonalVehicle,
-            _,
             _,
             _,
             _,
@@ -1662,7 +1662,7 @@ class PersonAgent(
       handleBoardOrAlightOutOfPlace
     case Event(
           TriggerWithId(BoardVehicleTrigger(_, vehicleId), triggerId),
-          BasePersonData(_, _, _, currentVehicle, _, _, _, _, _, _, _, _, _, _)
+          BasePersonData(_, _, _, currentVehicle, _, _, _, _, _, _, _, _, _)
         ) if currentVehicle.nonEmpty && currentVehicle.head.equals(vehicleId) =>
       log.debug("Person {} in state {} received Board for vehicle that he is already on, ignoring...", id, stateName)
       stay() replying CompletionNotice(triggerId, Vector())

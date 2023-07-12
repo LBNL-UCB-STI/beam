@@ -1,9 +1,11 @@
 package beam.router.model
 
+import beam.agentsim.agents.choice.mode.DrivingCost
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.Location
 import beam.router.Modes.BeamMode
+import beam.router.osm.TollCalculator
 import beam.sim.BeamServices
 import com.conveyal.r5.streets.EdgeStore
 import com.conveyal.r5.transit.TransportNetwork
@@ -56,7 +58,10 @@ object EmbodiedBeamLeg {
   def splitLegForParking(
     leg: EmbodiedBeamLeg,
     beamServices: BeamServices,
-    transportNetwork: TransportNetwork
+    transportNetwork: TransportNetwork,
+    tollCalculator: TollCalculator,
+    vehicleType: BeamVehicleType,
+    fuelCost: Double
   ): Vector[EmbodiedBeamLeg] = {
     val theLinkIds = leg.beamLeg.travelPath.linkIds
     val indexFromEnd = Math.min(
@@ -100,12 +105,28 @@ object EmbodiedBeamLeg {
         firstPathEndpoint.copy(time = (leg.beamLeg.travelPath.startPoint.time + firstTravelTimes.tail.sum).toInt),
       distanceInM = leg.beamLeg.travelPath.distanceInM - secondPath.distanceInM
     )
+
+    val firstCost = DrivingCost.estimateDrivingCost(
+      firstPath.distanceInM,
+      firstPath.linkTravelTime.sum.toInt,
+      vehicleType,
+      fuelCost
+    ) + tollCalculator.calcTollByLinkIds(firstPath)
+
+    val secondCost = DrivingCost.estimateDrivingCost(
+      secondPath.distanceInM,
+      secondPath.linkTravelTime.sum.toInt,
+      vehicleType,
+      fuelCost
+    ) + tollCalculator.calcTollByLinkIds(secondPath)
+
     val firstLeg = leg.copy(
       beamLeg = leg.beamLeg.copy(
         travelPath = firstPath,
         duration = firstDuration
       ),
-      unbecomeDriverOnCompletion = false
+      unbecomeDriverOnCompletion = false,
+      cost = firstCost
     )
     val secondLeg = leg.copy(
       beamLeg = leg.beamLeg.copy(
@@ -113,9 +134,11 @@ object EmbodiedBeamLeg {
         startTime = firstLeg.beamLeg.startTime + firstLeg.beamLeg.duration,
         duration = secondDuration
       ),
-      cost = 0
+      cost = secondCost
     )
-    assert((firstLeg.cost + secondLeg.cost).equals(leg.cost))
+
+    // allows 0.1% error on cost because of floating point operations
+    assert(Math.abs(firstLeg.cost + secondLeg.cost - leg.cost) < leg.cost * 1e-3)
     assert(firstLeg.beamLeg.duration + secondLeg.beamLeg.duration == leg.beamLeg.duration)
     assert(
       Math.abs(
