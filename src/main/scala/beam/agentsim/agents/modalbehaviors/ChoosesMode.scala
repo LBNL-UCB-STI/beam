@@ -1465,6 +1465,38 @@ trait ChoosesMode {
       }
   }
 
+  private def surroundWithWalkLegsIfNeededAndMakeTrip(partialItin: Vector[EmbodiedBeamLeg]): EmbodiedBeamTrip = {
+    val firstLegWalk = partialItin.head.beamLeg.mode == WALK
+    val lastLegWalk = partialItin.last.beamLeg.mode == WALK
+    val startLeg: Option[EmbodiedBeamLeg] =
+      if (firstLegWalk) None
+      else
+        Some(
+          EmbodiedBeamLeg.dummyLegAt(
+            start = _currentTick.get,
+            vehicleId = body.id,
+            isLastLeg = false,
+            location = partialItin.head.beamLeg.travelPath.startPoint.loc,
+            mode = WALK,
+            vehicleTypeId = body.beamVehicleType.id
+          )
+        )
+    val endLeg =
+      if (lastLegWalk) None
+      else
+        Some(
+          EmbodiedBeamLeg.dummyLegAt(
+            start = partialItin.last.beamLeg.endTime,
+            vehicleId = body.id,
+            isLastLeg = true,
+            location = partialItin.last.beamLeg.travelPath.endPoint.loc,
+            mode = WALK,
+            vehicleTypeId = body.beamVehicleType.id
+          )
+        )
+    EmbodiedBeamTrip((startLeg ++: partialItin) ++ endLeg)
+  }
+
   private def createFailedODSkimmerEvent(
     originActivity: Activity,
     destinationActivity: Activity,
