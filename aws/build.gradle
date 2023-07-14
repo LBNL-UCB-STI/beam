@@ -340,7 +340,9 @@ def getCurrentGitUserEmail() {
 }
 
 task PrintCurrentGitUserEmail() {
-    println("Current git user email is: ${getCurrentGitUserEmail()}")
+    doLast {
+        println("Current git user email is: ${getCurrentGitUserEmail()}")
+    }
 }
 
 def getGitResultFromWorkingDirUsing(command, defaultResult) {

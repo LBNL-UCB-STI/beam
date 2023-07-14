@@ -72,6 +72,24 @@ format_path_traversals <- function(EVENTS) {
   return(pt)
 }
 ###
+# Function to calculate average speed for vectors of distances and speeds
+average_speed_vector <- function(distances, speeds) {
+  
+  # Check if speeds contain zero
+  if(any(speeds == 0)){
+    stop("Speeds must be non-zero.")
+  }
+  
+  # Total distance and total time
+  total_distance <- sum(distances)
+  total_time <- sum(distances / speeds)
+  
+  # Average speed formula: total distance / total time
+  average_speed <- total_distance / total_time
+  
+  return(average_speed)
+}
+####
 
 expansionFactor <- 1/0.5
 city <- "austin"
@@ -139,6 +157,15 @@ p<-ggplot(dgb2b_summary[business!="B2C"], aes(factor(runLabel, level=dgb2b_runs_
   scale_fill_manual(values=c("deepskyblue3", "deepskyblue4", "azure3", "darkgray", "azure4"))
 ggsave(pp(demand_growth_output_dir, pp("demand-growth-b2b_GWH-by-powertrain-class.png")),p,width=5,height=4,units='in')
 
+# ****** DEMAND GROWTH - B2B - Processing
+dgb2b_tours <- dgb2b_runs[business=="B2B"][order(vehicle,time),.(tourTime=last(arrivalTime)-first(departureTime), tourVMT=sum(length/1609.344), tourGWH=sum(primaryFuel/3.6e+12)),by=.(vehicle,runLabel)]
+dgb2b_tours_summary <- dgb2b_tours[,.(avgTourTime=mean(tourTime), avgTourVMT=mean(tourVMT), totVMT=sum(tourVMT), totGWH=sum(tourGWH)), by=.(runLabel)]
+
+
+dgb2b_all_tours <- dgb2b_runs[order(vehicle,time),.(tourTime=last(arrivalTime)-first(departureTime), tourVMT=sum(length/1609.344), tourGWH=sum(primaryFuel/3.6e+12)),by=.(vehicle,runLabel)]
+dgb2b_all_tours_summary <- dgb2b_all_tours[,.(avgTourTime=mean(tourTime), avgTourVMT=mean(tourVMT), totVMT=sum(tourVMT), totGWH=sum(tourGWH)), by=.(runLabel)]
+
+
 
 
 # ************ DEMAND GROWTH - B2C
@@ -169,7 +196,7 @@ write.csv(
   row.names=F,
   quote=T)
 
-# ****** DEMAND GROWTH - B2B - VMT
+# ****** DEMAND GROWTH - B2C - VMT
 p<-ggplot(dgb2c_summary[business=="B2C"], aes(factor(runLabel, level=dgb2c_runs_labels), MVMT, fill=energyAndVehiclesTypes)) +
   geom_bar(stat='identity') +
   facet_grid(. ~ business) +
@@ -181,7 +208,7 @@ p<-ggplot(dgb2c_summary[business=="B2C"], aes(factor(runLabel, level=dgb2c_runs_
   scale_fill_manual(values=c("azure3"))
 ggsave(pp(demand_growth_output_dir, pp("demand-growth-b2c_VMT-by-powertrain-class.png")),p,width=6,height=4,units='in')
 
-# ****** DEMAND GROWTH - B2B - Energy
+# ****** DEMAND GROWTH - B2C - Energy
 p<-ggplot(dgb2c_summary[business=="B2C"], aes(factor(runLabel, level=dgb2c_runs_labels), GWH, fill=energyAndVehiclesTypes)) +
   geom_bar(stat='identity') +
   facet_grid(. ~ business) +
@@ -192,6 +219,15 @@ p<-ggplot(dgb2c_summary[business=="B2C"], aes(factor(runLabel, level=dgb2c_runs_
         plot.title = element_text(size=10))+
   scale_fill_manual(values=c("azure3"))
 ggsave(pp(demand_growth_output_dir, pp("demand-growth-b2c_GWH-by-powertrain-class.png")),p,width=6,height=4,units='in')
+
+
+# ****** DEMAND GROWTH - B2C - Processing
+dgb2c_tours <- dgb2c_runs[business=="B2C"][order(vehicle,time),.(tourTime=last(arrivalTime)-first(departureTime), tourVMT=sum(length)/1609.344, tourGWH=sum(primaryFuel/3.6e+12)),by=.(vehicle,runLabel)]
+dgb2c_tours_summary <- dgb2c_tours[,.(avgTourTime=mean(tourTime), avgTourVMT=mean(tourVMT), totVMT=sum(tourVMT), totGWH=sum(tourGWH)), by=.(runLabel)]
+
+dgb2c_all_tours <- dgb2c_runs[order(vehicle,time),.(tourTime=last(arrivalTime)-first(departureTime), tourVMT=sum(length)/1609.344, tourGWH=sum(primaryFuel/3.6e+12)),by=.(vehicle,runLabel)]
+dgb2c_all_tours_summary <- dgb2c_all_tours[,.(avgTourTime=mean(tourTime), avgTourVMT=mean(tourVMT), totVMT=sum(tourVMT), totGWH=sum(tourGWH)), by=.(runLabel)]
+
 
 
 
@@ -256,6 +292,12 @@ p<-ggplot(lda_summary, aes(factor(runLabel, level=lda_runs_labels), GWH, fill=en
 ggsave(pp(locker_delivery_output_dir, pp("locker-delivery-adoption_GWH-by-powertrain-class.png")),p,width=5,height=4,units='in')
 
 
+# ****** LOCKER DELIVERT - ADOPTION - Processing
+lda_tours <- lda_runs[business=="B2C"][order(vehicle,time),.(tourTime=last(arrivalTime)-first(departureTime), tourVMT=sum(length)/1609.344, tourGWH=sum(primaryFuel/3.6e+12)),by=.(vehicle,runLabel)]
+dgb2c_tours <- dgb2c_runs[runName=="2040_b2c_growth_140p"][business=="B2C"][order(vehicle,time),.(tourTime=last(arrivalTime)-first(departureTime), tourVMT=sum(length)/1609.344, tourGWH=sum(primaryFuel/3.6e+12)),by=.(vehicle,runLabel)]
+
+lda_tours_summary <- rbind(lda_tours, dgb2c_tours)[,.(avgTourTime=mean(tourTime), avgTourVMT=mean(tourVMT), totVMT=sum(tourVMT), totGWH=sum(tourGWH)), by=.(runLabel)]
+
 # ************ LOCKER DELIVERY - SERVICE 
 lds_runs_labels <- c("Base", "30%", "60%", "90%")
 lds_runs <- 
@@ -309,6 +351,13 @@ p<-ggplot(lds_summary, aes(factor(runLabel, level=lds_runs_labels), GWH, fill=en
 ggsave(pp(locker_delivery_output_dir, pp("locker-delivery-service_GWH-by-powertrain-class.png")),p,width=5,height=4,units='in')
 
 
+# ****** LOCKER DELIVERT - SERVICE - Processing
+lds_tours <- lds_runs[business=="B2C"][order(vehicle,time),.(tourTime=last(arrivalTime)-first(departureTime), tourVMT=sum(length)/1609.344, tourGWH=sum(primaryFuel/3.6e+12)),by=.(vehicle,runLabel)]
+lds_tours_summary <- lds_tours[,.(avgTourTime=mean(tourTime), avgTourVMT=mean(tourVMT), totVMT=sum(tourVMT), totGWH=sum(tourGWH)), by=.(runLabel)]
+
+
+dgb2b_tours <- dgb2b_runs[business=="B2B"][order(vehicle,time),.(tourTime=last(arrivalTime)-first(departureTime), tourVMT=sum(length/1609.344), tourGWH=sum(primaryFuel/3.6e+12)),by=.(vehicle,runLabel)]
+dgb2b_tours_summary <- dgb2b_tours[,.(avgTourTime=mean(tourTime), avgTourVMT=mean(tourVMT), totVMT=sum(tourVMT), totGWH=sum(tourGWH)), by=.(runLabel)]
 
 
 # ****************************************
@@ -318,6 +367,106 @@ ggsave(pp(locker_delivery_output_dir, pp("locker-delivery-service_GWH-by-powertr
 cost_sensitivity_runs_dir <- pp(workDir, "beam/runs/cost-sensitivity/")
 cost_sensitivity_output_dir <- pp(cost_sensitivity_runs_dir, "output/")
 dir.create(cost_sensitivity_output_dir, showWarnings = FALSE)
+
+
+# ************ COST SENSITIVITY - REF
+
+csref_runs_labels <- c("0.6x\nElec.\nPrice", "1.0x\nElec.\nPrice", "1.4x\nElec.\nPrice")
+csref_runs <- 
+  read_freight_events(
+    c("2050_Ref_highp2", "2050_Ref_highp6", "2050_Ref_highp10"), 
+    csref_runs_labels, 
+    cost_sensitivity_runs_dir,
+    "all_ref"
+  )
+csref_runs <- format_path_traversals(csref_runs)
+csref_summary <- csref_runs[,
+                      .(
+                        MVMT=expansionFactor*sum(length/1609.344)/1e+6,
+                        GWH=expansionFactor*sum(primaryFuel/3.6e+12)
+                      ),
+                      by=.(energyTypeCode,vehicleClass,runLabel)]
+csref_summary[,`:=`(totMVMT=sum(MVMT),totMGWH=sum(GWH)),by=.(runLabel)]
+csref_summary[,GWHByClass:=sum(GWH),by=.(vehicleClass,runLabel)]
+csref_summary[,energyAndVehiclesTypes:=paste(energyTypeCode,vehicleClass,sep=" ")]
+csref_summary$energyTypeCode2 <- "Diesel"
+csref_summary[energyTypeCode=="BEV"]$energyTypeCode2 <- "EV"
+csref_summary[energyTypeCode=="PHEV"]$energyTypeCode2 <- "EV"
+csref_summary[energyTypeCode=="H2FC"]$energyTypeCode2 <- "H2FC"
+csref_summary_levels <- c("BEV Class 4-6 Vocational", "BEV Class 7&8 Vocational", "BEV Class 7&8 Tractor",
+                       "PHEV Class 4-6 Vocational", "PHEV Class 7&8 Vocational", "PHEV Class 7&8 Tractor",
+                       "H2FC Class 4-6 Vocational", "H2FC Class 7&8 Vocational", "H2FC Class 7&8 Tractor",
+                       "Diesel Class 4-6 Vocational", "Diesel Class 7&8 Vocational", "Diesel Class 7&8 Tractor")
+csref_summary$energyAndVehiclesTypes <- factor(csref_summary$energyAndVehiclesTypes, levels = csref_summary_levels)
+write.csv(
+  csref_summary,
+  file = pp(cost_sensitivity_output_dir, pp("cost-sensitivity-reference_VMT-and-GWH-by-powertrain-class.csv")),
+  row.names=F,
+  quote=T)
+
+# ****** COST SENSITIVITY - REF - Energy
+p<-ggplot(csref_summary, aes(factor(runLabel, level=csref_runs_labels), GWH/GWHByClass, fill=energyTypeCode2)) +
+  geom_bar(stat='identity') +
+  facet_grid(. ~ vehicleClass) +
+  labs(y='% GWH',x='Scenario',fill='Vehicle Type', title='Energy Consumption - Reference Oil Price')+
+  theme_marain()+
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),
+        strip.text = element_text(size=rel(1.2)),
+        plot.title = element_text(size=12),
+        legend.position = "top")+
+  scale_fill_manual(values=c("darkgray","deepskyblue3", "chartreuse3"))
+ggsave(pp(cost_sensitivity_output_dir, pp("cost-sensitivity-ref_normalized-GWH-by-powertrain-class.png")),p,width=8,height=4,units='in')
+
+
+
+# ************ COST SENSITIVITY - HOP
+cshop_runs_labels <- c("0.6x\nElec.\nPrice", "1.0x\nElec.\nPrice", "1.4x\nElec.\nPrice")
+cshop_runs <- 
+  read_freight_events(
+    c("2050_HOP_highp2", "2050_HOP_highp6", "2050_HOP_highp10"), 
+    cshop_runs_labels, 
+    cost_sensitivity_runs_dir,
+    "all_hop"
+  )
+cshop_runs <- format_path_traversals(cshop_runs)
+cshop_summary <- cshop_runs[,
+                            .(
+                              MVMT=expansionFactor*sum(length/1609.344)/1e+6,
+                              GWH=expansionFactor*sum(primaryFuel/3.6e+12)
+                            ),
+                            by=.(energyTypeCode,vehicleClass,runLabel)]
+cshop_summary[,`:=`(totMVMT=sum(MVMT),totMGWH=sum(GWH)),by=.(runLabel)]
+cshop_summary[,GWHByClass:=sum(GWH),by=.(vehicleClass,runLabel)]
+cshop_summary[,energyAndVehiclesTypes:=paste(energyTypeCode,vehicleClass,sep=" ")]
+cshop_summary$energyTypeCode2 <- "Diesel"
+cshop_summary[energyTypeCode=="BEV"]$energyTypeCode2 <- "EV"
+cshop_summary[energyTypeCode=="PHEV"]$energyTypeCode2 <- "EV"
+cshop_summary[energyTypeCode=="H2FC"]$energyTypeCode2 <- "H2FC"
+cshop_summary_levels <- c("BEV Class 4-6 Vocational", "BEV Class 7&8 Vocational", "BEV Class 7&8 Tractor",
+                          "PHEV Class 4-6 Vocational", "PHEV Class 7&8 Vocational", "PHEV Class 7&8 Tractor",
+                          "H2FC Class 4-6 Vocational", "H2FC Class 7&8 Vocational", "H2FC Class 7&8 Tractor",
+                          "Diesel Class 4-6 Vocational", "Diesel Class 7&8 Vocational", "Diesel Class 7&8 Tractor")
+cshop_summary$energyAndVehiclesTypes <- factor(cshop_summary$energyAndVehiclesTypes, levels = cshop_summary_levels)
+write.csv(
+  cshop_summary,
+  file = pp(cost_sensitivity_output_dir, pp("cost-sensitivity-hop_VMT-and-GWH-by-powertrain-class.csv")),
+  row.names=F,
+  quote=T)
+
+# ****** COST SENSITIVITY - HOP - Energy
+p<-ggplot(cshop_summary, aes(factor(runLabel, level=cshop_runs_labels), GWH/GWHByClass, fill=energyTypeCode2)) +
+  geom_bar(stat='identity') +
+  facet_grid(. ~ vehicleClass) +
+  labs(y='% GWH',x='Scenario',fill='Vehicle Type', title='Energy Consumption - High Oil Price')+
+  theme_marain()+
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),
+        strip.text = element_text(size=rel(1.2)),
+        plot.title = element_text(size=12),
+        legend.position = "top")+
+  scale_fill_manual(values=c("darkgray","deepskyblue3", "chartreuse3"))
+ggsave(pp(cost_sensitivity_output_dir, pp("cost-sensitivity-hop_normalized-GWH-by-powertrain-class.png")),p,width=8,height=4,units='in')
+
+
 
 
 # ************ COST SENSITIVITY - REF & HOP
@@ -358,7 +507,7 @@ write.csv(
 p<-ggplot(cs_summary, aes(factor(runLabel, level=cs_runs_labels2), MVMT/totMVMT, fill=energyAndVehiclesTypes)) +
   geom_bar(stat='identity') +
   facet_grid( ~ scenario) +
-  labs(y='VMT',x='Scenario',fill='Powertrain - Class', title='Total Truck Travel - Grocery Stores')+
+  labs(y='VMT',x='Scenario',fill='Powertrain - Class', title='Total Truck Travel - Cost Sensitivity')+
   theme_marain()+
   theme(axis.text.x = element_text(angle = 0, hjust=0.5),
         strip.text = element_text(size=rel(1.2)),
@@ -368,19 +517,23 @@ p<-ggplot(cs_summary, aes(factor(runLabel, level=cs_runs_labels2), MVMT/totMVMT,
                              "chartreuse2", "chartreuse3","chartreuse4",
                              "azure3","darkgray", "azure4"
   ))
-ggsave(pp(locker_delivery_output_dir, pp("locker-delivery-service_VMT-by-powertrain-class.png")),p,width=5,height=4,units='in')
+ggsave(pp(cost_sensitivity_output_dir, pp("cost-sensitivity_VMT-by-powertrain-class.png")),p,width=5,height=4,units='in')
 
 # ****** COST SENSITIVITY - REF & HOP - Energy
-p<-ggplot(lds_summary, aes(factor(runLabel, level=lds_runs_labels), GWH, fill=energyAndVehiclesTypes)) +
+p<-ggplot(cs_summary, aes(factor(runLabel, level=cs_runs_labels2), GWH/totMGWH, fill=energyAndVehiclesTypes)) +
   geom_bar(stat='identity') +
-  facet_grid(. ~ business) +
-  labs(y='GWh',x='Scenario',fill='Powertrain - Class', title='Energy Consumption - Grocery Stores')+
+  facet_grid(. ~ scenario) +
+  labs(y='GWh',x='Scenario',fill='Powertrain - Class', title='Energy Consumption - Cost Sensitivity')+
   theme_marain()+
   theme(axis.text.x = element_text(angle = 0, hjust=0.5),
         strip.text = element_text(size=rel(1.2)),
-        plot.title = element_text(size=10))+
-  scale_fill_manual(values=c("azure3"))
-ggsave(pp(locker_delivery_output_dir, pp("locker-delivery-service_GWH-by-powertrain-class.png")),p,width=5,height=4,units='in')
+        plot.title = element_text(size=12))+
+  scale_fill_manual(values=c("deepskyblue2","deepskyblue3", "deepskyblue4",
+                             "mediumpurple1" , "purple1", "purple4",
+                             "chartreuse2", "chartreuse3","chartreuse4",
+                             "azure3","darkgray", "azure4"
+  ))
+ggsave(pp(cost_sensitivity_output_dir, pp("cost-sensitivity_GWH-by-powertrain-class.png")),p,width=10,height=5,units='in')
 
 
 
@@ -527,3 +680,19 @@ ggplot(df_filtered, aes(factor(Scenario_ID, level=runs_label_2), cost, fill=labe
         )
 
 
+
+##### TEST
+#network <- readCsv(pp(workDir, "beam/network.csv.gz"))
+linkstats_base2018_passenger <- readCsv(pp(workDir, "validation/austin-2010-base-20220301/0.linkstats.csv.gz"))
+#linkstats_base2018_plus <- merge(linkstats_base2018, network, by.x="link", by.y="linkId", all=TRUE) 
+linkstats_base2018_freight <- readCsv(pp(workDir, "beam/runs/demand-growth/2018_base/0.linkstats.csv.gz"))
+
+linkstats_base2018_passenger[,speed2:=length/traveltime]
+linkstats_base2018_freight[,speed2:=length/traveltime]
+
+average_speed_vector(linkstats_base2018_passenger$length,linkstats_base2018_passenger$speed2)
+average_speed_vector(linkstats_base2018_freight$length,linkstats_base2018_freight$speed2)
+
+
+mean(linkstats_base2018_passenger$speed2)
+mean(linkstats_base2018_freight$speed2)

@@ -1,8 +1,8 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleManager}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.{Charge, Home, Work}
+import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleManager}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.{Charge, EnRoute, Home, Work}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
@@ -13,7 +13,6 @@ import beam.router.skim.{Skims, SkimsUtils}
 import beam.sim.config.BeamConfig
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.utils.collections.QuadTree
 
 class ChargingFunctions(
   tazTreeMap: TAZTreeMap,
@@ -97,30 +96,55 @@ class ChargingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifHomeWorkOrLongParkingDurationThenSlowChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
-    zone.chargingPointType.forall(chargingPointType =>
-      inquiry.beamVehicle.forall {
-        case vehicle
-            if !vehicle.isRideHail && (isHomeWorkOrOvernight(inquiry) || hasLongParkingDurationButNotCharge(inquiry)) =>
-          !ChargingPointType.isFastCharger(chargingPointType)
-        case _ => true
-      }
-    )
+  def filterBasedOnChargerSpeed(
+    zone: ParkingZone,
+    inquiry: ParkingInquiry
+  ): Boolean = {
+    inquiry.searchMode match {
+      case ParkingSearchMode.EnRouteCharging => true
+      case _ =>
+        zone.chargingPointType.forall(chargingPointType =>
+          inquiry.beamVehicle.forall {
+            case vehicle
+                if !vehicle.isRideHail && (isHomeWorkOrOvernight(inquiry) || hasLongParkingDurationButNotCharge(
+                  inquiry
+                )) =>
+              !ChargingPointType.isFastCharger(chargingPointType)
+            case _ => true
+          }
+        )
+    }
   }
 
   /**
     * Method that verifies if the vehicle has valid charging capability
     *
-    * @param zone             ParkingZone
-    * @param beamVehicleMaybe Option[BeamVehicle]
+    * @param zone    ParkingZone
+    * @param inquiry ParkingInquiry
     * @return
     */
-  def hasValidChargingCapability(zone: ParkingZone, beamVehicleMaybe: Option[BeamVehicle]): Boolean = {
-    zone.chargingPointType.forall(chargingPointType =>
-      beamVehicleMaybe.forall(
-        _.beamVehicleType.chargingCapability.forall(getPower(_) >= getPower(chargingPointType))
+  def hasValidChargingCapability(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+    // only verify charging capability if the vehicle is defined and contains a chargingCapability in the first place
+    // also, we only verify the capability if we are either enrouting or on a charge activity.
+    val verifyCharger = inquiry.beamVehicle.isDefined &&
+      inquiry.beamVehicle.get.beamVehicleType.chargingCapability.isDefined && (
+        inquiry.searchMode == ParkingSearchMode.EnRouteCharging ||
+        inquiry.parkingActivityType == Charge ||
+        inquiry.parkingActivityType == EnRoute
       )
-    )
+
+    if (verifyCharger) {
+      zone.chargingPointType match {
+        case Some(chargerType) =>
+          // if the charger can provide a power equal to or greater than what the vehicle is rated for, this is a valid charger
+          getPower(chargerType) >= getPower(inquiry.beamVehicle.get.beamVehicleType.chargingCapability.get)
+        case _ =>
+          // if there is no chargingPoint this is unsuitable
+          false
+      }
+    } else {
+      true
+    }
   }
 
   private def getPower(implicit chargingCapability: ChargingPointType): Double = {
@@ -151,8 +175,8 @@ class ChargingFunctions(
     val rideHailFastChargingOnly: Boolean = ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone, inquiry)
     val enRouteFastChargingOnly: Boolean = ifEnrouteThenFastChargingOnly(zone, inquiry)
     val chargeFastChargingOnly: Boolean = ifChargeActivityThenFastChargingOnly(zone, inquiry)
-    val overnightStaySlowChargingOnly: Boolean = ifHomeWorkOrLongParkingDurationThenSlowChargingOnly(zone, inquiry)
-    val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry.beamVehicle)
+    val overnightStaySlowChargingOnly: Boolean = filterBasedOnChargerSpeed(zone, inquiry)
+    val validChargingCapability: Boolean = hasValidChargingCapability(zone, inquiry)
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
     rideHailFastChargingOnly && validChargingCapability && canCarParkHere && enRouteFastChargingOnly && chargeFastChargingOnly && overnightStaySlowChargingOnly
@@ -182,7 +206,7 @@ class ChargingFunctions(
           origin.time + travelTime1,
           beamVehicle.beamVehicleType
         )
-        ((travelTime1 + travelTime2) / ZonalParkingManager.HourInSeconds) * inquiry.valueOfTime
+        ((travelTime1 + travelTime2) / ZonalParkingManager.HourInSeconds.toDouble) * inquiry.valueOfTime
       case _ => 0.0
     }
 
@@ -222,10 +246,15 @@ class ChargingFunctions(
         .map(_.rangeAnxiety(withAddedFuelInJoules = addedEnergy))
         .getOrElse(0.0) // default no anxiety if no remaining trip data provided
 
-    super[ParkingFunctions].setupMNLParameters(parkingAlternative, inquiry) ++ Map(
+    val params = super[ParkingFunctions].setupMNLParameters(parkingAlternative, inquiry) ++ Map(
       ParkingMNL.Parameters.EnrouteDetourCost -> enrouteFactor,
       ParkingMNL.Parameters.RangeAnxietyCost  -> rangeAnxietyFactor
     )
+    inquiry.searchMode match {
+      case ParkingSearchMode.EnRouteCharging =>
+        params ++ Map(ParkingMNL.Parameters.WalkingEgressCost -> 0.0)
+      case _ => params
+    }
   }
 
   /**
