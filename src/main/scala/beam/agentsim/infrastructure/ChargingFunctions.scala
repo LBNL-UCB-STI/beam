@@ -122,17 +122,20 @@ class ChargingFunctions(
     * @return
     */
   private def hasValidChargingCapability(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
-    zone.chargingPointType.forall(chargingPointType =>
-      inquiry.beamVehicle.forall {
-        case beamVehicle if beamVehicle.isEV =>
-          val vehicleHasDCFasChargingCapability =
-            beamVehicle.beamVehicleType.chargingCapability.forall(ChargingPointType.isFastCharger)
-          val stationHasDCFasChargingCapability = ChargingPointType.isFastCharger(chargingPointType)
-          val hasInvalidChargingCapability = !vehicleHasDCFasChargingCapability && stationHasDCFasChargingCapability
-          !hasInvalidChargingCapability
-        case _ => false
-      }
-    )
+    zone.chargingPointType match {
+      case Some(chargingPointType) =>
+        inquiry.beamVehicle.forall {
+          case beamVehicle if beamVehicle.isEV =>
+            val vehicleHasDCFasChargingCapability =
+              beamVehicle.beamVehicleType.chargingCapability.forall(ChargingPointType.isFastCharger)
+            val stationHasDCFasChargingCapability = ChargingPointType.isFastCharger(chargingPointType)
+            val hasInvalidChargingCapability = !vehicleHasDCFasChargingCapability && stationHasDCFasChargingCapability
+            !hasInvalidChargingCapability
+          case _ => false
+        }
+      case _ =>
+        false
+    }
   }
 
   private def isHomeWorkOrOvernight(inquiry: ParkingInquiry): Boolean = {
