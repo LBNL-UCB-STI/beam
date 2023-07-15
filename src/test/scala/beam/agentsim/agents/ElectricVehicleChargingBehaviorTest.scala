@@ -117,11 +117,11 @@ class ElectricVehicleChargingBehaviorTest
   /*
 
     TAZ MAP:
-                     ---------- 20, 22 ------------ 21, 23 ----------
+                     -------- 20, 22, 28 -------- 21, 23, 29 --------
                      |      167692.88,2213.6    168807.15,2213.6    |
-             home(8) ---------- 10, 12 ------------ 11, 13 -- ------- work(9)
+             home(8) -------- 10, 12, 18 -------- 11, 13, 19 -------- work(9)
     166021.46,1106.8 |      167692.88,1106.8    168807.15,1106.8    | 169921.40,1106.8
-                     ---------- 30, 32 ------------ 31, 33 ----------
+                     -------- 30, 32, 38 -------- 31, 33, 39 --------
                             167692.88,5.53      168807.15,5.53
 
     TAZs are used to identify different parking zones by ensuring there is at most one parking zone on each TAZ.
@@ -447,16 +447,38 @@ class ElectricVehicleChargingBehaviorTest
     val closestTAZsCAV = List("12")
     //val furtherTAZsHuman = List("11", "21", "31")
     val furtherTAZsCAV = List("13", "23", "33")
+    val unsuitableChargersTAZs = List("8", "9", "18", "19", "28", "29", "38", "39", "20", "22", "30", "32")
+
+    val cavRegex: Regex = """^rideHailVehicle-\d+-L5@GlobalRHM\Z""".r
+    val humanRegex: Regex = """^rideHailVehicle-\d+@GlobalRHM\Z""".r
 
     val vehicleIds = findAllElectricVehicles(events).map(id => id._1.toString)
     vehicleIds.size shouldEqual 50 withClue ", expecting 50 electric vehicles."
 
-    val vehiclesCharged = filterEvents(
+    val cavVehiclesCharged = filterEvents(
       events,
-      ("type", a => a.equals("ChargingPlugInEvent"))
+      ("type", a => a.equals("ChargingPlugInEvent")),
+      ("vehicle", a => cavRegex.findFirstMatchIn(a).isDefined)
     ).map(e => e.getAttributes.get("vehicle")).distinct
 
-    vehiclesCharged.size should be > 0 withClue ", some vehicles should had charged at least once."
+    cavVehiclesCharged.size shouldEqual 25 withClue ", every single CAV vehicle should had charged at least once."
+
+    val humanVehiclesCharged = filterEvents(
+      events,
+      ("type", a => a.equals("ChargingPlugInEvent")),
+      ("vehicle", a => humanRegex.findFirstMatchIn(a).isDefined)
+    ).map(e => e.getAttributes.get("vehicle")).distinct
+
+    humanVehiclesCharged.size shouldEqual 25 withClue ", every single human driver vehicle should had charged at least once."
+
+    val unsuitablePluginEvents = filterEvents(
+      events,
+      ("type", a => a.equals("ChargingPlugInEvent")),
+      ("parkingTaz", (a: String) => unsuitableChargersTAZs.contains(a))
+    )
+
+    unsuitablePluginEvents.size shouldEqual 0 withClue
+    ", ride hail vehicles should not be charging on slow chargers while on shift."
 
     // PHEV vehicles are supposed to have a level2 charging capability
     // therefore they don't have capability to charge in fast charging stations
