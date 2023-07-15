@@ -719,8 +719,7 @@ object HouseholdActor {
       whenWhere: SpaceTime,
       manager: ActorRef
     ): BeamVehicle = {
-      val vehicleManagerId =
-        VehicleManager.createOrGetReservedFor(household.getId.toString, VehicleManager.TypeEnum.Household).managerId
+      val vehicleManagerId = VehicleManager.createOrGetReservedFor(household.getId.toString).managerId
       val vehicle = new BeamVehicle(
         Id.createVehicleId(personId.toString + "-emergency-" + vehicleIndex),
         new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter),

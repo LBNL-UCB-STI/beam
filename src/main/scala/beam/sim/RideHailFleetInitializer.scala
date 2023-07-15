@@ -43,7 +43,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     val id = GenericCsvReader.getIfNotNull(rec, "id")
     val rideHailManagerIdStr = GenericCsvReader.getIfNotNull(rec, "rideHailManagerId")
     val rideHailManagerId =
-      VehicleManager.createOrGetReservedFor(rideHailManagerIdStr, VehicleManager.TypeEnum.RideHail).managerId
+      VehicleManager.createOrGetReservedFor(rideHailManagerIdStr, Some(VehicleManager.TypeEnum.RideHail)).managerId
     val vehicleType = GenericCsvReader.getIfNotNull(rec, "vehicleType")
     val initialLocationX = GenericCsvReader.getIfNotNull(rec, "initialLocationX").toDouble
     val initialLocationY = GenericCsvReader.getIfNotNull(rec, "initialLocationY").toDouble

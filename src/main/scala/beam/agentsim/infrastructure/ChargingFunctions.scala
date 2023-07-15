@@ -314,7 +314,7 @@ class ChargingFunctions(
       inquiry.parkingActivityType match {
         case Home   => Set(ParkingType.Residential)
         case Work   => Set(ParkingType.Workplace)
-        case Charge => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
+        case Charge => Set(ParkingType.Public, ParkingType.Commercial)
         case _      => Set(ParkingType.Public)
       }
     } else super[ParkingFunctions].getPreferredParkingTypes(inquiry)

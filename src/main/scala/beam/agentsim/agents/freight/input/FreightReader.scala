@@ -42,7 +42,7 @@ trait FreightReader {
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): IndexedSeq[FreightCarrier]
 
-  def calculatePayloadWeights(plans: IndexedSeq[PayloadPlan]): IndexedSeq[Double] = {
+  private def calculatePayloadWeights(plans: IndexedSeq[PayloadPlan]): IndexedSeq[Double] = {
     val initialWeight = 0.0
     plans.foldLeft(IndexedSeq(initialWeight)) {
       case (acc, PayloadPlan(_, _, _, _, weight, Unloading, _, _, _, _, _, _, _)) => acc :+ acc.last - weight
@@ -103,8 +103,8 @@ trait FreightReader {
     householdsFactory: HouseholdsFactory
   ): IndexedSeq[(FreightCarrier, Household, Plan, Id[Person], Id[BeamVehicle])] = {
     carriers.flatMap { carrier =>
-      val freightHouseholdId = createHouseholdId(carrier.carrierId)
-      val household = householdsFactory.createHousehold(freightHouseholdId)
+      val freightCarrierId = createHouseholdId(carrier.carrierId)
+      val household = householdsFactory.createHousehold(freightCarrierId)
       household.setIncome(new IncomeImpl(0, Income.IncomePeriod.year))
       carrier.tourMap.map { case (vehicleId, tours) =>
         val personId = createPersonId(carrier.carrierId, vehicleId)
@@ -135,7 +135,7 @@ trait FreightReader {
       powertrain,
       vehicleType,
       vehicleManagerId = new AtomicReference(
-        VehicleManager.createOrGetReservedFor(carrierId.toString, VehicleManager.TypeEnum.Freight).managerId
+        VehicleManager.createOrGetReservedFor(carrierId.toString, Some(VehicleManager.TypeEnum.Freight)).managerId
       ),
       randomSeed
     )
@@ -143,7 +143,7 @@ trait FreightReader {
     vehicle
   }
 
-  protected def createFreightActivity(
+  private def createFreightActivity(
     activityType: String,
     locationUTM: Coord,
     endTime: Int,
@@ -157,7 +157,7 @@ trait FreightReader {
     act
   }
 
-  protected def createFreightLeg(departureTime: Int): Leg = {
+  private def createFreightLeg(departureTime: Int): Leg = {
     val leg = PopulationUtils.createLeg(BeamMode.CAR.value)
     leg.setDepartureTime(departureTime)
     leg

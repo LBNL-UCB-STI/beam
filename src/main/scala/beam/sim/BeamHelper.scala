@@ -343,7 +343,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     )
   }
 
-  def readFreights(
+  private def readFreights(
     beamConfig: BeamConfig,
     streetLayer: StreetLayer,
     networkMaybe: Option[Network],
@@ -400,7 +400,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     )
   }
 
-  def readPrivateVehicles(
+  private def readPrivateVehicles(
     beamConfig: BeamConfig,
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): (TrieMap[Id[BeamVehicle], BeamVehicle], TrieMap[Id[BeamVehicle], Double]) =

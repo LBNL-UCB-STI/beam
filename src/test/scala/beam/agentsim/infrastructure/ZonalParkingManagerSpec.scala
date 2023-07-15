@@ -399,8 +399,8 @@ class ZonalParkingManagerSpec
 
   describe("ZonalParkingManager with multiple parking files loaded") {
     it("should return the correct stall corresponding with the request (reservedFor, vehicleManagerId)") {
-      val sharedFleet1 = VehicleManager.createOrGetReservedFor("shared-fleet-1", VehicleManager.TypeEnum.Shared)
-      val sharedFleet2 = VehicleManager.createOrGetReservedFor("shared-fleet-2", VehicleManager.TypeEnum.Shared)
+      val sharedFleet1 = VehicleManager.createOrGetReservedFor("shared-fleet-1", Some(VehicleManager.TypeEnum.Shared))
+      val sharedFleet2 = VehicleManager.createOrGetReservedFor("shared-fleet-2", Some(VehicleManager.TypeEnum.Shared))
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")
       val stalls = InfrastructureUtils.loadStalls(
         "test/test-resources/beam/agentsim/infrastructure/taz-parking.csv",

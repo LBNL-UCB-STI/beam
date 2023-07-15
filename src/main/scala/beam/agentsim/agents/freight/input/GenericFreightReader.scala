@@ -363,7 +363,7 @@ class GenericFreightReader(
   @Override
   def createHouseholdId(carrierId: Id[FreightCarrier]): Id[Household] = {
     val updatedCarrierId = carrierId.toString.replace(FREIGHT_ID_PREFIX + "Carrier-", "")
-    s"${FREIGHT_ID_PREFIX}Household-$updatedCarrierId".createId
+    s"${FREIGHT_ID_PREFIX}Carrier-$updatedCarrierId".createId
   }
 
 }

@@ -19,7 +19,7 @@ object VehicleManager extends LazyLogging {
     AnyManager.managerId -> AnyManager
   )
 
-  val CustomReservedForRegex: Regex = """([\w-]+)\(([\w-]+)\)""".r.unanchored
+  private val CustomReservedForRegex: Regex = """([\w-]+)\(([\w-]+)\)""".r.unanchored
 
   object TypeEnum extends Enumeration {
     type VehicleManagerType = Value
@@ -45,8 +45,21 @@ object VehicleManager extends LazyLogging {
 
   def getReservedFor(managerId: Id[VehicleManager]): Option[ReservedFor] = vehicleManagers.get(managerId)
 
-  def createOrGetReservedFor(idString: String, vehType: TypeEnum.VehicleManagerType): ReservedFor = {
+  def createOrGetReservedFor(
+    idString: String,
+    vehTypeMaybe: Option[TypeEnum.VehicleManagerType] = None
+  ): ReservedFor = {
     val vehId = Id.create(idString, classOf[VehicleManager])
+    val vehType = vehTypeMaybe.getOrElse {
+      if (idString.startsWith("freight"))
+        TypeEnum.Freight
+      else if (idString.startsWith("ridehail"))
+        TypeEnum.RideHail
+      else if (idString.startsWith("shared"))
+        TypeEnum.Shared
+      else
+        TypeEnum.Household
+    }
     if (vehicleManagers.contains(vehId) && vehicleManagers(vehId).managerType != vehType)
       throw new RuntimeException("Duplicate vehicle manager ids is not allowed")
     val reservedFor = ReservedFor(vehId, vehType)
@@ -59,9 +72,9 @@ object VehicleManager extends LazyLogging {
       case null | "" =>
         Some(VehicleManager.AnyManager)
       case x if x == VehicleManager.AnyManager.managerId.toString =>
-        Some(createOrGetReservedFor(reservedForString, TypeEnum.Default))
+        Some(createOrGetReservedFor(reservedForString, Some(TypeEnum.Default)))
       case CustomReservedForRegex(kind, id) =>
-        Some(createOrGetReservedFor(id, TypeEnum.withName(kind.trim.toLowerCase)))
+        Some(createOrGetReservedFor(id, Some(TypeEnum.withName(kind.trim.toLowerCase))))
       case _ =>
         None
     }
@@ -70,16 +83,16 @@ object VehicleManager extends LazyLogging {
       val sharedFleets = cfgAgentSim.agents.vehicles.sharedFleets
       val rideHailManagers = cfgAgentSim.agents.rideHail.managers
       reservedForMaybe = reservedForString match {
-        case cfgAgentSim.agents.freight.name => Some(createOrGetReservedFor(reservedForString, TypeEnum.Freight))
+        case cfgAgentSim.agents.freight.name => Some(createOrGetReservedFor(reservedForString, Some(TypeEnum.Freight)))
         case reservedFor if rideHailManagers.exists(_.name == reservedFor) =>
-          Some(createOrGetReservedFor(reservedForString, TypeEnum.RideHail))
+          Some(createOrGetReservedFor(reservedForString, Some(TypeEnum.RideHail)))
         case reservedFor if sharedFleets.exists(_.name == reservedFor) =>
-          Some(createOrGetReservedFor(reservedForString, TypeEnum.Shared))
+          Some(createOrGetReservedFor(reservedForString, Some(TypeEnum.Shared)))
         case _ =>
           None
       }
     }
-    reservedForMaybe map { case ReservedFor(mngId, mngType) => createOrGetReservedFor(mngId.toString, mngType) }
+    reservedForMaybe map { case ReservedFor(mngId, mngType) => createOrGetReservedFor(mngId.toString, Some(mngType)) }
   }
 
   def reserveForToString(reservedFor: ReservedFor): String = {

@@ -1,6 +1,7 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
@@ -218,20 +219,24 @@ class ParkingFunctions(
     */
   protected def getPreferredParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
     // a lookup for valid parking types based on this inquiry
-    if (inquiry.searchMode == ParkingSearchMode.EnRouteCharging) {
-      Set(ParkingType.Public)
-    } else if (inquiry.searchMode == ParkingSearchMode.Init) {
-      inquiry.parkingActivityType match {
-        case ParkingActivityType.Home => Set(ParkingType.Residential)
-        case ParkingActivityType.Work => Set(ParkingType.Workplace)
-        case _                        => Set(ParkingType.Public)
-      }
+    if (inquiry.beamVehicle.exists(v => v.isFreight)) {
+      Set(ParkingType.Commercial)
     } else {
-      inquiry.parkingActivityType match {
-        case ParkingActivityType.Home   => Set(ParkingType.Residential, ParkingType.Public)
-        case ParkingActivityType.Work   => Set(ParkingType.Workplace, ParkingType.Public)
-        case ParkingActivityType.Charge => Set(ParkingType.Workplace, ParkingType.Public, ParkingType.Residential)
-        case _                          => Set(ParkingType.Public)
+      if (inquiry.searchMode == ParkingSearchMode.EnRouteCharging) {
+        Set(ParkingType.Public, ParkingType.Commercial)
+      } else if (inquiry.searchMode == ParkingSearchMode.Init) {
+        inquiry.parkingActivityType match {
+          case ParkingActivityType.Home => Set(ParkingType.Residential)
+          case ParkingActivityType.Work => Set(ParkingType.Workplace)
+          case _                        => Set(ParkingType.Public)
+        }
+      } else {
+        inquiry.parkingActivityType match {
+          case ParkingActivityType.Home   => Set(ParkingType.Residential, ParkingType.Public)
+          case ParkingActivityType.Work   => Set(ParkingType.Workplace, ParkingType.Public)
+          case ParkingActivityType.Charge => Set(ParkingType.Public, ParkingType.Commercial)
+          case _                          => Set(ParkingType.Public, ParkingType.Commercial)
+        }
       }
     }
   }

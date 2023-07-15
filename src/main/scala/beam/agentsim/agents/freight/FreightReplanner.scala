@@ -146,7 +146,7 @@ class FreightReplanner(
     ): TimeDistanceCost = {
       val beamVehicleType = (for {
         vehicle     <- maybeVehicle
-        vehicleType <- freightCarrier.fleet.get(Id.createVehicleId(vehicle.id))
+        vehicleType <- beamServices.beamScenario.privateVehicles.get(Id.createVehicleId(vehicle.id))
       } yield vehicleType.beamVehicleType).getOrElse(freightCarrier.fleet.values.head.beamVehicleType)
 
       val fuelPrice: Double = beamServices.beamScenario.fuelTypePrices(beamVehicleType.primaryFuelType)
@@ -189,9 +189,10 @@ class FreightReplanner(
 
     def solveForTheWholeFeet: Solution = {
       val vehicles =
-        freightCarrier.fleet.values
-          .map(beamVehicle => {
+        freightCarrier.fleet.keys
+          .map(beamVehicleId => {
             val departure = randomTimeAround(departureTime)
+            val beamVehicle = beamServices.beamScenario.privateVehicles(Id.createVehicleId(beamVehicleId))
             toJspritVehicle(freightCarrier.carrierId, beamVehicle, departure)
           })
           .toIndexedSeq
@@ -210,7 +211,7 @@ class FreightReplanner(
 
       val tourSolutions = for {
         (vehicleId, tours) <- freightCarrier.tourMap
-        beamVehicle = freightCarrier.fleet(vehicleId)
+        beamVehicle = beamServices.beamScenario.privateVehicles(Id.createVehicleId(vehicleId))
         tour <- tours
         services = freightCarrier.plansPerTour(tour.tourId).map(toService)
         vehicles = IndexedSeq(toJspritVehicle(freightCarrier.carrierId, beamVehicle, tour.departureTimeInSec))

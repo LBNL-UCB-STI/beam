@@ -113,6 +113,7 @@ dgb2b_runs <-
     demand_growth_runs_dir,
     "all_b2b_growth"
   )
+dgb2b_runs_2018 <- readCsv(pp(demand_growth_runs_dir,"2018_base/0.events.csv.gz"))
 dgb2b_runs <- format_path_traversals(dgb2b_runs)
 
 dgb2b_summary <- dgb2b_runs[,

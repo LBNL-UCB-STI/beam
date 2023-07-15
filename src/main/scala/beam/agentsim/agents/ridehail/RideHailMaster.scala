@@ -54,7 +54,7 @@ class RideHailMaster(
   private val rideHailManagers: Map[String, ActorRef] =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.map { managerConfig =>
       val rideHailManagerId =
-        VehicleManager.createOrGetReservedFor(managerConfig.name, VehicleManager.TypeEnum.RideHail).managerId
+        VehicleManager.createOrGetReservedFor(managerConfig.name, Some(VehicleManager.TypeEnum.RideHail)).managerId
       val rideHailFleetInitializer = rideHailFleetInitializerProvider.get(managerConfig.name)
       managerConfig.name -> context.actorOf(
         Props(

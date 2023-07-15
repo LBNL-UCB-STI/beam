@@ -7,7 +7,6 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.freight.FreightReplanner
 import beam.agentsim.agents.freight.input.FreightReader
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{
   RideHailIterationHistory,
   RideHailManager,
@@ -449,7 +448,8 @@ class BeamMobsimIteration(
     if (beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.size == 1) {
       val managerConfig = beamConfig.beam.agentsim.agents.rideHail.managers.head
       val rhmName = managerConfig.name
-      val rideHailManagerId = VehicleManager.createOrGetReservedFor(rhmName, VehicleManager.TypeEnum.RideHail).managerId
+      val rideHailManagerId =
+        VehicleManager.createOrGetReservedFor(rhmName, Some(VehicleManager.TypeEnum.RideHail)).managerId
       val rideHailFleetInitializer = rideHailFleetInitializerProvider.get(rhmName)
       Props(
         new RideHailManager(
