@@ -47,13 +47,14 @@ class ChargingFunctions(
     * @return
     */
   private def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
-    zone.chargingPointType.forall { chargingPointType =>
-      val isRideHail =
-        inquiry.reservedFor.managerType == VehicleManager.TypeEnum.RideHail || inquiry.beamVehicle.exists(_.isRideHail)
-      val notIdleCharging = inquiry.searchMode != ParkingSearchMode.Init || inquiry.parkingDuration <= 3600
-      if (isRideHail && notIdleCharging) ChargingPointType.isFastCharger(chargingPointType)
-      else true
-    // not a ride hail vehicle seeking charging or parking for two then it is fine to park at slow charger
+    val isRideHail =
+      inquiry.reservedFor.managerType == VehicleManager.TypeEnum.RideHail || inquiry.beamVehicle.exists(_.isRideHail)
+    val notIdleCharging = inquiry.searchMode != ParkingSearchMode.Init || inquiry.parkingDuration <= 3600
+    if (isRideHail && notIdleCharging) {
+      zone.chargingPointType.exists(ChargingPointType.isFastCharger)
+    } else {
+      // not a ride hail vehicle seeking charging or parking for two then it is fine to park at slow charger
+      true
     }
   }
 
@@ -65,12 +66,10 @@ class ChargingFunctions(
     * @return
     */
   private def ifChargeActivityThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
-    zone.chargingPointType.forall(chargingPointType =>
-      inquiry.parkingActivityType match {
-        case Charge => ChargingPointType.isFastCharger(chargingPointType)
-        case _      => true // if it is not Charge activity then it does not matter
-      }
-    )
+    inquiry.parkingActivityType match {
+      case Charge => zone.chargingPointType.exists(ChargingPointType.isFastCharger)
+      case _      => true // if it is not Charge activity then it does not matter
+    }
   }
 
   /**
@@ -81,12 +80,10 @@ class ChargingFunctions(
     * @return
     */
   private def ifEnrouteThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
-    zone.chargingPointType.forall(chargingPointType =>
-      inquiry.searchMode match {
-        case ParkingSearchMode.EnRouteCharging => ChargingPointType.isFastCharger(chargingPointType)
-        case _                                 => true // if it is not EnRoute charging then it does not matter
-      }
-    )
+    inquiry.searchMode match {
+      case ParkingSearchMode.EnRouteCharging => zone.chargingPointType.exists(ChargingPointType.isFastCharger)
+      case _                                 => true // if it is not EnRoute charging then it does not matter
+    }
   }
 
   /**
@@ -102,16 +99,14 @@ class ChargingFunctions(
   ): Boolean = inquiry.searchMode match {
     case ParkingSearchMode.EnRouteCharging => true
     case _ =>
-      zone.chargingPointType.forall(chargingPointType =>
-        inquiry.beamVehicle.forall {
-          case vehicle
-              if !vehicle.isRideHail && (isHomeWorkOrOvernight(inquiry) || hasLongParkingDurationButNotCharge(
-                inquiry
-              )) =>
-            !ChargingPointType.isFastCharger(chargingPointType)
-          case _ => true
-        }
-      )
+      inquiry.beamVehicle.forall {
+        case vehicle
+            if !vehicle.isRideHail && (isHomeWorkOrOvernight(inquiry) || hasLongParkingDurationButNotCharge(
+              inquiry
+            )) =>
+          !zone.chargingPointType.exists(ChargingPointType.isFastCharger)
+        case _ => true
+      }
   }
 
   /**
@@ -122,19 +117,14 @@ class ChargingFunctions(
     * @return
     */
   private def hasValidChargingCapability(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
-    zone.chargingPointType match {
-      case Some(chargingPointType) =>
-        inquiry.beamVehicle.forall {
-          case beamVehicle if beamVehicle.isEV =>
-            val vehicleHasDCFasChargingCapability =
-              beamVehicle.beamVehicleType.chargingCapability.forall(ChargingPointType.isFastCharger)
-            val stationHasDCFasChargingCapability = ChargingPointType.isFastCharger(chargingPointType)
-            val hasInvalidChargingCapability = !vehicleHasDCFasChargingCapability && stationHasDCFasChargingCapability
-            !hasInvalidChargingCapability
-          case _ => false
-        }
-      case _ =>
-        false
+    inquiry.beamVehicle.forall {
+      case beamVehicle if beamVehicle.isEV =>
+        val vehicleHasDCFasChargingCapability =
+          beamVehicle.beamVehicleType.chargingCapability.exists(ChargingPointType.isFastCharger)
+        val stationHasDCFasChargingCapability = zone.chargingPointType.exists(ChargingPointType.isFastCharger)
+        val hasInvalidChargingCapability = !vehicleHasDCFasChargingCapability && stationHasDCFasChargingCapability
+        !hasInvalidChargingCapability
+      case _ => false
     }
   }
 
