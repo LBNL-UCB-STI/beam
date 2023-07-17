@@ -27,15 +27,28 @@ data = pd.read_csv(local_path, parse_dates=['Time'])
 data['unique_key'] = data.apply(lambda r: f"{r['Host name']}|{r['Run Name']}|{r['Batch']}", axis=1)
 
 # using only runs from specific data 
-min_time = pd.to_datetime("2022-02-01") # yyyy-mm-dd
-max_time = pd.to_datetime("2023-02-01") # data['Time'].max()
+min_time = pd.to_datetime("2023-01-01") # yyyy-mm-dd
+
+# max_time = pd.to_datetime("2023-02-01")
+max_time = data['Time'].max()
+
 data = data[(data['Time'] > min_time) & (data['Time'] < max_time)].copy()
 
 print(f"there are roughly {len(data) // 2} runs from {data['Time'].min().strftime('%Y-%m-%d')} to {data['Time'].max().strftime('%Y-%m-%d')}")
 print(f"the latest run is from {data['Time'].max()}")
 
+columns_to_fix_NaN = ['Run Name', 'Instance type']
+data[columns_to_fix_NaN] = data[columns_to_fix_NaN].fillna('??')
+
 data['Month Period'] = data['Time'].dt.strftime('%Y-%m')
 data.head(2)
+
+
+# In[ ]:
+
+
+text_to_look = 'omx-skim'
+data[data['Run Name'].str.contains(text_to_look)].head(2)
 
 
 # In[ ]:
@@ -57,6 +70,7 @@ all_columns = set(df.columns)
 taken_columns = take_first_columns + ['Time Start', 'Time Stop', 'Status', 'Time']
 
 df = df[taken_columns].copy()
+df['Instance type'] = df['Instance type'].astype(str)
 
 removed_columns = list(sorted(all_columns - set(taken_columns)))
 half_len = int(len(removed_columns)/2)
@@ -68,15 +82,37 @@ for v in ['ec2-18-221-208-40.us-east-2.compute.amazonaws.com',
           'ec2-52-15-53-101.us-east-2.compute.amazonaws.com']:
     df.replace(to_replace=v, value='r5d.24xlarge', inplace=True)
 
-df['duration_hours'] = (df['Time Stop'] - df['Time Start']).astype('timedelta64[h]')
+df['duration_hours'] = (df['Time Stop'] - df['Time Start']).astype('timedelta64[m]') * 0.0166667
 print(f"duration in hours total: {df['duration_hours'].sum()}")
-df.head(2)
+display(df.head(2))
+
+
+# In[ ]:
+
+
+google_instance_types = set()
+
+for inst_type in sorted(df['Instance type'].unique()):
+    if 'n2' in inst_type:
+        google_instance_types.add(inst_type)
+
+google_instance_types
 
 
 # In[ ]:
 
 
 instance_to_price = {
+    # some debug simulations records has these
+    '??': 0,
+    'nan': 0,
+    
+    # lawrencium
+    'es1': 0,              
+    'Lawrencium es1': 0,
+    
+    # amazon cloud
+    't2.micro': 0,
     'c5d.24xlarge' : 4.608,
     'c6a.24xlarge' : 3.672,
     'hpc6a.48xlarge' : 2.88,
@@ -105,12 +141,33 @@ instance_to_price = {
     'r5d.2xlarge': 0.576,
     'r5d.4xlarge': 1.152,
     'z1d.12xlarge': 4.464,
-    'n2d-standard-2': 0.0,    # a google cloud instance, actually 0.084492, but we are interested in AWS only,
-    'n2d-standard-4': 0.0,    # a google cloud instance, actually 0.168984, but we are interested in AWS only,
-    'n2d-standard-64' : 0.0,  # a google cloud instance, ignoring for now
+
+    # google cloud
+    'n2-highmem-4': 0.262028,
+    'n2-highmem-48': 3.144336,
+    'n2d-highmem-32': 1.82368,
+    'n2d-standard-2': 0.084492,
+    'n2d-standard-4': 0.168984,
+    'n2d-standard-8': 0.337968,
+    'n2d-standard-16': 0.675936,
+    'n2d-standard-32': 1.351872,
+    'n2d-standard-64': 2.703744,
+    'n2d-standard-96': 4.055616,
+    'n2d-standard-128': 5.407488,
+    'n2d-standard-224': 9.463104,
 }
 
 instance_to_number_of_cores = {
+    # some debug simulations records has these
+    '??': 0,
+    'nan': 0,
+    
+    # lawrencium
+    'es1': 0,              
+    'Lawrencium es1': 0,
+    
+    # amazon cloud
+    't2.micro': 0,
     'c5d.24xlarge': 96,
     'c6a.24xlarge': 96,
     'hpc6a.48xlarge': 96,
@@ -139,9 +196,20 @@ instance_to_number_of_cores = {
     'r5d.2xlarge': 8,
     'r5d.4xlarge': 16,
     'z1d.12xlarge': 48,
-    'n2d-standard-2': 0,     # a google cloud instance, ignoring for now
-    'n2d-standard-4': 0,     # a google cloud instance, ignoring for now
-    'n2d-standard-64' : 0,   # a google cloud instance, ignoring for now
+
+    # google cloud
+    'n2-highmem-4': 4,
+    'n2-highmem-48': 48,
+    'n2d-highmem-32': 32,
+    'n2d-standard-2': 2,
+    'n2d-standard-4': 4,
+    'n2d-standard-8': 8,
+    'n2d-standard-16': 16,
+    'n2d-standard-32': 32,
+    'n2d-standard-64' : 64,
+    'n2d-standard-96': 96,
+    'n2d-standard-128': 128,
+    'n2d-standard-224': 224,
 }
 
 "done"
@@ -155,7 +223,30 @@ for inst_type in instance_to_price.keys():
 
 aws_info_df = pd.DataFrame(inst2price2cores, columns=['Instance', 'Price', 'Number of Cores'])
 aws_info_df['price_to_core'] = aws_info_df['Price'] / aws_info_df['Number of Cores']
-aws_info_df.sort_values('price_to_core').head()
+display(aws_info_df.sort_values('price_to_core').head())
+
+#
+# check if there are any instance types not described
+#
+instances_with_price_info = set(aws_info_df['Instance'].unique())
+instance_types = sorted(list(df['Instance type'].unique()))
+
+for x in instance_types:
+    if str(x) not in instances_with_price_info:
+        print("'" + x + "': 0,")
+
+
+# In[ ]:
+
+
+## filtering things out!
+## taking only google cloud instances
+
+print(f"Original DataFrame len was    {len(df)}")
+
+df = df[df['Instance type'].isin(google_instance_types)].copy()
+
+print(f"Filtered-out DataFrame len is {len(df)}")
 
 
 # In[ ]:
@@ -215,7 +306,7 @@ def print_total_info(total_cost_fixed=None):
 
 print_total_info()
 
-print(f"aws core hours: {df['aws_corehours_per_simulation'].sum()}")
+print(f"core hours: {df['aws_corehours_per_simulation'].sum()}")
 print(f"total cost: {df['cost'].sum()}")
 df.groupby('Month Period').agg({'cost':['sum','count']})
 
@@ -233,33 +324,54 @@ def get_branch_owner(row):
     return branch
 
 
-other_projects = set()
+group_to_project = {}
+def add_project_to_group(project, group):
+    projects_set = group_to_project.get(group, set())
+    projects_set.add(project)
+    group_to_project[group] = projects_set
+
 
 def get_project(row):
     run_name = row['Run Name']
     branch_owner = get_branch_owner(row)
     project = f"{branch_owner} | {run_name}".lower()
 
+    if 'sfbay' in project and '503440616atberkeley_edu' in project:
+        add_project_to_group(project, 'Xuan sf-bay runs')
+        return "Xuan sf-bay"
+    if '503440616atberkeley_edu' in project:
+        add_project_to_group(project, 'Xuan runs')
+        return "Xuan runs"
     if 'new-york' in project:
+        add_project_to_group(project, 'NYC')
         return "NYC"
     if 'freight' in project:
+        add_project_to_group(project, 'Freight')
         return "Freight"
     if 'gemini' in project:
+        add_project_to_group(project, 'Gemini')
         return "Gemini"
     if 'micro-mobility' in project or 'micromobility' in project:
+        add_project_to_group(project, 'Micro-Mobility')
         return "Micro-Mobility"
     if 'shared' in project:
+        add_project_to_group(project, 'Shared Fleet')
         return "Shared Fleet"
     if 'profiling' in project:
+        add_project_to_group(project, 'CPU profiling')
         return "CPU profiling"
+    if 'omx-skim' in project and 'zneedellatgmail' in project:
+        add_project_to_group(project, 'Zach omx skims')
+        return "Zach omx skims"
+        
     
-    other_projects.add(project)
-    return 'other'
+    add_project_to_group(project, 'Others')
+    return 'Others'
 
 
 df["project"] = df.apply(get_project, axis=1)
 list_of_all_projects = sorted(list(df['project'].unique()))
-print(f"there are {len(list_of_all_projects)} projects ({len(other_projects)} runs classified as 'other'):")
+print(f"there are {len(list_of_all_projects)} projects ({len(group_to_project['Others'])} runs classified as 'Others'):")
 for project_name in list_of_all_projects:
     print(f"\t{project_name}")
 
@@ -312,9 +424,9 @@ df_grouped["Maybe still running"] = df_grouped.apply(lambda r: r['Status Fixed']
 columns_with_numbers = ["Instance time cost", "Failed runs time cost", "Fraction of total cost", 
                         "Completed runs", "Failed runs", "Maybe still running", 
                         "AWS Core-Hours", "Duration Hours Total"]
-df_grouped.loc["Total"] = df_grouped[columns_with_numbers].sum()
+# df_grouped.loc["Total"] = df_grouped[columns_with_numbers].sum()
 
-selected_columns = ["project", "Instance types"] + columns_with_numbers
+selected_columns = ["project","Instance types"] + columns_with_numbers
 
 print_total_info()
 df_grouped[selected_columns]
@@ -325,8 +437,9 @@ df_grouped[selected_columns]
 
 ### a short version
 
-print_total_info(total_cost_fixed="???")
-df_grouped[["project", "Fraction of total cost", "AWS Core-Hours"]]
+# print_total_info(total_cost_fixed="???")
+display(df_grouped[["project", "Fraction of total cost", "AWS Core-Hours"]])
+# df_grouped.plot.bar(x="Month Period", y="Fraction of total cost", rot=35)
 
 
 # In[ ]:
@@ -351,13 +464,7 @@ df_grouped_by_instance[['Instance type', 'Fraction of Total Cost']].head(5)
 # In[ ]:
 
 
-df_grouped_by_instance.groupby
-
-
-# In[ ]:
-
-
-
+df_grouped[["project", "Fraction of total cost"]]
 
 
 # In[ ]:
