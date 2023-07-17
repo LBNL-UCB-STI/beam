@@ -1,3 +1,5 @@
+import java.time.Instant
+
 group = 'beam'
 version = '0.8.0'
 
@@ -24,22 +26,14 @@ remotes {
         host = 'lrc-login.lbl.gov'
         user = "${lawrenciumUser}"
     }
-//    require ssh.settings.authentications to include "password"
-//    execute from ssh.run inside session -> put from: "${project.rootDir}/lawrencium/src/main/bash/slurm_job.sh", into: "slurm_job.sh"
-//    execute from ssh.run inside session -> put from: "${project.rootDir}/lawrencium/src/main/bash/slurm_job_runner.sh", into: "slurm_job_runner.sh"
-//    lawrenciumTransferNode {
-//        host = 'lrc-xfer.lbl.gov'
-//        user = "${lawrenciumUser}"
-//    }
 }
 
-tasks.register("ltest") {
+tasks.register("deployToLawrencium") {
     doLast {
         ssh.run {
             settings {
-                authentications = [ "keyboard-interactive" ]
+                authentications = ["keyboard-interactive"]
                 knownHosts = allowAnyHosts
-                fileTransfer = "scp"
                 password = "Zomb1986" + project.findProperty("otp")
             }
 
@@ -48,10 +42,14 @@ tasks.register("ltest") {
             session(remotes.lawrenciumLoginNode) {
                 execute "rm -f slurm_job.sh"
                 execute "rm -f slurm_job_runner.sh"
+                // downloading files instead of sending them
+                // because it is not allowed to push files to login node
+                // file transfer node uses different type of authentication
+                // and both nodes are not working together within one session for some reason
                 execute "wget $base_path/slurm_job.sh"
                 execute "wget $base_path/slurm_job_runner.sh"
                 execute "chmod +x slurm_job_runner.sh slurm_job.sh"
-                execute "ls -lah"
+                // execute "ls -lah"
                 execute "./slurm_job_runner.sh " +
                         "--BEAM_BRANCH_NAME='develop' " +
                         "--BEAM_COMMIT_SHA='' " +
@@ -79,6 +77,35 @@ tasks.register("ltest") {
                         "--SEND_NOTIFICATION='false' " +
                         "--SLACK_HOOK_WITH_TOKEN='' " +
                         "--SIMULATIONS_SPREADSHEET_UPDATE_URL='?' "
+                execute "squeue -u $lawrenciumUser"
+            }
+        }
+    }
+}
+
+
+tasks.register("lawrenciumQueue") {
+    doLast {
+        ssh.run {
+            settings {
+                authentications = ["keyboard-interactive"]
+                knownHosts = allowAnyHosts
+                password = "Zomb1986" + project.findProperty("otp")
+            }
+
+            def sacctFormat = "JobID,JobName%30,state,start,end,elapsed,nnodes,ncpus,nodelist,user,partition,maxrss,maxvmsize,time"
+
+            if (!project.hasProperty("fromDate")) {
+                Instant now = Instant.now()
+                Instant yesterday = now.minus(1, ChronoUnit.DAYS)
+                ext.fromDate = DateTimeFormatter.ofPattern("yyyyMMdd")
+                        .withZone(ZoneId.of("UTC"))
+                        .format(yesterday)
+            }
+
+
+            session(remotes.lawrenciumLoginNode) {
+                execute "sacct -u $lawrenciumUser --format=$sacctFormat -S 2023-03-2"
             }
         }
     }
