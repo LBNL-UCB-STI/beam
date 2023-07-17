@@ -416,7 +416,7 @@ class ElectricVehicleChargingBehaviorTest
     ", expecting most of the 4 legs for each of the 50 people to be ride hail legs."
   }
 
-  "Ride Hail Electric vehicles" should "pick chargers choosing smaller DrivingTimeCost." ignore {
+  "Ride Hail Electric vehicles" should "pick chargers choosing smaller DrivingTimeCost." in {
     // this config is only interested on the first charging plugin event when,
     // vehicles are at known coordinates, population plans are set to walk to not interfere with ride hail.
     val config = ConfigFactory
