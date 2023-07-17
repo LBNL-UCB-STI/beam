@@ -144,7 +144,7 @@ configurations.all {
 dependencies {
 
     // TODO FIXME
-    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: '0.3.0')
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: '0.3.4')
 
     ////////////////////////////
     // Java dependencies
