@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleManager}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.{Charge, Home, Work}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType.{Charge, EnRoute, Home, Work}
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
@@ -117,6 +117,15 @@ class ChargingFunctions(
     * @return
     */
   private def hasValidChargingCapability(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+    val verifyCharger = inquiry.beamVehicle.isDefined &&
+      inquiry.beamVehicle.get.beamVehicleType.chargingCapability.isDefined && (
+        inquiry.searchMode == ParkingSearchMode.EnRouteCharging ||
+        inquiry.parkingActivityType == Charge ||
+        inquiry.parkingActivityType == EnRoute
+      )
+    if (!verifyCharger) {
+      return true
+    }
     inquiry.beamVehicle.forall {
       case beamVehicle if beamVehicle.isEV =>
         val vehicleHasDCFasChargingCapability =
