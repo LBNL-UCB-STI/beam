@@ -7,13 +7,13 @@ import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOpera
 import beam.agentsim.agents.ridehail.RideHailManager.ResponseCache
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail.RideHailMaster.RequestWithResponses
-import beam.agentsim.agents.vehicles.AccessErrorCodes.UnknownInquiryIdError
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{DriverNotFoundError, UnknownInquiryIdError}
 import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, VehicleManager}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.Modes.BeamMode.{RIDE_HAIL_POOLED, RIDE_HAIL}
+import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_POOLED}
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.sim.{BeamScenario, BeamServices, RideHailFleetInitializerProvider}
@@ -142,19 +142,17 @@ class RideHailMaster(
 
   private def findBestProposal(customer: Id[Person], responses: IndexedSeq[RideHailResponse]): RideHailResponse = {
     val responsesInRandomOrder = rand.shuffle(responses)
-    val withProposals = responsesInRandomOrder.filter(_.travelProposal.isDefined)
-    val availableProposals = withProposals.filter(x =>
-      if(x.request.asPooled){
-        x.travelProposal.exists(_.modeOptions.contains(RIDE_HAIL_POOLED))
-      } else {
-        x.travelProposal.exists(_.modeOptions.contains(RIDE_HAIL))
-      }
-    )
-    if (availableProposals.isEmpty){
-      val responseWithNullProposal = responsesInRandomOrder.head.copy(travelProposal = None)
-      responseWithNullProposal
-//      responsesInRandomOrder.head
-    }
+    val request = responsesInRandomOrder.head.request
+    // asPooled is set to false only in case person's current tour mode is RIDE_HAIL
+    // FIXME refactoring: we could use possibleModes: Set[BeamMode] instead of asPooled in RH request.
+    val customerHasRequestedSoloTrip = !request.asPooled
+    val availableProposals =
+      if (customerHasRequestedSoloTrip)
+        responsesInRandomOrder.filter(_.travelProposal.exists(_.modeOptions.contains(RIDE_HAIL)))
+      else
+        responsesInRandomOrder.filter(_.travelProposal.isDefined)
+    if (availableProposals.isEmpty)
+      RideHailResponse.dummyWithError(DriverNotFoundError, request)
     else
       bestResponseType match {
         case "MIN_COST"    => availableProposals.minBy(findCost(customer, _))
