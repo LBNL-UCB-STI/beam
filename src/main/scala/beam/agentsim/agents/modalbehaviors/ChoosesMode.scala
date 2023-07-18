@@ -1237,8 +1237,13 @@ trait ChoosesMode {
               } else {
                 Vector(consistentPooledLegs)
               }
-            case _ =>
+            case _
+                if !choosesModeData.personData.currentTourMode.contains(RIDE_HAIL_POOLED)
+                  && travelProposal.modeOptions.contains(RIDE_HAIL) =>
               Vector(origLegs)
+            case _ =>
+              // current tour mode doesn't correspond to mode options provided by travel proposal
+              Vector()
           }).map { partialItin =>
             EmbodiedBeamTrip(
               EmbodiedBeamLeg.dummyLegAt(
