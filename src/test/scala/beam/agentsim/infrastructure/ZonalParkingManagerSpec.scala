@@ -86,15 +86,8 @@ class ZonalParkingManagerSpec
         )
       } {
         val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 77239)
-        val expectedStall: ParkingStall = ParkingStall.lastResortStall(
-          new Envelope(
-            inquiry.destinationUtm.loc.getX + 2000,
-            inquiry.destinationUtm.loc.getX - 2000,
-            inquiry.destinationUtm.loc.getY + 2000,
-            inquiry.destinationUtm.loc.getY - 2000
-          ),
-          new Random(randomSeed)
-        )
+        val expectedStall: ParkingStall =
+          ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(randomSeed))
 
         val response = zonalParkingManager.processParkingInquiry(inquiry)
 

@@ -13,7 +13,6 @@ import beam.router.skim.Skims
 import beam.sim.config.BeamConfig
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
@@ -144,14 +143,8 @@ class RideHailDepotFunctions(
         result.copy(parkingStall = updatedParkingStall)
       case _ =>
         // didn't find any stalls, so, as a last resort, create a very expensive stall
-        val boxAroundRequest = new Envelope(
-          inquiry.destinationUtm.loc.getX + 2000,
-          inquiry.destinationUtm.loc.getX - 2000,
-          inquiry.destinationUtm.loc.getY + 2000,
-          inquiry.destinationUtm.loc.getY - 2000
-        )
-        val newStall = ParkingStall.lastResortStall(boxAroundRequest, new Random(seed))
-        ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
+        val (newStall, defaultZone) = ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(seed))
+        ParkingZoneSearch.ParkingZoneSearchResult(newStall, defaultZone)
     }
     Some(output)
   }
@@ -182,7 +175,7 @@ class RideHailDepotFunctions(
     * @param tick Int
     * @return
     */
-  def secondsToServiceQueueAndChargingVehicles(
+  private def secondsToServiceQueueAndChargingVehicles(
     parkingZone: ParkingZone,
     tick: Int
   ): Int = {
@@ -219,7 +212,7 @@ class RideHailDepotFunctions(
     * @param parkingZoneId ID of the parking zone
     * @return Parking zone location in UTM.
     */
-  def getParkingZoneLocationUtm(parkingZoneId: Id[ParkingZoneId]): Coord = {
+  private def getParkingZoneLocationUtm(parkingZoneId: Id[ParkingZoneId]): Coord = {
     val parkingZone = parkingZones(parkingZoneId)
     parkingZone.link.fold {
       tazTreeMap.idToTAZMapping(parkingZone.tazId).coord

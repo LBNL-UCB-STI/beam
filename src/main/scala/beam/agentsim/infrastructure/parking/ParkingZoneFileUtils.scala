@@ -56,7 +56,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param maybeChargingPoint charging point type
     * @return a row describing infinite free parking at this TAZ
     */
-  def defaultParkingRow(
+  private def defaultParkingRow(
     geoId: Id[TAZ],
     parkingType: ParkingType,
     maybeChargingPoint: Option[ChargingPointType],
@@ -67,7 +67,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       parkingType.toString,
       PricingModel.FlatFee(0).toString,
       maybeChargingPoint.map(_.toString).getOrElse("NoCharger"),
-      ParkingZone.UbiqiutousParkingAvailability.toString,
+      ParkingZone.UbiquitousParkingAvailability.toString,
       "0",
       defaultReservedFor.toString,
       "",

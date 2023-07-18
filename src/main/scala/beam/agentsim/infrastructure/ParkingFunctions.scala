@@ -1,17 +1,14 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
-import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Parking
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
@@ -126,21 +123,36 @@ class ParkingFunctions(
     val output = parkingZoneSearchResult match {
       case Some(result) => result
       case _ =>
-        inquiry.parkingActivityType match {
+        val (newStall, zone) = inquiry.parkingActivityType match {
           case ParkingActivityType.Home if inquiry.searchMode != ParkingSearchMode.EnRouteCharging =>
-            val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc)
-            ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
+            val newStall = ParkingStall(
+              tazId = TAZ.DefaultTAZId,
+              parkingZoneId = ParkingZone.DefaultParkingZone.parkingZoneId,
+              locationUTM = inquiry.destinationUtm.loc,
+              costInDollars = 0.0,
+              chargingPointType = None,
+              pricingModel = Some(PricingModel.FlatFee(0)),
+              parkingType = ParkingType.Residential,
+              reservedFor = VehicleManager.AnyManager
+            )
+            (newStall, ParkingZone.DefaultParkingZone)
+          case ParkingActivityType.Commercial =>
+            val newStall = ParkingStall(
+              tazId = TAZ.EmergencyTAZId,
+              parkingZoneId = ParkingZone.DefaultParkingZone.parkingZoneId,
+              locationUTM = inquiry.destinationUtm.loc,
+              costInDollars = ParkingStall.CostOfEmergencyStallInDollars,
+              chargingPointType = None,
+              pricingModel = Some { PricingModel.FlatFee(ParkingStall.CostOfEmergencyStallInDollars.toInt) },
+              parkingType = ParkingType.Commercial,
+              reservedFor = VehicleManager.AnyManager
+            )
+            (newStall, ParkingZone.DefaultParkingZone)
           case _ =>
             // didn't find any stalls, so, as a last resort, create a very expensive stall
-            val boxAroundRequest = new Envelope(
-              inquiry.destinationUtm.loc.getX + 2000,
-              inquiry.destinationUtm.loc.getX - 2000,
-              inquiry.destinationUtm.loc.getY + 2000,
-              inquiry.destinationUtm.loc.getY - 2000
-            )
-            val newStall = ParkingStall.lastResortStall(boxAroundRequest, new Random(seed))
-            ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
+            ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(seed))
         }
+        ParkingZoneSearch.ParkingZoneSearchResult(newStall, zone)
     }
     Some(output)
   }

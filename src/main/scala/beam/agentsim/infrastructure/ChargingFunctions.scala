@@ -46,7 +46,7 @@ class ChargingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+  private def ifRideHailCurrentlyOnShiftThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
       if (
         inquiry.reservedFor.managerType == VehicleManager.TypeEnum.RideHail || inquiry.beamVehicle
@@ -64,7 +64,7 @@ class ChargingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifChargeActivityThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+  private def ifChargeActivityThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
       inquiry.parkingActivityType match {
         case Charge => ChargingPointType.isFastCharger(chargingPointType)
@@ -80,7 +80,7 @@ class ChargingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  def ifEnrouteThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+  private def ifEnrouteThenFastChargingOnly(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     zone.chargingPointType.forall(chargingPointType =>
       inquiry.searchMode match {
         case ParkingSearchMode.EnRouteCharging => ChargingPointType.isFastCharger(chargingPointType)
@@ -96,7 +96,7 @@ class ChargingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  def filterBasedOnChargerSpeed(
+  private def filterBasedOnChargerSpeed(
     zone: ParkingZone,
     inquiry: ParkingInquiry
   ): Boolean = {
@@ -123,7 +123,7 @@ class ChargingFunctions(
     * @param inquiry ParkingInquiry
     * @return
     */
-  def hasValidChargingCapability(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
+  private def hasValidChargingCapability(zone: ParkingZone, inquiry: ParkingInquiry): Boolean = {
     // only verify charging capability if the vehicle is defined and contains a chargingCapability in the first place
     // also, we only verify the capability if we are either enrouting or on a charge activity.
     val verifyCharger = inquiry.beamVehicle.isDefined &&

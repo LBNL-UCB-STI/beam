@@ -3,7 +3,6 @@ package beam.agentsim.infrastructure
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch._
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
@@ -79,14 +78,7 @@ abstract class InfrastructureFunctions(
 
   import InfrastructureFunctions._
 
-  val DefaultParkingZone: ParkingZone =
-    ParkingZone.defaultInit(
-      TAZ.DefaultTAZId,
-      ParkingType.Public,
-      UbiqiutousParkingAvailability
-    )
-
-  val parkingZoneSearchConfiguration: ParkingZoneSearchConfiguration =
+  private val parkingZoneSearchConfiguration: ParkingZoneSearchConfiguration =
     ParkingZoneSearchConfiguration(
       minSearchRadius,
       maxSearchRadius,
@@ -242,12 +234,11 @@ abstract class InfrastructureFunctions(
     zoneCollections.get(parkingZone.tazId).foreach(_.releaseZone(parkingZone))
     result
   }
-
 }
 
 object InfrastructureFunctions {
 
-  def chargingTypeToNo(
+  private def chargingTypeToNo(
     parkingZonesSampled: List[(Id[ParkingZoneId], Option[ChargingPointType], ParkingType, Double)]
   ): String = {
     parkingZonesSampled
@@ -263,7 +254,7 @@ object InfrastructureFunctions {
       .mkString(", ")
   }
 
-  def parkingTypeToNo(
+  private def parkingTypeToNo(
     parkingZonesSampled: List[(Id[ParkingZoneId], Option[ChargingPointType], ParkingType, Double)]
   ): String = {
     parkingZonesSampled
@@ -274,7 +265,7 @@ object InfrastructureFunctions {
       .mkString(", ")
   }
 
-  def listOfCosts(
+  private def listOfCosts(
     parkingZonesSampled: List[(Id[ParkingZoneId], Option[ChargingPointType], ParkingType, Double)]
   ): String = {
     parkingZonesSampled

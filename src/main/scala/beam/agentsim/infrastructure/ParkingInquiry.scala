@@ -77,7 +77,7 @@ object ParkingInquiry extends LazyLogging {
       case "home"                                          => ParkingActivityType.Home
       case "work"                                          => ParkingActivityType.Work
       case "charge"                                        => ParkingActivityType.Charge
-      case "Unloading" | "Loading" | "Warehouse" | "Depot" => ParkingActivityType.Commercial
+      case "unloading" | "loading" | "warehouse" | "depot" => ParkingActivityType.Commercial
       case otherType if otherType.contains("enroute")      => ParkingActivityType.Charge
       case otherType if otherType.contains("home")         => ParkingActivityType.Home
       case otherType if otherType.contains("work")         => ParkingActivityType.Work

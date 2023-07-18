@@ -14,7 +14,6 @@ import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
-import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -47,8 +46,8 @@ class HierarchicalParkingManagerSpec
   val randomSeed: Int = 0
 
   // a coordinate in the center of the UTM coordinate system
-  val coordCenterOfUTM = new Coord(500000, 5000000)
-  val centerSpaceTime = SpaceTime(coordCenterOfUTM, 0)
+  val coordCenterOfUTM: Coord = new Coord(500000, 5000000)
+  val centerSpaceTime: SpaceTime = SpaceTime(coordCenterOfUTM, 0)
 
   val beamConfig: BeamConfig = BeamConfig(system.settings.config)
   val geo = new GeoUtilsImpl(beamConfig)
@@ -80,15 +79,8 @@ class HierarchicalParkingManagerSpec
       } {
 
         val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 10)
-        val expectedStall: ParkingStall = ParkingStall.lastResortStall(
-          new Envelope(
-            inquiry.destinationUtm.loc.getX + 2000,
-            inquiry.destinationUtm.loc.getX - 2000,
-            inquiry.destinationUtm.loc.getY + 2000,
-            inquiry.destinationUtm.loc.getY - 2000
-          ),
-          new Random(randomSeed)
-        )
+        val expectedStall: ParkingStall =
+          ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(randomSeed))._1
 
         val response = parkingManager.processParkingInquiry(inquiry)
         assert(
@@ -118,15 +110,8 @@ class HierarchicalParkingManagerSpec
       )
 
       val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 34347)
-      val expectedStall: ParkingStall = ParkingStall.lastResortStall(
-        new Envelope(
-          inquiry.destinationUtm.loc.getX + 2000,
-          inquiry.destinationUtm.loc.getX - 2000,
-          inquiry.destinationUtm.loc.getY + 2000,
-          inquiry.destinationUtm.loc.getY - 2000
-        ),
-        new Random(randomSeed)
-      )
+      val expectedStall: ParkingStall =
+        ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(randomSeed))._1
 
       val response = parkingManager.processParkingInquiry(inquiry)
       assert(

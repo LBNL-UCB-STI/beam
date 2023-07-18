@@ -53,7 +53,7 @@ object ParkingStall {
     */
   def defaultStall(coord: Coord): ParkingStall = ParkingStall(
     tazId = TAZ.DefaultTAZId,
-    parkingZoneId = ParkingZone.DefaultParkingZoneId,
+    parkingZoneId = ParkingZone.DefaultParkingZone.parkingZoneId,
     locationUTM = coord,
     costInDollars = 0.0,
     chargingPointType = None,
@@ -66,21 +66,25 @@ object ParkingStall {
     * take a stall from the infinite parking zone, with a random location by default from planet-wide UTM values
     *
     * @param random        random number generator
-    * @param boundingBox   bounding box
     * @param costInDollars the cost of this stall
     * @return a stall that costs a lot but at least it exists. it's coordinate can be anywhere on the planet. for routing, the nearest link should be found using Beam Geotools.
     */
   def lastResortStall(
-    boundingBox: Envelope,
+    location: Location,
     random: Random = Random,
     costInDollars: Double = CostOfEmergencyStallInDollars
-  ): ParkingStall = {
+  ): (ParkingStall, ParkingZone) = {
+    val boundingBox = new Envelope(
+      location.getX + 2000,
+      location.getX - 2000,
+      location.getY + 2000,
+      location.getY - 2000
+    )
     val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
     val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
-
     ParkingStall(
       tazId = TAZ.EmergencyTAZId,
-      parkingZoneId = ParkingZone.DefaultParkingZoneId,
+      parkingZoneId = ParkingZone.DefaultParkingZone.parkingZoneId,
       locationUTM = new Coord(x, y),
       costInDollars = costInDollars,
       chargingPointType = None,
@@ -89,44 +93,10 @@ object ParkingStall {
       },
       parkingType = ParkingType.Public,
       reservedFor = VehicleManager.AnyManager
-    )
+    ) -> ParkingZone.DefaultParkingZone
   }
 
   //#Art
-
-  /**
-    * take a stall from the infinite parking zone, with a location at the request (e.g. traveler's home location).
-    * This should only kick in when all other (potentially non-free, non-colocated) stalls in the search area are
-    * exhausted
-    *
-    * @param locationUTM request location (home)
-    * @return a stall that is free and located at the person's home.
-    */
-  def defaultResidentialStall(locationUTM: Location): ParkingStall = ParkingStall(
-    tazId = TAZ.DefaultTAZId,
-    parkingZoneId = ParkingZone.DefaultParkingZoneId,
-    locationUTM = locationUTM,
-    costInDollars = 0.0,
-    chargingPointType = None,
-    pricingModel = Some(PricingModel.FlatFee(0)),
-    parkingType = ParkingType.Residential,
-    reservedFor = VehicleManager.AnyManager
-  )
-
-  /**
-    * @param locationUTM
-    * @return
-    */
-  def defaultFastChargingStall(locationUTM: Location): ParkingStall = ParkingStall(
-    tazId = TAZ.DefaultTAZId,
-    parkingZoneId = ParkingZone.DefaultParkingZoneId,
-    locationUTM = locationUTM,
-    costInDollars = 0.0,
-    chargingPointType = Some(ChargingPointType.ChargingStationCcsComboType2),
-    pricingModel = Some(PricingModel.FlatFee(0)),
-    parkingType = ParkingType.Public,
-    reservedFor = VehicleManager.AnyManager
-  )
 
   /**
     * Convenience method to convert a [[ParkingAlternative]] to a [[ParkingStall]]
@@ -146,5 +116,4 @@ object ParkingStall {
       parkingAlternative.parkingZone.reservedFor
     )
   }
-
 }
