@@ -164,7 +164,7 @@ object HouseholdActor {
     implicit val executionContext: ExecutionContext = context.dispatcher
     implicit val debug: Debug = beamServices.beamConfig.beam.debug
 
-    protected val generateEmergencyHousehold: Boolean =
+    private val generateEmergencyHousehold: Boolean =
       beamScenario.beamConfig.beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt
 
     override val supervisorStrategy: OneForOneStrategy =
@@ -228,7 +228,7 @@ object HouseholdActor {
             }
             person.getSelectedPlan.getPlanElements.asScala.find(_.isInstanceOf[Activity]) map { element =>
               val act = element.asInstanceOf[Activity]
-              val parkingActivityType = ParkingInquiry.activityTypeStringToEnum(act.getType)
+              val parkingActivityType = ParkingInquiry.activityTypeStringToEnum(act.getType, isFreightCarrier)
               val endTime =
                 if (Time.isUndefinedTime(act.getEndTime)) DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig)
                 else act.getEndTime
@@ -585,7 +585,7 @@ object HouseholdActor {
 
     }
 
-    def completeInitialization(tick: Int, triggerId: Long, triggersToSchedule: Vector[ScheduleTrigger]): Unit = {
+    private def completeInitialization(tick: Int, triggerId: Long, triggersToSchedule: Vector[ScheduleTrigger]): Unit = {
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future

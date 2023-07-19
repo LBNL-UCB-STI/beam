@@ -42,9 +42,6 @@ abstract class ParkingNetwork(parkingZones: Map[Id[ParkingZoneId], ParkingZone])
       if (totalStallsInUse % 1000 == 0)
         logger.debug("Parking stalls in use: {} available: {}", totalStallsInUse, totalStallsAvailable)
     }
-    if (inquiry.beamVehicle.exists(_.isFreight)) {
-      println(s"this vehicle ${inquiry.beamVehicle.get.id} requested this stall ${parkingStall}")
-    }
     ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId)
   }
 

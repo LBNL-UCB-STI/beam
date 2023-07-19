@@ -123,34 +123,17 @@ class ParkingFunctions(
     val output = parkingZoneSearchResult match {
       case Some(result) => result
       case _ =>
+        val destinationLocation = inquiry.destinationUtm.loc
         val (newStall, zone) = inquiry.parkingActivityType match {
-          case ParkingActivityType.Home if inquiry.searchMode != ParkingSearchMode.EnRouteCharging =>
-            val newStall = ParkingStall(
-              tazId = TAZ.DefaultTAZId,
-              parkingZoneId = ParkingZone.DefaultParkingZone.parkingZoneId,
-              locationUTM = inquiry.destinationUtm.loc,
-              costInDollars = 0.0,
-              chargingPointType = None,
-              pricingModel = Some(PricingModel.FlatFee(0)),
-              parkingType = ParkingType.Residential,
-              reservedFor = VehicleManager.AnyManager
-            )
-            (newStall, ParkingZone.DefaultParkingZone)
+          case ParkingActivityType.Home =>
+            ParkingStall.defaultStall(destinationLocation, ParkingType.Residential)
+          case ParkingActivityType.Depot =>
+            ParkingStall.defaultStall(destinationLocation, ParkingType.Depot)
           case ParkingActivityType.Commercial =>
-            val newStall = ParkingStall(
-              tazId = TAZ.EmergencyTAZId,
-              parkingZoneId = ParkingZone.DefaultParkingZone.parkingZoneId,
-              locationUTM = inquiry.destinationUtm.loc,
-              costInDollars = ParkingStall.CostOfEmergencyStallInDollars,
-              chargingPointType = None,
-              pricingModel = Some { PricingModel.FlatFee(ParkingStall.CostOfEmergencyStallInDollars.toInt) },
-              parkingType = ParkingType.Commercial,
-              reservedFor = VehicleManager.AnyManager
-            )
-            (newStall, ParkingZone.DefaultParkingZone)
+            ParkingStall.lastResortStall(destinationLocation, ParkingType.Commercial)
           case _ =>
             // didn't find any stalls, so, as a last resort, create a very expensive stall
-            ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(seed))
+            ParkingStall.lastResortStall(destinationLocation, ParkingType.Public, Some(new Random(seed)))
         }
         ParkingZoneSearch.ParkingZoneSearchResult(newStall, zone)
     }
@@ -231,9 +214,12 @@ class ParkingFunctions(
     */
   protected def getPreferredParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
     // a lookup for valid parking types based on this inquiry
-    if (inquiry.beamVehicle.exists(v => v.isFreight)) {
-      Set(ParkingType.Commercial)
+    if (inquiry.reservedFor.managerType == VehicleManager.TypeEnum.Freight) {
+      // Freight
+      if (inquiry.searchMode == ParkingSearchMode.Init) Set(ParkingType.Depot)
+      else Set(ParkingType.Commercial)
     } else {
+      // Passenger
       if (inquiry.searchMode == ParkingSearchMode.EnRouteCharging) {
         Set(ParkingType.Public, ParkingType.Commercial)
       } else if (inquiry.searchMode == ParkingSearchMode.Init) {

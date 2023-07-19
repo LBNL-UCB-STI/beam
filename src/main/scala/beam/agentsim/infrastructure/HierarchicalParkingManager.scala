@@ -108,7 +108,8 @@ class HierarchicalParkingManager(
               "Cannot find link parking parking zone for taz zone {}. Parallel changing of stallsAvailable?",
               tazParkingZone
             )
-            val (newStall, _) = ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(seed))
+            val (newStall, _) =
+              ParkingStall.lastResortStall(inquiry.destinationUtm.loc, ParkingType.Public, Some(new Random(seed)))
             newStall
         }
       }

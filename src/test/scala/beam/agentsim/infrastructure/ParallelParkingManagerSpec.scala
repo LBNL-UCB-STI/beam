@@ -78,8 +78,8 @@ class ParallelParkingManagerSpec
       } {
 
         val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 11)
-        val expectedStall: ParkingStall =
-          ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(randomSeed))
+        val (expectedStall: ParkingStall, _) =
+          ParkingStall.lastResortStall(inquiry.destinationUtm.loc, ParkingType.Public, Some(new Random(randomSeed)))
 
         val response = parkingManager.processParkingInquiry(inquiry)
         assert(
@@ -106,8 +106,12 @@ class ParallelParkingManagerSpec
       )
 
       val inquiry = ParkingInquiry.init(centerSpaceTime, "work", triggerId = 173)
-      val expectedStall: ParkingStall =
-        ParkingStall.lastResortStall(inquiry.destinationUtm.loc, random = new Random(randomSeed.toLong))
+      val (expectedStall: ParkingStall, _) =
+        ParkingStall.lastResortStall(
+          inquiry.destinationUtm.loc,
+          ParkingType.Public,
+          Some(new Random(randomSeed.toLong))
+        )
 
       val response = parkingManager.processParkingInquiry(inquiry)
       assert(

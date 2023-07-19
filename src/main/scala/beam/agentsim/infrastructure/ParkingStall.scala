@@ -51,47 +51,56 @@ object ParkingStall {
     * @param coord the location for the stall
     * @return a new parking stall with the default Id[Taz] and parkingZoneId
     */
-  def defaultStall(coord: Coord): ParkingStall = ParkingStall(
-    tazId = TAZ.DefaultTAZId,
-    parkingZoneId = ParkingZone.DefaultParkingZone.parkingZoneId,
-    locationUTM = coord,
-    costInDollars = 0.0,
-    chargingPointType = None,
-    pricingModel = None,
-    parkingType = ParkingType.Public,
-    reservedFor = VehicleManager.AnyManager
-  )
+  def defaultStall(coord: Coord, parkingType: ParkingType = ParkingType.Public): (ParkingStall, ParkingZone) = {
+    val newStall = ParkingStall(
+      tazId = TAZ.DefaultTAZId,
+      parkingZoneId = ParkingZone.DefaultParkingZone.parkingZoneId,
+      locationUTM = coord,
+      costInDollars = 0.0,
+      chargingPointType = None,
+      pricingModel = None,
+      parkingType = parkingType,
+      reservedFor = VehicleManager.AnyManager
+    )
+    (newStall, ParkingZone.DefaultParkingZone)
+  }
 
   /**
     * take a stall from the infinite parking zone, with a random location by default from planet-wide UTM values
     *
-    * @param random        random number generator
+    * @param generateRandomLocationUsingThis        random number generator
     * @param costInDollars the cost of this stall
     * @return a stall that costs a lot but at least it exists. it's coordinate can be anywhere on the planet. for routing, the nearest link should be found using Beam Geotools.
     */
   def lastResortStall(
     location: Location,
-    random: Random = Random,
+    parkingType: ParkingType = ParkingType.Public,
+    generateRandomLocationUsingThis: Option[Random] = None,
     costInDollars: Double = CostOfEmergencyStallInDollars
   ): (ParkingStall, ParkingZone) = {
-    val boundingBox = new Envelope(
-      location.getX + 2000,
-      location.getX - 2000,
-      location.getY + 2000,
-      location.getY - 2000
-    )
-    val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
-    val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
+    val stallLocation = generateRandomLocationUsingThis match {
+      case Some(random) =>
+        val boundingBox = new Envelope(
+          location.getX + 2000,
+          location.getX - 2000,
+          location.getY + 2000,
+          location.getY - 2000
+        )
+        val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
+        val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
+        new Coord(x, y)
+      case _ => location
+    }
     ParkingStall(
       tazId = TAZ.EmergencyTAZId,
       parkingZoneId = ParkingZone.DefaultParkingZone.parkingZoneId,
-      locationUTM = new Coord(x, y),
+      locationUTM = stallLocation,
       costInDollars = costInDollars,
       chargingPointType = None,
       pricingModel = Some {
         PricingModel.FlatFee(costInDollars.toInt)
       },
-      parkingType = ParkingType.Public,
+      parkingType = parkingType,
       reservedFor = VehicleManager.AnyManager
     ) -> ParkingZone.DefaultParkingZone
   }
