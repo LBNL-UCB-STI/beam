@@ -585,7 +585,11 @@ object HouseholdActor {
 
     }
 
-    private def completeInitialization(tick: Int, triggerId: Long, triggersToSchedule: Vector[ScheduleTrigger]): Unit = {
+    private def completeInitialization(
+      tick: Int,
+      triggerId: Long,
+      triggersToSchedule: Vector[ScheduleTrigger]
+    ): Unit = {
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future
@@ -720,7 +724,9 @@ object HouseholdActor {
       manager: ActorRef
     ): BeamVehicle = {
       val vehicleManagerId =
-        VehicleManager.createOrGetReservedFor(household.getId.toString, Some(VehicleManager.TypeEnum.Household)).managerId
+        VehicleManager
+          .createOrGetReservedFor(household.getId.toString, Some(VehicleManager.TypeEnum.Household))
+          .managerId
       val vehicle = new BeamVehicle(
         Id.createVehicleId(personId.toString + "-emergency-" + vehicleIndex),
         new Powertrain(vehicleType.primaryFuelConsumptionInJoulePerMeter),
