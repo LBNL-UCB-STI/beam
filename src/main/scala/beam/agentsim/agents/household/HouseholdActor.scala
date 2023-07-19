@@ -188,8 +188,7 @@ object HouseholdActor {
 
     private var members: Map[Id[Person], PersonIdWithActorRef] = Map()
 
-    private val isFreightCarrier: Boolean =
-      household.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX)
+    private val isFreightCarrier: Boolean = household.getId.toString.startsWith(FreightReader.CARRIER_ID_PREFIX)
 
     // Data need to execute CAV dispatch
     private val cavPlans: mutable.ListBuffer[CAVSchedule] = mutable.ListBuffer()

@@ -15,17 +15,15 @@ import beam.agentsim.events.{ParkingEvent, SpaceTime}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode
 import beam.agentsim.infrastructure._
+import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking._
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.scheduler.HasTriggerId
 import beam.router.BeamRouter.Location
 import beam.sim.config.BeamConfig
 import beam.utils.logging.pattern.ask
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.Person
-import beam.agentsim.infrastructure.taz.TAZ
-import beam.router.BeamRouter.Location
-import com.vividsolutions.jts.geom.Envelope
-import beam.agentsim.infrastructure.charging.ChargingPointType
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -307,7 +305,7 @@ trait RideHailDepotManager extends {
 
 object RideHailDepotManager {
 
-  def getDefaultFastChargingStall(locationUTM: Location): ParkingStall = ParkingStall(
+  private def getDefaultFastChargingStall(locationUTM: Location): ParkingStall = ParkingStall(
     tazId = TAZ.DefaultTAZId,
     parkingZoneId = ParkingZone.DefaultParkingZone.parkingZoneId,
     locationUTM = locationUTM,

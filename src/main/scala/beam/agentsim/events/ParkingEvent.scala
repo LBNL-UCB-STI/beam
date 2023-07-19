@@ -1,18 +1,17 @@
 package beam.agentsim.events
 
-import java.util
-
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
+import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZoneId, PricingModel}
 import beam.agentsim.infrastructure.taz.TAZ
-import org.matsim.api.core.v01.events.{Event, GenericEvent}
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.Vehicle
-import collection.JavaConverters._
-
 import beam.sim.common.GeoUtils
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.vehicles.Vehicle
+
+import java.util
+import scala.collection.JavaConverters._
 
 /** HasPersonId is added as Matsim ScoringFunction for population requires it* */
 case class ParkingEvent(
@@ -23,7 +22,8 @@ case class ParkingEvent(
   locationWGS: Coord,
   parkingType: ParkingType,
   pricingModel: Option[PricingModel],
-  chargingPointType: Option[ChargingPointType]
+  chargingPointType: Option[ChargingPointType],
+  parkingZoneId: Id[ParkingZoneId]
 ) extends Event(time)
     with ScalaEvent
     with LazyLogging {
@@ -55,6 +55,7 @@ case class ParkingEvent(
     attr.put(ATTRIBUTE_PRICING_MODEL, pricingModelString)
     attr.put(ATTRIBUTE_CHARGING_TYPE, chargingPointString)
     attr.put(ATTRIBUTE_PARKING_TAZ, tazId.toString)
+    attr.put(ATTRIBUTE_PARKING_ZONE_ID, parkingZoneId.toString)
 
     attr
   }
@@ -72,6 +73,7 @@ object ParkingEvent {
   val ATTRIBUTE_PRICING_MODEL: String = "pricingModel"
   val ATTRIBUTE_CHARGING_TYPE: String = "chargingPointType"
   val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
+  val ATTRIBUTE_PARKING_ZONE_ID: String = "parkingZoneId"
 
   def apply(
     time: Double,
@@ -88,7 +90,8 @@ object ParkingEvent {
       locationWGS = locationWGS,
       parkingType = stall.parkingType,
       pricingModel = stall.pricingModel,
-      chargingPointType = stall.chargingPointType
+      chargingPointType = stall.chargingPointType,
+      parkingZoneId = stall.parkingZoneId
     )
   }
 
@@ -105,6 +108,17 @@ object ParkingEvent {
     val parkingType: ParkingType = ParkingType(attr(ATTRIBUTE_PARKING_TYPE))
     val pricingModel: Option[PricingModel] = PricingModel(attr(ATTRIBUTE_PRICING_MODEL), cost)
     val chargingPointType: Option[ChargingPointType] = ChargingPointType(attr(ATTRIBUTE_CHARGING_TYPE))
-    new ParkingEvent(time, driverId, vehicleId, tazId, locationWGS, parkingType, pricingModel, chargingPointType)
+    val parkingZoneId: Id[ParkingZoneId] = Id.create(attr(ATTRIBUTE_PARKING_ZONE_ID), classOf[ParkingZoneId])
+    new ParkingEvent(
+      time,
+      driverId,
+      vehicleId,
+      tazId,
+      locationWGS,
+      parkingType,
+      pricingModel,
+      chargingPointType,
+      parkingZoneId
+    )
   }
 }

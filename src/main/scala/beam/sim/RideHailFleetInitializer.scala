@@ -568,15 +568,15 @@ class ProceduralRideHailFleetInitializer(
   val realDistribution: UniformRealDistribution = new UniformRealDistribution()
   realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
-  val passengerPopulation: Iterable[Person] = scenario.getPopulation.getPersons
+  private val passengerPopulation: Iterable[Person] = scenario.getPopulation.getPersons
     .values()
     .asScala
-    .filterNot(_.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX))
+    .filterNot(_.getId.toString.startsWith(FreightReader.CARRIER_ID_PREFIX))
 
-  val passengerHousehold: Iterable[Household] = scenario.getHouseholds.getHouseholds
+  private val passengerHousehold: Iterable[Household] = scenario.getHouseholds.getHouseholds
     .values()
     .asScala
-    .filterNot(_.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX))
+    .filterNot(_.getId.toString.startsWith(FreightReader.CARRIER_ID_PREFIX))
 
   private def computeNumRideHailAgents: Long = {
     val fleet: Double = beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet

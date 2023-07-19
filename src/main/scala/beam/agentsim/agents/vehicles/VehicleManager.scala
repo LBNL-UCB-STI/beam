@@ -3,6 +3,7 @@ package beam.agentsim.agents.vehicles
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
+import beam.agentsim.agents.freight.input.FreightReader.CARRIER_ID_PREFIX
 
 import scala.collection.concurrent.TrieMap
 import scala.util.matching.Regex
@@ -51,7 +52,7 @@ object VehicleManager extends LazyLogging {
   ): ReservedFor = {
     val vehId = Id.create(idString, classOf[VehicleManager])
     val vehType = vehTypeMaybe.getOrElse {
-      if (idString.startsWith("freight"))
+      if (idString.startsWith(CARRIER_ID_PREFIX))
         TypeEnum.Freight
       else if (idString.startsWith("ridehail"))
         TypeEnum.RideHail

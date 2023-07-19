@@ -143,8 +143,7 @@ class RideHailDepotFunctions(
         result.copy(parkingStall = updatedParkingStall)
       case _ =>
         // didn't find any stalls, so, as a last resort, create a very expensive stall
-        val (newStall, defaultZone) =
-          ParkingStall.lastResortStall(inquiry.destinationUtm.loc, ParkingType.Public, Some(new Random(seed)))
+        val (newStall, defaultZone) = ParkingStall.lastResortStall(inquiry.destinationUtm.loc, new Random(seed))
         ParkingZoneSearch.ParkingZoneSearchResult(newStall, defaultZone)
     }
     Some(output)

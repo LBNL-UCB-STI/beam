@@ -124,16 +124,17 @@ class ParkingFunctions(
       case Some(result) => result
       case _ =>
         val destinationLocation = inquiry.destinationUtm.loc
+        val taz = tazTreeMap.getTAZ(destinationLocation)
         val (newStall, zone) = inquiry.parkingActivityType match {
           case ParkingActivityType.Home =>
-            ParkingStall.defaultStall(destinationLocation, ParkingType.Residential)
+            ParkingStall.defaultStallAtLocation(destinationLocation, taz.tazId, ParkingType.Residential)
           case ParkingActivityType.Depot =>
-            ParkingStall.defaultStall(destinationLocation, ParkingType.Depot)
+            ParkingStall.defaultStallAtLocation(destinationLocation, taz.tazId, ParkingType.Depot)
           case ParkingActivityType.Commercial =>
-            ParkingStall.lastResortStall(destinationLocation, ParkingType.Commercial)
+            ParkingStall.obstructiveStallAtLocation(destinationLocation, taz.tazId, ParkingType.Commercial)
           case _ =>
             // didn't find any stalls, so, as a last resort, create a very expensive stall
-            ParkingStall.lastResortStall(destinationLocation, ParkingType.Public, Some(new Random(seed)))
+            ParkingStall.lastResortStall(destinationLocation, new Random(seed))
         }
         ParkingZoneSearch.ParkingZoneSearchResult(newStall, zone)
     }
@@ -202,6 +203,12 @@ class ParkingFunctions(
         .get(vehicle.beamVehicleType.vehicleCategory)
         .forall(_.contains(inquiry.destinationUtm.time % (24 * 3600)))
     )
+
+    if (
+      inquiry.reservedFor.managerType == VehicleManager.TypeEnum.Freight && zone.parkingType == ParkingType.Commercial
+    ) {
+      println("Test")
+    }
 
     validParkingType && isValidTime
   }

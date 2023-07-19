@@ -165,7 +165,7 @@ trait FreightReader {
 }
 
 object FreightReader {
-  val FREIGHT_ID_PREFIX = "freight"
+  val CARRIER_ID_PREFIX = "carrier"
   val FREIGHT_REQUEST_TYPE = "FreightRequestType"
   val PAYLOAD_WEIGHT_IN_KG = "PayloadWeightInKg"
 

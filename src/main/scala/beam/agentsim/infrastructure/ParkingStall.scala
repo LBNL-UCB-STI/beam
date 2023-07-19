@@ -51,7 +51,7 @@ object ParkingStall {
     * @param coord the location for the stall
     * @return a new parking stall with the default Id[Taz] and parkingZoneId
     */
-  def defaultStall(coord: Coord, parkingType: ParkingType = ParkingType.Public): (ParkingStall, ParkingZone) = {
+  def defaultStall(coord: Coord): (ParkingStall, ParkingZone) = {
     val newStall = ParkingStall(
       tazId = TAZ.DefaultTAZId,
       parkingZoneId = ParkingZone.DefaultParkingZone.parkingZoneId,
@@ -59,7 +59,7 @@ object ParkingStall {
       costInDollars = 0.0,
       chargingPointType = None,
       pricingModel = None,
-      parkingType = parkingType,
+      parkingType = ParkingType.Public,
       reservedFor = VehicleManager.AnyManager
     )
     (newStall, ParkingZone.DefaultParkingZone)
@@ -74,27 +74,58 @@ object ParkingStall {
     */
   def lastResortStall(
     location: Location,
-    parkingType: ParkingType = ParkingType.Public,
-    generateRandomLocationUsingThis: Option[Random] = None,
+    random: Random,
     costInDollars: Double = CostOfEmergencyStallInDollars
   ): (ParkingStall, ParkingZone) = {
-    val stallLocation = generateRandomLocationUsingThis match {
-      case Some(random) =>
-        val boundingBox = new Envelope(
-          location.getX + 2000,
-          location.getX - 2000,
-          location.getY + 2000,
-          location.getY - 2000
-        )
-        val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
-        val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
-        new Coord(x, y)
-      case _ => location
-    }
+    val boundingBox = new Envelope(
+      location.getX + 2000,
+      location.getX - 2000,
+      location.getY + 2000,
+      location.getY - 2000
+    )
+    val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
+    val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
+    val stallLocation = new Coord(x, y)
     ParkingStall(
       tazId = TAZ.EmergencyTAZId,
       parkingZoneId = ParkingZone.DefaultParkingZone.parkingZoneId,
       locationUTM = stallLocation,
+      costInDollars = costInDollars,
+      chargingPointType = None,
+      pricingModel = Some { PricingModel.FlatFee(costInDollars.toInt) },
+      parkingType = ParkingType.Public,
+      reservedFor = VehicleManager.AnyManager
+    ) -> ParkingZone.DefaultParkingZone
+  }
+
+  def obstructiveStallAtLocation(
+    location: Location,
+    tazId: Id[TAZ],
+    parkingType: ParkingType,
+    costInDollars: Double = CostOfEmergencyStallInDollars
+  ): (ParkingStall, ParkingZone) = {
+    ParkingStall(
+      tazId = tazId,
+      parkingZoneId = ParkingZone.ObstructiveParkingZone.parkingZoneId,
+      locationUTM = location,
+      costInDollars = costInDollars,
+      chargingPointType = None,
+      pricingModel = Some { PricingModel.FlatFee(costInDollars.toInt) },
+      parkingType = parkingType,
+      reservedFor = VehicleManager.AnyManager
+    ) -> ParkingZone.ObstructiveParkingZone
+  }
+
+  def defaultStallAtLocation(
+    location: Location,
+    tazId: Id[TAZ],
+    parkingType: ParkingType,
+    costInDollars: Double = CostOfEmergencyStallInDollars
+  ): (ParkingStall, ParkingZone) = {
+    ParkingStall(
+      tazId = tazId,
+      parkingZoneId = ParkingZone.DefaultParkingZone.parkingZoneId,
+      locationUTM = location,
       costInDollars = costInDollars,
       chargingPointType = None,
       pricingModel = Some {

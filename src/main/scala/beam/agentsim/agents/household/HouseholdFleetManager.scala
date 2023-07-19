@@ -163,7 +163,7 @@ class HouseholdFleetManager(
 
     case inquiry @ MobilityStatusInquiry(personId, _, _, requireVehicleCategoryAvailable, triggerId) =>
       val availableVehicleMaybe: Option[BeamVehicle] = requireVehicleCategoryAvailable match {
-        case Some(_) if personId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX) =>
+        case Some(_) if personId.toString.startsWith(FreightReader.CARRIER_ID_PREFIX) =>
           whoDrivesThisFreightVehicle
             .filter(_._2 == personId)
             .flatMap { case (vehicleId, _) => availableVehicles.find(_.id == vehicleId) }

@@ -85,6 +85,30 @@ object ParkingZone extends LazyLogging {
     )
   }
 
+  val ObstructiveParkingZone: ParkingZone = {
+    val defaultParkingZoneId: Id[ParkingZoneId] = Id.create("obstructive", classOf[ParkingZoneId])
+    init(
+      Some(defaultParkingZoneId),
+      TAZ.DefaultTAZId,
+      ParkingType.Public,
+      VehicleManager.AnyManager,
+      Some(SitePowerManager.createId(defaultParkingZoneId.toString)),
+      UbiquitousParkingAvailability
+    )
+  }
+
+  val EmergencyParkingZone: ParkingZone = {
+    val defaultParkingZoneId: Id[ParkingZoneId] = Id.create("emergency", classOf[ParkingZoneId])
+    init(
+      Some(defaultParkingZoneId),
+      TAZ.EmergencyTAZId,
+      ParkingType.Public,
+      VehicleManager.AnyManager,
+      Some(SitePowerManager.createId(defaultParkingZoneId.toString)),
+      UbiquitousParkingAvailability
+    )
+  }
+
   /**
     * creates a new StallValues object
     *

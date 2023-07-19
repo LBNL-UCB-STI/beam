@@ -60,7 +60,7 @@ class ParallelParkingManager(
     )
   )
 
-  protected val tazToWorker: Map[Id[_], Worker] =
+  private val tazToWorker: Map[Id[_], Worker] =
     mapTazToWorker(workers) + (TAZ.EmergencyTAZId -> emergencyWorker) + (TAZ.DefaultTAZId -> emergencyWorker)
 
   protected def createWorker(cluster: ParkingCluster): Worker = {

@@ -1,7 +1,7 @@
 package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight._
-import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_ID_PREFIX
+import beam.agentsim.agents.freight.input.FreightReader._
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
@@ -272,9 +272,9 @@ class GenericFreightReader(
     val maybeCarrierRows = GenericCsvReader.readAsSeq[Option[FreightCarrierRow]](config.carriersFilePath) { row =>
       def get(key: String): String = getRowValue(config.carriersFilePath, row, key)
       //carrierId,tourId,vehicleId,vehicleTypeId,warehouseZone,warehouseX,warehouseY
-      val carrierId: Id[FreightCarrier] = s"${FREIGHT_ID_PREFIX}Carrier-${get("carrierId")}".createId
+      val carrierId: Id[FreightCarrier] = s"$CARRIER_ID_PREFIX-${get("carrierId")}".createId
       val tourId: Id[FreightTour] = get("tourId").createId
-      val vehicleId: Id[BeamVehicle] = Id.createVehicleId(s"${FREIGHT_ID_PREFIX}Vehicle-${get("vehicleId")}")
+      val vehicleId: Id[BeamVehicle] = Id.createVehicleId(s"${CARRIER_ID_PREFIX}Vehicle-${get("vehicleId")}")
       val vehicleTypeId: Id[BeamVehicleType] = get("vehicleTypeId").createId
       if (!existingAllTours.contains(tourId)) {
         logger.error(f"Following freight carrier row discarded because tour $tourId was filtered out: $row")
@@ -356,14 +356,14 @@ class GenericFreightReader(
 
   @Override
   def createPersonId(carrierId: Id[FreightCarrier], vehicleId: Id[BeamVehicle]): Id[Person] = {
-    val updatedVehicleId = vehicleId.toString.replace(FREIGHT_ID_PREFIX + "Vehicle-", "")
-    Id.createPersonId(s"${FREIGHT_ID_PREFIX}Driver-$updatedVehicleId")
+    val updatedVehicleId = vehicleId.toString.replace(s"${CARRIER_ID_PREFIX}Vehicle-", "")
+    Id.createPersonId(s"${CARRIER_ID_PREFIX}Driver-$updatedVehicleId")
   }
 
   @Override
   def createHouseholdId(carrierId: Id[FreightCarrier]): Id[Household] = {
-    val updatedCarrierId = carrierId.toString.replace(FREIGHT_ID_PREFIX + "Carrier-", "")
-    s"${FREIGHT_ID_PREFIX}Carrier-$updatedCarrierId".createId
+    val updatedCarrierId = carrierId.toString.replace(s"${CARRIER_ID_PREFIX}-", "")
+    s"${CARRIER_ID_PREFIX}-$updatedCarrierId".createId
   }
 
 }
