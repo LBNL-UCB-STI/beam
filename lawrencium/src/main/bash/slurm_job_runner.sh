@@ -5,6 +5,7 @@ optional_input_parameters=(
   BEAM_COMMIT_SHA
   BEAM_DATA_COMMIT_SHA
   PROFILER    # either empty, 'cpu' or 'cpumem'
+  GOOGLE_API_KEY
 )
 
 # Full list of input parameters required to run the script

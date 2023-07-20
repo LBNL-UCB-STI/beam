@@ -1,5 +1,3 @@
-import java.time.Instant
-
 group = 'beam'
 version = '0.8.0'
 
@@ -17,26 +15,127 @@ buildscript {
 
 apply plugin: 'org.hidetake.ssh'
 
-if (!project.hasProperty("lawrenciumUser")) {
-    ext.lawrenciumUser = "nikolay"
+List<String> requiredProps = ["lawrenciumUser", "lawrenciumPassword", "otp"]
+
+for (prop in requiredProps) {
+    if (!project.hasProperty(prop)) {
+        println "Property '$prop' is required and should be set!"
+    }
+}
+
+def propsFileName = "${project.rootDir}/gradle.deploy.properties"
+if (project.hasProperty('propsFile')) {
+    propsFileName = project.findProperty('propsFile')
+}
+
+def propsFile = new Properties()
+propsFile.load(project.file(propsFileName).newDataInputStream())
+
+ext.getParameterValue = { String paramName ->
+    if (project.hasProperty(paramName)) {
+        return project.findProperty(paramName)
+    } else {
+        return propsFile.getProperty(paramName)
+    }
+}
+
+ext.getParameterOrEnvironmentValue = { String paramName ->
+    if (project.hasProperty(paramName)) {
+        return project.findProperty(paramName)
+    } else if (System.getenv(paramName)) {
+        return System.getenv(paramName)
+    } else {
+        return propsFile.getProperty(paramName)
+    }
 }
 
 remotes {
     lawrenciumLoginNode {
         host = 'lrc-login.lbl.gov'
-        user = "${lawrenciumUser}"
+        user = project.findProperty('lawrenciumUser') ?: 'user-not-specified'
+    }
+}
+
+ssh {
+    settings {
+        authentications = ["keyboard-interactive"]
+        knownHosts = allowAnyHosts
     }
 }
 
 tasks.register("deployToLawrencium") {
     doLast {
         ssh.run {
-            settings {
-                authentications = ["keyboard-interactive"]
-                knownHosts = allowAnyHosts
-                password = "Zomb1986" + project.findProperty("otp")
-            }
+            settings { password = getParameterValue("lawrenciumPassword") + getParameterValue("otp") }
 
+            def runName = getParameterValue('runName')
+
+            def branch = getParameterValue('beamBranch') ?: getCurrentGitBranch()
+            def dataBranch = getParameterValue('dataBranch') ?: 'develop'
+
+            def commit = getParameterValue('beamCommit') ?: 'HEAD'
+            def dataCommit = getParameterValue('dataCommit') ?: 'HEAD'
+
+            def configs = getParameterValue('beamConfigs') ?: ext.getParameterValue(getCurrentGitBranch() + '.configs')
+
+            // partition, memory limit and QoS should be changed together
+            def lawrenciumPartition = getParameterValue('lawrenciumPartition') ?: 'es1'
+            def lawrenciumMemoryLimit = getParameterValue('lawrenciumMemoryLimit') ?: '480'
+            def lawrenciumQoS = getParameterValue('lawrenciumQoS') ?: 'es_normal'
+
+            // using memory limit for lawrencium cluster is usually fine
+            def max_ram = getParameterValue('forcedMaxRAM') ?: lawrenciumMemoryLimit
+            def profiler_type = getParameterValue('profiler_type') ?: 'cpumem'
+
+            def sentNotification = getParameterValue('sentNotification') ?: true
+            def slackHookWithToken = getParameterValue('slackHookWithToken') ?: 'not-set'
+            def simulationsSpreadsheetUrl = getParameterValue('simulationsSpreadsheetUrl') ?: 'not-set'
+
+            def google_api_key = getParameterOrEnvironmentValue('GOOGLE_API_KEY') ?: 'not-set'
+
+            def s3_publish = getParameterValue('s3Backup') ?: true
+            def region = getParameterValue('region') ?: defaultRegion
+            def aws_access_key_id = getParameterOrEnvironmentValue('AWS_ACCESS_KEY_ID') ?: 'not-set'
+            def aws_secret_access_key = getParameterOrEnvironmentValue('AWS_SECRET_ACCESS_KEY') ?: 'not-set'
+
+            // by-default maximum possible value is used
+            def expectedDuration = getParameterValue('expectedDuration') ?: '3-00:00:00'
+
+            // in case the simulation should be run under different lawrencium account
+            def lawrenciumAccount = getParameterValue('lawrenciumAccount') ?: 'pc_beamcore'
+
+            // which docker image to run
+            def dockerImageTag = getParameterValue('dockerImageTag') ?: 'latest'
+            def dockerImageName = getParameterValue('dockerImageName') ?: 'beam-environment'
+            def dockerImageNameSpace = getParameterValue('dockerImageNameSpace') ?: 'beammodel'
+
+            def parametersToDeploy = "--RUN_NAME='$runName' " +
+                    "--BEAM_BRANCH_NAME='$branch' " +
+                    "--BEAM_COMMIT_SHA='$commit' " +
+                    "--BEAM_DATA_BRANCH_NAME='$dataBranch' " +
+                    "--BEAM_DATA_COMMIT_SHA='$dataCommit' " +
+                    "--BEAM_CONFIG='$configs' " +
+                    "--MAX_RAM='$max_ram' " +
+                    "--PROFILER='$profiler_type' " +
+                    "--ACCOUNT='$lawrenciumAccount' " +
+                    "--PARTITION='$lawrenciumPartition' " +
+                    "--QOS='$lawrenciumQoS' " +
+                    "--MEMORY_LIMIT='$lawrenciumMemoryLimit' " +
+                    "--EXPECTED_EXECUTION_DURATION='$expectedDuration' " +
+                    "--S3_REGION='$region' " +
+                    "--S3_PUBLISH='$s3_publish' " +
+                    "--AWS_SECRET_ACCESS_KEY='$aws_secret_access_key' " +
+                    "--AWS_ACCESS_KEY_ID='$aws_access_key_id' " +
+                    "--SEND_NOTIFICATION='$sentNotification' " +
+                    "--SLACK_HOOK_WITH_TOKEN='$slackHookWithToken' " +
+                    "--SIMULATIONS_SPREADSHEET_UPDATE_URL='$simulationsSpreadsheetUrl' " +
+                    "--GOOGLE_API_KEY='$google_api_key' " +
+                    "--PULL_CODE='true' " +
+                    "--PULL_DATA='true' " +
+                    "--DOCKER_IMAGE_NAMESPACE='$dockerImageNameSpace' " +
+                    "--DOCKER_IMAGE_NAME='$dockerImageName' " +
+                    "--DOCKER_IMAGE_TAG='$dockerImageTag' "
+            
             def base_path = "https://raw.githubusercontent.com/LBNL-UCB-STI/beam/inm/lawrencium-automatization/lawrencium/src/main/bash"
 
             session(remotes.lawrenciumLoginNode) {
@@ -49,34 +148,8 @@ tasks.register("deployToLawrencium") {
                 execute "wget $base_path/slurm_job.sh"
                 execute "wget $base_path/slurm_job_runner.sh"
                 execute "chmod +x slurm_job_runner.sh slurm_job.sh"
-                // execute "ls -lah"
-                execute "./slurm_job_runner.sh " +
-                        "--BEAM_BRANCH_NAME='develop' " +
-                        "--BEAM_COMMIT_SHA='' " +
-                        "--BEAM_DATA_BRANCH_NAME='develop' " +
-                        "--BEAM_DATA_COMMIT_SHA='' " +
-                        "--BEAM_CONFIG='test/input/beamville/beam.conf' " +
-                        "--RUN_NAME='beamville_test' " +
-                        "--MAX_RAM='16' " +
-                        "--PROFILER='' " +
-                        "--PULL_CODE='true' " +
-                        "--PULL_DATA='true' " +
-                        "--ACCOUNT='pc_beamcore' " +
-                        "--PARTITION='es1' " +
-                        "--QOS='es_normal' " +
-                        "--MEMORY_LIMIT='480' " +
-                        "--EXPECTED_EXECUTION_DURATION='0-00:30:00' " +
-                        "--DOCKER_IMAGE_NAMESPACE='beammodel' " +
-                        "--DOCKER_IMAGE_NAME='beam-environment' " +
-                        "--DOCKER_IMAGE_TAG='latest' " +
-                        "--S3_REGION='us-east-2' " +
-                        "--S3_PUBLISH='false' " +
-                        "--AWS_SECRET_ACCESS_KEY='?' " +
-                        "--AWS_ACCESS_KEY_ID='?' " +
-                        "--SLACK_HOOK_WITH_TOKEN='?' " +
-                        "--SEND_NOTIFICATION='false' " +
-                        "--SLACK_HOOK_WITH_TOKEN='' " +
-                        "--SIMULATIONS_SPREADSHEET_UPDATE_URL='?' "
+                execute "./slurm_job_runner.sh " + parametersToDeploy
+                println "squeue -u $lawrenciumUser"
                 execute "squeue -u $lawrenciumUser"
             }
         }
@@ -87,25 +160,46 @@ tasks.register("deployToLawrencium") {
 tasks.register("lawrenciumQueue") {
     doLast {
         ssh.run {
-            settings {
-                authentications = ["keyboard-interactive"]
-                knownHosts = allowAnyHosts
-                password = "Zomb1986" + project.findProperty("otp")
-            }
+            settings { password = getParameterValue("lawrenciumPassword") + getParameterValue("otp") }
 
             def sacctFormat = "JobID,JobName%30,state,start,end,elapsed,nnodes,ncpus,nodelist,user,partition,maxrss,maxvmsize,time"
 
             if (!project.hasProperty("fromDate")) {
-                Instant now = Instant.now()
-                Instant yesterday = now.minus(1, ChronoUnit.DAYS)
-                ext.fromDate = DateTimeFormatter.ofPattern("yyyyMMdd")
-                        .withZone(ZoneId.of("UTC"))
-                        .format(yesterday)
+                Date today = new Date()
+                Integer daysPast = (project.findProperty('forDays') ?: '1').toInteger()
+                Date yesterday = today - daysPast
+                ext.fromDate = yesterday.format("yyyy-MM-dd")
             }
 
+            def commandToGetJobsListForUser = "sacct -u $lawrenciumUser --format=$sacctFormat -S $fromDate"
+            def commandToGetQueueForUser = "squeue -u $lawrenciumUser"
 
             session(remotes.lawrenciumLoginNode) {
-                execute "sacct -u $lawrenciumUser --format=$sacctFormat -S 2023-03-2"
+                println " "
+                println commandToGetQueueForUser
+                println commandToGetJobsListForUser
+                println " "
+                execute commandToGetQueueForUser
+                execute commandToGetJobsListForUser
+            }
+        }
+    }
+}
+
+
+tasks.register("lawrenciumNodes") {
+    doLast {
+        ssh.run {
+            settings { password = getParameterValue("lawrenciumPassword") + getParameterValue("otp") }
+
+            def lawrenciumPartition = getParameterValue('lawrenciumPartition') ?: 'es1'
+
+            def commandToGetNodesInfo = "sinfo  -N --long --partition=$lawrenciumPartition"
+
+            session(remotes.lawrenciumLoginNode) {
+                println " "
+                println commandToGetNodesInfo
+                execute commandToGetNodesInfo
             }
         }
     }
