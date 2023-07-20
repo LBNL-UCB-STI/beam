@@ -204,12 +204,6 @@ class ParkingFunctions(
         .forall(_.contains(inquiry.destinationUtm.time % (24 * 3600)))
     )
 
-    if (
-      inquiry.reservedFor.managerType == VehicleManager.TypeEnum.Freight && zone.parkingType == ParkingType.Commercial
-    ) {
-      println("Test")
-    }
-
     validParkingType && isValidTime
   }
 
