@@ -74,7 +74,11 @@ object TravelTimeGoogleApp extends App with StrictLogging {
     }
     logger.info(s"${statistic.loadedEventNumber} events loaded")
 
-    val controller = new OutputDirectoryHierarchy(execCfg.outputDirectory, OverwriteFileSetting.overwriteExistingFiles, CompressionType.none)
+    val controller = new OutputDirectoryHierarchy(
+      execCfg.outputDirectory,
+      OverwriteFileSetting.overwriteExistingFiles,
+      CompressionType.none
+    )
     controller.createIterationDirectory(iteration)
     statistic.notifyIterationEnds(new IterationEndsEvent(new SimplifiedMatsimServices(controller), iteration))
   }
