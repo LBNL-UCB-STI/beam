@@ -24,7 +24,7 @@ buildscript {
 plugins {
     id "net.ltgt.apt" version "0.21"
     id "de.undercouch.download" version "3.2.0"
-    id "org.scoverage" version "5.0.0"
+    id "org.scoverage" version "8.0.3"
     id 'maven-publish'
     id "me.champeau.gradle.jmh" version "0.5.3"
     id 'com.bmuschko.docker-java-application' version '6.6.1'
@@ -47,8 +47,12 @@ version = '0.8.6.13'
 
 description = """"""
 
-//sourceCompatibility = 1.8
-//targetCompatibility = 1.8
+sourceCompatibility = 1.11
+targetCompatibility = 1.11
+
+scala {
+    zincVersion = "1.9.2"
+}
 
 compileScala.options.encoding = 'UTF-8'
 compileScala.scalaCompileOptions.additionalParameters = ["-Xmx1g", "-W"]
@@ -306,7 +310,7 @@ dependencies {
     // TEST Akka //
     testImplementation group: 'com.typesafe.akka', name: "akka-testkit_${scalaBinaryVersion}", version: akkaBinaryVersion
 
-    scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryFullVersion}:1.4.8", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.4.8"
+    scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryFullVersion}:2.0.10", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:2.0.10"
 
     implementation 'org.apache.commons:commons-compress:1.18'
 
