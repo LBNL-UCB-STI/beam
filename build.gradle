@@ -47,10 +47,8 @@ version = '0.8.6.13'
 
 description = """"""
 
-compileOptions {
-    sourceCompatibility 11
-    targetCompatibility 11
-}
+sourceCompatibility = 11
+targetCompatibility = 11
 
 scala {
     zincVersion = "1.9.2"
