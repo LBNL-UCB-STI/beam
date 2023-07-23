@@ -55,11 +55,11 @@ scala {
     zincVersion = "1.9.2"
 }
 
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(11))
-    }
-}
+//java {
+//    toolchain {
+//        languageVersion.set(JavaLanguageVersion.of(11))
+//    }
+//}
 
 
 compileScala.options.encoding = 'UTF-8'
