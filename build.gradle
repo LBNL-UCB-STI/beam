@@ -29,6 +29,7 @@ plugins {
     id "me.champeau.gradle.jmh" version "0.5.3"
     id 'com.bmuschko.docker-java-application' version '6.6.1'
     id "cz.alenkacz.gradle.scalafmt" version "1.16.2"
+    id "java-library"
 }
 
 apply plugin: 'java'
@@ -47,12 +48,19 @@ version = '0.8.6.13'
 
 description = """"""
 
-sourceCompatibility = 11
-targetCompatibility = 11
+//sourceCompatibility = 11
+//targetCompatibility = 11
 
 scala {
     zincVersion = "1.9.2"
 }
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(11))
+    }
+}
+
 
 compileScala.options.encoding = 'UTF-8'
 compileScala.scalaCompileOptions.additionalParameters = ["-Xmx1g", "-W"]
