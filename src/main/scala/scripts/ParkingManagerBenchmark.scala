@@ -162,8 +162,7 @@ object ParkingManagerBenchmark extends StrictLogging {
         val zones = loadZones(tazTreeMap.tazQuadTree, pathToTazParking, beamConfig)
         val parkingNetwork = ZonalParkingManager(
           zones,
-          tazTreeMap.tazQuadTree,
-          tazTreeMap.idToTAZMapping,
+          tazTreeMap,
           boundingBox,
           beamConfig,
           geoUtils.distUTMInMeters(_, _)

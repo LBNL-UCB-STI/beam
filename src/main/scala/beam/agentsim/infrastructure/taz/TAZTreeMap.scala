@@ -41,6 +41,9 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
   val idToTAZMapping: mutable.HashMap[Id[TAZ], TAZ] = mutable.HashMap()
   private val cache: TrieMap[(Double, Double), TAZ] = TrieMap()
   private val linkIdToTAZMapping: mutable.HashMap[Id[Link], Id[TAZ]] = mutable.HashMap.empty[Id[Link], Id[TAZ]]
+
+  val tazToLinkIdMapping: mutable.HashMap[Id[TAZ], QuadTree[Link]] =
+    mutable.HashMap.empty[Id[TAZ], QuadTree[Link]]
   private val unmatchedLinkIds: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
   lazy val tazListContainsGeoms: Boolean = tazQuadTree.values().asScala.headOption.exists(_.geometry.isDefined)
   private val failedLinkLookups: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
@@ -125,9 +128,21 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
 
   def mapNetworkToTAZs(network: Network): Unit = {
     if (tazListContainsGeoms) {
+      idToTAZMapping.keySet.foreach { id =>
+        tazToLinkIdMapping(id) = new QuadTree[Link](
+          tazQuadTree.getMinEasting,
+          tazQuadTree.getMinNorthing,
+          tazQuadTree.getMaxEasting,
+          tazQuadTree.getMaxNorthing
+        )
+      }
       network.getLinks.asScala.foreach {
         case (id, link) =>
           val linkEndCoord = link.getToNode.getCoord
+          val linkMidpoint = new Coord(
+            0.5 * (link.getToNode.getCoord.getX + link.getFromNode.getCoord.getX),
+            0.5 * (link.getToNode.getCoord.getY + link.getFromNode.getCoord.getY)
+          )
           val foundTaz = TAZTreeMap.ringSearch(
             tazQuadTree,
             linkEndCoord,
@@ -139,13 +154,29 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
             else None
           }
           foundTaz match {
-            case Some(taz) =>
+            case Some(taz) if link.getAllowedModes.contains("car") & link.getAllowedModes.contains("walk") =>
+              try {
+                tazToLinkIdMapping(taz.tazId).put(linkMidpoint.getX, linkMidpoint.getY, link)
+              } catch {
+                case e: Throwable =>
+                  unmatchedLinkIds += id
+                  logger.warn(e.toString)
+              }
               linkIdToTAZMapping += (id -> taz.tazId)
-            case _ =>
+            case None =>
               unmatchedLinkIds += id
+            case _ =>
           }
         case _ =>
       }
+      val linksToTazMapping = tazToLinkIdMapping
+        .map { case (x, y) => (x, y.size()) }
+        .groupBy(x => Math.min(x._2, 10))
+        .map { case (x, y) =>
+          (x, y.keys.map(_.toString))
+        }
+        .toSeq
+        .sortBy(_._1)
       logger.info(
         "Completed mapping links to TAZs. Matched "
         + linkIdToTAZMapping.size.toString +
@@ -153,6 +184,7 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
         + unmatchedLinkIds.size.toString +
         " links"
       )
+      logger.info(s"Mapping of links to TAZs: ${linksToTazMapping.take(9)}")
     }
   }
 }
@@ -162,6 +194,7 @@ object TAZTreeMap {
   private val logger = LoggerFactory.getLogger(this.getClass)
 
   val emptyTAZId: Id[TAZ] = Id.create("NA", classOf[TAZ])
+  private val mapBoundingBoxBufferMeters: Double = 2e4 // Some links also extend beyond the convex hull of the TAZs
 
   def fromShapeFile(shapeFilePath: String, tazIDFieldName: String): TAZTreeMap = {
     new TAZTreeMap(initQuadTreeFromShapeFile(shapeFilePath, tazIDFieldName))
@@ -177,10 +210,10 @@ object TAZTreeMap {
     val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromShapeFile(features)
 
     val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
-      quadTreeBounds.minx,
-      quadTreeBounds.miny,
-      quadTreeBounds.maxx,
-      quadTreeBounds.maxy
+      quadTreeBounds.minx - mapBoundingBoxBufferMeters,
+      quadTreeBounds.miny - mapBoundingBoxBufferMeters,
+      quadTreeBounds.maxx + mapBoundingBoxBufferMeters,
+      quadTreeBounds.maxy + mapBoundingBoxBufferMeters
     )
 
     for (f <- features.asScala) {
@@ -230,10 +263,10 @@ object TAZTreeMap {
     val lines: Seq[CsvTaz] = CsvTaz.readCsvFile(csvFile)
     val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromCsvFile(lines)
     val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
-      quadTreeBounds.minx,
-      quadTreeBounds.miny,
-      quadTreeBounds.maxx,
-      quadTreeBounds.maxy
+      quadTreeBounds.minx - mapBoundingBoxBufferMeters,
+      quadTreeBounds.miny - mapBoundingBoxBufferMeters,
+      quadTreeBounds.maxx + mapBoundingBoxBufferMeters,
+      quadTreeBounds.maxy + mapBoundingBoxBufferMeters
     )
 
     for (l <- lines) {
@@ -248,10 +281,10 @@ object TAZTreeMap {
   def fromSeq(tazes: Seq[TAZ]): TAZTreeMap = {
     val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromList(tazes)
     val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
-      quadTreeBounds.minx,
-      quadTreeBounds.miny,
-      quadTreeBounds.maxx,
-      quadTreeBounds.maxy
+      quadTreeBounds.minx - mapBoundingBoxBufferMeters,
+      quadTreeBounds.miny - mapBoundingBoxBufferMeters,
+      quadTreeBounds.maxx + mapBoundingBoxBufferMeters,
+      quadTreeBounds.maxy + mapBoundingBoxBufferMeters
     )
 
     for (taz <- tazes) {

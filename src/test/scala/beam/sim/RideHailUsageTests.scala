@@ -25,7 +25,7 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper with 
     )
   }
 
-  it should "Use RH_BEV_L5 to transfer agents" in {
+  it should "Use RH_BEV_L5 to transport agents" in {
     val automatedRideHailVehicleType = "RH_BEV_L5"
     val config = ConfigFactory
       .parseString(s"""
@@ -96,10 +96,10 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper with 
       .getOrDefault(
         ModeChoiceEvent.ATTRIBUTE_MODE,
         ""
-      ) shouldBe "ride_hail" withClue ", expected RH usage after replanning"
+      ) should startWith("ride_hail") withClue ", expected RH usage after replanning"
   }
 
-  it should "Use RH_BEV to transfer agents." in {
+  it should "Use RH_BEV to transport agents." in {
     val nonAutomatedRideHailVehicleType = "RH_BEV"
     val config = ConfigFactory
       .parseString(s"""

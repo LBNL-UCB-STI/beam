@@ -49,8 +49,7 @@ class HierarchicalParkingManager(
 
   override protected val searchFunctions: Option[InfrastructureFunctions] = Some(
     new ParkingFunctions(
-      tazMap.tazQuadTree,
-      tazMap.idToTAZMapping,
+      tazMap,
       tazParkingZones,
       distanceFunction,
       minSearchRadius,

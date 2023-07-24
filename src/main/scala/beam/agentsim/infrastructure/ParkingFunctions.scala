@@ -5,8 +5,9 @@ import beam.agentsim.agents.vehicles.VehicleManager
 import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{ParkingAlternative, ParkingZoneSearchResult}
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.config.BeamConfig
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Parking
 import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
@@ -14,8 +15,7 @@ import org.matsim.core.utils.collections.QuadTree
 import scala.util.Random
 
 class ParkingFunctions(
-  geoQuadTree: QuadTree[TAZ],
-  idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+  tazTreeMap: TAZTreeMap,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
@@ -27,10 +27,9 @@ class ParkingFunctions(
   minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
   seed: Int,
-  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit
+  mnlParkingConfig: Parking.MultinomialLogit
 ) extends InfrastructureFunctions(
-      geoQuadTree,
-      idToGeoMapping,
+      tazTreeMap,
       parkingZones,
       distanceFunction,
       minSearchRadius,
@@ -166,7 +165,17 @@ class ParkingFunctions(
       (inquiry.parkingActivityType == ParkingActivityType.Work && parkingZone.parkingType == ParkingType.Workplace)
     )
       inquiry.destinationUtm.loc
-    else
+    else if (tazTreeMap.tazListContainsGeoms) {
+      ParkingStallSampling.linkBasedSampling(
+        new Random(seed),
+        inquiry.destinationUtm.loc,
+        tazTreeMap.tazToLinkIdMapping.get(taz.tazId),
+        distanceFunction,
+        parkingZone.availability,
+        taz,
+        inClosestZone
+      )
+    } else {
       ParkingStallSampling.availabilityAwareSampling(
         new Random(seed),
         inquiry.destinationUtm.loc,
@@ -174,6 +183,7 @@ class ParkingFunctions(
         parkingZone.availability,
         inClosestZone
       )
+    }
   }
 
   /**

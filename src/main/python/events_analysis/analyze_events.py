@@ -160,6 +160,7 @@ def get_pooling_metrics(filename):
     ct_nb_requests = {}
     chained_trips_requests = 0
     chained_trips_count = 0
+    number_of_agents_cannot_leave_a_vehicle = 0
     for row in data2.itertuples():
         person = row.person
         vehicle = row.vehicle
@@ -209,7 +210,7 @@ def get_pooling_metrics(filename):
                 startTT[person] = row.time
         elif event == "PersonLeavesVehicle":
             if person not in mode_choice_attempt:
-                print("agent cannot leave a vehicle if it did not go through a mode choice in the first place")
+                number_of_agents_cannot_leave_a_vehicle += 1
                 continue
             chosen_mode = mode_choice_attempt[person]
             if not vehicle.startswith("rideHailVehicle"):
@@ -245,6 +246,10 @@ def get_pooling_metrics(filename):
             elif vehicle in empty_distance:
                 deadheading += empty_distance[vehicle]
                 del empty_distance[vehicle]
+
+    if number_of_agents_cannot_leave_a_vehicle > 0:
+        print(f"There are {number_of_agents_cannot_leave_a_vehicle} agents, that " +
+              "cannot leave a vehicle because they did not go through a mode choice in the first place")
 
     del data2
     tot_pool_trips = count_of_multi_passenger_pool_trips + count_of_one_passenger_pool_trips

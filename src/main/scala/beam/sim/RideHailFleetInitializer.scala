@@ -617,7 +617,11 @@ class ProceduralRideHailFleetInitializer(
         }
     }
 
-    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(
+      beamScenario,
+      managerConfig.initialization.procedural.vehicleAdjustmentMethod,
+      Option(managerConfig.initialization.procedural.vehicleTypeId)
+    )
 
     val rideHailAgentInitializers: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInitializer] = new ArrayBuffer()
     var idx = 0
