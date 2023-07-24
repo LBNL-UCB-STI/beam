@@ -2,7 +2,7 @@ package beam.agentsim.infrastructure.parking
 
 import scala.util.Random
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import org.locationtech.jts.geom.{Geometry, GeometryFactory, Coordinate, PrecisionModel}
+import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory, PrecisionModel}
 import org.matsim.api.core.v01.network.{Link, NetworkFactory, Node}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.network.{LinkFactory, NetworkUtils}
