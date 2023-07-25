@@ -156,7 +156,10 @@ class SupplementaryTripGenerator(
       }
     val alternativeActivity = PopulationUtils.createActivityFromCoord(prevActivity.getType, currentActivity.getCoord)
     alternativeActivity.setStartTime(prevActivity.getStartTime.orElse(Double.NegativeInfinity))
-    alternativeActivity.setEndTime(nextActivity.getEndTime.orElse(Double.NegativeInfinity))
+    nextActivity.getEndTime.ifDefinedOrElse(
+      alternativeActivity.setEndTime(_),
+      () => alternativeActivity.setEndTimeUndefined()
+    )
     val (newActivityType, startTime, endTime) = generateSubtourTypeStartAndEndTime(alternativeActivity)
     val chosenAlternativeOption = newActivityType match {
       case "None" => None
