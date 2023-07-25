@@ -143,8 +143,8 @@ public class MATSim2GTFS {
                         gtfsStopTime.trip_id = gtfsTrip.trip_id;
                         gtfsStopTime.stop_sequence = stopWithinTrip;
                         gtfsStopTime.stop_id = trs.getStopFacility().getId().toString();
-                        gtfsStopTime.arrival_time = (int) (firstDepartureTime + trs.getArrivalOffset().seconds());
-                        gtfsStopTime.departure_time = (int) (firstDepartureTime + trs.getDepartureOffset().seconds());
+                        gtfsStopTime.arrival_time = (int) (firstDepartureTime + trs.getArrivalOffset().orElse(Double.NEGATIVE_INFINITY));
+                        gtfsStopTime.departure_time = (int) (firstDepartureTime + trs.getDepartureOffset().orElse(Double.NEGATIVE_INFINITY));
                         gtfsFeed.stop_times.put(
                                 new Fun.Tuple2(gtfsStopTime.trip_id, gtfsStopTime.stop_sequence),
                                 gtfsStopTime);
