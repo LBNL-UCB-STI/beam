@@ -54,7 +54,10 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
         case Some(lastAct) =>
           if (lastAct.getType == currentAct.getType) {
             val lastActivity = PopulationUtils.createActivity(lastAct)
-            currentAct.getEndTime.ifDefinedOrElse(lastActivity.setEndTime(_), lastActivity.setEndTimeUndefined())
+            currentAct.getEndTime.ifDefinedOrElse(
+              lastActivity.setEndTime(_),
+              new Runnable() { def run() = lastActivity.setEndTimeUndefined() }
+            )
             val newList = listOfAct.dropRight(1)
             newList :+ lastActivity
           } else {
