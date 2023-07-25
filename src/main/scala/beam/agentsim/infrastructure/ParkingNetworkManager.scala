@@ -51,7 +51,7 @@ object ParkingNetworkManager extends LazyLogging {
     Props(new ParkingNetworkManager(services, parkingNetworkMap))
   }
 
-  def calculateScore(
+  private def calculateScore(
     cost: Double,
     energyCharge: Double
   ): Double = -cost - energyCharge

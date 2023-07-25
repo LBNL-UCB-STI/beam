@@ -5,7 +5,7 @@ import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{Event, GenericEvent}
+import org.matsim.api.core.v01.events.Event
 import org.matsim.vehicles.Vehicle
 
 import java.util
@@ -19,7 +19,8 @@ case class LeavingParkingEvent(
   score: Double,
   parkingType: ParkingType,
   pricingModel: Option[PricingModel],
-  ChargingPointType: Option[ChargingPointType]
+  ChargingPointType: Option[ChargingPointType],
+  parkingZoneId: Id[ParkingZoneId]
 ) extends Event(time)
     with ScalaEvent {
   import LeavingParkingEvent._
@@ -35,6 +36,7 @@ case class LeavingParkingEvent(
     attr.put(ATTRIBUTE_PRICING_MODEL, optionalToString(pricingModel))
     attr.put(ATTRIBUTE_CHARGING_TYPE, optionalToString(ChargingPointType))
     attr.put(ATTRIBUTE_PARKING_TAZ, tazId.toString)
+    attr.put(ATTRIBUTE_PARKING_ZONE_ID, parkingZoneId.toString)
 
     attr
   }
@@ -57,6 +59,7 @@ object LeavingParkingEvent {
   val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
   val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
   val ATTRIBUTE_DRIVER_ID: String = "driver"
+  val ATTRIBUTE_PARKING_ZONE_ID: String = "parkingZoneId"
 
   def apply(
     time: Double,
@@ -73,7 +76,8 @@ object LeavingParkingEvent {
       score,
       stall.parkingType,
       stall.pricingModel,
-      stall.chargingPointType
+      stall.chargingPointType,
+      parkingZoneId = stall.parkingZoneId
     )
 
   def apply(genericEvent: Event): LeavingParkingEvent = {
@@ -90,6 +94,17 @@ object LeavingParkingEvent {
       "0"
     ) // TODO: cost (fee) should be an attribute of this event, but adding it will break a lot of tests
     val chargingPointType: Option[ChargingPointType] = ChargingPointType(attr(ATTRIBUTE_CHARGING_TYPE))
-    LeavingParkingEvent(time, personId, vehicleId, tazId, score, parkingType, pricingModel, chargingPointType)
+    val parkingZoneId: Id[ParkingZoneId] = Id.create(attr(ATTRIBUTE_PARKING_ZONE_ID), classOf[ParkingZoneId])
+    LeavingParkingEvent(
+      time,
+      personId,
+      vehicleId,
+      tazId,
+      score,
+      parkingType,
+      pricingModel,
+      chargingPointType,
+      parkingZoneId
+    )
   }
 }

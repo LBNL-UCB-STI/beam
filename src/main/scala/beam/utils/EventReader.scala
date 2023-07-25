@@ -1,23 +1,19 @@
 package beam.utils
 
-import java.io._
-import java.net.URL
-import java.nio.charset.StandardCharsets
-import java.util
-import java.util.zip.GZIPInputStream
-
 import beam.agentsim.events._
 import org.matsim.api.core.v01.events.{Event, GenericEvent}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.config.Config
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
-import org.matsim.core.utils.io.UnicodeInputStream
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
+import java.io._
+import java.net.URL
+import java.util
+import java.util.zip.GZIPInputStream
 import scala.collection.mutable.ArrayBuffer
-import scala.reflect.ClassTag
 
 class DummyEvent(attribs: java.util.Map[String, String]) extends Event(attribs.get("time").toDouble) {
   override def getEventType: String = attribs.get("type")

@@ -4,9 +4,9 @@ import sys
 
 city = "austin"
 # city = "sfbay"
-scenario = "price-sensitivity"
+scenario = "parking-sensitivity"
 # batch = "Oct30/"
-batch = "2050_HOP_highp4/"
+batch = "2018_unlimited/"
 iteration = 0
 prefix = ""
 filename = prefix+str(iteration)+'.events.csv.gz'
