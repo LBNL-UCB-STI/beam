@@ -218,7 +218,10 @@ class SupplementaryTripGenerator(
         newActivity.setEndTime(endTime)
 
         activityAfterNewActivity.setStartTime(endTime + travelTimeBufferInSec)
-        activityAfterNewActivity.setEndTime(alternativeActivity.getEndTime.orElse(Double.NegativeInfinity))
+        alternativeActivity.getEndTime.ifDefinedOrElse(
+          activityAfterNewActivity.setEndTime(_),
+          () => activityAfterNewActivity.setEndTimeUndefined()
+        )
 
         List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
       case None =>
