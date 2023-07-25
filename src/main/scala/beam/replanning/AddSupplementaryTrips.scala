@@ -140,7 +140,10 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
       } else {
         0
       }
-      planElement.setMaximumDuration(planElement.getEndTime.orElse(Double.NegativeInfinity) - prevEndTime)
+      planElement.getEndTime.ifDefinedOrElse(
+        endTime => planElement.setMaximumDuration { endTime - prevEndTime },
+        () => planElement.setMaximumDurationUndefined()
+      )
       planElement.setStartTime(prevEndTime)
       definitelyAddSubtours(planElement, nonWorker)
     }
