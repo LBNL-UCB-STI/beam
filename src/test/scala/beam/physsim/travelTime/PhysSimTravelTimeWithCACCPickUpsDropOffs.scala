@@ -194,7 +194,7 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
     )
     val bprConfig =
       BPRSimConfig(
-        jdeqConfig.getSimulationEndTime.seconds(),
+        jdeqConfig.getSimulationEndTime.orElse(Double.NegativeInfinity),
         1,
         0,
         1.0,
@@ -222,7 +222,7 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
     )
     val bprConfig =
       BPRSimConfig(
-        jdeqConfig.getSimulationEndTime.seconds(),
+        jdeqConfig.getSimulationEndTime.orElse(Double.NegativeInfinity),
         8,
         60,
         1.0,

@@ -38,7 +38,7 @@ object ReplanningUtil {
         case (plannedActivity: Activity, experiencedActivity: Activity) =>
           experiencedActivity.setCoord(plannedActivity.getCoord)
           if (plannedActivity.getEndTime.isDefined)
-            experiencedActivity.setEndTime(plannedActivity.getEndTime.seconds())
+            experiencedActivity.setEndTime(plannedActivity.getEndTime.orElse(Double.NegativeInfinity))
           else
             experiencedActivity.setEndTimeUndefined()
         case (_, _) =>

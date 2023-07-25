@@ -501,9 +501,12 @@ class PersonAgent(
   def calculateActivityEndTime(activity: Activity, tick: Double): Double = {
     def activityEndTime = {
       val endTime = activity.getEndTime
-      if (endTime.isDefined && endTime.seconds() >= tick) {
-        endTime.seconds()
-      } else if (endTime.isDefined && endTime.seconds() >= 0.0 && endTime.seconds() < tick) {
+      if (endTime.isDefined && endTime.orElse(Double.NegativeInfinity) >= tick) {
+        endTime.orElse(Double.NegativeInfinity)
+      } else if (
+        endTime.isDefined && endTime
+          .orElse(Double.NegativeInfinity) >= 0.0 && endTime.orElse(Double.NegativeInfinity) < tick
+      ) {
         tick
       } else {
         // logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
@@ -564,7 +567,12 @@ class PersonAgent(
     logDebug(s"starting at ${currentActivity(data).getType} @ $tick")
     goto(PerformingActivity) replying CompletionNotice(
       triggerId,
-      Vector(ScheduleTrigger(ActivityEndTrigger(currentActivity(data).getEndTime.seconds().toInt), self))
+      Vector(
+        ScheduleTrigger(
+          ActivityEndTrigger(currentActivity(data).getEndTime.orElse(Double.NegativeInfinity).toInt),
+          self
+        )
+      )
     )
   }
 

@@ -10,13 +10,13 @@ import scala.collection.mutable
 class ActivitySegment(private val activities: Array[Activity], val binSize: Int) extends LazyLogging {
   import ActivitySegment._
 
-  val sorted: Array[Activity] = activities.sortBy(x => x.getEndTime.seconds())
+  val sorted: Array[Activity] = activities.sortBy(x => x.getEndTime.orElse(Double.NegativeInfinity))
 
-  def minTime: Int = sorted.head.getEndTime.seconds().toInt
-  def maxTime: Int = sorted.last.getEndTime.seconds().toInt
+  def minTime: Int = sorted.head.getEndTime.orElse(Double.NegativeInfinity).toInt
+  def maxTime: Int = sorted.last.getEndTime.orElse(Double.NegativeInfinity).toInt
 
   private val emptyArr: Array[Activity] = Array.empty
-  private val maxIdx: Int = sorted.last.getEndTime.seconds().toInt / binSize
+  private val maxIdx: Int = sorted.last.getEndTime.orElse(Double.NegativeInfinity).toInt / binSize
   private val arr: Array[Array[Activity]] = build(sorted, binSize)
 
   def getActivities(time: Double): IndexedSeq[Activity] = {
@@ -54,12 +54,13 @@ object ActivitySegment {
   }
 
   def build(activities: Array[Activity], binSize: Int): Array[Array[Activity]] = {
-    val maxTime = activities.maxBy(x => x.getEndTime.seconds()).getEndTime.seconds()
+    val maxTime =
+      activities.maxBy(x => x.getEndTime.orElse(Double.NegativeInfinity)).getEndTime.orElse(Double.NegativeInfinity)
     val maxIdx: Int = maxTime.toInt / binSize
     val arr: Array[Array[Activity]] = Array.ofDim(maxIdx + 1)
     val binToActivities: Map[Int, Array[Activity]] = activities
       .map { act =>
-        val binIdx = (act.getEndTime.seconds() / binSize).toInt
+        val binIdx = (act.getEndTime.orElse(Double.NegativeInfinity) / binSize).toInt
         binIdx -> act
       }
       .groupBy { case (binIdx, _) => binIdx }

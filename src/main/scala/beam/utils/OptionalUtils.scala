@@ -34,6 +34,6 @@ object OptionalUtils {
   }
 
   implicit class RichOptionalTime(opt: OptionalTime) {
-    def toOption: Option[Double] = if (opt.isDefined) Some(opt.seconds()) else None
+    def toOption: Option[Double] = if (opt.isDefined) Some(opt.orElse(Double.NegativeInfinity)) else None
   }
 }

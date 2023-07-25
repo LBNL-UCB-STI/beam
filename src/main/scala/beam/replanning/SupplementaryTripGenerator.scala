@@ -155,8 +155,8 @@ class SupplementaryTripGenerator(
         List[BeamMode](WALK, WALK_TRANSIT, RIDE_HAIL, RIDE_HAIL_POOLED) ++ householdModes
       }
     val alternativeActivity = PopulationUtils.createActivityFromCoord(prevActivity.getType, currentActivity.getCoord)
-    alternativeActivity.setStartTime(prevActivity.getStartTime.seconds())
-    alternativeActivity.setEndTime(nextActivity.getEndTime.seconds())
+    alternativeActivity.setStartTime(prevActivity.getStartTime.orElse(Double.NegativeInfinity))
+    alternativeActivity.setEndTime(nextActivity.getEndTime.orElse(Double.NegativeInfinity))
     val (newActivityType, startTime, endTime) = generateSubtourTypeStartAndEndTime(alternativeActivity)
     val chosenAlternativeOption = newActivityType match {
       case "None" => None
@@ -208,14 +208,14 @@ class SupplementaryTripGenerator(
         val activityAfterNewActivity =
           PopulationUtils.createActivityFromCoord(nextActivity.getType, nextActivity.getCoord)
 
-        activityBeforeNewActivity.setStartTime(alternativeActivity.getStartTime.seconds())
+        activityBeforeNewActivity.setStartTime(alternativeActivity.getStartTime.orElse(Double.NegativeInfinity))
         activityBeforeNewActivity.setEndTime(startTime - travelTimeBufferInSec)
 
         newActivity.setStartTime(startTime)
         newActivity.setEndTime(endTime)
 
         activityAfterNewActivity.setStartTime(endTime + travelTimeBufferInSec)
-        activityAfterNewActivity.setEndTime(alternativeActivity.getEndTime.seconds())
+        activityAfterNewActivity.setEndTime(alternativeActivity.getEndTime.orElse(Double.NegativeInfinity))
 
         List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
       case None =>
@@ -278,10 +278,12 @@ class SupplementaryTripGenerator(
   private def getRealStartEndTime(
     activity: Activity
   ): (Double, Double) = {
-    val start = if (activity.getStartTime.seconds() > 0) { activity.getStartTime.seconds() }
-    else { 0 }
-    val end = if (activity.getEndTime.seconds() > 0) { activity.getEndTime.seconds() }
-    else { 3600 * 24 }
+    val start = if (activity.getStartTime.orElse(Double.NegativeInfinity) > 0) {
+      activity.getStartTime.orElse(Double.NegativeInfinity)
+    } else { 0 }
+    val end = if (activity.getEndTime.orElse(Double.NegativeInfinity) > 0) {
+      activity.getEndTime.orElse(Double.NegativeInfinity)
+    } else { 3600 * 24 }
     (start, end)
   }
 
@@ -292,9 +294,11 @@ class SupplementaryTripGenerator(
   ): Map[BeamMode, DestinationChoiceModel.TimesAndCost] = {
     val (altStart, altEnd) = getRealStartEndTime(alternativeActivity)
     val alternativeActivityDuration = altEnd - altStart
-    val activityDuration = additionalActivity.getEndTime.seconds() - additionalActivity.getStartTime.seconds()
-    val desiredDepartTimeBin = secondsToIndex(additionalActivity.getStartTime.seconds())
-    val desiredReturnTimeBin = secondsToIndex(additionalActivity.getEndTime.seconds())
+    val activityDuration = additionalActivity.getEndTime.orElse(
+      Double.NegativeInfinity
+    ) - additionalActivity.getStartTime.orElse(Double.NegativeInfinity)
+    val desiredDepartTimeBin = secondsToIndex(additionalActivity.getStartTime.orElse(Double.NegativeInfinity))
+    val desiredReturnTimeBin = secondsToIndex(additionalActivity.getEndTime.orElse(Double.NegativeInfinity))
     val vehicleType = beamServices.beamScenario.vehicleTypes.values.head // TODO: FIX WITH REAL VEHICLE
     val fuelPrice = beamServices.beamScenario.fuelTypePrices(vehicleType.primaryFuelType)
 
@@ -321,9 +325,9 @@ class SupplementaryTripGenerator(
             fuelPrice
           )
         val startingOverlap =
-          (altStart - (additionalActivity.getStartTime.seconds() - accessTripSkim.time)).max(0)
+          (altStart - (additionalActivity.getStartTime.orElse(Double.NegativeInfinity) - accessTripSkim.time)).max(0)
         val endingOverlap =
-          ((additionalActivity.getEndTime.seconds() + egressTripSkim.time) - altEnd).max(0)
+          ((additionalActivity.getEndTime.orElse(Double.NegativeInfinity) + egressTripSkim.time) - altEnd).max(0)
         val schedulePenalty = math.pow(startingOverlap, 2) + math.pow(endingOverlap, 2)
         val previousActivityBenefit = attributesOfIndividual.getVOT(
           (alternativeActivityDuration - accessTripSkim.time - egressTripSkim.time - activityDuration) / 3600 * activityVOTs

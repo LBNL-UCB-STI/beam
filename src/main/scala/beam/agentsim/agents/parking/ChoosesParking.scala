@@ -145,8 +145,10 @@ object ChoosesParking {
         costInDollars / intervalSeconds * SECONDS_IN_HOUR
       case (Some(PricingModel.FlatFee(costInDollars)), Some(activity))
           if activity.getEndTime.isDefined && activity.getStartTime.isDefined && activity.getEndTime
-            .seconds() - activity.getStartTime.seconds() > 0 =>
-        costInDollars / (activity.getEndTime.seconds() - activity.getStartTime.seconds()) * SECONDS_IN_HOUR
+            .orElse(Double.NegativeInfinity) - activity.getStartTime.orElse(Double.NegativeInfinity) > 0 =>
+        costInDollars / (activity.getEndTime.orElse(Double.NegativeInfinity) - activity.getStartTime.orElse(
+          Double.NegativeInfinity
+        )) * SECONDS_IN_HOUR
       case (Some(PricingModel.FlatFee(costInDollars)), _) => costInDollars
       case (None, _)                                      => 0
     }

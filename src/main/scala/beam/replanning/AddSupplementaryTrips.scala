@@ -1,5 +1,6 @@
 package beam.replanning
 
+import beam._
 import beam.sim.config.BeamConfig
 import javax.inject.Inject
 import org.matsim.api.core.v01.population.{Activity, HasPlansAndId, Person, Plan}
@@ -54,10 +55,7 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
         case Some(lastAct) =>
           if (lastAct.getType == currentAct.getType) {
             val lastActivity = PopulationUtils.createActivity(lastAct)
-            currentAct.getEndTime.ifDefinedOrElse(
-              lastActivity.setEndTime(_),
-              new Runnable() { def run() = lastActivity.setEndTimeUndefined() }
-            )
+            lastActivity.setEndTime(currentAct.getEndTime.orElse(Double.NegativeInfinity))
             val newList = listOfAct.dropRight(1)
             newList :+ lastActivity
           } else {
@@ -98,10 +96,12 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
   private def addSubtourToActivity(
     activity: Activity
   ): List[Activity] = {
-    val startTime = if (activity.getStartTime.seconds() > 0) { activity.getStartTime.seconds() }
-    else { 0 }
-    val endTime = if (activity.getEndTime.seconds() > 0) { activity.getEndTime.seconds() }
-    else { 3600 * 24 }
+    val startTime = if (activity.getStartTime.orElse(Double.NegativeInfinity) > 0) {
+      activity.getStartTime.orElse(Double.NegativeInfinity)
+    } else { 0 }
+    val endTime = if (activity.getEndTime.orElse(Double.NegativeInfinity) > 0) {
+      activity.getEndTime.orElse(Double.NegativeInfinity)
+    } else { 3600 * 24 }
 
     val newStartTime = (endTime - startTime) / 2 - 1 + startTime
     val newEndTime = (endTime - startTime) / 2 + 1 + startTime
@@ -119,11 +119,11 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
     val activityAfterNewActivity =
       PopulationUtils.createActivityFromCoord(activity.getType, activity.getCoord)
 
-    activityBeforeNewActivity.setStartTime(activity.getStartTime.seconds())
+    activityBeforeNewActivity.setStartTime(activity.getStartTime.orElse(Double.NegativeInfinity))
     activityBeforeNewActivity.setEndTime(newStartTime)
 
     activityAfterNewActivity.setStartTime(newEndTime)
-    activityAfterNewActivity.setEndTime(activity.getEndTime.seconds())
+    activityAfterNewActivity.setEndTime(activity.getEndTime.orElse(Double.NegativeInfinity))
 
     List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
   }
@@ -136,11 +136,11 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
     val nonWorker = elements.length == 1
     val newActivitiesToAdd = elements.zipWithIndex.map { case (planElement, idx) =>
       val prevEndTime = if (idx > 0) {
-        (elements(idx - 1).getEndTime.seconds() + 1).max(0)
+        (elements(idx - 1).getEndTime.orElse(Double.NegativeInfinity) + 1).max(0)
       } else {
         0
       }
-      planElement.setMaximumDuration(planElement.getEndTime.seconds() - prevEndTime)
+      planElement.setMaximumDuration(planElement.getEndTime.orElse(Double.NegativeInfinity) - prevEndTime)
       planElement.setStartTime(prevEndTime)
       definitelyAddSubtours(planElement, nonWorker)
     }

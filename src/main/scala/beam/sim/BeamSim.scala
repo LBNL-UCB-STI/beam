@@ -528,7 +528,7 @@ class BeamSim @Inject() (
           .dropRight(1)
           .exists(a => {
             val endTime = a.asInstanceOf[Activity].getEndTime
-            endTime.isUndefined || endTime.seconds() < 0
+            endTime.isUndefined || endTime.orElse(Double.NegativeInfinity) < 0
           })
     }
 

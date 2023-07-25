@@ -168,7 +168,7 @@ object ChainBasedTourVehicleAllocator {
 
       @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val lastTrip = trips.toList.reverse.head
-      val endTime = lastTrip.getOriginActivity.getEndTime.seconds() + JavaConverters
+      val endTime = lastTrip.getOriginActivity.getEndTime.orElse(Double.NegativeInfinity) + JavaConverters
         .collectionAsScalaIterable(lastTrip.getTripElements)
         .map({
           case act: Activity =>
@@ -179,11 +179,11 @@ object ChainBasedTourVehicleAllocator {
             Option(leg)
               .flatMap(leg => Option(leg.getRoute))
               .filterNot(_.getTravelTime.isUndefined)
-              .map(_.getTravelTime.seconds())
+              .map(_.getTravelTime.orElse(Double.NegativeInfinity))
               .getOrElse(0.0)
         })
         .sum
-      new SubtourRecord(startTime.seconds(), endTime, possibleVehicles, subtour, None)
+      new SubtourRecord(startTime.orElse(Double.NegativeInfinity), endTime, possibleVehicles, subtour, None)
     }
   }
 }
