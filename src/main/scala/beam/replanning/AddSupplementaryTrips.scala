@@ -123,7 +123,10 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
     activityBeforeNewActivity.setEndTime(newStartTime)
 
     activityAfterNewActivity.setStartTime(newEndTime)
-    activityAfterNewActivity.setEndTime(activity.getEndTime.orElse(Double.NegativeInfinity))
+    activity.getEndTime.ifDefinedOrElse(
+      activityAfterNewActivity.setEndTime(_),
+      () => activityAfterNewActivity.setEndTimeUndefined()
+    )
 
     List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
   }
