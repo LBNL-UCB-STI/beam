@@ -15,6 +15,7 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.population.{PersonUtils, PopulationUtils}
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder}
+import org.matsim.core.utils.misc.OptionalTime
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
@@ -247,7 +248,8 @@ class BeamScenarioLoader(
     )
     val act = PopulationUtils.createAndAddActivityFromCoord(currentPlan, activityType, coord)
     planElement.activityEndTime.foreach { endTime =>
-      act.setEndTime(endTime)
+      val optionalEndTime = new OptionalTime(endTime)
+      optionalEndTime.ifDefinedOrElse(act.setEndTime(_), () => act.setEndTimeUndefined())
     }
     act
   }
