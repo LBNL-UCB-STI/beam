@@ -26,9 +26,7 @@ SINGULARITY_IMAGE_NAME="${DOCKER_IMAGE_NAME}_${DOCKER_IMAGE_TAG}.sif"
 export ENFORCE_HTTPS_FOR_DATA_REPOSITORY="true"
 
 echo "Pulling docker image '$FULL_DOCKER_IMAGE_NAME' ..."
-set -x
 singularity pull --force "$FULL_DOCKER_IMAGE_NAME"
-set +x
 
 echo "Running singularity image '$SINGULARITY_IMAGE_NAME' ..."
 singularity run -B "$BEAM_DIR:/app/sources" "$SINGULARITY_IMAGE_NAME"
