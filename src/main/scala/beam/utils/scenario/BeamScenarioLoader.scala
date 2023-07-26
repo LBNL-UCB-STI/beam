@@ -268,7 +268,14 @@ class BeamScenarioLoader(
         case _: Throwable => leg.setDepartureTimeUndefined()
       }
     })
-    planElement.legTravelTime.foreach(v => leg.setTravelTime(v.toDouble))
+    planElement.legTravelTime.foreach(v => {
+      try {
+        OptionalTime.defined(v.toDouble)
+        leg.setTravelTime(v.toDouble)
+      } catch {
+        case _: Throwable => leg.setTravelTimeUndefined()
+      }
+    })
     planElement.legMode.foreach(v => leg.setMode(v))
 
     val legRoute: NetworkRoute = {
