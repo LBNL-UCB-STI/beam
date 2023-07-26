@@ -260,7 +260,14 @@ class BeamScenarioLoader(
 
   private def buildAndAddLegToPlan(currentPlan: Plan, planElement: PlanElement): Leg = {
     val leg = PopulationUtils.createAndAddLeg(currentPlan, planElement.legMode.getOrElse(""))
-    planElement.legDepartureTime.foreach(v => leg.setDepartureTime(v.toDouble))
+    planElement.legDepartureTime.foreach(v => {
+      try {
+        OptionalTime.defined(v.toDouble)
+        leg.setDepartureTime(v.toDouble)
+      } catch {
+        case _: Throwable => leg.setDepartureTimeUndefined()
+      }
+    })
     planElement.legTravelTime.foreach(v => leg.setTravelTime(v.toDouble))
     planElement.legMode.foreach(v => leg.setMode(v))
 
