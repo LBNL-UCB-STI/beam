@@ -244,14 +244,19 @@ BEAM run on Lawrencium cluster
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 In order to run BEAM on Lawrencium cluster one needs to get a user and password and configure OTP (one time password) generator for accessing the cluster.
-Each time one runs a command on a cluster a user name, user password and one time password should be specified::
+Each time one runs a command on a cluster a user name, user password and one time password should be specified ::
 
- ./gradlew deployToLawrencium --PlawrenciumUser=<user> -PlawrenciumPassword=<password> -Potp=<one time password>
+    ./gradlew <any lawrencium command> --PlawrenciumUser=<user> -PlawrenciumPassword=<password> -Potp=<one time password>
 
 You need to define the deploy properties that are similar to the ones for AWS deploy.
 Lawrencium-specific properties, such as lawrenciumPartition and lawrenciumQoS are a combination from 'sacctmgr show association -p user=$USER' command,
 lawrenciumMemoryLimit should have a value a bit less than the amount of memory that node from selected partition usually has.
+To deploy a beam simulation to the lawrencium cluster one needs to use 'deployToLawrencium' command with following parameters specified
+either directly or as parameters in gradle.deploy.properties file ::
 
+     ./gradlew deployToLawrencium --PlawrenciumUser=<user> -PlawrenciumPassword=<password> -Potp=<one time password>
+
+Here are parameters that are required or optional for deploing to lawrencium cluster:
 
 * **runName**: to specify instance name.
 * **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
@@ -277,11 +282,23 @@ lawrenciumMemoryLimit should have a value a bit less than the amount of memory t
 * **dockerImageNameSpace**, **dockerImageName**, **dockerImageTag**  OPTIONAL: beam-environment docker parameters, by-default are: 'beammodel', 'beam-environment' and 'latest' respectively.
 
 
-Your task is going to be added to the queue and when it starts/finishes you receive a notification on your git user email. It may take 1-24 hours (or even more) for the task to get started. It depends on the NERSC workload. In your user home directory on NERSC you can find the output file of your task that looks like `slurm-<job id>.out`. The BEAM output directory is resides at `$SCRATCH/beam_runs/`. Also the output is uploaded to s3 if `s3Backup` is set to true.
+The task is going to be added to the queue. It may take 1-24 hours (or even more) for the task to get started - it depends on the Lawrencium cluster workload.
+The BEAM output directory is resides at '/global/scratch/users/$USER/out_beam_$DATETIME.$RANDOM_PART.$PARTITION.$QOS.$MEMORY_LIMIT'.
+Also the output is uploaded to s3 if `s3Backup` is set to true.
 
 
-BEAM run on NERSC cluster
-~~~~~~~~~~~~~~~~~~~~~~~~~
+There is a command to view the queue and history of jobs for a specific user ::
+
+    ./gradlew lawrenciumQueue --PlawrenciumUser=<user> -PlawrenciumPassword=<password> -Potp=<one time password>
+
+Here are parameters of the command:
+
+* **fromDate** OPTIONAL: A date since which the queue and jobs history should be displayed. By-default one day before now.
+* **forDays** OPTIONAL: An alternative way to specify a fromDate. Calculated as current day minus forDays. By-default 1.
+* **queueUser** OPTIONAL: A user to retrieve queue and jobs history for, by-default has the same value as lawrenciumUser.
+
+BEAM run on NERSC
+~~~~~~~~~~~~~~~~~
 
 In order to run BEAM on NERSC one needs to get an `ssh key <https://docs.nersc.gov/connect/mfa/#sshproxy>`_ that allows you to ssh to NERSC systems without further authentication until the key expires (24 hours). You also need to specify your user name on NERSC in the following property: **nerscUser**, i.e::
 
