@@ -248,8 +248,12 @@ class BeamScenarioLoader(
     )
     val act = PopulationUtils.createAndAddActivityFromCoord(currentPlan, activityType, coord)
     planElement.activityEndTime.foreach { endTime =>
-      val optionalEndTime = new OptionalTime(endTime)
-      optionalEndTime.ifDefinedOrElse(act.setEndTime(_), () => act.setEndTimeUndefined())
+      try {
+        OptionalTime.defined(endTime)
+        act.setEndTime(endTime)
+      } catch {
+        case _: Throwable => act.setEndTimeUndefined()
+      }
     }
     act
   }
