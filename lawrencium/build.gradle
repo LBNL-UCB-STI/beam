@@ -192,8 +192,12 @@ tasks.register("lawrenciumQueue") {
             ext.fromDate = yesterday.format("yyyy-MM-dd")
         }
 
-        def commandToGetJobsListForUser = "sacct -u $lawrenciumUser --format=$sacctFormat -S $fromDate"
-        def commandToGetQueueForUser = "squeue -u $lawrenciumUser"
+        if (!project.hasProperty("queueUser")) {
+            ext.queueUser = lawrenciumUser
+        }
+
+        def commandToGetJobsListForUser = "sacct -u $queueUser --format=$sacctFormat -S $fromDate"
+        def commandToGetQueueForUser = "squeue -u $queueUser"
 
         executeLawrenciumSSH([
                 commandToGetJobsListForUser,
