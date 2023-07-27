@@ -17,6 +17,7 @@ class PreviousRunPlanMerger(
   fractionOfNewPlansToUpdate: Double,
   sampleFraction: Double,
   maximumNumberOfPlansToKeep: Option[Int],
+  planSelectionBeta: Option[Double],
   outputDir: Path,
   dirPrefix: String,
   rnd: Random,
@@ -55,7 +56,8 @@ class PreviousRunPlanMerger(
           fractionOfNewPlansToUpdate,
           sampleFraction,
           maximumNumberOfPlansToKeep,
-          rnd
+          rnd,
+          planSelectionBeta
         ) -> true
       case _ =>
         logger.warn(
@@ -76,7 +78,8 @@ object PreviousRunPlanMerger extends LazyLogging {
     fractionOfPlansToUpdate: Double,
     populationSample: Double,
     maximumNumberOfPlansToKeep: Option[Int],
-    random: Random
+    random: Random,
+    beta: Option[Double] = None
   ): Iterable[PlanElement] = {
     val persons = plans.map(_.personId).toSet
     val mergePersons = plansToMerge.map(_.personId).toSet
@@ -92,7 +95,26 @@ object PreviousRunPlanMerger extends LazyLogging {
       personIdsToReplace.size
     )
     val shouldReplace = (plan: PlanElement) => personIdsToReplace.contains(plan.personId)
-    val (oldToBeReplaced, oldElementsToKeep) = plans.partition(shouldReplace)
+    val (oldToBeReplaced, oldElementsBeforeChoosing) = plans.partition(shouldReplace)
+    val oldElementsAfterChoosing = oldElementsBeforeChoosing.groupBy(_.personId).flatMap { case (_, elements) =>
+      elements
+        .groupBy(_.planIndex)
+        .toList
+        .sortBy { case (_, elements) => -elements.head.planScore + drawFromGumbel(beta.getOrElse(0.0), random) }
+        .zipWithIndex
+        .take(maximumNumberOfPlansToKeep.getOrElse(0))
+        .flatMap { case ((_, elems), idx) =>
+          elems.map { elem =>
+            elem.copy(
+              planIndex = idx,
+              planSelected = if (idx == 0) { true }
+              else {
+                false
+              }
+            )
+          }
+        }
+    }
     val elementsFromExistingPersonsToAdd =
       plansToMerge.filter(shouldReplace).map(_.copy(planSelected = true, planIndex = 0))
     val shouldAdd = (plan: PlanElement) => personIdsToAdd.contains(plan.personId)
@@ -106,14 +128,19 @@ object PreviousRunPlanMerger extends LazyLogging {
           .zipWithIndex
           .take(maximumNumberOfPlansToKeep.getOrElse(0))
           .flatMap { case ((_, elems), idx) =>
-            elems.map { case elem =>
-              elem.copy(planIndex = idx + 1, planSelected = false)
-            }
+            elems.map(elem => elem.copy(planIndex = idx + 1, planSelected = false))
           }
       }
     }
+    oldElementsAfterChoosing ++ unselectedPlanElements ++ elementsFromExistingPersonsToAdd ++ elementsFromNewPersonsToAdd
+  }
 
-    oldElementsToKeep ++ unselectedPlanElements ++ elementsFromExistingPersonsToAdd ++ elementsFromNewPersonsToAdd
+  private def drawFromGumbel(beta: Double, random: Random): Double = {
+    if (beta <= 0.0) { 0.0 }
+    else {
+      // CF https://en.wikipedia.org/wiki/Gumbel_distribution#Random_variate_generation
+      -beta * math.log(-math.log(random.nextDouble()))
+    }
   }
 }
 
