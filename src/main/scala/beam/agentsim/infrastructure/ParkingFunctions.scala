@@ -9,6 +9,7 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Parking
 import com.vividsolutions.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType._
 
 import scala.util.Random
 
@@ -204,7 +205,12 @@ class ParkingFunctions(
         .forall(_.contains(inquiry.destinationUtm.time % (24 * 3600)))
     )
 
-    validParkingType && isValidTime
+    val isValidManager =
+      inquiry.beamVehicle.forall { vehicle =>
+        zone.reservedFor == VehicleManager.AnyManager || vehicle.vehicleManagerId.get() == zone.reservedFor.managerId
+      }
+
+    validParkingType && isValidTime && isValidManager
   }
 
   /**
@@ -215,27 +221,27 @@ class ParkingFunctions(
     */
   protected def getPreferredParkingTypes(inquiry: ParkingInquiry): Set[ParkingType] = {
     // a lookup for valid parking types based on this inquiry
-    if (inquiry.reservedFor.managerType == VehicleManager.TypeEnum.Freight) {
-      // Freight
-      if (inquiry.searchMode == ParkingSearchMode.Init) Set(ParkingType.Depot)
-      else Set(ParkingType.Commercial)
+    if (inquiry.searchMode == ParkingSearchMode.EnRouteCharging) {
+      inquiry.parkingActivityType match {
+        case Commercial => Set(ParkingType.Commercial, ParkingType.Depot)
+        case Depot      => Set(ParkingType.Commercial, ParkingType.Depot)
+        case _          => Set(ParkingType.Public, ParkingType.Depot)
+      }
+    } else if (inquiry.searchMode == ParkingSearchMode.Init) {
+      inquiry.parkingActivityType match {
+        case Home  => Set(ParkingType.Residential)
+        case Work  => Set(ParkingType.Workplace)
+        case Depot => Set(ParkingType.Depot)
+        case _     => Set(ParkingType.Public)
+      }
     } else {
-      // Passenger
-      if (inquiry.searchMode == ParkingSearchMode.EnRouteCharging) {
-        Set(ParkingType.Public, ParkingType.Commercial)
-      } else if (inquiry.searchMode == ParkingSearchMode.Init) {
-        inquiry.parkingActivityType match {
-          case ParkingActivityType.Home => Set(ParkingType.Residential)
-          case ParkingActivityType.Work => Set(ParkingType.Workplace)
-          case _                        => Set(ParkingType.Public)
-        }
-      } else {
-        inquiry.parkingActivityType match {
-          case ParkingActivityType.Home   => Set(ParkingType.Residential, ParkingType.Public)
-          case ParkingActivityType.Work   => Set(ParkingType.Workplace, ParkingType.Public)
-          case ParkingActivityType.Charge => Set(ParkingType.Public, ParkingType.Commercial)
-          case _                          => Set(ParkingType.Public, ParkingType.Commercial)
-        }
+      inquiry.parkingActivityType match {
+        case Home       => Set(ParkingType.Residential, ParkingType.Public)
+        case Work       => Set(ParkingType.Workplace, ParkingType.Public)
+        case Charge     => Set(ParkingType.Public)
+        case Commercial => Set(ParkingType.Commercial)
+        case Depot      => Set(ParkingType.Depot)
+        case _          => Set(ParkingType.Public)
       }
     }
   }

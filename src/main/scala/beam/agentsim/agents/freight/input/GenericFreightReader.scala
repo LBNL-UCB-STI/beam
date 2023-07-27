@@ -2,6 +2,7 @@ package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight._
 import beam.agentsim.agents.freight.input.FreightReader._
+import beam.agentsim.agents.vehicles.BeamVehicle.WhatAmITransporting
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
@@ -115,15 +116,18 @@ class GenericFreightReader(
             )
         }
         val operationDurationInSec = get("operationDurationInSec").toDouble.round.toInt
-        val activityType = if (config.generateFixedActivitiesDurations) {
-          s"${requestType.toString}|$operationDurationInSec"
-        } else {
-          requestType.toString
-        }
 
         val payloadId = get("payloadId").createId[PayloadPlan]
         val locationX = row.get("locationX")
         val locationY = row.get("locationY")
+
+        val deliveryType: FreightDeliveryType = FreightDeliveryType(payloadId.toString)
+
+        val activityType = if (config.generateFixedActivitiesDurations) {
+          s"${deliveryType.value}|${requestType.toString}|$operationDurationInSec"
+        } else {
+          s"${deliveryType.value}|${requestType.toString}"
+        }
 
         extractCoordInUtmOrTaz(
           locationX,
@@ -240,12 +244,15 @@ class GenericFreightReader(
 
       val tourMap: Map[Id[BeamVehicle], IndexedSeq[FreightTour]] = carrierRows
         .groupBy(_.vehicleId)
-        .mapValues { rows =>
-          rows
+        .mapValues {
+          _
             //setting the tour warehouse location to be the carrier warehouse location
             .map(row => tours(row.tourId))
             .sortBy(_.departureTimeInSec)
         }
+
+      // updating field whatAmITransporting to either B2B or B2C
+      vehicles.foreach(vehicle => vehicle.updateWhatAmITransporting(tourMap(vehicle.id).head.tourId.toString))
 
       val carrierTourIds = tourMap.values.flatten.map(_.tourId).toSet
 

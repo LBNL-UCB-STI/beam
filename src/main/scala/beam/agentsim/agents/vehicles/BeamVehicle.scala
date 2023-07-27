@@ -29,7 +29,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 import scala.util.Random
 
 /**
-  * A [[BeamVehicle]] is a state container __administered__ by a driver ([[PersonAgent]]
+  * A [[BeamVehicle]] is a state container __administered__ by a driver ([[beam.agentsim.agents.PersonAgent]]
   * implementing [[beam.agentsim.agents.modalbehaviors.DrivesVehicle]]). The passengers in the [[BeamVehicle]]
   * are also [[BeamVehicle]]s, however, others are possible). The
   * reference to a parent [[BeamVehicle]] is maintained in its carrier. All other information is

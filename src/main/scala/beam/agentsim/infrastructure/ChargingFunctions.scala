@@ -313,7 +313,7 @@ class ChargingFunctions(
       inquiry.parkingActivityType match {
         case Home       => Set(ParkingType.Residential)
         case Work       => Set(ParkingType.Workplace)
-        case Charge     => Set(ParkingType.Public, ParkingType.Commercial)
+        case Charge     => Set(ParkingType.Public)
         case Commercial => Set(ParkingType.Commercial)
         case Depot      => Set(ParkingType.Depot)
         case _          => Set(ParkingType.Public)

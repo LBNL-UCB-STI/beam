@@ -227,7 +227,8 @@ object HouseholdActor {
             }
             person.getSelectedPlan.getPlanElements.asScala.find(_.isInstanceOf[Activity]) map { element =>
               val act = element.asInstanceOf[Activity]
-              val parkingActivityType = ParkingInquiry.activityTypeStringToEnum(act.getType, isFreightCarrier)
+              val actType = if (isFreightCarrier) ParkingActivityType.Depot.toString else act.getType
+              val parkingActivityType = ParkingInquiry.activityTypeStringToEnum(actType)
               val endTime =
                 if (Time.isUndefinedTime(act.getEndTime)) DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig)
                 else act.getEndTime

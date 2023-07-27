@@ -43,8 +43,7 @@ case class ParkingInquiry(
   triggerId: Long
 ) extends HasTriggerId {
 
-  val parkingActivityType: ParkingActivityType =
-    activityTypeStringToEnum(activityType, reservedFor.managerType == VehicleManager.TypeEnum.Freight)
+  val parkingActivityType: ParkingActivityType = activityTypeStringToEnum(activityType)
 
   val departureLocation: Option[Coord] = searchMode match {
     case ParkingSearchMode.EnRouteCharging => beamVehicle.map(_.spaceTime).orElse(originUtm).map(_.loc)
@@ -74,19 +73,19 @@ object ParkingInquiry extends LazyLogging {
     case object Depot extends ParkingActivityType
   }
 
-  def activityTypeStringToEnum(activityType: String, isFreight: Boolean = false): ParkingActivityType = {
+  def activityTypeStringToEnum(activityType: String): ParkingActivityType = {
     activityType.toLowerCase match {
-      case "warehouse" | "depot"                      => ParkingActivityType.Depot
-      case "home" if isFreight                        => ParkingActivityType.Depot
-      case "unloading" | "loading"                    => ParkingActivityType.Commercial
-      case _ if isFreight                             => ParkingActivityType.Commercial
-      case "home"                                     => ParkingActivityType.Home
-      case "work"                                     => ParkingActivityType.Work
-      case "charge"                                   => ParkingActivityType.Charge
-      case "wherever"                                 => ParkingActivityType.Wherever
-      case otherType if otherType.contains("enroute") => ParkingActivityType.Charge
-      case otherType if otherType.contains("home")    => ParkingActivityType.Home
-      case otherType if otherType.contains("work")    => ParkingActivityType.Work
+      case "depot"                                      => ParkingActivityType.Depot
+      case "home"                                       => ParkingActivityType.Home
+      case "work"                                       => ParkingActivityType.Work
+      case "charge"                                     => ParkingActivityType.Charge
+      case "wherever"                                   => ParkingActivityType.Wherever
+      case otherType if otherType.contains("home")      => ParkingActivityType.Home
+      case otherType if otherType.contains("work")      => ParkingActivityType.Work
+      case otherType if otherType.contains("unloading") => ParkingActivityType.Commercial
+      case otherType if otherType.contains("loading")   => ParkingActivityType.Commercial
+      case otherType if otherType.contains("depot")     => ParkingActivityType.Depot
+      case otherType if otherType.contains("warehouse") => ParkingActivityType.Depot
       case otherType =>
         logger.debug(s"This Parking Activity Type ($otherType) has not been defined")
         ParkingActivityType.Wherever

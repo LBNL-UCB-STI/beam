@@ -1,7 +1,6 @@
 import pandas as pd
 import os
 import sys
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import utils
 
 workspace = '~/Workspace/Data/FREIGHT/'
@@ -18,21 +17,25 @@ log_file = dir_name + "/log." + basename
 
 ## *****************************************************
 
-#utils.print2(log_file, "reading: " + events_file)
+file_to_read = dir_name + "/park." + basename
+if not os.path.exists(file_to_read):
+    file_to_read = dir_name + "/" + basename
+
+utils.print2(log_file, "reading: " + file_to_read)
 #ParkingEvent, LeavingParkingEvent, ChargingPlugInEvent, ChargingPlugOutEvent, RefuelSessionEvent
-#data = utils.read_in_chunks(full_filename)
-data = utils.read_csv(dir_name + "/park." + basename)
+data = utils.read_csv_in_chunks(file_to_read)
+#data = utils.read_csv(dir_name + "/park." + basename)
 utils.print2(log_file, "Read... " + str(data.type.unique()))
 
 # filtering
-#data_filtered = data.loc[data.type.isin(["ParkingEvent", "LeavingParkingEvent", "ChargingPlugInEvent", "ChargingPlugOutEvent", "RefuelSessionEvent"])]
-#data_filtered2 = data_filtered.loc[data_filtered.vehicle.str.startswith("carrier", na=False)]
-#utils.print(full_filename, data_filtered2.vehicleType.unique())
+data_filtered = data.loc[data.type.isin(["ParkingEvent", "LeavingParkingEvent", "ChargingPlugInEvent", "ChargingPlugOutEvent", "RefuelSessionEvent"])]
+data_filtered2 = data_filtered.loc[data_filtered.vehicle.str.startswith("carrier", na=False)]
+utils.print2(log_file, data_filtered2.vehicleType.unique())
 
 # saving
-#data_filtered2.to_csv(dirname + "/" + "park." + basename)
-#utils.print(full_filename, "writing to " + dirname + "/" + "park." + basename)
-data_filtered2 = data
+file_to_write = dir_name + "/park." + basename
+data_filtered2.to_csv(file_to_write)
+utils.print2(log_file, "writing to " + file_to_write)
 
 # second filtering
 data_filtered3 = data_filtered2.loc[data.type.isin(["ParkingEvent", "LeavingParkingEvent", "ChargingPlugInEvent", "ChargingPlugOutEvent"])]
@@ -59,8 +62,8 @@ print(data_filtered3)
 for col in ['numVehicles', 'numChargingVehicles']:
     data_filtered3[col] = data_filtered3.groupby(['parkingTaz', 'parkingZoneId'])[col].fillna(0).cumsum()
 print(data_filtered3)
-data_filtered3[['numVehicles', 'numChargingVehicles']] = data_filtered3['type'].map(event_mapping)
-data_filtered3[['numVehicles', 'numChargingVehicles']] = data_filtered3.groupby(['parkingTaz', 'parkingZoneId'])[['numVehicles', 'numChargingVehicles']].cumsum()
+#data_filtered3[['numVehicles', 'numChargingVehicles']] = data_filtered3['type'].map(event_mapping)
+#data_filtered3[['numVehicles', 'numChargingVehicles']] = data_filtered3.groupby(['parkingTaz', 'parkingZoneId'])[['numVehicles', 'numChargingVehicles']].cumsum()
 
 # Use groupby with cumsum to get the cumulative sum for each group
 # for col in ['numVehicles', 'numChargingVehicles']:
