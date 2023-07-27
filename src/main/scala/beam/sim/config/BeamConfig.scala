@@ -4103,14 +4103,14 @@ object BeamConfig {
       clearModes: BeamConfig.Beam.Replanning.ClearModes,
       fractionOfIterationsToDisableInnovation: scala.Double,
       maxAgentPlanMemorySize: scala.Int,
-      planSelectionBeta: scala.Int
+      planSelectionBeta: scala.Double
     )
 
     object Replanning {
 
       case class ClearModes(
         iteration: scala.Int,
-        modes: scala.List[java.lang.String],
+        modes: scala.Option[scala.List[java.lang.String]],
         strategy: java.lang.String
       )
 
@@ -4119,7 +4119,7 @@ object BeamConfig {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Replanning.ClearModes = {
           BeamConfig.Beam.Replanning.ClearModes(
             iteration = if (c.hasPathOrNull("iteration")) c.getInt("iteration") else 0,
-            modes = $_L$_str(c.getList("modes")),
+            modes = if (c.hasPathOrNull("modes")) scala.Some($_L$_str(c.getList("modes"))) else None,
             strategy = if (c.hasPathOrNull("strategy")) c.getString("strategy") else "AtBeginningOfIteration"
           )
         }
@@ -4145,7 +4145,7 @@ object BeamConfig {
             else Double.PositiveInfinity,
           maxAgentPlanMemorySize =
             if (c.hasPathOrNull("maxAgentPlanMemorySize")) c.getInt("maxAgentPlanMemorySize") else 5,
-          planSelectionBeta = if (c.hasPathOrNull("planSelectionBeta")) c.getInt("planSelectionBeta") else 1
+          planSelectionBeta = if (c.hasPathOrNull("planSelectionBeta")) c.getDouble("planSelectionBeta") else 1.0
         )
       }
     }
