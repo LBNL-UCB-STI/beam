@@ -31,8 +31,9 @@ singularity pull --force "$FULL_DOCKER_IMAGE_NAME"
 #echo "Running singularity image '$SINGULARITY_IMAGE_NAME' ..."
 #singularity run -B "$BEAM_DIR:/app/sources" "$SINGULARITY_IMAGE_NAME"
 
-echo "Running singularity run hello-world_latest.sif"
-singularity run hello-world_latest.sif
+set -x
+sudo singularity run hello-world_latest.sif
+set +x
 
 echo "Removing a link to the job's log file."
 echo "The original job log file is in '$JOB_LOG_FILE_PATH'"
