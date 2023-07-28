@@ -28,9 +28,10 @@ export ENFORCE_HTTPS_FOR_DATA_REPOSITORY="true"
 echo "Pulling docker image '$FULL_DOCKER_IMAGE_NAME' ..."
 singularity pull --force "$FULL_DOCKER_IMAGE_NAME"
 
-echo "Running singularity image '$SINGULARITY_IMAGE_NAME' ..."
-# singularity run -B "$BEAM_DIR:/app/sources" "$SINGULARITY_IMAGE_NAME"
+#echo "Running singularity image '$SINGULARITY_IMAGE_NAME' ..."
+#singularity run -B "$BEAM_DIR:/app/sources" "$SINGULARITY_IMAGE_NAME"
 
+echo "Running singularity run hello-world_latest.sif"
 singularity run hello-world_latest.sif
 
 echo "Removing a link to the job's log file."
