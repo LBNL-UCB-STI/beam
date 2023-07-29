@@ -2,7 +2,6 @@ package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight._
 import beam.agentsim.agents.freight.input.FreightReader._
-import beam.agentsim.agents.vehicles.BeamVehicle.WhatAmITransporting
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
@@ -250,9 +249,6 @@ class GenericFreightReader(
             .map(row => tours(row.tourId))
             .sortBy(_.departureTimeInSec)
         }
-
-      // updating field whatAmITransporting to either B2B or B2C
-      vehicles.foreach(vehicle => vehicle.updateWhatAmITransporting(tourMap(vehicle.id).head.tourId.toString))
 
       val carrierTourIds = tourMap.values.flatten.map(_.tourId).toSet
 

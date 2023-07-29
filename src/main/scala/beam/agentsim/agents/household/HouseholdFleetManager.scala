@@ -36,9 +36,10 @@ class HouseholdFleetManager(
   parkingManager: ActorRef,
   chargingNetworkManager: ActorRef,
   vehicles: Map[Id[BeamVehicle], BeamVehicle],
-  homeAndStartingWorkLocations: Map[Id[Person], HomeAndStartingWorkLocation],
+  householdMembersToActivityTypeAndLocation: Map[Id[Person], ActivityTypeAndLocation],
   maybeEmergencyHouseholdVehicleGenerator: Option[EmergencyHouseholdVehicleGenerator],
   whoDrivesThisFreightVehicle: Map[Id[BeamVehicle], Id[Person]], // so far only freight module is using this collection
+  isFreightCarrier: Boolean,
   eventsManager: EventsManager,
   geo: GeoUtils,
   beamConfig: BeamConfig,
@@ -95,18 +96,23 @@ class HouseholdFleetManager(
       val listOfFutures: List[Future[(Id[BeamVehicle], ParkingInquiryResponse)]] = {
         // Request that all household vehicles be parked at the home coordinate. If the vehicle is an EV,
         // send the request to the charging manager. Otherwise send request to the parking manager.
-        val workingPersonsList =
-          homeAndStartingWorkLocations.filter(_._2.parkingActivityType == ParkingActivityType.Work).keys.toBuffer
+        val workingPersonsList = householdMembersToActivityTypeAndLocation
+          .filter(_._2.parkingActivityType == ParkingActivityType.Work)
+          .keys
+          .toBuffer
         vehicles.toList.map { case (id, vehicle) =>
           val personId: Id[Person] =
-            if (workingPersonsList.nonEmpty) workingPersonsList.remove(0)
+            if (isFreightCarrier) whoDrivesThisFreightVehicle(id)
+            else if (workingPersonsList.nonEmpty) workingPersonsList.remove(0)
             else
-              homeAndStartingWorkLocations
+              householdMembersToActivityTypeAndLocation
                 .find(_._2.parkingActivityType == ParkingActivityType.Home)
                 .map(_._1)
-                .getOrElse(homeAndStartingWorkLocations.keys.head)
+                .getOrElse(householdMembersToActivityTypeAndLocation.keys.head)
+
           trackingVehicleAssignmentAtInitialization.put(vehicle.id, personId)
-          val HomeAndStartingWorkLocation(_, activityType, location, endTime) = homeAndStartingWorkLocations(personId)
+          val ActivityTypeAndLocation(_, activityType, location, endTime) =
+            householdMembersToActivityTypeAndLocation(personId)
           val inquiry = ParkingInquiry.init(
             SpaceTime(location, 0),
             activityType,

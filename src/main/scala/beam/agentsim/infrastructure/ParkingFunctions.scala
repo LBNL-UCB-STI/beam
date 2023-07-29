@@ -107,6 +107,7 @@ class ParkingFunctions(
   ): Boolean = {
     if (zone.chargingPointType.isDefined)
       throw new RuntimeException("ParkingFunctions expect only stalls without charging points")
+
     val preferredParkingTypes = getPreferredParkingTypes(inquiry)
     val canCarParkHere: Boolean = canThisCarParkHere(zone, inquiry, preferredParkingTypes)
     canCarParkHere

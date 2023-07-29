@@ -163,8 +163,6 @@ object ChoosesParking {
 trait ChoosesParking extends {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
-  var latestParkingInquiry: Option[ParkingInquiry] = None
-
   private def buildParkingInquiry(data: BasePersonData): ParkingInquiry = {
     val firstLeg = data.restOfCurrentTrip.head
     val vehicleTrip = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)
@@ -216,7 +214,7 @@ trait ChoosesParking extends {
   private def isRefuelAtDestinationNeeded(vehicle: BeamVehicle, activityType: String): Boolean = {
     val conf = beamScenario.beamConfig.beam.agentsim.agents.vehicles.destination
     if (vehicle.isEV) {
-      ParkingInquiry.activityTypeStringToEnum(activityType, vehicle.isFreight) match {
+      ParkingInquiry.activityTypeStringToEnum(activityType) match {
         case ParkingActivityType.Home =>
           vehicle.isRefuelNeeded(conf.home.refuelRequiredThresholdInMeters, conf.home.noRefuelThresholdInMeters)
         case ParkingActivityType.Work =>

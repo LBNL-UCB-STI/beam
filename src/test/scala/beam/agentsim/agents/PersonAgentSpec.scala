@@ -400,7 +400,7 @@ class PersonAgentSpec
           population = population,
           household = household,
           vehicles = Map(),
-          fallbackHomeCoord = new Coord(0.0, 0.0),
+          fallbackInitialLocationCoord = new Coord(0.0, 0.0),
           Vector(),
           Set.empty,
           new RouteHistory(beamConfig),
