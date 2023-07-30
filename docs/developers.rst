@@ -246,7 +246,7 @@ BEAM run on Lawrencium cluster
 In order to run BEAM on Lawrencium cluster one needs to get a user and password and configure OTP (one time password) generator for accessing the cluster.
 Each time one runs a command on a cluster a user name, user password and one time password should be specified ::
 
-    ./gradlew <any lawrencium command> --PlawrenciumUser=<user> -PlawrenciumPassword=<password> -Potp=<one time password>
+    ./gradlew <any lawrencium command> -PlawrenciumUser=<user> -PlawrenciumPassword=<password> -Potp=<one time password>
 
 You need to define the deploy properties that are similar to the ones for AWS deploy.
 Lawrencium-specific properties, such as lawrenciumPartition and lawrenciumQoS are a combination from 'sacctmgr show association -p user=$USER' command,
@@ -254,7 +254,7 @@ lawrenciumMemoryLimit should have a value a bit less than the amount of memory t
 To deploy a beam simulation to the lawrencium cluster one needs to use 'deployToLawrencium' command with following parameters specified
 either directly or as parameters in gradle.deploy.properties file ::
 
-     ./gradlew deployToLawrencium --PlawrenciumUser=<user> -PlawrenciumPassword=<password> -Potp=<one time password>
+     ./gradlew deployToLawrencium -PlawrenciumUser=<user> -PlawrenciumPassword=<password> -Potp=<one time password>
 
 Here are parameters that are required or optional for deploing to lawrencium cluster:
 
@@ -289,7 +289,7 @@ Also the output is uploaded to s3 if `s3Backup` is set to true.
 
 There is a command to view the queue and history of jobs for a specific user ::
 
-    ./gradlew lawrenciumQueue --PlawrenciumUser=<user> -PlawrenciumPassword=<password> -Potp=<one time password>
+    ./gradlew lawrenciumQueue -PlawrenciumUser=<user> -PlawrenciumPassword=<password> -Potp=<one time password>
 
 Here are parameters of the command:
 
