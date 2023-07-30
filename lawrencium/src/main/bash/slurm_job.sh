@@ -25,14 +25,11 @@ SINGULARITY_IMAGE_NAME="${DOCKER_IMAGE_NAME}_${DOCKER_IMAGE_TAG}.sif"
 # to use https for pulling data repository despite a url configured for it
 export ENFORCE_HTTPS_FOR_DATA_REPOSITORY="true"
 
-echo "Pulling docker image '$FULL_DOCKER_IMAGE_NAME' ..."
-singularity pull --force "$FULL_DOCKER_IMAGE_NAME"
-
-#echo "Running singularity image '$SINGULARITY_IMAGE_NAME' ..."
-#singularity run -B "$BEAM_DIR:/app/sources" "$SINGULARITY_IMAGE_NAME"
-
 set -x
-sudo singularity run hello-world_latest.sif
+
+singularity pull --force "$FULL_DOCKER_IMAGE_NAME"
+singularity run -B "$BEAM_DIR:/app/sources" "$SINGULARITY_IMAGE_NAME"
+
 set +x
 
 echo "Removing a link to the job's log file."
