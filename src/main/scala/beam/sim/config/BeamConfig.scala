@@ -4088,7 +4088,8 @@ object BeamConfig {
       clearModes: BeamConfig.Beam.Replanning.ClearModes,
       fractionOfIterationsToDisableInnovation: scala.Double,
       maxAgentPlanMemorySize: scala.Int,
-      planSelectionBeta: scala.Double
+      planSelectionBeta: scala.Double,
+      replanningPenaltyInDollars: scala.Double
     )
 
     object Replanning {
@@ -4130,7 +4131,9 @@ object BeamConfig {
             else Double.PositiveInfinity,
           maxAgentPlanMemorySize =
             if (c.hasPathOrNull("maxAgentPlanMemorySize")) c.getInt("maxAgentPlanMemorySize") else 5,
-          planSelectionBeta = if (c.hasPathOrNull("planSelectionBeta")) c.getDouble("planSelectionBeta") else 1.0
+          planSelectionBeta = if (c.hasPathOrNull("planSelectionBeta")) c.getDouble("planSelectionBeta") else 1.0,
+          replanningPenaltyInDollars =
+            if (c.hasPathOrNull("replanningPenaltyInDollars")) c.getDouble("replanningPenaltyInDollars") else 100.0
         )
       }
     }
