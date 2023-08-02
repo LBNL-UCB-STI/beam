@@ -52,13 +52,6 @@ remotes {
     }
 }
 
-ssh {
-    settings {
-        authentications = ["keyboard-interactive"]
-        knownHosts = allowAnyHosts
-    }
-}
-
 ext.executeLawrenciumSSH = { List<String> commandsList ->
     List<String> requiredProps = ["lawrenciumUser", "lawrenciumPassword", "otp"]
     for (prop in requiredProps) {
@@ -165,17 +158,24 @@ tasks.register("deployToLawrencium") {
 
         def base_path = "https://raw.githubusercontent.com/LBNL-UCB-STI/beam/inm/lawrencium-automatization/lawrencium/src/main/bash"
 
+//        def job_name = "slurm_job.sh"
+//        def runner_name = "slurm_job_runner.sh"
+
+        def job_name = "debug_job.sh"
+        def runner_name = "debug_job_runner.sh"
+
         executeLawrenciumSSH([
-                "rm -f slurm_job.sh",
-                "rm -f slurm_job_runner.sh",
+                "rm -f $job_name",
+                "rm -f $runner_name",
                 // downloading files instead of sending them
                 // because it is not allowed to push files to login node
                 // file transfer node uses different type of authentication
                 // and both nodes are not working together within one session for some reason
-                "wget $base_path/slurm_job.sh",
-                "wget $base_path/slurm_job_runner.sh",
-                "chmod +x slurm_job_runner.sh slurm_job.sh",
-                "./slurm_job_runner.sh " + parametersToDeploy,
+                "wget $base_path/$job_name",
+                "wget $base_path/$runner_name",
+                "chmod 777 $job_name",
+                "chmod 777 $runner_name",
+                "./$runner_name " + parametersToDeploy,
                 "squeue -u $lawrenciumUser"
         ])
     }
@@ -213,5 +213,11 @@ tasks.register("lawrenciumNodes") {
         def commandToGetNodesInfo = "sinfo  -N --long --partition=$lawrenciumPartition"
 
         executeLawrenciumSSH([commandToGetNodesInfo])
+    }
+}
+
+tasks.register("lawrenciumTest") {
+    doLast {
+        executeLawrenciumSSH(["singularity run hello-world_latest.sif"])
     }
 }
