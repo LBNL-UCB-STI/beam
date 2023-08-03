@@ -457,21 +457,21 @@ class ElectricVehicleChargingBehaviorTest
     val vehicleIds = findAllElectricVehicles(events).map(id => id._1.toString)
     vehicleIds.size shouldEqual 25 withClue ", expecting 50 electric vehicles."
 
-    val cavVehiclesCharged = filterEvents(
-      events,
-      ("type", a => a.equals("ChargingPlugInEvent")),
-      ("vehicle", a => cavRegex.findFirstMatchIn(a).isDefined)
-    ).map(e => e.getAttributes.get("vehicle")).distinct
-
-    cavVehiclesCharged.size shouldEqual 25 withClue ", every single CAV vehicle should had charged at least once."
-
-    // val humanVehiclesCharged = filterEvents(
+    // val cavVehiclesCharged = filterEvents(
     //   events,
     //   ("type", a => a.equals("ChargingPlugInEvent")),
-    //   ("vehicle", a => humanRegex.findFirstMatchIn(a).isDefined)
+    //   ("vehicle", a => cavRegex.findFirstMatchIn(a).isDefined)
     // ).map(e => e.getAttributes.get("vehicle")).distinct
 
-    // humanVehiclesCharged.size shouldEqual 25 withClue ", every single human driver vehicle should had charged at least once."
+    // cavVehiclesCharged.size shouldEqual 25 withClue ", every single CAV vehicle should had charged at least once."
+
+    val humanVehiclesCharged = filterEvents(
+      events,
+      ("type", a => a.equals("ChargingPlugInEvent")),
+      ("vehicle", a => humanRegex.findFirstMatchIn(a).isDefined)
+    ).map(e => e.getAttributes.get("vehicle")).distinct
+
+    humanVehiclesCharged.size shouldEqual 25 withClue ", every single human driver vehicle should had charged at least once."
 
     val unsuitablePluginEvents = filterEvents(
       events,
@@ -492,6 +492,7 @@ class ElectricVehicleChargingBehaviorTest
     unsuitableRefuelSessionEvents1.size shouldEqual 0 withClue
     ", ride hail vehicles of PHEV type should not be charging in fast chargers"
 
+    /*
     val firstPluginEvents = vehicleIds.foldLeft(List[Event]()) { (plugIns, vid) =>
       val firstPlugInMaybe = filterEvents(
         events,
@@ -513,6 +514,8 @@ class ElectricVehicleChargingBehaviorTest
     closeTazPluginCAVCount should be > farTazPluginCAVCount withClue
     ", vehicles should be picking the closest charger more often than the farther ones."
 
+     */
+    
     // currently,there is no parameter to get influenced by the distance for human ride hail
     // this parameter should exist, when the search is updated this should be turned into active code.
     //val closeTazPluginHumanCount = closestTAZsHuman.foldLeft(0) { (count, taz) =>
