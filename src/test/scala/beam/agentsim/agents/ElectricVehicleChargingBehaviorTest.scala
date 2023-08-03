@@ -492,30 +492,27 @@ class ElectricVehicleChargingBehaviorTest
     unsuitableRefuelSessionEvents1.size shouldEqual 0 withClue
     ", ride hail vehicles of PHEV type should not be charging in fast chargers"
 
-    /*
-    val firstPluginEvents = vehicleIds.foldLeft(List[Event]()) { (plugIns, vid) =>
-      val firstPlugInMaybe = filterEvents(
-        events,
-        ("type", a => a.equals("ChargingPlugInEvent")),
-        ("vehicle", a => a.equals(vid))
-      ).headOption
-      firstPlugInMaybe.map(plugIns :+ _).getOrElse(plugIns)
-    }
+    // val firstPluginEvents = vehicleIds.foldLeft(List[Event]()) { (plugIns, vid) =>
+    //   val firstPlugInMaybe = filterEvents(
+    //     events,
+    //     ("type", a => a.equals("ChargingPlugInEvent")),
+    //     ("vehicle", a => a.equals(vid))
+    //   ).headOption
+    //   firstPlugInMaybe.map(plugIns :+ _).getOrElse(plugIns)
+    // }
 
-    val pluginCountByTAZ = firstPluginEvents.map(_.getAttributes.get("parkingTaz")).groupBy(identity).mapValues(_.size)
+    // val pluginCountByTAZ = firstPluginEvents.map(_.getAttributes.get("parkingTaz")).groupBy(identity).mapValues(_.size)
 
-    val closeTazPluginCAVCount = closestTAZsCAV.foldLeft(0) { (count, taz) =>
-      count + pluginCountByTAZ.getOrElse(taz, 0)
-    }
-    val farTazPluginCAVCount = furtherTAZsCAV.foldLeft(0) { (count, taz) =>
-      count + pluginCountByTAZ.getOrElse(taz, 0)
-    }
+    // val closeTazPluginCAVCount = closestTAZsCAV.foldLeft(0) { (count, taz) =>
+    //   count + pluginCountByTAZ.getOrElse(taz, 0)
+    // }
+    // val farTazPluginCAVCount = furtherTAZsCAV.foldLeft(0) { (count, taz) =>
+    //   count + pluginCountByTAZ.getOrElse(taz, 0)
+    // }
 
-    closeTazPluginCAVCount should be > farTazPluginCAVCount withClue
-    ", vehicles should be picking the closest charger more often than the farther ones."
+    // closeTazPluginCAVCount should be > farTazPluginCAVCount withClue
+    // ", vehicles should be picking the closest charger more often than the farther ones."
 
-     */
-    
     // currently,there is no parameter to get influenced by the distance for human ride hail
     // this parameter should exist, when the search is updated this should be turned into active code.
     //val closeTazPluginHumanCount = closestTAZsHuman.foldLeft(0) { (count, taz) =>
