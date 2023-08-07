@@ -10,6 +10,7 @@ case class BeamVehicleType(
   seatingCapacity: Int,
   standingRoomCapacity: Int,
   lengthInMeter: Double,
+  curbWeightInKg: Double,
   primaryFuelType: FuelType,
   primaryFuelConsumptionInJoulePerMeter: Double,
   primaryFuelCapacityInJoule: Double,

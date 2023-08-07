@@ -43,7 +43,7 @@ import beam.router.Modes.BeamMode.{
   WALK_TRANSIT
 }
 import beam.router.RouteHistory
-import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.skim.ActivitySimSkimmerEvent
 import beam.router.skim.event.{
@@ -343,6 +343,13 @@ class PersonAgent(
 
   var totFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
   var curFuelConsumed: FuelConsumed = FuelConsumed(0.0, 0.0)
+
+  override def payloadInKgForLeg(leg: BeamLeg, drivingData: DrivingData): Option[Double] = {
+    drivingData match {
+      case data: BasePersonData => getPayloadWeightFromLeg(data.currentActivityIndex)
+      case _                    => None
+    }
+  }
 
   def wheelchairUser: Boolean = {
     attributes.wheelchairUser
