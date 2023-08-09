@@ -216,8 +216,3 @@ tasks.register("lawrenciumNodes") {
     }
 }
 
-tasks.register("lawrenciumTest") {
-    doLast {
-        executeLawrenciumSSH(["singularity run hello-world_latest.sif"])
-    }
-}
