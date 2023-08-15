@@ -379,6 +379,8 @@ class ElectricVehicleChargingBehaviorTest
     ", expecting most of the 4 legs for each of the 50 people to be ride hail legs."
   }
 
+  // this test gets stuck on CI, investigation lead to the conclusion that the culprit is AV RH
+  // getting stuck when beam simulations are running in parallel
   "Ride Hail Electric vehicles" should "pick chargers choosing smaller DrivingTimeCost." in {
     // this config is only interested on the first charging plugin event when,
     // vehicles are at known coordinates, population plans are set to walk to not interfere with ride hail.
