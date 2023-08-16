@@ -376,13 +376,11 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
   }
 
   def vehicleEnergy(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]): VehicleEnergy = {
-    var vehiclePaths = IndexedSeq(
-      Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent.toString
-    )
-    beamConfig.beam.agentsim.agents.freight.vehicleTypesFilePath
-      .map(freightVehicleTypesFilePath => Paths.get(freightVehicleTypesFilePath).getParent.toString)
-      .foreach(freightVehiclePath => vehiclePaths = vehiclePaths :+ freightVehiclePath)
-
+    val vehiclePaths =
+      Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent.toString +:
+      beamConfig.beam.agentsim.agents.freight.vehicleTypesFilePath
+        .map(freightVehicleTypesFilePath => Paths.get(freightVehicleTypesFilePath).getParent.toString)
+        .toIndexedSeq
     val vehicleCsvReader = new VehicleCsvReader(beamConfig)
     val consumptionRateFilterStore =
       new ConsumptionRateFilterStoreImpl(
