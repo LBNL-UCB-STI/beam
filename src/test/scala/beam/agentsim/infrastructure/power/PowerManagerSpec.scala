@@ -6,6 +6,7 @@ import beam.agentsim.infrastructure.ChargingNetwork.ChargingStation
 import beam.agentsim.infrastructure.ChargingNetworkManager.ChargingNetworkHelper
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, ParkingZone, ParkingZoneId, PricingModel}
+import beam.agentsim.infrastructure.power.SitePowerManager.ZonalPowerLimit
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.cosim.helics.BeamHelicsInterface._
 import beam.sim.config.BeamConfig
@@ -41,7 +42,6 @@ class PowerManagerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfter
     tazFromBeamville.tazId,
     ParkingType.Public,
     VehicleManager.AnyManager,
-    None,
     maxStalls = 1,
     chargingPointType = Some(ChargingPointType.ChargingStationType1),
     pricingModel = Some(PricingModel.FlatFee(0.0))
@@ -100,7 +100,8 @@ class PowerManagerSpec extends AnyWordSpecLike with Matchers with BeforeAndAfter
     "obtain power physical bounds" in {
       val bounds =
         powerController.obtainPowerPhysicalBounds(300, Map[ChargingStation, Double](dummyChargingStation -> 5678.90))
-      bounds shouldBe Map(dummyChargingStation -> 7.2)
+      val zonalLimit = ZonalPowerLimit(dummyChargingStation.zone.parkingZoneId, 1, 7.2)
+      bounds shouldBe Map(zonalLimit.parkingZoneId -> zonalLimit)
     }
   }
 
