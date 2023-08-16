@@ -2214,7 +2214,7 @@ object BeamConfig {
               intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
               numberOfFederates = if (c.hasPathOrNull("numberOfFederates")) c.getInt("numberOfFederates") else 1,
               spmFederatePrefix =
-                if (c.hasPathOrNull("spmFederatePrefix")) c.getString("spmFederatePrefix") else "SPM_FED_TAZ",
+                if (c.hasPathOrNull("spmFederatePrefix")) c.getString("spmFederatePrefix") else "SPM_FED",
               spmFederateSubscription =
                 if (c.hasPathOrNull("spmFederateSubscription")) c.getString("spmFederateSubscription")
                 else "CHARGING_COMMANDS",

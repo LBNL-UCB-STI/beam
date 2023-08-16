@@ -8,6 +8,7 @@ import numpy as np
 meter_to_mile = 0.000621371
 mps_to_mph = 2.23694
 
+
 def npmrds_screeline_validation(npmrds_data, model_network, output_dir, label, show_plots = False):
     list_of_tmcs = model_network.loc[:, 'Tmc'].unique()
     npmrds_data = npmrds_data.loc[npmrds_data['tmc_code'].isin(list_of_tmcs)]
