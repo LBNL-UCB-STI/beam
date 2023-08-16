@@ -44,6 +44,15 @@ class ZonalParkingManagerSpec
         akka.actor.debug.fsm = true
         akka.loglevel = debug
         akka.test.timefactor = 2
+        beam.agentsim.agents.freight {
+          enabled = true
+          plansFilePath = ${beam.inputDirectory}"/freight/payload-plans.csv"
+          toursFilePath = ${beam.inputDirectory}"/freight/freight-tours.csv"
+          carriersFilePath = ${beam.inputDirectory}"/freight/freight-carriers.csv"
+          carrierParkingFilePath = ${beam.inputDirectory}"/freight/freight-depots.csv"
+          vehicleTypesFilePath = ${beam.inputDirectory}"/freight/freight-vehicleTypes.csv"
+          reader = "Generic"
+        }
         """
     )
     .withFallback(testConfig("test/input/beamville/beam.conf"))
