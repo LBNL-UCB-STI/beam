@@ -29,7 +29,7 @@ trait ChargingNetworkManagerHelper extends {
     * @param cycle the latest charging cycle
     * @return
     */
-  protected def chargingNotCompleteUsing(cycle: ChargingCycle): Boolean =
+  private def chargingNotCompleteUsing(cycle: ChargingCycle): Boolean =
     (cycle.endTime - cycle.startTime) >= cycle.maxDuration
 
   /**
