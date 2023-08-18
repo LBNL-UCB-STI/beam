@@ -216,3 +216,11 @@ tasks.register("lawrenciumNodes") {
     }
 }
 
+tasks.register("lawrenciumResourcesAvailable") {
+    doLast {
+        if (!project.hasProperty("queueUser")) {
+            ext.queueUser = lawrenciumUser
+        }
+        executeLawrenciumSSH(["sacctmgr show association -p user=$queueUser"])
+    }
+}
