@@ -59,6 +59,12 @@ object BeamVehicleUtils {
     }
   }
 
+  /**
+    * These are fallback values. One should define the vehicle weight in the vehicleTypes.csv.
+    * Column name is curbWeightInKg
+    * @param vehicleCategory the vehicle category
+    * @return an average curb weight of a vehicle that belongs to the provided category (in kg)
+    */
   def vehcileCategoryToWeightInKg(vehicleCategory: VehicleCategory.VehicleCategory): Double = vehicleCategory match {
     case VehicleCategory.Body                => 70
     case VehicleCategory.Bike                => 80
