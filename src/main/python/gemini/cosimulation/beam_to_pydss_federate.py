@@ -18,14 +18,13 @@ def run_beam_to_pydss_federate(helics_conf):
     h.helicsFederateInfoSetCoreTypeFromString(fed_info, helics_config["coreType"])
 
     # set initialization string
-    h.helicsFederateInfoSetCoreInitString(fed_info, helics_config["coreInitString"])
+    h.helicsFederateInfoSetCoreInitString(fed_info, f"--federates=1 --broker_address=" + helics_config["brokerAddress"])
 
     # set message interval
     h.helicsFederateInfoSetTimeProperty(fed_info, h.helics_property_time_delta, helics_config["timeDeltaProperty"])
 
-    federate_id = "0"
     # create federate
-    fed_name = helics_conf["spmFederatePrefix"] + federate_id
+    fed_name = helics_conf["spmFederatePrefix"]
     cfed = h.helicsCreateCombinationFederate(fed_name, fed_info)
     logging.info("beam_to_pydss_federate created")
 
@@ -38,7 +37,7 @@ def run_beam_to_pydss_federate(helics_conf):
 
     # register subscriptions
     # subscribe to information from TEMPO such that you can map to PyDSS modeled charging stations
-    sub = helics_conf["beamFederatePrefix"] + federate_id + "/" + helics_conf["beamFederatePublication"]
+    sub = helics_conf["beamFederatePrefix"] + "/" + helics_conf["beamFederatePublication"]
     subs_charger_loads = h.helicsFederateRegisterSubscription(cfed, sub, "string")
     logging.info("subscriptions registered")
 
@@ -116,14 +115,14 @@ def run_beam_to_pydss_federate(helics_conf):
 if __name__ == "__main__":
     logging.basicConfig(filename='beam_to_pydss_federate.log', level=logging.DEBUG, filemode='w')
 
-    helics_config = {"coreInitString": f"--federates=1 --broker_address=tcp://127.0.0.1",
+    helics_config = {"brokerAddress": "tcp://127.0.0.1",
                      "coreType": "zmq",
                      "timeDeltaProperty": 1.0,  # smallest discernible interval to this federate
                      "intLogLevel": 1,
                      "beamFederatePrefix": "BEAM_FED",
-                     "beamFederatePublication": "CHARGING_VEHICLES",
-                     "spmFederatePrefix": "SPM_FED",
-                     "spmFederateSubscription": "CHARGING_COMMANDS",
+                     "beamFederatePublication": "LOAD_DEMAND",
+                     "spmFederatePrefix": "GRID_FED",
+                     "spmFederateSubscription": "POWER_LIMITS",
                      "timeStepInSeconds": 60
                      }
     logging.info("stations_list_loaded")

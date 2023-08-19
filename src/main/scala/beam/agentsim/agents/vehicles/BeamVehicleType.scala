@@ -58,10 +58,11 @@ object FuelType {
   case object Diesel extends FuelType
   case object Electricity extends FuelType
   case object Biodiesel extends FuelType
+  case object Hydrogen extends FuelType
   case object Undefined extends FuelType
 
   def fromString(value: String): FuelType = {
-    Vector(Food, Gasoline, Diesel, Electricity, Biodiesel, Undefined)
+    Vector(Food, Gasoline, Diesel, Electricity, Biodiesel, Hydrogen, Undefined)
       .find(_.toString.equalsIgnoreCase(value))
       .getOrElse(Undefined)
   }
