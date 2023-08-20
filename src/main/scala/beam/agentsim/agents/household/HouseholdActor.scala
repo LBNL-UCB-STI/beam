@@ -227,11 +227,7 @@ object HouseholdActor {
             person.getSelectedPlan.getPlanElements.asScala.find(_.isInstanceOf[Activity]) map { element =>
               val act = element.asInstanceOf[Activity]
               val parkingActivityType = ParkingInquiry.activityTypeStringToEnum(act.getType)
-              // TODO use optional time here?
-              val endTime =
-                if (act.getEndTime.orElse(Double.NegativeInfinity) == Double.NegativeInfinity)
-                  DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig)
-                else act.getEndTime.orElse(Double.NegativeInfinity)
+              val endTime = act.getEndTime.orElseGet(()=> DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig))
               person.getId -> HomeAndStartingWorkLocation(
                 parkingActivityType,
                 act.getType,
