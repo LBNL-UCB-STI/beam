@@ -259,8 +259,11 @@ class DestinationChoiceModel(
   private def getRealStartEndTime(
     activity: Activity
   ): (Double, Double) = {
-    val start = if(activity.getStartTime.isDefined && activity.getStartTime.seconds() > 0) activity.getStartTime.seconds() else 0
-    val end = if(activity.getEndTime.isDefined && activity.getEndTime.seconds() > 0) activity.getEndTime.seconds() else 3600 * 24
+    val start =
+      if (activity.getStartTime.isDefined && activity.getStartTime.seconds() > 0) activity.getStartTime.seconds() else 0
+    val end =
+      if (activity.getEndTime.isDefined && activity.getEndTime.seconds() > 0) activity.getEndTime.seconds()
+      else 3600 * 24
     (start, end)
   }
 

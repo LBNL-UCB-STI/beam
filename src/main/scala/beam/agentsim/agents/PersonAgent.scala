@@ -506,10 +506,11 @@ class PersonAgent(
         tick + 60 * 10
       }
       val endTime = activity.getEndTime
-      var returnVal: Double = fallbackActivityEndTime //Because OptionalTime doesn't have a method which returns - given an fn
+      var returnVal: Double =
+        fallbackActivityEndTime //Because OptionalTime doesn't have a method which returns - given an fn
       endTime.ifDefined(endTimeVal =>
-        if(endTimeVal >= tick) returnVal = endTimeVal
-        else if(endTimeVal >= 0.0 && endTimeVal < tick) returnVal = tick
+        if (endTimeVal >= tick) returnVal = endTimeVal
+        else if (endTimeVal >= 0.0 && endTimeVal < tick) returnVal = tick
       )
       returnVal
     }
