@@ -499,23 +499,22 @@ class PersonAgent(
   }
 
   def calculateActivityEndTime(activity: Activity, tick: Double): Double = {
-    def activityEndTime = {
-      val endTime = activity.getEndTime
-      if (endTime.isDefined && endTime.orElse(Double.NegativeInfinity) >= tick) {
-        endTime.orElse(Double.NegativeInfinity)
-      } else if (
-        endTime.isDefined && endTime
-          .orElse(Double.NegativeInfinity) >= 0.0 && endTime.orElse(Double.NegativeInfinity) < tick
-      ) {
-        tick
-      } else {
+    def activityEndTime: Double = {
+      def fallbackActivityEndTime: Double = {
         // logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
         // TODO consider ending the day here to match MATSim convention for start/end activity
         tick + 60 * 10
       }
+      val endTime = activity.getEndTime
+      var returnVal: Double = fallbackActivityEndTime //Because OptionalTime doesn't have a method which returns - given an fn
+      endTime.ifDefined(endTimeVal =>
+        if(endTimeVal >= tick) returnVal = endTimeVal
+        else if(endTimeVal >= 0.0 && endTimeVal < tick) returnVal = tick
+      )
+      returnVal
     }
 
-    val endTime = beamServices.beamScenario.fixedActivitiesDurations.get(activity.getType) match {
+    val endTime: Double = beamServices.beamScenario.fixedActivitiesDurations.get(activity.getType) match {
       case Some(fixedDuration) => tick + fixedDuration
       case _                   => activityEndTime
     }
