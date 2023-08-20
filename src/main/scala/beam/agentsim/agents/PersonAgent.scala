@@ -569,7 +569,7 @@ class PersonAgent(
       triggerId,
       Vector(
         ScheduleTrigger(
-          ActivityEndTrigger(currentActivity(data).getEndTime.orElse(Double.NegativeInfinity).toInt),
+          ActivityEndTrigger(currentActivity(data).getEndTime.orElse(beam.UNDEFINED_TIME).toInt),
           self
         )
       )
