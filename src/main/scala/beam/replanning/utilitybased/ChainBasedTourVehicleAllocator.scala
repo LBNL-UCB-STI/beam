@@ -4,7 +4,6 @@ import beam.agentsim.agents.memberships.HouseholdMembershipAllocator
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.replanning.utilitybased.ChainBasedTourVehicleAllocator.{SubtourRecord, VehicleRecord, VehicleRecordFactory}
 import beam.router.Modes.BeamMode
-import beam.utils.OptionalUtils._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population._
@@ -168,18 +167,17 @@ object ChainBasedTourVehicleAllocator {
 
       @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val lastTrip = trips.toList.reverse.head
-      val endTime = lastTrip.getOriginActivity.getEndTime.orElse(Double.NegativeInfinity) + JavaConverters
+      val endTime = lastTrip.getOriginActivity.getEndTime.orElse(beam.UNDEFINED_TIME) + JavaConverters
         .collectionAsScalaIterable(lastTrip.getTripElements)
         .map({
           case act: Activity =>
-            act.getEndTime.toOption.getOrElse(
+            act.getEndTime.orElse(
               throw new RuntimeException(s"could not get time from $act")
             )
           case leg: Leg =>
             Option(leg)
               .flatMap(leg => Option(leg.getRoute))
-              .filterNot(_.getTravelTime.isUndefined)
-              .map(_.getTravelTime.orElse(Double.NegativeInfinity))
+              .map(_.getTravelTime.orElse(0.0))
               .getOrElse(0.0)
         })
         .sum
