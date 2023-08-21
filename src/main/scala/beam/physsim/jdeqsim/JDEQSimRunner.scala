@@ -205,7 +205,7 @@ class JDEQSimRunner(
     simName match {
       case "BPRSim" =>
         val bprCfg = BPRSimConfig(
-          config.getSimulationEndTime.orElse(Double.NegativeInfinity),
+          config.getSimulationEndTime.orElse(beam.UNDEFINED_TIME),
           1,
           0,
           beamConfig.beam.physsim.flowCapacityFactor,
@@ -231,7 +231,7 @@ class JDEQSimRunner(
           throw new IllegalArgumentException("sync interval must be greater then zero")
         }
         val bprCfg = BPRSimConfig(
-          config.getSimulationEndTime.orElse(Double.NegativeInfinity),
+          config.getSimulationEndTime.orElse(beam.UNDEFINED_TIME),
           numberOfClusters,
           syncInterval,
           beamConfig.beam.physsim.flowCapacityFactor,
