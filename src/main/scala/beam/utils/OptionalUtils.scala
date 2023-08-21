@@ -1,7 +1,5 @@
 package beam.utils
 
-import org.matsim.core.utils.misc.OptionalTime
-
 object OptionalUtils {
   import java.util.Optional
 
