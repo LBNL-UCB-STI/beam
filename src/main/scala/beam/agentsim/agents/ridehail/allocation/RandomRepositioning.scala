@@ -118,9 +118,8 @@ class RandomRepositioning(val rideHailManager: RideHailManager)
         .foreach {
           case act: Activity =>
             if (
-              act.getEndTime.orElse(Double.NegativeInfinity) > currentTime + 20 * 60 && act.getEndTime.orElse(
-                Double.NegativeInfinity
-              ) < currentTime + 3600
+              act.getEndTime.orElse(beam.UNDEFINED_TIME) > currentTime + 20 * 60
+              && act.getEndTime.orElse(beam.UNDEFINED_TIME) < currentTime + 3600
             ) {
               minX = Math.min(minX, act.getCoord.getX)
               minY = Math.min(minY, act.getCoord.getY)

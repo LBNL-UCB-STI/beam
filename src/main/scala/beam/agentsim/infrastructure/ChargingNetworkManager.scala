@@ -59,7 +59,7 @@ class ChargingNetworkManager(
     beamServices.matsimServices.getScenario.getPopulation.getPersons.asScala.map { case (personId, person) =>
       personId -> (person.getSelectedPlan.getPlanElements.asScala
         .find(_.isInstanceOf[Activity])
-        .map(_.asInstanceOf[Activity].getEndTime.orElse(Double.NegativeInfinity))
+        .flatMap(x => Option(x.asInstanceOf[Activity].getEndTime.orElse(null)))
         .getOrElse(0.0) + (24 * 3600.0)).toInt
     }.toMap
 
