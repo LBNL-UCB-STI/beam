@@ -45,10 +45,46 @@ ext.getParameterOrEnvironmentValue = { String paramName ->
     }
 }
 
+ext.getNodeMemoryRequirement = { String partitionName ->
+    switch (partitionName) {
+        case "lr_bigmem":
+            return "144" // CPU cores: 32
+        case "lr3":
+            return "480" // CPU cores: 32
+        case "es1":
+            return "480" // CPU cores: 64;  GPU instance
+        case "lr7":
+            return "240" // CPU cores: 56
+        case "cm1":
+            return "224" // CPU cores: 48
+        case "cf1":
+            return "180"  // CPU cores: 64
+    }
+}
+
+ext.getQOS = { String partitionName ->
+    switch (partitionName) {
+        case "lr_bigmem":
+            return "lr_normal" // CPU cores: 32
+        case "lr3":
+            return "lr_normal" // CPU cores: 32
+        case "es1":
+            return "es_normal" // CPU cores: 64;  GPU instance
+        case "lr7":
+            return "lr_normal" // CPU cores: 56
+        case "cm1":
+            return "cm1_normal" // CPU cores: 48
+        case "cf1":
+            return "cf_normal"  // CPU cores: 64
+    }
+}
+
+String lawrenciumUser = getParameterValue('lawrenciumUser') ?: 'user-not-specified'
+
 remotes {
     lawrenciumLoginNode {
         host = 'lrc-login.lbl.gov'
-        user = project.findProperty('lawrenciumUser') ?: 'user-not-specified'
+        user = lawrenciumUser
     }
 }
 
@@ -60,11 +96,13 @@ ext.executeLawrenciumSSH = { List<String> commandsList ->
         }
     }
 
+    String fullPassword = getParameterValue("lawrenciumPassword") + getParameterValue("otp")
+
     ssh.run {
         settings {
             authentications = ["keyboard-interactive"]
             knownHosts = allowAnyHosts
-            password = getParameterValue("lawrenciumPassword") + getParameterValue("otp")
+            password = fullPassword
         }
 
         session(remotes.lawrenciumLoginNode) {
@@ -90,17 +128,24 @@ tasks.register("deployToLawrencium") {
         def configs = getParameterValue('beamConfigs') ?: ext.getParameterValue(getCurrentGitBranch() + '.configs')
 
         // partition, memory limit and QoS should be changed together
-        def lawrenciumPartition = getParameterValue('lawrenciumPartition') ?: 'es1'
-        def lawrenciumMemoryLimit = getParameterValue('lawrenciumMemoryLimit') ?: '480'
-        def lawrenciumQoS = getParameterValue('lawrenciumQoS') ?: 'es_normal'
+        def lawrenciumPartition = getParameterValue('lawrenciumPartition') ?: 'lr6'
+        def lawrenciumMemoryLimit = getNodeMemoryRequirement(lawrenciumPartition)
+        def lawrenciumQoS = getQOS(lawrenciumPartition)
 
         // using memory limit for lawrencium cluster is usually fine
-        def max_ram = getParameterValue('forcedMaxRAM') ?: lawrenciumMemoryLimit
+        def defaultMemoryLimit = { ->
+            if (lawrenciumPartition == 'lr_bigmem') {
+                return (lawrenciumMemoryLimit.toInteger() * 1024).toString()
+            } else {
+                return lawrenciumMemoryLimit
+            }
+        }
+        def max_ram = getParameterValue('forcedMaxRAM') ?: defaultMemoryLimit
         def profiler_type = getParameterValue('profiler_type') ?: 'cpumem'
 
         def sentNotification = getParameterValue('sentNotification') ?: true
-        def slackHookWithToken = getParameterValue('slackHookWithToken') ?: 'not-set'
-        def simulationsSpreadsheetUrl = getParameterValue('simulationsSpreadsheetUrl') ?: 'not-set'
+        def slackHookWithToken = getParameterValue('slackHookWithToken') ?: ''
+        def simulationsSpreadsheetUrl = getParameterValue('simulationsSpreadsheetUrl') ?: ''
 
         def google_api_key = getParameterOrEnvironmentValue('GOOGLE_API_KEY') ?: 'not-set'
 
@@ -158,11 +203,8 @@ tasks.register("deployToLawrencium") {
 
         def base_path = "https://raw.githubusercontent.com/LBNL-UCB-STI/beam/inm/lawrencium-automatization/lawrencium/src/main/bash"
 
-//        def job_name = "slurm_job.sh"
-//        def runner_name = "slurm_job_runner.sh"
-
-        def job_name = "debug_job.sh"
-        def runner_name = "debug_job_runner.sh"
+        def job_name = "slurm_job.sh"
+        def runner_name = "slurm_job_runner.sh"
 
         executeLawrenciumSSH([
                 "rm -f $job_name",
@@ -187,7 +229,7 @@ tasks.register("lawrenciumQueue") {
         def sacctFormat = "JobID,JobName%30,state,start,end,elapsed,nnodes,ncpus,nodelist,user,partition,maxrss,maxvmsize,time"
         if (!project.hasProperty("fromDate")) {
             Date today = new Date()
-            Integer daysPast = (project.findProperty('forDays') ?: '1').toInteger()
+            Integer daysPast = (getParameterValue('forDays') ?: '1').toInteger()
             Date yesterday = today - daysPast
             ext.fromDate = yesterday.format("yyyy-MM-dd")
         }
@@ -222,5 +264,16 @@ tasks.register("lawrenciumResourcesAvailable") {
             ext.queueUser = lawrenciumUser
         }
         executeLawrenciumSSH(["sacctmgr show association -p user=$queueUser"])
+    }
+}
+
+tasks.register("lawrenciumJobCancel") {
+    doLast {
+        def jobId = getParameterValue("jobId")
+
+        def commandToCancelJob = "scancel $jobId"
+        def commandToGetQueueForUser = "squeue -u $lawrenciumUser"
+
+        executeLawrenciumSSH([commandToCancelJob, commandToGetQueueForUser])
     }
 }
