@@ -118,7 +118,7 @@ class ConsumptionRateFilterStoreImpl(
     val currentRateFilter = mutable.Map
       .empty[DoubleTypedRange, mutable.Map[DoubleTypedRange, mutable.Map[DoubleTypedRange, mutable.Map[Range, Double]]]]
     baseFilePaths.foreach(baseFilePath =>
-      csvRecordsForFilePathUsing(csvParser, java.nio.file.Paths.get(baseFilePath.getOrElse(""), file).toString)
+      csvRecordsForFilePathUsing(csvParser, java.nio.file.Paths.get(baseFilePath, file).toString)
         .foreach(csvRecord => {
           val speedInMilesPerHourBin = convertRecordStringToDoubleTypedRange(csvRecord.getString(speedBinHeader))
           val gradePercentBin = convertRecordStringToDoubleTypedRange(csvRecord.getString(gradeBinHeader))
@@ -143,11 +143,11 @@ class ConsumptionRateFilterStoreImpl(
             else convertFromGallonsPer100MilesToJoulesPerMeter(rawRate)
 
           currentRateFilter.get(speedInMilesPerHourBin) match {
-            case Some(gradePercentFilter) => {
+            case Some(gradePercentFilter) =>
               gradePercentFilter.get(gradePercentBin) match {
-                case Some(weightKgFilter) => {
+                case Some(weightKgFilter) =>
                   weightKgFilter.get(weightKgBin) match {
-                    case Some(numberOfLanesFilter) => {
+                    case Some(numberOfLanesFilter) =>
                       numberOfLanesFilter.get(numberOfLanesBin) match {
                         case Some(firstRate) =>
                           val rawFirstRate =
@@ -166,16 +166,13 @@ class ConsumptionRateFilterStoreImpl(
                           )
                         case None => numberOfLanesFilter += numberOfLanesBin -> rate
                       }
-                    }
                     case None => weightKgFilter += weightKgBin -> mutable.Map(numberOfLanesBin -> rate)
                   }
-                }
                 case None =>
                   gradePercentFilter += gradePercentBin -> mutable.Map(
                     weightKgBin -> mutable.Map(numberOfLanesBin -> rate)
                   )
               }
-            }
             case None =>
               currentRateFilter += speedInMilesPerHourBin ->
               mutable.Map(gradePercentBin -> mutable.Map(weightKgBin -> mutable.Map(numberOfLanesBin -> rate)))
