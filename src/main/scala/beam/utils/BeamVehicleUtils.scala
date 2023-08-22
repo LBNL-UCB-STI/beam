@@ -145,7 +145,9 @@ object BeamVehicleUtils {
   }
 
   def readBeamVehicleTypeFile(beamConfig: BeamConfig): Map[Id[BeamVehicleType], BeamVehicleType] = {
-    val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
+    val vehicleTypes = readBeamVehicleTypeFile(
+      beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath
+    ) ++ beamConfig.beam.agentsim.agents.freight.vehicleTypesFilePath.map(readBeamVehicleTypeFile).getOrElse(Map.empty)
     val rideHailTypeIds =
       beamConfig.beam.agentsim.agents.rideHail.managers.map(_.initialization.procedural.vehicleTypeId)
     val dummySharedCarId = beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId

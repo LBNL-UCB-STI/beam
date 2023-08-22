@@ -415,7 +415,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     nextActivityEndTime <= tick + beamConfig.beam.agentsim.schedulerParallelismWindow
                   } {
                     log.warning(
-                      "Vehicle {} needs to depart at time {} but agent {} sends a plug request at tick {}",
+                      s"Vehicle {} needs to depart at time {} but agent {} sends a plug request at tick {} for stall $stall",
                       currentBeamVehicle.id,
                       nextActivityEndTime,
                       id,
