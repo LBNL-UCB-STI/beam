@@ -248,33 +248,23 @@ class BeamScenarioLoader(
     )
     val act = PopulationUtils.createAndAddActivityFromCoord(currentPlan, activityType, coord)
     planElement.activityEndTime.foreach { endTime =>
-      try {
-        OptionalTime.defined(endTime)
-        act.setEndTime(endTime)
-      } catch {
-        case _: Throwable => act.setEndTimeUndefined()
-      }
+      if(endTime == beam.UNDEFINED_TIME) act.setEndTimeUndefined()
+      else act.setEndTime(endTime)
     }
     act
   }
 
   private def buildAndAddLegToPlan(currentPlan: Plan, planElement: PlanElement): Leg = {
     val leg = PopulationUtils.createAndAddLeg(currentPlan, planElement.legMode.getOrElse(""))
-    planElement.legDepartureTime.foreach(v => {
-      try {
-        OptionalTime.defined(v.toDouble)
-        leg.setDepartureTime(v.toDouble)
-      } catch {
-        case _: Throwable => leg.setDepartureTimeUndefined()
-      }
+    planElement.legDepartureTime.foreach(departureTimeStr => {
+      val departureTime = departureTimeStr.toDouble
+      if(departureTime == beam.UNDEFINED_TIME) leg.setDepartureTimeUndefined()
+      else leg.setDepartureTime(departureTime)
     })
-    planElement.legTravelTime.foreach(v => {
-      try {
-        OptionalTime.defined(v.toDouble)
-        leg.setTravelTime(v.toDouble)
-      } catch {
-        case _: Throwable => leg.setTravelTimeUndefined()
-      }
+    planElement.legTravelTime.foreach(travelTimeStr => {
+      val travelTime = travelTimeStr.toDouble
+      if(travelTime == beam.UNDEFINED_TIME) leg.setTravelTimeUndefined()
+      else leg.setTravelTime(travelTime)
     })
     planElement.legMode.foreach(v => leg.setMode(v))
 
