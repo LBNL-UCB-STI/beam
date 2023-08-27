@@ -612,9 +612,8 @@ class ProceduralRideHailFleetInitializer(
     val activityEndTimes: Array[Int] = persons.flatMap {
       _.getSelectedPlan.getPlanElements.asScala
         .collect {
-          case activity: Activity
-              if activity.getEndTime.isDefined && activity.getEndTime.orElse(Double.NegativeInfinity) > 0 =>
-            activity.getEndTime.orElse(Double.NegativeInfinity).toInt
+          case activity: Activity if activity.getEndTime.isDefined && activity.getEndTime.seconds() > 0 =>
+            activity.getEndTime.seconds().toInt
         }
     }
 
