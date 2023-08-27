@@ -181,7 +181,7 @@ object ChainBasedTourVehicleAllocator {
               .getOrElse(0.0)
         })
         .sum
-      new SubtourRecord(startTime.orElse(Double.NegativeInfinity), endTime, possibleVehicles, subtour, None)
+      new SubtourRecord(startTime.orElse(beam.UNDEFINED_TIME), endTime, possibleVehicles, subtour, None)
     }
   }
 }

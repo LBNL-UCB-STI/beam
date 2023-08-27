@@ -526,10 +526,7 @@ class BeamSim @Inject() (
         val activities = plan.getPlanElements.asScala.filter(_.isInstanceOf[Activity])
         activities
           .dropRight(1)
-          .exists(a => {
-            val endTime = a.asInstanceOf[Activity].getEndTime
-            endTime.isUndefined || endTime.orElse(Double.NegativeInfinity) < 0
-          })
+          .exists(_.asInstanceOf[Activity].getEndTime.orElse(beam.UNDEFINED_TIME) < 0)
     }
 
     if (activityEndTimesNonNegativeCheck.isEmpty) {
