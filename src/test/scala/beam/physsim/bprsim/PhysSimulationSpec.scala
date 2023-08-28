@@ -66,7 +66,7 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
     "produce the right sequence of events" in {
       val bprConfig =
         BPRSimConfig(
-          jdeqConfig.getSimulationEndTime.orElse(Double.NegativeInfinity),
+          jdeqConfig.getSimulationEndTime.orElse(beam.UNDEFINED_TIME),
           1,
           0,
           1.0,
@@ -85,7 +85,7 @@ class PhysSimulationSpec extends AnyWordSpecLike with Matchers {
     "produce the right sequence of events" in {
       val bprConfig =
         BPRSimConfig(
-          jdeqConfig.getSimulationEndTime.orElse(Double.NegativeInfinity),
+          jdeqConfig.getSimulationEndTime.orElse(beam.UNDEFINED_TIME),
           8,
           60,
           1.0,

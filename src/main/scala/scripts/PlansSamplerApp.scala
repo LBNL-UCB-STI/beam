@@ -482,7 +482,7 @@ object PlansSampler {
         } else {
           val actCoord = new Coord(oldActivity.getCoord.getX, oldActivity.getCoord.getY)
           val activity = factory.createActivityFromCoord(oldActivity.getType, actCoord)
-          activity.setEndTime(oldActivity.getEndTime.orElse(Double.NegativeInfinity))
+          activity.setEndTime(oldActivity.getEndTime.orElse(beam.UNDEFINED_TIME))
           newPlan.addActivity(activity)
         }
 

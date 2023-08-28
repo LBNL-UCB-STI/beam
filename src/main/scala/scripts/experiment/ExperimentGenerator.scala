@@ -80,7 +80,7 @@ object ExperimentGenerator extends ExperimentApp {
       beamConfWriter.write(beamConfStr)
       beamConfWriter.flush()
     } finally {
-      Try(beamConfWriter.close()).getOrElse(())
+      Try(beamConfWriter.close())
     }
     /*
      * Write the run folder
@@ -107,7 +107,7 @@ object ExperimentGenerator extends ExperimentApp {
           modeChoiceWriter.write(renderedTemplate)
           modeChoiceWriter.flush()
         } finally {
-          Try(modeChoiceWriter.close()).getOrElse(())
+          Try(modeChoiceWriter.close())
         }
     }
   }
@@ -131,6 +131,6 @@ object ExperimentGenerator extends ExperimentApp {
     }
     experimentsCsv.flush()
   } finally {
-    Try(experimentsCsv.close()).getOrElse(())
+    Try(experimentsCsv.close())
   }
 }
