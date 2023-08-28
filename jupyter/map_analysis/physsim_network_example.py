@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 import pyrosm
-
 
 import numpy as np
 import pandas as pd
@@ -22,7 +21,7 @@ pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
 
 
-# In[2]:
+# In[ ]:
 
 
 # reading network.csv.gz file from simulation output folder
@@ -31,11 +30,12 @@ dtype = { 'attributeOrigId': str }
 out_network = pd.read_csv("../beam_root/output/sf-light/sf-light-0.5k__2023-06-15_16-11-49_obh/network.csv.gz", dtype=dtype)
 out_network["str_id"] = out_network['attributeOrigId'].astype(str)
 out_network["id"] = pd.to_numeric(out_network["str_id"], errors='coerce').fillna(0).astype('Int64')
+
 # out_network.drop(columns=['str_id', 'attributeOrigId'], inplace=True)
 out_network.head(3)
 
 
-# In[3]:
+# In[ ]:
 
 
 # converting CRS of output network to lat-lon CRS epsg:4326 and creating a geometry for new geopandas data frame
@@ -54,7 +54,7 @@ out_geometry = out_network.apply(out_row_to_geometry, axis=1)
 out_geometry.head(2)
 
 
-# In[4]:
+# In[ ]:
 
 
 # creating geopandas data frame
@@ -64,7 +64,7 @@ out_network = gpd.GeoDataFrame(out_network, crs='epsg:4326', geometry=out_geomet
 out_network.head(2)
 
 
-# In[5]:
+# In[ ]:
 
 
 # filtering and plotting
@@ -84,7 +84,7 @@ filtered_2['linkLength'].hist(ax=axs[2], bins=20, color='blue', alpha=0.4, label
 axs[2].legend()
 
 
-# In[6]:
+# In[ ]:
 
 
 # save the network as shape file
