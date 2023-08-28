@@ -216,7 +216,7 @@ class SupplementaryTripGenerator(
 
         alternativeActivity.getStartTime.ifDefinedOrElse(
           activityBeforeNewActivity.setStartTime(_),
-          activityBeforeNewActivity.setStartTimeUndefined()
+          () => activityBeforeNewActivity.setStartTimeUndefined()
         )
         activityBeforeNewActivity.setEndTime(startTime - travelTimeBufferInSec)
 

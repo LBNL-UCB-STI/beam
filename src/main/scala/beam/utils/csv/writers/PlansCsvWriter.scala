@@ -6,6 +6,7 @@ import ScenarioCsvWriter._
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Leg, Plan, PlanElement => MatsimPlanElement}
 import org.matsim.core.population.routes.NetworkRoute
+import beam.utils.OptionalUtils.OptionalTimeExtension
 
 object PlansCsvWriter extends ScenarioCsvWriter {
 
@@ -96,7 +97,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           legRouteType = route.map(_.getRouteType),
           legRouteStartLink = route.map(_.getStartLinkId.toString),
           legRouteEndLink = route.map(_.getEndLinkId.toString),
-          legRouteTravelTime = route.flatMap(x => Option(x.getTravelTime.orElse(null))),
+          legRouteTravelTime = route.flatMap(_.getTravelTime.toOption),
           legRouteDistance = route.map(_.getDistance),
           legRouteLinks = routeLinks,
           geoId = None
@@ -113,7 +114,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           activityType = Option(act.getType),
           activityLocationX = Option(act.getCoord.getX),
           activityLocationY = Option(act.getCoord.getY),
-          activityEndTime = Option(act.getEndTime.orElse(null)),
+          activityEndTime = act.getEndTime.toOption,
           legMode = None,
           legDepartureTime = None,
           legTravelTime = None,
