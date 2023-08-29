@@ -60,7 +60,7 @@ import org.matsim.core.events.ParallelEventsManagerImpl
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
-import org.matsim.households.Households
+import org.matsim.households.{HouseholdUtils, Households}
 import org.matsim.utils.objectattributes.AttributeConverter
 import org.matsim.vehicles.Vehicle
 
@@ -947,10 +947,8 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
         households.getFactory
       )
       .foreach { case (carrier, household, plan, person, vehicleId) =>
-        households.getHouseholdAttributes
-          .putAttribute(household.getId.toString, "homecoordx", carrier.warehouseLocationUTM.getX)
-        households.getHouseholdAttributes
-          .putAttribute(household.getId.toString, "homecoordy", carrier.warehouseLocationUTM.getY)
+        HouseholdUtils.putHouseholdAttribute(household, "homecoordx", carrier.warehouseLocationUTM.getX)
+        HouseholdUtils.putHouseholdAttribute(household, "homecoordy", carrier.warehouseLocationUTM.getY)
         PopulationUtils.putPersonAttribute(person, "vehicle", vehicleId.toString)
         households.getHouseholds.put(household.getId, household)
         population.addPerson(plan.getPerson)

@@ -51,11 +51,13 @@ class BeamScenarioLoader(
     households: Households,
     loadedAttributes: IdToAttributes
   ): Unit = {
-    val attributes = households.getHouseholdAttributes
-    attributes.clear()
+    households.getHouseholds.values.asScala.map(_.getAttributes.clear())
+    val householdIdStrToHousehold = households.getHouseholds.asScala.map { case (key, value) =>
+      (key.toString, value)
+    }.toMap
     loadedAttributes.foreach { case (id, listOfAttributes) =>
       listOfAttributes.foreach { case (name, value) =>
-        attributes.putAttribute(id, name, value)
+        HouseholdUtils.putHouseholdAttribute(householdIdStrToHousehold(id), name, value)
       }
     }
   }

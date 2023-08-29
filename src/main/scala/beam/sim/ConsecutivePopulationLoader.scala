@@ -4,7 +4,14 @@ import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.api.core.v01.population.{Person, Population, PopulationFactory}
 import org.matsim.core.population.PopulationUtils
-import org.matsim.households.{Household, HouseholdImpl, Households, HouseholdsFactoryImpl, HouseholdsImpl}
+import org.matsim.households.{
+  Household,
+  HouseholdImpl,
+  HouseholdUtils,
+  Households,
+  HouseholdsFactoryImpl,
+  HouseholdsImpl
+}
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.utils.objectattributes.attributable.AttributesUtils
 
@@ -102,9 +109,8 @@ class ConsecutivePopulationLoader(
               // Put the household to the map and add the first person of that household
               map.put(hh.getId, hh)
               copyHouseholdAttributes(
-                fullHousehold.getHouseholdAttributes,
-                scenario.getHouseholds.getHouseholdAttributes,
-                hh.getId
+                fullHousehold.getHouseholds.get(hh.getId),
+                scenario.getHouseholds.getHouseholds.get(hh.getId)
               )
               hh.asInstanceOf[HouseholdImpl].setMemberIds(ArrayBuffer(personToAdd.getId).asJava)
           }
@@ -135,7 +141,7 @@ class ConsecutivePopulationLoader(
       personIdToHousehold.get(personId).foreach { hh =>
         hh.asInstanceOf[HouseholdImpl].setMemberIds(java.util.Collections.emptyList())
         households.getHouseholds.remove(hh.getId)
-        households.getHouseholdAttributes.removeAllAttributes(hh.getId.toString)
+        households.getHouseholds.get(hh.getId).getAttributes.clear()
       }
     }
   }
@@ -185,29 +191,26 @@ class ConsecutivePopulationLoader(
       // We shouldn't set the members because during the consecutive population increase there is a chance that some of the people of household will not loaded in this iteration
       // household.setMemberIds(hh.getMemberIds)
       household.setVehicleIds(hh.getVehicleIds)
-      copyHouseholdAttributes(src.getHouseholdAttributes, dest.getHouseholdAttributes, hh.getId)
+      copyHouseholdAttributes(hh, dest.getHouseholds.get(hh.getId))
       dest.getHouseholds.put(hh.getId, household)
     }
   }
 
   private def copyHouseholdAttributes(
-    src: ObjectAttributes,
-    dest: ObjectAttributes,
-    householdId: Id[Household]
+    src: Household,
+    dest: Household
   ): Unit = {
-    copyHouseholdAttribute(src, dest, householdId, "homecoordx")
-    copyHouseholdAttribute(src, dest, householdId, "homecoordy")
-    copyHouseholdAttribute(src, dest, householdId, "housingtype")
+    copyHouseholdAttribute(src, dest, "homecoordx")
+    copyHouseholdAttribute(src, dest, "homecoordy")
+    copyHouseholdAttribute(src, dest, "housingtype")
   }
 
   private def copyHouseholdAttribute(
-    srcHouseholdAttributes: ObjectAttributes,
-    destHouseholdAttributes: ObjectAttributes,
-    householdId: Id[Household],
-    name: String
+    srcHousehold: Household,
+    destHousehold: Household,
+    attribName: String
   ): Unit = {
-    val personIdStr = householdId.toString
-    val attribValue = srcHouseholdAttributes.getAttribute(personIdStr, name)
-    destHouseholdAttributes.putAttribute(personIdStr, name, attribValue)
+    val srcAttribVal = HouseholdUtils.getHouseholdAttribute(srcHousehold, attribName)
+    HouseholdUtils.putHouseholdAttribute(destHousehold, attribName, srcAttribVal)
   }
 }

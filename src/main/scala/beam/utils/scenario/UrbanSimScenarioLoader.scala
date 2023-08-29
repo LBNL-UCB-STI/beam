@@ -123,7 +123,7 @@ class UrbanSimScenarioLoader(
   private def clear(): Unit = {
     scenario.getPopulation.getPersons.clear()
     scenario.getHouseholds.getHouseholds.clear()
-    scenario.getHouseholds.getHouseholdAttributes.clear()
+    scenario.getHouseholds.getHouseholds.values.asScala.map(_.getAttributes.clear())
 
     beamScenario.privateVehicles.clear()
     beamScenario.privateVehicleInitialSoc.clear()
@@ -142,7 +142,6 @@ class UrbanSimScenarioLoader(
     householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]],
     plans: Iterable[PlanElement]
   ): Unit = {
-    val scenarioHouseholdAttributes = scenario.getHouseholds.getHouseholdAttributes
     val scenarioHouseholds = scenario.getHouseholds.getHouseholds
 
     var vehicleCounter: Int = 0
@@ -221,9 +220,8 @@ class UrbanSimScenarioLoader(
       }
       household.setVehicleIds(vehicleIds)
       scenarioHouseholds.put(household.getId, household)
-      scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordx", coord.getX)
-      scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordy", coord.getY)
-
+      HouseholdUtils.putHouseholdAttribute(household, "homecoordx", coord.getX)
+      HouseholdUtils.putHouseholdAttribute(household, "homecoordy", coord.getY)
     }
     logger.info(
       s"Created $totalCarCount vehicles, scaling initial value of $initialVehicleCounter by a factor of $scaleFactor"

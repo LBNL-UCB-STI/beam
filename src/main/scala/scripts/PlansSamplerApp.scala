@@ -332,7 +332,6 @@ object PlansSampler {
   val newVehicles: Vehicles = VehicleUtils.createVehiclesContainer()
   val newHHFac: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   val newHH: HouseholdsImpl = new HouseholdsImpl()
-  val newHHAttributes: ObjectAttributes = newHH.getHouseholdAttributes
   val shapeFileReader: ShapeFileReader = new ShapeFileReader
 
   val modeAllocator: AvailableModeUtils.AllowAllModes.type = AvailableModeUtils.AllowAllModes
@@ -566,9 +565,10 @@ object PlansSampler {
             case None =>
               homePlan = Some(newPlan)
               val homeCoord = homeActs.head.getCoord
-              newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
-              newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
-              newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
+
+              HouseholdUtils.putHouseholdAttribute(spHH, HomeCoordX.entryName, homeCoord.getX)
+              HouseholdUtils.putHouseholdAttribute(spHH, HomeCoordY.entryName, homeCoord.getY)
+              HouseholdUtils.putHouseholdAttribute(spHH, HousingType.entryName, "House")
               snapPlanActivityLocsToNearestLink(newPlan)
 
             case Some(hp) =>
@@ -606,7 +606,13 @@ object PlansSampler {
     new PopulationWriter(newPop).write(s"$outDir/population.xml.gz")
     PopulationWriterCSV(newPop).write(s"$outDir/population.csv.gz")
     new MatsimVehicleWriter(newVehicles).writeFile(s"$outDir/vehicles.xml.gz")
-    new ObjectAttributesXmlWriter(newHHAttributes)
+    val householdAttributes = new ObjectAttributes
+    newHH.getHouseholds.values().asScala.map { household =>
+      household.getAttributes.getAsMap.asScala.map { case (key, value) =>
+        householdAttributes.putAttribute(household.getId.toString, key, value)
+      }
+    }
+    new ObjectAttributesXmlWriter(householdAttributes)
       .writeFile(s"$outDir/householdAttributes.xml.gz")
 
     val attributes = new ObjectAttributes
