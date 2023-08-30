@@ -176,7 +176,7 @@ class PopulationScaling extends LazyLogging {
     // Remove not selected households
     notSelectedHouseholdIds.foreach { householdId =>
       scenario.getHouseholds.getHouseholds.remove(householdId)
-      scenario.getHouseholds.getHouseholds.get(householdId).getAttributes.clear()
+      scenario.getHouseholds.getHouseholds.asScala.get(householdId).map(_.getAttributes.clear())
     }
 
     // Remove not selected persons
