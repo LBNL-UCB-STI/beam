@@ -65,7 +65,11 @@ class BeamCalcLinkStatsSpec extends AnyWordSpecLike with Matchers with BeforeAnd
     val reader = new MatsimEventsReader(events)
     reader.readFile(EVENTS_FILE_PATH)
 
-    fileCsvPath = outputDirectoryHierarchy.getIterationFilename(0, Controler.DefaultFiles.linkstats)
+    fileCsvPath = outputDirectoryHierarchy.getIterationFilename(
+      0,
+      Controler.DefaultFiles.linkstats,
+      ControlerConfigGroup.CompressionType.gzip
+    )
     new File(fileCsvPath).getParentFile.mkdirs()
 
     beamCalcLinkStats.addData(volumes, travelTimeCalculator.getLinkTravelTimes)

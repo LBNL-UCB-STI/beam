@@ -43,7 +43,6 @@ class BeamWarmStartRunSpec
       zipIn.close()
 
       val expectedFiles = List(
-        "output_personAttributes.xml.gz",
         "population.csv.gz",
         "households.csv.gz",
         "vehicles.csv.gz",
