@@ -32,6 +32,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
 
   override def afterEach(): Unit = {
     appLogger.detachAppender(appender)
+    persons.foreach(_._2.getAttributes.clear())
   }
 
   "PopulationAdjustment" should {

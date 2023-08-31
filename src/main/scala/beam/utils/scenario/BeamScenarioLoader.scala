@@ -283,7 +283,10 @@ class BeamScenarioLoader(
       planElement.legRouteDistance.foreach(legRoute.setDistance)
       planElement.legRouteStartLink.foreach(v => legRoute.setStartLinkId(Id.create(v, classOf[Link])))
       planElement.legRouteEndLink.foreach(v => legRoute.setEndLinkId(Id.create(v, classOf[Link])))
-      planElement.legRouteTravelTime.foreach(v => legRoute.setTravelTime(v))
+      planElement.legRouteTravelTime.foreach(v => {
+        if (v == beam.UNDEFINED_TIME) legRoute.setTravelTimeUndefined()
+        else legRoute.setTravelTime(v)
+      })
     }
     leg
   }
