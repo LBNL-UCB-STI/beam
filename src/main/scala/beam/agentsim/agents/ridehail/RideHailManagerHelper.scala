@@ -277,10 +277,9 @@ class RideHailManagerHelper(rideHailManager: RideHailManager, boundingBox: Envel
   ): ParIterable[RideHailAgentLocation] = {
     nearbyRideHailAgents
       .filter { x =>
-        searchOnlyVehicles.contains(x.vehicleId) &&
-        (x.geofence.isEmpty || ((x.geofence.isDefined && x.geofence.get.contains(pickupLocation)) &&
-        (x.geofence.isDefined && x.geofence.get
-          .contains(dropoffLocation))))
+        searchOnlyVehicles.contains(x.vehicleId) && x.geofence.fold(true)(geofence =>
+          geofence.contains(pickupLocation) && geofence.contains(dropoffLocation)
+        )
       }
   }
 
