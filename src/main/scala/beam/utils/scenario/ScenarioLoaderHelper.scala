@@ -13,7 +13,11 @@ import org.matsim.households.{Household, HouseholdUtils, HouseholdsFactoryImpl}
 import scala.collection.compat.IterableFactoryExtensionMethods
 import scala.collection.immutable.HashSet
 import scala.collection.mutable.ListBuffer
-import scala.jdk.CollectionConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
+import scala.jdk.CollectionConverters.{
+  collectionAsScalaIterableConverter,
+  mapAsScalaMapConverter,
+  seqAsJavaListConverter
+}
 
 object ScenarioLoaderHelper extends ExponentialLazyLogging {
 
@@ -27,6 +31,8 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
     householdResult.setIncome(household.getIncome)
     householdResult.setVehicleIds(household.getVehicleIds)
     householdResult.setMemberIds(members.asJava)
+    val originHouseAttributes = household.getAttributes.getAsMap.asScala
+    originHouseAttributes.map { case (key, value) => HouseholdUtils.putHouseholdAttribute(householdResult, key, value) }
     householdResult
   }
 
@@ -123,7 +129,7 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
       val validMembers = members.filter(validPeople)
 
       if (validMembers.isEmpty) {
-        scenario.getHouseholds.getHouseholds.values().asScala.map(_.getAttributes.clear())
+        scenario.getHouseholds.getHouseholds.get(household.getId).getAttributes.clear()
         scenario.getHouseholds.getHouseholds.remove(household.getId)
       } else if (validMembers != members) {
         val updatedHousehold = createHouseholdWithGivenMembers(household, validMembers.toList)
