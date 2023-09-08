@@ -155,7 +155,7 @@ object XmlPlanElementReader extends PlanElementReader {
       legRouteType = Option(leg.getRoute).map(_.getRouteType),
       legRouteStartLink = Option(leg.getRoute).map(_.getStartLinkId.toString),
       legRouteEndLink = Option(leg.getRoute).map(_.getEndLinkId.toString),
-      legRouteTravelTime = leg.getRoute.getTravelTime.toOption,
+      legRouteTravelTime = Option(leg.getRoute).flatMap(_.getTravelTime.toOption),
       legRouteDistance = Option(leg.getRoute).map(_.getDistance),
       legRouteLinks = leg.getRoute match {
         case route: NetworkRoute => route.getLinkIds.asScala.map(_.toString).toSeq
