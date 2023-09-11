@@ -52,10 +52,10 @@ def compress(in_file_names, in_files_path, out_zip_path):
 # base variables
 
 # suffix to be added to new archives after changing
-archive_suffix_for_changed_gtfs = '.changed'
+archive_suffix_for_changed_gtfs = '.scaled_to_2017-09-18'
 
 # the date used as base for changes, need to be picked with regards to date configured in BEAM
-base_date = pd.to_datetime("2017-09-22", format='%Y-%m-%d')
+base_date = pd.to_datetime("2017-09-18", format='%Y-%m-%d')
 # the timezone should be the same as the one configured in BEAM
 base_timezone = 'Etc/GMT+7'
 
@@ -85,7 +85,7 @@ gtfs_archives
 # In[ ]:
 
 
-# unpacking and changing date in all previously found gtfs archives
+# unpacking found gtfs archives
 
 for gtfs_archive in gtfs_archives:
 
@@ -96,12 +96,21 @@ for gtfs_archive in gtfs_archives:
         delete_folder_with_content(gtfs_unpacked)
         
     Path(gtfs_unpacked).mkdir(parents=True, exist_ok=True)
-    print(f"Directory {gtfs_unpacked} created for GTFS files.")
 
     # unpack files
     with zipfile.ZipFile(gtfs_archive, 'r') as zip_ref:
         zip_ref.extractall(gtfs_unpacked)
+    
+    print(f"GTFS archive {gtfs_unpacked} created.")
 
+
+# In[ ]:
+
+
+# changing date in all previously found gtfs archives
+
+for gtfs_archive in gtfs_archives:
+    gtfs_unpacked = f"{gtfs_archive}.unpacked"
 
     # changing calendar dates
     path_to_file = f'{gtfs_unpacked}/calendar.txt'
@@ -141,7 +150,7 @@ for gtfs_archive in gtfs_archives:
 
     for (dir_name, child_folders, files) in os.walk(gtfs_unpacked):
         if 'agency.txt' in files:
-            out_archive_path = gtfs_archive.split('.zip')[0] + '.changed.zip'
+            out_archive_path = gtfs_archive.split('.zip')[0] + f'{archive_suffix_for_changed_gtfs}.zip'
             if os.path.isfile(out_archive_path):
                 print(f"Pre-existing '{out_archive_path}' deleted.")
                 os.remove(out_archive_path)
@@ -159,15 +168,18 @@ print('Done')
 
 
 # code to view files during intermediate steps, not required to be run
+for gtfs_archive in gtfs_archives:
 
-path_to_unpacked_archive = gtfs_unpacked
+    gtfs_unpacked = f"{gtfs_archive}.unpacked"
 
-for (dir_name, child_folders, files) in os.walk(path_to_unpacked_archive):
-    if 'agency.txt' in files:
-        for file in files:
-            full_path = f'{path_to_unpacked_archive}/{file}'
-            df = pd.read_csv(full_path)
-            display(full_path, f'with size {len(df)}', df.head(2))
+    path_to_unpacked_archive = gtfs_unpacked
+
+    for (dir_name, child_folders, files) in os.walk(path_to_unpacked_archive):
+        if 'agency.txt' in files:
+            for file in files:
+                full_path = f'{path_to_unpacked_archive}/{file}'
+                df = pd.read_csv(full_path)
+                display(full_path, f'with size {len(df)}', df.head(2))
 
 
 # In[ ]:
