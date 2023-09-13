@@ -17,6 +17,7 @@ class SpatialIndexForRideHailAgentLocationTest extends AnyFunSuite with Matchers
   // #####################################################################################
   test("Should not allow to put multiple RideHailAgentLocation with the same vehicleId") {
     val spatialIndex = new QuadTree[RideHailAgentLocation](0, 0, 1000, 100)
+    val origLatestUpdatedLocationUTM = SpaceTime(1, 1, 1)
     val rideHailAgentLocation = RideHailAgentLocation(
       null,
       Id.createVehicleId("1"),
@@ -30,17 +31,23 @@ class SpatialIndexForRideHailAgentLocationTest extends AnyFunSuite with Matchers
         0.1,
         vehicleCategory = VehicleCategory.Car
       ),
-      SpaceTime(1, 1, 1)
+      origLatestUpdatedLocationUTM
     )
 
     spatialIndex.put(10, 10, rideHailAgentLocation)
     spatialIndex.size() shouldBe 1
+    //Cannot compare the RideHailAgentLocation since it overrides the equals - must check the updated portion
+    spatialIndex.getDisk(0, 0, 20).asScala.head.latestUpdatedLocationUTM shouldEqual origLatestUpdatedLocationUTM
 
-    val updatedRideHailAgentLocation = rideHailAgentLocation.copy(latestUpdatedLocationUTM = SpaceTime(2, 2, 4))
+    val updatedLatestUpdatedLocationUTM = SpaceTime(2, 2, 4)
+    val updatedRideHailAgentLocation =
+      rideHailAgentLocation.copy(latestUpdatedLocationUTM = updatedLatestUpdatedLocationUTM)
     spatialIndex.put(10, 10, updatedRideHailAgentLocation)
     spatialIndex.size() shouldBe 1
 
-    spatialIndex.getDisk(0, 0, 20).asScala.head shouldBe rideHailAgentLocation
+    //Cannot compare the RideHailAgentLocation since it overrides the equals - must check the updated portion
+    spatialIndex.getDisk(0, 0, 20).asScala.head.latestUpdatedLocationUTM shouldEqual updatedLatestUpdatedLocationUTM
+    spatialIndex.getDisk(0, 0, 20).asScala.head.latestUpdatedLocationUTM should not equal origLatestUpdatedLocationUTM
   }
 
   test("Remove should respect only `RideHailAgentLocation.vehicleId`") {
