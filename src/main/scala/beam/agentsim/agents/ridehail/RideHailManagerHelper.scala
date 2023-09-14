@@ -868,9 +868,12 @@ object RideHailManagerHelper {
     }
 
     override def equals(obj: Any): Boolean = {
-      obj match {
-        case that: RideHailAgentLocation =>
-          that.canEqual(this) && vehicleId == that.vehicleId
+      if (null == obj) false
+      else {
+        obj match {
+          case that: RideHailAgentLocation =>
+            that.canEqual(this) && vehicleId == that.vehicleId
+        }
       }
     }
 
