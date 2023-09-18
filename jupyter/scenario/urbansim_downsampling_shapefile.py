@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[31]:
+# In[ ]:
 
 
 from pathlib import Path
@@ -18,7 +18,7 @@ pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
 
 
-# In[4]:
+# In[ ]:
 
 
 # reading input scenario
@@ -33,10 +33,11 @@ blocks = pd.read_csv(f"{urbansim_source_dir}/blocks.csv.gz")
 print(f"Number of persons: {persons.shape[0]}, number of households: {households.shape[0]}, number of unique persons in plans: {plans['person_id'].nunique()}")
 
 
-# In[9]:
+# In[ ]:
 
 
 # reading the shp file and converting it to activities `x` and `y` CRS
+# also using only selected districts of the shape file
 
 shape_file_path = "../local_files/vta-filtering-plans/MTC-1454-TAZ.zip"
 
@@ -45,6 +46,7 @@ shp_df_wrong_crs = gpd.read_file(shape_file_path)
 
 # converting the shapefile to required CRS
 shp_df_full = shp_df_wrong_crs.to_crs(4326)
+
 
 # using only selected districts
 selected_districts = set([8, 9, 10, 11, 12, 13, 14])
@@ -58,7 +60,6 @@ display(shp_df.head(2))
 
 
 # getting CRS of the shp file
-
 shp_df.crs
 
 
@@ -69,7 +70,7 @@ shp_df.crs
 shp_df.to_file("../local_files/vta-filtering-plans/MTC-1454-TAZ-selected-districts")
 
 
-# In[12]:
+# In[ ]:
 
 
 # getting activities
@@ -83,7 +84,7 @@ if 0 == activities.isna().sum().sum():
 display(activities.head(2))
 
 
-# In[11]:
+# In[ ]:
 
 
 # getting geo_activities dataframe with specified CRS
@@ -100,7 +101,7 @@ geo_activities.head(2)
 geo_activities.to_file(filename="../local_files/vta-filtering-plans/activities_shape.zip", driver='ESRI Shapefile')
 
 
-# In[15]:
+# In[ ]:
 
 
 # getting activities within shape file
@@ -172,7 +173,7 @@ selected_blocks_df.to_csv(f'{out_dir}/blocks.csv.gz', index=False, compression='
 
 # # approach #2 - clearing modes for selected persons
 
-# In[34]:
+# In[ ]:
 
 
 # splitting plans into two dataframes based on selected persons IDs and clearing modes for selected persons plans
@@ -189,7 +190,7 @@ plans_cleared = pd.concat([plans_within,plans_rest]).sort_values(['person_id','P
 plans_within['person_id'].nunique(), plans_rest['person_id'].nunique(), plans_cleared['person_id'].nunique()
 
 
-# In[45]:
+# In[ ]:
 
 
 # check if everything apart modes are equal in old plans and changed plans
@@ -197,17 +198,17 @@ columns = ["trip_id","person_id","number_of_participants","PlanElementIndex","Ac
 plans_cleared[columns].equals(plans[columns])
 
 
-# In[35]:
+# In[ ]:
 
 
 # sanity check
 
-ax = plans['trip_mode'].hist(figsize=(15,4), xrot=20, alpha=0.5, label="original plans")
+ax = plans['trip_mode'].hist(figsize=(15,3), xrot=20, alpha=0.5, label="original plans")
 plans_cleared['trip_mode'].hist(ax=ax, alpha=0.5, label="cleared plans")
 ax.legend()
 
 
-# In[49]:
+# In[ ]:
 
 
 # saving changed plans to output dir
@@ -225,9 +226,9 @@ plans_cleared.to_csv(f'{out_dir}/plans.csv.gz', index=False, compression='gzip')
 
 
 
-# # approach #3 remove all plans\people with only specific modes and with all OD outside the study area)
+# # approach #3 remove plans\people with only specific modes and with all OD outside the study area
 
-# In[50]:
+# In[ ]:
 
 
 # looking for plans for persons outside of study area 
@@ -236,19 +237,19 @@ plans_outside_area = plans[~plans['person_id'].isin(persons_within_area)]
 plans_outside_area['person_id'].nunique()
 
 
-# In[54]:
+# In[ ]:
 
 
 plans_outside_area.head(2)
 
 
-# In[73]:
+# In[ ]:
 
 
 plans_outside_area['trip_mode'].value_counts()
 
 
-# In[88]:
+# In[ ]:
 
 
 # take only trips (with trip mode not NA)
@@ -268,14 +269,7 @@ persons_within_and_outside_with_allowed_modes.update(persons_outside_with_allowe
 len(persons_within_and_outside_with_allowed_modes), len(persons_outside_with_allowed_modes)
 
 
-# In[90]:
-
-
-df3 = plans[plans['person_id'].isin(persons_outside_with_allowed_modes)]
-df3['trip_mode'].hist(figsize=(15,4), xrot=20, alpha=0.5, label="original plans")
-
-
-# In[91]:
+# In[ ]:
 
 
 # get plans without persons outside area that has only restricted modes
@@ -283,19 +277,19 @@ df3['trip_mode'].hist(figsize=(15,4), xrot=20, alpha=0.5, label="original plans"
 plans_filtered = plans[plans['person_id'].isin(persons_within_and_outside_with_allowed_modes)]
 
 
-# In[92]:
+# In[ ]:
 
 
 # sanity check
 
-ax = plans['trip_mode'].hist(figsize=(15,4), xrot=20, alpha=0.5, label="original plans")
+ax = plans['trip_mode'].hist(figsize=(15,3), xrot=20, alpha=0.5, label="original plans")
 plans_filtered['trip_mode'].hist(ax=ax, alpha=0.5, label="filtered plans")
 plans[plans['person_id'].isin(persons_outside_with_allowed_modes)]['trip_mode'].hist(ax=ax, alpha=0.5, label="plans of persons outside with allowed modes")
 
 ax.legend()
 
 
-# In[94]:
+# In[ ]:
 
 
 # downsampling scenario based on selected persons
@@ -316,7 +310,7 @@ selected_blocks_df = blocks[blocks['block_id'].isin(selected_block_ids)]
 print(f"there are {len(selected_blocks_df)} selected blocks (out of {len(blocks)})")
 
 
-# In[95]:
+# In[ ]:
 
 
 # saving downsampled scenario to output dir
@@ -331,7 +325,7 @@ selected_plans_df.to_csv(f'{out_dir}/plans.csv.gz', index=False, compression='gz
 selected_blocks_df.to_csv(f'{out_dir}/blocks.csv.gz', index=False, compression='gzip')
 
 
-# In[96]:
+# In[ ]:
 
 
 # splitting plans into two dataframes based on selected persons IDs and clearing modes for selected persons plans
@@ -347,7 +341,7 @@ selected_plans_area_without_modes_df = pd.concat([plans_within, plans_rest]).sor
 selected_plans_area_without_modes_df.shape
 
 
-# In[97]:
+# In[ ]:
 
 
 # saving downsampled scenario to output dir
@@ -362,7 +356,7 @@ selected_plans_area_without_modes_df.to_csv(f'{out_dir}/plans.csv.gz', index=Fal
 selected_blocks_df.to_csv(f'{out_dir}/blocks.csv.gz', index=False, compression='gzip')
 
 
-# In[100]:
+# In[ ]:
 
 
 # removing all modes altogether
@@ -370,7 +364,7 @@ selected_plans_without_modes_df = selected_plans_area_without_modes_df.copy()
 selected_plans_without_modes_df['trip_mode'] = np.nan
 
 
-# In[101]:
+# In[ ]:
 
 
 # saving downsampled scenario to output dir
@@ -385,15 +379,17 @@ selected_plans_without_modes_df.to_csv(f'{out_dir}/plans.csv.gz', index=False, c
 selected_blocks_df.to_csv(f'{out_dir}/blocks.csv.gz', index=False, compression='gzip')
 
 
-# In[102]:
+# # sanity check
+
+# In[ ]:
 
 
-plans1 = pd.read_csv("sampled_scenario__within_area_plus_outside_with_allowed_modes__with_modes/plans.csv.gz")
-plans2 = pd.read_csv("sampled_scenario__within_area_plus_outside_with_allowed_modes__area_without_modes/plans.csv.gz")
-plans3 = pd.read_csv("sampled_scenario__within_area_plus_outside_with_allowed_modes__without_modes/plans.csv.gz")
+plans1 = pd.read_csv("sampled_scenario__within_area_plus_outside_with_allowed_modes__with_modes/plans.csv.gz", low_memory=False)
+plans2 = pd.read_csv("sampled_scenario__within_area_plus_outside_with_allowed_modes__area_without_modes/plans.csv.gz", low_memory=False)
+plans3 = pd.read_csv("sampled_scenario__within_area_plus_outside_with_allowed_modes__without_modes/plans.csv.gz", low_memory=False)
 
 
-ax = plans1['trip_mode'].hist(figsize=(15,4), xrot=20, alpha=0.5, label="with modes")
+ax = plans1['trip_mode'].hist(figsize=(15,3), xrot=20, alpha=0.5, label="with modes")
 plans2['trip_mode'].hist(ax=ax, alpha=0.5, label="area without modes")
 plans3['trip_mode'].hist(ax=ax, alpha=0.5, label="no modes")
 
