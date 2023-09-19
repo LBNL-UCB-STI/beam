@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import shapefile as sh
-
+import geopandas as gpd
 
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
@@ -32,90 +32,53 @@ def read_shapefile_as_dataframe(shp_path):
     return df
 
 
+# ## approach #1
+
 # In[ ]:
 
 
-shp_path = "../local_files/MTC-avgload5period/network_links.shp"
+shp_path = "../local_files/FLEXSTOPS/FLEXSTOPS/FLEXServiceStops.shp"
 
 df1 = read_shapefile_as_dataframe(shp_path)
-print(df1['A'].nunique(), df1['B'].nunique(), df1['CITYNAME'].nunique())
-df1.head(2)
+display(df1.head(2))
+
+
+# ## approach #2
+
+# In[ ]:
+
+
+shp_path = "../local_files/FLEXSTOPS/FLEXSTOPS/FLEXServiceStops.shp"
+
+# reading the shape file
+shp_df = gpd.read_file(shp_path)
+display(shp_df.head(2))
 
 
 # In[ ]:
 
 
-shp_path = "../local_files/VTA-model-network/HNETAM.shp"
+# getting points out of geometries (if geometry include multiple points - they will be multiple separate rows)
 
-df2 = read_shapefile_as_dataframe(shp_path)
-print(df2['A'].nunique(), df2['B'].nunique())
-df2.head(2)
-
-
-# In[ ]:
-
-
-df1_csv = pd.read_csv('../local_files/MTC-avgload5period/avgload5period.csv')
-df1_csv.head()
+points = shp_df.get_coordinates()
+print(f"there are {len(points)} points")
+points.rename(columns={"x": "coord-x", "y": "coord-y"}, errors="raise", inplace=True)
+points.head(2)
 
 
 # In[ ]:
 
 
-s1 = set(df1.columns)
-s2 = set(df2.columns)
-len(s1), len(s2), len(s1 - s2), len(s2 - s1)
+# saving csv
+
+csv_path = "../local_files/FLEXSTOPS/FLEXSTOPS.points.csv"
+points.to_csv(csv_path, encoding='utf-8', index=False)
 
 
 # In[ ]:
 
 
-selected_cols = []
 
-for c in df.columns:
-    if not c.startswith("TOLL") and not c.startswith('VOL'):
-        selected_cols.append(c)
-len(selected_cols) #, selected_cols
-
-
-# In[ ]:
-
-
-df[selected_cols].head()
-
-
-# In[ ]:
-
-
-network = pd.read_csv("../local_files/network.2.csv.gz")
-network.head(3)
-
-
-# In[ ]:
-
-
-# NOT matching
-
-_, axs = plt.subplots(2,2, figsize=(15,6))
-df['DISTANCE'].hist(bins=100, ax=axs[0][0])
-network['linkLength'].hist(bins=100, ax=axs[0][1])
-df['LANES'].hist(bins=100, ax=axs[1][0])
-network['numberOfLanes'].hist(bins=100, ax=axs[1][1])
-
-
-# In[ ]:
-
-
-network_links = set(network['linkId'].unique())
-network_osm_ids = set(network['attributeOrigId'].fillna(0).astype(int).unique())
-len(network_links), len(network_osm_ids)
-
-
-# In[ ]:
-
-
-ids_shp = set(df['B'].unique())
-len(ids_shp), len(ids_shp - network_osm_ids), len(network_osm_ids - ids_shp)
 
 
 # In[ ]:
