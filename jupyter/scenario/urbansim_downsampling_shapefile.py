@@ -161,8 +161,8 @@ geo_activities_within_area.head(2)
 
 _, ax = plt.subplots(1, 1, figsize=(10,5))
 
-plans['trip_mode'].hist(ax=ax, alpha=0.5, label="original plans", orientation='horizontal')
-plans[plans['person_id'].isin(persons_within_area)]['trip_mode'].hist(ax=ax, alpha=0.5, label="within area plans", orientation='horizontal')
+plans['trip_mode'].hist(ax=ax, bins=36, alpha=0.5, label="original plans", orientation='horizontal')
+plans[plans['person_id'].isin(persons_within_area)]['trip_mode'].hist(ax=ax, bins=36, alpha=0.5, label="within area plans", orientation='horizontal')
 
 # ax.tick_params(axis='x', labelrotation=75)
 ax.legend()
@@ -336,8 +336,10 @@ print(f"there are {len(selected_blocks_df)} selected blocks (out of {len(blocks)
 
 _, ax = plt.subplots(1, 1, figsize=(10,5))
 
+bins = plans['trip_mode'].nunique() * 2
+
 def plot_hist(plans_df, label):
-    plans_df['trip_mode'].hist(ax=ax, alpha=0.5, histtype="step", bins=20, linewidth=5, label=label, orientation='horizontal')
+    plans_df['trip_mode'].hist(ax=ax, alpha=0.5, histtype="step", bins=bins, linewidth=2, label=label, orientation='horizontal')
 
 plot_hist(plans, label="original plans")
 plot_hist(plans[plans['person_id'].isin(persons_within_area)], label="within area plans")
@@ -452,13 +454,47 @@ selected_blocks_df.to_csv(f'{out_dir}/blocks.csv.gz', index=False, compression='
 selected_plans_area_without_modes_df.to_csv(f'{out_dir}/plans.csv.gz', index=False, compression='gzip')
 
 
-# # approach 3.3 + clear all modes
+# # approach 3.3 + clear modes for persons with OD within study area
+
+# In[ ]:
+
+
+# splitting plans into two dataframes based on selected persons IDs and clearing modes for selected persons plans
+
+plans_within = plans[plans['person_id'].isin(persons_within_area)].copy()
+plans_rest = plans[plans['person_id'].isin(persons_outside_with_allowed_modes)].copy()
+
+# reset modes
+plans_within['trip_mode'] = np.nan
+
+# concat two dataframes back with sorting by person Id and plan element index
+selected_plans_area_without_modes_df = pd.concat([plans_within, plans_rest]).sort_values(['person_id','PlanElementIndex'])
+selected_plans_area_without_modes_df.shape
+
+
+# In[ ]:
+
+
+# saving downsampled scenario to output dir
+
+out_dir = 'sampled_scenario__v1_30pct_study_area_without_modes'
+
+Path(out_dir).mkdir(parents=True, exist_ok=True)
+
+selected_persons_df.to_csv(f'{out_dir}/persons.csv.gz', index=False, compression='gzip')
+selected_households_df.to_csv(f'{out_dir}/households.csv.gz', index=False, compression='gzip')
+selected_blocks_df.to_csv(f'{out_dir}/blocks.csv.gz', index=False, compression='gzip')
+
+selected_plans_area_without_modes_df.to_csv(f'{out_dir}/plans.csv.gz', index=False, compression='gzip')
+
+
+# # approach 3.4 + clear all modes
 
 # In[ ]:
 
 
 # removing all modes altogether
-selected_plans_without_modes_df = selected_plans_area_without_modes_df.copy()
+selected_plans_without_modes_df = plans[plans['person_id'].isin(persons_within_and_outside_with_allowed_modes)].copy()
 selected_plans_without_modes_df['trip_mode'] = np.nan
 
 
@@ -467,7 +503,7 @@ selected_plans_without_modes_df['trip_mode'] = np.nan
 
 # saving downsampled scenario to output dir
 
-out_dir = 'sampled_scenario__within_area_plus_outside_with_allowed_modes__without_modes'
+out_dir = 'sampled_scenario__v1_30pct__without_modes'
 
 Path(out_dir).mkdir(parents=True, exist_ok=True)
 
