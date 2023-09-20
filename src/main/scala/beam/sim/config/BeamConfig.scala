@@ -1107,7 +1107,8 @@ object BeamConfig {
             pooledCostPerMile: scala.Double,
             pooledCostPerMinute: scala.Double,
             repositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager,
-            rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager
+            rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager,
+            surgePricing: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.SurgePricing
           )
 
           object Managers$Elm {
@@ -1454,6 +1455,31 @@ object BeamConfig {
               }
             }
 
+            case class SurgePricing(
+              minimumSurgeLevel: scala.Double,
+              numberOfCategories: scala.Int,
+              priceAdjustmentStrategy: java.lang.String,
+              surgeLevelAdaptionStep: scala.Double
+            )
+
+            object SurgePricing {
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.SurgePricing = {
+                BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.SurgePricing(
+                  minimumSurgeLevel =
+                    if (c.hasPathOrNull("minimumSurgeLevel")) c.getDouble("minimumSurgeLevel") else 0.1,
+                  numberOfCategories = if (c.hasPathOrNull("numberOfCategories")) c.getInt("numberOfCategories") else 6,
+                  priceAdjustmentStrategy =
+                    if (c.hasPathOrNull("priceAdjustmentStrategy")) c.getString("priceAdjustmentStrategy")
+                    else "KEEP_PRICE_LEVEL_FIXED_AT_ONE",
+                  surgeLevelAdaptionStep =
+                    if (c.hasPathOrNull("surgeLevelAdaptionStep")) c.getDouble("surgeLevelAdaptionStep") else 0.1
+                )
+              }
+            }
+
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm = {
               BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm(
                 allocationManager = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager(
@@ -1482,6 +1508,10 @@ object BeamConfig {
                 rideHailManager = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager(
                   if (c.hasPathOrNull("rideHailManager")) c.getConfig("rideHailManager")
                   else com.typesafe.config.ConfigFactory.parseString("rideHailManager{}")
+                ),
+                surgePricing = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.SurgePricing(
+                  if (c.hasPathOrNull("surgePricing")) c.getConfig("surgePricing")
+                  else com.typesafe.config.ConfigFactory.parseString("surgePricing{}")
                 )
               )
             }

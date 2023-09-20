@@ -27,7 +27,7 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
     private final Logger log = LoggerFactory.getLogger(RideHailRevenueAnalysis.class);
 
     private final RideHailSurgePricingManager surgePricingManager;
-    static final String fileBaseName = "rideHailRevenue";
+    static final String fileBaseName = "rideHailRevenue_%s";
 
     private OutputDirectoryHierarchy outputDirectoryHiearchy;
 
@@ -53,7 +53,7 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
         model.setSurgePricingLevelCount(surgePricingManager.surgePricingLevelCount());
         model.setTotalSurgePricingLevel(surgePricingManager.totalSurgePricingLevel());
         GraphUtils.RIDE_HAIL_REVENUE_MAP.put(event.getIteration(), model);
-        if(surgePricingManager.beamServices().beamConfig().beam().outputs().writeGraphs()){
+        if(surgePricingManager.beamConfig().beam().outputs().writeGraphs()){
             createGraph(data);
         }
 
@@ -75,7 +75,7 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
                 false, true
         );
 
-        String graphImageFile = outputDirectoryHiearchy.getOutputFilename(fileBaseName + ".png");
+        String graphImageFile = outputDirectoryHiearchy.getOutputFilename(String.format(fileBaseName, this.surgePricingManager.managerName()) + ".png");
         try {
             GraphUtils.saveJFreeChartAsPNG(chart, graphImageFile, GraphsStatsAgentSimEventsListener.GRAPH_WIDTH, GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT);
         } catch (IOException e) {
@@ -97,7 +97,7 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
 
     private void writeRideHailRevenueCsv(ArrayBuffer<?> data) {
         try {
-            String fileName = outputDirectoryHiearchy.getOutputFilename(fileBaseName + ".csv");
+            String fileName = outputDirectoryHiearchy.getOutputFilename(String.format(fileBaseName, this.surgePricingManager.managerName()) + ".csv");
             BufferedWriter outWriter = new BufferedWriter(new FileWriter(new File(fileName)));
 
             outWriter.write("iteration #,revenue");

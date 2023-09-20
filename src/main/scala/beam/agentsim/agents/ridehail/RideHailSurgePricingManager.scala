@@ -1,7 +1,8 @@
 package beam.agentsim.agents.ridehail
 
 import beam.router.BeamRouter.Location
-import beam.sim.BeamServices
+import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents
 import com.google.inject.Inject
 import org.matsim.core.utils.misc.Time
@@ -10,10 +11,16 @@ import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
-class RideHailSurgePricingManager @Inject() (val beamServices: BeamServices) {
+class RideHailSurgePricingManager @Inject() (
+  val beamConfig: BeamConfig,
+  val beamScenario: BeamScenario,
+  val managerName: String
+) {
   import RideHailSurgePricingManager._
 
-  val rideHailConfig: Agents.RideHail = beamServices.beamConfig.beam.agentsim.agents.rideHail
+  val rideHailConfig: Option[Agents.RideHail.Managers$Elm] =
+    beamConfig.beam.agentsim.agents.rideHail.managers.find(_.name == managerName)
+  val surgePricing = rideHailConfig.map(_.surgePricing).getOrElse(throw new Exception("Ride hail config not found"))
 
   // TODO:
 
@@ -26,14 +33,13 @@ class RideHailSurgePricingManager @Inject() (val beamServices: BeamServices) {
 
   // TODO: can we allow any other class to inject taz as well, without loading multiple times? (Done)
   val timeBinSize: Int =
-    beamServices.beamConfig.beam.agentsim.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
-  val numberOfCategories: Int =
-    rideHailConfig.surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
+    beamConfig.beam.agentsim.timeBinSize // TODO: does throw exception for 60min, if +1 missing below
+  val numberOfCategories: Int = surgePricing.numberOfCategories // TODO: does throw exception for 0 and negative values
   val numberOfTimeBins: Int = Math
-    .floor(Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime) / timeBinSize)
+    .floor(Time.parseTime(beamConfig.matsim.modules.qsim.endTime) / timeBinSize)
     .toInt + 1
-  val surgeLevelAdaptionStep: Double = rideHailConfig.surgePricing.surgeLevelAdaptionStep
-  val minimumSurgeLevel: Double = rideHailConfig.surgePricing.minimumSurgeLevel
+  val surgeLevelAdaptionStep: Double = surgePricing.surgeLevelAdaptionStep
+  val minimumSurgeLevel: Double = surgePricing.minimumSurgeLevel
   // TODO: implement all cases for these surge prices properly
   val CONTINUES_DEMAND_SUPPLY_MATCHING = "CONTINUES_DEMAND_SUPPLY_MATCHING"
   val KEEP_PRICE_LEVEL_FIXED_AT_ONE = "KEEP_PRICE_LEVEL_FIXED_AT_ONE"
@@ -42,14 +48,14 @@ class RideHailSurgePricingManager @Inject() (val beamServices: BeamServices) {
 
   //Scala like code
   val surgePriceBins: Map[String, ArrayBuffer[SurgePriceBin]] =
-    beamServices.beamScenario.tazTreeMap.tazQuadTree.values.asScala.map { v =>
+    beamScenario.tazTreeMap.tazQuadTree.values.asScala.map { v =>
       val array = (0 until numberOfTimeBins).foldLeft(new ArrayBuffer[SurgePriceBin]) { (arrayBuffer, _) =>
         arrayBuffer.append(defaultBinContent)
         arrayBuffer
       }
       (v.tazId.toString, array)
     }.toMap
-  val rand = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
+  val rand = new Random(beamConfig.matsim.modules.global.randomSeed)
   var iteration = 0
   var isFirstIteration = true
 
@@ -61,7 +67,7 @@ class RideHailSurgePricingManager @Inject() (val beamServices: BeamServices) {
 
   // TODO: initialize all bins (price levels and iteration revenues)!
   var totalSurgePricingLevel: Double = 0
-  var priceAdjustmentStrategy: String = rideHailConfig.surgePricing.priceAdjustmentStrategy
+  var priceAdjustmentStrategy: String = surgePricing.priceAdjustmentStrategy
 
   // this should be invoked after each iteration
   // TODO: initialize in BEAMSim and also reset there after each iteration?
@@ -118,7 +124,7 @@ class RideHailSurgePricingManager @Inject() (val beamServices: BeamServices) {
   }
 
   def getSurgeLevel(location: Location, time: Double): Double = {
-    val taz = beamServices.beamScenario.tazTreeMap.getTAZ(location.getX, location.getY)
+    val taz = beamScenario.tazTreeMap.getTAZ(location.getX, location.getY)
     val timeBinIndex = getTimeBinIndex(time)
     surgePriceBins
       .get(taz.tazId.toString)
@@ -138,7 +144,7 @@ class RideHailSurgePricingManager @Inject() (val beamServices: BeamServices) {
 
   def addRideCost(time: Double, cost: Double, pickupLocation: Location): Unit = {
 
-    val taz = beamServices.beamScenario.tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
+    val taz = beamScenario.tazTreeMap.getTAZ(pickupLocation.getX, pickupLocation.getY)
     val timeBinIndex = getTimeBinIndex(time)
 
     surgePriceBins.get(taz.tazId.toString).foreach { i =>

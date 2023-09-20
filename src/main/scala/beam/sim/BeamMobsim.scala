@@ -62,7 +62,8 @@ class BeamMobsim @Inject() (
   val scenario: Scenario,
   val eventsManager: EventsManager,
   val actorSystem: ActorSystem,
-  val rideHailSurgePricingManager: RideHailSurgePricingManager,
+//  val rideHailSurgePricingManager: RideHailSurgePricingManager,
+  val rideHailSurgePricingManagers: Map[String, RideHailSurgePricingManager],
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory,
   val geo: GeoUtils,
@@ -181,7 +182,7 @@ class BeamMobsim @Inject() (
         new BeamMobsimIteration(
           beamServices,
           eventsManager,
-          rideHailSurgePricingManager,
+          rideHailSurgePricingManagers,
           rideHailIterationHistory,
           routeHistory,
           rideHailFleetInitializerProvider
@@ -363,7 +364,8 @@ class BeamMobsim @Inject() (
 class BeamMobsimIteration(
   val beamServices: BeamServices,
   val eventsManager: EventsManager,
-  val rideHailSurgePricingManager: RideHailSurgePricingManager,
+//  val rideHailSurgePricingManager: RideHailSurgePricingManager,
+  val rideHailSurgePricingManagers: Map[String, RideHailSurgePricingManager],
   val rideHailIterationHistory: RideHailIterationHistory,
   val routeHistory: RouteHistory,
   val rideHailFleetInitializerProvider: RideHailFleetInitializerProvider
@@ -466,7 +468,7 @@ class BeamMobsimIteration(
           chargingNetworkManager,
           envelopeInUTM,
           activityQuadTreeBounds,
-          rideHailSurgePricingManager,
+          rideHailSurgePricingManagers.values.head,
           rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
           routeHistory,
           rideHailFleetInitializer,
@@ -488,7 +490,7 @@ class BeamMobsimIteration(
           chargingNetworkManager,
           envelopeInUTM,
           activityQuadTreeBounds,
-          rideHailSurgePricingManager,
+          rideHailSurgePricingManagers,
           rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
           routeHistory,
           rideHailFleetInitializerProvider

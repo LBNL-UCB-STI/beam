@@ -43,6 +43,8 @@ import com.conveyal.r5.transit.TransportNetwork
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.google.inject
+import com.google.inject.{Binder, TypeLiteral}
+import com.google.inject.binder.AnnotatedBindingBuilder
 import com.google.inject.Scopes
 import com.google.inject.name.Names
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory, ConfigValueType, Config => TypesafeConfig}
@@ -193,16 +195,27 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
           bind(classOf[TerminationCriterion]).toProvider(classOf[TerminationCriterionProvider])
 
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
-          bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
+//          bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
+
+          val rideHailSurgePricingManagersMap = beamConfig.beam.agentsim.agents.rideHail.managers.map { managerConfig =>
+            managerConfig.name -> new RideHailSurgePricingManager(beamConfig, beamScenario, managerConfig.name)
+          }.toMap
+
+          bind(new TypeLiteral[Map[String, RideHailSurgePricingManager]] {}).toInstance(rideHailSurgePricingManagersMap)
+
+//          val mapBinder = binder().bind(classOf[Map[String, RideHailSurgePricingManager]])
+//          mapBinder.toInstance(rideHailSurgePricingManagersMap)
+//          mapBinder.asEagerSingleton()
 
           addControlerListenerBinding().to(classOf[BeamSim])
           addControlerListenerBinding().to(classOf[BeamScoringFunctionFactory])
           addControlerListenerBinding().to(classOf[RouteHistory])
 
           addControlerListenerBinding().to(classOf[ActivityLocationPlotter])
-          addControlerListenerBinding().to(classOf[GraphSurgePricing])
+
+//          addControlerListenerBinding().to(classOf[GraphSurgePricing])
           bind(classOf[BeamOutputDataDescriptionGenerator])
-          addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
+//          addControlerListenerBinding().to(classOf[RideHailRevenueAnalysis])
           bind(classOf[ModeIterationPlanCleaner])
 
           bindMobsim().to(classOf[BeamMobsim])
