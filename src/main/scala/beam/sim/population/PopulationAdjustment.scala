@@ -9,7 +9,6 @@ import org.matsim.api.core.v01.population.{Person, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.population.PersonUtils
 import org.matsim.households.Household
-
 import java.util.Random
 import scala.collection.JavaConverters._
 

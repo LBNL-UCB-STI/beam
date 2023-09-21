@@ -170,10 +170,13 @@ trait NetworkCoordinator extends LazyLogging {
   ): Unit = {
     overwriteLinkParamMap.foreach { case (linkId, param) =>
       val link = network.getLinks.get(Id.createLinkId(linkId))
-      require(link != null, s"Could not find link with id $linkId")
-      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-      // Overwrite params
-      param.overwriteFor(link, edge)
+      if (link != null) {
+        val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+        // Overwrite params
+        param.overwriteFor(link, edge)
+      } else {
+        logger.error(s"Could not find link with id $linkId")
+      }
     }
   }
 

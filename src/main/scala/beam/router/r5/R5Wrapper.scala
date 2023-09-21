@@ -732,7 +732,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             case LegMode.CAR_PARK                        => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
             case LegMode.CAR if mainRouteRideHailTransit => beamConfig.beam.routing.r5.accessBufferTimeSeconds.ride_hail
             case LegMode.CAR                             => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
-            case _                                       => 0
           }
           val tripStartTime = dates
             .toBaseMidnightSeconds(
@@ -1033,7 +1032,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         beamLeg.travelPath.distanceInM,
         beamLeg.duration,
         vehicleType,
-        fuelTypePrices(vehicleType.primaryFuelType)
+        fuelTypePrices.getOrElse(vehicleType.primaryFuelType, 0.0)
       )
     } else 0.0
     EmbodiedBeamLeg(

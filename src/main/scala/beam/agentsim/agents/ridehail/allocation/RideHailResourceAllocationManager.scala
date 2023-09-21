@@ -161,13 +161,14 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     var alreadyAllocated: Set[Id[BeamVehicle]] = Set()
     val allocResponses = vehicleAllocationRequest.requests.map {
       case (request, routingResponses) if routingResponses.isEmpty =>
+        val departAt = math.max(tick, request.departAt)
         val requestWithUpdatedLoc = RideHailRequest.projectCoordinatesToUtm(request, beamServices)
         rideHailManager.rideHailManagerHelper
           .getClosestIdleVehiclesWithinRadiusByETA(
             requestWithUpdatedLoc.pickUpLocationUTM,
             requestWithUpdatedLoc.destinationUTM,
             rideHailManager.radiusInMeters,
-            tick,
+            departAt,
             maxWaitTimeInSec,
             requireWheelchairAccessible = request.withWheelchair
           ) match {
@@ -175,7 +176,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
             val routeRequired = RoutingRequiredToAllocateVehicle(
               requestWithUpdatedLoc,
               rideHailManager.createRoutingRequestsToCustomerAndDestination(
-                tick,
+                departAt,
                 requestWithUpdatedLoc,
                 agentETA.agentLocation,
                 request.triggerId
@@ -189,13 +190,14 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
       case (request, routingResponses) if routingResponses.exists(_.itineraries.isEmpty) =>
         NoVehicleAllocated(request)
       case (request, routingResponses) =>
+        val departAt = math.max(tick, request.departAt)
         val requestUpdated = RideHailRequest.projectCoordinatesToUtm(request, beamServices)
         rideHailManager.rideHailManagerHelper
           .getClosestIdleVehiclesWithinRadiusByETA(
             requestUpdated.pickUpLocationUTM,
             requestUpdated.destinationUTM,
             rideHailManager.radiusInMeters,
-            tick,
+            departAt,
             maxWaitTimeInSec,
             excludeRideHailVehicles = alreadyAllocated,
             requireWheelchairAccessible = request.withWheelchair

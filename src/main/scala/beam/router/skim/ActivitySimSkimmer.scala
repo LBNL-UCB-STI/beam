@@ -1,6 +1,8 @@
 package beam.router.skim
 
+import beam.router.skim.ActivitySimPathType.{isWalkTransit, WLK_TRN_WLK}
 import beam.router.skim.core.{AbstractSkimmer, AbstractSkimmerInternal, AbstractSkimmerKey, AbstractSkimmerReadOnly}
+import beam.router.skim.urbansim.ActivitySimOmxWriter
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
 import beam.utils.ProfilingUtils
@@ -11,6 +13,7 @@ import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.IterationEndsEvent
 
 import java.io.BufferedWriter
+import scala.collection.immutable.SortedSet
 import scala.util.Failure
 import scala.util.control.NonFatal
 
@@ -29,8 +32,9 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
 
   override def writeToDisk(event: IterationEndsEvent): Unit =
     if (config.writeSkimsInterval > 0 && event.getIteration % config.writeSkimsInterval == 0) {
+      val extension = if (config.activity_sim_skimmer.fileOutputFormat.equalsIgnoreCase("csv")) "csv.gz" else "omx"
       val filePath = event.getServices.getControlerIO
-        .getIterationFilename(event.getServices.getIterationNumber, skimFileBaseName + "_current.csv.gz")
+        .getIterationFilename(event.getServices.getIterationNumber, s"${skimFileBaseName}_current.$extension")
       writePresentedSkims(filePath)
     }
 
@@ -47,13 +51,14 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     val prevSkim = prevIteration
       .map(_.asInstanceOf[ActivitySimSkimmerInternal])
       .getOrElse(
-        ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, observations = 0)
+        ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
       )
     val currSkim =
       currIteration
         .map(_.asInstanceOf[ActivitySimSkimmerInternal])
         .getOrElse(
           ActivitySimSkimmerInternal(
+            0,
             0,
             0,
             0,
@@ -197,6 +202,17 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     ProfilingUtils.timed("Writing skims that are created during simulation ", x => logger.info(x)) {
       val excerptData = currentSkim
         .asInstanceOf[Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal]]
+        .flatMap {
+          case (key, value) if isWalkTransit(key.pathType) =>
+            // The WLK_TRN_WLK skim is a catch-all for all transit trips, so rather than storing extra in the skims we
+            // just duplicate the appropriate values when aggregating them up
+            Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal](
+              key                              -> value,
+              key.copy(pathType = WLK_TRN_WLK) -> value
+            )
+          case (key, value) =>
+            Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal](key -> value)
+        }
         .groupBy { case (key, _) =>
           val asTimeBin = ActivitySimTimeBin.toTimeBin(key.hour)
           ActivitySimKey(asTimeBin, key.pathType, key.origin, key.destination)
@@ -205,10 +221,16 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
           weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.values.toList)
         }
 
-      val csvWriter = new CsvWriter(filePath, ExcerptData.csvHeaderSeq)
-      csvWriter.writeAllAndClose(excerptData.map(_.toCsvSeq)) match {
+      val writeResult = if (config.activity_sim_skimmer.fileOutputFormat.trim.equalsIgnoreCase("csv")) {
+        val csvWriter = new CsvWriter(filePath, ExcerptData.csvHeaderSeq)
+        csvWriter.writeAllAndClose(excerptData.map(_.toCsvSeq))
+      } else {
+        val geoUnits = beamScenario.tazTreeMap.getOrderedTazIds
+        ActivitySimOmxWriter.writeToOmx(filePath, excerptData.iterator, geoUnits)
+      }
+      writeResult match {
         case Failure(exception) =>
-          logger.error(s"Cannot write to $filePath", exception)
+          logger.error(s"Cannot write skims to {}", filePath, exception)
         case _ =>
       }
     }
@@ -252,14 +274,23 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     individualSkims: List[ActivitySimSkimmerInternal]
   ) = {
     val weights = individualSkims.map(sk => sk.observations)
-    val sumWeights = if (weights.sum == 0) 1 else weights.sum
+    val sumWeights = weights.sum
 
-    def getWeightedSkimsValue(getValue: ActivitySimSkimmerInternal => Double): Double =
-      individualSkims.map(getValue).zip(weights).map(tup => tup._1 * tup._2).sum / sumWeights
+    def getWeightedSkimsValue(getValue: ActivitySimSkimmerInternal => Double): Double = {
+      if (weights.sum == 0) { 0 }
+      else {
+        individualSkims
+          .map(getValue)
+          .zip(weights)
+          .map { case (value, weight) => value * weight }
+          .filter(!_.isNaN)
+          .foldLeft(0d)(_ + _) / sumWeights
+      }
+    }
 
     val weightedDistance = getWeightedSkimsValue(_.distanceInMeters)
     val weightedTotalTime = getWeightedSkimsValue(_.travelTimeInMinutes)
-    val weightedCost = getWeightedSkimsValue(_.cost)
+    val weightedCostInDollars = getWeightedSkimsValue(_.cost)
     val weightedWalkAccessTime = getWeightedSkimsValue(_.walkAccessInMinutes)
     val weightedWalkEgressTime = getWeightedSkimsValue(_.walkEgressInMinutes)
     val weightedWalkAuxiliaryTime = getWeightedSkimsValue(_.walkAuxiliaryInMinutes)
@@ -282,7 +313,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       destinationId = destinationId,
       weightedTotalTime = weightedTotalTime,
       weightedTotalInVehicleTime = weightedTotalInVehicleTime,
-      weightedTotalCost = weightedCost,
+      weightedTotalFareInCents = weightedCostInDollars * 100,
       weightedDistance = weightedDistance,
       weightedWalkAccess = weightedWalkAccessTime,
       weightedWalkAuxiliary = weightedWalkAuxiliaryTime,
@@ -294,7 +325,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       weightedKeyInVehicleTimeInMinutes = weightedKeyInVehicleTime,
       weightedFerryInVehicleTimeInMinutes = weightedFerryTime,
       weightedTransitBoardingsCount = weightedTransitBoardingsCount,
-      weightedCost = weightedCost,
+      weightedCost = weightedCostInDollars,
       failedTrips = failedTrips,
       completedTrips = completedTrips,
       debugText = debugText
@@ -363,8 +394,8 @@ object ActivitySimSkimmer extends LazyLogging {
     ferryInVehicleTimeInMinutes: Double,
     keyInVehicleTimeInMinutes: Double,
     transitBoardingsCount: Double,
-    failedTrips: Int = 0,
-    observations: Int = 1,
+    failedTrips: Int,
+    observations: Int,
     iterations: Int = 0,
     debugText: String = ""
   ) extends AbstractSkimmerInternal {
@@ -387,7 +418,7 @@ object ActivitySimSkimmer extends LazyLogging {
     destinationId: String,
     weightedTotalTime: Double,
     weightedTotalInVehicleTime: Double,
-    weightedTotalCost: Double,
+    weightedTotalFareInCents: Double,
     weightedDistance: Double,
     weightedWalkAccess: Double,
     weightedWalkAuxiliary: Double,
@@ -405,12 +436,55 @@ object ActivitySimSkimmer extends LazyLogging {
     debugText: String = ""
   ) {
 
+    def getValue(metric: ActivitySimMetric): Double = {
+      metric match {
+        case ActivitySimMetric.TOTIVT   => weightedTotalInVehicleTime
+        case ActivitySimMetric.IVT      => weightedTotalInVehicleTime
+        case ActivitySimMetric.FERRYIVT => weightedFerryInVehicleTimeInMinutes
+        case ActivitySimMetric.FAR      => weightedTotalFareInCents
+        case ActivitySimMetric.KEYIVT   => weightedKeyInVehicleTimeInMinutes
+        case ActivitySimMetric.DTIM     => weightedDriveTimeInMinutes
+        case ActivitySimMetric.BOARDS   => weightedTransitBoardingsCount
+        case ActivitySimMetric.DDIST    => weightedDriveDistanceInMeters
+        case ActivitySimMetric.WAUX     => weightedWalkAuxiliary
+        case ActivitySimMetric.TIME     => weightedTotalTime
+        case ActivitySimMetric.DIST     => weightedDistance
+        case ActivitySimMetric.WEGR     => weightedWalkEgress
+        case ActivitySimMetric.WACC     => weightedWalkAccess
+        case ActivitySimMetric.IWAIT    => weightedWaitInitial
+        case ActivitySimMetric.XWAIT    => weightedWaitTransfer
+        case ActivitySimMetric.TRIPS    => completedTrips
+        case ActivitySimMetric.FAILURES => failedTrips
+        case _                          => Double.NaN
+      }
+    }
+
     def toCsvString: String = productIterator.mkString("", ",", "\n")
 
     def toCsvSeq: Seq[Any] = productIterator.toSeq
   }
 
   object ExcerptData {
+
+    val supportedActivitySimMetric: Set[ActivitySimMetric] = Set(
+      ActivitySimMetric.TOTIVT,
+      ActivitySimMetric.IVT,
+      ActivitySimMetric.FERRYIVT,
+      ActivitySimMetric.FAR,
+      ActivitySimMetric.KEYIVT,
+      ActivitySimMetric.DTIM,
+      ActivitySimMetric.BOARDS,
+      ActivitySimMetric.DDIST,
+      ActivitySimMetric.WAUX,
+      ActivitySimMetric.TIME,
+      ActivitySimMetric.DIST,
+      ActivitySimMetric.WEGR,
+      ActivitySimMetric.WACC,
+      ActivitySimMetric.IWAIT,
+      ActivitySimMetric.XWAIT,
+      ActivitySimMetric.TRIPS,
+      ActivitySimMetric.FAILURES
+    )
 
     val csvHeaderSeq: Seq[String] = Seq(
       "timePeriod",

@@ -636,6 +636,7 @@ object BeamConfig {
               ride_hail_pooled_intercept: scala.Double,
               ride_hail_subscription: scala.Double,
               ride_hail_transit_intercept: scala.Double,
+              sav_coefficient: scala.Double,
               transfer: scala.Double,
               transit_crowding: scala.Double,
               transit_crowding_VOT_multiplier: scala.Double,
@@ -668,6 +669,7 @@ object BeamConfig {
                   ride_hail_transit_intercept =
                     if (c.hasPathOrNull("ride_hail_transit_intercept")) c.getDouble("ride_hail_transit_intercept")
                     else 0.0,
+                  sav_coefficient = if (c.hasPathOrNull("sav_coefficient")) c.getDouble("sav_coefficient") else 0.0,
                   transfer = if (c.hasPathOrNull("transfer")) c.getDouble("transfer") else -1.4,
                   transit_crowding = if (c.hasPathOrNull("transit_crowding")) c.getDouble("transit_crowding") else 0.0,
                   transit_crowding_VOT_multiplier =
@@ -1102,12 +1104,16 @@ object BeamConfig {
             defaultCostPerMile: scala.Double,
             defaultCostPerMinute: scala.Double,
             initialization: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization,
+            maximumWalkDistanceToStopInM: scala.Int,
             name: java.lang.String,
             pooledBaseCost: scala.Double,
             pooledCostPerMile: scala.Double,
             pooledCostPerMinute: scala.Double,
             repositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager,
-            rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager
+            rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager,
+            savCoefficientMultiplier: scala.Double,
+            stopFilePath: scala.Option[java.lang.String],
+            supportedModes: java.lang.String
           )
 
           object Managers$Elm {
@@ -1469,6 +1475,9 @@ object BeamConfig {
                   if (c.hasPathOrNull("initialization")) c.getConfig("initialization")
                   else com.typesafe.config.ConfigFactory.parseString("initialization{}")
                 ),
+                maximumWalkDistanceToStopInM =
+                  if (c.hasPathOrNull("maximumWalkDistanceToStopInM")) c.getInt("maximumWalkDistanceToStopInM")
+                  else 800,
                 name = if (c.hasPathOrNull("name")) c.getString("name") else "GlobalRHM",
                 pooledBaseCost = if (c.hasPathOrNull("pooledBaseCost")) c.getDouble("pooledBaseCost") else 1.89,
                 pooledCostPerMile =
@@ -1482,7 +1491,13 @@ object BeamConfig {
                 rideHailManager = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager(
                   if (c.hasPathOrNull("rideHailManager")) c.getConfig("rideHailManager")
                   else com.typesafe.config.ConfigFactory.parseString("rideHailManager{}")
-                )
+                ),
+                savCoefficientMultiplier =
+                  if (c.hasPathOrNull("savCoefficientMultiplier")) c.getDouble("savCoefficientMultiplier") else 0.0,
+                stopFilePath = if (c.hasPathOrNull("stopFilePath")) Some(c.getString("stopFilePath")) else None,
+                supportedModes =
+                  if (c.hasPathOrNull("supportedModes")) c.getString("supportedModes")
+                  else "ride_hail, ride_hail_pooled"
               )
             }
           }
@@ -4110,14 +4125,14 @@ object BeamConfig {
       clearModes: BeamConfig.Beam.Replanning.ClearModes,
       fractionOfIterationsToDisableInnovation: scala.Double,
       maxAgentPlanMemorySize: scala.Int,
-      planSelectionBeta: scala.Int
+      planSelectionBeta: scala.Double
     )
 
     object Replanning {
 
       case class ClearModes(
         iteration: scala.Int,
-        modes: scala.List[java.lang.String],
+        modes: scala.Option[scala.List[java.lang.String]],
         strategy: java.lang.String
       )
 
@@ -4126,7 +4141,7 @@ object BeamConfig {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Replanning.ClearModes = {
           BeamConfig.Beam.Replanning.ClearModes(
             iteration = if (c.hasPathOrNull("iteration")) c.getInt("iteration") else 0,
-            modes = $_L$_str(c.getList("modes")),
+            modes = if (c.hasPathOrNull("modes")) scala.Some($_L$_str(c.getList("modes"))) else None,
             strategy = if (c.hasPathOrNull("strategy")) c.getString("strategy") else "AtBeginningOfIteration"
           )
         }
@@ -4152,7 +4167,7 @@ object BeamConfig {
             else Double.PositiveInfinity,
           maxAgentPlanMemorySize =
             if (c.hasPathOrNull("maxAgentPlanMemorySize")) c.getInt("maxAgentPlanMemorySize") else 5,
-          planSelectionBeta = if (c.hasPathOrNull("planSelectionBeta")) c.getInt("planSelectionBeta") else 1
+          planSelectionBeta = if (c.hasPathOrNull("planSelectionBeta")) c.getDouble("planSelectionBeta") else 1.0
         )
       }
     }
@@ -4178,6 +4193,7 @@ object BeamConfig {
 
         case class ActivitySimSkimmer(
           fileBaseName: java.lang.String,
+          fileOutputFormat: java.lang.String,
           name: java.lang.String
         )
 
@@ -4186,6 +4202,7 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.ActivitySimSkimmer = {
             BeamConfig.Beam.Router.Skim.ActivitySimSkimmer(
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "activitySimODSkims",
+              fileOutputFormat = if (c.hasPathOrNull("fileOutputFormat")) c.getString("fileOutputFormat") else "csv",
               name = if (c.hasPathOrNull("name")) c.getString("name") else "activity-sim-skimmer"
             )
           }
@@ -4717,6 +4734,7 @@ object BeamConfig {
     }
 
     case class WarmStart(
+      initialLinkstatsFilePath: java.lang.String,
       path: java.lang.String,
       prepareData: scala.Boolean,
       samplePopulationIntegerFlag: scala.Int,
@@ -4743,6 +4761,8 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.WarmStart = {
         BeamConfig.Beam.WarmStart(
+          initialLinkstatsFilePath =
+            if (c.hasPathOrNull("initialLinkstatsFilePath")) c.getString("initialLinkstatsFilePath") else "",
           path = if (c.hasPathOrNull("path")) c.getString("path") else "",
           prepareData = c.hasPathOrNull("prepareData") && c.getBoolean("prepareData"),
           samplePopulationIntegerFlag =

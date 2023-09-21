@@ -10,7 +10,7 @@ import org.jfree.data.category.DefaultCategoryDataset;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.events.PersonArrivalEvent;
-import org.matsim.api.core.v01.events.PersonDepartureEvent;
+import beam.agentsim.events.BeamPersonDepartureEvent;
 import org.matsim.api.core.v01.population.Person;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.controler.events.IterationEndsEvent;
@@ -35,7 +35,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
     private static final String otherMode = "mixed_mode";
     private static final String carMode = "car";
     public static final String fileBaseName = "averageTravelTimes";
-    private final Map<String, Map<Id<Person>, PersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
+    private final Map<String, Map<Id<Person>, BeamPersonDepartureEvent>> personLastDepartureEvents = new HashMap<>();
     private final Map<String, Map<Integer, List<Double>>> hourlyPersonTravelTimes = new HashMap<>();
     private final List<Double> averageTime = new ArrayList<>();
     private final SimulationMetricCollector simMetricCollector;
@@ -138,7 +138,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
 
     @Override
     public void processStats(Event event) {
-        if (event instanceof PersonDepartureEvent || event.getEventType().equalsIgnoreCase(PersonDepartureEvent.EVENT_TYPE))
+        if (event instanceof BeamPersonDepartureEvent || event.getEventType().equalsIgnoreCase(BeamPersonDepartureEvent.EVENT_TYPE))
             processPersonDepartureEvent(event);
         else if (event instanceof PersonArrivalEvent || event.getEventType().equalsIgnoreCase(PersonArrivalEvent.EVENT_TYPE))
             processPersonArrivalEvent(event);
@@ -228,16 +228,16 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
         if (!mode.equalsIgnoreCase("car")) {
             // personLastDepartureEvents(map) : travel mode -> (person -> previous departure event)
             // Get the list of previous departures for the current arrival mode
-            Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
+            Map<Id<Person>, BeamPersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
             // case : if previous departure events are available
             if (departureEvents != null) {
                 // Get the departure event corresponding to the current person
-                PersonDepartureEvent personDepartureEvent = departureEvents.get(personId);
-                if (personDepartureEvent != null) {
+                BeamPersonDepartureEvent beamPersonDepartureEvent = departureEvents.get(personId);
+                if (beamPersonDepartureEvent != null) {
                     // Get the hour of the departure event
-                    int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(personDepartureEvent.getTime());
+                    int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(beamPersonDepartureEvent.getTime());
                     // Compute the travel travel time = current arrival time - previous departure time
-                    Double travelTime = (personArrivalEvent.getTime() - personDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
+                    Double travelTime = (personArrivalEvent.getTime() - beamPersonDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
                     // hourlyPersonTravelTimes(map) : travel mode -> (hour of the day -> travel time)
                     Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(mode);
                     if (hourlyPersonTravelTimesPerMode == null) {
@@ -268,16 +268,16 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
                     // For each possible modes , check the last departure event tracked for the current person and select the mode as well
                     //Modeset is very small list hence we can iterate them
                     for (String mayBeMode : modeSet) {
-                        Map<Id<Person>, PersonDepartureEvent> lastDepartureEvents = personLastDepartureEvents.get(mayBeMode);
+                        Map<Id<Person>, BeamPersonDepartureEvent> lastDepartureEvents = personLastDepartureEvents.get(mayBeMode);
                         if (lastDepartureEvents.get(personId) != null) {
-                            personDepartureEvent = lastDepartureEvents.get(personId);
+                            beamPersonDepartureEvent = lastDepartureEvents.get(personId);
                             selectedMode = mayBeMode;
                             break;
                         }
                     }
-                    if (personDepartureEvent != null) {
-                        int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(personDepartureEvent.getTime());
-                        Double travelTime = (personArrivalEvent.getTime() - personDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
+                    if (beamPersonDepartureEvent != null) {
+                        int basketHour = GraphsStatsAgentSimEventsListener.getEventHour(beamPersonDepartureEvent.getTime());
+                        Double travelTime = (personArrivalEvent.getTime() - beamPersonDepartureEvent.getTime()) / SECONDS_IN_MINUTE;
                         Map<Integer, List<Double>> hourlyPersonTravelTimesPerMode = hourlyPersonTravelTimes.get(otherMode);
                         if (hourlyPersonTravelTimesPerMode == null) {
                             hourlyPersonTravelTimesPerMode = new HashMap<>();
@@ -293,7 +293,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
                             hourlyPersonTravelTimesPerMode.put(basketHour, travelTimes);
                         }
                         hourlyPersonTravelTimes.put(otherMode, hourlyPersonTravelTimesPerMode);
-                        Map<Id<Person>, PersonDepartureEvent> departureEventsList = personLastDepartureEvents.get(selectedMode);
+                        Map<Id<Person>, BeamPersonDepartureEvent> departureEventsList = personLastDepartureEvents.get(selectedMode);
                         departureEventsList.remove(personId);
                         personLastDepartureEvents.put(selectedMode, departureEventsList);
                     }
@@ -308,17 +308,17 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
      * @param event Person Departure Event
      */
     private void processPersonDepartureEvent(Event event) {
-        PersonDepartureEvent personDepartureEvent = (PersonDepartureEvent) event;
-        if (!personDepartureEvent.getLegMode().equalsIgnoreCase("car")) {
+        BeamPersonDepartureEvent beamPersonDepartureEvent = (BeamPersonDepartureEvent) event;
+        if (!beamPersonDepartureEvent.getLegMode().equalsIgnoreCase("car")) {
             // Extract the mode of the departure event
-            String mode = personDepartureEvent.getLegMode();
+            String mode = beamPersonDepartureEvent.getLegMode();
             // Get the list of previous departures tracked for this mode
-            Map<Id<Person>, PersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
+            Map<Id<Person>, BeamPersonDepartureEvent> departureEvents = personLastDepartureEvents.get(mode);
             // Add/update the entry : current person -> current departure event
             if (departureEvents == null) {
                 departureEvents = new HashMap<>();
             }
-            departureEvents.put(personDepartureEvent.getPersonId(), personDepartureEvent);
+            departureEvents.put(beamPersonDepartureEvent.getPersonId(), beamPersonDepartureEvent);
             // Add/update the entry : mode -> (person -> previous departure event)
             personLastDepartureEvents.put(mode, departureEvents);
         }
@@ -358,7 +358,7 @@ public class PersonTravelTimeAnalysis implements GraphAnalysis, IterationSummary
             out.newLine();
             Set<String> modes = personLastDepartureEvents.keySet();
             for (String mode : modes) {
-                Map<Id<Person>, PersonDepartureEvent> personDepartureEventMap = personLastDepartureEvents.get(mode);
+                Map<Id<Person>, BeamPersonDepartureEvent> personDepartureEventMap = personLastDepartureEvents.get(mode);
                 out.append(mode).append(",").append(String.valueOf(personDepartureEventMap.size()));
                 out.newLine();
             }
