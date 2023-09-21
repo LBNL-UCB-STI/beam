@@ -13,7 +13,7 @@ class ModeIterationPlanCleaner @Inject() (config: BeamConfig, scenario: Scenario
   private val clearModeIteration: Int = config.beam.replanning.clearModes.iteration
 
   private val clearModes: Set[String] =
-    config.beam.replanning.clearModes.modes.getOrElse(List.empty).map(_.toLowerCase).toSet
+    config.beam.replanning.clearModes.modes.map(_.toLowerCase).toSet
 
   def clearModesAccordingToStrategy(iteration: Int): Unit = {
     if (

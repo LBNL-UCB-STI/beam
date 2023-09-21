@@ -4350,7 +4350,8 @@ object BeamConfig {
         osmMapdbFile: java.lang.String,
         suboptimalMinutes: scala.Int,
         transitAlternativeList: java.lang.String,
-        travelTimeNoiseFraction: scala.Double
+        travelTimeNoiseFraction: scala.Double,
+        vehicleTypeSpeedLimitsAsPortionOfFreeFlow: scala.List[java.lang.String]
       )
 
       object R5 {
@@ -4434,7 +4435,8 @@ object BeamConfig {
             transitAlternativeList =
               if (c.hasPathOrNull("transitAlternativeList")) c.getString("transitAlternativeList") else "OPTIMAL",
             travelTimeNoiseFraction =
-              if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0
+              if (c.hasPathOrNull("travelTimeNoiseFraction")) c.getDouble("travelTimeNoiseFraction") else 0.0,
+            vehicleTypeSpeedLimitsAsPortionOfFreeFlow = $_L$_str(c.getList("vehicleTypeSpeedLimitsAsPortionOfFreeFlow"))
           )
         }
       }

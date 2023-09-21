@@ -1,6 +1,6 @@
 package beam.router.r5
 
-import beam.agentsim.agents.choice.mode.DrivingCost
+import beam.agentsim.agents.choice.mode.{DrivingCost, ModeChoiceMultinomialLogit}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
@@ -61,6 +61,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     tollCalculator
   ) = workerParams
 
+  private val vehicleTypeToRelativeSpeedRestriction: Map[Id[BeamVehicleType], Double] =
+    ModeChoiceMultinomialLogit.getVehicleTypeMultipliers(
+      vehicleTypes,
+      beamConfig.beam.routing.r5.vehicleTypeSpeedLimitsAsPortionOfFreeFlow
+    )
+
   private lazy val osmIdToHGVFlag: Map[Long, Boolean] = networkHelper.allLinks
     .flatMap { link =>
       Try(link.getAttributes.getAttribute("origid").toString.toLong).toOption.map { osmId =>
@@ -105,7 +111,11 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     val linksTimesAndDistances = RoutingModel.linksToTimeAndDistance(
       leg.travelPath.linkIds,
       leg.startTime,
-      travelTimeByLinkCalculator(vehicleType, shouldAddNoise = false),
+      travelTimeByLinkCalculator(
+        vehicleType,
+        shouldAddNoise = false,
+        vehicleTypeToRelativeSpeedRestriction = vehicleTypeToRelativeSpeedRestriction
+      ),
       toR5StreetMode(leg.mode),
       transportNetwork.streetLayer
     )
@@ -1047,10 +1057,15 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     val tripStartTime: Int = startPoint.time
     // During routing `travelTimeByLinkCalculator` is used with shouldAddNoise = true (if it is not transit)
     // That trick gives us back diverse route. Now we want to compute travel time per link and we don't want to include that noise
+    // The speed restrictions on links per vehicle types are real, though, so we do include those
     val linksTimesDistances = RoutingModel.linksToTimeAndDistance(
       activeLinkIds,
       tripStartTime,
-      travelTimeByLinkCalculator(vehicleTypes(vehicleTypeId), shouldAddNoise = false), // Do not add noise!
+      travelTimeByLinkCalculator(
+        vehicleTypes(vehicleTypeId),
+        shouldAddNoise = false,
+        vehicleTypeToRelativeSpeedRestriction = vehicleTypeToRelativeSpeedRestriction
+      ), // Do not add noise! Do add speed restrictions!
       toR5StreetMode(legMode),
       transportNetwork.streetLayer
     )
@@ -1185,7 +1200,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     shouldAddNoise: Boolean
   ): TravelTimeCalculator = {
     new TravelTimeCalculator {
-      val ttc = travelTimeByLinkCalculator(vehicleType, shouldAddNoise, shouldApplyBicycleScaleFactor = true)
+      val ttc = travelTimeByLinkCalculator(
+        vehicleType,
+        shouldAddNoise,
+        shouldApplyBicycleScaleFactor = true,
+        vehicleTypeToRelativeSpeedRestriction = vehicleTypeToRelativeSpeedRestriction
+      )
       override def getTravelTimeSeconds(
         edge: EdgeStore#Edge,
         durationSeconds: Int,
@@ -1200,22 +1220,28 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   private def travelTimeByLinkCalculator(
     vehicleType: BeamVehicleType,
     shouldAddNoise: Boolean,
-    shouldApplyBicycleScaleFactor: Boolean = false
+    shouldApplyBicycleScaleFactor: Boolean = false,
+    vehicleTypeToRelativeSpeedRestriction: Map[Id[BeamVehicleType], Double] = Map.empty[Id[BeamVehicleType], Double]
   ): TravelTimeByLinkCalculator = {
     val profileRequest = createProfileRequest
-    new TravelTimeByLinkCalculator {
-      override def apply(time: Double, linkId: Int, streetMode: StreetMode): Double = {
-        val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-        val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
-        val minTravelTime = edge.getLengthM / maxSpeed
-        if (streetMode == StreetMode.CAR) {
-          carWeightCalculator.calcTravelTime(linkId, travelTime, Some(vehicleType), time, shouldAddNoise)
-        } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
-          val scaleFactor = bikeLanesAdjustment.scaleFactor(vehicleType, linkId)
-          minTravelTime * scaleFactor
-        } else {
-          minTravelTime
-        }
+    (time: Double, linkId: Int, streetMode: StreetMode) => {
+      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+      val maxSpeed: Double = vehicleType.maxVelocity.getOrElse(profileRequest.getSpeedForMode(streetMode))
+      val minTravelTime = edge.getLengthM / maxSpeed
+      if (streetMode == StreetMode.CAR) {
+        carWeightCalculator.calcTravelTime(
+          linkId,
+          travelTime,
+          Some(vehicleType),
+          time,
+          shouldAddNoise,
+          vehicleTypeToRelativeSpeedRestriction.get(vehicleType.id)
+        )
+      } else if (streetMode == StreetMode.BICYCLE && shouldApplyBicycleScaleFactor) {
+        val scaleFactor = bikeLanesAdjustment.scaleFactor(vehicleType, linkId)
+        minTravelTime * scaleFactor
+      } else {
+        minTravelTime
       }
     }
   }
