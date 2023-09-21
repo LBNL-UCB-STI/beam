@@ -227,6 +227,8 @@ class RideHailAgent(
     1
   )
 
+  override def payloadInKgForLeg(leg: BeamLeg, drivingData: DrivingData): Option[Double] = None
+
   val myUnhandled: StateFunction = {
     case ev @ Event(TriggerWithId(StartShiftTrigger(tick), triggerId), _) =>
       // Wait five minutes

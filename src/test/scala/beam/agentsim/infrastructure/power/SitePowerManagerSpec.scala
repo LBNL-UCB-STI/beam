@@ -92,7 +92,6 @@ class SitePowerManagerSpec
     taz.tazId,
     ParkingType.Workplace,
     VehicleManager.AnyManager,
-    None,
     maxStalls = 2,
     chargingPointType = Some(ChargingPointType.CustomChargingPoint("ultrafast", "250.0", "DC")),
     pricingModel = Some(PricingModel.FlatFee(0.0))
