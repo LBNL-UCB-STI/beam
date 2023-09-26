@@ -36,7 +36,6 @@ class ModeChoiceSpec
   //    .withValue("beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet", ConfigValueFactory.fromAnyRef("10.0"))
   //    .withValue("beam.agentsim.agents.vehicles.fractionOfPeopleWithBicycle", ConfigValueFactory.fromAnyRef("10.0"))
 
-
   // these should be as low as possible
   val test_mode_multiplier = 2
   val test_mode_transit_multiplier = 20
@@ -187,7 +186,9 @@ class ModeChoiceSpec
 
       val walkTransitModeCount = theRun.groupedCount.getOrElse("walk_transit", 0)
       val theRestModes = getModesOtherThan("walk_transit", theRun.groupedCount)
-      walkTransitModeCount * test_mode_transit_multiplier should be >= theRestModes withClue getClueText(theRun.groupedCount)
+      walkTransitModeCount * test_mode_transit_multiplier should be >= theRestModes withClue getClueText(
+        theRun.groupedCount
+      )
     }
 
     "prefer mode choice RH pooled more than other modes" in {
