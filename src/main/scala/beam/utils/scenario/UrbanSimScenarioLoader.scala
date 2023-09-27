@@ -8,6 +8,7 @@ import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment.RIDEHAIL_SERVICE_SUBSCRIPTION
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.SequenceUtils
+import beam.utils.csv.readers
 import beam.utils.plan.sampling.AvailableModeUtils
 import beam.utils.scenario.urbansim.HOVModeTransformer
 import com.typesafe.scalalogging.LazyLogging
@@ -56,6 +57,10 @@ class UrbanSimScenarioLoader(
   }
 
   def loadScenario(): (Scenario, Boolean) = {
+    // This is a hack for now. When initially building the scenario we skip reading personal vehicles but do read
+    // in any freight vehicles, so whenever this function is called beamScenario.privateVehicles should only be freight
+    val freightVehicleMap = beamScenario.privateVehicles
+
     clear()
 
     val plansF = Future {
@@ -76,6 +81,12 @@ class UrbanSimScenarioLoader(
       households
     }
 
+    val vehiclesF = Future {
+      val vehicles = scenarioSource.getVehicles
+      logger.info(s"Read ${vehicles.size} households")
+      vehicles
+    }
+
     val timeOutSeconds = beamScenario.beamConfig.beam.exchange.scenario.urbansim.scenarioLoadingTimeoutSeconds
     val inputPlans = Await.result(plansF, timeOutSeconds.seconds)
     logger.info(s"Reading plans done.")
@@ -85,6 +96,9 @@ class UrbanSimScenarioLoader(
 
     val households = Await.result(householdsF, timeOutSeconds.seconds)
     logger.info(s"Reading households done.")
+
+    val vehicles = Await.result(vehiclesF, timeOutSeconds.seconds)
+    logger.info(s"Reading vehicles done.")
 
     val (mergedPlans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
 
@@ -104,9 +118,15 @@ class UrbanSimScenarioLoader(
     val householdsWithMembers = households.filter(household => householdIdToPersons.contains(household.householdId))
     logger.info(s"There are ${householdsWithMembers.size} non-empty households")
 
+    val householdIdToVehicles: Map[HouseholdId, Iterable[VehicleInfo]] =
+      vehicles.groupBy(v => HouseholdId(v.householdId))
+
     logger.info("Applying households...")
-    applyHousehold(householdsWithMembers, householdIdToPersons, plans)
-    // beamServices.privateVehicles is properly populated here, after `applyHousehold` call
+    applyHousehold(householdsWithMembers, householdIdToPersons, householdIdToVehicles, plans)
+    // beamServices.privateVehicles is properly populated here, after `applyHousehold` call. Here we add the freight
+    // vehicles back in
+    beamScenario.privateVehicles ++= freightVehicleMap
+    // TODO: Refactor this so we don't need to read vehicles.csv twice
 
     // beamServices.personHouseholds is used later on in PopulationAdjustment.createAttributesOfIndividual when we
     logger.info("Applying persons...")
@@ -141,6 +161,7 @@ class UrbanSimScenarioLoader(
   private[utils] def applyHousehold(
     households: Iterable[HouseholdInfo],
     householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]],
+    householdIdToVehicles: Map[HouseholdId, Iterable[VehicleInfo]],
     plans: Iterable[PlanElement]
   ): Unit = {
     val scenarioHouseholdAttributes = scenario.getHouseholds.getHouseholdAttributes
@@ -161,7 +182,10 @@ class UrbanSimScenarioLoader(
 
     val scaleFactor = beamScenario.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
 
-    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(
+      beamScenario,
+      householdIdToVehicleIdsOption = Option(householdIdToVehicles)
+    )
     val realDistribution: UniformRealDistribution = new UniformRealDistribution()
     realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
@@ -193,7 +217,8 @@ class UrbanSimScenarioLoader(
           householdSize = household.getMemberIds.size,
           householdPopulation = null,
           householdLocation = coord,
-          realDistribution
+          realDistribution,
+          Option(householdInfo.householdId)
         )
         .toBuffer
 
