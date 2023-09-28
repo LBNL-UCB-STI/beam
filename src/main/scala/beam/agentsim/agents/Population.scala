@@ -24,7 +24,6 @@ import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
-import org.matsim.vehicles.Vehicle
 
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters
@@ -105,8 +104,8 @@ class Population(
           .collectionAsScalaIterable(household.getVehicleIds)
           .map(vehId =>
             VehicleInfo(
-              vehicleId = "",
-              vehicleTypeId = vehId.toString,
+              vehicleId = vehId.toString,
+              vehicleTypeId = beamScenario.privateVehicles(BeamVehicle.createId(vehId)).beamVehicleType.id.toString,
               initialSoc = None,
               householdId = household.getId.toString
             )
