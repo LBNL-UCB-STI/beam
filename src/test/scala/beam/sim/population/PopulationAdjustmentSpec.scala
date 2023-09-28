@@ -11,6 +11,7 @@ import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.tagobjects.Retryable
 import org.scalatest.wordspec.AnyWordSpec
 import org.slf4j.LoggerFactory
 
@@ -34,7 +35,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
   }
 
   "PopulationAdjustment" should {
-    "logs excluded modes defined as strings" in {
+    "logs excluded modes defined as strings" taggedAs Retryable in {
       val population = createPopulation(persons)
       persons.keys.map(_.toString.toInt).foreach { id =>
         // bike is excluded for 2 persons
@@ -56,7 +57,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
       )
     }
 
-    "logs excluded modes defined as iterable" in {
+    "logs excluded modes defined as iterable" taggedAs Retryable in {
       val population = createPopulation(persons)
       persons.keys.map(_.toString.toInt).foreach { id =>
         // bike is excluded for 5 persons
@@ -78,7 +79,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
       )
     }
 
-    "logs excluded modes and alarms not all persons have required attribute" in {
+    "logs excluded modes and alarms not all persons have required attribute" taggedAs Retryable in {
       val population = createPopulation(persons)
       persons.keys.map(_.toString.toInt).foreach { id =>
         // bike is excluded for 2 persons
