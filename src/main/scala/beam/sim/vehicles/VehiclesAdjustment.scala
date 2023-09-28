@@ -30,7 +30,7 @@ trait VehiclesAdjustment extends ExponentialLazyLogging {
 
 }
 
-object VehiclesAdjustment {
+object VehiclesAdjustment extends ExponentialLazyLogging {
   val UNIFORM_ADJUSTMENT = "UNIFORM"
   val INCOME_BASED_ADJUSTMENT = "INCOME_BASED"
   val SINGLE_TYPE = "SINGLE_TYPE"
@@ -51,8 +51,17 @@ object VehiclesAdjustment {
       case UNIFORM_ADJUSTMENT      => UniformVehiclesAdjustment(beamScenario)
       case INCOME_BASED_ADJUSTMENT => IncomeBasedVehiclesAdjustment(beamScenario)
       case SINGLE_TYPE             => SingleTypeVehiclesAdjustment(beamScenario, vehicleType)
-      case DETERMINISTIC           => DeterministicVehiclesAdjustment(beamScenario, householdIdToVehicleIdsOption.get)
-      case _                       => UniformVehiclesAdjustment(beamScenario)
+      case DETERMINISTIC =>
+        householdIdToVehicleIdsOption match {
+          case Some(householdIdToVehicleIds) => DeterministicVehiclesAdjustment(beamScenario, householdIdToVehicleIds)
+          case _ =>
+            logger.warn(
+              "Cannot use DETERMINISTIC vehicle adjustment for shared vehicle fleets. Defaulting to " +
+              "UNIFORM instead. To fix this change `initialization.procedural.vehicleAdjustmentMethod` in the config"
+            )
+            UniformVehiclesAdjustment(beamScenario)
+        }
+      case _ => UniformVehiclesAdjustment(beamScenario)
     }
 
   }
