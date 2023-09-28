@@ -41,7 +41,6 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
       appender.start()
       appLogger.addAppender(appender)
 
-
       val population = createPopulation(persons)
       persons.keys.map(_.toString.toInt).foreach { id =>
         // bike is excluded for 2 persons
@@ -56,11 +55,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
       }
 
       TestPopulationAdjustment.logModes(population)
-      verifyLogging(appender,
-        INFO -> "Modes excluded:",
-        INFO -> "car -> 5",
-        INFO -> "bike -> 2"
-      )
+      verifyLogging(appender, INFO -> "Modes excluded:", INFO -> "car -> 5", INFO -> "bike -> 2")
 
       appLogger.detachAppender(appender)
     }
@@ -129,7 +124,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
     appender.list.asScala.map(e => e.getLevel -> e.getFormattedMessage) shouldBe expectedLogs
   }
 
-  private def verifyLogging(appender:ListAppender[ILoggingEvent], expectedLogs: (Level, String)*): Unit = {
+  private def verifyLogging(appender: ListAppender[ILoggingEvent], expectedLogs: (Level, String)*): Unit = {
     appender.list.asScala.map(e => e.getLevel -> e.getFormattedMessage) shouldBe expectedLogs
   }
 
