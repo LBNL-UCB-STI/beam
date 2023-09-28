@@ -84,6 +84,8 @@ trait PopulationAdjustment extends LazyLogging {
       allExcludedModes
         .groupBy(identity)
         .foreach { case (mode, modes) => logger.info(s"$mode -> ${modes.size}") }
+    } else {
+      logger.info(s"There are no excluded modes.")
     }
 
     // log error if excluded modes attributes is missing for at least one person in the population
