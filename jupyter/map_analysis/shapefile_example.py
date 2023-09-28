@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import shapefile as sh
-
+import geopandas as gpd
 
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
@@ -32,96 +32,121 @@ def read_shapefile_as_dataframe(shp_path):
     return df
 
 
+# ## approach to read #1
+
 # In[ ]:
 
 
-shp_path = "../local_files/MTC-avgload5period/network_links.shp"
+shp_path = "../local_files/ForWSP06132023/ForWSP06132023.zip"
 
 df1 = read_shapefile_as_dataframe(shp_path)
-print(df1['A'].nunique(), df1['B'].nunique(), df1['CITYNAME'].nunique())
-df1.head(2)
+display(df1.head(2))
+
+
+# ## approach to read #2
+
+# In[ ]:
+
+
+shp_path = "../local_files/ForWSP06132023/ForWSP06132023/VTATAZ06132023.shp"
+
+# reading the shape file
+shp_df_original = gpd.read_file(shp_path)
+display(shp_df_original.head(2))
+
+
+# ## creating TAZ-centers file out of shape file
+
+# In[ ]:
+
+
+# preparing the shape file to create taz-centers out of it
+
+# renaming columns and sorting by taz id
+shp_df_original.rename(columns={'TAZ':'taz'}, inplace=True)
+shp_df_original.sort_values('taz', inplace=True)
+shp_df_original.reset_index(drop=True, inplace=True)
+
+display(shp_df_original.head(2))
+
+# adding necessary fields for transforming shape file to TAZ centers
+shp_df_original['area'] = shp_df_original['geometry'].area
+shp_df_original['centroid'] = shp_df_original['geometry'].centroid
+
+# this one for sanity check
+shp_df_original['geometry_contains_point'] = shp_df_original['geometry'].contains(shp_df_original['centroid'])
+
+# overriding 'geometry' field in order to be able to transform CRS
+shp_df_original['geometry'] = shp_df_original['centroid']
+
+
+# changing CRS
+# 4326 is the lat\lon CRS
+# 26910 is the sfbay area CRS
+shp_df = shp_df_original.to_crs(26910)[['taz','county','area','geometry_contains_point','geometry']]
+
+shp_df['coord-x'] = shp_df['geometry'].x
+shp_df['coord-y'] = shp_df['geometry'].y
+
+display(shp_df.head(2))
+display(shp_df['geometry_contains_point'].value_counts())
 
 
 # In[ ]:
 
 
-shp_path = "../local_files/VTA-model-network/HNETAM.shp"
+# creating taz-centers file out of shape file fields
 
-df2 = read_shapefile_as_dataframe(shp_path)
-print(df2['A'].nunique(), df2['B'].nunique())
-df2.head(2)
+# TAZ centers file format:
+# taz,coord-x,coord-y,area
 
-
-# In[ ]:
-
-
-df1_csv = pd.read_csv('../local_files/MTC-avgload5period/avgload5period.csv')
-df1_csv.head()
+csv_path="../local_files/ForWSP06132023/ForWSP06132023-taz-centers.csv"
+shp_df[['taz','coord-x','coord-y','area']].to_csv(csv_path, encoding='utf-8', index=False)
 
 
 # In[ ]:
 
 
-s1 = set(df1.columns)
-s2 = set(df2.columns)
-len(s1), len(s2), len(s1 - s2), len(s2 - s1)
+# saving a filtered-out shape file for investigation
+
+selected_tazs = set([1491.0, 1492.0])
+shp_df[shp_df['taz'].isin(selected_tazs)].to_file("../local_files/ForWSP06132023/ForWSP06132023_points_selected_tazs")
 
 
-# In[ ]:
-
-
-selected_cols = []
-
-for c in df.columns:
-    if not c.startswith("TOLL") and not c.startswith('VOL'):
-        selected_cols.append(c)
-len(selected_cols) #, selected_cols
-
+# ## creating file with x,y points out of shape file
 
 # In[ ]:
 
 
-df[selected_cols].head()
+import pandas as pd
+import geopandas as gpd
 
+pd.set_option('display.max_rows', 500)
+pd.set_option('display.max_columns', 500)
+pd.set_option('display.width', 1000)
 
-# In[ ]:
+shp_path = "../local_files/FLEXSTOPS/FLEXSTOPS/FLEXServiceStops.shp"
 
+# reading the shape file in original CRS
+shp_df_original = gpd.read_file(shp_path)
+display(shp_df_original.head(2))
 
-network = pd.read_csv("../local_files/network.2.csv.gz")
-network.head(3)
+# changing CRS
+# 4326 is the lat\lon CRS
+shp_df = shp_df_original.to_crs(4326)
+display(shp_df.head(2))
 
+# getting points out of geometries (if geometry include multiple points - they will be multiple separate rows)
+points = shp_df.get_coordinates()
+print(f"there are {len(points)} points")
+display(points.head(2))
 
-# In[ ]:
+# changing column names
+points.rename(columns={"x": "coord-x", "y": "coord-y"}, errors="raise", inplace=True)
 
-
-# NOT matching
-
-_, axs = plt.subplots(2,2, figsize=(15,6))
-df['DISTANCE'].hist(bins=100, ax=axs[0][0])
-network['linkLength'].hist(bins=100, ax=axs[0][1])
-df['LANES'].hist(bins=100, ax=axs[1][0])
-network['numberOfLanes'].hist(bins=100, ax=axs[1][1])
-
-
-# In[ ]:
-
-
-network_links = set(network['linkId'].unique())
-network_osm_ids = set(network['attributeOrigId'].fillna(0).astype(int).unique())
-len(network_links), len(network_osm_ids)
-
-
-# In[ ]:
-
-
-ids_shp = set(df['B'].unique())
-len(ids_shp), len(ids_shp - network_osm_ids), len(network_osm_ids - ids_shp)
-
-
-# In[ ]:
-
-
-
+# saving to file
+csv_path = "../local_files/FLEXSTOPS/FLEXSTOPS.points.csv"
+points.to_csv(csv_path, encoding='utf-8', index=False)
 
 
 # In[ ]:
