@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory
 import java.util
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndAfterEach {
 
@@ -35,12 +36,13 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
   }
 
   "PopulationAdjustment" should {
-    "logs excluded modes defined as strings" taggedAs Retryable in {
-      val appLogger = LoggerFactory.getLogger(TestPopulationAdjustment.getClass.getName).asInstanceOf[Logger]
-      val appender: ListAppender[ILoggingEvent] = new ListAppender[ILoggingEvent]
-      appender.start()
-      appLogger.addAppender(appender)
+    "add logs to created appender" in {
+      val testLogEntry = "Log entry for testing appender."
+      TestPopulationAdjustment.logInfo(testLogEntry)
+      appender.list.asScala.map(e => e.getLevel -> e.getFormattedMessage) shouldBe ArrayBuffer(INFO -> testLogEntry)
+    }
 
+    "logs excluded modes defined as strings" taggedAs Retryable in {
       val population = createPopulation(persons)
       persons.keys.map(_.toString.toInt).foreach { id =>
         // bike is excluded for 2 persons
@@ -55,9 +57,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
       }
 
       TestPopulationAdjustment.logModes(population)
-      verifyLogging(appender, INFO -> "Modes excluded:", INFO -> "car -> 5", INFO -> "bike -> 2")
-
-      appLogger.detachAppender(appender)
+      verifyLogging(INFO -> "Modes excluded:", INFO -> "car -> 5", INFO -> "bike -> 2")
     }
 
     "logs excluded modes defined as iterable" taggedAs Retryable in {
@@ -112,6 +112,10 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
     override lazy val scenario: Scenario = ???
     override lazy val beamScenario: BeamScenario = ???
     override def updatePopulation(scenario: Scenario): Population = ???
+
+    def logInfo(infoLogEntry: String): Unit = {
+      logger.info(infoLogEntry)
+    }
   }
 
   private lazy val persons: Map[Id[Person], Person] =
@@ -121,10 +125,6 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
       .toMap
 
   private def verifyLogging(expectedLogs: (Level, String)*): Unit = {
-    appender.list.asScala.map(e => e.getLevel -> e.getFormattedMessage) shouldBe expectedLogs
-  }
-
-  private def verifyLogging(appender: ListAppender[ILoggingEvent], expectedLogs: (Level, String)*): Unit = {
     appender.list.asScala.map(e => e.getLevel -> e.getFormattedMessage) shouldBe expectedLogs
   }
 
