@@ -1217,7 +1217,8 @@ trait ChoosesMode {
                   && travelProposal.modeOptions.contains(RIDE_HAIL) =>
               Vector(origLegs)
             case _ =>
-              // current tour mode doesn't correspond to mode options provided by travel proposal              Vector(origLegs)
+              // current tour mode doesn't correspond to mode options provided by travel proposal
+              Vector(origLegs)
           }).map(surroundWithWalkLegsIfNeededAndMakeTrip)
         case _ =>
           Vector()
