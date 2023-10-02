@@ -22,7 +22,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndAfterEach {
 
-  def getLoggerAndAppender(): (Logger, ListAppender[ILoggingEvent]) = {
+  def getLoggerAndAppender: (Logger, ListAppender[ILoggingEvent]) = {
     val appLogger: Logger = LoggerFactory.getLogger(TestPopulationAdjustment.getClass.getName).asInstanceOf[Logger]
     val appender: ListAppender[ILoggingEvent] = new ListAppender[ILoggingEvent]
 
@@ -87,11 +87,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
       }
 
       TestPopulationAdjustment.logModes(population)
-      verifyLogging(appender,
-        INFO -> "Modes excluded:",
-        INFO -> "bike -> 5",
-        INFO -> "car -> 2"
-      )
+      verifyLogging(appender, INFO -> "Modes excluded:", INFO -> "bike -> 5", INFO -> "car -> 2")
     }
 
     "logs excluded modes and alarms not all persons have required attribute" in {
@@ -112,7 +108,8 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
       }
 
       TestPopulationAdjustment.logModes(population)
-      verifyLogging(appender,
+      verifyLogging(
+        appender,
         INFO  -> "Modes excluded:",
         INFO  -> "car -> 3",
         INFO  -> "bike -> 2",
