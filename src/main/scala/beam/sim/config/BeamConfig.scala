@@ -1107,7 +1107,8 @@ object BeamConfig {
             pooledCostPerMile: scala.Double,
             pooledCostPerMinute: scala.Double,
             repositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager,
-            rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager
+            rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager,
+            supportedModes: java.lang.String
           )
 
           object Managers$Elm {
@@ -1482,7 +1483,10 @@ object BeamConfig {
                 rideHailManager = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager(
                   if (c.hasPathOrNull("rideHailManager")) c.getConfig("rideHailManager")
                   else com.typesafe.config.ConfigFactory.parseString("rideHailManager{}")
-                )
+                ),
+                supportedModes =
+                  if (c.hasPathOrNull("supportedModes")) c.getString("supportedModes")
+                  else "ride_hail, ride_hail_pooled"
               )
             }
           }
