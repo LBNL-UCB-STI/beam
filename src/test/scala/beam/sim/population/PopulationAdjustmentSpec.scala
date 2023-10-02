@@ -42,7 +42,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
       appender.list.asScala.map(e => e.getLevel -> e.getFormattedMessage) shouldBe ArrayBuffer(INFO -> testLogEntry)
     }
 
-    "logs excluded modes defined as strings" taggedAs Retryable in {
+    "logs excluded modes" taggedAs Retryable in {
       val population = createPopulation(persons)
       persons.keys.map(_.toString.toInt).foreach { id =>
         // bike is excluded for 2 persons
@@ -55,6 +55,9 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
         }
         population.getPersonAttributes.putAttribute(id.toString, PopulationAdjustment.EXCLUDED_MODES, excludedModes)
       }
+      val testLogEntry = "Log entry for testing appender."
+      TestPopulationAdjustment.logInfo(testLogEntry)
+      appender.list.asScala.map(e => e.getLevel -> e.getFormattedMessage) shouldBe ArrayBuffer(INFO -> testLogEntry)
 
       TestPopulationAdjustment.logModes(population)
       verifyLogging(INFO -> "Modes excluded:", INFO -> "car -> 5", INFO -> "bike -> 2")
