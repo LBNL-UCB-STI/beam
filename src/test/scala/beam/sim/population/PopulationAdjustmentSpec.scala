@@ -22,27 +22,38 @@ import scala.collection.mutable.ArrayBuffer
 
 class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndAfterEach {
 
-  private val appLogger = LoggerFactory.getLogger(TestPopulationAdjustment.getClass.getName).asInstanceOf[Logger]
-  private var appender: ListAppender[ILoggingEvent] = _
+  def getLoggerAndAppender(): (Logger, ListAppender[ILoggingEvent]) = {
+    val appLogger: Logger = LoggerFactory.getLogger(TestPopulationAdjustment.getClass.getName).asInstanceOf[Logger]
+    val appender: ListAppender[ILoggingEvent] = new ListAppender[ILoggingEvent]
 
-  override def beforeEach(): Unit = {
-    appender = new ListAppender[ILoggingEvent]
     appender.start()
     appLogger.addAppender(appender)
+    (appLogger, appender)
   }
 
-  override def afterEach(): Unit = {
-    appLogger.detachAppender(appender)
-  }
+//  private val appLogger: Logger = LoggerFactory.getLogger(TestPopulationAdjustment.getClass.getName).asInstanceOf[Logger]
+//  private var appender: ListAppender[ILoggingEvent] = _
+//
+//  override def beforeEach(): Unit = {
+//    appender = new ListAppender[ILoggingEvent]
+//    appender.start()
+//    appLogger.addAppender(appender)
+//  }
+//
+//  override def afterEach(): Unit = {
+//    appLogger.detachAppender(appender)
+//  }
 
   "PopulationAdjustment" should {
     "add logs to created appender" in {
+      val (_, appender) = getLoggerAndAppender()
       val testLogEntry = "Log entry for testing appender."
       TestPopulationAdjustment.logInfo(testLogEntry)
       appender.list.asScala.map(e => e.getLevel -> e.getFormattedMessage) shouldBe ArrayBuffer(INFO -> testLogEntry)
     }
 
-    "logs excluded modes" ignore {
+    "logs excluded modes" taggedAs Retryable in {
+      val (_, appender) = getLoggerAndAppender()
       val population = createPopulation(persons)
       persons.keys.map(_.toString.toInt).foreach { id =>
         // bike is excluded for 2 persons
@@ -57,10 +68,11 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
       }
 
       TestPopulationAdjustment.logModes(population)
-      verifyLogging(INFO -> "Modes excluded:", INFO -> "car -> 5", INFO -> "bike -> 2")
+      verifyLogging(appender, INFO -> "Modes excluded:", INFO -> "car -> 5", INFO -> "bike -> 2")
     }
 
-    "logs excluded modes defined as iterable" taggedAs Retryable in {
+    "logs excluded modes defined as iterable" in {
+      val (_, appender) = getLoggerAndAppender()
       val population = createPopulation(persons)
       persons.keys.map(_.toString.toInt).foreach { id =>
         // bike is excluded for 5 persons
@@ -75,14 +87,15 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
       }
 
       TestPopulationAdjustment.logModes(population)
-      verifyLogging(
+      verifyLogging(appender,
         INFO -> "Modes excluded:",
         INFO -> "bike -> 5",
         INFO -> "car -> 2"
       )
     }
 
-    "logs excluded modes and alarms not all persons have required attribute" taggedAs Retryable in {
+    "logs excluded modes and alarms not all persons have required attribute" in {
+      val (_, appender) = getLoggerAndAppender()
       val population = createPopulation(persons)
       persons.keys.map(_.toString.toInt).foreach { id =>
         // bike is excluded for 2 persons
@@ -99,7 +112,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
       }
 
       TestPopulationAdjustment.logModes(population)
-      verifyLogging(
+      verifyLogging(appender,
         INFO  -> "Modes excluded:",
         INFO  -> "car -> 3",
         INFO  -> "bike -> 2",
@@ -124,7 +137,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
       .map(id => (id, createPerson(id)))
       .toMap
 
-  private def verifyLogging(expectedLogs: (Level, String)*): Unit = {
+  private def verifyLogging(appender: ListAppender[ILoggingEvent], expectedLogs: (Level, String)*): Unit = {
     appender.list.asScala.map(e => e.getLevel -> e.getFormattedMessage) shouldBe expectedLogs
   }
 
