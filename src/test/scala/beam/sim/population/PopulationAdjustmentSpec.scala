@@ -46,14 +46,14 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
 
   "PopulationAdjustment" should {
     "add logs to created appender" in {
-      val (_, appender) = getLoggerAndAppender()
+      val (_, appender) = getLoggerAndAppender
       val testLogEntry = "Log entry for testing appender."
       TestPopulationAdjustment.logInfo(testLogEntry)
       appender.list.asScala.map(e => e.getLevel -> e.getFormattedMessage) shouldBe ArrayBuffer(INFO -> testLogEntry)
     }
 
     "logs excluded modes" taggedAs Retryable in {
-      val (_, appender) = getLoggerAndAppender()
+      val (_, appender) = getLoggerAndAppender
       val population = createPopulation(persons)
       persons.keys.map(_.toString.toInt).foreach { id =>
         // bike is excluded for 2 persons
@@ -72,7 +72,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
     }
 
     "logs excluded modes defined as iterable" in {
-      val (_, appender) = getLoggerAndAppender()
+      val (_, appender) = getLoggerAndAppender
       val population = createPopulation(persons)
       persons.keys.map(_.toString.toInt).foreach { id =>
         // bike is excluded for 5 persons
@@ -91,7 +91,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
     }
 
     "logs excluded modes and alarms not all persons have required attribute" in {
-      val (_, appender) = getLoggerAndAppender()
+      val (_, appender) = getLoggerAndAppender
       val population = createPopulation(persons)
       persons.keys.map(_.toString.toInt).foreach { id =>
         // bike is excluded for 2 persons
