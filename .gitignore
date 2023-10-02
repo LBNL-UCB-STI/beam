@@ -38,6 +38,7 @@ beam-gui/build
 gc_*.log
 /test/input/sf-light/sf-light-calibration/experiments/
 /test/input/beamville/graphhopper
+/test/input/sf-light/graphhopper
 /test/input/sf-light/sf-light-calibration-test/experiments/
 test/input/siouxfalls/*.xml
 test/input/siouxfalls/r5/*.zip
