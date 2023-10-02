@@ -770,7 +770,7 @@ class PersonAgent(
         ) if data.hasNextLeg =>
       logDebug(s"replanning because ${firstErrorResponse.errorCode}")
 
-      val currentCoord = beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc
+      val currentCoord = beamServices.geo.wgs2Utm(data.nextLeg.beamLeg.travelPath.startPoint).loc
       val nextCoord = nextActivity(data).get.getCoord
       val replanningReason = getReplanningReasonFrom(data, firstErrorResponse.errorCode.entryName)
       eventsManager.processEvent(
@@ -1202,7 +1202,7 @@ class PersonAgent(
       log.debug("Missed transit pickup, late by {} sec", _currentTick.get - data.nextLeg.beamLeg.startTime)
 
       val replanningReason = getReplanningReasonFrom(data, ReservationErrorCode.MissedTransitPickup.entryName)
-      val currentCoord = beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc
+      val currentCoord = beamServices.geo.wgs2Utm(data.nextLeg.beamLeg.travelPath.startPoint).loc
       eventsManager.processEvent(
         new ReplanningEvent(
           _currentTick.get,
@@ -1249,7 +1249,7 @@ class PersonAgent(
       log.warning("Missed CAV pickup, late by {} sec", _currentTick.get - data.nextLeg.beamLeg.startTime)
 
       val replanningReason = getReplanningReasonFrom(data, ReservationErrorCode.MissedTransitPickup.entryName)
-      val currentCoord = beamServices.geo.wgs2Utm(nextLeg.beamLeg.travelPath.startPoint).loc
+      val currentCoord = beamServices.geo.wgs2Utm(data.nextLeg.beamLeg.travelPath.startPoint).loc
       eventsManager.processEvent(
         new ReplanningEvent(
           _currentTick.get,

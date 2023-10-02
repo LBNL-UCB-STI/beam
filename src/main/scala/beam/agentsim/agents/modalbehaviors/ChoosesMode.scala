@@ -1397,9 +1397,6 @@ trait ChoosesMode {
       }
   }
 
-  private def createFailedODSkimmerEvent(
-    originActivity: Activity,
-    destinationActivity: Activity,
   private def surroundWithWalkLegsIfNeededAndMakeTrip(partialItin: Vector[EmbodiedBeamLeg]): EmbodiedBeamTrip = {
     val firstLegWalk = partialItin.head.beamLeg.mode == WALK
     val lastLegWalk = partialItin.last.beamLeg.mode == WALK
@@ -1432,11 +1429,11 @@ trait ChoosesMode {
     EmbodiedBeamTrip((startLeg ++: partialItin) ++ endLeg)
   }
 
-  private def createFailedTransitODSkimmerEvent(
-    originLocation: Location,
-    destinationLocation: Location,
-    mode: BeamMode
-  ): ODSkimmerFailedTripEvent = {
+  private def createFailedODSkimmerEvent(
+                                          originActivity: Activity,
+                                          destinationActivity: Activity,
+                                          mode: BeamMode
+                                        ): ODSkimmerFailedTripEvent = {
     val (origCoord, destCoord) = (originActivity.getCoord, destinationActivity.getCoord)
     val (origin, destination) =
       if (beamScenario.tazTreeMap.tazListContainsGeoms) {
