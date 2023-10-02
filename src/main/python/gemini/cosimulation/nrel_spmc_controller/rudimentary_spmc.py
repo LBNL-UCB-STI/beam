@@ -7,7 +7,7 @@ import numpy as np
 #=========================================================
 class SPM_Control():
     def __init__(self, time_step_mins, max_power_evse, min_power_evse):
-        self.time_step_mins = 1                   # time step: 1 minutes
+        self.time_step_mins = time_step_mins     # time step: 1 minutes
         
         self.max_power_evse   = max_power_evse
         self.min_power_evse   = min_power_evse

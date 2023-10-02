@@ -1624,7 +1624,8 @@ trait ChoosesMode {
         vehiclesNotUsed.collect { case ActualVehicle(vehicle) =>
           data.personData.currentTourPersonalVehicle.foreach { currentVehicle =>
             if (currentVehicle == vehicle.id) {
-              logError(
+              // TODO It used to be logError, however I am not sure if it is really an error
+              logDebug(
                 s"Current tour vehicle is the same as the one being removed: $currentVehicle - ${vehicle.id} - $data"
               )
               isCurrentPersonalVehicleVoided = true

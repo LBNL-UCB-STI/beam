@@ -142,7 +142,6 @@ object HelicsMultiFederateTest extends App {
       val tazToSite = randomTAZtoSite(scala.util.Random.nextInt(randomTAZtoSite.size))
       val vehicle = randomVehicles(scala.util.Random.nextInt(randomVehicles.size))
       Map(
-        "siteId"                     -> tazToSite._1.toString,
         "tazId"                      -> tazToSite._2.toString,
         "vehicleId"                  -> vehicle,
         "vehicleType"                -> f"${vehicle}_vehicle_type",

@@ -2035,9 +2035,7 @@ object BeamConfig {
               vehicleTypesFilePath =
                 if (c.hasPathOrNull("vehicleTypesFilePath")) c.getString("vehicleTypesFilePath")
                 else "/test/input/beamville/vehicleTypes.csv",
-              vehiclesFilePath =
-                if (c.hasPathOrNull("vehiclesFilePath")) c.getString("vehiclesFilePath")
-                else "/test/input/beamville/vehicles.csv"
+              vehiclesFilePath = if (c.hasPathOrNull("vehiclesFilePath")) c.getString("vehiclesFilePath") else ""
             )
           }
 
@@ -2220,7 +2218,7 @@ object BeamConfig {
               intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
               numberOfFederates = if (c.hasPathOrNull("numberOfFederates")) c.getInt("numberOfFederates") else 1,
               spmFederatePrefix =
-                if (c.hasPathOrNull("spmFederatePrefix")) c.getString("spmFederatePrefix") else "SPM_FED_TAZ",
+                if (c.hasPathOrNull("spmFederatePrefix")) c.getString("spmFederatePrefix") else "SPM_FED",
               spmFederateSubscription =
                 if (c.hasPathOrNull("spmFederateSubscription")) c.getString("spmFederateSubscription")
                 else "CHARGING_COMMANDS",
@@ -2381,8 +2379,7 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Toll = {
           BeamConfig.Beam.Agentsim.Toll(
-            filePath =
-              if (c.hasPathOrNull("filePath")) c.getString("filePath") else "/test/input/beamville/toll-prices.csv"
+            filePath = if (c.hasPathOrNull("filePath")) c.getString("filePath") else ""
           )
         }
       }
@@ -3379,6 +3376,7 @@ object BeamConfig {
         }
 
         case class OverwriteRoadTypeProperties(
+          default: BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Default,
           enabled: scala.Boolean,
           livingStreet: BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.LivingStreet,
           minor: BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Minor,
@@ -3397,6 +3395,23 @@ object BeamConfig {
         )
 
         object OverwriteRoadTypeProperties {
+
+          case class Default(
+            alpha: scala.Double,
+            beta: scala.Double
+          )
+
+          object Default {
+
+            def apply(
+              c: com.typesafe.config.Config
+            ): BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Default = {
+              BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Default(
+                alpha = if (c.hasPathOrNull("alpha")) c.getDouble("alpha") else 1.0,
+                beta = if (c.hasPathOrNull("beta")) c.getDouble("beta") else 2.0
+              )
+            }
+          }
 
           case class LivingStreet(
             alpha: scala.Option[scala.Double],
@@ -3722,6 +3737,10 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties = {
             BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties(
+              default = BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Default(
+                if (c.hasPathOrNull("default")) c.getConfig("default")
+                else com.typesafe.config.ConfigFactory.parseString("default{}")
+              ),
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
               livingStreet = BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.LivingStreet(
                 if (c.hasPathOrNull("livingStreet")) c.getConfig("livingStreet")
