@@ -44,6 +44,15 @@ class ZonalParkingManagerSpec
         akka.actor.debug.fsm = true
         akka.loglevel = debug
         akka.test.timefactor = 2
+        beam.agentsim.agents.freight {
+          enabled = true
+          plansFilePath = ${beam.inputDirectory}"/freight/payload-plans.csv"
+          toursFilePath = ${beam.inputDirectory}"/freight/freight-tours.csv"
+          carriersFilePath = ${beam.inputDirectory}"/freight/freight-carriers.csv"
+          carrierParkingFilePath = ${beam.inputDirectory}"/freight/freight-depots.csv"
+          vehicleTypesFilePath = ${beam.inputDirectory}"/freight/freight-vehicleTypes.csv"
+          reader = "Generic"
+        }
         """
     )
     .withFallback(testConfig("test/input/beamville/beam.conf"))
@@ -58,7 +67,7 @@ class ZonalParkingManagerSpec
 
   // a coordinate in the center of the UTM coordinate system
   val coordCenterOfUTM = new Coord(500000, 5000000)
-  val centerSpaceTime = SpaceTime(coordCenterOfUTM, 0)
+  val centerSpaceTime: SpaceTime = SpaceTime(coordCenterOfUTM, 0)
 
   val geo = new GeoUtilsImpl(beamConfig)
 
@@ -160,7 +169,7 @@ class ZonalParkingManagerSpec
         // since only stall is in use, the second inquiry will be handled with the emergency stall
         val secondInquiry =
           ParkingInquiry.init(centerSpaceTime, "work", triggerId = 123709)
-        val response2 @ ParkingInquiryResponse(stall, responseId, triggerId) =
+        val _ @ParkingInquiryResponse(stall, responseId, triggerId) =
           zonalParkingManager.processParkingInquiry(secondInquiry)
         assert(
           stall.tazId == TAZ.EmergencyTAZId && responseId == secondInquiry.requestId
@@ -306,8 +315,7 @@ class ZonalParkingManagerSpec
       val maxSearchRadius = 16093.4 // meters, aka 10 miles
       val zpm = ZonalParkingManager(
         parkingDescription,
-        tazMap.tazQuadTree,
-        tazMap.idToTAZMapping,
+        tazMap,
         boundingBox,
         geo.distUTMInMeters(_, _),
         minSearchRadius,
@@ -322,8 +330,8 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("82"),
-        FlatFee(0.0),
+        ParkingZone.createId("17"),
+        Block(0.0, 3600),
         ParkingType.Public,
         "beamVilleCar"
       )
@@ -332,8 +340,8 @@ class ZonalParkingManagerSpec
         zpm,
         SpaceTime(new Coord(166321.0, 1568.0), 0),
         "1",
-        ParkingZone.createId("80"),
-        FlatFee(0.0),
+        ParkingZone.createId("122"),
+        Block(0.0, 3600),
         ParkingType.Public,
         "beamVilleCar"
       )
@@ -341,6 +349,16 @@ class ZonalParkingManagerSpec
       assertParkingResponse(
         zpm,
         SpaceTime(new Coord(167141.3, 3326.017), 0),
+        "2",
+        ParkingZone.createId("14"),
+        Block(0.0, 3600),
+        ParkingType.Public,
+        "beamVilleCar"
+      )
+
+      assertParkingResponse(
+        zpm,
+        SpaceTime(new Coord(167141.3, 3326.017), 1800),
         "2",
         ParkingZone.createId("115"),
         FlatFee(0.0),
@@ -365,8 +383,7 @@ class ZonalParkingManagerSpec
       val maxSearchRadius = 16093.4 // meters, aka 10 miles
       val zpm = ZonalParkingManager(
         parkingDescription,
-        tazMap.tazQuadTree,
-        tazMap.idToTAZMapping,
+        tazMap,
         boundingBox,
         geo.distUTMInMeters(_, _),
         minSearchRadius,
@@ -418,8 +435,7 @@ class ZonalParkingManagerSpec
       val parkingZones = InfrastructureUtils.loadParkingStalls(stalls)
       val zonesMap = ZonalParkingManager(
         parkingZones,
-        tazMap.tazQuadTree,
-        tazMap.idToTAZMapping,
+        tazMap,
         geo.distUTMInMeters(_, _),
         boundingBox,
         beamConfig.beam.agentsim.agents.parking.minSearchRadius,
@@ -435,8 +451,8 @@ class ZonalParkingManagerSpec
         zonesMap,
         SpaceTime(new Coord(170308.0, 2964.0), 0),
         "4",
-        ParkingZone.createId("17"),
-        Block(1.99, 3600),
+        ParkingZone.createId("82"),
+        FlatFee(1.99),
         ParkingType.Public,
         "beamVilleCar"
       )
@@ -534,8 +550,7 @@ object ZonalParkingManagerSpec {
     val maxSearchRadius = 16093.4 // meters, aka 10 miles
     ZonalParkingManager(
       parkingDescription,
-      tazTreeMap.tazQuadTree,
-      tazTreeMap.idToTAZMapping,
+      tazTreeMap,
       boundingBox,
       geo.distUTMInMeters(_, _),
       minSearchRadius,
@@ -614,14 +629,13 @@ object ZonalParkingManagerSpec {
     val result = treeMap.getTAZs
       .zip(zones)
       .foldLeft(Map.empty[Id[ParkingZoneId], ParkingZone]) { case (acc, (taz, numZones)) =>
-        val parkingZones = (0 until numZones).map { i =>
+        val parkingZones = (0 until numZones).map { _ =>
           val zone = ParkingZone
             .init(
               None,
               taz.tazId,
               ParkingType.Workplace,
               reservedFor,
-              None,
               5,
               pricingModel = Some(FlatFee(3.0))
             )

@@ -91,7 +91,8 @@ class BeamScoringFunctionFactory @Inject() (
                 s"a replanning. Value if  replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable is " +
                 s"${beamConfig.beam.agentsim.agents.vehicles.replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable}"
               )
-            } else {
+            } else if (!e.getReason.startsWith("RouteNotAvailableForChosenMode")) {
+              // Don't need to remove a trip if a route wasn't found because no initial trip was taken
               logger.error(
                 f"We need to remove a trip, but the trips collection is empty, this might be a bug. " +
                 f"The event: ${e.toString}, the person: ${person.getId.toString}"

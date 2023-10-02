@@ -183,15 +183,19 @@ class GenericFreightReader(
       case Some(filePath) => vehicleTypes ++ readBeamVehicleTypeFile(filePath)
       case None           => vehicleTypes
     }
-
-    val existingTours: Set[Id[FreightTour]] = allTours.keySet.intersect(allPlans.map(_._2.tourId).toSet)
+    // ****
+    val existingAllTours: Set[Id[FreightTour]] = allTours.keySet.intersect(allPlans.map(_._2.tourId).toSet)
+    val sampledToursNum = (allTours.size * config.tourSampleSizeAsFractionOfTotal).round.toInt
+    val sampledTours = rnd.shuffle(allTours).take(sampledToursNum).toMap
+    logger.info(s"Freight after sampling: ${sampledTours.size} tours")
+    val existingSampledTours: Set[Id[FreightTour]] = sampledTours.keySet.intersect(allPlans.map(_._2.tourId).toSet)
     val plans: Map[Id[PayloadPlan], PayloadPlan] = allPlans.filter { case (_, plan) =>
-      existingTours.contains(plan.tourId)
+      existingSampledTours.contains(plan.tourId)
     }
     val tourIdToPlans: Map[Id[FreightTour], IndexedSeq[PayloadPlan]] =
       plans.values.toIndexedSeq.groupBy(_.tourId).map { case (tourId, plans) => tourId -> plans.sortBy(_.sequenceRank) }
-    val tours: Map[Id[FreightTour], FreightTour] = allTours.filter { case (_, tour) =>
-      existingTours.contains(tour.tourId)
+    val tours: Map[Id[FreightTour], FreightTour] = sampledTours.filter { case (_, tour) =>
+      existingSampledTours.contains(tour.tourId)
     }
 
     case class FreightCarrierRow(
@@ -272,8 +276,11 @@ class GenericFreightReader(
       val tourId: Id[FreightTour] = get("tourId").createId
       val vehicleId: Id[BeamVehicle] = Id.createVehicleId(s"${FREIGHT_ID_PREFIX}Vehicle-${get("vehicleId")}")
       val vehicleTypeId: Id[BeamVehicleType] = get("vehicleTypeId").createId
-      if (!existingTours.contains(tourId)) {
+      if (!existingAllTours.contains(tourId)) {
         logger.error(f"Following freight carrier row discarded because tour $tourId was filtered out: $row")
+        None
+      } else if (!existingSampledTours.contains(tourId)) {
+        logger.debug(f"Following freight carrier row ignored because tour $tourId was sampled out: $row")
         None
       } else {
         val warehouseX = row.get("warehouseX")

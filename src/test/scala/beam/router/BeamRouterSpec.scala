@@ -97,6 +97,7 @@ class BeamRouterSpec extends AnyFlatSpec with BeamScenarioForTest {
       seatingCapacity = 1,
       standingRoomCapacity = 1,
       lengthInMeter = 3,
+      curbWeightInKg = 1000,
       primaryFuelType = FuelType.Gasoline,
       primaryFuelConsumptionInJoulePerMeter = 0.1,
       primaryFuelCapacityInJoule = 0.1,
