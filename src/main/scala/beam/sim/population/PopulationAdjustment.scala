@@ -56,6 +56,12 @@ trait PopulationAdjustment extends LazyLogging {
     populationWithAttributes
   }
 
+  // required for testing purposes
+  def logInfo(message: String): Unit = logger.info(message)
+
+  // required for testing purposes
+  def logError(message: String): Unit = logger.error(message)
+
   /**
     * Verified if all individuals have the excluded modes attribute and logs the count of each excluded mode.
     *
@@ -80,17 +86,17 @@ trait PopulationAdjustment extends LazyLogging {
       .flatMap(_.split(","))
 
     if (allExcludedModes.nonEmpty) {
-      logger.info(s"Modes excluded:")
+      logInfo(s"Modes excluded:")
       allExcludedModes
         .groupBy(identity)
-        .foreach { case (mode, modes) => logger.info(s"$mode -> ${modes.size}") }
+        .foreach { case (mode, modes) => logInfo(s"$mode -> ${modes.size}") }
     } else {
-      logger.info(s"There are no excluded modes.")
+      logInfo(s"There are no excluded modes.")
     }
 
     // log error if excluded modes attributes is missing for at least one person in the population
     if (persons.size != excludedModesPerPerson.size) {
-      logger.error("Not all agents have person attributes - is attributes file missing ?")
+      logError("Not all agents have person attributes - is attributes file missing ?")
     }
   }
 
