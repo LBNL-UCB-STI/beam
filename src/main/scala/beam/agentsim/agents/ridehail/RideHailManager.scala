@@ -1641,7 +1641,7 @@ class RideHailManager(
       if (currentlyProcessingTimeoutTrigger.isEmpty) {
         // We always use the request buffer even if we will process these requests immediately
         rideHailResourceAllocationManager.addRequestToBuffer(request)
-        findAllocationsAndProcess(request.requestTime, triggerId) //todome request.requestTime
+        findAllocationsAndProcess(request.requestTime, triggerId)
       } else {
         // We're in middle of repositioning, so stash this message until we're done (method "cleanup" called)
         stash()
