@@ -1102,14 +1102,13 @@ object BeamConfig {
             defaultCostPerMile: scala.Double,
             defaultCostPerMinute: scala.Double,
             initialization: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization,
-            maximumWalkDistanceToStopInM: scala.Int,
             name: java.lang.String,
             pooledBaseCost: scala.Double,
             pooledCostPerMile: scala.Double,
             pooledCostPerMinute: scala.Double,
             repositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager,
             rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager,
-            stopFilePath: scala.Option[java.lang.String]
+            supportedModes: java.lang.String
           )
 
           object Managers$Elm {
@@ -1471,9 +1470,6 @@ object BeamConfig {
                   if (c.hasPathOrNull("initialization")) c.getConfig("initialization")
                   else com.typesafe.config.ConfigFactory.parseString("initialization{}")
                 ),
-                maximumWalkDistanceToStopInM =
-                  if (c.hasPathOrNull("maximumWalkDistanceToStopInM")) c.getInt("maximumWalkDistanceToStopInM")
-                  else 800,
                 name = if (c.hasPathOrNull("name")) c.getString("name") else "GlobalRHM",
                 pooledBaseCost = if (c.hasPathOrNull("pooledBaseCost")) c.getDouble("pooledBaseCost") else 1.89,
                 pooledCostPerMile =
@@ -1488,7 +1484,9 @@ object BeamConfig {
                   if (c.hasPathOrNull("rideHailManager")) c.getConfig("rideHailManager")
                   else com.typesafe.config.ConfigFactory.parseString("rideHailManager{}")
                 ),
-                stopFilePath = if (c.hasPathOrNull("stopFilePath")) Some(c.getString("stopFilePath")) else None
+                supportedModes =
+                  if (c.hasPathOrNull("supportedModes")) c.getString("supportedModes")
+                  else "ride_hail, ride_hail_pooled"
               )
             }
           }

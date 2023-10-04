@@ -7,12 +7,13 @@ import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOpera
 import beam.agentsim.agents.ridehail.RideHailManager.ResponseCache
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail.RideHailMaster.RequestWithResponses
-import beam.agentsim.agents.vehicles.AccessErrorCodes.UnknownInquiryIdError
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{DriverNotFoundError, UnknownInquiryIdError}
 import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, VehicleManager}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_POOLED}
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.sim.{BeamScenario, BeamServices, RideHailFleetInitializerProvider}
@@ -140,22 +141,23 @@ class RideHailMaster(
     if (subscribedTo.isEmpty) rideHailManagers.values else subscribedTo
   }
 
-  private def findBestProposal(customer: Id[Person], responses: IndexedSeq[RideHailResponse]) = {
+  private def findBestProposal(customer: Id[Person], responses: IndexedSeq[RideHailResponse]): RideHailResponse = {
     val responsesInRandomOrder = rand.shuffle(responses)
-    val withProposals = responsesInRandomOrder.filter(_.travelProposal.isDefined)
-    if (withProposals.isEmpty) responsesInRandomOrder.head
+    val request = responsesInRandomOrder.head.request
+    // asPooled is set to false only in case person's current tour mode is RIDE_HAIL
+    // FIXME refactoring: we could use possibleModes: Set[BeamMode] instead of asPooled in RH request.
+    val customerHasRequestedSoloTrip = !request.asPooled
+    val availableProposals =
+      if (customerHasRequestedSoloTrip)
+        responsesInRandomOrder.filter(_.travelProposal.exists(_.modeOptions.contains(RIDE_HAIL)))
+      else
+        responsesInRandomOrder.filter(_.travelProposal.isDefined)
+    if (availableProposals.isEmpty)
+      RideHailResponse.dummyWithError(DriverNotFoundError, request)
     else
       bestResponseType match {
-        case "MIN_COST" =>
-          withProposals.minBy { response =>
-            val travelProposal = response.travelProposal.get
-            val price = travelProposal.estimatedPrice(customer)
-            if (travelProposal.poolingInfo.isDefined && response.request.asPooled)
-              Math.min(price, price * travelProposal.poolingInfo.get.costFactor)
-            else
-              price
-          }
-        case "MIN_UTILITY" => sampleProposals(customer, withProposals)
+        case "MIN_COST"    => availableProposals.minBy(findCost(customer, _))
+        case "MIN_UTILITY" => sampleProposals(customer, availableProposals)
       }
   }
 
@@ -179,14 +181,7 @@ class RideHailMaster(
     val person = beamServices.matsimServices.getScenario.getPopulation.getPersons.get(customer)
     val customerAttributes = person.getCustomAttributes.get(BEAM_ATTRIBUTES).asInstanceOf[AttributesOfIndividual]
     responses.map { alt =>
-      val cost: Double = {
-        val travelProposal = alt.travelProposal.get
-        val price = travelProposal.estimatedPrice(customer)
-        if (travelProposal.poolingInfo.isDefined && alt.request.asPooled)
-          Math.min(price, price * travelProposal.poolingInfo.get.costFactor)
-        else
-          price
-      }
+      val cost: Double = findCost(customer, alt)
       val scaledTime: Double = customerAttributes.getVOT(
         getGeneralizedTimeOfProposalInHours(alt.request.customer, alt.travelProposal)
       )
@@ -200,6 +195,19 @@ class RideHailMaster(
       )
 
     }.toMap
+  }
+
+  private def findCost(customer: Id[Person], response: RideHailResponse): Double = {
+    val travelProposal = response.travelProposal.get
+    val price = travelProposal.estimatedPrice(customer)
+    if (
+      travelProposal.modeOptions.contains(RIDE_HAIL_POOLED)
+      && travelProposal.poolingInfo.isDefined
+      && response.request.asPooled
+    ) // pooling is supported by RHM and person has choice to pick pooled as not assigned some other tour mode
+      Math.min(price, price * travelProposal.poolingInfo.get.costFactor)
+    else
+      price
   }
 
   private def getGeneralizedTimeOfProposalInHours(
