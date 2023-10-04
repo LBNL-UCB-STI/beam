@@ -484,7 +484,18 @@ trait ChoosesParking extends {
         legs
           .find(_.beamLeg.mode == CAR)
           .map { beamLeg =>
-            EmbodiedBeamLeg.splitLegForParking(beamLeg, beamServices, transportNetwork)
+            val vehicleType = beamScenario.vehicleTypes(beamLeg.beamVehicleTypeId)
+            val fuelPrice =
+              beamScenario.fuelTypePrices(beamScenario.vehicleTypes(beamLeg.beamVehicleTypeId).primaryFuelType)
+
+            EmbodiedBeamLeg.splitLegForParking(
+              beamLeg,
+              beamServices,
+              transportNetwork,
+              tollCalculator,
+              vehicleType,
+              fuelPrice
+            )
           }
           .getOrElse {
             log.error("EnRoute: car leg not found in routing response.")

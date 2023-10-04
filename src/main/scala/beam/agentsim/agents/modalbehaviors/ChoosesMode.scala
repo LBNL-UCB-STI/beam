@@ -129,7 +129,7 @@ trait ChoosesMode {
     nextStateData match {
       // If I am already on a tour in a vehicle, only that vehicle is available to me
       case ChoosesModeData(
-            BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _, _, _, _, _, _),
+            BasePersonData(_, _, _, _, _, Some(vehicle), _, _, _, _, _, _, _),
             _,
             _,
             _,
@@ -161,7 +161,6 @@ trait ChoosesMode {
               _,
               _,
               Some(HOV2_TELEPORTATION | HOV3_TELEPORTATION),
-              _,
               _,
               _,
               _,
@@ -204,7 +203,6 @@ trait ChoosesMode {
               _,
               _,
               plansModeOption @ (None | Some(CAR | BIKE | DRIVE_TRANSIT | BIKE_TRANSIT)),
-              _,
               _,
               _,
               _,
@@ -937,9 +935,20 @@ trait ChoosesMode {
     val theRouterResult = response.copy(itineraries = response.itineraries.map { it =>
       it.copy(
         it.legs.flatMap(embodiedLeg =>
-          if (legVehicleHasParkingBehavior(embodiedLeg))
-            EmbodiedBeamLeg.splitLegForParking(embodiedLeg, beamServices, transportNetwork)
-          else Vector(embodiedLeg)
+          if (legVehicleHasParkingBehavior(embodiedLeg)) {
+            val vehicleType = beamScenario.vehicleTypes(embodiedLeg.beamVehicleTypeId)
+            val fuelPrice =
+              beamScenario.fuelTypePrices(beamScenario.vehicleTypes(embodiedLeg.beamVehicleTypeId).primaryFuelType)
+
+            EmbodiedBeamLeg.splitLegForParking(
+              embodiedLeg,
+              beamServices,
+              transportNetwork,
+              tollCalculator,
+              vehicleType,
+              fuelPrice
+            )
+          } else Vector(embodiedLeg)
         )
       )
     })
