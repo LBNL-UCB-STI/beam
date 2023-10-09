@@ -50,11 +50,11 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
       val events = eventIterator.toList
       closable.close()
 
-      def getEventBefore(time: Int, ofType: String, attrName: String, attrValue: String): Event = {
+      def getEventBeforeOptional(time: Int, ofType: String, attrName: String, attrValue: String): Option[Event] = {
         events.view
           .takeWhile(event => getIntAttr(event, "time") <= time)
           .filter(event => event.getAttributes.get("type") == ofType && event.getAttributes.get(attrName) == attrValue)
-          .last
+          .lastOption
       }
 
       def getEventAfter(time: Int, ofType: String, attrName: String, attrValue: String): Event = {
@@ -72,23 +72,34 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
         && event.getAttributes.get("vehicle").startsWith("rideHailVehicle-")
         && getIntAttr(event, "numPassengers") > 0
       )
-      rideHailWithPassengers should not be empty withClue "Cannot test it if no RH trips"
+      rideHailWithPassengers should not be empty withClue "Expected to have ride hail PathTraversal with more than 0 passengers"
       forAll(rideHailWithPassengers) { rhPte =>
+
         val (start, end) = getStartEnd(rhPte)
         start should not be end withClue "RH leg shouldn't be between the same stop"
-        start should (be(stop1) or be(stop2))
-        end should (be(stop1) or be(stop2))
-        val riders = rhPte.getAttributes.get("riders").split(':')
+        start should (be(stop1) or be(stop2)) withClue "Start stop should be either of two pre-set from input file."
+        end should (be(stop1) or be(stop2)) withClue "End stop should be either of two pre-set from input file."
+
+        val riders = rhPte.getAttributes.get("riders").split(':').toList
         // in case of pooled RH trip with multiple RH legs this wouldn't work.
         // though in Beamville only short pooled trips are possible I hope
+        riders should not be empty withClue "Expected to have riders in the PathTraversal event"
         forAll(riders) { rider =>
           // validate that previous walking start at the activity location
           val rhDepartureTime = getIntAttr(rhPte, "departureTime")
-          val actend = getEventBefore(rhDepartureTime, "actend", "person", rider)
-          val walkingBeforeRH = getEventBefore(rhDepartureTime, "PathTraversal", "vehicle", s"body-$rider")
+
+          val maybeActend = getEventBeforeOptional(rhDepartureTime, "actend", "person", rider)
+          maybeActend should not be empty withClue "Expected to have an ActEnd event for a person before RH departure."
+          val actend = maybeActend.get
+
+          val maybeWalkingBeforeRH = getEventBeforeOptional(rhDepartureTime, "PathTraversal", "vehicle", s"body-$rider")
+          maybeWalkingBeforeRH should not be empty withClue "Expected to have a PathTraversal event before RH departure."
+          val walkingBeforeRH = maybeWalkingBeforeRH.get
+
           walkingBeforeRH.getAttributes.get("mode") shouldBe "walk"
           val pteLinks = walkingBeforeRH.getAttributes.get("links").split(',')
           val firstLink = pteLinks.head
+
           firstLink shouldBe actend.getAttributes.get("link")
           // validate that previous walking ends at the pickup stop
           val (walkStart1, walkEnd1) = getStartEnd(walkingBeforeRH)
