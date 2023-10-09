@@ -652,7 +652,7 @@ trait ChoosesMode {
         }
       }
 
-      val rhTransitTrip = theRouterResult.itineraries.find(_.tripClassifier == RIDE_HAIL_TRANSIT)
+      val rhTransitTrip = theRouterResult.itineraries.find(_.tripClassifier == DRIVE_TRANSIT)
       // If there's a drive-transit trip AND we don't have an error RH2Tr response (due to no desire to use RH) then seek RH on access and egress
       val newPersonData =
         if (
