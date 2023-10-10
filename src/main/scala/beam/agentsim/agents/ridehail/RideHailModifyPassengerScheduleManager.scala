@@ -161,8 +161,12 @@ class RideHailModifyPassengerScheduleManager(
     allTriggersInWave = Vector()
   }
 
-  def addTriggerToSendWithCompletion(newTrigger: ScheduleTrigger): Unit = {
-    allTriggersInWave = allTriggersInWave :+ newTrigger
+  def addTriggerToSendWithCompletion(tick: Int, response: RideHailResponse, customerRef: ActorRef): Unit = {
+    allTriggersInWave = allTriggersInWave :+ ScheduleTrigger(
+      RideHailResponseTrigger(tick, response),
+      customerRef
+    )
+
   }
 
   def addTriggersToSendWithCompletion(newTriggers: Vector[ScheduleTrigger]): Unit = {

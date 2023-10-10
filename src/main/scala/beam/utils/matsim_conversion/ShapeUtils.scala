@@ -64,6 +64,10 @@ object ShapeUtils {
     def getCoord(a: A): Coord
   }
 
+  object HasCoord {
+    implicit val coord: HasCoord[Coord] = (a: Coord) => a
+  }
+
   private def featureToCsvTaz(f: SimpleFeature, tazIDFieldName: String): Option[CsvTaz] = {
     f.getDefaultGeometry match {
       case g: Geometry =>

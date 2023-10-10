@@ -48,8 +48,8 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     schedule.takeWhile(legManifest => !legManifest._2.riders.contains(passenger)).keys.toList
   }
 
-  def legsWithPassenger(passenger: PersonIdWithActorRef): List[BeamLeg] = {
-    schedule.filter(legManifest => legManifest._2.riders.contains(passenger)).keys.toList
+  def legsWithPassenger(passenger: PersonIdWithActorRef): IndexedSeq[BeamLeg] = {
+    schedule.filter(legManifest => legManifest._2.riders.contains(passenger)).keys.toIndexedSeq
   }
 
   def updateStartTimes(newStartTimeOfFirstLeg: Int): PassengerSchedule = {

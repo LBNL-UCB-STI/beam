@@ -9,6 +9,9 @@ import com.conveyal.r5.streets.EdgeStore
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 
+import scala.collection.SeqLike
+import scala.collection.generic.CanBuildFrom
+
 case class EmbodiedBeamLeg(
   beamLeg: BeamLeg,
   beamVehicleId: Id[BeamVehicle],
