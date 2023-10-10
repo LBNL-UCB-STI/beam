@@ -66,14 +66,14 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
           )
       }
 
-      events should not be empty
+      events should not be empty withClue "Expected to read events of simulation."
       val rideHailWithPassengers = events.filter(event =>
         event.getAttributes.get("type") == "PathTraversal"
         && event.getAttributes.get("vehicle").startsWith("rideHailVehicle-")
         && getIntAttr(event, "numPassengers") > 0
       )
 
-      rideHailWithPassengers should not be empty withClue "Expected to have ride hail PathTraversal with more than 0 passengers"
+      rideHailWithPassengers should not be empty withClue "Expected to have ride hail PathTraversal with more than 0 passengers."
       forAll(rideHailWithPassengers) { rhPte =>
         val (start, end) = getStartEnd(rhPte)
         start should not be end withClue "RH leg shouldn't be between the same stop"
@@ -93,44 +93,49 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
           maybeActEnd should not be empty withClue f"Expected to have an ActEnd event for a person before RH departure. Person: $rider"
           val actEnd = maybeActEnd.get
           val actEndTime = getIntAttr(actEnd, "time")
+          val actEndLink = actEnd.getAttributes.get("link")
 
           // actStart at the end of the current trip
           val maybeActStart = getEventAfter(rhDepartureTime, "actstart", "person", rider)
           maybeActStart should not be empty withClue f"Expected to have an ActStart event for a person some time after RH departure. Person: $rider"
-          val actStart = maybeActStart.get
+          val nextActStart = maybeActStart.get
+          val nextActStartTime = getIntAttr(nextActStart, "time")
+          val nextActStartLink = nextActStart.getAttributes.get("link")
 
           // a walking PathTraversal event after the actEnd event
           val maybeWalkingBeforeRH = getEventAfter(actEndTime, "PathTraversal", "vehicle", s"body-$rider")
           maybeWalkingBeforeRH should not be empty withClue f"Expected to have a PathTraversal event before RH departure. Person: $rider"
 
           val walkingBeforeRH = maybeWalkingBeforeRH.get
-          walkingBeforeRH.getAttributes.get(
-            "mode"
-          ) shouldBe "walk" withClue "Expected walk PathTraversal event after the actEnd and before RH trip"
+          val beforeRHEventMode = walkingBeforeRH.getAttributes.get("mode")
+          beforeRHEventMode shouldBe "walk" withClue "Expected walk PathTraversal event after the actEnd and before RH trip"
 
           val firstWalkLink = walkingBeforeRH.getAttributes.get("links").split(',').head
-          firstWalkLink shouldBe actEnd.getAttributes.get(
-            "link"
-          ) withClue "Expected walk event to start at the same link of actEnd"
+          firstWalkLink shouldBe actEndLink withClue "Expected walk event to start at the same link of actEnd"
 
           // validate that previous walking ends at the pickup stop
           val (walkStart1, walkEnd1) = getStartEnd(walkingBeforeRH)
           if (walkStart1 != walkEnd1) {
-            walkEnd1 shouldBe start withClue "Expected walk event to end at pick-up location."
+            walkEnd1 shouldBe start withClue "Expected walk PT event to end at pick-up location."
           } else {
             logger.warn(s"Router provided a walk route to RH stop with the same start/end for person $rider")
           }
-          val rhArrivalTime = getIntAttr(rhPte, "arrivalTime")
+
           // validate that after RH walking ends at the activity location
-          val walkingAfterRH = getEventAfter(rhArrivalTime, "PathTraversal", "vehicle", s"body-$rider").get
-          walkingAfterRH.getAttributes.get("mode") shouldBe "walk"
-          val pteLinks2 = walkingAfterRH.getAttributes.get("links").split(',')
-          val lastLink = pteLinks2.last
-          lastLink shouldBe actStart.getAttributes.get("link")
-          // validate that after RH walking starts at the dropoff stop
+          val maybeWalkingAfterRH = getEventBefore(nextActStartTime, "PathTraversal", "vehicle", s"body-$rider")
+          maybeActStart should not be empty withClue f"Expected to have a PathTraversal event before next actstart event. Person: $rider"
+          val walkingAfterRH = maybeWalkingAfterRH.get
+
+          val afterRHEventMode = walkingAfterRH.getAttributes.get("mode")
+          afterRHEventMode shouldBe "walk" withClue f"Expected walk PathTraversal before actstart event. Person: $rider"
+
+          val lastWalkLink = walkingAfterRH.getAttributes.get("links").split(',').last
+          lastWalkLink shouldBe nextActStartLink withClue f"Expected walk PT event to end at next actstart location. Person: $rider"
+
+          // validate that after RH walking starts at the drop-off stop
           val (walkStart2, walkEnd2) = getStartEnd(walkingAfterRH)
           if (walkStart2 != walkEnd2) {
-            walkStart2 shouldBe end
+            walkStart2 shouldBe end withClue "Expected last walk PT event to start at drop-off location."
           } else {
             logger.warn(s"Router provided a walk route from RH stop with the same start/end for person $rider")
           }
