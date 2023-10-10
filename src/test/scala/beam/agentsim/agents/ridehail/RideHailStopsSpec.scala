@@ -104,10 +104,14 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
           maybeWalkingBeforeRH should not be empty withClue f"Expected to have a PathTraversal event before RH departure. Person: $rider"
 
           val walkingBeforeRH = maybeWalkingBeforeRH.get
-          walkingBeforeRH.getAttributes.get("mode") shouldBe "walk" withClue "Expected walk PathTraversal event after the actEnd and before RH trip"
+          walkingBeforeRH.getAttributes.get(
+            "mode"
+          ) shouldBe "walk" withClue "Expected walk PathTraversal event after the actEnd and before RH trip"
 
           val firstWalkLink = walkingBeforeRH.getAttributes.get("links").split(',').head
-          firstWalkLink shouldBe actEnd.getAttributes.get("link") withClue "Expected walk event to start at the same link of actEnd"
+          firstWalkLink shouldBe actEnd.getAttributes.get(
+            "link"
+          ) withClue "Expected walk event to start at the same link of actEnd"
 
           // validate that previous walking ends at the pickup stop
           val (walkStart1, walkEnd1) = getStartEnd(walkingBeforeRH)
