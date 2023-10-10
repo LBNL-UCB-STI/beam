@@ -7,10 +7,10 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.Event
+import org.scalatest.AppendedClues.convertToClueful
 import org.scalatest.Inspectors.forAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.AppendedClues.convertToClueful
 
 /**
   * @author Dmitry Openkov
@@ -30,6 +30,7 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
           .parseString("""
               beam.cfg.copyRideHailToFirstManager = true
               beam.agentsim.agents.rideHail.stopFilePath="./test/test-resources/beam/input/ridehail-stops.csv"
+              beam.agentsim.lastIteration = 0
               beam.agentsim.agents.rideHail.maximumWalkDistanceToStopInM=1600
               beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept = 10
               beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept = -100
@@ -50,20 +51,19 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
       val events = eventIterator.toList
       closable.close()
 
-      def getEventBeforeOptional(time: Int, ofType: String, attrName: String, attrValue: String): Option[Event] = {
+      def getEventBefore(time: Int, ofType: String, attrName: String, attrValue: String): Option[Event] = {
         events.view
           .takeWhile(event => getIntAttr(event, "time") <= time)
           .filter(event => event.getAttributes.get("type") == ofType && event.getAttributes.get(attrName) == attrValue)
           .lastOption
       }
 
-      def getEventAfter(time: Int, ofType: String, attrName: String, attrValue: String): Event = {
+      def getEventAfter(time: Int, ofType: String, attrName: String, attrValue: String): Option[Event] = {
         events
           .find(event =>
             getIntAttr(event, "time") >= time &&
             event.getAttributes.get("type") == ofType && event.getAttributes.get(attrName) == attrValue
           )
-          .get
       }
 
       events should not be empty
@@ -72,9 +72,9 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
         && event.getAttributes.get("vehicle").startsWith("rideHailVehicle-")
         && getIntAttr(event, "numPassengers") > 0
       )
+
       rideHailWithPassengers should not be empty withClue "Expected to have ride hail PathTraversal with more than 0 passengers"
       forAll(rideHailWithPassengers) { rhPte =>
-
         val (start, end) = getStartEnd(rhPte)
         start should not be end withClue "RH leg shouldn't be between the same stop"
         start should (be(stop1) or be(stop2)) withClue "Start stop should be either of two pre-set from input file."
@@ -88,34 +88,41 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
           // validate that previous walking start at the activity location
           val rhDepartureTime = getIntAttr(rhPte, "departureTime")
 
-          val maybeActend = getEventBeforeOptional(rhDepartureTime, "actend", "person", rider)
-          maybeActend should not be empty withClue "Expected to have an ActEnd event for a person before RH departure."
-          val actend = maybeActend.get
+          // actEnd before the current trip
+          val maybeActEnd = getEventBefore(rhDepartureTime, "actend", "person", rider)
+          maybeActEnd should not be empty withClue f"Expected to have an ActEnd event for a person before RH departure. Person: $rider"
+          val actEnd = maybeActEnd.get
+          val actEndTime = getIntAttr(actEnd, "time")
 
-          val maybeWalkingBeforeRH = getEventBeforeOptional(rhDepartureTime, "PathTraversal", "vehicle", s"body-$rider")
-          maybeWalkingBeforeRH should not be empty withClue "Expected to have a PathTraversal event before RH departure."
+          // actStart at the end of the current trip
+          val maybeActStart = getEventAfter(rhDepartureTime, "actstart", "person", rider)
+          maybeActStart should not be empty withClue f"Expected to have an ActStart event for a person some time after RH departure. Person: $rider"
+          val actStart = maybeActStart.get
+
+          // a walking PathTraversal event after the actEnd event
+          val maybeWalkingBeforeRH = getEventAfter(actEndTime, "PathTraversal", "vehicle", s"body-$rider")
+          maybeWalkingBeforeRH should not be empty withClue f"Expected to have a PathTraversal event before RH departure. Person: $rider"
+
           val walkingBeforeRH = maybeWalkingBeforeRH.get
+          walkingBeforeRH.getAttributes.get("mode") shouldBe "walk" withClue "Expected walk PathTraversal event after the actEnd and before RH trip"
 
-          walkingBeforeRH.getAttributes.get("mode") shouldBe "walk"
-          val pteLinks = walkingBeforeRH.getAttributes.get("links").split(',')
-          val firstLink = pteLinks.head
+          val firstWalkLink = walkingBeforeRH.getAttributes.get("links").split(',').head
+          firstWalkLink shouldBe actEnd.getAttributes.get("link") withClue "Expected walk event to start at the same link of actEnd"
 
-          firstLink shouldBe actend.getAttributes.get("link")
           // validate that previous walking ends at the pickup stop
           val (walkStart1, walkEnd1) = getStartEnd(walkingBeforeRH)
           if (walkStart1 != walkEnd1) {
-            walkEnd1 shouldBe start
+            walkEnd1 shouldBe start withClue "Expected walk event to end at pick-up location."
           } else {
             logger.warn(s"Router provided a walk route to RH stop with the same start/end for person $rider")
           }
           val rhArrivalTime = getIntAttr(rhPte, "arrivalTime")
           // validate that after RH walking ends at the activity location
-          val actstart = getEventAfter(rhArrivalTime, "actstart", "person", rider)
-          val walkingAfterRH = getEventAfter(rhArrivalTime, "PathTraversal", "vehicle", s"body-$rider")
+          val walkingAfterRH = getEventAfter(rhArrivalTime, "PathTraversal", "vehicle", s"body-$rider").get
           walkingAfterRH.getAttributes.get("mode") shouldBe "walk"
           val pteLinks2 = walkingAfterRH.getAttributes.get("links").split(',')
           val lastLink = pteLinks2.last
-          lastLink shouldBe actstart.getAttributes.get("link")
+          lastLink shouldBe actStart.getAttributes.get("link")
           // validate that after RH walking starts at the dropoff stop
           val (walkStart2, walkEnd2) = getStartEnd(walkingAfterRH)
           if (walkStart2 != walkEnd2) {
