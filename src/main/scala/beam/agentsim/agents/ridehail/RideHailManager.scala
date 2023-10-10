@@ -205,10 +205,11 @@ object RideHailManager {
     def clear(): Unit = rideHailResponseCache.clear()
 
     def add(rideHailResponse: RideHailResponse): Unit = {
-      rideHailResponseCache.put(
-        rideHailResponse.request.customer.personId,
-        getActualResponses(rideHailResponse.request) :+ rideHailResponse
-      )
+      if (rideHailResponse.error.isEmpty)
+        rideHailResponseCache.put(
+          rideHailResponse.request.customer.personId,
+          getActualResponses(rideHailResponse.request) :+ rideHailResponse
+        )
     }
 
     def getActualResponses(request: RideHailRequest): IndexedSeq[RideHailResponse] = {
