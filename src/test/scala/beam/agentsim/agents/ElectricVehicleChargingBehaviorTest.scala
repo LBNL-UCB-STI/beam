@@ -6,6 +6,7 @@ import beam.utils.EventReader
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
+import org.scalatest.BeforeAndAfterAll
 import org.matsim.api.core.v01.events.Event
 import org.matsim.vehicles.Vehicle
 import org.scalatest.AppendedClues.convertToClueful
@@ -20,6 +21,7 @@ import scala.util.matching.Regex
 class ElectricVehicleChargingBehaviorTest
     extends AnyFlatSpec
     with Matchers
+    with BeforeAndAfterAll
     with BeamHelper
     with BeforeAndAfterAllConfigMap {
 
@@ -577,6 +579,14 @@ class ElectricVehicleChargingBehaviorTest
 
     ultrafastTazPluginCAVCount should be > fastTazPluginCAVCount withClue
     ", vehicles should be picking the faster chargers (more power output) more often than the slower ones."
+  }
+
+  override def beforeAll(): Unit = {
+    logger.error("ElectricVehicleChargingBehaviorTest started.")
+  }
+
+  override def afterAll(): Unit = {
+    logger.error("ElectricVehicleChargingBehaviorTest ended.")
   }
 
   def filterEvents(events: IndexedSeq[Event], filters: (String, String => Boolean)*): IndexedSeq[Event] = {
