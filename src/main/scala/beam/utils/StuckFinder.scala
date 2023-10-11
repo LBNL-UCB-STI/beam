@@ -135,7 +135,7 @@ class StuckFinder(val cfg: StuckAgentDetection) extends LazyLogging {
   def isStuckAgent(st: ScheduledTrigger, startedAtMs: Long, currentTimeMs: Long): Boolean = {
     val diff = currentTimeMs - startedAtMs
     val threshold = class2Threshold.getOrElse(toKey(st), cfg.defaultTimeoutMs)
-    val isStuck = diff > threshold * 750
+    val isStuck = diff > threshold
     if (isStuck) {
       logger.warn(s"$st is stuck. Diff: $diff ms, Threshold: $threshold ms")
     }
