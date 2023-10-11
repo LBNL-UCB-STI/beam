@@ -1063,7 +1063,10 @@ trait ChoosesMode {
     rideHail2TransitEgressResult: RideHailResponse,
     driveTransitTrip: EmbodiedBeamTrip
   ): Option[EmbodiedBeamTrip] = {
-    if (rideHail2TransitAccessResult.error.isEmpty) {
+    if (
+      rideHail2TransitAccessResult.error.isEmpty &&
+      rideHail2TransitEgressResult.error.forall(error => error == RideHailNotRequestedError)
+    ) {
       val tncAccessLeg: Vector[EmbodiedBeamLeg] =
         rideHail2TransitAccessResult.travelProposal.get.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
       // Replacing drive access leg with TNC changes the travel time.
@@ -1269,6 +1272,9 @@ trait ChoosesMode {
         case _ =>
           Vector()
       }
+//      if (rideHail2TransitIinerary.exists(_.legs.exists(leg => leg.isRideHail && leg.)))
+//        System.getProperty("debug") //todome
+
       val combinedItinerariesForChoice = rideHailItinerary ++ addParkingCostToItins(
         routingResponse.itineraries,
         parkingResponses
