@@ -581,12 +581,16 @@ class ElectricVehicleChargingBehaviorTest
     ", vehicles should be picking the faster chargers (more power output) more often than the slower ones."
   }
 
+  override val invokeBeforeAllAndAfterAllEvenIfNoTestsAreExpected = true
+
   override def beforeAll(): Unit = {
     logger.error("ElectricVehicleChargingBehaviorTest started.")
+    super.beforeAll()
   }
 
   override def afterAll(): Unit = {
     logger.error("ElectricVehicleChargingBehaviorTest ended.")
+    super.afterAll()
   }
 
   def filterEvents(events: IndexedSeq[Event], filters: (String, String => Boolean)*): IndexedSeq[Event] = {
