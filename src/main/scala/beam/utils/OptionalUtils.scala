@@ -35,5 +35,6 @@ object OptionalUtils {
 
   implicit class OptionalTimeExtension(optionalTime: OptionalTime) {
     def toOption: Option[Double] = if (optionalTime.isDefined) Option(optionalTime.seconds()) else Option.empty[Double]
+    def isDefinedAndPositive: Boolean = optionalTime.isDefined && optionalTime.seconds() > 0
   }
 }

@@ -6,6 +6,7 @@ import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.utils.io.IOUtils
+import beam.utils.OptionalUtils._
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
@@ -260,9 +261,9 @@ class DestinationChoiceModel(
     activity: Activity
   ): (Double, Double) = {
     val start =
-      if (activity.getStartTime.isDefined && activity.getStartTime.seconds() > 0) activity.getStartTime.seconds() else 0
+      if (activity.getStartTime.isDefinedAndPositive) activity.getStartTime.seconds() else 0
     val end =
-      if (activity.getEndTime.isDefined && activity.getEndTime.seconds() > 0) activity.getEndTime.seconds()
+      if (activity.getEndTime.isDefinedAndPositive) activity.getEndTime.seconds()
       else 3600 * 24
     (start, end)
   }

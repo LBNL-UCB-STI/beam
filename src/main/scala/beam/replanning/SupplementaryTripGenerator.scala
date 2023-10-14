@@ -8,6 +8,7 @@ import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.{CAR, CAV, RIDE_HAIL, RIDE_HAIL_POOLED, WALK, WALK_TRANSIT}
 import beam.sim.BeamServices
 import beam.sim.population.AttributesOfIndividual
+import beam.utils.OptionalUtils.OptionalTimeExtension
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import org.matsim.api.core.v01.population.{Activity, Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -290,10 +291,10 @@ class SupplementaryTripGenerator(
   private def getRealStartEndTime(
     activity: Activity
   ): (Double, Double) = {
-    val start = if (activity.getStartTime.isDefined && activity.getStartTime.seconds() > 0) {
+    val start = if (activity.getStartTime.isDefinedAndPositive) {
       activity.getStartTime.seconds()
     } else { 0 }
-    val end = if (activity.getEndTime.isDefined && activity.getEndTime.seconds() > 0) {
+    val end = if (activity.getEndTime.isDefinedAndPositive) {
       activity.getEndTime.seconds()
     } else { 3600 * 24 }
     (start, end)

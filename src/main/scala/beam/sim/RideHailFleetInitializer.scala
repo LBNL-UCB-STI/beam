@@ -12,6 +12,7 @@ import beam.sim.RideHailFleetInitializer.RideHailAgentInitializer
 import beam.sim.common.{GeoUtils, Range}
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import beam.sim.vehicles.VehiclesAdjustment
+import beam.utils.OptionalUtils.OptionalTimeExtension
 import beam.utils.OutputDataDescriptor
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
@@ -612,7 +613,7 @@ class ProceduralRideHailFleetInitializer(
     val activityEndTimes: Array[Int] = persons.flatMap {
       _.getSelectedPlan.getPlanElements.asScala
         .collect {
-          case activity: Activity if activity.getEndTime.isDefined && activity.getEndTime.seconds() > 0 =>
+          case activity: Activity if activity.getEndTime.isDefinedAndPositive =>
             activity.getEndTime.seconds().toInt
         }
     }

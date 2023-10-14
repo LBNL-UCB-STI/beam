@@ -2,6 +2,8 @@ package beam.replanning
 
 import beam._
 import beam.sim.config.BeamConfig
+import beam.utils.OptionalUtils.OptionalTimeExtension
+
 import javax.inject.Inject
 import org.matsim.api.core.v01.population.{Activity, HasPlansAndId, Person, Plan}
 import org.matsim.core.population.PopulationUtils
@@ -96,10 +98,10 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
   private def addSubtourToActivity(
     activity: Activity
   ): List[Activity] = {
-    val startTime = if (activity.getStartTime.isDefined && activity.getStartTime.seconds() > 0) {
+    val startTime = if (activity.getStartTime.isDefinedAndPositive) {
       activity.getStartTime.seconds()
     } else { 0 }
-    val endTime = if (activity.getEndTime.isDefined && activity.getEndTime.seconds() > 0) {
+    val endTime = if (activity.getEndTime.isDefinedAndPositive) {
       activity.getEndTime.seconds()
     } else { 3600 * 24 }
 

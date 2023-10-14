@@ -173,7 +173,7 @@ trait ChoosesParking extends {
     val activityType = nextActivity(data).get.getType
     val remainingTripData = calculateRemainingTripData(data)
     val parkingDuration =
-      nextActivity(data).map(_.getEndTime.orElse(beam.UNDEFINED_TIME) - lastLeg.endTime).getOrElse(0.0)
+      nextActivity(data).map(_.getEndTime.orElse(0.0) - lastLeg.endTime).getOrElse(0.0)
 
     val destinationUtm = SpaceTime(beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), lastLeg.endTime)
     if (data.enrouteData.isInEnrouteState) {
