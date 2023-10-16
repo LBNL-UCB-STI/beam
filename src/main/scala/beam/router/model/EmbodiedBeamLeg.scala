@@ -50,7 +50,11 @@ object EmbodiedBeamLeg {
   def makeLegsConsistent(legs: Vector[EmbodiedBeamLeg]): Vector[EmbodiedBeamLeg] = {
     var runningStartTime = legs.head.beamLeg.startTime
     for (leg <- legs) yield {
-      val newLeg = leg.copy(beamLeg = leg.beamLeg.updateStartTime(runningStartTime))
+      val newLeg = {
+        // we cannot change start time of legs that have schedule
+        if (leg.beamLeg.mode.isTransit) leg
+        else leg.copy(beamLeg = leg.beamLeg.updateStartTime(runningStartTime))
+      }
       runningStartTime = newLeg.beamLeg.endTime
       newLeg
     }
