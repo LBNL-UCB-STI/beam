@@ -200,6 +200,10 @@ object PersonAgent {
     def hasNextLeg: Boolean = restOfCurrentTrip.nonEmpty
     def nextLeg: EmbodiedBeamLeg = restOfCurrentTrip.head
 
+    def lastLeg: Option[EmbodiedBeamLeg] = currentTrip.flatMap { trip =>
+      trip.legs.lift(trip.legs.length - restOfCurrentTrip.length - 1)
+    }
+
     def currentTourModeIsIn(modes: BeamMode*): Boolean = currentTourMode.exists(modes.contains)
 
     override def withPassengerSchedule(newPassengerSchedule: PassengerSchedule): DrivingData =
@@ -1092,10 +1096,14 @@ class PersonAgent(
 
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
     case Event(StateTimeout, data: BasePersonData)
+        // if we are about to walk then ride-hail
+        // OR we are at a ride-hail leg but the last leg is not a walk (we didn't reserve a RH yet)
         if data.hasNextLeg
           && data.nextLeg.asDriver
           && data.nextLeg.beamLeg.mode == WALK
-          && data.restOfCurrentTrip.tail.headOption.exists(_.isRideHail) =>
+          && data.restOfCurrentTrip.tail.headOption.exists(_.isRideHail)
+          || data.restOfCurrentTrip.headOption.exists(_.isRideHail)
+          && data.lastLeg.forall(_.beamLeg.mode != WALK) =>
       // Doing RH reservation before we start walking to our pickup location
       doRideHailReservation(data.nextLeg.beamLeg.startTime, data.nextLeg.beamLeg.endTime, data.restOfCurrentTrip.tail)
       goto(WaitingForRideHailReservationConfirmation)
@@ -1488,8 +1496,8 @@ class PersonAgent(
       beamServices.geo.wgs2Utm(rideHailLeg.beamLeg.travelPath.startPoint.loc),
       departureTime,
       beamServices.geo.wgs2Utm(rideHailLegEndpoint),
-      rideHailLeg.isPooledTrip,
-      wheelchairUser,
+      asPooled = rideHailLeg.isPooledTrip,
+      withWheelchair = wheelchairUser,
       requestTime = currentTick,
       quotedWaitTime = Some(rideHailLeg.beamLeg.startTime - departureTime),
       requester = self,
