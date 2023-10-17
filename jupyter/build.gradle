@@ -47,11 +47,11 @@ static def readMappingFromFile(String filePath, String prefix, String basePath) 
     return [mapping, errors]
 }
 
-static def getFoldersToMount() {
+static def getFoldersToMount(project) {
     LinkedHashMap<Object, Object> volume_mapping = [:]
     volume_mapping.put('.jupyter_home', '/home/jovyan')
 
-    def beamRootPath = new File(".").getCanonicalPath()
+    def beamRootPath = project.rootDir.getCanonicalPath()
     volume_mapping.put(beamRootPath, '/home/jovyan/beam_root')
     volume_mapping.put('local_files', '/home/jovyan/local_files')
 
@@ -61,7 +61,7 @@ static def getFoldersToMount() {
     return [volume_mapping + mapping1 + mapping2, errors1 + errors2]
 }
 
-def (foldersToMount, mountingErrors) = getFoldersToMount()
+def (foldersToMount, mountingErrors) = getFoldersToMount(project)
 
 dockerRun {
     name "$containerName"
