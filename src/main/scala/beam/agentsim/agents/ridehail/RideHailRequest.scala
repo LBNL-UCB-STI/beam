@@ -35,7 +35,8 @@ case class RideHailRequest(
   override def hashCode: Int = requestId
 
   override def toString: String =
-    s"RideHailRequest(id: $requestId, type: $requestType, customer: ${customer.personId}, pickup: $pickUpLocationUTM, time: $departAt, dest: $destinationUTM)"
+    s"RideHailRequest(id: $requestId, type: $requestType, customer: ${customer.personId}, pickup: $pickUpLocationUTM" +
+    s", time: $departAt, dest: $destinationUTM, asPooled: $asPooled)"
 }
 
 object RideHailRequest {

@@ -137,7 +137,8 @@ object RideHailManager {
     }
 
     override def toString: String =
-      s"RHA: ${rideHailAgentLocation.vehicleId}, price: $estimatedPrice, passengerSchedule: $passengerSchedule"
+      s"RHA: ${rideHailAgentLocation.vehicleId}, price: $estimatedPrice, poolingInfo: $poolingInfo" +
+      s", modeOptions: ${modeOptions.mkString(",")}, passengerSchedule: $passengerSchedule"
   }
 
   case class MarkVehicleBatteryDepleted(
