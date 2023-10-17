@@ -1105,7 +1105,8 @@ class PersonAgent(
           || data.restOfCurrentTrip.headOption.exists(_.isRideHail)
           && data.lastLeg.forall(_.beamLeg.mode != WALK) =>
       // Doing RH reservation before we start walking to our pickup location
-      doRideHailReservation(data.nextLeg.beamLeg.startTime, data.nextLeg.beamLeg.endTime, data.restOfCurrentTrip.tail)
+      val ridehailTrip = data.restOfCurrentTrip.dropWhile(!_.isRideHail)
+      doRideHailReservation(data.nextLeg.beamLeg.startTime, data.nextLeg.beamLeg.endTime, ridehailTrip)
       goto(WaitingForRideHailReservationConfirmation)
     case Event(StateTimeout, _) =>
       goto(ActuallyProcessingNextLegOrStartActivity)
