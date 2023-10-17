@@ -26,7 +26,7 @@ case class RideHailRequest(
   requester: ActorRef,
   triggerId: Long
 ) extends HasTriggerId {
-  def shouldReserveRide: Boolean = requestType == ReserveRide
+  def shouldReserveRide: Boolean = requestType.isInstanceOf[ReserveRide]
 
   def addSubRequest(subRequest: RideHailRequest): RideHailRequest =
     this.copy(requestId = this.requestId, groupedWithOtherRequests = this.groupedWithOtherRequests :+ subRequest)

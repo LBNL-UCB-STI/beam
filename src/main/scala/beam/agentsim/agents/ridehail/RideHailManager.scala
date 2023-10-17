@@ -108,7 +108,11 @@ object RideHailManager {
     def travelDistanceForCustomer(passenger: PersonIdWithActorRef): Double =
       passengerSchedule.legsWithPassenger(passenger).map(_.travelPath.distanceInM).sum
 
-    def toEmbodiedBeamLegsForCustomer(passenger: PersonIdWithActorRef): Vector[EmbodiedBeamLeg] = {
+    //todo we could put rideHailManagerName to TravelProposal itself (or even into RideHailAgentLocation class)
+    def toEmbodiedBeamLegsForCustomer(
+      passenger: PersonIdWithActorRef,
+      rideHailManagerName: String
+    ): Vector[EmbodiedBeamLeg] = {
       val passengerLegs = passengerSchedule.legsWithPassenger(passenger)
       val (toStopLegs: Vector[EmbodiedBeamLeg], fromStopLegs: Vector[EmbodiedBeamLeg]) = walkToFromStop match {
         case Some((toStopTrip, fromStopTrip)) =>
@@ -125,7 +129,8 @@ object RideHailManager {
           asDriver = false,
           estimatedPrice(passenger.personId),
           unbecomeDriverOnCompletion = false,
-          isPooledTrip = passengerSchedule.isPooledTrip
+          isPooledTrip = passengerSchedule.isPooledTrip,
+          rideHailManagerName = Some(rideHailManagerName)
         )
       } ++ fromStopLegs
 

@@ -834,7 +834,8 @@ class PersonAgent(
   private def handleSuccessfulRideHailReservation(tick: Int, response: RideHailResponse, data: BasePersonData) = {
     val req = response.request
     val travelProposal = response.travelProposal.get
-    val actualRideHailLegs = travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
+    val actualRideHailLegs =
+      travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId, response.rideHailManagerName)
     eventsManager.processEvent(
       new RideHailReservationConfirmationEvent(
         tick,
@@ -1492,7 +1493,7 @@ class PersonAgent(
       restOfCurrentTrip.takeWhile(_.beamVehicleId == rhVehicleId).last.beamLeg.travelPath.endPoint.loc
 
     rideHailManager ! RideHailRequest(
-      ReserveRide,
+      ReserveRide(rideHailLeg.rideHailManagerName.get),
       PersonIdWithActorRef(id, self),
       beamServices.geo.wgs2Utm(rideHailLeg.beamLeg.travelPath.startPoint.loc),
       departureTime,

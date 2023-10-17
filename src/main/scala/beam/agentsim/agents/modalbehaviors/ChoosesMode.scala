@@ -1042,10 +1042,18 @@ trait ChoosesMode {
         .map(_.duration)
         .sum
       for {
-        tncAccessLeg <- travelProposalToRideHailLegs(rideHail2TransitAccessResult.travelProposal.get, None)
+        tncAccessLeg <- travelProposalToRideHailLegs(
+          rideHail2TransitAccessResult.travelProposal.get,
+          rideHail2TransitAccessResult.rideHailManagerName,
+          None
+        )
         tncEgressLeg <-
           if (rideHail2TransitEgressResult.error.isEmpty)
-            travelProposalToRideHailLegs(rideHail2TransitEgressResult.travelProposal.get, None)
+            travelProposalToRideHailLegs(
+              rideHail2TransitEgressResult.travelProposal.get,
+              rideHail2TransitEgressResult.rideHailManagerName,
+              None
+            )
           else Vector(Vector.empty)
         rhTransitTrip <- createRideHailTransitTrip(driveTransitTrip, tncAccessLeg, timeToCustomer, tncEgressLeg)
       } yield rhTransitTrip
@@ -1207,7 +1215,11 @@ trait ChoosesMode {
             if travelProposal.timeToCustomer(
               bodyVehiclePersonId
             ) <= travelProposal.maxWaitingTimeInSec =>
-          travelProposalToRideHailLegs(travelProposal, choosesModeData.personData.currentTourMode)
+          travelProposalToRideHailLegs(
+            travelProposal,
+            rideHailResult.rideHailManagerName,
+            choosesModeData.personData.currentTourMode
+          )
             .map(surroundWithWalkLegsIfNeededAndMakeTrip)
         case _ =>
           Vector()
@@ -1407,9 +1419,10 @@ trait ChoosesMode {
     */
   private def travelProposalToRideHailLegs(
     travelProposal: RideHailManager.TravelProposal,
+    rideHailMangerName: String,
     requiredMode: Option[BeamMode]
   ) = {
-    val origLegs = travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
+    val origLegs = travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId, rideHailMangerName)
     travelProposal.poolingInfo match {
       case Some(poolingInfo)
           if !requiredMode.contains(RIDE_HAIL)
