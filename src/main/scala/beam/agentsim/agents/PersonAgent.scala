@@ -183,14 +183,15 @@ object PersonAgent {
   case class BasePersonData(
     currentActivityIndex: Int = 0,
     currentTrip: Option[EmbodiedBeamTrip] = None,
-    restOfCurrentTrip: List[EmbodiedBeamLeg] = List(),
-    currentVehicle: VehicleStack = Vector(),
+    restOfCurrentTrip: List[EmbodiedBeamLeg] = List.empty,
+    currentVehicle: VehicleStack = Vector.empty,
     currentTourMode: Option[BeamMode] = None,
     currentTourPersonalVehicle: Option[Id[BeamVehicle]] = None,
     passengerSchedule: PassengerSchedule = PassengerSchedule(),
     currentLegPassengerScheduleIndex: Int = 0,
     hasDeparted: Boolean = false,
     currentTripCosts: Double = 0.0,
+    rideHailReservedForLegs: IndexedSeq[EmbodiedBeamLeg] = IndexedSeq.empty,
     numberOfReplanningAttempts: Int = 0,
     failedTrips: IndexedSeq[EmbodiedBeamTrip] = IndexedSeq.empty,
     lastUsedParkingStall: Option[ParkingStall] = None,
@@ -200,8 +201,12 @@ object PersonAgent {
     def hasNextLeg: Boolean = restOfCurrentTrip.nonEmpty
     def nextLeg: EmbodiedBeamLeg = restOfCurrentTrip.head
 
-    def lastLeg: Option[EmbodiedBeamLeg] = currentTrip.flatMap { trip =>
-      trip.legs.lift(trip.legs.length - restOfCurrentTrip.length - 1)
+    def shouldReserveRideHail(): Boolean = {
+      // if we are about to walk then ride-hail
+      // OR we are at a ride-hail leg but we didn't reserve a RH yet
+      hasNextLeg && nextLeg.asDriver && nextLeg.beamLeg.mode == WALK &&
+      restOfCurrentTrip.tail.headOption.exists(_.isRideHail) ||
+      restOfCurrentTrip.headOption.exists(_.isRideHail) && !rideHailReservedForLegs.contains(restOfCurrentTrip.head)
     }
 
     def currentTourModeIsIn(modes: BeamMode*): Boolean = currentTourMode.exists(modes.contains)
@@ -869,12 +874,16 @@ class PersonAgent(
       )
     )
     response.triggersToSchedule.foreach(scheduler ! _)
-    val walkLeg :: tailLegs = data.restOfCurrentTrip
-    val newWalkLeg = walkLeg.copy(beamLeg = walkLeg.beamLeg.updateStartTime(tick))
+    // when we reserving a ride-hail the rest of our trip may contain an optional WALK leg before the RH leg
+    val (walkLeg, tailLegs) = data.restOfCurrentTrip.span(!_.isRideHail)
+    val newWalkLeg = walkLeg.map(leg => leg.copy(beamLeg = leg.beamLeg.updateStartTime(tick)))
     val otherLegs = tailLegs.dropWhile(_.isRideHail)
     val newTailLegs = EmbodiedBeamLeg.makeLegsConsistent(actualRideHailLegs ++ otherLegs)
-    val newRestOfCurrentTrip = newWalkLeg +: newTailLegs
-    goto(ActuallyProcessingNextLegOrStartActivity) using data.copy(restOfCurrentTrip = newRestOfCurrentTrip.toList)
+    val newRestOfCurrentTrip = newWalkLeg ++: newTailLegs
+    goto(ActuallyProcessingNextLegOrStartActivity) using data.copy(
+      restOfCurrentTrip = newRestOfCurrentTrip.toList,
+      rideHailReservedForLegs = actualRideHailLegs
+    )
   }
 
   when(Waiting) {
@@ -1096,15 +1105,7 @@ class PersonAgent(
   }
 
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
-    case Event(StateTimeout, data: BasePersonData)
-        // if we are about to walk then ride-hail
-        // OR we are at a ride-hail leg but the last leg is not a walk (we didn't reserve a RH yet)
-        if data.hasNextLeg
-          && data.nextLeg.asDriver
-          && data.nextLeg.beamLeg.mode == WALK
-          && data.restOfCurrentTrip.tail.headOption.exists(_.isRideHail)
-          || data.restOfCurrentTrip.headOption.exists(_.isRideHail)
-          && data.lastLeg.forall(_.beamLeg.mode != WALK) =>
+    case Event(StateTimeout, data: BasePersonData) if data.shouldReserveRideHail() =>
       // Doing RH reservation before we start walking to our pickup location
       val ridehailTrip = data.restOfCurrentTrip.dropWhile(!_.isRideHail)
       doRideHailReservation(data.nextLeg.beamLeg.startTime, data.nextLeg.beamLeg.endTime, ridehailTrip)
@@ -1450,6 +1451,7 @@ class PersonAgent(
                 None
             },
             currentTourMode = if (activity.getType.equals("Home")) None else data.currentTourMode,
+            rideHailReservedForLegs = IndexedSeq.empty,
             hasDeparted = false
           )
         case None =>
