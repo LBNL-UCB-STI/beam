@@ -7,8 +7,14 @@ RUN pip install plotly kaleido psutil
 WORKDIR /app
 RUN mkdir -p /app/data
 RUN mkdir -p /app/sources
+RUN mkdir -p /app/common
+RUN mkdir -p /app/gradle_cache
+RUN touch /app/gradle_cache/.this_volume_was_not_mounted.txt
+ADD replace_config_path_in_args.py /app
 ADD write_cpu_ram_usage.sh /app
 RUN chmod +x /app/write_cpu_ram_usage.sh
 ADD entrypoint.sh /app
 RUN chmod +x /app/entrypoint.sh
+ADD execute-gradle.sh /app
+RUN chmod +x /app/execute-gradle.sh
 ENTRYPOINT ["/app/entrypoint.sh"]
