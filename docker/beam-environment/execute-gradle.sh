@@ -62,14 +62,14 @@ fi
 ##
 provided_args="$*"
 arguments_with_fixed_path_to_config=$(python3 /app/replace_config_path_in_args.py "$provided_args" "$PATH_TO_DATA")
-
+arguments_fixed_completely=$(python3 /app/fix_quotes_for_app_args.py "$arguments_with_fixed_path_to_config")
 
 ##
 ## executing gradle command
 ## There should be no quotes around arguments, the arguments have to be split.
 ## Using eval to correctly split arguments for command.
 ##
-gradle_command="./gradlew --no-daemon --gradle-user-home=\"$gradle_cache_path\" $arguments_with_fixed_path_to_config"
+gradle_command="./gradlew --no-daemon --gradle-user-home=\"$gradle_cache_path\" $arguments_fixed_completely"
 echo "Using gradle command:"
 echo "$gradle_command"
 echo ""
