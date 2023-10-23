@@ -21,7 +21,7 @@ cp -R $PATH_TO_CODE/production/common/* /app/common/
 ##
 ## working inside code folder
 ##
-cd "$PATH_TO_CODE" || print_error "The path '$PATH_TO_CODE' is not available"
+cd "$PATH_TO_CODE" || echo "ERROR: the path '$PATH_TO_CODE' is not available"
 
 
 ##
@@ -46,7 +46,7 @@ fi
 ## the file put in there in Dockefile, so, if anything mounted - there will be no file.
 ##
 gradle_cache_path="$PATH_TO_CODE/.gradle"
-if [ -f "/app/gradle_cache/.this_volume_was_not_mounted.txt" ]; then
+if [ -e "/app/gradle_cache/.this_volume_was_not_mounted.txt" ]; then
   echo "Gradle cache was not mounted, using a default directory in the root of code folder: '.gradle'"
   mkdir -p "$gradle_cache_path"
 else
@@ -70,9 +70,9 @@ arguments_fixed_completely=$(python3 /app/fix_quotes_for_app_args.py "$arguments
 ## Using eval to correctly split arguments for command.
 ##
 gradle_command="./gradlew --no-daemon --gradle-user-home=\"$gradle_cache_path\" $arguments_fixed_completely"
-echo "Using gradle command:"
+echo "Executing gradle command:"
 echo "$gradle_command"
 echo ""
 eval "$gradle_command"
 
-echo "Gradle command execution complete."
+echo "Execution complete."
