@@ -12,15 +12,25 @@ import org.mockito.Mockito
 
 class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
 
-  def mockLeg(duration: Int, mode: BeamMode): EmbodiedBeamLeg = {
+  def mockLeg(
+    durationInSeconds: Int,
+    mode: BeamMode,
+    isRideHail: Boolean = false,
+    vehicleId: String = "MockVechicleId",
+    startTime: Int = 0,
+    endTime: Int = 0
+  ): EmbodiedBeamLeg = {
     val beamPath = Mockito.mock(classOf[BeamPath])
     val beamLeg = Mockito.mock(classOf[BeamLeg])
     val leg = Mockito.mock(classOf[EmbodiedBeamLeg])
     when(beamLeg.travelPath).thenReturn(beamPath)
     when(beamLeg.mode).thenReturn(mode)
-    when(beamLeg.duration).thenReturn(duration)
+    when(beamLeg.duration).thenReturn(durationInSeconds)
+    when(beamLeg.startTime).thenReturn(startTime)
+    when(beamLeg.endTime).thenReturn(endTime)
     when(leg.beamLeg).thenReturn(beamLeg)
-    when(leg.beamVehicleId).thenReturn(Id.createVehicleId("MockVechicleId"))
+    when(leg.isRideHail).thenReturn(isRideHail)
+    when(leg.beamVehicleId).thenReturn(Id.createVehicleId(vehicleId))
     leg
   }
 
@@ -35,6 +45,18 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
   def busLeg10: EmbodiedBeamLeg = mockLeg(10, BeamMode.BUS)
   def busLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.BUS)
   def railLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.SUBWAY)
+
+  def rideHailLeg10: EmbodiedBeamLeg = mockLeg(
+    10,
+    BeamMode.CAR,
+    isRideHail = true,
+    vehicleId = "rideHailVehicle-1@GlobalRHM",
+    startTime = 10 * 60 * 60 - 600,
+    endTime = 10 * 60 * 60
+  )
+
+  def waitLeg(startTime: Int, endTime: Int): EmbodiedBeamLeg =
+    mockLeg(durationInSeconds = 0, BeamMode.WALK, vehicleId = "", startTime = startTime, endTime = endTime)
 
   def homeActivity: Activity = mockActivity("Home")
   def workActivity: Activity = mockActivity("Work")
@@ -108,14 +130,36 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     event.key.pathType shouldBe ActivitySimPathType.WLK_HVY_WLK
   }
 
+  "skimmer event" should "parse trip 7" in {
+    val l1 = waitLeg(startTime = 10 * 60 * 60 - 360 - 600, endTime = 10 * 60 * 60 - 360 - 600)
+    val l2 = rideHailLeg10
+    val l3 = waitLeg(startTime = 10 * 60 * 60, endTime = 10 * 60 * 60)
+    val trip = new EmbodiedBeamTrip(
+      IndexedSeq(
+        l1,
+        l2,
+        l3
+      )
+    )
+    val event = ActivitySimSkimmerEvent("o1", "d1", 10 * 60 * 60, trip, 100, 200, 10, "skimname")
+    event.skimInternal.walkAccessInMinutes shouldBe 0
+    event.skimInternal.walkEgressInMinutes shouldBe 0
+    event.skimInternal.walkAuxiliaryInMinutes shouldBe 0
+    event.skimInternal.totalInVehicleTimeInMinutes shouldBe 10 / 60.0
+    event.skimInternal.waitInitialInMinutes shouldBe 6.0
+    event.key.pathType shouldBe ActivitySimPathType.TNC_SINGLE
+    event.key.fleet shouldBe Some("GlobalRHM")
+  }
+
   "skimmer event" should "parse failed trip 1" in {
-    val pathType = ActivitySimPathType.determineActivitySimPathTypesFromBeamMode(Some(BeamMode.CAR), homeActivity)
+    val pathType = ActivitySimPathType.determineActivitySimPathTypesFromBeamMode(Some(BeamMode.CAR), Some(homeActivity))
     pathType.length should be > 1
     val event = ActivitySimSkimmerFailedTripEvent(
       "o1",
       "d1",
       10 * 60 * 60,
       pathType.filter { path => path == ActivitySimPathType.SOV }.head,
+      None,
       0,
       "skimname"
     )
@@ -131,13 +175,14 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
 
   "skimmer event" should "parse failed trip 2" in {
     val pathType =
-      ActivitySimPathType.determineActivitySimPathTypesFromBeamMode(Some(BeamMode.WALK_TRANSIT), homeActivity)
+      ActivitySimPathType.determineActivitySimPathTypesFromBeamMode(Some(BeamMode.WALK_TRANSIT), Some(homeActivity))
     pathType.length should be > 1
     val event = ActivitySimSkimmerFailedTripEvent(
       "o1",
       "d1",
       10 * 60 * 60,
       pathType.filter { path => path == ActivitySimPathType.WLK_LOC_WLK }.head,
+      None,
       0,
       "skimname"
     )
@@ -153,7 +198,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
 
   "skimmer event" should "order access legs correctly in trip 3" in {
     val pathType =
-      ActivitySimPathType.determineActivitySimPathTypesFromBeamMode(Some(BeamMode.DRIVE_TRANSIT), homeActivity)
+      ActivitySimPathType.determineActivitySimPathTypesFromBeamMode(Some(BeamMode.DRIVE_TRANSIT), Some(homeActivity))
     pathType.length should be > 1
     // If we're starting a DRIVE_TRANSIT trip at home, we assume the car is used for access but not egress
     pathType.count(_ == ActivitySimPathType.WLK_LOC_DRV) shouldBe 0
@@ -162,6 +207,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
       "d1",
       10 * 60 * 60,
       pathType.filter { path => path == ActivitySimPathType.DRV_LOC_WLK }.head,
+      None,
       0,
       "skimname"
     )
@@ -177,7 +223,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
 
   "skimmer event" should "order access legs correctly in trip 4" in {
     val pathType =
-      ActivitySimPathType.determineActivitySimPathTypesFromBeamMode(Some(BeamMode.DRIVE_TRANSIT), workActivity)
+      ActivitySimPathType.determineActivitySimPathTypesFromBeamMode(Some(BeamMode.DRIVE_TRANSIT), Some(workActivity))
     pathType.length should be > 1
     // If we're starting a DRIVE_TRANSIT trip at work, we assume the car is used for egress but not access
     pathType.count(_ == ActivitySimPathType.DRV_LOC_WLK) shouldBe 0
@@ -186,6 +232,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
       "d1",
       10 * 60 * 60,
       pathType.filter { path => path == ActivitySimPathType.WLK_LOC_DRV }.head,
+      None,
       0,
       "skimname"
     )

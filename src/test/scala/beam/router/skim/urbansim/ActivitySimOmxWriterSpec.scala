@@ -24,6 +24,7 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
         ExcerptData(
           "AM",
           DRV_COM_WLK,
+          "",
           "100827",
           "100413",
           100,
@@ -47,6 +48,7 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
         ExcerptData(
           "AM",
           DRV_COM_WLK,
+          "None",
           "100413",
           "100827",
           120,
@@ -70,6 +72,7 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
         ExcerptData(
           "PM",
           DRV_COM_WLK,
+          "",
           "100627",
           "100413",
           100,
@@ -90,7 +93,30 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
           1,
           0
         ),
-        ExcerptData("MD", WLK_LOC_WLK, "100574", "10069A", 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 4, 3, 2, 1, 1, 0)
+        ExcerptData(
+          "MD",
+          WLK_LOC_WLK,
+          "",
+          "100574",
+          "10069A",
+          100,
+          90,
+          80,
+          70,
+          60,
+          50,
+          40,
+          30,
+          20,
+          10,
+          5,
+          4,
+          3,
+          2,
+          1,
+          1,
+          0
+        )
       )
       val path = "output/test/activitysim_skims.omx"
       ActivitySimOmxWriter.writeToOmx(path, excerptData.iterator, geoUnits)
