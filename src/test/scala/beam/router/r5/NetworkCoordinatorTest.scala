@@ -9,6 +9,7 @@ import org.scalatest.matchers.should.Matchers
 class NetworkCoordinatorTest extends AnyFunSuite with Matchers {
 
   private val highwayType: Network.OverwriteRoadTypeProperties = Network.OverwriteRoadTypeProperties(
+    default = OverwriteRoadTypeProperties.Default(alpha = 1, beta = 2),
     enabled = true,
     livingStreet = OverwriteRoadTypeProperties
       .LivingStreet(capacity = Some(1), lanes = Some(2), speed = Some(3), alpha = Some(1), beta = Some(2)),

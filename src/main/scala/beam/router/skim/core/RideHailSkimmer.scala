@@ -35,14 +35,24 @@ class RideHailSkimmer @Inject() (
         tazId = line("tazId").createId,
         hour = line("hour").toInt,
         reservationType = if (line("reservationType").equalsIgnoreCase("pooled")) Pooled else Solo,
-        line("wheelchairRequired").toBoolean,
+        line.get("wheelchairRequired").map(_.toBoolean).getOrElse {
+          logger.warn(
+            "wheelchairRequired column is missing from the skim. The value False has been considered as a default value."
+          )
+          false
+        },
         serviceName = line.getOrElse("serviceName", "GlobalRHM")
       ),
       RidehailSkimmerInternal(
         waitTime = Option(line("waitTime")).map(_.toDouble).getOrElse(Double.NaN),
         costPerMile = Option(line("costPerMile")).map(_.toDouble).getOrElse(Double.NaN),
         unmatchedRequestsPercent = line("unmatchedRequestsPercent").toDouble,
-        accessibleVehiclePercent = line("accessibleVehiclePercent").toDouble,
+        accessibleVehiclePercent = line.get("accessibleVehiclePercent").map(_.toDouble).getOrElse {
+          logger.warn(
+            "accessibleVehiclePercent column is missing from the skim. The value 0.0 has been considered as a default value."
+          )
+          0.0
+        },
         observations = line("observations").toInt,
         iterations = line("iterations").toInt
       )

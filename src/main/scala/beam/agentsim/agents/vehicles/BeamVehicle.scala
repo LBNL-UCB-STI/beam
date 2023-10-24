@@ -216,6 +216,7 @@ class BeamVehicle(
     */
   def useFuel(
     beamLeg: BeamLeg,
+    payloadInKg: Option[Double],
     beamScenario: BeamScenario,
     networkHelper: NetworkHelper,
     eventsManager: EventsManager,
@@ -228,6 +229,7 @@ class BeamVehicle(
       BeamVehicle.collectFuelConsumptionData(
         beamLeg,
         beamVehicleType,
+        payloadInKg,
         networkHelper,
         fuelConsumptionDataWithOnlyLength_Id_And_Type
       )
@@ -585,6 +587,7 @@ object BeamVehicle {
   case class FuelConsumptionData(
     linkId: Int,
     vehicleType: BeamVehicleType,
+    payloadInKg: Option[Double],
     linkNumberOfLanes: Option[Int],
     linkCapacity: Option[Double] = None,
     linkLength: Option[Double],
@@ -605,6 +608,7 @@ object BeamVehicle {
   def collectFuelConsumptionData(
     beamLeg: BeamLeg,
     theVehicleType: BeamVehicleType,
+    payloadInKg: Option[Double],
     networkHelper: NetworkHelper,
     fuelConsumptionDataWithOnlyLength_Id_And_Type: Boolean = false
   ): IndexedSeq[FuelConsumptionData] = {
@@ -618,6 +622,7 @@ object BeamVehicle {
           FuelConsumptionData(
             linkId = id,
             vehicleType = theVehicleType,
+            payloadInKg = None,
             linkNumberOfLanes = None,
             linkCapacity = None,
             linkLength = networkHelper.getLink(id).map(_.getLength),
@@ -646,6 +651,7 @@ object BeamVehicle {
         FuelConsumptionData(
           linkId = id,
           vehicleType = theVehicleType,
+          payloadInKg = payloadInKg,
           linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
           linkCapacity = None, //currentLink.map(_.getCapacity),
           linkLength = currentLink.map(_.getLength),

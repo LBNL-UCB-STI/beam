@@ -42,9 +42,9 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper
       routes(1).vehicle.id should be("freightVehicle-1")
       routes(1).startTime should be(7000)
       routes(1).activities should have size 2
-      routes(1).activities(0).service.id should be("payload-3")
+      routes(1).activities(0).service.id should be("payload-4")
       routes(1).activities(0).service shouldBe a[Dropoff]
-      routes(1).activities(1).service.id should be("payload-4")
+      routes(1).activities(1).service.id should be("payload-3")
       routes(1).activities(1).service shouldBe a[Dropoff]
       routes(2).vehicle.id should be("freightVehicle-1")
       routes(2).startTime should be(15000)
@@ -90,9 +90,9 @@ class FreightReplannerSpec extends AnyWordSpecLike with Matchers with BeamHelper
       routes(0).vehicle.id should be("freightVehicle-3")
       routes(0).startTime should be(5050)
       routes(0).activities should have size 3
-      routes(0).activities(0).service.id should be("payload-9")
+      routes(0).activities(0).service.id should be("payload-11")
       routes(0).activities(0).service shouldBe a[Dropoff]
-      routes(0).activities(1).service.id should be("payload-11")
+      routes(0).activities(1).service.id should be("payload-9")
       routes(0).activities(1).service shouldBe a[Dropoff]
       routes(0).activities(2).service.id should be("payload-10")
       routes(0).activities(2).service shouldBe a[Pickup]

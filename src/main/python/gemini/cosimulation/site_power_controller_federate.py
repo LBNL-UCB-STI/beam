@@ -10,14 +10,56 @@ import pandas as pd
 from threading import Thread
 import json
 import pathlib
+import time
 
-from site_power_controller_utils import DefaultSPMC
+from site_power_controller_utils import ConfigForSPMC
+from site_power_controller_utils import RudimentarySPMC
+from site_power_controller_utils import ControlledSPMC
 from site_power_controller_utils import RideHailSPMC
+from site_power_controller_utils import AbstractSPMC
 from site_power_controller_utils import create_federate
 from site_power_controller_utils import print2
 
 
-def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_threaded_run):
+
+class SitePowerManager:
+    # in case of multiple federates it is still fine to have these dicts as local variables
+    # because each federate will work with a fixed subset of TAZs
+    public_spmc_dict = {}
+    ride_hail_spmc_dict = {}
+    ess_soc_from_dss = {} # It needs to be updated through DSS @TODO NADIA
+    power_limits_from_derms = {} # It needs to be updated through DSS @TODO KEITH
+    depot_prefix = "depot"
+
+    def __init__(self, time_step, sim_dur, output_dir, is_multi_threaded):
+        self.config_for_spmc = ConfigForSPMC(time_step, sim_dur, output_dir, is_multi_threaded)
+
+    def init_an_spmc(self, taz_id_str, parking_zone_id_str, events):
+        if parking_zone_id_str.lower().startswith(self.depot_prefix):
+            if parking_zone_id_str not in self.ride_hail_spmc_dict:
+                self.ride_hail_spmc_dict[parking_zone_id_str] = AbstractSPMC.create(taz_id_str, parking_zone_id_str,
+                                                                                    events, self.config_for_spmc)
+        elif parking_zone_id_str not in self.public_spmc_dict:
+            self.public_spmc_dict[parking_zone_id_str] = AbstractSPMC.create(taz_id_str, parking_zone_id_str, events,
+                                                                             self.config_for_spmc)
+
+    def run_an_spmc(self, current_t, zone_id_str, charging_events):
+        ess_soc = self.ess_soc_from_dss.get(zone_id_str)
+        power_limits = self.power_limits_from_derms.get(zone_id_str)
+        if zone_id_str.lower().startswith(self.depot_prefix):
+            self.ride_hail_spmc_dict[zone_id_str].run_as_a_thread(current_t, charging_events, ess_soc, power_limits)
+        else:
+            self.public_spmc_dict[zone_id_str].run_as_a_thread(current_t, charging_events, ess_soc, power_limits)
+
+    # CONTROL COMMANDS
+    def get_power_commands_from_an_spmc(self, zone_id_str):
+        if not zone_id_str.lower().startswith(self.depot_prefix):
+            return self.public_spmc_dict[zone_id_str].get_output_from_latest_run()
+        else:
+            return self.ride_hail_spmc_dict[zone_id_str].get_output_from_latest_run()
+
+
+def run_spm_federate(cfed, spm: SitePowerManager):
     # enter execution mode
     h.helicsFederateEnterExecutingMode(cfed)
     fed_name = h.helicsFederateGetName(cfed)
@@ -36,15 +78,6 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_
     subs_charging_events = h.helicsFederateGetInputByIndex(cfed, 0)
     pubs_control = h.helicsFederateGetPublicationByIndex(cfed, 0)
 
-    # in case of multiple federates it is still fine to have these dicts as local variables
-    # because each federate will work with a fixed subset of TAZs
-    default_spm_c_dict = {}
-    ride_hail_spm_c_dict = {}
-    depot_prefix = "depot"
-
-    def key_func(k):
-        return k['siteId']
-
     def sync_time(requested_time):
         granted_time = -1
         while granted_time < requested_time:
@@ -57,40 +90,13 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_
             print_err("Message from BEAM is an incorrect JSON, " + str(err))
             return ""
 
-    # INIT
-    def init_spm_controllers(site_id_str):
-        if site_id_str not in default_spm_c_dict:
-            default_spm_c_dict[site_id_str] = DefaultSPMC("DefaultSPMC", site_id_str)
-        if site_id_str not in ride_hail_spm_c_dict:
-            ride_hail_spm_c_dict[site_id_str] = RideHailSPMC("RideHailSPMC", site_id_str)
-
-    # RUN
-    def run_multi_threaded_spm_controllers(site_id_str, current_t, received_charging_events):
-        if not site_id_str.lower().startswith(depot_prefix):
-            default_spm_c_dict[site_id_str].run_as_thread(current_t, received_charging_events)
-        else:
-            ride_hail_spm_c_dict[site_id_str].run_as_thread(current_t, received_charging_events)
-
-    def run_spm_controllers(site_id_str, current_t, received_charging_events):
-        if not site_id_str.lower().startswith(depot_prefix):
-            default_spm_c_dict[site_id_str].run(current_t, received_charging_events)
-        else:
-            ride_hail_spm_c_dict[site_id_str].run(current_t, received_charging_events)
-
-    # CONTROL COMMANDS
-    def get_power_commands(site_id_str):
-        if not site_id_str.lower().startswith(depot_prefix):
-            return default_spm_c_dict[site_id_str].get_output_from_latest_run()
-        else:
-            return ride_hail_spm_c_dict[site_id_str].get_output_from_latest_run()
-
+    config = spm.config_for_spmc
+    cum_runtime = 0
     # start execution loop
-    for t in range(0, simulated_day_in_seconds - time_bin_in_seconds, time_bin_in_seconds):
+    for t in range(0, config.sim_dur - config.time_step, config.time_step):
         sync_time(t)
         power_commands_list = []
         received_message = h.helicsInputGetString(subs_charging_events)
-        site_id_counter = 0
-        charging_events_counter = 0
         if bool(str(received_message).strip()):
             charging_events_json = parse_json(received_message)
             if not isinstance(charging_events_json, collections.abc.Sequence):
@@ -98,21 +104,35 @@ def run_spm_federate(cfed, time_bin_in_seconds, simulated_day_in_seconds, multi_
                 pass
             elif len(charging_events_json) > 0:
                 processed_side_ids = []
-                for site_id, charging_events in itertools.groupby(charging_events_json, key_func):
-                    init_spm_controllers(site_id)
-                    # Running SPM Controllers
-                    filtered_charging_events = list(
-                        filter(lambda charging_event: 'vehicleId' in charging_event, charging_events))
+                grouped_events = [
+                    (k[0], k[1], list(v)) for k, v in itertools.groupby(
+                        charging_events_json, key= lambda d: (d['tazId'], d['parkingZoneId'])
+                    )
+                ]
+                # ****** SPMC SECTION ******
+                for taz_id, parking_zone_id, charging_events in grouped_events:
+                    # INITIALIZING SPMC ONCE, USING THE INITIALIZING EVENTS. THESE EVENTS DO NOT CONTAIN: "vehicleId"
+                    # Initializing does not happen at every time step
+                    spm.init_an_spmc(taz_id, parking_zone_id, charging_events)
+
+                    # FILTERING OUT CHARGING EVENTS FROM INITIALIZING EVENTS
+                    filtered_charging_events = list(filter(lambda charging_event: 'vehicleId' in charging_event, charging_events))
+
+                    # RUNNING SPM CONTROLLERS
                     if len(filtered_charging_events) > 0:
-                        processed_side_ids = processed_side_ids + [site_id]
-                        if multi_threaded_run:
-                            run_multi_threaded_spm_controllers(site_id, t, filtered_charging_events)
-                        else:
-                            run_spm_controllers(site_id, t, filtered_charging_events)
-                        site_id_counter = site_id_counter + 1
-                        charging_events_counter = charging_events_counter + len(filtered_charging_events)
-                for site_id in processed_side_ids:
-                    power_commands_list = power_commands_list + get_power_commands(site_id)
+                        processed_side_ids = processed_side_ids + [parking_zone_id]
+                        spm.run_an_spmc(t, parking_zone_id, filtered_charging_events)
+
+                # ****** COLLECTING SPMC SECTION ******
+                for parking_zone_id in processed_side_ids:
+                    power_commands_list = power_commands_list + spm.get_power_commands_from_an_spmc(parking_zone_id)
+
+                # ****** DSS-DERMS SECTION ******
+                # TODO Nadia & Keith
+                # RUN HELICS CONNECTION TO DSS AND DERMS HERE
+                # a- UPDATE updated_ess_soc_from_dss HERE FORE EVERY parking_zone_id
+                # b- UPDATE updated_power_limits_from_derms HERE FOR EVERY parking_zone_id
+                # For a and b, to keep default value for a certain parking_zone_id, you can remove it from the dict
             else:
                 # print_err("[time:" + str(t) + "] The JSON message is empty")
                 pass
@@ -179,8 +199,10 @@ if __name__ == "__main__":
 
     # start execution loop
     threads = []
+    is_multi_threaded_run = False
+    spm_wrapper = SitePowerManager(time_bin, simulated_day, current_directory, is_multi_threaded_run)
     for fed in feds:
-        thread = Thread(target=run_spm_federate, args=(fed, time_bin, simulated_day, False))
+        thread = Thread(target=run_spm_federate, args=(fed, spm_wrapper))
         thread.start()
         threads.append(thread)
 

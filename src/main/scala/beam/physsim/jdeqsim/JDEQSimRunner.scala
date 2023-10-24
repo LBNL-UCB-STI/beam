@@ -214,7 +214,9 @@ class JDEQSimRunner(
             beamConfig.beam.physsim.flowCapacityFactor,
             beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
             maybeCACCSettings,
-            maybePickUpDropOffHolder
+            maybePickUpDropOffHolder,
+            defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
+            defaultBeta = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.beta
           ),
           maybeCACCSettings
         )
@@ -240,7 +242,9 @@ class JDEQSimRunner(
             beamConfig.beam.physsim.flowCapacityFactor,
             beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
             maybeCACCSettings,
-            maybePickUpDropOffHolder
+            maybePickUpDropOffHolder,
+            defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
+            defaultBeta = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.beta
           ),
           maybeCACCSettings
         )
@@ -308,7 +312,9 @@ object JDEQSimRunner {
     flowCapacityFactor: Double,
     minVolumeToUseBPRFunction: Int,
     maybeCaccSettings: Option[CACCSettings],
-    maybePickUpDropOffHolder: Option[PickUpDropOffHolder]
+    maybePickUpDropOffHolder: Option[PickUpDropOffHolder],
+    defaultAlpha: Double,
+    defaultBeta: Double
   ): (Double, Link, Double, Double) => Double = {
     val additionalTravelTime: (Link, Double) => Double = {
       maybePickUpDropOffHolder match {
@@ -336,8 +342,10 @@ object JDEQSimRunner {
                 //volume is calculated as number of vehicles entered the road per hour
                 //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
 
-                val alpha = link.getAttributes.getAttribute("alpha").toString.toDouble
-                val beta = link.getAttributes.getAttribute("beta").toString.toDouble
+                val alpha =
+                  Option(link.getAttributes.getAttribute("alpha")).map(_.toString.toDouble).getOrElse(defaultAlpha)
+                val beta =
+                  Option(link.getAttributes.getAttribute("beta")).map(_.toString.toDouble).getOrElse(defaultBeta)
                 val tmp = volume / (capacity * 3600)
                 val result = ftt * (1 + alpha * math.pow(tmp, beta))
                 val originalTravelTime =
@@ -352,8 +360,10 @@ object JDEQSimRunner {
               val ftt = link.getLength / link.getFreespeed(time)
               if (volume >= minVolumeToUseBPRFunction) {
                 val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
-                val alpha = link.getAttributes.getAttribute("alpha").asInstanceOf[Double]
-                val beta = link.getAttributes.getAttribute("beta").asInstanceOf[Double]
+                val alpha =
+                  Option(link.getAttributes.getAttribute("alpha")).map(_.toString.toDouble).getOrElse(defaultAlpha)
+                val beta =
+                  Option(link.getAttributes.getAttribute("beta")).map(_.toString.toDouble).getOrElse(defaultBeta)
                 val originalTravelTime = ftt * (1 + alpha * math.pow(tmp, beta))
                 originalTravelTime + additionalTravelTime(link, time)
               } else {
