@@ -23,6 +23,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     val beamPath = Mockito.mock(classOf[BeamPath])
     val beamLeg = Mockito.mock(classOf[BeamLeg])
     val leg = Mockito.mock(classOf[EmbodiedBeamLeg])
+    when(beamPath.distanceInM).thenReturn(durationInSeconds * 15.0)
     when(beamLeg.travelPath).thenReturn(beamPath)
     when(beamLeg.mode).thenReturn(mode)
     when(beamLeg.duration).thenReturn(durationInSeconds)
@@ -147,6 +148,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     event.skimInternal.walkAuxiliaryInMinutes shouldBe 0
     event.skimInternal.totalInVehicleTimeInMinutes shouldBe 10 / 60.0
     event.skimInternal.waitInitialInMinutes shouldBe 6.0
+    event.skimInternal.driveDistanceInMeters shouldBe 150.0
     event.key.pathType shouldBe ActivitySimPathType.TNC_SINGLE
     event.key.fleet shouldBe Some("GlobalRHM")
   }

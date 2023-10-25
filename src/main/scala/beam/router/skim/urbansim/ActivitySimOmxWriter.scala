@@ -138,6 +138,11 @@ object ActivitySimOmxWriter {
       Set(WLK_TRN_WLK),
       Set(PM_PEAK, MIDDAY, AM_PEAK),
       Set(WACC, IVT, XWAIT, IWAIT, WEGR, WAUX, TRIPS, FAILURES)
+    ),
+    MatrixData(
+      Set(TNC_SINGLE, TNC_SHARED),
+      ActivitySimTimeBin.values.toSet,
+      Set(IWAIT, TOTIVT, DDIST, FAR, TRIPS, FAILURES)
     )
   )
 }
