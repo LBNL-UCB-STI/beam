@@ -16,7 +16,7 @@ class ActivitySimSkimmerTest extends AnyFlatSpec with Matchers {
       destinationId = "destination-1",
       weightedTotalTime = 1.0,
       weightedTotalInVehicleTime = 2.0,
-      weightedTotalCost = 3.0,
+      weightedTotalFareInCents = 3.0,
       weightedDistance = 4.0,
       weightedWalkAccess = 5.0,
       weightedWalkAuxiliary = 6.0,
