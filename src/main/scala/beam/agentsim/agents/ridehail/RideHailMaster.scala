@@ -152,9 +152,10 @@ class RideHailMaster(
         responsesInRandomOrder.filter(_.travelProposal.exists(_.modeOptions.contains(RIDE_HAIL)))
       else
         responsesInRandomOrder.filter(_.travelProposal.isDefined)
-    if (availableProposals.isEmpty)
+    if (availableProposals.isEmpty) {
+      logger.warn(f"Can't find a driver because no available proposals for request ${request.toString}")
       RideHailResponse.dummyWithError(DriverNotFoundError, request)
-    else
+    } else
       bestResponseType match {
         case "MIN_COST"    => availableProposals.minBy(findCost(customer, _))
         case "MIN_UTILITY" => sampleProposals(customer, availableProposals)
