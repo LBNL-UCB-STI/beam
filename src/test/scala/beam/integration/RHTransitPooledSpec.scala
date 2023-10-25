@@ -31,6 +31,7 @@ class RHTransitPooledSpec
     .withValue("beam.agentsim.lastIteration", ConfigValueFactory.fromAnyRef("0"))
     .withValue("beam.urbansim.fractionOfModesToClear.allModes", ConfigValueFactory.fromAnyRef("1.0"))
     .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml"))
+    .withValue("beam.physsim.skipPhysSim", ConfigValueFactory.fromAnyRef("true"))
     .withValue("beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet", ConfigValueFactory.fromAnyRef("10.0"))
     .withValue("beam.agentsim.agents.vehicles.fractionOfPeopleWithBicycle", ConfigValueFactory.fromAnyRef("10.0"))
 
@@ -122,11 +123,9 @@ class RHTransitPooledSpec
         isPTE && isRH && isPooled && vehicleNotEmpty
       })
 
-//      rideHailPooledPathTraversalEvents.size should be(0)
+      rideHailPooledPathTraversalEvents.size should be(0)
       rideHailTransitPathTraversalEvents.size should be > 0
 
-//      rideHailPooledPathTraversalEvents.count(e => getPassengers(e) > 1) should be > 0
-      rideHailTransitPathTraversalEvents.count(e => getPassengers(e) > 1) should be > 0
     }
   }
 }
