@@ -1,6 +1,8 @@
 package beam.router.skim
 
+import beam.agentsim.agents.ridehail.RideHailVehicleId
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode._
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.skim.ActivitySimMetric._
 import org.matsim.api.core.v01.population.Activity
@@ -9,7 +11,7 @@ sealed trait ActivitySimPathType
 
 object ActivitySimPathType {
 
-  private def determineCarPathType(): ActivitySimPathType = {
+  private def determineCarPathTypeAndFleet(trip: EmbodiedBeamTrip): (ActivitySimPathType, Option[String]) = {
     //    HOV2,
     //    HOV3,
     //    SOV,
@@ -19,7 +21,13 @@ object ActivitySimPathType {
 
     // we can not get the number of passengers because right here we are processing the possible alternatives of trips
     // from origin to destination but not the real trips from origin to destination.
-    SOV
+    trip.tripClassifier match {
+      case BeamMode.RIDE_HAIL =>
+        (TNC_SINGLE, Some(RideHailVehicleId(trip.legs.find(_.isRideHail).get.beamVehicleId).fleetId))
+      case BeamMode.RIDE_HAIL_POOLED =>
+        (TNC_SHARED, Some(RideHailVehicleId(trip.legs.find(_.isRideHail).get.beamVehicleId).fleetId))
+      case _ => (SOV, None)
+    }
   }
 
   private def determineDriveTransitPathType(trip: EmbodiedBeamTrip): ActivitySimPathType = {
@@ -142,7 +150,7 @@ object ActivitySimPathType {
 //    }
   }
 
-  def determineTripPathType(trip: EmbodiedBeamTrip): ActivitySimPathType = {
+  def determineTripPathTypeAndFleet(trip: EmbodiedBeamTrip): (ActivitySimPathType, Option[String]) = {
     val allMods = trip.legs.map(_.beamLeg.mode).toSet
     val uniqueNotWalkingModes: Set[BeamMode] = allMods.filter { mode =>
       isCar(mode) || isWalkTransit(mode)
@@ -150,19 +158,19 @@ object ActivitySimPathType {
 
     if (uniqueNotWalkingModes.exists(isCar)) {
       if (uniqueNotWalkingModes.exists(isWalkTransit)) {
-        determineDriveTransitPathType(trip)
+        (determineDriveTransitPathType(trip), None)
       } else {
-        determineCarPathType()
+        determineCarPathTypeAndFleet(trip)
       }
     } else if (uniqueNotWalkingModes.exists(isWalkTransit)) {
       if (uniqueNotWalkingModes.contains(BeamMode.BIKE)) { determineBikeTransitPathType(trip) }
-      else { determineWalkTransitPathType(trip) }
+      else { (determineWalkTransitPathType(trip), None) }
     } else if (allMods.contains(BeamMode.BIKE) && allMods.size == 3) {
-      BIKE
+      (BIKE, None)
     } else if (allMods.contains(BeamMode.WALK) && allMods.size == 1) {
-      WALK
+      (WALK, None)
     } else {
-      OTHER
+      (OTHER, None)
     }
   }
 
@@ -192,6 +200,8 @@ object ActivitySimPathType {
       case WLK_TRN_WLK  => BeamMode.WALK_TRANSIT
       case BIKE         => BeamMode.BIKE
       case WALK | OTHER => BeamMode.WALK
+      case TNC_SINGLE   => BeamMode.RIDE_HAIL
+      case TNC_SHARED   => BeamMode.RIDE_HAIL_POOLED
     }
   }
 
@@ -219,9 +229,9 @@ object ActivitySimPathType {
 
   def determineActivitySimPathTypesFromBeamMode(
     currentMode: Option[BeamMode],
-    currentActivity: Activity
+    currentActivity: Option[Activity]
   ): Seq[ActivitySimPathType] = {
-    val currentActivityType = currentActivity.getType.toLowerCase()
+    val currentActivityType = currentActivity.map(_.getType.toLowerCase())
     currentMode match {
       case Some(BeamMode.WALK) => Seq(ActivitySimPathType.WALK)
       case Some(BeamMode.BIKE) => Seq(ActivitySimPathType.BIKE)
@@ -259,7 +269,7 @@ object ActivitySimPathType {
         )
       case Some(BeamMode.DRIVE_TRANSIT) =>
         currentActivityType match {
-          case "home" =>
+          case Some("home") =>
             Seq(
               ActivitySimPathType.DRV_LOC_WLK,
               ActivitySimPathType.DRV_HVY_WLK,
@@ -276,6 +286,10 @@ object ActivitySimPathType {
               ActivitySimPathType.WLK_EXP_DRV
             )
         }
+      case Some(BeamMode.RIDE_HAIL) =>
+        Seq(ActivitySimPathType.TNC_SINGLE)
+      case Some(BeamMode.RIDE_HAIL_POOLED) =>
+        Seq(ActivitySimPathType.TNC_SHARED)
       case _ =>
         Seq.empty[ActivitySimPathType]
     }
@@ -403,6 +417,8 @@ object ActivitySimPathType {
   case object HOV3TOLL extends ActivitySimPathType
   case object SOV extends ActivitySimPathType
   case object SOVTOLL extends ActivitySimPathType
+  case object TNC_SINGLE extends ActivitySimPathType
+  case object TNC_SHARED extends ActivitySimPathType
   case object WLK_COM_DRV extends ActivitySimPathType
   case object WLK_COM_WLK extends ActivitySimPathType
   case object WLK_EXP_DRV extends ActivitySimPathType

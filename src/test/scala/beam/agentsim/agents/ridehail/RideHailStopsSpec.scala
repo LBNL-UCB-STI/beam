@@ -7,10 +7,10 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.Event
+import org.scalatest.AppendedClues.convertToClueful
 import org.scalatest.Inspectors.forAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
-import org.scalatest.AppendedClues.convertToClueful
 
 /**
   * @author Dmitry Openkov
@@ -30,6 +30,7 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
           .parseString("""
               beam.cfg.copyRideHailToFirstManager = true
               beam.agentsim.agents.rideHail.stopFilePath="./test/test-resources/beam/input/ridehail-stops.csv"
+              beam.agentsim.lastIteration = 0
               beam.agentsim.agents.rideHail.maximumWalkDistanceToStopInM=1600
               beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept = 10
               beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept = -100
@@ -50,65 +51,91 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
       val events = eventIterator.toList
       closable.close()
 
-      def getEventBefore(time: Int, ofType: String, attrName: String, attrValue: String): Event = {
+      def getEventBefore(time: Int, ofType: String, attrName: String, attrValue: String): Option[Event] = {
         events.view
           .takeWhile(event => getIntAttr(event, "time") <= time)
           .filter(event => event.getAttributes.get("type") == ofType && event.getAttributes.get(attrName) == attrValue)
-          .last
+          .lastOption
       }
 
-      def getEventAfter(time: Int, ofType: String, attrName: String, attrValue: String): Event = {
+      def getEventAfter(time: Int, ofType: String, attrName: String, attrValue: String): Option[Event] = {
         events
           .find(event =>
             getIntAttr(event, "time") >= time &&
             event.getAttributes.get("type") == ofType && event.getAttributes.get(attrName) == attrValue
           )
-          .get
       }
 
-      events should not be empty
+      events should not be empty withClue "Expected to read events of simulation."
       val rideHailWithPassengers = events.filter(event =>
         event.getAttributes.get("type") == "PathTraversal"
         && event.getAttributes.get("vehicle").startsWith("rideHailVehicle-")
         && getIntAttr(event, "numPassengers") > 0
       )
-      rideHailWithPassengers should not be empty withClue "Cannot test it if no RH trips"
+
+      rideHailWithPassengers should not be empty withClue "Expected to have ride hail PathTraversal with more than 0 passengers."
       forAll(rideHailWithPassengers) { rhPte =>
         val (start, end) = getStartEnd(rhPte)
         start should not be end withClue "RH leg shouldn't be between the same stop"
-        start should (be(stop1) or be(stop2))
-        end should (be(stop1) or be(stop2))
-        val riders = rhPte.getAttributes.get("riders").split(':')
+        start should (be(stop1) or be(stop2)) withClue "Start stop should be either of two pre-set from input file."
+        end should (be(stop1) or be(stop2)) withClue "End stop should be either of two pre-set from input file."
+
+        val riders = rhPte.getAttributes.get("riders").split(':').toList
         // in case of pooled RH trip with multiple RH legs this wouldn't work.
         // though in Beamville only short pooled trips are possible I hope
+        riders should not be empty withClue "Expected to have riders in the PathTraversal event"
         forAll(riders) { rider =>
           // validate that previous walking start at the activity location
           val rhDepartureTime = getIntAttr(rhPte, "departureTime")
-          val actend = getEventBefore(rhDepartureTime, "actend", "person", rider)
-          val walkingBeforeRH = getEventBefore(rhDepartureTime, "PathTraversal", "vehicle", s"body-$rider")
-          walkingBeforeRH.getAttributes.get("mode") shouldBe "walk"
-          val pteLinks = walkingBeforeRH.getAttributes.get("links").split(',')
-          val firstLink = pteLinks.head
-          firstLink shouldBe actend.getAttributes.get("link")
+
+          // actEnd before the current trip
+          val maybeActEnd = getEventBefore(rhDepartureTime, "actend", "person", rider)
+          maybeActEnd should not be empty withClue f"Expected to have an ActEnd event for a person before RH departure. Person: $rider"
+          val actEnd = maybeActEnd.get
+          val actEndTime = getIntAttr(actEnd, "time")
+          val actEndLink = actEnd.getAttributes.get("link")
+
+          // actStart at the end of the current trip
+          val maybeActStart = getEventAfter(rhDepartureTime, "actstart", "person", rider)
+          maybeActStart should not be empty withClue f"Expected to have an ActStart event for a person some time after RH departure. Person: $rider"
+          val nextActStart = maybeActStart.get
+          val nextActStartTime = getIntAttr(nextActStart, "time")
+          val nextActStartLink = nextActStart.getAttributes.get("link")
+
+          // a walking PathTraversal event after the actEnd event
+          val maybeWalkingBeforeRH = getEventAfter(actEndTime, "PathTraversal", "vehicle", s"body-$rider")
+          maybeWalkingBeforeRH should not be empty withClue f"Expected to have a PathTraversal event before RH departure. Person: $rider"
+
+          val walkingBeforeRH = maybeWalkingBeforeRH.get
+          val beforeRHEventMode = walkingBeforeRH.getAttributes.get("mode")
+          beforeRHEventMode shouldBe "walk" withClue "Expected walk PathTraversal event after the actEnd and before RH trip"
+
+          val firstWalkLink = walkingBeforeRH.getAttributes.get("links").split(',').head
+          firstWalkLink shouldBe actEndLink withClue "Expected walk event to start at the same link of actEnd"
+
           // validate that previous walking ends at the pickup stop
           val (walkStart1, walkEnd1) = getStartEnd(walkingBeforeRH)
           if (walkStart1 != walkEnd1) {
-            walkEnd1 shouldBe start
+            walkEnd1 shouldBe start withClue "Expected walk PT event to end at pick-up location."
           } else {
             logger.warn(s"Router provided a walk route to RH stop with the same start/end for person $rider")
           }
-          val rhArrivalTime = getIntAttr(rhPte, "arrivalTime")
+
           // validate that after RH walking ends at the activity location
-          val actstart = getEventAfter(rhArrivalTime, "actstart", "person", rider)
-          val walkingAfterRH = getEventAfter(rhArrivalTime, "PathTraversal", "vehicle", s"body-$rider")
-          walkingAfterRH.getAttributes.get("mode") shouldBe "walk"
-          val pteLinks2 = walkingAfterRH.getAttributes.get("links").split(',')
-          val lastLink = pteLinks2.last
-          lastLink shouldBe actstart.getAttributes.get("link")
-          // validate that after RH walking starts at the dropoff stop
+          val maybeWalkingAfterRH = getEventBefore(nextActStartTime, "PathTraversal", "vehicle", s"body-$rider")
+          maybeActStart should not be empty withClue f"Expected to have a PathTraversal event before next actstart event. Person: $rider"
+          val walkingAfterRH = maybeWalkingAfterRH.get
+
+          val afterRHEventMode = walkingAfterRH.getAttributes.get("mode")
+          afterRHEventMode shouldBe "walk" withClue f"Expected walk PathTraversal before actstart event. Person: $rider"
+
+          val lastWalkLink = walkingAfterRH.getAttributes.get("links").split(',').last
+          lastWalkLink shouldBe nextActStartLink withClue f"Expected walk PT event to end at next actstart location. Person: $rider"
+
+          // validate that after RH walking starts at the drop-off stop
           val (walkStart2, walkEnd2) = getStartEnd(walkingAfterRH)
           if (walkStart2 != walkEnd2) {
-            walkStart2 shouldBe end
+            walkStart2 shouldBe end withClue "Expected last walk PT event to start at drop-off location."
           } else {
             logger.warn(s"Router provided a walk route from RH stop with the same start/end for person $rider")
           }

@@ -1,7 +1,7 @@
 package beam.router.skim.urbansim
 
 import beam.agentsim.infrastructure.taz.TAZTreeMap
-import beam.router.skim.ActivitySimPathType.{DRV_COM_WLK, DRV_LOC_WLK, WLK_LOC_WLK, WLK_LRF_WLK}
+import beam.router.skim.ActivitySimPathType.{DRV_COM_WLK, DRV_LOC_WLK, TNC_SINGLE, WLK_LOC_WLK, WLK_LRF_WLK}
 import beam.router.skim.ActivitySimSkimmer.ExcerptData
 import omx.OmxFile
 import omx.OmxMatrix.OmxFloatMatrix
@@ -24,6 +24,7 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
         ExcerptData(
           "AM",
           DRV_COM_WLK,
+          "",
           "100827",
           "100413",
           100,
@@ -47,6 +48,7 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
         ExcerptData(
           "AM",
           DRV_COM_WLK,
+          "None",
           "100413",
           "100827",
           120,
@@ -70,6 +72,7 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
         ExcerptData(
           "PM",
           DRV_COM_WLK,
+          "",
           "100627",
           "100413",
           100,
@@ -90,7 +93,78 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
           1,
           0
         ),
-        ExcerptData("MD", WLK_LOC_WLK, "100574", "10069A", 100, 90, 80, 70, 60, 50, 40, 30, 20, 10, 5, 4, 3, 2, 1, 1, 0)
+        ExcerptData(
+          "MD",
+          WLK_LOC_WLK,
+          "",
+          "100574",
+          "10069A",
+          100,
+          90,
+          80,
+          70,
+          60,
+          50,
+          40,
+          30,
+          20,
+          10,
+          5,
+          4,
+          3,
+          2,
+          1,
+          1,
+          0
+        ),
+        ExcerptData(
+          "AM",
+          TNC_SINGLE,
+          "Cruise",
+          "100827",
+          "100413",
+          100,
+          90,
+          80,
+          70,
+          60,
+          50,
+          40,
+          30,
+          20,
+          10,
+          5,
+          4,
+          3,
+          2,
+          1,
+          1,
+          0
+        ),
+        ExcerptData(
+          "AM",
+          TNC_SINGLE,
+          "GlobalRHM",
+          "100827",
+          "100413",
+          100,
+          90,
+          80,
+          70,
+          60,
+          50,
+          40,
+          30,
+          20,
+          10,
+          5,
+          4,
+          3,
+          2,
+          1,
+          1,
+          0
+        )
       )
       val path = "output/test/activitysim_skims.omx"
       ActivitySimOmxWriter.writeToOmx(path, excerptData.iterator, geoUnits)
@@ -128,14 +202,22 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
         "DRV_COM_WLK_XWAIT__PM",
         "DRV_COM_WLK_IWAIT__AM",
         "WLK_LOC_WLK_IWAIT__MD",
-        "WLK_TRN_WLK_IVT__MD",
-        "WLK_TRN_WLK_XWAIT__MD",
-        "WLK_TRN_WLK_IWAIT__MD",
-        "DRV_TRN_WLK_WAUX__MD",
-        "DRV_TRN_WLK_WACC__MD",
-        "DRV_TRN_WLK_WEGR__MD",
-        "WLK_TRN_WLK_TRIPS__MD",
-        "WLK_TRN_WLK_FAILURES__MD"
+        "TNC_SINGLE_CRUISE_IWAIT__MD",
+        "TNC_SINGLE_CRUISE_TOTIVT__MD",
+        "TNC_SINGLE_CRUISE_DDIST__MD",
+        "TNC_SINGLE_CRUISE_FAR__MD",
+        "TNC_SINGLE_GLOBALRHM_IWAIT__MD",
+        "TNC_SINGLE_GLOBALRHM_TOTIVT__MD",
+        "TNC_SINGLE_GLOBALRHM_DDIST__MD",
+        "TNC_SINGLE_GLOBALRHM_FAR__MD"
+//        "WLK_TRN_WLK_IVT__MD",
+//        "WLK_TRN_WLK_XWAIT__MD",
+//        "WLK_TRN_WLK_IWAIT__MD",
+//        "WLK_TRN_WLK_WAUX__MD",
+//        "WLK_TRN_WLK_WACC__MD",
+//        "WLK_TRN_WLK_WEGR__MD",
+//        "WLK_TRN_WLK_TRIPS__MD",
+//        "WLK_TRN_WLK_FAILURES__MD"
       )
       //total in vehicle time data for path type DRV_LOC_WLK and time bin MD
       val matrix = omxFile.getMatrix("WLK_LOC_WLK_TOTIVT__MD").asInstanceOf[OmxFloatMatrix]

@@ -30,7 +30,7 @@ case class RideHailResponseTrigger(tick: Int, rideHailResponse: RideHailResponse
 object RideHailResponse {
   val DUMMY: RideHailResponse = RideHailResponse(RideHailRequest.DUMMY, None, "_DUMMY_")
 
-  def dummyWithError(error: ReservationError): RideHailResponse =
-    RideHailResponse(RideHailRequest.DUMMY, None, "_DUMMY_WITH_ERROR_", Some(error))
+  def dummyWithError(error: ReservationError, request: RideHailRequest = RideHailRequest.DUMMY): RideHailResponse =
+    RideHailResponse(request, None, "_DUMMY_WITH_ERROR_", Some(error))
 
 }

@@ -32,6 +32,7 @@ class Skims @Inject() (
   lazy val rh_skimmer: RideHailSkims = lookup(SkimType.RH_SKIMMER).asInstanceOf[RideHailSkims]
   lazy val freight_skimmer: FreightSkims = lookup(SkimType.FREIGHT_SKIMMER).asInstanceOf[FreightSkims]
   lazy val parking_skimmer: ParkingSkims = lookup(SkimType.PARKING_SKIMMER).asInstanceOf[ParkingSkims]
+  lazy val as_skimmer: ActivitySimSkims = lookup(SkimType.AS_SKIMMER).asInstanceOf[ActivitySimSkims]
 
   private val skims = mutable.Map.empty[SkimType.Value, AbstractSkimmer]
   skims.put(SkimType.OD_SKIMMER, addEvent(odSkimmer))

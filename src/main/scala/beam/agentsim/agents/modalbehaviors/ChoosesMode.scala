@@ -82,6 +82,22 @@ trait ChoosesMode {
     }
     .toIndexedSeq
 
+  private val rideHailModeToFleets: Map[ActivitySimPathType, List[String]] =
+    this.beamServices.beamConfig.beam.agentsim.agents.rideHail.managers
+      .flatMap(manager =>
+        manager.supportedModes
+          .split(',')
+          .map(_.trim.toLowerCase)
+          .flatMap(BeamMode.fromString)
+          .filter(_.isRideHail)
+          .flatMap(supportedBeamMode =>
+            determineActivitySimPathTypesFromBeamMode(Some(supportedBeamMode), None)
+              .map(_ -> manager.name)
+          )
+      )
+      .groupBy(_._1)
+      .map { case (mode, fleets) => mode -> fleets.map(_._2) }
+
   private def createDummyVehicle(id: String, vehicleTypeId: String, mode: BeamMode, asDriver: Boolean) =
     StreetVehicle(
       Id.create(id, classOf[BeamVehicle]),
@@ -657,21 +673,21 @@ trait ChoosesMode {
         }
       }
 
-      val driveTransitTrip = theRouterResult.itineraries.find(_.tripClassifier == DRIVE_TRANSIT)
+      val rhTransitTrip = theRouterResult.itineraries.find(_.tripClassifier == RIDE_HAIL_TRANSIT)
       // If there's a drive-transit trip AND we don't have an error RH2Tr response (due to no desire to use RH) then seek RH on access and egress
       val newPersonData =
         if (
           shouldAttemptRideHail2Transit(
-            driveTransitTrip,
+            rhTransitTrip,
             choosesModeData.rideHail2TransitAccessResult
           )
         ) {
           val accessSegment =
-            driveTransitTrip.get.legs.view
+            rhTransitTrip.get.legs.view
               .takeWhile(!_.beamLeg.mode.isMassTransit)
               .map(_.beamLeg)
           val egressSegment =
-            driveTransitTrip.get.legs.view.reverse.takeWhile(!_.beamLeg.mode.isTransit).reverse.map(_.beamLeg)
+            rhTransitTrip.get.legs.view.reverse.takeWhile(!_.beamLeg.mode.isTransit).reverse.map(_.beamLeg)
           val accessId =
             if (accessSegment.map(_.travelPath.distanceInM).sum > 0) {
               makeRideHailRequestFromBeamLeg(accessSegment)
@@ -685,7 +701,7 @@ trait ChoosesMode {
               None
             }
           choosesModeData.copy(
-            rideHail2TransitRoutingResponse = Some(driveTransitTrip.get),
+            rideHail2TransitRoutingResponse = Some(rhTransitTrip.get),
             rideHail2TransitAccessInquiryId = accessId,
             rideHail2TransitEgressInquiryId = egressId,
             rideHail2TransitAccessResult = if (accessId.isEmpty) {
@@ -1245,8 +1261,13 @@ trait ChoosesMode {
               } else {
                 Vector(consistentPooledLegs)
               }
-            case _ =>
+            case _
+                if !choosesModeData.personData.currentTourMode.contains(RIDE_HAIL_POOLED)
+                  && travelProposal.modeOptions.contains(RIDE_HAIL) =>
               Vector(origLegs)
+            case _ =>
+              // current tour mode doesn't correspond to mode options provided by travel proposal
+              Vector()
           }).map(surroundWithWalkLegsIfNeededAndMakeTrip)
         case _ =>
           Vector()
@@ -1369,12 +1390,15 @@ trait ChoosesMode {
             case Some(mode) =>
               val currentAct = currentActivity(personData)
               val odFailedSkimmerEvent = createFailedODSkimmerEvent(currentAct, nextAct, mode)
-              val possibleActivitySimModes =
-                determineActivitySimPathTypesFromBeamMode(choosesModeData.personData.currentTourMode, currentAct)
               eventsManager.processEvent(
                 odFailedSkimmerEvent
               )
               if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
+                val possibleActivitySimModes: Seq[ActivitySimPathType] =
+                  determineActivitySimPathTypesFromBeamMode(
+                    choosesModeData.personData.currentTourMode,
+                    Some(currentAct)
+                  )
                 createFailedActivitySimSkimmerEvent(odFailedSkimmerEvent, possibleActivitySimModes).foreach(ev =>
                   eventsManager.processEvent(ev)
                 )
@@ -1515,15 +1539,33 @@ trait ChoosesMode {
     failedODSkimmerEvent: ODSkimmerFailedTripEvent,
     modes: Seq[ActivitySimPathType]
   ): Seq[ActivitySimSkimmerFailedTripEvent] = {
-    modes.map { pathType =>
-      ActivitySimSkimmerFailedTripEvent(
-        origin = failedODSkimmerEvent.origin,
-        destination = failedODSkimmerEvent.destination,
-        eventTime = _currentTick.get,
-        activitySimPathType = pathType,
-        iterationNumber = beamServices.matsimServices.getIterationNumber,
-        skimName = beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
-      )
+    modes.flatMap { pathType =>
+      rideHailModeToFleets.get(pathType) match {
+        case Some(fleets) =>
+          fleets.map(fleet =>
+            ActivitySimSkimmerFailedTripEvent(
+              origin = failedODSkimmerEvent.origin,
+              destination = failedODSkimmerEvent.destination,
+              eventTime = _currentTick.get,
+              activitySimPathType = pathType,
+              fleet = Some(fleet),
+              iterationNumber = beamServices.matsimServices.getIterationNumber,
+              skimName = beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
+            )
+          )
+        case _ =>
+          Seq(
+            ActivitySimSkimmerFailedTripEvent(
+              origin = failedODSkimmerEvent.origin,
+              destination = failedODSkimmerEvent.destination,
+              eventTime = _currentTick.get,
+              activitySimPathType = pathType,
+              fleet = None,
+              iterationNumber = beamServices.matsimServices.getIterationNumber,
+              skimName = beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
+            )
+          )
+      }
     }
   }
 

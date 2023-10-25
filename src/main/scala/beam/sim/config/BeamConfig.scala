@@ -1111,8 +1111,8 @@ object BeamConfig {
             pooledCostPerMinute: scala.Double,
             repositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager,
             rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager,
-            savCoefficientMultiplier: scala.Double,
             stopFilePath: scala.Option[java.lang.String],
+            savCoefficientMultiplier: scala.Double,
             supportedModes: java.lang.String
           )
 
