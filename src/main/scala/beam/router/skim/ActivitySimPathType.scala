@@ -163,7 +163,7 @@ object ActivitySimPathType {
         determineCarPathTypeAndFleet(trip)
       }
     } else if (uniqueNotWalkingModes.exists(isWalkTransit)) {
-      if (uniqueNotWalkingModes.contains(BeamMode.BIKE)) { determineBikeTransitPathType(trip) }
+      if (uniqueNotWalkingModes.contains(BeamMode.BIKE)) { (determineBikeTransitPathType(trip), None) }
       else { (determineWalkTransitPathType(trip), None) }
     } else if (allMods.contains(BeamMode.BIKE) && allMods.size == 3) {
       (BIKE, None)
