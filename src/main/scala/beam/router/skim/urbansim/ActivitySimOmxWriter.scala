@@ -47,8 +47,9 @@ object ActivitySimOmxWriter {
         metric      <- matrixData.metrics
       } {
         val pathType = excerptData.pathType match {
-          case rideHailMode @ (TNC_SINGLE | TNC_SHARED) => f"${rideHailMode.toString}_${excerptData.fleetName}"
-          case _                                        => excerptData.pathType.toString
+          case rideHailMode @ (TNC_SINGLE | TNC_SHARED) =>
+            f"${rideHailMode.toString}_${excerptData.fleetName.toUpperCase}"
+          case _ => excerptData.pathType.toString
         }
         val matrix = getOrCreateMatrix(allMatrices, pathType, excerptData.timePeriodString, metric, shape)
         matrix.setAttribute("mode", pathType)
