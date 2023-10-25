@@ -108,7 +108,6 @@ object RideHailManager {
     def travelDistanceForCustomer(passenger: PersonIdWithActorRef): Double =
       passengerSchedule.legsWithPassenger(passenger).map(_.travelPath.distanceInM).sum
 
-    //todo we could put rideHailManagerName to TravelProposal itself (or even into RideHailAgentLocation class)
     def toEmbodiedBeamLegsForCustomer(
       passenger: PersonIdWithActorRef,
       rideHailManagerName: String
