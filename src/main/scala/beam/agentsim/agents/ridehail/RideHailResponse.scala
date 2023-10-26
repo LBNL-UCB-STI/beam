@@ -20,7 +20,7 @@ case class RideHailResponse(
   def isSuccessful: Boolean = !isFailed && travelProposal.isDefined
 
   override def toString: String =
-    s"RideHailResponse(request: $request, error: $error, travelProposal: $travelProposal)"
+    s"RideHailResponse(request: $request, error: $error, travelProposal: $travelProposal, rhm: $rideHailManagerName)"
 
   override def triggerId: Long = request.triggerId
 }

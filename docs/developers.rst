@@ -274,8 +274,10 @@ There are `some ways to provide credentials <https://cloud.google.com/docs/authe
 
  gcloud auth application-default login
 
+Restart gradle daemon after you revoke/login to GCP.
+
 Now all the instance are created in `us-central1-a` zone.
-Now the deployment script doesn't calculate it automatically.
+
 One needs to define the deploy properties that are similar to the ones for AWS deploy. These are the properties that is used on GCE:
 
 * **propsFile**: to specify file with default values
@@ -287,7 +289,7 @@ One needs to define the deploy properties that are similar to the ones for AWS d
 * **dataCommit**: The commit SHA for the the data branch, default is `HEAD`
 * **beamConfigs**: The `beam.conf` file. It should be relative path under the project home. A single file is supported right now.
 * **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 15 min.
-* **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
+* **shutdownBehaviour**: to specify shutdown behaviour after end of simulation. May be `stop` or `terminate`, default is `terminate`.
 * **instanceType**: To specify GCE instance type.
 * **forcedMaxRAM**: This parameter can be set according to the **instanceType** memory size.
 * **storageSize**: to specify storage size (Gb) of instance. May be from `100` to `256`. Default value is `100`.
