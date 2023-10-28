@@ -28,11 +28,18 @@ isCav <- function(x) {
   return(x >= 4)
 }
 
-# city <- "sfbay"
-# linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
+
+## test
+work_folder <- normalizePath("~/Workspace/Data/FREIGHT/austin/beam/runs/demand-growth/2018_base")
+events <- readCsv(pp(work_folder, "/0.linkstats.csv.gz"))
+##
+
+
+city <- "sfbay"
+linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
 # batch <- 5
-city <- "austin"
-linkAADTFile <- "/hpms/austin_hpms_inventory.geojson"
+# city <- "austin"
+# linkAADTFile <- "/hpms/austin_hpms_inventory.geojson"
 #batch <- "/Oct30"
 batch <- ""
 cityCRS <- 26910
@@ -42,7 +49,7 @@ cityCRS <- 26910
 # scenario2 <- "2040"
 iteration <- 0
 eventsPrefix <- ""
-expansionFactor <- 1/0.5
+expansionFactor <- 1/0.1
 scenario <- "price-sensitivity"
 
 ## PATHS

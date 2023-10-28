@@ -2,11 +2,9 @@ import pandas as pd
 import os
 import sys
 
-city = "austin"
-# city = "sfbay"
-scenario = "price-sensitivity"
-# batch = "Oct30/"
-batch = "2050_HOP_highp4/"
+city = "sfbay"
+scenario = "baseline"
+batch = "2018_dense/"
 iteration = 0
 prefix = ""
 filename = prefix+str(iteration)+'.events.csv.gz'
@@ -16,10 +14,12 @@ full_filename = os.path.expanduser(local_work_directory + filename)
 if len(sys.argv) >= 2:
     full_filename = str(sys.argv[1])
 
+
 def print2(msg):
     with open(full_filename + ".out", 'w') as f:
         print(msg)
         print(msg, file=f)
+
 
 dirname = os.path.dirname(full_filename)
 basename = os.path.basename(full_filename)

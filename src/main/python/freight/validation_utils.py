@@ -9,12 +9,15 @@ meter_to_mile = 0.000621371
 mps_to_mph = 2.23694
 
 
-def npmrds_screeline_validation(npmrds_data, model_network, output_dir, label, show_plots = False):
+def npmrds_screeline_validation(npmrds_data, model_network, output_dir, label, show_plots = False, assume_daylight_savings = False):
     list_of_tmcs = model_network.loc[:, 'Tmc'].unique()
     npmrds_data = npmrds_data.loc[npmrds_data['tmc_code'].isin(list_of_tmcs)]
     npmrds_data.loc[:, 'formatted_time'] = pd.to_datetime(npmrds_data.loc[:, 'measurement_tstamp'], format="%Y-%m-%d %H:%M:%S")
     npmrds_data.loc[:, 'weekday'] = npmrds_data.loc[:, 'formatted_time'].dt.weekday
     npmrds_data.loc[:, 'hour'] = npmrds_data.loc[:, 'formatted_time'].dt.hour
+    if assume_daylight_savings:
+        npmrds_data.loc[:, 'hour'] = (npmrds_data.loc[:, 'hour'] - 1) % 24
+        
     npmrds_data = npmrds_data.loc[npmrds_data['weekday'] == 1]
 
     npmrds_data.loc[npmrds_data['speed']>= 80, 'speed'] = 80
@@ -65,7 +68,7 @@ def build_model_vmt_24_hour(modeled_vmt, model_network, output_dir, label, passe
     return model_vmt_24_hour
 
 
-def beam_screeline_validation(modeled_vmt, model_network, output_dir, label, passenger_sample_fraction, freight_sample_fraction, show_plots = False):
+def beam_screeline_validation(modeled_vmt, model_network, output_dir, label, passenger_sample_fraction, freight_sample_fraction, show_plots = False, assume_daylight_savings = False):
     model_vmt_24_hour = build_model_vmt_24_hour(modeled_vmt, model_network, output_dir, label, passenger_sample_fraction, freight_sample_fraction, show_plots)
     model_vmt_hour_volume = model_vmt_24_hour.groupby(['Tmc', 'hour'])[['hourly volume', 'VMT']].mean()
     model_vmt_hour_volume = model_vmt_hour_volume.reset_index()
@@ -78,6 +81,10 @@ def beam_screeline_validation(modeled_vmt, model_network, output_dir, label, pas
     model_vmt_hour_speed.loc[:, 'Avg.Speed (mph)'] *= mps_to_mph
 
     beam_data_hourly = pd.merge(model_vmt_hour_volume, model_vmt_hour_speed, on = ['Tmc', 'hour'], how = 'left')
+    
+    if assume_daylight_savings:
+        beam_data_hourly.loc[:, 'hour'] = (beam_data_hourly.loc[:, 'hour'] - 1) % 24
+    
     sns.lineplot(x = 'hour', y = 'Avg.Speed (mph)', data = beam_data_hourly, ci = 95)
     plt.ylim([0, 70])
     plt.savefig(output_dir + '/modeled_speed_NPMRDS_screenline.png', dpi = 200)
@@ -100,7 +107,7 @@ def beam_screeline_validation(modeled_vmt, model_network, output_dir, label, pas
     return beam_data_hourly
 
 
-def beam_screeline_validation_per_road_class(npmrds_data_hourly_speed, modeled_vmt, model_network, output_dir, label, passenger_sample_fraction, freight_sample_fraction, show_plots = False):
+def beam_screeline_validation_per_road_class(npmrds_data_hourly_speed, modeled_vmt, model_network, output_dir, label, passenger_sample_fraction, freight_sample_fraction, show_plots = False, assume_daylight_savings = False):
     model_vmt_24_hour = build_model_vmt_24_hour(modeled_vmt, model_network, output_dir, label, passenger_sample_fraction, freight_sample_fraction, show_plots)
     model_vmt_hour_volume = model_vmt_24_hour.groupby(['Tmc', 'hour'])[['hourly volume', 'VMT']].mean()
     model_vmt_hour_volume = model_vmt_hour_volume.reset_index()
@@ -161,4 +168,8 @@ def beam_screeline_validation_per_road_class(npmrds_data_hourly_speed, modeled_v
     VMT_by_hour = paired_data_for_comparison.groupby(['hour', 'road_class'])[['VMT']].sum()
     VMT_by_hour = VMT_by_hour.reset_index()
     VMT_by_hour.loc[:, 'source'] = label
+    
+    if assume_daylight_savings:
+        VMT_by_hour.loc[:, 'hour'] = (VMT_by_hour.loc[:, 'hour'] - 1) % 24
+        
     return VMT_by_hour
