@@ -353,10 +353,11 @@ object RideHailMatching {
   ): QuadTree[CustomerRequest] = {
     createSpatialPooledCustomerRequests(
       requests.map { rhr =>
+        val departureTime = math.max(tick, rhr.departAt)
         createPersonRequest(
           rhr.customer,
           rhr.pickUpLocationUTM,
-          tick,
+          departureTime,
           rhr.destinationUTM,
           rideHailManager.managerConfig,
           rideHailManager.beamServices,

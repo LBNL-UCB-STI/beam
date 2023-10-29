@@ -9,6 +9,9 @@ import com.conveyal.r5.streets.EdgeStore
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 
+import scala.collection.SeqLike
+import scala.collection.generic.CanBuildFrom
+
 case class EmbodiedBeamLeg(
   beamLeg: BeamLeg,
   beamVehicleId: Id[BeamVehicle],
@@ -17,6 +20,7 @@ case class EmbodiedBeamLeg(
   cost: Double,
   unbecomeDriverOnCompletion: Boolean,
   isPooledTrip: Boolean = false,
+  rideHailManagerName: Option[String] = None,
   replanningPenalty: Double = 0
 ) {
   val isRideHail: Boolean = BeamVehicle.isRidehailVehicle(beamVehicleId)
@@ -47,7 +51,11 @@ object EmbodiedBeamLeg {
   def makeLegsConsistent(legs: Vector[EmbodiedBeamLeg]): Vector[EmbodiedBeamLeg] = {
     var runningStartTime = legs.head.beamLeg.startTime
     for (leg <- legs) yield {
-      val newLeg = leg.copy(beamLeg = leg.beamLeg.updateStartTime(runningStartTime))
+      val newLeg = {
+        // we cannot change start time of legs that have schedule
+        if (leg.beamLeg.mode.isTransit) leg
+        else leg.copy(beamLeg = leg.beamLeg.updateStartTime(runningStartTime))
+      }
       runningStartTime = newLeg.beamLeg.endTime
       newLeg
     }

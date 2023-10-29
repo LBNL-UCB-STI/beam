@@ -275,12 +275,15 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
   def loadScenario(beamConfig: BeamConfig, outputDirMaybe: Option[String] = None): BeamScenario = {
     val vehicleTypes = maybeScaleTransit(beamConfig, readBeamVehicleTypeFile(beamConfig))
     val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-    val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
+    // TODO This needs to change. We always assume that vehicle fuel consumption are in the same folder ass vehicleTypes
+    val vehicleTypesBasePaths = IndexedSeq(
+      Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent.toString
+    )
 
     val consumptionRateFilterStore =
       new ConsumptionRateFilterStoreImpl(
         vehicleCsvReader.getVehicleEnergyRecordsUsing,
-        Option(baseFilePath.toString),
+        vehicleTypesBasePaths,
         primaryConsumptionRateFilePathsByVehicleType =
           vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
         secondaryConsumptionRateFilePathsByVehicleType =
@@ -356,16 +359,12 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
 
     if (freightConfig.enabled) {
       val geoUtils = new GeoUtilsImpl(beamConfig)
-      val random = new Random(beamConfig.matsim.modules.global.randomSeed)
       val freightReader = FreightReader(beamConfig, geoUtils, streetLayer, networkMaybe, outputDirMaybe)
       val tours = freightReader.readFreightTours()
       val plans = freightReader.readPayloadPlans()
       logger.info(s"Freight before sampling: ${tours.size} tours. ${plans.size} payloads")
-      val numTours = (tours.size * beamConfig.beam.agentsim.agents.freight.tourSampleSizeAsFractionOfTotal).round.toInt
-      val sampledTours = random.shuffle(tours).take(numTours).toMap
-      logger.info(s"Freight after sampling: ${sampledTours.size} tours")
       // In principle readFreightCarriers will only keep the carriers and plans that are linked to the sampled tours
-      val carriers = freightReader.readFreightCarriers(sampledTours, plans, vehicleTypes)
+      val carriers = freightReader.readFreightCarriers(tours, plans, vehicleTypes)
       val finalNumTours = carriers.flatMap(_.tourMap.values).flatten.size
       val finalNumPlans = carriers.flatMap(_.payloadPlans.values).size
       val finalNumCarriers = carriers.size
@@ -379,25 +378,6 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     } else {
       (IndexedSeq.empty[FreightCarrier], Map.empty[String, Double])
     }
-  }
-
-  def vehicleEnergy(beamConfig: BeamConfig, vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]): VehicleEnergy = {
-    val baseFilePath = Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent
-    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
-    val consumptionRateFilterStore =
-      new ConsumptionRateFilterStoreImpl(
-        vehicleCsvReader.getVehicleEnergyRecordsUsing,
-        Option(baseFilePath.toString),
-        primaryConsumptionRateFilePathsByVehicleType =
-          vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
-        secondaryConsumptionRateFilePathsByVehicleType =
-          vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
-      )
-    // TODO Fix me once `TrieMap` is removed
-    new VehicleEnergy(
-      consumptionRateFilterStore,
-      vehicleCsvReader.getLinkToGradeRecordsUsing
-    )
   }
 
   def readPrivateVehicles(

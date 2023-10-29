@@ -620,7 +620,7 @@ object HouseholdActor {
         .pipeTo(schedulerRef)
     }
 
-    def sendParkingOrChargingInquiry(
+    private def sendParkingOrChargingInquiry(
       vehicle: BeamVehicle,
       activityType: String,
       location: Coord,

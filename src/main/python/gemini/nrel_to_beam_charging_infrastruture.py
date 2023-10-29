@@ -15,9 +15,10 @@ def read_csv_file(filename):
     return pd.read_csv(filename, sep=",", index_col=None, header=0, compression=compression)
 
 
-workdir = "~/Data/GEMINI/2022-04/infrastructure/"
-nrel_file_input = os.path.expanduser(workdir + '6_output_2022_Apr_13_pubClust.csv')
-smart_file_input = os.path.expanduser("~/Data/GEMINI/stations/taz-parking-sparse-fast-limited-l2-150-lowtech-b.csv")
+projectDir = os.path.expanduser("~/Workspace/Data/GEMINI")
+workdir = projectDir + "/2022-07-05/_models/nrel_infrastructure/"
+nrel_file_input = workdir + '7_low_init1_pubClust_wFix_forcedL1.csv'
+smart_file_input = projectDir + "/stations/taz-parking-sparse-fast-limited-l2-150-lowtech-b.csv"
 nrel_file_converted_input = os.path.expanduser(nrel_file_input.split(".")[0] + "_converted.csv")
 smart_file_updated_input = os.path.expanduser(smart_file_input.split(".")[0] + "_updated.csv")
 smart_file_with_fees_input = os.path.expanduser(nrel_file_input.split(".")[0] + "_withFees.csv.gz")
@@ -31,8 +32,8 @@ def convert_nrel_data(nrel_file, nrel_file_converted):
         data2 = data[["subSpace", "pType", "chrgType", "household_id", "geometry", "housingTypes", "propertytype", "county"]]
         data2[['geomType', 'lon', 'lat']] = data2["geometry"].str.split(" ", expand=True)
         xx, yy = transformer.transform(data2["lon"].values, data2["lat"].values)
-        data2["X"] = xx
-        data2["Y"] = yy
+        data2["locationX"] = xx
+        data2["locationY"] = yy
         data2 = data2.drop(columns=['geomType', "lon", "lat", "geometry"], errors='ignore')
         data2 = data2.rename(columns={
             "chrgType": "chargingPointType",

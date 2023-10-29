@@ -184,6 +184,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   protected val beamServices: BeamServices
   protected val networkHelper: NetworkHelper
   protected val geo: GeoUtils
+  //we may want to rename this method and make it return more data in the future if we want to improve energy rate calc
+  def payloadInKgForLeg(leg: BeamLeg, drivingData: DrivingData): Option[Double]
   private var tollsAccumulated = 0.0
   protected val beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
   protected val potentiallyChargingBeamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
@@ -245,9 +247,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val currentVehicleUnderControl = data.currentVehicle.headOption
         .getOrElse(throw new RuntimeException("Current Vehicle is not available."))
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
+      val payloadInKg = payloadInKgForLeg(currentLeg, data)
       val fuelConsumed =
         currentBeamVehicle.useFuel(
           currentLeg,
+          payloadInKg,
           beamScenario,
           networkHelper,
           eventsManager,
@@ -411,7 +415,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                       .seconds() <= (tick + beamConfig.beam.agentsim.schedulerParallelismWindow)
                   } {
                     log.warning(
-                      "Vehicle {} needs to depart at time {} but agent {} sends a plug request at tick {}",
+                      s"Vehicle {} needs to depart at time {} but agent {} sends a plug request at tick {} for stall $stall",
                       currentBeamVehicle.id,
                       nextActivityEndTime,
                       id,
@@ -541,11 +545,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val updatedStopTick = math.max(stopTick, currentLeg.startTime)
       val partiallyCompletedBeamLeg = currentLeg.subLegThrough(updatedStopTick, networkHelper, geo)
       val riders = data.passengerSchedule.schedule(currentLeg).riders.toIndexedSeq.map(_.personId)
+      val payloadInKg = payloadInKgForLeg(currentLeg, data)
 
       val currentLocation = if (updatedStopTick > currentLeg.startTime) {
         val fuelConsumed =
           currentBeamVehicle.useFuel(
             partiallyCompletedBeamLeg,
+            payloadInKg,
             beamScenario,
             networkHelper,
             eventsManager,
