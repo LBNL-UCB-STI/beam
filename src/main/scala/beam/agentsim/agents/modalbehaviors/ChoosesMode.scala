@@ -28,6 +28,7 @@ import beam.router.skim.event.ODSkimmerFailedTripEvent
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, Geofence}
+import beam.utils.MathUtils._
 import beam.utils.logging.pattern.ask
 import beam.utils.plan.sampling.AvailableModeUtils._
 import org.matsim.api.core.v01.Id
@@ -1068,52 +1069,31 @@ trait ChoosesMode {
     timeToCustomer: Int,
     tncEgressLeg: Vector[EmbodiedBeamLeg]
   ) = {
+    val accessLegDurationWithoutWaiting = tncAccessLeg.map(_.beamLeg.duration).sum
+    val walkToRideHailStop = tncAccessLeg.find(_.is(WALK))
+    val accessLegWaitingTime =
+      walkToRideHailStop.fold(timeToCustomer)(leg => math.max(timeToCustomer - leg.beamLeg.duration, 0))
     // Replacing drive access leg with TNC changes the travel time.
     val extraWaitTimeBuffer = driveTransitTrip.legs.head.beamLeg.endTime - _currentTick.get -
-      tncAccessLeg.last.beamLeg.duration - timeToCustomer
+      accessLegDurationWithoutWaiting - accessLegWaitingTime
     if (extraWaitTimeBuffer < 300) {
       // We filter out all options that don't allow at least 5 minutes of time for unexpected waiting
       None
     } else {
       // Travel time usually decreases, adjust for this but add a buffer to the wait time to account for uncertainty in actual wait time
       val startTimeAdjustment =
-        driveTransitTrip.legs.head.beamLeg.endTime - tncAccessLeg.last.beamLeg.duration - timeToCustomer
-      val startTimeBufferForWaiting = math.min(
-        extraWaitTimeBuffer,
-        math.max(300.0, timeToCustomer.toDouble * 1.5)
-      ) // tncAccessLeg.head.beamLeg.startTime - _currentTick.get.longValue()
-      val accessAndTransit = tncAccessLeg.map(leg =>
-        leg.copy(
-          leg.beamLeg
-            .updateStartTime(startTimeAdjustment - startTimeBufferForWaiting.intValue())
-        )
+        driveTransitTrip.legs.head.beamLeg.endTime - accessLegDurationWithoutWaiting - accessLegWaitingTime
+      val startTimeBufferForWaiting = clamp(timeToCustomer * 1.5, 300, extraWaitTimeBuffer)
+      val accessAndTransit = EmbodiedBeamLeg.makeLegsConsistent(
+        tncAccessLeg,
+        startTimeAdjustment - doubleToInt(startTimeBufferForWaiting)
       ) ++ driveTransitTrip.legs.tail
       val fullTrip = if (tncEgressLeg.nonEmpty) {
         accessAndTransit.dropRight(2) ++ tncEgressLeg
       } else {
         accessAndTransit.dropRight(1)
       }
-      Some(
-        EmbodiedBeamTrip(
-          EmbodiedBeamLeg.dummyLegAt(
-            start = fullTrip.head.beamLeg.startTime,
-            vehicleId = body.id,
-            isLastLeg = false,
-            location = fullTrip.head.beamLeg.travelPath.startPoint.loc,
-            mode = WALK,
-            vehicleTypeId = body.beamVehicleType.id
-          ) +:
-          fullTrip :+
-          EmbodiedBeamLeg.dummyLegAt(
-            start = fullTrip.last.beamLeg.endTime,
-            vehicleId = body.id,
-            isLastLeg = true,
-            location = fullTrip.last.beamLeg.travelPath.endPoint.loc,
-            mode = WALK,
-            vehicleTypeId = body.beamVehicleType.id
-          )
-        )
-      )
+      Some(surroundWithWalkLegsIfNeededAndMakeTrip(fullTrip))
     }
   }
 
@@ -1460,7 +1440,7 @@ trait ChoosesMode {
       else
         Some(
           EmbodiedBeamLeg.dummyLegAt(
-            start = _currentTick.get,
+            start = partialItin.head.beamLeg.startTime,
             vehicleId = body.id,
             isLastLeg = false,
             location = partialItin.head.beamLeg.travelPath.startPoint.loc,

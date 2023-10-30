@@ -498,11 +498,10 @@ trait ChoosesParking extends {
 
       // create new legs to travel to the charging stall
       val (tick, triggerId) = releaseTickAndTriggerId()
-      val walkTemp = data.currentTrip.head.legs.head
-      val walkStart = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(tick))
+      val walkStart = data.currentTrip.head.legs.head
       val walkRest = data.currentTrip.head.legs.last
       val newCurrentTripLegs: Vector[EmbodiedBeamLeg] =
-        EmbodiedBeamLeg.makeLegsConsistent(walkStart +: (vehicle2StallCarLegs :+ walkRest))
+        EmbodiedBeamLeg.makeLegsConsistent(walkStart +: (vehicle2StallCarLegs :+ walkRest), tick)
       val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
 
       // set two car legs in schedule

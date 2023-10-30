@@ -1088,11 +1088,10 @@ class PersonAgent(
     // unset reserved charging stall
     // unset enroute state, and update `data` with new legs
     val stall2DestinationCarLegs = data.enrouteData.stall2DestLegs
-    val walkTemp = data.currentTrip.head.legs.head
-    val walkStart = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(startTime))
+    val walkStart = data.currentTrip.head.legs.head
     val walkRest = data.currentTrip.head.legs.last
     val newCurrentTripLegs: Vector[EmbodiedBeamLeg] =
-      EmbodiedBeamLeg.makeLegsConsistent(walkStart +: (stall2DestinationCarLegs :+ walkRest))
+      EmbodiedBeamLeg.makeLegsConsistent(walkStart +: (stall2DestinationCarLegs :+ walkRest), startTime)
     val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
     (
       newRestOfTrip.head.beamLeg.startTime,
