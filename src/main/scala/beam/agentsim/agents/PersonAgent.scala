@@ -841,6 +841,10 @@ class PersonAgent(
     val travelProposal = response.travelProposal.get
     val actualRideHailLegs =
       travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId, response.rideHailManagerName)
+    val isPooled = actualRideHailLegs.exists(_.isPooledTrip)
+    log.warning(
+      s"$id requested ${req.requestType.asInstanceOf[ReserveRide].rideHailManagerName} pooled: ${req.asPooled}, got: $isPooled"
+    )
     eventsManager.processEvent(
       new RideHailReservationConfirmationEvent(
         tick,

@@ -1261,6 +1261,12 @@ trait ChoosesMode {
         Some(matsimPlan.getPerson)
       ) match {
         case Some(chosenTrip) =>
+          if (chosenTrip.tripClassifier.toString.startsWith("RIDE")) {
+            val pooledExists = itinerariesOfCorrectMode.exists(_.legs.exists(leg => leg.isRideHail && leg.isPooledTrip))
+            val rhm = chosenTrip.legs.find(_.isRideHail).get.rideHailManagerName
+            val isPooled = chosenTrip.legs.exists(leg => leg.isRideHail && leg.isPooledTrip)
+            log.warning(s"$id chosen $rhm pooled: $isPooled, while pooledExists: $pooledExists")
+          }
           filteredItinerariesForChoice.foreach {
             case possibleTrip
                 if (possibleTrip != chosenTrip) &&
