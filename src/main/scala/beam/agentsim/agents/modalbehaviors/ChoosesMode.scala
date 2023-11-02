@@ -1531,19 +1531,7 @@ trait ChoosesMode {
   when(FinishingModeChoice, stateTimeout = Duration.Zero) { case Event(StateTimeout, data: ChoosesModeData) =>
     val pendingTrip = data.pendingChosenTrip.get
     val (tick, triggerId) = releaseTickAndTriggerId()
-    val chosenTrip =
-      if (
-        pendingTrip.tripClassifier.isTransit
-        && pendingTrip.legs.head.beamLeg.startTime > tick
-      ) {
-        //we need to start trip as soon as our activity finishes (current tick) in order to
-        //correctly show waiting time for the transit in the OD skims
-        val activityEndTime = currentActivity(data.personData).getEndTime
-        val legStartTime = Math.max(tick, activityEndTime)
-        pendingTrip.updatePersonalLegsStartTime(legStartTime.toInt)
-      } else {
-        pendingTrip
-      }
+    val chosenTrip = makeFinalCorrections(pendingTrip, tick, currentActivity(data.personData).getEndTime)
 
     // Write start and end links of chosen route into Activities.
     // We don't check yet whether the incoming and outgoing routes agree on the link an Activity is on.
@@ -1667,6 +1655,30 @@ trait ChoosesMode {
                 .orElse(vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id)),
           failedTrips = data.personData.failedTrips ++ data.personData.currentTrip
         )
+    }
+  }
+
+  private def makeFinalCorrections(trip: EmbodiedBeamTrip, tick: Int, currentActivityEndTime: Double) = {
+    val startTimeUpdated =
+      if (trip.tripClassifier.isTransit && trip.legs.head.beamLeg.startTime > tick) {
+        //we need to start trip as soon as our activity finishes (current tick) in order to
+        //correctly show waiting time for the transit in the OD skims
+        val legStartTime = Math.max(tick, currentActivityEndTime)
+        trip.updatePersonalLegsStartTime(legStartTime.toInt)
+      } else {
+        trip
+      }
+    // person should unbecome driver of his body only at the last walk leg
+    val lastLeg = startTimeUpdated.legs.last
+    if (lastLeg.is(WALK)) {
+      startTimeUpdated.copy(legs = startTimeUpdated.legs.map { leg =>
+        if (leg.is(WALK) && leg != lastLeg && leg.unbecomeDriverOnCompletion)
+          leg.copy(unbecomeDriverOnCompletion = false)
+        else
+          leg
+      })
+    } else {
+      startTimeUpdated
     }
   }
 }
