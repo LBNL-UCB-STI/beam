@@ -1084,14 +1084,23 @@ trait ChoosesMode {
       val startTimeAdjustment =
         driveTransitTrip.legs.head.beamLeg.endTime - accessLegDurationWithoutWaiting - accessLegWaitingTime
       val startTimeBufferForWaiting = clamp(timeToCustomer * 1.5, 300, extraWaitTimeBuffer)
-      val accessAndTransit = EmbodiedBeamLeg.makeLegsConsistent(
+      val accessTransitEgress = EmbodiedBeamLeg.makeLegsConsistent(
         tncAccessLeg,
         startTimeAdjustment - doubleToInt(startTimeBufferForWaiting)
       ) ++ driveTransitTrip.legs.tail
       val fullTrip = if (tncEgressLeg.nonEmpty) {
-        accessAndTransit.dropRight(2) ++ tncEgressLeg
+        val accessAndTransit = accessTransitEgress.dropRight(2)
+        val egressHead = tncEgressLeg.head
+        //make egress walk leg to start right after the person leaves the transit vehicle
+        val egressLeg = if (egressHead.is(WALK)) {
+          val walkAtTransitEnd =
+            egressHead.copy(beamLeg = egressHead.beamLeg.updateStartTime(accessAndTransit.last.beamLeg.endTime))
+          walkAtTransitEnd +: tncEgressLeg.tail
+        } else
+          tncEgressLeg
+        accessAndTransit ++ egressLeg
       } else {
-        accessAndTransit.dropRight(1)
+        accessTransitEgress.dropRight(1)
       }
       Some(surroundWithWalkLegsIfNeededAndMakeTrip(fullTrip))
     }
