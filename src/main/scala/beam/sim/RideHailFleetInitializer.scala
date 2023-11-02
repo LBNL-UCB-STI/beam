@@ -17,13 +17,17 @@ import beam.utils.csv.{CsvWriter, GenericCsvReader}
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
+import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.controler.OutputDirectoryHierarchy
+import org.matsim.core.utils.gis.ShapeFileReader
 import org.matsim.households.Household
+import org.opengis.feature.simple.SimpleFeature
 
 import java.nio.file.{Files, Paths}
+import java.util
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
@@ -51,8 +55,8 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     val geofenceX = Option(rec.get("geofenceX")).map(_.toDouble)
     val geofenceY = Option(rec.get("geofenceY")).map(_.toDouble)
     val geofenceRadius = Option(rec.get("geofenceRadius")).map(_.toDouble)
-    val geofenceTAZFile = Option(rec.get("geofenceTAZFile"))
-    val geofenceTazIds = Option(rec.get("geofenceTAZFile")).map(readTazIdsFile)
+    //geofenceFile takes precedence
+    val geofenceFile = Option(rec.get("geofenceFile")).orElse(Option(rec.get("geofenceTAZFile")))
     val fleetId = rec.getOrDefault("fleetId", defaultFleetId)
     val initialStateOfCharge = rec.getOrDefault("initialStateOfCharge", "1.0").toDouble
 
@@ -66,18 +70,10 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
       geofenceX = geofenceX,
       geofenceY = geofenceY,
       geofenceRadius = geofenceRadius,
-      geofenceTazs = geofenceTazIds,
-      geofenceTAZFile = geofenceTAZFile,
+      geofenceFile = geofenceFile,
       fleetId = fleetId,
       initialStateOfCharge = initialStateOfCharge
     )
-  }
-
-  private def readTazIdsFile(tazFilePath: String): Set[Id[TAZ]] = {
-    val source = Source.fromFile(tazFilePath)
-    val lines = source.getLines.toVector
-    source.close()
-    lines.tail.map(tazId => Id.create(tazId, classOf[TAZ])).toSet
   }
 
   /**
@@ -117,7 +113,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
       "geofenceX",
       "geofenceY",
       "geofenceRadius",
-      "geofenceTAZFile",
+      "geofenceFile",
       "fleetId",
       "initialStateOfCharge"
     )
@@ -136,7 +132,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
             fleetData.geofenceX.getOrElse(""),
             fleetData.geofenceY.getOrElse(""),
             fleetData.geofenceRadius.getOrElse(""),
-            fleetData.geofenceTAZFile.getOrElse(""),
+            fleetData.geofenceFile.getOrElse(""),
             fleetData.fleetId,
             fleetData.initialStateOfCharge
           )
@@ -242,8 +238,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     geofenceX: Option[Double],
     geofenceY: Option[Double],
     geofenceRadius: Option[Double],
-    geofenceTazs: Option[Set[Id[TAZ]]],
-    geofenceTAZFile: Option[String],
+    geofenceFile: Option[String],
     fleetId: String,
     initialStateOfCharge: Double = 1.0
   ) {
@@ -252,8 +247,10 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
      * If both a taz based geofence and a circular one are defined, the taz based takes precedence.
      */
     def geofence(tazTreeMap: TAZTreeMap): Option[Geofence] = {
-      if (geofenceTazs.isDefined) {
-        Some(TAZGeofence(geofenceTazs.get, tazTreeMap, geofenceTAZFile.get))
+      if (geofenceFile.exists(_.toLowerCase().endsWith(".csv"))) {
+        Some(TAZGeofence(tazTreeMap, geofenceFile.get))
+      } else if (geofenceFile.exists(_.toLowerCase().endsWith(".shp"))) {
+        Some(ShpGeofence(geofenceFile.get))
       } else if (geofenceX.isDefined && geofenceY.isDefined && geofenceRadius.isDefined) {
         Some(CircularGeofence(geofenceX.get, geofenceY.get, geofenceRadius.get))
       } else {
@@ -357,10 +354,11 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     /** Creates an instance of RideHailAgentInputData from the data in this instance */
     def createRideHailAgentInputData: RideHailAgentInputData = {
 
-      val (geofenceCircularMaybe, geofenceTazMaybe) = geofence
+      val (geofenceCircularMaybe, geofenceFileMaybe) = geofence
         .map {
           case g: CircularGeofence => (Some(g), None)
-          case g: TAZGeofence      => (None, Some(g))
+          case g: TAZGeofence      => (None, Some(g.geofenceTAZFile))
+          case g: ShpGeofence      => (None, Some(g.geofenceShpFile))
         }
         .getOrElse((None, None))
 
@@ -374,8 +372,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
         geofenceCircularMaybe.map(_.geofenceX),
         geofenceCircularMaybe.map(_.geofenceY),
         geofenceCircularMaybe.map(_.geofenceRadius),
-        geofenceTazMaybe.map(_.tazs),
-        geofenceTazMaybe.map(_.geofenceTAZFile),
+        geofenceFileMaybe,
         fleetId,
         initialStateOfCharge
       )
@@ -816,10 +813,18 @@ case class CircularGeofence(
   * Geofence defined by set of TAZ Ids
   */
 case class TAZGeofence(
-  tazs: Set[Id[TAZ]],
   tazTreeMap: TAZTreeMap,
   geofenceTAZFile: String
 ) extends Geofence {
+
+  val tazs: Set[Id[TAZ]] = readTazIdsFile(geofenceTAZFile)
+
+  private def readTazIdsFile(tazFilePath: String): Set[Id[TAZ]] = {
+    val source = Source.fromFile(tazFilePath)
+    val lines = source.getLines.toVector
+    source.close()
+    lines.tail.map(tazId => Id.create(tazId, classOf[TAZ])).toSet
+  }
 
   override def contains(x: Double, y: Double): Boolean = {
     tazs.contains(tazTreeMap.getTAZ(x, y).tazId)
@@ -827,6 +832,32 @@ case class TAZGeofence(
 
   override def toString() = {
     s"TAZGeofence(${tazs.size} tazs from file: $geofenceTAZFile)"
+  }
+
+}
+
+/**
+  * Geofence defined by a shapefile
+  */
+case class ShpGeofence(
+  geofenceShpFile: String
+) extends Geofence {
+  private val geometryFactory: GeometryFactory = new GeometryFactory()
+
+  val geometries: IndexedSeq[Geometry] = {
+    val shapeFileReader: ShapeFileReader = new ShapeFileReader
+    shapeFileReader.readFileAndInitialize(geofenceShpFile)
+    val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
+    features.asScala.map(_.getDefaultGeometry).collect { case geometry: Geometry => geometry }.toIndexedSeq
+  }
+
+  override def contains(x: Double, y: Double): Boolean = {
+    val point = geometryFactory.createPoint(new Coordinate(x, y))
+    geometries.exists(_.contains(point))
+  }
+
+  override def toString() = {
+    s"ShpGeofence(${geometries.size} features from file: $geofenceShpFile)"
   }
 
 }
