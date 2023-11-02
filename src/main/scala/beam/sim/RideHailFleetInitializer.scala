@@ -31,6 +31,7 @@ import java.util
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 import scala.math.{max, min}
@@ -258,13 +259,29 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
       }
     }
 
+    /**
+      * @return a string geofence key for caching purposes
+      */
+    def geofenceKey: String = {
+      if (geofenceFile.isDefined) {
+        geofenceFile.get
+      } else {
+        Seq(geofenceX, geofenceY, geofenceRadius).flatten.mkString("|")
+      }
+    }
+
     def initialLocation: Coord = {
       new Coord(initialLocationX, initialLocationY)
     }
 
-    def createRideHailAgentInitializer(beamScenario: BeamScenario): RideHailAgentInitializer = {
+    def createRideHailAgentInitializer(
+      beamScenario: BeamScenario,
+      geofenceCache: mutable.Map[String, Option[Geofence]]
+    ): RideHailAgentInitializer = {
       val beamVehicleType = beamScenario.vehicleTypes(Id.create(vehicleType, classOf[BeamVehicleType]))
       val shifts = shiftsListFromString(shiftsStr)
+
+      val createdGeofence = geofenceCache.getOrElseUpdate(geofenceKey, geofence(beamScenario.tazTreeMap))
 
       RideHailAgentInitializer(
         id,
@@ -273,7 +290,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
         shifts,
         initialStateOfCharge,
         initialLocation,
-        geofence(beamScenario.tazTreeMap),
+        createdGeofence,
         fleetId
       )
     }
@@ -543,7 +560,8 @@ class FileRideHailFleetInitializer(
     val fleetFilePath = managerConfig.initialization.filePath
 
     val rideHailInputDatas = RideHailFleetInitializer.readFleetFromCSV(fleetFilePath, managerConfig.name).toIndexedSeq
-    rideHailInputDatas.map(_.createRideHailAgentInitializer(beamScenario))
+    val geofenceCache = mutable.Map.empty[String, Option[Geofence]]
+    rideHailInputDatas.map(_.createRideHailAgentInitializer(beamScenario, geofenceCache))
   }
 }
 
