@@ -16,6 +16,7 @@ import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, Releasi
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
+import beam.agentsim.agents.vehicles.AccessErrorCodes.UnknownInquiryIdError
 import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumed
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
@@ -827,13 +828,13 @@ class PersonAgent(
           data: BasePersonData
         ) =>
       holdTickAndTriggerId(tick, triggerId)
-      handleFailedRideHailReservation(response.error.get, response, data)
+      handleFailedRideHailReservation(response.error.getOrElse(UnknownInquiryIdError), response, data)
     // RIDE HAIL SUCCESS (single request mode of RHM)
     case Event(response: RideHailResponse, data: BasePersonData) if response.isSuccessful(id) =>
       handleSuccessfulRideHailReservation(_currentTick.get, response, data)
     // RIDE HAIL FAILURE (single request mode of RHM)
     case Event(response: RideHailResponse, data: BasePersonData) =>
-      handleFailedRideHailReservation(response.error.get, response, data)
+      handleFailedRideHailReservation(response.error.getOrElse(UnknownInquiryIdError), response, data)
   }
 
   private def handleSuccessfulRideHailReservation(tick: Int, response: RideHailResponse, data: BasePersonData) = {
