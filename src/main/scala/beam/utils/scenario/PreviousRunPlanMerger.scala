@@ -88,9 +88,9 @@ object PreviousRunPlanMerger extends LazyLogging {
     val numberToReplace = (persons.size * fractionOfPlansToUpdate).round.toInt
     val personIdsToReplace = random.shuffle(matchedPersons.toSeq).take(numberToReplace).toSet
     val newPersons = mergePersons.diff(persons)
-    val numberToExpectBasedOnSampleSize = (persons.size.toDouble / populationSample).round.toInt
-    val netDifference = mergePersons.size - numberToExpectBasedOnSampleSize
-    val numberToAdd = (netDifference * populationSample).ceil.toInt.max(0)
+    val numberToExpectBasedOnSampleSize = (mergePersons.size.toDouble * populationSample).round.toInt
+    val netDifference = numberToExpectBasedOnSampleSize - matchedPersons.size
+    val numberToAdd = netDifference.max(0)
     val personIdsToAdd = random.shuffle(newPersons.toSeq).take(numberToAdd).toSet
     logger.info(
       "Creating {} new people, dropping {} people, and adding new plans to {} people",
