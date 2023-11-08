@@ -312,6 +312,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
     private void writeTravelTime(TravelTime travelTimeForR5, VolumesAnalyzer volumesAnalyzer, IterationEndsEvent iterationEndsEvent) {
         TravelTimeCalculatorConfigGroup cfg = new TravelTimeCalculatorConfigGroup();
+        cfg.setTravelTimeAggregatorType("experimental_LastMile");
         int endTimeInSeconds = (int) Time.parseTime(beamConfig.beam().agentsim().endTime());
         cfg.setMaxTime(endTimeInSeconds);
         Network network = agentSimScenario.getNetwork();
