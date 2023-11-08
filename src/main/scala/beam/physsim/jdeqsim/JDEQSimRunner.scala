@@ -351,11 +351,16 @@ object JDEQSimRunner {
             (time, link, _, volume) => {
               val ftt = link.getLength / link.getFreespeed(time)
               if (volume >= minVolumeToUseBPRFunction) {
-                val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
-                val alpha = link.getAttributes.getAttribute("alpha").asInstanceOf[Double]
-                val beta = link.getAttributes.getAttribute("beta").asInstanceOf[Double]
-                val originalTravelTime = ftt * (1 + alpha * math.pow(tmp, beta))
-                originalTravelTime + additionalTravelTime(link, time)
+                val capacity = flowCapacityFactor * link.getCapacity(time)
+                //volume is calculated as number of vehicles entered the road per hour
+                //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
+                val alpha = link.getAttributes.getAttribute("alpha").toString.toDouble
+                val beta = link.getAttributes.getAttribute("beta").toString.toDouble
+                val tmp = volume / (capacity * 3600)
+                val result = ftt * (1 + alpha * math.pow(tmp, beta))
+                val originalTravelTime =
+                  Math.min(result, link.getLength / 0.5)
+                Math.max(originalTravelTime, 0.01) + additionalTravelTime(link, time)
               } else {
                 ftt + additionalTravelTime(link, time)
               }
