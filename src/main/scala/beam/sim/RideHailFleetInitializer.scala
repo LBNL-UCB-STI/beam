@@ -14,9 +14,9 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.OutputDataDescriptor
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
-import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
+import beam.utils.matsim_conversion.ShapeUtils.{readShapeFileGeometries, QuadTreeBounds}
 import com.google.inject.Inject
-import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.scalalogging.{LazyLogging, Logger}
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Person}
@@ -257,14 +257,14 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     /*
      * If both a taz based geofence and a circular one are defined, the taz based takes precedence.
      */
-    def geofence(tazTreeMap: TAZTreeMap): Option[Geofence] = {
+    def geofence(tazTreeMap: TAZTreeMap, localCRS: String): Option[Geofence] = {
       // you also need to put these geofence file extensions to value knownGeofenceFileExtensions of
       // beam.sim.RideHailFleetInitializer.toRideHailAgentInputData method
       // in order to validate the file before the simulation starts
       if (geofenceFile.exists(_.toLowerCase().endsWith(".csv"))) {
         Some(TAZGeofence(tazTreeMap, geofenceFile.get))
       } else if (geofenceFile.exists(_.toLowerCase().endsWith(".shp"))) {
-        Some(ShpGeofence(geofenceFile.get))
+        Some(ShpGeofence(geofenceFile.get, localCRS))
       } else if (geofenceX.isDefined && geofenceY.isDefined && geofenceRadius.isDefined) {
         Some(CircularGeofence(geofenceX.get, geofenceY.get, geofenceRadius.get))
       } else {
@@ -289,12 +289,13 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
     def createRideHailAgentInitializer(
       beamScenario: BeamScenario,
-      geofenceCache: mutable.Map[String, Option[Geofence]]
+      geofenceCache: mutable.Map[String, Option[Geofence]],
+      geo: GeoUtils
     ): RideHailAgentInitializer = {
       val beamVehicleType = beamScenario.vehicleTypes(Id.create(vehicleType, classOf[BeamVehicleType]))
       val shifts = shiftsListFromString(shiftsStr)
 
-      val createdGeofence = geofenceCache.getOrElseUpdate(geofenceKey, geofence(beamScenario.tazTreeMap))
+      val createdGeofence = geofenceCache.getOrElseUpdate(geofenceKey, geofence(beamScenario.tazTreeMap, geo.localCRS))
 
       RideHailAgentInitializer(
         id,
@@ -574,7 +575,7 @@ class FileRideHailFleetInitializer(
 
     val rideHailInputDatas = RideHailFleetInitializer.readFleetFromCSV(fleetFilePath, managerConfig.name).toIndexedSeq
     val geofenceCache = mutable.Map.empty[String, Option[Geofence]]
-    rideHailInputDatas.map(_.createRideHailAgentInitializer(beamScenario, geofenceCache))
+    rideHailInputDatas.map(_.createRideHailAgentInitializer(beamScenario, geofenceCache, beamServices.geo))
   }
 }
 
@@ -871,15 +872,19 @@ case class TAZGeofence(
   * Geofence defined by a shapefile
   */
 case class ShpGeofence(
-  geofenceShpFile: String
+  geofenceShpFile: String,
+  localCRS: String
 ) extends Geofence {
   private val geometryFactory: GeometryFactory = new GeometryFactory()
 
   val geometries: IndexedSeq[Geometry] = {
-    val shapeFileReader: ShapeFileReader = new ShapeFileReader
-    shapeFileReader.readFileAndInitialize(geofenceShpFile)
-    val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
-    features.asScala.map(_.getDefaultGeometry).collect { case geometry: Geometry => geometry }.toIndexedSeq
+    val (geoms, sourceCRS) = readShapeFileGeometries(geofenceShpFile, Some(localCRS))
+    if (sourceCRS.isEmpty) {
+      Logger("ShpGeofence").error(
+        s"Unknown CRS of geofence shape file $geofenceShpFile. No transformation to local CRS ($localCRS) happened."
+      )
+    }
+    geoms
   }
 
   override def contains(x: Double, y: Double): Boolean = {
