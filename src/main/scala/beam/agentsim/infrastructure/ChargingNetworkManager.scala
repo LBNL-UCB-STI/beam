@@ -10,7 +10,6 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode._
 import beam.agentsim.infrastructure.parking.ParkingZoneId
 import beam.agentsim.infrastructure.power.SitePowerManager
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -90,19 +89,18 @@ class ChargingNetworkManager(
         s"AVG: ${timeSpentToPlanEnergyDispatchTrigger.toDouble / nHandledPlanEnergyDispatchTrigger}"
       )
 
-    case inquiry: ParkingInquiry =>
-      log.debug(s"Received parking inquiry: $inquiry")
-      val chargingNetwork = chargingNetworkHelper.get(inquiry.reservedFor.managerId)
-      val response = chargingNetwork.processParkingInquiry(inquiry)
-      if (inquiry.reserveStall && List(DestinationCharging, EnRouteCharging).contains(inquiry.searchMode))
-        collectChargingRequests(inquiry, response.stall)
-      sender() ! response
-
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       log.info("ChargingNetworkManager is Starting!")
       Future(scheduler ? ScheduleTrigger(PlanEnergyDispatchTrigger(0), self))
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
+
+    case inquiry: ParkingInquiry =>
+      log.debug(s"Received parking inquiry: $inquiry")
+      val chargingNetwork = chargingNetworkHelper.get(inquiry.reservedFor.managerId)
+      val response = chargingNetwork.processParkingInquiry(inquiry)
+      collectChargingRequests(inquiry, response.stall)
+      sender() ! response
 
     case TriggerWithId(PlanEnergyDispatchTrigger(timeBin), triggerId) =>
       val s = System.currentTimeMillis

@@ -11,7 +11,6 @@ from botocore.errorfactory import ClientError
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-
 GRAFANA_RUN = '''sudo ./gradlew --stacktrace grafanaStart
   -    '''
 
@@ -105,6 +104,28 @@ write_files:
           */10 * * * * /home/ubuntu/beam_stuck_guard.sh
           
       path: /tmp/cron_jobs
+    - content: |
+            #!/bin/bash
+            pip install setuptools
+            pip install strip-hints
+            pip install helics==2.7.1
+            pip install helics-apps==2.7.1
+            cd /home/ubuntu/git/beam/src/main/python
+            sudo chown ubuntu:ubuntu -R gemini
+            cd -
+            cd /home/ubuntu/git/beam/src/main/python/gemini/cosimulation
+            now="$(date +"%Y_%m_%d_%I_%M_%p")"
+            python beam_pydss_broker.py > output_${now}_broker.log &
+            echo "broker started"
+            sleep 5s
+            python beam_to_pydss_federate.py > output_${now}_federate.log &
+            echo "federate started"
+            sleep 5s
+            helics_recorder beam_recorder.txt --output=recording_output.txt > output_${now}_recorder.log &
+            echo "recorder started"
+            sleep 5s
+            cd -
+      path: /home/ubuntu/install-and-run-helics-scripts.sh
     - content: |
             #!/bin/bash
             timeout=$1
@@ -600,7 +621,9 @@ def deploy_spot_fleet(context, script, instance_type, region_prefix, shutdown_be
             exit(123)
         else:
             time.sleep(30)
-            spot = ec2.describe_spot_fleet_requests(SpotFleetRequestIds = [spot_fleet_req_id]).get('SpotFleetRequestConfigs')[0]
+            spot = \
+                ec2.describe_spot_fleet_requests(SpotFleetRequestIds=[spot_fleet_req_id]).get(
+                    'SpotFleetRequestConfigs')[0]
             status = spot.get('ActivityStatus')
             state = spot.get('SpotFleetRequestState')
     if state != 'active' or status != "fulfilled":
@@ -799,7 +822,8 @@ def deploy_handler(event, context):
 
     # for beam stuck guard shell script
     stuck_guard_min_cpu_usage = event.get('stuck_guard_min_cpu_usage', DEFAULT_STUCK_GUARD_MIN_CPU_USAGE)
-    stuck_guard_max_inactive_time_interval = event.get('stuck_guard_max_inactive_time_interval', DEFAULT_STUCK_GUARD_MAX_INACTIVE_TIME_INTERVAL)
+    stuck_guard_max_inactive_time_interval = event.get('stuck_guard_max_inactive_time_interval',
+                                                       DEFAULT_STUCK_GUARD_MAX_INACTIVE_TIME_INTERVAL)
 
     if missing_mandatory_parameters:
         return "Unable to start, missing parameters: " + ", ".join(missing_mandatory_parameters)
@@ -830,7 +854,7 @@ def deploy_handler(event, context):
 
     def fix_script_path(original_script_path):
         fixed_path = original_script_path
-        for start_path in ['src/main/bash/','main/bash/', 'bash/']:
+        for start_path in ['src/main/bash/', 'main/bash/', 'bash/']:
             if original_script_path.startswith(start_path):
                 fixed_path = original_script_path[len(start_path):]
 

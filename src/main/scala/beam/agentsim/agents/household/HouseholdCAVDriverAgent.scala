@@ -13,6 +13,7 @@ import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.events.BeamPersonDepartureEvent
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.sim.common.GeoUtils
 import beam.sim.{BeamScenario, BeamServices, Geofence}
@@ -40,6 +41,8 @@ class HouseholdCAVDriverAgent(
   val geo: GeoUtils = beamServices.geo
 
   override val id: Id[HouseholdCAVDriverAgent] = driverId
+
+  override def payloadInKgForLeg(leg: BeamLeg, drivingData: DrivingData): Option[Double] = None
 
   val myUnhandled: StateFunction = {
     case Event(IllegalTriggerGoToError(reason), _) =>

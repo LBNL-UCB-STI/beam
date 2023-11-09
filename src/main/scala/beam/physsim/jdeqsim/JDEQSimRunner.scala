@@ -214,7 +214,10 @@ class JDEQSimRunner(
             beamConfig.beam.physsim.flowCapacityFactor,
             beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
             maybeCACCSettings,
-            maybePickUpDropOffHolder
+            maybePickUpDropOffHolder,
+            defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
+            defaultBeta = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.beta,
+            minSpeed = beamConfig.beam.physsim.minCarSpeedInMetersPerSecond
           ),
           maybeCACCSettings
         )
@@ -240,7 +243,10 @@ class JDEQSimRunner(
             beamConfig.beam.physsim.flowCapacityFactor,
             beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
             maybeCACCSettings,
-            maybePickUpDropOffHolder
+            maybePickUpDropOffHolder,
+            defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
+            defaultBeta = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.beta,
+            minSpeed = beamConfig.beam.physsim.minCarSpeedInMetersPerSecond
           ),
           maybeCACCSettings
         )
@@ -282,14 +288,7 @@ class JDEQSimRunner(
       "caccCategoryRoadCount: " + caccCategoryRoadCount + " out of " + jdeqSimScenario.getNetwork.getLinks.values.size
     )
     val speedAdjustmentFactor = beamConfig.beam.physsim.jdeqsim.cacc.speedAdjustmentFactor
-    val adjustedMinimumRoadSpeedInMetersPerSecond =
-      beamConfig.beam.physsim.jdeqsim.cacc.adjustedMinimumRoadSpeedInMetersPerSecond
-    CACCSettings(
-      isCACCVehicle,
-      speedAdjustmentFactor,
-      adjustedMinimumRoadSpeedInMetersPerSecond,
-      roadCapacityAdjustmentFunction
-    )
+    CACCSettings(isCACCVehicle, speedAdjustmentFactor, roadCapacityAdjustmentFunction)
   }
 
   def getNoOfBins(binSize: Int): Int = {
@@ -308,7 +307,10 @@ object JDEQSimRunner {
     flowCapacityFactor: Double,
     minVolumeToUseBPRFunction: Int,
     maybeCaccSettings: Option[CACCSettings],
-    maybePickUpDropOffHolder: Option[PickUpDropOffHolder]
+    maybePickUpDropOffHolder: Option[PickUpDropOffHolder],
+    defaultAlpha: Double,
+    defaultBeta: Double,
+    minSpeed: Double
   ): (Double, Link, Double, Double) => Double = {
     val additionalTravelTime: (Link, Double) => Double = {
       maybePickUpDropOffHolder match {
@@ -326,45 +328,28 @@ object JDEQSimRunner {
           val originalTravelTime = link.getLength / link.getFreespeed(time)
           originalTravelTime + additionalTravelTime(link, time)
       case "BPR" =>
-        maybeCaccSettings match {
-          case Some(caccSettings) =>
-            (time, link, caccShare, volume) => {
-              val ftt = link.getLength / (link.getFreespeed(time) * caccSettings.speedAdjustmentFactor)
-              if (volume >= minVolumeToUseBPRFunction) {
-                val capacity = flowCapacityFactor *
-                  caccSettings.roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link, caccShare, time)
-                //volume is calculated as number of vehicles entered the road per hour
-                //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
-                val tmp = volume / (capacity * 3600)
-                val alpha = Option(link.getAttributes.getAttribute("alpha")).getOrElse("1.0").toString.toDouble
-                val beta = Option(link.getAttributes.getAttribute("beta")).getOrElse("2.0").toString.toDouble
-                val result = ftt * (1 + alpha * math.pow(tmp, beta))
-                val originalTravelTime =
-                  Math.min(result, link.getLength / caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond)
-                Math.max(originalTravelTime, 0.01) + additionalTravelTime(link, time)
-              } else {
-                Math.max(ftt, 0.01) + additionalTravelTime(link, time)
-              }
-            }
-          case None =>
-            (time, link, _, volume) => {
+        (time, link, caccShare, volume) => {
+          val alpha =
+            Option(link.getAttributes.getAttribute("alpha")).map(_.toString.toDouble).getOrElse(defaultAlpha)
+          val beta =
+            Option(link.getAttributes.getAttribute("beta")).map(_.toString.toDouble).getOrElse(defaultBeta)
+          val (freeFlowTT, adjustedCapacity) = maybeCaccSettings match {
+            case Some(caccSettings) =>
+              val ftt = link.getLength / link.getFreespeed(time) * caccSettings.speedAdjustmentFactor
+              val capacityInVehiclesPerHour = flowCapacityFactor *
+                caccSettings.roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link, caccShare, time) * 3600
+              (ftt, capacityInVehiclesPerHour)
+            case _ =>
               val ftt = link.getLength / link.getFreespeed(time)
-              if (volume >= minVolumeToUseBPRFunction) {
-                val capacity = flowCapacityFactor * link.getCapacity(time)
-                //volume is calculated as number of vehicles entered the road per hour
-                //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
-                val tmp = volume / (capacity * 3600)
-                val alpha = Option(link.getAttributes.getAttribute("alpha")).getOrElse("1.0").toString.toDouble
-                val beta = Option(link.getAttributes.getAttribute("beta")).getOrElse("2.0").toString.toDouble
-                val result = ftt * (1 + alpha * math.pow(tmp, beta))
-                //TODO: Move min speed of 0.5 m/s to config outside of cacc
-                val originalTravelTime =
-                  Math.min(result, link.getLength / 0.5)
-                Math.max(originalTravelTime, 0.01) + additionalTravelTime(link, time)
-              } else {
-                ftt + additionalTravelTime(link, time)
-              }
-            }
+              (ftt, link.getCapacity(time) * flowCapacityFactor)
+          }
+          val bprTravelTime = if (volume >= minVolumeToUseBPRFunction) {
+            val volumeOverCapacityRatio = volume / adjustedCapacity
+            freeFlowTT * (1 + alpha * math.pow(volumeOverCapacityRatio, beta))
+          } else {
+            freeFlowTT
+          }
+          Math.min(bprTravelTime, link.getLength / minSpeed) + additionalTravelTime(link, time)
         }
       case unknown @ _ => throw new IllegalArgumentException(s"Unknown function name: $unknown")
     }

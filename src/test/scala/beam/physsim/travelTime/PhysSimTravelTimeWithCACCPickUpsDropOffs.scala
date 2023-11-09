@@ -25,9 +25,6 @@ import org.matsim.core.network.io.MatsimNetworkReader
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.vehicles.Vehicle
-import org.scalatest._
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -95,12 +92,7 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
   val roadCapacityAdjustmentFunction: RoadCapacityAdjustmentFunction =
     new Hao2018CaccRoadCapacityAdjustmentFunctionWithoutPrintingStats(beamConfig)
 
-  val caccSettings: CACCSettings = CACCSettings(
-    isCACCVehicle,
-    1.0,
-    7,
-    roadCapacityAdjustmentFunction
-  )
+  val caccSettings: CACCSettings = CACCSettings(isCACCVehicle, 1.0, roadCapacityAdjustmentFunction)
 
   val pickUpDropOffHolder = new PickUpDropOffHolder(beamvilleLinkPickUpsDropOffsFromSimulation, beamConfig)
 
@@ -190,7 +182,9 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
       beamConfig.beam.physsim.flowCapacityFactor,
       0,
       maybeCaccSettings,
-      maybePickUpDropOffHolder
+      maybePickUpDropOffHolder,
+      defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
+      defaultBeta = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.beta
     )
     val bprConfig =
       BPRSimConfig(
@@ -218,7 +212,9 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
       beamConfig.beam.physsim.flowCapacityFactor,
       0,
       maybeCaccSettings,
-      maybePickUpDropOffHolder
+      maybePickUpDropOffHolder,
+      defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
+      defaultBeta = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.beta
     )
     val bprConfig =
       BPRSimConfig(
