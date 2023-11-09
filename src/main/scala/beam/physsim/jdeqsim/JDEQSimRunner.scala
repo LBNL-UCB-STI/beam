@@ -326,6 +326,8 @@ object JDEQSimRunner {
           val originalTravelTime = link.getLength / link.getFreespeed(time)
           originalTravelTime + additionalTravelTime(link, time)
       case "BPR" =>
+        val alpha = Option(link.getAttributes.getAttribute("alpha")).getOrElse("1.0").toString.toDouble
+        val beta = Option(link.getAttributes.getAttribute("beta")).getOrElse("2.0").toString.toDouble
         maybeCaccSettings match {
           case Some(caccSettings) =>
             (time, link, caccShare, volume) => {
@@ -335,9 +337,6 @@ object JDEQSimRunner {
                   caccSettings.roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link, caccShare, time)
                 //volume is calculated as number of vehicles entered the road per hour
                 //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
-
-                val alpha = link.getAttributes.getAttribute("alpha").toString.toDouble
-                val beta = link.getAttributes.getAttribute("beta").toString.toDouble
                 val tmp = volume / (capacity * 3600)
                 val result = ftt * (1 + alpha * math.pow(tmp, beta))
                 val originalTravelTime =
@@ -354,8 +353,6 @@ object JDEQSimRunner {
                 val capacity = flowCapacityFactor * link.getCapacity(time)
                 //volume is calculated as number of vehicles entered the road per hour
                 //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
-                val alpha = link.getAttributes.getAttribute("alpha").toString.toDouble
-                val beta = link.getAttributes.getAttribute("beta").toString.toDouble
                 val tmp = volume / (capacity * 3600)
                 val result = ftt * (1 + alpha * math.pow(tmp, beta))
                 val originalTravelTime =
