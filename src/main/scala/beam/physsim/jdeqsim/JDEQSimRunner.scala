@@ -335,7 +335,7 @@ object JDEQSimRunner {
             Option(link.getAttributes.getAttribute("beta")).map(_.toString.toDouble).getOrElse(defaultBeta)
           val (freeFlowTT, adjustedCapacity) = maybeCaccSettings match {
             case Some(caccSettings) =>
-              val ftt = link.getLength / link.getFreespeed(time)
+              val ftt = link.getLength / link.getFreespeed(time) * caccSettings.speedAdjustmentFactor
               val capacityInVehiclesPerHour = flowCapacityFactor *
                 caccSettings.roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link, caccShare, time) * 3600
               (ftt, capacityInVehiclesPerHour)
