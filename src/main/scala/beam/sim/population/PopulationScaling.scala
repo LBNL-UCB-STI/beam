@@ -100,7 +100,12 @@ class PopulationScaling extends LazyLogging {
         .foreach { case (newhh, oldhh) =>
           scenario.getHouseholds.getHouseholds.put(newhh.getId, newhh)
           Seq("homecoordx", "homecoordy", "housingtype").foreach { attr =>
-            val attrValue = scenario.getHouseholds.getHouseholdAttributes.getAttribute(oldhh.getId.toString, attr)
+            val attrValue = Option(
+              scenario.getHouseholds.getHouseholdAttributes.getAttribute(oldhh.getId.toString, attr)
+            ).map(_.toString).getOrElse {
+              logger.error(s"Not finding $attr in the attributes of household ${oldhh.getId.toString}")
+              ""
+            }
             scenario.getHouseholds.getHouseholdAttributes.putAttribute(newhh.getId.toString, attr, attrValue)
           }
         }
@@ -283,10 +288,8 @@ class PopulationScaling extends LazyLogging {
     selectedPersons
   }
 
-  def getIndustry(person: Person): String = {
-    val industryAttribute = person.getAttributes.getAttribute("industry")
-    if (industryAttribute != null) industryAttribute.toString else ""
-  }
+  def getIndustry(person: Person): String =
+    Option(person.getAttributes.getAttribute("industry")).map(_.toString).getOrElse("")
 
   def removeWorkPlan(persons: Iterable[Person]): Unit = {
     var nRemovedWorkPlans: Int = 0

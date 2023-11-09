@@ -219,9 +219,16 @@ object HouseholdActor {
           .flatMap { person =>
             if (isFreightCarrier) {
               val vehicleIdFromPlans = Id.create(
-                beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
-                  .getAttribute(person.getId.toString, "vehicle")
-                  .toString,
+                Option(
+                  beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
+                    .getAttribute(person.getId.toString, "vehicle")
+                ).map(_.toString).getOrElse {
+                  log.error(
+                    s"Cannot find vehicle Id for person ${person.getId.toString}. " +
+                    s"Every driver of a freight carrier has to be assigned a specific truck!"
+                  )
+                  ""
+                },
                 classOf[BeamVehicle]
               )
               whoDrivesThisFreightVehicle = whoDrivesThisFreightVehicle + (vehicleIdFromPlans -> person.getId)

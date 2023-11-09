@@ -137,9 +137,22 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
     householdsWithMembers.par.foreach { household =>
       val householdId = household.getId.toString
       val attr = scenario.getHouseholds.getHouseholdAttributes
-      val locationX = attr.getAttribute(householdId, "homecoordx").asInstanceOf[Double]
-      val locationY = attr.getAttribute(householdId, "homecoordy").asInstanceOf[Double]
-      val planCoord = new Coord(locationX, locationY)
+      val homeCoordX =
+        Option(attr.getAttribute(household.getId.toString, "homecoordx")).map(_.toString.toDouble).getOrElse {
+          logger.error(
+            s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0"
+          )
+          0.0
+        }
+      val homeCoordY =
+        Option(attr.getAttribute(household.getId.toString, "homecoordy")).map(_.toString.toDouble).getOrElse {
+          logger.error(
+            s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
+          )
+          0.0
+        }
+
+      val planCoord = new Coord(homeCoordX, homeCoordY)
 
       snapLocationHelper.computeResult(planCoord) match {
         case Right(splitCoord) =>

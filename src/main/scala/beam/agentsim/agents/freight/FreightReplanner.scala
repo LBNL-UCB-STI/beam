@@ -122,13 +122,24 @@ class FreightReplanner(
 
   private def getVehicleHouseholdLocation(carrierId: Id[FreightCarrier]): Location = {
     val householdIdStr = freightReader.createHouseholdId(carrierId).toString
-    val x = beamServices.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
-      .getAttribute(householdIdStr, "homecoordx")
-      .asInstanceOf[Double]
-    val y = beamServices.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
-      .getAttribute(householdIdStr, "homecoordy")
-      .asInstanceOf[Double]
-
+    val x = Option(
+      beamServices.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
+        .getAttribute(householdIdStr, "homecoordx")
+    ).map(_.toString.toDouble).getOrElse {
+      logger.error(
+        s"Cannot find homeCoordX for freight carrier $carrierId which will be interpreted at 0.0"
+      )
+      0.0
+    }
+    val y = Option(
+      beamServices.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
+        .getAttribute(householdIdStr, "homecoordy")
+    ).map(_.toString.toDouble).getOrElse {
+      logger.error(
+        s"Cannot find homeCoordY for household $carrierId which will be interpreted at 0.0"
+      )
+      0.0
+    }
     Location(x, y)
   }
 
