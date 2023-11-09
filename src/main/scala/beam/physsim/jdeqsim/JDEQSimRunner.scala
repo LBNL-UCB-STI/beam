@@ -326,8 +326,6 @@ object JDEQSimRunner {
           val originalTravelTime = link.getLength / link.getFreespeed(time)
           originalTravelTime + additionalTravelTime(link, time)
       case "BPR" =>
-        val alpha = Option(link.getAttributes.getAttribute("alpha")).getOrElse("1.0").toString.toDouble
-        val beta = Option(link.getAttributes.getAttribute("beta")).getOrElse("2.0").toString.toDouble
         maybeCaccSettings match {
           case Some(caccSettings) =>
             (time, link, caccShare, volume) => {
@@ -338,6 +336,8 @@ object JDEQSimRunner {
                 //volume is calculated as number of vehicles entered the road per hour
                 //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
                 val tmp = volume / (capacity * 3600)
+                val alpha = Option(link.getAttributes.getAttribute("alpha")).getOrElse("1.0").toString.toDouble
+                val beta = Option(link.getAttributes.getAttribute("beta")).getOrElse("2.0").toString.toDouble
                 val result = ftt * (1 + alpha * math.pow(tmp, beta))
                 val originalTravelTime =
                   Math.min(result, link.getLength / caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond)
@@ -354,7 +354,10 @@ object JDEQSimRunner {
                 //volume is calculated as number of vehicles entered the road per hour
                 //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
                 val tmp = volume / (capacity * 3600)
+                val alpha = Option(link.getAttributes.getAttribute("alpha")).getOrElse("1.0").toString.toDouble
+                val beta = Option(link.getAttributes.getAttribute("beta")).getOrElse("2.0").toString.toDouble
                 val result = ftt * (1 + alpha * math.pow(tmp, beta))
+                //TODO: Move min speed of 0.5 m/s to config outside of cacc
                 val originalTravelTime =
                   Math.min(result, link.getLength / 0.5)
                 Math.max(originalTravelTime, 0.01) + additionalTravelTime(link, time)
