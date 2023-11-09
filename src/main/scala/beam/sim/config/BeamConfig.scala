@@ -3190,13 +3190,13 @@ object BeamConfig {
       linkStatsBinSize: scala.Int,
       linkStatsWriteInterval: scala.Int,
       maxLinkLengthToApplySpeedScalingFactor: scala.Double,
+      minCarSpeedInMetersPerSecond: scala.Double,
       name: java.lang.String,
       network: BeamConfig.Beam.Physsim.Network,
       overwriteLinkParamPath: java.lang.String,
       parbprsim: BeamConfig.Beam.Physsim.Parbprsim,
       pickUpDropOffAnalysis: BeamConfig.Beam.Physsim.PickUpDropOffAnalysis,
       ptSampleSize: scala.Double,
-      quick_fix_minCarSpeedInMetersPerSecond: scala.Double,
       relaxation: BeamConfig.Beam.Physsim.Relaxation,
       skipPhysSim: scala.Boolean,
       speedScalingFactor: scala.Double,
@@ -4072,6 +4072,8 @@ object BeamConfig {
             if (c.hasPathOrNull("maxLinkLengthToApplySpeedScalingFactor"))
               c.getDouble("maxLinkLengthToApplySpeedScalingFactor")
             else 50.0,
+          minCarSpeedInMetersPerSecond =
+            if (c.hasPathOrNull("minCarSpeedInMetersPerSecond")) c.getDouble("minCarSpeedInMetersPerSecond") else 0.5,
           name = if (c.hasPathOrNull("name")) c.getString("name") else "JDEQSim",
           network = BeamConfig.Beam.Physsim.Network(
             if (c.hasPathOrNull("network")) c.getConfig("network")
@@ -4088,10 +4090,6 @@ object BeamConfig {
             else com.typesafe.config.ConfigFactory.parseString("pickUpDropOffAnalysis{}")
           ),
           ptSampleSize = if (c.hasPathOrNull("ptSampleSize")) c.getDouble("ptSampleSize") else 1.0,
-          quick_fix_minCarSpeedInMetersPerSecond =
-            if (c.hasPathOrNull("quick_fix_minCarSpeedInMetersPerSecond"))
-              c.getDouble("quick_fix_minCarSpeedInMetersPerSecond")
-            else 0.5,
           relaxation = BeamConfig.Beam.Physsim.Relaxation(
             if (c.hasPathOrNull("relaxation")) c.getConfig("relaxation")
             else com.typesafe.config.ConfigFactory.parseString("relaxation{}")
