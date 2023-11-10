@@ -105,10 +105,10 @@ baseline_runs_dir <- pp(workDir, "beam/runs/baseline/")
 baseline_output_dir <- pp(baseline_runs_dir, "output/")
 dir.create(baseline_output_dir, showWarnings = FALSE)
 
-baseline_runs_labels <- c("2018_100", "2018_dense")
+baseline_runs_labels <- c("2018", "2018_routeE")
 baseline_runs <- 
   read_freight_events(
-    c("2018_100", "2018_dense"), 
+    c("2018", "2018_routeE"), 
     baseline_runs_labels, 
     baseline_runs_dir,
     "all_b2b_baseline"

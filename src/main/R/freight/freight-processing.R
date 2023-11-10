@@ -30,9 +30,16 @@ isCav <- function(x) {
 
 
 ## test
-work_folder <- normalizePath("~/Workspace/Data/FREIGHT/austin/beam/runs/demand-growth/2018_base")
-events <- readCsv(pp(work_folder, "/0.linkstats.csv.gz"))
+work_folder <- normalizePath("~/Workspace/Data/FREIGHT/sfbay/")
+linkstats <- readCsv(pp(work_folder, "/0.linkstats.csv.gz"))
+network <- readCsv(pp(work_folder, "/beam/network.csv.gz"))
 ##
+
+linstatsPlus <- merge(linkstats, network, by.x="link", by.y="linkId")
+
+res <- linstatsPlus[attributeOrigType %in% c("motorway", "primary", "secondary", "motorway_link", "tertiary")][
+      ,.(avgSpeedMPH=sum(volume*length)/sum(volume*traveltime)),by=.(hour,attributeOrigType)]
+ggplot(res, aes(hour, avgSpeedMPH, color=attributeOrigType)) + geom_line() + theme_marain()
 
 
 city <- "sfbay"

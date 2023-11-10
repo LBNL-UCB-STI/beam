@@ -4,7 +4,7 @@ import sys
 
 city = "sfbay"
 scenario = "baseline"
-batch = "2018_dense/"
+batch = "2018_routeE/"
 iteration = 0
 prefix = ""
 filename = prefix+str(iteration)+'.events.csv.gz'
