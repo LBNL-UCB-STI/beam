@@ -64,8 +64,8 @@ class BackgroundSkimsCreatorAppSpec
     "generate all skims if input is not set" in {
       whenReady(BackgroundSkimsCreatorApp.runWithServices(beamServices, params.copy(input = None))) { _ =>
         val csv = GenericCsvReader.readAs[ExcerptData](outputPath.toString, toCsvSkimRow, _ => true)._1.toVector
-        csv.size shouldBe 73
-        csv.count(_.weightedTotalTime > 10) shouldBe 33
+        csv.size shouldBe 97
+        csv.count(_.weightedTotalTime > 10) shouldBe 35
       }
     }
 

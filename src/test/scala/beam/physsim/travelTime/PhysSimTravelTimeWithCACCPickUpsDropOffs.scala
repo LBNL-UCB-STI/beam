@@ -92,12 +92,7 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
   val roadCapacityAdjustmentFunction: RoadCapacityAdjustmentFunction =
     new Hao2018CaccRoadCapacityAdjustmentFunctionWithoutPrintingStats(beamConfig)
 
-  val caccSettings: CACCSettings = CACCSettings(
-    isCACCVehicle,
-    1.0,
-    7,
-    roadCapacityAdjustmentFunction
-  )
+  val caccSettings: CACCSettings = CACCSettings(isCACCVehicle, 1.0, roadCapacityAdjustmentFunction)
 
   val pickUpDropOffHolder = new PickUpDropOffHolder(beamvilleLinkPickUpsDropOffsFromSimulation, beamConfig)
 

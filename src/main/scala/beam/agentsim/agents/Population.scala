@@ -98,30 +98,25 @@ class Population(
     val vehicleAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
     scenario.getHouseholds.getHouseholds.values().forEach { household =>
       //TODO a good example where projection should accompany the data
-      if (
+
+      val homeCoordX = Option(
         scenario.getHouseholds.getHouseholdAttributes
-          .getAttribute(household.getId.toString, "homecoordx") == null
-      ) {
+          .getAttribute(household.getId.toString, "homecoordx")
+      ).map(_.toString.toDouble).getOrElse {
         log.error(
           s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0"
         )
+        0.0
       }
-      if (
+      val homeCoordY = Option(
         scenario.getHouseholds.getHouseholdAttributes
-          .getAttribute(household.getId.toString, "homecoordy") == null
-      ) {
+          .getAttribute(household.getId.toString, "homecoordy")
+      ).map(_.toString.toDouble).getOrElse {
         log.error(
           s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
         )
+        0.0
       }
-      val homeCoord = new Coord(
-        scenario.getHouseholds.getHouseholdAttributes
-          .getAttribute(household.getId.toString, "homecoordx")
-          .asInstanceOf[Double],
-        scenario.getHouseholds.getHouseholdAttributes
-          .getAttribute(household.getId.toString, "homecoordy")
-          .asInstanceOf[Double]
-      )
 
       val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters
         .collectionAsScalaIterable(household.getVehicleIds)
@@ -149,7 +144,7 @@ class Population(
           scenario.getPopulation,
           household,
           householdVehicles,
-          homeCoord,
+          new Coord(homeCoordX, homeCoordY),
           sharedVehicleFleets,
           sharedVehicleTypes,
           routeHistory,

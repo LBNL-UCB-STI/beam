@@ -38,6 +38,7 @@ trait BeamScenarioForTest extends AnyFlatSpec {
       seatingCapacity = 1,
       standingRoomCapacity = 1,
       lengthInMeter = 3,
+      curbWeightInKg = 1000,
       primaryFuelType = FuelType.Gasoline,
       primaryFuelConsumptionInJoulePerMeter = 0.1,
       primaryFuelCapacityInJoule = 0.1,
