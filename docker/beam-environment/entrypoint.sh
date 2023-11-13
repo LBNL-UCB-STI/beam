@@ -22,6 +22,7 @@ case "$command" in
 "gradle") /app/execute-gradle.sh "${@:2}" ;;
 "git") /app/execute-git.sh "${@:2}" ;;
 "sh" | "bash") /app/execute-sh.sh "${@:2}" ;;
+"slack") /app/execute-message-slack.sh "${@:2}" ;;
 "help" | "?") print_help ;;
 *) print_unexpected  ;;
 esac
