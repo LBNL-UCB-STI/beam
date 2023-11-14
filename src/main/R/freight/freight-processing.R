@@ -30,10 +30,25 @@ isCav <- function(x) {
 
 
 ## test
-work_folder <- normalizePath("~/Workspace/Data/FREIGHT/sfbay/")
-linkstats <- readCsv(pp(work_folder, "/0.linkstats.csv.gz"))
-network <- readCsv(pp(work_folder, "/beam/network.csv.gz"))
-##
+work_folder <- normalizePath("~/Workspace/Data/FREIGHT/")
+linkstats <- readCsv(pp(work_folder, "/sfbay/0.linkstats.csv.gz"))
+network <- readCsv(pp(work_folder, "/sfbay/beam/network.csv.gz"))
+## test 2
+#/Users/haitamlaarabi/Workspace/Data/FREIGHT/sfbay/vehicle-tech/2020
+class6Diesel <- readCsv(pp(work_folder, "/vehicle-tech/2020/Class_6_Box_truck_(Diesel,_2020,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class6Diesel"]
+class8vDiesel <- readCsv(pp(work_folder, "/vehicle-tech/2020/Class_8_Box_truck_(Diesel,_2020,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class8vDiesel"]
+class8tDiesel <- readCsv(pp(work_folder, "/vehicle-tech/2020/Class_8_Sleeper_cab_high_roof_(Diesel,_2020,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class8tDiesel"]
+
+class6BEV <- readCsv(pp(work_folder, "/vehicle-tech/2025/Class_6_Box_truck_(BEV,_2025,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class6BEV"]
+class6HEV <- readCsv(pp(work_folder, "/vehicle-tech/2025/Class_6_Box_truck_(HEV,_2025,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class6HEV"]
+class8vBEV <- readCsv(pp(work_folder, "/vehicle-tech/2025/Class_8_Box_truck_(BEV,_2025,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class8vBEV"]
+class8vHEV <- readCsv(pp(work_folder, "/vehicle-tech/2025/Class_8_Box_truck_(HEV,_2025,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class8vHEV"]
+class8tBEV <- readCsv(pp(work_folder, "/vehicle-tech/2025/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class8tBEV"]
+class8tHEV <- readCsv(pp(work_folder, "/vehicle-tech/2025/Class_8_Sleeper_cab_high_roof_(HEV,_2025,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class8tHEV"]
+
+allClasses <- rbind(class6Diesel, class8vDiesel, class8tDiesel, class6BEV, class6HEV, class8vBEV, class8vHEV, class8tBEV, class8tHEV)
+test <- allClasses[rate==0.6621670216912081]
+allClasses[rate==0.6621670216912081]
 
 linstatsPlus <- merge(linkstats, network, by.x="link", by.y="linkId")
 
