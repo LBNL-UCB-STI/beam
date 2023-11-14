@@ -18,13 +18,12 @@ import beam.utils.matsim_conversion.ShapeUtils.{readShapeFileGeometries, QuadTre
 import com.google.inject.Inject
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
+import org.apache.commons.io.FilenameUtils
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.controler.OutputDirectoryHierarchy
-import org.matsim.core.utils.gis.ShapeFileReader
 import org.matsim.households.Household
-import org.opengis.feature.simple.SimpleFeature
 
 import java.nio.file.{Files, Paths}
 import java.util
@@ -58,16 +57,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     val geofenceRadius = Option(rec.get("geofenceRadius")).map(_.toDouble)
     //geofenceFile takes precedence
     val geofenceFile = Option(rec.get("geofenceFile")).orElse(Option(rec.get("geofenceTAZFile")))
-    if (geofenceFile.exists(fileName => !Files.exists(Paths.get(fileName)))) {
-      throw new RuntimeException(s"Geofence file ${geofenceFile.get} doesn't exist")
-    }
-    val knownGeofenceFileExtensions = Seq("shp", "csv")
-    if (geofenceFile.exists(fileName => !knownGeofenceFileExtensions.exists(fileName.endsWith))) {
-      throw new RuntimeException(
-        s"Unknown geofence file type: ${geofenceFile.get}." +
-        s" Only ${knownGeofenceFileExtensions.mkString(", ")} are supported."
-      )
-    }
+    geofenceFile.foreach(validateGeofenceFileAndGetFileType)
     val fleetId = rec.getOrDefault("fleetId", defaultFleetId)
     val initialStateOfCharge = rec.getOrDefault("initialStateOfCharge", "1.0").toDouble
 
@@ -85,6 +75,21 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
       fleetId = fleetId,
       initialStateOfCharge = initialStateOfCharge
     )
+  }
+
+  def validateGeofenceFileAndGetFileType(fileName: String): String = {
+    if (!Files.exists(Paths.get(fileName))) {
+      throw new RuntimeException(s"Geofence file $fileName doesn't exist")
+    }
+    val extension = FilenameUtils.getExtension(fileName).toLowerCase()
+    val knownGeofenceFileExtensions = Seq("shp", "csv")
+    if (!knownGeofenceFileExtensions.contains(extension)) {
+      throw new RuntimeException(
+        s"Unknown geofence file type: $fileName." +
+        s" Only ${knownGeofenceFileExtensions.mkString(", ")} are supported."
+      )
+    }
+    extension
   }
 
   /**
@@ -258,13 +263,13 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
      * If both a taz based geofence and a circular one are defined, the taz based takes precedence.
      */
     def geofence(tazTreeMap: TAZTreeMap, localCRS: String): Option[Geofence] = {
-      // you also need to put these geofence file extensions to value knownGeofenceFileExtensions of
-      // beam.sim.RideHailFleetInitializer.toRideHailAgentInputData method
-      // in order to validate the file before the simulation starts
-      if (geofenceFile.exists(_.toLowerCase().endsWith(".csv"))) {
-        Some(TAZGeofence(tazTreeMap, geofenceFile.get))
-      } else if (geofenceFile.exists(_.toLowerCase().endsWith(".shp"))) {
-        Some(ShpGeofence(geofenceFile.get, localCRS))
+      if (geofenceFile.isDefined) {
+        val fileName = geofenceFile.get
+        val extension = validateGeofenceFileAndGetFileType(fileName)
+        extension match {
+          case "csv" => Some(TAZGeofence(tazTreeMap, geofenceFile.get))
+          case "shp" => Some(ShpGeofence(geofenceFile.get, localCRS))
+        }
       } else if (geofenceX.isDefined && geofenceY.isDefined && geofenceRadius.isDefined) {
         Some(CircularGeofence(geofenceX.get, geofenceY.get, geofenceRadius.get))
       } else {
