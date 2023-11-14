@@ -276,7 +276,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     )
 
     val consumptionRateFilterStore =
-      new ConsumptionRateFilterStoreImpl(
+      new ConsumptionRateFilterSoreImpl(
         vehicleCsvReader.getVehicleEnergyRecordsUsing,
         vehicleTypesBasePaths,
         primaryConsumptionRateFilePathsByVehicleType =
