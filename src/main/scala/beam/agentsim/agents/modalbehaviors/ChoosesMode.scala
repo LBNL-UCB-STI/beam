@@ -1449,7 +1449,7 @@ trait ChoosesMode {
       else
         Some(
           EmbodiedBeamLeg.dummyLegAt(
-            start = partialItin.head.beamLeg.startTime,
+            start = _currentTick.get,
             vehicleId = body.id,
             isLastLeg = false,
             location = partialItin.head.beamLeg.travelPath.startPoint.loc,
