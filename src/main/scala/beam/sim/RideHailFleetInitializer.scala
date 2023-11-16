@@ -14,9 +14,11 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.OutputDataDescriptor
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
-import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
+import beam.utils.matsim_conversion.ShapeUtils.{readShapeFileGeometries, QuadTreeBounds}
 import com.google.inject.Inject
-import com.typesafe.scalalogging.LazyLogging
+import com.typesafe.scalalogging.{LazyLogging, Logger}
+import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
+import org.apache.commons.io.FilenameUtils
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -24,9 +26,11 @@ import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.households.Household
 
 import java.nio.file.{Files, Paths}
+import java.util
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 import scala.math.{max, min}
@@ -51,8 +55,9 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     val geofenceX = Option(rec.get("geofenceX")).map(_.toDouble)
     val geofenceY = Option(rec.get("geofenceY")).map(_.toDouble)
     val geofenceRadius = Option(rec.get("geofenceRadius")).map(_.toDouble)
-    val geofenceTAZFile = Option(rec.get("geofenceTAZFile"))
-    val geofenceTazIds = Option(rec.get("geofenceTAZFile")).map(readTazIdsFile)
+    //geofenceFile takes precedence
+    val geofenceFile = Option(rec.get("geofenceFile")).orElse(Option(rec.get("geofenceTAZFile")))
+    geofenceFile.foreach(validateGeofenceFileAndGetFileType)
     val fleetId = rec.getOrDefault("fleetId", defaultFleetId)
     val initialStateOfCharge = rec.getOrDefault("initialStateOfCharge", "1.0").toDouble
 
@@ -66,18 +71,25 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
       geofenceX = geofenceX,
       geofenceY = geofenceY,
       geofenceRadius = geofenceRadius,
-      geofenceTazs = geofenceTazIds,
-      geofenceTAZFile = geofenceTAZFile,
+      geofenceFile = geofenceFile,
       fleetId = fleetId,
       initialStateOfCharge = initialStateOfCharge
     )
   }
 
-  private def readTazIdsFile(tazFilePath: String): Set[Id[TAZ]] = {
-    val source = Source.fromFile(tazFilePath)
-    val lines = source.getLines.toVector
-    source.close()
-    lines.tail.map(tazId => Id.create(tazId, classOf[TAZ])).toSet
+  def validateGeofenceFileAndGetFileType(fileName: String): String = {
+    if (!Files.exists(Paths.get(fileName))) {
+      throw new RuntimeException(s"Geofence file $fileName doesn't exist")
+    }
+    val extension = FilenameUtils.getExtension(fileName).toLowerCase()
+    val knownGeofenceFileExtensions = Seq("shp", "csv")
+    if (!knownGeofenceFileExtensions.contains(extension)) {
+      throw new RuntimeException(
+        s"Unknown geofence file type: $fileName." +
+        s" Only ${knownGeofenceFileExtensions.mkString(", ")} are supported."
+      )
+    }
+    extension
   }
 
   /**
@@ -117,7 +129,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
       "geofenceX",
       "geofenceY",
       "geofenceRadius",
-      "geofenceTAZFile",
+      "geofenceFile",
       "fleetId",
       "initialStateOfCharge"
     )
@@ -136,7 +148,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
             fleetData.geofenceX.getOrElse(""),
             fleetData.geofenceY.getOrElse(""),
             fleetData.geofenceRadius.getOrElse(""),
-            fleetData.geofenceTAZFile.getOrElse(""),
+            fleetData.geofenceFile.getOrElse(""),
             fleetData.fleetId,
             fleetData.initialStateOfCharge
           )
@@ -242,8 +254,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     geofenceX: Option[Double],
     geofenceY: Option[Double],
     geofenceRadius: Option[Double],
-    geofenceTazs: Option[Set[Id[TAZ]]],
-    geofenceTAZFile: Option[String],
+    geofenceFile: Option[String],
     fleetId: String,
     initialStateOfCharge: Double = 1.0
   ) {
@@ -251,9 +262,14 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     /*
      * If both a taz based geofence and a circular one are defined, the taz based takes precedence.
      */
-    def geofence(tazTreeMap: TAZTreeMap): Option[Geofence] = {
-      if (geofenceTazs.isDefined) {
-        Some(TAZGeofence(geofenceTazs.get, tazTreeMap, geofenceTAZFile.get))
+    def geofence(tazTreeMap: TAZTreeMap, localCRS: String): Option[Geofence] = {
+      if (geofenceFile.isDefined) {
+        val fileName = geofenceFile.get
+        val extension = validateGeofenceFileAndGetFileType(fileName)
+        extension match {
+          case "csv" => Some(TAZGeofence(tazTreeMap, geofenceFile.get))
+          case "shp" => Some(ShpGeofence(geofenceFile.get, localCRS))
+        }
       } else if (geofenceX.isDefined && geofenceY.isDefined && geofenceRadius.isDefined) {
         Some(CircularGeofence(geofenceX.get, geofenceY.get, geofenceRadius.get))
       } else {
@@ -261,13 +277,30 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
       }
     }
 
+    /**
+      * @return a string geofence key for caching purposes
+      */
+    def geofenceKey: String = {
+      if (geofenceFile.isDefined) {
+        geofenceFile.get
+      } else {
+        Seq(geofenceX, geofenceY, geofenceRadius).flatten.mkString("|")
+      }
+    }
+
     def initialLocation: Coord = {
       new Coord(initialLocationX, initialLocationY)
     }
 
-    def createRideHailAgentInitializer(beamScenario: BeamScenario): RideHailAgentInitializer = {
+    def createRideHailAgentInitializer(
+      beamScenario: BeamScenario,
+      geofenceCache: mutable.Map[String, Option[Geofence]],
+      geo: GeoUtils
+    ): RideHailAgentInitializer = {
       val beamVehicleType = beamScenario.vehicleTypes(Id.create(vehicleType, classOf[BeamVehicleType]))
       val shifts = shiftsListFromString(shiftsStr)
+
+      val createdGeofence = geofenceCache.getOrElseUpdate(geofenceKey, geofence(beamScenario.tazTreeMap, geo.localCRS))
 
       RideHailAgentInitializer(
         id,
@@ -276,7 +309,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
         shifts,
         initialStateOfCharge,
         initialLocation,
-        geofence(beamScenario.tazTreeMap),
+        createdGeofence,
         fleetId
       )
     }
@@ -357,10 +390,11 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     /** Creates an instance of RideHailAgentInputData from the data in this instance */
     def createRideHailAgentInputData: RideHailAgentInputData = {
 
-      val (geofenceCircularMaybe, geofenceTazMaybe) = geofence
+      val (geofenceCircularMaybe, geofenceFileMaybe) = geofence
         .map {
           case g: CircularGeofence => (Some(g), None)
-          case g: TAZGeofence      => (None, Some(g))
+          case g: TAZGeofence      => (None, Some(g.geofenceTAZFile))
+          case g: ShpGeofence      => (None, Some(g.geofenceShpFile))
         }
         .getOrElse((None, None))
 
@@ -374,8 +408,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
         geofenceCircularMaybe.map(_.geofenceX),
         geofenceCircularMaybe.map(_.geofenceY),
         geofenceCircularMaybe.map(_.geofenceRadius),
-        geofenceTazMaybe.map(_.tazs),
-        geofenceTazMaybe.map(_.geofenceTAZFile),
+        geofenceFileMaybe,
         fleetId,
         initialStateOfCharge
       )
@@ -546,7 +579,8 @@ class FileRideHailFleetInitializer(
     val fleetFilePath = managerConfig.initialization.filePath
 
     val rideHailInputDatas = RideHailFleetInitializer.readFleetFromCSV(fleetFilePath, managerConfig.name).toIndexedSeq
-    rideHailInputDatas.map(_.createRideHailAgentInitializer(beamScenario))
+    val geofenceCache = mutable.Map.empty[String, Option[Geofence]]
+    rideHailInputDatas.map(_.createRideHailAgentInitializer(beamScenario, geofenceCache, beamServices.geo))
   }
 }
 
@@ -816,10 +850,18 @@ case class CircularGeofence(
   * Geofence defined by set of TAZ Ids
   */
 case class TAZGeofence(
-  tazs: Set[Id[TAZ]],
   tazTreeMap: TAZTreeMap,
   geofenceTAZFile: String
 ) extends Geofence {
+
+  val tazs: Set[Id[TAZ]] = readTazIdsFile(geofenceTAZFile)
+
+  private def readTazIdsFile(tazFilePath: String): Set[Id[TAZ]] = {
+    val source = Source.fromFile(tazFilePath)
+    val lines = source.getLines.toVector
+    source.close()
+    lines.tail.map(tazId => Id.create(tazId, classOf[TAZ])).toSet
+  }
 
   override def contains(x: Double, y: Double): Boolean = {
     tazs.contains(tazTreeMap.getTAZ(x, y).tazId)
@@ -827,6 +869,36 @@ case class TAZGeofence(
 
   override def toString() = {
     s"TAZGeofence(${tazs.size} tazs from file: $geofenceTAZFile)"
+  }
+
+}
+
+/**
+  * Geofence defined by a shapefile
+  */
+case class ShpGeofence(
+  geofenceShpFile: String,
+  localCRS: String
+) extends Geofence {
+  private val geometryFactory: GeometryFactory = new GeometryFactory()
+
+  val geometries: IndexedSeq[Geometry] = {
+    val (geoms, sourceCRS) = readShapeFileGeometries(geofenceShpFile, Some(localCRS))
+    if (sourceCRS.isEmpty) {
+      Logger("ShpGeofence").error(
+        s"Unknown CRS of geofence shape file $geofenceShpFile. No transformation to local CRS ($localCRS) happened."
+      )
+    }
+    geoms
+  }
+
+  override def contains(x: Double, y: Double): Boolean = {
+    val point = geometryFactory.createPoint(new Coordinate(x, y))
+    geometries.exists(_.contains(point))
+  }
+
+  override def toString() = {
+    s"ShpGeofence(${geometries.size} features from file: $geofenceShpFile)"
   }
 
 }
