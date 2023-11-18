@@ -13,7 +13,6 @@ ADD replace_config_path_in_args.py \
     write_cpu_ram_usage.sh \
     execute-gradle.sh \
     execute-git.sh \
-    execute-sh.sh \
     entrypoint.sh \
     /app/
 RUN chmod +x /app/*.sh
