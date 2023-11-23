@@ -3,9 +3,9 @@ import os
 import sys
 
 city = "sfbay"
-scenario = "baseline"
-batch = "2018_routeE/"
-iteration = 0
+scenario = "calibration-jdeqsim"
+batch = "2018-100/"
+iteration = 15
 prefix = ""
 filename = prefix+str(iteration)+'.events.csv.gz'
 local_work_directory = '~/Workspace/Data/FREIGHT/'+city+'/beam/runs/'+scenario+'/'+batch

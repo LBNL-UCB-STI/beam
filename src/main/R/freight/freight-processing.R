@@ -35,16 +35,23 @@ linkstats <- readCsv(pp(work_folder, "/sfbay/0.linkstats.csv.gz"))
 network <- readCsv(pp(work_folder, "/sfbay/beam/network.csv.gz"))
 ## test 2
 #/Users/haitamlaarabi/Workspace/Data/FREIGHT/sfbay/vehicle-tech/2020
-class6Diesel <- readCsv(pp(work_folder, "/vehicle-tech/2020/Class_6_Box_truck_(Diesel,_2020,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class6Diesel"]
-class8vDiesel <- readCsv(pp(work_folder, "/vehicle-tech/2020/Class_8_Box_truck_(Diesel,_2020,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class8vDiesel"]
-class8tDiesel <- readCsv(pp(work_folder, "/vehicle-tech/2020/Class_8_Sleeper_cab_high_roof_(Diesel,_2020,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class8tDiesel"]
+filename1 <- pp(work_folder, "/vehicle-tech/2020/Class_6_Box_truck_(Diesel,_2020,_no_program).csv")
+filename2 <- pp(work_folder, "/vehicle-tech/2020/Class_8_Box_truck_(Diesel,_2020,_no_program).csv")
+filename3 <- pp(work_folder, "/vehicle-tech/2020/Class_8_Sleeper_cab_high_roof_(Diesel,_2020,_no_program).csv")
 
-class6BEV <- readCsv(pp(work_folder, "/vehicle-tech/2025/Class_6_Box_truck_(BEV,_2025,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class6BEV"]
-class6HEV <- readCsv(pp(work_folder, "/vehicle-tech/2025/Class_6_Box_truck_(HEV,_2025,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class6HEV"]
-class8vBEV <- readCsv(pp(work_folder, "/vehicle-tech/2025/Class_8_Box_truck_(BEV,_2025,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class8vBEV"]
-class8vHEV <- readCsv(pp(work_folder, "/vehicle-tech/2025/Class_8_Box_truck_(HEV,_2025,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class8vHEV"]
-class8tBEV <- readCsv(pp(work_folder, "/vehicle-tech/2025/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class8tBEV"]
-class8tHEV <- readCsv(pp(work_folder, "/vehicle-tech/2025/Class_8_Sleeper_cab_high_roof_(HEV,_2025,_no_program)-speed_mph&grade_percent&mass_kg_lookup_table.csv"))[,vehicleClass:="class8tHEV"]
+filename4 <- pp(work_folder, "/vehicle-tech/2025/Class_6_Box_truck_(BEV,_2025,_no_program).csv")
+filename5 <- pp(work_folder, "/vehicle-tech/2025/Class_6_Box_truck_(HEV,_2025,_no_program).csv")
+filename6 <- pp(work_folder, "/vehicle-tech/2025/Class_8_Box_truck_(BEV,_2025,_no_program).csv")
+filename7 <- pp(work_folder, "/vehicle-tech/2025/Class_8_Box_truck_(HEV,_2025,_no_program).csv")
+filename8 <- pp(work_folder, "/vehicle-tech/2025/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv")
+filename9 <- pp(work_folder, "/vehicle-tech/2025/Class_8_Sleeper_cab_high_roof_(HEV,_2025,_no_program).csv")
+
+filenameX <- filename9
+class6Diesel <- readCsv(filenameX)
+#class6Diesel <- cbind(index = 1:nrow(class6Diesel), class6Diesel)
+write.csv(class6Diesel, file = filenameX, row.names=F, quote=T)
+
+
 
 allClasses <- rbind(class6Diesel, class8vDiesel, class8tDiesel, class6BEV, class6HEV, class8vBEV, class8vHEV, class8tBEV, class8tHEV)
 test <- allClasses[rate==0.6621670216912081]

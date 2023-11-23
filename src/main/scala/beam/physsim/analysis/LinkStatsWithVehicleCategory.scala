@@ -60,7 +60,7 @@ class LinkStatsWithVehicleCategory(
           categoryGroup.map(category => categoryToVolume(category)).sum
         }
         val categoryVolumeSum = categoryToVolume.values.reduceOption(_ + _).getOrElse(0.0)
-        val otherVolume = totalLinkData.get(linkId).map(_.getSumVolume(hour)).getOrElse(0.0) - categoryVolumeSum
+        val otherVolume = totalLinkData.get(linkId).map(_.getSumVolume(hour)).getOrElse(0.0)
         Seq(
           linkId,
           link.getFromNode.getId,
