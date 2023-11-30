@@ -114,7 +114,7 @@ object GtfsFeedAdjuster extends App with StrictLogging {
       case "multiplication" if cfg.factor < 1.0 =>
         GtfsUtils.removeTripsStrategy(trips, cfg.factor.toFloat, cfg.timeFrame)
       case "remove_routes"  => GtfsUtils.removeRoutesStrategy(cfg.routesToModify)
-      case "scale"          => GtfsUtils.scaleTripsStrategy(trips, cfg.factor.toInt, cfg.timeFrame)
+      case "scale"          => GtfsUtils.scaleTripsStrategy(trips, cfg.factor.toFloat, cfg.timeFrame)
       case "filter_service" => GtfsUtils.filterServiceIdStrategy(filteredServiceIds)
     }
 
