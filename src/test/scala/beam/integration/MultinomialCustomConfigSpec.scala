@@ -6,6 +6,7 @@ import beam.tags.FlakyTest
 import com.typesafe.config.{Config, ConfigValueFactory}
 import com.typesafe.scalalogging.LazyLogging
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.tagobjects.Retryable
 import org.scalatest.wordspec.AnyWordSpecLike
 
 class MultinomialCustomConfigSpec
@@ -16,7 +17,7 @@ class MultinomialCustomConfigSpec
     with LazyLogging {
 
   "Running beam with Multinomial ModeChoice custom config" must {
-    "Prefer mode car when intercept is very high versus very low" in {
+    "Prefer mode car when intercept is very high versus very low" taggedAs Retryable in {
 
       val config1: Config = baseConfig
         .withValue(

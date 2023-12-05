@@ -16,17 +16,15 @@ loadTypes <- data.table::data.table(
     "homelevel1(1.8|AC)", "homelevel2(7.2|AC)",
     "worklevel2(7.2|AC)",
     "publiclevel2(7.2|AC)",
-    "publicfc(50.0|DC)", "publicxfc(50.0|DC)", "publicfc(150.0|DC)",
-    "depotfc(150.0|DC)",
+    "publicfc(50.0|DC)", "publicxfc(50.0|DC)", "publicfc(150.0|DC)", "depotfc(150.0|DC)",
     "depotxfc(200.0|DC)", "depotxfc(300.0|DC)", "depotxfc(400.0|DC)",
-    "publicfc(200.0|DC)", "publicxfc(200.0|DC)", "publicxfc(300.0|DC)", "publicxfc(400.0|DC)"),
+    "publicfc(200.0|DC)", "publicxfc(200.0|DC)", "publicxfc(300.0|DC)", "publicxfc(400.0|DC)", "publicxfc(250.0|DC)"),
   loadType = c("Home-L1", "Home-L2",
                "Work-L2",
                "Public-L2",
-               "DCFC", "DCFC", "DCFC",
-               "DCFC",
+               "DCFC", "DCFC", "DCFC", "DCFC",
                "XFC", "XFC", "XFC",
-               "XFC", "XFC", "XFC", "XFC"))
+               "XFC", "XFC", "XFC", "XFC", "XFC"))
 
 nextTimePoisson <- function(rate) {
   return(-log(1.0 - runif(1)) / rate)
@@ -45,10 +43,12 @@ extractChargingSessions <- function(events) {
   ## replace everything by chargingPointType, when develop problem is solved
   ## c("vehicle", "time", "type", "parkingTaz", "chargingPointType", "parkingType", "locationY", "locationX", "duration", "vehicleType")
   ev1 <- events[type %in% c("RefuelSessionEvent")][order(time),`:=`(IDX = 1:.N),by=vehicle]
-  ev1.vehicles <- unique(ev1$vehicle)
-  ev2 <- events[vehicle%in%ev1.vehicles][type %in% c("ChargingPlugInEvent")][,c("vehicle", "time")][order(time),`:=`(IDX = 1:.N),by=vehicle]
-  setnames(ev2, "time", "start.time")
-  ev <- ev1[ev2, on=c("vehicle", "IDX")][!is.na(parkingTaz)]
+  ev1[, start.time:=time-duration]
+  #ev1.vehicles <- unique(ev1$vehicle)
+  #ev2 <- events[vehicle%in%ev1.vehicles][type %in% c("ChargingPlugInEvent")][,c("vehicle", "time")][order(time),`:=`(IDX = 1:.N),by=vehicle]
+  #setnames(ev2, "time", "start.time")
+  #ev <- ev1[ev2, on=c("vehicle", "IDX")][!is.na(parkingTaz)]
+  ev <- ev1[!is.na(parkingTaz)]
   return(ev)
 }
 spreadChargingSessionsIntoPowerIntervals <- function(ev) {
