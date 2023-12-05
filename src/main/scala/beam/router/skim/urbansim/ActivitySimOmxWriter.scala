@@ -53,6 +53,8 @@ object ActivitySimOmxWriter {
         matrix.getData()(row)(column) = excerptData.getValue(metric).toFloat * getUnitConversion(metric)
       }
       allMatrices.values.foreach(omxFile.addMatrix)
+      // we cannot add a lookup because string arrays are not supported by hdf5lib java
+      // omxFile.addLookup(new OmxStringLookup("zone_id", geoUnits.toArray, ""))
     }
 
   }

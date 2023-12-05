@@ -8,5 +8,5 @@ import scala.util.Try
 object SortingUtil {
 
   def sortAsIntegers(seq: Seq[String]): Option[Seq[String]] =
-    Try(seq.zip(seq.map(_.toInt)).sortBy(_._2).map(_._1)).toOption
+    Try(seq.sortBy(_.toLong)).toOption
 }
