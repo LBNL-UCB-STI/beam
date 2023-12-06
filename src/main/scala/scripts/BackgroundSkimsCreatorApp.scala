@@ -306,7 +306,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
     new ActivitySimSkimmer(beamServices.matsimServices, beamServices.beamScenario, beamServices.beamConfig) {
 
       override def writeToDisk(filePath: String): Unit = {
-        val geoUnits: SortedSet[String] = SortedSet(allGeoUnits.map(_.id): _*)
+        val geoUnits: Seq[String] = SortedSet(allGeoUnits.map(_.id): _*).toSeq
         val skimData = rows.view.flatMap { case ODRow(origin, destination) =>
           existingSkims.get((origin.id, destination.id)) match {
             case Some(skims) => skims
