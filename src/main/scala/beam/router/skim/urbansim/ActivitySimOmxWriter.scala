@@ -21,7 +21,7 @@ object ActivitySimOmxWriter {
   def writeToOmx(
     filePath: String,
     skimData: Iterator[ExcerptData],
-    geoUnits: SortedSet[String]
+    geoUnits: Seq[String]
   ): Try[Unit] = Try {
     HDF5Loader.prepareHdf5Library()
     FileUtils.using(

@@ -51,7 +51,7 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
 
   val orderedTazIds: Seq[String] = {
     val tazIds = tazQuadTree.values().asScala.map(_.tazId.toString).toSeq
-    maybeZoneOrdering.fold(SortingUtil.sortAsIntegers(tazIds).getOrElse(tazIds.sorted))(_.map(_.toString))
+    SortingUtil.sortAsIntegers(tazIds).getOrElse(tazIds.sorted)
   }
 
   def getTAZfromLink(linkId: Id[Link]): Option[TAZ] = {
