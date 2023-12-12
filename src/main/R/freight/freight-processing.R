@@ -28,6 +28,7 @@ isCav <- function(x) {
   return(x >= 4)
 }
 
+### RouteE
 
 ## test
 work_folder <- normalizePath("~/Workspace/Data/FREIGHT/")
@@ -51,17 +52,38 @@ class6Diesel <- readCsv(filenameX)
 #class6Diesel <- cbind(index = 1:nrow(class6Diesel), class6Diesel)
 write.csv(class6Diesel, file = filenameX, row.names=F, quote=T)
 
-
-
 allClasses <- rbind(class6Diesel, class8vDiesel, class8tDiesel, class6BEV, class6HEV, class8vBEV, class8vHEV, class8tBEV, class8tHEV)
 test <- allClasses[rate==0.6621670216912081]
 allClasses[rate==0.6621670216912081]
+####
 
 linstatsPlus <- merge(linkstats, network, by.x="link", by.y="linkId")
 
-res <- linstatsPlus[attributeOrigType %in% c("motorway", "primary", "secondary", "motorway_link", "tertiary")][
-      ,.(avgSpeedMPH=sum(volume*length)/sum(volume*traveltime)),by=.(hour,attributeOrigType)]
-ggplot(res, aes(hour, avgSpeedMPH, color=attributeOrigType)) + geom_line() + theme_marain()
+
+
+#### Calibration
+run_dir = '/sfbay/beam/runs'
+network <- readCsv(pp(work_folder, run_dir, "/../network.csv.gz"))
+
+linkstats_jd_0.025_0.5mps <- readCsv(pp(work_folder, run_dir, "/calibration-jdeqsim/2018-025/15.linkstats.csv.gz"))
+linkstats_jd_0.025_1.5mps <- readCsv(pp(work_folder, run_dir, "/calibration-jdeqsim/2018-025-1.5mps/4.linkstats.csv.gz"))
+linkstats_jd_0.100 <- readCsv(pp(work_folder, run_dir, "/calibration-jdeqsim/2018-100/15.linkstats.csv.gz"))
+linkstats_bp_0.035 <- readCsv(pp(work_folder, run_dir, "/calibration-bprsim/2018-035/15.linkstats.csv.gz"))
+
+
+linkstats_jd_0.025_0.5mps_merged <- linkstats_0.025_0.5mps[network, on=c("link"="linkId")]
+linkstats_jd_0.025_1.5mps_merged <- linkstats_0.025_1.5mps[network, on=c("link"="linkId")]
+linkstats_jd_0.100_merged <- linkstats_jd_0.100[network, on=c("link"="linkId")]
+linkstats_bp_0.035_merged <- linkstats_bp_0.035[network, on=c("link"="linkId")]
+
+res <- linkstats_jd_0.100_merged[attributeOrigType %in% c("motorway", "primary", "secondary", "motorway_link", "tertiary")][
+  ,.(avgSpeedMPH=sum(volume*length)/sum(volume*traveltime)),by=.(hour,attributeOrigType)]
+
+ggplot(res, aes(hour, avgSpeedMPH, color=attributeOrigType)) + 
+  geom_line() + theme_marain() + xlim(0, 60) + 
+  ggtitle("jdeqsim - 100% FC/Pop - min speed 0.5mps")
+
+####
 
 
 city <- "sfbay"

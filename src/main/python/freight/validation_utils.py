@@ -19,7 +19,6 @@ def npmrds_screeline_validation(npmrds_data, model_network, output_dir, label, s
     # 0: Monday => 6: Sunday
     npmrds_data = npmrds_data.loc[npmrds_data['weekday'] < 5]
 
-    # npmrds_data.loc[npmrds_data['speed'] >= 80, 'speed'] = 80
     npmrds_data_hourly = npmrds_data.groupby(['tmc_code', 'hour'])[['speed']].mean()
     npmrds_data_hourly = npmrds_data_hourly.reset_index()
     npmrds_data_hourly.columns = ['tmc', 'hour', 'avgSpeed']
@@ -60,6 +59,7 @@ def build_model_vmt_24_hour(modeled_vmt, model_network, output_dir, scenario, pa
 
     model_vmt_24_hour.loc[:, 'vmt'] = meter_to_mile * model_vmt_24_hour.loc[:, 'linkLength'] * model_vmt_24_hour.loc[:, 'volume']
     model_vmt_24_hour.loc[:, 'vht'] = seconds_to_hours * model_vmt_24_hour.loc[:, 'traveltime'] * model_vmt_24_hour.loc[:, 'volume']
+    
     model_vmt_24_hour.loc[:, 'speed'] = model_vmt_24_hour.loc[:, 'vmt'] / model_vmt_24_hour.loc[:, 'vht']
 
     model_vmt_24_hour["speed"].plot(kind="hist", bins=30)
