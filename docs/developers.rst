@@ -592,7 +592,7 @@ Now at the bottom, under NetworkSettings, locate IP Address of your docker conta
 
 
 .. _already configured: http://logback.qos.ch/manual/jmxConfig.html
-.. _jconsole: https://docs.oracle.com/javase/8/docs/technotes/guides/management/jconsole.html
+.. _jconsole: https://docs.oracle.com/en/java/javase/11/tools/jconsole.html
 .. _Kamon: http://kamon.io
 .. _StatsD: http://kamon.io/documentation/0.6.x/kamon-statsd/overview/
 .. _Graphite: http://graphite.wikidot.com/
