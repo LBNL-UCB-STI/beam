@@ -48,8 +48,8 @@ version = '0.8.6.13'
 
 description = """"""
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+sourceCompatibility = 1.11
+targetCompatibility = 1.11
 
 scala {
     zincVersion = "1.9.2"
@@ -156,7 +156,7 @@ configurations.all {
 dependencies {
 
     // TODO FIXME
-    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: '0.3.5')
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: '0.3.4')
 
     ////////////////////////////
     // Java dependencies
@@ -208,7 +208,7 @@ dependencies {
         exclude group: 'org.matsim', module: 'matsim'
     }
 
-    implementation(group: 'com.github.LBNL-UCB-STI.matsim', name: 'matsim', version: '12.0-beam-5H') {
+    implementation(group: 'com.github.LBNL-UCB-STI.matsim', name: 'matsim', version: '12.0-beam-5G') {
         exclude group: 'log4j', module: 'log4j'
     }
 
@@ -217,11 +217,7 @@ dependencies {
     implementation "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     implementation "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
-    implementation(group: 'com.conveyal', name: 'gtfs-lib', version: '3.0.12')
-
-    //implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.8.3_linkRadiusMeters') {
-    implementation(group: 'com.conveyal', name: 'r5', version: '4.8.1.j8') {
-        exclude group: 'com.conveyal', module: 'gtfs-lib'
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.8.1_linkRadiusMeters') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
