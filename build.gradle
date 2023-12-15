@@ -647,7 +647,7 @@ task generateDocumentation(type: JavaExec) {
     group 'Documentation'
     description 'Format the data using Sphinx RST formats'
 
-    mainClass = 'beam.docs.GenerateDocumentationTask'
+    mainClass = 'scripts.docs.GenerateDocumentationTask'
     classpath = sourceSets.main.runtimeClasspath
 }
 
