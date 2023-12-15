@@ -6,10 +6,11 @@ import beam.router.skim.ActivitySimSkimmer.ExcerptData
 import beam.router.skim.ActivitySimTimeBin._
 import beam.router.skim.{ActivitySimMetric, ActivitySimPathType, ActivitySimTimeBin}
 import beam.utils.FileUtils
+import beam.utils.csv.CsvWriter
 import omx.hdf5.HDF5Loader
 import omx.{OmxFile, OmxMatrix}
 
-import scala.collection.{mutable, SortedSet}
+import scala.collection.mutable
 import scala.util.Try
 
 /**
@@ -20,7 +21,7 @@ object ActivitySimOmxWriter {
   def writeToOmx(
     filePath: String,
     skimData: Iterator[ExcerptData],
-    geoUnits: SortedSet[String]
+    geoUnits: Seq[String]
   ): Try[Unit] = Try {
     HDF5Loader.prepareHdf5Library()
     FileUtils.using(
@@ -53,8 +54,11 @@ object ActivitySimOmxWriter {
         matrix.getData()(row)(column) = excerptData.getValue(metric).toFloat * getUnitConversion(metric)
       }
       allMatrices.values.foreach(omxFile.addMatrix)
+    // we cannot add a lookup because string arrays are not supported by hdf5lib java
+    // omxFile.addLookup(new OmxStringLookup("zone_id", geoUnits.toArray, ""))
     }
-
+    // we write geo unit mapping as a csv file next to the omx file
+    CsvWriter(filePath + ".mapping", "zone_id").writeAllAndClose(geoUnits.map(Seq(_)))
   }
 
   private def getUnitConversion(metric: ActivitySimMetric): Float = {

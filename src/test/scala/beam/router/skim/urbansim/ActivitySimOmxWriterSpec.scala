@@ -19,7 +19,7 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
 
     "write all activitysim skims to an omx file" in {
       val tazMap = TAZTreeMap.getTazTreeMap("test/input/sf-light/taz-centers.csv")
-      val geoUnits = SortedSet[String](tazMap.getTAZs.map(_.tazId.toString).toSeq: _*)
+      val geoUnits = tazMap.orderedTazIds
       val excerptData = IndexedSeq(
         ExcerptData(
           "AM",

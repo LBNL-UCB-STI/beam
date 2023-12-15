@@ -28,6 +28,7 @@ import beam.router.skim.event.ODSkimmerFailedTripEvent
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, Geofence}
+import beam.utils.MathUtils._
 import beam.utils.logging.pattern.ask
 import beam.utils.plan.sampling.AvailableModeUtils._
 import org.matsim.api.core.v01.Id
@@ -1068,52 +1069,40 @@ trait ChoosesMode {
     timeToCustomer: Int,
     tncEgressLeg: Vector[EmbodiedBeamLeg]
   ) = {
+    val accessLegDurationWithoutWaiting = tncAccessLeg.map(_.beamLeg.duration).sum
+    val walkToRideHailStop = tncAccessLeg.find(_.is(WALK))
+    val accessLegWaitingTime =
+      walkToRideHailStop.fold(timeToCustomer)(leg => math.max(timeToCustomer - leg.beamLeg.duration, 0))
     // Replacing drive access leg with TNC changes the travel time.
     val extraWaitTimeBuffer = driveTransitTrip.legs.head.beamLeg.endTime - _currentTick.get -
-      tncAccessLeg.last.beamLeg.duration - timeToCustomer
+      accessLegDurationWithoutWaiting - accessLegWaitingTime
     if (extraWaitTimeBuffer < 300) {
       // We filter out all options that don't allow at least 5 minutes of time for unexpected waiting
       None
     } else {
       // Travel time usually decreases, adjust for this but add a buffer to the wait time to account for uncertainty in actual wait time
       val startTimeAdjustment =
-        driveTransitTrip.legs.head.beamLeg.endTime - tncAccessLeg.last.beamLeg.duration - timeToCustomer
-      val startTimeBufferForWaiting = math.min(
-        extraWaitTimeBuffer,
-        math.max(300.0, timeToCustomer.toDouble * 1.5)
-      ) // tncAccessLeg.head.beamLeg.startTime - _currentTick.get.longValue()
-      val accessAndTransit = tncAccessLeg.map(leg =>
-        leg.copy(
-          leg.beamLeg
-            .updateStartTime(startTimeAdjustment - startTimeBufferForWaiting.intValue())
-        )
+        driveTransitTrip.legs.head.beamLeg.endTime - accessLegDurationWithoutWaiting - accessLegWaitingTime
+      val startTimeBufferForWaiting = clamp(timeToCustomer * 1.5, 300, extraWaitTimeBuffer)
+      val accessTransitEgress = EmbodiedBeamLeg.makeLegsConsistent(
+        tncAccessLeg,
+        startTimeAdjustment - doubleToInt(startTimeBufferForWaiting)
       ) ++ driveTransitTrip.legs.tail
       val fullTrip = if (tncEgressLeg.nonEmpty) {
-        accessAndTransit.dropRight(2) ++ tncEgressLeg
+        val accessAndTransit = accessTransitEgress.dropRight(2)
+        val egressHead = tncEgressLeg.head
+        //make egress walk leg to start right after the person leaves the transit vehicle
+        val egressLeg = if (egressHead.is(WALK)) {
+          val walkAtTransitEnd =
+            egressHead.copy(beamLeg = egressHead.beamLeg.updateStartTime(accessAndTransit.last.beamLeg.endTime))
+          walkAtTransitEnd +: tncEgressLeg.tail
+        } else
+          tncEgressLeg
+        accessAndTransit ++ egressLeg
       } else {
-        accessAndTransit.dropRight(1)
+        accessTransitEgress.dropRight(1)
       }
-      Some(
-        EmbodiedBeamTrip(
-          EmbodiedBeamLeg.dummyLegAt(
-            start = fullTrip.head.beamLeg.startTime,
-            vehicleId = body.id,
-            isLastLeg = false,
-            location = fullTrip.head.beamLeg.travelPath.startPoint.loc,
-            mode = WALK,
-            vehicleTypeId = body.beamVehicleType.id
-          ) +:
-          fullTrip :+
-          EmbodiedBeamLeg.dummyLegAt(
-            start = fullTrip.last.beamLeg.endTime,
-            vehicleId = body.id,
-            isLastLeg = true,
-            location = fullTrip.last.beamLeg.travelPath.endPoint.loc,
-            mode = WALK,
-            vehicleTypeId = body.beamVehicleType.id
-          )
-        )
-      )
+      Some(surroundWithWalkLegsIfNeededAndMakeTrip(fullTrip))
     }
   }
 
@@ -1551,19 +1540,7 @@ trait ChoosesMode {
   when(FinishingModeChoice, stateTimeout = Duration.Zero) { case Event(StateTimeout, data: ChoosesModeData) =>
     val pendingTrip = data.pendingChosenTrip.get
     val (tick, triggerId) = releaseTickAndTriggerId()
-    val chosenTrip =
-      if (
-        pendingTrip.tripClassifier.isTransit
-        && pendingTrip.legs.head.beamLeg.startTime > tick
-      ) {
-        //we need to start trip as soon as our activity finishes (current tick) in order to
-        //correctly show waiting time for the transit in the OD skims
-        val activityEndTime = currentActivity(data.personData).getEndTime.orElse(beam.UNDEFINED_TIME)
-        val legStartTime = Math.max(tick, activityEndTime)
-        pendingTrip.updatePersonalLegsStartTime(legStartTime.toInt)
-      } else {
-        pendingTrip
-      }
+    val chosenTrip = makeFinalCorrections(pendingTrip, tick, currentActivity(data.personData).getEndTime.orElse(beam.UNDEFINED_TIME))
 
     // Write start and end links of chosen route into Activities.
     // We don't check yet whether the incoming and outgoing routes agree on the link an Activity is on.
@@ -1687,6 +1664,30 @@ trait ChoosesMode {
                 .orElse(vehiclesUsed.headOption.filter(mustBeDrivenHome).map(_.id)),
           failedTrips = data.personData.failedTrips ++ data.personData.currentTrip
         )
+    }
+  }
+
+  private def makeFinalCorrections(trip: EmbodiedBeamTrip, tick: Int, currentActivityEndTime: Double) = {
+    val startTimeUpdated =
+      if (trip.tripClassifier.isTransit && trip.legs.head.beamLeg.startTime > tick) {
+        //we need to start trip as soon as our activity finishes (current tick) in order to
+        //correctly show waiting time for the transit in the OD skims
+        val legStartTime = Math.max(tick, currentActivityEndTime)
+        trip.updatePersonalLegsStartTime(legStartTime.toInt)
+      } else {
+        trip
+      }
+    // person should unbecome driver of his body only at the last walk leg
+    val lastLeg = startTimeUpdated.legs.last
+    if (lastLeg.is(WALK)) {
+      startTimeUpdated.copy(legs = startTimeUpdated.legs.map { leg =>
+        if (leg.is(WALK) && leg != lastLeg && leg.unbecomeDriverOnCompletion)
+          leg.copy(unbecomeDriverOnCompletion = false)
+        else
+          leg
+      })
+    } else {
+      startTimeUpdated
     }
   }
 }
