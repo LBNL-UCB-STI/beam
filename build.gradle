@@ -334,6 +334,9 @@ dependencies {
         exclude group: 'org.slf4j', module: 'slf4j-log4j12'
         // Exclude `ASM` because it is binary incompatible with the one which is gotten from `com.conveyal:kryo-tools`: `org.ow2.asm:asm:5.0.4`
         exclude group: 'asm', module: 'asm'
+        // Exclude jsp-api because it contains an older version of javax.el (Expression Language) which is incompatible
+        // with one that Hibernate-validator uses
+        exclude group: 'javax.servlet.jsp', module: 'jsp-api'
     }
 
     implementation(group: 'com.lihaoyi', name: "sourcecode_${scalaBinaryVersion}", version: '0.1.9')
@@ -741,9 +744,8 @@ tasks.register('createDockerfile', Dockerfile) {
     dependsOn dockerSyncBuildContext
 
     // assuming all required modules / dependencies are installed in beammodel/beam-environment
-    from 'beammodel/beam-environment'
+    from 'beammodel/beam-environment:jdk-11-4.01'
     label(['maintainer': 'LBNL Beam Team'])
-    environmentVariable 'JAVA_OPTS', '-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap'
     workingDir("/app")
     instruction 'RUN mkdir /app/output'
     // dependencies, resources and compiled Java classes

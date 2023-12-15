@@ -246,13 +246,13 @@ For example here is a shell script which might be used to run the docker image. 
     #!/bin/bash
 
     config=$1
-    beam_image="beammodel/beam:0.8.6"
+    beam_image="beammodel/beam:0.9.0.0"
     input_folder_name="test"
     output_folder_name="beam_output"
     mkdir -m 777 $output_folder_name 2>/dev/null
 
     max_ram='10g'
-    java_opts="-Xmx$max_ram -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"
+    java_opts="-Xmx$max_ram"
 
     docker run \
       --network host \
