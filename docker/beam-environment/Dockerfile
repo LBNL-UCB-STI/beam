@@ -1,4 +1,4 @@
-FROM openjdk:8
+FROM openjdk:11
 RUN apt-get update
 RUN wget -O git-lfs.deb https://packagecloud.io/github/git-lfs/packages/debian/stretch/git-lfs_2.3.4_amd64.deb/download
 RUN dpkg -i git-lfs.deb && rm git-lfs.deb
