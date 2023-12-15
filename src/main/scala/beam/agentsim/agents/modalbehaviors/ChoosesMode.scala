@@ -1540,7 +1540,8 @@ trait ChoosesMode {
   when(FinishingModeChoice, stateTimeout = Duration.Zero) { case Event(StateTimeout, data: ChoosesModeData) =>
     val pendingTrip = data.pendingChosenTrip.get
     val (tick, triggerId) = releaseTickAndTriggerId()
-    val chosenTrip = makeFinalCorrections(pendingTrip, tick, currentActivity(data.personData).getEndTime.orElse(beam.UNDEFINED_TIME))
+    val chosenTrip =
+      makeFinalCorrections(pendingTrip, tick, currentActivity(data.personData).getEndTime.orElse(beam.UNDEFINED_TIME))
 
     // Write start and end links of chosen route into Activities.
     // We don't check yet whether the incoming and outgoing routes agree on the link an Activity is on.
