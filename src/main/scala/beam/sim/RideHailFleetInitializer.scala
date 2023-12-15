@@ -18,7 +18,7 @@ import beam.utils.csv.{CsvWriter, GenericCsvReader}
 import beam.utils.matsim_conversion.ShapeUtils.{readShapeFileGeometries, QuadTreeBounds}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.{LazyLogging, Logger}
-import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
+import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import org.apache.commons.io.FilenameUtils
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Person}
