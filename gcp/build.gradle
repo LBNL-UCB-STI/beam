@@ -1,0 +1,111 @@
+import com.google.api.client.http.*
+import com.google.api.client.http.javanet.NetHttpTransport
+import com.google.auth.http.HttpCredentialsAdapter
+import com.google.auth.oauth2.GoogleCredentials
+import com.google.auth.oauth2.IdTokenCredentials
+import com.google.auth.oauth2.IdTokenProvider
+
+apply from: "$rootDir/aws/build.gradle"
+
+group = 'beam'
+version = '0.8.0'
+
+buildscript {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        maven { url "https://plugins.gradle.org/m2/" }
+        gradlePluginPortal()
+    }
+    dependencies {
+        classpath "com.google.auth:google-auth-library-oauth2-http:1.3.0"
+    }
+}
+
+tasks.register('deployToGCE') {
+    doLast {
+        def propsFileName = "../gradle.deploy.properties"
+        if (project.hasProperty('propsFile')) {
+            propsFileName = project.findProperty('propsFile')
+        }
+
+        def propsFile = new Properties()
+        propsFile.load(project.file(propsFileName).newDataInputStream())
+
+        ext.getParameterValue = { paramName ->
+            if (project.hasProperty(paramName)) {
+                return project.findProperty(paramName)
+            }
+            return propsFile.getProperty(paramName)
+        }
+
+        if (!ext.getParameterValue('runName')) {
+            throw new GradleException('Please name the run by specifying `runName` argument. e.g; ./gradlew deploy -PrunName=sfbay-performance-run')
+        }
+        def tempInstanceType = "${ext.getParameterValue('instanceType') ?: (project.hasProperty('defaultInstanceType') ? defaultInstanceType : '')}"
+        def finalInstanceType = tempInstanceType.isEmpty() ? null : tempInstanceType
+        GString pload = """{
+        "run_name": "${ext.getParameterValue('runName') + '_' + getCurrentGitUserEmail()}",
+        "instance_type": "${finalInstanceType}",
+        "forced_max_ram": "${ext.getParameterValue('forcedMaxRAM')}",
+        "beam_branch": "${ext.getParameterValue('beamBranch') ?: getCurrentGitBranch()}",
+        "beam_commit": "${ext.getParameterValue('beamCommit') ?: 'HEAD'}",
+        "data_branch": "${ext.getParameterValue('dataBranch') ?: 'develop'}",
+        "data_commit": "${ext.getParameterValue('dataCommit') ?: 'HEAD'}",
+        "run_jupyter" : ${ext.getParameterValue('runJupyter') ?: 'false'},
+        "run_beam": ${ext.getParameterValue('runBeam') ?: 'true'},
+        "jupyter_token" : "${ext.getParameterValue('jupyterToken') ?: UUID.randomUUID().toString()}",
+        "shutdown_wait": "${ext.getParameterValue('shutdownWait')}",
+        "storage_size": "${ext.getParameterValue('storageSize')}",
+        "shutdown_behaviour": "${ext.getParameterValue('shutdownBehaviour')}",
+        "storage_publish": ${"false".equalsIgnoreCase(ext.getParameterValue('s3Backup')) ? "false" : "true"},
+        "config": "${ext.getParameterValue('beamConfigs')}"
+        }"""
+        logger.warn(pload)
+        HttpResponse result = makeJsonPostRequest("https://us-central1-beam-core.cloudfunctions.net/deploy_beam", pload)
+        logger.warn("response status: ${result.statusCode}, response message: ${result.statusMessage}, payload: ${result.content}")
+    }
+}
+
+tasks.register("jupyterGCE") {
+    doFirst {
+        project.ext."runJupyter" = "true"
+        project.ext."runBeam" = "false"
+        project.ext."beamConfigs" = ""
+
+        if (!project.hasProperty("shutdownWait")) {
+            project.ext."shutdownWait" = 60 * 8
+        }
+        if (!project.hasProperty("runName")) {
+            project.ext."runName" = "jupyter"
+        }
+        if (!project.hasProperty("instanceType")) {
+            project.ext."instanceType" = "n2-highmem-4"
+        }
+        if (!project.hasProperty("s3Backup")) {
+            project.ext."s3Backup" = "false"
+        }
+        if (!project.hasProperty("shutdownBehaviour")) {
+            project.ext."shutdownBehaviour" = "stop"
+        }
+    }
+}
+
+jupyterGCE.finalizedBy(deployToGCE)
+
+static HttpResponse makeJsonPostRequest(String functionUrl, String requestBody) {
+    GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
+    IdTokenCredentials tokenCredential =
+            IdTokenCredentials.newBuilder()
+                    .setIdTokenProvider((IdTokenProvider) credentials)
+                    .setTargetAudience(functionUrl)
+                    .build();
+
+    GenericUrl genericUrl = new GenericUrl(functionUrl);
+    HttpCredentialsAdapter adapter = new HttpCredentialsAdapter(tokenCredential);
+    HttpTransport transport = new NetHttpTransport();
+
+    HttpContent requestContent = ByteArrayContent.fromString("application/json", requestBody)
+    HttpRequest request = transport.createRequestFactory(adapter).buildPostRequest(genericUrl, requestContent);
+    return request.execute();
+}

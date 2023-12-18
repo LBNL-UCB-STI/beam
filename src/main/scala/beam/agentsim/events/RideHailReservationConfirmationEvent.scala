@@ -1,16 +1,17 @@
 package beam.agentsim.events
 
 import java.util
-
 import beam.agentsim.events.RideHailReservationConfirmationEvent.RideHailReservationType
 import beam.agentsim.events.resources.ReservationErrorCode
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.vehicles.Vehicle
 
 object RideHailReservationConfirmationEvent {
   val EVENT_TYPE: String = "RideHailReservationConfirmation"
   val ATTRIBUTE_PERSON = "person"
+  val ATTRIBUTE_VEHICLE = "vehicle"
   val ATTRIBUTE_RESERVATION_TYPE: String = "reservationType"
   val ATTRIBUTE_RESERVATION_ERROR_CODE: String = "errorCode"
   val ATTRIBUTE_RESERVATION_TIME: String = "reservationTime"
@@ -23,6 +24,8 @@ object RideHailReservationConfirmationEvent {
   val ATTRIBUTE_OFFERED_PICKUP_TIME: String = "offeredPickupTime"
   val ATTRIBUTE_DIRECT_ROUTE_DISTANCE: String = "directRouteDistanceInM"
   val ATTRIBUTE_DIRECT_ROUTE_TIME: String = "directRouteDurationInS"
+  val ATTRIBUTE_ESTIMATED_PRICE: String = "cost"
+  val ATTRIBUTE_WHEELCHAIR_REQUIREMENT: String = "wheelchairRequirement"
 
   def typeWhenPooledIs(isPooled: Boolean): RideHailReservationType = {
     if (isPooled) {
@@ -42,6 +45,7 @@ object RideHailReservationConfirmationEvent {
 class RideHailReservationConfirmationEvent(
   val time: Double,
   val personId: Id[Person],
+  val vehicleId: Option[Id[Vehicle]],
   val reservationType: RideHailReservationType,
   val reservationErrorCodeOpt: Option[ReservationErrorCode],
   val reservationTime: Int,
@@ -54,7 +58,9 @@ class RideHailReservationConfirmationEvent(
   val dropOffLocationWgs: Coord, /* Same CRS as in PathTraversalEvent */
   val offeredPickUpTimeOpt: Option[Int], /*  None if the reservation failed */
   val directRouteDistanceInMOpt: Option[Double],
-  val directRouteDurationInSOpt: Option[Int]
+  val directRouteDurationInSOpt: Option[Int],
+  val estimatedPrice: Option[Double],
+  val wheelchairRequirement: Boolean
 ) extends Event(time)
     with ScalaEvent {
   import RideHailReservationConfirmationEvent._
@@ -65,6 +71,7 @@ class RideHailReservationConfirmationEvent(
     val attributes = super.getAttributes
     attributes.put(ATTRIBUTE_RESERVATION_TYPE, reservationType.toString)
     attributes.put(ATTRIBUTE_PERSON, personId.toString)
+    attributes.put(ATTRIBUTE_VEHICLE, vehicleId.map(_.toString).getOrElse(""))
     attributes.put(ATTRIBUTE_RESERVATION_ERROR_CODE, reservationErrorCodeOpt.map(_.toString).getOrElse(""))
     attributes.put(ATTRIBUTE_RESERVATION_TIME, reservationTime.toString)
     attributes.put(ATTRIBUTE_REQUESTED_PICKUP_TIME, requestedPickUpTime.toString)
@@ -76,6 +83,8 @@ class RideHailReservationConfirmationEvent(
     attributes.put(ATTRIBUTE_OFFERED_PICKUP_TIME, offeredPickUpTimeOpt.map(_.toString).getOrElse(""))
     attributes.put(ATTRIBUTE_DIRECT_ROUTE_DISTANCE, directRouteDistanceInMOpt.map(_.toString).getOrElse(""))
     attributes.put(ATTRIBUTE_DIRECT_ROUTE_TIME, directRouteDurationInSOpt.map(_.toString).getOrElse(""))
+    attributes.put(ATTRIBUTE_ESTIMATED_PRICE, estimatedPrice.map(_.toString).getOrElse(""))
+    attributes.put(ATTRIBUTE_WHEELCHAIR_REQUIREMENT, wheelchairRequirement.toString)
     attributes
   }
 }

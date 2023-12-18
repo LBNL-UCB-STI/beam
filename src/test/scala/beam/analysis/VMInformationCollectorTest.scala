@@ -35,7 +35,7 @@ class VMInformationCollectorTest extends AnyFlatSpec with Matchers {
     parts1.length shouldBe 5
     parts5.length shouldBe 5
 
-    val vmInfoWriter = new VMInformationCollector(null)
+    val vmInfoWriter = new VMInformationCollector(null, null)
 
     def check(map: mutable.Map[String, ListBuffer[Long]], numberOfRecords: Int, lengthOfIterationValues: Int): Unit = {
       map.size shouldBe numberOfRecords

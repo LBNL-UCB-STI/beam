@@ -10,6 +10,7 @@ import beam.router.BeamRouter
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import com.typesafe.scalalogging.LazyLogging
 import enumeratum.{Enum, EnumEntry}
 import org.matsim.api.core.v01.Id
@@ -21,8 +22,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   private var secondaryBufferedRideHailRequests = Map[RideHailRequest, List[RoutingResponse]]()
   private var awaitingRoutes = Set[RideHailRequest]()
 
-  protected val maxWaitTimeInSec =
-    rideHailManager.beamScenario.beamConfig.beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec
+  val maxWaitTimeInSec: Int = rideHailManager.managerConfig.allocationManager.maxWaitingTimeInSec
 
   /*
    * respondToInquiry
@@ -43,7 +43,8 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
       inquiry.destinationUTM,
       rideHailManager.radiusInMeters,
       maxWaitTimeInSec,
-      inquiry.departAt
+      inquiry.departAt,
+      requireWheelchairAccessible = inquiry.withWheelchair
     ) match {
       case Some(agentETA) =>
         SingleOccupantQuoteAndPoolingInfo(agentETA.agentLocation, None)
@@ -160,20 +161,22 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
     var alreadyAllocated: Set[Id[BeamVehicle]] = Set()
     val allocResponses = vehicleAllocationRequest.requests.map {
       case (request, routingResponses) if routingResponses.isEmpty =>
+        val departAt = math.max(tick, request.departAt)
         val requestWithUpdatedLoc = RideHailRequest.projectCoordinatesToUtm(request, beamServices)
         rideHailManager.rideHailManagerHelper
           .getClosestIdleVehiclesWithinRadiusByETA(
             requestWithUpdatedLoc.pickUpLocationUTM,
             requestWithUpdatedLoc.destinationUTM,
             rideHailManager.radiusInMeters,
-            tick,
-            maxWaitTimeInSec
+            departAt,
+            maxWaitTimeInSec,
+            requireWheelchairAccessible = request.withWheelchair
           ) match {
           case Some(agentETA) =>
             val routeRequired = RoutingRequiredToAllocateVehicle(
               requestWithUpdatedLoc,
               rideHailManager.createRoutingRequestsToCustomerAndDestination(
-                tick,
+                departAt,
                 requestWithUpdatedLoc,
                 agentETA.agentLocation,
                 request.triggerId
@@ -187,15 +190,17 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
       case (request, routingResponses) if routingResponses.exists(_.itineraries.isEmpty) =>
         NoVehicleAllocated(request)
       case (request, routingResponses) =>
+        val departAt = math.max(tick, request.departAt)
         val requestUpdated = RideHailRequest.projectCoordinatesToUtm(request, beamServices)
         rideHailManager.rideHailManagerHelper
           .getClosestIdleVehiclesWithinRadiusByETA(
             requestUpdated.pickUpLocationUTM,
             requestUpdated.destinationUTM,
             rideHailManager.radiusInMeters,
-            tick,
+            departAt,
             maxWaitTimeInSec,
-            excludeRideHailVehicles = alreadyAllocated
+            excludeRideHailVehicles = alreadyAllocated,
+            requireWheelchairAccessible = request.withWheelchair
           ) match {
           case Some(agentETA) =>
             alreadyAllocated = alreadyAllocated + agentETA.agentLocation.vehicleId
@@ -251,8 +256,7 @@ abstract class RideHailResourceAllocationManager(private val rideHailManager: Ri
   def getUnprocessedCustomers: Set[RideHailRequest] = awaitingRoutes
 
   def createRepositioningManager(): RepositioningManager = {
-    val repositioningManagerName =
-      rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.repositioningManager.name
+    val repositioningManagerName = rideHailManager.managerConfig.repositioningManager.name
 
     val repositionManagerTry = rideHailManager.beamServices.beamCustomizationAPI.getRepositionManagerFactory
       .create(rideHailManager, repositioningManagerName)
@@ -294,16 +298,18 @@ object RideHailResourceAllocationManager {
             .asInstanceOf[RideHailResourceAllocationManager]
         } catch {
           case e: Exception =>
-            throw new IllegalStateException(s"Unknown RideHailResourceAllocationManager: $allocationManager", e)
+            throw new IllegalStateException(
+              s"Unknown RideHailResourceAllocationManager: ${rideHailManager.managerConfig.allocationManager.name}",
+              e
+            )
         }
     }
   }
 
-  def requiredRideHailIterationsStatsCollector(rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail): Boolean =
-    rideHailConfig.repositioningManager.name match {
-      case "REPOSITIONING_LOW_WAITING_TIMES" => true
-      case _                                 => false
-    }
+  def requiredRideHailIterationsStatsCollector(
+    rideHailConfig: BeamConfig.Beam.Agentsim.Agents.RideHail
+  ): Boolean =
+    rideHailConfig.managers.exists(_.repositioningManager.name == "REPOSITIONING_LOW_WAITING_TIMES")
 }
 
 /*

@@ -7,6 +7,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
+import beam.integration.Repeated
 import beam.router.BeamRouter.{Location, RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
@@ -23,7 +24,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-class GHRouterSpec extends AnyWordSpecLike with Matchers with BeamHelper with ScalaFutures {
+class GHRouterSpec extends AnyWordSpecLike with Matchers with BeamHelper with ScalaFutures with Repeated {
 
   lazy val config: Config = ConfigFactory
     .parseString(
@@ -92,6 +93,7 @@ class GHRouterSpec extends AnyWordSpecLike with Matchers with BeamHelper with Sc
               WALK_TRANSIT,
               BIKE_TRANSIT
             ),
+            Seq.empty,
             12.254901960784315,
             Some(0),
             Some(0.0)

@@ -13,7 +13,6 @@ import beam.physsim.{PickUpDropOffCollector, PickUpDropOffHolder}
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamConfigChangesObservable, BeamServices}
 import beam.utils.ConcurrentUtils.parallelExecution
-import beam.utils.NetworkEdgeOutputGenerator.beamConfig
 import beam.utils.{DebugLib, ProfilingUtils}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.analysis.LegHistogram
@@ -29,7 +28,6 @@ import org.matsim.core.mobsim.jdeqsim.JDEQSimConfigGroup
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.core.utils.misc.Time
 
-import scala.concurrent.ExecutionContext
 import scala.collection.JavaConverters._
 import scala.util.Try
 
@@ -63,7 +61,8 @@ class JDEQSimRunner(
       controlerIO,
       beamServices.beamConfig,
       jdeqSimScenario.getConfig.travelTimeCalculator,
-      beamConfigChangesObservable
+      beamConfigChangesObservable,
+      beamServices.beamScenario.privateVehicles.view.toMap.asJava
     )
     linkStatsGraph.notifyIterationStarts(jdeqsimEvents, jdeqSimScenario.getConfig.travelTimeCalculator)
 
@@ -85,9 +84,10 @@ class JDEQSimRunner(
 
     val maybeEventWriter = if (writeEvents) {
       val writer = PhysSimEventWriter(beamServices, jdeqsimEvents)
-      //adding this writer as a BEAM shutdown listener so that it could prevent BEAM from exiting
+      //adding the listener so that it could prevent BEAM from exiting
       //before the writer writes everything to disk.
-      beamServices.matsimServices.addControlerListener(writer)
+      //we cannot make the writer a shutdown listener because Matsim will keep it until the program end
+      beamServices.matsimServices.addControlerListener(writer.getShutdownListener)
       jdeqsimEvents.addHandler(writer)
       Some(writer)
     } else None
@@ -105,7 +105,11 @@ class JDEQSimRunner(
       }
 
     val simName = beamConfig.beam.physsim.name
-    jdeqsimEvents.initProcessing()
+    if (simName != "JDEQSim") {
+      // JDEQSim initializes the event manager itself. If we do it twice a memory leak is possible
+      // due to abandoning event processing threads, see org.matsim.core.events.ParallelEventsManagerImpl.initProcessing
+      jdeqsimEvents.initProcessing()
+    }
     try {
       ProfilingUtils.timed(
         s"PhysSim iteration $currentPhysSimIter for ${population.getPersons.size()} people",
@@ -210,7 +214,9 @@ class JDEQSimRunner(
             beamConfig.beam.physsim.flowCapacityFactor,
             beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
             maybeCACCSettings,
-            maybePickUpDropOffHolder
+            maybePickUpDropOffHolder,
+            defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
+            defaultBeta = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.beta
           ),
           maybeCACCSettings
         )
@@ -236,7 +242,9 @@ class JDEQSimRunner(
             beamConfig.beam.physsim.flowCapacityFactor,
             beamConfig.beam.physsim.bprsim.minFlowToUseBPRFunction,
             maybeCACCSettings,
-            maybePickUpDropOffHolder
+            maybePickUpDropOffHolder,
+            defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
+            defaultBeta = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.beta
           ),
           maybeCACCSettings
         )
@@ -304,7 +312,9 @@ object JDEQSimRunner {
     flowCapacityFactor: Double,
     minVolumeToUseBPRFunction: Int,
     maybeCaccSettings: Option[CACCSettings],
-    maybePickUpDropOffHolder: Option[PickUpDropOffHolder]
+    maybePickUpDropOffHolder: Option[PickUpDropOffHolder],
+    defaultAlpha: Double,
+    defaultBeta: Double
   ): (Double, Link, Double, Double) => Double = {
     val additionalTravelTime: (Link, Double) => Double = {
       maybePickUpDropOffHolder match {
@@ -332,8 +342,10 @@ object JDEQSimRunner {
                 //volume is calculated as number of vehicles entered the road per hour
                 //capacity from roadCapacityAdjustmentFunction is number of vehicles per second
 
-                val alpha = link.getAttributes.getAttribute("alpha").toString.toDouble
-                val beta = link.getAttributes.getAttribute("beta").toString.toDouble
+                val alpha =
+                  Option(link.getAttributes.getAttribute("alpha")).map(_.toString.toDouble).getOrElse(defaultAlpha)
+                val beta =
+                  Option(link.getAttributes.getAttribute("beta")).map(_.toString.toDouble).getOrElse(defaultBeta)
                 val tmp = volume / (capacity * 3600)
                 val result = ftt * (1 + alpha * math.pow(tmp, beta))
                 val originalTravelTime =
@@ -348,8 +360,10 @@ object JDEQSimRunner {
               val ftt = link.getLength / link.getFreespeed(time)
               if (volume >= minVolumeToUseBPRFunction) {
                 val tmp = volume / (link.getCapacity(time) * flowCapacityFactor)
-                val alpha = link.getAttributes.getAttribute("alpha").asInstanceOf[Double]
-                val beta = link.getAttributes.getAttribute("beta").asInstanceOf[Double]
+                val alpha =
+                  Option(link.getAttributes.getAttribute("alpha")).map(_.toString.toDouble).getOrElse(defaultAlpha)
+                val beta =
+                  Option(link.getAttributes.getAttribute("beta")).map(_.toString.toDouble).getOrElse(defaultBeta)
                 val originalTravelTime = ftt * (1 + alpha * math.pow(tmp, beta))
                 originalTravelTime + additionalTravelTime(link, time)
               } else {

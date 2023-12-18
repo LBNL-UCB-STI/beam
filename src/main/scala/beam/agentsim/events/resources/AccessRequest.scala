@@ -72,10 +72,10 @@ case object ReservationErrorCode extends Enum[ReservationErrorCode] {
 
   case object ResourceCapacityExhausted extends ReservationErrorCode
 
-  case object ResourceFull extends ReservationErrorCode
-
-  case object VehicleNotUnderControl extends ReservationErrorCode
-
   case object MissedTransitPickup extends ReservationErrorCode
+
+  case object HouseholdVehicleNotAvailable extends ReservationErrorCode
+
+  case object RouteNotAvailableForChosenMode extends ReservationErrorCode
 
 }

@@ -116,9 +116,9 @@ class BackgroundSkimsCreator(
 
   val skimmerEventFactory: AbstractSkimmerEventFactory =
     beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.skimsKind match {
-      case "od"          => new ODSkimmerEventFactory
-      case "activitySim" => new ActivitySimSkimmerEventFactory(beamServices.beamConfig)
-      case kind @ _      => throw new IllegalArgumentException(s"Unexpected skims kind: $kind")
+      case "od"                             => new ODSkimmerEventFactory
+      case "activitySim" | "activitySimOmx" => new ActivitySimSkimmerEventFactory(beamServices.beamConfig)
+      case kind @ _                         => throw new IllegalArgumentException(s"Unexpected skims kind: $kind")
     }
 
   var odRequester: ODRequester = new ODRequester(
@@ -264,7 +264,7 @@ object BackgroundSkimsCreator {
             .map(taz => GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
             .toSeq
 
-          writeFullSkims(origins, origins, uniqueTimeBins, filePath)
+          writeFullSkims(origins, origins, uniqueTimeBins, Seq(""), filePath)
           logger.info(s"Written UrbanSim peak skims for hours $hours to $filePath")
         }
       }
@@ -289,7 +289,7 @@ object BackgroundSkimsCreator {
             GeoUnit.H3(h3Index.index.value, utmCenter, areaInSquareMeters)
           }
 
-          writeFullSkims(origins, origins, uniqueTimeBins, filePath)
+          writeFullSkims(origins, origins, uniqueTimeBins, Seq(""), filePath)
           logger.info(s"Written UrbanSim peak skims for hours $hours to $filePath")
         }
       }

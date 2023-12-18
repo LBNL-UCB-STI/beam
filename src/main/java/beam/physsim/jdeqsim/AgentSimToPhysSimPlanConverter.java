@@ -10,6 +10,7 @@ import beam.analysis.physsim.PhyssimCalcLinkSpeedStats;
 import beam.analysis.physsim.PhyssimNetworkComparisonEuclideanVsLengthAttribute;
 import beam.analysis.physsim.PhyssimNetworkLinkLengthDistribution;
 import beam.calibration.impl.example.CountsObjectiveFunction;
+import beam.physsim.analysis.LinkStatsWithVehicleCategory;
 import beam.physsim.cchRoutingAssignment.OsmInfoHolder;
 import beam.physsim.cchRoutingAssignment.RoutingFrameworkTravelTimeCalculator;
 import beam.physsim.cchRoutingAssignment.RoutingFrameworkWrapperImpl;
@@ -94,8 +95,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private BeamConfig beamConfig;
     private final Random rand = MatsimRandom.getRandom();
     private final boolean agentSimPhysSimInterfaceDebuggerEnabled;
-
-    private final List<CompletableFuture> completableFutures = new ArrayList<>();
 
     final Map<String, Boolean> caccVehiclesMap = new TreeMap<>();
     private final Map<Integer, Mean> binSpeed = new HashMap<>();
@@ -275,6 +274,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         router.tell(new BeamRouter.UpdateTravelTimeLocal(travelTimeForR5), ActorRef.noSender());
 
+        List<CompletableFuture<Void>> completableFutures = new ArrayList<>();
         completableFutures.add(CompletableFuture.runAsync(() -> linkSpeedStatsGraph.notifyIterationEnds(iterationNumber, travelTimeFromPhysSim)));
 
         completableFutures.add(CompletableFuture.runAsync(() -> linkSpeedDistributionStatsGraph.notifyIterationEnds(iterationNumber, travelTimeFromPhysSim)));
@@ -315,9 +315,9 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
         int endTimeInSeconds = (int) Time.parseTime(beamConfig.beam().agentsim().endTime());
         cfg.setMaxTime(endTimeInSeconds);
         Network network = agentSimScenario.getNetwork();
-        BeamCalcLinkStats linkStats = new BeamCalcLinkStats(network, cfg);
-        linkStats.addData(volumesAnalyzer, travelTimeForR5);
-        linkStats.writeFile(controlerIO.getIterationFilename(iterationEndsEvent.getIteration(), "linkstats.csv.gz"));
+        LinkStatsWithVehicleCategory linkStats = new LinkStatsWithVehicleCategory(network, cfg);
+        String filePath = controlerIO.getIterationFilename(iterationEndsEvent.getIteration(), "linkstats.csv.gz");
+        linkStats.writeLinkStatsWithTruckVolumes(volumesAnalyzer, travelTimeForR5, filePath);
     }
 
     private boolean shouldWritePlans(int iterationNumber) {
@@ -331,7 +331,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private void writePhyssimPlans(IterationEndsEvent event) {
         if (shouldWritePlans(event.getIteration())) {
             final String plansFilename = controlerIO.getIterationFilename(event.getIteration(), "physsimPlans.xml.gz");
-            completableFutures.add(CompletableFuture.runAsync(() -> new PopulationWriter(jdeqsimPopulation).write(plansFilename)));
+            CompletableFuture.runAsync(() -> new PopulationWriter(jdeqsimPopulation).write(plansFilename));
         }
     }
 

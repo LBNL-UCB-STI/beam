@@ -9,7 +9,6 @@ import org.matsim.api.core.v01.population.{Person, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.population.PersonUtils
 import org.matsim.households.Household
-
 import java.util.Random
 import scala.collection.JavaConverters._
 
@@ -56,6 +55,12 @@ trait PopulationAdjustment extends LazyLogging {
     populationWithAttributes
   }
 
+  // required for testing purposes
+  def logInfo(message: String): Unit = logger.info(message)
+
+  // required for testing purposes
+  def logError(message: String): Unit = logger.error(message)
+
   /**
     * Verified if all individuals have the excluded modes attribute and logs the count of each excluded mode.
     *
@@ -80,15 +85,17 @@ trait PopulationAdjustment extends LazyLogging {
       .flatMap(_.split(","))
 
     if (allExcludedModes.nonEmpty) {
-      logger.info(s"Modes excluded:")
+      logInfo(s"Modes excluded:")
       allExcludedModes
         .groupBy(identity)
-        .foreach { case (mode, modes) => logger.info(s"$mode -> ${modes.size}") }
+        .foreach { case (mode, modes) => logInfo(s"$mode -> ${modes.size}") }
+    } else {
+      logInfo(s"There are no excluded modes.")
     }
 
     // log error if excluded modes attributes is missing for at least one person in the population
     if (persons.size != excludedModesPerPerson.size) {
-      logger.error("Not all agents have person attributes - is attributes file missing ?")
+      logError("Not all agents have person attributes - is attributes file missing ?")
     }
   }
 
@@ -173,6 +180,7 @@ object PopulationAdjustment extends LazyLogging {
   val EXCLUDE_TRANSIT = "EXCLUDE_TRANSIT"
   val HALF_TRANSIT = "HALF_TRANSIT"
   val EXCLUDED_MODES = "excluded-modes"
+  val RIDEHAIL_SERVICE_SUBSCRIPTION = "ridehail-service-subscription"
   val BEAM_ATTRIBUTES = "beam-attributes"
   val CAR_RIDE_HAIL_ONLY = "CAR_RIDE_HAIL_ONLY"
 
@@ -245,10 +253,18 @@ object PopulationAdjustment extends LazyLogging {
     val availableModes: Seq[BeamMode] = initialAvailableModes.filterNot { mode =>
       excludedModes.exists(em => em.equalsIgnoreCase(mode.value))
     }
+    val rideHailServiceSubscription = AvailableModeUtils.getAttributeAsArrayOfStrings(
+      population,
+      person.getId.toString,
+      PopulationAdjustment.RIDEHAIL_SERVICE_SUBSCRIPTION
+    )
     // Read person attribute "income" and default it to 0 if not set
     val income = Option(personAttributes.getAttribute(person.getId.toString, "income"))
       .map(_.asInstanceOf[Double])
       .getOrElse(0d)
+    // Read person attribute "wheelchairUser" and default it to 0 if not set
+    val wheelchairUser =
+      Option(personAttributes.getAttribute(person.getId.toString, "wheelchairUser")).exists(_.asInstanceOf[Boolean])
     // Read person attribute "modalityStyle"
     val modalityStyle =
       Option(person.getSelectedPlan)
@@ -277,9 +293,11 @@ object PopulationAdjustment extends LazyLogging {
       modalityStyle = modalityStyle,
       isMale = Option(PersonUtils.getSex(person)).getOrElse("M").equalsIgnoreCase("M"),
       availableModes = availableModes,
+      rideHailServiceSubscription = rideHailServiceSubscription,
       valueOfTime = valueOfTime,
       age = Option(PersonUtils.getAge(person)),
-      income = Some(income)
+      income = Some(income),
+      wheelchairUser = wheelchairUser
     )
   }
 

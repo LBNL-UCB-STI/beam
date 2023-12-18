@@ -1,3 +1,7 @@
+import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
+import com.bmuschko.gradle.docker.tasks.image.DockerTagImage
+import com.bmuschko.gradle.docker.tasks.image.Dockerfile
+
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -10,7 +14,7 @@ buildscript {
         gradlePluginPortal()
     }
     dependencies {
-        classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '1.0.3.Final'
+        classpath group: 'kr.motd.gradle', name: 'sphinx-gradle-plugin', version: '2.10.1'
         classpath "jp.classmethod.aws.reboot:gradle-aws-plugin-reboot:0.45"
         classpath "com.github.viswaramamoorthy:gradle-util-plugins:0.1.0-RELEASE"
     }
@@ -39,7 +43,7 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '0.8.6'
+version = '0.8.6.13'
 
 description = """"""
 
@@ -96,7 +100,6 @@ allprojects {
         // maven { url "http://maven.icm.edu.pl/artifactory/repo/" }
         // maven { url "https://maven.geotoolkit.org/" }
         maven { url "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases" }
-        maven { url "https://central.maven.org/maven2" }
         maven { url "https://repo.maven.apache.org/maven2" }
         maven { url "https://repo.matsim.org/repository/matsim" }
         // Used for graphql-java and matsim.contrib.decongestion specific versions -
@@ -110,10 +113,6 @@ allprojects {
         maven { url "https://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
         maven { url "https://maven.geo-solutions.it" }
         mavenLocal()
-        maven {
-            url "http://nexus.onebusaway.org/content/groups/public/"
-            allowInsecureProtocol = true
-        }
         maven { url "https://jitpack.io" }
     }
 }
@@ -126,8 +125,11 @@ configurations {
 
 configurations.all {
     resolutionStrategy {
-//       we need this in order to get Elki library working fine.
+        // we need this in order to get Elki library working fine.
+        force 'net.jafama:jafama:2.3.2'
+        // we need this in order to get Elki library working fine.
         force 'it.unimi.dsi:fastutil:8.5.4'
+
         force 'org.apache.logging.log4j:log4j-core:2.15.0'
         force 'org.apache.logging.log4j:log4j-api:2.15.0'
     }
@@ -136,7 +138,7 @@ configurations.all {
 
 dependencies {
 
-    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.15') {
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.19') {
         exclude group: 'com.github.LBNL-UCB-STI', module: 'r5'
         exclude group: 'org.matsim', module: 'matsim'
     }
@@ -180,7 +182,8 @@ dependencies {
     implementation('com.github.LBNL-UCB-STI:or-tools-wrapper:7.5-0') {
         exclude group: 'com.google.protobuf', module: 'protobuf-java'
     }
-    implementation 'com.github.LBNL-UCB-STI:helics-wrapper:v2.6.2'
+
+    implementation 'com.github.LBNL-UCB-STI:helics-wrapper:v3.3.0'
 
     // GPLv3
     implementation group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
@@ -209,10 +212,11 @@ dependencies {
 
     implementation("com.uber:h3:3.7.2")
     implementation("com.github.LBNL-UCB-STI:jsprit-wrapper:v0.5.1")
+    implementation("com.github.LBNL-UCB-STI:omx-java:v2.0.1")
 
     testImplementation group: 'junit', name: 'junit', version: '4.8'
     testImplementation group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
-    testImplementation group: "org.mockito", name: "mockito-core", version: "2.+"
+    testImplementation group: "org.mockito", name: "mockito-core", version: "2.28.2"
     jmhImplementation group: 'org.openjdk.jmh', name: 'jmh-core', version: '1.23'
     jmhImplementation group: 'org.openjdk.jmh', name: 'jmh-generator-annprocess', version: '1.23'
 
@@ -222,17 +226,20 @@ dependencies {
     /////////////////////////////////
 
     // CORE Scala //
-    implementation "org.scala-lang:scala-library:2.12.13"
+    implementation "org.scala-lang:scala-library:2.12.16"
     implementation group: 'org.scala-lang.modules', name: "scala-xml_${scalaBinaryVersion}", version: '1.0.6'
 
     // NEEDED FOR USING REPL //
-    implementation "org.scala-lang:scala-compiler:2.12.13"
+    implementation "org.scala-lang:scala-compiler:2.12.16"
 
     // TEST Scala //
     testImplementation group: 'org.scalatest', name: "scalatest_${scalaBinaryVersion}", version: '3.2.9'
     testImplementation group: 'org.scalatestplus', name: 'scalatestplus-junit_2.12', version: '1.0.0-M2'
     testRuntimeOnly "org.pegdown:pegdown:1.6.0"
-    testImplementation group: 'com.vladsch.flexmark', name: 'flexmark-all', version: '0.36.8' // HTML report for scalatest
+
+    // HTML report for scalatest
+    testImplementation group: 'com.vladsch.flexmark', name: 'flexmark-all', version: '0.36.8'
+
 
     // 3rd Party Scala //
 
@@ -320,6 +327,8 @@ dependencies {
 
     implementation group: 'com.google.maps', name: 'google-maps-services', version: '0.14.0'
 
+    implementation group: 'org.onebusaway', name: 'onebusaway-gtfs-transformer', version: '1.3.4'
+
     implementation 'de.vandermeer:asciitable:0.3.2'
 
     implementation "com.sksamuel.scapegoat:scalac-scapegoat-plugin_${scalaBinaryVersion}.13:1.4.8"
@@ -361,7 +370,7 @@ publishing {
 
 task install(dependsOn: 'publishToMavenLocal')
 
-tasks.withType(cz.alenkacz.gradle.scalafmt.ScalafmtFormatBase){
+tasks.withType(cz.alenkacz.gradle.scalafmt.ScalafmtFormatBase) {
     outputs.upToDateWhen { false }
 }
 
@@ -384,12 +393,18 @@ tasks.withType(ScalaCompile) {
     }
 }
 
+tasks.withType(JavaExec).configureEach { task ->
+    if (!task.name.equals("run")) {
+        jvmArgs = project.hasProperty('logbackCfg') ? ["-Dlogback.configurationFile=${project.property('logbackCfg')}"] : []
+    }
+}
+
 
 // Task to run scala tests, as Scala tests not picked up by Gradle by default.
 // You can run it with a number of threads: ./gradlew spec -PnumThreads=4
 task spec(dependsOn: ['testClasses'], type: JavaExec) {
     def n = project.hasProperty('numThreads') ? numThreads : 4
-    main = 'org.scalatest.tools.Runner'
+    mainClass = 'org.scalatest.tools.Runner'
     args = ['-R', 'build/classes/scala/test', '-h', 'build/scalatest-report', '-u', 'build/scalatest-report-xml', '-oD', '-l', 'beam.tags.ExcludeRegular',
             "-PS$n", '-T', '120', '-W', '300', '60']
     classpath = sourceSets.test.runtimeClasspath
@@ -411,14 +426,15 @@ processTestResources {
 }
 
 task taggedTest(dependsOn: ['testClasses'], type: JavaExec) {
-    main = 'org.scalatest.tools.Runner'
+    mainClass = 'org.scalatest.tools.Runner'
     args = ['-R', 'build/classes/scala/test', '-o', '-n'] << (project.findProperty('tags') ?: 'org.scalatest.Ignore')
     classpath = sourceSets.test.runtimeClasspath
 }
 
 task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
-    main = 'org.scalatest.tools.Runner'
-    args = ['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')
+    mainClass = 'org.scalatest.tools.Runner'
+    args = (['-R', 'build/classes/scala/test', '-o', '-s'] << (project.findProperty('suite') ?: 'org.scalatest.Ignore')) +
+            (project.hasProperty('matches') ? ["-z", project.findProperty('matches')] : [])
     classpath = sourceSets.test.runtimeClasspath
 }
 
@@ -427,7 +443,7 @@ task specificTest(dependsOn: ['testClasses'], type: JavaExec) {
 // ./gradlew  periodicTest -Pconfig=test/input/sf-light/sf-light-1k.conf -Piterations=1
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 task periodicTest(dependsOn: ['testClasses'], type: JavaExec) {
-    main = 'org.scalatest.tools.Runner'
+    mainClass = 'org.scalatest.tools.Runner'
     args = ['-R', 'build/classes/scala/test', '-o', '-n', 'beam.tags.Periodic'] <<
             (project.hasProperty('config') ? '-Dconfig=' + project.findProperty('config') :
                     (project.hasProperty('iterations') ? '-Diterations=' + project.findProperty('iterations') : '')) <<
@@ -486,7 +502,7 @@ generateConfig.finalizedBy(copyConfigWithoutTimeStamp)
 copyConfigWithoutTimeStamp.finalizedBy(removeTempConfig)
 
 task repl(type: JavaExec) {
-    main = "scala.tools.nsc.MainGenericRunner"
+    mainClass = "scala.tools.nsc.MainGenericRunner"
     classpath = sourceSets.main.runtimeClasspath
     standardInput System.in
     args '-usejavacp'
@@ -518,7 +534,12 @@ task sourcesJar(type: Jar, dependsOn: classes) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 mainClassName = "beam.sim.RunBeam"
 
-def myAvailableRam = (System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "140")).toString().replace("g", "").toInteger()
+def myAvailableRam = (System.getenv("MAXRAM") ?: (project.findProperty('maxRAM') ?: "140"))
+        .toString()
+        .replace("g", "")
+        .toFloat() // because otherwise 'toInteger' might throw java.lang.NumberFormatException
+        .toInteger()
+
 def halfOfAvailableMem = (myAvailableRam / 2).toInteger()
 
 def getCurrentTimestamp = {
@@ -539,7 +560,7 @@ def jfr = ["-XX:+UnlockCommercialFeatures", "-XX:+FlightRecorder",
 // On the running machine there should be file /usr/lib/jvm/java-8-oracle/jre/lib/jfr/profile_heap_exception.jfc  with content from
 // https://pastebin.com/N3uuUfPz - it's Java Mission Control with metrics about heap allocation and details about exceptions
 def jfrWithMem = ["-XX:+UnlockCommercialFeatures", "-XX:+UnlockDiagnosticVMOptions", "-XX:+DebugNonSafepoints",
-                  "-XX:StartFlightRecording=delay=2s,duration=60m,name=mem_ex,filename=recording.jfr,settings=profile_heap_exception",
+                  "-XX:StartFlightRecording=delay=2s,duration=180m,name=mem_ex,filename=recording.jfr,settings=profile_heap_exception",
                   "-XX:+FlightRecorder", "-XX:FlightRecorderOptions=disk=true,maxage=10h,dumponexit=true,loglevel=info"]
 
 
@@ -582,7 +603,7 @@ run {
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Run ExperimentGenerator from Command line
-//  gradle :execute -PmainClass=beam.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']"
+//  gradle :execute -PmainClass=scripts.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']"
 // Run R5 GUI server
 //  gradle --stacktrace :execute -PmainClass=com.conveyal.r5.R5Main -PappArgs="['point','--graphs','production/application-sfbay/r5/']"
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -610,7 +631,7 @@ task execute(type: JavaExec) {
 
 
 task matsimConversion(type: JavaExec) {
-    main = 'beam.utils.matsim_conversion.MatsimConversionTool'
+    mainClass = 'beam.utils.matsim_conversion.MatsimConversionTool'
     classpath = sourceSets.main.runtimeClasspath
     environment "PWD", "na"
     if (project.hasProperty("confPath")) {
@@ -624,7 +645,7 @@ task generateDocumentation(type: JavaExec) {
     group 'Documentation'
     description 'Format the data using Sphinx RST formats'
 
-    main = 'beam.docs.GenerateDocumentationTask'
+    mainClass = 'beam.docs.GenerateDocumentationTask'
     classpath = sourceSets.main.runtimeClasspath
 }
 
@@ -647,54 +668,50 @@ And that would only happen if the committed code is not formatted as expected.""
     }
 }
 
+jmh {
+    // https://github.com/melix/jmh-gradle-plugin/issues/107
+    jvmArgs = ['-Djmh.separateClasspathJAR=true', '-Dbeam.home=' + project.projectDir]
+    duplicateClassesStrategy = 'exclude'
+    zip64 = true
+}
+
+tasks.register('deploy') {
+    def cloudPlatform = null
+    def paramName = "cloudPlatform"
+    if (project.hasProperty(paramName)) {
+        cloudPlatform = project.findProperty(paramName)
+    } else {
+        def propsFileName = "./gradle.deploy.properties"
+        if (project.hasProperty('propsFile')) {
+            propsFileName = project.findProperty('propsFile')
+        }
+        def propsFile = new Properties()
+        propsFile.load(project.file(propsFileName).newDataInputStream())
+        cloudPlatform = propsFile.getProperty(paramName)
+    }
+    if (cloudPlatform == null) {
+        cloudPlatform = ""
+    }
+
+    switch (cloudPlatform.trim().toLowerCase()) {
+        case "amazon":
+            dependsOn ':aws:deployToEC2'
+            break
+        case "google":
+            dependsOn ':gcp:deployToGCE'
+            break
+        default:
+            throw new InvalidUserDataException("Cannot deploy! Please specify cloudPlatform property to one of [Google, Amazon]")
+            break
+    }
+}
+
 docker {
     registryCredentials {
         url = 'https://index.docker.io/v1/'
         username = System.getenv("DOCKER_USER")
         password = System.getenv("DOCKER_PASSWORD")
     }
-}
-
-import com.bmuschko.gradle.docker.tasks.image.Dockerfile
-import com.bmuschko.gradle.docker.tasks.image.DockerBuildImage
-import com.bmuschko.gradle.docker.tasks.image.DockerTagImage
-
-// Some examples of manual docker file creation can be found https://github.com/bmuschko/gradle-docker-plugin/blob/3736ff644bed1cbfeed6fc7f844a5513c4208bc2/src/functTest/groovy/com/bmuschko/gradle/docker/DockerWorkflowFunctionalTest.groovy#L24
-// Also here: https://bmuschko.github.io/gradle-docker-plugin/#modifying_instructions_of_a_dockerfile_task
-task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
-    from 'beammodel/miniconda3'
-    label(['maintainer': 'LBNL Beam Team'])
-    instruction 'RUN apt-get update && apt-get -y install python3 python3-pip python3-rtree libproj-dev proj-data proj-bin libgeos-dev npm'
-    instruction 'RUN alias python=python3'
-    instruction 'RUN pip3 install --upgrade setuptools'
-    instruction 'RUN pip3 install --upgrade pip'
-    instruction 'RUN pip3 install numpy pandas cython sklearn matplotlib mapclassify descartes geopandas contextily plotly collections-extended psutil requests'
-    instruction 'RUN pip3 install -U kaleido'
-    environmentVariable 'JAVA_OPTS', '-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap'
-    workingDir("/app")
-    instruction 'RUN mkdir /app/output'
-    // Beam dependencies, resources and compiled Java classes
-    copyFile("libs", "libs")
-    copyFile("resources", "resources")
-    copyFile("classes", "classes")
-    // Test scenarios
-    copyFile("test/input/common", "test/input/common")
-    copyFile("test/input/dtd", "test/input/dtd")
-    copyFile("test/input/beamville", "test/input/beamville")
-    copyFile("test/input/sf-light", "test/input/sf-light")
-
-    addFile 'src/main/python', 'src/main/python'
-    addFile 'entrypoint.sh', 'entrypoint.sh'
-    runCommand('chmod +x /app/entrypoint.sh')
-    entryPoint('/app/entrypoint.sh')
-}
-
-task buildImageWithoutTags(type: DockerBuildImage, dependsOn: createDockerfile) {}
-
-task buildImage(type: DockerTagImage, dependsOn: buildImageWithoutTags) {
-    repository = "beammodel/beam"
-    tag = version
-    targetImageId buildImageWithoutTags.getImageId()
 }
 
 dockerSyncBuildContext {
@@ -713,13 +730,69 @@ dockerSyncBuildContext {
     from('test/input/sf-light') {
         into('test/input/sf-light')
     }
-
     from file('docker/entrypoint.sh')
 }
 
-jmh {
-    // https://github.com/melix/jmh-gradle-plugin/issues/107
-    jvmArgs = ['-Djmh.separateClasspathJAR=true', '-Dbeam.home=' + project.projectDir]
-    duplicateClassesStrategy = 'exclude'
-    zip64 = true
+// Some examples of manual docker file creation can be found https://github.com/bmuschko/gradle-docker-plugin/blob/3736ff644bed1cbfeed6fc7f844a5513c4208bc2/src/functTest/groovy/com/bmuschko/gradle/docker/DockerWorkflowFunctionalTest.groovy#L24
+// Also here: https://bmuschko.github.io/gradle-docker-plugin/#modifying_instructions_of_a_dockerfile_task
+tasks.register('createDockerfile', Dockerfile) {
+    dependsOn dockerSyncBuildContext
+
+    // assuming all required modules / dependencies are installed in beammodel/beam-environment
+    from 'beammodel/beam-environment'
+    label(['maintainer': 'LBNL Beam Team'])
+    environmentVariable 'JAVA_OPTS', '-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap'
+    workingDir("/app")
+    instruction 'RUN mkdir /app/output'
+    // dependencies, resources and compiled Java classes
+    copyFile("libs", "libs")
+    copyFile("resources", "resources")
+    copyFile("classes", "classes")
+    // Test scenarios
+    copyFile("test/input/common", "test/input/common")
+    copyFile("test/input/dtd", "test/input/dtd")
+    copyFile("test/input/beamville", "test/input/beamville")
+    copyFile("test/input/sf-light", "test/input/sf-light")
+    // python scripts
+    addFile 'src/main/python', 'src/main/python'
+    // entry point
+    addFile 'entrypoint.sh', 'entrypoint.sh'
+    runCommand('chmod +x /app/entrypoint.sh')
+    entryPoint('/app/entrypoint.sh')
+}
+
+ext.getDockerTag = { ->
+    if (project.hasProperty("tag")) {
+        def split_vals = (project.findProperty("tag") as String).split(':')
+        if (split_vals.size() > 1) {
+            return split_vals[1]
+        } else {
+            return ""
+        }
+    } else {
+        return ""
+    }
+}
+
+ext.getDockerRepository = { ->
+    if (project.hasProperty("tag")) {
+        def split_vals = (project.findProperty("tag") as String).split(':')
+        return split_vals[0]
+    } else {
+        return ""
+    }
+}
+
+tasks.register('buildImageWithoutTags', DockerBuildImage) { dependsOn createDockerfile }
+
+tasks.register('buildImage', DockerTagImage) {
+    description 'Builds the Docker BEAM image, all code and test data are included into the image.'
+    group 'Docker'
+
+    dependsOn buildImageWithoutTags
+
+    tag = getDockerTag()
+    repository = getDockerRepository()
+    println("The new image will be tagged '$getDockerRepository:$getDockerTag'. To change use 'tag' project parameter, i.e. '-Ptag=<value>'")
+    targetImageId buildImageWithoutTags.getImageId()
 }

@@ -17,9 +17,11 @@ import beam.router.Modes.BeamMode.{
   TRANSIT,
   WALK_TRANSIT
 }
+import beam.router.skim.SkimsUtils
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
 import beam.router.skim.core.AbstractSkimmerReadOnly
 import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
+import beam.router.skim.readonly
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -30,23 +32,26 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
 
   def getSkimDefaultValue(
     mode: BeamMode,
+    rideHailName: String,
     originUTM: Location,
     destinationUTM: Location,
     beamVehicleType: BeamVehicleType,
     fuelPrice: Double
-  ): Skim = ODSkims.getSkimDefaultValue(beamConfig, mode, originUTM, destinationUTM, beamVehicleType, fuelPrice)
+  ): Skim =
+    ODSkims.getSkimDefaultValue(beamConfig, mode, rideHailName, originUTM, destinationUTM, beamVehicleType, fuelPrice)
 
   def getRideHailPoolingTimeAndCostRatios(
     origin: Location,
     destination: Location,
     departureTime: Int,
+    rideHailName: String,
     beamServices: BeamServices
   ): (Double, Double) = {
     val tazTreeMap = beamServices.beamScenario.tazTreeMap
     val beamConfig = beamServices.beamConfig
     val origTaz = tazTreeMap.getTAZ(origin.getX, origin.getY).tazId
     val destTaz = tazTreeMap.getTAZ(destination.getX, destination.getY).tazId
-    val solo = getSkimValue(departureTime, RIDE_HAIL, origTaz, destTaz) match {
+    val solo = getSkimValue(departureTime, RIDE_HAIL, rideHailName, origTaz, destTaz) match {
       case Some(skimValue) if skimValue.observations > 5 =>
         skimValue
       case _ =>
@@ -56,7 +61,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
           generalizedTimeInS = 0,
           generalizedCost = 0,
           distanceInM = travelDistance.toDouble,
-          cost = getRideHailCost(RIDE_HAIL, travelDistance, travelTime, beamConfig),
+          cost = getRideHailCost(RIDE_HAIL, travelDistance, travelTime, rideHailName, beamConfig),
           payloadWeightInKg = 0.0,
           energy = 0.0,
           level4CavTravelTimeScalingFactor = 1.0,
@@ -65,7 +70,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
           iterations = beamServices.matsimServices.getIterationNumber
         )
     }
-    val pooled = getSkimValue(departureTime, RIDE_HAIL_POOLED, origTaz, destTaz) match {
+    val pooled = getSkimValue(departureTime, RIDE_HAIL_POOLED, rideHailName, origTaz, destTaz) match {
       case Some(skimValue) if skimValue.observations > 5 =>
         skimValue
       case _ =>
@@ -80,6 +85,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
             RIDE_HAIL_POOLED,
             solo.distanceInM,
             solo.travelTimeInS * poolingTravelTimeOveheadFactor,
+            rideHailName,
             beamConfig
           ),
           payloadWeightInKg = 0.0,
@@ -116,7 +122,8 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
     val destTaz = maybeDestTazForPerformanceImprovement.getOrElse(
       beamScenario.tazTreeMap.getTAZ(destinationUTM.getX, destinationUTM.getY).tazId
     )
-    getSkimValue(departureTime, mode, origTaz, destTaz) match {
+
+    getSkimValue(departureTime, mode, "", origTaz, destTaz) match {
       case Some(skimValue) =>
         beamScenario.vehicleTypes.get(vehicleTypeId) match {
           case Some(vehicleType) if vehicleType.automationLevel == 4 =>
@@ -127,6 +134,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
       case None =>
         getSkimDefaultValue(
           mode,
+          "",
           originUTM,
           new Coord(destinationUTM.getX, destinationUTM.getY),
           vehicleType,
@@ -146,7 +154,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
   ): ExcerptData = {
     val individualSkims = hoursIncluded.map { timeBin =>
       skim
-        .get(ODSkimmerKey(timeBin, mode, origin.tazId.toString, destination.tazId.toString))
+        .get(ODSkimmerKey(timeBin, mode, "", origin.tazId.toString, destination.tazId.toString))
         .map(_.toSkimExternal)
         .getOrElse {
           val adjustedDestCoord = if (origin.equals(destination)) {
@@ -162,6 +170,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
 
           getSkimDefaultValue(
             mode,
+            "",
             origin.coord,
             adjustedDestCoord,
             vehicleType,
@@ -213,12 +222,27 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
     )
   }
 
-  private def getSkimValue(time: Int, mode: BeamMode, orig: Id[TAZ], dest: Id[TAZ]): Option[ODSkimmerInternal] = {
-    pastSkims
+  private def getSkimValue(
+    time: Int,
+    mode: BeamMode,
+    rideHailName: String,
+    orig: Id[TAZ],
+    dest: Id[TAZ]
+  ): Option[ODSkimmerInternal] = {
+    val getSkimValue = pastSkims
       .get(currentIteration - 1)
-      .flatMap(_.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
-      .orElse(aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, orig.toString, dest.toString)))
+      .flatMap(_.get(ODSkimmerKey(timeToBin(time), mode, rideHailName, orig.toString, dest.toString)))
+      .orElse(
+        aggregatedFromPastSkims.get(ODSkimmerKey(timeToBin(time), mode, rideHailName, orig.toString, dest.toString))
+      )
       .asInstanceOf[Option[ODSkimmerInternal]]
+
+    if (getSkimValue.nonEmpty) {
+      numberOfSkimValueFound = numberOfSkimValueFound + 1
+    }
+    numberOfRequests = numberOfRequests + 1
+
+    getSkimValue
   }
 
 }
@@ -228,6 +252,7 @@ object ODSkims extends BeamHelper {
   def getSkimDefaultValue(
     beamConfig: BeamConfig,
     mode: BeamMode,
+    rideHailName: String,
     originUTM: Location,
     destinationUTM: Location,
     beamVehicleType: BeamVehicleType,
@@ -246,10 +271,8 @@ object ODSkims extends BeamHelper {
           beamVehicleType,
           fuelPrice
         )
-      case RIDE_HAIL =>
-        beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * travelDistance / 1609.0 + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * travelTime / 60.0
-      case RIDE_HAIL_POOLED =>
-        beamConfig.beam.agentsim.agents.rideHail.pooledBaseCost + beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMile * travelDistance / 1609.0 + beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMinute * travelTime / 60.0
+      case RIDE_HAIL | RIDE_HAIL_POOLED =>
+        SkimsUtils.getRideHailCost(mode, travelDistance, travelTime, rideHailName, beamConfig)
       case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT => 0.25 * travelDistance / 1609
       case _                                                                         => 0.0
     }

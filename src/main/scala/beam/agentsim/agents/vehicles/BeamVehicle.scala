@@ -198,18 +198,6 @@ class BeamVehicle(
     }
   }
 
-  def getChargerConnectedTick(): Int = {
-    chargerRWLock.read {
-      chargerConnectedTick.getOrElse(0)
-    }
-  }
-
-  def getChargerConnectedPrimaryFuel(): Double = {
-    chargerRWLock.read {
-      chargerConnectedPrimaryFuel.getOrElse(0L)
-    }
-  }
-
   /**
     * useFuel
     *
@@ -228,6 +216,7 @@ class BeamVehicle(
     */
   def useFuel(
     beamLeg: BeamLeg,
+    payloadInKg: Option[Double],
     beamScenario: BeamScenario,
     networkHelper: NetworkHelper,
     eventsManager: EventsManager,
@@ -240,6 +229,7 @@ class BeamVehicle(
       BeamVehicle.collectFuelConsumptionData(
         beamLeg,
         beamVehicleType,
+        payloadInKg,
         networkHelper,
         fuelConsumptionDataWithOnlyLength_Id_And_Type
       )
@@ -322,6 +312,8 @@ class BeamVehicle(
   ): (Int, Double) = {
     parkingStall match {
       case Some(theStall) =>
+        val chargingCapacityMaybe =
+          beamVehicleType.chargingCapability.map(ChargingPointType.getChargingPointInstalledPowerInKw)
         theStall.chargingPointType match {
           case Some(chargingPoint) =>
             ChargingPointType.calculateChargingSessionLengthAndEnergyInJoule(
@@ -332,7 +324,7 @@ class BeamVehicle(
               1e6,
               sessionDurationLimit,
               stateOfChargeLimit,
-              chargingPowerLimit
+              chargingPowerLimit.map(p => Math.min(p, chargingCapacityMaybe.getOrElse(p)))
             )
           case None =>
             (0, 0.0)
@@ -401,13 +393,17 @@ class BeamVehicle(
       case Body =>
         WALK
     }
-    val needsToCalculateCost = beamVehicleType.vehicleCategory == Car || isSharedVehicle
+    val needsToCalculateCost = beamVehicleType.vehicleCategory == Car || beamVehicleType.isSharedVehicle
     StreetVehicle(id, beamVehicleType.id, spaceTime, mode, asDriver = true, needsToCalculateCost = needsToCalculateCost)
   }
 
+  def isRideHail: Boolean = id.toString.startsWith("rideHail")
+
+  def isRideHailCAV: Boolean = isRideHail && isCAV
+
   def isSharedVehicle: Boolean = beamVehicleType.id.toString.startsWith("sharedVehicle")
 
-  def isCAV: Boolean = beamVehicleType.automationLevel >= 4
+  def isCAV: Boolean = beamVehicleType.isConnectedAutomatedVehicle
 
   def isBEV: Boolean =
     beamVehicleType.primaryFuelType == Electricity && beamVehicleType.secondaryFuelType.isEmpty
@@ -548,7 +544,8 @@ object BeamVehicle {
   val idPrefixRideHail = "rideHailVehicle"
 
   def isRidehailVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
-    vehicleId.toString.startsWith(idPrefixRideHail)
+    val idStr = vehicleId.toString
+    idStr.startsWith(idPrefixRideHail) || idStr == "dummyRH"
   }
 
   def isSharedTeleportationVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
@@ -590,6 +587,7 @@ object BeamVehicle {
   case class FuelConsumptionData(
     linkId: Int,
     vehicleType: BeamVehicleType,
+    payloadInKg: Option[Double],
     linkNumberOfLanes: Option[Int],
     linkCapacity: Option[Double] = None,
     linkLength: Option[Double],
@@ -610,6 +608,7 @@ object BeamVehicle {
   def collectFuelConsumptionData(
     beamLeg: BeamLeg,
     theVehicleType: BeamVehicleType,
+    payloadInKg: Option[Double],
     networkHelper: NetworkHelper,
     fuelConsumptionDataWithOnlyLength_Id_And_Type: Boolean = false
   ): IndexedSeq[FuelConsumptionData] = {
@@ -623,6 +622,7 @@ object BeamVehicle {
           FuelConsumptionData(
             linkId = id,
             vehicleType = theVehicleType,
+            payloadInKg = None,
             linkNumberOfLanes = None,
             linkCapacity = None,
             linkLength = networkHelper.getLink(id).map(_.getLength),
@@ -651,6 +651,7 @@ object BeamVehicle {
         FuelConsumptionData(
           linkId = id,
           vehicleType = theVehicleType,
+          payloadInKg = payloadInKg,
           linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
           linkCapacity = None, //currentLink.map(_.getCapacity),
           linkLength = currentLink.map(_.getLength),

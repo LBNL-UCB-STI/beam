@@ -37,6 +37,8 @@ beam-gui/build
 /test/input/sf-light/counts/preprocessing/2015_all/
 gc_*.log
 /test/input/sf-light/sf-light-calibration/experiments/
+/test/input/beamville/graphhopper
+/test/input/sf-light/graphhopper
 /test/input/sf-light/sf-light-calibration-test/experiments/
 test/input/siouxfalls/*.xml
 test/input/siouxfalls/r5/*.zip
@@ -56,3 +58,8 @@ src/main/scala/beam/sandbox
 test/scala/beam/sandbox
 log-path_IS_UNDEFINED/
 .Rproj.user
+thread_dump_from_RunBeam.txt.gz
+test/input/fares/fares.dat
+test/input/sf-light/warmstart/warmstart_*
+*.log
+__pycache__

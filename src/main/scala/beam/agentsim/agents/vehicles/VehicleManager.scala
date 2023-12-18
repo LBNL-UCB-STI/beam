@@ -33,11 +33,11 @@ object VehicleManager extends LazyLogging {
 
   case class ReservedFor(managerId: Id[VehicleManager], managerType: TypeEnum.VehicleManagerType) {
 
-    override def hashCode: Int = toString.hashCode
+    override val hashCode: Int = toString.hashCode
 
     override def toString: String = {
       managerType match {
-        case TypeEnum.NoManager => NoManager.toString
+        case TypeEnum.NoManager => managerType.toString
         case _                  => managerType + s"($managerId)"
       }
     }
@@ -68,9 +68,11 @@ object VehicleManager extends LazyLogging {
     if (reservedForMaybe.isEmpty && beamConfigMaybe.isDefined) {
       val cfgAgentSim = beamConfigMaybe.get.beam.agentsim
       val sharedFleets = cfgAgentSim.agents.vehicles.sharedFleets
+      val rideHailManagers = cfgAgentSim.agents.rideHail.managers
       reservedForMaybe = reservedForString match {
-        case cfgAgentSim.agents.freight.name  => Some(createOrGetReservedFor(reservedForString, TypeEnum.Freight))
-        case cfgAgentSim.agents.rideHail.name => Some(createOrGetReservedFor(reservedForString, TypeEnum.RideHail))
+        case cfgAgentSim.agents.freight.name => Some(createOrGetReservedFor(reservedForString, TypeEnum.Freight))
+        case reservedFor if rideHailManagers.exists(_.name == reservedFor) =>
+          Some(createOrGetReservedFor(reservedForString, TypeEnum.RideHail))
         case reservedFor if sharedFleets.exists(_.name == reservedFor) =>
           Some(createOrGetReservedFor(reservedForString, TypeEnum.Shared))
         case _ =>
@@ -78,5 +80,13 @@ object VehicleManager extends LazyLogging {
       }
     }
     reservedForMaybe map { case ReservedFor(mngId, mngType) => createOrGetReservedFor(mngId.toString, mngType) }
+  }
+
+  def reserveForToString(reservedFor: ReservedFor): String = {
+    reservedFor match {
+      case NoManager  => "None"
+      case AnyManager => "Any"
+      case x          => x.toString
+    }
   }
 }

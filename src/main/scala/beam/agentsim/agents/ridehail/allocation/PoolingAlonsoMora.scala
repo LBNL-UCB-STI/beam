@@ -5,7 +5,7 @@ import beam.agentsim.agents.ridehail.RideHailManager.PoolingInfo
 import beam.agentsim.agents.ridehail.RideHailMatching.CustomerRequest
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.Modes.BeamMode.CAR
@@ -20,14 +20,8 @@ import scala.concurrent.{Await, TimeoutException}
 class PoolingAlonsoMora(val rideHailManager: RideHailManager)
     extends RideHailResourceAllocationManager(rideHailManager) {
 
-  val matchingAlgorithm: String =
-    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm
+  val matchingAlgorithm: String = rideHailManager.managerConfig.allocationManager.matchingAlgorithm
   val tempScheduleStore: mutable.Map[Int, List[MobilityRequest]] = mutable.Map()
-
-  val defaultBeamVehilceTypeId: Id[BeamVehicleType] = Id.create(
-    rideHailManager.beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
-    classOf[BeamVehicleType]
-  )
 
   override def respondToInquiry(inquiry: RideHailRequest): InquiryResponse = {
     rideHailManager.rideHailManagerHelper
@@ -37,6 +31,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         rideHailManager.radiusInMeters,
         inquiry.departAt,
         maxWaitTimeInSec,
+        requireWheelchairAccessible = inquiry.withWheelchair,
         includeRepositioningVehicles = true
       ) match {
       case Some(agentETA) =>
@@ -44,6 +39,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
           inquiry.pickUpLocationUTM,
           inquiry.destinationUTM,
           inquiry.departAt,
+          rideHailManager.managerConfig.name,
           rideHailManager.beamServices
         )
         SingleOccupantQuoteAndPoolingInfo(
@@ -65,6 +61,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         new AsyncGreedyVehicleCentricMatching(
           spatialPoolCustomerReqs,
           availVehicles,
+          rideHailManager.managerConfig,
           rideHailManager.beamServices
         )
       // This is default: ALONSO_MORA_MATCHING_WITH_ASYNC_GREEDY_ASSIGNMENT
@@ -72,12 +69,14 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         new AlonsoMoraMatchingWithAsyncGreedyAssignment(
           spatialPoolCustomerReqs,
           availVehicles,
+          rideHailManager.managerConfig,
           rideHailManager.beamServices
         )
       case "ALONSO_MORA_MATCHING_WITH_MIP_ASSIGNMENT" =>
         new AlonsoMoraMatchingWithMIPAssignment(
           spatialPoolCustomerReqs,
           availVehicles,
+          rideHailManager.managerConfig,
           rideHailManager.beamServices
         )
       case algorithmName =>
@@ -164,7 +163,9 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val soloCustomer = toAllocate.filterNot(_.asPooled)
       s = System.currentTimeMillis()
       toAllocate.filterNot(_.asPooled).foreach { req =>
-        Pooling.serveOneRequest(req, tick, alreadyAllocated, rideHailManager, beamServices, maxWaitTimeInSec) match {
+        val pickupTime = math.max(tick, req.departAt)
+        Pooling
+          .serveOneRequest(req, pickupTime, alreadyAllocated, rideHailManager, beamServices, maxWaitTimeInSec) match {
           case res @ RoutingRequiredToAllocateVehicle(_, routes) =>
             allocResponses = allocResponses :+ res
             alreadyAllocated = alreadyAllocated + routes.head.streetVehicles.head.id
@@ -301,9 +302,10 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
       val nonAllocated = toAllocate.filter(_.asPooled).filterNot(req => wereAllocated.contains(req.requestId))
       s = System.currentTimeMillis()
       nonAllocated.foreach { unsatisfiedReq =>
+        val pickupTime = math.max(tick, unsatisfiedReq.departAt)
         Pooling.serveOneRequest(
           unsatisfiedReq,
-          tick,
+          pickupTime,
           alreadyAllocated,
           rideHailManager,
           beamServices,

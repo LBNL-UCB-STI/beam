@@ -21,10 +21,11 @@ import beam.router.Modes.BeamMode.{
   WALK,
   WALK_TRANSIT
 }
-import beam.sim.{BeamScenario, BeamServices}
+import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import beam.utils.{FileUtils, GeoJsonReader, ProfilingUtils}
+import beam.utils.MathUtils.avg
+import beam.utils.{FileUtils, GeoJsonReader, MeasureUnitConversion, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import com.vividsolutions.jts.geom.Geometry
 import org.jfree.chart.ChartFactory
@@ -103,16 +104,37 @@ object SkimsUtils extends LazyLogging {
     mode: BeamMode,
     distanceInMeters: Double,
     timeInSeconds: Double,
+    rideHailName: String,
     beamConfig: BeamConfig
   ): Double = {
-    mode match {
+    val managerConfigs = beamConfig.beam.agentsim.agents.rideHail.managers
+
+    def findManagerConfig = managerConfigs
+      .find(_.name == rideHailName)
+      .getOrElse(throw new IllegalArgumentException(s"Not found rideHailManager with name = $rideHailName"))
+
+    val (costPerMile, costPerMinute, baseCost) = mode match {
+      case RIDE_HAIL if rideHailName == "" =>
+        (
+          avg(managerConfigs.map(_.defaultCostPerMile)),
+          avg(managerConfigs.map(_.defaultCostPerMinute)),
+          avg(managerConfigs.map(_.defaultBaseCost))
+        )
+      case RIDE_HAIL_POOLED if rideHailName == "" =>
+        (
+          avg(managerConfigs.map(_.pooledCostPerMile)),
+          avg(managerConfigs.map(_.pooledCostPerMinute)),
+          avg(managerConfigs.map(_.pooledBaseCost))
+        )
       case RIDE_HAIL =>
-        beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMile * distanceInMeters / 1609.34 + beamConfig.beam.agentsim.agents.rideHail.defaultCostPerMinute * timeInSeconds / 60 + beamConfig.beam.agentsim.agents.rideHail.defaultBaseCost
+        val managerConfig = findManagerConfig
+        (managerConfig.defaultCostPerMile, managerConfig.defaultCostPerMinute, managerConfig.defaultBaseCost)
       case RIDE_HAIL_POOLED =>
-        beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMile * distanceInMeters / 1609.34 + beamConfig.beam.agentsim.agents.rideHail.pooledCostPerMinute * timeInSeconds / 60 + beamConfig.beam.agentsim.agents.rideHail.pooledBaseCost
-      case _ =>
-        0.0
+        val managerConfig = findManagerConfig
+        (managerConfig.pooledCostPerMile, managerConfig.pooledCostPerMinute, managerConfig.pooledBaseCost)
+      case _ => throw new IllegalArgumentException(s"It's not a RideHail mode: $mode")
     }
+    costPerMile * distanceInMeters / MeasureUnitConversion.METERS_IN_MILE + costPerMinute * timeInSeconds / 60 + baseCost
   }
 
   def buildPathCache2TravelTime(

@@ -7,15 +7,17 @@ import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.scheduler.HasTriggerId
+import beam.agentsim.scheduler.Trigger
 import beam.sim.Geofence
 import org.matsim.api.core.v01.Id
 
 object Resource {
 
-  case class ReleaseParkingStall(stall: ParkingStall, triggerId: Long) extends HasTriggerId
+  case class ReleaseParkingStall(stall: ParkingStall, tick: Int) extends Trigger
 
   case class NotifyVehicleIdle(
     resourceId: Id[_],
+    agentId: Id[_],
     whenWhere: SpaceTime,
     passengerSchedule: PassengerSchedule,
     beamVehicleState: BeamVehicleState,
@@ -28,6 +30,7 @@ object Resource {
 
   case class NotifyVehicleDoneRefuelingAndOutOfService(
     vehicleId: Id[BeamVehicle],
+    personId: Id[_],
     whenWhere: SpaceTime,
     triggerId: Long,
     tick: Int,

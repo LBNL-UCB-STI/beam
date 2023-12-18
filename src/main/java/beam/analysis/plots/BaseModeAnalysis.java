@@ -1,5 +1,7 @@
 package beam.analysis.plots;
 
+import beam.agentsim.events.ModeChoiceEvent;
+import beam.agentsim.events.PathTraversalEvent;
 import beam.sim.metrics.MetricsSupport;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
@@ -89,6 +91,22 @@ public abstract class BaseModeAnalysis<T extends Map<Integer, Map>> implements G
             out.flush();
         } catch (IOException e) {
             log.error("error in generating CSV", e);
+        }
+    }
+
+    public static String extractModeForAnalysis(ModeChoiceEvent event) {
+        if (event.mode.equals("car") && event.getPersonId().toString().startsWith("freightDriver-")) return "freight";
+        else return event.mode;
+    }
+
+    public static String extractModeForAnalysis(PathTraversalEvent event) {
+        boolean isCarMode = event.mode().equals(beam.router.Modes$BeamMode$CAR$.MODULE$);
+        if (isCarMode && event.driverId().startsWith("freightDriver-"))
+            return "freight";
+        else if (isCarMode && event.vehicleId().toString().contains("rideHailVehicle")) {
+            return "rideHail";
+        } else {
+            return event.mode().value();
         }
     }
 }

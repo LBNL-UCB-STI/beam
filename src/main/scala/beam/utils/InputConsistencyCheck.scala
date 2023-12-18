@@ -11,7 +11,7 @@ object InputConsistencyCheck {
   /**
     *  Right now we need to check if the values from
     *
-    *    beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId
+    *    beam.agentsim.agents.rideHail.managers[i].initialization.procedural.vehicleTypeId
     *    beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId
     *
     *  are present in vehicle types from file
@@ -20,17 +20,19 @@ object InputConsistencyCheck {
     */
   def checkVehicleTypes(
     vehicleTypes: Set[Id[BeamVehicleType]],
-    rideHailTypeId: String,
+    rideHailTypeIds: Seq[String],
     dummySharedCarTypeId: String
   ): List[String] = {
     val errors = ListBuffer[String]()
     val stringTypes = vehicleTypes.map(_.toString)
     val vehicleTypeString = vehicleTypes.mkString(",")
-    if (!stringTypes.contains(rideHailTypeId)) {
-      errors.append(
-        s"beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId '$rideHailTypeId' " +
-        s"is not in vehicleTypes [$vehicleTypeString]"
-      )
+    rideHailTypeIds.zipWithIndex.foreach { case (rideHailTypeId, i) =>
+      if (!stringTypes.contains(rideHailTypeId)) {
+        errors.append(
+          s"beam.agentsim.agents.rideHail.managers[$i].initialization.procedural.vehicleTypeId '$rideHailTypeId' " +
+          s"is not in vehicleTypes [$vehicleTypeString]"
+        )
+      }
     }
     if (!stringTypes.contains(dummySharedCarTypeId)) {
       errors.append(
@@ -43,12 +45,18 @@ object InputConsistencyCheck {
 
   def checkConsistency(beamConfig: BeamConfig): List[String] = {
     val vehicleTypes =
-      BeamVehicleUtils.readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
+      BeamVehicleUtils.readBeamVehicleTypeFile(
+        beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath
+      ) ++ beamConfig.beam.agentsim.agents.freight.vehicleTypesFilePath
+        .map(BeamVehicleUtils.readBeamVehicleTypeFile)
+        .getOrElse(Map.empty)
     checkVehicleTypes(
       vehicleTypes.keySet,
-      beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+      beamConfig.beam.agentsim.agents.rideHail.managers.collect {
+        case managerConfig if managerConfig.initialization.initType == "PROCEDURAL" =>
+          managerConfig.initialization.procedural.vehicleTypeId
+      },
       beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId
     )
   }
-
 }
