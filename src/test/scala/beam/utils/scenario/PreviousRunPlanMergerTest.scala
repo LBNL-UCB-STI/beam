@@ -16,12 +16,12 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 
     "should throw error when fraction is not within range [0, 1]" in {
       assertThrows[IllegalArgumentException] {
-        new PreviousRunPlanMerger(-1, 1, Some(5), outputPath, "", new Random(), identity)
+        new PreviousRunPlanMerger(-1, 1, Some(5), Some(0.5), outputPath, "", new Random(), identity, None)
       }
     }
 
     "should return same plans when fraction = 0" in {
-      val planMerger = new PreviousRunPlanMerger(0, 1, Some(5), outputPath, "", new Random(), identity)
+      val planMerger = new PreviousRunPlanMerger(0, 1, Some(5), Some(0.5), outputPath, "", new Random(), identity, None)
 
       val (res, actuallyMerged) = planMerger.merge(newPlans)
 
@@ -224,7 +224,8 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 
   "PreviousRunPlanMerger with valid inputs" should {
     "must read previous xml plans without error" in {
-      val planMerger = new PreviousRunPlanMerger(1.0, 0.0, Some(5), outputPath, "beamville", new Random(), identity)
+      val planMerger =
+        new PreviousRunPlanMerger(1.0, 0.0, Some(5), Some(0.5), outputPath, "beamville", new Random(), identity, None)
       val activitySimPlans = {
         getOldPlans.filter(_.planSelected).map { case plan => plan.copy(planIndex = 0) } //to avoid naming mess
         // Assumption here is that activitysim plans always are selected and have planIndex = 0
@@ -279,12 +280,12 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       createPlanElement("7", 0, 1, 49502),
       createPlanElement("2", 0, 0, 49503),
       createPlanElement("2", 0, 1, 49504),
-      createPlanElement("3", 0, 0, 49505, score = 0, planSelected = false),
-      createPlanElement("3", 0, 1, 49506, score = 0, planSelected = false),
-      createPlanElement("3", 0, 2, 49507, score = 0, planSelected = false),
-      createPlanElement("3", 1, 0, 49509, score = 50, planSelected = true),
-      createPlanElement("3", 1, 1, 49510, score = 50, planSelected = true),
-      createPlanElement("3", 1, 2, 49511, score = 50, planSelected = true),
+      createPlanElement("3", 0, 0, 49509, score = 50, planSelected = true),
+      createPlanElement("3", 0, 1, 49510, score = 50, planSelected = true),
+      createPlanElement("3", 0, 2, 49511, score = 50, planSelected = true),
+      createPlanElement("3", 1, 0, 49505, score = 0, planSelected = false),
+      createPlanElement("3", 1, 1, 49506, score = 0, planSelected = false),
+      createPlanElement("3", 1, 2, 49507, score = 0, planSelected = false),
       createPlanElement("4", 0, 0, 49508),
       createPlanElement("6", 0, 0, 49508)
     )
