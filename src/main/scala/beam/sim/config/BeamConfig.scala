@@ -1102,12 +1102,15 @@ object BeamConfig {
             defaultCostPerMile: scala.Double,
             defaultCostPerMinute: scala.Double,
             initialization: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization,
+            maximumWalkDistanceToStopInM: scala.Int,
             name: java.lang.String,
             pooledBaseCost: scala.Double,
             pooledCostPerMile: scala.Double,
             pooledCostPerMinute: scala.Double,
             repositioningManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager,
-            rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager
+            rideHailManager: BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager,
+            stopFilePath: scala.Option[java.lang.String],
+            supportedModes: java.lang.String
           )
 
           object Managers$Elm {
@@ -1469,6 +1472,9 @@ object BeamConfig {
                   if (c.hasPathOrNull("initialization")) c.getConfig("initialization")
                   else com.typesafe.config.ConfigFactory.parseString("initialization{}")
                 ),
+                maximumWalkDistanceToStopInM =
+                  if (c.hasPathOrNull("maximumWalkDistanceToStopInM")) c.getInt("maximumWalkDistanceToStopInM")
+                  else 800,
                 name = if (c.hasPathOrNull("name")) c.getString("name") else "GlobalRHM",
                 pooledBaseCost = if (c.hasPathOrNull("pooledBaseCost")) c.getDouble("pooledBaseCost") else 1.89,
                 pooledCostPerMile =
@@ -1482,7 +1488,11 @@ object BeamConfig {
                 rideHailManager = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RideHailManager(
                   if (c.hasPathOrNull("rideHailManager")) c.getConfig("rideHailManager")
                   else com.typesafe.config.ConfigFactory.parseString("rideHailManager{}")
-                )
+                ),
+                stopFilePath = if (c.hasPathOrNull("stopFilePath")) Some(c.getString("stopFilePath")) else None,
+                supportedModes =
+                  if (c.hasPathOrNull("supportedModes")) c.getString("supportedModes")
+                  else "ride_hail, ride_hail_pooled"
               )
             }
           }
@@ -2214,7 +2224,7 @@ object BeamConfig {
               intLogLevel = if (c.hasPathOrNull("intLogLevel")) c.getInt("intLogLevel") else 1,
               numberOfFederates = if (c.hasPathOrNull("numberOfFederates")) c.getInt("numberOfFederates") else 1,
               spmFederatePrefix =
-                if (c.hasPathOrNull("spmFederatePrefix")) c.getString("spmFederatePrefix") else "SPM_FED_TAZ",
+                if (c.hasPathOrNull("spmFederatePrefix")) c.getString("spmFederatePrefix") else "SPM_FED",
               spmFederateSubscription =
                 if (c.hasPathOrNull("spmFederateSubscription")) c.getString("spmFederateSubscription")
                 else "CHARGING_COMMANDS",
@@ -3372,6 +3382,7 @@ object BeamConfig {
         }
 
         case class OverwriteRoadTypeProperties(
+          default: BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Default,
           enabled: scala.Boolean,
           livingStreet: BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.LivingStreet,
           minor: BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Minor,
@@ -3390,6 +3401,23 @@ object BeamConfig {
         )
 
         object OverwriteRoadTypeProperties {
+
+          case class Default(
+            alpha: scala.Double,
+            beta: scala.Double
+          )
+
+          object Default {
+
+            def apply(
+              c: com.typesafe.config.Config
+            ): BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Default = {
+              BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Default(
+                alpha = if (c.hasPathOrNull("alpha")) c.getDouble("alpha") else 1.0,
+                beta = if (c.hasPathOrNull("beta")) c.getDouble("beta") else 2.0
+              )
+            }
+          }
 
           case class LivingStreet(
             alpha: scala.Option[scala.Double],
@@ -3715,6 +3743,10 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties = {
             BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties(
+              default = BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Default(
+                if (c.hasPathOrNull("default")) c.getConfig("default")
+                else com.typesafe.config.ConfigFactory.parseString("default{}")
+              ),
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
               livingStreet = BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.LivingStreet(
                 if (c.hasPathOrNull("livingStreet")) c.getConfig("livingStreet")
@@ -4159,6 +4191,7 @@ object BeamConfig {
 
         case class ActivitySimSkimmer(
           fileBaseName: java.lang.String,
+          fileOutputFormat: java.lang.String,
           name: java.lang.String
         )
 
@@ -4167,6 +4200,7 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.ActivitySimSkimmer = {
             BeamConfig.Beam.Router.Skim.ActivitySimSkimmer(
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "activitySimODSkims",
+              fileOutputFormat = if (c.hasPathOrNull("fileOutputFormat")) c.getString("fileOutputFormat") else "csv",
               name = if (c.hasPathOrNull("name")) c.getString("name") else "activity-sim-skimmer"
             )
           }

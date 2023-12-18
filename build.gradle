@@ -212,6 +212,7 @@ dependencies {
 
     implementation("com.uber:h3:3.7.2")
     implementation("com.github.LBNL-UCB-STI:jsprit-wrapper:v0.5.1")
+    implementation("com.github.LBNL-UCB-STI:omx-java:v2.0.1")
 
     testImplementation group: 'junit', name: 'junit', version: '4.8'
     testImplementation group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'

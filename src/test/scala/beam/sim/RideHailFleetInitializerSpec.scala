@@ -93,4 +93,24 @@ class RideHailFleetInitializerSpec extends AnyWordSpecLike with Matchers with Be
       CircularGeofence(0, 0, 5).contains(5, 1) shouldBe false
     }
   }
+
+  "ShpGeofence" should {
+    "check if a point is inside it" in {
+      val shpGeofence = ShpGeofence("test/input/sf-light/geofence/multiple-areas.shp", "epsg:26910")
+      shpGeofence.contains(549612.49290970, 4183523.42542734) shouldBe true
+      shpGeofence.contains(555302.70929476, 4175585.53179180) shouldBe true
+      shpGeofence.contains(546395.55706793, 4175585.53179180) shouldBe true
+      shpGeofence.contains(546362.13435789, 4174925.43326842) shouldBe false
+      shpGeofence.contains(553105.16610934, 4178585.22001828) shouldBe false
+      shpGeofence.contains(549915.40305993, 4179989.21944668) shouldBe false
+    }
+    "load shp file in any projection" in {
+      val shpGeofence2 = ShpGeofence("test/test-resources/geofence/sfbay-geofence-1.shp", "epsg:26910")
+      shpGeofence2.contains(593035.17647173, 4140765.32228349) shouldBe true
+      shpGeofence2.contains(594867.66445433, 4138732.92652097) shouldBe true
+      shpGeofence2.contains(593734.85370145, 4138699.60855765) shouldBe false
+      shpGeofence2.contains(574572, 4144615) shouldBe false
+      shpGeofence2.contains(593168.44832501, 4142264.63063289) shouldBe false
+    }
+  }
 }
