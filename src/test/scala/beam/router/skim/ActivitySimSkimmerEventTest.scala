@@ -92,6 +92,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     event.skimInternal.walkEgressInMinutes shouldBe 0 / 60.0
     event.skimInternal.walkAuxiliaryInMinutes shouldBe 0 / 60.0
     event.skimInternal.totalInVehicleTimeInMinutes shouldBe 10 / 60.0
+    event.skimInternal.travelTimeInMinutes shouldBe 10 / 60.0 // Do not count walk access/egress time to travel time for car trips
     event.key.pathType shouldBe ActivitySimPathType.SOV
   }
 
