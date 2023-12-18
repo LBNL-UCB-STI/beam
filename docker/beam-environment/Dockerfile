@@ -23,7 +23,7 @@ RUN wget -O awscliv2.zip https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zi
     rm awscliv2.zip && \
     rm -rf aws
 # python dependency
-RUN pip install pandas plotly kaleido psutil
+RUN pip install pandas plotly kaleido psutil docker
 # working in /app
 WORKDIR /app
 # configure ssh server
