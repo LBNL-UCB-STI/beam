@@ -225,7 +225,17 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
   "PreviousRunPlanMerger with valid inputs" should {
     "must read previous xml plans without error" in {
       val planMerger =
-        new PreviousRunPlanMerger(1.0, 0.0, Some(5), Some(0.5), outputPath, "beamville", new Random(), identity, None)
+        new PreviousRunPlanMerger(
+          1.0,
+          0.0,
+          Some(5),
+          Some(0.5),
+          outputPath,
+          "beamville__",
+          new Random(),
+          identity,
+          None
+        )
       val activitySimPlans = {
         getOldPlans.filter(_.planSelected).map { case plan => plan.copy(planIndex = 0) } //to avoid naming mess
         // Assumption here is that activitysim plans always are selected and have planIndex = 0
