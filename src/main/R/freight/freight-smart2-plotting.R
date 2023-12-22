@@ -105,13 +105,14 @@ baseline_runs_dir <- pp(workDir, "beam/runs/baseline/")
 baseline_output_dir <- pp(baseline_runs_dir, "output/")
 dir.create(baseline_output_dir, showWarnings = FALSE)
 
-baseline_runs_labels <- c("2018", "2018_routeE")
+baseline_runs_labels <- c("2018_new", "2018_routeE_new")
+baseline_runs_name <- "baseline_routeE_new"
 baseline_runs <- 
   read_freight_events(
     c("2018", "2018_routeE"), 
     baseline_runs_labels, 
     baseline_runs_dir,
-    "all_b2b_baseline"
+    baseline_runs_name
   )
 baseline_runs <- format_path_traversals(baseline_runs)
 
@@ -131,9 +132,11 @@ baseline_summary_colors <- c("deepskyblue2", "deepskyblue3", "deepskyblue4",
 baseline_summary$energyAndVehiclesTypes <- factor(baseline_summary$energyAndVehiclesTypes, levels=baseline_summary_levels)
 write.csv(
   baseline_summary,
-  file = pp(baseline_output_dir, pp("baseline_VMT-and-GWH-by-powertrain-class.csv")),
+  file = pp(baseline_output_dir, pp(baseline_runs_name,"_VMT-and-GWH-by-powertrain-class.csv")),
   row.names=F,
   quote=T)
+
+baseline_summary[,.(MVMT=sum(MVMT)),by=.(energyAndVehiclesTypes,runLabel)]
 
 # ****** BASELINE - VMT Validation
 validation <- data.table::data.table(
@@ -160,7 +163,7 @@ p<-ggplot(baseline_summary, aes(factor(runLabel, level=baseline_runs_labels), MV
         strip.text = element_text(size=rel(1.2)),
         plot.title = element_text(size=10))+
   scale_fill_manual(values=baseline_summary_colors)
-ggsave(pp(baseline_output_dir, pp("baseline_VMT-by-powertrain-class.png")),p,width=7,height=4,units='in')
+ggsave(pp(baseline_output_dir, pp(baseline_runs_name,"_VMT-by-powertrain-class.png")),p,width=7,height=4,units='in')
 
 # ****** BASELINE - Energy
 p<-ggplot(baseline_summary, aes(factor(runLabel, level=baseline_runs_labels), GWH, fill=energyAndVehiclesTypes)) +
@@ -172,12 +175,13 @@ p<-ggplot(baseline_summary, aes(factor(runLabel, level=baseline_runs_labels), GW
         strip.text = element_text(size=rel(1.2)),
         plot.title = element_text(size=10))+
   scale_fill_manual(values=baseline_summary_colors)
-ggsave(pp(baseline_output_dir, pp("baseline_GWH-by-powertrain-class.png")),p,width=7,height=4,units='in')
+ggsave(pp(baseline_output_dir, pp(baseline_runs_name,"_GWH-by-powertrain-class.png")),p,width=7,height=4,units='in')
 
 # ******************************
 
 ## TOURS *****
-
+baseline_runs[,.(numTrips=.N),by=.(vehicle,vehicleType,runLabel)][,.(numVehicle=.N),by=.(vehicleType,runLabel)]
+baseline_runs[,.N,by=.(runLabel)]
 baseline_tours <- baseline_runs[order(vehicle,time),.(tourTime=last(arrivalTime)-first(departureTime), tourVMT=sum(length/1609.344)),by=.(vehicle,runLabel,business,vehicleClass)]
 # baseline_tours_summary <- baseline_tours[,.(avgTourTime=mean(tourTime), sdTourTime=sd(tourTime), avgTourVMT=mean(tourVMT), sdTourVMT=sd(tourVMT)), by=.(runLabel,business,vehicleClass)]
 # baseline_tours_summary <- data.table::data.table(rbind(baseline_tours_summary[runLabel=="2018"], data.table::data.table(
@@ -194,21 +198,17 @@ baseline_tours <- baseline_runs[order(vehicle,time),
                                 .(tourTime=last(arrivalTime)-first(departureTime), 
                                   tourVMT=sum(length/1609.344)),
                                 by=.(vehicle,runLabel,business,vehicleClass)]
-baseline_tours <- data.table::data.table(rbind(baseline_tours, data.table::data.table(
-  vehicle=c("",""),
-  runLabel=c("2018", "2018"),
-  business=c("B2C", "B2C"),
-  vehicleClass=c("Class 7&8 Vocational", "Class 7&8 Tractor"),
-  tourTime=c(0, 0),
-  tourVMT=c(0, 0)
-)))
+# baseline_tours <- data.table::data.table(rbind(baseline_tours, data.table::data.table(
+#   vehicle=c("",""),
+#   runLabel=c("2018", "2018"),
+#   business=c("B2C", "B2C"),
+#   vehicleClass=c("Class 7&8 Vocational", "Class 7&8 Tractor"),
+#   tourTime=c(0, 0),
+#   tourVMT=c(0, 0)
+# )))
 
 # 
 
-test <- baseline_runs[vehicle=="freightVehicle-b2b-all-1091441-1-26hdv-d-0-456"&
-                runLabel=="2018_dense"]
-
-baseline_tours[tourVMT>=500]
 
 write.csv(
   baseline_tours[tourVMT>=350],
@@ -227,9 +227,6 @@ ggplot(test, aes(time/3600, length/1609)) +
   theme_marain() +
   labs(x="hour", y="VMT")
 
-
-test[time==74693]$length/1609
-sum(test$length)/1609
 
 network <- readCsv(pp(baseline_runs_dir, "/../../network2.csv.gz"))
 test2 <- readCsv(pp(baseline_runs_dir, "2018_dense/filtered.0.events.csv.gz"))

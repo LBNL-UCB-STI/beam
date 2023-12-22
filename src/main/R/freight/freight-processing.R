@@ -65,23 +65,20 @@ linstatsPlus <- merge(linkstats, network, by.x="link", by.y="linkId")
 run_dir = '/sfbay/beam/runs'
 network <- readCsv(pp(work_folder, run_dir, "/../network.csv.gz"))
 
-linkstats_jd_0.025_0.5mps <- readCsv(pp(work_folder, run_dir, "/calibration-jdeqsim/2018-025/15.linkstats.csv.gz"))
-linkstats_jd_0.025_1.5mps <- readCsv(pp(work_folder, run_dir, "/calibration-jdeqsim/2018-025-1.5mps/4.linkstats.csv.gz"))
-linkstats_jd_0.100 <- readCsv(pp(work_folder, run_dir, "/calibration-jdeqsim/2018-100/15.linkstats.csv.gz"))
-linkstats_bp_0.035 <- readCsv(pp(work_folder, run_dir, "/calibration-bprsim/2018-035/15.linkstats.csv.gz"))
+linkstats_jd_200 <- readCsv(pp(work_folder, run_dir, "/calibration-jdeqsim/2018-200/15.linkstats.csv.gz"))
+linkstats_bp_150 <- readCsv(pp(work_folder, run_dir, "/calibration-bprsim/2018-150/15.linkstats.csv.gz"))
 
 
-linkstats_jd_0.025_0.5mps_merged <- linkstats_0.025_0.5mps[network, on=c("link"="linkId")]
-linkstats_jd_0.025_1.5mps_merged <- linkstats_0.025_1.5mps[network, on=c("link"="linkId")]
-linkstats_jd_0.100_merged <- linkstats_jd_0.100[network, on=c("link"="linkId")]
-linkstats_bp_0.035_merged <- linkstats_bp_0.035[network, on=c("link"="linkId")]
+linkstats_jd_200_merged <- linkstats_jd_200[network, on=c("link"="linkId")]
+linkstats_bp_150_merged <- linkstats_bp_150[network, on=c("link"="linkId")]
 
-res <- linkstats_jd_0.100_merged[attributeOrigType %in% c("motorway", "primary", "secondary", "motorway_link", "tertiary")][
+
+res <- linkstats_bp_150_merged[attributeOrigType %in% c("motorway", "primary", "secondary", "motorway_link", "tertiary")][
   ,.(avgSpeedMPH=sum(volume*length)/sum(volume*traveltime)),by=.(hour,attributeOrigType)]
 
 ggplot(res, aes(hour, avgSpeedMPH, color=attributeOrigType)) + 
-  geom_line() + theme_marain() + xlim(0, 60) + 
-  ggtitle("jdeqsim - 100% FC/Pop - min speed 0.5mps")
+  geom_line() + theme_marain() + xlim(0, 40) + 
+  ggtitle("bprsim - 150% FC/Pop - min speed 0.5mps")
 
 ####
 
@@ -537,7 +534,7 @@ sfBayTAZs <- st_read(pp(validationDir, "/TAZs/Transportation_Analysis_Zones.shp"
 ## ***************************
 #FRISM
 ## ***************************
-freightDir <- pp(workDir,"/beam_freight/","2050_high")
+freightDir <- pp(work_folder,"/sfbay/runs/baseline/")
 carriers <- readCsv(pp(freightDir, "/freight-merged-carriers.csv"))
 payload <- readCsv(pp(freightDir, "/freight-merged-payload-plans.csv"))
 tours <- readCsv(pp(freightDir, "/freight-merged-tours.csv"))
