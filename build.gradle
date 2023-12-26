@@ -44,7 +44,7 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '0.8.6.13'
+version = '0.9.0.0'
 
 description = """"""
 
@@ -789,6 +789,7 @@ ext.getDockerRepository = { ->
 
 tasks.register('buildImageWithoutTags', DockerBuildImage) { dependsOn createDockerfile }
 
+// one can build a docker image with command ./gradlew -Ptag=beammodel/beam:0.9.0.0 buildImage
 tasks.register('buildImage', DockerTagImage) {
     description 'Builds the Docker BEAM image, all code and test data are included into the image.'
     group 'Docker'
