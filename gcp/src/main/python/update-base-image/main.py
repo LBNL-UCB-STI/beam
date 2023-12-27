@@ -97,7 +97,7 @@ while ! gcloud compute operations describe $createImageOperationId | grep "statu
 read -r deleteSnapshotOperationId <<< $(gcloud functions call delete-snapshot --region us-central1 --data '{"snapshot_name": "'"${created_snapshot_name}"'"}' | tr -d '\n' | sed -e 's/^[[:space:]]*//')
 while ! gcloud compute operations describe $deleteSnapshotOperationId | grep "status: DONE"; do echo "Waiting 30 seconds for snapshot deletion in us-central1 for $created_snapshot_name from operation $deleteSnapshotOperationId ..."; sleep 30s; done
 echo "invoke update provided cloud function environment variables..."
-gcloud functions call updateEnvVarsForProvidedFunctionNames --region us-central1 --data '{"image_url": "projects/beam-core/global/images/'"${created_image_name}"'", "function_names":["deploy_beam"]}'
+gcloud functions call updateEnvVarsForProvidedFunctionNames --region us-central1 --data '{"image_url": "projects/beam-core/global/images/'"${created_image_name}"'", "function_names":["deploy_beam-jdk-8"]}'
 echo "setting up auto shutdown ..."
 sudo shutdown -h +$SHUTDOWN_WAIT
 echo "shutdown in $SHUTDOWN_WAIT ..."
@@ -157,7 +157,7 @@ def create_instance_request(instance_name, machine_type, disk_image_name, storag
 @functions_framework.http
 def main(request):
     cloud_functions = discovery.build('cloudfunctions', 'v1')
-    resource_name = f"projects/beam-core/locations/us-central1/functions/deploy_beam"
+    resource_name = f"projects/beam-core/locations/us-central1/functions/deploy_beam-jdk-8"
     response = cloud_functions.projects().locations().functions().get(
         name=resource_name
     ).execute()

@@ -62,7 +62,7 @@ tasks.register('deployToGCE') {
         "config": "${ext.getParameterValue('beamConfigs')}"
         }"""
         logger.warn(pload)
-        HttpResponse result = makeJsonPostRequest("https://us-central1-beam-core.cloudfunctions.net/deploy_beam", pload)
+        HttpResponse result = makeJsonPostRequest("https://us-central1-beam-core.cloudfunctions.net/deploy_beam-jdk-8", pload)
         logger.warn("response status: ${result.statusCode}, response message: ${result.statusMessage}, payload: ${result.content}")
     }
 }

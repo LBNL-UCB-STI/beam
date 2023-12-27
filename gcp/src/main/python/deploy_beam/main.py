@@ -87,14 +87,14 @@ def create_beam_instance(request):
 
     cloud_init_script_url = os.environ.get('CLOUD_INIT_SCRIPT_URL')
     if not cloud_init_script_url:
-        cloud_init_script_url = "https://raw.githubusercontent.com/LBNL-UCB-STI/beam/develop/gcp/src/main/bash/cloud-init.sh"
+        cloud_init_script_url = "https://raw.githubusercontent.com/LBNL-UCB-STI/beam/develop-jdk-8/gcp/src/main/bash/cloud-init.sh"
     log(f"cloud_init_script_url: {cloud_init_script_url}")
 
     startup_script = """
 #!/bin/sh
 CLOUD_INIT_SCRIPT_URL=$(curl http://metadata/computeMetadata/v1/instance/attributes/cloud_init_script_url -H "Metadata-Flavor: Google")
 sudo chown -R clu:clu /home/clu
-sudo -u clu bash -c "cd; wget $CLOUD_INIT_SCRIPT_URL"
+sudo -u clu bash -c "cd; wget -O cloud-init.sh $CLOUD_INIT_SCRIPT_URL"
 sudo -u clu bash -c "cd; chmod 755 cloud-init.sh"
 sudo -u clu bash -c "cd; ./cloud-init.sh &> cloud-init-output.log"
     """
