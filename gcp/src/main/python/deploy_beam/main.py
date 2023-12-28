@@ -82,7 +82,7 @@ def create_beam_instance(request):
 
     disk_image_name = os.environ.get('DISK_IMAGE_NAME')
     if not disk_image_name:
-        disk_image_name = f"projects/{project}/global/images/beam-box"
+        disk_image_name = f"projects/{project}/global/images/beam-box-jdk-8"
     log(f"disk image: {disk_image_name}")
 
     cloud_init_script_url = os.environ.get('CLOUD_INIT_SCRIPT_URL')
