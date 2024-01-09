@@ -8,13 +8,14 @@ fi
 print_help() {
   echo ""
   echo "First argument provided will be used as a command, the rest arguments will be used as parameters for the command."
-  echo "Available commands: 'run_pilates' 'bash' 'help'."
+  echo "Available commands: 'run_pilates' 'bash' 'ssh' 'help'."
   echo ""
 }
 
 case "$command" in
 "sh" | "bash" | "/bin/bash" | "/bash") /bin/bash "${@:2}" ;;
 "run_pilates") /usr/local/bin/run_docker_and_execute_pilates.sh ;;
+"ssh") /usr/sbin/sshd -D ;;
 "help" | "?") print_help ;;
 *) print_help  ;;
 esac
