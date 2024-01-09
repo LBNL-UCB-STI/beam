@@ -1,6 +1,12 @@
 Beam Tutorial
 =============
 Before starting this tutorial please make sure you have installed Beam as it is suggested by :ref:`users-guide`.
+As an alternative you could use a prepared beam `docker <https://www.docker.com/>`_ image to run a scenario.
+In order to be able to modify scenario config files we need to export the scenario directory to the host file system.
+To do it execute the following commands in an empty directory::
+
+    docker create --name tmp_beam beammodel/beam:0.8.6.14
+    docker cp tmp_beam:/app/test ./
 
 Urbansim SF-light Scenario
 --------------------------
@@ -11,6 +17,11 @@ the following command in the beam root directory::
 
 The output resides in a directory like *output/sf-light/urbansim-hh5k__2023-12-25_16-55-30_rhs*. The last part of
 directory name that includes datetime would be different.
+
+In case you are using docker you need to run the following command::
+
+    docker run --rm -v ./output:/app/output -v ./test:/app/test -e JAVA_OPTS='-Xmx10g' beammodel/beam:0.8.6.14 --config test/input/sf-light/sf-light-urbansim-5k-hh.conf
+
 
 Urbansim SF-light Scenario with mode choice in Beam
 ---------------------------------------------------
