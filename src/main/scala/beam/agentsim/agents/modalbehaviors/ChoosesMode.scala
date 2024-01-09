@@ -209,7 +209,7 @@ trait ChoosesMode {
           ) if data.currentTourMode.isEmpty || data.currentTourModeIsIn(CAR, BIKE, DRIVE_TRANSIT, BIKE_TRANSIT) =>
         implicit val executionContext: ExecutionContext = context.system.dispatcher
         data.currentTourMode match {
-          case Some(CAR | DRIVE_TRANSIT) =>
+          case Some(CAR | DRIVE_TRANSIT | CAR_HOV2 | CAR_HOV3) => // TODO: Add HOV modes here too
             requestAvailableVehicles(
               vehicleFleets,
               currentLocation,
