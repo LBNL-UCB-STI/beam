@@ -100,20 +100,17 @@ object SkimsUtils extends LazyLogging {
     (travelDistance, travelTime)
   }
 
-  def getRideHailCost(
+  def getRideHailManagerCosts(
     mode: BeamMode,
-    distanceInMeters: Double,
-    timeInSeconds: Double,
     rideHailName: String,
     beamConfig: BeamConfig
-  ): Double = {
+  ): (Double, Double, Double) = {
     val managerConfigs = beamConfig.beam.agentsim.agents.rideHail.managers
 
     def findManagerConfig = managerConfigs
       .find(_.name == rideHailName)
       .getOrElse(throw new IllegalArgumentException(s"Not found rideHailManager with name = $rideHailName"))
-
-    val (costPerMile, costPerMinute, baseCost) = mode match {
+    mode match {
       case RIDE_HAIL if rideHailName == "" =>
         (
           avg(managerConfigs.map(_.defaultCostPerMile)),
@@ -134,6 +131,16 @@ object SkimsUtils extends LazyLogging {
         (managerConfig.pooledCostPerMile, managerConfig.pooledCostPerMinute, managerConfig.pooledBaseCost)
       case _ => throw new IllegalArgumentException(s"It's not a RideHail mode: $mode")
     }
+  }
+
+  def getRideHailCost(
+    mode: BeamMode,
+    distanceInMeters: Double,
+    timeInSeconds: Double,
+    rideHailName: String,
+    beamConfig: BeamConfig
+  ): Double = {
+    val (costPerMile, costPerMinute, baseCost) = getRideHailManagerCosts(mode, rideHailName, beamConfig)
     costPerMile * distanceInMeters / MeasureUnitConversion.METERS_IN_MILE + costPerMinute * timeInSeconds / 60 + baseCost
   }
 
