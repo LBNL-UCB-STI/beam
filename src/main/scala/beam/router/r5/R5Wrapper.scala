@@ -5,6 +5,7 @@ import beam.agentsim.agents.ridehail.RideHailVehicleId.{getFleetName, isRideHail
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
+import beam.router.BeamRouter.IntermodalUse._
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode._
 import beam.router.Modes.{mapLegMode, toR5StreetMode, BeamMode}
@@ -422,13 +423,17 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
      *
      */
     val mainRouteToVehicle = request.streetVehiclesUseIntermodalUse == Egress && isRouteForPerson
-    val mainRouteRideHailTransit = request.streetVehiclesUseIntermodalUse == AccessAndEgress && isRouteForPerson
+    val mainRouteRideHailTransit =
+      Set(AccessAndEgress, AccessAndOrEgress).contains(request.streetVehiclesUseIntermodalUse) && isRouteForPerson
 
     val profileRequest = createProfileRequest
     val accessVehicles = if (mainRouteToVehicle) {
       Vector(request.streetVehicles.find(_.mode == WALK).get)
     } else {
-      request.streetVehicles
+      request.streetVehiclesUseIntermodalUse match {
+        case AccessAndEgress => request.streetVehicles.filter(_.mode != WALK)
+        case _               => request.streetVehicles
+      }
     }
 
     val maybeWalkToVehicle: Map[StreetVehicle, Option[EmbodiedBeamLeg]] =
@@ -440,7 +445,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       .mapValues(vehicles => vehicles.minBy(maybeWalkToVehicle(_).map(leg => leg.beamLeg.duration).getOrElse(0)))
 
     val egressVehicles = if (mainRouteRideHailTransit) {
-      request.streetVehicles
+      request.streetVehiclesUseIntermodalUse match {
+        case AccessAndEgress => request.streetVehicles.filter(_.mode != WALK)
+        case _               => request.streetVehicles
+      }
     } else if (request.withTransit) {
       request.possibleEgressVehicles :+ request.streetVehicles.find(_.mode == WALK).get
     } else {
@@ -675,16 +683,17 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
       val departureTimeToDominatingList: IntFunction[DominatingList] = (departureTime: Int) =>
         beamConfig.beam.routing.r5.transitAlternativeList.toLowerCase match {
-          case "suboptimal" =>
-            new SuboptimalDominatingList(
-              profileRequest.suboptimalMinutes
-            )
-          case _ =>
+          case "optimal" =>
             new BeamDominatingList(
               profileRequest.inRoutingFareCalculator,
               Integer.MAX_VALUE,
               departureTime + profileRequest.maxTripDurationMinutes * 60
             )
+          case _ =>
+            new SuboptimalDominatingList(
+              profileRequest.suboptimalMinutes
+            )
+
         }
 
       val transitPaths = latency("getpath-transit-time", Metrics.VerboseLevel) {

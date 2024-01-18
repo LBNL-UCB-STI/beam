@@ -8,7 +8,13 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token, VehicleOrToken}
-import beam.agentsim.agents.ridehail.{RideHailInquiry, RideHailManager, RideHailRequest, RideHailResponse}
+import beam.agentsim.agents.ridehail.{
+  RideHailInquiry,
+  RideHailManager,
+  RideHailRequest,
+  RideHailResponse,
+  RideHailVehicleId
+}
 import beam.agentsim.agents.vehicles.AccessErrorCodes.RideHailNotRequestedError
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
@@ -18,6 +24,7 @@ import beam.agentsim.events.resources.ReservationErrorCode
 import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent, SpaceTime}
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
+import beam.router.BeamRouter.IntermodalUse._
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode._
@@ -48,12 +55,15 @@ import scala.concurrent.{ExecutionContext, Future}
 trait ChoosesMode {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
-  val dummyRHVehicle: StreetVehicle = createDummyVehicle(
-    "dummyRH",
+  private val dummyRHVehicle: StreetVehicle = createDummyVehicle(
+    RideHailVehicleId.dummyVehicleId,
     beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.head.initialization.procedural.vehicleTypeId,
     CAR,
     asDriver = false
   )
+
+  private val rideHailTransitIntermodalUse: IntermodalUse =
+    IntermodalUse.fromString(beamServices.beamConfig.beam.agentsim.agents.rideHailTransit.intermodalUse)
 
   //this dummy shared vehicles is used in R5 requests on egress side
   private val dummySharedVehicles: IndexedSeq[StreetVehicle] = possibleSharedVehicleTypes
@@ -365,7 +375,7 @@ trait ChoosesMode {
           withTransit = true,
           Some(id),
           Vector(bodyStreetVehicleRequestParam, dummyRHVehicle.copy(locationUTM = currentSpaceTime)),
-          streetVehiclesUseIntermodalUse = AccessAndEgress,
+          streetVehiclesUseIntermodalUse = rideHailTransitIntermodalUse,
           triggerId = getCurrentTriggerIdOrGenerate
         )
         router ! theRequest

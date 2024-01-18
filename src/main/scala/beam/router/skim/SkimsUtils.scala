@@ -106,28 +106,23 @@ object SkimsUtils extends LazyLogging {
     beamConfig: BeamConfig
   ): (Double, Double, Double) = {
     val managerConfigs = beamConfig.beam.agentsim.agents.rideHail.managers
-
-    def findManagerConfig = managerConfigs
-      .find(_.name == rideHailName)
-      .getOrElse(throw new IllegalArgumentException(s"Not found rideHailManager with name = $rideHailName"))
-    mode match {
-      case RIDE_HAIL if rideHailName == "" =>
+    val managerConfig = managerConfigs.find(_.name == rideHailName)
+    (mode, managerConfig) match {
+      case (RIDE_HAIL, None) =>
         (
           avg(managerConfigs.map(_.defaultCostPerMile)),
           avg(managerConfigs.map(_.defaultCostPerMinute)),
           avg(managerConfigs.map(_.defaultBaseCost))
         )
-      case RIDE_HAIL_POOLED if rideHailName == "" =>
+      case (RIDE_HAIL_POOLED, None) =>
         (
           avg(managerConfigs.map(_.pooledCostPerMile)),
           avg(managerConfigs.map(_.pooledCostPerMinute)),
           avg(managerConfigs.map(_.pooledBaseCost))
         )
-      case RIDE_HAIL =>
-        val managerConfig = findManagerConfig
+      case (RIDE_HAIL, Some(managerConfig)) =>
         (managerConfig.defaultCostPerMile, managerConfig.defaultCostPerMinute, managerConfig.defaultBaseCost)
-      case RIDE_HAIL_POOLED =>
-        val managerConfig = findManagerConfig
+      case (RIDE_HAIL_POOLED, Some(managerConfig)) =>
         (managerConfig.pooledCostPerMile, managerConfig.pooledCostPerMinute, managerConfig.pooledBaseCost)
       case _ => throw new IllegalArgumentException(s"It's not a RideHail mode: $mode")
     }
