@@ -207,7 +207,7 @@ class PersonAgentSpec
       // This is the ridehail to transit request.
       // We don't provide an option.
       val request1 = expectMsgType[RoutingRequest]
-      assert(request1.streetVehiclesUseIntermodalUse == AccessAndEgress)
+      assert(request1.streetVehiclesUseIntermodalUse == AccessAndOrEgress)
       lastSender ! RoutingResponse(
         itineraries = Vector(),
         requestId = request1.requestId,
