@@ -71,7 +71,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
 
       assert(response.itineraries.exists(_.tripClassifier == WALK))
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
-      val transitOption = response.itineraries.find(_.tripClassifier == WALK_TRANSIT).get
+      val transitOption = response.itineraries.filter(_.tripClassifier == WALK_TRANSIT).minBy(_.totalTravelTimeInSecs)
       assertMakesSense(transitOption.toBeamTrip)
       assert(transitOption.totalTravelTimeInSecs == 1116)
       assert(transitOption.legs(1).beamLeg.mode == TRAM)
@@ -112,7 +112,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       )
       val response = expectMsgType[RoutingResponse]
 
-      val transitOption = response.itineraries.find(_.tripClassifier == DRIVE_TRANSIT).get
+      val transitOption = response.itineraries.filter(_.tripClassifier == DRIVE_TRANSIT).minBy(_.totalTravelTimeInSecs)
       assertMakesSense(transitOption.toBeamTrip)
       assert(transitOption.totalTravelTimeInSecs > 1000) // I have to get my car
       assert(!response.itineraries.exists(_.tripClassifier == WALK)) // I have to get my car
@@ -151,7 +151,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       )
       val response = expectMsgType[RoutingResponse]
 
-      val transitOption = response.itineraries.find(_.tripClassifier == DRIVE_TRANSIT).get
+      val transitOption = response.itineraries.filter(_.tripClassifier == DRIVE_TRANSIT).minBy(_.totalTravelTimeInSecs)
       assertMakesSense(transitOption.toBeamTrip)
       assert(
         transitOption.legs.filter(_.beamLeg.mode.isTransit).map(_.beamLeg.duration).sum > transitOption.legs
