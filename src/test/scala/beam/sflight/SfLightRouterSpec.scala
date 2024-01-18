@@ -189,7 +189,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             needsToCalculateCost = false
           )
         ),
-        streetVehiclesUseIntermodalUse = AccessAndEgress,
+        streetVehiclesUseIntermodalUse = AccessAndOrEgress,
         triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
@@ -224,7 +224,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             needsToCalculateCost = false
           )
         ),
-        streetVehiclesUseIntermodalUse = AccessAndEgress,
+        streetVehiclesUseIntermodalUse = AccessAndOrEgress,
         triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
@@ -267,7 +267,7 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
             needsToCalculateCost = false
           )
         ),
-        streetVehiclesUseIntermodalUse = AccessAndEgress,
+        streetVehiclesUseIntermodalUse = AccessAndOrEgress,
         triggerId = 0
       )
       val response = expectMsgType[RoutingResponse]
