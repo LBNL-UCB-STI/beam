@@ -31,6 +31,15 @@ object RideHailVehicleId {
   def isRideHail(vehicleId: Id[BeamVehicle]): Boolean = {
     vehicleId.toString.startsWith(VEHICLE_ID_PREFIX)
   }
+
+  def getFleetName(vehicleId: Id[BeamVehicle]): String = {
+    vehicleId.toString.stripPrefix(VEHICLE_ID_PREFIX).split(FLEET_SEPARATOR) match {
+      case Array(_, fleetId) =>
+        fleetId
+      case _ =>
+        throw new Exception(f"Invalid idW $vehicleId")
+    }
+  }
 }
 
 /**
