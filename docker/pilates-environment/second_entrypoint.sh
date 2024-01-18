@@ -12,10 +12,16 @@ print_help() {
   echo ""
 }
 
+run_ssh(){
+  micromamba shell init --shell bash --root-prefix=/opt/conda
+  sudo service docker start
+  /usr/sbin/sshd -D
+}
+
 case "$command" in
 "sh" | "bash" | "/bin/bash" | "/bash") /bin/bash "${@:2}" ;;
 "run_pilates") /usr/local/bin/run_docker_and_execute_pilates.sh ;;
-"ssh") /usr/sbin/sshd -D ;;
+"ssh") run_ssh ;;
 "help" | "?") print_help ;;
 *) print_help  ;;
 esac

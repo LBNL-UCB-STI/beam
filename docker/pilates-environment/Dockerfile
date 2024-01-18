@@ -9,7 +9,7 @@ RUN echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/doc
 RUN apt-get update
 RUN apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 # adding sudo and giving mamba user sudo privileges
-RUN apt-get install -y sudo vim tmux wget curl git unzip
+RUN apt-get install -y sudo vim tmux wget curl git unzip openssh-server
 # installing correct version of git lfs
 RUN wget -O git-lfs.deb https://packagecloud.io/github/git-lfs/packages/debian/stretch/git-lfs_2.3.4_amd64.deb/download && \
     dpkg -i git-lfs.deb && \
@@ -19,7 +19,17 @@ RUN adduser $MAMBA_USER sudo
 RUN usermod -aG docker $MAMBA_USER
 #RUN usermod -aG sudo $MAMBA_USER
 RUN echo "$MAMBA_USER ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
-# using mamba user in order to utilyze micromamba python environment
+# Set up SSH, Set password for user
+RUN mkdir /var/run/sshd && \
+    echo "root:beam" | sudo chpasswd && \
+    echo "$MAMBA_USER:beam" | sudo chpasswd && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PermitUserEnvironment no/PermitUserEnvironment yes/' /etc/ssh/sshd_config
+# activating micromamba env with the same name as the one installed later
+# RUN echo "micromamba activate base" >> /root/.bashrc
+# Expose the SSH port
+EXPOSE 22
+# using 'mambauser' in order to utilyze micromamba python environment
 USER $MAMBA_USER
 COPY --chown=$MAMBA_USER:$MAMBA_USER dependency.yaml /tmp/dependency.yaml
 RUN micromamba install -y -n base -f /tmp/dependency.yaml && \
