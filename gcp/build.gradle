@@ -57,6 +57,7 @@ tasks.register('deployToGCE') {
         "jupyter_token" : "${ext.getParameterValue('jupyterToken') ?: UUID.randomUUID().toString()}",
         "shutdown_wait": "${ext.getParameterValue('shutdownWait')}",
         "storage_size": "${ext.getParameterValue('storageSize')}",
+        "jabba_version": "${ext.getParameterValue('jabba_version') ?: ''}",
         "shutdown_behaviour": "${ext.getParameterValue('shutdownBehaviour')}",
         "storage_publish": ${"false".equalsIgnoreCase(ext.getParameterValue('s3Backup')) ? "false" : "true"},
         "config": "${ext.getParameterValue('beamConfigs')}"
