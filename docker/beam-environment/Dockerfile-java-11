@@ -1,15 +1,5 @@
-FROM ubuntu:latest
+FROM openjdk:11
 RUN apt-get update
-# Install OpenJDK-8 & Fix certificate issues
-RUN apt-get install -y openjdk-8-jdk ant ca-certificates-java && update-ca-certificates -f;
-# Setup JAVA_HOME -- useful for docker commandline
-ENV JAVA_HOME="/usr/lib/jvm/java-8-openjdk-amd64/"
-# Making sure java 8 is used
-RUN export JAVA_HOME
-RUN update-alternatives --install /usr/bin/java java /usr/lib/jvm/java-8-openjdk-amd64/bin/java 3
-RUN update-alternatives --install /usr/bin/javac javac /usr/lib/jvm/java-8-openjdk-amd64/bin/javac 3
-RUN update-alternatives --set java /usr/lib/jvm/java-8-openjdk-amd64/bin/java
-RUN update-alternatives --set javac /usr/lib/jvm/java-8-openjdk-amd64/bin/javac
 # ssh server and other essentials
 RUN apt-get install -y wget curl git unzip build-essential openssh-server python3 python3-pip
 # installing correct version of git lfs
@@ -27,7 +17,6 @@ RUN pip install pandas plotly kaleido psutil docker
 # working in /app
 WORKDIR /app
 # configure ssh server
-RUN echo "JAVA_HOME=$JAVA_HOME" >> /etc/environment
 RUN mkdir /var/run/sshd && \
     echo 'root:beam' | chpasswd && \
     sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \

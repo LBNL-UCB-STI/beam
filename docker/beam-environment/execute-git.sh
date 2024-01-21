@@ -1,5 +1,8 @@
 #!/bin/bash
 
+## ~15 MB
+git config --global http.postBuffer 15728640
+git config --global --add safe.directory /app/git
 
 ##
 ## working only if git volume was mounted

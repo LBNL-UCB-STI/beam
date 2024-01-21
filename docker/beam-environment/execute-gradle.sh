@@ -65,12 +65,13 @@ arguments_with_fixed_path_to_config=$(python3 /app/replace_config_path_in_args.p
 arguments_fixed_completely=$(python3 /app/fix_quotes_for_app_args.py "$arguments_with_fixed_path_to_config")
 
 ##
-## executing gradle command
-## There should be no quotes around arguments, the arguments have to be split.
-## Using eval to correctly split arguments for command.
+## Executing gradle command, 'gradlew' should be executable.
+## There should be no additional quotes around arguments, the arguments have to be split.
+## Using eval to correctly provide arguments to command.
 ##
+chmod +x gradlew
 gradle_command="./gradlew --no-daemon --gradle-user-home=\"$gradle_cache_path\" $arguments_fixed_completely"
-echo "Executing gradle command:"
+echo "Executing gradle command as $(whoami) from $(pwd):"
 echo "$gradle_command"
 echo ""
 eval "$gradle_command"

@@ -4,7 +4,6 @@ echo "Starting entrypoint script, at $(date "+%Y-%m-%d-%H:%M:%S")"
 command=$1
 echo "Recognized command '$command'"
 
-
 print_help() {
   echo ""
   echo "First argument provided will be used as a command, the rest arguments will be used as parameters for the command."
