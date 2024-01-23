@@ -16,6 +16,7 @@ import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, Releasi
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
+import beam.agentsim.agents.vehicles.AccessErrorCodes.UnknownInquiryIdError
 import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumed
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
@@ -189,14 +190,15 @@ object PersonAgent {
   case class BasePersonData(
     currentActivityIndex: Int = 0,
     currentTrip: Option[EmbodiedBeamTrip] = None,
-    restOfCurrentTrip: List[EmbodiedBeamLeg] = List(),
-    currentVehicle: VehicleStack = Vector(),
+    restOfCurrentTrip: List[EmbodiedBeamLeg] = List.empty,
+    currentVehicle: VehicleStack = Vector.empty,
     currentTourMode: Option[BeamMode] = None,
     currentTourPersonalVehicle: Option[Id[BeamVehicle]] = None,
     passengerSchedule: PassengerSchedule = PassengerSchedule(),
     currentLegPassengerScheduleIndex: Int = 0,
     hasDeparted: Boolean = false,
     currentTripCosts: Double = 0.0,
+    rideHailReservedForLegs: IndexedSeq[EmbodiedBeamLeg] = IndexedSeq.empty,
     numberOfReplanningAttempts: Int = 0,
     failedTrips: IndexedSeq[EmbodiedBeamTrip] = IndexedSeq.empty,
     lastUsedParkingStall: Option[ParkingStall] = None,
@@ -205,6 +207,14 @@ object PersonAgent {
 
     def hasNextLeg: Boolean = restOfCurrentTrip.nonEmpty
     def nextLeg: EmbodiedBeamLeg = restOfCurrentTrip.head
+
+    def shouldReserveRideHail(): Boolean = {
+      // if we are about to walk then ride-hail
+      // OR we are at a ride-hail leg but we didn't reserve a RH yet
+      hasNextLeg && nextLeg.asDriver && nextLeg.beamLeg.mode == WALK &&
+      restOfCurrentTrip.tail.headOption.exists(_.isRideHail) ||
+      restOfCurrentTrip.headOption.exists(_.isRideHail) && !rideHailReservedForLegs.contains(restOfCurrentTrip.head)
+    }
 
     def currentTourModeIsIn(modes: BeamMode*): Boolean = currentTourMode.exists(modes.contains)
 
@@ -817,35 +827,36 @@ class PersonAgent(
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId, Vector())
       stay() using data
+    // RIDE HAIL DELAY SUCCESS (buffered mode of RHM)
+    // we get RH response with tick and trigger so that we can start our WALKing leg at the right time
+    case Event(
+          TriggerWithId(RideHailResponseTrigger(tick, response: RideHailResponse), triggerId),
+          data: BasePersonData
+        ) if response.isSuccessful(id) =>
+      //we need to save current tick in order to schedule the next trigger (StartLegTrigger)
+      holdTickAndTriggerId(tick, triggerId)
+      handleSuccessfulRideHailReservation(tick, response, data)
     // RIDE HAIL DELAY FAILURE
     // we use trigger for this to get triggerId back into hands of the person
     case Event(
           TriggerWithId(RideHailResponseTrigger(tick, response: RideHailResponse), triggerId),
           data: BasePersonData
-        ) if response.isFailed =>
+        ) =>
       holdTickAndTriggerId(tick, triggerId)
-      handleFailedRideHailReservation(response.error.get, response, data)
-    // RIDE HAIL SUCCESS (buffered mode of RHM)
-    // we get RH response with tick and trigger so that we can start our WALKing leg at the right time
-    case Event(
-          TriggerWithId(RideHailResponseTrigger(tick, response: RideHailResponse), triggerId),
-          data: BasePersonData
-        ) if response.isSuccessful =>
-      //we need to save current tick in order to schedule the next trigger (StartLegTrigger)
-      holdTickAndTriggerId(tick, triggerId)
-      handleSuccessfulRideHailReservation(tick, response, data)
+      handleFailedRideHailReservation(response.error.getOrElse(UnknownInquiryIdError), response, data)
     // RIDE HAIL SUCCESS (single request mode of RHM)
-    case Event(response: RideHailResponse, data: BasePersonData) if response.isSuccessful =>
+    case Event(response: RideHailResponse, data: BasePersonData) if response.isSuccessful(id) =>
       handleSuccessfulRideHailReservation(_currentTick.get, response, data)
     // RIDE HAIL FAILURE (single request mode of RHM)
-    case Event(response: RideHailResponse, data: BasePersonData) if response.isFailed =>
-      handleFailedRideHailReservation(response.error.get, response, data)
+    case Event(response: RideHailResponse, data: BasePersonData) =>
+      handleFailedRideHailReservation(response.error.getOrElse(UnknownInquiryIdError), response, data)
   }
 
   private def handleSuccessfulRideHailReservation(tick: Int, response: RideHailResponse, data: BasePersonData) = {
     val req = response.request
     val travelProposal = response.travelProposal.get
-    val actualRideHailLegs = travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId)
+    val actualRideHailLegs =
+      travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId, response.rideHailManagerName)
     eventsManager.processEvent(
       new RideHailReservationConfirmationEvent(
         tick,
@@ -880,12 +891,16 @@ class PersonAgent(
       )
     )
     response.triggersToSchedule.foreach(scheduler ! _)
-    val walkLeg :: tailLegs = data.restOfCurrentTrip
-    val newWalkLeg = walkLeg.copy(beamLeg = walkLeg.beamLeg.updateStartTime(tick))
+    // when we reserving a ride-hail the rest of our trip may contain an optional WALK leg before the RH leg
+    val (walkLeg, tailLegs) = data.restOfCurrentTrip.span(!_.isRideHail)
+    val newWalkLeg = walkLeg.map(leg => leg.copy(beamLeg = leg.beamLeg.updateStartTime(tick)))
     val otherLegs = tailLegs.dropWhile(_.isRideHail)
     val newTailLegs = EmbodiedBeamLeg.makeLegsConsistent(actualRideHailLegs ++ otherLegs)
-    val newRestOfCurrentTrip = newWalkLeg +: newTailLegs
-    goto(ActuallyProcessingNextLegOrStartActivity) using data.copy(restOfCurrentTrip = newRestOfCurrentTrip.toList)
+    val newRestOfCurrentTrip = newWalkLeg ++: newTailLegs
+    goto(ActuallyProcessingNextLegOrStartActivity) using data.copy(
+      restOfCurrentTrip = newRestOfCurrentTrip.toList,
+      rideHailReservedForLegs = actualRideHailLegs
+    )
   }
 
   when(Waiting) {
@@ -1099,11 +1114,10 @@ class PersonAgent(
     // unset reserved charging stall
     // unset enroute state, and update `data` with new legs
     val stall2DestinationCarLegs = data.enrouteData.stall2DestLegs
-    val walkTemp = data.currentTrip.head.legs.head
-    val walkStart = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(startTime))
+    val walkStart = data.currentTrip.head.legs.head
     val walkRest = data.currentTrip.head.legs.last
     val newCurrentTripLegs: Vector[EmbodiedBeamLeg] =
-      EmbodiedBeamLeg.makeLegsConsistent(walkStart +: (stall2DestinationCarLegs :+ walkRest))
+      EmbodiedBeamLeg.makeLegsConsistent(walkStart +: (stall2DestinationCarLegs :+ walkRest), startTime)
     val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
     (
       newRestOfTrip.head.beamLeg.startTime,
@@ -1116,13 +1130,10 @@ class PersonAgent(
   }
 
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
-    case Event(StateTimeout, data: BasePersonData)
-        if data.hasNextLeg
-          && data.nextLeg.asDriver
-          && data.nextLeg.beamLeg.mode == WALK
-          && data.restOfCurrentTrip.tail.headOption.exists(_.isRideHail) =>
+    case Event(StateTimeout, data: BasePersonData) if data.shouldReserveRideHail() =>
       // Doing RH reservation before we start walking to our pickup location
-      doRideHailReservation(data.nextLeg.beamLeg.startTime, data.nextLeg.beamLeg.endTime, data.restOfCurrentTrip.tail)
+      val ridehailTrip = data.restOfCurrentTrip.dropWhile(!_.isRideHail)
+      doRideHailReservation(data.nextLeg.beamLeg.startTime, data.nextLeg.beamLeg.endTime, ridehailTrip)
       goto(WaitingForRideHailReservationConfirmation)
     case Event(StateTimeout, _) =>
       goto(ActuallyProcessingNextLegOrStartActivity)
@@ -1464,6 +1475,7 @@ class PersonAgent(
                 None
             },
             currentTourMode = if (activity.getType.equals("Home")) None else data.currentTourMode,
+            rideHailReservedForLegs = IndexedSeq.empty,
             hasDeparted = false
           )
         case None =>
@@ -1507,13 +1519,13 @@ class PersonAgent(
       restOfCurrentTrip.takeWhile(_.beamVehicleId == rhVehicleId).last.beamLeg.travelPath.endPoint.loc
 
     rideHailManager ! RideHailRequest(
-      ReserveRide,
+      ReserveRide(rideHailLeg.rideHailManagerName.get),
       PersonIdWithActorRef(id, self),
       beamServices.geo.wgs2Utm(rideHailLeg.beamLeg.travelPath.startPoint.loc),
       departureTime,
       beamServices.geo.wgs2Utm(rideHailLegEndpoint),
-      rideHailLeg.isPooledTrip,
-      wheelchairUser,
+      asPooled = rideHailLeg.isPooledTrip,
+      withWheelchair = wheelchairUser,
       requestTime = currentTick,
       quotedWaitTime = Some(rideHailLeg.beamLeg.startTime - departureTime),
       requester = self,

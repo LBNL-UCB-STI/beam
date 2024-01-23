@@ -26,7 +26,7 @@ case class RideHailRequest(
   requester: ActorRef,
   triggerId: Long
 ) extends HasTriggerId {
-  def shouldReserveRide: Boolean = requestType == ReserveRide
+  def shouldReserveRide: Boolean = requestType.isInstanceOf[ReserveRide]
 
   def addSubRequest(subRequest: RideHailRequest): RideHailRequest =
     this.copy(requestId = this.requestId, groupedWithOtherRequests = this.groupedWithOtherRequests :+ subRequest)
@@ -35,7 +35,8 @@ case class RideHailRequest(
   override def hashCode: Int = requestId
 
   override def toString: String =
-    s"RideHailRequest(id: $requestId, type: $requestType, customer: ${customer.personId}, pickup: $pickUpLocationUTM, time: $departAt, dest: $destinationUTM)"
+    s"RideHailRequest(id: $requestId, type: $requestType, customer: ${customer.personId}, pickup: $pickUpLocationUTM" +
+    s", time: $departAt, dest: $destinationUTM, asPooled: $asPooled)"
 }
 
 object RideHailRequest {

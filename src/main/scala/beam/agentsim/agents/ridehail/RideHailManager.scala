@@ -108,7 +108,10 @@ object RideHailManager {
     def travelDistanceForCustomer(passenger: PersonIdWithActorRef): Double =
       passengerSchedule.legsWithPassenger(passenger).map(_.travelPath.distanceInM).sum
 
-    def toEmbodiedBeamLegsForCustomer(passenger: PersonIdWithActorRef): Vector[EmbodiedBeamLeg] = {
+    def toEmbodiedBeamLegsForCustomer(
+      passenger: PersonIdWithActorRef,
+      rideHailManagerName: String
+    ): Vector[EmbodiedBeamLeg] = {
       val passengerLegs = passengerSchedule.legsWithPassenger(passenger)
       val (toStopLegs: Vector[EmbodiedBeamLeg], fromStopLegs: Vector[EmbodiedBeamLeg]) = walkToFromStop match {
         case Some((toStopTrip, fromStopTrip)) =>
@@ -125,14 +128,16 @@ object RideHailManager {
           asDriver = false,
           estimatedPrice(passenger.personId),
           unbecomeDriverOnCompletion = false,
-          isPooledTrip = passengerSchedule.isPooledTrip
+          isPooledTrip = passengerSchedule.isPooledTrip,
+          rideHailManagerName = Some(rideHailManagerName)
         )
       } ++ fromStopLegs
 
     }
 
     override def toString: String =
-      s"RHA: ${rideHailAgentLocation.vehicleId}, price: $estimatedPrice, passengerSchedule: $passengerSchedule"
+      s"RHA: ${rideHailAgentLocation.vehicleId}, price: $estimatedPrice, poolingInfo: $poolingInfo" +
+      s", modeOptions: ${modeOptions.mkString(",")}, passengerSchedule: $passengerSchedule"
   }
 
   case class MarkVehicleBatteryDepleted(
@@ -216,10 +221,11 @@ object RideHailManager {
     def clear(): Unit = rideHailResponseCache.clear()
 
     def add(rideHailResponse: RideHailResponse): Unit = {
-      rideHailResponseCache.put(
-        rideHailResponse.request.customer.personId,
-        getActualResponses(rideHailResponse.request) :+ rideHailResponse
-      )
+      if (rideHailResponse.error.isEmpty)
+        rideHailResponseCache.put(
+          rideHailResponse.request.customer.personId,
+          getActualResponses(rideHailResponse.request) :+ rideHailResponse
+        )
     }
 
     def getActualResponses(request: RideHailRequest): IndexedSeq[RideHailResponse] = {

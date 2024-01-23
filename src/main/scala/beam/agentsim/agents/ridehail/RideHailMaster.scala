@@ -4,7 +4,6 @@ import akka.actor.{ActorRef, Props, Terminated}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
-import beam.agentsim.agents.ridehail.RideHailManager.ResponseCache
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail.RideHailMaster.RequestWithResponses
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{RideHailServiceUnavailableError, DriverNotFoundError, UnknownInquiryIdError}
@@ -90,7 +89,6 @@ class RideHailMaster(
   for (rhm <- rideHailManagers.values) context.watch(rhm)
 
   private val inquiriesWithResponses: mutable.Map[Int, RequestWithResponses] = mutable.Map.empty
-  private val rideHailResponseCache = new ResponseCache
   val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
   private val bestResponseType: String = beamServices.beamConfig.beam.agentsim.agents.rideHail.bestResponseType
 
@@ -140,7 +138,6 @@ class RideHailMaster(
         }
         val bestResponse: RideHailResponse =
           findBestProposal(requestWithResponses.request.customer.personId, newRequestWithResponses.responses)
-        rideHailResponseCache.add(bestResponse)
         newRequestWithResponses.request.customer.personRef ! bestResponse
       } else {
         inquiriesWithResponses.update(requestId, newRequestWithResponses)
@@ -148,16 +145,10 @@ class RideHailMaster(
 
     case reserveRide: RideHailRequest if reserveRide.shouldReserveRide =>
       //in case of ReserveRide type requester equals customer.personRef
-      rideHailResponseCache.removeOriginalResponseFromCache(reserveRide) match {
-        case Some(originalResponse) =>
-          rideHailManagers(originalResponse.rideHailManagerName) forward reserveRide
-        case None =>
-          logger.error(s"Cannot find originalResponse for $reserveRide")
-          sender() ! RideHailResponse.dummyWithError(UnknownInquiryIdError)
-      }
+      val managerName = reserveRide.requestType.asInstanceOf[ReserveRide].rideHailManagerName
+      rideHailManagers(managerName) forward reserveRide
 
     case Finish =>
-      rideHailResponseCache.clear()
       rideHailManagers.values.foreach(_ ! Finish)
 
     case _: Terminated =>

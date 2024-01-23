@@ -4,6 +4,8 @@ import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.events.resources.ReservationError
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.agentsim.scheduler.{HasTriggerId, Trigger}
+import org.matsim.api.core.v01.Id
+import org.matsim.api.core.v01.population.Person
 
 case object DelayedRideHailResponse
 
@@ -16,11 +18,15 @@ case class RideHailResponse(
   directTripTravelProposal: Option[TravelProposal] = None
 ) extends HasTriggerId {
 
-  def isFailed: Boolean = error.isDefined
-  def isSuccessful: Boolean = !isFailed && travelProposal.isDefined
+  def isSuccessful(customerPersonId: Id[Person]): Boolean = error.isEmpty &&
+    travelProposal.exists(
+      _.passengerSchedule.schedule.values.exists(
+        _.boarders.exists(_.personId == customerPersonId)
+      )
+    )
 
   override def toString: String =
-    s"RideHailResponse(request: $request, error: $error, travelProposal: $travelProposal)"
+    s"RideHailResponse(request: $request, error: $error, travelProposal: $travelProposal, rhm: $rideHailManagerName)"
 
   override def triggerId: Long = request.triggerId
 }
