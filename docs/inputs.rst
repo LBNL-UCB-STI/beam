@@ -407,8 +407,8 @@ One can add multiple different RH fleets into the array **beam.agentsim.agents.r
 * initialization.filePath: this file is loaded when initialization.initType is "FILE"
 * initialization.parking.filePath: parking zones defined for ridehail fleet; it may be empty.
 * stopFilePath: an optional file that contains ride-hail stop coordinates. If this file is set then the ride-hail vehicles
-  cat pick up/drop off passengers only on the given stops. For a small fraction of passengers a wrong sequence of events
-  can be produced (i.e. a person can reach the pickup stop after they enter the ride-hail vehicle).
+  can pick up/drop off passengers only on the given stops. For a small fraction of passengers a wrong ordered sequence
+  of events can be produced (i.e. a person can reach the pickup stop after they enter the ride-hail vehicle).
 * maximumWalkDistanceToStopInM: it defines the maximum walking distance to/from ride-hail stops.
 * defaultCostPerMile: cost per mile for ride hail price calculation for solo riders.
 * defaultCostPerMinute: cost per minute for ride hail price calculation for solo riders.

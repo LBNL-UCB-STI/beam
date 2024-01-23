@@ -34,7 +34,7 @@ set *allModes* parameter to 1.0::
     beam.urbansim.fractionOfModesToClear {
       allModes = 1.0
 
-This means that all the modes defined in the scenario should be cleared.
+This means that all the modes defined in the scenario will be cleared.
 
 You can also change the simulation name by modifying parameter *beam.agentsim.simulationName*. It allows you to clearly
 distinguish the output directories because the output directory name includes the simulation name.
