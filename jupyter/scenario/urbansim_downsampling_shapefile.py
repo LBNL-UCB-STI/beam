@@ -18,11 +18,10 @@ pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
 
 
-# In[ ]:
+# In[3]:
 
 
 # reading input scenario
-
 urbansim_source_dir = "../beam_root/production/sfbay/urbansim"
 
 persons = pd.read_csv(f"{urbansim_source_dir}/persons.csv.gz")
@@ -35,13 +34,16 @@ plans_columns = plans.columns
 print(f"Number of persons: {persons.shape[0]}, number of households: {households.shape[0]}, number of unique persons in plans: {plans['person_id'].nunique()}")
 
 
-# In[ ]:
+# In[43]:
 
 
 # reading the shp file and converting it to activities `x` and `y` CRS
 # also using only selected districts of the shape file
 
-shape_file_path = "../local_files/vta-filtering-plans/MTC-1454-TAZ.zip"
+id_path = "../local_files/sf-light/sfbay-geo-units.csv"
+id_df = pd.read_csv(id_path)
+
+shape_file_path = "../beam_root/production/sfbay/shape/sfbay-tazs-epsg-26910.shp"
 
 # reading the shape file
 shp_df_wrong_crs = gpd.read_file(shape_file_path)
@@ -52,13 +54,13 @@ shp_df_full = shp_df_wrong_crs.to_crs(4326)
 
 # using only selected districts
 selected_districts = set([8, 9, 10, 11, 12, 13, 14])
-shp_df = shp_df_full[shp_df_full['SUPERD'].isin(selected_districts)]
+shp_df = shp_df_full[shp_df_full['objectid'].isin(id_df['objectid'])]
 
 print(f"Selected districts has: {len(shp_df)} rows, full shape file has {len(shp_df_full)} rows.")
 display(shp_df.head(2))
 
 
-# In[ ]:
+# In[5]:
 
 
 # getting CRS of the shp file
@@ -72,7 +74,7 @@ shp_df.crs
 # shp_df.to_file("../local_files/vta-filtering-plans/MTC-1454-TAZ-selected-districts")
 
 
-# In[ ]:
+# In[6]:
 
 
 plans['trip_from'] = plans['trip_id'].shift(-1)
@@ -94,7 +96,7 @@ plans = plans[plans_extra_columns]
 plans.head(5)
 
 
-# In[ ]:
+# In[7]:
 
 
 # getting activities
@@ -108,7 +110,7 @@ if 0 == activities[['person_id','x','y']].isna().sum().sum():
 display(activities.head(2))
 
 
-# In[ ]:
+# In[8]:
 
 
 # getting geo_activities dataframe with specified CRS
@@ -118,22 +120,41 @@ geo_activities = gpd.GeoDataFrame(activities, geometry=points)
 geo_activities.head(2)
 
 
-# In[ ]:
+# In[9]:
 
 
 # getting activities within shape file
 
 # `predicate` must be one of {'covers', 'within', 'contains', 'contains_properly', 'covered_by', 'intersects', 'crosses', 'overlaps', None, 'touches'}
 geo_activities_within_area = geo_activities.sjoin(shp_df, predicate="within")
-
+outside_activities = geo_activities.loc[~geo_activities.index.isin(geo_activities_within_area.index)]
 # calculating how many persons there are in original activities and with activities within shape file
-persons_within_area = set(geo_activities_within_area['person_id'].unique())
+persons_outside_area = set(outside_activities['person_id'].unique())
+
+persons_within_area = set(geo_activities_within_area['person_id'].unique()) - persons_outside_area
 persons_total = activities['person_id'].nunique()
 
 print(f"Activities within selected shape file: {len(geo_activities_within_area)}, total activities: {len(geo_activities)}.")
 print(f"Persons within selected shape file: {len(persons_within_area)}, total persons: {persons_total}")
 
 geo_activities_within_area.head(2)
+
+
+# In[37]:
+
+
+persons_no_plans = persons[~persons['person_id'].isin(plans['person_id'])]
+print(f"Persons no plans: {len(persons_no_plans)}")
+households_no_plans = persons[persons['person_id'].isin(persons_no_plans['person_id'])]['household_id'].unique()
+print(f"HH no plans: {len(households_no_plans)}")
+households_outside_area = persons[persons['person_id'].isin(persons_outside_area)]['household_id'].unique()
+households_within_area = households.loc[~households['household_id'].isin(households_outside_area)]
+print(f"HH outside area: {len(households_outside_area)}, HH within area: {len(households_within_area)}, total HH: {len(households)}")
+households_with_plans = households_within_area.loc[~households_within_area['household_id'].isin(households_no_plans)]
+print(f"HH within area with plans {len(households_with_plans)}")
+selected_households = households_with_plans.sample(n = 5000)
+selected_persons = persons[persons['household_id'].isin(selected_households['household_id'])]['person_id']
+print(f"Selected persons: {len(selected_persons)}")
 
 
 # In[ ]:
@@ -154,15 +175,15 @@ geo_activities_within_area.head(2)
 # geo_activities_within_area.to_file(filename="../local_files/vta-filtering-plans/activities_only_within_area_shape", driver='ESRI Shapefile')
 
 
-# In[ ]:
+# In[38]:
 
 
 # sanity check
 
 _, ax = plt.subplots(1, 1, figsize=(10,5))
 
-plans['trip_mode'].hist(ax=ax, bins=36, alpha=0.5, label="original plans", orientation='horizontal')
-plans[plans['person_id'].isin(persons_within_area)]['trip_mode'].hist(ax=ax, bins=36, alpha=0.5, label="within area plans", orientation='horizontal')
+# plans['trip_mode'].hist(ax=ax, bins=36, alpha=0.5, label="original plans", orientation='horizontal')
+plans[plans['person_id'].isin(selected_persons)]['trip_mode'].hist(ax=ax, bins=36, alpha=0.5, label="within area plans", orientation='horizontal')
 
 # ax.tick_params(axis='x', labelrotation=75)
 ax.legend()
@@ -170,20 +191,20 @@ ax.legend()
 
 # # approach #1 - downsampling
 
-# In[ ]:
+# In[39]:
 
 
 # downsampling scenario based on selected persons
 # usually we take persons ids, then households, then take all persons within households, but this time I took only selected persons 
 
-selected_persons_df = persons[persons['person_id'].isin(persons_within_area)]
+selected_persons_df = persons[persons['person_id'].isin(selected_persons)]
 print(f"there are {len(selected_persons_df)} selected persons (out of {len(persons)})")
 
 selected_households_ids = set(selected_persons_df['household_id'].unique())
 selected_households_df = households[households['household_id'].isin(selected_households_ids)]
 print(f"there are {len(selected_households_df)} selected households (out of {len(households)})")
 
-selected_plans_df = plans[plans['person_id'].isin(persons_ids_within_shape)]
+selected_plans_df = plans[plans['person_id'].isin(selected_persons)]
 print(f"there are {len(selected_plans_df)} selected plans (out of {len(plans)})")
 
 selected_block_ids = set(selected_households_df['block_id'])
@@ -191,7 +212,7 @@ selected_blocks_df = blocks[blocks['block_id'].isin(selected_block_ids)]
 print(f"there are {len(selected_blocks_df)} selected blocks (out of {len(blocks)})")
 
 
-# In[ ]:
+# In[40]:
 
 
 # sanity check
@@ -199,12 +220,12 @@ print(f"there are {len(selected_blocks_df)} selected blocks (out of {len(blocks)
 selected_persons_df['age'].hist(bins=50, figsize=(15,3))
 
 
-# In[ ]:
+# In[42]:
 
 
 # saving downsampled scenario to output dir
 
-out_dir = 'sampled_scenario'
+out_dir = '../beam_root/test/input/sf-light/urbansim/hh5k'
 
 Path(out_dir).mkdir(parents=True, exist_ok=True)
 
@@ -212,12 +233,6 @@ selected_persons_df.to_csv(f'{out_dir}/persons.csv.gz', index=False, compression
 selected_households_df.to_csv(f'{out_dir}/households.csv.gz', index=False, compression='gzip')
 selected_plans_df.to_csv(f'{out_dir}/plans.csv.gz', index=False, compression='gzip')
 selected_blocks_df.to_csv(f'{out_dir}/blocks.csv.gz', index=False, compression='gzip')
-
-
-# In[ ]:
-
-
-
 
 
 # # approach #2 - clearing modes for selected persons
@@ -271,12 +286,6 @@ selected_persons_df.to_csv(f'{out_dir}/persons.csv.gz', index=False, compression
 selected_blocks_df.to_csv(f'{out_dir}/blocks.csv.gz', index=False, compression='gzip')
 
 plans_cleared.to_csv(f'{out_dir}/plans.csv.gz', index=False, compression='gzip')
-
-
-# In[ ]:
-
-
-
 
 
 # # approach #3 remove plans\people with only specific modes and with all OD outside the study area
