@@ -436,29 +436,25 @@ class BeamAgentScheduler(
       })
   }
 
+  def queueContainsTriggerForTick(tick: Int): Boolean = {
+    !triggerQueue.isEmpty && triggerQueue
+      .peek()
+      .triggerWithId
+      .trigger
+      .tick <= tick
+  }
+
   @tailrec
   private def doSimStep(newNow: Int): Unit = {
-    if (
-      newNow <= stopTick || !triggerQueue.isEmpty && triggerQueue
-        .peek()
-        .triggerWithId
-        .trigger
-        .tick <= stopTick
-    ) {
-      updateNow(newNow)
+    updateNow(newNow)
+    if (newNow <= stopTick || queueContainsTriggerForTick(stopTick)) {
       if (
         awaitingResponse.isEmpty || nowInSeconds - awaitingResponse
           .keySet()
           .first() + 1 < maxWindow
       ) {
-        while (
-          !triggerQueue.isEmpty && triggerQueue
-            .peek()
-            .triggerWithId
-            .trigger
-            .tick <= nowInSeconds
-        ) {
-          val scheduledTrigger = this.triggerQueue.poll()
+        while (queueContainsTriggerForTick(nowInSeconds)) {
+          val scheduledTrigger = triggerQueue.poll()
           val triggerWithId = scheduledTrigger.triggerWithId
           awaitingResponse.put(triggerWithId.trigger.tick, scheduledTrigger)
           stuckFinder.add(System.currentTimeMillis(), scheduledTrigger, true)
@@ -488,7 +484,6 @@ class BeamAgentScheduler(
       }
 
     } else {
-      updateNow(newNow)
       if (awaitingResponse.isEmpty) {
         val duration = Deadline.now - startedAt
         stuckAgentChecker.foreach(_.cancel)

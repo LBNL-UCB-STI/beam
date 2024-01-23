@@ -438,14 +438,14 @@ class RideHailModifyPassengerScheduleManager(
 
   def printState(): Unit = {
     if (log.isDebugEnabled) {
-//      log.debug("printState START")
-//      vehicleIdToModifyPassengerScheduleStatus.foreach { x =>
-//        log.debug("vehicleIdModify: {} -> {}", x._1, x._2)
-//      }
-//      interruptIdToModifyPassengerScheduleStatus.foreach { x =>
-//        log.debug("interruptId: {} -> {}", x._1, x._2)
-//      }
-//      log.debug("printState END")
+      log.debug("printState START")
+      vehicleIdToModifyPassengerScheduleStatus.foreach { x =>
+        log.debug("vehicleIdModify: {} -> {}", x._1, x._2)
+      }
+      interruptIdToModifyPassengerScheduleStatus.foreach { x =>
+        log.debug("interruptId: {} -> {}", x._1, x._2)
+      }
+      log.debug("printState END")
     }
   }
 

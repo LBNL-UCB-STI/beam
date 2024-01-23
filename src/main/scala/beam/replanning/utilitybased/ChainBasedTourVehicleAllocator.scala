@@ -8,8 +8,8 @@ import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population._
 import org.matsim.core.population.routes.LinkNetworkRouteFactory
-import org.matsim.core.router.TripStructureUtils._
 import org.matsim.core.router.CompositeStageActivityTypes
+import org.matsim.core.router.TripStructureUtils._
 import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
 import org.matsim.vehicles.{Vehicle, Vehicles}
@@ -73,17 +73,11 @@ case class ChainBasedTourVehicleAllocator(
     val vehicularTours: Option[SubtourRecord] =
       getVehicularToursSortedByStartTime(householdPlans).find(rec => rec.subtour == subtour)
 
-    vehicularTours foreach { vt =>
-      if (allocateVehicles(vt)) {
-        //TODO: turn back on when using intra-household choice
-//        processAllocation(vt, plan)
-      }
-    }
+    vehicularTours.foreach(allocateVehicles)
   }
 
   private def allocateVehicles(currentSubtour: SubtourRecord): Boolean = {
     if (currentSubtour.possibleVehicles.nonEmpty) {
-      @SuppressWarnings(Array("UnsafeTraversableMethods"))
       val firstAvailableVehicle =
         currentSubtour.possibleVehicles.min((vr1: VehicleRecord, vr2: VehicleRecord) => {
           val timeComp = java.lang.Double.compare(vr1.availableFrom, vr2.availableFrom)
