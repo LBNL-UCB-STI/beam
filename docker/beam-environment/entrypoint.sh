@@ -19,11 +19,12 @@ print_unexpected() {
 
 
 case "$command" in
-"gradle") /app/execute-gradle.sh "${@:2}" ;;
-"git") /app/execute-git.sh "${@:2}" ;;
-"sh" | "bash" | "/bin/bash" | "/bash") /bin/bash "${@:2}" ;;
 "ssh") /usr/sbin/sshd -D ;;
+"git") /app/execute-git.sh "${@:2}" ;;
+"gradle") /app/execute-gradle.sh "${@:2}" ;;
 "slack") /app/execute-message-slack.sh "${@:2}" ;;
+"sh" | "bash" | "/bin/bash" | "/bash") /bin/bash "${@:2}" ;;
+"execute-beam-automatically") /app/execute-beam-automatically.sh ;;
 "help" | "?") print_help ;;
 *) print_unexpected  ;;
 esac

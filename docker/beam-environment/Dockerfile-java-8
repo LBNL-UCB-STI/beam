@@ -30,6 +30,7 @@ RUN touch /app/git/.this_volume_was_not_mounted.txt
 RUN touch /app/gradle_cache/.this_volume_was_not_mounted.txt
 # add files
 ADD replace_config_path_in_args.py \
+    execute-beam-automatically.sh \
     fix_quotes_for_app_args.py \
     write_cpu_ram_usage.sh \
     execute-gradle.sh \

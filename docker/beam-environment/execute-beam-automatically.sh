@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Starting entrypoint script, at $(date "+%Y-%m-%d-%H:%M:%S")"
+echo "Starting full automatic script, at $(date "+%Y-%m-%d-%H:%M:%S")"
 
 function print_error(){
   echo ""
