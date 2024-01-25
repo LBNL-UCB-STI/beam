@@ -240,6 +240,63 @@ Similarly for experiment batch, you can specify comma-separated experiment files
 
 For demo and presentation material, please follow the link_ on google drive.
 
+BEAM run on Lawrencium cluster
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+In order to run BEAM on Lawrencium cluster one needs to get a user and password and configure OTP (one time password) generator for accessing the cluster.
+Each time one runs a command on a cluster a user name, user password and one time password should be specified ::
+
+    ./gradlew <any lawrencium command> -PlawrenciumUser=<user> -PlawrenciumPassword=<password> -Potp=<one time password>
+
+You need to define the deploy properties that are similar to the ones for AWS deploy.
+Lawrencium-specific properties, such as lawrenciumPartition and lawrenciumQoS are a combination from 'sacctmgr show association -p user=$USER' command,
+lawrenciumMemoryLimit should have a value a bit less than the amount of memory that node from selected partition usually has.
+To deploy a beam simulation to the lawrencium cluster one needs to use 'deployToLawrencium' command with following parameters specified
+either directly or as parameters in gradle.deploy.properties file ::
+
+     ./gradlew deployToLawrencium -PlawrenciumUser=<user> -PlawrenciumPassword=<password> -Potp=<one time password>
+
+Here are parameters that are required or optional for deploing to lawrencium cluster:
+
+* **runName**: to specify instance name.
+* **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
+* **beamCommit**: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
+* **dataBranch**: To specify the data branch (branch on production data repository) for simulation, 'develop' branch will be used as default data branch.
+* **dataCommit**: The commit SHA for the the data branch, default is `HEAD`
+* **beamConfigs**: A comma `,` separated list of `beam.conf` files. It should be relative path under the project home. You can create branch level defaults by specifying the branch name with `.configs` suffix like `master.configs`. Branch level default will be used if `beamConfigs` is not present.
+* **s3Backup**: to specify if copying results to s3 bucket is needed, default is `true`.
+* **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
+
+* **sentNotification**: The boolean flag that turn on / off sending notifications about simulation start / stop to slack and google spreadsheet.
+* **slackHookWithToken**: The URL for slack hook with token in it for sending slack notifications.
+* **simulationsSpreadsheetUrl**: The URL for sending json in order to update simulations spreadsheet.
+
+* **lawrenciumPartition**: A name of a partition on which deploy should be done. By-default 'es1' as best choice.
+* **lawrenciumMemoryLimit**: A memory limit for a node to pick from the selected partition. By-default '480' as best choice.
+* **lawrenciumQoS**: A name of QoS for the selected partition. Currently for 'es1' - 'es_normal'.
+
+* **lawrenciumAccount** OPTIONAL: The account that will be used in order to start a job on the cluster, filled-in by-default.
+* **expectedDuration** OPTIONAL: The expected duration of simulation, the current maximum and a default value is 3 days ('3-00:00:00').
+* **forcedMaxRAM** OPTIONAL: By-default it is equal to lawrenciumMemoryLimit, one needs to change it if for some reasons this amount of memory is not correct for running BEAM.
+
+* **dockerImageNameSpace**, **dockerImageName**, **dockerImageTag**  OPTIONAL: beam-environment docker parameters, by-default are: 'beammodel', 'beam-environment' and 'latest' respectively.
+
+
+The task is going to be added to the queue. It may take 1-24 hours (or even more) for the task to get started - it depends on the Lawrencium cluster workload.
+The BEAM output directory is resides at '/global/scratch/users/$USER/out_beam_$DATETIME.$RANDOM_PART.$PARTITION.$QOS.$MEMORY_LIMIT'.
+Also the output is uploaded to s3 if `s3Backup` is set to true.
+
+
+There is a command to view the queue and history of jobs for a specific user ::
+
+    ./gradlew lawrenciumQueue -PlawrenciumUser=<user> -PlawrenciumPassword=<password> -Potp=<one time password>
+
+Here are parameters of the command:
+
+* **fromDate** OPTIONAL: A date since which the queue and jobs history should be displayed. By-default one day before now.
+* **forDays** OPTIONAL: An alternative way to specify a fromDate. Calculated as current day minus forDays. By-default 1.
+* **queueUser** OPTIONAL: A user to retrieve queue and jobs history for, by-default has the same value as lawrenciumUser.
+
 BEAM run on NERSC
 ~~~~~~~~~~~~~~~~~
 
