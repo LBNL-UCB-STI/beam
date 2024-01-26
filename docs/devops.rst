@@ -577,6 +577,7 @@ This process is designed to get latest LFS files from different branches. To add
 
 AWS Budget Control
 ^^^^^^^^^^^^^^^^^^
+.. _aws-budget-management:
 
 Documentation of AWS budget management
 ============================================

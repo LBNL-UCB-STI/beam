@@ -52,6 +52,8 @@ Parameters
 +----------------+------------------------------------------------------------------+
 | *person-id*    | the person id which the message sequence should be generated for |
 +----------------+------------------------------------------------------------------+
+| *trigger-id*   | the trigger id which the message sequence should be generated for|
++----------------+------------------------------------------------------------------+
 
 .. note:: For Sequence diagram it's always better to provide either a single limited size file as an *input* or a *person-id* for limiting the number of interactions in order to avoid creating a huge file.
 
