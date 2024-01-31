@@ -8,6 +8,13 @@ echo "CPU and RAM usage logging started, the output: 'cpu_ram_usage.csv'"
 /app/write_cpu_ram_usage.sh > "$cpu_ram_log" &
 
 
+if [ -n "$START_SSH_WITH_GRADLE_COMMAND" ]; then
+  echo "Starting open-ssh because START_SSH_WITH_GRADLE_COMMAND is set to '$START_SSH_WITH_GRADLE_COMMAND'"
+  /usr/sbin/sshd -D &
+  echo "Open ssh started"
+fi
+
+
 ##
 ## production configs usually require common folder being at location ../common
 ## one way of doing it - to copy common content from <code>/production/common to /app/common
