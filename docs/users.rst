@@ -1,4 +1,6 @@
 
+.. _users-guide:
+
 User's Guide
 ============
 
@@ -26,7 +28,7 @@ System Requirements
     ubuntu@ip-172-31-14-187:~/git/beam$ javac -version
     javac 11.0.21
 
-* We also recommend downloading the VIA vizualization app and obtaining a free or paid license: https://simunto.com/via/
+* We also recommend downloading the VIA visualization app and obtaining a free or paid license: https://simunto.com/via/
 * Git and Git-LFS
 
 Prerequisites :
