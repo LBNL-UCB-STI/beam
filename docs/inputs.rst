@@ -10,9 +10,7 @@ The BEAM configuration file controls where BEAM will source input data and the v
 
 https://github.com/LBNL-UCB-STI/beam/blob/master/test/input/beamville/beam.conf
 
-As of Fall 2018, BEAM is still under rapid development. So the configuration file will continue to evolve. Particularly, it should be expected that new parameters will be created to contol new model features and old configuration options may be modified, simplied, or eliminated.
-
-Furthermore, the BEAM configuration file contains a hybrid between parameters from MATSim (see namespace `matsim` in the config file). Not all of the matsim parameters are used by BEAM. Only the specific MATSim parameters described in this document are relevant. Modifying the other parameters will have no impact. In future releases of BEAM, the irrelevant parameters will be removed.
+The BEAM configuration file contains a hybrid between parameters from MATSim (see namespace `matsim` in the config file). Not all of the matsim parameters are used by BEAM. Only the specific MATSim parameters described in this document are relevant. Modifying the other parameters will have no impact. In future releases of BEAM, the irrelevant parameters will be removed.
 
 In order to see example configuration options for a particular release of BEAM replace `master` in the above URL with the version number, e.g. for Version v0.6.2 go to this link:
 
@@ -31,25 +29,130 @@ BEAM follows the `MATSim convention`_ for most of the inputs required to run a s
 
 Config Options
 
-The following is a list of the most commonly used configuration options in approximate order of apearance in the beamville example config file (order need not be preserved so it is ok to rearrange options). A complete listing will be added to this documentation soon
+The following is a list of the most commonly used configuration options in approximate order of appearance in the beamville example config file (order need not be preserved so it is ok to rearrange options). A complete listing will be added to this documentation soon.
 
 General parameters
 ^^^^^^^^^^^^^^^^^^
 ::
 
    beam.agentsim.simulationName = "beamville"
-   beam.agentsim.numAgents = 100
+   beam.agentsim.agentSampleSizeAsFractionOfPopulation = 1.0
+   beam.agentsim.randomSeedForPopulationSampling = "int?"
+   beam.agentsim.fractionOfPlansWithSingleActivity = 0.0
    beam.agentsim.thresholdForWalkingInMeters = 1000
    beam.agentsim.thresholdForMakingParkingChoiceInMeters = 100
    beam.agentsim.schedulerParallelismWindow = 30
    beam.agentsim.timeBinSize = 3600
-  
+   beam.agentsim.firstIteration = 0
+   beam.agentsim.lastIteration = 0
+   beam.agentsim.endTime = "30:00:00"
+   beam.agentsim.scheduleMonitorTask.initialDelay = 1
+   beam.agentsim.scheduleMonitorTask.interval = 30
+   beam.agentsim.snapLocationAndRemoveInvalidInputs = false
+   beam.outputs.baseOutputDirectory = "output"
+   beam.outputs.addTimestampToOutputDirectory = true
+
 * simulationName: Used as a prefix when creating an output directory to store simulation results.
-* numAgents: This will limit the number of PersonAgents created in the simulation agents will be . Note that the number of agents is also limited by the total number of "person" elements in the population file specified by `matsim.modules.plans.inputPlansFile`. In other words, if there are 100 people in the plans and numAgents is set to 50, then 50 PersonAgents will be created. If numAgents is >=100, then 100 PersonAgents will be created. Sampling to a smaller number of agents is accomplished by sampling full households until the desired number of PersonAgents is reached. This keeps the household structure intact.
+* agentSampleSizeAsFractionOfPopulation: fraction of agents that is kept after loading the scenario.
+* randomSeedForPopulationSampling: if defined then this seed is used to sample the population.
+* fractionOfPlansWithSingleActivity: if greater than zero then this fraction of population is not going to Work activities. This parameter can be used to simulate lockdowns.
 * thresholdForWalkingInMeters: Used to determine whether a PersonAgent needs to route a walking path through the network to get to a parked vehicle. If the vehicle is closer than thresholdForWalkingInMeters in Euclidean distance, then the walking trip is assumed to be instantaneous. Note, for performance reasons, we do not recommend values for this threshold less than 100m.
 * thresholdForMakingParkingChoiceInMeters: Similar to thresholdForWalkingInMeters, this threshold determines the point in a driving leg when the PersonAgent initiates the parking choice processes. So for 1000m, the agent will drive until she is <=1km from the destination and then seek a parking space.
 * schedulerParallelismWindow: This controls the discrete event scheduling window used by BEAM to achieve within-day parallelism. The units of this parameter are in seconds and the larger the window, the better the performance of the simulation, but the less chronologically accurate the results will be.
 * timeBinSize: For most auto-generated output graphs and tables, this parameter will control the resolution of time-varying outputs.
+* firstIteration: Not used.
+* lastIteration: Number of the last iteration (zero based).
+* endTime: String indicating the end of simulation time ("hh:mm:ss").
+* scheduleMonitorTask.initialDelay: Initial delay for schedule monitor task (seconds).
+* scheduleMonitorTask.interval: Interval between schedule monitor task (seconds). This task includes stuck agent detection and logging out the scheduler metric.
+* snapLocationAndRemoveInvalidInputs: If it's true Beam validate the scenario, snap activity locations to the nearest link, remove wrong locations.
+* outputs.baseOutputDirectory: The outputDirectory is the base directory where outputs will be written. The beam.agentsim.simulationName param will be used as the name of a sub-directory beneath the baseOutputDirectory for simulation results.
+* outputs.addTimestampToOutputDirectory: if true a timestamp will be added to the output directory, e.g. "beamville_2017-12-18_16-48-57"
+
+Scenario parameters
+^^^^^^^^^^^^^^^^^^^
+Beam scenario
+~~~~~~~~~~~~~
+::
+
+    beam.agentsim.agents.plans.inputPlansFilePath = ${beam.inputDirectory}"/population.xml.gz"
+    beam.input.simulationPrefix = ${beam.agentsim.simulationName}
+    beam.input.lastBaseOutputDir = ${beam.outputs.baseOutputDirectory}
+    beam.agentsim.agents.plans.inputPersonAttributesFilePath = ${beam.inputDirectory}"/populationAttributes.xml.gz"
+    beam.agentsim.agents.plans.merge.fraction = 0.0
+    beam.agentsim.agents.households.inputFilePath = ${beam.inputDirectory}"/households.xml.gz"
+    beam.agentsim.agents.households.inputHouseholdAttributesFilePath = ${beam.inputDirectory}"/householdAttributes.xml.gz"
+    beam.agentsim.agents.population.useVehicleSampling = false
+    beam.agentsim.agents.population.industryRemovalProbabilty.enabled = false
+    beam.agentsim.agents.population.industryRemovalProbabilty.inputFilePath = ""
+    beam.agentsim.agents.population.industryRemovalProbabilty.removalStrategy = "RemovePersonFromScenario"
+
+* input.lastBaseOutputDir - for sequential beam runs (some data will be loaded from the latest found run in this directory)
+* input.simulationPrefix - this prefix is used to find the last run output directory within beam.input.lastBaseOutputDir directory.
+* plans.inputPlansFilePath - person plans file.
+* plans.inputPersonAttributesFilePath - person attributes file.
+* merge.fraction - fraction of input plans (taken from the beam.input.lastBaseOutputDir) to be merged into the latest output plans.
+* households.inputFilePath - file containing household data.
+* households.inputHouseholdAttributesFilePath - household attributes file.
+* population.useVehicleSampling - do not read vehicles from `vehiclesFilePath`. Vehicles are going to be created according to the corresponding configuration.
+* population.industryRemovalProbabilty.enabled - enables modifying persons that has work activities in their plans.
+* population.industryRemovalProbabilty.inputFilePath - a csv file with a header "industry,removal_probability" where industry is the person industry,removal_probability is the probability of removal this person or their plans depending on the strategy.
+* population.industryRemovalProbabilty.removalStrategy - the strategy to be used for industry population modification. Options: RemovePersonFromScenario, KeepPersonButRemoveAllActivities.
+
+Urbansim scenario
+~~~~~~~~~~~~~~~~~
+::
+
+    beam.urbansim.fractionOfModesToClear {
+      allModes = 0.0
+      car = 0.0
+      bike = 0.0
+      walk = 0.0
+      walk_transit = 0.0
+      drive_transit = 0.0
+    }
+
+* urbansim.fractionOfModesToClear - clears that fraction of the defined modes in people plans.
+
+Freight parameters
+~~~~~~~~~~~~~~~~~~
+::
+    beam.agentsim.agents.freight {
+      enabled = false
+      plansFilePath = ${beam.inputDirectory}"/freight/payload-plans.csv"
+      toursFilePath = ${beam.inputDirectory}"/freight/freight-tours.csv"
+      carriersFilePath = ${beam.inputDirectory}"/freight/freight-carriers.csv"
+      reader = "Generic"
+      isWgs = false
+      generateFixedActivitiesDurations = false
+      name = "Freight"
+      nonHGVLinkWeightMultiplier = 2.0
+      tourSampleSizeAsFractionOfTotal = 1.0
+      carrierParkingFilePath = ""
+      vehicleTypesFilePath = ""
+      replanning {
+        disableAfterIteration = -1
+        departureTime = 28800
+        strategy = "singleTour"
+      }
+    }
+
+* enabled - enables freight part of the scenario.
+* plansFilePath - file containing payload plans.
+* toursFilePath - file containing freight tours.
+* carriersFilePath - file containing freight carriers data.
+* reader - only "Generic" value is supported.
+* isWgs - defines whether location coordinates are in WGS or UTM system.
+* generateFixedActivitiesDurations - allows to assign a fixed duration to freight services (loading, unloading). In this case if a freight vehicle is late to the service location then it would stay there that assigned fixed duration.
+* name - freight vehicle manager name. It also can be put as `reservedFor` value of parking zones.
+* nonHGVLinkWeightMultiplier - a multiplier for travel cost for truck traveling by non-HGV (heavy goods vehicle) links.
+* tourSampleSizeAsFractionOfTotal - Sampled fraction of total tours. Value should be within [0,1].
+* carrierParkingFilePath - an optional parking file for freight vehicles.
+* vehicleTypesFilePath - an optional freight vehicle types file.
+* replanning.disableAfterIteration - freight replanning is disabled after the iteration of this number.
+* replanning.departureTime - defined in seconds since midnight and used only if strategy is "wholeFleet". The vehicle departure times are distributed in time interval ±1 hour.
+* strategy - possible options: singleTour (when single freight tours are rearranged. A vehicle is assigned on the same services defined in the tour), wholeFleet (when all the fleet vehicles are rearranged. Each vehicle can be assigned to any service)
+
 
 Mode choice parameters
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -59,6 +162,7 @@ Mode choice parameters
    beam.agentsim.agents.modalBehaviors.maximumNumberOfReplanningAttempts = 3
    beam.agentsim.agents.modalBehaviors.defaultValueOfTime = 8.0
    beam.agentsim.agents.modalBehaviors.minimumValueOfTime = 7.25
+   beam.agentsim.agents.modalBehaviors.transitVehicleTypeVOTMultipliers = ["BUS-DEFAULT:1.0","RAIL-DEFAULT:1.0","FERRY-DEFAULT:1.0","SUBWAY-DEFAULT:1.0","CABLE_CAR-DEFAULT:1.0","TRAM-DEFAULT:1.0"]
    beam.agentsim.agents.modalBehaviors.modeVotMultiplier.transit = 1.0
    beam.agentsim.agents.modalBehaviors.modeVotMultiplier.bike = 1.0
    beam.agentsim.agents.modalBehaviors.modeVotMultiplier.walk = 1.0
@@ -74,6 +178,10 @@ Mode choice parameters
    beam.agentsim.agents.modalBehaviors.poolingMultiplier.Level4 = 1.0
    beam.agentsim.agents.modalBehaviors.poolingMultiplier.Level3 = 1.0
    beam.agentsim.agents.modalBehaviors.poolingMultiplier.LevelLE2 = 1.0
+   beam.agentsim.agents.modalBehaviors.bikeMultiplier.commute.ageGT50 = 1.0
+   beam.agentsim.agents.modalBehaviors.bikeMultiplier.noncommute.ageGT50 = 1.0
+   beam.agentsim.agents.modalBehaviors.bikeMultiplier.commute.ageLE50 = 1.0
+   beam.agentsim.agents.modalBehaviors.bikeMultiplier.noncommute.ageLE50 = 1.0
    beam.agentsim.agents.modalBehaviors.highTimeSensitivity.highCongestion.highwayFactor.Level5 = 1.0
    beam.agentsim.agents.modalBehaviors.highTimeSensitivity.highCongestion.nonHighwayFactor.Level5 = 1.0
    beam.agentsim.agents.modalBehaviors.highTimeSensitivity.lowCongestion.highwayFactor.Level5 = 1.0
@@ -107,6 +215,10 @@ Mode choice parameters
    beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.lowCongestion.highwayFactor.LevelLE2 = 1.0
    beam.agentsim.agents.modalBehaviors.lowTimeSensitivity.lowCongestion.nonHighwayFactor.LevelLE2 = 1.0
    beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transfer = -1.4
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transit_crowding = 0.0
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transit_crowding_percentile = 90
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transit_crowding_VOT_multiplier = 0.0
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transit_crowding_VOT_threshold = 0.5
    beam.agentsim.agents.modalBehaviors.multinomialLogit.params.car_intercept = 0.0
    beam.agentsim.agents.modalBehaviors.multinomialLogit.params.cav_intercept = 0.0
    beam.agentsim.agents.modalBehaviors.multinomialLogit.params.walk_transit_intercept = 0.0
@@ -117,25 +229,30 @@ Mode choice parameters
    beam.agentsim.agents.modalBehaviors.multinomialLogit.params.walk_intercept = 0.0
    beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_intercept = 0.0
    beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_transit_intercept = 0.0
-   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transit_crowding = 0.0
-   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transit_crowding_percentile = 90
+   beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_subscription = 0.0
    beam.agentsim.agents.modalBehaviors.multinomialLogit.utility_scale_factor = 1.0
-   beam.agentsim.agents.modalBehaviors.lccm.paramFile = ${beam.inputDirectory}"/lccm-long.csv"
+   beam.agentsim.agents.modalBehaviors.lccm.filePath = ${beam.inputDirectory}"/lccm-long.csv"
    #Toll params
-   beam.agentsim.toll.file=${beam.inputDirectory}"/toll-prices.csv"
+   beam.agentsim.toll.filePath=${beam.inputDirectory}"/toll-prices.csv"
    
 
 * modeChoiceClass: Selects the choice algorithm to be used by agents to select mode when faced with a choice. Default of ModeChoiceMultinomialLogit is recommended but other algorithms include ModeChoiceMultinomialLogit ModeChoiceTransitIfAvailable ModeChoiceDriveIfAvailable ModeChoiceRideHailIfAvailable ModeChoiceUniformRandom ModeChoiceLCCM.
 * maximumNumberOfReplanningAttempts: Replanning happens if a Person cannot have some resource required to continue trip in the chosen mode. If the number of replanning exceeded this value WALK mode is chosen.
 * defaultValueOfTime: This value of time is used by the ModeChoiceMultinomialLogit choice algorithm unless the value of time is specified in the populationAttributes file.
 * minimumValueOfTime: value of time cannot be lower than this value
+* transitVehicleTypeVOTMultipliers: The types have to be in sync with file pointed in the parameter `beam.agentsim.agents.vehicles.vehicleTypesFilePath`: ["BUS-DEFAULT:1.0","RAIL-DEFAULT:1.0","FERRY-DEFAULT:1.0","SUBWAY-DEFAULT:1.0","CABLE_CAR-DEFAULT:1.0","TRAM-DEFAULT:1.0"]
 * modeVotMultiplier: allow to modify value of time for a particular trip mode
 * modeVotMultiplier.waiting: not used now
 * overrideAutomationLevel: the value to be used to override the vehicle automation level when calculating generalized time of ride-hail legs
 * overrideAutomationForVOTT: enabled overriding of automation level (see overrideAutomationLevel)
 * poolingMultiplier: this multiplier is used when calculating generalized time for pooled ride-hail trip for a particular vehicle automation level
-* highTimeSensitivity.highCongestion.highwayFactor.Level5 when a person go by car (not ride-hail) these params allow to set generalized time multiplier for a particular link for different situations: work trip/other trips, high/low traffic, highway or not, vehicle automation level
+* bikeMultiplier: Value of time multiplier for bike situations: commute or non-commute trip, age of the rider.
+* highTimeSensitivity/lowTimeSensitivity when a person go by car (not ride-hail) these params allow to set generalized time multiplier for a particular link for different situations: work trip/other trips, high/low traffic, highway or not, vehicle automation level
 * params.transfer: Constant utility (where 1 util = 1 dollar) of making transfers during a transit trip.
+* params.transit_crowding: Multiplier utility of avoiding "crowded" transit vehicle. Should be negative.
+* params.transit_crowding_percentile: Which percentile to use to get the occupancyLevel (number of passengers / vehicle capacity). The route may have different occupancy levels during the legs/vehicle stops.
+* params.transit_crowding_VOT_multiplier: This value is used to multiply crowding when calculated value of time in a crowded vehicle .
+* params.transit_crowding_VOT_threshold: How full should be a vehicle to turn on crowding calculation. 0 - empty, 1 - full.
 * params.car_intercept: Constant utility (where 1 util = 1 dollar) of driving.
 * params.cav_intercept: Constant utility (where 1 util = 1 dollar) of using CAV.
 * params.walk_transit_intercept: Constant utility (where 1 util = 1 dollar) of walking to transit.
@@ -146,37 +263,135 @@ Mode choice parameters
 * params.walk_intercept: Constant utility (where 1 util = 1 dollar) of walking.
 * params.bike_intercept: Constant utility (where 1 util = 1 dollar) of biking.
 * params.bike_transit_intercept: Constant utility (where 1 util = 1 dollar) of biking to transit.
-* params.transit_crowding: Multiplier utility of avoiding "crowded" transit vehicle. Should be negative.
-* params.transit_crowding_percentile: Which percentile to use to get the occupancyLevel (number of passengers / vehicle capacity). The route may have different occupancy levels during the legs/vehicle stops.
-* utility_scale_factor: amount by which utilites are scaled before evaluating probabilities. Smaller numbers leads to less determinism
-* lccm.paramFile: if modeChoiceClass is set to `ModeChoiceLCCM` this must point to a valid file with LCCM parameters. Otherwise, this parameter is ignored.
-* toll.file: File path to a file with static road tolls. Note, this input will change in future BEAM release where time-varying tolls will possible.
+* params.ride_hail_subscription: Ride-hail subscription value. It is used when calculated the best trip proposal among multiple ride-hail fleets.
+* utility_scale_factor: amount by which utilities are scaled before evaluating probabilities. Smaller numbers leads to less determinism
+* lccm.filePath: if modeChoiceClass is set to `ModeChoiceLCCM` this must point to a valid file with LCCM parameters. Otherwise, this parameter is ignored.
+* toll.filePath: File path to a file with static road tolls. Note, this input will change in future BEAM release where time-varying tolls will possible.
 
-Vehicles and Population
-^^^^^^^^^^^^^^^^^^^^^^^
+Trip Behavior
+^^^^^^^^^^^^^
+::
+
+    beam.agentsim.agents.tripBehaviors.carUsage.minDistanceToTrainStop = 0.0
+    beam.agentsim.agents.rideHailTransit.modesToConsider = "MASS"
+
+* tripBehaviors.carUsage.minDistanceToTrainStop: Persons cannot entering/leaving cars (including ride-hail) within a circle of this radius around any train stops.
+* rideHailTransit.modesToConsider: Ride-hail transit trips happens only if transit is of one of the modes defined here (comma separated). It aso allows values `ALL` which means all possible transit modes and `MASS` which means any of FERRY, TRANSIT, RAIL, SUBWAY or TRAM.
+
+Choosing Parking
+^^^^^^^^^^^^^^^^
+::
+
+    beam.agentsim.agents.parking.multinomialLogit.params.rangeAnxietyMultiplier = -0.5
+    beam.agentsim.agents.parking.multinomialLogit.params.distanceMultiplier = -0.086
+    beam.agentsim.agents.parking.multinomialLogit.params.parkingPriceMultiplier = -0.005
+    beam.agentsim.agents.parking.multinomialLogit.params.homeActivityPrefersResidentialParkingMultiplier = 1.0
+    beam.agentsim.agents.parking.multinomialLogit.params.enrouteDetourMultiplier = -0.05
+    beam.agentsim.agents.parking.rangeAnxietyBuffer = 20000.0
+    beam.agentsim.agents.parking.minSearchRadius = 250.00
+    beam.agentsim.agents.parking.maxSearchRadius = 8046.72
+    beam.agentsim.agents.parking.searchMaxDistanceRelativeToEllipseFoci = 4.0
+    beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds = 60.0
+    beam.agentsim.agents.parking.estimatedMeanEnRouteChargingDurationInSeconds = 1800.0
+    beam.agentsim.agents.parking.fractionOfSameTypeZones = 0.5
+    beam.agentsim.agents.parking.minNumberOfSameTypeZones = 10
+    beam.agentsim.agents.parking.forceParkingType = false
+    beam.agentsim.agents.vehicles.destination.refuelRequiredThresholdInMeters = 482803 # 300 miles
+    beam.agentsim.agents.vehicles.destination.noRefuelThresholdInMeters = 482803 # 300 miles
+    beam.agentsim.agents.vehicles.destination.home.refuelRequiredThresholdInMeters = 482803 # 300 miles
+    beam.agentsim.agents.vehicles.destination.home.noRefuelThresholdInMeters = 482803 # 300 miles
+    beam.agentsim.agents.vehicles.destination.work.refuelRequiredThresholdInMeters = 482803 # 300 miles
+    beam.agentsim.agents.vehicles.destination.work.noRefuelThresholdInMeters = 482803 # 300 miles
+    beam.agentsim.agents.vehicles.destination.secondary.refuelRequiredThresholdInMeters = 482803 # 300 miles
+    beam.agentsim.agents.vehicles.destination.secondary.noRefuelThresholdInMeters = 482803 # 300 miles
+
+
+* multinomialLogit.params.rangeAnxietyMultiplier - utility multiplier of range anxiety factor.
+* multinomialLogit.params.distanceMultiplier - utility multiplier of walking distance cost.
+* multinomialLogit.params.parkingPriceMultiplier - utility multiplier of parking cost.
+* multinomialLogit.params.homeActivityPrefersResidentialParkingMultiplier - utility multiplier of matching Home activity and Residential parking.
+* multinomialLogit.params.enrouteDetourMultiplier - utility multiplier of traveling to enroute charging location cost.
+* rangeAnxietyBuffer - if our remaining range exceeds our remaining tour plus this many meters, then we feel no anxiety; default 20k.
+* minSearchRadius - radius of a circle around requested parking location that the parking search starts off.
+* maxSearchRadius - max parking search radius.
+* searchMaxDistanceRelativeToEllipseFoci - max distance to both foci of an ellipse (used in en-route parking).
+* estimatedMeanEnRouteChargingDurationInSeconds - mean en-route charging duration in seconds.
+* fractionOfSameTypeZones - fraction of the zones of certain type to be considered among all the same type zones within the current radius.
+* minNumberOfSameTypeZones - min number of the zones of certain type to be considered among all the same type zones within certain radius.
+* forceParkingType - if enabled forces the corresponding parking type for certain activities.
+* vehicles.destination - these params defines if a charging is needed at the destination for electric vehicles. If the range is inside (refuelRequiredThresholdInMeters, noRefuelThresholdInMeters) then charging requirement is determined by probability. `destination.home` is Home activity; `destination.work` is Work activity; `destination.secondary` is Wherever activity; `destination` is any other activity.
+
+Vehicles
+^^^^^^^^
 ::
 
    #BeamVehicles Params
    beam.agentsim.agents.vehicles.fuelTypesFilePath = ${beam.inputDirectory}"/beamFuelTypes.csv"
    beam.agentsim.agents.vehicles.vehicleTypesFilePath = ${beam.inputDirectory}"/vehicleTypes.csv"
    beam.agentsim.agents.vehicles.vehiclesFilePath = ${beam.inputDirectory}"/vehicles.csv"
+   beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet = 1.0
+   beam.agentsim.agents.vehicles.downsamplingMethod = "SECONDARY_VEHICLES_FIRST"
+   beam.agentsim.agents.vehicles.vehicleAdjustmentMethod = "UNIFORM"
+   beam.agentsim.agents.vehicles.fractionOfPeopleWithBicycle = 1.0
+   beam.agentsim.agents.vehicles.linkToGradePercentFilePath = ""
+   beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC = 1.0
+   beam.agentsim.agents.vehicles.linkSocAcrossIterations = false
+   beam.agentsim.agents.vehicles.meanRidehailVehicleStartingSOC = 1.0
+   beam.agentsim.agents.vehicles.transitVehicleTypesByRouteFile = ""
+   beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt = false
+   beam.agentsim.agents.vehicles.replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable = false
+   beam.agentsim.agents.vehicles.enroute.refuelRequiredThresholdOffsetInMeters = 0.0 # 0 miles
+   beam.agentsim.agents.vehicles.enroute.noRefuelThresholdOffsetInMeters = 32186.9 # 20 miles
+   beam.agentsim.agents.vehicles.enroute.noRefuelAtRemainingDistanceThresholdInMeters = 500 # 500 meters
+   beam.agentsim.agents.vehicles.enroute.remainingDistanceWrtBatteryCapacityThreshold = 2 # this represents +/- the number of times an agent will enroute when ranger is x times lower than the remaining distance
 
 * useBikes: simple way to disable biking, set to true if vehicles file does not contain any data on biking.
 * fuelTypesFilePath: configure fuel fuel pricing.
 * vehicleTypesFilePath: configure vehicle properties including seating capacity, length, fuel type, fuel economy, and refueling parameters.
 * vehiclesFilePath: replacement to legacy MATSim vehicles.xml file. This must contain an Id and vehicle type for every vehicle id contained in households.xml.
+* fractionOfInitialVehicleFleet: in urbansim scenario the number of private vehicles is downsampled to this fraction.
+* downsamplingMethod: in urbansim scenario the method to be used to downsample private vehicles. Possible values: SECONDARY_VEHICLES_FIRST, RANDOM.
+* vehicleAdjustmentMethod: determines which vehicle type to use when an emergency vehicle (when no vehicle left) is created for a particular household. Possible values: UNIFORM, INCOME_BASED, SINGLE_TYPE.
+* fractionOfPeopleWithBicycle: fraction of people with a bicycle.
+* linkToGradePercentFilePath: file containing link grades data.
+* meanPrivateVehicleStartingSOC: private electric vehicles state of charge is set around this value.
+* linkSocAcrossIterations: set the initial state of charge of the private vehicles the same as the SoC at the end of the previos iteration.
+* meanRidehailVehicleStartingSOC: ride-hail electric vehicles state of charge is set around this value.
+* transitVehicleTypesByRouteFile: file containing mapping transit agencies/routes to transit vehicle types.
+* generateEmergencyHouseholdVehicleWhenPlansRequireIt: if true then a private vehicle is generated if a person plan requires to use a car.
+* replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable: if true then replanning happens immediately if a car or bike is not available for a persons whose plan requires to use a car or a bike.
+* enroute.refuelRequiredThresholdOffsetInMeters, noRefuelThresholdOffsetInMeters: If the range is inside (refuelRequiredThresholdInMeters, noRefuelThresholdInMeters) then en-route refueling requirement is determined by probability.
+* enroute.noRefuelAtRemainingDistanceThresholdInMeters: If the distance to the destination is less than this threshold then no en-route refueling happens.
+* enroute.remainingDistanceWrtBatteryCapacityThreshold: If the distance relative to the vehicle total range is greater then this threshold no en-route refueling happens.
+
+Population
+^^^^^^^^^^
+::
+
+   beam.agentsim.populationAdjustment = "DEFAULT_ADJUSTMENT"
+   beam.agentsim.agents.bodyType = "BODY-TYPE-DEFAULT"
+
+* populationAdjustment: Population (population plan) changes. Possible values: DEFAULT_ADJUSTMENT (no changes), PERCENTAGE_ADJUSTMENT (assign CAR mode to a half of population), DIFFUSION_POTENTIAL_ADJUSTMENT, EXCLUDE_TRANSIT (remove all transit modes), HALF_TRANSIT (assign transit modes to a half of population) | CAR_RIDE_HAIL_ONLY (Leave only CAR or RIDE_HAIL modes).
+* agents.bodyType: The person's body "vehicle" type (this vehicle type must be in the vehicle types file).
 
 TAZs, Scaling, and Physsim Tuning
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ::
 
    #TAZ params
-   beam.agentsim.taz.file=${beam.inputDirectory}"/taz-centers.csv"
-   beam.agentsim.taz.parking = ${beam.inputDirectory}"/parking/taz-parking-default.csv"
+   beam.agentsim.taz.filePath = ${beam.inputDirectory}"/taz-centers.csv"
+   beam.agentsim.taz.tazIdFieldName = "tazId"
+   beam.agentsim.taz.parkingFilePath = ${beam.inputDirectory}"/parking/taz-parking-default.csv"
+   beam.agentsim.taz.parkingStallCountScalingFactor = 1.0
+   beam.agentsim.taz.parkingCostScalingFactor = 1.0
    # Parking Manager name (DEFAULT | PARALLEL)
-   beam.agentsim.taz.parkingManager.name = "DEFAULT"
+   beam.agentsim.taz.parkingManager.method = "DEFAULT"
    beam.agentsim.taz.parkingManager.parallel.numberOfClusters = 8
+   beam.agentsim.taz.parkingManager.displayPerformanceTimings = false
+   beam.agentsim.h3taz.lowerBoundResolution = 6
+   beam.agentsim.h3taz.upperBoundResolution = 9
    # Scaling and Tuning Params
+   beam.agentsim.tuning.fuelCapacityInJoules = 86400000
    beam.agentsim.tuning.transitCapacity = 0.1
    beam.agentsim.tuning.transitPrice = 1.0
    beam.agentsim.tuning.tollPrice = 1.0
@@ -196,12 +411,124 @@ TAZs, Scaling, and Physsim Tuning
    beam.physsim.bprsim.inFlowAggregationTimeWindowInSeconds = 900
    beam.physsim.parbprsim.numberOfClusters = 8
    beam.physsim.parbprsim.syncInterval = 60
+   beam.physsim.network.overwriteRoadTypeProperties {
+    enabled = false
+    motorway {
+      speed = "double?"
+      capacity = "int?"
+      lanes = "int?"
+      alpha = "double?"
+      beta = "double?"
+    }
+    motorwayLink {
+      speed = "double?"
+      capacity = "int?"
+      lanes = "int?"
+      alpha = "double?"
+      beta = "double?"
+    }
+    primary {
+      speed = "double?"
+      capacity = "int?"
+      lanes = "int?"
+      alpha = "double?"
+      beta = "double?"
+    }
+    primaryLink {
+      speed = "double?"
+      capacity = "int?"
+      lanes = "int?"
+      alpha = "double?"
+      beta = "double?"
+    }
+    trunk {
+      speed = "double?"
+      capacity = "int?"
+      lanes = "int?"
+      alpha = "double?"
+      beta = "double?"
+    }
+    trunkLink {
+      speed = "double?"
+      capacity = "int?"
+      lanes = "int?"
+      alpha = "double?"
+      beta = "double?"
+    }
+    secondary {
+      speed = "double?"
+      capacity = "int?"
+      lanes = "int?"
+      alpha = "double?"
+      beta = "double?"
+    }
+    secondaryLink {
+      speed = "double?"
+      capacity = "int?"
+      lanes = "int?"
+      alpha = "double?"
+      beta = "double?"
+    }
+    tertiary {
+      speed = "double?"
+      capacity = "int?"
+      lanes = "int?"
+      alpha = "double?"
+      beta = "double?"
+    }
+    tertiaryLink {
+      speed = "double?"
+      capacity = "int?"
+      lanes = "int?"
+      alpha = "double?"
+      beta = "double?"
+    }
+    minor {
+      speed = "double?"
+      capacity = "int?"
+      lanes = "int?"
+      alpha = "double?"
+      beta = "double?"
+    }
+    residential {
+      speed = "double?"
+      capacity = "int?"
+      lanes = "int?"
+      alpha = "double?"
+      beta = "double?"
+    }
+    livingStreet {
+      speed = "double?"
+      capacity = "int?"
+      lanes = "int?"
+      alpha = "double?"
+      beta = "double?"
+    }
+    unclassified {
+      speed = "double?"
+      capacity = "int?"
+      lanes = "int?"
+      alpha = "double?"
+      beta = "double?"
+    }
+    default {
+      alpha = "double | 1.0"
+      beta = "double | 2.0"
+    }
+   }
 
-* agentsim.taz.file: path to a file specifying the centroid of each TAZ. For performance BEAM approximates TAZ boundaries based on a nearest-centroid approach. The area of each centroid (in m^2) is also necessary to approximate average travel distances within each TAZ (used in parking choice process).
-* taz.parking: path to a file specifying the parking and charging infrastructure. If any TAZ contained in the taz file is not specified in the parking file, then ulimited free parking is assumed.
-* beam.agentsim.taz.parkingManager.name: the name of the parking manager. PARALLEL parking manager splits the TAZes into a number of clusters. This allows the users to speed up the searching for parking stalls. But as a tradeoff, it has degraded quality. Usually, 8-16 clusters can provide satisfactory quality on big numbers of TAZes.
-* beam.agentsim.taz.parkingManager.parallel.numberOfClusters: the number of clusters for PARALLEL parking manager.
-* tuning.transitCapacity: Scale the number of seats per transit vehicle... actual seats are rounded to nearest whole number. Applies uniformly to all transit vehilces.
+* agentsim.taz.filePath: path to a file specifying the centroid of each TAZ. For performance BEAM approximates TAZ boundaries based on a nearest-centroid approach. The area of each centroid (in m^2) is also necessary to approximate average travel distances within each TAZ (used in parking choice process).
+* agentsim.taz.tazIdFieldName: in case TAZ are read from a shape file this parameter defines the taz id attribute of TAZ shapes.
+* taz.parkingFilePath: path to a file specifying the parking and charging infrastructure. If any TAZ contained in the taz file is not specified in the parking file, then unlimited free parking is assumed.
+* taz.parkingStallCountScalingFactor: number of stalls defined for each parking zone multiplied on this factor.
+* taz.parkingCostScalingFactor: parking cost is multiplied on this factor.
+* agentsim.taz.parkingManager.method: the name of the parking method. PARALLEL parking manager splits the TAZes into a number of clusters. This allows the users to speed up the searching for parking stalls. But as a tradeoff, it has degraded quality. Usually, 8-16 clusters can provide satisfactory quality on big numbers of TAZes.
+* agentsim.taz.parkingManager.parallel.numberOfClusters: the number of clusters for PARALLEL parking manager.
+* agentsim.taz.parkingManager.displayPerformanceTimings: if true then performance information for parking manger is logged out.
+* agentsim.h3taz.lowerBoundResolution: lower bound of H3 resolution.
+* agentsim.h3taz.upperBoundResolution: upper bound of H3 resolution.
+* agentsim.tuning.fuelCapacityInJoules: not used.
+* tuning.transitCapacity: Scale the number of seats per transit vehicle... actual seats are rounded to nearest whole number. Applies uniformly to all transit vehicles.
 * tuning.transitPrice: Scale the price of riding on transit. Applies uniformly to all transit trips.
 * tuning.tollPrice: Scale the price to cross tolls.
 * tuning.rideHailPrice: Scale the price of ride hailing. Applies uniformly to all trips and is independent of defaultCostPerMile and defaultCostPerMinute described above. I.e. price = (costPerMile + costPerMinute)*rideHailPrice
@@ -217,6 +544,7 @@ TAZs, Scaling, and Physsim Tuning
 * physsim.bprsim.inFlowAggregationTimeWindowInSeconds: The length of inFlow aggregation in seconds.
 * physsim.parbprsim.numberOfClusters: the number of clusters for PARBPR physsim.
 * physsim.parbprsim.syncInterval: The sync interval in seconds for PARBPRsim. When the sim time reaches this interval in a particular cluster then it waits for the other clusters at that time point.
+* physsim.overwriteRoadTypeProperties: It allows to override attributes for certain types of links.
 
 
 Routing Configuration
@@ -244,6 +572,16 @@ Routing Configuration
         }
         bikeLaneScaleFactor = 1.0
         bikeLaneLinkIdsFilePath = ""
+        linkRadiusMeters = 10000.0
+        transitAlternativeList = "OPTIMAL"
+        suboptimalMinutes = 0
+        accessBufferTimeSeconds {
+          bike = 60
+          bike_rent = 180
+          walk = 0
+          car = 300
+          ride_hail = 0
+        }
       }
       startingIterationForTravelTimesMSA = 0
       overrideNetworkTravelTimesUsingSkims = false
@@ -255,6 +593,9 @@ Routing Configuration
       skimTravelTimesScalingFactor =  0.0
       writeRoutingStatistic = false
     }
+    beam.agentsim.agents.ptFare.filePath = ""
+    beam.agentsim.agents.rideHail.freeSpeedLinkWeightMultiplier = 2.0
+    beam.agentsim.scenarios.frequencyAdjustmentFile = ""
 
 Parameters within beam.routing namespace
 
@@ -272,11 +613,78 @@ Parameters within beam.routing namespace
 * r5.maxDistanceLimitByModeInMeters: one can limit max distance to be used for a particular mode
 * r5.bikeLaneScaleFactor: this parameter is intended to make the links with bike lanes to be more preferable when the router calculates a route for bikes. The less this scaleFactor the more preferable these links get
 * r5.bikeLaneLinkIdsFilePath: the ids of links that have bike lanes
-* startingIterationForTravelTimesMSA: ???
+* r5.linkRadiusMeters: The radius of a circle in meters within which to search for nearby streets
+* r5.transitAlternativeList: Determines the way R5 chooses to keep alternative routes listed. OPTIMAL - keeps a route only if there is no other route with the same access and egress modes that is both cheaper and faster; SUBOPTIMAL - keeps all possible routes that are a configurable amount of time slower than the fastest observed route.
+* r5.suboptimalMinutes: Used only for transitAlternativeList = "SUBOPTIMAL", configures the amount of time other possible routes can be slower than the fastest one and be kept in the alternative routes list. If the route has the same access mode as the fastest, this parameter determines how many minutes
+a r5.route can be slower to be kept; if the route has a different access mode to the fastest, the actual amount of minutes used to decide if it will be kept is 5 times this parameter.
+* r5.accessBufferTimeSeconds: How long does it take you to park your vehicle at the station
+* startingIterationForTravelTimesMSA: Starting from this iteration link travel times of Metropolitan Statistical Area is used.
 * overrideNetworkTravelTimesUsingSkims: travel time is got from skims
 * minimumPossibleSkimBasedTravelTimeInS: minimum skim based travel time
 * skimTravelTimesScalingFactor: used to scale skim based travel time
 * writeRoutingStatistic: if set to true writes origin-destination pairs that a route wasn't found between
+* agentsim.agents.ptFare.filePath: A file containing public transit fares depending on passenger age.
+* agentsim.agents.agents.rideHail.freeSpeedLinkWeightMultiplier: travel time cost multiplier for vehicles with restricted speed when this restricted speed is lower than the free speed on the link.
+* agentsim.scenarios.frequencyAdjustmentFile: path to a file with transit trip frequency adjustment.
+
+
+Charging Network Manager
+^^^^^^^^^^^^^^^^^^^^^^^^
+::
+
+    beam.agentsim.chargingNetworkManager {
+      timeStepInSeconds = 300
+      overnightChargingEnabled = false
+      chargingPointCountScalingFactor = 1.0
+      chargingPointCostScalingFactor = 1.0
+      chargingPointFilePath = ""
+      scaleUp {
+        enabled = false
+        expansionFactor = 1.0
+        activitiesLocationFilePath = ""
+      }
+      sitePowerManagerController {
+        connect = false
+        expectFeedback = true
+        numberOfFederates = 1
+        brokerAddress = "tcp://127.0.0.1"
+        coreType = "zmq"
+        timeDeltaProperty = 1.0
+        intLogLevel = 1
+        beamFederatePrefix = "BEAM_FED"
+        beamFederatePublication = "CHARGING_VEHICLES"
+        spmFederatePrefix = "SPM_FED"
+        spmFederateSubscription = "CHARGING_COMMANDS"
+        bufferSize = 10000000
+      }
+      powerManagerController {
+        connect = false
+        feedbackEnabled = true
+        brokerAddress = "tcp://127.0.0.1"
+        coreType = "zmq"
+        timeDeltaProperty = 1.0
+        intLogLevel = 1
+        beamFederateName = "BEAM_FED"
+        beamFederatePublication = "LOAD_DEMAND"
+        pmcFederateName = "GRID_FED"
+        pmcFederateSubscription = "POWER_LIMITS"
+        bufferSize = 10000000
+      }
+    }
+
+
+Parameters within beam.routing namespace
+
+* timeStepInSeconds: time interval of dispatching energy.
+* overnightChargingEnabled: Overnight charging is still a work in progress and might produce unexpected results.
+* chargingPointCountScalingFactor: scaling factor for number of charging points (if chargingPointFilePath is defined).
+* chargingPointCostScalingFactor: scaling factor for cost of charging points (if chargingPointFilePath is defined).
+* chargingPointFilePath: file where charging infrastructure is loaded from.
+* scaleUp.enabled: enables scaling up number of charging requests.
+* scaleUp.expansionFactor: factor of scaling.
+* activitiesLocationFilePath: a csv file with header person_id,ActivityType,x,y,household_id,TAZ that contains all the activities of the current scenario.
+* sitePowerManagerController: enables co-simulation of Site Power Controller via Helics library.
+* powerManagerController: enables co-simulation of Power Manager Controller via Helics library.
 
 Warm Mode
 ^^^^^^^^^
@@ -383,17 +791,20 @@ Ride hail management
    beam.agentsim.agents.rideHail.cav.refuelRequiredThresholdInMeters = 16090.0 # 10 miles
    beam.agentsim.agents.rideHail.cav.noRefuelThresholdInMeters = 96540.0 # 60 miles
    beam.agentsim.agents.rideHail.rangeBufferForDispatchInMeters = 10000 # do not dispatch vehicles below this range to ensure enough available to get to charger
+   beam.agentsim.agents.rideHail.charging.multinomialLogit.params.drivingTimeMultiplier = -0.01666667
+   beam.agentsim.agents.rideHail.charging.multinomialLogit.params.queueingTimeMultiplier = -0.01666667
+   beam.agentsim.agents.rideHail.charging.multinomialLogit.params.chargingTimeMultiplier = -0.01666667
+   beam.agentsim.agents.rideHail.charging.multinomialLogit.params.insufficientRangeMultiplier = -60.0
 
    beam.agentsim.agents.rideHail.linkFleetStateAcrossIterations = false
 
-   # priceAdjustmentStrategy(KEEP_PRICE_LEVEL_FIXED_AT_ONE | CONTINUES_DEMAND_SUPPLY_MATCHING)
    beam.agentsim.agents.rideHail.surgePricing.priceAdjustmentStrategy="KEEP_PRICE_LEVEL_FIXED_AT_ONE"
-   # SurgePricing parameters
    beam.agentsim.agents.rideHail.surgePricing.surgeLevelAdaptionStep=0.1
    beam.agentsim.agents.rideHail.surgePricing.minimumSurgeLevel=0.1
    beam.agentsim.agents.rideHail.surgePricing.numberOfCategories = 6
 
    beam.agentsim.agents.rideHail.iterationStats.timeBinSizeInSec = 3600.0
+   beam.agentsim.agents.rideHail.bestResponseType = "MIN_COST"
 
 One can add multiple different RH fleets into the array **beam.agentsim.agents.rideHail.managers** above.
 
@@ -450,25 +861,23 @@ One can add multiple different RH fleets into the array **beam.agentsim.agents.r
 * allocationManager.repositionLowWaitingTimes.waitingTimeWeight:
 * allocationManager.repositionLowWaitingTimes.demandWeight:
 * allocationManager.repositionLowWaitingTimes.produceDebugImages:
-
-
-* surgePricing.priceAdjustmentStrategy: defines different price adjustment strategies
-* surgePricing.surgeLevelAdaptionStep:
-* surgePricing.minimumSurgeLevel:
-* surgePricing.numberOfCategories:
 * linkFleetStateAcrossIterations: if it is set to true then in the next iteration ride-hail fleet state of charge is initialized with the value from the end of previous iteration
+* surgePricing.priceAdjustmentStrategy: defines different price adjustment strategies. Possible options: `KEEP_PRICE_LEVEL_FIXED_AT_ONE` keeps price level at 1.0; `CONTINUES_DEMAND_SUPPLY_MATCHING` with 50% of probability increases and 50% of probability decreases price level on `surgeLevelAdaptionStep` for each time bin and TAZ
+* surgePricing.surgeLevelAdaptionStep: value to be randomly added or removed from the price leve in case of  `CONTINUES_DEMAND_SUPPLY_MATCHING` strategy.
+* surgePricing.minimumSurgeLevel: the min price level.
+* surgePricing.numberOfCategories: number of price categories. These categories are used in the output of price statistic.
 * cav.valueOfTime: is used when searching a parking stall for CAVs
 * human.refuelRequiredThresholdInMeters: when range below this value, ride-hail vehicle driven by a human will charge
 * human.noRefuelThresholdInMeters: when range above noRefuelThresholdInMeters, ride-hail vehicle driven by a human will not charge
 * cav.refuelRequiredThresholdInMeters: when range below this value, EV ride-hail CAVs will charge
 * cav.noRefuelThresholdInMeters: when range above noRefuelThresholdInMeters, EV ride-hail CAVs will not charge
-* rangeBufferForDispatchInMeters: do not dispatch vehicles below this range to ensure enough available to get to charger
-* charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.drivingTimeMultiplier: one minute of driving is one util
-* charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.queueingTimeMultiplier: one minute of queueing is one util
-* charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.chargingTimeMultiplier: one minute of charging is one util
-* charging.vehicleChargingManager.defaultVehicleChargingManager.multinomialLogit.params.insufficientRangeMultiplier: indicator variable so straight 60 minute penalty if out of range
-
+* rangeBufferForDispatchInMeters: do not dispatch vehicles below this range to ensure enough available to get to charger minute penalty if out of range
+* charging.multinomialLogit.params.drivingTimeMultiplier - one minute of driving is one util
+* charging.multinomialLogit.params.queueingTimeMultiplier - one minute of queueing is one util
+* charging.multinomialLogit.params.chargingTimeMultiplier - one minute of charging is one util
+* charging.multinomialLogit.params.insufficientRangeMultiplier - indicator variable so straight 60 minute penalty if out of range
 * iterationStats.timeBinSizeInSec: time bin size of ride-hail statistic
+* bestResponseType: How to choose the best proposal from proposals of ride-hail trips. Options are MIN_COST (by min cost of the trip), MIN_UTILITY (by min utility. Considered cost and customer subscription)
 
 Secondary activities generation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -514,14 +923,41 @@ Secondary activities generation
     to take secondary trips even if the costs are greater than the benefits.
 
 Agents and Activities
-^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^
 ::
 
     beam.agentsim.agents.activities.activityTypeToFixedDurationMap = ["<activity type> -> <duration>"]
+    beam.agentsim.agents.modeIncentive.filePath = ""
 
 *
     beam.agentsim.agents.activities.activityTypeToFixedDurationMap - by default is empty. For specified activities the duration will be fixed.
     The durations of the rest activities will be calculated based on activity end time.
+*   modeIncentive.filePath - path to a file containing incentives (cost decrease) for certain Modes depending on person age and income.
+
+Calibration
+^^^^^^^^^^^
+::
+
+    beam.calibration.objectiveFunction = "ModeChoiceObjectiveFunction"
+    beam.calibration.meanToCountsWeightRatio = "double | 0.5"
+    beam.calibration.mode.benchmarkFilePath = ""
+    beam.calibration.roadNetwork.travelTimes.zoneBoundariesFilePath = ""
+    beam.calibration.roadNetwork.travelTimes.zoneODTravelTimesFilePath = ""
+
+    beam.calibration.google.travelTimes.enable = "boolean | false"
+    beam.calibration.google.travelTimes.numDataPointsOver24Hours = "int | 100"
+    beam.calibration.google.travelTimes.minDistanceInMeters = "double | 5000"
+    beam.calibration.google.travelTimes.iterationInterval = "int | 5"
+    beam.calibration.google.travelTimes.tolls = "boolean | true"
+    beam.calibration.google.travelTimes.queryDate = "2020-10-14"
+    beam.calibration.google.travelTimes.offPeakEnabled = "boolean | false"
+
+    beam.calibration.studyArea.enabled = "boolean | false"
+    beam.calibration.studyArea.lat = "double | 0"
+    beam.calibration.studyArea.lon = "double | 0"
+    beam.calibration.studyArea.radius = "double | 0"
+
+* objectiveFunction
 
 
 Output
@@ -543,10 +979,6 @@ There's the list of parameters responsible for writing out data produced by BEAM
 
 ::
 
-    beam.router.skim.writeSkimsInterval = 0
-    beam.router.skim.writeAggregatedSkimsInterval = 0
-    beam.router.skim.origin-destination-skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval = 0
-    beam.router.skim.origin-destination-skimmer.writeFullSkimsInterval = 0
     beam.debug.writeModeChoiceAlternatives = false
     beam.debug.writeRealizedModeChoiceFile = false
     beam.outputs.writeGraphs = true
@@ -561,23 +993,211 @@ There's the list of parameters responsible for writing out data produced by BEAM
     beam.physsim.writeRouteHistoryInterval = 10
     beam.physsim.linkStatsWriteInterval = 0
     beam.outputs.generalizedLinkStatsInterval = 0
+    beam.outputs.generalizedLinkStats.startTime = 25200
+    beam.outputs.generalizedLinkStats.endTime = 32400
+    beam.outputs.collectAndCreateBeamAnalysisAndGraphs = true
+    beam.outputs.displayPerformanceTimings = false
+    beam.outputs.defaultWriteInterval = 1
+    beam.outputs.events.eventsToWrite = "ActivityEndEvent,ActivityStartEvent,PersonEntersVehicleEvent,PersonLeavesVehicleEvent,ModeChoiceEvent,PathTraversalEvent,ReserveRideHailEvent,ReplanningEvent,RefuelSessionEvent,ChargingPlugInEvent,ChargingPlugOutEvent,ParkingEvent,LeavingParkingEvent"
+    beam.outputs.events.fileOutputFormats = "csv"
+    beam.outputs.matsim.deleteITERSFolderFiles = ""
+    beam.outputs.matsim.deleteRootFolderFiles = ""
+    beam.outputs.stats.binSize = 3600
+    # Skims configuration
+    beam.router.skim = {
+      keepKLatestSkims = 1
+      writeSkimsInterval = 0
+      writeAggregatedSkimsInterval = 0
+      activity-sim-skimmer {
+        name = "activity-sim-skimmer"
+        fileBaseName = "activitySimODSkims"
+        fileOutputFormat = "csv"
+      }
+      drive-time-skimmer {
+        name = "drive-time-skimmer"
+        fileBaseName = "skimsTravelTimeObservedVsSimulated"
+      }
+      origin-destination-skimmer {
+        name = "od-skimmer"
+        fileBaseName = "skimsOD"
+        writeAllModeSkimsForPeakNonPeakPeriodsInterval = 0
+        writeFullSkimsInterval = 0
+        poolingTravelTimeOveheadFactor = 1.21
+      }
+      taz-skimmer {
+        name = "taz-skimmer"
+        fileBaseName = "skimsTAZ"
+        geoHierarchy = "TAZ"
+      }
+      transit-crowding-skimmer {
+        name = "transit-crowding-skimmer"
+        fileBaseName = "skimsTransitCrowding"
+      }
+    }
 
 All integer values that end with 'Interval' mean writing data files at iteration which number % value = 0. In case value = 0
 writing is disabled.
 
-* beam.router.skim.writeSkimsInterval: enable writing all skim data for a particular iteration to corresponding files
-* beam.router.skim.writeAggregatedSkimsInterval: enable writing all aggregated skim data (for all iterations) to corresponding files
-* beam.router.skim.origin-destination-skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval: enable writing ODSkims for peak and non-peak time periods to #.skimsODExcerpt.csv.gz
-* beam.router.skim.origin-destination-skimmer.writeFullSkimsInterval: enable writing ODSkims for all TAZes presented in the scenario to #.skimsODFull.csv.gz
-* beam.outputs.writeGraphs: enable writing activity locations to #.activityLocations.png
-* beam.outputs.writePlansInterval: enable writing plans of persons at the iteration to #.plans.csv.gz
-* beam.outputs.writeEventsInterval: enable writing AgentSim events to #.events.csv.gz
-* beam.outputs.writeAnalysis: enable analysis with python script analyze_events.py and writing different data files
-* beam.outputs.writeR5RoutesInterval: enable writing routing requests/responses to files #.routingRequest.parquet, #.routingResponse.parquet, #.embodyWithCurrentTravelTime.parquet
-* beam.physsim.writeEventsInterval: enable writing physsim events to #.physSimEvents.csv.gz
-* beam.physsim.events.fileOutputFormats: file format for physsim event file; valid options: xml(.gz) , csv(.gz), none - DEFAULT: csv.gz
-* beam.physsim.events.eventsToWrite: types of physsim events to write
-* beam.physsim.writePlansInterval: enable writing of physsim plans to #.physsimPlans.xml.gz
-* beam.physsim.writeRouteHistoryInterval: enable writing route history to #.routeHistory.csv.gz. It contains timeBin,originLinkId,destLinkId,route (link ids)
-* beam.physsim.linkStatsWriteInterval: enable writing link statistic to #.linkstats_unmodified.csv.gz"
-* beam.outputs.generalizedLinkStatsInterval: enable writing generalized link statistic (with generalized time and cost) to #.generalizedLinkStats.csv.gz
+* outputs.writeGraphs: enable writing activity locations to #.activityLocations.png
+* outputs.writePlansInterval: enable writing plans of persons at the iteration to #.plans.csv.gz
+* outputs.writeEventsInterval: enable writing AgentSim events to #.events.csv.gz
+* outputs.writeAnalysis: enable analysis with python script analyze_events.py and writing different data files
+* outputs.writeR5RoutesInterval: enable writing routing requests/responses to files #.routingRequest.parquet, #.routingResponse.parquet, #.embodyWithCurrentTravelTime.parquet
+* physsim.writeEventsInterval: enable writing physsim events to #.physSimEvents.csv.gz
+* physsim.events.fileOutputFormats: file format for physsim event file; valid options: xml(.gz) , csv(.gz), none - DEFAULT: csv.gz
+* physsim.events.eventsToWrite: types of physsim events to write
+* physsim.writePlansInterval: enable writing of physsim plans to #.physsimPlans.xml.gz
+* physsim.writeRouteHistoryInterval: enable writing route history to #.routeHistory.csv.gz. It contains timeBin,originLinkId,destLinkId,route (link ids)
+* physsim.linkStatsWriteInterval: enable writing link statistic to #.linkstats_unmodified.csv.gz"
+* outputs.generalizedLinkStatsInterval: enable writing generalized link statistic (with generalized time and cost) to #.generalizedLinkStats.csv.gz
+* outputs.generalizedLinkStats.startTime, endTime: write link statistic only within this time interval
+* outputs.collectAndCreateBeamAnalysisAndGraphs: if true varios beam analysis csv files and graphs are generated.
+* outputs.displayPerformanceTimings: enables writing some internal Scheduler and Routing statistic.
+* outputs.defaultWriteInterval: the default iteration interval that is used in the output.
+* outputs.events.eventsToWrite: the list of events that need to be written in events.csv file.
+* outputs.events.fileOutputFormats: event file output format. Valid options: xml(.gz) , csv(.gz), none.
+* outputs.matsim.deleteITERSFolderFiles: comma separated list of matsim iteration output files to be deleted before beam shutdown.
+* outputs.matsim.deleteRootFolderFiles: comma separated list of matsim root output files to be deleted before beam shutdown.
+* outputs.stats.binSize: bin size for various histograms.
+* router.skim.keepKLatestSkims: How many skim data iterations to keep
+* router.skim.writeSkimsInterval: enable writing all skim data for a particular iteration to corresponding files
+* router.skim.writeAggregatedSkimsInterval: enable writing all aggregated skim data (for all iterations) to corresponding files
+* router.skim.activity-sim-skimmer.name: ActivitySim skimmer event name
+* router.skim.activity-sim-skimmer.fileBaseName: ActivitySim skims base file name
+* router.skim.activity-sim-skimmer.fileOutputFormat: ActivitySim skims file format: "csv" or "omx"
+* router.skim.drive-time-skimmer.name: drive time skimmer event name
+* router.skim.drive-time-skimmer.fileBaseName: drive time skims base file name
+* router.skim.origin-destination-skimmer.name: origin-destination skimmer event name
+* router.skim.origin-destination-skimmer.fileBaseName: origin-destination skims base file name
+* router.skim.origin-destination-skimmer.writeAllModeSkimsForPeakNonPeakPeriodsInterval: enable writing ODSkims for peak and non-peak time periods to #.skimsODExcerpt.csv.gz
+* router.skim.origin-destination-skimmer.writeFullSkimsInterval: enable writing ODSkims for all TAZes presented in the scenario to #.skimsODFull.csv.gz
+* router.skim.origin-destination-skimmer.poolingTravelTimeOveheadFactor: ride-hail pooling trip travel time overhead factor comparing to a solo trip
+* router.skim.taz-skimmer.name: TAZ skimmer event name
+* router.skim.taz-skimmer.fileBaseName: TAZ skims base file name
+* router.skim.taz-skimmer.geoHierarchy: GEO unit that is used in TAZ skimmer (TAZ or H3)
+* router.skim.transit-crowding-skimmer.name: transit crowding skimmer event name
+* router.skim.transit-crowding-skimmer.fileBaseName: transit crowding skims base file name
+
+Termination criterion name options
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+::
+
+  beam.sim.termination.criterionName = "TerminateAtFixedIterationNumber"
+  beam.sim.termination.terminateAtRideHailFleetStoredElectricityConvergence.minLastIteration = 0
+  beam.sim.termination.terminateAtRideHailFleetStoredElectricityConvergence.maxLastIteration = 0
+  beam.sim.termination.terminateAtRideHailFleetStoredElectricityConvergence.relativeTolerance = 0.01
+
+* criterionName: Possible values: `TerminateAtFixedIterationNumber`, `TerminateAtRideHailFleetStoredElectricityConvergence`.
+  `TerminateAtFixedIterationNumber` terminates the simulation when iteration number lastIteration finishes.
+  `TerminateAtRideHailFleetStoredElectricityConvergence` terminates it when the ride-hail fleet stored electricity converges (total stored electricity of the ride-hail fleet at the beginning of the iteration equals to it at the end of the iteration).
+* terminateAtRideHailFleetStoredElectricityConvergence.minLastIteration: the min number of iteration when this criterion can terminate the simulation.
+* terminateAtRideHailFleetStoredElectricityConvergence.maxLastIteration: the max number of last iteration allowed.
+* terminateAtRideHailFleetStoredElectricityConvergence.relativeTolerance: allowed max relative difference (difference of total stored electricity relative to total capacity).
+
+Debug configuration
+^^^^^^^^^^^^^^^^^^^
+::
+
+    beam.debug {
+      debugEnabled = false
+      agentTripScoresInterval = 0
+
+      triggerMeasurer {
+        enabled = false
+        writeStuckAgentDetectionConfig = true
+      }
+
+      stuckAgentDetection {
+        enabled = false
+        checkIntervalMs = "200ms"
+        defaultTimeoutMs = "60s"
+        overallSimulationTimeoutMs = "100s"
+        checkMaxNumberOfMessagesEnabled = true
+        thresholds = [
+          # Possible values (with deviations from default):
+          # triggerType = "beam.agentsim.agents.PersonAgent$ActivityStartTrigger" && markAsStuckAfterMs = 20s
+          # triggerType = "beam.agentsim.agents.PersonAgent$ActivityEndTrigger" && markAsStuckAfterMs = 60s
+          # triggerType = "beam.agentsim.agents.PersonAgent$PersonDepartureTrigger"
+          # triggerType = "beam.agentsim.agents.modalbehaviors.DrivesVehicle$StartLegTrigger" && markAsStuckAfterMs = 18s
+          # triggerType = "beam.agentsim.agents.modalbehaviors.DrivesVehicle$EndLegTrigger" && markAsStuckAfterMs = 60s
+          # triggerType = "beam.agentsim.agents.modalbehaviors.DrivesVehicle$AlightVehicleTrigger" && markAsStuckAfterMs = 21s
+          # triggerType = "beam.agentsim.agents.modalbehaviors.DrivesVehicle$BoardVehicleTrigger" && markAsStuckAfterMs = 21s
+          # triggerType = "beam.agentsim.agents.modalbehaviors.DrivesVehicle$StartRefuelSessionTrigger" && markAsStuckAfterMs = 21s
+          # riggerType = "beam.agentsim.agents.modalbehaviors.DrivesVehicle$EndRefuelSessionTrigger" && markAsStuckAfterMs = 21s
+          # triggerType = "beam.agentsim.agents.InitializeTrigger"
+          # triggerType = "beam.agentsim.agents.ridehail.RideHailManager$BufferedRideHailRequestsTimeout"
+          # triggerType = "beam.agentsim.agents.ridehail.RideHailManager$RideHailAllocationManagerTimeout" && markAsStuckAfterMs = 40s
+          {
+            triggerType = "beam.agentsim.agents.PersonAgent$ActivityStartTrigger"
+            markAsStuckAfterMs = "20s"
+            actorTypeToMaxNumberOfMessages {
+              population = 10
+              transitDriverAgent = 0
+              rideHailAgent = 0
+              rideHailManager = 0
+            }
+          }
+        ]
+      }
+
+      debugActorTimerIntervalInSec = 0
+      actor.logDepth = 0
+      memoryConsumptionDisplayTimeoutInSec = 0
+      clearRoutedOutstandingWorkEnabled = false
+      secondsToWaitToClearRoutedOutstandingWork = 60
+
+      vmInformation.createGCClassHistogram = false
+      # it implies vmInformation.createGCClassHistogram = true
+      vmInformation.writeHeapDump = false
+      writeModeChoiceAlternatives = false
+
+      writeRealizedModeChoiceFile = false
+      messageLogging = false
+      # the max of the next 2 values is taken for the initialization step
+      maxSimulationStepTimeBeforeConsideredStuckMin = 60
+      maxSimulationStepTimeBeforeConsideredStuckAtInitializationMin = 600
+    }
+
+* debugEnabled - enables debug features.
+* agentTripScoresInterval - iteration interval of writing person trips score to #.agentTripScores.csv.gz file.
+* triggerMeasurer.enabled - enables the scheduler to measure trigger resolution statistic. It's written to the log file at the end of each iteration.
+* triggerMeasurer.writeStuckAgentDetectionConfig - enables writing stuck agent detection config at the end of each iteration.
+* stuckAgentDetection.enabled - enables stuck agent detection.
+* stuckAgentDetection.checkIntervalMs - how often stuck detection happens.
+* stuckAgentDetection.defaultTimeoutMs - timeout for triggers that are not configured in `thresholds` section.
+* stuckAgentDetection.overallSimulationTimeoutMs - timeout for the whole simulation. If no progress for this time interval the simulation is considered got stuck and this event is logged out.
+* stuckAgentDetection.checkMaxNumberOfMessagesEnabled - enables the scheduler to check that an agent doesn't exceed the configured number of messages of certain type. If it happens a warning is logged out.
+* stuckAgentDetection.thresholds - contains entries for each trigger type. `markAsStuckAfterMs` timeout for this trigger. `actorTypeToMaxNumberOfMessages` max number of this triggers for a particular actor type.
+* debugActorTimerIntervalInSec - if it's greater than zero then each this interval a state of the scheduler is printed out.
+* actor.logDepth - the number of actor messages to keep. In case of an actor failure these messages are printed out.
+* memoryConsumptionDisplayTimeoutInSec - not used.
+* clearRoutedOutstandingWorkEnabled - In case of remote routing workers it enables clearing a routing work in case of a configured timeout exceeded.
+* secondsToWaitToClearRoutedOutstandingWork - timeout for clearing remote routing work.
+* vmInformation.createGCClassHistogram - enables creating a memory statistic histogram with base name "vmNumberOfMBytesOfClassOnHeap".
+* vmInformation.writeHeapDump - enables writing a heap dump to heapDump.$simulation-name.hprof at the end of each iteration.
+* writeModeChoiceAlternatives - enables writing mode choice data to #.modeChoiceDetailed.csv.gz file.
+* writeRealizedModeChoiceFile - enables writing realized mode choice data to #.realizedModeChoice.csv.gz file.
+* messageLogging - enables writing all the actor messages and transitions to #.actor_messages.#.csv.gz files.
+* maxSimulationStepTimeBeforeConsideredStuckMin - timeout in minutes for a single tick of simulation. If simulation time doesn't change within this wall time interval the simulation is considered got stuck and Beam exits.
+* maxSimulationStepTimeBeforeConsideredStuckAtInitializationMin - timeout in minutes for a single tick of simulation at the initialization phase. If simulation time doesn't change within this wall time interval the simulation is considered got stuck and Beam exits.
+
+Technical parameters
+^^^^^^^^^^^^^^^^^^^^
+::
+
+    beam.cluster.enabled = false
+    beam.actorSystemName = ClusterSystem
+    beam.useLocalWorker = true
+
+* cluster.enabled - enables cluster for routing work.
+* actorSystemName - name of the akka actor system.
+* useLocalWorker - enables local worker for routing work.
+
+Not used parameters
+^^^^^^^^^^^^^^^^^^^
+::
+
+    beam.debug.memoryConsumptionDisplayTimeoutInSec
+    beam.cluster.clusterType
+
