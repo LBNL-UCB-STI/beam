@@ -436,10 +436,10 @@ class RideHailManager(
         beamServices.matsimServices.getControlerIO
           .getIterationFilename(
             beamServices.matsimServices.getIterationNumber,
-            s"$fileBaseName.${managerConfig.name}.csv"
+            s"$fileBaseName-${managerConfig.name}.csv"
           )
       )
-    ).recover { case exception => log.error(exception, s"Cannot write $fileBaseName.${managerConfig.name}.csv") }
+    ).recover { case exception => log.error(exception, s"Cannot write $fileBaseName-${managerConfig.name}.csv") }
 
     if (beamServices.beamConfig.beam.outputs.writeGraphs) {
       Try(
@@ -447,10 +447,10 @@ class RideHailManager(
           beamServices.matsimServices.getControlerIO
             .getIterationFilename(
               beamServices.matsimServices.getIterationNumber,
-              s"$fileBaseName.${managerConfig.name}.png"
+              s"$fileBaseName-${managerConfig.name}.png"
             )
         )
-      ).recover { case exception => log.error(exception, s"Cannot write $fileBaseName.${managerConfig.name}.png") }
+      ).recover { case exception => log.error(exception, s"Cannot write $fileBaseName-${managerConfig.name}.png") }
     }
   }
 
@@ -1159,7 +1159,7 @@ class RideHailManager(
     }
     new FleetStoredElectricityEvent(
       tick,
-      s"ridehail-fleet.${managerConfig.name}",
+      s"ridehail-fleet-${managerConfig.name}",
       storedElectricityInJoules,
       storageCapacityInJoules
     )
@@ -1706,7 +1706,7 @@ class RideHailManager(
     RideHailFleetInitializer.writeFleetData(
       beamServices,
       rideHailAgentInitializers.map(_.createRideHailAgentInputData),
-      s"rideHailFleet.${managerConfig.name}.csv.gz"
+      s"rideHailFleet-${managerConfig.name}.csv.gz"
     )
 
     beamServices.beamCustomizationAPI.getRidehailManagerCustomizationAPI
