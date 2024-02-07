@@ -70,7 +70,7 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.Random
+import scala.util.{Random, Try}
 
 object RideHailManager {
   val INITIAL_RIDE_HAIL_LOCATION_HOME = "HOME"
@@ -419,25 +419,6 @@ class RideHailManager(
   writeMetric("beam-run-RH-non-ev-cav", cntnEVCAV)
   writeMetric("beam-run-RH-non-ev-non-cav", cntnEVnCAV)
 
-  if (
-    beamServices.matsimServices != null &&
-    new File(
-      beamServices.matsimServices.getControlerIO.getIterationPath(beamServices.matsimServices.getIterationNumber)
-    ).exists()
-  ) {
-    rideHailinitialLocationSpatialPlot.writeCSV(
-      beamServices.matsimServices.getControlerIO
-        .getIterationFilename(beamServices.matsimServices.getIterationNumber, fileBaseName + ".csv")
-    )
-
-    if (beamServices.beamConfig.beam.outputs.writeGraphs) {
-      rideHailinitialLocationSpatialPlot.writeImage(
-        beamServices.matsimServices.getControlerIO
-          .getIterationFilename(beamServices.matsimServices.getIterationNumber, fileBaseName + ".png")
-      )
-    }
-  }
-
   private val rideHailResourceAllocationManager = RideHailResourceAllocationManager(
     managerConfig.allocationManager.name,
     this
@@ -446,6 +427,35 @@ class RideHailManager(
   private val rideHailBeamVehicleIdToShiftsOpt = mutable.Map.empty[Id[BeamVehicle], Option[List[Shift]]]
 
   val numRideHailAgents: Int = initializeRideHailFleet()
+
+  if (
+    beamServices.matsimServices != null &&
+    new File(
+      beamServices.matsimServices.getControlerIO.getIterationPath(beamServices.matsimServices.getIterationNumber)
+    ).exists()
+  ) {
+    Try(
+      rideHailinitialLocationSpatialPlot.writeCSV(
+        beamServices.matsimServices.getControlerIO
+          .getIterationFilename(
+            beamServices.matsimServices.getIterationNumber,
+            s"$fileBaseName-${managerConfig.name}.csv"
+          )
+      )
+    ).recover { case exception => log.error(exception, s"Cannot write $fileBaseName-${managerConfig.name}.csv") }
+
+    if (beamServices.beamConfig.beam.outputs.writeGraphs) {
+      Try(
+        rideHailinitialLocationSpatialPlot.writeImage(
+          beamServices.matsimServices.getControlerIO
+            .getIterationFilename(
+              beamServices.matsimServices.getIterationNumber,
+              s"$fileBaseName-${managerConfig.name}.png"
+            )
+        )
+      ).recover { case exception => log.error(exception, s"Cannot write $fileBaseName-${managerConfig.name}.png") }
+    }
+  }
 
   var requestedRideHail: Int = 0
   var servedRideHail: Int = 0
