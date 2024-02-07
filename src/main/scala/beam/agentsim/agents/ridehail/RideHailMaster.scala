@@ -6,7 +6,11 @@ import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail.RideHailMaster.RequestWithResponses
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{RideHailServiceUnavailableError, DriverNotFoundError, UnknownInquiryIdError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  DriverNotFoundError,
+  RideHailServiceUnavailableError,
+  UnknownInquiryIdError
+}
 import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, VehicleManager}
 import beam.agentsim.events.RideHailReservationConfirmationEvent.{Pooled, Solo}
 import beam.sim.population.AttributesOfIndividual

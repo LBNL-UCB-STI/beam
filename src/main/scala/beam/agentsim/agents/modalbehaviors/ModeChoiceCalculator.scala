@@ -135,7 +135,6 @@ object ModeChoiceCalculator {
     ModeChoiceMultinomialLogit.getVehicleTypeMultipliers(
       beamServices.beamScenario.vehicleTypes,
       beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.transitVehicleTypeVOTMultipliers
-        .getOrElse(List.empty)
     )
 
   def apply(

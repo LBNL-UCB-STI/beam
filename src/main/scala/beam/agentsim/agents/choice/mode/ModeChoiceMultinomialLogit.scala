@@ -670,11 +670,11 @@ object ModeChoiceMultinomialLogit extends StrictLogging {
 
   def getVehicleTypeMultipliers(
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
-    vehicleTypeMultipliersStr: List[String]
+    vehicleTypeMultipliersStr: Option[List[String]]
   ): Map[Id[BeamVehicleType], Double] = {
-    if (vehicleTypeMultipliersStr.isEmpty) Map.empty
-    else {
-      val vehTypeToMultiplier = vehicleTypeMultipliersStr.flatMap { curr =>
+    vehicleTypeMultipliersStr
+      .getOrElse(Nil)
+      .flatMap { curr =>
         val separator = curr.indexOf(":")
         if (separator < 0) {
           logger.warn(
@@ -682,19 +682,19 @@ object ModeChoiceMultinomialLogit extends StrictLogging {
           )
           None
         } else {
+
           val vehicleTypeStr = curr.substring(0, separator)
           val vehicleTypeId = Id.create(vehicleTypeStr, classOf[BeamVehicleType])
           vehicleTypes.get(vehicleTypeId) match {
             case Some(_) =>
               val multiplier = curr.substring(separator + 1).toDouble
-              Some((vehicleTypeId, multiplier))
+              Some(vehicleTypeId -> multiplier)
             case None =>
               None
           }
         }
       }
-      vehTypeToMultiplier.toMap
-    }
+      .toMap
   }
 
   def calculateBeamTripTimeInSecsWithSpecialBikeLanesAdjustment(
