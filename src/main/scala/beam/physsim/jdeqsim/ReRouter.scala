@@ -157,7 +157,7 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
       val startCoord = getR5UtmCoord(route.getStartLinkId.toString.toInt)
       val endCoord = getR5UtmCoord(route.getEndLinkId.toString.toInt)
 
-      val departTime = leg.getDepartureTime.toInt
+      val departTime = leg.getDepartureTime.orElse(beam.UNDEFINED_TIME).toInt
       val currentPointUTM = SpaceTime(startCoord, departTime)
       val carStreetVeh =
         StreetVehicle(

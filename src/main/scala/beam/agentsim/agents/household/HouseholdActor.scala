@@ -219,9 +219,7 @@ object HouseholdActor {
           .flatMap { person =>
             if (isFreightCarrier) {
               val vehicleIdFromPlans = Id.create(
-                beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
-                  .getAttribute(person.getId.toString, "vehicle")
-                  .toString,
+                PopulationUtils.getPersonAttribute(person, "vehicle").toString,
                 classOf[BeamVehicle]
               )
               whoDrivesThisFreightVehicle = whoDrivesThisFreightVehicle + (vehicleIdFromPlans -> person.getId)
@@ -229,9 +227,7 @@ object HouseholdActor {
             person.getSelectedPlan.getPlanElements.asScala.find(_.isInstanceOf[Activity]) map { element =>
               val act = element.asInstanceOf[Activity]
               val parkingActivityType = ParkingInquiry.activityTypeStringToEnum(act.getType)
-              val endTime =
-                if (Time.isUndefinedTime(act.getEndTime)) DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig)
-                else act.getEndTime
+              val endTime = act.getEndTime.orElseGet(() => DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig))
               person.getId -> HomeAndStartingWorkLocation(
                 parkingActivityType,
                 act.getType,
@@ -411,7 +407,7 @@ object HouseholdActor {
           // before all InitializeTrigger's are completed
           if (selectedPlan.getPlanElements.size() == 1) {
             selectedPlan.getPlanElements.get(0) match {
-              case elem: Activity => if (Time.isUndefinedTime(elem.getEndTime)) elem.setEndTime(0.0)
+              case elem: Activity => if (elem.getEndTime.isUndefined) elem.setEndTime(0.0)
               case _              =>
             }
           }

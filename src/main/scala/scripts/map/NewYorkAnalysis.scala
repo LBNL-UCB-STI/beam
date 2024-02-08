@@ -6,8 +6,8 @@ import beam.utils.scenario.PlanElement
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
 import scripts.shape.{NoAttributeShapeWriter, ShapeWriter}
 import com.conveyal.osmlib.OSM
-import com.vividsolutions.jts.algorithm.ConvexHull
-import com.vividsolutions.jts.geom._
+import org.locationtech.jts.algorithm.ConvexHull
+import org.locationtech.jts.geom._
 import org.matsim.api.core.v01.Coord
 
 import scala.collection.mutable.ArrayBuffer

@@ -117,7 +117,8 @@ class BeamWarmStartSpec
 
     "find plan from run level and linkstats from iteration level" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case4")
-      createDirs(Paths.get(caseDataPath.toString, "/ITERS/it.0/../it.1"))
+      val paths = Seq(Paths.get(caseDataPath.toString, "/ITERS/it.0"), Paths.get(caseDataPath.toString, "/ITERS/it.1"))
+      createDirs(paths: _*)
       val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.plans")
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.plans")
@@ -135,7 +136,8 @@ class BeamWarmStartSpec
 
     "work if link stat is not in last iteration" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case5")
-      createDirs(Paths.get(caseDataPath.toString, "/ITERS/it.0/../it.1"))
+      val paths = Seq(Paths.get(caseDataPath.toString, "/ITERS/it.0"), Paths.get(caseDataPath.toString, "/ITERS/it.1"))
+      createDirs(paths: _*)
       val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.plans")
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.plans")
@@ -152,7 +154,8 @@ class BeamWarmStartSpec
 
     "work if plans are not at root level" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case6")
-      createDirs(Paths.get(caseDataPath.toString, "/ITERS/it.0/../it.1"))
+      val paths = Seq(Paths.get(caseDataPath.toString, "/ITERS/it.0"), Paths.get(caseDataPath.toString, "/ITERS/it.1"))
+      createDirs(paths: _*)
 
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.plans")
       val expectedPlans = copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.plans")
@@ -170,7 +173,12 @@ class BeamWarmStartSpec
 
     "work if plans are neither at root level nor in last iteration" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case7")
-      createDirs(Paths.get(caseDataPath.toString, "/ITERS/it.0/../it.1/../it.2"))
+      val paths = Seq(
+        Paths.get(caseDataPath.toString, "/ITERS/it.0"),
+        Paths.get(caseDataPath.toString, "/ITERS/it.1"),
+        Paths.get(caseDataPath.toString, "/ITERS/it.2")
+      )
+      createDirs(paths: _*)
 
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.plans")
       val expectedPlans = copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.plans")
@@ -189,7 +197,8 @@ class BeamWarmStartSpec
 
     "work if there are other files in iteration with plan in their names" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case8")
-      createDirs(Paths.get(caseDataPath.toString, "/ITERS/it.0/../it.1/"))
+      val paths = Seq(Paths.get(caseDataPath.toString, "/ITERS/it.0"), Paths.get(caseDataPath.toString, "/ITERS/it.1"))
+      createDirs(paths: _*)
 
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.experiencedPlans")
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.experiencedPlans")
@@ -210,7 +219,8 @@ class BeamWarmStartSpec
 
     "prefer output_plan(root level plan) over the iteration" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case9")
-      createDirs(Paths.get(caseDataPath.toString, "/ITERS/it.0/../it.1"))
+      val paths = Seq(Paths.get(caseDataPath.toString, "/ITERS/it.0"), Paths.get(caseDataPath.toString, "/ITERS/it.1"))
+      createDirs(paths: _*)
       val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.plans")
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.plans")
@@ -228,7 +238,8 @@ class BeamWarmStartSpec
 
     "prefer last iteration link stats over root" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case10")
-      createDirs(Paths.get(caseDataPath.toString, "/ITERS/it.0/../it.1"))
+      val paths = Seq(Paths.get(caseDataPath.toString, "/ITERS/it.0"), Paths.get(caseDataPath.toString, "/ITERS/it.1"))
+      createDirs(paths: _*)
       val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.0"), "0.plans")
       copyPlans(Paths.get(caseDataPath.toString, "/ITERS/it.1"), "1.plans")
@@ -247,7 +258,11 @@ class BeamWarmStartSpec
 
     "find out files, if run results are at deeper level" in {
       val caseDataPath = Paths.get(testDataPath.toString, "case11")
-      createDirs(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.0/../it.1"))
+      val paths = Seq(
+        Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.0"),
+        Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.1")
+      )
+      createDirs(paths: _*)
       val expectedPlans = copyPlans(caseDataPath, OUTPUT_PLANS)
       copyPlans(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.0"), "0.plans")
       copyPlans(Paths.get(caseDataPath.toString, "level1/level2/level3/level4/ITERS/it.1"), "1.plans")
@@ -338,10 +353,9 @@ object BeamWarmStartSpec {
   private val PLANS_GZ = "plans.xml.gz"
   private val LINK_STATS_GZ = "linkstats.csv.gz"
 
-  def createDirs(path: Path): Unit = {
+  def createDirs(paths: Path*): Unit = {
     try {
-      Files.createDirectories(path)
-
+      paths.foreach(path => Files.createDirectories(path))
     } catch {
       case e: IOException =>
         logger.error("Cannot create directories.", e)

@@ -82,7 +82,14 @@ class StartLegSimEvent(time: Double, priority: Int, person: Person, isCACC: Bool
           new EnteringLinkSimEvent(immidiateTime, PRIORITY_ENTER_ROAD_MESSAGE, person, isCACC, legIdx, linkIdx)
         }
       case _ =>
-        new EndLegSimEvent(immidiateTime + leg.getTravelTime, PRIORITY_ARRIVAL_MESSAGE, person, isCACC, legIdx, linkIdx)
+        new EndLegSimEvent(
+          immidiateTime + leg.getTravelTime.orElse(beam.UNDEFINED_TIME),
+          PRIORITY_ARRIVAL_MESSAGE,
+          person,
+          isCACC,
+          legIdx,
+          linkIdx
+        )
     }
     (events, Some(simEvent))
   }
@@ -100,7 +107,7 @@ class EndLegSimEvent(
   override def execute(scenario: Scenario, params: BPRSimParams): (List[Event], Option[StartLegSimEvent]) = {
     val nextAct = nextActivity
 
-    val actStartEventTime = Math.max(time, nextAct.getStartTime)
+    val actStartEventTime = Math.max(time, nextAct.getStartTime.orElse(beam.UNDEFINED_TIME))
     val activityLinkId = nextAct.getLinkId
     val events = List(
       new VehicleLeavesTrafficEvent(time, person.getId, activityLinkId, createVehicleId(person), leg.getMode, 1.0),
@@ -110,7 +117,8 @@ class EndLegSimEvent(
         person.getId,
         activityLinkId,
         nextAct.getFacilityId,
-        nextAct.getType
+        nextAct.getType,
+        null
       )
     )
 

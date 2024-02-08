@@ -197,7 +197,7 @@ public class GraphUtils {
     }
 
     public static void saveJFreeChartAsPNG(final JFreeChart chart, String graphImageFile, int width, int height) throws IOException {
-        ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width, height);
+        ChartUtils.saveChartAsPNG(new File(graphImageFile), chart, width, height);
     }
 
     private static Color getBarAndLegendColor(int i) {

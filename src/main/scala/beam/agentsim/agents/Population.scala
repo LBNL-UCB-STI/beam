@@ -22,7 +22,7 @@ import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.utils.misc.Time
-import org.matsim.households.Household
+import org.matsim.households.{Household, HouseholdUtils}
 
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters
@@ -98,28 +98,22 @@ class Population(
     val vehicleAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
     scenario.getHouseholds.getHouseholds.values().forEach { household =>
       //TODO a good example where projection should accompany the data
-      if (
-        scenario.getHouseholds.getHouseholdAttributes
-          .getAttribute(household.getId.toString, "homecoordx") == null
-      ) {
+      if (HouseholdUtils.getHouseholdAttribute(household, "homecoordx") == null) {
         log.error(
           s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0"
         )
       }
-      if (
-        scenario.getHouseholds.getHouseholdAttributes
-          .getAttribute(household.getId.toString, "homecoordy") == null
-      ) {
+      if (HouseholdUtils.getHouseholdAttribute(household, "homecoordy") == null) {
         log.error(
           s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
         )
       }
       val homeCoord = new Coord(
-        scenario.getHouseholds.getHouseholdAttributes
-          .getAttribute(household.getId.toString, "homecoordx")
+        HouseholdUtils
+          .getHouseholdAttribute(household, "homecoordx")
           .asInstanceOf[Double],
-        scenario.getHouseholds.getHouseholdAttributes
-          .getAttribute(household.getId.toString, "homecoordy")
+        HouseholdUtils
+          .getHouseholdAttribute(household, "homecoordy")
           .asInstanceOf[Double]
       )
 

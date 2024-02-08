@@ -7,8 +7,8 @@ import beam.agentsim.events.PathTraversalEvent
 import beam.sim.BeamServices
 import com.google.common.util.concurrent.ThreadFactoryBuilder
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.geom.{Coordinate, Envelope}
-import com.vividsolutions.jts.index.kdtree.{KdNode, KdTree}
+import org.locationtech.jts.geom.{Coordinate, Envelope}
+import org.locationtech.jts.index.kdtree.{KdNode, KdTree}
 import org.apache.commons.lang.time.StopWatch
 import org.matsim.api.core.v01.network.Link
 

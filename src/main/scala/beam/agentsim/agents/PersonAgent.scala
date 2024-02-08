@@ -68,7 +68,7 @@ import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArri
 import org.matsim.core.utils.misc.Time
 
 import java.util.concurrent.atomic.AtomicReference
-import scala.annotation.tailrec
+import scala.annotation.{nowarn, tailrec}
 import scala.concurrent.duration._
 
 /**
@@ -525,17 +525,23 @@ class PersonAgent(
   }
 
   def calculateActivityEndTime(activity: Activity, tick: Double): Double = {
-    def activityEndTime =
-      if (activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity) {
-        activity.getEndTime
-      } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
-        tick
-      } else {
+    def activityEndTime: Double = {
+      def fallbackActivityEndTime: Double = {
         // logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
         // TODO consider ending the day here to match MATSim convention for start/end activity
         tick + 60 * 10
       }
-    val endTime = beamServices.beamScenario.fixedActivitiesDurations.get(activity.getType) match {
+      val endTime = activity.getEndTime
+      var returnVal: Double =
+        fallbackActivityEndTime //Because OptionalTime doesn't have a method which returns - given an fn
+      endTime.ifDefined(endTimeVal =>
+        if (endTimeVal >= tick) returnVal = endTimeVal
+        else if (endTimeVal >= 0.0 && endTimeVal < tick) returnVal = tick
+      )
+      returnVal
+    }
+
+    val endTime: Double = beamServices.beamScenario.fixedActivitiesDurations.get(activity.getType) match {
       case Some(fixedDuration) => tick + fixedDuration
       case _                   => activityEndTime
     }
@@ -587,7 +593,12 @@ class PersonAgent(
     logDebug(s"starting at ${currentActivity(data).getType} @ $tick")
     goto(PerformingActivity) replying CompletionNotice(
       triggerId,
-      Vector(ScheduleTrigger(ActivityEndTrigger(currentActivity(data).getEndTime.toInt), self))
+      Vector(
+        ScheduleTrigger(
+          ActivityEndTrigger(currentActivity(data).getEndTime.orElse(beam.UNDEFINED_TIME).toInt),
+          self
+        )
+      )
     )
   }
 
@@ -1316,7 +1327,8 @@ class PersonAgent(
               id,
               activity.getLinkId,
               activity.getFacilityId,
-              activity.getType
+              activity.getType,
+              null
             )
           )
 
@@ -1366,7 +1378,8 @@ class PersonAgent(
             new TeleportationArrivalEvent(
               tick,
               id,
-              currentTrip.legs.map(l => l.beamLeg.travelPath.distanceInM).sum
+              currentTrip.legs.map(l => l.beamLeg.travelPath.distanceInM).sum,
+              data.currentTourMode.map(_.matsimMode).getOrElse("")
             )
           )
           assert(activity.getLinkId != null)
@@ -1411,7 +1424,8 @@ class PersonAgent(
             id,
             activity.getLinkId,
             activity.getFacilityId,
-            activity.getType
+            activity.getType,
+            null
           )
           eventsManager.processEvent(activityStartEvent)
 
