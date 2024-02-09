@@ -51,6 +51,7 @@ General parameters
    beam.agentsim.snapLocationAndRemoveInvalidInputs = false
    beam.outputs.baseOutputDirectory = "output"
    beam.outputs.addTimestampToOutputDirectory = true
+   beam.logger.keepConsoleAppenderOn = true
 
 * simulationName: Used as a prefix when creating an output directory to store simulation results.
 * agentSampleSizeAsFractionOfPopulation: fraction of agents that is kept after loading the scenario.
@@ -68,6 +69,7 @@ General parameters
 * snapLocationAndRemoveInvalidInputs: If it's true Beam validate the scenario, snap activity locations to the nearest link, remove wrong locations.
 * outputs.baseOutputDirectory: The outputDirectory is the base directory where outputs will be written. The beam.agentsim.simulationName param will be used as the name of a sub-directory beneath the baseOutputDirectory for simulation results.
 * outputs.addTimestampToOutputDirectory: if true a timestamp will be added to the output directory, e.g. "beamville_2017-12-18_16-48-57"
+* logger.keepConsoleAppenderOn: if false then beam doesn't log
 
 Scenario parameters
 ^^^^^^^^^^^^^^^^^^^
@@ -398,12 +400,37 @@ TAZs, Scaling, and Physsim Tuning
    beam.agentsim.tuning.rideHailPrice = 1.0
    # PhysSim name (JDEQSim | BPRSim | PARBPRSim | CCHRoutingAssignment)
    beam.physsim.name = "JDEQSim
+   beam.physsim.eventManager.type = "Auto"
+   beam.physsim.eventManager.numberOfThreads = 1
+
+   beam.physsim.pickUpDropOffAnalysis.enabled = false
+   beam.physsim.pickUpDropOffAnalysis.secondsFromPickUpPropOffToAffectTravelTime = 600
+   beam.physsim.pickUpDropOffAnalysis.additionalTravelTimeMultiplier = 1.0
+
+   # JDEQSim
+
+   beam.physsim.jdeqsim.agentSimPhysSimInterfaceDebugger.enabled = false
+   beam.physsim.jdeqsim.cacc.enabled = false
+   beam.physsim.jdeqsim.cacc.minRoadCapacity = 2000
+   beam.physsim.jdeqsim.cacc.minSpeedMetersPerSec = 20
+   beam.physsim.jdeqsim.cacc.speedAdjustmentFactor = 1.0
+   beam.physsim.jdeqsim.cacc.capacityPlansWriteInterval = 0
+   beam.physsim.jdeqsim.cacc.adjustedMinimumRoadSpeedInMetersPerSecond = 1.3
+
+   beam.physsim.cchRoutingAssignment.congestionFactor = 1.0
+   beam.physsim.overwriteLinkParamPath = ""
    # PhysSim Scaling Params
    beam.physsim.flowCapacityFactor = 0.0001
    beam.physsim.storageCapacityFactor = 0.0001
    beam.physsim.writeMATSimNetwork = false
+   beam.physsim.speedScalingFactor = 1.0
+   beam.physsim.maxLinkLengthToApplySpeedScalingFactor = 50.0
+   beam.physsim.linkStatsBinSize = 3600
    beam.physsim.ptSampleSize = 1.0
-   beam.physsim.jdeqsim.agentSimPhysSimInterfaceDebugger.enabled = false
+   beam.physsim.eventsForFullVersionOfVia = true
+   beam.physsim.eventsSampling = 1.0
+   beam.physsim.quick_fix_minCarSpeedInMetersPerSecond = 0.5
+   beam.physsim.inputNetworkFilePath = ${beam.routing.r5.directory}"/physsim-network.xml"
    beam.physsim.skipPhysSim = false
    # Travel time function for (PAR)PBR sim (BPR | FREE_FLOW)
    beam.physsim.bprsim.travelTimeFunction = "BPR"
@@ -512,10 +539,18 @@ TAZs, Scaling, and Physsim Tuning
       beta = "double?"
     }
     default {
-      alpha = "double | 1.0"
-      beta = "double | 2.0"
+      alpha = 1.0
+      beta = 2.0
     }
    }
+   beam.physsim.network.maxSpeedInference.enabled = false
+   beam.physsim.network.maxSpeedInference.type = "MEAN"
+   beam.physsim.duplicatePTE.fractionOfEventsToDuplicate = 0.0
+   beam.physsim.duplicatePTE.departureTimeShiftMin = -600
+   beam.physsim.duplicatePTE.departureTimeShiftMax = 600
+   beam.physsim.network.removeIslands = true
+
+
 
 * agentsim.taz.filePath: path to a file specifying the centroid of each TAZ. For performance BEAM approximates TAZ boundaries based on a nearest-centroid approach. The area of each centroid (in m^2) is also necessary to approximate average travel distances within each TAZ (used in parking choice process).
 * agentsim.taz.tazIdFieldName: in case TAZ are read from a shape file this parameter defines the taz id attribute of TAZ shapes.
@@ -533,11 +568,31 @@ TAZs, Scaling, and Physsim Tuning
 * tuning.tollPrice: Scale the price to cross tolls.
 * tuning.rideHailPrice: Scale the price of ride hailing. Applies uniformly to all trips and is independent of defaultCostPerMile and defaultCostPerMinute described above. I.e. price = (costPerMile + costPerMinute)*rideHailPrice
 * physsim.name: Name of the physsim. BPR physsim calculates the travel time of a vehicle for a particular link basing on the inFlow value for that link (number of vehicle entered that link within last n minutes. This value is upscaled to one hour value.). PARBPR splits the network into clusters and simulates vehicle movement for each cluster in parallel.
+* physsim.eventManager.type: physsim event manager type. Options: Auto, Sequential, Parallel. You want to choose the one with the best performance. But usually Auto is good enough.
+* physsim.eventManager.numberOfThreads: number of threads for parallel event manager. 1 thread usually shows the best performance (async event handling).
+* physsim.pickUpDropOffAnalysis.enabled: enables increasing the link travel time basing on the number of pickup and drop-off events happening on the link.
+* physsim.pickUpDropOffAnalysis.secondsFromPickUpPropOffToAffectTravelTime: the maximum time interval within which the pickup/drop-off events affecting the link travel time.
+* physsim.pickUpDropOffAnalysis.additionalTravelTimeMultiplier: a multiplier that increases travel time depending on the number of pickup/drop-off events.
+* python.agentSimPhysSimInterfaceDebugger.enabled: Enables special debugging output.
+* physsim.jdeqsim.cacc.enabled: enables modelling impact of Cooperative Adaptive Cruise Control.
+* physsim.jdeqsim.cacc.minRoadCapacity: a CACC link must have at least this capacity.
+* physsim.jdeqsim.cacc.minSpeedMetersPerSec: a CACC link must have at least this free speed.
+* physsim.jdeqsim.cacc.speedAdjustmentFactor: a free speed multiplier for each link
+* physsim.jdeqsim.cacc.capacityPlansWriteInterval: on which iterations to write CACC capacity stats.
+* physsim.jdeqsim.cacc.adjustedMinimumRoadSpeedInMetersPerSecond: the minimal possible speed on each link. In case of the biggest traffic jam an average speed of a vehicle is this value.
+* physsim.cchRoutingAssignment.congestionFactor: Used to calculate ods number multiplier with following formula: 1 / agentSampleSizeAsFractionOfPopulation * congestionFactor.
+* beam.physsim.overwriteLinkParamPath: a csv file path that can be used to overwrite link parameters: capacity, free_speed, length, lanes, alpha, beta. 
 * physsim.flowCapacityFactor: Flow capacity parameter used by JDEQSim for traffic flow simulation.
 * physsim.storageCapacityFactor: Storage capacity parameter used by JDEQSim for traffic flow simulation.
 * physsim.writeMATSimNetwork: A copy of the network used by JDEQSim will be written to outputs folder (typically only needed for debugging).
+* physsim.speedScalingFactor: Link free speed scaling factor.
+* physsim.maxLinkLengthToApplySpeedScalingFactor: Link must be lower or equal to this value to have speedScalingFactor be applied.
+* physsim.linkStatsBinSize: Size of time bin for link statistic.
 * physsim.ptSampleSize: A scaling factor used to reduce the seating capacity of all transit vehicles. This is typically used in the context of running a partial sample of the population, it is advisable to reduce the capacity of the transit vehicles, but not necessarily proportionately. This should be calibrated.
-* agentSimPhysSimInterfaceDebugger.enabled: Enables special debugging output.
+* physsim.eventsForFullVersionOfVia: enables saving additional events that are support of the full version of Simunto Via visualization software.
+* physsim.eventsSampling: fraction of physsim events to be written out.
+* physsim.quick_fix_minCarSpeedInMetersPerSecond: this minimal car speed is used in GraphHopper router and also for printing debut output for cases when the actual car speed is below this value.
+* physsim.inputNetworkFilePath = ${beam.routing.r5.directory}"/physsim-network.xml"
 * skipPhysSim: Turns off the JDEQSim traffic flow simulation. If set to true, then network congestion will not change from one iteration to the next. Typically this is only used for debugging issues that are unrelated to the physsim.
 * physsim.bprsim.travelTimeFunction: Travel time function (BPR of free flow). For BPR function see https://en.wikipedia.org/wiki/Route_assignment. Free flow implies that the vehicles go on the free speed on that link.
 * physsim.bprsim.minFlowToUseBPRFunction: If the inFlow is below this value then BPR function is not used. Free flow is used in this case.
@@ -545,7 +600,12 @@ TAZs, Scaling, and Physsim Tuning
 * physsim.parbprsim.numberOfClusters: the number of clusters for PARBPR physsim.
 * physsim.parbprsim.syncInterval: The sync interval in seconds for PARBPRsim. When the sim time reaches this interval in a particular cluster then it waits for the other clusters at that time point.
 * physsim.overwriteRoadTypeProperties: It allows to override attributes for certain types of links.
-
+* physsim.maxSpeedInference.enabled: enables max speed inference by road type from Open Street Map data.
+* physsim.maxSpeedInference.type: Possible types of inference: MEAN, MEDIAN.
+* physsim.duplicatePTE.fractionOfEventsToDuplicate: fraction of PathTraversal events to be duplicated. It allows to increase physSim population without increasing agentSim population. The idea behind that is the following - bigger physSim population allows to use higher values of flowCapacityFactor thus reducing the rounding error for links capacity. This should allow better speed calibration without too high agentSim population.
+* physsim.duplicatePTE.departureTimeShiftMin: min departure time shift in seconds.
+* physsim.duplicatePTE.departureTimeShiftMax: max departure time shift in seconds.
+* physsim.network.removeIslands: Removes not connected areas from the network. For a small test OSM map (10-20 nodes) it might be possible that R5 TransportNetwork would incorrectly consider all nodes to be an island and will remove it. Set this to `false` to override that.
 
 Routing Configuration
 ^^^^^^^^^^^^^^^^^^^^^
@@ -938,26 +998,37 @@ Calibration
 ^^^^^^^^^^^
 ::
 
-    beam.calibration.objectiveFunction = "ModeChoiceObjectiveFunction"
-    beam.calibration.meanToCountsWeightRatio = "double | 0.5"
     beam.calibration.mode.benchmarkFilePath = ""
     beam.calibration.roadNetwork.travelTimes.zoneBoundariesFilePath = ""
     beam.calibration.roadNetwork.travelTimes.zoneODTravelTimesFilePath = ""
 
-    beam.calibration.google.travelTimes.enable = "boolean | false"
-    beam.calibration.google.travelTimes.numDataPointsOver24Hours = "int | 100"
-    beam.calibration.google.travelTimes.minDistanceInMeters = "double | 5000"
-    beam.calibration.google.travelTimes.iterationInterval = "int | 5"
-    beam.calibration.google.travelTimes.tolls = "boolean | true"
+    beam.calibration.google.travelTimes.enable = false
+    beam.calibration.google.travelTimes.numDataPointsOver24Hours = 100
+    beam.calibration.google.travelTimes.minDistanceInMeters = 5000
+    beam.calibration.google.travelTimes.iterationInterval = 5
+    beam.calibration.google.travelTimes.tolls = true
     beam.calibration.google.travelTimes.queryDate = "2020-10-14"
-    beam.calibration.google.travelTimes.offPeakEnabled = "boolean | false"
+    beam.calibration.google.travelTimes.offPeakEnabled = false
 
-    beam.calibration.studyArea.enabled = "boolean | false"
-    beam.calibration.studyArea.lat = "double | 0"
-    beam.calibration.studyArea.lon = "double | 0"
-    beam.calibration.studyArea.radius = "double | 0"
+    beam.calibration.studyArea.enabled = false
+    beam.calibration.studyArea.lat = 0
+    beam.calibration.studyArea.lon = 0
+    beam.calibration.studyArea.radius = 0
 
-* objectiveFunction
+* mode.benchmarkFilePath: path to a csv file containing all beam mode shares. It allows to build analysis graphs that compares current run data with the benchmark data.
+* roadNetwork.travelTimes.zoneBoundariesFilePath: path to a geojson file that contains census tract data.
+* roadNetwork.travelTimes.zoneODTravelTimesFilePath: path to a csv file that contains census travel time data. These 2 files are needed if we want to build travel time graphs (scatterplot_simulation_vs_reference.png and simulation_vs_reference_histogram.png).
+* google.travelTimes.enable: enables gathering google map estimated travel time for particular origin/destination/vehicle type/departure time and saving the simulation data along with the google data to googleTravelTimeEstimation.csv file.
+* google.travelTimes.numDataPointsOver24Hours: the number of simulated car path-traversal which are used to get google statistic.
+* google.travelTimes.minDistanceInMeters: only path-traversal events with travel length greater or equal to this value are used.
+* google.travelTimes.iterationInterval: google statistic is gathered only on the iterations with this interval.
+* google.travelTimes.tolls: if set to false then google statistic contains only paths that avoids tolls.
+* google.travelTimes.queryDate: date of the statistic.
+* google.travelTimes.offPeakEnabled: if true then departure time is always set to 3AM.
+* studyArea.enabled: enables writing car travel time data for a studied area.
+* studyArea.lat: latitude of the center of the studied area.
+* studyArea.lon: longitude of the center of the studied area.
+* studyArea.radius: radius of the studied area.
 
 
 Output
@@ -965,7 +1036,7 @@ Output
 ::
 
     # this will write out plans and throw and exception at the beginning of simulation
-    beam.output.writePlansAndStopSimulation = "boolean | false"
+    beam.output.writePlansAndStopSimulation = false
 
 *
     beam.output.writePlansAndStopSimulation - if set to true will write plans into 'generatedPlans.csv.gz'
@@ -1034,6 +1105,7 @@ There's the list of parameters responsible for writing out data produced by BEAM
         fileBaseName = "skimsTransitCrowding"
       }
     }
+    beam.metrics.level = "verbose"
 
 All integer values that end with 'Interval' mean writing data files at iteration which number % value = 0. In case value = 0
 writing is disabled.
@@ -1051,7 +1123,7 @@ writing is disabled.
 * physsim.linkStatsWriteInterval: enable writing link statistic to #.linkstats_unmodified.csv.gz"
 * outputs.generalizedLinkStatsInterval: enable writing generalized link statistic (with generalized time and cost) to #.generalizedLinkStats.csv.gz
 * outputs.generalizedLinkStats.startTime, endTime: write link statistic only within this time interval
-* outputs.collectAndCreateBeamAnalysisAndGraphs: if true varios beam analysis csv files and graphs are generated.
+* outputs.collectAndCreateBeamAnalysisAndGraphs: if true various beam analysis csv files and graphs are generated.
 * outputs.displayPerformanceTimings: enables writing some internal Scheduler and Routing statistic.
 * outputs.defaultWriteInterval: the default iteration interval that is used in the output.
 * outputs.events.eventsToWrite: the list of events that need to be written in events.csv file.
@@ -1077,6 +1149,7 @@ writing is disabled.
 * router.skim.taz-skimmer.geoHierarchy: GEO unit that is used in TAZ skimmer (TAZ or H3)
 * router.skim.transit-crowding-skimmer.name: transit crowding skimmer event name
 * router.skim.transit-crowding-skimmer.fileBaseName: transit crowding skims base file name
+* metrics.level: the level of beam metrics. Possible values: off, short, regular, verbose
 
 Termination criterion name options
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1194,10 +1267,28 @@ Technical parameters
 * actorSystemName - name of the akka actor system.
 * useLocalWorker - enables local worker for routing work.
 
-Not used parameters
-^^^^^^^^^^^^^^^^^^^
+Parameters that are not supported anymore
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ::
 
     beam.debug.memoryConsumptionDisplayTimeoutInSec
     beam.cluster.clusterType
-
+    beam.calibration.objectiveFunction
+    beam.calibration.meanToCountsWeightRatio
+    beam.experimental.optimizer.enabled
+    beam.physsim.initializeRouterWithFreeFlowTimes
+    beam.physsim.relaxation.type
+    beam.physsim.relaxation.experiment2_0.internalNumberOfIterations
+    beam.physsim.relaxation.experiment2_0.fractionOfPopulationToReroute
+    beam.physsim.relaxation.experiment2_0.clearRoutesEveryIteration
+    beam.physsim.relaxation.experiment2_0.clearModesEveryIteration
+    beam.physsim.relaxation.experiment2_1.internalNumberOfIterations
+    beam.physsim.relaxation.experiment2_1.fractionOfPopulationToReroute
+    beam.physsim.relaxation.experiment2_1.clearRoutesEveryIteration
+    beam.physsim.relaxation.experiment2_1.clearModesEveryIteration
+    beam.physsim.relaxation.experiment3_0.internalNumberOfIterations
+    beam.physsim.relaxation.experiment3_0.fractionOfPopulationToReroute
+    beam.physsim.relaxation.experiment4_0.percentToSimulate
+    beam.physsim.relaxation.experiment5_0.percentToSimulate
+    beam.physsim.relaxation.experiment5_1.percentToSimulate
+    beam.physsim.relaxation.experiment5_2.percentToSimulate
