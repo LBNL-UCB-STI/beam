@@ -11,6 +11,7 @@ import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.utils.objectattributes.attributable.Attributable
+import beam.utils.OptionalUtils.OptionalTimeExtension
 
 import java.io.Closeable
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
@@ -155,7 +156,7 @@ object XmlPlanElementReader extends PlanElementReader {
       activityType = Option(activity.getType),
       activityLocationX = maybeCoord.map(_.getX),
       activityLocationY = maybeCoord.map(_.getY),
-      activityEndTime = Option(activity.getEndTime),
+      activityEndTime = activity.getEndTime.toOption,
       legMode = None,
       legDepartureTime = None,
       legTravelTime = None,
@@ -192,7 +193,7 @@ object XmlPlanElementReader extends PlanElementReader {
       legRouteType = Option(leg.getRoute).map(_.getRouteType),
       legRouteStartLink = Option(leg.getRoute).map(_.getStartLinkId.toString),
       legRouteEndLink = Option(leg.getRoute).map(_.getEndLinkId.toString),
-      legRouteTravelTime = Option(leg.getRoute).map(_.getTravelTime),
+      legRouteTravelTime = Option(leg.getRoute).flatMap(_.getTravelTime.toOption),
       legRouteDistance = Option(leg.getRoute).map(_.getDistance),
       legRouteLinks = leg.getRoute match {
         case route: NetworkRoute => route.getLinkIds.asScala.map(_.toString).toSeq

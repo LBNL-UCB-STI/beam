@@ -315,7 +315,9 @@ Ride hail management
      initialization.procedural.initialLocation.home.radiusInMeters = 10000
      initialization.filePath = ""
      initialization.parking.filePath = ""
-     
+
+     stopFilePath = string
+     maximumWalkDistanceToStopInM = 800.0
      defaultCostPerMile=1.25
      defaultCostPerMinute=0.75
      defaultBaseCost = 1.8
@@ -404,6 +406,10 @@ One can add multiple different RH fleets into the array **beam.agentsim.agents.r
 * initialization.procedural.initialLocation.home.radiusInMeters: radius within which the initial location is taken
 * initialization.filePath: this file is loaded when initialization.initType is "FILE"
 * initialization.parking.filePath: parking zones defined for ridehail fleet; it may be empty.
+* stopFilePath: an optional file that contains ride-hail stop coordinates. If this file is set then the ride-hail vehicles
+  can pick up/drop off passengers only on the given stops. For a small fraction of passengers a wrong ordered sequence
+  of events can be produced (i.e. a person can reach the pickup stop after they enter the ride-hail vehicle).
+* maximumWalkDistanceToStopInM: it defines the maximum walking distance to/from ride-hail stops.
 * defaultCostPerMile: cost per mile for ride hail price calculation for solo riders.
 * defaultCostPerMinute: cost per minute for ride hail price calculation for solo riders.
 * defaultBaseCost: base RH cost for solo riders

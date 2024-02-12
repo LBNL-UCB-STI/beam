@@ -57,9 +57,10 @@ import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling, PlansDumping}
 import org.matsim.core.events.ParallelEventsManagerImpl
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
 import org.matsim.core.trafficmonitoring.TravelTimeCalculator
-import org.matsim.households.Households
+import org.matsim.households.{HouseholdUtils, Households}
 import org.matsim.utils.objectattributes.AttributeConverter
 import org.matsim.vehicles.Vehicle
 
@@ -193,6 +194,10 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
           bind(classOf[TerminationCriterion]).toProvider(classOf[TerminationCriterionProvider])
 
           bind(classOf[PrepareForSim]).to(classOf[BeamPrepareForSim])
+
+          // TODO temporary turning off PrepareForMobsim
+          bind(classOf[PrepareForMobsim]).toInstance(() => {})
+
           bind(classOf[RideHailSurgePricingManager]).asEagerSingleton()
 
           addControlerListenerBinding().to(classOf[BeamSim])
@@ -769,7 +774,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
         .foreach { plan =>
           val planElements = plan.getPlanElements
           val firstActivity = planElements.get(0)
-          firstActivity.asInstanceOf[Activity].setEndTime(Double.NegativeInfinity)
+          firstActivity.asInstanceOf[Activity].setEndTimeUndefined()
           planElements.clear()
           planElements.add(firstActivity)
         }
@@ -923,19 +928,16 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
         population.getFactory,
         households.getFactory
       )
-      .foreach { case (carrier, household, plan, personId, vehicleId) =>
-        households.getHouseholdAttributes
-          .putAttribute(household.getId.toString, "homecoordx", carrier.warehouseLocationUTM.getX)
-        households.getHouseholdAttributes
-          .putAttribute(household.getId.toString, "homecoordy", carrier.warehouseLocationUTM.getY)
-        population.getPersonAttributes.putAttribute(personId.toString, "vehicle", vehicleId.toString)
+      .foreach { case (carrier, household, plan, person, vehicleId) =>
+        HouseholdUtils.putHouseholdAttribute(household, "homecoordx", carrier.warehouseLocationUTM.getX)
+        HouseholdUtils.putHouseholdAttribute(household, "homecoordy", carrier.warehouseLocationUTM.getY)
+        PopulationUtils.putPersonAttribute(person, "vehicle", vehicleId.toString)
         households.getHouseholds.put(household.getId, household)
         population.addPerson(plan.getPerson)
         AvailableModeUtils.setAvailableModesForPerson_v2(
           beamScenario,
           plan.getPerson,
           household,
-          population,
           allowedModes
         )
       }

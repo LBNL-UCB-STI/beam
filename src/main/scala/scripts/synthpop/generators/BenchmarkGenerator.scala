@@ -5,7 +5,7 @@ import beam.utils.csv.CsvWriter
 import scripts.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.synthpop.GeoService
 import beam.utils.data.synthpop.models.Models.TazGeoId
-import com.vividsolutions.jts.geom.{Envelope, Geometry}
+import org.locationtech.jts.geom.{Envelope, Geometry}
 import scripts.ctpp.models.{MeansOfTransportation, OD, ResidenceToWorkplaceFlowGeography}
 import scripts.ctpp.readers.flow.MeansOfTransportationTableReader
 

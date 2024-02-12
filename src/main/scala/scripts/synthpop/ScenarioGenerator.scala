@@ -20,7 +20,7 @@ import beam.utils.data.synthpop.models.Models._
 import beam.utils.scenario._
 import beam.utils.scenario.generic.writers._
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.Geometry
+import org.locationtech.jts.geom.Geometry
 import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
 import org.matsim.api.core.v01.Coord
 import scripts.ctpp.models.ResidenceToWorkplaceFlowGeography

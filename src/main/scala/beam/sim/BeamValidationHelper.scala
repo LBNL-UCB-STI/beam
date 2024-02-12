@@ -3,8 +3,11 @@ package beam.sim
 import org.matsim.core.config.{Config => MatsimConfig}
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.annotation.nowarn
+
 trait BeamValidationHelper extends LazyLogging {
 
+  @nowarn
   def ensureRequiredValuesExist(matsimConfig: MatsimConfig): Unit = {
     logger.info("ensureRequiredValuesExist() entry")
     if (Option(matsimConfig.households().getInputFile).forall(_.isEmpty)) {

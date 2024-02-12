@@ -51,7 +51,7 @@ class SfLightRoutePopulationSpec
             .foreach(pair => {
               val origin = pair(0).getCoord
               val destination = pair(1).getCoord
-              val time = pair(0).getEndTime.toInt
+              val time = pair(0).getEndTime.orElse(beam.UNDEFINED_TIME).toInt
               val response = router.calcRoute(
                 RoutingRequest(
                   originUTM = origin,

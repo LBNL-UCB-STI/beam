@@ -47,8 +47,9 @@ class JDEQSimRunner(
 
   def simulate(currentPhysSimIter: Int, writeEvents: Boolean): SimulationResult = {
     val jdeqsimEvents = createEventManager
-    val travelTimeCalculator =
-      new TravelTimeCalculator(jdeqSimScenario.getNetwork, jdeqSimScenario.getConfig.travelTimeCalculator)
+    val travelTimeCalculatorBuilder = new TravelTimeCalculator.Builder(jdeqSimScenario.getNetwork)
+    travelTimeCalculatorBuilder.configure(jdeqSimScenario.getConfig.travelTimeCalculator)
+    val travelTimeCalculator = travelTimeCalculatorBuilder.build()
     val legHistogram = new LegHistogram(
       population,
       jdeqsimEvents,
@@ -204,7 +205,7 @@ class JDEQSimRunner(
     simName match {
       case "BPRSim" =>
         val bprCfg = BPRSimConfig(
-          config.getSimulationEndTime,
+          config.getSimulationEndTime.orElse(beam.UNDEFINED_TIME),
           1,
           0,
           beamConfig.beam.physsim.flowCapacityFactor,
@@ -233,7 +234,7 @@ class JDEQSimRunner(
           throw new IllegalArgumentException("sync interval must be greater then zero")
         }
         val bprCfg = BPRSimConfig(
-          config.getSimulationEndTime,
+          config.getSimulationEndTime.orElse(beam.UNDEFINED_TIME),
           numberOfClusters,
           syncInterval,
           beamConfig.beam.physsim.flowCapacityFactor,

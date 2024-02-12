@@ -12,9 +12,10 @@ import com.google.common.annotations.VisibleForTesting
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
-import org.matsim.core.population.PopulationUtils
+import org.matsim.core.population.{PersonUtils, PopulationUtils}
 import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder}
+import org.matsim.core.utils.misc.OptionalTime
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
@@ -50,11 +51,13 @@ class BeamScenarioLoader(
     households: Households,
     loadedAttributes: IdToAttributes
   ): Unit = {
-    val attributes = households.getHouseholdAttributes
-    attributes.clear()
+    households.getHouseholds.values.asScala.map(_.getAttributes.clear())
+    val householdIdStrToHousehold = households.getHouseholds.asScala.map { case (key, value) =>
+      (key.toString, value)
+    }.toMap
     loadedAttributes.foreach { case (id, listOfAttributes) =>
       listOfAttributes.foreach { case (name, value) =>
-        attributes.putAttribute(id, name, value)
+        HouseholdUtils.putHouseholdAttribute(householdIdStrToHousehold(id), name, value)
       }
     }
   }
@@ -144,25 +147,25 @@ class BeamScenarioLoader(
 
     persons.foreach { personInfo =>
       val person = result.getFactory.createPerson(Id.createPersonId(personInfo.personId.id))
-      val personId = person.getId.toString
 
       val sexChar = if (personInfo.isFemale) "F" else "M"
 
-      val personAttributes = result.getPersonAttributes
-      personAttributes.putAttribute(personId, "householdId", personInfo.householdId)
-      personAttributes.putAttribute(personId, "rank", personInfo.rank)
-      personAttributes.putAttribute(personId, "age", personInfo.age)
-      personAttributes.putAttribute(personId, "valueOfTime", personInfo.valueOfTime)
-      personAttributes.putAttribute(personId, "sex", sexChar)
-      personAttributes.putAttribute(personId, "excluded-modes", personInfo.excludedModes.mkString(","))
-      personAttributes.putAttribute(
-        personId,
+      PopulationUtils.putPersonAttribute(person, "householdId", personInfo.householdId)
+      PopulationUtils.putPersonAttribute(person, "householdId", personInfo.householdId)
+      PopulationUtils.putPersonAttribute(person, "rank", personInfo.rank)
+      PopulationUtils.putPersonAttribute(person, "age", personInfo.age)
+      PopulationUtils.putPersonAttribute(person, "valueOfTime", personInfo.valueOfTime)
+      PopulationUtils.putPersonAttribute(person, "sex", sexChar)
+      PopulationUtils.putPersonAttribute(person, "excluded-modes", personInfo.excludedModes.mkString(","))
+      PopulationUtils.putPersonAttribute(
+        person,
         RIDEHAIL_SERVICE_SUBSCRIPTION,
         personInfo.rideHailServiceSubscription.mkString(",")
       )
-      person.getAttributes.putAttribute("sex", sexChar)
-      person.getAttributes.putAttribute("age", personInfo.age)
-      person.getAttributes.putAttribute("industry", personInfo.industry.getOrElse(""))
+      PopulationUtils.putPersonAttribute(person, "sex", sexChar)
+      PopulationUtils.putPersonAttribute(person, "age", personInfo.age)
+      PopulationUtils.putPersonAttribute(person, "industry", personInfo.industry.getOrElse(""))
+
       result.addPerson(person)
     }
 
@@ -186,7 +189,6 @@ class BeamScenarioLoader(
         beamScenario,
         person,
         personHouseholds(person.getId),
-        population,
         availableModes
       )
     }
@@ -248,15 +250,24 @@ class BeamScenarioLoader(
     )
     val act = PopulationUtils.createAndAddActivityFromCoord(currentPlan, activityType, coord)
     planElement.activityEndTime.foreach { endTime =>
-      act.setEndTime(endTime)
+      if (endTime == beam.UNDEFINED_TIME) act.setEndTimeUndefined()
+      else act.setEndTime(endTime)
     }
     act
   }
 
   private def buildAndAddLegToPlan(currentPlan: Plan, planElement: PlanElement): Leg = {
     val leg = PopulationUtils.createAndAddLeg(currentPlan, planElement.legMode.getOrElse(""))
-    planElement.legDepartureTime.foreach(v => leg.setDepartureTime(v.toDouble))
-    planElement.legTravelTime.foreach(v => leg.setTravelTime(v.toDouble))
+    planElement.legDepartureTime.foreach(departureTimeStr => {
+      val departureTime = departureTimeStr.toDouble
+      if (departureTime == beam.UNDEFINED_TIME) leg.setDepartureTimeUndefined()
+      else leg.setDepartureTime(departureTime)
+    })
+    planElement.legTravelTime.foreach(travelTimeStr => {
+      val travelTime = travelTimeStr.toDouble
+      if (travelTime == beam.UNDEFINED_TIME) leg.setTravelTimeUndefined()
+      else leg.setTravelTime(travelTime)
+    })
     planElement.legMode.foreach(v => leg.setMode(v))
 
     val legRoute: NetworkRoute = {
@@ -272,7 +283,10 @@ class BeamScenarioLoader(
       planElement.legRouteDistance.foreach(legRoute.setDistance)
       planElement.legRouteStartLink.foreach(v => legRoute.setStartLinkId(Id.create(v, classOf[Link])))
       planElement.legRouteEndLink.foreach(v => legRoute.setEndLinkId(Id.create(v, classOf[Link])))
-      planElement.legRouteTravelTime.foreach(v => legRoute.setTravelTime(v))
+      planElement.legRouteTravelTime.foreach(v => {
+        if (v == beam.UNDEFINED_TIME) legRoute.setTravelTimeUndefined()
+        else legRoute.setTravelTime(v)
+      })
     }
     leg
   }

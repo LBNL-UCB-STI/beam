@@ -1,6 +1,6 @@
 package beam.agentsim.agents
 
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
 
 trait BeamvilleFixtures {

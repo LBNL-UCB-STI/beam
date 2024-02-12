@@ -4,7 +4,7 @@ import beam.utils.csv.CsvWriter
 import beam.utils.data.synthpop.GeoService
 import beam.utils.data.synthpop.models.Models.{GenericGeoId, TazGeoId}
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.geom.Geometry
+import org.locationtech.jts.geom.Geometry
 import org.geotools.geometry.jts.JTS
 import org.geotools.referencing.CRS
 import org.opengis.referencing.operation.MathTransform

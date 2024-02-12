@@ -7,7 +7,7 @@ import beam.agentsim.infrastructure.parking.ParkingZoneSearch.ParkingAlternative
 import beam.agentsim.infrastructure.parking.{ParkingType, _}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.util.Random

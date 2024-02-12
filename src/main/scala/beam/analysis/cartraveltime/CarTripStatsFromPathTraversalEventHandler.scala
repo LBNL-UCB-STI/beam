@@ -1,7 +1,6 @@
 package beam.analysis.cartraveltime
 
 import java.io.Closeable
-
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.FreeFlowTravelTime
@@ -14,10 +13,11 @@ import com.typesafe.scalalogging.LazyLogging
 import org.jfree.chart.ChartFactory
 import org.jfree.chart.plot.PlotOrientation
 import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
-import org.jfree.data.general.DatasetUtilities
+import org.jfree.data.general.DatasetUtils
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.core.config.groups.ControlerConfigGroup.CompressionType
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.controler.events.{IterationEndsEvent, ShutdownEvent}
@@ -306,7 +306,7 @@ class CarTripStatsFromPathTraversalEventHandler(
     val averageSpeed = (0 until maxHour).map(hourAverageSpeed.getOrElse(_, 0.0))
 
     // generate the category dataset using the average travel times data
-    val dataset = DatasetUtilities.createCategoryDataset("car", "", Array(averageSpeed.toArray))
+    val dataset = DatasetUtils.createCategoryDataset("car", "", Array(averageSpeed.toArray))
 
     val fileName = s"${prefix}AverageSpeed.$mode.png"
     val graphTitle = s"Average Speed [ $mode ]"
@@ -340,7 +340,7 @@ class CarTripStatsFromPathTraversalEventHandler(
         hour -> 100 * (avgSpeed / avgFreeFlowSpeed)
       }
     val arr = (0 until hourAverageSpeedPercent.keys.max).map(hourAverageSpeedPercent.getOrElse(_, 0.0))
-    val dataset = DatasetUtilities.createCategoryDataset("car", "", Array(arr.toArray))
+    val dataset = DatasetUtils.createCategoryDataset("car", "", Array(arr.toArray))
     val fileName = s"${prefix}AverageSpeedPercentage.$mode.png"
     val graphTitle = s"Average Speed Percentage [ $mode ]"
     val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
@@ -635,7 +635,7 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
     val studyAreaTripFilter = new StudyAreaTripFilter(studyArea, geoUtils)
 
     val controlerIO: OutputDirectoryHierarchy =
-      new OutputDirectoryHierarchy("", OverwriteFileSetting.failIfDirectoryExists)
+      new OutputDirectoryHierarchy("", OverwriteFileSetting.failIfDirectoryExists, CompressionType.none)
 
     val c = CarTripStatsFromPathTraversalEventHandler(
       pathToNetwork = pathToNetwork,
