@@ -16,7 +16,7 @@ In order to see example configuration options for a particular release of BEAM r
 
 https://github.com/LBNL-UCB-STI/beam/blob/v0.6.2/test/input/beamville/beam.conf
 
-BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. Refer to these external documntation for details on the following inputs.
+BEAM follows the `MATSim convention`_ for most of the inputs required to run a simulation, though specifying the road network and transit system is based on the `R5 requirements`_. Refer to these external documentation for details on the following inputs.
 
 .. _MATSim convention: https://matsim.org/docs
 .. _R5 requirements: https://github.com/conveyal/r5
@@ -35,6 +35,7 @@ General parameters
 ^^^^^^^^^^^^^^^^^^
 ::
 
+   beam.inputDirectory = "/test/input/beamville"
    beam.agentsim.simulationName = "beamville"
    beam.agentsim.agentSampleSizeAsFractionOfPopulation = 1.0
    beam.agentsim.randomSeedForPopulationSampling = "int?"
@@ -43,7 +44,6 @@ General parameters
    beam.agentsim.thresholdForMakingParkingChoiceInMeters = 100
    beam.agentsim.schedulerParallelismWindow = 30
    beam.agentsim.timeBinSize = 3600
-   beam.agentsim.firstIteration = 0
    beam.agentsim.lastIteration = 0
    beam.agentsim.endTime = "30:00:00"
    beam.agentsim.scheduleMonitorTask.initialDelay = 1
@@ -53,6 +53,7 @@ General parameters
    beam.outputs.addTimestampToOutputDirectory = true
    beam.logger.keepConsoleAppenderOn = true
 
+* inputDirectory: Base scenario input directory.
 * simulationName: Used as a prefix when creating an output directory to store simulation results.
 * agentSampleSizeAsFractionOfPopulation: fraction of agents that is kept after loading the scenario.
 * randomSeedForPopulationSampling: if defined then this seed is used to sample the population.
@@ -61,7 +62,6 @@ General parameters
 * thresholdForMakingParkingChoiceInMeters: Similar to thresholdForWalkingInMeters, this threshold determines the point in a driving leg when the PersonAgent initiates the parking choice processes. So for 1000m, the agent will drive until she is <=1km from the destination and then seek a parking space.
 * schedulerParallelismWindow: This controls the discrete event scheduling window used by BEAM to achieve within-day parallelism. The units of this parameter are in seconds and the larger the window, the better the performance of the simulation, but the less chronologically accurate the results will be.
 * timeBinSize: For most auto-generated output graphs and tables, this parameter will control the resolution of time-varying outputs.
-* firstIteration: Not used.
 * lastIteration: Number of the last iteration (zero based).
 * endTime: String indicating the end of simulation time ("hh:mm:ss").
 * scheduleMonitorTask.initialDelay: Initial delay for schedule monitor task (seconds).
@@ -73,10 +73,17 @@ General parameters
 
 Scenario parameters
 ^^^^^^^^^^^^^^^^^^^
+::
+
+    beam.exchange.scenario.source
+
+* source - Scenario source: Beam, UrbanSim, UrbanSim_v2, Generic
+
 Beam scenario
 ~~~~~~~~~~~~~
 ::
 
+    beam.exchange.scenario.fileFormat = "xml"
     beam.agentsim.agents.plans.inputPlansFilePath = ${beam.inputDirectory}"/population.xml.gz"
     beam.input.simulationPrefix = ${beam.agentsim.simulationName}
     beam.input.lastBaseOutputDir = ${beam.outputs.baseOutputDirectory}
@@ -88,7 +95,10 @@ Beam scenario
     beam.agentsim.agents.population.industryRemovalProbabilty.enabled = false
     beam.agentsim.agents.population.industryRemovalProbabilty.inputFilePath = ""
     beam.agentsim.agents.population.industryRemovalProbabilty.removalStrategy = "RemovePersonFromScenario"
+    beam.spatial.localCRS = "epsg:32631"
+    beam.spatial.boundingBoxBuffer = 5000
 
+* exchange.scenario.fileFormat - input file format for scenario loader can be "xml", "csv" or "parquet"
 * input.lastBaseOutputDir - for sequential beam runs (some data will be loaded from the latest found run in this directory)
 * input.simulationPrefix - this prefix is used to find the last run output directory within beam.input.lastBaseOutputDir directory.
 * plans.inputPlansFilePath - person plans file.
@@ -100,10 +110,18 @@ Beam scenario
 * population.industryRemovalProbabilty.enabled - enables modifying persons that has work activities in their plans.
 * population.industryRemovalProbabilty.inputFilePath - a csv file with a header "industry,removal_probability" where industry is the person industry,removal_probability is the probability of removal this person or their plans depending on the strategy.
 * population.industryRemovalProbabilty.removalStrategy - the strategy to be used for industry population modification. Options: RemovePersonFromScenario, KeepPersonButRemoveAllActivities.
+* spatial.localCRS - What crs to use for distance calculations, must be in units of meters.
+* spatial.boundingBoxBuffer - Meters of buffer around network for defining extend of spatial indices.
 
 Urbansim scenario
 ~~~~~~~~~~~~~~~~~
 ::
+
+    beam.exchange.scenario.folder = ""
+    beam.exchange.scenario.modeMap = []
+    beam.exchange.scenario.convertWgs2Utm = false
+    beam.exchange.scenario.urbansim.activitySimEnabled = false
+    beam.exchange.scenario.urbansim.scenarioLoadingTimeoutSeconds = 3000
 
     beam.urbansim.fractionOfModesToClear {
       allModes = 0.0
@@ -114,7 +132,12 @@ Urbansim scenario
       drive_transit = 0.0
     }
 
-* urbansim.fractionOfModesToClear - clears that fraction of the defined modes in people plans.
+* exchange.scenario.folder - path to an UrbanSim data folder.
+* exchange.scenario.modeMap - contains mapping of UrbanSim modes to Beam modes. I.e. "DRIVEALONEFREE -> car".
+* exchange.scenario.convertWgs2Utm - defines if the scenario contains coordinates in WGS.
+* beam.exchange.scenario.urbansim.activitySimEnabled - enables generating chosen/realized mode graph for commutes.
+* beam.exchange.scenario.urbansim.scenarioLoadingTimeoutSeconds - urbansim scenario loading timeout.
+* beam.exchange.scenario.urbansim.fractionOfModesToClear - clears that fraction of the defined modes in people plans.
 
 Freight parameters
 ~~~~~~~~~~~~~~~~~~
@@ -365,6 +388,59 @@ Vehicles
 * enroute.refuelRequiredThresholdOffsetInMeters, noRefuelThresholdOffsetInMeters: If the range is inside (refuelRequiredThresholdInMeters, noRefuelThresholdInMeters) then en-route refueling requirement is determined by probability.
 * enroute.noRefuelAtRemainingDistanceThresholdInMeters: If the distance to the destination is less than this threshold then no en-route refueling happens.
 * enroute.remainingDistanceWrtBatteryCapacityThreshold: If the distance relative to the vehicle total range is greater then this threshold no en-route refueling happens.
+
+Shared vehicle fleets
+~~~~~~~~~~~~~~~~~~~~~
+::
+
+    beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId = "sharedVehicle-sharedCar"
+    beam.agentsim.agents.vehicles.dummySharedBike.vehicleTypeId = "sharedVehicle-sharedBike"
+    beam.agentsim.agents.vehicles.sharedFleets = [
+      {
+        name = "my-fixed-non-reserving-fleet"
+        managerType = "fixed-non-reserving"
+        parkingFilePath = ""
+        fixed-non-reserving {
+          vehicleTypeId = "sharedVehicle-sharedCar",
+          maxWalkingDistance = 500
+        }
+        inexhaustible-reserving {
+          vehicleTypeId = "sharedVehicle-sharedCar"
+        }
+        fixed-non-reserving-fleet-by-taz {
+          vehicleTypeId = "sharedVehicle-sharedCar",
+          vehiclesSharePerTAZFromCSV = "",
+          maxWalkingDistance = 500,
+          fleetSize = 10
+        }
+        reposition {
+          name = "my-reposition-algorithm"
+          repositionTimeBin = 3600,
+          statTimeBin = 300,
+          min-availability-undersupply-algorithm {
+            matchLimit = 99999
+          }
+        }
+      }
+    ]
+
+* beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId: dummy (for household emergency vehicles and routing requests) shared car type id (must be in the vehicle types).
+* beam.agentsim.agents.vehicles.dummySharedBike.vehicleTypeId dummy (for household emergency vehicles and routing requests) shared bike type id (must be in the vehicle types).
+* beam.agentsim.agents.vehicles.sharedFleets: contains an array of shared fleet configuration structures.
+* name: Shared fleet name.
+* managerType: Fleet manager type (fixed-non-reserving, inexhaustible-reserving, fixed-non-reserving-fleet-by-taz). Type name has a corresponding config setting.
+* parkingFilePath: path to a beam parking file that contains parking zone info for the fleet.
+* fixed-non-reserving.vehicleTypeId: type id of the vehicles that are in this fleet.
+* fixed-non-reserving.maxWalkingDistance: When a person requests for a vehicle this is the max walking distance to the provided vehicle.
+* inexhaustible-reserving.vehicleTypeId: type id of the vehicles that are in this fleet.
+* fixed-non-reserving-fleet-by-taz.vehicleTypeId: type id of the vehicles that are in this fleet.
+* fixed-non-reserving-fleet-by-taz.vehiclesSharePerTAZFromCSV: path to a CSV file that has the following columns: "taz", "x", "y", "fleetShare". It contains shared vehicle fraction in a TAZ of in a coordinate.
+* fixed-non-reserving-fleet-by-taz.maxWalkingDistance: When a person requests for a vehicle this is the max walking distance to the provided vehicle.
+* fixed-non-reserving-fleet-by-taz.fleetSize: Size of the fleet.
+* reposition.name: Repositioning is used only with 'fixed-non-reserving-fleet-by-taz' manager. Name of the algorithm of shared vehicle repositioning: min-availability-undersupply-algorithm, min-availability-observed-algorithm.
+* repositioning.repositionTimeBin: repositioning time bin interval.
+* repositioning.statTimeBin: statistic time bin: time interval that is used to get the demand data from the previous iterations.
+* repositioning.min-availability-observed-algorithm.matchLimit: limit of over-supplied and under-supplied TAZs in min-availability-observed-algorithm.
 
 Population
 ^^^^^^^^^^
@@ -643,6 +719,7 @@ Routing Configuration
           ride_hail = 0
         }
       }
+      gh.useAlternativeRoutes = false
       startingIterationForTravelTimesMSA = 0
       overrideNetworkTravelTimesUsingSkims = false
 
@@ -678,6 +755,7 @@ Parameters within beam.routing namespace
 * r5.suboptimalMinutes: Used only for transitAlternativeList = "SUBOPTIMAL", configures the amount of time other possible routes can be slower than the fastest one and be kept in the alternative routes list. If the route has the same access mode as the fastest, this parameter determines how many minutes
 a r5.route can be slower to be kept; if the route has a different access mode to the fastest, the actual amount of minutes used to decide if it will be kept is 5 times this parameter.
 * r5.accessBufferTimeSeconds: How long does it take you to park your vehicle at the station
+* gh.useAlternativeRoutes: enables using alternative route algorithm in GH router.
 * startingIterationForTravelTimesMSA: Starting from this iteration link travel times of Metropolitan Statistical Area is used.
 * overrideNetworkTravelTimesUsingSkims: travel time is got from skims
 * minimumPossibleSkimBasedTravelTimeInS: minimum skim based travel time
@@ -756,14 +834,20 @@ Warm Mode
    # valid options: disabled, full, linkStatsOnly (only link stats is loaded (all the other data is got from the input directory))
    beam.warmStart.type = "disabled"
    #PATH TYPE OPTIONS: PARENT_RUN, ABSOLUTE_PATH
-   #PARENT_RUN: can be a director or zip archive of the output directory (e.g. like what get's stored on S3). We should also be able to specify a URL to an S3 output.
+   #PARENT_RUN: can be a director or zip archive of the output directory (e.g. like what gets stored on S3). We should also be able to specify a URL to an S3 output.
    #ABSOLUTE_PATH: a directory that contains required warm stats files (e.g. linkstats and eventually a plans).
    beam.warmStart.pathType = "PARENT_RUN"
    beam.warmStart.path = "https://s3.us-east-2.amazonaws.com/beam-outputs/run149-base__2018-06-27_20-28-26_2a2e2bd3.zip"
+   beam.warmStart.prepareData = false
+   beam.warmStart.samplePopulationIntegerFlag = 0
+   beam.warmStart.skimsFilePaths = []
 
 * warmStart.enabled: Allows you to point to the output of a previous BEAM run and the network travel times and final plan set from that run will be loaded and used to start a new BEAM run. 
 * beam.warmStart.pathType: See above for descriptions.
 * beam.warmStart.path: path to the outputs to load. Can we a path on the local computer or a URL in which case outputs will be downloaded.
+* beam.warmStart.prepareData: Creates warmstart_data.zip that can be used for warmstart in the next beam runs.
+* beam.warmStart.samplePopulationIntegerFlag: If set to 1 then sampling of population happens even in the case of warm start.
+* beam.warmStart.skimsFilePaths: For internal use.
 
 Ride hail management
 ^^^^^^^^^^^^^^^^^^^^
@@ -775,12 +859,14 @@ Ride hail management
   # Ride Hailing General Params
   beam.agentsim.agents.rideHail.managers = [{
      name = "GlobalRHM"
+     supportedModes = "ride_hail, ride_hail_pooled"
      initialization.initType = "PROCEDURAL" # Other possible values - FILE
      initialization.procedural.vehicleTypePrefix = "RH"
      initialization.procedural.vehicleTypeId = "Car"
-     initialization.procedural.fractionOfInitialVehicleFleet = "double | 0.1"
+     initialization.procedural.fractionOfInitialVehicleFleet = 0.1
      initialization.procedural.initialLocation.name = "HOME"
      initialization.procedural.initialLocation.home.radiusInMeters = 10000
+     initialization.procedural.vehicleAdjustmentMethod = ""
      initialization.filePath = ""
      initialization.parking.filePath = ""
 
@@ -869,12 +955,14 @@ Ride hail management
 One can add multiple different RH fleets into the array **beam.agentsim.agents.rideHail.managers** above.
 
 * name: RH manager name. It should be different for each RH config. RH vehicles prefer parking on parking zones with reservedFor parameter equals to this value. A person can be subscribed to a limited set of RH fleets. For Beam scenario one need to put a corresponding attribute (ridehail-service-subscription) to populationAttributes.xml. For Urbansim scenario one need to put attribute (ridehail_service_subscription) to person.csv file. Value of this attribute should contain a comma separated list of RH manager names. If this attribute is not set then the person subscribes to all the RH fleets.
+* supportedModes: the list of modes this RH manager supports
 * initialization.initType: type of ridehail fleet initialization
 * initialization.procedural.vehicleTypePrefix: the vehicle type prefix that indicates ridehail vehicles
 * initialization.procedural.vehicleTypeId: default ridehail vehicle type
 * initialization.procedural.fractionOfInitialVehicleFleet: Defines the # of ride hailing agents to create, this ration is multiplied by the parameter total number of household vehicles to determine the actual number of drivers to create. Agents begin the simulation located at or near the homes of existing agents, uniformly distributed.
 * initialization.procedural.initialLocation.name: the way to set the initial location for ride-hail vehicles (HOME, RANDOM_ACTIVITY, UNIFORM_RANDOM, ALL_AT_CENTER, ALL_IN_CORNER)
 * initialization.procedural.initialLocation.home.radiusInMeters: radius within which the initial location is taken
+* initialization.procedural.vehicleAdjustmentMethod: determines which vehicle type to use for an initialized ride-hail vehicle. Possible values: UNIFORM, INCOME_BASED, SINGLE_TYPE.
 * initialization.filePath: this file is loaded when initialization.initType is "FILE"
 * initialization.parking.filePath: parking zones defined for ridehail fleet; it may be empty.
 * stopFilePath: an optional file that contains ride-hail stop coordinates. If this file is set then the ride-hail vehicles
@@ -994,6 +1082,25 @@ Agents and Activities
     The durations of the rest activities will be calculated based on activity end time.
 *   modeIncentive.filePath - path to a file containing incentives (cost decrease) for certain Modes depending on person age and income.
 
+Replanning
+^^^^^^^^^^
+::
+
+    beam.replanning.maxAgentPlanMemorySize = "int | 5"
+    beam.replanning.Module_2 = "ClearRoutes"
+    beam.replanning.ModuleProbability_2 = 0.1
+    beam.replanning.clearModes.modes = []
+    beam.replanning.clearModes.iteration = 0
+    beam.replanning.clearModes.strategy = "AtBeginningOfIteration"
+
+This section controls process of merging the person plans from the previos beam run to the current run (see `lastBaseOutputDir`).
+
+* maxAgentPlanMemorySize - max number of plans to keep for a particular person.
+* Module_2, ModuleProbability_2 - if `Module_2` set to "ClearRoutes" then fraction `ModuleProbability_2` of routes saved in the route history are cleared.
+* clearModes.modes - The list of modes to be cleared
+* clearModes.iteration - The iteration number (zero-based) when the modes are cleared.
+* clearModes.strategy - options: AtBeginningOfIteration, AtBeginningAndAllSubsequentIterations. Clear mode strategy.
+
 Calibration
 ^^^^^^^^^^^
 ::
@@ -1042,6 +1149,18 @@ Output
     beam.output.writePlansAndStopSimulation - if set to true will write plans into 'generatedPlans.csv.gz'
     and stop simulation with exception at the beginning of agentSim iteration.
     The functionality was created to generate full population plans with secondary activities for full unscaled input.
+
+Simulation metric
+^^^^^^^^^^^^^^^^^
+::
+
+    beam.sim.metric.collector.influxDbSimulationMetricCollector.database = "beam"
+    beam.sim.metric.collector.influxDbSimulationMetricCollector.connectionString = "http://localhost:8086"
+    beam.sim.metric.collector.metrics = "beam-run, beam-iteration"
+
+* influxDbSimulationMetricCollector.database - Influx database name.
+* influxDbSimulationMetricCollector.connectionString - Influx database connection string.
+* metrics - type of metric to be written. Possible values: rh-ev-cav-count, rh-ev-cav-distance, rh-ev-nocav-count, rh-ev-nocav-distance, rh-noev-cav-count, rh-noev-cav-distance, rh-noev-nocav-count, rh-noev-nocav-distance, beam-run, beam-iteration, mode-choices, ride-hail-trip-distance, ride-hail-waiting-time, average-travel-time, ride-hail-inquiry-served, ride-hail-inquiry-not-available, ride-hail-allocation-reserved, ride-hail-allocation-failed, beam-run-RH-ev-cav, beam-run-RH-ev-non-cav, beam-run-RH-non-ev-cav,  beam-run-RH-non-ev-non-cav, ride-hail-waiting-time-map, beam-run-public-fast-charge-cnt, beam-run-public-fast-charge-stalls-cnt, beam-run-charging-depots-stalls-cnt, beam-run-charging-depots-cnt, beam-run-private-fleet-size, beam-run-households, beam-run-population-size
 
 Defining what data BEAM writes out
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1106,6 +1225,9 @@ There's the list of parameters responsible for writing out data produced by BEAM
       }
     }
     beam.metrics.level = "verbose"
+    beam.exchange.output.activitySimSkimsEnabled = false
+    beam.exchange.output.sendNonChosenTripsToSkimmer = true
+    beam.exchange.output.geo.filePath = string
 
 All integer values that end with 'Interval' mean writing data files at iteration which number % value = 0. In case value = 0
 writing is disabled.
@@ -1150,6 +1272,9 @@ writing is disabled.
 * router.skim.transit-crowding-skimmer.name: transit crowding skimmer event name
 * router.skim.transit-crowding-skimmer.fileBaseName: transit crowding skims base file name
 * metrics.level: the level of beam metrics. Possible values: off, short, regular, verbose
+* beam.exchange.output.activitySimSkimsEnabled: enables writing out skims in activity sim format (ActivitySim skims). See `router.skim.activity-sim-skimmer` params.
+* beam.exchange.output.sendNonChosenTripsToSkimmer: enables saving not chosen trip data to origin-destination and ActivitySim skims.
+* beam.exchange.output.geo.filePath: path to a file in beam TAZ format that contains centroids of geo unit different than the scenario units. If defined the ActivitySim skims are written using these geo units.
 
 Termination criterion name options
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1271,6 +1396,7 @@ Parameters that are not supported anymore
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ::
 
+    beam.agentsim.firstIteration
     beam.debug.memoryConsumptionDisplayTimeoutInSec
     beam.cluster.clusterType
     beam.calibration.objectiveFunction
@@ -1292,3 +1418,16 @@ Parameters that are not supported anymore
     beam.physsim.relaxation.experiment5_0.percentToSimulate
     beam.physsim.relaxation.experiment5_1.percentToSimulate
     beam.physsim.relaxation.experiment5_2.percentToSimulate
+    beam.replanning.Module_1
+    beam.replanning.ModuleProbability_1
+    beam.replanning.Module_3
+    beam.replanning.ModuleProbability_3
+    beam.replanning.Module_4
+    beam.replanning.ModuleProbability_4
+    beam.replanning.fractionOfIterationsToDisableInnovation
+    beam.urbansim.backgroundODSkimsCreator.*
+    beam.calibration.counts.countsScaleFactor
+    beam.calibration.counts.writeCountsInterval
+    beam.calibration.counts.averageCountsOverIterations
+    beam.calibration.counts.inputCountsFile
+
