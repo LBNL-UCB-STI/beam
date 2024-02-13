@@ -215,7 +215,7 @@ dependencies {
     implementation "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     implementation "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
-    implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.8.1_linkRadiusMeters') {
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.9.0') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
@@ -804,30 +804,30 @@ dockerSyncBuildContext {
 
 // Some examples of manual docker file creation can be found https://github.com/bmuschko/gradle-docker-plugin/blob/3736ff644bed1cbfeed6fc7f844a5513c4208bc2/src/functTest/groovy/com/bmuschko/gradle/docker/DockerWorkflowFunctionalTest.groovy#L24
 // Also here: https://bmuschko.github.io/gradle-docker-plugin/#modifying_instructions_of_a_dockerfile_task
-tasks.register('createDockerfile', Dockerfile) {
-    dependsOn dockerSyncBuildContext
-
-    // assuming all required modules / dependencies are installed in beammodel/beam-environment
-    from 'beammodel/beam-environment:jdk-11-4.01'
-    label(['maintainer': 'LBNL Beam Team'])
-    workingDir("/app")
-    instruction 'RUN mkdir /app/output'
-    // dependencies, resources and compiled Java classes
-    copyFile("libs", "libs")
-    copyFile("resources", "resources")
-    copyFile("classes", "classes")
-    // Test scenarios
-    copyFile("test/input/common", "test/input/common")
-    copyFile("test/input/dtd", "test/input/dtd")
-    copyFile("test/input/beamville", "test/input/beamville")
-    copyFile("test/input/sf-light", "test/input/sf-light")
-    // python scripts
-    addFile 'src/main/python', 'src/main/python'
-    // entry point
-    addFile 'entrypoint.sh', 'entrypoint.sh'
-    runCommand('chmod +x /app/entrypoint.sh')
-    entryPoint('/app/entrypoint.sh')
-}
+//tasks.register('createDockerfile', Dockerfile) {
+//    dependsOn dockerSyncBuildContext
+//
+//    // assuming all required modules / dependencies are installed in beammodel/beam-environment
+//    from 'beammodel/beam-environment:jdk-11-4.01'
+//    label(['maintainer': 'LBNL Beam Team'])
+//    workingDir("/app")
+//    instruction 'RUN mkdir /app/output'
+//    // dependencies, resources and compiled Java classes
+//    copyFile("libs", "libs")
+//    copyFile("resources", "resources")
+//    copyFile("classes", "classes")
+//    // Test scenarios
+//    copyFile("test/input/common", "test/input/common")
+//    copyFile("test/input/dtd", "test/input/dtd")
+//    copyFile("test/input/beamville", "test/input/beamville")
+//    copyFile("test/input/sf-light", "test/input/sf-light")
+//    // python scripts
+//    addFile 'src/main/python', 'src/main/python'
+//    // entry point
+//    addFile 'entrypoint.sh', 'entrypoint.sh'
+//    runCommand('chmod +x /app/entrypoint.sh')
+//    entryPoint('/app/entrypoint.sh')
+//}
 
 ext.getDockerTag = { ->
     if (project.hasProperty("tag")) {
@@ -851,17 +851,17 @@ ext.getDockerRepository = { ->
     }
 }
 
-tasks.register('buildImageWithoutTags', DockerBuildImage) { dependsOn createDockerfile }
+//tasks.register('buildImageWithoutTags', DockerBuildImage) { dependsOn createDockerfile }
 
 // one can build a docker image with command ./gradlew -Ptag=beammodel/beam:0.9.0.0 buildImage
-tasks.register('buildImage', DockerTagImage) {
-    description 'Builds the Docker BEAM image, all code and test data are included into the image.'
-    group 'Docker'
-
-    dependsOn buildImageWithoutTags
-
-    tag = getDockerTag()
-    repository = getDockerRepository()
-    println("The new image will be tagged '$getDockerRepository:$getDockerTag'. To change use 'tag' project parameter, i.e. '-Ptag=<value>'")
-    targetImageId buildImageWithoutTags.getImageId()
-}
+//tasks.register('buildImage', DockerTagImage) {
+//    description 'Builds the Docker BEAM image, all code and test data are included into the image.'
+//    group 'Docker'
+//
+//    dependsOn buildImageWithoutTags
+//
+//    tag = getDockerTag()
+//    repository = getDockerRepository()
+//    println("The new image will be tagged '$getDockerRepository:$getDockerTag'. To change use 'tag' project parameter, i.e. '-Ptag=<value>'")
+//    targetImageId buildImageWithoutTags.getImageId()
+//}

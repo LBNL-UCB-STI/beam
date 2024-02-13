@@ -174,7 +174,7 @@ trait ChoosesParking extends {
     val activityType = nextActivity(data).get.getType
     val remainingTripData = calculateRemainingTripData(data)
     val parkingDuration = (_currentTick, nextActivity(data)) match {
-      case (Some(tick), Some(act)) => act.getEndTime - tick
+      case (Some(tick), Some(act)) => act.getEndTime.orElse(0.0) - tick
       case (None, Some(act))       => act.getEndTime.orElse(0.0) - lastLeg.endTime
       case (Some(tick), None)      => 3600 * 24 - tick // TODO: FIX THIS HACK
       case _                       => 0.0
