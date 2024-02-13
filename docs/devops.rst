@@ -575,12 +575,10 @@ To trigger this update process a Cloud Watch Event is setup with one week freque
 
 This process is designed to get latest LFS files from different branches. To add a new branch or update existing one, an environment variable named `BRANCHES` need to update with space as branch name delimiter.
 
-AWS Budget Control
-^^^^^^^^^^^^^^^^^^
 .. _aws-budget-management:
 
-Documentation of AWS budget management
-============================================
+AWS Budget Control
+^^^^^^^^^^^^^^^^^^
 There are a few levels of budget protection in place:
 
 1. Alert notifications are sent at 60%-150% of monthly spend (at 10% increments) via a `Billing Budget <https://us-east-1.console.aws.amazon.com/billing/home?region=us-east-1#/budgets/overview>`_ named ``Total Monthly Budget``

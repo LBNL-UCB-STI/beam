@@ -142,6 +142,7 @@ Urbansim scenario
 Freight parameters
 ~~~~~~~~~~~~~~~~~~
 ::
+
     beam.agentsim.agents.freight {
       enabled = false
       plansFilePath = ${beam.inputDirectory}"/freight/payload-plans.csv"
@@ -753,7 +754,7 @@ Parameters within beam.routing namespace
 * r5.linkRadiusMeters: The radius of a circle in meters within which to search for nearby streets
 * r5.transitAlternativeList: Determines the way R5 chooses to keep alternative routes listed. OPTIMAL - keeps a route only if there is no other route with the same access and egress modes that is both cheaper and faster; SUBOPTIMAL - keeps all possible routes that are a configurable amount of time slower than the fastest observed route.
 * r5.suboptimalMinutes: Used only for transitAlternativeList = "SUBOPTIMAL", configures the amount of time other possible routes can be slower than the fastest one and be kept in the alternative routes list. If the route has the same access mode as the fastest, this parameter determines how many minutes
-a r5.route can be slower to be kept; if the route has a different access mode to the fastest, the actual amount of minutes used to decide if it will be kept is 5 times this parameter.
+* r5.route can be slower to be kept; if the route has a different access mode to the fastest, the actual amount of minutes used to decide if it will be kept is 5 times this parameter.
 * r5.accessBufferTimeSeconds: How long does it take you to park your vehicle at the station
 * gh.useAlternativeRoutes: enables using alternative route algorithm in GH router.
 * startingIterationForTravelTimesMSA: Starting from this iteration link travel times of Metropolitan Statistical Area is used.
