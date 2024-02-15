@@ -1,7 +1,7 @@
 package beam.taz
 
-import com.vividsolutions.jts.geom.{Geometry, GeometryFactory, PrecisionModel}
-import com.vividsolutions.jts.shape.random.RandomPointsInGridBuilder
+import org.locationtech.jts.geom.{Geometry, GeometryFactory, PrecisionModel}
+import org.locationtech.jts.shape.random.RandomPointsInGridBuilder
 import org.matsim.api.core.v01.Coord
 
 import scala.annotation.tailrec

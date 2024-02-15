@@ -112,7 +112,11 @@ class LinkStatsWithVehicleCategorySpec extends AnyWordSpecLike with Matchers {
     matsimNetworkReader.readFile(NETWORK_FILE_PATH)
 
     val ttConfigGroup: TravelTimeCalculatorConfigGroup = config.travelTimeCalculator
-    val travelTimeCalculator = new TravelTimeCalculator(network, ttConfigGroup)
+
+    val travelTimeCalculatorBuilder = new TravelTimeCalculator.Builder(network)
+    travelTimeCalculatorBuilder.configure(ttConfigGroup)
+    val travelTimeCalculator = travelTimeCalculatorBuilder.build()
+
     val eventsManager = EventsUtils.createEventsManager
     eventsManager.addHandler(travelTimeCalculator)
     val volumeAnalyzer =

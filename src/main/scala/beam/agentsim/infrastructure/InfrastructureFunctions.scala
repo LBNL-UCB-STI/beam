@@ -8,7 +8,7 @@ import beam.agentsim.infrastructure.parking.ParkingZoneSearch._
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.util.Random

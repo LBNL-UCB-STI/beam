@@ -15,18 +15,18 @@ System Requirements
 
 * At least 8GB RAM
 * Windows, Mac OSX, Linux
-* Java Development Kit 1.8. Oracle JDK 1.8: https://www.oracle.com/java/technologies/javase-jdk8-downloads.html. You can also use OpenJDK 8 JDK. For Ubuntu you can get it installed by running `sudo apt-get install openjdk-8-jdk`
+* Java Development Kit 11. Oracle JDK 11: https://www.oracle.com/java/technologies/downloads/#java11. You can also use OpenJDK 11 JDK. For Ubuntu you can get it installed by running `sudo apt-get install openjdk-11-jdk`
 * Verify that you have both java runtime and java compiler:
 
 .. code-block:: bash
 
     ubuntu@ip-172-31-14-187:~/git/beam$ java -version
-    openjdk version "1.8.0_252"
-    OpenJDK Runtime Environment (build 1.8.0_252-8u252-b09-1~18.04-b09)
-    OpenJDK 64-Bit Server VM (build 25.252-b09, mixed mode)
+    openjdk version "11.0.21" 2023-10-17
+    OpenJDK Runtime Environment (build 11.0.21+9-post-Ubuntu-0ubuntu122.04)
+    OpenJDK 64-Bit Server VM (build 11.0.21+9-post-Ubuntu-0ubuntu122.04, mixed mode, sharing)
+
     ubuntu@ip-172-31-14-187:~/git/beam$ javac -version
-    javac 1.8.0_252
-    ubuntu@ip-172-31-14-187:~/git/beam$              
+    javac 11.0.21
 
 * We also recommend downloading the VIA visualization app and obtaining a free or paid license: https://simunto.com/via/
 * Git and Git-LFS
@@ -36,12 +36,12 @@ Prerequisites :
 
 **Install Java**
 
-BEAM requires Java 1.8 JDK. If a different version of java is already installed on your system, please upgrade the version to 1.8.
-See this `link <https://www.oracle.com/java/technologies/javase-jdk8-downloads.html>`_ for steps to check the current version of your JDK.
+BEAM requires Java 11 JDK. If a different version of java is already installed on your system, please upgrade the version to 11.
+See this `link <https://www.oracle.com/java/technologies/downloads/#java11>`_ for steps to check the current version of your JDK.
 
 If java is not already installed on your system , please follow this `download manual <https://www.java.com/en/download/manual.jsp>`_ to install java on your system.
 
-Please note that BEAM is currently compatible only with Java 1.8 and is not compatible with any of the older or recent versions.
+Please note that BEAM is currently compatible only with Java 11 and is not compatible with any of the older or recent versions.
 
 
 GIT-LFS Configuration
@@ -248,7 +248,7 @@ For example here is a shell script which might be used to run the docker image. 
     mkdir -m 777 $output_folder_name 2>/dev/null
 
     max_ram='10g'
-    java_opts="-Xmx$max_ram -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"
+    java_opts="-Xmx$max_ram"
 
     docker run \
       --network host \

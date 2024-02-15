@@ -3,7 +3,7 @@ package scripts.map
 import beam.utils.csv.GenericCsvReader
 import scripts.shape.{Attributes, ShapeWriter}
 import beam.utils.{FileUtils, GeoJsonReader}
-import com.vividsolutions.jts.geom.{Geometry, MultiLineString}
+import org.locationtech.jts.geom.{Geometry, MultiLineString}
 import org.opengis.feature.Feature
 import org.opengis.feature.simple.SimpleFeature
 

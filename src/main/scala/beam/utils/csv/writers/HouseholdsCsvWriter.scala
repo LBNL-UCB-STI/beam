@@ -2,7 +2,7 @@ package beam.utils.csv.writers
 
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Scenario
-import org.matsim.households.Household
+import org.matsim.households.{Household, HouseholdUtils}
 import org.matsim.utils.objectattributes.ObjectAttributes
 
 import scala.collection.JavaConverters._
@@ -17,15 +17,14 @@ object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
     Seq("householdId", "cars", "incomeValue", "locationX", "locationY")
 
   override def contentIterator(scenario: Scenario): Iterator[String] = {
-    val attributes: ObjectAttributes = scenario.getHouseholds.getHouseholdAttributes
     val households = scenario.getHouseholds.getHouseholds.asScala.values
     households.toIterator.map { h: Household =>
       val id = h.getId.toString
       val info = HouseholdInfo(
         householdId = HouseholdId(id),
         income = h.getIncome.getIncome,
-        locationX = Try(attributes.getAttribute(id, "homecoordx").toString.toDouble).getOrElse(0),
-        locationY = Try(attributes.getAttribute(id, "homecoordy").toString.toDouble).getOrElse(0),
+        locationX = Try(HouseholdUtils.getHouseholdAttribute(h, "homecoordx").toString.toDouble).getOrElse(0),
+        locationY = Try(HouseholdUtils.getHouseholdAttribute(h, "homecoordy").toString.toDouble).getOrElse(0),
         cars = h.getVehicleIds.size()
       )
       toLine(info)

@@ -3,7 +3,7 @@ package beam.physsim.jdeqsim.cacc.roadcapacityadjustmentfunctions;
 import org.apache.commons.collections4.MultiValuedMap;
 import org.apache.commons.lang.ArrayUtils;
 import org.jfree.chart.ChartFactory;
-import org.jfree.chart.ChartUtilities;
+import org.jfree.chart.ChartUtils;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.statistics.HistogramDataset;
@@ -43,7 +43,7 @@ class CaccRoadCapacityGraphs {
                 x_axis, y_axis, dataset);
 
         try {
-            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
+            ChartUtils.saveChartAsPNG(new File(graphImageFile), chart, width,
                     height);
         } catch (IOException e) {
             log.error("exception occurred due to ", e);
@@ -75,7 +75,7 @@ class CaccRoadCapacityGraphs {
                 x_axis, y_axis, dataset, PlotOrientation.VERTICAL, false, true, true);
 
         try {
-            ChartUtilities.saveChartAsPNG(new File(graphImageFile), chart, width,
+            ChartUtils.saveChartAsPNG(new File(graphImageFile), chart, width,
                     height);
         } catch (IOException e) {
             log.error("exception occurred due to ", e);

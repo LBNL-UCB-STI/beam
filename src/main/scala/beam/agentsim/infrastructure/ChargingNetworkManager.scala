@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import beam.utils.OptionalUtils.OptionalTimeExtension
 
 /**
   * Created by haitamlaarabi
@@ -58,7 +59,7 @@ class ChargingNetworkManager(
     beamServices.matsimServices.getScenario.getPopulation.getPersons.asScala.map { case (personId, person) =>
       personId -> (person.getSelectedPlan.getPlanElements.asScala
         .find(_.isInstanceOf[Activity])
-        .map(_.asInstanceOf[Activity].getEndTime)
+        .flatMap(x => x.asInstanceOf[Activity].getEndTime.toOption)
         .getOrElse(0.0) + (24 * 3600.0)).toInt
     }.toMap
 

@@ -11,8 +11,8 @@ import scripts.traveltime.NetworkUtil
 import scripts.traveltime.NetworkUtil.Direction
 import beam.utils.{ProfilingUtils, Statistics}
 import com.conveyal.r5.kryo.KryoNetworkSerializer
-import com.vividsolutions.jts.densify.Densifier
-import com.vividsolutions.jts.geom._
+import org.locationtech.jts.densify.Densifier
+import org.locationtech.jts.geom._
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.core.network.NetworkUtils
