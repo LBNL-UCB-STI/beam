@@ -4,11 +4,12 @@ import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Scenario
 import org.matsim.households.Household
 import org.matsim.utils.objectattributes.ObjectAttributes
+
 import scala.collection.JavaConverters._
 import scala.util.Try
-
 import beam.utils.scenario.{HouseholdId, HouseholdInfo}
 import ScenarioCsvWriter._
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 
 object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
 
@@ -47,4 +48,15 @@ object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
       info.locationY
     ).mkString("", FieldSeparator, LineSeparator)
   }
+
+  def outputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("HouseholdsCsvWriter", "households.csv")(
+      """
+          householdId | Ids of households that are presented in the simulation
+          cars | Household cars
+          incomeValue | Household income
+          locationX | X part of location of the home
+          locationY | Y part of location of the home
+        """
+    )
 }

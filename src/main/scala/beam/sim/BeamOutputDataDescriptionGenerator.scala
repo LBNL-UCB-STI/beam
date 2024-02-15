@@ -1,10 +1,11 @@
 package beam.sim
 
-import java.io.{BufferedWriter, FileWriter, IOException}
+import beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler
 
+import java.io.{BufferedWriter, FileWriter, IOException}
 import beam.analysis.physsim.{PhyssimCalcLinkSpeedDistributionStatsObject, PhyssimCalcLinkSpeedStatsObject}
 import beam.analysis.plots._
-import beam.utils.OutputDataDescriptor
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.ControlerEvent
@@ -74,6 +75,19 @@ object BeamOutputDataDescriptionGenerator {
     * @return collected class instances
     */
   def getClassesGeneratingOutputs: Seq[OutputDataDescriptor] = List(
+    beam.analysis.ActivityTypeAnalysis.outputDataDescriptor,
+    CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor,
+    CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("CarSpeed", "speed"),
+    CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("CarTravelDistance", "travel distance"),
+    CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("CarTravelTime", "travel time"),
+    outputDataDescriptor,
+    CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("FreeFlowCarSpeed", "free flow speed"),
+    CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("FreeFlowCarTravelTime", "free flow travel time"),
+    beam.utils.csv.writers.HouseholdsCsvWriter.outputDataDescriptor,
+    beam.analysis.ActivityTypeAnalysis.outputDataDescriptorIteration,
+    beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler.detailedOutputDataDescriptor("personal"),
+    beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler.detailedOutputDataDescriptor("ridehail"),
+    beam.analysis.via.ExpectedMaxUtilityHeatMap.outputDataDescriptor,
     ModeChosenAnalysisObject,
     RealizedModeAnalysisObject,
     RideHailRevenueAnalysisObject,
@@ -97,6 +111,15 @@ object BeamOutputDataDescriptionGenerator {
     BiasNormalizedErrorGraphDataOutputs,
     RideHailFleetInitializer
   )
+
+  def outputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("BeamOutputDataDescriptionGenerator", "dataDescriptors.csv")(
+      """ClassName  | Class that generates the output file
+        OutputFile  | Output file name
+        Field       | Column name
+        Description | Description of the column
+        """
+    )
 
 }
 

@@ -3,6 +3,303 @@
 Model Outputs
 =============
 
+File: /activityType.csv
+-----------------------
+
+Classname: ActivityTypeAnalysi 
+
++----------------+------------------------------------------------+
+| field          | description                                    |
++================+================================================+
+| Iteration      | iteration number                               |
++----------------+------------------------------------------------+
+| Activity types | List of number of activities at that iteration |
++----------------+------------------------------------------------+
+
+File: /AverageCarSpeed.csv
+--------------------------
+
+Classname: CarTripStatsFromPathTraversalEventHandle 
+
++-----------+------------------------------------+
+| field     | description                        |
++===========+====================================+
+| iteration | iteration number                   |
++-----------+------------------------------------+
+| car_type  | Car type (Personal, RideHail)      |
++-----------+------------------------------------+
+| speed     | Average speed of cars of this type |
++-----------+------------------------------------+
+
+File: /CarSpeed.csv
+-------------------
+
+Classname: CarTripStatsFromPathTraversalEventHandle 
+
++-----------+-----------------------------------------------+
+| field     | description                                   |
++===========+===============================================+
+| iteration | iteration number                              |
++-----------+-----------------------------------------------+
+| carType   | Car type (Personal, RideHail)                 |
++-----------+-----------------------------------------------+
+| avg       | Average speed of cars of this type            |
++-----------+-----------------------------------------------+
+| median    | Median speed of cars of this type             |
++-----------+-----------------------------------------------+
+| p75       | 75th percentile of speed of cars of this type |
++-----------+-----------------------------------------------+
+| p95       | 95th percentile of speed of cars of this type |
++-----------+-----------------------------------------------+
+| p99       | 99th percentile of speed of cars of this type |
++-----------+-----------------------------------------------+
+| min       | Min speed of cars of this type                |
++-----------+-----------------------------------------------+
+| max       | Max speed of cars of this type                |
++-----------+-----------------------------------------------+
+| sum       | Sum of the speed values of cars of this type  |
++-----------+-----------------------------------------------+
+
+File: /CarTravelDistance.csv
+----------------------------
+
+Classname: CarTripStatsFromPathTraversalEventHandle 
+
++-----------+---------------------------------------------------------+
+| field     | description                                             |
++===========+=========================================================+
+| iteration | iteration number                                        |
++-----------+---------------------------------------------------------+
+| carType   | Car type (Personal, RideHail)                           |
++-----------+---------------------------------------------------------+
+| avg       | Average travel distance of cars of this type            |
++-----------+---------------------------------------------------------+
+| median    | Median travel distance of cars of this type             |
++-----------+---------------------------------------------------------+
+| p75       | 75th percentile of travel distance of cars of this type |
++-----------+---------------------------------------------------------+
+| p95       | 95th percentile of travel distance of cars of this type |
++-----------+---------------------------------------------------------+
+| p99       | 99th percentile of travel distance of cars of this type |
++-----------+---------------------------------------------------------+
+| min       | Min travel distance of cars of this type                |
++-----------+---------------------------------------------------------+
+| max       | Max travel distance of cars of this type                |
++-----------+---------------------------------------------------------+
+| sum       | Sum of the travel distance values of cars of this type  |
++-----------+---------------------------------------------------------+
+
+File: /CarTravelTime.csv
+------------------------
+
+Classname: CarTripStatsFromPathTraversalEventHandle 
+
++-----------+-----------------------------------------------------+
+| field     | description                                         |
++===========+=====================================================+
+| iteration | iteration number                                    |
++-----------+-----------------------------------------------------+
+| carType   | Car type (Personal, RideHail)                       |
++-----------+-----------------------------------------------------+
+| avg       | Average travel time of cars of this type            |
++-----------+-----------------------------------------------------+
+| median    | Median travel time of cars of this type             |
++-----------+-----------------------------------------------------+
+| p75       | 75th percentile of travel time of cars of this type |
++-----------+-----------------------------------------------------+
+| p95       | 95th percentile of travel time of cars of this type |
++-----------+-----------------------------------------------------+
+| p99       | 99th percentile of travel time of cars of this type |
++-----------+-----------------------------------------------------+
+| min       | Min travel time of cars of this type                |
++-----------+-----------------------------------------------------+
+| max       | Max travel time of cars of this type                |
++-----------+-----------------------------------------------------+
+| sum       | Sum of the travel time values of cars of this type  |
++-----------+-----------------------------------------------------+
+
+File: /dataDescriptors.csv
+--------------------------
+
+Classname: BeamOutputDataDescriptionGenerato 
+
++-------------+--------------------------------------+
+| field       | description                          |
++=============+======================================+
+| ClassName   | Class that generates the output file |
++-------------+--------------------------------------+
+| OutputFile  | Output file name                     |
++-------------+--------------------------------------+
+| Field       | Column name                          |
++-------------+--------------------------------------+
+| Description | Description of the column            |
++-------------+--------------------------------------+
+
+File: /FreeFlowCarSpeed.csv
+---------------------------
+
+Classname: CarTripStatsFromPathTraversalEventHandle 
+
++-----------+---------------------------------------------------------+
+| field     | description                                             |
++===========+=========================================================+
+| iteration | iteration number                                        |
++-----------+---------------------------------------------------------+
+| carType   | Car type (Personal, RideHail)                           |
++-----------+---------------------------------------------------------+
+| avg       | Average free flow speed of cars of this type            |
++-----------+---------------------------------------------------------+
+| median    | Median free flow speed of cars of this type             |
++-----------+---------------------------------------------------------+
+| p75       | 75th percentile of free flow speed of cars of this type |
++-----------+---------------------------------------------------------+
+| p95       | 95th percentile of free flow speed of cars of this type |
++-----------+---------------------------------------------------------+
+| p99       | 99th percentile of free flow speed of cars of this type |
++-----------+---------------------------------------------------------+
+| min       | Min free flow speed of cars of this type                |
++-----------+---------------------------------------------------------+
+| max       | Max free flow speed of cars of this type                |
++-----------+---------------------------------------------------------+
+| sum       | Sum of the free flow speed values of cars of this type  |
++-----------+---------------------------------------------------------+
+
+File: /FreeFlowCarTravelTime.csv
+--------------------------------
+
+Classname: CarTripStatsFromPathTraversalEventHandle 
+
++-----------+---------------------------------------------------------------+
+| field     | description                                                   |
++===========+===============================================================+
+| iteration | iteration number                                              |
++-----------+---------------------------------------------------------------+
+| carType   | Car type (Personal, RideHail)                                 |
++-----------+---------------------------------------------------------------+
+| avg       | Average free flow travel time of cars of this type            |
++-----------+---------------------------------------------------------------+
+| median    | Median free flow travel time of cars of this type             |
++-----------+---------------------------------------------------------------+
+| p75       | 75th percentile of free flow travel time of cars of this type |
++-----------+---------------------------------------------------------------+
+| p95       | 95th percentile of free flow travel time of cars of this type |
++-----------+---------------------------------------------------------------+
+| p99       | 99th percentile of free flow travel time of cars of this type |
++-----------+---------------------------------------------------------------+
+| min       | Min free flow travel time of cars of this type                |
++-----------+---------------------------------------------------------------+
+| max       | Max free flow travel time of cars of this type                |
++-----------+---------------------------------------------------------------+
+| sum       | Sum of the free flow travel time values of cars of this type  |
++-----------+---------------------------------------------------------------+
+
+File: /households.csv
+---------------------
+
+Classname: HouseholdsCsvWrite 
+
++-------------+--------------------------------------------------------+
+| field       | description                                            |
++=============+========================================================+
+| householdId | Ids of households that are presented in the simulation |
++-------------+--------------------------------------------------------+
+| cars        | Household cars                                         |
++-------------+--------------------------------------------------------+
+| incomeValue | Household income                                       |
++-------------+--------------------------------------------------------+
+| locationX   | X part of location of the home                         |
++-------------+--------------------------------------------------------+
+| locationY   | Y part of location of the home                         |
++-------------+--------------------------------------------------------+
+
+File: /ITERS/it.0/0.activityType.csv
+------------------------------------
+
+Classname: ActivityTypeAnalysi 
+
++----------------+-------------------------------------------+
+| field          | description                               |
++================+===========================================+
+| Hour           | Hour of the day                           |
++----------------+-------------------------------------------+
+| Activity types | List of number of activities at that hour |
++----------------+-------------------------------------------+
+
+File: /ITERS/it.0/0.CarRideStats.personal.csv
+---------------------------------------------
+
+Classname: CarTripStatsFromPathTraversalEventHandle 
+
++-----------------------+--------------------------------------------+
+| field                 | description                                |
++=======================+============================================+
+| vehicle_id            | If of the vehicle that made this trip      |
++-----------------------+--------------------------------------------+
+| carType               | Car type (personal)                        |
++-----------------------+--------------------------------------------+
+| travel_time           | Trip travel time                           |
++-----------------------+--------------------------------------------+
+| distance              | Trip distance                              |
++-----------------------+--------------------------------------------+
+| free_flow_travel_time | Travel time if the vehicle would go freely |
++-----------------------+--------------------------------------------+
+| departure_time        | Departure time                             |
++-----------------------+--------------------------------------------+
+| start_x               | X part of start location                   |
++-----------------------+--------------------------------------------+
+| start_y               | Y part of start location                   |
++-----------------------+--------------------------------------------+
+| end_x                 | X part of end location                     |
++-----------------------+--------------------------------------------+
+| end_y                 | Y part of end location                     |
++-----------------------+--------------------------------------------+
+
+File: /ITERS/it.0/0.CarRideStats.ridehail.csv
+---------------------------------------------
+
+Classname: CarTripStatsFromPathTraversalEventHandle 
+
++-----------------------+--------------------------------------------+
+| field                 | description                                |
++=======================+============================================+
+| vehicle_id            | If of the vehicle that made this trip      |
++-----------------------+--------------------------------------------+
+| carType               | Car type (ridehail)                        |
++-----------------------+--------------------------------------------+
+| travel_time           | Trip travel time                           |
++-----------------------+--------------------------------------------+
+| distance              | Trip distance                              |
++-----------------------+--------------------------------------------+
+| free_flow_travel_time | Travel time if the vehicle would go freely |
++-----------------------+--------------------------------------------+
+| departure_time        | Departure time                             |
++-----------------------+--------------------------------------------+
+| start_x               | X part of start location                   |
++-----------------------+--------------------------------------------+
+| start_y               | Y part of start location                   |
++-----------------------+--------------------------------------------+
+| end_x                 | X part of end location                     |
++-----------------------+--------------------------------------------+
+| end_y                 | Y part of end location                     |
++-----------------------+--------------------------------------------+
+
+File: /ITERS/it.0/0.expectedMaxUtilityHeatMap.csv
+-------------------------------------------------
+
+Classname: ExpectedMaxUtilityHeatMa 
+
++------------------------+-----------------------------------------+
+| field                  | description                             |
++========================+=========================================+
+| time                   | Time of mode choice event               |
++------------------------+-----------------------------------------+
+| x                      | X part of location of mode choice event |
++------------------------+-----------------------------------------+
+| y                      | Y part of location of mode choice event |
++------------------------+-----------------------------------------+
+| expectedMaximumUtility | expectedMaximumUtility of mode choice   |
++------------------------+-----------------------------------------+
+
 File: /modeChoice.csv
 ---------------------
 

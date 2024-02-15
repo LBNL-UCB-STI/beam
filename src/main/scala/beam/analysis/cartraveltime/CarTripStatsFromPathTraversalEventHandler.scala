@@ -1,7 +1,6 @@
 package beam.analysis.cartraveltime
 
 import java.io.Closeable
-
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.FreeFlowTravelTime
@@ -9,7 +8,14 @@ import beam.router.Modes.BeamMode
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Calibration.StudyArea
 import beam.utils.csv.CsvWriter
-import beam.utils.{EventReader, NetworkHelper, NetworkHelperImpl, Statistics}
+import beam.utils.{
+  EventReader,
+  NetworkHelper,
+  NetworkHelperImpl,
+  OutputDataDescriptor,
+  OutputDataDescriptorObject,
+  Statistics
+}
 import com.typesafe.scalalogging.LazyLogging
 import org.jfree.chart.ChartFactory
 import org.jfree.chart.plot.PlotOrientation
@@ -26,6 +32,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 
+import java.text.MessageFormat
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
@@ -603,6 +610,51 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
       }
     }.flatten
     drivingWithParkingPtes
+  }
+
+  def outputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("CarTripStatsFromPathTraversalEventHandler", "AverageCarSpeed.csv")(
+      """ iteration       | iteration number                           
+          car_type        | Car type (Personal, RideHail)
+          speed           | Average speed of cars of this type"""
+    )
+
+  def outputDataDescriptor(file: String, entity: String): OutputDataDescriptor = {
+    val outputFileDescription =
+      """
+        iteration         | iteration number
+        carType           | Car type (Personal, RideHail)
+        avg               | Average {0} of cars of this type
+        median            | Median {0} of cars of this type
+        p75               | 75th percentile of {0} of cars of this type
+        p95               | 95th percentile of {0} of cars of this type
+        p99               | 99th percentile of {0} of cars of this type
+        min               | Min {0} of cars of this type
+        max               | Max {0} of cars of this type
+        sum               | Sum of the {0} values of cars of this type
+        """
+    OutputDataDescriptorObject("CarTripStatsFromPathTraversalEventHandler", s"$file.csv")(
+      MessageFormat.format(outputFileDescription, entity)
+    )
+  }
+
+  def detailedOutputDataDescriptor(carType: String): OutputDataDescriptor = {
+    OutputDataDescriptorObject(
+      "CarTripStatsFromPathTraversalEventHandler",
+      s"CarRideStats.$carType.csv",
+      iterationLevel = true
+    )(s"""
+        vehicle_id | If of the vehicle that made this trip
+        carType | Car type ($carType)
+        travel_time | Trip travel time
+        distance | Trip distance
+        free_flow_travel_time | Travel time if the vehicle would go freely
+        departure_time | Departure time
+        start_x | X part of start location
+        start_y | Y part of start location
+        end_x | X part of end location
+        end_y | Y part of end location
+        """)
   }
 
   def main(args: Array[String]): Unit = {
