@@ -164,16 +164,32 @@ trait NetworkCoordinator extends LazyLogging {
   }
 
   def overwriteLinkParams(
-    overwriteLinkParamMap: scala.collection.Map[Int, LinkParam],
+    overwriteLinkParamMap: scala.collection.Map[(Int, Int), LinkParam],
     transportNetwork: TransportNetwork,
     network: Network
   ): Unit = {
-    overwriteLinkParamMap.foreach { case (linkId, param) =>
-      val link = network.getLinks.get(Id.createLinkId(linkId))
-      require(link != null, s"Could not find link with id $linkId")
-      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-      // Overwrite params
-      param.overwriteFor(link, edge)
+    overwriteLinkParamMap.foreach { case ((linkId, osmId), param) =>
+      val maybeLink = if (linkId > 0 && osmId < 0) {
+        Option(network.getLinks.get(Id.createLinkId(linkId)))
+      } else if (linkId < 0 && osmId > 0) {
+        network.getLinks.asScala.values.find { lnk =>
+          Integer.parseInt(lnk.getAttributes.getAttribute("origid").toString) == osmId
+        }
+      } else if (linkId > 0) {
+        logger.error(s"Do not define both a linkId and an OSMid when overwriting link params")
+        None
+      } else {
+        logger.error(s"Must define either a linkId or an OSMid when overwriting link params")
+        None
+      }
+      maybeLink match {
+        case Some(link) =>
+          val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+          // Overwrite params
+          param.overwriteFor(link, edge)
+        case _ =>
+          logger.error(s"Could not find link with id $linkId or osmId $osmId")
+      }
     }
   }
 
@@ -251,14 +267,15 @@ trait NetworkCoordinator extends LazyLogging {
     transportNetwork.transitLayer.hasFrequencies = false
   }
 
-  private def getOverwriteLinkParam(beamConfig: BeamConfig): scala.collection.Map[Int, LinkParam] = {
+  private def getOverwriteLinkParam(beamConfig: BeamConfig): scala.collection.Map[(Int, Int), LinkParam] = {
     val path = beamConfig.beam.physsim.overwriteLinkParamPath
     val filePath = new File(path).toPath
     if (path.nonEmpty && Files.exists(filePath) && Files.isRegularFile(filePath)) {
       try {
-        BeamVehicleUtils.readCsvFileByLine(path, scala.collection.mutable.HashMap[Int, LinkParam]()) {
+        BeamVehicleUtils.readCsvFileByLine(path, scala.collection.mutable.HashMap[(Int, Int), LinkParam]()) {
           case (line: java.util.Map[String, String], z) =>
-            val linkId = line.get("link_id").toInt
+            val linkId = Option(line.get("link_id")).map(_.toInt).getOrElse(-1)
+            val osmId = Option(line.get("osm_id")).map(_.toInt).getOrElse(-1)
             val capacity = Option(line.get("capacity")).map(_.toDouble)
             val freeSpeed = Option(line.get("free_speed")).map(_.toDouble)
             val length = Option(line.get("length")).map(_.toDouble)
@@ -267,7 +284,7 @@ trait NetworkCoordinator extends LazyLogging {
             val beta = Option(line.get("beta")).map(_.toDouble)
             val lp = LinkParam(linkId, capacity, freeSpeed, length, lanes, alpha, beta)
 
-            z += ((linkId, lp))
+            z += (((linkId, osmId), lp))
         }
       } catch {
         case NonFatal(ex) =>
