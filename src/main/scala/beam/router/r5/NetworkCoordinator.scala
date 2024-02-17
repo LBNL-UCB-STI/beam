@@ -169,22 +169,25 @@ trait NetworkCoordinator extends LazyLogging {
     network: Network
   ): Unit = {
     overwriteLinkParamMap.foreach { case ((linkId, osmId), param) =>
-      val maybeLink = if (linkId > 0 && osmId < 0) {
-        Option(network.getLinks.get(Id.createLinkId(linkId)))
+      val (maybeLink, maybeId) = if (linkId > 0 && osmId < 0) {
+        (Option(network.getLinks.get(Id.createLinkId(linkId))), Option(linkId))
       } else if (linkId < 0 && osmId > 0) {
-        network.getLinks.asScala.values.find { lnk =>
-          Integer.parseInt(lnk.getAttributes.getAttribute("origid").toString) == osmId
-        }
+        (
+          network.getLinks.asScala.values.find { lnk =>
+            Integer.parseInt(lnk.getAttributes.getAttribute("origid").toString) == osmId
+          },
+          Option(osmId)
+        )
       } else if (linkId > 0) {
         logger.error(s"Do not define both a linkId and an OSMid when overwriting link params")
-        None
+        (None, None)
       } else {
         logger.error(s"Must define either a linkId or an OSMid when overwriting link params")
-        None
+        (None, None)
       }
-      maybeLink match {
-        case Some(link) =>
-          val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
+      (maybeLink, maybeId) match {
+        case (Some(link), Some(id)) =>
+          val edge = transportNetwork.streetLayer.edgeStore.getCursor(id)
           // Overwrite params
           param.overwriteFor(link, edge)
         case _ =>
