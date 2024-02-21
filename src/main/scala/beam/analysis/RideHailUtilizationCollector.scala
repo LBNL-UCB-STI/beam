@@ -4,6 +4,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, ReplanningEvent}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import beam.utils.csv.CsvWriter
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.events.Event
@@ -305,4 +306,19 @@ object RideHailUtilizationCollector {
     val moved: IndexedSeq[RideInfo] = rides.filterNot(vri => notMoved.contains(vri.vehicleId))
     moved
   }
+
+  def activitySimReplanningReasonOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("RideHailUtilizationCollector", s"rideHailRideUtilization.csv")(
+      """
+        iteration                     | Iteration number
+        nonEmptyRides                 | Number of rides with passengers
+        totalRides                    | Total number ride-hail rides
+        movedPassengers               | Total number of moved passengers
+        rideHailModeChoices           | Number of ride-hail mode choices
+        rideHailInAlternatives        | Number of choices when ride-hail mode was in the alternatives
+        totalModeChoices              | Total number of mode choices
+        numberOfVehiclesServedNRides  | Number of vehicles that served N rides
+        NPassengersToTheNumberOfRides | Number of rides with N passengers
+          """
+    )
 }

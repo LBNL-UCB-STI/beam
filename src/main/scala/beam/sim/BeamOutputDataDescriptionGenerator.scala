@@ -80,7 +80,7 @@ object BeamOutputDataDescriptionGenerator {
     CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("CarSpeed", "speed"),
     CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("CarTravelDistance", "travel distance"),
     CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("CarTravelTime", "travel time"),
-    outputDataDescriptor,
+    BeamOutputDataDescriptionGenerator.outputDataDescriptor,
     CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("FreeFlowCarSpeed", "free flow speed"),
     CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("FreeFlowCarTravelTime", "free flow travel time"),
     beam.utils.csv.writers.HouseholdsCsvWriter.outputDataDescriptor,
@@ -88,12 +88,30 @@ object BeamOutputDataDescriptionGenerator {
     beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler.detailedOutputDataDescriptor("personal"),
     beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler.detailedOutputDataDescriptor("ridehail"),
     beam.analysis.via.ExpectedMaxUtilityHeatMap.outputDataDescriptor,
-    ModeChosenAnalysisObject,
+    beam.utils.csv.writers.VehiclesCsvWriter.iterationOutputDataDescriptor,
+    beam.analysis.plots.ModeChosenAnalysisObject,
+    beam.analysis.plots.ModeChosenAnalysisObject.iterationOutputDataDescriptor,
+    beam.analysis.plots.ModeChosenAnalysisObject.activitySimOutputDataDescriptor,
+    beam.utils.csv.writers.NetworkCsvWriter.outputDataDescriptor,
+    beam.utils.csv.writers.PlansCsvWriter.activitySimOutputDataDescriptor,
+    beam.utils.csv.writers.PopulationCsvWriter.outputDataDescriptor,
     RealizedModeAnalysisObject,
-    RideHailRevenueAnalysisObject,
+    beam.analysis.plots.RealizedModeAnalysisObject.activitySimOutputDataDescriptor,
+    beam.analysis.plots.ModeChosenAnalysisObject.activitySimReferenceOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.referenceOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.activitySimReferenceOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.replanningReasonOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.activitySimReplanningReasonOutputDataDescriptor,
+    beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.rideHailParkingOutputDataDescriptor,
+    beam.analysis.plots.RideHailRevenueAnalysis.outputDataDescriptor,
+    beam.analysis.RideHailUtilizationCollector.activitySimReplanningReasonOutputDataDescriptor,
+    BeamOutputDataDescriptionGenerator.summaryVehicleStatsOutputDataDescriptor,
+    beam.analysis.plots.ModeChosenAnalysisObject.iterationAlternativesCount,
+    beam.analysis.plots.ModeChosenAnalysisObject.iterationActivitySimAlternativesCount,
+    beam.analysis.plots.PersonTravelTimeAnalysisObject.iterationNonArrivedOutputDataDescriptor,
+    beam.analysis.ParkingStatsCollector,
     PersonTravelTimeAnalysisObject,
     FuelUsageAnalysisObject,
-//    ExpectedMaxUtilityHeatMapObject,
     PhyssimCalcLinkSpeedStatsObject,
     PhyssimCalcLinkSpeedDistributionStatsObject,
     RideHailWaitingAnalysisObject,
@@ -109,7 +127,9 @@ object BeamOutputDataDescriptionGenerator {
     TripDurationOutputs,
     BiasErrorGraphDataOutputs,
     BiasNormalizedErrorGraphDataOutputs,
-    RideHailFleetInitializer
+    RideHailFleetInitializer,
+    new DeadHeadingAnalysis.OutputDataDescriptor,
+    beam.utils.csv.writers.VehiclesCsvWriter.outputDataDescriptor
   )
 
   def outputDataDescriptor: OutputDataDescriptor =
@@ -118,6 +138,17 @@ object BeamOutputDataDescriptionGenerator {
         OutputFile  | Output file name
         Field       | Column name
         Description | Description of the column
+        """
+    )
+
+  def summaryVehicleStatsOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("BeamSim", "summaryVehicleStats.csv")(
+      """
+          iteration             | Iteration number
+          vehicleType           | Vehicle type which stats this tables contains
+          vehicleMilesTraveled  | Total distance that all the vehicles of this type travelled
+          vehicleHoursTraveled  | Total time that all the vehicles of this type travelled
+          numberOfVehicles      | Total number of vehicles of this type
         """
     )
 

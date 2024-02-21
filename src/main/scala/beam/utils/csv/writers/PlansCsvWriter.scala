@@ -7,6 +7,7 @@ import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Leg, Plan, PlanElement => MatsimPlanElement}
 import org.matsim.core.population.routes.NetworkRoute
 import beam.utils.OptionalUtils.OptionalTimeExtension
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 
 object PlansCsvWriter extends ScenarioCsvWriter {
 
@@ -165,4 +166,29 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     ).mkString("", FieldSeparator, LineSeparator)
   }
 
+  def activitySimOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("PlansCsvWriter", s"plans.csv.gz")(
+      """
+      tripId              | Empty column. This table contains person plan elements at the beginning of simulation.
+      personId            | Person id
+      planIndex           | Plan index
+      planScore           | Plan score
+      planSelected        | Boolean value indicating if the plan is selected
+      planElementType     | Activity or Leg
+      planElementIndex    | Index of the plan element
+      activityType        | Activity type (Work, Home, Shopping etc)
+      activityLocationX   | X part of activity location coordinate
+      activityLocationY   | Y part of activity location coordinate
+      activityEndTime     | Activity end time
+      legMode             | Leg mode
+      legDepartureTime    | Leg departure time
+      legTravelTime       | Leg travel time
+      legRouteType        | Identifier describing the type of this leg route uniquely.
+      legRouteStartLink   | Leg route start link id
+      legRouteEndLink     | Leg route end link id
+      legRouteTravelTime  | Leg route travel time (equals to leg travel time)
+      legRouteDistance    | Leg route distance
+      legRouteLinks       | List of leg route link ids
+      """
+    )
 }

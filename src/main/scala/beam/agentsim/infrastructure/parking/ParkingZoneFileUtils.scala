@@ -12,7 +12,7 @@ import beam.sim.config.BeamConfig
 import beam.utils.csv.GenericCsvReader
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
-import beam.utils.{FileUtils, MathUtils}
+import beam.utils.{FileUtils, MathUtils, OutputDataDescriptor, OutputDataDescriptorObject}
 import org.apache.commons.lang3.StringUtils.isBlank
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.network.NetworkUtils
@@ -716,5 +716,25 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
 
     FileUtils.writeToFile(filePath, Some(ParkingFileHeader), fileContent, None)
   }
+
+  def rideHailParkingOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("ParkingZoneFileUtils", s"ridehailParking.csv")(
+      """
+      taz                         | Taz id where the parking zone resides                             
+      parkingType                 | Parking type: Residential, Workplace, Public                                      
+      pricingModel                | Pricing model                                        
+      chargingPointType           | Charging point type                                           
+      numStalls                   | Number of stalls                                   
+      feeInCents                  | Fee in cents                                     
+      reservedFor                 | Id of Vehicle Manager this zone is reserver for                                     
+      timeRestrictions            | Time restrictions for vehicle categories                                           
+      parkingZoneId               | Parking zone id                                       
+      locationX                   | X part of a concrete location of this parking zone (if defined)                                   
+      locationY                   | Y part of a concrete location of this parking zone (if defined)                                   
+      sitePowerManager            | Site power manager
+      energyStorageCapacityInKWh  | Energy storage capacity in KWh
+      energyStorageSOC            | Energy storage state of charge
+          """
+    )
 
 }
