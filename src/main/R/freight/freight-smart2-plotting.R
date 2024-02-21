@@ -92,7 +92,7 @@ average_speed_vector <- function(distances, speeds) {
 ####
 
 expansionFactor <- 1/0.1
-city <- "sfbay"
+city <- "austin"
 workDir <- pp(normalizePath("~/Workspace/Data/"), "/FREIGHT/", city, "/")
 
 #test <- readCsv(pp(workDir, "/beam/runs/baseline/2018/filtered.0.events.csv.gz"))
@@ -101,19 +101,20 @@ workDir <- pp(normalizePath("~/Workspace/Data/"), "/FREIGHT/", city, "/")
 # *************** BASELINE **************
 # ***************************************
 
-baseline_runs_dir <- pp(workDir, "beam/runs/baseline/")
+baseline_runs_dir <- pp(workDir, "beam/runs/scenarios-23Jan2024/")
 baseline_output_dir <- pp(baseline_runs_dir, "output/")
 dir.create(baseline_output_dir, showWarnings = FALSE)
 
-baseline_runs_labels <- c("2018_new", "2018_routeE_new")
-baseline_runs_name <- "baseline_routeE_new"
+baseline_runs_labels <- c("Base", "Base\n +RouteE")
+baseline_runs_name <- "23Jan2024"
 baseline_runs <- 
   read_freight_events(
-    c("2018", "2018_routeE"), 
+    c("Base", "Base_RouteE"), 
     baseline_runs_labels, 
     baseline_runs_dir,
     baseline_runs_name
   )
+
 baseline_runs <- format_path_traversals(baseline_runs)
 
 baseline_summary <- baseline_runs[,
@@ -125,10 +126,11 @@ baseline_summary <- baseline_runs[,
 ]
 #energy_vehType_vmt[,totVMTByScenario:=sum(MVMT),by=.(runLabel)]
 baseline_summary[,energyAndVehiclesTypes:=paste(energyTypeCode,vehicleClass,sep=" ")]
-baseline_summary_levels <- c("BEV Class 7&8 Vocational", "BEV Class 7&8 Tractor", "BEV Class 4-6 Vocational",
-                             "Diesel Class 4-6 Vocational", "Diesel Class 7&8 Vocational", "Diesel Class 7&8 Tractor")
-baseline_summary_colors <- c("deepskyblue2", "deepskyblue3", "deepskyblue4", 
-                             "azure3", "darkgray", "azure4")
+# "BEV Class 7&8 Tractor" "deepskyblue4"
+# "BEV Class 7&8 Vocational" "deepskyblue2"
+# "BEV Class 4-6 Vocational" "deepskyblue3"
+baseline_summary_levels <- c("Diesel Class 4-6 Vocational", "Diesel Class 7&8 Vocational", "Diesel Class 7&8 Tractor")
+baseline_summary_colors <- c("azure3", "darkgray", "azure4")
 baseline_summary$energyAndVehiclesTypes <- factor(baseline_summary$energyAndVehiclesTypes, levels=baseline_summary_levels)
 write.csv(
   baseline_summary,
@@ -179,195 +181,127 @@ ggsave(pp(baseline_output_dir, pp(baseline_runs_name,"_GWH-by-powertrain-class.p
 
 # ******************************
 
-## TOURS *****
-baseline_runs[,.(numTrips=.N),by=.(vehicle,vehicleType,runLabel)][,.(numVehicle=.N),by=.(vehicleType,runLabel)]
-baseline_runs[,.N,by=.(runLabel)]
-baseline_tours <- baseline_runs[order(vehicle,time),.(tourTime=last(arrivalTime)-first(departureTime), tourVMT=sum(length/1609.344)),by=.(vehicle,runLabel,business,vehicleClass)]
-# baseline_tours_summary <- baseline_tours[,.(avgTourTime=mean(tourTime), sdTourTime=sd(tourTime), avgTourVMT=mean(tourVMT), sdTourVMT=sd(tourVMT)), by=.(runLabel,business,vehicleClass)]
-# baseline_tours_summary <- data.table::data.table(rbind(baseline_tours_summary[runLabel=="2018"], data.table::data.table(
-#   runLabel=c("2018", "2018"),
-#   business=c("B2C", "B2C"),
-#   vehicleClass=c("Class 7&8 Vocational", "Class 7&8 Tractor"),
-#   avgTourTime=c(0, 0),
-#   avgTourVMT=c(0, 0),
-#   sdTourTime=c(0, 0),
-#   sdTourVMT=c(0, 0)
-# )))
-
-baseline_tours <- baseline_runs[order(vehicle,time),
-                                .(tourTime=last(arrivalTime)-first(departureTime), 
-                                  tourVMT=sum(length/1609.344)),
-                                by=.(vehicle,runLabel,business,vehicleClass)]
-# baseline_tours <- data.table::data.table(rbind(baseline_tours, data.table::data.table(
-#   vehicle=c("",""),
-#   runLabel=c("2018", "2018"),
-#   business=c("B2C", "B2C"),
-#   vehicleClass=c("Class 7&8 Vocational", "Class 7&8 Tractor"),
-#   tourTime=c(0, 0),
-#   tourVMT=c(0, 0)
-# )))
-
-# 
+# baseline_tours <- baseline_runs[order(vehicle,time),
+#                                 .(tourTime=last(arrivalTime)-first(departureTime), 
+#                                   tourVMT=sum(length/1609.344)),
+#                                 by=.(vehicle,runLabel,business,vehicleClass)]
+# network <- readCsv(pp(baseline_runs_dir, "/../../network2.csv.gz"))
+# test2 <- readCsv(pp(baseline_runs_dir, "2018_dense/filtered.0.events.csv.gz"))
+# test2_veh <- test2[vehicle=="freightVehicle-b2b-all-1091441-1-26hdv-d-0-456"]
+# test2_veh_time <- test2_veh[time==74693]
+# test2_veh_time_split <- test2_veh_time %>% separate_rows(links, sep = ",")
+# filtered_network <- network[linkId %in% test2_veh_time_split$links]
+# filtered_network[,wkt_test:=pp("LINESTRING (", fromLocationX, " ", fromLocationY, ", ", toLocationX, " ", toLocationY, ")")]
+# write.csv(
+#   filtered_network,
+#   file = pp(baseline_output_dir, pp("../filtered_network_2.csv")),
+#   row.names=F,
+#   quote=T)
+# network[,wkt_test:=pp("LINESTRING (", fromLocationX, " ", fromLocationY, ", ", toLocationX, " ", toLocationY, ")")]
+# write.csv(
+#   network,
+#   file = pp(baseline_output_dir, pp("../test_network_2.csv")),
+#   row.names=F,
+#   quote=T)
 
 
-write.csv(
-  baseline_tours[tourVMT>=350],
-  file = pp(baseline_output_dir, pp("baseline-tours-350miles_", city, ".csv")),
-  row.names=F,
-  quote=T)
+#### TOURS BOXPLOT ####
+# baseline_tours_levels <- c("Class 4-6 Vocational", "Class 7&8 Vocational", "Class 7&8 Tractor")
+# baseline_tours$vehicleClass <- factor(baseline_tours$vehicleClass, levels=baseline_tours_levels)
+# p<-ggplot(baseline_tours, aes(business, tourVMT, color=vehicleClass)) + 
+#   geom_boxplot() +
+#   #geom_boxplot(outlier.shape = NA, notch = T) +
+#   labs(y='VMT', x='Business Type', color='Vehicle Type', title='Tour VMT Distribution') +
+#   scale_color_manual(values=c("azure3", "darkgray", "azure4")) +
+#   theme_marain() +
+#   theme(axis.text.x = element_text(angle = 0, hjust=0.5),
+#         strip.text = element_text(size=rel(1.2)),
+#         plot.title = element_text(size=10)) +
+#   facet_grid(. ~ runLabel)
+# p
 
-write.csv(
-  test,
-  file = pp(baseline_output_dir, pp("baseline-test_", city, ".csv")),
-  row.names=F,
-  quote=T)
-
-ggplot(test, aes(time/3600, length/1609)) + 
-  geom_line() +
-  theme_marain() +
-  labs(x="hour", y="VMT")
-
-
-network <- readCsv(pp(baseline_runs_dir, "/../../network2.csv.gz"))
-test2 <- readCsv(pp(baseline_runs_dir, "2018_dense/filtered.0.events.csv.gz"))
-test2_veh <- test2[vehicle=="freightVehicle-b2b-all-1091441-1-26hdv-d-0-456"]
-test2_veh_time <- test2_veh[time==74693]
-
-#library(splitstackshape)
-#test2_veh_time_solit <- cSplit(test2_veh_time, splitCols = "links", sep = ",", direction = "wide", drop = FALSE)
-#gather(test2_veh_time_solit, "key", "value", x, y, z)
-
-test2_veh_time_split <- test2_veh_time %>% separate_rows(links, sep = ",")
-filtered_network <- network[linkId %in% test2_veh_time_split$links]
-
-filtered_network[,wkt_test:=pp("LINESTRING (", fromLocationX, " ", fromLocationY, ", ", toLocationX, " ", toLocationY, ")")]
-write.csv(
-  filtered_network,
-  file = pp(baseline_output_dir, pp("../filtered_network_2.csv")),
-  row.names=F,
-  quote=T)
-
-network[,wkt_test:=pp("LINESTRING (", fromLocationX, " ", fromLocationY, ", ", toLocationX, " ", toLocationY, ")")]
-write.csv(
-  network,
-  file = pp(baseline_output_dir, pp("../test_network_2.csv")),
-  row.names=F,
-  quote=T)
+#### TRIPS ERROR BAR ####
+# p<-ggplot(baseline_trips_sd, aes(business, avgTripsVMT, color=vehicleClass)) +
+#   geom_bar(stat='identity', position = position_dodge(width = 0.7), alpha=0.2) +
+#   geom_errorbar(aes(ymin=avgTripsVMT-sdTripsVMT, ymax=avgTripsVMT+sdTripsVMT, color=vehicleClass), width=.2, position = position_dodge(width = 0.7)) +
+#   labs(y='VMT', x='Business Type', color='Vehicle Type', title='Average Trips VMT') +
+#   scale_color_manual(values=c("azure3", "darkgray", "azure4")) +
+#   theme_marain() +
+#   theme(axis.text.x = element_text(angle = 0, hjust=0.5),
+#         strip.text = element_text(size=rel(1.2)),
+#         plot.title = element_text(size=10))  +
+#   facet_grid(. ~ runLabel)
+# p
 
 
 
+## TRIPS
+trips_sd <- baseline_runs[order(vehicle,time),.(
+  avgTripTime=mean(arrivalTime-departureTime), 
+  avgTripVMT=mean(length)/1609.344,
+  sdTripTime=sd(arrivalTime-departureTime),
+  sdTripVMT=sd(length)/1609.34),by=.(runLabel,business,vehicleClass)]
 
-
-##
-baseline_tours_levels <- c("Class 4-6 Vocational", "Class 7&8 Vocational", "Class 7&8 Tractor")
-baseline_tours$vehicleClass <- factor(baseline_tours$vehicleClass, levels=baseline_tours_levels)
-
-p<-ggplot(baseline_tours, aes(business, tourVMT, color=vehicleClass)) + 
-  geom_boxplot() +
-  #geom_boxplot(outlier.shape = NA, notch = T) +
-  labs(y='VMT', x='Business Type', color='Vehicle Type', title='Tour VMT Distribution') +
-  scale_color_manual(values=c("azure3", "darkgray", "azure4")) +
-  theme_marain() +
-  theme(axis.text.x = element_text(angle = 0, hjust=0.5),
-        strip.text = element_text(size=rel(1.2)),
-        plot.title = element_text(size=10)) +
-  facet_grid(. ~ runLabel)
-p
-
-
-p<-ggplot(baseline_tours_summary[runLabel=="2018"], aes(business, avgTourTime/3600, color=vehicleClass)) +
-  geom_bar(stat='identity', position = position_dodge(width = 0.7), alpha=0.2) +
-  geom_errorbar(aes(ymin=(avgTourTime-sdTourTime)/3600, ymax=(avgTourTime+sdTourTime)/3600, color=vehicleClass), width=.2, position = position_dodge(width = 0.7)) +
-  labs(y='Hours', x='', color='Vehicle Type', title='Average Tour Time') +
-  scale_color_manual(values=c("azure3", "darkgray", "azure4")) +
-  theme_marain() +
-  theme(axis.text.x = element_text(angle = 0, hjust=0.5),
-        strip.text = element_text(size=rel(1.2)),
-        plot.title = element_text(size=10)) 
-p
-
-
-## TRIPS *****
-
-baseline_trips <- baseline_runs[order(vehicle,time),.(
-  avgTripsTime=mean(arrivalTime-departureTime), 
-  avgTripsVMT=mean(length)/1609.344,
-  sdTripsTime=sd(arrivalTime-departureTime),
-  sdTripsVMT=sd(length)/1609.34),by=.(runLabel,business,vehicleClass)]
-baseline_trips_summary <- data.table::data.table(rbind(baseline_trips, data.table::data.table(
-  runLabel=c("2018", "2018"),
-  business=c("B2C", "B2C"),
-  vehicleClass=c("Class 7&8 Vocational", "Class 7&8 Tractor"),
-  avgTripsTime=c(0, 0),
-  avgTripsVMT=c(0, 0),
-  sdTripsTime=c(0, 0),
-  sdTripsVMT=c(0, 0)
+# dt_trips_label <- "Base\n +RouteE"
+dt_trips_label <- "Base"
+dt_trips_levels <- c("Class 4-6 Vocational", "Class 7&8 Vocational", "Class 7&8 Tractor")
+dt_trips_completed <- data.table::data.table(rbind(
+  trips_sd[runLabel==dt_trips_label], data.table::data.table(
+    runLabel=c(dt_trips_label, dt_trips_label),
+    business=c("B2C", "B2C"),
+    vehicleClass=c("Class 7&8 Vocational", "Class 7&8 Tractor"),
+    avgTripTime=c(0, 0), avgTripVMT=c(0, 0), sdTripTime=c(0, 0), sdTripVMT=c(0, 0)
 )))
+dt_trips_completed[,vehicleClass:=factor(dt_trips_completed$vehicleClass, levels=dt_trips_levels)]
 
-
-p<-ggplot(baseline_trips, aes(business, avgTripsVMT, color=vehicleClass)) +
-  geom_bar(stat='identity', position = position_dodge(width = 0.7), alpha=0.2) +
-  geom_errorbar(aes(ymin=avgTripsVMT-sdTripsVMT, ymax=avgTripsVMT+sdTripsVMT, color=vehicleClass), width=.2, position = position_dodge(width = 0.7)) +
-  labs(y='VMT', x='Business Type', color='Vehicle Type', title='Average Trips VMT') +
-  scale_color_manual(values=c("azure3", "darkgray", "azure4")) +
-  theme_marain() +
+ggplot(dt_trips_completed, aes(business, avgTripVMT, fill=vehicleClass)) +
+  geom_bar(stat='identity', position = position_dodge(width = 0.7)) +
+  labs(y='VMT',x='Business',fill='Vehicle Class', title='Trip VMT')+
+  theme_marain()+
   theme(axis.text.x = element_text(angle = 0, hjust=0.5),
         strip.text = element_text(size=rel(1.2)),
-        plot.title = element_text(size=10))  +
-  facet_grid(. ~ runLabel)
-p
+        plot.title = element_text(size=14))+
+  scale_fill_manual(values=c( "azure3", "darkgray", "azure4")) +
+  theme(legend.position = "none")
 
-p<-ggplot(baseline_trips_summary, aes(business, avgTripsTime/60, color=vehicleClass)) +
-  geom_bar(stat='identity', position = position_dodge(width = 0.7), alpha=0.2) +
-  geom_errorbar(aes(ymin=(avgTripsTime-sdTripsTime)/60, ymax=(avgTripsTime+sdTripsTime)/60, color=vehicleClass), width=.2, position = position_dodge(width = 0.7)) +
-  labs(y='Minutes', x='Business Type', color='Vehicle Type', title='Average Tour Time') +
-  scale_color_manual(values=c("azure3", "darkgray", "azure4")) +
-  theme_marain() +
+## TOURS
+
+tours_sd <- baseline_runs[order(vehicle,time),.(
+  tourTime=last(arrivalTime)-first(departureTime), 
+  tourVMT=sum(length/1609.344)),
+  by=.(vehicle,runLabel,business,vehicleClass)][
+    ,.(avgTourTime=mean(tourTime), avgTourVMT=mean(tourVMT), 
+       sdTourTime=sd(tourTime), sdTourVMT=sd(tourVMT)),
+    by=.(runLabel,business,vehicleClass)]
+
+#dt_tours_label <- "Base\n +RouteE"
+dt_tours_label <- "Base"
+dt_tours_levels <- c("Class 4-6 Vocational", "Class 7&8 Vocational", "Class 7&8 Tractor")
+dt_tours_completed <- data.table::data.table(rbind(
+  tours_sd[runLabel==dt_tours_label], data.table::data.table(
+    runLabel=c(dt_tours_label, dt_tours_label),
+    business=c("B2C", "B2C"),
+    vehicleClass=c("Class 7&8 Vocational", "Class 7&8 Tractor"),
+    avgTourTime=c(0, 0), avgTourVMT=c(0, 0), sdTourTime=c(0, 0), sdTourVMT=c(0, 0)
+  )))
+dt_tours_completed[,vehicleClass:=factor(dt_tours_completed$vehicleClass, levels=dt_tours_levels)]
+
+ggplot(dt_tours_completed, aes(business, avgTourVMT, fill=vehicleClass)) +
+  geom_bar(stat='identity', position = position_dodge(width = 0.7)) +
+  labs(y='VMT',x='Business',fill='Vehicle Class', title='Tour VMT')+
+  theme_marain()+
   theme(axis.text.x = element_text(angle = 0, hjust=0.5),
         strip.text = element_text(size=rel(1.2)),
-        plot.title = element_text(size=10)) 
-p
-
-
-
-
-write.csv(
-  baseline_tours_summary[baseline_trips_summary, on=c("runLabel", "business", "vehicleClass")],
-  file = pp(demand_growth_output_dir, pp("baseline_tours-trips-summary_", city, ".csv")),
-  row.names=F,
-  quote=T)
+        plot.title = element_text(size=14))+
+  scale_fill_manual(values=c( "azure3", "darkgray", "azure4")) +
+  theme(legend.position = "none")
 
 
 
 
 
 
-# ***************************************
-# ********** VEHICLE TECH & COSTS *******
-# ***************************************
 
-
-baseline_runs_dir <- pp(workDir, "beam/runs/vehicle-cost-sensitivity/")
-baseline_output_dir <- pp(baseline_runs_dir, "output/")
-dir.create(baseline_output_dir, showWarnings = FALSE)
-
-baseline_runs_labels <- c("HOP_highp2", "HOP_highp6", "Ref_highp2", "Ref_highp6")
-baseline_runs <- 
-  read_freight_events(
-    c("2018", "2018_Old"), 
-    baseline_runs_labels, 
-    baseline_runs_dir,
-    "all_b2b_baseline"
-  )
-baseline_runs <- format_path_traversals(baseline_runs)
-
-baseline_summary <- baseline_runs[,
-                                  .(
-                                    MVMT=expansionFactor*sum(length/1609.344)/1e+6,
-                                    GWH=expansionFactor*sum(primaryFuel/3.6e+12)
-                                  ),
-                                  by=.(energyTypeCode,vehicleClass,business,runLabel)
-]
 
 
 
@@ -784,23 +718,26 @@ dgb2b_tours_summary <- dgb2b_tours[,.(avgTourTime=mean(tourTime), avgTourVMT=mea
 # ************ COST SENSITIVITY **********
 # ****************************************
 
-cost_sensitivity_runs_dir <- pp(workDir, "beam/runs/cost-sensitivity/")
+cost_sensitivity_runs_dir <- pp(workDir, "beam/runs/scenarios-23Jan2024/")
 cost_sensitivity_output_dir <- pp(cost_sensitivity_runs_dir, "output/")
 dir.create(cost_sensitivity_output_dir, showWarnings = FALSE)
 
 
 # ************ COST SENSITIVITY - REF
 
-csref_runs_labels <- c("High DL\n0.6x Elec.", 
+csref_runs_labels <- c(
+                       "High DL\n0.6x Elec.", 
                        "Ref. DL\n0.6x Elec.",
                        "High DL\n1.0x Elec.", 
                        "Ref. DL\n1.0x Elec.")
+
+baseline_runs_name <- "23Jan2024"
 csref_runs <- 
   read_freight_events(
-    c("HOP_highp2", "Ref_highp2", "HOP_highp6", "Ref_highp6"), 
+    c("Ref_highp2", "Ref_highp6", "HOP_highp2", "HOP_highp6"), 
     csref_runs_labels, 
     cost_sensitivity_runs_dir,
-    "all_ref"
+    baseline_runs_name
   )
 csref_runs <- format_path_traversals(csref_runs)
 csref_summary <- csref_runs[,
@@ -831,7 +768,7 @@ write.csv(
 p<-ggplot(csref_summary, aes(factor(runLabel, level=csref_runs_labels), GWH/GWHByClass, fill=energyTypeCode2)) +
   geom_bar(stat='identity') +
   facet_grid(. ~ vehicleClass) +
-  labs(y='% GWH',x='Scenario',fill='Vehicle Type', title='Austin - Energy Consumption - High/Reference Oil Price')+
+  labs(y='% GWH',x='Scenario',fill='Vehicle Type', title='Energy Consumption - High/Reference Oil Price')+
   theme_marain()+
   theme(axis.text.x = element_text(angle = 0, hjust=0.5),
         strip.text = element_text(size=rel(1.2)),
@@ -1005,162 +942,3 @@ ggsave(pp(cost_sensitivity_output_dir, pp("cost-sensitivity_GWH-by-powertrain-cl
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# ********
-
-expansionFactor <- 1/0.5
-city <- "austin"
-cityCRS <- 26910
-iteration <- 0
-scenario <- "cost-sensitivity"
-
-## PATHS
-mainDir <- normalizePath("~/Workspace/Data/")
-workDir <- pp(mainDir, "FREIGHT/", city, "/")
-eventsFile <- pp(iteration,".events.csv.gz")
-#linkStatsFile <- pp(iteration,".linkstats.csv.gz")
-runDir <- pp(workDir, "beam/runs/", scenario, "/")
-runOutputDir <- pp(runDir, "output/")
-dir.create(runOutputDir, showWarnings = FALSE)
-
-# runs <- c(
-# "2050_Ref_highp2", "2050_Ref_highp4", "2050_Ref_highp6", "2050_Ref_highp8", "2050_Ref_highp10",
-# "2050_HOP_highp2",  "2050_HOP_highp4", "2050_HOP_highp6",  "2050_HOP_highp8", "2050_HOP_highp10"
-# )
-# runs_label <- c(
-#   "ROP-p2", "ROP-p4", "ROP-p6", "ROP-p8", "ROP-p10",
-#   "HOP-p2",  "HOP-p4", "HOP-p6", "HOP-p8", "HOP-p10"
-# )
-runs <- c(
-  "2050_HOP_highp2",  "2050_HOP_highp4", "2050_HOP_highp6",  "2050_HOP_highp8", "2050_HOP_highp10"
-)
-runs_label <- c(
-"HOP-p2",  "HOP-p4", "HOP-p6", "HOP-p8", "HOP-p10"
-)
-
-
-# HOP 
-hop_runs <- 
-  read_freight_events(
-    c("2018_base",  "2030_b2b_growth", "2040_b2b_growth",  "2050_b2b_growth"), 
-    c("2018\nBase",  "2030\nB2B\nGrowth", "2040\nB2B\nGrowth", "2050\nB2B\nGrowth"), 
-    pp(workDir, "beam/runs/demand-growth/")
-  )
-
-
-
-
-#pt[,.N,by=.(vehicle,run)][,.(count=.N*2),by=.(run)]
-## ***
-energy_consumption <- pt[,.(fuelGWH=expansionFactor*sum(primaryFuel/3.6e+12)),by=.(energyType,runLabel)]
-write.csv(
-  energy_consumption,
-  file = pp(runOutputDir, pp(iteration,".freight-energy-consumption-by-powertrain.csv")),
-  row.names=F,
-  quote=T)
-
-p<-ggplot(energy_consumption, aes(factor(runLabel, level=runs_label), fuelGWH, fill=energyType)) +
-  geom_bar(stat='identity') +
-  labs(y='GWh',x='Scenario',fill='Powertrain', title='Freight Energy Consumptio - 2050 HighTechn')+
-  theme_marain()+
-  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+
-  scale_fill_manual(values=c("#999999", "#56B4E9", "#66A61E"))
-ggsave(pp(runOutputDir, pp(iteration,".freight-energy-consumption-by-powertrain.png")),p,width=10,height=4,units='in')
-
-## ***
-#
-energy_vmt <- pt[,.(MVMT=expansionFactor*sum(length/1609.344)/1000000),by=.(energyType,runLabel)]
-write.csv(
-  energy_vmt,
-  file = pp(runOutputDir, pp(iteration,".freight-VMT-by-powertrain.csv")),
-  row.names=F,
-  quote=T)
-
-p <- ggplot(energy_vmt, aes(factor(runLabel, level=runs_label), MVMT, fill=energyType)) +
-  geom_bar(stat='identity') +
-  labs(y='Million VMT',x='Scenario',fill='Energy Type', title='Freight VMT - 2050 HighTech')+
-  theme_marain()+
-  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+
-  scale_fill_manual(values=c("#999999", "#56B4E9", "#66A61E"))
-ggsave(pp(runOutputDir, pp(iteration,".freight-VMT-by-powertrain.png")),p,width=10,height=4,units='in')
-
-## ***
-
-energy_vehType_vmt <- pt[,.(MVMT=expansionFactor*sum(length/1609.344)/1000000),by=.(energyTypeCode,vehicleClass,runLabel)]
-energy_vehType_vmt[,totVMTByScenario:=sum(MVMT),by=.(runLabel)]
-energy_vehType_vmt[,EnergyAndVehiclesTypes:=paste(energyTypeCode,vehicleClass,sep=" ")]
-energy_vehType_levels <- c("BEV Class 4-6 Vocational", "BEV Class 7&8 Vocational", "BEV Class 7&8 Tractor",
-                           "PHEV Class 4-6 Vocational", "PHEV Class 7&8 Vocational", "PHEV Class 7&8 Tractor",
-                           "H2FC Class 4-6 Vocational", "H2FC Class 7&8 Vocational", "H2FC Class 7&8 Tractor",
-                           "Diesel Class 4-6 Vocational", "Diesel Class 7&8 Vocational", "Diesel Class 7&8 Tractor")
-energy_vehType_vmt$EnergyAndVehiclesTypes <- factor(energy_vehType_vmt$EnergyAndVehiclesTypes, levels = energy_vehType_levels)
-write.csv(
-  energy_vehType_vmt,
-  file = pp(runOutputDir, pp(iteration,".freight-VMT-by-powertrain-vehicletypes.csv")),
-  row.names=F,
-  quote=T)
-
-#"goldenrod2", "goldenrod3", "goldenrod4",
-
-p<-ggplot(energy_vehType_vmt, aes(factor(runLabel, level=runs_label), MVMT/totVMTByScenario, fill=EnergyAndVehiclesTypes)) +
-  geom_bar(stat='identity') +
-  labs(y='Relative VMT Share',x='Scenario',fill='Energy-Vehicle Type', title='Freight Volume')+
-  theme_marain()+
-  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+
-  scale_fill_manual(values=c("deepskyblue2","deepskyblue3", "deepskyblue4",
-                             "mediumpurple1" , "purple1", "purple4",
-                             "chartreuse2", "chartreuse3","chartreuse4",
-                             "azure3","darkgray", "azure4"
-                             ))
-ggsave(pp(runOutputDir, pp(iteration,".freight-VMT-by-powertrain-vehicletypes.png")),p,width=10,height=4,units='in')
-
-## *** Cost Sensitivity
-
-opcost_sensitivity_analysis <- readCsv(pp(workDir, "/frism/cost-sensitivity/opcost_sensitivity_analysis.csv"))
-runs_label_2 <- c("Ref_p2", "Ref_p4", "Ref_p6", "Ref_p8", "Ref_p10", "HOP_p2",  "HOP_p4", "HOP_p6", "HOP_p8", "HOP_p10")
-
-df <- data.table::data.table(gather(opcost_sensitivity_analysis, "label_unit", "cost", -Scenario_ID, -Diesel_Scenario, -Elec_Scenario))
-
-df_filtered <- df[!label_unit %in% c("Diesel truck OP cost ($/mile)", "Non-fuel OP cost ($/mile)", "Rail OP cost ($/tonmile)")]
-ggplot(df_filtered, aes(factor(Scenario_ID, level=runs_label_2), cost, fill=label_unit)) + 
-  geom_bar(stat='identity', position = "dodge2") +
-  theme_marain() + 
-  labs(x = "Scenarios", y = "Cost", fill="Label") +
-  theme(axis.text.x = element_text(angle = 0, hjust=0.5), 
-        strip.text = element_text(size=rel(1.2))
-        )
-
-
-
-##### TEST
-#network <- readCsv(pp(workDir, "beam/network.csv.gz"))
-linkstats_base2018_passenger <- readCsv(pp(workDir, "validation/austin-2010-base-20220301/0.linkstats.csv.gz"))
-#linkstats_base2018_plus <- merge(linkstats_base2018, network, by.x="link", by.y="linkId", all=TRUE) 
-linkstats_base2018_freight <- readCsv(pp(workDir, "beam/runs/demand-growth/2018_base/0.linkstats.csv.gz"))
-
-linkstats_base2018_passenger[,speed2:=length/traveltime]
-linkstats_base2018_freight[,speed2:=length/traveltime]
-
-average_speed_vector(linkstats_base2018_passenger$length,linkstats_base2018_passenger$speed2)
-average_speed_vector(linkstats_base2018_freight$length,linkstats_base2018_freight$speed2)
-
-
-mean(linkstats_base2018_passenger$speed2)
-mean(linkstats_base2018_freight$speed2)

@@ -34,6 +34,11 @@ isCav <- function(x) {
 work_folder <- normalizePath("~/Workspace/Data/FREIGHT/")
 linkstats <- readCsv(pp(work_folder, "/sfbay/0.linkstats.csv.gz"))
 network <- readCsv(pp(work_folder, "/sfbay/beam/network.csv.gz"))
+##
+debug_file <- readCsv(pp(work_folder, "/sfbay/beam/runs/baseline/2018_routeE_new/beamLog.filtered.csv"))
+#
+events_file <- readCsv(pp(work_folder, "/sfbay/beam/runs/baseline/2018_routeE_new/0.events.csv.gz"))
+##
 ## test 2
 #/Users/haitamlaarabi/Workspace/Data/FREIGHT/sfbay/vehicle-tech/2020
 filename1 <- pp(work_folder, "/vehicle-tech/2020/Class_6_Box_truck_(Diesel,_2020,_no_program).csv")
