@@ -49,7 +49,7 @@ object NewYorkReplanningAnalysis {
     val replannings = events.collect { case ev: ReplanningEvent =>
       ev
     }
-    val reasonToEvents = replannings.groupBy(x => x.getReason)
+    val reasonToEvents = replannings.groupBy(x => x.reason)
     reasonToEvents.foreach { case (reason, xs) =>
       println(s"$reason: ${xs.length}")
     }
@@ -68,7 +68,7 @@ object NewYorkReplanningAnalysis {
       relatedReplannings.foreach { replanning =>
         val modeChoiceEvents = timeToEvents(replanning.getTime.toInt)
         val replatedPersonModeChoices =
-          modeChoiceEvents.filter(x => x.personId.toString == replanning.getPersonId.toString)
+          modeChoiceEvents.filter(x => x.personId.toString == replanning.personId.toString)
         replatedPersonModeChoices.foreach { mc =>
           val updated = locationToNumberOfExhaustion.getOrElse(mc.location, 0) + 1
           locationToNumberOfExhaustion.put(mc.location, updated)

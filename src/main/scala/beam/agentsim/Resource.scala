@@ -41,6 +41,6 @@ object Resource {
 
   case class Boarded(vehicle: BeamVehicle, triggerId: Long) extends HasTriggerId
 
-  case class NotAvailable(triggerId: Long) extends HasTriggerId
+  case class NotAvailable(vehicleId: Id[BeamVehicle], triggerId: Long) extends HasTriggerId
 
 }

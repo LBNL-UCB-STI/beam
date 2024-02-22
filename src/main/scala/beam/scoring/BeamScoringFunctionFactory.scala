@@ -85,13 +85,13 @@ class BeamScoringFunctionFactory @Inject() (
             trips.append(modeChoiceEvent.chosenTrip)
           case e: ReplanningEvent if trips.isEmpty =>
             // FIXME? What's a reason of sending a scoring function at replanning?
-            if (e.getReason.startsWith("HouseholdVehicleNotAvailable")) {
+            if (e.reason.startsWith("HouseholdVehicleNotAvailable")) {
               logger.debug(
                 s"Household does not have an available vehicle and the agent has likely triggered " +
                 s"a replanning. Value if  replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable is " +
                 s"${beamConfig.beam.agentsim.agents.vehicles.replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable}"
               )
-            } else if (!e.getReason.startsWith("RouteNotAvailableForChosenMode")) {
+            } else if (!e.reason.startsWith("RouteNotAvailableForChosenMode")) {
               // Don't need to remove a trip if a route wasn't found because no initial trip was taken
               logger.error(
                 f"We need to remove a trip, but the trips collection is empty, this might be a bug. " +

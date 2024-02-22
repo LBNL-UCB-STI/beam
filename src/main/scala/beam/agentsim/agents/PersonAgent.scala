@@ -714,14 +714,12 @@ class PersonAgent(
       .isEmpty || beamScenario.trainStopQuadTree.getDisk(nextCoord.getX, nextCoord.getY, minDistanceToTrainStop).isEmpty
   }
 
-  def handleFailedRideHailReservation(
-    error: ReservationError,
-    response: RideHailResponse,
-    data: BasePersonData
-  ): State = {
+  private def handleFailedRideHailReservation(response: RideHailResponse, data: BasePersonData): State = {
+    val error = response.error.getOrElse(UnknownInquiryIdError)
     logDebug(s"replanning because ${error.errorCode}")
     val tick = _currentTick.getOrElse(response.request.departAt)
-    val replanningReason = getReplanningReasonFrom(data, error.errorCode.entryName)
+    val replanningReason =
+      getReplanningReasonFrom(data, s"${response.rideHailManagerName}:${error.errorCode.entryName}")
     eventsManager.processEvent(
       new RideHailReservationConfirmationEvent(
         tick,
@@ -755,12 +753,12 @@ class PersonAgent(
     val currentCoord = beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
 
     eventsManager.processEvent(
-      new ReplanningEvent(
+      ReplanningEvent(
         tick,
         Id.createPersonId(id),
         replanningReason,
-        currentCoord.getX,
-        currentCoord.getY
+        legMode = Some(if (response.request.asPooled) BeamMode.RIDE_HAIL_POOLED else BeamMode.RIDE_HAIL),
+        start = currentCoord
       )
     )
     val nextCoord = nextActivity(data).get.getCoord
@@ -795,14 +793,14 @@ class PersonAgent(
       val nextCoord = nextActivity(data).get.getCoord
       val replanningReason = getReplanningReasonFrom(data, firstErrorResponse.errorCode.entryName)
       eventsManager.processEvent(
-        new ReplanningEvent(
+        ReplanningEvent(
           _currentTick.get,
           Id.createPersonId(id),
           replanningReason,
-          currentCoord.getX,
-          currentCoord.getY,
-          nextCoord.getX,
-          nextCoord.getY
+          Some(data.nextLeg.beamVehicleId),
+          Some(data.nextLeg.beamLeg.mode),
+          start = currentCoord,
+          end = Some(nextCoord)
         )
       )
       goto(ChoosingMode) using ChoosesModeData(
@@ -839,13 +837,13 @@ class PersonAgent(
           data: BasePersonData
         ) =>
       holdTickAndTriggerId(tick, triggerId)
-      handleFailedRideHailReservation(response.error.getOrElse(UnknownInquiryIdError), response, data)
+      handleFailedRideHailReservation(response, data)
     // RIDE HAIL SUCCESS (single request mode of RHM)
     case Event(response: RideHailResponse, data: BasePersonData) if response.isSuccessful(id) =>
       handleSuccessfulRideHailReservation(_currentTick.get, response, data)
     // RIDE HAIL FAILURE (single request mode of RHM)
     case Event(response: RideHailResponse, data: BasePersonData) =>
-      handleFailedRideHailReservation(response.error.getOrElse(UnknownInquiryIdError), response, data)
+      handleFailedRideHailReservation(response, data)
   }
 
   private def handleSuccessfulRideHailReservation(tick: Int, response: RideHailResponse, data: BasePersonData) = {
@@ -1032,18 +1030,19 @@ class PersonAgent(
       beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
       potentiallyChargingBeamVehicles.remove(vehicle.id)
       goto(ProcessingNextLegOrStartActivity)
-    case Event(NotAvailable(_), basePersonData: BasePersonData) =>
+    case Event(NotAvailable(vehicleId, _), basePersonData: BasePersonData) =>
       log.debug("{} replanning because vehicle not available when trying to board")
       val replanningReason = getReplanningReasonFrom(basePersonData, ReservationErrorCode.ResourceUnavailable.entryName)
       val currentCoord =
         beamServices.geo.wgs2Utm(basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
       eventsManager.processEvent(
-        new ReplanningEvent(
+        ReplanningEvent(
           _currentTick.get,
           Id.createPersonId(id),
           replanningReason,
-          currentCoord.getX,
-          currentCoord.getY
+          Some(vehicleId),
+          Some(basePersonData.nextLeg.beamLeg.mode),
+          start = currentCoord
         )
       )
 
@@ -1226,12 +1225,13 @@ class PersonAgent(
       val replanningReason = getReplanningReasonFrom(data, ReservationErrorCode.MissedTransitPickup.entryName)
       val currentCoord = beamServices.geo.wgs2Utm(data.nextLeg.beamLeg.travelPath.startPoint).loc
       eventsManager.processEvent(
-        new ReplanningEvent(
+        ReplanningEvent(
           _currentTick.get,
           Id.createPersonId(id),
           replanningReason,
-          currentCoord.getX,
-          currentCoord.getY
+          Some(data.nextLeg.beamVehicleId),
+          Some(data.nextLeg.beamLeg.mode),
+          start = currentCoord
         )
       )
 
@@ -1273,12 +1273,13 @@ class PersonAgent(
       val replanningReason = getReplanningReasonFrom(data, ReservationErrorCode.MissedTransitPickup.entryName)
       val currentCoord = beamServices.geo.wgs2Utm(data.nextLeg.beamLeg.travelPath.startPoint).loc
       eventsManager.processEvent(
-        new ReplanningEvent(
+        ReplanningEvent(
           _currentTick.get,
           Id.createPersonId(id),
           replanningReason,
-          currentCoord.getX,
-          currentCoord.getY
+          Some(data.nextLeg.beamVehicleId),
+          Some(data.nextLeg.beamLeg.mode),
+          start = currentCoord
         )
       )
 
