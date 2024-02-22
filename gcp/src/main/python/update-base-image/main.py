@@ -1,9 +1,11 @@
 import functions_framework
 import os
+import time
 from googleapiclient import discovery
 
 initscript = (('''
 echo "-------------------Updating Beam dependencies----------------------"
+set -o xtrace
 sudo dpkg --configure -a
 sudo dpkg --remove --force-remove-reinstreq  unattended-upgrades
 sudo apt-get install unattended-upgrades
@@ -23,7 +25,7 @@ sudo npm install -g npm
 sudo apt-get install curl -y
 curl -sL https://deb.nodesource.com/setup_8.x | sudo -E bash -
 sudo apt-get install nodejs -y
-sudo apt-get update
+DEBIAN_FRONTEND=noninteractive sudo apt-get -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef -y update
 sudo apt install apt-transport-https ca-certificates curl software-properties-common gnupg
 sudo install -m 0755 -d /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg -y
@@ -44,12 +46,13 @@ sudo apt-get install build-essential software-properties-common -y && sudo apt-g
 sudo apt install jq -y
 #sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys A1715D88E1DF1F24
 #sudo add-apt-repository ppa:git-core/ppa -y
-sudo apt-get update
-sudo apt-get upgrade -y
+export DEBIAN_FRONTEND=noninteractive 
+apt-get -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef -y update
+apt-get -o Dpkg::Options::=--force-confold -o Dpkg::Options::=--force-confdef --allow-downgrades --allow-remove-essential --allow-change-held-packages -yq upgrade
 sudo apt-get install make libssl-dev libghc-zlib-dev libcurl4-gnutls-dev libexpat1-dev gettext unzip -y
 sudo apt-get install git -y
 echo "-------------------Adding ~/git/beam as safe directory----------------------"
-sudo git config --global --add safe.directory '/home/clu/sources/beam'
+sudo git config --global --add safe.directory '*'
 echo "-------------------Finished updating Beam dependencies----------------------"
 cd /home/clu/sources/beam
 sudo ssh -vT -o "StrictHostKeyChecking no" git@github.com
@@ -82,13 +85,14 @@ echo "gradlew assemble ..."
 ./gradlew assemble
 ./gradlew clean
 echo "preparing for python analysis"
-'echo resetting git to base: "$(date)"'
+echo "resetting git to base: $(date)"
 sudo git reset --hard 
-'echo fetching the latest: "$(date)"'
+echo "fetching the latest: $(date)"
 sudo git fetch
-'echo current git status: "$(date)"'
+echo "current git status: $(date)"
 sudo git status
-'echo invoke create image function after a 5 minute sleep to let the file system settle..."$(date)"'
+sudo bash -c "HOME=/home/clu; curl -sL https://github.com/shyiko/jabba/raw/master/install.sh | bash && . ~/.jabba/jabba.sh"
+echo "invoke create image function after a 5 minute sleep to let the file system settle...$(date)"
 sudo sleep 5m
 read -r createSnapshotOperationId created_snapshot_name <<< $(gcloud functions call createSnapshot --region us-central1 --data '{"zone": "us-central1-a", "instance_name": "$RUNNAME"}' | tr -d '\n' | sed -e 's/^[[:space:]]*//')
 while ! gcloud compute operations describe $createSnapshotOperationId --zone us-central1-a | grep "status: DONE"; do echo "Waiting 30 seconds for snapshot in us-central1 $created_snapshot_name from operation $createSnapshotOperationId ..."; sleep 30s; done
@@ -154,9 +158,36 @@ def create_instance_request(instance_name, machine_type, disk_image_name, storag
         }
     }
 
+def wait_for_operation(compute, project, zone, operation, operation_name):
+    print("Waiting for operation " + operation_name + " to finish...")
+    while True:
+        result = (
+            compute.zoneOperations()
+            .get(project=project, zone=zone, operation=operation)
+            .execute()
+        )
+
+        if result["status"] == "DONE":
+            print("done.")
+            if "error" in result:
+                raise Exception(result["error"])
+            return result
+
+        time.sleep(1)
+
 @functions_framework.http
 def main(request):
     cloud_functions = discovery.build('cloudfunctions', 'v1')
+    compute = discovery.build('compute', 'v1')
+    run_name = 'beam-dependency-update-instance'
+    project_name = 'beam-core'
+    zone_name = 'us-central1-a'
+    instances_result = compute.instances().list(project=project_name, zone=zone_name).execute()
+    for instance in instances_result.get("items"):
+        if instance["name"] == run_name:
+            delete_result = compute.instances().delete(project=project_name, zone=zone_name, instance=run_name).execute()
+            wait_for_operation(compute, project_name, zone_name, delete_result["name"], "delete old running instance")
+            break
     resource_name = f"projects/beam-core/locations/us-central1/functions/deploy_beam"
     response = cloud_functions.projects().locations().functions().get(
         name=resource_name
@@ -166,11 +197,9 @@ def main(request):
     branches = os.environ['BRANCHES']
     shutdown_wait = "10"
     submodules = os.environ['SUBMODULES']
-    run_name = 'beam-dependency-update-instance'
     startup_script = initscript.replace('$BRANCH', branches).replace('$SHUTDOWN_WAIT', shutdown_wait).replace('$SUBMODULES', submodules).replace('$RUNNAME', run_name)
     shutdown_script = 'gcloud compute instances delete ' + run_name + ' --zone=us-central1-a --quiet'
     metadata = [('startup-script', startup_script),('shutdown-script', shutdown_script)]
     create_instance_request_body = create_instance_request(run_name, 'zones/us-central1-a/machineTypes/c2-standard-4', disk_image_name, '100', metadata)
-    compute = discovery.build('compute', 'v1')
     result = compute.instances().insert(project='beam-core', zone='us-central1-a', body=create_instance_request_body).execute()
     return result

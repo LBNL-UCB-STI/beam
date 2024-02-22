@@ -11,7 +11,6 @@ import org.jfree.chart.*;
 import org.jfree.chart.plot.CategoryPlot;
 import org.jfree.chart.plot.PlotOrientation;
 import org.jfree.data.category.CategoryDataset;
-import org.jfree.data.general.DatasetUtilities;
 import org.matsim.analysis.VolumesAnalyzer;
 import org.matsim.api.core.v01.Id;
 import org.matsim.api.core.v01.network.Link;

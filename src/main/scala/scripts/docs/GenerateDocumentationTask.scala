@@ -2,12 +2,11 @@ package scripts.docs
 
 import java.io.{FileOutputStream, PrintWriter}
 import java.nio.file.{FileSystems, Path, Paths}
-
 import scala.collection.JavaConverters._
-
 import beam.sim.{BeamOutputDataDescriptionGenerator, OutputDataDescription}
 import beam.utils.OutputDataDescriptor
 import com.typesafe.scalalogging.StrictLogging
+import org.matsim.core.config.groups.ControlerConfigGroup.CompressionType
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 
@@ -49,7 +48,8 @@ object GenerateDocumentationTask extends App with StrictLogging {
   private def initializeDependencies(outputDirectory: String): OutputDirectoryHierarchy = {
     new OutputDirectoryHierarchy(
       outputDirectory,
-      OverwriteFileSetting.overwriteExistingFiles
+      OverwriteFileSetting.overwriteExistingFiles,
+      CompressionType.none
     )
   }
 

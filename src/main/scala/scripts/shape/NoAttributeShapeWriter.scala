@@ -1,7 +1,7 @@
 package scripts.shape
 
 import scripts.shape.ShapeWriter.OriginalToPersistedFeatureIdMap
-import com.vividsolutions.jts.geom.{Geometry => JtsGeometry}
+import org.locationtech.jts.geom.{Geometry => JtsGeometry}
 import org.geotools.referencing.crs.DefaultGeographicCRS
 import org.opengis.referencing.crs.CoordinateReferenceSystem
 

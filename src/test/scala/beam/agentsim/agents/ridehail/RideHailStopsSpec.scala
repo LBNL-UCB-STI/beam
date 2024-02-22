@@ -32,8 +32,8 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
               beam.agentsim.agents.rideHail.stopFilePath="./test/test-resources/beam/input/ridehail-stops.csv"
               beam.agentsim.lastIteration = 0
               beam.agentsim.agents.rideHail.maximumWalkDistanceToStopInM=1600
-              beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_intercept = 10
-              beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.ride_hail_transit_intercept = -100
+              beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_intercept = 10
+              beam.agentsim.agents.modalBehaviors.multinomialLogit.params.ride_hail_transit_intercept = -100
               beam.physsim.skipPhysSim = true
               beam.debug.stuckAgentDetection.enabled = false
               beam.debug.stuckAgentDetection.checkMaxNumberOfMessagesEnabled = false
@@ -51,19 +51,18 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
       val events = eventIterator.toList
       closable.close()
 
-      def getEventBefore(time: Int, ofType: String, attrName: String, attrValue: String): Option[Event] = {
+      def getEventBefore(event: Event, ofType: String, attrName: String, attrValue: String): Option[Event] = {
         events.view
-          .takeWhile(event => getIntAttr(event, "time") <= time)
+          .takeWhile(_ != event)
           .filter(event => event.getAttributes.get("type") == ofType && event.getAttributes.get(attrName) == attrValue)
           .lastOption
       }
 
-      def getEventAfter(time: Int, ofType: String, attrName: String, attrValue: String): Option[Event] = {
-        events
-          .find(event =>
-            getIntAttr(event, "time") >= time &&
-            event.getAttributes.get("type") == ofType && event.getAttributes.get(attrName) == attrValue
-          )
+      def getEventAfter(event: Event, ofType: String, attrName: String, attrValue: String): Option[Event] = {
+        events.view
+          .dropWhile(_ != event)
+          .tail
+          .find(event => event.getAttributes.get("type") == ofType && event.getAttributes.get(attrName) == attrValue)
       }
 
       events should not be empty withClue "Expected to read events of simulation."
@@ -86,24 +85,20 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
         riders should not be empty withClue "Expected to have riders in the PathTraversal event"
         forAll(riders) { rider =>
           // validate that previous walking start at the activity location
-          val rhDepartureTime = getIntAttr(rhPte, "departureTime")
-
           // actEnd before the current trip
-          val maybeActEnd = getEventBefore(rhDepartureTime, "actend", "person", rider)
+          val maybeActEnd = getEventBefore(rhPte, "actend", "person", rider)
           maybeActEnd should not be empty withClue f"Expected to have an ActEnd event for a person before RH departure. Person: $rider"
           val actEnd = maybeActEnd.get
-          val actEndTime = getIntAttr(actEnd, "time")
           val actEndLink = actEnd.getAttributes.get("link")
 
           // actStart at the end of the current trip
-          val maybeActStart = getEventAfter(rhDepartureTime, "actstart", "person", rider)
+          val maybeActStart = getEventAfter(rhPte, "actstart", "person", rider)
           maybeActStart should not be empty withClue f"Expected to have an ActStart event for a person some time after RH departure. Person: $rider"
           val nextActStart = maybeActStart.get
-          val nextActStartTime = getIntAttr(nextActStart, "time")
           val nextActStartLink = nextActStart.getAttributes.get("link")
 
           // a walking PathTraversal event after the actEnd event
-          val maybeWalkingBeforeRH = getEventAfter(actEndTime, "PathTraversal", "vehicle", s"body-$rider")
+          val maybeWalkingBeforeRH = getEventAfter(actEnd, "PathTraversal", "vehicle", s"body-$rider")
           maybeWalkingBeforeRH should not be empty withClue f"Expected to have a PathTraversal event before RH departure. Person: $rider"
 
           val walkingBeforeRH = maybeWalkingBeforeRH.get
@@ -122,7 +117,7 @@ class RideHailStopsSpec extends AnyWordSpecLike with Matchers with BeamHelper {
           }
 
           // validate that after RH walking ends at the activity location
-          val maybeWalkingAfterRH = getEventBefore(nextActStartTime, "PathTraversal", "vehicle", s"body-$rider")
+          val maybeWalkingAfterRH = getEventBefore(nextActStart, "PathTraversal", "vehicle", s"body-$rider")
           maybeActStart should not be empty withClue f"Expected to have a PathTraversal event before next actstart event. Person: $rider"
           val walkingAfterRH = maybeWalkingAfterRH.get
 

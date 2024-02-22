@@ -15,6 +15,7 @@ Contents:
     
    about
    users
+   tutorial
    developers
    messages
    grafana

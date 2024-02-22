@@ -9,7 +9,7 @@ import scala.collection.mutable
 import beam.utils.csv.GenericCsvReader
 import com.typesafe.scalalogging.LazyLogging
 import com.uber.h3core.util.GeoCoord
-import com.vividsolutions.jts.geom.{GeometryFactory, Polygon}
+import org.locationtech.jts.geom.{GeometryFactory, Polygon}
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.gis.{PolygonFeatureFactory, ShapeFileWriter}
 
@@ -81,8 +81,8 @@ object GeoZoneUtil extends LazyLogging {
     }
   }
 
-  def toJtsCoordinate(in: GeoCoord): com.vividsolutions.jts.geom.Coordinate = {
-    new com.vividsolutions.jts.geom.Coordinate(in.lng, in.lat)
+  def toJtsCoordinate(in: GeoCoord): org.locationtech.jts.geom.Coordinate = {
+    new org.locationtech.jts.geom.Coordinate(in.lng, in.lat)
   }
 
 }

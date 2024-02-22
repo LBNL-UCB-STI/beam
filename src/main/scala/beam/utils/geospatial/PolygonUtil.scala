@@ -1,6 +1,6 @@
 package beam.utils.geospatial
 
-import com.vividsolutions.jts.geom.{Geometry => JtsGeometry}
+import org.locationtech.jts.geom.{Geometry => JtsGeometry}
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.geometry.geotools.MGC

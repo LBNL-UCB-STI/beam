@@ -122,9 +122,8 @@ class UrbanSimScenarioLoader(
 
   private def clear(): Unit = {
     scenario.getPopulation.getPersons.clear()
-    scenario.getPopulation.getPersonAttributes.clear()
     scenario.getHouseholds.getHouseholds.clear()
-    scenario.getHouseholds.getHouseholdAttributes.clear()
+    scenario.getHouseholds.getHouseholds.values.asScala.map(_.getAttributes.clear())
 
     beamScenario.privateVehicles.clear()
     beamScenario.privateVehicleInitialSoc.clear()
@@ -143,7 +142,6 @@ class UrbanSimScenarioLoader(
     householdIdToPersons: Map[HouseholdId, Iterable[PersonInfo]],
     plans: Iterable[PlanElement]
   ): Unit = {
-    val scenarioHouseholdAttributes = scenario.getHouseholds.getHouseholdAttributes
     val scenarioHouseholds = scenario.getHouseholds.getHouseholds
 
     var vehicleCounter: Int = 0
@@ -222,9 +220,8 @@ class UrbanSimScenarioLoader(
       }
       household.setVehicleIds(vehicleIds)
       scenarioHouseholds.put(household.getId, household)
-      scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordx", coord.getX)
-      scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordy", coord.getY)
-
+      HouseholdUtils.putHouseholdAttribute(household, "homecoordx", coord.getX)
+      HouseholdUtils.putHouseholdAttribute(household, "homecoordy", coord.getY)
     }
     logger.info(
       s"Created $totalCarCount vehicles, scaling initial value of $initialVehicleCounter by a factor of $scaleFactor"
@@ -505,24 +502,22 @@ class UrbanSimScenarioLoader(
 
     persons.foreach { personInfo =>
       val person = population.getFactory.createPerson(Id.createPersonId(personInfo.personId.id))
-      val personId = person.getId.toString
-      val personAttrib = population.getPersonAttributes
       val hh = personHouseholds(person.getId)
       val sexChar = if (personInfo.isFemale) "F" else "M"
 
       // FIXME Search for "householdId" in the code does not show any place where it used
-      personAttrib.putAttribute(personId, "householdId", personInfo.householdId)
+      PopulationUtils.putPersonAttribute(person, "householdId", personInfo.householdId)
       // FIXME Search for "householdId" in the code does not show any place where it used
-      personAttrib.putAttribute(personId, "rank", personInfo.rank)
-      personAttrib.putAttribute(personId, "age", personInfo.age)
-      personAttrib.putAttribute(
-        personId,
+      PopulationUtils.putPersonAttribute(person, "rank", personInfo.rank)
+      PopulationUtils.putPersonAttribute(person, "age", personInfo.age)
+      PopulationUtils.putPersonAttribute(
+        person,
         RIDEHAIL_SERVICE_SUBSCRIPTION,
         personInfo.rideHailServiceSubscription.mkString(",")
       )
-      personAttrib.putAttribute(personId, "income", hh.getIncome.getIncome)
-      personAttrib.putAttribute(personId, "sex", sexChar)
-      personAttrib.putAttribute(personId, "wheelchairUser", personInfo.wheelchairUser)
+      PopulationUtils.putPersonAttribute(person, "income", hh.getIncome.getIncome)
+      PopulationUtils.putPersonAttribute(person, "sex", sexChar)
+      PopulationUtils.putPersonAttribute(person, "wheelchairUser", personInfo.wheelchairUser)
 
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
@@ -538,7 +533,6 @@ class UrbanSimScenarioLoader(
         beamScenario,
         person,
         hh,
-        population,
         availableModes.split(",")
       )
       population.addPerson(person)

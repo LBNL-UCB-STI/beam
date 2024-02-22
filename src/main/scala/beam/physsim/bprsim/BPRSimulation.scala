@@ -75,7 +75,7 @@ object BPRSimulation {
       val firstAct = plan.getPlanElements.get(0).asInstanceOf[Activity]
       if (accept(firstAct)) {
         // an agent starts the first leg at the end_time of the fist act
-        val departureTime = firstAct.getEndTime
+        val departureTime = firstAct.getEndTime.orElse(beam.UNDEFINED_TIME)
 
         // schedule start leg message
         val isCACC = caccMap.getOrDefault(person.getId.toString, false)

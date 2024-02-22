@@ -209,7 +209,7 @@ trait ChoosesMode {
           ) if data.currentTourMode.isEmpty || data.currentTourModeIsIn(CAR, BIKE, DRIVE_TRANSIT, BIKE_TRANSIT) =>
         implicit val executionContext: ExecutionContext = context.system.dispatcher
         data.currentTourMode match {
-          case Some(CAR | DRIVE_TRANSIT) =>
+          case Some(CAR | DRIVE_TRANSIT | CAR_HOV2 | CAR_HOV3) => // TODO: Add HOV modes here too
             requestAvailableVehicles(
               vehicleFleets,
               currentLocation,
@@ -1540,7 +1540,8 @@ trait ChoosesMode {
   when(FinishingModeChoice, stateTimeout = Duration.Zero) { case Event(StateTimeout, data: ChoosesModeData) =>
     val pendingTrip = data.pendingChosenTrip.get
     val (tick, triggerId) = releaseTickAndTriggerId()
-    val chosenTrip = makeFinalCorrections(pendingTrip, tick, currentActivity(data.personData).getEndTime)
+    val chosenTrip =
+      makeFinalCorrections(pendingTrip, tick, currentActivity(data.personData).getEndTime.orElse(beam.UNDEFINED_TIME))
 
     // Write start and end links of chosen route into Activities.
     // We don't check yet whether the incoming and outgoing routes agree on the link an Activity is on.
@@ -1833,10 +1834,6 @@ object ChoosesMode {
   case class CavTripLegsResponse(cavOpt: Option[BeamVehicle], legs: List[EmbodiedBeamLeg])
 
   def getActivityEndTime(activity: Activity, beamServices: BeamServices): Int = {
-    (if (activity.getEndTime.equals(Double.NegativeInfinity))
-       Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime)
-     else
-       activity.getEndTime).toInt
+    activity.getEndTime.orElseGet(() => Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime)).toInt
   }
-
 }

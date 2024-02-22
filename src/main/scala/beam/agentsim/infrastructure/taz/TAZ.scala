@@ -5,7 +5,7 @@ import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
-import com.vividsolutions.jts.geom.Geometry
+import org.locationtech.jts.geom.Geometry
 
 import scala.collection.JavaConverters._
 

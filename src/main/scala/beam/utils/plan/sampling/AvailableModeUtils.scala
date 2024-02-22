@@ -1,15 +1,14 @@
 package beam.utils.plan.sampling
 
 import java.util
-
 import scala.collection.JavaConverters
-
 import beam.router.Modes.BeamMode
 import beam.sim.BeamScenario
 import beam.sim.population.{AttributesOfIndividual, PopulationAdjustment}
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.lang3.StringUtils.isBlank
 import org.matsim.api.core.v01.population.{Person, Plan, Population}
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.population.algorithms.PermissibleModesCalculator
 import org.matsim.households.Household
 
@@ -33,17 +32,16 @@ object AvailableModeUtils extends LazyLogging {
   /**
     * Gets the excluded modes set for the given person in the population
     *
-    * @param population population from the scenario
-    * @param personId the respective person's id
+    * @param person the respective person
     * @return List of excluded mode string
     */
-  def getExcludedModesForPerson(population: Population, personId: String): Array[String] = {
-    getAttributeAsArrayOfStrings(population, personId, PopulationAdjustment.EXCLUDED_MODES)
+  def getExcludedModesForPerson(person: Person): Array[String] = {
+    getAttributeAsArrayOfStrings(person, PopulationAdjustment.EXCLUDED_MODES)
   }
 
-  def getAttributeAsArrayOfStrings(population: Population, personId: String, attributeName: String): Array[String] = {
+  def getAttributeAsArrayOfStrings(person: Person, attributeName: String): Array[String] = {
     val attributeValueOpt = Option(
-      population.getPersonAttributes.getAttribute(personId, attributeName)
+      PopulationUtils.getPersonAttribute(person, attributeName)
     )
     attributeValueOpt match {
       case Some(modes: Array[String]) => modes.map(_.trim).filterNot(isBlank)
@@ -66,14 +64,13 @@ object AvailableModeUtils extends LazyLogging {
   /**
     * Sets the available modes for the given person in the population
     *
-    * @param population population from the scenario
     * @param person the respective person
     * @param permissibleModes List of permissible modes for the person
     */
-  def setAvailableModesForPerson(person: Person, population: Population, permissibleModes: Seq[String]): Unit = {
+  def setAvailableModesForPerson(person: Person, permissibleModes: Seq[String]): Unit = {
     getPersonCustomAttributes(person) match {
       case Some(attributesOfIndividual) =>
-        setModesForPerson(person, population, permissibleModes, attributesOfIndividual)
+        setModesForPerson(person, permissibleModes, attributesOfIndividual)
       case _ =>
         logger.warn(s"Not found attributes of the individual: [$person]")
     }
@@ -81,11 +78,10 @@ object AvailableModeUtils extends LazyLogging {
 
   private def setModesForPerson(
     person: Person,
-    population: Population,
     permissibleModes: Seq[String],
     attributesOfIndividual: AttributesOfIndividual
   ): Unit = {
-    val availableModes = getAvailableModesOfPerson(person, population, permissibleModes)
+    val availableModes = getAvailableModesOfPerson(person, permissibleModes)
     try {
       val attributesUpdated =
         attributesOfIndividual.copy(availableModes = availableModes.map(f => BeamMode.withValue(f.toLowerCase)))
@@ -98,10 +94,9 @@ object AvailableModeUtils extends LazyLogging {
 
   private def getAvailableModesOfPerson(
     person: Person,
-    population: Population,
     permissibleModes: Seq[String]
   ): Seq[String] = {
-    val excludedModes = getExcludedModesForPerson(population, person.getId.toString)
+    val excludedModes = getExcludedModesForPerson(person)
     permissibleModes.filterNot(am => excludedModes.exists(em => em.equalsIgnoreCase(am)))
   }
 
@@ -109,22 +104,20 @@ object AvailableModeUtils extends LazyLogging {
     beamScenario: BeamScenario,
     person: Person,
     household: Household,
-    population: Population,
     permissibleModes: Seq[String]
   ): Unit = {
-    val attributesOfIndividual = getOrElseUpdateAttributesOfIndividual(beamScenario, person, household, population)
-    setModesForPerson(person, population, permissibleModes, attributesOfIndividual)
+    val attributesOfIndividual = getOrElseUpdateAttributesOfIndividual(beamScenario, person, household)
+    setModesForPerson(person, permissibleModes, attributesOfIndividual)
   }
 
   private def getOrElseUpdateAttributesOfIndividual(
     beamScenario: BeamScenario,
     person: Person,
-    household: Household,
-    population: Population
+    household: Household
   ): AttributesOfIndividual = {
     getPersonCustomAttributes(person).getOrElse {
       val attributes: AttributesOfIndividual =
-        PopulationAdjustment.createAttributesOfIndividual(beamScenario, population, person, household)
+        PopulationAdjustment.createAttributesOfIndividual(beamScenario, person, household)
       person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attributes)
       attributes
     }

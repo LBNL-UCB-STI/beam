@@ -5,6 +5,7 @@ import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Level.{ERROR, INFO}
 import org.matsim.api.core.v01.population.{Person, Plan, Population, PopulationFactory}
 import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.scalatest.BeforeAndAfterEach
@@ -28,8 +29,8 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
 
     "logs excluded modes" taggedAs Retryable in {
       val popAdj = new TestPopulationAdjustment()
-      val population = createPopulation(persons)
-      persons.keys.map(_.toString.toInt).foreach { id =>
+      val personWithAttributes = createPersons.mapValues { person =>
+        val id = person.getId.toString.toInt
         // bike is excluded for 2 persons
         // car is excluded for 5 persons
         val excludedModes = (id % 5, id % 2) match {
@@ -38,8 +39,10 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
           case (_, 0) => "car"
           case (_, _) => ""
         }
-        population.getPersonAttributes.putAttribute(id.toString, PopulationAdjustment.EXCLUDED_MODES, excludedModes)
+        PopulationUtils.putPersonAttribute(person, PopulationAdjustment.EXCLUDED_MODES, excludedModes)
+        person
       }
+      val population = createPopulation(personWithAttributes)
 
       popAdj.logModes(population)
       popAdj.verifyLogging(INFO -> "Modes excluded:", INFO -> "car -> 5", INFO -> "bike -> 2")
@@ -47,8 +50,8 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
 
     "logs excluded modes defined as iterable" in {
       val popAdj = new TestPopulationAdjustment()
-      val population = createPopulation(persons)
-      persons.keys.map(_.toString.toInt).foreach { id =>
+      val personWithAttributes = createPersons.mapValues { person =>
+        val id = person.getId.toString.toInt
         // bike is excluded for 5 persons
         // car is excluded for 2 persons
         val excludedModes = (id % 2, id % 5) match {
@@ -57,8 +60,10 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
           case (_, 0) => mutable.Buffer("car")
           case (_, _) => Set.empty
         }
-        population.getPersonAttributes.putAttribute(id.toString, PopulationAdjustment.EXCLUDED_MODES, excludedModes)
+        PopulationUtils.putPersonAttribute(person, PopulationAdjustment.EXCLUDED_MODES, excludedModes)
+        person
       }
+      val population = createPopulation(personWithAttributes)
 
       popAdj.logModes(population)
       popAdj.verifyLogging(INFO -> "Modes excluded:", INFO -> "bike -> 5", INFO -> "car -> 2")
@@ -66,8 +71,8 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
 
     "logs excluded modes and alarms not all persons have required attribute" in {
       val popAdj = new TestPopulationAdjustment()
-      val population = createPopulation(persons)
-      persons.keys.map(_.toString.toInt).foreach { id =>
+      val personWithAttributes = createPersons.mapValues { person =>
+        val id = person.getId.toString.toInt
         // bike is excluded for 2 persons
         // car is excluded for 3 persons
         val excludedModes = (id % 5, id % 3) match {
@@ -77,9 +82,11 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
           case (_, _) => None
         }
         excludedModes.foreach { mode =>
-          population.getPersonAttributes.putAttribute(id.toString, PopulationAdjustment.EXCLUDED_MODES, mode)
+          PopulationUtils.putPersonAttribute(person, PopulationAdjustment.EXCLUDED_MODES, mode)
         }
+        person
       }
+      val population = createPopulation(personWithAttributes)
 
       popAdj.logModes(population)
       popAdj.verifyLogging(
@@ -125,7 +132,7 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
 
   }
 
-  private lazy val persons: Map[Id[Person], Person] =
+  private def createPersons: Map[Id[Person], Person] =
     (1L to 10L)
       .map(Id.createPersonId)
       .map(id => (id, createPerson(id)))
@@ -155,7 +162,6 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
     override def getPersons: util.Map[Id[Person], Person] = persons.asJava
     override def addPerson(p: Person): Unit = ???
     override def removePerson(personId: Id[Person]): Person = ???
-    override def getPersonAttributes: ObjectAttributes = personAttributes
     override def getAttributes: Attributes = attributes
   }
 }

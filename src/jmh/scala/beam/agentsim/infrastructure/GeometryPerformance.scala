@@ -5,7 +5,7 @@ import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.typesafe.config.ConfigFactory
-import com.vividsolutions.jts.geom.{Coordinate, GeometryFactory, Point}
+import org.locationtech.jts.geom.{Coordinate, GeometryFactory, Point}
 import org.openjdk.jmh.annotations.{Benchmark, BenchmarkMode, Fork, Mode}
 import org.openjdk.jmh.infra.Blackhole
 import org.openjdk.jmh.runner.Runner
