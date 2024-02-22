@@ -56,13 +56,13 @@ object ReplanningEvent {
     val attr = genericEvent.getAttributes.asScala
     val time: Double = genericEvent.getTime
     val personId: Id[Person] = Id.createPersonId(attr(ATTRIBUTE_PERSON))
-    val reason: String = attr(ATTRIBUTE_REPLANNING_REASON)
-    val vehicleId: Option[Id[Vehicle]] = Option(attr(ATTRIBUTE_VEHICLE)).map(Id.createVehicleId)
-    val legMode: Option[BeamMode] = BeamMode.fromString(attr(ATTRIBUTE_LEG_MODE))
-    val startX: Double = attr(ATTRIBUTE_START_COORDINATE_X).toDouble
-    val startY: Double = attr(ATTRIBUTE_START_COORDINATE_Y).toDouble
-    val endX: Option[Double] = Option(attr(ATTRIBUTE_END_COORDINATE_X)).map(_.toDouble)
-    val endY: Option[Double] = Option(attr(ATTRIBUTE_END_COORDINATE_Y)).map(_.toDouble)
+    val reason: String = attr.getOrElse(ATTRIBUTE_REPLANNING_REASON, "")
+    val vehicleId: Option[Id[Vehicle]] = attr.get(ATTRIBUTE_VEHICLE).map(Id.createVehicleId)
+    val legMode: Option[BeamMode] = BeamMode.fromString(attr.getOrElse(ATTRIBUTE_LEG_MODE, ""))
+    val startX: Double = attr.getOrElse(ATTRIBUTE_START_COORDINATE_X, "0.0").replaceFirst("^$", "0.0").toDouble
+    val startY: Double = attr.getOrElse(ATTRIBUTE_START_COORDINATE_Y, "0.0").replaceFirst("^$", "0.0").toDouble
+    val endX: Option[Double] = attr.get(ATTRIBUTE_END_COORDINATE_X).map(_.replaceFirst("^$", "0.0").toDouble)
+    val endY: Option[Double] = attr.get(ATTRIBUTE_END_COORDINATE_Y).map(_.replaceFirst("^$", "0.0").toDouble)
     ReplanningEvent(
       time,
       personId,
