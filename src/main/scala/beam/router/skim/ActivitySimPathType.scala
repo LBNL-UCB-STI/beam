@@ -195,25 +195,25 @@ object ActivitySimPathType {
     }
   }
 
-  def toKeyMode(pathType: ActivitySimPathType): Option[BeamMode] = {
+  def toKeyMode(pathType: ActivitySimPathType): Set[BeamMode] = {
     pathType match {
-      case DRV_COM_WLK => Some(BeamMode.RAIL)
-      case DRV_EXP_WLK => Some(BeamMode.BUS)
-      case DRV_HVY_WLK => Some(BeamMode.SUBWAY)
-      case DRV_LOC_WLK => Some(BeamMode.BUS)
-      case DRV_LRF_WLK => Some(BeamMode.TRAM)
-      case WLK_COM_DRV => Some(BeamMode.RAIL)
-      case WLK_EXP_DRV => Some(BeamMode.BUS)
-      case WLK_HVY_DRV => Some(BeamMode.SUBWAY)
-      case WLK_LOC_DRV => Some(BeamMode.BUS)
-      case WLK_LRF_DRV => Some(BeamMode.TRAM)
-      case WLK_COM_WLK => Some(BeamMode.RAIL)
-      case WLK_EXP_WLK => Some(BeamMode.BUS)
-      case WLK_HVY_WLK => Some(BeamMode.SUBWAY)
-      case WLK_LOC_WLK => Some(BeamMode.BUS)
-      case WLK_LRF_WLK => Some(BeamMode.TRAM)
-      case WLK_TRN_WLK => None
-      case _           => None
+      case DRV_COM_WLK => Set(BeamMode.RAIL)
+      case DRV_EXP_WLK => Set(BeamMode.BUS)
+      case DRV_HVY_WLK => Set(BeamMode.SUBWAY)
+      case DRV_LOC_WLK => Set(BeamMode.BUS)
+      case DRV_LRF_WLK => Set(BeamMode.TRAM, BeamMode.CABLE_CAR)
+      case WLK_COM_DRV => Set(BeamMode.RAIL)
+      case WLK_EXP_DRV => Set(BeamMode.BUS)
+      case WLK_HVY_DRV => Set(BeamMode.SUBWAY)
+      case WLK_LOC_DRV => Set(BeamMode.BUS)
+      case WLK_LRF_DRV => Set(BeamMode.TRAM, BeamMode.CABLE_CAR)
+      case WLK_COM_WLK => Set(BeamMode.RAIL)
+      case WLK_EXP_WLK => Set(BeamMode.BUS)
+      case WLK_HVY_WLK => Set(BeamMode.SUBWAY)
+      case WLK_LOC_WLK => Set(BeamMode.BUS)
+      case WLK_LRF_WLK => Set(BeamMode.TRAM, BeamMode.CABLE_CAR)
+      case WLK_TRN_WLK => Set.empty[BeamMode]
+      case _           => Set.empty[BeamMode]
     }
   }
 
