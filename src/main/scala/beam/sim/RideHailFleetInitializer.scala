@@ -15,7 +15,7 @@ import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.OptionalUtils.OptionalTimeExtension
 import beam.utils.OutputDataDescriptor
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
-import beam.utils.matsim_conversion.ShapeUtils.{QuadTreeBounds, readShapeFileGeometries}
+import beam.utils.matsim_conversion.ShapeUtils.{readShapeFileGeometries, QuadTreeBounds}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.{LazyLogging, Logger}
 import org.apache.commons.io.FilenameUtils
