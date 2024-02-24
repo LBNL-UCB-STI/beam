@@ -6,12 +6,12 @@ import beam.sim.{BeamServices, CircularGeofence, RideHailFleetInitializer}
 import beam.utils.Statistics
 import beam.utils.map.PointInfo
 import com.typesafe.scalalogging.LazyLogging
+import io.circe.syntax._
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.events.handler.BasicEventHandler
-import io.circe.syntax._
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -26,7 +26,11 @@ class GeofenceAnalyzer(beamSvc: BeamServices) extends BasicEventHandler with Ite
       .collect {
         case managerConfig if managerConfig.initialization.initType.equalsIgnoreCase("file") =>
           RideHailFleetInitializer
-            .readFleetFromCSV(managerConfig.initialization.filePath, managerConfig.name)
+            .readFleetFromCSV(
+              managerConfig.initialization.filePath,
+              beamSvc.beamConfig.beam.inputDirectory,
+              managerConfig.name
+            )
             .flatMap { fd =>
               val maybeGeofence = (fd.geofenceX, fd.geofenceY, fd.geofenceRadius) match {
                 case (Some(x), Some(y), Some(r)) => Some(CircularGeofence(x, y, r))
