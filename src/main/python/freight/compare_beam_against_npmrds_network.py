@@ -129,7 +129,7 @@ for link_stats in link_stats_dfs:
                                                  demand_sample_size, False, True)
     combined_data = pd.concat([combined_data, beam_data_hourly])
 combined_data = combined_data.reset_index()
-sns.lineplot(x='hour', y='avgSpeed', hue='scenario', data=combined_data, ci=95)
+sns.lineplot(x='hour', y='avgSpeed', hue='scenario', data=combined_data, errorbar=('ci', 95))
 plt.ylim([0, 70])
 plt.savefig(output_dir + '/plots/beam_npmrds_link_level_speed_validation_' + output_label_suffix + '.png', dpi=200)
 plt.show()

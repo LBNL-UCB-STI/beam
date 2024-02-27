@@ -27,7 +27,7 @@ def npmrds_screeline_validation(npmrds_data, model_network, output_dir, label, s
     npmrds_data_hourly = npmrds_data_hourly.reset_index()
     npmrds_data_hourly.columns = ['tmc', 'hour', 'avgSpeed']
 
-    sns.lineplot(data=npmrds_data_hourly, x="hour", y="avgSpeed", ci=95)
+    sns.lineplot(data=npmrds_data_hourly, x="hour", y="avgSpeed", errorbar=('ci', 95))
     plt.ylim([0, 70])
     plt.ylabel('Average Speed (mph)')
     plt.savefig(output_dir + '/plots/NPMRDS_hourly_mean_speed.png', bbox_inches='tight', dpi=300)
@@ -92,13 +92,15 @@ def beam_screeline_validation(modeled_vmt, model_network, output_dir, scenario, 
     model_vmt_hour_volume.columns = ['scenario', 'tmc', 'hour', 'avgVolume', 'avgVmt']
 
     model_vmt_hour_speed = model_vmt_24_hour.groupby(['scenario', 'tmc', 'hour']).apply(
-        lambda x: np.sum(x.vmt) / np.sum(x.vht))
+        lambda x: np.sum(x['vmt']) / np.sum(x['vht']) if np.sum(x['vht']) != 0 else np.nan
+    )
+
     model_vmt_hour_speed = model_vmt_hour_speed.reset_index()
     model_vmt_hour_speed.columns = ['scenario', 'tmc', 'hour', 'avgSpeed']
 
     beam_data_hourly = pd.merge(model_vmt_hour_volume, model_vmt_hour_speed, on=['scenario', 'tmc', 'hour'], how='left')
 
-    sns.lineplot(x='hour', y='avgSpeed', data=beam_data_hourly, ci=95)
+    sns.lineplot(x='hour', y='avgSpeed', data=beam_data_hourly, errorbar=('ci', 95))
     # plt.ylim([0, 70])
     plt.savefig(output_dir + '/plots/modeled_speed_NPMRDS_screenline.png', dpi=200)
     if show_plots:
@@ -106,7 +108,7 @@ def beam_screeline_validation(modeled_vmt, model_network, output_dir, scenario, 
     else:
         plt.clf()
 
-    sns.lineplot(x='hour', y='avgVolume', data=beam_data_hourly, ci=95)
+    sns.lineplot(x='hour', y='avgVolume', data=beam_data_hourly, errorbar=('ci', 95))
     # plt.ylim([0, 70])
     # plt.ylabel('volume (veh/lane/hour)')
     plt.savefig(output_dir + '/plots/modeled_volume_NPMRDS_screenline.png', dpi=200)
@@ -128,7 +130,8 @@ def beam_screeline_validation_per_road_class(npmrds_data_hourly_speed, modeled_v
     model_vmt_hour_volume.columns = ['scenario', 'tmc', 'hour', 'avgVolume', 'vmt']
 
     model_vmt_hour_speed = model_vmt_24_hour.groupby(['scenario', 'tmc', 'hour']).apply(
-        lambda x: np.sum(x.vmt) / np.sum(x.vht))
+        lambda x: np.sum(x['vmt']) / np.sum(x['vht']) if np.sum(x['vht']) != 0 else np.nan
+    )
     model_vmt_hour_speed = model_vmt_hour_speed.reset_index()
     model_vmt_hour_speed.columns = ['scenario', 'tmc', 'hour', 'avgSpeed']
 
@@ -313,7 +316,7 @@ def load_beam_network_to_geojson(region_boundary, beam_network, beam_network_by_
     ).drop(columns=['toLocationX', 'toLocationY'])
 
     # Combine origin and destination nodes back into a single frame
-    gdf_combined = pd.concat([gdf_onode, gdf_dnode]).groupby('linkId').agg({
+    gdf_combined = pd.concat([gdf_onode, gdf_dnode]).groupby('linkId', as_index=False).agg({
         'linkLength': 'mean',
         'linkFreeSpeed': 'mean',
         'linkCapacity': 'mean',
@@ -325,6 +328,8 @@ def load_beam_network_to_geojson(region_boundary, beam_network, beam_network_by_
         'toNodeId': 'first',
         'geometry': lambda x: list(x)
     })
+
+    # gdf_combined.reset_index(drop=True, inplace=True)
 
     # Convert points to LineString
     gdf_combined['geometry'] = gdf_combined['geometry'].apply(lambda x: LineString(x[:2]))
@@ -361,7 +366,9 @@ def run_beam_npmrds_hourly_speed_mapping(regional_npmrds_data, beam_network, lin
     road_classes = ['motorway', 'motorway_link']
     link_stats_filtered = network_stats[network_stats['attributeOrigType'].isin(road_classes)]
 
-    beam_hourly_speed = link_stats_filtered.groupby(['hour']).apply(lambda x: np.sum(x.vmt) / np.sum(x.vht))
+    beam_hourly_speed = link_stats_filtered.groupby(['hour']).apply(
+        lambda x: np.sum(x['vmt']) / np.sum(x['vht']) if np.sum(x['vht']) != 0 else np.nan
+    )
     beam_hourly_speed = beam_hourly_speed.reset_index()
     beam_hourly_speed.columns = ['hour', 'speed']
     beam_hourly_speed['scenario'] = 'BEAM'
