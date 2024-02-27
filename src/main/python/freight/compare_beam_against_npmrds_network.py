@@ -1,7 +1,7 @@
 import time
 from pathlib import Path
 
-from npmrds_validation_utils import *
+from validation_utils import *
 
 # ## Input Initializing ##
 work_dir = os.path.expanduser("~/Workspace/Data/Scenarios/")
