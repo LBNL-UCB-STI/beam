@@ -27,7 +27,8 @@ def npmrds_screeline_validation(npmrds_data, model_network, output_dir, label, s
     npmrds_data_hourly = npmrds_data_hourly.reset_index()
     npmrds_data_hourly.columns = ['tmc', 'hour', 'avgSpeed']
 
-    sns.lineplot(data=npmrds_data_hourly, x="hour", y="avgSpeed", errorbar=('ci', 95))
+    fig, ax = plt.subplots()
+    sns.lineplot(data=npmrds_data_hourly, x="hour", y="avgSpeed", errorbar=('ci', 95), ax=ax)
     plt.ylim([0, 70])
     plt.ylabel('Average Speed (mph)')
     plt.savefig(output_dir + '/plots/NPMRDS_hourly_mean_speed.png', bbox_inches='tight', dpi=300)
@@ -70,7 +71,8 @@ def build_model_vmt_24_hour(modeled_vmt, model_network, output_dir, scenario, de
 
     model_vmt_24_hour.loc[:, 'speed'] = model_vmt_24_hour.loc[:, 'vmt'] / model_vmt_24_hour.loc[:, 'vht']
 
-    model_vmt_24_hour["speed"].plot(kind="hist", bins=30)
+    fig, ax = plt.subplots()
+    model_vmt_24_hour["speed"].plot(kind="hist", bins=30, ax=ax)
     plt.xlabel('Hourly speed (mph)')
     plt.savefig(output_dir + '/plots/modeled_speed_distribution.png', dpi=200)
     if show_plots:
@@ -100,7 +102,8 @@ def beam_screeline_validation(modeled_vmt, model_network, output_dir, scenario, 
 
     beam_data_hourly = pd.merge(model_vmt_hour_volume, model_vmt_hour_speed, on=['scenario', 'tmc', 'hour'], how='left')
 
-    sns.lineplot(x='hour', y='avgSpeed', data=beam_data_hourly, errorbar=('ci', 95))
+    fig, ax = plt.subplots()
+    sns.lineplot(x='hour', y='avgSpeed', data=beam_data_hourly, errorbar=('ci', 95), ax=ax)
     # plt.ylim([0, 70])
     plt.savefig(output_dir + '/plots/modeled_speed_NPMRDS_screenline.png', dpi=200)
     if show_plots:
