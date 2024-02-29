@@ -26,6 +26,12 @@ object ActivitySimPathType {
         (TNC_SINGLE, Some(RideHailVehicleId(trip.legs.find(_.isRideHail).get.beamVehicleId).fleetId))
       case BeamMode.RIDE_HAIL_POOLED =>
         (TNC_SHARED, Some(RideHailVehicleId(trip.legs.find(_.isRideHail).get.beamVehicleId).fleetId))
+      case BeamMode.RIDE_HAIL_TRANSIT if trip.legs.find(_.isRideHail).get.isPooledTrip =>
+        (TNC_SHARED_TRANSIT, Some(RideHailVehicleId(trip.legs.find(_.isRideHail).get.beamVehicleId).fleetId))
+      case BeamMode.RIDE_HAIL_TRANSIT =>
+        (TNC_SINGLE_TRANSIT, Some(RideHailVehicleId(trip.legs.find(_.isRideHail).get.beamVehicleId).fleetId))
+      case BeamMode.DRIVE_TRANSIT =>
+        (determineDriveTransitPathType(trip), None)
       case _ => (SOV, None)
     }
   }
@@ -69,52 +75,6 @@ object ActivitySimPathType {
     }
   }
 
-//  def determineKeyTransitPathType(
-//    accessBeamMode: Option[BeamMode],
-//    leg: Option[EmbodiedBeamLeg],
-//    egressBeamMode: Option[BeamMode]
-//  ): ActivitySimPathType = {
-//    (accessBeamMode, leg.map(leg => leg.beamLeg.mode), egressBeamMode) match {
-//      case (
-//            Some(BeamMode.WALK),
-//            Some(BeamMode.FERRY) | Some(BeamMode.TRAM) | Some(BeamMode.CABLE_CAR),
-//            Some(BeamMode.WALK)
-//          ) =>
-//        WLK_LRF_WLK
-//      case (Some(BeamMode.WALK), Some(BeamMode.BUS), Some(BeamMode.WALK)) =>
-//        val uniqueTransitVehicle = leg.map(_.beamVehicleId.toString)
-//        uniqueTransitVehicle.map(_.split(":").toList).toList.flatten match {
-//          case agencyName :: routeName :: _ if (agencyName == "AC") && Character.isLetter(routeName.charAt(0)) =>
-//            print(routeName)
-//          case agencyName :: routeName =>
-//            print(routeName)
-//          case _ =>
-//        }
-//        WLK_LOC_WLK
-//      case (Some(BeamMode.WALK), Some(BeamMode.RAIL), Some(BeamMode.WALK))   => WLK_COM_WLK
-//      case (Some(BeamMode.WALK), Some(BeamMode.SUBWAY), Some(BeamMode.WALK)) => WLK_HVY_WLK
-//      case (
-//            Some(BeamMode.WALK),
-//            Some(BeamMode.FERRY) | Some(BeamMode.TRAM) | Some(BeamMode.CABLE_CAR),
-//            Some(BeamMode.CAR)
-//          ) =>
-//        WLK_LRF_DRV
-//      case (Some(BeamMode.WALK), Some(BeamMode.BUS), Some(BeamMode.CAR))    => WLK_LOC_DRV
-//      case (Some(BeamMode.WALK), Some(BeamMode.RAIL), Some(BeamMode.CAR))   => WLK_COM_DRV
-//      case (Some(BeamMode.WALK), Some(BeamMode.SUBWAY), Some(BeamMode.CAR)) => WLK_HVY_DRV
-//      case (
-//            Some(BeamMode.CAR),
-//            Some(BeamMode.FERRY) | Some(BeamMode.TRAM) | Some(BeamMode.CABLE_CAR),
-//            Some(BeamMode.WALK)
-//          ) =>
-//        DRV_LRF_WLK
-//      case (Some(BeamMode.CAR), Some(BeamMode.BUS), Some(BeamMode.WALK))    => DRV_LOC_WLK
-//      case (Some(BeamMode.CAR), Some(BeamMode.RAIL), Some(BeamMode.WALK))   => DRV_COM_WLK
-//      case (Some(BeamMode.CAR), Some(BeamMode.SUBWAY), Some(BeamMode.WALK)) => DRV_HVY_WLK
-//      case _                                                                => OTHER
-//    }
-//  }
-
   private def determineWalkTransitPathType(trip: EmbodiedBeamTrip): ActivitySimPathType = {
     //    WLK_COM_WLK, = commuter rail
     //    WLK_HVY_WLK, = heavy rail
@@ -123,7 +83,6 @@ object ActivitySimPathType {
 
     // so far not used:
     //    WLK_EXP_WLK, = express bus
-    //    WLK_TRN_WLK  = walk transit (general)
 
     val (longestWalkTransitLeg, _) = tryGetLongestLegId(trip, isWalkTransit)
     longestWalkTransitLeg.map(leg => leg.beamLeg.mode) match {
@@ -157,11 +116,7 @@ object ActivitySimPathType {
     }
 
     if (uniqueNotWalkingModes.exists(isCar)) {
-      if (uniqueNotWalkingModes.exists(isWalkTransit)) {
-        (determineDriveTransitPathType(trip), None)
-      } else {
-        determineCarPathTypeAndFleet(trip)
-      }
+      determineCarPathTypeAndFleet(trip)
     } else if (uniqueNotWalkingModes.exists(isWalkTransit)) {
       if (uniqueNotWalkingModes.contains(BeamMode.BIKE)) { (determineBikeTransitPathType(trip), None) }
       else { (determineWalkTransitPathType(trip), None) }
@@ -176,32 +131,33 @@ object ActivitySimPathType {
 
   def toBeamMode(pathType: ActivitySimPathType): BeamMode = {
     pathType match {
-      case DRV_COM_WLK  => BeamMode.DRIVE_TRANSIT
-      case DRV_EXP_WLK  => BeamMode.DRIVE_TRANSIT
-      case DRV_HVY_WLK  => BeamMode.DRIVE_TRANSIT
-      case DRV_LOC_WLK  => BeamMode.DRIVE_TRANSIT
-      case DRV_LRF_WLK  => BeamMode.DRIVE_TRANSIT
-      case WLK_COM_DRV  => BeamMode.DRIVE_TRANSIT
-      case WLK_EXP_DRV  => BeamMode.DRIVE_TRANSIT
-      case WLK_HVY_DRV  => BeamMode.DRIVE_TRANSIT
-      case WLK_LOC_DRV  => BeamMode.DRIVE_TRANSIT
-      case WLK_LRF_DRV  => BeamMode.DRIVE_TRANSIT
-      case HOV2         => BeamMode.CAR
-      case HOV2TOLL     => BeamMode.CAR
-      case HOV3         => BeamMode.CAR
-      case HOV3TOLL     => BeamMode.CAR
-      case SOV          => BeamMode.CAR
-      case SOVTOLL      => BeamMode.CAR
-      case WLK_COM_WLK  => BeamMode.WALK_TRANSIT
-      case WLK_EXP_WLK  => BeamMode.WALK_TRANSIT
-      case WLK_HVY_WLK  => BeamMode.WALK_TRANSIT
-      case WLK_LOC_WLK  => BeamMode.WALK_TRANSIT
-      case WLK_LRF_WLK  => BeamMode.WALK_TRANSIT
-      case WLK_TRN_WLK  => BeamMode.WALK_TRANSIT
-      case BIKE         => BeamMode.BIKE
-      case WALK | OTHER => BeamMode.WALK
-      case TNC_SINGLE   => BeamMode.RIDE_HAIL
-      case TNC_SHARED   => BeamMode.RIDE_HAIL_POOLED
+      case DRV_COM_WLK                             => BeamMode.DRIVE_TRANSIT
+      case DRV_EXP_WLK                             => BeamMode.DRIVE_TRANSIT
+      case DRV_HVY_WLK                             => BeamMode.DRIVE_TRANSIT
+      case DRV_LOC_WLK                             => BeamMode.DRIVE_TRANSIT
+      case DRV_LRF_WLK                             => BeamMode.DRIVE_TRANSIT
+      case WLK_COM_DRV                             => BeamMode.DRIVE_TRANSIT
+      case WLK_EXP_DRV                             => BeamMode.DRIVE_TRANSIT
+      case WLK_HVY_DRV                             => BeamMode.DRIVE_TRANSIT
+      case WLK_LOC_DRV                             => BeamMode.DRIVE_TRANSIT
+      case WLK_LRF_DRV                             => BeamMode.DRIVE_TRANSIT
+      case HOV2                                    => BeamMode.CAR
+      case HOV2TOLL                                => BeamMode.CAR
+      case HOV3                                    => BeamMode.CAR
+      case HOV3TOLL                                => BeamMode.CAR
+      case SOV                                     => BeamMode.CAR
+      case SOVTOLL                                 => BeamMode.CAR
+      case WLK_COM_WLK                             => BeamMode.WALK_TRANSIT
+      case WLK_EXP_WLK                             => BeamMode.WALK_TRANSIT
+      case WLK_HVY_WLK                             => BeamMode.WALK_TRANSIT
+      case WLK_LOC_WLK                             => BeamMode.WALK_TRANSIT
+      case WLK_LRF_WLK                             => BeamMode.WALK_TRANSIT
+      case WLK_TRN_WLK                             => BeamMode.WALK_TRANSIT
+      case BIKE                                    => BeamMode.BIKE
+      case WALK | OTHER                            => BeamMode.WALK
+      case TNC_SINGLE                              => BeamMode.RIDE_HAIL
+      case TNC_SHARED                              => BeamMode.RIDE_HAIL_POOLED
+      case TNC_SINGLE_TRANSIT | TNC_SHARED_TRANSIT => BeamMode.RIDE_HAIL_TRANSIT
     }
   }
 
@@ -223,7 +179,9 @@ object ActivitySimPathType {
       case WLK_LOC_WLK => Set(BeamMode.BUS)
       case WLK_LRF_WLK => Set(BeamMode.TRAM, BeamMode.CABLE_CAR)
       case WLK_TRN_WLK => Set.empty[BeamMode]
-      case _           => Set.empty[BeamMode]
+      case TNC_SHARED_TRANSIT | TNC_SINGLE_TRANSIT =>
+        Set(BeamMode.SUBWAY, BeamMode.FERRY, BeamMode.RAIL, BeamMode.TRAM, BeamMode.BUS, BeamMode.CABLE_CAR)
+      case _ => Set.empty[BeamMode]
     }
   }
 
@@ -267,6 +225,8 @@ object ActivitySimPathType {
           ActivitySimPathType.WLK_EXP_WLK,
           ActivitySimPathType.WLK_TRN_WLK
         )
+      case Some(BeamMode.RIDE_HAIL_TRANSIT) =>
+        Seq(ActivitySimPathType.TNC_SINGLE_TRANSIT, ActivitySimPathType.TNC_SHARED_TRANSIT)
       case Some(BeamMode.DRIVE_TRANSIT) =>
         currentActivityType match {
           case Some("home") =>
@@ -322,7 +282,9 @@ object ActivitySimPathType {
     DRV_HVY_WLK,
     DRV_COM_WLK,
     DRV_LRF_WLK,
-    DRV_EXP_WLK
+    DRV_EXP_WLK,
+    TNC_SINGLE_TRANSIT,
+    TNC_SHARED_TRANSIT
   )
 
   val allPathTypes: Seq[ActivitySimPathType] = Seq(
@@ -419,6 +381,8 @@ object ActivitySimPathType {
   case object SOVTOLL extends ActivitySimPathType
   case object TNC_SINGLE extends ActivitySimPathType
   case object TNC_SHARED extends ActivitySimPathType
+  case object TNC_SINGLE_TRANSIT extends ActivitySimPathType
+  case object TNC_SHARED_TRANSIT extends ActivitySimPathType
   case object WLK_COM_DRV extends ActivitySimPathType
   case object WLK_COM_WLK extends ActivitySimPathType
   case object WLK_EXP_DRV extends ActivitySimPathType

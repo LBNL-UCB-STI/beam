@@ -48,7 +48,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
   def railLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.SUBWAY)
 
   def rideHailLeg10: EmbodiedBeamLeg = mockLeg(
-    10,
+    600,
     BeamMode.CAR,
     isRideHail = true,
     vehicleId = "rideHailVehicle-1@GlobalRHM",
@@ -146,10 +146,37 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     event.skimInternal.walkAccessInMinutes shouldBe 0
     event.skimInternal.walkEgressInMinutes shouldBe 0
     event.skimInternal.walkAuxiliaryInMinutes shouldBe 0
-    event.skimInternal.totalInVehicleTimeInMinutes shouldBe 10 / 60.0
+    event.skimInternal.totalInVehicleTimeInMinutes shouldBe 10
     event.skimInternal.waitInitialInMinutes shouldBe 6.0
-    event.skimInternal.driveDistanceInMeters shouldBe 150.0
+    event.skimInternal.driveDistanceInMeters shouldBe 9000.0
     event.key.pathType shouldBe ActivitySimPathType.TNC_SINGLE
+    event.key.fleet shouldBe Some("GlobalRHM")
+  }
+
+  "skimmer event" should "parse trip 8" in {
+    val l1 = waitLeg(startTime = 10 * 60 * 60 - 360 - 600, endTime = 10 * 60 * 60 - 360 - 600)
+    val l2 = rideHailLeg10
+    val l3 = waitLeg(10 * 60 * 60, 10 * 60 * 60)
+    val l4 = mockLeg(150, BeamMode.SUBWAY, startTime = 10 * 60 * 60)
+    val l5 = mockLeg(120, BeamMode.WALK, startTime = 10 * 60 * 60 + 150, endTime = 10 * 60 * 60 + 150 + 120)
+    val trip = new EmbodiedBeamTrip(
+      IndexedSeq(
+        l1,
+        l2,
+        l3,
+        l4,
+        l5
+      )
+    )
+    val event = ActivitySimSkimmerEvent("o1", "d1", 10 * 60 * 60, trip, 100, 200, 10, "skimname")
+    event.skimInternal.walkAccessInMinutes shouldBe 0
+    event.skimInternal.walkEgressInMinutes shouldBe 2.0
+    event.skimInternal.walkAuxiliaryInMinutes shouldBe 0
+    event.skimInternal.totalInVehicleTimeInMinutes shouldBe 12.5
+    event.skimInternal.waitInitialInMinutes shouldBe 6.0
+    event.skimInternal.driveDistanceInMeters shouldBe 9000.0
+    event.skimInternal.keyInVehicleTimeInMinutes shouldBe 2.5
+    event.key.pathType shouldBe ActivitySimPathType.TNC_SINGLE_TRANSIT
     event.key.fleet shouldBe Some("GlobalRHM")
   }
 

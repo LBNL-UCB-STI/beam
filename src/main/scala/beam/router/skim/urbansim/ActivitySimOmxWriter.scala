@@ -23,13 +23,6 @@ object ActivitySimOmxWriter {
     skimData: Iterator[ExcerptData],
     geoUnits: Seq[String]
   ): Try[Unit] = Try {
-    val pathTypeToMatrixData: Map[ActivitySimPathType, MatrixData] = (
-      for {
-        data     <- activitySimMatrixData
-        pathType <- data.pathTypes
-        limitedData = data.copy(metrics = data.metrics & ExcerptData.supportedActivitySimMetric)
-      } yield pathType -> limitedData
-    ).toMap
     HDF5Loader.prepareHdf5Library()
     FileUtils.using(
       new OmxFile(filePath)
@@ -55,7 +48,7 @@ object ActivitySimOmxWriter {
         metric      <- matrixData.metrics
       } {
         val pathType = excerptData.pathType match {
-          case rideHailMode @ (TNC_SINGLE | TNC_SHARED) =>
+          case rideHailMode @ (TNC_SINGLE | TNC_SHARED | TNC_SINGLE_TRANSIT | TNC_SHARED_TRANSIT) =>
             f"${rideHailMode.toString}_${excerptData.fleetName.toUpperCase}"
           case _ => excerptData.pathType.toString
         }
@@ -160,6 +153,11 @@ object ActivitySimOmxWriter {
       Set(TNC_SINGLE, TNC_SHARED),
       ActivitySimTimeBin.values.toSet,
       Set(IWAIT, TOTIVT, DDIST, FAR, TRIPS, FAILURES)
+    ),
+    MatrixData(
+      Set(TNC_SINGLE_TRANSIT, TNC_SHARED_TRANSIT),
+      ActivitySimTimeBin.values.toSet,
+      Set(TOTIVT, FAR, XWAIT, KEYIVT, IWAIT, DTIM, BOARDS, DDIST, WAUX, TRIPS, FAILURES)
     )
   )
 }

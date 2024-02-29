@@ -1,6 +1,13 @@
 package beam.router.skim
 
-import beam.router.skim.ActivitySimPathType.{isWalkTransit, TNC_SHARED, TNC_SINGLE, WLK_TRN_WLK}
+import beam.router.skim.ActivitySimPathType.{
+  isWalkTransit,
+  TNC_SHARED,
+  TNC_SHARED_TRANSIT,
+  TNC_SINGLE,
+  TNC_SINGLE_TRANSIT,
+  WLK_TRN_WLK
+}
 import beam.router.skim.core.{AbstractSkimmer, AbstractSkimmerInternal, AbstractSkimmerKey, AbstractSkimmerReadOnly}
 import beam.router.skim.urbansim.ActivitySimOmxWriter
 import beam.router.Modes.BeamMode
@@ -195,11 +202,11 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
           origins.foreach { origin =>
             destinations.foreach { destination =>
               pathType match {
-                case TNC_SINGLE =>
+                case TNC_SINGLE | TNC_SINGLE_TRANSIT =>
                   allRideHailFleets(RIDE_HAIL).foreach { fleet =>
                     writeSkimRow(writer, origin, destination, pathType, Some(fleet))
                   }
-                case TNC_SHARED =>
+                case TNC_SHARED | TNC_SHARED_TRANSIT =>
                   allRideHailFleets(RIDE_HAIL_POOLED).foreach { fleet =>
                     writeSkimRow(writer, origin, destination, pathType, Some(fleet))
                   }
