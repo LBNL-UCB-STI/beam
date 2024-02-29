@@ -2,6 +2,7 @@ package beam.replanning
 
 import beam.router.model.EmbodiedBeamTrip
 import beam.utils.DebugLib
+import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population._
 import org.matsim.core.config.groups.PlanCalcScoreConfigGroup
 import org.matsim.core.population.PopulationUtils
@@ -9,7 +10,7 @@ import org.matsim.core.replanning.selectors.RandomPlanSelector
 
 import scala.collection.JavaConverters._
 
-object ReplanningUtil {
+object ReplanningUtil extends LazyLogging {
 
   def makeExperiencedMobSimCompatible[T <: Plan, I](person: HasPlansAndId[T, I]): Unit = {
     val experiencedPlan = person.getSelectedPlan.getCustomAttributes
@@ -22,9 +23,24 @@ object ReplanningUtil {
         experiencedPlan.getPlanElements.get(i) match {
           case leg: Leg =>
             // Make sure it is not `null`
-            Option(x = person.getSelectedPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles")).foreach {
-              attibValue =>
-                leg.getAttributes.putAttribute("vehicles", attibValue)
+            try {
+              Option(x = person.getSelectedPlan.getPlanElements.get(i).getAttributes.getAttribute("vehicles")).foreach {
+                attribValue => leg.getAttributes.putAttribute("vehicles", attribValue)
+              }
+            } catch {
+              case ex: IndexOutOfBoundsException =>
+                logger.error(
+                  s"IndexOutOfBoundsException because elements count in ExperiencedPlan does not match elements count in SelectedPlan.",
+                  ex
+                )
+                logger.error(s"Person ${person.toString}, ${person.getAttributes.toString}.")
+                logger.error(s"ExperiencedPlan Attributes ${experiencedPlan.getAttributes.toString}.")
+                logger.error(s"ExperiencedPlan Elements:")
+                experiencedPlan.getPlanElements.asScala.foreach { e => logger.error(e.toString) }
+                logger.error(s"SelectedPlan Attributes ${person.getSelectedPlan.getAttributes.toString}.")
+                logger.error(s"SelectedPlan Elements")
+                person.getSelectedPlan.getPlanElements.asScala.foreach { e => logger.error(e.toString) }
+                logger.error("The exception caught.")
             }
           case _ =>
         }
