@@ -30,6 +30,10 @@ isCav <- function(x) {
 
 ### RouteE
 
+work_folder <- normalizePath("~/Workspace/Data/Scenarios/SFBay/")
+linkstats <- readCsv(pp(work_folder, "/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/10.linkstats.csv.gz"))
+network <- readCsv(pp(work_folder, "/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/network.csv.gz"))
+
 ## test
 work_folder <- normalizePath("~/Workspace/Data/FREIGHT/")
 linkstats <- readCsv(pp(work_folder, "/sfbay/0.linkstats.csv.gz"))
