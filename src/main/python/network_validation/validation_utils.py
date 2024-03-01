@@ -417,19 +417,3 @@ class SpeedValidationSetup:
         print(
             f"Total execution time of prepare_data_for_hourly_link_speed_validation: {(time.time() - st) / 60.0}min")
         return combined_data.reset_index(), combined_data_by_road_class.reset_index()
-
-    def plot_npmrds_and_boundaries(self):
-        fig, ax = plt.subplots()
-        self.region_boundary.boundary.plot(ax=ax, color='black')
-        self.regional_npmrds_station.plot(ax=ax, color='blue')
-        plt.title("Region Boundaries and " + self.__npmrds_label + " Stations")
-        fig.savefig(self.plots_dir + '/regional_npmrds_network.png', dpi=300)  # Adjust dpi for resolution
-        plt.clf()
-
-    def plot_beam_and_npmrds_networks(self):
-        fig, ax = plt.subplots()
-        self.beam_npmrds_network_map.plot(ax=ax, color='red')
-        self.regional_npmrds_station.plot(ax=ax, color='blue')
-        plt.title("BEAM Network and " + self.__npmrds_label + " Stations")
-        fig.savefig(self.plots_dir + '/regional_beam_npmrds_network.png', dpi=300)  # Adjust dpi for resolution
-        plt.clf()
