@@ -24,17 +24,35 @@ setup.init_npmrds_and_beam_data()
 print("Plotting region boundaries and stations")
 setup.plot_npmrds_and_boundaries()
 
+# #########################################
 # ########## Network-level speed validation
-beam_npmrds_hourly_speed = setup.prepare_data_for_hourly_average_speed_validation(
-    road_category=['Freeway and major arterial'])
+# #########################################
+hourly_speed, hourly_speed_by_road_class = setup.prepare_data_for_hourly_average_speed_validation()
 
-sns.lineplot(x='hour', y='speed', hue='scenario', data=beam_npmrds_hourly_speed, errorbar=('ci', 95))
+# Plot hourly network speed
+sns.lineplot(x='hour', y='speed', hue='scenario', data=hourly_speed, errorbar=('ci', 95))
 plt.ylim([0, 70])
 plt.title("Network-level Speed Validation")
-plt.savefig(setup.plots_dir + '/beam_npmrds_average_speed_validation.png', dpi=200)
+plt.savefig(setup.plots_dir + '/beam_npmrds_network_speed_validation.png', dpi=200)
 plt.clf()
 
+# plot hourly network speed by road class
+g = sns.relplot(x='hour', y='speed', hue='road_class', col='scenario', kind="line",
+                data=hourly_speed_by_road_class,
+                errorbar=('ci', 95), facet_kws={'sharey': True, 'sharex': True})
+g.set_titles("{col_name}")
+g.fig.suptitle('Network-level Speed Validation by Road Class', fontsize=16, y=0.98)
+g.set_xlabels("Hour")
+g.set_ylabels("Speed (mph)")
+g._legend.set_title("Road Category")
+plt.subplots_adjust(top=0.85)
+plt.ylim([0, 70])
+plt.savefig(setup.plots_dir + '/beam_npmrds_network_speed_road_class_validation.png', dpi=200)
+plt.show()
+
+# ######################################
 # ########## Link-level speed validation
+# ######################################
 hourly_link_speed, hourly_link_speed_by_road_class = setup.prepare_data_for_hourly_link_speed_validation(
     distance_buffer_m=20, rerun_network_matching=False)
 
@@ -42,7 +60,7 @@ hourly_link_speed, hourly_link_speed_by_road_class = setup.prepare_data_for_hour
 sns.lineplot(x='hour', y='speed', hue='scenario', data=hourly_link_speed, errorbar=('ci', 95))
 plt.ylim([0, 70])
 plt.title("Link-level Speed Validation")
-plt.savefig(setup.plots_dir + '/beam_npmrds_link_level_speed_validation.png', dpi=200)
+plt.savefig(setup.plots_dir + '/beam_npmrds_link_speed_validation.png', dpi=200)
 plt.clf()
 
 # Plot hourly link speed by road class
@@ -50,13 +68,13 @@ g = sns.relplot(x='hour', y='speed', hue='road_class', col='scenario', kind="lin
                 data=hourly_link_speed_by_road_class,
                 errorbar=('ci', 95), facet_kws={'sharey': True, 'sharex': True})
 g.set_titles("{col_name}")
-g.fig.suptitle('Hourly Speed by Road Class', fontsize=16, y=0.98)
+g.fig.suptitle('Link-Level Speed Validation by Road Class', fontsize=16, y=0.98)
 g.set_xlabels("Hour")
 g.set_ylabels("Speed (mph)")
 g._legend.set_title("Road Category")
 plt.subplots_adjust(top=0.85)
 plt.ylim([0, 70])
-plt.savefig(setup.plots_dir + '/beam_npmrds_link_level_road_class_speed_validation.png', dpi=200)
+plt.savefig(setup.plots_dir + '/beam_npmrds_link_speed_road_class_validation.png', dpi=200)
 plt.show()
 
 print("Plotting BEAM Network and NPMRDS stations")

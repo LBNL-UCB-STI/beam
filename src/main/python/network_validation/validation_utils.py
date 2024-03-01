@@ -214,9 +214,8 @@ def process_beam_cars_network_into_geojson(region_boundary, beam_network, projec
     return beam_network_geo_cut
 
 
-def run_beam_npmrds_hourly_speed_mapping(npmrds_hourly_link_speed, link_stats, road_classes):
-    network_stats_filtered = link_stats[link_stats['road_class'].isin(road_classes)]
-    beam_hourly_speed = network_stats_filtered.groupby(['hour', 'scenario']).apply(calculate_metrics)
+def run_hourly_speed_mapping(npmrds_hourly_link_speed, link_stats):
+    beam_hourly_speed = link_stats.groupby(['hour', 'scenario']).apply(calculate_metrics)
     beam_hourly_speed = beam_hourly_speed.reset_index()
     beam_hourly_speed = beam_hourly_speed[['hour', 'scenario', 'speed']]
 
@@ -227,25 +226,16 @@ def run_beam_npmrds_hourly_speed_mapping(npmrds_hourly_link_speed, link_stats, r
     return pd.concat([beam_hourly_speed, npmrds_hourly_speed], axis=0)
 
 
-def run_beam_npmrds_hourly_speed_mapping_by_road_class(npmrds_hourly_link_speed, beam_network, link_stats, sample_size,
-                                                       road_classes):
-    print("Running beam npmrds hourly speed mapping")
-    demand_scaling = 1 / sample_size
-
-    network_stats = link_stats.merge(beam_network, left_on='link', right_on='linkId', how='left')
-    network_stats = network_stats[(network_stats['hour'] >= 0) & (network_stats['hour'] < 24)]
-    network_stats_filtered = network_stats[network_stats['attributeOrigType'].isin(road_classes)]
-
-    network_stats_filtered.loc[:, 'volume'] = network_stats_filtered.loc[:, 'volume'] * demand_scaling
-    beam_hourly_speed = network_stats_filtered.groupby(['hour']).apply(calculate_metrics).reset_index()
+def run_hourly_speed_mapping_by_road_class(npmrds_hourly_link_speed, link_stats):
+    beam_hourly_speed = link_stats.groupby(['hour', 'scenario', 'road_class']).apply(calculate_metrics)
     beam_hourly_speed = beam_hourly_speed.reset_index()
-    beam_hourly_speed = beam_hourly_speed[['hour', 'speed']]
-    beam_hourly_speed['scenario'] = 'BEAM'
+    beam_hourly_speed = beam_hourly_speed[['hour', 'scenario', 'road_class', 'speed']]
 
-    npmrds_hourly_speed = npmrds_hourly_link_speed.groupby(['hour'])[['speed']].mean()
+    npmrds_hourly_link_speed = npmrds_hourly_link_speed.copy()
+    npmrds_hourly_link_speed['road_class'] = "Freeway, arterial, major collector"
+    npmrds_hourly_speed = npmrds_hourly_link_speed.groupby(['hour', 'scenario', 'road_class'])[['speed']].mean()
     npmrds_hourly_speed = npmrds_hourly_speed.reset_index()
-    npmrds_hourly_speed.columns = ['hour', 'speed']
-    npmrds_hourly_speed['scenario'] = 'NPMRDS'
+    npmrds_hourly_speed.columns = ['hour', 'scenario', 'road_class', 'speed']
 
     return pd.concat([beam_hourly_speed, npmrds_hourly_speed], axis=0)
 
@@ -349,7 +339,7 @@ class SpeedValidationSetup:
 
         print(f"Total execution time of prepare_npmrds_and_beam_data: {(time.time() - st) / 60.0}min")
 
-    def prepare_data_for_hourly_average_speed_validation(self, road_category):
+    def prepare_data_for_hourly_average_speed_validation(self):
         # Running beam npmrds hourly speed mapping
         st = time.time()
 
@@ -358,15 +348,19 @@ class SpeedValidationSetup:
 
         print("Running beam npmrds hourly speed mapping")
         combined_data = None
+        combined_data_by_road_class = None
         for link_stats in self.link_stats_dfs:
-            beam_npmrds_hourly_speed = run_beam_npmrds_hourly_speed_mapping(self.npmrds_hourly_speed, link_stats,
-                                                                            road_category)
+            hourly_speed = run_hourly_speed_mapping(self.npmrds_hourly_speed, link_stats)
             combined_data = pd.concat(
-                [combined_data, beam_npmrds_hourly_speed.sort_values(by='scenario').reset_index()])
+                [combined_data, hourly_speed.sort_values(by='scenario').reset_index()])
+
+            hourly_speed_by_road_class = run_hourly_speed_mapping_by_road_class(self.npmrds_hourly_speed, link_stats)
+            combined_data_by_road_class = pd.concat(
+                [combined_data_by_road_class, hourly_speed_by_road_class.sort_values(by='scenario').reset_index()])
 
         print(
             f"Total execution time of prepare_data_for_hourly_average_speed_validation: {(time.time() - st) / 60.0}min")
-        return combined_data
+        return combined_data, combined_data_by_road_class
 
     def prepare_data_for_hourly_link_speed_validation(self, distance_buffer_m, rerun_network_matching):
         # ## Find BEAM links close to NPMRDS TMCs ##
@@ -400,7 +394,6 @@ class SpeedValidationSetup:
                 print("Loading beam network mapped with npmrds")
                 self.beam_npmrds_network_map = gpd.read_file(output_file)
 
-        # Running beam npmrds link level hourly speed mapping
         print("Running beam npmrds link level hourly speed mapping")
         npmrds_hourly_speed_road_class = pd.merge(self.npmrds_hourly_speed,
                                                   self.beam_npmrds_network_map[['tmc', 'road_class']], on=['tmc'],
@@ -420,11 +413,10 @@ class SpeedValidationSetup:
             combined_data = pd.concat([combined_data, beam_npmrds_hourly_link_speed.sort_values(by='scenario')])
             combined_data_by_road_class = pd.concat(
                 [combined_data_by_road_class, beam_npmrds_hourly_link_speed_by_road_class.sort_values(by='scenario')])
-        all_data = (combined_data.reset_index(), combined_data_by_road_class.reset_index())
 
         print(
             f"Total execution time of prepare_data_for_hourly_link_speed_validation: {(time.time() - st) / 60.0}min")
-        return all_data
+        return combined_data.reset_index(), combined_data_by_road_class.reset_index()
 
     def plot_npmrds_and_boundaries(self):
         fig, ax = plt.subplots()
