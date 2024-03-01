@@ -29,7 +29,6 @@ setup.regional_npmrds_station.plot(ax=ax, color='blue')
 plt.title("Region Boundaries and NPMRDS Stations")
 fig.savefig(setup.plots_dir + '/regional_npmrds_network.png', dpi=300)  # Adjust dpi for resolution
 plt.show(block=False)
-# plt.close(fig)
 
 # #########################################
 # ########## Network-level speed validation
@@ -91,8 +90,8 @@ plt.show(block=False)
 print("Plotting BEAM Network and NPMRDS stations")
 plt.figure()
 fig, ax = plt.subplots()
-setup.regional_npmrds_station.plot(ax=ax, color='blue', linewidth=2)
-setup.beam_npmrds_network_map.plot(ax=ax, color='red', linewidth=0.5)
+setup.regional_npmrds_station.plot(ax=ax, color='blue', linewidth=2, label='NPMRDS')
+setup.beam_npmrds_network_map.plot(ax=ax, color='red', linewidth=0.5, label='BEAM')
 plt.title("BEAM Network and NPMRDS Stations")
 fig.savefig(setup.plots_dir + '/regional_beam_npmrds_network.png', dpi=300)  # Adjust dpi for resolution
 plt.show(block=False)
