@@ -184,7 +184,8 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
       maybeCaccSettings,
       maybePickUpDropOffHolder,
       defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
-      defaultBeta = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.beta
+      defaultBeta = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.beta,
+      minSpeed = 0
     )
     val bprConfig =
       BPRSimConfig(
@@ -214,7 +215,8 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
       maybeCaccSettings,
       maybePickUpDropOffHolder,
       defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
-      defaultBeta = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.beta
+      defaultBeta = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.beta,
+      minSpeed = 0
     )
     val bprConfig =
       BPRSimConfig(

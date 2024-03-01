@@ -1,12 +1,12 @@
 package beam.utils.scenario
 
+import beam.utils.OptionalUtils.OptionalTimeExtension
 import org.matsim.core.utils.misc.OptionalTime
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
 import java.nio.file.Paths
 import scala.util.Random
-import beam.utils.OptionalUtils.OptionalTimeExtension
 
 class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 
@@ -14,16 +14,18 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
   private val oldPlans = getOldPlans
   private val newPlans = getNewPlans
 
+  def notChanging(planElement: PlanElement): PlanElement = { planElement }
+
   "PreviousRunPlanMerger with fraction <= 0" should {
 
     "should throw error when fraction is not within range [0, 1]" in {
       assertThrows[IllegalArgumentException] {
-        new PreviousRunPlanMerger(-1, 1, Some(5), outputPath, "", new Random(), identity)
+        new PreviousRunPlanMerger(-1, 1, Some(5), Some(5), outputPath, "", new Random(), identity)
       }
     }
 
     "should return same plans when fraction = 0" in {
-      val planMerger = new PreviousRunPlanMerger(0, 1, Some(5), outputPath, "", new Random(), identity)
+      val planMerger = new PreviousRunPlanMerger(0, 1, Some(5), Some(5), outputPath, "", new Random(), identity)
 
       val (res, actuallyMerged) = planMerger.merge(newPlans)
 
@@ -226,7 +228,8 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 
   "PreviousRunPlanMerger with valid inputs" should {
     "must read previous xml plans without error" in {
-      val planMerger = new PreviousRunPlanMerger(1.0, 0.0, Some(5), outputPath, "beamville", new Random(), identity)
+      val planMerger =
+        new PreviousRunPlanMerger(1.0, 0.0, Some(5), Some(5), outputPath, "beamville", new Random(), identity)
       val activitySimPlans = {
         getOldPlans.filter(_.planSelected).map { case plan => plan.copy(planIndex = 0) } //to avoid naming mess
         // Assumption here is that activitysim plans always are selected and have planIndex = 0
