@@ -10,30 +10,37 @@ plt.style.use('ggplot')
 meter_to_mile = 0.000621371
 mps_to_mph = 2.23694
 second_to_hours = 1 / 3600.0
-modeled_road_type_lookup = {'tertiary': 'Minor collector',
-                            'trunk_link': 'Freeway and major arterial',
-                            'residential': 'Local',
-                            'track': 'Local',
-                            'footway': 'Local',
-                            'motorway': 'Freeway and major arterial',
-                            'secondary': 'Major collector',
-                            'unclassified': 'Local',
-                            'path': 'Local',
-                            'secondary_link': 'Major collector',
-                            'primary': 'Minor arterial',
-                            'motorway_link': 'Freeway and major arterial',
-                            'primary_link': 'Minor arterial',
-                            'trunk': 'Freeway and major arterial',
-                            'pedestrian': 'Local',
-                            'tertiary_link': 'Minor collector',
-                            'cycleway': 'Local',
-                            np.nan: 'Local',
-                            'steps': 'Local',
-                            'living_street': 'Local',
-                            'bus_stop': 'Local',
-                            'corridor': 'Local',
-                            'road': 'Local',
-                            'bridleway': 'Local'}
+npmrds_road_type_lookup = {'1.0': 'Interstate',
+                           '2.0': 'Freeways and Expressways',
+                           '3.0': 'Principal Arterial',
+                           '4.0': 'Minor Arterial',
+                           '5.0': 'Major Collector',
+                           '6.0': 'Minor Collector',
+                           '7.0': 'Local'}
+modeled_road_type_lookup = {'motorway': npmrds_road_type_lookup['1.0'],
+                            'motorway_link': npmrds_road_type_lookup['2.0'],
+                            'trunk': npmrds_road_type_lookup['2.0'],
+                            'trunk_link': npmrds_road_type_lookup['3.0'],
+                            'primary': npmrds_road_type_lookup['3.0'],
+                            'primary_link': npmrds_road_type_lookup['4.0'],
+                            'secondary': npmrds_road_type_lookup['4.0'],
+                            'secondary_link': npmrds_road_type_lookup['5.0'],
+                            'tertiary': npmrds_road_type_lookup['5.0'],
+                            'tertiary_link': npmrds_road_type_lookup['6.0'],
+                            'unclassified': npmrds_road_type_lookup['6.0'],
+                            'residential': npmrds_road_type_lookup['7.0'],
+                            'track': npmrds_road_type_lookup['7.0'],
+                            'footway': npmrds_road_type_lookup['7.0'],
+                            'path': npmrds_road_type_lookup['7.0'],
+                            'pedestrian': npmrds_road_type_lookup['7.0'],
+                            'cycleway': npmrds_road_type_lookup['7.0'],
+                            'steps': npmrds_road_type_lookup['7.0'],
+                            'living_street': npmrds_road_type_lookup['7.0'],
+                            'bus_stop': npmrds_road_type_lookup['7.0'],
+                            'corridor': npmrds_road_type_lookup['7.0'],
+                            'road': npmrds_road_type_lookup['7.0'],
+                            'bridleway': npmrds_road_type_lookup['7.0'],
+                            np.nan: npmrds_road_type_lookup['7.0']}
 
 
 def calculate_metrics(group):
@@ -85,8 +92,8 @@ def process_and_extend_link_stats(model_network, link_stats_paths_and_labels_lis
 
         df['scenario'] = scenario
         link_stats_24h = df[(df['hour'] >= 0) & (df['hour'] < 24)]
-
-        link_stats_tmc = pd.merge(link_stats_24h, model_network[['tmc', 'link']], on=['link'], how='inner')
+        link_stats_tmc = pd.merge(link_stats_24h, model_network[['tmc', 'link', 'road_class']],
+                                  on=['link'], how='inner')
         link_stats_tmc.rename(columns={'Tmc': 'tmc'}, inplace=True)
 
         # TODO Volume does not contain Trucks, but in the future Trucks will be included in Volume.
@@ -94,11 +101,9 @@ def process_and_extend_link_stats(model_network, link_stats_paths_and_labels_lis
         if 'TruckVolume' in link_stats_tmc.columns:
             link_stats_tmc.loc[:, 'volume'] = link_stats_tmc.loc[:, 'volume'] + (
                     link_stats_tmc.loc[:, 'TruckVolume'] * demand_scaling)
-
         link_stats_tmc_filtered = link_stats_tmc[
-            ['link', 'hour', 'length', 'freespeed', 'capacity', 'volume', 'traveltime', 'numberOfLanes', 'road_class',
-             'tmc', 'scenario']]
-
+            ['link', 'hour', 'length', 'freespeed', 'capacity', 'volume', 'traveltime', 'road_class', 'tmc',
+             'scenario']]
         dfs.append(link_stats_tmc_filtered)
     return dfs
 
@@ -140,13 +145,15 @@ def map_nearest_links(df1, df2, projected_crs_epsg, distance_buffer):
     # Convert indices in results_gdf to the original indices in df1 and df2
     # results_gdf = results_gdf.set_index('df1_index').join(df1.drop(columns='geometry'), rsuffix='_df1')
     df1.loc[:, 'road_class'] = df1.loc[:, 'attributeOrigType'].map(modeled_road_type_lookup)
-    df1 = df1[['linkId', 'linkLength', 'linkFreeSpeed', 'linkCapacity', 'numberOfLanes', 'linkModes', 'road_class',
-               'geometry']]
+    df1 = df1[['linkId', 'road_class', 'geometry']]
     df1.rename(columns={'linkId': 'link'}, inplace=True)
     results_gdf = results_gdf.set_index('df1_index').join(df1, rsuffix='_df1')
-    df2 = df2[["Tmc", "NAME", "AADT", "AADT_Singl", "AADT_Combi", "Zip", "Miles", "F_System",
+    df2 = df2[["Tmc", "NAME", "AADT", "AADT_Singl", "AADT_Combi", "Zip", "Miles", "F_System", "GEOID", "COUNTYNS",
                "scenario"]]  # dropping geometry
-    df2.rename(columns={'df1_index': 'index', 'Tmc': 'tmc'}, inplace=True)
+    df2.rename(columns={'df1_index': 'index', 'Tmc': 'tmc', 'Zip': 'npmrds_zip', 'Miles': 'npmrds_length_mile',
+                        'F_System': 'npmrds_road_class', "AADT_Singl": 'npmrds_aadt_class_4_6',
+                        "AADT_Combi": 'npmrds_aadt_class_7_8', "AADT": 'npmrds_aadt', "GEOID": "npmrds_fips",
+                        "COUNTYNS": "npmrds_ansi", "NAME": "npmrds_name"}, inplace=True)
     results_gdf = results_gdf.reset_index().set_index('df2_index').join(df2, rsuffix='_df2')
 
     # Reset index to make sure we don't lose track of it
@@ -290,49 +297,23 @@ class SpeedValidationSetup:
     def __init__(self, npmrds_hourly_speed_csv_path, beam_npmrds_network_map_geo_path,
                  npmrds_hourly_speed_by_road_class_csv_path, link_stats_paths_and_labels_list, demand_sample_size,
                  assume_daylight_saving):
+        st = time.time()
+        print("Loading data ...")
         # Input
-        self.__demand_scale_up_coefficient = 1 / demand_sample_size
-        self.__npmrds_hourly_speed_csv_path = npmrds_hourly_speed_csv_path
-        self.__beam_npmrds_network_map_geo_path = beam_npmrds_network_map_geo_path
-        self.__npmrds_hourly_speed_by_road_class_csv_path = npmrds_hourly_speed_by_road_class_csv_path
-        self.__assume_daylight_saving = assume_daylight_saving
-        self.__link_stats_paths_and_labels_list = link_stats_paths_and_labels_list
+        demand_scale_up_coefficient = 1 / demand_sample_size
 
         # Data
-        self.npmrds_hourly_speed = None
-        self.link_stats_tmc_dfs = None
-        self.beam_npmrds_network_map = None
-        self.npmrds_hourly_speed_by_road_class = None
-
-    def init_npmrds_and_beam_data(self):
-        st = time.time()
-
-        if self.npmrds_hourly_speed is None:
-            table = pv.read_csv(self.__npmrds_hourly_speed_csv_path)
-            self.npmrds_hourly_speed = table.to_pandas()
-
-        if self.beam_npmrds_network_map is None:
-            table = pv.read_csv(self.__beam_npmrds_network_map_geo_path)
-            self.beam_npmrds_network_map = table.to_pandas()
-
-        if self.npmrds_hourly_speed_by_road_class is None:
-            table = pv.read_csv(self.npmrds_hourly_speed_by_road_class)
-            self.npmrds_hourly_speed_by_road_class = table.to_pandas()
-
-        print("Read BEAM link stats and network")
+        self.npmrds_hourly_speed = pv.read_csv(npmrds_hourly_speed_csv_path).to_pandas()
+        self.beam_npmrds_network_map = gpd.read_file(beam_npmrds_network_map_geo_path)
+        self.npmrds_hourly_speed_by_road_class = pv.read_csv(npmrds_hourly_speed_by_road_class_csv_path).to_pandas()
         self.link_stats_tmc_dfs = process_and_extend_link_stats(self.beam_npmrds_network_map,
-                                                                self.__link_stats_paths_and_labels_list,
-                                                                self.__demand_scale_up_coefficient,
-                                                                self.__assume_daylight_saving)
-
-        print(f"Total execution time of prepare_npmrds_and_beam_data: {(time.time() - st) / 60.0}min")
+                                                                link_stats_paths_and_labels_list,
+                                                                demand_scale_up_coefficient,
+                                                                assume_daylight_saving)
+        print(f"Execution time of prepare_npmrds_and_beam_data: {(time.time() - st) / 60.0}min")
 
     def get_hourly_average_speed(self):
         st = time.time()
-
-        # Initialize NPMRDS and BEAM data if not already done
-        if self.npmrds_hourly_speed is None:
-            self.init_npmrds_and_beam_data()
 
         # Initialize a list to collect DataFrames
         data_frames = []
@@ -350,10 +331,6 @@ class SpeedValidationSetup:
 
     def get_hourly_average_speed_by_road_class(self):
         st = time.time()
-
-        # Initialize NPMRDS and BEAM data if not already done
-        if self.npmrds_hourly_speed is None:
-            self.init_npmrds_and_beam_data()
 
         # Initialize a list to collect DataFrames
         data_frames = []
@@ -373,10 +350,6 @@ class SpeedValidationSetup:
         # Start timing
         st = time.time()
 
-        # Initialize NPMRDS and BEAM data if not already done
-        if self.npmrds_hourly_speed is None:
-            self.init_npmrds_and_beam_data()
-
         # Initialize a list to collect DataFrames, starting with the existing hourly speed DataFrame
         data_frames = [self.npmrds_hourly_speed]
 
@@ -394,10 +367,6 @@ class SpeedValidationSetup:
     def get_hourly_link_speed_by_road_class(self):
         # Start timing
         st = time.time()
-
-        # Initialize NPMRDS and BEAM data if not already done
-        if self.npmrds_hourly_speed is None:
-            self.init_npmrds_and_beam_data()
 
         # Initialize a list to collect DataFrames
         data_frames = [self.npmrds_hourly_speed_by_road_class]

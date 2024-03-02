@@ -8,7 +8,7 @@ study_area = "sfbay"
 project_dir = work_dir + '/' + study_area
 input_dir = project_dir + '/input'
 output_dir = project_dir + '/output'
-plots_dir = project_dir + '/plots'
+plots_dir = output_dir + '/plots'
 Path(input_dir).mkdir(parents=True, exist_ok=True)
 Path(output_dir).mkdir(parents=True, exist_ok=True)
 Path(plots_dir).mkdir(parents=True, exist_ok=True)
@@ -20,40 +20,31 @@ beam_network_car_links_geo_input = input_dir + '/beam_network_car_links_map.geoj
 beam_npmrds_network_map_geo_input = input_dir + '/beam_npmrds_network_map.geojson'
 npmrds_hourly_speed_by_road_class_input = input_dir + '/npmrds_hourly_speed_by_road_class.csv'
 
+# ########## Initialize
 setup = SpeedValidationSetup(npmrds_hourly_speed_csv_path=npmrds_hourly_speed_input,
                              beam_npmrds_network_map_geo_path=beam_npmrds_network_map_geo_input,
                              npmrds_hourly_speed_by_road_class_csv_path=npmrds_hourly_speed_by_road_class_input,
                              link_stats_paths_and_labels_list=[
                                  ("BEAM_2024",
-                                  work_dir + "/SFBay/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/10.linkstats.csv.gz")],
+                                  work_dir + "/sfbay/runs/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/10.linkstats.csv.gz")
+                             ],
                              demand_sample_size=0.1,
                              assume_daylight_saving=True)
-
-# ########## Initialize
-setup.init_npmrds_and_beam_data()
-
-# ########## Checking Network
-print("Plotting region boundaries and stations")
-plt.figure()
-fig, ax = plt.subplots()
-setup.region_boundary.boundary.plot(ax=ax, color='black')
-setup.regional_npmrds_station.plot(ax=ax, color='blue')
-plt.title("Region Boundaries and NPMRDS Stations")
-fig.savefig(setup.plots_dir + '/regional_npmrds_network.png', dpi=300)  # Adjust dpi for resolution
-plt.show(block=False)
 
 # #########################################
 # ########## Network-level speed validation
 # #########################################
-hourly_speed, hourly_speed_by_road_class = setup.prepare_data_for_hourly_average_speed_validation()
+hourly_speed = setup.get_hourly_average_speed()
 
 # Plot hourly network speed
 plt.figure()
 sns.lineplot(x='hour', y='speed', hue='scenario', data=hourly_speed, errorbar=('ci', 95))
 plt.ylim([0, 70])
 plt.title("Network-level Speed Validation")
-plt.savefig(setup.plots_dir + '/beam_npmrds_network_speed_validation.png', dpi=200)
+plt.savefig(plots_dir + '/beam_npmrds_network_speed_validation.png', dpi=200)
 plt.show(block=False)
+
+hourly_speed_by_road_class = setup.get_hourly_average_speed_by_road_class()
 
 # plot hourly network speed by road class
 plt.figure()
@@ -67,22 +58,23 @@ g.set_ylabels("Speed (mph)")
 g._legend.set_title("Road Category")
 plt.subplots_adjust(top=0.85)
 plt.ylim([0, 70])
-plt.savefig(setup.plots_dir + '/beam_npmrds_network_speed_road_class_validation.png', dpi=200)
+plt.savefig(plots_dir + '/beam_npmrds_network_speed_road_class_validation.png', dpi=200)
 plt.show(block=False)
 
 # ######################################
 # ########## Link-level speed validation
 # ######################################
-hourly_link_speed, hourly_link_speed_by_road_class = setup.prepare_data_for_hourly_link_speed(
-    distance_buffer_m=20, rerun_network_matching=False)
+hourly_link_speed = setup.get_hourly_link_speed()
 
 # Plot hourly link speed
 plt.figure()
 sns.lineplot(x='hour', y='speed', hue='scenario', data=hourly_link_speed, errorbar=('ci', 95))
 plt.ylim([0, 70])
 plt.title("Link-level Speed Validation")
-plt.savefig(setup.plots_dir + '/beam_npmrds_link_speed_validation.png', dpi=200)
+plt.savefig(plots_dir + '/beam_npmrds_link_speed_validation.png', dpi=200)
 plt.show(block=False)
+
+hourly_link_speed_by_road_class = setup.get_hourly_link_speed_by_road_class()
 
 # Plot hourly link speed by road class
 plt.figure()
@@ -96,16 +88,7 @@ g.set_ylabels("Speed (mph)")
 g._legend.set_title("Road Category")
 plt.subplots_adjust(top=0.85)
 plt.ylim([0, 70])
-plt.savefig(setup.plots_dir + '/beam_npmrds_link_speed_road_class_validation.png', dpi=200)
+plt.savefig(plots_dir + '/beam_npmrds_link_speed_road_class_validation.png', dpi=200)
 plt.show(block=False)
 
-print("Plotting BEAM Network and NPMRDS stations")
-plt.figure()
-fig, ax = plt.subplots()
-setup.regional_npmrds_station.plot(ax=ax, color='blue', linewidth=2, label='NPMRDS')
-setup.beam_npmrds_network_map.plot(ax=ax, color='red', linewidth=0.5, label='BEAM')
-plt.title("BEAM Network and NPMRDS Stations")
-fig.savefig(setup.plots_dir + '/regional_beam_npmrds_network.png', dpi=300)  # Adjust dpi for resolution
-plt.show(block=False)
-
-plt.show()
+print("END")

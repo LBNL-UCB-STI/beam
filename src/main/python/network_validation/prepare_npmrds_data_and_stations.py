@@ -11,8 +11,7 @@ work_dir = os.path.expanduser("~/Workspace/Data/Scenarios")
 # ## year = 2018
 # ## state = 'CA'
 # ## fips_code = ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113']
-# ## region_boundary_geo_path_output = work_dir + "/input/NPMRDS_data/California.shp"
-# ## npmrds_geo_path_path = work_dir + "/sfbay/NPMRDS_data/California.shp"
+# ## npmrds_geo_path_path = work_dir + "/sfbay/input/sfbay_counties.geojson"
 study_area = "sfbay"
 year = 2018
 state = 'CA'
@@ -22,14 +21,14 @@ npmrds_geo_path_path_output = work_dir + "/sfbay/input/sfbay_counties.geojson"
 project_dir = work_dir + '/' + study_area
 input_dir = project_dir + '/input'
 output_dir = project_dir + '/output'
-plots_dir = project_dir + '/plots'
+plots_dir = output_dir + '/plots'
 Path(input_dir).mkdir(parents=True, exist_ok=True)
 Path(output_dir).mkdir(parents=True, exist_ok=True)
 Path(plots_dir).mkdir(parents=True, exist_ok=True)
 #
-npmrds_geo = project_dir + "/NPMRDS_data/California.shp"
-npmrds_data_csv = project_dir + '/NPMRDS_data/al_ca_oct2018_1hr_trucks_pax.csv'
-beam_network_csv = project_dir + '/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/network.csv.gz'
+npmrds_geo = work_dir + "/sfbay/validation_data/NPMRDS/California.shp"
+npmrds_data_csv = work_dir + '/sfbay/validation_data/NPMRDS/al_ca_oct2018_1hr_trucks_pax.csv'
+beam_network_csv = work_dir + '/sfbay/runs/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/network.csv.gz'
 #
 regional_npmrds_station_geo_input = input_dir + '/regional_npmrds_station_map.geojson'
 regional_npmrds_data_input = input_dir + '/regional_npmrds_data.csv'
@@ -43,7 +42,7 @@ st = time.time()
 # Either download boundaries directly
 region_boundary = collect_county_boundaries(state, fips_code, year, npmrds_geo_path_path_output)
 # or load it
-# npmrds_geo_path_path = gpd.read_file(work_dir + "/sfbay/NPMRDS_data/California.shp").to_crs(epsg=4326)
+# npmrds_geo_path_path = gpd.read_file(npmrds_geo).to_crs(epsg=4326)
 
 regional_npmrds_station, _, beam_npmrds_network_map, _ = prepare_npmrds_data(
     region_boundary=region_boundary,
