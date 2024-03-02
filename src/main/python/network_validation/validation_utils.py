@@ -1,11 +1,10 @@
+import time
+
 import geopandas as gpd
 import matplotlib.pyplot as plt
 import numpy as np
-import pyarrow.csv as pv
-import os
 import pandas as pd
-from pathlib import Path
-import time
+import pyarrow.csv as pv
 
 plt.style.use('ggplot')
 meter_to_mile = 0.000621371
@@ -85,23 +84,22 @@ def process_and_extend_link_stats(model_network, link_stats_paths_and_labels_lis
             df.loc[:, 'hour'] = df.loc[:, 'hour'] - 1
 
         df['scenario'] = scenario
-        model_24h = df[(df['hour'] >= 0) & (df['hour'] < 24)]
+        link_stats_24h = df[(df['hour'] >= 0) & (df['hour'] < 24)]
 
-        model_24h = pd.merge(model_24h, model_network, left_on=['link'], right_on=['linkId'], how='inner')
+        link_stats_tmc = pd.merge(link_stats_24h, model_network[['tmc', 'link']], on=['link'], how='inner')
+        link_stats_tmc.rename(columns={'Tmc': 'tmc'}, inplace=True)
 
-        model_24h.loc[:, 'road_class'] = model_24h.loc[:, 'attributeOrigType'].map(modeled_road_type_lookup)
+        # TODO Volume does not contain Trucks, but in the future Trucks will be included in Volume.
+        link_stats_tmc.loc[:, 'volume'] = link_stats_tmc.loc[:, 'volume'] * demand_scaling
+        if 'TruckVolume' in link_stats_tmc.columns:
+            link_stats_tmc.loc[:, 'volume'] = link_stats_tmc.loc[:, 'volume'] + (
+                    link_stats_tmc.loc[:, 'TruckVolume'] * demand_scaling)
 
-        # NOW Volume does not contain Trucks, but in the future Trucks will be included in Volume.
-        model_24h.loc[:, 'volume'] = model_24h.loc[:, 'volume'] * demand_scaling
-        if 'TruckVolume' in model_24h.columns:
-            model_24h.loc[:, 'volume'] = model_24h.loc[:, 'volume'] + (model_24h.loc[:, 'TruckVolume'] * demand_scaling)
+        link_stats_tmc_filtered = link_stats_tmc[
+            ['link', 'hour', 'length', 'freespeed', 'capacity', 'volume', 'traveltime', 'numberOfLanes', 'road_class',
+             'tmc', 'scenario']]
 
-        model_24h_filtered = model_24h[
-            ['link', 'hour', 'length', 'freespeed', 'capacity', 'volume', 'traveltime', 'numberOfLanes', 'linkModes',
-             'road_class', 'scenario']]
-
-        dfs.append(model_24h_filtered)
-
+        dfs.append(link_stats_tmc_filtered)
     return dfs
 
 
@@ -146,7 +144,7 @@ def map_nearest_links(df1, df2, projected_crs_epsg, distance_buffer):
                'geometry']]
     df1.rename(columns={'linkId': 'link'}, inplace=True)
     results_gdf = results_gdf.set_index('df1_index').join(df1, rsuffix='_df1')
-    df2 = df2[["Tmc", "NAME", "AADT", "AADT_Singl", "AADT_Combi", "STATEFP", "COUNTYFP", "COUNTYNS", "RoadName", "Zip",
+    df2 = df2[["Tmc", "NAME", "AADT", "AADT_Singl", "AADT_Combi", "Zip", "Miles", "F_System",
                "scenario"]]  # dropping geometry
     df2.rename(columns={'df1_index': 'index', 'Tmc': 'tmc'}, inplace=True)
     results_gdf = results_gdf.reset_index().set_index('df2_index').join(df2, rsuffix='_df2')
@@ -188,16 +186,10 @@ def process_beam_cars_network_into_geojson(region_boundary, beam_network, projec
     from shapely.geometry import Point
     from shapely.geometry import LineString
     crs_epsg_str = "EPSG:" + str(projected_crs_epsg)
-
-    roadway_type = ['motorway_link', 'trunk', 'trunk_link', 'primary_link', 'motorway', 'primary', 'secondary',
-                    'secondary_link']
-    link_modes = ['car', 'car;bike', 'car;walk;bike']
-
-    # Filter BEAM network to only include highway and major roads
-    print("Filter BEAM network to only include highway and major roads")
-    beam_network_filtered = beam_network[beam_network['attributeOrigType'].isin(roadway_type)]
-    beam_network_filtered = beam_network_filtered[beam_network_filtered['linkModes'].isin(link_modes)]
-
+    # roadway_type = ['motorway_link', 'trunk', 'trunk_link', 'primary_link', 'motorway', 'primary', 'secondary',
+    # 'secondary_link']
+    # beam_network_filtered = beam_network[beam_network['attributeOrigType'].isin(roadway_type)]
+    beam_network_filtered = beam_network[beam_network['linkModes'].isin(['car', 'car;bike', 'car;walk;bike'])]
     beam_network_geo_planar = gpd.GeoDataFrame(
         beam_network_filtered,
         geometry=beam_network_filtered.apply(
@@ -205,12 +197,8 @@ def process_beam_cars_network_into_geojson(region_boundary, beam_network, projec
         ),
         crs=crs_epsg_str
     ).drop(columns=['fromLocationX', 'fromLocationY'])
-
     beam_network_geo = beam_network_geo_planar.to_crs(epsg=4326)
-
-    # Perform intersection
     beam_network_geo_cut = gpd.overlay(beam_network_geo, region_boundary, how='intersection')
-
     return beam_network_geo_cut
 
 
@@ -240,180 +228,187 @@ def run_hourly_speed_mapping_by_road_class(npmrds_hourly_link_speed, link_stats)
     return pd.concat([beam_hourly_speed, npmrds_hourly_speed], axis=0)
 
 
+# @author by arielgatech (Xiaodan Xu)
+# @github LBNL-UCB-STI/beam-core-analysis/blob/xiaodan_update/Users/Xiaodan/collect_county_boundary.py
+def collect_county_boundaries(state, fips_code, year, region_boundary_geo_path_output):
+    from pygris import counties
+    print("Load regional map boundaries")
+    # define fips code for selected counties
+    state_counties = counties(state=state, year=year)
+    selected_counties = state_counties.loc[state_counties['COUNTYFP'].isin(fips_code)]
+    selected_counties = selected_counties.to_crs(epsg=4326)
+    selected_counties.to_file(region_boundary_geo_path_output, driver="GeoJSON")
+    return selected_counties
+
+
+def prepare_npmrds_data(region_boundary, npmrds_geo_input, npmrds_data_csv_input, npmrds_label, distance_buffer_m,
+                        beam_network_csv_input, projected_crs_epsg, regional_npmrds_station_output,
+                        regional_npmrds_data_output, npmrds_hourly_speed_output, beam_network_car_links_geo_output,
+                        beam_npmrds_network_map_geo_output, npmrds_hourly_speed_by_road_class_output):
+    print("Process NPMRDS station geographic data file")
+    regional_npmrds_station = process_regional_npmrds_station(region_boundary, npmrds_geo_input, npmrds_label)
+
+    print("Drop geometry and get unique TMC")
+    regional_npmrds_station_df = regional_npmrds_station.drop(columns='geometry')
+    regional_npmrds_tmcs = regional_npmrds_station_df['Tmc'].unique()
+
+    print("Process NPMRDS data")
+    regional_npmrds_data = process_regional_npmrds_data(npmrds_data_csv_input, npmrds_label, regional_npmrds_tmcs)
+    regional_npmrds_data.to_csv(regional_npmrds_data_output, index=False)
+
+    print("Aggregate NPMRDS to hourly speed")
+    npmrds_hourly_speed = agg_npmrds_to_hourly_speed(regional_npmrds_data)
+    npmrds_hourly_speed.to_csv(npmrds_hourly_speed_output, index=False)
+
+    print("Get unique TMC codes with data")
+    regional_npmrds_data_tmcs = regional_npmrds_data['tmc_code'].unique()
+
+    print("Filter sf_npmrds_station for those TMCs")
+    regional_npmrds_station = regional_npmrds_station[regional_npmrds_station['Tmc'].isin(regional_npmrds_data_tmcs)]
+    regional_npmrds_station.to_file(regional_npmrds_station_output, driver='GeoJSON')
+
+    print("Filter BEAM Network and turn it into GeoJSON")
+    beam_network = pd.read_csv(beam_network_csv_input, sep=',')
+    beam_network_filtered_car_links = process_beam_cars_network_into_geojson(region_boundary, beam_network,
+                                                                             projected_crs_epsg)
+    beam_network_filtered_car_links.to_file(beam_network_car_links_geo_output, driver="GeoJSON")
+
+    print("Building BEAM NPMRDS Network map")
+    beam_npmrds_network_map = map_nearest_links(beam_network_filtered_car_links, regional_npmrds_station,
+                                                projected_crs_epsg, distance_buffer_m)
+    beam_npmrds_network_map.to_file(beam_npmrds_network_map_geo_output, driver='GeoJSON')
+
+    print("Merging NPMRDS hourly speed and BEAM NPMRDS Network")
+    df_filtered = beam_npmrds_network_map[['tmc', 'road_class']]
+    npmrds_hourly_speed_road_class = pd.merge(npmrds_hourly_speed, df_filtered, on=['tmc'], how='inner')
+    npmrds_hourly_speed_road_class.to_csv(npmrds_hourly_speed_by_road_class_output, index=False)
+
+    return regional_npmrds_station, regional_npmrds_data, beam_npmrds_network_map, npmrds_hourly_speed_road_class
+
+
 class SpeedValidationSetup:
-    def __init__(self, project_dir_path, npmrds_label, npmrds_geo_path, npmrds_data_csv_path, region_boundary_geo_path,
-                 projected_crs_epsg, beam_network_csv_path, link_stats_paths_and_labels_list, demand_sample_size,
+    def __init__(self, npmrds_hourly_speed_csv_path, beam_npmrds_network_map_geo_path,
+                 npmrds_hourly_speed_by_road_class_csv_path, link_stats_paths_and_labels_list, demand_sample_size,
                  assume_daylight_saving):
-        self.output_dir = project_dir_path + '/output'
-        self.plots_dir = self.output_dir + '/plots'
-        self.__demand_sample_size = demand_sample_size
-        self.__projected_crs_epsg = projected_crs_epsg
+        # Input
+        self.__demand_scale_up_coefficient = 1 / demand_sample_size
+        self.__npmrds_hourly_speed_csv_path = npmrds_hourly_speed_csv_path
+        self.__beam_npmrds_network_map_geo_path = beam_npmrds_network_map_geo_path
+        self.__npmrds_hourly_speed_by_road_class_csv_path = npmrds_hourly_speed_by_road_class_csv_path
         self.__assume_daylight_saving = assume_daylight_saving
-
-        # Input Files
-        self.__npmrds_label = npmrds_label
-        self.__npmrds_geo_input = npmrds_geo_path
-        self.__region_boundary_geo_input = region_boundary_geo_path
-        self.__npmrds_data_csv_input = npmrds_data_csv_path
         self.__link_stats_paths_and_labels_list = link_stats_paths_and_labels_list
-        self.__beam_network_csv_path = beam_network_csv_path
-
-        # Output Files
-        self.__regional_npmrds_station_output = self.output_dir + '/regional_npmrds_station.geojson'
-        self.__regional_npmrds_data_output = self.output_dir + '/regional_npmrds_data.csv'
-        self.__npmrds_hourly_speed_output_file = self.output_dir + '/npmrds_hourly_speeds.csv'
-        self.__beam_network_geo_output = self.output_dir + '/beam_network_by_county.geojson'
-        self.__beam_network_filtered_geo_output = self.output_dir + '/beam_network_filtered_car_links.geojson'
-        self.__beam_npmrds_network_map_geo_output = self.output_dir + '/beam_npmrds_network_map_{distance}m.geojson'
 
         # Data
-        self.regional_npmrds_data = None
         self.npmrds_hourly_speed = None
-        self.regional_npmrds_station = None
-        self.region_boundary = None
-        self.link_stats_dfs = None
-        self.beam_network = None
+        self.link_stats_tmc_dfs = None
         self.beam_npmrds_network_map = None
-        self.beam_network_filtered_car_links = None
+        self.npmrds_hourly_speed_by_road_class = None
 
     def init_npmrds_and_beam_data(self):
         st = time.time()
 
-        # Ensure output directories exist
-        Path(self.output_dir).mkdir(parents=True, exist_ok=True)
-        Path(self.plots_dir).mkdir(parents=True, exist_ok=True)
+        if self.npmrds_hourly_speed is None:
+            table = pv.read_csv(self.__npmrds_hourly_speed_csv_path)
+            self.npmrds_hourly_speed = table.to_pandas()
 
-        # Load regional map boundaries
-        print("Load regional map boundaries")
-        self.region_boundary = gpd.read_file(self.__region_boundary_geo_input).to_crs(epsg=4326)
+        if self.beam_npmrds_network_map is None:
+            table = pv.read_csv(self.__beam_npmrds_network_map_geo_path)
+            self.beam_npmrds_network_map = table.to_pandas()
 
-        # Load or process regional npmrds station
-        if not os.path.isfile(self.__regional_npmrds_station_output):
-            print("Process NPMRDS station geographic data file")
-            # Load California NPMRDS station shapefile
-            self.regional_npmrds_station = process_regional_npmrds_station(self.region_boundary,
-                                                                           self.__npmrds_geo_input,
-                                                                           self.__npmrds_label)
-            self.regional_npmrds_station.to_file(self.__regional_npmrds_station_output, driver='GeoJSON')
-        else:
-            print("Load regional npmrds station")
-            self.regional_npmrds_station = gpd.read_file(self.__regional_npmrds_station_output)
-
-        # Drop geometry and get unique TMC
-        print("Drop geometry and get unique TMC")
-        regional_npmrds_station_df = self.regional_npmrds_station.drop(columns='geometry')
-        regional_npmrds_tmcs = regional_npmrds_station_df['Tmc'].unique()
-
-        # Load NPMRDS observations
-        if not os.path.isfile(self.__regional_npmrds_data_output):
-            print("Process NPMRDS data")
-            self.regional_npmrds_data = process_regional_npmrds_data(self.__npmrds_data_csv_input, self.__npmrds_label,
-                                                                     regional_npmrds_tmcs)
-            # Write filtered NPMRDS data to CSV
-            self.regional_npmrds_data.to_csv(self.__regional_npmrds_data_output, index=False)
-        else:
-            print("Load NPMRDS file")
-            table = pv.read_csv(self.__regional_npmrds_data_output)
-            self.regional_npmrds_data = table.to_pandas()
-
-        if not os.path.isfile(self.__npmrds_hourly_speed_output_file):
-            print("Aggregate NPMRDS to hourly speed")
-            self.npmrds_hourly_speed = agg_npmrds_to_hourly_speed(self.regional_npmrds_data)
-            self.npmrds_hourly_speed.to_csv(self.__npmrds_hourly_speed_output_file, index=False)
-        else:
-            print("Load NPMRDS hourly speed")
-            self.npmrds_hourly_speed = pd.read_csv(self.__npmrds_hourly_speed_output_file, sep=',')
-
-        print("Get unique TMC codes with data")
-        regional_npmrds_data_tmcs = self.regional_npmrds_data['tmc_code'].unique()
-
-        print("Filter sf_npmrds_station for those TMCs")
-        self.regional_npmrds_station = self.regional_npmrds_station[
-            self.regional_npmrds_station['Tmc'].isin(regional_npmrds_data_tmcs)]
+        if self.npmrds_hourly_speed_by_road_class is None:
+            table = pv.read_csv(self.npmrds_hourly_speed_by_road_class)
+            self.npmrds_hourly_speed_by_road_class = table.to_pandas()
 
         print("Read BEAM link stats and network")
-        self.beam_network = pd.read_csv(self.__beam_network_csv_path, sep=',')
-        self.link_stats_dfs = process_and_extend_link_stats(self.beam_network, self.__link_stats_paths_and_labels_list,
-                                                            1 / self.__demand_sample_size,
-                                                            self.__assume_daylight_saving)
+        self.link_stats_tmc_dfs = process_and_extend_link_stats(self.beam_npmrds_network_map,
+                                                                self.__link_stats_paths_and_labels_list,
+                                                                self.__demand_scale_up_coefficient,
+                                                                self.__assume_daylight_saving)
 
         print(f"Total execution time of prepare_npmrds_and_beam_data: {(time.time() - st) / 60.0}min")
 
-    def prepare_data_for_hourly_average_speed_validation(self):
-        # Running beam npmrds hourly speed mapping
+    def get_hourly_average_speed(self):
         st = time.time()
 
+        # Initialize NPMRDS and BEAM data if not already done
         if self.npmrds_hourly_speed is None:
             self.init_npmrds_and_beam_data()
 
-        print("Running beam npmrds hourly speed mapping")
-        combined_data = None
-        combined_data_by_road_class = None
-        for link_stats in self.link_stats_dfs:
+        # Initialize a list to collect DataFrames
+        data_frames = []
+
+        # Process each link_stats DataFrame
+        for link_stats in self.link_stats_tmc_dfs:
             hourly_speed = run_hourly_speed_mapping(self.npmrds_hourly_speed, link_stats)
-            combined_data = pd.concat(
-                [combined_data, hourly_speed.sort_values(by='scenario').reset_index()])
+            data_frames.append(hourly_speed.reset_index(drop=True))
 
-            hourly_speed_by_road_class = run_hourly_speed_mapping_by_road_class(self.npmrds_hourly_speed, link_stats)
-            combined_data_by_road_class = pd.concat(
-                [combined_data_by_road_class, hourly_speed_by_road_class.sort_values(by='scenario').reset_index()])
+        combined_data = pd.concat(data_frames, ignore_index=True).sort_values(
+            by='scenario') if data_frames else pd.DataFrame()
 
-        print(
-            f"Total execution time of prepare_data_for_hourly_average_speed_validation: {(time.time() - st) / 60.0}min")
-        return combined_data, combined_data_by_road_class
+        print(f"Execution time of get_hourly_average_speed: {(time.time() - st) / 60.0}min")
+        return combined_data
 
-    def prepare_data_for_hourly_link_speed_validation(self, distance_buffer_m, rerun_network_matching):
-        # ## Find BEAM links close to NPMRDS TMCs ##
+    def get_hourly_average_speed_by_road_class(self):
         st = time.time()
 
+        # Initialize NPMRDS and BEAM data if not already done
         if self.npmrds_hourly_speed is None:
             self.init_npmrds_and_beam_data()
 
-        # ## Load or filter beam network roadway and car link modes
-        if self.beam_network_filtered_car_links is None:
-            if not os.path.isfile(self.__beam_network_filtered_geo_output):
-                print("Load beam network to geojson")
-                self.beam_network_filtered_car_links = process_beam_cars_network_into_geojson(self.region_boundary,
-                                                                                              self.beam_network,
-                                                                                              self.__projected_crs_epsg)
-                # Save results
-                self.beam_network_filtered_car_links.to_file(self.__beam_network_filtered_geo_output, driver="GeoJSON")
-            else:
-                self.beam_network_filtered_car_links = gpd.read_file(self.__beam_network_filtered_geo_output)
+        # Initialize a list to collect DataFrames
+        data_frames = []
 
-        if self.beam_npmrds_network_map is None or rerun_network_matching:
-            output_file = self.__beam_npmrds_network_map_geo_output.format(distance=distance_buffer_m)
-            if rerun_network_matching or not os.path.isfile(output_file):
-                print("Mapping nearest links between two networks (within " + str(distance_buffer_m) + " meters)")
-                self.beam_npmrds_network_map = map_nearest_links(self.beam_network_filtered_car_links,
-                                                                 self.regional_npmrds_station,
-                                                                 self.__projected_crs_epsg,
-                                                                 distance_buffer_m)
-                self.beam_npmrds_network_map.to_file(output_file, driver='GeoJSON')
-            else:
-                print("Loading beam network mapped with npmrds")
-                self.beam_npmrds_network_map = gpd.read_file(output_file)
+        # Process each link_stats DataFrame
+        for link_stats in self.link_stats_tmc_dfs:
+            hourly_speed_by_road_class = run_hourly_speed_mapping_by_road_class(self.npmrds_hourly_speed, link_stats)
+            data_frames.append(hourly_speed_by_road_class.reset_index(drop=True))
 
-        print("Running beam npmrds link level hourly speed mapping")
-        npmrds_hourly_speed_road_class = pd.merge(self.npmrds_hourly_speed,
-                                                  self.beam_npmrds_network_map[['tmc', 'road_class']], on=['tmc'],
-                                                  how='inner')
-        combined_data = self.npmrds_hourly_speed
-        combined_data_by_road_class = npmrds_hourly_speed_road_class
-        for link_stats in self.link_stats_dfs:
-            link_stats_tmc = pd.merge(link_stats, self.beam_npmrds_network_map[['tmc', 'link']], on=['link'],
-                                      how='inner')
-            link_stats_tmc.rename(columns={'Tmc': 'tmc'}, inplace=True)
-            beam_npmrds_hourly_link_speed = link_stats_tmc.groupby(['tmc', 'hour', 'scenario']).apply(
-                calculate_metrics).reset_index()
-            beam_npmrds_hourly_link_speed_by_road_class = link_stats_tmc.groupby(
-                ['tmc', 'hour', 'road_class', 'scenario']).apply(
-                calculate_metrics).reset_index()
+        combined_data_by_road_class = pd.concat(data_frames, ignore_index=True).sort_values(
+            by='scenario') if data_frames else pd.DataFrame()
 
-            combined_data = pd.concat([combined_data, beam_npmrds_hourly_link_speed.sort_values(by='scenario')])
-            combined_data_by_road_class = pd.concat(
-                [combined_data_by_road_class, beam_npmrds_hourly_link_speed_by_road_class.sort_values(by='scenario')])
+        print(f"Execution time of get_hourly_average_speed_by_road_class: {(time.time() - st) / 60.0}min")
+        return combined_data_by_road_class
 
-        print(
-            f"Total execution time of prepare_data_for_hourly_link_speed_validation: {(time.time() - st) / 60.0}min")
-        return combined_data.reset_index(), combined_data_by_road_class.reset_index()
+    def get_hourly_link_speed(self):
+        # Start timing
+        st = time.time()
+
+        # Initialize NPMRDS and BEAM data if not already done
+        if self.npmrds_hourly_speed is None:
+            self.init_npmrds_and_beam_data()
+
+        # Initialize a list to collect DataFrames, starting with the existing hourly speed DataFrame
+        data_frames = [self.npmrds_hourly_speed]
+
+        # Loop through each TMC DataFrame to calculate metrics and collect them
+        for link_stats_tmc in self.link_stats_tmc_dfs:
+            hourly_link_speed = link_stats_tmc.groupby(
+                ['tmc', 'hour', 'scenario'], as_index=False).apply(calculate_metrics)
+            data_frames.append(hourly_link_speed)
+
+        combined_data = pd.concat(data_frames, ignore_index=True).sort_values(by='scenario')
+
+        print(f"Execution time of get_hourly_link_speed: {(time.time() - st) / 60.0}min")
+        return combined_data
+
+    def get_hourly_link_speed_by_road_class(self):
+        # Start timing
+        st = time.time()
+
+        # Initialize NPMRDS and BEAM data if not already done
+        if self.npmrds_hourly_speed is None:
+            self.init_npmrds_and_beam_data()
+
+        # Initialize a list to collect DataFrames
+        data_frames = [self.npmrds_hourly_speed_by_road_class]
+
+        # Loop through TMC DataFrames to calculate metrics and collect them
+        for link_stats_tmc in self.link_stats_tmc_dfs:
+            hourly_link_speed_by_road_class = link_stats_tmc.groupby(
+                ['tmc', 'hour', 'road_class', 'scenario']).apply(calculate_metrics).reset_index()
+            data_frames.append(hourly_link_speed_by_road_class)
+
+        combined_data_by_road_class = pd.concat(data_frames, ignore_index=True).sort_values(by='scenario')
+
+        print(f"Execution time of get_hourly_link_speed_by_road_class: {(time.time() - st) / 60.0}min")
+        return combined_data_by_road_class

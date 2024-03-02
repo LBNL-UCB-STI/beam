@@ -1,16 +1,28 @@
 import seaborn as sns
-
+import os
+from pathlib import Path
 from validation_utils import *
 
 work_dir = os.path.expanduser("~/Workspace/Data/Scenarios")
+study_area = "sfbay"
+project_dir = work_dir + '/' + study_area
+input_dir = project_dir + '/input'
+output_dir = project_dir + '/output'
+plots_dir = project_dir + '/plots'
+Path(input_dir).mkdir(parents=True, exist_ok=True)
+Path(output_dir).mkdir(parents=True, exist_ok=True)
+Path(plots_dir).mkdir(parents=True, exist_ok=True)
+#
+regional_npmrds_station_geo_input = input_dir + '/regional_npmrds_station_map.geojson'
+regional_npmrds_data_input = input_dir + '/regional_npmrds_data.csv'
+npmrds_hourly_speed_input = input_dir + '/npmrds_hourly_speeds.csv'
+beam_network_car_links_geo_input = input_dir + '/beam_network_car_links_map.geojson'
+beam_npmrds_network_map_geo_input = input_dir + '/beam_npmrds_network_map.geojson'
+npmrds_hourly_speed_by_road_class_input = input_dir + '/npmrds_hourly_speed_by_road_class.csv'
 
-setup = SpeedValidationSetup(project_dir_path=work_dir + '/SFBay',
-                             npmrds_label="NPMRDS_2018",
-                             npmrds_geo_path=work_dir + "/SFBay/NPMRDS_data/California.shp",
-                             npmrds_data_csv_path=work_dir + '/SFBay/NPMRDS_data/al_ca_oct2018_1hr_trucks_pax.csv',
-                             region_boundary_geo_path=work_dir + '/SFBay/NPMRDS_data/SF_counties.geojson',
-                             projected_crs_epsg=26910,
-                             beam_network_csv_path=work_dir + '/SFBay/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/network.csv.gz',
+setup = SpeedValidationSetup(npmrds_hourly_speed_csv_path=npmrds_hourly_speed_input,
+                             beam_npmrds_network_map_geo_path=beam_npmrds_network_map_geo_input,
+                             npmrds_hourly_speed_by_road_class_csv_path=npmrds_hourly_speed_by_road_class_input,
                              link_stats_paths_and_labels_list=[
                                  ("BEAM_2024",
                                   work_dir + "/SFBay/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/10.linkstats.csv.gz")],
@@ -61,7 +73,7 @@ plt.show(block=False)
 # ######################################
 # ########## Link-level speed validation
 # ######################################
-hourly_link_speed, hourly_link_speed_by_road_class = setup.prepare_data_for_hourly_link_speed_validation(
+hourly_link_speed, hourly_link_speed_by_road_class = setup.prepare_data_for_hourly_link_speed(
     distance_buffer_m=20, rerun_network_matching=False)
 
 # Plot hourly link speed
