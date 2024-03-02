@@ -1330,7 +1330,11 @@ trait ChoosesMode {
                   nextActivity(choosesModeData.personData).get.getCoord,
                   _currentTick.get,
                   body.toStreetVehicle,
-                  geo
+                  geo,
+                  Array(
+                    Integer.parseInt(currentActivity(personData).getLinkId.toString),
+                    Integer.parseInt(nextAct.getLinkId.toString)
+                  )
                 )
                 goto(FinishingModeChoice) using choosesModeData.copy(
                   pendingChosenTrip = Some(bushwhackingTrip),
