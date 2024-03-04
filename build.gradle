@@ -206,7 +206,7 @@ dependencies {
         exclude group: 'org.matsim', module: 'matsim'
     }
 
-    implementation(group: 'com.github.LBNL-UCB-STI.matsim', name: 'matsim', version: '12.0-beam-6') {
+    implementation(group: 'com.github.LBNL-UCB-STI.matsim', name: 'matsim', version: '12.0-beam-7') {
         exclude group: 'log4j', module: 'log4j'
     }
 
