@@ -1,5 +1,6 @@
 package scripts.transit
 
+import com.typesafe.scalalogging.StrictLogging
 import org.onebusaway.gtfs.services.GtfsMutableRelationalDao
 import org.onebusaway.gtfs_transformer.`match`.{EntityMatch, TypedEntityMatch}
 import org.onebusaway.gtfs_transformer.collections.{IdKey, IdKeyMatch}
@@ -11,7 +12,9 @@ import scala.collection.mutable.ArrayBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success}
 
-class ParallelizedEntitiesTransformStrategy extends EntitiesTransformStrategy {
+class ParallelizedEntitiesTransformStrategy extends EntitiesTransformStrategy with StrictLogging {
+
+  private class MatchAndTransform(val entityMatch: EntityMatch, val transform: EntityTransformStrategy)
 
   implicit val ec: ExecutionContext = ExecutionContext.global
 
@@ -23,9 +26,10 @@ class ParallelizedEntitiesTransformStrategy extends EntitiesTransformStrategy {
     modifications += new MatchAndTransform(entityMatch.getPropertyMatches, modification)
   }
 
-//  override def getTransformsForType(entityType: Class[_]): ArrayBuffer[MatchAndTransform] = {
-//    _modificationsByType.getOrElse(entityType, ArrayBuffer.empty[MatchAndTransform])
-//  }
+  private def getModificationsForType(
+    classType: Class[_],
+    m: collection.mutable.Map[Class[_], ArrayBuffer[MatchAndTransform]]
+  ): ArrayBuffer[MatchAndTransform] = m.getOrElseUpdate(classType, new ArrayBuffer[MatchAndTransform]())
 
   override def run(context: TransformContext, dao: GtfsMutableRelationalDao): Unit = {
     _modificationsByType.foreach { case (entityType, modifications) =>
@@ -46,17 +50,10 @@ class ParallelizedEntitiesTransformStrategy extends EntitiesTransformStrategy {
           }
         }
         Future.sequence(futures).onComplete {
-          case Success(_)         => println("All transformations completed successfully.")
-          case Failure(exception) => println(s"Error occurred: ${exception.getMessage}")
+          case Success(_)         => logger.info("All transformations completed successfully.")
+          case Failure(exception) => logger.error(s"Error occurred: ${exception.getMessage}")
         }
       }
     }
   }
-
-  private def getModificationsForType(
-    classType: Class[_],
-    m: collection.mutable.Map[Class[_], ArrayBuffer[MatchAndTransform]]
-  ): ArrayBuffer[MatchAndTransform] = m.getOrElseUpdate(classType, new ArrayBuffer[MatchAndTransform]())
-
-  class MatchAndTransform(val entityMatch: EntityMatch, val transform: EntityTransformStrategy)
 }

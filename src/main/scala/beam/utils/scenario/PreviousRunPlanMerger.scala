@@ -114,12 +114,12 @@ object LastRunOutputSource extends LazyLogging {
     plansPaths.headOption
   }
 
-  def findLastRunLinkStats(outputPath: Path, dirPrefix: String): Option[Path] = {
+  def findLastRunLinkStats(outputPath: Path, dirPrefix: String, initialLinkstatsPath: Option[Path]): Option[Path] = {
     val paths = for {
       (itDir, itNumber) <- findAllLastIterationDirectories(outputPath, dirPrefix)
       linkStatsPath     <- findFile(itDir, itNumber, "linkstats.csv.gz")
     } yield linkStatsPath
-    paths.headOption
+    paths.headOption.orElse(initialLinkstatsPath)
   }
 
   private def findFile(iterationDir: Path, iterationNumber: Int, fileName: String): Option[Path] = {

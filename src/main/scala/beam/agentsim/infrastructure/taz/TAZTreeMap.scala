@@ -2,9 +2,10 @@ package beam.agentsim.infrastructure.taz
 
 import beam.agentsim.infrastructure.taz.TAZTreeMap.logger
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
+import beam.utils.SortingUtil
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.{HasQuadBounds, QuadTreeBounds}
-import com.vividsolutions.jts.geom.Geometry
+import org.locationtech.jts.geom.Geometry
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -47,6 +48,11 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
   private val unmatchedLinkIds: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
   lazy val tazListContainsGeoms: Boolean = tazQuadTree.values().asScala.headOption.exists(_.geometry.isDefined)
   private val failedLinkLookups: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
+
+  val orderedTazIds: Seq[String] = {
+    val tazIds = tazQuadTree.values().asScala.map(_.tazId.toString).toSeq
+    SortingUtil.sortAsIntegers(tazIds).getOrElse(tazIds.sorted)
+  }
 
   def getTAZfromLink(linkId: Id[Link]): Option[TAZ] = {
     linkIdToTAZMapping.get(linkId) match {

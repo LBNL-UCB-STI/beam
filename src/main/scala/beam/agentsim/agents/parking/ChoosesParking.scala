@@ -143,8 +143,9 @@ object ChoosesParking {
       case (Some(PricingModel.Block(costInDollars, intervalSeconds)), _) =>
         costInDollars / intervalSeconds * SECONDS_IN_HOUR
       case (Some(PricingModel.FlatFee(costInDollars)), Some(activity))
-          if activity.getEndTime - activity.getStartTime > 0 =>
-        costInDollars / (activity.getEndTime - activity.getStartTime) * SECONDS_IN_HOUR
+          if activity.getEndTime.isDefined && activity.getStartTime.isDefined &&
+            activity.getEndTime.seconds() - activity.getStartTime.seconds() > 0 =>
+        costInDollars / (activity.getEndTime.seconds() - activity.getStartTime.seconds()) * SECONDS_IN_HOUR
       case (Some(PricingModel.FlatFee(costInDollars)), _) => costInDollars
       case (None, _)                                      => 0
     }
@@ -171,7 +172,9 @@ trait ChoosesParking extends {
     val lastLeg = vehicleTrip.last.beamLeg
     val activityType = nextActivity(data).get.getType
     val remainingTripData = calculateRemainingTripData(data)
-    val parkingDuration = nextActivity(data).map(_.getEndTime - lastLeg.endTime).getOrElse(0.0)
+    val parkingDuration =
+      nextActivity(data).map(_.getEndTime.orElse(0.0) - lastLeg.endTime).getOrElse(0.0)
+
     val destinationUtm = SpaceTime(beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), lastLeg.endTime)
     if (data.enrouteData.isInEnrouteState) {
       // enroute means actual travelling has not started yet,
@@ -498,11 +501,10 @@ trait ChoosesParking extends {
 
       // create new legs to travel to the charging stall
       val (tick, triggerId) = releaseTickAndTriggerId()
-      val walkTemp = data.currentTrip.head.legs.head
-      val walkStart = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(tick))
+      val walkStart = data.currentTrip.head.legs.head
       val walkRest = data.currentTrip.head.legs.last
       val newCurrentTripLegs: Vector[EmbodiedBeamLeg] =
-        EmbodiedBeamLeg.makeLegsConsistent(walkStart +: (vehicle2StallCarLegs :+ walkRest))
+        EmbodiedBeamLeg.makeLegsConsistent(walkStart +: (vehicle2StallCarLegs :+ walkRest), tick)
       val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
 
       // set two car legs in schedule

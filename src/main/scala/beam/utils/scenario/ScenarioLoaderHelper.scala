@@ -8,12 +8,16 @@ import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.scenario.MutableScenario
-import org.matsim.households.{Household, HouseholdsFactoryImpl}
+import org.matsim.households.{Household, HouseholdUtils, HouseholdsFactoryImpl}
 
 import scala.collection.compat.IterableFactoryExtensionMethods
 import scala.collection.immutable.HashSet
 import scala.collection.mutable.ListBuffer
-import scala.jdk.CollectionConverters.{collectionAsScalaIterableConverter, seqAsJavaListConverter}
+import scala.jdk.CollectionConverters.{
+  collectionAsScalaIterableConverter,
+  mapAsScalaMapConverter,
+  seqAsJavaListConverter
+}
 
 object ScenarioLoaderHelper extends ExponentialLazyLogging {
 
@@ -27,6 +31,10 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
     householdResult.setIncome(household.getIncome)
     householdResult.setVehicleIds(household.getVehicleIds)
     householdResult.setMemberIds(members.asJava)
+    val originHouseAttributes = household.getAttributes.getAsMap.asScala
+    originHouseAttributes.foreach { case (key, value) =>
+      HouseholdUtils.putHouseholdAttribute(householdResult, key, value)
+    }
     householdResult
   }
 
@@ -123,7 +131,7 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
       val validMembers = members.filter(validPeople)
 
       if (validMembers.isEmpty) {
-        scenario.getHouseholds.getHouseholdAttributes.removeAllAttributes(household.getId.toString)
+        scenario.getHouseholds.getHouseholds.get(household.getId).getAttributes.clear()
         scenario.getHouseholds.getHouseholds.remove(household.getId)
       } else if (validMembers != members) {
         val updatedHousehold = createHouseholdWithGivenMembers(household, validMembers.toList)
@@ -136,28 +144,14 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
     val householdsWithMembers: List[Household] = scenario.getHouseholds.getHouseholds.values().asScala.toList
     householdsWithMembers.par.foreach { household =>
       val householdId = household.getId.toString
-      val attr = scenario.getHouseholds.getHouseholdAttributes
-      val homeCoordX =
-        Option(attr.getAttribute(household.getId.toString, "homecoordx")).map(_.toString.toDouble).getOrElse {
-          logger.error(
-            s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0"
-          )
-          0.0
-        }
-      val homeCoordY =
-        Option(attr.getAttribute(household.getId.toString, "homecoordy")).map(_.toString.toDouble).getOrElse {
-          logger.error(
-            s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
-          )
-          0.0
-        }
-
-      val planCoord = new Coord(homeCoordX, homeCoordY)
+      val locationX = HouseholdUtils.getHouseholdAttribute(household, "homecoordx").asInstanceOf[Double]
+      val locationY = HouseholdUtils.getHouseholdAttribute(household, "homecoordy").asInstanceOf[Double]
+      val planCoord = new Coord(locationX, locationY)
 
       snapLocationHelper.computeResult(planCoord) match {
         case Right(splitCoord) =>
-          attr.putAttribute(householdId, "homecoordx", splitCoord.getX)
-          attr.putAttribute(householdId, "homecoordy", splitCoord.getY)
+          HouseholdUtils.putHouseholdAttribute(household, "homecoordx", splitCoord.getX)
+          HouseholdUtils.putHouseholdAttribute(household, "homecoordy", splitCoord.getY)
         case Left(error) =>
           household.getMemberIds.asScala.toList.foreach(personId => scenario.getPopulation.getPersons.remove(personId))
           scenario.getHouseholds.getHouseholds.remove(household.getId)

@@ -6,8 +6,6 @@ import javax.inject.Inject
 import org.matsim.api.core.v01.population.{HasPlansAndId, Person, Plan}
 import org.matsim.core.config.Config
 import org.matsim.core.population.algorithms.TripPlanMutateTimeAllocation
-import org.matsim.core.replanning.selectors.ExpBetaPlanSelector
-import org.matsim.core.router.StageActivityTypes
 import org.slf4j.LoggerFactory
 
 class BeamTimeMutator @Inject() (config: Config) extends PlansStrategyAdopter {
@@ -20,12 +18,7 @@ class BeamTimeMutator @Inject() (config: Config) extends PlansStrategyAdopter {
     ReplanningUtil.makeExperiencedMobSimCompatible(person)
     ReplanningUtil.copyRandomPlanAndSelectForMutation(person.getSelectedPlan.getPerson)
 
-    val stageActivityTypes = new StageActivityTypes {
-      override def isStageActivity(activityType: String): Boolean = false
-    }
-
     new TripPlanMutateTimeAllocation(
-      stageActivityTypes,
       config.timeAllocationMutator().getMutationRange,
       config.timeAllocationMutator().isAffectingDuration,
       new Random(config.global().getRandomSeed)

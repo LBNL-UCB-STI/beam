@@ -16,6 +16,7 @@ import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, Releasi
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
+import beam.agentsim.agents.vehicles.AccessErrorCodes.UnknownInquiryIdError
 import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumed
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.VehicleCategory.Bike
@@ -67,7 +68,7 @@ import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArri
 import org.matsim.core.utils.misc.Time
 
 import java.util.concurrent.atomic.AtomicReference
-import scala.annotation.tailrec
+import scala.annotation.{nowarn, tailrec}
 import scala.concurrent.duration._
 
 /**
@@ -524,17 +525,23 @@ class PersonAgent(
   }
 
   def calculateActivityEndTime(activity: Activity, tick: Double): Double = {
-    def activityEndTime =
-      if (activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity) {
-        activity.getEndTime
-      } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
-        tick
-      } else {
+    def activityEndTime: Double = {
+      def fallbackActivityEndTime: Double = {
         // logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
         // TODO consider ending the day here to match MATSim convention for start/end activity
         tick + 60 * 10
       }
-    val endTime = beamServices.beamScenario.fixedActivitiesDurations.get(activity.getType) match {
+      val endTime = activity.getEndTime
+      var returnVal: Double =
+        fallbackActivityEndTime //Because OptionalTime doesn't have a method which returns - given an fn
+      endTime.ifDefined(endTimeVal =>
+        if (endTimeVal >= tick) returnVal = endTimeVal
+        else if (endTimeVal >= 0.0 && endTimeVal < tick) returnVal = tick
+      )
+      returnVal
+    }
+
+    val endTime: Double = beamServices.beamScenario.fixedActivitiesDurations.get(activity.getType) match {
       case Some(fixedDuration) => tick + fixedDuration
       case _                   => activityEndTime
     }
@@ -586,7 +593,12 @@ class PersonAgent(
     logDebug(s"starting at ${currentActivity(data).getType} @ $tick")
     goto(PerformingActivity) replying CompletionNotice(
       triggerId,
-      Vector(ScheduleTrigger(ActivityEndTrigger(currentActivity(data).getEndTime.toInt), self))
+      Vector(
+        ScheduleTrigger(
+          ActivityEndTrigger(currentActivity(data).getEndTime.orElse(beam.UNDEFINED_TIME).toInt),
+          self
+        )
+      )
     )
   }
 
@@ -811,29 +823,29 @@ class PersonAgent(
       val (_, triggerId) = releaseTickAndTriggerId()
       scheduler ! CompletionNotice(triggerId, Vector())
       stay() using data
+    // RIDE HAIL DELAY SUCCESS (buffered mode of RHM)
+    // we get RH response with tick and trigger so that we can start our WALKing leg at the right time
+    case Event(
+          TriggerWithId(RideHailResponseTrigger(tick, response: RideHailResponse), triggerId),
+          data: BasePersonData
+        ) if response.isSuccessful(id) =>
+      //we need to save current tick in order to schedule the next trigger (StartLegTrigger)
+      holdTickAndTriggerId(tick, triggerId)
+      handleSuccessfulRideHailReservation(tick, response, data)
     // RIDE HAIL DELAY FAILURE
     // we use trigger for this to get triggerId back into hands of the person
     case Event(
           TriggerWithId(RideHailResponseTrigger(tick, response: RideHailResponse), triggerId),
           data: BasePersonData
-        ) if response.isFailed =>
+        ) =>
       holdTickAndTriggerId(tick, triggerId)
-      handleFailedRideHailReservation(response.error.get, response, data)
-    // RIDE HAIL SUCCESS (buffered mode of RHM)
-    // we get RH response with tick and trigger so that we can start our WALKing leg at the right time
-    case Event(
-          TriggerWithId(RideHailResponseTrigger(tick, response: RideHailResponse), triggerId),
-          data: BasePersonData
-        ) if response.isSuccessful =>
-      //we need to save current tick in order to schedule the next trigger (StartLegTrigger)
-      holdTickAndTriggerId(tick, triggerId)
-      handleSuccessfulRideHailReservation(tick, response, data)
+      handleFailedRideHailReservation(response.error.getOrElse(UnknownInquiryIdError), response, data)
     // RIDE HAIL SUCCESS (single request mode of RHM)
-    case Event(response: RideHailResponse, data: BasePersonData) if response.isSuccessful =>
+    case Event(response: RideHailResponse, data: BasePersonData) if response.isSuccessful(id) =>
       handleSuccessfulRideHailReservation(_currentTick.get, response, data)
     // RIDE HAIL FAILURE (single request mode of RHM)
-    case Event(response: RideHailResponse, data: BasePersonData) if response.isFailed =>
-      handleFailedRideHailReservation(response.error.get, response, data)
+    case Event(response: RideHailResponse, data: BasePersonData) =>
+      handleFailedRideHailReservation(response.error.getOrElse(UnknownInquiryIdError), response, data)
   }
 
   private def handleSuccessfulRideHailReservation(tick: Int, response: RideHailResponse, data: BasePersonData) = {
@@ -1088,11 +1100,10 @@ class PersonAgent(
     // unset reserved charging stall
     // unset enroute state, and update `data` with new legs
     val stall2DestinationCarLegs = data.enrouteData.stall2DestLegs
-    val walkTemp = data.currentTrip.head.legs.head
-    val walkStart = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(startTime))
+    val walkStart = data.currentTrip.head.legs.head
     val walkRest = data.currentTrip.head.legs.last
     val newCurrentTripLegs: Vector[EmbodiedBeamLeg] =
-      EmbodiedBeamLeg.makeLegsConsistent(walkStart +: (stall2DestinationCarLegs :+ walkRest))
+      EmbodiedBeamLeg.makeLegsConsistent(walkStart +: (stall2DestinationCarLegs :+ walkRest), startTime)
     val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
     (
       newRestOfTrip.head.beamLeg.startTime,
@@ -1316,7 +1327,8 @@ class PersonAgent(
               id,
               activity.getLinkId,
               activity.getFacilityId,
-              activity.getType
+              activity.getType,
+              null
             )
           )
 
@@ -1366,7 +1378,8 @@ class PersonAgent(
             new TeleportationArrivalEvent(
               tick,
               id,
-              currentTrip.legs.map(l => l.beamLeg.travelPath.distanceInM).sum
+              currentTrip.legs.map(l => l.beamLeg.travelPath.distanceInM).sum,
+              data.currentTourMode.map(_.matsimMode).getOrElse("")
             )
           )
           assert(activity.getLinkId != null)
@@ -1411,7 +1424,8 @@ class PersonAgent(
             id,
             activity.getLinkId,
             activity.getFacilityId,
-            activity.getType
+            activity.getType,
+            null
           )
           eventsManager.processEvent(activityStartEvent)
 

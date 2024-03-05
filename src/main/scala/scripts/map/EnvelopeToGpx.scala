@@ -4,7 +4,7 @@ import beam.sim.common.GeoUtils
 import beam.utils.map
 import beam.utils.map.GpxPoint
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
 
 class EnvelopeToGpx extends LazyLogging {

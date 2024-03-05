@@ -1,0 +1,20 @@
+name: base
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8.18
+  - pandas=1.1.0
+  - docker-py=6.1.3
+  - geopandas=0.13.2
+  - shapely=1.8.2
+  - pyyaml=5.3.1
+  - sqlite=3.37.0
+  - tqdm=4.59.0
+  - joblib=1.2.0
+  - psutil=5.9.5
+  - pip=21.2.4
+  - pip:
+      - cloudpickle==2.2.1
+      - h5py==3.4.0
+      - openmatrix==0.3.5.0
+      - setuptools==59.5.0

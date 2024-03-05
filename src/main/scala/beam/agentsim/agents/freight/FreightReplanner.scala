@@ -12,6 +12,7 @@ import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Person, Plan}
 import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.households.HouseholdUtils
 
 import java.util
 import scala.collection.JavaConverters._
@@ -121,25 +122,10 @@ class FreightReplanner(
   private implicit def toCoord(location: Location): Coord = new Coord(location.x, location.y)
 
   private def getVehicleHouseholdLocation(carrierId: Id[FreightCarrier]): Location = {
-    val householdIdStr = freightReader.createHouseholdId(carrierId).toString
-    val x = Option(
-      beamServices.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
-        .getAttribute(householdIdStr, "homecoordx")
-    ).map(_.toString.toDouble).getOrElse {
-      logger.error(
-        s"Cannot find homeCoordX for freight carrier $carrierId which will be interpreted at 0.0"
-      )
-      0.0
-    }
-    val y = Option(
-      beamServices.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
-        .getAttribute(householdIdStr, "homecoordy")
-    ).map(_.toString.toDouble).getOrElse {
-      logger.error(
-        s"Cannot find homeCoordY for household $carrierId which will be interpreted at 0.0"
-      )
-      0.0
-    }
+    val householdId = freightReader.createHouseholdId(carrierId)
+    val houseHold = beamServices.matsimServices.getScenario.getHouseholds.getHouseholds.get(householdId)
+    val x = HouseholdUtils.getHouseholdAttribute(houseHold, "homecoordx").asInstanceOf[Double]
+    val y = HouseholdUtils.getHouseholdAttribute(houseHold, "homecoordy").asInstanceOf[Double]
     Location(x, y)
   }
 

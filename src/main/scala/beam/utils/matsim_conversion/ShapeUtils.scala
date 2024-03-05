@@ -3,7 +3,9 @@ package beam.utils.matsim_conversion
 import java.io._
 import java.util
 
-import com.vividsolutions.jts.geom.{Envelope, Geometry}
+import org.locationtech.jts.geom.{Envelope, Geometry}
+import org.geotools.geometry.jts.JTS
+import org.geotools.referencing.{AbstractIdentifiedObject, CRS}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 import org.matsim.core.utils.gis.ShapeFileReader
@@ -12,9 +14,14 @@ import org.supercsv.cellprocessor.constraint.{NotNull, UniqueHashCode}
 import org.supercsv.cellprocessor.ift.CellProcessor
 import org.supercsv.io._
 import org.supercsv.prefs.CsvPreference
-import scala.collection.JavaConverters._
 
+import scala.collection.JavaConverters._
 import beam.agentsim.infrastructure.taz.CsvTaz
+import com.typesafe.scalalogging.Logger
+import org.matsim.core.utils.geometry.geotools.MGC
+import org.opengis.referencing.crs.CoordinateReferenceSystem
+
+import scala.collection.immutable
 
 object ShapeUtils {
 
@@ -161,6 +168,35 @@ object ShapeUtils {
     ((1 to elems.length) zip elems map { case (index, elem) =>
       elem.copy(id = s"${id}_$index")
     }).toArray
+  }
+
+  def readShapeFileGeometries(
+    shpFile: String,
+    transformToCrs: Option[String] = None
+  ): (IndexedSeq[Geometry], Option[CoordinateReferenceSystem]) = {
+    val shapeFileReader: ShapeFileReader = new ShapeFileReader
+    shapeFileReader.readFileAndInitialize(shpFile)
+    val features: Seq[SimpleFeature] = shapeFileReader.getFeatureSet.asScala.toSeq
+    val srcCRS = Option(shapeFileReader.getCoordinateSystem)
+    val mathTransform = for {
+      sourceCRS <- srcCRS
+      crs       <- transformToCrs
+      targetCRS = MGC.getCRS(crs)
+      sameCRS = (sourceCRS, targetCRS) match {
+        case (x: AbstractIdentifiedObject, y: AbstractIdentifiedObject) => x.equals(y, false)
+        case _                                                          => false
+      }
+      transform = CRS.findMathTransform(sourceCRS, targetCRS) if !sameCRS
+    } yield transform
+    (
+      features
+        .map(_.getDefaultGeometry)
+        .collect { case geometry: Geometry =>
+          mathTransform.fold(geometry)(JTS.transform(geometry, _))
+        }
+        .toIndexedSeq,
+      srcCRS
+    )
   }
 
   def quadTreeBounds[A: HasQuadBounds](elements: Iterable[A]): QuadTreeBounds = {

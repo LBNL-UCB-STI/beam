@@ -4,7 +4,7 @@ import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent}
 import beam.sim.common.GeoUtils
 import beam.utils.EventReader
 import scripts.shape.{Attributes, ShapeWriter}
-import com.vividsolutions.jts.geom._
+import org.locationtech.jts.geom._
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Network
 import org.matsim.core.network.NetworkUtils

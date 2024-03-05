@@ -1,10 +1,12 @@
 package beam.utils.scenario
 
+import org.matsim.core.utils.misc.OptionalTime
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
 import java.nio.file.Paths
 import scala.util.Random
+import beam.utils.OptionalUtils.OptionalTimeExtension
 
 class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 
@@ -257,15 +259,47 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
         .toList
         .sortBy(p => (p.personId.id.toInt, p.planIndex, p.planElementIndex)) should be(
         Seq(
-          createActivityPlanElement("Home", 166321.9, 1568.87, 49500.0, "1", 0, -494.58068848294334),
+          createActivityPlanElement(
+            "Home",
+            166321.9,
+            1568.87,
+            OptionalTime.defined(49500.0),
+            "1",
+            0,
+            -494.58068848294334
+          ),
           createLegPlanElement("walk", "1", 1, -494.58068848294334),
-          createActivityPlanElement("Shopping", 167138.4, 1117.0, 56940.0, "1", 2, -494.58068848294334),
+          createActivityPlanElement(
+            "Shopping",
+            167138.4,
+            1117.0,
+            OptionalTime.defined(56940.0),
+            "1",
+            2,
+            -494.58068848294334
+          ),
           createLegPlanElement("walk", "1", 3, -494.58068848294334),
-          createActivityPlanElement("Home", 166321.9, 1568.87, 66621.0, "1", 4, -494.58068848294334),
+          createActivityPlanElement(
+            "Home",
+            166321.9,
+            1568.87,
+            OptionalTime.defined(66621.0),
+            "1",
+            4,
+            -494.58068848294334
+          ),
           createLegPlanElement("bike", "1", 5, -494.58068848294334),
-          createActivityPlanElement("Shopping", 166045.2, 2705.4, 71006.0, "1", 6, -494.58068848294334),
+          createActivityPlanElement(
+            "Shopping",
+            166045.2,
+            2705.4,
+            OptionalTime.defined(71006.0),
+            "1",
+            6,
+            -494.58068848294334
+          ),
           createLegPlanElement("car", "1", 7, -494.58068848294334),
-          createActivityPlanElement("Home", 166321.9, 1568.87, Double.NegativeInfinity, "1", 8, -494.58068848294334)
+          createActivityPlanElement("Home", 166321.9, 1568.87, OptionalTime.undefined(), "1", 8, -494.58068848294334)
         ).toList.sortBy(p => (p.personId.id.toInt, p.planIndex, p.planElementIndex))
       )
     }
@@ -345,7 +379,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
     activityType: String,
     x: Double,
     y: Double,
-    endTime: Double,
+    endTime: OptionalTime,
     personId: String,
     planElementIdx: Int,
     planScore: Double
@@ -360,7 +394,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
     Some(activityType),
     Some(x),
     Some(y),
-    Option(endTime),
+    endTime.toOption,
     None,
     None,
     None,
@@ -387,8 +421,8 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       None,
       None,
       Some(mode),
-      Some("-Infinity"),
-      Some("-Infinity"),
+      Some(OptionalTime.undefined().toString),
+      Some(OptionalTime.undefined().toString),
       None,
       None,
       None,

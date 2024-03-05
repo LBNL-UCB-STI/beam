@@ -2,7 +2,7 @@ package beam.physsim.cchRoutingAssignment
 
 import beam.sim.BeamServices
 import com.conveyal.osmlib.OSM
-import com.vividsolutions.jts.geom.Coordinate
+import org.locationtech.jts.geom.Coordinate
 
 import scala.collection.JavaConverters._
 

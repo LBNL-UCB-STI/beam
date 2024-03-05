@@ -7,7 +7,7 @@ import beam.{agentsim, sim}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.population.{Person, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
-import org.matsim.core.population.PersonUtils
+import org.matsim.core.population.{PersonUtils, PopulationUtils}
 import org.matsim.households.Household
 import java.util.Random
 import scala.collection.JavaConverters._
@@ -36,7 +36,7 @@ trait PopulationAdjustment extends LazyLogging {
 
     //Iterate over each person in the population
     population.getPersons.asScala.foreach { case (_, person) =>
-      val attributes = createAttributesOfIndividual(beamScenario, population, person, personHouseholds(person.getId))
+      val attributes = createAttributesOfIndividual(beamScenario, person, personHouseholds(person.getId))
       person.getCustomAttributes.put(PopulationAdjustment.BEAM_ATTRIBUTES, attributes)
     }
     population
@@ -69,10 +69,10 @@ trait PopulationAdjustment extends LazyLogging {
   protected[population] final def logModes(population: Population): Unit = {
     val persons = population.getPersons.asScala
 
-    val excludedModesPerPerson = persons.keys.toList
-      .flatMap { personId =>
+    val excludedModesPerPerson = persons.values.toList
+      .flatMap { person =>
         Option(
-          population.getPersonAttributes.getAttribute(personId.toString, PopulationAdjustment.EXCLUDED_MODES)
+          PopulationUtils.getPersonAttribute(person, PopulationAdjustment.EXCLUDED_MODES)
         )
       }
 
@@ -113,7 +113,7 @@ trait PopulationAdjustment extends LazyLogging {
     val availableModes = AvailableModeUtils.availableModesForPerson(person)
     if (!availableModes.exists(am => am.value.equalsIgnoreCase(mode))) {
       val newAvailableModes: Seq[String] = availableModes.map(_.value) :+ mode
-      AvailableModeUtils.setAvailableModesForPerson(person, population, newAvailableModes)
+      AvailableModeUtils.setAvailableModesForPerson(person, newAvailableModes)
     }
     population
   }
@@ -235,13 +235,11 @@ object PopulationAdjustment extends LazyLogging {
 
   def createAttributesOfIndividual(
     beamScenario: BeamScenario,
-    population: Population,
     person: Person,
     household: Household
   ): AttributesOfIndividual = {
-    val personAttributes = population.getPersonAttributes
     // Read excluded-modes set for the person and calculate the possible available modes for the person
-    val excludedModes = AvailableModeUtils.getExcludedModesForPerson(population, person.getId.toString)
+    val excludedModes = AvailableModeUtils.getExcludedModesForPerson(person)
     val initialAvailableModes: Seq[BeamMode] =
       if (person.getCustomAttributes.isEmpty) BeamMode.allModes
       else if (person.getCustomAttributes.containsKey("beam-attributes")) {
@@ -254,17 +252,16 @@ object PopulationAdjustment extends LazyLogging {
       excludedModes.exists(em => em.equalsIgnoreCase(mode.value))
     }
     val rideHailServiceSubscription = AvailableModeUtils.getAttributeAsArrayOfStrings(
-      population,
-      person.getId.toString,
+      person,
       PopulationAdjustment.RIDEHAIL_SERVICE_SUBSCRIPTION
     )
     // Read person attribute "income" and default it to 0 if not set
-    val income = Option(personAttributes.getAttribute(person.getId.toString, "income"))
+    val income = Option(PopulationUtils.getPersonAttribute(person, "income"))
       .map(_.asInstanceOf[Double])
       .getOrElse(0d)
     // Read person attribute "wheelchairUser" and default it to 0 if not set
     val wheelchairUser =
-      Option(personAttributes.getAttribute(person.getId.toString, "wheelchairUser")).exists(_.asInstanceOf[Boolean])
+      Option(PopulationUtils.getPersonAttribute(person, "wheelchairUser")).exists(_.asInstanceOf[Boolean])
     // Read person attribute "modalityStyle"
     val modalityStyle =
       Option(person.getSelectedPlan)
@@ -279,7 +276,7 @@ object PopulationAdjustment extends LazyLogging {
 
     // Read person attribute "valueOfTime", use function of HH income if not, and default it to the respective config value if neither is found
     val valueOfTime: Double =
-      Option(personAttributes.getAttribute(person.getId.toString, "valueOfTime"))
+      Option(PopulationUtils.getPersonAttribute(person, "valueOfTime"))
         .map(_.asInstanceOf[Double])
         .getOrElse(
           incomeToValueOfTime(
