@@ -1,7 +1,14 @@
 package beam.router.skim.urbansim
 
 import beam.agentsim.infrastructure.taz.TAZTreeMap
-import beam.router.skim.ActivitySimPathType.{DRV_COM_WLK, DRV_LOC_WLK, TNC_SINGLE, WLK_LOC_WLK, WLK_LRF_WLK}
+import beam.router.skim.ActivitySimPathType.{
+  DRV_COM_WLK,
+  DRV_LOC_WLK,
+  TNC_SHARED_TRANSIT,
+  TNC_SINGLE,
+  WLK_LOC_WLK,
+  WLK_LRF_WLK
+}
 import beam.router.skim.ActivitySimSkimmer.ExcerptData
 import omx.OmxFile
 import omx.OmxMatrix.OmxFloatMatrix
@@ -25,6 +32,30 @@ class ActivitySimOmxWriterSpec extends AnyWordSpecLike with Matchers {
           "AM",
           DRV_COM_WLK,
           "",
+          "100827",
+          "100413",
+          100,
+          90,
+          80,
+          70,
+          60,
+          50,
+          40,
+          30,
+          20,
+          10,
+          5,
+          4,
+          3,
+          2,
+          1,
+          1,
+          0
+        ),
+        ExcerptData(
+          "AM",
+          TNC_SHARED_TRANSIT,
+          "Cruise",
           "100827",
           "100413",
           100,

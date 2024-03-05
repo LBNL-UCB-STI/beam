@@ -298,7 +298,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       None
     } else {
       val individualSkims = timeBin.hours.flatMap { hour =>
-        getCurrentSkimValue(ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id))
+        getCurrentSkimValue(ActivitySimSkimmerKey(hour, pathType, origin.id, destination.id, maybeFleetName))
           .map(_.asInstanceOf[ActivitySimSkimmerInternal])
       }
       if (individualSkims.isEmpty) {

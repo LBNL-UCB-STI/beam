@@ -75,7 +75,7 @@ object ActivitySimPathType {
     }
   }
 
-  private def determineWalkTransitPathType(trip: EmbodiedBeamTrip): ActivitySimPathType = {
+  private def determineWalkTransitPathType(trip: EmbodiedBeamTrip): (ActivitySimPathType, Option[String]) = {
     //    WLK_COM_WLK, = commuter rail
     //    WLK_HVY_WLK, = heavy rail
     //    WLK_LOC_WLK, = local bus
@@ -83,15 +83,21 @@ object ActivitySimPathType {
 
     // so far not used:
     //    WLK_EXP_WLK, = express bus
+    val fleetName = if (trip.tripClassifier != WALK_TRANSIT) {
+      Some("ERROR")
+    } else {
+      None
+    }
 
     val (longestWalkTransitLeg, _) = tryGetLongestLegId(trip, isWalkTransit)
-    longestWalkTransitLeg.map(leg => leg.beamLeg.mode) match {
+    val mode = longestWalkTransitLeg.map(leg => leg.beamLeg.mode) match {
       case Some(BeamMode.FERRY) | Some(BeamMode.TRAM) | Some(BeamMode.CABLE_CAR) => WLK_LRF_WLK
       case Some(BeamMode.BUS)                                                    => WLK_LOC_WLK
       case Some(BeamMode.RAIL)                                                   => WLK_COM_WLK
       case Some(BeamMode.SUBWAY)                                                 => WLK_HVY_WLK
       case _                                                                     => OTHER
     }
+    (mode, fleetName)
   }
 
   private def determineBikeTransitPathType(trip: EmbodiedBeamTrip): ActivitySimPathType = {
@@ -114,12 +120,11 @@ object ActivitySimPathType {
     val uniqueNotWalkingModes: Set[BeamMode] = allMods.filter { mode =>
       isCar(mode) || isWalkTransit(mode)
     }
-
     if (uniqueNotWalkingModes.exists(isCar)) {
       determineCarPathTypeAndFleet(trip)
     } else if (uniqueNotWalkingModes.exists(isWalkTransit)) {
       if (uniqueNotWalkingModes.contains(BeamMode.BIKE)) { (determineBikeTransitPathType(trip), None) }
-      else { (determineWalkTransitPathType(trip), None) }
+      else { determineWalkTransitPathType(trip) }
     } else if (allMods.contains(BeamMode.BIKE) && allMods.size == 3) {
       (BIKE, None)
     } else if (allMods.contains(BeamMode.WALK) && allMods.size == 1) {

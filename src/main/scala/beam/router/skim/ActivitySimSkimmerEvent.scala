@@ -1,6 +1,7 @@
 package beam.router.skim
 
 import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.RIDE_HAIL_TRANSIT
 import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.ActivitySimPathType._
 import beam.router.skim.ActivitySimSkimmer.{ActivitySimSkimmerInternal, ActivitySimSkimmerKey}
@@ -98,6 +99,9 @@ case class ActivitySimSkimmerEvent(
     energyConsumption: Double
   ): (ActivitySimSkimmerKey, ActivitySimSkimmerInternal) = {
     val (pathType, fleet) = ActivitySimPathType.determineTripPathTypeAndFleet(trip)
+    if (walkTransitPathTypes.contains(pathType) & fleet.nonEmpty) {
+      logger.warn("Why are we missing a car leg in a TNC transit trip?")
+    }
     val beamLegs = trip.beamLegs
     val origLeg = beamLegs.head
     val timeBin = SkimsUtils.timeToBin(origLeg.startTime)
