@@ -59,7 +59,6 @@ class LinkStatsWithVehicleCategory(
         val aggregatedVolumes = aggregation.map { case (categoryGroup, _) =>
           categoryGroup.map(category => categoryToVolume(category)).sum
         }
-        val categoryVolumeSum = categoryToVolume.values.reduceOption(_ + _).getOrElse(0.0)
         val otherVolume = totalLinkData.get(linkId).map(_.getSumVolume(hour)).getOrElse(0.0)
         Seq(
           linkId,
@@ -84,8 +83,8 @@ class LinkStatsWithVehicleCategory(
     filePath: String
   ): Try[(Map[Id[Link], LinkData], Map[String, Map[Id[Link], LinkData]], Int)] = {
     val categoryMapping = IndexedSeq(
-      Seq("LightDutyTruck", "HeavyDutyTruck") -> "TruckVolume",
-      Seq("HeavyDutyTruck")                   -> "HDTruckVolume"
+      Seq("LightDutyTruck") -> "MediumDutyVolume",
+      Seq("HeavyDutyTruck") -> "HeadyDutyVolume"
     )
     val categories = categoryMapping.flatMap(_._1).distinct
     val (totalLinkData, linkData, nofHours) = calculateLinkData(volumesAnalyzer, travelTimeForR5, categories)
