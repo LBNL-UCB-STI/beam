@@ -10,37 +10,38 @@ plt.style.use('ggplot')
 meter_to_mile = 0.000621371
 mps_to_mph = 2.23694
 second_to_hours = 1 / 3600.0
-npmrds_road_type_lookup = {'1.0': 'Interstate',
-                           '2.0': 'Freeways and Expressways',
-                           '3.0': 'Principal Arterial',
-                           '4.0': 'Minor Arterial',
-                           '5.0': 'Major Collector',
-                           '6.0': 'Minor Collector',
-                           '7.0': 'Local'}
-modeled_road_type_lookup = {'motorway': npmrds_road_type_lookup['1.0'],
-                            'motorway_link': npmrds_road_type_lookup['2.0'],
-                            'trunk': npmrds_road_type_lookup['2.0'],
-                            'trunk_link': npmrds_road_type_lookup['3.0'],
-                            'primary': npmrds_road_type_lookup['3.0'],
-                            'primary_link': npmrds_road_type_lookup['4.0'],
-                            'secondary': npmrds_road_type_lookup['4.0'],
-                            'secondary_link': npmrds_road_type_lookup['5.0'],
-                            'tertiary': npmrds_road_type_lookup['5.0'],
-                            'tertiary_link': npmrds_road_type_lookup['6.0'],
-                            'unclassified': npmrds_road_type_lookup['6.0'],
-                            'residential': npmrds_road_type_lookup['7.0'],
-                            'track': npmrds_road_type_lookup['7.0'],
-                            'footway': npmrds_road_type_lookup['7.0'],
-                            'path': npmrds_road_type_lookup['7.0'],
-                            'pedestrian': npmrds_road_type_lookup['7.0'],
-                            'cycleway': npmrds_road_type_lookup['7.0'],
-                            'steps': npmrds_road_type_lookup['7.0'],
-                            'living_street': npmrds_road_type_lookup['7.0'],
-                            'bus_stop': npmrds_road_type_lookup['7.0'],
-                            'corridor': npmrds_road_type_lookup['7.0'],
-                            'road': npmrds_road_type_lookup['7.0'],
-                            'bridleway': npmrds_road_type_lookup['7.0'],
-                            np.nan: npmrds_road_type_lookup['7.0']}
+fsystem_to_roadclass_lookup = {1.0: 'Interstate',
+                               2.0: 'Freeways and Expressways',
+                               3.0: 'Principal Arterial',
+                               4.0: 'Minor Arterial',
+                               5.0: 'Major Collector',
+                               6.0: 'Minor Collector',
+                               7.0: 'Local'}
+roadclass_to_fsystem_lookup = {value: key for key, value in fsystem_to_roadclass_lookup.items()}
+beam_to_roadclass_lookup = {'motorway': fsystem_to_roadclass_lookup[1.0],
+                            'motorway_link': fsystem_to_roadclass_lookup[2.0],
+                            'trunk': fsystem_to_roadclass_lookup[2.0],
+                            'trunk_link': fsystem_to_roadclass_lookup[2.0],
+                            'primary': fsystem_to_roadclass_lookup[3.0],
+                            'primary_link': fsystem_to_roadclass_lookup[4.0],
+                            'secondary': fsystem_to_roadclass_lookup[4.0],
+                            'secondary_link': fsystem_to_roadclass_lookup[5.0],
+                            'tertiary': fsystem_to_roadclass_lookup[5.0],
+                            'tertiary_link': fsystem_to_roadclass_lookup[6.0],
+                            'unclassified': fsystem_to_roadclass_lookup[6.0],
+                            'residential': fsystem_to_roadclass_lookup[7.0],
+                            'track': fsystem_to_roadclass_lookup[7.0],
+                            'footway': fsystem_to_roadclass_lookup[7.0],
+                            'path': fsystem_to_roadclass_lookup[7.0],
+                            'pedestrian': fsystem_to_roadclass_lookup[7.0],
+                            'cycleway': fsystem_to_roadclass_lookup[7.0],
+                            'steps': fsystem_to_roadclass_lookup[7.0],
+                            'living_street': fsystem_to_roadclass_lookup[7.0],
+                            'bus_stop': fsystem_to_roadclass_lookup[7.0],
+                            'corridor': fsystem_to_roadclass_lookup[7.0],
+                            'road': fsystem_to_roadclass_lookup[7.0],
+                            'bridleway': fsystem_to_roadclass_lookup[7.0],
+                            np.nan: fsystem_to_roadclass_lookup[7.0]}
 
 
 def calculate_metrics(group):
@@ -63,7 +64,7 @@ def calculate_metrics(group):
     })
 
 
-def agg_npmrds_to_hourly_speed(npmrds_data):
+def agg_npmrds_to_hourly_speed(npmrds_data, observed_speed_weight):
     npmrds_data = npmrds_data.copy()
     npmrds_data.loc[:, 'formatted_time'] = pd.to_datetime(npmrds_data.loc[:, 'measurement_tstamp'],
                                                           format="%Y-%m-%d %H:%M:%S")
@@ -73,8 +74,11 @@ def agg_npmrds_to_hourly_speed(npmrds_data):
 
     # 0: Monday => 6: Sunday
     npmrds_data = npmrds_data.loc[npmrds_data['weekday'] < 5]
+    alpha = observed_speed_weight
+    beta = 1 - observed_speed_weight
+    npmrds_data['w_speed'] = (npmrds_data['speed'] * alpha + npmrds_data['average_speed'] * beta) / (alpha + beta)
 
-    npmrds_data_hourly = npmrds_data.groupby(['tmc_code', 'hour', 'scenario'])[['speed']].mean()
+    npmrds_data_hourly = npmrds_data.groupby(['tmc_code', 'hour', 'scenario'])[['w_speed']].mean()
     npmrds_data_hourly = npmrds_data_hourly.reset_index()
     npmrds_data_hourly.columns = ['tmc', 'hour', 'scenario', 'speed']
     return npmrds_data_hourly
@@ -92,7 +96,7 @@ def process_and_extend_link_stats(model_network, link_stats_paths_and_labels_lis
 
         df['scenario'] = scenario
         link_stats_24h = df[(df['hour'] >= 0) & (df['hour'] < 24)]
-        link_stats_tmc = pd.merge(link_stats_24h, model_network[['tmc', 'link', 'road_class']],
+        link_stats_tmc = pd.merge(link_stats_24h, model_network[['tmc', 'link', 'road_class', 'npmrds_road_class']],
                                   on=['link'], how='inner')
         link_stats_tmc.rename(columns={'Tmc': 'tmc'}, inplace=True)
 
@@ -103,7 +107,7 @@ def process_and_extend_link_stats(model_network, link_stats_paths_and_labels_lis
                     link_stats_tmc.loc[:, 'TruckVolume'] * demand_scaling)
         link_stats_tmc_filtered = link_stats_tmc[
             ['link', 'hour', 'length', 'freespeed', 'capacity', 'volume', 'traveltime', 'road_class', 'tmc',
-             'scenario']]
+             'scenario', 'npmrds_road_class']]
         dfs.append(link_stats_tmc_filtered)
     return dfs
 
@@ -115,19 +119,36 @@ def map_nearest_links(df1, df2, projected_crs_epsg, distance_buffer):
 
     results = []
 
+    df1.loc[:, 'road_class'] = df1.loc[:, 'attributeOrigType'].map(beam_to_roadclass_lookup)
+    df1.loc[:, 'F_System'] = df1.loc[:, 'road_class'].map(roadclass_to_fsystem_lookup)
+    df2.loc[:, 'road_class'] = df2.loc[:, 'F_System'].map(fsystem_to_roadclass_lookup)
     # Prepare a spatial index on the second DataFrame for efficient querying
     sindex_df2 = df2.sindex
     matched_df2_indices = set()
     for index1, row1 in df1.iterrows():
         # Find the indices of the geometries in df2 that are within max_distance meters of the current geometry in df1
-        possible_matches_index = list(sindex_df2.query(row1.geometry.buffer(distance_buffer), predicate="intersects"))
+        possible_matches_index = list(
+            sindex_df2.query(row1.geometry.buffer(distance_buffer), predicate="intersects"))
         possible_matches_index_filtered = [idx for idx in possible_matches_index if idx not in matched_df2_indices]
         if len(possible_matches_index_filtered) == 0:
             continue
         possible_matches = df2.iloc[possible_matches_index_filtered]
+        possible_matches_filtered = possible_matches[possible_matches['F_System'] == row1['F_System']]
+        if len(possible_matches_filtered) == 0:
+            possible_matches_filtered = possible_matches[
+                (possible_matches['F_System'] == (row1['F_System'] + 1)) |
+                (possible_matches['F_System'] == (row1['F_System'] - 1))
+                ]
+        if len(possible_matches_filtered) == 0:
+            possible_matches_filtered = possible_matches[
+                (possible_matches['F_System'] == (row1['F_System'] + 2)) |
+                (possible_matches['F_System'] == (row1['F_System'] - 2))
+                ]
+        if len(possible_matches_filtered) == 0:
+            possible_matches_filtered = possible_matches
 
         # Calculate and filter distances
-        distances = possible_matches.distance(row1.geometry)
+        distances = possible_matches_filtered.distance(row1.geometry)
         close_matches = distances[distances <= distance_buffer]
 
         if not close_matches.empty:
@@ -144,14 +165,14 @@ def map_nearest_links(df1, df2, projected_crs_epsg, distance_buffer):
 
     # Convert indices in results_gdf to the original indices in df1 and df2
     # results_gdf = results_gdf.set_index('df1_index').join(df1.drop(columns='geometry'), rsuffix='_df1')
-    df1.loc[:, 'road_class'] = df1.loc[:, 'attributeOrigType'].map(modeled_road_type_lookup)
     df1 = df1[['linkId', 'road_class', 'geometry']]
     df1.rename(columns={'linkId': 'link'}, inplace=True)
     results_gdf = results_gdf.set_index('df1_index').join(df1, rsuffix='_df1')
-    df2 = df2[["Tmc", "NAME", "AADT", "AADT_Singl", "AADT_Combi", "Zip", "Miles", "F_System", "GEOID", "COUNTYNS",
+
+    df2 = df2[["Tmc", "NAME", "AADT", "AADT_Singl", "AADT_Combi", "Zip", "Miles", "GEOID", "COUNTYNS", "road_class",
                "scenario"]]  # dropping geometry
     df2.rename(columns={'df1_index': 'index', 'Tmc': 'tmc', 'Zip': 'npmrds_zip', 'Miles': 'npmrds_length_mile',
-                        'F_System': 'npmrds_road_class', "AADT_Singl": 'npmrds_aadt_class_4_6',
+                        'road_class': 'npmrds_road_class', "AADT_Singl": 'npmrds_aadt_class_4_6',
                         "AADT_Combi": 'npmrds_aadt_class_7_8', "AADT": 'npmrds_aadt', "GEOID": "npmrds_fips",
                         "COUNTYNS": "npmrds_ansi", "NAME": "npmrds_name"}, inplace=True)
     results_gdf = results_gdf.reset_index().set_index('df2_index').join(df2, rsuffix='_df2')
@@ -251,7 +272,8 @@ def collect_county_boundaries(state, fips_code, year, region_boundary_geo_path_o
 def prepare_npmrds_data(region_boundary, npmrds_geo_input, npmrds_data_csv_input, npmrds_label, distance_buffer_m,
                         beam_network_csv_input, projected_crs_epsg, regional_npmrds_station_output,
                         regional_npmrds_data_output, npmrds_hourly_speed_output, beam_network_car_links_geo_output,
-                        beam_npmrds_network_map_geo_output, npmrds_hourly_speed_by_road_class_output):
+                        beam_npmrds_network_map_geo_output, npmrds_hourly_speed_by_road_class_output,
+                        npmrds_observed_speed_weight):
     print("Process NPMRDS station geographic data file")
     regional_npmrds_station = process_regional_npmrds_station(region_boundary, npmrds_geo_input, npmrds_label)
 
@@ -264,7 +286,7 @@ def prepare_npmrds_data(region_boundary, npmrds_geo_input, npmrds_data_csv_input
     regional_npmrds_data.to_csv(regional_npmrds_data_output, index=False)
 
     print("Aggregate NPMRDS to hourly speed")
-    npmrds_hourly_speed = agg_npmrds_to_hourly_speed(regional_npmrds_data)
+    npmrds_hourly_speed = agg_npmrds_to_hourly_speed(regional_npmrds_data, npmrds_observed_speed_weight)
     npmrds_hourly_speed.to_csv(npmrds_hourly_speed_output, index=False)
 
     print("Get unique TMC codes with data")
@@ -286,8 +308,9 @@ def prepare_npmrds_data(region_boundary, npmrds_geo_input, npmrds_data_csv_input
     beam_npmrds_network_map.to_file(beam_npmrds_network_map_geo_output, driver='GeoJSON')
 
     print("Merging NPMRDS hourly speed and BEAM NPMRDS Network")
-    df_filtered = beam_npmrds_network_map[['tmc', 'road_class']]
+    df_filtered = beam_npmrds_network_map[['tmc', 'npmrds_road_class']]
     npmrds_hourly_speed_road_class = pd.merge(npmrds_hourly_speed, df_filtered, on=['tmc'], how='inner')
+    npmrds_hourly_speed_road_class.rename(columns={'npmrds_road_class': 'road_class'}, inplace=True)
     npmrds_hourly_speed_road_class.to_csv(npmrds_hourly_speed_by_road_class_output, index=False)
 
     return regional_npmrds_station, regional_npmrds_data, beam_npmrds_network_map, npmrds_hourly_speed_road_class

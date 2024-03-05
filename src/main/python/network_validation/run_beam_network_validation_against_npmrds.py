@@ -61,6 +61,8 @@ plt.ylim([0, 70])
 plt.savefig(plots_dir + '/beam_npmrds_network_speed_road_class_validation.png', dpi=200)
 plt.show(block=False)
 
+hourly_speed_by_road_class.to_csv(output_dir + '/beam_npmrds_network_speed_road_class_validation.csv', index=False)
+
 # ######################################
 # ########## Link-level speed validation
 # ######################################
@@ -78,7 +80,8 @@ hourly_link_speed_by_road_class = setup.get_hourly_link_speed_by_road_class()
 
 # Plot hourly link speed by road class
 plt.figure()
-g = sns.relplot(x='hour', y='speed', hue='road_class', col='scenario', kind="line",
+road_class_order = list(fsystem_to_roadclass_lookup.values())
+g = sns.relplot(x='hour', y='speed', hue='road_class', col='scenario', kind="line", hue_order=road_class_order,
                 data=hourly_link_speed_by_road_class,
                 errorbar=('ci', 95), facet_kws={'sharey': True, 'sharex': True})
 g.set_titles("{col_name}")
@@ -90,5 +93,7 @@ plt.subplots_adjust(top=0.85)
 plt.ylim([0, 70])
 plt.savefig(plots_dir + '/beam_npmrds_link_speed_road_class_validation.png', dpi=200)
 plt.show(block=False)
+
+hourly_link_speed_by_road_class.to_csv(output_dir + '/beam_npmrds_link_speed_road_class_validation.csv', index=False)
 
 print("END")

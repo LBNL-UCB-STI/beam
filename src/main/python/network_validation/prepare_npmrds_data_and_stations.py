@@ -57,7 +57,8 @@ regional_npmrds_station, _, beam_npmrds_network_map, _ = prepare_npmrds_data(
     npmrds_hourly_speed_output=npmrds_hourly_speed_input,
     beam_network_car_links_geo_output=beam_network_car_links_geo_input,
     beam_npmrds_network_map_geo_output=beam_npmrds_network_map_geo_input,
-    npmrds_hourly_speed_by_road_class_output=npmrds_hourly_speed_by_road_class_input)
+    npmrds_hourly_speed_by_road_class_output=npmrds_hourly_speed_by_road_class_input,
+    npmrds_observed_speed_weight=0.5)
 
 # ########## Checking Network
 print("Plotting region boundaries and stations")

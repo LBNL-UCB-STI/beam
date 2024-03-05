@@ -30,8 +30,21 @@ isCav <- function(x) {
 
 ### RouteE
 
-work_folder <- normalizePath("~/Workspace/Data/Scenarios/SFBay/")
+work_folder <- normalizePath("~/Workspace/Data/Scenarios/sfbay/")
+library(sf)
+geojson_file_path <- pp(work_folder, "/input/beam_npmrds_network_map.geojson")
+geo_data <- st_read(geojson_file_path)
+library(data.table)
+geo_data_dt <- as.data.table(geo_data)
+
+ggplot(geo_data_dt, aes(x = F_System)) + 
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+  theme_minimal() 
+
+
 linkstats <- readCsv(pp(work_folder, "/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/10.linkstats.csv.gz"))
+network <- readCsv(pp(work_folder, "/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/network.csv.gz"))
+
 network <- readCsv(pp(work_folder, "/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/network.csv.gz"))
 
 ## test
