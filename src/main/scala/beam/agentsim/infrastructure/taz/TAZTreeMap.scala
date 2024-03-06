@@ -51,12 +51,12 @@ class TAZTreeMap(
   private val unmatchedLinkIds: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
   lazy val tazListContainsGeoms: Boolean = tazQuadTree.values().asScala.headOption.exists(_.geometry.isDefined)
   private val failedLinkLookups: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
-  private val zoneOrdering = maybeZoneOrdering.getOrElse(tazQuadTree.values().asScala.map(_.tazId))
 
-  val orderedTazIds: Seq[String] = {
+  private lazy val sortedTazIds: Seq[String] = {
     val tazIds = tazQuadTree.values().asScala.map(_.tazId.toString).toSeq
     SortingUtil.sortAsIntegers(tazIds).getOrElse(tazIds.sorted)
   }
+  val orderedTazIds: Seq[String] = maybeZoneOrdering.map(order => order.map(_.toString)).getOrElse(sortedTazIds)
 
   def getTAZfromLink(linkId: Id[Link]): Option[TAZ] = {
     linkIdToTAZMapping.get(linkId) match {
@@ -69,10 +69,6 @@ class TAZTreeMap(
 
   def getTAZs: Iterable[TAZ] = {
     tazQuadTree.values().asScala
-  }
-
-  def getOrderedTazIds: Seq[String] = {
-    zoneOrdering.map(_.toString).toSeq
   }
 
   for (taz: TAZ <- tazQuadTree.values().asScala) {
