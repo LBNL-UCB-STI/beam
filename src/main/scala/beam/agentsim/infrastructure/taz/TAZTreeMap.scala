@@ -135,7 +135,7 @@ class TAZTreeMap(
           writer.write(count.toString)
           writer.write(System.lineSeparator())
         } catch {
-          case e: Throwable => logger.warn(s"Error: ${e.getMessage}. Could not write link $linkId")
+          case e: Throwable => logger.error(s"${e.getMessage}. Could not write link $linkId")
         }
 
       }

@@ -176,7 +176,7 @@ class HouseholdFleetManager(
             .flatMap { case (vehicleId, _) => availableVehicles.find(_.id == vehicleId) }
             .headOption
         case Some(requireVehicleCategory) =>
-          availableVehicles.find(veh => (veh.beamVehicleType.vehicleCategory == requireVehicleCategory))
+          availableVehicles.find(_.beamVehicleType.vehicleCategory == requireVehicleCategory)
         case _ => availableVehicles.headOption
       }
 

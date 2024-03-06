@@ -23,6 +23,7 @@ object ActivitySimOmxWriter {
     skimData: Iterator[ExcerptData],
     geoUnits: Seq[String]
   ): Try[Unit] = Try {
+    HDF5Loader.prepareHdf5Library()
     val pathTypeToMatrixData: Map[ActivitySimPathType, MatrixData] = (
       for {
         data     <- activitySimMatrixData
@@ -30,21 +31,12 @@ object ActivitySimOmxWriter {
         limitedData = data.copy(metrics = data.metrics & ExcerptData.supportedActivitySimMetric)
       } yield pathType -> limitedData
     ).toMap
-    HDF5Loader.prepareHdf5Library()
     FileUtils.using(
       new OmxFile(filePath)
     ) { omxFile =>
       val shape: Array[Int] = Array.fill(geoUnits.size)(geoUnits.size)
       omxFile.openNew(shape)
       val geoUnitMapping = geoUnits.zipWithIndex.toMap
-
-      val pathTypeToMatrixData: Map[ActivitySimPathType, MatrixData] = (
-        for {
-          data     <- activitySimMatrixData
-          pathType <- data.pathTypes
-          limitedData = data.copy(metrics = data.metrics & ExcerptData.supportedActivitySimMetric)
-        } yield pathType -> limitedData
-      ).toMap
 
       val allMatrices = mutable.Map.empty[String, OmxMatrix.OmxFloatMatrix]
       for {

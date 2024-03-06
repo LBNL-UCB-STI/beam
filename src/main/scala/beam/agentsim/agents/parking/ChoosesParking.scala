@@ -26,6 +26,7 @@ import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.skim.core.ParkingSkimmer.ChargerType
 import beam.router.skim.event.{FreightSkimmerEvent, ParkingSkimmerEvent}
 import beam.sim.common.GeoUtils
+import beam.utils.DateUtils
 import beam.utils.logging.pattern.ask
 import beam.utils.MeasureUnitConversion._
 import org.matsim.api.core.v01.Id
@@ -164,19 +165,18 @@ object ChoosesParking {
 trait ChoosesParking extends {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
-  var latestParkingInquiry: Option[ParkingInquiry] = None
+  protected lazy val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamServices.beamConfig)
 
   private def buildParkingInquiry(data: BasePersonData): ParkingInquiry = {
     val firstLeg = data.restOfCurrentTrip.head
     val vehicleTrip = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)
     val lastLeg = vehicleTrip.last.beamLeg
-
     val activityType = nextActivity(data).get.getType
     val remainingTripData = calculateRemainingTripData(data)
     val parkingDuration = (_currentTick, nextActivity(data)) match {
       case (Some(tick), Some(act)) => act.getEndTime.orElse(0.0) - tick
       case (None, Some(act))       => act.getEndTime.orElse(0.0) - lastLeg.endTime
-      case (Some(tick), None)      => 3600 * 24 - tick // TODO: FIX THIS HACK
+      case (Some(tick), None)      => endOfSimulationTime - tick
       case _                       => 0.0
     }
     val destinationUtm = SpaceTime(beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), lastLeg.endTime)
