@@ -3316,7 +3316,6 @@ object BeamConfig {
         }
 
         case class Cacc(
-          adjustedMinimumRoadSpeedInMetersPerSecond: scala.Double,
           capacityPlansWriteInterval: scala.Int,
           enabled: scala.Boolean,
           minRoadCapacity: scala.Int,
@@ -3328,10 +3327,6 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Jdeqsim.Cacc = {
             BeamConfig.Beam.Physsim.Jdeqsim.Cacc(
-              adjustedMinimumRoadSpeedInMetersPerSecond =
-                if (c.hasPathOrNull("adjustedMinimumRoadSpeedInMetersPerSecond"))
-                  c.getDouble("adjustedMinimumRoadSpeedInMetersPerSecond")
-                else 1.3,
               capacityPlansWriteInterval =
                 if (c.hasPathOrNull("capacityPlansWriteInterval")) c.getInt("capacityPlansWriteInterval") else 0,
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
