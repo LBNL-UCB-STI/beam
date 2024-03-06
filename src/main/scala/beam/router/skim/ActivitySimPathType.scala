@@ -61,7 +61,7 @@ object ActivitySimPathType {
     }
   }
 
-  private def determineTransitPathType(trip: EmbodiedBeamTrip): ActivitySimPathType = {
+  private def determineWalkTransitPathType(trip: EmbodiedBeamTrip): ActivitySimPathType = {
     //    WLK_COM_WLK, = commuter rail
     //    WLK_HVY_WLK, = heavy rail
     //    WLK_LOC_WLK, = local bus
@@ -81,6 +81,13 @@ object ActivitySimPathType {
     }
   }
 
+  private def determineBikeTransitPathType(trip: EmbodiedBeamTrip): ActivitySimPathType = {
+    // Right now we don't have bike transit in activitysim, so just return OTHER so it doesn't mess up walk transit skims
+    trip.tripClassifier match {
+      case _ => OTHER
+    }
+  }
+
   def determineTripPathType(trip: EmbodiedBeamTrip): ActivitySimPathType = {
     val allMods = trip.legs.map(_.beamLeg.mode).toSet
     val uniqueNotWalkingModes: Set[BeamMode] = allMods.filter { mode =>
@@ -94,7 +101,10 @@ object ActivitySimPathType {
         determineCarPathType()
       }
     } else if (uniqueNotWalkingModes.exists(isWalkTransit)) {
-      determineTransitPathType(trip)
+      if (uniqueNotWalkingModes.contains(BeamMode.BIKE)) { determineBikeTransitPathType(trip) }
+      else { determineWalkTransitPathType(trip) }
+    } else if (allMods.contains(BeamMode.BIKE) && allMods.size == 3) {
+      BIKE
     } else if (allMods.contains(BeamMode.WALK) && allMods.size == 1) {
       WALK
     } else {
@@ -126,29 +136,30 @@ object ActivitySimPathType {
       case WLK_LOC_WLK  => BeamMode.WALK_TRANSIT
       case WLK_LRF_WLK  => BeamMode.WALK_TRANSIT
       case WLK_TRN_WLK  => BeamMode.WALK_TRANSIT
+      case BIKE         => BeamMode.BIKE
       case WALK | OTHER => BeamMode.WALK
     }
   }
 
-  def toKeyMode(pathType: ActivitySimPathType): Option[BeamMode] = {
+  def toKeyMode(pathType: ActivitySimPathType): Set[BeamMode] = {
     pathType match {
-      case DRV_COM_WLK => Some(BeamMode.RAIL)
-      case DRV_EXP_WLK => Some(BeamMode.BUS)
-      case DRV_HVY_WLK => Some(BeamMode.SUBWAY)
-      case DRV_LOC_WLK => Some(BeamMode.BUS)
-      case DRV_LRF_WLK => Some(BeamMode.TRAM)
-      case WLK_COM_DRV => Some(BeamMode.RAIL)
-      case WLK_EXP_DRV => Some(BeamMode.BUS)
-      case WLK_HVY_DRV => Some(BeamMode.SUBWAY)
-      case WLK_LOC_DRV => Some(BeamMode.BUS)
-      case WLK_LRF_DRV => Some(BeamMode.TRAM)
-      case WLK_COM_WLK => Some(BeamMode.RAIL)
-      case WLK_EXP_WLK => Some(BeamMode.BUS)
-      case WLK_HVY_WLK => Some(BeamMode.SUBWAY)
-      case WLK_LOC_WLK => Some(BeamMode.BUS)
-      case WLK_LRF_WLK => Some(BeamMode.TRAM)
-      case WLK_TRN_WLK => Some(BeamMode.RAIL)
-      case _           => None
+      case DRV_COM_WLK => Set(BeamMode.RAIL)
+      case DRV_EXP_WLK => Set(BeamMode.BUS)
+      case DRV_HVY_WLK => Set(BeamMode.SUBWAY)
+      case DRV_LOC_WLK => Set(BeamMode.BUS)
+      case DRV_LRF_WLK => Set(BeamMode.TRAM, BeamMode.CABLE_CAR)
+      case WLK_COM_DRV => Set(BeamMode.RAIL)
+      case WLK_EXP_DRV => Set(BeamMode.BUS)
+      case WLK_HVY_DRV => Set(BeamMode.SUBWAY)
+      case WLK_LOC_DRV => Set(BeamMode.BUS)
+      case WLK_LRF_DRV => Set(BeamMode.TRAM, BeamMode.CABLE_CAR)
+      case WLK_COM_WLK => Set(BeamMode.RAIL)
+      case WLK_EXP_WLK => Set(BeamMode.BUS)
+      case WLK_HVY_WLK => Set(BeamMode.SUBWAY)
+      case WLK_LOC_WLK => Set(BeamMode.BUS)
+      case WLK_LRF_WLK => Set(BeamMode.TRAM, BeamMode.CABLE_CAR)
+      case WLK_TRN_WLK => Set.empty[BeamMode]
+      case _           => Set.empty[BeamMode]
     }
   }
 
@@ -159,6 +170,7 @@ object ActivitySimPathType {
     val currentActivityType = currentActivity.getType.toLowerCase()
     currentMode match {
       case Some(BeamMode.WALK) => Seq(ActivitySimPathType.WALK)
+      case Some(BeamMode.BIKE) => Seq(ActivitySimPathType.BIKE)
       case Some(BeamMode.CAR)  =>
         // Note: Attempt to future-proof this in case there are some routes that can only be accomplished by HOVs.
         // The reverse shouldn't ever be the case, where a route cant be accomplished by HOVs
@@ -220,7 +232,29 @@ object ActivitySimPathType {
     WLK_HVY_WLK,
     WLK_EXP_WLK,
     WLK_LOC_WLK,
-    WLK_LRF_WLK
+    WLK_LRF_WLK,
+    WLK_LOC_DRV,
+    WLK_HVY_DRV,
+    WLK_COM_DRV,
+    WLK_LRF_DRV,
+    WLK_EXP_DRV
+  )
+
+  val transitPathTypes: Seq[ActivitySimPathType] = Seq(
+    WLK_COM_WLK,
+    WLK_HVY_WLK,
+    WLK_EXP_WLK,
+    WLK_LOC_WLK,
+    WLK_LRF_WLK,
+    DRV_COM_WLK,
+    DRV_HVY_WLK,
+    DRV_LOC_WLK,
+    DRV_LRF_WLK,
+    DRV_LOC_WLK,
+    DRV_HVY_WLK,
+    DRV_COM_WLK,
+    DRV_LRF_WLK,
+    DRV_EXP_WLK
   )
 
   val allPathTypes: Seq[ActivitySimPathType] = Seq(
@@ -249,10 +283,13 @@ object ActivitySimPathType {
     WLK_LRF_WLK,
     // UPDATE: TRN is a catch-all for all walk-transit trips
     WLK_TRN_WLK,
-    WALK
+    WALK,
+    BIKE
   )
 
   def isWalkTransit(pathType: ActivitySimPathType): Boolean = walkTransitPathTypes.contains(pathType)
+
+  def isTransit(pathType: ActivitySimPathType): Boolean = transitPathTypes.contains(pathType)
 
   val allPathTypesMap: Map[String, ActivitySimPathType] =
     allPathTypes.map(x => x.toString -> x).toMap
@@ -319,6 +356,8 @@ object ActivitySimPathType {
   case object WLK_LRF_WLK extends ActivitySimPathType
   case object WLK_TRN_WLK extends ActivitySimPathType
   case object WALK extends ActivitySimPathType
+
+  case object BIKE extends ActivitySimPathType
 
   case object OTHER extends ActivitySimPathType
 }

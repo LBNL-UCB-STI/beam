@@ -23,6 +23,13 @@ object ActivitySimOmxWriter {
     skimData: Iterator[ExcerptData],
     geoUnits: Seq[String]
   ): Try[Unit] = Try {
+    val pathTypeToMatrixData: Map[ActivitySimPathType, MatrixData] = (
+      for {
+        data     <- activitySimMatrixData
+        pathType <- data.pathTypes
+        limitedData = data.copy(metrics = data.metrics & ExcerptData.supportedActivitySimMetric)
+      } yield pathType -> limitedData
+    ).toMap
     HDF5Loader.prepareHdf5Library()
     FileUtils.using(
       new OmxFile(filePath)
@@ -117,6 +124,11 @@ object ActivitySimOmxWriter {
       Set(HOV2TOLL, HOV3TOLL, SOVTOLL),
       ActivitySimTimeBin.values.toSet,
       Set(BTOLL, VTOLL, TIME, DIST)
+    ),
+    MatrixData(
+      Set(BIKE),
+      ActivitySimTimeBin.values.toSet,
+      Set(TIME, DIST)
     ),
     MatrixData(Set(HOV2, HOV3, SOV), ActivitySimTimeBin.values.toSet, Set(BTOLL, TIME, DIST, TRIPS, FAILURES)),
     MatrixData(

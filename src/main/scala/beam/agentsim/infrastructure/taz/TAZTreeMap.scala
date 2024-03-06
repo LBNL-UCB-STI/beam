@@ -34,8 +34,11 @@ import scala.collection.mutable
   *                 by avoiding unnecessary queries). The caching mechanism is however still useful for debugging and as a quickfix/confirmation if TAZ quadtree queries
   *                 suddenly increase due to code change.
   */
-class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
-    extends BasicEventHandler
+class TAZTreeMap(
+  val tazQuadTree: QuadTree[TAZ],
+  val useCache: Boolean = false,
+  private val maybeZoneOrdering: Option[Seq[Id[TAZ]]] = None
+) extends BasicEventHandler
     with IterationEndsListener {
 
   private val stringIdToTAZMapping: mutable.HashMap[String, TAZ] = mutable.HashMap()
@@ -48,6 +51,7 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
   private val unmatchedLinkIds: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
   lazy val tazListContainsGeoms: Boolean = tazQuadTree.values().asScala.headOption.exists(_.geometry.isDefined)
   private val failedLinkLookups: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
+  private val zoneOrdering = maybeZoneOrdering.getOrElse(tazQuadTree.values().asScala.map(_.tazId))
 
   val orderedTazIds: Seq[String] = {
     val tazIds = tazQuadTree.values().asScala.map(_.tazId.toString).toSeq
@@ -65,6 +69,10 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
 
   def getTAZs: Iterable[TAZ] = {
     tazQuadTree.values().asScala
+  }
+
+  def getOrderedTazIds: Seq[String] = {
+    zoneOrdering.map(_.toString).toSeq
   }
 
   for (taz: TAZ <- tazQuadTree.values().asScala) {
@@ -121,10 +129,15 @@ class TAZTreeMap(val tazQuadTree: QuadTree[TAZ], val useCache: Boolean = false)
       writer.write("linkId,count")
       writer.write(System.lineSeparator())
       failedLinkLookups.toList.groupBy(identity).mapValues(_.size).foreach { case (linkId, count) =>
-        writer.write(Option(linkId).mkString)
-        writer.write(",")
-        writer.write(count.toString)
-        writer.write(System.lineSeparator())
+        try {
+          writer.write(Option(linkId).mkString)
+          writer.write(",")
+          writer.write(count.toString)
+          writer.write(System.lineSeparator())
+        } catch {
+          case e: Throwable => logger.warn(s"Error: ${e.getMessage}. Could not write link $linkId")
+        }
+
       }
       writer.flush()
       writer.close()
@@ -203,17 +216,19 @@ object TAZTreeMap {
   private val mapBoundingBoxBufferMeters: Double = 2e4 // Some links also extend beyond the convex hull of the TAZs
 
   def fromShapeFile(shapeFilePath: String, tazIDFieldName: String): TAZTreeMap = {
-    new TAZTreeMap(initQuadTreeFromShapeFile(shapeFilePath, tazIDFieldName))
+    val (quadTree, mapping) = initQuadTreeFromShapeFile(shapeFilePath, tazIDFieldName)
+    new TAZTreeMap(quadTree, maybeZoneOrdering = Some(mapping))
   }
 
   private def initQuadTreeFromShapeFile(
     shapeFilePath: String,
     tazIDFieldName: String
-  ): QuadTree[TAZ] = {
+  ): (QuadTree[TAZ], Seq[Id[TAZ]]) = {
     val shapeFileReader: ShapeFileReader = new ShapeFileReader
     shapeFileReader.readFileAndInitialize(shapeFilePath)
     val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
     val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromShapeFile(features)
+    val mapping = features.asScala.map(x => Id.create(x.getAttribute(tazIDFieldName).toString, classOf[TAZ])).toSeq
 
     val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
       quadTreeBounds.minx - mapBoundingBoxBufferMeters,
@@ -234,7 +249,7 @@ object TAZTreeMap {
           tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
       }
     }
-    tazQuadTree
+    (tazQuadTree, mapping)
   }
 
   private def quadTreeExtentFromShapeFile(

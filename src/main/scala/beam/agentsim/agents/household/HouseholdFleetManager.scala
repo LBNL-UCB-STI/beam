@@ -153,8 +153,15 @@ class HouseholdFleetManager(
       if (availableVehicles.contains(vehicle)) {
         sender ! Failure(new RuntimeException(s"I can't release vehicle ${vehicle.id} because I have it already"))
       } else {
-        availableVehicles = vehicle :: availableVehicles
-        logger.debug("Vehicle {} is now available", vehicle.id)
+        if (self.actorRef.path.parent.name != vehicle.vehicleManagerId.get().toString) {
+          logger.warn(
+            s"Removing vehicle ${vehicle.id} from household vehicle manager " +
+            s"${self.actorRef.path.parent.name} because I'm not its manager"
+          )
+        } else {
+          availableVehicles = vehicle :: availableVehicles
+          logger.debug("Vehicle {} is now available", vehicle.id)
+        }
         sender() ! Success
       }
 
@@ -169,7 +176,7 @@ class HouseholdFleetManager(
             .flatMap { case (vehicleId, _) => availableVehicles.find(_.id == vehicleId) }
             .headOption
         case Some(requireVehicleCategory) =>
-          availableVehicles.find(_.beamVehicleType.vehicleCategory == requireVehicleCategory)
+          availableVehicles.find(veh => (veh.beamVehicleType.vehicleCategory == requireVehicleCategory))
         case _ => availableVehicles.headOption
       }
 
