@@ -2234,22 +2234,20 @@ object BeamConfig {
         }
               
         case class Cacc(
-          adjustedMinimumRoadSpeedInMetersPerSecond : scala.Double,
-          capacityPlansWriteInterval                : scala.Int,
-          enabled                                   : scala.Boolean,
-          minRoadCapacity                           : scala.Int,
-          minSpeedMetersPerSec                      : scala.Int,
-          speedAdjustmentFactor                     : scala.Double
+          capacityPlansWriteInterval : scala.Int,
+          enabled                    : scala.Boolean,
+          minRoadCapacity            : scala.Int,
+          minSpeedMetersPerSec       : scala.Int,
+          speedAdjustmentFactor      : scala.Double
         )
         object Cacc {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Jdeqsim.Cacc = {
             BeamConfig.Beam.Physsim.Jdeqsim.Cacc(
-              adjustedMinimumRoadSpeedInMetersPerSecond = if(c.hasPathOrNull("adjustedMinimumRoadSpeedInMetersPerSecond")) c.getDouble("adjustedMinimumRoadSpeedInMetersPerSecond") else 1.3,
-              capacityPlansWriteInterval                = if(c.hasPathOrNull("capacityPlansWriteInterval")) c.getInt("capacityPlansWriteInterval") else 0,
-              enabled                                   = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
-              minRoadCapacity                           = if(c.hasPathOrNull("minRoadCapacity")) c.getInt("minRoadCapacity") else 2000,
-              minSpeedMetersPerSec                      = if(c.hasPathOrNull("minSpeedMetersPerSec")) c.getInt("minSpeedMetersPerSec") else 20,
-              speedAdjustmentFactor                     = if(c.hasPathOrNull("speedAdjustmentFactor")) c.getDouble("speedAdjustmentFactor") else 1.0
+              capacityPlansWriteInterval = if(c.hasPathOrNull("capacityPlansWriteInterval")) c.getInt("capacityPlansWriteInterval") else 0,
+              enabled                    = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+              minRoadCapacity            = if(c.hasPathOrNull("minRoadCapacity")) c.getInt("minRoadCapacity") else 2000,
+              minSpeedMetersPerSec       = if(c.hasPathOrNull("minSpeedMetersPerSec")) c.getInt("minSpeedMetersPerSec") else 20,
+              speedAdjustmentFactor      = if(c.hasPathOrNull("speedAdjustmentFactor")) c.getDouble("speedAdjustmentFactor") else 1.0
             )
           }
         }

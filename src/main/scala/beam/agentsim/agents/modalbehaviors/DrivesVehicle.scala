@@ -262,8 +262,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           eventBuilderActor,
           beamServices.beamCustomizationAPI.beamVehicleAfterUseFuelHook
         )
-      if (this.currentBeamVehicle.isFreightVehicle)
-        log.info(s"RouteE: Vehicle ${currentBeamVehicle.id} - fuelConsumed: ${fuelConsumed}")
 
       currentBeamVehicle.spaceTime = geo.wgs2Utm(currentLeg.travelPath.endPoint)
 
