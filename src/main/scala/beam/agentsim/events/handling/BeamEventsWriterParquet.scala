@@ -10,7 +10,6 @@ import org.apache.hadoop.fs.Path
 import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.ParquetWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
-import org.apache.parquet.hadoop.util.HadoopOutputFile
 import org.matsim.api.core.v01.events.Event
 
 import scala.collection.JavaConverters._
@@ -72,8 +71,7 @@ class BeamEventsWriterParquet(
 
   def getWriter(schema: Schema, filePath: String): ParquetWriter[GenericData.Record] = {
     val path = new Path(filePath)
-    val outputFile = HadoopOutputFile.fromPath(path, new Configuration())
-    val builder = AvroParquetWriter.builder[GenericData.Record](outputFile)
+    val builder = AvroParquetWriter.builder[GenericData.Record](path)
 
     builder
       .withRowGroupSize(ParquetWriter.DEFAULT_BLOCK_SIZE.toLong)
