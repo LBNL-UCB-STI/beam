@@ -501,16 +501,14 @@ object RoutingWorker {
     atTime: Int,
     startUTM: Location,
     endUTM: Location,
-    geo: GeoUtils,
-    linkIds: Array[Int] = Array.empty[Int]
+    geo: GeoUtils
   ): BeamLeg = {
     val distanceInMeters =
       GeoUtils.minkowskiDistFormula(startUTM, endUTM) //changed from geo.distUTMInMeters(startUTM, endUTM)
     val bushwhackingTime = Math.round(distanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
-
     val path = BeamPath(
-      linkIds,
-      linkIds.map(_ => distanceInMeters / linkIds.length),
+      Array[Int](),
+      Array[Double](),
       None,
       SpaceTime(geo.utm2Wgs(startUTM), atTime),
       SpaceTime(geo.utm2Wgs(endUTM), atTime + bushwhackingTime.toInt),
@@ -524,13 +522,12 @@ object RoutingWorker {
     destUTM: Location,
     atTime: Int,
     body: StreetVehicle,
-    geo: GeoUtils,
-    linkIds: Array[Int] = Array.empty[Int]
+    geo: GeoUtils
   ): EmbodiedBeamTrip = {
     EmbodiedBeamTrip(
       Vector(
         EmbodiedBeamLeg(
-          createBushwackingBeamLeg(atTime, originUTM, destUTM, geo, linkIds),
+          createBushwackingBeamLeg(atTime, originUTM, destUTM, geo),
           body.id,
           body.vehicleTypeId,
           asDriver = true,

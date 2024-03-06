@@ -194,9 +194,7 @@ dependencies {
 
     implementation "org.jgrapht:jgrapht-core:1.3.0"
 
-    implementation('com.github.LBNL-UCB-STI:or-tools-wrapper:7.5-0') {
-        exclude group: 'com.google.protobuf', module: 'protobuf-java'
-    }
+    implementation group: 'com.google.ortools', name: 'ortools-java', version: '9.5.2237'
 
     implementation 'com.github.LBNL-UCB-STI:helics-wrapper:v3.3.0'
 
