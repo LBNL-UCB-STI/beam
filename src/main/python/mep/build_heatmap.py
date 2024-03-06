@@ -297,7 +297,7 @@ sfbaymap = downloadOSMMap(minX, minY, maxX, maxY, backgroundMapZoom, backgroundM
 import os
 
 dataFiles = []
-for root, dirs, files in os.walk('.'):
+for root, dirs, files in os.walk(''):
     for file in files:
         if file.endswith('.csv'):
             dataFiles.append(file)
