@@ -48,7 +48,6 @@ import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.PopulationUtils
-import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
 
 import java.util.concurrent.TimeUnit
@@ -164,7 +163,7 @@ object HouseholdActor {
     implicit val executionContext: ExecutionContext = context.dispatcher
     implicit val debug: Debug = beamServices.beamConfig.beam.debug
 
-    protected val generateEmergencyHousehold: Boolean =
+    private val generateEmergencyHousehold: Boolean =
       beamScenario.beamConfig.beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt
 
     override val supervisorStrategy: OneForOneStrategy =
@@ -581,7 +580,11 @@ object HouseholdActor {
 
     }
 
-    def completeInitialization(tick: Int, triggerId: Long, triggersToSchedule: Vector[ScheduleTrigger]): Unit = {
+    private def completeInitialization(
+      tick: Int,
+      triggerId: Long,
+      triggersToSchedule: Vector[ScheduleTrigger]
+    ): Unit = {
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future
