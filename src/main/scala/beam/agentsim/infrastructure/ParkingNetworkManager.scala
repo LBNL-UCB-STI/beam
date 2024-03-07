@@ -21,10 +21,10 @@ class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkMap: Parki
     with LoggingMessageActor
     with ActorLogging {
   import beamServices._
-  private val beamConfig: BeamConfig = beamScenario.beamConfig
+  private val agentSimConfig = beamScenario.beamConfig.beam.agentsim
 
   private val counter = {
-    val displayPerformanceTimings = beamConfig.beam.agentsim.taz.parkingManager.displayPerformanceTimings
+    val displayPerformanceTimings = agentSimConfig.taz.parkingManager.displayPerformanceTimings
     val logLevel = if (displayPerformanceTimings) Logging.InfoLevel else Logging.DebugLevel
     new SimpleCounter(log, logLevel, "Receiving {} per seconds of ParkingInquiry for {}")
   }
@@ -33,10 +33,16 @@ class ParkingNetworkManager(beamServices: BeamServices, parkingNetworkMap: Parki
     context.system.scheduler.scheduleWithFixedDelay(2.seconds, 10.seconds, self, "tick")(context.dispatcher)
 
   override def loggedReceive: Receive = {
-    case inquiry: ParkingInquiry if beamConfig.beam.agentsim.taz.parkingManager.method == "PARALLEL" =>
-      sender() ! parkingNetworkMap.processParkingInquiry(inquiry, parallelizationCounterOption = Some(counter))
     case inquiry: ParkingInquiry =>
-      sender() ! parkingNetworkMap.processParkingInquiry(inquiry)
+      val resolvedParkingDuration = Math.max(inquiry.parkingDuration, agentSimConfig.schedulerParallelismWindow)
+      val desirableMinimumParkingDuration =
+        Math.max(resolvedParkingDuration, agentSimConfig.agents.parking.estimatedMinParkingDurationInSeconds)
+      val fixedInquiry = inquiry.copy(parkingDuration = desirableMinimumParkingDuration)
+      sender() ! parkingNetworkMap.processParkingInquiry(
+        fixedInquiry,
+        parallelizationCounterOption =
+          if (agentSimConfig.taz.parkingManager.method == "PARALLEL") Some(counter) else None
+      )
     case release: ReleaseParkingStall =>
       parkingNetworkMap.processReleaseParkingStall(release)
     case "tick" => counter.tick()
