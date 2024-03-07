@@ -351,9 +351,9 @@ object JDEQSimRunner {
                 val result = ftt * (1 + alpha * math.pow(tmp, beta))
                 val originalTravelTime =
                   Math.min(result, link.getLength / caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond)
-                originalTravelTime + additionalTravelTime(link, time)
+                Math.max(originalTravelTime, 0.0) + additionalTravelTime(link, time)
               } else {
-                ftt + additionalTravelTime(link, time)
+                Math.max(ftt, 0.0) + additionalTravelTime(link, time)
               }
             }
           case None =>

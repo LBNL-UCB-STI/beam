@@ -117,7 +117,7 @@ class CarTripStatsFromPathTraversalEventHandler(
   def calcRideStats(iterationNumber: Int, carType: CarType): Seq[CarTripStat] = {
     val carPtes = carType2PathTraversals.getOrElse(carType, Seq.empty)
 
-    val stats = carType match {
+    val statsAndBadLinks = carType match {
       case CarType.Personal =>
         val drivingWithParkingPtes = buildDrivingParking(carPtes, treatMismatchAsWarning = treatMismatchAsWarning)
         buildPersonalTripStats(
@@ -128,10 +128,14 @@ class CarTripStatsFromPathTraversalEventHandler(
         )
       case _ => buildRideHailAndCavTripStats(networkHelper, freeFlowTravelTimeCalc, carPtes)
     }
-    logger.info(
-      s"$prefix For the iteration $iterationNumber created ${stats.length} trip stats for $carType from ${carPtes.size} PathTraversalEvents"
-    )
-    stats
+    statsAndBadLinks match {
+      case (stats, links) =>
+        logger.info(
+          s"$prefix For the iteration $iterationNumber created ${stats.length} trip stats for $carType from ${carPtes.size} PathTraversalEvents"
+        )
+        writeLinksWithBadSpeeds(iterationNumber, links, carType)
+        stats
+    }
   }
 
   def getIterationCarRideStats(iterationNumber: Int, rideStats: Seq[CarTripStat]): IterationCarTripStats = {
@@ -152,7 +156,7 @@ class CarTripStatsFromPathTraversalEventHandler(
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val type2RideStats: Map[CarType, Seq[CarTripStat]] = carType2PathTraversals.keys
       .map { carType =>
-        carType -> calcRideStats(event.getIteration, carType)
+        carType -> calcRideStats(event.getIteration, carType).filter(_.speed > 0)
       }
       .toSeq
       .sortBy(_._1)
@@ -269,6 +273,23 @@ class CarTripStatsFromPathTraversalEventHandler(
     } catch {
       case NonFatal(ex) =>
         logger.error(s"Writing average car speed to the $outputPath has failed. Event: $event", ex)
+    } finally {
+      Try(csvWriter.close())
+    }
+  }
+
+  private def writeLinksWithBadSpeeds(iterationNumber: Int, listOfBadLinks: Seq[Link], carType: CarType): Unit = {
+    val outputPath =
+      controllerIO.getIterationFilename(iterationNumber, s"${prefix}LinksWithBadSpeeds.${carType.toString}.csv.gz")
+    val csvWriter =
+      new CsvWriter(outputPath, Vector("linkId", "origLinkId", "numberOfBadTraversals"))
+    try {
+      listOfBadLinks.groupBy(identity).foreach { case (link, listOfLinks) =>
+        csvWriter.write(link.getId.toString, link.getAttributes.getAttribute("origid").toString, listOfLinks.size)
+      }
+    } catch {
+      case NonFatal(ex) =>
+        logger.error(s"Writing bad links to $outputPath has failed.")
     } finally {
       Try(csvWriter.close())
     }
@@ -528,56 +549,94 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
     freeFlowTravelTimeCalc: FreeFlowTravelTime,
     drivingWithParkingPtes: Iterable[(PathTraversalEvent, PathTraversalEvent)],
     treatMismatchAsWarning: Boolean
-  ): Seq[CarTripStat] = {
-    val stats = drivingWithParkingPtes.foldLeft(List.empty[CarTripStat]) { case (acc, (driving, parking)) =>
-      if (driving.arrivalTime != parking.departureTime && treatMismatchAsWarning) {
-        val msg = s"arrivalTime != departureTime\n\tdriving: $driving\n\tparking: $parking"
-        logger.warn(msg)
-      }
-      val travelTime =
-        ((driving.arrivalTime - driving.departureTime) + (parking.arrivalTime - parking.departureTime)).toDouble
-      // add the computed travel time to the list of travel times tracked during the hour
-      val length = driving.legLength + parking.legLength
+  ): (Seq[CarTripStat], Seq[Link]) = {
+    val statsAndLinks = drivingWithParkingPtes.foldLeft(List.empty[CarTripStat], List.empty[Link]) {
+      case ((carTripAcc, badLinkAcc), (driving, parking)) =>
+        if (driving.arrivalTime != parking.departureTime && treatMismatchAsWarning) {
+          val msg = s"arrivalTime != departureTime\n\tdriving: $driving\n\tparking: $parking"
+          logger.warn(msg)
+        }
+        val travelTime =
+          ((driving.arrivalTime - driving.departureTime) + (parking.arrivalTime - parking.departureTime)).toDouble
+        // add the computed travel time to the list of travel times tracked during the hour
+        val length = driving.legLength + parking.legLength
 
-      // We start driving in the very end of the first link => so we we didn't actually travel that link, so we should drop it for both driving and parking
-      val linkIds = (driving.linkIds.drop(1) ++ parking.linkIds.drop(1)).map(lid => networkHelper.getLinkUnsafe(lid))
-      val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds)
-      val startCoordWGS = new Coord(driving.startX, driving.startY)
-      val endCoordWGS = new Coord(parking.endX, parking.endY)
-      CarTripStat(
-        vehicleId = driving.vehicleId.toString,
-        travelTime = travelTime,
-        distance = length,
-        freeFlowTravelTime = freeFlowTravelTime,
-        departureTime = driving.departureTime,
-        startCoordWGS = startCoordWGS,
-        endCoordWGS = endCoordWGS
-      ) :: acc
+        // We start driving in the very end of the first link => so we we didn't actually travel that link, so we should drop it for both driving and parking
+        val linkIds = (driving.linkIds.drop(1) ++ parking.linkIds.drop(1)).map(lid => networkHelper.getLinkUnsafe(lid))
+        val linkTravelTimes = driving.linkTravelTime.drop(1) ++ parking.linkTravelTime.drop(1)
+        val badLinks = linkIds
+          .zip(linkTravelTimes)
+          .flatMap {
+            case (link, linkTravelTime) if !(linkTravelTime >= 0) => Some(link)
+            case _                                                => None
+          }
+          .toList
+        val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds)
+        val startCoordWGS = new Coord(driving.startX, driving.startY)
+        val endCoordWGS = new Coord(parking.endX, parking.endY)
+        val outputStats = if (travelTime > 0 && freeFlowTravelTime > 0 && length > 0) {
+          CarTripStat(
+            vehicleId = driving.vehicleId.toString,
+            travelTime = travelTime,
+            distance = length,
+            freeFlowTravelTime = freeFlowTravelTime,
+            departureTime = driving.departureTime,
+            startCoordWGS = startCoordWGS,
+            endCoordWGS = endCoordWGS
+          )
+        } else {
+          logger.warn(
+            s"Bad path traversal with travel time $travelTime, " +
+            s"free flow travel time $freeFlowTravelTime, " +
+            s"and length $length"
+          )
+          CarTripStat(
+            vehicleId = driving.vehicleId.toString,
+            travelTime = 0,
+            distance = 0,
+            freeFlowTravelTime = 0,
+            departureTime = driving.departureTime,
+            startCoordWGS = startCoordWGS,
+            endCoordWGS = endCoordWGS
+          )
+        }
+        (outputStats :: carTripAcc, badLinks ++ badLinkAcc)
     }
-    stats
+    statsAndLinks
   }
 
   private def buildRideHailAndCavTripStats(
     networkHelper: NetworkHelper,
     freeFlowTravelTimeCalc: FreeFlowTravelTime,
     ptes: Seq[PathTraversalEvent]
-  ): Seq[CarTripStat] = {
-    ptes.map { event =>
-      val travelTime = event.arrivalTime - event.departureTime
-      val length = event.legLength
-      val linkIds = event.linkIds.map(lid => networkHelper.getLinkUnsafe(lid))
-      // We start driving in the very end of the first link => so we we didn't actually travel that link, so we should drop it
-      val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds.drop(1))
-      CarTripStat(
-        event.vehicleId.toString,
-        travelTime,
-        length,
-        freeFlowTravelTime,
-        event.departureTime,
-        startCoordWGS = new Coord(event.startX, event.startY),
-        endCoordWGS = new Coord(event.endX, event.endY)
-      )
+  ): (Seq[CarTripStat], Seq[Link]) = {
+    val carTripStatsAndBadLinks = ptes.foldLeft(List.empty[CarTripStat], List.empty[Link]) {
+      case ((carTripAcc, linkAcc), event) =>
+        val travelTime = event.arrivalTime - event.departureTime
+        val length = event.legLength
+        val linkIds = event.linkIds.map(lid => networkHelper.getLinkUnsafe(lid))
+        val linkTravelTimes = event.linkTravelTime
+        val badLinks = linkIds
+          .zip(linkTravelTimes)
+          .flatMap {
+            case (link, linkTravelTime) if !(linkTravelTime >= 0) => Some(link)
+            case _                                                => None
+          }
+          .toList
+        // We start driving in the very end of the first link => so we we didn't actually travel that link, so we should drop it
+        val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds.drop(1))
+        val carTripStats = CarTripStat(
+          event.vehicleId.toString,
+          travelTime,
+          length,
+          freeFlowTravelTime,
+          event.departureTime,
+          startCoordWGS = new Coord(event.startX, event.startY),
+          endCoordWGS = new Coord(event.endX, event.endY)
+        )
+        (carTripStats :: carTripAcc, badLinks ++ linkAcc)
     }
+    carTripStatsAndBadLinks
   }
 
   private def buildDrivingParking(
