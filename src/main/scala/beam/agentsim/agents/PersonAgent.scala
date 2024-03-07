@@ -61,7 +61,13 @@ import beam.utils.MeasureUnitConversion._
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.events._
+import org.matsim.api.core.v01.events.{
+  ActivityEndEvent,
+  ActivityStartEvent,
+  PersonArrivalEvent,
+  PersonEntersVehicleEvent,
+  PersonLeavesVehicleEvent
+}
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
