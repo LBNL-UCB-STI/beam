@@ -247,11 +247,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val currentVehicleUnderControl = data.currentVehicle.headOption
         .getOrElse(throw new RuntimeException("Current Vehicle is not available."))
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
-      if (this.currentBeamVehicle.isFreightVehicle)
-        log.info(s"RouteE: Vehicle ${currentBeamVehicle.id} - vehicleType ${currentBeamVehicle.beamVehicleType.id}")
       val payloadInKg = payloadInKgForLeg(currentLeg, data)
-      if (this.currentBeamVehicle.isFreightVehicle)
-        log.info(s"RouteE: Vehicle ${currentBeamVehicle.id} - payloadInKg: ${payloadInKg}")
       val fuelConsumed =
         currentBeamVehicle.useFuel(
           currentLeg,
