@@ -133,7 +133,7 @@ else # this shell script is used as a BODY for the job which will be executed on
   export NOTIFICATION_SHUTDOWN_WAIT=""
 
   IMAGE_NAME="beam-environment"
-  IMAGE_TAG="latest"
+  IMAGE_TAG="jdk-11-4.01"
   DOCKER_IMAGE_NAME="docker://beammodel/${IMAGE_NAME}:${IMAGE_TAG}"
   SINGULARITY_IMAGE_NAME="${IMAGE_NAME}_${IMAGE_TAG}.sif"
 

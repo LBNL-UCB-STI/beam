@@ -1,7 +1,6 @@
 package beam.router.r5
 
 import java.util
-
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest, RoutingResponse}
@@ -11,10 +10,12 @@ import beam.sim.population.{AttributesOfIndividual, HouseholdAttributes}
 import org.apache.avro.Schema.Type
 import org.apache.avro.generic.GenericData
 import org.apache.avro.{Schema, SchemaBuilder}
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.parquet.avro.AvroParquetWriter
 import org.apache.parquet.hadoop.ParquetWriter
 import org.apache.parquet.hadoop.metadata.CompressionCodecName
+import org.apache.parquet.hadoop.util.HadoopOutputFile
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
@@ -555,10 +556,9 @@ object RouteDumper {
   }
 
   def createWriter(path: String, schema: Schema): ParquetWriter[GenericData.Record] = {
+    val outputFile = HadoopOutputFile.fromPath(new Path(path), new Configuration())
     AvroParquetWriter
-      .builder[GenericData.Record](
-        new Path(path)
-      )
+      .builder[GenericData.Record](outputFile)
       .withSchema(schema)
       .withCompressionCodec(CompressionCodecName.SNAPPY)
       .build()
