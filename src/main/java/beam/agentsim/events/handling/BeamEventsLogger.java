@@ -138,7 +138,7 @@ public class BeamEventsLogger implements BeamEventsLoggingSettings {
                         eventClass = PersonArrivalEvent.class;
                         break;
                     case "PersonDepartureEvent":
-                        eventClass = PersonDepartureEvent.class;
+                        eventClass = BeamPersonDepartureEvent.class;
                         break;
                     case "PersonEntersVehicleEvent":
                         eventClass = PersonEntersVehicleEvent.class;

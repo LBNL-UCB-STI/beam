@@ -26,6 +26,7 @@ import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.skim.core.ParkingSkimmer.ChargerType
 import beam.router.skim.event.{FreightSkimmerEvent, ParkingSkimmerEvent}
 import beam.sim.common.GeoUtils
+import beam.utils.DateUtils
 import beam.utils.logging.pattern.ask
 import beam.utils.MeasureUnitConversion._
 import org.matsim.api.core.v01.Id
@@ -164,7 +165,7 @@ object ChoosesParking {
 trait ChoosesParking extends {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
-  var latestParkingInquiry: Option[ParkingInquiry] = None
+  protected lazy val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamServices.beamConfig)
 
   private def buildParkingInquiry(data: BasePersonData): ParkingInquiry = {
     val firstLeg = data.restOfCurrentTrip.head

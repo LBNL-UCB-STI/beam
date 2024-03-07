@@ -10,6 +10,7 @@ import beam.agentsim.agents.modalbehaviors.DrivesVehicle
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, StartLegTrigger}
 import beam.agentsim.agents.ridehail.RideHailAgent.{Idle, ModifyPassengerSchedule, ModifyPassengerScheduleAck}
 import beam.agentsim.agents.vehicles.{BeamVehicle, PassengerSchedule}
+import beam.agentsim.events.BeamPersonDepartureEvent
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.model.BeamLeg
@@ -19,7 +20,6 @@ import beam.sim.{BeamScenario, BeamServices, Geofence}
 import beam.utils.NetworkHelper
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.PersonDepartureEvent
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.households.Household
 import org.matsim.vehicles.Vehicle
@@ -65,7 +65,7 @@ class HouseholdCAVDriverAgent(
     logDebug(s" $id has been initialized, going to Waiting state")
     beamVehicles.put(vehicle.id, ActualVehicle(vehicle))
     eventsManager.processEvent(
-      new PersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_household_cav_driver")
+      new BeamPersonDepartureEvent(tick, Id.createPersonId(id), Id.createLinkId(""), "be_a_household_cav_driver", "")
     )
     goto(Idle) using data
       .copy(currentVehicle = Vector(vehicle.id))
