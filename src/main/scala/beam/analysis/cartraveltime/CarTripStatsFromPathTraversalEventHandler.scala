@@ -152,7 +152,7 @@ class CarTripStatsFromPathTraversalEventHandler(
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val type2RideStats: Map[CarType, Seq[CarTripStat]] = carType2PathTraversals.keys
       .map { carType =>
-        carType -> calcRideStats(event.getIteration, carType)
+        carType -> calcRideStats(event.getIteration, carType).filter(_.speed > 0)
       }
       .toSeq
       .sortBy(_._1)
