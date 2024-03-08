@@ -236,7 +236,7 @@ class BeamScenarioLoader(
     population
   }
 
-  def buildAndAddActivityToPlan(currentPlan: Plan, planElement: PlanElement): Activity = {
+  private def buildAndAddActivityToPlan(currentPlan: Plan, planElement: PlanElement): Activity = {
     assertActivityHasLocation(planElement)
     val coord = if (beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm) {
       geo.wgs2Utm(new Coord(planElement.activityLocationX.get, planElement.activityLocationY.get))

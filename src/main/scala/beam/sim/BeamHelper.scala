@@ -850,15 +850,13 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
               beamConfig.beam.agentsim.agents.plans.merge.fraction,
               beamConfig.beam.agentsim.agentSampleSizeAsFractionOfPopulation,
               Some(beamConfig.beam.replanning.maxAgentPlanMemorySize),
-              Some(beamConfig.beam.replanning.planSelectionBeta),
               Paths.get(beamConfig.beam.input.lastBaseOutputDir),
               beamConfig.beam.input.simulationPrefix,
               new Random(),
               planElement =>
                 planElement.activityEndTime
                   .map(time => planElement.copy(activityEndTime = Some(time / 3600)))
-                  .getOrElse(planElement),
-              Some(beamScenario.network)
+                  .getOrElse(planElement)
             )
             val (scenario, plansMerged) =
               new UrbanSimScenarioLoader(

@@ -3,14 +3,11 @@ package beam.utils.scenario.generic.readers
 import beam.utils.FileUtils
 import beam.utils.csv.writers.ScenarioCsvWriter.ArrayItemSeparator
 import beam.utils.scenario.{PersonId, PlanElement}
-import org.matsim.api.core.v01.Coord
-import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.{Activity, Leg, Person, Plan}
 import org.matsim.core.config.ConfigUtils
 import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.scenario.ScenarioUtils
-import org.matsim.utils.objectattributes.attributable.Attributable
 import beam.utils.OptionalUtils.OptionalTimeExtension
 
 import java.io.Closeable
@@ -19,8 +16,6 @@ import scala.util.Try
 
 trait PlanElementReader {
   def read(path: String): Array[PlanElement]
-
-  def read(path: String, maybeItem: Option[Attributable]): Array[PlanElement]
 
   def readWithFilter(path: String, filter: PlanElement => Boolean): (Iterator[PlanElement], Closeable)
 }
@@ -35,10 +30,6 @@ object CsvPlanElementReader extends PlanElementReader {
     } finally {
       Try(toClose.close())
     }
-  }
-
-  override def read(path: String, maybeItem: Option[Attributable]): Array[PlanElement] = {
-    throw new NotImplementedError()
   }
 
   override def readWithFilter(path: String, filter: PlanElement => Boolean): (Iterator[PlanElement], Closeable) = {
@@ -101,33 +92,6 @@ object XmlPlanElementReader extends PlanElementReader {
       .toArray
   }
 
-  override def read(path: String, maybeItem: Option[Attributable] = None): Array[PlanElement] = {
-    val maybeNetwork = maybeItem match {
-      case Some(network: Network) => Some(network)
-      case _                      => None
-    }
-
-    val scenario = ScenarioUtils.createScenario(ConfigUtils.createConfig())
-    new PopulationReader(scenario).parse(FileUtils.getInputStream(path))
-
-    scenario.getPopulation.getPersons.values.asScala
-      .flatMap { person =>
-        person.getPlans.asScala.zipWithIndex.flatMap { case (plan, planIdx) =>
-          plan.getPlanElements.asScala.zipWithIndex.map { case (planElement, planElementIdx) =>
-            (person, plan, planIdx, planElement, planElementIdx)
-          }
-        }
-      }
-      .collect {
-        case (person, plan, planIdx, act: Activity, planElIdx) =>
-          val maybeCoord =
-            Option(act.getCoord).orElse(maybeNetwork.map(net => net.getLinks.get(act.getLinkId)).map(_.getCoord))
-          toPlanElement(act, plan, planIdx, person, planElIdx, maybeCoord)
-        case (person, plan, planIdx, leg: Leg, planElIdx) => toPlanElement(leg, plan, planIdx, person, planElIdx)
-      }
-      .toArray
-  }
-
   override def readWithFilter(path: String, filter: PlanElement => Boolean): (Iterator[PlanElement], Closeable) = {
     throw new NotImplementedError()
 //    readAs[PlanElement](path, toPlanElement, filter)
@@ -138,9 +102,8 @@ object XmlPlanElementReader extends PlanElementReader {
     plan: Plan,
     planIdx: Int,
     person: Person,
-    planElementIdx: Int,
-    maybeCoord: Option[Coord] = None
-  ): PlanElement = {
+    planElementIdx: Int
+  ): PlanElement =
     PlanElement(
       tripId = Option(activity.getAttributes.getAttribute("trip_id"))
         .map(_.toString.filter(x => x.isDigit || x.equals('.')))
@@ -152,8 +115,8 @@ object XmlPlanElementReader extends PlanElementReader {
       planElementType = PlanElement.Activity,
       planElementIndex = planElementIdx,
       activityType = Option(activity.getType),
-      activityLocationX = maybeCoord.map(_.getX),
-      activityLocationY = maybeCoord.map(_.getY),
+      activityLocationX = Option(activity.getCoord).map(_.getX),
+      activityLocationY = Option(activity.getCoord).map(_.getY),
       activityEndTime = activity.getEndTime.toOption,
       legMode = None,
       legDepartureTime = None,
@@ -166,7 +129,6 @@ object XmlPlanElementReader extends PlanElementReader {
       legRouteLinks = Seq.empty,
       geoId = None
     )
-  }
 
   private def toPlanElement(leg: Leg, plan: Plan, planIdx: Int, person: Person, planElementIdx: Int): PlanElement =
     PlanElement(
@@ -184,8 +146,8 @@ object XmlPlanElementReader extends PlanElementReader {
       activityLocationY = None,
       activityEndTime = None,
       legMode = Option(leg.getMode),
-      legDepartureTime = leg.getDepartureTime.toOption.map(_.toString),
-      legTravelTime = leg.getTravelTime.toOption.map(_.toString),
+      legDepartureTime = Option(leg.getDepartureTime).map(_.toString),
+      legTravelTime = Option(leg.getTravelTime).map(_.toString),
       legRouteType = Option(leg.getRoute).map(_.getRouteType),
       legRouteStartLink = Option(leg.getRoute).map(_.getStartLinkId.toString),
       legRouteEndLink = Option(leg.getRoute).map(_.getEndLinkId.toString),
