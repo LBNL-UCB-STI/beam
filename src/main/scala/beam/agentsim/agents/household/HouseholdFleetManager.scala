@@ -153,15 +153,8 @@ class HouseholdFleetManager(
       if (availableVehicles.contains(vehicle)) {
         sender ! Failure(new RuntimeException(s"I can't release vehicle ${vehicle.id} because I have it already"))
       } else {
-        if (self.actorRef.path.parent.name != vehicle.vehicleManagerId.get().toString) {
-          logger.warn(
-            s"Removing vehicle ${vehicle.id} from household vehicle manager " +
-            s"${self.actorRef.path.parent.name} because I'm not its manager"
-          )
-        } else {
-          availableVehicles = vehicle :: availableVehicles
-          logger.debug("Vehicle {} is now available", vehicle.id)
-        }
+        availableVehicles = vehicle :: availableVehicles
+        logger.debug("Vehicle {} is now available", vehicle.id)
         sender() ! Success
       }
 

@@ -965,7 +965,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       case _ => inquiry.parkingActivityType == ParkingActivityType.Charge
     }
 
-    if (isChargingRequest && (inquiry.parkingDuration > beamConfig.beam.agentsim.schedulerParallelismWindow))
+    if (isChargingRequest)
       chargingNetworkManager ! inquiry
     else
       parkingManager ! inquiry
