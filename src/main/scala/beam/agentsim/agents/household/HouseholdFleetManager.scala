@@ -153,7 +153,7 @@ class HouseholdFleetManager(
       if (availableVehicles.contains(vehicle)) {
         sender ! Failure(new RuntimeException(s"I can't release vehicle ${vehicle.id} because I have it already"))
       } else {
-        if (self.actorRef.path.parent.name != vehicle.vehicleManagerId.get().toString) {
+        if (self.actorRef.path.parent.name != vehicle.getManager.get.path.parent.name) {
           logger.warn(
             s"Removing vehicle ${vehicle.id} from household vehicle manager " +
             s"${self.actorRef.path.parent.name} because I'm not its manager"
@@ -189,11 +189,19 @@ class HouseholdFleetManager(
         case None if createAnEmergencyVehicle(inquiry).nonEmpty =>
           logger.debug(s"An emergency vehicle has been created!")
         case _ =>
-          if (availableVehicles.isEmpty)
-            logger.warn(
-              s"The list of vehicles should not be empty, activate emergency personal vehicles generation as a temporary solution"
-            )
-          logger.debug(s"Not returning vehicle because no default for  is defined")
+          if (availableVehicles.isEmpty) {
+            requireVehicleCategoryAvailable match {
+              case Some(requiredType) if vehicles.values.exists(_.beamVehicleType.vehicleCategory == requiredType) =>
+                logger.warn(s"Emergency vehicle generation for type $requiredType failed")
+              case Some(requiredType) =>
+                logger.debug(s"Ignoring vehicle request because it isn't for the right category")
+              case None =>
+                logger.warn(
+                  s"No vehicles available, activate emergency personal vehicles generation as a temporary solution"
+                )
+            }
+
+          }
           sender() ! MobilityStatusResponse(Vector(), triggerId)
       }
 
@@ -231,7 +239,7 @@ class HouseholdFleetManager(
         inquiry.whereWhen,
         self
       )
-      logger.warn(
+      logger.debug(
         s"No vehicles available for category $category available for " +
         s"person ${inquiry.personId.toString}, creating a new vehicle with id ${vehicle.id.toString}"
       )
