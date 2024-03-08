@@ -230,7 +230,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             Link link = agentSimScenario.getNetwork().getLinks().get(Id.createLinkId(entry.getKey()));
             for (double linkTravelTime : entry.getValue()) {
                 double speed = link.getLength() / linkTravelTime;
-                if (speed < beamConfig.beam().physsim().quick_fix_minCarSpeedInMetersPerSecond()) {
+                if (speed < beamConfig.beam().physsim().minCarSpeedInMetersPerSecond()) {
                     double linkTravelTime1 = travelTimeFromPhysSim.getLinkTravelTime(link, hour * 60.0 * 60.0, null, null);
                     double freeFlowTravelTime = freeFlow.getLinkTravelTime(link, hour * 60.0 * 60.0, null, null);
                     log.debug("{} {} {}", linkTravelTime, linkTravelTime1, freeFlowTravelTime);
@@ -241,7 +241,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
         }
         if (nBinsWithUnexpectedlyLowSpeed > 0) {
-            log.error("Iteration {} had {} link speed bins (of {}) with speed smaller than {}.", iterationNumber, nBinsWithUnexpectedlyLowSpeed, nBins, beamConfig.beam().physsim().quick_fix_minCarSpeedInMetersPerSecond());
+            log.error("Iteration {} had {} link speed bins (of {}) with speed smaller than {}.", iterationNumber, nBinsWithUnexpectedlyLowSpeed, nBins, beamConfig.beam().physsim().minCarSpeedInMetersPerSecond());
         }
 
         TravelTime travelTimeForR5 = travelTimeFromPhysSim;

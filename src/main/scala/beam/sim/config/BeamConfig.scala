@@ -3190,13 +3190,13 @@ object BeamConfig {
       linkStatsBinSize: scala.Int,
       linkStatsWriteInterval: scala.Int,
       maxLinkLengthToApplySpeedScalingFactor: scala.Double,
+      minCarSpeedInMetersPerSecond: scala.Double,
       name: java.lang.String,
       network: BeamConfig.Beam.Physsim.Network,
       overwriteLinkParamPath: java.lang.String,
       parbprsim: BeamConfig.Beam.Physsim.Parbprsim,
       pickUpDropOffAnalysis: BeamConfig.Beam.Physsim.PickUpDropOffAnalysis,
       ptSampleSize: scala.Double,
-      quick_fix_minCarSpeedInMetersPerSecond: scala.Double,
       relaxation: BeamConfig.Beam.Physsim.Relaxation,
       skipPhysSim: scala.Boolean,
       speedScalingFactor: scala.Double,
@@ -3316,7 +3316,6 @@ object BeamConfig {
         }
 
         case class Cacc(
-          adjustedMinimumRoadSpeedInMetersPerSecond: scala.Double,
           capacityPlansWriteInterval: scala.Int,
           enabled: scala.Boolean,
           minRoadCapacity: scala.Int,
@@ -3328,10 +3327,6 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Jdeqsim.Cacc = {
             BeamConfig.Beam.Physsim.Jdeqsim.Cacc(
-              adjustedMinimumRoadSpeedInMetersPerSecond =
-                if (c.hasPathOrNull("adjustedMinimumRoadSpeedInMetersPerSecond"))
-                  c.getDouble("adjustedMinimumRoadSpeedInMetersPerSecond")
-                else 1.3,
               capacityPlansWriteInterval =
                 if (c.hasPathOrNull("capacityPlansWriteInterval")) c.getInt("capacityPlansWriteInterval") else 0,
               enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
@@ -4072,6 +4067,8 @@ object BeamConfig {
             if (c.hasPathOrNull("maxLinkLengthToApplySpeedScalingFactor"))
               c.getDouble("maxLinkLengthToApplySpeedScalingFactor")
             else 50.0,
+          minCarSpeedInMetersPerSecond =
+            if (c.hasPathOrNull("minCarSpeedInMetersPerSecond")) c.getDouble("minCarSpeedInMetersPerSecond") else 0.5,
           name = if (c.hasPathOrNull("name")) c.getString("name") else "JDEQSim",
           network = BeamConfig.Beam.Physsim.Network(
             if (c.hasPathOrNull("network")) c.getConfig("network")
@@ -4088,10 +4085,6 @@ object BeamConfig {
             else com.typesafe.config.ConfigFactory.parseString("pickUpDropOffAnalysis{}")
           ),
           ptSampleSize = if (c.hasPathOrNull("ptSampleSize")) c.getDouble("ptSampleSize") else 1.0,
-          quick_fix_minCarSpeedInMetersPerSecond =
-            if (c.hasPathOrNull("quick_fix_minCarSpeedInMetersPerSecond"))
-              c.getDouble("quick_fix_minCarSpeedInMetersPerSecond")
-            else 0.5,
           relaxation = BeamConfig.Beam.Physsim.Relaxation(
             if (c.hasPathOrNull("relaxation")) c.getConfig("relaxation")
             else com.typesafe.config.ConfigFactory.parseString("relaxation{}")
@@ -4725,6 +4718,7 @@ object BeamConfig {
     }
 
     case class WarmStart(
+      initialLinkstatsFilePath: java.lang.String,
       path: java.lang.String,
       prepareData: scala.Boolean,
       samplePopulationIntegerFlag: scala.Int,
@@ -4751,6 +4745,8 @@ object BeamConfig {
 
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.WarmStart = {
         BeamConfig.Beam.WarmStart(
+          initialLinkstatsFilePath =
+            if (c.hasPathOrNull("initialLinkstatsFilePath")) c.getString("initialLinkstatsFilePath") else "",
           path = if (c.hasPathOrNull("path")) c.getString("path") else "",
           prepareData = c.hasPathOrNull("prepareData") && c.getBoolean("prepareData"),
           samplePopulationIntegerFlag =

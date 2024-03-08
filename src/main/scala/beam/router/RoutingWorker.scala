@@ -103,10 +103,10 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
 
   private val linksBelowMinCarSpeed =
     workerParams.networkHelper.allLinks
-      .count(l => l.getFreespeed < workerParams.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond)
+      .count(l => l.getFreespeed < workerParams.beamConfig.beam.physsim.minCarSpeedInMetersPerSecond)
   if (linksBelowMinCarSpeed > 0) {
     log.warning(
-      "{} links are below quick_fix_minCarSpeedInMetersPerSecond, already in free-flow",
+      "{} links are below minCarSpeedInMetersPerSecond, already in free-flow",
       linksBelowMinCarSpeed
     )
   }

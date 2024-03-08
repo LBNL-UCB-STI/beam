@@ -32,7 +32,9 @@ object ScenarioLoaderHelper extends ExponentialLazyLogging {
     householdResult.setVehicleIds(household.getVehicleIds)
     householdResult.setMemberIds(members.asJava)
     val originHouseAttributes = household.getAttributes.getAsMap.asScala
-    originHouseAttributes.map { case (key, value) => HouseholdUtils.putHouseholdAttribute(householdResult, key, value) }
+    originHouseAttributes.foreach { case (key, value) =>
+      HouseholdUtils.putHouseholdAttribute(householdResult, key, value)
+    }
     householdResult
   }
 
