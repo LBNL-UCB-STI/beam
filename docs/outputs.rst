@@ -6,7 +6,7 @@ Model Outputs
 File: /activityType.csv
 -----------------------
 
-Classname: ActivityTypeAnalysi 
+Classname: ActivityTypeAnalysis 
 
 +----------------+------------------------------------------------+
 | field          | description                                    |
@@ -19,7 +19,7 @@ Classname: ActivityTypeAnalysi
 File: /AverageCarSpeed.csv
 --------------------------
 
-Classname: CarTripStatsFromPathTraversalEventHandle 
+Classname: CarTripStatsFromPathTraversalEventHandler 
 
 +-----------+------------------------------------+
 | field     | description                        |
@@ -34,7 +34,7 @@ Classname: CarTripStatsFromPathTraversalEventHandle
 File: /CarSpeed.csv
 -------------------
 
-Classname: CarTripStatsFromPathTraversalEventHandle 
+Classname: CarTripStatsFromPathTraversalEventHandler 
 
 +-----------+-----------------------------------------------+
 | field     | description                                   |
@@ -63,7 +63,7 @@ Classname: CarTripStatsFromPathTraversalEventHandle
 File: /CarTravelDistance.csv
 ----------------------------
 
-Classname: CarTripStatsFromPathTraversalEventHandle 
+Classname: CarTripStatsFromPathTraversalEventHandler 
 
 +-----------+---------------------------------------------------------+
 | field     | description                                             |
@@ -92,7 +92,7 @@ Classname: CarTripStatsFromPathTraversalEventHandle
 File: /CarTravelTime.csv
 ------------------------
 
-Classname: CarTripStatsFromPathTraversalEventHandle 
+Classname: CarTripStatsFromPathTraversalEventHandler 
 
 +-----------+-----------------------------------------------------+
 | field     | description                                         |
@@ -121,7 +121,7 @@ Classname: CarTripStatsFromPathTraversalEventHandle
 File: /dataDescriptors.csv
 --------------------------
 
-Classname: BeamOutputDataDescriptionGenerato 
+Classname: BeamOutputDataDescriptionGenerator 
 
 +-------------+--------------------------------------+
 | field       | description                          |
@@ -138,7 +138,7 @@ Classname: BeamOutputDataDescriptionGenerato
 File: /FreeFlowCarSpeed.csv
 ---------------------------
 
-Classname: CarTripStatsFromPathTraversalEventHandle 
+Classname: CarTripStatsFromPathTraversalEventHandler 
 
 +-----------+---------------------------------------------------------+
 | field     | description                                             |
@@ -167,7 +167,7 @@ Classname: CarTripStatsFromPathTraversalEventHandle
 File: /FreeFlowCarTravelTime.csv
 --------------------------------
 
-Classname: CarTripStatsFromPathTraversalEventHandle 
+Classname: CarTripStatsFromPathTraversalEventHandler 
 
 +-----------+---------------------------------------------------------------+
 | field     | description                                                   |
@@ -196,7 +196,7 @@ Classname: CarTripStatsFromPathTraversalEventHandle
 File: /households.csv
 ---------------------
 
-Classname: HouseholdsCsvWrite 
+Classname: HouseholdsCsvWriter 
 
 +-------------+--------------------------------------------------------+
 | field       | description                                            |
@@ -215,7 +215,7 @@ Classname: HouseholdsCsvWrite
 File: /ITERS/it.0/0.activityType.csv
 ------------------------------------
 
-Classname: ActivityTypeAnalysi 
+Classname: ActivityTypeAnalysis 
 
 +----------------+-------------------------------------------+
 | field          | description                               |
@@ -228,7 +228,7 @@ Classname: ActivityTypeAnalysi
 File: /ITERS/it.0/0.CarRideStats.personal.csv
 ---------------------------------------------
 
-Classname: CarTripStatsFromPathTraversalEventHandle 
+Classname: CarTripStatsFromPathTraversalEventHandler 
 
 +-----------------------+--------------------------------------------+
 | field                 | description                                |
@@ -257,7 +257,7 @@ Classname: CarTripStatsFromPathTraversalEventHandle
 File: /ITERS/it.0/0.CarRideStats.ridehail.csv
 ---------------------------------------------
 
-Classname: CarTripStatsFromPathTraversalEventHandle 
+Classname: CarTripStatsFromPathTraversalEventHandler 
 
 +-----------------------+--------------------------------------------+
 | field                 | description                                |
@@ -286,7 +286,7 @@ Classname: CarTripStatsFromPathTraversalEventHandle
 File: /ITERS/it.0/0.expectedMaxUtilityHeatMap.csv
 -------------------------------------------------
 
-Classname: ExpectedMaxUtilityHeatMa 
+Classname: ExpectedMaxUtilityHeatMap 
 
 +------------------------+-----------------------------------------+
 | field                  | description                             |
@@ -303,7 +303,7 @@ Classname: ExpectedMaxUtilityHeatMa
 File: /ITERS/it.0/0.final_vehicles.csv
 --------------------------------------
 
-Classname: VehiclesCsvWrite 
+Classname: VehiclesCsvWriter 
 
 +---------------+------------------------------------------------------------------+
 | field         | description                                                      |
@@ -371,7 +371,7 @@ Classname: ModeChosenAnalysisObject
 File: /ITERS/it.0/0.modeChoice.csv
 ----------------------------------
 
-Classname: ModeChosenAnalysi 
+Classname: ModeChosenAnalysis 
 
 +-------+----------------------------------------------------------------------------------+
 | field | description                                                                      |
@@ -384,7 +384,7 @@ Classname: ModeChosenAnalysi
 File: /modeChoice_commute.csv
 -----------------------------
 
-Classname: ModeChosenAnalysi 
+Classname: ModeChosenAnalysis 
 
 +-------------------+-------------------------------------+
 | field             | description                         |
@@ -409,7 +409,7 @@ Classname: ModeChosenAnalysi
 File: /network.csv.gz
 ---------------------
 
-Classname: NetworkCsvWrite 
+Classname: NetworkCsvWriter 
 
 +-------------------+-------------------------------------------------------------+
 | field             | description                                                 |
@@ -446,7 +446,7 @@ Classname: NetworkCsvWrite
 File: /plans.csv.gz
 -------------------
 
-Classname: PlansCsvWrite 
+Classname: PlansCsvWriter 
 
 +--------------------+----------------------------------------------------------------------------------------+
 | field              | description                                                                            |
@@ -495,7 +495,7 @@ Classname: PlansCsvWrite
 File: /population.csv.gz
 ------------------------
 
-Classname: PopulationCsvWrite 
+Classname: PopulationCsvWriter 
 
 +-----------------------------+------------------------------------------------------------+
 | field                       | description                                                |
@@ -543,7 +543,7 @@ Classname: RealizedModeAnalysisObject
 File: /realizedModeChoice_commute.csv
 -------------------------------------
 
-Classname: RealizedModeAnalysi 
+Classname: RealizedModeAnalysis 
 
 +-------------------+-------------------------------------+
 | field             | description                         |
@@ -568,7 +568,7 @@ Classname: RealizedModeAnalysi
 File: /referenceModeChoice_commute.csv
 --------------------------------------
 
-Classname: ModeChosenAnalysi 
+Classname: ModeChosenAnalysis 
 
 +-------------------+---------------------------------------------------------------+
 | field             | description                                                   |
@@ -593,7 +593,7 @@ Classname: ModeChosenAnalysi
 File: /referenceRealizedModeChoice.csv
 --------------------------------------
 
-Classname: RealizedModeAnalysi 
+Classname: RealizedModeAnalysis 
 
 +-------------------+---------------------------------------------------------------+
 | field             | description                                                   |
@@ -618,7 +618,7 @@ Classname: RealizedModeAnalysi
 File: /referenceRealizedModeChoice_commute.csv
 ----------------------------------------------
 
-Classname: RealizedModeAnalysi 
+Classname: RealizedModeAnalysis 
 
 +-------------------+---------------------------------------------------------------+
 | field             | description                                                   |
@@ -643,7 +643,7 @@ Classname: RealizedModeAnalysi
 File: /replanningEventReason.csv
 --------------------------------
 
-Classname: RealizedModeAnalysi 
+Classname: RealizedModeAnalysis 
 
 +------------------+-------------------------------------------------------------------+
 | field            | description                                                       |
@@ -656,7 +656,7 @@ Classname: RealizedModeAnalysi
 File: /replanningEventReason_commute.csv
 ----------------------------------------
 
-Classname: RealizedModeAnalysi 
+Classname: RealizedModeAnalysis 
 
 +------------------+---------------------------------------------------------------------------+
 | field            | description                                                               |
@@ -669,7 +669,7 @@ Classname: RealizedModeAnalysi
 File: /ridehailParking.csv
 --------------------------
 
-Classname: ParkingZoneFileUtil 
+Classname: ParkingZoneFileUtils 
 
 +----------------------------+-----------------------------------------------------------------+
 | field                      | description                                                     |
@@ -706,7 +706,7 @@ Classname: ParkingZoneFileUtil
 File: /rideHailRevenue.csv
 --------------------------
 
-Classname: RideHailRevenueAnalysi 
+Classname: RideHailRevenueAnalysis 
 
 +-------------+----------------------------------------------------------+
 | field       | description                                              |
@@ -719,7 +719,7 @@ Classname: RideHailRevenueAnalysi
 File: /rideHailRideUtilization.csv
 ----------------------------------
 
-Classname: RideHailUtilizationCollecto 
+Classname: RideHailUtilizationCollector 
 
 +-------------------------------+---------------------------------------------------------------+
 | field                         | description                                                   |
@@ -746,7 +746,7 @@ Classname: RideHailUtilizationCollecto
 File: /summaryVehicleStats.csv
 ------------------------------
 
-Classname: BeamSi 
+Classname: BeamSim 
 
 +----------------------+-------------------------------------------------------------+
 | field                | description                                                 |
@@ -765,7 +765,7 @@ Classname: BeamSi
 File: /ITERS/it.0/0.modeChosenAvailableAlternativesCount.csv
 ------------------------------------------------------------
 
-Classname: ModeChosenAnalysi 
+Classname: ModeChosenAnalysis 
 
 +-----------------------+--------------------------------------------------------------+
 | field                 | description                                                  |
@@ -780,7 +780,7 @@ Classname: ModeChosenAnalysi
 File: /ITERS/it.0/0.modeChosenAvailableAlternativesCount_commute.csv
 --------------------------------------------------------------------
 
-Classname: ModeChosenAnalysi 
+Classname: ModeChosenAnalysis 
 
 +-----------------------+--------------------------------------------------------------+
 | field                 | description                                                  |
@@ -795,7 +795,7 @@ Classname: ModeChosenAnalysi
 File: /ITERS/it.0/0.NonArrivedAgentsAtTheEndOfSimulation.csv
 ------------------------------------------------------------
 
-Classname: PersonTravelTimeAnalysi 
+Classname: PersonTravelTimeAnalysis 
 
 +-------+---------------------------------------------------------------------------------------------------------------+
 | field | description                                                                                                   |
@@ -808,7 +808,7 @@ Classname: PersonTravelTimeAnalysi
 File: /ITERS/it.0/0.parkingStats.csv
 ------------------------------------
 
-Classname: ParkingStatsCollect 
+Classname: ParkingStatsCollecto 
 
 +-----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+
 | field                       | description                                                                                                                                   |
@@ -974,7 +974,7 @@ Classname: RideHailingWaitingSingleAnalysisObject
 File: /stopwatch.txt
 --------------------
 
-Classname: StopWatchOutput 
+Classname: StopWatchOutputs 
 
 +--------------------------------+-----------------------------------------------------------+
 | field                          | description                                               |
@@ -1023,7 +1023,7 @@ Classname: StopWatchOutput
 File: /scorestats.txt
 ---------------------
 
-Classname: ScoreStatsOutput 
+Classname: ScoreStatsOutputs 
 
 +---------------+-------------------------------------------------------------------+
 | field         | description                                                       |
@@ -1042,7 +1042,7 @@ Classname: ScoreStatsOutput
 File: /summaryStats.txt
 -----------------------
 
-Classname: SummaryStatsOutput 
+Classname: SummaryStatsOutputs 
 
 +------------------------------------------+-----------------------------------------------------------------------------------------------------------------------------------+
 | field                                    | description                                                                                                                       |
@@ -1119,7 +1119,7 @@ Classname: SummaryStatsOutput
 File: /ITERS/it.0/0.countsCompare.txt
 -------------------------------------
 
-Classname: CountsCompareOutput 
+Classname: CountsCompareOutputs 
 
 +---------------------------+--------------------------------------------------------+
 | field                     | description                                            |
@@ -1144,7 +1144,7 @@ Classname: CountsCompareOutput
 File: /ITERS/it.0/0.events.csv
 ------------------------------
 
-Classname: EventOutput 
+Classname: EventOutputs 
 
 +--------------------------+-----------------------------------------------------+
 | field                    | description                                         |
@@ -1235,7 +1235,7 @@ Classname: EventOutput
 File: /ITERS/it.0/0.legHistogram.txt
 ------------------------------------
 
-Classname: LegHistogramOutput 
+Classname: LegHistogramOutputs 
 
 +--------------------------+-----------------------------------------------------------------------------+
 | field                    | description                                                                 |
@@ -1298,7 +1298,7 @@ Classname: LegHistogramOutput
 File: /ITERS/it.0/0.rideHailTripDistance.csv
 --------------------------------------------
 
-Classname: RideHailTripDistanceOutput 
+Classname: RideHailTripDistanceOutputs 
 
 +---------------+---------------------------------------------------------------+
 | field         | description                                                   |
@@ -1313,7 +1313,7 @@ Classname: RideHailTripDistanceOutput
 File: /ITERS/it.0/0.tripDuration.txt
 ------------------------------------
 
-Classname: TripDurationOutput 
+Classname: TripDurationOutputs 
 
 +---------+-------------+
 | field   | description |
@@ -1326,7 +1326,7 @@ Classname: TripDurationOutput
 File: /ITERS/it.0/0.biasErrorGraphData.txt
 ------------------------------------------
 
-Classname: BiasErrorGraphDataOutput 
+Classname: BiasErrorGraphDataOutputs 
 
 +---------------------+---------------------+
 | field               | description         |
@@ -1341,7 +1341,7 @@ Classname: BiasErrorGraphDataOutput
 File: /ITERS/it.0/0.biasNormalizedErrorGraphData.txt
 ----------------------------------------------------
 
-Classname: BiasNormalizedErrorGraphDataOutput 
+Classname: BiasNormalizedErrorGraphDataOutputs 
 
 +--------------------------------+--------------------------------+
 | field                          | description                    |
@@ -1356,7 +1356,7 @@ Classname: BiasNormalizedErrorGraphDataOutput
 File: /ITERS/it.0/0.rideHailFleetFromInitializer.csv.gz
 -------------------------------------------------------
 
-Classname: RideHailFleetInitialize 
+Classname: RideHailFleetInitializer 
 
 +-------------------+-------------------------------------------------------------------------------+
 | field             | description                                                                   |
@@ -1383,7 +1383,7 @@ Classname: RideHailFleetInitialize
 File: /rideHailStats.csv
 ------------------------
 
-Classname: OutputDataDescripto 
+Classname: OutputDataDescriptor 
 
 +-------------------------------------+----------------------------------------------------------------------+
 | field                               | description                                                          |
@@ -1412,7 +1412,7 @@ Classname: OutputDataDescripto
 File: /vehicles.csv.gz
 ----------------------
 
-Classname: VehiclesCsvWrite 
+Classname: VehiclesCsvWriter 
 
 +---------------+-------------------------------------------------------------------------+
 | field         | description                                                             |
