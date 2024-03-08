@@ -808,7 +808,7 @@ Classname: PersonTravelTimeAnalysis
 File: /ITERS/it.0/0.parkingStats.csv
 ------------------------------------
 
-Classname: ParkingStatsCollecto 
+Classname: ParkingStatsCollector 
 
 +-----------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------+
 | field                       | description                                                                                                                                   |
