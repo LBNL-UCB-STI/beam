@@ -492,7 +492,6 @@ TAZs, Scaling, and Physsim Tuning
    beam.physsim.jdeqsim.cacc.minSpeedMetersPerSec = 20
    beam.physsim.jdeqsim.cacc.speedAdjustmentFactor = 1.0
    beam.physsim.jdeqsim.cacc.capacityPlansWriteInterval = 0
-   beam.physsim.jdeqsim.cacc.adjustedMinimumRoadSpeedInMetersPerSecond = 1.3
 
    beam.physsim.cchRoutingAssignment.congestionFactor = 1.0
    beam.physsim.overwriteLinkParamPath = ""
@@ -506,7 +505,7 @@ TAZs, Scaling, and Physsim Tuning
    beam.physsim.ptSampleSize = 1.0
    beam.physsim.eventsForFullVersionOfVia = true
    beam.physsim.eventsSampling = 1.0
-   beam.physsim.quick_fix_minCarSpeedInMetersPerSecond = 0.5
+   beam.physsim.minCarSpeedInMetersPerSecond = 0.5
    beam.physsim.inputNetworkFilePath = ${beam.routing.r5.directory}"/physsim-network.xml"
    beam.physsim.skipPhysSim = false
    # Travel time function for (PAR)PBR sim (BPR | FREE_FLOW)
@@ -656,7 +655,6 @@ TAZs, Scaling, and Physsim Tuning
 * physsim.jdeqsim.cacc.minSpeedMetersPerSec: a CACC link must have at least this free speed.
 * physsim.jdeqsim.cacc.speedAdjustmentFactor: a free speed multiplier for each link
 * physsim.jdeqsim.cacc.capacityPlansWriteInterval: on which iterations to write CACC capacity stats.
-* physsim.jdeqsim.cacc.adjustedMinimumRoadSpeedInMetersPerSecond: the minimal possible speed on each link. In case of the biggest traffic jam an average speed of a vehicle is this value.
 * physsim.cchRoutingAssignment.congestionFactor: Used to calculate ods number multiplier with following formula: 1 / agentSampleSizeAsFractionOfPopulation * congestionFactor.
 * beam.physsim.overwriteLinkParamPath: a csv file path that can be used to overwrite link parameters: capacity, free_speed, length, lanes, alpha, beta. 
 * physsim.flowCapacityFactor: Flow capacity parameter used by JDEQSim for traffic flow simulation.
@@ -668,7 +666,7 @@ TAZs, Scaling, and Physsim Tuning
 * physsim.ptSampleSize: A scaling factor used to reduce the seating capacity of all transit vehicles. This is typically used in the context of running a partial sample of the population, it is advisable to reduce the capacity of the transit vehicles, but not necessarily proportionately. This should be calibrated.
 * physsim.eventsForFullVersionOfVia: enables saving additional events that are support of the full version of Simunto Via visualization software.
 * physsim.eventsSampling: fraction of physsim events to be written out.
-* physsim.quick_fix_minCarSpeedInMetersPerSecond: this minimal car speed is used in GraphHopper router and also for printing debut output for cases when the actual car speed is below this value.
+* physsim.minCarSpeedInMetersPerSecond: this minimal car speed is used in GraphHopper router and also for printing debut output for cases when the actual car speed is below this value.
 * physsim.inputNetworkFilePath = ${beam.routing.r5.directory}"/physsim-network.xml"
 * skipPhysSim: Turns off the JDEQSim traffic flow simulation. If set to true, then network congestion will not change from one iteration to the next. Typically this is only used for debugging issues that are unrelated to the physsim.
 * physsim.bprsim.travelTimeFunction: Travel time function (BPR of free flow). For BPR function see https://en.wikipedia.org/wiki/Route_assignment. Free flow implies that the vehicles go on the free speed on that link.
@@ -1404,6 +1402,7 @@ Parameters that are not supported anymore
     beam.calibration.meanToCountsWeightRatio
     beam.experimental.optimizer.enabled
     beam.physsim.initializeRouterWithFreeFlowTimes
+    beam.physsim.jdeqsim.cacc.adjustedMinimumRoadSpeedInMetersPerSecond
     beam.physsim.relaxation.type
     beam.physsim.relaxation.experiment2_0.internalNumberOfIterations
     beam.physsim.relaxation.experiment2_0.fractionOfPopulationToReroute
