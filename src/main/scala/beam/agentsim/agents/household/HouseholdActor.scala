@@ -641,7 +641,7 @@ object HouseholdActor {
       )
       // TODO Overnight charging is still a work in progress and might produce unexpected results
       if (vehicle.isEV && beamServices.beamConfig.beam.agentsim.chargingNetworkManager.overnightChargingEnabled) {
-        log.info(s"Overnight charging vehicle $vehicle with state of charge ${vehicle.getStateOfCharge}")
+        log.debug(s"Overnight charging vehicle $vehicle with state of charge ${vehicle.getStateOfCharge}")
         chargingNetworkManager ? inquiry
       } else {
         log.debug(s"Overnight parking vehicle $vehicle")
