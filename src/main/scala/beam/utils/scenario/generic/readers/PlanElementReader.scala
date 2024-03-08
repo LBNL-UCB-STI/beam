@@ -105,11 +105,9 @@ object XmlPlanElementReader extends PlanElementReader {
     planElementIdx: Int
   ): PlanElement =
     PlanElement(
-      tripId = if (activity.getAttributes.getAttribute("trip_id") != null) {
-        activity.getAttributes.getAttribute("trip_id").toString.filter(x => (x.isDigit || x.equals('.')))
-      } else {
-        ""
-      },
+      tripId = Option(activity.getAttributes.getAttribute("trip_id"))
+        .map(_.toString.filter(x => x.isDigit || x.equals('.')))
+        .getOrElse(""),
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
       planScore = plan.getScore,
@@ -134,11 +132,9 @@ object XmlPlanElementReader extends PlanElementReader {
 
   private def toPlanElement(leg: Leg, plan: Plan, planIdx: Int, person: Person, planElementIdx: Int): PlanElement =
     PlanElement(
-      tripId = if (leg.getAttributes.getAttribute("trip_id") != null) {
-        leg.getAttributes.getAttribute("trip_id").toString.filter(x => (x.isDigit || x.equals('.')))
-      } else {
-        ""
-      },
+      tripId = Option(leg.getAttributes.getAttribute("trip_id"))
+        .map(_.toString.filter(x => x.isDigit || x.equals('.')))
+        .getOrElse(""),
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
       planScore = plan.getScore,

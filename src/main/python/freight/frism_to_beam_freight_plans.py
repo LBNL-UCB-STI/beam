@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import numpy as np
 
+
 def read_csv_file(filename_):
     compression = None
     if filename_.endswith(".gz"):
@@ -36,10 +37,12 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
         store_dict[old] = new
     return new
 
-scenario_name = "locker-delivery"
-run_name = "2040_Con_p60_e0"
-directory_input = os.path.expanduser('~/Workspace/Data/FREIGHT/austin/frism/'+scenario_name+"/"+run_name)
-directory_output = os.path.expanduser('~/Workspace/Data/FREIGHT/austin/beam_freight/'+scenario_name+"/"+run_name)
+
+scenario_name = "scenarios-23Jan2024"
+run_name = "Base"
+city = "austin"
+directory_input = os.path.expanduser('~/Workspace/Data/FREIGHT/' + city + '/frism/'+scenario_name+"/"+run_name)
+directory_output = os.path.expanduser('~/Workspace/Data/FREIGHT/' + city + '/beam_freight/'+scenario_name+"/"+run_name)
 Path(directory_output).mkdir(parents=True, exist_ok=True)
 carriers = None
 payload_plans = None

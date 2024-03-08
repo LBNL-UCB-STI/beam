@@ -124,7 +124,7 @@ public class PhyssimCalcLinkStats implements BeamConfigChangesObserver {
 
                 double averageTime = travelTime.getLinkTravelTime(link, idx * binSize, null, null);
 
-                double minSpeed = this.beamConfig.beam().physsim().quick_fix_minCarSpeedInMetersPerSecond();
+                double minSpeed = this.beamConfig.beam().physsim().minCarSpeedInMetersPerSecond();
 
                 double averageSpeed = linkLength / averageTime;
 

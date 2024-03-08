@@ -92,12 +92,7 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
   val roadCapacityAdjustmentFunction: RoadCapacityAdjustmentFunction =
     new Hao2018CaccRoadCapacityAdjustmentFunctionWithoutPrintingStats(beamConfig)
 
-  val caccSettings: CACCSettings = CACCSettings(
-    isCACCVehicle,
-    1.0,
-    7,
-    roadCapacityAdjustmentFunction
-  )
+  val caccSettings: CACCSettings = CACCSettings(isCACCVehicle, 1.0, roadCapacityAdjustmentFunction)
 
   val pickUpDropOffHolder = new PickUpDropOffHolder(beamvilleLinkPickUpsDropOffsFromSimulation, beamConfig)
 
@@ -189,7 +184,8 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
       maybeCaccSettings,
       maybePickUpDropOffHolder,
       defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
-      defaultBeta = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.beta
+      defaultBeta = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.beta,
+      minSpeed = beamConfig.beam.physsim.minCarSpeedInMetersPerSecond
     )
     val bprConfig =
       BPRSimConfig(
@@ -219,7 +215,8 @@ class PhysSimTravelTimeWithCACCPickUpsDropOffs extends AnyWordSpec with Matchers
       maybeCaccSettings,
       maybePickUpDropOffHolder,
       defaultAlpha = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.alpha,
-      defaultBeta = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.beta
+      defaultBeta = beamConfig.beam.physsim.network.overwriteRoadTypeProperties.default.beta,
+      minSpeed = beamConfig.beam.physsim.minCarSpeedInMetersPerSecond
     )
     val bprConfig =
       BPRSimConfig(

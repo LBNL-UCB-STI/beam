@@ -53,7 +53,7 @@ class Population(
     }
 
   override def loggedReceive: PartialFunction[Any, Unit] = { case TriggerWithId(InitializeTrigger(_), triggerId) =>
-    implicit val timeout: Timeout = Timeout(120, TimeUnit.SECONDS)
+    implicit val _: Timeout = Timeout(120, TimeUnit.SECONDS)
     sharedVehicleFleets.foreach(_ ! GetVehicleTypes(triggerId))
     contextBecome(getVehicleTypes(triggerId, sharedVehicleFleets.size, Set.empty))
   }
@@ -66,7 +66,7 @@ class Population(
     }
   }
 
-  def finishInitialization(triggerId: Long, vehicleTypes: Set[BeamVehicleType]): Receive = {
+  private def finishInitialization(triggerId: Long, vehicleTypes: Set[BeamVehicleType]): Receive = {
     initHouseholds(vehicleTypes)
     eventsManager.processEvent(createStoredElectricityEvent(0))
     scheduler ! CompletionNotice(triggerId, Vector())
@@ -109,12 +109,8 @@ class Population(
         )
       }
       val homeCoord = new Coord(
-        HouseholdUtils
-          .getHouseholdAttribute(household, "homecoordx")
-          .asInstanceOf[Double],
-        HouseholdUtils
-          .getHouseholdAttribute(household, "homecoordy")
-          .asInstanceOf[Double]
+        HouseholdUtils.getHouseholdAttribute(household, "homecoordx").asInstanceOf[Double],
+        HouseholdUtils.getHouseholdAttribute(household, "homecoordy").asInstanceOf[Double]
       )
 
       val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters

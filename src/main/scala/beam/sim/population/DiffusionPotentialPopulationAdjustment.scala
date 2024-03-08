@@ -49,7 +49,10 @@ case class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) ex
 
   def computeRideHailDiffusionPotential(scenario: Scenario, person: Person): Double = {
 
-    val age = person.getAttributes.getAttribute(PERSON_AGE).asInstanceOf[Int]
+    val age = Option(person.getAttributes.getAttribute(PERSON_AGE)).map(_.toString.toInt).getOrElse {
+      logger.error(s"PERSON_AGE not found in the attributes of person ${person.getId}")
+      0
+    }
 
     if (age > 18) { // if above 18
 
@@ -88,8 +91,14 @@ case class DiffusionPotentialPopulationAdjustment(beamServices: BeamServices) ex
 
   def computeAutomatedVehicleDiffusionPotential(scenario: Scenario, person: Person): Double = {
     lazy val household = findHousehold(scenario, person.getId)
-    val age = person.getAttributes.getAttribute(PERSON_AGE).asInstanceOf[Int]
-    val sex = person.getAttributes.getAttribute(PERSON_SEX).toString
+    val age = Option(person.getAttributes.getAttribute(PERSON_AGE)).map(_.toString.toInt).getOrElse {
+      logger.error(s"PERSON_AGE not found in the attributes of person ${person.getId}")
+      0
+    }
+    val sex = Option(person.getAttributes.getAttribute(PERSON_SEX)).map(_.toString).getOrElse {
+      logger.error(s"PERSON_SEX not found in the attributes of person ${person.getId}")
+      ""
+    }
     val income = household.fold(0)(_.getIncome.getIncome.toInt)
 
     (if (isBornIn40s(age)) 0.1296 else if (isBornIn90s(age)) 0.2278 else 0) +
@@ -158,7 +167,11 @@ object DiffusionPotentialPopulationAdjustment {
 
   def hasChildUnder8(household: Household, population: Population): Boolean = {
     household.getMemberIds.asScala
-      .exists(m => findPerson(population, m).forall(_.getAttributes.getAttribute(PERSON_AGE).asInstanceOf[Int] < 8))
+      .exists(m =>
+        findPerson(population, m).forall(p =>
+          Option(p.getAttributes.getAttribute(PERSON_AGE)).exists(_.toString.toInt < 8)
+        )
+      )
   }
 
   def findPerson(population: Population, personId: Id[Person]): Option[Person] = {
