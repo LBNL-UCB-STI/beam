@@ -164,10 +164,11 @@ object PlansCsvWriter extends ScenarioCsvWriter {
     ).mkString("", FieldSeparator, LineSeparator)
   }
 
-  def activitySimOutputDataDescriptor: OutputDataDescriptor =
-    OutputDataDescriptorObject("PlansCsvWriter", s"plans.csv.gz")(
-      """
-      tripId              | Empty column. This table contains person plan elements at the beginning of simulation.
+  def plansOutputDataDescriptor(iterationLevel: Boolean): OutputDataDescriptor = {
+    val simStep = if (iterationLevel) "iteration" else "simulation"
+    OutputDataDescriptorObject("PlansCsvWriter", s"plans.csv.gz", iterationLevel)(
+      s"""
+      tripId              | Empty column. This table contains person plan elements at the beginning of $simStep.
       personId            | Person id
       planIndex           | Plan index
       planScore           | Plan score
@@ -189,4 +190,5 @@ object PlansCsvWriter extends ScenarioCsvWriter {
       legRouteLinks       | List of leg route link ids
       """
     )
+  }
 }
