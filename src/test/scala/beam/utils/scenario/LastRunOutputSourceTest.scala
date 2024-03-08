@@ -30,12 +30,14 @@ class LastRunOutputSourceTest extends AnyWordSpecLike with Matchers {
     }
 
     "find path when last iteration path path when xml plans exist" in {
-      val expectedPath = Paths.get("test/test-resources/beam/agentsim/plans/beamville__2/ITERS/it.3/3.plans.xml.gz")
+      val expectedExperiencedPath =
+        Paths.get("test/test-resources/beam/agentsim/plans/beamville__2/ITERS/it.3/3.experienced_plans.xml.gz")
+      val expectedOutputPath = Paths.get("test/test-resources/beam/agentsim/plans/beamville__2/output_plans.xml.gz")
       val outputPath = Paths.get("test/test-resources/beam/agentsim/plans")
 
-      val path = LastRunOutputSource.findLastRunOutputPlans(outputPath, "beamville")
+      val path = LastRunOutputSource.findLastRunOutputPlans(outputPath, "beamville__")
 
-      path should be(Some(expectedPath), None)
+      path should be(Some(expectedOutputPath), Some(expectedExperiencedPath))
     }
   }
 }
