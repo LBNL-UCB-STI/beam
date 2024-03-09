@@ -49,9 +49,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   private val maxDistanceForBikeMeters: Int =
     workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike
 
-  private val roadRestrictionWeightMultiplier: Float =
-    workerParams.beamConfig.beam.agentsim.agents.vehicles.roadRestrictionWeightMultiplier.toFloat
-
   private val R5Parameters(
     beamConfig,
     transportNetwork,
@@ -1232,7 +1229,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
               _.isRestricted(vehicleType.vehicleCategory, vehicleType.restrictRoadsByFreeSpeedInMeterPerSecond.get)
             )
         )
-          roadRestrictionWeightMultiplier
+          workerParams.beamConfig.beam.agentsim.agents.vehicles.roadRestrictionWeightMultiplier.toFloat
         else 1f
 
       (traversalTimeSeconds + (timeValueOfMoney * tollCalculator.calcTollByLinkId(
