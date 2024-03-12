@@ -109,19 +109,21 @@ Running on IntelliJ
 The default JDK/SDK (Java Development Kit/Software Development Kit) used by IntelliJ may not work for BEAM.
 If that occurs, you can configure IntelliJ to utilize the one used in your terminal (or other development tooling):
 
-1. Go to `File > Project Structure...`
-2. Select on `Project` under `Project Settings` in the side menu of the window that opened
-3. Open the dropdown under `Project SDK`
-4. If your expected SDK is there then select that one and hit `OK` and you are done. Otherwise,
-5. If your SDK is not found, then choose `Add SDK > JDK...`
-6. Browse to your JDKs home path (ie. ~/.jabba/jdk/adopt@1.11.28-0/Contents/Home)
-   a. If you do not know your JDK home path then you can try executing the following in your terminal:
+#. Go to `File > Project Structure...`
+#. Select on `Project` under `Project Settings` in the side menu of the window that opened
+#. Open the dropdown under `Project SDK`
+#. If your expected SDK is there then select that one and hit `OK` and you are done. Otherwise,
+#. If your SDK is not found, then choose `Add SDK > JDK...`
+#. Browse to your JDKs home path (ie. ~/.jabba/jdk/adopt@1.11.28-0/Contents/Home)
+
+   #. If you do not know your JDK home path then you can try executing the following in your terminal:
+
       * `which java` (this may be a symbolic link and not be the actual location)
       * `/usr/libexec/java_home` (or equivalent location of `java_home` for your OS)
       * `jabba which [VERSION]` if using jabba, but add `/Contents/Home` to the output
       * `sdk home java [VERSION]`
-7. Once you have the HOME directory from the last step selected click the `Open` button
-8. Make sure your added JDK is the selected SDK in `Project SDK` and hit OK.
+#. Once you have the HOME directory from the last step selected click the `Open` button
+#. Make sure your added JDK is the selected SDK in `Project SDK` and hit OK.
 
 Developing with Multiple Java Versions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -501,13 +503,6 @@ One needs to copy 'jupyter/.foldersToMapInJupyter.txt' file to 'jupyter/local_fi
 one location per row. Folders will be mounted during execution of jupyterStar gradle command.
 For windows users - be sure docker is updated and configured to use linux containers.
 
-
-Performance Monitoring
-^^^^^^^^^^^^^^^^^^^^^^
-
-Beam uses `Kamon`_ as a performance monitoring framework. It comes with a nice API to instrument your application code for metric recoding. Kamon also provide many different pingable recorders like Log Reporter, StatsD, InfluxDB etc. You can configure your desired recorder with project configurations under Kamon/metrics section. When you start the application it will measure the instrumented components and recorder would publish either to console or specified backend where you can monitor/analyse the metrics.
-
-If you would like to review basic JVM metrics then it is `already configured`_ so that you can use `jconsole`_.
 
 Beam Metrics Utility (`MetricsSupport`)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
