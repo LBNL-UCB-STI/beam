@@ -97,9 +97,11 @@ object BeamOutputDataDescriptionGenerator {
     beam.utils.csv.writers.PlansCsvWriter.plansOutputDataDescriptor(iterationLevel = true),
     beam.utils.csv.writers.PopulationCsvWriter.outputDataDescriptor,
     RealizedModeAnalysisObject,
+    beam.router.skim.ActivitySimSkimmer.outputDataDescriptor,
     beam.analysis.plots.RealizedModeAnalysisObject.activitySimOutputDataDescriptor,
     beam.analysis.plots.ModeChosenAnalysisObject.activitySimReferenceOutputDataDescriptor,
     beam.analysis.plots.RealizedModeAnalysisObject.referenceOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.iterationOutputDataDescriptor,
     beam.analysis.plots.RealizedModeAnalysisObject.activitySimReferenceOutputDataDescriptor,
     beam.analysis.plots.RealizedModeAnalysisObject.replanningReasonOutputDataDescriptor,
     beam.analysis.plots.RealizedModeAnalysisObject.activitySimReplanningReasonOutputDataDescriptor,
@@ -112,7 +114,9 @@ object BeamOutputDataDescriptionGenerator {
     beam.analysis.plots.RealizedModeAnalysisObject.activitySimReplanningReasonIterationOutputDataDescriptor,
     beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.rideHailParkingOutputDataDescriptor,
     beam.analysis.plots.RideHailRevenueAnalysis.outputDataDescriptor,
+    beam.analysis.RideHailUtilizationCollector.rideHailRidesOutputDataDescriptor,
     beam.analysis.RideHailUtilizationCollector.activitySimReplanningReasonOutputDataDescriptor,
+    new beam.agentsim.agents.ridehail.RideHailManager.OutputData,
     BeamOutputDataDescriptionGenerator.summaryVehicleStatsOutputDataDescriptor,
     beam.analysis.plots.ModeChosenAnalysisObject.iterationAlternativesCount,
     beam.analysis.plots.ModeChosenAnalysisObject.iterationActivitySimAlternativesCount,
@@ -126,6 +130,24 @@ object BeamOutputDataDescriptionGenerator {
     RideHailWaitingAnalysisObject,
     GraphSurgePricingObject,
     RideHailingWaitingSingleAnalysisObject,
+    beam.analysis.plots.RideHailWaitingTazAnalysisObject.rideHailWaitingTimeOutputDataDescriptor,
+    beam.router.RouteHistory.routeHistoryOutputDataDescriptor,
+    beam.analysis.RoutingRequestAnalysis.routingModeOutputDataDescriptor,
+    beam.router.skim.core.FreightSkimmer.freightSkimOutputDataDescriptor,
+    beam.router.skim.core.FreightSkimmer.aggregatedFreightSkimOutputDataDescriptor,
+    beam.router.skim.core.ODSkimmer.odSkimOutputDataDescriptor,
+    beam.router.skim.core.ODSkimmer.aggregatedOdSkimOutputDataDescriptor,
+    beam.router.skim.core.ParkingSkimmer.parkingSkimOutputDataDescriptor,
+    beam.router.skim.core.ParkingSkimmer.aggregatedParkingSkimOutputDataDescriptor,
+    beam.router.skim.core.RideHailSkimmer.rideHailSkimOutputDataDescriptor,
+    beam.router.skim.core.RideHailSkimmer.aggregatedRideHailSkimOutputDataDescriptor,
+    beam.router.skim.core.TAZSkimmer.tazSkimOutputDataDescriptor,
+    beam.router.skim.core.TAZSkimmer.aggregatedTazSkimOutputDataDescriptor,
+    beam.router.skim.core.TransitCrowdingSkimmer.transitCrowdingSkimOutputDataDescriptor,
+    beam.router.skim.core.TransitCrowdingSkimmer.aggregatedTransitCrowdingSkimOutputDataDescriptor,
+    beam.router.skim.core.DriveTimeSkimmer.driveTimeSkimOutputDataDescriptor,
+    beam.router.skim.core.DriveTimeSkimmer.aggregatedDriveTimeSkimOutputDataDescriptor,
+    beam.analysis.TransitOccupancyByStopAnalysis.transitOccupancySkimOutputDataDescriptor,
     StopWatchOutputs,
     ScoreStatsOutputs,
     SummaryStatsOutputs,
@@ -399,7 +421,7 @@ object SummaryStatsOutputs extends OutputDataDescriptor {
   override def getOutputDataDescriptions(
     ioController: OutputDirectoryHierarchy
   ): java.util.List[OutputDataDescription] = {
-    val outputFilePath = ioController.getOutputFilename("summaryStats.txt")
+    val outputFilePath = ioController.getOutputFilename("summaryStats.csv")
     val outputDirPath = ioController.getOutputPath
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new java.util.ArrayList[OutputDataDescription]
@@ -1290,7 +1312,7 @@ object TripDurationOutputs extends OutputDataDescriptor {
   override def getOutputDataDescriptions(
     ioController: OutputDirectoryHierarchy
   ): java.util.List[OutputDataDescription] = {
-    val outputFilePath = ioController.getIterationFilename(0, "tripDuration.txt")
+    val outputFilePath = ioController.getIterationFilename(0, "tripdurations.txt")
     val outputDirPath = ioController.getOutputPath
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new java.util.ArrayList[OutputDataDescription]

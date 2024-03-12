@@ -49,7 +49,7 @@ object HouseholdsCsvWriter extends ScenarioCsvWriter with StrictLogging {
   }
 
   def outputDataDescriptor: OutputDataDescriptor =
-    OutputDataDescriptorObject("HouseholdsCsvWriter", "households.csv")(
+    OutputDataDescriptorObject("HouseholdsCsvWriter", "households.csv.gz")(
       """
           householdId | Ids of households that are presented in the simulation
           cars | Household cars

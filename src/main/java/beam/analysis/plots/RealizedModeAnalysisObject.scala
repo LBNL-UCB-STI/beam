@@ -86,7 +86,7 @@ object RealizedModeAnalysisObject extends OutputDataDescriptor {
     )
 
   def replanningCountIterationOutputDataDescriptor: OutputDataDescriptor =
-    OutputDataDescriptorObject("RealizedModeAnalysis", "replanningCountModeChoice.csv")(
+    OutputDataDescriptorObject("RealizedModeAnalysis", "replanningCountModeChoice.csv", iterationLevel = true)(
       """
         hour   | Hour of simulation
         count  | Number of replanning events happen at that hour
@@ -94,10 +94,10 @@ object RealizedModeAnalysisObject extends OutputDataDescriptor {
     )
 
   def activitySimReplanningCountIterationOutputDataDescriptor: OutputDataDescriptor =
-    OutputDataDescriptorObject("RealizedModeAnalysis", "replanningCountModeChoice_commute.csv")(
+    OutputDataDescriptorObject("RealizedModeAnalysis", "replanningCountModeChoice_commute.csv", iterationLevel = true)(
       """
         hour   | Hour of simulation
-        count  | Number of replanning events happen during commutes
+        count  | Number of replanning events happen during commutes at that hour
         """
     )
 
@@ -150,24 +150,25 @@ object RealizedModeAnalysisObject extends OutputDataDescriptor {
     )
 
   def getOutputDataDescriptions(ioController: OutputDirectoryHierarchy): util.List[OutputDataDescription] = {
-    val outputFilePath: String = ioController.getOutputFilename(fileName + ".csv")
+    val outputFilePath: String = ioController.getOutputFilename("realizedModeChoice.csv")
     val outputDirPath: String = ioController.getOutputPath
     val relativePath: String = outputFilePath.replace(outputDirPath, "")
     val list: util.List[OutputDataDescription] = new util.ArrayList[OutputDataDescription]
+    val className = classOf[RealizedModeAnalysis].getSimpleName
     list
       .add(
         OutputDataDescription(
-          getClass.getSimpleName,
+          className,
           relativePath,
           "iterations",
           "iteration number"
         )
       )
-    list.add(OutputDataDescription(getClass.getSimpleName, relativePath, "car", "Car chosen as travel mode"))
+    list.add(OutputDataDescription(className, relativePath, "car", "Car chosen as travel mode"))
     list
       .add(
         OutputDataDescription(
-          getClass.getSimpleName,
+          className,
           relativePath,
           "drive_transit",
           "Drive to transit chosen as travel mode"
@@ -176,26 +177,44 @@ object RealizedModeAnalysisObject extends OutputDataDescriptor {
     list
       .add(
         OutputDataDescription(
-          getClass.getSimpleName,
-          relativePath,
-          "other",
-          "Other modes of travel chosen"
-        )
-      )
-    list
-      .add(
-        OutputDataDescription(
-          getClass.getSimpleName,
+          className,
           relativePath,
           "ride_hail",
           "Ride Hail chosen as travel mode"
         )
       )
-    list.add(OutputDataDescription(getClass.getSimpleName, relativePath, "walk", "Walk chosen as travel mode"))
     list
       .add(
         OutputDataDescription(
-          getClass.getSimpleName,
+          className,
+          relativePath,
+          "ride_hail_pooled",
+          "Ride Hail pooled chosen as travel mode"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          className,
+          relativePath,
+          "bike",
+          "Bike chosen as travel mode"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          className,
+          relativePath,
+          "bike_transit",
+          "Bike to transit chosen as travel mode"
+        )
+      )
+    list.add(OutputDataDescription(className, relativePath, "walk", "Walk chosen as travel mode"))
+    list
+      .add(
+        OutputDataDescription(
+          className,
           relativePath,
           "walk_transit",
           "Walk to transit chosen as travel mode"

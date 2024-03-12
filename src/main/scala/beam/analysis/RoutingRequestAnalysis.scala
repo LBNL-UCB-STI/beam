@@ -4,7 +4,7 @@ import beam.agentsim.events.ModeChoiceEvent
 import beam.analysis.plots.{BaseModeAnalysis, GraphAnalysis}
 import beam.router.BeamRouter.RoutingRequest
 import beam.router.r5.RouteDumper.RoutingRequestEvent
-import beam.utils.FileUtils
+import beam.utils.{FileUtils, OutputDataDescriptor, OutputDataDescriptorObject}
 import beam.utils.csv.CsvWriter
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -49,4 +49,16 @@ class RoutingRequestAnalysis extends GraphAnalysis {
       }
     }
   }
+}
+
+object RoutingRequestAnalysis {
+
+  def routingModeOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("RoutingRequestAnalysis", "routingModeChoice.csv", iterationLevel = true)(
+      """
+        PersonId              | Person id
+        ModeChoice            | Chosen mode
+        RoutingRequestIds     | The list of routing request ids
+        """
+    )
 }

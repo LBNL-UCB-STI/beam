@@ -321,4 +321,17 @@ object RideHailUtilizationCollector {
         NPassengersToTheNumberOfRides | Number of rides with N passengers
           """
     )
+
+  def rideHailRidesOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("RideHailUtilizationCollector", s"ridehailRides.csv.gz", iterationLevel = true)(
+      """
+        vehicleId           | Id of the ride-hail vehicle making the ride
+        time                | Time in seconds when the ride is completed
+        startX              | X part of the start ride coordinate
+        startY              | Y part of the start ride coordinate
+        endX                | X of the end ride coordinate
+        endY                | Y part of the end ride coordinate
+        numberOfPassengers  | Number of passengers on the ride
+          """
+    )
 }

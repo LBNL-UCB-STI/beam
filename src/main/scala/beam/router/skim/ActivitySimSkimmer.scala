@@ -5,7 +5,7 @@ import beam.router.skim.core.{AbstractSkimmer, AbstractSkimmerInternal, Abstract
 import beam.router.skim.urbansim.ActivitySimOmxWriter
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
-import beam.utils.ProfilingUtils
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject, ProfilingUtils}
 import beam.utils.csv.CsvWriter
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -512,4 +512,28 @@ object ActivitySimSkimmer extends LazyLogging {
 
     val csvHeader: String = csvHeaderSeq.mkString(",")
   }
+
+  def outputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("ActivitySimSkimmer", "activitySimODSkims_current.csv.gz", iterationLevel = true)(
+      """
+        timePeriod          | EA - early AM, 3 am to 6 am, AM - peak period, 6 am to 10 am, MD - midday period, 10 am to 3 pm, PM - peak period, 3 pm to 7 pm, EV - evening, 7 pm to 3 am the next day
+        pathType            | See all the possible path types with descriptions https://activitysim.github.io/activitysim/v1.0.4/howitworks.html#skims
+        origin              | Id of the origin geo unit
+        destination         | Id of the destination geo unit
+        TIME_minutes        | Travel time in minutes
+        TOTIVT_IVT_minutes  | Total in-vehicle time (IVT) in minutes
+        VTOLL_FAR           | Fare
+        DIST_meters         | Travel distance in meters
+        WACC_minutes        | Walk access time in minutes
+        WAUX_minutes        | Walk other time in minutes
+        WEGR_minutes        | Walk egress time in minutes
+        DTIM_minutes        | Drive time in minutes
+        DDIST_meters        | Drive distance in meters
+        KEYIVT_minutes      | Light rail IVT
+        FERRYIVT_minutes    | Ferry IVT
+        BOARDS              | Number of transfers
+        WeightedCost        | Weighted cost
+        DEBUG_TEXT          | For internal use
+        """
+    )
 }
