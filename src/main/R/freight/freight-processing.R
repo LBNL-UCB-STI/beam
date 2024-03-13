@@ -31,6 +31,10 @@ isCav <- function(x) {
 ### RouteE
 
 work_folder <- normalizePath("~/Workspace/Data/Scenarios/sfbay/")
+vehicletypes <- readCsv(pp(work_folder, "/vehicletypes-all.csv"))
+unique_data <- distinct(vehicletypes)
+write.csv(unique_data, file = pp(work_folder, "/vehicletypes--baseline-2.csv"), row.names=F, quote=F)
+
 library(sf)
 geojson_file_path <- pp(work_folder, "/input/beam_npmrds_network_map.geojson")
 geo_data <- st_read(geojson_file_path)
