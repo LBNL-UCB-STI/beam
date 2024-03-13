@@ -1104,10 +1104,10 @@ trait ChoosesMode {
       } else {
         // Travel time usually decreases, adjust for this but add a buffer to the wait time to account for uncertainty in actual wait time
         val startTimeAdjustment =
-          driveTransitTrip.legs.head.beamLeg.endTime - tncAccessLeg.last.beamLeg.duration - timeToCustomer
+          driveTransitTrip.legs.head.beamLeg.endTime - tncAccessLeg.last.beamLeg.duration
         val startTimeBufferForWaiting = math.min(
           extraWaitTimeBuffer,
-          math.max(300.0, timeToCustomer.toDouble * 1.5)
+          math.max(300.0, timeToCustomer.toDouble * 0.5)
         ) // tncAccessLeg.head.beamLeg.startTime - _currentTick.get.longValue()
         val accessAndTransit = tncAccessLeg.map(leg =>
           leg.copy(
@@ -1124,7 +1124,7 @@ trait ChoosesMode {
         Some(
           EmbodiedBeamTrip(
             EmbodiedBeamLeg.dummyLegAt(
-              start = fullTrip.head.beamLeg.startTime,
+              start = Math.max(_currentTick.get, fullTrip.head.beamLeg.startTime - timeToCustomer),
               vehicleId = body.id,
               isLastLeg = false,
               location = fullTrip.head.beamLeg.travelPath.startPoint.loc,

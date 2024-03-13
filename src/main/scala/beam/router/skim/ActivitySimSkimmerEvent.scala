@@ -66,9 +66,6 @@ case class ActivitySimSkimmerEvent(
       if (transitModes.contains(leg.beamLeg.mode)) {
         if (!travelingInTransit) {
           travelingInTransit = true
-          // ZN: Choosing to define initial wait time as including both wait time for the ridehail vehicle and wait
-          // time for the first transit leg after dropoff for TNC_TRANSIT
-          if (numberOfTransitTrips == 0) { initialWaitTime += leg.beamLeg.startTime - previousLegEndTime }
           numberOfTransitTrips += 1
         }
       } else {
