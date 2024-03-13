@@ -41,6 +41,7 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters
 import scala.concurrent.duration._
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 /**
   * BEAM
@@ -86,8 +87,10 @@ trait ChoosesMode {
         manager.supportedModes
           .split(',')
           .map(_.trim.toLowerCase)
-          .flatMap(BeamMode.fromString)
-          .filter(_.isRideHail)
+          .flatMap(n => Seq(n, n.concat("_transit")))
+          .flatMap { n =>
+            Try(BeamMode.fromString(n)).toOption.flatten.toSeq
+          }
           .flatMap(supportedBeamMode =>
             determineActivitySimPathTypesFromBeamMode(Some(supportedBeamMode), None)
               .map(_ -> manager.name)

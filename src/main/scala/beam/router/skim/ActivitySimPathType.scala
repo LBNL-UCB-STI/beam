@@ -26,7 +26,7 @@ object ActivitySimPathType {
         (TNC_SINGLE, Some(RideHailVehicleId(trip.legs.find(_.isRideHail).get.beamVehicleId).fleetId))
       case BeamMode.RIDE_HAIL_POOLED =>
         (TNC_SHARED, Some(RideHailVehicleId(trip.legs.find(_.isRideHail).get.beamVehicleId).fleetId))
-      case BeamMode.RIDE_HAIL_TRANSIT if trip.legs.find(_.isRideHail).get.isPooledTrip =>
+      case BeamMode.RIDE_HAIL_TRANSIT if trip.legs.filter(_.isRideHail).exists(_.isPooledTrip) =>
         (TNC_SHARED_TRANSIT, Some(RideHailVehicleId(trip.legs.find(_.isRideHail).get.beamVehicleId).fleetId))
       case BeamMode.RIDE_HAIL_TRANSIT =>
         (TNC_SINGLE_TRANSIT, Some(RideHailVehicleId(trip.legs.find(_.isRideHail).get.beamVehicleId).fleetId))
@@ -118,7 +118,7 @@ object ActivitySimPathType {
   def determineTripPathTypeAndFleet(trip: EmbodiedBeamTrip): (ActivitySimPathType, Option[String]) = {
     val allMods = trip.legs.map(_.beamLeg.mode).toSet
     val uniqueNotWalkingModes: Set[BeamMode] = allMods.filter { mode =>
-      isCar(mode) || isWalkTransit(mode)
+      isCar(mode) || isWalkTransit(mode) || (mode == BeamMode.BIKE)
     }
     if (uniqueNotWalkingModes.exists(isCar)) {
       determineCarPathTypeAndFleet(trip)
@@ -271,6 +271,11 @@ object ActivitySimPathType {
     WLK_COM_DRV,
     WLK_LRF_DRV,
     WLK_EXP_DRV
+  )
+
+  val tncTransitPathTypes: Seq[ActivitySimPathType] = Seq(
+    TNC_SINGLE_TRANSIT,
+    TNC_SHARED_TRANSIT
   )
 
   val transitPathTypes: Seq[ActivitySimPathType] = Seq(

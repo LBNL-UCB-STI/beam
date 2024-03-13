@@ -100,7 +100,13 @@ case class ActivitySimSkimmerEvent(
   ): (ActivitySimSkimmerKey, ActivitySimSkimmerInternal) = {
     val (pathType, fleet) = ActivitySimPathType.determineTripPathTypeAndFleet(trip)
     if (walkTransitPathTypes.contains(pathType) & fleet.nonEmpty) {
-      logger.warn("Why are we missing a car leg in a TNC transit trip?")
+      logger.warn(
+        s"Why are we missing a car leg in a TNC transit trip?  Leg vehicles: ${trip.legs.map(_.beamVehicleId)}"
+      )
+    } else if (tncTransitPathTypes.contains(pathType) & fleet.isEmpty) {
+      logger.warn(
+        s"Why are we missing a TNC fleet for a TNC transit trip? Leg vehicles: ${trip.legs.map(_.beamVehicleId)}"
+      )
     }
     val beamLegs = trip.beamLegs
     val origLeg = beamLegs.head
