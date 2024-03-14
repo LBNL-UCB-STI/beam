@@ -40,7 +40,9 @@ object ActivitySimPathType {
     val (_, longestCarLegId) = tryGetLongestLegId(trip, isCar)
     val (longestWalkTransitLeg, longestWalkTransitLegId) = tryGetLongestLegId(trip, isTransit)
 
-    if (longestCarLegId.isEmpty || longestWalkTransitLeg.isEmpty || longestWalkTransitLegId.isEmpty) {
+    if (trip.legs.exists(_.isRideHail)) {
+      OTHER // Stub for when we merge in RH_TRANSIT mode from the Cruise branch
+    } else if (longestCarLegId.isEmpty || longestWalkTransitLeg.isEmpty || longestWalkTransitLegId.isEmpty) {
       OTHER
     } else if (longestCarLegId.get > longestWalkTransitLegId.get) {
       longestWalkTransitLeg.map(leg => leg.beamLeg.mode) match {
