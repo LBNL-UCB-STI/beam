@@ -1,5 +1,6 @@
 package beam.router.skim.urbansim
 
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.ActivitySimMetric._
 import beam.router.skim.ActivitySimPathType._
 import beam.router.skim.ActivitySimSkimmer.ExcerptData
@@ -7,8 +8,12 @@ import beam.router.skim.ActivitySimTimeBin._
 import beam.router.skim.{ActivitySimMetric, ActivitySimPathType, ActivitySimTimeBin}
 import beam.utils.FileUtils
 import beam.utils.csv.CsvWriter
+import com.typesafe.scalalogging.LazyLogging
 import omx.hdf5.HDF5Loader
 import omx.{OmxFile, OmxMatrix}
+import org.matsim.api.core.v01.Id
+import org.supercsv.io.CsvMapReader
+import org.supercsv.prefs.CsvPreference
 
 import scala.collection.mutable
 import scala.util.Try
@@ -16,7 +21,7 @@ import scala.util.Try
 /**
   * @author Dmitry Openkov
   */
-object ActivitySimOmxWriter {
+object ActivitySimOmxWriter extends LazyLogging {
 
   def writeToOmx(
     filePath: String,
@@ -144,4 +149,29 @@ object ActivitySimOmxWriter {
       Set(WACC, IVT, XWAIT, IWAIT, WEGR, WAUX, TRIPS, FAILURES)
     )
   )
+
+  def readCSV(filePath: String): Vector[(Id[TAZ], String, String, Double)] = {
+    var res = Vector.empty[(Id[TAZ], String, String, Double)]
+    var mapReader: CsvMapReader = null
+    val fileHeader = Seq[String]("taz", "cbg_origin", "cbg_destination", "cbg_distance")
+    try {
+      mapReader = new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+      val header = mapReader.getHeader(true)
+      var line: java.util.Map[String, String] = mapReader.read(header: _*)
+      while (null != line) {
+        val taz = Id.create(line.getOrDefault(fileHeader(0), ""), classOf[TAZ])
+        val cbg_origin = line.getOrDefault(fileHeader(1), "")
+        val cbg_destination = line.getOrDefault(fileHeader(2), "")
+        val cbg_distance = line.get(fileHeader(3)).toDouble
+        res = res :+ (taz, cbg_origin, cbg_destination, cbg_distance)
+        line = mapReader.read(header: _*)
+      }
+    } catch {
+      case e: Exception => logger.info(s"issue with reading $filePath: $e")
+    } finally {
+      if (null != mapReader)
+        mapReader.close()
+    }
+    res
+  }
 }
