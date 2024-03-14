@@ -30,13 +30,13 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
   override protected val skimFileBaseName: String = config.activity_sim_skimmer.fileBaseName
   override protected val skimFileHeader: String = ExcerptData.csvHeader
 
-  override protected lazy val zoningSystemMap: Map[String, Map[String, Map[String, Double]]] =
-    ActivitySimOmxWriter
-      .readCSV(config.activity_sim_skimmer.TAZ2CBGMapFilePath)
-      .map { case (taz, cbg_o, cbg_d, dist) =>
-        taz -> Map(cbg_o -> Map(cbg_d -> dist))
-      }
-      .toMap
+//  override protected lazy val zoningSystemMap: Map[String, Map[String, Map[String, Double]]] =
+//    ActivitySimOmxWriter
+//      .readCSV(config.activity_sim_skimmer.TAZ2CBGMapFilePath)
+//      .map { case (taz, cbg_o, cbg_d, dist) =>
+//        taz -> Map(cbg_o -> Map(cbg_d -> dist))
+//      }
+//      .toMap
 
   override def writeToDisk(event: IterationEndsEvent): Unit =
     if (config.writeSkimsInterval > 0 && event.getIteration % config.writeSkimsInterval == 0) {
