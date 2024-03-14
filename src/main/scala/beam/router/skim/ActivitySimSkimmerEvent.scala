@@ -48,6 +48,9 @@ case class ActivitySimSkimmerEvent(
         sawNonWalkModes += 1
         if (sawNonWalkModes == 1) {
           walkAccess = currentWalkTime
+          if (leg.isRideHail) {
+            initialWaitTime = leg.beamLeg.startTime - previousLegEndTime
+          }
         } else {
           walkAuxiliary += currentWalkTime
         }
@@ -91,7 +94,7 @@ case class ActivitySimSkimmerEvent(
     generalizedCost: Double,
     energyConsumption: Double
   ): (ActivitySimSkimmerKey, ActivitySimSkimmerInternal) = {
-    val pathType = ActivitySimPathType.determineTripPathType(trip)
+    val (pathType, fleet) = ActivitySimPathType.determineTripPathTypeAndFleet(trip)
     val beamLegs = trip.beamLegs
     val origLeg = beamLegs.head
     val timeBin = SkimsUtils.timeToBin(origLeg.startTime)
@@ -115,7 +118,7 @@ case class ActivitySimSkimmerEvent(
         }
       }
 
-    val key = ActivitySimSkimmerKey(timeBin, pathType, origin, destination)
+    val key = ActivitySimSkimmerKey(timeBin, pathType, origin, destination, fleet)
 
     val (walkAccess, walkAuxiliary, walkEgress, totalInVehicleTime, waitInitial, waitAuxiliary, numberOfTransitTrips) =
       calcTimes(trip)
@@ -155,12 +158,19 @@ case class ActivitySimSkimmerFailedTripEvent(
   destination: String,
   eventTime: Double,
   activitySimPathType: ActivitySimPathType,
+  fleet: Option[String],
   iterationNumber: Int,
   override val skimName: String
 ) extends AbstractSkimmerEvent(eventTime) {
 
   override def getKey: ActivitySimSkimmerKey =
-    ActivitySimSkimmerKey(SkimsUtils.timeToBin(Math.round(eventTime).toInt), activitySimPathType, origin, destination)
+    ActivitySimSkimmerKey(
+      SkimsUtils.timeToBin(Math.round(eventTime).toInt),
+      activitySimPathType,
+      origin,
+      destination,
+      fleet
+    )
 
   override def getSkimmerInternal: ActivitySimSkimmerInternal = {
     ActivitySimSkimmerInternal(
