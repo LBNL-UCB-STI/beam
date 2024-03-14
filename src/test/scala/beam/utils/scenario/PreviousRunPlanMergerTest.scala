@@ -1,12 +1,10 @@
 package beam.utils.scenario
 
-import org.matsim.core.utils.misc.OptionalTime
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
 import java.nio.file.Paths
 import scala.util.Random
-import beam.utils.OptionalUtils.OptionalTimeExtension
 
 class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 

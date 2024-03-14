@@ -59,7 +59,6 @@ import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersMod
 import org.matsim.core.events.ParallelEventsManagerImpl
 import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioBuilder, ScenarioByInstanceModule, ScenarioUtils}
-import org.matsim.core.trafficmonitoring.TravelTimeCalculator
 import org.matsim.households.{HouseholdUtils, Households}
 import org.matsim.utils.objectattributes.AttributeConverter
 import org.matsim.vehicles.Vehicle
@@ -235,12 +234,6 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
             })
           bind(classOf[BeamScenario]).toInstance(beamScenario)
           bind(classOf[TransportNetwork]).toInstance(beamScenario.transportNetwork)
-          bind(classOf[TravelTimeCalculator]).toInstance(
-            new FakeTravelTimeCalculator(
-              beamScenario.network,
-              new TravelTimeCalculatorConfigGroup()
-            )
-          )
           bind(classOf[beam.router.r5.BikeLanesData]).toInstance(BikeLanesData(beamConfig))
           bind(classOf[BikeLanesAdjustment]).in(Scopes.SINGLETON)
           bind(classOf[NetworkHelper]).to(classOf[NetworkHelperImpl]).asEagerSingleton()
