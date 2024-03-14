@@ -45,16 +45,11 @@ class UrbanSimScenarioLoader(
 
   private val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
-  private val wereCoordinatesInWGS = false //beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm // make false
+  private val wereCoordinatesInWGS = beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
 
-  def utmCoord(x: Double, y: Double): Coord = {
+  def utmCoord(x: Double, y: Double, fromExistingPlans: Boolean = false): Coord = {
     val coord = new Coord(x, y)
-    if (wereCoordinatesInWGS) geo.wgs2Utm(coord) else coord
-  }
-
-  def wgsCoord(x: Double, y: Double): Coord = {
-    val coord = new Coord(x, y)
-    if (wereCoordinatesInWGS) coord else geo.utm2Wgs(coord)
+    if (fromExistingPlans) coord else { if (wereCoordinatesInWGS) geo.wgs2Utm(coord) else coord }
   }
 
   private def buildAndAddLegToPlan(currentPlan: Plan, planElement: PlanElement): Leg = {
@@ -198,7 +193,7 @@ class UrbanSimScenarioLoader(
     assignVehicles(households, householdIdToPersons, personId2Score).foreach { case (householdInfo, nVehicles) =>
       val id = Id.create(householdInfo.householdId.id, classOf[Household])
       val household = new HouseholdsFactoryImpl().createHousehold(id)
-      val coord = utmCoord(householdInfo.locationX, householdInfo.locationY)
+      val coord = utmCoord(householdInfo.locationX, householdInfo.locationY, fromExistingPlans = true)
 
       household.setIncome(new IncomeImpl(householdInfo.income, Income.IncomePeriod.year))
 
@@ -275,7 +270,7 @@ class UrbanSimScenarioLoader(
   private def plansToTravelStats(planElements: Iterable[PlanElement]): PersonTravelStats = {
     val homeCoord = planElements.find(_.activityType.getOrElse("") == "Home") match {
       case Some(homeElement) =>
-        Some(utmCoord(homeElement.activityLocationX.get, homeElement.activityLocationY.get))
+        Some(utmCoord(homeElement.activityLocationX.get, homeElement.activityLocationY.get, fromExistingPlans = true))
       case None =>
         None
     }
@@ -287,10 +282,15 @@ class UrbanSimScenarioLoader(
           Some(
             PlanTripStats(
               firstElement.activityEndTime.getOrElse(0.0),
-              utmCoord(firstElement.activityLocationX.getOrElse(0.0), firstElement.activityLocationY.getOrElse(0.0)),
+              utmCoord(
+                firstElement.activityLocationX.getOrElse(0.0),
+                firstElement.activityLocationY.getOrElse(0.0),
+                fromExistingPlans = true
+              ),
               utmCoord(
                 secondElement.activityLocationX.getOrElse(0.0),
-                secondElement.activityLocationY.getOrElse(0.0)
+                secondElement.activityLocationY.getOrElse(0.0),
+                fromExistingPlans = true
               )
             )
           )
@@ -627,7 +627,7 @@ class UrbanSimScenarioLoader(
             planInfo.activityLocationY.isDefined,
             s"planElement is `activity`, but `y` is None! planInfo: $planInfo"
           )
-          val coord = utmCoord(planInfo.activityLocationX.get, planInfo.activityLocationY.get)
+          val coord = utmCoord(planInfo.activityLocationX.get, planInfo.activityLocationY.get, fromExistingPlans = true)
           val activityType = planInfo.activityType.getOrElse(
             throw new IllegalStateException(
               s"planElement is `activity`, but `activityType` is None. planInfo: $planInfo"
