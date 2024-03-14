@@ -1221,13 +1221,19 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     startTime: Int
   ): TravelCostCalculator = { (edge: EdgeStore#Edge, legDurationSeconds: Int, traversalTimeSeconds: Float) =>
     {
-      val roadRestrictionWeightMultiplier =
-        (osmIdToRoadRestriction.get(edge.getOSMID), vehicleType.restrictRoadsByFreeSpeedInMeterPerSecond) match {
-          case (Some(roadRestriction), Some(restrictRoadValue))
-              if roadRestriction.isRestricted(vehicleType.vehicleCategory, restrictRoadValue) =>
-            workerParams.beamConfig.beam.agentsim.agents.vehicles.roadRestrictionWeightMultiplier.toFloat
-          case _ => 1f
-        }
+      val roadRestrictionWeightMultiplier: Float =
+        if (
+          osmIdToRoadRestriction
+            .get(edge.getOSMID)
+            .exists(
+              _.isRestricted(
+                vehicleType.vehicleCategory,
+                vehicleType.restrictRoadsByFreeSpeedInMeterPerSecond.getOrElse(Double.MaxValue)
+              )
+            )
+        )
+          workerParams.beamConfig.beam.agentsim.agents.vehicles.roadRestrictionWeightMultiplier.toFloat
+        else 1f
 
       (traversalTimeSeconds + (timeValueOfMoney * tollCalculator.calcTollByLinkId(
         edge.getEdgeIndex,
