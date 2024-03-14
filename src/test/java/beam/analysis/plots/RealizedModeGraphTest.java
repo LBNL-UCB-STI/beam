@@ -28,7 +28,7 @@ public class RealizedModeGraphTest {
 
         @Override
         public void handleEvent(Event event) {
-            if (event instanceof ReplanningEvent || event.getEventType().equalsIgnoreCase(ReplanningEvent.EVENT_TYPE)) {
+            if (event instanceof ReplanningEvent || event.getEventType().equalsIgnoreCase(ReplanningEvent.EVENT_TYPE())) {
                 realizedModeStats.processStats(event);
             }
             if (event instanceof ModeChoiceEvent || event.getEventType().equalsIgnoreCase(ModeChoiceEvent.EVENT_TYPE)) {
@@ -130,7 +130,7 @@ public class RealizedModeGraphTest {
     @Test
     public void testShouldPassShouldReturnReplannigCount(){
         Integer replanningEventInFile = 19;
-        String replanning = "-"+ReplanningEvent.EVENT_TYPE+"-";
+        String replanning = "-"+ReplanningEvent.EVENT_TYPE()+"-";
         Map<String, Integer> modeCount = realizedModeStats.calculateModeCount();
         Integer totalReplanningCount = 0;
         for(String mode: modeCount.keySet()){

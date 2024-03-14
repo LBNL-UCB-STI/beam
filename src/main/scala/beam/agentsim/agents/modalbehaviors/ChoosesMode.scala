@@ -473,15 +473,14 @@ trait ChoosesMode {
                 beamScenario.beamConfig.beam.agentsim.agents.vehicles.replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable && vehicles.isEmpty
               ) {
                 eventsManager.processEvent(
-                  new ReplanningEvent(
+                  ReplanningEvent(
                     departTime,
                     Id.createPersonId(id),
                     getReplanningReasonFrom(
                       choosesModeData.personData,
                       ReservationErrorCode.HouseholdVehicleNotAvailable.entryName
                     ),
-                    currentPersonLocation.loc.getX,
-                    currentPersonLocation.loc.getY
+                    start = currentPersonLocation.loc
                   )
                 )
                 householdVehiclesWereNotAvailable = true
@@ -1343,17 +1342,15 @@ trait ChoosesMode {
                 )
               }
               eventsManager.processEvent(
-                new ReplanningEvent(
+                ReplanningEvent(
                   _currentTick.get,
                   Id.createPersonId(id),
                   getReplanningReasonFrom(
                     choosesModeData.personData,
                     ReservationErrorCode.RouteNotAvailableForChosenMode.entryName
                   ),
-                  choosesModeData.currentLocation.loc.getX,
-                  choosesModeData.currentLocation.loc.getY,
-                  nextAct.getCoord.getX,
-                  nextAct.getCoord.getY
+                  start = choosesModeData.currentLocation.loc,
+                  end = Some(nextAct.getCoord)
                 )
               )
               //give another chance to make a choice without predefined mode

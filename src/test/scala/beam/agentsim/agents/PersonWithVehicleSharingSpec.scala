@@ -648,8 +648,8 @@ class PersonWithVehicleSharingSpec
       // body
       person2EntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
-      mockSharedVehicleFleet.expectMsgType[TryToBoardVehicle]
-      mockSharedVehicleFleet.lastSender ! NotAvailable(0)
+      val ttbv2 = mockSharedVehicleFleet.expectMsgType[TryToBoardVehicle]
+      mockSharedVehicleFleet.lastSender ! NotAvailable(ttbv2.token.id, 0)
 
       person2EntersVehicleEvents.expectNoMessage()
 

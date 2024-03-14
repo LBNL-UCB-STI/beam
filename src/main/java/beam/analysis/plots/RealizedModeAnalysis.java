@@ -30,7 +30,7 @@ import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 public class RealizedModeAnalysis extends BaseModeAnalysis {
 
     public static final String defaultFileName = "realizedMode";
-    private static final String REPLANNING_SEPARATOR = "-" + ReplanningEvent.EVENT_TYPE + "-";
+    private static final String REPLANNING_SEPARATOR = "-" + ReplanningEvent.EVENT_TYPE() + "-";
 
     private static final String graphTitle = "Realized Mode Histogram";
     private static final String referenceGraphTitle = "Reference Realized Mode Histogram";
@@ -110,7 +110,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     private boolean isReplanningEvent(Event event) {
-        return event instanceof ReplanningEvent || event.getEventType().equalsIgnoreCase(ReplanningEvent.EVENT_TYPE);
+        return event instanceof ReplanningEvent || event.getEventType().equalsIgnoreCase(ReplanningEvent.EVENT_TYPE());
     }
 
     @Override
@@ -204,11 +204,11 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
     }
 
     private void processReplanningEvent(ReplanningEvent re, int hour) {
-        String person = re.getPersonId().toString();
+        String person = re.personId().toString();
 
         personReplanningChain.merge(person, Lists.newArrayList(re.getEventType()), ListUtils::union);
         affectedModeCount.merge(hour, 1, Integer::sum);
-        replanningReasonCount.merge(re.getReason(), 1, Integer::sum);
+        replanningReasonCount.merge(re.reason(), 1, Integer::sum);
 
         if (personIdList.containsKey(person) && personIdList.get(person) == 0) {
             personIdList.put(person, 1);
@@ -569,7 +569,7 @@ public class RealizedModeAnalysis extends BaseModeAnalysis {
             if (modes.size() > 1) {
                 StringBuffer lastModes = new StringBuffer();
                 for (String mode : modes) {
-                    if (ReplanningEvent.EVENT_TYPE.equals(mode)) {
+                    if (ReplanningEvent.EVENT_TYPE().equals(mode)) {
                         lastModes.append(REPLANNING_SEPARATOR);
                     } else if (lastModes.toString().endsWith(REPLANNING_SEPARATOR)) {
                         //This is used to decrease previous key count(if any)

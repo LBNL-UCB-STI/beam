@@ -18,16 +18,15 @@ import beam.utils.csv.{CsvWriter, GenericCsvReader}
 import beam.utils.matsim_conversion.ShapeUtils.{readShapeFileGeometries, QuadTreeBounds}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.{LazyLogging, Logger}
-import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import org.apache.commons.io.FilenameUtils
 import org.apache.commons.math3.distribution.UniformRealDistribution
+import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.households.Household
 
 import java.nio.file.{Files, Paths}
-import java.util
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
@@ -43,6 +42,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
   private[sim] def toRideHailAgentInputData(
     rec: java.util.Map[String, String],
+    beamInputDirectory: String,
     defaultFleetId: String
   ): RideHailAgentInputData = {
     val id = GenericCsvReader.getIfNotNull(rec, "id")
@@ -57,7 +57,18 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     val geofenceY = Option(rec.get("geofenceY")).map(_.toDouble)
     val geofenceRadius = Option(rec.get("geofenceRadius")).map(_.toDouble)
     //geofenceFile takes precedence
-    val geofenceFile = Option(rec.get("geofenceFile")).orElse(Option(rec.get("geofenceTAZFile")))
+    val geofenceFile = {
+      val maybePathToFile = Option(rec.get("geofenceFile")).orElse(Option(rec.get("geofenceTAZFile")))
+      maybePathToFile.map(relativePath => {
+        if (Files.exists(Paths.get(beamInputDirectory, relativePath))) {
+          Paths.get(beamInputDirectory, relativePath).toString
+        } else if (Files.exists(Paths.get(relativePath))) {
+          relativePath
+        } else {
+          throw new RuntimeException(s"File [$beamInputDirectory] $relativePath doesn't exist.")
+        }
+      })
+    }
     geofenceFile.foreach(validateGeofenceFileAndGetFileType)
     val fleetId = rec.getOrDefault("fleetId", defaultFleetId)
     val initialStateOfCharge = rec.getOrDefault("initialStateOfCharge", "1.0").toDouble
@@ -171,10 +182,18 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     * @param filePath path to the csv file
     * @return list of [[RideHailAgentInputData]] objects
     */
-  def readFleetFromCSV(filePath: String, defaultFleetId: String): List[RideHailAgentInputData] = {
+  def readFleetFromCSV(
+    filePath: String,
+    beamInputDirectory: String,
+    defaultFleetId: String
+  ): List[RideHailAgentInputData] = {
     // This is lazy, to make it to read the data we need to call `.toList`
     val (iter, toClose) =
-      GenericCsvReader.readAs[RideHailAgentInputData](filePath, toRideHailAgentInputData(_, defaultFleetId), _ => true)
+      GenericCsvReader.readAs[RideHailAgentInputData](
+        filePath,
+        toRideHailAgentInputData(_, beamInputDirectory, defaultFleetId),
+        _ => true
+      )
     try {
       // Read the data
       val fleetData = iter.toList

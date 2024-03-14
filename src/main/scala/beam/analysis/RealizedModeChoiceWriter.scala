@@ -52,7 +52,7 @@ class RealizedModeChoiceWriter(beamServices: BeamServices)
 
       case replanningEvent: ReplanningEvent =>
         // ReplanningEvent discards previous history
-        personIdPrevMCE(replanningEvent.getPersonId) = None
+        personIdPrevMCE(replanningEvent.personId) = None
 
       case _ =>
     }

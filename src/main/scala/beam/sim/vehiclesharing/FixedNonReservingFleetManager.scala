@@ -116,7 +116,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
           who ! Boarded(vehicle, triggerId)
           collectData(vehicle.spaceTime.time, vehicle.spaceTime.loc, RepositionManager.boarded)
         case _ =>
-          who ! NotAvailable(triggerId)
+          who ! NotAvailable(token.id, triggerId)
       }
 
     case NotifyVehicleIdle(vId, _, whenWhere, _, _, _, _) =>

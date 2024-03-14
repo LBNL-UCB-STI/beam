@@ -90,12 +90,12 @@ class RideHailUtilizationCollector(beamSvc: BeamServices)
           rideHailPooledInAlternatives += 1
         totalModeChoices += 1
       case replanningEvent: ReplanningEvent =>
-        val shouldProcess = replanningEvent.getReason.contains("RIDE_HAIL") || replanningEvent.getReason.contains(
+        val shouldProcess = replanningEvent.reason.contains("RIDE_HAIL") || replanningEvent.reason.contains(
           "RIDE_HAIL_POOLED"
         )
         if (shouldProcess) {
-          val cnt = replanningReasonToTotalCountMap.getOrElse(replanningEvent.getReason, 0) + 1
-          replanningReasonToTotalCountMap.update(replanningEvent.getReason, cnt)
+          val cnt = replanningReasonToTotalCountMap.getOrElse(replanningEvent.reason, 0) + 1
+          replanningReasonToTotalCountMap.update(replanningEvent.reason, cnt)
         }
       case _ =>
     }
