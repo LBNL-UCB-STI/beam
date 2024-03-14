@@ -199,7 +199,7 @@ class TAZTreeMap(
         + unmatchedLinkIds.size.toString +
         " links"
       )
-      logger.info(s"Mapping of links to TAZs: ${linksToTazMapping.take(9)}")
+      logger.debug(s"Mapping of links to TAZs: ${linksToTazMapping}")
     }
   }
 }
