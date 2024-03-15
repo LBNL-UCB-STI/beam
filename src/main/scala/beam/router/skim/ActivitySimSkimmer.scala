@@ -5,7 +5,6 @@ import beam.router.skim.core.{AbstractSkimmer, AbstractSkimmerInternal, Abstract
 import beam.router.skim.urbansim.ActivitySimOmxWriter
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
-import beam.sim.vehiclesharing.FleetUtils
 import beam.utils.ProfilingUtils
 import beam.utils.csv.CsvWriter
 import com.google.inject.Inject
@@ -30,13 +29,13 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
   override protected val skimFileBaseName: String = config.activity_sim_skimmer.fileBaseName
   override protected val skimFileHeader: String = ExcerptData.csvHeader
 
-//  override protected lazy val zoningSystemMap: Map[String, Map[String, Map[String, Double]]] =
-//    ActivitySimOmxWriter
-//      .readCSV(config.activity_sim_skimmer.TAZ2CBGMapFilePath)
-//      .map { case (taz, cbg_o, cbg_d, dist) =>
-//        taz -> Map(cbg_o -> Map(cbg_d -> dist))
-//      }
-//      .toMap
+  override protected lazy val zoningSystemMap: Map[String, Map[String, Map[String, Double]]] =
+    ActivitySimOmxWriter
+      .readCSV(config.activity_sim_skimmer.TAZ2CBGMapFilePath)
+      .map { case (taz, cbg_o, cbg_d, dist) =>
+        taz -> Map(cbg_o -> Map(cbg_d -> dist))
+      }
+      .toMap
 
   override def writeToDisk(event: IterationEndsEvent): Unit =
     if (config.writeSkimsInterval > 0 && event.getIteration % config.writeSkimsInterval == 0) {

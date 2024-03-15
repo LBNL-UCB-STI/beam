@@ -39,8 +39,12 @@ npmrds_hourly_speed_by_road_class_input = input_dir + '/npmrds_hourly_speed_by_r
 
 st = time.time()
 
+print("Generating block groups boundaries")
+collect_geographic_boundaries(state, fips_code, year, npmrds_geo_path_path_output, geo_level='cbgs')
+
 # Either download boundaries directly
-region_boundary = collect_county_boundaries(state, fips_code, year, npmrds_geo_path_path_output)
+print("Generating counties boundaries")
+region_boundary = collect_geographic_boundaries(state, fips_code, year, npmrds_geo_path_path_output, geo_level='counties')
 # or load it
 # npmrds_geo_path_path = gpd.read_file(npmrds_geo).to_crs(epsg=4326)
 
