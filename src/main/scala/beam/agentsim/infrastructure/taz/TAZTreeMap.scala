@@ -2,7 +2,8 @@ package beam.agentsim.infrastructure.taz
 
 import beam.agentsim.infrastructure.taz.TAZTreeMap.logger
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
-import beam.utils.{GeoJsonReader, SortingUtil}
+import beam.utils.SortingUtil
+import beam.utils.geospatial.GeoJsonReader
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.{HasQuadBounds, QuadTreeBounds}
 import org.geotools.data.{DataStoreFinder, FileDataStore, FileDataStoreFinder}

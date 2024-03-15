@@ -4,9 +4,8 @@ import java.io.Closeable
 import java.util
 
 import beam.sim.common.GeoUtils
-import beam.utils.GeoJsonReader
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
-import beam.utils.geospatial.PolygonUtil
+import beam.utils.geospatial.{GeoJsonReader, PolygonUtil}
 import beam.utils.scenario.PlanElement
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
 import scripts.shape.Attributes

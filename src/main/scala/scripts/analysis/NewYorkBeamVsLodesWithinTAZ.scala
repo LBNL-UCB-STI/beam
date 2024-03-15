@@ -5,9 +5,9 @@ import java.util
 
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
-import beam.utils.GeoJsonReader
 import scripts.analysis.NewYorkBeamVsLodes.GeoAttribute
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
+import beam.utils.geospatial.GeoJsonReader
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.mutable

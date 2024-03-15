@@ -1,4 +1,4 @@
-package beam.utils
+package beam.utils.geospatial
 
 import com.typesafe.scalalogging.LazyLogging
 import org.geotools.geojson.feature.FeatureJSON

@@ -25,7 +25,8 @@ import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.MathUtils.avg
-import beam.utils.{FileUtils, GeoJsonReader, MeasureUnitConversion, ProfilingUtils}
+import beam.utils.geospatial.GeoJsonReader
+import beam.utils.{FileUtils, MeasureUnitConversion, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
 import org.locationtech.jts.geom.Geometry
 import org.jfree.chart.ChartFactory

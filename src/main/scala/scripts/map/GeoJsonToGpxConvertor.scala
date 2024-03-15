@@ -1,6 +1,7 @@
 package scripts.map
 
-import beam.utils.{map, GeoJsonReader}
+import beam.utils.geospatial.GeoJsonReader
+import beam.utils.map
 import beam.utils.map.GpxPoint
 import com.typesafe.scalalogging.LazyLogging
 import org.locationtech.jts.geom.{Coordinate, Envelope, Geometry}
