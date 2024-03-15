@@ -258,14 +258,14 @@ def run_hourly_speed_mapping_by_road_class(npmrds_hourly_link_speed, link_stats)
 
 def collect_geographic_boundaries(state, fips_code, year, region_boundary_geo_path_output, geo_level='counties'):
     import geopandas as gpd
-    from pygris import counties, block_groups  # Assuming `block_groups` is a function similar to `counties`
+    from pygris import counties, block_groups
 
     if geo_level == 'counties':
         # Define fips code for selected counties
-        state_geo = counties(state=state, year=year)
+        state_geo = counties(state=state, year=year, cb=True, cache=True)
     elif geo_level == 'cbgs':
-        # Define fips code for selected CBGs - This is hypothetical and assumes a function like `block_groups` exists
-        state_geo = block_groups(state=state, year=year)
+        # Define fips code for selected counties
+        state_geo = block_groups(state=state, year=year, cb=True, cache=True)
     else:
         raise ValueError("Unsupported geographic level. Choose 'counties' or 'cbgs'.")
 
