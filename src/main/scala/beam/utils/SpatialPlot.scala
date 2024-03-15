@@ -1,10 +1,10 @@
 package beam.utils
 
-import java.awt._
-import java.io.{BufferedWriter, FileWriter}
 import beam.agentsim.agents.ridehail.RideHailAgent
 import org.matsim.api.core.v01.{Coord, Id}
 
+import java.awt._
+import java.io.{BufferedWriter, FileWriter}
 import scala.collection.mutable.ListBuffer
 
 case class PointToPlot(coord: Coord, color: Color, size: Int)

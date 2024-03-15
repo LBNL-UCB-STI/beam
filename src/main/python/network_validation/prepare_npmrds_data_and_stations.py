@@ -16,7 +16,8 @@ study_area = "sfbay"
 year = 2018
 state = 'CA'
 fips_code = ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113']
-npmrds_geo_path_path_output = work_dir + "/sfbay/input/sfbay_counties.geojson"
+npmrds_counties_geo_path_output = work_dir + "/sfbay/input/sfbay_counties.geojson"
+npmrds_cbgs_geo_path_output = work_dir + "/sfbay/input/sfbay_cbgs.geojson"
 # 4
 project_dir = work_dir + '/' + study_area
 input_dir = project_dir + '/input'
@@ -39,8 +40,12 @@ npmrds_hourly_speed_by_road_class_input = input_dir + '/npmrds_hourly_speed_by_r
 
 st = time.time()
 
+print("Generating block groups boundaries")
+collect_geographic_boundaries(state, fips_code, year, npmrds_cbgs_geo_path_output, geo_level='cbgs')
+
 # Either download boundaries directly
-region_boundary = collect_county_boundaries(state, fips_code, year, npmrds_geo_path_path_output)
+print("Generating counties boundaries")
+region_boundary = collect_geographic_boundaries(state, fips_code, year, npmrds_counties_geo_path_output, geo_level='counties')
 # or load it
 # npmrds_geo_path_path = gpd.read_file(npmrds_geo).to_crs(epsg=4326)
 

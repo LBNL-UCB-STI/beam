@@ -256,17 +256,23 @@ def run_hourly_speed_mapping_by_road_class(npmrds_hourly_link_speed, link_stats)
     return pd.concat([beam_hourly_speed, npmrds_hourly_speed], axis=0)
 
 
-# @author by arielgatech (Xiaodan Xu)
-# @github LBNL-UCB-STI/beam-core-analysis/blob/xiaodan_update/Users/Xiaodan/collect_county_boundary.py
-def collect_county_boundaries(state, fips_code, year, region_boundary_geo_path_output):
-    from pygris import counties
-    print("Load regional map boundaries")
-    # define fips code for selected counties
-    state_counties = counties(state=state, year=year)
-    selected_counties = state_counties.loc[state_counties['COUNTYFP'].isin(fips_code)]
-    selected_counties = selected_counties.to_crs(epsg=4326)
-    selected_counties.to_file(region_boundary_geo_path_output, driver="GeoJSON")
-    return selected_counties
+def collect_geographic_boundaries(state, fips_code, year, region_boundary_geo_path_output, geo_level='counties'):
+    import geopandas as gpd
+    from pygris import counties, block_groups
+
+    if geo_level == 'counties':
+        # Define fips code for selected counties
+        state_geo = counties(state=state, year=year, cb=True, cache=True)
+    elif geo_level == 'cbgs':
+        # Define fips code for selected counties
+        state_geo = block_groups(state=state, year=year, cb=True, cache=True)
+    else:
+        raise ValueError("Unsupported geographic level. Choose 'counties' or 'cbgs'.")
+
+    selected_geo = state_geo.loc[state_geo['GEOID'].str[2:5].isin(fips_code)]
+    selected_geo = selected_geo.to_crs(epsg=4326)
+    selected_geo.to_file(region_boundary_geo_path_output, driver="GeoJSON")
+    return selected_geo
 
 
 def prepare_npmrds_data(region_boundary, npmrds_geo_input, npmrds_data_csv_input, npmrds_label, distance_buffer_m,

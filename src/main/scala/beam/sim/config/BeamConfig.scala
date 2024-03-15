@@ -104,7 +104,6 @@ object BeamConfig {
           generateFixedActivitiesDurations: scala.Boolean,
           isWgs: scala.Boolean,
           name: java.lang.String,
-          nonHGVLinkWeightMultiplier: scala.Double,
           plansFilePath: java.lang.String,
           reader: java.lang.String,
           replanning: BeamConfig.Beam.Agentsim.Agents.Freight.Replanning,
@@ -145,8 +144,6 @@ object BeamConfig {
                 c.hasPathOrNull("generateFixedActivitiesDurations") && c.getBoolean("generateFixedActivitiesDurations"),
               isWgs = c.hasPathOrNull("isWgs") && c.getBoolean("isWgs"),
               name = if (c.hasPathOrNull("name")) c.getString("name") else "Freight",
-              nonHGVLinkWeightMultiplier =
-                if (c.hasPathOrNull("nonHGVLinkWeightMultiplier")) c.getDouble("nonHGVLinkWeightMultiplier") else 2.0,
               plansFilePath =
                 if (c.hasPathOrNull("plansFilePath")) c.getString("plansFilePath")
                 else "/test/input/beamville/freight/payload-plans.csv",
@@ -971,7 +968,6 @@ object BeamConfig {
           bestResponseType: java.lang.String,
           cav: BeamConfig.Beam.Agentsim.Agents.RideHail.Cav,
           charging: BeamConfig.Beam.Agentsim.Agents.RideHail.Charging,
-          freeSpeedLinkWeightMultiplier: scala.Double,
           human: BeamConfig.Beam.Agentsim.Agents.RideHail.Human,
           iterationStats: BeamConfig.Beam.Agentsim.Agents.RideHail.IterationStats,
           linkFleetStateAcrossIterations: scala.Boolean,
@@ -1531,9 +1527,6 @@ object BeamConfig {
                 if (c.hasPathOrNull("charging")) c.getConfig("charging")
                 else com.typesafe.config.ConfigFactory.parseString("charging{}")
               ),
-              freeSpeedLinkWeightMultiplier =
-                if (c.hasPathOrNull("freeSpeedLinkWeightMultiplier")) c.getDouble("freeSpeedLinkWeightMultiplier")
-                else 2.0,
               human = BeamConfig.Beam.Agentsim.Agents.RideHail.Human(
                 if (c.hasPathOrNull("human")) c.getConfig("human")
                 else com.typesafe.config.ConfigFactory.parseString("human{}")
@@ -1672,6 +1665,7 @@ object BeamConfig {
           meanPrivateVehicleStartingSOC: scala.Double,
           meanRidehailVehicleStartingSOC: scala.Double,
           replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable: scala.Boolean,
+          roadRestrictionWeightMultiplier: scala.Double,
           sharedFleets: scala.List[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm],
           transitVehicleTypesByRouteFile: java.lang.String,
           vehicleAdjustmentMethod: java.lang.String,
@@ -2032,6 +2026,9 @@ object BeamConfig {
               replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable = c.hasPathOrNull(
                 "replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable"
               ) && c.getBoolean("replanOnTheFlyWhenHouseholdVehiclesAreNotAvailable"),
+              roadRestrictionWeightMultiplier =
+                if (c.hasPathOrNull("roadRestrictionWeightMultiplier")) c.getDouble("roadRestrictionWeightMultiplier")
+                else 2.0,
               sharedFleets = $_LBeamConfig_Beam_Agentsim_Agents_Vehicles_SharedFleets$Elm(c.getList("sharedFleets")),
               transitVehicleTypesByRouteFile =
                 if (c.hasPathOrNull("transitVehicleTypesByRouteFile")) c.getString("transitVehicleTypesByRouteFile")
@@ -2886,14 +2883,16 @@ object BeamConfig {
       object Output {
 
         case class Geo(
-          filePath: scala.Option[java.lang.String]
+          filePath: scala.Option[java.lang.String],
+          idFieldName: scala.Option[java.lang.String]
         )
 
         object Geo {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.Geo = {
             BeamConfig.Beam.Exchange.Output.Geo(
-              filePath = if (c.hasPathOrNull("filePath")) Some(c.getString("filePath")) else None
+              filePath = if (c.hasPathOrNull("filePath")) Some(c.getString("filePath")) else None,
+              idFieldName = if (c.hasPathOrNull("idFieldName")) Some(c.getString("idFieldName")) else None
             )
           }
         }
