@@ -2852,18 +2852,16 @@ object BeamConfig {
       )
       object Skim {
         case class ActivitySimSkimmer(
-          TAZ2CBGMapFilePath : java.lang.String,
-          fileBaseName       : java.lang.String,
-          fileOutputFormat   : java.lang.String,
-          name               : java.lang.String
+          fileBaseName     : java.lang.String,
+          fileOutputFormat : java.lang.String,
+          name             : java.lang.String
         )
         object ActivitySimSkimmer {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.ActivitySimSkimmer = {
             BeamConfig.Beam.Router.Skim.ActivitySimSkimmer(
-              TAZ2CBGMapFilePath = if(c.hasPathOrNull("TAZ2CBGMapFilePath")) c.getString("TAZ2CBGMapFilePath") else "",
-              fileBaseName       = if(c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "activitySimODSkims",
-              fileOutputFormat   = if(c.hasPathOrNull("fileOutputFormat")) c.getString("fileOutputFormat") else "csv",
-              name               = if(c.hasPathOrNull("name")) c.getString("name") else "activity-sim-skimmer"
+              fileBaseName     = if(c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "activitySimODSkims",
+              fileOutputFormat = if(c.hasPathOrNull("fileOutputFormat")) c.getString("fileOutputFormat") else "csv",
+              name             = if(c.hasPathOrNull("name")) c.getString("name") else "activity-sim-skimmer"
             )
           }
         }
