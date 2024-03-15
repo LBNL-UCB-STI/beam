@@ -63,10 +63,6 @@ object GeoReader extends LazyLogging {
   }
 
   def main(args: Array[String]): Unit = {
-    //    println(
-    //      read[Feature]("""C:\temp\movement_data\san_francisco_censustracts.json""", x => x).mkString("Array(", ", ", ")")
-    //    )
-
-    readGeoJSONFeatures("/Users/haitamlaarabi/Workspace/Data/Scenarios/sfbay/input/sfbay_cbgs.geojson")
+    readFeatures("/Users/haitamlaarabi/Workspace/Data/Scenarios/sfbay/input/sfbay_cbgs.geojson")
   }
 }
