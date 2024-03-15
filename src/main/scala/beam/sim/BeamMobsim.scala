@@ -33,7 +33,7 @@ import beam.sim.metrics.{Metrics, MetricsSupport, SimulationMetricCollector}
 import beam.sim.monitoring.ErrorListener
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.vehiclesharing.Fleets
-import beam.utils.geospatial.SnapCoordinateUtils.SnapLocationHelper
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils._
 import beam.utils.csv.writers.PlansCsvWriter
 import beam.utils.logging.{LoggingMessageActor, MessageLogger}

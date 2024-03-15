@@ -6,7 +6,7 @@ import beam.sim.BeamHelper
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.BeamVehicleUtils
-import beam.utils.geospatial.SnapCoordinateUtils.SnapLocationHelper
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import org.matsim.api.core.v01.population.{Activity, Person, Plan, PopulationFactory}
 import org.matsim.api.core.v01.{Coord, Id}

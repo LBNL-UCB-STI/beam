@@ -5,9 +5,9 @@ import java.util
 
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
+import beam.utils.GeoJsonReader
 import scripts.analysis.NewYorkBeamVsLodes.GeoAttribute
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
-import beam.utils.geospatial.GeoReader
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.collection.mutable
@@ -31,7 +31,7 @@ object NewYorkBeamVsLodesWithinTAZ {
         .map { case ((orig, dst), cnt) => ((geoUtils.wgs2Utm(orig), geoUtils.wgs2Utm(dst)), cnt) }
     val beamMap: Map[(Id[TAZ], Id[TAZ]), Int] = getBeamHomeWorkTAZ(tazMap, homeToWork)
 
-    val geoData: Array[(GeoAttribute, Coord)] = GeoReader
+    val geoData: Array[(GeoAttribute, Coord)] = GeoJsonReader
       .read(
         pathToGeoJson,
         feature => {

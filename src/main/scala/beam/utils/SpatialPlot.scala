@@ -1,7 +1,6 @@
-package beam.utils.geospatial
+package beam.utils
 
 import beam.agentsim.agents.ridehail.RideHailAgent
-import beam.utils.Plot
 import org.matsim.api.core.v01.{Coord, Id}
 
 import java.awt._

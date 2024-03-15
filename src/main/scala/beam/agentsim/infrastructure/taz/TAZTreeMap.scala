@@ -1,9 +1,8 @@
 package beam.agentsim.infrastructure.taz
 
 import beam.agentsim.infrastructure.taz.TAZTreeMap.logger
-import beam.utils.geospatial.SnapCoordinateUtils.SnapLocationHelper
-import beam.utils.SortingUtil
-import beam.utils.geospatial.GeoReader
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
+import beam.utils.{GeoJsonReader, SortingUtil}
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.{HasQuadBounds, QuadTreeBounds}
 import org.geotools.data.{DataStoreFinder, FileDataStore, FileDataStoreFinder}
@@ -228,7 +227,7 @@ object TAZTreeMap {
   }
 
   private def initQuadTreeFromFile(filePath: String, tazIDFieldName: String): (QuadTree[TAZ], Seq[Id[TAZ]]) = {
-    val features: util.Collection[SimpleFeature] = GeoReader.readFeatures(filePath)
+    val features: util.Collection[SimpleFeature] = GeoJsonReader.readFeatures(filePath)
     val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromFeatures(features)
     val mapping = features.asScala.map(x => Id.create(x.getAttribute(tazIDFieldName).toString, classOf[TAZ])).toSeq
 

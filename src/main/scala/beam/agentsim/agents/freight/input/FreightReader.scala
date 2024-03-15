@@ -12,7 +12,7 @@ import beam.sim.BeamServices
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
-import beam.utils.geospatial.SnapCoordinateUtils.SnapLocationHelper
+import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import com.conveyal.r5.streets.StreetLayer
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population._

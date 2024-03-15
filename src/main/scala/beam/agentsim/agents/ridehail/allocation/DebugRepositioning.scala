@@ -1,7 +1,7 @@
 package beam.agentsim.agents.ridehail.allocation
 
 import beam.agentsim.agents.ridehail.RideHailManager
-import beam.utils.geospatial.{PointToPlot, SpatialPlot}
+import beam.utils.{PointToPlot, SpatialPlot}
 import java.awt.Color
 
 /**

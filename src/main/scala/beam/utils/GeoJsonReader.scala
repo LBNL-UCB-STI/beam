@@ -1,49 +1,17 @@
-package beam.utils.geospatial
+package beam.utils
 
 import com.typesafe.scalalogging.LazyLogging
 import org.geotools.geojson.feature.FeatureJSON
-import org.opengis.feature.Feature
-
-import java.io.{File, FileInputStream}
-import scala.reflect.ClassTag
-import beam.agentsim.infrastructure.taz.TAZTreeMap.logger
-import beam.utils.geospatial.SnapCoordinateUtils.SnapLocationHelper
-import beam.utils.SortingUtil
-import beam.utils.matsim_conversion.ShapeUtils
-import beam.utils.matsim_conversion.ShapeUtils.{HasQuadBounds, QuadTreeBounds}
-import org.geotools.data.{DataStoreFinder, FileDataStore, FileDataStoreFinder}
-import org.geotools.data.simple.SimpleFeatureCollection
-import org.locationtech.jts.geom.Geometry
-import org.matsim.api.core.v01.events.Event
-import org.matsim.api.core.v01.network.{Link, Network}
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.utils.collections.QuadTree
-import org.matsim.core.utils.geometry.GeometryUtils
 import org.matsim.core.utils.gis.ShapeFileReader
-import org.matsim.core.utils.io.IOUtils
+import org.opengis.feature.Feature
 import org.opengis.feature.simple.SimpleFeature
-import org.slf4j.LoggerFactory
-import org.matsim.core.controler.events.IterationEndsEvent
-import org.matsim.core.controler.listener.IterationEndsListener
-import org.matsim.core.events.handler.BasicEventHandler
-import org.geotools.data.DataUtilities
-import org.geotools.data.{DataStore, DataStoreFinder, Query}
-import org.geotools.feature.FeatureCollection
-import org.geotools.feature.FeatureIterator
-import org.geotools.geojson.feature.FeatureJSON
-import org.geotools.geojson.geom.GeometryJSON
-import org.locationtech.jts.geom.Geometry
 
-import java.io.File
-import java.io._
+import java.io.{BufferedReader, File, FileInputStream, FileReader}
 import java.util
-import scala.annotation.tailrec
-import scala.collection.JavaConverters._
-import scala.collection.concurrent.TrieMap
-import scala.collection.mutable
+import scala.reflect.ClassTag
 import scala.util.Using
 
-object GeoReader extends LazyLogging {
+object GeoJsonReader extends LazyLogging {
 
   def read[T](geoJsonPath: String, mapper: Feature => T)(implicit ct: ClassTag[T]): Array[T] = {
     val start = System.currentTimeMillis()
@@ -89,14 +57,16 @@ object GeoReader extends LazyLogging {
         } finally {
           featureIterator.close()
         }
-
+        print(features)
         features
       }
   }
 
   def main(args: Array[String]): Unit = {
-    println(
-      read[Feature]("""C:\temp\movement_data\san_francisco_censustracts.json""", x => x).mkString("Array(", ", ", ")")
-    )
+    //    println(
+    //      read[Feature]("""C:\temp\movement_data\san_francisco_censustracts.json""", x => x).mkString("Array(", ", ", ")")
+    //    )
+
+    readGeoJSONFeatures("/Users/haitamlaarabi/Workspace/Data/Scenarios/sfbay/input/sfbay_cbgs.geojson")
   }
 }

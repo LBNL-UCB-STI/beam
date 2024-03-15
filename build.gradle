@@ -177,7 +177,6 @@ dependencies {
     implementation group: 'org.geotools', name: 'gt-shapefile', version: '21.5'
     implementation group: 'org.geotools', name: 'gt-referencing', version: '21.5'
     implementation group: 'org.geotools', name: 'gt-epsg-wkt', version: '21.5'
-    implementation group: 'org.geotools', name: 'gt-geojson', version: '21.5'
     implementation group: 'org.jfree', name: 'jfreechart', version: '1.0.14'
 
     implementation group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.12.3'

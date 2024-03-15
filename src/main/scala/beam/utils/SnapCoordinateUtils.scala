@@ -1,4 +1,4 @@
-package beam.utils.geospatial
+package beam.utils
 
 import beam.sim.common.GeoUtils
 import beam.utils.csv.CsvWriter

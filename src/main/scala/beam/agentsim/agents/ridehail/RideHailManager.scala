@@ -15,7 +15,11 @@ import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.{Available, Refueling, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.RideHailRequest.{projectCoordinateToUtm, projectWgsCoordinateToUtm}
 import beam.agentsim.agents.ridehail.allocation._
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{CouldNotFindRouteToCustomer, DriverNotFoundError, RideHailVehicleTakenError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  CouldNotFindRouteToCustomer,
+  DriverNotFoundError,
+  RideHailVehicleTakenError
+}
 import beam.agentsim.agents.vehicles.BeamVehicle.BeamVehicleState
 import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
@@ -40,9 +44,8 @@ import beam.sim._
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.metrics.SimulationMetricCollector._
-import beam.utils.{geospatial, _}
+import beam.utils._
 import beam.utils.csv.GenericCsvReader
-import beam.utils.geospatial.{RideHailAgentInitCoord, SpatialPlot}
 import beam.utils.logging.pattern.ask
 import beam.utils.logging.{LogActorState, LoggingMessageActor}
 import beam.utils.matsim_conversion.ShapeUtils
@@ -1771,7 +1774,7 @@ class RideHailManager(
 
     rideHailinitialLocationSpatialPlot
       .addString(
-        geospatial.StringToPlot(s"${rideHailAgentInitializer.id}", rideHailAgentInitializer.initialLocation, Color.RED, 20)
+        StringToPlot(s"${rideHailAgentInitializer.id}", rideHailAgentInitializer.initialLocation, Color.RED, 20)
       )
     rideHailinitialLocationSpatialPlot
       .addAgentWithCoord(

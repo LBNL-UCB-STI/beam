@@ -2,8 +2,8 @@ package beam.utils.scenario
 
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtilsImpl
-import beam.utils.geospatial.SnapCoordinateUtils.{Category, CsvFile, ErrorInfo, SnapLocationHelper}
-import beam.utils.geospatial.SnapCoordinateUtils
+import beam.utils.SnapCoordinateUtils
+import beam.utils.SnapCoordinateUtils.{Category, CsvFile, ErrorInfo, SnapLocationHelper}
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
