@@ -1494,24 +1494,7 @@ trait ChoosesMode {
     destinationActivity: Activity,
     mode: BeamMode
   ): ODSkimmerFailedTripEvent = {
-    val (origCoord, destCoord) = (originActivity.getCoord, destinationActivity.getCoord)
-    val (origin, destination) =
-      if (beamScenario.tazTreeMap.tazListContainsGeoms) {
-        val startTaz = getTazFromActivity(originActivity)
-        val endTaz = getTazFromActivity(destinationActivity)
-        (startTaz.toString, endTaz.toString)
-      } else {
-        beamScenario.exchangeGeoMap match {
-          case Some(geoMap) =>
-            val origGeo = geoMap.getTAZ(origCoord)
-            val destGeo = geoMap.getTAZ(destCoord)
-            (origGeo.tazId.toString, destGeo.tazId.toString)
-          case None =>
-            val origGeo = beamScenario.tazTreeMap.getTAZ(origCoord)
-            val destGeo = beamScenario.tazTreeMap.getTAZ(destCoord)
-            (origGeo.tazId.toString, destGeo.tazId.toString)
-        }
-      }
+    val (origin, destination) = getOriginAndDestinationForExchange(originActivity, Some(destinationActivity))
 
     ODSkimmerFailedTripEvent(
       origin = origin,

@@ -26,7 +26,7 @@ import beam.agentsim.events._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.parking.ParkingMNL
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingNetworkManager, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -1498,7 +1498,7 @@ class PersonAgent(
       }
   }
 
-  def getTazFromActivity(activity: Activity): Id[TAZ] = {
+  def getTazFromActivity(activity: Activity, tazTreeMap: TAZTreeMap): Id[TAZ] = {
     val linkId = Option(activity.getLinkId).getOrElse(
       Id.createLinkId(
         beamServices.geo
@@ -1510,10 +1510,10 @@ class PersonAgent(
           .toString
       )
     )
-    beamScenario.tazTreeMap
+    tazTreeMap
       .getTAZfromLink(linkId)
       .map(_.tazId)
-      .getOrElse(beamScenario.tazTreeMap.getTAZ(activity.getCoord).tazId)
+      .getOrElse(tazTreeMap.getTAZ(activity.getCoord).tazId)
   }
 
   /**
@@ -1557,6 +1557,20 @@ class PersonAgent(
     )
   }
 
+  def getOriginAndDestinationForExchange(currentAct: Activity, maybeNextAct: Option[Activity]): (String, String) = {
+    val geoMap = beamScenario.exchangeGeoMap.getOrElse(beamScenario.tazTreeMap)
+    if (geoMap.tazListContainsGeoms) {
+      val origGeo = getTazFromActivity(currentAct, geoMap).toString
+      val destGeo = maybeNextAct.map(act => getTazFromActivity(act, geoMap).toString).getOrElse("NA")
+      (origGeo, destGeo)
+    } else {
+      (
+        geoMap.getTAZ(currentAct.getCoord).toString,
+        maybeNextAct.map(act => geoMap.getTAZ(act.getCoord).toString).getOrElse("NA")
+      )
+    }
+  }
+
   def generateSkimData(
     tick: Int,
     trip: EmbodiedBeamTrip,
@@ -1586,21 +1600,8 @@ class PersonAgent(
     )
     eventsManager.processEvent(odSkimmerEvent)
     if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
-      val (origin, destination) =
-        if (beamScenario.tazTreeMap.tazListContainsGeoms) {
-          val origGeo = getTazFromActivity(currentActivity).toString
-          val destGeo = nextActivity.map(getTazFromActivity(_).toString).getOrElse("NA")
-          (origGeo, destGeo)
-        } else {
-          beamScenario.exchangeGeoMap match {
-            case Some(geoMap) =>
-              val origGeo = geoMap.getTAZ(origCoord)
-              val destGeo = geoMap.getTAZ(destCoord)
-              (origGeo.tazId.toString, destGeo.tazId.toString)
-            case None =>
-              (odSkimmerEvent.origin, odSkimmerEvent.destination)
-          }
-        }
+      val (origin, destination) = getOriginAndDestinationForExchange(currentActivity, nextActivity)
+
       val asSkimmerEvent = ActivitySimSkimmerEvent(
         origin,
         destination,
