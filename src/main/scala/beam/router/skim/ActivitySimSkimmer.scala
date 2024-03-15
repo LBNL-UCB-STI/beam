@@ -51,13 +51,14 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     val prevSkim = prevIteration
       .map(_.asInstanceOf[ActivitySimSkimmerInternal])
       .getOrElse(
-        ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, observations = 0)
+        ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
       )
     val currSkim =
       currIteration
         .map(_.asInstanceOf[ActivitySimSkimmerInternal])
         .getOrElse(
           ActivitySimSkimmerInternal(
+            0,
             0,
             0,
             0,
@@ -393,8 +394,8 @@ object ActivitySimSkimmer extends LazyLogging {
     ferryInVehicleTimeInMinutes: Double,
     keyInVehicleTimeInMinutes: Double,
     transitBoardingsCount: Double,
-    failedTrips: Int = 0,
-    observations: Int = 1,
+    failedTrips: Int,
+    observations: Int,
     iterations: Int = 0,
     debugText: String = ""
   ) extends AbstractSkimmerInternal {
