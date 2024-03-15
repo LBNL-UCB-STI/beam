@@ -7,7 +7,8 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager
-import beam.utils._
+import beam.utils.{geospatial, _}
+import beam.utils.geospatial.SpatialPlot
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -147,9 +148,9 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
                 firstRepositionCoordsOfDay.isEmpty || (firstRepositionCoordsOfDay.isDefined && rideHailManager.beamServices.geo
                   .distUTMInMeters(firstRepositionCoordsOfDay.get._1, tazEntry._1) < 10000)
               ) {
-                spatialPlot.addPoint(PointToPlot(tazEntry._1, Color.RED, 10))
+                spatialPlot.addPoint(geospatial.PointToPlot(tazEntry._1, Color.RED, 10))
                 spatialPlot.addString(
-                  StringToPlot(
+                  geospatial.StringToPlot(
                     s"(${tazEntry._2.getDemandEstimate},${tazEntry._2.sumOfWaitingTimes})",
                     tazEntry._1,
                     Color.RED,
@@ -160,7 +161,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
             }
 
             for (vehToRepso <- whichTAZToRepositionTo) {
-              val lineToPlot = LineToPlot(
+              val lineToPlot = geospatial.LineToPlot(
                 rideHailManager.rideHailManagerHelper
                   .getRideHailAgentLocation(vehToRepso._1)
                   .latestUpdatedLocationUTM
@@ -194,7 +195,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
             }
 
             spatialPlot.addString(
-              StringToPlot("A", firstRepositionCoordsOfDay.get._1, Color.BLACK, 50)
+              geospatial.StringToPlot("A", firstRepositionCoordsOfDay.get._1, Color.BLACK, 50)
             )
             //spatialPlot.addString(StringToPlot("B", firstRepositionCoordsOfDay.get._2, Color.BLACK, 50))
 

@@ -3,7 +3,7 @@ package beam.utils
 import beam.agentsim.agents.freight.{FreightCarrier, FreightTour, PayloadPlan}
 import beam.sim.BeamHelper
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.SnapCoordinateUtils.{Category, CsvFile, Error, ErrorInfo, SnapCoordinateResult}
+import beam.utils.geospatial.SnapCoordinateUtils.{Category, CsvFile, Error, ErrorInfo, SnapCoordinateResult}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.scenario.ScenarioLoaderHelper
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}

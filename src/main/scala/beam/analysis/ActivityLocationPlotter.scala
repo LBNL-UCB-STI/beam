@@ -3,7 +3,7 @@ package beam.analysis
 import java.awt.Color
 
 import beam.sim.config.BeamConfig
-import beam.utils.{PointToPlot, SpatialPlot}
+import beam.utils.geospatial.{PointToPlot, SpatialPlot}
 import javax.inject.Inject
 import org.matsim.api.core.v01.{Coord, Scenario}
 import org.matsim.api.core.v01.population.Activity

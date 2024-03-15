@@ -7,9 +7,9 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.BeamVehicleUtils.readBeamVehicleTypeFile
-import beam.utils.SnapCoordinateUtils
-import beam.utils.SnapCoordinateUtils._
+import beam.utils.geospatial.SnapCoordinateUtils._
 import beam.utils.csv.GenericCsvReader
+import beam.utils.geospatial.SnapCoordinateUtils
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.lang3.StringUtils.isBlank
