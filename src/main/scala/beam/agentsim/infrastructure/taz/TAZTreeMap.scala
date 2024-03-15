@@ -3,8 +3,11 @@ package beam.agentsim.infrastructure.taz
 import beam.agentsim.infrastructure.taz.TAZTreeMap.logger
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils.SortingUtil
+import beam.utils.geospatial.GeoReader
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.{HasQuadBounds, QuadTreeBounds}
+import org.geotools.data.{DataStoreFinder, FileDataStore, FileDataStoreFinder}
+import org.geotools.data.simple.SimpleFeatureCollection
 import org.locationtech.jts.geom.Geometry
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.{Link, Network}
@@ -18,7 +21,15 @@ import org.slf4j.LoggerFactory
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.listener.IterationEndsListener
 import org.matsim.core.events.handler.BasicEventHandler
+import org.geotools.data.DataUtilities
+import org.geotools.data.{DataStore, DataStoreFinder, Query}
+import org.geotools.feature.FeatureCollection
+import org.geotools.feature.FeatureIterator
+import org.geotools.geojson.feature.FeatureJSON
+import org.geotools.geojson.geom.GeometryJSON
+import org.locationtech.jts.geom.Geometry
 
+import java.io.File
 import java.io._
 import java.util
 import scala.annotation.tailrec
@@ -199,7 +210,7 @@ class TAZTreeMap(
         + unmatchedLinkIds.size.toString +
         " links"
       )
-      logger.info(s"Mapping of links to TAZs: ${linksToTazMapping.take(9)}")
+      logger.debug(s"Mapping of links to TAZs: ${linksToTazMapping}")
     }
   }
 }
@@ -212,18 +223,13 @@ object TAZTreeMap {
   private val mapBoundingBoxBufferMeters: Double = 2e4 // Some links also extend beyond the convex hull of the TAZs
 
   def fromShapeFile(shapeFilePath: String, tazIDFieldName: String): TAZTreeMap = {
-    val (quadTree, mapping) = initQuadTreeFromShapeFile(shapeFilePath, tazIDFieldName)
+    val (quadTree, mapping) = initQuadTreeFromFile(shapeFilePath, tazIDFieldName)
     new TAZTreeMap(quadTree, maybeZoneOrdering = Some(mapping))
   }
 
-  private def initQuadTreeFromShapeFile(
-    shapeFilePath: String,
-    tazIDFieldName: String
-  ): (QuadTree[TAZ], Seq[Id[TAZ]]) = {
-    val shapeFileReader: ShapeFileReader = new ShapeFileReader
-    shapeFileReader.readFileAndInitialize(shapeFilePath)
-    val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
-    val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromShapeFile(features)
+  private def initQuadTreeFromFile(filePath: String, tazIDFieldName: String): (QuadTree[TAZ], Seq[Id[TAZ]]) = {
+    val features: util.Collection[SimpleFeature] = GeoReader.readFeatures(filePath)
+    val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromFeatures(features)
     val mapping = features.asScala.map(x => Id.create(x.getAttribute(tazIDFieldName).toString, classOf[TAZ])).toSeq
 
     val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
@@ -248,14 +254,11 @@ object TAZTreeMap {
     (tazQuadTree, mapping)
   }
 
-  private def quadTreeExtentFromShapeFile(
+  private def quadTreeExtentFromFeatures(
     features: util.Collection[SimpleFeature]
   ): QuadTreeBounds = {
-    val envelopes = features.asScala
-      .map(_.getDefaultGeometry)
-      .collect { case g: Geometry =>
-        g.getEnvelope.getEnvelopeInternal
-      }
+    val envelopes =
+      features.asScala.map(_.getDefaultGeometry).collect { case g: Geometry => g.getEnvelope.getEnvelopeInternal }
     ShapeUtils.quadTreeBounds(envelopes)
   }
 
@@ -313,7 +316,7 @@ object TAZTreeMap {
 
   def getTazTreeMap(filePath: String, tazIDFieldName: Option[String] = None): TAZTreeMap = {
     try {
-      if (filePath.endsWith(".shp")) {
+      if (filePath.endsWith(".shp") || filePath.endsWith(".geojson")) {
         TAZTreeMap.fromShapeFile(filePath, tazIDFieldName.get)
       } else {
         TAZTreeMap.fromCsv(filePath)

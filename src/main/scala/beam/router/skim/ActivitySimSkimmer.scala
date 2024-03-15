@@ -13,7 +13,6 @@ import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.IterationEndsEvent
 
 import java.io.BufferedWriter
-import scala.collection.immutable.SortedSet
 import scala.util.Failure
 import scala.util.control.NonFatal
 
