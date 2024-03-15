@@ -316,7 +316,7 @@ object TAZTreeMap {
 
   def getTazTreeMap(filePath: String, tazIDFieldName: Option[String] = None): TAZTreeMap = {
     try {
-      if (filePath.endsWith(".shp")) {
+      if (filePath.endsWith(".shp") || filePath.endsWith(".geojson")) {
         TAZTreeMap.fromShapeFile(filePath, tazIDFieldName.get)
       } else {
         TAZTreeMap.fromCsv(filePath)

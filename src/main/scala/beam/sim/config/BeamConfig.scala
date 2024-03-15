@@ -1900,13 +1900,13 @@ object BeamConfig {
       object Output {
         case class Geo(
           filePath    : scala.Option[java.lang.String],
-          idFieldName : java.lang.String
+          idFieldName : scala.Option[java.lang.String]
         )
         object Geo {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.Geo = {
             BeamConfig.Beam.Exchange.Output.Geo(
               filePath    = if(c.hasPathOrNull("filePath")) Some(c.getString("filePath")) else None,
-              idFieldName = c.getString("idFieldName")
+              idFieldName = if(c.hasPathOrNull("idFieldName")) Some(c.getString("idFieldName")) else None
             )
           }
         }
