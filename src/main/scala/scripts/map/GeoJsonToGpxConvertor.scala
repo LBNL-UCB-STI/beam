@@ -1,6 +1,6 @@
 package scripts.map
 
-import beam.utils.geospatial.GeoJsonReader
+import beam.utils.geospatial.GeoReader
 import beam.utils.map
 import beam.utils.map.GpxPoint
 import com.typesafe.scalalogging.LazyLogging
@@ -29,7 +29,7 @@ object GeoJsonToGpxConvertor extends LazyLogging {
       val wgsCoord = new Coord(centroid.getX, centroid.getY)
       map.GpxPoint(movementId, wgsCoord)
     }
-    GeoJsonReader.read(inputPath, mapper)
+    GeoReader.read(inputPath, mapper)
   }
 
   def main(args: Array[String]): Unit = {

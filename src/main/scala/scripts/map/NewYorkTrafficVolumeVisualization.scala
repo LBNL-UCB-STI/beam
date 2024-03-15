@@ -3,7 +3,7 @@ package scripts.map
 import beam.utils.csv.GenericCsvReader
 import scripts.shape.{Attributes, ShapeWriter}
 import beam.utils.FileUtils
-import beam.utils.geospatial.GeoJsonReader
+import beam.utils.geospatial.GeoReader
 import org.locationtech.jts.geom.{Geometry, MultiLineString}
 import org.opengis.feature.Feature
 import org.opengis.feature.simple.SimpleFeature
@@ -36,7 +36,7 @@ object NewYorkTrafficVolumeVisualization {
     }
     println(s"Read ${segmentIds.size} unique segmentIds for the date $date")
 
-    val allFeatures = GeoJsonReader.read(pathToGeoJson, mapper)
+    val allFeatures = GeoReader.read(pathToGeoJson, mapper)
     val filteredFeatures = allFeatures.filter { case (attr, _) => segmentIds.contains(attr.segmentId) }
     println(s"allFeatures: ${allFeatures.length}")
     println(s"filteredFeatures: ${filteredFeatures.length}")

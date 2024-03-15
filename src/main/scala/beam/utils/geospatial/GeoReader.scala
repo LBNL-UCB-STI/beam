@@ -11,7 +11,7 @@ import java.util
 import scala.reflect.ClassTag
 import scala.util.Using
 
-object GeoJsonReader extends LazyLogging {
+object GeoReader extends LazyLogging {
 
   def read[T](geoJsonPath: String, mapper: Feature => T)(implicit ct: ClassTag[T]): Array[T] = {
     val start = System.currentTimeMillis()

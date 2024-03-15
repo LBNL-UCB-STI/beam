@@ -5,7 +5,7 @@ import java.util
 
 import beam.sim.common.GeoUtils
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
-import beam.utils.geospatial.{GeoJsonReader, PolygonUtil}
+import beam.utils.geospatial.{GeoReader, PolygonUtil}
 import beam.utils.scenario.PlanElement
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
 import scripts.shape.Attributes
@@ -108,7 +108,7 @@ object NewYorkBeamVsLodes {
     pathToPlans: String
   ): Seq[(GeoAttribute, GeoAttribute, Int)] = {
     // Replace `urn:ogc:def:crs:OGC:1.3:CRS84` in that origina file by `EPSG:4326`
-    val allFeatures = GeoJsonReader.read(pathToGeoJson, mapper)
+    val allFeatures = GeoReader.read(pathToGeoJson, mapper)
 
     val envelope = allFeatures.foldLeft(new Envelope()) { case (env, (k, v)) =>
       val center = v.getCentroid
