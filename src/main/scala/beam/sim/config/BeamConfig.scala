@@ -1894,19 +1894,32 @@ object BeamConfig {
     object Exchange {
       case class Output(
         activitySimSkimsEnabled     : scala.Boolean,
-        geo                         : BeamConfig.Beam.Exchange.Output.Geo,
+        geo                         : scala.Option[BeamConfig.Beam.Exchange.Output.Geo],
         sendNonChosenTripsToSkimmer : scala.Boolean
       )
       object Output {
         case class Geo(
-          filePath    : scala.Option[java.lang.String],
-          idFieldName : scala.Option[java.lang.String]
+          filePath    : java.lang.String,
+          idFieldName : java.lang.String,
+          tazMapping  : BeamConfig.Beam.Exchange.Output.Geo.TazMapping
         )
         object Geo {
+          case class TazMapping(
+            inputFilePath : java.lang.String
+          )
+          object TazMapping {
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.Geo.TazMapping = {
+              BeamConfig.Beam.Exchange.Output.Geo.TazMapping(
+                inputFilePath = c.getString("inputFilePath")
+              )
+            }
+          }
+                
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.Geo = {
             BeamConfig.Beam.Exchange.Output.Geo(
-              filePath    = if(c.hasPathOrNull("filePath")) Some(c.getString("filePath")) else None,
-              idFieldName = if(c.hasPathOrNull("idFieldName")) Some(c.getString("idFieldName")) else None
+              filePath    = c.getString("filePath"),
+              idFieldName = c.getString("idFieldName"),
+              tazMapping  = BeamConfig.Beam.Exchange.Output.Geo.TazMapping(if(c.hasPathOrNull("tazMapping")) c.getConfig("tazMapping") else com.typesafe.config.ConfigFactory.parseString("tazMapping{}"))
             )
           }
         }
@@ -1914,7 +1927,7 @@ object BeamConfig {
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output = {
           BeamConfig.Beam.Exchange.Output(
             activitySimSkimsEnabled     = c.hasPathOrNull("activitySimSkimsEnabled") && c.getBoolean("activitySimSkimsEnabled"),
-            geo                         = BeamConfig.Beam.Exchange.Output.Geo(if(c.hasPathOrNull("geo")) c.getConfig("geo") else com.typesafe.config.ConfigFactory.parseString("geo{}")),
+            geo                         = if(c.hasPathOrNull("geo")) scala.Some(BeamConfig.Beam.Exchange.Output.Geo(c.getConfig("geo"))) else None,
             sendNonChosenTripsToSkimmer = !c.hasPathOrNull("sendNonChosenTripsToSkimmer") || c.getBoolean("sendNonChosenTripsToSkimmer")
           )
         }

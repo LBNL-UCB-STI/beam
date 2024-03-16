@@ -199,7 +199,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       destination: String
     )
     ProfilingUtils.timed("Writing skims that are created during simulation ", x => logger.info(x)) {
-      val excerptData = currentSkim
+      val excerptDataTemp = currentSkim
         .asInstanceOf[Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal]]
         .flatMap {
           case (key, value) if isWalkTransit(key.pathType) =>
@@ -212,6 +212,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
           case (key, value) =>
             Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal](key -> value)
         }
+      val excerptData = excerptDataTemp
         .groupBy { case (key, _) =>
           val asTimeBin = ActivitySimTimeBin.toTimeBin(key.hour)
           ActivitySimKey(asTimeBin, key.pathType, key.origin, key.destination)
@@ -219,6 +220,15 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
         .map { case (key, skimMap) =>
           weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.values.toList)
         }
+      val excerptOfMappedData = excerptDataTemp
+        .groupBy { case (key, _) =>
+          val asTimeBin = ActivitySimTimeBin.toTimeBin(key.hour)
+          ActivitySimKey(asTimeBin, key.pathType, key.origin, key.destination)
+        }
+        .map { case (key, skimMap) =>
+          weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.values.toList)
+        }
+
 
       val writeResult = if (config.activity_sim_skimmer.fileOutputFormat.trim.equalsIgnoreCase("csv")) {
         val csvWriter = new CsvWriter(filePath, ExcerptData.csvHeaderSeq)
