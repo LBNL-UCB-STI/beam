@@ -229,7 +229,6 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
           weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.values.toList)
         }
 
-
       val writeResult = if (config.activity_sim_skimmer.fileOutputFormat.trim.equalsIgnoreCase("csv")) {
         val csvWriter = new CsvWriter(filePath, ExcerptData.csvHeaderSeq)
         csvWriter.writeAllAndClose(excerptData.map(_.toCsvSeq))
