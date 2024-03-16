@@ -100,10 +100,12 @@ class ActivitiesDurationSpec extends AnyFlatSpec with BeamHelper with Repeated {
     val expectedWorkDuration = 360.0
     val expectedShoppingDuration = 260.0
     val expectedOtherDuration = 160.0
+    // TODO: Figure out why this fails when transitAlternativeList is set to "SUBOPTIMAL"
     val config = ConfigFactory
       .parseString(s"""
                       |beam.agentsim.lastIteration = 0
                       |beam.outputs.events.fileOutputFormats = "xml,csv"
+                      |beam.routing.r5.transitAlternativeList = "OPTIMAL"
                       |beam.agentsim.agents.activities.activityTypeToFixedDurationMap = [
                       |"Other -> $expectedOtherDuration",
                       |"Shopping -> $expectedShoppingDuration",

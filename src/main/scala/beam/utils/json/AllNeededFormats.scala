@@ -3,7 +3,8 @@ package beam.utils.json
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
-import beam.router.BeamRouter.{IntermodalUse, RoutingRequest, RoutingResponse}
+import beam.router.BeamRouter.IntermodalUse.IntermodalUse
+import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
 import beam.router.Modes.BeamMode
 import beam.router.model.{BeamLeg, BeamPath, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.model.RoutingModel.TransitStopsInfo

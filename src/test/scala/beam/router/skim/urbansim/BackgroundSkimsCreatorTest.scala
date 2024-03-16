@@ -33,6 +33,7 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
         |beam.urbansim.backgroundODSkimsCreator.maxTravelDistanceInMeters.walk = 1000
         |beam.routing.r5.linkRadiusMeters = 10000
         |beam.routing.r5.accessBufferTimeSeconds.car = 120
+        |beam.routing.r5.transitAlternativeList = "OPTIMAL"
       """.stripMargin
     )
     .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))

@@ -27,9 +27,20 @@ object RideHailVehicleId {
     }
   }
 
+  val dummyVehicleId: String = VEHICLE_ID_PREFIX + "Dummy" + FLEET_SEPARATOR + "GlobalRHM"
+
   /** Returns true if an [[Id[BeamVehicle]]] represents a ride-hail vehicle ID. */
   def isRideHail(vehicleId: Id[BeamVehicle]): Boolean = {
     vehicleId.toString.startsWith(VEHICLE_ID_PREFIX)
+  }
+
+  def getFleetName(vehicleId: Id[BeamVehicle]): String = {
+    vehicleId.toString.stripPrefix(VEHICLE_ID_PREFIX).split(FLEET_SEPARATOR) match {
+      case Array(_, fleetId) =>
+        fleetId
+      case _ =>
+        throw new Exception(f"Invalid idW $vehicleId")
+    }
   }
 }
 

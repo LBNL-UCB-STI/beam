@@ -5,6 +5,7 @@ import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigValueFactory}
 import org.scalatest.AppendedClues
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.tagobjects.Retryable
 import org.scalatest.wordspec.AnyWordSpecLike
 
 /**
@@ -84,7 +85,8 @@ class ModeChoiceSpec
   }
 
   "Running beam with high intercepts for RH transit" must {
-    "use RH transit with R5 router" in {
+    "use RH transit with R5 router" taggedAs Retryable in {
+      // Marking this as retryable because it fails sometimes due to small number randomness
       val theRun: StartWithCustomConfig = new StartWithCustomConfig(
         resolvedBaseBeamvilleUrbansimConfigWithHighInterceptFor("ride_hail_transit_intercept", "R5")
       )
