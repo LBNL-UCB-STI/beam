@@ -220,36 +220,50 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
         .map { case (key, skimMap) =>
           weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.values.toList)
         }
-      beamScenario.exchangeGeoMap.map { exchangeGeoMap =>
-        excerptDataTemp
-          .groupBy { case (key, _) =>
-            val asTimeBin = ActivitySimTimeBin.toTimeBin(key.hour)
-            (exchangeGeoMap.getMappedGeoId(key.origin), exchangeGeoMap.getMappedGeoId(key.destination)) match {
-              case (Some(origin), Some(destination)) =>
-                Some(ActivitySimKey(asTimeBin, key.pathType, origin, destination))
+      val excerptOfMappedData = beamScenario.exchangeGeoMap match {
+        case Some(exchangeGeoMap) if exchangeGeoMap.isMapped =>
+          excerptDataTemp
+            .groupBy { case (key, _) =>
+              val asTimeBin = ActivitySimTimeBin.toTimeBin(key.hour)
+              (exchangeGeoMap.getMappedGeoId(key.origin), exchangeGeoMap.getMappedGeoId(key.destination)) match {
+                case (Some(origin), Some(destination)) =>
+                  Some(ActivitySimKey(asTimeBin, key.pathType, origin, destination))
+                case _ => None
+              }
+            }
+            .flatMap {
+              case (Some(key), skimMap) =>
+                Some(
+                  weightedData(
+                    key.timeBin.entryName,
+                    key.origin,
+                    key.destination,
+                    key.pathType,
+                    skimMap.values.toList
+                  )
+                )
               case _ => None
             }
-          }
-          .map { case (key, skimMap) =>
-            weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.values.toList)
-          }
+        case _ => Iterable.empty[ExcerptData]
       }
-      val excerptOfMappedData = excerptDataTemp
-        .groupBy { case (key, _) =>
-          val asTimeBin = ActivitySimTimeBin.toTimeBin(key.hour)
-          // val mappedGeoOrigin =
-          ActivitySimKey(asTimeBin, key.pathType, key.origin, key.destination)
-        }
-        .map { case (key, skimMap) =>
-          weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.values.toList)
-        }
 
+      val filePathWithMapped = if (excerptOfMappedData.nonEmpty) filePath.lastIndexOf(".") match {
+        case -1    => filePath + "_mapped" // No extension found, append "_mapped" at the end
+        case index => filePath.substring(0, index) + "_mapped" + filePath.substring(index)
+      }
+      else ""
       val writeResult = if (config.activity_sim_skimmer.fileOutputFormat.trim.equalsIgnoreCase("csv")) {
         val csvWriter = new CsvWriter(filePath, ExcerptData.csvHeaderSeq)
         csvWriter.writeAllAndClose(excerptData.map(_.toCsvSeq))
+        if (excerptOfMappedData.nonEmpty) {
+          val csvWriterWithMapped = new CsvWriter(filePathWithMapped, ExcerptData.csvHeaderSeq)
+          csvWriterWithMapped.writeAllAndClose(excerptOfMappedData.map(_.toCsvSeq))
+        }
       } else {
         val geoUnits = beamScenario.exchangeGeoMap.getOrElse(beamScenario.tazTreeMap).orderedTazIds
         ActivitySimOmxWriter.writeToOmx(filePath, excerptData.iterator, geoUnits)
+        if (excerptOfMappedData.nonEmpty)
+          ActivitySimOmxWriter.writeToOmx(filePathWithMapped, excerptOfMappedData.iterator, geoUnits)
       }
       writeResult match {
         case Failure(exception) =>
