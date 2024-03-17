@@ -2,10 +2,10 @@ package beam.agentsim.infrastructure.taz
 
 import beam.agentsim.infrastructure.taz.TAZTreeMap.logger
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
-import beam.utils.{FileUtils, SortingUtil}
 import beam.utils.geospatial.GeoReader
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.{HasQuadBounds, QuadTreeBounds}
+import beam.utils.{FileUtils, SortingUtil}
 import org.locationtech.jts.geom.Geometry
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.{Link, Network}
