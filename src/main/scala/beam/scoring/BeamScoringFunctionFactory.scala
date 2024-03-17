@@ -262,7 +262,13 @@ class BeamScoringFunctionFactory @Inject() (
                 leg.isPooledTrip
               )
 
-              val linkCost = tripCost / tripDistance * beamServices.networkHelper.getLink(linkId).get.getLength
+              val linkCost = beamServices.networkHelper.getLink(linkId) match {
+                case Some(link) => tripCost / tripDistance * link.getLength
+                case None =>
+                  logger.error(s"Could not find link with id: $linkId, using 0 for linkCost.")
+                  0.0
+              }
+
               val generalizedLinkCost = attributes.getVOT(generalizedLinkTime) + linkCost
 
               val newTravelTimesCount = observedTravelTimesCount + 1
