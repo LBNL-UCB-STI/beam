@@ -60,6 +60,7 @@ class TAZTreeMap(
     SortingUtil.sortAsIntegers(tazIds).getOrElse(tazIds.sorted)
   }
   val orderedTazIds: Seq[String] = maybeZoneOrdering.map(order => order.map(_.toString)).getOrElse(sortedTazIds)
+  lazy val isMapped: Boolean = maybeZoneMapping.nonEmpty
 
   def getTAZfromLink(linkId: Id[Link]): Option[TAZ] = {
     linkIdToTAZMapping.get(linkId) match {
