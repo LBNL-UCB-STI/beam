@@ -1550,7 +1550,7 @@ class PersonAgent(
     )
   }
 
-  def getOriginAndDestinationForExchange(currentAct: Activity, maybeNextAct: Option[Activity]): (String, String) = {
+  def getOriginAndDestination(currentAct: Activity, maybeNextAct: Option[Activity]): (String, String) = {
     val tazMap = beamScenario.tazTreeMap
     if (tazMap.tazListContainsGeoms) {
       val origGeo = getTazFromActivity(currentAct, tazMap).toString
@@ -1593,7 +1593,7 @@ class PersonAgent(
     )
     eventsManager.processEvent(odSkimmerEvent)
     if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
-      val (origin, destination) = getOriginAndDestinationForExchange(currentActivity, nextActivity)
+      val (origin, destination) = getOriginAndDestination(currentActivity, nextActivity)
 
       val asSkimmerEvent = ActivitySimSkimmerEvent(
         origin,

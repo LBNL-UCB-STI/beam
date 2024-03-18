@@ -1494,7 +1494,7 @@ trait ChoosesMode {
     destinationActivity: Activity,
     mode: BeamMode
   ): ODSkimmerFailedTripEvent = {
-    val (origin, destination) = getOriginAndDestinationForExchange(originActivity, Some(destinationActivity))
+    val (origin, destination) = getOriginAndDestination(originActivity, Some(destinationActivity))
 
     ODSkimmerFailedTripEvent(
       origin = origin,
