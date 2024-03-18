@@ -14,7 +14,6 @@ import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoi
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
-import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.UnknownInquiryIdError
 import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumed
@@ -61,20 +60,14 @@ import beam.utils.MeasureUnitConversion._
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.events.{
-  ActivityEndEvent,
-  ActivityStartEvent,
-  PersonArrivalEvent,
-  PersonEntersVehicleEvent,
-  PersonLeavesVehicleEvent
-}
+import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
 
 import java.util.concurrent.atomic.AtomicReference
-import scala.annotation.{nowarn, tailrec}
+import scala.annotation.tailrec
 import scala.concurrent.duration._
 
 /**
@@ -1558,15 +1551,15 @@ class PersonAgent(
   }
 
   def getOriginAndDestinationForExchange(currentAct: Activity, maybeNextAct: Option[Activity]): (String, String) = {
-    val geoMap = beamScenario.exchangeGeoMap.getOrElse(beamScenario.tazTreeMap)
-    if (geoMap.tazListContainsGeoms) {
-      val origGeo = getTazFromActivity(currentAct, geoMap).toString
-      val destGeo = maybeNextAct.map(act => getTazFromActivity(act, geoMap).toString).getOrElse("NA")
+    val tazMap = beamScenario.tazTreeMap
+    if (tazMap.tazListContainsGeoms) {
+      val origGeo = getTazFromActivity(currentAct, tazMap).toString
+      val destGeo = maybeNextAct.map(act => getTazFromActivity(act, tazMap).toString).getOrElse("NA")
       (origGeo, destGeo)
     } else {
       (
-        geoMap.getTAZ(currentAct.getCoord).toString,
-        maybeNextAct.map(act => geoMap.getTAZ(act.getCoord).toString).getOrElse("NA")
+        tazMap.getTAZ(currentAct.getCoord).toString,
+        maybeNextAct.map(act => tazMap.getTAZ(act.getCoord).toString).getOrElse("NA")
       )
     }
   }

@@ -45,7 +45,7 @@ case class BeamScenario(
   network: Network,
   trainStopQuadTree: QuadTree[Stop],
   tazTreeMap: TAZTreeMap,
-  exchangeGeoMap: Option[TAZTreeMap],
+  exchangeOutputGeoMap: Option[TAZTreeMap],
   modeIncentives: ModeIncentive,
   h3taz: H3TAZ,
   freightCarriers: IndexedSeq[FreightCarrier],

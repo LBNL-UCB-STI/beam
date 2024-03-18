@@ -220,7 +220,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
         .map { case (key, skimMap) =>
           weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.values.toList)
         }
-      val excerptOfMappedData = beamScenario.exchangeGeoMap match {
+      val excerptOfMappedData = beamScenario.exchangeOutputGeoMap match {
         case Some(exchangeGeoMap) if exchangeGeoMap.isMapped =>
           excerptDataTemp
             .groupBy { case (key, _) =>
@@ -260,7 +260,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
           csvWriterWithMapped.writeAllAndClose(excerptOfMappedData.map(_.toCsvSeq))
         }
       } else {
-        val geoUnits = beamScenario.exchangeGeoMap.getOrElse(beamScenario.tazTreeMap).orderedTazIds
+        val geoUnits = beamScenario.exchangeOutputGeoMap.getOrElse(beamScenario.tazTreeMap).orderedTazIds
         ActivitySimOmxWriter.writeToOmx(filePath, excerptData.iterator, geoUnits)
         if (excerptOfMappedData.nonEmpty)
           ActivitySimOmxWriter.writeToOmx(filePathWithMapped, excerptOfMappedData.iterator, geoUnits)
