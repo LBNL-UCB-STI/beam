@@ -1550,18 +1550,37 @@ class PersonAgent(
     )
   }
 
-  def getOriginAndDestination(currentAct: Activity, maybeNextAct: Option[Activity]): (String, String) = {
-    val tazMap = beamScenario.tazTreeMap
-    if (tazMap.tazListContainsGeoms) {
-      val origGeo = getTazFromActivity(currentAct, tazMap).toString
-      val destGeo = maybeNextAct.map(act => getTazFromActivity(act, tazMap).toString).getOrElse("NA")
+  private def processActivitySimSkimmerEvent(
+    currentAct: Activity,
+    maybeNextAct: Option[Activity],
+    odSkimmerEvent: ODSkimmerEvent
+  ): Unit = {
+    // Selecting the geoMap with highest resolution by comparing their number of zones
+    val geoMap = beamScenario.exchangeOutputGeoMap match {
+      case Some(exchangeMap) if exchangeMap.getSize > beamScenario.tazTreeMap.getSize => exchangeMap
+      case _                                                                          => beamScenario.tazTreeMap
+    }
+    val (origin, destination) = if (geoMap.tazListContainsGeoms) {
+      val origGeo = getTazFromActivity(currentAct, geoMap).toString
+      val destGeo = maybeNextAct.map(act => getTazFromActivity(act, geoMap).toString).getOrElse("NA")
       (origGeo, destGeo)
     } else {
       (
-        tazMap.getTAZ(currentAct.getCoord).toString,
-        maybeNextAct.map(act => tazMap.getTAZ(act.getCoord).toString).getOrElse("NA")
+        geoMap.getTAZ(currentAct.getCoord).toString,
+        maybeNextAct.map(act => geoMap.getTAZ(act.getCoord).toString).getOrElse("NA")
       )
     }
+    val asSkimmerEvent = ActivitySimSkimmerEvent(
+      origin,
+      destination,
+      odSkimmerEvent.eventTime,
+      odSkimmerEvent.trip,
+      odSkimmerEvent.generalizedTimeInHours,
+      odSkimmerEvent.generalizedCost,
+      odSkimmerEvent.energyConsumption,
+      beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
+    )
+    eventsManager.processEvent(asSkimmerEvent)
   }
 
   def generateSkimData(
@@ -1593,19 +1612,7 @@ class PersonAgent(
     )
     eventsManager.processEvent(odSkimmerEvent)
     if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
-      val (origin, destination) = getOriginAndDestination(currentActivity, nextActivity)
-
-      val asSkimmerEvent = ActivitySimSkimmerEvent(
-        origin,
-        destination,
-        odSkimmerEvent.eventTime,
-        odSkimmerEvent.trip,
-        odSkimmerEvent.generalizedTimeInHours,
-        odSkimmerEvent.generalizedCost,
-        odSkimmerEvent.energyConsumption,
-        beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
-      )
-      eventsManager.processEvent(asSkimmerEvent)
+      processActivitySimSkimmerEvent(currentActivity, nextActivity, odSkimmerEvent)
     }
 
     correctedTrip.legs.filter(x => x.beamLeg.mode == BeamMode.CAR || x.beamLeg.mode == BeamMode.CAV).foreach { carLeg =>

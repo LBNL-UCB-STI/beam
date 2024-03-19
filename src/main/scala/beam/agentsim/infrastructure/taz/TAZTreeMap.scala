@@ -71,6 +71,8 @@ class TAZTreeMap(
     }
   }
 
+  def getSize: Int = tazQuadTree.size()
+
   def getTAZs: Iterable[TAZ] = {
     tazQuadTree.values().asScala
   }
