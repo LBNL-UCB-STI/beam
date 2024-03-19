@@ -31,6 +31,11 @@ isCav <- function(x) {
 ### RouteE
 
 work_folder <- normalizePath("~/Workspace/Data/Scenarios/sfbay/")
+network <- readCsv(pp(work_folder, "/network.csv.gz"))
+linkstats0 <- readCsv(pp(work_folder, "/0.linkstats.csv.gz"))
+linkstats1 <- readCsv(pp(work_folder, "/1.linkstats.csv.gz"))
+linkstats2 <- readCsv(pp(work_folder, "/2.linkstats.csv.gz"))
+
 carriers <- readCsv(pp(work_folder, "/freight-merged-carriers.csv"))
 carriers[, vehicleTypeId:=pp(vehicleTypeId,"-RefHighp6")]
 write.csv(carriers, file = pp(work_folder, "/freight-merged-carriers.csv"), row.names=F, quote=F)
