@@ -18,13 +18,10 @@ import beam.router.Modes.BeamMode.{
   TRANSIT,
   WALK_TRANSIT
 }
-import beam.router.TourModes.BeamTourMode
 import beam.router.skim.SkimsUtils
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
 import beam.router.skim.core.AbstractSkimmerReadOnly
 import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, ODSkimmerTimeCostTransfer, Skim}
-import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
-import beam.router.skim.readonly
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import org.matsim.api.core.v01.population.Activity
@@ -139,7 +136,7 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
       val skim = getTimeDistanceAndCost(
         activity1.getCoord,
         activity2.getCoord,
-        activity1.getEndTime.toInt,
+        activity1.getEndTime.seconds().toInt,
         mode,
         vehicleTypeId,
         vehicleType,

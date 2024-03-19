@@ -21,7 +21,6 @@ import beam.agentsim.agents.parking.ChoosesParking.{
 import beam.agentsim.agents.planning.BeamPlan.atHome
 import beam.agentsim.agents.planning.Strategy.{TourModeChoiceStrategy, TripModeChoiceStrategy}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
-import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.UnknownInquiryIdError
 import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumed
@@ -1459,7 +1458,7 @@ class PersonAgent(
               tick,
               id,
               currentTrip.legs.map(l => l.beamLeg.travelPath.distanceInM).sum,
-              data.currentTourMode.map(_.matsimMode).getOrElse("")
+              data.currentTripMode.map(_.matsimMode).getOrElse("")
             )
           )
           assert(activity.getLinkId != null)

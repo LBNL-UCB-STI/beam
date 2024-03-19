@@ -17,7 +17,6 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicle, _}
 import beam.agentsim.events.resources.ReservationErrorCode
 import beam.agentsim.events.{ModeChoiceEvent, ReplanningEvent, SpaceTime, TourModeChoiceEvent}
-import beam.agentsim.infrastructure.taz.TAZ
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ZonalParkingManager}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter._
@@ -28,10 +27,8 @@ import beam.router.TourModes.BeamTourMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.skim.ActivitySimPathType.determineActivitySimPathTypesFromBeamMode
 import beam.router.skim.{ActivitySimPathType, ActivitySimSkimmerFailedTripEvent}
-import beam.router.skim.core.ODSkimmer
-import beam.router.skim.event.{ODSkimmerEvent, ODSkimmerFailedTripEvent}
-import beam.router.skim.readonly.ODSkims
-import beam.router.{Modes, RoutingWorker, TourModes}
+import beam.router.skim.event.ODSkimmerFailedTripEvent
+import beam.router.{Modes, RoutingWorker}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, Geofence}
 import beam.utils.MathUtils._
@@ -646,7 +643,7 @@ trait ChoosesMode {
                   logger.error(
                     "No vehicle available for existing route of person {} trip of mode {} even though it was created in their plans",
                     body.id,
-                    tourMode
+                    tripMode
                   )
               }
             case _ =>
@@ -1480,7 +1477,7 @@ trait ChoosesMode {
           travelProposalToRideHailLegs(
             travelProposal,
             rideHailResult.rideHailManagerName,
-            choosesModeData.personData.currentTourMode
+            choosesModeData.personData.currentTripMode
           )
             .map(surroundWithWalkLegsIfNeededAndMakeTrip)
         case _ =>
