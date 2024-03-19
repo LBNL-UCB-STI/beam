@@ -40,8 +40,14 @@ npmrds_hourly_speed_by_road_class_input = input_dir + '/npmrds_hourly_speed_by_r
 
 st = time.time()
 
+print("Generating block groups boundaries for San Francisco only")
+collect_geographic_boundaries(state, ['075'], year, work_dir + "/sfbay/input/sf_cbgs.geojson", geo_level='cbgs')
+
 print("Generating block groups boundaries")
-collect_geographic_boundaries(state, fips_code, year, npmrds_cbgs_geo_path_output, geo_level='cbgs')
+collect_geographic_boundaries(state, ['075'], year, npmrds_cbgs_geo_path_output, geo_level='cbgs')
+
+print("Generating block groups boundaries")
+collect_geographic_boundaries(state, fips_code, year, npmrds_counties_geo_path_output, geo_level='cbgs')
 
 # Either download boundaries directly
 print("Generating counties boundaries")

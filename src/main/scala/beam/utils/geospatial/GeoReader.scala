@@ -63,6 +63,6 @@ object GeoReader extends LazyLogging {
   }
 
   def main(args: Array[String]): Unit = {
-    readFeatures("/Users/haitamlaarabi/Workspace/Data/Scenarios/sfbay/input/sfbay_cbgs.geojson")
+    readFeatures("test/input/sf-light/shape/sf_cbgs.geojson")
   }
 }
