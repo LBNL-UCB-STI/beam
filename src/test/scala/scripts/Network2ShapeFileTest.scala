@@ -2,7 +2,7 @@ package scripts
 
 import beam.utils.map.ShapefileReader
 import org.matsim.core.network.NetworkUtils
-import org.matsim.core.network.io.NetworkReaderMatsimV2
+import org.matsim.core.network.io.MatsimNetworkReader
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.operation.MathTransform
@@ -26,7 +26,7 @@ class Network2ShapeFileTest extends AnyWordSpecLike with Matchers {
 
       // read network agaim
       val network = NetworkUtils.createNetwork()
-      val reader = new NetworkReaderMatsimV2(network)
+      val reader = new MatsimNetworkReader(network)
       reader.readFile(beamvilleNetwork)
 
       @SuppressWarnings(Array("UnusedMethodParameter"))

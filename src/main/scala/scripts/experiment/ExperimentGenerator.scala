@@ -2,7 +2,6 @@ package scripts.experiment
 
 import java.io._
 import java.nio.file.{Files, Path, Paths}
-
 import com.google.common.base.Charsets
 import com.google.common.io.Resources
 import com.hubspot.jinjava.Jinjava
@@ -12,6 +11,7 @@ import org.apache.commons.lang.SystemUtils
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable
+import scala.util.Try
 
 /**
   * Generate beam.conf and run script for individual run.
@@ -80,7 +80,7 @@ object ExperimentGenerator extends ExperimentApp {
       beamConfWriter.write(beamConfStr)
       beamConfWriter.flush()
     } finally {
-      IOUtils.closeQuietly(beamConfWriter)
+      Try(beamConfWriter.close())
     }
     /*
      * Write the run folder
@@ -107,7 +107,7 @@ object ExperimentGenerator extends ExperimentApp {
           modeChoiceWriter.write(renderedTemplate)
           modeChoiceWriter.flush()
         } finally {
-          IOUtils.closeQuietly(modeChoiceWriter)
+          Try(modeChoiceWriter.close())
         }
     }
   }
@@ -131,6 +131,6 @@ object ExperimentGenerator extends ExperimentApp {
     }
     experimentsCsv.flush()
   } finally {
-    IOUtils.closeQuietly(experimentsCsv)
+    Try(experimentsCsv.close())
   }
 }

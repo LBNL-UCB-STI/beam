@@ -206,7 +206,7 @@ class PersonWithVehicleSharingSpec
 
       events.expectMsgType[ModeChoiceEvent]
       events.expectMsgType[ActivityEndEvent]
-      events.expectMsgType[PersonDepartureEvent]
+      events.expectMsgType[BeamPersonDepartureEvent]
 
       events.expectMsgType[PersonEntersVehicleEvent]
       events.expectMsgType[VehicleEntersTrafficEvent]
@@ -392,7 +392,7 @@ class PersonWithVehicleSharingSpec
 
       events.expectMsgType[ModeChoiceEvent]
       events.expectMsgType[ActivityEndEvent]
-      events.expectMsgType[PersonDepartureEvent]
+      events.expectMsgType[BeamPersonDepartureEvent]
 
       events.expectMsgType[PersonEntersVehicleEvent]
       events.expectMsgType[VehicleEntersTrafficEvent]

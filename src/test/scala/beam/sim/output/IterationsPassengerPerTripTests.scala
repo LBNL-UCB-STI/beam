@@ -11,6 +11,7 @@ import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.matsim.api.core.v01.Id
+import org.matsim.core.config.groups.ControlerConfigGroup.CompressionType
 import org.matsim.core.controler.events.IterationEndsEvent
 import org.matsim.core.controler.{MatsimServices, OutputDirectoryHierarchy}
 import org.mockito.Mockito._
@@ -128,7 +129,11 @@ class IterationsPassengerPerTripTests extends AnyWordSpecLike with Matchers with
 
       val itr = 0
       val outputDirectoryHierarchy =
-        new OutputDirectoryHierarchy(output, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
+        new OutputDirectoryHierarchy(
+          output,
+          OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles,
+          CompressionType.none
+        )
       FileUtils.createDirectoryIfNotExists(outputDirectoryHierarchy.getIterationPath(itr))
       val services = mock(classOf[MatsimServices])
       when(services.getControlerIO) thenReturn outputDirectoryHierarchy
@@ -164,7 +169,11 @@ class IterationsPassengerPerTripTests extends AnyWordSpecLike with Matchers with
 
   private def extractFileName(outputDir: String, iterationNumber: Int, fileName: String): String = {
     val outputDirectoryHierarchy =
-      new OutputDirectoryHierarchy(outputDir, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
+      new OutputDirectoryHierarchy(
+        outputDir,
+        OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles,
+        CompressionType.none
+      )
 
     outputDirectoryHierarchy.getIterationFilename(iterationNumber, fileName)
   }

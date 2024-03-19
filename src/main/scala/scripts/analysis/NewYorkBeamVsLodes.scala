@@ -10,7 +10,7 @@ import beam.utils.geospatial.PolygonUtil
 import beam.utils.scenario.PlanElement
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
 import scripts.shape.Attributes
-import com.vividsolutions.jts.geom.MultiPolygon
+import org.locationtech.jts.geom.MultiPolygon
 import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.collections.QuadTree

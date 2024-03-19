@@ -2,16 +2,15 @@ package beam.utils
 
 import beam.agentsim.agents.freight.{FreightCarrier, FreightTour, PayloadPlan}
 import beam.sim.BeamHelper
-import beam.sim.common.GeoUtilsImpl
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
-import beam.utils.SnapCoordinateUtils.{Category, CsvFile, Error, ErrorInfo, SnapCoordinateResult, SnapLocationHelper}
+import beam.utils.SnapCoordinateUtils.{Category, CsvFile, Error, ErrorInfo, SnapCoordinateResult}
 import beam.utils.TestConfigUtils.testConfig
 import beam.utils.scenario.ScenarioLoaderHelper
 import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.population.{Activity, Population}
 import org.matsim.core.config.Config
-import org.matsim.households.Households
+import org.matsim.households.{HouseholdUtils, Households}
 import org.scalatest.Retries
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.tagobjects.Retryable
@@ -110,11 +109,11 @@ class SnapCoordinateSpec extends AnyWordSpec with Matchers with BeamHelper with 
         .values()
         .asScala
         .map { household =>
-          val locationX = scenario.getHouseholds.getHouseholdAttributes
-            .getAttribute(household.getId.toString, "homecoordx")
+          val locationX = HouseholdUtils
+            .getHouseholdAttribute(household, "homecoordx")
             .asInstanceOf[Double]
-          val locationY = scenario.getHouseholds.getHouseholdAttributes
-            .getAttribute(household.getId.toString, "homecoordy")
+          val locationY = HouseholdUtils
+            .getHouseholdAttribute(household, "homecoordy")
             .asInstanceOf[Double]
           val coord = new Coord(locationX, locationY)
           snapLocationHelper.computeResult(coord)

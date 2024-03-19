@@ -16,12 +16,12 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 
     "should throw error when fraction is not within range [0, 1]" in {
       assertThrows[IllegalArgumentException] {
-        new PreviousRunPlanMerger(-1, 1, Some(5), outputPath, "", new Random(), identity)
+        new PreviousRunPlanMerger(-1, 1, Some(5), None, outputPath, "", new Random(), identity)
       }
     }
 
     "should return same plans when fraction = 0" in {
-      val planMerger = new PreviousRunPlanMerger(0, 1, Some(5), outputPath, "", new Random(), identity)
+      val planMerger = new PreviousRunPlanMerger(0, 1, Some(5), None, outputPath, "", new Random(), identity)
 
       val (res, actuallyMerged) = planMerger.merge(newPlans)
 
@@ -100,7 +100,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
         .sortBy(p => (p.personId.id.toInt, p.planIndex, p.planElementIndex))
 
       res.toSet.count(oldPlans.contains) should be(5)
-      res.toSet.count(newPlans.contains) should be(9)
+      res.toSet.count(newPlans.contains) should be(8)
 
       res should be(
         Seq(
@@ -126,8 +126,8 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
           createPlanElement("3", 0, 1, 49514), //new merged
           createPlanElement("4", 0, 0, 49515),
           createPlanElement("4", 0, 1, 49516),
-          createPlanElement("4", 0, 2, 49517), //new merged
-          createPlanElement("5", 0, 0, 49518) //new added
+          createPlanElement("4", 0, 2, 49517) //new merged
+//          createPlanElement("5", 0, 0, 49518) //new added
 //          createPlanElement("8", 0, 0, 49515), //new added
 //          createPlanElement("8", 0, 1, 49516), //new added
 //          createPlanElement("8", 0, 2, 49517) //new added
@@ -224,7 +224,8 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
 
   "PreviousRunPlanMerger with valid inputs" should {
     "must read previous xml plans without error" in {
-      val planMerger = new PreviousRunPlanMerger(1.0, 0.0, Some(5), outputPath, "beamville", new Random(), identity)
+      val planMerger =
+        new PreviousRunPlanMerger(1.0, 0.0, Some(5), None, outputPath, "beamville", new Random(), identity)
       val activitySimPlans = {
         getOldPlans.filter(_.planSelected).map { case plan => plan.copy(planIndex = 0) } //to avoid naming mess
         // Assumption here is that activitysim plans always are selected and have planIndex = 0
@@ -257,15 +258,47 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
         .toList
         .sortBy(p => (p.personId.id.toInt, p.planIndex, p.planElementIndex)) should be(
         Seq(
-          createActivityPlanElement("Home", 166321.9, 1568.87, 49500.0, "1", 0, -494.58068848294334),
+          createActivityPlanElement(
+            "Home",
+            166321.9,
+            1568.87,
+            Some(49500.0),
+            "1",
+            0,
+            -494.58068848294334
+          ),
           createLegPlanElement("walk", "1", 1, -494.58068848294334),
-          createActivityPlanElement("Shopping", 167138.4, 1117.0, 56940.0, "1", 2, -494.58068848294334),
+          createActivityPlanElement(
+            "Shopping",
+            167138.4,
+            1117.0,
+            Some(56940.0),
+            "1",
+            2,
+            -494.58068848294334
+          ),
           createLegPlanElement("walk", "1", 3, -494.58068848294334),
-          createActivityPlanElement("Home", 166321.9, 1568.87, 66621.0, "1", 4, -494.58068848294334),
+          createActivityPlanElement(
+            "Home",
+            166321.9,
+            1568.87,
+            Some(66621.0),
+            "1",
+            4,
+            -494.58068848294334
+          ),
           createLegPlanElement("bike", "1", 5, -494.58068848294334),
-          createActivityPlanElement("Shopping", 166045.2, 2705.4, 71006.0, "1", 6, -494.58068848294334),
+          createActivityPlanElement(
+            "Shopping",
+            166045.2,
+            2705.4,
+            Some(71006.0),
+            "1",
+            6,
+            -494.58068848294334
+          ),
           createLegPlanElement("car", "1", 7, -494.58068848294334),
-          createActivityPlanElement("Home", 166321.9, 1568.87, Double.NegativeInfinity, "1", 8, -494.58068848294334)
+          createActivityPlanElement("Home", 166321.9, 1568.87, None, "1", 8, -494.58068848294334)
         ).toList.sortBy(p => (p.personId.id.toInt, p.planIndex, p.planElementIndex))
       )
     }
@@ -279,12 +312,12 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       createPlanElement("7", 0, 1, 49502),
       createPlanElement("2", 0, 0, 49503),
       createPlanElement("2", 0, 1, 49504),
-      createPlanElement("3", 0, 0, 49505, score = 0, planSelected = false),
-      createPlanElement("3", 0, 1, 49506, score = 0, planSelected = false),
-      createPlanElement("3", 0, 2, 49507, score = 0, planSelected = false),
-      createPlanElement("3", 1, 0, 49509, score = 50, planSelected = true),
-      createPlanElement("3", 1, 1, 49510, score = 50, planSelected = true),
-      createPlanElement("3", 1, 2, 49511, score = 50, planSelected = true),
+      createPlanElement("3", 0, 0, 49509, score = 50, planSelected = true),
+      createPlanElement("3", 0, 1, 49510, score = 50, planSelected = true),
+      createPlanElement("3", 0, 2, 49511, score = 50, planSelected = true),
+      createPlanElement("3", 1, 0, 49505, score = 0, planSelected = false),
+      createPlanElement("3", 1, 1, 49506, score = 0, planSelected = false),
+      createPlanElement("3", 1, 2, 49507, score = 0, planSelected = false),
       createPlanElement("4", 0, 0, 49508),
       createPlanElement("6", 0, 0, 49508)
     )
@@ -345,7 +378,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
     activityType: String,
     x: Double,
     y: Double,
-    endTime: Double,
+    endTime: Option[Double],
     personId: String,
     planElementIdx: Int,
     planScore: Double
@@ -360,7 +393,7 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
     Some(activityType),
     Some(x),
     Some(y),
-    Option(endTime),
+    endTime,
     None,
     None,
     None,
@@ -387,8 +420,8 @@ class PreviousRunPlanMergerTest extends AnyWordSpecLike with Matchers {
       None,
       None,
       Some(mode),
-      Some("-Infinity"),
-      Some("-Infinity"),
+      None,
+      None,
       None,
       None,
       None,

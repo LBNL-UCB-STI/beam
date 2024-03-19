@@ -20,6 +20,7 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.{Leg, Person}
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.vehicles.Vehicle
 import org.scalatest.flatspec.AnyFlatSpec
@@ -165,7 +166,7 @@ class ChargingSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeat
           case _        =>
         }
       }
-      population.getPersonAttributes.putAttribute(personId.toString, EXCLUDED_MODES, noCarModes)
+      PopulationUtils.putPersonAttribute(person, EXCLUDED_MODES, noCarModes)
     }
     transportNetwork.transitLayer.tripPatterns.clear()
     DefaultPopulationAdjustment(services).update(scenario)

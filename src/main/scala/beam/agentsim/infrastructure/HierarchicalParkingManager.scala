@@ -15,7 +15,7 @@ import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.HasCoord
 import beam.utils.metrics.SimpleCounter
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
@@ -234,8 +234,7 @@ object HierarchicalParkingManager {
     reservedFor: ReservedFor,
     chargingPointType: Option[ChargingPointType],
     pricingModel: Option[PricingModel],
-    timeRestrictions: Map[VehicleCategory, Range],
-    siteId: Id[SitePowerManager]
+    timeRestrictions: Map[VehicleCategory, Range]
   )
 
   object ParkingZoneDescription {
@@ -246,8 +245,7 @@ object HierarchicalParkingManager {
         zone.reservedFor,
         zone.chargingPointType,
         zone.pricingModel,
-        zone.timeRestrictions,
-        zone.siteId
+        zone.timeRestrictions
       )
     }
   }
@@ -329,7 +327,6 @@ object HierarchicalParkingManager {
         parkingType = description.parkingType,
         maxStalls = numStalls,
         reservedFor = description.reservedFor,
-        siteIdMaybe = Some(description.siteId),
         chargingPointType = description.chargingPointType,
         pricingModel = description.pricingModel,
         timeRestrictions = description.timeRestrictions

@@ -10,7 +10,6 @@ import beam.agentsim.agents.vehicles.VehicleManager.ReservedFor
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.events.RefuelSessionEvent.{NotApplicable, ShiftStatus}
 import beam.agentsim.infrastructure.ChargingNetwork.{ChargingStation, ChargingStatus, ChargingVehicle}
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode._
 import beam.agentsim.infrastructure.parking.ParkingZoneId
 import beam.agentsim.infrastructure.power.SitePowerManager
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -29,6 +28,7 @@ import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters._
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import beam.utils.OptionalUtils.OptionalTimeExtension
 
 /**
   * Created by haitamlaarabi
@@ -48,6 +48,7 @@ class ChargingNetworkManager(
   import ChargingStatus._
 
   protected val beamConfig: BeamConfig = beamServices.beamScenario.beamConfig
+  private val agentSimConfig = beamConfig.beam.agentsim
   import scala.concurrent.ExecutionContext.Implicits.global
   import scala.concurrent.Future
   implicit val timeout: Timeout = Timeout(10, TimeUnit.HOURS)
@@ -59,11 +60,11 @@ class ChargingNetworkManager(
     beamServices.matsimServices.getScenario.getPopulation.getPersons.asScala.map { case (personId, person) =>
       personId -> (person.getSelectedPlan.getPlanElements.asScala
         .find(_.isInstanceOf[Activity])
-        .map(_.asInstanceOf[Activity].getEndTime)
+        .flatMap(x => x.asInstanceOf[Activity].getEndTime.toOption)
         .getOrElse(0.0) + (24 * 3600.0)).toInt
     }.toMap
 
-  private val maybeDebugReport: Option[Cancellable] = if (beamServices.beamConfig.beam.debug.debugEnabled) {
+  private val maybeDebugReport: Option[Cancellable] = if (debug.debugEnabled) {
     Some(context.system.scheduler.scheduleWithFixedDelay(10.seconds, 30.seconds, self, DebugReport)(context.dispatcher))
   } else {
     None
@@ -90,19 +91,22 @@ class ChargingNetworkManager(
         s"AVG: ${timeSpentToPlanEnergyDispatchTrigger.toDouble / nHandledPlanEnergyDispatchTrigger}"
       )
 
-    case inquiry: ParkingInquiry =>
-      log.debug(s"Received parking inquiry: $inquiry")
-      val chargingNetwork = chargingNetworkHelper.get(inquiry.reservedFor.managerId)
-      val response = chargingNetwork.processParkingInquiry(inquiry)
-      if (inquiry.reserveStall && List(DestinationCharging, EnRouteCharging).contains(inquiry.searchMode))
-        collectChargingRequests(inquiry, response.stall)
-      sender() ! response
-
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       log.info("ChargingNetworkManager is Starting!")
       Future(scheduler ? ScheduleTrigger(PlanEnergyDispatchTrigger(0), self))
         .map(_ => CompletionNotice(triggerId, Vector()))
         .pipeTo(sender())
+
+    case inquiry: ParkingInquiry =>
+      log.debug(s"Received parking inquiry: $inquiry")
+      val chargingNetwork = chargingNetworkHelper.get(inquiry.reservedFor.managerId)
+      val resolvedParkingDuration = Math.max(inquiry.parkingDuration, agentSimConfig.schedulerParallelismWindow)
+      val desirableMinimumParkingDuration =
+        Math.max(resolvedParkingDuration, agentSimConfig.agents.parking.estimatedMinParkingDurationInSeconds)
+      val fixedInquiry = inquiry.copy(parkingDuration = desirableMinimumParkingDuration)
+      val response = chargingNetwork.processParkingInquiry(fixedInquiry)
+      collectChargingRequests(fixedInquiry, response.stall)
+      sender() ! response
 
     case TriggerWithId(PlanEnergyDispatchTrigger(timeBin), triggerId) =>
       val s = System.currentTimeMillis
@@ -118,7 +122,7 @@ class ChargingNetworkManager(
           dispatchEnergyAndProcessChargingCycle(
             chargingVehicle,
             timeBin,
-            timeBin + beamConfig.beam.agentsim.chargingNetworkManager.timeStepInSeconds
+            timeBin + agentSimConfig.chargingNetworkManager.timeStepInSeconds
           )
       }
       val nextStepPlanningTriggers =
@@ -153,7 +157,7 @@ class ChargingNetworkManager(
         chargingNetwork
           .processChargingPlugRequest(
             request,
-            beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds.toInt,
+            agentSimConfig.agents.parking.estimatedMinParkingDurationInSeconds.toInt,
             chargingEndTimeInSeconds.get(personId),
             theSender
           ) map {

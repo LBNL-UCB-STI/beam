@@ -51,7 +51,6 @@ import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.population.PopulationUtils
-import org.matsim.core.utils.misc.Time
 import org.matsim.households.Household
 
 import java.util.concurrent.TimeUnit
@@ -172,7 +171,7 @@ object HouseholdActor {
     implicit val executionContext: ExecutionContext = context.dispatcher
     implicit val debug: Debug = beamServices.beamConfig.beam.debug
 
-    protected val generateEmergencyHousehold: Boolean =
+    private val generateEmergencyHousehold: Boolean =
       beamScenario.beamConfig.beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt
 
     override val supervisorStrategy: OneForOneStrategy =
@@ -227,9 +226,7 @@ object HouseholdActor {
           .flatMap { person =>
             if (isFreightCarrier) {
               val vehicleIdFromPlans = Id.create(
-                beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
-                  .getAttribute(person.getId.toString, "vehicle")
-                  .toString,
+                PopulationUtils.getPersonAttribute(person, "vehicle").toString,
                 classOf[BeamVehicle]
               )
               whoDrivesThisFreightVehicle = whoDrivesThisFreightVehicle + (vehicleIdFromPlans -> person.getId)
@@ -237,9 +234,7 @@ object HouseholdActor {
             person.getSelectedPlan.getPlanElements.asScala.find(_.isInstanceOf[Activity]) map { element =>
               val act = element.asInstanceOf[Activity]
               val parkingActivityType = ParkingInquiry.activityTypeStringToEnum(act.getType)
-              val endTime =
-                if (Time.isUndefinedTime(act.getEndTime)) DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig)
-                else act.getEndTime
+              val endTime = act.getEndTime.orElseGet(() => DateUtils.getEndOfTime(beamServices.beamScenario.beamConfig))
               person.getId -> HomeAndStartingWorkLocation(
                 parkingActivityType,
                 act.getType,
@@ -425,7 +420,7 @@ object HouseholdActor {
           // before all InitializeTrigger's are completed
           if (selectedPlan.getPlanElements.size() == 1) {
             selectedPlan.getPlanElements.get(0) match {
-              case elem: Activity => if (Time.isUndefinedTime(elem.getEndTime)) elem.setEndTime(0.0)
+              case elem: Activity => if (elem.getEndTime.isUndefined) elem.setEndTime(0.0)
               case _              =>
             }
           }
@@ -600,7 +595,11 @@ object HouseholdActor {
 
     }
 
-    def completeInitialization(tick: Int, triggerId: Long, triggersToSchedule: Vector[ScheduleTrigger]): Unit = {
+    private def completeInitialization(
+      tick: Int,
+      triggerId: Long,
+      triggersToSchedule: Vector[ScheduleTrigger]
+    ): Unit = {
       // Pipe my cars through the parking manager
       // and complete initialization only when I got them all.
       Future
@@ -639,7 +638,7 @@ object HouseholdActor {
         .pipeTo(schedulerRef)
     }
 
-    def sendParkingOrChargingInquiry(
+    private def sendParkingOrChargingInquiry(
       vehicle: BeamVehicle,
       activityType: String,
       location: Coord,
@@ -657,7 +656,7 @@ object HouseholdActor {
       )
       // TODO Overnight charging is still a work in progress and might produce unexpected results
       if (vehicle.isEV && beamServices.beamConfig.beam.agentsim.chargingNetworkManager.overnightChargingEnabled) {
-        log.info(s"Overnight charging vehicle $vehicle with state of charge ${vehicle.getStateOfCharge}")
+        log.debug(s"Overnight charging vehicle $vehicle with state of charge ${vehicle.getStateOfCharge}")
         chargingNetworkManager ? inquiry
       } else {
         log.debug(s"Overnight parking vehicle $vehicle")

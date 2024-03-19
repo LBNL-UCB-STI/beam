@@ -59,6 +59,21 @@ object BeamVehicleUtils {
     }
   }
 
+  /**
+    * These are fallback values. One should define the vehicle weight in the vehicleTypes.csv.
+    * Column name is curbWeightInKg
+    * @param vehicleCategory the vehicle category
+    * @return an average curb weight of a vehicle that belongs to the provided category (in kg)
+    */
+  def vehcileCategoryToWeightInKg(vehicleCategory: VehicleCategory.VehicleCategory): Double = vehicleCategory match {
+    case VehicleCategory.Body                => 70
+    case VehicleCategory.Bike                => 80
+    case VehicleCategory.Car                 => 2000
+    case VehicleCategory.MediumDutyPassenger => 2500
+    case VehicleCategory.LightDutyTruck      => 2500
+    case VehicleCategory.HeavyDutyTruck      => 6500
+  }
+
   def readBeamVehicleTypeFile(filePath: String): Map[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
       case (line: util.Map[String, String], z) =>
@@ -85,6 +100,9 @@ object BeamVehicleUtils {
         val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts")).map(_.toDouble)
         val rechargeLevel3RateLimitInWatts = Option(line.get("rechargeLevel3RateLimitInWatts")).map(_.toDouble)
         val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
+        val curbWeight: Double = Option(line.get("curbWeightInKg"))
+          .map(_.toDouble)
+          .getOrElse(vehcileCategoryToWeightInKg(vehicleCategory))
         val sampleProbabilityWithinCategory =
           Option(line.get("sampleProbabilityWithinCategory")).map(_.toDouble).getOrElse(1.0)
         val sampleProbabilityString = Option(line.get("sampleProbabilityString"))
@@ -98,6 +116,7 @@ object BeamVehicleUtils {
           seatingCapacity,
           standingRoomCapacity,
           lengthInMeter,
+          curbWeight,
           primaryFuelType,
           primaryFuelConsumptionInJoulePerMeter,
           primaryFuelCapacityInJoule,
@@ -126,7 +145,9 @@ object BeamVehicleUtils {
   }
 
   def readBeamVehicleTypeFile(beamConfig: BeamConfig): Map[Id[BeamVehicleType], BeamVehicleType] = {
-    val vehicleTypes = readBeamVehicleTypeFile(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath)
+    val vehicleTypes = readBeamVehicleTypeFile(
+      beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath
+    ) ++ beamConfig.beam.agentsim.agents.freight.vehicleTypesFilePath.map(readBeamVehicleTypeFile).getOrElse(Map.empty)
     val rideHailTypeIds =
       beamConfig.beam.agentsim.agents.rideHail.managers.map(_.initialization.procedural.vehicleTypeId)
     val dummySharedCarId = beamConfig.beam.agentsim.agents.vehicles.dummySharedCar.vehicleTypeId
@@ -135,6 +156,7 @@ object BeamVehicleUtils {
       seatingCapacity = 4,
       standingRoomCapacity = 0,
       lengthInMeter = 4.5,
+      curbWeightInKg = 2000,
       primaryFuelType = FuelType.Gasoline,
       primaryFuelConsumptionInJoulePerMeter = 3655.98,
       primaryFuelCapacityInJoule = 3655980000.0,

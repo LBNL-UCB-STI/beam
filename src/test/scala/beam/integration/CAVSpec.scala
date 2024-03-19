@@ -12,10 +12,10 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
 import org.scalatest.tagobjects.Retryable
 
 class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeated {
@@ -73,8 +73,8 @@ class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeated {
     val nonCarModes = BeamMode.allModes flatMap { mode =>
       if (mode == BeamMode.CAV) None else Some(mode.value.toLowerCase)
     } mkString ","
-    population.getPersons.keySet.forEach { personId =>
-      population.getPersonAttributes.putAttribute(personId.toString, EXCLUDED_MODES, nonCarModes)
+    population.getPersons.values().forEach { person =>
+      PopulationUtils.putPersonAttribute(person, EXCLUDED_MODES, nonCarModes)
     }
 
     var cavVehicles = 0

@@ -370,7 +370,7 @@ class PersonAndTransitDriverSpec
 
       personEvents.expectMsgType[ModeChoiceEvent]
       personEvents.expectMsgType[ActivityEndEvent]
-      personEvents.expectMsgType[PersonDepartureEvent]
+      personEvents.expectMsgType[BeamPersonDepartureEvent]
       personEvents.expectMsgType[PersonEntersVehicleEvent]
       personEvents.expectMsgType[VehicleEntersTrafficEvent]
       personEvents.expectMsgType[VehicleLeavesTrafficEvent]
@@ -389,7 +389,7 @@ class PersonAndTransitDriverSpec
       personEvents.expectMsgType[PersonArrivalEvent]
       personEvents.expectMsgType[ActivityStartEvent]
 
-      busEvents.expectMsgType[PersonDepartureEvent]
+      busEvents.expectMsgType[BeamPersonDepartureEvent]
       busEvents.expectMsgType[PersonEntersVehicleEvent]
       busEvents.expectMsgType[VehicleEntersTrafficEvent]
       busEvents.expectMsgType[VehicleLeavesTrafficEvent]
@@ -398,7 +398,7 @@ class PersonAndTransitDriverSpec
       busEvents.expectMsgType[VehicleLeavesTrafficEvent]
       busEvents.expectMsgType[PathTraversalEvent]
 
-      tramEvents.expectMsgType[PersonDepartureEvent]
+      tramEvents.expectMsgType[BeamPersonDepartureEvent]
       tramEvents.expectMsgType[PersonEntersVehicleEvent]
       tramEvents.expectMsgType[VehicleEntersTrafficEvent]
       tramEvents.expectMsgType[VehicleLeavesTrafficEvent]

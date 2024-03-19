@@ -17,6 +17,7 @@ import org.apache.commons.lang3.StringUtils.isBlank
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.utils.io.IOUtils
+import org.matsim.households.HouseholdUtils
 
 import java.io.{BufferedReader, File, IOException}
 import java.text.{DecimalFormat, DecimalFormatSymbols}
@@ -45,7 +46,9 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     "parkingZoneId",
     "locationX",
     "locationY",
-    "siteId"
+    "sitePowerManager",
+    "energyStorageCapacityInKWh",
+    "energyStorageSOC"
   ).mkString(",")
 
   /**
@@ -63,18 +66,20 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     defaultReservedFor: ReservedFor
   ): String =
     List(
-      geoId.toString,
-      parkingType.toString,
-      PricingModel.FlatFee(0).toString,
-      maybeChargingPoint.map(_.toString).getOrElse("NoCharger"),
-      ParkingZone.UbiqiutousParkingAvailability.toString,
-      "0",
-      defaultReservedFor.toString,
-      "",
-      "",
-      "",
-      "",
-      ""
+      geoId.toString, // taz
+      parkingType.toString, // parkingType
+      PricingModel.FlatFee(0).toString, // pricingModel
+      maybeChargingPoint.map(_.toString).getOrElse("NoCharger"), // chargingPointType
+      ParkingZone.UbiqiutousParkingAvailability.toString, // numStalls
+      "0", // feeInCents
+      defaultReservedFor.toString, // reservedFor
+      "", // timeRestrictions
+      "", // parkingZoneId
+      "", // locationX
+      "", // locationY
+      "", // sitePowerManager
+      "", // energyStorageCapacityInKWh
+      "" // energyStorageSOC
     ).mkString(",")
 
   /**
@@ -156,7 +161,6 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
         val parkingZoneIdStr = parkingZone.parkingZoneId.toString
         val (locationXStr, locationYStr) =
           parkingZone.link.map(link => (link.getCoord.getX.toString, link.getCoord.getY.toString)).getOrElse(("", ""))
-        val siteId = parkingZone.siteId.toString
         List(
           tazId.toString,
           parkingType.toString,
@@ -168,8 +172,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           timeRestrictions,
           parkingZoneIdStr,
           locationXStr,
-          locationYStr,
-          siteId
+          locationYStr
         ).mkString(",")
       }
     } match {
@@ -430,14 +433,11 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     "%s:%d:%02d-%d:%02d".format(category, fromHour, fromMin, toHour, toMin)
   }
 
-  private def getHouseholdLocation(beamServices: BeamServices, houseoldId: String): Option[Coord] = {
+  private def getHouseholdLocation(beamServices: BeamServices, houseoldId: Id[_]): Option[Coord] = {
     Try {
-      val x = beamServices.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
-        .getAttribute(houseoldId, "homecoordx")
-        .asInstanceOf[Double]
-      val y = beamServices.matsimServices.getScenario.getHouseholds.getHouseholdAttributes
-        .getAttribute(houseoldId, "homecoordy")
-        .asInstanceOf[Double]
+      val household = beamServices.matsimServices.getScenario.getHouseholds.getHouseholds.get(houseoldId)
+      val x = HouseholdUtils.getHouseholdAttribute(household, "homecoordx").asInstanceOf[Double]
+      val y = HouseholdUtils.getHouseholdAttribute(household, "homecoordy").asInstanceOf[Double]
       new Coord(x, y)
     } match {
       case Success(coord) => Some(coord)
@@ -479,7 +479,9 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     val parkingZoneIdString = csvRow.get("parkingZoneId")
     val locationXString = csvRow.get("locationX")
     val locationYString = csvRow.get("locationY")
-    val siteIdString = csvRow.get("siteId")
+    val sitePowerManagerString = csvRow.get("sitePowerManager")
+    val energyStorageCapacityString = csvRow.get("energyStorageCapacityInKWh")
+    val energyStorageSOCString = csvRow.get("energyStorageSOC")
     Try {
       val feeInCents = feeInCentsString.toDouble
       val newCostInDollarsString = (feeInCents * parkingCostScalingFactor / 100.0).toString
@@ -491,19 +493,15 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       val timeRestrictions = parseTimeRestrictions(timeRestrictionsString)
       val chargingPoint = ChargingPointType(chargingTypeString)
       val numStalls = calculateNumStalls(numStallsString.toDouble, reservedFor, parkingStallCountScalingFactor)
-      val siteIdMaybe =
-        if (siteIdString == null || siteIdString.isEmpty) None
-        else Some(SitePowerManager.createId(siteIdString))
       val parkingZoneIdMaybe =
-        if (parkingZoneIdString == null || parkingZoneIdString.isEmpty)
-          Some(ParkingZone.createId(rowNumber.toString))
+        if (isBlank(parkingZoneIdString)) Some(ParkingZone.createId(rowNumber.toString))
         else Some(ParkingZone.createId(parkingZoneIdString))
-      val linkMaybe = (!isBlank(locationXString) && !isBlank(locationYString)) match {
+      val linkMaybe = !isBlank(locationXString) && !isBlank(locationYString) match {
         case true if beamServices.isDefined =>
           val coord = new Coord(locationXString.toDouble, locationYString.toDouble)
           Some(NetworkUtils.getNearestLink(beamServices.get.beamScenario.network, beamServices.get.geo.wgs2Utm(coord)))
         case false if beamServices.isDefined && reservedFor.managerType == VehicleManager.TypeEnum.Household =>
-          getHouseholdLocation(beamServices.get, reservedFor.managerId.toString) map { homeCoord =>
+          getHouseholdLocation(beamServices.get, reservedFor.managerId) map { homeCoord =>
             NetworkUtils.getNearestLink(
               beamServices.get.beamScenario.network,
               homeCoord
@@ -511,18 +509,24 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           }
         case _ => None
       }
+      val sitePowerManagerMaybe = if (isBlank(sitePowerManagerString)) None else Some(sitePowerManagerString)
+      val energyStorageCapacityMaybe =
+        if (isBlank(energyStorageCapacityString)) None else Some(energyStorageCapacityString.toDouble)
+      val energyStorageSOCMaybe = if (isBlank(energyStorageSOCString)) None else Some(energyStorageSOCString.toDouble)
       val parkingZone =
         ParkingZone.init(
           parkingZoneIdMaybe,
           taz,
           parkingType,
           reservedFor,
-          siteIdMaybe,
           numStalls,
           chargingPoint,
           pricingModel,
           timeRestrictions,
-          linkMaybe
+          linkMaybe,
+          sitePowerManagerMaybe,
+          energyStorageCapacityMaybe,
+          energyStorageSOCMaybe
         )
       ParkingLoadingDataRow(taz, parkingType, parkingZone)
     } match {
@@ -658,7 +662,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     * @param parkingTypes the parking types we are generating, by default, the complete set
     * @return parking zones and parking search tree
     */
-  def generateDefaultParking(
+  private def generateDefaultParking(
     geoObjects: Iterable[TAZ],
     random: Random,
     defaultReservedFor: ReservedFor,
@@ -690,6 +694,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
     val fileContent = parkingZones.values.toIndexedSeq
       .sortBy(_.parkingZoneId)
       .map { parkingZone =>
+        val linkCoordMaybe = parkingZone.link.map(_.getCoord)
         List(
           parkingZone.tazId,
           parkingZone.parkingType,
@@ -700,8 +705,11 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
           VehicleManager.reserveForToString(parkingZone.reservedFor),
           parkingZone.timeRestrictions.map(x => x._1.toString + "|" + x._2.toString).mkString(";"),
           parkingZone.parkingZoneId,
-          "",
-          ""
+          linkCoordMaybe.map(_.getX.toString).getOrElse(""),
+          linkCoordMaybe.map(_.getY.toString).getOrElse(""),
+          parkingZone.sitePowerManager.getOrElse(""),
+          parkingZone.energyStorageCapacityInKWh.map(_.toString).getOrElse(""),
+          parkingZone.energyStorageSOC.map(_.toString).getOrElse("")
         ).mkString(",")
       }
       .mkString(System.lineSeparator())

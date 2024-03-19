@@ -571,7 +571,10 @@ class ModeChoiceMultinomialLogit(
 
   private def utilityOf(mct: ModeCostTimeTransfer): Double = {
     model
-      .getUtilityOfAlternative(mct.embodiedBeamTrip, attributes(mct.cost, mct.transitOccupancyLevel, mct.numTransfers))
+      .getUtilityOfAlternative(
+        mct.embodiedBeamTrip,
+        attributes(timeAndCost(mct), mct.transitOccupancyLevel, mct.numTransfers)
+      )
       .getOrElse(0)
   }
 
@@ -597,7 +600,8 @@ class ModeChoiceMultinomialLogit(
     trips: ListBuffer[EmbodiedBeamTrip],
     person: Person,
     attributesOfIndividual: AttributesOfIndividual
-  ): Double = trips.map(utilityOf(_, attributesOfIndividual, None, None)).sum // TODO: Update with destination activity
+  ): Double =
+    trips.map(trip => utilityOf(trip, attributesOfIndividual, None, None)).sum // TODO: Update with destination activity
 }
 
 object ModeChoiceMultinomialLogit extends StrictLogging {
@@ -691,10 +695,8 @@ object ModeChoiceMultinomialLogit extends StrictLogging {
               val multiplier = curr.substring(separator + 1).toDouble
               Some((vehicleTypeId, multiplier))
             case None =>
-              logger.warn(s"Can't find vehicle type '${vehicleTypeStr}'")
               None
           }
-
         }
       }
       vehTypeToMultiplier.toMap

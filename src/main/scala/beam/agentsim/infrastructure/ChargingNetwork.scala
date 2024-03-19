@@ -10,16 +10,15 @@ import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.EnRouteChar
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.power.PowerManager.PowerInKW
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.skim.Skims
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.utils.collections.QuadTree
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -283,8 +282,7 @@ object ChargingNetwork extends LazyLogging {
             .map(_ - tick)
             .map(endOfChargingDuration => Math.min(endOfChargingDuration, inquiry.parkingDuration.toInt))
             .getOrElse(inquiry.parkingDuration.toInt)
-          val updatedParkingDuration = Math.max(parkingDuration, estimatedMinParkingDurationInSeconds)
-          (updatedParkingDuration, activityTypeAlias + inquiry.activityType)
+          (parkingDuration, activityTypeAlias + inquiry.activityType)
         }
         .getOrElse((estimatedMinParkingDurationInSeconds, ParkingActivityType.Wherever.toString))
       vehiclesCurrentlyChargingInternal.get(vehicle.id) match {

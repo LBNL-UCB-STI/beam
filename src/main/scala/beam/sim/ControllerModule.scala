@@ -33,7 +33,7 @@ class ControllerModule extends AbstractModule {
     install(new VolumesAnalyzerModule)
     install(new LegHistogramModule)
     install(new LegTimesModule)
-    install(new TravelDistanceStatsModule)
+    install(new IterationTravelStatsModule)
     install(new ScoreStatsModule)
     install(new CountsModule)
     install(new PtCountsModule)

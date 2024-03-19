@@ -38,7 +38,8 @@ object ParkingStallSampling extends ExponentialLazyLogging {
           currentLength <= totalLength * availabilityRatio
         }
         if (filteredLinks.isEmpty) {
-          logger.warn(s"Could not find a link for parking request at location: $requestLocation")
+          // TODO: expand radius rather than fall back on availability aware sampling
+          logger.debug(s"Could not find a link for parking request at location: $requestLocation")
           availabilityAwareSampling(rand, requestLocation, taz, availabilityRatio, inClosestZone)
         } else {
           filteredLinks

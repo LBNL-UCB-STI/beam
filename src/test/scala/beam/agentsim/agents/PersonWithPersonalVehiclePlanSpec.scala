@@ -192,7 +192,7 @@ class PersonWithPersonalVehiclePlanSpec
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
-      expectMsgType[PersonDepartureEvent]
+      expectMsgType[BeamPersonDepartureEvent]
 
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[VehicleEntersTrafficEvent]
@@ -433,7 +433,7 @@ class PersonWithPersonalVehiclePlanSpec
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
-      expectMsgType[PersonDepartureEvent]
+      expectMsgType[BeamPersonDepartureEvent]
 
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[VehicleEntersTrafficEvent]
@@ -840,7 +840,7 @@ class PersonWithPersonalVehiclePlanSpec
 //      expectMsgType[TourModeChoiceEvent]
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
-      expectMsgType[PersonDepartureEvent]
+      expectMsgType[BeamPersonDepartureEvent]
 
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[VehicleEntersTrafficEvent]

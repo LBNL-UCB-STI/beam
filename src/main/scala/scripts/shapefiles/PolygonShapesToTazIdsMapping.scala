@@ -4,15 +4,18 @@ import beam.agentsim.infrastructure.taz.CsvTaz
 import beam.utils.csv.CsvWriter
 import beam.utils.map.ShapefileReader
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.{Geometry, MultiPolygon, Polygon, Polygonal}
-import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory
+import org.locationtech.jts.geom.Geometry
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory
 import org.geotools.geometry.jts.JTS
 import org.matsim.core.utils.geometry.geotools.MGC
+import org.matsim.core.utils.gis.ShapeFileReader
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.operation.MathTransform
 
 import java.io.File
 import java.nio.file.{Path, Paths}
+import java.util
+import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -21,8 +24,24 @@ import scala.util.{Failure, Success, Try}
   * Each set of TAZ ids is saved as a separate csv file (named {feature-id}.csv) with a single column (taz).
   * You can run it using
   * {{{
-  * ./gradlew :execute -PmainClass=scripts.shapefiles.PolygonShapesToTazIdsMapping \
-  *  -PappArgs="['--shape-file=test/input/sf-light/shape/sf-light-split.shp', '--taz-file=test/input/sf-light/taz-centers.csv', '--output-dir=test/input/sf-light/geofence', '--crs=epsg:26910', '--id-attribute-name=id']"
+  * ./gradlew :execute -PmainClass=scripts.shapefiles.PolygonShapesToTazIdsMapping -PappArgs="[
+  *     '--shape-file=jupyter/local_files/Service_Zone.shp',
+  *     '--taz-file=production/sfbay/taz-centers.csv',
+  *     '--output-dir=jupyter/local_files/out',
+  *     '--crs=epsg:26910',
+  *     '--id-attribute-name=Id'
+  * ]"
+  * }}}
+  * or
+  * {{{
+  * ./gradlew :execute -PmainClass=scripts.shapefiles.PolygonShapesToTazIdsMapping -PappArgs="[
+  *     '--shape-file=jupyter/local_files/Service_Zone.shp',
+  *     '--taz-file=production/sfbay/shape/sfbay-tazs-epsg-26910.shp',
+  *     '--output-dir=jupyter/local_files/out',
+  *     '--crs=epsg:26910',
+  *     '--id-attribute-name=Id',
+  *     '--taz-id-field-name=TAZ'
+  * ]"
   * }}}
   *
   * @author Dmitry Openkov
@@ -36,12 +55,38 @@ object PolygonShapesToTazIdsMapping extends App with StrictLogging {
         cliOptions.tazFile,
         cliOptions.outputDir,
         cliOptions.crsCode,
-        cliOptions.idAttributeName
+        cliOptions.idAttributeName,
+        cliOptions.maybeTazIDFieldName
       )
     case None => System.exit(1)
   }
 
-  private def doJob(shapeFile: Path, tazFile: Path, outputDir: Path, crsCode: String, idAttributeName: String): Unit = {
+  private def readTazFromShp(shapeFilePath: String, tazIDFieldName: String) = {
+    val shapeFileReader: ShapeFileReader = new ShapeFileReader
+    shapeFileReader.readFileAndInitialize(shapeFilePath)
+    val features: util.Collection[SimpleFeature] = shapeFileReader.getFeatureSet
+
+    features.asScala.map { f =>
+      f.getDefaultGeometry match {
+        case g: Geometry =>
+          new CsvTaz(
+            String.valueOf(f.getAttribute(tazIDFieldName)),
+            g.getCoordinate.x,
+            g.getCoordinate.y,
+            g.getArea
+          )
+      }
+    }.toSet
+  }
+
+  private def doJob(
+    shapeFile: Path,
+    tazFile: Path,
+    outputDir: Path,
+    crsCode: String,
+    idAttributeName: String,
+    maybetazIDFieldName: Option[String]
+  ): Unit = {
     def mapper(mathTransform: MathTransform, feature: SimpleFeature): (String, Geometry) = {
       val geoId = feature.getAttribute(idAttributeName).toString
       val geom = PreparedGeometryFactory.prepare(feature.getDefaultGeometry.asInstanceOf[Geometry])
@@ -55,7 +100,12 @@ object PolygonShapesToTazIdsMapping extends App with StrictLogging {
     val polygons: Array[(String, Geometry)] = ShapefileReader.read(crsCode, shapeFile.toString, filter, mapper)
     logger.info("Loaded {} geo objects", polygons.length)
 
-    val tazes: Set[CsvTaz] = CsvTaz.readCsvFile(tazFile.toString).toSet
+    logger.info("Loading TAZ file {}", tazFile.toString)
+    val tazFileType = tazFile.toString.split('.').last
+    val tazes: Set[CsvTaz] = tazFileType match {
+      case "csv" | "gz" => CsvTaz.readCsvFile(tazFile.toString).toSet
+      case "shp"        => readTazFromShp(tazFile.toString, maybetazIDFieldName.get)
+    }
     logger.info("Loaded {} TAZes", tazes.size)
 
     def findContainingPolygonId(taz: CsvTaz): Option[String] = {
@@ -77,6 +127,7 @@ object PolygonShapesToTazIdsMapping extends App with StrictLogging {
       case (Some(polygonId), tazes) if tazes.nonEmpty =>
         writeTazes(tazes, outputDir.resolve(s"tazes_$polygonId.csv"))
     }.toVector
+
     import cats.implicits._
     writeResult.sequence match {
       case Failure(exception) =>
@@ -91,7 +142,8 @@ object PolygonShapesToTazIdsMapping extends App with StrictLogging {
     idAttributeName: String,
     shapeFile: Path,
     tazFile: Path,
-    outputDir: Path
+    outputDir: Path,
+    maybeTazIDFieldName: Option[String]
   )
 
   private def parseArgs(args: Array[String]): Option[CliOptions] = {
@@ -125,9 +177,13 @@ object PolygonShapesToTazIdsMapping extends App with StrictLogging {
           .required()
           .action((x, c) => c.copy(idAttributeName = x))
           .text("the name of id attribute of the polygons"),
+        opt[Option[String]]('t', "taz-id-field-name")
+          .optional()
+          .action((x, c) => c.copy(maybeTazIDFieldName = x))
+          .text("the name of id attribute in TAZ input file, required when TAZ is SHP file"),
         help("help")
       )
     }
-    OParser.parse(parser1, args, CliOptions("", "", Paths.get("."), Paths.get("."), Paths.get(".")))
+    OParser.parse(parser1, args, CliOptions("", "", Paths.get("."), Paths.get("."), Paths.get("."), Option("")))
   }
 }

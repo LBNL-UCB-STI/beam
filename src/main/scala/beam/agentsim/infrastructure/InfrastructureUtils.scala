@@ -10,7 +10,7 @@ import beam.sim.config.BeamConfig
 import beam.sim.vehiclesharing.Fleets
 import beam.sim.{BeamScenario, BeamServices}
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.collections.QuadTree
 
@@ -89,16 +89,12 @@ object InfrastructureUtils extends LazyLogging {
 
     // CHARGING ZONES ARE BUILT HERE
     logger.info(s"building charging networks...")
-    val (nonRhChargingNetwork, rhChargingNetwork) = (
-      ChargingNetwork.init(
-        chargingStalls,
-        envelopeInUTM,
-        beamServices
-      ),
-      rideHailChargingStalls.map { case (_, chargingZones) =>
-        RideHailDepotNetwork.init(chargingZones, envelopeInUTM, beamServices)
-      }.head
+    val nonRhChargingNetwork = ChargingNetwork.init(
+      chargingStalls,
+      envelopeInUTM,
+      beamServices
     )
+    val rhChargingNetwork = RideHailDepotNetwork.init(rideHailChargingStalls, envelopeInUTM, beamServices)
     logger.info(s"public charging network has ${nonRhChargingNetwork.parkingZones.size} stations")
     logger.info(s"ride-hail charging network has ${rhChargingNetwork.parkingZones.size} depots")
 
@@ -245,20 +241,19 @@ object InfrastructureUtils extends LazyLogging {
     * @param stalls list of parking zones
     * @return
     */
-  def loadRideHailChargingStalls(
+  private def loadRideHailChargingStalls(
     stalls: Map[Id[ParkingZoneId], ParkingZone]
-  ): Map[Id[VehicleManager], Map[Id[ParkingZoneId], ParkingZone]] = {
+  ): Map[Id[ParkingZoneId], ParkingZone] = {
     import VehicleManager._
     stalls
       .filter(x => x._2.chargingPointType.nonEmpty && x._2.reservedFor.managerType == TypeEnum.RideHail)
-      .groupBy(_._2.reservedFor.managerId)
   }
 
   /**
     * @param stalls list of parking zones
     * @return
     */
-  def loadChargingStalls(
+  private def loadChargingStalls(
     stalls: Map[Id[ParkingZoneId], ParkingZone]
   ): Map[Id[ParkingZoneId], ParkingZone] = {
     import VehicleManager._

@@ -7,6 +7,7 @@ import beam.utils.TestConfigUtils.testConfig
 import beam.utils.csv.readers.BeamCsvScenarioReader
 import beam.utils.plan.sampling.AvailableModeUtils
 import beam.utils.scenario.{BeamScenarioLoader, ScenarioSource}
+import org.matsim.api.core.v01.Id
 import org.matsim.core.scenario.ScenarioBuilder
 import org.mockito.Mockito.mock
 import org.scalatest.BeforeAndAfterEach
@@ -34,17 +35,20 @@ class ModeExclusionTest extends AnyWordSpecLike with Matchers with BeforeAndAfte
     val personWithPlans = persons.filter(person => personIdsWithPlanTmp.contains(person.personId))
     val scenarioLoader = new BeamScenarioLoader(scenarioBuilder, beamScenario, scenarioSource, geoUtils)
     val population = scenarioLoader.buildPopulation(personWithPlans)
+    val person1 = population.getPersons.get(Id.createPersonId("1"))
+    val person2 = population.getPersons.get(Id.createPersonId("2"))
+    val person3 = population.getPersons.get(Id.createPersonId("3"))
 
     "check for removal of single mode" in {
-      AvailableModeUtils.getExcludedModesForPerson(population, "2") shouldBe Array("car")
+      AvailableModeUtils.getExcludedModesForPerson(person2) shouldBe Array("car")
     }
 
     "check for removal of multiple mode" in {
-      AvailableModeUtils.getExcludedModesForPerson(population, "1") shouldBe Array("car", "walk")
+      AvailableModeUtils.getExcludedModesForPerson(person1) shouldBe Array("car", "walk")
     }
 
     "check for removal of empty mode" in {
-      AvailableModeUtils.getExcludedModesForPerson(population, "3") shouldBe Array()
+      AvailableModeUtils.getExcludedModesForPerson(person3) shouldBe Array()
     }
   }
 }

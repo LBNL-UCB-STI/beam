@@ -26,6 +26,7 @@ import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.skim.core.ParkingSkimmer.ChargerType
 import beam.router.skim.event.{FreightSkimmerEvent, ParkingSkimmerEvent}
 import beam.sim.common.GeoUtils
+import beam.utils.DateUtils
 import beam.utils.logging.pattern.ask
 import beam.utils.MeasureUnitConversion._
 import org.matsim.api.core.v01.Id
@@ -151,8 +152,9 @@ object ChoosesParking {
       case (Some(PricingModel.Block(costInDollars, intervalSeconds)), _) =>
         costInDollars / intervalSeconds * SECONDS_IN_HOUR
       case (Some(PricingModel.FlatFee(costInDollars)), Some(activity))
-          if activity.getEndTime - activity.getStartTime > 0 =>
-        costInDollars / (activity.getEndTime - activity.getStartTime) * SECONDS_IN_HOUR
+          if activity.getEndTime.isDefined && activity.getStartTime.isDefined &&
+            activity.getEndTime.seconds() - activity.getStartTime.seconds() > 0 =>
+        costInDollars / (activity.getEndTime.seconds() - activity.getStartTime.seconds()) * SECONDS_IN_HOUR
       case (Some(PricingModel.FlatFee(costInDollars)), _) => costInDollars
       case (None, _)                                      => 0
     }
@@ -171,7 +173,7 @@ object ChoosesParking {
 trait ChoosesParking extends {
   this: PersonAgent => // Self type restricts this trait to only mix into a PersonAgent
 
-  var latestParkingInquiry: Option[ParkingInquiry] = None
+  protected lazy val endOfSimulationTime: Int = DateUtils.getEndOfTime(beamServices.beamConfig)
 
   private def buildParkingInquiry(data: BasePersonData): ParkingInquiry = {
     val firstLeg = data.restOfCurrentTrip.head
@@ -179,7 +181,12 @@ trait ChoosesParking extends {
     val lastLeg = vehicleTrip.last.beamLeg
     val activityType = nextActivity(data).get.getType
     val remainingTripData = calculateRemainingTripData(data)
-    val parkingDuration = nextActivity(data).map(_.getEndTime - lastLeg.endTime).getOrElse(0.0)
+    val parkingDuration = (_currentTick, nextActivity(data)) match {
+      case (Some(tick), Some(act)) => act.getEndTime.orElse(0.0) - tick
+      case (None, Some(act))       => act.getEndTime.orElse(0.0) - lastLeg.endTime
+      case (Some(tick), None)      => endOfSimulationTime - tick
+      case _                       => 0.0
+    }
     val destinationUtm = SpaceTime(beamServices.geo.wgs2Utm(lastLeg.travelPath.endPoint.loc), lastLeg.endTime)
     if (data.enrouteData.isInEnrouteState) {
       // enroute means actual travelling has not started yet,
@@ -506,11 +513,10 @@ trait ChoosesParking extends {
 
       // create new legs to travel to the charging stall
       val (tick, triggerId) = releaseTickAndTriggerId()
-      val walkTemp = data.currentTrip.head.legs.head
-      val walkStart = walkTemp.copy(beamLeg = walkTemp.beamLeg.updateStartTime(tick))
+      val walkStart = data.currentTrip.head.legs.head
       val walkRest = data.currentTrip.head.legs.last
       val newCurrentTripLegs: Vector[EmbodiedBeamLeg] =
-        EmbodiedBeamLeg.makeLegsConsistent(walkStart +: (vehicle2StallCarLegs :+ walkRest))
+        EmbodiedBeamLeg.makeLegsConsistent(walkStart +: (vehicle2StallCarLegs :+ walkRest), tick)
       val newRestOfTrip: Vector[EmbodiedBeamLeg] = newCurrentTripLegs.tail
 
       // set two car legs in schedule

@@ -1,0 +1,43 @@
+FROM openjdk:11
+RUN apt-get update
+# ssh server and other essentials
+RUN apt-get install -y wget curl git unzip build-essential openssh-server python3 python3-pip
+# installing correct version of git lfs
+RUN wget -O git-lfs.deb https://packagecloud.io/github/git-lfs/packages/debian/stretch/git-lfs_2.3.4_amd64.deb/download && \
+    dpkg -i git-lfs.deb && \
+    rm git-lfs.deb
+# AWS CLI
+RUN wget -O awscliv2.zip https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip &&  \
+    unzip awscliv2.zip &&  \
+    ./aws/install &&  \
+    rm awscliv2.zip && \
+    rm -rf aws
+# python dependency
+RUN pip install pandas plotly kaleido psutil docker
+# working in /app
+WORKDIR /app
+# configure ssh server
+RUN mkdir /var/run/sshd && \
+    echo 'root:beam' | chpasswd && \
+    sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PermitUserEnvironment no/PermitUserEnvironment yes/' /etc/ssh/sshd_config
+# Expose the SSH port
+EXPOSE 22
+# prepare folders where the image expect data
+RUN bash -c 'mkdir -p /app/{git,data,common,sources,gradle_cache}'
+# mark folders in order to determine if they were mounted
+RUN touch /app/git/.this_volume_was_not_mounted.txt
+RUN touch /app/gradle_cache/.this_volume_was_not_mounted.txt
+# add files
+ADD replace_config_path_in_args.py \
+    execute-beam-automatically.sh \
+    fix_quotes_for_app_args.py \
+    write_cpu_ram_usage.sh \
+    execute-gradle.sh \
+    execute-git.sh \
+    entrypoint.sh \
+    /app/
+# make scripts executable
+RUN chmod +x /app/*.sh
+# change the entry point
+ENTRYPOINT ["/app/entrypoint.sh"]

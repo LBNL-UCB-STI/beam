@@ -14,7 +14,9 @@ import org.matsim.api.core.v01.network.{Link, Network, NetworkWriter}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 
+import java.lang.NullPointerException
 import scala.collection.JavaConverters._
+import scala.util.Try
 import scala.util.control.NonFatal
 
 case class LinkParam(
@@ -164,16 +166,38 @@ trait NetworkCoordinator extends LazyLogging {
   }
 
   def overwriteLinkParams(
-    overwriteLinkParamMap: scala.collection.Map[Int, LinkParam],
+    overwriteLinkParamMap: scala.collection.Map[(Int, Int), LinkParam],
     transportNetwork: TransportNetwork,
     network: Network
   ): Unit = {
-    overwriteLinkParamMap.foreach { case (linkId, param) =>
-      val link = network.getLinks.get(Id.createLinkId(linkId))
-      require(link != null, s"Could not find link with id $linkId")
-      val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
-      // Overwrite params
-      param.overwriteFor(link, edge)
+    overwriteLinkParamMap.foreach { case ((linkId, osmId), param) =>
+      val listOfLinkAndId: List[(Link, Int)] = if (linkId > 0 && osmId < 0) {
+        List((network.getLinks.get(Id.createLinkId(linkId)), linkId))
+      } else if (linkId < 0 && osmId > 0) {
+        network.getLinks.asScala.values
+          .filter(lnk =>
+            Option(lnk.getAttributes.getAttribute("origid")) match {
+              case Some(maybeId) => Integer.parseInt(maybeId.toString) == osmId
+              case _             => false
+            }
+          )
+          .map(l => (l, l.getId.toString.toInt))
+          .toList
+      } else if (linkId > 0) {
+        logger.error(s"Do not define both a linkId and an OSMid when overwriting link params")
+        List.empty[(Link, Int)]
+      } else {
+        logger.error(s"Must define either a linkId or an OSMid when overwriting link params")
+        List.empty[(Link, Int)]
+      }
+      listOfLinkAndId foreach { case (link, id) =>
+        val maybeEdge = Option(transportNetwork.streetLayer.edgeStore.getCursor(id))
+        // Overwrite params
+        maybeEdge match {
+          case Some(edge) => param.overwriteFor(link, edge)
+          case None       => logger.error(f"Missing link $id, from OSM id $osmId in the streetlayer")
+        }
+      }
     }
   }
 
@@ -251,14 +275,15 @@ trait NetworkCoordinator extends LazyLogging {
     transportNetwork.transitLayer.hasFrequencies = false
   }
 
-  private def getOverwriteLinkParam(beamConfig: BeamConfig): scala.collection.Map[Int, LinkParam] = {
+  private def getOverwriteLinkParam(beamConfig: BeamConfig): scala.collection.Map[(Int, Int), LinkParam] = {
     val path = beamConfig.beam.physsim.overwriteLinkParamPath
     val filePath = new File(path).toPath
     if (path.nonEmpty && Files.exists(filePath) && Files.isRegularFile(filePath)) {
       try {
-        BeamVehicleUtils.readCsvFileByLine(path, scala.collection.mutable.HashMap[Int, LinkParam]()) {
+        BeamVehicleUtils.readCsvFileByLine(path, scala.collection.mutable.HashMap[(Int, Int), LinkParam]()) {
           case (line: java.util.Map[String, String], z) =>
-            val linkId = line.get("link_id").toInt
+            val linkId = Option(line.get("link_id")).map(_.toInt).getOrElse(-1)
+            val osmId = Option(line.get("osm_id")).map(_.toInt).getOrElse(-1)
             val capacity = Option(line.get("capacity")).map(_.toDouble)
             val freeSpeed = Option(line.get("free_speed")).map(_.toDouble)
             val length = Option(line.get("length")).map(_.toDouble)
@@ -267,7 +292,7 @@ trait NetworkCoordinator extends LazyLogging {
             val beta = Option(line.get("beta")).map(_.toDouble)
             val lp = LinkParam(linkId, capacity, freeSpeed, length, lanes, alpha, beta)
 
-            z += ((linkId, lp))
+            z += (((linkId, osmId), lp))
         }
       } catch {
         case NonFatal(ex) =>

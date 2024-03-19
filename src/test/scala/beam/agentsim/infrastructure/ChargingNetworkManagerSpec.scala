@@ -46,12 +46,12 @@ class ChargingNetworkManagerSpec
     with BeforeAndAfterEach
     with Repeated {
 
-  private val filesPath = s"${System.getenv("PWD")}/test/test-resources/beam/input"
+  private val filesPath = s"""$${beam.inputDirectory}"/../../test-resources/beam/input"""
 
   private val conf = system.settings.config
     .withFallback(ConfigFactory.parseString(s"""
-         |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes-simple.csv"
-         |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles-simple.csv"
+         |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath/vehicleTypes-simple.csv"
+         |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath/vehicles-simple.csv"
          |beam.agentsim.taz.parkingFilePath = "test/input/beamville/parking/taz-parking-limited.csv"
          |beam.router.skim = {
          |  keepKLatestSkims = 1
@@ -69,7 +69,8 @@ class ChargingNetworkManagerSpec
          |  }
          |}
          |""".stripMargin))
-    .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
+    .withFallback(testConfig("test/input/beamville/beam.conf"))
+    .resolve()
 
   import ChargingNetworkManager._
 

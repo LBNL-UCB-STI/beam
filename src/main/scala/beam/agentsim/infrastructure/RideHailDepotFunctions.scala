@@ -11,7 +11,7 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes.BeamMode.CAR
 import beam.router.skim.Skims
 import beam.sim.config.BeamConfig
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 

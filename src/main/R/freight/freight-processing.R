@@ -1,6 +1,8 @@
 setwd(dirname(rstudioapi::getSourceEditorContext()$path))
 source("../common/helpers.R")
 source("../common/theme.R")
+#install.packages("remotes")
+#remotes::install_github("colinsheppard/colinmisc")
 library('colinmisc')
 library(dplyr)
 library(ggplot2)
@@ -15,6 +17,7 @@ getHPMSAADT <- function(linkAADT) {
   linkAADT$VMT_hpms <- linkAADT$Volume_hpms * as.numeric(st_length(linkAADT))/1609.0
   return(data.table::as.data.table(linkAADT))
 }
+
 getTDoxAADT <- function(linkAADT) {
   linkAADT$Volume_hpms <- linkAADT$AADT_TRUCK
   linkAADT$VMT_hpms <- linkAADT$Volume_hpms * as.numeric(st_length(linkAADT))/1609.0
@@ -25,27 +28,151 @@ isCav <- function(x) {
   return(x >= 4)
 }
 
-# city <- "sfbay"
-# linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
+### RouteE
+
+work_folder <- normalizePath("~/Workspace/Data/Scenarios/sfbay/")
+library(sf)
+geojson_file_path <- pp(work_folder, "/input/beam_npmrds_network_map.geojson")
+geo_data <- st_read(geojson_file_path)
+library(data.table)
+geo_data_dt <- as.data.table(geo_data)
+
+ggplot(geo_data_dt, aes(x = F_System)) + 
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+  theme_minimal() 
+
+
+linkstats <- readCsv(pp(work_folder, "/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/10.linkstats.csv.gz"))
+network <- readCsv(pp(work_folder, "/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/network.csv.gz"))
+
+network <- readCsv(pp(work_folder, "/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/network.csv.gz"))
+
+## test
+work_folder <- normalizePath("~/Workspace/Data/FREIGHT/")
+linkstats <- readCsv(pp(work_folder, "/sfbay/0.linkstats.csv.gz"))
+network <- readCsv(pp(work_folder, "/sfbay/beam/network.csv.gz"))
+##
+debug_file <- readCsv(pp(work_folder, "/sfbay/beam/runs/baseline/2018_routeE_new/beamLog.filtered.csv"))
+#
+events_file <- readCsv(pp(work_folder, "/sfbay/beam/runs/baseline/2018_routeE_new/0.events.csv.gz"))
+##
+## test 2
+#/Users/haitamlaarabi/Workspace/Data/FREIGHT/sfbay/vehicle-tech/2020
+filename1 <- pp(work_folder, "/vehicle-tech/2020/Class_6_Box_truck_(Diesel,_2020,_no_program).csv")
+filename2 <- pp(work_folder, "/vehicle-tech/2020/Class_8_Box_truck_(Diesel,_2020,_no_program).csv")
+filename3 <- pp(work_folder, "/vehicle-tech/2020/Class_8_Sleeper_cab_high_roof_(Diesel,_2020,_no_program).csv")
+
+filename4 <- pp(work_folder, "/vehicle-tech/2025/Class_6_Box_truck_(BEV,_2025,_no_program).csv")
+filename5 <- pp(work_folder, "/vehicle-tech/2025/Class_6_Box_truck_(HEV,_2025,_no_program).csv")
+filename6 <- pp(work_folder, "/vehicle-tech/2025/Class_8_Box_truck_(BEV,_2025,_no_program).csv")
+filename7 <- pp(work_folder, "/vehicle-tech/2025/Class_8_Box_truck_(HEV,_2025,_no_program).csv")
+filename8 <- pp(work_folder, "/vehicle-tech/2025/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv")
+filename9 <- pp(work_folder, "/vehicle-tech/2025/Class_8_Sleeper_cab_high_roof_(HEV,_2025,_no_program).csv")
+
+filenameX <- filename9
+class6Diesel <- readCsv(filenameX)
+#class6Diesel <- cbind(index = 1:nrow(class6Diesel), class6Diesel)
+write.csv(class6Diesel, file = filenameX, row.names=F, quote=T)
+
+allClasses <- rbind(class6Diesel, class8vDiesel, class8tDiesel, class6BEV, class6HEV, class8vBEV, class8vHEV, class8tBEV, class8tHEV)
+test <- allClasses[rate==0.6621670216912081]
+allClasses[rate==0.6621670216912081]
+####
+
+linstatsPlus <- merge(linkstats, network, by.x="link", by.y="linkId")
+
+
+
+#### Calibration
+run_dir = '/sfbay/beam/runs'
+network <- readCsv(pp(work_folder, run_dir, "/../network.csv.gz"))
+
+linkstats_jd_200 <- readCsv(pp(work_folder, run_dir, "/calibration-jdeqsim/2018-200/15.linkstats.csv.gz"))
+linkstats_bp_150 <- readCsv(pp(work_folder, run_dir, "/calibration-bprsim/2018-150/15.linkstats.csv.gz"))
+
+
+linkstats_jd_200_merged <- linkstats_jd_200[network, on=c("link"="linkId")]
+linkstats_bp_150_merged <- linkstats_bp_150[network, on=c("link"="linkId")]
+
+
+res <- linkstats_bp_150_merged[attributeOrigType %in% c("motorway", "primary", "secondary", "motorway_link", "tertiary")][
+  ,.(avgSpeedMPH=sum(volume*length)/sum(volume*traveltime)),by=.(hour,attributeOrigType)]
+
+ggplot(res, aes(hour, avgSpeedMPH, color=attributeOrigType)) + 
+  geom_line() + theme_marain() + xlim(0, 40) + 
+  ggtitle("bprsim - 150% FC/Pop - min speed 0.5mps")
+
+####
+
+
+city <- "sfbay"
+linkAADTFile <- "/hpms/sf_hpms_inventory_clipped_original.geojson"
 # batch <- 5
-city <- "austin"
-linkAADTFile <- "/hpms/austin_hpms_inventory.geojson"
-batch <- 3
+# city <- "austin"
+# linkAADTFile <- "/hpms/austin_hpms_inventory.geojson"
+#batch <- "/Oct30"
+batch <- ""
 cityCRS <- 26910
-scenario <- "7days"
+#scenario <- "2030_low"
+#batch2 <- "/Oct30"
+# batch2 <- ""
+# scenario2 <- "2040"
 iteration <- 0
-run <- ""
+eventsPrefix <- ""
+expansionFactor <- 1/0.1
+scenario <- "price-sensitivity"
 
 ## PATHS
-activitySimDir <- normalizePath("~/Data/ACTIVITYSIM")
-workDir <- normalizePath(pp("~/Data/FREIGHT/",city))
+mainDir <- normalizePath("~/Workspace/Data")
+activitySimDir <- pp(mainDir, "/ACTIVITYSIM")
+workDir <- pp(mainDir, "/FREIGHT/", city)
 validationDir <- pp(workDir,"/validation")
-runDir <- pp(workDir,"/beam/runs/",scenario,"/",batch)
-runOutput <- pp(runDir,"/output")
+#freightDir <- pp(workDir,"/beam_freight/",scenario)
+eventsFile <- pp(eventsPrefix,iteration,".events.csv.gz")
+linkStatsFile <- pp(eventsPrefix,iteration,".linkstats.csv.gz")
+runOutput <- pp(workDir,"/beam/runs/",scenario,"/output/")
 dir.create(runOutput, showWarnings = FALSE)
-freightDir <- pp(workDir,"/beam_freight/",scenario)
-eventsFile <- pp(iteration,".events",run,".csv")
-linkStatsFile <- pp(iteration,".linkstats",run,".csv.gz")
+
+runs <- c("2050_Ref_highp2", "2050_HOP_highp2", "2050_Ref_highp4", "2050_HOP_highp4", 
+          "2050_Ref_highp6", "2050_HOP_highp6", "2050_Ref_highp8", "2050_HOP_highp8",
+          "2050_Ref_highp10", "2050_HOP_highp10")
+runs_label <- c("ROP-p2", "HOP-p2", "ROP-p4", "HOP-p4", 
+                "ROP-p6", "HOP-p6", "ROP-p8", "HOP-p8",
+                "ROP-p10", "HOP-p10")
+events_filtered_all <- data.table::data.table()
+linkStats_all <- data.table::data.table()
+i<-0
+for(r in runs) {
+  i<-i+1
+  print(runs[i])
+  runDir <- pp(workDir,"/beam/runs/",scenario,"/",r,batch)
+  events_filtered <- readCsv(pp(runDir, "/filtered.",eventsFile))
+  events_filtered$run <- r
+  events_filtered$runLabel <- runs_label[i]
+  events_filtered_all <- rbind(events_filtered_all, events_filtered)
+  linkStats <- readCsv(normalizePath(pp(runDir,"/",linkStatsFile)))
+  linkStats$run <- r
+  linkStats_all <- rbind(linkStats_all, linkStats)
+}
+write.csv(
+  events_filtered_all,
+  file = pp(runOutput,'/', pp(iteration,".events_filtered_all",eventsPrefix,".csv")),
+  row.names=F,
+  quote=T)
+fwrite(
+  linkStats_all,
+  file = pp(runOutput,'/', pp(iteration,".linkStats_all",eventsPrefix,".csv")),
+  row.names=F,
+  quote=T)
+
+
+# runDir2 <- pp(workDir,"/beam/runs/",scenario2,batch2)
+# runOutput2 <- pp(runDir2,"/output")
+
+# eventsFile2 <- pp(run,iteration,".events.csv.gz")
+# linkStatsFile2 <- pp(run,iteration,".linkstats.csv.gz")
+
+
 
 ## READING
 linkAADT <- st_read(pp(validationDir, linkAADTFile))
@@ -61,8 +188,7 @@ linkAADT <- st_read(pp(validationDir, linkAADTFile))
 
 #events[type=="PathTraversal"&grepl("freight",vehicle),.N,by=.(vehicle)]
 
-events_filtered <- readCsv(pp(runDir, "/filtered.",eventsFile))
-linkStats <- readCsv(normalizePath(pp(runDir,"/",linkStatsFile)))
+
 network <- readCsv(normalizePath(pp(workDir,"/beam/network.csv.gz")))
 network$linkFreeSpeedTravelTime <- network$linkLength/network$linkFreeSpeed
 # ggplot(network, aes(x=linkFreeSpeed*2.237)) + 
@@ -70,6 +196,10 @@ network$linkFreeSpeedTravelTime <- network$linkLength/network$linkFreeSpeed
 #   labs(x="miles per hour")
 # ggplot(network[linkFreeSpeedTravelTime<=5*60], aes(x=linkFreeSpeedTravelTime/60.0)) + 
 #   geom_histogram(color="black", fill="white")
+
+# events_filtered2 <- readCsv(pp(runDir2, "/filtered.",eventsFile))
+# linkStats2 <- readCsv(normalizePath(pp(runDir2,"/",linkStatsFile)))
+
 
 networkFiltered<- network[
   linkModes %in% c("car;bike", "car;walk;bike") & attributeOrigType %in% c("motorway","trunk","primary", "secondary")][
@@ -104,15 +234,99 @@ networkFiltered<- network[
 #   file = pp(freightWorkDir, "/filtered.0.events.csv"),
 #   row.names=F,
 #   quote=T)
-pt <- events_filtered[type=="PathTraversal"][,c("time","type","vehicleType","vehicle","secondaryFuelLevel",
-                                       "primaryFuelLevel","driver","mode","seatingCapacity","startX",
-                                       "startY", "endX", "endY", "capacity", "arrivalTime", "departureTime",
-                                       "secondaryFuel", "secondaryFuelType", "primaryFuelType",
-                                       "numPassengers", "length", "primaryFuel")]
-freight_pt <- pt[startsWith(vehicle,"freight")]
-if (nrow(freight_pt[grepl("-emergency-",vehicle)]) > 0) {
+columns <- c("time","type","vehicleType","vehicle","secondaryFuelLevel",
+             "primaryFuelLevel","driver","mode","seatingCapacity","startX",
+             "startY", "endX", "endY", "capacity", "arrivalTime", "departureTime",
+             "secondaryFuel", "secondaryFuelType", "primaryFuelType",
+             "numPassengers", "length", "primaryFuel", "run", "runLabel")
+pt <- data.table::as.data.table(events_filtered_all[type=="PathTraversal"][startsWith(vehicle,"freight")][,..columns])
+if (nrow(pt[grepl("-emergency-",vehicle)]) > 0) {
   println("This is a bug")
 }
+
+unique(pt$vehicleType)
+
+pt$energyType <- "Diesel"
+pt$energyTypeCode <- "Diesel"
+pt[grepl("E-BE", toupper(vehicleType))]$energyType <- "Electric"
+pt[grepl("E-BE", toupper(vehicleType))]$energyTypeCode <- "BEV"
+pt[grepl("E-PHEV", toupper(vehicleType))]$energyType <- "Electric"
+pt[grepl("E-PHEV", toupper(vehicleType))]$energyTypeCode <- "PHEV"
+pt[grepl("H2FC", toupper(vehicleType))]$energyType <- "Hydrogen"
+pt[grepl("H2FC", toupper(vehicleType))]$energyTypeCode <- "H2FC"
+pt$vehicleCategory <- "Heady Duty"
+pt$vehicleClass <- "Class 4-6 Vocational"
+pt[grepl("-md-", vehicleType)]$vehicleCategory <- "Medium Duty"
+pt[grepl("-hdt-", vehicleType)]$vehicleClass <- "Class 7&8 Tractor"
+pt[grepl("-hdv-", vehicleType)]$vehicleClass <- "Class 7&8 Vocational"
+#pt$scenario2 <- "Base"
+#pt[scenario=="2050_central"]$scenario2 <- "Central tech"
+#pt[scenario=="2050_high"]$scenario2 <- "High tech"
+
+pt[,.N,by=.(vehicle,run)][,.(count=.N*2),by=.(run)]
+
+## ***
+energy_consumption <- pt[,.(fuelGWH=expansionFactor*sum(primaryFuel/3.6e+12)),by=.(energyType,runLabel)]
+write.csv(
+  energy_consumption,
+  file = pp(runOutput,'/', pp(iteration,".freight-energy-consumption-by-powertrain",eventsPrefix,".csv")),
+  row.names=F,
+  quote=T)
+
+p<-ggplot(energy_consumption, aes(factor(runLabel, level=runs_label), fuelGWH, fill=energyType)) +
+  geom_bar(stat='identity') +
+  labs(y='GWe',x='Scenario',fill='Powertrain', title='Freight Energy Consumptio - 2050 HighTechn')+
+  theme_marain()+
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+
+  scale_fill_manual(values=c("#999999", "#56B4E9", "#66A61E"))
+ggsave(pp(runOutput,'/', pp(iteration,".freight-energy-consumption-by-powertrain",eventsPrefix,".png")),p,width=10,height=4,units='in')
+
+## ***
+#
+energy_vmt <- pt[,.(MVMT=expansionFactor*sum(length/1609.344)/1000000),by=.(energyType,runLabel)]
+write.csv(
+  energy_vmt,
+  file = pp(runOutput,'/', pp(iteration,".freight-VMT-by-powertrain",eventsPrefix,".csv")),
+  row.names=F,
+  quote=T)
+
+p <- ggplot(energy_vmt, aes(factor(runLabel, level=runs_label), MVMT, fill=energyType)) +
+  geom_bar(stat='identity') +
+  labs(y='Million VMT',x='Scenario',fill='Energy Type', title='Freight VMT - 2050 HighTech')+
+  theme_marain()+
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+
+  scale_fill_manual(values=c("#999999", "#56B4E9", "#66A61E"))
+ggsave(pp(runOutput,'/', pp(iteration,".freight-VMT-by-powertrain",eventsPrefix,".png")),p,width=10,height=4,units='in')
+
+## ***
+
+energy_vehType_vmt <- pt[,.(MVMT=expansionFactor*sum(length/1609.344)/1000000),by=.(energyTypeCode,vehicleClass,runLabel)]
+energy_vehType_vmt[,totVMTByScenario:=sum(MVMT),by=.(runLabel)]
+energy_vehType_vmt[,EnergyAndVehiclesTypes:=paste(energyTypeCode,vehicleClass,sep=" ")]
+energy_vehType_levels <- c("BEV Class 4-6 Vocational", "BEV Class 7&8 Vocational", "BEV Class 7&8 Tractor",
+                           "PHEV Class 4-6 Vocational", "PHEV Class 7&8 Vocational", "PHEV Class 7&8 Tractor",
+                           "H2FC Class 4-6 Vocational", "H2FC Class 7&8 Vocational", "H2FC Class 7&8 Tractor",
+                           "Diesel Class 4-6 Vocational", "Diesel Class 7&8 Vocational", "Diesel Class 7&8 Tractor")
+energy_vehType_vmt$EnergyAndVehiclesTypes <- factor(energy_vehType_vmt$EnergyAndVehiclesTypes, levels = energy_vehType_levels)
+write.csv(
+  energy_vehType_vmt,
+  file = pp(runOutput,'/', pp(iteration,".freight-VMT-by-powertrain-vehicletypes",eventsPrefix,".csv")),
+  row.names=F,
+  quote=T)
+
+p<-ggplot(energy_vehType_vmt, aes(factor(runLabel, level=runs_label), MVMT/totVMTByScenario, fill=EnergyAndVehiclesTypes)) +
+  geom_bar(stat='identity') +
+  labs(y='Relative VMT Share',x='Scenario',fill='Energy-Vehicle Type', title='Freight Volume')+
+  theme_marain()+
+  theme(axis.text.x = element_text(angle = 0, hjust=0.5),strip.text = element_text(size=rel(1.2)))+
+  scale_fill_manual(values=c("deepskyblue2","deepskyblue3", "deepskyblue4",
+                             "goldenrod2", "goldenrod3", "goldenrod4",
+                             "chartreuse2", "chartreuse3","chartreuse4",
+                             "azure3","darkgray", "azure4"
+                             ))
+ggsave(pp(runOutput,'/', pp(iteration,".freight-VMT-by-powertrain-vehicletypes",eventsPrefix,".png")),p,width=10,height=4,units='in')
+
+energy_vehType_vmt[,.(MVMT=sum(MVMT)),by=.(energyType2,totVMTByScenario,scenario2)]
 
 # nrow(freight_pt)
 # all_pt_x <- data.table::as.data.table(rbind(b2b_pt,b2c_pt)[,c("time","vehicle","departureTime","arrivalTime","label")])
@@ -342,9 +556,11 @@ sfBayTAZs <- st_read(pp(validationDir, "/TAZs/Transportation_Analysis_Zones.shp"
 ## ***************************
 #FRISM
 ## ***************************
+freightDir <- pp(work_folder,"/sfbay/runs/baseline/")
 carriers <- readCsv(pp(freightDir, "/freight-merged-carriers.csv"))
 payload <- readCsv(pp(freightDir, "/freight-merged-payload-plans.csv"))
 tours <- readCsv(pp(freightDir, "/freight-merged-tours.csv"))
+vehiclesTypes <- readCsv(pp(freightDir, "/freight-vehicles-types.csv"))
 
 tours_carriers <- tours[carriers, on="tourId"]
 tours_carriers[departureTimeInSec <= 3*3600][,.N,by=.(vehicleTypeId)]
