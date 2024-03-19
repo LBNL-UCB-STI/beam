@@ -31,12 +31,27 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{CAR, CAV, HOV2_TELEPORTATION, HOV3_TELEPORTATION, RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, WALK, WALK_TRANSIT}
+import beam.router.Modes.BeamMode.{
+  CAR,
+  CAV,
+  HOV2_TELEPORTATION,
+  HOV3_TELEPORTATION,
+  RIDE_HAIL,
+  RIDE_HAIL_POOLED,
+  RIDE_HAIL_TRANSIT,
+  WALK,
+  WALK_TRANSIT
+}
 import beam.router.RouteHistory
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
 import beam.router.skim.ActivitySimSkimmerEvent
-import beam.router.skim.event.{DriveTimeSkimmerEvent, ODSkimmerEvent, RideHailSkimmerEvent, UnmatchedRideHailRequestSkimmerEvent}
+import beam.router.skim.event.{
+  DriveTimeSkimmerEvent,
+  ODSkimmerEvent,
+  RideHailSkimmerEvent,
+  UnmatchedRideHailRequestSkimmerEvent
+}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.sim.population.AttributesOfIndividual

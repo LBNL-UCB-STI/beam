@@ -223,6 +223,10 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       val excerptOfMappedData = beamScenario.exchangeOutputGeoMap match {
         case Some(exchangeGeoMap) if exchangeGeoMap.isMapped =>
           excerptDataTemp
+            .filter { case (key, _) =>
+              beamConfig.beam.exchange.output.geo.get.beamModeFilter
+                .contains(ActivitySimPathType.toBeamMode(key.pathType).value)
+            }
             .groupBy { case (key, _) =>
               val asTimeBin = ActivitySimTimeBin.toTimeBin(key.hour)
               (exchangeGeoMap.getMappedGeoId(key.origin), exchangeGeoMap.getMappedGeoId(key.destination)) match {
