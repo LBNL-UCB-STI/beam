@@ -206,17 +206,21 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
   ** Case B **
   taz:TAZ    geo:CBG
                 /
-               v
-          Skim_CBG --- (map) ---> Skim_TAZ
-              |                      |
-              v                      |
-        Skim_CBG_Filtered            |
-              |                      |
-              v                      v
-          MappedSkim            [DefaultSkim]
+            (selected) based on number zones i.e. higher resolution
+              /
+             v
+        Skim_CBG --- (map) ---> Skim_TAZ
+            |                      |
+            v                      |
+      Skim_CBG_Filtered            |
+            |                      |
+            v                      v
+        MappedSkim            [DefaultSkim]
 
   ** Case C **
   taz:CBG    geo:TAZ
+     |
+ (selected) based on number zones i.e. higher resolution
      |
      v
   Skim_CBG --- (map) ---> Skim_TAZ
