@@ -46,8 +46,13 @@ object ActivitySimOmxWriter {
         column      <- geoUnitMapping.get(excerptData.destinationId).toIterable
         metric      <- matrixData.metrics
       } {
-        val matrix = getOrCreateMatrix(allMatrices, excerptData.pathType, excerptData.timePeriodString, metric, shape)
-        matrix.setAttribute("mode", excerptData.pathType.toString)
+        val pathType = excerptData.pathType match {
+          case rideHailMode @ (TNC_SINGLE | TNC_SHARED | TNC_SINGLE_TRANSIT | TNC_SHARED_TRANSIT) =>
+            f"${rideHailMode.toString}_${excerptData.fleetName.toUpperCase}"
+          case _ => excerptData.pathType.toString
+        }
+        val matrix = getOrCreateMatrix(allMatrices, pathType, excerptData.timePeriodString, metric, shape)
+        matrix.setAttribute("mode", pathType)
         matrix.setAttribute("timePeriod", excerptData.timePeriodString)
         matrix.setAttribute("measure", metric.toString)
         matrix.getData()(row)(column) = excerptData.getValue(metric).toFloat * getUnitConversion(metric)
@@ -69,7 +74,7 @@ object ActivitySimOmxWriter {
 
   private def getOrCreateMatrix(
     matrixMap: mutable.Map[String, OmxMatrix.OmxFloatMatrix],
-    pathType: ActivitySimPathType,
+    pathType: String,
     timeBin: String,
     metric: ActivitySimMetric,
     shape: Array[Int]
@@ -142,6 +147,16 @@ object ActivitySimOmxWriter {
       Set(WLK_TRN_WLK),
       Set(PM_PEAK, MIDDAY, AM_PEAK),
       Set(WACC, IVT, XWAIT, IWAIT, WEGR, WAUX, TRIPS, FAILURES)
+    ),
+    MatrixData(
+      Set(TNC_SINGLE, TNC_SHARED),
+      ActivitySimTimeBin.values.toSet,
+      Set(IWAIT, TOTIVT, DDIST, FAR, TRIPS, FAILURES)
+    ),
+    MatrixData(
+      Set(TNC_SINGLE_TRANSIT, TNC_SHARED_TRANSIT),
+      ActivitySimTimeBin.values.toSet,
+      Set(TOTIVT, FAR, XWAIT, KEYIVT, IWAIT, DTIM, BOARDS, DDIST, WAUX, TRIPS, FAILURES)
     )
   )
 }

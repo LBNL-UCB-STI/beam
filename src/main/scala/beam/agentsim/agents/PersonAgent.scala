@@ -763,7 +763,8 @@ class PersonAgent(
         tazId = beamScenario.tazTreeMap.getTAZ(response.request.pickUpLocationUTM).tazId,
         reservationType = if (response.request.asPooled) Pooled else Solo,
         wheelchairRequired = response.request.withWheelchair,
-        serviceName = response.rideHailManagerName
+        serviceName = response.rideHailManagerName,
+        isReservation = true
       )
     )
     val currentCoord = beamServices.geo.wgs2Utm(data.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
@@ -891,12 +892,13 @@ class PersonAgent(
         eventTime = tick,
         tazId = beamScenario.tazTreeMap.getTAZ(req.pickUpLocationUTM).tazId,
         reservationType = if (req.asPooled) Pooled else Solo,
+        wheelchairRequired = req.withWheelchair,
         serviceName = response.rideHailManagerName,
         waitTime = travelProposal.timeToCustomer(req.customer),
         costPerMile = travelProposal.estimatedPrice(req.customer.personId) /
           travelProposal.travelDistanceForCustomer(req.customer) * METERS_IN_MILE,
-        wheelchairRequired = req.withWheelchair,
-        vehicleIsWheelchairAccessible = travelProposal.rideHailAgentLocation.vehicleType.isWheelchairAccessible
+        vehicleIsWheelchairAccessible = travelProposal.rideHailAgentLocation.vehicleType.isWheelchairAccessible,
+        isReservation = true
       )
     )
     response.triggersToSchedule.foreach(scheduler ! _)

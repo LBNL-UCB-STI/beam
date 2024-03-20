@@ -45,7 +45,7 @@ class UrbanSimScenarioLoader(
 
   private val rand: Random = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
-  private val wereCoordinatesInWGS = beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
+  private val wereCoordinatesInWGS = false //beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm // make false
 
   def utmCoord(x: Double, y: Double, fromExistingPlans: Boolean = false): Coord = {
     val coord = new Coord(x, y)

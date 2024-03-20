@@ -171,6 +171,7 @@ trait ChoosesParking extends {
     val firstLeg = data.restOfCurrentTrip.head
     val vehicleTrip = data.restOfCurrentTrip.takeWhile(_.beamVehicleId == firstLeg.beamVehicleId)
     val lastLeg = vehicleTrip.last.beamLeg
+
     val activityType = nextActivity(data).get.getType
     val remainingTripData = calculateRemainingTripData(data)
     val parkingDuration = (_currentTick, nextActivity(data)) match {

@@ -33,16 +33,24 @@ class CarWeightCalculator(workerParams: R5Parameters, travelTimeNoiseFraction: D
     travelTime: TravelTime,
     vehicleType: Option[BeamVehicleType],
     time: Double,
-    shouldAddNoise: Boolean
+    shouldAddNoise: Boolean,
+    relativeSpeedLimit: Option[Double] = None
   ): Double = {
     val link = networkHelper.getLinkUnsafe(linkId)
     assert(link != null)
     val edge = transportNetwork.streetLayer.edgeStore.getCursor(linkId)
     val maxTravelTime = edge.getLengthM / minSpeed
-    val maxSpeed: Double = vehicleType match {
-      case Some(vType) => vType.maxVelocity.getOrElse(maxFreeSpeed)
-      case None        => maxFreeSpeed
-    }
+    val maxLinkSpeed = link.getFreespeed * relativeSpeedLimit.getOrElse(1.0)
+    val maxSpeed: Double = Math.min(
+      vehicleType match {
+        case Some(vType) =>
+          vType.maxVelocity.getOrElse(
+            maxFreeSpeed
+          ) // Note that we could implement relative speed this way, but it would require changing vehicleTypes.csv
+        case None => maxFreeSpeed
+      },
+      maxLinkSpeed
+    )
 
     val minTravelTime = edge.getLengthM / maxSpeed
 

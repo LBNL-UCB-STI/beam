@@ -6,8 +6,13 @@ import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail.RideHailMaster.RequestWithResponses
-import beam.agentsim.agents.vehicles.AccessErrorCodes.{DriverNotFoundError, UnknownInquiryIdError}
+import beam.agentsim.agents.vehicles.AccessErrorCodes.{
+  DriverNotFoundError,
+  RideHailServiceUnavailableError,
+  UnknownInquiryIdError
+}
 import beam.agentsim.agents.vehicles.{PersonIdWithActorRef, VehicleManager}
+import beam.agentsim.events.RideHailReservationConfirmationEvent.{Pooled, Solo}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
@@ -15,7 +20,9 @@ import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_POOLED}
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
+import beam.router.skim.event.{RideHailSkimmerEvent, UnmatchedRideHailRequestSkimmerEvent}
 import beam.sim.{BeamScenario, BeamServices, RideHailFleetInitializerProvider}
+import beam.utils.MeasureUnitConversion.METERS_IN_MILE
 import beam.utils.logging.LoggingMessageActor
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.conveyal.r5.transit.TransportNetwork
@@ -105,6 +112,34 @@ class RideHailMaster(
       val customerRHMs = getCustomerRideHailManagers(requestWithResponses.request.rideHailServiceSubscription)
       if (newRequestWithResponses.responses.size == customerRHMs.size) {
         inquiriesWithResponses.remove(requestId)
+        newRequestWithResponses.responses.foreach { response =>
+          eventsManager.processEvent(
+            response.travelProposal match {
+              case Some(prop) =>
+                new RideHailSkimmerEvent(
+                  eventTime = response.request.requestTime,
+                  tazId = beamScenario.tazTreeMap.getTAZ(response.request.pickUpLocationUTM).tazId,
+                  reservationType = if (response.request.asPooled) Pooled else Solo,
+                  wheelchairRequired = response.request.withWheelchair,
+                  serviceName = response.rideHailManagerName,
+                  waitTime = prop.timeToCustomer(response.request.customer),
+                  costPerMile = prop.estimatedPrice(response.request.customer.personId) /
+                    prop.travelDistanceForCustomer(response.request.customer) * METERS_IN_MILE,
+                  vehicleIsWheelchairAccessible = prop.rideHailAgentLocation.vehicleType.isWheelchairAccessible,
+                  isReservation = false
+                )
+              case None =>
+                new UnmatchedRideHailRequestSkimmerEvent(
+                  eventTime = response.request.requestTime,
+                  tazId = beamScenario.tazTreeMap.getTAZ(response.request.pickUpLocationUTM).tazId,
+                  reservationType = if (response.request.asPooled) Pooled else Solo,
+                  wheelchairRequired = response.request.withWheelchair,
+                  serviceName = response.rideHailManagerName,
+                  isReservation = false
+                )
+            }
+          )
+        }
         val bestResponse: RideHailResponse =
           findBestProposal(requestWithResponses.request.customer.personId, newRequestWithResponses.responses)
         newRequestWithResponses.request.customer.personRef ! bestResponse
@@ -134,18 +169,20 @@ class RideHailMaster(
 
   private def findBestProposal(customer: Id[Person], responses: IndexedSeq[RideHailResponse]): RideHailResponse = {
     val responsesInRandomOrder = rand.shuffle(responses)
-    val request = responsesInRandomOrder.head.request
-    // asPooled is set to false only in case person's current tour mode is RIDE_HAIL
-    // FIXME refactoring: we could use possibleModes: Set[BeamMode] instead of asPooled in RH request.
-    val customerHasRequestedSoloTrip = !request.asPooled
-    val availableProposals =
-      if (customerHasRequestedSoloTrip)
-        responsesInRandomOrder.filter(_.travelProposal.exists(_.modeOptions.contains(RIDE_HAIL)))
-      else
-        responsesInRandomOrder.filter(_.travelProposal.isDefined)
-    if (availableProposals.isEmpty)
-      RideHailResponse.dummyWithError(DriverNotFoundError, request)
-    else
+    val withProposals = responsesInRandomOrder.filter(_.travelProposal.isDefined)
+    val availableProposals = withProposals.filter(x =>
+      if (x.request.asPooled) {
+        x.travelProposal.exists(_.modeOptions.contains(RIDE_HAIL_POOLED))
+      } else {
+        x.travelProposal.exists(_.modeOptions.contains(RIDE_HAIL))
+      }
+    )
+    if (availableProposals.isEmpty) {
+      val responseWithNullProposal =
+        responsesInRandomOrder.head.copy(travelProposal = None, error = Some(RideHailServiceUnavailableError))
+      responseWithNullProposal
+//      responsesInRandomOrder.head
+    } else
       bestResponseType match {
         case "MIN_COST"    => availableProposals.minBy(findCost(customer, _))
         case "MIN_UTILITY" => sampleProposals(customer, availableProposals)

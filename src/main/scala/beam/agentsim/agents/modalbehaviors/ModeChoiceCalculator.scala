@@ -131,11 +131,10 @@ object ModeChoiceCalculator {
 
   type ModeChoiceCalculatorFactory = AttributesOfIndividual => ModeChoiceCalculator
 
-  def getTransitVehicleTypeVOTMultipliers(beamServices: BeamServices): Map[Id[BeamVehicleType], Double] =
-    ModeChoiceMultinomialLogit.getTransitVehicleTypeVOTMultipliers(
+  private def getTransitVehicleTypeVOTMultipliers(beamServices: BeamServices): Map[Id[BeamVehicleType], Double] =
+    ModeChoiceMultinomialLogit.getVehicleTypeMultipliers(
       beamServices.beamScenario.vehicleTypes,
       beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.transitVehicleTypeVOTMultipliers
-        .getOrElse(List.empty)
     )
 
   def apply(
