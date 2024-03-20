@@ -191,15 +191,22 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     }
   }
 
-  def writePresentedSkims(filePath: String): Unit = {
+  private def writePresentedSkims(filePath: String): Unit = {
     case class ActivitySimKey(
       timeBin: ActivitySimTimeBin,
       pathType: ActivitySimPathType,
       origin: String,
       destination: String
     )
+
+    val mappedSkimFilePath = filePath.lastIndexOf(".") match {
+      case -1    => filePath + "_mapped" // No extension found, append "_mapped" at the end
+      case index => filePath.substring(0, index) + "_mapped" + filePath.substring(index)
+    }
+
     ProfilingUtils.timed("Writing skims that are created during simulation ", x => logger.info(x)) {
-      val excerptDataTemp = currentSkim
+
+      val tempExcerptData = currentSkim
         .asInstanceOf[Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal]]
         .flatMap {
           case (key, value) if isWalkTransit(key.pathType) =>
@@ -212,63 +219,69 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
           case (key, value) =>
             Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal](key -> value)
         }
-      val excerptData = excerptDataTemp
-        .groupBy { case (key, _) =>
-          val asTimeBin = ActivitySimTimeBin.toTimeBin(key.hour)
-          ActivitySimKey(asTimeBin, key.pathType, key.origin, key.destination)
-        }
-        .map { case (key, skimMap) =>
-          weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.values.toList)
-        }
-      val excerptOfMappedData = beamScenario.exchangeOutputGeoMap match {
-        case Some(exchangeGeoMap) if exchangeGeoMap.isMapped =>
-          excerptDataTemp
+
+      val maybeTazExcerptData = beamScenario.exchangeOutputGeoMap.map(exchangeGeoMap =>
+        tempExcerptData
+          .groupBy { case (key, _) =>
+            val asTimeBin = ActivitySimTimeBin.toTimeBin(key.hour)
+            (exchangeGeoMap.getMappedGeoId(key.origin), exchangeGeoMap.getMappedGeoId(key.destination)) match {
+              case (Some(mappedOrigin), Some(mappedDestination)) =>
+                Some(ActivitySimKey(asTimeBin, key.pathType, mappedOrigin, mappedDestination))
+              case _ => None
+            }
+          }
+          .flatMap {
+            case (Some(key), skimMap) => Some(key -> skimMap)
+            case _                    => None
+          }
+      )
+
+      val excerptData = tempExcerptData.groupBy { case (key, _) =>
+        ActivitySimKey(ActivitySimTimeBin.toTimeBin(key.hour), key.pathType, key.origin, key.destination)
+      }
+
+      val (defaultExcerptData, maybeMappedExcerptData) = maybeTazExcerptData match {
+        case Some(tazExcerptData) if beamScenario.exchangeOutputGeoMap.get.getSize > beamScenario.tazTreeMap.getSize =>
+          val cbgExcerptDataFiltered = excerptData
             .filter { case (key, _) =>
               beamConfig.beam.exchange.output.geo.get.beamModeFilter
                 .contains(ActivitySimPathType.toBeamMode(key.pathType).value)
             }
-            .groupBy { case (key, _) =>
-              val asTimeBin = ActivitySimTimeBin.toTimeBin(key.hour)
-              (exchangeGeoMap.getMappedGeoId(key.origin), exchangeGeoMap.getMappedGeoId(key.destination)) match {
-                case (Some(origin), Some(destination)) =>
-                  Some(ActivitySimKey(asTimeBin, key.pathType, origin, destination))
-                case _ => None
-              }
+          (tazExcerptData, Some(cbgExcerptDataFiltered))
+        case Some(tazExcerptData) if beamScenario.exchangeOutputGeoMap.get.getSize < beamScenario.tazTreeMap.getSize =>
+          val cbgExcerptData = excerptData
+          val tazExcerptDataFiltered = tazExcerptData
+            .filter { case (key, _) =>
+              beamConfig.beam.exchange.output.geo.get.beamModeFilter
+                .contains(ActivitySimPathType.toBeamMode(key.pathType).value)
             }
-            .flatMap {
-              case (Some(key), skimMap) =>
-                Some(
-                  weightedData(
-                    key.timeBin.entryName,
-                    key.origin,
-                    key.destination,
-                    key.pathType,
-                    skimMap.values.toList
-                  )
-                )
-              case _ => None
-            }
-        case _ => Iterable.empty[ExcerptData]
+          (cbgExcerptData, Some(tazExcerptDataFiltered))
+        case _ =>
+          (excerptData, None)
       }
 
-      val filePathWithMapped = if (excerptOfMappedData.nonEmpty) filePath.lastIndexOf(".") match {
-        case -1    => filePath + "_mapped" // No extension found, append "_mapped" at the end
-        case index => filePath.substring(0, index) + "_mapped" + filePath.substring(index)
+      val defaultSkim = defaultExcerptData.map { case (key, skimMap) =>
+        weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.values.toList)
       }
-      else ""
+
+      val maybeMappedSkim = maybeMappedExcerptData.map(_.map { case (key, skimMap) =>
+        weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.values.toList)
+      })
+
       val writeResult = if (config.activity_sim_skimmer.fileOutputFormat.trim.equalsIgnoreCase("csv")) {
         val csvWriter = new CsvWriter(filePath, ExcerptData.csvHeaderSeq)
-        csvWriter.writeAllAndClose(excerptData.map(_.toCsvSeq))
-        if (excerptOfMappedData.nonEmpty) {
-          val csvWriterWithMapped = new CsvWriter(filePathWithMapped, ExcerptData.csvHeaderSeq)
-          csvWriterWithMapped.writeAllAndClose(excerptOfMappedData.map(_.toCsvSeq))
+        csvWriter.writeAllAndClose(defaultSkim.map(_.toCsvSeq))
+        if (maybeMappedSkim.nonEmpty) {
+          val csvWriterWithMapped = new CsvWriter(mappedSkimFilePath, ExcerptData.csvHeaderSeq)
+          csvWriterWithMapped.writeAllAndClose(maybeMappedSkim.get.map(_.toCsvSeq))
         }
       } else {
         val geoUnits = beamScenario.exchangeOutputGeoMap.getOrElse(beamScenario.tazTreeMap).orderedTazIds
-        ActivitySimOmxWriter.writeToOmx(filePath, excerptData.iterator, geoUnits)
-        if (excerptOfMappedData.nonEmpty)
-          ActivitySimOmxWriter.writeToOmx(filePathWithMapped, excerptOfMappedData.iterator, geoUnits)
+        ActivitySimOmxWriter.writeToOmx(filePath, defaultSkim.iterator, geoUnits)
+        if (maybeMappedSkim.nonEmpty)
+          ActivitySimOmxWriter.writeToOmx(mappedSkimFilePath, maybeMappedSkim.get.iterator, geoUnits)
       }
+
       writeResult match {
         case Failure(exception) =>
           logger.error(s"Cannot write skims to {}", filePath, exception)
@@ -286,7 +299,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     }
   }
 
-  def getExcerptDataOption(
+  private def getExcerptDataOption(
     timeBin: ActivitySimTimeBin,
     origin: GeoUnit,
     destination: GeoUnit,
@@ -409,8 +422,6 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
 }
 
 object ActivitySimSkimmer extends LazyLogging {
-  case class ActivitySimSkimmerODKey(origin: String, destination: String)
-  case class ActivitySimSkimmerPathHourKey(pathType: ActivitySimPathType, hour: Int)
 
   case class ActivitySimSkimmerKey(hour: Int, pathType: ActivitySimPathType, origin: String, destination: String)
       extends AbstractSkimmerKey {

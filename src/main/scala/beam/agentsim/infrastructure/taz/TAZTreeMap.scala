@@ -27,6 +27,7 @@ import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
+import scala.util.Using
 
 /**
   * TAZTreeMap manages a quadTree to find the closest TAZ to any coordinate.
@@ -40,7 +41,7 @@ class TAZTreeMap(
   val tazQuadTree: QuadTree[TAZ],
   val useCache: Boolean = false,
   private val maybeZoneOrdering: Option[Seq[Id[TAZ]]] = None,
-  private val maybeZoneMapping: Map[String, String] = Map.empty[String, String]
+  private val maybeZoneMapping: Option[Map[String, String]] = None
 ) extends BasicEventHandler
     with IterationEndsListener {
 
@@ -60,7 +61,6 @@ class TAZTreeMap(
     SortingUtil.sortAsIntegers(tazIds).getOrElse(tazIds.sorted)
   }
   val orderedTazIds: Seq[String] = maybeZoneOrdering.map(order => order.map(_.toString)).getOrElse(sortedTazIds)
-  lazy val isMapped: Boolean = maybeZoneMapping.nonEmpty
 
   def getTAZfromLink(linkId: Id[Link]): Option[TAZ] = {
     linkIdToTAZMapping.get(linkId) match {
@@ -105,7 +105,7 @@ class TAZTreeMap(
   def getMappedGeoId(tazId: String): Option[String] = {
     stringIdToTAZMapping.get(tazId) match {
       case Some(taz) =>
-        maybeZoneMapping.get(taz.tazId.toString).orElse {
+        maybeZoneMapping.flatMap(_.get(taz.tazId.toString)).orElse {
           logger.error(s"TAZ $tazId is not mapped to a Geo Id, check beam.exchange.output.geo.tazId2GeoIdMapFilePath")
           None
         }
@@ -218,7 +218,7 @@ class TAZTreeMap(
         + unmatchedLinkIds.size.toString +
         " links"
       )
-      logger.debug(s"Mapping of links to TAZs: ${linksToTazMapping}")
+      logger.debug(s"Mapping of links to TAZs: $linksToTazMapping")
     }
   }
 }
@@ -230,18 +230,16 @@ object TAZTreeMap {
   val emptyTAZId: Id[TAZ] = Id.create("NA", classOf[TAZ])
   private val mapBoundingBoxBufferMeters: Double = 2e4 // Some links also extend beyond the convex hull of the TAZs
 
-  def fromShapeFile(
+  private def fromGeoFile(
     shapeFilePath: String,
     tazIDFieldName: String,
-    tazId2GeoIdMapFilePath: Option[String] = None
+    geoId2TazIdMap: Map[String, String]
   ): TAZTreeMap = {
     val (quadTree, mapping) = initQuadTreeFromFile(shapeFilePath, tazIDFieldName)
     new TAZTreeMap(
       quadTree,
       maybeZoneOrdering = Some(mapping),
-      maybeZoneMapping = tazId2GeoIdMapFilePath
-        .map(filePath => readGeoId2TazIdMapCSVFile(filePath))
-        .getOrElse(Map.empty[String, String])
+      maybeZoneMapping = if (geoId2TazIdMap.isEmpty) None else Some(geoId2TazIdMap)
     )
   }
 
@@ -297,7 +295,7 @@ object TAZTreeMap {
     ShapeUtils.quadTreeBounds(lines.map(_.coord))
   }
 
-  def fromCsv(csvFile: String, tazId2GeoIdMapFilePath: Option[String] = None): TAZTreeMap = {
+  def fromCsv(csvFile: String): TAZTreeMap = {
     val lines: Seq[CsvTaz] = CsvTaz.readCsvFile(csvFile)
     val quadTreeBounds: QuadTreeBounds = quadTreeExtentFromCsvFile(lines)
     val tazQuadTree: QuadTree[TAZ] = new QuadTree[TAZ](
@@ -312,12 +310,7 @@ object TAZTreeMap {
       tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
     }
 
-    new TAZTreeMap(
-      tazQuadTree,
-      maybeZoneMapping = tazId2GeoIdMapFilePath
-        .map(filePath => readGeoId2TazIdMapCSVFile(filePath))
-        .getOrElse(Map.empty[String, String])
-    )
+    new TAZTreeMap(tazQuadTree)
   }
 
   def fromSeq(tazes: Seq[TAZ]): TAZTreeMap = {
@@ -336,18 +329,35 @@ object TAZTreeMap {
     new TAZTreeMap(tazQuadTree)
   }
 
+  def getGeoTreeMap(
+    filePath: String,
+    geoId2TazIdMapFilePath: String,
+    geoIdFieldName: String,
+    tazIdFieldName: String
+  ): Option[TAZTreeMap] = {
+    val geoId2TazIdMap = readGeoId2TazIdMapCSVFile(geoId2TazIdMapFilePath, tazIdFieldName, geoIdFieldName)
+    if (geoId2TazIdMap.nonEmpty && (filePath.endsWith(".shp") || filePath.endsWith(".geojson"))) {
+      Some(getTazTreeMap(filePath, Some(geoIdFieldName), Some(geoId2TazIdMap)))
+    } else {
+      logger.warn(
+        s"Failed to load exchange geo map and maybe be due to missing values: filePath ($filePath), " +
+        s"geoIdFieldName ($geoIdFieldName), tazId2GeoIdMapFilePath ($geoId2TazIdMapFilePath))"
+      )
+      None
+    }
+  }
+
   def getTazTreeMap(
     filePath: String,
     tazIDFieldName: Option[String] = None,
-    tazId2GeoIdMapFilePath: Option[String] = None
+    maybeTazId2GeoIdMap: Option[Map[String, String]] = None
   ): TAZTreeMap = {
     try {
       if (filePath.endsWith(".shp") || filePath.endsWith(".geojson")) {
-        TAZTreeMap.fromShapeFile(filePath, tazIDFieldName.get, tazId2GeoIdMapFilePath)
+        TAZTreeMap.fromGeoFile(filePath, tazIDFieldName.get, maybeTazId2GeoIdMap.get)
       } else {
-        TAZTreeMap.fromCsv(filePath, tazId2GeoIdMapFilePath)
+        TAZTreeMap.fromCsv(filePath)
       }
-
     } catch {
       case fe: FileNotFoundException =>
         logger.error("No TAZ file found at given file path (using defaultTazTreeMap): %s" format filePath, fe)
@@ -361,7 +371,7 @@ object TAZTreeMap {
     }
   }
 
-  val defaultTazTreeMap: TAZTreeMap = {
+  private val defaultTazTreeMap: TAZTreeMap = {
     val tazQuadTree: QuadTree[TAZ] = new QuadTree(-1, -1, 1, 1)
     val taz = new TAZ("0", new Coord(0.0, 0.0), 0.0)
     tazQuadTree.put(taz.coord.getX, taz.coord.getY, taz)
@@ -443,27 +453,34 @@ object TAZTreeMap {
     _find(0.0, startRadius)
   }
 
-  private def readGeoId2TazIdMapCSVFile(filePath: String): Map[String, String] = {
+  private def readGeoId2TazIdMapCSVFile(
+    filePath: String,
+    tazIdFieldName: String,
+    geoIdFieldName: String
+  ): Map[String, String] = {
     var res = Map.empty[String, String]
-    var mapReader: CsvMapReader = null
-    val fileHeader = Seq[String]("geoIdFieldName", "tazIdFieldName")
-    try {
-      mapReader = new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)
+
+    Using(new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)) { mapReader =>
+      // Read the header to understand column positions.
       val header = mapReader.getHeader(true)
-      var line: java.util.Map[String, String] = mapReader.read(header: _*)
-      while (null != line) {
-        val geoIdFieldName = line.getOrDefault(fileHeader(0), "")
-        val tazIdFieldName = line.getOrDefault(fileHeader(1), "")
-        res = res + Map(geoIdFieldName -> tazIdFieldName)
-        line = mapReader.read(header: _*)
+
+      // Ensure the header contains the necessary fields
+      if (header.contains(tazIdFieldName) && header.contains(geoIdFieldName)) {
+        var line: java.util.Map[String, String] = mapReader.read(header: _*)
+        while (line != null) {
+          val tazId = line.get(tazIdFieldName)
+          val geoId = line.get(geoIdFieldName)
+          if (tazId != null && geoId != null) {
+            // Update the result map correctly
+            res += (geoId -> tazId)
+          }
+          line = mapReader.read(header: _*)
+        }
       }
-    } catch {
-      case e: Exception => logger.info(s"issue with reading $filePath: $e")
-    } finally {
-      if (null != mapReader)
-        mapReader.close()
+    }.recover { case e: Exception =>
+      logger.error(s"Issue with reading $filePath: ${e.getMessage}", e)
     }
+
     res
   }
-
 }
