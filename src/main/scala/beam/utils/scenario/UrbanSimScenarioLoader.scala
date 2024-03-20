@@ -77,31 +77,6 @@ class UrbanSimScenarioLoader(
     leg
   }
 
-  private def buildAndAddLegToPlan(currentPlan: Plan, planElement: PlanElement): Leg = {
-    val leg = PopulationUtils.createAndAddLeg(currentPlan, planElement.legMode.getOrElse(""))
-    planElement.legDepartureTime.foreach(v => leg.setDepartureTime(v.toDouble))
-    planElement.legTravelTime.foreach(v => leg.setTravelTime(v.toDouble))
-    planElement.legMode.foreach(v => leg.setMode(v))
-    leg.getAttributes.putAttribute("trip_id", planElement.tripId)
-
-    val legRoute: NetworkRoute = {
-      val links = planElement.legRouteLinks.map(v => Id.create(v, classOf[Link])).asJava
-      if (links.isEmpty) {
-        null
-      } else {
-        RouteUtils.createNetworkRoute(links, beamScenario.network)
-      }
-    }
-    if (legRoute != null) {
-      leg.setRoute(legRoute)
-      planElement.legRouteDistance.foreach(legRoute.setDistance)
-      planElement.legRouteStartLink.foreach(v => legRoute.setStartLinkId(Id.create(v, classOf[Link])))
-      planElement.legRouteEndLink.foreach(v => legRoute.setEndLinkId(Id.create(v, classOf[Link])))
-      planElement.legRouteTravelTime.foreach(v => legRoute.setTravelTime(v))
-    }
-    leg
-  }
-
   def loadScenario(): (Scenario, Boolean) = {
     clear()
 

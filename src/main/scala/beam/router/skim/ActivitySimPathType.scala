@@ -105,21 +105,6 @@ object ActivitySimPathType {
     trip.tripClassifier match {
       case _ => OTHER
     }
-//    val (longestWalkTransitLeg, _) = tryGetLongestLegId(trip, isWalkTransit)
-//    longestWalkTransitLeg.map(leg => leg.beamLeg.mode) match {
-//      case Some(BeamMode.FERRY) | Some(BeamMode.TRAM) | Some(BeamMode.CABLE_CAR) => WLK_LRF_WLK
-//      case Some(BeamMode.BUS)                                                    => WLK_LOC_WLK
-//      case Some(BeamMode.RAIL)                                                   => WLK_COM_WLK
-//      case Some(BeamMode.SUBWAY)                                                 => WLK_HVY_WLK
-//      case _                                                                     => OTHER
-//    }
-  }
-
-  private def determineBikeTransitPathType(trip: EmbodiedBeamTrip): ActivitySimPathType = {
-    // Right now we don't have bike transit in activitysim, so just return OTHER so it doesn't mess up walk transit skims
-    trip.tripClassifier match {
-      case _ => OTHER
-    }
   }
 
   def determineTripPathTypeAndFleet(trip: EmbodiedBeamTrip): (ActivitySimPathType, Option[String]) = {
@@ -278,7 +263,7 @@ object ActivitySimPathType {
     WLK_HVY_WLK,
     WLK_EXP_WLK,
     WLK_LOC_WLK,
-    WLK_LRF_WLK,
+    WLK_LRF_WLK
 //    WLK_LOC_DRV,
 //    WLK_HVY_DRV,
 //    WLK_COM_DRV,
