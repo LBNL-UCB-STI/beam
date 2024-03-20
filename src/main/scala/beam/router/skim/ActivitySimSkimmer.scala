@@ -191,6 +191,42 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     }
   }
 
+  /*
+  ActivitySkimmer Workflow:
+
+  ** Case A **
+  taz:TAZ/CBG
+     |
+     v
+  Skim_TAZ/CBG
+     |
+     v
+  [DefaultSkim]
+
+  ** Case B **
+  taz:TAZ    geo:CBG
+                /
+               v
+          Skim_CBG --- (map) ---> Skim_TAZ
+              |                      |
+              v                      |
+        Skim_CBG_Filtered            |
+              |                      |
+              v                      v
+          MappedSkim            [DefaultSkim]
+
+  ** Case C **
+  taz:CBG    geo:TAZ
+     |
+     v
+  Skim_CBG --- (map) ---> Skim_TAZ
+     |                        |
+     |                        v
+     |                 Skim_TAZ_Filtered
+     |                        |
+     v                        v
+ [DefaultSkim]            MappedSkim
+   */
   private def writePresentedSkims(filePath: String): Unit = {
     case class ActivitySimKey(
       timeBin: ActivitySimTimeBin,
