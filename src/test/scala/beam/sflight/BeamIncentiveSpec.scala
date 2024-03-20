@@ -12,6 +12,7 @@ import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.google.inject
 import com.typesafe.config.ConfigFactory
+import org.matsim.core.config.groups.ControlerConfigGroup.CompressionType
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.AppendedClues.convertToClueful
@@ -89,7 +90,11 @@ class BeamIncentiveSpec extends AnyWordSpecLike with BeamHelper with BeforeAndAf
     iterationNumber: Int
   ): String = {
     val outputDirectoryHierarchy =
-      new OutputDirectoryHierarchy(outputDir, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
+      new OutputDirectoryHierarchy(
+        outputDir,
+        OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles,
+        CompressionType.none
+      )
 
     outputDirectoryHierarchy.getIterationFilename(
       iterationNumber,

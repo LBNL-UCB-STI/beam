@@ -19,8 +19,8 @@ import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.logging.LoggingMessageActor
 import beam.utils.logging.pattern.ask
-import com.vividsolutions.jts.geom.{Coordinate, Envelope}
-import com.vividsolutions.jts.index.quadtree.Quadtree
+import org.locationtech.jts.geom.{Coordinate, Envelope}
+import org.locationtech.jts.index.quadtree.Quadtree
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.geometry.CoordUtils
 

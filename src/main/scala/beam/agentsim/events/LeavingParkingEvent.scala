@@ -51,6 +51,7 @@ object LeavingParkingEvent {
   val EVENT_TYPE: String = "LeavingParkingEvent"
   //    String ATTRIBUTE_PARKING_ID = "parkingId";
   val ATTRIBUTE_SCORE: String = "score"
+  val ATTRIBUTE_COST: String = "cost"
   val ATTRIBUTE_PARKING_TYPE: String = "parkingType"
   val ATTRIBUTE_PRICING_MODEL: String = "pricingModel"
   val ATTRIBUTE_CHARGING_TYPE: String = "chargingPointType"
@@ -85,11 +86,10 @@ object LeavingParkingEvent {
     val tazId: Id[TAZ] = Id.create(attr(ATTRIBUTE_PARKING_TAZ), classOf[TAZ])
     val score: Double = attr(ATTRIBUTE_SCORE).toDouble
     val parkingType: ParkingType = ParkingType(attr(ATTRIBUTE_PARKING_TYPE))
-    val pricingModel: Option[PricingModel] = PricingModel(
-      attr(ATTRIBUTE_PRICING_MODEL),
-      "0"
-    ) // TODO: cost (fee) should be an attribute of this event, but adding it will break a lot of tests
-    val chargingPointType: Option[ChargingPointType] = ChargingPointType(attr(ATTRIBUTE_CHARGING_TYPE))
+    // TODO: cost (fee) should be an attribute of this event, but adding it will break a lot of tests
+    val pricingModel: Option[PricingModel] =
+      attr.get(ATTRIBUTE_PRICING_MODEL).flatMap(PricingModel(_, attr.getOrElse(ATTRIBUTE_COST, "0")))
+    val chargingPointType: Option[ChargingPointType] = attr.get(ATTRIBUTE_CHARGING_TYPE).flatMap(ChargingPointType(_))
     LeavingParkingEvent(time, personId, vehicleId, tazId, score, parkingType, pricingModel, chargingPointType)
   }
 }

@@ -1,17 +1,15 @@
 package beam.utils.csv.writers
 
-import java.io.File
-
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.households.Household
-import org.matsim.utils.objectattributes.ObjectAttributes
+
 import scala.collection.JavaConverters._
 import scala.util.Try
-
 import beam.utils.scenario.{HouseholdId, PersonId, PersonInfo}
 import ScenarioCsvWriter._
+import org.matsim.core.population.PopulationUtils
 
 object PopulationCsvWriter extends ScenarioCsvWriter {
 
@@ -48,14 +46,11 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
       }
       .toMap
 
-    val personAttributes: ObjectAttributes = scenario.getPopulation.getPersonAttributes
-
     scenario.getPopulation.getPersons.values().asScala.toIterator.map { person =>
       val personId: Id[Person] = person.getId
 
       val excludedModes: Seq[String] = Option(
-        personAttributes
-          .getAttribute(personId.toString, "excluded-modes")
+        PopulationUtils.getPersonAttribute(person, "excluded-modes")
       ) match {
         case None      => Seq.empty
         case Some(att) => att.toString.split(",").toSeq
@@ -69,19 +64,19 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
 
       val personAge = readAge(
         maybeAttribs.flatMap(_.age),
-        Option(personAttributes.getAttribute(personId.toString, "age")).map(_.toString.toInt)
+        Option(PopulationUtils.getPersonAttribute(person, "age")).map(_.toString.toInt)
       ).map(_.toString).getOrElse("")
 
       val isFemale = {
         val isMale = maybeAttribs
           .map(_.isMale)
-          .getOrElse(personAttributes.getAttribute(personId.toString, "sex") == "F")
+          .getOrElse(PopulationUtils.getPersonAttribute(person, "sex") == "F")
         !isMale
       }
-      val valueOfTime = Option(personAttributes.getAttribute(personId.toString, "valueOfTime"))
+      val valueOfTime = Option(PopulationUtils.getPersonAttribute(person, "valueOfTime"))
         .getOrElse(maybeAttribs.map(_.valueOfTime).getOrElse(8.0))
 
-      val rank = String.valueOf(personAttributes.getAttribute(personId.toString, "rank"))
+      val rank = String.valueOf(PopulationUtils.getPersonAttribute(person, "rank"))
 
       val houseHoldId: String = personIdToHouseHoldId.get(personId).map(_.toString).getOrElse("")
 

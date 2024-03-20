@@ -12,7 +12,7 @@ import beam.utils.csv.CsvWriter
 import beam.utils.{BeamConfigUtils, FileUtils, ProfilingUtils}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Scenario}

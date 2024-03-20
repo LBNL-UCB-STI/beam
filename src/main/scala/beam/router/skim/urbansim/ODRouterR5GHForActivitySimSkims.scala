@@ -31,10 +31,10 @@ case class ODRouterR5GHForActivitySimSkims(
 
   private val linksBelowMinCarSpeed =
     workerParams.networkHelper.allLinks
-      .count(l => l.getFreespeed < workerParams.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond)
+      .count(l => l.getFreespeed < workerParams.beamConfig.beam.physsim.minCarSpeedInMetersPerSecond)
   if (linksBelowMinCarSpeed > 0) {
     logger.warn(
-      "{} links are below quick_fix_minCarSpeedInMetersPerSecond, already in free-flow",
+      "{} links are below minCarSpeedInMetersPerSecond, already in free-flow",
       linksBelowMinCarSpeed
     )
   }

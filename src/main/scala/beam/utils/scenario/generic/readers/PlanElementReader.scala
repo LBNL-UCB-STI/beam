@@ -11,6 +11,7 @@ import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.scenario.ScenarioUtils
 import org.matsim.utils.objectattributes.attributable.Attributable
+import beam.utils.OptionalUtils.OptionalTimeExtension
 
 import java.io.Closeable
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
@@ -141,11 +142,9 @@ object XmlPlanElementReader extends PlanElementReader {
     maybeCoord: Option[Coord] = None
   ): PlanElement = {
     PlanElement(
-      tripId = if (activity.getAttributes.getAttribute("trip_id") != null) {
-        activity.getAttributes.getAttribute("trip_id").toString.filter(x => (x.isDigit || x.equals('.')))
-      } else {
-        ""
-      },
+      tripId = Option(activity.getAttributes.getAttribute("trip_id"))
+        .map(_.toString.filter(x => x.isDigit || x.equals('.')))
+        .getOrElse(""),
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
       planScore = plan.getScore,
@@ -155,7 +154,7 @@ object XmlPlanElementReader extends PlanElementReader {
       activityType = Option(activity.getType),
       activityLocationX = maybeCoord.map(_.getX),
       activityLocationY = maybeCoord.map(_.getY),
-      activityEndTime = Option(activity.getEndTime),
+      activityEndTime = activity.getEndTime.toOption,
       legMode = None,
       legDepartureTime = None,
       legTravelTime = None,
@@ -171,11 +170,9 @@ object XmlPlanElementReader extends PlanElementReader {
 
   private def toPlanElement(leg: Leg, plan: Plan, planIdx: Int, person: Person, planElementIdx: Int): PlanElement =
     PlanElement(
-      tripId = if (leg.getAttributes.getAttribute("trip_id") != null) {
-        leg.getAttributes.getAttribute("trip_id").toString.filter(x => (x.isDigit || x.equals('.')))
-      } else {
-        ""
-      },
+      tripId = Option(leg.getAttributes.getAttribute("trip_id"))
+        .map(_.toString.filter(x => x.isDigit || x.equals('.')))
+        .getOrElse(""),
       personId = PersonId(person.getId.toString),
       planIndex = planIdx,
       planScore = plan.getScore,
@@ -187,12 +184,12 @@ object XmlPlanElementReader extends PlanElementReader {
       activityLocationY = None,
       activityEndTime = None,
       legMode = Option(leg.getMode),
-      legDepartureTime = Option(leg.getDepartureTime).map(_.toString),
-      legTravelTime = Option(leg.getTravelTime).map(_.toString),
+      legDepartureTime = leg.getDepartureTime.toOption.map(_.toString),
+      legTravelTime = leg.getTravelTime.toOption.map(_.toString),
       legRouteType = Option(leg.getRoute).map(_.getRouteType),
       legRouteStartLink = Option(leg.getRoute).map(_.getStartLinkId.toString),
       legRouteEndLink = Option(leg.getRoute).map(_.getEndLinkId.toString),
-      legRouteTravelTime = Option(leg.getRoute).map(_.getTravelTime),
+      legRouteTravelTime = Option(leg.getRoute).flatMap(_.getTravelTime.toOption),
       legRouteDistance = Option(leg.getRoute).map(_.getDistance),
       legRouteLinks = leg.getRoute match {
         case route: NetworkRoute => route.getLinkIds.asScala.map(_.toString).toSeq

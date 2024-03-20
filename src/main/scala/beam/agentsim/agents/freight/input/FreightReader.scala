@@ -101,7 +101,7 @@ trait FreightReader {
     carriers: IndexedSeq[FreightCarrier],
     populationFactory: PopulationFactory,
     householdsFactory: HouseholdsFactory
-  ): IndexedSeq[(FreightCarrier, Household, Plan, Id[Person], Id[BeamVehicle])] = {
+  ): IndexedSeq[(FreightCarrier, Household, Plan, Person, Id[BeamVehicle])] = {
     carriers.flatMap { carrier =>
       val freightHouseholdId = createHouseholdId(carrier.carrierId)
       val household = householdsFactory.createHousehold(freightHouseholdId)
@@ -114,7 +114,7 @@ trait FreightReader {
         person.setSelectedPlan(currentPlan)
         household.getMemberIds.add(personId)
         household.getVehicleIds.add(vehicleId)
-        (carrier, household, currentPlan, personId, vehicleId)
+        (carrier, household, currentPlan, person, vehicleId)
       }
     }
   }
@@ -208,7 +208,8 @@ object FreightReader {
     network: Option[Network],
     outputDirMaybe: Option[String]
   ): FreightReader = {
-    val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
+    val tazMap =
+      TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath, Some(beamConfig.beam.agentsim.taz.tazIdFieldName))
     apply(beamConfig, geoUtils, streetLayer, network, tazMap, outputDirMaybe)
   }
 

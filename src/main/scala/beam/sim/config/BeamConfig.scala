@@ -83,7 +83,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class Freight(
           carrierParkingFilePath           : scala.Option[java.lang.String],
           carriersFilePath                 : java.lang.String,
@@ -114,7 +114,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Freight = {
             BeamConfig.Beam.Agentsim.Agents.Freight(
               carrierParkingFilePath           = if(c.hasPathOrNull("carrierParkingFilePath")) Some(c.getString("carrierParkingFilePath")) else None,
@@ -133,7 +133,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class Households(
           inputFilePath                    : java.lang.String,
           inputHouseholdAttributesFilePath : java.lang.String
@@ -146,7 +146,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class ModalBehaviors(
           bikeMultiplier                    : BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier,
           defaultValueOfTime                : scala.Double,
@@ -181,7 +181,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             case class Noncommute(
               ageGT50 : scala.Double,
               ageLE50 : scala.Double
@@ -194,7 +194,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier = {
               BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier(
                 commute    = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier.Commute(if(c.hasPathOrNull("commute")) c.getConfig("commute") else com.typesafe.config.ConfigFactory.parseString("commute{}")),
@@ -202,7 +202,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class HighTimeSensitivity(
             highCongestion : BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion,
             lowCongestion  : BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion
@@ -229,7 +229,7 @@ object BeamConfig {
                   )
                 }
               }
-                    
+
               case class NonHighwayFactor(
                 Level3   : scala.Double,
                 Level4   : scala.Double,
@@ -246,7 +246,7 @@ object BeamConfig {
                   )
                 }
               }
-                    
+
               def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion = {
                 BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion(
                   highwayFactor    = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion.HighwayFactor(if(c.hasPathOrNull("highwayFactor")) c.getConfig("highwayFactor") else com.typesafe.config.ConfigFactory.parseString("highwayFactor{}")),
@@ -254,7 +254,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             case class LowCongestion(
               highwayFactor    : BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion.HighwayFactor,
               nonHighwayFactor : BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion.NonHighwayFactor
@@ -276,7 +276,7 @@ object BeamConfig {
                   )
                 }
               }
-                    
+
               case class NonHighwayFactor(
                 Level3   : scala.Double,
                 Level4   : scala.Double,
@@ -293,7 +293,7 @@ object BeamConfig {
                   )
                 }
               }
-                    
+
               def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion = {
                 BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion(
                   highwayFactor    = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.LowCongestion.HighwayFactor(if(c.hasPathOrNull("highwayFactor")) c.getConfig("highwayFactor") else com.typesafe.config.ConfigFactory.parseString("highwayFactor{}")),
@@ -301,7 +301,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity = {
               BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity(
                 highCongestion = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.HighTimeSensitivity.HighCongestion(if(c.hasPathOrNull("highCongestion")) c.getConfig("highCongestion") else com.typesafe.config.ConfigFactory.parseString("highCongestion{}")),
@@ -309,7 +309,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class Lccm(
             filePath : java.lang.String
           )
@@ -320,7 +320,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class LowTimeSensitivity(
             highCongestion : BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.LowTimeSensitivity.HighCongestion,
             lowCongestion  : BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.LowTimeSensitivity.LowCongestion
@@ -347,7 +347,7 @@ object BeamConfig {
                   )
                 }
               }
-                    
+
               case class NonHighwayFactor(
                 Level3   : scala.Double,
                 Level4   : scala.Double,
@@ -364,7 +364,7 @@ object BeamConfig {
                   )
                 }
               }
-                    
+
               def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.LowTimeSensitivity.HighCongestion = {
                 BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.LowTimeSensitivity.HighCongestion(
                   highwayFactor    = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.LowTimeSensitivity.HighCongestion.HighwayFactor(if(c.hasPathOrNull("highwayFactor")) c.getConfig("highwayFactor") else com.typesafe.config.ConfigFactory.parseString("highwayFactor{}")),
@@ -372,7 +372,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             case class LowCongestion(
               highwayFactor    : BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.LowTimeSensitivity.LowCongestion.HighwayFactor,
               nonHighwayFactor : BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.LowTimeSensitivity.LowCongestion.NonHighwayFactor
@@ -394,7 +394,7 @@ object BeamConfig {
                   )
                 }
               }
-                    
+
               case class NonHighwayFactor(
                 Level3   : scala.Double,
                 Level4   : scala.Double,
@@ -411,7 +411,7 @@ object BeamConfig {
                   )
                 }
               }
-                    
+
               def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.LowTimeSensitivity.LowCongestion = {
                 BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.LowTimeSensitivity.LowCongestion(
                   highwayFactor    = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.LowTimeSensitivity.LowCongestion.HighwayFactor(if(c.hasPathOrNull("highwayFactor")) c.getConfig("highwayFactor") else com.typesafe.config.ConfigFactory.parseString("highwayFactor{}")),
@@ -419,7 +419,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.LowTimeSensitivity = {
               BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.LowTimeSensitivity(
                 highCongestion = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.LowTimeSensitivity.HighCongestion(if(c.hasPathOrNull("highCongestion")) c.getConfig("highCongestion") else com.typesafe.config.ConfigFactory.parseString("highCongestion{}")),
@@ -427,7 +427,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class ModeVotMultiplier(
             CAV             : scala.Double,
             bike            : scala.Double,
@@ -454,7 +454,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class MultinomialLogit(
             params               : BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MultinomialLogit.Params,
             utility_scale_factor : scala.Double
@@ -502,7 +502,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MultinomialLogit = {
               BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MultinomialLogit(
                 params               = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.MultinomialLogit.Params(if(c.hasPathOrNull("params")) c.getConfig("params") else com.typesafe.config.ConfigFactory.parseString("params{}")),
@@ -510,7 +510,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class PoolingMultiplier(
             Level3   : scala.Double,
             Level4   : scala.Double,
@@ -527,7 +527,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.ModalBehaviors = {
             BeamConfig.Beam.Agentsim.Agents.ModalBehaviors(
               bikeMultiplier                    = BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.BikeMultiplier(if(c.hasPathOrNull("bikeMultiplier")) c.getConfig("bikeMultiplier") else com.typesafe.config.ConfigFactory.parseString("bikeMultiplier{}")),
@@ -547,7 +547,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class ModeIncentive(
           filePath : java.lang.String
         )
@@ -558,7 +558,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class Parking(
           estimatedMeanEnRouteChargingDurationInSeconds : scala.Double,
           estimatedMinParkingDurationInSeconds          : scala.Double,
@@ -594,14 +594,14 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit = {
               BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit(
                 params = BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit.Params(if(c.hasPathOrNull("params")) c.getConfig("params") else com.typesafe.config.ConfigFactory.parseString("params{}"))
               )
             }
           }
-                
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Parking = {
             BeamConfig.Beam.Agentsim.Agents.Parking(
               estimatedMeanEnRouteChargingDurationInSeconds = if(c.hasPathOrNull("estimatedMeanEnRouteChargingDurationInSeconds")) c.getDouble("estimatedMeanEnRouteChargingDurationInSeconds") else 1800.0,
@@ -617,7 +617,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class Plans(
           inputPersonAttributesFilePath : java.lang.String,
           inputPlansFilePath            : java.lang.String,
@@ -634,7 +634,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Plans = {
             BeamConfig.Beam.Agentsim.Agents.Plans(
               inputPersonAttributesFilePath = if(c.hasPathOrNull("inputPersonAttributesFilePath")) c.getString("inputPersonAttributesFilePath") else "/test/input/beamville/populationAttributes.xml.gz",
@@ -643,7 +643,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class Population(
           industryRemovalProbabilty : BeamConfig.Beam.Agentsim.Agents.Population.IndustryRemovalProbabilty,
           useVehicleSampling        : scala.Boolean
@@ -663,7 +663,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Population = {
             BeamConfig.Beam.Agentsim.Agents.Population(
               industryRemovalProbabilty = BeamConfig.Beam.Agentsim.Agents.Population.IndustryRemovalProbabilty(if(c.hasPathOrNull("industryRemovalProbabilty")) c.getConfig("industryRemovalProbabilty") else com.typesafe.config.ConfigFactory.parseString("industryRemovalProbabilty{}")),
@@ -671,7 +671,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class PtFare(
           filePath : java.lang.String
         )
@@ -682,7 +682,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class RideHail(
           bestResponseType               : java.lang.String,
           cav                            : BeamConfig.Beam.Agentsim.Agents.RideHail.Cav,
@@ -710,7 +710,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class Charging(
             multinomialLogit : BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit
           )
@@ -735,21 +735,21 @@ object BeamConfig {
                   )
                 }
               }
-                    
+
               def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit = {
                 BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit(
                   params = BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit.Params(if(c.hasPathOrNull("params")) c.getConfig("params") else com.typesafe.config.ConfigFactory.parseString("params{}"))
                 )
               }
             }
-                  
+
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Charging = {
               BeamConfig.Beam.Agentsim.Agents.RideHail.Charging(
                 multinomialLogit = BeamConfig.Beam.Agentsim.Agents.RideHail.Charging.MultinomialLogit(if(c.hasPathOrNull("multinomialLogit")) c.getConfig("multinomialLogit") else com.typesafe.config.ConfigFactory.parseString("multinomialLogit{}"))
               )
             }
           }
-                
+
           case class Human(
             noRefuelThresholdInMeters       : scala.Int,
             refuelRequiredThresholdInMeters : scala.Int
@@ -762,7 +762,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class IterationStats(
             timeBinSizeInSec : scala.Double
           )
@@ -773,7 +773,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class Managers$Elm(
             allocationManager            : BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager,
             defaultBaseCost              : scala.Double,
@@ -813,7 +813,7 @@ object BeamConfig {
                   )
                 }
               }
-                    
+
               case class RepositionLowWaitingTimes(
                 allowIncreasingRadiusIfDemandInRadiusLow               : scala.Boolean,
                 demandWeight                                           : scala.Double,
@@ -848,7 +848,7 @@ object BeamConfig {
                   )
                 }
               }
-                    
+
               def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager = {
                 BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager(
                   alonsoMora                                     = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager.AlonsoMora(if(c.hasPathOrNull("alonsoMora")) c.getConfig("alonsoMora") else com.typesafe.config.ConfigFactory.parseString("alonsoMora{}")),
@@ -862,7 +862,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             case class Initialization(
               filePath   : java.lang.String,
               initType   : java.lang.String,
@@ -880,7 +880,7 @@ object BeamConfig {
                   )
                 }
               }
-                    
+
               case class Procedural(
                 fractionOfInitialVehicleFleet : scala.Double,
                 initialLocation               : BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation,
@@ -904,7 +904,7 @@ object BeamConfig {
                       )
                     }
                   }
-                        
+
                   def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation = {
                     BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation(
                       home = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural.InitialLocation.Home(if(c.hasPathOrNull("home")) c.getConfig("home") else com.typesafe.config.ConfigFactory.parseString("home{}")),
@@ -912,7 +912,7 @@ object BeamConfig {
                     )
                   }
                 }
-                      
+
                 def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural = {
                   BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization.Procedural(
                     fractionOfInitialVehicleFleet = if(c.hasPathOrNull("fractionOfInitialVehicleFleet")) c.getDouble("fractionOfInitialVehicleFleet") else 0.1,
@@ -923,7 +923,7 @@ object BeamConfig {
                   )
                 }
               }
-                    
+
               def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization = {
                 BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.Initialization(
                   filePath   = if(c.hasPathOrNull("filePath")) c.getString("filePath") else "",
@@ -933,7 +933,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             case class RepositioningManager(
               demandFollowingRepositioningManager      : BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager.DemandFollowingRepositioningManager,
               inverseSquareDistanceRepositioningFactor : BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager.InverseSquareDistanceRepositioningFactor,
@@ -959,7 +959,7 @@ object BeamConfig {
                   )
                 }
               }
-                    
+
               case class InverseSquareDistanceRepositioningFactor(
                 predictionHorizon                    : scala.Int,
                 sensitivityOfRepositioningToDemand   : scala.Double,
@@ -974,7 +974,7 @@ object BeamConfig {
                   )
                 }
               }
-                    
+
               def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager = {
                 BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager(
                   demandFollowingRepositioningManager      = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager.DemandFollowingRepositioningManager(if(c.hasPathOrNull("demandFollowingRepositioningManager")) c.getConfig("demandFollowingRepositioningManager") else com.typesafe.config.ConfigFactory.parseString("demandFollowingRepositioningManager{}")),
@@ -984,7 +984,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             case class RideHailManager(
               radiusInMeters : scala.Double
             )
@@ -995,7 +995,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm = {
               BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm(
                 allocationManager            = BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager(if(c.hasPathOrNull("allocationManager")) c.getConfig("allocationManager") else com.typesafe.config.ConfigFactory.parseString("allocationManager{}")),
@@ -1016,7 +1016,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class SurgePricing(
             minimumSurgeLevel       : scala.Double,
             numberOfCategories      : scala.Int,
@@ -1033,7 +1033,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.RideHail = {
             BeamConfig.Beam.Agentsim.Agents.RideHail(
               bestResponseType               = if(c.hasPathOrNull("bestResponseType")) c.getString("bestResponseType") else "MIN_COST",
@@ -1053,7 +1053,7 @@ object BeamConfig {
             cl.asScala.map(cv => BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)).toList
           }
         }
-              
+
         case class RideHailTransit(
           modesToConsider : java.lang.String
         )
@@ -1064,7 +1064,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class TripBehaviors(
           carUsage         : BeamConfig.Beam.Agentsim.Agents.TripBehaviors.CarUsage,
           multinomialLogit : BeamConfig.Beam.Agentsim.Agents.TripBehaviors.MultinomialLogit
@@ -1080,7 +1080,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class MultinomialLogit(
             activity_file_path              : java.lang.String,
             additional_trip_utility         : scala.Double,
@@ -1107,7 +1107,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.TripBehaviors = {
             BeamConfig.Beam.Agentsim.Agents.TripBehaviors(
               carUsage         = BeamConfig.Beam.Agentsim.Agents.TripBehaviors.CarUsage(if(c.hasPathOrNull("carUsage")) c.getConfig("carUsage") else com.typesafe.config.ConfigFactory.parseString("carUsage{}")),
@@ -1115,7 +1115,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class Vehicles(
           destination                                         : BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination,
           downsamplingMethod                                  : java.lang.String,
@@ -1158,7 +1158,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             case class Secondary(
               noRefuelThresholdInMeters       : scala.Int,
               refuelRequiredThresholdInMeters : scala.Int
@@ -1171,7 +1171,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             case class Work(
               noRefuelThresholdInMeters       : scala.Int,
               refuelRequiredThresholdInMeters : scala.Int
@@ -1184,7 +1184,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination(
                 home                            = BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination.Home(if(c.hasPathOrNull("home")) c.getConfig("home") else com.typesafe.config.ConfigFactory.parseString("home{}")),
@@ -1195,7 +1195,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class DummySharedBike(
             vehicleTypeId : java.lang.String
           )
@@ -1206,7 +1206,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class DummySharedCar(
             vehicleTypeId : java.lang.String
           )
@@ -1217,7 +1217,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class Enroute(
             noRefuelAtRemainingDistanceThresholdInMeters : scala.Int,
             noRefuelThresholdOffsetInMeters              : scala.Double,
@@ -1234,7 +1234,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class SharedFleets$Elm(
             fixed_non_reserving              : scala.Option[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReserving],
             fixed_non_reserving_fleet_by_taz : scala.Option[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReservingFleetByTaz],
@@ -1257,7 +1257,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             case class FixedNonReservingFleetByTaz(
               fleetSize                  : scala.Int,
               maxWalkingDistance         : scala.Int,
@@ -1274,7 +1274,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             case class InexhaustibleReserving(
               vehicleTypeId : java.lang.String
             )
@@ -1285,7 +1285,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             case class Reposition(
               min_availability_undersupply_algorithm : scala.Option[BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition.MinAvailabilityUndersupplyAlgorithm],
               name                                   : java.lang.String,
@@ -1303,7 +1303,7 @@ object BeamConfig {
                   )
                 }
               }
-                    
+
               def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition = {
                 BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition(
                   min_availability_undersupply_algorithm = if(c.hasPathOrNull("min-availability-undersupply-algorithm")) scala.Some(BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.Reposition.MinAvailabilityUndersupplyAlgorithm(c.getConfig("min-availability-undersupply-algorithm"))) else None,
@@ -1313,7 +1313,7 @@ object BeamConfig {
                 )
               }
             }
-                  
+
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm = {
               BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm(
                 fixed_non_reserving              = if(c.hasPathOrNull("fixed-non-reserving")) scala.Some(BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm.FixedNonReserving(c.getConfig("fixed-non-reserving"))) else None,
@@ -1326,7 +1326,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents.Vehicles = {
             BeamConfig.Beam.Agentsim.Agents.Vehicles(
               destination                                         = BeamConfig.Beam.Agentsim.Agents.Vehicles.Destination(if(c.hasPathOrNull("destination")) c.getConfig("destination") else com.typesafe.config.ConfigFactory.parseString("destination{}")),
@@ -1355,7 +1355,7 @@ object BeamConfig {
             cl.asScala.map(cv => BeamConfig.Beam.Agentsim.Agents.Vehicles.SharedFleets$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)).toList
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Agents = {
           BeamConfig.Beam.Agentsim.Agents(
             activities      = BeamConfig.Beam.Agentsim.Agents.Activities(if(c.hasPathOrNull("activities")) c.getConfig("activities") else com.typesafe.config.ConfigFactory.parseString("activities{}")),
@@ -1375,7 +1375,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class ChargingNetworkManager(
         chargingPointCostScalingFactor  : scala.Double,
         chargingPointCountScalingFactor : scala.Double,
@@ -1417,7 +1417,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class ScaleUp(
           activitiesLocationFilePath : java.lang.String,
           enabled                    : scala.Boolean,
@@ -1432,7 +1432,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class SitePowerManagerController(
           beamFederatePrefix      : java.lang.String,
           beamFederatePublication : java.lang.String,
@@ -1465,7 +1465,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.ChargingNetworkManager = {
           BeamConfig.Beam.Agentsim.ChargingNetworkManager(
             chargingPointCostScalingFactor  = if(c.hasPathOrNull("chargingPointCostScalingFactor")) c.getDouble("chargingPointCostScalingFactor") else 1.0,
@@ -1479,7 +1479,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class H3taz(
         lowerBoundResolution : scala.Int,
         upperBoundResolution : scala.Int
@@ -1492,7 +1492,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Scenarios(
         frequencyAdjustmentFile : java.lang.String
       )
@@ -1503,7 +1503,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class ScheduleMonitorTask(
         initialDelay : scala.Int,
         interval     : scala.Int
@@ -1516,7 +1516,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Taz(
         filePath                       : java.lang.String,
         parkingCostScalingFactor       : scala.Double,
@@ -1542,7 +1542,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Taz.ParkingManager = {
             BeamConfig.Beam.Agentsim.Taz.ParkingManager(
               displayPerformanceTimings = c.hasPathOrNull("displayPerformanceTimings") && c.getBoolean("displayPerformanceTimings"),
@@ -1551,7 +1551,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim.Taz = {
           BeamConfig.Beam.Agentsim.Taz(
             filePath                       = if(c.hasPathOrNull("filePath")) c.getString("filePath") else "/test/input/beamville/taz-centers.csv",
@@ -1563,7 +1563,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Toll(
         filePath : java.lang.String
       )
@@ -1574,7 +1574,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Tuning(
         fuelCapacityInJoules : scala.Double,
         rideHailPrice        : scala.Double,
@@ -1593,7 +1593,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Agentsim = {
         BeamConfig.Beam.Agentsim(
           agentSampleSizeAsFractionOfPopulation   = if(c.hasPathOrNull("agentSampleSizeAsFractionOfPopulation")) c.getDouble("agentSampleSizeAsFractionOfPopulation") else 1.0,
@@ -1620,7 +1620,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Calibration(
       counts                  : BeamConfig.Beam.Calibration.Counts,
       google                  : BeamConfig.Beam.Calibration.Google,
@@ -1647,7 +1647,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Google(
         travelTimes : BeamConfig.Beam.Calibration.Google.TravelTimes
       )
@@ -1674,14 +1674,14 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration.Google = {
           BeamConfig.Beam.Calibration.Google(
             travelTimes = BeamConfig.Beam.Calibration.Google.TravelTimes(if(c.hasPathOrNull("travelTimes")) c.getConfig("travelTimes") else com.typesafe.config.ConfigFactory.parseString("travelTimes{}"))
           )
         }
       }
-            
+
       case class Mode(
         benchmarkFilePath : java.lang.String
       )
@@ -1692,7 +1692,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class RoadNetwork(
         travelTimes : BeamConfig.Beam.Calibration.RoadNetwork.TravelTimes
       )
@@ -1709,14 +1709,14 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration.RoadNetwork = {
           BeamConfig.Beam.Calibration.RoadNetwork(
             travelTimes = BeamConfig.Beam.Calibration.RoadNetwork.TravelTimes(if(c.hasPathOrNull("travelTimes")) c.getConfig("travelTimes") else com.typesafe.config.ConfigFactory.parseString("travelTimes{}"))
           )
         }
       }
-            
+
       case class StudyArea(
         enabled : scala.Boolean,
         lat     : scala.Double,
@@ -1733,7 +1733,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Calibration = {
         BeamConfig.Beam.Calibration(
           counts                  = BeamConfig.Beam.Calibration.Counts(if(c.hasPathOrNull("counts")) c.getConfig("counts") else com.typesafe.config.ConfigFactory.parseString("counts{}")),
@@ -1746,7 +1746,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Cluster(
       clusterType : scala.Option[java.lang.String],
       enabled     : scala.Boolean
@@ -1759,7 +1759,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Debug(
       actor                                                         : BeamConfig.Beam.Debug.Actor,
       agentTripScoresInterval                                       : scala.Int,
@@ -1788,7 +1788,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class StuckAgentDetection(
         checkIntervalMs                 : scala.Long,
         checkMaxNumberOfMessagesEnabled : scala.Boolean,
@@ -1820,7 +1820,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm = {
             BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm(
               actorTypeToMaxNumberOfMessages = BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm.ActorTypeToMaxNumberOfMessages(if(c.hasPathOrNull("actorTypeToMaxNumberOfMessages")) c.getConfig("actorTypeToMaxNumberOfMessages") else com.typesafe.config.ConfigFactory.parseString("actorTypeToMaxNumberOfMessages{}")),
@@ -1829,7 +1829,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Debug.StuckAgentDetection = {
           BeamConfig.Beam.Debug.StuckAgentDetection(
             checkIntervalMs                 = if(c.hasPathOrNull("checkIntervalMs")) c.getDuration("checkIntervalMs", java.util.concurrent.TimeUnit.MILLISECONDS) else 200,
@@ -1845,7 +1845,7 @@ object BeamConfig {
           cl.asScala.map(cv => BeamConfig.Beam.Debug.StuckAgentDetection.Thresholds$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)).toList
         }
       }
-            
+
       case class TriggerMeasurer(
         enabled                        : scala.Boolean,
         writeStuckAgentDetectionConfig : scala.Boolean
@@ -1858,7 +1858,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class VmInformation(
         createGCClassHistogram : scala.Boolean,
         writeHeapDump          : scala.Boolean
@@ -1871,7 +1871,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Debug = {
         BeamConfig.Beam.Debug(
           actor                                                         = BeamConfig.Beam.Debug.Actor(if(c.hasPathOrNull("actor")) c.getConfig("actor") else com.typesafe.config.ConfigFactory.parseString("actor{}")),
@@ -1892,7 +1892,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Exchange(
       output   : BeamConfig.Beam.Exchange.Output,
       scenario : BeamConfig.Beam.Exchange.Scenario
@@ -1914,7 +1914,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output = {
           BeamConfig.Beam.Exchange.Output(
             activitySimSkimsEnabled     = c.hasPathOrNull("activitySimSkimsEnabled") && c.getBoolean("activitySimSkimsEnabled"),
@@ -1923,7 +1923,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Scenario(
         convertWgs2Utm : scala.Boolean,
         fileFormat     : java.lang.String,
@@ -1945,7 +1945,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Scenario = {
           BeamConfig.Beam.Exchange.Scenario(
             convertWgs2Utm = c.hasPathOrNull("convertWgs2Utm") && c.getBoolean("convertWgs2Utm"),
@@ -1957,7 +1957,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange = {
         BeamConfig.Beam.Exchange(
           output   = BeamConfig.Beam.Exchange.Output(if(c.hasPathOrNull("output")) c.getConfig("output") else com.typesafe.config.ConfigFactory.parseString("output{}")),
@@ -1965,7 +1965,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Experimental(
       optimizer : BeamConfig.Beam.Experimental.Optimizer
     )
@@ -1980,14 +1980,14 @@ object BeamConfig {
           )
         }
       }
-            
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Experimental = {
         BeamConfig.Beam.Experimental(
           optimizer = BeamConfig.Beam.Experimental.Optimizer(if(c.hasPathOrNull("optimizer")) c.getConfig("optimizer") else com.typesafe.config.ConfigFactory.parseString("optimizer{}"))
         )
       }
     }
-          
+
     case class Input(
       lastBaseOutputDir : java.lang.String,
       simulationPrefix  : java.lang.String
@@ -2000,7 +2000,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Logger(
       keepConsoleAppenderOn : scala.Boolean
     )
@@ -2011,7 +2011,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Metrics(
       level : java.lang.String
     )
@@ -2022,7 +2022,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Output(
       writePlansAndStopSimulation : scala.Boolean
     )
@@ -2033,7 +2033,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Outputs(
       addTimestampToOutputDirectory         : scala.Boolean,
       baseOutputDirectory                   : java.lang.String,
@@ -2064,7 +2064,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class GeneralizedLinkStats(
         endTime   : scala.Int,
         startTime : scala.Int
@@ -2077,7 +2077,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Matsim(
         deleteITERSFolderFiles : java.lang.String,
         deleteRootFolderFiles  : java.lang.String
@@ -2090,7 +2090,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Stats(
         binSize : scala.Int
       )
@@ -2101,7 +2101,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Outputs = {
         BeamConfig.Beam.Outputs(
           addTimestampToOutputDirectory         = !c.hasPathOrNull("addTimestampToOutputDirectory") || c.getBoolean("addTimestampToOutputDirectory"),
@@ -2122,7 +2122,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Physsim(
       bprsim                                 : BeamConfig.Beam.Physsim.Bprsim,
       cchRoutingAssignment                   : BeamConfig.Beam.Physsim.CchRoutingAssignment,
@@ -2138,13 +2138,12 @@ object BeamConfig {
       linkStatsBinSize                       : scala.Int,
       linkStatsWriteInterval                 : scala.Int,
       maxLinkLengthToApplySpeedScalingFactor : scala.Double,
-      name                                   : java.lang.String,
+      minCarSpeedInMetersPerSecond: scala.Double,name                                   : java.lang.String,
       network                                : BeamConfig.Beam.Physsim.Network,
       overwriteLinkParamPath                 : java.lang.String,
       parbprsim                              : BeamConfig.Beam.Physsim.Parbprsim,
       pickUpDropOffAnalysis                  : BeamConfig.Beam.Physsim.PickUpDropOffAnalysis,
-      ptSampleSize                           : scala.Double,
-      quick_fix_minCarSpeedInMetersPerSecond : scala.Double,
+      ptSampleSize                           :  scala.Double,
       relaxation                             : BeamConfig.Beam.Physsim.Relaxation,
       skipPhysSim                            : scala.Boolean,
       speedScalingFactor                     : scala.Double,
@@ -2168,7 +2167,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class CchRoutingAssignment(
         congestionFactor : scala.Double
       )
@@ -2179,7 +2178,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class DuplicatePTE(
         departureTimeShiftMax       : scala.Int,
         departureTimeShiftMin       : scala.Int,
@@ -2194,7 +2193,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class EventManager(
         numberOfThreads : scala.Int,
         `type`          : java.lang.String
@@ -2207,7 +2206,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Events(
         eventsToWrite     : java.lang.String,
         fileOutputFormats : java.lang.String
@@ -2220,7 +2219,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Jdeqsim(
         agentSimPhysSimInterfaceDebugger : BeamConfig.Beam.Physsim.Jdeqsim.AgentSimPhysSimInterfaceDebugger,
         cacc                             : BeamConfig.Beam.Physsim.Jdeqsim.Cacc
@@ -2236,9 +2235,9 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class Cacc(
-          adjustedMinimumRoadSpeedInMetersPerSecond : scala.Double,
+
           capacityPlansWriteInterval                : scala.Int,
           enabled                                   : scala.Boolean,
           minRoadCapacity                           : scala.Int,
@@ -2248,7 +2247,7 @@ object BeamConfig {
         object Cacc {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Jdeqsim.Cacc = {
             BeamConfig.Beam.Physsim.Jdeqsim.Cacc(
-              adjustedMinimumRoadSpeedInMetersPerSecond = if(c.hasPathOrNull("adjustedMinimumRoadSpeedInMetersPerSecond")) c.getDouble("adjustedMinimumRoadSpeedInMetersPerSecond") else 1.3,
+
               capacityPlansWriteInterval                = if(c.hasPathOrNull("capacityPlansWriteInterval")) c.getInt("capacityPlansWriteInterval") else 0,
               enabled                                   = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
               minRoadCapacity                           = if(c.hasPathOrNull("minRoadCapacity")) c.getInt("minRoadCapacity") else 2000,
@@ -2257,7 +2256,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Jdeqsim = {
           BeamConfig.Beam.Physsim.Jdeqsim(
             agentSimPhysSimInterfaceDebugger = BeamConfig.Beam.Physsim.Jdeqsim.AgentSimPhysSimInterfaceDebugger(if(c.hasPathOrNull("agentSimPhysSimInterfaceDebugger")) c.getConfig("agentSimPhysSimInterfaceDebugger") else com.typesafe.config.ConfigFactory.parseString("agentSimPhysSimInterfaceDebugger{}")),
@@ -2265,7 +2264,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Network(
         maxSpeedInference           : BeamConfig.Beam.Physsim.Network.MaxSpeedInference,
         overwriteRoadTypeProperties : BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties,
@@ -2284,7 +2283,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class OverwriteRoadTypeProperties(
           default       : BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Default,
           enabled       : scala.Boolean,
@@ -2316,7 +2315,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class LivingStreet(
             alpha    : scala.Option[scala.Double],
             beta     : scala.Option[scala.Double],
@@ -2335,7 +2334,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class Minor(
             alpha    : scala.Option[scala.Double],
             beta     : scala.Option[scala.Double],
@@ -2354,7 +2353,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class Motorway(
             alpha    : scala.Option[scala.Double],
             beta     : scala.Option[scala.Double],
@@ -2373,7 +2372,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class MotorwayLink(
             alpha    : scala.Option[scala.Double],
             beta     : scala.Option[scala.Double],
@@ -2392,7 +2391,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class Primary(
             alpha    : scala.Option[scala.Double],
             beta     : scala.Option[scala.Double],
@@ -2411,7 +2410,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class PrimaryLink(
             alpha    : scala.Option[scala.Double],
             beta     : scala.Option[scala.Double],
@@ -2430,7 +2429,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class Residential(
             alpha    : scala.Option[scala.Double],
             beta     : scala.Option[scala.Double],
@@ -2449,7 +2448,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class Secondary(
             alpha    : scala.Option[scala.Double],
             beta     : scala.Option[scala.Double],
@@ -2468,7 +2467,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class SecondaryLink(
             alpha    : scala.Option[scala.Double],
             beta     : scala.Option[scala.Double],
@@ -2487,7 +2486,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class Tertiary(
             alpha    : scala.Option[scala.Double],
             beta     : scala.Option[scala.Double],
@@ -2506,7 +2505,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class TertiaryLink(
             alpha    : scala.Option[scala.Double],
             beta     : scala.Option[scala.Double],
@@ -2525,7 +2524,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class Trunk(
             alpha    : scala.Option[scala.Double],
             beta     : scala.Option[scala.Double],
@@ -2544,7 +2543,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class TrunkLink(
             alpha    : scala.Option[scala.Double],
             beta     : scala.Option[scala.Double],
@@ -2563,7 +2562,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           case class Unclassified(
             alpha    : scala.Option[scala.Double],
             beta     : scala.Option[scala.Double],
@@ -2582,7 +2581,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties = {
             BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties(
               default       = BeamConfig.Beam.Physsim.Network.OverwriteRoadTypeProperties.Default(if(c.hasPathOrNull("default")) c.getConfig("default") else com.typesafe.config.ConfigFactory.parseString("default{}")),
@@ -2604,7 +2603,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Network = {
           BeamConfig.Beam.Physsim.Network(
             maxSpeedInference           = BeamConfig.Beam.Physsim.Network.MaxSpeedInference(if(c.hasPathOrNull("maxSpeedInference")) c.getConfig("maxSpeedInference") else com.typesafe.config.ConfigFactory.parseString("maxSpeedInference{}")),
@@ -2613,7 +2612,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Parbprsim(
         numberOfClusters : scala.Int,
         syncInterval     : scala.Int
@@ -2626,7 +2625,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class PickUpDropOffAnalysis(
         additionalTravelTimeMultiplier             : scala.Double,
         enabled                                    : scala.Boolean,
@@ -2641,7 +2640,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Relaxation(
         experiment2_0 : BeamConfig.Beam.Physsim.Relaxation.Experiment20,
         experiment2_1 : BeamConfig.Beam.Physsim.Relaxation.Experiment21,
@@ -2669,7 +2668,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class Experiment21(
           clearModesEveryIteration      : scala.Boolean,
           clearRoutesEveryIteration     : scala.Boolean,
@@ -2686,7 +2685,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class Experiment30(
           fractionOfPopulationToReroute : scala.Double,
           internalNumberOfIterations    : scala.Int
@@ -2699,7 +2698,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class Experiment40(
           percentToSimulate : scala.Option[scala.List[scala.Double]]
         )
@@ -2710,7 +2709,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class Experiment50(
           percentToSimulate : scala.Option[scala.List[scala.Double]]
         )
@@ -2721,7 +2720,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class Experiment51(
           percentToSimulate : scala.Option[scala.List[scala.Double]]
         )
@@ -2732,7 +2731,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class Experiment52(
           percentToSimulate : scala.Option[scala.List[scala.Double]]
         )
@@ -2743,7 +2742,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim.Relaxation = {
           BeamConfig.Beam.Physsim.Relaxation(
             experiment2_0 = BeamConfig.Beam.Physsim.Relaxation.Experiment20(if(c.hasPathOrNull("experiment2_0")) c.getConfig("experiment2_0") else com.typesafe.config.ConfigFactory.parseString("experiment2_0{}")),
@@ -2757,7 +2756,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Physsim = {
         BeamConfig.Beam.Physsim(
           bprsim                                 = BeamConfig.Beam.Physsim.Bprsim(if(c.hasPathOrNull("bprsim")) c.getConfig("bprsim") else com.typesafe.config.ConfigFactory.parseString("bprsim{}")),
@@ -2774,13 +2773,14 @@ object BeamConfig {
           linkStatsBinSize                       = if(c.hasPathOrNull("linkStatsBinSize")) c.getInt("linkStatsBinSize") else 3600,
           linkStatsWriteInterval                 = if(c.hasPathOrNull("linkStatsWriteInterval")) c.getInt("linkStatsWriteInterval") else 0,
           maxLinkLengthToApplySpeedScalingFactor = if(c.hasPathOrNull("maxLinkLengthToApplySpeedScalingFactor")) c.getDouble("maxLinkLengthToApplySpeedScalingFactor") else 50.0,
-          name                                   = if(c.hasPathOrNull("name")) c.getString("name") else "JDEQSim",
+          minCarSpeedInMetersPerSecond =
+            if (c.hasPathOrNull("minCarSpeedInMetersPerSecond")) c.getDouble("minCarSpeedInMetersPerSecond") else 0.5,name                                   = if(c.hasPathOrNull("name")) c.getString("name") else "JDEQSim",
           network                                = BeamConfig.Beam.Physsim.Network(if(c.hasPathOrNull("network")) c.getConfig("network") else com.typesafe.config.ConfigFactory.parseString("network{}")),
           overwriteLinkParamPath                 = if(c.hasPathOrNull("overwriteLinkParamPath")) c.getString("overwriteLinkParamPath") else "",
           parbprsim                              = BeamConfig.Beam.Physsim.Parbprsim(if(c.hasPathOrNull("parbprsim")) c.getConfig("parbprsim") else com.typesafe.config.ConfigFactory.parseString("parbprsim{}")),
           pickUpDropOffAnalysis                  = BeamConfig.Beam.Physsim.PickUpDropOffAnalysis(if(c.hasPathOrNull("pickUpDropOffAnalysis")) c.getConfig("pickUpDropOffAnalysis") else com.typesafe.config.ConfigFactory.parseString("pickUpDropOffAnalysis{}")),
           ptSampleSize                           = if(c.hasPathOrNull("ptSampleSize")) c.getDouble("ptSampleSize") else 1.0,
-          quick_fix_minCarSpeedInMetersPerSecond = if(c.hasPathOrNull("quick_fix_minCarSpeedInMetersPerSecond")) c.getDouble("quick_fix_minCarSpeedInMetersPerSecond") else 0.5,
+
           relaxation                             = BeamConfig.Beam.Physsim.Relaxation(if(c.hasPathOrNull("relaxation")) c.getConfig("relaxation") else com.typesafe.config.ConfigFactory.parseString("relaxation{}")),
           skipPhysSim                            = c.hasPathOrNull("skipPhysSim") && c.getBoolean("skipPhysSim"),
           speedScalingFactor                     = if(c.hasPathOrNull("speedScalingFactor")) c.getDouble("speedScalingFactor") else 1.0,
@@ -2791,20 +2791,21 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Replanning(
-      ModuleProbability_1                     : scala.Double,
-      ModuleProbability_2                     : scala.Double,
-      ModuleProbability_3                     : scala.Double,
-      ModuleProbability_4                     : scala.Int,
-      Module_1                                : java.lang.String,
-      Module_2                                : java.lang.String,
-      Module_3                                : java.lang.String,
-      Module_4                                : java.lang.String,
-      clearModes                              : BeamConfig.Beam.Replanning.ClearModes,
-      fractionOfIterationsToDisableInnovation : scala.Double,
-      maxAgentPlanMemorySize                  : scala.Int,
-      planSelectionBeta                       : scala.Double
+      ModuleProbability_1: scala.Double,
+      ModuleProbability_2: scala.Double,
+      ModuleProbability_3: scala.Double,
+      ModuleProbability_4: scala.Int,
+      Module_1: java.lang.String,
+      Module_2: java.lang.String,
+      Module_3: java.lang.String,
+      Module_4: java.lang.String,
+      clearModes: BeamConfig.Beam.Replanning.ClearModes,
+      fractionOfIterationsToDisableInnovation: scala.Double,
+      maxAgentPlanMemorySize: scala.Int,
+      planSelectionBeta: scala.Double,
+      replanningPenaltyInDollars: scala.Double
     )
     object Replanning {
       case class ClearModes(
@@ -2821,25 +2822,34 @@ object BeamConfig {
           )
         }
       }
-            
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Replanning = {
         BeamConfig.Beam.Replanning(
-          ModuleProbability_1                     = if(c.hasPathOrNull("ModuleProbability_1")) c.getDouble("ModuleProbability_1") else 0.8,
-          ModuleProbability_2                     = if(c.hasPathOrNull("ModuleProbability_2")) c.getDouble("ModuleProbability_2") else 0.1,
-          ModuleProbability_3                     = if(c.hasPathOrNull("ModuleProbability_3")) c.getDouble("ModuleProbability_3") else 0.1,
-          ModuleProbability_4                     = if(c.hasPathOrNull("ModuleProbability_4")) c.getInt("ModuleProbability_4") else 0,
-          Module_1                                = if(c.hasPathOrNull("Module_1")) c.getString("Module_1") else "SelectExpBeta",
-          Module_2                                = if(c.hasPathOrNull("Module_2")) c.getString("Module_2") else "ClearRoutes",
-          Module_3                                = if(c.hasPathOrNull("Module_3")) c.getString("Module_3") else "ClearModes",
-          Module_4                                = if(c.hasPathOrNull("Module_4")) c.getString("Module_4") else "TimeMutator",
-          clearModes                              = BeamConfig.Beam.Replanning.ClearModes(if(c.hasPathOrNull("clearModes")) c.getConfig("clearModes") else com.typesafe.config.ConfigFactory.parseString("clearModes{}")),
-          fractionOfIterationsToDisableInnovation = if(c.hasPathOrNull("fractionOfIterationsToDisableInnovation")) c.getDouble("fractionOfIterationsToDisableInnovation") else Double.PositiveInfinity,
-          maxAgentPlanMemorySize                  = if(c.hasPathOrNull("maxAgentPlanMemorySize")) c.getInt("maxAgentPlanMemorySize") else 5,
-          planSelectionBeta                       = if(c.hasPathOrNull("planSelectionBeta")) c.getDouble("planSelectionBeta") else 1.0
+          ModuleProbability_1 = if (c.hasPathOrNull("ModuleProbability_1")) c.getDouble("ModuleProbability_1") else 0.8,
+          ModuleProbability_2 = if (c.hasPathOrNull("ModuleProbability_2")) c.getDouble("ModuleProbability_2") else 0.1,
+          ModuleProbability_3 = if (c.hasPathOrNull("ModuleProbability_3")) c.getDouble("ModuleProbability_3") else 0.1,
+          ModuleProbability_4 = if (c.hasPathOrNull("ModuleProbability_4")) c.getInt("ModuleProbability_4") else 0,
+          Module_1 = if (c.hasPathOrNull("Module_1")) c.getString("Module_1") else "SelectExpBeta",
+          Module_2 = if (c.hasPathOrNull("Module_2")) c.getString("Module_2") else "ClearRoutes",
+          Module_3 = if (c.hasPathOrNull("Module_3")) c.getString("Module_3") else "ClearModes",
+          Module_4 = if (c.hasPathOrNull("Module_4")) c.getString("Module_4") else "TimeMutator",
+          clearModes = BeamConfig.Beam.Replanning.ClearModes(
+            if (c.hasPathOrNull("clearModes")) c.getConfig("clearModes")
+            else com.typesafe.config.ConfigFactory.parseString("clearModes{}")
+          ),
+          fractionOfIterationsToDisableInnovation =
+            if (c.hasPathOrNull("fractionOfIterationsToDisableInnovation"))
+              c.getDouble("fractionOfIterationsToDisableInnovation")
+            else Double.PositiveInfinity,
+          maxAgentPlanMemorySize =
+            if (c.hasPathOrNull("maxAgentPlanMemorySize")) c.getInt("maxAgentPlanMemorySize") else 5,
+          planSelectionBeta = if (c.hasPathOrNull("planSelectionBeta")) c.getDouble("planSelectionBeta") else 1.0,
+          replanningPenaltyInDollars =
+            if (c.hasPathOrNull("replanningPenaltyInDollars")) c.getDouble("replanningPenaltyInDollars") else 100.0
         )
       }
     }
-          
+
     case class Router(
       skim : BeamConfig.Beam.Router.Skim
     )
@@ -2869,7 +2879,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class DriveTimeSkimmer(
           fileBaseName : java.lang.String,
           name         : java.lang.String
@@ -2882,7 +2892,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class OriginDestinationSkimmer(
           fileBaseName                                   : java.lang.String,
           name                                           : java.lang.String,
@@ -2901,7 +2911,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class TazSkimmer(
           fileBaseName : java.lang.String,
           geoHierarchy : java.lang.String,
@@ -2916,7 +2926,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class TransitCrowdingSkimmer(
           fileBaseName : java.lang.String,
           name         : java.lang.String
@@ -2929,7 +2939,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim = {
           BeamConfig.Beam.Router.Skim(
             activity_sim_skimmer         = BeamConfig.Beam.Router.Skim.ActivitySimSkimmer(if(c.hasPathOrNull("activity-sim-skimmer")) c.getConfig("activity-sim-skimmer") else com.typesafe.config.ConfigFactory.parseString("activity-sim-skimmer{}")),
@@ -2943,14 +2953,14 @@ object BeamConfig {
           )
         }
       }
-            
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router = {
         BeamConfig.Beam.Router(
           skim = BeamConfig.Beam.Router.Skim(if(c.hasPathOrNull("skim")) c.getConfig("skim") else com.typesafe.config.ConfigFactory.parseString("skim{}"))
         )
       }
     }
-          
+
     case class Routing(
       baseDate                              : java.lang.String,
       carRouter                             : java.lang.String,
@@ -2974,7 +2984,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class R5(
         accessBufferTimeSeconds                   : BeamConfig.Beam.Routing.R5.AccessBufferTimeSeconds,
         bikeLaneLinkIdsFilePath                   : java.lang.String,
@@ -3011,7 +3021,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class MNetBuilder(
           fromCRS : java.lang.String,
           toCRS   : java.lang.String
@@ -3024,7 +3034,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class MaxDistanceLimitByModeInMeters(
           bike : scala.Int
         )
@@ -3035,7 +3045,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing.R5 = {
           BeamConfig.Beam.Routing.R5(
             accessBufferTimeSeconds                   = BeamConfig.Beam.Routing.R5.AccessBufferTimeSeconds(if(c.hasPathOrNull("accessBufferTimeSeconds")) c.getConfig("accessBufferTimeSeconds") else com.typesafe.config.ConfigFactory.parseString("accessBufferTimeSeconds{}")),
@@ -3056,7 +3066,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Routing = {
         BeamConfig.Beam.Routing(
           baseDate                              = if(c.hasPathOrNull("baseDate")) c.getString("baseDate") else "2016-10-17T00:00:00-07:00",
@@ -3072,7 +3082,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Sim(
       metric      : BeamConfig.Beam.Sim.Metric,
       termination : BeamConfig.Beam.Sim.Termination
@@ -3099,7 +3109,7 @@ object BeamConfig {
               )
             }
           }
-                
+
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Sim.Metric.Collector = {
             BeamConfig.Beam.Sim.Metric.Collector(
               influxDbSimulationMetricCollector = BeamConfig.Beam.Sim.Metric.Collector.InfluxDbSimulationMetricCollector(if(c.hasPathOrNull("influxDbSimulationMetricCollector")) c.getConfig("influxDbSimulationMetricCollector") else com.typesafe.config.ConfigFactory.parseString("influxDbSimulationMetricCollector{}")),
@@ -3107,14 +3117,14 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Sim.Metric = {
           BeamConfig.Beam.Sim.Metric(
             collector = BeamConfig.Beam.Sim.Metric.Collector(if(c.hasPathOrNull("collector")) c.getConfig("collector") else com.typesafe.config.ConfigFactory.parseString("collector{}"))
           )
         }
       }
-            
+
       case class Termination(
         criterionName                                        : java.lang.String,
         terminateAtRideHailFleetStoredElectricityConvergence : BeamConfig.Beam.Sim.Termination.TerminateAtRideHailFleetStoredElectricityConvergence
@@ -3134,7 +3144,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Sim.Termination = {
           BeamConfig.Beam.Sim.Termination(
             criterionName                                        = if(c.hasPathOrNull("criterionName")) c.getString("criterionName") else "TerminateAtFixedIterationNumber",
@@ -3142,7 +3152,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Sim = {
         BeamConfig.Beam.Sim(
           metric      = BeamConfig.Beam.Sim.Metric(if(c.hasPathOrNull("metric")) c.getConfig("metric") else com.typesafe.config.ConfigFactory.parseString("metric{}")),
@@ -3150,7 +3160,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Spatial(
       boundingBoxBuffer : scala.Int,
       localCRS          : java.lang.String
@@ -3163,7 +3173,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Urbansim(
       backgroundODSkimsCreator : BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator,
       fractionOfModesToClear   : BeamConfig.Beam.Urbansim.FractionOfModesToClear
@@ -3193,7 +3203,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         case class ModesToBuild(
           drive   : scala.Boolean,
           transit : scala.Boolean,
@@ -3208,7 +3218,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator = {
           BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator(
             calculationTimeoutHours   = if(c.hasPathOrNull("calculationTimeoutHours")) c.getInt("calculationTimeoutHours") else 6,
@@ -3223,7 +3233,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class FractionOfModesToClear(
         allModes      : scala.Double,
         bike          : scala.Double,
@@ -3244,7 +3254,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Urbansim = {
         BeamConfig.Beam.Urbansim(
           backgroundODSkimsCreator = BeamConfig.Beam.Urbansim.BackgroundODSkimsCreator(if(c.hasPathOrNull("backgroundODSkimsCreator")) c.getConfig("backgroundODSkimsCreator") else com.typesafe.config.ConfigFactory.parseString("backgroundODSkimsCreator{}")),
@@ -3252,7 +3262,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class WarmStart(
       initialLinkstatsFilePath    : java.lang.String,
       path                        : java.lang.String,
@@ -3274,7 +3284,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Beam.WarmStart = {
         BeamConfig.Beam.WarmStart(
           initialLinkstatsFilePath    = if(c.hasPathOrNull("initialLinkstatsFilePath")) c.getString("initialLinkstatsFilePath") else "",
@@ -3290,7 +3300,7 @@ object BeamConfig {
         cl.asScala.map(cv => BeamConfig.Beam.WarmStart.SkimsFilePaths$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)).toList
       }
     }
-          
+
     def apply(c: com.typesafe.config.Config): BeamConfig.Beam = {
       BeamConfig.Beam(
         actorSystemName = if(c.hasPathOrNull("actorSystemName")) c.getString("actorSystemName") else "ClusterSystem",
@@ -3318,7 +3328,7 @@ object BeamConfig {
       )
     }
   }
-        
+
   case class Matsim(
     conversion : BeamConfig.Matsim.Conversion,
     modules    : BeamConfig.Matsim.Modules
@@ -3349,7 +3359,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class ShapeConfig(
         shapeFile      : java.lang.String,
         tazIdFieldName : java.lang.String
@@ -3362,7 +3372,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Conversion = {
         BeamConfig.Matsim.Conversion(
           defaultHouseholdIncome = BeamConfig.Matsim.Conversion.DefaultHouseholdIncome(if(c.hasPathOrNull("defaultHouseholdIncome")) c.getConfig("defaultHouseholdIncome") else com.typesafe.config.ConfigFactory.parseString("defaultHouseholdIncome{}")),
@@ -3376,7 +3386,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     case class Modules(
       changeMode            : BeamConfig.Matsim.Modules.ChangeMode,
       controler             : BeamConfig.Matsim.Modules.Controler,
@@ -3404,7 +3414,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Controler(
         eventsFileFormat : java.lang.String,
         firstIteration   : scala.Int,
@@ -3425,7 +3435,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Counts(
         averageCountsOverIterations : scala.Int,
         countsScaleFactor           : scala.Double,
@@ -3444,7 +3454,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Global(
         coordinateSystem : java.lang.String,
         randomSeed       : scala.Int
@@ -3457,7 +3467,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Households(
         inputFile                    : java.lang.String,
         inputHouseholdAttributesFile : java.lang.String
@@ -3470,7 +3480,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class LinkStats(
         averageLinkStatsOverIterations : scala.Int,
         writeLinkStatsInterval         : scala.Int
@@ -3483,7 +3493,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Network(
         inputNetworkFile : java.lang.String
       )
@@ -3494,7 +3504,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class ParallelEventHandling(
         estimatedNumberOfEvents : scala.Int,
         numberOfThreads         : scala.Int,
@@ -3511,7 +3521,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class PlanCalcScore(
         BrainExpBeta          : scala.Long,
         earlyDeparture        : scala.Long,
@@ -3544,7 +3554,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules.PlanCalcScore = {
           BeamConfig.Matsim.Modules.PlanCalcScore(
             BrainExpBeta          = if(c.hasPathOrNull("BrainExpBeta")) c.getDuration("BrainExpBeta", java.util.concurrent.TimeUnit.MILLISECONDS) else 2,
@@ -3563,7 +3573,7 @@ object BeamConfig {
           cl.asScala.map(cv => BeamConfig.Matsim.Modules.PlanCalcScore.Parameterset$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)).toList
         }
       }
-            
+
       case class Plans(
         inputPersonAttributesFile : java.lang.String,
         inputPlansFile            : java.lang.String
@@ -3576,7 +3586,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Qsim(
         endTime        : java.lang.String,
         snapshotperiod : java.lang.String,
@@ -3591,7 +3601,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Strategy(
         ModuleProbability_1                     : scala.Int,
         ModuleProbability_2                     : scala.Int,
@@ -3623,7 +3633,7 @@ object BeamConfig {
             )
           }
         }
-              
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules.Strategy = {
           BeamConfig.Matsim.Modules.Strategy(
             ModuleProbability_1                     = if(c.hasPathOrNull("ModuleProbability_1")) c.getInt("ModuleProbability_1") else 0,
@@ -3645,7 +3655,7 @@ object BeamConfig {
           cl.asScala.map(cv => BeamConfig.Matsim.Modules.Strategy.Parameterset$Elm(cv.asInstanceOf[com.typesafe.config.ConfigObject].toConfig)).toList
         }
       }
-            
+
       case class Transit(
         transitModes : java.lang.String,
         useTransit   : scala.Boolean,
@@ -3660,7 +3670,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       case class Vehicles(
         vehiclesFile : java.lang.String
       )
@@ -3671,7 +3681,7 @@ object BeamConfig {
           )
         }
       }
-            
+
       def apply(c: com.typesafe.config.Config): BeamConfig.Matsim.Modules = {
         BeamConfig.Matsim.Modules(
           changeMode            = BeamConfig.Matsim.Modules.ChangeMode(if(c.hasPathOrNull("changeMode")) c.getConfig("changeMode") else com.typesafe.config.ConfigFactory.parseString("changeMode{}")),
@@ -3691,7 +3701,7 @@ object BeamConfig {
         )
       }
     }
-          
+
     def apply(c: com.typesafe.config.Config): BeamConfig.Matsim = {
       BeamConfig.Matsim(
         conversion = BeamConfig.Matsim.Conversion(if(c.hasPathOrNull("conversion")) c.getConfig("conversion") else com.typesafe.config.ConfigFactory.parseString("conversion{}")),
@@ -3699,7 +3709,7 @@ object BeamConfig {
       )
     }
   }
-        
+
   def apply(c: com.typesafe.config.Config): BeamConfig = {
     BeamConfig(
       beam   = BeamConfig.Beam(if(c.hasPathOrNull("beam")) c.getConfig("beam") else com.typesafe.config.ConfigFactory.parseString("beam{}")),
@@ -3730,4 +3740,4 @@ object BeamConfig {
   private def $_str(cv:com.typesafe.config.ConfigValue) =
     java.lang.String.valueOf(cv.unwrapped())
 }
-      
+

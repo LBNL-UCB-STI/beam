@@ -9,7 +9,7 @@ import beam.sim.{BeamHelper, BeamScenario, BeamServices, CircularGeofence}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.AbstractModule

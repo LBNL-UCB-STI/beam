@@ -1,12 +1,12 @@
 package scripts.traveltime
 
-import java.util
-
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 import org.matsim.core.network.NetworkUtils
-import org.matsim.core.network.io.NetworkReaderMatsimV2
+import org.matsim.core.network.io.MatsimNetworkReader
+
+import java.util
 
 object NetworkFeaturesExtractor {
 
@@ -29,7 +29,7 @@ object NetworkFeaturesExtractor {
 
   def initializeNetworkLinks(networkXml: String): util.Map[Id[Link], _ <: Link] = {
     val network = NetworkUtils.createNetwork
-    val reader = new NetworkReaderMatsimV2(network)
+    val reader = new MatsimNetworkReader(network)
     reader.readFile(networkXml)
     network.getLinks
   }

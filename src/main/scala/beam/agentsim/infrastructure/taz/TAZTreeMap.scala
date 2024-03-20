@@ -5,7 +5,7 @@ import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import beam.utils.SortingUtil
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.{HasQuadBounds, QuadTreeBounds}
-import com.vividsolutions.jts.geom.Geometry
+import org.locationtech.jts.geom.Geometry
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.{Link, Network}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -53,10 +53,11 @@ class TAZTreeMap(
   private val failedLinkLookups: mutable.ListBuffer[Id[Link]] = mutable.ListBuffer.empty[Id[Link]]
   private val zoneOrdering = maybeZoneOrdering.getOrElse(tazQuadTree.values().asScala.map(_.tazId))
 
-  val orderedTazIds: Seq[String] = {
+  private lazy val sortedTazIds: Seq[String] = {
     val tazIds = tazQuadTree.values().asScala.map(_.tazId.toString).toSeq
     SortingUtil.sortAsIntegers(tazIds).getOrElse(tazIds.sorted)
   }
+  val orderedTazIds: Seq[String] = maybeZoneOrdering.map(order => order.map(_.toString)).getOrElse(sortedTazIds)
 
   def getTAZfromLink(linkId: Id[Link]): Option[TAZ] = {
     linkIdToTAZMapping.get(linkId) match {
@@ -135,7 +136,7 @@ class TAZTreeMap(
           writer.write(count.toString)
           writer.write(System.lineSeparator())
         } catch {
-          case e: Throwable => logger.warn(s"Error: ${e.getMessage}. Could not write link $linkId")
+          case e: Throwable => logger.error(s"${e.getMessage}. Could not write link $linkId")
         }
 
       }

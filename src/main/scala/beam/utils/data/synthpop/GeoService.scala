@@ -11,8 +11,8 @@ import com.conveyal.osmlib.OSM
 import com.conveyal.r5.point_to_point.builder.TNBuilderConfig
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory
-import com.vividsolutions.jts.geom.{Envelope, Geometry}
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory
+import org.locationtech.jts.geom.{Envelope, Geometry}
 import org.geotools.geometry.jts.JTS
 import org.matsim.api.core.v01.Coord
 import org.opengis.feature.simple.SimpleFeature

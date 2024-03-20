@@ -1,12 +1,11 @@
 package beam.physsim.jdeqsim
 
-import java.util
-
 import beam.utils.csv.CsvWriter
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.Link
+import org.matsim.core.config.groups.ControlerConfigGroup.CompressionType
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.controler.events.{IterationEndsEvent, IterationStartsEvent}
@@ -14,8 +13,9 @@ import org.matsim.core.controler.listener.{IterationEndsListener, IterationStart
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.events.{EventsUtils, MatsimEventsReader}
 import org.matsim.core.network.NetworkUtils
-import org.matsim.core.network.io.NetworkReaderMatsimV2
+import org.matsim.core.network.io.MatsimNetworkReader
 
+import java.util
 import scala.collection.mutable
 import scala.util.Try
 
@@ -71,7 +71,7 @@ object EventToHourFrequency extends StrictLogging {
     val eventsManager = EventsUtils.createEventsManager()
 
     val eventHandler = new EventToHourFrequency(
-      new OutputDirectoryHierarchy("", "", OverwriteFileSetting.failIfDirectoryExists, false)
+      new OutputDirectoryHierarchy("", "", OverwriteFileSetting.failIfDirectoryExists, false, CompressionType.none)
     )
     eventsManager.addHandler(eventHandler)
     new MatsimEventsReader(eventsManager).readFile(pathToEventXml)
@@ -81,7 +81,7 @@ object EventToHourFrequency extends StrictLogging {
 
   def initializeNetworkLinks(networkXml: String): util.Map[Id[Link], _ <: Link] = {
     val network = NetworkUtils.createNetwork
-    val reader = new NetworkReaderMatsimV2(network)
+    val reader = new MatsimNetworkReader(network)
     reader.readFile(networkXml)
     network.getLinks
   }

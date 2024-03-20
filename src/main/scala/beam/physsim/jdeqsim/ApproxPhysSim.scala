@@ -175,7 +175,6 @@ class ApproxPhysSim(
       val rerouter = new ReRouter(workerParams, beamServices)
       val before = rerouter.printRouteStats(s"Before rerouting at $currentIter iter", finalPopulation)
       //        logger.info("AverageCarTravelTime before replanning")
-      //        PhysSim.printAverageCarTravelTime(getCarPeople(population))
 
       val reroutedTravelTimeStats = rerouter.reroutePeople(simulationResult.travelTime, nextSetOfPeople.toVector)
       reroutedTravelTimeWriter.writeRow(
@@ -192,7 +191,6 @@ class ApproxPhysSim(
       )
       reroutedTravelTimeWriter.flush()
       //        logger.info("AverageCarTravelTime after replanning")
-      //        PhysSim.printAverageCarTravelTime(getCarPeople(population))
       val after = rerouter.printRouteStats(s"After rerouting at $currentIter iter", finalPopulation)
       val absTotalLenDiff = Math.abs(before.totalRouteLen - after.totalRouteLen)
       val absAvgLenDiff = Math.abs(before.totalRouteLen / before.nRoutes - after.totalRouteLen / after.nRoutes)
@@ -238,7 +236,6 @@ class ApproxPhysSim(
       .toList
       .sortBy { case (k, _) => k }
     logger.info(s"Diff in eventTypeToNumberOfMessages map: \n${diffMap.mkString("\n")}")
-    //    PhysSim.printAverageCarTravelTime(getCarPeople)
     logger.info(s"Car travel time stats at iteration ${prevResult.iteration}: ${prevResult.carTravelTimeStats}")
     logger.info(s"Car travel time stats at iteration ${currentResult.iteration}: ${currentResult.carTravelTimeStats}")
   }

@@ -6,6 +6,7 @@ import ScenarioCsvWriter._
 import org.matsim.api.core.v01.Scenario
 import org.matsim.api.core.v01.population.{Activity, Leg, Plan, PlanElement => MatsimPlanElement}
 import org.matsim.core.population.routes.NetworkRoute
+import beam.utils.OptionalUtils.OptionalTimeExtension
 
 object PlansCsvWriter extends ScenarioCsvWriter {
 
@@ -75,11 +76,9 @@ object PlansCsvWriter extends ScenarioCsvWriter {
 
         val route = Option(leg.getRoute)
         PlanElement(
-          tripId = if (leg.getAttributes.getAttribute("trip_id") != null) {
-            leg.getAttributes.getAttribute("trip_id").toString.filter(x => x.isDigit || x.equals('.'))
-          } else {
-            ""
-          },
+          tripId = Option(leg.getAttributes.getAttribute("trip_id"))
+            .map(_.toString.filter(x => x.isDigit || x.equals('.')))
+            .getOrElse(""),
           personId = PersonId(personId),
           planIndex = planIndex,
           planScore = planScore,
@@ -91,12 +90,12 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           activityLocationY = None,
           activityEndTime = None,
           legMode = mode,
-          legDepartureTime = Some(leg.getDepartureTime.toString),
-          legTravelTime = Some(leg.getTravelTime.toString),
+          legDepartureTime = leg.getDepartureTime.toOption.map(_.toString),
+          legTravelTime = leg.getTravelTime.toOption.map(_.toString),
           legRouteType = route.map(_.getRouteType),
           legRouteStartLink = route.map(_.getStartLinkId.toString),
           legRouteEndLink = route.map(_.getEndLinkId.toString),
-          legRouteTravelTime = route.map(_.getTravelTime),
+          legRouteTravelTime = route.map(_.getTravelTime.orElse(beam.UNDEFINED_TIME)),
           legRouteDistance = route.map(_.getDistance),
           legRouteLinks = routeLinks,
           geoId = None
@@ -113,7 +112,7 @@ object PlansCsvWriter extends ScenarioCsvWriter {
           activityType = Option(act.getType),
           activityLocationX = Option(act.getCoord.getX),
           activityLocationY = Option(act.getCoord.getY),
-          activityEndTime = Option(act.getEndTime),
+          activityEndTime = act.getEndTime.toOption,
           legMode = None,
           legDepartureTime = None,
           legTravelTime = None,

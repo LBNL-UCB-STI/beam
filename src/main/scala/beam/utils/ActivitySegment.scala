@@ -10,13 +10,13 @@ import scala.collection.mutable
 class ActivitySegment(private val activities: Array[Activity], val binSize: Int) extends LazyLogging {
   import ActivitySegment._
 
-  val sorted: Array[Activity] = activities.sortBy(x => x.getEndTime)
+  val sorted: Array[Activity] = activities.sortBy(x => x.getEndTime.orElse(beam.UNDEFINED_TIME))
 
-  def minTime: Int = sorted.head.getEndTime.toInt
-  def maxTime: Int = sorted.last.getEndTime.toInt
+  def minTime: Int = sorted.head.getEndTime.orElse(beam.UNDEFINED_TIME).toInt
+  def maxTime: Int = sorted.last.getEndTime.orElse(beam.UNDEFINED_TIME).toInt
 
   private val emptyArr: Array[Activity] = Array.empty
-  private val maxIdx: Int = sorted.last.getEndTime.toInt / binSize
+  private val maxIdx: Int = sorted.last.getEndTime.orElse(beam.UNDEFINED_TIME).toInt / binSize
   private val arr: Array[Array[Activity]] = build(sorted, binSize)
 
   def getActivities(time: Double): IndexedSeq[Activity] = {
@@ -47,19 +47,20 @@ object ActivitySegment {
   def apply(scenario: Scenario, binSize: Int): ActivitySegment = {
     val activities = scenario.getPopulation.getPersons.values.asScala.flatMap { person =>
       person.getSelectedPlan.getPlanElements.asScala.collect {
-        case act: Activity if !act.getEndTime.isNegInfinity => act
+        case act: Activity if act.getEndTime.isDefined => act
       }
     }.toArray
     new ActivitySegment(activities, binSize)
   }
 
   def build(activities: Array[Activity], binSize: Int): Array[Array[Activity]] = {
-    val maxTime = activities.maxBy(x => x.getEndTime).getEndTime
+    val maxTime =
+      activities.maxBy(_.getEndTime.orElse(beam.UNDEFINED_TIME)).getEndTime.orElse(beam.UNDEFINED_TIME)
     val maxIdx: Int = maxTime.toInt / binSize
     val arr: Array[Array[Activity]] = Array.ofDim(maxIdx + 1)
     val binToActivities: Map[Int, Array[Activity]] = activities
       .map { act =>
-        val binIdx = (act.getEndTime / binSize).toInt
+        val binIdx = (act.getEndTime.orElse(beam.UNDEFINED_TIME) / binSize).toInt
         binIdx -> act
       }
       .groupBy { case (binIdx, _) => binIdx }

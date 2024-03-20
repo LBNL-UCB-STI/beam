@@ -3,8 +3,8 @@ package scripts.synthpop
 import beam.sim.common.{GeoUtils, SimpleGeoUtils}
 import beam.utils.csv.CsvWriter
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.Geometry
-import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory
+import org.locationtech.jts.geom.Geometry
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory
 import org.geotools.geometry.jts.JTS
 import org.matsim.api.core.v01.Coord
 import org.opengis.feature.simple.SimpleFeature

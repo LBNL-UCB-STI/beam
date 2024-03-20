@@ -3,9 +3,10 @@ package beam.agentsim.agents.memberships
 import beam.agentsim.agents.memberships.Memberships.RankedGroup.MemberWithRank
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Identifiable}
+import org.matsim.core.population.PopulationUtils
 import org.matsim.households.Household
-import scala.language.implicitConversions
 
+import scala.language.implicitConversions
 import scala.collection.JavaConverters
 
 object Memberships {
@@ -15,7 +16,7 @@ object Memberships {
     val members: Seq[T]
     val rankedMembers: Vector[MemberWithRank[T]]
 
-    def lookupMemberRank(id: Id[T]): Option[Int]
+    def lookupMemberRank(id: T): Option[Int]
 
     def sortByRank(r2: MemberWithRank[T], r1: MemberWithRank[T]): Boolean = {
       r1.rank.isEmpty || (r2.rank.isDefined && r1.rank.get > r2.rank.get)
@@ -31,8 +32,8 @@ object Memberships {
       population: org.matsim.api.core.v01.population.Population
     ): RankedGroup[Person, Household] = new RankedGroup[Person, Household] {
 
-      override def lookupMemberRank(member: Id[Person]): Option[Int] = {
-        population.getPersonAttributes.getAttribute(member.toString, "rank") match {
+      override def lookupMemberRank(member: Person): Option[Int] = {
+        PopulationUtils.getPersonAttribute(member, "rank") match {
           case rank: Integer =>
             Some(rank)
           case _ =>
@@ -47,7 +48,7 @@ object Memberships {
         * Members sorted by rank.
         */
       override val rankedMembers: Vector[MemberWithRank[Person]] = members.toVector
-        .map(mbr => MemberWithRank(mbr.getId, lookupMemberRank(mbr.getId)))
+        .map(mbr => MemberWithRank(mbr.getId, lookupMemberRank(mbr)))
         .sortWith(sortByRank)
 
     }
