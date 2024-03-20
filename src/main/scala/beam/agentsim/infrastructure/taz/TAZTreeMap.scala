@@ -106,7 +106,7 @@ class TAZTreeMap(
     stringIdToTAZMapping.get(tazId) match {
       case Some(taz) =>
         maybeZoneMapping.flatMap(_.get(taz.tazId.toString)).orElse {
-          logger.error(s"TAZ $tazId is not mapped to a Geo Id, check beam.exchange.output.geo.tazId2GeoIdMapFilePath")
+          logger.error(s"TAZ $tazId is not mapped to a Geo Id, check beam.exchange.output.geo.geoId2TazIdMapFilePath")
           None
         }
       case _ =>
@@ -341,7 +341,7 @@ object TAZTreeMap {
     } else {
       logger.warn(
         s"Failed to load exchange geo map and maybe be due to missing values: filePath ($filePath), " +
-        s"geoIdFieldName ($geoIdFieldName), tazId2GeoIdMapFilePath ($geoId2TazIdMapFilePath))"
+        s"geoIdFieldName ($geoIdFieldName), geoId2TazIdMapFilePath ($geoId2TazIdMapFilePath))"
       )
       None
     }

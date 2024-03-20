@@ -2885,8 +2885,8 @@ object BeamConfig {
         case class Geo(
           beamModeFilter: scala.List[java.lang.String],
           filePath: java.lang.String,
-          geoIdFieldName: java.lang.String,
-          tazId2GeoIdMapFilePath: java.lang.String
+          geoId2TazIdMapFilePath: java.lang.String,
+          geoIdFieldName: java.lang.String
         )
 
         object Geo {
@@ -2895,8 +2895,8 @@ object BeamConfig {
             BeamConfig.Beam.Exchange.Output.Geo(
               beamModeFilter = $_L$_str(c.getList("beamModeFilter")),
               filePath = c.getString("filePath"),
-              geoIdFieldName = c.getString("geoIdFieldName"),
-              tazId2GeoIdMapFilePath = c.getString("tazId2GeoIdMapFilePath")
+              geoId2TazIdMapFilePath = c.getString("geoId2TazIdMapFilePath"),
+              geoIdFieldName = c.getString("geoIdFieldName")
             )
           }
         }
