@@ -262,19 +262,7 @@ class BeamScoringFunctionFactory @Inject() (
                 leg.isPooledTrip
               )
 
-              if (beamServices.networkHelper.getLink(linkId).isEmpty) {
-                beamServices.networkHelper.getLinkUnsafe(linkId)
-                val res1 = beamServices.beamScenario.network.getLinks.containsKey(linkId)
-                val res2 = beamServices.beamScenario.network.getLinks.size()
-                val (res3, res4) = beamServices.beamScenario.networks2 match {
-                  case Some((_, y)) => (y.getLinks.containsKey(linkId), y.getLinks.size())
-                  case _            => (-1, -1)
-                }
-                logger.error(s"res1 $res1 res2 $res2 res3 $res3 res4 $res4")
-              }
-
               val linkCost = tripCost / tripDistance * beamServices.networkHelper.getLink(linkId).get.getLength
-
               val generalizedLinkCost = attributes.getVOT(generalizedLinkTime) + linkCost
 
               val newTravelTimesCount = observedTravelTimesCount + 1
