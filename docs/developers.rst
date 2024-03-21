@@ -103,6 +103,35 @@ Sometimes it is possible to face a timeout issue when trying to push huge files.
 
 #. Just push the files as usual
 
+Running on IntelliJ
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The default JDK/SDK (Java Development Kit/Software Development Kit) used by IntelliJ may not work for BEAM.
+If that occurs, you can configure IntelliJ to utilize the one used in your terminal (or other development tooling):
+
+1. Go to `File > Project Structure...`
+2. Select on `Project` under `Project Settings` in the side menu of the window that opened
+3. Open the dropdown under `Project SDK`
+4. If your expected SDK is there then select that one and hit `OK` and you are done. Otherwise,
+5. If your SDK is not found, then choose `Add SDK > JDK...`
+6. Browse to your JDKs home path (ie. ~/.jabba/jdk/adopt@1.11.28-0/Contents/Home)
+   a. If you do not know your JDK home path then you can try executing the following in your terminal:
+      * `which java` (this may be a symbolic link and not be the actual location)
+      * `/usr/libexec/java_home` (or equivalent location of `java_home` for your OS)
+      * `jabba which [VERSION]` if using jabba, but add `/Contents/Home` to the output
+      * `sdk home java [VERSION]`
+7. Once you have the HOME directory from the last step selected click the `Open` button
+8. Make sure your added JDK is the selected SDK in `Project SDK` and hit OK.
+
+Developing with Multiple Java Versions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As BEAM now has a branch to support Java 8 along with the default of Java 11 you may find it necessary to
+switch Java versions readily. In that case, you can easily do this with tooling such as
+`jabba <https://github.com/shyiko/jabba>`_ or `SDKMAN <https://sdkman.io/>`_. Each allows you to download different
+versions of the JDK and install them to your terminal session via commands such as
+`jabba install [VERSION]` then `jabba use [VERSION]`.
+
 Production Data And Git Submodules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -274,8 +303,10 @@ There are `some ways to provide credentials <https://cloud.google.com/docs/authe
 
  gcloud auth application-default login
 
+Restart gradle daemon after you revoke/login to GCP.
+
 Now all the instance are created in `us-central1-a` zone.
-Now the deployment script doesn't calculate it automatically.
+
 One needs to define the deploy properties that are similar to the ones for AWS deploy. These are the properties that is used on GCE:
 
 * **propsFile**: to specify file with default values
@@ -287,7 +318,7 @@ One needs to define the deploy properties that are similar to the ones for AWS d
 * **dataCommit**: The commit SHA for the the data branch, default is `HEAD`
 * **beamConfigs**: The `beam.conf` file. It should be relative path under the project home. A single file is supported right now.
 * **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 15 min.
-* **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
+* **shutdownBehaviour**: to specify shutdown behaviour after end of simulation. May be `stop` or `terminate`, default is `terminate`.
 * **instanceType**: To specify GCE instance type.
 * **forcedMaxRAM**: This parameter can be set according to the **instanceType** memory size.
 * **storageSize**: to specify storage size (Gb) of instance. May be from `100` to `256`. Default value is `100`.
@@ -590,7 +621,7 @@ Now at the bottom, under NetworkSettings, locate IP Address of your docker conta
 
 
 .. _already configured: http://logback.qos.ch/manual/jmxConfig.html
-.. _jconsole: https://docs.oracle.com/javase/8/docs/technotes/guides/management/jconsole.html
+.. _jconsole: https://docs.oracle.com/en/java/javase/11/tools/jconsole.html
 .. _Kamon: http://kamon.io
 .. _StatsD: http://kamon.io/documentation/0.6.x/kamon-statsd/overview/
 .. _Graphite: http://graphite.wikidot.com/

@@ -525,11 +525,11 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             transportNetwork.streetLayer,
             streetRouter.quantityToMinimize,
             streetRouter.transitStopSearchQuantity,
-            profileRequest.getMinTimeLimit(streetRouter.streetMode),
+            profileRequest.getMinTimeSeconds(streetRouter.streetMode),
             destinationSplit
           )
           streetRouter.setRoutingVisitor(stopVisitor)
-          streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(legMode)
+          streetRouter.timeLimitSeconds = profileRequest.getMaxTimeSeconds(legMode)
           streetRouter.route()
           accessRouters.put(legMode, streetRouter)
           accessStopsByMode.put(legMode, stopVisitor)
@@ -630,7 +630,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         val legMode = vehicle.mode.r5Mode.flatMap(_.left.toOption).getOrElse(LegMode.valueOf(""))
         streetRouter.streetMode = toR5StreetMode(vehicle.mode)
         streetRouter.profileRequest = profileRequest
-        streetRouter.timeLimitSeconds = profileRequest.getTimeLimit(legMode)
+        streetRouter.timeLimitSeconds = profileRequest.getMaxTimeSeconds(legMode)
         val destinationSplit = transportNetwork.streetLayer.findSplit(
           profileRequest.fromLat,
           profileRequest.fromLon,
@@ -641,7 +641,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           transportNetwork.streetLayer,
           streetRouter.quantityToMinimize,
           streetRouter.transitStopSearchQuantity,
-          profileRequest.getMinTimeLimit(streetRouter.streetMode),
+          profileRequest.getMinTimeSeconds(streetRouter.streetMode),
           destinationSplit
         )
         streetRouter.setRoutingVisitor(stopVisitor)
@@ -1023,7 +1023,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         beamLeg.travelPath.distanceInM,
         beamLeg.duration,
         vehicleType,
-        fuelTypePrices(vehicleType.primaryFuelType)
+        fuelTypePrices.getOrElse(vehicleType.primaryFuelType, 0.0)
       )
     } else 0.0
     EmbodiedBeamLeg(

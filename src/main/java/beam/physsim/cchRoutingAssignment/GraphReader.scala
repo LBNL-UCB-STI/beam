@@ -5,7 +5,7 @@ import java.nio.{ByteBuffer, ByteOrder}
 
 import beam.utils.CloseableUtil._
 import com.google.common.io.Files
-import com.vividsolutions.jts.geom.Coordinate
+import org.locationtech.jts.geom.Coordinate
 
 import scala.collection.mutable
 

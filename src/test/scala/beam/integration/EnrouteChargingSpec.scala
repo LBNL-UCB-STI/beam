@@ -18,6 +18,7 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.controler.{AbstractModule, ControlerI}
 import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.vehicles.Vehicle
 import org.scalatest.matchers.should.Matchers
@@ -100,7 +101,7 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
             case _        =>
           }
         }
-        population.getPersonAttributes.putAttribute(personId.toString, EXCLUDED_MODES, noCarModes)
+        PopulationUtils.putPersonAttribute(person, EXCLUDED_MODES, noCarModes)
       }
       transportNetwork.transitLayer.tripPatterns.clear()
       DefaultPopulationAdjustment(services).update(scenario)

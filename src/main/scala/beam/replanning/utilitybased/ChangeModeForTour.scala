@@ -16,10 +16,10 @@ import org.apache.commons.math3.random.MersenneTwister
 import org.apache.commons.math3.util.Pair
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population._
-import org.matsim.core.population.PersonUtils
+import org.matsim.core.population.{PersonUtils, PopulationUtils}
 import org.matsim.core.population.algorithms.PlanAlgorithm
-import org.matsim.core.router.TripStructureUtils.Subtour
-import org.matsim.core.router.{CompositeStageActivityTypes, TripRouter, TripStructureUtils}
+import org.matsim.core.router.TripStructureUtils.{StageActivityHandling, Subtour}
+import org.matsim.core.router.{TripRouter, TripStructureUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.{mutable, JavaConverters}
@@ -52,8 +52,6 @@ class ChangeModeForTour(
 
   val DefaultRideHailCostPerMile: Double = MathUtils.avg(rideHailConfig.managers.map(_.defaultCostPerMile))
   val DefaultRideHailCostPerMinute: Double = MathUtils.avg(rideHailConfig.managers.map(_.defaultCostPerMinute))
-
-  val stageActivityTypes = new CompositeStageActivityTypes()
 
   def findAlternativesForTour(person: Person): Vector[BeamMode] = {
     val res = weightedRandom.sample(1, Array())
@@ -142,7 +140,7 @@ class ChangeModeForTour(
     val modeChoiceCalculator =
       beamServices.modeChoiceCalculatorFactory(attributesOfIndividual)
     val subTours = JavaConverters.collectionAsScalaIterable(
-      TripStructureUtils.getSubtours(plan, stageActivityTypes)
+      TripStructureUtils.getSubtours(plan.getPlanElements)
     )
     subTours.zipWithIndex
       .map({ case (tour, idx) =>
@@ -202,7 +200,7 @@ class ChangeModeForTour(
 
   def addTripsBetweenActivities(plan: Plan): Unit = {
     val activities = JavaConverters
-      .collectionAsScalaIterable(TripStructureUtils.getActivities(plan, stageActivityTypes))
+      .collectionAsScalaIterable(TripStructureUtils.getActivities(plan, StageActivityHandling.StagesAsNormalActivities))
       .toIndexedSeq
     activities
       .sliding(2)
@@ -231,8 +229,7 @@ class ChangeModeForTour(
         .map(_.asInstanceOf[String])
 
     val valueOfTime: Double =
-      beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
-        .getAttribute(person.getId.toString, "valueOfTime") match {
+      PopulationUtils.getPersonAttribute(person, "valueOfTime") match {
         case null =>
           beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.defaultValueOfTime
         case specifiedVot =>
@@ -248,8 +245,8 @@ class ChangeModeForTour(
       .rideHailServiceSubscription
 
     val income = Option(
-      beamServices.matsimServices.getScenario.getPopulation.getPersonAttributes
-        .getAttribute(person.getId.toString, "income")
+      PopulationUtils
+        .getPersonAttribute(person, "income")
         .asInstanceOf[Int]
     )
 
@@ -272,7 +269,7 @@ class ChangeModeForTour(
     val rankedAlternatives = rankAlternatives(plan, attributesOfIndividual)
 
     val tours: Seq[Subtour] = JavaConverters
-      .collectionAsScalaIterable(TripStructureUtils.getSubtours(plan, stageActivityTypes))
+      .collectionAsScalaIterable(TripStructureUtils.getSubtours(plan.getPlanElements))
       .toIndexedSeq
 
     rankedAlternatives.foreach({ case (tourIdx, alts) =>

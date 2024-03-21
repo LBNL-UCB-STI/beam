@@ -1,7 +1,6 @@
 package beam.sflight
 
 import scala.io.Source
-
 import beam.analysis.plots.PersonTravelTimeAnalysis
 import beam.router.Modes.BeamMode
 import beam.sim.BeamHelper
@@ -12,6 +11,7 @@ import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.google.inject
 import com.typesafe.config.ConfigFactory
+import org.matsim.core.config.groups.ControlerConfigGroup.CompressionType
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.BeforeAndAfterAll
@@ -74,7 +74,11 @@ class CaccSpec extends AnyWordSpecLike with Matchers with BeamHelper with Before
     iterationNumber: Int
   ): String = {
     val outputDirectoryHierarchy =
-      new OutputDirectoryHierarchy(outputDir, OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles)
+      new OutputDirectoryHierarchy(
+        outputDir,
+        OutputDirectoryHierarchy.OverwriteFileSetting.overwriteExistingFiles,
+        CompressionType.none
+      )
 
     outputDirectoryHierarchy.getIterationFilename(iterationNumber, PersonTravelTimeAnalysis.fileBaseName + ".csv")
   }

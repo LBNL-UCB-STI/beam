@@ -204,7 +204,7 @@ object GtfsUtils {
     scale: Double,
     timeFrame: TimeFrame = TimeFrame.WholeDay
   ): GtfsTransformStrategy = {
-    val strategy = new EntitiesTransformStrategy
+    val strategy = new ParallelizedEntitiesTransformStrategy
 
     findTrips(tripsWithStopTimes, timeFrame)
       .foreach { trips =>

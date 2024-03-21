@@ -87,8 +87,10 @@ case object EnergyEconomyAttributes extends Enum[EnergyEconomyAttributes] {
     val AverageMilesPerGallon = 24.8
 
     def apply(engineInformation: EngineInformation): Powertrain = {
-      val jpm =
-        litersPerMeterToJoulesPerMeter(engineInformation.getFuelType.name(), engineInformation.getGasConsumption)
+      val fuelType = engineInformation.getAttributes.getAttribute("fuelType").toString
+      val fuelConsumption: Double =
+        engineInformation.getAttributes.getAttribute("fuelConsumptionLitersPerMeter").asInstanceOf[Double]
+      val jpm = litersPerMeterToJoulesPerMeter(fuelType, fuelConsumption)
       new Powertrain(jpm)
     }
 

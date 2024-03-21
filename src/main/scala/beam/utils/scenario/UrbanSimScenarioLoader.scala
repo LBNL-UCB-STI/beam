@@ -13,9 +13,11 @@ import beam.utils.plan.sampling.AvailableModeUtils
 import beam.utils.scenario.urbansim.HOVModeTransformer
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
-import org.matsim.api.core.v01.population.{Person, Plan, Population}
+import org.matsim.api.core.v01.network.Link
+import org.matsim.api.core.v01.population.{Leg, Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.population.PopulationUtils
+import org.matsim.core.population.routes.{NetworkRoute, RouteUtils}
 import org.matsim.core.scenario.MutableScenario
 import org.matsim.households._
 import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
@@ -46,14 +48,34 @@ class UrbanSimScenarioLoader(
 
   private val wereCoordinatesInWGS = beamScenario.beamConfig.beam.exchange.scenario.convertWgs2Utm
 
-  def utmCoord(x: Double, y: Double): Coord = {
+  def utmCoord(x: Double, y: Double, fromExistingPlans: Boolean = false): Coord = {
     val coord = new Coord(x, y)
-    if (wereCoordinatesInWGS) geo.wgs2Utm(coord) else coord
+    if (fromExistingPlans) coord else { if (wereCoordinatesInWGS) geo.wgs2Utm(coord) else coord }
   }
 
-  def wgsCoord(x: Double, y: Double): Coord = {
-    val coord = new Coord(x, y)
-    if (wereCoordinatesInWGS) coord else geo.utm2Wgs(coord)
+  private def buildAndAddLegToPlan(currentPlan: Plan, planElement: PlanElement): Leg = {
+    val leg = PopulationUtils.createAndAddLeg(currentPlan, planElement.legMode.getOrElse(""))
+    planElement.legDepartureTime.foreach(v => leg.setDepartureTime(v.toDouble))
+    planElement.legTravelTime.foreach(v => leg.setTravelTime(v.toDouble))
+    planElement.legMode.foreach(v => leg.setMode(v))
+    leg.getAttributes.putAttribute("trip_id", planElement.tripId)
+
+    val legRoute: NetworkRoute = {
+      val links = planElement.legRouteLinks.map(v => Id.create(v, classOf[Link])).asJava
+      if (links.isEmpty) {
+        null
+      } else {
+        RouteUtils.createNetworkRoute(links, beamScenario.network)
+      }
+    }
+    if (legRoute != null) {
+      leg.setRoute(legRoute)
+      planElement.legRouteDistance.foreach(legRoute.setDistance)
+      planElement.legRouteStartLink.foreach(v => legRoute.setStartLinkId(Id.create(v, classOf[Link])))
+      planElement.legRouteEndLink.foreach(v => legRoute.setEndLinkId(Id.create(v, classOf[Link])))
+      planElement.legRouteTravelTime.foreach(v => legRoute.setTravelTime(v))
+    }
+    leg
   }
 
   def loadScenario(): (Scenario, Boolean) = {
@@ -100,12 +122,12 @@ class UrbanSimScenarioLoader(
     val vehicles = Await.result(vehiclesF, timeOutSeconds.seconds)
     logger.info(s"Reading vehicles done.")
 
-    val (mergedPlans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlans)).getOrElse(inputPlans -> false)
-
-    val plans = {
+    val inputPlansCorrected = {
       HOVModeTransformer.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
-      HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(mergedPlans)
+      HOVModeTransformer.transformHOVtoHOVCARorHOVTeleportation(inputPlans)
     }
+
+    val (plans, plansMerged) = previousRunPlanMerger.map(_.merge(inputPlansCorrected)).getOrElse(inputPlans -> false)
 
     val householdIds = households.map(_.householdId.id).toSet
 
@@ -142,9 +164,8 @@ class UrbanSimScenarioLoader(
 
   private def clear(): Unit = {
     scenario.getPopulation.getPersons.clear()
-    scenario.getPopulation.getPersonAttributes.clear()
     scenario.getHouseholds.getHouseholds.clear()
-    scenario.getHouseholds.getHouseholdAttributes.clear()
+    scenario.getHouseholds.getHouseholds.values.asScala.map(_.getAttributes.clear())
 
     beamScenario.privateVehicles.clear()
     beamScenario.privateVehicleInitialSoc.clear()
@@ -164,7 +185,6 @@ class UrbanSimScenarioLoader(
     householdIdToVehicles: Map[HouseholdId, Iterable[VehicleInfo]],
     plans: Iterable[PlanElement]
   ): Unit = {
-    val scenarioHouseholdAttributes = scenario.getHouseholds.getHouseholdAttributes
     val scenarioHouseholds = scenario.getHouseholds.getHouseholds
 
     var vehicleCounter: Int = 0
@@ -197,7 +217,7 @@ class UrbanSimScenarioLoader(
     assignVehicles(households, householdIdToPersons, personId2Score).foreach { case (householdInfo, nVehicles) =>
       val id = Id.create(householdInfo.householdId.id, classOf[Household])
       val household = new HouseholdsFactoryImpl().createHousehold(id)
-      val coord = utmCoord(householdInfo.locationX, householdInfo.locationY)
+      val coord = utmCoord(householdInfo.locationX, householdInfo.locationY, fromExistingPlans = true)
 
       household.setIncome(new IncomeImpl(householdInfo.income, Income.IncomePeriod.year))
 
@@ -247,9 +267,8 @@ class UrbanSimScenarioLoader(
       }
       household.setVehicleIds(vehicleIds)
       scenarioHouseholds.put(household.getId, household)
-      scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordx", coord.getX)
-      scenarioHouseholdAttributes.putAttribute(household.getId.toString, "homecoordy", coord.getY)
-
+      HouseholdUtils.putHouseholdAttribute(household, "homecoordx", coord.getX)
+      HouseholdUtils.putHouseholdAttribute(household, "homecoordy", coord.getY)
     }
     logger.info(
       s"Created $totalCarCount vehicles, scaling initial value of $initialVehicleCounter by a factor of $scaleFactor"
@@ -276,7 +295,7 @@ class UrbanSimScenarioLoader(
   private def plansToTravelStats(planElements: Iterable[PlanElement]): PersonTravelStats = {
     val homeCoord = planElements.find(_.activityType.getOrElse("") == "Home") match {
       case Some(homeElement) =>
-        Some(utmCoord(homeElement.activityLocationX.get, homeElement.activityLocationY.get))
+        Some(utmCoord(homeElement.activityLocationX.get, homeElement.activityLocationY.get, fromExistingPlans = true))
       case None =>
         None
     }
@@ -288,10 +307,15 @@ class UrbanSimScenarioLoader(
           Some(
             PlanTripStats(
               firstElement.activityEndTime.getOrElse(0.0),
-              utmCoord(firstElement.activityLocationX.getOrElse(0.0), firstElement.activityLocationY.getOrElse(0.0)),
+              utmCoord(
+                firstElement.activityLocationX.getOrElse(0.0),
+                firstElement.activityLocationY.getOrElse(0.0),
+                fromExistingPlans = true
+              ),
               utmCoord(
                 secondElement.activityLocationX.getOrElse(0.0),
-                secondElement.activityLocationY.getOrElse(0.0)
+                secondElement.activityLocationY.getOrElse(0.0),
+                fromExistingPlans = true
               )
             )
           )
@@ -530,24 +554,22 @@ class UrbanSimScenarioLoader(
 
     persons.foreach { personInfo =>
       val person = population.getFactory.createPerson(Id.createPersonId(personInfo.personId.id))
-      val personId = person.getId.toString
-      val personAttrib = population.getPersonAttributes
       val hh = personHouseholds(person.getId)
       val sexChar = if (personInfo.isFemale) "F" else "M"
 
       // FIXME Search for "householdId" in the code does not show any place where it used
-      personAttrib.putAttribute(personId, "householdId", personInfo.householdId)
+      PopulationUtils.putPersonAttribute(person, "householdId", personInfo.householdId)
       // FIXME Search for "householdId" in the code does not show any place where it used
-      personAttrib.putAttribute(personId, "rank", personInfo.rank)
-      personAttrib.putAttribute(personId, "age", personInfo.age)
-      personAttrib.putAttribute(
-        personId,
+      PopulationUtils.putPersonAttribute(person, "rank", personInfo.rank)
+      PopulationUtils.putPersonAttribute(person, "age", personInfo.age)
+      PopulationUtils.putPersonAttribute(
+        person,
         RIDEHAIL_SERVICE_SUBSCRIPTION,
         personInfo.rideHailServiceSubscription.mkString(",")
       )
-      personAttrib.putAttribute(personId, "income", hh.getIncome.getIncome)
-      personAttrib.putAttribute(personId, "sex", sexChar)
-      personAttrib.putAttribute(personId, "wheelchairUser", personInfo.wheelchairUser)
+      PopulationUtils.putPersonAttribute(person, "income", hh.getIncome.getIncome)
+      PopulationUtils.putPersonAttribute(person, "sex", sexChar)
+      PopulationUtils.putPersonAttribute(person, "wheelchairUser", personInfo.wheelchairUser)
 
       person.getAttributes.putAttribute("sex", sexChar)
       person.getAttributes.putAttribute("age", personInfo.age)
@@ -563,7 +585,6 @@ class UrbanSimScenarioLoader(
         beamScenario,
         person,
         hh,
-        population,
         availableModes.split(",")
       )
       population.addPerson(person)
@@ -599,6 +620,7 @@ class UrbanSimScenarioLoader(
         val index = states.zipWithIndex.find(_._1 == lookingFor).map(_._2).getOrElse {
           // couldn't find in store, create new plan
           val newPlan = PopulationUtils.createPlan(person)
+          newPlan.setScore(planInfo.planScore)
           person.addPlan(newPlan)
           if (planInfo.planSelected) {
             person.setSelectedPlan(newPlan)
@@ -619,18 +641,8 @@ class UrbanSimScenarioLoader(
       if (person != null) {
         val plan = getPlan(person, planInfo)
         val planElement = planInfo.planElementType
-        val tripId = Option(planInfo.tripId).getOrElse("")
         if (planElement == PlanElement.Leg) {
-          planInfo.legMode match {
-            case Some(mode) =>
-              val leg = PopulationUtils.createLeg(mode)
-              leg.getAttributes.putAttribute("trip_id", tripId)
-              plan.addLeg(leg)
-            case None =>
-              val leg = PopulationUtils.createLeg("")
-              leg.getAttributes.putAttribute("trip_id", tripId)
-              plan.addLeg(leg)
-          }
+          buildAndAddLegToPlan(plan, planInfo)
         } else if (planElement == PlanElement.Activity) {
           assert(
             planInfo.activityLocationX.isDefined,
@@ -640,14 +652,13 @@ class UrbanSimScenarioLoader(
             planInfo.activityLocationY.isDefined,
             s"planElement is `activity`, but `y` is None! planInfo: $planInfo"
           )
-          val coord = utmCoord(planInfo.activityLocationX.get, planInfo.activityLocationY.get)
+          val coord = utmCoord(planInfo.activityLocationX.get, planInfo.activityLocationY.get, fromExistingPlans = true)
           val activityType = planInfo.activityType.getOrElse(
             throw new IllegalStateException(
               s"planElement is `activity`, but `activityType` is None. planInfo: $planInfo"
             )
           )
           val act = PopulationUtils.createAndAddActivityFromCoord(plan, activityType, coord)
-          plan.getPlanElements.asScala.last.getAttributes.putAttribute("trip_id", tripId)
           planInfo.activityEndTime.foreach { endTime =>
             act.setEndTime(endTime * 60 * 60)
           }

@@ -6,7 +6,7 @@ import java.util
 import scripts.shape.Attributes.EmptyAttributes
 import scripts.shape.ShapeWriter.OriginalToPersistedFeatureIdMap
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.{Geometry => JtsGeometry}
+import org.locationtech.jts.geom.{Geometry => JtsGeometry}
 import org.geotools.data.DataUtilities
 import org.geotools.data.shapefile.ShapefileDataStore
 import org.geotools.data.simple.SimpleFeatureStore

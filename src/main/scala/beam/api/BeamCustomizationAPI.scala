@@ -8,6 +8,8 @@ import beam.api.sim.termination.{DefaultTerminationCriterionFactory, Termination
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.api.experimental.events.EventsManager
 
+import scala.util.{Success, Try}
+
 /**
   * Beam customization API and its default implementation.
   */
@@ -63,7 +65,17 @@ class DefaultAPIImplementation extends BeamCustomizationAPI {
   override def getRidehailManagerCustomizationAPI: RidehailManagerCustomizationAPI =
     new DefaultRidehailManagerCustomization()
 
-  override def customEventsLogging(className: String): Option[Class[Event]] = None
+  override def customEventsLogging(className: String): Option[Class[Event]] = {
+    val searchPackages = Seq(
+      "beam.agentsim.events",
+      "beam.router.skim.event"
+    )
+    searchPackages.view
+      .map(pckg => Try(Class.forName(pckg + "." + className).asInstanceOf[Class[Event]]))
+      .collectFirst { case Success(clss) =>
+        clss
+      }
+  }
 
   override def getEventBuilders(eventsManager: EventsManager): List[ComplexEventBuilder] = List.empty
 
