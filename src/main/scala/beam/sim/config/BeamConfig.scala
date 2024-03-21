@@ -2528,9 +2528,9 @@ object BeamConfig {
               enable = c.hasPathOrNull("enable") && c.getBoolean("enable"),
               iterationInterval = if (c.hasPathOrNull("iterationInterval")) c.getInt("iterationInterval") else 5,
               minDistanceInMeters =
-                if (c.hasPathOrNull("minDistanceInMeters")) c.getDouble("minDistanceInMeters") else 5000,
+                if (c.hasPathOrNull("minDistanceInMeters")) c.getDouble("minDistanceInMeters") else 5000.0,
               numDataPointsOver24Hours =
-                if (c.hasPathOrNull("numDataPointsOver24Hours")) c.getInt("numDataPointsOver24Hours") else 100,
+                if (c.hasPathOrNull("numDataPointsOver24Hours")) c.getInt("numDataPointsOver24Hours") else 1000,
               offPeakEnabled = c.hasPathOrNull("offPeakEnabled") && c.getBoolean("offPeakEnabled"),
               queryDate = if (c.hasPathOrNull("queryDate")) c.getString("queryDate") else "2020-10-14",
               tolls = !c.hasPathOrNull("tolls") || c.getBoolean("tolls")
@@ -2630,8 +2630,7 @@ object BeamConfig {
             else com.typesafe.config.ConfigFactory.parseString("mode{}")
           ),
           objectiveFunction =
-            if (c.hasPathOrNull("objectiveFunction")) c.getString("objectiveFunction")
-            else "ModeChoiceObjectiveFunction",
+            if (c.hasPathOrNull("objectiveFunction")) c.getString("objectiveFunction") else "CountsObjectiveFunction",
           roadNetwork = BeamConfig.Beam.Calibration.RoadNetwork(
             if (c.hasPathOrNull("roadNetwork")) c.getConfig("roadNetwork")
             else com.typesafe.config.ConfigFactory.parseString("roadNetwork{}")
@@ -2876,21 +2875,27 @@ object BeamConfig {
 
       case class Output(
         activitySimSkimsEnabled: scala.Boolean,
-        geo: BeamConfig.Beam.Exchange.Output.Geo,
+        geo: scala.Option[BeamConfig.Beam.Exchange.Output.Geo],
         sendNonChosenTripsToSkimmer: scala.Boolean
       )
 
       object Output {
 
         case class Geo(
-          filePath: scala.Option[java.lang.String]
+          beamModeFilter: scala.List[java.lang.String],
+          filePath: java.lang.String,
+          geoId2TazIdMapFilePath: java.lang.String,
+          geoIdFieldName: java.lang.String
         )
 
         object Geo {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.Geo = {
             BeamConfig.Beam.Exchange.Output.Geo(
-              filePath = if (c.hasPathOrNull("filePath")) Some(c.getString("filePath")) else None
+              beamModeFilter = $_L$_str(c.getList("beamModeFilter")),
+              filePath = c.getString("filePath"),
+              geoId2TazIdMapFilePath = c.getString("geoId2TazIdMapFilePath"),
+              geoIdFieldName = c.getString("geoIdFieldName")
             )
           }
         }
@@ -2899,9 +2904,8 @@ object BeamConfig {
           BeamConfig.Beam.Exchange.Output(
             activitySimSkimsEnabled =
               c.hasPathOrNull("activitySimSkimsEnabled") && c.getBoolean("activitySimSkimsEnabled"),
-            geo = BeamConfig.Beam.Exchange.Output.Geo(
-              if (c.hasPathOrNull("geo")) c.getConfig("geo") else com.typesafe.config.ConfigFactory.parseString("geo{}")
-            ),
+            geo =
+              if (c.hasPathOrNull("geo")) scala.Some(BeamConfig.Beam.Exchange.Output.Geo(c.getConfig("geo"))) else None,
             sendNonChosenTripsToSkimmer =
               !c.hasPathOrNull("sendNonChosenTripsToSkimmer") || c.getBoolean("sendNonChosenTripsToSkimmer")
           )
@@ -3096,8 +3100,8 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Outputs.GeneralizedLinkStats = {
           BeamConfig.Beam.Outputs.GeneralizedLinkStats(
-            endTime = if (c.hasPathOrNull("endTime")) c.getInt("endTime") else 32400,
-            startTime = if (c.hasPathOrNull("startTime")) c.getInt("startTime") else 25200
+            endTime = if (c.hasPathOrNull("endTime")) c.getInt("endTime") else 108000,
+            startTime = if (c.hasPathOrNull("startTime")) c.getInt("startTime") else 0
           )
         }
       }
@@ -3286,7 +3290,7 @@ object BeamConfig {
             eventsToWrite =
               if (c.hasPathOrNull("eventsToWrite")) c.getString("eventsToWrite")
               else
-                "ActivityEndEvent,ActivityStartEvent,LinkEnterEvent,LinkLeaveEvent,PersonArrivalEvent,PersonDepartureEvent,VehicleEntersTrafficEvent,VehicleLeavesTrafficEvent",
+                "PersonArrivalEvent,PersonDepartureEvent,ActivityEndEvent,ActivityStartEvent,PersonEntersVehicleEvent,PersonLeavesVehicleEvent,ModeChoiceEvent,PathTraversalEvent,ReserveRideHailEvent,ReplanningEvent,RefuelSessionEvent,ChargingPlugInEvent,ChargingPlugOutEvent,ParkingEvent,LeavingParkingEvent,PersonCostEvent,TeleportationEvent",
             fileOutputFormats = if (c.hasPathOrNull("fileOutputFormats")) c.getString("fileOutputFormats") else "csv"
           )
         }
@@ -4180,7 +4184,6 @@ object BeamConfig {
       object Skim {
 
         case class ActivitySimSkimmer(
-          TAZ2CBGMapFilePath: java.lang.String,
           fileBaseName: java.lang.String,
           fileOutputFormat: java.lang.String,
           name: java.lang.String
@@ -4190,7 +4193,6 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.ActivitySimSkimmer = {
             BeamConfig.Beam.Router.Skim.ActivitySimSkimmer(
-              TAZ2CBGMapFilePath = if (c.hasPathOrNull("TAZ2CBGMapFilePath")) c.getString("TAZ2CBGMapFilePath") else "",
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "activitySimODSkims",
               fileOutputFormat = if (c.hasPathOrNull("fileOutputFormat")) c.getString("fileOutputFormat") else "csv",
               name = if (c.hasPathOrNull("name")) c.getString("name") else "activity-sim-skimmer"

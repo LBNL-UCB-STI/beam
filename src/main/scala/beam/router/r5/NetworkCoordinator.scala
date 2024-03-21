@@ -14,7 +14,9 @@ import org.matsim.api.core.v01.network.{Link, Network, NetworkWriter}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 
+import java.lang.NullPointerException
 import scala.collection.JavaConverters._
+import scala.util.Try
 import scala.util.control.NonFatal
 
 case class LinkParam(
@@ -169,29 +171,32 @@ trait NetworkCoordinator extends LazyLogging {
     network: Network
   ): Unit = {
     overwriteLinkParamMap.foreach { case ((linkId, osmId), param) =>
-      val (maybeLink, maybeId) = if (linkId > 0 && osmId < 0) {
-        (Option(network.getLinks.get(Id.createLinkId(linkId))), Option(linkId))
+      val listOfLinkAndId: List[(Link, Int)] = if (linkId > 0 && osmId < 0) {
+        List((network.getLinks.get(Id.createLinkId(linkId)), linkId))
       } else if (linkId < 0 && osmId > 0) {
-        (
-          network.getLinks.asScala.values.find { lnk =>
-            Integer.parseInt(lnk.getAttributes.getAttribute("origid").toString) == osmId
-          },
-          Option(osmId)
-        )
+        network.getLinks.asScala.values
+          .filter(lnk =>
+            Option(lnk.getAttributes.getAttribute("origid")) match {
+              case Some(maybeId) => Integer.parseInt(maybeId.toString) == osmId
+              case _             => false
+            }
+          )
+          .map(l => (l, l.getId.toString.toInt))
+          .toList
       } else if (linkId > 0) {
         logger.error(s"Do not define both a linkId and an OSMid when overwriting link params")
-        (None, None)
+        List.empty[(Link, Int)]
       } else {
         logger.error(s"Must define either a linkId or an OSMid when overwriting link params")
-        (None, None)
+        List.empty[(Link, Int)]
       }
-      (maybeLink, maybeId) match {
-        case (Some(link), Some(id)) =>
-          val edge = transportNetwork.streetLayer.edgeStore.getCursor(id)
-          // Overwrite params
-          param.overwriteFor(link, edge)
-        case _ =>
-          logger.error(s"Could not find link with id $linkId or osmId $osmId")
+      listOfLinkAndId foreach { case (link, id) =>
+        val maybeEdge = Option(transportNetwork.streetLayer.edgeStore.getCursor(id))
+        // Overwrite params
+        maybeEdge match {
+          case Some(edge) => param.overwriteFor(link, edge)
+          case None       => logger.error(f"Missing link $id, from OSM id $osmId in the streetlayer")
+        }
       }
     }
   }
