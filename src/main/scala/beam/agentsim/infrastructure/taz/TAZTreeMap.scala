@@ -354,7 +354,7 @@ object TAZTreeMap {
   ): TAZTreeMap = {
     try {
       if (filePath.endsWith(".shp") || filePath.endsWith(".geojson")) {
-        TAZTreeMap.fromGeoFile(filePath, tazIDFieldName.get, maybeTazId2GeoIdMap.get)
+        TAZTreeMap.fromGeoFile(filePath, tazIDFieldName.get, maybeTazId2GeoIdMap.getOrElse(Map.empty[String, String]))
       } else {
         TAZTreeMap.fromCsv(filePath)
       }
