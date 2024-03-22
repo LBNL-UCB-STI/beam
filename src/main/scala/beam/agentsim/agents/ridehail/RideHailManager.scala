@@ -128,7 +128,7 @@ object RideHailManager {
           asDriver = false,
           estimatedPrice(passenger.personId),
           unbecomeDriverOnCompletion = false,
-          isPooledTrip = passengerSchedule.isPooledTrip,
+          isPooledTrip = poolingInfo.exists(_.isPooledRequest),
           rideHailManagerName = Some(rideHailManagerName)
         )
       } ++ fromStopLegs
@@ -151,7 +151,7 @@ object RideHailManager {
     triggerId: Long
   ) extends HasTriggerId
 
-  case class PoolingInfo(timeFactor: Double, costFactor: Double)
+  case class PoolingInfo(timeFactor: Double, costFactor: Double, isPooledRequest: Boolean)
 
   case class RepositionVehicleRequest(
     passengerSchedule: PassengerSchedule,
