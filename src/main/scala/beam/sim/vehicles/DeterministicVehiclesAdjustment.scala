@@ -8,6 +8,8 @@ import beam.utils.scenario.{HouseholdId, VehicleInfo}
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.{Coord, Id}
 
+import scala.util.Random
+
 case class DeterministicVehiclesAdjustment(
   beamScenario: BeamScenario,
   householdIdToVehicleIds: Map[HouseholdId, Iterable[VehicleInfo]]
@@ -15,6 +17,8 @@ case class DeterministicVehiclesAdjustment(
 
   private lazy val totalNumberOfVehicles =
     beamScenario.privateVehicles.values.groupBy(_.beamVehicleType.vehicleCategory).map(x => x._1 -> x._2.toList.length)
+
+  private lazy val vehiclesByCategory = beamScenario.vehicleTypes.values.groupBy(_.vehicleCategory)
 
   override def sampleVehicleTypes(
     numVehicles: Int,
@@ -28,13 +32,19 @@ case class DeterministicVehiclesAdjustment(
     vehicleCategory: VehicleCategory,
     realDistribution: UniformRealDistribution
   ): BeamVehicleType = {
-    val indexToTake =
-      (realDistribution.sample() * totalNumberOfVehicles.getOrElse(vehicleCategory, 0)).floor.toInt
-    beamScenario.privateVehicles.values
-      .filter(_.beamVehicleType.vehicleCategory == vehicleCategory)
-      .drop(indexToTake)
-      .head
-      .beamVehicleType
+    if (totalNumberOfVehicles.isEmpty) {
+      logger.debug("Private vehicles haven't been created to sample from yet. Sampling a vehicle uniformly")
+      val indexToTake = (realDistribution.sample() * vehiclesByCategory(vehicleCategory).toSeq.length).floor.toInt
+      vehiclesByCategory(vehicleCategory).toVector(indexToTake)
+    } else {
+      val indexToTake =
+        (realDistribution.sample() * totalNumberOfVehicles.getOrElse(vehicleCategory, 0)).floor.toInt
+      beamScenario.privateVehicles.values
+        .filter(_.beamVehicleType.vehicleCategory == vehicleCategory)
+        .toVector(indexToTake)
+        .beamVehicleType
+    }
+
   }
 
   override def sampleVehicleTypesForHousehold(
@@ -62,13 +72,29 @@ case class DeterministicVehiclesAdjustment(
             vehiclesToSampleFrom
           } else if (vehiclesToSampleFrom.isEmpty) {
             (0 until numVehicles).map(_ => sampleAnyVehicle(vehicleCategory, realDistribution)).toList
+          } else if (vehiclesToSampleFrom.length > numVehicles) {
+            // Anyone have a better way of using a uniform real distribution to sample without replacement?
+            realDistribution
+              .sample(vehiclesToSampleFrom.length)
+              .zipWithIndex
+              .sortBy(_._1)
+              .map(_._2)
+              .take(numVehicles)
+              .map(vehiclesToSampleFrom(_))
+              .toList
           } else {
-            // TODO -- don't sample with replacement for numVehicles < the correct number of vehicles
+            logger.warn(
+              f"Household $householdId has $numVehicles in the household file but ${vehiclesToSampleFrom.length} " +
+              f"in the vehicles input file. Sampling available vehicles with replacement"
+            )
             realDistribution
               .sample(numVehicles)
               .flatMap(x =>
                 beamScenario.vehicleTypes.get(
-                  Id.create(vehiclesToSampleFrom((x * numVehicles).floor.toInt).id, classOf[BeamVehicleType])
+                  Id.create(
+                    vehiclesToSampleFrom((x * vehiclesToSampleFrom.length).floor.toInt).id,
+                    classOf[BeamVehicleType]
+                  )
                 )
               )
               .toList
