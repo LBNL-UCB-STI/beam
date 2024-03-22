@@ -5,31 +5,31 @@ from validation_utils import *
 # In Mac, you might need to cd to folder '/Applications/Python {version}'
 # and run ./Install\ Certificates.command
 work_dir = os.path.expanduser("~/Workspace/Data/Scenarios")
+run_dir = work_dir + "/sfbay/runs/sfbay-simp-jdeq-0.07-storage-5__2024-03-21_09-18-13_lrl"
+input_dir = run_dir + '/input'
+output_dir = run_dir + '/output'
+plots_dir = output_dir + '/plots'
 # To prepare data for a new study area, make sure to change the following configuration variables
 # Example of preparing SFBay data (9 counties + Santa Cruz and Yolo)
 # ## study_area = "sfbay"
 # ## year = 2018
 # ## state = 'CA'
 # ## fips_code = ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113']
-# ## npmrds_geo_path_path = work_dir + "/sfbay/input/sfbay_counties.geojson"
+# ## npmrds_geo_path_path = run_dir + "/input/sfbay_counties.geojson"
 study_area = "sfbay"
 year = 2018
 state = 'CA'
 fips_code = ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113']
-npmrds_counties_geo_path_output = work_dir + "/sfbay/input/sfbay_counties.geojson"
-npmrds_cbgs_geo_path_output = work_dir + "/sfbay/input/sfbay_cbgs.geojson"
+npmrds_counties_geo_path_output = run_dir + "/input/sfbay_counties.geojson"
+npmrds_cbgs_geo_path_output = run_dir + "/input/sfbay_cbgs.geojson"
 # 4
-project_dir = work_dir + '/' + study_area
-input_dir = project_dir + '/input'
-output_dir = project_dir + '/output'
-plots_dir = output_dir + '/plots'
 Path(input_dir).mkdir(parents=True, exist_ok=True)
 Path(output_dir).mkdir(parents=True, exist_ok=True)
 Path(plots_dir).mkdir(parents=True, exist_ok=True)
 #
 npmrds_geo = work_dir + "/sfbay/validation_data/NPMRDS/California.shp"
 npmrds_data_csv = work_dir + '/sfbay/validation_data/NPMRDS/al_ca_oct2018_1hr_trucks_pax.csv'
-beam_network_csv = work_dir + '/sfbay/runs/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/network.csv.gz'
+beam_network_csv = run_dir + '/beam/network.csv.gz'
 #
 regional_npmrds_station_geo_input = input_dir + '/regional_npmrds_station_map.geojson'
 regional_npmrds_data_input = input_dir + '/regional_npmrds_data.csv'
@@ -41,7 +41,7 @@ npmrds_hourly_speed_by_road_class_input = input_dir + '/npmrds_hourly_speed_by_r
 st = time.time()
 
 print("Generating block groups boundaries for San Francisco only")
-collect_geographic_boundaries(state, ['075'], year, work_dir + "/sfbay/input/sf_cbgs.geojson", geo_level='cbgs')
+collect_geographic_boundaries(state, ['075'], year, run_dir + "/input/sf_cbgs.geojson", geo_level='cbgs')
 
 print("Generating block groups boundaries")
 collect_geographic_boundaries(state, ['075'], year, npmrds_cbgs_geo_path_output, geo_level='cbgs')

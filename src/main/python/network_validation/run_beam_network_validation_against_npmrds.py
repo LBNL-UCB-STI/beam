@@ -4,10 +4,9 @@ from pathlib import Path
 from validation_utils import *
 
 work_dir = os.path.expanduser("~/Workspace/Data/Scenarios")
-study_area = "sfbay"
-project_dir = work_dir + '/' + study_area
-input_dir = project_dir + '/input'
-output_dir = project_dir + '/output'
+run_dir = work_dir + "/sfbay/runs/sfbay-simp-jdeq-0.07-storage-5__2024-03-21_09-18-13_lrl"
+input_dir = run_dir + '/input'
+output_dir = run_dir + '/output'
 plots_dir = output_dir + '/plots'
 Path(input_dir).mkdir(parents=True, exist_ok=True)
 Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -24,10 +23,7 @@ npmrds_hourly_speed_by_road_class_input = input_dir + '/npmrds_hourly_speed_by_r
 setup = SpeedValidationSetup(npmrds_hourly_speed_csv_path=npmrds_hourly_speed_input,
                              beam_npmrds_network_map_geo_path=beam_npmrds_network_map_geo_input,
                              npmrds_hourly_speed_by_road_class_csv_path=npmrds_hourly_speed_by_road_class_input,
-                             link_stats_paths_and_labels_list=[
-                                 ("BEAM_2024",
-                                  work_dir + "/sfbay/runs/sfbay-simp-jdeq-0.07__2024-02-21_19-22-50_obb/10.linkstats.csv.gz")
-                             ],
+                             link_stats_paths_and_labels_list=[("BEAM_2024", run_dir + "/beam/10.linkstats_unmodified.csv.gz")],
                              demand_sample_size=0.1,
                              assume_daylight_saving=True)
 
