@@ -458,7 +458,7 @@ object TAZTreeMap {
     tazIdFieldName: String,
     geoIdFieldName: String
   ): Map[String, String] = {
-    var res = Map.empty[String, String]
+    val sequenceOfPairs = scala.collection.mutable.ListBuffer.empty[(String, String)]
 
     Using(new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)) { mapReader =>
       // Read the header to understand column positions.
@@ -471,16 +471,17 @@ object TAZTreeMap {
           val tazId = line.get(tazIdFieldName)
           val geoId = line.get(geoIdFieldName)
           if (tazId != null && geoId != null) {
-            // Update the result map correctly
-            res += (geoId -> tazId)
+            sequenceOfPairs.append((geoId, tazId))
           }
           line = mapReader.read(header: _*)
         }
+      } else {
+        logger.error(s"Required columns $tazIdFieldName and $geoIdFieldName not found in $filePath. Skipped.")
       }
     }.recover { case e: Exception =>
       logger.error(s"Issue with reading $filePath: ${e.getMessage}", e)
     }
 
-    res
+    sequenceOfPairs.toMap
   }
 }
