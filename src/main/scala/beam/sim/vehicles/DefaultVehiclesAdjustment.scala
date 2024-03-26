@@ -4,6 +4,7 @@ import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.scenario.HouseholdId
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.{Coord, Id}
 
@@ -28,7 +29,8 @@ case class DefaultVehiclesAdjustment(beamServices: BeamServices, beamScenario: B
     householdSize: Int,
     householdPopulation: Population,
     householdLocation: Coord,
-    realDistribution: UniformRealDistribution
+    realDistribution: UniformRealDistribution,
+    householdId: Option[HouseholdId]
   ): List[BeamVehicleType] = {
     if (vehicleCategory != VehicleCategory.Car) throw new NotImplementedError(vehicleCategory.toString)
     List.fill(numVehicles)(vehicleTypesByCategory)

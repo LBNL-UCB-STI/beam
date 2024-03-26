@@ -4,6 +4,7 @@ import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.sim.BeamScenario
+import beam.utils.scenario.HouseholdId
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.Coord
 
@@ -25,7 +26,8 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     householdSize: Int,
     householdPopulation: Population,
     householdLocation: Coord,
-    realDistribution: UniformRealDistribution
+    realDistribution: UniformRealDistribution,
+    householdId: Option[HouseholdId]
   ): List[BeamVehicleType] = {
     val matchedGroups =
       vehicleTypesAndProbabilityByCategoryAndGroup.keys.filter(x => isThisHouseholdInThisGroup(householdIncome, x))

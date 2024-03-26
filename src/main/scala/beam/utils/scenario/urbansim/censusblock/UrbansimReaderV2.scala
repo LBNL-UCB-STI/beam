@@ -1,17 +1,21 @@
 package beam.utils.scenario.urbansim.censusblock
 
 import beam.sim.common.GeoUtils
+import beam.utils.csv.readers
 import beam.utils.scenario.urbansim.censusblock.entities.InputHousehold
 import beam.utils.scenario.urbansim.censusblock.merger.{HouseholdMerger, PersonMerger, PlanMerger}
 import beam.utils.scenario.urbansim.censusblock.reader._
-import beam.utils.scenario.{HouseholdInfo, PersonInfo, PlanElement, ScenarioSource}
+import beam.utils.scenario.{HouseholdInfo, PersonInfo, PlanElement, ScenarioSource, VehicleInfo}
 import org.matsim.api.core.v01.Coord
 import org.slf4j.LoggerFactory
+
+import java.nio.file.{Files, Paths}
 
 class UrbansimReaderV2(
   val inputPersonPath: String,
   val inputPlanPath: String,
   val inputHouseholdPath: String,
+  val inputVehiclePath: String,
   val inputBlockPath: String,
   val geoUtils: GeoUtils,
   val shouldConvertWgs2Utm: Boolean,
@@ -19,6 +23,8 @@ class UrbansimReaderV2(
 ) extends ScenarioSource {
 
   private val logger = LoggerFactory.getLogger(getClass)
+
+  private val rdr = readers.BeamCsvScenarioReader
 
   private val inputHouseHoldMap: Map[String, InputHousehold] = {
     logger.info("Start reading of households info...")
@@ -99,6 +105,14 @@ class UrbansimReaderV2(
     } finally {
       logger.debug("Blocks merged successfully.")
       blockReader.close()
+    }
+  }
+
+  override lazy val getVehicles: Iterable[VehicleInfo] = {
+    if (Files.exists(Paths.get(inputVehiclePath))) {
+      rdr.readVehiclesFile(inputVehiclePath)
+    } else {
+      Iterable.empty[VehicleInfo]
     }
   }
 }
