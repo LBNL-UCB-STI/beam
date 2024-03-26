@@ -13,8 +13,6 @@ import org.matsim.core.controler.MatsimServices
 import org.matsim.core.controler.events.IterationEndsEvent
 
 import java.io.BufferedWriter
-import scala.collection.immutable.SortedSet
-import scala.util.Failure
 import scala.util.control.NonFatal
 
 class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario: BeamScenario, beamConfig: BeamConfig)
@@ -192,47 +190,136 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     }
   }
 
-  def writePresentedSkims(filePath: String): Unit = {
+  /*
+  @author:haitamlaarabi
+  ActivitySkimmer Workflow:
+
+  ** Case A **
+  taz:TAZ/CBG
+     |
+     v
+  Skim_TAZ/CBG
+     |
+     v
+  [DefaultSkim]
+
+  ** Case B **
+  taz:TAZ    geo:CBG
+                /
+            (selected) based on number zones i.e. higher resolution
+              /
+             v
+        Skim_CBG --- (map) ---> Skim_TAZ
+            |                      |
+            v                      |
+      Skim_CBG_Filtered            |
+            |                      |
+            v                      v
+        MappedSkim            [DefaultSkim]
+
+  ** Case C **
+  taz:CBG    geo:TAZ
+     |
+ (selected) based on number zones i.e. higher resolution
+     |
+     v
+  Skim_CBG --- (map) ---> Skim_TAZ
+     |                        |
+     |                        v
+     |                 Skim_TAZ_Filtered
+     |                        |
+     v                        v
+ [DefaultSkim]            MappedSkim
+   */
+  private def writePresentedSkims(filePath: String): Unit = {
     case class ActivitySimKey(
       timeBin: ActivitySimTimeBin,
       pathType: ActivitySimPathType,
       origin: String,
       destination: String
     )
+
+    val mappedSkimFilePath = filePath.lastIndexOf(".") match {
+      case -1    => filePath + "_mapped" // No extension found, append "_mapped" at the end
+      case index => filePath.substring(0, index) + "_mapped" + filePath.substring(index)
+    }
+
+    val filterByBeamMode: ((ActivitySimKey, _)) => Boolean = { case (key, _) =>
+      beamConfig.beam.exchange.output.geo.get.beamModeFilter
+        .contains(ActivitySimPathType.toBeamMode(key.pathType).value)
+    }
+
+    val writeToOutput: (String, Iterable[ExcerptData], Seq[String]) => Unit = { case (filePath, data, geoUnits) =>
+      try {
+        config.activity_sim_skimmer.fileOutputFormat.trim.toLowerCase match {
+          case "csv" =>
+            val csvWriter = new CsvWriter(filePath, ExcerptData.csvHeaderSeq)
+            csvWriter.writeAllAndClose(data.map(_.toCsvSeq))
+          case _ =>
+            ActivitySimOmxWriter.writeToOmx(filePath, data.iterator, geoUnits)
+        }
+      } catch {
+        case exception: Exception =>
+          logger.error(s"Cannot write skims to $filePath", exception)
+      }
+    }
+
+    val transformData: Map[ActivitySimKey, Iterable[ActivitySimSkimmerInternal]] => Iterable[ExcerptData] = { data =>
+      data.map { case (key, skimMap) =>
+        weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.toList)
+      }
+    }
+
     ProfilingUtils.timed("Writing skims that are created during simulation ", x => logger.info(x)) {
-      val excerptData = currentSkim
+
+      val excerptData: Map[ActivitySimKey, Seq[ActivitySimSkimmerInternal]] = currentSkim
         .asInstanceOf[Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal]]
-        .flatMap {
-          case (key, value) if isWalkTransit(key.pathType) =>
-            // The WLK_TRN_WLK skim is a catch-all for all transit trips, so rather than storing extra in the skims we
-            // just duplicate the appropriate values when aggregating them up
-            Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal](
-              key                              -> value,
-              key.copy(pathType = WLK_TRN_WLK) -> value
-            )
-          case (key, value) =>
-            Map[ActivitySimSkimmerKey, ActivitySimSkimmerInternal](key -> value)
+        .toSeq
+        .flatMap { case (key, value) =>
+          val baseEntry = Seq(key -> value)
+          if (isWalkTransit(key.pathType)) {
+            // For walk-transit, duplicate the entry with modified pathType
+            baseEntry :+ (key.copy(pathType = WLK_TRN_WLK) -> value)
+          } else baseEntry
         }
         .groupBy { case (key, _) =>
-          val asTimeBin = ActivitySimTimeBin.toTimeBin(key.hour)
-          ActivitySimKey(asTimeBin, key.pathType, key.origin, key.destination)
+          ActivitySimKey(ActivitySimTimeBin.toTimeBin(key.hour), key.pathType, key.origin, key.destination)
         }
-        .map { case (key, skimMap) =>
-          weightedData(key.timeBin.entryName, key.origin, key.destination, key.pathType, skimMap.values.toList)
+        .mapValues(_.map(_._2))
+
+      val maybeTazExcerptData = beamScenario.exchangeOutputGeoMap.map { exchangeGeoMap =>
+        excerptData
+          .collect { case (key, data) =>
+            for {
+              mappedOrigin      <- exchangeGeoMap.getMappedGeoId(key.origin)
+              mappedDestination <- exchangeGeoMap.getMappedGeoId(key.destination)
+            } yield ActivitySimKey(key.timeBin, key.pathType, mappedOrigin, mappedDestination) -> data
+          }
+          .flatten
+          .groupBy(_._1)
+          .mapValues(_.flatMap(_._2))
+      }
+
+      val (defaultExcerptData, maybeMappedExcerptData) =
+        maybeTazExcerptData match {
+          case Some(tazExcerptData) =>
+            val geoMapSize = beamScenario.exchangeOutputGeoMap.get.getSize
+            val tazMapSize = beamScenario.tazTreeMap.getSize
+            val isGeoMapLarger = geoMapSize > tazMapSize
+            if (isGeoMapLarger) (tazExcerptData, Some(excerptData.filter(filterByBeamMode)))
+            else (excerptData, Some(tazExcerptData.filter(filterByBeamMode)))
+          case None => (excerptData, None)
         }
 
-      val writeResult = if (config.activity_sim_skimmer.fileOutputFormat.trim.equalsIgnoreCase("csv")) {
-        val csvWriter = new CsvWriter(filePath, ExcerptData.csvHeaderSeq)
-        csvWriter.writeAllAndClose(excerptData.map(_.toCsvSeq))
-      } else {
-        val geoUnits = beamScenario.exchangeGeoMap.getOrElse(beamScenario.tazTreeMap).orderedTazIds
-        ActivitySimOmxWriter.writeToOmx(filePath, excerptData.iterator, geoUnits)
-      }
-      writeResult match {
-        case Failure(exception) =>
-          logger.error(s"Cannot write skims to {}", filePath, exception)
-        case _ =>
-      }
+      // Transform both default and maybeMapped data
+      val defaultSkim = transformData(defaultExcerptData)
+      val maybeMappedSkim = maybeMappedExcerptData.map(transformData)
+
+      // Write default skim data
+      writeToOutput(filePath, defaultSkim, beamScenario.tazTreeMap.orderedTazIds)
+
+      // Write maybeMappedSkim data if present
+      maybeMappedSkim.foreach(writeToOutput(mappedSkimFilePath, _, beamScenario.exchangeOutputGeoMap.get.orderedTazIds))
     }
   }
 
@@ -245,7 +332,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     }
   }
 
-  def getExcerptDataOption(
+  private def getExcerptDataOption(
     timeBin: ActivitySimTimeBin,
     origin: GeoUnit,
     destination: GeoUnit,
@@ -368,8 +455,6 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
 }
 
 object ActivitySimSkimmer extends LazyLogging {
-  case class ActivitySimSkimmerODKey(origin: String, destination: String)
-  case class ActivitySimSkimmerPathHourKey(pathType: ActivitySimPathType, hour: Int)
 
   case class ActivitySimSkimmerKey(hour: Int, pathType: ActivitySimPathType, origin: String, destination: String)
       extends AbstractSkimmerKey {
