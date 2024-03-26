@@ -24,10 +24,10 @@ RUN mkdir /var/run/sshd && \
 # Expose the SSH port
 EXPOSE 22
 # prepare folders where the image expect data
-RUN bash -c 'mkdir -p /app/{git,data,common,sources,gradle_cache}'
+RUN bash -c 'mkdir -p /root/{git,data,common,sources,gradle_cache}'
 # mark folders in order to determine if they were mounted
-RUN touch /app/git/.this_volume_was_not_mounted.txt
-RUN touch /app/gradle_cache/.this_volume_was_not_mounted.txt
+RUN touch /root/git/.this_volume_was_not_mounted.txt
+RUN touch /root/gradle_cache/.this_volume_was_not_mounted.txt
 # add files
 ADD replace_config_path_in_args.py \
     execute-beam-automatically.sh \

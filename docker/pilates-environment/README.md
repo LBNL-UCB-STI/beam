@@ -18,13 +18,13 @@ to run a shell, to run ssh-server and be available for an ssh connection from ou
 This command will start the image and then the built-in shell script
 will execute 'PILATES':
 
-```docker run -d --user=root --privileged -v <path to PILATES folder>:/app/pilates <this image name> run_pilates```
+```docker run -d --user=root --privileged -v <path to PILATES folder>:/root/pilates <this image name> run_pilates```
 
 #### Run manually with ssh
 
 This command will start the image and built-in open-ssh server:
 
-```docker run -d --user=root --privileged -v <path to PILATES folder>:/app/pilates -p <open local port>:22 <this image name> ssh```
+```docker run -d --user=root --privileged -v <path to PILATES folder>:/root/pilates -p <open local port>:22 <this image name> ssh```
 
 After the container is run, connect by ssh to the image as `root`. 
 It will ask for 'root' password. Currently, the root password is in Docker file
@@ -36,7 +36,7 @@ After connecting - move to the mounted folder, pull configured docker images and
 
 ```
 ## move to 'PILATES' folder
-cd /app/pilates 
+cd /root/pilates 
 
 ## pull docker images configured in settings.yaml config file
 python /misc/pull_images_from_settings_yaml.py settings.yaml
@@ -47,13 +47,13 @@ python run.py
 
 #### Run manually directly
 
-```docker run -d --user=root --privileged -v <path to PILATES folder>:/app/pilates -p <open local port>:22 <this image name> bash```
+```docker run -d --user=root --privileged -v <path to PILATES folder>:/root/pilates -p <open local port>:22 <this image name> bash```
 
 Move to the mounted folder, pull configured docker images and execute `PILATES` :
 
 ```
 ## move to 'PILATES' folder
-cd /app/pilates 
+cd /root/pilates 
 
 ## pull docker images configured in settings.yaml config file
 python /misc/pull_images_from_settings_yaml.py settings.yaml

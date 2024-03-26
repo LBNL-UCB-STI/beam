@@ -86,7 +86,7 @@ if [[ "$1" != "$CODE_PHRASE" ]]; then
   JOB_LOG_FILE_NAME="cluster-log-file.log"
   JOB_LOG_FILE_PATH="$BEAM_BASE_DIR/$JOB_LOG_FILE_NAME"
   LINK_TO_JOB_LOG_FILE="$(pwd)/out.log.$NAME_SUFFIX.log"
-  SIMULATION_HOST_LOG_FILE="/app/sources/$JOB_LOG_FILE_NAME"
+  SIMULATION_HOST_LOG_FILE="/root/sources/$JOB_LOG_FILE_NAME"
 
   # creating an empty log file and a link to it
   touch "$JOB_LOG_FILE_PATH"
@@ -146,7 +146,7 @@ else # this shell script is used as a BODY for the job which will be executed on
   set +x
 
   echo "Running singularity image '$SINGULARITY_IMAGE_NAME' ..."
-  singularity run -B "$BEAM_DIR:/app/sources" "$SINGULARITY_IMAGE_NAME"
+  singularity run -B "$BEAM_DIR:/root/sources" "$SINGULARITY_IMAGE_NAME"
 
   echo "Removing a link to the job's log file."
   echo "The original job log file is in '$JOB_LOG_FILE_PATH'"

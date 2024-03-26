@@ -85,7 +85,7 @@ function send_json_to_spreadsheet() {
 ##
 ## location to project folder
 ##
-path_to_project_parent="/app/sources"
+path_to_project_parent="/root/sources"
 cd "$path_to_project_parent" || echo "ERROR: The path '$path_to_project_parent' is not available"
 
 
@@ -122,7 +122,7 @@ fi
 ##
 ## logging CPU | RAM usage during simulation
 ##
-cpu_ram_log="/app/sources/cpu_ram_usage.csv"
+cpu_ram_log="/root/sources/cpu_ram_usage.csv"
 /app/write_cpu_ram_usage.sh > "$cpu_ram_log" &
 
 
@@ -177,8 +177,8 @@ if [ "$PULL_DATA" = true ]; then
   git lfs pull
 else
   echo "Pulling the data from github is disabled (PULL_DATA set to '$PULL_DATA')."
-  combined_config_path1="/app/data/${BEAM_CONFIG#*/}"
-  combined_config_path2="/app/sources/${BEAM_CONFIG}"
+  combined_config_path1="/root/data/${BEAM_CONFIG#*/}"
+  combined_config_path2="/root/sources/${BEAM_CONFIG}"
   echo "Trying combined path1 from data volume: '$combined_config_path1'"
   echo "Trying combined path2 from source volume: '$combined_config_path2'"
   if [ -e "$combined_config_path1" ]; then

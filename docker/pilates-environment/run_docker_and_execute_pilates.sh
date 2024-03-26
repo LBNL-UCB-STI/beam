@@ -16,17 +16,17 @@ while (! docker stats --no-stream &> /dev/null); do
 done
 
 print_pilates_missing(){
-  echo "The directory '/app/pilates' does not exist. "
-  echo "The directory should be mounted  '-v <local-pilates-path>:/app/pilates' "
+  echo "The directory '/root/pilates' does not exist. "
+  echo "The directory should be mounted  '-v <local-pilates-path>:/root/pilates' "
   echo "and should contain 'run.py' and 'settings.yaml' files."
 
   exit 1
 }
 
-pilates_dir="/app/pilates"
+pilates_dir="/root/pilates"
 cd "$pilates_dir" || print_pilates_missing
 
-echo "Pulling images described in /app/pilates/settings.yaml"
+echo "Pulling images described in /root/pilates/settings.yaml"
 python3 /misc/pull_images_from_settings_yaml.py settings.yaml
 
 echo "Running pilates: 'python3 run.py'"
