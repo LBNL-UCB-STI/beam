@@ -389,7 +389,7 @@ class RideHailManager(
   private val bodyTypeId = Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
 
   private val rideHailStops: Option[QuadTree[Location]] =
-    managerConfig.stopFilePath.map(path => RideHailManager.loadStopFile(path, beamServices))
+    managerConfig.stopFilePath.filter(_.trim.nonEmpty).map(path => RideHailManager.loadStopFile(path, beamServices))
 
   // Cache analysis
   private var cacheAttempts = 0
