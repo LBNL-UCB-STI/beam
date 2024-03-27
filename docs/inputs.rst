@@ -356,22 +356,22 @@ Ride hail management
      repositioningManager.inverseSquareDistanceRepositioningFactor.sensitivityOfRepositioningToDistance = 0.9
      repositioningManager.inverseSquareDistanceRepositioningFactor.predictionHorizon = 3600
      # reposition Low Waiting Times
-     allocationManager.repositionLowWaitingTimes.repositionCircleRadiusInMeters = 3000
-     allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThresholdForRepositioning = 1
-     allocationManager.repositionLowWaitingTimes.repositionCircleRadisInMeters=3000.0
-     allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning=1
-     allocationManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition=1.0
-     allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning=1200
-     allocationManager.repositionLowWaitingTimes.allowIncreasingRadiusIfDemandInRadiusLow=true
-     allocationManager.repositionLowWaitingTimes.minDemandPercentageInRadius=0.1
+     repositioningManager.repositionLowWaitingTimes.repositionCircleRadiusInMeters = 3000
+     repositioningManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThresholdForRepositioning = 1
+     repositioningManager.repositionLowWaitingTimes.repositionCircleRadisInMeters=3000.0
+     repositioningManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning=1
+     repositioningManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition=1.0
+     repositioningManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning=1200
+     repositioningManager.repositionLowWaitingTimes.allowIncreasingRadiusIfDemandInRadiusLow=true
+     repositioningManager.repositionLowWaitingTimes.minDemandPercentageInRadius=0.1
      # repositioningMethod(TOP_SCORES | KMEANS)
-     allocationManager.repositionLowWaitingTimes.repositioningMethod="TOP_SCORES"
-     allocationManager.repositionLowWaitingTimes.keepMaxTopNScores=5
-     allocationManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning=0.00001
-     allocationManager.repositionLowWaitingTimes.distanceWeight=0.01
-     allocationManager.repositionLowWaitingTimes.waitingTimeWeight=4.0
-     allocationManager.repositionLowWaitingTimes.demandWeight=4.0
-     allocationManager.repositionLowWaitingTimes.produceDebugImages=true
+     repositioningManager.repositionLowWaitingTimes.repositioningMethod="TOP_SCORES"
+     repositioningManager.repositionLowWaitingTimes.keepMaxTopNScores=5
+     repositioningManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning=0.00001
+     repositioningManager.repositionLowWaitingTimes.distanceWeight=0.01
+     repositioningManager.repositionLowWaitingTimes.waitingTimeWeight=4.0
+     repositioningManager.repositionLowWaitingTimes.demandWeight=4.0
+     repositioningManager.repositionLowWaitingTimes.produceDebugImages=true
   }]
 
    beam.agentsim.agents.rideHail.cav.valueOfTime = 1.00
@@ -435,21 +435,21 @@ One can add multiple different RH fleets into the array **beam.agentsim.agents.r
 * repositioningManager.inverseSquareDistanceRepositioningFactor.sensitivityOfRepositioningToDemand: larger value increase probability of the ride-hail vehicle to reposition
 * repositioningManager.inverseSquareDistanceRepositioningFactor.sensitivityOfRepositioningToDistance: distance is multiplied by this value
 * repositioningManager.inverseSquareDistanceRepositioningFactor.predictionHorizon:
-* allocationManager.repositionLowWaitingTimes.repositionCircleRadiusInMeters:
-* allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThresholdForRepositioning:
-* allocationManager.repositionLowWaitingTimes.repositionCircleRadisInMeters:
-* allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning:
-* allocationManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition:
-* allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning:
-* allocationManager.repositionLowWaitingTimes.allowIncreasingRadiusIfDemandInRadiusLow:
-* allocationManager.repositionLowWaitingTimes.minDemandPercentageInRadius:
-* allocationManager.repositionLowWaitingTimes.repositioningMethod:
-* allocationManager.repositionLowWaitingTimes.keepMaxTopNScores:
-* allocationManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning:
-* allocationManager.repositionLowWaitingTimes.distanceWeight:
-* allocationManager.repositionLowWaitingTimes.waitingTimeWeight:
-* allocationManager.repositionLowWaitingTimes.demandWeight:
-* allocationManager.repositionLowWaitingTimes.produceDebugImages:
+* repositioningManager.repositionLowWaitingTimes.repositionCircleRadiusInMeters:
+* repositioningManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThresholdForRepositioning:
+* repositioningManager.repositionLowWaitingTimes.repositionCircleRadisInMeters:
+* repositioningManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning:
+* repositioningManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition:
+* repositioningManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning:
+* repositioningManager.repositionLowWaitingTimes.allowIncreasingRadiusIfDemandInRadiusLow:
+* repositioningManager.repositionLowWaitingTimes.minDemandPercentageInRadius:
+* repositioningManager.repositionLowWaitingTimes.repositioningMethod:
+* repositioningManager.repositionLowWaitingTimes.keepMaxTopNScores:
+* repositioningManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning:
+* repositioningManager.repositionLowWaitingTimes.distanceWeight:
+* repositioningManager.repositionLowWaitingTimes.waitingTimeWeight:
+* repositioningManager.repositionLowWaitingTimes.demandWeight:
+* repositioningManager.repositionLowWaitingTimes.produceDebugImages:
 
 
 * surgePricing.priceAdjustmentStrategy: defines different price adjustment strategies

@@ -321,7 +321,7 @@ class RideHailManager(
 
   def fleetSize: Int = resources.size
 
-  val radiusInMeters: Double = managerConfig.rideHailManager.radiusInMeters
+  val radiusInMeters: Double = managerConfig.radiusInMeters
 
   val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
 

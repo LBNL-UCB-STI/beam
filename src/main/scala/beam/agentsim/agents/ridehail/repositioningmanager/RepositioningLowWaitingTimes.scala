@@ -1,15 +1,15 @@
 package beam.agentsim.agents.ridehail.repositioningmanager
 
-import java.awt.Color
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
-import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.AllocationManager
 import beam.utils._
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
+
+import java.awt.Color
 
 class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailManager: RideHailManager)
     extends RepositioningManager(beamServices, rideHailManager)
@@ -20,8 +20,9 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
   var firstRepositioningOfDay = true
   var firstRepositionCoordsOfDay: Option[(Coord, Coord)] = None
 
-  val repositioningConfig: AllocationManager.RepositionLowWaitingTimes =
-    rideHailManager.managerConfig.allocationManager.repositionLowWaitingTimes
+  val repositioningConfig
+    : beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager.RepositionLowWaitingTimes =
+    rideHailManager.managerConfig.repositioningManager.repositionLowWaitingTimes
 
   // TODO: get proper number here from rideHailManager
   val timeWindowSizeInSecForDecidingAboutRepositioning: Double =
