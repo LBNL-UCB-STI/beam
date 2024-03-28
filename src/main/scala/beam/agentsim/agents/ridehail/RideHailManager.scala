@@ -1799,7 +1799,7 @@ class RideHailManager(
         if (rideHailAgentLocation.vehicleType.secondaryFuelType.isDefined) {
           // The concept of linking SOC across iterations is implemented for BEVs only.
           // (Needs to be implemented for PHEVs.)
-          throw new RuntimeException(
+          log.warning(
             "Creation of RideHailAgentInitializers for linking across iterations has not been tested for PHEVs."
           )
         }
