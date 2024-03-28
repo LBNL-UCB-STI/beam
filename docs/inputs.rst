@@ -1391,6 +1391,27 @@ Technical parameters
 * actorSystemName - name of the akka actor system.
 * useLocalWorker - enables local worker for routing work.
 
+Matsim parameters
+^^^^^^^^^^^^^^^^^^^^
+::
+
+
+    beam.replanning.Module_1
+    beam.replanning.ModuleProbability_1
+    beam.replanning.Module_3
+    beam.replanning.ModuleProbability_3
+    beam.replanning.Module_4
+    beam.replanning.ModuleProbability_4
+    beam.replanning.fractionOfIterationsToDisableInnovation
+    beam.calibration.counts.countsScaleFactor
+    beam.calibration.counts.writeCountsInterval
+    beam.calibration.counts.averageCountsOverIterations
+    beam.calibration.counts.inputCountsFile
+
+These parameter values go to the corresponding Matsim module configuration parameters.
+
+* beam.calibration.counts.inputCountsFile - must not be an empty string. If you don't need this parameter then delete it completely.
+
 Parameters that are not supported anymore
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ::
@@ -1418,16 +1439,5 @@ Parameters that are not supported anymore
     beam.physsim.relaxation.experiment5_0.percentToSimulate
     beam.physsim.relaxation.experiment5_1.percentToSimulate
     beam.physsim.relaxation.experiment5_2.percentToSimulate
-    beam.replanning.Module_1
-    beam.replanning.ModuleProbability_1
-    beam.replanning.Module_3
-    beam.replanning.ModuleProbability_3
-    beam.replanning.Module_4
-    beam.replanning.ModuleProbability_4
-    beam.replanning.fractionOfIterationsToDisableInnovation
     beam.urbansim.backgroundODSkimsCreator.*
-    beam.calibration.counts.countsScaleFactor
-    beam.calibration.counts.writeCountsInterval
-    beam.calibration.counts.averageCountsOverIterations
-    beam.calibration.counts.inputCountsFile
 
