@@ -1,6 +1,8 @@
 package beam.analysis
 
 import beam.agentsim.events.PathTraversalEvent
+import beam.analysis.TransitOccupancyByStopAnalysis.fileName
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import beam.utils.csv.CsvWriter
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.events.Event
@@ -13,7 +15,6 @@ import scala.collection.mutable.ListBuffer
 class TransitOccupancyByStopAnalysis extends BasicEventHandler with IterationEndsListener with LazyLogging {
 
   val pathTraversalEvents = new ListBuffer[PathTraversalEvent]
-  val fileName = "transitOccupancyByStop.csv"
 
   override def handleEvent(event: Event): Unit = {
     event match {
@@ -33,7 +34,7 @@ class TransitOccupancyByStopAnalysis extends BasicEventHandler with IterationEnd
 
   def writeCSVRows(path: String): Unit = {
 
-    val analysis =
+    val analysis: Map[String, List[String]] =
       pathTraversalEvents.toList.groupBy(_.vehicleId.toString).map { case (k, v) =>
         k -> v.map(_.numberOfPassengers.toString)
       }
@@ -58,4 +59,16 @@ class TransitOccupancyByStopAnalysis extends BasicEventHandler with IterationEnd
   def getList(maxSize: Int, list: List[String]): List[String] = {
     list ::: List.fill(maxSize - list.size)("")
   }
+}
+
+object TransitOccupancyByStopAnalysis {
+  val fileName = "transitOccupancyByStop.csv"
+
+  def transitOccupancySkimOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("TransitOccupancyByStopAnalysis", s"$fileName", iterationLevel = true)(
+      """
+         Transit vehicle id | Header of the file contains all the transit vehicle ids
+         Vehicle occupancy  | Each column contains number of passengers in the vehicle at corresponding stop index
+        """
+    )
 }

@@ -4,6 +4,8 @@ import beam.agentsim.events.ModeChoiceEvent;
 import beam.sim.BeamServices;
 import beam.sim.config.BeamConfig;
 import beam.utils.NetworkHelper;
+import beam.utils.OutputDataDescriptor;
+import beam.utils.OutputDataDescriptorObject;
 import org.matsim.api.core.v01.events.Event;
 import org.matsim.api.core.v01.network.Link;
 import org.matsim.core.api.experimental.events.EventsManager;
@@ -97,4 +99,14 @@ public class ExpectedMaxUtilityHeatMap implements BasicEventHandler {
         }
     }
 
+    public static OutputDataDescriptor outputDataDescriptor() {
+        return OutputDataDescriptorObject.apply("ExpectedMaxUtilityHeatMap", "expectedMaxUtilityHeatMap.csv", true,
+                String.join("\n"
+                        , "time | Time of mode choice event"
+                        , "x | X part of location of mode choice event"
+                        , "y | Y part of location of mode choice event"
+                        , "expectedMaximumUtility | expectedMaximumUtility of mode choice"
+                )
+        );
+    }
 }

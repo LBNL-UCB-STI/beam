@@ -5,6 +5,7 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.Skims
 import beam.router.skim.readonly.RideHailSkims
 import beam.sim.config.BeamConfig
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -113,5 +114,39 @@ object RideHailSkimmer extends LazyLogging {
   ) extends AbstractSkimmerInternal {
     override def toCsv: String = AbstractSkimmer.toCsv(productIterator)
   }
+
+  def rideHailSkimOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("RidehailSkimmer", s"${fileBaseName}.csv.gz", iterationLevel = true)(
+      """
+        tazId                     | Id of TAZ this statistic applies to
+        hour                      | Hour this statistic applies to
+        reservationType           | Reservation type (solo or pooled) this statistic applies to
+        wheelchairRequired        | Boolean value indicating whether or not a wheelchair is required
+        serviceName               | Service name this statistic applies to
+        waitTime                  | Average waiting time
+        costPerMile               | Average cost per mile
+        unmatchedRequestsPercent  | Average unmatched request percent
+        accessibleVehiclesPercent | Average percent of wheelchair accessible vehicles
+        observations              | Number of ride-hail requests
+        iterations                | Always 1
+        """
+    )
+
+  def aggregatedRideHailSkimOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("RidehailSkimmer", s"${fileBaseName}_Aggregated.csv.gz", iterationLevel = true)(
+      """
+        tazId                     | Id of TAZ this statistic applies to
+        hour                      | Hour this statistic applies to
+        reservationType           | Reservation type (solo or pooled) this statistic applies to
+        wheelchairRequired        | Boolean value indicating whether or not a wheelchair is required
+        serviceName               | Service name this statistic applies to
+        waitTime                  | Average (over last n iterations) waiting time
+        costPerMile               | Average (over last n iterations) cost per mile
+        unmatchedRequestsPercent  | Average (over last n iterations) unmatched request percent
+        accessibleVehiclesPercent | Average (over last n iterations) percent of wheelchair accessible vehicles
+        observations              | Average (over last n iterations) number of ride-hail requests
+        iterations                | Number of iterations
+        """
+    )
 
 }

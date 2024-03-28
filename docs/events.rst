@@ -61,6 +61,40 @@ PersonLeavesVehicleEvent
 * Person - Person ID of the person exiting the vehicle.
 * Vehicle - Vehicle ID of the vehicle being exited.
 
+LinkEnterEvent
+~~~~~~~~~~~~~~
+
+* Time - Time of the vehicle entering.
+* Link - ID of the link being entering.
+* Vehicle - Vehicle ID of the vehicle entering.
+
+LinkLeaveEvent
+~~~~~~~~~~~~~~
+
+* Time - Time of the vehicle leaving.
+* Link - ID of the link being leaving.
+* Vehicle - Vehicle ID of the vehicle leaving.
+
+VehicleEntersTrafficEvent
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Time - Time of the vehicle entering.
+* Vehicle - Vehicle ID of the vehicle entering.
+* Link - ID of the link being entering.
+* Person - Person ID of the vehicle driver.
+* Network Mode - String denoting the network mode ("car").
+* Relative Position - the relative position of the vehicle on the link (0.0 - 1.0).
+
+VehicleLeavesTrafficEvent
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* Time - Time of the vehicle leaving.
+* Vehicle - Vehicle ID of the vehicle leaving.
+* Link - ID of the link being leaving.
+* Person - Person ID of the vehicle driver.
+* Network Mode - String denoting the network mode ("car").
+* Relative Position - the relative position of the vehicle on the link (0.0 - 1.0).
+
 BEAM Events
 -----------
 These events are specific to BEAM and are thrown within the AgentSim:
@@ -227,6 +261,7 @@ It happens when a ride-hail driver starts/ends shift.
 * primaryFuelLevel - The primary fuel level of the vehicle.
 
 TeleportationEvent
+~~~~~~~~~~~~~~~~~~
 A special event indicates that a "virtual trip" is finished.
 
 * currentTourMode - The current tour mode.
@@ -276,3 +311,13 @@ It indicates a request of reservation of a ride-hail vehicle.
 * endX - X coordinate of the destination. Coordinates are output in WGS (lat/lon).
 * endY - Y coordinate of the destination. Coordinates are output in WGS (lat/lon).
 * requireWheelchair - Whether or not the person requested a wheelchair.
+
+FleetStoredElectricityEvent
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+It reports about total stored electricity event of a particular fleet. It happens twice per a simulation: at the beginning
+and at the end.
+
+* Time - time of the event.
+* Fleet Id - the fleet id.
+* Stored Electricity in Joules - Sum of stored electricity (primary fuel) of all the electric vehicles of the fleet.
+* Storage Capacity in Joules - Sum of storage capacity (primary fuel) of all the electric vehicles of the fleet.

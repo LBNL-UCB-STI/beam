@@ -3,7 +3,7 @@ package beam.analysis.plots
 import java.util
 
 import beam.sim.OutputDataDescription
-import beam.utils.OutputDataDescriptor
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import org.matsim.core.controler.OutputDirectoryHierarchy
 
 object PersonTravelTimeAnalysisObject extends OutputDataDescriptor {
@@ -27,4 +27,16 @@ object PersonTravelTimeAnalysisObject extends OutputDataDescriptor {
       )
     list
   }
+
+  def iterationNonArrivedOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject(
+      "PersonTravelTimeAnalysis",
+      "NonArrivedAgentsAtTheEndOfSimulation.csv",
+      iterationLevel = true
+    )(
+      """
+        modes | Beam mode of the trip
+        count | Number of cases when an agent doesn't arrived to the destination at the end of simulation for whatever reason
+        """
+    )
 }

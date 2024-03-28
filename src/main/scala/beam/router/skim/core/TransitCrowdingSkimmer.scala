@@ -6,6 +6,7 @@ import beam.router.skim.readonly.TransitCrowdingSkims
 import beam.router.skim.Skims
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import com.google.common.math.IntMath
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -105,4 +106,33 @@ object TransitCrowdingSkimmer extends LazyLogging {
     override val observations = 1
   }
 
+  def transitCrowdingSkimOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("TransitCrowdingSkimmer", "skimsTransitCrowding.csv.gz", iterationLevel = true)(
+      """
+        vehicleId           | Vehicle id
+        fromStopIdx         | Index of the stop from which a transit vehicle moves
+        numberOfPassengers  | Number of the passengers in the vehicle
+        capacity            | Passenger capacity of the vehicle
+        observations        | Always 1
+        duration            | Travel time between current stops
+        iterations          | Always 1
+        """
+    )
+
+  def aggregatedTransitCrowdingSkimOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject(
+      "TransitCrowdingSkimmer",
+      "skimsTransitCrowding_Aggregated.csv.gz",
+      iterationLevel = true
+    )(
+      """
+        vehicleId           | Vehicle id
+        fromStopIdx         | Index of the stop from which a transit vehicle moves
+        numberOfPassengers  | Average number of the passengers in the vehicle
+        capacity            | Average passenger capacity of the vehicle
+        observations        | Always 1
+        duration            | Average travel time between current stops
+        iterations          | Number of iterations
+        """
+    )
 }

@@ -8,7 +8,7 @@ import beam.sim.BeamServices
 import beam.utils.scenario.VehicleInfo
 import ScenarioCsvWriter._
 import beam.agentsim.agents.vehicles.FuelType.Electricity
-import beam.utils.FormatUtils
+import beam.utils.{FormatUtils, OutputDataDescriptor, OutputDataDescriptorObject}
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.households.Household
@@ -78,5 +78,25 @@ object VehiclesCsvWriter {
     }.toMap
     new VehiclesCsvWriter(pVehicles)
   }
+
+  def iterationOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("VehiclesCsvWriter", "final_vehicles.csv", iterationLevel = true)(
+      """
+        vehicleId | Ids of private vehicles that are presented in this iteration
+        vehicleTypeId | Vehicle type id
+        stateOfCharge | State of charge of electric vehicles at the end of the iteration
+        householdId | Household id the vehicle belongs to
+        """
+    )
+
+  def outputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("VehiclesCsvWriter", "vehicles.csv.gz")(
+      """
+        vehicleId | Ids of private vehicles that are presented in this simulation
+        vehicleTypeId | Vehicle type id
+        stateOfCharge | State of charge of electric vehicles at the beginning of the simulation
+        householdId | Household id the vehicle belongs to
+        """
+    )
 
 }

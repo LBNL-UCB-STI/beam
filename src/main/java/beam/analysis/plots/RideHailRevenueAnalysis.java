@@ -2,6 +2,8 @@ package beam.analysis.plots;
 
 import beam.agentsim.agents.ridehail.RideHailSurgePricingManager;
 import beam.analysis.plots.modality.RideHailDistanceRowModel;
+import beam.utils.OutputDataDescriptor;
+import beam.utils.OutputDataDescriptorObject;
 import com.google.inject.Inject;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.JFreeChart;
@@ -121,6 +123,15 @@ public class RideHailRevenueAnalysis implements ControlerListener, IterationEnds
         } catch (IOException e) {
             log.error("exception occurred due to ", e);
         }
+    }
+
+    public static OutputDataDescriptor outputDataDescriptor() {
+        return OutputDataDescriptorObject.apply("RideHailRevenueAnalysis", fileBaseName + ".csv", false,
+                String.join("\n"
+                        , "iteration # | Iteration number"
+                        , "revenue | Total cost of ride-hail trips happened at this iteration"
+                )
+        );
     }
 
 }

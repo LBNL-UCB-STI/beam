@@ -9,7 +9,6 @@ import beam.analysis.plots.passengerpertrip.IGraphPassengerPerTrip;
 import beam.analysis.plots.passengerpertrip.TncPassengerPerTrip;
 import beam.sim.OutputDataDescription;
 import beam.sim.metrics.SimulationMetricCollector;
-import beam.utils.OutputDataDescriptor;
 import com.google.common.base.CaseFormat;
 import org.jfree.chart.JFreeChart;
 import org.jfree.chart.plot.CategoryPlot;
@@ -26,7 +25,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
-public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor {
+public class DeadHeadingAnalysis implements GraphAnalysis {
     private static final Integer TNC_MAX_PASSENGERS = 6;
     private static final Integer CAR_MAX_PASSENGERS = 4;
     private static final int METERS_IN_KM = 1000;
@@ -839,22 +838,25 @@ public class DeadHeadingAnalysis implements GraphAnalysis, OutputDataDescriptor 
 
     final Map<String, IGraphPassengerPerTrip> passengerPerTripMap = new HashMap<>();
 
-    @Override
-    public List<OutputDataDescription> getOutputDataDescriptions(OutputDirectoryHierarchy ioController) {
-        String outputFilePath = this.ioController.getOutputFilename(dataFileBaseName + ".csv");
-        String outputDirPath = this.ioController.getOutputPath();
-        String relativePath = outputFilePath.replace(outputDirPath, "");
-        List<OutputDataDescription> list = new ArrayList<>();
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "iterations", "iteration number"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "rideHailRevenue", "Revenue generated from ride hail"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "averageRideHailWaitingTimeInSeconds", "The average time spent by a passenger on waiting for hailing a ride"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "totalRideHailWaitingTimeInSeconds", "The total time spent by a passenger on waiting for hailing a ride"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "passengerVKT", "Kilometers travelled by the vehicle with a passenger"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "repositioningVKT", "Kilometers travelled by the vehicle to reposition to fleet"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "deadHeadingVKT", "Kilometers travelled by an empty vehicle towards the passenger"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "averageSurgePriceLevel", "The average value of surged price levels of ride hail"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "maxSurgePriceLevel", "The maximum value of surged price levels of ride hail"));
-        list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "reservationCount", "Count of the number of passenger reservations made for the ride hail"));
-        return list;
+    public static class OutputDataDescriptor implements beam.utils.OutputDataDescriptor {
+
+        @Override
+        public List<OutputDataDescription> getOutputDataDescriptions (OutputDirectoryHierarchy ioController){
+            String outputFilePath = ioController.getOutputFilename(dataFileBaseName + ".csv");
+            String outputDirPath = ioController.getOutputPath();
+            String relativePath = outputFilePath.replace(outputDirPath, "");
+            List<OutputDataDescription> list = new ArrayList<>();
+            list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "iterations", "iteration number"));
+            list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "rideHailRevenue", "Revenue generated from ride hail"));
+            list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "averageRideHailWaitingTimeInSeconds", "The average time spent by a passenger on waiting for hailing a ride"));
+            list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "totalRideHailWaitingTimeInSeconds", "The total time spent by a passenger on waiting for hailing a ride"));
+            list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "passengerVKT", "Kilometers travelled by the vehicle with a passenger"));
+            list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "repositioningVKT", "Kilometers travelled by the vehicle to reposition to fleet"));
+            list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "deadHeadingVKT", "Kilometers travelled by an empty vehicle towards the passenger"));
+            list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "averageSurgePriceLevel", "The average value of surged price levels of ride hail"));
+            list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "maxSurgePriceLevel", "The maximum value of surged price levels of ride hail"));
+            list.add(new OutputDataDescription(this.getClass().getSimpleName(), relativePath, "reservationCount", "Count of the number of passenger reservations made for the ride hail"));
+            return list;
+        }
     }
 }

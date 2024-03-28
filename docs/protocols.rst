@@ -236,11 +236,6 @@ Transit itineraries are returned by the router in the Trip Planning Protocol. In
 
 Because the reservation process ensures that vehicles will not exceed capacity, the Driver need not send an acknowledgement to the PersonAgent.
 
-Refueling
----------
-
-???
-
 Modify Passenger Schedule Manager
 ---------------------------------
 

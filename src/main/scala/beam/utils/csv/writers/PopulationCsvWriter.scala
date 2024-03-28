@@ -9,6 +9,7 @@ import scala.collection.JavaConverters._
 import scala.util.Try
 import beam.utils.scenario.{HouseholdId, PersonId, PersonInfo}
 import ScenarioCsvWriter._
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import org.matsim.core.population.PopulationUtils
 
 object PopulationCsvWriter extends ScenarioCsvWriter {
@@ -125,4 +126,18 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
     )
     values.mkString("", FieldSeparator, LineSeparator)
   }
+
+  def outputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("PopulationCsvWriter", "population.csv.gz")(
+      """
+      personId                    | Id of persons that are presented in the simulation
+      age                         | Person age
+      isFemale                    | Boolean value indicating if the person is female
+      householdId                 | Person's household id
+      householdRank               | Person rank
+      excludedModes               | Modes that are forbidden for the person
+      rideHailServiceSubscription | List of ride-hail services that person has subscription to
+      valueOfTime                 | Value of time in dollar per hour
+        """
+    )
 }

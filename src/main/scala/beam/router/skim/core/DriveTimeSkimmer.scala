@@ -8,6 +8,7 @@ import beam.router.skim.readonly.DriveTimeSkims
 import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.jfree.data.statistics.HistogramDataset
@@ -172,5 +173,35 @@ object DriveTimeSkimmer extends LazyLogging {
   ) extends AbstractSkimmerInternal {
     override def toCsv: String = timeSimulated + "," + timeObserved + "," + observations + "," + iterations
   }
+
+  def driveTimeSkimOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("DriveTimeSkimmer", "skimsTravelTimeObservedVsSimulated.csv.gz", iterationLevel = true)(
+      """
+        fromTAZId     | Id of origin TAZ this statistic applies to
+        toTAZId       | Id of destination TAZ this statistic applies to
+        hour          | Hour this statistic applies to
+        timeSimulated | Average travel time for CAR trips
+        timeObserved  | Always 0.0
+        counts        | Number of trips
+        iterations    | The current iteration number
+        """
+    )
+
+  def aggregatedDriveTimeSkimOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject(
+      "DriveTimeSkimmer",
+      "skimsTravelTimeObservedVsSimulated_Aggregated.csv.gz",
+      iterationLevel = true
+    )(
+      """
+        fromTAZId     | Id of origin TAZ this statistic applies to
+        toTAZId       | Id of destination TAZ this statistic applies to
+        hour          | Hour this statistic applies to
+        timeSimulated | Average (over last n iterations) travel time for CAR trips
+        timeObserved  | Always 0.0
+        counts        | Average number of trips (over last n iterations)
+        iterations    | Number of iterations
+        """
+    )
 
 }

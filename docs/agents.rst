@@ -16,11 +16,19 @@ Programming a BeamAgent involves constructing a finite state machine and the cor
 Person Agents
 -------------
 
+Person agents follows their plans for the day. During Mode Choice phase they interact with Router, RideHailManager, ParkingManger.
+After choosing a mode for the current trip they follow the trip schedule in order to reach the next activity location.
+
 Ride Hail Agents
 ----------------
 
+Ride Hail Agents keep the RideHailManger updated with their current location. They do various RideHailManger commands including
+repositioning, customer pickup. They refuel their vehicles if they need to.
+
 Transit Driver Agents
 ---------------------
+
+Transit Driver Agents follows the transit schedules.
 
 
 
