@@ -11,7 +11,7 @@ def read_csv_file(filename_):
     return pd.read_csv(filename_, sep=",", index_col=None, header=0, compression=compression)
 
 
-def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False):
+def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False, suffix=""):
     str_value = str(row[column])
     if to_num and str_value.isnumeric():
         old = str(int(row[column]))
@@ -32,7 +32,7 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
     if 'county' in prefix:
         first_prefix = first_prefix.replace('county', 'cty')
 
-    new = f"{first_prefix}{second_prefix}{old_updated}"
+    new = f"{first_prefix}{second_prefix}{old_updated}{suffix}"
     if store_dict is not None:
         store_dict[old] = new
     return new
@@ -69,7 +69,7 @@ for filename in sorted(os.listdir(directory_input)):
         df['vehicleTypeId'] = df.apply(
             lambda row: add_prefix('freight-', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True),
             axis=1)
-        df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-', 'vehicleId', row), axis=1)
+        df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-', 'vehicleId', row, suffix="-"+run_name), axis=1)
         # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
         df['tourId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-', 'tourId', row, True, tourId_with_prefix), axis=1)
         if carriers is None:

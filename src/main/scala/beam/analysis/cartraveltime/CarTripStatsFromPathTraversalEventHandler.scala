@@ -160,7 +160,7 @@ class CarTripStatsFromPathTraversalEventHandler(
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val type2RideStats: Map[CarType, Seq[CarTripStat]] = carType2PathTraversals.keys
       .map { carType =>
-        carType -> calcRideStats(event.getIteration, carType)
+        carType -> calcRideStats(event.getIteration, carType).filter(_.speed > 0)
       }
       .toSeq
       .sortBy(_._1)
@@ -552,15 +552,29 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
       val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds)
       val startCoordWGS = new Coord(driving.startX, driving.startY)
       val endCoordWGS = new Coord(parking.endX, parking.endY)
-      CarTripStat(
-        vehicleId = driving.vehicleId.toString,
-        travelTime = travelTime,
-        distance = length,
-        freeFlowTravelTime = freeFlowTravelTime,
-        departureTime = driving.departureTime,
-        startCoordWGS = startCoordWGS,
-        endCoordWGS = endCoordWGS
-      ) :: acc
+      val outputStats = if (travelTime > 0 & freeFlowTravelTime > 0 & length > 0) {
+        CarTripStat(
+          vehicleId = driving.vehicleId.toString,
+          travelTime = travelTime,
+          distance = length,
+          freeFlowTravelTime = freeFlowTravelTime,
+          departureTime = driving.departureTime,
+          startCoordWGS = startCoordWGS,
+          endCoordWGS = endCoordWGS
+        )
+      } else {
+        logger.warn("Bad path traversals {}", linkIds)
+        CarTripStat(
+          vehicleId = driving.vehicleId.toString,
+          travelTime = 0,
+          distance = 0,
+          freeFlowTravelTime = 0,
+          departureTime = driving.departureTime,
+          startCoordWGS = startCoordWGS,
+          endCoordWGS = endCoordWGS
+        )
+      }
+      outputStats :: acc
     }
     stats
   }
