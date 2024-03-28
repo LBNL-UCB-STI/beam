@@ -1596,7 +1596,9 @@ trait ChoosesMode {
                 )
                 gotoFinishingModeChoice(bushwhackingTrip)
               }
-            case Some(CAR) if allAvailableStreetVehicles.isEmpty =>
+            case Some(CAR)
+                if allAvailableStreetVehicles.isEmpty &&
+                  beamScenario.beamConfig.beam.agentsim.agents.vehicles.generateEmergencyHouseholdVehicleWhenPlansRequireIt =>
               logger.warn(
                 "Ended up stuck without a car despite having car in plans, so sending the request " +
                 "back through in order to create an emergency vehicle"
@@ -1695,6 +1697,11 @@ trait ChoosesMode {
       self ! MobilityStatusResponse(availableVehicles, getCurrentTriggerId.get)
       stay()
     } else {
+      val updatedTripStrategy = TripModeChoiceStrategy(None)
+      _experiencedBeamPlan.putStrategy(
+        _experiencedBeamPlan.getTripContaining(nextActivity(choosesModeData.personData).get),
+        updatedTripStrategy
+      )
       goto(ChoosingMode)
     } using choosesModeData.copy(
       personData = choosesModeData.personData.copy(
