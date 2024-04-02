@@ -1,29 +1,31 @@
 import seaborn as sns
-import os
 from pathlib import Path
 from validation_utils import *
 
-work_dir = os.path.expanduser("~/Workspace/Data/Scenarios")
-run_dir = work_dir + "/sfbay/runs/sfbay-simp-jdeq-0.07-storage-5__2024-03-21_09-18-13_lrl"
-input_dir = run_dir + '/input'
-output_dir = run_dir + '/output'
+# beam run i.e. link stats and events file
+run_dir = os.path.expanduser("~/Workspace/Data/Scenarios/sfbay/runs/sfbay-base--residential-psimpl-network-jdeq-05__2024-03-29_22-03-23_aog")
+link_stats_paths = [("BEAM_2024", run_dir + "/9.linkstats.csv.gz")]
+
+# validation data
+study_area_dir = os.path.expanduser("~/Workspace/Data/Scenarios/sfbay")
+npmrds_station_geo = study_area_dir + '/validation_data/NPMRDS/npmrds_station.geojson'
+npmrds_data_csv = study_area_dir + '/validation_data/NPMRDS/npmrds_data.csv'
+npmrds_hourly_speed_csv = study_area_dir + '/validation_data/NPMRDS/npmrds_hourly_speeds.csv'
+npmrds_hourly_speed_by_road_class_csv = study_area_dir + '/validation_data/NPMRDS/npmrds_hourly_speed_by_road_class.csv'
+beam_network_car_links_geo = study_area_dir + '/validation_data/BEAM/sfbay_residential_psimpl_network_car_only.geojson'
+beam_network_mapped_to_npmrds_geo = study_area_dir + '/validation_data/BEAM/sfbay_residential_psimpl_network_mapped_to_npmrds.geojson'
+
+# The rest is automatically generated
+output_dir = run_dir + '/validation_output'
 plots_dir = output_dir + '/plots'
-Path(input_dir).mkdir(parents=True, exist_ok=True)
 Path(output_dir).mkdir(parents=True, exist_ok=True)
 Path(plots_dir).mkdir(parents=True, exist_ok=True)
-#
-regional_npmrds_station_geo_input = input_dir + '/regional_npmrds_station_map.geojson'
-regional_npmrds_data_input = input_dir + '/regional_npmrds_data.csv'
-npmrds_hourly_speed_input = input_dir + '/npmrds_hourly_speeds.csv'
-beam_network_car_links_geo_input = input_dir + '/beam_network_car_links_map.geojson'
-beam_npmrds_network_map_geo_input = input_dir + '/beam_npmrds_network_map.geojson'
-npmrds_hourly_speed_by_road_class_input = input_dir + '/npmrds_hourly_speed_by_road_class.csv'
 
 # ########## Initialize
-setup = SpeedValidationSetup(npmrds_hourly_speed_csv_path=npmrds_hourly_speed_input,
-                             beam_npmrds_network_map_geo_path=beam_npmrds_network_map_geo_input,
-                             npmrds_hourly_speed_by_road_class_csv_path=npmrds_hourly_speed_by_road_class_input,
-                             link_stats_paths_and_labels_list=[("BEAM_2024", run_dir + "/beam/10.linkstats_unmodified.csv.gz")],
+setup = SpeedValidationSetup(npmrds_hourly_speed_csv=npmrds_hourly_speed_csv,
+                             beam_network_mapped_to_npmrds_geo=beam_network_mapped_to_npmrds_geo,
+                             npmrds_hourly_speed_by_road_class_csv=npmrds_hourly_speed_by_road_class_csv,
+                             link_stats_paths_and_labels_list=link_stats_paths,
                              demand_sample_size=0.1,
                              assume_daylight_saving=True)
 
