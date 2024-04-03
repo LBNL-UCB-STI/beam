@@ -39,13 +39,13 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     PopulationUtils.createActivityFromCoord(activityType, new Coord(0, 0))
   }
 
-  def walkLeg10: EmbodiedBeamLeg = mockLeg(10, BeamMode.WALK)
-  def walkLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.WALK)
+  def walkLeg10: EmbodiedBeamLeg = mockLeg(10, BeamMode.WALK, startTime = 215, endTime = 225)
+  def walkLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.WALK, startTime = 100, endTime = 115)
   def carLeg10: EmbodiedBeamLeg = mockLeg(10, BeamMode.CAR)
   def carLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.CAR)
-  def busLeg10: EmbodiedBeamLeg = mockLeg(10, BeamMode.BUS)
+  def busLeg10: EmbodiedBeamLeg = mockLeg(10, BeamMode.BUS, startTime = 175, endTime = 185)
   def busLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.BUS)
-  def railLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.SUBWAY)
+  def railLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.SUBWAY, startTime = 200, endTime = 215)
 
   def rideHailLeg10: EmbodiedBeamLeg = mockLeg(
     600,
@@ -128,6 +128,8 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     event.skimInternal.walkAuxiliaryInMinutes shouldBe 0 / 60.0
     event.skimInternal.totalInVehicleTimeInMinutes shouldBe 25 / 60.0
     event.skimInternal.keyInVehicleTimeInMinutes shouldBe 15 / 60.0
+    event.skimInternal.waitInitialInMinutes shouldBe 60 / 60.0
+    event.skimInternal.waitAuxiliaryInMinutes shouldBe 15 / 60.0
     event.key.pathType shouldBe ActivitySimPathType.WLK_HVY_WLK
   }
 

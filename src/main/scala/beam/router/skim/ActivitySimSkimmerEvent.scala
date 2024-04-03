@@ -49,7 +49,7 @@ case class ActivitySimSkimmerEvent(
         sawNonWalkModes += 1
         if (sawNonWalkModes == 1) {
           walkAccess = currentWalkTime
-          if (leg.isRideHail) {
+          if (leg.isRideHail | transitModes.contains(leg.beamLeg.mode)) {
             initialWaitTime = leg.beamLeg.startTime - previousLegEndTime
           }
         } else {
@@ -175,7 +175,7 @@ case class ActivitySimSkimmerEvent(
               case _                                                 => distInMeters
             }
           } max 1.0,
-          cost = trip.costEstimate,
+          cost = trip.costEstimate, // TODO: Take out TNC fare for TNC->Transit, add TNC_Boards. Make sure XWait is >= 0
           energy = energyConsumption,
           walkAccessInMinutes = walkAccess / 60.0,
           walkEgressInMinutes = walkEgress / 60.0,
