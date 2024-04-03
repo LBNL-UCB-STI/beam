@@ -1346,9 +1346,8 @@ trait ChoosesMode {
                 odFailedSkimmerEvent
               )
               if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
-                createFailedActivitySimSkimmerEvent(odFailedSkimmerEvent, possibleActivitySimModes).foreach(ev =>
-                  eventsManager.processEvent(ev)
-                )
+                createFailedActivitySimSkimmerEvent(currentAct, nextAct, odFailedSkimmerEvent, possibleActivitySimModes)
+                  .foreach(ev => eventsManager.processEvent(ev))
               }
               eventsManager.processEvent(
                 new ReplanningEvent(
@@ -1517,13 +1516,16 @@ trait ChoosesMode {
   }
 
   private def createFailedActivitySimSkimmerEvent(
+    currentAct: Activity,
+    nextAct: Activity,
     failedODSkimmerEvent: ODSkimmerFailedTripEvent,
     modes: Seq[ActivitySimPathType]
   ): Seq[ActivitySimSkimmerFailedTripEvent] = {
+    val (origin, destination) = getOriginAndDestinationFromGeoMap(currentAct, Some(nextAct))
     modes.map { pathType =>
       ActivitySimSkimmerFailedTripEvent(
-        origin = failedODSkimmerEvent.origin,
-        destination = failedODSkimmerEvent.destination,
+        origin = origin,
+        destination = destination,
         eventTime = _currentTick.get,
         activitySimPathType = pathType,
         iterationNumber = beamServices.matsimServices.getIterationNumber,

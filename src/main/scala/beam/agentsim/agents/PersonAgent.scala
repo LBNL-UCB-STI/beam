@@ -1550,11 +1550,10 @@ class PersonAgent(
     )
   }
 
-  private def processActivitySimSkimmerEvent(
+  protected def getOriginAndDestinationFromGeoMap(
     currentAct: Activity,
-    maybeNextAct: Option[Activity],
-    odSkimmerEvent: ODSkimmerEvent
-  ): Unit = {
+    maybeNextAct: Option[Activity]
+  ): (String, String) = {
     // Selecting the geoMap with highest resolution by comparing their number of zones
     val geoMap = beamScenario.getGeoMapForSkims
     val (origin, destination) = if (geoMap.tazListContainsGeoms) {
@@ -1567,6 +1566,15 @@ class PersonAgent(
         maybeNextAct.map(act => geoMap.getTAZ(act.getCoord).toString).getOrElse("NA")
       )
     }
+    (origin, destination)
+  }
+
+  private def processActivitySimSkimmerEvent(
+    currentAct: Activity,
+    maybeNextAct: Option[Activity],
+    odSkimmerEvent: ODSkimmerEvent
+  ): Unit = {
+    val (origin, destination) = getOriginAndDestinationFromGeoMap(currentAct, maybeNextAct)
     val asSkimmerEvent = ActivitySimSkimmerEvent(
       origin,
       destination,
