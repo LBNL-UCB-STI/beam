@@ -1556,10 +1556,7 @@ class PersonAgent(
     odSkimmerEvent: ODSkimmerEvent
   ): Unit = {
     // Selecting the geoMap with highest resolution by comparing their number of zones
-    val geoMap = beamScenario.exchangeOutputGeoMap match {
-      case Some(exchangeMap) if exchangeMap.getSize > beamScenario.tazTreeMap.getSize => exchangeMap
-      case _                                                                          => beamScenario.tazTreeMap
-    }
+    val geoMap = beamScenario.getGeoMapForSkims
     val (origin, destination) = if (geoMap.tazListContainsGeoms) {
       val origGeo = getTazFromActivity(currentAct, geoMap).toString
       val destGeo = maybeNextAct.map(act => getTazFromActivity(act, geoMap).toString).getOrElse("NA")
@@ -1600,7 +1597,7 @@ class PersonAgent(
       logger.error("Wrong trip classifier ({}) for freight {}", correctedTrip.tripClassifier, id)
     }
     // Correct the trip to deal with ride hail / disruptions and then register to skimmer
-    val (odSkimmerEvent, origCoord, destCoord) = ODSkimmerEvent.forTaz(
+    val (odSkimmerEvent, _, _) = ODSkimmerEvent.forTaz(
       tick,
       beamServices,
       correctedTrip,

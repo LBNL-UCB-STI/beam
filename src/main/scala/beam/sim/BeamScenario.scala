@@ -71,4 +71,14 @@ case class BeamScenario(
         privateVehicleInitialSoc.put(vehicle.id, MathUtils.clamp(vehicle.getStateOfCharge, 0, 1))
     )
   }
+
+  /**
+    * @return The geo map with highest resolution to be potentially aggregated later for lower resolution geo map
+    */
+  def getGeoMapForSkims: TAZTreeMap = {
+    exchangeOutputGeoMap match {
+      case Some(exchangeMap) if exchangeMap.getSize > tazTreeMap.getSize => exchangeMap
+      case _                                                             => tazTreeMap
+    }
+  }
 }

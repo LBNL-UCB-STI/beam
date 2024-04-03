@@ -240,8 +240,8 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     )
 
     val mappedSkimFilePath = filePath.lastIndexOf(".") match {
-      case -1    => filePath + "_mapped" // No extension found, append "_mapped" at the end
-      case index => filePath.substring(0, index) + "_mapped" + filePath.substring(index)
+      case -1    => filePath + "_geo_exchange" // No extension found, append "_mapped" at the end
+      case index => filePath.substring(0, index) + "_geo_exchange" + filePath.substring(index)
     }
 
     val filterByBeamMode: ((ActivitySimKey, _)) => Boolean = { case (key, _) =>
