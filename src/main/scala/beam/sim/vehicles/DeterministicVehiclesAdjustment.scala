@@ -1,24 +1,31 @@
 package beam.sim.vehicles
 
 import beam.agentsim.agents.Population
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.sim.BeamScenario
 import beam.utils.scenario.{HouseholdId, VehicleInfo}
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.{Coord, Id}
 
-import scala.util.Random
-
 case class DeterministicVehiclesAdjustment(
   beamScenario: BeamScenario,
   householdIdToVehicleIds: Map[HouseholdId, Iterable[VehicleInfo]]
 ) extends VehiclesAdjustment {
 
-  private lazy val totalNumberOfVehicles =
-    beamScenario.privateVehicles.values.groupBy(_.beamVehicleType.vehicleCategory).map(x => x._1 -> x._2.toList.length)
+  private lazy val totalNumberOfVehicles: Map[VehicleCategory, IndexedSeq[BeamVehicle]] =
+    beamScenario.privateVehicles.values
+      .groupBy(_.beamVehicleType.vehicleCategory)
+      .mapValues(x => x.toIndexedSeq)
+      .view
+      .force
 
-  private lazy val vehiclesByCategory = beamScenario.vehicleTypes.values.groupBy(_.vehicleCategory)
+  private lazy val vehiclesByCategory: Map[VehicleCategory, IndexedSeq[BeamVehicleType]] =
+    beamScenario.vehicleTypes.values
+      .groupBy(_.vehicleCategory)
+      .mapValues(_.toIndexedSeq)
+      .view
+      .force
 
   override def sampleVehicleTypes(
     numVehicles: Int,
@@ -34,15 +41,11 @@ case class DeterministicVehiclesAdjustment(
   ): BeamVehicleType = {
     if (totalNumberOfVehicles.isEmpty) {
       logger.debug("Private vehicles haven't been created to sample from yet. Sampling a vehicle uniformly")
-      val indexToTake = (realDistribution.sample() * vehiclesByCategory(vehicleCategory).toSeq.length).floor.toInt
-      vehiclesByCategory(vehicleCategory).toVector(indexToTake)
+      val indexToTake = (realDistribution.sample() * vehiclesByCategory(vehicleCategory).length).floor.toInt
+      vehiclesByCategory(vehicleCategory)(indexToTake)
     } else {
-      val indexToTake =
-        (realDistribution.sample() * totalNumberOfVehicles.getOrElse(vehicleCategory, 0)).floor.toInt
-      beamScenario.privateVehicles.values
-        .filter(_.beamVehicleType.vehicleCategory == vehicleCategory)
-        .toVector(indexToTake)
-        .beamVehicleType
+      val indexToTake = (realDistribution.sample() * totalNumberOfVehicles(vehicleCategory).size).floor.toInt
+      totalNumberOfVehicles(vehicleCategory)(indexToTake).beamVehicleType
     }
 
   }

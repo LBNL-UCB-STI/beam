@@ -105,7 +105,7 @@ class UrbanSimScenarioLoader(
 
     val vehiclesF = Future {
       val vehicles = scenarioSource.getVehicles
-      logger.info(s"Read ${vehicles.size} households")
+      logger.info(s"Read ${vehicles.size} vehicles")
       vehicles
     }
 
