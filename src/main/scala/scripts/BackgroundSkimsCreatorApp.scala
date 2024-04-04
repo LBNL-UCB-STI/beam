@@ -114,7 +114,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       weightedKeyInVehicleTimeInMinutes = rec.get("KEYIVT_minutes").toDouble,
       weightedFerryInVehicleTimeInMinutes = rec.get("FERRYIVT_minutes").toDouble,
       weightedTransitBoardingsCount = rec.get("BOARDS").toDouble,
-      weightedCost = Option(rec.get("WeightedCost")).map(_.toDouble).getOrElse(0.0d),
+      weightedTncLegCount = Option(rec.get("TNClegs")).map(_.toDouble).getOrElse(0.0d),
       failedTrips = Option(rec.get("FailedTrips")).map(_.toInt).getOrElse(0),
       completedTrips = Option(rec.get("CompletedTrips")).map(_.toInt).getOrElse(0),
       debugText = rec.get("DEBUG_TEXT")

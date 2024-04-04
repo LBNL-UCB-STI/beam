@@ -1,5 +1,6 @@
 package beam.router.skim
 
+import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.RIDE_HAIL_TRANSIT
 import beam.router.model.EmbodiedBeamTrip
@@ -7,6 +8,7 @@ import beam.router.skim.ActivitySimPathType._
 import beam.router.skim.ActivitySimSkimmer.{ActivitySimSkimmerInternal, ActivitySimSkimmerKey}
 import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey}
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.Id
 
 case class ActivitySimSkimmerEvent(
   origin: String,
@@ -27,7 +29,7 @@ case class ActivitySimSkimmerEvent(
 
   val (key, skimInternal) = observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption)
 
-  private def calcTimes(trip: EmbodiedBeamTrip): (Double, Double, Double, Double, Double, Double, Int) = {
+  private def calcTimes(trip: EmbodiedBeamTrip): (Double, Double, Double, Double, Double, Double, Int, Int) = {
     var walkAccess = 0
     var walkEgress = 0
     var walkAuxiliary = 0
@@ -39,8 +41,9 @@ case class ActivitySimSkimmerEvent(
 
     var previousLegEndTime = 0
 
-    var travelingInTransit = false
+    var currentBeamVehicleId: Option[Id[BeamVehicle]] = None
     var numberOfTransitTrips = 0
+    var numberOfTNCtrips = 0
 
     trip.legs.foreach { leg =>
       if (leg.beamLeg.mode == BeamMode.WALK) {
@@ -57,24 +60,24 @@ case class ActivitySimSkimmerEvent(
         }
         currentWalkTime = 0
 
+        if (leg.isRideHail & !currentBeamVehicleId.exists(_.equals(leg.beamVehicleId))) {
+          numberOfTNCtrips += 1
+        }
+
         if (inVehicleModes.contains(leg.beamLeg.mode)) {
           totalInVehicleTime += leg.beamLeg.duration
         }
       }
 
-      // TODO: This misses some cases where we don't have a walk leg between transit legs
-      if (transitModes.contains(leg.beamLeg.mode)) {
-        if (!travelingInTransit) {
-          travelingInTransit = true
-          numberOfTransitTrips += 1
-        }
-      } else {
-        travelingInTransit = false
+      if (transitModes.contains(leg.beamLeg.mode) & !currentBeamVehicleId.exists(_.equals(leg.beamVehicleId))) {
+        numberOfTransitTrips += 1
       }
+
       previousLegEndTime = leg.beamLeg.endTime
+      currentBeamVehicleId = Some(leg.beamVehicleId)
     }
     val transferWaitTime = if (numberOfTransitTrips > 0) {
-      trip.totalTravelTimeInSecs - trip.legs.foldLeft(0)((tot, leg) => tot + leg.beamLeg.duration) - initialWaitTime
+      trip.totalTravelTimeInSecs - trip.legs.map(_.beamLeg.duration).sum - initialWaitTime
     } else { 0 }
 
     walkEgress = currentWalkTime
@@ -85,7 +88,8 @@ case class ActivitySimSkimmerEvent(
       totalInVehicleTime,
       initialWaitTime,
       transferWaitTime,
-      numberOfTransitTrips
+      numberOfTransitTrips,
+      numberOfTNCtrips
     )
   }
 
@@ -130,7 +134,16 @@ case class ActivitySimSkimmerEvent(
 
     val key = ActivitySimSkimmerKey(timeBin, pathType, origin, destination, fleet)
 
-    val (walkAccess, walkAuxiliary, walkEgress, totalInVehicleTime, waitInitial, waitAuxiliary, numberOfTransitTrips) =
+    val (
+      walkAccess,
+      walkAuxiliary,
+      walkEgress,
+      totalInVehicleTime,
+      waitInitial,
+      waitAuxiliary,
+      numberOfTransitTrips,
+      numberOfTncTrips
+    ) =
       calcTimes(trip)
 
     val payload = {
@@ -157,7 +170,6 @@ case class ActivitySimSkimmerEvent(
           0.0,
           0.0,
           0.0,
-          0.0,
           failedTrips = 1,
           observations = 0
         )
@@ -167,15 +179,16 @@ case class ActivitySimSkimmerEvent(
             case SOV | HOV2 | HOV3 | SOVTOLL | HOV2TOLL | HOV3TOLL => totalInVehicleTime / 60.0
             case _                                                 => trip.totalTravelTimeInSecs.toDouble / 60.0
           },
-          generalizedTimeInMinutes = generalizedTimeInHours * 60,
-          generalizedCost = generalizedCost,
           distanceInMeters = {
             pathType match {
               case SOV | HOV2 | HOV3 | SOVTOLL | HOV2TOLL | HOV3TOLL => driveDistanceInMeters
               case _                                                 => distInMeters
             }
           } max 1.0,
-          cost = trip.costEstimate, // TODO: Take out TNC fare for TNC->Transit, add TNC_Boards. Make sure XWait is >= 0
+          cost = pathType match {
+            case TNC_SINGLE_TRANSIT | TNC_SHARED_TRANSIT => trip.legs.collect { case l if !l.isRideHail => l.cost }.sum
+            case _                                       => trip.costEstimate
+          },
           energy = energyConsumption,
           walkAccessInMinutes = walkAccess / 60.0,
           walkEgressInMinutes = walkEgress / 60.0,
@@ -188,6 +201,7 @@ case class ActivitySimSkimmerEvent(
           ferryInVehicleTimeInMinutes = ferryTimeInSeconds / 60.0,
           keyInVehicleTimeInMinutes = keyInVehicleTimeInSeconds / 60.0,
           transitBoardingsCount = numberOfTransitTrips,
+          tncBoardingsCount = numberOfTncTrips,
           failedTrips = 0,
           observations = 1
         )
@@ -218,7 +232,6 @@ case class ActivitySimSkimmerFailedTripEvent(
 
   override def getSkimmerInternal: ActivitySimSkimmerInternal = {
     ActivitySimSkimmerInternal(
-      0.0,
       0.0,
       0.0,
       0.0,

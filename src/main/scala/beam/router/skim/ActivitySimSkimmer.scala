@@ -73,14 +73,13 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     val prevSkim = prevIteration
       .map(_.asInstanceOf[ActivitySimSkimmerInternal])
       .getOrElse(
-        ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
       )
     val currSkim =
       currIteration
         .map(_.asInstanceOf[ActivitySimSkimmerInternal])
         .getOrElse(
           ActivitySimSkimmerInternal(
-            0,
             0,
             0,
             0,
@@ -111,8 +110,6 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
 
     ActivitySimSkimmerInternal(
       travelTimeInMinutes = aggregate(_.travelTimeInMinutes),
-      generalizedTimeInMinutes = aggregate(_.generalizedTimeInMinutes),
-      generalizedCost = aggregate(_.generalizedCost),
       distanceInMeters = aggregate(_.distanceInMeters),
       cost = aggregate(_.cost),
       energy = aggregate(_.energy),
@@ -127,6 +124,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       ferryInVehicleTimeInMinutes = aggregate(_.ferryInVehicleTimeInMinutes),
       keyInVehicleTimeInMinutes = aggregate(_.keyInVehicleTimeInMinutes),
       transitBoardingsCount = aggregate(_.transitBoardingsCount),
+      tncBoardingsCount = aggregate(_.tncBoardingsCount),
       failedTrips =
         (prevSkim.failedTrips * prevSkim.iterations + currSkim.failedTrips * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       observations =
@@ -152,8 +150,6 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
 
     ActivitySimSkimmerInternal(
       travelTimeInMinutes = aggregatedDoubleSkimValue(_.travelTimeInMinutes),
-      generalizedTimeInMinutes = aggregatedDoubleSkimValue(_.generalizedTimeInMinutes),
-      generalizedCost = aggregatedDoubleSkimValue(_.generalizedCost),
       distanceInMeters = aggregatedDoubleSkimValue(_.distanceInMeters),
       cost = aggregatedDoubleSkimValue(_.cost),
       energy = aggregatedDoubleSkimValue(_.energy),
@@ -168,6 +164,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       ferryInVehicleTimeInMinutes = aggregatedDoubleSkimValue(_.ferryInVehicleTimeInMinutes),
       keyInVehicleTimeInMinutes = aggregatedDoubleSkimValue(_.keyInVehicleTimeInMinutes),
       transitBoardingsCount = aggregatedDoubleSkimValue(_.transitBoardingsCount),
+      tncBoardingsCount = aggregatedDoubleSkimValue(_.tncBoardingsCount),
       failedTrips = prevSkim.failedTrips + currSkim.failedTrips,
       observations = prevSkim.observations + currSkim.observations,
       iterations = matsimServices.getIterationNumber + 1,
@@ -346,6 +343,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     val weightedKeyInVehicleTime = getWeightedSkimsValue(_.keyInVehicleTimeInMinutes)
     val weightedFerryTime = getWeightedSkimsValue(_.ferryInVehicleTimeInMinutes)
     val weightedTransitBoardingsCount = getWeightedSkimsValue(_.transitBoardingsCount)
+    val weightedTncBoardingsCount = getWeightedSkimsValue(_.tncBoardingsCount)
     val failedTrips = individualSkims.map(_.failedTrips).sum
     val completedTrips = individualSkims.map(_.observations).sum
     val debugText = individualSkims.map(_.debugText).filter(t => t != "").mkString("|")
@@ -370,7 +368,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       weightedKeyInVehicleTimeInMinutes = weightedKeyInVehicleTime,
       weightedFerryInVehicleTimeInMinutes = weightedFerryTime,
       weightedTransitBoardingsCount = weightedTransitBoardingsCount,
-      weightedCost = weightedCostInDollars,
+      weightedTncLegCount = weightedTncBoardingsCount,
       failedTrips = failedTrips,
       completedTrips = completedTrips,
       debugText = debugText
@@ -430,8 +428,6 @@ object ActivitySimSkimmer extends LazyLogging {
 
   case class ActivitySimSkimmerInternal(
     travelTimeInMinutes: Double,
-    generalizedTimeInMinutes: Double,
-    generalizedCost: Double,
     distanceInMeters: Double,
     cost: Double,
     energy: Double,
@@ -446,6 +442,7 @@ object ActivitySimSkimmer extends LazyLogging {
     ferryInVehicleTimeInMinutes: Double,
     keyInVehicleTimeInMinutes: Double,
     transitBoardingsCount: Double,
+    tncBoardingsCount: Double,
     failedTrips: Int,
     observations: Int,
     iterations: Int = 0,
@@ -453,14 +450,14 @@ object ActivitySimSkimmer extends LazyLogging {
   ) extends AbstractSkimmerInternal {
 
     override def toCsv: String =
-      travelTimeInMinutes + "," + generalizedTimeInMinutes + "," + cost + "," + generalizedCost + "," +
+      travelTimeInMinutes + "," + tncBoardingsCount + "," + cost + "," +
       distanceInMeters + "," + energy + "," + failedTrips + "," + observations + "," + iterations
   }
 
   object ActivitySimSkimmerInternal {
 
     def empty: ActivitySimSkimmerInternal =
-      ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+      ActivitySimSkimmerInternal(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
   }
 
   case class ExcerptData(
@@ -483,7 +480,7 @@ object ActivitySimSkimmer extends LazyLogging {
     weightedKeyInVehicleTimeInMinutes: Double,
     weightedFerryInVehicleTimeInMinutes: Double,
     weightedTransitBoardingsCount: Double,
-    weightedCost: Double,
+    weightedTncLegCount: Double,
     failedTrips: Int,
     completedTrips: Int,
     debugText: String = ""
@@ -498,6 +495,7 @@ object ActivitySimSkimmer extends LazyLogging {
         case ActivitySimMetric.KEYIVT   => weightedKeyInVehicleTimeInMinutes
         case ActivitySimMetric.DTIM     => weightedDriveTimeInMinutes
         case ActivitySimMetric.BOARDS   => weightedTransitBoardingsCount
+        case ActivitySimMetric.TNCLEGS  => weightedTncLegCount
         case ActivitySimMetric.DDIST    => weightedDriveDistanceInMeters
         case ActivitySimMetric.WAUX     => weightedWalkAuxiliary
         case ActivitySimMetric.TIME     => weightedTotalTime
@@ -527,6 +525,7 @@ object ActivitySimSkimmer extends LazyLogging {
       ActivitySimMetric.KEYIVT,
       ActivitySimMetric.DTIM,
       ActivitySimMetric.BOARDS,
+      ActivitySimMetric.TNCLEGS,
       ActivitySimMetric.DDIST,
       ActivitySimMetric.WAUX,
       ActivitySimMetric.TIME,
@@ -559,6 +558,7 @@ object ActivitySimSkimmer extends LazyLogging {
       "KEYIVT_minutes",
       "FERRYIVT_minutes",
       "BOARDS",
+      "TNClegs",
       "WeightedCost",
       "failedTrips",
       "completedTrips",

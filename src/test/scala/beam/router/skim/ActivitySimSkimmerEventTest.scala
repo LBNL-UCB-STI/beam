@@ -18,7 +18,9 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     isRideHail: Boolean = false,
     vehicleId: String = "MockVechicleId",
     startTime: Int = 0,
-    endTime: Int = 0
+    endTime: Int = 0,
+    pooled: Boolean = false,
+    cost: Double = 0.0
   ): EmbodiedBeamLeg = {
     val beamPath = Mockito.mock(classOf[BeamPath])
     val beamLeg = Mockito.mock(classOf[BeamLeg])
@@ -32,6 +34,8 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     when(leg.beamLeg).thenReturn(beamLeg)
     when(leg.isRideHail).thenReturn(isRideHail)
     when(leg.beamVehicleId).thenReturn(Id.createVehicleId(vehicleId))
+    when(leg.isPooledTrip).thenReturn(pooled)
+    when(leg.cost).thenReturn(cost)
     leg
   }
 
@@ -39,13 +43,17 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     PopulationUtils.createActivityFromCoord(activityType, new Coord(0, 0))
   }
 
-  def walkLeg10: EmbodiedBeamLeg = mockLeg(10, BeamMode.WALK, startTime = 215, endTime = 225)
-  def walkLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.WALK, startTime = 100, endTime = 115)
-  def carLeg10: EmbodiedBeamLeg = mockLeg(10, BeamMode.CAR)
-  def carLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.CAR)
-  def busLeg10: EmbodiedBeamLeg = mockLeg(10, BeamMode.BUS, startTime = 175, endTime = 185)
-  def busLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.BUS)
-  def railLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.SUBWAY, startTime = 200, endTime = 215)
+  def walkLeg10: EmbodiedBeamLeg = mockLeg(10, BeamMode.WALK, startTime = 215, endTime = 225, vehicleId = "body")
+  def walkLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.WALK, startTime = 100, endTime = 115, vehicleId = "body")
+  def carLeg10: EmbodiedBeamLeg = mockLeg(10, BeamMode.CAR, vehicleId = "car")
+  def carLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.CAR, vehicleId = "car")
+
+  def busLeg10: EmbodiedBeamLeg =
+    mockLeg(10, BeamMode.BUS, startTime = 175, endTime = 185, vehicleId = "bus", cost = 200.0)
+  def busLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.BUS, vehicleId = "bus", cost = 200.0)
+
+  def railLeg15: EmbodiedBeamLeg =
+    mockLeg(15, BeamMode.SUBWAY, startTime = 200, endTime = 215, vehicleId = "train", cost = 400.0)
 
   def rideHailLeg10: EmbodiedBeamLeg = mockLeg(
     600,
@@ -53,7 +61,8 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     isRideHail = true,
     vehicleId = "rideHailVehicle-1@GlobalRHM",
     startTime = 10 * 60 * 60 - 600,
-    endTime = 10 * 60 * 60
+    endTime = 10 * 60 * 60,
+    cost = 1000.0
   )
 
   def waitLeg(startTime: Int, endTime: Int): EmbodiedBeamLeg =
@@ -159,7 +168,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     val l1 = waitLeg(startTime = 10 * 60 * 60 - 360 - 600, endTime = 10 * 60 * 60 - 360 - 600)
     val l2 = rideHailLeg10
     val l3 = waitLeg(10 * 60 * 60, 10 * 60 * 60)
-    val l4 = mockLeg(150, BeamMode.SUBWAY, startTime = 10 * 60 * 60)
+    val l4 = mockLeg(150, BeamMode.SUBWAY, startTime = 10 * 60 * 60, cost = 200)
     val l5 = mockLeg(120, BeamMode.WALK, startTime = 10 * 60 * 60 + 150, endTime = 10 * 60 * 60 + 150 + 120)
     val trip = new EmbodiedBeamTrip(
       IndexedSeq(
@@ -178,7 +187,46 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     event.skimInternal.waitInitialInMinutes shouldBe 6.0
     event.skimInternal.driveDistanceInMeters shouldBe 9000.0
     event.skimInternal.keyInVehicleTimeInMinutes shouldBe 2.5
+    event.skimInternal.tncBoardingsCount shouldBe 1.0
+    event.skimInternal.cost shouldBe 200.0 // Do not count TNC fares to TNC_TRANSIT TRIPS
     event.key.pathType shouldBe ActivitySimPathType.TNC_SINGLE_TRANSIT
+    event.key.fleet shouldBe Some("GlobalRHM")
+  }
+
+  "skimmer event" should "parse trip 9" in {
+    val l1 = waitLeg(startTime = 10 * 60 * 60 - 360 - 600, endTime = 10 * 60 * 60 - 360 - 600)
+    val l2 = rideHailLeg10
+    val l3 = waitLeg(10 * 60 * 60, 10 * 60 * 60)
+    val l4 = mockLeg(150, BeamMode.SUBWAY, startTime = 10 * 60 * 60)
+    val l5 = mockLeg(
+      120,
+      BeamMode.CAR,
+      startTime = 10 * 60 * 60 + 150,
+      endTime = 10 * 60 * 60 + 150 + 120,
+      pooled = true,
+      isRideHail = true,
+      vehicleId = "rideHailVehicle-2@GlobalRHM"
+    )
+    val trip = new EmbodiedBeamTrip(
+      IndexedSeq(
+        l1,
+        l2,
+        l3,
+        l4,
+        l5
+      )
+    )
+    val event = ActivitySimSkimmerEvent("o1", "d1", 10 * 60 * 60, trip, 100, 200, 10, "skimname")
+    event.skimInternal.walkAccessInMinutes shouldBe 0
+    event.skimInternal.walkEgressInMinutes shouldBe 0.0
+    event.skimInternal.walkAuxiliaryInMinutes shouldBe 0
+    event.skimInternal.totalInVehicleTimeInMinutes shouldBe 14.5
+    event.skimInternal.waitInitialInMinutes shouldBe 6.0
+    event.skimInternal.driveDistanceInMeters shouldBe 10800.0
+    event.skimInternal.keyInVehicleTimeInMinutes shouldBe 2.5
+    event.skimInternal.transitBoardingsCount shouldBe 1.0
+    event.skimInternal.tncBoardingsCount shouldBe 2.0
+    event.key.pathType shouldBe ActivitySimPathType.TNC_SHARED_TRANSIT
     event.key.fleet shouldBe Some("GlobalRHM")
   }
 

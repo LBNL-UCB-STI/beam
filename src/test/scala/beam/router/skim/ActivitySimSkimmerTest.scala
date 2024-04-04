@@ -29,7 +29,7 @@ class ActivitySimSkimmerTest extends AnyFlatSpec with Matchers {
       weightedKeyInVehicleTimeInMinutes = 10.0,
       weightedFerryInVehicleTimeInMinutes = 11.0,
       weightedTransitBoardingsCount = 12.0,
-      weightedCost = 13.0,
+      weightedTncLegCount = 13.0,
       failedTrips = 0,
       completedTrips = 1,
       debugText = "debug-text"

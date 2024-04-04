@@ -20,6 +20,7 @@ object ActivitySimMetric extends Enum[ActivitySimMetric] {
   case object DTIM extends ActivitySimMetric
   case object IWAIT extends ActivitySimMetric
   case object BOARDS extends ActivitySimMetric
+  case object TNCLEGS extends ActivitySimMetric
   case object DDIST extends ActivitySimMetric
   case object WAUX extends ActivitySimMetric
   case object BTOLL extends ActivitySimMetric
