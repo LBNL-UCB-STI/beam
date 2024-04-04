@@ -111,7 +111,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     ActivitySimSkimmerInternal(
       travelTimeInMinutes = aggregate(_.travelTimeInMinutes),
       distanceInMeters = aggregate(_.distanceInMeters),
-      cost = aggregate(_.cost),
+      costInDollars = aggregate(_.costInDollars),
       energy = aggregate(_.energy),
       walkAccessInMinutes = aggregate(_.walkAccessInMinutes),
       walkEgressInMinutes = aggregate(_.walkEgressInMinutes),
@@ -151,7 +151,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     ActivitySimSkimmerInternal(
       travelTimeInMinutes = aggregatedDoubleSkimValue(_.travelTimeInMinutes),
       distanceInMeters = aggregatedDoubleSkimValue(_.distanceInMeters),
-      cost = aggregatedDoubleSkimValue(_.cost),
+      costInDollars = aggregatedDoubleSkimValue(_.costInDollars),
       energy = aggregatedDoubleSkimValue(_.energy),
       walkAccessInMinutes = aggregatedDoubleSkimValue(_.walkAccessInMinutes),
       walkEgressInMinutes = aggregatedDoubleSkimValue(_.walkEgressInMinutes),
@@ -331,7 +331,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
 
     val weightedDistance = getWeightedSkimsValue(_.distanceInMeters)
     val weightedTotalTime = getWeightedSkimsValue(_.travelTimeInMinutes)
-    val weightedCostInDollars = getWeightedSkimsValue(_.cost)
+    val weightedCostInDollars = getWeightedSkimsValue(_.costInDollars)
     val weightedWalkAccessTime = getWeightedSkimsValue(_.walkAccessInMinutes)
     val weightedWalkEgressTime = getWeightedSkimsValue(_.walkEgressInMinutes)
     val weightedWalkAuxiliaryTime = getWeightedSkimsValue(_.walkAuxiliaryInMinutes)
@@ -429,7 +429,7 @@ object ActivitySimSkimmer extends LazyLogging {
   case class ActivitySimSkimmerInternal(
     travelTimeInMinutes: Double,
     distanceInMeters: Double,
-    cost: Double,
+    costInDollars: Double,
     energy: Double,
     walkAccessInMinutes: Double,
     walkEgressInMinutes: Double,
@@ -450,7 +450,7 @@ object ActivitySimSkimmer extends LazyLogging {
   ) extends AbstractSkimmerInternal {
 
     override def toCsv: String =
-      travelTimeInMinutes + "," + tncBoardingsCount + "," + cost + "," +
+      travelTimeInMinutes + "," + tncBoardingsCount + "," + costInDollars + "," +
       distanceInMeters + "," + energy + "," + failedTrips + "," + observations + "," + iterations
   }
 

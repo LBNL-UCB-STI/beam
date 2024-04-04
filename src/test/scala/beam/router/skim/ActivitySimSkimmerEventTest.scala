@@ -49,11 +49,11 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
   def carLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.CAR, vehicleId = "car")
 
   def busLeg10: EmbodiedBeamLeg =
-    mockLeg(10, BeamMode.BUS, startTime = 175, endTime = 185, vehicleId = "bus", cost = 200.0)
-  def busLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.BUS, vehicleId = "bus", cost = 200.0)
+    mockLeg(10, BeamMode.BUS, startTime = 175, endTime = 185, vehicleId = "bus", cost = 2.0)
+  def busLeg15: EmbodiedBeamLeg = mockLeg(15, BeamMode.BUS, vehicleId = "bus", cost = 2.0)
 
   def railLeg15: EmbodiedBeamLeg =
-    mockLeg(15, BeamMode.SUBWAY, startTime = 200, endTime = 215, vehicleId = "train", cost = 400.0)
+    mockLeg(15, BeamMode.SUBWAY, startTime = 200, endTime = 215, vehicleId = "train", cost = 4.0)
 
   def rideHailLeg10: EmbodiedBeamLeg = mockLeg(
     600,
@@ -62,7 +62,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     vehicleId = "rideHailVehicle-1@GlobalRHM",
     startTime = 10 * 60 * 60 - 600,
     endTime = 10 * 60 * 60,
-    cost = 1000.0
+    cost = 10.0
   )
 
   def waitLeg(startTime: Int, endTime: Int): EmbodiedBeamLeg =
@@ -168,7 +168,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     val l1 = waitLeg(startTime = 10 * 60 * 60 - 360 - 600, endTime = 10 * 60 * 60 - 360 - 600)
     val l2 = rideHailLeg10
     val l3 = waitLeg(10 * 60 * 60, 10 * 60 * 60)
-    val l4 = mockLeg(150, BeamMode.SUBWAY, startTime = 10 * 60 * 60, cost = 200)
+    val l4 = mockLeg(150, BeamMode.SUBWAY, startTime = 10 * 60 * 60, cost = 2.0)
     val l5 = mockLeg(120, BeamMode.WALK, startTime = 10 * 60 * 60 + 150, endTime = 10 * 60 * 60 + 150 + 120)
     val trip = new EmbodiedBeamTrip(
       IndexedSeq(
@@ -188,7 +188,7 @@ class ActivitySimSkimmerEventTest extends AnyFlatSpec with Matchers {
     event.skimInternal.driveDistanceInMeters shouldBe 9000.0
     event.skimInternal.keyInVehicleTimeInMinutes shouldBe 2.5
     event.skimInternal.tncBoardingsCount shouldBe 1.0
-    event.skimInternal.cost shouldBe 200.0 // Do not count TNC fares to TNC_TRANSIT TRIPS
+    event.skimInternal.costInDollars shouldBe 2.0 // Do not count TNC fares to TNC_TRANSIT TRIPS
     event.key.pathType shouldBe ActivitySimPathType.TNC_SINGLE_TRANSIT
     event.key.fleet shouldBe Some("GlobalRHM")
   }
