@@ -240,7 +240,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     )
 
     val mappedSkimFilePath = filePath.lastIndexOf(".") match {
-      case -1    => filePath + "_geo_exchange" // No extension found, append "_mapped" at the end
+      case -1    => filePath + "_geo_exchange"
       case index => filePath.substring(0, index) + "_geo_exchange" + filePath.substring(index)
     }
 
