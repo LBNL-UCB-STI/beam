@@ -27,7 +27,7 @@ case class ActivitySimSkimmerEvent(
   override def getKey: AbstractSkimmerKey = key
   override def getSkimmerInternal: AbstractSkimmerInternal = skimInternal
 
-  val (key, skimInternal) = observeTrip(trip, generalizedTimeInHours, generalizedCost, energyConsumption)
+  val (key, skimInternal) = observeTrip(trip, energyConsumption)
 
   private def calcTimes(trip: EmbodiedBeamTrip): (Double, Double, Double, Double, Double, Double, Int, Int) = {
     var walkAccess = 0
@@ -93,12 +93,7 @@ case class ActivitySimSkimmerEvent(
     )
   }
 
-  private def observeTrip(
-    trip: EmbodiedBeamTrip,
-    generalizedTimeInHours: Double,
-    generalizedCost: Double,
-    energyConsumption: Double
-  ): (ActivitySimSkimmerKey, ActivitySimSkimmerInternal) = {
+  private def observeTrip(trip: EmbodiedBeamTrip, energyConsumption: Double) = {
     val (pathType, fleet) = ActivitySimPathType.determineTripPathTypeAndFleet(trip)
     if (walkTransitPathTypes.contains(pathType) & fleet.nonEmpty) {
       logger.warn(
