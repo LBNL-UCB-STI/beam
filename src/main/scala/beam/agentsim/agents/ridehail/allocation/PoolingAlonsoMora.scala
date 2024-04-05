@@ -44,7 +44,7 @@ class PoolingAlonsoMora(val rideHailManager: RideHailManager)
         )
         SingleOccupantQuoteAndPoolingInfo(
           agentETA.agentLocation,
-          Some(PoolingInfo(timeCostFactors._1, timeCostFactors._2, inquiry.asPooled))
+          Some(PoolingInfo(timeCostFactors._1, timeCostFactors._2))
         )
       case None =>
         NoVehiclesAvailable
