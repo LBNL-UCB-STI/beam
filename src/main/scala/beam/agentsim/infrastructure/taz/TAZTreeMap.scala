@@ -338,18 +338,26 @@ object TAZTreeMap {
   ): Option[TAZTreeMap] = {
     if (filePath.endsWith(".shp") || filePath.endsWith(".geojson")) {
       val (quadTree, mapping) = initQuadTreeFromFile(filePath, geoIdFieldName)
-      var geoId2TazIdMap = readGeoId2TazIdMapCSVFile(geoId2TazIdMapFilePath, geoIdFieldName, tazIdFieldName)
-      if (geoId2TazIdMap.isEmpty) {
-        logger.warn("Instead we are generating a CBG-TAZ map on the fly")
-        geoId2TazIdMap = GeoReader.mapCBGToTAZ(quadTree.values(), tazMap)
-      }
-      Some(
-        new TAZTreeMap(
-          quadTree,
-          maybeZoneOrdering = Some(mapping),
-          maybeZoneMapping = if (geoId2TazIdMap.isEmpty) None else Some(geoId2TazIdMap)
+      if (quadTree.size() >= tazMap.getSize) {
+        var geoId2TazIdMap = readGeoId2TazIdMapCSVFile(geoId2TazIdMapFilePath, geoIdFieldName, tazIdFieldName)
+        if (geoId2TazIdMap.isEmpty) {
+          logger.warn("Instead we are generating a CBG-TAZ map on the fly")
+          geoId2TazIdMap = GeoReader.mapCBGToTAZ(quadTree.values(), tazMap)
+        }
+        Some(
+          new TAZTreeMap(
+            quadTree,
+            maybeZoneOrdering = Some(mapping),
+            maybeZoneMapping = if (geoId2TazIdMap.isEmpty) None else Some(geoId2TazIdMap)
+          )
         )
-      )
+      } else {
+        logger.error(
+          "The resolution of the exchange geo map is lower than taz map. This setup is not supported yet " +
+          "by BEAM. Use the mapping to aggregate results in post processing."
+        )
+        None
+      }
     } else {
       logger.warn(
         s"Failed to load exchange geo map and maybe be due to missing values: filePath ($filePath), " +
