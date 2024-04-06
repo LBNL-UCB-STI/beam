@@ -43,6 +43,20 @@ beam_to_roadclass_lookup = {'motorway': fsystem_to_roadclass_lookup[1.0],
                             'road': fsystem_to_roadclass_lookup[7.0],
                             'bridleway': fsystem_to_roadclass_lookup[7.0],
                             np.nan: fsystem_to_roadclass_lookup[7.0]}
+state_fips_to_code = {
+    '01': 'AL', '02': 'AK', '04': 'AZ', '05': 'AR', '06': 'CA',
+    '08': 'CO', '09': 'CT', '10': 'DE', '11': 'DC', '12': 'FL',
+    '13': 'GA', '15': 'HI', '16': 'ID', '17': 'IL', '18': 'IN',
+    '19': 'IA', '20': 'KS', '21': 'KY', '22': 'LA', '23': 'ME',
+    '24': 'MD', '25': 'MA', '26': 'MI', '27': 'MN', '28': 'MS',
+    '29': 'MO', '30': 'MT', '31': 'NE', '32': 'NV', '33': 'NH',
+    '34': 'NJ', '35': 'NM', '36': 'NY', '37': 'NC', '38': 'ND',
+    '39': 'OH', '40': 'OK', '41': 'OR', '42': 'PA', '44': 'RI',
+    '45': 'SC', '46': 'SD', '47': 'TN', '48': 'TX', '49': 'UT',
+    '50': 'VT', '51': 'VA', '53': 'WA', '54': 'WV', '55': 'WI',
+    '56': 'WY', '60': 'AS', '66': 'GU', '69': 'MP', '72': 'PR',
+    '78': 'VI'
+}
 
 
 def calculate_metrics(group):
@@ -256,23 +270,145 @@ def run_hourly_speed_mapping_by_road_class(npmrds_hourly_link_speed, link_stats)
     return pd.concat([beam_hourly_speed, npmrds_hourly_speed], axis=0)
 
 
-def collect_geographic_boundaries(state, fips_code, year, region_boundary_geo_path_output, geo_level='county'):
-    import geopandas as gpd
+def download_taz_shapefile(state_fips_code, year, output_dir):
+    import requests
+    """
+    Download TAZ shapefiles for a given state-level FIPS code.
+
+    Parameters:
+    - fips_code: String or integer representing the state-level FIPS code.
+    - output_dir: Directory to save the downloaded ZIP file.
+    """
+    # Ensure the FIPS code is a string, padded to 2 characters
+    fips_code_str = str(state_fips_code).zfill(2)
+
+    # Construct the download URL
+    base_url = f"https://www2.census.gov/geo/tiger/TIGER2010/TAZ/2010/"
+    filename = f"tl_{year}_{fips_code_str}_taz10.zip"
+    download_url = base_url + filename
+
+    # Make the output directory if it doesn't exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Full path for saving the file
+    output_path = os.path.join(output_dir, filename)
+
+    # Start the download
+    print(f"Downloading TAZ shapefile for FIPS code {state_fips_code} from {download_url}")
+    try:
+        response = requests.get(download_url)
+        response.raise_for_status()  # This will check for errors
+
+        # Write the content of the response to a ZIP file
+        with open(output_path, 'wb') as file:
+            file.write(response.content)
+
+        print(f"File saved to {output_path}")
+
+    except requests.RequestException as e:
+        print(f"Error downloading the file: {e}")
+
+    return output_path
+
+
+def collect_taz_boundaries(state_fips_code, year, output_dir):
+    from zipfile import ZipFile
+    state_geo_zip = output_dir + f"/tl_{year}_{state_fips_code}_taz10.zip"
+    if not os.path.exists(state_geo_zip):
+        state_geo_zip = download_taz_shapefile(state_fips_code, year, output_dir)
+    """
+    Read a shapefile from a ZIP archive, filter geometries by county FIPS codes,
+    and write the result to a GeoJSON file.
+
+    Parameters:
+    - zip_file_path: Path to the ZIP file containing the shapefile.
+    - county_fips_codes: List of county FIPS codes to filter by.
+    - output_geojson_path: Path to save the filtered data as a GeoJSON file.
+    """
+    # Extract the shapefile from the ZIP archive
+    with ZipFile(state_geo_zip, 'r') as zip_ref:
+        # Extract all files to a temporary directory
+        temp_dir = "temp_shp"
+        zip_ref.extractall(temp_dir)
+
+        # Find the .shp file in the extracted files
+        shapefile_name = [f for f in os.listdir(temp_dir) if f.endswith('.shp')][0]
+        shapefile_path = os.path.join(temp_dir, shapefile_name)
+
+        # Read the shapefile into a GeoDataFrame
+        gdf = gpd.read_file(shapefile_path)
+
+        # Clean up the temporary directory
+        for filename in os.listdir(temp_dir):
+            os.remove(os.path.join(temp_dir, filename))
+        os.rmdir(temp_dir)
+
+        return gdf
+
+
+def collect_geographic_boundaries(state_fips_code, county_fips_codes, year, study_area_geo_path, projected_coordinate_system, geo_level):
     from pygris import counties, block_groups
 
     if geo_level == 'county':
         # Define fips code for selected counties
-        state_geo = counties(state=state, year=year, cb=True, cache=True)
+        geo_data = counties(state=state_fips_code, year=year, cb=True, cache=True)
     elif geo_level == 'cbg':
         # Define fips code for selected counties
-        state_geo = block_groups(state=state, year=year, cb=True, cache=True)
+        geo_data = block_groups(state=state_fips_code, year=year, cb=True, cache=True)
+    elif geo_level == 'taz':
+        geo_data = collect_taz_boundaries(state_fips_code, year, os.path.dirname(study_area_geo_path))
     else:
         raise ValueError("Unsupported geographic level. Choose 'counties' or 'cbgs'.")
 
-    selected_geo = state_geo.loc[state_geo['GEOID'].str[2:5].isin(fips_code)]
-    selected_geo = selected_geo.to_crs(epsg=4326)
-    selected_geo.to_file(region_boundary_geo_path_output, driver="GeoJSON")
-    return selected_geo
+    countyfp_columns = [col for col in geo_data.columns if col.startswith('COUNTYFP')]
+    mask = geo_data[countyfp_columns].apply(lambda x: x.isin(county_fips_codes)).any(axis=1)
+    selected_geo = geo_data[mask]
+    selected_geo_wgs84 = selected_geo.to_crs(epsg=4326)
+    selected_geo_wgs84.to_file(study_area_geo_path, driver="GeoJSON")
+
+    base_name, extension = os.path.splitext(study_area_geo_path)
+    study_area_geo_projected_path = base_name+"_epsg"+str(projected_coordinate_system)+extension
+    selected_geo.to_crs(epsg=projected_coordinate_system).to_file(study_area_geo_projected_path, driver="GeoJSON")
+
+    return selected_geo_wgs84
+
+
+def map_cbg_to_taz(cbg_gdf, taz_gdf, projected_coordinate_system, cbg_taz_map_csv):
+    print(f"Mapping CBG to TAZ geometries")
+    # Ensure that both GeoDataFrames are using the same coordinate reference system
+    # Assuming 'GEOID' in CBG and 'TAZCE10' in TAZ are the unique identifiers for CBG and TAZ, respectively
+    cbg_gdf = cbg_gdf.to_crs(projected_coordinate_system)[['GEOID', 'geometry']]
+    taz_gdf = taz_gdf.to_crs(projected_coordinate_system)[['TAZCE10', 'geometry']]
+
+    # Perform spatial join
+    # This step associates each CBG with one or more TAZs based on their geometries
+    joined_gdf = gpd.sjoin(cbg_gdf, taz_gdf, how="left", predicate="intersects").reset_index(drop=True)
+
+    # Now, we will determine which TAZ contains the majority of each CBG area
+    # This requires calculating the area of intersection and comparing it with CBG total area
+    # Note: This simplistic example assumes the joined_gdf contains necessary geometry intersections directly
+    # In practice, you may need additional steps to calculate intersection areas precisely
+
+    # Iterate through joined GeoDataFrame to calculate area of CBG within each TAZ
+    # Then, identify the TAZ that contains the majority of the CBG
+    # Placeholder for results
+    mapping = []
+
+    for cbg_id, group in joined_gdf.groupby('GEOID'):
+        # Calculate the percentage of CBG area contained in each TAZ
+        group['area_pct'] = group.apply(
+            lambda row: (row.geometry.area / cbg_gdf[cbg_gdf['GEOID'] == cbg_id].geometry.area.iloc[0]) * 100, axis=1)
+        # Find the TAZ with the maximum coverage area percentage
+        max_coverage_taz_id = group.loc[group['area_pct'].idxmax(), 'TAZCE10']
+        mapping.append({'GEOID': cbg_id, 'TAZCE10': max_coverage_taz_id})
+
+    # Convert the mapping to a DataFrame
+    mapping_df = pd.DataFrame(mapping)
+
+    # Output to CSV
+    mapping_df.to_csv(cbg_taz_map_csv, index=False)
+    print(f"Mapping output to {cbg_taz_map_csv}")
 
 
 def prepare_npmrds_data(
@@ -427,3 +563,7 @@ class SpeedValidationSetup:
 
         print(f"Execution time of get_hourly_link_speed_by_road_class: {(time.time() - st) / 60.0}min")
         return combined_data_by_road_class
+
+
+
+

@@ -15,17 +15,19 @@ from validation_utils import *
 #
 # The following need to be set/added manually
 study_area = "sfbay"
+projected_coordinate_system = 26910
 study_area_dir = os.path.expanduser("~/Workspace/Data/Scenarios") + "/" + study_area
-year = 2018
-state = 'CA'
-fips_code = ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113']
+state_fips = '06'
+study_area_fips = ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113']
 npmrds_raw_geo = study_area_dir + "/validation_data/NPMRDS/California.shp"
 npmrds_raw_data_csv = study_area_dir + '/validation_data/NPMRDS/al_ca_oct2018_1hr_trucks_pax.csv'
 beam_network_csv = study_area_dir + '/validation_data/BEAM/sfbay_residential_psimpl_network.csv.gz'
 
 # The following will be generated automatically
-study_area_counties_geo = study_area_dir + "/zones/sfbay_counties.geojson"
-study_area_cbgs_geo = study_area_dir + "/zones/sfbay_cbgs.geojson"
+study_area_county_geo = study_area_dir + "/zones/sfbay_counties.geojson"
+study_area_cbg_geo = study_area_dir + "/zones/sfbay_cbgs.geojson"
+study_area_taz_geo = study_area_dir + "/zones/sfbay_taz.geojson"
+study_area_cbg_taz_map_csv = study_area_dir + "/zones/sfbay_cbg_taz_map.csv"
 #
 npmrds_station_geo = study_area_dir + '/validation_data/NPMRDS/npmrds_station.geojson'
 npmrds_data_csv = study_area_dir + '/validation_data/NPMRDS/npmrds_data.csv'
@@ -39,16 +41,19 @@ beam_network_mapped_to_npmrds_geo = beam_network_prefix + '_mapped_to_npmrds.geo
 
 st = time.time()
 
-print("Generating block groups boundaries")
-if os.path.exists(study_area_counties_geo):
-    region_boundary = gpd.read_file(study_area_counties_geo)
+print("Obtaining county, block groups and taz boundaries...")
+if os.path.exists(study_area_county_geo):
+    region_boundary = gpd.read_file(study_area_county_geo)
+    taz_boundary = gpd.read_file(study_area_taz_geo)
+    cbg_boundary = gpd.read_file(study_area_cbg_geo)
 else:
-    region_boundary = collect_geographic_boundaries(state, fips_code, year, study_area_counties_geo)
-    # Either download boundaries directly
-    collect_geographic_boundaries(state, fips_code, year, study_area_cbgs_geo, geo_level='cbg')
-    # collect_geographic_boundaries(state, ['075'], year, study_area_dir + "/zones/sf_cbgs.geojson", geo_level='cbgs')
-    # or load it
-    # npmrds_geo_path_path = gpd.read_file(npmrds_geo).to_crs(epsg=4326)
+    region_boundary = collect_geographic_boundaries(state_fips, study_area_fips, 2018, study_area_county_geo,
+                                                    projected_coordinate_system, geo_level='county')
+    cbg_boundary = collect_geographic_boundaries(state_fips, study_area_fips, 2018, study_area_cbg_geo,
+                                                 projected_coordinate_system, geo_level='cbg')
+    taz_boundary = collect_geographic_boundaries(state_fips, study_area_fips, 2011, study_area_taz_geo,
+                                                 projected_coordinate_system, geo_level='taz')
+    map_cbg_to_taz(cbg_boundary, taz_boundary, projected_coordinate_system, study_area_cbg_taz_map_csv)
 
 
 regional_npmrds_station, _, beam_npmrds_network_map, _ = prepare_npmrds_data(

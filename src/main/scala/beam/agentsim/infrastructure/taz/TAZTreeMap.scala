@@ -331,13 +331,25 @@ object TAZTreeMap {
 
   def getGeoTreeMap(
     filePath: String,
-    geoId2TazIdMapFilePath: String,
     geoIdFieldName: String,
-    tazIdFieldName: String
+    tazMap: TAZTreeMap,
+    tazIdFieldName: String,
+    geoId2TazIdMapFilePath: String
   ): Option[TAZTreeMap] = {
-    val geoId2TazIdMap = readGeoId2TazIdMapCSVFile(geoId2TazIdMapFilePath, tazIdFieldName, geoIdFieldName)
-    if (geoId2TazIdMap.nonEmpty && (filePath.endsWith(".shp") || filePath.endsWith(".geojson"))) {
-      Some(getTazTreeMap(filePath, Some(geoIdFieldName), Some(geoId2TazIdMap)))
+    if (filePath.endsWith(".shp") || filePath.endsWith(".geojson")) {
+      val (quadTree, mapping) = initQuadTreeFromFile(filePath, geoIdFieldName)
+      var geoId2TazIdMap = readGeoId2TazIdMapCSVFile(geoId2TazIdMapFilePath, geoIdFieldName, tazIdFieldName)
+      if (geoId2TazIdMap.isEmpty) {
+        logger.warn("Instead we are generating a CBG-TAZ map on the fly")
+        geoId2TazIdMap = GeoReader.mapCBGToTAZ(quadTree.values(), tazMap)
+      }
+      Some(
+        new TAZTreeMap(
+          quadTree,
+          maybeZoneOrdering = Some(mapping),
+          maybeZoneMapping = if (geoId2TazIdMap.isEmpty) None else Some(geoId2TazIdMap)
+        )
+      )
     } else {
       logger.warn(
         s"Failed to load exchange geo map and maybe be due to missing values: filePath ($filePath), " +
@@ -455,8 +467,8 @@ object TAZTreeMap {
 
   private def readGeoId2TazIdMapCSVFile(
     filePath: String,
-    tazIdFieldName: String,
-    geoIdFieldName: String
+    geoIdFieldName: String,
+    tazIdFieldName: String
   ): Map[String, String] = {
     val sequenceOfPairs = scala.collection.mutable.ListBuffer.empty[(String, String)]
 
@@ -476,7 +488,9 @@ object TAZTreeMap {
           line = mapReader.read(header: _*)
         }
       } else {
-        logger.error(s"Required columns $tazIdFieldName and $geoIdFieldName not found in $filePath. Skipped.")
+        logger.error(
+          s"Required columns $tazIdFieldName and $geoIdFieldName not found in geoId2TazIdMapFilePath: $filePath."
+        )
       }
     }.recover { case e: Exception =>
       logger.error(s"Issue with reading $filePath: ${e.getMessage}", e)
