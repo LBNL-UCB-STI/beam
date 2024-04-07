@@ -364,22 +364,39 @@ def collect_geographic_boundaries(state_fips_code, county_fips_codes, year, stud
     countyfp_columns = [col for col in geo_data.columns if col.startswith('COUNTYFP')]
     mask = geo_data[countyfp_columns].apply(lambda x: x.isin(county_fips_codes)).any(axis=1)
     selected_geo = geo_data[mask]
-    selected_geo_wgs84 = selected_geo.to_crs(epsg=4326)
-    selected_geo_wgs84.to_file(study_area_geo_path, driver="GeoJSON")
+
+    # def string_to_double(s):
+    #     return float(s if s != "" else "0")
+    #
+    # # Prepare columns and mask
+    # aland_columns = [col for col in selected_geo.columns if col.startswith('ALAND')]
+    # awater_columns = [col for col in selected_geo.columns if col.startswith('AWATER')]
+    # for col in aland_columns + awater_columns:
+    #     selected_geo.loc[:, col] = selected_geo[col].apply(string_to_double)
+    # mask = pd.Series([False] * len(selected_geo), index=selected_geo.index)
+    #
+    # for aland_col, awater_col in zip(aland_columns, awater_columns):
+    #     # AWATER should not be more than three times ALAND
+    #     mask |= (selected_geo[aland_col] > 0) & (selected_geo[awater_col] < 3 * selected_geo[aland_col])
+    #
+    # # Apply the mask to filter selected_geo
+    # selected_geo = selected_geo[mask]
 
     base_name, extension = os.path.splitext(study_area_geo_path)
+
     study_area_geo_projected_path = base_name+"_epsg"+str(projected_coordinate_system)+extension
     selected_geo.to_crs(epsg=projected_coordinate_system).to_file(study_area_geo_projected_path, driver="GeoJSON")
 
+    selected_geo_wgs84 = selected_geo.to_crs(epsg=4326)
+    selected_geo_wgs84.to_file(base_name+"_wgs84"+extension, driver="GeoJSON")
     return selected_geo_wgs84
 
 
-def map_cbg_to_taz(cbg_gdf, taz_gdf, projected_coordinate_system, cbg_taz_map_csv):
+def map_cbg_to_taz(cbg_gdf, cbg_id_col, taz_gdf, taz_id_col, projected_coordinate_system, cbg_taz_map_csv):
     print(f"Mapping CBG to TAZ geometries")
     # Ensure that both GeoDataFrames are using the same coordinate reference system
-    # Assuming 'GEOID' in CBG and 'TAZCE10' in TAZ are the unique identifiers for CBG and TAZ, respectively
-    cbg_gdf = cbg_gdf.to_crs(projected_coordinate_system)[['GEOID', 'geometry']]
-    taz_gdf = taz_gdf.to_crs(projected_coordinate_system)[['TAZCE10', 'geometry']]
+    cbg_gdf = cbg_gdf.to_crs(projected_coordinate_system)[[cbg_id_col, 'geometry']]
+    taz_gdf = taz_gdf.to_crs(projected_coordinate_system)[[taz_id_col, 'geometry']]
 
     # Perform spatial join
     # This step associates each CBG with one or more TAZs based on their geometries
@@ -395,13 +412,16 @@ def map_cbg_to_taz(cbg_gdf, taz_gdf, projected_coordinate_system, cbg_taz_map_cs
     # Placeholder for results
     mapping = []
 
-    for cbg_id, group in joined_gdf.groupby('GEOID'):
+    for cbg_id, group in joined_gdf.groupby(cbg_id_col):
         # Calculate the percentage of CBG area contained in each TAZ
         group['area_pct'] = group.apply(
-            lambda row: (row.geometry.area / cbg_gdf[cbg_gdf['GEOID'] == cbg_id].geometry.area.iloc[0]) * 100, axis=1)
+            lambda row: (row.geometry.area / cbg_gdf[cbg_gdf[cbg_id_col] == cbg_id].geometry.area.iloc[0]) * 100, axis=1
+        )
         # Find the TAZ with the maximum coverage area percentage
-        max_coverage_taz_id = group.loc[group['area_pct'].idxmax(), 'TAZCE10']
-        mapping.append({'GEOID': cbg_id, 'TAZCE10': max_coverage_taz_id})
+        max_coverage_taz_id = group.loc[group['area_pct'].idxmax(), taz_id_col]
+        if not pd.isna(max_coverage_taz_id) and not isinstance(max_coverage_taz_id, str):
+            max_coverage_taz_id = str(int(max_coverage_taz_id))
+        mapping.append({cbg_id_col: cbg_id, taz_id_col: max_coverage_taz_id})
 
     # Convert the mapping to a DataFrame
     mapping_df = pd.DataFrame(mapping)

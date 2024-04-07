@@ -67,24 +67,19 @@ object GeoReader extends LazyLogging {
     cbgList.asScala
       .filter(_.geometry.nonEmpty)
       .flatMap { cbg =>
-        var radius = Math.sqrt(cbg.areaInSquareMeters / Math.PI)
-        var result: Option[(String, String)] = None
-        while (result.isEmpty && radius < 50000) {
-          result = tazGeo
-            .getTAZInRadius(cbg.coord, radius)
-            .asScala
-            .filter(_.geometry.nonEmpty)
-            .map { taz =>
-              val intersectionArea = cbg.geometry.get.intersection(taz.geometry.get).getArea
-              (taz, intersectionArea)
-            }
-            .reduceOption { (pair1: (TAZ, Double), pair2: (TAZ, Double)) =>
-              if (pair1._2 > pair2._2) pair1 else pair2
-            }
-            .map(taz => cbg.tazId.toString -> taz._1.tazId.toString)
-          radius = radius * 5
-        }
-        result
+        val radius = 10 * Math.sqrt(cbg.areaInSquareMeters / Math.PI)
+        tazGeo
+          .getTAZInRadius(cbg.coord, radius)
+          .asScala
+          .filter(_.geometry.nonEmpty)
+          .map { taz =>
+            val intersectionArea = cbg.geometry.get.intersection(taz.geometry.get).getArea
+            (taz, intersectionArea)
+          }
+          .reduceOption { (pair1: (TAZ, Double), pair2: (TAZ, Double)) =>
+            if (pair1._2 > pair2._2) pair1 else pair2
+          }
+          .map(taz => cbg.tazId.toString -> taz._1.tazId.toString)
       }
       .toMap
   }
