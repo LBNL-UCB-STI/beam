@@ -245,7 +245,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     }
 
     val filterByBeamMode: ((ActivitySimKey, _)) => Boolean = { case (key, _) =>
-      beamConfig.beam.exchange.output.geo.get.beamModeFilter
+      beamConfig.beam.exchange.output.secondary_activity_sim_skimmer.beamModeFilter
         .contains(ActivitySimPathType.toBeamMode(key.pathType).value)
     }
 

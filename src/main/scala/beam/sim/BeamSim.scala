@@ -306,7 +306,7 @@ class BeamSim @Inject() (
               beamServices.geo,
               beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.numberOfH3Indexes
             )
-          case "taz" => new TAZClustering(beamScenario.getGeoMapForSkims)
+          case "taz" => new TAZClustering(beamScenario.activitySimSkimmerZoneTreeMap)
         }
 
       val abstractSkimmer = BackgroundSkimsCreator.createSkimmer(beamServices, geoClustering)

@@ -1555,7 +1555,7 @@ class PersonAgent(
     maybeNextAct: Option[Activity]
   ): (String, String) = {
     // Selecting the geoMap with highest resolution by comparing their number of zones
-    val geoMap = beamScenario.getGeoMapForSkims
+    val geoMap = beamScenario.activitySimSkimmerZoneTreeMap
     val (origin, destination) = if (geoMap.tazListContainsGeoms) {
       val origGeo = getTazFromActivity(currentAct, geoMap).toString
       val destGeo = maybeNextAct.map(act => getTazFromActivity(act, geoMap).toString).getOrElse("NA")
@@ -1616,7 +1616,7 @@ class PersonAgent(
       failedTrip
     )
     eventsManager.processEvent(odSkimmerEvent)
-    if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
+    if (beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.enabled) {
       processActivitySimSkimmerEvent(currentActivity, nextActivity, odSkimmerEvent)
     }
 

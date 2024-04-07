@@ -294,17 +294,16 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     val tazMap = TAZTreeMap.getTazTreeMap(taz.filePath, Some(taz.tazIdFieldName))
     tazMap.mapNetworkToTAZs(networkCoordinator.network)
 
-    val geoMap = beamConfig.beam.exchange.output.geo match {
-      case Some(geo) =>
-        TAZTreeMap.getGeoTreeMap(
-          geo.filePath,
-          geo.geoIdFieldName,
-          tazMap,
-          taz.tazIdFieldName,
-          geo.geoId2TazIdMapFilePath
-        )
-      case _ => None
-    }
+    val geoMap = if (beamConfig.beam.exchange.output.secondary_activity_sim_skimmer.enabled) {
+      TAZTreeMap.getGeoTreeMap(
+        beamConfig.beam.exchange.output.secondary_activity_sim_skimmer.geoFilePath,
+        beamConfig.beam.exchange.output.secondary_activity_sim_skimmer.geoIdFieldName,
+        tazMap,
+        taz.tazIdFieldName,
+        beamConfig.beam.exchange.output.secondary_activity_sim_skimmer.geoId2TazIdMapFilePath
+      )
+    } else None
+
     val (freightCarriers, fixedActivitiesDurationsFromFreight) =
       readFreights(
         beamConfig,

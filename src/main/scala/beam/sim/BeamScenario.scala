@@ -53,6 +53,11 @@ case class BeamScenario(
 ) {
   val destinationChoiceModel: DestinationChoiceModel = DestinationChoiceModel(beamConfig)
 
+  /**
+    * The exchange geo map to be potentially aggregated later for lower resolution geo map
+    */
+  val activitySimSkimmerZoneTreeMap: TAZTreeMap = exchangeOutputGeoMap.getOrElse(tazTreeMap)
+
   lazy val rideHailTransitModes: Seq[BeamMode] =
     if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) BeamMode.transitModes
     else if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("mass"))
@@ -70,15 +75,5 @@ case class BeamScenario(
       if (vehicle.beamVehicleType.primaryFuelType == Electricity)
         privateVehicleInitialSoc.put(vehicle.id, MathUtils.clamp(vehicle.getStateOfCharge, 0, 1))
     )
-  }
-
-  /**
-    * @return The geo map with highest resolution to be potentially aggregated later for lower resolution geo map
-    */
-  def getGeoMapForSkims: TAZTreeMap = {
-    exchangeOutputGeoMap match {
-      case Some(exchangeMap) if exchangeMap.getSize > tazTreeMap.getSize => exchangeMap
-      case _                                                             => tazTreeMap
-    }
   }
 }

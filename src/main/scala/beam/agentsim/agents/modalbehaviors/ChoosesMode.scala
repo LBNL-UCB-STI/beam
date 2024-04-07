@@ -1280,8 +1280,7 @@ trait ChoosesMode {
         case Some(chosenTrip) =>
           filteredItinerariesForChoice.foreach {
             case possibleTrip
-                if (possibleTrip != chosenTrip) &&
-                  beamScenario.beamConfig.beam.exchange.output.sendNonChosenTripsToSkimmer =>
+                if (possibleTrip != chosenTrip) && beamScenario.beamConfig.beam.router.skim.sendNonChosenTripsToSkimmer =>
               generateSkimData(
                 possibleTrip.legs.lastOption.map(_.beamLeg.endTime).getOrElse(_currentTick.get),
                 possibleTrip,
@@ -1345,9 +1344,10 @@ trait ChoosesMode {
               eventsManager.processEvent(
                 odFailedSkimmerEvent
               )
-              if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
-                createFailedActivitySimSkimmerEvent(currentAct, nextAct, odFailedSkimmerEvent, possibleActivitySimModes)
-                  .foreach(ev => eventsManager.processEvent(ev))
+              if (beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.enabled) {
+                createFailedActivitySimSkimmerEvent(currentAct, nextAct, possibleActivitySimModes).foreach(ev =>
+                  eventsManager.processEvent(ev)
+                )
               }
               eventsManager.processEvent(
                 new ReplanningEvent(
@@ -1518,7 +1518,6 @@ trait ChoosesMode {
   private def createFailedActivitySimSkimmerEvent(
     currentAct: Activity,
     nextAct: Activity,
-    failedODSkimmerEvent: ODSkimmerFailedTripEvent,
     modes: Seq[ActivitySimPathType]
   ): Seq[ActivitySimSkimmerFailedTripEvent] = {
     val (origin, destination) = getOriginAndDestinationFromGeoMap(currentAct, Some(nextAct))
