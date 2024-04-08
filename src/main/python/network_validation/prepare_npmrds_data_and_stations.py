@@ -53,6 +53,15 @@ else:
     region_boundary_wgs84 = collect_geographic_boundaries(state_fips, study_area_fips, 2018, study_area_county_geo,
                                                           projected_coordinate_system, geo_level='county')
 
+# sf_cbg_geo = study_area_dir + "/zones/sf_cbgs.geojson"
+# if os.path.exists(sf_cbg_geo):
+#     print("Loading sf boundaries...")
+#     region_boundary_wgs84 = gpd.read_file(sf_cbg_geo)
+# else:
+#     print("Downloading sf boundaries...")
+#     region_boundary_wgs84 = collect_geographic_boundaries(state_fips, ['075'], 2018, sf_cbg_geo,
+#                                                           projected_coordinate_system, geo_level='cbg')
+
 if os.path.exists(study_area_cbg_geo):
     print("Loading block groups boundaries...")
     cbg_boundary_wgs84 = gpd.read_file(study_area_cbg_geo)

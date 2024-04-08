@@ -1,6 +1,5 @@
 package beam.utils.geospatial
 
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import com.typesafe.scalalogging.LazyLogging
 import org.geotools.geojson.feature.FeatureJSON
 import org.matsim.core.utils.gis.ShapeFileReader
@@ -9,7 +8,6 @@ import org.opengis.feature.simple.SimpleFeature
 
 import java.io.{BufferedReader, File, FileInputStream, FileReader}
 import java.util
-import scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 import scala.util.Using
 
@@ -61,27 +59,6 @@ object GeoReader extends LazyLogging {
         }
         features
       }
-  }
-
-  def mapCBGToTAZ(cbgList: util.Collection[TAZ], tazGeo: TAZTreeMap): Map[String, String] = {
-    cbgList.asScala
-      .filter(_.geometry.nonEmpty)
-      .flatMap { cbg =>
-        val radius = 10 * Math.sqrt(cbg.areaInSquareMeters / Math.PI)
-        tazGeo
-          .getTAZInRadius(cbg.coord, radius)
-          .asScala
-          .filter(_.geometry.nonEmpty)
-          .map { taz =>
-            val intersectionArea = cbg.geometry.get.intersection(taz.geometry.get).getArea
-            (taz, intersectionArea)
-          }
-          .reduceOption { (pair1: (TAZ, Double), pair2: (TAZ, Double)) =>
-            if (pair1._2 > pair2._2) pair1 else pair2
-          }
-          .map(taz => cbg.tazId.toString -> taz._1.tazId.toString)
-      }
-      .toMap
   }
 
   def main(args: Array[String]): Unit = {
