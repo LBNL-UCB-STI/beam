@@ -1,9 +1,12 @@
 package beam.router.r5
 
 import beam.agentsim.agents.choice.mode.{DrivingCost, ModeChoiceMultinomialLogit}
+import beam.agentsim.agents.choice.mode.DrivingCost
+import beam.agentsim.agents.ridehail.RideHailVehicleId.{getFleetName, isRideHail}
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
+import beam.router.BeamRouter.IntermodalUse._
 import beam.router.BeamRouter._
 import beam.router.Modes.BeamMode._
 import beam.router.Modes.{mapLegMode, toR5StreetMode, BeamMode}
@@ -12,8 +15,10 @@ import beam.router.gtfs.FareCalculator.{filterFaresOnTransfers, BeamFareSegment}
 import beam.router.model.BeamLeg.dummyLeg
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model._
+import beam.router.skim.SkimsUtils.getRideHailManagerCosts
 import beam.router.{Modes, Router, RoutingWorker}
 import beam.sim.metrics.{Metrics, MetricsSupport}
+import beam.utils.MeasureUnitConversion.METERS_IN_MILE
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
 import com.conveyal.r5.api.ProfileResponse
 import com.conveyal.r5.api.util._
@@ -429,15 +434,17 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
      *
      */
     val mainRouteToVehicle = request.streetVehiclesUseIntermodalUse == Egress && isRouteForPerson
-    val mainRouteRideHailTransit = request.streetVehiclesUseIntermodalUse == AccessAndEgress && isRouteForPerson
+    val mainRouteRideHailTransit =
+      Set(AccessAndEgress, AccessAndOrEgress).contains(request.streetVehiclesUseIntermodalUse) && isRouteForPerson
 
     val profileRequest = createProfileRequest
     val accessVehicles = if (mainRouteToVehicle) {
       Vector(request.streetVehicles.find(_.mode == WALK).get)
-    } else if (mainRouteRideHailTransit) {
-      request.streetVehicles.filter(_.mode != WALK)
     } else {
-      request.streetVehicles
+      request.streetVehiclesUseIntermodalUse match {
+        case AccessAndEgress => request.streetVehicles.filter(_.mode != WALK)
+        case _               => request.streetVehicles
+      }
     }
 
     val maybeWalkToVehicle: Map[StreetVehicle, Option[EmbodiedBeamLeg]] =
@@ -449,7 +456,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       .mapValues(vehicles => vehicles.minBy(maybeWalkToVehicle(_).map(leg => leg.beamLeg.duration).getOrElse(0)))
 
     val egressVehicles = if (mainRouteRideHailTransit) {
-      request.streetVehicles.filter(_.mode != WALK)
+      request.streetVehiclesUseIntermodalUse match {
+        case AccessAndEgress => request.streetVehicles.filter(_.mode != WALK)
+        case _               => request.streetVehicles
+      }
     } else if (request.withTransit) {
       request.possibleEgressVehicles :+ request.streetVehicles.find(_.mode == WALK).get
     } else {
@@ -502,6 +512,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       profileRequest.toTime =
         profileRequest.fromTime + 61 // Important to allow 61 seconds for transit schedules to be considered!
       val vehicleType = vehicleTypes(vehicle.vehicleTypeId)
+      val (costPerMile, costPerMinute) = getVehicleCosts(vehicle)
       val streetRouter = new StreetRouter(
         transportNetwork.streetLayer,
         travelTimeCalculator(
@@ -510,7 +521,13 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           shouldAddNoise = !profileRequest.hasTransit
         ),
         turnCostCalculator,
-        travelCostCalculator(vehicleType, request.timeValueOfMoney, profileRequest.fromTime)
+        travelCostCalculator(
+          vehicleType,
+          request.timeValueOfMoney,
+          profileRequest.fromTime,
+          costPerMile,
+          costPerMinute
+        )
       )
       if (vehicle.mode == BeamMode.BIKE) {
         streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
@@ -564,7 +581,13 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
                     shouldAddNoise = !profileRequest.hasTransit
                   ),
                   turnCostCalculator,
-                  travelCostCalculator(vehicleType, request.timeValueOfMoney, profileRequest.fromTime)
+                  travelCostCalculator(
+                    vehicleType,
+                    request.timeValueOfMoney,
+                    profileRequest.fromTime,
+                    costPerMile,
+                    costPerMinute
+                  )
                 )
                 if (vehicle.mode == BeamMode.BIKE) {
                   streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
@@ -611,6 +634,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       val egressStopsByMode = mutable.Map[LegMode, StopVisitor]()
       profileRequest.reverseSearch = true
       for (vehicle <- egressVehicles) {
+        val (costPerMile, costPerMinute) = getVehicleCosts(vehicle)
         val theDestination = if (mainRouteToVehicle) {
           destinationVehicle.get.locationUTM.loc
         } else {
@@ -632,7 +656,13 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             shouldAddNoise = !profileRequest.hasTransit
           ),
           turnCostCalculator,
-          travelCostCalculator(vehicleType, request.timeValueOfMoney, profileRequest.fromTime)
+          travelCostCalculator(
+            vehicleType,
+            request.timeValueOfMoney,
+            profileRequest.fromTime,
+            costPerMile,
+            costPerMinute
+          )
         )
         if (vehicle.mode == BeamMode.BIKE) {
           streetRouter.distanceLimitMeters = maxDistanceForBikeMeters
@@ -664,16 +694,17 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
       val departureTimeToDominatingList: IntFunction[DominatingList] = (departureTime: Int) =>
         beamConfig.beam.routing.r5.transitAlternativeList.toLowerCase match {
-          case "suboptimal" =>
-            new SuboptimalDominatingList(
-              profileRequest.suboptimalMinutes
-            )
-          case _ =>
+          case "optimal" =>
             new BeamDominatingList(
               profileRequest.inRoutingFareCalculator,
               Integer.MAX_VALUE,
               departureTime + profileRequest.maxTripDurationMinutes * 60
             )
+          case _ =>
+            new SuboptimalDominatingList(
+              profileRequest.suboptimalMinutes
+            )
+
         }
 
       val transitPaths = latency("getpath-transit-time", Metrics.VerboseLevel) {
@@ -1193,6 +1224,16 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
   private def getStopId(stop: Stop) = stop.stopId.split(":")(1)
 
+  private def getVehicleCosts(
+    vehicle: StreetVehicle
+  ): (Double, Double) = {
+    val (costPerMile, costPerMinute, _) = vehicle.mode match {
+      case CAR if isRideHail(vehicle.id) => getRideHailManagerCosts(RIDE_HAIL, getFleetName(vehicle.id), beamConfig)
+      case _                             => (0.0, 0.0, 0.0)
+    }
+    (costPerMile, costPerMinute)
+  }
+
   private def travelTimeCalculator(
     vehicleType: BeamVehicleType,
     startTime: Int,
@@ -1255,7 +1296,9 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
   private def travelCostCalculator(
     vehicleType: BeamVehicleType,
     timeValueOfMoney: Double,
-    startTime: Int
+    startTime: Int,
+    perMileCost: Double = 0.0,
+    perMinuteCost: Double = 0.0
   ): TravelCostCalculator = { (edge: EdgeStore#Edge, legDurationSeconds: Int, traversalTimeSeconds: Float) =>
     {
       val nonHGVLinkWeightMultiplier: Float = if (truckCategory.contains(vehicleType.vehicleCategory)) {
@@ -1274,10 +1317,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
           }
         } else 1f
 
-      (traversalTimeSeconds + (timeValueOfMoney * tollCalculator.calcTollByLinkId(
+      val fare: Double = traversalTimeSeconds / 60.0 * perMinuteCost + edge.getLengthM / METERS_IN_MILE * perMileCost
+
+      (traversalTimeSeconds + (timeValueOfMoney * (tollCalculator.calcTollByLinkId(
         edge.getEdgeIndex,
         startTime + legDurationSeconds
-      )).toFloat) * nonHGVLinkWeightMultiplier * roadVelocityRestrictionWeightMultiplier
+      ) + fare)).toFloat) * nonHGVLinkWeightMultiplier * roadVelocityRestrictionWeightMultiplier
     }
   }
 }
