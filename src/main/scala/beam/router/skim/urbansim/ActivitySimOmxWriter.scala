@@ -157,7 +157,7 @@ object ActivitySimOmxWriter {
     MatrixData(
       Set(TNC_SINGLE_TRANSIT, TNC_SHARED_TRANSIT),
       ActivitySimTimeBin.values.toSet,
-      Set(TOTIVT, FAR, XWAIT, KEYIVT, IWAIT, DTIM, BOARDS, DDIST, WAUX, TRIPS, FAILURES)
+      Set(TOTIVT, FAR, XWAIT, KEYIVT, IWAIT, DTIM, BOARDS, TNCLEGS, DDIST, WAUX, TRIPS, FAILURES)
     )
   )
 }

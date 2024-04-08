@@ -181,8 +181,9 @@ case class ActivitySimSkimmerEvent(
             }
           } max 1.0,
           costInDollars = pathType match {
-            case TNC_SINGLE_TRANSIT | TNC_SHARED_TRANSIT                 => trip.legs.collect { case l if !l.isRideHail => l.cost }.sum
-            case pt if ActivitySimPathType.transitPathTypes.contains(pt) => math.min(trip.costEstimate, 2.0)
+            case TNC_SINGLE_TRANSIT | TNC_SHARED_TRANSIT =>
+              trip.legs.collect { case l if !l.isRideHail => l.cost }.sum min 2.0
+            case pt if ActivitySimPathType.transitPathTypes.contains(pt) => trip.costEstimate min 2.0
             case _                                                       => trip.costEstimate
           },
           energy = energyConsumption,
@@ -190,7 +191,7 @@ case class ActivitySimSkimmerEvent(
           walkEgressInMinutes = walkEgress / 60.0,
           walkAuxiliaryInMinutes = walkAuxiliary / 60.0,
           waitInitialInMinutes = waitInitial / 60.0,
-          waitAuxiliaryInMinutes = waitAuxiliary / 60.0,
+          waitAuxiliaryInMinutes = waitAuxiliary / 60.0 max 0.0,
           totalInVehicleTimeInMinutes = totalInVehicleTime / 60.0,
           driveTimeInMinutes = driveTimeInSeconds / 60.0,
           driveDistanceInMeters = driveDistanceInMeters,
