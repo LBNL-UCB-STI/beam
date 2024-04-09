@@ -21,7 +21,7 @@ state_fips = '06'
 study_area_fips = ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113']
 npmrds_raw_geo = study_area_dir + "/validation_data/NPMRDS/California.shp"
 npmrds_raw_data_csv = study_area_dir + '/validation_data/NPMRDS/al_ca_oct2018_1hr_trucks_pax.csv'
-beam_network_csv = study_area_dir + '/validation_data/BEAM/sfbay_residential_psimpl_network.csv.gz'
+beam_network_csv = study_area_dir + '/validation_data/BEAM/sfbay_residential_simpl_network.csv.gz'
 study_area_taz_geo = study_area_dir + "/zones/shp/sfbay-tazs-epsg-26910.shp"
 study_area_taz_id = "taz1454"
 

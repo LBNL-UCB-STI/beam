@@ -3,17 +3,20 @@ from pathlib import Path
 from validation_utils import *
 
 # beam run i.e. link stats and events file
-run_dir = os.path.expanduser("~/Workspace/Data/Scenarios/sfbay/runs/sfbay-base--residential-psimpl-network-jdeq-05__2024-03-29_22-03-23_aog")
-link_stats_paths = [("BEAM_2024", run_dir + "/9.linkstats.csv.gz")]
+run_dir = os.path.expanduser("~/Workspace/Data/Scenarios/sfbay/runs/sfbay-calib--rps-jdeq-101010__2024-04-02_02-11-54_mkd")
+link_stats_paths = [("BEAM_2024", run_dir + "/12.linkstats.csv.gz")]
 
 # validation data
 study_area_dir = os.path.expanduser("~/Workspace/Data/Scenarios/sfbay")
+beam_network_car_links_geo = study_area_dir + '/validation_data/BEAM/sfbay_residential_psimpl_network_car_only.geojson'
+beam_network_mapped_to_npmrds_geo = study_area_dir + '/validation_data/BEAM/sfbay_residential_psimpl_network_mapped_to_npmrds.geojson'
+#
 npmrds_station_geo = study_area_dir + '/validation_data/NPMRDS/npmrds_station.geojson'
 npmrds_data_csv = study_area_dir + '/validation_data/NPMRDS/npmrds_data.csv'
 npmrds_hourly_speed_csv = study_area_dir + '/validation_data/NPMRDS/npmrds_hourly_speeds.csv'
 npmrds_hourly_speed_by_road_class_csv = study_area_dir + '/validation_data/NPMRDS/npmrds_hourly_speed_by_road_class.csv'
-beam_network_car_links_geo = study_area_dir + '/validation_data/BEAM/sfbay_residential_psimpl_network_car_only.geojson'
-beam_network_mapped_to_npmrds_geo = study_area_dir + '/validation_data/BEAM/sfbay_residential_psimpl_network_mapped_to_npmrds.geojson'
+
+print("Run: " + run_dir)
 
 # The rest is automatically generated
 output_dir = run_dir + '/validation_output'
