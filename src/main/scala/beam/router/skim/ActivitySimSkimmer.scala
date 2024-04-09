@@ -245,8 +245,10 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     }
 
     val filterByBeamMode: ((ActivitySimKey, _)) => Boolean = { case (key, _) =>
-      beamConfig.beam.exchange.output.secondary_activity_sim_skimmer.beamModeFilter
-        .contains(ActivitySimPathType.toBeamMode(key.pathType).value)
+      beamConfig.beam.exchange.output.secondary_activity_sim_skimmer.exists(
+        _.beamModeFilter
+          .contains(ActivitySimPathType.toBeamMode(key.pathType).value)
+      )
     }
 
     val writeToOutput: (String, Iterable[ExcerptData], Seq[String]) => Unit = { case (filePath, data, geoUnits) =>

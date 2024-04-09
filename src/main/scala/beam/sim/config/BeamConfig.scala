@@ -2856,14 +2856,13 @@ object BeamConfig {
     object Exchange {
 
       case class Output(
-        secondary_activity_sim_skimmer: BeamConfig.Beam.Exchange.Output.SecondaryActivitySimSkimmer
+        secondary_activity_sim_skimmer: scala.Option[BeamConfig.Beam.Exchange.Output.SecondaryActivitySimSkimmer]
       )
 
       object Output {
 
         case class SecondaryActivitySimSkimmer(
           beamModeFilter: scala.List[java.lang.String],
-          enabled: scala.Boolean,
           geoZoneMapping: scala.Option[BeamConfig.Beam.Exchange.Output.SecondaryActivitySimSkimmer.GeoZoneMapping],
           secondaryTazFilePath: java.lang.String,
           secondaryTazIdFieldName: java.lang.String
@@ -2893,7 +2892,6 @@ object BeamConfig {
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.SecondaryActivitySimSkimmer = {
             BeamConfig.Beam.Exchange.Output.SecondaryActivitySimSkimmer(
               beamModeFilter = $_L$_str(c.getList("beamModeFilter")),
-              enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
               geoZoneMapping =
                 if (c.hasPathOrNull("geoZoneMapping"))
                   scala.Some(
@@ -2909,10 +2907,13 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output = {
           BeamConfig.Beam.Exchange.Output(
-            secondary_activity_sim_skimmer = BeamConfig.Beam.Exchange.Output.SecondaryActivitySimSkimmer(
-              if (c.hasPathOrNull("secondary-activity-sim-skimmer")) c.getConfig("secondary-activity-sim-skimmer")
-              else com.typesafe.config.ConfigFactory.parseString("secondary-activity-sim-skimmer{}")
-            )
+            secondary_activity_sim_skimmer =
+              if (c.hasPathOrNull("secondary-activity-sim-skimmer"))
+                scala.Some(
+                  BeamConfig.Beam.Exchange.Output
+                    .SecondaryActivitySimSkimmer(c.getConfig("secondary-activity-sim-skimmer"))
+                )
+              else None
           )
         }
       }

@@ -326,26 +326,28 @@ object TAZTreeMap {
   def getSecondaryTazTreeMap(beamConfig: BeamConfig, tazMap: TAZTreeMap): Option[TAZTreeMap] = {
     val taz2Config = beamConfig.beam.exchange.output.secondary_activity_sim_skimmer
 
-    if (!taz2Config.enabled) return None
+    if (taz2Config.isEmpty) return None
 
     val maybeTaz2Map =
-      if (taz2Config.secondaryTazFilePath.endsWith(".shp") || taz2Config.secondaryTazFilePath.endsWith(".geojson")) {
+      if (
+        taz2Config.exists(c => c.secondaryTazFilePath.endsWith(".shp") || c.secondaryTazFilePath.endsWith(".geojson"))
+      ) {
         val (quadTree, mapping) =
-          initQuadTreeFromFile(taz2Config.secondaryTazFilePath, taz2Config.secondaryTazIdFieldName)
+          initQuadTreeFromFile(taz2Config.get.secondaryTazFilePath, taz2Config.get.secondaryTazIdFieldName)
         Some(new TAZTreeMap(quadTree, maybeZoneOrdering = Some(mapping)))
       } else {
         logger.warn(
-          s"Failed to load secondary taz with filePath (${taz2Config.secondaryTazFilePath}) " +
-          s"and idFieldName (${taz2Config.secondaryTazIdFieldName})"
+          s"Failed to load secondary taz with filePath (${taz2Config.get.secondaryTazFilePath}) " +
+          s"and idFieldName (${taz2Config.get.secondaryTazIdFieldName})"
         )
         None
       }
 
     maybeTaz2Map.foreach { taz2Map =>
-      taz2Config.geoZoneMapping match {
+      taz2Config.get.geoZoneMapping match {
         case Some(GeoZoneMapping(filePath, geoIdFieldNameKey, geoIdFieldNameValue)) if filePath.trim.nonEmpty =>
           val isMappingIncomplete = geoIdFieldNameKey.trim.isEmpty || geoIdFieldNameValue.trim.isEmpty
-          val isKeyMatchingSecondaryTazIdField = geoIdFieldNameKey == taz2Config.secondaryTazIdFieldName
+          val isKeyMatchingSecondaryTazIdField = geoIdFieldNameKey == taz2Config.get.secondaryTazIdFieldName
           val isTaz2MapLargerThanTazMap = taz2Map.getSize > tazMap.getSize
 
           val (indexTazMap, indexTazFieldName, mappedTazFieldName) =
@@ -354,9 +356,9 @@ object TAZTreeMap {
             } else if (!isMappingIncomplete) {
               (tazMap, geoIdFieldNameKey, geoIdFieldNameValue)
             } else if (isTaz2MapLargerThanTazMap) {
-              (taz2Map, taz2Config.secondaryTazIdFieldName, beamConfig.beam.agentsim.taz.tazIdFieldName)
+              (taz2Map, taz2Config.get.secondaryTazIdFieldName, beamConfig.beam.agentsim.taz.tazIdFieldName)
             } else {
-              (tazMap, beamConfig.beam.agentsim.taz.tazIdFieldName, taz2Config.secondaryTazIdFieldName)
+              (tazMap, beamConfig.beam.agentsim.taz.tazIdFieldName, taz2Config.get.secondaryTazIdFieldName)
             }
 
           readTazToTazMapCSVFile(indexTazMap, filePath, indexTazFieldName, mappedTazFieldName)
