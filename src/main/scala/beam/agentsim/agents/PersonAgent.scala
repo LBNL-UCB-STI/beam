@@ -1555,7 +1555,7 @@ class PersonAgent(
     maybeNextAct: Option[Activity]
   ): (String, String) = {
     // Selecting the geoMap with highest resolution by comparing their number of zones
-    val geoMap = beamScenario.activitySimSkimmerZoneTreeMap
+    val geoMap = beamScenario.tazTreeMapForASimSkimmer
     val (origin, destination) = if (geoMap.tazListContainsGeoms) {
       val origGeo = getTazFromActivity(currentAct, geoMap).toString
       val destGeo = maybeNextAct.map(act => getTazFromActivity(act, geoMap).toString).getOrElse("NA")

@@ -45,7 +45,7 @@ case class BeamScenario(
   network: Network,
   trainStopQuadTree: QuadTree[Stop],
   tazTreeMap: TAZTreeMap,
-  exchangeOutputGeoMap: Option[TAZTreeMap],
+  secondaryTazTreeMap: Option[TAZTreeMap],
   modeIncentives: ModeIncentive,
   h3taz: H3TAZ,
   freightCarriers: IndexedSeq[FreightCarrier],
@@ -56,7 +56,10 @@ case class BeamScenario(
   /**
     * The exchange geo map to be potentially aggregated later for lower resolution geo map
     */
-  val activitySimSkimmerZoneTreeMap: TAZTreeMap = exchangeOutputGeoMap.getOrElse(tazTreeMap)
+  val tazTreeMapForASimSkimmer: TAZTreeMap = secondaryTazTreeMap match {
+    case Some(taz2TreeMap) if taz2TreeMap.getSize > tazTreeMap.getSize => taz2TreeMap
+    case _                                                             => tazTreeMap
+  }
 
   lazy val rideHailTransitModes: Seq[BeamMode] =
     if (beamConfig.beam.agentsim.agents.rideHailTransit.modesToConsider.equalsIgnoreCase("all")) BeamMode.transitModes
