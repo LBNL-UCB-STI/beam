@@ -1230,9 +1230,31 @@ There's the list of parameters responsible for writing out data produced by BEAM
       }
     }
     beam.metrics.level = "verbose"
-    beam.exchange.output.activitySimSkimsEnabled = false
-    beam.exchange.output.sendNonChosenTripsToSkimmer = true
-    beam.exchange.output.geo.filePath = string
+    beam.exchange.output {
+      activity-sim-skimmer {
+          primary.enabled = true
+          secondary.enabled = false
+          secondary.beamModeFilter = [
+              "car",
+              "bike",
+              "drive_transit",
+              "hov2",
+              "hov3",
+              "ride_hail",
+              "ride_hail_pooled",
+              "walk",
+              "walk_transit",
+          ]
+          secondary.taz.filePath = ""
+          secondary.taz.tazIdFieldName = ""
+          secondary.taz.tazMapping {
+              filePath = ""
+              tazIdFieldNameKey = ""
+              tazIdFieldNameValue = ""
+          }
+      }
+    }
+
 
 All integer values that end with 'Interval' mean writing data files at iteration which number % value = 0. In case value = 0
 writing is disabled.
@@ -1277,9 +1299,11 @@ writing is disabled.
 * router.skim.transit-crowding-skimmer.name: transit crowding skimmer event name
 * router.skim.transit-crowding-skimmer.fileBaseName: transit crowding skims base file name
 * metrics.level: the level of beam metrics. Possible values: off, short, regular, verbose
-* beam.exchange.output.activitySimSkimsEnabled: enables writing out skims in activity sim format (ActivitySim skims). See `router.skim.activity-sim-skimmer` params.
-* beam.exchange.output.sendNonChosenTripsToSkimmer: enables saving not chosen trip data to origin-destination and ActivitySim skims.
-* beam.exchange.output.geo.filePath: path to a file in beam TAZ format that contains centroids of geo unit different than the scenario units. If defined the ActivitySim skims are written using these geo units.
+* beam.exchange.output.activity-sim-skimmer.primary.enabled: enables writing out skims in activity sim format (ActivitySim skims). See `router.skim.activity-sim-skimmer` params.
+* beam.agentsim.taz.filePath: path to a file in beam TAZ format that contains primary centroids of geo unit of the scenario units. If defined the ActivitySim skims are written using these geo units.
+* beam.router.skim.sendNonChosenTripsToSkimmer: enables saving not chosen trip data to origin-destination and ActivitySim skims.
+* beam.exchange.output.activity-sim-skimmer.secondary.enabled: enables writing out secondary skims in activity sim format (ActivitySim skims). See `router.skim.activity-sim-skimmer` params.
+* beam.exchange.output.activity-sim-skimmer.secondary.taz.filePath: path to a file in beam TAZ format that contains secondary centroids of geo unit different than the scenario units. If defined the ActivitySim skims are written using these geo units.
 
 Termination criterion name options
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

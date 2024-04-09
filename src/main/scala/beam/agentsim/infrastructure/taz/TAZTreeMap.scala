@@ -328,18 +328,24 @@ object TAZTreeMap {
     taz1Config: BeamConfig.Beam.Agentsim.Taz,
     tazMap: TAZTreeMap
   ): Option[TAZTreeMap] = {
-    val maybeTaz2Map =
-      if (taz2Config.filePath.endsWith(".shp") || taz2Config.filePath.endsWith(".geojson")) {
-        val (quadTree, mapping) =
-          initQuadTreeFromFile(taz2Config.filePath, taz2Config.tazIdFieldName)
-        Some(new TAZTreeMap(quadTree, maybeZoneOrdering = Some(mapping)))
-      } else {
-        logger.warn(
-          s"Failed to load secondary taz with filePath (${taz2Config.filePath}) " +
-          s"and idFieldName (${taz2Config.tazIdFieldName})"
-        )
-        None
+    val maybeTaz2Map: Option[TAZTreeMap] =
+      try {
+        if (taz2Config.filePath.endsWith(".shp") || taz2Config.filePath.endsWith(".geojson")) {
+          val (quadTree, mapping) =
+            initQuadTreeFromFile(taz2Config.filePath, taz2Config.tazIdFieldName)
+          Some(new TAZTreeMap(quadTree, maybeZoneOrdering = Some(mapping)))
+        } else {
+          Some(TAZTreeMap.fromCsv(taz2Config.filePath))
+        }
+      } catch {
+        case fe: FileNotFoundException =>
+          logger.error("No secondary TAZ file found at given file path: %s" format taz2Config.filePath, fe)
+          None
+        case e: Exception =>
+          logger.error("Exception while reading secondary TAZ from CSV file from path: %s" format e.getMessage, e)
+          None
       }
+
     maybeTaz2Map.foreach { taz2Map =>
       taz2Config.tazMapping match {
         case Some(TazMapping(filePath, geoIdFieldNameKey, geoIdFieldNameValue)) if filePath.trim.nonEmpty =>
@@ -364,6 +370,7 @@ object TAZTreeMap {
           mapTAZToTAZ(taz2Map, tazMap)
       }
     }
+
     maybeTaz2Map
   }
 
