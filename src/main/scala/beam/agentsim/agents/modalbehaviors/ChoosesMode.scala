@@ -766,7 +766,8 @@ trait ChoosesMode {
         choosesModeData.copy(
           routingResponse = Some(correctRoutingResponse(response)),
           parkingRequestIds = newParkingRequestIds,
-          routingFinished = true
+          routingFinished =
+            choosesModeData.rideHail2TransitRoutingResponse.nonEmpty // CHANGE APRIL 2024: choice was moving ahead before RH transit result completed
         )
       }
 
