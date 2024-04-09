@@ -1616,7 +1616,7 @@ class PersonAgent(
       failedTrip
     )
     eventsManager.processEvent(odSkimmerEvent)
-    if (beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.enabled) {
+    if (beamServices.beamConfig.beam.exchange.output.activity_sim_skimmer.exists(_.primary.enabled)) {
       processActivitySimSkimmerEvent(currentActivity, nextActivity, odSkimmerEvent)
     }
 

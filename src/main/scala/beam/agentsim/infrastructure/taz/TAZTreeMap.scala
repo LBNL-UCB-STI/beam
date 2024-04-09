@@ -21,7 +21,7 @@ import org.opengis.feature.simple.SimpleFeature
 import org.slf4j.LoggerFactory
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
-import beam.sim.config.BeamConfig.Beam.Exchange.Output.SecondaryActivitySimSkimmer.GeoZoneMapping
+import beam.sim.config.BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz.TazMapping
 
 import java.io._
 import java.util
@@ -323,31 +323,28 @@ object TAZTreeMap {
     new TAZTreeMap(tazQuadTree)
   }
 
-  def getSecondaryTazTreeMap(beamConfig: BeamConfig, tazMap: TAZTreeMap): Option[TAZTreeMap] = {
-    val taz2Config = beamConfig.beam.exchange.output.secondary_activity_sim_skimmer
-
-    if (taz2Config.isEmpty) return None
-
+  def getSecondaryTazTreeMap(
+    taz2Config: BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz,
+    taz1Config: BeamConfig.Beam.Agentsim.Taz,
+    tazMap: TAZTreeMap
+  ): Option[TAZTreeMap] = {
     val maybeTaz2Map =
-      if (
-        taz2Config.exists(c => c.secondaryTazFilePath.endsWith(".shp") || c.secondaryTazFilePath.endsWith(".geojson"))
-      ) {
+      if (taz2Config.filePath.endsWith(".shp") || taz2Config.filePath.endsWith(".geojson")) {
         val (quadTree, mapping) =
-          initQuadTreeFromFile(taz2Config.get.secondaryTazFilePath, taz2Config.get.secondaryTazIdFieldName)
+          initQuadTreeFromFile(taz2Config.filePath, taz2Config.tazIdFieldName)
         Some(new TAZTreeMap(quadTree, maybeZoneOrdering = Some(mapping)))
       } else {
         logger.warn(
-          s"Failed to load secondary taz with filePath (${taz2Config.get.secondaryTazFilePath}) " +
-          s"and idFieldName (${taz2Config.get.secondaryTazIdFieldName})"
+          s"Failed to load secondary taz with filePath (${taz2Config.filePath}) " +
+          s"and idFieldName (${taz2Config.tazIdFieldName})"
         )
         None
       }
-
     maybeTaz2Map.foreach { taz2Map =>
-      taz2Config.get.geoZoneMapping match {
-        case Some(GeoZoneMapping(filePath, geoIdFieldNameKey, geoIdFieldNameValue)) if filePath.trim.nonEmpty =>
+      taz2Config.tazMapping match {
+        case Some(TazMapping(filePath, geoIdFieldNameKey, geoIdFieldNameValue)) if filePath.trim.nonEmpty =>
           val isMappingIncomplete = geoIdFieldNameKey.trim.isEmpty || geoIdFieldNameValue.trim.isEmpty
-          val isKeyMatchingSecondaryTazIdField = geoIdFieldNameKey == taz2Config.get.secondaryTazIdFieldName
+          val isKeyMatchingSecondaryTazIdField = geoIdFieldNameKey == taz2Config.tazIdFieldName
           val isTaz2MapLargerThanTazMap = taz2Map.getSize > tazMap.getSize
 
           val (indexTazMap, indexTazFieldName, mappedTazFieldName) =
@@ -356,9 +353,9 @@ object TAZTreeMap {
             } else if (!isMappingIncomplete) {
               (tazMap, geoIdFieldNameKey, geoIdFieldNameValue)
             } else if (isTaz2MapLargerThanTazMap) {
-              (taz2Map, taz2Config.get.secondaryTazIdFieldName, beamConfig.beam.agentsim.taz.tazIdFieldName)
+              (taz2Map, taz2Config.tazIdFieldName, taz1Config.tazIdFieldName)
             } else {
-              (tazMap, beamConfig.beam.agentsim.taz.tazIdFieldName, taz2Config.get.secondaryTazIdFieldName)
+              (tazMap, taz1Config.tazIdFieldName, taz2Config.tazIdFieldName)
             }
 
           readTazToTazMapCSVFile(indexTazMap, filePath, indexTazFieldName, mappedTazFieldName)
@@ -367,7 +364,6 @@ object TAZTreeMap {
           mapTAZToTAZ(taz2Map, tazMap)
       }
     }
-
     maybeTaz2Map
   }
 

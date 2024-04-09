@@ -1344,7 +1344,7 @@ trait ChoosesMode {
               eventsManager.processEvent(
                 odFailedSkimmerEvent
               )
-              if (beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.enabled) {
+              if (beamServices.beamConfig.beam.exchange.output.activity_sim_skimmer.exists(_.primary.enabled)) {
                 createFailedActivitySimSkimmerEvent(currentAct, nextAct, possibleActivitySimModes).foreach(ev =>
                   eventsManager.processEvent(ev)
                 )

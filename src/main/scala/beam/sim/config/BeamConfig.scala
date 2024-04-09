@@ -2856,63 +2856,114 @@ object BeamConfig {
     object Exchange {
 
       case class Output(
-        secondary_activity_sim_skimmer: scala.Option[BeamConfig.Beam.Exchange.Output.SecondaryActivitySimSkimmer]
+        activity_sim_skimmer: scala.Option[BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer]
       )
 
       object Output {
 
-        case class SecondaryActivitySimSkimmer(
-          beamModeFilter: scala.List[java.lang.String],
-          geoZoneMapping: scala.Option[BeamConfig.Beam.Exchange.Output.SecondaryActivitySimSkimmer.GeoZoneMapping],
-          secondaryTazFilePath: java.lang.String,
-          secondaryTazIdFieldName: java.lang.String
+        case class ActivitySimSkimmer(
+          primary: BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Primary,
+          secondary: BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary
         )
 
-        object SecondaryActivitySimSkimmer {
+        object ActivitySimSkimmer {
 
-          case class GeoZoneMapping(
-            filePath: java.lang.String,
-            geoIdFieldNameKey: java.lang.String,
-            geoIdFieldNameValue: java.lang.String
+          case class Primary(
+            enabled: scala.Boolean
           )
 
-          object GeoZoneMapping {
+          object Primary {
 
-            def apply(
-              c: com.typesafe.config.Config
-            ): BeamConfig.Beam.Exchange.Output.SecondaryActivitySimSkimmer.GeoZoneMapping = {
-              BeamConfig.Beam.Exchange.Output.SecondaryActivitySimSkimmer.GeoZoneMapping(
-                filePath = c.getString("filePath"),
-                geoIdFieldNameKey = c.getString("geoIdFieldNameKey"),
-                geoIdFieldNameValue = c.getString("geoIdFieldNameValue")
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Primary = {
+              BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Primary(
+                enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled")
               )
             }
           }
 
-          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.SecondaryActivitySimSkimmer = {
-            BeamConfig.Beam.Exchange.Output.SecondaryActivitySimSkimmer(
-              beamModeFilter = $_L$_str(c.getList("beamModeFilter")),
-              geoZoneMapping =
-                if (c.hasPathOrNull("geoZoneMapping"))
-                  scala.Some(
-                    BeamConfig.Beam.Exchange.Output.SecondaryActivitySimSkimmer
-                      .GeoZoneMapping(c.getConfig("geoZoneMapping"))
+          case class Secondary(
+            beamModeFilter: scala.List[java.lang.String],
+            enabled: scala.Boolean,
+            taz: BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz
+          )
+
+          object Secondary {
+
+            case class Taz(
+              filePath: java.lang.String,
+              tazIdFieldName: java.lang.String,
+              tazMapping: scala.Option[BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz.TazMapping]
+            )
+
+            object Taz {
+
+              case class TazMapping(
+                filePath: java.lang.String,
+                tazIdFieldNameKey: java.lang.String,
+                tazIdFieldNameValue: java.lang.String
+              )
+
+              object TazMapping {
+
+                def apply(
+                  c: com.typesafe.config.Config
+                ): BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz.TazMapping = {
+                  BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz.TazMapping(
+                    filePath = c.getString("filePath"),
+                    tazIdFieldNameKey = c.getString("tazIdFieldNameKey"),
+                    tazIdFieldNameValue = c.getString("tazIdFieldNameValue")
                   )
-                else None,
-              secondaryTazFilePath = c.getString("secondaryTazFilePath"),
-              secondaryTazIdFieldName = c.getString("secondaryTazIdFieldName")
+                }
+              }
+
+              def apply(
+                c: com.typesafe.config.Config
+              ): BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz = {
+                BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz(
+                  filePath = c.getString("filePath"),
+                  tazIdFieldName = c.getString("tazIdFieldName"),
+                  tazMapping =
+                    if (c.hasPathOrNull("tazMapping"))
+                      scala.Some(
+                        BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz
+                          .TazMapping(c.getConfig("tazMapping"))
+                      )
+                    else None
+                )
+              }
+            }
+
+            def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary = {
+              BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary(
+                beamModeFilter = $_L$_str(c.getList("beamModeFilter")),
+                enabled = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
+                taz = BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz(
+                  if (c.hasPathOrNull("taz")) c.getConfig("taz")
+                  else com.typesafe.config.ConfigFactory.parseString("taz{}")
+                )
+              )
+            }
+          }
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer = {
+            BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer(
+              primary = BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Primary(
+                if (c.hasPathOrNull("primary")) c.getConfig("primary")
+                else com.typesafe.config.ConfigFactory.parseString("primary{}")
+              ),
+              secondary = BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary(
+                if (c.hasPathOrNull("secondary")) c.getConfig("secondary")
+                else com.typesafe.config.ConfigFactory.parseString("secondary{}")
+              )
             )
           }
         }
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output = {
           BeamConfig.Beam.Exchange.Output(
-            secondary_activity_sim_skimmer =
-              if (c.hasPathOrNull("secondary-activity-sim-skimmer"))
-                scala.Some(
-                  BeamConfig.Beam.Exchange.Output
-                    .SecondaryActivitySimSkimmer(c.getConfig("secondary-activity-sim-skimmer"))
-                )
+            activity_sim_skimmer =
+              if (c.hasPathOrNull("activity-sim-skimmer"))
+                scala.Some(BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer(c.getConfig("activity-sim-skimmer")))
               else None
           )
         }
@@ -4191,7 +4242,6 @@ object BeamConfig {
       object Skim {
 
         case class ActivitySimSkimmer(
-          enabled: scala.Boolean,
           fileBaseName: java.lang.String,
           fileOutputFormat: java.lang.String,
           name: java.lang.String
@@ -4201,7 +4251,6 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.ActivitySimSkimmer = {
             BeamConfig.Beam.Router.Skim.ActivitySimSkimmer(
-              enabled = !c.hasPathOrNull("enabled") || c.getBoolean("enabled"),
               fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsActivitySimOD",
               fileOutputFormat = if (c.hasPathOrNull("fileOutputFormat")) c.getString("fileOutputFormat") else "csv",
               name = if (c.hasPathOrNull("name")) c.getString("name") else "activity-sim-skimmer"
