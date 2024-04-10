@@ -1550,16 +1550,12 @@ class PersonAgent(
     )
   }
 
-  private def processActivitySimSkimmerEvent(
+  protected def getOriginAndDestinationFromGeoMap(
     currentAct: Activity,
-    maybeNextAct: Option[Activity],
-    odSkimmerEvent: ODSkimmerEvent
-  ): Unit = {
+    maybeNextAct: Option[Activity]
+  ): (String, String) = {
     // Selecting the geoMap with highest resolution by comparing their number of zones
-    val geoMap = beamScenario.exchangeOutputGeoMap match {
-      case Some(exchangeMap) if exchangeMap.getSize > beamScenario.tazTreeMap.getSize => exchangeMap
-      case _                                                                          => beamScenario.tazTreeMap
-    }
+    val geoMap = beamScenario.tazTreeMapForASimSkimmer
     val (origin, destination) = if (geoMap.tazListContainsGeoms) {
       val origGeo = getTazFromActivity(currentAct, geoMap).toString
       val destGeo = maybeNextAct.map(act => getTazFromActivity(act, geoMap).toString).getOrElse("NA")
@@ -1570,6 +1566,15 @@ class PersonAgent(
         maybeNextAct.map(act => geoMap.getTAZ(act.getCoord).toString).getOrElse("NA")
       )
     }
+    (origin, destination)
+  }
+
+  private def processActivitySimSkimmerEvent(
+    currentAct: Activity,
+    maybeNextAct: Option[Activity],
+    odSkimmerEvent: ODSkimmerEvent
+  ): Unit = {
+    val (origin, destination) = getOriginAndDestinationFromGeoMap(currentAct, maybeNextAct)
     val asSkimmerEvent = ActivitySimSkimmerEvent(
       origin,
       destination,
@@ -1600,7 +1605,7 @@ class PersonAgent(
       logger.error("Wrong trip classifier ({}) for freight {}", correctedTrip.tripClassifier, id)
     }
     // Correct the trip to deal with ride hail / disruptions and then register to skimmer
-    val (odSkimmerEvent, origCoord, destCoord) = ODSkimmerEvent.forTaz(
+    val (odSkimmerEvent, _, _) = ODSkimmerEvent.forTaz(
       tick,
       beamServices,
       correctedTrip,
@@ -1611,7 +1616,7 @@ class PersonAgent(
       failedTrip
     )
     eventsManager.processEvent(odSkimmerEvent)
-    if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
+    if (beamServices.beamConfig.beam.exchange.output.activity_sim_skimmer.exists(_.primary.enabled)) {
       processActivitySimSkimmerEvent(currentActivity, nextActivity, odSkimmerEvent)
     }
 
