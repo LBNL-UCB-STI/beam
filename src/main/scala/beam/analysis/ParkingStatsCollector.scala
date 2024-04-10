@@ -392,7 +392,7 @@ object ParkingStatsCollector extends OutputDataDescriptor {
     val outputDirPath: String = ioController.getOutputPath
     val relativePath: String = filePath.replace(outputDirPath, "")
     val outputDataDescription =
-      OutputDataDescription(classOf[ParkingStatsCollector].getSimpleName.dropRight(1), relativePath, "", "")
+      OutputDataDescription(classOf[ParkingStatsCollector].getSimpleName, relativePath, "", "")
     List(
       "timeBin"                     -> "Time bin represented by the lower bound of the interval",
       "TAZ"                         -> "Zone summarizing all parking events",

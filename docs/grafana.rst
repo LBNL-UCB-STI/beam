@@ -315,7 +315,7 @@ and methods to write global-level metrics with iteration on X axis. There is als
 Troubleshooting
 --------------------
 
-.. error ::
+.. error::
 
     for docker-influxdb-grafana Cannot create container for service docker-influxdb-grafana: Conflict. The container
     name "/docker-influxdb-grafana" is already in use by container "<CONTAINER ID>”. You have to remove (or rename) that container to be able to reuse that name.

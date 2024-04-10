@@ -3,12 +3,10 @@ package beam.router
 import java.io._
 import java.util.zip.GZIPInputStream
 import javax.inject.Inject
-
 import scala.collection.concurrent.TrieMap
-
 import beam.router.RouteHistory.{RouteHistoryADT, _}
 import beam.sim.config.BeamConfig
-import beam.utils.FileUtils
+import beam.utils.{FileUtils, OutputDataDescriptor, OutputDataDescriptorObject}
 import com.google.common.escape.ArrayBasedUnicodeEscaper
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.controler.events.IterationEndsEvent
@@ -190,4 +188,13 @@ object RouteHistory {
     }
   }
 
+  def routeHistoryOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("RouteHistory", "routeHistory.csv.gz", iterationLevel = true)(
+      """
+        timeBin       | Time bin when the car route starts
+        originLinkId  | Original link id
+        destLinkId    | Destination link id
+        route         | List of link ids of the route
+      """
+    )
 }
