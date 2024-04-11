@@ -718,38 +718,30 @@ trait ChoosesMode {
               .map(_.beamLeg)
           val egressSegment =
             rhTransitTrip.get.legs.view.reverse.takeWhile(!_.beamLeg.mode.isTransit).reverse.map(_.beamLeg)
-          val accessId =
+          val (accessId, accessResult) =
             if (
               (accessSegment.map(_.travelPath.distanceInM).sum > 0) & accessSegment
                 .exists(l => l.mode.isRideHail | l.mode == CAR)
             ) {
-              makeRideHailRequestFromBeamLeg(accessSegment)
+              (makeRideHailRequestFromBeamLeg(accessSegment), None)
             } else {
-              None
+              (None, Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)))
             }
-          val egressId =
+          val (egressId, egressResult) =
             if (
               (egressSegment.map(_.travelPath.distanceInM).sum > 0) & egressSegment
                 .exists(l => l.mode.isRideHail | l.mode == CAR)
             ) {
-              makeRideHailRequestFromBeamLeg(egressSegment.toVector)
+              (makeRideHailRequestFromBeamLeg(egressSegment.toVector), None)
             } else {
-              None
+              (None, Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)))
             }
           choosesModeData.copy(
             rideHail2TransitRoutingResponse = Some(rhTransitTrip.get),
             rideHail2TransitAccessInquiryId = accessId,
             rideHail2TransitEgressInquiryId = egressId,
-            rideHail2TransitAccessResult = if (accessId.isEmpty) {
-              Some(RideHailResponse.dummyWithError(RideHailNotRequestedError))
-            } else {
-              None
-            },
-            rideHail2TransitEgressResult = if (egressId.isEmpty) {
-              Some(RideHailResponse.dummyWithError(RideHailNotRequestedError))
-            } else {
-              None
-            }
+            rideHail2TransitAccessResult = accessResult,
+            rideHail2TransitEgressResult = egressResult
           )
         } else {
           choosesModeData.copy(
@@ -1060,7 +1052,7 @@ trait ChoosesMode {
   ): Boolean = {
     driveTransitTrip.isDefined && driveTransitTrip.get.legs
       .exists(leg => beamScenario.rideHailTransitModes.contains(leg.beamLeg.mode)) &&
-    rideHail2TransitResult.getOrElse(RideHailResponse.DUMMY).error.isEmpty
+    rideHail2TransitResult.getOrElse(RideHailResponse.DUMMY).error.isEmpty // NOTE: will this ever be nonempty?
   }
 
   def makeRideHailRequestFromBeamLeg(legs: Seq[BeamLeg]): Option[Int] = {
@@ -1077,7 +1069,6 @@ trait ChoosesMode {
       rideHailServiceSubscription = attributes.rideHailServiceSubscription,
       triggerId = getCurrentTriggerIdOrGenerate
     )
-    //    println(s"requesting: ${inquiry.requestId}")
     rideHailManager ! inquiry
     Some(inquiry.requestId)
   }
@@ -1192,49 +1183,6 @@ trait ChoosesMode {
           )
         )
       } else None
-    }
-  }
-
-  private def createRideHailTransitTrip(
-    driveTransitTrip: EmbodiedBeamTrip,
-    tncAccessLeg: Vector[EmbodiedBeamLeg],
-    timeToCustomer: Int,
-    tncEgressLeg: Vector[EmbodiedBeamLeg]
-  ) = {
-    val accessLegDurationWithoutWaiting = tncAccessLeg.map(_.beamLeg.duration).sum
-    val walkToRideHailStop = tncAccessLeg.find(_.is(WALK))
-    val accessLegWaitingTime =
-      walkToRideHailStop.fold(timeToCustomer)(leg => math.max(timeToCustomer - leg.beamLeg.duration, 0))
-    // Replacing drive access leg with TNC changes the travel time.
-    val extraWaitTimeBuffer = driveTransitTrip.legs.head.beamLeg.endTime - _currentTick.get -
-      accessLegDurationWithoutWaiting - accessLegWaitingTime
-    if (extraWaitTimeBuffer < 300) {
-      // We filter out all options that don't allow at least 5 minutes of time for unexpected waiting
-      None
-    } else {
-      // Travel time usually decreases, adjust for this but add a buffer to the wait time to account for uncertainty in actual wait time
-      val startTimeAdjustment =
-        driveTransitTrip.legs.head.beamLeg.endTime - accessLegDurationWithoutWaiting - accessLegWaitingTime
-      val startTimeBufferForWaiting = clamp(timeToCustomer * 1.5, 300, extraWaitTimeBuffer)
-      val accessTransitEgress = EmbodiedBeamLeg.makeLegsConsistent(
-        tncAccessLeg,
-        startTimeAdjustment - doubleToInt(startTimeBufferForWaiting)
-      ) ++ driveTransitTrip.legs.tail
-      val fullTrip = if (tncEgressLeg.nonEmpty) {
-        val accessAndTransit = accessTransitEgress.dropRight(2)
-        val egressHead = tncEgressLeg.head
-        //make egress walk leg to start right after the person leaves the transit vehicle
-        val egressLeg = if (egressHead.is(WALK)) {
-          val walkAtTransitEnd =
-            egressHead.copy(beamLeg = egressHead.beamLeg.updateStartTime(accessAndTransit.last.beamLeg.endTime))
-          walkAtTransitEnd +: tncEgressLeg.tail
-        } else
-          tncEgressLeg
-        accessAndTransit ++ egressLeg
-      } else {
-        accessTransitEgress.dropRight(1)
-      }
-      Some(surroundWithWalkLegsIfNeededAndMakeTrip(fullTrip))
     }
   }
 
