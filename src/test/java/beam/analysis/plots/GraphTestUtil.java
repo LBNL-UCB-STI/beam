@@ -7,6 +7,7 @@ import beam.sim.metrics.NoOpSimulationMetricCollector$;
 import beam.utils.EventReader;
 import beam.utils.TestConfigUtils;
 import org.matsim.core.api.experimental.events.EventsManager;
+import org.matsim.core.config.groups.ControlerConfigGroup;
 import org.matsim.core.controler.MatsimServices;
 import org.matsim.core.controler.OutputDirectoryHierarchy;
 import org.matsim.core.events.EventsUtils;
@@ -35,7 +36,7 @@ class GraphTestUtil {
     private static final BeamServices services = mock(BeamServices.class);
     private static final MatsimServices matsimServices = mock(MatsimServices.class);
     private static final OutputDirectoryHierarchy ioController =
-            new OutputDirectoryHierarchy(BASE_PATH + "/output/beam-test-output", overwriteExistingFiles);
+            new OutputDirectoryHierarchy(BASE_PATH + "/output/beam-test-output", overwriteExistingFiles, ControlerConfigGroup.CompressionType.none);
     private static final EventsManager events;
 
     static {

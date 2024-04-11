@@ -12,12 +12,13 @@ import beam.sim.RideHailFleetInitializer.RideHailAgentInitializer
 import beam.sim.common.{GeoUtils, Range}
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import beam.sim.vehicles.VehiclesAdjustment
+import beam.utils.OptionalUtils.OptionalTimeExtension
 import beam.utils.OutputDataDescriptor
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
 import beam.utils.matsim_conversion.ShapeUtils.{readShapeFileGeometries, QuadTreeBounds}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.{LazyLogging, Logger}
-import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
+import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import org.apache.commons.io.FilenameUtils
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Person}
@@ -424,7 +425,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     ioController: OutputDirectoryHierarchy
   ): java.util.List[OutputDataDescription] = {
     val filePath = ioController
-      .getIterationFilename(0, "rideHailFleetFromInitializer.csv.gz")
+      .getIterationFilename(0, "rideHailFleet{Manager Name}.csv.gz")
     val outputDirPath: String = ioController.getOutputPath
     val relativePath: String = filePath.replace(outputDirPath, "")
     val list: java.util.List[OutputDataDescription] = new java.util.ArrayList[OutputDataDescription]
@@ -507,6 +508,33 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
           relativePath,
           "geoFenceRadius",
           "Radius of the geo fence"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName.dropRight(1),
+          relativePath,
+          "geofenceFile",
+          "File name that contains geofence data"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName.dropRight(1),
+          relativePath,
+          "fleetId",
+          "Fleet id"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName.dropRight(1),
+          relativePath,
+          "initialStateOfCharge",
+          "Electric vehicle initial state of charge"
         )
       )
     list
@@ -646,7 +674,8 @@ class ProceduralRideHailFleetInitializer(
     val activityEndTimes: Array[Int] = persons.flatMap {
       _.getSelectedPlan.getPlanElements.asScala
         .collect {
-          case activity: Activity if activity.getEndTime.toInt > 0 => activity.getEndTime.toInt
+          case activity: Activity if activity.getEndTime.isDefinedAndPositive =>
+            activity.getEndTime.seconds().toInt
         }
     }
 

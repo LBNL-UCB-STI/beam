@@ -57,7 +57,7 @@ class BackgroundSkimsCreatorTest extends AnyFlatSpec with Matchers with BeamHelp
     buildDirectWalkRoute: Boolean,
     buildDirectCarRoute: Boolean
   ): BackgroundSkimsCreator = {
-    val tazClustering: TAZClustering = new TAZClustering(beamScenario.tazTreeMap)
+    val tazClustering: TAZClustering = new TAZClustering(beamScenario.tazTreeMapForASimSkimmer)
     val tazActivitySimSkimmer = BackgroundSkimsCreator.createTAZActivitySimSkimmer(beamServices, tazClustering)
     new BackgroundSkimsCreator(
       beamServices,

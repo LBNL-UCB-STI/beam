@@ -22,7 +22,7 @@ import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.utils.misc.Time
-import org.matsim.households.Household
+import org.matsim.households.{Household, HouseholdUtils}
 
 import java.util.concurrent.TimeUnit
 import scala.collection.JavaConverters
@@ -53,7 +53,7 @@ class Population(
     }
 
   override def loggedReceive: PartialFunction[Any, Unit] = { case TriggerWithId(InitializeTrigger(_), triggerId) =>
-    implicit val timeout: Timeout = Timeout(120, TimeUnit.SECONDS)
+    implicit val _: Timeout = Timeout(120, TimeUnit.SECONDS)
     sharedVehicleFleets.foreach(_ ! GetVehicleTypes(triggerId))
     contextBecome(getVehicleTypes(triggerId, sharedVehicleFleets.size, Set.empty))
   }
@@ -66,7 +66,7 @@ class Population(
     }
   }
 
-  def finishInitialization(triggerId: Long, vehicleTypes: Set[BeamVehicleType]): Receive = {
+  private def finishInitialization(triggerId: Long, vehicleTypes: Set[BeamVehicleType]): Receive = {
     initHouseholds(vehicleTypes)
     eventsManager.processEvent(createStoredElectricityEvent(0))
     scheduler ! CompletionNotice(triggerId, Vector())
@@ -98,29 +98,19 @@ class Population(
     val vehicleAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
     scenario.getHouseholds.getHouseholds.values().forEach { household =>
       //TODO a good example where projection should accompany the data
-      if (
-        scenario.getHouseholds.getHouseholdAttributes
-          .getAttribute(household.getId.toString, "homecoordx") == null
-      ) {
+      if (HouseholdUtils.getHouseholdAttribute(household, "homecoordx") == null) {
         log.error(
           s"Cannot find homeCoordX for household ${household.getId} which will be interpreted at 0.0"
         )
       }
-      if (
-        scenario.getHouseholds.getHouseholdAttributes
-          .getAttribute(household.getId.toString, "homecoordy") == null
-      ) {
+      if (HouseholdUtils.getHouseholdAttribute(household, "homecoordy") == null) {
         log.error(
           s"Cannot find homeCoordY for household ${household.getId} which will be interpreted at 0.0"
         )
       }
       val homeCoord = new Coord(
-        scenario.getHouseholds.getHouseholdAttributes
-          .getAttribute(household.getId.toString, "homecoordx")
-          .asInstanceOf[Double],
-        scenario.getHouseholds.getHouseholdAttributes
-          .getAttribute(household.getId.toString, "homecoordy")
-          .asInstanceOf[Double]
+        HouseholdUtils.getHouseholdAttribute(household, "homecoordx").asInstanceOf[Double],
+        HouseholdUtils.getHouseholdAttribute(household, "homecoordy").asInstanceOf[Double]
       )
 
       val householdVehicles: Map[Id[BeamVehicle], BeamVehicle] = JavaConverters

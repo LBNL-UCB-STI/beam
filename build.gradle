@@ -24,11 +24,12 @@ buildscript {
 plugins {
     id "net.ltgt.apt" version "0.21"
     id "de.undercouch.download" version "3.2.0"
-    id "org.scoverage" version "5.0.0"
+    id "org.scoverage" version "8.0.3"
     id 'maven-publish'
     id "me.champeau.gradle.jmh" version "0.5.3"
-    id 'com.bmuschko.docker-java-application' version '6.6.1'
+    id 'com.bmuschko.docker-java-application' version '6.7.0'
     id "cz.alenkacz.gradle.scalafmt" version "1.16.2"
+    id "java-library"
 }
 
 apply plugin: 'java'
@@ -43,17 +44,31 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '0.8.6.13'
+version = '0.9.12'
 
 description = """"""
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+sourceCompatibility = 1.11
+targetCompatibility = 1.11
+
+scala {
+    zincVersion = "1.9.2"
+}
+
+//java {
+//    toolchain {
+//        languageVersion.set(JavaLanguageVersion.of(11))
+//    }
+//}
+
 
 compileScala.options.encoding = 'UTF-8'
-compileScala.scalaCompileOptions.additionalParameters = ["-Xmx1g"]
+compileScala.scalaCompileOptions.additionalParameters = ["-Xmx1g", "-W"]
+// TODO temporary, drop this after matsim 0.10 -> 12.0 migration is fully complete
+//compileScala.scalaCompileOptions.deprecation = false
+
 def scalaBinaryVersion = "2.12"
-def scalaBinaryFullVersion = "${scalaBinaryVersion}.12"
+def scalaBinaryFullVersion = "${scalaBinaryVersion}.17"
 def akkaBinaryVersion = "2.6.6"
 def circeBinaryVersion = "0.13.0"
 def slf4jVersion = "1.7.25"
@@ -112,6 +127,8 @@ allprojects {
         maven { url "https://download.java.net/maven/2/" }
         maven { url "https://people.apache.org/repo/m1-ibiblio-rsync-repository/org.apache.axis2/" }
         maven { url "https://maven.geo-solutions.it" }
+        maven { url "https://mvn.topobyte.de" }
+        maven { url "https://mvn.slimjars.com" }
         mavenLocal()
         maven { url "https://jitpack.io" }
     }
@@ -134,14 +151,13 @@ configurations.all {
         force 'org.apache.logging.log4j:log4j-api:2.15.0'
     }
     exclude group: "log4j", module: "log4j"
+    exclude group: "org.matsim", module: "matsim"
 }
 
 dependencies {
 
-    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: 'v0.2.19') {
-        exclude group: 'com.github.LBNL-UCB-STI', module: 'r5'
-        exclude group: 'org.matsim', module: 'matsim'
-    }
+    // TODO FIXME
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'beam-utilities', version: '0.3.4')
 
     ////////////////////////////
     // Java dependencies
@@ -157,10 +173,10 @@ dependencies {
     implementation group: 'com.univocity', name: 'univocity-parsers', version: '2.9.1'
 
     // LGPL
-    implementation group: 'org.geotools', name: 'gt-main', version: '14.5'
-    implementation group: 'org.geotools', name: 'gt-shapefile', version: '14.5'
-    implementation group: 'org.geotools', name: 'gt-referencing', version: '15.2'
-    implementation group: 'org.geotools', name: 'gt-epsg-wkt', version: '15.2'
+    implementation group: 'org.geotools', name: 'gt-main', version: '21.5'
+    implementation group: 'org.geotools', name: 'gt-shapefile', version: '21.5'
+    implementation group: 'org.geotools', name: 'gt-referencing', version: '21.5'
+    implementation group: 'org.geotools', name: 'gt-epsg-wkt', version: '21.5'
     implementation group: 'org.jfree', name: 'jfreechart', version: '1.0.14'
 
     implementation group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.12.3'
@@ -186,14 +202,12 @@ dependencies {
     implementation 'com.github.LBNL-UCB-STI:helics-wrapper:v3.3.0'
 
     // GPLv3
-    implementation group: 'org.matsim.contrib', name: 'multimodal', version: '0.10.0'
-    implementation group: 'org.matsim.contrib', name: 'bicycle', version: '0.10.0'
+    implementation group: 'org.matsim.contrib', name: 'multimodal', version: '12.0'
+    implementation group: 'org.matsim.contrib', name: 'bicycle', version: '12.0'
 
-    implementation(group: 'org.matsim.contrib', name: 'decongestion', version: '0.11.0-2018w44') {
-        exclude group: 'org.matsim', module: 'matsim'
-    }
+    implementation(group: 'org.matsim.contrib', name: 'decongestion', version: '12.0')
 
-    implementation(group: 'com.github.wrashid.matsim', name: 'matsim', version: '0.10.1-beam-15') {
+    implementation(group: 'com.github.LBNL-UCB-STI.matsim', name: 'matsim', version: '12.0-beam-8') {
         exclude group: 'log4j', module: 'log4j'
     }
 
@@ -202,7 +216,7 @@ dependencies {
     implementation "com.typesafe.scala-logging:scala-logging_${scalaBinaryVersion}:3.9.0"
     implementation "org.slf4j:log4j-over-slf4j:${slf4jVersion}"
 
-    implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.5.3_linkRadiusMeters') {
+    implementation(group: 'com.github.LBNL-UCB-STI', name: 'r5', version: 'v4.9.0') {
         exclude group: 'ch.qos.logback', module: 'logback-classic'
         exclude group: 'org.slf4j', module: 'slf4j-simple'
     }
@@ -212,7 +226,7 @@ dependencies {
 
     implementation("com.uber:h3:3.7.2")
     implementation("com.github.LBNL-UCB-STI:jsprit-wrapper:v0.5.1")
-    implementation("com.github.LBNL-UCB-STI:omx-java:v2.0.1")
+    implementation("com.github.LBNL-UCB-STI:omx-java:v2.0.2")
 
     testImplementation group: 'junit', name: 'junit', version: '4.8'
     testImplementation group: 'org.mockito', name: 'mockito-inline', version: '2.27.0'
@@ -304,7 +318,7 @@ dependencies {
     // TEST Akka //
     testImplementation group: 'com.typesafe.akka', name: "akka-testkit_${scalaBinaryVersion}", version: akkaBinaryVersion
 
-    scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryFullVersion}:1.4.8", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:1.4.8"
+    scoverage "org.scoverage:scalac-scoverage-plugin_${scalaBinaryFullVersion}:2.0.10", "org.scoverage:scalac-scoverage-runtime_${scalaBinaryVersion}:2.0.10"
 
     implementation 'org.apache.commons:commons-compress:1.18'
 
@@ -312,13 +326,16 @@ dependencies {
 
     implementation group: 'com.zaxxer', name: 'nuprocess', version: '1.2.4'
 
-    def parquet = "1.10.0"
+    def parquet = "1.12.3"
     implementation group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquet
     implementation group: 'org.apache.parquet', name: 'parquet-avro', version: parquet
     implementation(group: 'org.apache.hadoop', name: 'hadoop-client', version: '2.7.3') {
         exclude group: 'org.slf4j', module: 'slf4j-log4j12'
         // Exclude `ASM` because it is binary incompatible with the one which is gotten from `com.conveyal:kryo-tools`: `org.ow2.asm:asm:5.0.4`
         exclude group: 'asm', module: 'asm'
+        // Exclude jsp-api because it contains an older version of javax.el (Expression Language) which is incompatible
+        // with one that Hibernate-validator uses
+        exclude group: 'javax.servlet.jsp', module: 'jsp-api'
     }
 
     implementation(group: 'com.lihaoyi', name: "sourcecode_${scalaBinaryVersion}", version: '0.1.9')
@@ -345,19 +362,6 @@ scalafmt {
     // configFilePath = ".scalafmt.conf" // .scalafmt.conf in the project root is default value, provide only if other location is needed
 }
 
-configurations.all {
-    resolutionStrategy {
-        eachDependency { DependencyResolveDetails dependencyResolveDetails ->
-            final requestedDependency = dependencyResolveDetails.requested
-            if (requestedDependency.name != 'beam-utilities') {
-                force 'javax.media:jai_core:1.1.3'
-            }
-        }
-    }
-    exclude group: 'javax.media', module: 'jai_codec'
-    exclude group: 'javax.media', module: 'jai_imageio'
-}
-
 //compileScala.dependsOn(scalafmtAll)
 
 publishing {
@@ -382,7 +386,7 @@ tasks.withType(ScalaCompile) {
                                 "-P:scapegoat:disabledInspections:OptionGet:UnsafeTraversableMethods:TryGet:EitherGet:AsInstanceOf:NullAssignment:VariableShadowing:NullParameter:MethodReturningAny:IsInstanceOf:EmptyIfBlock:CatchException:EmptyInterpolatedString:UnnecessaryConversion:CatchThrowable:CollectionIndexOnNonIndexedSeq:AvoidSizeNotEqualsZero:ComparingFloatingPointTypes:UnsafeContains:VarCouldBeVal:CatchThrowable:SuspiciousMatchOnClassObject:VarClosure:RepeatedIfElseBody:LooksLikeInterpolatedString",
                                 "-P:scapegoat:verbose:false",
                                 "-P:scapegoat:consoleOutput:true"]
-    def minimumCompilationParameters = ["-unchecked", "-deprecation", "-feature"]
+    def minimumCompilationParameters = ["-unchecked", "-feature"]
     if (project.hasProperty("report")) {
         scalaCompileOptions.additionalParameters = minimumCompilationParameters + additionalParameters
     } else {
@@ -549,7 +553,7 @@ def getCurrentTimestamp = {
             .format(Instant.now())
 }
 
-def logGC = ["-XX:+PrintGCDetails", "-XX:+PrintGCDateStamps", "-Xloggc:gc_${getCurrentTimestamp()}.log"]
+def logGC = ["-XX:+PrintGCDetails", "-Xloggc:gc_${getCurrentTimestamp()}.log"]
 
 // Use following for remote debug mode
 def remoteDebug = ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=8005"]
@@ -645,7 +649,7 @@ task generateDocumentation(type: JavaExec) {
     group 'Documentation'
     description 'Format the data using Sphinx RST formats'
 
-    mainClass = 'beam.docs.GenerateDocumentationTask'
+    mainClass = 'scripts.docs.GenerateDocumentationTask'
     classpath = sourceSets.main.runtimeClasspath
 }
 
@@ -666,6 +670,34 @@ And that would only happen if the committed code is not formatted as expected.""
             throw new Exception("An unexpected error was encountered while checking that scalaFmtAll was committed.", e)
         }
     }
+}
+
+docker {
+    registryCredentials {
+        url = 'https://index.docker.io/v1/'
+        username = System.getenv("DOCKER_USER")
+        password = System.getenv("DOCKER_PASSWORD")
+    }
+}
+
+dockerSyncBuildContext {
+    from('src/main/python') {
+        into('src/main/python')
+    }
+    from('test/input/common') {
+        into('test/input/common')
+    }
+    from('test/input/dtd') {
+        into('test/input/dtd')
+    }
+    from('test/input/beamville') {
+        into('test/input/beamville')
+    }
+    from('test/input/sf-light') {
+        into('test/input/sf-light')
+    }
+
+    from file('docker/entrypoint.sh')
 }
 
 jmh {
@@ -715,6 +747,7 @@ docker {
 }
 
 dockerSyncBuildContext {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
     from('src/main/python') {
         into('src/main/python')
     }
@@ -739,9 +772,8 @@ tasks.register('createDockerfile', Dockerfile) {
     dependsOn dockerSyncBuildContext
 
     // assuming all required modules / dependencies are installed in beammodel/beam-environment
-    from 'beammodel/beam-environment'
+    from 'beammodel/beam-environment:jdk-11-4.01'
     label(['maintainer': 'LBNL Beam Team'])
-    environmentVariable 'JAVA_OPTS', '-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap'
     workingDir("/app")
     instruction 'RUN mkdir /app/output'
     // dependencies, resources and compiled Java classes
@@ -785,6 +817,7 @@ ext.getDockerRepository = { ->
 
 tasks.register('buildImageWithoutTags', DockerBuildImage) { dependsOn createDockerfile }
 
+// one can build a docker image with command ./gradlew -Ptag=beammodel/beam:0.9.0.0 buildImage
 tasks.register('buildImage', DockerTagImage) {
     description 'Builds the Docker BEAM image, all code and test data are included into the image.'
     group 'Docker'

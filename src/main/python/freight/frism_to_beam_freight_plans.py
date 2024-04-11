@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import numpy as np
 
+
 def read_csv_file(filename_):
     compression = None
     if filename_.endswith(".gz"):
@@ -10,7 +11,7 @@ def read_csv_file(filename_):
     return pd.read_csv(filename_, sep=",", index_col=None, header=0, compression=compression)
 
 
-def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False):
+def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False, suffix=""):
     str_value = str(row[column])
     if to_num and str_value.isnumeric():
         old = str(int(row[column]))
@@ -31,15 +32,17 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
     if 'county' in prefix:
         first_prefix = first_prefix.replace('county', 'cty')
 
-    new = f"{first_prefix}{second_prefix}{old_updated}"
+    new = f"{first_prefix}{second_prefix}{old_updated}{suffix}"
     if store_dict is not None:
         store_dict[old] = new
     return new
 
-scenario_name = "locker-delivery"
-run_name = "2040_Con_p60_e0"
-directory_input = os.path.expanduser('~/Workspace/Data/FREIGHT/austin/frism/'+scenario_name+"/"+run_name)
-directory_output = os.path.expanduser('~/Workspace/Data/FREIGHT/austin/beam_freight/'+scenario_name+"/"+run_name)
+
+scenario_name = "scenarios-23Jan2024"
+run_name = "Base"
+city = "austin"
+directory_input = os.path.expanduser('~/Workspace/Data/FREIGHT/' + city + '/frism/'+scenario_name+"/"+run_name)
+directory_output = os.path.expanduser('~/Workspace/Data/FREIGHT/' + city + '/beam_freight/'+scenario_name+"/"+run_name)
 Path(directory_output).mkdir(parents=True, exist_ok=True)
 carriers = None
 payload_plans = None
@@ -66,7 +69,7 @@ for filename in sorted(os.listdir(directory_input)):
         df['vehicleTypeId'] = df.apply(
             lambda row: add_prefix('freight-', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True),
             axis=1)
-        df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-', 'vehicleId', row), axis=1)
+        df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-', 'vehicleId', row, suffix="-"+run_name), axis=1)
         # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
         df['tourId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-', 'tourId', row, True, tourId_with_prefix), axis=1)
         if carriers is None:

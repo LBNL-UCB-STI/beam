@@ -255,7 +255,7 @@ class PersonAgentSpec
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
-      expectMsgType[PersonDepartureEvent]
+      expectMsgType[BeamPersonDepartureEvent]
 
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[VehicleEntersTrafficEvent]
@@ -470,7 +470,7 @@ class PersonAgentSpec
 
       events.expectMsgType[ModeChoiceEvent]
       events.expectMsgType[ActivityEndEvent]
-      events.expectMsgType[PersonDepartureEvent]
+      events.expectMsgType[BeamPersonDepartureEvent]
 
       events.expectMsgType[PersonEntersVehicleEvent]
       events.expectMsgType[VehicleEntersTrafficEvent]
@@ -767,7 +767,7 @@ class PersonAgentSpec
 
       events.expectMsgType[ModeChoiceEvent]
       events.expectMsgType[ActivityEndEvent]
-      events.expectMsgType[PersonDepartureEvent]
+      events.expectMsgType[BeamPersonDepartureEvent]
 
       events.expectMsgType[PersonEntersVehicleEvent]
       events.expectMsgType[VehicleEntersTrafficEvent]

@@ -3,7 +3,16 @@ package beam.agentsim.events.handling;
 import beam.agentsim.events.*;
 import beam.sim.BeamServices;
 import beam.utils.DebugLib;
-import org.matsim.api.core.v01.events.*;
+import org.matsim.api.core.v01.events.ActivityEndEvent;
+import org.matsim.api.core.v01.events.ActivityStartEvent;
+import org.matsim.api.core.v01.events.Event;
+import org.matsim.api.core.v01.events.LinkEnterEvent;
+import org.matsim.api.core.v01.events.LinkLeaveEvent;
+import org.matsim.api.core.v01.events.PersonArrivalEvent;
+import org.matsim.api.core.v01.events.PersonEntersVehicleEvent;
+import org.matsim.api.core.v01.events.PersonLeavesVehicleEvent;
+import org.matsim.api.core.v01.events.VehicleEntersTrafficEvent;
+import org.matsim.api.core.v01.events.VehicleLeavesTrafficEvent;
 import org.matsim.core.api.experimental.events.EventsManager;
 import org.matsim.core.controler.MatsimServices;
 import scala.Option;
@@ -138,7 +147,7 @@ public class BeamEventsLogger implements BeamEventsLoggingSettings {
                         eventClass = PersonArrivalEvent.class;
                         break;
                     case "PersonDepartureEvent":
-                        eventClass = PersonDepartureEvent.class;
+                        eventClass = BeamPersonDepartureEvent.class;
                         break;
                     case "PersonEntersVehicleEvent":
                         eventClass = PersonEntersVehicleEvent.class;
@@ -181,6 +190,9 @@ public class BeamEventsLogger implements BeamEventsLoggingSettings {
                         break;
                     case "TeleportationEvent":
                         eventClass = TeleportationEvent.class;
+                        break;
+                    case "FleetStoredElectricityEvent":
+                        eventClass = FleetStoredElectricityEvent.class;
                         break;
                     default:
                         Option<Class<Event>> classEventOption=beamServices.beamCustomizationAPI().customEventsLogging(className);

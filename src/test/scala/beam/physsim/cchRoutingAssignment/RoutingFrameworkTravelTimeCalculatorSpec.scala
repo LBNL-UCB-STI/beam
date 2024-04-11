@@ -5,7 +5,7 @@ import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.google.common.collect.Lists
-import com.vividsolutions.jts.geom.Coordinate
+import org.locationtech.jts.geom.Coordinate
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
 import org.matsim.utils.objectattributes.attributable.Attributes

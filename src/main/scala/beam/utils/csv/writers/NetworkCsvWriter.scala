@@ -3,8 +3,8 @@ package beam.utils.csv.writers
 import org.matsim.api.core.v01.Scenario
 
 import scala.collection.JavaConverters._
-
 import ScenarioCsvWriter._
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 
 object NetworkCsvWriter extends ScenarioCsvWriter {
 
@@ -78,8 +78,8 @@ object NetworkCsvWriter extends ScenarioCsvWriter {
           linkCapacity = link.getCapacity(),
           numberOfLanes = link.getNumberOfLanes.toString,
           linkModes = linkModeAsString,
-          attributeOrigId = String.valueOf(link.getAttributes.getAttribute("origid")),
-          attributeOrigType = String.valueOf(link.getAttributes.getAttribute("type")),
+          attributeOrigId = Option(link.getAttributes.getAttribute("origid")).map(_.toString).getOrElse(""),
+          attributeOrigType = Option(link.getAttributes.getAttribute("type")).map(_.toString).getOrElse(""),
           fromNodeId = link.getFromNode.getId.toString,
           toNodeId = link.getToNode.getId.toString,
           fromLocationX = link.getFromNode.getCoord.getX.toString,
@@ -91,5 +91,25 @@ object NetworkCsvWriter extends ScenarioCsvWriter {
   }
 
   override def contentIterator[A](elements: Iterator[A]): Iterator[String] = ???
+
+  def outputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("NetworkCsvWriter", "network.csv.gz")(
+      """
+        linkId | Id of links that are in the scenario road network
+        linkLength | link length
+        linkFreeSpeed | link free speed (m/s)
+        linkCapacity | link capacity (cars/hour)
+        numberOfLanes | number of lanes
+        linkModes | List of modes that are allowed on the link separated with ;
+        attributeOrigId | Source (OSM) link id
+        attributeOrigType | Source (OSM) link type
+        fromNodeId | Id of the node link starts on
+        toNodeId | Id of the node link ends on
+        fromLocationX | X part of link start location coordinate
+        fromLocationY | Y part of link start location coordinate
+        toLocationX | X part of link end location coordinate
+        toLocationY | Y part of link end location coordinate
+        """
+    )
 
 }

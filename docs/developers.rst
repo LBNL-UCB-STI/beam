@@ -103,6 +103,37 @@ Sometimes it is possible to face a timeout issue when trying to push huge files.
 
 #. Just push the files as usual
 
+Running on IntelliJ
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The default JDK/SDK (Java Development Kit/Software Development Kit) used by IntelliJ may not work for BEAM.
+If that occurs, you can configure IntelliJ to utilize the one used in your terminal (or other development tooling):
+
+#. Go to `File > Project Structure...`
+#. Select on `Project` under `Project Settings` in the side menu of the window that opened
+#. Open the dropdown under `Project SDK`
+#. If your expected SDK is there then select that one and hit `OK` and you are done. Otherwise,
+#. If your SDK is not found, then choose `Add SDK > JDK...`
+#. Browse to your JDKs home path (ie. ~/.jabba/jdk/adopt@1.11.28-0/Contents/Home)
+
+   #. If you do not know your JDK home path then you can try executing the following in your terminal:
+
+      * `which java` (this may be a symbolic link and not be the actual location)
+      * `/usr/libexec/java_home` (or equivalent location of `java_home` for your OS)
+      * `jabba which [VERSION]` if using jabba, but add `/Contents/Home` to the output
+      * `sdk home java [VERSION]`
+#. Once you have the HOME directory from the last step selected click the `Open` button
+#. Make sure your added JDK is the selected SDK in `Project SDK` and hit OK.
+
+Developing with Multiple Java Versions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As BEAM now has a branch to support Java 8 along with the default of Java 11 you may find it necessary to
+switch Java versions readily. In that case, you can easily do this with tooling such as
+`jabba <https://github.com/shyiko/jabba>`_ or `SDKMAN <https://sdkman.io/>`_. Each allows you to download different
+versions of the JDK and install them to your terminal session via commands such as
+`jabba install [VERSION]` then `jabba use [VERSION]`.
+
 Production Data And Git Submodules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -219,7 +250,7 @@ The command will start an ec2 instance based on the provided configurations and 
 * **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
 * **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
 * **runJupyter**: Should it launch Jupyter Notebook along with a simulation, default is `false`.
-* **budgetOverride**: Set to `true` to override budget limitations, see `Documentation of AWS budget management` section in `DevOps guide <https://beam.readthedocs.io/en/latest/devops.html>`_, default is `false`
+* **budgetOverride**: Set to `true` to override budget limitations, see :ref:`aws-budget-management` section in DevOps guide, default is `false`
 * **stuckGuardMinCpuUsage**: Set to a number to override the value of minimal CPU usage, if the current CPU usage is less than the number, beam stuck guard will shutdown the simulation, default is 1
 * **stuckGuardMaxInactiveTimeInterval**: Set to a number as hours with no output logs then beam stuck guard will shutdown the simulation, default is 5 hours
 
@@ -270,7 +301,8 @@ The project id is `beam-core`. One can set it using::
 
  gcloud config set project beam-core
 
-There are `some ways to provide credentials <https://cloud.google.com/docs/authentication/provide-credentials-adc>`_. One option is just run the following command::
+There are `some ways to provide credentials <https://cloud.google.com/docs/authentication/provide-credentials-adc>`_.
+One option is to just run the following command::
 
  gcloud auth application-default login
 
@@ -392,15 +424,15 @@ Below is syntax to use the command::
   ./gradlew terminateEC2 -PinstanceIds=<InstanceID1>[,<InstanceID2>]
 
 .. _Colin: mailto:colin.sheppard@lbl.gov
-.. _bucket: https://s3.us-east-2.amazonaws.com/beam-outputs/
+.. _bucket: https://s3.us-east-2.amazonaws.com/beam-outputs/index.html#output/
 .. _gradle.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.properties
 .. _gradle.deploy.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.deploy.properties
 .. _gradle.deployPILATES.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.deployPILATES.properties
 .. _link: https://goo.gl/Db37yM
 
 
-Running Jupyter Notebook locally and remotely (EC2)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Running Jupyter Notebook locally and remotely (EC2, GCE)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There are 3 options to run Jupyter Notebook via Gradle task.
 
@@ -416,11 +448,11 @@ There are some additional parameters that can control how Jupyter is started:
 
 Jupyter will be run in the background. To stop it use command::
 
-  ./gradlew jupyterStop
+   ./gradlew jupyterStop
 
-2. Remotely on EC2 on a dedicated instance. Use the following command:
+2. Remotely on EC2 on a dedicated instance. Use the following command::
 
-  ./gradlew jupyterEC2
+   ./gradlew jupyterEC2
 
 Under the hood it will use `deploy` gradle task which will create a EC2 instance and will run the same `jupyterStart`
 Gradle task there without starting the simulation.
@@ -436,9 +468,25 @@ These are parameters for this task, many of them are inherited from `deploy` tas
 * **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
 * **jupyterToken**: to specify a custom token for Jupyter, if not set a random UUID will be generated as a token
 * **jupyterImage**: to specify an arbitrary Jupyter docker image
-* **budgetOverride**: Set to `true` to override budget limitations, see `Documentation of AWS budget management` section in `DevOps guide <https://beam.readthedocs.io/en/latest/devops.html>`_, default is `false`
+* **budgetOverride**: Set to `true` to override budget limitations, see :ref:`aws-budget-management` section in DevOps guide, default is `false`
 
-3. Remotely on EC2 together with a simulation. Use `-PrunJupyter=true` option for deploy command.
+3. Remotely on EC2/GCE together with a simulation. Use `-PrunJupyter=true` option for deploy command.
+
+4. Remotely on GCE on a dedicated instance. Run the following command::
+
+   ./gradlew jupyterGCE
+
+These are the properties that is used on GCE. Many of them are inherited from `deployToGCE` task:
+
+* **propsFile**: to specify file with default values
+* **cloudPlatform**: Google
+* **runName**: to specify instance name.
+* **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
+* **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 15 min.
+* **shutdownBehaviour**: to specify shutdown behaviour after end of simulation. May be `stop` or `terminate`, default is `terminate`.
+* **jupyterToken**: to specify a custom token for Jupyter, if not set a random UUID will be generated as a token
+* **instanceType**: To specify GCE instance type.
+* **storageSize**: to specify storage size (Gb) of instance. May be from `100` to `256`. Default value is `100`.
 
 
 Organizing jupyter notebooks
@@ -455,13 +503,6 @@ One needs to copy 'jupyter/.foldersToMapInJupyter.txt' file to 'jupyter/local_fi
 one location per row. Folders will be mounted during execution of jupyterStar gradle command.
 For windows users - be sure docker is updated and configured to use linux containers.
 
-
-Performance Monitoring
-^^^^^^^^^^^^^^^^^^^^^^
-
-Beam uses `Kamon`_ as a performance monitoring framework. It comes with a nice API to instrument your application code for metric recoding. Kamon also provide many different pingable recorders like Log Reporter, StatsD, InfluxDB etc. You can configure your desired recorder with project configurations under Kamon/metrics section. When you start the application it will measure the instrumented components and recorder would publish either to console or specified backend where you can monitor/analyse the metrics.
-
-If you would like to review basic JVM metrics then it is `already configured`_ so that you can use `jconsole`_.
 
 Beam Metrics Utility (`MetricsSupport`)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -592,7 +633,7 @@ Now at the bottom, under NetworkSettings, locate IP Address of your docker conta
 
 
 .. _already configured: http://logback.qos.ch/manual/jmxConfig.html
-.. _jconsole: https://docs.oracle.com/javase/8/docs/technotes/guides/management/jconsole.html
+.. _jconsole: https://docs.oracle.com/en/java/javase/11/tools/jconsole.html
 .. _Kamon: http://kamon.io
 .. _StatsD: http://kamon.io/documentation/0.6.x/kamon-statsd/overview/
 .. _Graphite: http://graphite.wikidot.com/
@@ -725,18 +766,14 @@ If everything turned out well, the cloning process should not ask for the creden
 
 Build BEAM docker image
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-To build Beam docker image run::
+To build Beam docker image run (in the root of Beam project)::
 
-    $ ./gradlew buildImage
-
-in the root of Beam project. If you want to tag the built image run::
-
-    $ ./gradlew tagImage
+    $ ./gradlew -Ptag=beammodel/beam:0.9.0 buildImage
 
 Once you have the image you can run Beam in Docker. Here is an example how to run test/input/beamville/beam.conf scenario on Windows OS::
 
    $ docker run -v c:/repos/beam/output:/app/output -e JAVA_OPTS='-Xmx12g' \
-      beammodel/beam:0.8.6 --config test/input/beamville/beam.conf
+      beammodel/beam:0.9.0 --config test/input/beamville/beam.conf
 
 Docker run command mounts host folder c:/repos/beam/output to be /app/output which allows to see the output of the Beam run. It also passes environment variable e JAVA_OPTS to the container in order to set maximum heap size for Java application.
 

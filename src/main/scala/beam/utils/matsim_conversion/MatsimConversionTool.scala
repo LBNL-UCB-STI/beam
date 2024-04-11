@@ -3,9 +3,7 @@ package beam.utils.matsim_conversion
 import java.io.{File, FileWriter}
 import java.nio.file.Paths
 import java.util
-
 import scala.collection.JavaConverters._
-
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.FuelType.{Biodiesel, Diesel, Electricity, Gasoline}
 import beam.agentsim.infrastructure.taz.CsvTaz
@@ -16,8 +14,7 @@ import org.matsim.api.core.v01.network.Network
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 import org.matsim.core.utils.geometry.transformations.GeotoolsTransformation
-import org.matsim.vehicles.{EngineInformationImpl, VehicleCapacityImpl, VehicleType, VehicleUtils}
-import org.matsim.vehicles.EngineInformation.{FuelType => MatsimFuelType}
+import org.matsim.vehicles.{VehicleType, VehicleUtils}
 import org.supercsv.io.{CsvMapWriter, ICsvMapWriter}
 import org.supercsv.prefs.CsvPreference
 
@@ -129,29 +126,29 @@ object MatsimConversionTool extends App {
       .resolve
   }
 
-  def beamFuelTypeToMatsimEngineInfo(beamVehicleType: BeamVehicleType): EngineInformationImpl = {
+  def beamFuelTypeToMatsimEngineInfo(beamVehicleType: BeamVehicleType): (String, Double) = {
     val fuelConsumptionInJoulePerMeter = beamVehicleType.primaryFuelConsumptionInJoulePerMeter
     beamVehicleType.primaryFuelType match {
       case Biodiesel =>
-        new EngineInformationImpl(
-          MatsimFuelType.biodiesel,
+        (
+          "biodiesel",
           fuelConsumptionInJoulePerMeter * 1 / BIODIESEL_JOULE_PER_LITER
         )
       case Diesel =>
-        new EngineInformationImpl(MatsimFuelType.diesel, fuelConsumptionInJoulePerMeter * 1 / DIESEL_JOULE_PER_LITER)
+        ("diesel", fuelConsumptionInJoulePerMeter * 1 / DIESEL_JOULE_PER_LITER)
       case Gasoline =>
-        new EngineInformationImpl(
-          MatsimFuelType.gasoline,
+        (
+          "gasoline",
           fuelConsumptionInJoulePerMeter * 1 / GASOLINE_JOULE_PER_LITER
         )
       case Electricity =>
-        new EngineInformationImpl(
-          MatsimFuelType.electricity,
+        (
+          "electricity",
           fuelConsumptionInJoulePerMeter * 1 / ELECTRICITY_JOULE_PER_LITER
         )
       case _ =>
-        new EngineInformationImpl(
-          MatsimFuelType.gasoline,
+        (
+          "gasoline",
           fuelConsumptionInJoulePerMeter * 1 / GASOLINE_JOULE_PER_LITER
         )
     }
@@ -168,13 +165,14 @@ object MatsimConversionTool extends App {
       Id.create(beamVehicleType.vehicleCategory.toString, classOf[VehicleType])
     )
 
-    val vehicleCapacity = new VehicleCapacityImpl()
-    vehicleCapacity.setSeats(beamVehicleType.seatingCapacity)
-    vehicleCapacity.setStandingRoom(beamVehicleType.standingRoomCapacity)
-    matsimVehicleType.setCapacity(vehicleCapacity)
+    matsimVehicleType.getCapacity.setSeats(beamVehicleType.seatingCapacity)
+    matsimVehicleType.getCapacity.setStandingRoom(beamVehicleType.standingRoomCapacity)
 
     val engineInformation = beamFuelTypeToMatsimEngineInfo(beamVehicleType)
-    matsimVehicleType.setEngineInformation(engineInformation)
+
+    matsimVehicleType.getEngineInformation.getAttributes.putAttribute("fuelType", engineInformation._1)
+    matsimVehicleType.getEngineInformation.getAttributes
+      .putAttribute("fuelConsumptionLitersPerMeter", engineInformation._2)
 
     matsimVehicleType.setLength(beamVehicleType.lengthInMeter)
     matsimVehicleType.setPcuEquivalents(beamVehicleType.passengerCarUnit)

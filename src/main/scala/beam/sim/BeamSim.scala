@@ -49,7 +49,7 @@ import org.matsim.core.controler.listener.{
 }
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.router.util.TravelTime
-import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
+import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Path, Paths}
@@ -306,7 +306,7 @@ class BeamSim @Inject() (
               beamServices.geo,
               beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.numberOfH3Indexes
             )
-          case "taz" => new TAZClustering(beamScenario.tazTreeMap)
+          case "taz" => new TAZClustering(beamScenario.tazTreeMapForASimSkimmer)
         }
 
       val abstractSkimmer = BackgroundSkimsCreator.createSkimmer(beamServices, geoClustering)
@@ -524,7 +524,9 @@ class BeamSim @Inject() (
     val activityEndTimesNonNegativeCheck: Iterable[Plan] = persons.toList.flatMap(_.getPlans.asScala.toList) filter {
       plan =>
         val activities = plan.getPlanElements.asScala.filter(_.isInstanceOf[Activity])
-        activities.dropRight(1).exists(_.asInstanceOf[Activity].getEndTime < 0)
+        activities
+          .dropRight(1)
+          .exists(_.asInstanceOf[Activity].getEndTime.orElse(beam.UNDEFINED_TIME) < 0)
     }
 
     if (activityEndTimesNonNegativeCheck.isEmpty) {
@@ -597,15 +599,18 @@ class BeamSim @Inject() (
   }
 
   private def dumpHouseholdAttributes(): Unit = {
-    val householdAttributes = scenario.getHouseholds.getHouseholdAttributes
-    if (householdAttributes != null) {
-      val writer = new ObjectAttributesXmlWriter(householdAttributes)
-      writer.setPrettyPrint(true)
-      writer.putAttributeConverters(Collections.emptyMap())
-      writer.writeFile(
-        beamServices.matsimServices.getControlerIO.getOutputFilename("output_householdAttributes.xml.gz")
-      )
+    val householdAttributes = new ObjectAttributes
+    scenario.getHouseholds.getHouseholds.values().asScala.map { household =>
+      household.getAttributes.getAsMap.asScala.map { case (key, value) =>
+        householdAttributes.putAttribute(household.getId.toString, key, value)
+      }
     }
+    val writer = new ObjectAttributesXmlWriter(householdAttributes)
+    writer.setPrettyPrint(true)
+    writer.putAttributeConverters(Collections.emptyMap())
+    writer.writeFile(
+      beamServices.matsimServices.getControlerIO.getOutputFilename("output_householdAttributes.xml.gz")
+    )
   }
 
   private def isFirstIteration(currentIteration: Int): Boolean = {

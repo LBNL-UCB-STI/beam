@@ -73,10 +73,10 @@ class SfLightRouterSpec extends AbstractSfLightSpec("SfLightRouterSpec") with In
       assert(response.itineraries.exists(_.tripClassifier == WALK_TRANSIT))
       val transitOption = response.itineraries.filter(_.tripClassifier == WALK_TRANSIT).minBy(_.totalTravelTimeInSecs)
       assertMakesSense(transitOption.toBeamTrip)
-      assert(transitOption.totalTravelTimeInSecs == 1116)
+      assert(transitOption.totalTravelTimeInSecs == 1117)
       assert(transitOption.legs(1).beamLeg.mode == TRAM)
       assert(transitOption.costEstimate == 2.75)
-      assert(transitOption.legs.head.beamLeg.startTime == 25992)
+      assert(transitOption.legs.head.beamLeg.startTime == 25991)
     }
 
     "transit-route me to my destination vehicle, and to my final destination even if that's where I started" in {

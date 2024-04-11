@@ -4,11 +4,14 @@ import beam.sim.population.PopulationAdjustment
 import beam.tags.{ExcludeRegular, Periodic}
 import beam.utils.FileUtils
 import org.matsim.core.config.ConfigUtils
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
-import org.matsim.utils.objectattributes.ObjectAttributes
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
+import scala.annotation.nowarn
+
+@nowarn
 class PlansSamplerAppSpec extends AnyWordSpecLike with Matchers {
 
   val inputData: Array[String] = Array(
@@ -31,18 +34,17 @@ class PlansSamplerAppSpec extends AnyWordSpecLike with Matchers {
       sampler.run()
       val config = ConfigUtils.createConfig
       config.plans().setInputFile("output/test/plansampler/population.xml.gz")
+
       config
         .plans()
         .setInputPersonAttributeFile("output/test/plansampler/populationAttributes.xml.gz")
+
       val dummyScenario: MutableScenario = ScenarioUtils.createMutableScenario(config)
       dummyScenario.setLocked()
       ScenarioUtils.loadScenario(dummyScenario)
-      val attributes: ObjectAttributes = dummyScenario.getPopulation.getPersonAttributes
+      val person = dummyScenario.getPopulation.getPersons.values().iterator().next()
 
-      attributes.getAttribute(
-        attributes.toString.split(";")(0).stripPrefix("key="),
-        PopulationAdjustment.EXCLUDED_MODES
-      ) should equal(
+      PopulationUtils.getPersonAttribute(person, PopulationAdjustment.EXCLUDED_MODES) should equal(
         ""
       )
     }

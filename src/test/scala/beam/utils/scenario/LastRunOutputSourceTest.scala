@@ -11,13 +11,13 @@ class LastRunOutputSourceTest extends AnyWordSpecLike with Matchers {
     "return None when no such path exists" in {
       val path = LastRunOutputSource.findLastRunOutputPlans(Paths.get("/not_existing_path"), "")
 
-      path should be(None)
+      path should be(None, None)
     }
 
     "return None when path exists but no plan files inside" in {
       val path = LastRunOutputSource.findLastRunOutputPlans(Paths.get("test/test-resources/beam/agentsim"), "")
 
-      path should be(None)
+      path should be(None, None)
     }
 
     "find path when last iteration path path when csv plans exist" in {
@@ -26,16 +26,18 @@ class LastRunOutputSourceTest extends AnyWordSpecLike with Matchers {
 
       val path = LastRunOutputSource.findLastRunOutputPlans(outputPath, "beamville_1")
 
-      path should be(Some(expectedPath))
+      path should be(Some(expectedPath), None)
     }
 
     "find path when last iteration path path when xml plans exist" in {
-      val expectedPath = Paths.get("test/test-resources/beam/agentsim/plans/beamville__2/ITERS/it.3/3.plans.xml.gz")
+      val expectedExperiencedPath =
+        Paths.get("test/test-resources/beam/agentsim/plans/beamville__2/ITERS/it.3/3.experienced_plans.xml.gz")
+      val expectedOutputPath = Paths.get("test/test-resources/beam/agentsim/plans/beamville__2/output_plans.xml.gz")
       val outputPath = Paths.get("test/test-resources/beam/agentsim/plans")
 
-      val path = LastRunOutputSource.findLastRunOutputPlans(outputPath, "beamville")
+      val path = LastRunOutputSource.findLastRunOutputPlans(outputPath, "beamville__")
 
-      path should be(Some(expectedPath))
+      path should be(Some(expectedOutputPath), Some(expectedExperiencedPath))
     }
   }
 }
