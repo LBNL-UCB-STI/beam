@@ -694,17 +694,16 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
 
       val departureTimeToDominatingList: IntFunction[DominatingList] = (departureTime: Int) =>
         beamConfig.beam.routing.r5.transitAlternativeList.toLowerCase match {
-          case "optimal" =>
+          case "suboptimal" if !mainRouteRideHailTransit =>
+            new SuboptimalDominatingList(
+              profileRequest.suboptimalMinutes
+            )
+          case _ =>
             new BeamDominatingList(
               profileRequest.inRoutingFareCalculator,
               Integer.MAX_VALUE,
               departureTime + profileRequest.maxTripDurationMinutes * 60
             )
-          case _ =>
-            new SuboptimalDominatingList(
-              profileRequest.suboptimalMinutes
-            )
-
         }
 
       val transitPaths = latency("getpath-transit-time", Metrics.VerboseLevel) {

@@ -43,7 +43,7 @@ apply plugin: 'ManifestClasspath'
 apply plugin: 'scalafmt'
 
 group = 'beam'
-version = '0.9.14-cruise-bugfix'
+version = '0.9.14-cruise-bugfix-v3'
 
 description = """"""
 
@@ -683,7 +683,7 @@ task createDockerfile(type: Dockerfile, dependsOn: dockerSyncBuildContext) {
     instruction 'RUN alias python=python3'
     instruction 'RUN pip3 install --upgrade setuptools'
     instruction 'RUN pip3 install --upgrade pip'
-    instruction 'RUN pip3 install numpy pandas cython sklearn matplotlib mapclassify descartes geopandas contextily plotly collections-extended psutil requests'
+    instruction 'RUN pip3 install numpy pandas cython scikit-learn matplotlib mapclassify descartes geopandas contextily plotly collections-extended psutil requests'
     instruction 'RUN pip3 install -U kaleido'
     environmentVariable 'JAVA_OPTS', '-XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap'
     workingDir("/app")
