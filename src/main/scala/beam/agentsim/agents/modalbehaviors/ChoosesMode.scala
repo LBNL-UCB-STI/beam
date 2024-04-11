@@ -1458,8 +1458,7 @@ trait ChoosesMode {
               stay() using ChoosesModeData(
                 personData = personData.copy(currentTourMode = None),
                 currentLocation = choosesModeData.currentLocation,
-                excludeModes = choosesModeData.excludeModes,
-                isWithinTripReplanning = true
+                excludeModes = choosesModeData.excludeModes
               )
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
