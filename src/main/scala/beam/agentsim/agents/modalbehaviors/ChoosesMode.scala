@@ -1114,14 +1114,12 @@ trait ChoosesMode {
   ): Option[EmbodiedBeamTrip] = {
     if (!driveTransitTrip.tripClassifier.equals(RIDE_HAIL_TRANSIT)) { None }
     else if (
-      rideHail2TransitAccessResult.error.exists(_ != RideHailNotRequestedError) || rideHail2TransitEgressResult.error
-        .exists(_ != RideHailNotRequestedError)
+      rideHail2TransitAccessResult.error.forall(error => error == RideHailNotRequestedError) &&
+      rideHail2TransitEgressResult.error.forall(error => error == RideHailNotRequestedError)
     ) {
-      None
-    } else {
-      val (accessLegs, extraWaitTimeBuffer) = rideHail2TransitAccessResult.error match {
+      val (accessLegs, timeToCustomer) = rideHail2TransitAccessResult.error match {
         case Some(RideHailNotRequestedError) =>
-          (Vector(driveTransitTrip.legs.head), Int.MaxValue)
+          (Vector(driveTransitTrip.legs.head), 0)
         case _ =>
           val timeToCustomer = rideHail2TransitAccessResult.travelProposal.get.passengerSchedule
             .legsBeforePassengerBoards(bodyVehiclePersonId)
@@ -1129,30 +1127,18 @@ trait ChoosesMode {
             .sum
           val tncAccessLeg = rideHail2TransitAccessResult.travelProposal.get
             .toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId, rideHail2TransitAccessResult.rideHailManagerName)
-          val extraWaitTimeBuffer = driveTransitTrip.legs.head.beamLeg.endTime - _currentTick.get -
-            tncAccessLeg.last.beamLeg.duration - timeToCustomer
-          val startTimeAdjustment =
-            driveTransitTrip.legs.head.beamLeg.endTime - tncAccessLeg.last.beamLeg.duration
-          val startTimeBufferForWaiting = math.min(
-            extraWaitTimeBuffer,
-            math.max(300.0, timeToCustomer.toDouble * 0.5)
-          )
+
           val legs = Vector(
             EmbodiedBeamLeg.dummyLegAt(
-              start = driveTransitTrip.legs.head.beamLeg.startTime,
+              start = driveTransitTrip.legs.head.beamLeg.startTime - timeToCustomer,
               vehicleId = body.id,
               isLastLeg = false,
               location = driveTransitTrip.legs.head.beamLeg.travelPath.startPoint.loc,
               mode = WALK,
               vehicleTypeId = body.beamVehicleType.id
             )
-          ) ++ tncAccessLeg.map(leg =>
-            leg.copy(
-              leg.beamLeg
-                .updateStartTime(startTimeAdjustment - startTimeBufferForWaiting.intValue())
-            )
-          )
-          (legs, extraWaitTimeBuffer)
+          ) ++ tncAccessLeg
+          (legs, timeToCustomer)
       }
       val egressLegs = rideHail2TransitEgressResult.error match {
         case Some(RideHailNotRequestedError) =>
@@ -1170,21 +1156,86 @@ trait ChoosesMode {
           )
       }
 
-      val transitLegs = driveTransitTrip.legs
-        .span(leg => !leg.beamLeg.mode.isTransit)
-        ._2
-        .reverse
-        .span(leg => !leg.beamLeg.mode.isTransit)
-        ._2
-      if (extraWaitTimeBuffer >= 300) {
-        Some(
-          EmbodiedBeamTrip(
-            accessLegs ++ transitLegs ++ egressLegs
-          )
-        )
-      } else None
-    }
+      createRideHailTransitTrip(driveTransitTrip, accessLegs, timeToCustomer, egressLegs)
+
+    } else None
   }
+
+  private def createRideHailTransitTrip(
+    driveTransitTrip: EmbodiedBeamTrip,
+    tncAccessLeg: Vector[EmbodiedBeamLeg],
+    timeToCustomer: Int,
+    tncEgressLeg: Vector[EmbodiedBeamLeg]
+  ): Option[EmbodiedBeamTrip] = {
+    val transitLegs = driveTransitTrip.legs
+      .span(leg => !leg.beamLeg.mode.isTransit)
+      ._2
+      .reverse
+      .span(leg => !leg.beamLeg.mode.isTransit)
+      ._2
+    val (extraWaitTimeBuffer, accessLegAdjustment) = tncAccessLeg.filter(_.isRideHail) match {
+      case Vector() =>
+        (Int.MaxValue, 0)
+      case rhLegs =>
+        val extraWaitTimeBuffer = rhLegs.last.beamLeg.endTime -
+          tncAccessLeg.map(_.beamLeg.duration).sum - timeToCustomer - _currentTick.get
+        val startTimeBufferForWaiting = math.max(120.0, timeToCustomer.toDouble * 0.5)
+        (extraWaitTimeBuffer, startTimeBufferForWaiting.floor.toInt)
+    }
+
+    if (extraWaitTimeBuffer >= 120) {
+      Some(
+        EmbodiedBeamTrip(
+          EmbodiedBeamLeg.makeLegsConsistent(
+            tncAccessLeg,
+            tncAccessLeg.head.beamLeg.startTime - accessLegAdjustment
+          ) ++ transitLegs ++ tncEgressLeg
+        )
+      )
+    } else None
+  }
+
+  //   def createRideHail2TransitItin(
+  //    rideHail2TransitAccessResult: RideHailResponse,
+  //    rideHail2TransitEgressResult: RideHailResponse,
+  //    driveTransitTrip: EmbodiedBeamTrip
+  //  ): Vector[EmbodiedBeamTrip] = {
+  //    if (
+  //      rideHail2TransitAccessResult.error.forall(error => error == RideHailNotRequestedError) &&
+  //      rideHail2TransitEgressResult.error.forall(error => error == RideHailNotRequestedError)
+  //    ) {
+  //      val timeToCustomer = rideHail2TransitAccessResult.travelProposal match {
+  //        case Some(proposal) =>
+  //          proposal.passengerSchedule
+  //            .legsBeforePassengerBoards(bodyVehiclePersonId)
+  //            .map(_.duration)
+  //            .sum
+  //        case None => 0
+  //      }
+  //      val tncAccessLeg = rideHail2TransitAccessResult.error match {
+  //        case Some(_) => None
+  //        case None =>
+  //          travelProposalToRideHailLegs(
+  //            rideHail2TransitAccessResult.travelProposal.get,
+  //            rideHail2TransitAccessResult.rideHailManagerName,
+  //            None
+  //          ).headOption
+  //      }
+  //
+  //      val tncEgressLeg = rideHail2TransitEgressResult.error match {
+  //        case Some(_) => None
+  //        case None =>
+  //          travelProposalToRideHailLegs(
+  //            rideHail2TransitEgressResult.travelProposal.get,
+  //            rideHail2TransitEgressResult.rideHailManagerName,
+  //            None
+  //          ).headOption
+  //      }
+  //      createRideHailTransitTrip(driveTransitTrip, tncAccessLeg, timeToCustomer, tncEgressLeg)
+  //    } else {
+  //      Vector.empty
+  //    }
+  //  }
 
   def addParkingCostToItins(
     itineraries: Seq[EmbodiedBeamTrip],
