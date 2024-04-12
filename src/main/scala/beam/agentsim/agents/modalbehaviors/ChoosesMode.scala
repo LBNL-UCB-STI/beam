@@ -1128,7 +1128,7 @@ trait ChoosesMode {
     rideHail2TransitEgressResult: RideHailResponse,
     driveTransitTrip: EmbodiedBeamTrip
   ): Option[EmbodiedBeamTrip] = {
-    if (!driveTransitTrip.tripClassifier.equals(RIDE_HAIL_TRANSIT)) { None }
+    if (!driveTransitTrip.tripClassifier.equals(RIDE_HAIL_TRANSIT)) { return None }
     else if (
       rideHail2TransitAccessResult.error.forall(error => error == RideHailNotRequestedError) &&
       rideHail2TransitEgressResult.error.forall(error => error == RideHailNotRequestedError)
@@ -1486,7 +1486,7 @@ trait ChoosesMode {
                 currentLocation = choosesModeData.currentLocation,
                 excludeModes = choosesModeData.excludeModes,
                 routingFinished = false,
-                isWithinTripReplanning = false // TODO: Figure out a way to turn this off
+                isWithinTripReplanning = true // TODO: Figure out a way to turn this off
               )
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
