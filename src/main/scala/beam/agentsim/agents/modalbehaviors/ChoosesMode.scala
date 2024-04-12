@@ -637,9 +637,13 @@ trait ChoosesMode {
           routeHistory.rememberRoute(leg.travelPath.linkIds, leg.startTime)
         }
       }
-      // HACKY FIX: The old behavior just chose the first RH_TRANSIT itinerary, but different itineraries may have
-      // different RH legs. So here we just run a route choice on the RH_TRANSIT itineraries and only get rh legs for
-      // the best
+      // HACKY FIX: The old behavior just chose the first RH_TRANSIT itinerary from all the possible RH_TRANSIT
+      // itineraries produced by R5. But different itineraries may have different combinations of walk/rh for
+      // access/egress, and the egress RH legs in different itineraries may have different starting locations. So we'd
+      // really need to send separate RH requests for each RH_TRANSIT itinerary if we wanted to do it correctly. This
+      // sounds too complicated and costly, so instead we just run a route choice on the RH_TRANSIT itineraries returned
+      // by R5. These don't necessarily have correct wait times, but R5 has been updated to give them appropriate costs.
+      // Once we've chosen the best itinerary we can send requests to the RHM to fill in true costs and wait times
 
       val rhTransitTrip = if (theRouterResult.itineraries.exists(_.tripClassifier == RIDE_HAIL_TRANSIT)) {
         val attributesOfIndividual =
@@ -1418,8 +1422,9 @@ trait ChoosesMode {
                 personData = personData.copy(currentTourMode = None),
                 currentLocation = choosesModeData.currentLocation,
                 excludeModes = choosesModeData.excludeModes,
-                routingFinished = false,
-                isWithinTripReplanning = true // TODO: Figure out a way to turn this off
+                isWithinTripReplanning = true // TODO: It would be nice to be able to set this to false, but for now
+                // this can be buggy if we try to re-calculate a rh->transit leg after a
+                // failed walk->transit request. Still need to figure out why
               )
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
