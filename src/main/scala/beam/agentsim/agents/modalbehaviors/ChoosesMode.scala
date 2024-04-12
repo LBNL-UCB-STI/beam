@@ -782,7 +782,7 @@ trait ChoosesMode {
           routingResponse = Some(correctRoutingResponse(response)),
           parkingRequestIds = newParkingRequestIds,
           routingFinished =
-            choosesModeData.rideHail2TransitRoutingResponse.nonEmpty // CHANGE APRIL 2024: choice was moving ahead before RH transit result completed
+            choosesModeData.rideHail2TransitRoutingResponse.nonEmpty || choosesModeData.rideHail2TransitRoutingRequestId.isEmpty // CHANGE APRIL 2024: choice was moving ahead before RH transit result completed
         )
       }
 
@@ -1179,63 +1179,22 @@ trait ChoosesMode {
       case rhLegs =>
         val extraWaitTimeBuffer = rhLegs.last.beamLeg.endTime -
           tncAccessLeg.map(_.beamLeg.duration).sum - timeToCustomer - _currentTick.get
-        val startTimeBufferForWaiting = math.max(120.0, timeToCustomer.toDouble * 0.5)
+        val startTimeBufferForWaiting = math.max(300.0, timeToCustomer.toDouble * 0.5)
         (extraWaitTimeBuffer, startTimeBufferForWaiting.floor.toInt)
     }
 
-    if (extraWaitTimeBuffer >= 120) {
+    if (extraWaitTimeBuffer >= 300) {
       Some(
         EmbodiedBeamTrip(
-          EmbodiedBeamLeg.makeLegsConsistent(
-            tncAccessLeg,
-            tncAccessLeg.head.beamLeg.startTime - accessLegAdjustment
-          ) ++ transitLegs ++ tncEgressLeg
+          Vector(
+            tncAccessLeg.head.copy(beamLeg =
+              tncAccessLeg.head.beamLeg.updateStartTime(tncAccessLeg.head.beamLeg.startTime - accessLegAdjustment)
+            )
+          ) ++ tncAccessLeg.tail ++ transitLegs ++ tncEgressLeg
         )
       )
     } else None
   }
-
-  //   def createRideHail2TransitItin(
-  //    rideHail2TransitAccessResult: RideHailResponse,
-  //    rideHail2TransitEgressResult: RideHailResponse,
-  //    driveTransitTrip: EmbodiedBeamTrip
-  //  ): Vector[EmbodiedBeamTrip] = {
-  //    if (
-  //      rideHail2TransitAccessResult.error.forall(error => error == RideHailNotRequestedError) &&
-  //      rideHail2TransitEgressResult.error.forall(error => error == RideHailNotRequestedError)
-  //    ) {
-  //      val timeToCustomer = rideHail2TransitAccessResult.travelProposal match {
-  //        case Some(proposal) =>
-  //          proposal.passengerSchedule
-  //            .legsBeforePassengerBoards(bodyVehiclePersonId)
-  //            .map(_.duration)
-  //            .sum
-  //        case None => 0
-  //      }
-  //      val tncAccessLeg = rideHail2TransitAccessResult.error match {
-  //        case Some(_) => None
-  //        case None =>
-  //          travelProposalToRideHailLegs(
-  //            rideHail2TransitAccessResult.travelProposal.get,
-  //            rideHail2TransitAccessResult.rideHailManagerName,
-  //            None
-  //          ).headOption
-  //      }
-  //
-  //      val tncEgressLeg = rideHail2TransitEgressResult.error match {
-  //        case Some(_) => None
-  //        case None =>
-  //          travelProposalToRideHailLegs(
-  //            rideHail2TransitEgressResult.travelProposal.get,
-  //            rideHail2TransitEgressResult.rideHailManagerName,
-  //            None
-  //          ).headOption
-  //      }
-  //      createRideHailTransitTrip(driveTransitTrip, tncAccessLeg, timeToCustomer, tncEgressLeg)
-  //    } else {
-  //      Vector.empty
-  //    }
-  //  }
 
   def addParkingCostToItins(
     itineraries: Seq[EmbodiedBeamTrip],
