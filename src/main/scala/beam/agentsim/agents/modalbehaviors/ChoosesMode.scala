@@ -35,7 +35,6 @@ import beam.router.skim.event.ODSkimmerFailedTripEvent
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, Geofence}
-import beam.utils.MathUtils._
 import beam.utils.logging.pattern.ask
 import beam.utils.plan.sampling.AvailableModeUtils._
 import org.matsim.api.core.v01.Id
@@ -1488,10 +1487,7 @@ trait ChoosesMode {
               stay() using ChoosesModeData(
                 personData = personData.copy(currentTourMode = None),
                 currentLocation = choosesModeData.currentLocation,
-                excludeModes = choosesModeData.excludeModes,
-                isWithinTripReplanning = true // TODO: It would be nice to be able to set this to false, but for now
-                // this can be buggy if we try to re-calculate a rh->transit leg after a
-                // failed walk->transit request. Still need to figure out why
+                excludeModes = choosesModeData.excludeModes
               )
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
