@@ -35,7 +35,6 @@ import beam.router.skim.event.ODSkimmerFailedTripEvent
 import beam.router.{Modes, RoutingWorker}
 import beam.sim.population.AttributesOfIndividual
 import beam.sim.{BeamServices, Geofence}
-import beam.utils.MathUtils._
 import beam.utils.logging.pattern.ask
 import beam.utils.plan.sampling.AvailableModeUtils._
 import org.matsim.api.core.v01.Id
@@ -703,7 +702,9 @@ trait ChoosesMode {
           choosesModeData.copy(
             rideHail2TransitRoutingResponse = Some(EmbodiedBeamTrip.empty),
             rideHail2TransitAccessResult = Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)),
-            rideHail2TransitEgressResult = Some(RideHailResponse.dummyWithError(RideHailNotRequestedError))
+            rideHail2TransitEgressResult = Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)),
+            routingFinished =
+              choosesModeData.routingFinished || (choosesModeData.rideHailResult.nonEmpty && choosesModeData.routingResponse.nonEmpty)
           )
         }
       stay() using newPersonData
@@ -770,11 +771,25 @@ trait ChoosesMode {
       //      println(s"receiving response: ${theRideHailResult}")
       val newPersonData = Some(theRideHailResult.request.requestId) match {
         case choosesModeData.rideHail2TransitAccessInquiryId =>
-          choosesModeData.copy(rideHail2TransitAccessResult = Some(theRideHailResult))
+          choosesModeData.copy(
+            rideHail2TransitAccessResult = Some(theRideHailResult),
+            routingFinished = choosesModeData.rideHail2TransitEgressResult.nonEmpty
+          )
         case choosesModeData.rideHail2TransitEgressInquiryId =>
-          choosesModeData.copy(rideHail2TransitEgressResult = Some(theRideHailResult))
+          choosesModeData.copy(
+            rideHail2TransitEgressResult = Some(theRideHailResult),
+            routingFinished = choosesModeData.rideHail2TransitAccessResult.nonEmpty
+          )
         case _ =>
-          choosesModeData.copy(rideHailResult = Some(theRideHailResult))
+          val routingFinished =
+            choosesModeData.rideHail2TransitRoutingResponse.nonEmpty &&
+            choosesModeData.routingResponse.nonEmpty &&
+            choosesModeData.rideHail2TransitAccessResult.nonEmpty &&
+            choosesModeData.rideHail2TransitEgressResult.nonEmpty
+          choosesModeData.copy(
+            rideHailResult = Some(theRideHailResult),
+            routingFinished = choosesModeData.routingFinished || routingFinished
+          )
       }
       stay() using newPersonData
     case Event(parkingInquiryResponse: ParkingInquiryResponse, choosesModeData: ChoosesModeData) =>
@@ -1421,10 +1436,7 @@ trait ChoosesMode {
               stay() using ChoosesModeData(
                 personData = personData.copy(currentTourMode = None),
                 currentLocation = choosesModeData.currentLocation,
-                excludeModes = choosesModeData.excludeModes,
-                isWithinTripReplanning = true // TODO: It would be nice to be able to set this to false, but for now
-                // this can be buggy if we try to re-calculate a rh->transit leg after a
-                // failed walk->transit request. Still need to figure out why
+                excludeModes = choosesModeData.excludeModes
               )
             case _ =>
               // Bad things happen but we want them to continue their day, so we signal to downstream that trip should be made to be expensive
