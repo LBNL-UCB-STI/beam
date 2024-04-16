@@ -2856,11 +2856,10 @@ object BeamConfig {
     object Exchange {
 
       case class Output(
+        activity_sim_skimmer: scala.Option[BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer],
         activitySimSkimsEnabled: scala.Boolean,
         generateSkimsForAllModes: scala.Boolean,
-        geo: BeamConfig.Beam.Exchange.Output.Geo,
         sendNonChosenTripsToSkimmer: scala.Boolean
-        activity_sim_skimmer: scala.Option[BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer]
       )
 
       object Output {
@@ -2965,19 +2964,16 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output = {
           BeamConfig.Beam.Exchange.Output(
+            activity_sim_skimmer =
+              if (c.hasPathOrNull("activity-sim-skimmer"))
+                scala.Some(BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer(c.getConfig("activity-sim-skimmer")))
+              else None,
             activitySimSkimsEnabled =
               c.hasPathOrNull("activitySimSkimsEnabled") && c.getBoolean("activitySimSkimsEnabled"),
             generateSkimsForAllModes =
               c.hasPathOrNull("generateSkimsForAllModes") && c.getBoolean("generateSkimsForAllModes"),
-            geo = BeamConfig.Beam.Exchange.Output.Geo(
-              if (c.hasPathOrNull("geo")) c.getConfig("geo") else com.typesafe.config.ConfigFactory.parseString("geo{}")
-            ),
             sendNonChosenTripsToSkimmer =
               !c.hasPathOrNull("sendNonChosenTripsToSkimmer") || c.getBoolean("sendNonChosenTripsToSkimmer")
-            activity_sim_skimmer =
-              if (c.hasPathOrNull("activity-sim-skimmer"))
-                scala.Some(BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer(c.getConfig("activity-sim-skimmer")))
-              else None
           )
         }
       }
