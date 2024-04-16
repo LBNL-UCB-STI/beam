@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pyarrow.csv as pv
+import os
 
 plt.style.use('ggplot')
 meter_to_mile = 0.000621371
@@ -42,6 +43,20 @@ beam_to_roadclass_lookup = {'motorway': fsystem_to_roadclass_lookup[1.0],
                             'road': fsystem_to_roadclass_lookup[7.0],
                             'bridleway': fsystem_to_roadclass_lookup[7.0],
                             np.nan: fsystem_to_roadclass_lookup[7.0]}
+state_fips_to_code = {
+    '01': 'AL', '02': 'AK', '04': 'AZ', '05': 'AR', '06': 'CA',
+    '08': 'CO', '09': 'CT', '10': 'DE', '11': 'DC', '12': 'FL',
+    '13': 'GA', '15': 'HI', '16': 'ID', '17': 'IL', '18': 'IN',
+    '19': 'IA', '20': 'KS', '21': 'KY', '22': 'LA', '23': 'ME',
+    '24': 'MD', '25': 'MA', '26': 'MI', '27': 'MN', '28': 'MS',
+    '29': 'MO', '30': 'MT', '31': 'NE', '32': 'NV', '33': 'NH',
+    '34': 'NJ', '35': 'NM', '36': 'NY', '37': 'NC', '38': 'ND',
+    '39': 'OH', '40': 'OK', '41': 'OR', '42': 'PA', '44': 'RI',
+    '45': 'SC', '46': 'SD', '47': 'TN', '48': 'TX', '49': 'UT',
+    '50': 'VT', '51': 'VA', '53': 'WA', '54': 'WV', '55': 'WI',
+    '56': 'WY', '60': 'AS', '66': 'GU', '69': 'MP', '72': 'PR',
+    '78': 'VI'
+}
 
 
 def calculate_metrics(group):
@@ -89,7 +104,7 @@ def process_and_extend_link_stats(model_network, link_stats_paths_and_labels_lis
     demand_scaling = 1 / demand_sample_fraction
     dfs = []
     for scenario, file_path in link_stats_paths_and_labels_list:
-        df = pd.read_csv(file_path)
+        df = pv.read_csv(file_path).to_pandas()
 
         if assume_daylight_savings:
             df.loc[:, 'hour'] = df.loc[:, 'hour'] - 1
@@ -98,7 +113,6 @@ def process_and_extend_link_stats(model_network, link_stats_paths_and_labels_lis
         link_stats_24h = df[(df['hour'] >= 0) & (df['hour'] < 24)]
         link_stats_tmc = pd.merge(link_stats_24h, model_network[['tmc', 'link', 'road_class', 'npmrds_road_class']],
                                   on=['link'], how='inner')
-        link_stats_tmc.rename(columns={'Tmc': 'tmc'}, inplace=True)
 
         # TODO Volume does not contain Trucks, but in the future Trucks will be included in Volume.
         link_stats_tmc.loc[:, 'volume'] = link_stats_tmc.loc[:, 'volume'] * demand_scaling
@@ -121,7 +135,6 @@ def map_nearest_links(df1, df2, projected_crs_epsg, distance_buffer):
 
     df1.loc[:, 'road_class'] = df1.loc[:, 'attributeOrigType'].map(beam_to_roadclass_lookup)
     df1.loc[:, 'F_System'] = df1.loc[:, 'road_class'].map(roadclass_to_fsystem_lookup)
-    df2.loc[:, 'road_class'] = df2.loc[:, 'F_System'].map(fsystem_to_roadclass_lookup)
     # Prepare a spatial index on the second DataFrame for efficient querying
     sindex_df2 = df2.sindex
     matched_df2_indices = set()
@@ -169,9 +182,9 @@ def map_nearest_links(df1, df2, projected_crs_epsg, distance_buffer):
     df1.rename(columns={'linkId': 'link'}, inplace=True)
     results_gdf = results_gdf.set_index('df1_index').join(df1, rsuffix='_df1')
 
-    df2 = df2[["Tmc", "NAME", "AADT", "AADT_Singl", "AADT_Combi", "Zip", "Miles", "GEOID", "COUNTYNS", "road_class",
+    df2 = df2[["tmc", "NAME", "AADT", "AADT_Singl", "AADT_Combi", "Zip", "Miles", "GEOID", "COUNTYNS", "road_class",
                "scenario"]]  # dropping geometry
-    df2.rename(columns={'df1_index': 'index', 'Tmc': 'tmc', 'Zip': 'npmrds_zip', 'Miles': 'npmrds_length_mile',
+    df2.rename(columns={'df1_index': 'index', 'Zip': 'npmrds_zip', 'Miles': 'npmrds_length_mile',
                         'road_class': 'npmrds_road_class', "AADT_Singl": 'npmrds_aadt_class_4_6',
                         "AADT_Combi": 'npmrds_aadt_class_7_8', "AADT": 'npmrds_aadt', "GEOID": "npmrds_fips",
                         "COUNTYNS": "npmrds_ansi", "NAME": "npmrds_name"}, inplace=True)
@@ -195,13 +208,14 @@ def process_regional_npmrds_station(region_boundary, npmrds_geo_file, npmrds_sce
     print(">> Select TMC within region boundaries")
     regional_npmrds_station_out = gpd.overlay(npmrds_station_proj, region_boundary, how='intersection')
     regional_npmrds_station_out['scenario'] = npmrds_scenario_label
+    regional_npmrds_station_out.loc[:, 'road_class'] = regional_npmrds_station_out.loc[:, 'F_System'].map(fsystem_to_roadclass_lookup)
+    regional_npmrds_station_out.rename(columns={'Tmc': 'tmc'}, inplace=True)
     return regional_npmrds_station_out
 
 
 def process_regional_npmrds_data(npmrds_data_csv_file, npmrds_scenario_label, regional_npmrds_station_tmcs):
     print(">> Read NPMRDS data file")
-    table = pv.read_csv(npmrds_data_csv_file)
-    npmrds_data = table.to_pandas()
+    npmrds_data = pv.read_csv(npmrds_data_csv_file).to_pandas()
     npmrds_data['scenario'] = npmrds_scenario_label
 
     # Select NPMRDS data in SF
@@ -256,69 +270,233 @@ def run_hourly_speed_mapping_by_road_class(npmrds_hourly_link_speed, link_stats)
     return pd.concat([beam_hourly_speed, npmrds_hourly_speed], axis=0)
 
 
-# @author by arielgatech (Xiaodan Xu)
-# @github LBNL-UCB-STI/beam-core-analysis/blob/xiaodan_update/Users/Xiaodan/collect_county_boundary.py
-def collect_county_boundaries(state, fips_code, year, region_boundary_geo_path_output):
-    from pygris import counties
-    print("Load regional map boundaries")
-    # define fips code for selected counties
-    state_counties = counties(state=state, year=year)
-    selected_counties = state_counties.loc[state_counties['COUNTYFP'].isin(fips_code)]
-    selected_counties = selected_counties.to_crs(epsg=4326)
-    selected_counties.to_file(region_boundary_geo_path_output, driver="GeoJSON")
-    return selected_counties
+def download_taz_shapefile(state_fips_code, year, output_dir):
+    import requests
+    """
+    Download TAZ shapefiles for a given state-level FIPS code.
+
+    Parameters:
+    - fips_code: String or integer representing the state-level FIPS code.
+    - output_dir: Directory to save the downloaded ZIP file.
+    """
+    # Ensure the FIPS code is a string, padded to 2 characters
+    fips_code_str = str(state_fips_code).zfill(2)
+
+    # Construct the download URL
+    base_url = f"https://www2.census.gov/geo/tiger/TIGER2010/TAZ/2010/"
+    filename = f"tl_{year}_{fips_code_str}_taz10.zip"
+    download_url = base_url + filename
+
+    # Make the output directory if it doesn't exist
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Full path for saving the file
+    output_path = os.path.join(output_dir, filename)
+
+    # Start the download
+    print(f"Downloading TAZ shapefile for FIPS code {state_fips_code} from {download_url}")
+    try:
+        response = requests.get(download_url)
+        response.raise_for_status()  # This will check for errors
+
+        # Write the content of the response to a ZIP file
+        with open(output_path, 'wb') as file:
+            file.write(response.content)
+
+        print(f"File saved to {output_path}")
+
+    except requests.RequestException as e:
+        print(f"Error downloading the file: {e}")
+
+    return output_path
 
 
-def prepare_npmrds_data(region_boundary, npmrds_geo_input, npmrds_data_csv_input, npmrds_label, distance_buffer_m,
-                        beam_network_csv_input, projected_crs_epsg, regional_npmrds_station_output,
-                        regional_npmrds_data_output, npmrds_hourly_speed_output, beam_network_car_links_geo_output,
-                        beam_npmrds_network_map_geo_output, npmrds_hourly_speed_by_road_class_output,
-                        npmrds_observed_speed_weight):
-    print("Process NPMRDS station geographic data file")
-    regional_npmrds_station = process_regional_npmrds_station(region_boundary, npmrds_geo_input, npmrds_label)
+def collect_taz_boundaries(state_fips_code, year, output_dir):
+    from zipfile import ZipFile
+    state_geo_zip = output_dir + f"/tl_{year}_{state_fips_code}_taz10.zip"
+    if not os.path.exists(state_geo_zip):
+        state_geo_zip = download_taz_shapefile(state_fips_code, year, output_dir)
+    """
+    Read a shapefile from a ZIP archive, filter geometries by county FIPS codes,
+    and write the result to a GeoJSON file.
 
-    print("Drop geometry and get unique TMC")
-    regional_npmrds_station_df = regional_npmrds_station.drop(columns='geometry')
-    regional_npmrds_tmcs = regional_npmrds_station_df['Tmc'].unique()
+    Parameters:
+    - zip_file_path: Path to the ZIP file containing the shapefile.
+    - county_fips_codes: List of county FIPS codes to filter by.
+    - output_geojson_path: Path to save the filtered data as a GeoJSON file.
+    """
+    # Extract the shapefile from the ZIP archive
+    with ZipFile(state_geo_zip, 'r') as zip_ref:
+        # Extract all files to a temporary directory
+        temp_dir = "temp_shp"
+        zip_ref.extractall(temp_dir)
 
-    print("Process NPMRDS data")
-    regional_npmrds_data = process_regional_npmrds_data(npmrds_data_csv_input, npmrds_label, regional_npmrds_tmcs)
-    regional_npmrds_data.to_csv(regional_npmrds_data_output, index=False)
+        # Find the .shp file in the extracted files
+        shapefile_name = [f for f in os.listdir(temp_dir) if f.endswith('.shp')][0]
+        shapefile_path = os.path.join(temp_dir, shapefile_name)
 
-    print("Aggregate NPMRDS to hourly speed")
-    npmrds_hourly_speed = agg_npmrds_to_hourly_speed(regional_npmrds_data, npmrds_observed_speed_weight)
-    npmrds_hourly_speed.to_csv(npmrds_hourly_speed_output, index=False)
+        # Read the shapefile into a GeoDataFrame
+        gdf = gpd.read_file(shapefile_path)
 
-    print("Get unique TMC codes with data")
-    regional_npmrds_data_tmcs = regional_npmrds_data['tmc_code'].unique()
+        # Clean up the temporary directory
+        for filename in os.listdir(temp_dir):
+            os.remove(os.path.join(temp_dir, filename))
+        os.rmdir(temp_dir)
 
-    print("Filter sf_npmrds_station for those TMCs")
-    regional_npmrds_station = regional_npmrds_station[regional_npmrds_station['Tmc'].isin(regional_npmrds_data_tmcs)]
-    regional_npmrds_station.to_file(regional_npmrds_station_output, driver='GeoJSON')
+        return gdf
 
-    print("Filter BEAM Network and turn it into GeoJSON")
-    beam_network = pd.read_csv(beam_network_csv_input, sep=',')
-    beam_network_filtered_car_links = process_beam_cars_network_into_geojson(region_boundary, beam_network,
-                                                                             projected_crs_epsg)
-    beam_network_filtered_car_links.to_file(beam_network_car_links_geo_output, driver="GeoJSON")
 
-    print("Building BEAM NPMRDS Network map")
-    beam_npmrds_network_map = map_nearest_links(beam_network_filtered_car_links, regional_npmrds_station,
-                                                projected_crs_epsg, distance_buffer_m)
-    beam_npmrds_network_map.to_file(beam_npmrds_network_map_geo_output, driver='GeoJSON')
+def collect_geographic_boundaries(state_fips_code, county_fips_codes, year, study_area_geo_path, projected_coordinate_system, geo_level):
+    from pygris import counties, block_groups
 
-    print("Merging NPMRDS hourly speed and BEAM NPMRDS Network")
-    df_filtered = beam_npmrds_network_map[['tmc', 'npmrds_road_class']]
-    npmrds_hourly_speed_road_class = pd.merge(npmrds_hourly_speed, df_filtered, on=['tmc'], how='inner')
-    npmrds_hourly_speed_road_class.rename(columns={'npmrds_road_class': 'road_class'}, inplace=True)
-    npmrds_hourly_speed_road_class.to_csv(npmrds_hourly_speed_by_road_class_output, index=False)
+    if geo_level == 'county':
+        # Define fips code for selected counties
+        geo_data = counties(state=state_fips_code, year=year, cb=True, cache=True)
+    elif geo_level == 'cbg':
+        # Define fips code for selected counties
+        geo_data = block_groups(state=state_fips_code, year=year, cb=True, cache=True)
+    elif geo_level == 'taz':
+        geo_data = collect_taz_boundaries(state_fips_code, year, os.path.dirname(study_area_geo_path))
+    else:
+        raise ValueError("Unsupported geographic level. Choose 'counties' or 'cbgs'.")
+
+    countyfp_columns = [col for col in geo_data.columns if col.startswith('COUNTYFP')]
+    mask = geo_data[countyfp_columns].apply(lambda x: x.isin(county_fips_codes)).any(axis=1)
+    selected_geo = geo_data[mask]
+
+    # def string_to_double(s):
+    #     return float(s if s != "" else "0")
+    #
+    # # Prepare columns and mask
+    # aland_columns = [col for col in selected_geo.columns if col.startswith('ALAND')]
+    # awater_columns = [col for col in selected_geo.columns if col.startswith('AWATER')]
+    # for col in aland_columns + awater_columns:
+    #     selected_geo.loc[:, col] = selected_geo[col].apply(string_to_double)
+    # mask = pd.Series([False] * len(selected_geo), index=selected_geo.index)
+    #
+    # for aland_col, awater_col in zip(aland_columns, awater_columns):
+    #     # AWATER should not be more than three times ALAND
+    #     mask |= (selected_geo[aland_col] > 0) & (selected_geo[awater_col] < 3 * selected_geo[aland_col])
+    #
+    # # Apply the mask to filter selected_geo
+    # selected_geo = selected_geo[mask]
+
+    base_name, extension = os.path.splitext(study_area_geo_path)
+
+    study_area_geo_projected_path = base_name+"_epsg"+str(projected_coordinate_system)+extension
+    selected_geo.to_crs(epsg=projected_coordinate_system).to_file(study_area_geo_projected_path, driver="GeoJSON")
+
+    selected_geo_wgs84 = selected_geo.to_crs(epsg=4326)
+    selected_geo_wgs84.to_file(base_name+"_wgs84"+extension, driver="GeoJSON")
+    return selected_geo_wgs84
+
+
+def map_cbg_to_taz(cbg_gdf, cbg_id_col, taz_gdf, taz_id_col, projected_coordinate_system, cbg_taz_map_csv):
+    print(f"Mapping CBG to TAZ geometries")
+    # Ensure that both GeoDataFrames are using the same coordinate reference system
+    cbg_gdf = cbg_gdf.to_crs(projected_coordinate_system)[[cbg_id_col, 'geometry']]
+    taz_gdf = taz_gdf.to_crs(projected_coordinate_system)[[taz_id_col, 'geometry']]
+
+    # Perform spatial join
+    # This step associates each CBG with one or more TAZs based on their geometries
+    joined_gdf = gpd.sjoin(cbg_gdf, taz_gdf, how="left", predicate="intersects").reset_index(drop=True)
+
+    # Now, we will determine which TAZ contains the majority of each CBG area
+    # This requires calculating the area of intersection and comparing it with CBG total area
+    # Note: This simplistic example assumes the joined_gdf contains necessary geometry intersections directly
+    # In practice, you may need additional steps to calculate intersection areas precisely
+
+    # Iterate through joined GeoDataFrame to calculate area of CBG within each TAZ
+    # Then, identify the TAZ that contains the majority of the CBG
+    # Placeholder for results
+    mapping = []
+
+    for cbg_id, group in joined_gdf.groupby(cbg_id_col):
+        # Calculate the percentage of CBG area contained in each TAZ
+        group['area_pct'] = group.apply(
+            lambda row: (row.geometry.area / cbg_gdf[cbg_gdf[cbg_id_col] == cbg_id].geometry.area.iloc[0]) * 100, axis=1
+        )
+        # Find the TAZ with the maximum coverage area percentage
+        max_coverage_taz_id = group.loc[group['area_pct'].idxmax(), taz_id_col]
+        if not pd.isna(max_coverage_taz_id) and not isinstance(max_coverage_taz_id, str):
+            max_coverage_taz_id = str(int(max_coverage_taz_id))
+        mapping.append({cbg_id_col: cbg_id, taz_id_col: max_coverage_taz_id})
+
+    # Convert the mapping to a DataFrame
+    mapping_df = pd.DataFrame(mapping)
+
+    # Output to CSV
+    mapping_df.to_csv(cbg_taz_map_csv, index=False)
+    print(f"Mapping output to {cbg_taz_map_csv}")
+
+
+def prepare_npmrds_data(
+        # input
+        npmrds_label, npmrds_raw_geo, npmrds_raw_data_csv, npmrds_observed_speed_weight,
+        region_boundary, beam_network_csv_input, projected_crs_epsg, distance_buffer_m,
+        # output
+        npmrds_station_geo, npmrds_data_csv, npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv,
+        beam_network_car_links_geo, beam_npmrds_network_map_geo):
+
+    if os.path.exists(npmrds_station_geo):
+        print(f"Reading {npmrds_station_geo}")
+        regional_npmrds_station = gpd.read_file(npmrds_station_geo)
+    else:
+        print("Process NPMRDS station geographic data file")
+        regional_npmrds_station = process_regional_npmrds_station(region_boundary, npmrds_raw_geo, npmrds_label)
+        regional_npmrds_station.to_file(npmrds_station_geo, driver='GeoJSON')
+
+    if os.path.exists(npmrds_data_csv):
+        print(f"Reading {npmrds_data_csv}")
+        regional_npmrds_data = pv.read_csv(npmrds_data_csv).to_pandas()
+    else:
+        print("Process NPMRDS data")
+        regional_npmrds_data = process_regional_npmrds_data(npmrds_raw_data_csv, npmrds_label, regional_npmrds_station['tmc'].unique())
+        regional_npmrds_data.to_csv(npmrds_data_csv, index=False)
+
+    if os.path.exists(npmrds_hourly_speed_csv):
+        print(f"Reading {npmrds_hourly_speed_csv}")
+        npmrds_hourly_speed = pv.read_csv(npmrds_hourly_speed_csv).to_pandas()
+    else:
+        print("Aggregate NPMRDS to hourly speed")
+        npmrds_hourly_speed = agg_npmrds_to_hourly_speed(regional_npmrds_data, npmrds_observed_speed_weight)
+        npmrds_hourly_speed.to_csv(npmrds_hourly_speed_csv, index=False)
+
+    if os.path.exists(npmrds_hourly_speed_by_road_class_csv):
+        print(f"Reading {npmrds_hourly_speed_by_road_class_csv}")
+        npmrds_hourly_speed_road_class = pv.read_csv(npmrds_hourly_speed_by_road_class_csv).to_pandas()
+    else:
+        print("NPMRDS hourly speed by road class")
+        df_filtered = regional_npmrds_station[['tmc', 'road_class']]
+        npmrds_hourly_speed_road_class = pd.merge(npmrds_hourly_speed, df_filtered, on=['tmc'], how='inner')
+        npmrds_hourly_speed_road_class.to_csv(npmrds_hourly_speed_by_road_class_csv, index=False)
+
+    if os.path.exists(beam_network_car_links_geo):
+        print(f"Reading {beam_network_car_links_geo}")
+        beam_network_filtered_car_links = gpd.read_file(beam_network_car_links_geo)
+    else:
+        print("Filter BEAM Network and turn it into GeoJSON")
+        beam_network = pv.read_csv(beam_network_csv_input).to_pandas()
+        beam_network_filtered_car_links = process_beam_cars_network_into_geojson(region_boundary, beam_network,
+                                                                                 projected_crs_epsg)
+        beam_network_filtered_car_links.to_file(beam_network_car_links_geo, driver="GeoJSON")
+
+    if os.path.exists(beam_npmrds_network_map_geo):
+        print(f"Reading {beam_npmrds_network_map_geo}")
+        beam_npmrds_network_map = gpd.read_file(beam_npmrds_network_map_geo)
+    else:
+        print("Building BEAM NPMRDS Network map")
+        beam_npmrds_network_map = map_nearest_links(beam_network_filtered_car_links, regional_npmrds_station,
+                                                    projected_crs_epsg, distance_buffer_m)
+        beam_npmrds_network_map.to_file(beam_npmrds_network_map_geo, driver='GeoJSON')
 
     return regional_npmrds_station, regional_npmrds_data, beam_npmrds_network_map, npmrds_hourly_speed_road_class
 
 
 class SpeedValidationSetup:
-    def __init__(self, npmrds_hourly_speed_csv_path, beam_npmrds_network_map_geo_path,
-                 npmrds_hourly_speed_by_road_class_csv_path, link_stats_paths_and_labels_list, demand_sample_size,
+    def __init__(self, npmrds_hourly_speed_csv, beam_network_mapped_to_npmrds_geo,
+                 npmrds_hourly_speed_by_road_class_csv, link_stats_paths_and_labels_list, demand_sample_size,
                  assume_daylight_saving):
         st = time.time()
         print("Loading data ...")
@@ -326,14 +504,15 @@ class SpeedValidationSetup:
         demand_scale_up_coefficient = 1 / demand_sample_size
 
         # Data
-        self.npmrds_hourly_speed = pv.read_csv(npmrds_hourly_speed_csv_path).to_pandas()
-        self.beam_npmrds_network_map = gpd.read_file(beam_npmrds_network_map_geo_path)
-        self.npmrds_hourly_speed_by_road_class = pv.read_csv(npmrds_hourly_speed_by_road_class_csv_path).to_pandas()
+        self.npmrds_hourly_speed = pv.read_csv(npmrds_hourly_speed_csv).to_pandas()
+        self.beam_npmrds_network_map = gpd.read_file(beam_network_mapped_to_npmrds_geo)
+        self.npmrds_hourly_speed_by_road_class = pv.read_csv(npmrds_hourly_speed_by_road_class_csv).to_pandas()
         self.link_stats_tmc_dfs = process_and_extend_link_stats(self.beam_npmrds_network_map,
                                                                 link_stats_paths_and_labels_list,
                                                                 demand_scale_up_coefficient,
                                                                 assume_daylight_saving)
-        print(f"Execution time of prepare_npmrds_and_beam_data: {(time.time() - st) / 60.0}min")
+
+        print(f"Execution time of prepare_npmrds_and_beam_data: {(time.time() - st) / 60.0:.2f} minutes")
 
     def get_hourly_average_speed(self):
         st = time.time()
@@ -349,24 +528,24 @@ class SpeedValidationSetup:
         combined_data = pd.concat(data_frames, ignore_index=True).sort_values(
             by='scenario') if data_frames else pd.DataFrame()
 
-        print(f"Execution time of get_hourly_average_speed: {(time.time() - st) / 60.0}min")
+        print(f"Execution time of get_hourly_average_speed: {(time.time() - st) / 60.0:.2f} minutes")
         return combined_data
 
     def get_hourly_average_speed_by_road_class(self):
         st = time.time()
 
         # Initialize a list to collect DataFrames
-        data_frames = []
+        data_frames = [self.npmrds_hourly_speed_by_road_class]
 
-        # Process each link_stats DataFrame
-        for link_stats in self.link_stats_tmc_dfs:
-            hourly_speed_by_road_class = run_hourly_speed_mapping_by_road_class(self.npmrds_hourly_speed, link_stats)
-            data_frames.append(hourly_speed_by_road_class.reset_index(drop=True))
+        # Loop through Link stats DataFrames to calculate metrics and collect them
+        for link_stats_tmc in self.link_stats_tmc_dfs:
+            hourly_link_speed_by_road_class = link_stats_tmc.groupby(
+                ['hour', 'road_class', 'scenario']).apply(calculate_metrics).reset_index()
+            data_frames.append(hourly_link_speed_by_road_class)
 
-        combined_data_by_road_class = pd.concat(data_frames, ignore_index=True).sort_values(
-            by='scenario') if data_frames else pd.DataFrame()
+        combined_data_by_road_class = pd.concat(data_frames, ignore_index=True).sort_values(by='scenario')
 
-        print(f"Execution time of get_hourly_average_speed_by_road_class: {(time.time() - st) / 60.0}min")
+        print(f"Execution time of get_hourly_average_speed_by_road_class: {(time.time() - st) / 60.0:.2f} minutes")
         return combined_data_by_road_class
 
     def get_hourly_link_speed(self):
@@ -384,7 +563,7 @@ class SpeedValidationSetup:
 
         combined_data = pd.concat(data_frames, ignore_index=True).sort_values(by='scenario')
 
-        print(f"Execution time of get_hourly_link_speed: {(time.time() - st) / 60.0}min")
+        print(f"Execution time of get_hourly_link_speed: {(time.time() - st) / 60.0:.2f} minutes")
         return combined_data
 
     def get_hourly_link_speed_by_road_class(self):
@@ -404,3 +583,7 @@ class SpeedValidationSetup:
 
         print(f"Execution time of get_hourly_link_speed_by_road_class: {(time.time() - st) / 60.0}min")
         return combined_data_by_road_class
+
+
+
+

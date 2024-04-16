@@ -127,7 +127,7 @@ class BeamRouterSpec extends AnyFlatSpec with BeamScenarioForTest {
       network = mock(classOf[Network]),
       trainStopQuadTree = new QuadTree[com.conveyal.gtfs.model.Stop](0.0, 0.0, 0.0, 0.0),
       tazTreeMap = tazMap,
-      exchangeGeoMap = None,
+      secondaryTazTreeMap = None,
       modeIncentives = null,
       h3taz = null,
       freightCarriers = IndexedSeq.empty,

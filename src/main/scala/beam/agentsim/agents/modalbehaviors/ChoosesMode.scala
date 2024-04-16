@@ -1280,8 +1280,7 @@ trait ChoosesMode {
         case Some(chosenTrip) =>
           filteredItinerariesForChoice.foreach {
             case possibleTrip
-                if (possibleTrip != chosenTrip) &&
-                  beamScenario.beamConfig.beam.exchange.output.sendNonChosenTripsToSkimmer =>
+                if (possibleTrip != chosenTrip) && beamScenario.beamConfig.beam.router.skim.sendNonChosenTripsToSkimmer =>
               generateSkimData(
                 possibleTrip.legs.lastOption.map(_.beamLeg.endTime).getOrElse(_currentTick.get),
                 possibleTrip,
@@ -1345,8 +1344,8 @@ trait ChoosesMode {
               eventsManager.processEvent(
                 odFailedSkimmerEvent
               )
-              if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
-                createFailedActivitySimSkimmerEvent(odFailedSkimmerEvent, possibleActivitySimModes).foreach(ev =>
+              if (beamServices.beamConfig.beam.exchange.output.activity_sim_skimmer.exists(_.primary.enabled)) {
+                createFailedActivitySimSkimmerEvent(currentAct, nextAct, possibleActivitySimModes).foreach(ev =>
                   eventsManager.processEvent(ev)
                 )
               }
@@ -1494,24 +1493,17 @@ trait ChoosesMode {
     destinationActivity: Activity,
     mode: BeamMode
   ): ODSkimmerFailedTripEvent = {
-    val (origCoord, destCoord) = (originActivity.getCoord, destinationActivity.getCoord)
-    val (origin, destination) =
-      if (beamScenario.tazTreeMap.tazListContainsGeoms) {
-        val startTaz = getTazFromActivity(originActivity)
-        val endTaz = getTazFromActivity(destinationActivity)
-        (startTaz.toString, endTaz.toString)
-      } else {
-        beamScenario.exchangeGeoMap match {
-          case Some(geoMap) =>
-            val origGeo = geoMap.getTAZ(origCoord)
-            val destGeo = geoMap.getTAZ(destCoord)
-            (origGeo.tazId.toString, destGeo.tazId.toString)
-          case None =>
-            val origGeo = beamScenario.tazTreeMap.getTAZ(origCoord)
-            val destGeo = beamScenario.tazTreeMap.getTAZ(destCoord)
-            (origGeo.tazId.toString, destGeo.tazId.toString)
-        }
-      }
+    val geoMap = beamScenario.tazTreeMap
+    val (origin, destination) = if (geoMap.tazListContainsGeoms) {
+      val origGeo = getTazFromActivity(originActivity, geoMap).toString
+      val destGeo = getTazFromActivity(destinationActivity, geoMap).toString
+      (origGeo, destGeo)
+    } else {
+      (
+        geoMap.getTAZ(originActivity.getCoord).toString,
+        geoMap.getTAZ(destinationActivity.getCoord).toString
+      )
+    }
 
     ODSkimmerFailedTripEvent(
       origin = origin,
@@ -1524,13 +1516,15 @@ trait ChoosesMode {
   }
 
   private def createFailedActivitySimSkimmerEvent(
-    failedODSkimmerEvent: ODSkimmerFailedTripEvent,
+    currentAct: Activity,
+    nextAct: Activity,
     modes: Seq[ActivitySimPathType]
   ): Seq[ActivitySimSkimmerFailedTripEvent] = {
+    val (origin, destination) = getOriginAndDestinationFromGeoMap(currentAct, Some(nextAct))
     modes.map { pathType =>
       ActivitySimSkimmerFailedTripEvent(
-        origin = failedODSkimmerEvent.origin,
-        destination = failedODSkimmerEvent.destination,
+        origin = origin,
+        destination = destination,
         eventTime = _currentTick.get,
         activitySimPathType = pathType,
         iterationNumber = beamServices.matsimServices.getIterationNumber,

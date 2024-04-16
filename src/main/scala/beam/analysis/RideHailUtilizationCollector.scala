@@ -4,6 +4,7 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, ReplanningEvent}
 import beam.router.Modes.BeamMode
 import beam.sim.BeamServices
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import beam.utils.csv.CsvWriter
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.events.Event
@@ -305,4 +306,32 @@ object RideHailUtilizationCollector {
     val moved: IndexedSeq[RideInfo] = rides.filterNot(vri => notMoved.contains(vri.vehicleId))
     moved
   }
+
+  def activitySimReplanningReasonOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("RideHailUtilizationCollector", s"rideHailRideUtilization.csv")(
+      """
+        iteration                     | Iteration number
+        nonEmptyRides                 | Number of rides with passengers
+        totalRides                    | Total number ride-hail rides
+        movedPassengers               | Total number of moved passengers
+        rideHailModeChoices           | Number of ride-hail mode choices
+        rideHailInAlternatives        | Number of choices when ride-hail mode was in the alternatives
+        totalModeChoices              | Total number of mode choices
+        numberOfVehiclesServedNRides  | Number of vehicles that served N rides
+        NPassengersToTheNumberOfRides | Number of rides with N passengers
+          """
+    )
+
+  def rideHailRidesOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("RideHailUtilizationCollector", s"ridehailRides.csv.gz", iterationLevel = true)(
+      """
+        vehicleId           | Id of the ride-hail vehicle making the ride
+        time                | Time in seconds when the ride is completed
+        startX              | X part of the start ride coordinate
+        startY              | Y part of the start ride coordinate
+        endX                | X of the end ride coordinate
+        endY                | Y part of the end ride coordinate
+        numberOfPassengers  | Number of passengers on the ride
+          """
+    )
 }

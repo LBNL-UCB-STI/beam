@@ -1,8 +1,8 @@
 package beam.analysis
 
 import java.util.concurrent.TimeUnit
-
 import beam.analysis.plots.{GraphAnalysis, GraphUtils, GraphsStatsAgentSimEventsListener}
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import beam.utils.csv.CsvWriter
 import beam.utils.logging.ExponentialLazyLogging
 import org.jfree.chart.ChartFactory
@@ -122,4 +122,19 @@ class ActivityTypeAnalysis(maxTime: Int) extends GraphAnalysis with ExponentialL
       GraphsStatsAgentSimEventsListener.GRAPH_HEIGHT
     )
   }
+}
+
+object ActivityTypeAnalysis {
+
+  def outputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("ActivityTypeAnalysis", "activityType.csv")(
+      """Iteration | iteration number                           
+        Activity types | List of number of activities at that iteration"""
+    )
+
+  def outputDataDescriptorIteration: OutputDataDescriptor =
+    OutputDataDescriptorObject("ActivityTypeAnalysis", "activityType.csv", iterationLevel = true)(
+      """Hour | Hour of the day
+        Activity types | List of number of activities at that hour"""
+    )
 }
