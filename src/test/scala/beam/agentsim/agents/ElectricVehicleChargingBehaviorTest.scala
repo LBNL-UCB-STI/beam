@@ -70,7 +70,7 @@ class ElectricVehicleChargingBehaviorTest
        |    iterationStats.timeBinSizeInSec = 3600
        |    defaultCostPerMile = 1.25
        |    defaultCostPerMinute = 0.75
-       |    rideHailManager.radiusInMeters = 50000
+       |    radiusInMeters = 50000
        |    # allocationManager(DEFAULT_MANAGER | EV_MANAGER | POOLING_ALONSO_MORA)
        |    allocationManager.name = "POOLING_ALONSO_MORA"
        |    allocationManager.requestBufferTimeoutInSeconds = 200
@@ -84,19 +84,19 @@ class ElectricVehicleChargingBehaviorTest
        |    repositioningManager.demandFollowingRepositioningManager.sensitivityOfRepositioningToDemand = 1
        |    repositioningManager.demandFollowingRepositioningManager.numberOfClustersForDemand = 30
        |    # REPOSITIONING_LOW_WAITING_TIMES
-       |    allocationManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition = 0.0
-       |    allocationManager.repositionLowWaitingTimes.repositionCircleRadiusInMeters = 100
-       |    allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning = 12000
-       |    allocationManager.repositionLowWaitingTimes.allowIncreasingRadiusIfDemandInRadiusLow = true
-       |    allocationManager.repositionLowWaitingTimes.minDemandPercentageInRadius = 0.1
-       |    allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThresholdForRepositioning = 1000
-       |    allocationManager.repositionLowWaitingTimes.repositioningMethod = "TOP_SCORES"
-       |    allocationManager.repositionLowWaitingTimes.keepMaxTopNScores = 5
-       |    allocationManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning = 100000000.0
-       |    allocationManager.repositionLowWaitingTimes.distanceWeight = 0.01
-       |    allocationManager.repositionLowWaitingTimes.waitingTimeWeight = 4.0
-       |    allocationManager.repositionLowWaitingTimes.demandWeight = 4.0
-       |    allocationManager.repositionLowWaitingTimes.produceDebugImages = true
+       |    repositioningManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition = 0.0
+       |    repositioningManager.repositionLowWaitingTimes.repositionCircleRadiusInMeters = 100
+       |    repositioningManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning = 12000
+       |    repositioningManager.repositionLowWaitingTimes.allowIncreasingRadiusIfDemandInRadiusLow = true
+       |    repositioningManager.repositionLowWaitingTimes.minDemandPercentageInRadius = 0.1
+       |    repositioningManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThresholdForRepositioning = 1000
+       |    repositioningManager.repositionLowWaitingTimes.repositioningMethod = "TOP_SCORES"
+       |    repositioningManager.repositionLowWaitingTimes.keepMaxTopNScores = 5
+       |    repositioningManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning = 100000000.0
+       |    repositioningManager.repositionLowWaitingTimes.distanceWeight = 0.01
+       |    repositioningManager.repositionLowWaitingTimes.waitingTimeWeight = 4.0
+       |    repositioningManager.repositionLowWaitingTimes.demandWeight = 4.0
+       |    repositioningManager.repositionLowWaitingTimes.produceDebugImages = true
        |    initialization.filePath = $filesPath/RIDE_HAIL_FLEET_FILE"
        |    initialization.initType="FILE"
        |    initialization.parking.filePath=$filesPath/taz-parking-empty.csv"
