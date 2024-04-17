@@ -103,22 +103,13 @@ trait NetworkCoordinator extends LazyLogging {
           logger.info(
             s"Initializing router by creating network from directory: ${Paths.get(beamConfig.beam.routing.r5.directory).toAbsolutePath}"
           )
+
           transportNetwork = TransportNetwork.fromDirectory(
             Paths.get(beamConfig.beam.routing.r5.directory).toFile,
             beamConfig.beam.physsim.network.removeIslands,
             false,
             beamConfig.beam.routing.r5.linkRadiusMeters
           )
-
-          val maybeTN = for {
-            dir2str <- beamConfig.beam.routing.r5.directory2
-          } yield {
-            val path2 = Paths.get(dir2str)
-            logger.info(
-              s"Initializing the second router by creating network from directory: ${path2.toAbsolutePath}"
-            )
-            TransportNetwork.fromDirectory(path2.toFile)
-          }
 
           // FIXME HACK: It is not only creates PhysSim, but also fixes the speed and the length of `weird` links.
           // Please, fix me in the future
@@ -129,9 +120,24 @@ trait NetworkCoordinator extends LazyLogging {
           // Needed because R5 closes DB on write
           transportNetwork = KryoNetworkSerializer.read(path.toFile)
 
+          val directory2: Option[String] = beamConfig.beam.routing.r5.directory2 match {
+            case Some(path) if path.trim.nonEmpty => Some(path)
+            case _                                => None
+          }
+
+          val maybeTN = for {
+            dir2str <- directory2
+          } yield {
+            val path2 = Paths.get(dir2str)
+            logger.info(
+              s"Initializing the second router by creating network from directory: ${path2.toAbsolutePath}"
+            )
+            TransportNetwork.fromDirectory(path2.toFile)
+          }
+
           networks2 = for {
             tn   <- maybeTN
-            dir2 <- beamConfig.beam.routing.r5.directory2
+            dir2 <- directory2
             networkPath2 = Paths.get(dir2).resolve(networkPath.getFileName)
             net2 = createPhyssimNetwork(tn, networkPath2)
             path2 = Paths.get(dir2).resolve(path.getFileName)
