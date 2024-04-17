@@ -774,7 +774,8 @@ class PersonAgent(
     goto(ChoosingMode) using ChoosesModeData(
       data.copy(
         currentTourMode = None,
-        numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1
+        numberOfReplanningAttempts = data.numberOfReplanningAttempts + 1,
+        passengerSchedule = PassengerSchedule()
       ),
       currentLocation = SpaceTime(
         currentCoord,

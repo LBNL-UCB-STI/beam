@@ -403,8 +403,10 @@ trait ChoosesMode {
               makeRideHailRequest()
               (true, false)
             case _ =>
-              makeRideHailRequest()
-              requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
+              if (hasRideHail) {
+                makeRideHailRequest()
+                requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
+              }
               (true, true)
           }
         } else { (false, false) }
