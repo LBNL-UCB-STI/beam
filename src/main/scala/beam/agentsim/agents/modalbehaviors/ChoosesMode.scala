@@ -1303,7 +1303,7 @@ trait ChoosesMode {
             travelProposal,
             rideHailResult.rideHailManagerName,
             choosesModeData.personData.currentTourMode
-          )
+          ).map(surroundWithWalkLegsIfNeededAndMakeTrip)
         case _ =>
           Vector()
       }
@@ -1515,9 +1515,9 @@ trait ChoosesMode {
     travelProposal: RideHailManager.TravelProposal,
     rideHailManagerName: String,
     requiredMode: Option[BeamMode]
-  ) = {
+  ): Vector[Vector[EmbodiedBeamLeg]] = {
     val origLegs = travelProposal.toEmbodiedBeamLegsForCustomer(bodyVehiclePersonId, rideHailManagerName)
-    (travelProposal.poolingInfo match {
+    travelProposal.poolingInfo match {
       case Some(poolingInfo)
           if !requiredMode.contains(RIDE_HAIL)
             && travelProposal.modeOptions.contains(RIDE_HAIL_POOLED) =>
@@ -1541,7 +1541,7 @@ trait ChoosesMode {
       case _ =>
         // current tour mode doesn't correspond to mode options provided by travel proposal
         Vector()
-    }).map(surroundWithWalkLegsIfNeededAndMakeTrip)
+    }
   }
 
   private def surroundWithWalkLegsIfNeededAndMakeTrip(partialItin: Vector[EmbodiedBeamLeg]): EmbodiedBeamTrip = {
