@@ -16,7 +16,6 @@ import beam.router.model.BeamLeg.dummyLeg
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model._
 import beam.router.skim.SkimsUtils.{getRideHailCost, getRideHailManagerCosts}
-import beam.router.r5.R5Wrapper
 import beam.router.{Modes, Router, RoutingWorker}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import beam.utils.MeasureUnitConversion.METERS_IN_MILE

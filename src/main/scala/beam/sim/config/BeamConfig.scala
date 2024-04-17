@@ -4368,6 +4368,7 @@ object BeamConfig {
         maxDistanceLimitByModeInMeters: BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters,
         numberOfSamples: scala.Int,
         osmMapdbFile: java.lang.String,
+        rideHailTransitRoutingBufferInSeconds: scala.Int,
         suboptimalMinutes: scala.Int,
         transitAlternativeList: java.lang.String,
         travelTimeNoiseFraction: scala.Double,
@@ -4451,6 +4452,10 @@ object BeamConfig {
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
               else "/test/input/beamville/r5/osm.mapdb",
+            rideHailTransitRoutingBufferInSeconds =
+              if (c.hasPathOrNull("rideHailTransitRoutingBufferInSeconds"))
+                c.getInt("rideHailTransitRoutingBufferInSeconds")
+              else 240,
             suboptimalMinutes = if (c.hasPathOrNull("suboptimalMinutes")) c.getInt("suboptimalMinutes") else 10,
             transitAlternativeList =
               if (c.hasPathOrNull("transitAlternativeList")) c.getString("transitAlternativeList") else "SUBOPTIMAL",

@@ -1171,6 +1171,7 @@ trait ChoosesMode {
     timeToCustomer: Int,
     tncEgressLeg: Vector[EmbodiedBeamLeg]
   ): Option[EmbodiedBeamTrip] = {
+    val buffer = beamServices.beamConfig.beam.routing.r5.rideHailTransitRoutingBufferInSeconds
     val transitLegs = driveTransitTrip.legs
       .dropWhile(leg => !leg.beamLeg.mode.isTransit)
       .reverse
@@ -1181,18 +1182,16 @@ trait ChoosesMode {
       case rhLegs =>
         val extraWaitTimeBuffer = rhLegs.last.beamLeg.endTime -
           tncAccessLeg.map(_.beamLeg.duration).sum - timeToCustomer - _currentTick.get
-        val startTimeBufferForWaiting = math.max(300.0, timeToCustomer.toDouble * 0.5)
+        val startTimeBufferForWaiting = math.max(buffer.toDouble, timeToCustomer.toDouble * 0.5)
         (extraWaitTimeBuffer, startTimeBufferForWaiting.floor.toInt)
     }
 
-    if (extraWaitTimeBuffer >= 300) {
+    if (extraWaitTimeBuffer >= buffer) {
       Some(
         EmbodiedBeamTrip(
-          Vector(
-            tncAccessLeg.head.copy(beamLeg =
-              tncAccessLeg.head.beamLeg.updateStartTime(tncAccessLeg.head.beamLeg.startTime - accessLegAdjustment)
-            )
-          ) ++ tncAccessLeg.tail ++ transitLegs ++ tncEgressLeg
+          tncAccessLeg.map(leg =>
+            leg.copy(beamLeg = leg.beamLeg.updateStartTime(leg.beamLeg.startTime - accessLegAdjustment))
+          ) ++ transitLegs ++ tncEgressLeg
         )
       )
     } else None
