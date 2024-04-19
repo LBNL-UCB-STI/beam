@@ -200,6 +200,7 @@ object BeamConfig {
           overrideAutomationForVOTT: scala.Boolean,
           overrideAutomationLevel: scala.Int,
           poolingMultiplier: BeamConfig.Beam.Agentsim.Agents.ModalBehaviors.PoolingMultiplier,
+          replanningWhenNoAvailableRoute: scala.Boolean,
           transitVehicleTypeVOTMultipliers: scala.Option[scala.List[java.lang.String]]
         )
 
@@ -768,6 +769,8 @@ object BeamConfig {
                 if (c.hasPathOrNull("poolingMultiplier")) c.getConfig("poolingMultiplier")
                 else com.typesafe.config.ConfigFactory.parseString("poolingMultiplier{}")
               ),
+              replanningWhenNoAvailableRoute =
+                c.hasPathOrNull("replanningWhenNoAvailableRoute") && c.getBoolean("replanningWhenNoAvailableRoute"),
               transitVehicleTypeVOTMultipliers =
                 if (c.hasPathOrNull("transitVehicleTypeVOTMultipliers"))
                   scala.Some($_L$_str(c.getList("transitVehicleTypeVOTMultipliers")))
