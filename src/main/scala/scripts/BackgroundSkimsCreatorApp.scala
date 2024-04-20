@@ -184,7 +184,7 @@ object BackgroundSkimsCreatorApp extends App with BeamHelper {
       case None       => new FreeFlowTravelTime
     }
 
-    val tazMap: Map[String, GeoUnit.TAZ] = beamServices.beamScenario.tazTreeMap.getTAZs
+    val tazMap: Map[String, GeoUnit.TAZ] = beamServices.beamScenario.tazTreeMapForASimSkimmer.getTAZs
       .map(taz => taz.tazId.toString -> GeoUnit.TAZ(taz.tazId.toString, taz.coord, taz.areaInSquareMeters))
       .toMap
 

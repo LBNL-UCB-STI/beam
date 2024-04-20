@@ -57,7 +57,6 @@ object GeoReader extends LazyLogging {
         } finally {
           featureIterator.close()
         }
-        print(features)
         features
       }
   }

@@ -5,7 +5,7 @@ import beam.router.skim.core.{AbstractSkimmer, AbstractSkimmerInternal, Abstract
 import beam.router.skim.urbansim.ActivitySimOmxWriter
 import beam.sim.BeamScenario
 import beam.sim.config.BeamConfig
-import beam.utils.ProfilingUtils
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject, ProfilingUtils}
 import beam.utils.csv.CsvWriter
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -240,13 +240,14 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     )
 
     val mappedSkimFilePath = filePath.lastIndexOf(".") match {
-      case -1    => filePath + "_mapped" // No extension found, append "_mapped" at the end
-      case index => filePath.substring(0, index) + "_mapped" + filePath.substring(index)
+      case -1    => filePath + "_geo_exchange"
+      case index => filePath.substring(0, index) + "_geo_exchange" + filePath.substring(index)
     }
 
     val filterByBeamMode: ((ActivitySimKey, _)) => Boolean = { case (key, _) =>
-      beamConfig.beam.exchange.output.geo.get.beamModeFilter
-        .contains(ActivitySimPathType.toBeamMode(key.pathType).value)
+      beamConfig.beam.exchange.output.activity_sim_skimmer.exists(
+        _.secondary.beamModeFilter.contains(ActivitySimPathType.toBeamMode(key.pathType).value)
+      )
     }
 
     val writeToOutput: (String, Iterable[ExcerptData], Seq[String]) => Unit = { case (filePath, data, geoUnits) =>
@@ -287,7 +288,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
         }
         .mapValues(_.map(_._2))
 
-      val maybeTazExcerptData = beamScenario.exchangeOutputGeoMap.map { exchangeGeoMap =>
+      val maybeTazExcerptData = beamScenario.secondaryTazTreeMap.map { exchangeGeoMap =>
         excerptData
           .collect { case (key, data) =>
             for {
@@ -303,7 +304,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       val (defaultExcerptData, maybeMappedExcerptData) =
         maybeTazExcerptData match {
           case Some(tazExcerptData) =>
-            val geoMapSize = beamScenario.exchangeOutputGeoMap.get.getSize
+            val geoMapSize = beamScenario.secondaryTazTreeMap.get.getSize
             val tazMapSize = beamScenario.tazTreeMap.getSize
             val isGeoMapLarger = geoMapSize > tazMapSize
             if (isGeoMapLarger) (tazExcerptData, Some(excerptData.filter(filterByBeamMode)))
@@ -319,7 +320,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       writeToOutput(filePath, defaultSkim, beamScenario.tazTreeMap.orderedTazIds)
 
       // Write maybeMappedSkim data if present
-      maybeMappedSkim.foreach(writeToOutput(mappedSkimFilePath, _, beamScenario.exchangeOutputGeoMap.get.orderedTazIds))
+      maybeMappedSkim.foreach(writeToOutput(mappedSkimFilePath, _, beamScenario.secondaryTazTreeMap.get.orderedTazIds))
     }
   }
 
@@ -598,4 +599,28 @@ object ActivitySimSkimmer extends LazyLogging {
 
     val csvHeader: String = csvHeaderSeq.mkString(",")
   }
+
+  def outputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("ActivitySimSkimmer", "activitySimODSkims_current.csv.gz", iterationLevel = true)(
+      """
+        timePeriod          | EA - early AM, 3 am to 6 am, AM - peak period, 6 am to 10 am, MD - midday period, 10 am to 3 pm, PM - peak period, 3 pm to 7 pm, EV - evening, 7 pm to 3 am the next day
+        pathType            | See all the possible path types with descriptions https://activitysim.github.io/activitysim/v1.0.4/howitworks.html#skims
+        origin              | Id of the origin geo unit
+        destination         | Id of the destination geo unit
+        TIME_minutes        | Travel time in minutes
+        TOTIVT_IVT_minutes  | Total in-vehicle time (IVT) in minutes
+        VTOLL_FAR           | Fare
+        DIST_meters         | Travel distance in meters
+        WACC_minutes        | Walk access time in minutes
+        WAUX_minutes        | Walk other time in minutes
+        WEGR_minutes        | Walk egress time in minutes
+        DTIM_minutes        | Drive time in minutes
+        DDIST_meters        | Drive distance in meters
+        KEYIVT_minutes      | Light rail IVT
+        FERRYIVT_minutes    | Ferry IVT
+        BOARDS              | Number of transfers
+        WeightedCost        | Weighted cost
+        DEBUG_TEXT          | For internal use
+        """
+    )
 }

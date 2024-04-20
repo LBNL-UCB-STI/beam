@@ -8,12 +8,15 @@ link_stats_paths = [("BEAM", run_dir + "/0.linkstats.csv.gz")]
 
 # validation data
 study_area_dir = os.path.expanduser("~/Workspace/Data/FREIGHT/seattle")
+beam_network_car_links_geo = study_area_dir + '/validation_data/BEAM/seattle_unclassified_simplified_network_car_only.geojson'
+beam_network_mapped_to_npmrds_geo = study_area_dir + '/validation_data/BEAM/seattle_unclassified_simplified_network_mapped_to_npmrds.geojson'
+#
 npmrds_station_geo = study_area_dir + '/validation_data/NPMRDS/seattle_npmrds_station.geojson'
 npmrds_data_csv = study_area_dir + '/validation_data/NPMRDS/seattle_npmrds_data.csv'
 npmrds_hourly_speed_csv = study_area_dir + '/validation_data/NPMRDS/seattle_npmrds_hourly_speeds.csv'
 npmrds_hourly_speed_by_road_class_csv = study_area_dir + '/validation_data/NPMRDS/seattle_npmrds_hourly_speed_by_road_class.csv'
-beam_network_car_links_geo = study_area_dir + '/validation_data/BEAM/seattle_unclassified_simplified_network_car_only.geojson'
-beam_network_mapped_to_npmrds_geo = study_area_dir + '/validation_data/BEAM/seattle_unclassified_simplified_network_mapped_to_npmrds.geojson'
+
+print("Run: " + run_dir)
 
 # The rest is automatically generated
 output_dir = run_dir + '/validation_output'
