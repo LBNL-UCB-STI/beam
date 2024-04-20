@@ -4,7 +4,7 @@ from validation_utils import *
 
 # beam run i.e. link stats and events file
 run_dir = os.path.expanduser("~/Workspace/Data/FREIGHT/seattle/beam/runs/2024-04-11/Baseline")
-link_stats_paths = [("BEAM", run_dir + "/0.linkstats.csv.gz")]
+link_stats = [LinkStats(scenario="BEAM", demand_fraction=0.3, file_path=run_dir + "/0.linkstats.csv.gz")]
 
 # validation data
 study_area_dir = os.path.expanduser("~/Workspace/Data/FREIGHT/seattle")
@@ -25,11 +25,10 @@ Path(output_dir).mkdir(parents=True, exist_ok=True)
 Path(plots_dir).mkdir(parents=True, exist_ok=True)
 
 # ########## Initialize
-setup = SpeedValidationSetup(npmrds_hourly_speed_csv=npmrds_hourly_speed_csv,
-                             beam_network_mapped_to_npmrds_geo=beam_network_mapped_to_npmrds_geo,
+setup = SpeedValidationSetup(link_stats=link_stats,
+                             npmrds_hourly_speed_csv=npmrds_hourly_speed_csv,
                              npmrds_hourly_speed_by_road_class_csv=npmrds_hourly_speed_by_road_class_csv,
-                             link_stats_paths_and_labels_list=link_stats_paths,
-                             demand_sample_size=0.3,
+                             beam_network_mapped_to_npmrds_geo=beam_network_mapped_to_npmrds_geo,
                              assume_daylight_saving=True)
 
 # #########################################
