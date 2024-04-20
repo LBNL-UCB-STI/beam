@@ -30,7 +30,12 @@ isCav <- function(x) {
 
 ### RouteE
 
-work_folder <- normalizePath("~/Workspace/Data/Scenarios/sfbay/")
+work_folder <- normalizePath("~/Workspace/Data/FREIGHT/seattle")
+household <- readCsv(pp(work_folder, "/households.csv.gz"))
+ggplot(household, aes(x=income/1000)) + geom_histogram() + xlim(0, 100)
+
+
+
 network <- readCsv(pp(work_folder, "/network.csv.gz"))
 linkstats0 <- readCsv(pp(work_folder, "/0.linkstats.csv.gz"))
 linkstats1 <- readCsv(pp(work_folder, "/1.linkstats.csv.gz"))

@@ -3,17 +3,17 @@ from pathlib import Path
 from validation_utils import *
 
 # beam run i.e. link stats and events file
-run_dir = os.path.expanduser("~/Workspace/Data/Scenarios/sfbay/runs/sfbay-base--residential-psimpl-network-jdeq-05__2024-03-29_22-03-23_aog")
-link_stats_paths = [("BEAM_2024", run_dir + "/9.linkstats.csv.gz")]
+run_dir = os.path.expanduser("~/Workspace/Data/FREIGHT/seattle/beam/runs/2024-04-11/Baseline")
+link_stats_paths = [("BEAM", run_dir + "/0.linkstats.csv.gz")]
 
 # validation data
-study_area_dir = os.path.expanduser("~/Workspace/Data/Scenarios/sfbay")
-npmrds_station_geo = study_area_dir + '/validation_data/NPMRDS/npmrds_station.geojson'
-npmrds_data_csv = study_area_dir + '/validation_data/NPMRDS/npmrds_data.csv'
-npmrds_hourly_speed_csv = study_area_dir + '/validation_data/NPMRDS/npmrds_hourly_speeds.csv'
-npmrds_hourly_speed_by_road_class_csv = study_area_dir + '/validation_data/NPMRDS/npmrds_hourly_speed_by_road_class.csv'
-beam_network_car_links_geo = study_area_dir + '/validation_data/BEAM/sfbay_residential_psimpl_network_car_only.geojson'
-beam_network_mapped_to_npmrds_geo = study_area_dir + '/validation_data/BEAM/sfbay_residential_psimpl_network_mapped_to_npmrds.geojson'
+study_area_dir = os.path.expanduser("~/Workspace/Data/FREIGHT/seattle")
+npmrds_station_geo = study_area_dir + '/validation_data/NPMRDS/seattle_npmrds_station.geojson'
+npmrds_data_csv = study_area_dir + '/validation_data/NPMRDS/seattle_npmrds_data.csv'
+npmrds_hourly_speed_csv = study_area_dir + '/validation_data/NPMRDS/seattle_npmrds_hourly_speeds.csv'
+npmrds_hourly_speed_by_road_class_csv = study_area_dir + '/validation_data/NPMRDS/seattle_npmrds_hourly_speed_by_road_class.csv'
+beam_network_car_links_geo = study_area_dir + '/validation_data/BEAM/seattle_unclassified_simplified_network_car_only.geojson'
+beam_network_mapped_to_npmrds_geo = study_area_dir + '/validation_data/BEAM/seattle_unclassified_simplified_network_mapped_to_npmrds.geojson'
 
 # The rest is automatically generated
 output_dir = run_dir + '/validation_output'
@@ -26,7 +26,7 @@ setup = SpeedValidationSetup(npmrds_hourly_speed_csv=npmrds_hourly_speed_csv,
                              beam_network_mapped_to_npmrds_geo=beam_network_mapped_to_npmrds_geo,
                              npmrds_hourly_speed_by_road_class_csv=npmrds_hourly_speed_by_road_class_csv,
                              link_stats_paths_and_labels_list=link_stats_paths,
-                             demand_sample_size=0.1,
+                             demand_sample_size=0.3,
                              assume_daylight_saving=True)
 
 # #########################################

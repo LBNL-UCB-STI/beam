@@ -1,5 +1,3 @@
-import os
-from pathlib import Path
 from validation_utils import *
 
 # In Mac, you might need to cd to folder '/Applications/Python {version}'
@@ -11,26 +9,32 @@ from validation_utils import *
 # ## year = 2018
 # ## state = 'CA'
 # ## fips_code = ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113']
+# ## projected_crs_epsg = 26910
 # ## npmrds_geo_path_path = run_dir + "/input/sfbay_counties.geojson"
 #
 # The following need to be set/added manually
-study_area = "sfbay"
-study_area_dir = os.path.expanduser("~/Workspace/Data/Scenarios") + "/" + study_area
+study_area = "seattle"
+study_area_dir = os.path.expanduser("~/Workspace/Data/FREIGHT") + "/" + study_area
 year = 2018
-state = 'CA'
-fips_code = ['001', '013', '041', '055', '075', '081', '085', '095', '097', '087', '113']
-npmrds_raw_geo = study_area_dir + "/validation_data/NPMRDS/California.shp"
-npmrds_raw_data_csv = study_area_dir + '/validation_data/NPMRDS/al_ca_oct2018_1hr_trucks_pax.csv'
-beam_network_csv = study_area_dir + '/validation_data/BEAM/sfbay_residential_psimpl_network.csv.gz'
+state = 'WA'
+fips_code = ["061", "033", "035", "053"]
+projected_crs_epsg = 32048
+#
+npmrds_raw_geo = study_area_dir + "/validation_data/NPMRDS/Washington.shp"
+npmrds_raw_data_csv = study_area_dir + '/validation_data/NPMRDS/vt_wi_2018_1hr.csv'
+npmrds_year_label = "NPMRDS_2018"
+beam_network_csv = study_area_dir + '/validation_data/BEAM/seattle_unclassified_simplified_network.csv.gz'
+
+
 
 # The following will be generated automatically
-study_area_counties_geo = study_area_dir + "/zones/sfbay_counties.geojson"
-study_area_cbgs_geo = study_area_dir + "/zones/sfbay_cbgs.geojson"
+study_area_counties_geo = study_area_dir + "/zones/" + study_area + "_counties.geojson"
+study_area_cbgs_geo = study_area_dir + "/zones/" + study_area + "_cbgs.geojson"
 #
-npmrds_station_geo = study_area_dir + '/validation_data/NPMRDS/npmrds_station.geojson'
-npmrds_data_csv = study_area_dir + '/validation_data/NPMRDS/npmrds_data.csv'
-npmrds_hourly_speed_csv = study_area_dir + '/validation_data/NPMRDS/npmrds_hourly_speeds.csv'
-npmrds_hourly_speed_by_road_class_csv = study_area_dir + '/validation_data/NPMRDS/npmrds_hourly_speed_by_road_class.csv'
+npmrds_station_geo = study_area_dir + '/validation_data/NPMRDS/' + study_area + "_npmrds_station.geojson"
+npmrds_data_csv = study_area_dir + '/validation_data/NPMRDS/' + study_area + "_npmrds_data.csv"
+npmrds_hourly_speed_csv = study_area_dir + '/validation_data/NPMRDS/' + study_area + "_npmrds_hourly_speeds.csv"
+npmrds_hourly_speed_by_road_class_csv = study_area_dir + '/validation_data/NPMRDS/' + study_area + "_npmrds_hourly_speed_by_road_class.csv"
 #
 first_dot_index = beam_network_csv.find('.')
 beam_network_prefix = beam_network_csv[:first_dot_index] if first_dot_index != -1 else beam_network_csv
@@ -53,13 +57,13 @@ else:
 
 regional_npmrds_station, _, beam_npmrds_network_map, _ = prepare_npmrds_data(
     # input
-    npmrds_label="NPMRDS_2018",
+    npmrds_label=npmrds_year_label,
     npmrds_raw_geo=npmrds_raw_geo,
     npmrds_raw_data_csv=npmrds_raw_data_csv,
     npmrds_observed_speed_weight=0.5,
     region_boundary=region_boundary,
     beam_network_csv_input=beam_network_csv,
-    projected_crs_epsg=26910,
+    projected_crs_epsg=projected_crs_epsg,
     distance_buffer_m=20,
     # output
     npmrds_station_geo=npmrds_station_geo,
