@@ -542,12 +542,12 @@ trait ChoosesMode {
               )
               responsePlaceholders = makeResponsePlaceholders(
                 withRouting = true,
-                withRideHail = householdVehiclesWereNotAvailable | shouldAlwaysQueryTransit,
-                withRideHailTransit = householdVehiclesWereNotAvailable | shouldAlwaysQueryTransit
+                withRideHail = householdVehiclesWereNotAvailable | alreadyRequestedRideHail,
+                withRideHailTransit = householdVehiclesWereNotAvailable | alreadyRequestedRideHail
               )
               if (householdVehiclesWereNotAvailable & !alreadyRequestedRideHail) {
                 makeRideHailRequest()
-                if (!alreadyRequestedRideHailTransit) {
+                if (!choosesModeData.isWithinTripReplanning & !alreadyRequestedRideHailTransit) {
                   requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
                 }
               }
@@ -594,7 +594,11 @@ trait ChoosesMode {
               // Reset available vehicles so we don't release our car that we've left during this replanning
               availablePersonalStreetVehicles = Vector()
               makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
-              responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+              responsePlaceholders = makeResponsePlaceholders(
+                withRouting = true,
+                withRideHail = alreadyRequestedRideHail,
+                withRideHailTransit = alreadyRequestedRideHailTransit
+              )
           }
         case Some(RIDE_HAIL | RIDE_HAIL_POOLED) if choosesModeData.isWithinTripReplanning =>
           // Give up on all ride hail after a failure
@@ -1317,18 +1321,8 @@ trait ChoosesMode {
             case (0 | LastTripIndex, false) =>
               combinedItinerariesForChoice.filter(_.tripClassifier == mode)
             case _ =>
-              combinedItinerariesForChoice.filter(trip =>
-                trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT
-              )
+              combinedItinerariesForChoice
           }
-        case Some(mode) if mode == WALK_TRANSIT || mode == RIDE_HAIL_TRANSIT =>
-          combinedItinerariesForChoice.filter(trip =>
-            trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT
-          )
-        case Some(HOV2_TELEPORTATION) =>
-          combinedItinerariesForChoice.filter(_.tripClassifier == HOV2_TELEPORTATION)
-        case Some(HOV3_TELEPORTATION) =>
-          combinedItinerariesForChoice.filter(_.tripClassifier == HOV3_TELEPORTATION)
         case Some(mode) =>
           combinedItinerariesForChoice.filter(_.tripClassifier == mode)
         case _ =>
