@@ -5,9 +5,6 @@ if [ -n "$command" ]; then
   echo "Recognized command '$command'"
 fi
 
-echo "starting .. "
-printenv >>/root/all_env.txt
-
 print_help() {
   echo ""
   echo "First argument provided will be used as a command, the rest arguments will be used as parameters for the command."
@@ -31,7 +28,6 @@ prepare_pilates() {
   if [ -z "$PILATES_FOLDER" ]; then PILATES_FOLDER="/app/pilates"; fi
   if [ -z "$SHARED_FOLDER" ]; then SHARED_FOLDER="/app/shared"; fi
 
-  add_to_root_profile "clear"
   add_to_root_profile "export PILATES=$PILATES_FOLDER"
   add_to_root_profile "export SHARED=$SHARED_FOLDER"
   add_to_root_profile "cd \$PILATES"
@@ -63,6 +59,10 @@ run_pilates_async() {
 run_sshd() {
   /usr/sbin/sshd -D
 }
+
+echo "starting .. "
+printenv >>/root/all_env.txt
+add_to_root_profile "clear"
 
 if [ -n "$RUN_PILATES" ] || [ -n "$PREPARE_PILATES" ]; then
   prepare_pilates
