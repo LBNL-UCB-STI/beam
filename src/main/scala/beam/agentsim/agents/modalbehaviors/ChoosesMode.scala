@@ -1337,25 +1337,9 @@ trait ChoosesMode {
               combinedItinerariesForChoice.filter(_.tripClassifier == mode)
             case _ =>
               combinedItinerariesForChoice.filter(trip =>
-                trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT
+                trip.tripClassifier.in(Seq(WALK_TRANSIT, RIDE_HAIL_TRANSIT, WALK))
               )
           }
-        case Some(mode) if mode == WALK_TRANSIT =>
-          combinedItinerariesForChoice.filter(trip =>
-            trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT
-          )
-        case Some(mode) if mode == RIDE_HAIL_TRANSIT =>
-          combinedItinerariesForChoice.filter(trip =>
-            trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT
-          )
-        case Some(mode) if mode == RIDE_HAIL_POOLED_TRANSIT =>
-          combinedItinerariesForChoice.filter(trip =>
-            trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_POOLED_TRANSIT
-          )
-        case Some(HOV2_TELEPORTATION) =>
-          combinedItinerariesForChoice.filter(_.tripClassifier == HOV2_TELEPORTATION)
-        case Some(HOV3_TELEPORTATION) =>
-          combinedItinerariesForChoice.filter(_.tripClassifier == HOV3_TELEPORTATION)
         case Some(mode) =>
           combinedItinerariesForChoice.filter(_.tripClassifier == mode)
         case _ =>
