@@ -207,7 +207,7 @@ dependencies {
 
     implementation(group: 'org.matsim.contrib', name: 'decongestion', version: '12.0')
 
-    implementation(group: 'com.github.LBNL-UCB-STI.matsim', name: 'matsim', version: '12.0-beam-7') {
+    implementation(group: 'com.github.LBNL-UCB-STI.matsim', name: 'matsim', version: '12.0-beam-8') {
         exclude group: 'log4j', module: 'log4j'
     }
 

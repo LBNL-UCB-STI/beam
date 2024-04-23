@@ -321,7 +321,7 @@ class RideHailManager(
 
   def fleetSize: Int = resources.size
 
-  val radiusInMeters: Double = managerConfig.rideHailManager.radiusInMeters
+  val radiusInMeters: Double = managerConfig.radiusInMeters
 
   val rideHailNetworkApi: RideHailNetworkAPI = new RideHailNetworkAPI()
 
@@ -389,7 +389,7 @@ class RideHailManager(
   private val bodyTypeId = Id.create(beamScenario.beamConfig.beam.agentsim.agents.bodyType, classOf[BeamVehicleType])
 
   private val rideHailStops: Option[QuadTree[Location]] =
-    managerConfig.stopFilePath.map(path => RideHailManager.loadStopFile(path, beamServices))
+    managerConfig.stopFilePath.filter(_.trim.nonEmpty).map(path => RideHailManager.loadStopFile(path, beamServices))
 
   // Cache analysis
   private var cacheAttempts = 0
@@ -1494,7 +1494,7 @@ class RideHailManager(
   def requestRoutes(tick: Int, routingRequests: Seq[RoutingRequest], triggerId: Long): Unit = {
     cacheAttempts = cacheAttempts + 1
     val linkRadiusMeters = beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
-    val routeOrEmbodyReqs = routingRequests.map { rReq =>
+    val routeOrEmbodyReqs: Seq[RouteOrEmbodyRequest] = routingRequests.map { rReq =>
       routeHistory.getRoute(
         beamServices.geo.getNearestR5EdgeToUTMCoord(
           transportNetwork.streetLayer,
@@ -1521,9 +1521,9 @@ class RideHailManager(
             Some(rReq.requestId),
             rReq.triggerId
           )
-          RouteOrEmbodyRequest(None, Some(embodyReq))
+          Right(embodyReq)
         case None =>
-          RouteOrEmbodyRequest(Some(rReq), None)
+          Left(rReq)
       }
     }
     Future
@@ -1532,11 +1532,7 @@ class RideHailManager(
           beam.utils.logging.pattern
             .ask(
               router,
-              if (req.routeReq.isDefined) {
-                req.routeReq.get
-              } else {
-                req.embodyReq.get
-              }
+              req.merge
             )
             .mapTo[RoutingResponse]
         )
@@ -1799,7 +1795,7 @@ class RideHailManager(
         if (rideHailAgentLocation.vehicleType.secondaryFuelType.isDefined) {
           // The concept of linking SOC across iterations is implemented for BEVs only.
           // (Needs to be implemented for PHEVs.)
-          throw new RuntimeException(
+          log.warning(
             "Creation of RideHailAgentInitializers for linking across iterations has not been tested for PHEVs."
           )
         }

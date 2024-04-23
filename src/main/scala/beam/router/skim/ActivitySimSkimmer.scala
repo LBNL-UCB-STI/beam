@@ -240,13 +240,14 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
     )
 
     val mappedSkimFilePath = filePath.lastIndexOf(".") match {
-      case -1    => filePath + "_mapped" // No extension found, append "_mapped" at the end
-      case index => filePath.substring(0, index) + "_mapped" + filePath.substring(index)
+      case -1    => filePath + "_geo_exchange"
+      case index => filePath.substring(0, index) + "_geo_exchange" + filePath.substring(index)
     }
 
     val filterByBeamMode: ((ActivitySimKey, _)) => Boolean = { case (key, _) =>
-      beamConfig.beam.exchange.output.geo.get.beamModeFilter
-        .contains(ActivitySimPathType.toBeamMode(key.pathType).value)
+      beamConfig.beam.exchange.output.activity_sim_skimmer.exists(
+        _.secondary.beamModeFilter.contains(ActivitySimPathType.toBeamMode(key.pathType).value)
+      )
     }
 
     val writeToOutput: (String, Iterable[ExcerptData], Seq[String]) => Unit = { case (filePath, data, geoUnits) =>
@@ -287,7 +288,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
         }
         .mapValues(_.map(_._2))
 
-      val maybeTazExcerptData = beamScenario.exchangeOutputGeoMap.map { exchangeGeoMap =>
+      val maybeTazExcerptData = beamScenario.secondaryTazTreeMap.map { exchangeGeoMap =>
         excerptData
           .collect { case (key, data) =>
             for {
@@ -303,7 +304,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       val (defaultExcerptData, maybeMappedExcerptData) =
         maybeTazExcerptData match {
           case Some(tazExcerptData) =>
-            val geoMapSize = beamScenario.exchangeOutputGeoMap.get.getSize
+            val geoMapSize = beamScenario.secondaryTazTreeMap.get.getSize
             val tazMapSize = beamScenario.tazTreeMap.getSize
             val isGeoMapLarger = geoMapSize > tazMapSize
             if (isGeoMapLarger) (tazExcerptData, Some(excerptData.filter(filterByBeamMode)))
@@ -319,7 +320,7 @@ class ActivitySimSkimmer @Inject() (matsimServices: MatsimServices, beamScenario
       writeToOutput(filePath, defaultSkim, beamScenario.tazTreeMap.orderedTazIds)
 
       // Write maybeMappedSkim data if present
-      maybeMappedSkim.foreach(writeToOutput(mappedSkimFilePath, _, beamScenario.exchangeOutputGeoMap.get.orderedTazIds))
+      maybeMappedSkim.foreach(writeToOutput(mappedSkimFilePath, _, beamScenario.secondaryTazTreeMap.get.orderedTazIds))
     }
   }
 

@@ -67,7 +67,7 @@ trait BeamScenarioForTest extends AnyFlatSpec {
       network = mock(classOf[Network]),
       trainStopQuadTree = new QuadTree[Stop](0, 0, 10, 10),
       tazTreeMap = tazMap,
-      exchangeOutputGeoMap = None,
+      secondaryTazTreeMap = None,
       modeIncentives = null,
       h3taz = null,
       freightCarriers = null,

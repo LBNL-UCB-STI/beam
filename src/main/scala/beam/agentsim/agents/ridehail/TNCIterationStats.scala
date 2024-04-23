@@ -61,7 +61,7 @@ case class TNCIterationStats(
   ): Vector[(Id[BeamVehicle], Location)] = {
 
     // logger.debug("whichCoordToRepositionTo.start=======================")
-    val repositioningConfig = managerConfig.allocationManager.repositionLowWaitingTimes
+    val repositioningConfig = managerConfig.repositioningManager.repositionLowWaitingTimes
 
     val repositioningMethod = repositioningConfig.repositioningMethod // (TOP_SCORES | weighedKMeans)
     val keepMaxTopNScores = repositioningConfig.keepMaxTopNScores

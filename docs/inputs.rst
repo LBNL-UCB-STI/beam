@@ -656,7 +656,7 @@ TAZs, Scaling, and Physsim Tuning
 * physsim.jdeqsim.cacc.speedAdjustmentFactor: a free speed multiplier for each link
 * physsim.jdeqsim.cacc.capacityPlansWriteInterval: on which iterations to write CACC capacity stats.
 * physsim.cchRoutingAssignment.congestionFactor: Used to calculate ods number multiplier with following formula: 1 / agentSampleSizeAsFractionOfPopulation * congestionFactor.
-* beam.physsim.overwriteLinkParamPath: a csv file path that can be used to overwrite link parameters: capacity, free_speed, length, lanes, alpha, beta. 
+* beam.physsim.overwriteLinkParamPath: a csv file path that can be used to overwrite link parameters: capacity, free_speed, length, lanes, alpha, beta.
 * physsim.flowCapacityFactor: Flow capacity parameter used by JDEQSim for traffic flow simulation.
 * physsim.storageCapacityFactor: Storage capacity parameter used by JDEQSim for traffic flow simulation.
 * physsim.writeMATSimNetwork: A copy of the network used by JDEQSim will be written to outputs folder (typically only needed for debugging).
@@ -909,22 +909,22 @@ Ride hail management
      repositioningManager.inverseSquareDistanceRepositioningFactor.sensitivityOfRepositioningToDistance = 0.9
      repositioningManager.inverseSquareDistanceRepositioningFactor.predictionHorizon = 3600
      # reposition Low Waiting Times
-     allocationManager.repositionLowWaitingTimes.repositionCircleRadiusInMeters = 3000
-     allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThresholdForRepositioning = 1
-     allocationManager.repositionLowWaitingTimes.repositionCircleRadisInMeters=3000.0
-     allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning=1
-     allocationManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition=1.0
-     allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning=1200
-     allocationManager.repositionLowWaitingTimes.allowIncreasingRadiusIfDemandInRadiusLow=true
-     allocationManager.repositionLowWaitingTimes.minDemandPercentageInRadius=0.1
+     repositioningManager.repositionLowWaitingTimes.repositionCircleRadiusInMeters = 3000
+     repositioningManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThresholdForRepositioning = 1
+     repositioningManager.repositionLowWaitingTimes.repositionCircleRadisInMeters=3000.0
+     repositioningManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning=1
+     repositioningManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition=1.0
+     repositioningManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning=1200
+     repositioningManager.repositionLowWaitingTimes.allowIncreasingRadiusIfDemandInRadiusLow=true
+     repositioningManager.repositionLowWaitingTimes.minDemandPercentageInRadius=0.1
      # repositioningMethod(TOP_SCORES | KMEANS)
-     allocationManager.repositionLowWaitingTimes.repositioningMethod="TOP_SCORES"
-     allocationManager.repositionLowWaitingTimes.keepMaxTopNScores=5
-     allocationManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning=0.00001
-     allocationManager.repositionLowWaitingTimes.distanceWeight=0.01
-     allocationManager.repositionLowWaitingTimes.waitingTimeWeight=4.0
-     allocationManager.repositionLowWaitingTimes.demandWeight=4.0
-     allocationManager.repositionLowWaitingTimes.produceDebugImages=true
+     repositioningManager.repositionLowWaitingTimes.repositioningMethod="TOP_SCORES"
+     repositioningManager.repositionLowWaitingTimes.keepMaxTopNScores=5
+     repositioningManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning=0.00001
+     repositioningManager.repositionLowWaitingTimes.distanceWeight=0.01
+     repositioningManager.repositionLowWaitingTimes.waitingTimeWeight=4.0
+     repositioningManager.repositionLowWaitingTimes.demandWeight=4.0
+     repositioningManager.repositionLowWaitingTimes.produceDebugImages=true
   }]
 
    beam.agentsim.agents.rideHail.cav.valueOfTime = 1.00
@@ -993,21 +993,27 @@ One can add multiple different RH fleets into the array **beam.agentsim.agents.r
 * repositioningManager.inverseSquareDistanceRepositioningFactor.sensitivityOfRepositioningToDemand: larger value increase probability of the ride-hail vehicle to reposition
 * repositioningManager.inverseSquareDistanceRepositioningFactor.sensitivityOfRepositioningToDistance: distance is multiplied by this value
 * repositioningManager.inverseSquareDistanceRepositioningFactor.predictionHorizon:
-* allocationManager.repositionLowWaitingTimes.repositionCircleRadiusInMeters:
-* allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThresholdForRepositioning:
-* allocationManager.repositionLowWaitingTimes.repositionCircleRadisInMeters:
-* allocationManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning:
-* allocationManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition:
-* allocationManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning:
-* allocationManager.repositionLowWaitingTimes.allowIncreasingRadiusIfDemandInRadiusLow:
-* allocationManager.repositionLowWaitingTimes.minDemandPercentageInRadius:
-* allocationManager.repositionLowWaitingTimes.repositioningMethod:
-* allocationManager.repositionLowWaitingTimes.keepMaxTopNScores:
-* allocationManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning:
-* allocationManager.repositionLowWaitingTimes.distanceWeight:
-* allocationManager.repositionLowWaitingTimes.waitingTimeWeight:
-* allocationManager.repositionLowWaitingTimes.demandWeight:
-* allocationManager.repositionLowWaitingTimes.produceDebugImages:
+* repositioningManager.repositionLowWaitingTimes.repositionCircleRadiusInMeters:
+* repositioningManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThresholdForRepositioning:
+* repositioningManager.repositionLowWaitingTimes.repositionCircleRadisInMeters:
+* repositioningManager.repositionLowWaitingTimes.minimumNumberOfIdlingVehiclesThreshholdForRepositioning:
+* repositioningManager.repositionLowWaitingTimes.percentageOfVehiclesToReposition:
+* repositioningManager.repositionLowWaitingTimes.timeWindowSizeInSecForDecidingAboutRepositioning:
+* repositioningManager.repositionLowWaitingTimes.allowIncreasingRadiusIfDemandInRadiusLow:
+* repositioningManager.repositionLowWaitingTimes.minDemandPercentageInRadius:
+* repositioningManager.repositionLowWaitingTimes.repositioningMethod:
+* repositioningManager.repositionLowWaitingTimes.keepMaxTopNScores:
+* repositioningManager.repositionLowWaitingTimes.minScoreThresholdForRepositioning:
+* repositioningManager.repositionLowWaitingTimes.distanceWeight:
+* repositioningManager.repositionLowWaitingTimes.waitingTimeWeight:
+* repositioningManager.repositionLowWaitingTimes.demandWeight:
+* repositioningManager.repositionLowWaitingTimes.produceDebugImages:
+
+
+* surgePricing.priceAdjustmentStrategy: defines different price adjustment strategies
+* surgePricing.surgeLevelAdaptionStep:
+* surgePricing.minimumSurgeLevel:
+* surgePricing.numberOfCategories:
 * linkFleetStateAcrossIterations: if it is set to true then in the next iteration ride-hail fleet state of charge is initialized with the value from the end of previous iteration
 * surgePricing.priceAdjustmentStrategy: defines different price adjustment strategies. Possible options: `KEEP_PRICE_LEVEL_FIXED_AT_ONE` keeps price level at 1.0; `CONTINUES_DEMAND_SUPPLY_MATCHING` with 50% of probability increases and 50% of probability decreases price level on `surgeLevelAdaptionStep` for each time bin and TAZ
 * surgePricing.surgeLevelAdaptionStep: value to be randomly added or removed from the price leve in case of  `CONTINUES_DEMAND_SUPPLY_MATCHING` strategy.
@@ -1224,9 +1230,31 @@ There's the list of parameters responsible for writing out data produced by BEAM
       }
     }
     beam.metrics.level = "verbose"
-    beam.exchange.output.activitySimSkimsEnabled = false
-    beam.exchange.output.sendNonChosenTripsToSkimmer = true
-    beam.exchange.output.geo.filePath = string
+    beam.exchange.output {
+      activity-sim-skimmer {
+          primary.enabled = true
+          secondary.enabled = false
+          secondary.beamModeFilter = [
+              "car",
+              "bike",
+              "drive_transit",
+              "hov2",
+              "hov3",
+              "ride_hail",
+              "ride_hail_pooled",
+              "walk",
+              "walk_transit",
+          ]
+          secondary.taz.filePath = ""
+          secondary.taz.tazIdFieldName = ""
+          secondary.taz.tazMapping {
+              filePath = ""
+              tazIdFieldNameKey = ""
+              tazIdFieldNameValue = ""
+          }
+      }
+    }
+
 
 All integer values that end with 'Interval' mean writing data files at iteration which number % value = 0. In case value = 0
 writing is disabled.
@@ -1271,9 +1299,11 @@ writing is disabled.
 * router.skim.transit-crowding-skimmer.name: transit crowding skimmer event name
 * router.skim.transit-crowding-skimmer.fileBaseName: transit crowding skims base file name
 * metrics.level: the level of beam metrics. Possible values: off, short, regular, verbose
-* beam.exchange.output.activitySimSkimsEnabled: enables writing out skims in activity sim format (ActivitySim skims). See `router.skim.activity-sim-skimmer` params.
-* beam.exchange.output.sendNonChosenTripsToSkimmer: enables saving not chosen trip data to origin-destination and ActivitySim skims.
-* beam.exchange.output.geo.filePath: path to a file in beam TAZ format that contains centroids of geo unit different than the scenario units. If defined the ActivitySim skims are written using these geo units.
+* beam.exchange.output.activity-sim-skimmer.primary.enabled: enables writing out skims in activity sim format (ActivitySim skims). See `router.skim.activity-sim-skimmer` params.
+* beam.agentsim.taz.filePath: path to a file in beam TAZ format that contains primary centroids of geo unit of the scenario units. If defined the ActivitySim skims are written using these geo units.
+* beam.router.skim.sendNonChosenTripsToSkimmer: enables saving not chosen trip data to origin-destination and ActivitySim skims.
+* beam.exchange.output.activity-sim-skimmer.secondary.enabled: enables writing out secondary skims in activity sim format (ActivitySim skims). See `router.skim.activity-sim-skimmer` params.
+* beam.exchange.output.activity-sim-skimmer.secondary.taz.filePath: path to a file in beam TAZ format that contains secondary centroids of geo unit different than the scenario units. If defined the ActivitySim skims are written using these geo units.
 
 Termination criterion name options
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

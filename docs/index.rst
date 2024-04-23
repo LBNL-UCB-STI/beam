@@ -25,7 +25,6 @@ Contents:
    inputs
    outputs
    protocols
-   devops
 
 
 Indices and tables

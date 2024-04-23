@@ -21,7 +21,6 @@ import beam.router.skim.SkimsUtils
 import beam.router.skim.SkimsUtils.{distanceAndTime, getRideHailCost, timeToBin}
 import beam.router.skim.core.AbstractSkimmerReadOnly
 import beam.router.skim.core.ODSkimmer.{ExcerptData, ODSkimmerInternal, ODSkimmerKey, Skim}
-import beam.router.skim.readonly
 import beam.sim.config.BeamConfig
 import beam.sim.{BeamHelper, BeamScenario, BeamServices}
 import org.matsim.api.core.v01.{Coord, Id}
@@ -74,17 +73,17 @@ class ODSkims(beamConfig: BeamConfig, beamScenario: BeamScenario) extends Abstra
       case Some(skimValue) if skimValue.observations > 5 =>
         skimValue
       case _ =>
-        val poolingTravelTimeOveheadFactor =
-          beamConfig.beam.router.skim.origin_destination_skimmer.poolingTravelTimeOveheadFactor
+        val poolingTravelTimeOverheadFactor =
+          beamConfig.beam.router.skim.origin_destination_skimmer.poolingTravelTimeOverheadFactor
         ODSkimmerInternal(
-          travelTimeInS = solo.travelTimeInS * poolingTravelTimeOveheadFactor,
+          travelTimeInS = solo.travelTimeInS * poolingTravelTimeOverheadFactor,
           generalizedTimeInS = 0,
           generalizedCost = 0,
           distanceInM = solo.distanceInM,
           cost = getRideHailCost(
             RIDE_HAIL_POOLED,
             solo.distanceInM,
-            solo.travelTimeInS * poolingTravelTimeOveheadFactor,
+            solo.travelTimeInS * poolingTravelTimeOverheadFactor,
             rideHailName,
             beamConfig
           ),
