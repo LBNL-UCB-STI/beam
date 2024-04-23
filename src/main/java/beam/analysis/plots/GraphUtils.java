@@ -64,6 +64,7 @@ public class GraphUtils {
         colorsForModes.put("car", Color.ORANGE);
         colorsForModes.put("walk", VERY_DARK_RED);
         colorsForModes.put("ride_hail_transit", VERY_DARK_GREEN);
+        colorsForModes.put("ride_hail_pooled_transit", LIGHT_BROWN);
         colorsForModes.put("ride_hail", VERY_LIGHT_RED);
         colorsForModes.put("walk_transit", PURPLE);
         colorsForModes.put("drive_transit", VERY_LIGHT_BLUE);
