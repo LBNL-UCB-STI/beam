@@ -116,6 +116,13 @@ object Modes {
           TransportMode.pt
         )
 
+    case object RIDE_HAIL_POOLED_TRANSIT
+        extends BeamMode(
+          value = "ride_hail_pooled_transit",
+          Some(Right(TransitModes.TRANSIT)),
+          TransportMode.pt
+        )
+
     case object BIKE_TRANSIT
         extends BeamMode(
           value = "bike_transit",
@@ -140,6 +147,7 @@ object Modes {
         RIDE_HAIL,
         RIDE_HAIL_POOLED,
         RIDE_HAIL_TRANSIT,
+        RIDE_HAIL_POOLED_TRANSIT,
         DRIVE_TRANSIT,
         WALK_TRANSIT,
         BIKE_TRANSIT,
@@ -161,6 +169,9 @@ object Modes {
   }
 
   def isChainBasedMode(beamMode: BeamMode): Boolean = BeamMode.chainBasedModes.contains(beamMode)
+
+  def isRideHailTransit(beamMode: BeamMode): Boolean =
+    Seq(BeamMode.RIDE_HAIL_TRANSIT, BeamMode.RIDE_HAIL_TRANSIT).contains(beamMode)
 
   implicit def beamMode2R5Mode(beamMode: BeamMode): Either[LegMode, TransitModes] =
     beamMode.r5Mode.get
@@ -232,12 +243,13 @@ object Modes {
   }
 
   def getAccessVehicleMode(mode: BeamMode): BeamMode = mode match {
-    case BeamMode.TRANSIT           => throw new IllegalArgumentException("access vehicle is unknown")
-    case BeamMode.WALK_TRANSIT      => BeamMode.WALK
-    case BeamMode.DRIVE_TRANSIT     => BeamMode.CAR
-    case BeamMode.RIDE_HAIL_TRANSIT => BeamMode.CAR
-    case BeamMode.BIKE_TRANSIT      => BeamMode.BIKE
-    case _                          => throw new IllegalArgumentException("not a transit mode: " + mode.value)
+    case BeamMode.TRANSIT                  => throw new IllegalArgumentException("access vehicle is unknown")
+    case BeamMode.WALK_TRANSIT             => BeamMode.WALK
+    case BeamMode.DRIVE_TRANSIT            => BeamMode.CAR
+    case BeamMode.RIDE_HAIL_TRANSIT        => BeamMode.CAR
+    case BeamMode.RIDE_HAIL_POOLED_TRANSIT => BeamMode.CAR
+    case BeamMode.BIKE_TRANSIT             => BeamMode.BIKE
+    case _                                 => throw new IllegalArgumentException("not a transit mode: " + mode.value)
   }
 
 }

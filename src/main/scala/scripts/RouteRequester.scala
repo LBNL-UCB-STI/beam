@@ -164,6 +164,7 @@ object RouteRequester extends BeamHelper {
       BeamMode.RIDE_HAIL,
       BeamMode.RIDE_HAIL_POOLED,
       BeamMode.RIDE_HAIL_TRANSIT,
+      BeamMode.RIDE_HAIL_POOLED_TRANSIT,
       BeamMode.DRIVE_TRANSIT,
       BeamMode.WALK_TRANSIT
     ),

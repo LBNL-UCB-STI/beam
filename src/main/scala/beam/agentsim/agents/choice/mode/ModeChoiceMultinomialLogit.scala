@@ -289,7 +289,7 @@ class ModeChoiceMultinomialLogit(
         )
 
       val numTransfers = mode match {
-        case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT =>
+        case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | RIDE_HAIL_POOLED_TRANSIT | BIKE_TRANSIT =>
           var nVeh = -1
           var vehId = Id.create("dummy", classOf[BeamVehicle])
           altAndIdx._1.legs.foreach { leg =>
@@ -328,15 +328,16 @@ class ModeChoiceMultinomialLogit(
   lazy val modeMultipliers: mutable.Map[Option[BeamMode], Double] =
     mutable.Map[Option[BeamMode], Double](
       // Some(WAITING)        -> modalBehaviors.modeVotMultiplier.waiting, TODO think of alternative for waiting. For now assume "NONE" is waiting
-      Some(TRANSIT)           -> modalBehaviors.modeVotMultiplier.transit,
-      Some(RIDE_HAIL)         -> modalBehaviors.modeVotMultiplier.rideHail,
-      Some(RIDE_HAIL_POOLED)  -> modalBehaviors.modeVotMultiplier.rideHailPooled,
-      Some(RIDE_HAIL_TRANSIT) -> modalBehaviors.modeVotMultiplier.rideHailTransit,
-      Some(CAV)               -> modalBehaviors.modeVotMultiplier.CAV,
-      Some(BIKE)              -> modalBehaviors.modeVotMultiplier.bike,
-      Some(WALK)              -> modalBehaviors.modeVotMultiplier.walk,
-      Some(CAR)               -> modalBehaviors.modeVotMultiplier.drive,
-      None                    -> modalBehaviors.modeVotMultiplier.waiting
+      Some(TRANSIT)                  -> modalBehaviors.modeVotMultiplier.transit,
+      Some(RIDE_HAIL)                -> modalBehaviors.modeVotMultiplier.rideHail,
+      Some(RIDE_HAIL_POOLED)         -> modalBehaviors.modeVotMultiplier.rideHailPooled,
+      Some(RIDE_HAIL_TRANSIT)        -> modalBehaviors.modeVotMultiplier.rideHailTransit,
+      Some(RIDE_HAIL_POOLED_TRANSIT) -> modalBehaviors.modeVotMultiplier.rideHailTransit,
+      Some(CAV)                      -> modalBehaviors.modeVotMultiplier.CAV,
+      Some(BIKE)                     -> modalBehaviors.modeVotMultiplier.bike,
+      Some(WALK)                     -> modalBehaviors.modeVotMultiplier.walk,
+      Some(CAR)                      -> modalBehaviors.modeVotMultiplier.drive,
+      None                           -> modalBehaviors.modeVotMultiplier.waiting
     )
 
   lazy val poolingMultipliers: Map[AutomationLevel, Double] =

@@ -16,6 +16,7 @@ import beam.router.Modes.BeamMode.{
   DRIVE_TRANSIT,
   RIDE_HAIL,
   RIDE_HAIL_POOLED,
+  RIDE_HAIL_POOLED_TRANSIT,
   RIDE_HAIL_TRANSIT,
   TRANSIT,
   WALK,
@@ -62,19 +63,20 @@ object SkimsUtils extends LazyLogging {
   val waitingTimeAtAnIntersection: Double = 17.25
 
   val speedMeterPerSec: Map[BeamMode, Double] = Map(
-    CAV               -> carSpeedMeterPerSec,
-    CAR               -> carSpeedMeterPerSec,
-    CAR_HOV2          -> carSpeedMeterPerSec,
-    CAR_HOV3          -> carSpeedMeterPerSec,
-    WALK              -> walkSpeedMeterPerSec,
-    BIKE              -> bicycleSpeedMeterPerSec,
-    WALK_TRANSIT      -> transitSpeedMeterPerSec,
-    DRIVE_TRANSIT     -> transitSpeedMeterPerSec,
-    RIDE_HAIL         -> carSpeedMeterPerSec,
-    RIDE_HAIL_POOLED  -> carSpeedMeterPerSec,
-    RIDE_HAIL_TRANSIT -> transitSpeedMeterPerSec,
-    BIKE_TRANSIT      -> transitSpeedMeterPerSec,
-    TRANSIT           -> transitSpeedMeterPerSec
+    CAV                      -> carSpeedMeterPerSec,
+    CAR                      -> carSpeedMeterPerSec,
+    CAR_HOV2                 -> carSpeedMeterPerSec,
+    CAR_HOV3                 -> carSpeedMeterPerSec,
+    WALK                     -> walkSpeedMeterPerSec,
+    BIKE                     -> bicycleSpeedMeterPerSec,
+    WALK_TRANSIT             -> transitSpeedMeterPerSec,
+    DRIVE_TRANSIT            -> transitSpeedMeterPerSec,
+    RIDE_HAIL                -> carSpeedMeterPerSec,
+    RIDE_HAIL_POOLED         -> carSpeedMeterPerSec,
+    RIDE_HAIL_TRANSIT        -> transitSpeedMeterPerSec,
+    RIDE_HAIL_POOLED_TRANSIT -> transitSpeedMeterPerSec,
+    BIKE_TRANSIT             -> transitSpeedMeterPerSec,
+    TRANSIT                  -> transitSpeedMeterPerSec
   )
 
   case class PathCache(from: Id[TAZ], to: Id[TAZ], hod: Int)
@@ -87,11 +89,12 @@ object SkimsUtils extends LazyLogging {
 
   def distanceAndTime(mode: BeamMode, originUTM: Location, destinationUTM: Location): (Int, Int) = {
     val speed = mode match {
-      case CAR | CAV | RIDE_HAIL                                                     => carSpeedMeterPerSec
-      case RIDE_HAIL_POOLED                                                          => carSpeedMeterPerSec / 1.1
-      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT => transitSpeedMeterPerSec
-      case BIKE                                                                      => bicycleSpeedMeterPerSec
-      case _                                                                         => walkSpeedMeterPerSec
+      case CAR | CAV | RIDE_HAIL => carSpeedMeterPerSec
+      case RIDE_HAIL_POOLED      => carSpeedMeterPerSec / 1.1
+      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | RIDE_HAIL_POOLED_TRANSIT | BIKE_TRANSIT =>
+        transitSpeedMeterPerSec
+      case BIKE => bicycleSpeedMeterPerSec
+      case _    => walkSpeedMeterPerSec
     }
     val travelDistance: Int = Math.ceil(GeoUtils.minkowskiDistFormula(originUTM, destinationUTM)).toInt
     val travelTime: Int = Math

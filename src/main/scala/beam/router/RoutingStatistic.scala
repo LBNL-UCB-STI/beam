@@ -4,6 +4,7 @@ import akka.actor.{Actor, Props}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.router.BeamRouter.{IterationEndsMessage, IterationStartsMessage, RoutingFailure, RoutingResponse}
 import beam.router.Modes.BeamMode._
+import beam.router.Modes.isRideHailTransit
 import beam.utils.csv.CsvWriter
 import org.matsim.core.controler.OutputDirectoryHierarchy
 
@@ -29,7 +30,7 @@ class RoutingStatistic(ioController: OutputDirectoryHierarchy) extends Actor {
     case RoutingResponse(itineraries, _, Some(request), _, _, searchedModes, _) =>
       searchedModes.foreach { mode =>
         val tripFound =
-          if (mode == RIDE_HAIL_TRANSIT) itineraries.exists(_.tripClassifier == DRIVE_TRANSIT)
+          if (isRideHailTransit(mode)) itineraries.exists(_.tripClassifier == DRIVE_TRANSIT)
           else if (mode.isTransit) itineraries.exists(_.tripClassifier.isTransit)
           else itineraries.exists(_.tripClassifier == mode)
         if (!tripFound) {

@@ -92,7 +92,7 @@ trait ModeChoiceCalculator {
       case RIDE_HAIL | RIDE_HAIL_POOLED =>
         val rideHailDefault = RideHailDefaults.estimateRideHailCost(IndexedSeq(embodiedBeamTrip)).head
         (embodiedBeamTrip.costEstimate + rideHailDefault) * beamConfig.beam.agentsim.tuning.rideHailPrice
-      case RIDE_HAIL_TRANSIT =>
+      case RIDE_HAIL_TRANSIT | RIDE_HAIL_POOLED_TRANSIT =>
         val transitFareDefault =
           TransitFareDefaults.estimateTransitFares(IndexedSeq(embodiedBeamTrip)).head
         val rideHailDefault = RideHailDefaults.estimateRideHailCost(IndexedSeq(embodiedBeamTrip)).head

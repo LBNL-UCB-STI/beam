@@ -56,6 +56,7 @@ class PickUpDropOffCollector(vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleT
       case Modes.BeamMode.RIDE_HAIL                                                  => true
       case Modes.BeamMode.RIDE_HAIL_POOLED                                           => true
       case Modes.BeamMode.RIDE_HAIL_TRANSIT                                          => true
+      case Modes.BeamMode.RIDE_HAIL_POOLED_TRANSIT                                   => true
       case _                                                                         => false
     }
   }

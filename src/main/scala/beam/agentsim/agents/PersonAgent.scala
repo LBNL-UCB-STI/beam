@@ -32,17 +32,7 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTrig
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.agentsim.scheduler.{BeamAgentSchedulerTimer, Trigger}
 import beam.router.Modes.BeamMode
-import beam.router.Modes.BeamMode.{
-  CAR,
-  CAV,
-  HOV2_TELEPORTATION,
-  HOV3_TELEPORTATION,
-  RIDE_HAIL,
-  RIDE_HAIL_POOLED,
-  RIDE_HAIL_TRANSIT,
-  WALK,
-  WALK_TRANSIT
-}
+import beam.router.Modes.BeamMode._
 import beam.router.RouteHistory
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.osm.TollCalculator
@@ -778,7 +768,8 @@ class PersonAgent(
         tick
       ),
       isWithinTripReplanning = true,
-      excludeModes = (if (data.numberOfReplanningAttempts > 0) Vector(RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT)
+      excludeModes = (if (data.numberOfReplanningAttempts > 0)
+                        Vector(RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_TRANSIT, RIDE_HAIL_POOLED_TRANSIT)
                       else Vector()) ++ (if (canUseCars(currentCoord, nextCoord)) Vector.empty[BeamMode]
                                          else Vector(BeamMode.RIDE_HAIL, BeamMode.CAR, BeamMode.CAV)).distinct
     )

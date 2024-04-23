@@ -26,7 +26,7 @@ import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, Zon
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.router.BeamRouter.IntermodalUse._
 import beam.router.BeamRouter._
-import beam.router.Modes.BeamMode
+import beam.router.Modes.{isRideHailTransit, BeamMode}
 import beam.router.Modes.BeamMode._
 import beam.router.model.{BeamLeg, EmbodiedBeamLeg, EmbodiedBeamTrip}
 import beam.router.skim.ActivitySimPathType.determineActivitySimPathTypesFromBeamMode
@@ -599,12 +599,12 @@ trait ChoosesMode {
           responsePlaceholders = makeResponsePlaceholders(withRouting = true, withRideHail = true)
           makeRequestWith(withTransit = false, Vector(bodyStreetVehicle)) // We need a WALK alternative if RH fails
           makeRideHailRequest()
-        case Some(RIDE_HAIL_TRANSIT) if choosesModeData.isWithinTripReplanning =>
+        case Some(RIDE_HAIL_TRANSIT | RIDE_HAIL_POOLED_TRANSIT) if choosesModeData.isWithinTripReplanning =>
           // Give up on ride hail transit after a failure, too complicated, but try regular ride hail again
           responsePlaceholders = makeResponsePlaceholders(withRouting = true, withRideHail = true)
           makeRequestWith(withTransit = true, Vector(bodyStreetVehicle))
           makeRideHailRequest()
-        case Some(RIDE_HAIL_TRANSIT) =>
+        case Some(RIDE_HAIL_TRANSIT | RIDE_HAIL_POOLED_TRANSIT) =>
           responsePlaceholders = makeResponsePlaceholders(withRideHailTransit = true)
           requestId = makeRideHailTransitRoutingRequest(bodyStreetVehicle)
         case Some(m) =>
@@ -693,7 +693,9 @@ trait ChoosesMode {
       // Once we've chosen the best itinerary we can send requests to the RHM to fill in true costs and wait times
 
       val rhTransitTrip = modeChoiceCalculator(
-        theRouterResult.itineraries.filter(_.tripClassifier == RIDE_HAIL_TRANSIT).toIndexedSeq,
+        theRouterResult.itineraries
+          .filter(itin => isRideHailTransit(itin.tripClassifier))
+          .toIndexedSeq,
         matsimPlan.getPerson.getCustomAttributes
           .get("beam-attributes")
           .asInstanceOf[AttributesOfIndividual],
@@ -701,6 +703,11 @@ trait ChoosesMode {
         Some(currentActivity(choosesModeData.personData)),
         Some(matsimPlan.getPerson)
       )
+
+      val makePooledRequests = choosesModeData.personData.currentTourMode match {
+        case Some(RIDE_HAIL_POOLED_TRANSIT) => true
+        case _                              => false
+      }
 
       // If there's a drive-transit trip AND we don't have an error RH2Tr response (due to no desire to use RH) then seek RH on access and egress
       val newPersonData =
@@ -721,7 +728,7 @@ trait ChoosesMode {
               (accessSegment.map(_.travelPath.distanceInM).sum > 0) & accessSegment
                 .exists(l => l.mode.isRideHail | l.mode == CAR)
             ) {
-              (makeRideHailRequestFromBeamLeg(accessSegment), None)
+              (makeRideHailRequestFromBeamLeg(accessSegment, makePooledRequests), None)
             } else {
               (None, Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)))
             }
@@ -730,7 +737,7 @@ trait ChoosesMode {
               (egressSegment.map(_.travelPath.distanceInM).sum > 0) & egressSegment
                 .exists(l => l.mode.isRideHail | l.mode == CAR)
             ) {
-              (makeRideHailRequestFromBeamLeg(egressSegment.toVector), None)
+              (makeRideHailRequestFromBeamLeg(egressSegment.toVector, makePooledRequests), None)
             } else {
               (None, Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)))
             }
@@ -1069,14 +1076,14 @@ trait ChoosesMode {
     rideHail2TransitResult.getOrElse(RideHailResponse.DUMMY).error.isEmpty // NOTE: will this ever be nonempty?
   }
 
-  def makeRideHailRequestFromBeamLeg(legs: Seq[BeamLeg]): Option[Int] = {
+  def makeRideHailRequestFromBeamLeg(legs: Seq[BeamLeg], asPooled: Boolean): Option[Int] = {
     val inquiry = RideHailRequest(
       RideHailInquiry,
       bodyVehiclePersonId,
       beamServices.geo.wgs2Utm(legs.head.travelPath.startPoint.loc),
       legs.head.startTime,
       beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc),
-      asPooled = true,
+      asPooled = asPooled,
       withWheelchair = wheelchairUser,
       requestTime = _currentTick.getOrElse(0),
       requester = self,
@@ -1126,8 +1133,9 @@ trait ChoosesMode {
     rideHail2TransitEgressResult: RideHailResponse,
     driveTransitTrip: EmbodiedBeamTrip
   ): Vector[EmbodiedBeamTrip] = {
-    if (!driveTransitTrip.tripClassifier.equals(RIDE_HAIL_TRANSIT)) { Vector.empty[EmbodiedBeamTrip] }
-    else if (
+    if (!isRideHailTransit(driveTransitTrip.tripClassifier)) {
+      Vector.empty[EmbodiedBeamTrip]
+    } else if (
       rideHail2TransitAccessResult.error.forall(error => error == RideHailNotRequestedError) &&
       rideHail2TransitEgressResult.error.forall(error => error == RideHailNotRequestedError)
     ) {
@@ -1332,9 +1340,17 @@ trait ChoosesMode {
                 trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT
               )
           }
-        case Some(mode) if mode == WALK_TRANSIT || mode == RIDE_HAIL_TRANSIT =>
+        case Some(mode) if mode == WALK_TRANSIT =>
           combinedItinerariesForChoice.filter(trip =>
             trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT
+          )
+        case Some(mode) if mode == RIDE_HAIL_TRANSIT =>
+          combinedItinerariesForChoice.filter(trip =>
+            trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_TRANSIT
+          )
+        case Some(mode) if mode == RIDE_HAIL_POOLED_TRANSIT =>
+          combinedItinerariesForChoice.filter(trip =>
+            trip.tripClassifier == WALK_TRANSIT || trip.tripClassifier == RIDE_HAIL_POOLED_TRANSIT
           )
         case Some(HOV2_TELEPORTATION) =>
           combinedItinerariesForChoice.filter(_.tripClassifier == HOV2_TELEPORTATION)

@@ -13,6 +13,7 @@ import beam.router.Modes.BeamMode.{
   DRIVE_TRANSIT,
   RIDE_HAIL,
   RIDE_HAIL_POOLED,
+  RIDE_HAIL_POOLED_TRANSIT,
   RIDE_HAIL_TRANSIT,
   TRANSIT,
   WALK_TRANSIT
@@ -273,8 +274,9 @@ object ODSkims extends BeamHelper {
         )
       case RIDE_HAIL | RIDE_HAIL_POOLED =>
         SkimsUtils.getRideHailCost(mode, travelDistance, travelTime, rideHailName, beamConfig)
-      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | BIKE_TRANSIT => 0.25 * travelDistance / 1609
-      case _                                                                         => 0.0
+      case TRANSIT | WALK_TRANSIT | DRIVE_TRANSIT | RIDE_HAIL_TRANSIT | RIDE_HAIL_POOLED_TRANSIT | BIKE_TRANSIT =>
+        0.25 * travelDistance / 1609
+      case _ => 0.0
     }
     Skim(
       travelTime,
