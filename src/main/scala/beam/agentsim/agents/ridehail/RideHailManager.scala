@@ -1494,7 +1494,7 @@ class RideHailManager(
   def requestRoutes(tick: Int, routingRequests: Seq[RoutingRequest], triggerId: Long): Unit = {
     cacheAttempts = cacheAttempts + 1
     val linkRadiusMeters = beamScenario.beamConfig.beam.routing.r5.linkRadiusMeters
-    val routeOrEmbodyReqs = routingRequests.map { rReq =>
+    val routeOrEmbodyReqs: Seq[RouteOrEmbodyRequest] = routingRequests.map { rReq =>
       routeHistory.getRoute(
         beamServices.geo.getNearestR5EdgeToUTMCoord(
           transportNetwork.streetLayer,
@@ -1521,9 +1521,9 @@ class RideHailManager(
             Some(rReq.requestId),
             rReq.triggerId
           )
-          RouteOrEmbodyRequest(None, Some(embodyReq))
+          Right(embodyReq)
         case None =>
-          RouteOrEmbodyRequest(Some(rReq), None)
+          Left(rReq)
       }
     }
     Future
@@ -1532,11 +1532,7 @@ class RideHailManager(
           beam.utils.logging.pattern
             .ask(
               router,
-              if (req.routeReq.isDefined) {
-                req.routeReq.get
-              } else {
-                req.embodyReq.get
-              }
+              req.merge
             )
             .mapTo[RoutingResponse]
         )
