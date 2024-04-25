@@ -708,6 +708,10 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             case LegMode.CAR          => beamConfig.beam.routing.r5.accessBufferTimeSeconds.car
             case _                    => 0
           }
+          profileRequest.maxRides = mode match {
+            case LegMode.WALK => 3
+            case _            => 2
+          }
           profileRequest.toTime = request.departureTime + modeSpecificBuffer + 61
           // Important to allow 61 seconds for transit schedules to be considered! Along with any other buffers
           val router = new McRaptorSuboptimalPathProfileRouter(
