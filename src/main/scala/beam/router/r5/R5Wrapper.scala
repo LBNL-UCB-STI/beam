@@ -487,6 +487,12 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       profileRequest.fromLat = from.getY
       profileRequest.toLon = to.getX
       profileRequest.toLat = to.getY
+      profileRequest.maxRides = vehicle.mode match {
+        case CAR | BIKE => 2
+        case WALK       => 3
+        case _          => 3
+      }
+
       val walkToVehicleDuration = maybeWalkToVehicle(vehicle).map(leg => leg.beamLeg.duration).getOrElse(0)
       profileRequest.fromTime = request.departureTime + walkToVehicleDuration
       profileRequest.toTime =
@@ -627,6 +633,11 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         )
         profileRequest.toLon = to.getX
         profileRequest.toLat = to.getY
+        profileRequest.maxRides = vehicle.mode match {
+          case CAR  => 2
+          case WALK => 3
+          case _    => 3
+        }
         val vehicleType = vehicleTypes(vehicle.vehicleTypeId)
         val streetRouter = new StreetRouter(
           transportNetwork.streetLayer,
