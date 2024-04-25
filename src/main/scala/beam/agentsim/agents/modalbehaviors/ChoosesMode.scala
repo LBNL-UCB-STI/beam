@@ -1179,7 +1179,14 @@ trait ChoosesMode {
     timeToCustomer: Int,
     tncEgressLeg: Vector[EmbodiedBeamLeg]
   ): Option[EmbodiedBeamTrip] = {
-    val buffer = beamServices.beamConfig.beam.routing.r5.rideHailTransitRoutingBufferInSeconds
+    val buffer: Int = driveTransitTrip.tripClassifier match {
+      case RIDE_HAIL_TRANSIT => beamServices.beamConfig.beam.routing.r5.rideHailTransitRoutingBufferInSeconds
+      case RIDE_HAIL_POOLED_TRANSIT =>
+        beamServices.beamConfig.beam.routing.r5.rideHailPooledTransitRoutingBufferInSeconds
+      case mode @ _ =>
+        logger.warn(s"Candidate rh transit trip has mode $mode")
+        beamServices.beamConfig.beam.routing.r5.rideHailPooledTransitRoutingBufferInSeconds
+    }
     val transitLegs = driveTransitTrip.legs
       .dropWhile(leg => !leg.beamLeg.mode.isTransit)
       .reverse
