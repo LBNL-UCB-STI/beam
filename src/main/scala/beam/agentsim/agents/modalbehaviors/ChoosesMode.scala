@@ -1335,14 +1335,10 @@ trait ChoosesMode {
           Vector()
       }
 
-      val combinedItinerariesForChoice = (rideHailItinerary ++ addParkingCostToItins(
+      val combinedItinerariesForChoice = rideHailItinerary ++ addParkingCostToItins(
         routingResponse.itineraries,
         parkingResponses
-      ) ++ rideHail2TransitIineraries)
-        .groupBy(t => (t.vehiclesInTrip, t.totalTravelTimeInSecs))
-        .values
-        .flatten
-        .toIndexedSeq
+      ) ++ rideHail2TransitIineraries
 
       val availableModesForTrips: Seq[BeamMode] = availableModesForPerson(matsimPlan.getPerson)
         .filterNot(mode => choosesModeData.excludeModes.contains(mode))
