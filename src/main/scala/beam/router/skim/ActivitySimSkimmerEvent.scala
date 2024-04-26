@@ -10,6 +10,8 @@ import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, Abs
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 
+import scala.util.Try
+
 case class ActivitySimSkimmerEvent(
   origin: String,
   destination: String,
@@ -77,7 +79,8 @@ case class ActivitySimSkimmerEvent(
       currentBeamVehicleId = Some(leg.beamVehicleId)
     }
     val transferWaitTime = if (numberOfTransitTrips > 0) {
-      trip.totalTravelTimeInSecs - trip.legs.map(_.beamLeg.duration).sum - initialWaitTime
+      Try(trip.legs.last.beamLeg.endTime - trip.legs(1).beamLeg.startTime)
+        .getOrElse(0) - trip.legs.tail.map(_.beamLeg.duration).sum
     } else { 0 }
 
     walkEgress = currentWalkTime
