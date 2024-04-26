@@ -1,33 +1,62 @@
 # BEAM Release Notes
 ## 1.0.0
 ### New Features
-- DemandFollowingRepositionig: Reposition the random activity's location.
-- Added CSV and XML writer for PhysSim events.
-- Generate secondary activities.
-- R5: Limit routing by max distance for BIKE.
+#### Ride-hail features
+- DemandFollowingRepositionig: Reposition to the random activity's location.
 - Inverse square demand following repositioning.
+- Wheelchair accessible ride-hail vehicles.
+- Ride-Hail CAVs charging.
+- Introduced ride-hail stops.
+- Ride-hail name in OD skims.
+- Configuring allowed ride-hail modes.
+- RideHail skimmer.
+
+#### Mode choice feature
+- Allowing to do a mode choice if the current mode cannot be implemented.
+- Improved tour mode choice.
+
+#### Router features
+- R5: Limit routing by max distance for BIKE.
+- Introduced GraphHopper router.
+- Not found routes metric.
+- Introduced Native CCH router.
+- Send routing failures to skims.
+
+#### Parking features
 - Hierarchical parking manager to improve parking stall search performance.
+- Link based parking sampling.
+- Parking Manager on the link level.
+- Improved performance of parking and charging manager.
+- Assign parking stalls to households.
+- Parking skimmer.
+- Include parking in activity generation.
+- New parking stall search algorithm.
+
+#### Freight features
+- Freight simulation.
+- Freight origin-destination skims.
+- Vehicle energy rate based on the weight of the truck + payload.
+
+#### Other features
+- Possibility to write PhysSim events to CSV.
+- Generate secondary activities.
 - Added various graphs/statistics.
 - Mode BIKE_TRANSIT is added.
 - Google Map API integration.
-- New phys sim mode: BPR.
+- New PhysSim mode: BPR.
 - A tool to get a shape file out of stops coordinates from GTFS archive.
 - Simulating preference to the transit routes with lower crowdedness.
 - Special treatment of bike lanes.
 - Remove activities/persons for certain industries.
-- Introduced GraphHopper router.
-- Performance: Parallel Event Manager in physsim.
-- Parking Manager on the link level.
+- Performance: Parallel Event Manager in PhysSim.
 - Pickups and dropoffs affect link travel time.
 - Output analysis with python scripts.
-- Physsym XML to OSM converter.
+- PhysSim XML to OSM converter.
 - Shared vehicles on route egress.
 - Charging compatibility is taken into consideration.
-- Added option to convert physsim network to PBF directly.
-- Freight simulation.
+- Added option to convert PhysSim network to PBF directly.
 - Matsim network to shape file converter.
 - Travel time & distance calculator app.
-- Improved performance of parking and charging manager.
 - Allow to merge the urbansim input plans with the last BEAM run output plans.
 - HOV2 and HOV3 modes from activitysim plans.
 - Generate skims for provided origin-destination pairs and modes.
@@ -36,12 +65,9 @@
 - Producing activitysim skims at runtime.
 - A script for filtering points from shapefile.
 - Shared bike repositioning.
-- Artificial increasing of traffic flow for better physsim.
+- Artificial increasing of traffic flow for better PhysSim.
 - Util to compare values of two config files.
-- Assign parking stalls to households.
-- Allow choosing an event manager for physsim.
-- Not found routes metric.
-- Introduced Native CCH router.
+- Allow choosing an event manager for PhysSim.
 - Beam Health Analysis script.
 - Input Consistency Check.
 - Get leg mode directly from Urbansim plans.
@@ -54,19 +80,12 @@
 - Health metrics analysis in beam output directory.
 - En-route charging.
 - Documentation improvements.
-- Wheelchair accessible ride-hail vehicles.
-- RideHail and Parking skimmers.
 - Keep track of wait times in skims.
-- Freight origin-destination skims.
 - Create household cars from Vehicle types.
 - Include intercepts in mode utilities.
-- Allowing to do a mode choice if the current mode cannot be implemented.
 - Beam internal message logging.
-- Include parking in activity generation.
 - Force vehicle creation when plans require it.
-- New parking stall search algorithm.
 - Create and store a network route for a personal plan if it is empty.
-- Improved tour mode choice.
 - Improved simulation got stuck detection.
 - Storing the scheduler state in case of Beam exists with an error.
 - Create separate plans based on planIndex and set "selected" only (valid) one of them.
@@ -76,7 +95,6 @@
 - Throw skimmer events for non-chosen itineraries.
 - Use non-generalized times and costs in asim skimmer.
 - Add buffer time for access to transit.
-- Ride-Hail CAVs charging.
 - Co-simulation of power providing/consuming with HELICS lib.
 - Multiple rid-hail managers.
 - Frequency converter app.
@@ -86,22 +104,16 @@
 - Deployment spreadsheet improvements.
 - Introduced Jupyter notebooks in Beam source code.
 - Utility to create TAZ geofences out of shapefiles.
-- Introduced ride-hail stops.
 - Add a possibility to automatically run Beam on Google Compute Engine.
-- Ride-hail name in OD skims.
-- Restrict road access by freespeed.
-- Send routing failures to skims.
+- Restrict road access by free speed.
 - Activitysim skims in omx format.
-- Link based parking sampling.
 - Add a possibility to automatically run Beam on Lawrencium HPC.
-- Jupyter notebook for map analysis of osm.pbf and physsim network.
+- Jupyter notebook for map analysis of osm.pbf and PhysSim network.
 - Jupyter notebook for linkstats and network.csv files analysis.
-- Vehicle energy rate based on the weight of the truck + payload.
 - Possibility to read a shape file as TAZ file.
 - Jupyter notebook to adjust GTFS time and timezone and to downsample scenarios based on a shape file.
-- Configuring allowed ride-hail modes.
-- Ride Hail transit using pooled legs.
 - Allow emergency vehicles for HOV modes.
+- Ride Hail transit using pooled legs.
 
 ### Bug fixes
 - Make BeamVehicle thread safe.
@@ -120,7 +132,7 @@
 - Populate riders for PathTraversal events for Bike and Walk modes.
 - Fix protocols to release vehicles properly before starting a trip.
 - Fix for displaying long legend text for NonArrivedAgentsAtTheEndOfSimulation.
-- Fiix Beam doesn't stop when an exception occurs.
+- Fix Beam doesn't stop when an exception occurs.
 - Fix AWS deployment issues.
 - Fix skimTypes for skimmers.
 - Fix issue of duplicate column names in passengerPerTripSubway.csv when the data contains only zeros.
