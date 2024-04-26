@@ -718,11 +718,11 @@ trait ChoosesMode {
           )
         ) {
           val accessSegment =
-            rhTransitTrip.get.legs.view
+            rhTransitTrip.get.legs
               .takeWhile(!_.beamLeg.mode.isMassTransit)
               .map(_.beamLeg)
           val egressSegment =
-            rhTransitTrip.get.legs.view.reverse.takeWhile(!_.beamLeg.mode.isTransit).reverse.map(_.beamLeg)
+            rhTransitTrip.get.legs.reverse.takeWhile(!_.beamLeg.mode.isTransit).reverse.map(_.beamLeg)
           val (accessId, accessResult) =
             if (
               (accessSegment.map(_.travelPath.distanceInM).sum > 0) & accessSegment
@@ -1187,23 +1187,26 @@ trait ChoosesMode {
         logger.warn(s"Candidate rh transit trip has mode $mode")
         beamServices.beamConfig.beam.routing.r5.rideHailPooledTransitRoutingBufferInSeconds
     }
-    val transitLegs = driveTransitTrip.legs
+    val transitLegs = driveTransitTrip.legs.view
       .dropWhile(leg => !leg.beamLeg.mode.isTransit)
       .reverse
       .dropWhile(leg => !leg.beamLeg.mode.isTransit)
+      .reverse
     val (extraWaitTimeBuffer, accessLegAdjustment) = tncAccessLeg.filter(_.isRideHail) match {
       case Vector() =>
         (Int.MaxValue, 0)
       case rhLegs =>
+        val latenessToFirstTransitLeg = tncAccessLeg.last.beamLeg.endTime - transitLegs.head.beamLeg.startTime max 0
+        val startTimeBufferForWaiting =
+          buffer.toDouble + timeToCustomer.toDouble * 0.25 + latenessToFirstTransitLeg.toDouble
         val extraWaitTimeBuffer = rhLegs.last.beamLeg.endTime -
-          tncAccessLeg.map(_.beamLeg.duration).sum - timeToCustomer - _currentTick.get
-        val startTimeBufferForWaiting = math.max(buffer.toDouble, timeToCustomer.toDouble * 0.5)
-        (extraWaitTimeBuffer, startTimeBufferForWaiting.floor.toInt)
+          tncAccessLeg.map(_.beamLeg.duration).sum - timeToCustomer - _currentTick.get - startTimeBufferForWaiting
+        (extraWaitTimeBuffer.floor.toInt, startTimeBufferForWaiting.floor.toInt)
     }
 
-    if (extraWaitTimeBuffer >= buffer) {
+    if (extraWaitTimeBuffer > 0) {
       Some(
-        EmbodiedBeamTrip(
+        surroundWithWalkLegsIfNeededAndMakeTrip(
           tncAccessLeg.map(leg =>
             leg.copy(beamLeg = leg.beamLeg.updateStartTime(leg.beamLeg.startTime - accessLegAdjustment))
           ) ++ transitLegs ++ tncEgressLeg
