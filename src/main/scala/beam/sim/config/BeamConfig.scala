@@ -1908,7 +1908,7 @@ object BeamConfig {
           }
                 
           case class Secondary(
-            beamModeFilter : scala.List[java.lang.String],
+            beamModeFilter : scala.Option[scala.List[java.lang.String]],
             enabled        : scala.Boolean,
             taz            : BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz
           )
@@ -1936,8 +1936,8 @@ object BeamConfig {
                     
               def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz = {
                 BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz(
-                  filePath       = c.getString("filePath"),
-                  tazIdFieldName = c.getString("tazIdFieldName"),
+                  filePath       = if(c.hasPathOrNull("filePath")) c.getString("filePath") else "''",
+                  tazIdFieldName = if(c.hasPathOrNull("tazIdFieldName")) c.getString("tazIdFieldName") else "''",
                   tazMapping     = if(c.hasPathOrNull("tazMapping")) scala.Some(BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz.TazMapping(c.getConfig("tazMapping"))) else None
                 )
               }
@@ -1945,7 +1945,7 @@ object BeamConfig {
                   
             def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary = {
               BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary(
-                beamModeFilter = $_L$_str(c.getList("beamModeFilter")),
+                beamModeFilter = if(c.hasPathOrNull("beamModeFilter")) scala.Some($_L$_str(c.getList("beamModeFilter"))) else None,
                 enabled        = c.hasPathOrNull("enabled") && c.getBoolean("enabled"),
                 taz            = BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer.Secondary.Taz(if(c.hasPathOrNull("taz")) c.getConfig("taz") else com.typesafe.config.ConfigFactory.parseString("taz{}"))
               )
