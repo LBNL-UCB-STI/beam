@@ -754,11 +754,11 @@ trait ChoosesMode {
           )
         ) {
           val accessSegment =
-            rhTransitTrip.get.legs.view
+            rhTransitTrip.get.legs
               .takeWhile(!_.beamLeg.mode.isMassTransit)
               .map(_.beamLeg)
           val egressSegment =
-            rhTransitTrip.get.legs.view.reverse.takeWhile(!_.beamLeg.mode.isTransit).reverse.map(_.beamLeg)
+            rhTransitTrip.get.legs.reverse.takeWhile(!_.beamLeg.mode.isTransit).reverse.map(_.beamLeg)
           val (accessId, accessResult) =
             if (
               (accessSegment.map(_.travelPath.distanceInM).sum > 0) & accessSegment
@@ -1219,23 +1219,26 @@ trait ChoosesMode {
     timeToCustomer: Int,
     tncEgressLeg: Vector[EmbodiedBeamLeg]
   ): Option[EmbodiedBeamTrip] = {
-    val transitLegs = driveTransitTrip.legs
+    val transitLegs = driveTransitTrip.legs.view
       .dropWhile(leg => !leg.beamLeg.mode.isTransit)
       .reverse
       .dropWhile(leg => !leg.beamLeg.mode.isTransit)
+      .reverse
     val (extraWaitTimeBuffer, accessLegAdjustment) = tncAccessLeg.filter(_.isRideHail) match {
       case Vector() =>
         (Int.MaxValue, 0)
       case rhLegs =>
+        val latenessToFirstTransitLeg = tncAccessLeg.last.beamLeg.endTime - transitLegs.head.beamLeg.startTime max 0
+        val startTimeBufferForWaiting =
+          300.0 + timeToCustomer.toDouble * 0.25 + latenessToFirstTransitLeg.toDouble
         val extraWaitTimeBuffer = rhLegs.last.beamLeg.endTime -
-          tncAccessLeg.map(_.beamLeg.duration).sum - timeToCustomer - _currentTick.get
-        val startTimeBufferForWaiting = math.max(300.0, timeToCustomer.toDouble * 0.5)
-        (extraWaitTimeBuffer, startTimeBufferForWaiting.floor.toInt)
+          tncAccessLeg.map(_.beamLeg.duration).sum - timeToCustomer - _currentTick.get - startTimeBufferForWaiting
+        (extraWaitTimeBuffer.floor.toInt, startTimeBufferForWaiting.floor.toInt)
     }
 
-    if (extraWaitTimeBuffer >= 300) {
+    if (extraWaitTimeBuffer > 0) {
       Some(
-        EmbodiedBeamTrip(
+        surroundWithWalkLegsIfNeededAndMakeTrip(
           Vector(
             tncAccessLeg.head.copy(beamLeg =
               tncAccessLeg.head.beamLeg.updateStartTime(tncAccessLeg.head.beamLeg.startTime - accessLegAdjustment)
@@ -1467,8 +1470,21 @@ trait ChoosesMode {
             case Some(mode) =>
               val currentAct = currentActivity(personData)
               val odFailedSkimmerEvent = createFailedODSkimmerEvent(currentAct, nextAct, mode)
-              val possibleActivitySimModes =
+              val possibleActivitySimModesFromChosenMode =
                 determineActivitySimPathTypesFromBeamMode(choosesModeData.personData.currentTourMode, currentAct)
+              val otherPossibleActivitySimModes =
+                if (beamScenario.beamConfig.beam.exchange.output.generateSkimsForAllModes) {
+                  mode match {
+                    case CAR | CAR_HOV2 | CAR_HOV3 =>
+                      determineActivitySimPathTypesFromBeamMode(
+                        Some(DRIVE_TRANSIT),
+                        currentAct
+                      ) ++ determineActivitySimPathTypesFromBeamMode(Some(WALK_TRANSIT), currentAct)
+                    case _ => determineActivitySimPathTypesFromBeamMode(Some(WALK_TRANSIT), currentAct)
+                  }
+                } else { Seq.empty[ActivitySimPathType] }
+              val possibleActivitySimModes =
+                (possibleActivitySimModesFromChosenMode ++ otherPossibleActivitySimModes).distinct
               eventsManager.processEvent(
                 odFailedSkimmerEvent
               )
