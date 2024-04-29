@@ -1304,6 +1304,42 @@ trait ChoosesMode {
     }
   }
 
+  def findQueriedModes(
+    routingResponse: RoutingResponse,
+    rideHailResult: RideHailResponse,
+    rideHail2TransitRoutingRequestId: Option[Int]
+  ): Set[BeamMode] = {
+    val expectedNonRideHailModes = routingResponse.request match {
+      case Some(RoutingRequest(_, _, _, withTransit, _, streetVehicles, _, _, _, _, _)) if !withTransit =>
+        streetVehicles.map(_.mode).toSet
+      case Some(RoutingRequest(_, _, _, true, _, streetVehicles, _, _, _, _, _)) =>
+        streetVehicles
+          .map(_.mode)
+          .flatMap {
+            case CAR  => Seq(DRIVE_TRANSIT, CAR)
+            case BIKE => Seq(BIKE_TRANSIT, BIKE)
+            case WALK => Seq(WALK_TRANSIT, WALK)
+            case _    => Seq.empty[BeamMode]
+          }
+          .toSet
+      case _ => Set.empty[BeamMode]
+    }
+    val expectedDirectRideHailModes = rideHailResult.request match {
+      case RideHailRequest(_, _, _, _, _, _, _, _, _, requestTime, _, _, _, _) if requestTime == -1 =>
+        Set.empty[BeamMode]
+      case RideHailRequest(_, _, _, _, _, asPooled, _, _, _, _, _, _, _, _) if asPooled =>
+        Set(RIDE_HAIL_POOLED)
+      case RideHailRequest(_, _, _, _, _, _, _, _, _, _, _, _, _, _) => Set(RIDE_HAIL)
+    }
+
+    val expectedRideHailTransitModes = rideHail2TransitRoutingRequestId match {
+      case Some(_) => Set(RIDE_HAIL_TRANSIT)
+      case None    => Set.empty[BeamMode]
+    }
+
+    expectedNonRideHailModes ++ expectedDirectRideHailModes ++ expectedRideHailTransitModes
+  }
+
   def completeChoiceIfReady: PartialFunction[State, State] = {
     case FSM.State(
           _,
@@ -1316,7 +1352,7 @@ trait ChoosesMode {
             parkingResponseIds,
             Some(rideHailResult),
             Some(rideHail2TransitRoutingResponse),
-            _,
+            rideHail2TransitRoutingRequestId,
             Some(rideHail2TransitAccessResult),
             _,
             Some(rideHail2TransitEgressResult),
@@ -1395,6 +1431,24 @@ trait ChoosesMode {
       val itinerariesOfCorrectMode =
         filteredItinerariesForChoice.filter(itin => availableModesForTrips.contains(itin.tripClassifier))
 
+      val currentAct = currentActivity(personData)
+
+      if (beamServices.beamConfig.beam.exchange.output.activity_sim_skimmer.exists(_.primary.enabled)) {
+
+        val queriedModes = findQueriedModes(routingResponse, rideHailResult, rideHail2TransitRoutingRequestId)
+
+        // TODO: Find a way to better differentiate between drive_transit trips that use vehicles for access/egress
+
+        queriedModes.diff(combinedItinerariesForChoice.map(_.tripClassifier).toSet) foreach { beamMode =>
+          val possibleActivitySimModes =
+            determineActivitySimPathTypesFromBeamMode(Some(beamMode), currentAct)
+
+          createFailedActivitySimSkimmerEvent(currentAct, nextAct, possibleActivitySimModes).foreach(ev =>
+            eventsManager.processEvent(ev)
+          )
+        }
+      }
+
       val attributesOfIndividual =
         matsimPlan.getPerson.getCustomAttributes
           .get("beam-attributes")
@@ -1468,31 +1522,11 @@ trait ChoosesMode {
                 )
               }
             case Some(mode) =>
-              val currentAct = currentActivity(personData)
               val odFailedSkimmerEvent = createFailedODSkimmerEvent(currentAct, nextAct, mode)
-              val possibleActivitySimModesFromChosenMode =
-                determineActivitySimPathTypesFromBeamMode(choosesModeData.personData.currentTourMode, currentAct)
-              val otherPossibleActivitySimModes =
-                if (beamScenario.beamConfig.beam.exchange.output.generateSkimsForAllModes) {
-                  mode match {
-                    case CAR | CAR_HOV2 | CAR_HOV3 =>
-                      determineActivitySimPathTypesFromBeamMode(
-                        Some(DRIVE_TRANSIT),
-                        currentAct
-                      ) ++ determineActivitySimPathTypesFromBeamMode(Some(WALK_TRANSIT), currentAct)
-                    case _ => determineActivitySimPathTypesFromBeamMode(Some(WALK_TRANSIT), currentAct)
-                  }
-                } else { Seq.empty[ActivitySimPathType] }
-              val possibleActivitySimModes =
-                (possibleActivitySimModesFromChosenMode ++ otherPossibleActivitySimModes).distinct
               eventsManager.processEvent(
                 odFailedSkimmerEvent
               )
-              if (beamServices.beamConfig.beam.exchange.output.activity_sim_skimmer.exists(_.primary.enabled)) {
-                createFailedActivitySimSkimmerEvent(currentAct, nextAct, possibleActivitySimModes).foreach(ev =>
-                  eventsManager.processEvent(ev)
-                )
-              }
+
               eventsManager.processEvent(
                 new ReplanningEvent(
                   _currentTick.get,
