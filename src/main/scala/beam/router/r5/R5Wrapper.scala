@@ -698,7 +698,6 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         }
 
       val transitPaths = latency("getpath-transit-time", Metrics.VerboseLevel) {
-        profileRequest.fromTime = request.departureTime
         accessStopsByMode.flatMap { case (mode, stopVisitor) =>
           val modeSpecificBuffer = mode match {
             case LegMode.WALK         => beamConfig.beam.routing.r5.accessBufferTimeSeconds.walk
@@ -712,6 +711,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             case LegMode.WALK => 3
             case _            => 2
           }
+          profileRequest.fromTime = request.departureTime
           profileRequest.toTime = request.departureTime + modeSpecificBuffer + 61
           // Important to allow 61 seconds for transit schedules to be considered! Along with any other buffers
           val router = new McRaptorSuboptimalPathProfileRouter(
