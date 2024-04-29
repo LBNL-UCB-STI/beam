@@ -1,6 +1,6 @@
 # BEAM
 
-![](/Users/zaneedell/Desktop/git/beam/docs/_static/figs/BEAM_DarkBlue.png)
+![](docs/_static/figs/BEAM_DarkBlue.png)
 
 [![Documentation Status](https://readthedocs.org/projects/beam-lbnl/badge/?version=latest)](http://beam-lbnl.readthedocs.io/en/latest/?badge=latest)
 
