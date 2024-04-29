@@ -410,9 +410,19 @@ trait ChoosesMode {
         rideHailManager ! inquiry
       }
 
-      def makeRideHailTransitRoutingRequest(bodyStreetVehicleRequestParam: StreetVehicle): Option[Int] = {
-        //TODO make ride hail wait buffer config param
-        val startWithWaitBuffer = 900 + departTime
+      def makeRideHailTransitRoutingRequest(
+        bodyStreetVehicleRequestParam: StreetVehicle,
+        mode: BeamMode = RIDE_HAIL_TRANSIT
+      ): Option[Int] = {
+        val buffer: Int = mode match {
+          case RIDE_HAIL_TRANSIT => beamServices.beamConfig.beam.routing.r5.rideHailTransitRoutingBufferInSeconds
+          case RIDE_HAIL_POOLED_TRANSIT =>
+            beamServices.beamConfig.beam.routing.r5.rideHailPooledTransitRoutingBufferInSeconds
+          case mode @ _ =>
+            logger.warn(s"Candidate rh transit trip has mode $mode")
+            beamServices.beamConfig.beam.routing.r5.rideHailPooledTransitRoutingBufferInSeconds
+        }
+        val startWithWaitBuffer = buffer + departTime
         val currentSpaceTime =
           SpaceTime(currentPersonLocation.loc, startWithWaitBuffer)
         val theRequest = RoutingRequest(
@@ -1198,7 +1208,7 @@ trait ChoosesMode {
       case rhLegs =>
         val latenessToFirstTransitLeg = tncAccessLeg.last.beamLeg.endTime - transitLegs.head.beamLeg.startTime max 0
         val startTimeBufferForWaiting =
-          buffer.toDouble + timeToCustomer.toDouble * 0.25 + latenessToFirstTransitLeg.toDouble
+          buffer.toDouble + latenessToFirstTransitLeg.toDouble
         val extraWaitTimeBuffer = rhLegs.last.beamLeg.endTime -
           tncAccessLeg.map(_.beamLeg.duration).sum - timeToCustomer - _currentTick.get - startTimeBufferForWaiting
         (extraWaitTimeBuffer.floor.toInt, startTimeBufferForWaiting.floor.toInt)
