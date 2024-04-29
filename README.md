@@ -42,7 +42,7 @@ and [online documentation](http://beam-lbnl.readthedocs.io/en/latest/about.html)
 - Please visit the [Wiki page](https://github.com/LBNL-UCB-STI/beam/wiki/Help---FAQs)
 - Users are welcome to submit [Issues](https://github.com/LBNL-UCB-STI/beam/issues)
   and [Pull requests](https://github.com/LBNL-UCB-STI/beam/pulls)
-- The group [beam-model-users@googlegroups.com](beam-model-users@googlegroups.com) is a helpful platform for contacting
+- The group [beam-model-users@googlegroups.com](mailto:beam-model-users@googlegroups.com) is a helpful platform for contacting
   BEAM users and developers with questions and requests
 
 ## Project website:
