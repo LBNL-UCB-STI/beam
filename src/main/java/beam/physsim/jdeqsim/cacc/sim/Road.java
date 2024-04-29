@@ -15,6 +15,10 @@ import java.util.Optional;
 
 public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
 
+    private double flowCapacityFactor;
+    private double squeezeTime;
+
+
     private static final double INCREASE_TIMESTAMP = 0.0000000001D;
     private static RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction = new EmptyRoadCapacityAdjustmentFunction();
 
@@ -33,6 +37,8 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         this.speedAdjustmentFactor = speedAdjustmentFactor;
         this.minimumRoadSpeedInMetersPerSecond = minimumRoadSpeedInMetersPerSecond;
         this.allRoads = allRoads;
+        this.flowCapacityFactor = config.getFlowCapacityFactor();
+        this.squeezeTime = config.getSqueezeTime();
     }
 
     public static void setRoadCapacityAdjustmentFunction(RoadCapacityAdjustmentFunction roadCapacityAdjustmentFunction) {
@@ -107,9 +113,8 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
         }
 
         double capacityWithCACCPerSecond = roadCapacityAdjustmentFunction.getCapacityWithCACCPerSecond(link, caccShare, simTime);
-        double flowCapacityFactor = config.getFlowCapacityFactor();
 
-        return 1 / (capacityWithCACCPerSecond * flowCapacityFactor);
+        return 1 / (capacityWithCACCPerSecond * this.flowCapacityFactor);
     }
 
     @Override
@@ -194,9 +199,9 @@ public class Road extends org.matsim.core.mobsim.jdeqsim.Road {
          */
         double nextStuckTime;
         if (getDeadlockPreventionMessages().size() > 0) {
-            nextStuckTime = getDeadlockPreventionMessages().getLast().getMessageArrivalTime() + config.getSqueezeTime();
+            nextStuckTime = getDeadlockPreventionMessages().getLast().getMessageArrivalTime() + this.squeezeTime;
         } else {
-            nextStuckTime = simTime + config.getSqueezeTime();
+            nextStuckTime = simTime + this.squeezeTime;
         }
 
         if (!getRoad(vehicle.getCurrentLinkId()).latestTimeToLeaveRoad.containsKey(vehicle)) {

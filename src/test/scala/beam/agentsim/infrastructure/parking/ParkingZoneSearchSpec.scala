@@ -10,7 +10,7 @@
 //import beam.sim.common.GeoUtils
 //import org.matsim.api.core.v01.{Coord, Id}
 //import org.scalatest.{Matchers, WordSpec}
-//import com.vividsolutions.jts.geom.Envelope
+//import org.locationtech.jts.geom.Envelope
 //import org.geotools.data.shapefile.index.quadtree.QuadTree
 //
 //class ParkingZoneSearchSpec extends AnyWordSpec with Matchers {

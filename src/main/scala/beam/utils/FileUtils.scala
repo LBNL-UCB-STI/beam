@@ -463,7 +463,7 @@ object FileUtils extends LazyLogging {
       throw new IllegalStateException(s"Not a file: `$file`")
     }
 
-    using(IOUtils.getBufferedWriter(file, true)) { bw =>
+    using(IOUtils.getBufferedWriter(IOUtils.getFileUrl(file), IOUtils.CHARSET_UTF8, true)) { bw =>
       using(IOUtils.getBufferedReader(file)) { br =>
         io.IOUtils.copyLarge(br, bw)
       }
@@ -518,7 +518,7 @@ object FileUtils extends LazyLogging {
     loop(Option(zipInputStream.getNextEntry), None) match {
       case Some(_) => Some(zipInputStream)
       case None =>
-        org.apache.commons.io.IOUtils.closeQuietly(zipInputStream)
+        Try(zipInputStream.close()).getOrElse(())
         None
     }
   }

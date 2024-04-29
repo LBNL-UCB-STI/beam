@@ -5,8 +5,8 @@ import beam.utils.data.synthpop.GeoService.findShapeFile
 import beam.utils.map.ShapefileReader
 import beam.utils.scenario.urbansim.censusblock.entities.InputPlanElement
 import beam.utils.scenario.urbansim.censusblock.reader.PlanReader
-import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
-import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory
+import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory}
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory
 import org.geotools.geometry.jts.JTS
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.operation.MathTransform

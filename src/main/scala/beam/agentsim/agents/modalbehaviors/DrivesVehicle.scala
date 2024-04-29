@@ -411,8 +411,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                       case _                  => None
                     }
                     nextActivityEndTime = nextActivity.getEndTime
-                    if !Time.isUndefinedTime(nextActivityEndTime) &&
-                    nextActivityEndTime <= tick + beamConfig.beam.agentsim.schedulerParallelismWindow
+                    if nextActivityEndTime.isDefined && nextActivityEndTime
+                      .seconds() <= (tick + beamConfig.beam.agentsim.schedulerParallelismWindow)
                   } {
                     log.warning(
                       s"Vehicle {} needs to depart at time {} but agent {} sends a plug request at tick {} for stall $stall",
@@ -728,7 +728,17 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           .drop(data.currentLegPassengerScheduleIndex)
           .head
           ._1
-        val endTime = tick + beamLeg.duration
+        val endTime = if ((beamLeg.duration >= 0) & (tick + beamLeg.duration >= latestObservedTick)) {
+          tick + beamLeg.duration
+        } else if (tick + beamLeg.duration < latestObservedTick) {
+          logger.error("Current tick is before latestObservedTick {}", beamLeg)
+          latestObservedTick
+        } else {
+          logger.error("Negative leg duration for leg {}", beamLeg)
+          tick
+        }
+        // TODO: Clear out currently reserved stall
+        // Maybe send out ChargingUnplugRequest(tick, vehicle, triggerId)
         goto(Driving) using LiterallyDrivingData(data, endTime, Some(tick))
           .asInstanceOf[T] replying CompletionNotice(
           triggerId,

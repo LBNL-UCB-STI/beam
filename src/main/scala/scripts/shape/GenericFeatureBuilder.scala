@@ -4,7 +4,7 @@ import java.lang.reflect.Method
 import org.geotools.feature.simple.{SimpleFeatureBuilder, SimpleFeatureTypeBuilder}
 import org.opengis.feature.simple.SimpleFeatureType
 import org.opengis.referencing.crs.CoordinateReferenceSystem
-import com.vividsolutions.jts.geom.{Geometry => JtsGeometry}
+import org.locationtech.jts.geom.{Geometry => JtsGeometry}
 
 import java.util.Objects
 import scala.reflect.ClassTag

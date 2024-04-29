@@ -187,8 +187,11 @@ class TimeDependentRoutingSpec
       // Start with travel times as calculated by a pristine TravelTimeCalculator.
       // (Should be MATSim free flow travel times)
       val eventsForTravelTimeCalculator = EventsUtils.createEventsManager()
-      val travelTimeCalculator =
-        new TravelTimeCalculator(beamScenario.network, ConfigUtils.createConfig().travelTimeCalculator())
+
+      val travelTimeCalculatorBuilder = new TravelTimeCalculator.Builder(beamScenario.network)
+      travelTimeCalculatorBuilder.configure(ConfigUtils.createConfig().travelTimeCalculator())
+      val travelTimeCalculator = travelTimeCalculatorBuilder.build()
+
       eventsForTravelTimeCalculator.addHandler(travelTimeCalculator)
       router ! UpdateTravelTimeLocal(travelTimeCalculator.getLinkTravelTimes)
       val vehicleId = Id.createVehicleId("car")

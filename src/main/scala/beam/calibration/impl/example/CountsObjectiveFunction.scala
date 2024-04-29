@@ -1,9 +1,8 @@
 package beam.calibration.impl.example
 
-import scala.io.Source
-
-import beam.calibration.api.ObjectiveFunction
 import beam.utils.FileUtils.using
+
+import scala.io.Source
 
 object CountsObjectiveFunction {
 

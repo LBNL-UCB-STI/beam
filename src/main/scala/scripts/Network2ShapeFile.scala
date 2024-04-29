@@ -2,11 +2,11 @@ package scripts
 
 import beam.sim.common.GeoUtils
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.geom.{Coordinate, Envelope, GeometryFactory, LineString}
+import org.locationtech.jts.geom.{Coordinate, Envelope, GeometryFactory, LineString}
 import org.geotools.feature.simple.{SimpleFeatureBuilder, SimpleFeatureTypeBuilder}
 import org.matsim.api.core.v01.network.{Link, Node}
 import org.matsim.core.network.NetworkUtils
-import org.matsim.core.network.io.NetworkReaderMatsimV2
+import org.matsim.core.network.io.{MatsimNetworkReader, NetworkReaderMatsimV2}
 import org.matsim.core.utils.geometry.geotools.MGC
 import org.matsim.core.utils.gis.ShapeFileWriter
 import org.opengis.feature.simple.SimpleFeature
@@ -31,10 +31,10 @@ object Network2ShapeFile extends LazyLogging {
     lanes: Double
   ) {
 
-    /* Coordinate of toNode in com.vividsolutions format */
+    /* Coordinate of toNode in org.locationtech format */
     def vividCoordTo: Coordinate = new Coordinate(toNode.getCoord.getX, toNode.getCoord.getY)
 
-    /* Coordinate of fromNode in com.vividsolutions format */
+    /* Coordinate of fromNode in org.locationtech format */
     def vividCoordFrom: Coordinate = new Coordinate(fromNode.getCoord.getX, fromNode.getCoord.getY)
 
     /* returns SimpleFeature for shapefile writer */
@@ -137,7 +137,7 @@ object Network2ShapeFile extends LazyLogging {
     networkFilter: NetworkLink => Boolean
   ): Unit = {
     val network = NetworkUtils.createNetwork()
-    val reader = new NetworkReaderMatsimV2(network)
+    val reader = new MatsimNetworkReader(network)
     reader.readFile(matsimNetworkPath)
     logger.info(s"Read $matsimNetworkPath");
 

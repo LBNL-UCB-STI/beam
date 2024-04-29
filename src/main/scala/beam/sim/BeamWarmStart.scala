@@ -23,6 +23,8 @@ import org.matsim.core.config.Config
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.router.util.TravelTime
 
+import scala.annotation.nowarn
+
 class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends LazyLogging {
 
   private val srcPath: String = warmConfig.warmStartPath
@@ -222,12 +224,15 @@ object BeamWarmStart extends LazyLogging {
     if (BeamWarmStart.isLinkStatsEnabled(beamConfig.beam.warmStart)) {
       val maxHour = DateUtils.getMaxHour(beamConfig)
       val warm = BeamWarmStart(beamConfig, maxHour)
+      val defaultLinkstatsPath = Paths.get(beamConfig.beam.warmStart.initialLinkstatsFilePath)
       val travelTime =
         if (BeamWarmStart.isLinkStatsFromLastRun(beamConfig.beam.warmStart)) {
           val linkStatsPath = LastRunOutputSource
             .findLastRunLinkStats(
               Paths.get(beamConfig.beam.input.lastBaseOutputDir),
-              beamConfig.beam.input.simulationPrefix
+              beamConfig.beam.input.simulationPrefix,
+              if (Files.isRegularFile(defaultLinkstatsPath)) { Some(defaultLinkstatsPath) }
+              else None
             )
             .map(_.toString)
           warm.readTravelTime(linkStatsPath, beamConfig.beam.input.lastBaseOutputDir)
@@ -297,6 +302,7 @@ object BeamWarmStart extends LazyLogging {
   }
 
   // note: performs side-effect
+  @nowarn
   def setMatsimConfigPlans(instance: BeamWarmStart, matsimConfig: Config): Try[Unit] =
     for {
       populationAttributesXml <- instance.compressedLocation("Person attributes", "output_personAttributes.xml.gz")

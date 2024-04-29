@@ -14,7 +14,6 @@ import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoi
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
-import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.UnknownInquiryIdError
 import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumed
@@ -26,7 +25,7 @@ import beam.agentsim.events._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.parking.ParkingMNL
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingNetworkManager, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -525,17 +524,23 @@ class PersonAgent(
   }
 
   def calculateActivityEndTime(activity: Activity, tick: Double): Double = {
-    def activityEndTime =
-      if (activity.getEndTime >= tick && Math.abs(activity.getEndTime) < Double.PositiveInfinity) {
-        activity.getEndTime
-      } else if (activity.getEndTime >= 0.0 && activity.getEndTime < tick) {
-        tick
-      } else {
+    def activityEndTime: Double = {
+      def fallbackActivityEndTime: Double = {
         // logWarn(s"Activity endTime is negative or infinite ${activity}, assuming duration of 10 minutes.")
         // TODO consider ending the day here to match MATSim convention for start/end activity
         tick + 60 * 10
       }
-    val endTime = beamServices.beamScenario.fixedActivitiesDurations.get(activity.getType) match {
+      val endTime = activity.getEndTime
+      var returnVal: Double =
+        fallbackActivityEndTime //Because OptionalTime doesn't have a method which returns - given an fn
+      endTime.ifDefined(endTimeVal =>
+        if (endTimeVal >= tick) returnVal = endTimeVal
+        else if (endTimeVal >= 0.0 && endTimeVal < tick) returnVal = tick
+      )
+      returnVal
+    }
+
+    val endTime: Double = beamServices.beamScenario.fixedActivitiesDurations.get(activity.getType) match {
       case Some(fixedDuration) => tick + fixedDuration
       case _                   => activityEndTime
     }
@@ -553,6 +558,13 @@ class PersonAgent(
   ): Unit = {
     assert(currentActivity(data).getLinkId != null)
 
+    val tripId: String = _experiencedBeamPlan.trips
+      .lift(data.currentActivityIndex + 1) match {
+      case Some(trip) =>
+        trip.leg.map(l => Option(l.getAttributes.getAttribute("trip_id")).getOrElse("").toString).getOrElse("")
+      case None => ""
+    }
+
     // We end our activity when we actually leave, not when we decide to leave, i.e. when we look for a bus or
     // hail a ride. We stay at the party until our Uber is there.
 
@@ -565,14 +577,15 @@ class PersonAgent(
         currentActivity(data).getType
       )
     )
-
+    val pde = new BeamPersonDepartureEvent(
+      tick,
+      id,
+      currentActivity(data).getLinkId,
+      currentTrip.tripClassifier.value,
+      tripId
+    )
     eventsManager.processEvent(
-      new PersonDepartureEvent(
-        tick,
-        id,
-        currentActivity(data).getLinkId,
-        currentTrip.tripClassifier.value
-      )
+      pde
     )
   }
 
@@ -587,7 +600,12 @@ class PersonAgent(
     logDebug(s"starting at ${currentActivity(data).getType} @ $tick")
     goto(PerformingActivity) replying CompletionNotice(
       triggerId,
-      Vector(ScheduleTrigger(ActivityEndTrigger(currentActivity(data).getEndTime.toInt), self))
+      Vector(
+        ScheduleTrigger(
+          ActivityEndTrigger(currentActivity(data).getEndTime.orElse(beam.UNDEFINED_TIME).toInt),
+          self
+        )
+      )
     )
   }
 
@@ -971,7 +989,16 @@ class PersonAgent(
       if (data.restOfCurrentTrip.head.unbecomeDriverOnCompletion) {
         val vehicleToExit = data.currentVehicle.head
         currentBeamVehicle.unsetDriver()
-        nextNotifyVehicleResourceIdle.foreach(currentBeamVehicle.getManager.get ! _)
+        nextNotifyVehicleResourceIdle.foreach(notifyVehicleIdle =>
+          currentBeamVehicle.getManager match {
+            case Some(manager) => manager ! notifyVehicleIdle
+            case None =>
+              logger.error(
+                s"Vehicle ${currentBeamVehicle.id} does not have a manager, " +
+                s"so I can't notify anyone it is idle"
+              )
+          }
+        )
         eventsManager.processEvent(
           new PersonLeavesVehicleEvent(_currentTick.get, Id.createPersonId(id), vehicleToExit)
         )
@@ -1316,7 +1343,8 @@ class PersonAgent(
               id,
               activity.getLinkId,
               activity.getFacilityId,
-              activity.getType
+              activity.getType,
+              null
             )
           )
 
@@ -1366,7 +1394,8 @@ class PersonAgent(
             new TeleportationArrivalEvent(
               tick,
               id,
-              currentTrip.legs.map(l => l.beamLeg.travelPath.distanceInM).sum
+              currentTrip.legs.map(l => l.beamLeg.travelPath.distanceInM).sum,
+              data.currentTourMode.map(_.matsimMode).getOrElse("")
             )
           )
           assert(activity.getLinkId != null)
@@ -1404,14 +1433,14 @@ class PersonAgent(
             currentActivity(data),
             nextActivity(data)
           )
-
           resetFuelConsumed()
           val activityStartEvent = new ActivityStartEvent(
             tick,
             id,
             activity.getLinkId,
             activity.getFacilityId,
-            activity.getType
+            activity.getType,
+            null
           )
           eventsManager.processEvent(activityStartEvent)
 
@@ -1462,7 +1491,7 @@ class PersonAgent(
       }
   }
 
-  def getTazFromActivity(activity: Activity): Id[TAZ] = {
+  def getTazFromActivity(activity: Activity, tazTreeMap: TAZTreeMap): Id[TAZ] = {
     val linkId = Option(activity.getLinkId).getOrElse(
       Id.createLinkId(
         beamServices.geo
@@ -1474,10 +1503,10 @@ class PersonAgent(
           .toString
       )
     )
-    beamScenario.tazTreeMap
+    tazTreeMap
       .getTAZfromLink(linkId)
       .map(_.tazId)
-      .getOrElse(beamScenario.tazTreeMap.getTAZ(activity.getCoord).tazId)
+      .getOrElse(tazTreeMap.getTAZ(activity.getCoord).tazId)
   }
 
   /**
@@ -1521,6 +1550,44 @@ class PersonAgent(
     )
   }
 
+  protected def getOriginAndDestinationFromGeoMap(
+    currentAct: Activity,
+    maybeNextAct: Option[Activity]
+  ): (String, String) = {
+    // Selecting the geoMap with highest resolution by comparing their number of zones
+    val geoMap = beamScenario.tazTreeMapForASimSkimmer
+    val (origin, destination) = if (geoMap.tazListContainsGeoms) {
+      val origGeo = getTazFromActivity(currentAct, geoMap).toString
+      val destGeo = maybeNextAct.map(act => getTazFromActivity(act, geoMap).toString).getOrElse("NA")
+      (origGeo, destGeo)
+    } else {
+      (
+        geoMap.getTAZ(currentAct.getCoord).toString,
+        maybeNextAct.map(act => geoMap.getTAZ(act.getCoord).toString).getOrElse("NA")
+      )
+    }
+    (origin, destination)
+  }
+
+  private def processActivitySimSkimmerEvent(
+    currentAct: Activity,
+    maybeNextAct: Option[Activity],
+    odSkimmerEvent: ODSkimmerEvent
+  ): Unit = {
+    val (origin, destination) = getOriginAndDestinationFromGeoMap(currentAct, maybeNextAct)
+    val asSkimmerEvent = ActivitySimSkimmerEvent(
+      origin,
+      destination,
+      odSkimmerEvent.eventTime,
+      odSkimmerEvent.trip,
+      odSkimmerEvent.generalizedTimeInHours,
+      odSkimmerEvent.generalizedCost,
+      odSkimmerEvent.energyConsumption,
+      beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
+    )
+    eventsManager.processEvent(asSkimmerEvent)
+  }
+
   def generateSkimData(
     tick: Int,
     trip: EmbodiedBeamTrip,
@@ -1538,7 +1605,7 @@ class PersonAgent(
       logger.error("Wrong trip classifier ({}) for freight {}", correctedTrip.tripClassifier, id)
     }
     // Correct the trip to deal with ride hail / disruptions and then register to skimmer
-    val (odSkimmerEvent, origCoord, destCoord) = ODSkimmerEvent.forTaz(
+    val (odSkimmerEvent, _, _) = ODSkimmerEvent.forTaz(
       tick,
       beamServices,
       correctedTrip,
@@ -1549,33 +1616,8 @@ class PersonAgent(
       failedTrip
     )
     eventsManager.processEvent(odSkimmerEvent)
-    if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
-      val (origin, destination) =
-        if (beamScenario.tazTreeMap.tazListContainsGeoms) {
-          val origGeo = getTazFromActivity(currentActivity).toString
-          val destGeo = nextActivity.map(getTazFromActivity(_).toString).getOrElse("NA")
-          (origGeo, destGeo)
-        } else {
-          beamScenario.exchangeGeoMap match {
-            case Some(geoMap) =>
-              val origGeo = geoMap.getTAZ(origCoord)
-              val destGeo = geoMap.getTAZ(destCoord)
-              (origGeo.tazId.toString, destGeo.tazId.toString)
-            case None =>
-              (odSkimmerEvent.origin, odSkimmerEvent.destination)
-          }
-        }
-      val asSkimmerEvent = ActivitySimSkimmerEvent(
-        origin,
-        destination,
-        odSkimmerEvent.eventTime,
-        odSkimmerEvent.trip,
-        odSkimmerEvent.generalizedTimeInHours,
-        odSkimmerEvent.generalizedCost,
-        odSkimmerEvent.energyConsumption,
-        beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
-      )
-      eventsManager.processEvent(asSkimmerEvent)
+    if (beamServices.beamConfig.beam.exchange.output.activity_sim_skimmer.exists(_.primary.enabled)) {
+      processActivitySimSkimmerEvent(currentActivity, nextActivity, odSkimmerEvent)
     }
 
     correctedTrip.legs.filter(x => x.beamLeg.mode == BeamMode.CAR || x.beamLeg.mode == BeamMode.CAV).foreach { carLeg =>

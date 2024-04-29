@@ -2,7 +2,8 @@ package beam.utils.matsim_conversion
 
 import java.io._
 import java.util
-import com.vividsolutions.jts.geom.{Envelope, Geometry}
+
+import org.locationtech.jts.geom.{Envelope, Geometry}
 import org.geotools.geometry.jts.JTS
 import org.geotools.referencing.{AbstractIdentifiedObject, CRS}
 import org.matsim.api.core.v01.{Coord, Id}

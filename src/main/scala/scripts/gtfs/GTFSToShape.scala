@@ -23,7 +23,7 @@ object GTFSToShape extends LazyLogging {
       .setName("nodes")
       .create()
     coords.foreach { wsgCoord =>
-      val coord = new com.vividsolutions.jts.geom.Coordinate(wsgCoord.longitude, wsgCoord.latitude)
+      val coord = new org.locationtech.jts.geom.Coordinate(wsgCoord.longitude, wsgCoord.latitude)
       val feature = pointf.createPoint(coord)
       features += feature
     }

@@ -87,21 +87,20 @@ public class JDEQSimulation extends org.matsim.core.mobsim.jdeqsim.JDEQSimulatio
     protected void initializeRoads() {
         Scheduler scheduler = getScheduler();
         allRoads.clear();
+        double minimumRoadSpeedInMetersPerSecond = beamConfig.beam().physsim().minCarSpeedInMetersPerSecond();
         if (maybeCaccSettings.nonEmpty()) {
             CACCSettings caccSettings = maybeCaccSettings.get();
             for (Link link : scenario.getNetwork().getLinks().values()) {
                 allRoads.put(link.getId(), new Road(scheduler, link,
                         caccSettings.speedAdjustmentFactor(),
-                        caccSettings.adjustedMinimumRoadSpeedInMetersPerSecond(),
+                        minimumRoadSpeedInMetersPerSecond,
                         getConfig(), allRoads));
             }
         } else {
-            double speedAdjustmentFactor = beamConfig.beam().physsim().jdeqsim().cacc().speedAdjustmentFactor();
-            double adjustedMinimumRoadSpeedInMetersPerSecond = beamConfig.beam().physsim().jdeqsim().cacc().adjustedMinimumRoadSpeedInMetersPerSecond();
             for (Link link : scenario.getNetwork().getLinks().values()) {
                 allRoads.put(link.getId(), new Road(scheduler, link,
-                        speedAdjustmentFactor,
-                        adjustedMinimumRoadSpeedInMetersPerSecond,
+                        1.0,
+                        minimumRoadSpeedInMetersPerSecond,
                         getConfig(), allRoads));
             }
         }

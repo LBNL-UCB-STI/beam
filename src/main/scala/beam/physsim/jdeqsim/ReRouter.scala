@@ -68,7 +68,14 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
               (resp: RoutingResponse) => {
                 resp.itineraries.headOption.flatMap(_.legs.headOption.map(_.beamLeg)) match {
                   case Some(beamLeg) =>
-                    oldTravelTimes += leg.getAttributes.getAttribute("travel_time").toString.toLong.toDouble
+                    oldTravelTimes += Option(leg.getAttributes.getAttribute("travel_time"))
+                      .map(_.toString.toLong.toDouble)
+                      .getOrElse {
+                        logger.error(
+                          s"travel_time attribute has not been found in leg $leg for person ${person.getId}. The travel time 0.0 will be considered"
+                        )
+                        0.0
+                      }
                     newTravelTimes += beamLeg.duration.toDouble
 
                     val javaLinkIds = beamLeg.travelPath.linkIds
@@ -157,7 +164,7 @@ class ReRouter(val workerParams: R5Parameters, val beamServices: BeamServices) e
       val startCoord = getR5UtmCoord(route.getStartLinkId.toString.toInt)
       val endCoord = getR5UtmCoord(route.getEndLinkId.toString.toInt)
 
-      val departTime = leg.getDepartureTime.toInt
+      val departTime = leg.getDepartureTime.orElse(beam.UNDEFINED_TIME).toInt
       val currentPointUTM = SpaceTime(startCoord, departTime)
       val carStreetVeh =
         StreetVehicle(

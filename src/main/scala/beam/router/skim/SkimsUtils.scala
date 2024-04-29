@@ -25,15 +25,16 @@ import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
 import beam.utils.MathUtils.avg
-import beam.utils.{FileUtils, GeoJsonReader, MeasureUnitConversion, ProfilingUtils}
+import beam.utils.geospatial.GeoReader
+import beam.utils.{FileUtils, MeasureUnitConversion, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.geom.Geometry
+import org.locationtech.jts.geom.Geometry
 import org.jfree.chart.ChartFactory
 import org.jfree.chart.annotations.{XYLineAnnotation, XYTextAnnotation}
 import org.jfree.chart.plot.{PlotOrientation, XYPlot}
 import org.jfree.data.statistics.{HistogramDataset, HistogramType}
 import org.jfree.data.xy.{XYSeries, XYSeriesCollection}
-import org.jfree.ui.RectangleInsets
+import org.jfree.chart.ui.RectangleInsets
 import org.matsim.api.core.v01.{Coord, Id}
 import org.opengis.feature.Feature
 import org.opengis.feature.simple.SimpleFeature
@@ -185,7 +186,7 @@ object SkimsUtils extends LazyLogging {
         val distance = geo.distUTMInMeters(utmCoord, taz.coord)
         (taz, movId, distance)
       }
-      val xs: Array[(TAZ, Int, Double)] = GeoJsonReader.read(filePath, mapper)
+      val xs: Array[(TAZ, Int, Double)] = GeoReader.read(filePath, mapper)
       val filterByMaxDistance = xs.filter { case (_, _, distance) => distance <= maxDistanceFromBeamTaz }
       val tazId2MovIdByMinDistance = filterByMaxDistance
         .groupBy { case (taz, _, _) => taz }

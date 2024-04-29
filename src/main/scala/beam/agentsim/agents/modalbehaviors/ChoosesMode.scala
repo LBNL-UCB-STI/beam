@@ -460,6 +460,11 @@ trait ChoosesMode {
                 case _ =>
                   makeRequestWith(withTransit = false, Vector(bodyStreetVehicle))
                   responsePlaceholders = makeResponsePlaceholders(withRouting = true)
+                  logger.error(
+                    "No vehicle available for existing route of person {} trip of mode {} even though it was created in their plans",
+                    body.id,
+                    tourMode
+                  )
               }
             case _ =>
               val vehicles = filterStreetVehiclesForQuery(newlyAvailableBeamVehicles.map(_.streetVehicle), tourMode)
@@ -1126,12 +1131,14 @@ trait ChoosesMode {
             .toMap
           val newLegs = itin.legs.map { leg =>
             if (parkingLegs.contains(leg)) {
+              if (leg.beamLeg.duration < 0) { logger.error("Negative parking leg duration {}", leg) }
               leg.copy(
                 cost = leg.cost + parkingResponses(
                   VehicleOnTrip(leg.beamVehicleId, TripIdentifier(itin))
                 ).stall.costInDollars
               )
             } else if (walkLegsAfterParkingWithParkingResponses.contains(leg)) {
+              if (leg.beamLeg.duration < 0) { logger.error("Negative walk after parking leg duration {}", leg) }
               val dist = geo.distUTMInMeters(
                 geo.wgs2Utm(leg.beamLeg.travelPath.endPoint.loc),
                 walkLegsAfterParkingWithParkingResponses(leg).stall.locationUTM
@@ -1139,6 +1146,7 @@ trait ChoosesMode {
               val travelTime: Int = (dist / ZonalParkingManager.AveragePersonWalkingSpeed).toInt
               leg.copy(beamLeg = leg.beamLeg.scaleToNewDuration(travelTime))
             } else {
+              if (leg.beamLeg.duration < 0) { logger.error("Negative non-parking leg duration {}", leg) }
               leg
             }
           }
@@ -1272,8 +1280,7 @@ trait ChoosesMode {
         case Some(chosenTrip) =>
           filteredItinerariesForChoice.foreach {
             case possibleTrip
-                if (possibleTrip != chosenTrip) &&
-                  beamScenario.beamConfig.beam.exchange.output.sendNonChosenTripsToSkimmer =>
+                if (possibleTrip != chosenTrip) && beamScenario.beamConfig.beam.router.skim.sendNonChosenTripsToSkimmer =>
               generateSkimData(
                 possibleTrip.legs.lastOption.map(_.beamLeg.endTime).getOrElse(_currentTick.get),
                 possibleTrip,
@@ -1337,8 +1344,8 @@ trait ChoosesMode {
               eventsManager.processEvent(
                 odFailedSkimmerEvent
               )
-              if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
-                createFailedActivitySimSkimmerEvent(odFailedSkimmerEvent, possibleActivitySimModes).foreach(ev =>
+              if (beamServices.beamConfig.beam.exchange.output.activity_sim_skimmer.exists(_.primary.enabled)) {
+                createFailedActivitySimSkimmerEvent(currentAct, nextAct, possibleActivitySimModes).foreach(ev =>
                   eventsManager.processEvent(ev)
                 )
               }
@@ -1365,6 +1372,11 @@ trait ChoosesMode {
                   )
                 else choosesModeData.allAvailableStreetVehicles
               self ! MobilityStatusResponse(availableVehicles, getCurrentTriggerId.get)
+              logger.debug(
+                "Person {} replanning because planned mode {} not available",
+                body.id,
+                mode.toString
+              )
               stay() using ChoosesModeData(
                 personData = personData.copy(currentTourMode = None),
                 currentLocation = choosesModeData.currentLocation,
@@ -1391,7 +1403,10 @@ trait ChoosesMode {
               val expensiveWalkTrip = EmbodiedBeamTrip(
                 Vector(originalWalkTripLeg.copy(replanningPenalty = 10.0))
               )
-
+              logger.warn(
+                "Person {} forced into long walk trip because nothing is available",
+                body.id
+              )
               goto(FinishingModeChoice) using choosesModeData.copy(
                 pendingChosenTrip = Some(expensiveWalkTrip),
                 availableAlternatives = availableAlts
@@ -1478,24 +1493,17 @@ trait ChoosesMode {
     destinationActivity: Activity,
     mode: BeamMode
   ): ODSkimmerFailedTripEvent = {
-    val (origCoord, destCoord) = (originActivity.getCoord, destinationActivity.getCoord)
-    val (origin, destination) =
-      if (beamScenario.tazTreeMap.tazListContainsGeoms) {
-        val startTaz = getTazFromActivity(originActivity)
-        val endTaz = getTazFromActivity(destinationActivity)
-        (startTaz.toString, endTaz.toString)
-      } else {
-        beamScenario.exchangeGeoMap match {
-          case Some(geoMap) =>
-            val origGeo = geoMap.getTAZ(origCoord)
-            val destGeo = geoMap.getTAZ(destCoord)
-            (origGeo.tazId.toString, destGeo.tazId.toString)
-          case None =>
-            val origGeo = beamScenario.tazTreeMap.getTAZ(origCoord)
-            val destGeo = beamScenario.tazTreeMap.getTAZ(destCoord)
-            (origGeo.tazId.toString, destGeo.tazId.toString)
-        }
-      }
+    val geoMap = beamScenario.tazTreeMap
+    val (origin, destination) = if (geoMap.tazListContainsGeoms) {
+      val origGeo = getTazFromActivity(originActivity, geoMap).toString
+      val destGeo = getTazFromActivity(destinationActivity, geoMap).toString
+      (origGeo, destGeo)
+    } else {
+      (
+        geoMap.getTAZ(originActivity.getCoord).toString,
+        geoMap.getTAZ(destinationActivity.getCoord).toString
+      )
+    }
 
     ODSkimmerFailedTripEvent(
       origin = origin,
@@ -1508,13 +1516,15 @@ trait ChoosesMode {
   }
 
   private def createFailedActivitySimSkimmerEvent(
-    failedODSkimmerEvent: ODSkimmerFailedTripEvent,
+    currentAct: Activity,
+    nextAct: Activity,
     modes: Seq[ActivitySimPathType]
   ): Seq[ActivitySimSkimmerFailedTripEvent] = {
+    val (origin, destination) = getOriginAndDestinationFromGeoMap(currentAct, Some(nextAct))
     modes.map { pathType =>
       ActivitySimSkimmerFailedTripEvent(
-        origin = failedODSkimmerEvent.origin,
-        destination = failedODSkimmerEvent.destination,
+        origin = origin,
+        destination = destination,
         eventTime = _currentTick.get,
         activitySimPathType = pathType,
         iterationNumber = beamServices.matsimServices.getIterationNumber,
@@ -1540,7 +1550,8 @@ trait ChoosesMode {
   when(FinishingModeChoice, stateTimeout = Duration.Zero) { case Event(StateTimeout, data: ChoosesModeData) =>
     val pendingTrip = data.pendingChosenTrip.get
     val (tick, triggerId) = releaseTickAndTriggerId()
-    val chosenTrip = makeFinalCorrections(pendingTrip, tick, currentActivity(data.personData).getEndTime)
+    val chosenTrip =
+      makeFinalCorrections(pendingTrip, tick, currentActivity(data.personData).getEndTime.orElse(beam.UNDEFINED_TIME))
 
     // Write start and end links of chosen route into Activities.
     // We don't check yet whether the incoming and outgoing routes agree on the link an Activity is on.
@@ -1584,9 +1595,12 @@ trait ChoosesMode {
         )
     }
 
-    val tripId = Option(
-      _experiencedBeamPlan.activities(data.personData.currentActivityIndex).getAttributes.getAttribute("trip_id")
-    ).getOrElse("").toString
+    val tripId: String = _experiencedBeamPlan.trips
+      .lift(data.personData.currentActivityIndex + 1) match {
+      case Some(trip) =>
+        trip.leg.map(l => Option(l.getAttributes.getAttribute("trip_id")).getOrElse("").toString).getOrElse("")
+      case None => ""
+    }
 
     val modeChoiceEvent = new ModeChoiceEvent(
       tick,
@@ -1833,10 +1847,6 @@ object ChoosesMode {
   case class CavTripLegsResponse(cavOpt: Option[BeamVehicle], legs: List[EmbodiedBeamLeg])
 
   def getActivityEndTime(activity: Activity, beamServices: BeamServices): Int = {
-    (if (activity.getEndTime.equals(Double.NegativeInfinity))
-       Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime)
-     else
-       activity.getEndTime).toInt
+    activity.getEndTime.orElseGet(() => Time.parseTime(beamServices.beamConfig.matsim.modules.qsim.endTime)).toInt
   }
-
 }
