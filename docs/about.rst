@@ -153,8 +153,9 @@ For example, a virtual TNC in BEAM responds to customer inquiries by reporting t
 
 Rich Modal Choice
 -----------------
-BEAM’s mode choice model is structured so that agents select modal strategies (e.g. “car” versus “walk to transit” versus “ride hail”) for each tour prior to the simulation day, but resolve the outcome of these strategies within the day (e.g. route selection, standard ride hail versus pooled, etc.).  BEAM currently supports a simple multinomial logit choice model and a more advanced model is under development and will be fully supported by Spring 2018. 
+BEAM’s mode choice model is structured so that agents select modal strategies (e.g. “car” versus “walk to transit” versus “ride hail”) for each tour prior to the simulation day, but resolve the outcome of these strategies within the day (e.g. route selection, standard ride hail versus pooled, etc.). More details can be found in `this report`_.
 
+.. _this report: https://transportation.lbl.gov/publications/modeling-framework-behavior-energy
 
 Plug-in Electric Vehicle Modeling with BEAM
 -------------------------------------------
@@ -176,11 +177,11 @@ Contact Information
 -------------------
 Primary Technical Contacts: 
 
-Colin Sheppard
-colin.sheppard@lbl.gov
+Zachary Needell
+zaneedell@lbl.gov
 
-Rashid Waraich
-rwaraich@lbl.gov
+Haitam Laarabi
+haitam.laarabi@lbl.gov
 
 References
 ----------
