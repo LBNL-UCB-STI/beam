@@ -8,7 +8,7 @@ fi
 print_help() {
   echo ""
   echo "First argument provided will be used as a command, the rest arguments will be used as parameters for the command."
-  echo "Available commands: 'bash' 'ssh' 'help'."
+  echo "Available commands: 'bash' 'ssh' or 'pilates'."
   echo ""
 }
 
@@ -23,7 +23,7 @@ add_to_root_bashrc() {
 }
 
 prepare_pilates() {
-  echo "preparing container to run pilates..."
+  echo "Preparing container to run pilates..."
 
   if [ -z "$PILATES_FOLDER" ]; then PILATES_FOLDER="/app/pilates"; fi
   if [ -z "$SHARED_FOLDER" ]; then SHARED_FOLDER="/app/shared"; fi
@@ -42,10 +42,32 @@ prepare_pilates() {
   micromamba shell init --shell bash --root-prefix=/opt/conda
   sudo service docker start
   echo "Docker started"
+  echo "Container is ready to run PILATES"
 }
 
-run_pilates_async() {
-  echo "running pilates..."
+run_sshd() {
+  if [ -n "$PREPARE_PILATES" ]; then
+    prepare_pilates
+  fi
+
+  echo "starting SSHD ..."
+  /usr/sbin/sshd -D
+  echo "SSHD started"
+}
+
+sleep_for() {
+  echo "sleeping for $1"
+  sleep "$1"
+}
+
+run_pilates() {
+  echo "starting SSHD ..."
+  /usr/sbin/sshd -D &
+  echo "SSHD started in background"
+
+  prepare_pilates
+
+  echo "Preparing to run pilates ..."
 
   cd $PILATES_FOLDER || echo "Pilates folder ($PILATES_FOLDER) is not available!"
 
@@ -53,29 +75,23 @@ run_pilates_async() {
   echo "Files available: $(ls -lah)"
 
   echo "Running pilates: 'python3 run.py'"
-  python3 run.py 2>&1 | tee -a "pilates_execution_$(date +'%Y%m%d_%H%M%S').log" &
-}
+  python3 run.py 2>&1 | tee -a "pilates_execution_$(date +'%Y%m%d_%H%M%S').log"
 
-run_sshd() {
-  /usr/sbin/sshd -D
+  if [ -n "$SLEEP_TIMEOUT_AFTER_PILATES" ]; then
+    sleep_for "$SLEEP_TIMEOUT_AFTER_PILATES"
+  else
+    sleep_for "30m"
+  fi
 }
 
 echo "starting .. "
 printenv >>/root/all_env.txt
 add_to_root_profile "clear"
 
-if [ -n "$RUN_PILATES" ] || [ -n "$PREPARE_PILATES" ]; then
-  prepare_pilates
-fi
-
-if [ -n "$RUN_PILATES" ]; then
-  run_pilates_async
-fi
-
 case "$command" in
 "sh" | "bash" | "/bin/bash" | "/bash") /bin/bash "${@:2}" ;;
+"pilates") run_pilates ;;
 "ssh") run_sshd ;;
-"help" | "?") print_help ;;
 *) print_help ;;
 esac
 
