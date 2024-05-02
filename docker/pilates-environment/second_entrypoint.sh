@@ -8,7 +8,7 @@ fi
 print_help() {
   echo ""
   echo "First argument provided will be used as a command, the rest arguments will be used as parameters for the command."
-  echo "Available commands: 'bash' 'ssh' or 'pilates'."
+  echo "Available commands: 'bash' 'ssh', 'run_shell_script' or 'pilates'."
   echo ""
 }
 
@@ -38,10 +38,14 @@ prepare_pilates() {
   add_to_root_profile "echo \"Shared folder is mounted to \$SHARED (path is stored in SHARED environment variable)\"; echo \"\""
   add_to_root_profile "echo \"In order to stop this container you could do 'docker ps' and then use 'docker stop <ID>' with id of this container.\""
   add_to_root_profile "echo \"Otherwise you could stop or cancel the job.\"; echo \"\""
+  add_to_root_profile "echo \"If this container is prepared to run PILATES manually then in order to prepare the output folder\""
+  add_to_root_profile "echo \"one could run '/usr/local/bin/prepare_pilates_output.sh' from inside PILATES folder.\"; echo \"\""
 
   micromamba shell init --shell bash --root-prefix=/opt/conda
   sudo service docker start
   echo "Docker started"
+
+  cd $PILATES_FOLDER || echo "Pilates folder ($PILATES_FOLDER) is not available!"
   echo "Container is ready to run PILATES"
 }
 
@@ -75,7 +79,11 @@ run_pilates() {
   echo "Files available: $(ls -lah)"
 
   echo "Running pilates: 'python3 run.py'"
-  python3 run.py 2>&1 | tee -a "pilates_execution_$(date +'%Y%m%d_%H%M%S').log"
+  python3 run.py 2>&1 | tee -a "log_pilates_$(date +'%Y%m%d_%H%M%S').out"
+
+  echo "Preparing output folder"
+  /usr/local/bin/prepare_pilates_output.sh
+  echo "Done"
 
   if [ -n "$SLEEP_TIMEOUT_AFTER_PILATES" ]; then
     sleep_for "$SLEEP_TIMEOUT_AFTER_PILATES"
@@ -84,16 +92,44 @@ run_pilates() {
   fi
 }
 
+run_bash() {
+  set -x
+  if [ -n "$*" ]; then
+    /bin/bash -c "$*"
+  else
+    /bin/bash
+  fi
+  set +x
+}
+
+run_shell_script() {
+  if [ -z "$1" ]; then
+    echo "An argument with path to shell script should be provided!"
+  else
+    if [ -n "$SHELL_SCRIPT_HOME" ]; then
+      cd "$SHELL_SCRIPT_HOME" || echo "The path '$SHELL_SCRIPT_HOME' is not available."
+    elif [ -n "$PILATES_FOLDER" ]; then
+      cd "$PILATES_FOLDER" || echo "The path '$PILATES_FOLDER' is not available."
+    else
+      echo "Not PILATES_FOLDER nor SHELL_SCRIPT_HOME environment variables are set, using default location."
+    fi
+    echo "Executing '$1' from '$(pwd)' ..."
+    # shellcheck disable=SC1090
+    source "$1"
+  fi
+}
+
 echo "starting .. "
 printenv >>/root/all_env.txt
 add_to_root_profile "clear"
 
 case "$command" in
-"sh" | "bash" | "/bin/bash" | "/bash") /bin/bash "${@:2}" ;;
+"sh" | "bash" | "/bin/bash" | "/bash") run_bash "${@:2}" ;;
+"run_shell_script") run_shell_script "$2" ;;
 "pilates") run_pilates ;;
 "ssh") run_sshd ;;
 *) print_help ;;
 esac
 
-echo "Completed at $(date "+%Y-%m-%d-%H:%M:%S")"
+echo "Completed command '$command' at $(date "+%Y-%m-%d-%H:%M:%S")"
 echo ""
