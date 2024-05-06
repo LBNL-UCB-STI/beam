@@ -4,6 +4,12 @@
 #### Ride-hail features
 - DemandFollowingRepositionig: Reposition to the random activity's location.
 - Inverse square demand following repositioning.
+- Ride Hail transit using pooled legs.
+- Multiple rid-hail managers.
+- Pickups and dropoffs affect link travel time.
+- Additional parameters for links.
+- Restrict road access by free speed.
+- Google Map API integration.
 - Wheelchair accessible ride-hail vehicles.
 - Ride-Hail CAVs charging.
 - Introduced ride-hail stops.
@@ -37,83 +43,86 @@
 - Freight origin-destination skims.
 - Vehicle energy rate based on the weight of the truck + payload.
 
-#### Other features
+#### Physsim
 - Possibility to write PhysSim events to CSV.
-- Generate secondary activities.
-- Added various graphs/statistics.
-- Mode BIKE_TRANSIT is added.
-- Google Map API integration.
-- New PhysSim mode: BPR.
-- A tool to get a shape file out of stops coordinates from GTFS archive.
-- Simulating preference to the transit routes with lower crowdedness.
-- Special treatment of bike lanes.
-- Remove activities/persons for certain industries.
-- Performance: Parallel Event Manager in PhysSim.
-- Pickups and dropoffs affect link travel time.
-- Output analysis with python scripts.
 - PhysSim XML to OSM converter.
-- Shared vehicles on route egress.
-- Charging compatibility is taken into consideration.
+- New PhysSim mode: BPR.
+- Performance: Parallel Event Manager in PhysSim.
 - Added option to convert PhysSim network to PBF directly.
+- Artificial increasing of traffic flow for better PhysSim.
+- Allow choosing an event manager for PhysSim.
+#### Scripts / Postprocessing:
+- Introduced Jupyter notebooks in Beam source code.
+- Jupyter notebook for map analysis of osm.pbf and PhysSim network.
+- Jupyter notebook for linkstats and network.csv files analysis.
+- Jupyter notebook to adjust GTFS time and timezone and to downsample scenarios based on a shape file.
+- Output analysis with python scripts.
+- A script for filtering points from shapefile.
+- Beam Health Analysis script.
+- Frequency converter utility
+- Introduced a possibility to execute a Jupyter server along with Beam.
+- Added various graphs/statistics.
+- A tool to get a shape file out of stops coordinates from GTFS archive.
 - Matsim network to shape file converter.
 - Travel time & distance calculator app.
-- Allow to merge the urbansim input plans with the last BEAM run output plans.
-- HOV2 and HOV3 modes from activitysim plans.
-- Generate skims for provided origin-destination pairs and modes.
-- Micromobility modeling.
-- Urbansim mode mapping from config.
-- Producing activitysim skims at runtime.
-- A script for filtering points from shapefile.
-- Shared bike repositioning.
-- Artificial increasing of traffic flow for better PhysSim.
 - Util to compare values of two config files.
-- Allow choosing an event manager for PhysSim.
-- Beam Health Analysis script.
-- Input Consistency Check.
-- Get leg mode directly from Urbansim plans.
-- In-simulation charging scale up.
-- Additional parameters for links.
-- Initial State of Charge for beam vehicles.
-- Train station car usage.
-- Include urbansim trip_id as an attribute in beam plans.
-- Fixed activity duration based on the activity name.
-- Health metrics analysis in beam output directory.
-- En-route charging.
-- Documentation improvements.
-- Keep track of wait times in skims.
-- Create household cars from Vehicle types.
+- Utility to create TAZ geofences out of shapefiles.
+- Possibility to read a shape file as TAZ file.
+#### Modes
+- Mode BIKE_TRANSIT is added.
+- Special treatment of bike lanes.
+- Simulating preference to the transit routes with lower crowdedness.
+- Shared vehicles on route egress.
+- HOV2 and HOV3 modes from activitysim plans.
+- Shared bike repositioning.
 - Include intercepts in mode utilities.
-- Beam internal message logging.
-- Force vehicle creation when plans require it.
-- Create and store a network route for a personal plan if it is empty.
-- Improved simulation got stuck detection.
-- Storing the scheduler state in case of Beam exists with an error.
-- Create separate plans based on planIndex and set "selected" only (valid) one of them.
+- Train station car usage.
+- Micromobility modeling.
+- Add buffer time for access to transit.
+- Allow emergency vehicles for HOV modes.
+- Create household cars from Vehicle types.
+- Added trip id to transitVehicleTypesByRoute File.
+#### Skims
+- Generate skims for provided origin-destination pairs and modes.
+- Producing activitysim skims at runtime.
+- Keep track of wait times in skims.
 - More skimmer events.
-- Introduced a possibility to execute a Jupyter server along with Beam.
 - Use TAZ geometries for skim origin/destination.
 - Throw skimmer events for non-chosen itineraries.
 - Use non-generalized times and costs in asim skimmer.
-- Add buffer time for access to transit.
-- Co-simulation of power providing/consuming with HELICS lib.
-- Multiple rid-hail managers.
-- Frequency converter app.
-- Removes deprecated parameters from configurations.
-- Configurable timeout for urbansim scenario loading.
-- Added trip id to transitVehicleTypesByRoute File.
-- Deployment spreadsheet improvements.
-- Introduced Jupyter notebooks in Beam source code.
-- Utility to create TAZ geofences out of shapefiles.
-- Add a possibility to automatically run Beam on Google Compute Engine.
-- Restrict road access by free speed.
 - Activitysim skims in omx format.
+#### Electric Vehicles
+- Charging compatibility is taken into consideration.
+- Co-simulation of power providing/consuming with HELICS lib.
+- In-simulation charging scale up.
+- Initial State of Charge for beam vehicles.
+- En-route charging.
+#### Refactoring
+- Removes deprecated parameters from configurations.
+- Documentation improvements.
+- Input Consistency Check.
+#### Activities / Plans
+- Generate secondary activities.
+- Remove activities/persons for certain industries.
+- Allow to merge the urbansim input plans with the last BEAM run output plans.
+- Fixed activity duration based on the activity name.
+- Create separate plans based on planIndex and set "selected" only (valid) one of them.
+- Create and store a network route for a personal plan if it is empty.
+- Force vehicle creation when plans require it.
+#### Debugging / Logging
+- Improved simulation got stuck detection.
+- Storing the scheduler state in case of Beam exists with an error.
+- Beam internal message logging.
+- Health metrics analysis in beam output directory.
+#### UrbanSim
+- Urbansim mode mapping from config.
+- Include urbansim trip_id as an attribute in beam plans.
+- Get leg mode directly from Urbansim plans.
+- Configurable timeout for urbansim scenario loading.
+#### Deployment
 - Add a possibility to automatically run Beam on Lawrencium HPC.
-- Jupyter notebook for map analysis of osm.pbf and PhysSim network.
-- Jupyter notebook for linkstats and network.csv files analysis.
-- Possibility to read a shape file as TAZ file.
-- Jupyter notebook to adjust GTFS time and timezone and to downsample scenarios based on a shape file.
-- Allow emergency vehicles for HOV modes.
-- Ride Hail transit using pooled legs.
+- Add a possibility to automatically run Beam on Google Compute Engine.
+- Deployment spreadsheet improvements.
 
 ### Bug fixes
 - Make BeamVehicle thread safe.
