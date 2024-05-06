@@ -5,7 +5,7 @@ As an alternative you could use a prepared beam `docker <https://www.docker.com/
 In order to be able to modify scenario config files we need to export the scenario directory to the host file system.
 To do it execute the following commands in an empty directory::
 
-    docker create --name tmp_beam beammodel/beam:0.8.6.14
+    docker create --name tmp_beam beammodel/beam:0.9.12
     docker cp tmp_beam:/app/test ./
 
 Urbansim SF-light Scenario
@@ -20,7 +20,7 @@ directory name that includes datetime would be different.
 
 In case you are using docker you need to run the following command::
 
-    docker run --rm -v ./output:/app/output -v ./test:/app/test -e JAVA_OPTS='-Xmx10g' beammodel/beam:0.8.6.14 --config test/input/sf-light/sf-light-urbansim-5k-hh.conf
+    docker run --rm -v ./output:/app/output -v ./test:/app/test -e JAVA_OPTS='-Xmx10g' beammodel/beam:0.9.12 --config test/input/sf-light/sf-light-urbansim-5k-hh.conf
 
 
 Urbansim SF-light Scenario with mode choice in Beam

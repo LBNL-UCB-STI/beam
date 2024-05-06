@@ -229,7 +229,7 @@ BEAM in Docker image
 If you need a beam image of a specific version of BEAM then you can build it from the source code. There is a gradle
 command to build a new BEAM Docker image.::
 
-    ./gradlew -Ptag=beammodel/beam:0.9.0 buildImage
+    ./gradlew -Ptag=beammodel/beam:0.9.12 buildImage
 
 If you skip this step docker will download the BEAM image from docker hub.
 
@@ -242,7 +242,7 @@ For example here is a shell script which might be used to run the docker image. 
     #!/bin/bash
 
     config=$1
-    beam_image="beammodel/beam:0.9.0"
+    beam_image="beammodel/beam:0.9.12"
     input_folder_name="test"
     output_folder_name="beam_output"
     mkdir -m 777 $output_folder_name 2>/dev/null
