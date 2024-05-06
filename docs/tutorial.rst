@@ -15,7 +15,8 @@ the following command in the beam root directory::
 
   ./gradlew :run -PmaxRAM=10g -PappArgs="['--config', 'test/input/sf-light/sf-light-urbansim-5k-hh.conf']"
 
-The output resides in a directory like *output/sf-light/urbansim-hh5k__2023-12-25_16-55-30_rhs*. The last part of
+The execution of this scenario usually takes about 5 minutes depending on your equipment.
+The simulation output can be found in a directory like *./output/sf-light/urbansim-hh5k__2024-06-25_16-55-30_rhs*. The last part of
 directory name that includes datetime would be different.
 
 In case you are using docker you need to run the following command::
@@ -50,7 +51,8 @@ By changing parameter *initialization.procedural.fractionOfInitialVehicleFleet* 
 ride-hail vehicles. The number of ride-hail vehicles calculated by multiplying this parameter value and total number of
 household vehicles.
 If you set it to 0.01 then you can see multiple Replanning events with the reason "ResourceUnavailable RIDE_HAIL".
-Which indicates that there's not enough ride-hail vehicles.
+Which indicates that there's not enough ride-hail vehicles. The event file is available after the simulation finishes.
+Its location is *./output/sf-light/urbansim-hh5k_TIMESTAMP/ITERS/it.0/0.events.csv.gz*.
 
 
 Simulation Result Analysis
