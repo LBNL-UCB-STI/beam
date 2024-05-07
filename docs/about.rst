@@ -186,7 +186,9 @@ haitam.laarabi@lbl.gov
 References
 ----------
 
-1.	Horni, A., Nagel, K. and Axhausen, K.W. (eds.) 2016 `The Multi-Agent Transport Simulation MATSim`_. London: Ubiquity Press. DOI: http://dx.doi.org/10.5334/baw. License: CC-BY 4.0.
-2.	Wen, Y., MacKenzie, D. & Keith, D. Modeling the Charging Choices of Battery Electric Vehicle Drivers Using Stated Preference Data. TRB Proc. Pap. No 16-5618
+#.  Laarabi, Haitam, Zachary Needell, Rashid Waraich, Cristian Poliziani, Thomas P. Wenzel 2024 `A Modeling Framework for Behavior, Energy, Autonomy and Mobility`_.
+#.	Horni, A., Nagel, K. and Axhausen, K.W. (eds.) 2016 `The Multi-Agent Transport Simulation MATSim`_. London: Ubiquity Press. DOI: http://dx.doi.org/10.5334/baw. License: CC-BY 4.0.
+#.	Wen, Y., MacKenzie, D. & Keith, D. Modeling the Charging Choices of Battery Electric Vehicle Drivers Using Stated Preference Data. TRB Proc. Pap. No 16-5618.
 
 .. _The Multi-Agent Transport Simulation MATSim: http://www.matsim.org/the-book
+.. _A Modeling Framework for Behavior, Energy, Autonomy and Mobility: https://transportation.lbl.gov/publications/modeling-framework-behavior-energy

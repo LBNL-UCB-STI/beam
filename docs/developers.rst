@@ -493,12 +493,12 @@ Build BEAM docker image
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 To build Beam docker image run (in the root of Beam project)::
 
-    $ ./gradlew -Ptag=beammodel/beam:0.9.0 buildImage
+    $ ./gradlew -Ptag=beammodel/beam:0.9.12 buildImage
 
 Once you have the image you can run Beam in Docker. Here is an example how to run test/input/beamville/beam.conf scenario on Windows OS::
 
    $ docker run -v c:/repos/beam/output:/app/output -e JAVA_OPTS='-Xmx12g' \
-      beammodel/beam:0.9.0 --config test/input/beamville/beam.conf
+      beammodel/beam:0.9.12 --config test/input/beamville/beam.conf
 
 Docker run command mounts host folder c:/repos/beam/output to be /app/output which allows to see the output of the Beam run. It also passes environment variable e JAVA_OPTS to the container in order to set maximum heap size for Java application.
 
