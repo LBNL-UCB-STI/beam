@@ -3,7 +3,7 @@ from pathlib import Path
 from validation_utils import *
 
 # beam run i.e. link stats and events file
-run_dir = os.path.expanduser("~/Workspace/Data/FREIGHT/seattle/beam/runs/2024-04-11/Baseline")
+run_dir = os.path.expanduser("~/Workspace/Data/FREIGHT/seattle/beam/runs/2024-04-20/Baseline")
 link_stats = [LinkStats(scenario="BEAM", demand_fraction=0.3, file_path=run_dir + "/0.linkstats.csv.gz")]
 
 # validation data

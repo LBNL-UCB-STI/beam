@@ -3,7 +3,7 @@ import os
 import sys
 
 city = "seattle"
-scenario = "2024-04-11"
+scenario = "2024-04-23"
 iteration = 0
 prefix = ""
 filename = prefix+str(iteration)+'.events.csv.gz'
