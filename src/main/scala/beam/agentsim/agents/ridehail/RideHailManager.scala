@@ -1672,7 +1672,7 @@ class RideHailManager(
       } else {
         rideHailResourceAllocationManager.addRequestToBuffer(request)
       }
-      request.requester ! DelayedRideHailResponse
+      request.requester ! DelayedRideHailResponse(triggerId)
     } else {
       if (currentlyProcessingTimeoutTrigger.isEmpty) {
         // We always use the request buffer even if we will process these requests immediately

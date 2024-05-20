@@ -361,7 +361,7 @@ class RideHailAgentSpec
       expectMsgType[PathTraversalEvent]
       expectMsgType[VehicleEntersTrafficEvent]
 
-      trigger = expectMsgPF() { case t @ TriggerWithId(BoardVehicleTrigger(38800, _), _) =>
+      trigger = expectMsgPF() { case t @ TriggerWithId(BoardVehicleTrigger(38800, _, _), _) =>
         t
       }
       scheduler ! CompletionNotice(trigger.triggerId)
@@ -382,7 +382,7 @@ class RideHailAgentSpec
       expectMsgType[PathTraversalEvent]
       val notifyVehicleIdle = expectMsgType[NotifyVehicleIdle]
       rideHailAgent ! NotifyVehicleResourceIdleReply(notifyVehicleIdle.triggerId)
-      trigger = expectMsgPF() { case t @ TriggerWithId(AlightVehicleTrigger(48800, _, _), _) =>
+      trigger = expectMsgPF() { case t @ TriggerWithId(AlightVehicleTrigger(48800, _, _, _), _) =>
         t
       }
       scheduler ! CompletionNotice(trigger.triggerId)

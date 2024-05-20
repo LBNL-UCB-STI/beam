@@ -1,7 +1,7 @@
 package beam.agentsim.agents.freight.input
 
 import beam.agentsim.agents.freight._
-import beam.agentsim.agents.freight.input.FreightReader.FREIGHT_ID_PREFIX
+import beam.agentsim.agents.freight.input.FreightReader.{FREIGHT_ID_PREFIX, NO_CARRIER_ID, NO_VEHICLE_ID}
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.common.GeoUtils
@@ -235,8 +235,14 @@ class GenericFreightReader(
     def createCarrier(carrierId: Id[FreightCarrier], carrierRows: IndexedSeq[FreightCarrierRow]) = {
       val warehouseLocationUTM: Coord = carrierRows.head.warehouseLocationUTM
       val warehouseLocationZone: Option[Id[TAZ]] = carrierRows.head.warehouseLocationZone
-      val vehicles: scala.IndexedSeq[BeamVehicle] = createCarrierVehicles(carrierId, carrierRows, warehouseLocationUTM)
-      val vehicleMap: Map[Id[BeamVehicle], BeamVehicle] = vehicles.map(vehicle => vehicle.id -> vehicle).toMap
+      val vehicleMap: Map[Id[BeamVehicle], BeamVehicle] =
+        if (carrierId == NO_CARRIER_ID)
+          Map.empty
+        else {
+          val vehicles: scala.IndexedSeq[BeamVehicle] =
+            createCarrierVehicles(carrierId, carrierRows, warehouseLocationUTM)
+          vehicles.map(vehicle => vehicle.id -> vehicle).toMap
+        }
 
       val tourMap: Map[Id[BeamVehicle], IndexedSeq[FreightTour]] = carrierRows
         .groupBy(_.vehicleId)
@@ -271,11 +277,17 @@ class GenericFreightReader(
 
     val maybeCarrierRows = GenericCsvReader.readAsSeq[Option[FreightCarrierRow]](config.carriersFilePath) { row =>
       def get(key: String): String = getRowValue(config.carriersFilePath, row, key)
+
       //carrierId,tourId,vehicleId,vehicleTypeId,warehouseZone,warehouseX,warehouseY
-      val carrierId: Id[FreightCarrier] = s"${FREIGHT_ID_PREFIX}Carrier-${get("carrierId")}".createId
+      val vehicleIdStr = get("vehicleId")
+      val isGoodsCarrier = vehicleIdStr == null || vehicleIdStr.isBlank
+      val carrierId: Id[FreightCarrier] =
+        if (isGoodsCarrier) NO_CARRIER_ID
+        else s"${FREIGHT_ID_PREFIX}Carrier-${get("carrierId")}".createId[FreightCarrier]
       val tourId: Id[FreightTour] = get("tourId").createId
-      val vehicleId: Id[BeamVehicle] = Id.createVehicleId(s"${FREIGHT_ID_PREFIX}Vehicle-${get("vehicleId")}")
-      val vehicleTypeId: Id[BeamVehicleType] = get("vehicleTypeId").createId
+      val vehicleId: Id[BeamVehicle] =
+        if (isGoodsCarrier) NO_VEHICLE_ID else Id.createVehicleId(s"${FREIGHT_ID_PREFIX}Vehicle-$vehicleIdStr")
+      val vehicleTypeId: Id[BeamVehicleType] = if (isGoodsCarrier) "no-type".createId else get("vehicleTypeId").createId
       if (!existingAllTours.contains(tourId)) {
         logger.error(f"Following freight carrier row discarded because tour $tourId was filtered out: $row")
         None

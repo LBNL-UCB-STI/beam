@@ -7,7 +7,7 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.freight.FreightReplanner
 import beam.agentsim.agents.freight.input.FreightReader
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
+import beam.agentsim.agents.goods.GoodsDeliveryManager
 import beam.agentsim.agents.ridehail.{
   RideHailIterationHistory,
   RideHailManager,
@@ -567,6 +567,20 @@ class BeamMobsimIteration(
   context.watch(population)
   scheduler ! ScheduleTrigger(InitializeTrigger(0), population)
 
+  private val goodsDeliveryManager = context.actorOf(
+    GoodsDeliveryManager.props(
+      beamScenario,
+      beamServices,
+      scheduler,
+      rideHailManager,
+      matsimServices.getEvents
+    ),
+    "goods-delivery"
+  )
+
+  context.watch(goodsDeliveryManager)
+  scheduler ! ScheduleTrigger(InitializeTrigger(0), goodsDeliveryManager)
+
   //to monitor with TAZSkimmer add actor hereinafter
   private val tazSkimmer = context.actorOf(
     TAZSkimsCollector.props(scheduler, beamServices, rideHailManager +: sharedVehicleFleets),
@@ -602,6 +616,7 @@ class BeamMobsimIteration(
       stopMeasuring("agentsim-events:agentsim")
 
       population ! Finish
+      goodsDeliveryManager ! Finish
       rideHailManager ! Finish
       transitSystem ! Finish
       tazSkimmer ! Finish
