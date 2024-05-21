@@ -4,6 +4,7 @@ import akka.actor.{ActorLogging, ActorRef, Props}
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
+import beam.agentsim.agents.freight.input.FreightReader.NO_CARRIER_ID
 import beam.agentsim.agents.freight.{FreightRequestType, PayloadPlan}
 import beam.agentsim.agents.goods.GoodsDeliveryManager.{GOODS_PREFIX, GoodsDeliveryTrigger}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
@@ -20,6 +21,7 @@ import beam.router.Modes.BeamMode
 import beam.router.model.BeamLeg
 import beam.router.skim.event.{RideHailSkimmerEvent, UnmatchedRideHailRequestSkimmerEvent}
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.MathUtils
 import beam.utils.MeasureUnitConversion.METERS_IN_MILE
 import beam.utils.logging.LoggingMessageActor
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
@@ -30,6 +32,7 @@ import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 
 import java.util.concurrent.TimeUnit
+import scala.util.Random
 
 private class GoodsDeliveryManager(
   val beamScenario: BeamScenario,
@@ -40,15 +43,22 @@ private class GoodsDeliveryManager(
 ) extends LoggingMessageActor
     with ActorLogging {
 
+  private val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+
+  private val goodsRhmNames: IndexedSeq[String] =
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.collect {
+      case managerConfig if RideHailManager.getSupportedModes(managerConfig.supportedModes)._2 => managerConfig.name
+    }.toIndexedSeq
+
   override def loggedReceive: PartialFunction[Any, Unit] = { case TriggerWithId(InitializeTrigger(_), triggerId) =>
     implicit val _: Timeout = Timeout(120, TimeUnit.SECONDS)
-    for {
+    val triggers: IndexedSeq[ScheduleTrigger] = (for {
       carrier <- beamScenario.goodsCarriers
       tours   <- carrier.tourMap.values
       tour    <- tours
       plans = carrier.plansPerTour(tour.tourId)
-    } {
-      val (pickups, destinations) = plans.span(plan => plan.requestType == FreightRequestType.Loading)
+    } yield {
+      val (pickups, destinations) = plans.partition(plan => plan.requestType == FreightRequestType.Loading)
       if (pickups.size != 1)
         throw new IllegalArgumentException(
           s"Number of loading types must be one. ${tour.tourId} has ${pickups.size} ones. "
@@ -57,21 +67,26 @@ private class GoodsDeliveryManager(
         throw new IllegalArgumentException(
           s"A Tour must have at least one unloading. ${tour.tourId} has no unloading. "
         )
+      val rhmName: Option[String] = if (carrier.carrierId == NO_CARRIER_ID) None else Some(carrier.carrierId.toString)
       val pickup = pickups.head
       val requestTime = pickup.estimatedTimeOfArrivalInSec - 200
-      destinations.foreach(destination =>
-        scheduler ! ScheduleTrigger(GoodsDeliveryTrigger(requestTime, pickup, destination), self)
+      destinations.map(destination =>
+        ScheduleTrigger(GoodsDeliveryTrigger(requestTime, rhmName, pickup, destination), self)
       )
+    }).flatten
+    if (triggers.nonEmpty && goodsRhmNames.isEmpty) {
+      throw new IllegalArgumentException("No ride-hail managers that operates with goods")
     }
+    triggers.foreach(scheduler ! _)
     scheduler ! CompletionNotice(triggerId)
     contextBecome(operate(Map.empty))
   }
 
   private def operate(goodsData: Map[Id[Person], Id[Link]]): Receive = {
-    case TriggerWithId(GoodsDeliveryTrigger(currentTick, pickup, destination), triggerId) =>
+    case TriggerWithId(GoodsDeliveryTrigger(currentTick, rhmName, pickup, destination), triggerId) =>
       val virtualPersonId = (GOODS_PREFIX + destination.payloadId.toString).createId[Person]
       rideHailManager ! RideHailRequest(
-        ReserveRide("GlobalRHM"),
+        ReserveRide(rhmName.getOrElse(MathUtils.selectRandomElement(goodsRhmNames, rand))),
         PersonIdWithActorRef(virtualPersonId, self),
         pickup.locationUTM,
         pickup.estimatedTimeOfArrivalInSec,
@@ -237,7 +252,12 @@ private class GoodsDeliveryManager(
 object GoodsDeliveryManager {
   val GOODS_PREFIX = "goods-"
 
-  case class GoodsDeliveryTrigger(tick: Int, pickup: PayloadPlan, destinations: PayloadPlan) extends Trigger
+  case class GoodsDeliveryTrigger(
+    tick: Int,
+    rideHailManagerName: Option[String],
+    pickup: PayloadPlan,
+    destination: PayloadPlan
+  ) extends Trigger
 
   def props(
     beamScenario: BeamScenario,

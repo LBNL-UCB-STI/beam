@@ -213,6 +213,7 @@ class GenericFreightReader(
       warehouseLocationUTM: Coord
     ): IndexedSeq[BeamVehicle] = {
       val vehicles: IndexedSeq[BeamVehicle] = carrierRows
+        .filterNot(_.vehicleId == NO_VEHICLE_ID)
         .groupBy(_.vehicleId)
         .map { case (vehicleId, rows) =>
           val firstRow = rows.head
@@ -235,14 +236,10 @@ class GenericFreightReader(
     def createCarrier(carrierId: Id[FreightCarrier], carrierRows: IndexedSeq[FreightCarrierRow]) = {
       val warehouseLocationUTM: Coord = carrierRows.head.warehouseLocationUTM
       val warehouseLocationZone: Option[Id[TAZ]] = carrierRows.head.warehouseLocationZone
-      val vehicleMap: Map[Id[BeamVehicle], BeamVehicle] =
-        if (carrierId == NO_CARRIER_ID)
-          Map.empty
-        else {
-          val vehicles: scala.IndexedSeq[BeamVehicle] =
-            createCarrierVehicles(carrierId, carrierRows, warehouseLocationUTM)
-          vehicles.map(vehicle => vehicle.id -> vehicle).toMap
-        }
+      val vehicleMap: Map[Id[BeamVehicle], BeamVehicle] = {
+        val vehicles: IndexedSeq[BeamVehicle] = createCarrierVehicles(carrierId, carrierRows, warehouseLocationUTM)
+        vehicles.map(vehicle => vehicle.id -> vehicle).toMap
+      }
 
       val tourMap: Map[Id[BeamVehicle], IndexedSeq[FreightTour]] = carrierRows
         .groupBy(_.vehicleId)
@@ -281,9 +278,12 @@ class GenericFreightReader(
       //carrierId,tourId,vehicleId,vehicleTypeId,warehouseZone,warehouseX,warehouseY
       val vehicleIdStr = get("vehicleId")
       val isGoodsCarrier = vehicleIdStr == null || vehicleIdStr.isBlank
+      val carrierIdStr = get("carrierId")
       val carrierId: Id[FreightCarrier] =
-        if (isGoodsCarrier) NO_CARRIER_ID
-        else s"${FREIGHT_ID_PREFIX}Carrier-${get("carrierId")}".createId[FreightCarrier]
+        if (isGoodsCarrier)
+          if (carrierIdStr == null || carrierIdStr.isBlank) NO_CARRIER_ID
+          else carrierIdStr.createId
+        else s"${FREIGHT_ID_PREFIX}Carrier-$carrierIdStr".createId[FreightCarrier]
       val tourId: Id[FreightTour] = get("tourId").createId
       val vehicleId: Id[BeamVehicle] =
         if (isGoodsCarrier) NO_VEHICLE_ID else Id.createVehicleId(s"${FREIGHT_ID_PREFIX}Vehicle-$vehicleIdStr")
