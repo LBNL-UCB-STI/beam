@@ -14,6 +14,7 @@ import beam.agentsim.agents.modalbehaviors.{ChoosesMode, DrivesVehicle, ModeChoi
 import beam.agentsim.agents.parking.ChoosesParking
 import beam.agentsim.agents.parking.ChoosesParking.{ChoosingParkingSpot, ReleasingParkingSpot}
 import beam.agentsim.agents.planning.{BeamPlan, Tour}
+import beam.agentsim.agents.ridehail.RideHailLegType.Direct
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.UnknownInquiryIdError
@@ -1519,8 +1520,8 @@ class PersonAgent(
       withWheelchair = wheelchairUser,
       requestTime = currentTick,
       quotedWaitTime = Some(rideHailLeg.beamLeg.startTime - departureTime),
-      requester = self,
       rideHailServiceSubscription = attributes.rideHailServiceSubscription,
+      requester = self,
       triggerId = getCurrentTriggerIdOrGenerate
     )
 

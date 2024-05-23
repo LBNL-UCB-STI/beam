@@ -171,7 +171,7 @@ object Modes {
   def isChainBasedMode(beamMode: BeamMode): Boolean = BeamMode.chainBasedModes.contains(beamMode)
 
   def isRideHailTransit(beamMode: BeamMode): Boolean =
-    Seq(BeamMode.RIDE_HAIL_TRANSIT, BeamMode.RIDE_HAIL_TRANSIT).contains(beamMode)
+    Seq(BeamMode.RIDE_HAIL_TRANSIT, BeamMode.RIDE_HAIL_POOLED_TRANSIT).contains(beamMode)
 
   implicit def beamMode2R5Mode(beamMode: BeamMode): Either[LegMode, TransitModes] =
     beamMode.r5Mode.get

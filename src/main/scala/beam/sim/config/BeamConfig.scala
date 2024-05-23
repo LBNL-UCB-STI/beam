@@ -1500,7 +1500,7 @@ object BeamConfig {
                 stopFilePath = if (c.hasPathOrNull("stopFilePath")) Some(c.getString("stopFilePath")) else None,
                 supportedModes =
                   if (c.hasPathOrNull("supportedModes")) c.getString("supportedModes")
-                  else "ride_hail, ride_hail_pooled"
+                  else "ride_hail, ride_hail_pooled, ride_hail_transit, ride_hail_pooled_transit"
               )
             }
           }

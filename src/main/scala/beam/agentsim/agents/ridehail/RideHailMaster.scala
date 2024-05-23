@@ -4,6 +4,7 @@ import akka.actor.{ActorRef, Props, Terminated}
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
 import beam.agentsim.agents.choice.logit.{MultinomialLogit, UtilityFunctionOperation}
+import beam.agentsim.agents.ridehail.RideHailLegType._
 import beam.agentsim.agents.ridehail.RideHailManager.TravelProposal
 import beam.agentsim.agents.ridehail.RideHailMaster.RequestWithResponses
 import beam.agentsim.agents.vehicles.AccessErrorCodes.{
@@ -17,7 +18,8 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_POOLED}
+import beam.router.Modes.BeamMode
+import beam.router.Modes.BeamMode.{RIDE_HAIL, RIDE_HAIL_POOLED, RIDE_HAIL_POOLED_TRANSIT, RIDE_HAIL_TRANSIT}
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
 import beam.router.skim.event.{RideHailSkimmerEvent, UnmatchedRideHailRequestSkimmerEvent}
@@ -58,11 +60,25 @@ class RideHailMaster(
 ) extends LoggingMessageActor
     with LazyLogging {
 
+  private val managerToSupportedModes: Map[String, Set[BeamMode]] =
+    beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.map { managerConfig =>
+      val supportedModes: Set[BeamMode] = managerConfig.supportedModes
+        .split(',')
+        .map(_.trim.toLowerCase)
+        .flatMap(BeamMode.fromString)
+        .filter(_.isRideHail)
+        .toSet
+      if (supportedModes.isEmpty)
+        throw new IllegalArgumentException(s"Wrong supported modes: ${managerConfig.supportedModes}")
+      managerConfig.name -> supportedModes
+    }.toMap
+
   private val rideHailManagers: Map[String, ActorRef] =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.map { managerConfig =>
       val rideHailManagerId =
         VehicleManager.createOrGetReservedFor(managerConfig.name, VehicleManager.TypeEnum.RideHail).managerId
       val rideHailFleetInitializer = rideHailFleetInitializerProvider.get(managerConfig.name)
+
       managerConfig.name -> context.actorOf(
         Props(
           new RideHailManager(
@@ -83,7 +99,8 @@ class RideHailMaster(
             tncIterationStats,
             routeHistory,
             rideHailFleetInitializer,
-            managerConfig
+            managerConfig,
+            managerToSupportedModes(managerConfig.name)
           )
         ).withDispatcher("ride-hail-manager-pinned-dispatcher"),
         s"RideHailManager-${managerConfig.name}"
@@ -103,13 +120,18 @@ class RideHailMaster(
     case inquiry: RideHailRequest if !inquiry.shouldReserveRide =>
       inquiriesWithResponses.put(inquiry.requestId, RequestWithResponses(inquiry))
       val requestWithModifiedRequester = inquiry.copy(requester = self)
-      getCustomerRideHailManagers(inquiry.rideHailServiceSubscription).foreach(_ ! requestWithModifiedRequester)
+      getCustomerRideHailManagers(inquiry.rideHailServiceSubscription, inquiry.legType).foreach(
+        _ ! requestWithModifiedRequester
+      )
 
     case rideHailResponse: RideHailResponse if !rideHailResponse.request.shouldReserveRide =>
       val requestId = rideHailResponse.request.requestId
       val requestWithResponses: RequestWithResponses = inquiriesWithResponses(requestId)
       val newRequestWithResponses = requestWithResponses.addResponse(rideHailResponse)
-      val customerRHMs = getCustomerRideHailManagers(requestWithResponses.request.rideHailServiceSubscription)
+      val customerRHMs = getCustomerRideHailManagers(
+        requestWithResponses.request.rideHailServiceSubscription,
+        requestWithResponses.request.legType
+      )
       if (newRequestWithResponses.responses.size == customerRHMs.size) {
         inquiriesWithResponses.remove(requestId)
         newRequestWithResponses.responses.foreach { response =>
@@ -162,9 +184,34 @@ class RideHailMaster(
       rideHailManagers.values.foreach(_.forward(anyOtherMessage))
   }
 
-  private def getCustomerRideHailManagers(subscription: Seq[String]): Iterable[ActorRef] = {
-    val subscribedTo = subscription.collect(rideHailManagers)
-    if (subscribedTo.isEmpty) rideHailManagers.values else subscribedTo
+  private def getCustomerRideHailManagers(
+    subscription: Seq[String],
+    rideHailLegType: Option[RideHailLegType]
+  ): Iterable[ActorRef] = {
+    val subscribedTo = subscription match {
+      case Seq() => rideHailManagers.keys
+      case _     => subscription
+    }
+    val managers = rideHailLegType match {
+      case Some(Access | Egress) =>
+        subscribedTo.collect {
+          case manager
+              if managerToSupportedModes(manager)
+                .intersect(Set(RIDE_HAIL_TRANSIT, RIDE_HAIL_POOLED_TRANSIT))
+                .nonEmpty =>
+            manager
+        }
+      case Some(Direct) =>
+        subscribedTo.collect {
+          case manager
+              if managerToSupportedModes(manager)
+                .intersect(Set(RIDE_HAIL, RIDE_HAIL_POOLED))
+                .nonEmpty =>
+            manager
+        }
+      case _ => subscribedTo
+    }
+    managers.collect(rideHailManagers)
   }
 
   private def findBestProposal(customer: Id[Person], responses: IndexedSeq[RideHailResponse]): RideHailResponse = {

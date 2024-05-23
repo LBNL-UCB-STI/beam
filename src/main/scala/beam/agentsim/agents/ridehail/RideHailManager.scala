@@ -284,7 +284,8 @@ class RideHailManager(
   val tncIterationStats: Option[TNCIterationStats],
   val routeHistory: RouteHistory,
   val rideHailFleetInitializer: RideHailFleetInitializer,
-  val managerConfig: Managers$Elm
+  val managerConfig: Managers$Elm,
+  val supportedModes: Set[BeamMode]
 ) extends LoggingMessageActor
     with RideHailDepotManager
     with ActorLogging
@@ -494,15 +495,6 @@ class RideHailManager(
   var prevReposTick: Int = 0
   var currReposTick: Int = 0
   var nRepositioned: Int = 0
-
-  val supportedModes: Set[BeamMode] = managerConfig.supportedModes
-    .split(',')
-    .map(_.trim.toLowerCase)
-    .flatMap(BeamMode.fromString)
-    .filter(_.isRideHail)
-    .toSet
-  if (supportedModes.isEmpty)
-    throw new IllegalArgumentException(s"Wrong supported modes: ${managerConfig.supportedModes}")
 
   override def loggedReceive: Receive = super[RideHailDepotManager].loggedReceive orElse BeamLoggingReceive {
     case DebugReport =>

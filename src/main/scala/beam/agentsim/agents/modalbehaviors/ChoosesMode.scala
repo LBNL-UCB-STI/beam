@@ -8,6 +8,7 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.household.HouseholdActor.{MobilityStatusInquiry, MobilityStatusResponse, ReleaseVehicle}
 import beam.agentsim.agents.modalbehaviors.ChoosesMode._
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{ActualVehicle, Token, VehicleOrToken}
+import beam.agentsim.agents.ridehail.RideHailLegType.{Access, Egress, _}
 import beam.agentsim.agents.ridehail.{
   RideHailInquiry,
   RideHailManager,
@@ -375,7 +376,7 @@ trait ChoosesMode {
       def makeRequestWith(
         withTransit: Boolean,
         vehicles: Vector[StreetVehicle],
-        streetVehiclesIntermodalUse: IntermodalUse = Access,
+        streetVehiclesIntermodalUse: IntermodalUse = IntermodalUse.Access,
         possibleEgressVehicles: IndexedSeq[StreetVehicle] = IndexedSeq.empty
       ): Unit = {
         router ! RoutingRequest(
@@ -399,12 +400,13 @@ trait ChoosesMode {
           currentPersonLocation.loc,
           departTime,
           nextAct.getCoord,
+          asPooled = !choosesModeData.personData.currentTourMode.contains(RIDE_HAIL),
           withWheelchair = wheelchairUser,
+          legType = Some(Direct),
           requestTime = _currentTick.getOrElse(0),
-          requester = self,
           rideHailServiceSubscription = attributes.rideHailServiceSubscription,
-          triggerId = getCurrentTriggerIdOrGenerate,
-          asPooled = !choosesModeData.personData.currentTourMode.contains(RIDE_HAIL)
+          requester = self,
+          triggerId = getCurrentTriggerIdOrGenerate
         )
         //        println(s"requesting: ${inquiry.requestId}")
         rideHailManager ! inquiry
@@ -592,7 +594,7 @@ trait ChoosesMode {
                 newlyAvailableBeamVehicles
                   .map(_.streetVehicle)
                   .filter(_.id == currentTourPersonalVehicle) :+ bodyStreetVehicle,
-                streetVehiclesIntermodalUse = Egress
+                streetVehiclesIntermodalUse = IntermodalUse.Egress
               )
               responsePlaceholders = makeResponsePlaceholders(withRouting = true)
             case _ =>
@@ -738,7 +740,7 @@ trait ChoosesMode {
               (accessSegment.map(_.travelPath.distanceInM).sum > 0) & accessSegment
                 .exists(l => l.mode.isRideHail | l.mode == CAR)
             ) {
-              (makeRideHailRequestFromBeamLeg(accessSegment, makePooledRequests), None)
+              (makeRideHailRequestFromBeamLeg(accessSegment, makePooledRequests, Some(Access)), None)
             } else {
               (None, Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)))
             }
@@ -747,7 +749,7 @@ trait ChoosesMode {
               (egressSegment.map(_.travelPath.distanceInM).sum > 0) & egressSegment
                 .exists(l => l.mode.isRideHail | l.mode == CAR)
             ) {
-              (makeRideHailRequestFromBeamLeg(egressSegment.toVector, makePooledRequests), None)
+              (makeRideHailRequestFromBeamLeg(egressSegment.toVector, makePooledRequests, Some(Egress)), None)
             } else {
               (None, Some(RideHailResponse.dummyWithError(RideHailNotRequestedError)))
             }
@@ -1086,7 +1088,11 @@ trait ChoosesMode {
     rideHail2TransitResult.getOrElse(RideHailResponse.DUMMY).error.isEmpty // NOTE: will this ever be nonempty?
   }
 
-  def makeRideHailRequestFromBeamLeg(legs: Seq[BeamLeg], asPooled: Boolean): Option[Int] = {
+  def makeRideHailRequestFromBeamLeg(
+    legs: Seq[BeamLeg],
+    asPooled: Boolean,
+    legType: Option[RideHailLegType]
+  ): Option[Int] = {
     val inquiry = RideHailRequest(
       RideHailInquiry,
       bodyVehiclePersonId,
@@ -1095,9 +1101,10 @@ trait ChoosesMode {
       beamServices.geo.wgs2Utm(legs.last.travelPath.endPoint.loc),
       asPooled = asPooled,
       withWheelchair = wheelchairUser,
+      legType = legType,
       requestTime = _currentTick.getOrElse(0),
-      requester = self,
       rideHailServiceSubscription = attributes.rideHailServiceSubscription,
+      requester = self,
       triggerId = getCurrentTriggerIdOrGenerate
     )
     rideHailManager ! inquiry

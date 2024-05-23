@@ -470,7 +470,8 @@ class BeamMobsimIteration(
           rideHailIterationHistory.oscillationAdjustedTNCIterationStats,
           routeHistory,
           rideHailFleetInitializer,
-          managerConfig
+          managerConfig,
+          Set.empty[BeamMode]
         )
       )
     } else {
