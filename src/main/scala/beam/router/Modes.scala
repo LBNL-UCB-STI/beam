@@ -34,6 +34,7 @@ object Modes {
     def isTransit: Boolean = isR5TransitMode(this)
     def isMassTransit: Boolean = this == SUBWAY || this == RAIL || this == FERRY || this == TRAM
     def isRideHail: Boolean = this == RIDE_HAIL || this == RIDE_HAIL_POOLED
+    def isRideHailTransit: Boolean = this == RIDE_HAIL_TRANSIT || this == RIDE_HAIL_POOLED_TRANSIT
     def isTeleportation: Boolean = this == HOV2_TELEPORTATION || this == HOV3_TELEPORTATION
   }
 

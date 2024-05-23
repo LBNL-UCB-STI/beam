@@ -11,6 +11,7 @@ import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle._
 import beam.agentsim.agents.ridehail.RideHailAgent._
 import beam.agentsim.agents.ridehail.RideHailDepotManager.ParkingStallsClaimedByVehicles
+import beam.agentsim.agents.ridehail.RideHailLegType._
 import beam.agentsim.agents.ridehail.RideHailManager._
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.{Available, Refueling, RideHailAgentLocation}
 import beam.agentsim.agents.ridehail.RideHailRequest.{projectCoordinateToUtm, projectWgsCoordinateToUtm}
@@ -717,6 +718,11 @@ class RideHailManager(
             )
             .sum
 
+          val shouldAlsoReturnPooledProposal = request.legType match {
+            case Some(Access | Egress) => supportedModes.contains(RIDE_HAIL_POOLED_TRANSIT)
+            case _                     => supportedModes.contains(RIDE_HAIL_POOLED)
+          }
+
           val travelProposal = TravelProposal(
             singleOccupantQuoteAndPoolingInfo.rideHailAgentLocation,
             driverPassengerSchedule,
@@ -732,7 +738,7 @@ class RideHailManager(
             rideHailResourceAllocationManager.maxWaitTimeInSec,
             walkToFromStop = inquiryIdToWalkTrips.get(request.requestId),
             modeOptions = supportedModes,
-            if (supportedModes.forall(_ == RIDE_HAIL)) None else singleOccupantQuoteAndPoolingInfo.poolingInfo
+            if (!shouldAlsoReturnPooledProposal) None else singleOccupantQuoteAndPoolingInfo.poolingInfo
           )
           travelProposalCache.put(request.requestId.toString, travelProposal)
 

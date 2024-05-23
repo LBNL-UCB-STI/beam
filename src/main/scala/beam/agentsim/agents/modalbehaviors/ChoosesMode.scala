@@ -97,7 +97,6 @@ trait ChoosesMode {
         manager.supportedModes
           .split(',')
           .map(_.trim.toLowerCase)
-          .flatMap(n => Seq(n, n.concat("_transit")))
           .flatMap { n =>
             Try(BeamMode.fromString(n)).toOption.flatten.toSeq
           }

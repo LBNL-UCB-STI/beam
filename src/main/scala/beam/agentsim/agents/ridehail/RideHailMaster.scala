@@ -66,7 +66,7 @@ class RideHailMaster(
         .split(',')
         .map(_.trim.toLowerCase)
         .flatMap(BeamMode.fromString)
-        .filter(_.isRideHail)
+        .filter(m => m.isRideHail || m.isRideHailTransit)
         .toSet
       if (supportedModes.isEmpty)
         throw new IllegalArgumentException(s"Wrong supported modes: ${managerConfig.supportedModes}")
