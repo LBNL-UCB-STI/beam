@@ -282,6 +282,9 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
           vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
       )
 
+    vehicleTypes.values.map(x => (x, x.primaryVehicleEmissionsFile)).toIndexedSeq
+    vehicleTypes.values.map(x => (x, x.secondaryVehicleEmissionsFile)).toIndexedSeq
+
     val dates = DateUtils(
       ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
       ZonedDateTime.parse(beamConfig.beam.routing.baseDate)

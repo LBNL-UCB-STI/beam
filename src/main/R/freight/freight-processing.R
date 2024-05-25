@@ -30,6 +30,13 @@ isCav <- function(x) {
   return(x >= 4)
 }
 
+# emission
+emfac_sf_file <- normalizePath('~/Workspace/Models/emfac/2018/SF_2018_Annual_fleet_data_population_20240311153419.csv')
+emfac_sf <- readCsv(emfac_sf_file)
+emfac_sf_normalized <- emfac_sf[,.(sum_population=(sum(population))),by=.(vehicle_class, fuel)]
+emfac_sf_normalized$share_population <- emfac_sf_normalized$sum_population/sum(emfac_sf_normalized$sum_population)
+
+
 ### RouteE
 
 work_folder <- normalizePath("~/Workspace/Data/FREIGHT/seattle")

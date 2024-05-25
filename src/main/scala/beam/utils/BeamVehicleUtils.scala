@@ -110,6 +110,8 @@ object BeamVehicleUtils {
         val payloadCapacity = Option(line.get("payloadCapacityInKg")).map(_.toDouble)
         val wheelchairAccessible = Option(line.get("wheelchairAccessible")).map(_.toBoolean)
         val restrictRoadsByFreeSpeed = Option(line.get("restrictRoadsByFreeSpeedInMeterPerSecond")).map(_.toDouble)
+        val primaryVehicleEmissionsFile = Option(line.get("primaryVehicleEmissionsFile"))
+        val secondaryVehicleEmissionsFile = Option(line.get("secondaryVehicleEmissionsFile"))
 
         val bvt = BeamVehicleType(
           vehicleTypeId,
@@ -138,7 +140,9 @@ object BeamVehicleUtils {
           chargingCapability,
           payloadCapacity,
           wheelchairAccessible,
-          restrictRoadsByFreeSpeed
+          restrictRoadsByFreeSpeed,
+          primaryVehicleEmissionsFile,
+          secondaryVehicleEmissionsFile
         )
         z += ((vehicleTypeId, bvt))
     }.toMap
