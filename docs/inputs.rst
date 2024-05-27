@@ -1198,6 +1198,11 @@ There's the list of parameters responsible for writing out data produced by BEAM
     beam.outputs.matsim.deleteITERSFolderFiles = ""
     beam.outputs.matsim.deleteRootFolderFiles = ""
     beam.outputs.stats.binSize = 3600
+    beam.outputs.analysis = {
+        iterationScripts = []
+        simulationScripts = []
+        processWaitTimeInMinutes = 5
+    }
     # Skims configuration
     beam.router.skim = {
       keepKLatestSkims = 1
@@ -1280,6 +1285,9 @@ writing is disabled.
 * outputs.matsim.deleteITERSFolderFiles: comma separated list of matsim iteration output files to be deleted before beam shutdown.
 * outputs.matsim.deleteRootFolderFiles: comma separated list of matsim root output files to be deleted before beam shutdown.
 * outputs.stats.binSize: bin size for various histograms.
+* outputs.analysis.iterationScripts: array of python scripts that are run at the end of each iteration.
+* outputs.analysis.simulationScripts: array of python scripts that are run at the end of the simulation.
+* outputs.processWaitTimeInMinutes: How much time in minutes Beam waits for the script to end after the simulation finishes
 * router.skim.keepKLatestSkims: How many skim data iterations to keep
 * router.skim.writeSkimsInterval: enable writing all skim data for a particular iteration to corresponding files
 * router.skim.writeAggregatedSkimsInterval: enable writing all aggregated skim data (for all iterations) to corresponding files
