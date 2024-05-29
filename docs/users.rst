@@ -220,6 +220,7 @@ Steps to add a new configuration :
 
 .. image:: _static/figs/scala_test_configuration.png
 
+.. _building-beam-docker-image:
 
 BEAM in Docker image
 ^^^^^^^^^^^^^^^^^^^^
@@ -299,6 +300,50 @@ At the conclusion of a BEAM run using the default `beamville` scenario, the outp
 Each iteration of the run produces a sub-folder under the `ITERS` directory. Within these, several automatically generated outputs are written including plots of modal usage, TNC dead heading, and energy consumption by mode. 
 
 In addition, raw outputs are available in the two events file (one from the AgentSim and one from the PhysSim, see :ref:`matsim-events` for more details), titled `%ITER%.events.csv` and `%ITER%.physSimEvents.xml.gz` respectively.
+
+Data Analysis
+^^^^^^^^^^^^^
+
+One may execute python scripts after each iteration or after the whole simulation. To do so add the following parameters
+into beam config file: ::
+
+  beam.outputs.analysis.iterationScripts = ["path/to/iteration/script1.py", "path/to/iteration/script2.py"]
+  beam.outputs.analysis.simulationScripts = ["path/to/simulation/script1.py", "path/to/simulation/script2.py"]
+
+Beam provides the following command line arguments to the iteration scripts:
+  #. Beam config path
+  #. Iteration output directory path
+  #. Iteration number
+And to the simulation scripts:
+  #. Beam config path
+  #. Output directory path
+
+`An example of an iteration script <https://github.com/LBNL-UCB-STI/beam/blob/develop/src/main/python/events_analysis/events_within_beam.py>`_.
+If you need to use a specific version of python (i.e. from a conda environment) then you can provide a path to the
+python using `--python-executable` command line argument when you start Beam. If you want to use a non-standard python
+library then install it to your environment.
+
+Beam docker image contains some of python libraries preinstalled. That's `the command <https://github.com/LBNL-UCB-STI/beam/blob/develop/docker/beam-environment/Dockerfile-java-11#L16-L15>`_ in the build docker file that
+does it. If you want to use some other python libraries within beam docker image you can add a similar instruction to
+`createDockerfile` task in `build.gradle` file.
+
+.. code-block:: groovy
+
+  ...
+  from 'beammodel/beam-environment:jdk-11-4.01'
+  runCommand('pip install emoji')
+  ...
+
+Go to :ref:`building-beam-docker-image` to see how one can build a beam docker image.
+You need to mount your python code directory to the beam container so that it has access to your python code. You can do
+it with the following docker argument:
+
+.. code-block:: bash
+
+  --mount source="/absolute/path/to/code",destination=/app/analysis,type=bind
+
+Then you want to use the path like `analysis/relative/path/to/script` in beam config `beam.outputs.analysis.iterationScripts` param.
+
 
 Model Config
 ^^^^^^^^^^^^

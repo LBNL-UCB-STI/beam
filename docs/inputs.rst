@@ -1179,7 +1179,6 @@ There's the list of parameters responsible for writing out data produced by BEAM
     beam.outputs.writeGraphs = true
     beam.outputs.writePlansInterval = 0
     beam.outputs.writeEventsInterval = 1
-    beam.outputs.writeAnalysis = true
     beam.outputs.writeR5RoutesInterval = 0
     beam.physsim.writeEventsInterval = 0
     beam.physsim.events.fileOutputFormats = "csv" # valid options: xml(.gz) , csv(.gz), none - DEFAULT: csv.gz
@@ -1267,7 +1266,6 @@ writing is disabled.
 * outputs.writeGraphs: enable writing activity locations to #.activityLocations.png
 * outputs.writePlansInterval: enable writing plans of persons at the iteration to #.plans.csv.gz
 * outputs.writeEventsInterval: enable writing AgentSim events to #.events.csv.gz
-* outputs.writeAnalysis: enable analysis with python script analyze_events.py and writing different data files
 * outputs.writeR5RoutesInterval: enable writing routing requests/responses to files #.routingRequest.parquet, #.routingResponse.parquet, #.embodyWithCurrentTravelTime.parquet
 * physsim.writeEventsInterval: enable writing physsim events to #.physSimEvents.csv.gz
 * physsim.events.fileOutputFormats: file format for physsim event file; valid options: xml(.gz) , csv(.gz), none - DEFAULT: csv.gz
@@ -1478,4 +1476,4 @@ Parameters that are not supported anymore
     beam.physsim.relaxation.experiment5_1.percentToSimulate
     beam.physsim.relaxation.experiment5_2.percentToSimulate
     beam.urbansim.backgroundODSkimsCreator.*
-
+    beam.outputs.writeAnalysis

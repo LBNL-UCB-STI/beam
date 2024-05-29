@@ -662,7 +662,6 @@ class BeamSim @Inject() (
       scripts <- beamServices.beamConfig.beam.outputs.analysis.simulationScripts
       script  <- scripts
     } {
-      val python = config.getString("beam.outputs.analysis.pythonExecutable")
       val outputPath = event.getServices.getControlerIO.getOutputPath
       val configPath = config.getString("config")
       val process = AnalysisProcessor.firePythonAsync(getPythonExecutable, script, configPath, outputPath)
