@@ -178,13 +178,18 @@ for index, row in sf_emfac_pop.iterrows():
     elif fuel_mapping[row['fuel']] in ['NaturalGas', 'Gasoline']:
         matched_other_fuel = famos_vehicle_types[famos_vehicle_types['primaryFuelType'].isin(['Diesel', 'Gasoline'])]
         new_row = matched_other_fuel.iloc[0].copy()
-        matched_class_only = famos_vehicle_types[
-            (famos_vehicle_types['vehicleClass'] == vehicle_class_mapping[row['vehicle_class']])
+        matched_class_other_fuel = matched_other_fuel[
+            matched_other_fuel['vehicleClass'] == vehicle_class_mapping[row['vehicle_class']]
         ]
-        if not matched_class_only.empty:
-            print(f"Class matches {matched_class_only.iloc[0]['vehicleClass']}. "
-                  f"Make sure it is correct since we will be applying this fuel {new_row['primaryFuelType']} "
-                  f"with vehicle class {new_row['vehicleClass']}")
+        if not matched_class_other_fuel.empty:
+            new_row = matched_class_other_fuel.iloc[0].copy()
+
+        if vehicle_class_mapping[row['vehicle_class']] != new_row['vehicleClass']:
+            print(f"There is a mismatch between vehicle class in FAMOS vehicle types and EMFAC vehicle types")
+            print("FAMOS")
+            print(new_row)
+            print("EMFAC")
+            print(row)
 
         new_row['emfacPopulationSize'] = row['sum_population']
         new_row['emfacPopulationPct'] = row['share_population']
