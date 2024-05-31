@@ -78,8 +78,10 @@ run_pilates() {
   echo "Current pwd: $(pwd)"
   echo "Files available: $(ls -lah)"
 
-  echo "Running pilates: 'python3 run.py'"
-  python3 run.py 2>&1 | tee -a "log_pilates_$(date +'%Y%m%d_%H%M%S').out"
+  echo "Running pilates: 'python3 run.py' with arguments '$PILATES_ARGS'"
+
+  # shellcheck disable=SC2086
+  python3 run.py $PILATES_ARGS 2>&1 | tee -a "log_pilates_$(date +'%Y%m%d_%H%M%S').out"
 
   echo "Preparing output folder"
   /usr/local/bin/prepare_pilates_output.sh
