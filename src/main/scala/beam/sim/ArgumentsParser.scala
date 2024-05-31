@@ -8,7 +8,7 @@ object ArgumentsParser {
 
   private def buildParser: OptionParser[Arguments] = {
     new scopt.OptionParser[Arguments]("beam") {
-      opt[String]("config")
+      opt[String]('c', "config")
         .action((value, args) => {
           args.copy(
             config = Some(BeamConfigUtils.parseFileSubstitutingInputDirectory(value)),
@@ -20,6 +20,9 @@ object ArgumentsParser {
           else success
         )
         .text("Location of the beam config file")
+      opt[String]('p', "python-executable")
+        .action((value, args) => args.copy(pythonExecutable = Option(value).map(_.trim)))
+        .text("A python executable to be used with analytic scripts")
       opt[String]("cluster-type")
         .action((value, args) =>
           args.copy(
@@ -93,6 +96,7 @@ object ArgumentsParser {
   case class Arguments(
     configLocation: Option[String] = None,
     config: Option[TypesafeConfig] = None,
+    pythonExecutable: Option[String] = None,
     clusterType: Option[ClusterType] = None,
     nodeHost: Option[String] = None,
     nodePort: Option[String] = None,

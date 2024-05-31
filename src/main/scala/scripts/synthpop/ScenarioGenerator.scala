@@ -20,7 +20,7 @@ import beam.utils.data.synthpop.models.Models._
 import beam.utils.scenario._
 import beam.utils.scenario.generic.writers._
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.Geometry
+import org.locationtech.jts.geom.Geometry
 import org.apache.commons.math3.random.{MersenneTwister, RandomGenerator}
 import org.matsim.api.core.v01.Coord
 import scripts.ctpp.models.ResidenceToWorkplaceFlowGeography
@@ -321,6 +321,7 @@ class SimpleScenarioGenerator(
                           rank = 0,
                           age = person.age,
                           excludedModes = Seq.empty,
+                          rideHailServiceSubscription = Seq.empty,
                           isFemale = person.gender == Gender.Female,
                           valueOfTime = valueOfTime,
                           industry = person.industry
@@ -702,7 +703,7 @@ object SimpleScenarioGenerator extends StrictLogging {
     /*
 
     How to run it through gradle:
-    ./gradlew :execute -PmaxRAM=20 -PmainClass=beam.utils.data.synthpop.SimpleScenarioGenerator -PappArgs=["
+    ./gradlew :execute -PmaxRAM=20 -PmainClass=scripts.synthpop.SimpleScenarioGenerator -PappArgs=["
     '--sythpopDataFolder', 'D:/Work/beam/NewYork/input/syntpop',
     '--ctppFolder', 'D:/Work/beam/CTPP/',
     '--stateCodes', '34,36',

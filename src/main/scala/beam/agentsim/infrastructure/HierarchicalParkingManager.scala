@@ -7,6 +7,7 @@ import beam.agentsim.infrastructure.HierarchicalParkingManager._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
 import beam.agentsim.infrastructure.parking._
+import beam.agentsim.infrastructure.power.SitePowerManager
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.sim.common.GeoUtils
@@ -14,7 +15,7 @@ import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.HasCoord
 import beam.utils.metrics.SimpleCounter
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
@@ -36,7 +37,8 @@ class HierarchicalParkingManager(
   maxSearchRadius: Double,
   boundingBox: Envelope,
   seed: Int,
-  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
+  estimatedMinParkingDurationInSeconds: Double,
   checkThatNumberOfStallsMatch: Boolean = false
 ) extends ParkingNetwork(parkingZones) {
 
@@ -47,14 +49,14 @@ class HierarchicalParkingManager(
 
   override protected val searchFunctions: Option[InfrastructureFunctions] = Some(
     new ParkingFunctions(
-      tazMap.tazQuadTree,
-      tazMap.idToTAZMapping,
+      tazMap,
       tazParkingZones,
       distanceFunction,
       minSearchRadius,
       maxSearchRadius,
       0.0,
       0.0,
+      estimatedMinParkingDurationInSeconds,
       1.0,
       1,
       boundingBox,
@@ -91,12 +93,12 @@ class HierarchicalParkingManager(
   override def processParkingInquiry(
     inquiry: ParkingInquiry,
     parallelizationCounterOption: Option[SimpleCounter] = None
-  ): Option[ParkingInquiryResponse] = {
+  ): ParkingInquiryResponse = {
     logger.debug("Received parking inquiry: {}", inquiry)
 
     //searchForParkingStall always returns a ParkingZoneSearchResult. It may contain either a real parkingStall
     // (success) or emergency parking stall (not found an appropriate one)
-    val Some(ParkingZoneSearch.ParkingZoneSearchResult(tazParkingStall, tazParkingZone, _, _, _)) =
+    val ParkingZoneSearch.ParkingZoneSearchResult(tazParkingStall, tazParkingZone, _, _, _) =
       searchFunctions.get.searchForParkingStall(inquiry)
 
     val (parkingStall: ParkingStall, parkingZone: ParkingZone) =
@@ -131,7 +133,7 @@ class HierarchicalParkingManager(
       searchFunctions.get.claimStall(tazParkingZone)
     }
 
-    Some(ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId))
+    ParkingInquiryResponse(parkingStall, inquiry.requestId, inquiry.triggerId)
   }
 
   def findStartingPoint(taz: TAZ, destination: Coord): Coord = {
@@ -256,7 +258,8 @@ object HierarchicalParkingManager {
     maxSearchRadius: Double,
     boundingBox: Envelope,
     seed: Int,
-    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
+    estimatedMinParkingDurationInSeconds: Double,
     checkThatNumberOfStallsMatch: Boolean = false
   ): ParkingNetwork = {
     new HierarchicalParkingManager(
@@ -268,6 +271,7 @@ object HierarchicalParkingManager {
       boundingBox,
       seed,
       mnlParkingConfig,
+      estimatedMinParkingDurationInSeconds,
       checkThatNumberOfStallsMatch
     )
   }
@@ -280,7 +284,8 @@ object HierarchicalParkingManager {
     maxSearchRadius: Double,
     boundingBox: Envelope,
     seed: Int,
-    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
+    estimatedMinParkingDurationInSeconds: Double,
     checkThatNumberOfStallsMatch: Boolean = false
   ): ParkingNetwork =
     HierarchicalParkingManager(
@@ -292,6 +297,7 @@ object HierarchicalParkingManager {
       boundingBox,
       seed,
       mnlParkingConfig,
+      estimatedMinParkingDurationInSeconds,
       checkThatNumberOfStallsMatch
     )
 
@@ -351,5 +357,4 @@ object HierarchicalParkingManager {
       (zone: ParkingZone) => zone.link.fold(idToTazMapping(zone.tazId).coord)(_.getCoord)
     zoneLists.mapValues(_.mapValues(zoneList => ShapeUtils.quadTree(zoneList)))
   }
-
 }

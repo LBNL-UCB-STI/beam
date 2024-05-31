@@ -81,8 +81,9 @@ class BeamConfigChangesObservable @Inject() (
   private def updateLastBeamConfigFromOriginalConfigLocation(): Unit = {
     lastBeamConfig = maybeOriginalConfigLocation match {
       case Some(location) =>
-        val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(location)
-        BeamConfig.apply(config.resolve())
+        val config = BeamConfigUtils.parseFileSubstitutingInputDirectory(location).resolve()
+        val currentConfig = BeamHelper.updateConfigToCurrentVersion(config)
+        BeamConfig.apply(currentConfig)
       case None =>
         beamConfig
     }

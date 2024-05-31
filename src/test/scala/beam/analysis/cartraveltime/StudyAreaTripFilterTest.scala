@@ -25,6 +25,7 @@ class StudyAreaTripFilterTest extends AnyFunSuite with Matchers {
     seatingCapacity = 1,
     standingRoomCapacity = 1,
     lengthInMeter = 3,
+    curbWeightInKg = 1000,
     primaryFuelType = FuelType.Gasoline,
     primaryFuelConsumptionInJoulePerMeter = 0.1,
     primaryFuelCapacityInJoule = 0.1,
@@ -36,8 +37,8 @@ class StudyAreaTripFilterTest extends AnyFunSuite with Matchers {
     mode = BeamMode.CAR,
     duration = 25,
     travelPath = BeamPath(
-      linkIds = Vector(1, 2, 3, 4, 5),
-      linkTravelTime = Vector(5, 5, 5, 5, 5),
+      linkIds = Array(1, 2, 3, 4, 5),
+      linkTravelTime = Array(5, 5, 5, 5, 5),
       transitStops = None,
       startPoint = SpaceTime.zero,
       endPoint = SpaceTime.zero.copy(time = 20),

@@ -2,6 +2,7 @@ package beam.router.skim.core
 
 import beam.router.skim.{readonly, Skims}
 import beam.sim.config.BeamConfig
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.controler.MatsimServices
@@ -85,4 +86,30 @@ object TAZSkimmer extends LazyLogging {
       extends AbstractSkimmerInternal {
     override def toCsv: String = value + "," + observations + "," + iterations
   }
+
+  def tazSkimOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("TAZSkimmer", "skimsTAZ.csv.gz", iterationLevel = true)(
+      """
+        time          | Time of event
+        geoId         | Id of geo unit
+        actor         | Beam actor name
+        key           | Statistic name
+        value         | Average statistic value
+        observations  | Number of events
+        iterations    | The current iteration number
+        """
+    )
+
+  def aggregatedTazSkimOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("TAZSkimmer", "skimsTAZ_Aggregated.csv.gz", iterationLevel = true)(
+      """
+        time          | Time of event
+        geoId         | Id of geo unit
+        actor         | Beam actor name
+        key           | Statistic name
+        value         | Average (over last n iterations) statistic value
+        observations  | Average (over last n iterations) number of events
+        iterations    | Number of iterations
+        """
+    )
 }

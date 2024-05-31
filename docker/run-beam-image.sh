@@ -1,15 +1,16 @@
 #!/bin/bash
 
-config=$1
-beam_image="beammodel/beam:0.8.6"
+config="test/input/beamville/beam.conf"
+beam_image="beammodel/beam:0.9.12"
 input_folder_name="test"
-output_folder_name="beam_output"
+output_folder_name="output"
 mkdir -m 777 $output_folder_name 2>/dev/null
 
-max_ram='10g'
-java_opts="-Xmx$max_ram -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"
+max_ram='5g'
+java_opts="-Xmx$max_ram"
 
-docker run \
+# one can add --user $UID param to have running the container with the current user rights
+docker run --rm \
   --network host \
   --env JAVA_OPTS="$java_opts" \
   --mount source="$(pwd)/$input_folder_name",destination=/app/$input_folder_name,type=bind \

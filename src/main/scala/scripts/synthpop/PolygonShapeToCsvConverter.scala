@@ -3,8 +3,8 @@ package scripts.synthpop
 import beam.sim.common.{GeoUtils, SimpleGeoUtils}
 import beam.utils.csv.CsvWriter
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.Geometry
-import com.vividsolutions.jts.geom.prep.PreparedGeometryFactory
+import org.locationtech.jts.geom.Geometry
+import org.locationtech.jts.geom.prep.PreparedGeometryFactory
 import org.geotools.geometry.jts.JTS
 import org.matsim.api.core.v01.Coord
 import org.opengis.feature.simple.SimpleFeature
@@ -19,7 +19,7 @@ import scala.util.{Failure, Success, Try}
   * Converts shp with polygons to csv similar to taz-centers.csv
   * You can run it using
   * {{{
-  * ./gradlew :execute -PmainClass=beam.utils.data.synthpop.PolygonShapeToCsvConverter \
+  * ./gradlew :execute -PmainClass=scripts.synthpop.PolygonShapeToCsvConverter \
   *  -PappArgs="['--input=./j5ouj.shp', '--output=./block_group-centers.csv.gz', '--crs=epsg:26910', '--id-attribute-name=blkgrpid']"
   * }}}
   *

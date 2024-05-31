@@ -12,7 +12,7 @@ import beam.utils.csv.CsvWriter
 import beam.utils.{BeamConfigUtils, FileUtils, ProfilingUtils}
 import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -41,7 +41,7 @@ class ParkingManagerBenchmark(
   def benchmark(): List[ParkingInquiryResponse] = {
     val parkingResponses =
       ProfilingUtils.timed(s"Computed ${possibleParkingLocations.length} parking locations", x => println(x)) {
-        possibleParkingLocations.flatMap { case (coord, actType) =>
+        possibleParkingLocations.map { case (coord, actType) =>
           parkingNetwork.processParkingInquiry(
             ParkingInquiry.init(
               SpaceTime(coord, 0),
@@ -83,10 +83,10 @@ object ParkingManagerBenchmark extends StrictLogging {
       """
         |beam.agentsim.agents.parking.minSearchRadius = 250.00
         |beam.agentsim.agents.parking.maxSearchRadius = 8046.72
-        |beam.agentsim.agents.parking.mulitnomialLogit.params.rangeAnxietyMultiplier = -0.5
-        |beam.agentsim.agents.parking.mulitnomialLogit.params.distanceMultiplier = -0.086
-        |beam.agentsim.agents.parking.mulitnomialLogit.params.parkingPriceMultiplier = -0.5
-        |beam.agentsim.agents.parking.mulitnomialLogit.params.homeActivityPrefersResidentialParkingMultiplier = 2.0
+        |beam.agentsim.agents.parking.multinomialLogit.params.rangeAnxietyMultiplier = -0.5
+        |beam.agentsim.agents.parking.multinomialLogit.params.distanceMultiplier = -0.086
+        |beam.agentsim.agents.parking.multinomialLogit.params.parkingPriceMultiplier = -0.5
+        |beam.agentsim.agents.parking.multinomialLogit.params.homeActivityPrefersResidentialParkingMultiplier = 2.0
         |
         |parallel-parking-manager-dispatcher {
         |  executor = "thread-pool-executor"
@@ -162,8 +162,7 @@ object ParkingManagerBenchmark extends StrictLogging {
         val zones = loadZones(tazTreeMap.tazQuadTree, pathToTazParking, beamConfig)
         val parkingNetwork = ZonalParkingManager(
           zones,
-          tazTreeMap.tazQuadTree,
-          tazTreeMap.idToTAZMapping,
+          tazTreeMap,
           boundingBox,
           beamConfig,
           geoUtils.distUTMInMeters(_, _)
@@ -199,7 +198,8 @@ object ParkingManagerBenchmark extends StrictLogging {
               beamConfig.beam.agentsim.agents.parking.maxSearchRadius,
               boundingBox,
               seed,
-              beamConfig.beam.agentsim.agents.parking.mulitnomialLogit,
+              beamConfig.beam.agentsim.agents.parking.multinomialLogit,
+              beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds,
               checkThatNumberOfStallsMatch = true
             )
             parkingNetwork

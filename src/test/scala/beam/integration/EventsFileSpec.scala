@@ -39,7 +39,7 @@ class EventsFileSpec
     .withValue("beam.physsim.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
     .withValue("beam.physsim.writeEventsInterval", ConfigValueFactory.fromAnyRef("1"))
     .withValue(
-      "beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept",
+      "beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_intercept",
       ConfigValueFactory.fromAnyRef("6")
     )
     .resolve()
@@ -174,7 +174,10 @@ class EventsFileSpec
         case Seq(activity: Activity, leg: Leg) =>
           assert(activity.getEndTime == leg.getDepartureTime)
         case Seq(leg: Leg, activity: Activity) =>
-          assert(leg.getDepartureTime + leg.getTravelTime == activity.getStartTime)
+          assert(
+            leg.getDepartureTime.orElse(beam.UNDEFINED_TIME) + leg.getTravelTime
+              .orElse(beam.UNDEFINED_TIME) == activity.getStartTime.orElse(beam.UNDEFINED_TIME)
+          )
           if (leg.getMode == CAR.matsimMode) {
             assert(leg.getRoute.isInstanceOf[NetworkRoute])
             nCarTrips += 1

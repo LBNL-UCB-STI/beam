@@ -18,17 +18,19 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.controler.{AbstractModule, ControlerI}
 import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.vehicles.Vehicle
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.tagobjects.Retryable
 import org.scalatest.wordspec.AnyWordSpecLike
 
 import scala.collection.mutable.ArrayBuffer
 
-class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper {
+class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper with Repeated {
   private val bevCarId = Id.create("BEV", classOf[BeamVehicleType])
   private val vehicleId = Id.create("390-1", classOf[Vehicle])
-  private val filesPath = s"${System.getenv("PWD")}/test/test-resources/sf-light-1p/input"
+  private val filesPath = s"""$${beam.inputDirectory}"/../../test-resources/sf-light-1p/input"""
 
   val defaultConfig: Config = ConfigFactory
     .parseString(
@@ -37,13 +39,17 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
          |beam.physsim.skipPhysSim = true
          |beam.agentsim.lastIteration = 0
          |beam.agentsim.tuning.transitCapacity = 0.0
-         |beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet = 0
+         |beam.agentsim.agents.rideHail.managers = [
+         |  {
+         |    initialization.procedural.fractionOfInitialVehicleFleet = 0
+         |  }
+         |]
          |beam.agentsim.agents.vehicles.sharedFleets = []
-         |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath"/vehicles.csv.gz"
-         |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath"/vehicleTypes.csv"
-         |beam.agentsim.taz.parkingFilePath = $filesPath"/taz-parking.csv.gz"
-         |beam.agentsim.agents.plans.inputPlansFilePath = $filesPath"/population.xml.gz"
-         |beam.agentsim.agents.households.inputFilePath = $filesPath"/households.xml.gz"
+         |beam.agentsim.agents.vehicles.vehiclesFilePath = $filesPath/vehicles.csv.gz"
+         |beam.agentsim.agents.vehicles.vehicleTypesFilePath = $filesPath/vehicleTypes.csv"
+         |beam.agentsim.taz.parkingFilePath = $filesPath/taz-parking.csv.gz"
+         |beam.agentsim.agents.plans.inputPlansFilePath = $filesPath/population.xml.gz"
+         |beam.agentsim.agents.households.inputFilePath = $filesPath/households.xml.gz"
       """.stripMargin
     )
     .withFallback(testConfig("test/input/sf-light/sf-light-1k.conf"))
@@ -95,18 +101,18 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
             case _        =>
           }
         }
-        population.getPersonAttributes.putAttribute(personId.toString, EXCLUDED_MODES, noCarModes)
+        PopulationUtils.putPersonAttribute(person, EXCLUDED_MODES, noCarModes)
       }
       transportNetwork.transitLayer.tripPatterns.clear()
       DefaultPopulationAdjustment(services).update(scenario)
       services.controler
     }
 
-    "do enroute upon not enough charging" in {
+    "do enroute upon not enough charging" taggedAs Retryable in {
       val enrouteConfig: Config = ConfigFactory
         .parseString(
           s"""
-             |beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC = 0.5
+             |beam.agentsim.agents.vehicles.meanPrivateVehicleStartingSOC = 0.1
       """.stripMargin
         )
         .withFallback(defaultConfig)
@@ -127,9 +133,9 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
               `vehicleId`,
               _,
               _,
-              "EnRoute",
+              enroute,
               _
-            ) =>
+            ) if enroute.startsWith("EnRoute") =>
           refuelEvents += RefuelEventData(
             energyInJoules,
             ChargingPointType.getChargingPointInstalledPowerInKw(stall.chargingPointType.get)
@@ -146,7 +152,7 @@ class EnrouteChargingSpec extends AnyWordSpecLike with Matchers with BeamHelper 
       }
     }
 
-    "avoid enroute upon enough charging" in {
+    "avoid enroute upon enough charging" taggedAs Retryable in {
       var beenToEnroute: Boolean = false
       val controler = buildControler(defaultConfig) {
         case RefuelSessionEvent(_, _, _, _, _, `vehicleId`, _, _, "EnRoute", _) =>

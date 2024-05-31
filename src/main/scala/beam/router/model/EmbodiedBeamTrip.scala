@@ -42,6 +42,7 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg], router: Option[St
   lazy val replanningPenalty: Double = legs.map(_.replanningPenalty).sum
 
   val totalTravelTimeInSecs: Int = legs.lastOption.map(_.beamLeg.endTime - legs.head.beamLeg.startTime).getOrElse(0)
+  def totalDistanceInM: Double = legs.view.map(_.beamLeg.travelPath.distanceInM).foldLeft(0.0)(_ + _)
 
   def beamLegs: IndexedSeq[BeamLeg] = legs.map(embodiedLeg => embodiedLeg.beamLeg)
 
@@ -63,7 +64,6 @@ case class EmbodiedBeamTrip(legs: IndexedSeq[EmbodiedBeamLeg], router: Option[St
     val personalLegs = legs.takeWhile(leg =>
       !leg.beamLeg.mode.isTransit
       && !leg.beamLeg.mode.isRideHail
-      && leg.beamLeg.mode != RIDE_HAIL_POOLED
       && leg.beamLeg.mode != CAV
     )
     val updatedLegs = personalLegs.map { leg =>

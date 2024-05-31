@@ -36,7 +36,7 @@ We use `typesafe config <https://github.com/typesafehub/config>`_ for our config
 
 Then you can make a copy of the config template under::
 
-  src/main/resources/config-template.conf
+  src/main/resources/beam-template.conf
 
 and start customizing the configurations to your use case.
 
@@ -102,6 +102,37 @@ Sometimes it is possible to face a timeout issue when trying to push huge files.
 #. Clone the repository as usual (make sure git and git-lfs are properly installed)
 
 #. Just push the files as usual
+
+Running on IntelliJ
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The default JDK/SDK (Java Development Kit/Software Development Kit) used by IntelliJ may not work for BEAM.
+If that occurs, you can configure IntelliJ to utilize the one used in your terminal (or other development tooling):
+
+#. Go to `File > Project Structure...`
+#. Select on `Project` under `Project Settings` in the side menu of the window that opened
+#. Open the dropdown under `Project SDK`
+#. If your expected SDK is there then select that one and hit `OK` and you are done. Otherwise,
+#. If your SDK is not found, then choose `Add SDK > JDK...`
+#. Browse to your JDKs home path (ie. ~/.jabba/jdk/adopt@1.11.28-0/Contents/Home)
+
+   #. If you do not know your JDK home path then you can try executing the following in your terminal:
+
+      * `which java` (this may be a symbolic link and not be the actual location)
+      * `/usr/libexec/java_home` (or equivalent location of `java_home` for your OS)
+      * `jabba which [VERSION]` if using jabba, but add `/Contents/Home` to the output
+      * `sdk home java [VERSION]`
+#. Once you have the HOME directory from the last step selected click the `Open` button
+#. Make sure your added JDK is the selected SDK in `Project SDK` and hit OK.
+
+Developing with Multiple Java Versions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+As BEAM now has a branch to support Java 8 along with the default of Java 11 you may find it necessary to
+switch Java versions readily. In that case, you can easily do this with tooling such as
+`jabba <https://github.com/shyiko/jabba>`_ or `SDKMAN <https://sdkman.io/>`_. Each allows you to download different
+versions of the JDK and install them to your terminal session via commands such as
+`jabba install [VERSION]` then `jabba use [VERSION]`.
 
 Production Data And Git Submodules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -169,176 +200,37 @@ Then in the main repo type::
 
 replacing `city` with a new scenario name, assuming that repo uses `develop` branch as default one.
 
+Running Jupyter Notebook
+~~~~~~~~~~~~~~~~~~~~~~~~
 
-Automated Cloud Deployment
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+To start it on the local machine via Docker use command::
 
-..
+    ./gradlew jupyterStart
 
-    This functionality is available for core BEAM development team with Amazon Web Services access privileges. Please contact Colin_ for access to capability.
+There are some additional parameters that can control how Jupyter is started:
 
-BEAM run on EC2
-~~~~~~~~~~~~~~~
+* **jupyterToken**: to specify a custom token for Jupyter, if not set a random UUID will be generated as a token
+* **jupyterImage**: to specify an arbitrary Jupyter docker image
+* **user**: to specify a custom user for running Jupyter in Docker
 
-To run a BEAM simulation or experiment on amazon ec2, use following command with some optional parameters::
+Jupyter will be run in the background. To stop it use command::
 
-  ./gradlew deploy -P[beamConfigs | beamExperiments]=config-or-experiment-file
+   ./gradlew jupyterStop
 
-The command will start an ec2 instance based on the provided configurations and run all simulations in serial. At the end of each simulation/experiment, outputs are uploaded to a public Amazon S3 bucket_. To run each each simulation/experiment parallel on separate instances, set `beamBatch` to false. For customized runs, you can also use following parameters that can be specified from command line:
+Organizing jupyter notebooks
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-* **propsFile**: to specify file with default values
-* **runName**: to specify instance name.
-* **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
-* **beamCommit**: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
-* **dataBranch**: To specify the data branch (branch on production data repository) for simulation, 'develop' branch will be used as default data branch.
-* **deployMode**: to specify what type of deploy it will be: config | experiment | execute
-* **beamConfigs**: A comma `,` separated list of `beam.conf` files. It should be relative path under the project home. You can create branch level defaults by specifying the branch name with `.configs` suffix like `master.configs`. Branch level default will be used if `beamConfigs` is not present.
-* **beamExperiments**: A comma `,` separated list of `experiment.yml` files. It should be relative path under the project home.You can create branch level defaults same as configs by specifying the branch name with `.experiments` suffix like `master.experiments`. Branch level default will be used if `beamExperiments` is not present. `beamConfigs` has priority over this, in other words, if both are provided then `beamConfigs` will be used.
-* **executeClass** and **executeArgs**: to specify class and args to execute if `execute` was chosen as deploy mode
-* **maxRAM**: to specify MAXRAM environment variable for simulation.
-* **storageSize**: to specfy storage size of instance. May be from `64` to `256`.
-* **beamBatch**: Set to `false` in case you want to run as many instances as number of config/experiment files. Default is `true`.
-* **s3Backup**: to specify if copying results to s3 bucket is needed, default is `true`.
-* **instanceType**: to specify s2 instance type.
-* **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
-* **shutdownWait**: As simulation ends, ec2 instance would automatically terminate. In case you want to use the instance, please specify the wait in minutes, default wait is 30 min.
-* **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
+1. It is better to keep jupyter notebooks inside jupyter folder, organized by subfolders. The 'local_files' folder configured to be ignored by git.
 
-There is a default file to specify parameters for task: gradle.deploy.properties_ and it is advised to use it (or custom) file to specify all default values for `deploy` task and not use gradle.properties_ file because latter used as a source of default values for all gradle tasks.
+2. In order to keep jupyter notebooks changed on AWS instance under version control one needs to download required notebooks (both .ipynb and .py files) from the instance and commit and push them locally.
 
-The order which will be used to look for parameter values is follow:
- #. command line arguments
- #. gradle.properties_ file
- #. gradle.deploy.properties_ file or custom file specified in `propsFile`
+3. Before pushing changed notebooks it is recommended to clear outputs, to make it easier to review and to reduce the size.
 
-To run a batch simulation, you can specify multiple configuration files separated by commas::
+4. It is possible to mount local folders to jupyter.
+One needs to copy 'jupyter/.foldersToMapInJupyter.txt' file to 'jupyter/local_files' folder and fill the file with all required folder to be mounted,
+one location per row. Folders will be mounted during execution of jupyterStar gradle command.
+For windows users - be sure docker is updated and configured to use linux containers.
 
-  ./gradlew deploy -PbeamConfigs=test/input/beamville/beam.conf,test/input/sf-light/sf-light.conf
-
-Similarly for experiment batch, you can specify comma-separated experiment files::
-
-  ./gradlew deploy -PbeamExperiments=test/input/beamville/calibration/transport-cost/experiments.yml,test/input/sf-light/calibration/transport-cost/experiments.yml
-
-For demo and presentation material, please follow the link_ on google drive.
-
-BEAM run on NERSC
-~~~~~~~~~~~~~~~~~
-
-In order to run BEAM on NERSC one needs to get an `ssh key <https://docs.nersc.gov/connect/mfa/#sshproxy>`_ that allows you to ssh to NERSC systems without further authentication until the key expires (24 hours). You also need to specify your user name on NERSC in the following property: **nerscUser**, i.e::
-
- ./gradlew deployToNersc -PnerscUser=dmitriio
-
-You need to define the deploy properties that are similar to the ones for AWS deploy. These are the properties that is used on NERSC:
-
-* **runName**: to specify instance name.
-* **beamBranch**: To specify the branch for simulation, current source branch will be used as default branch.
-* **beamCommit**: The commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
-* **dataBranch**: To specify the branch for production data, 'develop' branch will be used as default branch.
-* **beamConfigs**: The `beam.conf` file. It should be relative path under the project home.
-* **s3Backup**: to specify if copying results to s3 bucket is needed, default is `true`.
-* **region**: Use this parameter to select the AWS region for the run, all instances would be created in specified region. Default `region` is `us-east-2`.
-
-Your task is going to be added to the queue and when it starts/finishes you receive a notification on your git user email. It may take 1-24 hours (or even more) for the task to get started. It depends on the NERSC workload. In your user home directory on NERSC you can find the output file of your task that looks like `slurm-<job id>.out`. The BEAM output directory is resides at `$SCRATCH/beam_runs/`. Also the output is uploaded to s3 if `s3Backup` is set to true.
-
-
-PILATES run on EC2
-~~~~~~~~~~~~~~~~~~
-
-It is possible to start PILATES simulation on AWS instance from gradle task  ::
-
-  ./gradlew deployPilates [-Pparam1name=param1value [... -PparamNname=paramNvalue]]
-
-This command will start PILATES simulation on ec2 instance with specified parameters.
-
-* **propsFile**: to specify file with default values
-* **runName**: to specify instance name.
-* **startYear**: to specify start year of simulation.
-* **countOfYears**: to specify count of years.
-* **beamItLen**: to specify simulations year step.
-* **urbansimItLen**: to specify urbansim simulation length.
-* **inYearOutput**: to allow urbansim to write in year output, default is 'off'.
-* **beamConfig**: to specify BEAM config file for all runs during simulation.
-* **initialS3UrbansimInput**: to specify initial data for first urbansim run.
-* **initialS3UrbansimOutput**: to specify initial urbansim data for first BEAM run if it is not skipped.
-* **initialSkimPath**: to specify initial skim file for first urbansim run if first BEAM run is skipped. Setting this parameter to any value will lead to skipping first BEAM run.
-* **s3OutputBucket**: to specify s3 output bucket name, default is `//pilates-outputs`.
-* **s3OutputBasePath**: to specify s3 output path from bucket to output folder. Setting this parameter empty will lead to putting output folder in root of s3 output bucket. By default is empty.
-* **pilatesScenarioName**: name of output folder. Full name will contain this parameter value and datetime of start of run. By default is `pilates`.
-* **beamBranch**: to specify the branch for simulation, current source branch will be used as default branch.
-* **beamCommit**: the commit SHA to run simulation. use `HEAD` if you want to run with latest commit, default is `HEAD`.
-* **maxRAM**: to specify MAXRAM environment variable for simulation.
-* **shutdownWait**: to specify shutdown wait after end of simulation, default is `15`.
-* **shutdownBehaviour**: to specify shutdown behaviour after and of simulation. May be `stop` or `terminate`, default is `terminate`.
-* **storageSize**: to specfy storage size of instance. May be from `64` to `256`.
-* **region**: to specify region to deploy ec2 instance. May be different from s3 bucket instance.
-* **dataRegion**: to specify region of s3 buckets. All operations with s3 buckets will be use this region. By default equal to `region`.
-* **instanceType**: to specify s2 instance type.
-* **pilatesImageVersion**: to specify pilates image version, default is `latest`.
-* **pilatesImageName**: to specify full pilates image name, default is `beammodel/pilates`.
-
-There is a default file to specify parameters for task: gradle.deployPILATES.properties_ and it is advised to use it (or custom) file to specify all default values for `deployPilates` task and not use gradle.properties_ file because latter used as a source of default values for all gradle tasks.
-
-The order which will be used to look for parameter values is follow:
- #. command line arguments
- #. gradle.properties_ file
- #. gradle.deployPILATES.properties_ file or custom file specified in `propsFile`
-
-If none of sources contains parameter, then parameter will be omitted. This will ends with output message: "`parameters wasn't specified: <omitted parameters list>`"
-
-Running this function will leads to:
- #. creating new ec2 instance
- #. pulling from github selected branch/commit
- #. pulling from docker hub PILATES image
- #. running PILATES image with specified parameters
- #. writing output from every iteration to s3 bucket
-
-All run parameters will be stored in `run-params` file in root of PILATES output.
-
-Also during simulation for every BEAM run will be created a new config file with specified paths to output folder and to urbansim data.
-Those config files will be created near original config file (from `beamConfig` variable) with year added to the name.
-So it will be possible to rerun BEAM for selected year.
-
-
-AWS EC2 start stop and terminate
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-To maintain ec2 instances, there are some utility tasks that reduce operation cost tremendously.
-You can start already available instances using a simple `startEC2` gradle task under aws module.
-You can specify one or more instance ids by a comma saturated list as `instanceIds` argument.
-Below is syntax to use the command::
-
-  ./gradlew startEC2 -PinstanceIds=<InstanceID1>[,<InstanceID2>]
-
-As a result of task, instance DNS would be printed on the console.
-
-
-Just like starting instance, you can also stop already running instances using a simple `stopEC2` gradle task.
-You can specify one or more instance ids by a comma saturated list as `instanceIds` argument.
-Below is syntax to use the command::
-
-  ./gradlew stopEC2 -PinstanceIds=<InstanceID1>[,<InstanceID2>]
-
-It is possible not just stop instance but terminate it using `terminateEC2` gradle task.
-Terminated instances are not available to start and will be completely removed along with all data they contain.
-You can specify one or more instance ids by a comma saturated list as `instanceIds` argument.
-Below is syntax to use the command::
-
-  ./gradlew terminateEC2 -PinstanceIds=<InstanceID1>[,<InstanceID2>]
-
-.. _Colin: mailto:colin.sheppard@lbl.gov
-.. _bucket: https://s3.us-east-2.amazonaws.com/beam-outputs/
-.. _gradle.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.properties
-.. _gradle.deploy.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.deploy.properties
-.. _gradle.deployPILATES.properties: https://github.com/LBNL-UCB-STI/beam/blob/master/gradle.deployPILATES.properties
-.. _link: https://goo.gl/Db37yM
-
-
-Performance Monitoring
-^^^^^^^^^^^^^^^^^^^^^^
-
-Beam uses `Kamon`_ as a performance monitoring framework. It comes with a nice API to instrument your application code for metric recoding. Kamon also provide many different pingable recorders like Log Reporter, StatsD, InfluxDB etc. You can configure your desired recorder with project configurations under Kamon/metrics section. When you start the application it will measure the instrumented components and recorder would publish either to console or specified backend where you can monitor/analyse the metrics.
-
-If you would like to review basic JVM metrics then it is `already configured`_ so that you can use `jconsole`_.
 
 Beam Metrics Utility (`MetricsSupport`)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -469,7 +361,7 @@ Now at the bottom, under NetworkSettings, locate IP Address of your docker conta
 
 
 .. _already configured: http://logback.qos.ch/manual/jmxConfig.html
-.. _jconsole: https://docs.oracle.com/javase/8/docs/technotes/guides/management/jconsole.html
+.. _jconsole: https://docs.oracle.com/en/java/javase/11/tools/jconsole.html
 .. _Kamon: http://kamon.io
 .. _StatsD: http://kamon.io/documentation/0.6.x/kamon-statsd/overview/
 .. _Graphite: http://graphite.wikidot.com/
@@ -501,10 +393,7 @@ This code marks the test with `com.beam.tags.Periodic` tag. You can also specify
       ...
    }
 
-You can find details about scheduling a continuous integration build under DevOps section `Configure Periodic Jobs`_.
-
-.. _Configure Periodic Jobs: http://beam.readthedocs.io/en/latest/devops.html#configure-periodic-jobs
-
+You can find details about scheduling a continuous integration build under DevOps section 'Configure Periodic Jobs' in the internal wiki.
 
 Instructions for forking BEAM
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -602,18 +491,14 @@ If everything turned out well, the cloning process should not ask for the creden
 
 Build BEAM docker image
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-To build Beam docker image run::
+To build Beam docker image run (in the root of Beam project)::
 
-    $ ./gradlew buildImage
-
-in the root of Beam project. If you want to tag the built image run::
-
-    $ ./gradlew tagImage
+    $ ./gradlew -Ptag=beammodel/beam:0.9.12 buildImage
 
 Once you have the image you can run Beam in Docker. Here is an example how to run test/input/beamville/beam.conf scenario on Windows OS::
 
    $ docker run -v c:/repos/beam/output:/app/output -e JAVA_OPTS='-Xmx12g' \
-      beammodel/beam:0.8.6 --config test/input/beamville/beam.conf
+      beammodel/beam:0.9.12 --config test/input/beamville/beam.conf
 
 Docker run command mounts host folder c:/repos/beam/output to be /app/output which allows to see the output of the Beam run. It also passes environment variable e JAVA_OPTS to the container in order to set maximum heap size for Java application.
 

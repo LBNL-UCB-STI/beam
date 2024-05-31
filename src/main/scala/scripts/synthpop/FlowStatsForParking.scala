@@ -4,7 +4,7 @@ import scripts.ctpp.readers.BaseTableReader.{CTPPDatabaseInfo, PathToData}
 import beam.utils.data.synthpop.GeoService.{defaultTazMapper, getTazMap}
 import beam.utils.data.synthpop.models.Models.TazGeoId
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.Geometry
+import org.locationtech.jts.geom.Geometry
 import org.opengis.feature.simple.SimpleFeature
 import org.opengis.referencing.operation.MathTransform
 import scripts.ctpp.models.{OD, ResidenceGeography, ResidenceToWorkplaceFlowGeography}

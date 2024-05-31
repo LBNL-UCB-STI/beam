@@ -105,8 +105,8 @@ class CchWrapper(workerParams: R5Parameters) extends Router {
         BeamMode.CAR,
         beamTotalTravelTime,
         BeamPath(
-          cchResponse.getLinks.asScala.map(_.toInt).toIndexedSeq,
-          times.toIndexedSeq,
+          cchResponse.getLinks.asScala.map(_.toInt).toArray,
+          times.toArray,
           None,
           SpaceTime(origin, req.departureTime),
           SpaceTime(destination, req.departureTime + beamTotalTravelTime),

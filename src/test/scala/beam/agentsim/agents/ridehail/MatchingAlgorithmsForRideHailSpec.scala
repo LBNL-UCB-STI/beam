@@ -9,7 +9,7 @@ import beam.sim.{BeamHelper, BeamScenario, BeamServices, CircularGeofence}
 import beam.utils.FileUtils
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.{Config, ConfigFactory}
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.controler.AbstractModule
@@ -19,7 +19,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.collection.JavaConverters._
-import scala.collection.immutable.List
 
 class MatchingAlgorithmsForRideHailSpec extends AnyFlatSpec with Matchers with BeamHelper {
 
@@ -27,15 +26,19 @@ class MatchingAlgorithmsForRideHailSpec extends AnyFlatSpec with Matchers with B
     val config = ConfigFactory
       .parseString(
         """
-           |beam.actorSystemName = "MatchingAlgorithmsForRideHailSpec"
-           |beam.outputs.events.fileOutputFormats = xml
-           |beam.physsim.skipPhysSim = true
-           |beam.agentsim.lastIteration = 0
-           |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "ALONSOMORA_POOLING_ALG_FOR_RIDEHAIL"
-           |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
-           |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
-           |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 4
-        """.stripMargin
+          beam.actorSystemName = "MatchingAlgorithmsForRideHailSpec"
+          beam.outputs.events.fileOutputFormats = xml
+          beam.physsim.skipPhysSim = true
+          beam.agentsim.lastIteration = 0
+          beam.agentsim.agents.rideHail.managers = [
+            {
+              allocationManager.matchingAlgorithm = "ALONSOMORA_POOLING_ALG_FOR_RIDEHAIL"
+              allocationManager.maxWaitingTimeInSec = 360
+              allocationManager.maxExcessRideTime = 0.2
+              allocationManager.alonsoMora.maxRequestsPerVehicle = 4
+            }
+          ]
+        """
       )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
@@ -46,15 +49,19 @@ class MatchingAlgorithmsForRideHailSpec extends AnyFlatSpec with Matchers with B
     val config = ConfigFactory
       .parseString(
         """
-           |beam.actorSystemName = "MatchingAlgorithmsForRideHailSpec"
-           |beam.outputs.events.fileOutputFormats = xml
-           |beam.physsim.skipPhysSim = true
-           |beam.agentsim.lastIteration = 0
-           |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "ASYNC_ALONSOMORA_ALG_FOR_RIDEHAIL"
-           |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
-           |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
-           |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 1000
-        """.stripMargin
+          beam.actorSystemName = "MatchingAlgorithmsForRideHailSpec"
+          beam.outputs.events.fileOutputFormats = xml
+          beam.physsim.skipPhysSim = true
+          beam.agentsim.lastIteration = 0
+          beam.agentsim.agents.rideHail.managers = [
+            {
+              allocationManager.matchingAlgorithm = "ASYNC_ALONSOMORA_ALG_FOR_RIDEHAIL"
+              allocationManager.maxWaitingTimeInSec = 360
+              allocationManager.maxExcessRideTime = 0.2
+              allocationManager.alonsoMora.maxRequestsPerVehicle = 1000
+            }
+          ]
+        """
       )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
@@ -65,15 +72,19 @@ class MatchingAlgorithmsForRideHailSpec extends AnyFlatSpec with Matchers with B
     val config = ConfigFactory
       .parseString(
         """
-           |beam.actorSystemName = "MatchingAlgorithmsForRideHailSpec"
-           |beam.outputs.events.fileOutputFormats = xml
-           |beam.physsim.skipPhysSim = true
-           |beam.agentsim.lastIteration = 0
-           |beam.agentsim.agents.rideHail.allocationManager.matchingAlgorithm = "VEHICLE_CENTRIC_MATCHING_FOR_RIDEHAIL"
-           |beam.agentsim.agents.rideHail.allocationManager.maxWaitingTimeInSec = 360
-           |beam.agentsim.agents.rideHail.allocationManager.maxExcessRideTime = 0.2
-           |beam.agentsim.agents.rideHail.allocationManager.alonsoMora.maxRequestsPerVehicle = 1000
-        """.stripMargin
+          beam.actorSystemName = "MatchingAlgorithmsForRideHailSpec"
+          beam.outputs.events.fileOutputFormats = xml
+          beam.physsim.skipPhysSim = true
+          beam.agentsim.lastIteration = 0
+          beam.agentsim.agents.rideHail.managers = [
+            {
+              allocationManager.matchingAlgorithm = "VEHICLE_CENTRIC_MATCHING_FOR_RIDEHAIL"
+              allocationManager.maxWaitingTimeInSec = 360
+              allocationManager.maxExcessRideTime = 0.2
+              allocationManager.alonsoMora.maxRequestsPerVehicle = 1000
+            }
+          ]
+        """
       )
       .withFallback(testConfig("test/input/beamville/beam.conf"))
       .resolve()
@@ -102,6 +113,7 @@ class MatchingAlgorithmsForRideHailSpec extends AnyFlatSpec with Matchers with B
       new AlonsoMoraMatchingWithMIPAssignment(
         MatchingAlgorithmsForRideHailSpec.demandSpatialIndex(sc._2),
         sc._1,
+        services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services
       )
 
@@ -217,7 +229,7 @@ object MatchingAlgorithmsForRideHailSpec {
         4,
         VehicleManager
           .createOrGetReservedFor(
-            services.beamConfig.beam.agentsim.agents.rideHail.name,
+            services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
             VehicleManager.TypeEnum.RideHail
           )
           .managerId
@@ -232,7 +244,7 @@ object MatchingAlgorithmsForRideHailSpec {
         4,
         VehicleManager
           .createOrGetReservedFor(
-            services.beamConfig.beam.agentsim.agents.rideHail.name,
+            services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
             VehicleManager.TypeEnum.RideHail
           )
           .managerId
@@ -243,7 +255,9 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(1000, 2000),
         8.hours.toSeconds.toInt,
         new Coord(18000, 19000),
+        services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p4Req: CustomerRequest =
@@ -252,7 +266,9 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(2000, 1000),
         (8.hours.toSeconds + 5.minutes.toSeconds).toInt,
         new Coord(20000, 18000),
+        services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p2Req: CustomerRequest =
@@ -261,7 +277,9 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(3000, 3000),
         (8.hours.toSeconds + 1.minutes.toSeconds).toInt,
         new Coord(19000, 18000),
+        services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p3Req: CustomerRequest =
@@ -270,7 +288,9 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(4000, 4000),
         (8.hours.toSeconds + 2.minutes.toSeconds).toInt,
         new Coord(21000, 21000),
+        services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
@@ -293,7 +313,7 @@ object MatchingAlgorithmsForRideHailSpec {
         4,
         VehicleManager
           .createOrGetReservedFor(
-            services.beamConfig.beam.agentsim.agents.rideHail.name,
+            services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
             VehicleManager.TypeEnum.RideHail
           )
           .managerId
@@ -308,7 +328,7 @@ object MatchingAlgorithmsForRideHailSpec {
         4,
         VehicleManager
           .createOrGetReservedFor(
-            services.beamConfig.beam.agentsim.agents.rideHail.name,
+            services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
             VehicleManager.TypeEnum.RideHail
           )
           .managerId
@@ -319,7 +339,9 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(1000, 2000),
         8.hours.toSeconds.toInt,
         new Coord(18000, 19000),
+        services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p4Req: CustomerRequest =
@@ -328,7 +350,9 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(2000, 1000),
         (8.hours.toSeconds + 5.minutes.toSeconds).toInt,
         new Coord(20000, 18000),
+        services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p2Req: CustomerRequest =
@@ -337,7 +361,9 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(3000, 3000),
         (8.hours.toSeconds + 1.minutes.toSeconds).toInt,
         new Coord(19000, 18000),
+        services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p3Req: CustomerRequest =
@@ -346,7 +372,9 @@ object MatchingAlgorithmsForRideHailSpec {
         new Coord(4000, 4000),
         (8.hours.toSeconds + 2.minutes.toSeconds).toInt,
         new Coord(21000, 20000),
+        services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))
@@ -395,7 +423,7 @@ object MatchingAlgorithmsForRideHailSpec {
         remainingRangeInM,
         VehicleManager
           .createOrGetReservedFor(
-            services.beamConfig.beam.agentsim.agents.rideHail.name,
+            services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
             VehicleManager.TypeEnum.RideHail
           )
           .managerId
@@ -410,7 +438,7 @@ object MatchingAlgorithmsForRideHailSpec {
         remainingRangeInM,
         VehicleManager
           .createOrGetReservedFor(
-            services.beamConfig.beam.agentsim.agents.rideHail.name,
+            services.beamConfig.beam.agentsim.agents.rideHail.managers.head.name,
             VehicleManager.TypeEnum.RideHail
           )
           .managerId
@@ -421,7 +449,9 @@ object MatchingAlgorithmsForRideHailSpec {
         taz1Loc,
         0,
         taz4Loc,
+        services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p4Req: CustomerRequest =
@@ -430,7 +460,9 @@ object MatchingAlgorithmsForRideHailSpec {
         taz2Loc,
         5.minutes.toSeconds.toInt,
         taz1Loc,
+        services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p2Req: CustomerRequest =
@@ -439,7 +471,9 @@ object MatchingAlgorithmsForRideHailSpec {
         taz1Loc,
         1.minutes.toSeconds.toInt,
         taz4Loc,
+        services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     val p3Req: CustomerRequest =
@@ -448,7 +482,9 @@ object MatchingAlgorithmsForRideHailSpec {
         taz2Loc,
         2.minutes.toSeconds.toInt,
         taz1Loc,
+        services.beamConfig.beam.agentsim.agents.rideHail.managers.head,
         services,
+        false,
         0
       )
     (List(v1, v2), List(p1Req, p2Req, p3Req, p4Req))

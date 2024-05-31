@@ -16,7 +16,6 @@ import org.matsim.households.Income.IncomePeriod
 import org.matsim.households.{Household, IncomeImpl}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 sealed trait PopulationAttributes
 
@@ -25,9 +24,11 @@ case class AttributesOfIndividual(
   modalityStyle: Option[String],
   isMale: Boolean,
   availableModes: Seq[BeamMode],
+  rideHailServiceSubscription: Seq[String],
   valueOfTime: Double,
   age: Option[Int],
-  income: Option[Double]
+  income: Option[Double],
+  wheelchairUser: Boolean = false
 ) extends PopulationAttributes {
   lazy val hasModalityStyle: Boolean = modalityStyle.nonEmpty
 
@@ -60,23 +61,23 @@ case class AttributesOfIndividual(
         val vehicleAutomationLevel = getAutomationLevel(beamVehicleTypeId, beamServices)
         if (isRideHail) {
           if (isPooledTrip) {
-            getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeChoiceModel.modeMultipliers) *
+            getModeVotMultiplier(Option(RIDE_HAIL_POOLED), modeChoiceModel) *
             getPooledFactor(vehicleAutomationLevel, modeChoiceModel.poolingMultipliers)
           } else {
-            getModeVotMultiplier(Option(RIDE_HAIL), modeChoiceModel.modeMultipliers)
+            getModeVotMultiplier(Option(RIDE_HAIL), modeChoiceModel)
           }
         } else {
           getSituationMultiplier(
             IdAndTT._1,
             IdAndTT._2,
             isWorkTrip,
-            modeChoiceModel.situationMultipliers,
+            modeChoiceModel.situationMultipliers(beamMode),
             vehicleAutomationLevel,
             beamServices
-          ) * getModeVotMultiplier(Option(beamMode), modeChoiceModel.modeMultipliers)
+          ) * getModeVotMultiplier(Option(CAR), modeChoiceModel)
         }
       case _ =>
-        getModeVotMultiplier(Option(beamMode), modeChoiceModel.modeMultipliers)
+        getModeVotMultiplier(Option(beamMode), modeChoiceModel)
     }
     multiplier * IdAndTT._2 / 3600
   }
@@ -87,7 +88,8 @@ case class AttributesOfIndividual(
     modeChoiceModel: ModeChoiceMultinomialLogit,
     beamServices: BeamServices,
     destinationActivity: Option[Activity],
-    transitCrowdingSkims: Option[TransitCrowdingSkims]
+    transitCrowdingSkims: Option[TransitCrowdingSkims],
+    originActivity: Option[Activity]
   ): Double = {
     //NOTE: This gives answers in hours
     embodiedBeamLeg.beamLeg.mode match {
@@ -109,7 +111,7 @@ case class AttributesOfIndividual(
         )
       case BUS | SUBWAY | RAIL | TRAM | FERRY | FUNICULAR | CABLE_CAR | GONDOLA | TRANSIT =>
         val uniqueModes = embodiedBeamTrip.beamLegs.map(_.mode).toSet
-        val modeMultiplier = getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel.modeMultipliers)
+        val modeMultiplier = getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel)
         val beamVehicleTypeId = TransitVehicleInitializer.transitModeToBeamVehicleType(embodiedBeamLeg.beamLeg.mode)
         val multiplier = if (uniqueModes == subwayTransit || uniqueModes == busTransit) {
           modeChoiceModel.transitVehicleTypeVOTMultipliers.getOrElse(beamVehicleTypeId, modeMultiplier)
@@ -121,16 +123,20 @@ case class AttributesOfIndividual(
           case Some(transitCrowding) =>
             val crowdingMultiplier = transitCrowding.getTransitCrowdingTimeMultiplier(
               embodiedBeamLeg,
-              beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_VOT_multiplier,
-              beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.transit_crowding_VOT_threshold
+              beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transit_crowding_VOT_multiplier,
+              beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.params.transit_crowding_VOT_threshold
             )
             multiplier * durationInHours * crowdingMultiplier
           case _ =>
             multiplier * durationInHours
         }
 
+      case BIKE =>
+        val situation = getSituationForVOT(originActivity, destinationActivity)
+        getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel, Some(situation)) *
+        embodiedBeamLeg.beamLeg.duration / 3600
       case _ =>
-        getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel.modeMultipliers) *
+        getModeVotMultiplier(Option(embodiedBeamLeg.beamLeg.mode), modeChoiceModel) *
           embodiedBeamLeg.beamLeg.duration / 3600
     }
   }
@@ -139,10 +145,37 @@ case class AttributesOfIndividual(
     valueOfTime * generalizedTime
   }
 
+  private def getSituationForVOT(
+    originActivity: Option[Activity],
+    destinationActivity: Option[Activity]
+  ): Set[SituationMultiplier] = {
+    (originActivity, destinationActivity, age) match {
+      case (Some(origin), Some(destination), Some(travelerAge)) =>
+        val ageBin =
+          if (travelerAge > 50) { ageGT50 }
+          else { ageLE50 }
+        if (isCommute(destination, origin)) {
+          Set[SituationMultiplier](commuteTrip, ageBin)
+        } else {
+          Set[SituationMultiplier](nonCommuteTrip, ageBin)
+        }
+      case _ =>
+        Set[SituationMultiplier]()
+    }
+  }
+
+  def isCommute(destinationActivity: Activity, originActivity: Activity): Boolean = {
+    val homeToWork =
+      originActivity.getType.equalsIgnoreCase("home") && destinationActivity.getType.equalsIgnoreCase("work")
+    val workToHome =
+      originActivity.getType.equalsIgnoreCase("work") && destinationActivity.getType.equalsIgnoreCase("home")
+    homeToWork || workToHome
+  }
+
   private def getAutomationLevel(
     beamVehicleTypeId: Id[BeamVehicleType],
     beamServices: BeamServices
-  ): automationLevel = {
+  ): AutomationLevel = {
     val automationInt = if (beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationForVOTT) {
       beamServices.beamConfig.beam.agentsim.agents.modalBehaviors.overrideAutomationLevel
     } else {
@@ -165,14 +198,23 @@ case class AttributesOfIndividual(
 
   def getModeVotMultiplier(
     beamMode: Option[BeamMode],
-    modeMultipliers: mutable.Map[Option[BeamMode], Double]
+    modeChoiceModel: ModeChoiceMultinomialLogit,
+    situation: Option[Set[SituationMultiplier]] = None
   ): Double = {
-    modeMultipliers.getOrElse(beamMode, 1.0)
+    val situationMultiplier = beamMode match {
+      case Some(mode) =>
+        situation match {
+          case Some(situation) => modeChoiceModel.situationMultipliers.getOrElse(mode, Map()).getOrElse(situation, 1.0)
+          case None            => 1.0
+        }
+      case None => 1.0
+    }
+    situationMultiplier * modeChoiceModel.modeMultipliers.getOrElse(beamMode, 1.0)
   }
 
   private def getPooledFactor(
-    vehicleAutomationLevel: automationLevel,
-    poolingMultipliers: mutable.Map[automationLevel, Double]
+    vehicleAutomationLevel: AutomationLevel,
+    poolingMultipliers: Map[AutomationLevel, Double]
   ): Double = {
     poolingMultipliers.getOrElse(vehicleAutomationLevel, 1.0)
   }
@@ -181,7 +223,7 @@ case class AttributesOfIndividual(
     linkID: Int,
     travelTime: Double,
     beamServices: BeamServices
-  ): (congestionLevel, roadwayType) = {
+  ): (CongestionLevel, RoadwayType) = {
     // Note: cutoffs for congested (2/3 free flow speed) and highway (ff speed > 20 m/s) are arbitrary and could be inputs
     val currentLink = beamServices.networkHelper.getLink(linkID).get
     val freeSpeed: Double = currentLink.getFreespeed()
@@ -206,17 +248,17 @@ case class AttributesOfIndividual(
     linkID: Int,
     travelTime: Double,
     isWorkTrip: Boolean = true,
-    situationMultipliers: mutable.Map[(timeSensitivity, congestionLevel, roadwayType, automationLevel), Double],
-    vehicleAutomationLevel: automationLevel,
+    situationMultipliers: Map[Set[SituationMultiplier], Double],
+    vehicleAutomationLevel: AutomationLevel,
     beamServices: BeamServices
   ): Double = {
-    val sensitivity: timeSensitivity = if (isWorkTrip) {
+    val sensitivity: TimeSensitivity = if (isWorkTrip) {
       highSensitivity
     } else {
       lowSensitivity
     }
     val (congestion, roadway) = getLinkCharacteristics(linkID, travelTime, beamServices)
-    situationMultipliers.getOrElse((sensitivity, congestion, roadway, vehicleAutomationLevel), 1.0)
+    situationMultipliers.getOrElse(Set(sensitivity, congestion, roadway, vehicleAutomationLevel), 1.0)
   }
 
 }
@@ -224,7 +266,7 @@ case class AttributesOfIndividual(
 object AttributesOfIndividual {
 
   val EMPTY: AttributesOfIndividual =
-    AttributesOfIndividual(HouseholdAttributes.EMPTY, None, true, Seq(), 0.0, None, None)
+    AttributesOfIndividual(HouseholdAttributes.EMPTY, None, true, Seq(), Seq.empty, 0.0, None, None)
 }
 
 case class HouseholdAttributes(

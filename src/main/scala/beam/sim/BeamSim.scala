@@ -30,9 +30,10 @@ import beam.sim.metrics.{BeamStaticMetricsWriter, MetricsSupport}
 import beam.utils.csv.writers._
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.watcher.MethodWatcher
-import beam.utils.{DebugLib, FailFast, NetworkHelper, ProfilingUtils, SummaryVehicleStatsParser}
+import beam.utils._
 import com.conveyal.r5.transit.TransportNetwork
 import com.google.inject.Inject
+import com.typesafe.config.Config
 import com.google.inject.name.Named
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.lang3.StringUtils
@@ -50,7 +51,7 @@ import org.matsim.core.controler.listener.{
 }
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.router.util.TravelTime
-import org.matsim.utils.objectattributes.ObjectAttributesXmlWriter
+import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
 
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Path, Paths}
@@ -79,6 +80,7 @@ class BeamSim @Inject() (
   private val beamConfigChangesObservable: BeamConfigChangesObservable,
   private val routeHistory: RouteHistory,
   private val rideHailIterationHistory: RideHailIterationHistory,
+  private val config: Config,
   private val configHolder: BeamConfigHolder
 ) extends StartupListener
     with IterationStartsListener
@@ -154,9 +156,8 @@ class BeamSim @Inject() (
     beamServices.geo
   )
 
-  val vmInformationWriter: VMInformationCollector = new VMInformationCollector(
-    beamServices.matsimServices.getControlerIO
-  )
+  val vmInformationWriter: VMInformationCollector =
+    new VMInformationCollector(beamServices.beamConfig, beamServices.matsimServices.getControlerIO)
 
   val maybePickUpDropOffCollector =
     if (beamServices.beamConfig.beam.physsim.pickUpDropOffAnalysis.enabled) {
@@ -322,7 +323,7 @@ class BeamSim @Inject() (
               beamServices.geo,
               beamServices.beamConfig.beam.urbansim.backgroundODSkimsCreator.numberOfH3Indexes
             )
-          case "taz" => new TAZClustering(beamScenario.tazTreeMap)
+          case "taz" => new TAZClustering(beamScenario.tazTreeMapForASimSkimmer)
         }
 
       val abstractSkimmer = BackgroundSkimsCreator.createSkimmer(beamServices, geoClustering)
@@ -350,6 +351,14 @@ class BeamSim @Inject() (
   }
 
   override def notifyIterationStarts(event: IterationStartsEvent): Unit = {
+    beamServices.skims.parking_skimmer.resetSkimStats()
+    beamServices.skims.od_skimmer.resetSkimStats()
+    beamServices.skims.rh_skimmer.resetSkimStats()
+    beamServices.skims.freight_skimmer.resetSkimStats()
+    beamServices.skims.taz_skimmer.resetSkimStats()
+    beamServices.skims.dt_skimmer.resetSkimStats()
+    beamServices.skims.tc_skimmer.resetSkimStats()
+
     backgroundSkimsCreator.foreach(_.reduceParallelismTo(1))
     beamServices.eventBuilderActor = actorSystem.actorOf(
       EventBuilderActor.props(
@@ -439,6 +448,8 @@ class BeamSim @Inject() (
       carTravelTimeFromPtes.foreach(_.notifyIterationEnds(event))
       transitOccupancyByStop.notifyIterationEnds(event)
     }
+
+    beamScenario.tazTreeMap.notifyIterationEnds(event)
 
     travelTimeGoogleStatistic.notifyIterationEnds(event)
     startAndEndEventListeners.foreach(_.notifyIterationEnds(event))
@@ -533,7 +544,9 @@ class BeamSim @Inject() (
     val activityEndTimesNonNegativeCheck: Iterable[Plan] = persons.toList.flatMap(_.getPlans.asScala.toList) filter {
       plan =>
         val activities = plan.getPlanElements.asScala.filter(_.isInstanceOf[Activity])
-        activities.dropRight(1).exists(_.asInstanceOf[Activity].getEndTime < 0)
+        activities
+          .dropRight(1)
+          .exists(_.asInstanceOf[Activity].getEndTime.orElse(beam.UNDEFINED_TIME) < 0)
     }
 
     if (activityEndTimesNonNegativeCheck.isEmpty) {
@@ -549,11 +562,32 @@ class BeamSim @Inject() (
     logger.info("Ending Iteration")
     if (COLLECT_AND_CREATE_BEAM_ANALYSIS_AND_GRAPHS) {
       delayMetricAnalysis.generateDelayAnalysis(event)
-
-      writeEventsAnalysisUsing(event)
     }
-    if (beamConfig.beam.debug.vmInformation.createGCClassHistogram) {
-      vmInformationWriter.notifyIterationEnds(event)
+    vmInformationWriter.notifyIterationEnds(event)
+
+    beamServices.skims.parking_skimmer.displaySkimStats()
+    beamServices.skims.od_skimmer.displaySkimStats()
+    beamServices.skims.rh_skimmer.displaySkimStats()
+    beamServices.skims.freight_skimmer.displaySkimStats()
+    beamServices.skims.taz_skimmer.displaySkimStats()
+    beamServices.skims.dt_skimmer.displaySkimStats()
+    beamServices.skims.tc_skimmer.displaySkimStats()
+
+    // iteration python scripts
+    for {
+      scripts <- beamServices.beamConfig.beam.outputs.analysis.iterationScripts
+      script  <- scripts
+    } {
+      val iterationPath = event.getServices.getControlerIO.getIterationPath(event.getIteration)
+      val configPath = config.getString("config")
+      val process = AnalysisProcessor.firePythonAsync(
+        getPythonExecutable,
+        script,
+        configPath,
+        iterationPath,
+        event.getIteration.toString
+      )
+      runningPythonScripts += process
     }
 
     if (beamConfig.beam.agentsim.agents.vehicles.linkSocAcrossIterations)
@@ -563,20 +597,9 @@ class BeamSim @Inject() (
     beamServices.beamScenario.privateVehicles.values.foreach(_.resetState())
   }
 
-  private def writeEventsAnalysisUsing(event: IterationEndsEvent) = {
-    if (beamServices.beamConfig.beam.outputs.writeAnalysis) {
-      val writeEventsInterval = beamServices.beamConfig.beam.outputs.writeEventsInterval
-      val writeEventAnalysisInThisIteration = writeEventsInterval > 0 && event.getIteration % writeEventsInterval == 0
-      if (writeEventAnalysisInThisIteration) {
-        val currentEventsFilePath =
-          event.getServices.getControlerIO.getIterationFilename(event.getServices.getIterationNumber, "events.csv")
-        val pythonProcess = beam.analysis.AnalysisProcessor.firePythonScriptAsync(
-          "src/main/python/events_analysis/analyze_events.py",
-          if (new File(currentEventsFilePath).exists) currentEventsFilePath else currentEventsFilePath + ".gz"
-        )
-        runningPythonScripts += pythonProcess
-      }
-    }
+  private def getPythonExecutable = {
+    val pythonExecProp = "beam.outputs.analysis.pythonExecutable"
+    if (config.hasPath(pythonExecProp)) config.getString(pythonExecProp) else "python3"
   }
 
   private def dumpMatsimStuffAtTheBeginningOfSimulation(): Unit = {
@@ -600,15 +623,18 @@ class BeamSim @Inject() (
   }
 
   private def dumpHouseholdAttributes(): Unit = {
-    val householdAttributes = scenario.getHouseholds.getHouseholdAttributes
-    if (householdAttributes != null) {
-      val writer = new ObjectAttributesXmlWriter(householdAttributes)
-      writer.setPrettyPrint(true)
-      writer.putAttributeConverters(Collections.emptyMap())
-      writer.writeFile(
-        beamServices.matsimServices.getControlerIO.getOutputFilename("output_householdAttributes.xml.gz")
-      )
+    val householdAttributes = new ObjectAttributes
+    scenario.getHouseholds.getHouseholds.values().asScala.map { household =>
+      household.getAttributes.getAsMap.asScala.map { case (key, value) =>
+        householdAttributes.putAttribute(household.getId.toString, key, value)
+      }
     }
+    val writer = new ObjectAttributesXmlWriter(householdAttributes)
+    writer.setPrettyPrint(true)
+    writer.putAttributeConverters(Collections.emptyMap())
+    writer.writeFile(
+      beamServices.matsimServices.getControlerIO.getOutputFilename("output_householdAttributes.xml.gz")
+    )
   }
 
   private def isFirstIteration(currentIteration: Int): Boolean = {
@@ -649,11 +675,22 @@ class BeamSim @Inject() (
 
     deleteMATSimOutputFiles(event.getServices.getIterationNumber)
 
+    // simulation python scripts
+    for {
+      scripts <- beamServices.beamConfig.beam.outputs.analysis.simulationScripts
+      script  <- scripts
+    } {
+      val outputPath = event.getServices.getControlerIO.getOutputPath
+      val configPath = config.getString("config")
+      val process = AnalysisProcessor.firePythonAsync(getPythonExecutable, script, configPath, outputPath)
+      runningPythonScripts += process
+    }
+
     runningPythonScripts
       .filter(process => process.isRunning)
       .foreach(process => {
         logger.info("Waiting for python process to complete running.")
-        process.waitFor(5, TimeUnit.MINUTES)
+        process.waitFor(beamServices.beamConfig.beam.outputs.analysis.processWaitTimeInMinutes, TimeUnit.MINUTES)
         logger.info("Python process completed.")
       })
 

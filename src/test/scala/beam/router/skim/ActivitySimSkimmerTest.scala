@@ -14,9 +14,9 @@ class ActivitySimSkimmerTest extends AnyFlatSpec with Matchers {
       pathType = ActivitySimPathType.WALK,
       originId = "origin-1",
       destinationId = "destination-1",
-      weightedGeneralizedTime = 1.0,
+      weightedTotalTime = 1.0,
       weightedTotalInVehicleTime = 2.0,
-      weightedGeneralizedCost = 3.0,
+      weightedTotalFareInCents = 3.0,
       weightedDistance = 4.0,
       weightedWalkAccess = 5.0,
       weightedWalkAuxiliary = 6.0,
@@ -29,9 +29,11 @@ class ActivitySimSkimmerTest extends AnyFlatSpec with Matchers {
       weightedFerryInVehicleTimeInMinutes = 11.0,
       weightedTransitBoardingsCount = 12.0,
       weightedCost = 13.0,
+      failedTrips = 0,
+      completedTrips = 1,
       debugText = "debug-text"
     ).toCsvString should be(
-      "MD,WALK,origin-1,destination-1,1.0,2.0,3.0,4.0,5.0,6.0,7.0,1.0,2.0,8.0,9.0,10.0,11.0,12.0,13.0,debug-text\n"
+      "MD,WALK,origin-1,destination-1,1.0,2.0,3.0,4.0,5.0,6.0,7.0,1.0,2.0,8.0,9.0,10.0,11.0,12.0,13.0,0,1,debug-text\n"
     )
   }
 }

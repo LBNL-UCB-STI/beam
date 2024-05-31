@@ -15,7 +15,7 @@ import beam.agentsim.agents.{BeamAgent, PersonAgent}
 import beam.agentsim.events.RefuelSessionEvent.NotApplicable
 import beam.agentsim.events._
 import beam.agentsim.infrastructure.ChargingNetworkManager._
-import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
+import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -40,6 +40,7 @@ import org.matsim.api.core.v01.events.{
 }
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.{immutable, mutable}
@@ -60,7 +61,7 @@ object DrivesVehicle {
     // First attempt to find the link in updated that corresponds to the stopping link in old
     val stoppingLink = oldPassengerSchedule.linkAtTime(stopTick)
     val updatedLegsInSchedule = updatedPassengerSchedule.schedule.keys.toList
-    val startingLeg = updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(stoppingLink)) match {
+    val startingLeg = updatedLegsInSchedule.view.reverse.find(_.travelPath.linkIds.contains(stoppingLink)) match {
       case Some(leg) =>
         leg
       case None =>
@@ -75,7 +76,7 @@ object DrivesVehicle {
             .min
             ._2
         )
-        updatedLegsInSchedule.reverse.find(_.travelPath.linkIds.contains(startingLink)).get
+        updatedLegsInSchedule.view.reverse.find(_.travelPath.linkIds.contains(startingLink)).get
     }
     val indexOfStartingLink = startingLeg.travelPath.linkIds.indexWhere(_ == stoppingLink)
     val newLinks = startingLeg.travelPath.linkIds.drop(indexOfStartingLink)
@@ -125,8 +126,6 @@ object DrivesVehicle {
     def vehicle: BeamVehicle
     def streetVehicle: StreetVehicle
   }
-
-  case class EndRefuelData(chargingEndTick: Int, energyDelivered: Double)
 
   case class ActualVehicle(vehicle: BeamVehicle) extends VehicleOrToken {
     override def id: Id[BeamVehicle] = vehicle.id
@@ -185,6 +184,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
   protected val beamServices: BeamServices
   protected val networkHelper: NetworkHelper
   protected val geo: GeoUtils
+  //we may want to rename this method and make it return more data in the future if we want to improve energy rate calc
+  def payloadInKgForLeg(leg: BeamLeg, drivingData: DrivingData): Option[Double]
   private var tollsAccumulated = 0.0
   protected val beamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
   protected val potentiallyChargingBeamVehicles: mutable.Map[Id[BeamVehicle], VehicleOrToken] = mutable.Map()
@@ -246,9 +247,11 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val currentVehicleUnderControl = data.currentVehicle.headOption
         .getOrElse(throw new RuntimeException("Current Vehicle is not available."))
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
+      val payloadInKg = payloadInKgForLeg(currentLeg, data)
       val fuelConsumed =
         currentBeamVehicle.useFuel(
           currentLeg,
+          payloadInKg,
           beamScenario,
           networkHelper,
           eventsManager,
@@ -275,6 +278,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         nextNotifyVehicleResourceIdle = Some(
           NotifyVehicleIdle(
             currentVehicleUnderControl,
+            this.id,
             geo.wgs2Utm(currentLeg.travelPath.endPoint.copy(time = tick)),
             data.passengerSchedule,
             currentBeamVehicle.getState,
@@ -345,15 +349,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         currentBeamVehicle.primaryFuelLevelInJoules,
         currentBeamVehicle.secondaryFuelLevelInJoules,
         tollOnCurrentLeg,
-        /*
-          fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkNumberOfLanes)),
-          fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.freeFlowSpeed)),
-          fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.gradientOption)),
-          fuelConsumed.fuelConsumptionData.map(x=>(x.linkId, x.linkLength)),
-          fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.rate)),
-          fuelConsumed.primaryLoggingData.map(x=>(x.linkId, x.consumption)),
-          fuelConsumed.secondaryLoggingData.map(x=>(x.linkId, x.rate)),
-          fuelConsumed.secondaryLoggingData.map(x=>(x.linkId, x.consumption))*/
         riders
       )
 
@@ -405,9 +400,28 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
                     stall,
                     Id.createPersonId(id),
                     triggerId,
+                    self,
                     shiftStatus = NotApplicable
                   )
                   waitForConnectionToChargingPoint = true
+                  for {
+                    personData <- findPersonData(data)
+                    nextActivity <- this match {
+                      case agent: PersonAgent => agent.nextActivity(personData)
+                      case _                  => None
+                    }
+                    nextActivityEndTime = nextActivity.getEndTime
+                    if nextActivityEndTime.isDefined && nextActivityEndTime
+                      .seconds() <= (tick + beamConfig.beam.agentsim.schedulerParallelismWindow)
+                  } {
+                    log.warning(
+                      s"Vehicle {} needs to depart at time {} but agent {} sends a plug request at tick {} for stall $stall",
+                      currentBeamVehicle.id,
+                      nextActivityEndTime,
+                      id,
+                      tick
+                    )
+                  }
                 case None => // this should only happen rarely
                   log.debug(
                     "Charging request by vehicle {} ({}) on a spot without a charging point (parkingZoneId: {}). This is not handled yet!",
@@ -478,13 +492,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         triggerId
       )
 
-    case ev @ Event(StartingRefuelSession(_, _), _) =>
+    case ev @ Event(_: StartingRefuelSession, _) =>
       log.debug("state(DrivesVehicle.Driving.StartingRefuelSession): {}", ev)
       stay()
-    case ev @ Event(UnhandledVehicle(_, _, _), _) =>
+    case ev @ Event(_: UnhandledVehicle, _) =>
       log.error("state(DrivesVehicle.Driving.UnhandledVehicle): {}", ev)
       stay()
-    case ev @ Event(WaitingToCharge(_, _, _), _) =>
+    case ev @ Event(_: WaitingToCharge, _) =>
       log.error("state(DrivesVehicle.Driving.WaitingInLine): {}. This probably should not happen", ev)
       stay()
   }
@@ -531,11 +545,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val updatedStopTick = math.max(stopTick, currentLeg.startTime)
       val partiallyCompletedBeamLeg = currentLeg.subLegThrough(updatedStopTick, networkHelper, geo)
       val riders = data.passengerSchedule.schedule(currentLeg).riders.toIndexedSeq.map(_.personId)
+      val payloadInKg = payloadInKgForLeg(currentLeg, data)
 
       val currentLocation = if (updatedStopTick > currentLeg.startTime) {
         val fuelConsumed =
           currentBeamVehicle.useFuel(
             partiallyCompletedBeamLeg,
+            payloadInKg,
             beamScenario,
             networkHelper,
             eventsManager,
@@ -573,6 +589,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       nextNotifyVehicleResourceIdle = Some(
         NotifyVehicleIdle(
           currentVehicleUnderControl,
+          this.id,
           geo.wgs2Utm(currentLocation.copy(time = updatedStopTick)),
           data.passengerSchedule,
           currentBeamVehicle.getState,
@@ -617,7 +634,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stash()
       stay
-    case ev @ Event(StartingRefuelSession(_, _), _) =>
+    case ev @ Event(_: StartingRefuelSession, _) =>
       log.debug("state(DrivesVehicle.DrivingInterrupted): {}", ev)
       stay
     case _ @Event(LastLegPassengerSchedule(triggerId), data) =>
@@ -677,12 +694,10 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
               currentBeamVehicle.id == currentVehicleUnderControl,
               currentBeamVehicle.id + " " + currentVehicleUnderControl
             )
-            currentBeamVehicle.stall match {
-              case Some(theStall) if !currentBeamVehicle.isCAV =>
-                parkingManager ! ReleaseParkingStall(theStall, triggerId)
-                currentBeamVehicle.unsetParkingStall()
-              case _ =>
+            currentBeamVehicle.stall.foreach { theStall =>
+              parkingManager ! ReleaseParkingStall(theStall, tick)
             }
+            currentBeamVehicle.unsetParkingStall()
           case None =>
         }
         val triggerToSchedule: Vector[ScheduleTrigger] = data.passengerSchedule
@@ -713,7 +728,17 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           .drop(data.currentLegPassengerScheduleIndex)
           .head
           ._1
-        val endTime = tick + beamLeg.duration
+        val endTime = if ((beamLeg.duration >= 0) & (tick + beamLeg.duration >= latestObservedTick)) {
+          tick + beamLeg.duration
+        } else if (tick + beamLeg.duration < latestObservedTick) {
+          logger.error("Current tick is before latestObservedTick {}", beamLeg)
+          latestObservedTick
+        } else {
+          logger.error("Negative leg duration for leg {}", beamLeg)
+          tick
+        }
+        // TODO: Clear out currently reserved stall
+        // Maybe send out ChargingUnplugRequest(tick, vehicle, triggerId)
         goto(Driving) using LiterallyDrivingData(data, endTime, Some(tick))
           .asInstanceOf[T] replying CompletionNotice(
           triggerId,
@@ -761,7 +786,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       log.debug("state(DrivesVehicle.WaitingToDriveInterrupted): {}", ev)
       stash()
       stay
-    case _ @Event(NotifyVehicleResourceIdleReply(_, _, _), _) =>
+    case _ @Event(_: NotifyVehicleResourceIdleReply, _) =>
       stash()
       stay
 
@@ -900,9 +925,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           ScheduleTrigger(AlightVehicleTrigger(Math.max(currentLeg.endTime + 1, tick), vehicleId), self)
         )
       )
-    case _ @Event(EndingRefuelSession(tick, vehicleId, triggerId), _) =>
+    case _ @Event(EndingRefuelSession(tick, vehicleId, _), _) =>
       log.debug(s"DrivesVehicle: EndingRefuelSession. tick: $tick, vehicle: $vehicleId")
-      scheduler ! CompletionNotice(triggerId)
       stay()
   }
 
@@ -925,14 +949,21 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       0.0
   }
 
-  protected def park(parkingInquiry: ParkingInquiry): Unit = {
-    val isChargingRequestOrEV: Boolean = parkingInquiry.beamVehicle match {
-      case Some(vehicle) => vehicle.isPHEV || vehicle.isBEV
-      case _             => parkingInquiry.parkingActivityType == ParkingActivityType.Charge
+  protected def park(inquiry: ParkingInquiry): Unit = {
+    import ParkingSearchMode._
+    val isChargingRequest: Boolean = inquiry.beamVehicle match {
+      // If ChoosesMode, then verify if vehicle is EV
+      case Some(vehicle) if !inquiry.reserveStall => vehicle.isEV
+      // If ChoosesParking, then verify if vehicle needs to either enroute or destination charge
+      case Some(vehicle) if inquiry.reserveStall =>
+        vehicle.isEV && List(DestinationCharging, EnRouteCharging).contains(inquiry.searchMode)
+      // If non vehicle has been specified, then verify if the request is a charge request
+      case _ => inquiry.parkingActivityType == ParkingActivityType.Charge
     }
-    if (isChargingRequestOrEV)
-      chargingNetworkManager ! parkingInquiry
+
+    if (isChargingRequest)
+      chargingNetworkManager ! inquiry
     else
-      parkingManager ! parkingInquiry
+      parkingManager ! inquiry
   }
 }

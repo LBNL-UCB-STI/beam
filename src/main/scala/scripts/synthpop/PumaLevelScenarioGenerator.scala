@@ -12,7 +12,7 @@ import beam.utils.data.synthpop.models.Models.{BlockGroupGeoId, Gender, PowPumaG
 import beam.utils.scenario._
 import com.conveyal.osmlib.OSM
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.{Envelope, Geometry}
+import org.locationtech.jts.geom.{Envelope, Geometry}
 import org.apache.commons.math3.random.MersenneTwister
 import org.matsim.api.core.v01.Coord
 import scripts.ctpp.models.ResidenceToWorkplaceFlowGeography
@@ -234,6 +234,7 @@ class PumaLevelScenarioGenerator(
                           rank = 0,
                           age = person.age,
                           excludedModes = Seq.empty,
+                          rideHailServiceSubscription = Seq.empty,
                           isFemale = person.gender == Gender.Female,
                           valueOfTime = valueOfTime,
                           industry = person.industry

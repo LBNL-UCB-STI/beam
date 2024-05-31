@@ -1,11 +1,11 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.collections.QuadTree
 
@@ -23,7 +23,6 @@ object ZonalParkingManager extends LazyLogging {
 
   val AveragePersonWalkingSpeed: Double = 1.4 // in m/s
   val HourInSeconds: Int = 3600
-  val DollarsInCents: Double = 100.0
 
   /**
     * constructs a ZonalParkingManager with provided parkingZones
@@ -32,8 +31,7 @@ object ZonalParkingManager extends LazyLogging {
     */
   def apply(
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
-    geoQuadTree: QuadTree[TAZ],
-    idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+    tazTreeMap: TAZTreeMap,
     distanceFunction: (Coord, Coord) => Double,
     boundingBox: Envelope,
     minSearchRadius: Double,
@@ -41,7 +39,8 @@ object ZonalParkingManager extends LazyLogging {
     fractionOfSameTypeZones: Double,
     minNumberOfSameTypeZones: Int,
     seed: Int,
-    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
+    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
+    estimatedMinParkingDurationInSeconds: Double
   ): ZonalParkingManager = {
     new ZonalParkingManager(parkingZones) {
       if (maxSearchRadius < minSearchRadius) {
@@ -51,13 +50,13 @@ object ZonalParkingManager extends LazyLogging {
       }
       override val searchFunctions: Option[InfrastructureFunctions] = Some(
         new ParkingFunctions(
-          geoQuadTree,
-          idToGeoMapping,
+          tazTreeMap,
           parkingZones,
           distanceFunction,
           minSearchRadius,
           maxSearchRadius,
           0.0,
+          estimatedMinParkingDurationInSeconds,
           0.0,
           fractionOfSameTypeZones,
           minNumberOfSameTypeZones,
@@ -76,16 +75,14 @@ object ZonalParkingManager extends LazyLogging {
     */
   def apply(
     parkingZones: Map[Id[ParkingZoneId], ParkingZone],
-    geoQuadTree: QuadTree[TAZ],
-    idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+    TAZTreeMap: TAZTreeMap,
     envelopeInUTM: Envelope,
     beamConfig: BeamConfig,
     distanceFunction: (Coord, Coord) => Double
   ): ZonalParkingManager = {
     ZonalParkingManager(
       parkingZones,
-      geoQuadTree,
-      idToGeoMapping,
+      TAZTreeMap,
       distanceFunction,
       envelopeInUTM,
       beamConfig.beam.agentsim.agents.parking.minSearchRadius,
@@ -93,7 +90,8 @@ object ZonalParkingManager extends LazyLogging {
       beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
       beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
       beamConfig.matsim.modules.global.randomSeed,
-      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
+      beamConfig.beam.agentsim.agents.parking.multinomialLogit,
+      beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
     )
   }
 
@@ -101,20 +99,17 @@ object ZonalParkingManager extends LazyLogging {
     * constructs a ZonalParkingManager from a string iterator (typically, for testing)
     *
     * @param parkingDescription line-by-line string representation of parking including header
-    * @param random             random generator used for sampling parking locations
-    * @param includesHeader     true if the parkingDescription includes a csv-style header
     * @return
     */
   def apply(
     parkingDescription: Iterator[String],
-    geoQuadTree: QuadTree[TAZ],
-    idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+    TAZTreeMap: TAZTreeMap,
     boundingBox: Envelope,
     distanceFunction: (Coord, Coord) => Double,
     minSearchRadius: Double,
     maxSearchRadius: Double,
     seed: Int,
-    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit,
+    mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
     beamConfig: BeamConfig,
     beamServicesMaybe: Option[BeamServices]
   ): ZonalParkingManager = {
@@ -126,8 +121,7 @@ object ZonalParkingManager extends LazyLogging {
     )
     ZonalParkingManager(
       parking.zones.filter(_._2.chargingPointType.isEmpty).toMap,
-      geoQuadTree,
-      idToGeoMapping,
+      TAZTreeMap,
       distanceFunction,
       boundingBox,
       minSearchRadius,
@@ -135,7 +129,8 @@ object ZonalParkingManager extends LazyLogging {
       0.5,
       10,
       seed,
-      mnlParkingConfig
+      mnlParkingConfig,
+      beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
     )
   }
 
@@ -151,11 +146,10 @@ object ZonalParkingManager extends LazyLogging {
   ): ZonalParkingManager = {
     ZonalParkingManager(
       parkingZones,
-      beamServices.beamScenario.tazTreeMap.tazQuadTree,
-      beamServices.beamScenario.tazTreeMap.idToTAZMapping,
+      beamServices.beamScenario.tazTreeMap,
       envelopeInUTM,
       beamServices.beamConfig,
-      beamServices.geo.distUTMInMeters(_, _)
+      beamServices.geo.distUTMInMeters
     )
   }
 

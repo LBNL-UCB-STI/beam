@@ -1,6 +1,9 @@
 package beam.replanning
 
+import beam._
 import beam.sim.config.BeamConfig
+import beam.utils.OptionalUtils.OptionalTimeExtension
+
 import javax.inject.Inject
 import org.matsim.api.core.v01.population.{Activity, HasPlansAndId, Person, Plan}
 import org.matsim.core.population.PopulationUtils
@@ -16,7 +19,7 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
   private val log = LoggerFactory.getLogger(classOf[AddSupplementaryTrips])
 
   override def run(person: HasPlansAndId[Plan, Person]): Unit = {
-    if (beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.generate_secondary_activities) {
+    if (beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.generate_secondary_activities) {
       log.debug("Before Replanning AddNewActivities: Person-" + person.getId + " - " + person.getPlans.size())
       ReplanningUtil.makeExperiencedMobSimCompatible(person)
 
@@ -49,12 +52,12 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
       .filter(x => x.getType.equalsIgnoreCase("Work") | x.getType.equalsIgnoreCase("Home"))
       .toList
 
-    val newElements = elements.foldLeft(mutable.MutableList[Activity]())((listOfAct, currentAct) =>
+    val newElements = elements.foldLeft(mutable.MutableList[Activity]())((listOfAct, currentAct: Activity) =>
       listOfAct.lastOption match {
         case Some(lastAct) =>
           if (lastAct.getType == currentAct.getType) {
             val lastActivity = PopulationUtils.createActivity(lastAct)
-            lastActivity.setEndTime(currentAct.getEndTime)
+            currentAct.getEndTime.ifDefinedOrElse(lastActivity.setEndTime(_), () => lastActivity.setEndTimeUndefined())
             val newList = listOfAct.dropRight(1)
             newList :+ lastActivity
           } else {
@@ -95,10 +98,12 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
   private def addSubtourToActivity(
     activity: Activity
   ): List[Activity] = {
-    val startTime = if (activity.getStartTime > 0) { activity.getStartTime }
-    else { 0 }
-    val endTime = if (activity.getEndTime > 0) { activity.getEndTime }
-    else { 3600 * 24 }
+    val startTime = if (activity.getStartTime.isDefinedAndPositive) {
+      activity.getStartTime.seconds()
+    } else { 0 }
+    val endTime = if (activity.getEndTime.isDefinedAndPositive) {
+      activity.getEndTime.seconds()
+    } else { 3600 * 24 }
 
     val newStartTime = (endTime - startTime) / 2 - 1 + startTime
     val newEndTime = (endTime - startTime) / 2 + 1 + startTime
@@ -116,11 +121,17 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
     val activityAfterNewActivity =
       PopulationUtils.createActivityFromCoord(activity.getType, activity.getCoord)
 
-    activityBeforeNewActivity.setStartTime(activity.getStartTime)
+    activity.getStartTime.ifDefinedOrElse(
+      activityBeforeNewActivity.setStartTime(_),
+      () => activityBeforeNewActivity.setStartTimeUndefined()
+    )
     activityBeforeNewActivity.setEndTime(newStartTime)
 
     activityAfterNewActivity.setStartTime(newEndTime)
-    activityAfterNewActivity.setEndTime(activity.getEndTime)
+    activity.getEndTime.ifDefinedOrElse(
+      activityAfterNewActivity.setEndTime(_),
+      () => activityAfterNewActivity.setEndTimeUndefined()
+    )
 
     List(activityBeforeNewActivity, newActivity, activityAfterNewActivity)
   }
@@ -133,11 +144,14 @@ class AddSupplementaryTrips @Inject() (beamConfig: BeamConfig) extends PlansStra
     val nonWorker = elements.length == 1
     val newActivitiesToAdd = elements.zipWithIndex.map { case (planElement, idx) =>
       val prevEndTime = if (idx > 0) {
-        (elements(idx - 1).getEndTime + 1).max(0)
+        (elements(idx - 1).getEndTime.orElse(beam.UNDEFINED_TIME) + 1).max(0)
       } else {
         0
       }
-      planElement.setMaximumDuration(planElement.getEndTime - prevEndTime)
+      planElement.getEndTime.ifDefinedOrElse(
+        endTime => planElement.setMaximumDuration { endTime - prevEndTime },
+        () => planElement.setMaximumDurationUndefined()
+      )
       planElement.setStartTime(prevEndTime)
       definitelyAddSubtours(planElement, nonWorker)
     }

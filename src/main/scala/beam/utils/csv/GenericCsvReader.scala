@@ -80,6 +80,12 @@ trait GenericCsvReader {
     assert(v != null, s"Value in column '$column' is null")
     v
   }
+
+  def getOrDefault(rec: java.util.Map[String, String], column: String, defaultValue: String): String = {
+    //we cannot use rec.getOrDefault because it may contain null values.
+    val v = rec.get(column)
+    if (v != null) v else defaultValue
+  }
 }
 
 object GenericCsvReader extends GenericCsvReader

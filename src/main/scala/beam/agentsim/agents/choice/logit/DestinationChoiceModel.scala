@@ -6,6 +6,7 @@ import beam.sim.config.BeamConfig
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.Activity
 import org.matsim.core.utils.io.IOUtils
+import beam.utils.OptionalUtils._
 
 import scala.collection.JavaConverters._
 import scala.util.{Failure, Success, Try}
@@ -135,11 +136,11 @@ class DestinationChoiceModel(
   )
 
   val activityRates: DestinationChoiceModel.ActivityRates = loadActivityRates(
-    beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.intercept_file_path
+    beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.intercept_file_path
   )
 
   val (activityVOTs, activityDurations) = loadActivityParams(
-    beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.activity_file_path
+    beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.activity_file_path
   )
 
   def generateActivityRates(
@@ -251,7 +252,7 @@ class DestinationChoiceModel(
       .getOrElse(secondsToIndex(actStart), 0d)
     val tripIntercept = activity.getType.toLowerCase match {
       case "home" | "work" => 0d
-      case _               => beamConfig.beam.agentsim.agents.tripBehaviors.mulitnomialLogit.additional_trip_utility
+      case _               => beamConfig.beam.agentsim.agents.tripBehaviors.multinomialLogit.additional_trip_utility
     }
     activityValueOfTime + activityIntercept + tripIntercept
   }
@@ -259,10 +260,11 @@ class DestinationChoiceModel(
   private def getRealStartEndTime(
     activity: Activity
   ): (Double, Double) = {
-    val start = if (activity.getStartTime > 0) { activity.getStartTime }
-    else { 0 }
-    val end = if (activity.getEndTime > 0) { activity.getEndTime }
-    else { 3600 * 24 }
+    val start =
+      if (activity.getStartTime.isDefinedAndPositive) activity.getStartTime.seconds() else 0
+    val end =
+      if (activity.getEndTime.isDefinedAndPositive) activity.getEndTime.seconds()
+      else 3600 * 24
     (start, end)
   }
 

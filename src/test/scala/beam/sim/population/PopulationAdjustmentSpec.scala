@@ -1,18 +1,17 @@
 package beam.sim.population
 
 import beam.sim.BeamScenario
+import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.Level.{ERROR, INFO}
-import ch.qos.logback.classic.spi.ILoggingEvent
-import ch.qos.logback.classic.{Level, Logger}
-import ch.qos.logback.core.read.ListAppender
 import org.matsim.api.core.v01.population.{Person, Plan, Population, PopulationFactory}
 import org.matsim.api.core.v01.{Id, Scenario}
+import org.matsim.core.population.PopulationUtils
 import org.matsim.utils.objectattributes.ObjectAttributes
 import org.matsim.utils.objectattributes.attributable.Attributes
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.tagobjects.Retryable
 import org.scalatest.wordspec.AnyWordSpec
-import org.slf4j.LoggerFactory
 
 import java.util
 import scala.collection.JavaConverters._
@@ -20,23 +19,18 @@ import scala.collection.mutable
 
 class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndAfterEach {
 
-  private val appLogger = LoggerFactory.getLogger(TestPopulationAdjustment.getClass.getName).asInstanceOf[Logger]
-  private var appender: ListAppender[ILoggingEvent] = _
-
-  override def beforeEach(): Unit = {
-    appender = new ListAppender[ILoggingEvent]
-    appender.start()
-    appLogger.addAppender(appender)
-  }
-
-  override def afterEach(): Unit = {
-    appLogger.detachAppender(appender)
-  }
-
   "PopulationAdjustment" should {
-    "logs excluded modes defined as strings" in {
-      val population = createPopulation(persons)
-      persons.keys.map(_.toString.toInt).foreach { id =>
+    "add logs to created appender" in {
+      val popAdj = new TestPopulationAdjustment()
+      val testLogEntry = "Log entry for testing appender."
+      popAdj.logInfo(testLogEntry)
+      popAdj.verifyLogging(INFO -> testLogEntry)
+    }
+
+    "logs excluded modes" taggedAs Retryable in {
+      val popAdj = new TestPopulationAdjustment()
+      val personWithAttributes = createPersons.mapValues { person =>
+        val id = person.getId.toString.toInt
         // bike is excluded for 2 persons
         // car is excluded for 5 persons
         val excludedModes = (id % 5, id % 2) match {
@@ -45,20 +39,19 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
           case (_, 0) => "car"
           case (_, _) => ""
         }
-        population.getPersonAttributes.putAttribute(id.toString, PopulationAdjustment.EXCLUDED_MODES, excludedModes)
+        PopulationUtils.putPersonAttribute(person, PopulationAdjustment.EXCLUDED_MODES, excludedModes)
+        person
       }
+      val population = createPopulation(personWithAttributes)
 
-      TestPopulationAdjustment.logModes(population)
-      verifyLogging(
-        INFO -> "Modes excluded:",
-        INFO -> "car -> 5",
-        INFO -> "bike -> 2"
-      )
+      popAdj.logModes(population)
+      popAdj.verifyLogging(INFO -> "Modes excluded:", INFO -> "car -> 5", INFO -> "bike -> 2")
     }
 
     "logs excluded modes defined as iterable" in {
-      val population = createPopulation(persons)
-      persons.keys.map(_.toString.toInt).foreach { id =>
+      val popAdj = new TestPopulationAdjustment()
+      val personWithAttributes = createPersons.mapValues { person =>
+        val id = person.getId.toString.toInt
         // bike is excluded for 5 persons
         // car is excluded for 2 persons
         val excludedModes = (id % 2, id % 5) match {
@@ -67,20 +60,19 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
           case (_, 0) => mutable.Buffer("car")
           case (_, _) => Set.empty
         }
-        population.getPersonAttributes.putAttribute(id.toString, PopulationAdjustment.EXCLUDED_MODES, excludedModes)
+        PopulationUtils.putPersonAttribute(person, PopulationAdjustment.EXCLUDED_MODES, excludedModes)
+        person
       }
+      val population = createPopulation(personWithAttributes)
 
-      TestPopulationAdjustment.logModes(population)
-      verifyLogging(
-        INFO -> "Modes excluded:",
-        INFO -> "bike -> 5",
-        INFO -> "car -> 2"
-      )
+      popAdj.logModes(population)
+      popAdj.verifyLogging(INFO -> "Modes excluded:", INFO -> "bike -> 5", INFO -> "car -> 2")
     }
 
     "logs excluded modes and alarms not all persons have required attribute" in {
-      val population = createPopulation(persons)
-      persons.keys.map(_.toString.toInt).foreach { id =>
+      val popAdj = new TestPopulationAdjustment()
+      val personWithAttributes = createPersons.mapValues { person =>
+        val id = person.getId.toString.toInt
         // bike is excluded for 2 persons
         // car is excluded for 3 persons
         val excludedModes = (id % 5, id % 3) match {
@@ -90,12 +82,14 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
           case (_, _) => None
         }
         excludedModes.foreach { mode =>
-          population.getPersonAttributes.putAttribute(id.toString, PopulationAdjustment.EXCLUDED_MODES, mode)
+          PopulationUtils.putPersonAttribute(person, PopulationAdjustment.EXCLUDED_MODES, mode)
         }
+        person
       }
+      val population = createPopulation(personWithAttributes)
 
-      TestPopulationAdjustment.logModes(population)
-      verifyLogging(
+      popAdj.logModes(population)
+      popAdj.verifyLogging(
         INFO  -> "Modes excluded:",
         INFO  -> "car -> 3",
         INFO  -> "bike -> 2",
@@ -104,21 +98,45 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
     }
   }
 
-  private object TestPopulationAdjustment extends PopulationAdjustment {
+  case class LogEntry(message: String, level: Level)
+
+  object LogEntry {
+
+    def InfoMessage(message: String): LogEntry = {
+      new LogEntry(message, level = INFO)
+    }
+
+    def ErrorMessage(message: String): LogEntry = {
+      new LogEntry(message, level = ERROR)
+    }
+  }
+
+  class TestPopulationAdjustment extends PopulationAdjustment {
     override lazy val scenario: Scenario = ???
     override lazy val beamScenario: BeamScenario = ???
     override def updatePopulation(scenario: Scenario): Population = ???
+
+    private val log: mutable.MutableList[LogEntry] = mutable.MutableList.empty[LogEntry]
+
+    override def logInfo(message: String): Unit = {
+      log += LogEntry.InfoMessage(message)
+    }
+
+    override def logError(message: String): Unit = {
+      log += LogEntry.ErrorMessage(message)
+    }
+
+    def verifyLogging(expectedLogs: (Level, String)*): Unit = {
+      log.map(e => e.level -> e.message) shouldBe expectedLogs
+    }
+
   }
 
-  private lazy val persons: Map[Id[Person], Person] =
+  private def createPersons: Map[Id[Person], Person] =
     (1L to 10L)
       .map(Id.createPersonId)
       .map(id => (id, createPerson(id)))
       .toMap
-
-  private def verifyLogging(expectedLogs: (Level, String)*): Unit = {
-    appender.list.asScala.map(e => e.getLevel -> e.getFormattedMessage) shouldBe expectedLogs
-  }
 
   private def createPerson(id: Id[Person]): Person = new Person {
     private val attributes = new Attributes
@@ -144,7 +162,6 @@ class PopulationAdjustmentSpec extends AnyWordSpec with Matchers with BeforeAndA
     override def getPersons: util.Map[Id[Person], Person] = persons.asJava
     override def addPerson(p: Person): Unit = ???
     override def removePerson(personId: Id[Person]): Person = ???
-    override def getPersonAttributes: ObjectAttributes = personAttributes
     override def getAttributes: Attributes = attributes
   }
 }

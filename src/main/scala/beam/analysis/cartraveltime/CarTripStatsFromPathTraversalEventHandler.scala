@@ -1,7 +1,6 @@
 package beam.analysis.cartraveltime
 
 import java.io.Closeable
-
 import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.{GraphUtils, GraphsStatsAgentSimEventsListener}
 import beam.router.FreeFlowTravelTime
@@ -9,15 +8,23 @@ import beam.router.Modes.BeamMode
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam.Calibration.StudyArea
 import beam.utils.csv.CsvWriter
-import beam.utils.{EventReader, NetworkHelper, NetworkHelperImpl, Statistics}
+import beam.utils.{
+  EventReader,
+  NetworkHelper,
+  NetworkHelperImpl,
+  OutputDataDescriptor,
+  OutputDataDescriptorObject,
+  Statistics
+}
 import com.typesafe.scalalogging.LazyLogging
 import org.jfree.chart.ChartFactory
 import org.jfree.chart.plot.PlotOrientation
 import org.jfree.data.category.{CategoryDataset, DefaultCategoryDataset}
-import org.jfree.data.general.DatasetUtilities
+import org.jfree.data.general.DatasetUtils
 import org.matsim.api.core.v01.Coord
 import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.network.{Link, Network}
+import org.matsim.core.config.groups.ControlerConfigGroup.CompressionType
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.OutputDirectoryHierarchy.OverwriteFileSetting
 import org.matsim.core.controler.events.{IterationEndsEvent, ShutdownEvent}
@@ -26,6 +33,7 @@ import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 
+import java.text.MessageFormat
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Try
@@ -152,7 +160,7 @@ class CarTripStatsFromPathTraversalEventHandler(
   override def notifyIterationEnds(event: IterationEndsEvent): Unit = {
     val type2RideStats: Map[CarType, Seq[CarTripStat]] = carType2PathTraversals.keys
       .map { carType =>
-        carType -> calcRideStats(event.getIteration, carType)
+        carType -> calcRideStats(event.getIteration, carType).filter(_.speed > 0)
       }
       .toSeq
       .sortBy(_._1)
@@ -306,7 +314,7 @@ class CarTripStatsFromPathTraversalEventHandler(
     val averageSpeed = (0 until maxHour).map(hourAverageSpeed.getOrElse(_, 0.0))
 
     // generate the category dataset using the average travel times data
-    val dataset = DatasetUtilities.createCategoryDataset("car", "", Array(averageSpeed.toArray))
+    val dataset = DatasetUtils.createCategoryDataset("car", "", Array(averageSpeed.toArray))
 
     val fileName = s"${prefix}AverageSpeed.$mode.png"
     val graphTitle = s"Average Speed [ $mode ]"
@@ -340,7 +348,7 @@ class CarTripStatsFromPathTraversalEventHandler(
         hour -> 100 * (avgSpeed / avgFreeFlowSpeed)
       }
     val arr = (0 until hourAverageSpeedPercent.keys.max).map(hourAverageSpeedPercent.getOrElse(_, 0.0))
-    val dataset = DatasetUtilities.createCategoryDataset("car", "", Array(arr.toArray))
+    val dataset = DatasetUtils.createCategoryDataset("car", "", Array(arr.toArray))
     val fileName = s"${prefix}AverageSpeedPercentage.$mode.png"
     val graphTitle = s"Average Speed Percentage [ $mode ]"
     val chart = GraphUtils.createStackedBarChartWithDefaultSettings(
@@ -544,15 +552,29 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
       val freeFlowTravelTime: Double = calcFreeFlowDuration(freeFlowTravelTimeCalc, linkIds)
       val startCoordWGS = new Coord(driving.startX, driving.startY)
       val endCoordWGS = new Coord(parking.endX, parking.endY)
-      CarTripStat(
-        vehicleId = driving.vehicleId.toString,
-        travelTime = travelTime,
-        distance = length,
-        freeFlowTravelTime = freeFlowTravelTime,
-        departureTime = driving.departureTime,
-        startCoordWGS = startCoordWGS,
-        endCoordWGS = endCoordWGS
-      ) :: acc
+      val outputStats = if (travelTime > 0 & freeFlowTravelTime > 0 & length > 0) {
+        CarTripStat(
+          vehicleId = driving.vehicleId.toString,
+          travelTime = travelTime,
+          distance = length,
+          freeFlowTravelTime = freeFlowTravelTime,
+          departureTime = driving.departureTime,
+          startCoordWGS = startCoordWGS,
+          endCoordWGS = endCoordWGS
+        )
+      } else {
+        logger.warn("Bad path traversals {}", linkIds)
+        CarTripStat(
+          vehicleId = driving.vehicleId.toString,
+          travelTime = 0,
+          distance = 0,
+          freeFlowTravelTime = 0,
+          departureTime = driving.departureTime,
+          startCoordWGS = startCoordWGS,
+          endCoordWGS = endCoordWGS
+        )
+      }
+      outputStats :: acc
     }
     stats
   }
@@ -605,6 +627,51 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
     drivingWithParkingPtes
   }
 
+  def outputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("CarTripStatsFromPathTraversalEventHandler", "AverageCarSpeed.csv")(
+      """ iteration       | iteration number                           
+          car_type        | Car type (Personal, RideHail)
+          speed           | Average speed of cars of this type"""
+    )
+
+  def outputDataDescriptor(file: String, entity: String): OutputDataDescriptor = {
+    val outputFileDescription =
+      """
+        iteration         | iteration number
+        carType           | Car type (Personal, RideHail)
+        avg               | Average {0} of cars of this type
+        median            | Median {0} of cars of this type
+        p75               | 75th percentile of {0} of cars of this type
+        p95               | 95th percentile of {0} of cars of this type
+        p99               | 99th percentile of {0} of cars of this type
+        min               | Min {0} of cars of this type
+        max               | Max {0} of cars of this type
+        sum               | Sum of the {0} values of cars of this type
+        """
+    OutputDataDescriptorObject("CarTripStatsFromPathTraversalEventHandler", s"$file.csv")(
+      MessageFormat.format(outputFileDescription, entity)
+    )
+  }
+
+  def detailedOutputDataDescriptor(carType: String): OutputDataDescriptor = {
+    OutputDataDescriptorObject(
+      "CarTripStatsFromPathTraversalEventHandler",
+      s"CarRideStats.$carType.csv",
+      iterationLevel = true
+    )(s"""
+        vehicle_id | If of the vehicle that made this trip
+        carType | Car type ($carType)
+        travel_time | Trip travel time
+        distance | Trip distance
+        free_flow_travel_time | Travel time if the vehicle would go freely
+        departure_time | Departure time
+        start_x | X part of start location
+        start_y | Y part of start location
+        end_x | X part of end location
+        end_y | Y part of end location
+        """)
+  }
+
   def main(args: Array[String]): Unit = {
     require(
       args.length == 3,
@@ -621,7 +688,7 @@ object CarTripStatsFromPathTraversalEventHandler extends LazyLogging {
     val studyAreaTripFilter = new StudyAreaTripFilter(studyArea, geoUtils)
 
     val controlerIO: OutputDirectoryHierarchy =
-      new OutputDirectoryHierarchy("", OverwriteFileSetting.failIfDirectoryExists)
+      new OutputDirectoryHierarchy("", OverwriteFileSetting.failIfDirectoryExists, CompressionType.none)
 
     val c = CarTripStatsFromPathTraversalEventHandler(
       pathToNetwork = pathToNetwork,

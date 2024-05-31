@@ -1,14 +1,14 @@
 package beam.agentsim.scheduler
 
-import akka.actor.{ActorLogging, ActorRef, BeamLoggingReceive, Cancellable, Props, Terminated}
+import akka.actor.{ActorLogging, ActorRef, BeamLoggingReceive, Cancellable, CoordinatedShutdown, Props, Terminated}
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.ridehail.RideHailManager.RideHailRepositioningTrigger
 import beam.agentsim.scheduler.BeamAgentScheduler._
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.sim.config.BeamConfig
-import beam.utils.StuckFinder
 import beam.utils.logging.{LogActorState, LoggingMessageActor}
+import beam.utils.{DebugLib, FileUtils, StuckFinder}
 import com.google.common.collect.TreeMultimap
 
 import java.util.Comparator
@@ -17,7 +17,7 @@ import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.{Deadline, FiniteDuration}
+import scala.concurrent.duration.Deadline
 
 case class RideHailingManagerIsExtremelySlowException(
   message: String,
@@ -41,13 +41,15 @@ object BeamAgentScheduler {
 
   case class CompletionNotice(
     triggerId: Long,
-    newTriggers: Seq[ScheduleTrigger] = Vector[ScheduleTrigger]()
+    newTriggers: Seq[ScheduleTrigger] = Vector.empty[ScheduleTrigger]
   ) extends SchedulerMessage
       with HasTriggerId
 
   case object Monitor extends SchedulerMessage
 
-  case object RequestCurrentTime extends SchedulerMessage
+  case object SimulationStuckCheck extends SchedulerMessage
+
+  case object BeforeForcedShutdown extends SchedulerMessage
 
   case object SkipOverBadActors extends SchedulerMessage
 
@@ -89,13 +91,16 @@ object BeamAgentScheduler {
       }
   }
 
+  /**
+    * Intended for testing, because it doesn't provide the right iteration output directory
+    */
   def SchedulerProps(
     beamConfig: BeamConfig,
     stopTick: Int = TimeUnit.HOURS.toSeconds(24).toInt,
     maxWindow: Int = 1,
     stuckFinder: StuckFinder
   ): Props = {
-    Props(classOf[BeamAgentScheduler], beamConfig, stopTick, maxWindow, stuckFinder)
+    Props(classOf[BeamAgentScheduler], beamConfig, ".", stopTick, maxWindow, stuckFinder)
   }
 
   object ScheduledTriggerComparator extends Comparator[ScheduledTrigger] {
@@ -119,6 +124,7 @@ case object BeamAgentSchedulerTimer
 
 class BeamAgentScheduler(
   val beamConfig: BeamConfig,
+  val outputDir: String,
   stopTick: Int,
   val maxWindow: Int,
   val stuckFinder: StuckFinder
@@ -146,6 +152,9 @@ class BeamAgentScheduler(
   private var idCount: Long = 0L
   private var startSender: ActorRef = _
   private var nowInSeconds: Int = 0
+  private var nowUpdateTime: Long = System.currentTimeMillis()
+  private var longestNowUpdateDelay: Long = 0
+  private var shutdownInitiated = false
 
   private val maybeTriggerMeasurer: Option[TriggerMeasurer] = if (beamConfig.beam.debug.triggerMeasurer.enabled) {
     Some(new TriggerMeasurer(beamConfig.beam.debug.triggerMeasurer))
@@ -164,11 +173,22 @@ class BeamAgentScheduler(
   private val scheduledTriggerToStuckTimes: mutable.HashMap[ScheduledTrigger, Int] =
     mutable.HashMap.empty
 
+  import scala.concurrent.duration._
+
+  private val shutdownOnStuckTask: Cancellable =
+    context.system.scheduler.scheduleWithFixedDelay(10.minutes, 1.minute, self, SimulationStuckCheck)
   private var monitorTask: Option[Cancellable] = None
   private var stuckAgentChecker: Option[Cancellable] = None
 
   private val initialDelay = beamConfig.beam.agentsim.scheduleMonitorTask.initialDelay
   private val interval = beamConfig.beam.agentsim.scheduleMonitorTask.interval
+
+  CoordinatedShutdown(context.system).addActorTerminationTask(
+    CoordinatedShutdown.PhaseBeforeServiceUnbind,
+    "scheduler.storeState",
+    self,
+    Some(BeforeForcedShutdown)
+  )
 
   def scheduleTrigger(triggerToSchedule: ScheduleTrigger): Unit = {
     this.idCount += 1
@@ -191,6 +211,7 @@ class BeamAgentScheduler(
     log.info("aroundPostStop. Stopping all scheduled tasks...")
     stuckAgentChecker.foreach(_.cancel())
     monitorTask.foreach(_.cancel())
+    shutdownOnStuckTask.cancel()
     super.aroundPostStop()
   }
 
@@ -203,6 +224,7 @@ class BeamAgentScheduler(
       startedAt = Deadline.now
       stuckAgentChecker = scheduleStuckAgentCheck
       monitorTask = scheduleMonitorTask
+      nowUpdateTime = System.currentTimeMillis()
       doSimStep(0)
 
     case DoSimStep(newNow: Int) =>
@@ -246,6 +268,35 @@ class BeamAgentScheduler(
 
     case Terminated(actor) =>
       terminateActor(actor)
+
+    case SimulationStuckCheck =>
+      if (started) {
+        val stuckThresholdMin =
+          if (nowInSeconds < maxWindow)
+            beamConfig.beam.debug.maxSimulationStepTimeBeforeConsideredStuckAtInitializationMin
+          else
+            beamConfig.beam.debug.maxSimulationStepTimeBeforeConsideredStuckMin
+        val currentDelayMillis = System.currentTimeMillis() - nowUpdateTime
+        if (currentDelayMillis > stuckThresholdMin * 60000L) {
+          log.error(
+            "Forcibly terminating beam because of too long update delay: {} at simulation time {}",
+            currentDelayMillis,
+            nowInSeconds
+          )
+          if (!shutdownInitiated) {
+            shutdownInitiated = true
+            storeSchedulerState()
+          }
+          System.exit(10)
+        }
+      }
+
+    case BeforeForcedShutdown =>
+      if (!shutdownInitiated) {
+        shutdownInitiated = true
+        storeSchedulerState()
+      }
+      context.stop(self)
 
     case Monitor =>
       if (beamConfig.beam.debug.debugEnabled) {
@@ -342,6 +393,36 @@ class BeamAgentScheduler(
       if (started) doSimStep(nowInSeconds)
   }
 
+  //not thread safe (needs to be called only within actor receive or lifecycle methods)
+  private def storeSchedulerState(): Unit = {
+    if (awaitingResponse.isEmpty) {
+      log.info("awaitingResponse is empty, nowInSeconds = {}", nowInSeconds)
+    } else {
+      val queueFile = s"$outputDir/scheduler_shutdown_dump_trigger_queue.txt.gz"
+      log.info("triggerQueue.size = {}, saving to {}, nowInSeconds = {}", triggerQueue.size(), queueFile, nowInSeconds)
+      val sorted = (0 until math.min(triggerQueue.size(), 1024)).view.map(_ => triggerQueue.poll().toString + "\n")
+      FileUtils.writeToFile(queueFile, (s"total queue size = ${triggerQueue.size()}\n" +: sorted).iterator)
+      val awaitingResponseFile = s"$outputDir/scheduler_shutdown_dump_awaiting_response.txt.gz"
+      log.info(
+        "awaitingResponse.size = {}, saving to {}, nowInSeconds = {}",
+        awaitingResponse.size(),
+        awaitingResponseFile,
+        nowInSeconds
+      )
+      val iterator = awaitingResponse.entries().iterator()
+      val triggers = (0 until math.min(awaitingResponse.size(), 1024)).view
+        .map(_ => iterator.next().getValue.toString + "\n")
+      FileUtils.writeToFile(
+        awaitingResponseFile,
+        (s"total awaitingResponse size = ${awaitingResponse.size()}\n" +: triggers).iterator
+      )
+      FileUtils.writeToFile(
+        s"$outputDir/scheduler_shutdown_thread_dump.txt.gz",
+        DebugLib.currentThreadsDump().asScala.iterator
+      )
+    }
+  }
+
   private def terminateActor(actor: ActorRef): Unit = {
     awaitingResponse
       .values()
@@ -364,7 +445,7 @@ class BeamAgentScheduler(
         .trigger
         .tick <= stopTick
     ) {
-      nowInSeconds = newNow
+      updateNow(newNow)
       if (
         awaitingResponse.isEmpty || nowInSeconds - awaitingResponse
           .keySet()
@@ -395,19 +476,21 @@ class BeamAgentScheduler(
         ) {
           if (nowInSeconds > 0 && nowInSeconds % 1800 == 0) {
             log.info(
-              "Hour " + nowInSeconds / 3600.0 + " completed. " + math.round(
+              "Hour " + nowInSeconds / 3600.0 + " completed. Longest delay " + longestNowUpdateDelay + " ms. "
+              + math.round(
                 10 * (Runtime.getRuntime.totalMemory() - Runtime.getRuntime
                   .freeMemory()) / Math
                   .pow(1000, 3)
               ) / 10.0 + "(GB)"
             )
+            longestNowUpdateDelay = 0
           }
           doSimStep(nowInSeconds + 1)
         }
       }
 
     } else {
-      nowInSeconds = newNow
+      updateNow(newNow)
       if (awaitingResponse.isEmpty) {
         val duration = Deadline.now - startedAt
         stuckAgentChecker.foreach(_.cancel)
@@ -440,6 +523,17 @@ class BeamAgentScheduler(
         startSender ! CompletionNotice(0L)
       }
 
+    }
+  }
+
+  private def updateNow(newNow: Int): Unit = {
+    if (nowInSeconds != newNow) {
+      nowInSeconds = newNow
+      val currentTime = System.currentTimeMillis()
+      val delay = currentTime - nowUpdateTime
+      nowUpdateTime = currentTime
+      if (longestNowUpdateDelay < delay)
+        longestNowUpdateDelay = delay
     }
   }
 

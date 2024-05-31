@@ -12,12 +12,14 @@ import com.typesafe.config.{Config, ConfigFactory}
 import org.matsim.api.core.v01.events.Event
 import org.matsim.core.controler.AbstractModule
 import org.matsim.core.events.handler.BasicEventHandler
+import org.matsim.core.population.PopulationUtils
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.tagobjects.Retryable
 
-class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
-  "Running a CAV-only scenario with a couple of CAVs" must "result in everybody using CAV or walk" in {
+class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper with Repeated {
+  "Running a CAV-only scenario with a couple of CAVs" must "result in everybody using CAV or walk" taggedAs Retryable in {
     val config = ConfigFactory
       .parseString(
         """
@@ -71,8 +73,8 @@ class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
     val nonCarModes = BeamMode.allModes flatMap { mode =>
       if (mode == BeamMode.CAV) None else Some(mode.value.toLowerCase)
     } mkString ","
-    population.getPersons.keySet.forEach { personId =>
-      population.getPersonAttributes.putAttribute(personId.toString, EXCLUDED_MODES, nonCarModes)
+    population.getPersons.values().forEach { person =>
+      PopulationUtils.putPersonAttribute(person, EXCLUDED_MODES, nonCarModes)
     }
 
     var cavVehicles = 0
@@ -92,6 +94,7 @@ class CAVSpec extends AnyFlatSpec with Matchers with BeamHelper {
     assume(trips != 0, "Something's wildly broken, I am not seeing any trips.")
     assume(cavVehicles != 0, "Nobody has a CAV vehicle in test scenario, nothing to test.")
     assert(cavTrips >= cavVehicles, "Not enough CAV trips (by mode choice) seen.")
+
   }
 
 }

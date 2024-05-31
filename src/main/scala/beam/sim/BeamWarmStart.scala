@@ -5,7 +5,6 @@ import java.nio.file.{Files, Paths}
 import scala.collection.concurrent.TrieMap
 import scala.compat.java8.StreamConverters._
 import scala.util.{Failure, Success, Try}
-import scala.util.control.NonFatal
 import akka.actor.ActorRef
 import beam.router.BeamRouter.{UpdateTravelTimeLocal, UpdateTravelTimeRemote}
 import beam.router.LinkTravelTimeContainer
@@ -23,6 +22,8 @@ import org.matsim.api.core.v01.Scenario
 import org.matsim.core.config.Config
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.router.util.TravelTime
+
+import scala.annotation.nowarn
 
 class BeamWarmStart private (val warmConfig: WarmStartConfigProperties) extends LazyLogging {
 
@@ -223,12 +224,15 @@ object BeamWarmStart extends LazyLogging {
     if (BeamWarmStart.isLinkStatsEnabled(beamConfig.beam.warmStart)) {
       val maxHour = DateUtils.getMaxHour(beamConfig)
       val warm = BeamWarmStart(beamConfig, maxHour)
+      val defaultLinkstatsPath = Paths.get(beamConfig.beam.warmStart.initialLinkstatsFilePath)
       val travelTime =
         if (BeamWarmStart.isLinkStatsFromLastRun(beamConfig.beam.warmStart)) {
           val linkStatsPath = LastRunOutputSource
             .findLastRunLinkStats(
               Paths.get(beamConfig.beam.input.lastBaseOutputDir),
-              beamConfig.beam.input.simulationPrefix
+              beamConfig.beam.input.simulationPrefix,
+              if (Files.isRegularFile(defaultLinkstatsPath)) { Some(defaultLinkstatsPath) }
+              else None
             )
             .map(_.toString)
           warm.readTravelTime(linkStatsPath, beamConfig.beam.input.lastBaseOutputDir)
@@ -298,6 +302,7 @@ object BeamWarmStart extends LazyLogging {
   }
 
   // note: performs side-effect
+  @nowarn
   def setMatsimConfigPlans(instance: BeamWarmStart, matsimConfig: Config): Try[Unit] =
     for {
       populationAttributesXml <- instance.compressedLocation("Person attributes", "output_personAttributes.xml.gz")
@@ -313,6 +318,9 @@ object BeamWarmStart extends LazyLogging {
     beamConfig: BeamConfig,
     matsimConfig: Config
   ): Option[(Beam.Agentsim, Beam.Exchange)] = {
+    import cats.syntax.traverse._
+    import cats.instances.list._
+    import cats.instances.try_._
     val configAgents = beamConfig.beam.agentsim.agents
 
     val result = for {
@@ -320,12 +328,23 @@ object BeamWarmStart extends LazyLogging {
       plansCsv                <- instance.compressedLocation("Plans.csv", "plans.csv.gz", rootFirst = false)
       houseHoldsCsv           <- instance.compressedLocation("Households", "households.csv.gz")
       vehiclesCsv             <- instance.compressedLocation("Vehicles", "vehicles.csv.gz")
-      rideHailFleetCsv        <- instance.compressedLocation("Ride-hail fleet state", "rideHailFleet.csv.gz")
-      _                       <- setMatsimConfigPlans(instance, matsimConfig)
+      rideHailFleetCsvLocations <- beamConfig.beam.agentsim.agents.rideHail.managers
+        .map(managerConfig =>
+          instance.compressedLocation(
+            s"Ride-hail fleet state ${managerConfig.name}",
+            s"rideHailFleet-${managerConfig.name}.csv.gz"
+          )
+        )
+        .sequence
+      _ <- setMatsimConfigPlans(instance, matsimConfig)
     } yield {
       val newRideHailInit = {
-        val updatedInitCfg = configAgents.rideHail.initialization.copy(filePath = rideHailFleetCsv, initType = "FILE")
-        configAgents.rideHail.copy(initialization = updatedInitCfg)
+        val managers =
+          configAgents.rideHail.managers.zip(rideHailFleetCsvLocations).map { case (managerConfig, rideHailFleetCsv) =>
+            val updatedInitCfg = managerConfig.initialization.copy(filePath = rideHailFleetCsv, initType = "FILE")
+            managerConfig.copy(initialization = updatedInitCfg)
+          }
+        configAgents.rideHail.copy(managers = managers)
       }
       val newConfigAgents = {
         val newPlans = {
@@ -382,14 +401,16 @@ object BeamWarmStart extends LazyLogging {
           "households.csv.gz",
           "vehicles.csv.gz"
         ).map(name => name -> Paths.get(controllerIO.getOutputFilename(name)))
-        val iterationFiles = IndexedSeq(
+        val iterationFiles = (IndexedSeq(
           "linkstats.csv.gz",
           "plans.csv.gz",
-          "plans.xml.gz",
-          "rideHailFleet.csv.gz"
-        ).map(name =>
-          s"ITERS/it.$iteration/$iteration.$name" -> Paths.get(controllerIO.getIterationFilename(iteration, name))
-        )
+          "plans.xml.gz"
+        ) ++ beamConfig.beam.agentsim.agents.rideHail.managers.map(managerConfig =>
+          s"rideHailFleet-${managerConfig.name}.csv.gz"
+        ))
+          .map(name =>
+            s"ITERS/it.$iteration/$iteration.$name" -> Paths.get(controllerIO.getIterationFilename(iteration, name))
+          )
         val files = rootFiles ++ skimFiles ++ iterationFiles
         Some(FileUtils.zipFiles(controllerIO.getOutputFilename("warmstart_data.zip"), files))
       case None =>

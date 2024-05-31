@@ -14,6 +14,7 @@ import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.Freight
 import beam.utils.SnapCoordinateUtils.SnapLocationHelper
 import com.conveyal.r5.streets.StreetLayer
+import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.population.PopulationUtils
@@ -100,7 +101,7 @@ trait FreightReader {
     carriers: IndexedSeq[FreightCarrier],
     populationFactory: PopulationFactory,
     householdsFactory: HouseholdsFactory
-  ): IndexedSeq[(FreightCarrier, Household, Plan, Id[Person], Id[BeamVehicle])] = {
+  ): IndexedSeq[(FreightCarrier, Household, Plan, Person, Id[BeamVehicle])] = {
     carriers.flatMap { carrier =>
       val freightHouseholdId = createHouseholdId(carrier.carrierId)
       val household = householdsFactory.createHousehold(freightHouseholdId)
@@ -113,7 +114,7 @@ trait FreightReader {
         person.setSelectedPlan(currentPlan)
         household.getMemberIds.add(personId)
         household.getVehicleIds.add(vehicleId)
-        (carrier, household, currentPlan, personId, vehicleId)
+        (carrier, household, currentPlan, person, vehicleId)
       }
     }
   }
@@ -161,17 +162,6 @@ trait FreightReader {
     leg.setDepartureTime(departureTime)
     leg
   }
-
-  protected def location(x: Double, y: Double): Coord = convertedLocation(new Coord(x, y))
-
-  protected def convertedLocation(coord: Coord): Coord = {
-    if (config.convertWgs2Utm) {
-      geoUtils.wgs2Utm(coord)
-    } else {
-      coord
-    }
-  }
-
 }
 
 object FreightReader {
@@ -183,6 +173,7 @@ object FreightReader {
     beamConfig: BeamConfig,
     geoUtils: GeoUtils,
     streetLayer: StreetLayer,
+    network: Option[Network],
     tazMap: TAZTreeMap,
     outputDirMaybe: Option[String]
   ): FreightReader = {
@@ -202,6 +193,7 @@ object FreightReader {
           tazMap,
           beamConfig.beam.agentsim.snapLocationAndRemoveInvalidInputs,
           snapLocationHelper,
+          network,
           outputDirMaybe
         )
       case s =>
@@ -213,10 +205,12 @@ object FreightReader {
     beamConfig: BeamConfig,
     geoUtils: GeoUtils,
     streetLayer: StreetLayer,
+    network: Option[Network],
     outputDirMaybe: Option[String]
   ): FreightReader = {
-    val tazMap = TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath)
-    apply(beamConfig, geoUtils, streetLayer, tazMap, outputDirMaybe)
+    val tazMap =
+      TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath, Some(beamConfig.beam.agentsim.taz.tazIdFieldName))
+    apply(beamConfig, geoUtils, streetLayer, network, tazMap, outputDirMaybe)
   }
 
   def apply(beamServices: BeamServices): FreightReader =
@@ -224,6 +218,7 @@ object FreightReader {
       beamServices.beamConfig,
       beamServices.geo,
       beamServices.beamScenario.transportNetwork.streetLayer,
+      Some(beamServices.beamScenario.network),
       beamServices.beamScenario.tazTreeMap,
       None
     )

@@ -96,8 +96,6 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private final Random rand = MatsimRandom.getRandom();
     private final boolean agentSimPhysSimInterfaceDebuggerEnabled;
 
-    private final List<CompletableFuture> completableFutures = new ArrayList<>();
-
     final Map<String, Boolean> caccVehiclesMap = new TreeMap<>();
     private final Map<Integer, Mean> binSpeed = new HashMap<>();
 
@@ -232,7 +230,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             Link link = agentSimScenario.getNetwork().getLinks().get(Id.createLinkId(entry.getKey()));
             for (double linkTravelTime : entry.getValue()) {
                 double speed = link.getLength() / linkTravelTime;
-                if (speed < beamConfig.beam().physsim().quick_fix_minCarSpeedInMetersPerSecond()) {
+                if (speed < beamConfig.beam().physsim().minCarSpeedInMetersPerSecond()) {
                     double linkTravelTime1 = travelTimeFromPhysSim.getLinkTravelTime(link, hour * 60.0 * 60.0, null, null);
                     double freeFlowTravelTime = freeFlow.getLinkTravelTime(link, hour * 60.0 * 60.0, null, null);
                     log.debug("{} {} {}", linkTravelTime, linkTravelTime1, freeFlowTravelTime);
@@ -243,7 +241,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
             }
         }
         if (nBinsWithUnexpectedlyLowSpeed > 0) {
-            log.error("Iteration {} had {} link speed bins (of {}) with speed smaller than {}.", iterationNumber, nBinsWithUnexpectedlyLowSpeed, nBins, beamConfig.beam().physsim().quick_fix_minCarSpeedInMetersPerSecond());
+            log.error("Iteration {} had {} link speed bins (of {}) with speed smaller than {}.", iterationNumber, nBinsWithUnexpectedlyLowSpeed, nBins, beamConfig.beam().physsim().minCarSpeedInMetersPerSecond());
         }
 
         TravelTime travelTimeForR5 = travelTimeFromPhysSim;
@@ -276,6 +274,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
 
         router.tell(new BeamRouter.UpdateTravelTimeLocal(travelTimeForR5), ActorRef.noSender());
 
+        List<CompletableFuture<Void>> completableFutures = new ArrayList<>();
         completableFutures.add(CompletableFuture.runAsync(() -> linkSpeedStatsGraph.notifyIterationEnds(iterationNumber, travelTimeFromPhysSim)));
 
         completableFutures.add(CompletableFuture.runAsync(() -> linkSpeedDistributionStatsGraph.notifyIterationEnds(iterationNumber, travelTimeFromPhysSim)));
@@ -332,7 +331,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
     private void writePhyssimPlans(IterationEndsEvent event) {
         if (shouldWritePlans(event.getIteration())) {
             final String plansFilename = controlerIO.getIterationFilename(event.getIteration(), "physsimPlans.xml.gz");
-            completableFutures.add(CompletableFuture.runAsync(() -> new PopulationWriter(jdeqsimPopulation).write(plansFilename)));
+            CompletableFuture.runAsync(() -> new PopulationWriter(jdeqsimPopulation).write(plansFilename));
         }
     }
 
@@ -463,7 +462,7 @@ public class AgentSimToPhysSimPlanConverter implements BasicEventHandler, Metric
                     Stream<String> keys = Arrays.stream(attributes.toString().split("\\{ key=")).filter(x -> x.contains(";")).map(z -> z.split(";")[0]);
                     keys.forEach(key -> person.getAttributes().putAttribute(key, attributes.getAttribute(key)));
                     final Household hh = personToHouseHold.get(personToCopyFrom.getId());
-                    final AttributesOfIndividual attributesOfIndividual = PopulationAdjustment$.MODULE$.createAttributesOfIndividual(beamServices.beamScenario(), beamServices.matsimServices().getScenario().getPopulation(), personToCopyFrom, hh);
+                    final AttributesOfIndividual attributesOfIndividual = PopulationAdjustment$.MODULE$.createAttributesOfIndividual(beamServices.beamScenario(), personToCopyFrom, hh);
                     person.getCustomAttributes().put(PopulationAdjustment.BEAM_ATTRIBUTES(), attributesOfIndividual);
                 } catch (Exception ex) {
                     log.error("Could not create attributes for person " + vehicleId, ex);

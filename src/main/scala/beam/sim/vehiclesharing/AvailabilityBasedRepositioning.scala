@@ -29,9 +29,10 @@ case class AvailabilityBasedRepositioning(
     (0 to 108000 / repositionTimeBin).foreach { i =>
       val time = i * repositionTimeBin
       val availVal = getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.availability)
-      val availValMin = availVal.drop(1).foldLeft(availVal.headOption.map(_.observations).getOrElse(0)) { (minV, cur) =>
-        Math.min(minV, cur.observations)
-      }
+      val availValMin =
+        availVal.drop(1).foldLeft(availVal.headOption.map(_.observations).getOrElse(0)) { (minV, cur) =>
+          Math.min(minV, cur.observations)
+        }
       minAvailabilityMap.put((i, taz.tazId), availValMin)
       val inquiryVal =
         getCollectedDataFromPreviousSimulation(time, taz.tazId, RepositionManager.inquiry).map(_.observations).sum
@@ -85,7 +86,7 @@ case class AvailabilityBasedRepositioning(
       topUndersuppliedTAZ.foreach { dst =>
         val vehicleTypeId =
           Id.create( // FIXME Vehicle type borrowed from ridehail -- pass the vehicle type of the car sharing fleet instead
-            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.vehicleTypeId,
+            beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.head.initialization.procedural.vehicleTypeId,
             classOf[BeamVehicleType]
           )
         val vehicleType = beamServices.beamScenario.vehicleTypes(vehicleTypeId)

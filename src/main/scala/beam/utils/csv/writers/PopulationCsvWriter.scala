@@ -1,22 +1,30 @@
 package beam.utils.csv.writers
 
-import java.io.File
-
 import beam.sim.population.AttributesOfIndividual
 import org.matsim.api.core.v01.population.Person
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.households.Household
-import org.matsim.utils.objectattributes.ObjectAttributes
+
 import scala.collection.JavaConverters._
 import scala.util.Try
-
 import beam.utils.scenario.{HouseholdId, PersonId, PersonInfo}
 import ScenarioCsvWriter._
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
+import org.matsim.core.population.PopulationUtils
 
 object PopulationCsvWriter extends ScenarioCsvWriter {
 
   override protected val fields: Seq[String] =
-    Seq("personId", "age", "isFemale", "householdId", "householdRank", "excludedModes", "valueOfTime")
+    Seq(
+      "personId",
+      "age",
+      "isFemale",
+      "householdId",
+      "householdRank",
+      "excludedModes",
+      "rideHailServiceSubscription",
+      "valueOfTime"
+    )
 
   // This method is needed because different sources fill differently
   // matsim xml loader fill the age in the property customAttributes
@@ -39,14 +47,11 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
       }
       .toMap
 
-    val personAttributes: ObjectAttributes = scenario.getPopulation.getPersonAttributes
-
     scenario.getPopulation.getPersons.values().asScala.toIterator.map { person =>
       val personId: Id[Person] = person.getId
 
       val excludedModes: Seq[String] = Option(
-        personAttributes
-          .getAttribute(personId.toString, "excluded-modes")
+        PopulationUtils.getPersonAttribute(person, "excluded-modes")
       ) match {
         case None      => Seq.empty
         case Some(att) => att.toString.split(",").toSeq
@@ -56,21 +61,23 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         Option(person.getCustomAttributes.get("beam-attributes"))
           .map(_.asInstanceOf[AttributesOfIndividual])
 
+      val rideHailServiceSubscription = maybeAttribs.fold(Seq.empty[String])(_.rideHailServiceSubscription)
+
       val personAge = readAge(
         maybeAttribs.flatMap(_.age),
-        Option(personAttributes.getAttribute(personId.toString, "age")).map(_.toString.toInt)
+        Option(PopulationUtils.getPersonAttribute(person, "age")).map(_.toString.toInt)
       ).map(_.toString).getOrElse("")
 
       val isFemale = {
         val isMale = maybeAttribs
           .map(_.isMale)
-          .getOrElse(personAttributes.getAttribute(personId.toString, "sex") == "F")
+          .getOrElse(PopulationUtils.getPersonAttribute(person, "sex") == "F")
         !isMale
       }
-      val valueOfTime = Option(personAttributes.getAttribute(personId.toString, "valueOfTime"))
+      val valueOfTime = Option(PopulationUtils.getPersonAttribute(person, "valueOfTime"))
         .getOrElse(maybeAttribs.map(_.valueOfTime).getOrElse(8.0))
 
-      val rank = String.valueOf(personAttributes.getAttribute(personId.toString, "rank"))
+      val rank = String.valueOf(PopulationUtils.getPersonAttribute(person, "rank"))
 
       val houseHoldId: String = personIdToHouseHoldId.get(personId).map(_.toString).getOrElse("")
 
@@ -82,6 +89,7 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         isFemale = isFemale,
         valueOfTime = Try(valueOfTime.toString.toDouble).getOrElse(0),
         excludedModes = excludedModes,
+        rideHailServiceSubscription = rideHailServiceSubscription,
         industry = None
       )
       toLine(info)
@@ -103,6 +111,9 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
         .split(ArrayItemSeparator)
         .mkString(ArrayStartString, ArrayItemSeparator, ArrayEndString)
     }
+    val rideHailServiceSubscription =
+      personInfo.rideHailServiceSubscription.mkString(ArrayStartString, ArrayItemSeparator, ArrayEndString)
+
     val values = Seq(
       personInfo.personId.id,
       personInfo.age,
@@ -110,8 +121,23 @@ object PopulationCsvWriter extends ScenarioCsvWriter {
       personInfo.householdId.id,
       personInfo.rank,
       excludedModes,
+      rideHailServiceSubscription,
       personInfo.valueOfTime
     )
     values.mkString("", FieldSeparator, LineSeparator)
   }
+
+  def outputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("PopulationCsvWriter", "population.csv.gz")(
+      """
+      personId                    | Id of persons that are presented in the simulation
+      age                         | Person age
+      isFemale                    | Boolean value indicating if the person is female
+      householdId                 | Person's household id
+      householdRank               | Person rank
+      excludedModes               | Modes that are forbidden for the person
+      rideHailServiceSubscription | List of ride-hail services that person has subscription to
+      valueOfTime                 | Value of time in dollar per hour
+        """
+    )
 }

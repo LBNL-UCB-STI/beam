@@ -3,7 +3,7 @@ package beam.utils
 import beam.agentsim.agents.choice.mode.PtFares
 import beam.agentsim.agents.vehicles.{BeamVehicleType, FuelType, VehicleCategory, VehicleEnergy}
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
-import beam.sim.BeamScenario
+import beam.sim.{BeamHelper, BeamScenario}
 import beam.sim.config.BeamConfig
 import beam.utils.TestConfigUtils.testConfig
 import com.conveyal.gtfs.model.Stop
@@ -23,12 +23,14 @@ trait BeamScenarioForTest extends AnyFlatSpec {
 
   def getBeamScenario(pathToConfig: String, skimTravelTimesScalingFactor: Double): BeamScenario = {
     val beamConfig = BeamConfig(
-      ConfigFactory
-        .parseString(s"""
+      BeamHelper.updateConfigToCurrentVersion(
+        ConfigFactory
+          .parseString(s"""
                         |beam.routing.skimTravelTimesScalingFactor =  $skimTravelTimesScalingFactor
         """.stripMargin)
-        .withFallback(testConfig(pathToConfig))
-        .resolve()
+          .withFallback(testConfig(pathToConfig))
+          .resolve()
+      )
     )
 
     val vehicleType = BeamVehicleType(
@@ -36,6 +38,7 @@ trait BeamScenarioForTest extends AnyFlatSpec {
       seatingCapacity = 1,
       standingRoomCapacity = 1,
       lengthInMeter = 3,
+      curbWeightInKg = 1000,
       primaryFuelType = FuelType.Gasoline,
       primaryFuelConsumptionInJoulePerMeter = 0.1,
       primaryFuelCapacityInJoule = 0.1,
@@ -64,7 +67,7 @@ trait BeamScenarioForTest extends AnyFlatSpec {
       network = mock(classOf[Network]),
       trainStopQuadTree = new QuadTree[Stop](0, 0, 10, 10),
       tazTreeMap = tazMap,
-      exchangeGeoMap = None,
+      secondaryTazTreeMap = None,
       modeIncentives = null,
       h3taz = null,
       freightCarriers = null,

@@ -10,6 +10,7 @@ case class BeamVehicleType(
   seatingCapacity: Int,
   standingRoomCapacity: Int,
   lengthInMeter: Double,
+  curbWeightInKg: Double,
   primaryFuelType: FuelType,
   primaryFuelConsumptionInJoulePerMeter: Double,
   primaryFuelCapacityInJoule: Double,
@@ -29,12 +30,18 @@ case class BeamVehicleType(
   sampleProbabilityWithinCategory: Double = 1.0,
   sampleProbabilityString: Option[String] = None,
   chargingCapability: Option[ChargingPointType] = None,
-  payloadCapacityInKg: Option[Double] = None
+  payloadCapacityInKg: Option[Double] = None,
+  wheelchairAccessible: Option[Boolean] = None,
+  restrictRoadsByFreeSpeedInMeterPerSecond: Option[Double] = None
 ) {
   def isSharedVehicle: Boolean = id.toString.startsWith("sharedVehicle")
 
-  def isCaccEnabled: Boolean = {
-    automationLevel >= 3
+  def isCaccEnabled: Boolean = automationLevel >= 3
+
+  def isConnectedAutomatedVehicle: Boolean = automationLevel >= 4
+
+  def isWheelchairAccessible: Boolean = {
+    wheelchairAccessible.getOrElse(true)
   }
 
   def getTotalRange: Double = {
@@ -52,10 +59,11 @@ object FuelType {
   case object Diesel extends FuelType
   case object Electricity extends FuelType
   case object Biodiesel extends FuelType
+  case object Hydrogen extends FuelType
   case object Undefined extends FuelType
 
   def fromString(value: String): FuelType = {
-    Vector(Food, Gasoline, Diesel, Electricity, Biodiesel, Undefined)
+    Vector(Food, Gasoline, Diesel, Electricity, Biodiesel, Hydrogen, Undefined)
       .find(_.toString.equalsIgnoreCase(value))
       .getOrElse(Undefined)
   }

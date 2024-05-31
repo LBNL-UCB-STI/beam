@@ -2,6 +2,7 @@ package scripts.map
 
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.PathTraversalEvent
+import beam.utils.csv.GenericCsvReader.getIfNotNull
 import beam.utils.scenario.PlanElement
 import beam.utils.{EventReader, FileUtils, ProfilingUtils}
 import com.typesafe.scalalogging.LazyLogging
@@ -17,12 +18,6 @@ import java.util.concurrent.TimeUnit
 case class VehicleLocation(vehicleId: Id[BeamVehicle], x: Double, y: Double, time: Int, numOfPassangers: Int)
 
 object RepositioningAnalyzer extends LazyLogging {
-
-  private def getIfNotNull(rec: java.util.Map[String, String], column: String): String = {
-    val v = rec.get(column)
-    assert(v != null, s"Value in column '$column' is null")
-    v
-  }
 
   def toInitVehicalLocation(rec: java.util.Map[String, String]): VehicleLocation = {
     val id = Id.createVehicleId(getIfNotNull(rec, "id"))

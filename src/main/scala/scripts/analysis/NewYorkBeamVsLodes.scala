@@ -4,13 +4,12 @@ import java.io.Closeable
 import java.util
 
 import beam.sim.common.GeoUtils
-import beam.utils.GeoJsonReader
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
-import beam.utils.geospatial.PolygonUtil
+import beam.utils.geospatial.{GeoReader, PolygonUtil}
 import beam.utils.scenario.PlanElement
 import beam.utils.scenario.generic.readers.CsvPlanElementReader
 import scripts.shape.Attributes
-import com.vividsolutions.jts.geom.MultiPolygon
+import org.locationtech.jts.geom.MultiPolygon
 import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.Coord
 import org.matsim.core.utils.collections.QuadTree
@@ -109,7 +108,7 @@ object NewYorkBeamVsLodes {
     pathToPlans: String
   ): Seq[(GeoAttribute, GeoAttribute, Int)] = {
     // Replace `urn:ogc:def:crs:OGC:1.3:CRS84` in that origina file by `EPSG:4326`
-    val allFeatures = GeoJsonReader.read(pathToGeoJson, mapper)
+    val allFeatures = GeoReader.read(pathToGeoJson, mapper)
 
     val envelope = allFeatures.foldLeft(new Envelope()) { case (env, (k, v)) =>
       val center = v.getCentroid

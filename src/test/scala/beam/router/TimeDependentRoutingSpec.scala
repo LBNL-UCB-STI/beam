@@ -61,8 +61,8 @@ class TimeDependentRoutingSpec
         BeamMode.CAR,
         0,
         BeamPath(
-          Vector(143, 60, 58, 62, 80, 74, 68, 154),
-          Vector(),
+          Array(143, 60, 58, 62, 80, 74, 68, 154),
+          Array(),
           None,
           SpaceTime(services.geo.utm2Wgs(origin), 3000),
           SpaceTime(services.geo.utm2Wgs(destination), 3000),
@@ -87,8 +87,8 @@ class TimeDependentRoutingSpec
         BeamMode.CAR,
         0,
         BeamPath(
-          Vector(143, 60, 58, 62, 80, 74, 68, 154),
-          Vector(),
+          Array(143, 60, 58, 62, 80, 74, 68, 154),
+          Array(),
           None,
           SpaceTime(services.geo.utm2Wgs(origin), 3000),
           SpaceTime(services.geo.utm2Wgs(destination), 3000),
@@ -113,8 +113,8 @@ class TimeDependentRoutingSpec
         BeamMode.BIKE,
         0,
         BeamPath(
-          Vector(143, 60, 58, 62, 80, 74, 68, 154),
-          Vector(),
+          Array(143, 60, 58, 62, 80, 74, 68, 154),
+          Array(),
           None,
           SpaceTime(services.geo.utm2Wgs(origin), 3000),
           SpaceTime(services.geo.utm2Wgs(destination), 3000),
@@ -187,8 +187,11 @@ class TimeDependentRoutingSpec
       // Start with travel times as calculated by a pristine TravelTimeCalculator.
       // (Should be MATSim free flow travel times)
       val eventsForTravelTimeCalculator = EventsUtils.createEventsManager()
-      val travelTimeCalculator =
-        new TravelTimeCalculator(beamScenario.network, ConfigUtils.createConfig().travelTimeCalculator())
+
+      val travelTimeCalculatorBuilder = new TravelTimeCalculator.Builder(beamScenario.network)
+      travelTimeCalculatorBuilder.configure(ConfigUtils.createConfig().travelTimeCalculator())
+      val travelTimeCalculator = travelTimeCalculatorBuilder.build()
+
       eventsForTravelTimeCalculator.addHandler(travelTimeCalculator)
       router ! UpdateTravelTimeLocal(travelTimeCalculator.getLinkTravelTimes)
       val vehicleId = Id.createVehicleId("car")
@@ -261,8 +264,8 @@ class TimeDependentRoutingSpec
         BeamMode.CAR,
         0,
         BeamPath(
-          Vector(1, 2, 3, 4),
-          Vector(1, 1, 1, 1),
+          Array(1, 2, 3, 4),
+          Array(1, 1, 1, 1),
           None,
           SpaceTime(0.0, 0.0, 28800),
           SpaceTime(1.0, 1.0, 28803),

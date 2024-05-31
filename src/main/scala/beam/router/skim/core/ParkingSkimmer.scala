@@ -4,6 +4,7 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.Skims
 import beam.router.skim.readonly.ParkingSkims
 import beam.sim.config.BeamConfig
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -28,7 +29,7 @@ class ParkingSkimmer @Inject() (
   override protected val skimFileHeader =
     "tazId,hour,chargerType,walkAccessDistanceInM,parkingCostPerHour,observations,iterations"
   override protected val skimName: String = ParkingSkimmer.name
-  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.TC_SKIMMER
+  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.PARKING_SKIMMER
 
   override protected def fromCsv(
     line: collection.Map[String, String]
@@ -102,4 +103,30 @@ object ParkingSkimmer extends LazyLogging {
     case object DCFastCharger extends ChargerType with LowerCamelcase
 
   }
+
+  def parkingSkimOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("ParkingSkimmer", s"${fileBaseName}.csv.gz", iterationLevel = true)(
+      """
+        tazId                 | Id of TAZ this statistic applies to
+        hour                  | Hour this statistic applies to
+        chargerType           | Charger type this statistic applies to
+        walkAccessDistanceInM | Average walking distance from parking zone to the destination
+        parkingCostPerHour    | Average parking cost per hour
+        observations          | Number of parking events
+        iterations            | Always 1
+        """
+    )
+
+  def aggregatedParkingSkimOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("ParkingSkimmer", s"${fileBaseName}_Aggregated.csv.gz", iterationLevel = true)(
+      """
+        tazId                 | Id of TAZ this statistic applies to
+        hour                  | Hour this statistic applies to
+        chargerType           | Charger type this statistic applies to
+        walkAccessDistanceInM | Average (over last n iterations) walking distance from parking zone to the destination
+        parkingCostPerHour    | Average (over last n iterations) parking cost per hour
+        observations          | Average (over last n iterations) number of parking events
+        iterations            | Number of iterations
+        """
+    )
 }

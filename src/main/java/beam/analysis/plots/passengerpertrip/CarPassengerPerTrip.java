@@ -7,6 +7,7 @@ import org.jfree.data.category.CategoryDataset;
 import org.matsim.core.controler.events.IterationEndsEvent;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -15,6 +16,7 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     int eventCounter = 0;
     int maxHour = 0;
     final Integer maxPassengers = CAR_MAX_PASSENGERS;
+    ArrayList<Integer> nonZeroColumns = new ArrayList<Integer>(maxPassengers + 1);
 
     final String graphName;
     private static final String xAxisTitle = "Hour";
@@ -61,13 +63,28 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
     }
 
     public double[][] buildMatrixDataSet() {
-        double[][] matrixDataSet = new double[maxPassengers + 1][maxHour + 1];
+        ArrayList<double[]> dataSet = new ArrayList<double[]>(maxPassengers);
+        nonZeroColumns.clear(); // just in case this is processed more than once.
 
+        boolean empty = true;
         for (int numberOfPassengers = 0; numberOfPassengers <= maxPassengers; numberOfPassengers++) {
-            matrixDataSet[numberOfPassengers] = getEventFrequenciesBinByNumberOfPassengers(numberOfPassengers, maxHour);
+            double[] freq = getEventFrequenciesBinByNumberOfPassengers(numberOfPassengers, maxHour);
+            if (freq != null) {
+                dataSet.add(freq);
+                nonZeroColumns.add(numberOfPassengers);
+                empty = false;
+            }
         }
 
-        return matrixDataSet;
+        // just to keep at least one column of data in case there are no vehicles
+        if (empty) {
+            dataSet.add(new double[maxHour + 1]);
+            nonZeroColumns.add(0);
+        }
+
+        double[][] matrixDataSet = new double[dataSet.size()][];
+
+        return dataSet.toArray(matrixDataSet);
     }
 
     @Override
@@ -82,13 +99,14 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
 
     @Override
     public String getLegendText(int i) {
-        return Integer.toString(i);
+        return Integer.toString(nonZeroColumns.get(i));
     }
 
     private double[] getEventFrequenciesBinByNumberOfPassengers(int numberOfpassengers, int maxHour) {
         Map<Integer, Integer> eventFrequenciesBin = numPassengerToEventFrequencyBin.get(numberOfpassengers);
 
         double[] data = new double[maxHour + 1];
+        boolean nonZero = false;
 
         if(eventFrequenciesBin != null){
 
@@ -98,11 +116,14 @@ public class CarPassengerPerTrip implements IGraphPassengerPerTrip{
                     data[i] = 0;
                 }else{
                     data[i] = frequency;
+                    if (frequency != 0) {
+                        nonZero = true;
+                    }
                 }
             }
         }
 
-        return data;
+        return nonZero ? data : null;
     }
 
     @Override

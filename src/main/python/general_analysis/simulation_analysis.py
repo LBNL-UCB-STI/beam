@@ -58,7 +58,7 @@ def parse_config(s3url, complain=True):
     url = s3path + "/fullBeamConfig.conf"
     config = urllib.request.urlopen(url)
 
-    config_keys = ["flowCapacityFactor", "speedScalingFactor", "quick_fix_minCarSpeedInMetersPerSecond",
+    config_keys = ["flowCapacityFactor", "speedScalingFactor", "minCarSpeedInMetersPerSecond",
                    "activitySimEnabled", "transitCapacity",
                    "minimumRoadSpeedInMetersPerSecond", "fractionOfInitialVehicleFleet",
                    "agentSampleSizeAsFractionOfPopulation",
@@ -178,7 +178,7 @@ def get_calibration_text_data(s3url, commit=""):
 
     config_ordered = ["lastIteration", "agentSampleSizeAsFractionOfPopulation", "flowCapacityFactor",
                       "speedScalingFactor",
-                      "quick_fix_minCarSpeedInMetersPerSecond", "minimumRoadSpeedInMetersPerSecond",
+                      "minCarSpeedInMetersPerSecond", "minimumRoadSpeedInMetersPerSecond",
                       "fractionOfInitialVehicleFleet", "transitCapacity", "fractionOfPeopleWithBicycle",
                       "parkingStallCountScalingFactor", "transitPrice", "transit_crowding_VOT_multiplier",
                       "transit_crowding_VOT_threshold", "additional_trip_utility"]

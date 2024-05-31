@@ -16,7 +16,7 @@ import org.matsim.core.utils.misc.Counter
 import org.matsim.households.Income.IncomePeriod.year
 import org.matsim.households._
 import org.matsim.utils.objectattributes.{ObjectAttributes, ObjectAttributesXmlWriter}
-import org.matsim.vehicles.{Vehicle, VehicleUtils, VehicleWriterV1, Vehicles}
+import org.matsim.vehicles.{MatsimVehicleWriter, Vehicle, VehicleUtils, Vehicles}
 
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
@@ -34,11 +34,10 @@ object PlansBuilder {
 
   private val newPop: Population =
     PopulationUtils.createPopulation(ConfigUtils.createConfig())
-  val newPopAttributes: ObjectAttributes = newPop.getPersonAttributes
+  val newPopAttributes: ObjectAttributes = new ObjectAttributes()
   val newVehicles: Vehicles = VehicleUtils.createVehiclesContainer()
   val newHHFac: HouseholdsFactoryImpl = new HouseholdsFactoryImpl()
   val newHH: HouseholdsImpl = new HouseholdsImpl()
-  val newHHAttributes: ObjectAttributes = newHH.getHouseholdAttributes
 
   val modeAllocator: AllowAllModes.type = AllowAllModes
 
@@ -120,7 +119,7 @@ object PlansBuilder {
     val permissibleModes = modeAllocator
       .getPermissibleModes(person.getSelectedPlan)
       .asScala
-    AvailableModeUtils.setAvailableModesForPerson(person, newPop, permissibleModes.toSeq)
+    AvailableModeUtils.setAvailableModesForPerson(person, permissibleModes.toSeq)
   }
 
   def run(): Unit = {
@@ -136,7 +135,9 @@ object PlansBuilder {
       .collectionAsScalaIterable(sc.getVehicles.getVehicleTypes.values())
       .head
     carVehicleType.setFlowEfficiencyFactor(1069)
-    carVehicleType.getEngineInformation.setGasConsumption(1069)
+    carVehicleType.getEngineInformation.getAttributes
+      .putAttribute("fuelConsumptionLitersPerMeter", 1069)
+
     newVehicles.addVehicleType(carVehicleType)
 
     synthHouseholds.foreach(sh => {
@@ -189,9 +190,10 @@ object PlansBuilder {
           case None =>
             homePlan = Some(newPlan)
             val homeCoord = homeActs.head.getCoord
-            newHHAttributes.putAttribute(hhId.toString, HomeCoordX.entryName, homeCoord.getX)
-            newHHAttributes.putAttribute(hhId.toString, HomeCoordY.entryName, homeCoord.getY)
-            newHHAttributes.putAttribute(hhId.toString, HousingType.entryName, "House")
+            val newHousehold = newHH.getHouseholds.get(hhId)
+            HouseholdUtils.putHouseholdAttribute(newHousehold, HomeCoordX.entryName, homeCoord.getX)
+            HouseholdUtils.putHouseholdAttribute(newHousehold, HomeCoordY.entryName, homeCoord.getY)
+            HouseholdUtils.putHouseholdAttribute(newHousehold, HousingType.entryName, "House")
 
           case Some(hp) =>
             val firstAct = PopulationUtils.getFirstActivity(hp)
@@ -219,8 +221,15 @@ object PlansBuilder {
     new HouseholdsWriterV10(newHH).writeFile(s"$outDir/households.xml.gz")
     new PopulationWriter(newPop).write(s"$outDir/population.xml.gz")
     PopulationWriterCSV(newPop).write(s"$outDir/population.csv.gz")
-    new VehicleWriterV1(newVehicles).writeFile(s"$outDir/vehicles.xml.gz")
-    new ObjectAttributesXmlWriter(newHHAttributes)
+    new MatsimVehicleWriter(newVehicles).writeFile(s"$outDir/vehicles.xml.gz")
+
+    val householdAttributes = new ObjectAttributes
+    newHH.getHouseholds.values().asScala.map { household =>
+      household.getAttributes.getAsMap.asScala.map { case (key, value) =>
+        householdAttributes.putAttribute(household.getId.toString, key, value)
+      }
+    }
+    new ObjectAttributesXmlWriter(householdAttributes)
       .writeFile(s"$outDir/householdAttributes.xml.gz")
     new ObjectAttributesXmlWriter(newPopAttributes)
       .writeFile(s"$outDir/populationAttributes.xml.gz")
@@ -240,7 +249,7 @@ object PlansBuilder {
     *
     * Run from directly from CLI with, for example:
     *
-    * $> gradle :execute -PmainClass=beam.utils.plan.PlansBuilder
+    * $> gradle :execute -PmainClass=scripts.PlansBuilder
     *   -PappArgs="['test/input/beamville/population.xml',
     *   'test/input/beamville/r5/physsim-network.xml',
     *   'test/input/beamville/vehicles.xml', '2000',

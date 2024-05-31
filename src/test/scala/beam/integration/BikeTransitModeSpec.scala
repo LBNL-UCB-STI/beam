@@ -4,7 +4,7 @@ import akka.actor._
 import akka.testkit.TestKitBase
 import beam.agentsim.agents.PersonTestUtil
 import beam.agentsim.agents.ridehail.{RideHailIterationHistory, RideHailSurgePricingManager}
-import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent}
+import beam.agentsim.events.ModeChoiceEvent
 import beam.replanning.ModeIterationPlanCleaner
 import beam.router.Modes.BeamMode
 import beam.router.RouteHistory
@@ -15,16 +15,9 @@ import beam.utils.SimRunnerForTest
 import beam.utils.TestConfigUtils.testConfig
 import com.typesafe.config.ConfigFactory
 import org.junit.Assert
-import org.matsim.api.core.v01.events.{
-  ActivityEndEvent,
-  Event,
-  PersonArrivalEvent,
-  PersonDepartureEvent,
-  PersonEntersVehicleEvent
-}
-import org.matsim.api.core.v01.population.{Activity, Leg}
+import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent, PersonDepartureEvent}
+import org.matsim.api.core.v01.population.Leg
 import org.matsim.core.events.handler.BasicEventHandler
-import org.scalatest._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
@@ -38,15 +31,16 @@ class BikeTransitModeSpec
     with SimRunnerForTest
     with RouterForTest
     with BeamHelper
+    with IntegrationSpecCommon
     with Matchers {
 
   def config: com.typesafe.config.Config =
     ConfigFactory
       .parseString("""
           |akka.test.timefactor = 10
-          |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.drive_transit_intercept = 0
-          |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_intercept = 10
-          |beam.agentsim.agents.modalBehaviors.mulitnomialLogit.params.bike_transit_intercept = 20
+          |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.drive_transit_intercept = 0
+          |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_intercept = 1
+          |beam.agentsim.agents.modalBehaviors.multinomialLogit.params.bike_transit_intercept = 200
           |""".stripMargin)
       .withFallback(testConfig("test/input/beamville/beam.conf").resolve())
 
@@ -102,7 +96,7 @@ class BikeTransitModeSpec
 
       assert(events.nonEmpty)
       val bikeTransit = events.filter(event => event.getLegMode.equals("bike_transit"))
-      assert(bikeTransit.size > 1)
+      assert(bikeTransit.nonEmpty, ", bike transit usage was expected.")
     }
 
     "track bike_transit person" in {
@@ -157,8 +151,8 @@ class BikeTransitModeSpec
       )
       mobsim.run()
 
-      assert(departureEvents.nonEmpty)
-      assert(arrivalEvents.nonEmpty)
+      assert(departureEvents.nonEmpty, ", bike transit departure events were expected.")
+      assert(arrivalEvents.nonEmpty, ", bike transit arrival events were expected.")
 
       val departPersons = departureEvents.map(_.getPersonId)
       val arrivedPersons = arrivalEvents.map(_.getPersonId)

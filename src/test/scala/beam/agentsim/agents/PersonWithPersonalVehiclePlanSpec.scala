@@ -176,7 +176,7 @@ class PersonWithPersonalVehiclePlanSpec
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
-      expectMsgType[PersonDepartureEvent]
+      expectMsgType[BeamPersonDepartureEvent]
 
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[VehicleEntersTrafficEvent]
@@ -211,8 +211,8 @@ class PersonWithPersonalVehiclePlanSpec
                   mode = BeamMode.CAR,
                   duration = 50,
                   travelPath = BeamPath(
-                    linkIds = Vector(142, 60, 58, 62, 80),
-                    linkTravelTime = Vector(50, 50, 50, 50, 50),
+                    linkIds = Array(142, 60, 58, 62, 80),
+                    linkTravelTime = Array(50, 50, 50, 50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(
                       services.geo.utm2Wgs(parkingRoutingRequest.originUTM),
@@ -253,8 +253,8 @@ class PersonWithPersonalVehiclePlanSpec
                   mode = BeamMode.WALK,
                   duration = 50,
                   travelPath = BeamPath(
-                    linkIds = Vector(80, 62, 58, 60, 142),
-                    linkTravelTime = Vector(50, 50, 50, 50, 50),
+                    linkIds = Array(80, 62, 58, 60, 142),
+                    linkTravelTime = Array(50, 50, 50, 50, 50),
                     transitStops = None,
                     startPoint =
                       SpaceTime(services.geo.utm2Wgs(parkingLocation), walkFromParkingRoutingRequest.departureTime),
@@ -415,7 +415,7 @@ class PersonWithPersonalVehiclePlanSpec
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
-      expectMsgType[PersonDepartureEvent]
+      expectMsgType[BeamPersonDepartureEvent]
 
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[VehicleEntersTrafficEvent]
@@ -535,7 +535,7 @@ class PersonWithPersonalVehiclePlanSpec
             beamLeg = leg.copy(
               duration = 500,
               travelPath = leg.travelPath.copy(
-                linkTravelTime = IndexedSeq(0, 100, 100, 100, 100, 100, 0),
+                linkTravelTime = Array(0, 100, 100, 100, 100, 100, 0),
                 endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
               )
             ),
@@ -644,7 +644,7 @@ class PersonWithPersonalVehiclePlanSpec
             beamLeg = leg.copy(
               duration = 500,
               travelPath = leg.travelPath.copy(
-                linkTravelTime = IndexedSeq(0, 100, 100, 100, 100, 100, 0),
+                linkTravelTime = Array(0, 100, 100, 100, 100, 100, 0),
                 endPoint = leg.travelPath.endPoint.copy(time = leg.startTime + 500)
               )
             ),
@@ -684,6 +684,8 @@ class PersonWithPersonalVehiclePlanSpec
       personEntersVehicleEvents.expectMsgType[PersonEntersVehicleEvent]
 
       expectMsgType[CompletionNotice]
+
+      // TODO: Testing last resort vehicle creation
     }
 
     it("should walk to a car that is far away (if told so by the router") {
@@ -759,8 +761,8 @@ class PersonWithPersonalVehiclePlanSpec
                   mode = BeamMode.WALK,
                   duration = 50,
                   travelPath = BeamPath(
-                    linkIds = Vector(1, 2),
-                    linkTravelTime = Vector(50, 50),
+                    linkIds = Array(1, 2),
+                    linkTravelTime = Array(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
                     endPoint = SpaceTime(0.01, 0.0, 28850),
@@ -779,8 +781,8 @@ class PersonWithPersonalVehiclePlanSpec
                   mode = BeamMode.CAR,
                   duration = 50,
                   travelPath = BeamPath(
-                    linkIds = Vector(3, 4),
-                    linkTravelTime = Vector(50, 50),
+                    linkIds = Array(3, 4),
+                    linkTravelTime = Array(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(0.01, 0.0, 28950),
                     endPoint = SpaceTime(0.01, 0.01, 29000),
@@ -804,7 +806,7 @@ class PersonWithPersonalVehiclePlanSpec
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
-      expectMsgType[PersonDepartureEvent]
+      expectMsgType[BeamPersonDepartureEvent]
 
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[VehicleEntersTrafficEvent]

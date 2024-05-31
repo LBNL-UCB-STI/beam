@@ -2,8 +2,9 @@ package scripts.map
 
 import beam.utils.csv.GenericCsvReader
 import scripts.shape.{Attributes, ShapeWriter}
-import beam.utils.{FileUtils, GeoJsonReader}
-import com.vividsolutions.jts.geom.{Geometry, MultiLineString}
+import beam.utils.FileUtils
+import beam.utils.geospatial.GeoReader
+import org.locationtech.jts.geom.{Geometry, MultiLineString}
 import org.opengis.feature.Feature
 import org.opengis.feature.simple.SimpleFeature
 
@@ -14,7 +15,7 @@ object NewYorkTrafficVolumeVisualization {
   // How to run through gradle
   /*
   ./gradlew :execute \
-      -PmainClass=beam.utils.map.NewYorkTrafficVolumeVisualization \
+      -PmainClass=scripts.map.NewYorkTrafficVolumeVisualization \
       -PappArgs="['C:/Users/User/Downloads/LION.geojson', '04/11/2018']" \
       -PmaxRAM=8g
    */
@@ -35,7 +36,7 @@ object NewYorkTrafficVolumeVisualization {
     }
     println(s"Read ${segmentIds.size} unique segmentIds for the date $date")
 
-    val allFeatures = GeoJsonReader.read(pathToGeoJson, mapper)
+    val allFeatures = GeoReader.read(pathToGeoJson, mapper)
     val filteredFeatures = allFeatures.filter { case (attr, _) => segmentIds.contains(attr.segmentId) }
     println(s"allFeatures: ${allFeatures.length}")
     println(s"filteredFeatures: ${filteredFeatures.length}")

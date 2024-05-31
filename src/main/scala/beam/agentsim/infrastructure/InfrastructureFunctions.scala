@@ -1,34 +1,27 @@
 package beam.agentsim.infrastructure
 
 import beam.agentsim.agents.choice.logit.UtilityFunctionOperation
-import beam.agentsim.infrastructure.ParkingInquiry.{ParkingActivityType, ParkingSearchMode}
+import beam.agentsim.infrastructure.ParkingInquiry.ParkingActivityType
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZone.UbiqiutousParkingAvailability
-import beam.agentsim.infrastructure.parking.ParkingZoneSearch.{
-  ParkingAlternative,
-  ParkingZoneCollection,
-  ParkingZoneSearchConfiguration,
-  ParkingZoneSearchParams,
-  ParkingZoneSearchResult
-}
+import beam.agentsim.infrastructure.parking.ParkingZoneSearch._
 import beam.agentsim.infrastructure.parking._
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import com.typesafe.scalalogging.StrictLogging
-import com.vividsolutions.jts.geom.Envelope
+import org.locationtech.jts.geom.Envelope
 import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.core.utils.collections.QuadTree
 
 import scala.util.Random
 
 abstract class InfrastructureFunctions(
-  geoQuadTree: QuadTree[TAZ],
-  idToGeoMapping: scala.collection.Map[Id[TAZ], TAZ],
+  tazTreeMap: TAZTreeMap,
   parkingZones: Map[Id[ParkingZoneId], ParkingZone],
   distanceFunction: (Coord, Coord) => Double,
   minSearchRadius: Double,
   maxSearchRadius: Double,
   searchMaxDistanceRelativeToEllipseFoci: Double,
-  enrouteDuration: Double,
+  estimatedMinParkingDurationInSeconds: Double,
+  estimatedMeanEnRouteChargingDurationInSeconds: Double,
   fractionOfSameTypeZones: Double,
   minNumberOfSameTypeZones: Int,
   boundingBox: Envelope,
@@ -100,12 +93,30 @@ abstract class InfrastructureFunctions(
       searchMaxDistanceRelativeToEllipseFoci,
       boundingBox,
       distanceFunction,
-      enrouteDuration,
+      estimatedMinParkingDurationInSeconds,
+      estimatedMeanEnRouteChargingDurationInSeconds,
       fractionOfSameTypeZones,
       minNumberOfSameTypeZones
     )
 
-  def searchForParkingStall(inquiry: ParkingInquiry): Option[ParkingZoneSearch.ParkingZoneSearchResult] = {
+  def searchForParkingStall(inquiry: ParkingInquiry): ParkingZoneSearch.ParkingZoneSearchResult = {
+
+    // creates a hash code dependent on the personId and the intended time to reach the destination
+    // this is used to create a new seed to create some variability on the selected parking spot
+    // since the parkingZoneSearchParams always uses a set seed for the Random object, every single parking inquiry
+    // would have the same random draw to select from the available parking zones.
+    // This also maintains the result deterministic for a set seed, as opposed to creating a Random object as a field
+    // on this class, since due to race conditions we would process parking inquiries in different order
+    // depending on the run.
+    val inquiryHash = inquiry.personId match {
+      case Some(id) => id.hashCode() + inquiry.destinationUtm.time
+      case _ =>
+        inquiry.beamVehicle match {
+          case Some(vehicle) => vehicle.id.hashCode() + inquiry.destinationUtm.time
+          case _             => inquiry.destinationUtm.time
+        }
+    }
+
     // ---------------------------------------------------------------------------------------------
     // a ParkingZoneSearch takes the following as parameters
     //
@@ -128,8 +139,8 @@ abstract class InfrastructureFunctions(
         mnlMultiplierParameters,
         zoneCollections,
         parkingZones,
-        geoQuadTree,
-        new Random(seed),
+        tazTreeMap.tazQuadTree,
+        new Random(seed + inquiryHash),
         inquiry.departureLocation,
         inquiry.reservedFor
       )
@@ -148,15 +159,12 @@ abstract class InfrastructureFunctions(
     // filters out ParkingZones which do not apply to this agent
     // TODO: check for conflicts between variables here - is it always false?
     val parkingZoneFilterFunction: ParkingZone => Boolean =
-      (zone: ParkingZone) => {
-        val searchFilterPredicates = setupSearchFilterPredicates(zone, inquiry)
-        searchFilterPredicates
-      }
+      (zone: ParkingZone) => setupSearchFilterPredicates(zone, inquiry)
 
     // generates a coordinate for an embodied ParkingStall from a ParkingZone
     val parkingZoneLocSamplingFunction: ParkingZone => Coord =
       (zone: ParkingZone) => {
-        idToGeoMapping.get(zone.tazId) match {
+        tazTreeMap.idToTAZMapping.get(zone.tazId) match {
           case None =>
             logger.error(
               s"somehow have a ParkingZone with tazId ${zone.tazId} which is not found in the idToGeoMapping"
@@ -220,7 +228,7 @@ abstract class InfrastructureFunctions(
       case _ =>
     }
 
-    result
+    result.get
   }
 
   def claimStall(parkingZone: ParkingZone): Boolean = {

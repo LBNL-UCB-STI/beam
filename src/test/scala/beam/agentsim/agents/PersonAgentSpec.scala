@@ -205,7 +205,7 @@ class PersonAgentSpec
 
       // The agent will ask for a ride, and we will answer.
       val inquiry = expectMsgType[RideHailRequest]
-      lastSender ! RideHailResponse(inquiry, None, None)
+      lastSender ! RideHailResponse(inquiry, None, "rhm", None)
 
       // This is the ridehail to transit request.
       // We don't provide an option.
@@ -233,8 +233,8 @@ class PersonAgentSpec
                   mode = BeamMode.WALK,
                   duration = 100,
                   travelPath = BeamPath(
-                    linkIds = Vector(1, 2),
-                    linkTravelTime = Vector(50, 50),
+                    linkIds = Array(1, 2),
+                    linkTravelTime = Array(50, 50),
                     transitStops = None,
                     startPoint = SpaceTime(0.0, 0.0, 28800),
                     endPoint = SpaceTime(1.0, 1.0, 28850),
@@ -258,7 +258,7 @@ class PersonAgentSpec
 
       expectMsgType[ModeChoiceEvent]
       expectMsgType[ActivityEndEvent]
-      expectMsgType[PersonDepartureEvent]
+      expectMsgType[BeamPersonDepartureEvent]
 
       expectMsgType[PersonEntersVehicleEvent]
       expectMsgType[VehicleEntersTrafficEvent]
@@ -303,8 +303,8 @@ class PersonAgentSpec
           mode = BeamMode.BUS,
           duration = 1200,
           travelPath = BeamPath(
-            Vector(),
-            Vector(),
+            Array(),
+            Array(),
             Some(TransitStopsInfo("someAgency", "someRoute", busId, 0, 2)),
             SpaceTime(services.geo.utm2Wgs(new Location(166321.9, 1568.87)), 28800),
             SpaceTime(services.geo.utm2Wgs(new Location(180000.4, 1200)), 30000),
@@ -324,8 +324,8 @@ class PersonAgentSpec
           mode = BeamMode.TRAM,
           duration = 600,
           travelPath = BeamPath(
-            linkIds = Vector(),
-            linkTravelTime = Vector(),
+            linkIds = Array(),
+            linkTravelTime = Array(),
             transitStops = Some(TransitStopsInfo("someAgency", "someRoute", tramId, 0, 1)),
             startPoint = SpaceTime(services.geo.utm2Wgs(new Location(180000.4, 1200)), 30000),
             endPoint = SpaceTime(services.geo.utm2Wgs(new Location(190000.4, 1300)), 30600),
@@ -410,8 +410,8 @@ class PersonAgentSpec
                   mode = BeamMode.WALK,
                   duration = 0,
                   travelPath = BeamPath(
-                    linkIds = Vector(),
-                    linkTravelTime = Vector(),
+                    linkIds = Array(),
+                    linkTravelTime = Array(),
                     transitStops = None,
                     startPoint = SpaceTime(services.geo.utm2Wgs(new Location(166321.9, 1568.87)), 28800),
                     endPoint = SpaceTime(services.geo.utm2Wgs(new Location(167138.4, 1117)), 28800),
@@ -432,8 +432,8 @@ class PersonAgentSpec
                   mode = BeamMode.WALK,
                   duration = 0,
                   travelPath = BeamPath(
-                    linkIds = Vector(),
-                    linkTravelTime = Vector(),
+                    linkIds = Array(),
+                    linkTravelTime = Array(),
                     transitStops = None,
                     startPoint = SpaceTime(services.geo.utm2Wgs(new Location(167138.4, 1117)), 30600),
                     endPoint = SpaceTime(services.geo.utm2Wgs(new Location(167138.4, 1117)), 30600),
@@ -457,7 +457,7 @@ class PersonAgentSpec
 
       events.expectMsgType[ModeChoiceEvent]
       events.expectMsgType[ActivityEndEvent]
-      events.expectMsgType[PersonDepartureEvent]
+      events.expectMsgType[BeamPersonDepartureEvent]
 
       events.expectMsgType[PersonEntersVehicleEvent]
       events.expectMsgType[VehicleEntersTrafficEvent]
@@ -551,8 +551,8 @@ class PersonAgentSpec
           BeamMode.BUS,
           1200,
           BeamPath(
-            Vector(),
-            Vector(),
+            Array(),
+            Array(),
             Some(TransitStopsInfo("someAgency", "someRoute", busId, 0, 2)),
             SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
@@ -571,8 +571,8 @@ class PersonAgentSpec
           BeamMode.TRAM,
           600,
           BeamPath(
-            Vector(),
-            Vector(),
+            Array(),
+            Array(),
             Some(TransitStopsInfo("someAgency", "someRoute", tramId, 0, 1)),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
@@ -591,8 +591,8 @@ class PersonAgentSpec
           BeamMode.TRAM,
           600,
           BeamPath(
-            Vector(),
-            Vector(),
+            Array(),
+            Array(),
             Some(TransitStopsInfo("someAgency", "someRoute", tramId, 0, 1)),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 35000),
             SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 35600),
@@ -691,8 +691,8 @@ class PersonAgentSpec
                   BeamMode.WALK,
                   0,
                   BeamPath(
-                    Vector(),
-                    Vector(),
+                    Array(),
+                    Array(),
                     None,
                     SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
                     SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 28800),
@@ -713,8 +713,8 @@ class PersonAgentSpec
                   BeamMode.WALK,
                   0,
                   BeamPath(
-                    Vector(),
-                    Vector(),
+                    Array(),
+                    Array(),
                     None,
                     SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
                     SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
@@ -738,7 +738,7 @@ class PersonAgentSpec
 
       events.expectMsgType[ModeChoiceEvent]
       events.expectMsgType[ActivityEndEvent]
-      events.expectMsgType[PersonDepartureEvent]
+      events.expectMsgType[BeamPersonDepartureEvent]
 
       events.expectMsgType[PersonEntersVehicleEvent]
       events.expectMsgType[VehicleEntersTrafficEvent]
@@ -773,8 +773,8 @@ class PersonAgentSpec
                   BeamMode.WALK,
                   0,
                   BeamPath(
-                    Vector(),
-                    Vector(),
+                    Array(),
+                    Array(),
                     None,
                     SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 35600),
                     SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 35600),

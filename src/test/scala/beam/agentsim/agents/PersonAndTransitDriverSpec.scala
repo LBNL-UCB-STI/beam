@@ -140,8 +140,8 @@ class PersonAndTransitDriverSpec
           mode = BeamMode.BUS,
           duration = 600,
           travelPath = BeamPath(
-            Vector(),
-            Vector(),
+            Array(),
+            Array(),
             None,
             SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
             SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
@@ -160,8 +160,8 @@ class PersonAndTransitDriverSpec
           mode = BeamMode.BUS,
           duration = 600,
           travelPath = BeamPath(
-            Vector(),
-            Vector(),
+            Array(),
+            Array(),
             None,
             SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 29400),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
@@ -180,8 +180,8 @@ class PersonAndTransitDriverSpec
           mode = BeamMode.BUS,
           duration = 1200,
           travelPath = BeamPath(
-            Vector(),
-            Vector(),
+            Array(),
+            Array(),
             Some(TransitStopsInfo("someAgency", "someRoute", busId, 0, 2)),
             SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
             SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
@@ -200,8 +200,8 @@ class PersonAndTransitDriverSpec
           mode = BeamMode.TRAM,
           duration = 600,
           travelPath = BeamPath(
-            linkIds = Vector(),
-            linkTravelTime = Vector(),
+            linkIds = Array(),
+            linkTravelTime = Array(),
             transitStops = None,
             startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
@@ -221,8 +221,8 @@ class PersonAndTransitDriverSpec
           mode = BeamMode.TRAM,
           duration = 600,
           travelPath = BeamPath(
-            linkIds = Vector(),
-            linkTravelTime = Vector(),
+            linkIds = Array(),
+            linkTravelTime = Array(),
             transitStops = Some(TransitStopsInfo("someAgency", "someRoute", tramId, 0, 1)),
             startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(180000.4, 1200)), 30000),
             endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(190000.4, 1300)), 30600),
@@ -322,8 +322,8 @@ class PersonAndTransitDriverSpec
                   mode = BeamMode.WALK,
                   duration = 500,
                   travelPath = BeamPath(
-                    linkIds = Vector(),
-                    linkTravelTime = Vector(),
+                    linkIds = Array(),
+                    linkTravelTime = Array(),
                     transitStops = None,
                     startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(166321.9, 1568.87)), 28800),
                     endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 28800),
@@ -344,8 +344,8 @@ class PersonAndTransitDriverSpec
                   mode = BeamMode.WALK,
                   duration = 400,
                   travelPath = BeamPath(
-                    linkIds = Vector(),
-                    linkTravelTime = Vector(),
+                    linkIds = Array(),
+                    linkTravelTime = Array(),
                     transitStops = None,
                     startPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
                     endPoint = SpaceTime(services.geo.utm2Wgs(new Coord(167138.4, 1117)), 30600),
@@ -369,7 +369,7 @@ class PersonAndTransitDriverSpec
 
       personEvents.expectMsgType[ModeChoiceEvent]
       personEvents.expectMsgType[ActivityEndEvent]
-      personEvents.expectMsgType[PersonDepartureEvent]
+      personEvents.expectMsgType[BeamPersonDepartureEvent]
       personEvents.expectMsgType[PersonEntersVehicleEvent]
       personEvents.expectMsgType[VehicleEntersTrafficEvent]
       personEvents.expectMsgType[VehicleLeavesTrafficEvent]
@@ -388,7 +388,7 @@ class PersonAndTransitDriverSpec
       personEvents.expectMsgType[PersonArrivalEvent]
       personEvents.expectMsgType[ActivityStartEvent]
 
-      busEvents.expectMsgType[PersonDepartureEvent]
+      busEvents.expectMsgType[BeamPersonDepartureEvent]
       busEvents.expectMsgType[PersonEntersVehicleEvent]
       busEvents.expectMsgType[VehicleEntersTrafficEvent]
       busEvents.expectMsgType[VehicleLeavesTrafficEvent]
@@ -397,7 +397,7 @@ class PersonAndTransitDriverSpec
       busEvents.expectMsgType[VehicleLeavesTrafficEvent]
       busEvents.expectMsgType[PathTraversalEvent]
 
-      tramEvents.expectMsgType[PersonDepartureEvent]
+      tramEvents.expectMsgType[BeamPersonDepartureEvent]
       tramEvents.expectMsgType[PersonEntersVehicleEvent]
       tramEvents.expectMsgType[VehicleEntersTrafficEvent]
       tramEvents.expectMsgType[VehicleLeavesTrafficEvent]

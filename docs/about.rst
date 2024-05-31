@@ -71,10 +71,8 @@ BEAM uses the `R5 routing engine`_ to accomplish multi-modal routing. Agents fro
 
 .. _R5 routing engine: https://github.com/conveyal/r5
 
-.. _matsim-events:
-
 GraphHopper Router
-^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^
 
 If configured BEAM can use GraphHopper router (https://github.com/graphhopper/graphhopper) in addition to R5. Note that
 currently GraphHopper doesn't work with transit routes, for these it will delegate to R5.
@@ -91,6 +89,8 @@ GraphHopper router can be configured to use alternative routes (https://github.c
 To enable it set in config file
 
 `beam.routing.gh.useAlternativeRoutes = true`
+
+.. _matsim-events:
 
 MATSim Events
 ^^^^^^^^^^^^^
@@ -153,8 +153,9 @@ For example, a virtual TNC in BEAM responds to customer inquiries by reporting t
 
 Rich Modal Choice
 -----------------
-BEAM’s mode choice model is structured so that agents select modal strategies (e.g. “car” versus “walk to transit” versus “ride hail”) for each tour prior to the simulation day, but resolve the outcome of these strategies within the day (e.g. route selection, standard ride hail versus pooled, etc.).  BEAM currently supports a simple multinomial logit choice model and a more advanced model is under development and will be fully supported by Spring 2018. 
+BEAM’s mode choice model is structured so that agents select modal strategies (e.g. “car” versus “walk to transit” versus “ride hail”) for each tour prior to the simulation day, but resolve the outcome of these strategies within the day (e.g. route selection, standard ride hail versus pooled, etc.). More details can be found in `this report`_.
 
+.. _this report: https://transportation.lbl.gov/publications/modeling-framework-behavior-energy
 
 Plug-in Electric Vehicle Modeling with BEAM
 -------------------------------------------
@@ -176,16 +177,18 @@ Contact Information
 -------------------
 Primary Technical Contacts: 
 
-Colin Sheppard
-colin.sheppard@lbl.gov
+Zachary Needell
+zaneedell@lbl.gov
 
-Rashid Waraich
-rwaraich@lbl.gov
+Haitam Laarabi
+haitam.laarabi@lbl.gov
 
 References
 ----------
 
-1.	Horni, A., Nagel, K. and Axhausen, K.W. (eds.) 2016 `The Multi-Agent Transport Simulation MATSim`_. London: Ubiquity Press. DOI: http://dx.doi.org/10.5334/baw. License: CC-BY 4.0.
-2.	Wen, Y., MacKenzie, D. & Keith, D. Modeling the Charging Choices of Battery Electric Vehicle Drivers Using Stated Preference Data. TRB Proc. Pap. No 16-5618
+#.  Laarabi, Haitam, Zachary Needell, Rashid Waraich, Cristian Poliziani, Thomas P. Wenzel 2024 `A Modeling Framework for Behavior, Energy, Autonomy and Mobility`_.
+#.	Horni, A., Nagel, K. and Axhausen, K.W. (eds.) 2016 `The Multi-Agent Transport Simulation MATSim`_. London: Ubiquity Press. DOI: http://dx.doi.org/10.5334/baw. License: CC-BY 4.0.
+#.	Wen, Y., MacKenzie, D. & Keith, D. Modeling the Charging Choices of Battery Electric Vehicle Drivers Using Stated Preference Data. TRB Proc. Pap. No 16-5618.
 
 .. _The Multi-Agent Transport Simulation MATSim: http://www.matsim.org/the-book
+.. _A Modeling Framework for Behavior, Energy, Autonomy and Mobility: https://transportation.lbl.gov/publications/modeling-framework-behavior-energy

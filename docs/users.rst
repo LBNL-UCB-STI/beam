@@ -1,4 +1,6 @@
 
+.. _users-guide:
+
 User's Guide
 ============
 
@@ -13,20 +15,20 @@ System Requirements
 
 * At least 8GB RAM
 * Windows, Mac OSX, Linux
-* Java Development Kit 1.8. Oracle JDK 1.8: https://www.oracle.com/java/technologies/javase-jdk8-downloads.html. You can also use OpenJDK 8 JDK. For Ubuntu you can get it installed by running `sudo apt-get install openjdk-8-jdk`
+* Java Development Kit 11. Oracle JDK 11: https://www.oracle.com/java/technologies/downloads/#java11. You can also use OpenJDK 11 JDK. For Ubuntu you can get it installed by running `sudo apt-get install openjdk-11-jdk`
 * Verify that you have both java runtime and java compiler:
 
 .. code-block:: bash
 
     ubuntu@ip-172-31-14-187:~/git/beam$ java -version
-    openjdk version "1.8.0_252"
-    OpenJDK Runtime Environment (build 1.8.0_252-8u252-b09-1~18.04-b09)
-    OpenJDK 64-Bit Server VM (build 25.252-b09, mixed mode)
-    ubuntu@ip-172-31-14-187:~/git/beam$ javac -version
-    javac 1.8.0_252
-    ubuntu@ip-172-31-14-187:~/git/beam$              
+    openjdk version "11.0.21" 2023-10-17
+    OpenJDK Runtime Environment (build 11.0.21+9-post-Ubuntu-0ubuntu122.04)
+    OpenJDK 64-Bit Server VM (build 11.0.21+9-post-Ubuntu-0ubuntu122.04, mixed mode, sharing)
 
-* We also recommend downloading the VIA vizualization app and obtaining a free or paid license: https://simunto.com/via/
+    ubuntu@ip-172-31-14-187:~/git/beam$ javac -version
+    javac 11.0.21
+
+* We also recommend downloading the VIA visualization app and obtaining a free or paid license: https://simunto.com/via/
 * Git and Git-LFS
 
 Prerequisites :
@@ -34,21 +36,12 @@ Prerequisites :
 
 **Install Java**
 
-BEAM requires Java 1.8 JDK. If a different version of java is already installed on your system, please upgrade the version to 1.8.
-See this `link <https://www.oracle.com/java/technologies/javase-jdk8-downloads.html>`_ for steps to check the current version of your JDK.
+BEAM requires Java 11 JDK. If a different version of java is already installed on your system, please upgrade the version to 11.
+See this `link <https://www.oracle.com/java/technologies/downloads/#java11>`_ for steps to check the current version of your JDK.
 
 If java is not already installed on your system , please follow this `download manual <https://www.java.com/en/download/manual.jsp>`_ to install java on your system.
 
-Please note that BEAM is currently compatible only with Java 1.8 and is not compatible with any of the older or recent versions.
-
-**Install Gradle**
-
-BEAM uses `gradle <https://gradle.org>`_ as its build tool. If gradle is not already installed, check this `gradle installation guide <https://gradle.org/install>`_ for steps on how to download and install gradle.
-Once gradle is successfully installed , verify the installation by running the command
-
-.. code-block:: bash
-
-    gradle
+Please note that BEAM is currently compatible only with Java 11 and is not compatible with any of the older or recent versions.
 
 
 GIT-LFS Configuration
@@ -108,10 +101,10 @@ Fetch the remote branches and tags::
 
 Now checkout the latest stable version of BEAM, v0.7.0::
 
-   git checkout v0.7.0
+   git checkout v0.9.0
 
 
-Run the gradle command to compile BEAM, this will also downloaded all required dependencies automatically::
+Run the gradle command to compile BEAM, this will also download all required dependencies automatically::
 
    ./gradlew classes
 
@@ -148,7 +141,7 @@ Similarly on windows it can be set using the below command :
     setx MAXRAM="10g"
 
 
-The outputs are written to the 'output' directory, should see results appear in a sub-folder called "beamville_%DATE_TIME%".
+The outputs are written to the 'output' directory, should see results appear in a sub-folder called "beamville/beamville_%DATE_TIME%".
 
 Optionally you can also run BEAM from your favourite IDE . Check the below section on how to configure and run BEAM using Intellij IDEA.
 
@@ -157,7 +150,7 @@ There is a way to watch real-time graphs from a BEAM run, see :ref:`real-time-gr
 Running BEAM with Intellij IDE
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-IntelliJ IDEA community edition is an open source IDE available for free. It can be downloaded from `here <https://www.jetbrains.com/idea/download/#section=windows>`_
+IntelliJ IDEA community edition is an open source IDE available for free. It can be downloaded from `here <https://www.jetbrains.com/idea/download>`_
 
 After successful download , run the executable and follow the installation wizard to install Intellij IDEA.
 
@@ -205,21 +198,41 @@ Steps to add a new configuration :
   * Main Class : beam.sim.RunBeam
   * VM options : -Xmx8g
   * Program Arguments : --config test/input/beamville/beam.conf (this runs beamville scenario, changes the folder path to run a different scenario)
-  * Working Directory : /home/beam/BEAM
-  * Environment Variables : PWD=/home/beam/BEAM
+  * Working Directory : /home/user/sources/beam
+  * Environment Variables : PWD=.
   * use submodule of path : beam.main
 * Click Ok to save the configuration.
 
 To add a configuration for a different scenario , follow the above steps and change the folder path to point to the required scenario in program arguments
+
+**Running BEAM unit test from IDE**
+
+BEAM unit test requires some arguments to be specified and the configuration setting can be added as a run configuration inside the IDE.
+
+Steps to add a new configuration :
+
+* Go to Run > Edit Configurations
+* Click Edit configuration templates... and select "ScalaTest"
+* Fill in the following values
+  * Environment Variables : PWD=$PROJECT_DIR$
+  * Shorten command line : JAR manifest
+* Click Ok to save the configuration.
+
+.. image:: _static/figs/scala_test_configuration.png
+
+.. _building-beam-docker-image:
 
 BEAM in Docker image
 ^^^^^^^^^^^^^^^^^^^^
 
 **Building new BEAM image from any branch**
 
-There is a gradle commands to build new BEAM Docker image. This command will build a docker image and tag it with the `version` taken from build.gradle file.::
+If you need a beam image of a specific version of BEAM then you can build it from the source code. There is a gradle
+command to build a new BEAM Docker image.::
 
-    ./gradlew buildImage
+    ./gradlew -Ptag=beammodel/beam:0.9.12 buildImage
+
+If you skip this step docker will download the BEAM image from docker hub.
 
 **Running the docker image with BEAM**
 
@@ -230,13 +243,13 @@ For example here is a shell script which might be used to run the docker image. 
     #!/bin/bash
 
     config=$1
-    beam_image="beammodel/beam:0.8.6"
+    beam_image="beammodel/beam:0.9.12"
     input_folder_name="test"
     output_folder_name="beam_output"
     mkdir -m 777 $output_folder_name 2>/dev/null
 
     max_ram='10g'
-    java_opts="-Xmx$max_ram -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap"
+    java_opts="-Xmx$max_ram"
 
     docker run \
       --network host \
@@ -288,15 +301,61 @@ Each iteration of the run produces a sub-folder under the `ITERS` directory. Wit
 
 In addition, raw outputs are available in the two events file (one from the AgentSim and one from the PhysSim, see :ref:`matsim-events` for more details), titled `%ITER%.events.csv` and `%ITER%.physSimEvents.xml.gz` respectively.
 
+Data Analysis
+^^^^^^^^^^^^^
+
+One may execute python scripts after each iteration or after the whole simulation. To do so add the following parameters
+into beam config file: ::
+
+  beam.outputs.analysis.iterationScripts = ["path/to/iteration/script1.py", "path/to/iteration/script2.py"]
+  beam.outputs.analysis.simulationScripts = ["path/to/simulation/script1.py", "path/to/simulation/script2.py"]
+
+Beam provides the following command line arguments to the iteration scripts:
+  #. Beam config path
+  #. Iteration output directory path
+  #. Iteration number
+And to the simulation scripts:
+  #. Beam config path
+  #. Output directory path
+
+`An example of an iteration script <https://github.com/LBNL-UCB-STI/beam/blob/develop/src/main/python/events_analysis/events_within_beam.py>`_.
+If you need to use a specific version of python (i.e. from a conda environment) then you can provide a path to the
+python using `--python-executable` command line argument when you start Beam. If you want to use a non-standard python
+library then install it to your environment.
+
+Beam docker image contains some of python libraries preinstalled. That's `the command <https://github.com/LBNL-UCB-STI/beam/blob/develop/docker/beam-environment/Dockerfile-java-11#L16-L15>`_ in the build docker file that
+does it. If you want to use some other python libraries within beam docker image you can add a similar instruction to
+`createDockerfile` task in `build.gradle` file.
+
+.. code-block:: groovy
+
+  ...
+  from 'beammodel/beam-environment:jdk-11-4.01'
+  runCommand('pip install emoji')
+  ...
+
+Go to :ref:`building-beam-docker-image` to see how one can build a beam docker image.
+You need to mount your python code directory to the beam container so that it has access to your python code. You can do
+it with the following docker argument:
+
+.. code-block:: bash
+
+  --mount source="/absolute/path/to/code",destination=/app/analysis,type=bind
+
+Then you want to use the path like `analysis/relative/path/to/script` in beam config `beam.outputs.analysis.iterationScripts` param.
+
+
 Model Config
 ^^^^^^^^^^^^
 
 To get started, we will focus your attention on a few of the most commonly used and useful configuration parameters that control beam::
 
   # Ride Hailing Params
-  beam.agentsim.agents.rideHail.initialization.procedural.numDriversAsFractionOfPopulation=0.05
-  beam.agentsim.agents.rideHail.defaultCostPerMile=1.25
-  beam.agentsim.agents.rideHail.defaultCostPerMinute=0.75
+  beam.agentsim.agents.rideHail.managers = [{
+    initialization.procedural.fractionOfInitialVehicleFleet=0.05
+    defaultCostPerMile=1.25
+    defaultCostPerMinute=0.75
+    }]
   # Scaling and Tuning Params; 1.0 results in no scaling
   beam.agentsim.tuning.transitCapacity = 0.2
   beam.agentsim.tuning.transitPrice = 1.0
@@ -352,13 +411,13 @@ Factors can be designed however you choose, including adding as many factors or 
       levels:
       - name: Low
         params:
-          beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.001
+          beam.agentsim.agents.rideHail.fractionOfInitialVehicleFleet: 0.001
       - name: Base
         params:
-          beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.01
+          beam.agentsim.agents.rideHail.fractionOfInitialVehicleFleet: 0.01
       - name: High
         params:
-          beam.agentsim.agents.rideHail.numDriversAsFractionOfPopulation: 0.1
+          beam.agentsim.agents.rideHail.fractionOfInitialVehicleFleet: 0.1
 
 Each level and the baseScenario defines `params`, or a set of key,value pairs. Those keys are either property names from beam.conf or placeholders from any template config files (see below for an example of this). Param names across factors and template files must be unique, otherwise they will overwrite each other.
 
@@ -368,7 +427,7 @@ Also note that `mnl_ride_hail_intercept` appears both in the level specification
 
 Experiment generation can be run using following command::
 
-  ./gradlew -PmainClass=beam.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']" execute
+  ./gradlew -PmainClass=scripts.experiment.ExperimentGenerator -PappArgs="['--experiments', 'test/input/beamville/example-experiment/experiment.yml']" execute
 
 It's better to create a new sub-folder folder (e.g. 'calibration' or 'experiment-1') in your data input directory and put both templates and the experiment.yml there.
 The ExperimentGenerator will create a sub-folder next to experiment.yml named `runs` which will include all of the data needed to run the experiment along with a shell script to execute a local run. The generator also creates an `experiments.csv` file next to experiment.yml with a mapping between experimental group name, the level name and the value of the params associated with each level. 
@@ -450,7 +509,6 @@ has the same general structure as the one used to specify tuning hyperparameters
   beamCommit: commit hash
   deployMode: "execute"
   executeClass: "beam.calibration.RunCalibration"
-  beamBatch: "false"
   shutdownWait: "15"
   shutdownBehavior: "terminate"
   s3Backup: "true"
@@ -636,6 +694,71 @@ Copy the osmosis command generated by conversion tool and run from the command l
 * Environment variables: PWD=/path/to/beam/folder
 
 
+11. Warm Start
+
+BEAM can be configured to run from a previous, stored state - referred to as warm start. It is a zip archive which contains
+three major parts: scenario, aggregated skims and link stats file for the last iteration.
+
+Archive has the following structure (shown for iteration 30 here)::
+
+ output_personAttributes.xml.gz
+ population.csv.gz
+ households.csv.gz
+ vehicles.csv.gz
+ ITERS/it.30/30.skimsOD_Aggregated.csv.gz
+ ITERS/it.30/30.skimsTAZ_Aggregated.csv.gz
+ ITERS/it.30/30.skimsTravelTimeObservedVsSimulated_Aggregated.csv.gz
+ ITERS/it.30/30.skimsRidehail_Aggregated.csv.gz
+ ITERS/it.30/30.skimsFreight_Aggregated.csv.gz
+ ITERS/it.30/30.skimsParking_Aggregated.csv.gz
+ ITERS/it.30/30.skimsTransitCrowding_Aggregated.csv.gz
+ ITERS/it.30/30.linkstats.csv.gz
+ ITERS/it.30/30.plans.csv.gz
+ ITERS/it.30/30.plans.xml.gz
+ ITERS/it.30/30.rideHailFleet.csv.gz
+
+Alternatively warm start archive may only contain just a link stats file::
+
+  ITERS/it.30/30.linkstats.csv.gz
+
+There are a few examples of warm start archives located in `test/input/beamville/warmstart`
+
+A warm start can be controlled through the following config file parameters::
+
+ * beam.warmStart.type = "disabled"
+ * beam.warmStart.path = "https://s3.us-east-2.amazonaws.com/beam-outputs/run140-base__2018-06-26_22-20-49_28e81b6d.zip"
+ * beam.warmStart.samplePopulationIntegerFlag = 0
+ * beam.warmStart.prepareData = false
+ * beam.warmStart.skimsFilePaths = [
+                                     {
+                                         skimType = "String"
+                                         skimsFilePath = ""
+                                     }
+                                   ]
+
+
+
+Each parameter is defined below:
+
+- `beam.warmStart.type`: This parameter controls the type of warm start, with the possibilities being:
+     - **disabled** - completely disable warm start
+     - **full** - load all the data from the supplied files for initializing warm start (scenario, skims and linkstats)
+     - **linkStatsOnly** - only load link stats data with the rest of the data retrieved from the input directory
+     - **linkStatsFromLastRun** - only link stats is loaded from beam.input.lastBaseOutputDir directory
+
+- `beam.warmStart.path`: This parameter is the path where warm start archive is located. It can be the path of a zip file on s3 or local directory
+
+- `beam.warmStart.samplePopulationIntegerFlag`: This parameter controls if population sampling is needed or not. For full warmstart this will be ignored, as sampling cannot be changed.
+
+- `beam.warmStart.prepareData`: This parameter controls if beam need to prepare an archive for warmstart. This archive data is used as an input for any warmstart run. These files depicts current state of beam scenario execution on any specific iteration
+
+- `beam.warmStart.skimsFilePaths.skimType`: This parameter is used for configuring the type of skim
+
+- `beam.warmStart.skimsFilePaths.skimsFilePath`: This parameter is used for configuring the path of the skim file
+
+For warm start usage examples check tests at `bim.sim.BeamWarmStartRunSpec`
+
+
 Converting BEAM events file into MATSim events file
 ---------------------------------------------------
 
@@ -644,12 +767,12 @@ There is a script to convert BEAM events into MATSim events so, one can use Via 
 The script will convert all PathTraversalEvents into sequence of various MATSim events.
 
 There are, at least, two ways to run conversion:
- * directly run script from `beam/src/main/scala/beam/utils/beam_to_matsim/EventsByVehicleMode.scala`
+ * directly run script from `beam/src/main/scala/scripts/beam_to_matsim/EventsByVehicleMode.scala`
  * run script by gradle task:
 
   ::
 
-  ./gradlew execute -PmainClass=beam.utils.beam_to_matsim.EventsByVehicleMode -PappArgs="[<parameters>]"
+  ./gradlew execute -PmainClass=scripts.beam_to_matsim.EventsByVehicleMode -PappArgs="[<parameters>]"
 
 Both ways require four parameters:
  * BEAM events file path
@@ -657,7 +780,7 @@ Both ways require four parameters:
  * Comma separated list of chosen vehicle modes
  * Vehicle population fraction for sampling
 
-Example: `./gradlew execute -PmainClass=beam.utils.beam_to_matsim.EventsByVehicleMode -PappArgs="['BEAM events file path', 'output file path', 'car,bus', '1']" -PmaxRAM=16g`
+Example: `./gradlew execute -PmainClass=scripts.beam_to_matsim.EventsByVehicleMode -PappArgs="['BEAM events file path', 'output file path', 'car,bus', '1']" -PmaxRAM=16g`
 
 If it is required to sample not by just population but also select only vehicles that passes through specific circle with center in X,Y and radius R then there are 4 optional arguments.
 They should be provided together.
@@ -668,7 +791,7 @@ Parameters for circle sampling:
  * Y circle coordinate
  * radius R of circle
 
-Example: `./gradlew execute -PmainClass=beam.utils.beam_to_matsim.EventsByVehicleMode -PappArgs="['BEAM events file path', 'output file path', 'car,bus', '0.2', 'path to physSimNetwork.xml', '548966', '4179000', '5000']" -PmaxRAM=16g`
+Example: `./gradlew execute -PmainClass=scripts.beam_to_matsim.EventsByVehicleMode -PappArgs="['BEAM events file path', 'output file path', 'car,bus', '0.2', 'path to physSimNetwork.xml', '548966', '4179000', '5000']" -PmaxRAM=16g`
 
 Worth noting the fact that running the script require sufficient amount of computing resources corresponding to source events file size.
 For example: processing a BEAM file of 1.5Gb while selecting all vehicles (with fraction of 1) require about 16Gb memory for Java and takes about 12 minutes on modern laptop.

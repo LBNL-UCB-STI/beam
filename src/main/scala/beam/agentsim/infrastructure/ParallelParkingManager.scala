@@ -1,6 +1,5 @@
 package beam.agentsim.infrastructure
 
-import akka.actor.ActorRef
 import beam.agentsim.Resource.ReleaseParkingStall
 import beam.agentsim.infrastructure.ParallelParkingManager.{geometryFactory, ParkingCluster, Worker}
 import beam.agentsim.infrastructure.parking.{ParkingNetwork, ParkingZone, ParkingZoneId}
@@ -9,9 +8,9 @@ import beam.sim.common.GeoUtils.toJtsCoordinate
 import beam.sim.config.BeamConfig
 import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
-import com.vividsolutions.jts.algorithm.ConvexHull
-import com.vividsolutions.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
-import com.vividsolutions.jts.geom.{Coordinate, Envelope, GeometryFactory}
+import org.locationtech.jts.algorithm.ConvexHull
+import org.locationtech.jts.geom.prep.{PreparedGeometry, PreparedGeometryFactory}
+import org.locationtech.jts.geom.{Coordinate, Envelope, GeometryFactory}
 import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.KMeansElkan
 import de.lmu.ifi.dbs.elki.algorithm.clustering.kmeans.initialization.RandomUniformGeneratedInitialMeans
 import de.lmu.ifi.dbs.elki.data.`type`.TypeUtil
@@ -41,7 +40,8 @@ class ParallelParkingManager(
   fractionOfSameTypeZones: Double,
   minNumberOfSameTypeZones: Int,
   seed: Int,
-  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MulitnomialLogit
+  mnlParkingConfig: BeamConfig.Beam.Agentsim.Agents.Parking.MultinomialLogit,
+  estimatedMinParkingDurationInSeconds: Double
 ) extends ParkingNetwork(parkingZones) {
 
   override protected val searchFunctions: Option[InfrastructureFunctions] = None
@@ -67,8 +67,7 @@ class ParallelParkingManager(
     val tazTreeMap = TAZTreeMap.fromSeq(cluster.tazes)
     val parkingNetwork = ZonalParkingManager(
       parkingZones,
-      tazTreeMap.tazQuadTree,
-      tazTreeMap.idToTAZMapping,
+      tazTreeMap,
       distanceFunction,
       boundingBox,
       minSearchRadius,
@@ -76,7 +75,8 @@ class ParallelParkingManager(
       fractionOfSameTypeZones,
       minNumberOfSameTypeZones,
       seed,
-      mnlParkingConfig
+      mnlParkingConfig,
+      estimatedMinParkingDurationInSeconds
     )
     Worker(parkingNetwork, cluster)
   }
@@ -89,7 +89,7 @@ class ParallelParkingManager(
   override def processParkingInquiry(
     inquiry: ParkingInquiry,
     parallelizationCounterOption: Option[SimpleCounter] = None
-  ): Option[ParkingInquiryResponse] = {
+  ): ParkingInquiryResponse = {
     parallelizationCounterOption.map(_.count("all"))
     val foundCluster = workers.find { w =>
       val point = ParallelParkingManager.geometryFactory.createPoint(inquiry.destinationUtm.loc)
@@ -136,8 +136,6 @@ class ParallelParkingManager(
 
 object ParallelParkingManager extends LazyLogging {
   private val geometryFactory = new GeometryFactory()
-
-  case class ParkingSearchResult(response: ParkingInquiryResponse, originalSender: ActorRef, worker: ActorRef)
 
   /**
     * builds a ParallelParkingManager
@@ -187,7 +185,8 @@ object ParallelParkingManager extends LazyLogging {
       beamConfig.beam.agentsim.agents.parking.fractionOfSameTypeZones,
       beamConfig.beam.agentsim.agents.parking.minNumberOfSameTypeZones,
       seed,
-      beamConfig.beam.agentsim.agents.parking.mulitnomialLogit
+      beamConfig.beam.agentsim.agents.parking.multinomialLogit,
+      beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
     )
   }
 

@@ -4,6 +4,8 @@ import beam.agentsim.agents.vehicles.FuelType.Electricity
 import beam.sim.BeamServices
 import com.typesafe.scalalogging.LazyLogging
 
+import scala.util.Try
+
 object FailFast extends LazyLogging {
 
   def run(beamServices: BeamServices): Unit = {
@@ -33,26 +35,38 @@ object FailFast extends LazyLogging {
     }
 
     /*
+     * RHM should be presented
+     */
+    if (config.beam.agentsim.agents.rideHail.managers.isEmpty) {
+      throw new RuntimeException("RideHailManager is not defined.")
+    }
+    if (config.beam.agentsim.agents.rideHail.managers.groupBy(_.name).values.exists(_.size > 1)) {
+      throw new RuntimeException("There are RideHailManagers with the same name.")
+    }
+
+    /*
      * Pooling with timeout zero or non-pooling with non-zero don't mix yet
      */
-    if (
-      config.beam.agentsim.agents.rideHail.allocationManager.name
-        .equals(
-          "POOLING_ALONSO_MORA"
-        ) && config.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds == 0
-    ) {
-      throw new RuntimeException(
-        "PoolingAlonsoMora is not yet compatible with a parameter value of 0 for requestBufferTimeoutInSeconds. Either make that parameter non-zero or use DEFAULT_MANAGER for the allocationManager."
-      )
-    } else if (
-      config.beam.agentsim.agents.rideHail.allocationManager.name
-        .equals(
-          "DEFAULT_MANAGER"
-        ) && config.beam.agentsim.agents.rideHail.allocationManager.requestBufferTimeoutInSeconds > 0
-    ) {
-      throw new RuntimeException(
-        "AllocationManager DEFAULT_MANAGER is not yet compatible with a non-zero parameter value for requestBufferTimeoutInSeconds. Either make that parameter zero or use POOLING_ALONSO_MORA for the allocationManager."
-      )
+    config.beam.agentsim.agents.rideHail.managers.foreach { managerConfig =>
+      if (
+        managerConfig.allocationManager.name
+          .equals(
+            "POOLING_ALONSO_MORA"
+          ) && managerConfig.allocationManager.requestBufferTimeoutInSeconds == 0
+      ) {
+        throw new RuntimeException(
+          s"${managerConfig.name}: PoolingAlonsoMora is not yet compatible with a parameter value of 0 for requestBufferTimeoutInSeconds. Either make that parameter non-zero or use DEFAULT_MANAGER for the allocationManager."
+        )
+      } else if (
+        managerConfig.allocationManager.name
+          .equals(
+            "DEFAULT_MANAGER"
+          ) && managerConfig.allocationManager.requestBufferTimeoutInSeconds > 0
+      ) {
+        throw new RuntimeException(
+          s"${managerConfig.name}: AllocationManager DEFAULT_MANAGER is not yet compatible with a non-zero parameter value for requestBufferTimeoutInSeconds. Either make that parameter zero or use POOLING_ALONSO_MORA for the allocationManager."
+        )
+      }
     }
 
     /*
@@ -74,6 +88,21 @@ object FailFast extends LazyLogging {
       throw new RuntimeException(
         "Wrong value of Route History file writing iteration"
       )
+    }
+
+    if (
+      config.beam.debug.stuckAgentDetection.enabled
+      || config.beam.debug.stuckAgentDetection.checkMaxNumberOfMessagesEnabled
+    ) {
+      val failedClasses = config.beam.debug.stuckAgentDetection.thresholds.collect {
+        case t if Try(Class.forName(t.triggerType)).isFailure =>
+          t.triggerType
+      }
+      if (failedClasses.nonEmpty) {
+        throw new RuntimeException(
+          s"Cannot load StuckFinder trigger classes: ${failedClasses.mkString(", ")}.\n Probably they don't exist."
+        )
+      }
     }
   }
 }

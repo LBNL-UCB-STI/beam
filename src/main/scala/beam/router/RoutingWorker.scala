@@ -103,10 +103,10 @@ class RoutingWorker(workerParams: R5Parameters, networks2: Option[(TransportNetw
 
   private val linksBelowMinCarSpeed =
     workerParams.networkHelper.allLinks
-      .count(l => l.getFreespeed < workerParams.beamConfig.beam.physsim.quick_fix_minCarSpeedInMetersPerSecond)
+      .count(l => l.getFreespeed < workerParams.beamConfig.beam.physsim.minCarSpeedInMetersPerSecond)
   if (linksBelowMinCarSpeed > 0) {
     log.warning(
-      "{} links are below quick_fix_minCarSpeedInMetersPerSecond, already in free-flow",
+      "{} links are below minCarSpeedInMetersPerSecond, already in free-flow",
       linksBelowMinCarSpeed
     )
   }
@@ -507,8 +507,8 @@ object RoutingWorker {
       GeoUtils.minkowskiDistFormula(startUTM, endUTM) //changed from geo.distUTMInMeters(startUTM, endUTM)
     val bushwhackingTime = Math.round(distanceInMeters / BUSHWHACKING_SPEED_IN_METERS_PER_SECOND)
     val path = BeamPath(
-      Vector(),
-      Vector(),
+      Array[Int](),
+      Array[Double](),
       None,
       SpaceTime(geo.utm2Wgs(startUTM), atTime),
       SpaceTime(geo.utm2Wgs(endUTM), atTime + bushwhackingTime.toInt),

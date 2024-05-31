@@ -10,13 +10,13 @@ import beam.agentsim.events.SpaceTime
 import beam.router.BeamRouter.{EmbodyWithCurrentTravelTime, RoutingRequest}
 import beam.router.Modes.BeamMode
 import beam.router.Modes.BeamMode.CAV
-import beam.router.skim.Skims
 import beam.router.{BeamRouter, Modes, RouteHistory}
 import beam.sim.BeamServices
 import beam.utils.logging.ExponentialLoggerWrapperImpl
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Leg, Person}
+import org.matsim.core.utils.misc.OptionalTime
 import org.matsim.households.Household
 
 import scala.collection.JavaConverters._
@@ -306,7 +306,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
                 triggerId = triggerId
               )
               newMobilityRequests = newMobilityRequests :+ orig.copy(routingRequestId = Some(embodyReq.requestId))
-              Some(RouteOrEmbodyRequest(None, Some(embodyReq)))
+              Some(Right(embodyReq))
             case None =>
               val routingRequest = RoutingRequest(
                 orig.activity.getCoord,
@@ -329,7 +329,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
               newMobilityRequests = newMobilityRequests :+ orig.copy(
                 routingRequestId = Some(routingRequest.requestId)
               )
-              Some(RouteOrEmbodyRequest(Some(routingRequest), None))
+              Some(Left(routingRequest))
           }
         }
       }
@@ -340,7 +340,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
 }
 
 object CAVSchedule {
-  case class RouteOrEmbodyRequest(routeReq: Option[RoutingRequest], embodyReq: Option[EmbodyWithCurrentTravelTime])
+  type RouteOrEmbodyRequest = Either[RoutingRequest, EmbodyWithCurrentTravelTime]
 }
 
 case class HouseholdTrips(
@@ -373,7 +373,7 @@ object HouseholdTrips {
     val householdPlans = household.members
       .take(limitCavToXPersons)
       .map(person => BeamPlan(person.getSelectedPlan))
-    val cavVehicles = householdVehicles.filter(_.beamVehicleType.automationLevel > 3)
+    val cavVehicles = householdVehicles.filter(_.isCAV)
     val vehicleTypeForSkimmer =
       cavVehicles.head.beamVehicleType // FIXME I need _one_ vehicleType here, but there could be more..
     val (requests, firstPickupOfTheDay, tripTravelTime, totTravelTime) =
@@ -430,7 +430,7 @@ object HouseholdTripsHelper {
     var firstPickupOfTheDay: Option[MobilityRequest] = None
     breakable {
       householdPlans.foldLeft(householdNbOfVehicles) { case (counter, plan) =>
-        val usedCarOut = plan.trips.sliding(2).foldLeft(false) { case (usedCar, Seq(prevTrip, curTrip)) =>
+        val usedCarOut = plan.trips.sliding(2).foldLeft(false) { case (usedCar, Array(prevTrip, curTrip)) =>
           val (pickup, dropoff, travelTime) =
             getPickupAndDropoff(
               plan,
@@ -487,16 +487,16 @@ object HouseholdTripsHelper {
       beamServices.beamScenario.fuelTypePrices(beamVehicleType.primaryFuelType)
     )
 
-    val startTime = prevTrip.activity.getEndTime.toInt
+    val startTime = prevTrip.activity.getEndTime.orElse(beam.UNDEFINED_TIME).toInt
     val arrivalTime = startTime + skim.time
 
-    val nextTripStartTime: Double = curTrip.activity.getEndTime
-    if (!nextTripStartTime.isNegInfinity && startTime >= nextTripStartTime.toInt) {
+    val nextTripStartTime: OptionalTime = curTrip.activity.getEndTime
+    if (nextTripStartTime.isDefined && startTime >= nextTripStartTime.seconds().toInt) {
       logger.warn(
         s"Illegal plan for person ${plan.getPerson.getId.toString}, activity ends at $startTime which is later than the next activity ending at $nextTripStartTime"
       )
       break
-    } else if (!nextTripStartTime.isNegInfinity && arrivalTime > nextTripStartTime.toInt) {
+    } else if (nextTripStartTime.isDefined && arrivalTime > nextTripStartTime.seconds().toInt) {
       logger.warn(
         "The necessary travel time to arrive to the next activity is beyond the end time of the same activity"
       )

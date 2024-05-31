@@ -1,6 +1,7 @@
 package beam.sim
 
 import akka.actor.ActorRef
+import beam.agentsim.agents.freight.input.FreightReader
 import beam.agentsim.agents.ridehail.{RideHailAgent, RideHailManager, RideHailVehicleId, Shift}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType, VehicleCategory, VehicleManager}
@@ -9,20 +10,28 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.BeamRouter.Location
 import beam.sim.RideHailFleetInitializer.RideHailAgentInitializer
 import beam.sim.common.{GeoUtils, Range}
+import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import beam.sim.vehicles.VehiclesAdjustment
+import beam.utils.OptionalUtils.OptionalTimeExtension
 import beam.utils.OutputDataDescriptor
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
-import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
-import com.google.inject.{Inject, Provider, ProvisionException}
-import com.typesafe.scalalogging.LazyLogging
+import beam.utils.matsim_conversion.ShapeUtils.{readShapeFileGeometries, QuadTreeBounds}
+import com.google.inject.Inject
+import com.typesafe.scalalogging.{LazyLogging, Logger}
+import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory}
+import org.apache.commons.io.FilenameUtils
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.population.{Activity, Person}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
 import org.matsim.core.controler.OutputDirectoryHierarchy
+import org.matsim.households.Household
 
 import java.nio.file.{Files, Paths}
+import java.util
 import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
+import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.io.Source
 import scala.math.{max, min}
@@ -32,9 +41,14 @@ import scala.util.control.NonFatal
 object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
   type FleetId = String
 
-  private[sim] def toRideHailAgentInputData(rec: java.util.Map[String, String]): RideHailAgentInputData = {
+  private[sim] def toRideHailAgentInputData(
+    rec: java.util.Map[String, String],
+    defaultFleetId: String
+  ): RideHailAgentInputData = {
     val id = GenericCsvReader.getIfNotNull(rec, "id")
-    val rideHailManagerId = GenericCsvReader.getIfNotNull(rec, "rideHailManagerId")
+    val rideHailManagerIdStr = GenericCsvReader.getIfNotNull(rec, "rideHailManagerId")
+    val rideHailManagerId =
+      VehicleManager.createOrGetReservedFor(rideHailManagerIdStr, VehicleManager.TypeEnum.RideHail).managerId
     val vehicleType = GenericCsvReader.getIfNotNull(rec, "vehicleType")
     val initialLocationX = GenericCsvReader.getIfNotNull(rec, "initialLocationX").toDouble
     val initialLocationY = GenericCsvReader.getIfNotNull(rec, "initialLocationY").toDouble
@@ -42,15 +56,15 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     val geofenceX = Option(rec.get("geofenceX")).map(_.toDouble)
     val geofenceY = Option(rec.get("geofenceY")).map(_.toDouble)
     val geofenceRadius = Option(rec.get("geofenceRadius")).map(_.toDouble)
-    val geofenceTAZFile = Option(rec.get("geofenceTAZFile"))
-    val geofenceTazIds = Option(rec.get("geofenceTAZFile")).map(readTazIdsFile)
-    val fleetId = rec.getOrDefault("fleetId", "default")
+    //geofenceFile takes precedence
+    val geofenceFile = Option(rec.get("geofenceFile")).orElse(Option(rec.get("geofenceTAZFile")))
+    geofenceFile.foreach(validateGeofenceFileAndGetFileType)
+    val fleetId = rec.getOrDefault("fleetId", defaultFleetId)
     val initialStateOfCharge = rec.getOrDefault("initialStateOfCharge", "1.0").toDouble
 
     RideHailAgentInputData(
       id = id,
-      rideHailManagerId =
-        VehicleManager.createOrGetReservedFor(rideHailManagerId, VehicleManager.TypeEnum.RideHail).managerId,
+      rideHailManagerId = rideHailManagerId,
       vehicleType = vehicleType,
       initialLocationX = initialLocationX,
       initialLocationY = initialLocationY,
@@ -58,18 +72,25 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
       geofenceX = geofenceX,
       geofenceY = geofenceY,
       geofenceRadius = geofenceRadius,
-      geofenceTazs = geofenceTazIds,
-      geofenceTAZFile = geofenceTAZFile,
+      geofenceFile = geofenceFile,
       fleetId = fleetId,
       initialStateOfCharge = initialStateOfCharge
     )
   }
 
-  private def readTazIdsFile(tazFilePath: String): Set[Id[TAZ]] = {
-    val source = Source.fromFile(tazFilePath)
-    val lines = source.getLines.toVector
-    source.close()
-    lines.tail.map(tazId => Id.create(tazId, classOf[TAZ])).toSet
+  def validateGeofenceFileAndGetFileType(fileName: String): String = {
+    if (!Files.exists(Paths.get(fileName))) {
+      throw new RuntimeException(s"Geofence file $fileName doesn't exist")
+    }
+    val extension = FilenameUtils.getExtension(fileName).toLowerCase()
+    val knownGeofenceFileExtensions = Seq("shp", "csv")
+    if (!knownGeofenceFileExtensions.contains(extension)) {
+      throw new RuntimeException(
+        s"Unknown geofence file type: $fileName." +
+        s" Only ${knownGeofenceFileExtensions.mkString(", ")} are supported."
+      )
+    }
+    extension
   }
 
   /**
@@ -109,7 +130,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
       "geofenceX",
       "geofenceY",
       "geofenceRadius",
-      "geofenceTAZFile",
+      "geofenceFile",
       "fleetId",
       "initialStateOfCharge"
     )
@@ -128,7 +149,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
             fleetData.geofenceX.getOrElse(""),
             fleetData.geofenceY.getOrElse(""),
             fleetData.geofenceRadius.getOrElse(""),
-            fleetData.geofenceTAZFile.getOrElse(""),
+            fleetData.geofenceFile.getOrElse(""),
             fleetData.fleetId,
             fleetData.initialStateOfCharge
           )
@@ -150,9 +171,10 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     * @param filePath path to the csv file
     * @return list of [[RideHailAgentInputData]] objects
     */
-  def readFleetFromCSV(filePath: String): List[RideHailAgentInputData] = {
+  def readFleetFromCSV(filePath: String, defaultFleetId: String): List[RideHailAgentInputData] = {
     // This is lazy, to make it to read the data we need to call `.toList`
-    val (iter, toClose) = GenericCsvReader.readAs[RideHailAgentInputData](filePath, toRideHailAgentInputData, _ => true)
+    val (iter, toClose) =
+      GenericCsvReader.readAs[RideHailAgentInputData](filePath, toRideHailAgentInputData(_, defaultFleetId), _ => true)
     try {
       // Read the data
       val fleetData = iter.toList
@@ -233,8 +255,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     geofenceX: Option[Double],
     geofenceY: Option[Double],
     geofenceRadius: Option[Double],
-    geofenceTazs: Option[Set[Id[TAZ]]],
-    geofenceTAZFile: Option[String],
+    geofenceFile: Option[String],
     fleetId: String,
     initialStateOfCharge: Double = 1.0
   ) {
@@ -242,9 +263,14 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     /*
      * If both a taz based geofence and a circular one are defined, the taz based takes precedence.
      */
-    def geofence(tazTreeMap: TAZTreeMap): Option[Geofence] = {
-      if (geofenceTazs.isDefined) {
-        Some(TAZGeofence(geofenceTazs.get, tazTreeMap, geofenceTAZFile.get))
+    def geofence(tazTreeMap: TAZTreeMap, localCRS: String): Option[Geofence] = {
+      if (geofenceFile.isDefined) {
+        val fileName = geofenceFile.get
+        val extension = validateGeofenceFileAndGetFileType(fileName)
+        extension match {
+          case "csv" => Some(TAZGeofence(tazTreeMap, geofenceFile.get))
+          case "shp" => Some(ShpGeofence(geofenceFile.get, localCRS))
+        }
       } else if (geofenceX.isDefined && geofenceY.isDefined && geofenceRadius.isDefined) {
         Some(CircularGeofence(geofenceX.get, geofenceY.get, geofenceRadius.get))
       } else {
@@ -252,13 +278,30 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
       }
     }
 
+    /**
+      * @return a string geofence key for caching purposes
+      */
+    def geofenceKey: String = {
+      if (geofenceFile.isDefined) {
+        geofenceFile.get
+      } else {
+        Seq(geofenceX, geofenceY, geofenceRadius).flatten.mkString("|")
+      }
+    }
+
     def initialLocation: Coord = {
       new Coord(initialLocationX, initialLocationY)
     }
 
-    def createRideHailAgentInitializer(beamScenario: BeamScenario): RideHailAgentInitializer = {
+    def createRideHailAgentInitializer(
+      beamScenario: BeamScenario,
+      geofenceCache: mutable.Map[String, Option[Geofence]],
+      geo: GeoUtils
+    ): RideHailAgentInitializer = {
       val beamVehicleType = beamScenario.vehicleTypes(Id.create(vehicleType, classOf[BeamVehicleType]))
       val shifts = shiftsListFromString(shiftsStr)
+
+      val createdGeofence = geofenceCache.getOrElseUpdate(geofenceKey, geofence(beamScenario.tazTreeMap, geo.localCRS))
 
       RideHailAgentInitializer(
         id,
@@ -267,7 +310,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
         shifts,
         initialStateOfCharge,
         initialLocation,
-        geofence(beamScenario.tazTreeMap),
+        createdGeofence,
         fleetId
       )
     }
@@ -302,7 +345,11 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     geofence: Option[Geofence],
     fleetId: String
   ) {
-    val rideHailAgentId: Id[RideHailAgent] = Id.create(s"${RideHailAgent.idPrefix}-$id", classOf[RideHailAgent])
+
+    val rideHailAgentId: Id[RideHailAgent] = if (beamVehicleType.isWheelchairAccessible) {
+      Id.create(s"${RideHailAgent.idPrefix}-accessible-$id", classOf[RideHailAgent])
+    } else Id.create(s"${RideHailAgent.idPrefix}-$id", classOf[RideHailAgent])
+
     val beamVehicleId: Id[BeamVehicle] = RideHailVehicleId(id, fleetId).beamVehicleId
 
     /**
@@ -317,11 +364,13 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
 
       val powertrain = new Powertrain(beamVehicleType.primaryFuelConsumptionInJoulePerMeter)
 
+      val managerIdDependsOnWhetherVehicleIsCav =
+        if (beamVehicleType.isConnectedAutomatedVehicle) rideHailManagerId else VehicleManager.AnyManager.managerId
       val beamVehicle = new BeamVehicle(
         beamVehicleId,
         powertrain,
         beamVehicleType,
-        vehicleManagerId = new AtomicReference(rideHailManagerId),
+        vehicleManagerId = new AtomicReference(managerIdDependsOnWhetherVehicleIsCav),
         randomSeed
       )
 
@@ -342,10 +391,11 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     /** Creates an instance of RideHailAgentInputData from the data in this instance */
     def createRideHailAgentInputData: RideHailAgentInputData = {
 
-      val (geofenceCircularMaybe, geofenceTazMaybe) = geofence
+      val (geofenceCircularMaybe, geofenceFileMaybe) = geofence
         .map {
           case g: CircularGeofence => (Some(g), None)
-          case g: TAZGeofence      => (None, Some(g))
+          case g: TAZGeofence      => (None, Some(g.geofenceTAZFile))
+          case g: ShpGeofence      => (None, Some(g.geofenceShpFile))
         }
         .getOrElse((None, None))
 
@@ -359,8 +409,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
         geofenceCircularMaybe.map(_.geofenceX),
         geofenceCircularMaybe.map(_.geofenceY),
         geofenceCircularMaybe.map(_.geofenceRadius),
-        geofenceTazMaybe.map(_.tazs),
-        geofenceTazMaybe.map(_.geofenceTAZFile),
+        geofenceFileMaybe,
         fleetId,
         initialStateOfCharge
       )
@@ -376,7 +425,7 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
     ioController: OutputDirectoryHierarchy
   ): java.util.List[OutputDataDescription] = {
     val filePath = ioController
-      .getIterationFilename(0, "rideHailFleetFromInitializer.csv.gz")
+      .getIterationFilename(0, "rideHailFleet{Manager Name}.csv.gz")
     val outputDirPath: String = ioController.getOutputPath
     val relativePath: String = filePath.replace(outputDirPath, "")
     val list: java.util.List[OutputDataDescription] = new java.util.ArrayList[OutputDataDescription]
@@ -462,6 +511,33 @@ object RideHailFleetInitializer extends OutputDataDescriptor with LazyLogging {
         )
       )
     list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName.dropRight(1),
+          relativePath,
+          "geofenceFile",
+          "File name that contains geofence data"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName.dropRight(1),
+          relativePath,
+          "fleetId",
+          "Fleet id"
+        )
+      )
+    list
+      .add(
+        OutputDataDescription(
+          getClass.getSimpleName.dropRight(1),
+          relativePath,
+          "initialStateOfCharge",
+          "Electric vehicle initial state of charge"
+        )
+      )
+    list
   }
 
 }
@@ -518,17 +594,21 @@ trait RideHailFleetInitializer extends LazyLogging {
   * @param beamServices BEAM services
   * @param beamScenario BEAM scenario
   */
-class FileRideHailFleetInitializer(val beamServices: BeamServices, val beamScenario: BeamScenario)
-    extends RideHailFleetInitializer {
+class FileRideHailFleetInitializer(
+  val beamServices: BeamServices,
+  val beamScenario: BeamScenario,
+  managerConfig: Managers$Elm
+) extends RideHailFleetInitializer {
 
   protected def generateRideHailAgentInitializers(
     rideHailManagerId: Id[VehicleManager],
     activityQuadTreeBounds: QuadTreeBounds
   ): IndexedSeq[RideHailAgentInitializer] = {
-    val fleetFilePath = beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.filePath
+    val fleetFilePath = managerConfig.initialization.filePath
 
-    val rideHailInputDatas = RideHailFleetInitializer.readFleetFromCSV(fleetFilePath).toIndexedSeq
-    rideHailInputDatas.map(_.createRideHailAgentInitializer(beamScenario))
+    val rideHailInputDatas = RideHailFleetInitializer.readFleetFromCSV(fleetFilePath, managerConfig.name).toIndexedSeq
+    val geofenceCache = mutable.Map.empty[String, Option[Geofence]]
+    rideHailInputDatas.map(_.createRideHailAgentInitializer(beamScenario, geofenceCache, beamServices.geo))
   }
 }
 
@@ -542,18 +622,27 @@ class FileRideHailFleetInitializer(val beamServices: BeamServices, val beamScena
 class ProceduralRideHailFleetInitializer(
   val beamServices: BeamServices,
   val beamScenario: BeamScenario,
-  val scenario: Scenario
+  val scenario: Scenario,
+  managerConfig: Managers$Elm
 ) extends RideHailFleetInitializer {
 
   val rand: Random = new Random(beamServices.beamConfig.matsim.modules.global.randomSeed)
   val realDistribution: UniformRealDistribution = new UniformRealDistribution()
   realDistribution.reseedRandomGenerator(beamServices.beamConfig.matsim.modules.global.randomSeed)
 
+  val passengerPopulation: Iterable[Person] = scenario.getPopulation.getPersons
+    .values()
+    .asScala
+    .filterNot(_.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX))
+
+  val passengerHousehold: Iterable[Household] = scenario.getHouseholds.getHouseholds
+    .values()
+    .asScala
+    .filterNot(_.getId.toString.startsWith(FreightReader.FREIGHT_ID_PREFIX))
+
   private def computeNumRideHailAgents: Long = {
     val fleet: Double = beamServices.beamConfig.beam.agentsim.agents.vehicles.fractionOfInitialVehicleFleet
-    val initialNumHouseholdVehicles = scenario.getHouseholds.getHouseholds
-      .values()
-      .asScala
+    val initialNumHouseholdVehicles = passengerHousehold
       .flatMap { hh =>
         hh.getVehicleIds.asScala.map { vehId =>
           beamScenario.privateVehicles
@@ -566,7 +655,7 @@ class ProceduralRideHailFleetInitializer(
 
     math.round(
       initialNumHouseholdVehicles *
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.fractionOfInitialVehicleFleet
+      managerConfig.initialization.procedural.fractionOfInitialVehicleFleet
     )
   }
 
@@ -579,18 +668,22 @@ class ProceduralRideHailFleetInitializer(
     val stdLogShiftDurationHours = 0.44
     var equivalentNumberOfDrivers = 0.0
 
-    val personsWithMoreThanOneActivity =
-      scenario.getPopulation.getPersons.values().asScala.filter(_.getSelectedPlan.getPlanElements.size > 1)
+    val personsWithMoreThanOneActivity = passengerPopulation.filter(_.getSelectedPlan.getPlanElements.size > 1)
     val persons: Array[Person] = rand.shuffle(personsWithMoreThanOneActivity).toArray
 
     val activityEndTimes: Array[Int] = persons.flatMap {
       _.getSelectedPlan.getPlanElements.asScala
         .collect {
-          case activity: Activity if activity.getEndTime.toInt > 0 => activity.getEndTime.toInt
+          case activity: Activity if activity.getEndTime.isDefinedAndPositive =>
+            activity.getEndTime.seconds().toInt
         }
     }
 
-    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(beamScenario)
+    val vehiclesAdjustment = VehiclesAdjustment.getVehicleAdjustment(
+      beamScenario,
+      managerConfig.initialization.procedural.vehicleAdjustmentMethod,
+      Option(managerConfig.initialization.procedural.vehicleTypeId)
+    )
 
     val rideHailAgentInitializers: ArrayBuffer[RideHailFleetInitializer.RideHailAgentInitializer] = new ArrayBuffer()
     var idx = 0
@@ -615,7 +708,7 @@ class ProceduralRideHailFleetInitializer(
           val meanSoc = beamServices.beamConfig.beam.agentsim.agents.vehicles.meanRidehailVehicleStartingSOC
           val initialStateOfCharge = BeamVehicle.randomSocFromUniformDistribution(rand, vehicleType, meanSoc)
 
-          val (shiftsOpt, shiftEquivalentNumberOfDrivers) = if (vehicleType.automationLevel >= 4) {
+          val (shiftsOpt, shiftEquivalentNumberOfDrivers) = if (vehicleType.isConnectedAutomatedVehicle) {
             (None, 1.0)
           } else {
             val shiftDuration =
@@ -637,7 +730,7 @@ class ProceduralRideHailFleetInitializer(
             initialStateOfCharge,
             rideInitialLocation,
             geofence = None,
-            fleetId = "default"
+            fleetId = managerConfig.name
           )
 
           rideHailAgentInitializers += rideHailAgentInitializer
@@ -657,10 +750,10 @@ class ProceduralRideHailFleetInitializer(
 
   private def getRideInitLocation(person: Person, activityQuadTreeBounds: QuadTreeBounds): Location = {
     val rideInitialLocation: Location =
-      beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.name match {
+      managerConfig.initialization.procedural.initialLocation.name match {
         case RideHailManager.INITIAL_RIDE_HAIL_LOCATION_RANDOM_ACTIVITY =>
           val radius =
-            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
+            managerConfig.initialization.procedural.initialLocation.home.radiusInMeters
           val activityLocations: List[Location] =
             person.getSelectedPlan.getPlanElements.asScala
               .collect { case activity: Activity =>
@@ -681,7 +774,7 @@ class ProceduralRideHailFleetInitializer(
               .asInstanceOf[Activity]
               .getCoord
           val radius =
-            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
+            managerConfig.initialization.procedural.initialLocation.home.radiusInMeters
           new Coord(
             personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
             personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
@@ -709,7 +802,7 @@ class ProceduralRideHailFleetInitializer(
               .asInstanceOf[Activity]
               .getCoord
           val radius =
-            beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.procedural.initialLocation.home.radiusInMeters
+            managerConfig.initialization.procedural.initialLocation.home.radiusInMeters
           new Coord(
             personInitialLocation.getX + radius * (rand.nextDouble() - 0.5),
             personInitialLocation.getY + radius * (rand.nextDouble() - 0.5)
@@ -724,24 +817,28 @@ class RideHailFleetInitializerProvider @Inject() (
   val beamServices: BeamServices,
   val beamScenario: BeamScenario,
   val scenario: Scenario
-) extends Provider[RideHailFleetInitializer] {
+) {
 
-  // Use lazy vals so that they persist across iterations
-  private lazy val proceduralRideHailFleetInitializer =
-    new ProceduralRideHailFleetInitializer(beamServices, beamScenario, scenario)
-  private lazy val fileRideHailFleetInitializer = new FileRideHailFleetInitializer(beamServices, beamScenario)
+  // Keep them so that they persist across iterations
+  private val instances: TrieMap[String, RideHailFleetInitializer] = TrieMap.empty
 
-  def get(): RideHailFleetInitializer = {
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization.initType match {
+  def get(rideHailManagerName: String): RideHailFleetInitializer = {
+    val managerConfig = beamServices.beamConfig.beam.agentsim.agents.rideHail.managers
+      .find(_.name == rideHailManagerName)
+      .getOrElse(throw new IllegalArgumentException(s"$rideHailManagerName is not configured"))
+    managerConfig.initialization.initType match {
       case "PROCEDURAL" =>
-        proceduralRideHailFleetInitializer
-      case "FILE" =>
-        fileRideHailFleetInitializer
-      case _ =>
-        throw new ProvisionException(
-          "Unidentified initialization type : " +
-          beamServices.beamConfig.beam.agentsim.agents.rideHail.initialization
+        instances.getOrElseUpdate(
+          rideHailManagerName,
+          new ProceduralRideHailFleetInitializer(beamServices, beamScenario, scenario, managerConfig)
         )
+      case "FILE" =>
+        instances.getOrElseUpdate(
+          rideHailManagerName,
+          new FileRideHailFleetInitializer(beamServices, beamScenario, managerConfig)
+        )
+      case _ =>
+        throw new IllegalArgumentException("Unidentified initialization type : " + managerConfig.initialization)
     }
   }
 }
@@ -782,10 +879,18 @@ case class CircularGeofence(
   * Geofence defined by set of TAZ Ids
   */
 case class TAZGeofence(
-  tazs: Set[Id[TAZ]],
   tazTreeMap: TAZTreeMap,
   geofenceTAZFile: String
 ) extends Geofence {
+
+  val tazs: Set[Id[TAZ]] = readTazIdsFile(geofenceTAZFile)
+
+  private def readTazIdsFile(tazFilePath: String): Set[Id[TAZ]] = {
+    val source = Source.fromFile(tazFilePath)
+    val lines = source.getLines.toVector
+    source.close()
+    lines.tail.map(tazId => Id.create(tazId, classOf[TAZ])).toSet
+  }
 
   override def contains(x: Double, y: Double): Boolean = {
     tazs.contains(tazTreeMap.getTAZ(x, y).tazId)
@@ -793,6 +898,36 @@ case class TAZGeofence(
 
   override def toString() = {
     s"TAZGeofence(${tazs.size} tazs from file: $geofenceTAZFile)"
+  }
+
+}
+
+/**
+  * Geofence defined by a shapefile
+  */
+case class ShpGeofence(
+  geofenceShpFile: String,
+  localCRS: String
+) extends Geofence {
+  private val geometryFactory: GeometryFactory = new GeometryFactory()
+
+  val geometries: IndexedSeq[Geometry] = {
+    val (geoms, sourceCRS) = readShapeFileGeometries(geofenceShpFile, Some(localCRS))
+    if (sourceCRS.isEmpty) {
+      Logger("ShpGeofence").error(
+        s"Unknown CRS of geofence shape file $geofenceShpFile. No transformation to local CRS ($localCRS) happened."
+      )
+    }
+    geoms
+  }
+
+  override def contains(x: Double, y: Double): Boolean = {
+    val point = geometryFactory.createPoint(new Coordinate(x, y))
+    geometries.exists(_.contains(point))
+  }
+
+  override def toString() = {
+    s"ShpGeofence(${geometries.size} features from file: $geofenceShpFile)"
   }
 
 }

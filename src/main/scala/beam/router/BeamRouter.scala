@@ -600,8 +600,8 @@ object BeamRouter {
       mode,
       1,
       BeamPath(
-        linkIds,
-        Vector.empty,
+        linkIds.toArray,
+        Array[Double](),
         None,
         beamServices.geo.utm2Wgs(SpaceTime(originUTM, departTime)),
         beamServices.geo.utm2Wgs(SpaceTime(destinationUTM, departTime + 1)),
@@ -649,8 +649,8 @@ object BeamRouter {
       mode,
       1,
       BeamPath(
-        linkIds,
-        Vector.empty,
+        linkIds.toArray,
+        Array[Double](),
         None,
         beamServices.geo.utm2Wgs(SpaceTime(origin, departTime)),
         beamServices.geo.utm2Wgs(SpaceTime(destination, departTime + 1)),

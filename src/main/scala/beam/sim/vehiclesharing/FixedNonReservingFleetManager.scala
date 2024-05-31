@@ -19,8 +19,8 @@ import beam.sim.BeamServices
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.logging.LoggingMessageActor
 import beam.utils.logging.pattern.ask
-import com.vividsolutions.jts.geom.{Coordinate, Envelope}
-import com.vividsolutions.jts.index.quadtree.Quadtree
+import org.locationtech.jts.geom.{Coordinate, Envelope}
+import org.locationtech.jts.index.quadtree.Quadtree
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.geometry.CoordUtils
 
@@ -81,7 +81,9 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
               veh.spaceTime,
               "wherever",
               VehicleManager.getReservedFor(vehicleManagerId).get,
-              triggerId = triggerId
+              triggerId = triggerId,
+              parkingDuration =
+                beamServices.beamConfig.beam.agentsim.agents.parking.estimatedMinParkingDurationInSeconds
             ) flatMap { case ParkingInquiryResponse(stall, _, triggerId) =>
             veh.useParkingStall(stall)
             self ? ReleaseVehicleAndReply(veh, None, triggerId)
@@ -117,7 +119,7 @@ private[vehiclesharing] class FixedNonReservingFleetManager(
           who ! NotAvailable(triggerId)
       }
 
-    case NotifyVehicleIdle(vId, whenWhere, _, _, _, _) =>
+    case NotifyVehicleIdle(vId, _, whenWhere, _, _, _, _) =>
       makeTeleport(vId.asInstanceOf[Id[BeamVehicle]], whenWhere)
 
     case ReleaseVehicle(vehicle, _) =>

@@ -30,17 +30,19 @@ class RideHailBufferedRidesSpec extends AnyFlatSpec with BeamHelper {
   }
 
   it should "have same actstart as endstart events for persons when using ridehail replacement in DummyRideHailDispatchWithBufferingRequests" ignore {
-    val config = testConfig("test/input/beamville/beam.conf")
-      .resolve()
-      .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
-      .withValue(
-        "beam.agentsim.agents.rideHail.allocationManager.name",
-        ConfigValueFactory.fromAnyRef(
-          "beam.agentsim.agents.rideHail.allocation.examples.DummyRideHailDispatchWithBufferingRequests"
-          //"DEFAULT_MANAGER"
+    val config = BeamHelper.updateConfigToCurrentVersion(
+      testConfig("test/input/beamville/beam.conf")
+        .resolve()
+        .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
+        .withValue(
+          "beam.agentsim.agents.rideHail.allocationManager.name",
+          ConfigValueFactory.fromAnyRef(
+            "beam.agentsim.agents.rideHail.allocation.examples.DummyRideHailDispatchWithBufferingRequests"
+            //"DEFAULT_MANAGER"
+          )
         )
-      )
-      .resolve()
+        .resolve()
+    )
 
     val matsimConfig = runBeamWithConfig(config)._1
     val filePath = getEventsFilePath(matsimConfig, "events", "xml").getAbsolutePath
@@ -59,17 +61,19 @@ class RideHailBufferedRidesSpec extends AnyFlatSpec with BeamHelper {
   }
 
   it should "have different actstart and endstart events for persons when NOT using ridehail replacement in DummyRideHailDispatchWithBufferingRequestsWithoutReplacement" ignore {
-    val config = testConfig("test/input/beamville/beam.conf")
-      .resolve()
-      .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
-      .withValue(
-        "beam.agentsim.agents.rideHail.allocationManager.name",
-        ConfigValueFactory.fromAnyRef(
-          "beam.agentsim.agents.ridehail.allocation.examples.DummyRideHailDispatchWithBufferingRequestsWithoutReplacement"
-          //"DEFAULT_MANAGER"
+    val config = BeamHelper.updateConfigToCurrentVersion(
+      testConfig("test/input/beamville/beam.conf")
+        .resolve()
+        .withValue("beam.outputs.events.fileOutputFormats", ConfigValueFactory.fromAnyRef("xml,csv"))
+        .withValue(
+          "beam.agentsim.agents.rideHail.allocationManager.name",
+          ConfigValueFactory.fromAnyRef(
+            "beam.agentsim.agents.ridehail.allocation.examples.DummyRideHailDispatchWithBufferingRequestsWithoutReplacement"
+            //"DEFAULT_MANAGER"
+          )
         )
-      )
-      .resolve()
+        .resolve()
+    )
 
     val matsimConfig = runBeamWithConfig(config)._1
     val filePath = getEventsFilePath(matsimConfig, "events", "xml").getAbsolutePath

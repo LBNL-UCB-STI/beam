@@ -1,16 +1,15 @@
 package beam.agentsim.agents.ridehail.repositioningmanager
 
-import java.awt.Color
-
 import beam.agentsim.agents.ridehail.RideHailManager
 import beam.agentsim.agents.ridehail.RideHailManagerHelper.RideHailAgentLocation
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.router.BeamRouter.Location
 import beam.sim.BeamServices
-import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.AllocationManager
 import beam.utils._
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.{Coord, Id}
+
+import java.awt.Color
 
 class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailManager: RideHailManager)
     extends RepositioningManager(beamServices, rideHailManager)
@@ -19,11 +18,11 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
   // Only override proposeVehicleAllocation if you wish to do something different from closest euclidean vehicle
   //  override def proposeVehicleAllocation(vehicleAllocationRequest: VehicleAllocationRequest): VehicleAllocationResponse
   var firstRepositioningOfDay = true
-  var boundsCalculator: Option[BoundsCalculator] = None
   var firstRepositionCoordsOfDay: Option[(Coord, Coord)] = None
 
-  val repositioningConfig: AllocationManager.RepositionLowWaitingTimes =
-    beamServices.beamConfig.beam.agentsim.agents.rideHail.allocationManager.repositionLowWaitingTimes
+  val repositioningConfig
+    : beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm.RepositioningManager.RepositionLowWaitingTimes =
+    rideHailManager.managerConfig.repositioningManager.repositionLowWaitingTimes
 
   // TODO: get proper number here from rideHailManager
   val timeWindowSizeInSecForDecidingAboutRepositioning: Double =
@@ -114,6 +113,7 @@ class RepositioningLowWaitingTimes(val beamServices: BeamServices, val rideHailM
             repositionCircleRadiusInMeters,
             tick,
             timeWindowSizeInSecForDecidingAboutRepositioning,
+            rideHailManager.managerConfig,
             rideHailManager.beamServices
           )
         //}

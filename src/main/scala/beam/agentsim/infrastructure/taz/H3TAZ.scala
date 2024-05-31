@@ -8,7 +8,7 @@ import beam.utils.matsim_conversion.ShapeUtils
 import beam.utils.matsim_conversion.ShapeUtils.QuadTreeBounds
 import com.typesafe.scalalogging.StrictLogging
 import com.uber.h3core.util.GeoCoord
-import com.vividsolutions.jts.geom.{Coordinate, Geometry, GeometryFactory}
+import org.locationtech.jts.geom.{Coordinate, Geometry, GeometryFactory}
 import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.utils.geometry.geotools.MGC
@@ -42,7 +42,7 @@ case class H3TAZ(network: Network, tazTreeMap: TAZTreeMap, beamConfig: BeamConfi
       fillBox(boundingBox, getResolution)
     }
   logger.info(
-    s"fillBox for boundingBox $boundingBox with resolution $getResolution gives ${fillBoxResult.size} elemets"
+    s"fillBox for boundingBox $boundingBox with resolution $getResolution gives ${fillBoxResult.size} elements"
   )
 
   private val tazToH3TAZMapping: Map[HexIndex, Id[TAZ]] =
@@ -101,8 +101,8 @@ object H3TAZ {
   }
 
   // private utilities
-  private def toJtsCoordinate(in: GeoCoord): com.vividsolutions.jts.geom.Coordinate = {
-    new com.vividsolutions.jts.geom.Coordinate(in.lng, in.lat)
+  private def toJtsCoordinate(in: GeoCoord): org.locationtech.jts.geom.Coordinate = {
+    new org.locationtech.jts.geom.Coordinate(in.lng, in.lat)
   }
 
   private def toGeoCoord(in: Coord): GeoCoord = {

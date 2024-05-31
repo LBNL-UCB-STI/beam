@@ -4,6 +4,7 @@ import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.Skims
 import beam.router.skim.readonly.FreightSkims
 import beam.sim.config.BeamConfig
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import com.google.inject.Inject
 import com.typesafe.scalalogging.LazyLogging
@@ -24,7 +25,7 @@ class FreightSkimmer @Inject() (
   override protected val skimFileHeader =
     "tazId,hour,numberOfLoadings,numberOfUnloadings,costPerMile,walkAccessDistanceInM,parkingCostPerHour,observations,iterations"
   override protected val skimName: String = FreightSkimmer.name
-  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.TC_SKIMMER
+  override protected val skimType: Skims.SkimType.Value = Skims.SkimType.FREIGHT_SKIMMER
 
   override protected def fromCsv(
     line: collection.Map[String, String]
@@ -97,4 +98,34 @@ object FreightSkimmer extends LazyLogging {
   ) extends AbstractSkimmerInternal {
     override def toCsv: String = AbstractSkimmer.toCsv(productIterator)
   }
+
+  def freightSkimOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("FreightSkimmer", "skimsFreight.csv.gz", iterationLevel = true)(
+      """
+        tazId                 | Id of TAZ this statistic applies to
+        hour                  | Hour this statistic applies to
+        numberOfLoadings      | Number of loadings happened
+        numberOfUnloadings    | Number of unloadings happened
+        costPerMile           | Average cost per mile for freight trips
+        walkAccessDistanceInM | Average distance of the freight parking to the service location
+        parkingCostPerHour    | Average parking cost per hour
+        observations          | Number of events
+        iterations            | Number of iterations (always 1)
+        """
+    )
+
+  def aggregatedFreightSkimOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("FreightSkimmer", "skimsFreight_Aggregated.csv.gz", iterationLevel = true)(
+      """
+        tazId                 | Id of TAZ this statistic (averaged over last n iterations) applies to
+        hour                  | Hour this statistic (averaged over last n iterations) applies to
+        numberOfLoadings      | Number of loadings happened
+        numberOfUnloadings    | Number of unloadings happened
+        costPerMile           | Average cost per mile for freight trips
+        walkAccessDistanceInM | Average distance of the freight parking to the service location
+        parkingCostPerHour    | Average parking cost per hour
+        observations          | Number of events
+        iterations            | Number of iterations which data is used here
+        """
+    )
 }

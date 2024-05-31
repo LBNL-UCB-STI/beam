@@ -48,8 +48,8 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     schedule.takeWhile(legManifest => !legManifest._2.riders.contains(passenger)).keys.toList
   }
 
-  def legsWithPassenger(passenger: PersonIdWithActorRef): List[BeamLeg] = {
-    schedule.filter(legManifest => legManifest._2.riders.contains(passenger)).keys.toList
+  def legsWithPassenger(passenger: PersonIdWithActorRef): IndexedSeq[BeamLeg] = {
+    schedule.filter(legManifest => legManifest._2.riders.contains(passenger)).keys.toIndexedSeq
   }
 
   def updateStartTimes(newStartTimeOfFirstLeg: Int): PassengerSchedule = {
@@ -62,6 +62,8 @@ case class PassengerSchedule(schedule: TreeMap[BeamLeg, Manifest]) {
     }
     new PassengerSchedule(newSchedule)
   }
+
+  def isPooledTrip: Boolean = schedule.values.exists(_.riders.size > 1)
 
   def uniquePassengers: Set[PersonIdWithActorRef] = schedule.values.flatMap(_.riders).toSet
 
