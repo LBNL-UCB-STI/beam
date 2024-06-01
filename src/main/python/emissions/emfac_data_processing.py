@@ -1,4 +1,5 @@
 from emissions_utils import *
+import matplotlib.pyplot as plt
 
 passenger_veh_classes = [
     "LDA",  # Passenger Cars
@@ -17,10 +18,7 @@ transit_veh_classes = [
 freight_vehicle_classes = [
     "LHD1",  # Light-Heavy-Duty Trucks (GVWR 850110000 lbs)
     "LHD2",  # Light-Heavy-Duty Trucks (GVWR 1000114000 lbs)
-    "T6 Public Class 4",  # Medium-Heavy Duty Public Fleet Truck (GVWR 14001-16000 lbs)
-    "T6 Public Class 5",  # Medium-Heavy Duty Public Fleet Truck (GVWR 16001-19500 lbs)
-    "T6 Public Class 6",  # Medium-Heavy Duty Public Fleet Truck (GVWR 19501-26000 lbs)
-    "T6 Public Class 7",  # Medium-Heavy Duty Public Fleet Truck (GVWR 26001-33000 lbs)
+
     "T6 Instate Tractor Class 6",  # Medium-Heavy Duty Tractor Truck (GVWR 19501-26000 lbs)
     "T6 Instate Delivery Class 4",  # Medium-Heavy Duty Delivery Truck (GVWR 14001-16000 lbs)
     "T6 Instate Delivery Class 5",  # Medium-Heavy Duty Delivery Truck (GVWR 16001-19500 lbs)
@@ -41,7 +39,6 @@ freight_vehicle_classes = [
     "T6 CAIRP Class 5",  # Medium-Heavy Duty CA International Registration Plan Truck (GVWR 1600119500 lbs)
     "T6 CAIRP Class 6",  # Medium-Heavy Duty CA International Registration Plan Truck (GVWR 1950126000 lbs)
     "T6 CAIRP Class 7",  # Medium-Heavy Duty CA International Registration Plan Truck (GVWR 2600133000 lbs)
-    "T7 Public Class 8",  # Heavy-Heavy Duty Public Fleet Truck (GVWR 33001 lbs and over)
     "T7 CAIRP Class 8",  # Heavy-Heavy Duty CA International Registration Plan Truck (GVWR 33001 lbs and over)
     "T7 Single Concrete/Transit Mix Class 8", # Heavy-Heavy Duty Single Unit Concrete/Transit Mix Truck (GVWR 33001 lbs and over)
     "T7 Single Dump Class 8",  # Heavy-Heavy Duty Single Unit Dump Truck (GVWR 33001 lbs and over)
@@ -57,7 +54,14 @@ other_veh_classes = [
     "T6 Utility Class 6",  # Medium-Heavy Duty Utility Fleet Truck (GVWR 19501-26000 lbs)
     "T6 Utility Class 7",  # Medium-Heavy Duty Utility Fleet Truck (GVWR 26001-33000 lbs)
 
-    "T6TS",  # Medium-Heavy Duty Truck
+    ## used by public entities such as municipalities, state governments, and other public agencies
+    "T6 Public Class 4",  # Medium-Heavy Duty Public Fleet Truck (GVWR 14001-16000 lbs)
+    "T6 Public Class 5",  # Medium-Heavy Duty Public Fleet Truck (GVWR 16001-19500 lbs)
+    "T6 Public Class 6",  # Medium-Heavy Duty Public Fleet Truck (GVWR 19501-26000 lbs)
+    "T6 Public Class 7",  # Medium-Heavy Duty Public Fleet Truck (GVWR 26001-33000 lbs)
+    "T7 Public Class 8",  # Heavy-Heavy Duty Public Fleet Truck (GVWR 33001 lbs and over)
+
+    "T6TS",  # Medium-Heavy Duty Truck; "Transit/Specialized," these trucks are designed for specific types of operations
     "T7 Utility Class 8",  # Heavy-Heavy Duty Utility Fleet Truck (GVWR 33001 lbs and over)
     "T7 Other Port Class 8",  # Heavy-Heavy Duty Drayage Truck at Other Facilities (GVWR 33001 lbs and over)
     "T7 POAK Class 8",  # Heavy-Heavy Duty Drayage Truck in Bay Area (GVWR 33001 lbs and ove
@@ -100,3 +104,61 @@ emfac_vmt_freight_normalized.to_csv(emfac_vmt_file, index=False)
 
 # ## TRIPS ##
 statewide_trips_filename = 'Default_Statewide_2018_Annual_fleet_data_trips_20240311153419.csv'
+
+
+# ## FRISM PLANS ##
+freight_carriers = pd.read_csv("~/Workspace/Data/FREIGHT/sfbay/beam_freight/scenarios-23Jan2024/Base/freight-carriers.csv")
+freight_payloads = pd.read_csv("~/Workspace/Data/FREIGHT/sfbay/beam_freight/scenarios-23Jan2024/Base/freight-payload-plans.csv")
+freight_tours = pd.read_csv("~/Workspace/Data/FREIGHT/sfbay/beam_freight/scenarios-23Jan2024/Base/freight-tours.csv")
+
+# Plot the histogram for the 'Values' column
+freight_payloads['sequenceRank'].plot(kind='hist', bins=20, edgecolor='black')
+plt.title('Histogram of sequenceRank')
+plt.xlabel('Value')
+plt.ylabel('Frequency')
+plt.savefig(os.path.expanduser('~/Workspace/Data/FREIGHT/sfbay/beam_freight/scenarios-23Jan2024/Base/histogram_sequenceRank.png'), dpi=300, bbox_inches='tight')
+plt.clf()
+
+
+freight_payloads['operationDurationInSec'].plot(kind='hist', bins=20, edgecolor='black')
+plt.title('Histogram of operationDurationInSec')
+plt.xlabel('Value')
+plt.ylabel('Frequency')
+plt.savefig(os.path.expanduser('~/Workspace/Data/FREIGHT/sfbay/beam_freight/scenarios-23Jan2024/Base/histogram_operationDurationInSec.png'), dpi=300, bbox_inches='tight')
+plt.clf()
+
+freight_payloads['weightInKg'].plot(kind='hist', bins=20, edgecolor='black')
+plt.title('Histogram of weightInKg')
+plt.xlabel('Value')
+plt.ylabel('Frequency')
+plt.savefig(os.path.expanduser('~/Workspace/Data/FREIGHT/sfbay/beam_freight/scenarios-23Jan2024/Base/histogram_weightInKg.png'), dpi=300, bbox_inches='tight')
+plt.clf()
+
+freight_payloads['arrivalTimeWindowInSecUpper'].plot(kind='hist', bins=20, edgecolor='black')
+plt.title('Histogram of arrivalTimeWindowInSecUpper')
+plt.xlabel('Value')
+plt.ylabel('Frequency')
+plt.savefig(os.path.expanduser('~/Workspace/Data/FREIGHT/sfbay/beam_freight/scenarios-23Jan2024/Base/histogram_arrivalTimeWindowInSecUpper.png'), dpi=300, bbox_inches='tight')
+plt.clf()
+
+freight_payloads['estimatedTimeOfArrivalInSec'].plot(kind='hist', bins=20, edgecolor='black')
+plt.title('Histogram of estimatedTimeOfArrivalInSec')
+plt.xlabel('Value')
+plt.ylabel('Frequency')
+plt.savefig(os.path.expanduser('~/Workspace/Data/FREIGHT/sfbay/beam_freight/scenarios-23Jan2024/Base/histogram_estimatedTimeOfArrivalInSec.png'), dpi=300, bbox_inches='tight')
+plt.clf()
+
+freight_payloads['arrivalTimeWindowInSecLower'].plot(kind='hist', bins=20, edgecolor='black')
+plt.title('Histogram of arrivalTimeWindowInSecUpper')
+plt.xlabel('Value')
+plt.ylabel('Frequency')
+plt.savefig(os.path.expanduser('~/Workspace/Data/FREIGHT/sfbay/beam_freight/scenarios-23Jan2024/Base/histogram_arrivalTimeWindowInSecLower.png'), dpi=300, bbox_inches='tight')
+plt.clf()
+
+freight_tours['departureTimeInSec'].plot(kind='hist', bins=20, edgecolor='black')
+plt.title('Histogram of departureTimeInSec')
+plt.xlabel('Value')
+plt.ylabel('Frequency')
+plt.savefig(os.path.expanduser('~/Workspace/Data/FREIGHT/sfbay/beam_freight/scenarios-23Jan2024/Base/histogram_departureTimeInSec.png'), dpi=300, bbox_inches='tight')
+plt.clf()
+

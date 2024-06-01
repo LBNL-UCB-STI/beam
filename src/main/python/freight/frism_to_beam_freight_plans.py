@@ -68,9 +68,10 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
     return new
 
 
-scenario_name = "2024-04-23"
+city = "sfbay"
+scenario_name = "2024-01-23"
 run_name = "Baseline"
-city = "seattle"
+
 directory_input = os.path.expanduser('~/Workspace/Data/FREIGHT/' + city + '/frism/'+scenario_name+"/"+run_name)
 directory_output = os.path.expanduser('~/Workspace/Data/FREIGHT/' + city + '/beam_freight/'+scenario_name+"/"+run_name)
 Path(directory_output).mkdir(parents=True, exist_ok=True)
@@ -147,13 +148,15 @@ for filename in sorted(os.listdir(directory_input)):
             "passengerCarUnit": empty_vectors,
             "rechargeLevel2RateLimitInWatts": empty_vectors,
             "rechargeLevel3RateLimitInWatts": empty_vectors,
-            "vehicleCategory": list(np.repeat("LightDutyTruck", len(df.index))),
+            "vehicleCategory": list(np.repeat("MediumHeavyDutyTruck", len(df.index))),
             "sampleProbabilityWithinCategory": empty_vectors,
             "sampleProbabilityString": empty_vectors,
-            "payloadCapacityInKg": df["payload_capacity_weight"]
+            "payloadCapacityInKg": df["payload_capacity_weight"],
+            "vehicleClass": df["veh_class"]
         }
         df2 = pd.DataFrame(vehicles_techs)
-        df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('hd'), 'HeavyDutyTruck', df2.vehicleCategory)
+        df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('hd'), 'HeavyHeavyDutyTruck', df2.vehicleCategory)
+        df2["vehicleCategory"] = np.where(df2["vehicleTypeId"].str.contains('ld'), 'LightHeavyDutyTruck', df2.vehicleCategory)
         if vehicle_types is None:
             vehicle_types = df2
         else:
@@ -162,7 +165,7 @@ for filename in sorted(os.listdir(directory_input)):
         print(f'SKIPPING {filename}')
 
 
-vehicle_types.to_csv(f'{directory_output}/freight-only-vehicletypes--{run_name}.csv', index=False)
+vehicle_types.to_csv(f'{directory_output}/freight-vehicletypes--{run_name}.csv', index=False)
 
 
 # In[9]:
@@ -179,7 +182,7 @@ carriers_drop = ['x', 'y', 'index']
 carriers.rename(columns=carriers_renames, inplace=True)
 carriers.drop(carriers_drop, axis=1, inplace=True, errors='ignore')
 carriers['warehouseZone'] = carriers['warehouseZone'].astype(int)
-carriers.to_csv(f'{directory_output}/freight-merged-carriers.csv', index=False)
+carriers.to_csv(f'{directory_output}/freight-carriers.csv', index=False)
 
 
 # In[10]:
@@ -198,7 +201,7 @@ tours['departureTimeInSec'] = tours['departureTimeInSec'].astype(int)
 tours['maxTourDurationInSec'] = tours['maxTourDurationInSec'].astype(int)
 tours['departureLocationZone'] = tours['departureLocationZone'].astype(int)
 tours.drop(['index'], axis=1, inplace=True, errors='ignore')
-tours.to_csv(f'{directory_output}/freight-merged-tours.csv', index=False)
+tours.to_csv(f'{directory_output}/freight-tours.csv', index=False)
 
 
 # In[11]:
@@ -224,6 +227,6 @@ payload_plans['arrivalTimeWindowInSecLower'] = payload_plans['arrivalTimeWindowI
 payload_plans['arrivalTimeWindowInSecUpper'] = payload_plans['arrivalTimeWindowInSecUpper'].astype(int)
 payload_plans['operationDurationInSec'] = payload_plans['operationDurationInSec'].astype(int)
 payload_plans['locationZone'] = payload_plans['locationZone'].astype(int)
-payload_plans.to_csv(f'{directory_output}/freight-merged-payload-plans.csv', index=False)
+payload_plans.to_csv(f'{directory_output}/freight-payloads.csv', index=False)
 
 print("END")

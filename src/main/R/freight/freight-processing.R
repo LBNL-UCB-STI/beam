@@ -37,6 +37,7 @@ emfac_sf_normalized <- emfac_sf[,.(sum_population=(sum(population))),by=.(vehicl
 emfac_sf_normalized$share_population <- emfac_sf_normalized$sum_population/sum(emfac_sf_normalized$sum_population)
 
 
+
 ### RouteE
 
 work_folder <- normalizePath("~/Workspace/Data/FREIGHT/seattle")

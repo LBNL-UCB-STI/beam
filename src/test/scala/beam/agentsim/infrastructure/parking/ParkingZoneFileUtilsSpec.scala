@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.agents.vehicles.VehicleCategory.{Car, LightDutyTruck, MediumDutyPassenger}
+import beam.agentsim.agents.vehicles.VehicleCategory.{Car, MediumHeavyDutyTruck, MediumDutyPassenger}
 import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtilsSpec.PositiveTestData
@@ -54,7 +54,7 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
                     parkingZone.timeRestrictions should be(
                       Map(
                         VehicleCategory.Car            -> Range(3600, 43200),
-                        VehicleCategory.LightDutyTruck -> Range(48600, 61200)
+                        VehicleCategory.MediumHeavyDutyTruck -> Range(48600, 61200)
                       )
                     )
                 }
@@ -73,13 +73,13 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
             result.zones(Id.create("parkingZone1", classOf[ParkingZoneId])).timeRestrictions should be(
               Map(
                 MediumDutyPassenger -> (18600 until 27000),
-                LightDutyTruck      -> (63000 until 86400),
+                MediumHeavyDutyTruck      -> (63000 until 86400),
                 Car                 -> (0 until 63000)
               )
             )
             result.zones(Id.create("parkingZone2", classOf[ParkingZoneId])).timeRestrictions should be(
               Map(
-                LightDutyTruck -> (63000 until 86400),
+                MediumHeavyDutyTruck -> (63000 until 86400),
                 Car            -> (0 until 63000)
               )
             )
@@ -154,9 +154,9 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
     "Time restriction parser" when {
       "parses time restriction" should {
         "extract correct values" in {
-          val restrictions = ParkingZoneFileUtils.parseTimeRestrictions("Car|1-12;LightDutyTruck|13:30-17")
+          val restrictions = ParkingZoneFileUtils.parseTimeRestrictions("Car|1-12;MediumHeavyDutyTruck|13:30-17")
           restrictions should be(
-            Map(VehicleCategory.Car -> Range(3600, 43200), VehicleCategory.LightDutyTruck -> Range(48600, 61200))
+            Map(VehicleCategory.Car -> Range(3600, 43200), VehicleCategory.MediumHeavyDutyTruck -> Range(48600, 61200))
           )
         }
       }
@@ -176,7 +176,7 @@ object ParkingZoneFileUtilsSpec {
 
     val validRow: Iterator[String] =
       s"""taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,timeRestrictions
-         |1,Residential,$testPricingModel,$testChargingType,$testNumStalls,$testFeeInCents,car|LightDutyTruck,Car|1-12;LightDutyTruck|13:30-17
+         |1,Residential,$testPricingModel,$testChargingType,$testNumStalls,$testFeeInCents,car|MediumHeavyDutyTruck,Car|1-12;MediumHeavyDutyTruck|13:30-17
       """.stripMargin.split("\n").toIterator
 
     val validRowWithEmpties: Iterator[String] =
@@ -201,8 +201,8 @@ object ParkingZoneFileUtilsSpec {
 
     val timeRestrictionData: Iterator[String] =
       """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,reservedFor,timeRestrictions,parkingZoneId
-        |4,Public,FlatFee,NoCharger,10,0,,MediumDutyPassenger|5:10-7:30;LightDutyTruck|17:30-24;Car|0-17:30,parkingZone1
-        |4,Public,Block,NoCharger,20,0,,LightDutyTruck|17:30-24;Car|0-17:30,parkingZone2""".stripMargin
+        |4,Public,FlatFee,NoCharger,10,0,,MediumDutyPassenger|5:10-7:30;MediumHeavyDutyTruck|17:30-24;Car|0-17:30,parkingZone1
+        |4,Public,Block,NoCharger,20,0,,MediumHeavyDutyTruck|17:30-24;Car|0-17:30,parkingZone2""".stripMargin
         .split("\n")
         .toIterator
   }

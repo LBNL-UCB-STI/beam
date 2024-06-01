@@ -413,7 +413,7 @@ object ParkingZoneFileUtils extends ExponentialLazyLogging {
       }
     }
 
-    // values look like LightDutyTruck:00:00-14:00|Car:14:00-18:00|Bike:18:00-24:00
+    // values look like MediumHeavyDutyTruck:00:00-14:00|Car:14:00-18:00|Bike:18:00-24:00
     Option(timeRestrictionsString)
       .getOrElse("")
       .split(';')

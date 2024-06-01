@@ -374,8 +374,8 @@ class ZonalParkingManagerSpec
     it("should return a stall from the single available zone (index=2)") {
       val parkingDescription: Iterator[String] =
         """taz,parkingType,pricingModel,chargingPointType,numStalls,feeInCents,timeRestrictions,reservedFor,parkingZoneId
-          |4,Public,FlatFee,NoCharger,10,0,Car|0-17:30;LightDutyTruck|17:31-23:59,,a
-          |4,Public,Block,NoCharger,20,0,LightDutyTruck|0-17:30;Car|17:31-23:59,,b""".stripMargin
+          |4,Public,FlatFee,NoCharger,10,0,Car|0-17:30;MediumHeavyDutyTruck|17:31-23:59,,a
+          |4,Public,Block,NoCharger,20,0,MediumHeavyDutyTruck|0-17:30;Car|17:31-23:59,,b""".stripMargin
           .split("\n")
           .toIterator
       val tazMap = taz.TAZTreeMap.fromCsv("test/input/beamville/taz-centers.csv")

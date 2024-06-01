@@ -1,212 +1,32 @@
 from emissions_utils import *
 
+sf_emfac_pop_file = '~/Workspace/Models/emfac/2018/SF_Normalized_Default_Statewide_2018_Annual_fleet_data_population_20240311153419.csv'
+famos_vehicle_types_file = '~/Workspace/Data/FREIGHT/sfbay/beam_freight/scenarios-23Jan2024/Base/freight-vehicletypes.csv'
+famos_emfac_file_out = '~/Workspace/Data/FREIGHT/sfbay/beam_freight/scenarios-23Jan2024/Base/emfac-freight-vehicletypes.csv'
 
-model_dir = '~/Workspace/Models/emfac/2018'
-
-# Mapping dictionaries
-vehicle_class_mapping = {
-    # Class 2b&3 Vocational
-    'LHD1': 'Class 2b&3 Vocational',
-    'LHD2': 'Class 2b&3 Vocational',
-
-    # Class 4-6 Vocational
-    'T6 Instate Delivery Class 4': 'Class 4-6 Vocational',
-    'T6 Instate Delivery Class 5': 'Class 4-6 Vocational',
-    'T6 Instate Delivery Class 6': 'Class 4-6 Vocational',
-    'T6 Instate Other Class 4': 'Class 4-6 Vocational',
-    'T6 Instate Other Class 5': 'Class 4-6 Vocational',
-    'T6 Instate Other Class 6': 'Class 4-6 Vocational',
-    'T6 Public Class 4': 'Class 4-6 Vocational',
-    'T6 Public Class 5': 'Class 4-6 Vocational',
-    'T6 Public Class 6': 'Class 4-6 Vocational',
-    'T6 CAIRP Class 4': 'Class 4-6 Vocational',
-    'T6 CAIRP Class 5': 'Class 4-6 Vocational',
-    'T6 CAIRP Class 6': 'Class 4-6 Vocational',
-    'T6 OOS Class 4': 'Class 4-6 Vocational',
-    'T6 OOS Class 5': 'Class 4-6 Vocational',
-    'T6 OOS Class 6': 'Class 4-6 Vocational',
-    'T6 Instate Tractor Class 6': 'Class 4-6 Vocational',
-    'T6TS': 'Class 4-6 Vocational',
-    'T6 Utility Class 5': 'Class 4-6 Vocational',
-    'T6 Utility Class 6': 'Class 4-6 Vocational',
-    'T6 Utility Class 7': 'Class 4-6 Vocational',
-
-    # Class 7&8 Vocational
-    'T6 Instate Delivery Class 7': 'Class 7&8 Vocational',
-    'T6 Instate Other Class 7': 'Class 7&8 Vocational',
-    'T6 Public Class 7': 'Class 7&8 Vocational',
-    'T7 Public Class 8': 'Class 7&8 Vocational',
-    'T7 Single Concrete/Transit Mix Class 8': 'Class 7&8 Vocational',
-    'T7 Single Dump Class 8': 'Class 7&8 Vocational',
-    'T7 Single Other Class 8': 'Class 7&8 Vocational',
-    'T7IS': 'Class 7&8 Vocational',
-    'T7 SWCV Class 8': 'Class 7&8 Vocational',
-
-    # Class 7&8 Tractor
-    'T6 Instate Tractor Class 7': 'Class 7&8 Tractor',
-    'T7 Tractor Class 8': 'Class 7&8 Tractor',
-    'T6 CAIRP Class 7': 'Class 7&8 Tractor',
-    'T6 OOS Class 7': 'Class 7&8 Tractor',
-    'T7 CAIRP Class 8': 'Class 7&8 Tractor',
-    'T7 NNOOS Class 8': 'Class 7&8 Tractor',
-    'T7 NOOS Class 8': 'Class 7&8 Tractor',
-    'T7 Other Port Class 8': 'Class 7&8 Tractor',
-    'T7 POAK Class 8': 'Class 7&8 Tractor',
-    'T7 POLA Class 8': 'Class 7&8 Tractor'
-}
-
-vehicle_category_mapping = {
-    # Class 2b&3 Vocational
-    'LHD1': 'LightHeavyDutyTruck',
-    'LHD2': 'LightHeavyDutyTruck',
-
-    # Class 4-6 Vocational
-    'T6 Instate Delivery Class 4': 'MediumHeavyDutyTruck',
-    'T6 Instate Delivery Class 5': 'MediumHeavyDutyTruck',
-    'T6 Instate Delivery Class 6': 'MediumHeavyDutyTruck',
-    'T6 Instate Other Class 4': 'MediumHeavyDutyTruck',
-    'T6 Instate Other Class 5': 'MediumHeavyDutyTruck',
-    'T6 Instate Other Class 6': 'MediumHeavyDutyTruck',
-    'T6 Public Class 4': 'MediumHeavyDutyTruck',
-    'T6 Public Class 5': 'MediumHeavyDutyTruck',
-    'T6 Public Class 6': 'MediumHeavyDutyTruck',
-    'T6 CAIRP Class 4': 'MediumHeavyDutyTruck',
-    'T6 CAIRP Class 5': 'MediumHeavyDutyTruck',
-    'T6 CAIRP Class 6': 'MediumHeavyDutyTruck',
-    'T6 OOS Class 4': 'MediumHeavyDutyTruck',
-    'T6 OOS Class 5': 'MediumHeavyDutyTruck',
-    'T6 OOS Class 6': 'MediumHeavyDutyTruck',
-    'T6 Instate Tractor Class 6': 'MediumHeavyDutyTruck',
-    'T6TS': 'MediumHeavyDutyTruck',
-    'T6 Utility Class 5': 'MediumHeavyDutyTruck',
-    'T6 Utility Class 6': 'MediumHeavyDutyTruck',
-    'T6 Utility Class 7': 'MediumHeavyDutyTruck',
-
-    # Class 7&8 Vocational
-    'T6 Instate Delivery Class 7': 'MediumHeavyDutyTruck',
-    'T6 Instate Other Class 7': 'MediumHeavyDutyTruck',
-    'T6 Public Class 7': 'MediumHeavyDutyTruck',
-
-    'T7IS': 'HeavyHeavyDutyTruck',
-    'T7 Public Class 8': 'HeavyHeavyDutyTruck',
-    'T7 Single Concrete/Transit Mix Class 8': 'HeavyHeavyDutyTruck',
-    'T7 Single Dump Class 8': 'HeavyHeavyDutyTruck',
-    'T7 Single Other Class 8': 'HeavyHeavyDutyTruck',
-    'T7 SWCV Class 8': 'HeavyHeavyDutyTruck',
-
-    # Class 7&8 Tractor
-    'T6 Instate Tractor Class 7': 'MediumHeavyDutyTruck',
-    'T6 CAIRP Class 7': 'MediumHeavyDutyTruck',
-    'T6 OOS Class 7': 'MediumHeavyDutyTruck',
-
-    'T7 Tractor Class 8': 'HeavyHeavyDutyTruck',
-    'T7 CAIRP Class 8': 'HeavyHeavyDutyTruck',
-    'T7 NNOOS Class 8': 'HeavyHeavyDutyTruck',
-    'T7 NOOS Class 8': 'HeavyHeavyDutyTruck',
-    'T7 Other Port Class 8': 'HeavyHeavyDutyTruck',
-    'T7 POAK Class 8': 'HeavyHeavyDutyTruck',
-    'T7 POLA Class 8': 'HeavyHeavyDutyTruck'
-}
-
-fuel_mapping = {
-    'Dsl': 'Diesel',
-    'Gas': 'Gasoline',
-    'NG': 'NaturalGas',
-    'Elec': 'Electricity',
-    'Phe': 'PlugInHybridElectric'
-}
-
-# ## Population ##
-sf_emfac_pop = pd.read_csv(model_dir + '/SF_Normalized_Default_Statewide_2018_Annual_fleet_data_population_20240311153419.csv')
-famos_vehicle_types = pd.read_csv(model_dir + '/FAMOS/freight-only-vehicletypes--routee-baseline.csv')
-
-
-# Prepare the new dataframe based on the format of freight_only_df
-new_columns = famos_vehicle_types.columns
-new_df = pd.DataFrame(columns=new_columns)
-
-
-# Iterate over each row in the sf_normalized_df and find the closest match in freight_only_df
-for index, row in sf_emfac_pop.iterrows():
-    matched_class_fuel = famos_vehicle_types[
-        (famos_vehicle_types['vehicleClass'] == vehicle_class_mapping[row['vehicle_class']]) &
-        (famos_vehicle_types['primaryFuelType'] == fuel_mapping[row['fuel']])
-    ]
-    matched_class_phev = famos_vehicle_types[
-        (famos_vehicle_types['vehicleClass'] == vehicle_class_mapping[row['vehicle_class']]) &
-        (fuel_mapping[row['fuel']] == 'PlugInHybridElectric') &
-        (famos_vehicle_types['primaryFuelType'] == 'Electricity') &
-        (famos_vehicle_types['secondaryFuelType'] == 'Diesel')
-    ]
-    matched_fuel_only = famos_vehicle_types[
-        (famos_vehicle_types['primaryFuelType'] == fuel_mapping[row['fuel']]) |
-        (fuel_mapping[row['fuel']] == 'PlugInHybridElectric') &
-        (famos_vehicle_types['primaryFuelType'] == 'Electricity') &
-        (famos_vehicle_types['secondaryFuelType'].isin(['Diesel', 'Gasoline']))
-    ]
-
-    if not matched_class_fuel.empty:
-        new_row = matched_class_fuel.iloc[0].copy()
-        new_row['emfacPopulationSize'] = row['sum_population']
-        new_row['emfacPopulationPct'] = row['share_population']
-        new_row['emfacVehicleClass'] = row['vehicle_class']
-        new_row['vehicleCategory'] = vehicle_category_mapping[new_row['emfacVehicleClass']]
-        new_row['vehicleTypeId'] = (new_row['vehicleTypeId'] + '-' + new_row['emfacVehicleClass'].replace(' ', ''))
-        new_df = pd.concat([new_df, pd.DataFrame([new_row])], ignore_index=True)
-
-    elif not matched_class_phev.empty:
-        new_row = matched_class_phev.iloc[0].copy()
-        new_row['emfacPopulationSize'] = row['sum_population']
-        new_row['emfacPopulationPct'] = row['share_population']
-        new_row['emfacVehicleClass'] = row['vehicle_class']
-        new_row['vehicleCategory'] = vehicle_category_mapping[new_row['emfacVehicleClass']]
-        new_row['vehicleTypeId'] = (new_row['vehicleTypeId'] + '-' + new_row['emfacVehicleClass'].replace(' ', ''))
-        new_df = pd.concat([new_df, pd.DataFrame([new_row])], ignore_index=True)
-
-    elif not matched_fuel_only.empty:
-        new_row = matched_fuel_only.iloc[0].copy()
-        new_row['emfacPopulationSize'] = row['sum_population']
-        new_row['emfacPopulationPct'] = row['share_population']
-        new_row['emfacVehicleClass'] = row['vehicle_class']
-        new_row['vehicleCategory'] = vehicle_category_mapping[new_row['emfacVehicleClass']]
-
-        ##
-        new_row['vehicleClass'] = vehicle_class_mapping[row['vehicle_class']]
-        new_row['vehicleTypeId'] = (new_row['vehicleTypeId'] + '-' + new_row['emfacVehicleClass'].replace(' ', ''))
-        new_df = pd.concat([new_df, pd.DataFrame([new_row])], ignore_index=True)
-
-    elif fuel_mapping[row['fuel']] in ['NaturalGas', 'Gasoline']:
-        matched_other_fuel = famos_vehicle_types[famos_vehicle_types['primaryFuelType'].isin(['Diesel', 'Gasoline'])]
-        new_row = matched_other_fuel.iloc[0].copy()
-        matched_class_other_fuel = matched_other_fuel[
-            matched_other_fuel['vehicleClass'] == vehicle_class_mapping[row['vehicle_class']]
-        ]
-        if not matched_class_other_fuel.empty:
-            new_row = matched_class_other_fuel.iloc[0].copy()
-
-        if vehicle_class_mapping[row['vehicle_class']] != new_row['vehicleClass']:
-            print(f"There is a mismatch between vehicle class in FAMOS vehicle types and EMFAC vehicle types")
-            print("FAMOS")
-            print(new_row)
-            print("EMFAC")
-            print(row)
-
-        new_row['emfacPopulationSize'] = row['sum_population']
-        new_row['emfacPopulationPct'] = row['share_population']
-        new_row['emfacVehicleClass'] = row['vehicle_class']
-        new_row['vehicleCategory'] = vehicle_category_mapping[new_row['emfacVehicleClass']]
-
-        ##
-        new_row['vehicleClass'] = vehicle_class_mapping[row['vehicle_class']]
-        new_row['vehicleTypeId'] = (new_row['vehicleTypeId'] + '-' + new_row['emfacVehicleClass'].replace(' ', ''))
-        new_df = pd.concat([new_df, pd.DataFrame([new_row])], ignore_index=True)
-
-    else:
-        print(f"This row failed to be added: {row}")
-
-
-# Save the new dataframe to a CSV file
-new_df.to_csv(model_dir + '/freight-only-vehicletypes--emfac--routee-baseline.csv', index=False)
-
+vehicle_types = mapping_vehicle_types(sf_emfac_pop_file, famos_vehicle_types_file, famos_emfac_file_out)
 # Display the first few rows of the new dataframe to verify
-print(new_df.head())
+print(vehicle_types.head())
+
+
+freight_carriers = pd.read_csv("~/Workspace/Data/FREIGHT/sfbay/beam_freight/2024-01-23/Baseline/freight-carriers.csv")[['tourId', 'vehicleId', 'vehicleTypeId']]
+freight_payloads = pd.read_csv("~/Workspace/Data/FREIGHT/sfbay/beam_freight/2024-01-23/Baseline/freight-payloads.csv")[['payloadId', 'tourId', 'payloadType']]
+freight_vehicletypes = pd.read_csv("~/Workspace/Data/FREIGHT/sfbay/beam_freight/2024-01-23/Baseline/freight-vehicletypes--Baseline.csv")[['vehicleTypeId', 'vehicleClass']]
+freight_payloads_summary = freight_payloads.groupby(['tourId']).agg({'payloadType': lambda x: '|'.join(map(str, x))}).reset_index()
+freight_payloads_merged = pd.merge(freight_payloads_summary, freight_carriers, on='tourId', how='left')
+freight_payloads_merged = pd.merge(freight_payloads_merged, freight_vehicletypes, on='vehicleTypeId', how='left')
+
+emfac_population = pd.read_csv('~/Workspace/Models/emfac/2018/SF_Default_Statewide_2018_Annual_fleet_data_population_20240311153419.csv')
+emfac_population['famos_vehicle_class'] = emfac_population['vehicle_class'].map(emfac_vehicle_class_mapping)
+emfac_freight_population = emfac_population.dropna(subset=['famos_vehicle_class'])
+
+if len(emfac_freight_population["vehicle_class"].unique()) == len(emfac_vehicle_class_mapping):
+    print("Mapping is fine!")
+else:
+    print("Something wrong happened with the mapping")
+
+emfac_freight_aggpop = emfac_freight_population.groupby(["famos_vehicle_class"]).agg({'population': 'sum'}).rename(columns={'population': 'total_population'})
+emfac_freight_population = emfac_freight_population.merge(emfac_freight_aggpop, on='famos_vehicle_class')
+emfac_freight_population["pct_per_famos_class"] = emfac_freight_population["population"] / emfac_freight_population["total_population"]
+
+

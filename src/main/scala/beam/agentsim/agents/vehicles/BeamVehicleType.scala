@@ -62,10 +62,11 @@ object FuelType {
   case object Electricity extends FuelType
   case object Biodiesel extends FuelType
   case object Hydrogen extends FuelType
+  case object NaturalGas extends FuelType
   case object Undefined extends FuelType
 
   def fromString(value: String): FuelType = {
-    Vector(Food, Gasoline, Diesel, Electricity, Biodiesel, Hydrogen, Undefined)
+    Vector(Food, Gasoline, Diesel, Electricity, Biodiesel, Hydrogen, NaturalGas, Undefined)
       .find(_.toString.equalsIgnoreCase(value))
       .getOrElse(Undefined)
   }
@@ -77,15 +78,16 @@ object VehicleCategory {
   sealed trait VehicleCategory
   case object Body extends VehicleCategory
   case object Bike extends VehicleCategory
-  case object Car extends VehicleCategory
+  case object Car extends VehicleCategory // Class 1&2a (GVWR <= 8500 lbs.)
   case object MediumDutyPassenger extends VehicleCategory
-  case object LightDutyTruck extends VehicleCategory
-  case object HeavyDutyTruck extends VehicleCategory
+  case object LightHeavyDutyTruck extends VehicleCategory // Class 2b&3 (GVWR 8501-14000 lbs.)
+  case object MediumHeavyDutyTruck extends VehicleCategory // Class 4-6 (GVWR 14001-26000 lbs.)
+  case object HeavyHeavyDutyTruck extends VehicleCategory // CLass 7&8 (GVWR 26001 to >33,001 lbs.)
 
   def fromString(value: String): VehicleCategory = fromStringOptional(value).get
 
-  def fromStringOptional(value: String): Option[VehicleCategory] = {
-    Vector(Body, Bike, Car, MediumDutyPassenger, LightDutyTruck, HeavyDutyTruck)
+  private def fromStringOptional(value: String): Option[VehicleCategory] = {
+    Vector(Body, Bike, Car, MediumDutyPassenger, LightHeavyDutyTruck, MediumHeavyDutyTruck, HeavyHeavyDutyTruck)
       .find(_.toString.equalsIgnoreCase(value))
   }
 }
