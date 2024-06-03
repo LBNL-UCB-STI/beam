@@ -1272,7 +1272,7 @@ class PersonAgent(
         PersonIdWithActorRef(id, self),
         getCurrentTriggerIdOrGenerate
       )
-      TransitDriverAgent.selectByVehicleId(data.nextLeg.beamVehicleId) ! resRequest
+      transitAgentPaths(data.nextLeg.beamVehicleId) ! resRequest
       goto(WaitingForReservationConfirmation)
     // RIDE_HAIL
     case Event(StateTimeout, data: BasePersonData) if data.hasNextLeg && data.nextLeg.isRideHail =>

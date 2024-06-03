@@ -6,6 +6,7 @@ import beam.agentsim.agents.TransitDriverAgent.createAgentIdFromVehicleId
 import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.agents.{InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
+import beam.router.r5.TravelTimeByLinkCalculator
 import beam.router.{RouteHistory, TransitInitializer}
 import beam.sim.DistributedSimulationPart.{Initialized, MasterBeamData}
 import beam.sim.SimulationClusterManager.SimWorker
@@ -30,7 +31,9 @@ class DistributedSimulationPart(
       new DuplicatingEventManager(distributedEM, beamServices.matsimServices.getEvents)
     }
 
-    val oneSecondTravelTime = (_: Double, _: Int, _: StreetMode) => 1.0
+    val oneSecondTravelTime = new TravelTimeByLinkCalculator {
+      override def apply(time: Double, linkId: Int, streetMode: StreetMode): Double = 1.0
+    }
     val transitSchedule = new TransitInitializer(
       beamServices.beamScenario.beamConfig,
       beamServices.geo,

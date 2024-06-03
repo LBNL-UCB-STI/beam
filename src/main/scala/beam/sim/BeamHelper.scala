@@ -106,30 +106,30 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     )
     val secondaryConfigEntries =
       config.withFallback(
-      ConfigFactory.parseMap(
-        (
-          Map(
-            "beam.cluster.enabled" -> parsedArgs.useCluster,
-            "beam.useLocalWorker" -> parsedArgs.useLocalWorker.getOrElse(
-              if (parsedArgs.useCluster) false else true
-            )
-          ) ++ {
-            if (parsedArgs.useCluster)
-              Map(
-                "beam.cluster.clusterType"              -> parsedArgs.clusterType.get.toString,
-                "beam.cluster.partNumber"               -> parsedArgs.partNumber.getOrElse(0),
-                "beam.cluster.totalParts"               -> parsedArgs.totalParts.getOrElse(1),
-                "akka.cluster.roles"                    -> java.util.Arrays.asList(parsedArgs.clusterType.get.toString),
-                "akka.actor.provider"                   -> "akka.cluster.ClusterActorRefProvider",
-                "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.get,
-                "akka.remote.artery.canonical.port"     -> parsedArgs.nodePort.get,
-                "akka.cluster.seed-nodes"               -> parsedArgs.seedAddresses.map(adr => s"akka://ClusterSystem@$adr").asJava
+        ConfigFactory.parseMap(
+          (
+            Map(
+              "beam.cluster.enabled" -> parsedArgs.useCluster,
+              "beam.useLocalWorker" -> parsedArgs.useLocalWorker.getOrElse(
+                if (parsedArgs.useCluster) false else true
               )
-            else Map.empty[String, Any]
-          }
-        ).asJava
+            ) ++ {
+              if (parsedArgs.useCluster)
+                Map(
+                  "beam.cluster.clusterType"              -> parsedArgs.clusterType.get.toString,
+                  "beam.cluster.partNumber"               -> parsedArgs.partNumber.getOrElse(0),
+                  "beam.cluster.totalParts"               -> parsedArgs.totalParts.getOrElse(1),
+                  "akka.cluster.roles"                    -> java.util.Arrays.asList(parsedArgs.clusterType.get.toString),
+                  "akka.actor.provider"                   -> "akka.cluster.ClusterActorRefProvider",
+                  "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.get,
+                  "akka.remote.artery.canonical.port"     -> parsedArgs.nodePort.get,
+                  "akka.cluster.seed-nodes"               -> parsedArgs.seedAddresses.map(adr => s"akka://ClusterSystem@$adr").asJava
+                )
+              else Map.empty[String, Any]
+            }
+          ).asJava
+        )
       )
-    )
     primaryConfigEntries
       .withFallback(config)
       .withFallback(secondaryConfigEntries)
