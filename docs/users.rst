@@ -304,8 +304,8 @@ In addition, raw outputs are available in the two events file (one from the Agen
 Data Analysis
 ^^^^^^^^^^^^^
 
-One may execute python scripts after each iteration or after the whole simulation. To do so add the following parameters
-into beam config file: ::
+One can execute python scripts after each iteration or after the whole simulation. To do so add the following parameters
+into the beam config file: ::
 
   beam.outputs.analysis.iterationScripts = ["path/to/iteration/script1.py", "path/to/iteration/script2.py"]
   beam.outputs.analysis.simulationScripts = ["path/to/simulation/script1.py", "path/to/simulation/script2.py"]
@@ -318,9 +318,12 @@ And to the simulation scripts:
   #. Beam config path
   #. Output directory path
 
+The current working directory of the python scripts is the same as the working directory of the Beam process.
+
 `An example of an iteration script <https://github.com/LBNL-UCB-STI/beam/blob/develop/src/main/python/events_analysis/events_within_beam.py>`_.
-If you need to use a specific version of python (i.e. from a conda environment) then you can provide a path to the
-python using `--python-executable` command line argument when you start Beam. If you want to use a non-standard python
+If you need to use a specific version of python (i.e. from a conda environment where you have all the required libs
+installed) then you can provide a path to the
+python using `\-\-python-executable` command line argument when you start Beam. If you want to use a non-standard python
 library then install it to your environment.
 
 Beam docker image contains some of python libraries preinstalled. That's `the command <https://github.com/LBNL-UCB-STI/beam/blob/develop/docker/beam-environment/Dockerfile-java-11#L16-L15>`_ in the build docker file that
@@ -343,6 +346,17 @@ it with the following docker argument:
   --mount source="/absolute/path/to/code",destination=/app/analysis,type=bind
 
 Then you want to use the path like `analysis/relative/path/to/script` in beam config `beam.outputs.analysis.iterationScripts` param.
+
+Python script output/errors
+...........................
+
+All the python output (including error output) goes to beam log. Besides other errors a script may produce errors like
+the following::
+
+    ModuleNotFoundError: No module named 'plotly'
+
+That means that the specific library is not presented. You need to install it to your environment. As described earlier
+`\-\-python-executable' Beam CLI argument can be used to choose a specific python.
 
 
 Model Config
