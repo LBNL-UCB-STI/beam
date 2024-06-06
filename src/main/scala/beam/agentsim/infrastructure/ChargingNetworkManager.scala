@@ -2,7 +2,6 @@ package beam.agentsim.infrastructure
 
 import akka.actor.Status.Failure
 import akka.actor.{ActorLogging, ActorRef, Cancellable, Props}
-import akka.pattern.pipe
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
@@ -19,7 +18,6 @@ import beam.sim.BeamServices
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Debug
 import beam.utils.logging.LoggingMessageActor
-import beam.utils.logging.pattern.ask
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.population.{Activity, Person}
@@ -49,8 +47,6 @@ class ChargingNetworkManager(
 
   protected val beamConfig: BeamConfig = beamServices.beamScenario.beamConfig
   private val agentSimConfig = beamConfig.beam.agentsim
-  import scala.concurrent.ExecutionContext.Implicits.global
-  import scala.concurrent.Future
   implicit val timeout: Timeout = Timeout(10, TimeUnit.HOURS)
   implicit val debug: Debug = beamConfig.beam.debug
   private var timeSpentToPlanEnergyDispatchTrigger: Long = 0
@@ -93,9 +89,7 @@ class ChargingNetworkManager(
 
     case TriggerWithId(InitializeTrigger(_), triggerId) =>
       log.info("ChargingNetworkManager is Starting!")
-      Future(scheduler ? ScheduleTrigger(PlanEnergyDispatchTrigger(0), self))
-        .map(_ => CompletionNotice(triggerId, Vector()))
-        .pipeTo(sender())
+      scheduler ! CompletionNotice(triggerId, Seq(ScheduleTrigger(PlanEnergyDispatchTrigger(0), self)))
 
     case inquiry: ParkingInquiry =>
       log.debug(s"Received parking inquiry: $inquiry")
