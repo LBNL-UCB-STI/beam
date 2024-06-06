@@ -16,8 +16,8 @@ transit_veh_classes = [
     "All Other Buses"  # All Other Buses
 ]
 freight_vehicle_classes = [
-    "LHD1",  # Light-Heavy-Duty Trucks (GVWR 850110000 lbs)
-    "LHD2",  # Light-Heavy-Duty Trucks (GVWR 1000114000 lbs)
+    "LHD1",  # Light-Heavy-Duty Trucks (GVWR 8501-10000 lbs)
+    "LHD2",  # Light-Heavy-Duty Trucks (GVWR 10001-14000 lbs)
 
     "T6 Instate Tractor Class 6",  # Medium-Heavy Duty Tractor Truck (GVWR 19501-26000 lbs)
     "T6 Instate Delivery Class 4",  # Medium-Heavy Duty Delivery Truck (GVWR 14001-16000 lbs)

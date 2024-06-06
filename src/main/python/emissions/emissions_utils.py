@@ -84,8 +84,18 @@ emfac_fuel_mapping = {
     'Gas': 'Gasoline',
     'NG': 'NaturalGas',
     'Elec': 'Electricity',
-    'Phe': 'PlugInHybridElectric'
+    'Phe': 'PlugInHybridElectricity',
+    'H2FC': 'Hydrogen'
 }
+emfac_fuel_mapping2 = {
+    'Diesel': 'Dsl',
+    'Gasoline': 'Gas',
+    'NaturalGas': 'NG',
+    'Electricity': 'Elec',
+    'PlugInHybridElectricity': 'Phe',
+    'Hydrogen': 'H2FC'
+}
+
 
 
 def get_regional_emfac_filename(emfac_data_filepath, emfac_regions, label=""):
@@ -98,7 +108,7 @@ def get_regional_emfac_filename(emfac_data_filepath, emfac_regions, label=""):
 def get_regional_emfac_data(emfac_data_filepath, emfac_regions):
     studyarea_x_filepath = get_regional_emfac_filename(emfac_data_filepath, emfac_regions)
 
-    if os.path.exists(studyarea_x_filepath):
+    if os.path.exists(os.path.expanduser(studyarea_x_filepath)):
         print("Filtered EMFAC exists. Returning stored output: " + studyarea_x_filepath)
         return pd.read_csv(studyarea_x_filepath)
     else:
