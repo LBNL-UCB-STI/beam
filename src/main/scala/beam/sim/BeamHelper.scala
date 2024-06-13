@@ -29,6 +29,7 @@ import beam.router.skim.core._
 import beam.router.skim.{ActivitySimSkimmer, Skims}
 import beam.scoring.BeamScoringFunctionFactory
 import beam.sim.ArgumentsParser.{Arguments, Worker}
+import beam.sim.cluster.SimulationClusterManager
 import beam.sim.common.{GeoUtils, GeoUtilsImpl}
 import beam.sim.config._
 import beam.sim.metrics.Metrics._

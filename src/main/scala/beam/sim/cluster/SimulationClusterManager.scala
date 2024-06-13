@@ -1,7 +1,7 @@
-package beam.sim
+package beam.sim.cluster
 
 import akka.actor.{Actor, ActorRef, Props}
-import beam.sim.SimulationClusterManager.{GetSimWorkers, SimWorker, SimWorkerFinished, SimWorkerReady}
+import beam.sim.cluster.SimulationClusterManager.{GetSimWorkers, SimWorker, SimWorkerFinished, SimWorkerReady}
 import com.typesafe.scalalogging.StrictLogging
 
 /**

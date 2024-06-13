@@ -13,8 +13,9 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.RouteHistory
 import beam.router.osm.TollCalculator
+import beam.sim.cluster.SimulationClusterManager
 import beam.sim.vehicles.VehiclesAdjustment
-import beam.sim.{BeamScenario, BeamServices, SimulationClusterManager}
+import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.MathUtils
 import beam.utils.logging.LoggingMessageActor
 import com.conveyal.r5.transit.TransportNetwork

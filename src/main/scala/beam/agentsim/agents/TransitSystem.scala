@@ -12,9 +12,10 @@ import beam.router.Modes.BeamMode.{BUS, CABLE_CAR, FERRY, GONDOLA, RAIL, SUBWAY,
 import beam.router.model.BeamLeg
 import beam.router.osm.TollCalculator
 import beam.router.Modes
+import beam.sim.cluster.SimulationClusterManager
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig
-import beam.sim.{BeamScenario, BeamServices, SimulationClusterManager}
+import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.csv.GenericCsvReader
 import beam.utils.logging.{ExponentialLazyLogging, LoggingMessageActor}
 import beam.utils.NetworkHelper

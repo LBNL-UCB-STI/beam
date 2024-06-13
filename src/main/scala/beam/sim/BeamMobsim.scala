@@ -7,7 +7,6 @@ import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.freight.FreightReplanner
 import beam.agentsim.agents.freight.input.FreightReader
-import beam.agentsim.agents.ridehail.RideHailManager.{BufferedRideHailRequestsTrigger, RideHailRepositioningTrigger}
 import beam.agentsim.agents.ridehail.{
   RideHailIterationHistory,
   RideHailManager,
@@ -15,7 +14,7 @@ import beam.agentsim.agents.ridehail.{
   RideHailSurgePricingManager
 }
 import beam.agentsim.agents.vehicles._
-import beam.agentsim.agents.{BeamAgent, InitializeTrigger, TransitSystem}
+import beam.agentsim.agents.{BeamAgent, InitializeTrigger}
 import beam.agentsim.events.eventbuilder.EventBuilderActor.{EventBuilderActorCompleted, FlushEvents}
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtils
 import beam.agentsim.infrastructure.{ChargingNetworkManager, InfrastructureUtils, ParkingNetworkManager}
@@ -26,8 +25,9 @@ import beam.router.Modes.BeamMode
 import beam.router._
 import beam.router.osm.TollCalculator
 import beam.router.skim.TAZSkimsCollector
-import beam.sim.SimulationClusterManager.{GetSimWorkers, SimWorker, SimWorkerFinished, SimWorkerReady}
-import beam.sim.DistributedSimulationPart.{Initialized, MasterBeamData}
+import beam.sim.cluster.DistributedSimulationPart
+import beam.sim.cluster.SimulationClusterManager.{GetSimWorkers, SimWorker, SimWorkerFinished, SimWorkerReady}
+import beam.sim.cluster.DistributedSimulationPart.{Initialized, MasterBeamData}
 import beam.sim.common.GeoUtils
 import beam.sim.config.BeamConfig.Beam
 import beam.sim.metrics.SimulationMetricCollector.SimulationTime
@@ -583,6 +583,7 @@ class BeamMobsimIteration(
       case Some(clusterManager) =>
         implicit val timeout: Timeout = Timeout(20.minutes)
         val futureActorRefs = (clusterManager ? GetSimWorkers).mapTo[IndexedSeq[SimWorker]]
+        //FIXME need to break in case of not getting response in a meaningful time
         Await.result(futureActorRefs, Duration.Inf)
       case None =>
         val localSimulationPart = context.actorOf(DistributedSimulationPart.props(0, 1, beamServices), "simulationPart")

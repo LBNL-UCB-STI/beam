@@ -1,4 +1,4 @@
-package beam.sim
+package beam.sim.cluster
 
 import akka.actor.{Actor, ActorRef, ActorSelection, Props, Terminated}
 import beam.agentsim.agents.BeamAgent.Finish
@@ -8,8 +8,9 @@ import beam.agentsim.agents.{InitializeTrigger, Population, TransitSystem}
 import beam.agentsim.scheduler.BeamAgentScheduler.ScheduleTrigger
 import beam.router.r5.TravelTimeByLinkCalculator
 import beam.router.{RouteHistory, TransitInitializer}
-import beam.sim.DistributedSimulationPart.{Initialized, MasterBeamData}
-import beam.sim.SimulationClusterManager.SimWorker
+import beam.sim.{BeamServices, DuplicatingEventManager}
+import beam.sim.cluster.DistributedSimulationPart.{Initialized, MasterBeamData}
+import beam.sim.cluster.SimulationClusterManager.SimWorker
 import com.conveyal.r5.profile.StreetMode
 import com.typesafe.scalalogging.StrictLogging
 import org.matsim.api.core.v01.Id

@@ -603,7 +603,7 @@ object HouseholdActor {
               parkingDuration,
               triggerId
             )
-          } {
+          } yield {
             vehicle.useParkingStall(stall)
             vehicle.spaceTime = SpaceTime(stall.locationUTM.getX, stall.locationUTM.getY, 0)
             if (stall.chargingPointType.isDefined) {
@@ -618,7 +618,6 @@ object HouseholdActor {
               )
             }
           }
-          Future.successful(())
         })
         .map(_ => CompletionNotice(triggerId, triggersToSchedule))
         .pipeTo(schedulerRef)
