@@ -50,6 +50,7 @@ test/input/siouxfalls/*.csv
 /src/main/python/household_generator/.idea/
 *Rdata
 !/test/input/siouxfalls/r5/siouxareametro-sd-us.zip
+*/*.mapdb
 osm.mapdb
 osm.mapdb.p
 network.dat
