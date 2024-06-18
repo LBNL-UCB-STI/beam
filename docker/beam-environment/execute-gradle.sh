@@ -48,7 +48,7 @@ fi
 ##
 gradle_cache_path="$PATH_TO_CODE/.gradle"
 if [ -e "/root/gradle_cache/.this_volume_was_not_mounted.txt" ]; then
-  echo "Gradle cache was not mounted into /root/gradle_cache, using a default directory in the root of code folder: '.gradle'"
+  echo "Gradle cache is not mounted to /root/gradle_cache, using a default directory in the root of code folder: '.gradle'"
   mkdir -p "$gradle_cache_path"
 else
   gradle_cache_path="/root/gradle_cache"
