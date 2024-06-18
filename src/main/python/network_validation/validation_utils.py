@@ -99,17 +99,17 @@ def agg_npmrds_to_hourly_speed(npmrds_data, observed_speed_weight):
     return npmrds_data_hourly
 
 
-def process_and_extend_link_stats(model_network, link_stats_paths_and_labels_list, demand_sample_fraction,
-                                  assume_daylight_savings):
-    demand_scaling = 1 / demand_sample_fraction
+def process_and_extend_link_stats(model_network, link_stats, assume_daylight_savings):
+
     dfs = []
-    for scenario, file_path in link_stats_paths_and_labels_list:
-        df = pv.read_csv(file_path).to_pandas()
+    for link_stat in link_stats:
+        df = pv.read_csv(link_stat.file_path).to_pandas()
+        demand_scaling = 1 / link_stat.demand_fraction
 
         if assume_daylight_savings:
             df.loc[:, 'hour'] = df.loc[:, 'hour'] - 1
 
-        df['scenario'] = scenario
+        df['scenario'] = link_stat.scenario
         link_stats_24h = df[(df['hour'] >= 0) & (df['hour'] < 24)]
         link_stats_tmc = pd.merge(link_stats_24h, model_network[['tmc', 'link', 'road_class', 'npmrds_road_class']],
                                   on=['link'], how='inner')
@@ -494,24 +494,23 @@ def prepare_npmrds_data(
     return regional_npmrds_station, regional_npmrds_data, beam_npmrds_network_map, npmrds_hourly_speed_road_class
 
 
+class LinkStats:
+    def __init__(self, scenario, demand_fraction, file_path):
+        self.scenario = scenario
+        self.demand_fraction = demand_fraction
+        self.file_path = file_path
+
+
 class SpeedValidationSetup:
-    def __init__(self, npmrds_hourly_speed_csv, beam_network_mapped_to_npmrds_geo,
-                 npmrds_hourly_speed_by_road_class_csv, link_stats_paths_and_labels_list, demand_sample_size,
-                 assume_daylight_saving):
+    def __init__(self, link_stats, npmrds_hourly_speed_csv, npmrds_hourly_speed_by_road_class_csv,
+                 beam_network_mapped_to_npmrds_geo, assume_daylight_saving):
         st = time.time()
         print("Loading data ...")
-        # Input
-        demand_scale_up_coefficient = 1 / demand_sample_size
-
-        # Data
         self.npmrds_hourly_speed = pv.read_csv(npmrds_hourly_speed_csv).to_pandas()
         self.beam_npmrds_network_map = gpd.read_file(beam_network_mapped_to_npmrds_geo)
         self.npmrds_hourly_speed_by_road_class = pv.read_csv(npmrds_hourly_speed_by_road_class_csv).to_pandas()
-        self.link_stats_tmc_dfs = process_and_extend_link_stats(self.beam_npmrds_network_map,
-                                                                link_stats_paths_and_labels_list,
-                                                                demand_scale_up_coefficient,
+        self.link_stats_tmc_dfs = process_and_extend_link_stats(self.beam_npmrds_network_map, link_stats,
                                                                 assume_daylight_saving)
-
         print(f"Execution time of prepare_npmrds_and_beam_data: {(time.time() - st) / 60.0:.2f} minutes")
 
     def get_hourly_average_speed(self):
