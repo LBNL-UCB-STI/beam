@@ -11,6 +11,8 @@ library(sjmisc)
 library(ggmap)
 library(sf)
 library(stringr)
+library(geojsonsf)
+
 
 getHPMSAADT <- function(linkAADT) {
   linkAADT$Volume_hpms <- linkAADT$AADT_Combi+linkAADT$AADT_Singl
@@ -30,7 +32,41 @@ isCav <- function(x) {
 
 ### RouteE
 
-work_folder <- normalizePath("~/Workspace/Data/Scenarios/sfbay/")
+work_folder <- normalizePath("~/Workspace/Data/FREIGHT/seattle")
+household <- readCsv(pp(work_folder, "/households.csv.gz"))
+ggplot(household, aes(x=income/1000)) + geom_histogram() + xlim(0, 100)
+
+
+work_folder <- normalizePath("~/Workspace/Data/FREIGHT/seattle")
+geo <- geojson_sf(pp(work_folder, "/validation/npmrds/Seattle_counties.geojson"))
+
+plans <- readCsv(pp(work_folder, "/beam/plans.csv.gz"))
+df_filtered <- plans[!is.na(plans$departure_time), ]
+
+# Plot the histogram of departure times
+ggplot(df_filtered, aes(x = departure_time)) +
+  geom_histogram(bins = 24, fill = "blue", color = "black") +
+  theme_minimal() +
+  labs(title = "Distribution of Departure Times",
+       x = "Departure Time (hours)",
+       y = "Frequency") +
+  scale_x_continuous(breaks = seq(0, 24, by = 1))  # Set breaks every hour
+
+plans <- readCsv(pp(work_folder, "/beam_freight/2024-04-20/Baseline/freight-merged-payload-plans.csv"))
+plans[,departure_time_hour:=(estimatedTimeOfArrivalInSec+operationDurationInSec)/3600.0]
+df_filtered <- plans[!is.na(plans$departure_time_hour), ]
+
+# Plotting the histogram of departure times
+ggplot(df_filtered, aes(x = departure_time_hour)) +
+  geom_histogram(bins = 80, fill = "blue", color = "black") + # You can adjust the number of bins
+  theme_minimal() +
+  labs(title = "Histogram of Departure Time Hours",
+       x = "Departure Time (hour)",
+       y = "Frequency") +
+  scale_x_continuous(breaks = seq(0, 80, by = 5)) 
+
+
+
 network <- readCsv(pp(work_folder, "/network.csv.gz"))
 linkstats0 <- readCsv(pp(work_folder, "/0.linkstats.csv.gz"))
 linkstats1 <- readCsv(pp(work_folder, "/1.linkstats.csv.gz"))

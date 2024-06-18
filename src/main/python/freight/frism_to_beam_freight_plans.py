@@ -3,6 +3,36 @@ import os
 from pathlib import Path
 import numpy as np
 
+primary_energy_files = {
+    "freight-md-D-Diesel-Baseline": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(Diesel,_2020,_no_program).csv",
+    "freight-md-E-BE-Baseline": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
+    # "freight-md-E-H2FC-Baseline": np.nan,
+    "freight-md-E-PHEV-Baseline": "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(BEV,_2025,_no_program).csv",
+    "freight-hdt-D-Diesel-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(Diesel,_2020,_no_program).csv",
+    "freight-hdt-E-BE-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
+    # "freight-hdt-E-H2FC-Baseline": np.nan,
+    "freight-hdt-E-PHEV-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(BEV,_2025,_no_program).csv",
+    "freight-hdv-D-Diesel-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(Diesel,_2020,_no_program).csv",
+    "freight-hdv-E-BE-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv",
+    # "freight-hdv-E-H2FC-Baseline": np.nan,
+    "freight-hdv-E-PHEV-Baseline": "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(BEV,_2025,_no_program).csv"
+}
+
+secondary_energy_profile_for_phev = {
+    # "freight-md-D-Diesel-Baseline": np.nan,
+    # "freight-md-E-BE-Baseline": np.nan,
+    # "freight-md-E-H2FC-Baseline": np.nan,
+    "freight-md-E-PHEV-Baseline": ("Diesel", 9595.796035186175, 12000000000000000, "Freight_Baseline_FASTSimData_2020/Class_6_Box_truck_(HEV,_2025,_no_program).csv"),
+    # "freight-hdt-D-Diesel-Baseline": np.nan,
+    # "freight-hdt-E-BE-Baseline": np.nan,
+    # "freight-hdt-E-H2FC-Baseline": np.nan,
+    "freight-hdt-E-PHEV-Baseline": ("Diesel", 13817.086117829229, 12000000000000000, "Freight_Baseline_FASTSimData_2020/Class_8_Sleeper_cab_high_roof_(HEV,_2025,_no_program).csv"),
+    # "freight-hdv-D-Diesel-Baseline": np.nan,
+    # "freight-hdv-E-BE-Baseline": np.nan,
+    # "freight-hdv-E-H2FC-Baseline": np.nan,
+    "freight-hdv-E-PHEV-Baseline": ("Diesel", 14026.761465378302, 12000000000000000, "Freight_Baseline_FASTSimData_2020/Class_8_Box_truck_(HEV,_2025,_no_program).csv")
+}
+
 
 def read_csv_file(filename_):
     compression = None
@@ -18,7 +48,7 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
     else:
         old = str(row[column])
     if veh_type:
-        old_updated = old.replace('_', '-').replace('b2b-', '').replace('b2c-', '').\
+        old_updated = old.replace('_', '-').replace('b2b-', '').replace('b2c-', ''). \
             replace('Battery Electric', 'BE').replace('H2 Fuel Cell', 'H2FC')
     else:
         old_updated = old.lower().replace('_', '-').replace('b2b-', '').replace('b2c-', '')
@@ -38,9 +68,9 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
     return new
 
 
-scenario_name = "scenarios-23Jan2024"
-run_name = "Base"
-city = "austin"
+scenario_name = "2024-04-23"
+run_name = "Baseline"
+city = "seattle"
 directory_input = os.path.expanduser('~/Workspace/Data/FREIGHT/' + city + '/frism/'+scenario_name+"/"+run_name)
 directory_output = os.path.expanduser('~/Workspace/Data/FREIGHT/' + city + '/beam_freight/'+scenario_name+"/"+run_name)
 Path(directory_output).mkdir(parents=True, exist_ok=True)
@@ -65,13 +95,13 @@ for filename in sorted(os.listdir(directory_input)):
         df = pd.read_csv(filepath)
         # df['carrierId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'carrierId', row), axis=1)
         # df['vehicleId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'vehicleId', row), axis=1)
-        df['carrierId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'carrierId', row, False), axis=1)
+        df['carrierId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'carrierId', row, False), axis=1).tolist()
         df['vehicleTypeId'] = df.apply(
-            lambda row: add_prefix('freight-', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True),
-            axis=1)
-        df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-', 'vehicleId', row, suffix="-"+run_name), axis=1)
+            lambda row: add_prefix('freight-', 'vehicleTypeId', row, to_num=True, store_dict=None, veh_type=True, suffix="-"+run_name),
+            axis=1).tolist()
+        df['vehicleId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-', 'vehicleId', row), axis=1).tolist()
         # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
-        df['tourId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-', 'tourId', row, True, tourId_with_prefix), axis=1)
+        df['tourId'] = df.apply(lambda row: add_prefix(row['carrierId']+'-', 'tourId', row, True, tourId_with_prefix), axis=1).tolist()
         if carriers is None:
             carriers = df
         else:
@@ -79,7 +109,7 @@ for filename in sorted(os.listdir(directory_input)):
     elif "freight_tours" in filetype:
         df = pd.read_csv(filepath)
         # df['tour_id'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tour_id', row), axis=1)
-        df['tour_id'] = df.apply(lambda row: tourId_with_prefix[str(int(row['tour_id']))], axis=1)
+        df['tour_id'] = df.apply(lambda row: tourId_with_prefix[str(int(row['tour_id']))], axis=1).tolist()
         if tours is None:
             tours = df
         else:
@@ -87,8 +117,8 @@ for filename in sorted(os.listdir(directory_input)):
     elif "payload" in filetype:
         df = pd.read_csv(filepath)
         # df['tourId'] = df.apply(lambda row: add_prefix(f'{business_type}-{county}-', 'tourId', row), axis=1)
-        df['tourId'] = df.apply(lambda row: tourId_with_prefix[str(int(row['tourId']))], axis=1)
-        df['payloadId'] = df.apply(lambda row: add_prefix(row['tourId']+'-', 'payloadId', row, False), axis=1)
+        df['tourId'] = df.apply(lambda row: tourId_with_prefix[str(int(row['tourId']))], axis=1).tolist()
+        df['payloadId'] = df.apply(lambda row: add_prefix(row['tourId']+'-', 'payloadId', row, False), axis=1).tolist()
         if payload_plans is None:
             payload_plans = df
         else:
@@ -98,19 +128,20 @@ for filename in sorted(os.listdir(directory_input)):
         df = pd.read_csv(filepath)
         empty_vectors = list(np.repeat("", len(df.index)))
         # JoulePerMeter = 121300000/(mpgge*1609.34)
+        vehicle_types_ids = df.apply(lambda row: add_prefix('freight-', 'veh_type_id', row, to_num=True, store_dict=None, veh_type=True, suffix="-"+run_name), axis=1).tolist()
         vehicles_techs = {
-            "vehicleTypeId": df.apply(lambda row: add_prefix('freight-', 'veh_type_id', row, to_num=True, store_dict=None, veh_type=True), axis=1),
+            "vehicleTypeId": vehicle_types_ids,
             "seatingCapacity": list(np.repeat(1, len(df.index))),
             "standingRoomCapacity": list(np.repeat(0, len(df.index))),
             "lengthInMeter": list(np.repeat(12, len(df.index))),
             "primaryFuelType": df["primary_fuel_type"],
             "primaryFuelConsumptionInJoulePerMeter": np.divide(121300000, np.float_(df["primary_fuel_rate"])*1609.34),
             "primaryFuelCapacityInJoule": list(np.repeat(12000000000000000, len(df.index))),
-            "primaryVehicleEnergyFile": empty_vectors,
-            "secondaryFuelType": empty_vectors,
-            "secondaryFuelConsumptionInJoulePerMeter": empty_vectors,
-            "secondaryVehicleEnergyFile": empty_vectors,
-            "secondaryFuelCapacityInJoule": empty_vectors,
+            "primaryVehicleEnergyFile": [primary_energy_files[id] if id in primary_energy_files else np.nan for id in vehicle_types_ids],
+            "secondaryFuelType": [secondary_energy_profile_for_phev[id][0] if id in secondary_energy_profile_for_phev else np.nan for id in vehicle_types_ids],
+            "secondaryFuelConsumptionInJoulePerMeter": [secondary_energy_profile_for_phev[id][1] if id in secondary_energy_profile_for_phev else np.nan for id in vehicle_types_ids],
+            "secondaryVehicleEnergyFile": [secondary_energy_profile_for_phev[id][3] if id in secondary_energy_profile_for_phev else np.nan for id in vehicle_types_ids],
+            "secondaryFuelCapacityInJoule": [secondary_energy_profile_for_phev[id][2] if id in secondary_energy_profile_for_phev else np.nan for id in vehicle_types_ids],
             "automationLevel": list(np.repeat(1, len(df.index))),
             "maxVelocity": df["max_speed(mph)"], # convert to meter per second
             "passengerCarUnit": empty_vectors,
@@ -131,7 +162,7 @@ for filename in sorted(os.listdir(directory_input)):
         print(f'SKIPPING {filename}')
 
 
-vehicle_types.to_csv(f'{directory_output}/freight-vehicles-types.csv', index=False)
+vehicle_types.to_csv(f'{directory_output}/freight-only-vehicletypes--{run_name}.csv', index=False)
 
 
 # In[9]:
