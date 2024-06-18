@@ -219,9 +219,9 @@ class RideHailMaster(
     val withProposals = responsesInRandomOrder.filter(_.travelProposal.isDefined)
     val availableProposals = withProposals.filter(x =>
       if (x.request.asPooled) {
-        x.travelProposal.exists(_.modeOptions.contains(RIDE_HAIL_POOLED))
+        x.travelProposal.exists(_.modeOptions.exists(Seq(RIDE_HAIL_POOLED_TRANSIT, RIDE_HAIL_POOLED).contains))
       } else {
-        x.travelProposal.exists(_.modeOptions.contains(RIDE_HAIL))
+        x.travelProposal.exists(_.modeOptions.exists(Seq(RIDE_HAIL_TRANSIT, RIDE_HAIL).contains))
       }
     )
     if (availableProposals.isEmpty) {
@@ -276,7 +276,7 @@ class RideHailMaster(
     val travelProposal = response.travelProposal.get
     val price = travelProposal.estimatedPrice(customer)
     if (
-      travelProposal.modeOptions.contains(RIDE_HAIL_POOLED)
+      travelProposal.modeOptions.exists(Seq(RIDE_HAIL_POOLED, RIDE_HAIL_POOLED_TRANSIT).contains)
       && travelProposal.poolingInfo.isDefined
       && response.request.asPooled
     ) // pooling is supported by RHM and person has choice to pick pooled as not assigned some other tour mode

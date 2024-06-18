@@ -747,7 +747,11 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
         profileResponse.generateStreetTransfers(transportNetwork, profileRequest)
       }
     }
-    profileResponse.recomputeStats(profileRequest)
+    try { profileResponse.recomputeStats(profileRequest) }
+    catch {
+      case ex: IllegalStateException =>
+        logger.debug("Ignoring failure in R5 presumably due to rh fleet limitations for multimodal trip")
+    }
 
     val embodiedTrips = profileResponse.options.asScala.flatMap { option =>
       option.itinerary.asScala

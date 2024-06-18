@@ -1547,7 +1547,7 @@ trait ChoosesMode {
     travelProposal.poolingInfo match {
       case Some(poolingInfo)
           if !requiredMode.contains(RIDE_HAIL)
-            && travelProposal.modeOptions.contains(RIDE_HAIL_POOLED) =>
+            && travelProposal.modeOptions.exists(Seq(RIDE_HAIL_POOLED, RIDE_HAIL_POOLED_TRANSIT).contains) =>
         val pooledLegs = origLegs.map { origLeg =>
           origLeg.copy(
             cost = origLeg.cost * poolingInfo.costFactor,
@@ -1556,14 +1556,14 @@ trait ChoosesMode {
           )
         }
         val consistentPooledLegs = EmbodiedBeamLeg.makeLegsConsistent(pooledLegs)
-        if (travelProposal.modeOptions.contains(RIDE_HAIL)) {
+        if (travelProposal.modeOptions.exists(Seq(RIDE_HAIL, RIDE_HAIL_TRANSIT).contains)) {
           Vector(origLegs, consistentPooledLegs)
         } else {
           Vector(consistentPooledLegs)
         }
       case _
           if !requiredMode.contains(RIDE_HAIL_POOLED)
-            && travelProposal.modeOptions.contains(RIDE_HAIL) =>
+            && travelProposal.modeOptions.exists(Seq(RIDE_HAIL, RIDE_HAIL_TRANSIT).contains) =>
         Vector(origLegs)
       case _ =>
         // current tour mode doesn't correspond to mode options provided by travel proposal
