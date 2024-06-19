@@ -1,22 +1,28 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# # scenario class init block
+
+# In[ ]:
 
 
-import pandas as pd
-import numpy as np
 import json
 import os
 import pathlib
 import shutil
+import random
 
+import pandas as pd
+import numpy as np
+
+from datetime import datetime
 from pyproj import CRS, Transformer
 
 
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
+pd.set_option('display.max_colwidth', 1000)
 
 
 class Scenario():
@@ -273,17 +279,20 @@ class Scenario():
 print("initialized")
 
 
-# In[2]:
+# # independant functions init block
+
+# In[ ]:
 
 
-### a set of functions to read BEAM events
+### a set of functions to read and process BEAM events
 
 def read_events(path_to_events_file, event_types=None, nrows=None):
     events_dtype = { 
         'riders' : str,
         'driver' : str,
         'vehicle' : str,
-        'person' : str
+        'person' : str,
+        'links': str
     }
 
     event_types_to_read = set()
@@ -329,18 +338,325 @@ def read_pte_events(beam_output, iteration, nrows=None):
     return all_pte
 
 
+def get_trips(events_df):
+
+    def get_mode_or_action(row):
+        event_type = row['type']
+        if event_type == 'actend' or event_type == 'actstart':
+            return "A:"
+        elif event_type == 'PersonEntersVehicle':
+            return "V:"  + row['vehicle']
+        
+        print(f"Unexpected event type: {event_type}")
+        return np.nan
+
+    
+    def get_sequences_of_vehicles_and_indexes_per_trip(row):
+        action_sequence = row['sequence']
+        index_sequence = row['index']
+        
+        result_action_seq = []
+        result_index_seq = []
+        
+        vehicle_used = []
+        index_used = []
+
+        for (step, idx) in zip(action_sequence, index_sequence):
+            if step.startswith("A:"):
+                if len(vehicle_used) > 0:
+                    result_action_seq.append(vehicle_used)
+                    if index_used[-1] != idx:
+                        index_used.append(idx)
+                        
+                    result_index_seq.append(index_used)
+
+                vehicle_used = []
+                index_used = [idx]
+                
+            if step.startswith("V:"):
+                vehicle_used.append(step[2:])
+                index_used.append(idx)
+
+        if len(result_action_seq) > 0 and len(result_index_seq) > 0:
+            return result_action_seq, result_index_seq
+        else:
+            return np.nan, np.nan
+    
+
+    ## get mode choice and person enters vehicle events
+    selected_types = set(['actend', 'actstart', 'PersonEntersVehicle'])
+    is_type = events_df['type'].isin(selected_types)
+    events_df2 = events_df[is_type].dropna(axis=1, how='all')
+    
+    if len(events_df2) == 0:
+        return pd.DataFrame()
+    
+    ## addind field 'sequence' with vehicle types and modes for selected events
+    events_df2['sequence'] = events_df2.apply(get_mode_or_action, axis=1)
+    
+    ## group by person 
+    persons_df = events_df2.groupby('person')[['index','sequence']].agg(list)
+    
+    ## transform sequence of modes and vehicles into lists of lists (vehicles, events indexes)
+    persons_df[['vehicles_sequence', 'index_sequence']] = persons_df.apply(get_sequences_of_vehicles_and_indexes_per_trip, axis=1, result_type="expand")
+    persons_df.dropna(subset=['vehicles_sequence','index_sequence'], how='all', inplace=True)
+    
+    ## explode DF in order to have one row per trip with pair: mode, used vehicles
+    persons_vehicles_sequences = persons_df.explode(['vehicles_sequence', 'index_sequence'])[['vehicles_sequence', 'index_sequence']]
+    
+    one_trip_per_row_df = persons_vehicles_sequences \
+        .reset_index() \
+        .reset_index() \
+        .rename(columns={'index': 'trip_id', 'index_sequence':'index', "vehicles_sequence": "trip_vehicles"})
+    
+    return one_trip_per_row_df
+
+
+def add_vehicle_type_to_all_events_with_vehicles(events_df):
+    original_columns = list(events_df.columns) + ['index']
+    
+    vehicle_not_na = events_df['vehicle'].notna()
+    vehicle_type_not_na = events_df['vehicleType'].notna()
+    vehicle_to_mode = events_df[vehicle_not_na & vehicle_type_not_na].groupby('vehicle')['vehicleType'].first()
+    
+    events_df_1 = events_df.drop(columns='vehicleType').reset_index()
+    merged_events = events_df_1.merge(vehicle_to_mode, how='outer', on='vehicle')[original_columns].set_index('index')
+    return merged_events
+
+
+def sort_events(events_df):
+    ## all events have default order
+    events_df['order'] = 7
+    
+    body_vehicles = set(events_df[events_df['vehicleType'] == 'BODY-TYPE-DEFAULT']['vehicle'].unique())
+    
+    ## changing order of all events of specified type
+    events_df.loc[events_df['type'] == 'actend', 'order'] = 2
+    events_df.loc[events_df['type'] == 'PersonEntersVehicle', 'order'] = 3
+    events_df.loc[events_df['type'] == 'PersonLeavesVehicle', 'order'] = 4
+    events_df.loc[(events_df['type'] == 'PersonLeavesVehicle') & (events_df['vehicle'].isin(body_vehicles)), 'order'] = 8
+    events_df.loc[events_df['type'] == 'actstart', 'order'] = 10
+    
+    ## fixing time of PathTraversal events
+    events_df.loc[events_df['type'] == 'PathTraversal', 'time'] = events_df.loc[events_df['type'] == 'PathTraversal', 'departureTime']
+    
+    ## ordering events by time and then order 
+    return events_df.sort_values(['time', 'order'])    
+
+
+def add_person_to_path_traversal(events_df):
+    is_pte_with_riders = (events_df['type'] == 'PathTraversal') & (events_df['riders'].notna())
+    pte_df = events_df[is_pte_with_riders].copy()
+    rest_df = events_df[~is_pte_with_riders].copy()
+    
+    pte_df['person'] = pte_df.apply(lambda r: r['riders'].split(":"), axis=1)
+    pte_df_one_per_person = pte_df.explode('person')
+    
+    events_df_merged = pd.concat([pte_df_one_per_person, rest_df])
+    
+    return events_df_merged
+
+
+def add_trip_id(events_df):
+    if 'index' not in events_df.columns:
+        events_df.reset_index(inplace=True)
+        
+    if 'trip_id' in events_df.columns:
+        print("NOT CHANGING ANYTHING, 'trip_id' column already present in events DF!!")
+        return events_df
+    
+    ## getting trips, a df with one trip per row [ trip_id person trip_vehicles index ]
+    one_trip_per_row_df = get_trips(events_df)
+
+    ## explode to have one row per event index
+    one_row_per_event_df = one_trip_per_row_df.explode('index').drop(columns=['person'])
+
+    ## merge original events into trip list
+    events_with_trips = pd.merge(events_df, one_row_per_event_df, left_on='index', right_on='index', how='outer')
+    events_with_trips.insert(2, 'trip_id', events_with_trips.pop('trip_id'))
+        
+    return (sort_events(events_with_trips), one_trip_per_row_df)
+
+
+def fix_person_enters_leaves_rh_body_events(original_df_trip):
+    df_trip = original_df_trip.copy()
+    is_rh = df_trip['vehicle'].str.contains('rideHailVehicle')
+    is_body = df_trip['vehicle'].str.contains('body')
+    is_pte = df_trip['type'] == 'PathTraversal'
+    unique_vehicles = df_trip[(is_rh | is_body) & is_pte]['vehicle'].unique()
+    
+    for vehicle_id in unique_vehicles:
+        is_vehicle = df_trip['vehicle'] == vehicle_id
+        rh_ptes = df_trip[is_vehicle & is_pte]
+        
+        min_departure_time = rh_ptes['departureTime'].min()
+        max_arrival_time = rh_ptes['arrivalTime'].max()
+        
+        df_trip.loc[is_vehicle & (df_trip['type'] == 'PersonEntersVehicle'), 'time'] = min_departure_time
+        df_trip.loc[is_vehicle & (df_trip['type'] == 'PersonLeavesVehicle'), 'time'] = max_arrival_time
+        
+    return df_trip
+
+
+def fix_pte_walk_events(original_df_trip):
+    df_trip = original_df_trip.copy()
+    
+    ptes = df_trip[df_trip['type'] == 'PathTraversal'].copy()
+    ptes['is_body'] = ptes.apply(lambda r: 'body' in r['vehicle'], axis=1)
+    ptes['is_rh'] = ptes.apply(lambda r: 'rideHailVehicle' in r['vehicle'], axis=1)
+    ptes['is_rh_next'] = ptes['is_rh'].shift(-1)
+    ptes['departure_next'] = ptes['departureTime'].shift(-1)
+    
+    is_walk = ptes['is_body'] == True
+    rh_next = ptes['is_rh_next'] == True
+    time_is_wrong = ptes['departure_next'] < ptes['arrivalTime']
+    
+    wrong_walk_pte = ptes[is_walk & rh_next & time_is_wrong].copy()
+    wrong_walk_pte['time_shift'] = wrong_walk_pte.apply(lambda r: r['departure_next'] - r['arrivalTime'], axis=1)
+
+    df_trip_2 = pd.merge(df_trip, wrong_walk_pte[['index', 'time_shift']], left_on='index', right_on='index', how='outer')
+    
+    def shift_time(row):
+        time_shift = row['time_shift']
+        if pd.notna(time_shift):
+            for col in ['time', 'departureTime', 'arrivalTime']:
+                row[col] += time_shift
+
+        return row
+    
+    df_trip_2 = df_trip_2.apply(shift_time, axis=1)
+    
+    columns_to_remove = set(df_trip_2.columns) - set(original_df_trip.columns)
+    df_trip_3 = df_trip_2.drop(columns = columns_to_remove)
+    
+    return df_trip_3
+    
+    
+def fix_act_end(original_df_trip):
+    df_trip = original_df_trip.copy()
+    
+    min_time = df_trip['time'].min()
+    is_act_end = df_trip['type'] == 'actend'
+    
+    df_trip.loc[is_act_end, 'time'] = min_time
+    
+    return df_trip
+
+
+def get_trip_df(events_df, selected_trip_id):
+    if 'trip_id' not in events_df.columns:
+        raise Exception(f"The input DF does not have 'trip_id' column!")
+        
+    # condition to select events with set trip ID
+    trip_condition = events_df['trip_id'] == selected_trip_id
+    
+    trip_events = events_df[trip_condition]
+    used_persons = list(trip_events['person'].unique())
+    used_vehicles = set(trip_events['vehicle'].unique())
+    
+    allowed_time_delta = 100
+    time_min = trip_events['time'].min() - allowed_time_delta
+    time_max = trip_events['time'].max() + allowed_time_delta
+    
+    if len(used_persons) > 1:
+        raise Exception("Too many persons in one trip: " + ", ".join(selected_persons_list))
+    if len(used_persons) < 1:
+        raise Exception("There are 0 persons in the selected trip")
+    
+    selected_person = used_persons[0]
+    
+    is_pte = events_df['type'] == 'PathTraversal'
+    pte_within_time_window = (events_df['departureTime'] > time_min) & (events_df['departureTime'] < time_max)
+    
+    person_is_rider = events_df['person'] == selected_person
+    person_is_driver = events_df['driver'] == selected_person
+    person_driver_or_rider = person_is_rider | person_is_driver
+    
+    # condition to select PathTraversal events
+    pte_condition = is_pte & pte_within_time_window & person_driver_or_rider
+
+    is_plv = events_df['type'] == 'PersonLeavesVehicle'
+    person_selected = events_df['person'] == selected_person
+    within_time_window = (events_df['time'] > time_min) & (events_df['time'] < time_max)
+    
+    # condition to select PersonLeavesVehicle events
+    plv_condition = is_plv & person_selected & within_time_window
+
+    trip_data_frame = events_df[trip_condition | pte_condition | plv_condition]
+    
+    # fixes for wrong time in events when RH with stops feature enabled
+    fixed_trip_df_1 = fix_pte_walk_events(trip_data_frame)
+    fixed_trip_df_2 = fix_person_enters_leaves_rh_body_events(fixed_trip_df_1)
+    fixed_trip_df_3 = fix_act_end(fixed_trip_df_2)
+
+    return sort_events(fixed_trip_df_3)
+
+
+#
+# HOW TO USE read_events_enhanced_events_trips function
+#
+## 1. execute code in cell 1 with correct path to events 
+## 2. execute code in cell 2
+## 3. execute code in cell 3 (optionally change selected_trip_id in cell 3)
+#
+## results of cell 1 include: whole original events DF, enhanced events DF and all trips DF
+## enhanced events has trip_id for some events types, improved order and one PathTraversal event per rider (instead of one PathTraversal event per vehicle)
+## %%time - is a magic command which calculates how long the execution of the whole cell took, this command should be the first row in a cell
+#
+# %%time
+# ## CELL 1 - read all events
+# path1 = "../beam_root/output/sf-light/multiple_rhm__2023-11-09_19-15-47_aet/ITERS/it.0/0.events.csv.gz"
+# events_original, events, all_trips = read_events_enhanced_events_trips(path1)
+# print(f"Size of original events DF: {len(events_original)}, enhanced events DF: {len(events)}, all trips DF: {len(all_trips)}")
+# display(events_original.head(2))
+#
+# %%time
+# ### CELL 2 - find the required trip to use
+# is_vehicle = all_trips['trip_vehicles'].str.contains('some-vehicle-id')
+# selected_trips = all_trips[is_vehicle]
+# all_trip_ids = list(all_trips['trip_id'].unique())
+# selected_trip_ids = list(selected_trips['trip_id'].unique())
+# display(f"Trips selected: {len(selected_trip_ids)}")
+# display(selected_trips.head(2))
+#
+# %%time
+# ### CELL 3 - show selected trip
+# selected_trip_id = random.choice(selected_trips)
+# trip_df = get_trip_df(events, selected_trip_id)
+# display(f"Trip Id {selected_trip_id}, number of events in it: {len(trip_df)}")
+# columns = ['person', 'trip_id', 'type', 'vehicle', 'mode', 'time', 'departureTime', 'arrivalTime', 'length']
+# display(trip_df[columns])
+#
+def read_events_enhanced_events_trips(path_to_events_file):
+    ## reading all events without changes
+    all_events = read_events(path_to_events_file)
+    
+    ## adding vehicle type to all events with vehicle, for correct sorting
+    ## all_events_with_vehicle_type = add_vehicle_type_to_all_events_with_vehicles(all_events)
+
+    ## cloning PathTraversal events to have one PTE events per rider
+    events_with_one_pte_per_rider = add_person_to_path_traversal(all_events)
+
+    ## adding trip id to actend, actstart and PersonEntersVehicle events
+    events, all_trips = add_trip_id(events_with_one_pte_per_rider)
+    
+    ## return all events, enhanced event and all trips
+    return (all_events, events, all_trips)
+
+
+
 print("initialized")
 
+
+# # scenarios
+
+# ## an empty scenario with map and without events\trajectories
 
 # In[ ]:
 
 
-## 
-## create an empty scenario with map and without events\trajectories
-##
-
 beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
-output_folder_path = "empty_" + beam_output.split('/')[-1].split("\\")[-1]
+output_folder_path = "sflight-1k-network-only"
 beam_crs = 26910
 
 scenario = Scenario(beam_output, beam_crs, output_folder_path)
@@ -349,15 +665,13 @@ scenario.write_scenario()
 scenario.pack_to_archive()
 
 
-# In[3]:
+# ## all RH PT events split into 3 groups: without passengers, with 1 passenger, with more passengers
 
+# In[ ]:
 
-##
-## ALL RH events split into 3 groups: without passengers, with 1 passenger, with more passengers
-##
 
 beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
-output_folder_path = "rh_passengers_" + beam_output.split('/')[-1].split("\\")[-1]
+output_folder_path = "sflight-1k-rh_passengers"
 beam_crs = 26910
 
 scenario = Scenario(beam_output, beam_crs, output_folder_path)
@@ -406,15 +720,13 @@ scenario.write_scenario()
 scenario.pack_to_archive()
 
 
-# In[5]:
+# ## all RH PT events split into 3 groups: withpassengers, dead heading, repositioning
 
+# In[ ]:
 
-##
-## ALL RH events split into 3 groups: withpassengers, dead heading, repositioning
-##
 
 beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
-output_folder_path = "rh_deadheading_repositioning_" + beam_output.split('/')[-1].split("\\")[-1]
+output_folder_path = "sflight-1k_rh_deadheading_repositioning"
 beam_crs = 26910
 
 scenario = Scenario(beam_output, beam_crs, output_folder_path)
@@ -472,15 +784,13 @@ scenario.write_scenario()
 scenario.pack_to_archive()
 
 
-# In[6]:
+# ## all bus PT events split based on passengers
 
+# In[ ]:
 
-##
-## ALL public transport split into
-##
 
 beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
-output_folder_path = "bus_passengers_" + beam_output.split('/')[-1].split("\\")[-1] + "_bus_passengers"
+output_folder_path = "sflight-1k_bus_passengers"
 beam_crs = 26910
 
 scenario = Scenario(beam_output, beam_crs, output_folder_path)
@@ -528,15 +838,13 @@ scenario.write_scenario()
 scenario.pack_to_archive()
 
 
-# In[8]:
+# ## all PT events split into BUS | CAR | WALK
 
+# In[ ]:
 
-##
-## ALL PTE by mode
-##
 
 beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
-output_folder_path = "bus_car_walk_" + beam_output.split('/')[-1].split("\\")[-1] + "_all_pte_by_mode"
+output_folder_path = "sflight-1k_bus_car_walk_all_pte_by_mode"
 beam_crs = 26910
 
 scenario = Scenario(beam_output, beam_crs, output_folder_path)
@@ -583,15 +891,13 @@ scenario.write_scenario()
 scenario.pack_to_archive()
 
 
-# In[12]:
+# ## all bus\rh PT events with passengers + all car PT events 
 
+# In[ ]:
 
-##
-## PTE with passengers + car 
-##
 
 beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
-output_folder_path = "with_passengers_only_bus_car_walk_" + beam_output.split('/')[-1].split("\\")[-1] + "_all_pte_by_mode"
+output_folder_path = "sflight-1k_with_passengers_only_bus_car_walk_pte_by_mode"
 beam_crs = 26910
 
 scenario = Scenario(beam_output, beam_crs, output_folder_path)
@@ -643,58 +949,116 @@ scenario.write_scenario()
 scenario.pack_to_archive()
 
 
-# In[ ]:
-
-
-
-
+# ## selected actor trip
 
 # In[ ]:
 
 
+#
+# HOW TO USE read_events_enhanced_events_trips function
+#
+## 0. execute this cell
+## 1. execute code in cell 1 with correct path to events 
+## 2. execute code in cell 2
+## 3. execute code in cell 3 (optionally change selected_trip_id in cell 3)
+#
+## results of cell 1 include: whole original events DF, enhanced events DF and all trips DF
+## enhanced events has trip_id for some events types, improved order and one PathTraversal event per rider (instead of one PathTraversal event per vehicle)
+## %%time - is a magic command which calculates how long the execution of the whole cell took, this command should be the first row in a cell
 
+beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
+output_folder_path = "sflight-1k_selected_actor_trip"
+beam_crs = 26910
 
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
+scenario = Scenario(beam_output, beam_crs, output_folder_path)
+scenario.read_beam_output()
+print('scenario prepared')
 
 
 # In[ ]:
 
 
-
-
-
-# In[ ]:
-
-
-
+get_ipython().run_cell_magic('time', '', '## CELL 1 - read all events\npath1 = f"{beam_output}/ITERS/it.0/0.events.csv.gz"\nevents_original, events_enhanced, all_trips = read_events_enhanced_events_trips(path1)\n\n## adding len of the trip\nall_trips[\'trip_len\'] = all_trips.apply(lambda r: len(r[\'index\']), axis=1)\nall_trips[\'veh_number\'] = all_trips.apply(lambda r: len(r[\'trip_vehicles\']), axis=1)\n    \n\nprint(f"Size of original events DF: {len(events_original)}, enhanced events DF: {len(events_enhanced)}, all trips DF: {len(all_trips)}")\n# display(events_original.head(2))\n# display(events_enhanced.head(2))\ndisplay(all_trips.head(2))\n')
 
 
 # In[ ]:
 
 
-
+get_ipython().run_cell_magic('time', '', '### CELL 2 - find the required trip to use\nmore_vehicles = max(all_trips[\'veh_number\'].unique())\nselected_trips = all_trips[all_trips[\'veh_number\'] == more_vehicles - 1]\nprint(f"there are {len(selected_trips)} selected trips")\n\ndisplay(selected_trips.head(2))\n')
 
 
 # In[ ]:
 
 
+get_ipython().run_cell_magic('time', '', '### CELL 3 - show selected trip_id\nselected_trip_id = random.choice(selected_trips[\'trip_id\'].unique())\ndisplay(f"Trip Id {selected_trip_id}")\ntrip_df = get_trip_df(events_enhanced, selected_trip_id)\ndisplay(f"Number of events in it: {len(trip_df)}")\ncolumns = [\'person\', \'trip_id\', \'type\', \'vehicle\', \'mode\', \'time\', \'departureTime\', \'arrivalTime\', \'length\', \'links\', \'linkTravelTime\']\ndisplay(trip_df[columns])\n')
 
+
+# In[ ]:
+
+
+selected_person = "015400-2015000437915-3-1833637"
+
+is_pte = events_original['type'] == 'PathTraversal'
+with_links = events_original['links'].notna()
+all_pte = events_original[is_pte & with_links].dropna(axis=1, how='all').copy()
+
+
+def is_selected(row):
+    if row['driver'] == selected_person:
+        return True
+    riders = row['riders']
+    if riders and selected_person in str(riders):
+        return True
+    return False
+
+all_pte['selected'] = all_pte.apply(is_selected, axis=1)
+display(all_pte.head(2))
+display(all_pte['selected'].value_counts())
+
+
+# In[ ]:
+
+
+icons = [
+    {
+        "Type":"WALK",
+        "BackgroundColor":"c4c4c4",
+        "Label":"walk of selected agent",
+        "Icon":"Triangle"
+    },
+    {
+        "Type":"RH",
+        "BackgroundColor":"fccf03",
+        "Label":"RH of selected agent",
+        "Icon":"Triangle"
+    },
+    {
+        "Type":"REST",
+        "BackgroundColor":"fc0f03",
+        "Label":"the rest of PT event",
+        "Icon":"Triangle"
+    }
+]
+
+def pte_to_icon_type(path_traversal_event):
+    if path_traversal_event['selected'] == False:
+        return "REST"
+    
+    mode = path_traversal_event['mode']
+    if mode == 'walk':
+        return "WALK"
+    elif mode == 'car':
+        return "RH"
+    else:
+        return "REST"
+
+def pte_to_progress_bar(pte):
+    return "None"
+
+
+scenario.set_trajectoris(all_pte, pte_to_icon_type, pte_to_progress_bar, icons)
+scenario.write_scenario()
+scenario.pack_to_archive()
 
 
 # In[ ]:
