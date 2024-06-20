@@ -49,6 +49,7 @@ import beam.router.skim.ActivitySimSkimmerEvent
 import beam.router.skim.event.{
   DriveTimeSkimmerEvent,
   ODSkimmerEvent,
+  ODVehicleTypeSkimmerEvent,
   RideHailSkimmerEvent,
   UnmatchedRideHailRequestSkimmerEvent
 }
@@ -1612,7 +1613,7 @@ class PersonAgent(
       generalizedTime,
       generalizedCost,
       maybePayloadWeightInKg,
-      curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel,
+      curFuelConsumed.totalEnergyConsumed,
       failedTrip
     )
     eventsManager.processEvent(odSkimmerEvent)
@@ -1622,6 +1623,20 @@ class PersonAgent(
 
     correctedTrip.legs.filter(x => x.beamLeg.mode == BeamMode.CAR || x.beamLeg.mode == BeamMode.CAV).foreach { carLeg =>
       eventsManager.processEvent(DriveTimeSkimmerEvent(tick, beamServices, carLeg))
+    }
+    if (!failedTrip && correctedTrip.tripClassifier == BeamMode.CAR) {
+      val vehicleTypeId = correctedTrip.legs.find(_.beamLeg.mode == CAR).get.beamVehicleTypeId
+      val odVehicleTypeEvent = ODVehicleTypeSkimmerEvent(
+        tick,
+        beamServices,
+        vehicleTypeId,
+        correctedTrip,
+        generalizedTime,
+        generalizedCost,
+        maybePayloadWeightInKg,
+        curFuelConsumed.totalEnergyConsumed
+      )
+      eventsManager.processEvent(odVehicleTypeEvent)
     }
   }
 
