@@ -245,7 +245,7 @@ class Scenario():
     def pack_to_archive(self, archive_type='zip'):
         source = str(self.out_path)
         destination = f"{source}.{archive_type}"
-        
+   
         base, name = os.path.split(destination)
         archive_from = os.path.dirname(source)
         archive_to = os.path.basename(source.strip(os.sep))
@@ -967,7 +967,7 @@ scenario.pack_to_archive()
 ## %%time - is a magic command which calculates how long the execution of the whole cell took, this command should be the first row in a cell
 
 beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
-output_folder_path = "sflight-1k_selected_actor_trip"
+output_folder_path = "sflight-1k_selected_actor_trip_only"
 beam_crs = 26910
 
 scenario = Scenario(beam_output, beam_crs, output_folder_path)
@@ -996,12 +996,11 @@ get_ipython().run_cell_magic('time', '', '### CELL 3 - show selected trip_id\nse
 # In[ ]:
 
 
-selected_person = "015400-2015000437915-3-1833637"
+selected_person = "032802-2015000455334-0-7952563"
 
 is_pte = events_original['type'] == 'PathTraversal'
 with_links = events_original['links'].notna()
 all_pte = events_original[is_pte & with_links].dropna(axis=1, how='all').copy()
-
 
 def is_selected(row):
     if row['driver'] == selected_person:
@@ -1012,6 +1011,16 @@ def is_selected(row):
     return False
 
 all_pte['selected'] = all_pte.apply(is_selected, axis=1)
+
+time_min = all_pte[all_pte['selected'] == True]['time'].min()
+time_max = all_pte[all_pte['selected'] == True]['time'].max()
+
+time_more_than_min = all_pte['time'] > (time_min - 10 * 60.0)
+time_less_than_max = all_pte['time'] < (time_max + 10 * 60.0)
+
+all_pte = all_pte[time_more_than_min & time_less_than_max]
+
+print(f"there are {len(all_pte)} events in dataframe")
 display(all_pte.head(2))
 display(all_pte['selected'].value_counts())
 
@@ -1028,13 +1037,13 @@ icons = [
     },
     {
         "Type":"RH",
-        "BackgroundColor":"fccf03",
+        "BackgroundColor":"bf2e2e",
         "Label":"RH of selected agent",
         "Icon":"Triangle"
     },
     {
         "Type":"REST",
-        "BackgroundColor":"fc0f03",
+        "BackgroundColor":"919191",
         "Label":"the rest of PT event",
         "Icon":"Triangle"
     }
@@ -1055,8 +1064,9 @@ def pte_to_icon_type(path_traversal_event):
 def pte_to_progress_bar(pte):
     return "None"
 
+selected_pte_only = all_pte[all_pte['selected'] == True].copy()
 
-scenario.set_trajectoris(all_pte, pte_to_icon_type, pte_to_progress_bar, icons)
+scenario.set_trajectoris(selected_pte_only, pte_to_icon_type, pte_to_progress_bar, icons)
 scenario.write_scenario()
 scenario.pack_to_archive()
 
@@ -1064,13 +1074,14 @@ scenario.pack_to_archive()
 # In[ ]:
 
 
-
+selected_pte_only = all_pte[all_pte['selected'] == True].copy()
+selected_pte_only
 
 
 # In[ ]:
 
 
-
+events_original[events_original['driver'] == "032802-2015000455334-0-7952563"].dropna(axis=1, how='all')
 
 
 # In[ ]:
