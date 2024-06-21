@@ -5,7 +5,7 @@ As an alternative you could use a prepared beam `docker <https://www.docker.com/
 In order to be able to modify scenario config files we need to export the scenario directory to the host file system.
 To do it execute the following commands in an empty directory::
 
-    docker create --name tmp_beam beammodel/beam:0.8.6.14
+    docker create --name tmp_beam beammodel/beam:0.9.12
     docker cp tmp_beam:/app/test ./
 
 Urbansim SF-light Scenario
@@ -15,12 +15,13 @@ the following command in the beam root directory::
 
   ./gradlew :run -PmaxRAM=10g -PappArgs="['--config', 'test/input/sf-light/sf-light-urbansim-5k-hh.conf']"
 
-The output resides in a directory like *output/sf-light/urbansim-hh5k__2023-12-25_16-55-30_rhs*. The last part of
+The execution of this scenario usually takes about 5 minutes depending on your equipment.
+The simulation output can be found in a directory like *./output/sf-light/urbansim-hh5k__2024-06-25_16-55-30_rhs*. The last part of
 directory name that includes datetime would be different.
 
 In case you are using docker you need to run the following command::
 
-    docker run --rm -v ./output:/app/output -v ./test:/app/test -e JAVA_OPTS='-Xmx10g' beammodel/beam:0.8.6.14 --config test/input/sf-light/sf-light-urbansim-5k-hh.conf
+    docker run --rm -v ./output:/app/output -v ./test:/app/test -e JAVA_OPTS='-Xmx10g' beammodel/beam:0.9.12 --config test/input/sf-light/sf-light-urbansim-5k-hh.conf
 
 
 Urbansim SF-light Scenario with mode choice in Beam
@@ -50,7 +51,8 @@ By changing parameter *initialization.procedural.fractionOfInitialVehicleFleet* 
 ride-hail vehicles. The number of ride-hail vehicles calculated by multiplying this parameter value and total number of
 household vehicles.
 If you set it to 0.01 then you can see multiple Replanning events with the reason "ResourceUnavailable RIDE_HAIL".
-Which indicates that there's not enough ride-hail vehicles.
+Which indicates that there's not enough ride-hail vehicles. The event file is available after the simulation finishes.
+Its location is *./output/sf-light/urbansim-hh5k_TIMESTAMP/ITERS/it.0/0.events.csv.gz*.
 
 
 Simulation Result Analysis
