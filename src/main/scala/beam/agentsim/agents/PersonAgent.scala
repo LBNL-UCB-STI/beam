@@ -1563,8 +1563,8 @@ class PersonAgent(
       (origGeo, destGeo)
     } else {
       (
-        geoMap.getTAZ(currentAct.getCoord).toString,
-        maybeNextAct.map(act => geoMap.getTAZ(act.getCoord).toString).getOrElse("NA")
+        geoMap.getTAZ(currentAct.getCoord).tazId.toString,
+        maybeNextAct.map(act => geoMap.getTAZ(act.getCoord).tazId.toString).getOrElse("NA")
       )
     }
     (origin, destination)
