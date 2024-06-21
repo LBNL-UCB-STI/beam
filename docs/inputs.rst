@@ -1179,7 +1179,6 @@ There's the list of parameters responsible for writing out data produced by BEAM
     beam.outputs.writeGraphs = true
     beam.outputs.writePlansInterval = 0
     beam.outputs.writeEventsInterval = 1
-    beam.outputs.writeAnalysis = true
     beam.outputs.writeR5RoutesInterval = 0
     beam.physsim.writeEventsInterval = 0
     beam.physsim.events.fileOutputFormats = "csv" # valid options: xml(.gz) , csv(.gz), none - DEFAULT: csv.gz
@@ -1198,6 +1197,11 @@ There's the list of parameters responsible for writing out data produced by BEAM
     beam.outputs.matsim.deleteITERSFolderFiles = ""
     beam.outputs.matsim.deleteRootFolderFiles = ""
     beam.outputs.stats.binSize = 3600
+    beam.outputs.analysis = {
+        iterationScripts = []
+        simulationScripts = []
+        processWaitTimeInMinutes = 5
+    }
     # Skims configuration
     beam.router.skim = {
       keepKLatestSkims = 1
@@ -1262,7 +1266,6 @@ writing is disabled.
 * outputs.writeGraphs: enable writing activity locations to #.activityLocations.png
 * outputs.writePlansInterval: enable writing plans of persons at the iteration to #.plans.csv.gz
 * outputs.writeEventsInterval: enable writing AgentSim events to #.events.csv.gz
-* outputs.writeAnalysis: enable analysis with python script analyze_events.py and writing different data files
 * outputs.writeR5RoutesInterval: enable writing routing requests/responses to files #.routingRequest.parquet, #.routingResponse.parquet, #.embodyWithCurrentTravelTime.parquet
 * physsim.writeEventsInterval: enable writing physsim events to #.physSimEvents.csv.gz
 * physsim.events.fileOutputFormats: file format for physsim event file; valid options: xml(.gz) , csv(.gz), none - DEFAULT: csv.gz
@@ -1280,6 +1283,9 @@ writing is disabled.
 * outputs.matsim.deleteITERSFolderFiles: comma separated list of matsim iteration output files to be deleted before beam shutdown.
 * outputs.matsim.deleteRootFolderFiles: comma separated list of matsim root output files to be deleted before beam shutdown.
 * outputs.stats.binSize: bin size for various histograms.
+* outputs.analysis.iterationScripts: array of python scripts that are run at the end of each iteration.
+* outputs.analysis.simulationScripts: array of python scripts that are run at the end of the simulation.
+* outputs.processWaitTimeInMinutes: How much time in minutes Beam waits for the script to end after the simulation finishes
 * router.skim.keepKLatestSkims: How many skim data iterations to keep
 * router.skim.writeSkimsInterval: enable writing all skim data for a particular iteration to corresponding files
 * router.skim.writeAggregatedSkimsInterval: enable writing all aggregated skim data (for all iterations) to corresponding files
@@ -1470,4 +1476,4 @@ Parameters that are not supported anymore
     beam.physsim.relaxation.experiment5_1.percentToSimulate
     beam.physsim.relaxation.experiment5_2.percentToSimulate
     beam.urbansim.backgroundODSkimsCreator.*
-
+    beam.outputs.writeAnalysis

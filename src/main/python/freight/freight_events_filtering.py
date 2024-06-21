@@ -2,13 +2,13 @@ import pandas as pd
 import os
 import sys
 
-city = "austin"
-scenario = "scenarios-23Jan2024"
+city = "seattle"
+scenario = "2024-04-23"
 iteration = 0
 prefix = ""
 filename = prefix+str(iteration)+'.events.csv.gz'
 
-batches = ["Base_RouteE/"]
+batches = ["Baseline/"]
 
 for batch in batches:
     local_work_directory = '~/Workspace/Data/FREIGHT/'+city+'/beam/runs/'+scenario+'/'+batch
