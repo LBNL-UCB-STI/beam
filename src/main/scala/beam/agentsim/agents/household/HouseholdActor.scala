@@ -42,6 +42,7 @@ import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.DateUtils
 import beam.utils.logging.LoggingMessageActor
 import beam.utils.logging.pattern.ask
+import beam.utils.scenario.HouseholdId
 import com.conveyal.r5.transit.TransportNetwork
 import com.typesafe.scalalogging.LazyLogging
 import org.apache.commons.math3.distribution.UniformRealDistribution
@@ -682,7 +683,8 @@ object HouseholdActor {
                 household.getMemberIds.size(),
                 householdPopulation = null,
                 whenWhere.loc,
-                realDistribution
+                realDistribution,
+                Option(HouseholdId(household.getId.toString))
               )
               .headOption
               .orElse {

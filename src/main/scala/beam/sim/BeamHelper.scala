@@ -327,7 +327,14 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       logger.info(s"Following activities will have fixed durations: ${fixedActivitiesDurations.mkString(",")}")
     }
 
-    val (privateVehicleMap, privateVehicleSoc) = readPrivateVehicles(beamConfig, vehicleTypes)
+    val (privateVehicleMap, privateVehicleSoc) = beamConfig.beam.exchange.scenario.source.toLowerCase match {
+      // when reading an urbansim scenario, we read in the vehicles again in ScenarioAdjustment, so there's no need to
+      // bother reading it in now. For now we still do read in freight vehicles, although it's probably cleaner to move
+      // that back to ScenarioAdjustment as well
+      case "urbansim" | "urbansim_v2" =>
+        (TrieMap.empty[Id[BeamVehicle], BeamVehicle], TrieMap.empty[Id[BeamVehicle], Double])
+      case _ => readPrivateVehicles(beamConfig, vehicleTypes)
+    }
     BeamScenario(
       readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
       vehicleTypes,
@@ -824,10 +831,12 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
                 val pathToPersonFile = s"${beamConfig.beam.exchange.scenario.folder}/persons.csv.gz"
                 val pathToPlans = s"${beamConfig.beam.exchange.scenario.folder}/plans.csv.gz"
                 val pathToBlocks = s"${beamConfig.beam.exchange.scenario.folder}/blocks.csv.gz"
+                val pathToVehicles = s"${beamConfig.beam.exchange.scenario.folder}/vehicles.csv.gz"
                 new UrbansimReaderV2(
                   inputPersonPath = pathToPersonFile,
                   inputPlanPath = pathToPlans,
                   inputHouseholdPath = pathToHouseholds,
+                  inputVehiclePath = pathToVehicles,
                   inputBlockPath = pathToBlocks,
                   geoUtils,
                   shouldConvertWgs2Utm = beamConfig.beam.exchange.scenario.convertWgs2Utm,
