@@ -218,6 +218,7 @@ object VehicleEnergy {
       csvParser: CsvParser,
       fuelTypeOption: Option[FuelType]
     ): ConsumptionRateFilterStore.ConsumptionRateFilter = {
+      import beam.utils.BeamVehicleUtils._
       val currentRateFilter = mutable.Map
         .empty[DoubleTypedRange, mutable.Map[
           DoubleTypedRange,
@@ -291,12 +292,6 @@ object VehicleEnergy {
         }
       }
     }
-
-    private def convertRecordStringToRange(recordString: String) =
-      Range(recordString.replace(",", ":").replace(" ", ""))
-
-    private def convertRecordStringToDoubleTypedRange(recordString: String) =
-      DoubleTypedRange(recordString.replace(",", ":").replace(" ", ""))
 
     private def convertFromGallonsPer100MilesToJoulesPerMeter(rate: Double): Double =
       rate * conversionRateForJoulesPerMeterConversionFromGallonsPer100Miles

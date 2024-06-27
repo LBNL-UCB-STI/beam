@@ -266,14 +266,14 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
 
   def loadScenario(beamConfig: BeamConfig, outputDirMaybe: Option[String] = None): BeamScenario = {
     val vehicleTypes = maybeScaleTransit(beamConfig, readBeamVehicleTypeFile(beamConfig))
-    val vehicleCsvReader = new VehicleCsvReader(beamConfig)
+    val vehicleCsvReader = new VehicleEnergy.VehicleCsvReader(beamConfig)
     // TODO This needs to change. We always assume that vehicle fuel consumption are in the same folder ass vehicleTypes
     val vehicleTypesBasePaths = IndexedSeq(
       Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent.toString
     )
 
     val consumptionRateFilterStore =
-      new ConsumptionRateFilterStoreImpl(
+      new VehicleEnergy.ConsumptionRateFilterStoreImpl(
         vehicleCsvReader.getVehicleEnergyRecordsUsing,
         vehicleTypesBasePaths,
         primaryConsumptionRateFilePathsByVehicleType =
@@ -282,8 +282,13 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
           vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
       )
 
-    vehicleTypes.values.map(x => (x, x.primaryVehicleEmissionsFile)).toIndexedSeq
-    vehicleTypes.values.map(x => (x, x.secondaryVehicleEmissionsFile)).toIndexedSeq
+    new VehicleEmissions.Ve
+    val emissionsRateFilterStore = new VehicleEmissions.EmissionsRateFilterStoreImpl(
+      vehicleTypesBasePaths,
+      emissionsRateFilePathsByVehicleType = vehicleTypes.values.map(x => (x, x.vehicleEmissionsFile)).toIndexedSeq
+    )
+
+
 
     val dates = DateUtils(
       ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,

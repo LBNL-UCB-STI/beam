@@ -4,6 +4,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.sim.common.{DoubleTypedRange, Range}
 import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import org.matsim.api.core.v01.Id
@@ -65,15 +66,16 @@ object BeamVehicleUtils {
     * @param vehicleCategory the vehicle category
     * @return an average curb weight of a vehicle that belongs to the provided category (in kg)
     */
-  private def vehcileCategoryToWeightInKg(vehicleCategory: VehicleCategory.VehicleCategory): Double = vehicleCategory match {
-    case VehicleCategory.Body                => 70
-    case VehicleCategory.Bike                => 80
-    case VehicleCategory.Car                 => 2000 // Class 1&2a (GVWR <= 8500 lbs.)
-    case VehicleCategory.MediumDutyPassenger => 2500
-    case VehicleCategory.LightHeavyDutyTruck => 3500 // Class 2b&3 (GVWR 8501-14000 lbs.)
-    case VehicleCategory.MediumHeavyDutyTruck      => 5500 // Class 4-6 (GVWR 14001-26000 lbs.)
-    case VehicleCategory.HeavyHeavyDutyTruck      => 10500 // CLass 7&8 (GVWR 26001 to >33,001 lbs.)
-  }
+  private def vehcileCategoryToWeightInKg(vehicleCategory: VehicleCategory.VehicleCategory): Double =
+    vehicleCategory match {
+      case VehicleCategory.Body                 => 70
+      case VehicleCategory.Bike                 => 80
+      case VehicleCategory.Car                  => 2000 // Class 1&2a (GVWR <= 8500 lbs.)
+      case VehicleCategory.MediumDutyPassenger  => 2500
+      case VehicleCategory.LightHeavyDutyTruck  => 3500 // Class 2b&3 (GVWR 8501-14000 lbs.)
+      case VehicleCategory.MediumHeavyDutyTruck => 5500 // Class 4-6 (GVWR 14001-26000 lbs.)
+      case VehicleCategory.HeavyHeavyDutyTruck  => 10500 // CLass 7&8 (GVWR 26001 to >33,001 lbs.)
+    }
 
   def readBeamVehicleTypeFile(filePath: String): Map[Id[BeamVehicleType], BeamVehicleType] = {
     readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
@@ -111,8 +113,7 @@ object BeamVehicleUtils {
         val payloadCapacity = Option(line.get("payloadCapacityInKg")).map(_.toDouble)
         val wheelchairAccessible = Option(line.get("wheelchairAccessible")).map(_.toBoolean)
         val restrictRoadsByFreeSpeed = Option(line.get("restrictRoadsByFreeSpeedInMeterPerSecond")).map(_.toDouble)
-        val primaryVehicleEmissionsFile = Option(line.get("primaryVehicleEmissionsFile"))
-        val secondaryVehicleEmissionsFile = Option(line.get("secondaryVehicleEmissionsFile"))
+        val vehicleEmissionsFile = Option(line.get("vehicleEmissionsFile"))
 
         val bvt = BeamVehicleType(
           vehicleTypeId,
@@ -142,8 +143,7 @@ object BeamVehicleUtils {
           payloadCapacity,
           wheelchairAccessible,
           restrictRoadsByFreeSpeed,
-          primaryVehicleEmissionsFile,
-          secondaryVehicleEmissionsFile
+          vehicleEmissionsFile
         )
         z += ((vehicleTypeId, bvt))
     }.toMap
@@ -198,4 +198,10 @@ object BeamVehicleUtils {
     if (durationInSecond > 0 && energyInJoule >= 0) (energyInJoule / 3.6e+6) / (durationInSecond / 3600.0)
     else 0
   }
+
+  def convertRecordStringToRange(recordString: String) =
+    Range(recordString.replace(",", ":").replace(" ", ""))
+
+  def convertRecordStringToDoubleTypedRange(recordString: String) =
+    DoubleTypedRange(recordString.replace(",", ":").replace(" ", ""))
 }
