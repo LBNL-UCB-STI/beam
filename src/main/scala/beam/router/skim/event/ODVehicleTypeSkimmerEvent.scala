@@ -4,7 +4,12 @@ import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.SkimsUtils
-import beam.router.skim.core.ODVehicleTypeSkimmer.{ODVehicleTypeSkimmerInternal, ODVehicleTypeSkimmerKey}
+import beam.router.skim.core.ODVehicleTypeSkimmer.{
+  ODVehicleTypeSkimmerInternal,
+  ODVehicleTypeSkimmerKey,
+  VehicleTypeKey,
+  VehicleTypePart
+}
 import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey, ODVehicleTypeSkimmer}
 import beam.sim.BeamServices
 import beam.utils.MathUtils.doubleToInt
@@ -17,7 +22,7 @@ class ODVehicleTypeSkimmerEvent(
   eventTime: Double,
   origin: Id[TAZ],
   destination: Id[TAZ],
-  vehicleTypeId: Id[BeamVehicleType],
+  vehicleTypePart: VehicleTypePart,
   distanceInM: Double,
   travelTimeInS: Double,
   generalizedTimeInHours: Double,
@@ -30,7 +35,7 @@ class ODVehicleTypeSkimmerEvent(
   override protected val skimName: String = ODVehicleTypeSkimmer.name
 
   override val getKey: AbstractSkimmerKey =
-    ODVehicleTypeSkimmerKey(SkimsUtils.timeToBin(doubleToInt(eventTime)), vehicleTypeId, origin, destination)
+    ODVehicleTypeSkimmerKey(SkimsUtils.timeToBin(doubleToInt(eventTime)), vehicleTypePart, origin, destination)
 
   override val getSkimmerInternal: AbstractSkimmerInternal =
     ODVehicleTypeSkimmerInternal(
@@ -71,11 +76,16 @@ object ODVehicleTypeSkimmerEvent {
       .tazId
     val distanceInM = beamLegs.map(_.travelPath.distanceInM).sum
     val travelTime = correctedTrip.totalTravelTimeInSecs.toDouble
+    val vehicleTypeKey = VehicleTypeKey
+      .fromString(beamConfig.beam.router.skim.origin_destination_vehicle_type_skimmer.vehicleTypeKey)
+      .getOrElse(VehicleTypeKey.VehicleTypeIdKey)
+    val vehicleType = beamScenario.vehicleTypes(vehicleTypeId)
+    val vehicleTypePart = VehicleTypePart(vehicleTypeKey, vehicleType)
     new ODVehicleTypeSkimmerEvent(
       eventTime,
       origTaz,
       destTaz,
-      vehicleTypeId,
+      vehicleTypePart,
       if (distanceInM > 0.0) distanceInM else 1.0,
       travelTime,
       generalizedTimeInHours,
