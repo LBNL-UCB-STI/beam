@@ -74,6 +74,7 @@ class UrbanSimScenarioSource(
         // TODO: DataExchange.PlanElement does not have the following leg information
         legDepartureTime = None,
         legTravelTime = None,
+        legExpectedTravelTime = None,
         legRouteType = None,
         legRouteStartLink = None,
         legRouteEndLink = None,

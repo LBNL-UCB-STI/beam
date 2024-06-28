@@ -150,6 +150,7 @@ class BeamScoringFunctionFactory @Inject() (
         }
 
         val allDayScore = modeChoiceCalculator.computeAllDayUtility(trips, person, attributes)
+        val expectedTrips = trips.zip(personLegs).map { case (x, y) => x.totalTravelTimeInSecs }
         val personActivities = person.getSelectedPlan.getPlanElements.asScala
           .collect { case activity: Activity =>
             activity

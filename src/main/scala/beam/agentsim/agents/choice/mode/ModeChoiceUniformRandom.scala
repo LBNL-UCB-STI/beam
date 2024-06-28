@@ -46,6 +46,7 @@ class ModeChoiceUniformRandom(val beamConfig: BeamConfig) extends ModeChoiceCalc
   override def computeAllDayUtility(
     trips: ListBuffer[EmbodiedBeamTrip],
     person: Person,
-    attributesOfIndividual: AttributesOfIndividual
+    attributesOfIndividual: AttributesOfIndividual,
+    overrideAttributes: Seq[Map[String, Double]] = Seq.empty[Map[String, Double]]
   ): Double = 0.0
 }

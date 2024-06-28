@@ -292,7 +292,8 @@ class ModeChoiceLCCM(
   override def computeAllDayUtility(
     trips: ListBuffer[EmbodiedBeamTrip],
     person: Person,
-    attributesOfIndividual: AttributesOfIndividual
+    attributesOfIndividual: AttributesOfIndividual,
+    overrideAttributes: Seq[Map[String, Double]] = Seq.empty[Map[String, Double]]
   ): Double = {
     // Compute and log all-day score w.r.t. all modality styles
     // One of them has many suspicious-looking 0.0 values. Probably something which

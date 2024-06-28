@@ -597,9 +597,20 @@ class ModeChoiceMultinomialLogit(
   override def computeAllDayUtility(
     trips: ListBuffer[EmbodiedBeamTrip],
     person: Person,
-    attributesOfIndividual: AttributesOfIndividual
+    attributesOfIndividual: AttributesOfIndividual,
+    overrideAttributes: Seq[Map[String, Double]] = Seq.empty[Map[String, Double]]
   ): Double =
-    trips.map(trip => utilityOf(trip, attributesOfIndividual, None, None)).sum // TODO: Update with destination activity
+    trips.map { trip =>
+      val mccm = altsToModeCostTimeTransfers(
+        IndexedSeq(trip),
+        attributesOfIndividual,
+        None,
+        None
+      ).head
+      // TODO: Adjust travel time in newmcc to reflect difference with actual time
+      val newmcc = mccm.copy()
+      utilityOf(newmcc)
+    }.sum // TODO: Update with destination activity
 }
 
 object ModeChoiceMultinomialLogit extends StrictLogging {
