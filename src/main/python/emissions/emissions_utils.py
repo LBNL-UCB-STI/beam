@@ -156,9 +156,13 @@ def get_regional_emfac_data(emfac_data_filepath, emfac_regions):
         return emfac_filtered
 
 
-def mapping_vehicle_types(emfac_pop_file_, famos_vehicle_types_file_, famos_emfac_file_out_):
+# This function is obsolete. It is because I tried to map vehicles types in emfac with famos without taking into
+# consideration vehicle distribution, activities and payload types.
+# EMFAC vehicle types are rich in characteristics like cement trucks and out of state trucks. Matching them can only be
+# by looking into payload plans
+def map_emfac_vehicle_types_to_famos(emfac_pop_file_, famos_vehicle_types_file_, famos_emfac_file_out_):
     # ## Population ##
-    sf_emfac_pop = pd.read_csv(emfac_pop_file_)
+    emfac_pop = pd.read_csv(emfac_pop_file_)
     famos_vehicle_types = pd.read_csv(famos_vehicle_types_file_)
 
     # Prepare the new dataframe based on the format of freight_only_df
@@ -166,7 +170,7 @@ def mapping_vehicle_types(emfac_pop_file_, famos_vehicle_types_file_, famos_emfa
     new_df = pd.DataFrame(columns=new_columns)
 
     # Iterate over each row in the sf_normalized_df and find the closest match in freight_only_df
-    for index, row in sf_emfac_pop.iterrows():
+    for index, row in emfac_pop.iterrows():
         matched_class_fuel = famos_vehicle_types[
             (famos_vehicle_types['vehicleClass'] == emfac_class_to_famos_class_map[row['vehicle_class']]) &
             (famos_vehicle_types['primaryFuelType'] == emfac_fuel_to_beam_fuel_map[row['fuel']])
@@ -185,6 +189,7 @@ def mapping_vehicle_types(emfac_pop_file_, famos_vehicle_types_file_, famos_emfa
             ]
 
         if not matched_class_fuel.empty:
+            # If both emfac vehicle class and fuel types are in famos, then match them
             new_row = matched_class_fuel.iloc[0].copy()
             new_row['emfacPopulationSize'] = row['sum_population']
             new_row['emfacPopulationPct'] = row['share_population']
@@ -194,6 +199,7 @@ def mapping_vehicle_types(emfac_pop_file_, famos_vehicle_types_file_, famos_emfa
             new_df = pd.concat([new_df, pd.DataFrame([new_row])], ignore_index=True)
 
         elif not matched_class_phev.empty:
+            # If both emfac vehicle class and PHEV type are in famos, then match them
             new_row = matched_class_phev.iloc[0].copy()
             new_row['emfacPopulationSize'] = row['sum_population']
             new_row['emfacPopulationPct'] = row['share_population']
@@ -203,6 +209,7 @@ def mapping_vehicle_types(emfac_pop_file_, famos_vehicle_types_file_, famos_emfa
             new_df = pd.concat([new_df, pd.DataFrame([new_row])], ignore_index=True)
 
         elif not matched_fuel_only.empty:
+            # If only fuel type is in famos, then match fuel and update vehicle cLass
             new_row = matched_fuel_only.iloc[0].copy()
             new_row['emfacPopulationSize'] = row['sum_population']
             new_row['emfacPopulationPct'] = row['share_population']
@@ -215,6 +222,8 @@ def mapping_vehicle_types(emfac_pop_file_, famos_vehicle_types_file_, famos_emfa
             new_df = pd.concat([new_df, pd.DataFrame([new_row])], ignore_index=True)
 
         elif emfac_fuel_to_beam_fuel_map[row['fuel']] in ['NaturalGas', 'Gasoline']:
+            # If only fuel type is in either NatGas or Gas, then create new fuel entry and then check if class matches.
+            # If class doesn't match then update vehicle class.
             matched_other_fuel = famos_vehicle_types[
                 famos_vehicle_types['primaryFuelType'].isin(['Diesel', 'Gasoline'])]
             new_row = matched_other_fuel.iloc[0].copy()

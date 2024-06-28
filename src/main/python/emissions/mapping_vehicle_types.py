@@ -3,7 +3,11 @@ import pygris
 import numpy as np
 # pd.set_option('display.max_columns', 20)
 #
-# vehicle_types = mapping_vehicle_types(sf_emfac_pop_file, famos_vehicle_types_file, famos_emfac_file_out)
+# sf_emfac_pop_file = '~/Workspace/Models/emfac/2018/SF_Normalized_Default_Statewide_2018_Annual_fleet_data_population_20240311153419.csv'
+# famos_vehicle_types_file = '~/Workspace/Data/FREIGHT/sfbay/beam_freight/2024-01-23/Baseline/freight-vehicletypes.csv'
+# famos_emfac_file_out = '~/Workspace/Data/FREIGHT/sfbay/beam_freight/2024-01-23/Baseline/emfac-freight-vehicletypes.csv'
+#
+# vehicle_types = map_emfac_vehicle_types_to_famos(sf_emfac_pop_file, famos_vehicle_types_file, famos_emfac_file_out)
 # # Display the first few rows of the new dataframe to verify
 # print(vehicle_types.head())
 
