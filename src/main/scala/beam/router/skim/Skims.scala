@@ -19,6 +19,7 @@ class Skims @Inject() (
   driveTimeSkimmer: DriveTimeSkimmer,
   transitCrowdingSkimmer: TransitCrowdingSkimmer,
   rideHailSkimmer: RideHailSkimmer,
+  odVehicleTypeSkimmer: ODVehicleTypeSkimmer,
   freightSkimmer: FreightSkimmer,
   parkingSkimmer: ParkingSkimmer,
   asSkimmer: ActivitySimSkimmer
@@ -30,6 +31,9 @@ class Skims @Inject() (
   lazy val dt_skimmer: DriveTimeSkims = lookup(SkimType.DT_SKIMMER).asInstanceOf[DriveTimeSkims]
   lazy val tc_skimmer: TransitCrowdingSkims = lookup(SkimType.TC_SKIMMER).asInstanceOf[TransitCrowdingSkims]
   lazy val rh_skimmer: RideHailSkims = lookup(SkimType.RH_SKIMMER).asInstanceOf[RideHailSkims]
+
+  lazy val od_vehicle_type_skimmer: ODVehicleTypeSkims =
+    lookup(SkimType.OD_VEHICLE_TYPE_SKIMMER).asInstanceOf[ODVehicleTypeSkims]
   lazy val freight_skimmer: FreightSkims = lookup(SkimType.FREIGHT_SKIMMER).asInstanceOf[FreightSkims]
   lazy val parking_skimmer: ParkingSkims = lookup(SkimType.PARKING_SKIMMER).asInstanceOf[ParkingSkims]
 
@@ -39,6 +43,7 @@ class Skims @Inject() (
   skims.put(SkimType.DT_SKIMMER, addEvent(driveTimeSkimmer))
   skims.put(SkimType.TC_SKIMMER, addEvent(transitCrowdingSkimmer))
   skims.put(SkimType.RH_SKIMMER, addEvent(rideHailSkimmer))
+  skims.put(SkimType.OD_VEHICLE_TYPE_SKIMMER, addEvent(odVehicleTypeSkimmer))
   skims.put(SkimType.FREIGHT_SKIMMER, addEvent(freightSkimmer))
   skims.put(SkimType.PARKING_SKIMMER, addEvent(parkingSkimmer))
   skims.put(SkimType.AS_SKIMMER, addEvent(asSkimmer))
@@ -62,19 +67,21 @@ object Skims {
     val DT_SKIMMER: skim.Skims.SkimType.Value = Value("drive-time-skimmer")
     val TC_SKIMMER: skim.Skims.SkimType.Value = Value("transit-crowding-skimmer")
     val RH_SKIMMER: skim.Skims.SkimType.Value = Value("ridehail-skimmer")
+    val OD_VEHICLE_TYPE_SKIMMER: router.skim.Skims.SkimType.Value = Value("od-vehicle-type-skimmer")
     val FREIGHT_SKIMMER: skim.Skims.SkimType.Value = Value("freight-skimmer")
     val PARKING_SKIMMER: skim.Skims.SkimType.Value = Value("parking-skimmer")
     val AS_SKIMMER: router.skim.Skims.SkimType.Value = Value("activity-sim-skimmer")
   }
 
   def skimFileNames(skimCfg: Router.Skim) = IndexedSeq(
-    SkimType.OD_SKIMMER      -> skimCfg.origin_destination_skimmer.fileBaseName,
-    SkimType.TAZ_SKIMMER     -> skimCfg.taz_skimmer.fileBaseName,
-    SkimType.DT_SKIMMER      -> skimCfg.drive_time_skimmer.fileBaseName,
-    SkimType.RH_SKIMMER      -> RideHailSkimmer.fileBaseName,
-    SkimType.FREIGHT_SKIMMER -> FreightSkimmer.fileBaseName,
-    SkimType.PARKING_SKIMMER -> ParkingSkimmer.fileBaseName,
-    SkimType.TC_SKIMMER      -> skimCfg.transit_crowding_skimmer.fileBaseName
+    SkimType.OD_SKIMMER              -> skimCfg.origin_destination_skimmer.fileBaseName,
+    SkimType.TAZ_SKIMMER             -> skimCfg.taz_skimmer.fileBaseName,
+    SkimType.DT_SKIMMER              -> skimCfg.drive_time_skimmer.fileBaseName,
+    SkimType.RH_SKIMMER              -> RideHailSkimmer.fileBaseName,
+    SkimType.OD_VEHICLE_TYPE_SKIMMER -> ODVehicleTypeSkimmer.fileBaseName,
+    SkimType.FREIGHT_SKIMMER         -> FreightSkimmer.fileBaseName,
+    SkimType.PARKING_SKIMMER         -> ParkingSkimmer.fileBaseName,
+    SkimType.TC_SKIMMER              -> skimCfg.transit_crowding_skimmer.fileBaseName
   )
 
   def skimAggregatedFileNames(skimCfg: Router.Skim): IndexedSeq[(SkimType.Value, String)] =
