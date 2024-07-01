@@ -77,7 +77,15 @@ class ModeChoiceMultinomialLogit(
         (mct.embodiedBeamTrip, theParams ++ transferParam)
       }.toMap
 
-      val alternativesWithUtility = model.calcAlternativesWithUtility(inputData)
+      val scaleFactor = beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.units.toLowerCase match {
+        case "dollars" => None
+        case "utils" =>
+          Some(
+            beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.params.time / attributesOfIndividual.valueOfTime * 60.0
+          )
+      }
+
+      val alternativesWithUtility = model.calcAlternativesWithUtility(inputData, scaleFactor)
       val chosenModeOpt = model.sampleAlternative(alternativesWithUtility, random)
 
       expectedMaximumUtility = model.getExpectedMaximumUtility(inputData).getOrElse(0)
@@ -583,7 +591,7 @@ class ModeChoiceMultinomialLogit(
     numTransfers: Int = 0,
     transitOccupancyLevel: Double
   ): Double = {
-    modeModel.getUtilityOfAlternative(mode, attributes(cost, transitOccupancyLevel, numTransfers)).getOrElse(0)
+    modeModel.getUtilityOfAlternative(mode, attributes(cost + time, transitOccupancyLevel, numTransfers)).getOrElse(0)
   }
 
   private def attributes(cost: Double, transitOccupancyLevel: Double, numTransfers: Int) = {
@@ -595,21 +603,32 @@ class ModeChoiceMultinomialLogit(
   }
 
   override def computeAllDayUtility(
-    trips: ListBuffer[EmbodiedBeamTrip],
+    trips: Map[EmbodiedBeamTrip, Map[String, Double]],
     person: Person,
     attributesOfIndividual: AttributesOfIndividual,
-    overrideAttributes: Seq[Map[String, Double]] = Seq.empty[Map[String, Double]]
+    overrideAttributes: Boolean = false
   ): Double =
-    trips.map { trip =>
-      val mccm = altsToModeCostTimeTransfers(
+    trips.map { case (trip, mods) =>
+      val modeChoiceData = altsToModeCostTimeTransfers(
         IndexedSeq(trip),
         attributesOfIndividual,
         None,
         None
       ).head
-      // TODO: Adjust travel time in newmcc to reflect difference with actual time
-      val newmcc = mccm.copy()
-      utilityOf(newmcc)
+
+      val newScaledTime = if (overrideAttributes) {
+        modeChoiceData.scaledTime / mods.getOrElse("travelTimeRatio", 1.0)
+      } else { modeChoiceData.scaledTime }
+
+      // Placeholder to subtract off other components (e.g. cost) if they differ from expected values
+
+      utilityOf(
+        trip.tripClassifier,
+        modeChoiceData.cost,
+        newScaledTime,
+        modeChoiceData.numTransfers,
+        modeChoiceData.transitOccupancyLevel
+      )
     }.sum // TODO: Update with destination activity
 }
 

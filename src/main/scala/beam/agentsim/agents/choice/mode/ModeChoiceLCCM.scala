@@ -290,10 +290,10 @@ class ModeChoiceLCCM(
   ): Double = 0.0
 
   override def computeAllDayUtility(
-    trips: ListBuffer[EmbodiedBeamTrip],
+    trips: Map[EmbodiedBeamTrip, Map[String, Double]],
     person: Person,
     attributesOfIndividual: AttributesOfIndividual,
-    overrideAttributes: Seq[Map[String, Double]] = Seq.empty[Map[String, Double]]
+    overrideAttributes: Boolean = false
   ): Double = {
     // Compute and log all-day score w.r.t. all modality styles
     // One of them has many suspicious-looking 0.0 values. Probably something which
@@ -306,7 +306,7 @@ class ModeChoiceLCCM(
       }
       .toMap
       .mapValues(modeChoiceCalculatorForStyle =>
-        trips.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributesOfIndividual, None, None)).sum
+        trips.keys.map(trip => modeChoiceCalculatorForStyle.utilityOf(trip, attributesOfIndividual, None, None)).sum
       )
       .toArray
       .toMap // to force computation DO NOT TOUCH IT, because here is call-by-name and it's lazy which will hold a lot of memory !!! :)

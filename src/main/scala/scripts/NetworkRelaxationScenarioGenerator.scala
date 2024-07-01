@@ -42,11 +42,15 @@ class NetworkRelaxationScenarioGenerator {
         householdId = i.toString,
         age = 20 + Random.nextInt(50),
         sex = if (Random.nextBoolean()) Male else Female,
+        None,
         None
       )
     }
     val csvWriter =
-      new CsvWriter(scenarioDir.getPath + "/persons.csv.gz", Seq("person_id", "household_id", "age", "sex"))
+      new CsvWriter(
+        scenarioDir.getPath + "/persons.csv.gz",
+        Seq("person_id", "household_id", "age", "sex", "value_of_time")
+      )
     try {
       persons.foreach { person =>
         csvWriter.write(
@@ -56,7 +60,8 @@ class NetworkRelaxationScenarioGenerator {
           person.sex match {
             case Male   => 1
             case Female => 2
-          }
+          },
+          person.valueOfTime.getOrElse("")
         )
       }
     } finally {

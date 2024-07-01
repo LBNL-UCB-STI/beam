@@ -44,8 +44,10 @@ class MultinomialLogit[A, T](
   }
 
   def calcAlternativesWithUtility(
-    alternatives: Map[A, Map[T, Double]]
+    alternatives: Map[A, Map[T, Double]],
+    override_scale_factor_option: Option[Double] = None
   ): Iterable[AlternativeWithUtility[A]] = {
+    val override_scale_factor = override_scale_factor_option.getOrElse(scale_factor)
     // evaluate utility of alternatives
     val altsWithUtility: Iterable[AlternativeWithUtility[A]] =
       alternatives.foldLeft(List.empty[AlternativeWithUtility[A]]) { case (accumulator, (alt, attributes)) =>
@@ -56,14 +58,14 @@ class MultinomialLogit[A, T](
               // place on tail of list, allowing us to short-circuit the sampling in next step
               accumulator :+ AlternativeWithUtility(
                 alt,
-                thisUtility * scale_factor,
-                math.exp(thisUtility * scale_factor)
+                thisUtility * override_scale_factor,
+                math.exp(thisUtility * override_scale_factor)
               )
             } else {
               AlternativeWithUtility(
                 alt,
-                thisUtility * scale_factor,
-                math.exp(thisUtility * scale_factor)
+                thisUtility * override_scale_factor,
+                math.exp(thisUtility * override_scale_factor)
               ) +: accumulator
             }
         }
@@ -123,18 +125,20 @@ class MultinomialLogit[A, T](
     * @return
     */
   def getExpectedMaximumUtility(
-    alternatives: Map[A, Map[T, Double]]
+    alternatives: Map[A, Map[T, Double]],
+    override_scale_factor_option: Option[Double] = None
   ): Option[Double] = {
+    val override_scale_factor = override_scale_factor_option.getOrElse(scale_factor)
     val scaledUtilityOfAlternatives: Iterable[Double] =
       for {
         (alt, attributes) <- alternatives
         utility           <- getUtilityOfAlternative(alt, attributes)
       } yield {
-        utility * scale_factor
+        utility * override_scale_factor
       }
 
     if (scaledUtilityOfAlternatives.isEmpty) None
-    else Some { MathUtils.logSumExp(scaledUtilityOfAlternatives) / scale_factor }
+    else Some { MathUtils.logSumExp(scaledUtilityOfAlternatives) / override_scale_factor }
   }
 
   /**

@@ -11,6 +11,7 @@ import beam.sim.population.AttributesOfIndividual
 import beam.sim.population.PopulationAdjustment._
 import beam.utils.{FileUtils, OutputDataDescriptor}
 import com.typesafe.scalalogging.LazyLogging
+import org.apache.commons.lang3.math.NumberUtils
 import org.matsim.api.core.v01.events.{Event, PersonArrivalEvent}
 import org.matsim.api.core.v01.population.{Activity, Leg, Person}
 import org.matsim.core.controler.OutputDirectoryHierarchy
@@ -149,8 +150,31 @@ class BeamScoringFunctionFactory @Inject() (
           leg.getAttributes.putAttribute("vehicles", trip.vehiclesInTrip.mkString(","))
         }
 
-        val allDayScore = modeChoiceCalculator.computeAllDayUtility(trips, person, attributes)
-        val expectedTrips = trips.zip(personLegs).map { case (x, y) => x.totalTravelTimeInSecs }
+        val tripsWithUpdatedAttributes = trips
+          .zip(personLegs)
+          .map { case (x, y) =>
+            x -> Map(
+              "travelTimeRatio" -> x.totalTravelTimeInSecs.toDouble / 60.0 / NumberUtils
+                .toDouble(y.getAttributes.getAttribute("trip_dur_min").toString)
+            )
+          }
+          .toMap
+        val allDayExpectedScore = if (beamConfig.beam.replanning.subtractExpectedScores) {
+          modeChoiceCalculator.computeAllDayUtility(
+            tripsWithUpdatedAttributes,
+            person,
+            attributes,
+            overrideAttributes = true
+          )
+        } else { 0.0 }
+        val allDayScore =
+          modeChoiceCalculator.computeAllDayUtility(
+            tripsWithUpdatedAttributes,
+            person,
+            attributes,
+            overrideAttributes = false
+          )
+
         val personActivities = person.getSelectedPlan.getPlanElements.asScala
           .collect { case activity: Activity =>
             activity
@@ -158,8 +182,14 @@ class BeamScoringFunctionFactory @Inject() (
           .filter(activity => !activity.getType.equalsIgnoreCase("Home") & !activity.getType.equalsIgnoreCase("Work"))
         val activityScore = personActivities.foldLeft(0.0)(_ + getActivityBenefit(_, attributes))
         val replanningScore = -replanningEventCount.toFloat * beamConfig.beam.replanning.replanningPenaltyInDollars
+        val utilsConversion = beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.units.toLowerCase match {
+          case "utils" =>
+            beamConfig.beam.agentsim.agents.modalBehaviors.multinomialLogit.params.time / attributes.valueOfTime * 60.0 // Convert hours to minutes
+          case "dollars" => 1.0
+        }
 
-        finalScore = allDayScore + leavingParkingEventScore + activityScore + replanningScore
+        finalScore =
+          (allDayScore + leavingParkingEventScore + activityScore + replanningScore - allDayExpectedScore) * utilsConversion
         finalScore = Math.max(
           finalScore,
           -100000
