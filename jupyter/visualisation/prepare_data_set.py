@@ -3,7 +3,7 @@
 
 # # scenario class init block
 
-# In[ ]:
+# In[4]:
 
 
 import json
@@ -51,7 +51,10 @@ class Scenario():
             {"Icon":"Flashing","Label":"Emergency"},
             {"Icon":"Solid", "Label":"Traffic Jam"}
         ]
-    
+
+        self.network_written = False
+        self.dynamic_network_written = False
+        
     
     def log(self, text):
         print(f" -> {text}")
@@ -138,27 +141,41 @@ class Scenario():
     
     
     def write_network_with_settings(self):
-        network_path = (self.out_path / "network.csv").resolve()
-        self.network.to_csv(network_path, index=False)
-        self.log(f"network written to '{network_path}'")
+        if self.network_written:
+            self.log("network already written out to file.")
+        else:
+            network_path = (self.out_path / "network.csv").resolve()
+            self.network.to_csv(network_path, index=False)
+            self.log(f"network written to '{network_path}'")
 
-        network_settings = { "NetworkWidth":3, "NetworkColor":"0044EE", "FileName":"network.csv" }
-        network_settings_path = str((self.out_path / self.network_layer_file).resolve())
-        with open(network_settings_path, "w") as file:
-            file.write(json.dumps(network_settings))
-        self.log(f"network settings written to {network_settings_path}")
+            network_settings = { "NetworkWidth":3, "NetworkColor":"0044EE", "FileName":"network.csv" }
+            network_settings_path = str((self.out_path / self.network_layer_file).resolve())
+            with open(network_settings_path, "w") as file:
+                file.write(json.dumps(network_settings))
+                
+            self.log(f"network settings written to {network_settings_path}")
+            
+            self.network_written = True
+            self.network = pd.DataFrame()
 
         
     def write_dynamic_network_with_settings(self):
-        network_path = (self.out_path / "dynamic_network.csv").resolve()
-        self.dynamic_network.to_csv(network_path, index=False)
-        self.log(f"dynamic network written to {network_path}")
+        if self.dynamic_network_written:
+            self.log("dynamic network already written out to file.")
+        else:
+            network_path = (self.out_path / "dynamic_network.csv").resolve()
+            self.dynamic_network.to_csv(network_path, index=False)
+            self.log(f"dynamic network written to {network_path}")
 
-        network_settings = { "FileName":"dynamic_network.csv" }
-        network_settings_path = str((self.out_path / self.dynamic_network_layer_file).resolve())
-        with open(network_settings_path, "w") as file:
-            file.write(json.dumps(network_settings))
-        self.log(f"dynamic network settings written to {network_settings_path}")
+            network_settings = { "FileName":"dynamic_network.csv" }
+            network_settings_path = str((self.out_path / self.dynamic_network_layer_file).resolve())
+            with open(network_settings_path, "w") as file:
+                file.write(json.dumps(network_settings))
+            
+            self.log(f"dynamic network settings written to {network_settings_path}")
+            
+            self.dynamic_network_written = True
+            self.dynamic_network = pd.DataFrame()
         
         
     def set_trajectoris(self, PTE_df, pte_to_icon, pte_to_progressbar, icon_settings):
@@ -233,6 +250,11 @@ class Scenario():
         self.log(f"events settings written to {events_settings_path}")
 
         
+    def write_network(self):
+        self.write_network_with_settings()
+        self.write_dynamic_network_with_settings()
+        
+        
     def write_scenario(self):
         self.write_config()
         self.write_network_with_settings()
@@ -281,7 +303,7 @@ print("initialized")
 
 # # independant functions init block
 
-# In[ ]:
+# In[5]:
 
 
 ### a set of functions to read and process BEAM events
@@ -725,16 +747,33 @@ scenario.pack_to_archive()
 # In[ ]:
 
 
-beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
-output_folder_path = "sflight-1k_rh_deadheading_repositioning"
+# beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
+# output_folder_path = "sflight-1k_rh_deadheading_repositioning"
+beam_output = "../downloaded_data/sfbay/sfbay-freight-23Jan24-Base__2024-01-31_18-10-36_gfh"
+output_folder_path = "sfbay-freight-23Jan24-Base-rh_passengers"
+
 beam_crs = 26910
 
 scenario = Scenario(beam_output, beam_crs, output_folder_path)
 scenario.read_beam_output()
 
 all_pte = read_pte_events(beam_output, 0)
-is_rh = all_pte['vehicleType'] == "RH_Car"
+# is_rh = all_pte['vehicleType'] == "RH_Car"
+is_rh = all_pte['driver'].str.startswith('rideHailAgent')
 all_rh = all_pte[is_rh].copy()
+
+print(f" ->> total number of RH rows in DF {len(all_rh)}")
+display(all_rh.head(2))
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
 
 vehicle_to_passengers = {}
 # going backwards
@@ -778,10 +817,22 @@ def pte_to_icon_type(path_traversal_event):
 def pte_to_progress_bar(pte):
     return "None"
 
-    
+
 scenario.set_trajectoris(all_rh, pte_to_icon_type, pte_to_progress_bar, rh_icons)
 scenario.write_scenario()
 scenario.pack_to_archive()
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
 
 
 # ## all bus PT events split based on passengers
@@ -840,17 +891,51 @@ scenario.pack_to_archive()
 
 # ## all PT events split into BUS | CAR | WALK
 
-# In[ ]:
+# In[3]:
 
 
-beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
-output_folder_path = "sflight-1k_bus_car_walk_all_pte_by_mode"
+# beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
+# output_folder_path = "sflight-1k_bus_car_walk_all_pte_by_mode"
+beam_output = "../downloaded_data/sfbay/sfbay-freight-23Jan24-Base__2024-01-31_18-10-36_gfh"
+output_folder_path = "sfbay-freight-23Jan24-Base_bus_car_walk_all_pte_by_mode_025_sample"
+
 beam_crs = 26910
 
 scenario = Scenario(beam_output, beam_crs, output_folder_path)
 scenario.read_beam_output()
+scenario.write_network()
+
+
+# In[4]:
+
 
 all_pte = read_pte_events(beam_output, 0)
+
+print(f" ->> total number of rows in DF {len(all_pte)}")
+display(all_pte.head(2))
+
+all_pte['mode'].value_counts()
+
+
+# In[5]:
+
+
+import math
+
+all_vehicle_ids = all_pte['vehicle'].unique()
+random.shuffle(all_vehicle_ids)
+
+number_of_samples = math.floor(len(all_vehicle_ids) * 0.25)
+selected_vehicle_ids = set(all_vehicle_ids[:number_of_samples])
+
+print(f"selected:{len(selected_vehicle_ids)}, total:{len(all_vehicle_ids)}, ratio:{len(selected_vehicle_ids) / len(all_vehicle_ids)}, sanity:{(len(selected_vehicle_ids) - number_of_samples) == 0}")
+
+
+# In[6]:
+
+
+is_selected = all_pte['vehicle'].isin(selected_vehicle_ids)
+sampled_pte = all_pte[is_selected]
 
 icons = [
     {
@@ -877,7 +962,7 @@ def pte_to_icon_type(path_traversal_event):
     mode = path_traversal_event['mode']
     if mode == 'bus':
         return "BUS"
-    elif mode == 'car':
+    elif mode == 'car' or mode == 'car_hov2' or mode == 'car_hov3':
         return "CAR"
     else:
         return "WALK"
@@ -885,10 +970,28 @@ def pte_to_icon_type(path_traversal_event):
 def pte_to_progress_bar(pte):
     return "None"
 
-    
-scenario.set_trajectoris(pte, pte_to_icon_type, pte_to_progress_bar, icons)
+
+scenario.set_trajectoris(sampled_pte, pte_to_icon_type, pte_to_progress_bar, icons)
 scenario.write_scenario()
 scenario.pack_to_archive()
+
+
+# In[7]:
+
+
+get_ipython().system(' ls -lahS | head -5')
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
 
 
 # ## all bus\rh PT events with passengers + all car PT events 
@@ -1082,6 +1185,49 @@ selected_pte_only
 
 
 events_original[events_original['driver'] == "032802-2015000455334-0-7952563"].dropna(axis=1, how='all')
+
+
+# In[ ]:
+
+
+
+
+
+# ## subway as events
+
+# In[6]:
+
+
+beam_output = "../beam_root/output/sf-light/sf-light-1k-walk-transit__2024-07-01_19-15-50_dtv"
+output_folder_path = "sflight-1k_subway_plus_walk"
+# beam_output = "../downloaded_data/sfbay/sfbay-freight-23Jan24-Base__2024-01-31_18-10-36_gfh"
+# output_folder_path = "sfbay-freight-23Jan24-Base_bus_car_walk_all_pte_by_mode_025_sample"
+
+beam_crs = 26910
+
+scenario = Scenario(beam_output, beam_crs, output_folder_path)
+scenario.read_beam_output()
+scenario.write_network()
+
+
+# In[8]:
+
+
+events_path = get_events_file_path(beam_output, 0)
+all_events = read_events(events_path)
+all_events.head()
+
+
+# In[ ]:
+
+
+
+
+
+# In[ ]:
+
+
+
 
 
 # In[ ]:
