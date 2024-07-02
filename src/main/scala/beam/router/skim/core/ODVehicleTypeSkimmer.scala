@@ -31,7 +31,7 @@ class ODVehicleTypeSkimmer @Inject() (
   override protected[skim] val readOnlySkim = new ODVehicleTypeSkims
   override protected val skimFileBaseName: String = ODVehicleTypeSkimmer.fileBaseName
 
-  private val vehicleTypeKey = VehicleTypeKey
+  val vehicleTypeKey: VehicleTypeKey = VehicleTypeKey
     .fromString(beamConfig.beam.router.skim.origin_destination_vehicle_type_skimmer.vehicleTypeKey)
     .getOrElse {
       logger.error(
@@ -40,6 +40,13 @@ class ODVehicleTypeSkimmer @Inject() (
       )
       VehicleTypeKey.VehicleTypeIdKey
     }
+
+  val vehicleCategoriesToGenerateSkim: IndexedSeq[VehicleCategory] =
+    beamConfig.beam.router.skim.origin_destination_vehicle_type_skimmer.vehicleCategories
+      .split(',')
+      .map(_.trim)
+      .map(VehicleCategory.fromString)
+      .toIndexedSeq
 
   override protected val skimFileHeader: String = {
     val vehicleTypeKeyHeader = vehicleTypeKey match {

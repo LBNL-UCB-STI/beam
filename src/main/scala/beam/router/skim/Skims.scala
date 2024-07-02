@@ -14,15 +14,15 @@ import scala.collection.mutable
 
 class Skims @Inject() (
   matsimServices: MatsimServices,
-  odSkimmer: ODSkimmer,
-  tazSkimmer: TAZSkimmer,
-  driveTimeSkimmer: DriveTimeSkimmer,
-  transitCrowdingSkimmer: TransitCrowdingSkimmer,
-  rideHailSkimmer: RideHailSkimmer,
-  odVehicleTypeSkimmer: ODVehicleTypeSkimmer,
-  freightSkimmer: FreightSkimmer,
-  parkingSkimmer: ParkingSkimmer,
-  asSkimmer: ActivitySimSkimmer
+  val odSkimmer: ODSkimmer,
+  val tazSkimmer: TAZSkimmer,
+  val driveTimeSkimmer: DriveTimeSkimmer,
+  val transitCrowdingSkimmer: TransitCrowdingSkimmer,
+  val rideHailSkimmer: RideHailSkimmer,
+  val odVehicleTypeSkimmer: ODVehicleTypeSkimmer,
+  val freightSkimmer: FreightSkimmer,
+  val parkingSkimmer: ParkingSkimmer,
+  val asSkimmer: ActivitySimSkimmer
 ) extends LazyLogging {
 
   import Skims.SkimType

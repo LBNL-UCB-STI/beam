@@ -54,7 +54,7 @@ object ODVehicleTypeSkimmerEvent {
   def apply(
     eventTime: Double,
     beamServices: BeamServices,
-    vehicleTypeId: Id[BeamVehicleType],
+    vehicleType: BeamVehicleType,
     trip: EmbodiedBeamTrip,
     generalizedTimeInHours: Double,
     generalizedCost: Double,
@@ -62,8 +62,7 @@ object ODVehicleTypeSkimmerEvent {
     energyConsumption: Double
   ): ODVehicleTypeSkimmerEvent = {
     import beamServices._
-    val correctedTrip = ODSkimmerEvent.correctTrip(trip, trip.tripClassifier)
-    val beamLegs = correctedTrip.beamLegs
+    val beamLegs = trip.beamLegs
     val origLeg = beamLegs.head
     val origCoord = geo.wgs2Utm(origLeg.travelPath.startPoint.loc)
     val origTaz = beamScenario.tazTreeMap
@@ -75,12 +74,8 @@ object ODVehicleTypeSkimmerEvent {
       .getTAZ(destCoord.getX, destCoord.getY)
       .tazId
     val distanceInM = beamLegs.map(_.travelPath.distanceInM).sum
-    val travelTime = correctedTrip.totalTravelTimeInSecs.toDouble
-    val vehicleTypeKey = VehicleTypeKey
-      .fromString(beamConfig.beam.router.skim.origin_destination_vehicle_type_skimmer.vehicleTypeKey)
-      .getOrElse(VehicleTypeKey.VehicleTypeIdKey)
-    val vehicleType = beamScenario.vehicleTypes(vehicleTypeId)
-    val vehicleTypePart = VehicleTypePart(vehicleTypeKey, vehicleType)
+    val travelTime = trip.totalTravelTimeInSecs.toDouble
+    val vehicleTypePart = VehicleTypePart(skims.odVehicleTypeSkimmer.vehicleTypeKey, vehicleType)
     new ODVehicleTypeSkimmerEvent(
       eventTime,
       origTaz,
@@ -90,7 +85,7 @@ object ODVehicleTypeSkimmerEvent {
       travelTime,
       generalizedTimeInHours,
       generalizedCost,
-      correctedTrip.costEstimate,
+      trip.costEstimate,
       energyConsumption,
       maybePayloadWeightInKg
     )

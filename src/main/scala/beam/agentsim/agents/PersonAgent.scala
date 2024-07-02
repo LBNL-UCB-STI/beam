@@ -202,6 +202,12 @@ object PersonAgent {
     def hasNextLeg: Boolean = restOfCurrentTrip.nonEmpty
     def nextLeg: EmbodiedBeamLeg = restOfCurrentTrip.head
 
+    def accomplishedLegs: IndexedSeq[EmbodiedBeamLeg] = {
+      val allLegs: IndexedSeq[EmbodiedBeamLeg] = currentTrip.map(_.legs).getOrElse(IndexedSeq.empty)
+      val numberOfAccomplishedLegs = allLegs.size - restOfCurrentTrip.size
+      allLegs.take(numberOfAccomplishedLegs)
+    }
+
     def shouldReserveRideHail(): Boolean = {
       // if we are about to walk then ride-hail
       // OR we are at a ride-hail leg but we didn't reserve a RH yet
@@ -1134,17 +1140,18 @@ class PersonAgent(
 
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
     case Event(StateTimeout, data: BasePersonData) if data.shouldReserveRideHail() =>
+      generateLegSkimData(_currentTick.get, data.accomplishedLegs, data.currentActivityIndex, nextActivity(data))
       // Doing RH reservation before we start walking to our pickup location
       val ridehailTrip = data.restOfCurrentTrip.dropWhile(!_.isRideHail)
       doRideHailReservation(data.nextLeg.beamLeg.startTime, data.nextLeg.beamLeg.endTime, ridehailTrip)
       goto(WaitingForRideHailReservationConfirmation)
-    case Event(StateTimeout, _) =>
+    case Event(StateTimeout, data: BasePersonData) =>
+      generateLegSkimData(_currentTick.get, data.accomplishedLegs, data.currentActivityIndex, nextActivity(data))
       goto(ActuallyProcessingNextLegOrStartActivity)
   }
 
   when(ActuallyProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
     case Event(StateTimeout, data: BasePersonData) if data.hasNextLeg && data.nextLeg.asDriver =>
-      val restOfCurrentTrip = data.restOfCurrentTrip.tail
       // Declaring a function here because this case is already so convoluted that I require a return
       // statement from within.
       // TODO: Refactor.
@@ -1624,20 +1631,55 @@ class PersonAgent(
     correctedTrip.legs.filter(x => x.beamLeg.mode == BeamMode.CAR || x.beamLeg.mode == BeamMode.CAV).foreach { carLeg =>
       eventsManager.processEvent(DriveTimeSkimmerEvent(tick, beamServices, carLeg))
     }
-    if (!failedTrip && correctedTrip.tripClassifier == BeamMode.CAR) {
-      val vehicleTypeId = correctedTrip.legs.find(_.beamLeg.mode == CAR).get.beamVehicleTypeId
-      val odVehicleTypeEvent = ODVehicleTypeSkimmerEvent(
-        tick,
-        beamServices,
-        vehicleTypeId,
-        correctedTrip,
-        generalizedTime,
-        generalizedCost,
-        maybePayloadWeightInKg,
-        curFuelConsumed.totalEnergyConsumed
-      )
-      eventsManager.processEvent(odVehicleTypeEvent)
+  }
+
+  def generateLegSkimData(
+    tick: Int,
+    accomplishedLegs: IndexedSeq[EmbodiedBeamLeg],
+    currentActivityIndex: Int,
+    nextActivity: Option[Activity]
+  ): Unit = {
+    if (accomplishedLegs.isEmpty)
+      return
+
+    val vehicleTypeIdOpt = Option(accomplishedLegs.last.beamVehicleTypeId) match {
+      case None if accomplishedLegs.last.beamLeg.mode.isTransit =>
+        //FIXME TransitVehicleInitializer can load more fine-grained transit vehicle types
+        // using transitVehicleTypesByRouteFile parameter. We could use those vehicle types here
+        Some(TransitVehicleInitializer.transitModeToBeamVehicleType(accomplishedLegs.last.beamLeg.mode))
+      case None => None
+      case some => some
     }
+    val vehicleTypeOpt = for {
+      vehicleTypeId <- vehicleTypeIdOpt
+      vehicleType   <- beamScenario.vehicleTypes.get(vehicleTypeId)
+    } yield vehicleType
+    if (vehicleTypeOpt.isEmpty)
+      return
+    val vehicleType = vehicleTypeOpt.get
+
+    if (!beamServices.skims.odVehicleTypeSkimmer.vehicleCategoriesToGenerateSkim.contains(vehicleType.vehicleCategory))
+      return
+    val leg0 = accomplishedLegs
+      .lift(accomplishedLegs.length - 2)
+      .filter(_.beamVehicleId == accomplishedLegs.last.beamVehicleId)
+      .toIndexedSeq
+    val legs: IndexedSeq[EmbodiedBeamLeg] = leg0 :+ accomplishedLegs.last
+    val trip = EmbodiedBeamTrip(legs)
+    val generalizedTime = modeChoiceCalculator.getGeneralizedTimeOfTrip(trip, Some(attributes), nextActivity)
+    val generalizedCost = modeChoiceCalculator.getNonTimeCost(trip) + attributes.getVOT(generalizedTime)
+    val maybePayloadWeightInKg = getPayloadWeightFromLeg(currentActivityIndex)
+    val odVehicleTypeEvent = ODVehicleTypeSkimmerEvent(
+      tick,
+      beamServices,
+      vehicleType,
+      trip,
+      generalizedTime,
+      generalizedCost,
+      maybePayloadWeightInKg,
+      curFuelConsumed.totalEnergyConsumed
+    )
+    eventsManager.processEvent(odVehicleTypeEvent)
   }
 
   private def getPayloadWeightFromLeg(currentActivityIndex: Int): Option[Double] = {
