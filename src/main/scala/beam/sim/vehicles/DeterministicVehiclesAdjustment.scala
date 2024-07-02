@@ -1,12 +1,14 @@
 package beam.sim.vehicles
 
 import beam.agentsim.agents.Population
-import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
+import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.sim.BeamScenario
 import beam.utils.scenario.{HouseholdId, VehicleInfo}
 import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.{Coord, Id}
+
+import scala.util.Random
 
 case class DeterministicVehiclesAdjustment(
   beamScenario: BeamScenario,
@@ -76,15 +78,7 @@ case class DeterministicVehiclesAdjustment(
           } else if (vehiclesToSampleFrom.isEmpty) {
             (0 until numVehicles).map(_ => sampleAnyVehicle(vehicleCategory, realDistribution)).toList
           } else if (vehiclesToSampleFrom.length > numVehicles) {
-            // Anyone have a better way of using a uniform real distribution to sample without replacement?
-            realDistribution
-              .sample(vehiclesToSampleFrom.length)
-              .zipWithIndex
-              .sortBy(_._1)
-              .map(_._2)
-              .take(numVehicles)
-              .map(vehiclesToSampleFrom(_))
-              .toList
+            DeterministicVehiclesAdjustment.sample_simple(vehiclesToSampleFrom, numVehicles)
           } else {
             logger.warn(
               f"Household $householdId has $numVehicles in the household file but ${vehiclesToSampleFrom.length} " +
@@ -106,5 +100,31 @@ case class DeterministicVehiclesAdjustment(
       }
     }
 
+  }
+}
+
+object DeterministicVehiclesAdjustment {
+
+  // Anyone have a better way of using a uniform real distribution to sample without replacement?
+  def sample[T](
+    realDistribution: UniformRealDistribution,
+    listOfObjectsToSample: List[T],
+    numberOfObjectsToSample: Int
+  ): List[T] = {
+    realDistribution
+      .sample(listOfObjectsToSample.length)
+      .zipWithIndex
+      .sortBy(_._1)
+      .map(_._2)
+      .take(numberOfObjectsToSample)
+      .map(listOfObjectsToSample(_))
+      .toList
+  }
+
+  def sample_simple[T](
+    listOfObjectsToSample: List[T],
+    numberOfObjectsToSample: Int
+  ): List[T] = {
+    Random.shuffle(listOfObjectsToSample).take(numberOfObjectsToSample)
   }
 }
