@@ -78,7 +78,7 @@ case class DeterministicVehiclesAdjustment(
           } else if (vehiclesToSampleFrom.isEmpty) {
             (0 until numVehicles).map(_ => sampleAnyVehicle(vehicleCategory, realDistribution)).toList
           } else if (vehiclesToSampleFrom.length > numVehicles) {
-            DeterministicVehiclesAdjustment.sample_simple(vehiclesToSampleFrom, numVehicles)
+            DeterministicVehiclesAdjustment.sampleSmart(vehiclesToSampleFrom, numVehicles)
           } else {
             logger.warn(
               f"Household $householdId has $numVehicles in the household file but ${vehiclesToSampleFrom.length} " +
@@ -121,10 +121,33 @@ object DeterministicVehiclesAdjustment {
       .toList
   }
 
-  def sample_simple[T](
+  def sampleSimple[T](
     listOfObjectsToSample: List[T],
     numberOfObjectsToSample: Int
   ): List[T] = {
     Random.shuffle(listOfObjectsToSample).take(numberOfObjectsToSample)
   }
+
+  def sampleForLongList[T](
+    listOfObjectsToSample: List[T],
+    numberOfObjectsToSample: Int
+  ): List[T] = {
+    val sampled = scala.collection.mutable.HashSet.empty[Int]
+    while (sampled.size < numberOfObjectsToSample) {
+      sampled += Random.nextInt(listOfObjectsToSample.length)
+    }
+    sampled.map(listOfObjectsToSample(_)).toList
+  }
+
+  def sampleSmart[T](
+    listOfObjectsToSample: List[T],
+    numberOfObjectsToSample: Int
+  ): List[T] = {
+    if (numberOfObjectsToSample * 4 < listOfObjectsToSample.length) {
+      sampleForLongList(listOfObjectsToSample, numberOfObjectsToSample)
+    } else {
+      sampleSimple(listOfObjectsToSample, numberOfObjectsToSample)
+    }
+  }
+
 }

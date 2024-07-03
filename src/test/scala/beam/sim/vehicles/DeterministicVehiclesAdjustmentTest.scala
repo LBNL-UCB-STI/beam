@@ -9,9 +9,9 @@ import scala.collection.mutable
 
 class DeterministicVehiclesAdjustmentTest extends AnyFunSuiteLike {
 
-  val sampleSize: Int = 5
-  val numberOfObjectsInTheList: Int = 10
-  val numberOfLoops: Int = 1 * 1000000
+  val sampleSize: Int = 2
+  val numberOfObjectsInTheList: Int = 9
+  val numberOfLoops: Int = 4 * 1000000
 
   val minListValue: Int = 42
   val maxListValue: Int = math.max(numberOfObjectsInTheList, sampleSize) + minListValue
@@ -30,11 +30,7 @@ class DeterministicVehiclesAdjustmentTest extends AnyFunSuiteLike {
     sampled.length shouldBe sampleSize
   }
 
-  // ~ 2 min
-  // ~ 6 min
-  // ~ 10 min
-  // ~ 15 min
-  test("test multiple samples 1") {
+  test("test multiple sample calls") {
     val realDistribution = new UniformRealDistribution
     val samplingResult = mutable.HashMap.empty[Int, Int]
 
@@ -48,15 +44,11 @@ class DeterministicVehiclesAdjustmentTest extends AnyFunSuiteLike {
     samplingResult.values.foreach { x => x shouldBe (avgVal +- delta) }
   }
 
-  // ~ 1 min
-  // ~ 2 min
-  // ~ 2 min
-  // ~ 2 min
-  test("test multiple samples 2") {
+  test("test multiple sampleSimple calls") {
     val samplingResult = mutable.HashMap.empty[Int, Int]
 
     for (_ <- 1 to numberOfLoops) {
-      val sampled = DeterministicVehiclesAdjustment.sample_simple(originalListOfObjects, sampleSize)
+      val sampled = DeterministicVehiclesAdjustment.sampleSimple(originalListOfObjects, sampleSize)
       sampled.length shouldBe sampleSize
       sampled.foreach(s => saveSample(samplingResult, s))
     }
@@ -65,4 +57,29 @@ class DeterministicVehiclesAdjustmentTest extends AnyFunSuiteLike {
     samplingResult.values.foreach { x => x shouldBe (avgVal +- delta) }
   }
 
+  test("test multiple sampleForLongList calls") {
+    val samplingResult = mutable.HashMap.empty[Int, Int]
+
+    for (_ <- 1 to numberOfLoops) {
+      val sampled = DeterministicVehiclesAdjustment.sampleForLongList(originalListOfObjects, sampleSize)
+      sampled.length shouldBe sampleSize
+      sampled.foreach(s => saveSample(samplingResult, s))
+    }
+
+    samplingResult.values.sum / samplingResult.size shouldBe (avgVal +- delta)
+    samplingResult.values.foreach { x => x shouldBe (avgVal +- delta) }
+  }
+
+  test("test multiple sampleSmart calls") {
+    val samplingResult = mutable.HashMap.empty[Int, Int]
+
+    for (_ <- 1 to numberOfLoops) {
+      val sampled = DeterministicVehiclesAdjustment.sampleSmart(originalListOfObjects, sampleSize)
+      sampled.length shouldBe sampleSize
+      sampled.foreach(s => saveSample(samplingResult, s))
+    }
+
+    samplingResult.values.sum / samplingResult.size shouldBe (avgVal +- delta)
+    samplingResult.values.foreach { x => x shouldBe (avgVal +- delta) }
+  }
 }
