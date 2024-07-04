@@ -1608,6 +1608,7 @@ class PersonAgent(
     val (odSkimmerEvent, _, _) = ODSkimmerEvent.forTaz(
       tick,
       beamServices,
+      mode = if (maybePayloadWeightInKg.isDefined) BeamMode.FREIGHT else trip.tripClassifier,
       correctedTrip,
       generalizedTime,
       generalizedCost,

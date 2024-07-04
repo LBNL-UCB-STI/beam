@@ -18,6 +18,7 @@ class ODSkimmerEventFactory extends AbstractSkimmerEventFactory {
     origin,
     destination,
     eventTime,
+    trip.tripClassifier,
     trip,
     generalizedTimeInHours,
     generalizedCost,

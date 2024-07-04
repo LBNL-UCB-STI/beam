@@ -7,7 +7,7 @@ import beam.router.Modes.BeamMode.WALK
 import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.SkimsUtils
 import beam.router.skim.core.ODSkimmer.{ODSkimmerInternal, ODSkimmerKey}
-import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey, ODSkimmer}
+import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey}
 import beam.sim.BeamServices
 import org.matsim.api.core.v01.Coord
 
@@ -15,6 +15,7 @@ case class ODSkimmerEvent(
   origin: String,
   destination: String,
   eventTime: Double,
+  mode: BeamMode,
   trip: EmbodiedBeamTrip,
   generalizedTimeInHours: Double,
   generalizedCost: Double,
@@ -37,7 +38,6 @@ case class ODSkimmerEvent(
     maybePayloadWeightInKg: Option[Double],
     level4CavTravelTimeScalingFactor: Double = 1.0
   ): (ODSkimmerKey, ODSkimmerInternal) = {
-    val mode = if (maybePayloadWeightInKg.isDefined) BeamMode.FREIGHT else trip.tripClassifier
     val correctedTrip = ODSkimmerEvent.correctTrip(trip, trip.tripClassifier)
     val beamLegs = correctedTrip.beamLegs
     @SuppressWarnings(Array("UnsafeTraversableMethods"))
@@ -45,7 +45,7 @@ case class ODSkimmerEvent(
     val timeBin = SkimsUtils.timeToBin(origLeg.startTime)
     val dist = beamLegs.map(_.travelPath.distanceInM).sum
     val rideHailName =
-      if (mode.isRideHail) RideHailVehicleId(trip.legs.find(_.isRideHail).get.beamVehicleId).fleetId
+      if (trip.tripClassifier.isRideHail) RideHailVehicleId(trip.legs.find(_.isRideHail).get.beamVehicleId).fleetId
       else ""
 
     val key = ODSkimmerKey(timeBin, mode, rideHailName, origin, destination)
@@ -85,6 +85,8 @@ object ODSkimmerEvent {
     val correctedTrip = mode match {
       case WALK =>
         trip
+      case _ if trip.legs.head.beamLeg.mode != WALK =>
+        trip
       case _ =>
         val legs = trip.legs.drop(1).dropRight(1)
         EmbodiedBeamTrip(legs)
@@ -95,6 +97,7 @@ object ODSkimmerEvent {
   def forTaz(
     eventTime: Double,
     beamServices: BeamServices,
+    mode: BeamMode,
     trip: EmbodiedBeamTrip,
     generalizedTimeInHours: Double,
     generalizedCost: Double,
@@ -121,6 +124,7 @@ object ODSkimmerEvent {
         origin = origTaz.toString,
         destination = destTaz.toString,
         eventTime = eventTime,
+        mode,
         trip = trip,
         generalizedTimeInHours = generalizedTimeInHours,
         generalizedCost = generalizedCost,

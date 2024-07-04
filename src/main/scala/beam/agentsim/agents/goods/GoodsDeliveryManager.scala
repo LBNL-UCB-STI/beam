@@ -4,12 +4,14 @@ import akka.actor.{ActorLogging, ActorRef, Props}
 import akka.util.Timeout
 import beam.agentsim.agents.BeamAgent.Finish
 import beam.agentsim.agents.InitializeTrigger
+import beam.agentsim.agents.choice.mode.ModeChoiceRideHailIfAvailable
 import beam.agentsim.agents.freight.input.FreightReader.NO_CARRIER_ID
 import beam.agentsim.agents.freight.{FreightRequestType, PayloadPlan}
 import beam.agentsim.agents.goods.GoodsDeliveryManager.{GOODS_PREFIX, GoodsDeliveryTrigger}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.{AlightVehicleTrigger, BoardVehicleTrigger}
 import beam.agentsim.agents.ridehail._
 import beam.agentsim.agents.vehicles.AccessErrorCodes.UnknownInquiryIdError
+import beam.agentsim.agents.vehicles.BeamVehicle.FuelConsumed
 import beam.agentsim.agents.vehicles.PersonIdWithActorRef
 import beam.agentsim.events.RideHailReservationConfirmationEvent.{Pooled, Solo}
 import beam.agentsim.events.resources.ReservationError
@@ -18,8 +20,8 @@ import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTri
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
-import beam.router.model.BeamLeg
-import beam.router.skim.event.{RideHailSkimmerEvent, UnmatchedRideHailRequestSkimmerEvent}
+import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
+import beam.router.skim.event.{ODSkimmerEvent, RideHailSkimmerEvent, UnmatchedRideHailRequestSkimmerEvent}
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.MathUtils
 import beam.utils.MeasureUnitConversion.METERS_IN_MILE
@@ -27,7 +29,6 @@ import beam.utils.logging.LoggingMessageActor
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.events.{PersonArrivalEvent, PersonEntersVehicleEvent, PersonLeavesVehicleEvent}
-import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
 
@@ -44,6 +45,7 @@ private class GoodsDeliveryManager(
     with ActorLogging {
 
   private val rand = new Random(beamScenario.beamConfig.matsim.modules.global.randomSeed)
+  private val modeChoiceCalculator = new ModeChoiceRideHailIfAvailable(beamServices)
 
   private val goodsRhmNames: IndexedSeq[String] =
     beamServices.beamConfig.beam.agentsim.agents.rideHail.managers.collect {
@@ -82,7 +84,11 @@ private class GoodsDeliveryManager(
     contextBecome(operate(Map.empty))
   }
 
-  private def operate(goodsData: Map[Id[Person], Id[Link]]): Receive = {
+  /**
+    * When init steps are done and the simulation has started this one is our main actor Receive method.
+    * @param goodsData keeps arrival link for each package in order to generate PersonArrivalEvent
+    */
+  private def operate(goodsData: Map[Id[Person], EmbodiedBeamTrip]): Receive = {
     case TriggerWithId(GoodsDeliveryTrigger(currentTick, rhmName, pickup, destination), triggerId) =>
       val virtualPersonId = (GOODS_PREFIX + destination.payloadId.toString).createId[Person]
       rideHailManager ! RideHailRequest(
@@ -117,10 +123,9 @@ private class GoodsDeliveryManager(
     // RIDE HAIL DELAY SUCCESS (buffered mode of RHM)
     case TriggerWithId(RideHailResponseTrigger(tick, response: RideHailResponse), triggerId)
         if response.isSuccessful(response.request.customer.personId) =>
-      val legs = generateSuccessfulRideHailEvents(tick, response, response.request.customer)
-      val arrivalLink = Id.createLinkId(legs.last.travelPath.linkIds.last)
+      val trip = generateSuccessfulRideHailEvents(tick, response, response.request.customer)
       scheduler ! CompletionNotice(triggerId, newTriggers = response.triggersToSchedule)
-      context.become(operate(goodsData + (response.request.customer.personId -> arrivalLink)))
+      context.become(operate(goodsData + (response.request.customer.personId -> trip)))
     // RIDE HAIL DELAY FAILURE
     case TriggerWithId(RideHailResponseTrigger(tick, response: RideHailResponse), triggerId) =>
       generateFailedRideHailEvents(
@@ -132,9 +137,8 @@ private class GoodsDeliveryManager(
       scheduler ! CompletionNotice(triggerId)
     // RIDE HAIL SUCCESS (single request mode of RHM)
     case response: RideHailResponse if response.isSuccessful(response.request.customer.personId) =>
-      val legs = generateSuccessfulRideHailEvents(response.request.requestTime, response, response.request.customer)
-      val arrivalLink = Id.createLinkId(legs.last.travelPath.linkIds.last)
-      context.become(operate(goodsData + (response.request.customer.personId -> arrivalLink)))
+      val trip = generateSuccessfulRideHailEvents(response.request.requestTime, response, response.request.customer)
+      context.become(operate(goodsData + (response.request.customer.personId -> trip)))
     // RIDE HAIL FAILURE (single request mode of RHM)
     case response: RideHailResponse =>
       generateFailedRideHailEvents(
@@ -144,27 +148,47 @@ private class GoodsDeliveryManager(
         response.request.customer
       )
     case TriggerWithId(BoardVehicleTrigger(tick, vehicleToEnter, passenger), triggerId) =>
-      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, passenger.get.personId, vehicleToEnter))
+      eventsManager.processEvent(new PersonEntersVehicleEvent(tick, passenger.personId, vehicleToEnter))
       scheduler ! CompletionNotice(triggerId)
-    case TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, passenger, _), triggerId) =>
-      val packageId = passenger.get.personId
-      val linkId = goodsData(packageId)
+    case TriggerWithId(AlightVehicleTrigger(tick, vehicleToExit, passenger, fuelConsumed), triggerId) =>
+      val packageId = passenger.personId
+      val trip = goodsData(packageId)
+      val arrivalLink = Id.createLinkId(trip.legs.last.beamLeg.travelPath.linkIds.last)
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, packageId, vehicleToExit))
-      eventsManager.processEvent(new PersonArrivalEvent(tick, packageId, linkId, BeamMode.RIDE_HAIL.value))
+      eventsManager.processEvent(new PersonArrivalEvent(tick, packageId, arrivalLink, BeamMode.RIDE_HAIL.value))
+      eventsManager.processEvent(generateODSkimEvent(tick, trip, fuelConsumed.get))
       scheduler ! CompletionNotice(triggerId)
       context.become(operate(goodsData - packageId))
     case Finish =>
       context.stop(self)
   }
 
+  private def generateODSkimEvent(tick: Int, trip: EmbodiedBeamTrip, fuelConsumed: FuelConsumed): ODSkimmerEvent = {
+    val generalizedTime = modeChoiceCalculator.getGeneralizedTimeOfTrip(trip)
+    val generalizedCost = modeChoiceCalculator.getNonTimeCost(trip)
+    val (odSkimmerEvent, _, _) = ODSkimmerEvent.forTaz(
+      tick,
+      beamServices,
+      BeamMode.FREIGHT,
+      trip,
+      generalizedTime,
+      generalizedCost,
+      None,
+      fuelConsumed.primaryFuel + fuelConsumed.secondaryFuel,
+      failedTrip = false
+    )
+    odSkimmerEvent
+  }
+
   private def generateSuccessfulRideHailEvents(
     tick: Int,
     response: RideHailResponse,
     passenger: PersonIdWithActorRef
-  ): IndexedSeq[BeamLeg] = {
+  ): EmbodiedBeamTrip = {
     val req = response.request
     val travelProposal = response.travelProposal.get
-    val actualRideHailLegs = travelProposal.passengerSchedule.legsWithPassenger(passenger)
+    val legs: IndexedSeq[EmbodiedBeamLeg] =
+      travelProposal.toEmbodiedBeamLegsForCustomer(req.customer, response.rideHailManagerName)
     eventsManager.processEvent(
       new RideHailReservationConfirmationEvent(
         tick,
@@ -177,7 +201,7 @@ private class GoodsDeliveryManager(
         req.quotedWaitTime,
         beamServices.geo.utm2Wgs(req.pickUpLocationUTM),
         beamServices.geo.utm2Wgs(req.destinationUTM),
-        Some(actualRideHailLegs.head.startTime),
+        Some(legs.head.beamLeg.startTime),
         response.directTripTravelProposal.map(_.travelDistanceForCustomer(passenger)),
         response.directTripTravelProposal.map(_.travelTimeForCustomer(passenger)),
         Some(travelProposal.estimatedPrice(req.customer.personId)),
@@ -199,14 +223,14 @@ private class GoodsDeliveryManager(
     )
     eventsManager.processEvent(
       new BeamPersonDepartureEvent(
-        actualRideHailLegs.head.startTime,
+        legs.head.beamLeg.startTime,
         passenger.personId,
-        Id.createLinkId(actualRideHailLegs.head.travelPath.linkIds.head),
+        Id.createLinkId(legs.head.beamLeg.travelPath.linkIds.head),
         BeamMode.RIDE_HAIL.value,
         passenger.personId.toString
       )
     )
-    actualRideHailLegs
+    EmbodiedBeamTrip(legs)
   }
 
   private def generateFailedRideHailEvents(
