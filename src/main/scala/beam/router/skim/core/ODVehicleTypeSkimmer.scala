@@ -39,29 +39,7 @@ class ODVehicleTypeSkimmer @Inject() (
 
   override protected def fromCsv(
     line: collection.Map[String, String]
-  ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
-    (
-      ODVehicleTypeSkimmerKey(
-        hour = line("hour").toInt,
-        vehicleCategory = VehicleCategory.fromString(line("vehicleCategory")),
-        primaryFuelType = FuelType.fromString(line("primaryFuelType")),
-        secondaryFuelType = FuelType.fromString(line("secondaryFuelType")),
-        origin = line("origTaz").createId,
-        destination = line("destTaz").createId
-      ),
-      ODVehicleTypeSkimmerInternal(
-        travelTimeInS = line("travelTimeInS").toDouble,
-        generalizedTimeInS = line("generalizedTimeInS").toDouble,
-        cost = line("cost").toDouble,
-        generalizedCost = line("generalizedCost").toDouble,
-        distanceInM = line("distanceInM").toDouble,
-        payloadWeightInKg = line.get("payloadWeightInKg").map(_.toDouble).getOrElse(0.0),
-        energy = Option(line("energy")).map(_.toDouble).getOrElse(0.0),
-        observations = NumberUtils.toInt(line("observations"), 0),
-        iterations = NumberUtils.toInt(line("iterations"), 1)
-      )
-    )
-  }
+  ): (AbstractSkimmerKey, AbstractSkimmerInternal) = ODVehicleTypeSkimmer.fromCsv(line)
 
   override protected def aggregateOverIterations(
     prevIteration: Option[AbstractSkimmerInternal],
@@ -128,6 +106,32 @@ object ODVehicleTypeSkimmer {
 
     override def toCsv: String =
       AbstractSkimmer.toCsv(productIterator)
+  }
+
+  def fromCsv(
+    line: collection.Map[String, String]
+  ): (ODVehicleTypeSkimmerKey, ODVehicleTypeSkimmerInternal) = {
+    (
+      ODVehicleTypeSkimmerKey(
+        hour = line("hour").toInt,
+        vehicleCategory = VehicleCategory.fromString(line("vehicleCategory")),
+        primaryFuelType = FuelType.fromString(line("primaryFuelType")),
+        secondaryFuelType = FuelType.fromString(line("secondaryFuelType")),
+        origin = line("origTaz").createId,
+        destination = line("destTaz").createId
+      ),
+      ODVehicleTypeSkimmerInternal(
+        travelTimeInS = line("travelTimeInS").toDouble,
+        generalizedTimeInS = line("generalizedTimeInS").toDouble,
+        cost = line("cost").toDouble,
+        generalizedCost = line("generalizedCost").toDouble,
+        distanceInM = line("distanceInM").toDouble,
+        payloadWeightInKg = line.get("payloadWeightInKg").map(_.toDouble).getOrElse(0.0),
+        energy = Option(line("energy")).map(_.toDouble).getOrElse(0.0),
+        observations = NumberUtils.toInt(line("observations"), 0),
+        iterations = NumberUtils.toInt(line("iterations"), 1)
+      )
+    )
   }
 
   def odVehicleTypeSkimOutputDataDescriptor: OutputDataDescriptor =

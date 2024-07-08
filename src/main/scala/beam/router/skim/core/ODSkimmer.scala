@@ -402,7 +402,7 @@ object ODSkimmer extends LazyLogging {
 
   def fromCsv(
     row: scala.collection.Map[String, String]
-  ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
+  ): (ODSkimmerKey, ODSkimmerInternal) = {
     (
       ODSkimmerKey(
         hour = row("hour").toInt,
