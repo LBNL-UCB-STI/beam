@@ -4327,17 +4327,14 @@ object BeamConfig {
         }
 
         case class OriginDestinationVehicleTypeSkimmer(
-          vehicleCategories: java.lang.String,
-          vehicleTypeKey: java.lang.String
+          vehicleCategories: java.lang.String
         )
 
         object OriginDestinationVehicleTypeSkimmer {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.OriginDestinationVehicleTypeSkimmer = {
             BeamConfig.Beam.Router.Skim.OriginDestinationVehicleTypeSkimmer(
-              vehicleCategories = if (c.hasPathOrNull("vehicleCategories")) c.getString("vehicleCategories") else "Car",
-              vehicleTypeKey =
-                if (c.hasPathOrNull("vehicleTypeKey")) c.getString("vehicleTypeKey") else "VehicleCategory+Powertrain"
+              vehicleCategories = if (c.hasPathOrNull("vehicleCategories")) c.getString("vehicleCategories") else "Car"
             )
           }
         }

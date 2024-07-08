@@ -2,7 +2,7 @@ package beam.router.skim.core
 
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
-import beam.agentsim.agents.vehicles.{BeamVehicleType, FuelType, VehicleCategory}
+import beam.agentsim.agents.vehicles.{FuelType, VehicleCategory}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.skim.Skims
 import beam.router.skim.readonly.ODVehicleTypeSkims
@@ -10,14 +10,9 @@ import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
 import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import com.google.inject.Inject
-import com.typesafe.scalalogging.LazyLogging
-import enumeratum.{Enum, EnumEntry}
 import org.apache.commons.lang3.math.NumberUtils
 import org.matsim.api.core.v01.Id
 import org.matsim.core.controler.MatsimServices
-import shapeless.{:+:, CNil, Coproduct, Poly1}
-
-import scala.collection.immutable
 
 /**
   * @author Dmitry Openkov
@@ -25,21 +20,10 @@ import scala.collection.immutable
 class ODVehicleTypeSkimmer @Inject() (
   matsimServices: MatsimServices,
   beamConfig: BeamConfig
-) extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO)
-    with LazyLogging {
+) extends AbstractSkimmer(beamConfig, matsimServices.getControlerIO) {
   import ODVehicleTypeSkimmer._
   override protected[skim] val readOnlySkim = new ODVehicleTypeSkims
   override protected val skimFileBaseName: String = ODVehicleTypeSkimmer.fileBaseName
-
-  val vehicleTypeKey: VehicleTypeKey = VehicleTypeKey
-    .fromString(beamConfig.beam.router.skim.origin_destination_vehicle_type_skimmer.vehicleTypeKey)
-    .getOrElse {
-      logger.error(
-        "Unknown vehicleTypeKey '{}', using VehicleTypeId as a key",
-        beamConfig.beam.router.skim.origin_destination_vehicle_type_skimmer.vehicleTypeKey
-      )
-      VehicleTypeKey.VehicleTypeIdKey
-    }
 
   val vehicleCategoriesToGenerateSkim: IndexedSeq[VehicleCategory] =
     beamConfig.beam.router.skim.origin_destination_vehicle_type_skimmer.vehicleCategories
@@ -48,14 +32,8 @@ class ODVehicleTypeSkimmer @Inject() (
       .map(VehicleCategory.fromString)
       .toIndexedSeq
 
-  override protected val skimFileHeader: String = {
-    val vehicleTypeKeyHeader = vehicleTypeKey match {
-      case VehicleTypeKey.VehicleTypeIdKey                 => "vehicleType"
-      case VehicleTypeKey.VehicleCategoryKey               => "vehicleCategory"
-      case VehicleTypeKey.VehicleCategoryPlusPowertrainKey => "vehicleCategory,primaryFuelType,secondaryFuelType"
-    }
-    s"hour,$vehicleTypeKeyHeader,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,payloadWeightInKg,energy,observations,iterations"
-  }
+  override protected val skimFileHeader: String =
+    "hour,vehicleCategory,primaryFuelType,secondaryFuelType,origTaz,destTaz,travelTimeInS,generalizedTimeInS,cost,generalizedCost,distanceInM,payloadWeightInKg,energy,observations,iterations"
   override protected val skimName: String = ODVehicleTypeSkimmer.name
   override protected val skimType: Skims.SkimType.Value = Skims.SkimType.OD_VEHICLE_TYPE_SKIMMER
 
@@ -63,37 +41,22 @@ class ODVehicleTypeSkimmer @Inject() (
     line: collection.Map[String, String]
   ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
     (
-      {
-        val vehicleTypePart: VehicleTypePart =
-          vehicleTypeKey match {
-            case VehicleTypeKey.VehicleTypeIdKey =>
-              Coproduct[VehicleTypePart](line("vehicleType").createId[BeamVehicleType])
-            case VehicleTypeKey.VehicleCategoryKey =>
-              Coproduct[VehicleTypePart](VehicleCategory.fromString(line("vehicleCategory")))
-            case VehicleTypeKey.VehicleCategoryPlusPowertrainKey =>
-              Coproduct[VehicleTypePart](
-                VehicleCategoryPlusPowertrain(
-                  vehicleCategory = VehicleCategory.fromString(line("vehicleCategory")),
-                  primaryFuelType = FuelType.fromString(line("primaryFuelType")),
-                  secondaryFuelType = FuelType.fromString(line("secondaryFuelType"))
-                )
-              )
-          }
-        ODVehicleTypeSkimmerKey(
-          hour = line("hour").toInt,
-          vehicleTypePart = vehicleTypePart,
-          origin = line("origTaz").createId,
-          destination = line("destTaz").createId
-        )
-      },
+      ODVehicleTypeSkimmerKey(
+        hour = line("hour").toInt,
+        vehicleCategory = VehicleCategory.fromString(line("vehicleCategory")),
+        primaryFuelType = FuelType.fromString(line("primaryFuelType")),
+        secondaryFuelType = FuelType.fromString(line("secondaryFuelType")),
+        origin = line("origTaz").createId,
+        destination = line("destTaz").createId
+      ),
       ODVehicleTypeSkimmerInternal(
         travelTimeInS = line("travelTimeInS").toDouble,
         generalizedTimeInS = line("generalizedTimeInS").toDouble,
+        cost = line("cost").toDouble,
         generalizedCost = line("generalizedCost").toDouble,
         distanceInM = line("distanceInM").toDouble,
-        cost = line("cost").toDouble,
-        energy = Option(line("energy")).map(_.toDouble).getOrElse(0.0),
         payloadWeightInKg = line.get("payloadWeightInKg").map(_.toDouble).getOrElse(0.0),
+        energy = Option(line("energy")).map(_.toDouble).getOrElse(0.0),
         observations = NumberUtils.toInt(line("observations"), 0),
         iterations = NumberUtils.toInt(line("iterations"), 1)
       )
@@ -108,11 +71,11 @@ class ODVehicleTypeSkimmer @Inject() (
       ODVehicleTypeSkimmerInternal(
         travelTimeInS = agg.aggregate(_.travelTimeInS),
         generalizedTimeInS = agg.aggregate(_.generalizedTimeInS),
+        cost = agg.aggregate(_.cost),
         generalizedCost = agg.aggregate(_.generalizedCost),
         distanceInM = agg.aggregate(_.distanceInM),
-        cost = agg.aggregate(_.cost),
-        energy = agg.aggregate(_.energy),
         payloadWeightInKg = agg.aggregate(_.payloadWeightInKg),
+        energy = agg.aggregate(_.energy),
         observations = agg.aggregate(_.observations),
         iterations = agg.aggregateObservations
       )
@@ -126,109 +89,54 @@ class ODVehicleTypeSkimmer @Inject() (
       ODVehicleTypeSkimmerInternal(
         travelTimeInS = agg.aggregate(_.travelTimeInS),
         generalizedTimeInS = agg.aggregate(_.generalizedTimeInS),
+        cost = agg.aggregate(_.cost),
         generalizedCost = agg.aggregate(_.generalizedCost),
         distanceInM = agg.aggregate(_.distanceInM),
-        cost = agg.aggregate(_.cost),
-        energy = agg.aggregate(_.energy),
         payloadWeightInKg = agg.aggregate(_.payloadWeightInKg),
+        energy = agg.aggregate(_.energy),
         observations = agg.aggregateObservations
       )
     }
 }
 
-object ODVehicleTypeSkimmer extends LazyLogging {
+object ODVehicleTypeSkimmer {
   val name = "od-vehicle-type-skimmer"
   val fileBaseName = "skimsODVehicleType"
-  sealed abstract class VehicleTypeKey extends EnumEntry
-
-  object VehicleTypeKey extends Enum[VehicleTypeKey] {
-    val values: immutable.IndexedSeq[VehicleTypeKey] = findValues
-
-    case object VehicleTypeIdKey extends VehicleTypeKey
-    case object VehicleCategoryKey extends VehicleTypeKey
-    case object VehicleCategoryPlusPowertrainKey extends VehicleTypeKey
-
-    def fromString(value: String): Option[VehicleTypeKey] = {
-      value.toLowerCase() match {
-        case x if x.contains("category") && x.contains("powertrain") => Some(VehicleCategoryPlusPowertrainKey)
-        case x if x.contains("category")                             => Some(VehicleCategoryKey)
-        case x if x.contains("type")                                 => Some(VehicleTypeIdKey)
-        case _                                                       => None
-      }
-    }
-  }
-
-  case class VehicleCategoryPlusPowertrain(
-    vehicleCategory: VehicleCategory,
-    primaryFuelType: FuelType,
-    secondaryFuelType: FuelType
-  ) {
-    def this(vehicleType: BeamVehicleType) =
-      this(
-        vehicleType.vehicleCategory,
-        vehicleType.primaryFuelType,
-        vehicleType.secondaryFuelType.getOrElse(FuelType.Undefined)
-      )
-
-    override def toString: String = productIterator.mkString(",")
-  }
-
-  // we use shapeless Coproduct to emulate "union types" (implemented in Scala 3).
-  // It is somewhat similar to Either but for unlimited number of types.
-  type VehicleTypePart = Id[BeamVehicleType] :+: VehicleCategory :+: VehicleCategoryPlusPowertrain :+: CNil
-
-  object VehicleTypePart {
-
-    def apply(vehicleTypeKey: VehicleTypeKey, vehicleType: BeamVehicleType): VehicleTypePart =
-      vehicleTypeKey match {
-        case VehicleTypeKey.VehicleTypeIdKey =>
-          Coproduct[VehicleTypePart](vehicleType.id)
-        case VehicleTypeKey.VehicleCategoryKey =>
-          Coproduct[VehicleTypePart](vehicleType.vehicleCategory)
-        case VehicleTypeKey.VehicleCategoryPlusPowertrainKey =>
-          Coproduct[VehicleTypePart](new VehicleCategoryPlusPowertrain(vehicleType))
-      }
-
-    private object toStringHandler extends Poly1 {
-      implicit def vehicleTypeId = at[Id[BeamVehicleType]](_.toString)
-      implicit def vehicleCategory = at[VehicleCategory](_.toString)
-      implicit def vehicleCategoryPlusPowertrain = at[VehicleCategoryPlusPowertrain](_.toString)
-    }
-
-    def toString(vehicleTypePart: VehicleTypePart): String = vehicleTypePart.fold(toStringHandler)
-
-  }
 
   case class ODVehicleTypeSkimmerKey(
     hour: Int,
-    vehicleTypePart: VehicleTypePart,
+    vehicleCategory: VehicleCategory,
+    primaryFuelType: FuelType,
+    secondaryFuelType: FuelType,
     origin: Id[TAZ],
     destination: Id[TAZ]
   ) extends AbstractSkimmerKey {
-
-    override def toCsv: String = s"$hour,${VehicleTypePart.toString(vehicleTypePart)},$origin,$destination"
-
+    override def toCsv: String = productIterator.mkString(",")
   }
 
   case class ODVehicleTypeSkimmerInternal(
     travelTimeInS: Double,
     generalizedTimeInS: Double,
+    cost: Double,
     generalizedCost: Double,
     distanceInM: Double,
-    cost: Double,
     payloadWeightInKg: Double,
     energy: Double,
     observations: Int = 1,
     iterations: Int = 1
   ) extends AbstractSkimmerInternal {
-    override def toCsv: String = AbstractSkimmer.toCsv(productIterator)
+
+    override def toCsv: String =
+      AbstractSkimmer.toCsv(productIterator)
   }
 
   def odVehicleTypeSkimOutputDataDescriptor: OutputDataDescriptor =
     OutputDataDescriptorObject("ODVehicleTypeSkimmer", "skimsODVehicleType.csv.gz", iterationLevel = true)(
       """
         hour                              | Hour this statistic applies to
-        vehicleType                       | Type of the vehicle making the trip
+        vehicleCategory                   | Category of the vehicle making the trip
+        primaryFuelType                   | Primary fuel type of the vehicle making the trip
+        secondaryFuelType                 | Secondary fuel type of the vehicle making the trip
         origTaz                           | TAZ id of trip origin
         destTaz                           | TAZ id of trip destination
         travelTimeInS                     | Average travel time in seconds
@@ -247,7 +155,9 @@ object ODVehicleTypeSkimmer extends LazyLogging {
     OutputDataDescriptorObject("ODVehicleTypeSkimmer", "skimsODVehicleType_Aggregated.csv.gz", iterationLevel = true)(
       """
         hour                              | Hour this statistic applies to
-        vehicleType                       | Trip mode
+        vehicleCategory                   | Category of the vehicle making the trip
+        primaryFuelType                   | Primary fuel type of the vehicle making the trip
+        secondaryFuelType                 | Secondary fuel type of the vehicle making the trip
         origTaz                           | TAZ id of trip origin
         destTaz                           | TAZ id of trip destination
         travelTimeInS                     | Average (over last n iterations) travel time in seconds

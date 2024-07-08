@@ -1,15 +1,12 @@
 package beam.router.skim.event
 
-import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.{BeamVehicleType, FuelType}
+import beam.agentsim.agents.vehicles.FuelType.FuelType
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.model.EmbodiedBeamTrip
 import beam.router.skim.SkimsUtils
-import beam.router.skim.core.ODVehicleTypeSkimmer.{
-  ODVehicleTypeSkimmerInternal,
-  ODVehicleTypeSkimmerKey,
-  VehicleTypeKey,
-  VehicleTypePart
-}
+import beam.router.skim.core.ODVehicleTypeSkimmer.{ODVehicleTypeSkimmerInternal, ODVehicleTypeSkimmerKey}
 import beam.router.skim.core.{AbstractSkimmerEvent, AbstractSkimmerInternal, AbstractSkimmerKey, ODVehicleTypeSkimmer}
 import beam.sim.BeamServices
 import beam.utils.MathUtils.doubleToInt
@@ -22,7 +19,9 @@ class ODVehicleTypeSkimmerEvent(
   eventTime: Double,
   origin: Id[TAZ],
   destination: Id[TAZ],
-  vehicleTypePart: VehicleTypePart,
+  vehicleCategory: VehicleCategory,
+  primaryFuelType: FuelType,
+  secondaryFuelType: FuelType,
   distanceInM: Double,
   travelTimeInS: Double,
   generalizedTimeInHours: Double,
@@ -35,17 +34,24 @@ class ODVehicleTypeSkimmerEvent(
   override protected val skimName: String = ODVehicleTypeSkimmer.name
 
   override val getKey: AbstractSkimmerKey =
-    ODVehicleTypeSkimmerKey(SkimsUtils.timeToBin(doubleToInt(eventTime)), vehicleTypePart, origin, destination)
+    ODVehicleTypeSkimmerKey(
+      SkimsUtils.timeToBin(doubleToInt(eventTime)),
+      vehicleCategory,
+      primaryFuelType,
+      secondaryFuelType,
+      origin,
+      destination
+    )
 
   override val getSkimmerInternal: AbstractSkimmerInternal =
     ODVehicleTypeSkimmerInternal(
       travelTimeInS,
       generalizedTimeInHours * 3600,
+      cost,
       generalizedCost,
       distanceInM,
-      cost,
-      maybePayloadWeightInKg.getOrElse(0),
-      energyConsumption
+      energyConsumption,
+      maybePayloadWeightInKg.getOrElse(0)
     )
 }
 
@@ -75,12 +81,13 @@ object ODVehicleTypeSkimmerEvent {
       .tazId
     val distanceInM = beamLegs.map(_.travelPath.distanceInM).sum
     val travelTime = trip.totalTravelTimeInSecs.toDouble
-    val vehicleTypePart = VehicleTypePart(skims.odVehicleTypeSkimmer.vehicleTypeKey, vehicleType)
     new ODVehicleTypeSkimmerEvent(
       eventTime,
       origTaz,
       destTaz,
-      vehicleTypePart,
+      vehicleType.vehicleCategory,
+      vehicleType.primaryFuelType,
+      vehicleType.secondaryFuelType.getOrElse(FuelType.Undefined),
       if (distanceInM > 0.0) distanceInM else 1.0,
       travelTime,
       generalizedTimeInHours,
