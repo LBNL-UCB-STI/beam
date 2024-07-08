@@ -50,8 +50,8 @@ class ODVehicleTypeSkimmerEvent(
       cost,
       generalizedCost,
       distanceInM,
-      energyConsumption,
-      maybePayloadWeightInKg.getOrElse(0)
+      maybePayloadWeightInKg.getOrElse(0),
+      energyConsumption
     )
 }
 

@@ -403,7 +403,7 @@ object FileUtils extends LazyLogging {
     * @param atMost the expected time interval for file reading
     * @param loader the function that actually read data from the reader
     * @tparam Key the return map key
-    * @tparam Value the the return map value
+    * @tparam Value the return map value
     * @return a Map containing the key values returned back by the loader
     */
   def parRead[Key, Value](dir: Path, fileNamePattern: String, atMost: Duration = 30 minutes)(
