@@ -19,16 +19,16 @@ import scala.util.{Failure, Success, Try}
   * @param logger                  passing logger from skimmer as this is invoked by various skimmers. This helps distinguishing in the
   *                                log which skimmer has an issue reading skims.
   */
-class CsvSkimReader(
+class CsvSkimReader[Key <: AbstractSkimmerKey, Value <: AbstractSkimmerInternal](
   val aggregatedSkimsFilePath: String,
-  fromCsv: scala.collection.Map[String, String] => (AbstractSkimmerKey, AbstractSkimmerInternal),
+  fromCsv: scala.collection.Map[String, String] => (Key, Value),
   logger: Logger
 ) {
 
-  def readAggregatedSkims: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
+  def readAggregatedSkims: Map[Key, Value] = {
     if (!new File(aggregatedSkimsFilePath).isFile) {
       logger.info(s"warmStart skim NO PATH FOUND '$aggregatedSkimsFilePath'")
-      Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+      Map.empty
     } else {
       val skimsTryMap = Try {
         IOUtils.getBufferedReader(aggregatedSkimsFilePath)
@@ -37,27 +37,27 @@ class CsvSkimReader(
         case Success(skimMap) => skimMap
         case Failure(ex) =>
           logger.warn(s"Could not load warmStart skim from '$aggregatedSkimsFilePath'", ex)
-          Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+          Map.empty
       }
     }
   }
 
-  def readSkims(reader: BufferedReader): Map[AbstractSkimmerKey, AbstractSkimmerInternal] = {
+  def readSkims(reader: BufferedReader): Map[Key, Value] = {
     tryReadSkims(reader).recover { case ex: Throwable =>
       logger.warn(s"Could not read warmStart skim from '$aggregatedSkimsFilePath'", ex)
-      Map.empty[AbstractSkimmerKey, AbstractSkimmerInternal]
+      Map.empty[Key, Value]
     }.get
   }
 
-  private def tryReadSkims(reader: BufferedReader): Try[Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = {
+  private def tryReadSkims(reader: BufferedReader): Try[Map[Key, Value]] = {
     val csvParser: CsvParser = getCsvParser
-    val result: Try[Map[AbstractSkimmerKey, AbstractSkimmerInternal]] = Try {
+    val result: Try[Map[Key, Value]] = Try {
       // Headers will be available only when parsing was started
       lazy val headers = {
         csvParser.getRecordMetadata.headers()
       }
       val mapReader = csvParser.iterateRecords(reader).asScala
-      val res: Map[AbstractSkimmerKey, AbstractSkimmerInternal] = mapReader
+      val res: Map[Key, Value] = mapReader
         .map(rec => {
           val a = convertRecordToMap(rec, headers)
           val newPair = fromCsv(a)

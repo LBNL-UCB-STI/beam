@@ -12,6 +12,7 @@ import beam.router.gtfs.FareCalculator.{filterFaresOnTransfers, BeamFareSegment}
 import beam.router.model.BeamLeg.dummyLeg
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model._
+import beam.router.r5.R5Wrapper._
 import beam.router.{Modes, Router, RoutingWorker}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
@@ -44,6 +45,7 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     extends MetricsSupport
     with StrictLogging
     with Router {
+  import R5Wrapper._
 
   private val maxDistanceForBikeMeters: Int =
     workerParams.beamConfig.beam.routing.r5.maxDistanceLimitByModeInMeters.bike
@@ -61,31 +63,20 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     tollCalculator
   ) = workerParams
 
-  private lazy val osmIdToHGVFlag: Map[Long, Boolean] = networkHelper.allLinks
-    .flatMap { link =>
-      Try(link.getAttributes.getAttribute("origid").toString.toLong).toOption.map { osmId =>
-        val isLinkHgv = Try(link.getAttributes.getAttribute("hgv").toString.toBoolean).getOrElse(false)
-        osmId -> isLinkHgv
-      }
-    }
-    .groupBy { case (osmId, _) => osmId }
-    .map { case (osmId, list) =>
-      val (_, isLinkHgv) = list.head
-      osmId -> isLinkHgv
-    }
-
-  private lazy val osmIdToFreespeed: Map[Long, Double] = networkHelper.allLinks
-    .flatMap { link =>
-      Try(link.getAttributes.getAttribute("origid").toString.toLong).toOption.map { osmId =>
-        val linkFreespeed = Try(link.getFreespeed).getOrElse(0.0)
-        osmId -> linkFreespeed
-      }
-    }
-    .groupBy { case (osmId, _) => osmId }
-    .map { case (osmId, list) =>
-      val (_, linkFreespeed) = list.head
-      osmId -> linkFreespeed
-    }
+  private lazy val osmIdToRoadRestriction: Map[Long, RoadRestrictions] = networkHelper.allLinks.flatMap { link =>
+    for {
+      osmIdStr <- Option(link.getAttributes.getAttribute("origid"))
+      osmId    <- Try(osmIdStr.toString.toLong).toOption
+    } yield osmId -> RoadRestrictions(
+      Option(link.getAttributes.getAttribute(HighDutyVehicleTag))
+        .flatMap(attr => Try(attr.toString.toBoolean).toOption)
+        .getOrElse(false),
+      Option(link.getAttributes.getAttribute(MediumDutyVehicleTag))
+        .flatMap(attr => Try(attr.toString.toBoolean).toOption)
+        .getOrElse(false),
+      Try(link.getFreespeed).getOrElse(0.0)
+    )
+  }.toMap
 
   private val linkRadiusMeters: Double =
     beamConfig.beam.routing.r5.linkRadiusMeters
@@ -1230,34 +1221,54 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
       override def computeTurnCost(fromEdge: Int, toEdge: Int, streetMode: StreetMode): Int = 0
     }
 
-  private val truckCategory = Seq(VehicleCategory.HeavyDutyTruck, VehicleCategory.LightDutyTruck)
-
   private def travelCostCalculator(
     vehicleType: BeamVehicleType,
     timeValueOfMoney: Double,
     startTime: Int
   ): TravelCostCalculator = { (edge: EdgeStore#Edge, legDurationSeconds: Int, traversalTimeSeconds: Float) =>
     {
-      val nonHGVLinkWeightMultiplier: Float = if (truckCategory.contains(vehicleType.vehicleCategory)) {
-        osmIdToHGVFlag.get(edge.getOSMID) match {
-          case Some(false) => beamConfig.beam.agentsim.agents.freight.nonHGVLinkWeightMultiplier.toFloat
-          case _           => 1f
-        }
-      } else 1f
-
-      val roadVelocityRestrictionWeightMultiplier: Float =
-        if (vehicleType.restrictRoadsByFreeSpeedInMeterPerSecond.isDefined) {
-          osmIdToFreespeed.get(edge.getOSMID) match {
-            case Some(freeSpeedValue) if freeSpeedValue > vehicleType.restrictRoadsByFreeSpeedInMeterPerSecond.get =>
-              beamConfig.beam.agentsim.agents.rideHail.freeSpeedLinkWeightMultiplier.toFloat
-            case _ => 1f
-          }
-        } else 1f
+      val roadRestrictionWeightMultiplier: Float =
+        if (
+          osmIdToRoadRestriction
+            .get(edge.getOSMID)
+            .exists(
+              _.isRestricted(
+                vehicleType.vehicleCategory,
+                vehicleType.restrictRoadsByFreeSpeedInMeterPerSecond.getOrElse(Double.MaxValue)
+              )
+            )
+        )
+          workerParams.beamConfig.beam.agentsim.agents.vehicles.roadRestrictionWeightMultiplier.toFloat
+        else 1f
 
       (traversalTimeSeconds + (timeValueOfMoney * tollCalculator.calcTollByLinkId(
         edge.getEdgeIndex,
         startTime + legDurationSeconds
-      )).toFloat) * nonHGVLinkWeightMultiplier * roadVelocityRestrictionWeightMultiplier
+      )).toFloat) * roadRestrictionWeightMultiplier
+    }
+  }
+}
+
+object R5Wrapper {
+  // Road restrictions for heavy- and medium- duty vehicles are defined as following
+  // mdvBannedByWeight = (weightInTons & (numericWeight <= 3.0)) | (weightInLbs & (numericWeight <= 6000))
+  // hdvBannedByWeight = (weightInTons & (numericWeight <= 7.0)) | (weightInLbs & (numericWeight <= 14000))
+  // hgvAllowedByDefault = edges.hgv.str.lower() != "no"
+  // longVehiclesBanned = ~edges.maxlength.isna()
+  // hgv = hgvAllowedByDefault & ~hdvBannedByWeight & ~longVehiclesBanned
+  // mdv = hgvAllowedByDefault & ~mdvBannedByWeight
+  // More info from March, 2024: https://github.com/zneedell/osmnx/blob/numeric-lanes/scratch/downloadSfBay.py
+  private val HighDutyVehicleTag = "hgv"
+  private val MediumDutyVehicleTag = "mdv"
+
+  private case class RoadRestrictions(hdv: Boolean, mdv: Boolean, freeSpeed: Double) {
+
+    def isRestricted(category: VehicleCategory.VehicleCategory, speedThreshold: Double): Boolean = {
+      category match {
+        case VehicleCategory.HeavyDutyTruck => !hdv
+        case VehicleCategory.LightDutyTruck => !mdv
+        case _                              => freeSpeed > speedThreshold
+      }
     }
   }
 }

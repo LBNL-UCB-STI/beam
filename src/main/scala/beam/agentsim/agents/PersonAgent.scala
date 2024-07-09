@@ -32,7 +32,7 @@ import beam.agentsim.events._
 import beam.agentsim.events.resources.{ReservationError, ReservationErrorCode}
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.parking.ParkingMNL
-import beam.agentsim.infrastructure.taz.TAZ
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.agentsim.infrastructure.{ParkingInquiryResponse, ParkingNetworkManager, ParkingStall}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, IllegalTriggerGoToError, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
@@ -57,6 +57,7 @@ import beam.router.skim.ActivitySimSkimmerEvent
 import beam.router.skim.event.{
   DriveTimeSkimmerEvent,
   ODSkimmerEvent,
+  ODVehicleTypeSkimmerEvent,
   RideHailSkimmerEvent,
   UnmatchedRideHailRequestSkimmerEvent
 }
@@ -68,20 +69,14 @@ import beam.utils.MeasureUnitConversion._
 import beam.utils.NetworkHelper
 import beam.utils.logging.ExponentialLazyLogging
 import com.conveyal.r5.transit.TransportNetwork
-import org.matsim.api.core.v01.events.{
-  ActivityEndEvent,
-  ActivityStartEvent,
-  PersonArrivalEvent,
-  PersonEntersVehicleEvent,
-  PersonLeavesVehicleEvent
-}
+import org.matsim.api.core.v01.events._
 import org.matsim.api.core.v01.population._
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.{EventsManager, TeleportationArrivalEvent}
 import org.matsim.core.utils.misc.Time
 
 import java.util.concurrent.atomic.AtomicReference
-import scala.annotation.{nowarn, tailrec}
+import scala.annotation.tailrec
 import scala.concurrent.duration._
 
 /**
@@ -226,6 +221,12 @@ object PersonAgent {
 
     def hasNextLeg: Boolean = restOfCurrentTrip.nonEmpty
     def nextLeg: EmbodiedBeamLeg = restOfCurrentTrip.head
+
+    def accomplishedLegs: IndexedSeq[EmbodiedBeamLeg] = {
+      val allLegs: IndexedSeq[EmbodiedBeamLeg] = currentTrip.map(_.legs).getOrElse(IndexedSeq.empty)
+      val numberOfAccomplishedLegs = allLegs.size - restOfCurrentTrip.size
+      allLegs.take(numberOfAccomplishedLegs)
+    }
 
     def shouldReserveRideHail(): Boolean = {
       // if we are about to walk then ride-hail
@@ -1185,17 +1186,18 @@ class PersonAgent(
 
   when(ProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
     case Event(StateTimeout, data: BasePersonData) if data.shouldReserveRideHail() =>
+      generateLegSkimData(_currentTick.get, data.accomplishedLegs, data.currentActivityIndex, nextActivity(data))
       // Doing RH reservation before we start walking to our pickup location
       val ridehailTrip = data.restOfCurrentTrip.dropWhile(!_.isRideHail)
       doRideHailReservation(data.nextLeg.beamLeg.startTime, data.nextLeg.beamLeg.endTime, ridehailTrip)
       goto(WaitingForRideHailReservationConfirmation)
-    case Event(StateTimeout, _) =>
+    case Event(StateTimeout, data: BasePersonData) =>
+      generateLegSkimData(_currentTick.get, data.accomplishedLegs, data.currentActivityIndex, nextActivity(data))
       goto(ActuallyProcessingNextLegOrStartActivity)
   }
 
   when(ActuallyProcessingNextLegOrStartActivity, stateTimeout = Duration.Zero) {
     case Event(StateTimeout, data: BasePersonData) if data.hasNextLeg && data.nextLeg.asDriver =>
-      val restOfCurrentTrip = data.restOfCurrentTrip.tail
       // Declaring a function here because this case is already so convoluted that I require a return
       // statement from within.
       // TODO: Refactor.
@@ -1557,7 +1559,7 @@ class PersonAgent(
       }
   }
 
-  def getTazFromActivity(activity: Activity): Id[TAZ] = {
+  def getTazFromActivity(activity: Activity, tazTreeMap: TAZTreeMap): Id[TAZ] = {
     val linkId = Option(activity.getLinkId).getOrElse(
       Id.createLinkId(
         beamServices.geo
@@ -1569,10 +1571,10 @@ class PersonAgent(
           .toString
       )
     )
-    beamScenario.tazTreeMap
+    tazTreeMap
       .getTAZfromLink(linkId)
       .map(_.tazId)
-      .getOrElse(beamScenario.tazTreeMap.getTAZ(activity.getCoord).tazId)
+      .getOrElse(tazTreeMap.getTAZ(activity.getCoord).tazId)
   }
 
   /**
@@ -1616,6 +1618,44 @@ class PersonAgent(
     )
   }
 
+  protected def getOriginAndDestinationFromGeoMap(
+    currentAct: Activity,
+    maybeNextAct: Option[Activity]
+  ): (String, String) = {
+    // Selecting the geoMap with highest resolution by comparing their number of zones
+    val geoMap = beamScenario.tazTreeMapForASimSkimmer
+    val (origin, destination) = if (geoMap.tazListContainsGeoms) {
+      val origGeo = getTazFromActivity(currentAct, geoMap).toString
+      val destGeo = maybeNextAct.map(act => getTazFromActivity(act, geoMap).toString).getOrElse("NA")
+      (origGeo, destGeo)
+    } else {
+      (
+        geoMap.getTAZ(currentAct.getCoord).tazId.toString,
+        maybeNextAct.map(act => geoMap.getTAZ(act.getCoord).tazId.toString).getOrElse("NA")
+      )
+    }
+    (origin, destination)
+  }
+
+  private def processActivitySimSkimmerEvent(
+    currentAct: Activity,
+    maybeNextAct: Option[Activity],
+    odSkimmerEvent: ODSkimmerEvent
+  ): Unit = {
+    val (origin, destination) = getOriginAndDestinationFromGeoMap(currentAct, maybeNextAct)
+    val asSkimmerEvent = ActivitySimSkimmerEvent(
+      origin,
+      destination,
+      odSkimmerEvent.eventTime,
+      odSkimmerEvent.trip,
+      odSkimmerEvent.generalizedTimeInHours,
+      odSkimmerEvent.generalizedCost,
+      odSkimmerEvent.energyConsumption,
+      beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
+    )
+    eventsManager.processEvent(asSkimmerEvent)
+  }
+
   def generateSkimData(
     tick: Int,
     trip: EmbodiedBeamTrip,
@@ -1633,49 +1673,73 @@ class PersonAgent(
       logger.error("Wrong trip classifier ({}) for freight {}", correctedTrip.tripClassifier, id)
     }
     // Correct the trip to deal with ride hail / disruptions and then register to skimmer
-    val (odSkimmerEvent, origCoord, destCoord) = ODSkimmerEvent.forTaz(
+    val (odSkimmerEvent, _, _) = ODSkimmerEvent.forTaz(
       tick,
       beamServices,
       correctedTrip,
       generalizedTime,
       generalizedCost,
       maybePayloadWeightInKg,
-      curFuelConsumed.primaryFuel + curFuelConsumed.secondaryFuel,
+      curFuelConsumed.totalEnergyConsumed,
       failedTrip
     )
     eventsManager.processEvent(odSkimmerEvent)
-    if (beamServices.beamConfig.beam.exchange.output.activitySimSkimsEnabled) {
-      val (origin, destination) =
-        if (beamScenario.tazTreeMap.tazListContainsGeoms) {
-          val origGeo = getTazFromActivity(currentActivity).toString
-          val destGeo = nextActivity.map(getTazFromActivity(_).toString).getOrElse("NA")
-          (origGeo, destGeo)
-        } else {
-          beamScenario.exchangeGeoMap match {
-            case Some(geoMap) =>
-              val origGeo = geoMap.getTAZ(origCoord)
-              val destGeo = geoMap.getTAZ(destCoord)
-              (origGeo.tazId.toString, destGeo.tazId.toString)
-            case None =>
-              (odSkimmerEvent.origin, odSkimmerEvent.destination)
-          }
-        }
-      val asSkimmerEvent = ActivitySimSkimmerEvent(
-        origin,
-        destination,
-        odSkimmerEvent.eventTime,
-        odSkimmerEvent.trip,
-        odSkimmerEvent.generalizedTimeInHours,
-        odSkimmerEvent.generalizedCost,
-        odSkimmerEvent.energyConsumption,
-        beamServices.beamConfig.beam.router.skim.activity_sim_skimmer.name
-      )
-      eventsManager.processEvent(asSkimmerEvent)
+    if (beamServices.beamConfig.beam.exchange.output.activity_sim_skimmer.exists(_.primary.enabled)) {
+      processActivitySimSkimmerEvent(currentActivity, nextActivity, odSkimmerEvent)
     }
 
     correctedTrip.legs.filter(x => x.beamLeg.mode == BeamMode.CAR || x.beamLeg.mode == BeamMode.CAV).foreach { carLeg =>
       eventsManager.processEvent(DriveTimeSkimmerEvent(tick, beamServices, carLeg))
     }
+  }
+
+  def generateLegSkimData(
+    tick: Int,
+    accomplishedLegs: IndexedSeq[EmbodiedBeamLeg],
+    currentActivityIndex: Int,
+    nextActivity: Option[Activity]
+  ): Unit = {
+    if (accomplishedLegs.isEmpty)
+      return
+
+    val vehicleTypeIdOpt = Option(accomplishedLegs.last.beamVehicleTypeId) match {
+      case None if accomplishedLegs.last.beamLeg.mode.isTransit =>
+        //FIXME TransitVehicleInitializer can load more fine-grained transit vehicle types
+        // using transitVehicleTypesByRouteFile parameter. We could use those vehicle types here
+        Some(TransitVehicleInitializer.transitModeToBeamVehicleType(accomplishedLegs.last.beamLeg.mode))
+      case None => None
+      case some => some
+    }
+    val vehicleTypeOpt = for {
+      vehicleTypeId <- vehicleTypeIdOpt
+      vehicleType   <- beamScenario.vehicleTypes.get(vehicleTypeId)
+    } yield vehicleType
+    if (vehicleTypeOpt.isEmpty)
+      return
+    val vehicleType = vehicleTypeOpt.get
+
+    if (!beamServices.skims.odVehicleTypeSkimmer.vehicleCategoriesToGenerateSkim.contains(vehicleType.vehicleCategory))
+      return
+    val leg0 = accomplishedLegs
+      .lift(accomplishedLegs.length - 2)
+      .filter(_.beamVehicleId == accomplishedLegs.last.beamVehicleId)
+      .toIndexedSeq
+    val legs: IndexedSeq[EmbodiedBeamLeg] = leg0 :+ accomplishedLegs.last
+    val trip = EmbodiedBeamTrip(legs)
+    val generalizedTime = modeChoiceCalculator.getGeneralizedTimeOfTrip(trip, Some(attributes), nextActivity)
+    val generalizedCost = modeChoiceCalculator.getNonTimeCost(trip) + attributes.getVOT(generalizedTime)
+    val maybePayloadWeightInKg = getPayloadWeightFromLeg(currentActivityIndex)
+    val odVehicleTypeEvent = ODVehicleTypeSkimmerEvent(
+      tick,
+      beamServices,
+      vehicleType,
+      trip,
+      generalizedTime,
+      generalizedCost,
+      maybePayloadWeightInKg,
+      curFuelConsumed.totalEnergyConsumed
+    )
+    eventsManager.processEvent(odVehicleTypeEvent)
   }
 
   private def getPayloadWeightFromLeg(currentActivityIndex: Int): Option[Double] = {

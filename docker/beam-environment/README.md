@@ -18,14 +18,14 @@ docker build -t <full image name:version> <path to this folder> -f <path to sele
 The BEAM is a combination of code and data, here is the command to get the code:
 
 ```
-docker run -it -v <path to empty folder>:/app/git <full image name:version> git clone https://github.com/LBNL-UCB-STI/beam.git
+docker run -it -v <path to empty folder>:/root/git <full image name:version> git clone https://github.com/LBNL-UCB-STI/beam.git
 ```
 
 The data might be cloned into `beam/production/<city name>`, or it might be cloned in a different folder.
 Here is the command to get the data:
 
 ```
-docker run -it -v <path to empty folder>:/app/git <full image name:version> git clone https://github.com/LBNL-UCB-STI/<city name>.git
+docker run -it -v <path to empty folder>:/root/git <full image name:version> git clone https://github.com/LBNL-UCB-STI/<city name>.git
 ```
 
 Any git command might be executed in that way: 'git fetch', 'git pull', 'git checkout', e.t.c.
@@ -35,8 +35,8 @@ Any git command might be executed in that way: 'git fetch', 'git pull', 'git che
 ```
 docker run 
     -it 
-    -v <path to BEAM code>:/app/sources 
-    -v <path to DATA>:/app/data 
+    -v <path to BEAM code>:/root/sources 
+    -v <path to DATA>:/root/data 
     <full image name:version> 
     gradle run \"-PappArgs=['--config', '<path to beam config>']\" -PmaxRAM=<max RAM for BEAM>
 ```
@@ -93,7 +93,7 @@ docker run \
   --env BEAM_CONFIG="$BEAM_CONFIG" \
   --env BEAM_BRANCH_NAME=$BEAM_BRANCH_NAME \
   --env PULL_CODE=true \
-  --mount source="$OUT_PATH",destination=/app/sources,type=bind \
+  --mount source="$OUT_PATH",destination=/root/sources,type=bind \
   <full image name:version>
 ```
 
@@ -117,7 +117,7 @@ docker run \
   --network host \
   --env MAX_RAM=$MAX_RAM \
   --env BEAM_CONFIG=$BEAM_CONFIG \
-  --mount source="$EXISTING_CODE_PATH",destination=/app/sources,type=bind \
+  --mount source="$EXISTING_CODE_PATH",destination=/root/sources,type=bind \
   <full image name:version>
 ```
 
@@ -143,8 +143,8 @@ docker run \
   --network host \
   --env MAX_RAM=$MAX_RAM \
   --env BEAM_CONFIG=$BEAM_CONFIG \
-  --mount source="$EXISTING_CODE_PATH",destination=/app/sources,type=bind \
-  --mount source="$EXISTING_DATA_PATH",destination=/app/data,type=bind \
+  --mount source="$EXISTING_CODE_PATH",destination=/root/sources,type=bind \
+  --mount source="$EXISTING_DATA_PATH",destination=/root/data,type=bind \
   <full image name:version>
 ```
 

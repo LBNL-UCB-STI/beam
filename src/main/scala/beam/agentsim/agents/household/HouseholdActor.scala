@@ -10,6 +10,7 @@ import beam.agentsim.agents._
 import beam.agentsim.agents.choice.logit.TourModeChoiceModel
 import beam.agentsim.agents.choice.mode.TourModeChoiceMultinomialLogit
 import beam.agentsim.agents.freight.input.FreightReader
+import beam.agentsim.agents.household.CAVSchedule.RouteOrEmbodyRequest
 import beam.agentsim.agents.modalbehaviors.ChoosesMode.{CavTripLegsRequest, CavTripLegsResponse}
 import beam.agentsim.agents.modalbehaviors.DrivesVehicle.VehicleOrToken
 import beam.agentsim.agents.modalbehaviors.ModeChoiceCalculator
@@ -322,7 +323,7 @@ object HouseholdActor {
               ),
               s"cavDriver-${cav.id.toString}"
             )
-            log.warning(
+            log.debug(
               s"Setting up household cav ${cav.id} with driver ${cav.getDriver} to be set with driver $cavDriverRef"
             )
             context.watch(cavDriverRef)
@@ -357,7 +358,7 @@ object HouseholdActor {
             val requestsAndUpdatedPlans = optimalPlan.filter(_.schedule.size > 1).map {
               _.toRoutingRequests(beamServices, transportNetwork, routeHistory, triggerId)
             }
-            val routingRequests = requestsAndUpdatedPlans.flatMap(_._1.flatten)
+            val routingRequests: Seq[RouteOrEmbodyRequest] = requestsAndUpdatedPlans.flatMap(_._1.flatten)
             cavPlans ++= requestsAndUpdatedPlans.map(_._2)
             val memberMap = household.members.map(person => person.getId -> person).toMap
             cavPlans.foreach { plan =>
@@ -392,11 +393,7 @@ object HouseholdActor {
                   beam.utils.logging.pattern
                     .ask(
                       router,
-                      if (req.routeReq.isDefined) {
-                        req.routeReq.get
-                      } else {
-                        req.embodyReq.get
-                      }
+                      req.merge
                     )
                     .mapTo[RoutingResponse]
                 )

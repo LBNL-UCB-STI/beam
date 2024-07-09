@@ -1,10 +1,11 @@
 package beam.sim
 
-import java.io.{BufferedWriter, FileWriter, IOException}
+import beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler
 
+import java.io.{BufferedWriter, FileWriter, IOException}
 import beam.analysis.physsim.{PhyssimCalcLinkSpeedDistributionStatsObject, PhyssimCalcLinkSpeedStatsObject}
 import beam.analysis.plots._
-import beam.utils.OutputDataDescriptor
+import beam.utils.{OutputDataDescriptor, OutputDataDescriptorObject}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.core.controler.OutputDirectoryHierarchy
 import org.matsim.core.controler.events.ControlerEvent
@@ -74,17 +75,81 @@ object BeamOutputDataDescriptionGenerator {
     * @return collected class instances
     */
   def getClassesGeneratingOutputs: Seq[OutputDataDescriptor] = List(
-    ModeChosenAnalysisObject,
+    beam.analysis.ActivityTypeAnalysis.outputDataDescriptor,
+    CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor,
+    CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("CarSpeed", "speed"),
+    CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("CarTravelDistance", "travel distance"),
+    CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("CarTravelTime", "travel time"),
+    BeamOutputDataDescriptionGenerator.outputDataDescriptor,
+    CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("FreeFlowCarSpeed", "free flow speed"),
+    CarTripStatsFromPathTraversalEventHandler.outputDataDescriptor("FreeFlowCarTravelTime", "free flow travel time"),
+    beam.utils.csv.writers.HouseholdsCsvWriter.outputDataDescriptor,
+    beam.analysis.ActivityTypeAnalysis.outputDataDescriptorIteration,
+    beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler.detailedOutputDataDescriptor("personal"),
+    beam.analysis.cartraveltime.CarTripStatsFromPathTraversalEventHandler.detailedOutputDataDescriptor("ridehail"),
+    beam.analysis.via.ExpectedMaxUtilityHeatMap.outputDataDescriptor,
+    beam.utils.csv.writers.VehiclesCsvWriter.iterationOutputDataDescriptor,
+    beam.analysis.plots.ModeChosenAnalysisObject,
+    beam.analysis.plots.ModeChosenAnalysisObject.iterationOutputDataDescriptor,
+    beam.analysis.plots.ModeChosenAnalysisObject.activitySimOutputDataDescriptor,
+    beam.utils.csv.writers.NetworkCsvWriter.outputDataDescriptor,
+    beam.utils.csv.writers.PlansCsvWriter.plansOutputDataDescriptor(iterationLevel = false),
+    beam.utils.csv.writers.PlansCsvWriter.plansOutputDataDescriptor(iterationLevel = true),
+    beam.utils.csv.writers.PopulationCsvWriter.outputDataDescriptor,
     RealizedModeAnalysisObject,
-    RideHailRevenueAnalysisObject,
+    beam.router.skim.ActivitySimSkimmer.outputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.activitySimOutputDataDescriptor,
+    beam.analysis.plots.ModeChosenAnalysisObject.activitySimReferenceOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.referenceOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.iterationOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.activitySimReferenceOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.replanningReasonOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.activitySimReplanningReasonOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.activitySimIterationOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.replanningCountIterationOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.activitySimReplanningCountIterationOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.replanningChainOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.activitySimReplanningChainOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.replanningReasonIterationOutputDataDescriptor,
+    beam.analysis.plots.RealizedModeAnalysisObject.activitySimReplanningReasonIterationOutputDataDescriptor,
+    beam.agentsim.infrastructure.parking.ParkingZoneFileUtils.rideHailParkingOutputDataDescriptor,
+    beam.analysis.plots.RideHailRevenueAnalysis.outputDataDescriptor,
+    beam.analysis.RideHailUtilizationCollector.rideHailRidesOutputDataDescriptor,
+    beam.analysis.RideHailUtilizationCollector.activitySimReplanningReasonOutputDataDescriptor,
+    new beam.agentsim.agents.ridehail.RideHailManager.OutputData,
+    BeamOutputDataDescriptionGenerator.summaryVehicleStatsOutputDataDescriptor,
+    beam.analysis.plots.ModeChosenAnalysisObject.iterationAlternativesCount,
+    beam.analysis.plots.ModeChosenAnalysisObject.iterationActivitySimAlternativesCount,
+    beam.analysis.plots.PersonTravelTimeAnalysisObject.iterationNonArrivedOutputDataDescriptor,
+    beam.analysis.plots.passengerpertrip.CarPassengerPerTripObject.iterationPassengerPerTripOutputDataDescriptor,
+    beam.analysis.ParkingStatsCollector,
     PersonTravelTimeAnalysisObject,
     FuelUsageAnalysisObject,
-//    ExpectedMaxUtilityHeatMapObject,
     PhyssimCalcLinkSpeedStatsObject,
     PhyssimCalcLinkSpeedDistributionStatsObject,
     RideHailWaitingAnalysisObject,
     GraphSurgePricingObject,
     RideHailingWaitingSingleAnalysisObject,
+    beam.analysis.plots.RideHailWaitingTazAnalysisObject.rideHailWaitingTimeOutputDataDescriptor,
+    beam.router.RouteHistory.routeHistoryOutputDataDescriptor,
+    beam.analysis.RoutingRequestAnalysis.routingModeOutputDataDescriptor,
+    beam.router.skim.core.FreightSkimmer.freightSkimOutputDataDescriptor,
+    beam.router.skim.core.FreightSkimmer.aggregatedFreightSkimOutputDataDescriptor,
+    beam.router.skim.core.ODSkimmer.odSkimOutputDataDescriptor,
+    beam.router.skim.core.ODSkimmer.aggregatedOdSkimOutputDataDescriptor,
+    beam.router.skim.core.ODVehicleTypeSkimmer.odVehicleTypeSkimOutputDataDescriptor,
+    beam.router.skim.core.ODVehicleTypeSkimmer.aggregatedODVehicleTypeSkimOutputDataDescriptor,
+    beam.router.skim.core.ParkingSkimmer.parkingSkimOutputDataDescriptor,
+    beam.router.skim.core.ParkingSkimmer.aggregatedParkingSkimOutputDataDescriptor,
+    beam.router.skim.core.RideHailSkimmer.rideHailSkimOutputDataDescriptor,
+    beam.router.skim.core.RideHailSkimmer.aggregatedRideHailSkimOutputDataDescriptor,
+    beam.router.skim.core.TAZSkimmer.tazSkimOutputDataDescriptor,
+    beam.router.skim.core.TAZSkimmer.aggregatedTazSkimOutputDataDescriptor,
+    beam.router.skim.core.TransitCrowdingSkimmer.transitCrowdingSkimOutputDataDescriptor,
+    beam.router.skim.core.TransitCrowdingSkimmer.aggregatedTransitCrowdingSkimOutputDataDescriptor,
+    beam.router.skim.core.DriveTimeSkimmer.driveTimeSkimOutputDataDescriptor,
+    beam.router.skim.core.DriveTimeSkimmer.aggregatedDriveTimeSkimOutputDataDescriptor,
+    beam.analysis.TransitOccupancyByStopAnalysis.transitOccupancySkimOutputDataDescriptor,
     StopWatchOutputs,
     ScoreStatsOutputs,
     SummaryStatsOutputs,
@@ -95,8 +160,30 @@ object BeamOutputDataDescriptionGenerator {
     TripDurationOutputs,
     BiasErrorGraphDataOutputs,
     BiasNormalizedErrorGraphDataOutputs,
-    RideHailFleetInitializer
+    RideHailFleetInitializer,
+    new DeadHeadingAnalysis.OutputDataDescriptor,
+    beam.utils.csv.writers.VehiclesCsvWriter.outputDataDescriptor
   )
+
+  def outputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("BeamOutputDataDescriptionGenerator", "dataDescriptors.csv")(
+      """ClassName  | Class that generates the output file
+        OutputFile  | Output file name
+        Field       | Column name
+        Description | Description of the column
+        """
+    )
+
+  def summaryVehicleStatsOutputDataDescriptor: OutputDataDescriptor =
+    OutputDataDescriptorObject("BeamSim", "summaryVehicleStats.csv")(
+      """
+          iteration             | Iteration number
+          vehicleType           | Vehicle type which stats this tables contains
+          vehicleMilesTraveled  | Total distance that all the vehicles of this type travelled
+          vehicleHoursTraveled  | Total time that all the vehicles of this type travelled
+          numberOfVehicles      | Total number of vehicles of this type
+        """
+    )
 
 }
 
@@ -336,7 +423,7 @@ object SummaryStatsOutputs extends OutputDataDescriptor {
   override def getOutputDataDescriptions(
     ioController: OutputDirectoryHierarchy
   ): java.util.List[OutputDataDescription] = {
-    val outputFilePath = ioController.getOutputFilename("summaryStats.txt")
+    val outputFilePath = ioController.getOutputFilename("summaryStats.csv")
     val outputDirPath = ioController.getOutputPath
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new java.util.ArrayList[OutputDataDescription]
@@ -1227,7 +1314,7 @@ object TripDurationOutputs extends OutputDataDescriptor {
   override def getOutputDataDescriptions(
     ioController: OutputDirectoryHierarchy
   ): java.util.List[OutputDataDescription] = {
-    val outputFilePath = ioController.getIterationFilename(0, "tripDuration.txt")
+    val outputFilePath = ioController.getIterationFilename(0, "tripdurations.txt")
     val outputDirPath = ioController.getOutputPath
     val relativePath = outputFilePath.replace(outputDirPath, "")
     val list = new java.util.ArrayList[OutputDataDescription]

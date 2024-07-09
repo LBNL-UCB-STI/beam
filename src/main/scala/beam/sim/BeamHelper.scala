@@ -52,7 +52,6 @@ import org.matsim.api.core.v01.network.Network
 import org.matsim.api.core.v01.population.{Activity, Population}
 import org.matsim.api.core.v01.{Id, Scenario}
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.config.groups.TravelTimeCalculatorConfigGroup
 import org.matsim.core.config.{Config => MatsimConfig}
 import org.matsim.core.controler._
 import org.matsim.core.controler.corelisteners.{ControlerDefaultCoreListenersModule, EventsHandling, PlansDumping}
@@ -116,29 +115,33 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     parsedArgs: Arguments,
     config: TypesafeConfig
   ): TypesafeConfig = {
-    config.withFallback(
-      ConfigFactory.parseMap(
-        (
-          Map(
-            "beam.cluster.enabled" -> parsedArgs.useCluster,
-            "beam.useLocalWorker" -> parsedArgs.useLocalWorker.getOrElse(
-              if (parsedArgs.useCluster) false else true
-            )
-          ) ++ {
-            if (parsedArgs.useCluster)
-              Map(
-                "beam.cluster.clusterType"              -> parsedArgs.clusterType.get.toString,
-                "akka.actor.provider"                   -> "akka.cluster.ClusterActorRefProvider",
-                "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.get,
-                "akka.remote.artery.canonical.port"     -> parsedArgs.nodePort.get,
-                "akka.cluster.seed-nodes" -> java.util.Arrays
-                  .asList(s"akka://ClusterSystem@${parsedArgs.seedAddress.get}")
-              )
-            else Map.empty[String, Any]
-          }
-        ).asJava
-      )
+    val primaryConfigEntries = ConfigFactory.parseMap(
+      parsedArgs.pythonExecutable.map("beam.outputs.analysis.pythonExecutable" -> _).toMap.asJava
     )
+    val secondaryConfigEntries = ConfigFactory.parseMap(
+      (
+        Map(
+          "beam.cluster.enabled" -> parsedArgs.useCluster,
+          "beam.useLocalWorker" -> parsedArgs.useLocalWorker.getOrElse(
+            if (parsedArgs.useCluster) false else true
+          )
+        ) ++ {
+          if (parsedArgs.useCluster)
+            Map(
+              "beam.cluster.clusterType"              -> parsedArgs.clusterType.get.toString,
+              "akka.actor.provider"                   -> "akka.cluster.ClusterActorRefProvider",
+              "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.get,
+              "akka.remote.artery.canonical.port"     -> parsedArgs.nodePort.get,
+              "akka.cluster.seed-nodes" -> java.util.Arrays
+                .asList(s"akka://ClusterSystem@${parsedArgs.seedAddress.get}")
+            )
+          else Map.empty[String, Any]
+        }
+      ).asJava
+    )
+    primaryConfigEntries
+      .withFallback(config)
+      .withFallback(secondaryConfigEntries)
   }
 
   def module(
@@ -246,6 +249,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
           bind(classOf[DriveTimeSkimmer]).asEagerSingleton()
           bind(classOf[TransitCrowdingSkimmer]).asEagerSingleton()
           bind(classOf[RideHailSkimmer]).asEagerSingleton()
+          bind(classOf[ODVehicleTypeSkimmer]).asEagerSingleton()
           bind(classOf[FreightSkimmer]).asEagerSingleton()
           bind(classOf[ParkingSkimmer]).asEagerSingleton()
           bind(classOf[ActivitySimSkimmer]).asEagerSingleton()
@@ -291,11 +295,17 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     val networkCoordinator = buildNetworkCoordinator(beamConfig)
     val gtfs = GTFSUtils.loadGTFS(beamConfig.beam.routing.r5.directory)
     val trainStopQuadTree = GTFSUtils.toQuadTree(GTFSUtils.trainStations(gtfs), new GeoUtilsImpl(beamConfig))
-    val tazMap =
-      TAZTreeMap.getTazTreeMap(beamConfig.beam.agentsim.taz.filePath, Some(beamConfig.beam.agentsim.taz.tazIdFieldName))
+    val taz = beamConfig.beam.agentsim.taz
+    val tazMap = TAZTreeMap.getTazTreeMap(taz.filePath, Some(taz.tazIdFieldName))
     tazMap.mapNetworkToTAZs(networkCoordinator.network)
-    val exchangeGeo = beamConfig.beam.exchange.output.geo.filePath
-      .map(TAZTreeMap.getTazTreeMap(_, Some(beamConfig.beam.agentsim.taz.tazIdFieldName)))
+    val taz2Map = if (beamConfig.beam.exchange.output.activity_sim_skimmer.exists(_.secondary.enabled)) {
+      TAZTreeMap.getSecondaryTazTreeMap(
+        beamConfig.beam.exchange.output.activity_sim_skimmer.get.secondary.taz,
+        beamConfig.beam.agentsim.taz,
+        tazMap
+      )
+    } else None
+
     val (freightCarriers, fixedActivitiesDurationsFromFreight) =
       readFreights(
         beamConfig,
@@ -333,7 +343,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       networkCoordinator.network,
       trainStopQuadTree,
       tazMap,
-      exchangeGeo,
+      taz2Map,
       ModeIncentive(beamConfig.beam.agentsim.agents.modeIncentive.filePath),
       H3TAZ(networkCoordinator.network, tazMap, beamConfig),
       freightCarriers,
@@ -341,7 +351,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     )
   }
 
-  def readFreights(
+  private def readFreights(
     beamConfig: BeamConfig,
     streetLayer: StreetLayer,
     networkMaybe: Option[Network],
@@ -373,7 +383,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     }
   }
 
-  def readPrivateVehicles(
+  private def readPrivateVehicles(
     beamConfig: BeamConfig,
     vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType]
   ): (TrieMap[Id[BeamVehicle], BeamVehicle], TrieMap[Id[BeamVehicle], Double]) =
@@ -514,7 +524,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     )
   }
 
-  def runClusterWorkerUsing(config: TypesafeConfig): Unit = {
+  private def runClusterWorkerUsing(config: TypesafeConfig): Unit = {
     val clusterConfig = ConfigFactory
       .parseString("""
            |akka.cluster.roles = [compute]
@@ -975,7 +985,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     BeamExecutionConfig(beamConfig, matsimConfig, outputDirectory)
   }
 
-  protected def buildNetworkCoordinator(beamConfig: BeamConfig): NetworkCoordinator = {
+  private def buildNetworkCoordinator(beamConfig: BeamConfig): NetworkCoordinator = {
     val result = if (Files.isRegularFile(Paths.get(beamConfig.beam.agentsim.scenarios.frequencyAdjustmentFile))) {
       FrequencyAdjustingNetworkCoordinator(beamConfig)
     } else {

@@ -306,7 +306,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
                 triggerId = triggerId
               )
               newMobilityRequests = newMobilityRequests :+ orig.copy(routingRequestId = Some(embodyReq.requestId))
-              Some(RouteOrEmbodyRequest(None, Some(embodyReq)))
+              Some(Right(embodyReq))
             case None =>
               val routingRequest = RoutingRequest(
                 orig.activity.getCoord,
@@ -329,7 +329,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
               newMobilityRequests = newMobilityRequests :+ orig.copy(
                 routingRequestId = Some(routingRequest.requestId)
               )
-              Some(RouteOrEmbodyRequest(Some(routingRequest), None))
+              Some(Left(routingRequest))
           }
         }
       }
@@ -340,7 +340,7 @@ case class CAVSchedule(schedule: List[MobilityRequest], cav: BeamVehicle, occupa
 }
 
 object CAVSchedule {
-  case class RouteOrEmbodyRequest(routeReq: Option[RoutingRequest], embodyReq: Option[EmbodyWithCurrentTravelTime])
+  type RouteOrEmbodyRequest = Either[RoutingRequest, EmbodyWithCurrentTravelTime]
 }
 
 case class HouseholdTrips(

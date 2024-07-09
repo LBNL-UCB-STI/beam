@@ -50,6 +50,7 @@ class BeamWarmStartRunSpec
         "ITERS/it.2/2.skimsTAZ_Aggregated.csv.gz",
         "ITERS/it.2/2.skimsTravelTimeObservedVsSimulated_Aggregated.csv.gz",
         "ITERS/it.2/2.skimsRidehail_Aggregated.csv.gz",
+        "ITERS/it.2/2.skimsODVehicleType_Aggregated.csv.gz",
         "ITERS/it.2/2.skimsFreight_Aggregated.csv.gz",
         "ITERS/it.2/2.skimsParking_Aggregated.csv.gz",
         "ITERS/it.2/2.skimsTransitCrowding_Aggregated.csv.gz",
