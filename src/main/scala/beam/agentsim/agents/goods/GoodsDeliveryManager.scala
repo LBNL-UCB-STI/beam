@@ -21,7 +21,12 @@ import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.Modes.BeamMode
 import beam.router.model.{EmbodiedBeamLeg, EmbodiedBeamTrip}
-import beam.router.skim.event.{ODSkimmerEvent, RideHailSkimmerEvent, UnmatchedRideHailRequestSkimmerEvent}
+import beam.router.skim.event.{
+  ODSkimmerEvent,
+  ODVehicleTypeSkimmerEvent,
+  RideHailSkimmerEvent,
+  UnmatchedRideHailRequestSkimmerEvent
+}
 import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.MathUtils
 import beam.utils.MeasureUnitConversion.METERS_IN_MILE
@@ -156,14 +161,20 @@ private class GoodsDeliveryManager(
       val arrivalLink = Id.createLinkId(trip.legs.last.beamLeg.travelPath.linkIds.last)
       eventsManager.processEvent(new PersonLeavesVehicleEvent(tick, packageId, vehicleToExit))
       eventsManager.processEvent(new PersonArrivalEvent(tick, packageId, arrivalLink, BeamMode.RIDE_HAIL.value))
-      eventsManager.processEvent(generateODSkimEvent(tick, trip, fuelConsumed.get))
+      val (odEvent, odVehicleTypeEvent) = generateODSkimEvents(tick, trip, fuelConsumed.get)
+      eventsManager.processEvent(odEvent)
+      eventsManager.processEvent(odVehicleTypeEvent)
       scheduler ! CompletionNotice(triggerId)
       context.become(operate(goodsData - packageId))
     case Finish =>
       context.stop(self)
   }
 
-  private def generateODSkimEvent(tick: Int, trip: EmbodiedBeamTrip, fuelConsumed: FuelConsumed): ODSkimmerEvent = {
+  private def generateODSkimEvents(
+    tick: Int,
+    trip: EmbodiedBeamTrip,
+    fuelConsumed: FuelConsumed
+  ): (ODSkimmerEvent, ODVehicleTypeSkimmerEvent) = {
     val generalizedTime = modeChoiceCalculator.getGeneralizedTimeOfTrip(trip)
     val generalizedCost = modeChoiceCalculator.getNonTimeCost(trip)
     val (odSkimmerEvent, _, _) = ODSkimmerEvent.forTaz(
@@ -174,10 +185,23 @@ private class GoodsDeliveryManager(
       generalizedTime,
       generalizedCost,
       None,
-      fuelConsumed.primaryFuel + fuelConsumed.secondaryFuel,
+      fuelConsumed.totalEnergyConsumed,
       failedTrip = false
     )
-    odSkimmerEvent
+    val vehicleType = beamScenario.vehicleTypes(trip.legs.head.beamVehicleTypeId)
+
+    val odVehicleTypeEvent = ODVehicleTypeSkimmerEvent(
+      tick,
+      beamServices,
+      vehicleType,
+      trip,
+      generalizedTime,
+      generalizedCost,
+      None,
+      fuelConsumed.totalEnergyConsumed
+    )
+
+    (odSkimmerEvent, odVehicleTypeEvent)
   }
 
   private def generateSuccessfulRideHailEvents(
