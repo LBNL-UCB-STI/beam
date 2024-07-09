@@ -89,10 +89,17 @@ average_speed_vector <- function(distances, speeds) {
   
   return(average_speed)
 }
+
+getHPMSAADT <- function(linkAADT) {
+  linkAADT$Volume_hpms <- linkAADT$AADT_Combi+linkAADT$AADT_Singl
+  linkAADT$VMT_hpms <- linkAADT$Volume_hpms * as.numeric(st_length(linkAADT))/1609.0
+  return(data.table::as.data.table(linkAADT))
+}
+
 ####
 
-expansionFactor <- 1/0.1
-city <- "austin"
+expansionFactor <- 1/0.3
+city <- "seattle"
 workDir <- pp(normalizePath("~/Workspace/Data/"), "/FREIGHT/", city, "/")
 
 #test <- readCsv(pp(workDir, "/beam/runs/baseline/2018/filtered.0.events.csv.gz"))
@@ -101,15 +108,15 @@ workDir <- pp(normalizePath("~/Workspace/Data/"), "/FREIGHT/", city, "/")
 # *************** BASELINE **************
 # ***************************************
 
-baseline_runs_dir <- pp(workDir, "beam/runs/scenarios-23Jan2024/")
+baseline_runs_dir <- pp(workDir, "beam/runs/2024-04-23/")
 baseline_output_dir <- pp(baseline_runs_dir, "output/")
 dir.create(baseline_output_dir, showWarnings = FALSE)
 
-baseline_runs_labels <- c("Base", "Base\n +RouteE")
-baseline_runs_name <- "23Jan2024"
+baseline_runs_labels <- c("Baseline")
+baseline_runs_name <- "2024-04-20"
 baseline_runs <- 
   read_freight_events(
-    c("Base", "Base_RouteE"), 
+    c("Baseline"), 
     baseline_runs_labels, 
     baseline_runs_dir,
     baseline_runs_name
@@ -129,8 +136,9 @@ baseline_summary[,energyAndVehiclesTypes:=paste(energyTypeCode,vehicleClass,sep=
 # "BEV Class 7&8 Tractor" "deepskyblue4"
 # "BEV Class 7&8 Vocational" "deepskyblue2"
 # "BEV Class 4-6 Vocational" "deepskyblue3"
-baseline_summary_levels <- c("Diesel Class 4-6 Vocational", "Diesel Class 7&8 Vocational", "Diesel Class 7&8 Tractor")
-baseline_summary_colors <- c("azure3", "darkgray", "azure4")
+baseline_summary_levels <- c("Diesel Class 4-6 Vocational", "Diesel Class 7&8 Vocational", "Diesel Class 7&8 Tractor",
+                             "BEV Class 7&8 Vocational")
+baseline_summary_colors <- c("azure3", "darkgray", "azure4", "deepskyblue2")
 baseline_summary$energyAndVehiclesTypes <- factor(baseline_summary$energyAndVehiclesTypes, levels=baseline_summary_levels)
 write.csv(
   baseline_summary,
@@ -141,18 +149,35 @@ write.csv(
 baseline_summary[,.(MVMT=sum(MVMT)),by=.(energyAndVehiclesTypes,runLabel)]
 
 # ****** BASELINE - VMT Validation
+linkAADT <- st_read(pp(workDir,"/validation_data/HPMS/WA_HPMS_with_GEOID_LANEMILE.geojson"))
+linkAADT_dt <- getHPMSAADT(linkAADT%>%filter(startsWith(GEOID,"53061")|startsWith(GEOID,"53033")|startsWith(GEOID,"53035")|startsWith(GEOID,"53053")))
+Volume_hpms <- sum(linkAADT_dt$Volume_hpms)
+VMT_hpms <- sum(linkAADT_dt$VMT_hpms)
+
+beam_baseline <- sum(baseline_summary[runLabel=="Baseline"]$MVMT)
+VMT_hpms_international <- (VMT_hpms*0.22)/1e+6
+VMT_hpms_through_traffic <- (VMT_hpms*0.1)/1e+6
+VMT_hpms_national <- (VMT_hpms*0.68)/1e+6
+
+
 validation <- data.table::data.table(
-  label = c("Baseline", "HPMS"),
-  MVMT = c(sum(baseline_summary[runLabel=="2018"]$MVMT), 7006801*1E-6)
+  label = c("FAMOS", "FAMOS", "FAMOS", "HPMS", "HPMS", "HPMS"),
+  source = c("National", "International", "Through Traffic", "National", "International", "Through Traffic"),
+  MVMT = c(beam_baseline, 0.0, 0.0, VMT_hpms_national, VMT_hpms_international, VMT_hpms_through_traffic)
 )
-p<-ggplot(validation, aes(label, MVMT, fill=label)) +
+
+validation_levels <-  c("Through Traffic", "International","National")
+validation$source <- factor(validation$source, levels = validation_levels)
+
+p<-ggplot(validation, aes(label, MVMT, fill=source)) +
   geom_bar(stat='identity') +
   labs(y='Million VMT',x='Source',title='Total VMT')+
   theme_marain()+
   theme(axis.text.x = element_text(angle = 0, hjust=0.5),
         strip.text = element_text(size=rel(1.2)),
-        plot.title = element_text(size=10)) + 
-  theme(legend.position = "none")
+        plot.title = element_text(size=10))
+
+baseline_summary[runLabel=="Baseline"]
 
 
 # ****** BASELINE - VMT

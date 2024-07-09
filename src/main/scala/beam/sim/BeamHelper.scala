@@ -115,29 +115,33 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     parsedArgs: Arguments,
     config: TypesafeConfig
   ): TypesafeConfig = {
-    config.withFallback(
-      ConfigFactory.parseMap(
-        (
-          Map(
-            "beam.cluster.enabled" -> parsedArgs.useCluster,
-            "beam.useLocalWorker" -> parsedArgs.useLocalWorker.getOrElse(
-              if (parsedArgs.useCluster) false else true
-            )
-          ) ++ {
-            if (parsedArgs.useCluster)
-              Map(
-                "beam.cluster.clusterType"              -> parsedArgs.clusterType.get.toString,
-                "akka.actor.provider"                   -> "akka.cluster.ClusterActorRefProvider",
-                "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.get,
-                "akka.remote.artery.canonical.port"     -> parsedArgs.nodePort.get,
-                "akka.cluster.seed-nodes" -> java.util.Arrays
-                  .asList(s"akka://ClusterSystem@${parsedArgs.seedAddress.get}")
-              )
-            else Map.empty[String, Any]
-          }
-        ).asJava
-      )
+    val primaryConfigEntries = ConfigFactory.parseMap(
+      parsedArgs.pythonExecutable.map("beam.outputs.analysis.pythonExecutable" -> _).toMap.asJava
     )
+    val secondaryConfigEntries = ConfigFactory.parseMap(
+      (
+        Map(
+          "beam.cluster.enabled" -> parsedArgs.useCluster,
+          "beam.useLocalWorker" -> parsedArgs.useLocalWorker.getOrElse(
+            if (parsedArgs.useCluster) false else true
+          )
+        ) ++ {
+          if (parsedArgs.useCluster)
+            Map(
+              "beam.cluster.clusterType"              -> parsedArgs.clusterType.get.toString,
+              "akka.actor.provider"                   -> "akka.cluster.ClusterActorRefProvider",
+              "akka.remote.artery.canonical.hostname" -> parsedArgs.nodeHost.get,
+              "akka.remote.artery.canonical.port"     -> parsedArgs.nodePort.get,
+              "akka.cluster.seed-nodes" -> java.util.Arrays
+                .asList(s"akka://ClusterSystem@${parsedArgs.seedAddress.get}")
+            )
+          else Map.empty[String, Any]
+        }
+      ).asJava
+    )
+    primaryConfigEntries
+      .withFallback(config)
+      .withFallback(secondaryConfigEntries)
   }
 
   def module(
@@ -245,6 +249,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
           bind(classOf[DriveTimeSkimmer]).asEagerSingleton()
           bind(classOf[TransitCrowdingSkimmer]).asEagerSingleton()
           bind(classOf[RideHailSkimmer]).asEagerSingleton()
+          bind(classOf[ODVehicleTypeSkimmer]).asEagerSingleton()
           bind(classOf[FreightSkimmer]).asEagerSingleton()
           bind(classOf[ParkingSkimmer]).asEagerSingleton()
           bind(classOf[ActivitySimSkimmer]).asEagerSingleton()

@@ -19,6 +19,8 @@ class TAZ(val tazId: Id[TAZ], val coord: Coord, val areaInSquareMeters: Double, 
   def this(tazIdString: String, coord: Coord, area: Double, geometry: Option[Geometry] = None) {
     this(Id.create(tazIdString, classOf[TAZ]), coord, area, geometry)
   }
+
+  override def toString: String = s"TAZ{$tazId}"
 }
 
 object TAZ {
