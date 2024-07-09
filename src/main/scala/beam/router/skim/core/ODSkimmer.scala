@@ -402,7 +402,7 @@ object ODSkimmer extends LazyLogging {
 
   def fromCsv(
     row: scala.collection.Map[String, String]
-  ): (AbstractSkimmerKey, AbstractSkimmerInternal) = {
+  ): (ODSkimmerKey, ODSkimmerInternal) = {
     (
       ODSkimmerKey(
         hour = row("hour").toInt,
@@ -536,7 +536,7 @@ object ODSkimmer extends LazyLogging {
         cost                              | Average trip total cost
         generalizedCost                   | Average trip generalized cost
         distanceInM                       | Average trip distance in meters
-        payloadWeightInKg                 | Average if freight trip it contains paylod weight in kg
+        payloadWeightInKg                 | Average payload weight (if it's not a freight trip then it is zero)
         energy                            | Average energy consumed in Joules
         level4CavTravelTimeScalingFactor  | Always 1.0
         failedTrips                       | Number of failed trips
@@ -558,7 +558,7 @@ object ODSkimmer extends LazyLogging {
         cost                              | Average trip total cost
         generalizedCost                   | Average trip generalized cost
         distanceInM                       | Average trip distance in meters
-        payloadWeightInKg                 | Average if freight trip it contains paylod weight in kg
+        payloadWeightInKg                 | Average payload weight (if it's not a freight trip then it is zero)
         energy                            | Average energy consumed in Joules
         level4CavTravelTimeScalingFactor  | Always 1.0
         failedTrips                       | Average number of failed trips
