@@ -31,17 +31,8 @@ beam_to_roadclass_lookup = {'motorway': fsystem_to_roadclass_lookup[1.0],
                             'tertiary_link': fsystem_to_roadclass_lookup[6.0],
                             'unclassified': fsystem_to_roadclass_lookup[6.0],
                             'residential': fsystem_to_roadclass_lookup[7.0],
-                            'track': fsystem_to_roadclass_lookup[7.0],
-                            'footway': fsystem_to_roadclass_lookup[7.0],
-                            'path': fsystem_to_roadclass_lookup[7.0],
-                            'pedestrian': fsystem_to_roadclass_lookup[7.0],
-                            'cycleway': fsystem_to_roadclass_lookup[7.0],
-                            'steps': fsystem_to_roadclass_lookup[7.0],
                             'living_street': fsystem_to_roadclass_lookup[7.0],
-                            'bus_stop': fsystem_to_roadclass_lookup[7.0],
-                            'corridor': fsystem_to_roadclass_lookup[7.0],
                             'road': fsystem_to_roadclass_lookup[7.0],
-                            'bridleway': fsystem_to_roadclass_lookup[7.0],
                             np.nan: fsystem_to_roadclass_lookup[7.0]}
 state_fips_to_code = {
     '01': 'AL', '02': 'AK', '04': 'AZ', '05': 'AR', '06': 'CA',
@@ -178,7 +169,7 @@ def map_nearest_links(df1, df2, projected_crs_epsg, distance_buffer):
 
     # Convert indices in results_gdf to the original indices in df1 and df2
     # results_gdf = results_gdf.set_index('df1_index').join(df1.drop(columns='geometry'), rsuffix='_df1')
-    df1 = df1[['linkId', 'road_class', 'geometry']]
+    df1 = df1[['linkId', 'linkFreeSpeed', 'road_class', 'geometry']]
     df1.rename(columns={'linkId': 'link'}, inplace=True)
     results_gdf = results_gdf.set_index('df1_index').join(df1, rsuffix='_df1')
 
@@ -511,6 +502,8 @@ class SpeedValidationSetup:
         self.npmrds_hourly_speed_by_road_class = pv.read_csv(npmrds_hourly_speed_by_road_class_csv).to_pandas()
         self.link_stats_tmc_dfs = process_and_extend_link_stats(self.beam_npmrds_network_map, link_stats,
                                                                 assume_daylight_saving)
+        base_name, extension = os.path.splitext(beam_network_mapped_to_npmrds_geo)
+        self.generate_link_speed_params(base_name)
         print(f"Execution time of prepare_npmrds_and_beam_data: {(time.time() - st) / 60.0:.2f} minutes")
 
     def get_hourly_average_speed(self):
@@ -582,6 +575,75 @@ class SpeedValidationSetup:
 
         print(f"Execution time of get_hourly_link_speed_by_road_class: {(time.time() - st) / 60.0}min")
         return combined_data_by_road_class
+
+    # def get_average_link_speed(self):
+    #     def calculate_average(group):
+    #         return pd.Series({
+    #             'volume_beam': np.mean(group['volume']),
+    #             'vmt_beam': np.mean(group['vmt']),
+    #             'speed_beam': np.mean(group['speed_beam']),
+    #             'speed_npmrds': np.mean(group['speed_npmrds'])
+    #         })
+    #     # Start timing
+    #     st = time.time()
+    #
+    #     # Initialize a list to collect DataFrames
+    #     data_frames = []
+    #
+    #     # Loop through TMC DataFrames to calculate metrics and collect them
+    #     for link_stats_tmc in self.link_stats_tmc_dfs:
+    #         hourly_link_speed_by_road_class = link_stats_tmc.groupby(['tmc', 'link', 'hour', 'road_class', 'scenario']). \
+    #             apply(calculate_metrics, include_groups=False).reset_index().merge(
+    #             self.npmrds_hourly_speed_by_road_class[['tmc', 'speed']],
+    #             on='tmc', how='inner', suffixes=('_beam', '_npmrds')
+    #         ).groupby(['link', 'road_class', 'scenario']).apply(calculate_average, include_groups=False).reset_index()
+    #
+    #         data_frames.append(hourly_link_speed_by_road_class)
+    #
+    #     combined_average_link_speed_by_link = pd.concat(data_frames, ignore_index=True)
+    #
+    #     print(f"Execution time of get_average_link_speed_by_link: {(time.time() - st) / 60.0}min")
+    #     return combined_average_link_speed_by_link
+
+    def generate_link_speed_params(self, base_path_name):
+        beam_npmrds_network_map = self.beam_npmrds_network_map[['link', 'linkFreeSpeed', 'tmc', 'road_class']]
+        mean_speed_by_tmc = self.npmrds_hourly_speed_by_road_class.groupby('tmc').agg(
+            npmrds_speed=('speed', lambda x: x.mean(skipna=True) / mps_to_mph)).reset_index()
+        merged_df = pd.merge(beam_npmrds_network_map, mean_speed_by_tmc, on='tmc', how='left').dropna(
+            subset=['npmrds_speed'])
+        merged_df['free_speed'] = merged_df[['linkFreeSpeed', 'npmrds_speed']].min(axis=1)
+
+        # Create a DataFrame with the required columns
+        speed_param = merged_df[['link', 'road_class', 'free_speed']].dropna(subset=['free_speed'])
+        speed_param = speed_param.rename(columns={'link': 'link_id'})
+
+        # Add new empty columns (fill with NaN or appropriate default values)
+        speed_param['osm_id'] = pd.NA
+        speed_param['capacity'] = pd.NA
+        speed_param['length'] = pd.NA
+        speed_param['lanes'] = pd.NA
+
+        # Define the columns to output
+        output_columns = ['link_id', 'osm_id', 'capacity', 'free_speed', 'length', 'lanes']
+
+        # Save to CSV with all desired columns
+        def save_filtered_data(df, filename):
+            filtered_data = df[~df['free_speed'].isna() & (df['free_speed'] != '')]
+            filtered_data[output_columns].to_csv(f"{base_path_name}_link-param-for-{filename}.csv", index=False)
+
+        # Save all links
+        save_filtered_data(speed_param, "all-roads")
+
+        # Filtering and selecting not local roads
+        save_filtered_data(speed_param[speed_param['road_class'] != "Local"], "non-local-roads")
+
+        # Filtering and selecting major roads
+        major_roads_classes = ["Freeways and Expressways", "Interstate", "Principal Arterial", "Minor Arterial"]
+        save_filtered_data(speed_param[speed_param['road_class'].isin(major_roads_classes)], "major-roads")
+
+        # Filtering and selecting freeway only
+        freeway_classes = ["Freeways and Expressways", "Interstate"]
+        save_filtered_data(speed_param[speed_param['road_class'].isin(freeway_classes)], "freeway-roads")
 
 
 

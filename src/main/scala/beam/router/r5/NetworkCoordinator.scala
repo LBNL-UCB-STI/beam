@@ -1,7 +1,5 @@
 package beam.router.r5
 
-import java.io.File
-import java.nio.file.{Files, Path, Paths}
 import beam.sim.config.BeamConfig
 import beam.sim.config.BeamConfig.Beam.Physsim
 import beam.utils.{BeamVehicleUtils, FileUtils}
@@ -14,9 +12,9 @@ import org.matsim.api.core.v01.network.{Link, Network, NetworkWriter}
 import org.matsim.core.network.NetworkUtils
 import org.matsim.core.network.io.MatsimNetworkReader
 
-import java.lang.NullPointerException
+import java.io.File
+import java.nio.file.{Files, Path, Paths}
 import scala.collection.JavaConverters._
-import scala.util.Try
 import scala.util.control.NonFatal
 
 case class LinkParam(

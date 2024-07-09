@@ -30,13 +30,14 @@ isCav <- function(x) {
   return(x >= 4)
 }
 
-### RouteE
+### Test
+work_folder <- normalizePath("~/Workspace/Data/Scenarios/sfbay/validation_data/BEAM")
+speed <- readCsv(pp(work_folder, "/sfbay_residential_simpl_network.csv.gz"))
+ggplot(speed, aes(x=speed_beam-speed_npmrds)) + geom_histogram() + xlim(0, 100)
 
-work_folder <- normalizePath("~/Workspace/Data/FREIGHT/seattle")
-household <- readCsv(pp(work_folder, "/households.csv.gz"))
-ggplot(household, aes(x=income/1000)) + geom_histogram() + xlim(0, 100)
 
 
+##
 work_folder <- normalizePath("~/Workspace/Data/FREIGHT/seattle")
 geo <- geojson_sf(pp(work_folder, "/validation/npmrds/Seattle_counties.geojson"))
 

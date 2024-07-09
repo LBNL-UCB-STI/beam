@@ -68,9 +68,10 @@ def add_prefix(prefix, column, row, to_num=True, store_dict=None, veh_type=False
     return new
 
 
-scenario_name = "2024-04-23"
+city = "sfbay"
+scenario_name = "2024-01-23"
 run_name = "Baseline"
-city = "seattle"
+
 directory_input = os.path.expanduser('~/Workspace/Data/FREIGHT/' + city + '/frism/'+scenario_name+"/"+run_name)
 directory_output = os.path.expanduser('~/Workspace/Data/FREIGHT/' + city + '/beam_freight/'+scenario_name+"/"+run_name)
 Path(directory_output).mkdir(parents=True, exist_ok=True)
