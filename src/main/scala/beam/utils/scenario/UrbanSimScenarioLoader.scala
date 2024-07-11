@@ -7,12 +7,10 @@ import beam.sim.BeamScenario
 import beam.sim.common.GeoUtils
 import beam.sim.population.PopulationAdjustment.RIDEHAIL_SERVICE_SUBSCRIPTION
 import beam.sim.vehicles.VehiclesAdjustment
-import beam.utils.SequenceUtils
-import beam.utils.csv.readers
 import beam.utils.plan.sampling.AvailableModeUtils
 import beam.utils.scenario.urbansim.HOVModeTransformer
+import beam.utils.{SequenceUtils, UniformRealDistributionEnhanced}
 import com.typesafe.scalalogging.LazyLogging
-import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.population.{Leg, Person, Plan, Population}
 import org.matsim.api.core.v01.{Coord, Id, Scenario}
@@ -24,7 +22,7 @@ import org.matsim.vehicles.{Vehicle, VehicleType, VehicleUtils}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{mutable, Iterable}
+import scala.collection.{Iterable, mutable}
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.math.{max, min, round}
@@ -206,7 +204,7 @@ class UrbanSimScenarioLoader(
       beamScenario,
       householdIdToVehicleIdsOption = Option(householdIdToVehicles)
     )
-    val realDistribution: UniformRealDistribution = new UniformRealDistribution()
+    val realDistribution: UniformRealDistributionEnhanced = new UniformRealDistributionEnhanced()
     realDistribution.reseedRandomGenerator(beamScenario.beamConfig.matsim.modules.global.randomSeed)
 
     val bikeVehicleType = beamScenario.vehicleTypes.values

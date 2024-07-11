@@ -4,11 +4,9 @@ import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.{BeamVehicle, BeamVehicleType}
 import beam.sim.BeamScenario
+import beam.utils.UniformRealDistributionEnhanced
 import beam.utils.scenario.{HouseholdId, VehicleInfo}
-import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.{Coord, Id}
-
-import scala.util.Random
 
 case class DeterministicVehiclesAdjustment(
   beamScenario: BeamScenario,
@@ -32,14 +30,14 @@ case class DeterministicVehiclesAdjustment(
   override def sampleVehicleTypes(
     numVehicles: Int,
     vehicleCategory: VehicleCategory,
-    realDistribution: UniformRealDistribution
+    realDistribution: UniformRealDistributionEnhanced
   ): List[BeamVehicleType] = {
     (0 until numVehicles).map(_ => sampleAnyVehicle(vehicleCategory, realDistribution)).toList
   }
 
   private def sampleAnyVehicle(
     vehicleCategory: VehicleCategory,
-    realDistribution: UniformRealDistribution
+    realDistribution: UniformRealDistributionEnhanced
   ): BeamVehicleType = {
     if (totalNumberOfVehicles.isEmpty) {
       logger.debug("Private vehicles haven't been created to sample from yet. Sampling a vehicle uniformly")
@@ -59,7 +57,7 @@ case class DeterministicVehiclesAdjustment(
     householdSize: Int,
     householdPopulation: Population,
     householdLocation: Coord,
-    realDistribution: UniformRealDistribution,
+    realDistribution: UniformRealDistributionEnhanced,
     householdId: Option[HouseholdId]
   ): List[BeamVehicleType] = {
     // In both of these cases it would be better to have an integer distribution rather than real, but this works fine
@@ -78,7 +76,7 @@ case class DeterministicVehiclesAdjustment(
           } else if (vehiclesToSampleFrom.isEmpty) {
             (0 until numVehicles).map(_ => sampleAnyVehicle(vehicleCategory, realDistribution)).toList
           } else if (vehiclesToSampleFrom.length > numVehicles) {
-            DeterministicVehiclesAdjustment.sampleSmart(vehiclesToSampleFrom, numVehicles)
+            DeterministicVehiclesAdjustment.sampleSmart(realDistribution, vehiclesToSampleFrom, numVehicles)
           } else {
             logger.warn(
               f"Household $householdId has $numVehicles in the household file but ${vehiclesToSampleFrom.length} " +
@@ -105,9 +103,8 @@ case class DeterministicVehiclesAdjustment(
 
 object DeterministicVehiclesAdjustment {
 
-  // Anyone have a better way of using a uniform real distribution to sample without replacement?
   def sample[T](
-    realDistribution: UniformRealDistribution,
+    realDistribution: UniformRealDistributionEnhanced,
     listOfObjectsToSample: List[T],
     numberOfObjectsToSample: Int
   ): List[T] = {
@@ -122,31 +119,34 @@ object DeterministicVehiclesAdjustment {
   }
 
   def sampleSimple[T](
+    realDistribution: UniformRealDistributionEnhanced,
     listOfObjectsToSample: List[T],
     numberOfObjectsToSample: Int
   ): List[T] = {
-    Random.shuffle(listOfObjectsToSample).take(numberOfObjectsToSample)
+    realDistribution.shuffle(listOfObjectsToSample).take(numberOfObjectsToSample)
   }
 
   def sampleForLongList[T](
+    realDistribution: UniformRealDistributionEnhanced,
     listOfObjectsToSample: List[T],
     numberOfObjectsToSample: Int
   ): List[T] = {
     val sampled = scala.collection.mutable.HashSet.empty[Int]
     while (sampled.size < numberOfObjectsToSample) {
-      sampled += Random.nextInt(listOfObjectsToSample.length)
+      sampled += realDistribution.nextInt(listOfObjectsToSample.length)
     }
     sampled.map(listOfObjectsToSample(_)).toList
   }
 
   def sampleSmart[T](
+    realDistribution: UniformRealDistributionEnhanced,
     listOfObjectsToSample: List[T],
     numberOfObjectsToSample: Int
   ): List[T] = {
     if (numberOfObjectsToSample * 4 < listOfObjectsToSample.length) {
-      sampleForLongList(listOfObjectsToSample, numberOfObjectsToSample)
+      sampleForLongList(realDistribution, listOfObjectsToSample, numberOfObjectsToSample)
     } else {
-      sampleSimple(listOfObjectsToSample, numberOfObjectsToSample)
+      sampleSimple(realDistribution, listOfObjectsToSample, numberOfObjectsToSample)
     }
   }
 

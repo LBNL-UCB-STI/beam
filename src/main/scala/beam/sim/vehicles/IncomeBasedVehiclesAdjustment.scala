@@ -4,8 +4,8 @@ import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.sim.BeamScenario
+import beam.utils.UniformRealDistributionEnhanced
 import beam.utils.scenario.HouseholdId
-import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.Coord
 
 case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends VehiclesAdjustment {
@@ -26,7 +26,7 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
     householdSize: Int,
     householdPopulation: Population,
     householdLocation: Coord,
-    realDistribution: UniformRealDistribution,
+    realDistribution: UniformRealDistributionEnhanced,
     householdId: Option[HouseholdId]
   ): List[BeamVehicleType] = {
     val matchedGroups =
@@ -64,7 +64,7 @@ case class IncomeBasedVehiclesAdjustment(beamScenario: BeamScenario) extends Veh
   override def sampleVehicleTypes(
     numVehicles: Int,
     vehicleCategory: VehicleCategory,
-    realDistribution: UniformRealDistribution
+    realDistribution: UniformRealDistributionEnhanced
   ): List[BeamVehicleType] = {
     val vehTypeWithProbabilityOption =
       vehicleTypesAndProbabilityByCategoryAndGroup.get(

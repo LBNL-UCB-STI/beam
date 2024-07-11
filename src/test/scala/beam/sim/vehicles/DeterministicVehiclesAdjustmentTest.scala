@@ -1,6 +1,6 @@
 package beam.sim.vehicles
 
-import org.apache.commons.math3.distribution.UniformRealDistribution
+import beam.utils.UniformRealDistributionEnhanced
 import org.scalactic.Tolerance.convertNumericToPlusOrMinusWrapper
 import org.scalatest.funsuite.AnyFunSuiteLike
 import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
@@ -8,6 +8,7 @@ import org.scalatest.matchers.should.Matchers.convertToAnyShouldWrapper
 import scala.collection.mutable
 
 class DeterministicVehiclesAdjustmentTest extends AnyFunSuiteLike {
+  val realDistribution = new UniformRealDistributionEnhanced
 
   val sampleSize: Int = 2
   val numberOfObjectsInTheList: Int = 9
@@ -25,13 +26,12 @@ class DeterministicVehiclesAdjustmentTest extends AnyFunSuiteLike {
   }
 
   test("test one sample") {
-    val realDistribution = new UniformRealDistribution
+    val realDistribution = new UniformRealDistributionEnhanced
     val sampled = DeterministicVehiclesAdjustment.sample(realDistribution, originalListOfObjects, sampleSize)
     sampled.length shouldBe sampleSize
   }
 
   test("test multiple sample calls") {
-    val realDistribution = new UniformRealDistribution
     val samplingResult = mutable.HashMap.empty[Int, Int]
 
     for (_ <- 1 to numberOfLoops) {
@@ -48,7 +48,7 @@ class DeterministicVehiclesAdjustmentTest extends AnyFunSuiteLike {
     val samplingResult = mutable.HashMap.empty[Int, Int]
 
     for (_ <- 1 to numberOfLoops) {
-      val sampled = DeterministicVehiclesAdjustment.sampleSimple(originalListOfObjects, sampleSize)
+      val sampled = DeterministicVehiclesAdjustment.sampleSimple(realDistribution, originalListOfObjects, sampleSize)
       sampled.length shouldBe sampleSize
       sampled.foreach(s => saveSample(samplingResult, s))
     }
@@ -61,7 +61,8 @@ class DeterministicVehiclesAdjustmentTest extends AnyFunSuiteLike {
     val samplingResult = mutable.HashMap.empty[Int, Int]
 
     for (_ <- 1 to numberOfLoops) {
-      val sampled = DeterministicVehiclesAdjustment.sampleForLongList(originalListOfObjects, sampleSize)
+      val sampled =
+        DeterministicVehiclesAdjustment.sampleForLongList(realDistribution, originalListOfObjects, sampleSize)
       sampled.length shouldBe sampleSize
       sampled.foreach(s => saveSample(samplingResult, s))
     }
@@ -74,7 +75,7 @@ class DeterministicVehiclesAdjustmentTest extends AnyFunSuiteLike {
     val samplingResult = mutable.HashMap.empty[Int, Int]
 
     for (_ <- 1 to numberOfLoops) {
-      val sampled = DeterministicVehiclesAdjustment.sampleSmart(originalListOfObjects, sampleSize)
+      val sampled = DeterministicVehiclesAdjustment.sampleSmart(realDistribution, originalListOfObjects, sampleSize)
       sampled.length shouldBe sampleSize
       sampled.foreach(s => saveSample(samplingResult, s))
     }

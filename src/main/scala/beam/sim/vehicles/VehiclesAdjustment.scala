@@ -4,9 +4,9 @@ import beam.agentsim.agents.Population
 import beam.agentsim.agents.vehicles.BeamVehicleType
 import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.sim.BeamScenario
+import beam.utils.UniformRealDistributionEnhanced
 import beam.utils.logging.ExponentialLazyLogging
 import beam.utils.scenario.{HouseholdId, VehicleInfo}
-import org.apache.commons.math3.distribution.UniformRealDistribution
 import org.matsim.api.core.v01.Coord
 
 trait VehiclesAdjustment extends ExponentialLazyLogging {
@@ -18,14 +18,14 @@ trait VehiclesAdjustment extends ExponentialLazyLogging {
     householdSize: Int,
     householdPopulation: Population,
     householdLocation: Coord,
-    realDistribution: UniformRealDistribution,
+    realDistribution: UniformRealDistributionEnhanced,
     householdId: Option[HouseholdId]
   ): List[BeamVehicleType]
 
   def sampleVehicleTypes(
     numVehicles: Int,
     vehicleCategory: VehicleCategory,
-    realDistribution: UniformRealDistribution
+    realDistribution: UniformRealDistributionEnhanced
   ): List[BeamVehicleType]
 
 }
