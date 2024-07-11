@@ -3,7 +3,7 @@
 
 # # scenario class init block
 
-# In[4]:
+# In[11]:
 
 
 import json
@@ -29,7 +29,6 @@ class Scenario():
     def __init__(self, beam_output_path, beam_crs, output_path):
         self.beam_crs = beam_crs
         self.beam_output_path = beam_output_path
-        self.out_path = self.prepare_output_folder(output_path)
         
         self.events_file = "events.csv"
         self.events_layer_file = "events_settings.json"
@@ -37,6 +36,10 @@ class Scenario():
         self.trajectories_file = "trajectories.csv"
         self.trajectories_layer_file = "trajectories_settings.json"
         self.dynamic_network_layer_file = "dynamic_network_settings.json"
+        
+        self.folder_name_events_icons = "EventIcons"
+        self.folder_name_trajectory_icons = "TrajectoryIcons"
+        self.image_folders_to_copy = ['image_folders/EventIcons', 'image_folders/TrajectoryIcons']
         
         self.events = pd.DataFrame(columns=['LinkId', 'StartTime', 'EndTime', 'Type'])
         self.trajectories = pd.DataFrame(columns=['ObjectId', 'Type', 'ProgressBarType', 'ExitTimeLastLink', 'Path'])
@@ -55,10 +58,21 @@ class Scenario():
         self.network_written = False
         self.dynamic_network_written = False
         
+        self.out_path = self.prepare_output_folder(output_path)
+
     
     def log(self, text):
         print(f" -> {text}")
         
+        
+    def copy_folder(self, src_folder, dest_folder):
+        try:
+            shutil.copytree(src_folder, dest_folder)
+            self.log(f"'{src_folder}' copied to '{dest_folder}' successfully.")
+        except shutil.Error as e:
+            self.log(f"Error: {e}")
+
+    
     
     def prepare_output_folder(self, output_folder_path):
         out_path = pathlib.Path(output_folder_path).resolve()
@@ -71,9 +85,14 @@ class Scenario():
                     os.remove(file_path)
             except Exception as e:
                 self.log(f"Failed to delete {file_path}. Reason: {e}")
-                
+        
+        for image_folder in self.image_folders_to_copy:
+            image_folder_name = pathlib.Path(image_folder).resolve().name
+            self.copy_folder(image_folder, out_path / image_folder_name)
+            
         self.log(f"the output path set to '{out_path}'")
         return out_path
+
     
     
     def read_network(self):
@@ -108,6 +127,7 @@ class Scenario():
             "WindowTitle": "Title from config",
             "SimulationTimeSpeed": 5.0,
             "EndSimulationTime": 1600,
+            "MapBoxAPIAccessToken": "pk.eyJ1IjoieXVuZWViOTAiLCJhIjoiY2x2ZHE3NjR4MDFvNjJubzBta2ZmaHo3aCJ9.5leK6jjiUYupP1b8DeiMLw",
             "Layers": [
                 {
                     "LayerName": "Network",
@@ -144,11 +164,12 @@ class Scenario():
         if self.network_written:
             self.log("network already written out to file.")
         else:
-            network_path = (self.out_path / "network.csv").resolve()
+            network_file_name = "network.csv"
+            network_path = (self.out_path / network_file_name).resolve()
             self.network.to_csv(network_path, index=False)
             self.log(f"network written to '{network_path}'")
 
-            network_settings = { "NetworkWidth":3, "NetworkColor":"0044EE", "FileName":"network.csv" }
+            network_settings = { "NetworkWidth":6, "NetworkColor":"55DDAA", "SelectionColor":"FF8A00", "FileName":network_file_name }
             network_settings_path = str((self.out_path / self.network_layer_file).resolve())
             with open(network_settings_path, "w") as file:
                 file.write(json.dumps(network_settings))
@@ -208,7 +229,7 @@ class Scenario():
 
         self.trajectories['Type'] = PTE_df.apply(pte_to_icon, axis=1)
         self.trajectories['ObjectId'] = PTE_df['vehicle']
-        self.trajectories['Occupancy'] = PTE_df.apply(pte_to_progressbar, axis=1)
+        self.trajectories['ProgressBarType'] = PTE_df.apply(pte_to_progressbar, axis=1)
         self.trajectories[['ExitTimeLastLink', 'Path']] = PTE_df.apply(path_traversal_to_lastlinktime_path, axis=1, result_type="expand")
         
         self.log(f"got {len(self.trajectories.index)} trajectories")
@@ -223,6 +244,7 @@ class Scenario():
         trajectories_settings = {
             "IconAlignmentType": "Perpendicular",
             "IconZoomScaleFactor": 800,
+            "IconFolderPath": self.folder_name_trajectory_icons,
             "IconConfig": self.trajectories_icons,
             "FileName": self.trajectories_file   
         }
@@ -237,9 +259,10 @@ class Scenario():
         path_to_output_file = str((self.out_path / self.events_file).resolve())
         self.events.to_csv(path_to_output_file, index=False)
         self.log(f"{len(self.events.index)} events written to {path_to_output_file} ...")
-
+        
         events_settings = {
             "IconZoomScaleFactor":1600,
+            "IconFolderPath": self.folder_name_events_icons,
             "IconConfig": self.events_icons,
             "FileName": self.events_file
         }
@@ -303,7 +326,7 @@ print("initialized")
 
 # # independant functions init block
 
-# In[5]:
+# In[12]:
 
 
 ### a set of functions to read and process BEAM events
@@ -689,7 +712,7 @@ scenario.pack_to_archive()
 
 # ## all RH PT events split into 3 groups: without passengers, with 1 passenger, with more passengers
 
-# In[ ]:
+# In[4]:
 
 
 beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
@@ -739,7 +762,7 @@ def pte_to_progress_bar(pte):
     
 scenario.set_trajectoris(all_rh, pte_to_icon_type, pte_to_progress_bar, rh_icons)
 scenario.write_scenario()
-scenario.pack_to_archive()
+# scenario.pack_to_archive()
 
 
 # ## all RH PT events split into 3 groups: withpassengers, dead heading, repositioning
@@ -889,15 +912,15 @@ scenario.write_scenario()
 scenario.pack_to_archive()
 
 
-# ## all PT events split into BUS | CAR | WALK
+# ## all PT events
 
-# In[3]:
+# In[13]:
 
 
-# beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
-# output_folder_path = "sflight-1k_bus_car_walk_all_pte_by_mode"
-beam_output = "../downloaded_data/sfbay/sfbay-freight-23Jan24-Base__2024-01-31_18-10-36_gfh"
-output_folder_path = "sfbay-freight-23Jan24-Base_bus_car_walk_all_pte_by_mode_025_sample"
+beam_output = "../beam_root/output/sf-light/sf-light-1k-xml__2024-05-06_18-09-08_xjf"
+output_folder_path = "sflight-1k_bus_car_walk_all_pte_by_mode"
+# beam_output = "../downloaded_data/sfbay/sfbay-freight-23Jan24-Base__2024-01-31_18-10-36_gfh"
+# output_folder_path = "sfbay-freight-23Jan24-Base_bus_car_walk_all_pte_by_mode_025_sample"
 
 beam_crs = 26910
 
@@ -906,7 +929,7 @@ scenario.read_beam_output()
 scenario.write_network()
 
 
-# In[4]:
+# In[14]:
 
 
 all_pte = read_pte_events(beam_output, 0)
@@ -931,11 +954,17 @@ selected_vehicle_ids = set(all_vehicle_ids[:number_of_samples])
 print(f"selected:{len(selected_vehicle_ids)}, total:{len(all_vehicle_ids)}, ratio:{len(selected_vehicle_ids) / len(all_vehicle_ids)}, sanity:{(len(selected_vehicle_ids) - number_of_samples) == 0}")
 
 
+# In[16]:
+
+
+all_pte.groupby('mode')['numPassengers'].value_counts()
+
+
 # In[6]:
 
 
-is_selected = all_pte['vehicle'].isin(selected_vehicle_ids)
-sampled_pte = all_pte[is_selected]
+# is_selected = all_pte['vehicle'].isin(selected_vehicle_ids)
+# sampled_pte = all_pte[is_selected]
 
 icons = [
     {
