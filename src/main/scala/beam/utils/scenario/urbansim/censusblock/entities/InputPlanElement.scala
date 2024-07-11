@@ -14,7 +14,8 @@ case class InputPlanElement(
   x: Option[Double],
   y: Option[Double],
   departureTime: Option[Double],
-  expectedDurationMinutes: Option[Double] = None
+  expectedDurationMinutes: Option[Double] = None,
+  expectedCostDollars: Option[Double] = None
 )
 
 object InputPlanElement extends EntityTransformer[InputPlanElement] {
@@ -30,6 +31,7 @@ object InputPlanElement extends EntityTransformer[InputPlanElement] {
     val yWgs = getOptional(m, "y").map(_.toDouble)
     val departureTime = getOptional(m, "departure_time").map(_.toDouble)
     val expectedDurationMinutes = getOptional(m, "trip_dur_min").map(_.toDouble)
+    val expectedCostDollars = getOptional(m, "trip_cost_dollars").map(_.toDouble)
 
     InputPlanElement(
       tripId,
@@ -41,7 +43,8 @@ object InputPlanElement extends EntityTransformer[InputPlanElement] {
       xWgs,
       yWgs,
       departureTime,
-      expectedDurationMinutes
+      expectedDurationMinutes,
+      expectedCostDollars
     )
   }
 }
