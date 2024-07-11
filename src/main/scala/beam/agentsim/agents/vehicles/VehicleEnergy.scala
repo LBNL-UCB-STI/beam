@@ -16,14 +16,14 @@ import scala.concurrent.{Await, Future}
 
 class VehicleEnergy(
   consumptionRateFilterStore: ConsumptionRateFilterStore,
-  linkToGradeRecordsIterableUsing: CsvParser => Iterable[Record]
+  beamConfig: BeamConfig
 ) {
   private val settings = new CsvParserSettings()
   settings.setHeaderExtractionEnabled(true)
   settings.detectFormatAutomatically()
   private val csvParser = new CsvParser(settings)
 
-  private lazy val linkIdToGradePercentMap = loadLinkIdToGradeMapFromCSV
+  private lazy val linkIdToGradePercentMap = loadLinkIdToGradeMapFromCSV(csvParser, beamConfig)
   private val conversionRateForMilesPerHourFromMetersPerSecond = 2.23694
 
   def vehicleEnergyMappingExistsFor(vehicleType: BeamVehicleType): Boolean = {
@@ -112,11 +112,28 @@ class VehicleEnergy(
   // and we don't want to mess with that at this point
   private def convertFromMetersPerSecondToMilesPerHour(mps: Double): Double =
     mps * conversionRateForMilesPerHourFromMetersPerSecond
+}
 
-  private def loadLinkIdToGradeMapFromCSV: Map[Int, Double] = {
+object VehicleEnergy {
+  sealed trait PowerTrainPriority
+  case object Primary extends PowerTrainPriority
+  case object Secondary extends PowerTrainPriority
+
+  private def getVehicleEnergyRecordsUsing(csvParser: CsvParser, filePath: String): Iterable[Record] = {
+    csvParser.iterateRecords(IOUtils.getBufferedReader(filePath)).asScala
+  }
+
+  private def loadLinkIdToGradeMapFromCSV(csvParser: CsvParser, beamConfig: BeamConfig): Map[Int, Double] = {
     val linkIdHeader = "id"
     val gradeHeader = "average_gradient_percent"
-    linkToGradeRecordsIterableUsing(csvParser)
+    val filePath = beamConfig.beam.agentsim.agents.vehicles.linkToGradePercentFilePath
+    val records: Iterable[Record] = filePath match {
+      case "" =>
+        List[Record]()
+      case _ =>
+        csvParser.iterateRecords(IOUtils.getBufferedReader(filePath)).asScala
+    }
+    records
       .map(csvRecord => {
         val linkId = csvRecord.getInt(linkIdHeader)
         val gradePercent = csvRecord.getDouble(gradeHeader)
@@ -124,12 +141,6 @@ class VehicleEnergy(
       })
       .toMap
   }
-}
-
-object VehicleEnergy {
-  sealed trait PowerTrainPriority
-  case object Primary extends PowerTrainPriority
-  case object Secondary extends PowerTrainPriority
 
   object ConsumptionRateFilterStore {
     //speed->(gradePercent->(weight->(numberOfLanes->rate)))
@@ -150,7 +161,6 @@ object VehicleEnergy {
   }
 
   class ConsumptionRateFilterStoreImpl(
-    csvRecordsForFilePathUsing: (CsvParser, String) => Iterable[Record],
     baseFilePaths: IndexedSeq[String],
     primaryConsumptionRateFilePathsByVehicleType: IndexedSeq[(BeamVehicleType, Option[String])],
     secondaryConsumptionRateFilePathsByVehicleType: IndexedSeq[(BeamVehicleType, Option[String])]
@@ -197,7 +207,7 @@ object VehicleEnergy {
     private def beginLoadingConsumptionRateFiltersFor(
       files: IndexedSeq[(BeamVehicleType, Option[String])],
       fuelTypeSelector: BeamVehicleType => Option[FuelType]
-    ) = {
+    ): Map[BeamVehicleType, Future[ConsumptionRateFilterStore.ConsumptionRateFilter]] = {
       files.collect {
         case (vehicleType, Some(filePath)) if filePath.trim.nonEmpty =>
           val consumptionFuture = Future {
@@ -225,7 +235,7 @@ object VehicleEnergy {
           mutable.Map[DoubleTypedRange, mutable.Map[Range, Double]]
         ]]
       baseFilePaths.foreach(baseFilePath =>
-        csvRecordsForFilePathUsing(csvParser, java.nio.file.Paths.get(baseFilePath, file).toString)
+        getVehicleEnergyRecordsUsing(csvParser, java.nio.file.Paths.get(baseFilePath, file).toString)
           .foreach(csvRecord => {
             val speedInMilesPerHourBin = convertRecordStringToDoubleTypedRange(csvRecord.getString(speedBinHeader))
             val gradePercentBin = convertRecordStringToDoubleTypedRange(csvRecord.getString(gradeBinHeader))
@@ -237,7 +247,7 @@ object VehicleEnergy {
             val weightKgBin = if (csvRecord.getMetaData.containsColumn(weightBinHeader)) {
               convertRecordStringToDoubleTypedRange(csvRecord.getString(weightBinHeader))
             } else {
-              convertRecordStringToDoubleTypedRange("(0,50000]")
+              convertRecordStringToDoubleTypedRange("(0,200000]")
             }
             val rawRate = csvRecord.getDouble(rateHeader)
             if (rawRate == null)
@@ -304,22 +314,5 @@ object VehicleEnergy {
 
     private def convertFromJoulesPerMeterToKwhPer100Miles(rate: Double): Double =
       rate / conversionRateForJoulesPerMeterConversionFromKwhPer100Miles
-  }
-
-  class VehicleCsvReader(config: BeamConfig) {
-
-    def getVehicleEnergyRecordsUsing(csvParser: CsvParser, filePath: String): Iterable[Record] = {
-      csvParser.iterateRecords(IOUtils.getBufferedReader(filePath)).asScala
-    }
-
-    def getLinkToGradeRecordsUsing(csvParser: CsvParser): Iterable[Record] = {
-      val filePath = config.beam.agentsim.agents.vehicles.linkToGradePercentFilePath
-      filePath match {
-        case "" =>
-          List[Record]()
-        case _ =>
-          csvParser.iterateRecords(IOUtils.getBufferedReader(filePath)).asScala
-      }
-    }
   }
 }

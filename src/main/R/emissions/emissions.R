@@ -274,3 +274,6 @@ emfac_population$regulatoryClass <- emfac_class_to_regulatory_class_map[emfac_po
 emfac_population_summary <- emfac_population[,.(tot_population=sum(population)),by=.(regulatoryClass)][order(regulatoryClass)]
 fwrite(emfac_population_summary, file = normalizePath("~/Workspace/Data/FREIGHT/sfbay/beam_freight/2024-01-23/Baseline/CA-emfac-freight-population-bis.csv"))
 
+sum(emfac_population[emfacClass=='T7IS']$population)
+
+

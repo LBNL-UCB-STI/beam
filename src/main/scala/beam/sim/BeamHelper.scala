@@ -274,7 +274,6 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
 
     val consumptionRateFilterStore =
       new VehicleEnergy.ConsumptionRateFilterStoreImpl(
-        vehicleCsvReader.getVehicleEnergyRecordsUsing,
         vehicleTypesBasePaths,
         primaryConsumptionRateFilePathsByVehicleType =
           vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
@@ -287,8 +286,6 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       vehicleTypesBasePaths,
       emissionsRateFilePathsByVehicleType = vehicleTypes.values.map(x => (x, x.vehicleEmissionsFile)).toIndexedSeq
     )
-
-
 
     val dates = DateUtils(
       ZonedDateTime.parse(beamConfig.beam.routing.baseDate).toLocalDateTime,
@@ -337,7 +334,8 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       vehicleTypes,
       privateVehicleMap ++ freightCarriers.flatMap(_.fleet),
       privateVehicleSoc,
-      new VehicleEnergy(consumptionRateFilterStore, vehicleCsvReader.getLinkToGradeRecordsUsing),
+      new VehicleEnergy(consumptionRateFilterStore, beamConfig),
+      new VehicleEmissions(emissionsRateFilterStore),
       beamConfig,
       dates,
       PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),

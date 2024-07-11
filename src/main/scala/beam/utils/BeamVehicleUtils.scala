@@ -199,9 +199,9 @@ object BeamVehicleUtils {
     else 0
   }
 
-  def convertRecordStringToRange(recordString: String) =
+  def convertRecordStringToRange(recordString: String): Range =
     Range(recordString.replace(",", ":").replace(" ", ""))
 
-  def convertRecordStringToDoubleTypedRange(recordString: String) =
+  def convertRecordStringToDoubleTypedRange(recordString: String): DoubleTypedRange =
     DoubleTypedRange(recordString.replace(",", ":").replace(" ", ""))
 }

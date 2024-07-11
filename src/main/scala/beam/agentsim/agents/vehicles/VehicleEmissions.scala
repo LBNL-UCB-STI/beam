@@ -1,24 +1,31 @@
 package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.FuelType.FuelType
-import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsRateFilterStore.EmissionsRateFilter
+import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsRateFilterStore
 import beam.sim.common.{DoubleTypedRange, Range}
+import beam.sim.config.BeamConfig
 import com.univocity.parsers.common.record.Record
-import com.univocity.parsers.csv.CsvParser
+import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
 import org.matsim.core.utils.io.IOUtils
 import org.slf4j.LoggerFactory
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 
-class VehicleEmissions {}
+class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore) {}
 
 object VehicleEmissions {
 
   object EmissionsRateFilterStore {
+
     //speed->(gradePercent->(weight->(numberOfLanes->rate)))
-    type EmissionsRateFilter = Map[DoubleTypedRange, Map[DoubleTypedRange, Map[DoubleTypedRange, Map[Range, Double]]]]
+    type EmissionsRateFilter =
+      Map[
+        DoubleTypedRange,
+        Map[DoubleTypedRange, Map[DoubleTypedRange, Map[String, Map[EmissionsSource.EmissionsSource, EmissionsRates]]]]
+      ]
   }
 
   trait EmissionsRateFilterStore {
@@ -28,6 +35,20 @@ object VehicleEmissions {
     ): Option[Future[EmissionsRateFilterStore.EmissionsRateFilter]]
 
     def hasEmissionsRateFilterFor(vehicleType: BeamVehicleType): Boolean
+  }
+
+  object EmissionsSource extends Enumeration {
+    type EmissionsSource = Value
+    val Running, Start, Hotelling, Dust, Evaporative, Other = Value
+
+    def fromString(source: String): EmissionsSource = source.toLowerCase match {
+      case "running" | "running exhaust"            => Running
+      case "start" | "start exhaust"                => Start
+      case "hotelling" | "hotelling exhaust"        => Hotelling
+      case "dust" | "brake/tire wear and road dust" => Dust
+      case "evaporative" | "evaporative emissions"  => Evaporative
+      case _                                        => Other
+    }
   }
 
   case class EmissionsRates(
@@ -45,6 +66,10 @@ object VehicleEmissions {
     TOG: Double
   ) {
     def notValid: Boolean = List(CH4, CO, CO2, HC, NH3, NOx, PM, PM10, PM2_5, ROG, SOx, TOG).forall(_ == 0)
+
+    override def toString: String = {
+      s"EmissionsRates(CH4=$CH4, CO=$CO, CO2=$CO2, HC=$HC, NH3=$NH3, NOx=$NOx, PM=$PM, PM10=$PM10, PM2_5=$PM2_5, ROG=$ROG, SOx=$SOx, TOG=$TOG)"
+    }
   }
 
   class EmissionsRateFilterStoreImpl(
@@ -53,15 +78,11 @@ object VehicleEmissions {
   ) extends EmissionsRateFilterStore {
     private lazy val log = LoggerFactory.getLogger(this.getClass)
     //Hard-coding can become configurable if necessary
-    /*
-    The following are placeholders, we haven't decided if they will be modelled or not.
-    Although, I'm keeping them just in case.
-     */
+    private val speedBinHeader = "speed_mph_float_bins"
     private val gradeBinHeader = "grade_percent_float_bins"
     private val weightBinHeader = "mass_kg_float_bins"
     private val geoAreaHeader = "geo_area"
     /*
-    The following represents the main header for the emissions rate file.
     EmissionsSource column can either be:
         Running (i.e. Running Exhaust)
         Start (i.e. Start Exhaust)
@@ -71,8 +92,11 @@ object VehicleEmissions {
         Other (also if the EmissionsSource column is not present or the value is not recognized then)
     rate_XXX is in grams per mile
      */
-    private val speedBinHeader = "speed_mph_float_bins"
-    private val emissionsSource = "emissions_source"
+    private val emissionsSourceHeader = "emissions_source"
+
+    /*
+     * rateXXX is in grams per mile
+     * */
     private val rateCH4Header = "rate_ch4_gpm_float"
     private val rateCOHeader = "rate_co_gpm_float"
     private val rateCO2Header = "rate_co2_gpm_float"
@@ -85,39 +109,77 @@ object VehicleEmissions {
     private val rateROGHeader = "rate_rog_gpm_float"
     private val rateSOxHeader = "rate_sox_gpm_float"
     private val rateTOGHeader = "rate_tog_gpm_float"
-    override def getEmissionsRateFilterFor(vehicleType: BeamVehicleType): Option[Future[EmissionsRateFilter]] = {}
-    override def hasEmissionsRateFilterFor(vehicleType: BeamVehicleType): Boolean = ???
+
+    private val emissionRateFiltersByVehicleType
+      : Map[BeamVehicleType, Future[EmissionsRateFilterStore.EmissionsRateFilter]] =
+      beginLoadingEmissionRateFiltersFor(emissionsRateFilePathsByVehicleType)
+
+    override def getEmissionsRateFilterFor(
+      vehicleType: BeamVehicleType
+    ): Option[Future[EmissionsRateFilterStore.EmissionsRateFilter]] = emissionRateFiltersByVehicleType.get(vehicleType)
+
+    override def hasEmissionsRateFilterFor(vehicleType: BeamVehicleType): Boolean =
+      emissionRateFiltersByVehicleType.keySet.contains(vehicleType)
 
     private def getVehicleEmissionsRecordsUsing(csvParser: CsvParser, filePath: String): Iterable[Record] = {
       csvParser.iterateRecords(IOUtils.getBufferedReader(filePath)).asScala
     }
 
-    private def loadConsumptionRatesFromCSVFor(
+    private def beginLoadingEmissionRateFiltersFor(
+      files: IndexedSeq[(BeamVehicleType, Option[String])]
+    ): Map[BeamVehicleType, Future[EmissionsRateFilterStore.EmissionsRateFilter]] = {
+      files.collect {
+        case (vehicleType, Some(filePath)) if filePath.trim.nonEmpty =>
+          val consumptionFuture = Future {
+            //Do NOT move this out - sharing the parser between threads is questionable
+            val settings = new CsvParserSettings()
+            settings.setHeaderExtractionEnabled(true)
+            settings.detectFormatAutomatically()
+            val csvParser = new CsvParser(settings)
+            loadEmissionRatesFromCSVFor(filePath, csvParser)
+          }
+          consumptionFuture.failed.map(ex => log.error(s"Error while loading emission rate filter", ex))
+          vehicleType -> consumptionFuture
+      }.toMap
+    }
+
+    private def loadEmissionRatesFromCSVFor(
       file: String,
-      csvParser: CsvParser,
-      fuelTypeOption: Option[FuelType]
+      csvParser: CsvParser
     ): EmissionsRateFilterStore.EmissionsRateFilter = {
       import beam.utils.BeamVehicleUtils._
-      val currentRateFilter = mutable.Map
-        .empty[DoubleTypedRange, mutable.Map[
-          DoubleTypedRange,
-          mutable.Map[DoubleTypedRange, mutable.Map[Range, Double]]
-        ]]
+
+      val currentRateFilter = mutable.Map.empty[DoubleTypedRange, mutable.Map[
+        DoubleTypedRange,
+        mutable.Map[DoubleTypedRange, mutable.Map[String, mutable.Map[EmissionsSource.EmissionsSource, EmissionsRates]]]
+      ]]
+
       baseFilePaths.foreach(baseFilePath =>
         getVehicleEmissionsRecordsUsing(csvParser, java.nio.file.Paths.get(baseFilePath, file).toString)
           .foreach(csvRecord => {
+            // Speed Bin in MPH
             val speedInMilesPerHourBin = convertRecordStringToDoubleTypedRange(csvRecord.getString(speedBinHeader))
-            val gradePercentBin = convertRecordStringToDoubleTypedRange(csvRecord.getString(gradeBinHeader))
-            val numberOfLanesBin = if (csvRecord.getMetaData.containsColumn(geoAreaHeader)) {
-              convertRecordStringToRange(csvRecord.getString(lanesBinHeader))
+            // Road Grade Bin in PERCENTAGE
+            val gradePercentBin = if (csvRecord.getMetaData.containsColumn(gradeBinHeader)) {
+              convertRecordStringToDoubleTypedRange(csvRecord.getString(gradeBinHeader))
             } else {
-              convertRecordStringToRange("(0,100]")
+              convertRecordStringToDoubleTypedRange("(-100,100]")
             }
+            // Weight in Kg
             val weightKgBin = if (csvRecord.getMetaData.containsColumn(weightBinHeader)) {
               convertRecordStringToDoubleTypedRange(csvRecord.getString(weightBinHeader))
             } else {
-              convertRecordStringToDoubleTypedRange("(0,50000]")
+              convertRecordStringToDoubleTypedRange("(0,200000]")
             }
+            // Geographic area, None if not defined
+            val geographicArea = if (csvRecord.getMetaData.containsColumn(geoAreaHeader)) {
+              csvRecord.getString(geoAreaHeader)
+            } else {
+              ""
+            }
+            // Emission source
+            val emissionSource = EmissionsSource.fromString(csvRecord.getString(emissionsSourceHeader))
+
             def readRateCheckIfNull(headerName: String): Double = {
               val value = csvRecord.getDouble(headerName)
               if (value == null) {
@@ -128,7 +190,9 @@ object VehicleEmissions {
                 0.0
               } else value
             }
-            val rates = EmissionsRates(
+
+            // Emissions Rates in Grans Per Mile
+            val ratesInGramsPerMile = EmissionsRates(
               CH4 = readRateCheckIfNull(rateCH4Header),
               CO = readRateCheckIfNull(rateCOHeader),
               CO2 = readRateCheckIfNull(rateCO2Header),
@@ -142,15 +206,61 @@ object VehicleEmissions {
               SOx = readRateCheckIfNull(rateSOxHeader),
               TOG = readRateCheckIfNull(rateTOGHeader)
             )
-            if (rates.notValid)
+            if (ratesInGramsPerMile.notValid)
               throw new Exception(
                 s"Record $csvRecord does not contain a valid rate. " +
                 "Erroring early to bring attention and get it fixed."
               )
+
+            currentRateFilter.get(speedInMilesPerHourBin) match {
+              case Some(gradePercentFilter) =>
+                gradePercentFilter.get(gradePercentBin) match {
+                  case Some(weightKgFilter) =>
+                    weightKgFilter.get(weightKgBin) match {
+                      case Some(geographicAreaFilter) =>
+                        geographicAreaFilter.get(geographicArea) match {
+                          case Some(emissionsSourceFilter) =>
+                            emissionsSourceFilter.get(emissionSource) match {
+                              case Some(existingRates) =>
+                                log.error(
+                                  "Two emission rates found for the same bin combination: " +
+                                  "Geographic Area = {}; Speed In Miles Per Hour Bin = {}; " +
+                                  "Grade Percent Bin = {}; Weight kg Bin = {}; Number of Lanes Bin = {}. " +
+                                  s"Keeping first rate of $existingRates and ignoring new rate of $ratesInGramsPerMile.",
+                                  geographicArea,
+                                  speedInMilesPerHourBin,
+                                  gradePercentBin,
+                                  weightKgBin
+                                )
+                              case None => emissionsSourceFilter += emissionSource -> ratesInGramsPerMile
+                            }
+                          case None =>
+                            geographicAreaFilter += geographicArea -> mutable.Map(emissionSource -> ratesInGramsPerMile)
+                        }
+                      case None =>
+                        weightKgFilter += weightKgBin -> mutable.Map(geographicArea -> ratesInGramsPerMile)
+                    }
+                  case None =>
+                    gradePercentFilter += gradePercentBin -> mutable.Map(
+                      weightKgBin -> mutable.Map(geographicArea -> ratesInGramsPerMile)
+                    )
+                }
+              case None =>
+                currentRateFilter += speedInMilesPerHourBin -> mutable.Map(
+                  gradePercentBin -> mutable.Map(weightKgBin -> mutable.Map(geographicArea -> ratesInGramsPerMile))
+                )
+            }
           })
       )
+      currentRateFilter.toMap.map { case (speedInMilesPerHourBin, gradePercentMap) =>
+        speedInMilesPerHourBin -> gradePercentMap.toMap.map { case (gradePercentBin, weightMap) =>
+          gradePercentBin -> weightMap.toMap.map { case (weightKgBin, geoAreaMap) =>
+            weightKgBin -> geoAreaMap.toMap.map { case (geoArea, emissionsSourceMap) =>
+              geoArea -> emissionsSourceMap.toMap
+            }
+          }
+        }
+      }
     }
-
   }
-
 }
