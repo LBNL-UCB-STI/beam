@@ -98,6 +98,7 @@ class SimpleScenarioGenerator(
     legDepartureTime = None,
     legTravelTime = None,
     legExpectedTravelTime = None,
+    legExpectedCost = None,
     legRouteType = None,
     legRouteStartLink = None,
     legRouteEndLink = None,

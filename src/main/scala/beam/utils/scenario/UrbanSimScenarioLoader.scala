@@ -59,6 +59,7 @@ class UrbanSimScenarioLoader(
     planElement.legMode.foreach(v => leg.setMode(v))
     leg.getAttributes.putAttribute("trip_id", planElement.tripId)
     leg.getAttributes.putAttribute("trip_dur_min", planElement.legExpectedTravelTime.getOrElse(""))
+    leg.getAttributes.putAttribute("trip_cost_dollars", planElement.legExpectedCost.getOrElse(""))
 
     val legRoute: NetworkRoute = {
       val links = planElement.legRouteLinks.map(v => Id.create(v, classOf[Link])).asJava

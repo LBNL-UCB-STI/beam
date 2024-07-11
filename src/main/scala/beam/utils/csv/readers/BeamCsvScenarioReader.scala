@@ -97,6 +97,7 @@ object BeamCsvScenarioReader extends BeamScenarioReader with ExponentialLazyLogg
       legDepartureTime = Option(rec.get("legDepartureTime")),
       legTravelTime = Option(rec.get("legTravelTime")),
       legExpectedTravelTime = Option(rec.get("trip_dur_min")).map(_.toDouble),
+      legExpectedCost = Option(rec.get("trip_cost_dollars")).map(_.toDouble),
       legRouteType = Option(rec.get("legRouteType")),
       legRouteStartLink = Option(rec.get("legRouteStartLink")),
       legRouteEndLink = Option(rec.get("legRouteEndLink")),
