@@ -4,6 +4,7 @@ import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsRateFilterStore
 import beam.sim.common.{DoubleTypedRange, Range}
 import beam.sim.config.BeamConfig
+import beam.utils.BeamVehicleUtils
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
 import org.matsim.core.utils.io.IOUtils
@@ -14,7 +15,79 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 
-class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore) {}
+class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore) {
+  private val settings = new CsvParserSettings()
+  settings.setHeaderExtractionEnabled(true)
+  settings.detectFormatAutomatically()
+  private val csvParser = new CsvParser(settings)
+
+  def vehicleEmissionsMappingExistsFor(vehicleType: BeamVehicleType): Boolean =
+    emissionRateFilterStore.hasEmissionsRateFilterFor(vehicleType)
+
+//  def getFuelConsumptionEnergyInJoulesUsing(
+//    fuelConsumptionDatas: IndexedSeq[BeamVehicle.FuelConsumptionData],
+//    fallBack: Double
+//  ): Double = {}
+
+  private def getRateUsing(
+    consumptionRateFilterFuture: Future[EmissionsRateFilterStore.EmissionsRateFilter],
+    numberOfLanes: Int,
+    speedInMilesPerHour: Double,
+    weightKg: Double,
+    gradePercent: Double
+  ): Option[Double] = {
+    //1.)Future performance improvement could be to better index the bins so could fuzzily jump straight to it
+    //instead of having to iterate
+    //2.)Could keep the future in the calling method if you use
+    //Future.sequence and Option.option2Iterable followed by a flatMap(_.headOption),
+    //but that gets complicated and these SHOULD already be loaded by the time they are needed.
+    //If that changes then go ahead and map through the collections
+    import scala.concurrent.duration._
+    val consumptionRateFilter = Await.result(consumptionRateFilterFuture, 1.minute)
+
+    for {
+      (_, gradeFilter) <- consumptionRateFilter
+        .find { case (speedInMilesPerHourBin, _) => speedInMilesPerHourBin.has(speedInMilesPerHour) }
+      (_, weightFilter) <- gradeFilter.find { case (gradePercentBin, _) => gradePercentBin.has(gradePercent) }
+      (_, lanesFilter)  <- weightFilter.find { case (weightPercentBin, _) => weightPercentBin.has(weightKg) }
+      (_, rate)         <- lanesFilter.find { case (numberOfLanesBin, _) => numberOfLanesBin.has(numberOfLanes) }
+    } yield rate
+  }
+
+  private def getRatesUsing(
+    fuelConsumptionData: BeamVehicle.FuelConsumptionData,
+    fallBack: VehicleEmissions.EmissionsRates = VehicleEmissions.defaultEmissionsRates
+  ): VehicleEmissions.EmissionsRates = {
+    if (!vehicleEmissionsMappingExistsFor(fuelConsumptionData.vehicleType)) { fallBack }
+    else {
+      val BeamVehicle.FuelConsumptionData(
+        linkId,
+        vehicleType,
+        payloadKgOption,
+        _,
+        _,
+        _,
+        speedInMetersPerSecondOption,
+        _,
+        _,
+        _,
+        _
+      ) = fuelConsumptionData
+      val speedInMilesPerHour: Double = speedInMetersPerSecondOption
+        .map(BeamVehicleUtils.convertFromMetersPerSecondToMilesPerHour)
+        .getOrElse(0)
+      val weightKg: Double = fuelConsumptionData.vehicleType.curbWeightInKg + payloadKgOption.getOrElse(0.0)
+      val gradePercent: Double = linkIdToGradePercentMap.getOrElse(linkId, 0)
+      emissionRateFilterStore
+        .getEmissionsRateFilterFor(vehicleType)
+        .flatMap(emissionRateFilterFuture =>
+          getRateUsing(consumptionRateFilterFuture, numberOfLanes, speedInMilesPerHour, weightKg, gradePercent)
+        )
+        .getOrElse(fallBack)
+    }
+  }
+
+}
 
 object VehicleEmissions {
 
@@ -71,6 +144,21 @@ object VehicleEmissions {
       s"EmissionsRates(CH4=$CH4, CO=$CO, CO2=$CO2, HC=$HC, NH3=$NH3, NOx=$NOx, PM=$PM, PM10=$PM10, PM2_5=$PM2_5, ROG=$ROG, SOx=$SOx, TOG=$TOG)"
     }
   }
+
+  val defaultEmissionsRates: EmissionsRates = EmissionsRates(
+    CH4 = 0.0,
+    CO = 0.0,
+    CO2 = 0.0,
+    HC = 0.0,
+    NH3 = 0.0,
+    NOx = 0.0,
+    PM = 0.0,
+    PM10 = 0.0,
+    PM2_5 = 0.0,
+    ROG = 0.0,
+    SOx = 0.0,
+    TOG = 0.0
+  )
 
   class EmissionsRateFilterStoreImpl(
     baseFilePaths: IndexedSeq[String],

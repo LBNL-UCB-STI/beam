@@ -204,4 +204,6 @@ object BeamVehicleUtils {
 
   def convertRecordStringToDoubleTypedRange(recordString: String): DoubleTypedRange =
     DoubleTypedRange(recordString.replace(",", ":").replace(" ", ""))
+
+  def convertFromMetersPerSecondToMilesPerHour(mps: Double): Double = mps * 2.23694
 }
