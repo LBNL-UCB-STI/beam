@@ -14,7 +14,7 @@ import beam.sim.config.BeamConfig.Beam.Agentsim.Agents.RideHail.Managers$Elm
 import beam.sim.vehicles.VehiclesAdjustment
 import beam.utils.OptionalUtils.OptionalTimeExtension
 import beam.utils.csv.{CsvWriter, GenericCsvReader}
-import beam.utils.matsim_conversion.ShapeUtils.{QuadTreeBounds, readShapeFileGeometries}
+import beam.utils.matsim_conversion.ShapeUtils.{readShapeFileGeometries, QuadTreeBounds}
 import beam.utils.{OutputDataDescriptor, UniformRealDistributionEnhanced}
 import com.google.inject.Inject
 import com.typesafe.scalalogging.{LazyLogging, Logger}
