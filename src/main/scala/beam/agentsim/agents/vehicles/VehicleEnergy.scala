@@ -3,6 +3,7 @@ package beam.agentsim.agents.vehicles
 import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleEnergy._
 import beam.sim.common.{DoubleTypedRange, Range}
+import beam.utils.BeamVehicleUtils
 import beam.sim.config.BeamConfig
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
@@ -14,16 +15,13 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 
-class VehicleEnergy(
-  consumptionRateFilterStore: ConsumptionRateFilterStore,
-  beamConfig: BeamConfig
-) {
+class VehicleEnergy(consumptionRateFilterStore: ConsumptionRateFilterStore, beamConfig: BeamConfig) {
   private val settings = new CsvParserSettings()
   settings.setHeaderExtractionEnabled(true)
   settings.detectFormatAutomatically()
   private val csvParser = new CsvParser(settings)
 
-  private lazy val linkIdToGradePercentMap = loadLinkIdToGradeMapFromCSV(csvParser, beamConfig)
+  private lazy val linkIdToGradePercentMap = BeamVehicleUtils.loadLinkIdToGradeMapFromCSV(csvParser, beamConfig)
   private val conversionRateForMilesPerHourFromMetersPerSecond = 2.23694
 
   def vehicleEnergyMappingExistsFor(vehicleType: BeamVehicleType): Boolean = {
@@ -61,6 +59,7 @@ class VehicleEnergy(
         _,
         _,
         speedInMetersPerSecondOption,
+        _,
         _,
         _,
         _,
@@ -121,25 +120,6 @@ object VehicleEnergy {
 
   private def getVehicleEnergyRecordsUsing(csvParser: CsvParser, filePath: String): Iterable[Record] = {
     csvParser.iterateRecords(IOUtils.getBufferedReader(filePath)).asScala
-  }
-
-  private def loadLinkIdToGradeMapFromCSV(csvParser: CsvParser, beamConfig: BeamConfig): Map[Int, Double] = {
-    val linkIdHeader = "id"
-    val gradeHeader = "average_gradient_percent"
-    val filePath = beamConfig.beam.agentsim.agents.vehicles.linkToGradePercentFilePath
-    val records: Iterable[Record] = filePath match {
-      case "" =>
-        List[Record]()
-      case _ =>
-        csvParser.iterateRecords(IOUtils.getBufferedReader(filePath)).asScala
-    }
-    records
-      .map(csvRecord => {
-        val linkId = csvRecord.getInt(linkIdHeader)
-        val gradePercent = csvRecord.getDouble(gradeHeader)
-        linkId.toInt -> gradePercent.toDouble
-      })
-      .toMap
   }
 
   object ConsumptionRateFilterStore {

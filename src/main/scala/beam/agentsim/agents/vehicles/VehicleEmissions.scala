@@ -15,11 +15,14 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 
-class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore) {
+class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore, beamConfig: BeamConfig) {
+  import VehicleEmissions._
   private val settings = new CsvParserSettings()
   settings.setHeaderExtractionEnabled(true)
   settings.detectFormatAutomatically()
   private val csvParser = new CsvParser(settings)
+
+  private lazy val linkIdToGradePercentMap = BeamVehicleUtils.loadLinkIdToGradeMapFromCSV(csvParser, beamConfig)
 
   def vehicleEmissionsMappingExistsFor(vehicleType: BeamVehicleType): Boolean =
     emissionRateFilterStore.hasEmissionsRateFilterFor(vehicleType)
@@ -30,12 +33,13 @@ class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore) {
 //  ): Double = {}
 
   private def getRateUsing(
-    consumptionRateFilterFuture: Future[EmissionsRateFilterStore.EmissionsRateFilter],
-    numberOfLanes: Int,
+    emissionRateFilterFuture: Future[EmissionsRateFilterStore.EmissionsRateFilter],
     speedInMilesPerHour: Double,
     weightKg: Double,
-    gradePercent: Double
-  ): Option[Double] = {
+    gradePercent: Double,
+    zone: String,
+    source: EmissionsSource.EmissionsSource
+  ): Option[EmissionsRates] = {
     //1.)Future performance improvement could be to better index the bins so could fuzzily jump straight to it
     //instead of having to iterate
     //2.)Could keep the future in the calling method if you use
@@ -43,18 +47,18 @@ class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore) {
     //but that gets complicated and these SHOULD already be loaded by the time they are needed.
     //If that changes then go ahead and map through the collections
     import scala.concurrent.duration._
-    val consumptionRateFilter = Await.result(consumptionRateFilterFuture, 1.minute)
-
+    val emissionRateFilter = Await.result(emissionRateFilterFuture, 1.minute)
     for {
-      (_, gradeFilter) <- consumptionRateFilter
+      (_, gradeFilter) <- emissionRateFilter
         .find { case (speedInMilesPerHourBin, _) => speedInMilesPerHourBin.has(speedInMilesPerHour) }
-      (_, weightFilter) <- gradeFilter.find { case (gradePercentBin, _) => gradePercentBin.has(gradePercent) }
-      (_, lanesFilter)  <- weightFilter.find { case (weightPercentBin, _) => weightPercentBin.has(weightKg) }
-      (_, rate)         <- lanesFilter.find { case (numberOfLanesBin, _) => numberOfLanesBin.has(numberOfLanes) }
+      (_, weightFilter)     <- gradeFilter.find { case (gradePercentBin, _) => gradePercentBin.has(gradePercent) }
+      (_, geographicFilter) <- weightFilter.find { case (weightPercentBin, _) => weightPercentBin.has(weightKg) }
+      (_, sourceFilter)     <- geographicFilter.find { case (geographicArea, _) => geographicArea == zone.trim.toLowerCase }
+      (_, rate)             <- sourceFilter.find { case (emissionsSource, _) => emissionsSource.equals(source) }
     } yield rate
   }
 
-  private def getRatesUsing(
+  private def getRatmesUsing(
     fuelConsumptionData: BeamVehicle.FuelConsumptionData,
     fallBack: VehicleEmissions.EmissionsRates = VehicleEmissions.defaultEmissionsRates
   ): VehicleEmissions.EmissionsRates = {
@@ -71,17 +75,19 @@ class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore) {
         _,
         _,
         _,
-        _
+        _,
+        tazId
       ) = fuelConsumptionData
       val speedInMilesPerHour: Double = speedInMetersPerSecondOption
         .map(BeamVehicleUtils.convertFromMetersPerSecondToMilesPerHour)
         .getOrElse(0)
       val weightKg: Double = fuelConsumptionData.vehicleType.curbWeightInKg + payloadKgOption.getOrElse(0.0)
       val gradePercent: Double = linkIdToGradePercentMap.getOrElse(linkId, 0)
+      val zone = tazId.getOrElse("")
       emissionRateFilterStore
         .getEmissionsRateFilterFor(vehicleType)
         .flatMap(emissionRateFilterFuture =>
-          getRateUsing(consumptionRateFilterFuture, numberOfLanes, speedInMilesPerHour, weightKg, gradePercent)
+          getRateUsing(emissionRateFilterFuture, speedInMilesPerHour, weightKg, gradePercent, zone, source)
         )
         .getOrElse(fallBack)
     }
@@ -260,7 +266,7 @@ object VehicleEmissions {
               convertRecordStringToDoubleTypedRange("(0,200000]")
             }
             // Geographic area, None if not defined
-            val geographicArea = if (csvRecord.getMetaData.containsColumn(geoAreaHeader)) {
+            val geographicZone = if (csvRecord.getMetaData.containsColumn(geoAreaHeader)) {
               csvRecord.getString(geoAreaHeader)
             } else {
               ""
@@ -305,8 +311,8 @@ object VehicleEmissions {
                 gradePercentFilter.get(gradePercentBin) match {
                   case Some(weightKgFilter) =>
                     weightKgFilter.get(weightKgBin) match {
-                      case Some(geographicAreaFilter) =>
-                        geographicAreaFilter.get(geographicArea) match {
+                      case Some(geographicZoneFilter) =>
+                        geographicZoneFilter.get(geographicZone) match {
                           case Some(emissionsSourceFilter) =>
                             emissionsSourceFilter.get(emissionSource) match {
                               case Some(existingRates) =>
@@ -315,7 +321,7 @@ object VehicleEmissions {
                                   "Geographic Area = {}; Speed In Miles Per Hour Bin = {}; " +
                                   "Grade Percent Bin = {}; Weight kg Bin = {}; Number of Lanes Bin = {}. " +
                                   s"Keeping first rate of $existingRates and ignoring new rate of $ratesInGramsPerMile.",
-                                  geographicArea,
+                                  geographicZone,
                                   speedInMilesPerHourBin,
                                   gradePercentBin,
                                   weightKgBin
@@ -323,28 +329,28 @@ object VehicleEmissions {
                               case None => emissionsSourceFilter += emissionSource -> ratesInGramsPerMile
                             }
                           case None =>
-                            geographicAreaFilter += geographicArea -> mutable.Map(emissionSource -> ratesInGramsPerMile)
+                            geographicZoneFilter += geographicZone -> mutable.Map(emissionSource -> ratesInGramsPerMile)
                         }
                       case None =>
-                        weightKgFilter += weightKgBin -> mutable.Map(geographicArea -> ratesInGramsPerMile)
+                        weightKgFilter += weightKgBin -> mutable.Map(geographicZone -> ratesInGramsPerMile)
                     }
                   case None =>
                     gradePercentFilter += gradePercentBin -> mutable.Map(
-                      weightKgBin -> mutable.Map(geographicArea -> ratesInGramsPerMile)
+                      weightKgBin -> mutable.Map(geographicZone -> ratesInGramsPerMile)
                     )
                 }
               case None =>
                 currentRateFilter += speedInMilesPerHourBin -> mutable.Map(
-                  gradePercentBin -> mutable.Map(weightKgBin -> mutable.Map(geographicArea -> ratesInGramsPerMile))
+                  gradePercentBin -> mutable.Map(weightKgBin -> mutable.Map(geographicZone -> ratesInGramsPerMile))
                 )
             }
           })
       )
       currentRateFilter.toMap.map { case (speedInMilesPerHourBin, gradePercentMap) =>
         speedInMilesPerHourBin -> gradePercentMap.toMap.map { case (gradePercentBin, weightMap) =>
-          gradePercentBin -> weightMap.toMap.map { case (weightKgBin, geoAreaMap) =>
-            weightKgBin -> geoAreaMap.toMap.map { case (geoArea, emissionsSourceMap) =>
-              geoArea -> emissionsSourceMap.toMap
+          gradePercentBin -> weightMap.toMap.map { case (weightKgBin, zoneMap) =>
+            weightKgBin -> zoneMap.toMap.map { case (zone, emissionsSourceMap) =>
+              zone -> emissionsSourceMap.toMap
             }
           }
         }

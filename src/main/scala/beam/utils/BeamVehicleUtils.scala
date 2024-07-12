@@ -7,7 +7,10 @@ import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.sim.common.{DoubleTypedRange, Range}
 import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
+import com.univocity.parsers.common.record.Record
+import com.univocity.parsers.csv.CsvParser
 import org.matsim.api.core.v01.Id
+import org.matsim.core.utils.io.IOUtils
 import org.supercsv.io.CsvMapReader
 import org.supercsv.prefs.CsvPreference
 
@@ -149,6 +152,10 @@ object BeamVehicleUtils {
     }.toMap
   }
 
+  /**
+    * @param beamConfig BEAM Config
+    * @return
+    */
   def readBeamVehicleTypeFile(beamConfig: BeamConfig): Map[Id[BeamVehicleType], BeamVehicleType] = {
     val vehicleTypes = readBeamVehicleTypeFile(
       beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath
@@ -175,6 +182,14 @@ object BeamVehicleUtils {
     vehicleTypes ++ missingTypes
   }
 
+  /**
+    * readCsvFileByLine
+    * @param filePath file path
+    * @param z
+    * @param readLine
+    * @tparam A
+    * @return
+    */
   def readCsvFileByLine[A](filePath: String, z: A)(readLine: (java.util.Map[String, String], A) => A): A = {
     FileUtils.using(new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)) {
       mapReader =>
@@ -187,6 +202,32 @@ object BeamVehicleUtils {
         }
         res
     }
+  }
+
+  /**
+    * loadLinkIdToGradeMapFromCSV
+    * @param csvParser CSV File parser
+    * @param beamConfig BEAM config
+    * @return
+    */
+  def loadLinkIdToGradeMapFromCSV(csvParser: CsvParser, beamConfig: BeamConfig): Map[Int, Double] = {
+    import scala.collection.JavaConverters._
+    val linkIdHeader = "id"
+    val gradeHeader = "average_gradient_percent"
+    val filePath = beamConfig.beam.agentsim.agents.vehicles.linkToGradePercentFilePath
+    val records: Iterable[Record] = filePath match {
+      case "" =>
+        List[Record]()
+      case _ =>
+        csvParser.iterateRecords(IOUtils.getBufferedReader(filePath)).asScala
+    }
+    records
+      .map(csvRecord => {
+        val linkId = csvRecord.getInt(linkIdHeader)
+        val gradePercent = csvRecord.getDouble(gradeHeader)
+        linkId.toInt -> gradePercent.toDouble
+      })
+      .toMap
   }
 
   /**
