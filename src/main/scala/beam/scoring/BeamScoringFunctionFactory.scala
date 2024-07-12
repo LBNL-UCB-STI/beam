@@ -190,10 +190,13 @@ class BeamScoringFunctionFactory @Inject() (
 
         finalScore =
           (allDayScore + leavingParkingEventScore + activityScore + replanningScore - allDayExpectedScore) * utilsConversion
-        finalScore = Math.max(
-          finalScore,
-          -100000
-        ) // keep scores no further below -100k to keep MATSim happy (doesn't like -Infinity) but knowing
+        finalScore = if (finalScore.isNaN) { -1000 }
+        else {
+          Math.max(
+            finalScore,
+            -100000
+          )
+        } // keep scores no further below -100k to keep MATSim happy (doesn't like -Infinity) but knowing
         // that if changes to utility function drive the true scores below -100k, this will need to be replaced with another big number.
 
         // Write the individual's trip scores to csv
