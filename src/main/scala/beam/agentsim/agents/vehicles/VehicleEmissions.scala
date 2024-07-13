@@ -1,8 +1,7 @@
 package beam.agentsim.agents.vehicles
 
-import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsRateFilterStore
-import beam.sim.common.{DoubleTypedRange, Range}
+import beam.sim.common.DoubleTypedRange
 import beam.sim.config.BeamConfig
 import beam.utils.BeamVehicleUtils
 import com.univocity.parsers.common.record.Record
@@ -27,12 +26,21 @@ class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore, beamCo
   def vehicleEmissionsMappingExistsFor(vehicleType: BeamVehicleType): Boolean =
     emissionRateFilterStore.hasEmissionsRateFilterFor(vehicleType)
 
-//  def getFuelConsumptionEnergyInJoulesUsing(
-//    fuelConsumptionDatas: IndexedSeq[BeamVehicle.FuelConsumptionData],
-//    fallBack: Double
-//  ): Double = {}
+  def getEmissionsProfilesInGramsPerMile(
+    fuelConsumptionDatas: IndexedSeq[BeamVehicle.FuelConsumptionData],
+    source: EmissionsSource.EmissionsSource,
+    fallBack: EmissionsProfile.EmissionsProfile
+  ): EmissionsProfile.EmissionsProfile = {
+    fuelConsumptionDatas
+      .map(fuelConsumptionData => {
+        val rates = getRatesUsing(fuelConsumptionData, source, fallBack)
+        val distance = fuelConsumptionData.linkLength.getOrElse(0.0)
+        val finalConsumption = rateInJoulesPerMeter * distance
+        finalConsumption
+      })
+  }
 
-  private def getRateUsing(
+  private def getRatesUsing(
     emissionRateFilterFuture: Future[EmissionsRateFilterStore.EmissionsRateFilter],
     speedInMilesPerHour: Double,
     weightKg: Double,
@@ -58,9 +66,10 @@ class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore, beamCo
     } yield rate
   }
 
-  private def getRatmesUsing(
+  private def getRatesUsing(
     fuelConsumptionData: BeamVehicle.FuelConsumptionData,
-    fallBack: VehicleEmissions.EmissionsRates = VehicleEmissions.defaultEmissionsRates
+    source: EmissionsSource.EmissionsSource,
+    fallBack: EmissionsProfile.EmissionsProfile
   ): VehicleEmissions.EmissionsRates = {
     if (!vehicleEmissionsMappingExistsFor(fuelConsumptionData.vehicleType)) { fallBack }
     else {
@@ -92,7 +101,6 @@ class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore, beamCo
         .getOrElse(fallBack)
     }
   }
-
 }
 
 object VehicleEmissions {
@@ -118,53 +126,88 @@ object VehicleEmissions {
 
   object EmissionsSource extends Enumeration {
     type EmissionsSource = Value
-    val Running, Start, Hotelling, Dust, Evaporative, Other = Value
+    val Running, Start, Hotelling, WearDust, Evaporative = Value
 
     def fromString(source: String): EmissionsSource = source.toLowerCase match {
-      case "running" | "running exhaust"            => Running
-      case "start" | "start exhaust"                => Start
-      case "hotelling" | "hotelling exhaust"        => Hotelling
-      case "dust" | "brake/tire wear and road dust" => Dust
-      case "evaporative" | "evaporative emissions"  => Evaporative
-      case _                                        => Other
+      case "running"     => Running
+      case "start"       => Start
+      case "hotelling"   => Hotelling
+      case "weardust"    => WearDust // brake/tire wear and road dust
+      case "evaporative" => Evaporative
+      case _             => Running
     }
   }
 
+  // Rates in Grams per Mile
   case class EmissionsRates(
-    CH4: Double,
-    CO: Double,
-    CO2: Double,
-    HC: Double,
-    NH3: Double,
-    NOx: Double,
-    PM: Double,
-    PM10: Double,
-    PM2_5: Double,
-    ROG: Double,
-    SOx: Double,
-    TOG: Double
+    var CH4: Double,
+    var CO: Double,
+    var CO2: Double,
+    var HC: Double,
+    var NH3: Double,
+    var NOx: Double,
+    var PM: Double,
+    var PM10: Double,
+    var PM2_5: Double,
+    var ROG: Double,
+    var SOx: Double,
+    var TOG: Double
   ) {
+    import EmissionsRates._
     def notValid: Boolean = List(CH4, CO, CO2, HC, NH3, NOx, PM, PM10, PM2_5, ROG, SOx, TOG).forall(_ == 0)
 
+    def add(rates: EmissionsRates): Unit = {
+      this.CH4 += rates.CH4
+      this.CO += rates.CO
+      this.CO2 += rates.CO2
+      this.HC += rates.HC
+      this.NH3 += rates.NH3
+      this.NOx += rates.NOx
+      this.PM += rates.PM
+      this.PM10 += rates.PM10
+      this.PM2_5 += rates.PM2_5
+      this.ROG += rates.ROG
+      this.SOx += rates.SOx
+      this.TOG += rates.TOG
+    }
+
     override def toString: String = {
-      s"EmissionsRates(CH4=$CH4, CO=$CO, CO2=$CO2, HC=$HC, NH3=$NH3, NOx=$NOx, PM=$PM, PM10=$PM10, PM2_5=$PM2_5, ROG=$ROG, SOx=$SOx, TOG=$TOG)"
+      s"EmissionsRates($_CH4=$CH4, $_CO=$CO, $_CO2=$CO2, $_HC=$HC, $_NH3=$NH3, $_NOx=$NOx, $_PM=$PM, $_PM10=$PM10, " +
+        s"$_PM2_5=$PM2_5, $_ROG=$ROG, $_SOx=$SOx, $_TOG=$TOG)"
     }
   }
 
-  val defaultEmissionsRates: EmissionsRates = EmissionsRates(
-    CH4 = 0.0,
-    CO = 0.0,
-    CO2 = 0.0,
-    HC = 0.0,
-    NH3 = 0.0,
-    NOx = 0.0,
-    PM = 0.0,
-    PM10 = 0.0,
-    PM2_5 = 0.0,
-    ROG = 0.0,
-    SOx = 0.0,
-    TOG = 0.0
-  )
+  object EmissionsRates {
+    val _CH4: String = "CH4"
+    val _CO: String = "CO"
+    val _CO2: String = "CO2"
+    val _HC: String = "HC"
+    val _NH3: String = "NH3"
+    val _NOx: String = "NOx"
+    val _PM: String = "PM"
+    val _PM10: String = "PM10"
+    val _PM2_5: String = "PM2_5"
+    val _ROG: String = "ROG"
+    val _SOx: String = "SOx"
+    val _TOG: String = "TOG"
+
+    def initEmissionsRates(): EmissionsRates =
+      EmissionsRates(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+  }
+
+  object EmissionsProfile {
+    type EmissionsProfile = Map[EmissionsSource.EmissionsSource, EmissionsRates]
+
+    def initEmissionsProfile(): EmissionsProfile = {
+      Map {
+        EmissionsSource.Running     -> EmissionsRates.initEmissionsRates()
+        EmissionsSource.Start       -> EmissionsRates.initEmissionsRates()
+        EmissionsSource.Hotelling   -> EmissionsRates.initEmissionsRates()
+        EmissionsSource.WearDust    -> EmissionsRates.initEmissionsRates()
+        EmissionsSource.Evaporative -> EmissionsRates.initEmissionsRates()
+      }
+    }
+  }
 
   class EmissionsRateFilterStoreImpl(
     baseFilePaths: IndexedSeq[String],

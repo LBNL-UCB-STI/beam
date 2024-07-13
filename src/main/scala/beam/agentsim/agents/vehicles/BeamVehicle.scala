@@ -1,11 +1,12 @@
 package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed}
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed, FuelConsumptionData}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleCategory._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
+import beam.agentsim.agents.vehicles.VehicleEmissions._
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
@@ -65,6 +66,15 @@ class BeamVehicle(
   def primaryFuelLevelInJoules: Double = fuelRWLock.read { primaryFuelLevelInJoulesInternal }
   private var secondaryFuelLevelInJoulesInternal = beamVehicleType.secondaryFuelCapacityInJoule.getOrElse(0.0)
   def secondaryFuelLevelInJoules: Double = fuelRWLock.read { secondaryFuelLevelInJoulesInternal }
+
+  private val emissionsRWLock = new ReentrantReadWriteLock()
+
+  private val emissionsProfileInGramsPerMileInternal: EmissionsProfileStore.EmissionsProfile =
+    EmissionsProfileStore.initEmissionsProfile()
+
+  private def emissionsProfileInGramsPerMile: EmissionsProfileStore.EmissionsProfile = emissionsRWLock.read {
+    emissionsProfileInGramsPerMileInternal
+  }
 
   private val mustBeDrivenHomeInternal: AtomicBoolean = new AtomicBoolean(false)
   def isMustBeDrivenHome: Boolean = mustBeDrivenHomeInternal.get()
@@ -198,8 +208,6 @@ class BeamVehicle(
     }
   }
 
-  def emitEmissions(fuelUsed: Double, fuelType: FuelType): Double = {}
-
   /**
     * useFuel
     *
@@ -218,25 +226,13 @@ class BeamVehicle(
     */
   def useFuel(
     beamLeg: BeamLeg,
-    payloadInKg: Option[Double],
+    fuelConsumptionData: IndexedSeq[FuelConsumptionData],
     beamScenario: BeamScenario,
     networkHelper: NetworkHelper,
     eventsManager: EventsManager,
     eventBuilder: ActorRef,
     beamVehicleAfterUseFuelHook: Option[BeamVehicleAfterUseFuelHook]
   ): FuelConsumed = {
-    val fuelConsumptionDataWithOnlyLength_Id_And_Type =
-      !beamScenario.vehicleEnergy.vehicleEnergyMappingExistsFor(beamVehicleType)
-    val fuelConsumptionData =
-      BeamVehicle.collectFuelConsumptionData(
-        beamLeg,
-        beamVehicleType,
-        payloadInKg,
-        networkHelper,
-        fuelConsumptionDataWithOnlyLength_Id_And_Type,
-        beamScenario.tazTreeMap
-      )
-
     val primaryEnergyForFullLeg =
       if (fuelConsumptionData.nonEmpty) {
         beamScenario.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
@@ -280,7 +276,6 @@ class BeamVehicle(
             beamLeg.travelPath.distanceInM,
             getState.remainingPrimaryRangeInM
           )
-
         }
       }
       primaryFuelLevelInJoulesInternal = primaryFuelLevelInJoulesInternal - primaryEnergyConsumed
@@ -300,6 +295,35 @@ class BeamVehicle(
   def addFuel(fuelInJoules: Double): Unit = {
     fuelRWLock.write {
       primaryFuelLevelInJoulesInternal = primaryFuelLevelInJoulesInternal + fuelInJoules
+    }
+  }
+
+  def emitEmissions(
+    beamLeg: BeamLeg,
+    fuelConsumptionData: IndexedSeq[FuelConsumptionData],
+    beamScenario: BeamScenario
+  ): EmissionsProfileStore.EmissionsProfile = {
+    val embedEmissionsProfiles = beamScenario.beamConfig.beam.outputs.events.embedEmissionsProfiles
+    val vehicleEmissionsMappingExistsFor =
+      beamScenario.vehicleEmission.vehicleEmissionsMappingExistsFor(beamVehicleType)
+    if (embedEmissionsProfiles && !vehicleEmissionsMappingExistsFor) {
+      EmissionsProfileStore.initEmissionsProfile()
+    } else {
+      if (fuelConsumptionData.nonEmpty) {
+        beamScenario.vehicleEmission.getEmissionsProfilesInGramsPerMile(
+          fuelConsumptionData,
+          fallBack = beamVehicleType.emissionsRatesInGramsPerMile
+        )
+      } else {
+        beamLeg.travelPath.distanceInM * beamVehicleType.primaryFuelConsumptionInJoulePerMeter
+      }
+    }
+    EmissionsProfileStore.initEmissionsProfile()
+  }
+
+  def addEmissions(source: EmissionsSource.EmissionsSource, rates: EmissionsRates): Unit = {
+    emissionsRWLock.write {
+      emissionsProfileInGramsPerMileInternal.get(source).map(_.add(rates))
     }
   }
 
@@ -458,7 +482,7 @@ class BeamVehicle(
     * @param meanSoc Mean state of charge
     */
   def initializeFuelLevelsFromUniformDistribution(meanSoc: Double): Unit = {
-    val initialSoc = BeamVehicle.randomSocFromUniformDistribution(rand, beamVehicleType, meanSoc)
+    val initialSoc = beam.utils.BeamVehicleUtils.randomSocFromUniformDistribution(rand, beamVehicleType, meanSoc)
     initializeFuelLevels(initialSoc)
   }
 
@@ -599,8 +623,7 @@ object BeamVehicle {
     linkArrivalTime: Option[Long] = None,
     turnAtLinkEnd: Option[TurningDirection] = None,
     numberOfStops: Option[Int] = None,
-    tazId: Option[String] = None,
-    emissionsSources: List[VehicleEmissions.EmissionsSource.EmissionsSource]
+    tazId: Option[String] = None
   )
 
   /**
@@ -610,15 +633,16 @@ object BeamVehicle {
     * @param networkHelper the transport network instance
     * @return list of fuel consumption objects generated
     */
-  private def collectFuelConsumptionData(
+  def collectFuelConsumptionData(
     beamLeg: BeamLeg,
     theVehicleType: BeamVehicleType,
     payloadInKg: Option[Double],
     networkHelper: NetworkHelper,
-    fuelConsumptionDataWithOnlyLength_Id_And_Type: Boolean = false,
-    tazTreeMap: TAZTreeMap
+    beamScenario: BeamScenario
   ): IndexedSeq[FuelConsumptionData] = {
     //TODO: This method is becoming a little clunky. If it has to grow again then maybe refactor/break it out
+    val fuelConsumptionDataWithOnlyLength_Id_And_Type =
+      !beamScenario.vehicleEnergy.vehicleEnergyMappingExistsFor(theVehicleType)
     if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
       Vector.empty
     } else if (fuelConsumptionDataWithOnlyLength_Id_And_Type) {
@@ -638,15 +662,15 @@ object BeamVehicle {
             linkArrivalTime = None,
             turnAtLinkEnd = None,
             numberOfStops = None,
-            tazId = linkMaybe.flatMap(link => tazTreeMap.getTAZfromLink(link.getId).map(_.tazId.toString))
+            tazId = linkMaybe.flatMap(link => beamScenario.tazTreeMap.getTAZfromLink(link.getId).map(_.tazId.toString))
           )
         }
     } else {
       val linkIds = beamLeg.travelPath.linkIds.drop(1)
       val linkTravelTimes: IndexedSeq[Double] = beamLeg.travelPath.linkTravelTime.drop(1)
       // generate the link arrival times for each link ,by adding cumulative travel times of previous links
-//      val linkArrivalTimes = linkTravelTimes.scan(beamLeg.startTime)((enterTime,duration) => enterTime + duration).dropRight(1)
-//      val nextLinkIds = linkIds.takeRight(linkIds.size - 1)
+      //      val linkArrivalTimes = linkTravelTimes.scan(beamLeg.startTime)((enterTime,duration) => enterTime + duration).dropRight(1)
+      //      val nextLinkIds = linkIds.takeRight(linkIds.size - 1)
       linkIds.zipWithIndex.map { case (id, idx) =>
         val travelTime = linkTravelTimes(idx)
         val currentLink: Option[Link] = networkHelper.getLink(id)
@@ -668,20 +692,9 @@ object BeamVehicle {
           linkArrivalTime = None, //Some(arrivalTime),
           turnAtLinkEnd = None, //Some(turnAtLinkEnd),
           numberOfStops = None, //Some(numStops)
-          tazId = currentLink.flatMap(link => tazTreeMap.getTAZfromLink(link.getId).map(_.tazId.toString))
+          tazId = currentLink.flatMap(link => beamScenario.tazTreeMap.getTAZfromLink(link.getId).map(_.tazId.toString))
         )
       }
     }
   }
-
-  def randomSocFromUniformDistribution(rand: Random, beamVehicleType: BeamVehicleType, meanSoc: Double): Double = {
-    beamVehicleType.primaryFuelType match {
-      case Electricity =>
-        val meanSOC = math.max(math.min(meanSoc, 1.0), 0.5)
-        val minimumSOC = 2.0 * meanSOC - 1
-        minimumSOC + (1.0 - minimumSOC) * rand.nextDouble()
-      case _ => 1.0
-    }
-  }
-
 }

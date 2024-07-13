@@ -1,12 +1,13 @@
 package beam.utils
 
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
-import beam.agentsim.agents.vehicles.FuelType.FuelType
+import beam.agentsim.agents.vehicles.FuelType.{Electricity, FuelType}
 import beam.agentsim.agents.vehicles._
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.sim.common.{DoubleTypedRange, Range}
 import beam.sim.config.BeamConfig
 import beam.utils.matsim_conversion.MatsimPlanConversion.IdOps
+import com.typesafe.scalalogging.LazyLogging
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.CsvParser
 import org.matsim.api.core.v01.Id
@@ -18,7 +19,7 @@ import java.util
 import java.util.concurrent.atomic.AtomicReference
 import scala.util.Random
 
-object BeamVehicleUtils {
+object BeamVehicleUtils extends LazyLogging {
 
   def readVehiclesFile(
     filePath: String,
@@ -69,7 +70,7 @@ object BeamVehicleUtils {
     * @param vehicleCategory the vehicle category
     * @return an average curb weight of a vehicle that belongs to the provided category (in kg)
     */
-  private def vehcileCategoryToWeightInKg(vehicleCategory: VehicleCategory.VehicleCategory): Double =
+  private def vehicleCategoryToWeightInKg(vehicleCategory: VehicleCategory.VehicleCategory): Double =
     vehicleCategory match {
       case VehicleCategory.Body                 => 70
       case VehicleCategory.Bike                 => 80
@@ -108,7 +109,7 @@ object BeamVehicleUtils {
         val vehicleCategory = VehicleCategory.fromString(line.get("vehicleCategory"))
         val curbWeight: Double = Option(line.get("curbWeightInKg"))
           .map(_.toDouble)
-          .getOrElse(vehcileCategoryToWeightInKg(vehicleCategory))
+          .getOrElse(vehicleCategoryToWeightInKg(vehicleCategory))
         val sampleProbabilityWithinCategory =
           Option(line.get("sampleProbabilityWithinCategory")).map(_.toDouble).getOrElse(1.0)
         val sampleProbabilityString = Option(line.get("sampleProbabilityString"))
@@ -116,7 +117,11 @@ object BeamVehicleUtils {
         val payloadCapacity = Option(line.get("payloadCapacityInKg")).map(_.toDouble)
         val wheelchairAccessible = Option(line.get("wheelchairAccessible")).map(_.toBoolean)
         val restrictRoadsByFreeSpeed = Option(line.get("restrictRoadsByFreeSpeedInMeterPerSecond")).map(_.toDouble)
-        val vehicleEmissionsFile = Option(line.get("vehicleEmissionsFile"))
+        val emissionsRatesInGramsPerMile =
+          Option(line.get("emissionsRatesInGramsPerMile"))
+            .map(parseEmissionsString(_, vehicleTypeId))
+            .getOrElse(Map.empty)
+        val emissionsRatesFile = Option(line.get("emissionsRatesFile"))
 
         val bvt = BeamVehicleType(
           vehicleTypeId,
@@ -146,7 +151,8 @@ object BeamVehicleUtils {
           payloadCapacity,
           wheelchairAccessible,
           restrictRoadsByFreeSpeed,
-          vehicleEmissionsFile
+          emissionsRatesInGramsPerMile,
+          emissionsRatesFile
         )
         z += ((vehicleTypeId, bvt))
     }.toMap
@@ -183,12 +189,14 @@ object BeamVehicleUtils {
   }
 
   /**
-    * readCsvFileByLine
-    * @param filePath file path
-    * @param z
-    * @param readLine
-    * @tparam A
-    * @return
+    * Reads a CSV file line by line and processes each line with a provided function.
+    *
+    * @param filePath The path to the CSV file.
+    * @param z The initial value for the result accumulator.
+    * @param readLine A function that processes each line of the CSV. It takes a map representing a CSV
+    *                 line and the current state of the accumulator, and returns the updated state of the accumulator.
+    * @tparam A The type of the accumulator/result.
+    * @return The final state of the accumulator after processing all lines.
     */
   def readCsvFileByLine[A](filePath: String, z: A)(readLine: (java.util.Map[String, String], A) => A): A = {
     FileUtils.using(new CsvMapReader(FileUtils.readerFromFile(filePath), CsvPreference.STANDARD_PREFERENCE)) {
@@ -227,6 +235,83 @@ object BeamVehicleUtils {
         val gradePercent = csvRecord.getDouble(gradeHeader)
         linkId.toInt -> gradePercent.toDouble
       })
+      .toMap
+  }
+
+  /**
+    * @param rand random number generator
+    * @param beamVehicleType vehicle type
+    * @param meanSoc average state of charge
+    * @return
+    */
+  def randomSocFromUniformDistribution(rand: Random, beamVehicleType: BeamVehicleType, meanSoc: Double): Double = {
+    beamVehicleType.primaryFuelType match {
+      case Electricity =>
+        val meanSOC = math.max(math.min(meanSoc, 1.0), 0.5)
+        val minimumSOC = 2.0 * meanSOC - 1
+        minimumSOC + (1.0 - minimumSOC) * rand.nextDouble()
+      case _ => 1.0
+    }
+  }
+
+  /**
+    * Function to parse the emissions string
+    * @param emissionString from vehicle types
+    * @param vehicleTypeId vehicle type id
+    * @return
+    */
+  private def parseEmissionsString(
+    emissionString: String,
+    vehicleTypeId: Id[BeamVehicleType]
+  ): VehicleEmissions.EmissionsProfile.EmissionsProfile = {
+    import VehicleEmissions.EmissionsRates._
+    import scala.util.Try
+
+    val sourcePattern = """(\w+)\(([^)]+)\)""".r
+
+    emissionString
+      .split(";")
+      .flatMap {
+        case sourcePattern(source, emissions) =>
+          val emissionMap = emissions
+            .split(",")
+            .flatMap { emission =>
+              val parts = emission.split(":").map(_.trim)
+              if (parts.length == 2) {
+                Some((parts(0).toLowerCase, Try(parts(1).toDouble).getOrElse(0.0)))
+              } else if (parts.length == 1) {
+                Some((parts(0).toLowerCase, 0.0))
+              } else if (parts.length == 0) {
+                None
+              } else {
+                logger.error(
+                  s"Failure to process this emission source $source with emissions $emissions " +
+                  s"from emissionsRatesInGramsPerMile corresponding to vehicle types Id ${vehicleTypeId.toString} "
+                )
+                None
+              }
+            }
+            .toMap
+
+          val emissionsRates = VehicleEmissions.EmissionsRates(
+            emissionMap.getOrElse(_CH4.toLowerCase, 0.0),
+            emissionMap.getOrElse(_CO.toLowerCase, 0.0),
+            emissionMap.getOrElse(_CO2.toLowerCase, 0.0),
+            emissionMap.getOrElse(_HC.toLowerCase, 0.0),
+            emissionMap.getOrElse(_NH3.toLowerCase, 0.0),
+            emissionMap.getOrElse(_NOx.toLowerCase, 0.0),
+            emissionMap.getOrElse(_PM.toLowerCase, 0.0),
+            emissionMap.getOrElse(_PM10.toLowerCase, 0.0),
+            emissionMap.getOrElse(_PM2_5.toLowerCase, 0.0),
+            emissionMap.getOrElse(_ROG.toLowerCase, 0.0),
+            emissionMap.getOrElse(_SOx.toLowerCase, 0.0),
+            emissionMap.getOrElse(_TOG.toLowerCase, 0.0)
+          )
+
+          Some((VehicleEmissions.EmissionsSource.fromString(source), emissionsRates))
+
+        case _ => None
+      }
       .toMap
   }
 

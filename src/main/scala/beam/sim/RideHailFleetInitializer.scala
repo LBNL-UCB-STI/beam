@@ -706,7 +706,8 @@ class ProceduralRideHailFleetInitializer(
           val rideInitialLocation: Location = getRideInitLocation(person, activityQuadTreeBounds)
 
           val meanSoc = beamServices.beamConfig.beam.agentsim.agents.vehicles.meanRidehailVehicleStartingSOC
-          val initialStateOfCharge = BeamVehicle.randomSocFromUniformDistribution(rand, vehicleType, meanSoc)
+          val initialStateOfCharge =
+            beam.utils.BeamVehicleUtils.randomSocFromUniformDistribution(rand, vehicleType, meanSoc)
 
           val (shiftsOpt, shiftEquivalentNumberOfDrivers) = if (vehicleType.isConnectedAutomatedVehicle) {
             (None, 1.0)
