@@ -28,51 +28,28 @@ class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore, beamCo
 
   def getEmissionsProfilesInGramsPerMile(
     fuelConsumptionDatas: IndexedSeq[BeamVehicle.FuelConsumptionData],
-    source: EmissionsSource.EmissionsSource,
+    source: EmissionsProcesses.EmissionsProcess,
     fallBack: EmissionsProfile.EmissionsProfile
   ): EmissionsProfile.EmissionsProfile = {
     fuelConsumptionDatas
       .map(fuelConsumptionData => {
         val rates = getRatesUsing(fuelConsumptionData, source, fallBack)
         val distance = fuelConsumptionData.linkLength.getOrElse(0.0)
-        val finalConsumption = rateInJoulesPerMeter * distance
-        finalConsumption
+        //val finalConsumption = rateInJoulesPerMeter * distance
+        //finalConsumption
+        0
       })
-  }
-
-  private def getRatesUsing(
-    emissionRateFilterFuture: Future[EmissionsRateFilterStore.EmissionsRateFilter],
-    speedInMilesPerHour: Double,
-    weightKg: Double,
-    gradePercent: Double,
-    zone: String,
-    source: EmissionsSource.EmissionsSource
-  ): Option[EmissionsRates] = {
-    //1.)Future performance improvement could be to better index the bins so could fuzzily jump straight to it
-    //instead of having to iterate
-    //2.)Could keep the future in the calling method if you use
-    //Future.sequence and Option.option2Iterable followed by a flatMap(_.headOption),
-    //but that gets complicated and these SHOULD already be loaded by the time they are needed.
-    //If that changes then go ahead and map through the collections
-    import scala.concurrent.duration._
-    val emissionRateFilter = Await.result(emissionRateFilterFuture, 1.minute)
-    for {
-      (_, gradeFilter) <- emissionRateFilter
-        .find { case (speedInMilesPerHourBin, _) => speedInMilesPerHourBin.has(speedInMilesPerHour) }
-      (_, weightFilter)     <- gradeFilter.find { case (gradePercentBin, _) => gradePercentBin.has(gradePercent) }
-      (_, geographicFilter) <- weightFilter.find { case (weightPercentBin, _) => weightPercentBin.has(weightKg) }
-      (_, sourceFilter)     <- geographicFilter.find { case (geographicArea, _) => geographicArea == zone.trim.toLowerCase }
-      (_, rate)             <- sourceFilter.find { case (emissionsSource, _) => emissionsSource.equals(source) }
-    } yield rate
+    EmissionsProfile.initEmissionsProfile()
   }
 
   private def getRatesUsing(
     fuelConsumptionData: BeamVehicle.FuelConsumptionData,
-    source: EmissionsSource.EmissionsSource,
+    source: EmissionsProcesses.EmissionsProcess,
     fallBack: EmissionsProfile.EmissionsProfile
-  ): VehicleEmissions.EmissionsRates = {
-    if (!vehicleEmissionsMappingExistsFor(fuelConsumptionData.vehicleType)) { fallBack }
-    else {
+  ): EmissionsRates = {
+    if (!vehicleEmissionsMappingExistsFor(fuelConsumptionData.vehicleType)) {
+      fallBack.getOrElse(source, EmissionsRates.initEmissionsRates())
+    } else {
       val BeamVehicle.FuelConsumptionData(
         linkId,
         vehicleType,
@@ -96,10 +73,36 @@ class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore, beamCo
       emissionRateFilterStore
         .getEmissionsRateFilterFor(vehicleType)
         .flatMap(emissionRateFilterFuture =>
-          getRateUsing(emissionRateFilterFuture, speedInMilesPerHour, weightKg, gradePercent, zone, source)
+          getRatesUsing(emissionRateFilterFuture, speedInMilesPerHour, weightKg, gradePercent, zone, source)
         )
         .getOrElse(fallBack)
     }
+  }
+
+  private def getRatesUsing(
+    emissionRateFilterFuture: Future[EmissionsRateFilterStore.EmissionsRateFilter],
+    speedInMilesPerHour: Double,
+    weightKg: Double,
+    gradePercent: Double,
+    zone: String,
+    source: EmissionsProcesses.EmissionsProcess
+  ): Option[EmissionsRates] = {
+    //1.)Future performance improvement could be to better index the bins so could fuzzily jump straight to it
+    //instead of having to iterate
+    //2.)Could keep the future in the calling method if you use
+    //Future.sequence and Option.option2Iterable followed by a flatMap(_.headOption),
+    //but that gets complicated and these SHOULD already be loaded by the time they are needed.
+    //If that changes then go ahead and map through the collections
+    import scala.concurrent.duration._
+    val emissionRateFilter = Await.result(emissionRateFilterFuture, 1.minute)
+    for {
+      (_, gradeFilter) <- emissionRateFilter
+        .find { case (speedInMilesPerHourBin, _) => speedInMilesPerHourBin.has(speedInMilesPerHour) }
+      (_, weightFilter)     <- gradeFilter.find { case (gradePercentBin, _) => gradePercentBin.has(gradePercent) }
+      (_, geographicFilter) <- weightFilter.find { case (weightPercentBin, _) => weightPercentBin.has(weightKg) }
+      (_, sourceFilter)     <- geographicFilter.find { case (geographicArea, _) => geographicArea == zone.trim.toLowerCase }
+      (_, rate)             <- sourceFilter.find { case (emissionsSource, _) => emissionsSource.equals(source) }
+    } yield rate
   }
 }
 
@@ -111,7 +114,10 @@ object VehicleEmissions {
     type EmissionsRateFilter =
       Map[
         DoubleTypedRange,
-        Map[DoubleTypedRange, Map[DoubleTypedRange, Map[String, Map[EmissionsSource.EmissionsSource, EmissionsRates]]]]
+        Map[
+          DoubleTypedRange,
+          Map[DoubleTypedRange, Map[String, Map[EmissionsProcesses.EmissionsProcess, EmissionsRates]]]
+        ]
       ]
   }
 
@@ -124,17 +130,68 @@ object VehicleEmissions {
     def hasEmissionsRateFilterFor(vehicleType: BeamVehicleType): Boolean
   }
 
-  object EmissionsSource extends Enumeration {
-    type EmissionsSource = Value
-    val Running, Start, Hotelling, WearDust, Evaporative = Value
+  object EmissionsProcesses extends Enumeration {
+    type EmissionsProcess = Value
+    val RUNEX, IDLEX, STREX, HOTSOAK, DIURN, RUNLOSS, PMTW, PMBW = Value
 
-    def fromString(source: String): EmissionsSource = source.toLowerCase match {
-      case "running"     => Running
-      case "start"       => Start
-      case "hotelling"   => Hotelling
-      case "weardust"    => WearDust // brake/tire wear and road dust
-      case "evaporative" => Evaporative
-      case _             => Running
+    def fromString(source: String): EmissionsProcess = source.toLowerCase match {
+      // Running Exhaust Emissions (RUNEX) that come out of the vehicle tailpipe while traveling on the road.
+      // TODO Embed it in PathTraversalEvent
+      // TODO xVMT by speed bin => gram/veh-mile
+      case "running" | "runex" => RUNEX
+
+      // Idle Exhaust Emissions (IDLEX) that come out of the vehicle tailpipe while it is operating but not traveling
+      // any significant distance. This process captures emissions from heavy-duty vehicles that idle for
+      // extended periods of time while loading or unloading goods. Idle exhaust is calculated only
+      // for heavy-duty trucks.
+      // TODO Embed it in LeavingParkingEvent when 1) it is freight Load/Unload 2) overnight parking
+      // TODO xNumber of Idle Hours (xParking Hour) => gram/veh-idle hour
+      case "hotelling" | "idle" | "idlex" => IDLEX
+
+      // Start Exhaust Tailpipe Emissions (STREX) that occur when starting a vehicle. These emissions are independent
+      // of running exhaust emissions and represent the emissions occurring during the initial time period when
+      // a vehicle’s emissions after treatment system is warming up. The magnitude of these emissions is dependent
+      // on how long the vehicle has been sitting prior to starting. Please note that STREX is defined differently
+      // for heavy-duty diesel trucks than for other vehicles.
+      // More details can be found in the EMFAC2014 Technical Support Document.
+      // TODO Embed it in LeavingParkingEvent
+      // TODO !!! we might underestimate STREX from vehicle that did not park but entered network after a while, like ridehail
+      // TODO xNumber of starts per Soak time => gram/veh-start
+      case "start" | "strex" => STREX
+
+      // Diurnal Evaporative HC Emissions (DIURN) that occur when rising ambient temperatures cause fuel evaporation
+      // from vehicles sitting throughout the day. These losses are from leaks in the fuel system, fuel hoses,
+      // connectors, as a result of the breakthrough of vapors from the carbon canister.
+      // TODO Embed it in LeavingParkingEvent
+      // TODO !!! we might underestimate STREX from vehicle that did not park but entered network after a while, like ridehail
+      // TODO xCold soak hours (xParking Hour) => gram/veh-hour
+      case "diurnal" | "diurn" => DIURN //
+
+      // Hot Soak Evaporative HC Emissions (HOTSOAK) that begin immediately from heated fuels after a car stops its
+      // engine operation and continue until the fuel tank reaches ambient temperature.
+      // TODO Embed it in LeavingParkingEvent
+      // TODO !!! we might underestimate STREX from vehicle that did not park but entered network after a while, like ridehail
+      // TODO xNumber of starts => gram/veh-start
+      case "hotsoak" => HOTSOAK
+
+      // Running Loss Evaporative HC Emissions (RUNLOSS) that occur as a result of hot fuel vapors escaping
+      // from the fuel system or overwhelming the carbon canister while the vehicle is operating.
+      // TODO Embed it in PathTraversalEvent and LeavingParkingEvent (loading/unloading/hotelling)
+      // TODO xRunning hours (xVHT) => gram/veh-hour
+      case "runloss" => RUNLOSS // TODO Embed it in PathTraversalEvent
+
+      // Tire Wear Particulate Matter Emissions (PMTW) that originate from tires as a result of wear.
+      // TODO Embed it in PathTraversalEvent
+      // TODO xVMT => gram/veh-mile
+      case "tirewear" | "pmtw" => PMTW // Embedded in PathTraversalEvent
+
+      // Brake Wear Particulate Matter Emissions (PMBW) that originate from brake usage.
+      // TODO Embed it in PathTraversalEvent
+      // TODO xVMT by speed bin => gram/veh-mile
+      case "brakewear" | "pmbw" => PMBW
+
+      // if process is not recognized then RUNEX emission will be used
+      case _ => RUNEX
     }
   }
 
@@ -172,8 +229,10 @@ object VehicleEmissions {
     }
 
     override def toString: String = {
-      s"EmissionsRates($_CH4=$CH4, $_CO=$CO, $_CO2=$CO2, $_HC=$HC, $_NH3=$NH3, $_NOx=$NOx, $_PM=$PM, $_PM10=$PM10, " +
-        s"$_PM2_5=$PM2_5, $_ROG=$ROG, $_SOx=$SOx, $_TOG=$TOG)"
+      s"EmissionsRates(" +
+      s"${_CH4}=$CH4,${_CO}=$CO,${_CO2}=$CO2,${_HC}=$HC,${_NH3}=$NH3,${_NOx}=$NOx,${_PM}=$PM,${_PM10}=$PM10," +
+      s"${_PM2_5}=$PM2_5,${_ROG}=$ROG,${_SOx}=$SOx,${_TOG}=$TOG" +
+      s")"
     }
   }
 
@@ -196,15 +255,18 @@ object VehicleEmissions {
   }
 
   object EmissionsProfile {
-    type EmissionsProfile = Map[EmissionsSource.EmissionsSource, EmissionsRates]
+    type EmissionsProfile = Map[EmissionsProcesses.EmissionsProcess, EmissionsRates]
 
     def initEmissionsProfile(): EmissionsProfile = {
       Map {
-        EmissionsSource.Running     -> EmissionsRates.initEmissionsRates()
-        EmissionsSource.Start       -> EmissionsRates.initEmissionsRates()
-        EmissionsSource.Hotelling   -> EmissionsRates.initEmissionsRates()
-        EmissionsSource.WearDust    -> EmissionsRates.initEmissionsRates()
-        EmissionsSource.Evaporative -> EmissionsRates.initEmissionsRates()
+        EmissionsProcesses.RUNEX   -> EmissionsRates.initEmissionsRates()
+        EmissionsProcesses.IDLEX   -> EmissionsRates.initEmissionsRates()
+        EmissionsProcesses.STREX   -> EmissionsRates.initEmissionsRates()
+        EmissionsProcesses.DIURN   -> EmissionsRates.initEmissionsRates()
+        EmissionsProcesses.HOTSOAK -> EmissionsRates.initEmissionsRates()
+        EmissionsProcesses.RUNLOSS -> EmissionsRates.initEmissionsRates()
+        EmissionsProcesses.PMTW    -> EmissionsRates.initEmissionsRates()
+        EmissionsProcesses.PMBW    -> EmissionsRates.initEmissionsRates()
       }
     }
   }
@@ -220,13 +282,13 @@ object VehicleEmissions {
     private val weightBinHeader = "mass_kg_float_bins"
     private val geoAreaHeader = "geo_area"
     /*
-    EmissionsSource column can either be:
+    EmissionsProcess column can either be:
         Running (i.e. Running Exhaust)
         Start (i.e. Start Exhaust)
         Hoteling (i.e. Hoteling Exhaust)
         Dust (i.e. Brake/tire wear and road dust)
         Evaporative (i.e. Evaporative emissions)
-        Other (also if the EmissionsSource column is not present or the value is not recognized then)
+        Other (also if the EmissionsProcess column is not present or the value is not recognized then)
     rate_XXX is in grams per mile
      */
     private val emissionsSourceHeader = "emissions_source"
@@ -288,7 +350,10 @@ object VehicleEmissions {
 
       val currentRateFilter = mutable.Map.empty[DoubleTypedRange, mutable.Map[
         DoubleTypedRange,
-        mutable.Map[DoubleTypedRange, mutable.Map[String, mutable.Map[EmissionsSource.EmissionsSource, EmissionsRates]]]
+        mutable.Map[
+          DoubleTypedRange,
+          mutable.Map[String, mutable.Map[EmissionsProcesses.EmissionsProcess, EmissionsRates]]
+        ]
       ]]
 
       baseFilePaths.foreach(baseFilePath =>
@@ -315,7 +380,7 @@ object VehicleEmissions {
               ""
             }
             // Emission source
-            val emissionSource = EmissionsSource.fromString(csvRecord.getString(emissionsSourceHeader))
+            val emissionSource = EmissionsProcesses.fromString(csvRecord.getString(emissionsSourceHeader))
 
             def readRateCheckIfNull(headerName: String): Double = {
               val value = csvRecord.getDouble(headerName)

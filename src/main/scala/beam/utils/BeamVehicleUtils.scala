@@ -308,7 +308,7 @@ object BeamVehicleUtils extends LazyLogging {
             emissionMap.getOrElse(_TOG.toLowerCase, 0.0)
           )
 
-          Some((VehicleEmissions.EmissionsSource.fromString(source), emissionsRates))
+          Some((VehicleEmissions.EmissionsProcesses.fromString(source), emissionsRates))
 
         case _ => None
       }

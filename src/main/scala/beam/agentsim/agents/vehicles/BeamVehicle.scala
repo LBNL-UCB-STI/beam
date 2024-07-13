@@ -6,7 +6,7 @@ import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleCategory._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.VehicleEmissions._
+import beam.agentsim.agents.vehicles.VehicleEmissions.{EmissionsProcesses, _}
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
@@ -69,10 +69,10 @@ class BeamVehicle(
 
   private val emissionsRWLock = new ReentrantReadWriteLock()
 
-  private val emissionsProfileInGramsPerMileInternal: EmissionsProfileStore.EmissionsProfile =
-    EmissionsProfileStore.initEmissionsProfile()
+  private val emissionsProfileInGramsPerMileInternal: EmissionsProfile.EmissionsProfile =
+    EmissionsProfile.initEmissionsProfile()
 
-  private def emissionsProfileInGramsPerMile: EmissionsProfileStore.EmissionsProfile = emissionsRWLock.read {
+  private def emissionsProfileInGramsPerMile: EmissionsProfile.EmissionsProfile = emissionsRWLock.read {
     emissionsProfileInGramsPerMileInternal
   }
 
@@ -302,26 +302,29 @@ class BeamVehicle(
     beamLeg: BeamLeg,
     fuelConsumptionData: IndexedSeq[FuelConsumptionData],
     beamScenario: BeamScenario
-  ): EmissionsProfileStore.EmissionsProfile = {
-    val embedEmissionsProfiles = beamScenario.beamConfig.beam.outputs.events.embedEmissionsProfiles
+  ): EmissionsProfile.EmissionsProfile = {
+    val embedEmissionsProfilesInEvents = beamScenario.beamConfig.beam.outputs.events.embedEmissionsProfiles
     val vehicleEmissionsMappingExistsFor =
       beamScenario.vehicleEmission.vehicleEmissionsMappingExistsFor(beamVehicleType)
-    if (embedEmissionsProfiles && !vehicleEmissionsMappingExistsFor) {
-      EmissionsProfileStore.initEmissionsProfile()
+    if (embedEmissionsProfilesInEvents && !vehicleEmissionsMappingExistsFor) {
+      EmissionsProfile.initEmissionsProfile()
     } else {
       if (fuelConsumptionData.nonEmpty) {
-        beamScenario.vehicleEmission.getEmissionsProfilesInGramsPerMile(
-          fuelConsumptionData,
-          fallBack = beamVehicleType.emissionsRatesInGramsPerMile
+        List(EmissionsProcesses.RUNEX, EmissionsProcesses.PMBW, EmissionsProcesses.PMBW).map(source =>
+          beamScenario.vehicleEmission.getEmissionsProfilesInGramsPerMile(
+            fuelConsumptionData,
+            source,
+            fallBack = beamVehicleType.emissionsRatesInGramsPerMile
+          )
         )
       } else {
         beamLeg.travelPath.distanceInM * beamVehicleType.primaryFuelConsumptionInJoulePerMeter
       }
     }
-    EmissionsProfileStore.initEmissionsProfile()
+    EmissionsProfile.initEmissionsProfile()
   }
 
-  def addEmissions(source: EmissionsSource.EmissionsSource, rates: EmissionsRates): Unit = {
+  def addEmissions(source: EmissionsProcesses.EmissionsProcess, rates: EmissionsRates): Unit = {
     emissionsRWLock.write {
       emissionsProfileInGramsPerMileInternal.get(source).map(_.add(rates))
     }
