@@ -2,8 +2,8 @@ package beam.agentsim.events
 
 import java.util
 import java.util.concurrent.atomic.AtomicReference
-
 import beam.agentsim.agents.vehicles.BeamVehicleType
+import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile.EmissionsProfile
 import beam.router.Modes.BeamMode
 import beam.router.model.BeamLeg
 import beam.utils.FormatUtils
@@ -42,7 +42,8 @@ case class PathTraversalEvent(
   fromStopIndex: Option[Int],
   toStopIndex: Option[Int],
   currentTourMode: Option[String],
-  riders: IndexedSeq[Id[Person]] = Vector()
+  riders: IndexedSeq[Id[Person]] = Vector(),
+  emissionsProfile: EmissionsProfile
 ) extends Event(time)
     with ScalaEvent {
   import PathTraversalEvent._
@@ -89,6 +90,7 @@ case class PathTraversalEvent(
       attr.put(ATTRIBUTE_TO_STOP_INDEX, toStopIndex.map(_.toString).getOrElse(""))
       attr.put(ATTRIBUTE_CURRENT_TOUR_MODE, currentTourMode.getOrElse(""))
       attr.put(ATTRIBUTE_RIDERS, ridersToStr(riders))
+      attr.put(EMISSIONS_PROFILE, beam.utils.BeamVehicleUtils.buildEmissionsString(emissionsProfile))
       filledAttrs.set(attr)
       attr
     }
@@ -136,6 +138,7 @@ object PathTraversalEvent {
   val ATTRIBUTE_SECONDARY_LINKID_WITH_FINAL_CONSUMPTION_MAP: String = "secondaryLinkIdToFinalConsumptionMap"
    */
   val ATTRIBUTE_RIDERS: String = "riders"
+  val EMISSIONS_PROFILE: String = "emissions"
 
   def apply(
     time: Double,
@@ -150,7 +153,8 @@ object PathTraversalEvent {
     endLegPrimaryFuelLevel: Double,
     endLegSecondaryFuelLevel: Double,
     amountPaid: Double,
-    riders: IndexedSeq[Id[Person]]
+    riders: IndexedSeq[Id[Person]],
+    emissionsProfile: EmissionsProfile
   ): PathTraversalEvent = {
     new PathTraversalEvent(
       time = time,
@@ -180,7 +184,8 @@ object PathTraversalEvent {
       fromStopIndex = beamLeg.travelPath.transitStops.map(_.fromIdx),
       toStopIndex = beamLeg.travelPath.transitStops.map(_.toIdx),
       currentTourMode = currentTourMode,
-      riders = riders
+      riders = riders,
+      emissionsProfile = emissionsProfile
     )
   }
 
@@ -223,6 +228,8 @@ object PathTraversalEvent {
       attr.get(ATTRIBUTE_TO_STOP_INDEX).flatMap(Option(_)).flatMap(x => if (x == "") None else Some(x.toInt))
     val currentTourMode: Option[String] =
       attr.get(ATTRIBUTE_CURRENT_TOUR_MODE).flatMap(x => if (x == "") None else Some(x))
+    val emissionsProfile: EmissionsProfile =
+      attr.get(EMISSIONS_PROFILE).flatMap(beam.utils.BeamVehicleUtils.parseEmissionsString(_)).toMap
     PathTraversalEvent(
       time,
       vehicleId,
@@ -251,7 +258,8 @@ object PathTraversalEvent {
       fromStopIndex,
       toStopIndex,
       currentTourMode,
-      riders
+      riders,
+      emissionsProfile
     )
   }
 

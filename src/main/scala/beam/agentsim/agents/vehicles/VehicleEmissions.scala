@@ -16,6 +16,8 @@ import scala.concurrent.{Await, Future}
 
 class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore, beamConfig: BeamConfig) {
   import VehicleEmissions._
+  import EmissionsProcesses._
+  import EmissionsProfile._
   private val settings = new CsvParserSettings()
   settings.setHeaderExtractionEnabled(true)
   settings.detectFormatAutomatically()
@@ -27,30 +29,28 @@ class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore, beamCo
     emissionRateFilterStore.hasEmissionsRateFilterFor(vehicleType)
 
   def getEmissionsProfilesInGramsPerMile(
-    fuelConsumptionDatas: IndexedSeq[BeamVehicle.FuelConsumptionData],
-    source: EmissionsProcesses.EmissionsProcess,
-    fallBack: EmissionsProfile.EmissionsProfile
-  ): EmissionsProfile.EmissionsProfile = {
-    fuelConsumptionDatas
-      .map(fuelConsumptionData => {
-        val rates = getRatesUsing(fuelConsumptionData, source, fallBack)
-        val distance = fuelConsumptionData.linkLength.getOrElse(0.0)
-        //val finalConsumption = rateInJoulesPerMeter * distance
-        //finalConsumption
-        0
-      })
-    EmissionsProfile.initEmissionsProfile()
+    vehicleActivityData: IndexedSeq[BeamVehicle.VehicleActivityData],
+    sources: List[EmissionsProcess],
+    fallBack: EmissionsProfile
+  ): EmissionsProfile = {
+    if (vehicleActivityData.isEmpty) EmissionsProfile.init()
+    else
+      sources
+        .flatMap(source =>
+          vehicleActivityData.map(data => source -> calculationMap(source)(getRatesUsing(data, source, fallBack), data))
+        )
+        .toMap
   }
 
   private def getRatesUsing(
-    fuelConsumptionData: BeamVehicle.FuelConsumptionData,
+    fuelConsumptionData: BeamVehicle.VehicleActivityData,
     source: EmissionsProcesses.EmissionsProcess,
     fallBack: EmissionsProfile.EmissionsProfile
-  ): EmissionsRates = {
+  ): Emissions = {
     if (!vehicleEmissionsMappingExistsFor(fuelConsumptionData.vehicleType)) {
-      fallBack.getOrElse(source, EmissionsRates.initEmissionsRates())
+      fallBack.getOrElse(source, Emissions.init())
     } else {
-      val BeamVehicle.FuelConsumptionData(
+      val BeamVehicle.VehicleActivityData(
         linkId,
         vehicleType,
         payloadKgOption,
@@ -62,7 +62,9 @@ class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore, beamCo
         _,
         _,
         _,
-        tazId
+        tazId,
+        _,
+        _
       ) = fuelConsumptionData
       val speedInMilesPerHour: Double = speedInMetersPerSecondOption
         .map(BeamVehicleUtils.convertFromMetersPerSecondToMilesPerHour)
@@ -86,7 +88,7 @@ class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore, beamCo
     gradePercent: Double,
     zone: String,
     source: EmissionsProcesses.EmissionsProcess
-  ): Option[EmissionsRates] = {
+  ): Option[Emissions] = {
     //1.)Future performance improvement could be to better index the bins so could fuzzily jump straight to it
     //instead of having to iterate
     //2.)Could keep the future in the calling method if you use
@@ -116,7 +118,7 @@ object VehicleEmissions {
         DoubleTypedRange,
         Map[
           DoubleTypedRange,
-          Map[DoubleTypedRange, Map[String, Map[EmissionsProcesses.EmissionsProcess, EmissionsRates]]]
+          Map[DoubleTypedRange, Map[String, Map[EmissionsProcesses.EmissionsProcess, Emissions]]]
         ]
       ]
   }
@@ -137,7 +139,7 @@ object VehicleEmissions {
     def fromString(source: String): EmissionsProcess = source.toLowerCase match {
       // Running Exhaust Emissions (RUNEX) that come out of the vehicle tailpipe while traveling on the road.
       // TODO Embed it in PathTraversalEvent
-      // TODO xVMT by speed bin => gram/veh-mile
+      // xVMT by speed bin => gram/veh-mile
       case "running" | "runex" => RUNEX
 
       // Idle Exhaust Emissions (IDLEX) that come out of the vehicle tailpipe while it is operating but not traveling
@@ -145,7 +147,7 @@ object VehicleEmissions {
       // extended periods of time while loading or unloading goods. Idle exhaust is calculated only
       // for heavy-duty trucks.
       // TODO Embed it in LeavingParkingEvent when 1) it is freight Load/Unload 2) overnight parking
-      // TODO xNumber of Idle Hours (xParking Hour) => gram/veh-idle hour
+      // xNumber of Idle Hours (xParking Hour) => gram/veh-idle hour
       case "hotelling" | "idle" | "idlex" => IDLEX
 
       // Start Exhaust Tailpipe Emissions (STREX) that occur when starting a vehicle. These emissions are independent
@@ -155,48 +157,141 @@ object VehicleEmissions {
       // for heavy-duty diesel trucks than for other vehicles.
       // More details can be found in the EMFAC2014 Technical Support Document.
       // TODO Embed it in LeavingParkingEvent
-      // TODO !!! we might underestimate STREX from vehicle that did not park but entered network after a while, like ridehail
-      // TODO xNumber of starts per Soak time => gram/veh-start
+      // xNumber of starts per Soak time => gram/veh-start
       case "start" | "strex" => STREX
 
       // Diurnal Evaporative HC Emissions (DIURN) that occur when rising ambient temperatures cause fuel evaporation
       // from vehicles sitting throughout the day. These losses are from leaks in the fuel system, fuel hoses,
       // connectors, as a result of the breakthrough of vapors from the carbon canister.
       // TODO Embed it in LeavingParkingEvent
-      // TODO !!! we might underestimate STREX from vehicle that did not park but entered network after a while, like ridehail
-      // TODO xCold soak hours (xParking Hour) => gram/veh-hour
-      case "diurnal" | "diurn" => DIURN //
+      // xCold soak hours (xParking Hour) => gram/veh-hour
+      case "diurnal" | "diurn" => DIURN
 
       // Hot Soak Evaporative HC Emissions (HOTSOAK) that begin immediately from heated fuels after a car stops its
       // engine operation and continue until the fuel tank reaches ambient temperature.
       // TODO Embed it in LeavingParkingEvent
-      // TODO !!! we might underestimate STREX from vehicle that did not park but entered network after a while, like ridehail
-      // TODO xNumber of starts => gram/veh-start
+      // xNumber of starts => gram/veh-start
       case "hotsoak" => HOTSOAK
 
       // Running Loss Evaporative HC Emissions (RUNLOSS) that occur as a result of hot fuel vapors escaping
       // from the fuel system or overwhelming the carbon canister while the vehicle is operating.
       // TODO Embed it in PathTraversalEvent and LeavingParkingEvent (loading/unloading/hotelling)
-      // TODO xRunning hours (xVHT) => gram/veh-hour
-      case "runloss" => RUNLOSS // TODO Embed it in PathTraversalEvent
+      // xRunning hours (xVHT) => gram/veh-hour
+      case "runloss" => RUNLOSS
 
       // Tire Wear Particulate Matter Emissions (PMTW) that originate from tires as a result of wear.
       // TODO Embed it in PathTraversalEvent
-      // TODO xVMT => gram/veh-mile
+      // xVMT => gram/veh-mile
       case "tirewear" | "pmtw" => PMTW // Embedded in PathTraversalEvent
 
       // Brake Wear Particulate Matter Emissions (PMBW) that originate from brake usage.
       // TODO Embed it in PathTraversalEvent
-      // TODO xVMT by speed bin => gram/veh-mile
+      // xVMT by speed bin => gram/veh-mile
       case "brakewear" | "pmbw" => PMBW
 
       // if process is not recognized then RUNEX emission will be used
       case _ => RUNEX
     }
+
+    import BeamVehicle.VehicleActivityData
+
+    val calculationMap: Map[EmissionsProcess, (Emissions, VehicleActivityData) => Emissions] = Map(
+      /**
+        * Calculate Running Exhaust Emissions (RUNEX)
+        * VMT by speed bin => gram/veh-mile
+        * vmt Vehicle Miles Traveled (VMT)
+        * ratesBySpeedBin Emission rate by speed bin (grams per vehicle-mile)
+        * @return Total emissions in grams
+        */
+      RUNEX -> { (ratesBySpeedBin: Emissions, data: VehicleActivityData) =>
+        val vmt = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
+        ratesBySpeedBin * vmt
+      },
+      /**
+        * Calculate Idle Exhaust Emissions (IDLEX)
+        * Number of Idle Hours (Parking Hours) => gram/veh-idle hour
+        * vih Vehicle Idle Hours (VIH)
+        * rates Emission rate (grams per vehicle-idle hour)
+        * @return Total emissions in grams
+        */
+      IDLEX -> { (rates: Emissions, data: VehicleActivityData) =>
+        val vih = data.parkingDuration.getOrElse(0.0)
+        rates * vih
+      },
+      /**
+        * Calculate Start Exhaust Emissions (STREX)
+        * Number of starts per Soak time => gram/veh-start
+        * vst Vehicle Starts (VST)
+        * ratesBySoakTime Emission rate by soak time (grams per vehicle-start)
+        * @return Total emissions in grams
+        */
+      // FIXME we might underestimate STREX: Ridehail vehicles do not park, idle or stop engine while waiting
+      STREX -> { (ratesBySoakTime: Emissions, _: VehicleActivityData) =>
+        val vst = 1 // We calculate it for 1 leave parking event
+        ratesBySoakTime * vst
+      },
+      /**
+        * Calculate Diurnal Evaporative Emissions (DIURN)
+        * Cold soak hours (Parking Hours) => gram/veh-hour
+        * vph Vehicle Parking Hours (VPH)
+        * rates Emission rate (grams per vehicle-hour)
+        * @return Total emissions in grams
+        */
+      // FIXME we might underestimate DIURN: Ridehail vehicles do not park, idle or stop engine while waiting
+      DIURN -> { (rates: Emissions, data: VehicleActivityData) =>
+        val vph = data.parkingDuration.getOrElse(0.0)
+        rates * vph
+      },
+      /**
+        * Calculate Hot Soak Emissions (HOTSOAK)
+        * Number of starts => gram/veh-start
+        * vst Vehicle Starts (VST)
+        * rates Emission rate (grams per vehicle-start)
+        * @return Total emissions in grams
+        */
+      // FIXME we might underestimate HOTSOAK: Ridehail vehicles do not park, idle or stop engine while waiting
+      HOTSOAK -> { (rates: Emissions, _: VehicleActivityData) =>
+        val vst = 1 // We calculate it for 1 leave parking event
+        rates * vst
+      },
+      /**
+        * Calculate Running Loss Evaporative Emissions (RUNLOSS)
+        * Running hours (VHT) => gram/veh-hour
+        * vht Vehicle Hours Traveled (VHT)
+        * rates Emission rate (grams per vehicle-hour)
+        * @return Total emissions in grams
+        */
+      RUNLOSS -> { (rates: Emissions, data: VehicleActivityData) =>
+        val vht = data.linkTravelTime.map(_ / 3600.0).getOrElse(0.0)
+        rates * vht
+      },
+      /**
+        * Calculate Tire Wear Particulate Matter Emissions (PMTW)
+        * VMT => gram/veh-mile
+        * vmt Vehicle Miles Traveled (VMT)
+        * rates Emission rate (grams per vehicle-mile)
+        * @return Total emissions in grams
+        */
+      PMTW -> { (rates: Emissions, data: VehicleActivityData) =>
+        val vmt = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
+        rates * vmt
+      },
+      /**
+        * Calculate Brake Wear Particulate Matter Emissions (PMBW)
+        * VMT by speed bin => gram/veh-mile
+        * vmt Vehicle Miles Traveled (VMT)
+        * ratesBySpeedBin Emission rate by speed bin (grams per vehicle-mile)
+        * @return Total emissions in grams
+        */
+      PMBW -> { (ratesBySpeedBin: Emissions, data: VehicleActivityData) =>
+        val vmt = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
+        ratesBySpeedBin * vmt
+      }
+    )
   }
 
   // Rates in Grams per Mile
-  case class EmissionsRates(
+  case class Emissions(
     var CH4: Double,
     var CO: Double,
     var CO2: Double,
@@ -210,33 +305,52 @@ object VehicleEmissions {
     var SOx: Double,
     var TOG: Double
   ) {
-    import EmissionsRates._
+    import Emissions._
     def notValid: Boolean = List(CH4, CO, CO2, HC, NH3, NOx, PM, PM10, PM2_5, ROG, SOx, TOG).forall(_ == 0)
 
-    def add(rates: EmissionsRates): Unit = {
-      this.CH4 += rates.CH4
-      this.CO += rates.CO
-      this.CO2 += rates.CO2
-      this.HC += rates.HC
-      this.NH3 += rates.NH3
-      this.NOx += rates.NOx
-      this.PM += rates.PM
-      this.PM10 += rates.PM10
-      this.PM2_5 += rates.PM2_5
-      this.ROG += rates.ROG
-      this.SOx += rates.SOx
-      this.TOG += rates.TOG
+    def *(factor: Double): Emissions = {
+      Emissions(
+        CH4 * factor,
+        CO * factor,
+        CO2 * factor,
+        HC * factor,
+        NH3 * factor,
+        NOx * factor,
+        PM * factor,
+        PM10 * factor,
+        PM2_5 * factor,
+        ROG * factor,
+        SOx * factor,
+        TOG * factor
+      )
+    }
+
+    def +(other: Emissions): Emissions = {
+      Emissions(
+        CH4 + other.CH4,
+        CO + other.CO,
+        CO2 + other.CO2,
+        HC + other.HC,
+        NH3 + other.NH3,
+        NOx + other.NOx,
+        PM + other.PM,
+        PM10 + other.PM10,
+        PM2_5 + other.PM2_5,
+        ROG + other.ROG,
+        SOx + other.SOx,
+        TOG + other.TOG
+      )
     }
 
     override def toString: String = {
-      s"EmissionsRates(" +
+      s"Emissions(" +
       s"${_CH4}=$CH4,${_CO}=$CO,${_CO2}=$CO2,${_HC}=$HC,${_NH3}=$NH3,${_NOx}=$NOx,${_PM}=$PM,${_PM10}=$PM10," +
       s"${_PM2_5}=$PM2_5,${_ROG}=$ROG,${_SOx}=$SOx,${_TOG}=$TOG" +
       s")"
     }
   }
 
-  object EmissionsRates {
+  object Emissions {
     val _CH4: String = "CH4"
     val _CO: String = "CO"
     val _CO2: String = "CO2"
@@ -250,23 +364,23 @@ object VehicleEmissions {
     val _SOx: String = "SOx"
     val _TOG: String = "TOG"
 
-    def initEmissionsRates(): EmissionsRates =
-      EmissionsRates(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+    def init(): Emissions =
+      Emissions(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
   }
 
   object EmissionsProfile {
-    type EmissionsProfile = Map[EmissionsProcesses.EmissionsProcess, EmissionsRates]
+    type EmissionsProfile = Map[EmissionsProcesses.EmissionsProcess, Emissions]
 
-    def initEmissionsProfile(): EmissionsProfile = {
+    def init(): EmissionsProfile = {
       Map {
-        EmissionsProcesses.RUNEX   -> EmissionsRates.initEmissionsRates()
-        EmissionsProcesses.IDLEX   -> EmissionsRates.initEmissionsRates()
-        EmissionsProcesses.STREX   -> EmissionsRates.initEmissionsRates()
-        EmissionsProcesses.DIURN   -> EmissionsRates.initEmissionsRates()
-        EmissionsProcesses.HOTSOAK -> EmissionsRates.initEmissionsRates()
-        EmissionsProcesses.RUNLOSS -> EmissionsRates.initEmissionsRates()
-        EmissionsProcesses.PMTW    -> EmissionsRates.initEmissionsRates()
-        EmissionsProcesses.PMBW    -> EmissionsRates.initEmissionsRates()
+        EmissionsProcesses.RUNEX   -> Emissions.init()
+        EmissionsProcesses.IDLEX   -> Emissions.init()
+        EmissionsProcesses.STREX   -> Emissions.init()
+        EmissionsProcesses.DIURN   -> Emissions.init()
+        EmissionsProcesses.HOTSOAK -> Emissions.init()
+        EmissionsProcesses.RUNLOSS -> Emissions.init()
+        EmissionsProcesses.PMTW    -> Emissions.init()
+        EmissionsProcesses.PMBW    -> Emissions.init()
       }
     }
   }
@@ -352,7 +466,7 @@ object VehicleEmissions {
         DoubleTypedRange,
         mutable.Map[
           DoubleTypedRange,
-          mutable.Map[String, mutable.Map[EmissionsProcesses.EmissionsProcess, EmissionsRates]]
+          mutable.Map[String, mutable.Map[EmissionsProcesses.EmissionsProcess, Emissions]]
         ]
       ]]
 
@@ -394,7 +508,7 @@ object VehicleEmissions {
             }
 
             // Emissions Rates in Grans Per Mile
-            val ratesInGramsPerMile = EmissionsRates(
+            val ratesInGramsPerMile = Emissions(
               CH4 = readRateCheckIfNull(rateCH4Header),
               CO = readRateCheckIfNull(rateCOHeader),
               CO2 = readRateCheckIfNull(rateCO2Header),

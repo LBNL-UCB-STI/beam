@@ -1098,7 +1098,8 @@ class PersonAgent(
         Some(energyCharged),
         id,
         parkingManager,
-        eventsManager
+        eventsManager,
+        beamScenario
       )
       goto(ProcessingNextLegOrStartActivity) using data
     case Event(UnhandledVehicle(tick, _, vehicle, _), data: BasePersonData) =>
@@ -1106,7 +1107,15 @@ class PersonAgent(
         s"Vehicle ${vehicle.id} is not handled by the CNM at tick $tick. Something is broken." +
         s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
       )
-      ParkingNetworkManager.handleReleasingParkingSpot(tick, vehicle, None, id, parkingManager, eventsManager)
+      ParkingNetworkManager.handleReleasingParkingSpot(
+        tick,
+        vehicle,
+        None,
+        id,
+        parkingManager,
+        eventsManager,
+        beamScenario
+      )
       goto(ProcessingNextLegOrStartActivity) using data
   }
 

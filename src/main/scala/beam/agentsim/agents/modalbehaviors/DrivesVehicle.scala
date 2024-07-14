@@ -40,7 +40,6 @@ import org.matsim.api.core.v01.events.{
 }
 import org.matsim.api.core.v01.population.Person
 import org.matsim.core.api.experimental.events.EventsManager
-import org.matsim.core.utils.misc.Time
 import org.matsim.vehicles.Vehicle
 
 import scala.collection.{immutable, mutable}
@@ -248,7 +247,7 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         .getOrElse(throw new RuntimeException("Current Vehicle is not available."))
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       val payloadInKg = payloadInKgForLeg(currentLeg, data)
-      val fuelConsumptionData = BeamVehicle.collectFuelConsumptionData(
+      val vehicleActivityData = BeamVehicle.collectVehicleActivityData(
         currentLeg,
         currentBeamVehicle.beamVehicleType,
         payloadInKg,
@@ -258,17 +257,13 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val fuelConsumed =
         currentBeamVehicle.useFuel(
           currentLeg,
-          fuelConsumptionData,
+          vehicleActivityData,
           beamScenario,
           networkHelper,
           eventsManager,
           eventBuilderActor,
           beamServices.beamCustomizationAPI.beamVehicleAfterUseFuelHook
         )
-
-      if (beamConfig.beam.outputs.events.embedEmissionsProfiles) {
-        currentBeamVehicle.emitEmissions(currentLeg, fuelConsumptionData, beamScenario)
-      }
 
       currentBeamVehicle.spaceTime = geo.wgs2Utm(currentLeg.travelPath.endPoint)
 
@@ -345,6 +340,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         }
       }
 
+      val emissionsProfile =
+        currentBeamVehicle.emitEmissions(vehicleActivityData, beamScenario, classOf[PathTraversalEvent])
       val numberOfPassengers: Int = calculateNumberOfPassengersBasedOnCurrentTourMode(data, currentLeg, riders)
       val currentTourMode: Option[String] = getCurrentTourMode(data)
       val pte = PathTraversalEvent(
@@ -360,7 +357,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         currentBeamVehicle.primaryFuelLevelInJoules,
         currentBeamVehicle.secondaryFuelLevelInJoules,
         tollOnCurrentLeg,
-        riders
+        riders,
+        emissionsProfile
       )
 
       eventsManager.processEvent(pte)
@@ -559,10 +557,17 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val payloadInKg = payloadInKgForLeg(currentLeg, data)
 
       val currentLocation = if (updatedStopTick > currentLeg.startTime) {
+        val vehicleActivityData = BeamVehicle.collectVehicleActivityData(
+          currentLeg,
+          currentBeamVehicle.beamVehicleType,
+          payloadInKg,
+          networkHelper,
+          beamScenario
+        )
         val fuelConsumed =
           currentBeamVehicle.useFuel(
             partiallyCompletedBeamLeg,
-            payloadInKg,
+            vehicleActivityData,
             beamScenario,
             networkHelper,
             eventsManager,
@@ -570,6 +575,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
             beamServices.beamCustomizationAPI.beamVehicleAfterUseFuelHook
           )
 
+        val emissionsProfile =
+          currentBeamVehicle.emitEmissions(vehicleActivityData, beamScenario, classOf[PathTraversalEvent])
         val tollOnCurrentLeg = toll(partiallyCompletedBeamLeg)
         tollsAccumulated += tollOnCurrentLeg
         val numberOfPassengers: Int =
@@ -588,7 +595,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           currentBeamVehicle.primaryFuelLevelInJoules,
           currentBeamVehicle.secondaryFuelLevelInJoules,
           tollOnCurrentLeg,
-          riders
+          riders,
+          emissionsProfile
         )
         eventsManager.processEvent(pte)
         generateTCSEventIfPossible(pte)

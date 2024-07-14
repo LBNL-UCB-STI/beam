@@ -286,7 +286,8 @@ trait ChoosesParking extends {
         None,
         id,
         parkingManager,
-        eventsManager
+        eventsManager,
+        beamScenario
       )
       goto(WaitingToDrive) using data
 
@@ -295,12 +296,28 @@ trait ChoosesParking extends {
       log.debug(
         s"Vehicle ${vehicle.id} [chosen for enroute] ended charging and it is not handled by the CNM at tick $tick"
       )
-      ParkingNetworkManager.handleReleasingParkingSpot(tick, vehicle, Some(energy), id, parkingManager, eventsManager)
+      ParkingNetworkManager.handleReleasingParkingSpot(
+        tick,
+        vehicle,
+        Some(energy),
+        id,
+        parkingManager,
+        eventsManager,
+        beamScenario
+      )
       goto(ReadyToChooseParking) using data
 
     case Event(UnpluggingVehicle(tick, _, vehicle, _, energy), data) =>
       log.debug(s"Vehicle ${vehicle.id} ended charging and it is not handled by the CNM at tick $tick")
-      ParkingNetworkManager.handleReleasingParkingSpot(tick, vehicle, Some(energy), id, parkingManager, eventsManager)
+      ParkingNetworkManager.handleReleasingParkingSpot(
+        tick,
+        vehicle,
+        Some(energy),
+        id,
+        parkingManager,
+        eventsManager,
+        beamScenario
+      )
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
   }
@@ -332,7 +349,15 @@ trait ChoosesParking extends {
           if (data.enrouteData.isInEnrouteState)
             ReadyToChooseParking
           else {
-            ParkingNetworkManager.handleReleasingParkingSpot(tick, vehicle, None, id, parkingManager, eventsManager)
+            ParkingNetworkManager.handleReleasingParkingSpot(
+              tick,
+              vehicle,
+              None,
+              id,
+              parkingManager,
+              eventsManager,
+              beamScenario
+            )
             releaseTickAndTriggerId()
             WaitingToDrive
           }
@@ -347,7 +372,8 @@ trait ChoosesParking extends {
         None,
         id,
         parkingManager,
-        eventsManager
+        eventsManager,
+        beamScenario
       )
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
@@ -399,7 +425,8 @@ trait ChoosesParking extends {
               None,
               id,
               parkingManager,
-              eventsManager
+              eventsManager,
+              beamScenario
             )
             goto(WaitingToDrive) using data.copy(enrouteData = EnrouteData())
           case _ =>
@@ -530,7 +557,8 @@ trait ChoosesParking extends {
         None,
         id,
         parkingManager,
-        eventsManager
+        eventsManager,
+        beamScenario
       )
       goto(WaitingToDrive) using data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
@@ -615,7 +643,8 @@ trait ChoosesParking extends {
         None,
         id,
         parkingManager,
-        eventsManager
+        eventsManager,
+        beamScenario
       )
 
       goto(WaitingToDrive) using data.copy(

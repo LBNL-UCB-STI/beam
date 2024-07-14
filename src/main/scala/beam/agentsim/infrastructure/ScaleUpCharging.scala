@@ -12,6 +12,7 @@ import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
+import beam.sim.BeamScenario
 import beam.utils.MathUtils.roundUniformly
 import beam.utils.scenario.HouseholdId
 import beam.utils.{FileUtils, MathUtils, VehicleIdGenerator}
@@ -113,10 +114,10 @@ trait ScaleUpCharging extends {
       log.debug(s"Received EndingRefuelSession: $reply")
     case reply @ UnhandledVehicle(tick, personId, vehicle, _) =>
       log.error(s"Received UnhandledVehicle: $reply")
-      handleReleasingParkingSpot(tick, personId, vehicle, None)
+      handleReleasingParkingSpot(tick, personId, vehicle, None, getBeamServices.beamScenario)
     case reply @ UnpluggingVehicle(tick, personId, vehicle, _, energyCharged) =>
       log.debug(s"Received UnpluggingVehicle: $reply")
-      handleReleasingParkingSpot(tick, personId, vehicle, Some(energyCharged))
+      handleReleasingParkingSpot(tick, personId, vehicle, Some(energyCharged), getBeamServices.beamScenario)
   }
 
   /**
@@ -132,7 +133,8 @@ trait ScaleUpCharging extends {
     tick: Int,
     personId: Id[_],
     vehicle: BeamVehicle,
-    energyChargedMaybe: Option[Double]
+    energyChargedMaybe: Option[Double],
+    beamScenario: BeamScenario
   ): Unit = {
     ParkingNetworkManager.handleReleasingParkingSpot(
       tick,
@@ -140,7 +142,8 @@ trait ScaleUpCharging extends {
       energyChargedMaybe,
       personId,
       getParkingManager,
-      getBeamServices.matsimServices.getEvents
+      getBeamServices.matsimServices.getEvents,
+      beamScenario
     )
   }
 

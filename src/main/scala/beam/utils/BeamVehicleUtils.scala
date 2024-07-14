@@ -119,7 +119,7 @@ object BeamVehicleUtils extends LazyLogging {
         val restrictRoadsByFreeSpeed = Option(line.get("restrictRoadsByFreeSpeedInMeterPerSecond")).map(_.toDouble)
         val emissionsRatesInGramsPerMile =
           Option(line.get("emissionsRatesInGramsPerMile"))
-            .map(parseEmissionsString(_, vehicleTypeId))
+            .map(parseEmissionsString(_, Some(vehicleTypeId.toString)))
             .getOrElse(Map.empty)
         val emissionsRatesFile = Option(line.get("emissionsRatesFile"))
 
@@ -256,20 +256,20 @@ object BeamVehicleUtils extends LazyLogging {
 
   /**
     * Function to parse the emissions string
-    * @param emissionString from vehicle types
+    * @param emissionsString from vehicle types
     * @param vehicleTypeId vehicle type id
     * @return
     */
-  private def parseEmissionsString(
-    emissionString: String,
-    vehicleTypeId: Id[BeamVehicleType]
+  def parseEmissionsString(
+    emissionsString: String,
+    vehicleTypeId: Option[String] = None
   ): VehicleEmissions.EmissionsProfile.EmissionsProfile = {
-    import VehicleEmissions.EmissionsRates._
+    import VehicleEmissions.Emissions._
     import scala.util.Try
 
     val sourcePattern = """(\w+)\(([^)]+)\)""".r
 
-    emissionString
+    emissionsString
       .split(";")
       .flatMap {
         case sourcePattern(source, emissions) =>
@@ -286,14 +286,14 @@ object BeamVehicleUtils extends LazyLogging {
               } else {
                 logger.error(
                   s"Failure to process this emission source $source with emissions $emissions " +
-                  s"from emissionsRatesInGramsPerMile corresponding to vehicle types Id ${vehicleTypeId.toString} "
+                  s"from emissionsRatesInGramsPerMile corresponding to vehicle types Id ${vehicleTypeId.getOrElse("NaN")} "
                 )
                 None
               }
             }
             .toMap
 
-          val emissionsRates = VehicleEmissions.EmissionsRates(
+          val Emissions = VehicleEmissions.Emissions(
             emissionMap.getOrElse(_CH4.toLowerCase, 0.0),
             emissionMap.getOrElse(_CO.toLowerCase, 0.0),
             emissionMap.getOrElse(_CO2.toLowerCase, 0.0),
@@ -308,11 +308,46 @@ object BeamVehicleUtils extends LazyLogging {
             emissionMap.getOrElse(_TOG.toLowerCase, 0.0)
           )
 
-          Some((VehicleEmissions.EmissionsProcesses.fromString(source), emissionsRates))
+          Some((VehicleEmissions.EmissionsProcesses.fromString(source), Emissions))
 
         case _ => None
       }
       .toMap
+  }
+
+  /**
+    * Converts an EmissionsProfile into a formatted string.
+    *
+    * @param emissionsProfile A map where keys are EmissionsProcess values and values are Emissions objects.
+    * @return A string representation of the emissions profile in the format [Emissions Source]([Emission Type 1]:[Double value],[Emission Type 2]:[Double value], ...).
+    */
+  def buildEmissionsString(emissionsProfile: VehicleEmissions.EmissionsProfile.EmissionsProfile): String = {
+    import VehicleEmissions.Emissions._
+
+    def formatEmission(emissionType: String, value: Double): String = s"$emissionType:$value"
+
+    def formatEmissions(emissions: VehicleEmissions.Emissions): String = {
+      List(
+        formatEmission(_CH4, emissions.CH4),
+        formatEmission(_CO, emissions.CO),
+        formatEmission(_CO2, emissions.CO2),
+        formatEmission(_HC, emissions.HC),
+        formatEmission(_NH3, emissions.NH3),
+        formatEmission(_NOx, emissions.NOx),
+        formatEmission(_PM, emissions.PM),
+        formatEmission(_PM10, emissions.PM10),
+        formatEmission(_PM2_5, emissions.PM2_5),
+        formatEmission(_ROG, emissions.ROG),
+        formatEmission(_SOx, emissions.SOx),
+        formatEmission(_TOG, emissions.TOG)
+      ).mkString(", ")
+    }
+
+    emissionsProfile
+      .map { case (source, emissions) =>
+        s"${source.toString}(${formatEmissions(emissions)})"
+      }
+      .mkString("; ")
   }
 
   /**

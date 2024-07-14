@@ -1,11 +1,12 @@
 package beam.agentsim.events
 
+import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile.EmissionsProfile
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.parking._
 import beam.agentsim.infrastructure.taz.TAZ
 import org.matsim.api.core.v01.Id
-import org.matsim.api.core.v01.events.{Event, GenericEvent}
+import org.matsim.api.core.v01.events.Event
 import org.matsim.vehicles.Vehicle
 
 import java.util
@@ -19,7 +20,8 @@ case class LeavingParkingEvent(
   score: Double,
   parkingType: ParkingType,
   pricingModel: Option[PricingModel],
-  ChargingPointType: Option[ChargingPointType]
+  ChargingPointType: Option[ChargingPointType],
+  emissionsProfile: EmissionsProfile
 ) extends Event(time)
     with ScalaEvent {
   import LeavingParkingEvent._
@@ -35,6 +37,7 @@ case class LeavingParkingEvent(
     attr.put(ATTRIBUTE_PRICING_MODEL, optionalToString(pricingModel))
     attr.put(ATTRIBUTE_CHARGING_TYPE, optionalToString(ChargingPointType))
     attr.put(ATTRIBUTE_PARKING_TAZ, tazId.toString)
+    attr.put(EMISSIONS_PROFILE, beam.utils.BeamVehicleUtils.buildEmissionsString(emissionsProfile))
 
     attr
   }
@@ -58,13 +61,15 @@ object LeavingParkingEvent {
   val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
   val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
   val ATTRIBUTE_DRIVER_ID: String = "driver"
+  val EMISSIONS_PROFILE: String = "emissions"
 
   def apply(
     time: Double,
     stall: ParkingStall,
     score: Double,
     driverId: String,
-    vehId: Id[Vehicle]
+    vehId: Id[Vehicle],
+    emissionsProfile: EmissionsProfile
   ): LeavingParkingEvent =
     new LeavingParkingEvent(
       time,
@@ -74,7 +79,8 @@ object LeavingParkingEvent {
       score,
       stall.parkingType,
       stall.pricingModel,
-      stall.chargingPointType
+      stall.chargingPointType,
+      emissionsProfile
     )
 
   def apply(genericEvent: Event): LeavingParkingEvent = {
@@ -90,6 +96,18 @@ object LeavingParkingEvent {
     val pricingModel: Option[PricingModel] =
       attr.get(ATTRIBUTE_PRICING_MODEL).flatMap(PricingModel(_, attr.getOrElse(ATTRIBUTE_COST, "0")))
     val chargingPointType: Option[ChargingPointType] = attr.get(ATTRIBUTE_CHARGING_TYPE).flatMap(ChargingPointType(_))
-    LeavingParkingEvent(time, personId, vehicleId, tazId, score, parkingType, pricingModel, chargingPointType)
+    val emissionsProfile: EmissionsProfile =
+      attr.get(EMISSIONS_PROFILE).flatMap(beam.utils.BeamVehicleUtils.parseEmissionsString(_)).toMap
+    LeavingParkingEvent(
+      time,
+      personId,
+      vehicleId,
+      tazId,
+      score,
+      parkingType,
+      pricingModel,
+      chargingPointType,
+      emissionsProfile
+    )
   }
 }

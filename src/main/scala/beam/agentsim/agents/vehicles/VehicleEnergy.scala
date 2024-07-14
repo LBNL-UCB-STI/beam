@@ -30,7 +30,7 @@ class VehicleEnergy(consumptionRateFilterStore: ConsumptionRateFilterStore, beam
   }
 
   def getFuelConsumptionEnergyInJoulesUsing(
-    fuelConsumptionDatas: IndexedSeq[BeamVehicle.FuelConsumptionData],
+    fuelConsumptionDatas: IndexedSeq[BeamVehicle.VehicleActivityData],
     fallBack: Double,
     powerTrainPriority: PowerTrainPriority
   ): Double = {
@@ -45,13 +45,13 @@ class VehicleEnergy(consumptionRateFilterStore: ConsumptionRateFilterStore, beam
   }
 
   private def getRateUsing(
-    fuelConsumptionData: BeamVehicle.FuelConsumptionData,
+    fuelConsumptionData: BeamVehicle.VehicleActivityData,
     fallBack: Double,
     powerTrainPriority: PowerTrainPriority
   ): Double = {
     if (!vehicleEnergyMappingExistsFor(fuelConsumptionData.vehicleType)) { fallBack }
     else {
-      val BeamVehicle.FuelConsumptionData(
+      val BeamVehicle.VehicleActivityData(
         linkId,
         vehicleType,
         payloadKg,
@@ -59,6 +59,8 @@ class VehicleEnergy(consumptionRateFilterStore: ConsumptionRateFilterStore, beam
         _,
         _,
         speedInMetersPerSecondOption,
+        _,
+        _,
         _,
         _,
         _,

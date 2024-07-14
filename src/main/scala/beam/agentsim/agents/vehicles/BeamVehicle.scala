@@ -1,16 +1,15 @@
 package beam.agentsim.agents.vehicles
 
 import akka.actor.ActorRef
-import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed, FuelConsumptionData}
+import beam.agentsim.agents.vehicles.BeamVehicle.{BeamVehicleState, FuelConsumed, VehicleActivityData}
 import beam.agentsim.agents.vehicles.EnergyEconomyAttributes.Powertrain
 import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleCategory._
+import beam.agentsim.agents.vehicles.VehicleEmissions._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.agents.vehicles.VehicleEmissions.{EmissionsProcesses, _}
-import beam.agentsim.events.SpaceTime
+import beam.agentsim.events.{LeavingParkingEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.api.agentsim.agents.vehicles.BeamVehicleAfterUseFuelHook
 import beam.router.Modes
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
@@ -70,7 +69,7 @@ class BeamVehicle(
   private val emissionsRWLock = new ReentrantReadWriteLock()
 
   private val emissionsProfileInGramsPerMileInternal: EmissionsProfile.EmissionsProfile =
-    EmissionsProfile.initEmissionsProfile()
+    EmissionsProfile.init()
 
   private def emissionsProfileInGramsPerMile: EmissionsProfile.EmissionsProfile = emissionsRWLock.read {
     emissionsProfileInGramsPerMileInternal
@@ -226,7 +225,7 @@ class BeamVehicle(
     */
   def useFuel(
     beamLeg: BeamLeg,
-    fuelConsumptionData: IndexedSeq[FuelConsumptionData],
+    vehicleActivityData: IndexedSeq[VehicleActivityData],
     beamScenario: BeamScenario,
     networkHelper: NetworkHelper,
     eventsManager: EventsManager,
@@ -234,9 +233,9 @@ class BeamVehicle(
     beamVehicleAfterUseFuelHook: Option[BeamVehicleAfterUseFuelHook]
   ): FuelConsumed = {
     val primaryEnergyForFullLeg =
-      if (fuelConsumptionData.nonEmpty) {
+      if (vehicleActivityData.nonEmpty) {
         beamScenario.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
-          fuelConsumptionData,
+          vehicleActivityData,
           fallBack = powerTrain.getRateInJoulesPerMeter,
           VehicleEnergy.Primary
         )
@@ -251,7 +250,7 @@ class BeamVehicle(
           // Use secondary fuel if possible
           val secondaryEnergyForFullLeg =
             beamScenario.vehicleEnergy.getFuelConsumptionEnergyInJoulesUsing(
-              fuelConsumptionData,
+              vehicleActivityData,
               fallBack = powerTrain.getRateInJoulesPerMeter,
               VehicleEnergy.Secondary
             )
@@ -288,7 +287,7 @@ class BeamVehicle(
 
     FuelConsumed(
       primaryEnergyConsumed,
-      secondaryEnergyConsumed /*, fuelConsumptionData, primaryLoggingData, secondaryLoggingData*/
+      secondaryEnergyConsumed /*, vehicleActivityData, primaryLoggingData, secondaryLoggingData*/
     )
   }
 
@@ -298,36 +297,31 @@ class BeamVehicle(
     }
   }
 
-  def emitEmissions(
-    beamLeg: BeamLeg,
-    fuelConsumptionData: IndexedSeq[FuelConsumptionData],
-    beamScenario: BeamScenario
+  def emitEmissions[E <: org.matsim.api.core.v01.events.Event](
+    vehicleActivityData: IndexedSeq[VehicleActivityData],
+    beamScenario: BeamScenario,
+    vehicleActivity: Class[E]
   ): EmissionsProfile.EmissionsProfile = {
+    import EmissionsProcesses._
     val embedEmissionsProfilesInEvents = beamScenario.beamConfig.beam.outputs.events.embedEmissionsProfiles
     val vehicleEmissionsMappingExistsFor =
       beamScenario.vehicleEmission.vehicleEmissionsMappingExistsFor(beamVehicleType)
     if (embedEmissionsProfilesInEvents && !vehicleEmissionsMappingExistsFor) {
-      EmissionsProfile.initEmissionsProfile()
+      EmissionsProfile.init()
     } else {
-      if (fuelConsumptionData.nonEmpty) {
-        List(EmissionsProcesses.RUNEX, EmissionsProcesses.PMBW, EmissionsProcesses.PMBW).map(source =>
-          beamScenario.vehicleEmission.getEmissionsProfilesInGramsPerMile(
-            fuelConsumptionData,
-            source,
-            fallBack = beamVehicleType.emissionsRatesInGramsPerMile
-          )
-        )
-      } else {
-        beamLeg.travelPath.distanceInM * beamVehicleType.primaryFuelConsumptionInJoulePerMeter
-      }
+      beamScenario.vehicleEmission.getEmissionsProfilesInGramsPerMile(
+        vehicleActivityData,
+        Map[Class[_ <: org.matsim.api.core.v01.events.Event], List[EmissionsProcess]](
+          classOf[LeavingParkingEvent] -> List(IDLEX, STREX, DIURN, HOTSOAK, RUNLOSS),
+          classOf[PathTraversalEvent]  -> List(RUNEX, PMBW, PMTW, RUNLOSS)
+        ).getOrElse(vehicleActivity, List.empty),
+        fallBack = beamVehicleType.emissionsRatesInGramsPerMile
+      )
     }
-    EmissionsProfile.initEmissionsProfile()
   }
 
-  def addEmissions(source: EmissionsProcesses.EmissionsProcess, rates: EmissionsRates): Unit = {
-    emissionsRWLock.write {
-      emissionsProfileInGramsPerMileInternal.get(source).map(_.add(rates))
-    }
+  def addEmissions(source: EmissionsProcesses.EmissionsProcess, rates: Emissions): Unit = {
+    emissionsRWLock.write(emissionsProfileInGramsPerMileInternal.get(source).map(_ + rates))
   }
 
   /**
@@ -565,7 +559,7 @@ object BeamVehicle {
 
   case class FuelConsumed(
     primaryFuel: Double,
-    secondaryFuel: Double /*, fuelConsumptionData: IndexedSeq[FuelConsumptionData],
+    secondaryFuel: Double /*, vehicleActivityData: IndexedSeq[VehicleActivityData],
                           primaryLoggingData: IndexedSeq[LoggingData],
                           secondaryLoggingData: IndexedSeq[LoggingData]*/
   )
@@ -614,7 +608,7 @@ object BeamVehicle {
     }
   }
 
-  case class FuelConsumptionData(
+  case class VehicleActivityData(
     linkId: Int,
     vehicleType: BeamVehicleType,
     payloadInKg: Option[Double],
@@ -626,7 +620,9 @@ object BeamVehicle {
     linkArrivalTime: Option[Long] = None,
     turnAtLinkEnd: Option[TurningDirection] = None,
     numberOfStops: Option[Int] = None,
-    tazId: Option[String] = None
+    tazId: Option[String] = None,
+    parkingDuration: Option[Double] = None,
+    linkTravelTime: Option[Double] = None
   )
 
   /**
@@ -636,13 +632,13 @@ object BeamVehicle {
     * @param networkHelper the transport network instance
     * @return list of fuel consumption objects generated
     */
-  def collectFuelConsumptionData(
+  def collectVehicleActivityData(
     beamLeg: BeamLeg,
     theVehicleType: BeamVehicleType,
     payloadInKg: Option[Double],
     networkHelper: NetworkHelper,
     beamScenario: BeamScenario
-  ): IndexedSeq[FuelConsumptionData] = {
+  ): IndexedSeq[VehicleActivityData] = {
     //TODO: This method is becoming a little clunky. If it has to grow again then maybe refactor/break it out
     val fuelConsumptionDataWithOnlyLength_Id_And_Type =
       !beamScenario.vehicleEnergy.vehicleEnergyMappingExistsFor(theVehicleType)
@@ -653,7 +649,7 @@ object BeamVehicle {
         .drop(1)
         .map { id =>
           val linkMaybe = networkHelper.getLink(id)
-          FuelConsumptionData(
+          VehicleActivityData(
             linkId = id,
             vehicleType = theVehicleType,
             payloadInKg = None,
@@ -683,7 +679,7 @@ object BeamVehicle {
           } catch {
             case _: Exception => 0.0
           }
-        FuelConsumptionData(
+        VehicleActivityData(
           linkId = id,
           vehicleType = theVehicleType,
           payloadInKg = payloadInKg,
