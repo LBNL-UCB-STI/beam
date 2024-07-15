@@ -1,11 +1,13 @@
 package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsRateFilterStore
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.common.DoubleTypedRange
 import beam.sim.config.BeamConfig
 import beam.utils.BeamVehicleUtils
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
+import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.io.IOUtils
 import org.slf4j.LoggerFactory
 
@@ -52,16 +54,18 @@ class VehicleEmissions(emissionsRateFilterStore: EmissionsRateFilterStore, beamC
       .map(BeamVehicleUtils.convertFromMetersPerSecondToMilesPerHour)
       .getOrElse(0)
     val weightKg: Double = data.vehicleType.curbWeightInKg + data.payloadInKg.getOrElse(0.0)
+    val soakTimeIntMinutes: Int = data.parkingDuration.map(_ / 60.0).getOrElse(0.0).toInt
     val gradePercent: Double = linkIdToGradePercentMap.getOrElse(data.linkId, 0)
     val zone = data.tazId.getOrElse("")
     for {
       (_, gradeFilter) <- emissionRateFilter.find { case (speedInMilesPerHourBin, _) =>
         speedInMilesPerHourBin.has(speedInMilesPerHour)
       }
-      (_, weightFilter)     <- gradeFilter.find { case (gradePercentBin, _) => gradePercentBin.has(gradePercent) }
-      (_, geographicFilter) <- weightFilter.find { case (weightPercentBin, _) => weightPercentBin.has(weightKg) }
-      (_, sourceFilter)     <- geographicFilter.find { case (geographicArea, _) => geographicArea == zone.trim.toLowerCase }
-      (_, rate)             <- sourceFilter.find { case (emissionsSource, _) => emissionsSource.equals(source) }
+      (_, weightFilter)   <- gradeFilter.find { case (gradePercentBin, _) => gradePercentBin.has(gradePercent) }
+      (_, soakTimeFilter) <- weightFilter.find { case (weightPercentBin, _) => weightPercentBin.has(weightKg) }
+      (_, tazFilter)      <- soakTimeFilter.find { case (soakTimeBin, _) => soakTimeBin.has(soakTimeIntMinutes) }
+      (_, sourceFilter)   <- tazFilter.find { case (taz, _) => taz.toString == zone.trim.toLowerCase }
+      (_, rate)           <- sourceFilter.find { case (emissionsSource, _) => emissionsSource.equals(source) }
     } yield rate
   }
 }
@@ -70,15 +74,26 @@ object VehicleEmissions {
 
   object EmissionsRateFilterStore {
 
-    //speed->(gradePercent->(weight->(numberOfLanes->rate)))
-    type EmissionsRateFilter =
+    // speed -> (gradePercent -> (weight -> (soakTime -> (taz -> (emissionProcess -> rate)))))
+    type EmissionsRateFilter = Map[
+      DoubleTypedRange, // speed
       Map[
-        DoubleTypedRange,
+        DoubleTypedRange, // grade percent
         Map[
-          DoubleTypedRange,
-          Map[DoubleTypedRange, Map[String, Map[EmissionsProcesses.EmissionsProcess, Emissions]]]
+          DoubleTypedRange, // weight
+          Map[
+            DoubleTypedRange, // soak time
+            Map[
+              Id[TAZ], // taz
+              Map[
+                EmissionsProcesses.EmissionsProcess, // emissionProcess
+                Emissions // rate
+              ]
+            ]
+          ]
         ]
       ]
+    ]
   }
 
   trait EmissionsRateFilterStore {
@@ -350,9 +365,11 @@ object VehicleEmissions {
     private val speedBinHeader = "speed_mph_float_bins"
     private val gradeBinHeader = "grade_percent_float_bins"
     private val weightBinHeader = "mass_kg_float_bins"
-    private val geoAreaHeader = "geo_area"
+    private val soakTimeBinHeader = "time_minutes_float_bins"
+    private val tazHeader = "taz"
     /*
     EmissionsProcess column can either be:
+    RUNEX, IDLEX, STREX, DIURN, HOATSOAK, RUNLOSS, PMTW, PMBW
         Running (i.e. Running Exhaust)
         Start (i.e. Start Exhaust)
         Hoteling (i.e. Hoteling Exhaust)
@@ -415,13 +432,10 @@ object VehicleEmissions {
     ): EmissionsRateFilterStore.EmissionsRateFilter = {
       import beam.utils.BeamVehicleUtils._
 
-      val currentRateFilter = mutable.Map.empty[DoubleTypedRange, mutable.Map[
+      val currentRateFilter = mutable.Map.empty[DoubleTypedRange, mutable.Map[DoubleTypedRange, mutable.Map[
         DoubleTypedRange,
-        mutable.Map[
-          DoubleTypedRange,
-          mutable.Map[String, mutable.Map[EmissionsProcesses.EmissionsProcess, Emissions]]
-        ]
-      ]]
+        mutable.Map[DoubleTypedRange, mutable.Map[Id[TAZ], mutable.Map[EmissionsProcesses.EmissionsProcess, Emissions]]]
+      ]]]
 
       baseFilePaths.foreach(baseFilePath =>
         getVehicleEmissionsRecordsUsing(csvParser, java.nio.file.Paths.get(baseFilePath, file).toString)
@@ -440,12 +454,15 @@ object VehicleEmissions {
             } else {
               convertRecordStringToDoubleTypedRange("(0,200000]")
             }
-            // Geographic area, None if not defined
-            val geographicZone = if (csvRecord.getMetaData.containsColumn(geoAreaHeader)) {
-              csvRecord.getString(geoAreaHeader)
+            // Soak Time in minutes
+            val soakTimeBin = if (csvRecord.getMetaData.containsColumn(soakTimeBinHeader)) {
+              convertRecordStringToDoubleTypedRange(csvRecord.getString(soakTimeBinHeader))
             } else {
-              ""
+              convertRecordStringToDoubleTypedRange("(0,216000]")
             }
+            // Geographic area, None if not defined
+            val tazStr = if (csvRecord.getMetaData.containsColumn(tazHeader)) csvRecord.getString(tazHeader) else ""
+            val taz = Id.create(tazStr, classOf[TAZ])
             // Emission source
             val emissionSource = EmissionsProcesses.fromString(csvRecord.getString(emissionsSourceHeader))
 
@@ -486,35 +503,48 @@ object VehicleEmissions {
                 gradePercentFilter.get(gradePercentBin) match {
                   case Some(weightKgFilter) =>
                     weightKgFilter.get(weightKgBin) match {
-                      case Some(geographicZoneFilter) =>
-                        geographicZoneFilter.get(geographicZone) match {
-                          case Some(emissionsSourceFilter) =>
-                            emissionsSourceFilter.get(emissionSource) match {
-                              case Some(existingRates) =>
-                                log.error(
-                                  "Two emission rates found for the same bin combination: " +
-                                  "Geographic Area = {}; Speed In Miles Per Hour Bin = {}; " +
-                                  "Grade Percent Bin = {}; Weight kg Bin = {}; Number of Lanes Bin = {}. " +
-                                  s"Keeping first rate of $existingRates and ignoring new rate of $ratesInGramsPerMile.",
-                                  geographicZone,
-                                  speedInMilesPerHourBin,
-                                  gradePercentBin,
-                                  weightKgBin
-                                )
-                              case None => emissionsSourceFilter += emissionSource -> ratesInGramsPerMile
+                      case Some(soakTimeFilter) =>
+                        soakTimeFilter.get(soakTimeBin) match {
+                          case Some(tazFilter) =>
+                            tazFilter.get(taz) match {
+                              case Some(emissionsSourceFilter) =>
+                                emissionsSourceFilter.get(emissionSource) match {
+                                  case Some(existingRates) =>
+                                    log.error(
+                                      "Two emission rates found for the same bin combination: " +
+                                      "TAZ = {}; Speed In Miles Per Hour Bin = {}; " +
+                                      "Grade Percent Bin = {}; Weight kg Bin = {}; Soak Time Bin = {}. " +
+                                      s"Keeping first rate of $existingRates and ignoring new rate of $ratesInGramsPerMile.",
+                                      taz,
+                                      speedInMilesPerHourBin,
+                                      gradePercentBin,
+                                      weightKgBin,
+                                      soakTimeBin
+                                    )
+                                  case None =>
+                                    emissionsSourceFilter += emissionSource -> ratesInGramsPerMile
+                                }
+                              case None =>
+                                tazFilter += taz -> mutable.Map(emissionSource -> ratesInGramsPerMile)
                             }
                           case None =>
-                            geographicZoneFilter += geographicZone -> mutable.Map(emissionSource -> ratesInGramsPerMile)
+                            soakTimeFilter += soakTimeBin -> mutable.Map(
+                              taz -> mutable.Map(emissionSource -> ratesInGramsPerMile)
+                            )
                         }
                       case None =>
                         weightKgFilter += weightKgBin -> mutable.Map(
-                          geographicZone -> mutable.Map(emissionSource -> ratesInGramsPerMile)
+                          soakTimeBin -> mutable.Map(
+                            taz -> mutable.Map(emissionSource -> ratesInGramsPerMile)
+                          )
                         )
                     }
                   case None =>
                     gradePercentFilter += gradePercentBin -> mutable.Map(
                       weightKgBin -> mutable.Map(
-                        geographicZone -> mutable.Map(emissionSource -> ratesInGramsPerMile)
+                        soakTimeBin -> mutable.Map(
+                          taz -> mutable.Map(emissionSource -> ratesInGramsPerMile)
+                        )
                       )
                     )
                 }
@@ -522,7 +552,9 @@ object VehicleEmissions {
                 currentRateFilter += speedInMilesPerHourBin -> mutable.Map(
                   gradePercentBin -> mutable.Map(
                     weightKgBin -> mutable.Map(
-                      geographicZone -> mutable.Map(emissionSource -> ratesInGramsPerMile)
+                      soakTimeBin -> mutable.Map(
+                        taz -> mutable.Map(emissionSource -> ratesInGramsPerMile)
+                      )
                     )
                   )
                 )
@@ -531,9 +563,11 @@ object VehicleEmissions {
       )
       currentRateFilter.toMap.map { case (speedInMilesPerHourBin, gradePercentMap) =>
         speedInMilesPerHourBin -> gradePercentMap.toMap.map { case (gradePercentBin, weightMap) =>
-          gradePercentBin -> weightMap.toMap.map { case (weightKgBin, zoneMap) =>
-            weightKgBin -> zoneMap.toMap.map { case (zone, emissionsSourceMap) =>
-              zone -> emissionsSourceMap.toMap
+          gradePercentBin -> weightMap.toMap.map { case (weightKgBin, soakTimeMap) =>
+            weightKgBin -> soakTimeMap.toMap.map { case (soakTimeBin, tazMap) =>
+              soakTimeBin -> tazMap.toMap.map { case (taz, emissionsSourceMap) =>
+                taz -> emissionsSourceMap.toMap
+              }
             }
           }
         }
