@@ -57,12 +57,7 @@ class VehicleEnergy(consumptionRateFilterStore: ConsumptionRateFilterStore, beam
         payloadKg,
         numberOfLanesOption,
         _,
-        _,
         speedInMetersPerSecondOption,
-        _,
-        _,
-        _,
-        _,
         _,
         _,
         _

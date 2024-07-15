@@ -1,18 +1,17 @@
 package beam.agentsim.events
 
-import java.util
-
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.{ParkingType, PricingModel}
 import beam.agentsim.infrastructure.taz.TAZ
-import org.matsim.api.core.v01.events.{Event, GenericEvent}
-import org.matsim.api.core.v01.{Coord, Id}
-import org.matsim.vehicles.Vehicle
-import collection.JavaConverters._
-
 import beam.sim.common.GeoUtils
 import com.typesafe.scalalogging.LazyLogging
+import org.matsim.api.core.v01.events.Event
+import org.matsim.api.core.v01.{Coord, Id}
+import org.matsim.vehicles.Vehicle
+
+import java.util
+import scala.collection.JavaConverters._
 
 /** HasPersonId is added as Matsim ScoringFunction for population requires it* */
 case class ParkingEvent(
@@ -80,6 +79,7 @@ object ParkingEvent {
     vehicleId: Id[Vehicle],
     driverId: String
   ): ParkingEvent = {
+    stall.setParkingArrivalTime(time)
     new ParkingEvent(
       time = time,
       driverId = driverId,

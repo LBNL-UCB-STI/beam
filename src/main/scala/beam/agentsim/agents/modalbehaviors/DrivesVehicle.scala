@@ -248,22 +248,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       val payloadInKg = payloadInKgForLeg(currentLeg, data)
       val vehicleActivityData = BeamVehicle.collectVehicleActivityData(
-        currentLeg,
+        Left(currentLeg),
         currentBeamVehicle.beamVehicleType,
         payloadInKg,
+        None,
         networkHelper,
-        beamScenario
+        beamScenario.vehicleEnergy,
+        beamScenario.tazTreeMap
       )
-      val fuelConsumed =
-        currentBeamVehicle.useFuel(
-          currentLeg,
-          vehicleActivityData,
-          beamScenario,
-          networkHelper,
-          eventsManager,
-          eventBuilderActor,
-          beamServices.beamCustomizationAPI.beamVehicleAfterUseFuelHook
-        )
+      val fuelConsumed = currentBeamVehicle.useFuel(currentLeg, vehicleActivityData, beamScenario)
 
       currentBeamVehicle.spaceTime = geo.wgs2Utm(currentLeg.travelPath.endPoint)
 
@@ -558,22 +551,15 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
 
       val currentLocation = if (updatedStopTick > currentLeg.startTime) {
         val vehicleActivityData = BeamVehicle.collectVehicleActivityData(
-          currentLeg,
+          Left(currentLeg),
           currentBeamVehicle.beamVehicleType,
           payloadInKg,
+          None,
           networkHelper,
-          beamScenario
+          beamScenario.vehicleEnergy,
+          beamScenario.tazTreeMap
         )
-        val fuelConsumed =
-          currentBeamVehicle.useFuel(
-            partiallyCompletedBeamLeg,
-            vehicleActivityData,
-            beamScenario,
-            networkHelper,
-            eventsManager,
-            eventBuilderActor,
-            beamServices.beamCustomizationAPI.beamVehicleAfterUseFuelHook
-          )
+        val fuelConsumed = currentBeamVehicle.useFuel(partiallyCompletedBeamLeg, vehicleActivityData, beamScenario)
 
         val emissionsProfile =
           currentBeamVehicle.emitEmissions(vehicleActivityData, beamScenario, classOf[PathTraversalEvent])

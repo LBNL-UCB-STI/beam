@@ -159,6 +159,7 @@ trait RideHailDepotManager extends {
         this.id,
         parkingManager,
         beamServices.matsimServices.getEvents,
+        beamServices.networkHelper,
         beamScenario
       )
     } else {

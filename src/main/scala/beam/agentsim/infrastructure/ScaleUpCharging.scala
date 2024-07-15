@@ -143,6 +143,7 @@ trait ScaleUpCharging extends {
       personId,
       getParkingManager,
       getBeamServices.matsimServices.getEvents,
+      getBeamServices.networkHelper,
       beamScenario
     )
   }

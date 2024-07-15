@@ -287,6 +287,7 @@ trait ChoosesParking extends {
         id,
         parkingManager,
         eventsManager,
+        networkHelper,
         beamScenario
       )
       goto(WaitingToDrive) using data
@@ -303,6 +304,7 @@ trait ChoosesParking extends {
         id,
         parkingManager,
         eventsManager,
+        networkHelper,
         beamScenario
       )
       goto(ReadyToChooseParking) using data
@@ -316,6 +318,7 @@ trait ChoosesParking extends {
         id,
         parkingManager,
         eventsManager,
+        networkHelper,
         beamScenario
       )
       releaseTickAndTriggerId()
@@ -335,7 +338,7 @@ trait ChoosesParking extends {
       }
       val (tick, triggerId) = (_currentTick.get, _currentTriggerId.get)
 
-      if (vehicle.isConnectedToChargingPoint()) {
+      if (vehicle.isConnectedToChargingPoint) {
         log.debug("Sending ChargingUnplugRequest to ChargingNetworkManager at {}", tick)
         chargingNetworkManager ! ChargingUnplugRequest(
           tick,
@@ -356,6 +359,7 @@ trait ChoosesParking extends {
               id,
               parkingManager,
               eventsManager,
+              networkHelper,
               beamScenario
             )
             releaseTickAndTriggerId()
@@ -373,6 +377,7 @@ trait ChoosesParking extends {
         id,
         parkingManager,
         eventsManager,
+        networkHelper,
         beamScenario
       )
       releaseTickAndTriggerId()
@@ -426,6 +431,7 @@ trait ChoosesParking extends {
               id,
               parkingManager,
               eventsManager,
+              networkHelper,
               beamScenario
             )
             goto(WaitingToDrive) using data.copy(enrouteData = EnrouteData())
@@ -558,6 +564,7 @@ trait ChoosesParking extends {
         id,
         parkingManager,
         eventsManager,
+        networkHelper,
         beamScenario
       )
       goto(WaitingToDrive) using data.copy(
@@ -644,6 +651,7 @@ trait ChoosesParking extends {
         id,
         parkingManager,
         eventsManager,
+        networkHelper,
         beamScenario
       )
 

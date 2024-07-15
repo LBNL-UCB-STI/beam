@@ -10,18 +10,16 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.{LeavingParkingEvent, PathTraversalEvent, SpaceTime}
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.api.agentsim.agents.vehicles.BeamVehicleAfterUseFuelHook
+import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.router.Modes
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
 import beam.router.model.BeamLeg
 import beam.sim.BeamScenario
-import beam.sim.common.GeoUtils.TurningDirection
 import beam.utils.NetworkHelper
 import beam.utils.ReadWriteLockUtil._
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.api.core.v01.network.Link
-import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.vehicles.Vehicle
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicReference}
@@ -226,11 +224,7 @@ class BeamVehicle(
   def useFuel(
     beamLeg: BeamLeg,
     vehicleActivityData: IndexedSeq[VehicleActivityData],
-    beamScenario: BeamScenario,
-    networkHelper: NetworkHelper,
-    eventsManager: EventsManager,
-    eventBuilder: ActorRef,
-    beamVehicleAfterUseFuelHook: Option[BeamVehicleAfterUseFuelHook]
+    beamScenario: BeamScenario
   ): FuelConsumed = {
     val primaryEnergyForFullLeg =
       if (vehicleActivityData.nonEmpty) {
@@ -280,10 +274,6 @@ class BeamVehicle(
       primaryFuelLevelInJoulesInternal = primaryFuelLevelInJoulesInternal - primaryEnergyConsumed
       secondaryFuelLevelInJoulesInternal = secondaryFuelLevelInJoulesInternal - secondaryEnergyConsumed
     }
-
-    beamVehicleAfterUseFuelHook.foreach(
-      _.execute(beamLeg, beamScenario, networkHelper, eventsManager, eventBuilder, this)
-    )
 
     FuelConsumed(
       primaryEnergyConsumed,
@@ -565,7 +555,7 @@ object BeamVehicle {
   )
 
   val idPrefixSharedTeleportationVehicle = "teleportationSharedVehicle"
-  val idPrefixRideHail = "rideHailVehicle"
+  private val idPrefixRideHail = "rideHailVehicle"
 
   def isRidehailVehicle(vehicleId: Id[BeamVehicle]): Boolean = {
     val idStr = vehicleId.toString
@@ -613,87 +603,98 @@ object BeamVehicle {
     vehicleType: BeamVehicleType,
     payloadInKg: Option[Double],
     linkNumberOfLanes: Option[Int],
-    linkCapacity: Option[Double] = None,
     linkLength: Option[Double],
     averageSpeed: Option[Double],
-    freeFlowSpeed: Option[Double],
-    linkArrivalTime: Option[Long] = None,
-    turnAtLinkEnd: Option[TurningDirection] = None,
-    numberOfStops: Option[Int] = None,
     tazId: Option[String] = None,
     parkingDuration: Option[Double] = None,
     linkTravelTime: Option[Double] = None
   )
 
   /**
-    * Organizes the fuel consumption data table
+    * Collects vehicle activity data based on the provided activity, which can be either a BeamLeg or a ParkingStall.
     *
-    * @param beamLeg Instance of beam leg
-    * @param networkHelper the transport network instance
-    * @return list of fuel consumption objects generated
+    * If the activity is a BeamLeg, it processes the travel path and generates the corresponding VehicleActivityData.
+    * If the activity is a ParkingStall, it generates a dummy VehicleActivityData with placeholder values.
+    *
+    * @param activity Either a BeamLeg or a ParkingStall
+    * @param theVehicleType The type of the vehicle
+    * @param payloadInKg Optional payload weight in kilograms
+    * @param networkHelper The transport network instance
+    * @param vehicleEnergy Vehicle energy
+    * @param tazTreeMap Taz Map
+    * @return Indexed sequence of VehicleActivityData
     */
   def collectVehicleActivityData(
-    beamLeg: BeamLeg,
+    activity: Either[BeamLeg, Link],
     theVehicleType: BeamVehicleType,
     payloadInKg: Option[Double],
+    parkingDuration: Option[Double],
     networkHelper: NetworkHelper,
-    beamScenario: BeamScenario
+    vehicleEnergy: VehicleEnergy,
+    tazTreeMap: TAZTreeMap
   ): IndexedSeq[VehicleActivityData] = {
-    //TODO: This method is becoming a little clunky. If it has to grow again then maybe refactor/break it out
-    val fuelConsumptionDataWithOnlyLength_Id_And_Type =
-      !beamScenario.vehicleEnergy.vehicleEnergyMappingExistsFor(theVehicleType)
-    if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
-      Vector.empty
-    } else if (fuelConsumptionDataWithOnlyLength_Id_And_Type) {
-      beamLeg.travelPath.linkIds
-        .drop(1)
-        .map { id =>
-          val linkMaybe = networkHelper.getLink(id)
-          VehicleActivityData(
-            linkId = id,
-            vehicleType = theVehicleType,
-            payloadInKg = None,
-            linkNumberOfLanes = None,
-            linkCapacity = None,
-            linkLength = linkMaybe.map(_.getLength),
-            averageSpeed = None,
-            freeFlowSpeed = None,
-            linkArrivalTime = None,
-            turnAtLinkEnd = None,
-            numberOfStops = None,
-            tazId = linkMaybe.flatMap(link => beamScenario.tazTreeMap.getTAZfromLink(link.getId).map(_.tazId.toString))
-          )
-        }
-    } else {
-      val linkIds = beamLeg.travelPath.linkIds.drop(1)
-      val linkTravelTimes: IndexedSeq[Double] = beamLeg.travelPath.linkTravelTime.drop(1)
-      // generate the link arrival times for each link ,by adding cumulative travel times of previous links
-      //      val linkArrivalTimes = linkTravelTimes.scan(beamLeg.startTime)((enterTime,duration) => enterTime + duration).dropRight(1)
-      //      val nextLinkIds = linkIds.takeRight(linkIds.size - 1)
-      linkIds.zipWithIndex.map { case (id, idx) =>
-        val travelTime = linkTravelTimes(idx)
-        val currentLink: Option[Link] = networkHelper.getLink(id)
-        val averageSpeed =
-          try {
-            if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
-          } catch {
-            case _: Exception => 0.0
+    activity match {
+      case Left(beamLeg) =>
+        val fuelConsumptionDataWithOnlyLength_Id_And_Type = !vehicleEnergy.vehicleEnergyMappingExistsFor(theVehicleType)
+        if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
+          Vector.empty
+        } else if (fuelConsumptionDataWithOnlyLength_Id_And_Type) {
+          beamLeg.travelPath.linkIds
+            .drop(1)
+            .map { id =>
+              val linkMaybe = networkHelper.getLink(id)
+              VehicleActivityData(
+                linkId = id,
+                vehicleType = theVehicleType,
+                payloadInKg = None,
+                linkNumberOfLanes = None,
+                linkLength = linkMaybe.map(_.getLength),
+                averageSpeed = None,
+                tazId = linkMaybe.flatMap(link => tazTreeMap.getTAZfromLink(link.getId).map(_.tazId.toString)),
+                parkingDuration = None,
+                linkTravelTime = None
+              )
+            }
+        } else {
+          val linkIds = beamLeg.travelPath.linkIds.drop(1)
+          val linkTravelTimes: IndexedSeq[Double] = beamLeg.travelPath.linkTravelTime.drop(1)
+          linkIds.zipWithIndex.map { case (id, idx) =>
+            val travelTime = linkTravelTimes(idx)
+            val currentLink: Option[Link] = networkHelper.getLink(id)
+            val averageSpeed =
+              try {
+                if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
+              } catch {
+                case _: Exception => 0.0
+              }
+            VehicleActivityData(
+              linkId = id,
+              vehicleType = theVehicleType,
+              payloadInKg = payloadInKg,
+              linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
+              linkLength = currentLink.map(_.getLength),
+              averageSpeed = Some(averageSpeed),
+              tazId = currentLink.flatMap(link => tazTreeMap.getTAZfromLink(link.getId).map(_.tazId.toString)),
+              parkingDuration = None,
+              linkTravelTime = Some(travelTime)
+            )
           }
-        VehicleActivityData(
-          linkId = id,
-          vehicleType = theVehicleType,
-          payloadInKg = payloadInKg,
-          linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
-          linkCapacity = None, //currentLink.map(_.getCapacity),
-          linkLength = currentLink.map(_.getLength),
-          averageSpeed = Some(averageSpeed),
-          freeFlowSpeed = None,
-          linkArrivalTime = None, //Some(arrivalTime),
-          turnAtLinkEnd = None, //Some(turnAtLinkEnd),
-          numberOfStops = None, //Some(numStops)
-          tazId = currentLink.flatMap(link => beamScenario.tazTreeMap.getTAZfromLink(link.getId).map(_.tazId.toString))
+        }
+      case Right(link) =>
+        IndexedSeq(
+          VehicleActivityData(
+            linkId = link.getId.toString.toInt,
+            vehicleType = theVehicleType,
+            payloadInKg = payloadInKg,
+            linkNumberOfLanes = Some(link.getNumberOfLanes.toInt),
+            linkLength = Some(link.getLength),
+            averageSpeed = None,
+            tazId = tazTreeMap.getTAZfromLink(link.getId).map(_.tazId.toString),
+            parkingDuration = parkingDuration,
+            linkTravelTime = None
+          )
         )
-      }
     }
   }
+
 }

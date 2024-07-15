@@ -1049,7 +1049,7 @@ class PersonAgent(
       potentiallyChargingBeamVehicles.remove(vehicle.id)
       goto(ProcessingNextLegOrStartActivity)
     case Event(NotAvailable(_), basePersonData: BasePersonData) =>
-      log.debug("{} replanning because vehicle not available when trying to board")
+      log.debug("{} replanning because vehicle not available when trying to board", this.id.toString)
       val replanningReason = getReplanningReasonFrom(basePersonData, ReservationErrorCode.ResourceUnavailable.entryName)
       val currentCoord =
         beamServices.geo.wgs2Utm(basePersonData.restOfCurrentTrip.head.beamLeg.travelPath.startPoint).loc
@@ -1099,6 +1099,7 @@ class PersonAgent(
         id,
         parkingManager,
         eventsManager,
+        networkHelper,
         beamScenario
       )
       goto(ProcessingNextLegOrStartActivity) using data
@@ -1114,6 +1115,7 @@ class PersonAgent(
         id,
         parkingManager,
         eventsManager,
+        networkHelper,
         beamScenario
       )
       goto(ProcessingNextLegOrStartActivity) using data

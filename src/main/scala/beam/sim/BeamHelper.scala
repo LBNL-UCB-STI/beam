@@ -335,7 +335,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       privateVehicleMap ++ freightCarriers.flatMap(_.fleet),
       privateVehicleSoc,
       new VehicleEnergy(consumptionRateFilterStore, beamConfig),
-      new VehicleEmissions(emissionsRateFilterStore),
+      new VehicleEmissions(emissionsRateFilterStore, beamConfig),
       beamConfig,
       dates,
       PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),

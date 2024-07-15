@@ -56,12 +56,7 @@ class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore, beamCo
         payloadKgOption,
         _,
         _,
-        _,
         speedInMetersPerSecondOption,
-        _,
-        _,
-        _,
-        _,
         tazId,
         _,
         _
@@ -77,7 +72,7 @@ class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore, beamCo
         .flatMap(emissionRateFilterFuture =>
           getRatesUsing(emissionRateFilterFuture, speedInMilesPerHour, weightKg, gradePercent, zone, source)
         )
-        .getOrElse(fallBack)
+        .getOrElse(fallBack.getOrElse(source, Emissions.init()))
     }
   }
 

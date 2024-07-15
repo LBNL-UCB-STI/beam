@@ -8,6 +8,7 @@ import beam.agentsim.infrastructure.parking.{ParkingType, _}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.BeamRouter.Location
 import org.locationtech.jts.geom.Envelope
+import org.matsim.api.core.v01.network.Link
 import org.matsim.api.core.v01.{Coord, Id}
 
 import scala.util.Random
@@ -20,12 +21,35 @@ case class ParkingStall(
   chargingPointType: Option[ChargingPointType],
   pricingModel: Option[PricingModel],
   parkingType: ParkingType,
-  reservedFor: ReservedFor
-)
+  reservedFor: ReservedFor,
+  link: Option[Link] = None
+) {
+  private var parkingArrivalTime: Double = 0.0
+  private var parkingDepartureTime: Double = 0.0
+
+  // Method to set parking arrival time
+  def setParkingArrivalTime(arrivalTime: Double): Unit = {
+    parkingArrivalTime = arrivalTime
+  }
+
+  def getParkingArrivalTime: Double = parkingArrivalTime
+
+  // Method to set parking departure time
+  def setParkingDepartureTime(departureTime: Double): Unit = {
+    parkingDepartureTime = departureTime
+  }
+
+  // Method to calculate parking duration
+  def getParkingDuration: Double = {
+    if (parkingDepartureTime >= parkingArrivalTime) {
+      parkingDepartureTime - parkingArrivalTime
+    } else {
+      0.0 // Return 0 if departure time is before arrival time
+    }
+  }
+}
 
 object ParkingStall {
-
-  val CostOfEmergencyStallInDollars: Double = 50.0
 
   def init(
     parkingZone: ParkingZone,
@@ -73,7 +97,7 @@ object ParkingStall {
   def lastResortStall(
     boundingBox: Envelope,
     random: Random = Random,
-    costInDollars: Double = CostOfEmergencyStallInDollars
+    costInDollars: Double = 50.0
   ): ParkingStall = {
     val x = random.nextDouble() * (boundingBox.getMaxX - boundingBox.getMinX) + boundingBox.getMinX
     val y = random.nextDouble() * (boundingBox.getMaxY - boundingBox.getMinY) + boundingBox.getMinY
@@ -114,7 +138,7 @@ object ParkingStall {
   )
 
   /**
-    * @param locationUTM
+    * @param locationUTM Location
     * @return
     */
   def defaultFastChargingStall(locationUTM: Location): ParkingStall = ParkingStall(

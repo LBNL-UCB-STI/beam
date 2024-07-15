@@ -6,6 +6,7 @@ import javax.inject.Inject
 import org.matsim.api.core.v01.network.{Link, Network}
 
 import scala.collection.JavaConverters._
+import scala.language.existentials
 
 trait NetworkHelper {
   def allLinks: Array[Link]
@@ -39,9 +40,7 @@ class NetworkHelperImpl @Inject() (network: Network) extends NetworkHelper with 
     val allLinks = network.getLinks
       .values()
       .asScala
-      .map { link =>
-        (link.getId.toString.toInt, link.asInstanceOf[Link])
-      }
+      .map(link => (link.getId.toString.toInt, link))
       .toArray
     val (maxLinkId, _) = allLinks.maxBy { case (linkId, _) => linkId }
     logger.info(s"Total number of links is ${allLinks.length} and MaxLinkId is $maxLinkId.")

@@ -7,11 +7,13 @@ import beam.agentsim.agents.vehicles.BeamVehicle
 import beam.agentsim.events.LeavingParkingEvent
 import beam.agentsim.infrastructure.parking.ParkingNetwork
 import beam.sim.{BeamScenario, BeamServices}
+import beam.utils.NetworkHelper
 import beam.utils.logging.LoggingMessageActor
 import beam.utils.metrics.SimpleCounter
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.Id
 import org.matsim.core.api.experimental.events.EventsManager
+import org.matsim.core.network.NetworkUtils
 
 import scala.concurrent.duration._
 
@@ -56,7 +58,7 @@ object ParkingNetworkManager extends LazyLogging {
     Props(new ParkingNetworkManager(services, parkingNetworkMap))
   }
 
-  def calculateScore(
+  private def calculateScore(
     cost: Double,
     energyCharge: Double
   ): Double = -cost - energyCharge
@@ -68,6 +70,7 @@ object ParkingNetworkManager extends LazyLogging {
     driver: Id[_],
     parkingManager: ActorRef,
     eventsManager: EventsManager,
+    networkHelper: NetworkHelper,
     beamScenario: BeamScenario
   ): Unit = {
     val stallForLeavingParkingEventMaybe = currentBeamVehicle.stall match {
@@ -82,19 +85,29 @@ object ParkingNetworkManager extends LazyLogging {
         None
     }
     stallForLeavingParkingEventMaybe.foreach { stall =>
+      val parkingDuration = tick - stall.getParkingArrivalTime
       val vehicleActivityData = BeamVehicle.collectVehicleActivityData(
-        currentLeg,
+        Right(stall.link.getOrElse(NetworkUtils.getNearestLink(beamScenario.network, stall.locationUTM))),
         currentBeamVehicle.beamVehicleType,
-        payloadInKg,
+        None,
+        Some(if (parkingDuration < 0) 0.0 else parkingDuration),
         networkHelper,
-        beamScenario
+        beamScenario.vehicleEnergy,
+        beamScenario.tazTreeMap
       )
       val emissionsProfile =
         currentBeamVehicle.emitEmissions(vehicleActivityData, beamScenario, classOf[LeavingParkingEvent])
       val energyCharge: Double = energyChargedMaybe.getOrElse(0.0)
       val score = calculateScore(stall.costInDollars, energyCharge)
       eventsManager.processEvent(
-        LeavingParkingEvent(tick, stall, score, driver.toString, currentBeamVehicle.id, emissionsProfile)
+        LeavingParkingEvent(
+          tick,
+          stall,
+          score,
+          driver.toString,
+          currentBeamVehicle.id,
+          emissionsProfile
+        )
       )
     }
   }

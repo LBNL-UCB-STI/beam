@@ -17,6 +17,7 @@ case class LeavingParkingEvent(
   driverId: String,
   vehicleId: Id[Vehicle],
   tazId: Id[TAZ],
+  parkingDuration: Double,
   score: Double,
   parkingType: ParkingType,
   pricingModel: Option[PricingModel],
@@ -38,7 +39,7 @@ case class LeavingParkingEvent(
     attr.put(ATTRIBUTE_CHARGING_TYPE, optionalToString(ChargingPointType))
     attr.put(ATTRIBUTE_PARKING_TAZ, tazId.toString)
     attr.put(EMISSIONS_PROFILE, beam.utils.BeamVehicleUtils.buildEmissionsString(emissionsProfile))
-
+    attr.put(PARKING_DURATION, parkingDuration.toString)
     attr
   }
 }
@@ -62,6 +63,7 @@ object LeavingParkingEvent {
   val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
   val ATTRIBUTE_DRIVER_ID: String = "driver"
   val EMISSIONS_PROFILE: String = "emissions"
+  val PARKING_DURATION: String = "duration"
 
   def apply(
     time: Double,
@@ -70,18 +72,21 @@ object LeavingParkingEvent {
     driverId: String,
     vehId: Id[Vehicle],
     emissionsProfile: EmissionsProfile
-  ): LeavingParkingEvent =
+  ): LeavingParkingEvent = {
+    stall.setParkingDepartureTime(time)
     new LeavingParkingEvent(
       time,
       driverId,
       vehId,
       stall.tazId,
+      stall.getParkingDuration,
       score,
       stall.parkingType,
       stall.pricingModel,
       stall.chargingPointType,
       emissionsProfile
     )
+  }
 
   def apply(genericEvent: Event): LeavingParkingEvent = {
     assert(genericEvent.getEventType == EVENT_TYPE)
@@ -98,11 +103,13 @@ object LeavingParkingEvent {
     val chargingPointType: Option[ChargingPointType] = attr.get(ATTRIBUTE_CHARGING_TYPE).flatMap(ChargingPointType(_))
     val emissionsProfile: EmissionsProfile =
       attr.get(EMISSIONS_PROFILE).flatMap(beam.utils.BeamVehicleUtils.parseEmissionsString(_)).toMap
+    val duration: Double = attr(PARKING_DURATION).toDouble
     LeavingParkingEvent(
       time,
       personId,
       vehicleId,
       tazId,
+      duration,
       score,
       parkingType,
       pricingModel,

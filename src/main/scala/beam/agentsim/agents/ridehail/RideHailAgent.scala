@@ -836,7 +836,6 @@ class RideHailAgent(
       }
       isOnWayToParkAtStall match {
         case Some(stall) =>
-          currentBeamVehicle.useParkingStall(stall)
           if (debugEnabled) outgoingMessages += ev
           parkAndStartRefueling(stall, data)
           isOnWayToParkAtStall = None
@@ -1107,11 +1106,12 @@ class RideHailAgent(
       id,
       parkingManager,
       eventsManager,
+      networkHelper,
       beamScenario
     )
   }
 
-  def parkAndStartRefueling(stall: ParkingStall, data: RideHailAgentData): Unit = {
+  private def parkAndStartRefueling(stall: ParkingStall, data: RideHailAgentData): Unit = {
     val (tick, triggerId) = releaseTickAndTriggerId()
     eventsManager.processEvent(
       ParkingEvent(tick, stall, geo.utm2Wgs(stall.locationUTM), currentBeamVehicle.id, id.toString)
