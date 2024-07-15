@@ -66,11 +66,10 @@ class BeamVehicle(
 
   private val emissionsRWLock = new ReentrantReadWriteLock()
 
-  private val emissionsProfileInGramsPerMileInternal: EmissionsProfile.EmissionsProfile =
-    EmissionsProfile.init()
+  private val emissionsProfileInGramInternal: EmissionsProfile.EmissionsProfile = EmissionsProfile.init()
 
-  private def emissionsProfileInGramsPerMile: EmissionsProfile.EmissionsProfile = emissionsRWLock.read {
-    emissionsProfileInGramsPerMileInternal
+  private def emissionsProfileInGram: EmissionsProfile.EmissionsProfile = emissionsRWLock.read {
+    emissionsProfileInGramInternal
   }
 
   private val mustBeDrivenHomeInternal: AtomicBoolean = new AtomicBoolean(false)
@@ -291,27 +290,20 @@ class BeamVehicle(
     vehicleActivityData: IndexedSeq[VehicleActivityData],
     beamScenario: BeamScenario,
     vehicleActivity: Class[E]
-  ): EmissionsProfile.EmissionsProfile = {
+  ): Option[EmissionsProfile.EmissionsProfile] = {
     import EmissionsProcesses._
-    val embedEmissionsProfilesInEvents = beamScenario.beamConfig.beam.outputs.events.embedEmissionsProfiles
-    val vehicleEmissionsMappingExistsFor =
-      beamScenario.vehicleEmission.vehicleEmissionsMappingExistsFor(beamVehicleType)
-    if (embedEmissionsProfilesInEvents && !vehicleEmissionsMappingExistsFor) {
-      EmissionsProfile.init()
-    } else {
-      beamScenario.vehicleEmission.getEmissionsProfilesInGramsPerMile(
-        vehicleActivityData,
-        Map[Class[_ <: org.matsim.api.core.v01.events.Event], List[EmissionsProcess]](
-          classOf[LeavingParkingEvent] -> List(IDLEX, STREX, DIURN, HOTSOAK, RUNLOSS),
-          classOf[PathTraversalEvent]  -> List(RUNEX, PMBW, PMTW, RUNLOSS)
-        ).getOrElse(vehicleActivity, List.empty),
-        fallBack = beamVehicleType.emissionsRatesInGramsPerMile
-      )
-    }
-  }
-
-  def addEmissions(source: EmissionsProcesses.EmissionsProcess, rates: Emissions): Unit = {
-    emissionsRWLock.write(emissionsProfileInGramsPerMileInternal.get(source).map(_ + rates))
+    val emissions = beamScenario.vehicleEmission.getEmissionsProfilesInGramsPerMile(
+      vehicleActivityData,
+      Map[Class[_ <: org.matsim.api.core.v01.events.Event], List[EmissionsProcess]](
+        classOf[LeavingParkingEvent] -> List(IDLEX, STREX, DIURN, HOTSOAK, RUNLOSS),
+        classOf[PathTraversalEvent]  -> List(RUNEX, PMBW, PMTW, RUNLOSS)
+      ).getOrElse(vehicleActivity, List.empty),
+      fallBack = beamVehicleType.emissionsRatesInGramsPerMile
+    )
+    emissionsRWLock.write(emissions.map(_.foreach { case (source, rates) =>
+      emissionsProfileInGramInternal.get(source).map(_ + rates)
+    }))
+    emissions
   }
 
   /**

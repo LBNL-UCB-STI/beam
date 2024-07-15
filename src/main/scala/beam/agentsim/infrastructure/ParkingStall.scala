@@ -24,29 +24,14 @@ case class ParkingStall(
   reservedFor: ReservedFor,
   link: Option[Link] = None
 ) {
-  private var parkingArrivalTime: Double = 0.0
-  private var parkingDepartureTime: Double = 0.0
+  private var parkingTime: Double = 0.0
 
-  // Method to set parking arrival time
-  def setParkingArrivalTime(arrivalTime: Double): Unit = {
-    parkingArrivalTime = arrivalTime
+  // To set parking arrival time
+  def setParkingTime(arrivalTime: Double): Unit = {
+    parkingTime = arrivalTime
   }
 
-  def getParkingArrivalTime: Double = parkingArrivalTime
-
-  // Method to set parking departure time
-  def setParkingDepartureTime(departureTime: Double): Unit = {
-    parkingDepartureTime = departureTime
-  }
-
-  // Method to calculate parking duration
-  def getParkingDuration: Double = {
-    if (parkingDepartureTime >= parkingArrivalTime) {
-      parkingDepartureTime - parkingArrivalTime
-    } else {
-      0.0 // Return 0 if departure time is before arrival time
-    }
-  }
+  def getParkingTime: Double = parkingTime
 }
 
 object ParkingStall {

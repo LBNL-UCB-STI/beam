@@ -10,22 +10,6 @@ import org.matsim.vehicles.Vehicle
 
 object RideHailReservationConfirmationEvent {
   val EVENT_TYPE: String = "RideHailReservationConfirmation"
-  val ATTRIBUTE_PERSON = "person"
-  val ATTRIBUTE_VEHICLE = "vehicle"
-  val ATTRIBUTE_RESERVATION_TYPE: String = "reservationType"
-  val ATTRIBUTE_RESERVATION_ERROR_CODE: String = "errorCode"
-  val ATTRIBUTE_RESERVATION_TIME: String = "reservationTime"
-  val ATTRIBUTE_REQUESTED_PICKUP_TIME: String = "requestedPickupTime"
-  val ATTRIBUTE_QUOTED_WAIT_TIME: String = "quotedWaitTimeInS"
-  val ATTRIBUTE_PICKUP_LOCATION_X: String = "startX"
-  val ATTRIBUTE_PICKUP_LOCATION_Y: String = "startY"
-  val ATTRIBUTE_DROPOFF_LOCATION_X: String = "endX"
-  val ATTRIBUTE_DROPOFF_LOCATION_Y: String = "endY"
-  val ATTRIBUTE_OFFERED_PICKUP_TIME: String = "offeredPickupTime"
-  val ATTRIBUTE_DIRECT_ROUTE_DISTANCE: String = "directRouteDistanceInM"
-  val ATTRIBUTE_DIRECT_ROUTE_TIME: String = "directRouteDurationInS"
-  val ATTRIBUTE_ESTIMATED_PRICE: String = "cost"
-  val ATTRIBUTE_WHEELCHAIR_REQUIREMENT: String = "wheelchairRequirement"
 
   def typeWhenPooledIs(isPooled: Boolean): RideHailReservationType = {
     if (isPooled) {
@@ -64,6 +48,7 @@ class RideHailReservationConfirmationEvent(
 ) extends Event(time)
     with ScalaEvent {
   import RideHailReservationConfirmationEvent._
+  import ScalaEvent._
 
   override def getEventType: String = EVENT_TYPE
 
@@ -76,14 +61,14 @@ class RideHailReservationConfirmationEvent(
     attributes.put(ATTRIBUTE_RESERVATION_TIME, reservationTime.toString)
     attributes.put(ATTRIBUTE_REQUESTED_PICKUP_TIME, requestedPickUpTime.toString)
     attributes.put(ATTRIBUTE_QUOTED_WAIT_TIME, quotedWaitTimeOpt.map(_.toString).getOrElse(""))
-    attributes.put(ATTRIBUTE_PICKUP_LOCATION_X, pickUpLocationWgs.getX.toString)
-    attributes.put(ATTRIBUTE_PICKUP_LOCATION_Y, pickUpLocationWgs.getY.toString)
-    attributes.put(ATTRIBUTE_DROPOFF_LOCATION_X, dropOffLocationWgs.getX.toString)
-    attributes.put(ATTRIBUTE_DROPOFF_LOCATION_Y, dropOffLocationWgs.getY.toString)
+    attributes.put(ATTRIBUTE_LOCATION_X, pickUpLocationWgs.getX.toString)
+    attributes.put(ATTRIBUTE_LOCATION_Y, pickUpLocationWgs.getY.toString)
+    attributes.put(ATTRIBUTE_LOCATION_END_X, dropOffLocationWgs.getX.toString)
+    attributes.put(ATTRIBUTE_LOCATION_END_Y, dropOffLocationWgs.getY.toString)
     attributes.put(ATTRIBUTE_OFFERED_PICKUP_TIME, offeredPickUpTimeOpt.map(_.toString).getOrElse(""))
     attributes.put(ATTRIBUTE_DIRECT_ROUTE_DISTANCE, directRouteDistanceInMOpt.map(_.toString).getOrElse(""))
     attributes.put(ATTRIBUTE_DIRECT_ROUTE_TIME, directRouteDurationInSOpt.map(_.toString).getOrElse(""))
-    attributes.put(ATTRIBUTE_ESTIMATED_PRICE, estimatedPrice.map(_.toString).getOrElse(""))
+    attributes.put(ATTRIBUTE_COST, estimatedPrice.map(_.toString).getOrElse(""))
     attributes.put(ATTRIBUTE_WHEELCHAIR_REQUIREMENT, wheelchairRequirement.toString)
     attributes
   }

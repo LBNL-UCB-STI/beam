@@ -1,6 +1,6 @@
 package beam.agentsim.agents.ridehail
 
-import beam.agentsim.events.PathTraversalEvent
+import beam.agentsim.events.{PathTraversalEvent, ScalaEvent}
 import com.typesafe.scalalogging.LazyLogging
 import org.matsim.api.core.v01.events._
 import org.matsim.core.api.experimental.events.EventsManager
@@ -28,7 +28,7 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
           rideHailEvents += event
 
       case PathTraversalEvent.EVENT_TYPE =>
-        val vehicle = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+        val vehicle = event.getAttributes.get(ScalaEvent.ATTRIBUTE_VEHICLE)
         if (vehicle.contains("rideHail"))
           rideHailEvents += event
 
@@ -73,10 +73,10 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
           vehicleEvents.put(vehicle, events)
 
         case PathTraversalEvent.EVENT_TYPE if vehicleEvents.nonEmpty =>
-          val vehicle = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
-          val numPassengers = event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
+          val vehicle = event.getAttributes.get(ScalaEvent.ATTRIBUTE_VEHICLE)
+          val numPassengers = event.getAttributes.get(ScalaEvent.ATTRIBUTE_NUM_PASS).toInt
           val departure =
-            event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
+            event.getAttributes.get(ScalaEvent.ATTRIBUTE_DEPARTURE_TIME).toLong
 
           vehicleEvents.get(vehicle) match {
             // if person enters ride hail vehicle then number of passengers > 0 in ride hail vehicle
@@ -133,10 +133,10 @@ class RideHailDebugEventHandler(eventsManager: EventsManager) extends BasicEvent
 
   private def compareEvents(e1: Event, e2: Event): Int = {
     val t1 = e1.getAttributes
-      .getOrDefault(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME, s"${e1.getTime}")
+      .getOrDefault(ScalaEvent.ATTRIBUTE_DEPARTURE_TIME, s"${e1.getTime}")
       .toDouble
     val t2 = e2.getAttributes
-      .getOrDefault(PathTraversalEvent.ATTRIBUTE_DEPARTURE_TIME, s"${e2.getTime}")
+      .getOrDefault(ScalaEvent.ATTRIBUTE_DEPARTURE_TIME, s"${e2.getTime}")
       .toDouble
 
     if (t1.equals(t2))

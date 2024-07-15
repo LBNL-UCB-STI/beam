@@ -85,7 +85,7 @@ object ParkingNetworkManager extends LazyLogging {
         None
     }
     stallForLeavingParkingEventMaybe.foreach { stall =>
-      val parkingDuration = tick - stall.getParkingArrivalTime
+      val parkingDuration = tick - stall.getParkingTime
       val vehicleActivityData = BeamVehicle.collectVehicleActivityData(
         Right(stall.link.getOrElse(NetworkUtils.getNearestLink(beamScenario.network, stall.locationUTM))),
         currentBeamVehicle.beamVehicleType,

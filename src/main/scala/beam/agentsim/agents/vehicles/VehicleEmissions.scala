@@ -12,9 +12,10 @@ import org.slf4j.LoggerFactory
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
-class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore, beamConfig: BeamConfig) {
+class VehicleEmissions(emissionsRateFilterStore: EmissionsRateFilterStore, beamConfig: BeamConfig) {
   import VehicleEmissions._
   import EmissionsProcesses._
   import EmissionsProfile._
@@ -22,79 +23,41 @@ class VehicleEmissions(emissionRateFilterStore: EmissionsRateFilterStore, beamCo
   settings.setHeaderExtractionEnabled(true)
   settings.detectFormatAutomatically()
   private val csvParser = new CsvParser(settings)
+  private val embedEmissionsProfiles = beamConfig.beam.outputs.events.embedEmissionsProfiles
 
   private lazy val linkIdToGradePercentMap = BeamVehicleUtils.loadLinkIdToGradeMapFromCSV(csvParser, beamConfig)
-
-  def vehicleEmissionsMappingExistsFor(vehicleType: BeamVehicleType): Boolean =
-    emissionRateFilterStore.hasEmissionsRateFilterFor(vehicleType)
 
   def getEmissionsProfilesInGramsPerMile(
     vehicleActivityData: IndexedSeq[BeamVehicle.VehicleActivityData],
     sources: List[EmissionsProcess],
-    fallBack: EmissionsProfile
-  ): EmissionsProfile = {
-    if (vehicleActivityData.isEmpty) EmissionsProfile.init()
-    else
-      sources
-        .flatMap(source =>
-          vehicleActivityData.map(data => source -> calculationMap(source)(getRatesUsing(data, source, fallBack), data))
-        )
-        .toMap
+    fallBack: Option[EmissionsProfile]
+  ): Option[EmissionsProfile] = {
+    if (!embedEmissionsProfiles) return None
+    val emissionsProfiles = for {
+      source                    <- sources
+      data                      <- vehicleActivityData
+      emissionsRateFilterFuture <- emissionsRateFilterStore.getEmissionsRateFilterFor(data.vehicleType)
+      emissionRateFilter = Await.result(emissionsRateFilterFuture, 1.minute)
+      rates <- getRatesUsing(emissionRateFilter, data, source).orElse(fallBack.flatMap(_.get(source)))
+    } yield source -> calculationMap(source)(rates, data)
+    if (emissionsProfiles.isEmpty) None else Some(emissionsProfiles.toMap)
   }
 
   private def getRatesUsing(
-    fuelConsumptionData: BeamVehicle.VehicleActivityData,
-    source: EmissionsProcesses.EmissionsProcess,
-    fallBack: EmissionsProfile.EmissionsProfile
-  ): Emissions = {
-    if (!vehicleEmissionsMappingExistsFor(fuelConsumptionData.vehicleType)) {
-      fallBack.getOrElse(source, Emissions.init())
-    } else {
-      val BeamVehicle.VehicleActivityData(
-        linkId,
-        vehicleType,
-        payloadKgOption,
-        _,
-        _,
-        speedInMetersPerSecondOption,
-        tazId,
-        _,
-        _
-      ) = fuelConsumptionData
-      val speedInMilesPerHour: Double = speedInMetersPerSecondOption
-        .map(BeamVehicleUtils.convertFromMetersPerSecondToMilesPerHour)
-        .getOrElse(0)
-      val weightKg: Double = fuelConsumptionData.vehicleType.curbWeightInKg + payloadKgOption.getOrElse(0.0)
-      val gradePercent: Double = linkIdToGradePercentMap.getOrElse(linkId, 0)
-      val zone = tazId.getOrElse("")
-      emissionRateFilterStore
-        .getEmissionsRateFilterFor(vehicleType)
-        .flatMap(emissionRateFilterFuture =>
-          getRatesUsing(emissionRateFilterFuture, speedInMilesPerHour, weightKg, gradePercent, zone, source)
-        )
-        .getOrElse(fallBack.getOrElse(source, Emissions.init()))
-    }
-  }
-
-  private def getRatesUsing(
-    emissionRateFilterFuture: Future[EmissionsRateFilterStore.EmissionsRateFilter],
-    speedInMilesPerHour: Double,
-    weightKg: Double,
-    gradePercent: Double,
-    zone: String,
+    emissionRateFilter: EmissionsRateFilterStore.EmissionsRateFilter,
+    data: BeamVehicle.VehicleActivityData,
     source: EmissionsProcesses.EmissionsProcess
   ): Option[Emissions] = {
-    //1.)Future performance improvement could be to better index the bins so could fuzzily jump straight to it
-    //instead of having to iterate
-    //2.)Could keep the future in the calling method if you use
-    //Future.sequence and Option.option2Iterable followed by a flatMap(_.headOption),
-    //but that gets complicated and these SHOULD already be loaded by the time they are needed.
-    //If that changes then go ahead and map through the collections
-    import scala.concurrent.duration._
-    val emissionRateFilter = Await.result(emissionRateFilterFuture, 1.minute)
+    val speedInMilesPerHour: Double = data.averageSpeed
+      .map(BeamVehicleUtils.convertFromMetersPerSecondToMilesPerHour)
+      .getOrElse(0)
+    val weightKg: Double = data.vehicleType.curbWeightInKg + data.payloadInKg.getOrElse(0.0)
+    val gradePercent: Double = linkIdToGradePercentMap.getOrElse(data.linkId, 0)
+    val zone = data.tazId.getOrElse("")
     for {
-      (_, gradeFilter) <- emissionRateFilter
-        .find { case (speedInMilesPerHourBin, _) => speedInMilesPerHourBin.has(speedInMilesPerHour) }
+      (_, gradeFilter) <- emissionRateFilter.find { case (speedInMilesPerHourBin, _) =>
+        speedInMilesPerHourBin.has(speedInMilesPerHour)
+      }
       (_, weightFilter)     <- gradeFilter.find { case (gradePercentBin, _) => gradePercentBin.has(gradePercent) }
       (_, geographicFilter) <- weightFilter.find { case (weightPercentBin, _) => weightPercentBin.has(weightKg) }
       (_, sourceFilter)     <- geographicFilter.find { case (geographicArea, _) => geographicArea == zone.trim.toLowerCase }
@@ -123,8 +86,6 @@ object VehicleEmissions {
     def getEmissionsRateFilterFor(
       vehicleType: BeamVehicleType
     ): Option[Future[EmissionsRateFilterStore.EmissionsRateFilter]]
-
-    def hasEmissionsRateFilterFor(vehicleType: BeamVehicleType): Boolean
   }
 
   object EmissionsProcesses extends Enumeration {
@@ -426,9 +387,6 @@ object VehicleEmissions {
       vehicleType: BeamVehicleType
     ): Option[Future[EmissionsRateFilterStore.EmissionsRateFilter]] = emissionRateFiltersByVehicleType.get(vehicleType)
 
-    override def hasEmissionsRateFilterFor(vehicleType: BeamVehicleType): Boolean =
-      emissionRateFiltersByVehicleType.keySet.contains(vehicleType)
-
     private def getVehicleEmissionsRecordsUsing(csvParser: CsvParser, filePath: String): Iterable[Record] = {
       csvParser.iterateRecords(IOUtils.getBufferedReader(filePath)).asScala
     }
@@ -549,16 +507,24 @@ object VehicleEmissions {
                             geographicZoneFilter += geographicZone -> mutable.Map(emissionSource -> ratesInGramsPerMile)
                         }
                       case None =>
-                        weightKgFilter += weightKgBin -> mutable.Map(geographicZone -> ratesInGramsPerMile)
+                        weightKgFilter += weightKgBin -> mutable.Map(
+                          geographicZone -> mutable.Map(emissionSource -> ratesInGramsPerMile)
+                        )
                     }
                   case None =>
                     gradePercentFilter += gradePercentBin -> mutable.Map(
-                      weightKgBin -> mutable.Map(geographicZone -> ratesInGramsPerMile)
+                      weightKgBin -> mutable.Map(
+                        geographicZone -> mutable.Map(emissionSource -> ratesInGramsPerMile)
+                      )
                     )
                 }
               case None =>
                 currentRateFilter += speedInMilesPerHourBin -> mutable.Map(
-                  gradePercentBin -> mutable.Map(weightKgBin -> mutable.Map(geographicZone -> ratesInGramsPerMile))
+                  gradePercentBin -> mutable.Map(
+                    weightKgBin -> mutable.Map(
+                      geographicZone -> mutable.Map(emissionSource -> ratesInGramsPerMile)
+                    )
+                  )
                 )
             }
           })

@@ -27,6 +27,7 @@ case class RefuelSessionEvent(
     with ScalaEvent {
 
   import RefuelSessionEvent._
+  import ScalaEvent._
 
   override def getPersonId: Id[Person] = Id.create(vehicleId, classOf[Person])
   override def getEventType: String = EVENT_TYPE
@@ -46,10 +47,10 @@ case class RefuelSessionEvent(
 
   override def getAttributes: util.Map[String, String] = {
     val attributes = super.getAttributes
-    attributes.put(ATTRIBUTE_ENERGY_DELIVERED, energyInJoules.toString)
-    attributes.put(ATTRIBUTE_SESSION_DURATION, sessionDuration.toString)
-    attributes.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
-    attributes.put(ATTRIBUTE_PRICE, stall.costInDollars.toString)
+    attributes.put(ATTRIBUTE_FUEL_DELIVERED, energyInJoules.toString)
+    attributes.put(ATTRIBUTE_DURATION, sessionDuration.toString)
+    attributes.put(ATTRIBUTE_VEHICLE, vehicleId.toString)
+    attributes.put(ATTRIBUTE_COST, stall.costInDollars.toString)
     attributes.put(ATTRIBUTE_PARKING_ZONE_ID, parkingZoneId.toString)
     attributes.put(ATTRIBUTE_LOCATION_X, stall.locationUTM.getX.toString)
     attributes.put(ATTRIBUTE_LOCATION_Y, stall.locationUTM.getY.toString)
@@ -67,21 +68,6 @@ case class RefuelSessionEvent(
 
 object RefuelSessionEvent {
   val EVENT_TYPE: String = "RefuelSessionEvent"
-  val ATTRIBUTE_SESSION_DURATION: String = "duration"
-  val ATTRIBUTE_ENERGY_DELIVERED: String = "fuel"
-  val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
-  val ATTRIBUTE_PRICE: String = "price"
-  val ATTRIBUTE_PARKING_ZONE_ID: String = "parkingZoneId"
-  val ATTRIBUTE_LOCATION_X: String = "locationX"
-  val ATTRIBUTE_LOCATION_Y: String = "locationY"
-  val ATTRIBUTE_PARKING_TYPE: String = "parkingType"
-  val ATTRIBUTE_PRICING_MODEL: String = "pricingModel"
-  val ATTRIBUTE_CHARGING_TYPE: String = "chargingPointType"
-  val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
-  val ATTRIBUTE_VEHICLE_TYPE: String = "vehicleType"
-  val ATTRIBUTE_SHIFT_STATUS: String = "shiftStatus"
-  val ATTRIBUTE_PERSON: String = "person"
-  val ATTRIBUTE_ACTTYPE: String = "actType"
 
   sealed trait ShiftStatus
   case object OnShift extends ShiftStatus

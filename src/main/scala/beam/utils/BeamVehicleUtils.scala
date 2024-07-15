@@ -118,9 +118,9 @@ object BeamVehicleUtils extends LazyLogging {
         val wheelchairAccessible = Option(line.get("wheelchairAccessible")).map(_.toBoolean)
         val restrictRoadsByFreeSpeed = Option(line.get("restrictRoadsByFreeSpeedInMeterPerSecond")).map(_.toDouble)
         val emissionsRatesInGramsPerMile =
-          Option(line.get("emissionsRatesInGramsPerMile"))
-            .map(parseEmissionsString(_, Some(vehicleTypeId.toString)))
-            .getOrElse(Map.empty)
+          Option(line.get("emissionsRatesInGramsPerMile")).flatMap(
+            parseEmissionsString(_, Some(vehicleTypeId.toString))
+          )
         val emissionsRatesFile = Option(line.get("emissionsRatesFile"))
 
         val bvt = BeamVehicleType(
@@ -255,45 +255,52 @@ object BeamVehicleUtils extends LazyLogging {
   }
 
   /**
-    * Function to parse the emissions string
-    * @param emissionsString from vehicle types
-    * @param vehicleTypeId vehicle type id
-    * @return
+    * Parses the emissions string and returns an EmissionsProfile.
+    *
+    * @param emissionsString String containing emissions data for vehicle types.
+    * @param vehicleTypeId Optional vehicle type id for logging purposes.
+    * @return An Option containing EmissionsProfile if parsing is successful, None otherwise.
     */
   def parseEmissionsString(
     emissionsString: String,
     vehicleTypeId: Option[String] = None
-  ): VehicleEmissions.EmissionsProfile.EmissionsProfile = {
+  ): Option[VehicleEmissions.EmissionsProfile.EmissionsProfile] = {
     import VehicleEmissions.Emissions._
     import scala.util.Try
 
+    // Regular expression pattern to match emission sources and their values.
     val sourcePattern = """(\w+)\(([^)]+)\)""".r
 
-    emissionsString
+    // Split the input string by ";" to handle multiple sources
+    val emissionsMap = emissionsString
       .split(";")
       .flatMap {
         case sourcePattern(source, emissions) =>
+          // Process each emission source
           val emissionMap = emissions
             .split(",")
             .flatMap { emission =>
               val parts = emission.split(":").map(_.trim)
-              if (parts.length == 2) {
-                Some((parts(0).toLowerCase, Try(parts(1).toDouble).getOrElse(0.0)))
-              } else if (parts.length == 1) {
-                Some((parts(0).toLowerCase, 0.0))
-              } else if (parts.length == 0) {
-                None
-              } else {
-                logger.error(
-                  s"Failure to process this emission source $source with emissions $emissions " +
-                  s"from emissionsRatesInGramsPerMile corresponding to vehicle types Id ${vehicleTypeId.getOrElse("NaN")} "
-                )
-                None
+              parts.length match {
+                case 2 =>
+                  // Valid emission entry with a value
+                  Some((parts(0).toLowerCase, Try(parts(1).toDouble).getOrElse(0.0)))
+                case 1 =>
+                  // Emission entry with a missing value, default to 0.0
+                  Some((parts(0).toLowerCase, 0.0))
+                case _ =>
+                  // Log error for invalid emission entry
+                  logger.error(
+                    s"Failed to process emission source $source with emissions $emissions " +
+                    s"from emissionsRatesInGramsPerMile for vehicle type Id ${vehicleTypeId.getOrElse("NaN")} "
+                  )
+                  None
               }
             }
             .toMap
 
-          val Emissions = VehicleEmissions.Emissions(
+          // Create Emissions object from the parsed data
+          val emissionsProfile = VehicleEmissions.Emissions(
             emissionMap.getOrElse(_CH4.toLowerCase, 0.0),
             emissionMap.getOrElse(_CO.toLowerCase, 0.0),
             emissionMap.getOrElse(_CO2.toLowerCase, 0.0),
@@ -308,11 +315,15 @@ object BeamVehicleUtils extends LazyLogging {
             emissionMap.getOrElse(_TOG.toLowerCase, 0.0)
           )
 
-          Some((VehicleEmissions.EmissionsProcesses.fromString(source), Emissions))
+          // Return the source and its corresponding Emissions object
+          Some((VehicleEmissions.EmissionsProcesses.fromString(source), emissionsProfile))
 
         case _ => None
       }
       .toMap
+
+    // Return EmissionsProfile if the map is non-empty
+    if (emissionsMap.nonEmpty) Some(emissionsMap) else None
   }
 
   /**

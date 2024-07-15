@@ -7,9 +7,6 @@ import org.matsim.api.core.v01.events.Event
 
 object FleetStoredElectricityEvent {
   val EVENT_TYPE: String = "FleetStoredElectricityEvent"
-  val ATTRIBUTE_FLEET_ID: String = "fleetId"
-  val ATTRIBUTE_STORED_ELECTRICITY_IN_JOULES: String = "storedElectricityInJoules"
-  val ATTRIBUTE_STORAGE_CAPACITY_IN_JOULES: String = "storageCapacityInJoules"
 }
 
 /**
@@ -28,6 +25,7 @@ class FleetStoredElectricityEvent(
     with ScalaEvent {
 
   import FleetStoredElectricityEvent._
+  import ScalaEvent._
 
   override def getEventType: String = EVENT_TYPE
 

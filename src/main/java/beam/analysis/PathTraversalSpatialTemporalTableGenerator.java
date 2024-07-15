@@ -2,7 +2,6 @@ package beam.analysis;
 
 import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
-import beam.sim.common.GeoUtils$;
 import beam.sim.common.GeoUtilsImpl;
 import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;
@@ -435,7 +434,7 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
         String links = attributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS());
         Integer numOfPassengers = Integer.parseInt(attributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS()));
         double lengthInMeters = Double.parseDouble(attributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH()));
-        String fuelString = attributes.get(PathTraversalEvent.ATTRIBUTE_PRIMARY_FUEL());
+        String fuelString = attributes.get(PathTraversalEvent.ATTRIBUTE_PRIMARY_FUEL_LEVEL());
 
         double fuel = Double.parseDouble(fuelString);
 
