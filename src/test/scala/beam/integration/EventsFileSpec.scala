@@ -1,8 +1,7 @@
 package beam.integration
 
-import java.nio.charset.StandardCharsets
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.events.PathTraversalEvent
+import beam.agentsim.events.ScalaEvent
 import beam.analysis.plots.TollRevenueAnalysis
 import beam.router.Modes.BeamMode.{BIKE, CAR}
 import beam.sim.BeamHelper
@@ -18,10 +17,11 @@ import org.matsim.core.population.io.PopulationReader
 import org.matsim.core.population.routes.NetworkRoute
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.households.Household
+import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.BeforeAndAfterAll
 
+import java.nio.charset.StandardCharsets
 import scala.collection.JavaConverters._
 import scala.io.Source
 import scala.util.Try
@@ -98,7 +98,7 @@ class EventsFileSpec
     val pathTraversals = for {
       event <- fromXmlFile(getEventsFilePath(scenario.getConfig, "events", "xml").getAbsolutePath)
       if event.getEventType == "PathTraversal"
-      if event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE) == vehicleType
+      if event.getAttributes.get(ScalaEvent.ATTRIBUTE_VEHICLE_TYPE) == vehicleType
     } yield event
     val eventsByTrip =
       pathTraversals.groupBy(_.getAttributes.get("vehicle").split(":")(1).split("-").take(3).mkString("-"))
@@ -146,7 +146,7 @@ class EventsFileSpec
     val tollEvents = for {
       event <- fromXmlFile(getEventsFilePath(scenario.getConfig, "events", "xml").getAbsolutePath)
       if event.getEventType == "PathTraversal"
-      if event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_TOLL_PAID).toDouble != 0.0
+      if event.getAttributes.get(ScalaEvent.ATTRIBUTE_TOLL_PAID).toDouble != 0.0
     } yield event
     tollEvents should not be empty
   }

@@ -36,7 +36,8 @@ class SimpleRideHailUtilizationTest extends AnyFunSuite with Matchers {
     None,
     None,
     None,
-    riders = Vector()
+    riders = Vector(),
+    None
   )
 
   test("Should ignore non-ridehail vehicles") {

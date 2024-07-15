@@ -1,17 +1,17 @@
 package beam.integration
 
-import java.io.File
-import beam.agentsim.events.{LeavingParkingEvent, ModeChoiceEvent, ParkingEvent, PathTraversalEvent}
+import beam.agentsim.events._
 import beam.sim.BeamHelper
 import beam.utils.EventReader
 import com.typesafe.config.{ConfigFactory, ConfigValueFactory}
 import org.apache.commons.io.FileUtils
 import org.matsim.api.core.v01.events.Event
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
 import org.scalatest.tagobjects.Retryable
+import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.io.File
 import scala.collection.mutable.ArrayBuffer
 
 class ParkingSpec
@@ -115,7 +115,7 @@ class ParkingSpec
 
   val countForPathTraversalAndCarMode: Seq[Event] => Int = { events =>
     events.count { e =>
-      val mMode = Option(e.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE))
+      val mMode = Option(e.getAttributes.get(ScalaEvent.ATTRIBUTE_MODE))
       e.getEventType.equals(ModeChoiceEvent.EVENT_TYPE) && mMode.exists(_.equals("car"))
     }
   }
@@ -141,7 +141,7 @@ class ParkingSpec
           .filter(x => x.isInstanceOf[ParkingEvent] || x.isInstanceOf[LeavingParkingEvent])
           .filter(_.getTime > 0)
       val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) { case (c, ev) =>
-        val vehId = ev.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
+        val vehId = ev.getAttributes.get(ScalaEvent.ATTRIBUTE_VEHICLE)
         val array = c.getOrElse(vehId, ArrayBuffer[Event]())
         array.append(ev)
         c.updated(vehId, array)
@@ -162,10 +162,10 @@ class ParkingSpec
       res.collect { case (_, array) =>
         array.foreach { case (evA, evB) =>
           List(
-            ParkingEvent.ATTRIBUTE_PARKING_TAZ,
-            ParkingEvent.ATTRIBUTE_PARKING_TYPE,
-            ParkingEvent.ATTRIBUTE_PRICING_MODEL,
-            ParkingEvent.ATTRIBUTE_CHARGING_TYPE
+            ScalaEvent.ATTRIBUTE_PARKING_TAZ,
+            ScalaEvent.ATTRIBUTE_PARKING_TYPE,
+            ScalaEvent.ATTRIBUTE_PRICING_MODEL,
+            ScalaEvent.ATTRIBUTE_CHARGING_TYPE
           ).foreach { k =>
             evA.getAttributes.get(k) should equal(evB.getAttributes.get(k))
           }
@@ -183,7 +183,7 @@ class ParkingSpec
           .filter(_.getTime > 0)
 
       val groupedByVehicle = parkingEvents.foldLeft(Map[String, ArrayBuffer[Event]]()) { case (c, ev) =>
-        val vehId = ev.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
+        val vehId = ev.getAttributes.get(ScalaEvent.ATTRIBUTE_VEHICLE)
         val array = c.getOrElse(vehId, ArrayBuffer[Event]())
         array.append(ev)
         c.updated(vehId, array)
@@ -201,7 +201,7 @@ class ParkingSpec
       vehToParkLeavingEvents.foreach { case (currVehId, events) =>
         events.foreach { case (leavingParkEvent, parkEvent) =>
           val pathTraversalEventsInRange = pathTraversalEvents.filter { event =>
-            val vehId = event.getAttributes.get(ParkingEvent.ATTRIBUTE_VEHICLE_ID)
+            val vehId = event.getAttributes.get(ScalaEvent.ATTRIBUTE_VEHICLE)
             currVehId.equals(vehId) &&
             event.getTime >= leavingParkEvent.getTime &&
             event.getTime <= parkEvent.getTime

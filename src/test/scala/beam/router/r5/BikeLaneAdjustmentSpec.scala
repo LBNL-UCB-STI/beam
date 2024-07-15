@@ -3,7 +3,13 @@ package beam.router.r5
 import java.nio.file.Path
 import scala.util.Random
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
-import beam.agentsim.agents.vehicles.VehicleCategory.{Body, Car, HeavyHeavyDutyTruck, MediumHeavyDutyTruck, MediumDutyPassenger}
+import beam.agentsim.agents.vehicles.VehicleCategory.{
+  Body,
+  Car,
+  HeavyHeavyDutyTruck,
+  MediumDutyPassenger,
+  MediumHeavyDutyTruck
+}
 import beam.router.Modes.BeamMode
 import beam.sim.config.BeamConfig
 import beam.utils.{FixtureUtils, TestConfigUtils}

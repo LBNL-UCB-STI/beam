@@ -1,8 +1,6 @@
 package beam.agentsim.agents.ridehail
 
-import java.util.concurrent.atomic.AtomicInteger
-
-import beam.agentsim.events.PathTraversalEvent
+import beam.agentsim.events.{PathTraversalEvent, ScalaEvent}
 import beam.integration.IntegrationSpecCommon
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
@@ -15,9 +13,10 @@ import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.events.handler.BasicEventHandler
 import org.matsim.core.scenario.{MutableScenario, ScenarioUtils}
 import org.matsim.vehicles.Vehicle
-import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpecLike
 
+import java.util.concurrent.atomic.AtomicInteger
 import scala.collection.concurrent.TrieMap
 
 class RideHailPassengersEventsSpec extends AnyWordSpecLike with Matchers with BeamHelper with IntegrationSpecCommon {
@@ -32,9 +31,9 @@ class RideHailPassengersEventsSpec extends AnyWordSpecLike with Matchers with Be
         override def handleEvent(event: Event): Unit = {
           event match {
             case traversalEvent: PathTraversalEvent if traversalEvent.vehicleId.toString.startsWith("rideHail") =>
-              val id = traversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
+              val id = traversalEvent.getAttributes.get(ScalaEvent.ATTRIBUTE_VEHICLE)
               val numPass =
-                traversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
+                traversalEvent.getAttributes.get(ScalaEvent.ATTRIBUTE_NUM_PASS).toInt
               val v = events.getOrElse(id, Tuple3(0, 0, 0))
 
               events.put(id, v.copy(_3 = v._3 + numPass))

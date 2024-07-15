@@ -38,7 +38,7 @@ case class BeamScenario(
   privateVehicles: TrieMap[Id[BeamVehicle], BeamVehicle],
   privateVehicleInitialSoc: TrieMap[Id[BeamVehicle], Double],
   vehicleEnergy: VehicleEnergy,
-  vehicleEmission: VehicleEmissions,
+  vehicleEmissions: VehicleEmissions,
   beamConfig: BeamConfig,
   dates: DateUtils,
   ptFares: PtFares,

@@ -1,6 +1,6 @@
 package beam.physsim.jdeqsim;
 
-import beam.agentsim.events.PathTraversalEvent;
+import beam.agentsim.events.ScalaEvent;
 import beam.analysis.PathTraversalLib;
 import beam.sim.common.GeoUtils;
 import beam.utils.DebugLib;
@@ -27,10 +27,10 @@ public class AgentSimPhysSimInterfaceDebugger {
 
     private void exploreAdjacentLinkConnectivity(Event event) {
         Map<String, String> eventAttributes = event.getAttributes();
-        String mode_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE());
-        String links_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS());
-        String vehicleType = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE());
-        String vehicleId_ = eventAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID());
+        String mode_ = eventAttributes.get(ScalaEvent.ATTRIBUTE_MODE());
+        String links_ = eventAttributes.get(ScalaEvent.ATTRIBUTE_LINK_IDS());
+        String vehicleType = eventAttributes.get(ScalaEvent.ATTRIBUTE_VEHICLE_TYPE());
+        String vehicleId_ = eventAttributes.get(ScalaEvent.ATTRIBUTE_VEHICLE());
 
         if (mode_.equalsIgnoreCase("subway")) {
             DebugLib.emptyFunctionForSettingBreakPoint();

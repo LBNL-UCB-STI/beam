@@ -4,9 +4,9 @@ import beam.agentsim.agents.vehicles.FuelType.FuelType
 import beam.agentsim.agents.vehicles.VehicleEnergy._
 import beam.sim.common.{DoubleTypedRange, Range}
 import beam.utils.BeamVehicleUtils
-import beam.sim.config.BeamConfig
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
+import org.matsim.api.core.v01.Id
 import org.matsim.core.utils.io.IOUtils
 import org.slf4j.LoggerFactory
 
@@ -15,13 +15,27 @@ import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.{Await, Future}
 
-class VehicleEnergy(consumptionRateFilterStore: ConsumptionRateFilterStore, beamConfig: BeamConfig) {
+class VehicleEnergy(
+  vehicleTypesBasePaths: IndexedSeq[String],
+  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+  linkToGradePercentFilePath: String
+) {
   private val settings = new CsvParserSettings()
   settings.setHeaderExtractionEnabled(true)
   settings.detectFormatAutomatically()
   private val csvParser = new CsvParser(settings)
 
-  private lazy val linkIdToGradePercentMap = BeamVehicleUtils.loadLinkIdToGradeMapFromCSV(csvParser, beamConfig)
+  private val consumptionRateFilterStore =
+    new VehicleEnergy.ConsumptionRateFilterStore(
+      vehicleTypesBasePaths,
+      primaryConsumptionRateFilePathsByVehicleType =
+        vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
+      secondaryConsumptionRateFilePathsByVehicleType =
+        vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
+    )
+
+  private lazy val linkIdToGradePercentMap =
+    BeamVehicleUtils.loadLinkIdToGradeMapFromCSV(csvParser, linkToGradePercentFilePath)
   private val conversionRateForMilesPerHourFromMetersPerSecond = 2.23694
 
   def vehicleEnergyMappingExistsFor(vehicleType: BeamVehicleType): Boolean = {
@@ -124,24 +138,11 @@ object VehicleEnergy {
     type ConsumptionRateFilter = Map[DoubleTypedRange, Map[DoubleTypedRange, Map[DoubleTypedRange, Map[Range, Double]]]]
   }
 
-  trait ConsumptionRateFilterStore {
-
-    def getPrimaryConsumptionRateFilterFor(
-      vehicleType: BeamVehicleType
-    ): Option[Future[ConsumptionRateFilterStore.ConsumptionRateFilter]]
-
-    def getSecondaryConsumptionRateFilterFor(
-      vehicleType: BeamVehicleType
-    ): Option[Future[ConsumptionRateFilterStore.ConsumptionRateFilter]]
-    def hasPrimaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Boolean
-    def hasSecondaryConsumptionRateFilterFor(vehicleType: BeamVehicleType): Boolean
-  }
-
-  class ConsumptionRateFilterStoreImpl(
+  private class ConsumptionRateFilterStore(
     baseFilePaths: IndexedSeq[String],
     primaryConsumptionRateFilePathsByVehicleType: IndexedSeq[(BeamVehicleType, Option[String])],
     secondaryConsumptionRateFilePathsByVehicleType: IndexedSeq[(BeamVehicleType, Option[String])]
-  ) extends ConsumptionRateFilterStore {
+  ) {
     //Possible performance tweak: If memory becomes an issue then this can become a more on demand load
     //For now, and for load speed the best option seems to be to pre-load in a background thread
     private lazy val log = LoggerFactory.getLogger(this.getClass)

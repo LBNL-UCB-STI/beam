@@ -1,6 +1,6 @@
 package beam.agentsim.infrastructure.parking
 
-import beam.agentsim.agents.vehicles.VehicleCategory.{Car, MediumHeavyDutyTruck, MediumDutyPassenger}
+import beam.agentsim.agents.vehicles.VehicleCategory.{Car, MediumDutyPassenger, MediumHeavyDutyTruck}
 import beam.agentsim.agents.vehicles.{VehicleCategory, VehicleManager}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.parking.ParkingZoneFileUtilsSpec.PositiveTestData
@@ -53,7 +53,7 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
                     parkingZone.reservedFor should be(VehicleManager.AnyManager)
                     parkingZone.timeRestrictions should be(
                       Map(
-                        VehicleCategory.Car            -> Range(3600, 43200),
+                        VehicleCategory.Car                  -> Range(3600, 43200),
                         VehicleCategory.MediumHeavyDutyTruck -> Range(48600, 61200)
                       )
                     )
@@ -72,15 +72,15 @@ class ParkingZoneFileUtilsSpec extends AnyWordSpec with Matchers {
             result.totalRows should be(2)
             result.zones(Id.create("parkingZone1", classOf[ParkingZoneId])).timeRestrictions should be(
               Map(
-                MediumDutyPassenger -> (18600 until 27000),
-                MediumHeavyDutyTruck      -> (63000 until 86400),
-                Car                 -> (0 until 63000)
+                MediumDutyPassenger  -> (18600 until 27000),
+                MediumHeavyDutyTruck -> (63000 until 86400),
+                Car                  -> (0 until 63000)
               )
             )
             result.zones(Id.create("parkingZone2", classOf[ParkingZoneId])).timeRestrictions should be(
               Map(
                 MediumHeavyDutyTruck -> (63000 until 86400),
-                Car            -> (0 until 63000)
+                Car                  -> (0 until 63000)
               )
             )
             println(result.zones)

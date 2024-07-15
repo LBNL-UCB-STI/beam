@@ -2,6 +2,7 @@ package beam.analysis;
 
 import beam.agentsim.agents.vehicles.BeamVehicleType;
 import beam.agentsim.events.PathTraversalEvent;
+import beam.agentsim.events.ScalaEvent;
 import beam.sim.common.GeoUtilsImpl;
 import beam.sim.config.BeamConfig;
 import beam.utils.DebugLib;
@@ -428,13 +429,13 @@ public class PathTraversalSpatialTemporalTableGenerator implements BasicEventHan
             return; // not using data after 'MAX_TIME_IN_SECONDS'
         }
 
-        String vehicleType = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE());
-        String mode = attributes.get(PathTraversalEvent.ATTRIBUTE_MODE());
-        String vehicleId = attributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID());
-        String links = attributes.get(PathTraversalEvent.ATTRIBUTE_LINK_IDS());
-        Integer numOfPassengers = Integer.parseInt(attributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS()));
-        double lengthInMeters = Double.parseDouble(attributes.get(PathTraversalEvent.ATTRIBUTE_LENGTH()));
-        String fuelString = attributes.get(PathTraversalEvent.ATTRIBUTE_PRIMARY_FUEL_LEVEL());
+        String vehicleType = attributes.get(ScalaEvent.ATTRIBUTE_VEHICLE_TYPE());
+        String mode = attributes.get(ScalaEvent.ATTRIBUTE_MODE());
+        String vehicleId = attributes.get(ScalaEvent.ATTRIBUTE_VEHICLE());
+        String links = attributes.get(ScalaEvent.ATTRIBUTE_LINK_IDS());
+        Integer numOfPassengers = Integer.parseInt(attributes.get(ScalaEvent.ATTRIBUTE_NUM_PASS()));
+        double lengthInMeters = Double.parseDouble(attributes.get(ScalaEvent.ATTRIBUTE_LENGTH()));
+        String fuelString = attributes.get(ScalaEvent.ATTRIBUTE_PRIMARY_FUEL_LEVEL());
 
         double fuel = Double.parseDouble(fuelString);
 

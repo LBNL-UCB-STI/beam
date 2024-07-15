@@ -266,25 +266,22 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
 
   def loadScenario(beamConfig: BeamConfig, outputDirMaybe: Option[String] = None): BeamScenario = {
     val vehicleTypes = maybeScaleTransit(beamConfig, readBeamVehicleTypeFile(beamConfig))
-    val vehicleCsvReader = new VehicleEnergy.VehicleCsvReader(beamConfig)
     // TODO This needs to change. We always assume that vehicle fuel consumption are in the same folder ass vehicleTypes
     val vehicleTypesBasePaths = IndexedSeq(
       Paths.get(beamConfig.beam.agentsim.agents.vehicles.vehicleTypesFilePath).getParent.toString
     )
 
-    val consumptionRateFilterStore =
-      new VehicleEnergy.ConsumptionRateFilterStoreImpl(
-        vehicleTypesBasePaths,
-        primaryConsumptionRateFilePathsByVehicleType =
-          vehicleTypes.values.map(x => (x, x.primaryVehicleEnergyFile)).toIndexedSeq,
-        secondaryConsumptionRateFilePathsByVehicleType =
-          vehicleTypes.values.map(x => (x, x.secondaryVehicleEnergyFile)).toIndexedSeq
-      )
-
-    new VehicleEmissions.Ve
-    val emissionsRateFilterStore = new VehicleEmissions.EmissionsRateFilterStoreImpl(
+    val vehicleEnergy = new VehicleEnergy(
       vehicleTypesBasePaths,
-      emissionsRateFilePathsByVehicleType = vehicleTypes.values.map(x => (x, x.vehicleEmissionsFile)).toIndexedSeq
+      vehicleTypes,
+      beamConfig.beam.agentsim.agents.vehicles.linkToGradePercentFilePath
+    )
+
+    val vehicleEmissions = new VehicleEmissions(
+      vehicleTypesBasePaths,
+      vehicleTypes,
+      beamConfig.beam.agentsim.agents.vehicles.linkToGradePercentFilePath,
+      beamConfig.beam.outputs.events.embedEmissionsProfiles
     )
 
     val dates = DateUtils(
@@ -334,8 +331,8 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       vehicleTypes,
       privateVehicleMap ++ freightCarriers.flatMap(_.fleet),
       privateVehicleSoc,
-      new VehicleEnergy(consumptionRateFilterStore, beamConfig),
-      new VehicleEmissions(emissionsRateFilterStore, beamConfig),
+      vehicleEnergy,
+      vehicleEmissions,
       beamConfig,
       dates,
       PtFares(beamConfig.beam.agentsim.agents.ptFare.filePath),

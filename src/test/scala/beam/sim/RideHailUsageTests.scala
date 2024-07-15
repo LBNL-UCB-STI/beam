@@ -1,6 +1,6 @@
 package beam.sim
 
-import beam.agentsim.events.{ModeChoiceEvent, PathTraversalEvent, RefuelSessionEvent, ReplanningEvent}
+import beam.agentsim.events._
 import beam.integration.IntegrationSpecCommon
 import beam.utils.EventReader.{fromXmlFile, getEventsFilePath}
 import beam.utils.TestConfigUtils.testConfig
@@ -50,7 +50,7 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper with 
       RefuelSessionEvent.EVENT_TYPE.equals(e.getEventType) && e.getAttributes.get("vehicle").contains("-L5")
     )
     refuelSessionEvents.size should be > 20 withClue ", expecting about 21 charging events"
-    refuelSessionEvents.map(e => e.getAttributes.get(RefuelSessionEvent.ATTRIBUTE_VEHICLE_TYPE)) should contain(
+    refuelSessionEvents.map(e => e.getAttributes.get(ScalaEvent.ATTRIBUTE_VEHICLE_TYPE)) should contain(
       automatedRideHailVehicleType
     ) withClue f", expecting $automatedRideHailVehicleType to charge"
 

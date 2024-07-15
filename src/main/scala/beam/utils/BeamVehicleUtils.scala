@@ -215,19 +215,18 @@ object BeamVehicleUtils extends LazyLogging {
   /**
     * loadLinkIdToGradeMapFromCSV
     * @param csvParser CSV File parser
-    * @param beamConfig BEAM config
+    * @param linkToGradePercentFilePath link grades percent file
     * @return
     */
-  def loadLinkIdToGradeMapFromCSV(csvParser: CsvParser, beamConfig: BeamConfig): Map[Int, Double] = {
+  def loadLinkIdToGradeMapFromCSV(csvParser: CsvParser, linkToGradePercentFilePath: String): Map[Int, Double] = {
     import scala.collection.JavaConverters._
     val linkIdHeader = "id"
     val gradeHeader = "average_gradient_percent"
-    val filePath = beamConfig.beam.agentsim.agents.vehicles.linkToGradePercentFilePath
-    val records: Iterable[Record] = filePath match {
+    val records: Iterable[Record] = linkToGradePercentFilePath match {
       case "" =>
         List[Record]()
       case _ =>
-        csvParser.iterateRecords(IOUtils.getBufferedReader(filePath)).asScala
+        csvParser.iterateRecords(IOUtils.getBufferedReader(linkToGradePercentFilePath)).asScala
     }
     records
       .map(csvRecord => {

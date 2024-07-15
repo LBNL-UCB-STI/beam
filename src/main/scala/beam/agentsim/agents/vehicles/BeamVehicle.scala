@@ -7,7 +7,7 @@ import beam.agentsim.agents.vehicles.FuelType.{Electricity, Gasoline}
 import beam.agentsim.agents.vehicles.VehicleCategory._
 import beam.agentsim.agents.vehicles.VehicleEmissions._
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
-import beam.agentsim.events.{LeavingParkingEvent, PathTraversalEvent, SpaceTime}
+import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import beam.agentsim.infrastructure.taz.TAZTreeMap
@@ -291,15 +291,8 @@ class BeamVehicle(
     beamScenario: BeamScenario,
     vehicleActivity: Class[E]
   ): Option[EmissionsProfile.EmissionsProfile] = {
-    import EmissionsProcesses._
-    val emissions = beamScenario.vehicleEmission.getEmissionsProfilesInGramsPerMile(
-      vehicleActivityData,
-      Map[Class[_ <: org.matsim.api.core.v01.events.Event], List[EmissionsProcess]](
-        classOf[LeavingParkingEvent] -> List(IDLEX, STREX, DIURN, HOTSOAK, RUNLOSS),
-        classOf[PathTraversalEvent]  -> List(RUNEX, PMBW, PMTW, RUNLOSS)
-      ).getOrElse(vehicleActivity, List.empty),
-      fallBack = beamVehicleType.emissionsRatesInGramsPerMile
-    )
+    val emissions =
+      beamScenario.vehicleEmissions.getEmissionsProfileInGram(vehicleActivityData, vehicleActivity, beamVehicleType)
     emissionsRWLock.write(emissions.map(_.foreach { case (source, rates) =>
       emissionsProfileInGramInternal.get(source).map(_ + rates)
     }))

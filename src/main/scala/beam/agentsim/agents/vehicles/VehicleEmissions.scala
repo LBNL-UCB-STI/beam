@@ -1,9 +1,8 @@
 package beam.agentsim.agents.vehicles
 
-import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsRateFilterStore
+import beam.agentsim.events.{LeavingParkingEvent, PathTraversalEvent}
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.sim.common.DoubleTypedRange
-import beam.sim.config.BeamConfig
 import beam.utils.BeamVehicleUtils
 import com.univocity.parsers.common.record.Record
 import com.univocity.parsers.csv.{CsvParser, CsvParserSettings}
@@ -17,7 +16,12 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 
-class VehicleEmissions(emissionsRateFilterStore: EmissionsRateFilterStore, beamConfig: BeamConfig) {
+class VehicleEmissions(
+  vehicleTypesBasePaths: IndexedSeq[String],
+  vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
+  linkToGradePercentFilePath: String,
+  embedEmissionsProfiles: Boolean
+) {
   import VehicleEmissions._
   import EmissionsProcesses._
   import EmissionsProfile._
@@ -25,22 +29,40 @@ class VehicleEmissions(emissionsRateFilterStore: EmissionsRateFilterStore, beamC
   settings.setHeaderExtractionEnabled(true)
   settings.detectFormatAutomatically()
   private val csvParser = new CsvParser(settings)
-  private val embedEmissionsProfiles = beamConfig.beam.outputs.events.embedEmissionsProfiles
 
-  private lazy val linkIdToGradePercentMap = BeamVehicleUtils.loadLinkIdToGradeMapFromCSV(csvParser, beamConfig)
+  private lazy val emissionsRatesFilterStore = new VehicleEmissions.EmissionsRateFilterStore(
+    vehicleTypesBasePaths,
+    emissionsRateFilePathsByVehicleType = vehicleTypes.values.map(x => (x, x.emissionsRatesFile)).toIndexedSeq
+  )
 
-  def getEmissionsProfilesInGramsPerMile(
+  private lazy val linkIdToGradePercentMap =
+    BeamVehicleUtils.loadLinkIdToGradeMapFromCSV(csvParser, linkToGradePercentFilePath)
+
+  private lazy val truckCategory =
+    List(VehicleCategory.LightHeavyDutyTruck, VehicleCategory.MediumHeavyDutyTruck, VehicleCategory.HeavyHeavyDutyTruck)
+
+  private lazy val soakProcesses = List(STREX, DIURN, HOTSOAK, RUNLOSS)
+  private lazy val hotellingProcesses = List(IDLEX)
+  private lazy val runProcesses = List(RUNEX, PMBW, PMTW, RUNLOSS)
+
+  def getEmissionsProfileInGram(
     vehicleActivityData: IndexedSeq[BeamVehicle.VehicleActivityData],
-    sources: List[EmissionsProcess],
-    fallBack: Option[EmissionsProfile]
+    vehicleActivity: Class[_ <: org.matsim.api.core.v01.events.Event],
+    vehicleType: BeamVehicleType
   ): Option[EmissionsProfile] = {
     if (!embedEmissionsProfiles) return None
+    val isTruck = truckCategory.contains(vehicleType.vehicleCategory)
+    val sources = Map[Class[_ <: org.matsim.api.core.v01.events.Event], List[EmissionsProcess]](
+      classOf[LeavingParkingEvent] -> (if (isTruck) soakProcesses ++ hotellingProcesses else soakProcesses),
+      classOf[PathTraversalEvent]  -> runProcesses
+    ).getOrElse(vehicleActivity, List.empty)
     val emissionsProfiles = for {
-      source                    <- sources
-      data                      <- vehicleActivityData
-      emissionsRateFilterFuture <- emissionsRateFilterStore.getEmissionsRateFilterFor(data.vehicleType)
-      emissionRateFilter = Await.result(emissionsRateFilterFuture, 1.minute)
-      rates <- getRatesUsing(emissionRateFilter, data, source).orElse(fallBack.flatMap(_.get(source)))
+      source                     <- sources
+      data                       <- vehicleActivityData
+      emissionsRatesFilterFuture <- emissionsRatesFilterStore.getEmissionsRateFilterFor(data.vehicleType)
+      emissionsRatesFilter = Await.result(emissionsRatesFilterFuture, 1.minute)
+      fallBack = vehicleType.emissionsRatesInGramsPerMile
+      rates <- getRatesUsing(emissionsRatesFilter, data, source).orElse(fallBack.flatMap(_.get(source)))
     } yield source -> calculationMap(source)(rates, data)
     if (emissionsProfiles.isEmpty) None else Some(emissionsProfiles.toMap)
   }
@@ -94,13 +116,6 @@ object VehicleEmissions {
         ]
       ]
     ]
-  }
-
-  trait EmissionsRateFilterStore {
-
-    def getEmissionsRateFilterFor(
-      vehicleType: BeamVehicleType
-    ): Option[Future[EmissionsRateFilterStore.EmissionsRateFilter]]
   }
 
   object EmissionsProcesses extends Enumeration {
@@ -175,8 +190,8 @@ object VehicleEmissions {
         * @return Total emissions in grams
         */
       RUNEX -> { (ratesBySpeedBin: Emissions, data: VehicleActivityData) =>
-        val vmt = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
-        ratesBySpeedBin * vmt
+        val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
+        ratesBySpeedBin * vehicleMilesTraveledInMiles
       },
       /**
         * Calculate Idle Exhaust Emissions (IDLEX)
@@ -186,8 +201,8 @@ object VehicleEmissions {
         * @return Total emissions in grams
         */
       IDLEX -> { (rates: Emissions, data: VehicleActivityData) =>
-        val vih = data.parkingDuration.getOrElse(0.0)
-        rates * vih
+        val vehicleIdleInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
+        rates * vehicleIdleInHours
       },
       /**
         * Calculate Start Exhaust Emissions (STREX)
@@ -196,10 +211,10 @@ object VehicleEmissions {
         * ratesBySoakTime Emission rate by soak time (grams per vehicle-start)
         * @return Total emissions in grams
         */
-      // FIXME we might underestimate STREX: Ridehail vehicles do not park, idle or stop engine while waiting
+      // FIXME we might underestimate STREX: Ridehail vehicles do not park, they idle or stop engine while waiting
       STREX -> { (ratesBySoakTime: Emissions, _: VehicleActivityData) =>
-        val vst = 1 // We calculate it for 1 leave parking event
-        ratesBySoakTime * vst
+        val numberOfVehicleStartTimes = 1 // We calculate it for 1 leave parking event
+        ratesBySoakTime * numberOfVehicleStartTimes
       },
       /**
         * Calculate Diurnal Evaporative Emissions (DIURN)
@@ -208,10 +223,10 @@ object VehicleEmissions {
         * rates Emission rate (grams per vehicle-hour)
         * @return Total emissions in grams
         */
-      // FIXME we might underestimate DIURN: Ridehail vehicles do not park, idle or stop engine while waiting
+      // FIXME we might underestimate DIURN: Ridehail vehicles do not park, they idle or stop engine while waiting
       DIURN -> { (rates: Emissions, data: VehicleActivityData) =>
-        val vph = data.parkingDuration.getOrElse(0.0)
-        rates * vph
+        val vehicleParkingInHours = data.parkingDuration.map(_ / 3600.0).getOrElse(0.0)
+        rates * vehicleParkingInHours
       },
       /**
         * Calculate Hot Soak Emissions (HOTSOAK)
@@ -222,8 +237,8 @@ object VehicleEmissions {
         */
       // FIXME we might underestimate HOTSOAK: Ridehail vehicles do not park, idle or stop engine while waiting
       HOTSOAK -> { (rates: Emissions, _: VehicleActivityData) =>
-        val vst = 1 // We calculate it for 1 leave parking event
-        rates * vst
+        val numberOfVehicleStartTimes = 1 // We calculate it for 1 leave parking event
+        rates * numberOfVehicleStartTimes
       },
       /**
         * Calculate Running Loss Evaporative Emissions (RUNLOSS)
@@ -233,8 +248,8 @@ object VehicleEmissions {
         * @return Total emissions in grams
         */
       RUNLOSS -> { (rates: Emissions, data: VehicleActivityData) =>
-        val vht = data.linkTravelTime.map(_ / 3600.0).getOrElse(0.0)
-        rates * vht
+        val vehicleHoursTraveledInHours = data.linkTravelTime.map(_ / 3600.0).getOrElse(0.0)
+        rates * vehicleHoursTraveledInHours
       },
       /**
         * Calculate Tire Wear Particulate Matter Emissions (PMTW)
@@ -244,8 +259,8 @@ object VehicleEmissions {
         * @return Total emissions in grams
         */
       PMTW -> { (rates: Emissions, data: VehicleActivityData) =>
-        val vmt = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
-        rates * vmt
+        val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
+        rates * vehicleMilesTraveledInMiles
       },
       /**
         * Calculate Brake Wear Particulate Matter Emissions (PMBW)
@@ -255,8 +270,8 @@ object VehicleEmissions {
         * @return Total emissions in grams
         */
       PMBW -> { (ratesBySpeedBin: Emissions, data: VehicleActivityData) =>
-        val vmt = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
-        ratesBySpeedBin * vmt
+        val vehicleMilesTraveledInMiles = data.linkLength.map(_ / 1609.344).getOrElse(0.0)
+        ratesBySpeedBin * vehicleMilesTraveledInMiles
       }
     )
   }
@@ -356,10 +371,10 @@ object VehicleEmissions {
     }
   }
 
-  class EmissionsRateFilterStoreImpl(
+  private class EmissionsRateFilterStore(
     baseFilePaths: IndexedSeq[String],
     emissionsRateFilePathsByVehicleType: IndexedSeq[(BeamVehicleType, Option[String])]
-  ) extends EmissionsRateFilterStore {
+  ) {
     private lazy val log = LoggerFactory.getLogger(this.getClass)
     //Hard-coding can become configurable if necessary
     private val speedBinHeader = "speed_mph_float_bins"
@@ -400,7 +415,7 @@ object VehicleEmissions {
       : Map[BeamVehicleType, Future[EmissionsRateFilterStore.EmissionsRateFilter]] =
       beginLoadingEmissionRateFiltersFor(emissionsRateFilePathsByVehicleType)
 
-    override def getEmissionsRateFilterFor(
+    def getEmissionsRateFilterFor(
       vehicleType: BeamVehicleType
     ): Option[Future[EmissionsRateFilterStore.EmissionsRateFilter]] = emissionRateFiltersByVehicleType.get(vehicleType)
 
