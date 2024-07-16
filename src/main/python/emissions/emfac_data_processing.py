@@ -1,5 +1,4 @@
 from emissions_utils import *
-from joblib import Parallel, delayed
 import geopandas as gpd
 import matplotlib.pyplot as plt
 
@@ -109,8 +108,11 @@ emfac_vmt_freight_normalized.to_csv(emfac_vmt_file, index=False)
 # ## TRIPS ##
 statewide_trips_filename = '/Default_Statewide_2018_Annual_fleet_data_trips_20240311153419.csv'
 
+###########################################
 # ## EMISSIONS RATES ##
 # pd.set_option('display.max_columns', 20)
+###########################################
+
 statewide_emissions_rates_file = model_dir + '/imputed_MTC_emission_rate_agg_NH3_added.csv'
 emissions_rates, emissions_file_path = get_regional_emfac_data(statewide_emissions_rates_file, emfac_regions)
 df = pd.DataFrame(emissions_rates)
@@ -122,26 +124,25 @@ df_filtered = df[
 ].drop(['calendar_year', 'season_month', 'relative_humidity', 'temperature'], axis=1)
 
 
-# Assuming emissions_rates is already loaded into a DataFrame `df`
-group_by_cols = ["sub_area", "vehicle_class", "fuel"]
-df_unique = df_filtered[group_by_cols].drop_duplicates().reset_index(drop=True)
+df_output = format_rates_for_beam(df_filtered)
 
-# Parallel processing
-df_output_list = Parallel(n_jobs=-1)(delayed(process_rates_group)(df_filtered, row) for index, row in df_unique.iterrows())
+base_name, ext = os.path.splitext(emissions_file_path)
+mask = (
+        (df_output["sub_area"] == "San Francisco (SF)") &
+        (df_output["vehicle_class"] == "T6 Instate Delivery Class 4") &
+        (df_output["fuel"] == "Dsl")
+)
+beam_ville_rates = df_output[mask]
+beam_ville_rates = beam_ville_rates.drop(["sub_area", "vehicle_class", "fuel"], axis=1)
+beam_ville_rates.to_csv(base_name + "_beamville" + ext, index=False)
 
-# Concatenate all collected DataFrames at once
-df_output = pd.concat(df_output_list, ignore_index=True)
-
-# Pivot table to spread pollutants into columns
-pivot_df = df_output.pivot_table(index=["vehicle_class", "fuel", 'speed_mph_float_bins', 'time_minutes_float_bins', 'sub_area', 'process'],
-                              columns='pollutant', values='emission_rate', aggfunc='first', fill_value=0).reset_index()
-
-pivot_df = pivot_df.rename(columns=pollutant_columns)
-# Add missing columns with default values
-for col in pollutant_columns.values():
-    if col not in pivot_df.columns:
-        pivot_df[col] = 0.0
-
+mask = (
+        (df_filtered["sub_area"] == "San Francisco (SF)") &
+        (df_filtered["vehicle_class"] == "T6 Instate Delivery Class 4") &
+        (df_filtered["fuel"] == "Dsl")
+)
+test = df_filtered[mask]
+test2 = test[~test["process"].isin(['RUNEX', 'STREX', 'PMBW'])]
 
 geojson_file = '~/Workspace/Simulation/sfbay/geo/sfbay_tazs_epsg26910.geojson'  # Update this path to your GeoJSON file
 geo_df = gpd.read_file(geojson_file)

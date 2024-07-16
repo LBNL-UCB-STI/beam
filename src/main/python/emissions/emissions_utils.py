@@ -144,6 +144,8 @@ pollutant_columns = {
     'TOG': 'rate_tog_gram_float'
 }
 
+emissions_processes = ["RUNEX", "IDLEX", "STREX", "DIURN", "HOTSOAK", "RUNLOSS", "PMTW", "PMBW"]
+
 
 def get_regional_emfac_filename(emfac_data_filepath, emfac_regions, label=""):
     import re
@@ -417,17 +419,33 @@ def map_famos_emfac_freight_population(formatted_famos_population,
     return famos_emfac_freight_population_mapping
 
 
-def numerical_column_to_binned(df_raw, numerical_colname, binned_colname, edge_values):
-    col_sorted = sorted(df_raw[numerical_colname].unique())
-    col_bins = [edge_values[0]] + col_sorted + [edge_values[1]]
-    col_labels = [f"({col_bins[i]}, {col_bins[i + 1]}]" for i in range(len(col_bins) - 1)]
-    df_raw[binned_colname] = pd.cut(df_raw[numerical_colname], bins=col_bins, labels=col_labels, right=True)
+def pivot_rates_for_beam(df_raw):
+    unique_speed_time = df_raw.speed_time.unique()
+    if len(unique_speed_time) > 0 and not np.isnan(unique_speed_time[0]):
+        index_ = ["vehicle_class", "fuel", 'sub_area', 'process', 'speed_time']
+    else:
+        index_ = ["vehicle_class", "fuel", 'sub_area', 'process']
+    pivot_df = df_raw.pivot_table(index=index_, columns='pollutant', values='emission_rate', aggfunc='first', fill_value=0).reset_index()
+    pivot_df = pivot_df.rename(columns=pollutant_columns)
+    # Add missing columns with default values
+    for col in pollutant_columns.values():
+        if col not in pivot_df.columns:
+            pivot_df[col] = 0.0
+    pivot_df.insert(0, 'speed_mph_float_bins', "")
+    pivot_df.insert(1, 'time_minutes_float_bins', "")
+    return pivot_df
 
-    # Handling the last row
-    last_row = df_raw.iloc[-1].copy()
-    last_row[numerical_colname] = col_bins[-1]
-    last_row[binned_colname] = f"({col_bins[-2]}, {col_bins[-1]}]"
-    return pd.concat([df_raw, pd.DataFrame([last_row])], ignore_index=True)
+
+def numerical_column_to_binned(df_raw, numerical_colname, binned_colname, edge_values):
+    pivot_df = pivot_rates_for_beam(df_raw).sort_values(by='speed_time', ascending=True)
+    df_raw_last_row = pivot_df.iloc[-1].copy()
+    df_raw_last_row['speed_time'] = edge_values[1]
+    pivot_df = pd.concat([pivot_df, pd.DataFrame([df_raw_last_row])], ignore_index=True)
+    col_sorted = sorted(pivot_df[numerical_colname].unique())
+    col_bins = [edge_values[0]] + col_sorted
+    col_labels = [f"[{col_bins[i]}, {col_bins[i + 1]})" for i in range(len(col_bins) - 1)]
+    pivot_df[binned_colname] = pd.cut(pivot_df[numerical_colname], bins=col_bins, labels=col_labels, right=True)
+    return pivot_df
 
 
 def process_rates_group(df, row):
@@ -437,19 +455,34 @@ def process_rates_group(df, row):
             (df["fuel"] == row["fuel"])
     )
     df_subset = df[mask]
+    df_output_list = []
+    for process in emissions_processes:
+        df_temp = df_subset[df_subset['process'] == process]
+        if not df_temp.empty:
+            if process in ['RUNEX', 'PMBW']:
+                df_temp = numerical_column_to_binned(df_temp, 'speed_time', 'speed_mph_float_bins', [0.0, 200.0])
+            elif process == 'STREX':
+                df_temp = numerical_column_to_binned(df_temp, 'speed_time', 'time_minutes_float_bins', [0.0, 3600.0])
+            else:
+                df_temp = pivot_rates_for_beam(df_temp)
+            df_output_list.append(df_temp)
 
-    df_runex = df_subset[df_subset['process'] == 'RUNEX'].copy()
-    if not df_runex.empty:
-        df_runex = numerical_column_to_binned(df_runex, 'speed_time', 'speed_mph_float_bins', [0.0, 200.0])
-        df_runex['time_minutes_float_bins'] = ""
+    return pd.concat(df_output_list, ignore_index=True)
 
-    df_strex = df_subset[df_subset['process'] == 'STREX'].copy()
-    if not df_strex.empty:
-        df_strex = numerical_column_to_binned(df_strex, 'speed_time', 'time_minutes_float_bins', [0.0, 3600.0])
-        df_strex['speed_mph_float_bins'] = ""
 
-    df_filtered = df_subset[~df_subset['process'].isin(['RUNEX', 'STREX'])].copy()
-    df_filtered['speed_mph_float_bins'] = ""
-    df_filtered['time_minutes_float_bins'] = ""
+def format_rates_for_beam(df):
+    from joblib import Parallel, delayed
 
-    return pd.concat([df_runex, df_strex, df_filtered], ignore_index=True)
+    # Pivot table to spread pollutants into columns
+    print("Parallel processing ...")
+
+    # Assuming emissions_rates is already loaded into a DataFrame `df`
+    group_by_cols = ["sub_area", "vehicle_class", "fuel"]
+    df_unique = df[group_by_cols].drop_duplicates().reset_index(drop=True)
+
+    # Parallel processing
+    df_output_list = Parallel(n_jobs=-1)(delayed(process_rates_group)(df, row) for index, row in df_unique.iterrows())
+
+    print("Completed!")
+    # Concatenate all collected DataFrames at once
+    return pd.concat(df_output_list, ignore_index=True)
