@@ -50,7 +50,7 @@ class RideHailUsageTests extends AnyFlatSpec with Matchers with BeamHelper with 
       RefuelSessionEvent.EVENT_TYPE.equals(e.getEventType) && e.getAttributes.get("vehicle").contains("-L5")
     )
     refuelSessionEvents.size should be > 20 withClue ", expecting about 21 charging events"
-    refuelSessionEvents.map(e => e.getAttributes.get(ScalaEvent.ATTRIBUTE_VEHICLE_TYPE)) should contain(
+    refuelSessionEvents.map(e => e.getAttributes.get(RefuelSessionEvent.ATTRIBUTE_VEHICLE_TYPE)) should contain(
       automatedRideHailVehicleType
     ) withClue f", expecting $automatedRideHailVehicleType to charge"
 

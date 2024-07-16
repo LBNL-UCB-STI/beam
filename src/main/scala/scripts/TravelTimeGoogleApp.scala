@@ -60,7 +60,7 @@ object TravelTimeGoogleApp extends App with StrictLogging {
         pathToEventFile,
         event => {
           val isPTE = event.getEventType == PathTraversalEvent.EVENT_TYPE
-          val isCar = BeamMode.isCar(event.getAttributes.get(ScalaEvent.ATTRIBUTE_MODE))
+          val isCar = BeamMode.isCar(event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_MODE))
           isPTE && isCar
         }
       )

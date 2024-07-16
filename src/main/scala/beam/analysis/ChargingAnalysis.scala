@@ -33,7 +33,7 @@ class ChargingAnalysis extends IterationSummaryAnalysis {
         val generalizedVehicleTypeOption: Option[GeneralizedVehicleType] =
           if (
             refuelSessionEvent.getAttributes
-              .get(ScalaEvent.ATTRIBUTE_VEHICLE)
+              .get(RefuelSessionEvent.ATTRIBUTE_VEHICLE_ID)
               .toLowerCase
               .contains("ridehail")
           ) {

@@ -47,7 +47,6 @@ case class PathTraversalEvent(
 ) extends Event(time)
     with ScalaEvent {
   import PathTraversalEvent._
-  import ScalaEvent._
 
   def capacity: Int = seatingCapacity + standingRoomCapacity
 
@@ -62,8 +61,8 @@ case class PathTraversalEvent(
     if (filledAttrs.get() != null) filledAttrs.get()
     else {
       val attr = super.getAttributes()
-      attr.put(ATTRIBUTE_VEHICLE, vehicleId.toString)
-      attr.put(ATTRIBUTE_DRIVER, driverId)
+      attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
+      attr.put(ATTRIBUTE_DRIVER_ID, driverId)
       attr.put(ATTRIBUTE_VEHICLE_TYPE, vehicleType)
       attr.put(ATTRIBUTE_LENGTH, legLength.toString)
       attr.put(ATTRIBUTE_NUM_PASS, numberOfPassengers.toString)
@@ -75,23 +74,23 @@ case class PathTraversalEvent(
       attr.put(ATTRIBUTE_LINK_TRAVEL_TIME, linkTravelTime.map(FormatUtils.DECIMAL_3.format).mkString(","))
       attr.put(ATTRIBUTE_PRIMARY_FUEL_TYPE, primaryFuelType)
       attr.put(ATTRIBUTE_SECONDARY_FUEL_TYPE, secondaryFuelType)
-      attr.put(ATTRIBUTE_PRIMARY_FUEL_LEVEL, primaryFuelConsumed.toString)
-      attr.put(ATTRIBUTE_SECONDARY_FUEL_LEVEL, secondaryFuelConsumed.toString)
+      attr.put(ATTRIBUTE_PRIMARY_FUEL, primaryFuelConsumed.toString)
+      attr.put(ATTRIBUTE_SECONDARY_FUEL, secondaryFuelConsumed.toString)
       attr.put(ATTRIBUTE_VEHICLE_CAPACITY, capacity.toString)
 
-      attr.put(ATTRIBUTE_LOCATION_X, startX.toString)
-      attr.put(ATTRIBUTE_LOCATION_Y, startY.toString)
-      attr.put(ATTRIBUTE_LOCATION_END_X, endX.toString)
-      attr.put(ATTRIBUTE_LOCATION_END_Y, endY.toString)
-      attr.put(ATTRIBUTE_PRIMARY_FUEL_LEVEL, endLegPrimaryFuelLevel.toString)
-      attr.put(ATTRIBUTE_SECONDARY_FUEL_LEVEL, endLegSecondaryFuelLevel.toString)
+      attr.put(ATTRIBUTE_START_COORDINATE_X, startX.toString)
+      attr.put(ATTRIBUTE_START_COORDINATE_Y, startY.toString)
+      attr.put(ATTRIBUTE_END_COORDINATE_X, endX.toString)
+      attr.put(ATTRIBUTE_END_COORDINATE_Y, endY.toString)
+      attr.put(ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL, endLegPrimaryFuelLevel.toString)
+      attr.put(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL, endLegSecondaryFuelLevel.toString)
       attr.put(ATTRIBUTE_SEATING_CAPACITY, seatingCapacity.toString)
       attr.put(ATTRIBUTE_TOLL_PAID, amountPaid.toString)
       attr.put(ATTRIBUTE_FROM_STOP_INDEX, fromStopIndex.map(_.toString).getOrElse(""))
       attr.put(ATTRIBUTE_TO_STOP_INDEX, toStopIndex.map(_.toString).getOrElse(""))
       attr.put(ATTRIBUTE_CURRENT_TOUR_MODE, currentTourMode.getOrElse(""))
       attr.put(ATTRIBUTE_RIDERS, ridersToStr(riders))
-      attr.put(ATTRIBUTE_EMISSIONS_PROFILE, emissionsProfile.map(BeamVehicleUtils.buildEmissionsString).getOrElse(""))
+      attr.put(EMISSIONS_PROFILE, emissionsProfile.map(BeamVehicleUtils.buildEmissionsString).getOrElse(""))
       filledAttrs.set(attr)
       attr
     }
@@ -99,8 +98,47 @@ case class PathTraversalEvent(
 }
 
 object PathTraversalEvent {
-  import ScalaEvent._
   val EVENT_TYPE: String = "PathTraversal"
+
+  val ATTRIBUTE_LENGTH: String = "length"
+  val ATTRIBUTE_PRIMARY_FUEL_TYPE: String = "primaryFuelType"
+  val ATTRIBUTE_SECONDARY_FUEL_TYPE: String = "secondaryFuelType"
+  val ATTRIBUTE_PRIMARY_FUEL: String = "primaryFuel"
+  val ATTRIBUTE_SECONDARY_FUEL: String = "secondaryFuel"
+  val ATTRIBUTE_NUM_PASS: String = "numPassengers"
+  val ATTRIBUTE_CURRENT_TOUR_MODE: String = "currentTourMode"
+
+  val ATTRIBUTE_LINK_IDS: String = "links"
+  val ATTRIBUTE_LINK_TRAVEL_TIME: String = "linkTravelTime"
+  val ATTRIBUTE_MODE: String = "mode"
+  val ATTRIBUTE_DEPARTURE_TIME: String = "departureTime"
+  val ATTRIBUTE_ARRIVAL_TIME: String = "arrivalTime"
+  val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
+  val ATTRIBUTE_DRIVER_ID: String = "driver"
+  val ATTRIBUTE_VEHICLE_TYPE: String = "vehicleType"
+  val ATTRIBUTE_VEHICLE_CAPACITY: String = "capacity"
+  val ATTRIBUTE_START_COORDINATE_X: String = "startX"
+  val ATTRIBUTE_START_COORDINATE_Y: String = "startY"
+  val ATTRIBUTE_END_COORDINATE_X: String = "endX"
+  val ATTRIBUTE_END_COORDINATE_Y: String = "endY"
+  val ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL: String = "primaryFuelLevel"
+  val ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL: String = "secondaryFuelLevel"
+  val ATTRIBUTE_TOLL_PAID: String = "tollPaid"
+  val ATTRIBUTE_SEATING_CAPACITY: String = "seatingCapacity"
+  val ATTRIBUTE_FROM_STOP_INDEX: String = "fromStopIndex"
+  val ATTRIBUTE_TO_STOP_INDEX: String = "toStopIndex"
+  /*
+  val ATTRIBUTE_LINKID_WITH_LANE_MAP: String = "linkIdToLaneMap"
+  val ATTRIBUTE_LINKID_WITH_SPEED_MAP: String = "linkIdToSpeedMap"
+  val ATTRIBUTE_LINKID_WITH_SELECTED_GRADIENT_MAP: String = "linkIdToSelectedGradientMap"
+  val ATTRIBUTE_LINKID_WITH_LENGTH_MAP: String = "linkIdToLengthMap"
+  val ATTRIBUTE_LINKID_WITH_SELECTED_RATE_MAP: String = "primaryLinkIdToSelectedRateMap"
+  val ATTRIBUTE_LINKID_WITH_FINAL_CONSUMPTION_MAP: String = "primaryLinkIdToFinalConsumptionMap"
+  val ATTRIBUTE_SECONDARY_LINKID_WITH_SELECTED_RATE_MAP: String = "secondaryLinkIdToSelectedRateMap"
+  val ATTRIBUTE_SECONDARY_LINKID_WITH_FINAL_CONSUMPTION_MAP: String = "secondaryLinkIdToFinalConsumptionMap"
+   */
+  val ATTRIBUTE_RIDERS: String = "riders"
+  val EMISSIONS_PROFILE: String = "emissions"
 
   def apply(
     time: Double,
@@ -156,8 +194,8 @@ object PathTraversalEvent {
     val attr = genericEvent.getAttributes.asScala
     val time: Double = genericEvent.getTime
     val capacity: Int = attr(ATTRIBUTE_VEHICLE_CAPACITY).toInt
-    val vehicleId: Id[Vehicle] = Id.create(attr(ATTRIBUTE_VEHICLE), classOf[Vehicle])
-    val driverId: String = attr(ATTRIBUTE_DRIVER)
+    val vehicleId: Id[Vehicle] = Id.create(attr(ATTRIBUTE_VEHICLE_ID), classOf[Vehicle])
+    val driverId: String = attr(ATTRIBUTE_DRIVER_ID)
     val vehicleType: String = attr(ATTRIBUTE_VEHICLE_TYPE)
     val seatingCapacity: Int = attr(ATTRIBUTE_SEATING_CAPACITY).toInt
     val standingRoomCapacity: Int = capacity - seatingCapacity
@@ -174,14 +212,14 @@ object PathTraversalEvent {
     val linkTravelTime: IndexedSeq[Double] =
       if (linkTravelTimeStr == null || linkTravelTimeStr == "") IndexedSeq.empty
       else linkTravelTimeStr.split(",").map(_.toDouble)
-    val startX: Double = attr(ATTRIBUTE_LOCATION_X).toDouble
-    val startY: Double = attr(ATTRIBUTE_LOCATION_Y).toDouble
-    val endX: Double = attr(ATTRIBUTE_LOCATION_END_X).toDouble
-    val endY: Double = attr(ATTRIBUTE_LOCATION_END_Y).toDouble
-    val primaryFuelConsumed: Double = attr(ATTRIBUTE_PRIMARY_FUEL_LEVEL).toDouble
-    val secondaryFuelConsumed: Double = attr(ATTRIBUTE_SECONDARY_FUEL_LEVEL).toDouble
-    val endLegPrimaryFuelLevel: Double = attr(ATTRIBUTE_PRIMARY_FUEL_LEVEL).toDouble
-    val endLegSecondaryFuelLevel: Double = attr(ATTRIBUTE_SECONDARY_FUEL_LEVEL).toDouble
+    val startX: Double = attr(ATTRIBUTE_START_COORDINATE_X).toDouble
+    val startY: Double = attr(ATTRIBUTE_START_COORDINATE_Y).toDouble
+    val endX: Double = attr(ATTRIBUTE_END_COORDINATE_X).toDouble
+    val endY: Double = attr(ATTRIBUTE_END_COORDINATE_Y).toDouble
+    val primaryFuelConsumed: Double = attr(ATTRIBUTE_PRIMARY_FUEL).toDouble
+    val secondaryFuelConsumed: Double = attr(ATTRIBUTE_SECONDARY_FUEL).toDouble
+    val endLegPrimaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_PRIMARY_FUEL_LEVEL).toDouble
+    val endLegSecondaryFuelLevel: Double = attr(ATTRIBUTE_END_LEG_SECONDARY_FUEL_LEVEL).toDouble
     val amountPaid: Double = attr(ATTRIBUTE_TOLL_PAID).toDouble
     val riders: IndexedSeq[Id[Person]] = ridersFromStr(attr.getOrElse(ATTRIBUTE_RIDERS, ""))
     val fromStopIndex: Option[Int] =
@@ -190,7 +228,7 @@ object PathTraversalEvent {
       attr.get(ATTRIBUTE_TO_STOP_INDEX).flatMap(Option(_)).flatMap(x => if (x == "") None else Some(x.toInt))
     val currentTourMode: Option[String] =
       attr.get(ATTRIBUTE_CURRENT_TOUR_MODE).flatMap(x => if (x == "") None else Some(x))
-    val emissionsProfile = attr.get(ATTRIBUTE_EMISSIONS_PROFILE).flatMap(BeamVehicleUtils.parseEmissionsString(_))
+    val emissionsProfile = attr.get(EMISSIONS_PROFILE).flatMap(BeamVehicleUtils.parseEmissionsString(_))
     PathTraversalEvent(
       time,
       vehicleId,

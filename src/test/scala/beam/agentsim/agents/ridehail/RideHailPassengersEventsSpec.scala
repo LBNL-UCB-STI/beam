@@ -1,6 +1,6 @@
 package beam.agentsim.agents.ridehail
 
-import beam.agentsim.events.{PathTraversalEvent, ScalaEvent}
+import beam.agentsim.events.PathTraversalEvent
 import beam.integration.IntegrationSpecCommon
 import beam.sim.config.{BeamConfig, MatSimBeamConfigBuilder}
 import beam.sim.population.DefaultPopulationAdjustment
@@ -31,9 +31,9 @@ class RideHailPassengersEventsSpec extends AnyWordSpecLike with Matchers with Be
         override def handleEvent(event: Event): Unit = {
           event match {
             case traversalEvent: PathTraversalEvent if traversalEvent.vehicleId.toString.startsWith("rideHail") =>
-              val id = traversalEvent.getAttributes.get(ScalaEvent.ATTRIBUTE_VEHICLE)
+              val id = traversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_ID)
               val numPass =
-                traversalEvent.getAttributes.get(ScalaEvent.ATTRIBUTE_NUM_PASS).toInt
+                traversalEvent.getAttributes.get(PathTraversalEvent.ATTRIBUTE_NUM_PASS).toInt
               val v = events.getOrElse(id, Tuple3(0, 0, 0))
 
               events.put(id, v.copy(_3 = v._3 + numPass))

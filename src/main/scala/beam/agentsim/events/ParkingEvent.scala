@@ -28,7 +28,6 @@ case class ParkingEvent(
     with LazyLogging {
 
   import ParkingEvent._
-  import ScalaEvent._
 
   if (GeoUtils.isInvalidWgsCoordinate(locationWGS)) {
     logger.warn(s"ParkEvent should always receive WGS coordinates. [$locationWGS] looks like invalid")
@@ -46,8 +45,8 @@ case class ParkingEvent(
     val pricingModelString = pricingModel.map { _.toString }.getOrElse("None")
     val chargingPointString = chargingPointType.map { _.toString }.getOrElse("None")
 
-    attr.put(ATTRIBUTE_VEHICLE, vehicleId.toString)
-    attr.put(ATTRIBUTE_DRIVER, driverId)
+    attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
+    attr.put(ATTRIBUTE_DRIVER_ID, driverId)
     attr.put(ATTRIBUTE_COST, costInDollars.toString)
     attr.put(ATTRIBUTE_LOCATION_X, locationWGS.getX.toString)
     attr.put(ATTRIBUTE_LOCATION_Y, locationWGS.getY.toString)
@@ -61,8 +60,17 @@ case class ParkingEvent(
 }
 
 object ParkingEvent {
-  import ScalaEvent._
   val EVENT_TYPE: String = "ParkingEvent"
+  val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
+  val ATTRIBUTE_DRIVER_ID: String = "driver"
+  //    String ATTRIBUTE_PARKING_ID = "parkingId";
+  val ATTRIBUTE_COST: String = "cost"
+  val ATTRIBUTE_LOCATION_X: String = "locationX"
+  val ATTRIBUTE_LOCATION_Y: String = "locationY"
+  val ATTRIBUTE_PARKING_TYPE: String = "parkingType"
+  val ATTRIBUTE_PRICING_MODEL: String = "pricingModel"
+  val ATTRIBUTE_CHARGING_TYPE: String = "chargingPointType"
+  val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
 
   def apply(
     time: Double,
@@ -89,8 +97,8 @@ object ParkingEvent {
     val attr = genericEvent.getAttributes.asScala
 
     val time: Double = genericEvent.getTime
-    val driverId: String = attr(ATTRIBUTE_DRIVER)
-    val vehicleId: Id[Vehicle] = Id.create(attr(ATTRIBUTE_VEHICLE), classOf[Vehicle])
+    val driverId: String = attr(ATTRIBUTE_DRIVER_ID)
+    val vehicleId: Id[Vehicle] = Id.create(attr(ATTRIBUTE_VEHICLE_ID), classOf[Vehicle])
     val tazId: Id[TAZ] = Id.create(attr(ATTRIBUTE_PARKING_TAZ), classOf[TAZ])
     val locationWGS: Coord = new Coord(attr(ATTRIBUTE_LOCATION_X).toDouble, attr(ATTRIBUTE_LOCATION_Y).toDouble)
     val parkingType: ParkingType = ParkingType(attr(ATTRIBUTE_PARKING_TYPE))

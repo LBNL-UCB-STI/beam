@@ -20,7 +20,6 @@ case class TeleportationEvent(
 ) extends Event(time)
     with ScalaEvent {
   import TeleportationEvent._
-  import ScalaEvent._
 
   override def getEventType: String = EVENT_TYPE
 
@@ -35,10 +34,10 @@ case class TeleportationEvent(
       attr.put(ATTRIBUTE_DEPARTURE_TIME, departureTime.toString)
       attr.put(ATTRIBUTE_PERSON, person.toString)
       attr.put(ATTRIBUTE_ARRIVAL_TIME, arrivalTime.toString)
-      attr.put(ATTRIBUTE_LOCATION_X, startX.toString)
-      attr.put(ATTRIBUTE_LOCATION_Y, startY.toString)
-      attr.put(ATTRIBUTE_LOCATION_END_X, endX.toString)
-      attr.put(ATTRIBUTE_LOCATION_END_Y, endY.toString)
+      attr.put(ATTRIBUTE_START_COORDINATE_X, startX.toString)
+      attr.put(ATTRIBUTE_START_COORDINATE_Y, startY.toString)
+      attr.put(ATTRIBUTE_END_COORDINATE_X, endX.toString)
+      attr.put(ATTRIBUTE_END_COORDINATE_Y, endY.toString)
       attr.put(ATTRIBUTE_CURRENT_TOUR_MODE, currentTourMode.getOrElse(""))
 
       filledAttrs.set(attr)
@@ -49,4 +48,14 @@ case class TeleportationEvent(
 
 object TeleportationEvent {
   val EVENT_TYPE: String = "TeleportationEvent"
+
+  val ATTRIBUTE_CURRENT_TOUR_MODE: String = "currentTourMode"
+
+  val ATTRIBUTE_DEPARTURE_TIME: String = "departureTime"
+  val ATTRIBUTE_PERSON: String = "person"
+  val ATTRIBUTE_ARRIVAL_TIME: String = "arrivalTime"
+  val ATTRIBUTE_START_COORDINATE_X: String = "startX"
+  val ATTRIBUTE_START_COORDINATE_Y: String = "startY"
+  val ATTRIBUTE_END_COORDINATE_X: String = "endX"
+  val ATTRIBUTE_END_COORDINATE_Y: String = "endY"
 }

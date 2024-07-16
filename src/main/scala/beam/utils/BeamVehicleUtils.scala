@@ -151,8 +151,8 @@ object BeamVehicleUtils extends LazyLogging {
           payloadCapacity,
           wheelchairAccessible,
           restrictRoadsByFreeSpeed,
-          emissionsRatesInGramsPerMile,
-          emissionsRatesFile
+          emissionsRatesFile,
+          emissionsRatesInGramsPerMile
         )
         z += ((vehicleTypeId, bvt))
     }.toMap
@@ -277,7 +277,7 @@ object BeamVehicleUtils extends LazyLogging {
         case sourcePattern(source, emissions) =>
           // Process each emission source
           val emissionMap = emissions
-            .split(",")
+            .split("|")
             .flatMap { emission =>
               val parts = emission.split(":").map(_.trim)
               parts.length match {

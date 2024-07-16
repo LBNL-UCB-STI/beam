@@ -21,7 +21,6 @@ case class ChargingPlugInEvent(
     with ScalaEvent {
 
   import ChargingPlugInEvent._
-  import ScalaEvent._
 
   override def getEventType: String = EVENT_TYPE
   override def getPersonId: Id[Person] = Id.create(vehId, classOf[Person])
@@ -31,10 +30,10 @@ case class ChargingPlugInEvent(
 
   override def getAttributes: util.Map[String, String] = {
     val attributes = super.getAttributes
-    attributes.put(ATTRIBUTE_VEHICLE, vehId.toString)
-    attributes.put(ATTRIBUTE_PRIMARY_FUEL_LEVEL, primaryFuelLevel.toString)
-    attributes.put(ATTRIBUTE_SECONDARY_FUEL_LEVEL, secondaryFuelLevel.map(_.toString).getOrElse(""))
-    attributes.put(ATTRIBUTE_COST, stall.costInDollars.toString)
+    attributes.put(ATTRIBUTE_VEHICLE_ID, vehId.toString)
+    attributes.put(ATTRIBUTE_PRIMARY_FUEL, primaryFuelLevel.toString)
+    attributes.put(ATTRIBUTE_SECONDARY_FUEL, secondaryFuelLevel.map(_.toString).getOrElse(""))
+    attributes.put(ATTRIBUTE_PRICE, stall.costInDollars.toString)
     attributes.put(ATTRIBUTE_LOCATION_X, locationWGS.getX.toString)
     attributes.put(ATTRIBUTE_LOCATION_Y, locationWGS.getY.toString)
     attributes.put(ATTRIBUTE_PARKING_TYPE, stall.parkingType.toString)
@@ -48,4 +47,14 @@ case class ChargingPlugInEvent(
 
 object ChargingPlugInEvent {
   val EVENT_TYPE: String = "ChargingPlugInEvent"
+  val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
+  val ATTRIBUTE_PRIMARY_FUEL: String = "primaryFuelLevel"
+  val ATTRIBUTE_SECONDARY_FUEL: String = "secondaryFuelLevel"
+  val ATTRIBUTE_PRICE: String = "price"
+  val ATTRIBUTE_LOCATION_X: String = "locationX"
+  val ATTRIBUTE_LOCATION_Y: String = "locationY"
+  val ATTRIBUTE_PARKING_TYPE: String = "parkingType"
+  val ATTRIBUTE_PRICING_MODEL: String = "pricingModel"
+  val ATTRIBUTE_CHARGING_TYPE: String = "chargingPointType"
+  val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
 }

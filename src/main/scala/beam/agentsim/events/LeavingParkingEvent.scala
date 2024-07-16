@@ -27,28 +27,26 @@ case class LeavingParkingEvent(
 ) extends Event(time)
     with ScalaEvent {
   import LeavingParkingEvent._
-  import ScalaEvent._
 
   override def getEventType: String = EVENT_TYPE
 
   override def getAttributes: util.Map[String, String] = {
     val attr: util.Map[String, String] = super.getAttributes
     attr.put(ATTRIBUTE_SCORE, score.toString)
-    attr.put(ATTRIBUTE_DRIVER, driverId)
-    attr.put(ATTRIBUTE_VEHICLE, vehicleId.toString)
+    attr.put(ATTRIBUTE_DRIVER_ID, driverId)
+    attr.put(ATTRIBUTE_VEHICLE_ID, vehicleId.toString)
     attr.put(ATTRIBUTE_PARKING_TYPE, parkingType.toString)
     attr.put(ATTRIBUTE_PRICING_MODEL, optionalToString(pricingModel))
     attr.put(ATTRIBUTE_CHARGING_TYPE, optionalToString(ChargingPointType))
     attr.put(ATTRIBUTE_PARKING_TAZ, tazId.toString)
     attr.put(ATTRIBUTE_EMISSIONS_PROFILE, emissionsProfile.map(BeamVehicleUtils.buildEmissionsString).getOrElse(""))
-    attr.put(ATTRIBUTE_DURATION, parkingDuration.toString)
+    attr.put(ATTRIBUTE_PARKING_DURATION, parkingDuration.toString)
     attr.put(ATTRIBUTE_COST, pricingModel.map(_.costInDollars.toString).getOrElse("0"))
     attr
   }
 }
 
 object LeavingParkingEvent {
-  import ScalaEvent._
 
   private def optionalToString[T](opt: Option[T]): String =
     opt match {
@@ -65,6 +63,17 @@ object LeavingParkingEvent {
   }
 
   val EVENT_TYPE: String = "LeavingParkingEvent"
+  //    String ATTRIBUTE_PARKING_ID = "parkingId";
+  val ATTRIBUTE_SCORE: String = "score"
+  val ATTRIBUTE_COST: String = "cost"
+  val ATTRIBUTE_PARKING_TYPE: String = "parkingType"
+  val ATTRIBUTE_PRICING_MODEL: String = "pricingModel"
+  val ATTRIBUTE_CHARGING_TYPE: String = "chargingPointType"
+  val ATTRIBUTE_PARKING_TAZ: String = "parkingTaz"
+  val ATTRIBUTE_VEHICLE_ID: String = "vehicle"
+  val ATTRIBUTE_DRIVER_ID: String = "driver"
+  val ATTRIBUTE_EMISSIONS_PROFILE: String = "emissions"
+  val ATTRIBUTE_PARKING_DURATION: String = "duration"
 
   def apply(
     time: Double,
@@ -92,8 +101,8 @@ object LeavingParkingEvent {
     assert(genericEvent.getEventType == EVENT_TYPE)
     val attr = genericEvent.getAttributes.asScala
     val time: Double = genericEvent.getTime
-    val personId: String = attr(ATTRIBUTE_DRIVER)
-    val vehicleId: Id[Vehicle] = Id.create(attr(ATTRIBUTE_VEHICLE), classOf[Vehicle])
+    val personId: String = attr(ATTRIBUTE_DRIVER_ID)
+    val vehicleId: Id[Vehicle] = Id.create(attr(ATTRIBUTE_VEHICLE_ID), classOf[Vehicle])
     val tazId: Id[TAZ] = Id.create(attr(ATTRIBUTE_PARKING_TAZ), classOf[TAZ])
     val score: Double = attr(ATTRIBUTE_SCORE).toDouble
     val parkingType: ParkingType = ParkingType(attr(ATTRIBUTE_PARKING_TYPE))
@@ -102,7 +111,7 @@ object LeavingParkingEvent {
       attr.get(ATTRIBUTE_PRICING_MODEL).flatMap(PricingModel(_, attr.getOrElse(ATTRIBUTE_COST, "0")))
     val chargingPointType: Option[ChargingPointType] = attr.get(ATTRIBUTE_CHARGING_TYPE).flatMap(ChargingPointType(_))
     val emissionsProfile = attr.get(ATTRIBUTE_EMISSIONS_PROFILE).flatMap(BeamVehicleUtils.parseEmissionsString(_))
-    val duration: Double = attr(ATTRIBUTE_DURATION).toDouble
+    val duration: Double = attr(ATTRIBUTE_PARKING_DURATION).toDouble
     LeavingParkingEvent(
       time,
       personId,

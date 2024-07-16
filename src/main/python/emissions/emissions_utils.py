@@ -129,6 +129,21 @@ beam_fuel_to_emfac_fuel_map = {
     'Hydrogen': 'H2fc'
 }
 
+pollutant_columns = {
+    'CH4': 'rate_ch4_gram_float',
+    'CO': 'rate_co_gram_float',
+    'CO2': 'rate_co2_gram_float',
+    'HC': 'rate_hc_gram_float',
+    'NH3': 'rate_nh3_gram_float',
+    'NOx': 'rate_nox_gram_float',
+    'PM': 'rate_pm_gram_float',
+    'PM10': 'rate_pm10_gram_float',
+    'PM2_5': 'rate_pm2_5_gram_float',
+    'ROG': 'rate_rog_gram_float',
+    'SOx': 'rate_sox_gram_float',
+    'TOG': 'rate_tog_gram_float'
+}
+
 
 def get_regional_emfac_filename(emfac_data_filepath, emfac_regions, label=""):
     import re
@@ -144,7 +159,7 @@ def get_regional_emfac_data(emfac_data_filepath, emfac_regions):
 
     if os.path.exists(os.path.expanduser(studyarea_x_filepath)):
         print("Filtered EMFAC exists. Returning stored output: " + studyarea_x_filepath)
-        return pd.read_csv(studyarea_x_filepath)
+        return pd.read_csv(studyarea_x_filepath), studyarea_x_filepath
     else:
         # Load the dataset from the uploaded CSV file
         data = pd.read_csv(emfac_data_filepath)
@@ -153,7 +168,7 @@ def get_regional_emfac_data(emfac_data_filepath, emfac_regions):
         emfac_filtered = data[data["sub_area"].str.contains(pattern, case=False, na=False)]
         emfac_filtered.to_csv(studyarea_x_filepath, index=False)
         print("Done filtering EMFAC. The output has been stored in: " + studyarea_x_filepath)
-        return emfac_filtered
+        return emfac_filtered, studyarea_x_filepath
 
 
 # This function is obsolete. It is because I tried to map vehicles types in emfac with famos without taking into
@@ -400,3 +415,41 @@ def map_famos_emfac_freight_population(formatted_famos_population,
     famos_emfac_freight_population_mapping.to_csv(famos_emfac_freight_population_mapping_file, index=False)
 
     return famos_emfac_freight_population_mapping
+
+
+def numerical_column_to_binned(df_raw, numerical_colname, binned_colname, edge_values):
+    col_sorted = sorted(df_raw[numerical_colname].unique())
+    col_bins = [edge_values[0]] + col_sorted + [edge_values[1]]
+    col_labels = [f"({col_bins[i]}, {col_bins[i + 1]}]" for i in range(len(col_bins) - 1)]
+    df_raw[binned_colname] = pd.cut(df_raw[numerical_colname], bins=col_bins, labels=col_labels, right=True)
+
+    # Handling the last row
+    last_row = df_raw.iloc[-1].copy()
+    last_row[numerical_colname] = col_bins[-1]
+    last_row[binned_colname] = f"({col_bins[-2]}, {col_bins[-1]}]"
+    return pd.concat([df_raw, pd.DataFrame([last_row])], ignore_index=True)
+
+
+def process_rates_group(df, row):
+    mask = (
+            (df["sub_area"] == row["sub_area"]) &
+            (df["vehicle_class"] == row["vehicle_class"]) &
+            (df["fuel"] == row["fuel"])
+    )
+    df_subset = df[mask]
+
+    df_runex = df_subset[df_subset['process'] == 'RUNEX'].copy()
+    if not df_runex.empty:
+        df_runex = numerical_column_to_binned(df_runex, 'speed_time', 'speed_mph_float_bins', [0.0, 200.0])
+        df_runex['time_minutes_float_bins'] = ""
+
+    df_strex = df_subset[df_subset['process'] == 'STREX'].copy()
+    if not df_strex.empty:
+        df_strex = numerical_column_to_binned(df_strex, 'speed_time', 'time_minutes_float_bins', [0.0, 3600.0])
+        df_strex['speed_mph_float_bins'] = ""
+
+    df_filtered = df_subset[~df_subset['process'].isin(['RUNEX', 'STREX'])].copy()
+    df_filtered['speed_mph_float_bins'] = ""
+    df_filtered['time_minutes_float_bins'] = ""
+
+    return pd.concat([df_runex, df_strex, df_filtered], ignore_index=True)

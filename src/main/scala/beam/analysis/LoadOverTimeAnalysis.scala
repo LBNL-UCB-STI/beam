@@ -28,7 +28,7 @@ class LoadOverTimeAnalysis(simMetricCollector: SimulationMetricCollector)
         val loadVehicleType =
           if (
             refuelSessionEvent.getAttributes
-              .get(ScalaEvent.ATTRIBUTE_VEHICLE)
+              .get(RefuelSessionEvent.ATTRIBUTE_VEHICLE_ID)
               .toLowerCase
               .contains("ridehail")
           ) {

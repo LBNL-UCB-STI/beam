@@ -1,7 +1,7 @@
 package beam.integration
 
 import beam.agentsim.agents.planning.BeamPlan
-import beam.agentsim.events.ScalaEvent
+import beam.agentsim.events.PathTraversalEvent
 import beam.analysis.plots.TollRevenueAnalysis
 import beam.router.Modes.BeamMode.{BIKE, CAR}
 import beam.sim.BeamHelper
@@ -98,7 +98,7 @@ class EventsFileSpec
     val pathTraversals = for {
       event <- fromXmlFile(getEventsFilePath(scenario.getConfig, "events", "xml").getAbsolutePath)
       if event.getEventType == "PathTraversal"
-      if event.getAttributes.get(ScalaEvent.ATTRIBUTE_VEHICLE_TYPE) == vehicleType
+      if event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_VEHICLE_TYPE) == vehicleType
     } yield event
     val eventsByTrip =
       pathTraversals.groupBy(_.getAttributes.get("vehicle").split(":")(1).split("-").take(3).mkString("-"))
@@ -146,7 +146,7 @@ class EventsFileSpec
     val tollEvents = for {
       event <- fromXmlFile(getEventsFilePath(scenario.getConfig, "events", "xml").getAbsolutePath)
       if event.getEventType == "PathTraversal"
-      if event.getAttributes.get(ScalaEvent.ATTRIBUTE_TOLL_PAID).toDouble != 0.0
+      if event.getAttributes.get(PathTraversalEvent.ATTRIBUTE_TOLL_PAID).toDouble != 0.0
     } yield event
     tollEvents should not be empty
   }
