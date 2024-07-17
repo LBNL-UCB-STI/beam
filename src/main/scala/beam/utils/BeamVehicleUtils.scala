@@ -277,7 +277,7 @@ object BeamVehicleUtils extends LazyLogging {
         case sourcePattern(source, emissions) =>
           // Process each emission source
           val emissionMap = emissions
-            .split("|")
+            .split("""|""")
             .flatMap { emission =>
               val parts = emission.split(":").map(_.trim)
               parts.length match {
@@ -299,7 +299,7 @@ object BeamVehicleUtils extends LazyLogging {
             .toMap
 
           // Create Emissions object from the parsed data
-          val emissionsProfile = VehicleEmissions.Emissions(
+          val emissionsRates = VehicleEmissions.Emissions(
             emissionMap.getOrElse(_CH4.toLowerCase, 0.0),
             emissionMap.getOrElse(_CO.toLowerCase, 0.0),
             emissionMap.getOrElse(_CO2.toLowerCase, 0.0),
@@ -315,7 +315,7 @@ object BeamVehicleUtils extends LazyLogging {
           )
 
           // Return the source and its corresponding Emissions object
-          Some((VehicleEmissions.EmissionsProcesses.fromString(source), emissionsProfile))
+          VehicleEmissions.EmissionsProcesses.fromString(source).map(process => (process, emissionsRates))
 
         case _ => None
       }

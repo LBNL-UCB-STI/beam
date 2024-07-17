@@ -129,20 +129,14 @@ df_output = format_rates_for_beam(df_filtered)
 base_name, ext = os.path.splitext(emissions_file_path)
 mask = (
         (df_output["sub_area"] == "San Francisco (SF)") &
-        (df_output["vehicle_class"] == "T6 Instate Delivery Class 4") &
-        (df_output["fuel"] == "Dsl")
+        (df_output["vehicle_class"] == "T7IS") &
+        (df_output["fuel"] == "Gas")
 )
 beam_ville_rates = df_output[mask]
 beam_ville_rates = beam_ville_rates.drop(["sub_area", "vehicle_class", "fuel"], axis=1)
 beam_ville_rates.to_csv(base_name + "_beamville" + ext, index=False)
 
-mask = (
-        (df_filtered["sub_area"] == "San Francisco (SF)") &
-        (df_filtered["vehicle_class"] == "T6 Instate Delivery Class 4") &
-        (df_filtered["fuel"] == "Dsl")
-)
-test = df_filtered[mask]
-test2 = test[~test["process"].isin(['RUNEX', 'STREX', 'PMBW'])]
+
 
 geojson_file = '~/Workspace/Simulation/sfbay/geo/sfbay_tazs_epsg26910.geojson'  # Update this path to your GeoJSON file
 geo_df = gpd.read_file(geojson_file)
