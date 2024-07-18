@@ -10,7 +10,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.taz.TAZTreeMap
+import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.router.Modes
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
 import beam.router.model.BeamLeg
@@ -590,7 +590,7 @@ object BeamVehicle {
     linkNumberOfLanes: Option[Int],
     linkLength: Option[Double],
     averageSpeed: Option[Double],
-    tazId: Option[String] = None,
+    taz: Option[TAZ] = None,
     parkingDuration: Option[Double] = None,
     linkTravelTime: Option[Double] = None
   )
@@ -635,7 +635,7 @@ object BeamVehicle {
                 linkNumberOfLanes = None,
                 linkLength = linkMaybe.map(_.getLength),
                 averageSpeed = None,
-                tazId = linkMaybe.flatMap(link => tazTreeMap.getTAZfromLink(link.getId).map(_.tazId.toString)),
+                taz = linkMaybe.flatMap(link => tazTreeMap.getTAZfromLink(link.getId)),
                 parkingDuration = None,
                 linkTravelTime = None
               )
@@ -659,7 +659,7 @@ object BeamVehicle {
               linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
               linkLength = currentLink.map(_.getLength),
               averageSpeed = Some(averageSpeed),
-              tazId = currentLink.flatMap(link => tazTreeMap.getTAZfromLink(link.getId).map(_.tazId.toString)),
+              taz = currentLink.flatMap(link => tazTreeMap.getTAZfromLink(link.getId)),
               parkingDuration = None,
               linkTravelTime = Some(travelTime)
             )
@@ -674,7 +674,7 @@ object BeamVehicle {
             linkNumberOfLanes = Some(link.getNumberOfLanes.toInt),
             linkLength = Some(link.getLength),
             averageSpeed = None,
-            tazId = tazTreeMap.getTAZfromLink(link.getId).map(_.tazId.toString),
+            taz = tazTreeMap.getTAZfromLink(link.getId),
             parkingDuration = parkingDuration,
             linkTravelTime = None
           )

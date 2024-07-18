@@ -15,9 +15,21 @@ import scala.collection.JavaConverters._
   * @param coord location of the centroid of this TAZ
   * @param areaInSquareMeters area of TAZ
   */
-class TAZ(val tazId: Id[TAZ], val coord: Coord, val areaInSquareMeters: Double, val geometry: Option[Geometry]) {
-  def this(tazIdString: String, coord: Coord, area: Double, geometry: Option[Geometry] = None) {
-    this(Id.create(tazIdString, classOf[TAZ]), coord, area, geometry)
+class TAZ(
+  val tazId: Id[TAZ],
+  val coord: Coord,
+  val areaInSquareMeters: Double,
+  val geometry: Option[Geometry],
+  val county: Option[String]
+) {
+  def this(
+    tazIdString: String,
+    coord: Coord,
+    area: Double,
+    geometry: Option[Geometry] = None,
+    county: Option[String] = None
+  ) {
+    this(Id.create(tazIdString, classOf[TAZ]), coord, area, geometry, county)
   }
 }
 
@@ -26,7 +38,8 @@ object TAZ {
   val DefaultTAZId: Id[TAZ] = Id.create("default", classOf[TAZ])
   val EmergencyTAZId: Id[TAZ] = Id.create("emergency", classOf[TAZ])
 
-  val DefaultTAZ: TAZ = new TAZ(DefaultTAZId, coord = new Coord(), areaInSquareMeters = 0, geometry = None)
+  val DefaultTAZ: TAZ =
+    new TAZ(DefaultTAZId, coord = new Coord(), areaInSquareMeters = 0, geometry = None, county = None)
 
   def isSpecialTazId(tazId: Id[TAZ]): Boolean = tazId == DefaultTAZId || tazId == EmergencyTAZId
 

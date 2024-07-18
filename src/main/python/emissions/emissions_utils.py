@@ -1,7 +1,7 @@
 import pandas as pd
-import geopandas as gpd
 import numpy as np
 import os
+import re
 
 class_2b3 = 'Class 2b&3 Vocational'
 class_46 = 'Class 4-6 Vocational'
@@ -201,7 +201,6 @@ emissions_processes = ["RUNEX", "IDLEX", "STREX", "DIURN", "HOTSOAK", "RUNLOSS",
 
 
 def get_regional_emfac_filename(emfac_data_filepath, emfac_regions, label=""):
-    import re
     folder_path = os.path.dirname(emfac_data_filepath)
     file_name = os.path.basename(emfac_data_filepath)
     emfac_regions_label = '-'.join([fr"{re.escape(region)}" for region in emfac_regions])
@@ -209,7 +208,6 @@ def get_regional_emfac_filename(emfac_data_filepath, emfac_regions, label=""):
 
 
 def get_regional_emfac_data(emfac_data_filepath, emfac_regions):
-    import re
     studyarea_x_filepath = get_regional_emfac_filename(emfac_data_filepath, emfac_regions)
 
     if os.path.exists(os.path.expanduser(studyarea_x_filepath)):
@@ -609,96 +607,120 @@ def format_rates_for_beam(emissions_rates, calendar_year=2018, season="Annual", 
     # Parallel processing
     df_output_list = Parallel(n_jobs=-1)(delayed(process_rates_group)(df_filtered, row) for index, row in df_unique.iterrows())
 
+    # Formatting for merge
     df_output = pd.concat(df_output_list, ignore_index=True)
+
+    # Extract county information
+    df_output['county'] = df_output['sub_area'].str.extract(r'^([^()]+)').squeeze().str.strip().str.lower()
+
+    # Create emfacId
     df_output["emfacId"] = df_output['vehicle_class'].str.replace(' ', '-') + "-" + df_output['fuel']
+
+    # Drop unnecessary columns
+    columns_to_drop = ["sub_area", "vehicle_class", "fuel", "speed_time"]
+    df_output = df_output.drop(columns_to_drop, axis=1)
+
+    # Reorder columns to ensure 'county' is at the front
+    columns = df_output.columns.tolist()
+    columns = ['county'] + [col for col in columns if col != 'county']
+    df_output = df_output[columns]
     return df_output
 
 
-def process_vehicle_type(row, df_output, geo_df, emissions_rates_dir):
-    # Filter emissions rates for this vehicle type
-    emissions_rates_df = df_output[df_output["emfacId"] == row["emfacId"]].copy()
+def process_single_vehicle_type(veh_type, taz_emissions_rates, emissions_rates_dir, emissions_rates_file_prefix):
+    veh_type_id = veh_type['vehicleTypeId']
+    emfac_id = veh_type['emfacId']
 
-    # Extract county and merge with geographic data
-    emissions_rates_df['county'] = emissions_rates_df['sub_area'].str.extract(r'^([^()]+)').squeeze().str.strip()
-    emissions_rates_df = pd.merge(geo_df[['taz1454', 'county']], emissions_rates_df, on="county", how='left')
-    emissions_rates_df.rename(columns={'taz1454': 'taz'}, inplace=True)
+    # Filter taz_emissions_rates for the current vehicle type
+    veh_emissions = taz_emissions_rates[taz_emissions_rates['emfacId'] == emfac_id].copy()
 
-    # Save emissions rates to CSV
-    emissions_rates_filename = f"emissions-{row['vehicleTypeId']}.csv"
-    emissions_rates_filepath = os.path.join(emissions_rates_dir, emissions_rates_filename)
-    emissions_rates_df.drop(["county", "sub_area", "vehicle_class", "fuel", "speed_time", "emfacId"], axis=1).to_csv(emissions_rates_filepath, index=False)
-    print(emissions_rates_filepath + " Ok")
-    return row['vehicleTypeId'], emissions_rates_filename
+    if not veh_emissions.empty:
+        # Remove the emfacId column as it's no longer needed
+        veh_emissions = veh_emissions.drop('emfacId', axis=1)
 
+        # Generate the file name
+        file_name = emissions_filename(veh_type_id)
+        file_path = os.path.join(emissions_rates_dir, file_name)
 
-# def process_emfac_emissions_bis(formatted_emissions_rates, vehicle_types, geo_df, output_dir):
-#     # Prepare directory for emissions rates files
-#     emissions_rates_dir = os.path.abspath(output_dir)
-#     os.makedirs(emissions_rates_dir, exist_ok=True)
-#
-#     print("Mapping to vehicle types ...")
-#
-#     results = []
-#     for _, row in vehicle_types.iterrows():
-#         try:
-#             result = process_vehicle_type(row, formatted_emissions_rates, geo_df, emissions_rates_dir)
-#             results.append(result)
-#         except Exception as e:
-#             print(f"Error processing vehicle {row['vehicleId']}: {str(e)}")
-#
-#     # Update vehicle types with emissions rates file names
-#     for vehicle_id, filename in results:
-#         vehicle_types.loc[vehicle_types['vehicleId'] == vehicle_id, 'emissionsRatesFile'] = filename
-#
-#     print("Completed!")
-#     return vehicle_types
+        print("Writing " + file_path)
+        # Save the emissions rates to a CSV file
+        veh_emissions.to_csv(file_path, index=False)
+
+        return veh_type_id, emissions_rates_file_prefix + file_name
+    else:
+        print(f"Warning: No emissions data found for vehicle type {veh_type_id}")
+        return veh_type_id, None
 
 
-def process_emfac_emissions(formatted_emissions_rates, vehicle_types, geo_df, output_dir, vehicletypes_rates_relative_path):
-    import multiprocessing as mp
-    from functools import partial
-    # Prepare directory for emissions rates files
+def sanitize_filename(filename):
+    # First, replace forward slashes with dashes
+    sanitized = filename.replace('/', '-')
+    # Then remove or replace any other non-alphanumeric characters (except dashes)
+    sanitized = re.sub(r'[^\w\-]', '-', sanitized)
+    # Replace any sequence of dashes with a single dash
+    sanitized = re.sub(r'-+', '-', sanitized)
+    # Remove leading and trailing dashes
+    sanitized = sanitized.strip('-')
+    return sanitized
+
+
+def emissions_filename(filename):
+    return f"""emissions-rates--{sanitize_filename(filename)}.csv"""
+
+
+def process_vehicle_types_emissions(taz_emissions_rates, vehicle_types, output_dir, emissions_rates_file_prefix):
+    from joblib import Parallel, delayed
     emissions_rates_dir = os.path.abspath(output_dir)
     os.makedirs(emissions_rates_dir, exist_ok=True)
 
     print("Mapping to vehicle types ...")
+    # Use parallel processing with error handling and chunking
+    chunk_size = 100  # Adjust this value based on your data size and available memory
+    results = []
 
-    # Set up multiprocessing
-    num_cores = mp.cpu_count()
-    pool = mp.Pool(num_cores)
+    for i in range(0, len(vehicle_types), chunk_size):
+        chunk = vehicle_types.iloc[i:i + chunk_size]
 
-    # Prepare the partial function for multiprocessing
-    process_func = partial(process_vehicle_type, df_output=formatted_emissions_rates, geo_df=geo_df, emissions_rates_dir=emissions_rates_dir)
+        chunk_results = Parallel(n_jobs=-1, timeout=600)(  # 10-minute timeout
+            delayed(process_single_vehicle_type)(
+                veh_type,
+                taz_emissions_rates,
+                emissions_rates_dir,
+                emissions_rates_file_prefix
+            ) for _, veh_type in chunk.iterrows()
+        )
 
-    # Process vehicle types in parallel
-    results = pool.map(process_func, [row for _, row in vehicle_types.iterrows()])
+        results.extend(chunk_results)
 
-    # Close the pool
-    pool.close()
-    pool.join()
+        # Clear some memory
+        del chunk_results
 
-    # Update vehicle types with emissions rates file names
-    for vehicle_id, filename in results:
-        relative_filename = vehicletypes_rates_relative_path + filename
-        vehicle_types.loc[vehicle_types['vehicleId'] == vehicle_id, 'emissionsRatesFile'] = relative_filename
+    # Update the vehicle_types DataFrame with the new emissionsRatesFile information
+    for veh_type_id, emissions_file in results:
+        if emissions_file:
+            vehicle_types.loc[vehicle_types['vehicleTypeId'] == veh_type_id, 'emissionsRatesFile'] = emissions_file
 
     print("Completed!")
     return vehicle_types
 
 
-def build_vehicle_types_for_emissions(updated_famos_population, freight_vehicletypes):
+def build_vehicle_types_for_emissions(updated_famos_population, famos_vehicle_types):
     # Create a copy of the original vehicleTypeId and set up a lookup dictionary
-    freight_vehicletypes_dict = freight_vehicletypes.set_index("vehicleTypeId").to_dict('index')
+    famos_vehicle_types_dict = famos_vehicle_types.set_index("vehicleTypeId").to_dict('index')
+
+    # Remove duplicates based on vehicleTypeId, keeping the first occurrence
+    unique_vehicle_types = updated_famos_population.drop_duplicates(subset='vehicleTypeId', keep='first')
 
     def process_row(row):
-        new_row = freight_vehicletypes_dict[row["oldVehicleTypeId"]].copy()
+        new_row = famos_vehicle_types_dict[row["oldVehicleTypeId"]].copy()
         new_row["vehicleTypeId"] = row["vehicleTypeId"]
         new_row['vehicleClass'] = row['mappedVehicleClass']
         new_row['vehicleCategory'] = class_to_category.get(row['mappedVehicleClass'], 'Unknown')
         new_row["emfacId"] = row['emfacId']
         return new_row
 
-    result_df = pd.DataFrame(updated_famos_population.apply(process_row, axis=1).tolist())
+    # Apply process_row to the unique vehicle types
+    result_df = pd.DataFrame(unique_vehicle_types.apply(process_row, axis=1).tolist())
 
     # Define the desired column order with 'vehicleTypeId' at the front
     columns_order = ['vehicleTypeId'] + [

@@ -27,12 +27,12 @@ formatted_emfac_population_file = os.path.expanduser("~/Workspace/Simulation/sfb
 formatted_famos_population_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/famos-freight-population.csv")
 formatted_emissions_rates_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/emfac-emissions-rates.csv")
 output_rates_dir = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/emissions_rates")
-freight_vehicletypes_emissions_temp_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/freight-vehicletypes-emissions-Baseline-temp.csv")
-freight_vehicletypes_emissions_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/freight-vehicletypes-emissions-Baseline.csv")
+freight_vehicletypes_emissions_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/freight-vehicletypes-emissions--Baseline.csv")
 freight_carriers_emissions_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/freight-carriers-emissions.csv")
 
 
 # ### Summarizing EMFAC population ###
+print("prepare_emfac_population_for_mapping")
 emfac_population = pd.read_csv(emfac_population_file, dtype=str)
 # ['Dsl', 'Elec', 'Gas', 'Phe', 'NG']
 
@@ -47,7 +47,7 @@ formatted_emfac_population = prepare_emfac_population_for_mapping(
         'H2FC': 'Electricity'
     }
 )
-formatted_emfac_population.to_csv(formatted_emfac_population_file, index=False)
+# formatted_emfac_population.to_csv(formatted_emfac_population_file, index=False)
 # sampled_df = formatted_emfac_population.sample(n=10, random_state=42)
 # sampled_df = sampled_df.reset_index(drop=True)
 # sampled_df.to_csv(os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/emfac-freight-population-sample.csv"),
@@ -55,6 +55,7 @@ formatted_emfac_population.to_csv(formatted_emfac_population_file, index=False)
 
 
 # ### Mapping counties with Mesozones ###
+print("prepare_famos_population_for_mapping")
 freight_carriers = pd.read_csv(freight_carriers_file, dtype=str)
 # This for zonal mapping
 # freight_carriers_formatted = unpacking_famos_population_mesozones(
@@ -64,33 +65,39 @@ freight_carriers = pd.read_csv(freight_carriers_file, dtype=str)
 # )
 
 # Instead use statewide mapping
-freight_payloads = pd.read_csv(freight_payloads_file)
-freight_vehicletypes = pd.read_csv(freight_vehicletypes_file)
+famos_payloads = pd.read_csv(freight_payloads_file)
+famos_vehicle_types = pd.read_csv(freight_vehicletypes_file)
 
 formatted_famos_population = prepare_famos_population_for_mapping(
     freight_carriers,
-    freight_payloads,
-    freight_vehicletypes
+    famos_payloads,
+    famos_vehicle_types
 )
-formatted_famos_population.to_csv(formatted_famos_population_file, index=False)
+# formatted_famos_population.to_csv(formatted_famos_population_file, index=False)
 # sampled_df = formatted_famos_population.sample(n=10, random_state=42)
 # sampled_df = sampled_df.reset_index(drop=True)
 # sampled_df.to_csv(os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/famos-freight-population-sample.csv"),
 #                   index=False)
 
 
+###
+print("distribution_based_vehicle_classes_assignment")
 updated_famos_population = distribution_based_vehicle_classes_assignment(
     formatted_famos_population,
     formatted_emfac_population
 )
 
-updated_freight_carriers = update_carrier_file(freight_carriers, updated_famos_population)
-updated_freight_carriers.to_csv(freight_carriers_emissions_file, index=False)
+###
+print("update_carrier_file")
+if os.path.exists(freight_carriers_emissions_file):
+    updated_freight_carriers = pd.read_csv(freight_carriers_emissions_file)
+else:
+    updated_freight_carriers = update_carrier_file(freight_carriers, updated_famos_population)
+    updated_freight_carriers.to_csv(freight_carriers_emissions_file, index=False)
 
-
-new_vehicle_types = build_vehicle_types_for_emissions(updated_famos_population, freight_vehicletypes)
-new_vehicle_types.to_csv(freight_vehicletypes_emissions_temp_file, index=False)
-
+###
+print("build_vehicle_types_for_emissions")
+updated_vehicle_types = build_vehicle_types_for_emissions(updated_famos_population, famos_vehicle_types)
 
 # vehicle_types_famos_emfac_freight_population_mapping = map_famos_emfac_freight_population(
 #     formatted_famos_population,
@@ -99,20 +106,21 @@ new_vehicle_types.to_csv(freight_vehicletypes_emissions_temp_file, index=False)
 # )
 
 # ## EMISSIONS RATES ##
-emissions_rates, _ = get_regional_emfac_data(emfac_emissions_file, ["SF"])
+print("format_rates_for_beam")
+if os.path.exists(formatted_emissions_rates_file):
+    emissions_rates_formatted = pd.read_csv(formatted_emissions_rates_file)
+else:
+    emissions_rates, _ = get_regional_emfac_data(emfac_emissions_file, ["SF"])
+    emissions_rates_formatted = format_rates_for_beam(emissions_rates)
+    emissions_rates_formatted.to_csv(formatted_emissions_rates_file, index=False)
 
-emissions_rates_formatted = format_rates_for_beam(emissions_rates)
-emissions_rates_formatted.to_csv(formatted_emissions_rates_file, index=False)
 
-
-# emissions_rates_formatted = pd.read_csv(formatted_emissions_rates_file)
-geo_df = gpd.read_file(taz_data_file)
-updated_vehicle_types = process_emfac_emissions(
+print("process_emfac_emissions")
+updated_vehicle_types = process_vehicle_types_emissions(
     emissions_rates_formatted,
-    new_vehicle_types,
-    geo_df,
+    updated_vehicle_types,
     output_rates_dir,
-    "emissions/baseline/"
+    "emissions-rates/baseline/"
 )
 updated_vehicle_types.to_csv(freight_vehicletypes_emissions_file, index=False)
 

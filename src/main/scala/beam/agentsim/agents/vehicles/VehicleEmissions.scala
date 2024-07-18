@@ -93,7 +93,7 @@ class VehicleEmissions(
     val weightKg = data.vehicleType.curbWeightInKg + data.payloadInKg.getOrElse(0.0)
     val soakTimeIntMinutes = data.parkingDuration.map(_ / 60.0).getOrElse(0.0)
     val gradePercent = linkIdToGradePercentMap.getOrElse(data.linkId, 0.0)
-    val zone = data.tazId.getOrElse("")
+    val county = data.taz.flatMap(_.county).getOrElse("")
 
     for {
       (_, gradeFilter) <- findInterval(
@@ -103,12 +103,12 @@ class VehicleEmissions(
       )
       (_, weightFilter)   <- findInterval(gradeFilter, gradePercent)
       (_, soakTimeFilter) <- findInterval(weightFilter, weightKg)
-      (_, tazFilter) <- findInterval(
+      (_, countyFilter) <- findInterval(
         soakTimeFilter,
         soakTimeIntMinutes,
         !List(STREX).contains(process)
       )
-      (_, processFilter) <- tazFilter.find(_._1 == zone.trim.toLowerCase)
+      (_, processFilter) <- countyFilter.find(_._1 == county.trim.toLowerCase)
       rate               <- processFilter.get(process.toString)
     } yield rate
   }
@@ -118,7 +118,7 @@ object VehicleEmissions extends LazyLogging {
 
   object EmissionsRateFilterStore {
 
-    // speed -> (gradePercent -> (weight -> (soakTime -> (taz -> (emissionProcess -> rate)))))
+    // speed -> (gradePercent -> (weight -> (soakTime -> (county -> (emissionProcess -> rate)))))
     type EmissionsRateFilter = Map[
       DoubleTypedRange, // speed
       Map[
@@ -128,7 +128,7 @@ object VehicleEmissions extends LazyLogging {
           Map[
             DoubleTypedRange, // soak time
             Map[
-              String, // taz
+              String, // county
               Map[
                 String, // emissionProcess
                 Emissions // rate
@@ -403,7 +403,7 @@ object VehicleEmissions extends LazyLogging {
     private val gradeBinHeader = "grade_percent_float_bins"
     private val weightBinHeader = "mass_kg_float_bins"
     private val soakTimeBinHeader = "time_minutes_float_bins"
-    private val tazBinHeader = "taz"
+    private val countyBinHeader = "county"
     /*
     Emissions Processes:
     RUNEX - Running Exhaust: Emissions from vehicle tailpipe while traveling on the road
@@ -504,7 +504,7 @@ object VehicleEmissions extends LazyLogging {
             val soakTimeBin: DoubleTypedRange =
               convertRecordStringToDoubleTypedRange(getString(csvRecord, soakTimeBinHeader, "[0,216000]"))
             // Geographic area, None if not defined
-            val taz: String = getString(csvRecord, tazBinHeader, "")
+            val county: String = getString(csvRecord, countyBinHeader, "")
             // Emission process
             val emissionProcess: String =
               EmissionsProcesses
@@ -552,17 +552,17 @@ object VehicleEmissions extends LazyLogging {
                     weightKgFilter.get(weightKgBin) match {
                       case Some(soakTimeFilter) =>
                         soakTimeFilter.get(soakTimeBin) match {
-                          case Some(tazFilter) =>
-                            tazFilter.get(taz) match {
+                          case Some(countyFilter) =>
+                            countyFilter.get(county) match {
                               case Some(emissionsProcessFilter) =>
                                 emissionsProcessFilter.get(emissionProcess) match {
                                   case Some(existingRates) =>
                                     log.error(
                                       "Two emission rates found for the same bin combination: " +
-                                      "TAZ = {}; Speed In Miles Per Hour Bin = {}; " +
+                                      "County = {}; Speed In Miles Per Hour Bin = {}; " +
                                       "Grade Percent Bin = {}; Weight kg Bin = {}; Soak Time Bin = {}. " +
                                       s"Keeping first rate of $existingRates and ignoring new rate of $ratesInGramsPerMile.",
-                                      taz,
+                                      county,
                                       speedInMilesPerHourBin,
                                       gradePercentBin,
                                       weightKgBin,
@@ -572,17 +572,17 @@ object VehicleEmissions extends LazyLogging {
                                     emissionsProcessFilter += emissionProcess -> ratesInGramsPerMile
                                 }
                               case None =>
-                                tazFilter += taz -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                                countyFilter += county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
                             }
                           case None =>
                             soakTimeFilter += soakTimeBin -> mutable.Map(
-                              taz -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                              county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
                             )
                         }
                       case None =>
                         weightKgFilter += weightKgBin -> mutable.Map(
                           soakTimeBin -> mutable.Map(
-                            taz -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                            county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
                           )
                         )
                     }
@@ -590,7 +590,7 @@ object VehicleEmissions extends LazyLogging {
                     gradePercentFilter += gradePercentBin -> mutable.Map(
                       weightKgBin -> mutable.Map(
                         soakTimeBin -> mutable.Map(
-                          taz -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                          county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
                         )
                       )
                     )
@@ -600,7 +600,7 @@ object VehicleEmissions extends LazyLogging {
                   gradePercentBin -> mutable.Map(
                     weightKgBin -> mutable.Map(
                       soakTimeBin -> mutable.Map(
-                        taz -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
+                        county -> mutable.Map(emissionProcess -> ratesInGramsPerMile)
                       )
                     )
                   )
@@ -616,9 +616,9 @@ object VehicleEmissions extends LazyLogging {
       currentRateFilter.toMap.map { case (speedInMilesPerHourBin, gradePercentMap) =>
         speedInMilesPerHourBin -> gradePercentMap.toMap.map { case (gradePercentBin, weightMap) =>
           gradePercentBin -> weightMap.toMap.map { case (weightKgBin, soakTimeMap) =>
-            weightKgBin -> soakTimeMap.toMap.map { case (soakTimeBin, tazMap) =>
-              soakTimeBin -> tazMap.toMap.map { case (taz, emissionsProcessMap) =>
-                taz -> emissionsProcessMap.toMap
+            weightKgBin -> soakTimeMap.toMap.map { case (soakTimeBin, countyMap) =>
+              soakTimeBin -> countyMap.toMap.map { case (county, emissionsProcessMap) =>
+                county -> emissionsProcessMap.toMap
               }
             }
           }
