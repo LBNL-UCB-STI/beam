@@ -1,117 +1,170 @@
 import pandas as pd
-import os
+import geopandas as gpd
 import numpy as np
+import os
 
-# Mapping dictionaries
+class_2b3 = 'Class 2b&3 Vocational'
+class_46 = 'Class 4-6 Vocational'
+class_78_v = 'Class 7&8 Vocational'
+class_78_t = 'Class 7&8 Tractor'
+
+lhdt = 'LightHeavyDutyTruck'
+mhdt = 'MediumHeavyDutyTruck'
+hhdt = 'HeavyHeavyDutyTruck'
+
+class_to_category = {
+    class_2b3: lhdt,
+    class_46: mhdt,
+    class_78_v: hhdt,
+    class_78_t: hhdt
+}
+
 emfac_class_to_famos_class_map = {
     # Class 2b&3 Vocational
-    'LHD1': 'Class 2b&3 Vocational',
-    'LHD2': 'Class 2b&3 Vocational',
+    'LHD1': class_2b3,
+    'LHD2': class_2b3,
 
     # Class 4-6 Vocational
-    'T6 Instate Delivery Class 4': 'Class 4-6 Vocational',
-    'T6 Instate Delivery Class 5': 'Class 4-6 Vocational',
-    'T6 Instate Delivery Class 6': 'Class 4-6 Vocational',
-    'T6 Instate Other Class 4': 'Class 4-6 Vocational',
-    'T6 Instate Other Class 5': 'Class 4-6 Vocational',
-    'T6 Instate Other Class 6': 'Class 4-6 Vocational',
-    'T6 CAIRP Class 4': 'Class 4-6 Vocational',
-    'T6 CAIRP Class 5': 'Class 4-6 Vocational',
-    'T6 CAIRP Class 6': 'Class 4-6 Vocational',
-    'T6 OOS Class 4': 'Class 4-6 Vocational',
-    'T6 OOS Class 5': 'Class 4-6 Vocational',
-    'T6 OOS Class 6': 'Class 4-6 Vocational',
-    'T6 Instate Tractor Class 6': 'Class 4-6 Vocational',
+    'T6 Instate Delivery Class 4': class_46,
+    'T6 Instate Delivery Class 5': class_46,
+    'T6 Instate Delivery Class 6': class_46,
+    'T6 Instate Other Class 4': class_46,
+    'T6 Instate Other Class 5': class_46,
+    'T6 Instate Other Class 6': class_46,
+    'T6 CAIRP Class 4': class_46,
+    'T6 CAIRP Class 5': class_46,
+    'T6 CAIRP Class 6': class_46,
+    'T6 OOS Class 4': class_46,
+    'T6 OOS Class 5': class_46,
+    'T6 OOS Class 6': class_46,
+    'T6 Instate Tractor Class 6': class_46,
 
-    'T6 Instate Delivery Class 7': 'Class 7&8 Vocational',
-    'T6 Instate Other Class 7': 'Class 7&8 Vocational',
-    'T7 Single Concrete/Transit Mix Class 8': 'Class 7&8 Vocational',
-    'T7 Single Dump Class 8': 'Class 7&8 Vocational',
-    'T7 Single Other Class 8': 'Class 7&8 Vocational',
-    'T7IS': 'Class 7&8 Vocational',  # In-State
+    # Class 7&8 Vocational
+    'T6 Instate Delivery Class 7': class_78_v,
+    'T6 Instate Other Class 7': class_78_v,
+    'T7 Single Concrete/Transit Mix Class 8': class_78_v,
+    'T7 Single Dump Class 8': class_78_v,
+    'T7 Single Other Class 8': class_78_v,
+    'T7IS': class_78_v,  # In-State
 
-    'T6 Instate Tractor Class 7': 'Class 7&8 Tractor',
-    'T7 Tractor Class 8': 'Class 7&8 Tractor',
-    'T6 CAIRP Class 7': 'Class 7&8 Tractor',
-    'T6 OOS Class 7': 'Class 7&8 Tractor',
-    'T7 CAIRP Class 8': 'Class 7&8 Tractor',
-    'T7 NNOOS Class 8': 'Class 7&8 Tractor',
-    'T7 NOOS Class 8': 'Class 7&8 Tractor',
-}
-emfac_class_to_regulatory_class_map = {
-    # Class 2b&3 Vocational
-    'LHD1': 'Class 2b',
-    'LHD2': 'Class 3',
-
-    # Class 4-6 Vocational
-    'T6 Instate Delivery Class 4': 'Class 4',
-    'T6 Instate Delivery Class 5': 'Class 5',
-    'T6 Instate Delivery Class 6': 'Class 6',
-    'T6 Instate Other Class 4': 'Class 4',
-    'T6 Instate Other Class 5': 'Class 5',
-    'T6 Instate Other Class 6': 'Class 6',
-    'T6 CAIRP Class 4': 'Class 4',
-    'T6 CAIRP Class 5': 'Class 5',
-    'T6 CAIRP Class 6': 'Class 6',
-    'T6 OOS Class 4': 'Class 4',
-    'T6 OOS Class 5': 'Class 5',
-    'T6 OOS Class 6': 'Class 6',
-    'T6 Instate Tractor Class 6': 'Class 6',
-
-    'T6 Instate Delivery Class 7': 'Class 7',
-    'T6 Instate Other Class 7': 'Class 7',
-    'T7 Single Concrete/Transit Mix Class 8': 'Class 8',
-    'T7 Single Dump Class 8': 'Class 8',
-    'T7 Single Other Class 8': 'Class 8',
-    'T7IS': 'Class 7',  # In-State
-
-    'T6 Instate Tractor Class 7': 'Class 7',
-    'T7 Tractor Class 8': 'Class 8',
-    'T6 CAIRP Class 7': 'Class 7',
-    'T6 OOS Class 7': 'Class 7',
-    'T7 CAIRP Class 8': 'Class 8',
-    'T7 NNOOS Class 8': 'Class 8',
-    'T7 NOOS Class 8': 'Class 8',
+    # Class 7&8 Tractor
+    'T6 Instate Tractor Class 7': class_78_t,
+    'T7 Tractor Class 8': class_78_t,
+    'T6 CAIRP Class 7': class_78_t,
+    'T6 OOS Class 7': class_78_t,
+    'T7 CAIRP Class 8': class_78_t,
+    'T7 NNOOS Class 8': class_78_t,
+    'T7 NOOS Class 8': class_78_t,
 }
 emfac_class_to_vehicle_category_map = {
     # Class 2b&3 Vocational
-    'LHD1': 'LightHeavyDutyTruck',
-    'LHD2': 'LightHeavyDutyTruck',
+    'LHD1': lhdt,
+    'LHD2': lhdt,
 
     # Class 4-6 Vocational
-    'T6 Instate Delivery Class 4': 'MediumHeavyDutyTruck',
-    'T6 Instate Delivery Class 5': 'MediumHeavyDutyTruck',
-    'T6 Instate Delivery Class 6': 'MediumHeavyDutyTruck',
-    'T6 Instate Other Class 4': 'MediumHeavyDutyTruck',
-    'T6 Instate Other Class 5': 'MediumHeavyDutyTruck',
-    'T6 Instate Other Class 6': 'MediumHeavyDutyTruck',
-    'T6 CAIRP Class 4': 'MediumHeavyDutyTruck',
-    'T6 CAIRP Class 5': 'MediumHeavyDutyTruck',
-    'T6 CAIRP Class 6': 'MediumHeavyDutyTruck',
-    'T6 OOS Class 4': 'MediumHeavyDutyTruck',
-    'T6 OOS Class 5': 'MediumHeavyDutyTruck',
-    'T6 OOS Class 6': 'MediumHeavyDutyTruck',
-    'T6 Instate Tractor Class 6': 'MediumHeavyDutyTruck',
+    'T6 Instate Delivery Class 4': mhdt,
+    'T6 Instate Delivery Class 5': mhdt,
+    'T6 Instate Delivery Class 6': mhdt,
+    'T6 Instate Other Class 4': mhdt,
+    'T6 Instate Other Class 5': mhdt,
+    'T6 Instate Other Class 6': mhdt,
+    'T6 CAIRP Class 4': mhdt,
+    'T6 CAIRP Class 5': mhdt,
+    'T6 CAIRP Class 6': mhdt,
+    'T6 OOS Class 4': mhdt,
+    'T6 OOS Class 5': mhdt,
+    'T6 OOS Class 6': mhdt,
+    'T6 Instate Tractor Class 6': mhdt,
 
     # Class 7&8 Vocational
-    'T6 Instate Delivery Class 7': 'MediumHeavyDutyTruck',
-    'T6 Instate Other Class 7': 'MediumHeavyDutyTruck',
+    'T6 Instate Delivery Class 7': mhdt,
+    'T6 Instate Other Class 7': mhdt,
 
-    'T7IS': 'HeavyHeavyDutyTruck',
-    'T7 Single Concrete/Transit Mix Class 8': 'HeavyHeavyDutyTruck',
-    'T7 Single Dump Class 8': 'HeavyHeavyDutyTruck',
-    'T7 Single Other Class 8': 'HeavyHeavyDutyTruck',
+    'T7IS': hhdt,
+    'T7 Single Concrete/Transit Mix Class 8': hhdt,
+    'T7 Single Dump Class 8': hhdt,
+    'T7 Single Other Class 8': hhdt,
 
     # Class 7&8 Tractor
-    'T6 Instate Tractor Class 7': 'MediumHeavyDutyTruck',
-    'T6 CAIRP Class 7': 'MediumHeavyDutyTruck',
-    'T6 OOS Class 7': 'MediumHeavyDutyTruck',
+    'T6 Instate Tractor Class 7': mhdt,
+    'T6 CAIRP Class 7': mhdt,
+    'T6 OOS Class 7': mhdt,
 
-    'T7 Tractor Class 8': 'HeavyHeavyDutyTruck',
-    'T7 CAIRP Class 8': 'HeavyHeavyDutyTruck',
-    'T7 NNOOS Class 8': 'HeavyHeavyDutyTruck',
-    'T7 NOOS Class 8': 'HeavyHeavyDutyTruck',
+    'T7 Tractor Class 8': hhdt,
+    'T7 CAIRP Class 8': hhdt,
+    'T7 NNOOS Class 8': hhdt,
+    'T7 NOOS Class 8': hhdt,
 }
+passenger_veh_classes = [
+    "LDA",  # Passenger Cars
+    "LDT1",  # Light-Duty Trucks (GVWR* <6000 lbs and ETW** <= 3750 lbs)
+    "LDT2",  # Light-Duty Trucks (GVWR <6000 lbs and ETW 3751-5750 lbs)
+    "MDV",  # Medium-Duty Trucks (GVWR 5751-8500 lbs)
+    "MCY",  # Motorcycles
+]
+transit_veh_classes = [
+    "SBUS",  # School Buses
+    "UBUS",  # Urban Buses
+    "Motor Coach",  # Motor Coach
+    "OBUS",  # Other Buses
+    "All Other Buses"  # All Other Buses
+]
+freight_vehicle_classes = [
+    "LHD1",  # Light-Heavy-Duty Trucks (GVWR 8501-10000 lbs)
+    "LHD2",  # Light-Heavy-Duty Trucks (GVWR 10001-14000 lbs)
+
+    "T6 Instate Tractor Class 6",  # Medium-Heavy Duty Tractor Truck (GVWR 19501-26000 lbs)
+    "T6 Instate Delivery Class 4",  # Medium-Heavy Duty Delivery Truck (GVWR 14001-16000 lbs)
+    "T6 Instate Delivery Class 5",  # Medium-Heavy Duty Delivery Truck (GVWR 16001-19500 lbs)
+    "T6 Instate Delivery Class 6",  # Medium-Heavy Duty Delivery Truck (GVWR 19501-26000 lbs)
+    "T6 Instate Other Class 4",  # Medium-Heavy Duty Other Truck (GVWR 14001-16000 lbs)
+    "T6 Instate Other Class 5",  # Medium-Heavy Duty Other Truck (GVWR 16001-19500 lbs)
+    "T6 Instate Other Class 6",  # Medium-Heavy Duty Other Truck (GVWR 19501-26000 lbs)
+    "T6 Instate Tractor Class 7",  # Medium-Heavy Duty Tractor Truck (GVWR 26001-33000 lbs)
+    "T6 Instate Delivery Class 7",  # Medium-Heavy Duty Delivery Truck (GVWR 26001-33000 lbs)
+    "T6 Instate Other Class 7",  # Medium-Heavy Duty Other Truck (GVWR 26001-33000 lbs)
+
+    "T6 OOS Class 4",  # Medium-Heavy Duty Out-of-state Truck (GVWR 14001-16000 lbs)
+    "T6 OOS Class 5",  # Medium-Heavy Duty Out-of-state Truck (GVWR 16001-19500 lbs)
+    "T6 OOS Class 6",  # Medium-Heavy Duty Out-of-state Truck (GVWR 19501-26000 lbs)
+    "T6 OOS Class 7",  # Medium-Heavy Duty Out-of-state Truck (GVWR 26001-33000 lbs)
+
+    "T6 CAIRP Class 4",  # Medium-Heavy Duty CA International Registration Plan Truck (GVWR 1400116000 lbs)
+    "T6 CAIRP Class 5",  # Medium-Heavy Duty CA International Registration Plan Truck (GVWR 1600119500 lbs)
+    "T6 CAIRP Class 6",  # Medium-Heavy Duty CA International Registration Plan Truck (GVWR 1950126000 lbs)
+    "T6 CAIRP Class 7",  # Medium-Heavy Duty CA International Registration Plan Truck (GVWR 2600133000 lbs)
+    "T7 CAIRP Class 8",  # Heavy-Heavy Duty CA International Registration Plan Truck (GVWR 33001 lbs and over)
+    "T7 Single Concrete/Transit Mix Class 8",
+    # Heavy-Heavy Duty Single Unit Concrete/Transit Mix Truck (GVWR 33001 lbs and over)
+    "T7 Single Dump Class 8",  # Heavy-Heavy Duty Single Unit Dump Truck (GVWR 33001 lbs and over)
+    "T7 Single Other Class 8",  # Heavy-Heavy Duty Single Unit Other Truck (GVWR 33001 lbs and over)
+    "T7 NNOOS Class 8",  # Heavy-Heavy Duty Non-Neighboring Outof-state Truck (GVWR 33001 lbs and over)
+    "T7 NOOS Class 8",  # Heavy-Heavy Duty Neighboring Out-ofstate Truck (GVWR 33001 lbs and over)
+    "T7 Tractor Class 8",  # Heavy-Heavy Duty Tractor Truck (GVWR 33001 lbs and over)
+    "T7IS",  # Heavy-Heavy Duty Truck
+]
+other_veh_classes = [
+    "MH",  # Motor Homes
+    "T6 Utility Class 5",  # Medium-Heavy Duty Utility Fleet Truck (GVWR 16001-19500 lbs)
+    "T6 Utility Class 6",  # Medium-Heavy Duty Utility Fleet Truck (GVWR 19501-26000 lbs)
+    "T6 Utility Class 7",  # Medium-Heavy Duty Utility Fleet Truck (GVWR 26001-33000 lbs)
+
+    ## used by public entities such as municipalities, state governments, and other public agencies
+    "T6 Public Class 4",  # Medium-Heavy Duty Public Fleet Truck (GVWR 14001-16000 lbs)
+    "T6 Public Class 5",  # Medium-Heavy Duty Public Fleet Truck (GVWR 16001-19500 lbs)
+    "T6 Public Class 6",  # Medium-Heavy Duty Public Fleet Truck (GVWR 19501-26000 lbs)
+    "T6 Public Class 7",  # Medium-Heavy Duty Public Fleet Truck (GVWR 26001-33000 lbs)
+    "T7 Public Class 8",  # Heavy-Heavy Duty Public Fleet Truck (GVWR 33001 lbs and over)
+
+    "T6TS",
+    # Medium-Heavy Duty Truck; "Transit/Specialized," these trucks are designed for specific types of operations
+    "T7 Utility Class 8",  # Heavy-Heavy Duty Utility Fleet Truck (GVWR 33001 lbs and over)
+    "T7 Other Port Class 8",  # Heavy-Heavy Duty Drayage Truck at Other Facilities (GVWR 33001 lbs and over)
+    "T7 POAK Class 8",  # Heavy-Heavy Duty Drayage Truck in Bay Area (GVWR 33001 lbs and ove
+    "T7 POLA Class 8",  # Heavy-Heavy Duty Drayage Truck near South Coast (GVWR 33001 lbs and over)
+    "T7 SWCV Class 8",  # Heavy-Heavy Duty Solid Waste Collection Truck (GVWR 33001 lbs and over)
+    "PTO",  # Power Take Off
+]
 emfac_fuel_to_beam_fuel_map = {
     'Dsl': 'Diesel',
     'Gas': 'Gasoline',
@@ -128,7 +181,6 @@ beam_fuel_to_emfac_fuel_map = {
     'PlugInHybridElectricity': 'Phe',
     'Hydrogen': 'H2fc'
 }
-
 pollutant_columns = {
     'CH4': 'rate_ch4_gram_float',
     'CO': 'rate_co_gram_float',
@@ -143,6 +195,7 @@ pollutant_columns = {
     'SOx': 'rate_sox_gram_float',
     'TOG': 'rate_tog_gram_float'
 }
+
 
 emissions_processes = ["RUNEX", "IDLEX", "STREX", "DIURN", "HOTSOAK", "RUNLOSS", "PMTW", "PMBW"]
 
@@ -275,28 +328,26 @@ def map_emfac_vehicle_types_to_famos(emfac_pop_file_, famos_vehicle_types_file_,
     return new_df
 
 
-def prepare_emfac_population_for_mapping(emfac_population_file,
-                                         formatted_emfac_population_file,
-                                         emfac_set_vehicle_class_mapping,
-                                         fuel_assumption_mapping):
-    # import re
-    emfac_population = pd.read_csv(emfac_population_file, dtype=str)
-    emfac_population['mappedVehicleClass'] = emfac_population['vehicle_class'].map(emfac_set_vehicle_class_mapping)
+def prepare_emfac_population_for_mapping(emfac_population, fuel_assumption_mapping):
+    # Map vehicle classes and drop rows with unmapped classes
+    emfac_population['mappedVehicleClass'] = emfac_population['vehicle_class'].map(emfac_class_to_famos_class_map)
     formatted_emfac_population = emfac_population.dropna(subset=['mappedVehicleClass'])
-    if len(formatted_emfac_population["vehicle_class"].unique()) != len(emfac_set_vehicle_class_mapping):
-        print("Something wrong happened with the mapping")
-    if not formatted_emfac_population['fuel'].isin(emfac_fuel_to_beam_fuel_map.keys()).all():
-        print("Missing fuel type from dictionary!!!")
-    formatted_emfac_population = formatted_emfac_population.assign(
-        mappedFuelType=lambda x: x['fuel'].map(fuel_assumption_mapping),
-        # zone=lambda x: x['sub_area'].str.replace(re.compile(r'\(SF\)'), '', regex=True).str.strip(),
-        population=lambda x: x['population'].astype(float)
-    )
-    formatted_emfac_population = formatted_emfac_population.drop(['calendar_year', 'sub_area'], axis=1)
-    formatted_emfac_population = formatted_emfac_population.rename(columns={'vehicle_class': 'emfacClass'})
-    formatted_emfac_population.to_csv(formatted_emfac_population_file, index=False)
 
-    return formatted_emfac_population
+    # Validation checks
+    if len(formatted_emfac_population["vehicle_class"].unique()) != len(emfac_class_to_famos_class_map):
+        print("Warning: Mismatch in vehicle class mapping")
+    if not formatted_emfac_population['fuel'].isin(emfac_fuel_to_beam_fuel_map.keys()).all():
+        print("Warning: Missing fuel type from dictionary")
+
+    result = (formatted_emfac_population
+              .assign(mappedFuelType=lambda x: x['fuel'].map(fuel_assumption_mapping),
+                    population=lambda x: x['population'].astype(float))
+              .drop(['calendar_year', 'sub_area'], axis=1)
+              .rename(columns={'vehicle_class': 'emfacClass', 'fuel': 'emfacFuel'}))
+    result["emfacId"] = result[['emfacClass', 'emfacFuel']].agg('-'.join, axis=1)
+    result["emfacId"] = result['emfacId'].str.replace(' ', '-')
+    # Apply transformations
+    return result
 
 
 def unpacking_famos_population_mesozones(freight_carriers, mesozones_to_county_file, mesozones_lookup_file):
@@ -334,89 +385,156 @@ def unpacking_famos_population_mesozones(freight_carriers, mesozones_to_county_f
     return freight_carriers_by_zone
 
 
-def prepare_famos_population_for_mapping(freight_carriers_formatted, freight_payloads_file, freight_vehicletypes_file):
-    freight_payloads = pd.read_csv(freight_payloads_file)[['payloadId', 'tourId', 'payloadType']]
-    freight_payloads_summary = freight_payloads.groupby(['tourId']).agg(
-        {'payloadType': lambda x: '|'.join(map(str, x))}).reset_index()
+def prepare_famos_population_for_mapping(freight_carriers, freight_payloads_raw, freight_vehicletypes):
+    freight_carriers_formatted = freight_carriers[['tourId', 'vehicleId', 'vehicleTypeId']]
+    freight_payloads = freight_payloads_raw[['payloadId', 'tourId', 'payloadType']].copy()
+    freight_vehicletypes = freight_vehicletypes[
+        ['vehicleTypeId', 'vehicleClass', 'primaryFuelType', 'secondaryFuelType']].copy()
+
+    # Summarize data
+    freight_payloads.loc[:, 'payloadType'] = freight_payloads['payloadType'].astype(str)
+    freight_payloads_summary = freight_payloads.groupby('tourId')['payloadType'].agg('|'.join).reset_index()
+
+    # Merge payload summary with carriers
     freight_payloads_merged = pd.merge(freight_payloads_summary, freight_carriers_formatted, on='tourId', how='left')
-    freight_vehicletypes = pd.read_csv(freight_vehicletypes_file)[
-        ['vehicleTypeId', 'vehicleClass', 'primaryFuelType', 'secondaryFuelType']]
+
+    # Load and process vehicle types
     freight_vehicletypes['fuelType'] = np.where(
-        (freight_vehicletypes['primaryFuelType'] == emfac_fuel_to_beam_fuel_map["Elec"]) & freight_vehicletypes[
-            'secondaryFuelType'].notna(),
+        (freight_vehicletypes['primaryFuelType'] == emfac_fuel_to_beam_fuel_map["Elec"]) &
+        freight_vehicletypes['secondaryFuelType'].notna(),
         emfac_fuel_to_beam_fuel_map['Phe'],
         freight_vehicletypes['primaryFuelType']
     )
-    freight_vehicletypes = freight_vehicletypes[['vehicleTypeId', 'vehicleClass', 'fuelType']]
-    freight_payloads_vehtypes = pd.merge(freight_payloads_merged, freight_vehicletypes, on='vehicleTypeId', how='left')
-    if not freight_payloads_vehtypes[freight_payloads_vehtypes['fuelType'].isna()].empty:
-        print("Something went wrong with the mapping of freight vehicle types. Missing vehicleTypeId?")
+
+    # Merge payloads with vehicle types
+    freight_payloads_vehtypes = pd.merge(
+        freight_payloads_merged,
+        freight_vehicletypes[['vehicleTypeId', 'vehicleClass', 'fuelType']],
+        on='vehicleTypeId',
+        how='left'
+    )
+
+    # Check for missing fuel types
+    if freight_payloads_vehtypes['fuelType'].isna().any():
+        print("Warning: Missing fuel types for some vehicle IDs")
         print(freight_payloads_vehtypes[freight_payloads_vehtypes['fuelType'].isna()])
-    formatted_famos_population = freight_payloads_vehtypes.drop_duplicates('vehicleId', keep='first')
 
-    return formatted_famos_population
+    # Remove duplicates and return
+    return freight_payloads_vehtypes.drop_duplicates('vehicleId', keep='first')
 
 
-def map_famos_emfac_freight_population(formatted_famos_population,
-                                       formatted_emfac_population,
-                                       famos_emfac_freight_population_mapping_file,
-                                       is_statewide):
+def map_famos_emfac_freight_population(formatted_famos_population, formatted_emfac_population, is_statewide):
+    # Define grouping keys based on whether the data is statewide or not
+    group_keys = ['mappedVehicleClass', 'mappedFuelType'] if is_statewide else ['zone', 'mappedVehicleClass',
+                                                                                'mappedFuelType']
+    class_keys = ['mappedVehicleClass'] if is_statewide else ['zone', 'mappedVehicleClass']
 
-    if is_statewide:
-        grouped_by_mappedFuelType = formatted_emfac_population.groupby(['mappedVehicleClass', 'mappedFuelType'])
-        grouped_by_mappedVehicleClass = formatted_emfac_population.groupby(['mappedVehicleClass'])
-    else:
-        grouped_by_mappedFuelType = formatted_emfac_population.groupby(['zone', 'mappedVehicleClass', 'mappedFuelType'])
-        grouped_by_mappedVehicleClass = formatted_emfac_population.groupby(['zone', 'mappedVehicleClass'])
+    # Group the EMFAC population data
+    grouped_by_mappedFuelType = formatted_emfac_population.groupby(group_keys)
+    grouped_by_mappedVehicleClass = formatted_emfac_population.groupby(class_keys)
 
-    # List to store the results which will be merged later
-    results = []
-
-    # Loop over each row in the vehtypes DataFrame
-    for index, row in formatted_famos_population.iterrows():
+    def process_row(row):
         vehicleClass, fuelType, vehicleTypeId = row['vehicleClass'], row['fuelType'], row['vehicleTypeId']
 
         try:
-            if is_statewide:
-                group = grouped_by_mappedFuelType.get_group((vehicleClass, fuelType))
-            else:
-                group = grouped_by_mappedFuelType.get_group((row['zone'], vehicleClass, fuelType))
+            # Try to get a group matching both vehicle class and fuel type
+            group_key = (vehicleClass, fuelType) if is_statewide else (row['zone'], vehicleClass, fuelType)
+            group = grouped_by_mappedFuelType.get_group(group_key)
+
+            # Sample from the group based on population weights
             weights = group['population'] / group['population'].sum()
-            sample = group.sample(n=1, weights=weights)
-            emfacClass = sample['emfacClass'].iloc[0].replace(' ', '')
-            fuel = sample['fuel'].iloc[0]
-            sample['emfacFuelType'] = fuel
-            sample['emfacVehicleTypeId'] = vehicleTypeId + "-" + emfacClass + "-" + fuel
-            result_row = sample[['emfacVehicleTypeId', 'emfacClass', 'emfacFuelType']].iloc[0]
-        except KeyError:
-            result_row = None
+            sample = group.sample(n=1, weights=weights).iloc[0]
 
-        try:
-            if result_row is None:
-                if is_statewide:
-                    group2 = grouped_by_mappedVehicleClass.get_group((vehicleClass))
-                else:
-                    group2 = grouped_by_mappedVehicleClass.get_group((row['zone'], vehicleClass))
-                weights2 = group2['population'] / group2['population'].sum()
-                sample2 = group2.sample(n=1, weights=weights2)
-                emfacClass = sample2['emfacClass'].iloc[0].replace(' ', '')
+            emfacClass = sample['emfacClass'].replace(' ', '')
+            fuel = sample['fuel']
+
+        except KeyError:
+            try:
+                # If no match found, try to get a group matching only vehicle class
+                class_key = (vehicleClass,) if is_statewide else (row['zone'], vehicleClass)
+                group = grouped_by_mappedVehicleClass.get_group(class_key)
+
+                # Sample from the group based on population weights
+                weights = group['population'] / group['population'].sum()
+                sample = group.sample(n=1, weights=weights).iloc[0]
+
+                emfacClass = sample['emfacClass'].replace(' ', '')
                 fuel = beam_fuel_to_emfac_fuel_map[fuelType]
-                sample2['emfacFuelType'] = fuel
-                sample2['emfacVehicleTypeId'] = vehicleTypeId + "-" + emfacClass + "-" + fuel
-                result_row = sample2[['emfacVehicleTypeId', 'emfacClass', 'emfacFuelType']].iloc[0]
 
-        except KeyError:
-            # Handle the case where no matching group is found
-            print(f"This vehicleClass [{vehicleClass}] not found in emfac! \nRow: {row}")
-            result_row = pd.Series({'emfacVehicleTypeId': None, 'emfacClass': None, 'emfacFuelType': None}, name=index)
+            except KeyError:
+                # If still no match found, return None values
+                print(f"This vehicleClass [{vehicleClass}] not found in EMFAC! \nRow: {row}")
+                return pd.Series({'emfacVehicleTypeId': None, 'emfacClass': None, 'emfacFuelType': None})
 
-        results.append(pd.Series(result_row, name=index))
+        # Construct the EMFAC vehicle type ID
+        emfacVehicleTypeId = f"{vehicleTypeId}-{emfacClass}-{fuel}"
 
-    # Merge the results back to famos_freight_population
-    famos_emfac_freight_population_mapping = formatted_famos_population.join(pd.concat(results, axis=1).transpose())
-    famos_emfac_freight_population_mapping.to_csv(famos_emfac_freight_population_mapping_file, index=False)
+        return pd.Series({
+            'emfacVehicleTypeId': emfacVehicleTypeId,
+            'emfacClass': emfacClass,
+            'emfacFuelType': fuel
+        })
 
-    return famos_emfac_freight_population_mapping
+    # Apply the processing function to each row and combine results
+    results = formatted_famos_population.apply(process_row, axis=1)
+
+    # Join the results back to the original DataFrame
+    return pd.concat([formatted_famos_population, results], axis=1)
+
+
+def distribution_based_vehicle_classes_assignment(famos_df, emfac_df):
+    # Remove 'Class 2b&3 Vocational' from EMFAC data
+    emfac_df = emfac_df[emfac_df['mappedVehicleClass'] != class_2b3]
+
+    def sample_emfac(the_class, the_fuel):
+        emfac_grouped = emfac_df[(emfac_df['mappedVehicleClass'] == the_class) & (emfac_df['mappedFuelType'] == the_fuel)]
+        if emfac_grouped.empty:
+            emfac_grouped = emfac_df[emfac_df['mappedVehicleClass'] == the_class]
+        return emfac_grouped.sample(n=1, weights='population')['emfacId'].iloc[0]
+
+    total_emfac = emfac_df["population"].sum()
+    class_46_share = emfac_df[emfac_df['mappedVehicleClass'] == class_46]["population"].sum() / total_emfac
+    class_78_v_share = emfac_df[emfac_df['mappedVehicleClass'] == class_78_v]["population"].sum() / total_emfac
+    total_famos = len(famos_df)
+    class_46_target = int(class_46_share * total_famos)
+    class_78_v_target = int(class_78_v_share * total_famos)
+
+    class_46_count = 0
+    class_78_v_count = 0
+
+    def sample_emfac_class(row):
+        nonlocal class_46_count, class_78_v_count
+
+        if class_46_count < class_46_target:
+            if row['vehicleClass'] == class_46:
+                class_46_count += 1
+                return sample_emfac(class_46, row['fuelType'])
+
+            if row['vehicleClass'] == class_78_v:
+                class_46_count += 1
+                return sample_emfac(class_46, row['fuelType'])
+
+            if row['vehicleClass'] == class_78_t:
+                class_46_count += 1
+                return sample_emfac(class_46, row['fuelType'])
+
+        if class_78_v_count < class_78_v_target:
+            if row['vehicleClass'] == class_78_v:
+                class_78_v_count += 1
+                return sample_emfac(class_78_v, row['fuelType'])
+
+            if row['vehicleClass'] == class_78_t:
+                class_78_v_count += 1
+                return sample_emfac(class_78_v, row['fuelType'])
+
+        return sample_emfac(class_78_t, row['fuelType'])
+
+    famos_df['vehicleClassBis'] = famos_df['vehicleClass'].map({class_46: 1, class_78_v: 2, class_78_t: 3})
+    famos_df['emfacId'] = famos_df.sort_values('vehicleClassBis').apply(sample_emfac_class, axis=1)
+    famos_df["oldVehicleTypeId"] = famos_df["vehicleTypeId"]
+    famos_df['vehicleTypeId'] = famos_df['emfacId'] + "-" + famos_df['oldVehicleTypeId'].str.split('-').str[-1]
+    merged = pd.merge(famos_df, emfac_df, on="emfacId", how="left").drop(["vehicleClassBis"], axis=1)
+    return merged
 
 
 def pivot_rates_for_beam(df_raw):
@@ -470,19 +588,140 @@ def process_rates_group(df, row):
     return pd.concat(df_output_list, ignore_index=True)
 
 
-def format_rates_for_beam(df):
+def format_rates_for_beam(emissions_rates, calendar_year=2018, season="Annual", humidity=40, temperature=65):
     from joblib import Parallel, delayed
 
+    # Filter and format emissions data
+    df_filtered = emissions_rates[
+        (emissions_rates["calendar_year"] == calendar_year) &
+        (emissions_rates["season_month"] == season) &
+        ((emissions_rates["relative_humidity"] == humidity) | (emissions_rates["relative_humidity"].isna())) &
+        ((emissions_rates["temperature"] == temperature) | (emissions_rates["temperature"].isna()))
+    ].drop(['calendar_year', 'season_month', 'relative_humidity', 'temperature'], axis=1)
+
     # Pivot table to spread pollutants into columns
-    print("Parallel processing ...")
+    print("Formatting emissions...")
 
     # Assuming emissions_rates is already loaded into a DataFrame `df`
     group_by_cols = ["sub_area", "vehicle_class", "fuel"]
-    df_unique = df[group_by_cols].drop_duplicates().reset_index(drop=True)
+    df_unique = df_filtered[group_by_cols].drop_duplicates().reset_index(drop=True)
 
     # Parallel processing
-    df_output_list = Parallel(n_jobs=-1)(delayed(process_rates_group)(df, row) for index, row in df_unique.iterrows())
+    df_output_list = Parallel(n_jobs=-1)(delayed(process_rates_group)(df_filtered, row) for index, row in df_unique.iterrows())
+
+    df_output = pd.concat(df_output_list, ignore_index=True)
+    df_output["emfacId"] = df_output['vehicle_class'].str.replace(' ', '-') + "-" + df_output['fuel']
+    return df_output
+
+
+def process_vehicle_type(row, df_output, geo_df, emissions_rates_dir):
+    # Filter emissions rates for this vehicle type
+    emissions_rates_df = df_output[df_output["emfacId"] == row["emfacId"]].copy()
+
+    # Extract county and merge with geographic data
+    emissions_rates_df['county'] = emissions_rates_df['sub_area'].str.extract(r'^([^()]+)').squeeze().str.strip()
+    emissions_rates_df = pd.merge(geo_df[['taz1454', 'county']], emissions_rates_df, on="county", how='left')
+    emissions_rates_df.rename(columns={'taz1454': 'taz'}, inplace=True)
+
+    # Save emissions rates to CSV
+    emissions_rates_filename = f"emissions-{row['vehicleTypeId']}.csv"
+    emissions_rates_filepath = os.path.join(emissions_rates_dir, emissions_rates_filename)
+    emissions_rates_df.drop(["county", "sub_area", "vehicle_class", "fuel", "speed_time", "emfacId"], axis=1).to_csv(emissions_rates_filepath, index=False)
+    print(emissions_rates_filepath + " Ok")
+    return row['vehicleTypeId'], emissions_rates_filename
+
+
+# def process_emfac_emissions_bis(formatted_emissions_rates, vehicle_types, geo_df, output_dir):
+#     # Prepare directory for emissions rates files
+#     emissions_rates_dir = os.path.abspath(output_dir)
+#     os.makedirs(emissions_rates_dir, exist_ok=True)
+#
+#     print("Mapping to vehicle types ...")
+#
+#     results = []
+#     for _, row in vehicle_types.iterrows():
+#         try:
+#             result = process_vehicle_type(row, formatted_emissions_rates, geo_df, emissions_rates_dir)
+#             results.append(result)
+#         except Exception as e:
+#             print(f"Error processing vehicle {row['vehicleId']}: {str(e)}")
+#
+#     # Update vehicle types with emissions rates file names
+#     for vehicle_id, filename in results:
+#         vehicle_types.loc[vehicle_types['vehicleId'] == vehicle_id, 'emissionsRatesFile'] = filename
+#
+#     print("Completed!")
+#     return vehicle_types
+
+
+def process_emfac_emissions(formatted_emissions_rates, vehicle_types, geo_df, output_dir, vehicletypes_rates_relative_path):
+    import multiprocessing as mp
+    from functools import partial
+    # Prepare directory for emissions rates files
+    emissions_rates_dir = os.path.abspath(output_dir)
+    os.makedirs(emissions_rates_dir, exist_ok=True)
+
+    print("Mapping to vehicle types ...")
+
+    # Set up multiprocessing
+    num_cores = mp.cpu_count()
+    pool = mp.Pool(num_cores)
+
+    # Prepare the partial function for multiprocessing
+    process_func = partial(process_vehicle_type, df_output=formatted_emissions_rates, geo_df=geo_df, emissions_rates_dir=emissions_rates_dir)
+
+    # Process vehicle types in parallel
+    results = pool.map(process_func, [row for _, row in vehicle_types.iterrows()])
+
+    # Close the pool
+    pool.close()
+    pool.join()
+
+    # Update vehicle types with emissions rates file names
+    for vehicle_id, filename in results:
+        relative_filename = vehicletypes_rates_relative_path + filename
+        vehicle_types.loc[vehicle_types['vehicleId'] == vehicle_id, 'emissionsRatesFile'] = relative_filename
 
     print("Completed!")
-    # Concatenate all collected DataFrames at once
-    return pd.concat(df_output_list, ignore_index=True)
+    return vehicle_types
+
+
+def build_vehicle_types_for_emissions(updated_famos_population, freight_vehicletypes):
+    # Create a copy of the original vehicleTypeId and set up a lookup dictionary
+    freight_vehicletypes_dict = freight_vehicletypes.set_index("vehicleTypeId").to_dict('index')
+
+    def process_row(row):
+        new_row = freight_vehicletypes_dict[row["oldVehicleTypeId"]].copy()
+        new_row["vehicleTypeId"] = row["vehicleTypeId"]
+        new_row['vehicleClass'] = row['mappedVehicleClass']
+        new_row['vehicleCategory'] = class_to_category.get(row['mappedVehicleClass'], 'Unknown')
+        new_row["emfacId"] = row['emfacId']
+        return new_row
+
+    result_df = pd.DataFrame(updated_famos_population.apply(process_row, axis=1).tolist())
+
+    # Define the desired column order with 'vehicleTypeId' at the front
+    columns_order = ['vehicleTypeId'] + [
+        col for col in result_df.columns if col not in {'vehicleTypeId'}
+    ]
+
+    # Reorder the columns
+    result_df = result_df[columns_order]
+
+    return result_df
+
+
+def update_carrier_file(carrier_df, updated_famos_population):
+    vehicle_id_to_type_mapping = dict(zip(updated_famos_population['vehicleId'],
+                                          updated_famos_population['vehicleTypeId']))
+
+    def update_vehicle_type(row):
+        type_id = vehicle_id_to_type_mapping.get(row['vehicleId'])
+        if type_id is None:
+            print(f"Warning: No updated type found for vehicleId {row['vehicleId']}")
+            return row['vehicleTypeId']  # Keep the original type
+        return type_id
+
+    carrier_df['vehicleTypeId'] = carrier_df.apply(update_vehicle_type, axis=1)
+
+    return carrier_df
