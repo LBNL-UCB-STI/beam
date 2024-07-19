@@ -10,12 +10,11 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
-import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
+import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
 import beam.router.model.BeamLeg
-import beam.sim.BeamScenario
-import beam.utils.NetworkHelper
+import beam.sim.{BeamScenario, BeamServices}
 import beam.utils.ReadWriteLockUtil._
 import beam.utils.logging.ExponentialLazyLogging
 import org.matsim.api.core.v01.Id
@@ -66,9 +65,9 @@ class BeamVehicle(
 
   private val emissionsRWLock = new ReentrantReadWriteLock()
 
-  private val emissionsProfileInGramInternal: EmissionsProfile.EmissionsProfile = EmissionsProfile.init()
+  private val emissionsProfileInGramInternal: EmissionsProfile = EmissionsProfile.init()
 
-  private def emissionsProfileInGram: EmissionsProfile.EmissionsProfile = emissionsRWLock.read {
+  private def emissionsProfileInGram: EmissionsProfile = emissionsRWLock.read {
     emissionsProfileInGramInternal
   }
 
@@ -288,15 +287,20 @@ class BeamVehicle(
 
   def emitEmissions[E <: org.matsim.api.core.v01.events.Event](
     vehicleActivityData: IndexedSeq[VehicleActivityData],
-    beamScenario: BeamScenario,
-    vehicleActivity: Class[E]
-  ): Option[EmissionsProfile.EmissionsProfile] = {
+    vehicleActivity: Class[E],
+    beamServices: BeamServices
+  ): Option[EmissionsProfile] = {
     val emissions =
-      beamScenario.vehicleEmissions.getEmissionsProfileInGram(vehicleActivityData, vehicleActivity, beamVehicleType)
-    emissionsRWLock.write(emissions.map(_.foreach { case (source, rates) =>
-      emissionsProfileInGramInternal.get(source).map(_ + rates)
+      beamServices.beamScenario.vehicleEmissions.getEmissionsProfileInGram(
+        vehicleActivityData,
+        vehicleActivity,
+        beamVehicleType,
+        beamServices
+      )
+    emissionsRWLock.write(emissions.map(_.values.foreach { case (source, rates) =>
+      emissionsProfileInGramInternal.values.get(source).map(_ + rates)
     }))
-    emissions
+    if (beamServices.beamConfig.beam.exchange.output.emissions.events) emissions else None
   }
 
   /**
@@ -584,6 +588,7 @@ object BeamVehicle {
   }
 
   case class VehicleActivityData(
+    time: Double,
     linkId: Int,
     vehicleType: BeamVehicleType,
     payloadInKg: Option[Double],
@@ -593,7 +598,10 @@ object BeamVehicle {
     taz: Option[TAZ] = None,
     parkingDuration: Option[Double] = None,
     linkTravelTime: Option[Double] = None
-  )
+  ) {
+    var primaryEnergyConsumed: Double = 0.0
+    var secondaryEnergyConsumed: Double = 0.0
+  }
 
   /**
     * Collects vehicle activity data based on the provided activity, which can be either a BeamLeg or a ParkingStall.
@@ -610,42 +618,27 @@ object BeamVehicle {
     * @return Indexed sequence of VehicleActivityData
     */
   def collectVehicleActivityData(
+    time: Double,
     activity: Either[BeamLeg, Link],
     theVehicleType: BeamVehicleType,
     payloadInKg: Option[Double],
     parkingDuration: Option[Double],
-    networkHelper: NetworkHelper,
-    vehicleEnergy: VehicleEnergy,
-    tazTreeMap: TAZTreeMap
+    beamServices: BeamServices
   ): IndexedSeq[VehicleActivityData] = {
+    val fuelConsumptionDataWithOnlyLength_Id_And_Type =
+      !beamServices.beamScenario.vehicleEnergy.vehicleEnergyMappingExistsFor(theVehicleType)
     activity match {
       case Left(beamLeg) =>
-        val fuelConsumptionDataWithOnlyLength_Id_And_Type = !vehicleEnergy.vehicleEnergyMappingExistsFor(theVehicleType)
         if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
           Vector.empty
-        } else if (fuelConsumptionDataWithOnlyLength_Id_And_Type) {
-          beamLeg.travelPath.linkIds
-            .drop(1)
-            .map { id =>
-              val linkMaybe = networkHelper.getLink(id)
-              VehicleActivityData(
-                linkId = id,
-                vehicleType = theVehicleType,
-                payloadInKg = None,
-                linkNumberOfLanes = None,
-                linkLength = linkMaybe.map(_.getLength),
-                averageSpeed = None,
-                taz = linkMaybe.flatMap(link => tazTreeMap.getTAZfromLink(link.getId)),
-                parkingDuration = None,
-                linkTravelTime = None
-              )
-            }
         } else {
           val linkIds = beamLeg.travelPath.linkIds.drop(1)
           val linkTravelTimes: IndexedSeq[Double] = beamLeg.travelPath.linkTravelTime.drop(1)
+          var totalTravelTime: Double = 0.0
           linkIds.zipWithIndex.map { case (id, idx) =>
             val travelTime = linkTravelTimes(idx)
-            val currentLink: Option[Link] = networkHelper.getLink(id)
+            totalTravelTime += travelTime
+            val currentLink: Option[Link] = beamServices.networkHelper.getLink(id)
             val averageSpeed =
               try {
                 if (travelTime > 0) currentLink.map(_.getLength).getOrElse(0.0) / travelTime else 0
@@ -653,13 +646,14 @@ object BeamVehicle {
                 case _: Exception => 0.0
               }
             VehicleActivityData(
+              time = time - totalTravelTime,
               linkId = id,
               vehicleType = theVehicleType,
               payloadInKg = payloadInKg,
               linkNumberOfLanes = currentLink.map(_.getNumberOfLanes().toInt),
               linkLength = currentLink.map(_.getLength),
               averageSpeed = Some(averageSpeed),
-              taz = currentLink.flatMap(link => tazTreeMap.getTAZfromLink(link.getId)),
+              taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
               parkingDuration = None,
               linkTravelTime = Some(travelTime)
             )
@@ -668,13 +662,14 @@ object BeamVehicle {
       case Right(link) =>
         IndexedSeq(
           VehicleActivityData(
+            time = parkingDuration.map(duration => time - duration).getOrElse(time),
             linkId = link.getId.toString.toInt,
             vehicleType = theVehicleType,
             payloadInKg = payloadInKg,
             linkNumberOfLanes = Some(link.getNumberOfLanes.toInt),
             linkLength = Some(link.getLength),
             averageSpeed = None,
-            taz = tazTreeMap.getTAZfromLink(link.getId),
+            taz = beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId),
             parkingDuration = parkingDuration,
             linkTravelTime = None
           )

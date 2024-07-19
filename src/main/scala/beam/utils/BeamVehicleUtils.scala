@@ -263,8 +263,9 @@ object BeamVehicleUtils extends LazyLogging {
   def parseEmissionsString(
     emissionsString: String,
     vehicleTypeId: Option[String] = None
-  ): Option[VehicleEmissions.EmissionsProfile.EmissionsProfile] = {
-    import VehicleEmissions.Emissions._
+  ): Option[VehicleEmissions.EmissionsProfile] = {
+    import VehicleEmissions.Emissions
+    import VehicleEmissions.EmissionsProfile
     import scala.util.Try
 
     // Regular expression pattern to match emission sources and their values.
@@ -283,10 +284,12 @@ object BeamVehicleUtils extends LazyLogging {
               parts.length match {
                 case 2 =>
                   // Valid emission entry with a value
-                  Some((parts(0).toLowerCase, Try(parts(1).toDouble).getOrElse(0.0)))
+                  Emissions
+                    .fromString(parts(0))
+                    .map(emissionType => (emissionType, Try(parts(1).toDouble).getOrElse(0.0)))
                 case 1 =>
                   // Emission entry with a missing value, default to 0.0
-                  Some((parts(0).toLowerCase, 0.0))
+                  Emissions.fromString(parts(0)).map(emissionType => (emissionType, 0.0))
                 case _ =>
                   // Log error for invalid emission entry
                   logger.error(
@@ -299,61 +302,40 @@ object BeamVehicleUtils extends LazyLogging {
             .toMap
 
           // Create Emissions object from the parsed data
-          val emissionsRates = VehicleEmissions.Emissions(
-            emissionMap.getOrElse(_CH4.toLowerCase, 0.0),
-            emissionMap.getOrElse(_CO.toLowerCase, 0.0),
-            emissionMap.getOrElse(_CO2.toLowerCase, 0.0),
-            emissionMap.getOrElse(_HC.toLowerCase, 0.0),
-            emissionMap.getOrElse(_NH3.toLowerCase, 0.0),
-            emissionMap.getOrElse(_NOx.toLowerCase, 0.0),
-            emissionMap.getOrElse(_PM.toLowerCase, 0.0),
-            emissionMap.getOrElse(_PM10.toLowerCase, 0.0),
-            emissionMap.getOrElse(_PM2_5.toLowerCase, 0.0),
-            emissionMap.getOrElse(_ROG.toLowerCase, 0.0),
-            emissionMap.getOrElse(_SOx.toLowerCase, 0.0),
-            emissionMap.getOrElse(_TOG.toLowerCase, 0.0)
-          )
+          val emissionsRates = Emissions(emissionMap)
 
           // Return the source and its corresponding Emissions object
-          VehicleEmissions.EmissionsProcesses.fromString(source).map(process => (process, emissionsRates))
+          EmissionsProfile.fromString(source).map(process => (process, emissionsRates))
 
         case _ => None
       }
       .toMap
 
     // Return EmissionsProfile if the map is non-empty
-    if (emissionsMap.nonEmpty) Some(emissionsMap) else None
+    if (emissionsMap.nonEmpty) Some(EmissionsProfile(emissionsMap)) else None
   }
 
   /**
     * Converts an EmissionsProfile into a formatted string.
     *
-    * @param emissionsProfile A map where keys are EmissionsProcess values and values are Emissions objects.
+    * @param emissionsProfile An EmissionsProfile object.
     * @return A string representation of the emissions profile in the format [Emissions Source]([Emission Type 1]:[Double value],[Emission Type 2]:[Double value], ...).
     */
-  def buildEmissionsString(emissionsProfile: VehicleEmissions.EmissionsProfile.EmissionsProfile): String = {
-    import VehicleEmissions.Emissions._
+  def buildEmissionsString(emissionsProfile: VehicleEmissions.EmissionsProfile): String = {
+    import VehicleEmissions.Emissions
 
-    def formatEmission(emissionType: String, value: Double): String = s"$emissionType:$value"
+    def formatEmission(emissionType: Emissions.EmissionType, value: Double): String =
+      s"${Emissions.formatName(emissionType)}:$value"
 
     def formatEmissions(emissions: VehicleEmissions.Emissions): String = {
-      List(
-        formatEmission(_CH4, emissions.CH4),
-        formatEmission(_CO, emissions.CO),
-        formatEmission(_CO2, emissions.CO2),
-        formatEmission(_HC, emissions.HC),
-        formatEmission(_NH3, emissions.NH3),
-        formatEmission(_NOx, emissions.NOx),
-        formatEmission(_PM, emissions.PM),
-        formatEmission(_PM10, emissions.PM10),
-        formatEmission(_PM2_5, emissions.PM2_5),
-        formatEmission(_ROG, emissions.ROG),
-        formatEmission(_SOx, emissions.SOx),
-        formatEmission(_TOG, emissions.TOG)
-      ).mkString(", ")
+      emissions.values
+        .map { case (emissionType, value) =>
+          formatEmission(emissionType, value)
+        }
+        .mkString(", ")
     }
 
-    emissionsProfile
+    emissionsProfile.values
       .map { case (source, emissions) =>
         s"${source.toString}(${formatEmissions(emissions)})"
       }

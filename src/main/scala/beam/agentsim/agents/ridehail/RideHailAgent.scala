@@ -35,7 +35,6 @@ import beam.utils.logging.LogActorState
 import beam.utils.reflection.ReflectionUtils
 import com.conveyal.r5.transit.TransportNetwork
 import org.matsim.api.core.v01.events.PersonEntersVehicleEvent
-import beam.agentsim.events.BeamPersonDepartureEvent
 import org.matsim.api.core.v01.{Coord, Id}
 import org.matsim.core.api.experimental.events.EventsManager
 import org.matsim.core.utils.misc.Time
@@ -1057,6 +1056,7 @@ class RideHailAgent(
   }
 
   def handleEndRefuel(tick: Int, energyCharged: Double): Unit = {
+    import ParkingNetworkManager._
     lastLocationOfRefuel = Some(vehicle.stall.get.locationUTM)
     val newLocation = vehicle.stall match {
       case None =>
@@ -1099,16 +1099,7 @@ class RideHailAgent(
         vehicle.getState
       )
     }
-    ParkingNetworkManager.handleReleasingParkingSpot(
-      tick,
-      currentBeamVehicle,
-      Some(energyCharged),
-      id,
-      parkingManager,
-      eventsManager,
-      networkHelper,
-      beamScenario
-    )
+    handleReleasingParkingSpot(tick, currentBeamVehicle, Some(energyCharged), id, parkingManager, beamServices)
   }
 
   private def parkAndStartRefueling(stall: ParkingStall, data: RideHailAgentData): Unit = {

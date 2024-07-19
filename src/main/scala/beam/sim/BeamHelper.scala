@@ -242,6 +242,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
           bind(classOf[TollCalculator]).asEagerSingleton()
           bind(classOf[ODSkimmer]).asEagerSingleton()
           bind(classOf[TAZSkimmer]).asEagerSingleton()
+          bind(classOf[EmissionsSkimmer]).asEagerSingleton()
           bind(classOf[DriveTimeSkimmer]).asEagerSingleton()
           bind(classOf[TransitCrowdingSkimmer]).asEagerSingleton()
           bind(classOf[RideHailSkimmer]).asEagerSingleton()
@@ -280,8 +281,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     val vehicleEmissions = new VehicleEmissions(
       vehicleTypesBasePaths,
       vehicleTypes,
-      beamConfig.beam.agentsim.agents.vehicles.linkToGradePercentFilePath,
-      beamConfig.beam.outputs.events.embedEmissionsProfiles
+      beamConfig.beam.agentsim.agents.vehicles.linkToGradePercentFilePath
     )
 
     val dates = DateUtils(

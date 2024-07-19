@@ -1,9 +1,7 @@
 package beam.agentsim.events
 
-import java.util
-import java.util.concurrent.atomic.AtomicReference
 import beam.agentsim.agents.vehicles.BeamVehicleType
-import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile.EmissionsProfile
+import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile
 import beam.router.Modes.BeamMode
 import beam.router.model.BeamLeg
 import beam.utils.{BeamVehicleUtils, FormatUtils}
@@ -12,6 +10,8 @@ import org.matsim.api.core.v01.events.Event
 import org.matsim.api.core.v01.population.Person
 import org.matsim.vehicles.Vehicle
 
+import java.util
+import java.util.concurrent.atomic.AtomicReference
 import scala.collection.JavaConverters._
 
 case class PathTraversalEvent(

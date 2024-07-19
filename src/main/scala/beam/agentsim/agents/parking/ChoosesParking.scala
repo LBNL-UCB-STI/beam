@@ -17,6 +17,7 @@ import beam.agentsim.infrastructure.charging.{ChargingPointType, ElectricCurrent
 import beam.agentsim.infrastructure.parking.PricingModel
 import beam.agentsim.infrastructure.taz.TAZTreeMap
 import beam.agentsim.infrastructure.{ParkingInquiry, ParkingInquiryResponse, ParkingNetworkManager, ParkingStall}
+import beam.agentsim.infrastructure.ParkingNetworkManager._
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger.TriggerWithId
 import beam.router.BeamRouter.{RoutingRequest, RoutingResponse}
@@ -280,16 +281,7 @@ trait ChoosesParking extends {
         s"Vehicle ${vehicle.id} is not handled by the CNM at tick $tick. Something is broken." +
         s"the agent will now disconnect the vehicle ${currentBeamVehicle.id} to let the simulation continue!"
       )
-      ParkingNetworkManager.handleReleasingParkingSpot(
-        tick,
-        currentBeamVehicle,
-        None,
-        id,
-        parkingManager,
-        eventsManager,
-        networkHelper,
-        beamScenario
-      )
+      handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, beamServices)
       goto(WaitingToDrive) using data
 
     case Event(UnpluggingVehicle(tick, _, vehicle, _, energy), data: BasePersonData)
@@ -297,30 +289,12 @@ trait ChoosesParking extends {
       log.debug(
         s"Vehicle ${vehicle.id} [chosen for enroute] ended charging and it is not handled by the CNM at tick $tick"
       )
-      ParkingNetworkManager.handleReleasingParkingSpot(
-        tick,
-        vehicle,
-        Some(energy),
-        id,
-        parkingManager,
-        eventsManager,
-        networkHelper,
-        beamScenario
-      )
+      handleReleasingParkingSpot(tick, vehicle, Some(energy), id, parkingManager, beamServices)
       goto(ReadyToChooseParking) using data
 
     case Event(UnpluggingVehicle(tick, _, vehicle, _, energy), data) =>
       log.debug(s"Vehicle ${vehicle.id} ended charging and it is not handled by the CNM at tick $tick")
-      ParkingNetworkManager.handleReleasingParkingSpot(
-        tick,
-        vehicle,
-        Some(energy),
-        id,
-        parkingManager,
-        eventsManager,
-        networkHelper,
-        beamScenario
-      )
+      handleReleasingParkingSpot(tick, vehicle, Some(energy), id, parkingManager, beamServices)
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
   }
@@ -352,16 +326,7 @@ trait ChoosesParking extends {
           if (data.enrouteData.isInEnrouteState)
             ReadyToChooseParking
           else {
-            ParkingNetworkManager.handleReleasingParkingSpot(
-              tick,
-              vehicle,
-              None,
-              id,
-              parkingManager,
-              eventsManager,
-              networkHelper,
-              beamScenario
-            )
+            handleReleasingParkingSpot(tick, vehicle, None, id, parkingManager, beamServices)
             releaseTickAndTriggerId()
             WaitingToDrive
           }
@@ -370,16 +335,7 @@ trait ChoosesParking extends {
       }
 
     case Event(StateTimeout, data) =>
-      ParkingNetworkManager.handleReleasingParkingSpot(
-        getCurrentTick.get,
-        currentBeamVehicle,
-        None,
-        id,
-        parkingManager,
-        eventsManager,
-        networkHelper,
-        beamScenario
-      )
+      handleReleasingParkingSpot(getCurrentTick.get, currentBeamVehicle, None, id, parkingManager, beamServices)
       releaseTickAndTriggerId()
       goto(WaitingToDrive) using data
   }
@@ -424,16 +380,7 @@ trait ChoosesParking extends {
               triggerId,
               Vector(ScheduleTrigger(StartLegTrigger(nextLeg.startTime, nextLeg), self))
             )
-            ParkingNetworkManager.handleReleasingParkingSpot(
-              tick,
-              currentBeamVehicle,
-              None,
-              id,
-              parkingManager,
-              eventsManager,
-              networkHelper,
-              beamScenario
-            )
+            handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, beamServices)
             goto(WaitingToDrive) using data.copy(enrouteData = EnrouteData())
           case _ =>
             // Else the stall requires a diversion in travel, calc the new routes (in-vehicle to the stall and walking to the destination)
@@ -557,16 +504,8 @@ trait ChoosesParking extends {
         )
       )
 
-      ParkingNetworkManager.handleReleasingParkingSpot(
-        tick,
-        currentBeamVehicle,
-        None,
-        id,
-        parkingManager,
-        eventsManager,
-        networkHelper,
-        beamScenario
-      )
+      handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, beamServices)
+
       goto(WaitingToDrive) using data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),
         restOfCurrentTrip = newRestOfTrip.toList,
@@ -644,16 +583,7 @@ trait ChoosesParking extends {
         )
       )
 
-      ParkingNetworkManager.handleReleasingParkingSpot(
-        tick,
-        currentBeamVehicle,
-        None,
-        id,
-        parkingManager,
-        eventsManager,
-        networkHelper,
-        beamScenario
-      )
+      handleReleasingParkingSpot(tick, currentBeamVehicle, None, id, parkingManager, beamServices)
 
       goto(WaitingToDrive) using data.copy(
         currentTrip = Some(EmbodiedBeamTrip(newCurrentTripLegs)),

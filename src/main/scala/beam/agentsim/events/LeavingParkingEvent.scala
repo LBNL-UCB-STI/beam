@@ -1,6 +1,6 @@
 package beam.agentsim.events
 
-import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile.EmissionsProfile
+import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging._
 import beam.agentsim.infrastructure.parking._

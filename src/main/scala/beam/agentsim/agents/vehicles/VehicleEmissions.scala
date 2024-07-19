@@ -1,6 +1,10 @@
 package beam.agentsim.agents.vehicles
 
+import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.{formatName, EmissionType}
+import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile.EmissionsProcess
 import beam.agentsim.events.{LeavingParkingEvent, PathTraversalEvent}
+import beam.router.skim.event.EmissionsSkimmerEvent
+import beam.sim.BeamServices
 import beam.sim.common.DoubleTypedRange
 import beam.utils.BeamVehicleUtils
 import beam.utils.BeamVehicleUtils.convertRecordStringToDoubleTypedRange
@@ -21,11 +25,9 @@ import scala.util.Try
 class VehicleEmissions(
   vehicleTypesBasePaths: IndexedSeq[String],
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
-  linkToGradePercentFilePath: String,
-  embedEmissionsProfiles: Boolean
+  linkToGradePercentFilePath: String
 ) {
   import VehicleEmissions._
-  import EmissionsProcesses._
   import EmissionsProfile._
   private val settings = new CsvParserSettings()
   settings.setHeaderExtractionEnabled(true)
@@ -50,23 +52,49 @@ class VehicleEmissions(
   def getEmissionsProfileInGram(
     vehicleActivityData: IndexedSeq[BeamVehicle.VehicleActivityData],
     vehicleActivity: Class[_ <: org.matsim.api.core.v01.events.Event],
-    vehicleType: BeamVehicleType
+    vehicleType: BeamVehicleType,
+    beamServices: BeamServices
   ): Option[EmissionsProfile] = {
-    if (!embedEmissionsProfiles) return None
+    val emissionsConfig = beamServices.beamConfig.beam.exchange.output.emissions
+    if (!(emissionsConfig.events && emissionsConfig.skims))
+      return None
+    Emissions.setFilter(emissionsConfig.emissionsToFilterOut.getOrElse(List.empty))
     val isTruck = truckCategory.contains(vehicleType.vehicleCategory)
-    val process = Map[Class[_ <: org.matsim.api.core.v01.events.Event], List[EmissionsProcess]](
+    val processes = Map[Class[_ <: org.matsim.api.core.v01.events.Event], List[EmissionsProcess]](
       classOf[LeavingParkingEvent] -> (if (isTruck) soakProcesses ++ hotellingProcesses else soakProcesses),
       classOf[PathTraversalEvent]  -> runProcesses
     ).getOrElse(vehicleActivity, List.empty)
+
     val emissionsProfiles = for {
-      process                    <- process
+      process                    <- processes
       data                       <- vehicleActivityData
       emissionsRatesFilterFuture <- emissionsRatesFilterStore.getEmissionsRateFilterFor(data.vehicleType)
       emissionsRatesFilter = Await.result(emissionsRatesFilterFuture, 1.minute)
       fallBack = vehicleType.emissionsRatesInGramsPerMile
-      rates <- getRatesUsing(emissionsRatesFilter, data, process).orElse(fallBack.flatMap(_.get(process)))
-    } yield process -> calculationMap(process)(rates, data)
-    if (emissionsProfiles.isEmpty) None else Some(emissionsProfiles.toMap)
+      rates <- getRatesUsing(emissionsRatesFilter, data, process).orElse(fallBack.flatMap(_.values.get(process)))
+    } yield {
+      val emissions = calculationMap(process)(rates, data)
+      if (emissionsConfig.skims) {
+        // Create and process EmissionsSkimmerEvent
+        beamServices.matsimServices.getEvents.processEvent(
+          EmissionsSkimmerEvent(
+            time = data.time,
+            linkId = data.linkId,
+            zone = data.taz.map(_.tazId.toString).getOrElse(""),
+            vehicleType = vehicleType.id.toString,
+            emissions = emissions,
+            emissionsProcess = process,
+            averageSpeed = data.averageSpeed.getOrElse(0.0),
+            energyConsumption = data.primaryEnergyConsumed + data.secondaryEnergyConsumed,
+            beamServices = beamServices
+          )
+        )
+      }
+
+      process -> emissions
+    }
+
+    if (emissionsProfiles.isEmpty) None else Some(EmissionsProfile(emissionsProfiles.toMap))
   }
 
   private def findInterval[T](
@@ -86,7 +114,7 @@ class VehicleEmissions(
   private def getRatesUsing(
     emissionRateFilter: EmissionsRateFilterStore.EmissionsRateFilter,
     data: BeamVehicle.VehicleActivityData,
-    process: EmissionsProcesses.EmissionsProcess
+    process: EmissionsProcess
   ): Option[Emissions] = {
     val speedInMilesPerHour =
       data.averageSpeed.map(BeamVehicleUtils.convertFromMetersPerSecondToMilesPerHour).getOrElse(0.0)
@@ -140,9 +168,64 @@ object VehicleEmissions extends LazyLogging {
     ]
   }
 
-  object EmissionsProcesses extends Enumeration {
+  case class Emissions(values: Map[EmissionType, Double] = Map.empty) {
+    def notValid: Boolean = values.values.sum <= 0
+
+    def *(factor: Double): Emissions =
+      Emissions(values.map { case (k, v) => k -> (v * factor) })
+
+    def +(other: Emissions): Emissions =
+      Emissions((values.keySet ++ other.values.keySet).map { key =>
+        key -> (values.getOrElse(key, 0.0) + other.values.getOrElse(key, 0.0))
+      }.toMap)
+
+    def get(emissionType: EmissionType): Option[Double] = values.get(emissionType)
+
+    override def toString: String =
+      values.map { case (key, value) => s"${formatName(key)}=$value" }.mkString("Emissions(", ", ", ")")
+  }
+
+  object Emissions extends Enumeration {
+    type EmissionType = Value
+    val CH4, CO, CO2, HC, NH3, NOx, PM, PM10, PM2_5, ROG, SOx, TOG = Value
+
+    var filter: Option[List[EmissionType]] = None
+
+    def setFilter(emissionsStr: List[String]): Unit = {
+      if (filter.isEmpty)
+        filter = Some(emissionsStr.flatMap(fromString))
+    }
+
+    def formatName(emissionType: EmissionType): String = emissionType match {
+      case PM2_5 => "PM2_5"
+      case _     => emissionType.toString
+    }
+
+    def fromString(s: String): Option[EmissionType] = {
+      values.find(v => formatName(v).equalsIgnoreCase(s))
+    }
+
+    def init(): Emissions = Emissions()
+
+    def apply(values: (EmissionType, Double)*): Emissions = {
+      new Emissions(values.filter(v => !filter.contains(v._1)).toMap)
+    }
+
+    def formatEmissions(emissions: Emissions): String =
+      emissions.values.map { case (key, value) => formatEmission(formatName(key), value) }.mkString(", ")
+
+    private def formatEmission(name: String, value: Double): String = f"$name: $value%.2f"
+  }
+
+  case class EmissionsProfile(values: Map[EmissionsProcess, Emissions] = Map.empty) {}
+
+  object EmissionsProfile extends Enumeration {
     type EmissionsProcess = Value
     val RUNEX, IDLEX, STREX, HOTSOAK, DIURN, RUNLOSS, PMTW, PMBW = Value
+
+    def init(): EmissionsProfile = EmissionsProfile()
+
+    def apply(values: (EmissionsProcess, Emissions)*): EmissionsProfile = new EmissionsProfile(values.toMap)
 
     def fromString(process: String): Option[EmissionsProcess] = process.toLowerCase match {
       // Running Exhaust Emissions (RUNEX) that come out of the vehicle tailpipe while traveling on the road.
@@ -298,101 +381,6 @@ object VehicleEmissions extends LazyLogging {
     )
   }
 
-  // Rates in Grams per Mile
-  case class Emissions(
-    var CH4: Double,
-    var CO: Double,
-    var CO2: Double,
-    var HC: Double,
-    var NH3: Double,
-    var NOx: Double,
-    var PM: Double,
-    var PM10: Double,
-    var PM2_5: Double,
-    var ROG: Double,
-    var SOx: Double,
-    var TOG: Double
-  ) {
-    import Emissions._
-    def notValid: Boolean = List(CH4, CO, CO2, HC, NH3, NOx, PM, PM10, PM2_5, ROG, SOx, TOG).forall(_ == 0)
-
-    def *(factor: Double): Emissions = {
-      Emissions(
-        CH4 * factor,
-        CO * factor,
-        CO2 * factor,
-        HC * factor,
-        NH3 * factor,
-        NOx * factor,
-        PM * factor,
-        PM10 * factor,
-        PM2_5 * factor,
-        ROG * factor,
-        SOx * factor,
-        TOG * factor
-      )
-    }
-
-    def +(other: Emissions): Emissions = {
-      Emissions(
-        CH4 + other.CH4,
-        CO + other.CO,
-        CO2 + other.CO2,
-        HC + other.HC,
-        NH3 + other.NH3,
-        NOx + other.NOx,
-        PM + other.PM,
-        PM10 + other.PM10,
-        PM2_5 + other.PM2_5,
-        ROG + other.ROG,
-        SOx + other.SOx,
-        TOG + other.TOG
-      )
-    }
-
-    override def toString: String = {
-      s"Emissions(" +
-      s"${_CH4}=$CH4,${_CO}=$CO,${_CO2}=$CO2,${_HC}=$HC,${_NH3}=$NH3,${_NOx}=$NOx,${_PM}=$PM,${_PM10}=$PM10," +
-      s"${_PM2_5}=$PM2_5,${_ROG}=$ROG,${_SOx}=$SOx,${_TOG}=$TOG" +
-      s")"
-    }
-  }
-
-  object Emissions {
-    val _CH4: String = "CH4"
-    val _CO: String = "CO"
-    val _CO2: String = "CO2"
-    val _HC: String = "HC"
-    val _NH3: String = "NH3"
-    val _NOx: String = "NOx"
-    val _PM: String = "PM"
-    val _PM10: String = "PM10"
-    val _PM2_5: String = "PM2_5"
-    val _ROG: String = "ROG"
-    val _SOx: String = "SOx"
-    val _TOG: String = "TOG"
-
-    def init(): Emissions =
-      Emissions(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
-  }
-
-  object EmissionsProfile {
-    type EmissionsProfile = Map[EmissionsProcesses.EmissionsProcess, Emissions]
-
-    def init(): EmissionsProfile = {
-      Map {
-        EmissionsProcesses.RUNEX   -> Emissions.init()
-        EmissionsProcesses.IDLEX   -> Emissions.init()
-        EmissionsProcesses.STREX   -> Emissions.init()
-        EmissionsProcesses.DIURN   -> Emissions.init()
-        EmissionsProcesses.HOTSOAK -> Emissions.init()
-        EmissionsProcesses.RUNLOSS -> Emissions.init()
-        EmissionsProcesses.PMTW    -> Emissions.init()
-        EmissionsProcesses.PMBW    -> Emissions.init()
-      }
-    }
-  }
-
   private class EmissionsRateFilterStore(
     baseFilePaths: IndexedSeq[String],
     emissionsRateFilePathsByVehicleType: IndexedSeq[(BeamVehicleType, Option[String])]
@@ -507,7 +495,7 @@ object VehicleEmissions extends LazyLogging {
             val county: String = getString(csvRecord, countyBinHeader, "")
             // Emission process
             val emissionProcess: String =
-              EmissionsProcesses
+              EmissionsProfile
                 .fromString(getString(csvRecord, emissionsProcessHeader, ""))
                 .map(_.toString)
                 .getOrElse("")
@@ -525,18 +513,20 @@ object VehicleEmissions extends LazyLogging {
 
             // Emissions Rates in Grans Per Mile
             val ratesInGramsPerMile = Emissions(
-              CH4 = readRateCheckIfNull(rateCH4Header),
-              CO = readRateCheckIfNull(rateCOHeader),
-              CO2 = readRateCheckIfNull(rateCO2Header),
-              HC = readRateCheckIfNull(rateHCHeader),
-              NH3 = readRateCheckIfNull(rateNH3Header),
-              NOx = readRateCheckIfNull(rateNOxHeader),
-              PM = readRateCheckIfNull(ratePMHeader),
-              PM10 = readRateCheckIfNull(ratePM10Header),
-              PM2_5 = readRateCheckIfNull(ratePM2_5Header),
-              ROG = readRateCheckIfNull(rateROGHeader),
-              SOx = readRateCheckIfNull(rateSOxHeader),
-              TOG = readRateCheckIfNull(rateTOGHeader)
+              List(
+                Emissions.CH4   -> readRateCheckIfNull(rateCH4Header),
+                Emissions.CO    -> readRateCheckIfNull(rateCOHeader),
+                Emissions.CO2   -> readRateCheckIfNull(rateCO2Header),
+                Emissions.HC    -> readRateCheckIfNull(rateHCHeader),
+                Emissions.NH3   -> readRateCheckIfNull(rateNH3Header),
+                Emissions.NOx   -> readRateCheckIfNull(rateNOxHeader),
+                Emissions.PM    -> readRateCheckIfNull(ratePMHeader),
+                Emissions.PM10  -> readRateCheckIfNull(ratePM10Header),
+                Emissions.PM2_5 -> readRateCheckIfNull(ratePM2_5Header),
+                Emissions.ROG   -> readRateCheckIfNull(rateROGHeader),
+                Emissions.SOx   -> readRateCheckIfNull(rateSOxHeader),
+                Emissions.TOG   -> readRateCheckIfNull(rateTOGHeader)
+              ).filter(_._2 != 0.0): _*
             )
             if (ratesInGramsPerMile.notValid) {
               log.error(

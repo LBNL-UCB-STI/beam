@@ -53,6 +53,10 @@ class VehicleEnergy(
         val rateInJoulesPerMeter = getRateUsing(fuelConsumptionData, fallBack, powerTrainPriority)
         val distance = fuelConsumptionData.linkLength.getOrElse(0.0)
         val finalConsumption = rateInJoulesPerMeter * distance
+        if (powerTrainPriority == VehicleEnergy.Primary)
+          fuelConsumptionData.primaryEnergyConsumed = finalConsumption
+        else
+          fuelConsumptionData.secondaryEnergyConsumed = finalConsumption
         finalConsumption
       })
     consumptionsInJoules.sum
@@ -66,6 +70,7 @@ class VehicleEnergy(
     if (!vehicleEnergyMappingExistsFor(fuelConsumptionData.vehicleType)) { fallBack }
     else {
       val BeamVehicle.VehicleActivityData(
+        _,
         linkId,
         vehicleType,
         payloadKg,

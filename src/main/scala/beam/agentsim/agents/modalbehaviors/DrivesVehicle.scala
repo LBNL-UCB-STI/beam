@@ -248,13 +248,12 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
       val isLastLeg = data.currentLegPassengerScheduleIndex + 1 == data.passengerSchedule.schedule.size
       val payloadInKg = payloadInKgForLeg(currentLeg, data)
       val vehicleActivityData = BeamVehicle.collectVehicleActivityData(
+        tick,
         Left(currentLeg),
         currentBeamVehicle.beamVehicleType,
         payloadInKg,
         None,
-        networkHelper,
-        beamScenario.vehicleEnergy,
-        beamScenario.tazTreeMap
+        beamServices
       )
       val fuelConsumed = currentBeamVehicle.useFuel(currentLeg, vehicleActivityData, beamScenario)
 
@@ -332,9 +331,8 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           case _                             => data.passengerSchedule.schedule(currentLeg).riders.toIndexedSeq.map(_.personId)
         }
       }
-
       val emissionsProfile =
-        currentBeamVehicle.emitEmissions(vehicleActivityData, beamScenario, classOf[PathTraversalEvent])
+        currentBeamVehicle.emitEmissions(vehicleActivityData, classOf[PathTraversalEvent], beamServices)
       val numberOfPassengers: Int = calculateNumberOfPassengersBasedOnCurrentTourMode(data, currentLeg, riders)
       val currentTourMode: Option[String] = getCurrentTourMode(data)
       val pte = PathTraversalEvent(
@@ -551,18 +549,17 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
 
       val currentLocation = if (updatedStopTick > currentLeg.startTime) {
         val vehicleActivityData = BeamVehicle.collectVehicleActivityData(
+          updatedStopTick,
           Left(currentLeg),
           currentBeamVehicle.beamVehicleType,
           payloadInKg,
           None,
-          networkHelper,
-          beamScenario.vehicleEnergy,
-          beamScenario.tazTreeMap
+          beamServices
         )
         val fuelConsumed = currentBeamVehicle.useFuel(partiallyCompletedBeamLeg, vehicleActivityData, beamScenario)
 
         val emissionsProfile =
-          currentBeamVehicle.emitEmissions(vehicleActivityData, beamScenario, classOf[PathTraversalEvent])
+          currentBeamVehicle.emitEmissions(vehicleActivityData, classOf[PathTraversalEvent], beamServices)
         val tollOnCurrentLeg = toll(partiallyCompletedBeamLeg)
         tollsAccumulated += tollOnCurrentLeg
         val numberOfPassengers: Int =

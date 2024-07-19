@@ -2856,7 +2856,8 @@ object BeamConfig {
     object Exchange {
 
       case class Output(
-        activity_sim_skimmer: scala.Option[BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer]
+        activity_sim_skimmer: scala.Option[BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer],
+        emissions: BeamConfig.Beam.Exchange.Output.Emissions
       )
 
       object Output {
@@ -2959,12 +2960,35 @@ object BeamConfig {
           }
         }
 
+        case class Emissions(
+          emissionsToFilterOut: scala.Option[scala.List[java.lang.String]],
+          events: scala.Boolean,
+          skims: scala.Boolean
+        )
+
+        object Emissions {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.Emissions = {
+            BeamConfig.Beam.Exchange.Output.Emissions(
+              emissionsToFilterOut =
+                if (c.hasPathOrNull("emissionsToFilterOut")) scala.Some($_L$_str(c.getList("emissionsToFilterOut")))
+                else None,
+              events = !c.hasPathOrNull("events") || c.getBoolean("events"),
+              skims = !c.hasPathOrNull("skims") || c.getBoolean("skims")
+            )
+          }
+        }
+
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output = {
           BeamConfig.Beam.Exchange.Output(
             activity_sim_skimmer =
               if (c.hasPathOrNull("activity-sim-skimmer"))
                 scala.Some(BeamConfig.Beam.Exchange.Output.ActivitySimSkimmer(c.getConfig("activity-sim-skimmer")))
-              else None
+              else None,
+            emissions = BeamConfig.Beam.Exchange.Output.Emissions(
+              if (c.hasPathOrNull("emissions")) c.getConfig("emissions")
+              else com.typesafe.config.ConfigFactory.parseString("emissions{}")
+            )
           )
         }
       }
@@ -3131,7 +3155,6 @@ object BeamConfig {
     object Outputs {
 
       case class Events(
-        embedEmissionsProfiles: scala.Boolean,
         eventsToWrite: java.lang.String,
         fileOutputFormats: java.lang.String
       )
@@ -3140,8 +3163,6 @@ object BeamConfig {
 
         def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Outputs.Events = {
           BeamConfig.Beam.Outputs.Events(
-            embedEmissionsProfiles =
-              !c.hasPathOrNull("embedEmissionsProfiles") || c.getBoolean("embedEmissionsProfiles"),
             eventsToWrite =
               if (c.hasPathOrNull("eventsToWrite")) c.getString("eventsToWrite")
               else
@@ -4233,6 +4254,7 @@ object BeamConfig {
       case class Skim(
         activity_sim_skimmer: BeamConfig.Beam.Router.Skim.ActivitySimSkimmer,
         drive_time_skimmer: BeamConfig.Beam.Router.Skim.DriveTimeSkimmer,
+        emissions_skimmer: BeamConfig.Beam.Router.Skim.EmissionsSkimmer,
         keepKLatestSkims: scala.Int,
         origin_destination_skimmer: BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer,
         sendNonChosenTripsToSkimmer: scala.Boolean,
@@ -4274,6 +4296,21 @@ object BeamConfig {
                 if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName")
                 else "skimsTravelTimeObservedVsSimulated",
               name = if (c.hasPathOrNull("name")) c.getString("name") else "drive-time-skimmer"
+            )
+          }
+        }
+
+        case class EmissionsSkimmer(
+          fileBaseName: java.lang.String,
+          name: java.lang.String
+        )
+
+        object EmissionsSkimmer {
+
+          def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Router.Skim.EmissionsSkimmer = {
+            BeamConfig.Beam.Router.Skim.EmissionsSkimmer(
+              fileBaseName = if (c.hasPathOrNull("fileBaseName")) c.getString("fileBaseName") else "skimsEmissions",
+              name = if (c.hasPathOrNull("name")) c.getString("name") else "emissions-skimmer"
             )
           }
         }
@@ -4347,6 +4384,10 @@ object BeamConfig {
             drive_time_skimmer = BeamConfig.Beam.Router.Skim.DriveTimeSkimmer(
               if (c.hasPathOrNull("drive-time-skimmer")) c.getConfig("drive-time-skimmer")
               else com.typesafe.config.ConfigFactory.parseString("drive-time-skimmer{}")
+            ),
+            emissions_skimmer = BeamConfig.Beam.Router.Skim.EmissionsSkimmer(
+              if (c.hasPathOrNull("emissions-skimmer")) c.getConfig("emissions-skimmer")
+              else com.typesafe.config.ConfigFactory.parseString("emissions-skimmer{}")
             ),
             keepKLatestSkims = if (c.hasPathOrNull("keepKLatestSkims")) c.getInt("keepKLatestSkims") else 1,
             origin_destination_skimmer = BeamConfig.Beam.Router.Skim.OriginDestinationSkimmer(

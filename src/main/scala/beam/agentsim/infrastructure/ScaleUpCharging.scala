@@ -8,11 +8,11 @@ import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ChargingNetworkManager._
 import beam.agentsim.infrastructure.ParkingInquiry.ParkingSearchMode.{DestinationCharging, EnRouteCharging}
 import beam.agentsim.infrastructure.ParkingInquiry.{activityTypeStringToEnum, ParkingActivityType, ParkingSearchMode}
+import beam.agentsim.infrastructure.ParkingNetworkManager._
 import beam.agentsim.infrastructure.taz.{TAZ, TAZTreeMap}
 import beam.agentsim.scheduler.BeamAgentScheduler.{CompletionNotice, ScheduleTrigger}
 import beam.agentsim.scheduler.Trigger
 import beam.agentsim.scheduler.Trigger.TriggerWithId
-import beam.sim.BeamScenario
 import beam.utils.MathUtils.roundUniformly
 import beam.utils.scenario.HouseholdId
 import beam.utils.{FileUtils, MathUtils, VehicleIdGenerator}
@@ -114,10 +114,10 @@ trait ScaleUpCharging extends {
       log.debug(s"Received EndingRefuelSession: $reply")
     case reply @ UnhandledVehicle(tick, personId, vehicle, _) =>
       log.error(s"Received UnhandledVehicle: $reply")
-      handleReleasingParkingSpot(tick, personId, vehicle, None, getBeamServices.beamScenario)
+      handleReleasingParkingSpot(tick, vehicle, None, personId, getParkingManager, getBeamServices)
     case reply @ UnpluggingVehicle(tick, personId, vehicle, _, energyCharged) =>
       log.debug(s"Received UnpluggingVehicle: $reply")
-      handleReleasingParkingSpot(tick, personId, vehicle, Some(energyCharged), getBeamServices.beamScenario)
+      handleReleasingParkingSpot(tick, vehicle, Some(energyCharged), personId, getParkingManager, getBeamServices)
   }
 
   /**
@@ -128,25 +128,6 @@ trait ScaleUpCharging extends {
     */
   private def nextTimeStepUsingPoissonProcess(rate: Double, rand: Random): Int =
     roundUniformly(3600.0 * (-Math.log(1.0 - rand.nextDouble()) / rate), rand).toInt
-
-  private def handleReleasingParkingSpot(
-    tick: Int,
-    personId: Id[_],
-    vehicle: BeamVehicle,
-    energyChargedMaybe: Option[Double],
-    beamScenario: BeamScenario
-  ): Unit = {
-    ParkingNetworkManager.handleReleasingParkingSpot(
-      tick,
-      vehicle,
-      energyChargedMaybe,
-      personId,
-      getParkingManager,
-      getBeamServices.matsimServices.getEvents,
-      getBeamServices.networkHelper,
-      beamScenario
-    )
-  }
 
   /**
     * @param timeBin   current time bin
