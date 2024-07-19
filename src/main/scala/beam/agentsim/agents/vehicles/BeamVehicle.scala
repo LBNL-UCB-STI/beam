@@ -10,6 +10,7 @@ import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.events.SpaceTime
 import beam.agentsim.infrastructure.ParkingStall
 import beam.agentsim.infrastructure.charging.ChargingPointType
+import beam.agentsim.infrastructure.parking.ParkingType
 import beam.agentsim.infrastructure.taz.TAZ
 import beam.router.Modes
 import beam.router.Modes.BeamMode.{BIKE, CAR, CAV, WALK}
@@ -597,6 +598,7 @@ object BeamVehicle {
     averageSpeed: Option[Double],
     taz: Option[TAZ] = None,
     parkingDuration: Option[Double] = None,
+    parkingType: Option[ParkingType] = None,
     linkTravelTime: Option[Double] = None
   ) {
     var primaryEnergyConsumed: Double = 0.0
@@ -623,10 +625,9 @@ object BeamVehicle {
     theVehicleType: BeamVehicleType,
     payloadInKg: Option[Double],
     parkingDuration: Option[Double],
+    parkingType: Option[ParkingType],
     beamServices: BeamServices
   ): IndexedSeq[VehicleActivityData] = {
-    val fuelConsumptionDataWithOnlyLength_Id_And_Type =
-      !beamServices.beamScenario.vehicleEnergy.vehicleEnergyMappingExistsFor(theVehicleType)
     activity match {
       case Left(beamLeg) =>
         if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
@@ -654,7 +655,8 @@ object BeamVehicle {
               linkLength = currentLink.map(_.getLength),
               averageSpeed = Some(averageSpeed),
               taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
-              parkingDuration = None,
+              parkingDuration = parkingDuration,
+              parkingType = parkingType,
               linkTravelTime = Some(travelTime)
             )
           }
@@ -671,6 +673,7 @@ object BeamVehicle {
             averageSpeed = None,
             taz = beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId),
             parkingDuration = parkingDuration,
+            parkingType = parkingType,
             linkTravelTime = None
           )
         )

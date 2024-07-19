@@ -281,7 +281,8 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     val vehicleEmissions = new VehicleEmissions(
       vehicleTypesBasePaths,
       vehicleTypes,
-      beamConfig.beam.agentsim.agents.vehicles.linkToGradePercentFilePath
+      beamConfig.beam.agentsim.agents.vehicles.linkToGradePercentFilePath,
+      beamConfig.beam.exchange.output.emissions.emissionsToFilterOut.getOrElse(List.empty)
     )
 
     val dates = DateUtils(

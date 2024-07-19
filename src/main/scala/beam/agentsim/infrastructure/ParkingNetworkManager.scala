@@ -88,6 +88,7 @@ object ParkingNetworkManager extends LazyLogging {
         currentBeamVehicle.beamVehicleType,
         None,
         Some(if (parkingDuration < 0) 0.0 else parkingDuration),
+        Some(stall.parkingType),
         beamServices
       )
       val emissionsProfile =

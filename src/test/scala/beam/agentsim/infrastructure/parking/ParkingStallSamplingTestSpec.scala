@@ -282,7 +282,8 @@ object ParkingStallSamplingTestSpec {
       Id.create("taz", classOf[TAZ]),
       new Coord(tazX, tazY),
       tazArea,
-      Some(geometry)
+      Some(geometry),
+      None
     )
 
     val tazQuadTree = new QuadTree[TAZ](0.0, 0.0, 500.0, 500.0)

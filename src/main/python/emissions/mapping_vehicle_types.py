@@ -10,33 +10,47 @@ pd.set_option('display.max_columns', 20)
 # print(vehicle_types.head())
 
 # ### File Paths ###
-emfac_population_file = os.path.expanduser('~/Workspace/Models/emfac/2018/Default_Statewide_2018_Annual_fleet_data_population_20240311153419.csv')
-emfac_emissions_file = os.path.expanduser('~/Workspace/Models/emfac/2018/imputed_MTC_emission_rate_agg_NH3_added.csv')
-mesozones_lookup_file = os.path.expanduser("~/Workspace/Simulation/sfbay/geo/zonal_id_lookup_final.csv")
+
+# mesozones_lookup_file = os.path.expanduser("~/Workspace/Simulation/sfbay/geo/zonal_id_lookup_final.csv")
 # county_data_file = os.path.expanduser("~/Workspace/Simulation/sfbay/geo/sfbay_counties_wgs84.geojson")
 # cbg_data_file = os.path.expanduser("~/Workspace/Simulation/sfbay/geo/sfbay_cbgs_wgs84.geojson")
-taz_data_file = os.path.expanduser("~/Workspace/Simulation/sfbay/geo/sfbay_tazs_epsg26910.geojson")
-mesozones_to_county_file = os.path.expanduser("~/Workspace/Simulation/sfbay/geo/mesozones_to_county.csv")
-freight_carriers_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/freight-carriers.csv")
-freight_payloads_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/freight-payloads.csv")
-freight_vehicletypes_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/freight-vehicletypes--Baseline.csv")
+# taz_data_file = os.path.expanduser("~/Workspace/Simulation/sfbay/geo/sfbay_tazs_epsg26910.geojson")
+# mesozones_to_county_file = os.path.expanduser("~/Workspace/Simulation/sfbay/geo/mesozones_to_county.csv")
+emfac_population_file = os.path.expanduser('~/Workspace/Models/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_population_20240612233346.csv')
+
+# Baseline
+# year = 2018
+# input_dir = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline")
+# emfac_population_file = os.path.expanduser('~/Workspace/Models/emfac/2018/Default_Statewide_2018_Annual_fleet_data_population_20240311153419.csv')
+# emfac_emissions_file = os.path.expanduser('~/Workspace/Models/emfac/2018/imputed_MTC_emission_rate_agg_NH3_added.csv')
+# freight_carriers_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/freight-carriers.csv")
+# freight_payloads_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/freight-payloads.csv")
+# freight_vehicletypes_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/freight-vehicletypes--Baseline.csv")
+#
+
+# 2040
+year = 2040
+input_dir = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/HOP_highp2")
+emfac_emissions_file = os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_emission_rate_agg_NH3_added_2040.csv')
+freight_carriers_file = input_dir + "/freight-carriers.csv"
+freight_payloads_file = input_dir + "/freight-payloads.csv"
+freight_vehicletypes_file = input_dir + "/freight-vehiclestypes--HOPhighp2.csv"
+
 # ##################
 
 # output
-formatted_emfac_population_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/emfac-freight-population.csv")
-formatted_famos_population_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/famos-freight-population.csv")
-formatted_emissions_rates_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/emfac-emissions-rates.csv")
-output_rates_dir = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/emissions_rates")
-freight_vehicletypes_emissions_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/freight-vehicletypes-emissions--Baseline.csv")
-freight_carriers_emissions_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/freight-carriers-emissions.csv")
-
-
-
+formatted_emfac_population_file = input_dir + "/emfac-freight-population.csv"
+formatted_famos_population_file = input_dir + "/famos-freight-population.csv"
+formatted_emissions_rates_file = input_dir + "/emfac-emissions-rates.csv"
+freight_vehicletypes_emissions_file = input_dir + "/freight-vehiclestypes.csv"
+freight_carriers_emissions_file = input_dir + "/freight-vehiclestypes--HOPhighp2-emissions.csv"
+output_rates_dir = input_dir + "/emissions_rates"
 
 
 # ### Summarizing EMFAC population ###
 print("prepare_emfac_population_for_mapping")
 emfac_population = pd.read_csv(emfac_population_file, dtype=str)
+emfac_population = emfac_population[emfac_population["calendar_year"] == str(year)]
 # ['Dsl', 'Elec', 'Gas', 'Phe', 'NG']
 
 formatted_emfac_population = prepare_emfac_population_for_mapping(

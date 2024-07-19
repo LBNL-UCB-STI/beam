@@ -3,6 +3,7 @@ package beam.agentsim.agents.vehicles
 import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.{formatName, EmissionType}
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile.EmissionsProcess
 import beam.agentsim.events.{LeavingParkingEvent, PathTraversalEvent}
+import beam.agentsim.infrastructure.parking.ParkingType
 import beam.router.skim.event.EmissionsSkimmerEvent
 import beam.sim.BeamServices
 import beam.sim.common.DoubleTypedRange
@@ -25,7 +26,8 @@ import scala.util.Try
 class VehicleEmissions(
   vehicleTypesBasePaths: IndexedSeq[String],
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
-  linkToGradePercentFilePath: String
+  linkToGradePercentFilePath: String,
+  emissionsToFilterOut: List[String]
 ) {
   import VehicleEmissions._
   import EmissionsProfile._
@@ -42,12 +44,7 @@ class VehicleEmissions(
   private lazy val linkIdToGradePercentMap =
     BeamVehicleUtils.loadLinkIdToGradeMapFromCSV(csvParser, linkToGradePercentFilePath)
 
-  private lazy val truckCategory =
-    List(VehicleCategory.LightHeavyDutyTruck, VehicleCategory.MediumHeavyDutyTruck, VehicleCategory.HeavyHeavyDutyTruck)
-
-  private lazy val soakProcesses = List(STREX, DIURN, HOTSOAK, RUNLOSS)
-  private lazy val hotellingProcesses = List(IDLEX)
-  private lazy val runProcesses = List(RUNEX, PMBW, PMTW, RUNLOSS)
+  Emissions.setFilter(emissionsToFilterOut)
 
   def getEmissionsProfileInGram(
     vehicleActivityData: IndexedSeq[BeamVehicle.VehicleActivityData],
@@ -58,15 +55,9 @@ class VehicleEmissions(
     val emissionsConfig = beamServices.beamConfig.beam.exchange.output.emissions
     if (!(emissionsConfig.events && emissionsConfig.skims))
       return None
-    Emissions.setFilter(emissionsConfig.emissionsToFilterOut.getOrElse(List.empty))
-    val isTruck = truckCategory.contains(vehicleType.vehicleCategory)
-    val processes = Map[Class[_ <: org.matsim.api.core.v01.events.Event], List[EmissionsProcess]](
-      classOf[LeavingParkingEvent] -> (if (isTruck) soakProcesses ++ hotellingProcesses else soakProcesses),
-      classOf[PathTraversalEvent]  -> runProcesses
-    ).getOrElse(vehicleActivity, List.empty)
 
     val emissionsProfiles = for {
-      process                    <- processes
+      process                    <- identifyProcesses(vehicleActivityData, vehicleActivity, vehicleType)
       data                       <- vehicleActivityData
       emissionsRatesFilterFuture <- emissionsRatesFilterStore.getEmissionsRateFilterFor(data.vehicleType)
       emissionsRatesFilter = Await.result(emissionsRatesFilterFuture, 1.minute)
@@ -90,7 +81,6 @@ class VehicleEmissions(
           )
         )
       }
-
       process -> emissions
     }
 
@@ -223,9 +213,37 @@ object VehicleEmissions extends LazyLogging {
     type EmissionsProcess = Value
     val RUNEX, IDLEX, STREX, HOTSOAK, DIURN, RUNLOSS, PMTW, PMBW = Value
 
+    private lazy val truckCategory =
+      List(
+        VehicleCategory.LightHeavyDutyTruck,
+        VehicleCategory.MediumHeavyDutyTruck,
+        VehicleCategory.HeavyHeavyDutyTruck
+      )
+
     def init(): EmissionsProfile = EmissionsProfile()
 
     def apply(values: (EmissionsProcess, Emissions)*): EmissionsProfile = new EmissionsProfile(values.toMap)
+
+    def identifyProcesses(
+      data: IndexedSeq[BeamVehicle.VehicleActivityData],
+      vehicleActivity: Class[_ <: org.matsim.api.core.v01.events.Event],
+      vehicleType: BeamVehicleType
+    ): ValueSet = {
+      // TODO uncomment once commercial deployment are deployed
+      EmissionsProfile.values.flatMap {
+        case process @ IDLEX
+            if data.nonEmpty && truckCategory
+              .contains(vehicleType.vehicleCategory) /* && data.head.parkingType.contains(ParkingType.Commercial) */ =>
+          Some(process)
+        case process @ (STREX | DIURN | HOTSOAK | RUNLOSS)
+            if data.nonEmpty && vehicleActivity == classOf[LeavingParkingEvent] =>
+          Some(process)
+        case process @ (RUNEX | PMBW | PMTW | RUNLOSS)
+            if data.nonEmpty && vehicleActivity == classOf[PathTraversalEvent] =>
+          Some(process)
+        case _ => None
+      }
+    }
 
     def fromString(process: String): Option[EmissionsProcess] = process.toLowerCase match {
       // Running Exhaust Emissions (RUNEX) that come out of the vehicle tailpipe while traveling on the road.

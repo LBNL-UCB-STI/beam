@@ -79,6 +79,7 @@ class VehicleEnergy(
         speedInMetersPerSecondOption,
         _,
         _,
+        _,
         _
       ) = fuelConsumptionData
       val numberOfLanes: Int = numberOfLanesOption.getOrElse(0)
