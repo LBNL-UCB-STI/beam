@@ -530,8 +530,10 @@ def distribution_based_vehicle_classes_assignment(famos_df, emfac_df):
     famos_df['vehicleClassBis'] = famos_df['vehicleClass'].map({class_46: 1, class_78_v: 2, class_78_t: 3})
     famos_df['emfacId'] = famos_df.sort_values('vehicleClassBis').apply(sample_emfac_class, axis=1)
     famos_df["oldVehicleTypeId"] = famos_df["vehicleTypeId"]
-    famos_df['vehicleTypeId'] = famos_df['emfacId'] + "-" + famos_df['oldVehicleTypeId'].str.split('-').str[-1]
-    famos_df['vehicleTypeId'] = famos_df['vehicleTypeId']
+    famos_df['vehicleTypeId'] = famos_df.apply(
+        lambda row: sanitize_filename(f"{row['emfacId']}-{row['oldVehicleTypeId'].split('-')[-1]}"),
+        axis=1
+    )
     merged = pd.merge(famos_df, emfac_df, on="emfacId", how="left").drop(["vehicleClassBis"], axis=1)
     return merged
 

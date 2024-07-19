@@ -31,6 +31,9 @@ freight_vehicletypes_emissions_file = os.path.expanduser("~/Workspace/Simulation
 freight_carriers_emissions_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/freight-carriers-emissions.csv")
 
 
+
+
+
 # ### Summarizing EMFAC population ###
 print("prepare_emfac_population_for_mapping")
 emfac_population = pd.read_csv(emfac_population_file, dtype=str)

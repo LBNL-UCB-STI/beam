@@ -119,7 +119,7 @@ object EmissionsSkimmer extends LazyLogging {
     observations: Int = 0,
     iterations: Int = 0
   ) extends AbstractSkimmerInternal {
-    private val pollutants: String = Emissions.values.map(emissions.get(_).getOrElse(0.0).toString).mkString(",")
+    private val pollutants: String = Emissions.values.toList.map(emissions.get(_).getOrElse(0.0).toString).mkString(",")
     override def toCsv: String = s"$averageSpeed,$energyConsumed,$observations,$iterations,$pollutants"
   }
 
