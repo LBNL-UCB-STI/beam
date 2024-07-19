@@ -1,6 +1,7 @@
 package beam.router.r5
 
 import beam.agentsim.agents.choice.mode.DrivingCost
+import beam.agentsim.agents.vehicles.VehicleCategory.VehicleCategory
 import beam.agentsim.agents.vehicles.VehicleProtocol.StreetVehicle
 import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.events.SpaceTime
@@ -12,7 +13,6 @@ import beam.router.gtfs.FareCalculator.{filterFaresOnTransfers, BeamFareSegment}
 import beam.router.model.BeamLeg.dummyLeg
 import beam.router.model.RoutingModel.TransitStopsInfo
 import beam.router.model._
-import beam.router.r5.R5Wrapper._
 import beam.router.{Modes, Router, RoutingWorker}
 import beam.sim.metrics.{Metrics, MetricsSupport}
 import com.conveyal.r5.analyst.fare.SimpleInRoutingFareCalculator
@@ -567,7 +567,8 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
             }
           }
         } else if (calcDirectRoute && !mainRouteRideHailTransit) {
-          streetRouter.timeLimitSeconds = profileRequest.streetTime * 60
+          streetRouter.timeLimitSeconds =
+            timeLimitForVehicleCategory(vehicleType.vehicleCategory, default = profileRequest.streetTime) * 60
           if (streetRouter.setDestination(profileRequest.toLat, profileRequest.toLon, linkRadiusMeters)) {
             streetRouter.route()
             val lastState = streetRouter.getState(streetRouter.getDestinationSplit)
@@ -939,6 +940,14 @@ class R5Wrapper(workerParams: R5Parameters, travelTime: TravelTime, travelTimeNo
     }
 
     routingResponse
+  }
+
+  private def timeLimitForVehicleCategory(vehicleCategory: VehicleCategory, default: Int): Int = {
+    vehicleCategory match {
+      case VehicleCategory.HeavyDutyTruck => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
+      case VehicleCategory.LightDutyTruck => beamConfig.beam.routing.r5.maxTimeLimitForFreightInMinutes
+      case _                              => default
+    }
   }
 
   private def searchedModes(

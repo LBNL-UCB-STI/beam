@@ -4457,6 +4457,7 @@ object BeamConfig {
         linkRadiusMeters: scala.Double,
         mNetBuilder: BeamConfig.Beam.Routing.R5.MNetBuilder,
         maxDistanceLimitByModeInMeters: BeamConfig.Beam.Routing.R5.MaxDistanceLimitByModeInMeters,
+        maxTimeLimitForFreightInMinutes: scala.Int,
         numberOfSamples: scala.Int,
         osmMapdbFile: java.lang.String,
         suboptimalMinutes: scala.Int,
@@ -4537,6 +4538,9 @@ object BeamConfig {
               if (c.hasPathOrNull("maxDistanceLimitByModeInMeters")) c.getConfig("maxDistanceLimitByModeInMeters")
               else com.typesafe.config.ConfigFactory.parseString("maxDistanceLimitByModeInMeters{}")
             ),
+            maxTimeLimitForFreightInMinutes =
+              if (c.hasPathOrNull("maxTimeLimitForFreightInMinutes")) c.getInt("maxTimeLimitForFreightInMinutes")
+              else 300,
             numberOfSamples = if (c.hasPathOrNull("numberOfSamples")) c.getInt("numberOfSamples") else 1,
             osmMapdbFile =
               if (c.hasPathOrNull("osmMapdbFile")) c.getString("osmMapdbFile")
