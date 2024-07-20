@@ -1,153 +1,134 @@
 from emissions_utils import *
 pd.set_option('display.max_columns', 20)
-#
-# sf_emfac_pop_file = '~/Workspace/Models/emfac/2018/SF_Normalized_Default_Statewide_2018_Annual_fleet_data_population_20240311153419.csv'
-# famos_vehicle_types_file = '~/Workspace/Data/FREIGHT/sfbay/beam_freight/2024-01-23/Baseline/freight-vehicletypes.csv'
-# famos_emfac_file_out = '~/Workspace/Data/FREIGHT/sfbay/beam_freight/2024-01-23/Baseline/emfac-freight-vehicletypes.csv'
-#
-# vehicle_types = map_emfac_vehicle_types_to_famos(sf_emfac_pop_file, famos_vehicle_types_file, famos_emfac_file_out)
-# # Display the first few rows of the new dataframe to verify
-# print(vehicle_types.head())
 
 # ### File Paths ###
-
 # mesozones_lookup_file = os.path.expanduser("~/Workspace/Simulation/sfbay/geo/zonal_id_lookup_final.csv")
 # county_data_file = os.path.expanduser("~/Workspace/Simulation/sfbay/geo/sfbay_counties_wgs84.geojson")
 # cbg_data_file = os.path.expanduser("~/Workspace/Simulation/sfbay/geo/sfbay_cbgs_wgs84.geojson")
 # taz_data_file = os.path.expanduser("~/Workspace/Simulation/sfbay/geo/sfbay_tazs_epsg26910.geojson")
 # mesozones_to_county_file = os.path.expanduser("~/Workspace/Simulation/sfbay/geo/mesozones_to_county.csv")
 emfac_population_file = os.path.expanduser('~/Workspace/Models/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_population_20240612233346.csv')
+emfac_emissions_file = os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050.csv')
 
-# Baseline
-# year = 2018
-# input_dir = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline")
-# emfac_population_file = os.path.expanduser('~/Workspace/Models/emfac/2018/Default_Statewide_2018_Annual_fleet_data_population_20240311153419.csv')
-# emfac_emissions_file = os.path.expanduser('~/Workspace/Models/emfac/2018/imputed_MTC_emission_rate_agg_NH3_added.csv')
-# freight_carriers_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/freight-carriers.csv")
-# freight_payloads_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/freight-payloads.csv")
-# freight_vehicletypes_file = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/freight-vehicletypes--Baseline.csv")
-#
-
-# 2040
-year = 2040
-input_dir = os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/HOP_highp2")
-emfac_emissions_file = os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_emission_rate_agg_NH3_added_2040.csv')
-freight_carriers_file = input_dir + "/freight-carriers.csv"
-freight_payloads_file = input_dir + "/freight-payloads.csv"
-freight_vehicletypes_file = input_dir + "/freight-vehiclestypes--HOPhighp2.csv"
+famos_iteration = "2024-01-23"
+area = "sfbay"
+# 2018, 2050
+year = 2050
+# Baseline, HOPhighp2, HOPhighp6, Refhighp2, Refhighp6
+scenario = "HOPhighp2"
+input_dir = os.path.expanduser(f"~/Workspace/Simulation/{area}/beam-freight/{famos_iteration}/{str(year)}_{scenario}")
+freight_carriers_file = f"{input_dir}/freight-carriers--{str(year)}-{scenario}.csv"
+freight_payloads_file = f"{input_dir}/freight-payloads--{str(year)}-{scenario}.csv"
+vehicle_types_file = f"{input_dir}/freight-vehicletypes--{str(year)}-{scenario}.csv"
 
 # ##################
 
 # output
-formatted_emfac_population_file = input_dir + "/emfac-freight-population.csv"
-formatted_famos_population_file = input_dir + "/famos-freight-population.csv"
-formatted_emissions_rates_file = input_dir + "/emfac-emissions-rates.csv"
-freight_vehicletypes_emissions_file = input_dir + "/freight-vehiclestypes.csv"
-freight_carriers_emissions_file = input_dir + "/freight-vehiclestypes--HOPhighp2-emissions.csv"
-output_rates_dir = input_dir + "/emissions_rates"
+vehicle_types_emissions_file = f"{input_dir}/freight-vehicletypes--{str(year)}-{scenario}-emissions.csv"
+freight_carriers_emissions_file = f"{input_dir}/freight-carriers--{str(year)}-{scenario}-emissions.csv"
+emissions_rates_output_dir = f"{input_dir}/emissions-rates"
 
+#
+fuel_mapping_assumptions = {
+    'Dsl': 'Diesel',
+    'Gas': 'Diesel',
+    'NG': 'Diesel',
+    'Elec': 'Electricity',
+    'Phe': 'PlugInHybridElectricity',
+    'H2fc': 'Electricity'
+}
 
-# ### Summarizing EMFAC population ###
-print("prepare_emfac_population_for_mapping")
-emfac_population = pd.read_csv(emfac_population_file, dtype=str)
-emfac_population = emfac_population[emfac_population["calendar_year"] == str(year)]
-# ['Dsl', 'Elec', 'Gas', 'Phe', 'NG']
-
-formatted_emfac_population = prepare_emfac_population_for_mapping(
-    emfac_population,
-    {
-        'Dsl': 'Diesel',
-        'Gas': 'Diesel',
-        'NG': 'Diesel',
-        'Elec': 'Electricity',
-        'Phe': 'PlugInHybridElectricity',
-        'H2FC': 'Electricity'
-    }
-)
-# formatted_emfac_population.to_csv(formatted_emfac_population_file, index=False)
-# sampled_df = formatted_emfac_population.sample(n=10, random_state=42)
-# sampled_df = sampled_df.reset_index(drop=True)
-# sampled_df.to_csv(os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/emfac-freight-population-sample.csv"),
-#                   index=False)
-
-
-# ### Mapping counties with Mesozones ###
-print("prepare_famos_population_for_mapping")
-freight_carriers = pd.read_csv(freight_carriers_file, dtype=str)
-# This for zonal mapping
+# all the readings:
+famos_payloads = pd.read_csv(freight_payloads_file)
+famos_vehicle_types = pd.read_csv(vehicle_types_file)
+famos_carriers = pd.read_csv(freight_carriers_file, dtype=str)
 # freight_carriers_formatted = unpacking_famos_population_mesozones(
 #     freight_carriers,
 #     mesozones_to_county_file,
 #     mesozones_lookup_file
 # )
 
-# Instead use statewide mapping
-famos_payloads = pd.read_csv(freight_payloads_file)
-famos_vehicle_types = pd.read_csv(freight_vehicletypes_file)
+print("Processing..")
+emissions_rates = pd.read_csv(emfac_emissions_file, low_memory=False, dtype=str)
+emissions_rates_for_mapping = prepare_emfac_emissions_for_mapping(
+    emissions_rates,
+    area,
+    year
+)
+print(f"EMFAC Rates => rows: {len(emissions_rates_for_mapping)}, "
+      f"classes: {len(emissions_rates_for_mapping['emfacClass'].unique())}, "
+      f"fuel: {len(emissions_rates_for_mapping['emfacFuel'].unique())}")
 
-formatted_famos_population = prepare_famos_population_for_mapping(
-    freight_carriers,
+
+# ### Summarizing EMFAC population ###
+# ['Dsl', 'Elec', 'Gas', 'Phe', 'NG']
+emfac_population = pd.read_csv(emfac_population_file, low_memory=False, dtype=str)
+emfac_population_for_mapping = prepare_emfac_population_for_mapping(
+    emfac_population,
+    year,
+    fuel_mapping_assumptions
+)
+print(f"EMFAC Population => rows: {len(emfac_population_for_mapping)}, "
+      f"classes: {len(emfac_population_for_mapping['emfacClass'].unique())}, "
+      f"fuel: {len(emfac_population_for_mapping['emfacFuel'].unique())}")
+
+# ### Mapping counties with Mesozones ###
+famos_population_for_mapping = prepare_famos_population_for_mapping(
+    famos_carriers,
     famos_payloads,
-    famos_vehicle_types
+    famos_vehicle_types,
+    fuel_mapping_assumptions
 )
-# formatted_famos_population.to_csv(formatted_famos_population_file, index=False)
-# sampled_df = formatted_famos_population.sample(n=10, random_state=42)
-# sampled_df = sampled_df.reset_index(drop=True)
-# sampled_df.to_csv(os.path.expanduser("~/Workspace/Simulation/sfbay/beam-freight/2024-01-23/Baseline/famos-freight-population-sample.csv"),
-#                   index=False)
-
+print(f"FAMOS Population => rows: {len(famos_population_for_mapping)}, "
+      f"classes: {len(famos_population_for_mapping['famosClass'].unique())}, "
+      f"fuel: {len(famos_population_for_mapping['famosFuel'].unique())}")
+unique_vehicles = set(famos_carriers["vehicleId"].unique()) - set(famos_population_for_mapping["vehicleId"].unique())
+if len(unique_vehicles) > 0:
+    print(f"Failed to map, maybe some vehicles in carriers were not used in payload plans:")
+    print(unique_vehicles)
 
 ###
-print("distribution_based_vehicle_classes_assignment")
+print("------------------------------------------------------------------")
+print("Distributing vehicle classes from EMFAC across FAMOS population...")
 updated_famos_population = distribution_based_vehicle_classes_assignment(
-    formatted_famos_population,
-    formatted_emfac_population
+    famos_population_for_mapping,
+    emfac_population_for_mapping
 )
+missing_classes = set(emfac_population_for_mapping['emfacClass'].unique()) - set(updated_famos_population['emfacClass'].unique())
+missing_fuel = set(emfac_population_for_mapping['emfacFuel'].unique()) - set(updated_famos_population['emfacFuel'].unique())
+if len(missing_classes) > 0 or len(missing_fuel) > 0:
+    print(f"Failed to match these classes {missing_classes} and fuel {missing_fuel}")
+
 
 ###
-print("update_carrier_file")
-if os.path.exists(freight_carriers_emissions_file):
-    updated_freight_carriers = pd.read_csv(freight_carriers_emissions_file)
-else:
-    updated_freight_carriers = update_carrier_file(freight_carriers, updated_famos_population)
-    updated_freight_carriers.to_csv(freight_carriers_emissions_file, index=False)
+print("------------------------------------------------------------------")
+print("Building new set of vehicle types")
+updated_vehicle_types = build_new_vehtypes(updated_famos_population, famos_vehicle_types)
+print(f"Previous vehicle types had {len(famos_vehicle_types)} types while the new set has {len(updated_vehicle_types)} types")
 
 ###
-print("build_vehicle_types_for_emissions")
-updated_vehicle_types = build_vehicle_types_for_emissions(updated_famos_population, famos_vehicle_types)
+print("------------------------------------------------------------------")
+print("Assigning new vehicle types to carriers")
+updated_freight_carriers = assign_new_vehtypes_to_carriers(famos_carriers, updated_famos_population, freight_carriers_emissions_file)
+unique_vehicles = set(famos_carriers["vehicleId"].unique()) - set(updated_freight_carriers["vehicleId"].unique())
+if len(unique_vehicles) > 0:
+    print(f"Failed to assign vehicle types to these vehicles: {unique_vehicles}")
 
-# vehicle_types_famos_emfac_freight_population_mapping = map_famos_emfac_freight_population(
-#     formatted_famos_population,
-#     formatted_emfac_population,
-#     is_statewide=True
-# )
-
-# ## EMISSIONS RATES ##
-print("format_rates_for_beam")
-if os.path.exists(formatted_emissions_rates_file):
-    emissions_rates_formatted = pd.read_csv(formatted_emissions_rates_file)
-else:
-    emissions_rates, _ = get_regional_emfac_data(emfac_emissions_file, ["SF"])
-    emissions_rates_formatted = format_rates_for_beam(emissions_rates)
-    emissions_rates_formatted.to_csv(formatted_emissions_rates_file, index=False)
-
-
-print("process_emfac_emissions")
-updated_vehicle_types = process_vehicle_types_emissions(
-    emissions_rates_formatted,
+###
+print("------------------------------------------------------------------")
+print("Assigning emissions rates to new set of vehicle types")
+final_vehicle_types = assign_emissions_rates_to_vehtypes(
+    emissions_rates_for_mapping,
     updated_vehicle_types,
-    output_rates_dir,
-    "emissions-rates/baseline/"
+    emissions_rates_output_dir
 )
-updated_vehicle_types.to_csv(freight_vehicletypes_emissions_file, index=False)
 
+print("------------------------------------------------------------------")
+unique_vehicle_types = set(updated_vehicle_types["vehicleTypeId"].unique()) - set(final_vehicle_types["vehicleTypeId"].unique())
+if len(unique_vehicle_types) > 0:
+    print(f"Failed to assign emissions rates to these vehicle types: {unique_vehicle_types}")
 
-# base_name, ext = os.path.splitext(emissions_file_path)
-# mask = (
-#         (df_output["sub_area"] == "San Francisco (SF)") &
-#         (df_output["vehicle_class"] == "T7IS") &
-#         (df_output["fuel"] == "Gas")
-# )
-# beam_ville_rates = df_output[mask]
-# beam_ville_rates = beam_ville_rates.drop(["sub_area", "vehicle_class", "fuel"], axis=1)
-# beam_ville_rates.to_csv(base_name + "_beamville" + ext, index=False)
+print(f"Writing {vehicle_types_emissions_file}")
+updated_vehicle_types.to_csv(vehicle_types_emissions_file, index=False)
+
+print("End")

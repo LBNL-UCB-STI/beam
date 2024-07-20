@@ -12,7 +12,7 @@ run_dir = work_dir + "/beam-freight/2024-01-23/Baseline"
 statewide_pop_file = model_dir + '/Default_Statewide_2018_Annual_fleet_data_population_20240311153419.csv'
 
 # Load the dataset from the uploaded CSV file
-emfac_pop = get_regional_emfac_data(statewide_pop_file, emfac_regions)
+emfac_pop = prepare_emfac_emissions_for_mapping(statewide_pop_file, emfac_regions)
 emfac_pop_freight = emfac_pop[emfac_pop["vehicle_class"].isin(freight_vehicle_classes)]
 # Group by 'vehicle_class' and 'fuel', and calculate the sum of 'population'
 emfac_pop_freight_normalized = emfac_pop_freight.groupby(['vehicle_class', 'fuel'])['population'].sum().reset_index()
@@ -27,7 +27,7 @@ emfac_pop_freight_normalized.to_csv(emfac_pop_file, index=False)
 # ## VMT ##
 statewide_vmt_file = model_dir + '/Default_Statewide_2018_Annual_fleet_data_vmt_20240311153419.csv'
 
-emfac_vmt = get_regional_emfac_data(statewide_vmt_file, emfac_regions)
+emfac_vmt = prepare_emfac_emissions_for_mapping(statewide_vmt_file, emfac_regions)
 emfac_vmt_freight = emfac_vmt[emfac_vmt["vehicle_class"].isin(freight_vehicle_classes)]
 emfac_vmt_freight_normalized = emfac_vmt_freight.groupby(['vehicle_class', 'fuel'])['total_vmt'].sum().reset_index()
 emfac_vmt_freight_normalized.rename(columns={'total_vmt': 'sum_vmt'}, inplace=True)

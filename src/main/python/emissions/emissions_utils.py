@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os
 import re
+import shutil
 
 class_2b3 = 'Class 2b&3 Vocational'
 class_46 = 'Class 4-6 Vocational'
@@ -196,156 +197,105 @@ pollutant_columns = {
     'TOG': 'rate_tog_gram_float'
 }
 
-
 emissions_processes = ["RUNEX", "IDLEX", "STREX", "DIURN", "HOTSOAK", "RUNLOSS", "PMTW", "PMBW"]
 
-
-def get_regional_emfac_filename(emfac_data_filepath, emfac_regions, label=""):
-    folder_path = os.path.dirname(emfac_data_filepath)
-    file_name = os.path.basename(emfac_data_filepath)
-    emfac_regions_label = '-'.join([fr"{re.escape(region)}" for region in emfac_regions])
-    return folder_path + "/" + emfac_regions_label + "_" + label + file_name
+region_to_emfac_area = {
+    "sfbay": "SF"
+}
 
 
-def get_regional_emfac_data(emfac_data_filepath, emfac_regions):
-    studyarea_x_filepath = get_regional_emfac_filename(emfac_data_filepath, emfac_regions)
+def sanitize_name(filename):
+    # First, replace forward slashes with dashes
+    sanitized = filename.replace('/', '-')
+    # Then remove or replace any other non-alphanumeric characters (except dashes)
+    sanitized = re.sub(r'[^\w\-]', '-', sanitized)
+    # Replace any sequence of dashes with a single dash
+    sanitized = re.sub(r'-+', '-', sanitized)
+    # Remove leading and trailing dashes
+    sanitized = sanitized.strip('-')
+    return sanitized
 
-    if os.path.exists(os.path.expanduser(studyarea_x_filepath)):
-        print("Filtered EMFAC exists. Returning stored output: " + studyarea_x_filepath)
-        return pd.read_csv(studyarea_x_filepath), studyarea_x_filepath
+
+def get_vehicle_class_from_famos(vehicle_type):
+    if 'md' in vehicle_type:
+        return class_46
+    elif 'hdt' in vehicle_type:
+        return class_78_v
+    elif 'hdv' in vehicle_type:
+        return class_78_t
     else:
-        # Load the dataset from the uploaded CSV file
-        data = pd.read_csv(emfac_data_filepath)
-        # Filter the data for each region in emfac_regions
-        pattern = '|'.join([fr"\({re.escape(region)}\)" for region in emfac_regions])
-        emfac_filtered = data[data["sub_area"].str.contains(pattern, case=False, na=False)]
-        emfac_filtered.to_csv(studyarea_x_filepath, index=False)
-        print("Done filtering EMFAC. The output has been stored in: " + studyarea_x_filepath)
-        return emfac_filtered, studyarea_x_filepath
+        return 'Unknown'
 
 
-# This function is obsolete. It is because I tried to map vehicles types in emfac with famos without taking into
-# consideration vehicle distribution, activities and payload types.
-# EMFAC vehicle types are rich in characteristics like cement trucks and out of state trucks. Matching them can only be
-# by looking into payload plans
-def map_emfac_vehicle_types_to_famos(emfac_pop_file_, famos_vehicle_types_file_, famos_emfac_file_out_):
-    # ## Population ##
-    emfac_pop = pd.read_csv(emfac_pop_file_)
-    famos_vehicle_types = pd.read_csv(famos_vehicle_types_file_)
-
-    # Prepare the new dataframe based on the format of freight_only_df
-    new_columns = famos_vehicle_types.columns
-    new_df = pd.DataFrame(columns=new_columns)
-
-    # Iterate over each row in the sf_normalized_df and find the closest match in freight_only_df
-    for index, row in emfac_pop.iterrows():
-        matched_class_fuel = famos_vehicle_types[
-            (famos_vehicle_types['vehicleClass'] == emfac_class_to_famos_class_map[row['vehicle_class']]) &
-            (famos_vehicle_types['primaryFuelType'] == emfac_fuel_to_beam_fuel_map[row['fuel']])
-            ]
-        matched_class_phev = famos_vehicle_types[
-            (famos_vehicle_types['vehicleClass'] == emfac_class_to_famos_class_map[row['vehicle_class']]) &
-            (emfac_fuel_to_beam_fuel_map[row['fuel']] == 'PlugInHybridElectric') &
-            (famos_vehicle_types['primaryFuelType'] == 'Electricity') &
-            (famos_vehicle_types['secondaryFuelType'] == 'Diesel')
-            ]
-        matched_fuel_only = famos_vehicle_types[
-            (famos_vehicle_types['primaryFuelType'] == emfac_fuel_to_beam_fuel_map[row['fuel']]) |
-            (emfac_fuel_to_beam_fuel_map[row['fuel']] == 'PlugInHybridElectric') &
-            (famos_vehicle_types['primaryFuelType'] == 'Electricity') &
-            (famos_vehicle_types['secondaryFuelType'].isin(['Diesel', 'Gasoline']))
-            ]
-
-        if not matched_class_fuel.empty:
-            # If both emfac vehicle class and fuel types are in famos, then match them
-            new_row = matched_class_fuel.iloc[0].copy()
-            new_row['emfacPopulationSize'] = row['sum_population']
-            new_row['emfacPopulationPct'] = row['share_population']
-            new_row['emfacVehicleClass'] = row['vehicle_class']
-            new_row['vehicleCategory'] = emfac_class_to_vehicle_category_map[new_row['emfacVehicleClass']]
-            new_row['vehicleTypeId'] = (new_row['vehicleTypeId'] + '-' + new_row['emfacVehicleClass'].replace(' ', ''))
-            new_df = pd.concat([new_df, pd.DataFrame([new_row])], ignore_index=True)
-
-        elif not matched_class_phev.empty:
-            # If both emfac vehicle class and PHEV type are in famos, then match them
-            new_row = matched_class_phev.iloc[0].copy()
-            new_row['emfacPopulationSize'] = row['sum_population']
-            new_row['emfacPopulationPct'] = row['share_population']
-            new_row['emfacVehicleClass'] = row['vehicle_class']
-            new_row['vehicleCategory'] = emfac_class_to_vehicle_category_map[new_row['emfacVehicleClass']]
-            new_row['vehicleTypeId'] = (new_row['vehicleTypeId'] + '-' + new_row['emfacVehicleClass'].replace(' ', ''))
-            new_df = pd.concat([new_df, pd.DataFrame([new_row])], ignore_index=True)
-
-        elif not matched_fuel_only.empty:
-            # If only fuel type is in famos, then match fuel and update vehicle cLass
-            new_row = matched_fuel_only.iloc[0].copy()
-            new_row['emfacPopulationSize'] = row['sum_population']
-            new_row['emfacPopulationPct'] = row['share_population']
-            new_row['emfacVehicleClass'] = row['vehicle_class']
-            new_row['vehicleCategory'] = emfac_class_to_vehicle_category_map[new_row['emfacVehicleClass']]
-
-            ##
-            new_row['vehicleClass'] = emfac_class_to_famos_class_map[row['vehicle_class']]
-            new_row['vehicleTypeId'] = (new_row['vehicleTypeId'] + '-' + new_row['emfacVehicleClass'].replace(' ', ''))
-            new_df = pd.concat([new_df, pd.DataFrame([new_row])], ignore_index=True)
-
-        elif emfac_fuel_to_beam_fuel_map[row['fuel']] in ['NaturalGas', 'Gasoline']:
-            # If only fuel type is in either NatGas or Gas, then create new fuel entry and then check if class matches.
-            # If class doesn't match then update vehicle class.
-            matched_other_fuel = famos_vehicle_types[
-                famos_vehicle_types['primaryFuelType'].isin(['Diesel', 'Gasoline'])]
-            new_row = matched_other_fuel.iloc[0].copy()
-            matched_class_other_fuel = matched_other_fuel[
-                matched_other_fuel['vehicleClass'] == emfac_class_to_famos_class_map[row['vehicle_class']]
-                ]
-            if not matched_class_other_fuel.empty:
-                new_row = matched_class_other_fuel.iloc[0].copy()
-
-            if emfac_class_to_famos_class_map[row['vehicle_class']] != new_row['vehicleClass']:
-                print(f"There is a mismatch between vehicle class in FAMOS vehicle types and EMFAC vehicle types")
-                print("===== FAMOS =====")
-                print(new_row)
-                print("===== EMFAC =====")
-                print(row)
-
-            new_row['emfacPopulationSize'] = row['sum_population']
-            new_row['emfacPopulationPct'] = row['share_population']
-            new_row['emfacVehicleClass'] = row['vehicle_class']
-            new_row['vehicleCategory'] = emfac_class_to_vehicle_category_map[new_row['emfacVehicleClass']]
-
-            ##
-            new_row['vehicleClass'] = emfac_class_to_famos_class_map[row['vehicle_class']]
-            new_row['vehicleTypeId'] = (new_row['vehicleTypeId'] + '-' + new_row['emfacVehicleClass'].replace(' ', ''))
-            new_df = pd.concat([new_df, pd.DataFrame([new_row])], ignore_index=True)
-
-        else:
-            print(f"This row failed to be added: {row}")
-
-    # Save the new dataframe to a CSV file
-    new_df.to_csv(famos_emfac_file_out_, index=False)
-    return new_df
+def emissions_filename(filename):
+    return f"""emissions-rates--{sanitize_name(filename)}.csv"""
 
 
-def prepare_emfac_population_for_mapping(emfac_population, fuel_assumption_mapping):
-    # Map vehicle classes and drop rows with unmapped classes
-    emfac_population['mappedVehicleClass'] = emfac_population['vehicle_class'].map(emfac_class_to_famos_class_map)
-    formatted_emfac_population = emfac_population.dropna(subset=['mappedVehicleClass'])
+def prepare_emfac_emissions_for_mapping(emissions_rates, emfac_region, calendar_year, season="Annual", humidity=40,
+                                        temperature=65):
+    data = emissions_rates.copy()
+    data['famosClass'] = data['vehicle_class'].map(emfac_class_to_famos_class_map)
+    data.dropna(subset=['famosClass'], inplace=True)
+
+    # Load the dataset from the uploaded CSV file
+    data['calendar_year'] = pd.to_numeric(data['calendar_year'], errors='coerce')
+    data['relative_humidity'] = pd.to_numeric(data['relative_humidity'], errors='coerce')
+    data['temperature'] = pd.to_numeric(data['temperature'], errors='coerce')
+
+    # Extract county and area from sub_area
+    data[['county', 'area']] = data['sub_area'].str.extract(r'^([^()]+)\s*\(([^)]+)\)')
+
+    # Filter the data
+    emfac_filtered = data[
+        data["sub_area"].str.contains(fr"\({re.escape(region_to_emfac_area[emfac_region])}\)", case=False, na=False) &
+        (data["calendar_year"] == calendar_year) &
+        (data["season_month"] == season) &
+        ((data["relative_humidity"] == humidity) | (data["relative_humidity"].isna())) &
+        ((data["temperature"] == temperature) | (data["temperature"].isna()))
+        ]
+
+    # Drop unnecessary columns
+    emfac_filtered = emfac_filtered.drop(
+        ['calendar_year', 'season_month', 'relative_humidity', 'temperature', 'sub_area'], axis=1)
+
+    # Clean up the extracted data
+    emfac_filtered['county'] = emfac_filtered['county'].str.strip().str.lower()
+    emfac_filtered['area'] = emfac_filtered['area'].str.strip()
+
+    # Create emfacId
+    emfac_filtered['emfacId'] = emfac_filtered.apply(
+        lambda row: sanitize_name(f"{row['vehicle_class']}-{row['fuel']}"),
+        axis=1
+    )
+
+    emfac_filtered.rename(columns={'vehicle_class': 'emfacClass', 'fuel': 'emfacFuel'}, inplace=True)
+
+    return emfac_filtered
+
+
+def prepare_emfac_population_for_mapping(emfac_population, year, fuel_assumption_mapping, ignore_model_year=True):
+    df = emfac_population[(emfac_population["calendar_year"] == str(year))].drop(["calendar_year"], axis=1)
+    df['population'] = pd.to_numeric(df['population'], errors='coerce')
+    if ignore_model_year:
+        # Group by vehicle_class and fuel, aggregating population
+        df = df.groupby(['vehicle_class', 'fuel'], as_index=False)['population'].sum()
+
+    df['famosClass'] = df['vehicle_class'].map(emfac_class_to_famos_class_map)
+    df.dropna(subset=['famosClass'], inplace=True)
 
     # Validation checks
-    if len(formatted_emfac_population["vehicle_class"].unique()) != len(emfac_class_to_famos_class_map):
+    if len(df["vehicle_class"].unique()) != len(emfac_class_to_famos_class_map):
         print("Warning: Mismatch in vehicle class mapping")
-    if not formatted_emfac_population['fuel'].isin(emfac_fuel_to_beam_fuel_map.keys()).all():
+    if not df['fuel'].isin(emfac_fuel_to_beam_fuel_map.keys()).all():
         print("Warning: Missing fuel type from dictionary")
 
-    result = (formatted_emfac_population
-              .assign(mappedFuelType=lambda x: x['fuel'].map(fuel_assumption_mapping),
-                    population=lambda x: x['population'].astype(float))
-              .drop(['calendar_year', 'sub_area'], axis=1)
-              .rename(columns={'vehicle_class': 'emfacClass', 'fuel': 'emfacFuel'}))
-    result["emfacId"] = result[['emfacClass', 'emfacFuel']].agg('-'.join, axis=1)
-    result["emfacId"] = result['emfacId'].str.replace(' ', '-')
-    # Apply transformations
-    return result
+    df["mappedFuel"] = df['fuel'].map(fuel_assumption_mapping)
+    df['emfacId'] = df.apply(
+        lambda row: sanitize_name(f"{row['vehicle_class']}-{row['fuel']}"),
+        axis=1
+    )
+    df.rename(columns={'vehicle_class': 'emfacClass', 'fuel': 'emfacFuel'}, inplace=True)
+    return df
 
 
 def unpacking_famos_population_mesozones(freight_carriers, mesozones_to_county_file, mesozones_lookup_file):
@@ -383,116 +333,63 @@ def unpacking_famos_population_mesozones(freight_carriers, mesozones_to_county_f
     return freight_carriers_by_zone
 
 
-def prepare_famos_population_for_mapping(freight_carriers, freight_payloads_raw, freight_vehicletypes):
+def prepare_famos_population_for_mapping(freight_carriers, freight_payloads_raw, freight_vehicletypes, fuel_assumption_mapping):
     freight_carriers_formatted = freight_carriers[['tourId', 'vehicleId', 'vehicleTypeId']]
     freight_payloads = freight_payloads_raw[['payloadId', 'tourId', 'payloadType']].copy()
-    freight_vehicletypes = freight_vehicletypes[
-        ['vehicleTypeId', 'vehicleClass', 'primaryFuelType', 'secondaryFuelType']].copy()
+    freight_vehicletypes = freight_vehicletypes[['vehicleTypeId', 'primaryFuelType', 'secondaryFuelType']].copy()
+
+    freight_vehicletypes['famosClass'] = freight_vehicletypes['vehicleTypeId'].apply(get_vehicle_class_from_famos)
 
     # Summarize data
     freight_payloads.loc[:, 'payloadType'] = freight_payloads['payloadType'].astype(str)
-    freight_payloads_summary = freight_payloads.groupby('tourId')['payloadType'].agg('|'.join).reset_index()
+    freight_payloads_summary = freight_payloads.groupby(['tourId'])['payloadType'].agg('|'.join).reset_index()
 
     # Merge payload summary with carriers
     freight_payloads_merged = pd.merge(freight_payloads_summary, freight_carriers_formatted, on='tourId', how='left')
 
     # Load and process vehicle types
-    freight_vehicletypes['fuelType'] = np.where(
+    freight_vehicletypes['famosFuel'] = np.where(
         (freight_vehicletypes['primaryFuelType'] == emfac_fuel_to_beam_fuel_map["Elec"]) &
         freight_vehicletypes['secondaryFuelType'].notna(),
         emfac_fuel_to_beam_fuel_map['Phe'],
         freight_vehicletypes['primaryFuelType']
     )
 
+    freight_vehicletypes['mappedFuel'] = freight_vehicletypes['famosFuel'].map(
+        lambda x: fuel_assumption_mapping[beam_fuel_to_emfac_fuel_map[x]]
+    )
+
     # Merge payloads with vehicle types
     freight_payloads_vehtypes = pd.merge(
         freight_payloads_merged,
-        freight_vehicletypes[['vehicleTypeId', 'vehicleClass', 'fuelType']],
+        freight_vehicletypes[['vehicleTypeId', 'famosClass', 'famosFuel', 'mappedFuel']],
         on='vehicleTypeId',
         how='left'
     )
 
     # Check for missing fuel types
-    if freight_payloads_vehtypes['fuelType'].isna().any():
+    if freight_payloads_vehtypes['famosFuel'].isna().any():
         print("Warning: Missing fuel types for some vehicle IDs")
-        print(freight_payloads_vehtypes[freight_payloads_vehtypes['fuelType'].isna()])
+        print(freight_payloads_vehtypes[freight_payloads_vehtypes['famosFuel'].isna()])
 
     # Remove duplicates and return
     return freight_payloads_vehtypes.drop_duplicates('vehicleId', keep='first')
 
 
-def map_famos_emfac_freight_population(formatted_famos_population, formatted_emfac_population, is_statewide):
-    # Define grouping keys based on whether the data is statewide or not
-    group_keys = ['mappedVehicleClass', 'mappedFuelType'] if is_statewide else ['zone', 'mappedVehicleClass',
-                                                                                'mappedFuelType']
-    class_keys = ['mappedVehicleClass'] if is_statewide else ['zone', 'mappedVehicleClass']
-
-    # Group the EMFAC population data
-    grouped_by_mappedFuelType = formatted_emfac_population.groupby(group_keys)
-    grouped_by_mappedVehicleClass = formatted_emfac_population.groupby(class_keys)
-
-    def process_row(row):
-        vehicleClass, fuelType, vehicleTypeId = row['vehicleClass'], row['fuelType'], row['vehicleTypeId']
-
-        try:
-            # Try to get a group matching both vehicle class and fuel type
-            group_key = (vehicleClass, fuelType) if is_statewide else (row['zone'], vehicleClass, fuelType)
-            group = grouped_by_mappedFuelType.get_group(group_key)
-
-            # Sample from the group based on population weights
-            weights = group['population'] / group['population'].sum()
-            sample = group.sample(n=1, weights=weights).iloc[0]
-
-            emfacClass = sample['emfacClass'].replace(' ', '')
-            fuel = sample['fuel']
-
-        except KeyError:
-            try:
-                # If no match found, try to get a group matching only vehicle class
-                class_key = (vehicleClass,) if is_statewide else (row['zone'], vehicleClass)
-                group = grouped_by_mappedVehicleClass.get_group(class_key)
-
-                # Sample from the group based on population weights
-                weights = group['population'] / group['population'].sum()
-                sample = group.sample(n=1, weights=weights).iloc[0]
-
-                emfacClass = sample['emfacClass'].replace(' ', '')
-                fuel = beam_fuel_to_emfac_fuel_map[fuelType]
-
-            except KeyError:
-                # If still no match found, return None values
-                print(f"This vehicleClass [{vehicleClass}] not found in EMFAC! \nRow: {row}")
-                return pd.Series({'emfacVehicleTypeId': None, 'emfacClass': None, 'emfacFuelType': None})
-
-        # Construct the EMFAC vehicle type ID
-        emfacVehicleTypeId = f"{vehicleTypeId}-{emfacClass}-{fuel}"
-
-        return pd.Series({
-            'emfacVehicleTypeId': emfacVehicleTypeId,
-            'emfacClass': emfacClass,
-            'emfacFuelType': fuel
-        })
-
-    # Apply the processing function to each row and combine results
-    results = formatted_famos_population.apply(process_row, axis=1)
-
-    # Join the results back to the original DataFrame
-    return pd.concat([formatted_famos_population, results], axis=1)
-
-
 def distribution_based_vehicle_classes_assignment(famos_df, emfac_df):
     # Remove 'Class 2b&3 Vocational' from EMFAC data
-    emfac_df = emfac_df[emfac_df['mappedVehicleClass'] != class_2b3]
+    emfac_df = emfac_df[emfac_df['famosClass'] != class_2b3]
 
-    def sample_emfac(the_class, the_fuel):
-        emfac_grouped = emfac_df[(emfac_df['mappedVehicleClass'] == the_class) & (emfac_df['mappedFuelType'] == the_fuel)]
+    def sample_emfac(the_class, famos_mapped_fuel):
+        emfac_grouped = emfac_df[(emfac_df['famosClass'] == the_class) & (emfac_df['mappedFuel'] == famos_mapped_fuel)]
         if emfac_grouped.empty:
-            emfac_grouped = emfac_df[emfac_df['mappedVehicleClass'] == the_class]
+            print(f"failed to match this fuel {famos_mapped_fuel}")
+            emfac_grouped = emfac_df[emfac_df['famosClass'] == the_class]
         return emfac_grouped.sample(n=1, weights='population')['emfacId'].iloc[0]
 
     total_emfac = emfac_df["population"].sum()
-    class_46_share = emfac_df[emfac_df['mappedVehicleClass'] == class_46]["population"].sum() / total_emfac
-    class_78_v_share = emfac_df[emfac_df['mappedVehicleClass'] == class_78_v]["population"].sum() / total_emfac
+    class_46_share = emfac_df[emfac_df['famosClass'] == class_46]["population"].sum() / total_emfac
+    class_78_v_share = emfac_df[emfac_df['famosClass'] == class_78_v]["population"].sum() / total_emfac
     total_famos = len(famos_df)
     class_46_target = int(class_46_share * total_famos)
     class_78_v_target = int(class_78_v_share * total_famos)
@@ -504,46 +401,46 @@ def distribution_based_vehicle_classes_assignment(famos_df, emfac_df):
         nonlocal class_46_count, class_78_v_count
 
         if class_46_count < class_46_target:
-            if row['vehicleClass'] == class_46:
+            if row['famosClass'] == class_46:
                 class_46_count += 1
-                return sample_emfac(class_46, row['fuelType'])
+                return sample_emfac(class_46, row['mappedFuel'])
 
-            if row['vehicleClass'] == class_78_v:
+            if row['famosClass'] == class_78_v:
                 class_46_count += 1
-                return sample_emfac(class_46, row['fuelType'])
+                return sample_emfac(class_46, row['mappedFuel'])
 
-            if row['vehicleClass'] == class_78_t:
+            if row['famosClass'] == class_78_t:
                 class_46_count += 1
-                return sample_emfac(class_46, row['fuelType'])
+                return sample_emfac(class_46, row['mappedFuel'])
 
         if class_78_v_count < class_78_v_target:
-            if row['vehicleClass'] == class_78_v:
+            if row['famosClass'] == class_78_v:
                 class_78_v_count += 1
-                return sample_emfac(class_78_v, row['fuelType'])
+                return sample_emfac(class_78_v, row['mappedFuel'])
 
-            if row['vehicleClass'] == class_78_t:
+            if row['famosClass'] == class_78_t:
                 class_78_v_count += 1
-                return sample_emfac(class_78_v, row['fuelType'])
+                return sample_emfac(class_78_v, row['mappedFuel'])
 
-        return sample_emfac(class_78_t, row['fuelType'])
+        return sample_emfac(class_78_t, row['mappedFuel'])
 
-    famos_df['vehicleClassBis'] = famos_df['vehicleClass'].map({class_46: 1, class_78_v: 2, class_78_t: 3})
-    famos_df['emfacId'] = famos_df.sort_values('vehicleClassBis').apply(sample_emfac_class, axis=1)
+    famos_df['famosClassBis'] = famos_df['famosClass'].map({class_46: 1, class_78_v: 2, class_78_t: 3})
+    famos_df['emfacId'] = famos_df.sort_values('famosClassBis').apply(sample_emfac_class, axis=1)
     famos_df["oldVehicleTypeId"] = famos_df["vehicleTypeId"]
     famos_df['vehicleTypeId'] = famos_df.apply(
-        lambda row: sanitize_filename(f"{row['emfacId']}-{row['oldVehicleTypeId'].split('-')[-1]}"),
+        lambda row: "emfac--"+sanitize_name(f"{row['emfacId']}-{row['oldVehicleTypeId'].split('-')[-1]}"),
         axis=1
     )
-    merged = pd.merge(famos_df, emfac_df, on="emfacId", how="left").drop(["vehicleClassBis"], axis=1)
+    merged = pd.merge(famos_df, emfac_df.drop(["famosClass", "mappedFuel"], axis=1), on="emfacId", how="left").drop(["famosClassBis"], axis=1)
     return merged
 
 
 def pivot_rates_for_beam(df_raw):
     unique_speed_time = df_raw.speed_time.unique()
     if len(unique_speed_time) > 0 and not np.isnan(unique_speed_time[0]):
-        index_ = ["vehicle_class", "fuel", 'sub_area', 'process', 'speed_time']
+        index_ = ["emfacClass", "emfacFuel", 'county', 'area', 'process', 'speed_time']
     else:
-        index_ = ["vehicle_class", "fuel", 'sub_area', 'process']
+        index_ = ["emfacClass", "emfacFuel", 'county', 'area', 'process']
     pivot_df = df_raw.pivot_table(index=index_, columns='pollutant', values='emission_rate', aggfunc='first', fill_value=0).reset_index()
     pivot_df = pivot_df.rename(columns=pollutant_columns)
     # Add missing columns with default values
@@ -569,9 +466,10 @@ def numerical_column_to_binned(df_raw, numerical_colname, binned_colname, edge_v
 
 def process_rates_group(df, row):
     mask = (
-            (df["sub_area"] == row["sub_area"]) &
-            (df["vehicle_class"] == row["vehicle_class"]) &
-            (df["fuel"] == row["fuel"])
+            (df["county"] == row["county"]) &
+            (df["area"] == row["area"]) &
+            (df["emfacClass"] == row["emfacClass"]) &
+            (df["emfacFuel"] == row["emfacFuel"])
     )
     df_subset = df[mask]
     df_output_list = []
@@ -589,38 +487,26 @@ def process_rates_group(df, row):
     return pd.concat(df_output_list, ignore_index=True)
 
 
-def format_rates_for_beam(emissions_rates, calendar_year=2018, season="Annual", humidity=40, temperature=65):
+def format_rates_for_beam(emissions_rates):
     from joblib import Parallel, delayed
-
-    # Filter and format emissions data
-    df_filtered = emissions_rates[
-        (emissions_rates["calendar_year"] == calendar_year) &
-        (emissions_rates["season_month"] == season) &
-        ((emissions_rates["relative_humidity"] == humidity) | (emissions_rates["relative_humidity"].isna())) &
-        ((emissions_rates["temperature"] == temperature) | (emissions_rates["temperature"].isna()))
-    ].drop(['calendar_year', 'season_month', 'relative_humidity', 'temperature'], axis=1)
 
     # Pivot table to spread pollutants into columns
     print("Formatting emissions...")
 
     # Assuming emissions_rates is already loaded into a DataFrame `df`
-    group_by_cols = ["sub_area", "vehicle_class", "fuel"]
-    df_unique = df_filtered[group_by_cols].drop_duplicates().reset_index(drop=True)
+    group_by_cols = ["county", "area", "emfacClass", "emfacFuel"]
+    df_unique = emissions_rates[group_by_cols].drop_duplicates().reset_index(drop=True)
 
     # Parallel processing
-    df_output_list = Parallel(n_jobs=-1)(delayed(process_rates_group)(df_filtered, row) for index, row in df_unique.iterrows())
+    df_output_list = Parallel(n_jobs=-1)(
+        delayed(process_rates_group)(emissions_rates, row) for index, row in df_unique.iterrows()
+    )
 
     # Formatting for merge
     df_output = pd.concat(df_output_list, ignore_index=True)
 
-    # Extract county information
-    df_output['county'] = df_output['sub_area'].str.extract(r'^([^()]+)').squeeze().str.strip().str.lower()
-
-    # Create emfacId
-    df_output["emfacId"] = df_output['vehicle_class'].str.replace(' ', '-') + "-" + df_output['fuel']
-
     # Drop unnecessary columns
-    columns_to_drop = ["sub_area", "vehicle_class", "fuel", "speed_time"]
+    columns_to_drop = ["emfacClass", "emfacFuel", "speed_time", "area"]
     df_output = df_output.drop(columns_to_drop, axis=1)
 
     # Reorder columns to ensure 'county' is at the front
@@ -630,7 +516,7 @@ def format_rates_for_beam(emissions_rates, calendar_year=2018, season="Annual", 
     return df_output
 
 
-def process_single_vehicle_type(veh_type, taz_emissions_rates, emissions_rates_dir, emissions_rates_file_prefix):
+def process_single_vehicle_type(veh_type, taz_emissions_rates, rates_dir):
     veh_type_id = veh_type['vehicleTypeId']
     emfac_id = veh_type['emfacId']
 
@@ -642,41 +528,27 @@ def process_single_vehicle_type(veh_type, taz_emissions_rates, emissions_rates_d
         veh_emissions = veh_emissions.drop('emfacId', axis=1)
 
         # Generate the file name
-        file_name = emissions_filename(veh_type_id)
-        file_path = os.path.join(emissions_rates_dir, file_name)
+        file_path = os.path.join(rates_dir, emissions_filename(veh_type_id))
 
         print("Writing " + file_path)
         # Save the emissions rates to a CSV file
         veh_emissions.to_csv(file_path, index=False)
 
-        return veh_type_id, emissions_rates_file_prefix + file_name
+        return veh_type_id
     else:
         print(f"Warning: No emissions data found for vehicle type {veh_type_id}")
-        return veh_type_id, None
+        return veh_type_id
 
 
-def sanitize_filename(filename):
-    # First, replace forward slashes with dashes
-    sanitized = filename.replace('/', '-')
-    # Then remove or replace any other non-alphanumeric characters (except dashes)
-    sanitized = re.sub(r'[^\w\-]', '-', sanitized)
-    # Replace any sequence of dashes with a single dash
-    sanitized = re.sub(r'-+', '-', sanitized)
-    # Remove leading and trailing dashes
-    sanitized = sanitized.strip('-')
-    return sanitized
-
-
-def emissions_filename(filename):
-    return f"""emissions-rates--{sanitize_filename(filename)}.csv"""
-
-
-def process_vehicle_types_emissions(taz_emissions_rates, vehicle_types, output_dir, emissions_rates_file_prefix):
+def assign_emissions_rates_to_vehtypes(taz_emissions_rates, vehicle_types, output_dir):
     from joblib import Parallel, delayed
     emissions_rates_dir = os.path.abspath(output_dir)
+    if ensure_empty_directory(emissions_rates_dir):
+        print(f"Ready to write new data to the directory {emissions_rates_dir}")
+    else:
+        print(f"Failed to prepare the directory {emissions_rates_dir}. Please check permissions and try again.")
     os.makedirs(emissions_rates_dir, exist_ok=True)
 
-    print("Mapping to vehicle types ...")
     # Use parallel processing with error handling and chunking
     chunk_size = 100  # Adjust this value based on your data size and available memory
     results = []
@@ -688,8 +560,7 @@ def process_vehicle_types_emissions(taz_emissions_rates, vehicle_types, output_d
             delayed(process_single_vehicle_type)(
                 veh_type,
                 taz_emissions_rates,
-                emissions_rates_dir,
-                emissions_rates_file_prefix
+                output_dir
             ) for _, veh_type in chunk.iterrows()
         )
 
@@ -699,15 +570,15 @@ def process_vehicle_types_emissions(taz_emissions_rates, vehicle_types, output_d
         del chunk_results
 
     # Update the vehicle_types DataFrame with the new emissionsRatesFile information
-    for veh_type_id, emissions_file in results:
-        if emissions_file:
+    for veh_type_id in results:
+        if veh_type_id:
+            emissions_file = emissions_filename(veh_type_id)
             vehicle_types.loc[vehicle_types['vehicleTypeId'] == veh_type_id, 'emissionsRatesFile'] = emissions_file
 
-    print("Completed!")
     return vehicle_types
 
 
-def build_vehicle_types_for_emissions(updated_famos_population, famos_vehicle_types):
+def build_new_vehtypes(updated_famos_population, famos_vehicle_types):
     # Create a copy of the original vehicleTypeId and set up a lookup dictionary
     famos_vehicle_types_dict = famos_vehicle_types.set_index("vehicleTypeId").to_dict('index')
 
@@ -717,8 +588,8 @@ def build_vehicle_types_for_emissions(updated_famos_population, famos_vehicle_ty
     def process_row(row):
         new_row = famos_vehicle_types_dict[row["oldVehicleTypeId"]].copy()
         new_row["vehicleTypeId"] = row["vehicleTypeId"]
-        new_row['vehicleClass'] = row['mappedVehicleClass']
-        new_row['vehicleCategory'] = class_to_category.get(row['mappedVehicleClass'], 'Unknown')
+        new_row['vehicleClass'] = row["famosClass"]
+        new_row['vehicleCategory'] = class_to_category.get(row['famosClass'], 'Unknown')
         new_row["emfacId"] = row['emfacId']
         return new_row
 
@@ -736,17 +607,52 @@ def build_vehicle_types_for_emissions(updated_famos_population, famos_vehicle_ty
     return result_df
 
 
-def update_carrier_file(carrier_df, updated_famos_population):
+def assign_new_vehtypes_to_carriers(carrier_df, updated_famos_population, freight_carriers_emissions_file):
     vehicle_id_to_type_mapping = dict(zip(updated_famos_population['vehicleId'],
                                           updated_famos_population['vehicleTypeId']))
 
     def update_vehicle_type(row):
-        type_id = vehicle_id_to_type_mapping.get(row['vehicleId'])
-        if type_id is None:
-            print(f"Warning: No updated type found for vehicleId {row['vehicleId']}")
-            return row['vehicleTypeId']  # Keep the original type
-        return type_id
+        return vehicle_id_to_type_mapping.get(row['vehicleId'])
 
-    carrier_df['vehicleTypeId'] = carrier_df.apply(update_vehicle_type, axis=1)
+    carrier_df_new = carrier_df.copy()
+    carrier_df_new['vehicleTypeId'] = carrier_df.apply(update_vehicle_type, axis=1)
+    carrier_df_new.dropna(subset=['vehicleTypeId'])
+    print(f"Writing {freight_carriers_emissions_file}")
+    carrier_df_new.to_csv(freight_carriers_emissions_file, index=False)
+    return carrier_df_new
 
-    return carrier_df
+
+def combine_csv_files(input_files, output_file):
+    # Read and combine CSV files vertically
+    combined_df = pd.concat([pd.read_csv(f) for f in input_files], ignore_index=True)
+
+    # Write the combined dataframe to a new CSV file
+    combined_df.to_csv(output_file, index=False)
+
+    print(f"Combined CSV file has been created: {output_file}")
+    return combined_df  # Return the dataframe for further processing if needed
+
+
+def ensure_empty_directory(directory_path):
+    """
+    Ensure an empty directory exists at the given path.
+    If it exists, delete it and its contents, then recreate it.
+    If it doesn't exist, create it.
+    """
+    directory_path = os.path.abspath(directory_path)
+
+    if os.path.exists(directory_path):
+        try:
+            shutil.rmtree(directory_path)
+            print(f"Existing directory removed: {directory_path}")
+        except Exception as e:
+            print(f"Error removing directory {directory_path}: {e}")
+            return False
+
+    try:
+        os.makedirs(directory_path)
+        print(f"Directory created: {directory_path}")
+        return True
+    except Exception as e:
+        print(f"Error creating directory {directory_path}: {e}")
+        return False

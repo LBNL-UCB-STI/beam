@@ -3,7 +3,6 @@ package beam.agentsim.agents.vehicles
 import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.{formatName, EmissionType}
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile.EmissionsProcess
 import beam.agentsim.events.{LeavingParkingEvent, PathTraversalEvent}
-import beam.agentsim.infrastructure.parking.ParkingType
 import beam.router.skim.event.EmissionsSkimmerEvent
 import beam.sim.BeamServices
 import beam.sim.common.DoubleTypedRange
