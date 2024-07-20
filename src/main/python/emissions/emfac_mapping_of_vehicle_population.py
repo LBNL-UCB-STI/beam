@@ -26,8 +26,7 @@ vehicle_types_file = f"{input_dir}/freight-vehicletypes--{str(year)}-{scenario}.
 # output
 vehicle_types_emissions_file = f"{input_dir}/freight-vehicletypes--{str(year)}-{scenario}-emissions.csv"
 freight_carriers_emissions_file = f"{input_dir}/freight-carriers--{str(year)}-{scenario}-emissions.csv"
-emissions_rates_output_dir = f"{input_dir}/emissions-rates"
-emissions_rates_relative_filepath = f"emissions-rates/{scenario}/"
+emissions_rates_relative_filepath = f"emissions-rates/{str(year)}_{scenario}"
 
 #
 fuel_mapping_assumptions = {
@@ -39,7 +38,7 @@ fuel_mapping_assumptions = {
     'H2fc': 'Electricity'
 }
 
-print(f"Processing.. {area},{year}-{scenario} from {famos_iteration}")
+print(f"Processing {area}, {str(year)}-{scenario} from {famos_iteration}..")
 # all the readings:
 famos_payloads = pd.read_csv(freight_payloads_file)
 famos_vehicle_types = pd.read_csv(vehicle_types_file)
@@ -128,7 +127,7 @@ print("Assigning emissions rates to new set of vehicle types")
 vehicle_types_with_emissions_rates = assign_emissions_rates_to_vehtypes(
     emfac_formatted,
     updated_vehicle_types,
-    emissions_rates_output_dir,
+    input_dir,
     emissions_rates_relative_filepath
 )
 

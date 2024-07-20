@@ -380,7 +380,7 @@ def distribution_based_vehicle_classes_assignment(famos_df, emfac_df):
     def sample_emfac(the_class, famos_mapped_fuel):
         emfac_grouped = emfac_df[(emfac_df['famosClass'] == the_class) & (emfac_df['mappedFuel'] == famos_mapped_fuel)]
         if emfac_grouped.empty:
-            print(f"failed to match this fuel {famos_mapped_fuel}")
+            print(f"failed to match this fuel: {famos_mapped_fuel}")
             emfac_grouped = emfac_df[emfac_df['famosClass'] == the_class]
         return emfac_grouped.sample(n=1, weights='population')['emfacId'].iloc[0]
 
@@ -525,9 +525,9 @@ def process_single_vehicle_type(veh_type, emissions_rates, rates_dir):
         return veh_type_id
 
 
-def assign_emissions_rates_to_vehtypes(emissions_rates, vehicle_types, output_dir, rates_filename_prefix):
+def assign_emissions_rates_to_vehtypes(emissions_rates, vehicle_types, output_dir, emissions_rates_relative_filepath):
     from joblib import Parallel, delayed
-    emissions_rates_dir = os.path.abspath(output_dir)
+    emissions_rates_dir = os.path.abspath(os.path.join(output_dir, emissions_rates_relative_filepath))
     if ensure_empty_directory(emissions_rates_dir):
         print(f"Ready to write new data to the directory {emissions_rates_dir}")
     else:
@@ -545,7 +545,7 @@ def assign_emissions_rates_to_vehtypes(emissions_rates, vehicle_types, output_di
             delayed(process_single_vehicle_type)(
                 veh_type,
                 emissions_rates,
-                output_dir
+                f"{output_dir}/{emissions_rates_relative_filepath}"
             ) for _, veh_type in chunk.iterrows()
         )
 
@@ -557,7 +557,7 @@ def assign_emissions_rates_to_vehtypes(emissions_rates, vehicle_types, output_di
     # Update the vehicle_types DataFrame with the new emissionsRatesFile information
     for veh_type_id in results:
         if veh_type_id:
-            relative_rates_filepath = f"{rates_filename_prefix}{veh_type_id}.csv"
+            relative_rates_filepath = f"{emissions_rates_relative_filepath}/{veh_type_id}.csv"
             vehicle_types.loc[vehicle_types['vehicleTypeId'] == veh_type_id, 'emissionsRatesFile'] = relative_rates_filepath
 
     return vehicle_types
