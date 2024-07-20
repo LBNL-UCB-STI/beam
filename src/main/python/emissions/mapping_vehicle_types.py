@@ -13,9 +13,9 @@ emfac_emissions_file = os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_
 famos_iteration = "2024-01-23"
 area = "sfbay"
 # 2018, 2050
-year = 2050
+year = 2018
 # Baseline, HOPhighp2, HOPhighp6, Refhighp2, Refhighp6
-scenario = "HOPhighp2"
+scenario = "Baseline"
 input_dir = os.path.expanduser(f"~/Workspace/Simulation/{area}/beam-freight/{famos_iteration}/{str(year)}_{scenario}")
 freight_carriers_file = f"{input_dir}/freight-carriers--{str(year)}-{scenario}.csv"
 freight_payloads_file = f"{input_dir}/freight-payloads--{str(year)}-{scenario}.csv"
@@ -27,6 +27,7 @@ vehicle_types_file = f"{input_dir}/freight-vehicletypes--{str(year)}-{scenario}.
 vehicle_types_emissions_file = f"{input_dir}/freight-vehicletypes--{str(year)}-{scenario}-emissions.csv"
 freight_carriers_emissions_file = f"{input_dir}/freight-carriers--{str(year)}-{scenario}-emissions.csv"
 emissions_rates_output_dir = f"{input_dir}/emissions-rates"
+emissions_rates_relative_filepath = f"emissions-rates/{scenario}/"
 
 #
 fuel_mapping_assumptions = {
@@ -38,18 +39,19 @@ fuel_mapping_assumptions = {
     'H2fc': 'Electricity'
 }
 
+print(f"Processing.. {area},{year}-{scenario} from {famos_iteration}")
 # all the readings:
 famos_payloads = pd.read_csv(freight_payloads_file)
 famos_vehicle_types = pd.read_csv(vehicle_types_file)
 famos_carriers = pd.read_csv(freight_carriers_file, dtype=str)
+emissions_rates = pd.read_csv(emfac_emissions_file, low_memory=False, dtype=str)
 # freight_carriers_formatted = unpacking_famos_population_mesozones(
 #     freight_carriers,
 #     mesozones_to_county_file,
 #     mesozones_lookup_file
 # )
 
-print("Processing..")
-emissions_rates = pd.read_csv(emfac_emissions_file, low_memory=False, dtype=str)
+# EMFAC Rates
 emissions_rates_for_mapping = prepare_emfac_emissions_for_mapping(
     emissions_rates,
     area,
@@ -114,17 +116,24 @@ unique_vehicles = set(famos_carriers["vehicleId"].unique()) - set(updated_freigh
 if len(unique_vehicles) > 0:
     print(f"Failed to assign vehicle types to these vehicles: {unique_vehicles}")
 
+
+###
+print("------------------------------------------------------------------")
+print("Formatting EMFAC rates for BEAM")
+emfac_formatted = format_rates_for_beam(emissions_rates_for_mapping)
+
 ###
 print("------------------------------------------------------------------")
 print("Assigning emissions rates to new set of vehicle types")
-final_vehicle_types = assign_emissions_rates_to_vehtypes(
-    emissions_rates_for_mapping,
+vehicle_types_with_emissions_rates = assign_emissions_rates_to_vehtypes(
+    emfac_formatted,
     updated_vehicle_types,
-    emissions_rates_output_dir
+    emissions_rates_output_dir,
+    emissions_rates_relative_filepath
 )
 
 print("------------------------------------------------------------------")
-unique_vehicle_types = set(updated_vehicle_types["vehicleTypeId"].unique()) - set(final_vehicle_types["vehicleTypeId"].unique())
+unique_vehicle_types = set(updated_vehicle_types["vehicleTypeId"].unique()) - set(vehicle_types_with_emissions_rates["vehicleTypeId"].unique())
 if len(unique_vehicle_types) > 0:
     print(f"Failed to assign emissions rates to these vehicle types: {unique_vehicle_types}")
 

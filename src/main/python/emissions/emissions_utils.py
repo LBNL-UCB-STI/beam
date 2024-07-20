@@ -227,10 +227,6 @@ def get_vehicle_class_from_famos(vehicle_type):
         return 'Unknown'
 
 
-def emissions_filename(filename):
-    return f"""emissions-rates--{sanitize_name(filename)}.csv"""
-
-
 def prepare_emfac_emissions_for_mapping(emissions_rates, emfac_region, calendar_year, season="Annual", humidity=40,
                                         temperature=65):
     data = emissions_rates.copy()
@@ -241,6 +237,7 @@ def prepare_emfac_emissions_for_mapping(emissions_rates, emfac_region, calendar_
     data['calendar_year'] = pd.to_numeric(data['calendar_year'], errors='coerce')
     data['relative_humidity'] = pd.to_numeric(data['relative_humidity'], errors='coerce')
     data['temperature'] = pd.to_numeric(data['temperature'], errors='coerce')
+    data['speed_time'] = pd.to_numeric(data['speed_time'], errors='coerce')
 
     # Extract county and area from sub_area
     data[['county', 'area']] = data['sub_area'].str.extract(r'^([^()]+)\s*\(([^)]+)\)')
@@ -438,9 +435,9 @@ def distribution_based_vehicle_classes_assignment(famos_df, emfac_df):
 def pivot_rates_for_beam(df_raw):
     unique_speed_time = df_raw.speed_time.unique()
     if len(unique_speed_time) > 0 and not np.isnan(unique_speed_time[0]):
-        index_ = ["emfacClass", "emfacFuel", 'county', 'area', 'process', 'speed_time']
+        index_ = ["emfacId", 'county', 'process', 'speed_time']
     else:
-        index_ = ["emfacClass", "emfacFuel", 'county', 'area', 'process']
+        index_ = ["emfacId", 'county', 'process']
     pivot_df = df_raw.pivot_table(index=index_, columns='pollutant', values='emission_rate', aggfunc='first', fill_value=0).reset_index()
     pivot_df = pivot_df.rename(columns=pollutant_columns)
     # Add missing columns with default values
@@ -465,12 +462,7 @@ def numerical_column_to_binned(df_raw, numerical_colname, binned_colname, edge_v
 
 
 def process_rates_group(df, row):
-    mask = (
-            (df["county"] == row["county"]) &
-            (df["area"] == row["area"]) &
-            (df["emfacClass"] == row["emfacClass"]) &
-            (df["emfacFuel"] == row["emfacFuel"])
-    )
+    mask = ((df["county"] == row["county"]) & (df["emfacId"] == row["emfacId"]))
     df_subset = df[mask]
     df_output_list = []
     for process in emissions_processes:
@@ -490,11 +482,8 @@ def process_rates_group(df, row):
 def format_rates_for_beam(emissions_rates):
     from joblib import Parallel, delayed
 
-    # Pivot table to spread pollutants into columns
-    print("Formatting emissions...")
-
     # Assuming emissions_rates is already loaded into a DataFrame `df`
-    group_by_cols = ["county", "area", "emfacClass", "emfacFuel"]
+    group_by_cols = ["county", "emfacId"]
     df_unique = emissions_rates[group_by_cols].drop_duplicates().reset_index(drop=True)
 
     # Parallel processing
@@ -503,11 +492,7 @@ def format_rates_for_beam(emissions_rates):
     )
 
     # Formatting for merge
-    df_output = pd.concat(df_output_list, ignore_index=True)
-
-    # Drop unnecessary columns
-    columns_to_drop = ["emfacClass", "emfacFuel", "speed_time", "area"]
-    df_output = df_output.drop(columns_to_drop, axis=1)
+    df_output = pd.concat(df_output_list, ignore_index=True).drop(["speed_time"], axis=1)
 
     # Reorder columns to ensure 'county' is at the front
     columns = df_output.columns.tolist()
@@ -516,19 +501,19 @@ def format_rates_for_beam(emissions_rates):
     return df_output
 
 
-def process_single_vehicle_type(veh_type, taz_emissions_rates, rates_dir):
+def process_single_vehicle_type(veh_type, emissions_rates, rates_dir):
     veh_type_id = veh_type['vehicleTypeId']
     emfac_id = veh_type['emfacId']
 
     # Filter taz_emissions_rates for the current vehicle type
-    veh_emissions = taz_emissions_rates[taz_emissions_rates['emfacId'] == emfac_id].copy()
+    veh_emissions = emissions_rates[emissions_rates['emfacId'] == emfac_id].copy()
 
     if not veh_emissions.empty:
         # Remove the emfacId column as it's no longer needed
         veh_emissions = veh_emissions.drop('emfacId', axis=1)
 
         # Generate the file name
-        file_path = os.path.join(rates_dir, emissions_filename(veh_type_id))
+        file_path = os.path.join(rates_dir, f"{veh_type_id}.csv")
 
         print("Writing " + file_path)
         # Save the emissions rates to a CSV file
@@ -540,7 +525,7 @@ def process_single_vehicle_type(veh_type, taz_emissions_rates, rates_dir):
         return veh_type_id
 
 
-def assign_emissions_rates_to_vehtypes(taz_emissions_rates, vehicle_types, output_dir):
+def assign_emissions_rates_to_vehtypes(emissions_rates, vehicle_types, output_dir, rates_filename_prefix):
     from joblib import Parallel, delayed
     emissions_rates_dir = os.path.abspath(output_dir)
     if ensure_empty_directory(emissions_rates_dir):
@@ -559,7 +544,7 @@ def assign_emissions_rates_to_vehtypes(taz_emissions_rates, vehicle_types, outpu
         chunk_results = Parallel(n_jobs=-1, timeout=600)(  # 10-minute timeout
             delayed(process_single_vehicle_type)(
                 veh_type,
-                taz_emissions_rates,
+                emissions_rates,
                 output_dir
             ) for _, veh_type in chunk.iterrows()
         )
@@ -572,8 +557,8 @@ def assign_emissions_rates_to_vehtypes(taz_emissions_rates, vehicle_types, outpu
     # Update the vehicle_types DataFrame with the new emissionsRatesFile information
     for veh_type_id in results:
         if veh_type_id:
-            emissions_file = emissions_filename(veh_type_id)
-            vehicle_types.loc[vehicle_types['vehicleTypeId'] == veh_type_id, 'emissionsRatesFile'] = emissions_file
+            relative_rates_filepath = f"{rates_filename_prefix}{veh_type_id}.csv"
+            vehicle_types.loc[vehicle_types['vehicleTypeId'] == veh_type_id, 'emissionsRatesFile'] = relative_rates_filepath
 
     return vehicle_types
 
