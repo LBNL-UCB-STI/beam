@@ -1258,10 +1258,11 @@ object R5Wrapper {
 
     def isRestricted(category: VehicleCategory.VehicleCategory, speedThreshold: Double): Boolean = {
       category match {
-        case VehicleCategory.HeavyHeavyDutyTruck  => !hhdt
-        case VehicleCategory.MediumHeavyDutyTruck => !lmhdt
-        case VehicleCategory.LightHeavyDutyTruck  => !lmhdt
-        case _                                    => freeSpeed > speedThreshold
+        case VehicleCategory.Class78Tractor     => !hhdt
+        case VehicleCategory.Class78Vocational  => !hhdt
+        case VehicleCategory.Class456Vocational => !lmhdt
+        case VehicleCategory.Class2b3Vocational => !lmhdt
+        case _                                  => freeSpeed > speedThreshold
       }
     }
   }

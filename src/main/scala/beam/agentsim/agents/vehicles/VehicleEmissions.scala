@@ -214,9 +214,10 @@ object VehicleEmissions extends LazyLogging {
 
     private lazy val truckCategory =
       List(
-        VehicleCategory.LightHeavyDutyTruck,
-        VehicleCategory.MediumHeavyDutyTruck,
-        VehicleCategory.HeavyHeavyDutyTruck
+        VehicleCategory.Class2b3Vocational,
+        VehicleCategory.Class456Vocational,
+        VehicleCategory.Class78Vocational,
+        VehicleCategory.Class78Tractor
       )
 
     def init(): EmissionsProfile = EmissionsProfile()

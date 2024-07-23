@@ -1,7 +1,7 @@
 package beam.agentsim.agents.vehicles
 
 import beam.agentsim.agents.vehicles.FuelType._
-import beam.agentsim.agents.vehicles.VehicleCategory._
+import beam.agentsim.agents.vehicles.VehicleCategory.{Class78Tractor, _}
 import beam.agentsim.infrastructure.charging.ChargingPointType
 import org.matsim.api.core.v01.Id
 
@@ -80,14 +80,24 @@ object VehicleCategory {
   case object Bike extends VehicleCategory
   case object Car extends VehicleCategory // Class 1&2a (GVWR <= 8500 lbs.)
   case object MediumDutyPassenger extends VehicleCategory
-  case object LightHeavyDutyTruck extends VehicleCategory // Class 2b&3 (GVWR 8501-14000 lbs.)
-  case object MediumHeavyDutyTruck extends VehicleCategory // Class 4-6 (GVWR 14001-26000 lbs.)
-  case object HeavyHeavyDutyTruck extends VehicleCategory // CLass 7&8 (GVWR 26001 to >33,001 lbs.)
+  case object Class2b3Vocational extends VehicleCategory // Class 2b&3 (GVWR 8501-14000 lbs.)
+  case object Class456Vocational extends VehicleCategory // Class 4-6 (GVWR 14001-26000 lbs.)
+  case object Class78Vocational extends VehicleCategory // CLass 7&8 (GVWR 26001-33,000 lbs.)
+  case object Class78Tractor extends VehicleCategory // Class 7&8 Tractor (GVWR >33,000 lbs.)
 
   def fromString(value: String): VehicleCategory = fromStringOptional(value).get
 
   private def fromStringOptional(value: String): Option[VehicleCategory] = {
-    Vector(Body, Bike, Car, MediumDutyPassenger, LightHeavyDutyTruck, MediumHeavyDutyTruck, HeavyHeavyDutyTruck)
+    Vector(
+      Body,
+      Bike,
+      Car,
+      MediumDutyPassenger,
+      Class2b3Vocational,
+      Class456Vocational,
+      Class78Vocational,
+      Class78Tractor
+    )
       .find(_.toString.equalsIgnoreCase(value))
   }
 }

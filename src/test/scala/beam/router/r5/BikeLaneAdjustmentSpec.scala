@@ -6,9 +6,9 @@ import beam.agentsim.agents.vehicles.{BeamVehicleType, VehicleCategory}
 import beam.agentsim.agents.vehicles.VehicleCategory.{
   Body,
   Car,
-  HeavyHeavyDutyTruck,
-  MediumDutyPassenger,
-  MediumHeavyDutyTruck
+  Class456Vocational,
+  Class78Vocational,
+  MediumDutyPassenger
 }
 import beam.router.Modes.BeamMode
 import beam.sim.config.BeamConfig
@@ -125,8 +125,8 @@ private object BikeLaneAdjustmentSpec {
     Body,
     Car,
     MediumDutyPassenger,
-    MediumHeavyDutyTruck,
-    HeavyHeavyDutyTruck
+    Class456Vocational,
+    Class78Vocational
   )
 
 }
