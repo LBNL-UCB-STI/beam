@@ -10,35 +10,28 @@ pd.set_option('display.max_columns', 20)
 emfac_population_file = os.path.expanduser('~/Workspace/Models/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_population_20240612233346.csv')
 emfac_emissions_file = os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018_2025_2030_2040_2050.csv')
 
-freight_iteration = "2024-01-23"
+ft_iteration = "2024-01-23"
 area = "sfbay"
 ##
-# 2018, 2050
-emfac_year = 2018
-# 2018, 2050
-# Baseline, HOPhighp2
-freight_year = 2018
-freight_scenario = "Baseline"
-# 2018, 2045
-# Baseline, LowTech
-passenger_year = 2018
-passenger_scenario = "Baseline"
+
+emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2050, 2050, "HOPhighp2", 2045, "LowTech"
+# emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2018, 2018, "Baseline", 2018, "Baseline"
 ##
-input_dir = os.path.expanduser(f"~/Workspace/Simulation/{area}/beam-freight/{freight_iteration}/{str(freight_year)}_{freight_scenario}")
-freight_carriers_file = f"{input_dir}/freight-carriers--{str(freight_year)}-{freight_scenario}.csv"
-freight_payloads_file = f"{input_dir}/freight-payloads--{str(freight_year)}-{freight_scenario}.csv"
-freight_vehicle_types_file = f"{input_dir}/ft-vehicletypes--{str(freight_year)}-{freight_scenario}.csv"
-passenger_vehicle_types_file = f"{input_dir}/pax-vehicletypes--{str(passenger_year)}-{passenger_scenario}.csv"
+input_dir = os.path.expanduser(f"~/Workspace/Simulation/{area}/beam-freight/{ft_iteration}")
+carriers_file = f"{input_dir}/{str(ft_year)}_{ft_scenario}/carriers--{str(ft_year)}-{ft_scenario}.csv"
+payloads_file = f"{input_dir}/{str(ft_year)}_{ft_scenario}/payloads--{str(ft_year)}-{ft_scenario}.csv"
+ft_vehicle_types_file = f"{input_dir}/vehicle-tech/ft-vehicletypes--{str(ft_year)}-{ft_scenario}.csv"
+pax_vehicle_types_file = f"{input_dir}/vehicle-tech/pax-vehicletypes--{str(pax_year)}-{pax_scenario}.csv"
 
 # ##################
 
 # output
-freight_vehicle_types_emissions_file = f"{input_dir}/freight-vehicletypes--{str(freight_year)}-{freight_scenario}-emissions.csv"
-freight_carriers_emissions_file = f"{input_dir}/freight-carriers--{str(freight_year)}-{freight_scenario}-emissions.csv"
-emissions_rates_relative_filepath = f"emissions-rates/{str(freight_year)}-FT-{freight_scenario}"
+ft_vehicle_types_emissions_file = f"{input_dir}/vehicle-tech/ft-vehicletypes--{str(ft_year)}-{ft_scenario}-TrAP.csv"
+ft_carriers_emissions_file = f"{input_dir}/carriers--{str(ft_year)}-{ft_scenario}-TrAP.csv"
+ft_emissions_rates_relative_filepath = f"TrAP/{str(ft_year)}-FT-{ft_scenario}"
 
-passenger_vehicle_types_emissions_file = f"{input_dir}/passenger-vehicletypes--{str(passenger_year)}-{passenger_scenario}-emissions.csv"
-passenger_emissions_rates_relative_filepath = f"emissions-rates/{str(passenger_year)}-Pax-{passenger_scenario}"
+pax_vehicle_types_emissions_file = f"{input_dir}/vehicle-tech/pax-vehicletypes--{str(pax_year)}-{pax_scenario}-TrAP.csv"
+pax_emissions_rates_relative_filepath = f"TrAP/{str(pax_year)}-Pax-{pax_scenario}"
 
 
 
@@ -52,7 +45,7 @@ passenger_emissions_rates_relative_filepath = f"emissions-rates/{str(passenger_y
 # ]
 # , emfac_emissions_file)
 #
-freight_fuel_mapping_assumptions = {
+ft_fuel_mapping_assumptions = {
     'Dsl': 'Diesel',
     'Gas': 'Diesel',
     'NG': 'Diesel',
@@ -61,7 +54,7 @@ freight_fuel_mapping_assumptions = {
     'H2fc': 'Electricity'
 }
 #
-passenger_fuel_mapping_assumptions = {
+pax_fuel_mapping_assumptions = {
     'Dsl': 'Diesel',
     'Gas': 'Gasoline',
     'NG': 'Diesel',
@@ -71,12 +64,12 @@ passenger_fuel_mapping_assumptions = {
     'BioDsl': 'Diesel'
 }
 
-print(f"Processing {area}, {str(freight_year)}-{freight_scenario} from {freight_iteration}..")
+print(f"Processing {area}, {str(ft_year)}-{ft_scenario} from {ft_iteration}..")
 # all the readings:
-freight_payloads = pd.read_csv(freight_payloads_file)
-freight_vehicle_types = pd.read_csv(freight_vehicle_types_file)
-passenger_vehicle_types = pd.read_csv(passenger_vehicle_types_file)
-freight_carriers = pd.read_csv(freight_carriers_file, dtype=str)
+ft_payloads = pd.read_csv(payloads_file)
+ft_vehicle_types = pd.read_csv(ft_vehicle_types_file)
+pax_vehicle_types = pd.read_csv(pax_vehicle_types_file)
+ft_carriers = pd.read_csv(carriers_file, dtype=str)
 emissions_rates = pd.read_csv(emfac_emissions_file, low_memory=False, dtype=str)
 # Load the dataset from the uploaded CSV file
 emissions_rates['calendar_year'] = pd.to_numeric(emissions_rates['calendar_year'], errors='coerce')
@@ -88,11 +81,12 @@ emissions_rates = emissions_rates[
         emissions_rates["sub_area"].str.contains(fr"\({re.escape(region_to_emfac_area[area])}\)", case=False, na=False) &
         (emissions_rates["calendar_year"] == emfac_year)
     ]
+print(emissions_rates)
 # ['Dsl', 'Elec', 'Gas', 'Phe', 'NG']
 emfac_population = pd.read_csv(emfac_population_file, low_memory=False, dtype=str)
 emfac_population['population'] = pd.to_numeric(emfac_population['population'], errors='coerce')
-# freight_carriers_formatted = unpacking_freight_population_mesozones(
-#     freight_carriers,
+# ft_carriers_formatted = unpacking_freight_population_mesozones(
+#     ft_carriers,
 #     mesozones_to_county_file,
 #     mesozones_lookup_file
 # )
@@ -100,66 +94,66 @@ emfac_population['population'] = pd.to_numeric(emfac_population['population'], e
 # ### PASSENGER ###
 print("Mapping EMFAC for passengers!")
 # EMFAC Rates
-passenger_emissions_rates_for_mapping = prepare_emfac_emissions_for_mapping(
+pax_emissions_rates_for_mapping = prepare_emfac_emissions_for_mapping(
     emissions_rates,
-    passenger_emfac_class_map
+    pax_emfac_class_map
 )
-print(f"EMFAC Passenger Rates => rows: {len(passenger_emissions_rates_for_mapping)}, "
-      f"classes: {len(passenger_emissions_rates_for_mapping['emfacClass'].unique())}, "
-      f"fuel: {len(passenger_emissions_rates_for_mapping['emfacFuel'].unique())}")
+print(f"EMFAC Passenger Rates => rows: {len(pax_emissions_rates_for_mapping)}, "
+      f"classes: {len(pax_emissions_rates_for_mapping['emfacClass'].unique())}, "
+      f"fuel: {len(pax_emissions_rates_for_mapping['emfacFuel'].unique())}")
 
 # EMFAC Population
 emfac_passenger_population_for_mapping = prepare_emfac_population_for_mapping(
     emfac_population,
     emfac_year,
-    passenger_emfac_class_map,
-    passenger_fuel_mapping_assumptions
+    pax_emfac_class_map,
+    pax_fuel_mapping_assumptions
 )
 print(f"EMFAC Passenger Population => rows: {len(emfac_passenger_population_for_mapping)}, "
       f"classes: {len(emfac_passenger_population_for_mapping['emfacClass'].unique())}, "
       f"fuel: {len(emfac_passenger_population_for_mapping['emfacFuel'].unique())}")
 
 # Passenger Population
-passenger_population_for_mapping = prepare_passenger_population_for_mapping(
-    passenger_vehicle_types,
-    passenger_fuel_mapping_assumptions
+pax_population_for_mapping = prepare_pax_vehicle_population_for_mapping(
+    pax_vehicle_types,
+    pax_fuel_mapping_assumptions
 )
-print(f"BEAM Passenger Population => rows: {len(passenger_population_for_mapping)}, "
-      f"classes: {len(passenger_population_for_mapping['beamClass'].unique())}, "
-      f"fuel: {len(passenger_population_for_mapping['beamFuel'].unique())}")
+print(f"BEAM Passenger Population => rows: {len(pax_population_for_mapping)}, "
+      f"classes: {len(pax_population_for_mapping['beamClass'].unique())}, "
+      f"fuel: {len(pax_population_for_mapping['beamFuel'].unique())}")
 
 print("------------------------------------------------------------------")
 print("Distributing passenger vehicle classes from EMFAC across BEAM population...")
-updated_passenger_vehicle_types = build_new_passenger_vehtypes(
+updated_passenger_vehicle_types = build_new_pax_vehtypes(
     emfac_passenger_population_for_mapping,
-    passenger_population_for_mapping
+    pax_population_for_mapping
 )
-print(f"Previous vehicle types had {len(passenger_population_for_mapping)} types "
+print(f"Previous vehicle types had {len(pax_population_for_mapping)} types "
       f"while the new set has {len(updated_passenger_vehicle_types)} types")
 
 print("------------------------------------------------------------------")
 print("Formatting Passenger EMFAC rates for BEAM")
-passenger_emfac_formatted = format_rates_for_beam(passenger_emissions_rates_for_mapping)
+pax_emfac_formatted = format_rates_for_beam(pax_emissions_rates_for_mapping)
 
 print("------------------------------------------------------------------")
 print("Assigning Passenger emissions rates to new set of vehicle types")
-vehicle_types_with_emissions_rates = assign_emissions_rates_to_vehtypes(
-    passenger_emfac_formatted,
+ft_vehicle_types_with_emissions_rates = assign_emissions_rates_to_vehtypes(
+    pax_emfac_formatted,
     updated_passenger_vehicle_types,
-    input_dir,
-    passenger_emissions_rates_relative_filepath
+    input_dir + "/vehicle-tech",
+    pax_emissions_rates_relative_filepath
 )
 
 # Create a new dataframe with the missing rows
 print("------------------------------------------------------------------")
 print("Adding back Passenger vehicle types not mapped with EMFAC")
-index_population = set(passenger_population_for_mapping.index)
-index_vehicle_types = set(passenger_vehicle_types.index)
+index_population = set(pax_population_for_mapping.index)
+index_vehicle_types = set(pax_vehicle_types.index)
 missing_rows = index_vehicle_types - index_population
-missing_df = passenger_vehicle_types.loc[list(missing_rows)]
+missing_df = pax_vehicle_types.loc[list(missing_rows)]
 missing_df["emissionsRatesFile"] = ""
-emfac_passenger_vehicletypes = pd.concat([vehicle_types_with_emissions_rates[missing_df.columns], missing_df], axis=0)
-emfac_passenger_vehicletypes.to_csv(passenger_vehicle_types_emissions_file, index=False)
+pax_emfac_vehicletypes = pd.concat([ft_vehicle_types_with_emissions_rates[missing_df.columns], missing_df], axis=0)
+pax_emfac_vehicletypes.to_csv(pax_vehicle_types_emissions_file, index=False)
 
 print("Done mapping EMFAC for passengers!")
 
@@ -171,35 +165,35 @@ print("Done mapping EMFAC for passengers!")
 
 print("Mapping EMFAC for freight!")
 # EMFAC Rates
-freight_emissions_rates_for_mapping = prepare_emfac_emissions_for_mapping(
+ft_emissions_rates_for_mapping = prepare_emfac_emissions_for_mapping(
     emissions_rates,
-    freight_emfac_class_map
+    ft_emfac_class_map
 )
-print(f"EMFAC Freight Rates => rows: {len(freight_emissions_rates_for_mapping)}, "
-      f"classes: {len(freight_emissions_rates_for_mapping['emfacClass'].unique())}, "
-      f"fuel: {len(freight_emissions_rates_for_mapping['emfacFuel'].unique())}")
+print(f"EMFAC Freight Rates => rows: {len(ft_emissions_rates_for_mapping)}, "
+      f"classes: {len(ft_emissions_rates_for_mapping['emfacClass'].unique())}, "
+      f"fuel: {len(ft_emissions_rates_for_mapping['emfacFuel'].unique())}")
 
-emfac_freight_population_for_mapping = prepare_emfac_population_for_mapping(
+ft_emfac_pop_for_mapping = prepare_emfac_population_for_mapping(
     emfac_population,
     emfac_year,
-    freight_emfac_class_map,
-    freight_fuel_mapping_assumptions
+    ft_emfac_class_map,
+    ft_fuel_mapping_assumptions
 )
-print(f"EMFAC Freight Population => rows: {len(emfac_freight_population_for_mapping)}, "
-      f"classes: {len(emfac_freight_population_for_mapping['emfacClass'].unique())}, "
-      f"fuel: {len(emfac_freight_population_for_mapping['emfacFuel'].unique())}")
+print(f"EMFAC Freight Population => rows: {len(ft_emfac_pop_for_mapping)}, "
+      f"classes: {len(ft_emfac_pop_for_mapping['emfacClass'].unique())}, "
+      f"fuel: {len(ft_emfac_pop_for_mapping['emfacFuel'].unique())}")
 
 #
-freight_population_for_mapping = prepare_freight_population_for_mapping(
-    freight_carriers,
-    freight_payloads,
-    freight_vehicle_types,
-    freight_fuel_mapping_assumptions
+ft_population_for_mapping = prepare_ft_vehicle_population_for_mapping(
+    ft_carriers,
+    ft_payloads,
+    ft_vehicle_types,
+    ft_fuel_mapping_assumptions
 )
-print(f"BEAM Freight Population => rows: {len(freight_population_for_mapping)}, "
-      f"classes: {len(freight_population_for_mapping['beamClass'].unique())}, "
-      f"fuel: {len(freight_population_for_mapping['beamFuel'].unique())}")
-unique_vehicles = set(freight_carriers["vehicleId"].unique()) - set(freight_population_for_mapping["vehicleId"].unique())
+print(f"BEAM Freight Population => rows: {len(ft_population_for_mapping)}, "
+      f"classes: {len(ft_population_for_mapping['beamClass'].unique())}, "
+      f"fuel: {len(ft_population_for_mapping['beamFuel'].unique())}")
+unique_vehicles = set(ft_carriers["vehicleId"].unique()) - set(ft_population_for_mapping["vehicleId"].unique())
 if len(unique_vehicles) > 0:
     print(f"Failed to map, maybe some vehicles in carriers were not used in payload plans:")
     print(unique_vehicles)
@@ -209,11 +203,11 @@ if len(unique_vehicles) > 0:
 print("------------------------------------------------------------------")
 print("Distributing freight vehicle classes from EMFAC across BEAM population...")
 updated_freight_population = distribution_based_vehicle_classes_assignment(
-    freight_population_for_mapping,
-    emfac_freight_population_for_mapping
+    ft_population_for_mapping,
+    ft_emfac_pop_for_mapping
 )
-missing_classes = set(emfac_freight_population_for_mapping['emfacClass'].unique()) - set(updated_freight_population['emfacClass'].unique())
-missing_fuel = set(emfac_freight_population_for_mapping['emfacFuel'].unique()) - set(updated_freight_population['emfacFuel'].unique())
+missing_classes = set(ft_emfac_pop_for_mapping['emfacClass'].unique()) - set(updated_freight_population['emfacClass'].unique())
+missing_fuel = set(ft_emfac_pop_for_mapping['emfacFuel'].unique()) - set(updated_freight_population['emfacFuel'].unique())
 if len(missing_classes) > 0 or len(missing_fuel) > 0:
     print(f"Failed to match these classes {missing_classes} and fuel {missing_fuel}")
 
@@ -221,14 +215,14 @@ if len(missing_classes) > 0 or len(missing_fuel) > 0:
 ###
 print("------------------------------------------------------------------")
 print("Building new set of freight vehicle types")
-updated_vehicle_types = build_new_freight_vehtypes(updated_freight_population, freight_vehicle_types)
-print(f"Previous vehicle types had {len(freight_vehicle_types)} types while the new set has {len(updated_vehicle_types)} types")
+updated_vehicle_types = build_new_ft_vehtypes(updated_freight_population, ft_vehicle_types)
+print(f"Previous vehicle types had {len(ft_vehicle_types)} types while the new set has {len(updated_vehicle_types)} types")
 
 ###
 print("------------------------------------------------------------------")
 print("Assigning new freight vehicle types to carriers")
-updated_freight_carriers = assign_new_freight_vehtypes_to_carriers(freight_carriers, updated_freight_population, freight_carriers_emissions_file)
-unique_vehicles = set(freight_carriers["vehicleId"].unique()) - set(updated_freight_carriers["vehicleId"].unique())
+updated_carriers = assign_new_ft_vehtypes_to_carriers(ft_carriers, updated_freight_population, ft_carriers_emissions_file)
+unique_vehicles = set(ft_carriers["vehicleId"].unique()) - set(updated_carriers["vehicleId"].unique())
 if len(unique_vehicles) > 0:
     print(f"Failed to assign vehicle types to these vehicles: {unique_vehicles}")
 
@@ -236,24 +230,24 @@ if len(unique_vehicles) > 0:
 ###
 print("------------------------------------------------------------------")
 print("Formatting EMFAC freight rates for BEAM")
-emfac_formatted = format_rates_for_beam(freight_emissions_rates_for_mapping)
+ft_emfac_formatted = format_rates_for_beam(ft_emissions_rates_for_mapping)
 
 ###
 print("------------------------------------------------------------------")
 print("Assigning freight emissions rates to new set of vehicle types")
-vehicle_types_with_emissions_rates = assign_emissions_rates_to_vehtypes(
-    emfac_formatted,
+ft_vehicle_types_with_emissions_rates = assign_emissions_rates_to_vehtypes(
+    ft_emfac_formatted,
     updated_vehicle_types,
-    input_dir,
-    emissions_rates_relative_filepath
+    input_dir + "/vehicle-tech",
+    ft_emissions_rates_relative_filepath
 )
 
 print("------------------------------------------------------------------")
-unique_vehicle_types = set(updated_vehicle_types["vehicleTypeId"].unique()) - set(vehicle_types_with_emissions_rates["vehicleTypeId"].unique())
-if len(unique_vehicle_types) > 0:
-    print(f"Failed to assign emissions rates to these vehicle types: {unique_vehicle_types}")
+unique_ft_vehicle_types = set(updated_vehicle_types["vehicleTypeId"].unique()) - set(ft_vehicle_types_with_emissions_rates["vehicleTypeId"].unique())
+if len(unique_ft_vehicle_types) > 0:
+    print(f"Failed to assign emissions rates to these vehicle types: {unique_ft_vehicle_types}")
 
-print(f"Writing {freight_vehicle_types_emissions_file}")
-updated_vehicle_types.to_csv(freight_vehicle_types_emissions_file, index=False)
+print(f"Writing {ft_vehicle_types_emissions_file}")
+updated_vehicle_types.to_csv(ft_vehicle_types_emissions_file, index=False)
 
 print("End")

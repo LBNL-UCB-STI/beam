@@ -14,18 +14,14 @@ class_car = "Car"  # these include light and medium duty trucks
 class_bike = "Bike"
 class_mdp = "MediumDutyPassenger"
 
-lhdt = 'LightHeavyDutyTruck'
-mhdt = 'MediumHeavyDutyTruck'
-hhdt = 'HeavyHeavyDutyTruck'
-
 class_to_category = {
-    class_2b3: lhdt,
-    class_46: mhdt,
-    class_78_v: hhdt,
-    class_78_t: hhdt
+    class_2b3: 'Class2b3Vocational',
+    class_46: 'Class456Vocational',
+    class_78_v: 'Class78Vocational',
+    class_78_t: 'Class78Tractor'
 }
 
-freight_emfac_class_map = {
+ft_emfac_class_map = {
     # Class 2b&3 Vocational
     'LHD1': class_2b3,
     'LHD2': class_2b3,
@@ -63,7 +59,7 @@ freight_emfac_class_map = {
     'T7 NOOS Class 8': class_78_t,
 }
 
-passenger_emfac_class_map = {
+pax_emfac_class_map = {
     "LDA": class_car,  # Passenger Cars
     "LDT1": class_car,  # Light-Duty Trucks (GVWR* <6000 lbs and ETW** <= 3750 lbs)
     "LDT2": class_car,  # Light-Duty Trucks (GVWR <6000 lbs and ETW 3751-5750 lbs)
@@ -212,7 +208,7 @@ def prepare_emfac_population_for_mapping(emfac_population, year, emfac_class_map
     return df
 
 
-def unpacking_freight_population_mesozones(freight_carriers, mesozones_to_county_file, mesozones_lookup_file):
+def unpacking_ft_vehicle_population_mesozones(carriers, mesozones_to_county_file, mesozones_lookup_file):
     import pygris
     # ### Mapping counties with Mesozones ###
     if not os.path.exists(mesozones_to_county_file):
@@ -235,19 +231,19 @@ def unpacking_freight_population_mesozones(freight_carriers, mesozones_to_county
     mesozones_to_county_studyarea = mesozones_to_county[mesozones_to_county["NAME"].notna()][["MESOZONE", "NAME"]]
 
     # ### Mapping freight carriers with counties, payload and vehicle types ###
-    freight_carriers_by_zone = pd.merge(freight_carriers, mesozones_to_county_studyarea, left_on='warehouseZone',
+    carriers_by_zone = pd.merge(carriers, mesozones_to_county_studyarea, left_on='warehouseZone',
                                         right_on='MESOZONE', how='left')
-    if not freight_carriers_by_zone[freight_carriers_by_zone['NAME'].isna()].empty:
+    if not carriers_by_zone[carriers_by_zone['NAME'].isna()].empty:
         print(
             "Something went wrong with the mapping of freight carrier zones with mesozones. Here the non mapped ones:")
-        print(freight_carriers_by_zone[freight_carriers_by_zone['NAME'].isna()])
-    freight_carriers_by_zone = freight_carriers_by_zone[['tourId', 'vehicleId', 'vehicleTypeId', 'NAME']].rename(
+        print(carriers_by_zone[carriers_by_zone['NAME'].isna()])
+    carriers_by_zone = carriers_by_zone[['tourId', 'vehicleId', 'vehicleTypeId', 'NAME']].rename(
         columns={'NAME': 'zone'})
 
     return freight_carriers_by_zone
 
 
-def prepare_passenger_population_for_mapping(vehicletypes, fuel_assumption_mapping):
+def prepare_pax_vehicle_population_for_mapping(vehicletypes, fuel_assumption_mapping):
     # Apply the parsing function to create a new DataFrame with the parsed values
     data = vehicletypes.copy()
     data = data[
@@ -281,27 +277,27 @@ def prepare_passenger_population_for_mapping(vehicletypes, fuel_assumption_mappi
     return data
 
 
-def prepare_freight_population_for_mapping(freight_carriers, freight_payloads_raw, freight_vehicletypes,
-                                           fuel_assumption_mapping):
-    freight_carriers_formatted = freight_carriers[['tourId', 'vehicleId', 'vehicleTypeId']]
-    freight_payloads = freight_payloads_raw[['payloadId', 'tourId', 'payloadType']].copy()
-    freight_vehicletypes = freight_vehicletypes[['vehicleTypeId', 'primaryFuelType', 'secondaryFuelType']].copy()
+def prepare_ft_vehicle_population_for_mapping(carriers, payloads_raw, ft_vehicletypes,
+                                              fuel_assumption_mapping):
+    carriers_formatted = carriers[['tourId', 'vehicleId', 'vehicleTypeId']]
+    payloads = payloads_raw[['payloadId', 'tourId', 'payloadType']].copy()
+    ft_vehicletypes = ft_vehicletypes[['vehicleTypeId', 'primaryFuelType', 'secondaryFuelType']].copy()
 
-    freight_vehicletypes['beamClass'] = freight_vehicletypes['vehicleTypeId'].apply(get_vehicle_class_from_freight)
+    ft_vehicletypes['beamClass'] = ft_vehicletypes['vehicleTypeId'].apply(get_vehicle_class_from_freight)
 
     # Summarize data
-    freight_payloads.loc[:, 'payloadType'] = freight_payloads['payloadType'].astype(str)
-    freight_payloads_summary = freight_payloads.groupby(['tourId'])['payloadType'].agg('|'.join).reset_index()
+    payloads.loc[:, 'payloadType'] = payloads['payloadType'].astype(str)
+    payloads_summary = payloads.groupby(['tourId'])['payloadType'].agg('|'.join).reset_index()
 
     # Merge payload summary with carriers
-    freight_payloads_merged = pd.merge(freight_payloads_summary, freight_carriers_formatted, on='tourId', how='left')
+    payloads_merged = pd.merge(payloads_summary, carriers_formatted, on='tourId', how='left')
 
     # Load and process vehicle types
-    freight_vehicletypes['beamFuel'] = np.where(
-        (freight_vehicletypes['primaryFuelType'] == emfac_fuel_to_beam_fuel_map["Elec"]) &
-        freight_vehicletypes['secondaryFuelType'].notna(),
+    ft_vehicletypes['beamFuel'] = np.where(
+        (ft_vehicletypes['primaryFuelType'] == emfac_fuel_to_beam_fuel_map["Elec"]) &
+        ft_vehicletypes['secondaryFuelType'].notna(),
         emfac_fuel_to_beam_fuel_map['Phe'],
-        freight_vehicletypes['primaryFuelType']
+        ft_vehicletypes['primaryFuelType']
     )
 
     def handle_missing_fuel(x):
@@ -311,41 +307,41 @@ def prepare_freight_population_for_mapping(freight_carriers, freight_payloads_ra
             warnings.warn(f"Fuel type '{x}' not found in mapping. Using original value.")
             return x
 
-    freight_vehicletypes['mappedFuel'] = freight_vehicletypes['beamFuel'].map(handle_missing_fuel)
+    ft_vehicletypes['mappedFuel'] = ft_vehicletypes['beamFuel'].map(handle_missing_fuel)
 
     # Merge payloads with vehicle types
-    freight_payloads_vehtypes = pd.merge(
-        freight_payloads_merged,
-        freight_vehicletypes[['vehicleTypeId', 'beamClass', 'beamFuel', 'mappedFuel']],
+    payloads_vehtypes = pd.merge(
+        payloads_merged,
+        ft_vehicletypes[['vehicleTypeId', 'beamClass', 'beamFuel', 'mappedFuel']],
         on='vehicleTypeId',
         how='left'
     )
 
     # Check for missing fuel types
-    if freight_payloads_vehtypes['beamFuel'].isna().any():
+    if payloads_vehtypes['beamFuel'].isna().any():
         print("Warning: Missing fuel types for some vehicle IDs")
-        print(freight_payloads_vehtypes[freight_payloads_vehtypes['beamFuel'].isna()])
+        print(payloads_vehtypes[payloads_vehtypes['beamFuel'].isna()])
 
     # Remove duplicates and return
-    return freight_payloads_vehtypes.drop_duplicates('vehicleId', keep='first')
+    return payloads_vehtypes.drop_duplicates('vehicleId', keep='first')
 
 
-def distribution_based_vehicle_classes_assignment(freight_df, emfac_df):
+def distribution_based_vehicle_classes_assignment(ft_df, emfac_df):
     # Remove 'Class 2b&3 Vocational' from EMFAC data
     emfac_df = emfac_df[emfac_df['beamClass'] != class_2b3]
 
-    def sample_emfac(the_class, freight_mapped_fuel):
+    def sample_emfac(the_class, ft_mapped_fuel):
         emfac_grouped = emfac_df[
-            (emfac_df['beamClass'] == the_class) & (emfac_df['mappedFuel'] == freight_mapped_fuel)]
+            (emfac_df['beamClass'] == the_class) & (emfac_df['mappedFuel'] == ft_mapped_fuel)]
         if emfac_grouped.empty:
-            print(f"failed to match this fuel: {freight_mapped_fuel}")
+            print(f"failed to match this fuel: {ft_mapped_fuel}")
             emfac_grouped = emfac_df[emfac_df['beamClass'] == the_class]
         return emfac_grouped.sample(n=1, weights='population')['emfacId'].iloc[0]
 
     total_emfac = emfac_df["population"].sum()
     class_46_share = emfac_df[emfac_df['beamClass'] == class_46]["population"].sum() / total_emfac
     class_78_v_share = emfac_df[emfac_df['beamClass'] == class_78_v]["population"].sum() / total_emfac
-    total_freight = len(freight_df)
+    total_freight = len(ft_df)
     class_46_target = int(class_46_share * total_freight)
     class_78_v_target = int(class_78_v_share * total_freight)
 
@@ -379,14 +375,14 @@ def distribution_based_vehicle_classes_assignment(freight_df, emfac_df):
 
         return sample_emfac(class_78_t, row['mappedFuel'])
 
-    freight_df['beamClassBis'] = freight_df['beamClass'].map({class_46: 1, class_78_v: 2, class_78_t: 3})
-    freight_df['emfacId'] = freight_df.sort_values('beamClassBis').apply(sample_emfac_class, axis=1)
-    freight_df["oldVehicleTypeId"] = freight_df["vehicleTypeId"]
-    freight_df['vehicleTypeId'] = freight_df.apply(
+    ft_df['beamClassBis'] = ft_df['beamClass'].map({class_46: 1, class_78_v: 2, class_78_t: 3})
+    ft_df['emfacId'] = ft_df.sort_values('beamClassBis').apply(sample_emfac_class, axis=1)
+    ft_df["oldVehicleTypeId"] = ft_df["vehicleTypeId"]
+    ft_df['vehicleTypeId'] = ft_df.apply(
         lambda row: f"EMFAC-{row['emfacId']}--TRUCK-{'-'.join(row['oldVehicleTypeId'].split('-')[:-1])}",
         axis=1
     )
-    merged = pd.merge(freight_df, emfac_df.drop(["beamClass", "mappedFuel"], axis=1), on="emfacId", how="left").drop(
+    merged = pd.merge(ft_df, emfac_df.drop(["beamClass", "mappedFuel"], axis=1), on="emfacId", how="left").drop(
         ["beamClassBis"], axis=1)
     return merged
 
@@ -461,7 +457,7 @@ def format_rates_for_beam(emissions_rates):
     return df_output
 
 
-def process_single_vehicle_type(veh_type, emissions_rates, rates_dir):
+def process_single_vehicle_type(veh_type, emissions_rates, rates_prefix_filepath):
     veh_type_id = veh_type['vehicleTypeId']
     emfac_id = veh_type['emfacId']
 
@@ -473,7 +469,7 @@ def process_single_vehicle_type(veh_type, emissions_rates, rates_dir):
         veh_emissions = veh_emissions.drop('emfacId', axis=1)
 
         # Generate the file name
-        file_path = os.path.join(rates_dir, f"{veh_type_id}.csv")
+        file_path = f"{rates_prefix_filepath}{veh_type_id}.csv"
 
         print("Writing " + file_path)
         # Save the emissions rates to a CSV file
@@ -505,7 +501,7 @@ def assign_emissions_rates_to_vehtypes(emissions_rates, vehicle_types, output_di
             delayed(process_single_vehicle_type)(
                 veh_type,
                 emissions_rates,
-                f"{output_dir}/{emissions_rates_relative_filepath}"
+                f"{output_dir}/{emissions_rates_relative_filepath}/TrAP--"
             ) for _, veh_type in chunk.iterrows()
         )
 
@@ -517,15 +513,15 @@ def assign_emissions_rates_to_vehtypes(emissions_rates, vehicle_types, output_di
     # Update the vehicle_types DataFrame with the new emissionsRatesFile information
     for veh_type_id in results:
         if veh_type_id:
-            relative_rates_filepath = f"{emissions_rates_relative_filepath}/{veh_type_id}.csv"
+            relative_rates_filepath = f"{emissions_rates_relative_filepath}/TrAP--{veh_type_id}.csv"
             vehicle_types.loc[
                 vehicle_types['vehicleTypeId'] == veh_type_id, 'emissionsRatesFile'] = relative_rates_filepath
 
     return vehicle_types
 
 
-def build_new_passenger_vehtypes(emfac_passenger_population_for_mapping, passenger_population_for_mapping):
-    df_merged = pd.merge(passenger_population_for_mapping, emfac_passenger_population_for_mapping,
+def build_new_pax_vehtypes(pax_emfac_population_for_mapping, pax_population_for_mapping):
+    df_merged = pd.merge(pax_population_for_mapping, pax_emfac_population_for_mapping,
                          on=['beamClass', 'mappedFuel'], how='left')
     df_merged_car = df_merged[df_merged["beamClass"] == class_car].copy()
     df_merged_others = df_merged[df_merged["beamClass"] != class_car].copy()
@@ -548,20 +544,20 @@ def build_new_passenger_vehtypes(emfac_passenger_population_for_mapping, passeng
     df_merged_car['sampleProbabilityString'] = df_merged_car['updated_sampleProbabilityString']
     df_merged_car['sampleProbabilityWithinCategory'] = df_merged_car['updated_sampleProbabilityWithinCategory']
     df_merged_car['vehicleTypeId'] = df_merged_car['updated_vehicleTypeId']
-    updated_passenger_vehicle_types = pd.concat([df_merged_car[df_merged_others.columns], df_merged_others], axis=0)
+    updated_pax_vehicle_types = pd.concat([df_merged_car[df_merged_others.columns], df_merged_others], axis=0)
 
-    return updated_passenger_vehicle_types
+    return updated_pax_vehicle_types
 
 
-def build_new_freight_vehtypes(updated_freight_population, freight_vehicle_types):
+def build_new_ft_vehtypes(updated_ft_population, ft_vehicle_types):
     # Create a copy of the original vehicleTypeId and set up a lookup dictionary
-    freight_vehicle_types_dict = freight_vehicle_types.set_index("vehicleTypeId").to_dict('index')
+    ft_vehicle_types_dict = ft_vehicle_types.set_index("vehicleTypeId").to_dict('index')
 
     # Remove duplicates based on vehicleTypeId, keeping the first occurrence
-    unique_vehicle_types = updated_freight_population.drop_duplicates(subset='vehicleTypeId', keep='first')
+    unique_vehicle_types = updated_ft_population.drop_duplicates(subset='vehicleTypeId', keep='first')
 
     def process_row(row):
-        new_row = freight_vehicle_types_dict[row["oldVehicleTypeId"]].copy()
+        new_row = ft_vehicle_types_dict[row["oldVehicleTypeId"]].copy()
         new_row["vehicleTypeId"] = row["vehicleTypeId"]
         new_row['vehicleClass'] = row["beamClass"]
         new_row['vehicleCategory'] = class_to_category.get(row['beamClass'], 'Unknown')
@@ -582,9 +578,9 @@ def build_new_freight_vehtypes(updated_freight_population, freight_vehicle_types
     return result_df
 
 
-def assign_new_freight_vehtypes_to_carriers(carrier_df, updated_freight_population, freight_carriers_emissions_file):
-    vehicle_id_to_type_mapping = dict(zip(updated_freight_population['vehicleId'],
-                                          updated_freight_population['vehicleTypeId']))
+def assign_new_ft_vehtypes_to_carriers(carrier_df, updated_ft_population, carriers_emissions_file):
+    vehicle_id_to_type_mapping = dict(zip(updated_ft_population['vehicleId'],
+                                          updated_ft_population['vehicleTypeId']))
 
     def update_vehicle_type(row):
         return vehicle_id_to_type_mapping.get(row['vehicleId'])
@@ -592,8 +588,8 @@ def assign_new_freight_vehtypes_to_carriers(carrier_df, updated_freight_populati
     carrier_df_new = carrier_df.copy()
     carrier_df_new['vehicleTypeId'] = carrier_df.apply(update_vehicle_type, axis=1)
     carrier_df_new.dropna(subset=['vehicleTypeId'], inplace=True)
-    print(f"Writing {freight_carriers_emissions_file}")
-    carrier_df_new.to_csv(freight_carriers_emissions_file, index=False)
+    print(f"Writing {carriers_emissions_file}")
+    carrier_df_new.to_csv(carriers_emissions_file, index=False)
     return carrier_df_new
 
 
