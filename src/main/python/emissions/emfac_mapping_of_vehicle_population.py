@@ -14,21 +14,21 @@ freight_iteration = "2024-01-23"
 area = "sfbay"
 ##
 # 2018, 2050
-emfac_year = 2050
+emfac_year = 2018
 # 2018, 2050
 # Baseline, HOPhighp2
-freight_year = 2050
-freight_scenario = "HOPhighp2"
+freight_year = 2018
+freight_scenario = "Baseline"
 # 2018, 2045
 # Baseline, LowTech
-passenger_year = 2045
-passenger_scenario = "LowTech"
+passenger_year = 2018
+passenger_scenario = "Baseline"
 ##
 input_dir = os.path.expanduser(f"~/Workspace/Simulation/{area}/beam-freight/{freight_iteration}/{str(freight_year)}_{freight_scenario}")
 freight_carriers_file = f"{input_dir}/freight-carriers--{str(freight_year)}-{freight_scenario}.csv"
 freight_payloads_file = f"{input_dir}/freight-payloads--{str(freight_year)}-{freight_scenario}.csv"
-freight_vehicle_types_file = f"{input_dir}/freight-vehicletypes--{str(freight_year)}-{freight_scenario}.csv"
-passenger_vehicle_types_file = f"{input_dir}/passenger-vehicletypes--{str(passenger_year)}-{passenger_scenario}.csv"
+freight_vehicle_types_file = f"{input_dir}/ft-vehicletypes--{str(freight_year)}-{freight_scenario}.csv"
+passenger_vehicle_types_file = f"{input_dir}/pax-vehicletypes--{str(passenger_year)}-{passenger_scenario}.csv"
 
 # ##################
 
@@ -40,6 +40,17 @@ emissions_rates_relative_filepath = f"emissions-rates/{str(freight_year)}-FT-{fr
 passenger_vehicle_types_emissions_file = f"{input_dir}/passenger-vehicletypes--{str(passenger_year)}-{passenger_scenario}-emissions.csv"
 passenger_emissions_rates_relative_filepath = f"emissions-rates/{str(passenger_year)}-Pax-{passenger_scenario}"
 
+
+
+# combine_csv_files(
+# [
+#     os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_emission_rate_agg_NH3_added_2018.csv'),
+# os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_emission_rate_agg_NH3_added_2025.csv'),
+# os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_emission_rate_agg_NH3_added_2030.csv'),
+# os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_emission_rate_agg_NH3_added_2040.csv'),
+# os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_emission_rate_agg_NH3_added_2050.csv')
+# ]
+# , emfac_emissions_file)
 #
 freight_fuel_mapping_assumptions = {
     'Dsl': 'Diesel',

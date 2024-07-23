@@ -87,8 +87,8 @@ object BeamVehicleUtils extends LazyLogging {
     readCsvFileByLine(filePath, scala.collection.mutable.HashMap[Id[BeamVehicleType], BeamVehicleType]()) {
       case (line: util.Map[String, String], z) =>
         val vehicleTypeId = Id.create(line.get("vehicleTypeId"), classOf[BeamVehicleType])
-        val seatingCapacity = line.get("seatingCapacity").trim.toInt
-        val standingRoomCapacity = line.get("standingRoomCapacity").trim.toInt
+        val seatingCapacity = line.get("seatingCapacity").trim.toDouble.toInt
+        val standingRoomCapacity = line.get("standingRoomCapacity").trim.toDouble.toInt
         val lengthInMeter = line.get("lengthInMeter").trim.toDouble
         val primaryFuelTypeId = line.get("primaryFuelType")
         val primaryFuelType = FuelType.fromString(primaryFuelTypeId)
@@ -103,7 +103,7 @@ object BeamVehicleUtils extends LazyLogging {
           Option(line.get("secondaryFuelConsumptionInJoulePerMeter")).map(_.toDouble)
         val secondaryFuelCapacityInJoule = Option(line.get("secondaryFuelCapacityInJoule")).map(_.toDouble)
         val secondaryVehicleEnergyFile = Option(line.get("secondaryVehicleEnergyFile"))
-        val automationLevel = Option(line.get("automationLevel")).map(_.toInt).getOrElse(1)
+        val automationLevel: Int = Option(line.get("automationLevel")).map(_.toDouble.toInt).getOrElse(1)
         val maxVelocity = Option(line.get("maxVelocity")).map(_.toDouble)
         val passengerCarUnit = Option(line.get("passengerCarUnit")).map(_.toDouble).getOrElse(1d)
         val rechargeLevel2RateLimitInWatts = Option(line.get("rechargeLevel2RateLimitInWatts")).map(_.toDouble)
