@@ -617,9 +617,7 @@ object VehicleEmissions extends LazyLogging {
           })
       )
 
-      log.info(s"Finished loading emission rates")
-      log.info(s"Total number of emissions entries: $rowCount")
-      log.info(s"Number of vehicle types with emissions rates: ${baseFilePaths.size}")
+      log.info(s"Finished loading emission rates. Total number of emissions entries: $rowCount")
 
       currentRateFilter.toMap.map { case (speedInMilesPerHourBin, gradePercentMap) =>
         speedInMilesPerHourBin -> gradePercentMap.toMap.map { case (gradePercentBin, weightMap) =>

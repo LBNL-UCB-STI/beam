@@ -240,7 +240,7 @@ def unpacking_ft_vehicle_population_mesozones(carriers, mesozones_to_county_file
     carriers_by_zone = carriers_by_zone[['tourId', 'vehicleId', 'vehicleTypeId', 'NAME']].rename(
         columns={'NAME': 'zone'})
 
-    return freight_carriers_by_zone
+    return carriers_by_zone
 
 
 def prepare_pax_vehicle_population_for_mapping(vehicletypes, fuel_assumption_mapping):
@@ -405,7 +405,7 @@ def pivot_rates_for_beam(df_raw):
     return pivot_df
 
 
-def numerical_column_to_binned(df_raw, numerical_colname, binned_colname, edge_values):
+def numerical_column_to_binned_and_pivot(df_raw, numerical_colname, binned_colname, edge_values):
     pivot_df = pivot_rates_for_beam(df_raw).sort_values(by='speed_time', ascending=True)
     df_raw_last_row = pivot_df.iloc[-1].copy()
     df_raw_last_row['speed_time'] = edge_values[1]
@@ -425,9 +425,9 @@ def process_rates_group(df, row):
         df_temp = df_subset[df_subset['process'] == process]
         if not df_temp.empty:
             if process in ['RUNEX', 'PMBW']:
-                df_temp = numerical_column_to_binned(df_temp, 'speed_time', 'speed_mph_float_bins', [0.0, 200.0])
+                df_temp = numerical_column_to_binned_and_pivot(df_temp, 'speed_time', 'speed_mph_float_bins', [0.0, 200.0])
             elif process == 'STREX':
-                df_temp = numerical_column_to_binned(df_temp, 'speed_time', 'time_minutes_float_bins', [0.0, 3600.0])
+                df_temp = numerical_column_to_binned_and_pivot(df_temp, 'speed_time', 'time_minutes_float_bins', [0.0, 3600.0])
             else:
                 df_temp = pivot_rates_for_beam(df_temp)
             df_output_list.append(df_temp)
@@ -450,11 +450,16 @@ def format_rates_for_beam(emissions_rates):
     # Formatting for merge
     df_output = pd.concat(df_output_list, ignore_index=True).drop(["speed_time"], axis=1)
 
+    # Filter out rows where all emission columns are zero
+    emission_columns = [col for col in df_output.columns if col.startswith('rate_') and col.endswith('_gram_float')]
+    filtered_out = df_output[(df_output[emission_columns] == 0).all(axis=1)]
+    df_output = df_output[~(df_output[emission_columns] == 0).all(axis=1)]
+
     # Reorder columns to ensure 'county' is at the front
     columns = df_output.columns.tolist()
     columns = ['county'] + [col for col in columns if col != 'county']
     df_output = df_output[columns]
-    return df_output
+    return df_output, filtered_out
 
 
 def process_single_vehicle_type(veh_type, emissions_rates, rates_prefix_filepath):
