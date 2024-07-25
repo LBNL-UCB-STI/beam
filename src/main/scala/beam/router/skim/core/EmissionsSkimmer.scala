@@ -22,7 +22,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
 
   override protected val skimFileHeader: String = {
     val emissionHeaders = Emissions.values.map(formatName).mkString(",")
-    s"hour,linkId,tazId,vehicleTypeId,emissionsProcess,speedInMps,energyInJoule,observations,iterations,$emissionHeaders"
+    s"hour,linkId,tazId,vehicleTypeId,emissionsProcess,$emissionHeaders,speedInMps,energyInJoule,observations,iterations"
   }
 
   override def fromCsv(
@@ -69,7 +69,8 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
         EmissionsSkimmerInternal(init(), 0, 0, iterations = matsimServices.getIterationNumber + 1)
       )
     EmissionsSkimmerInternal(
-      emissions = prevSkim.emissions + currSkim.emissions,
+      emissions =
+        (prevSkim.emissions * prevSkim.iterations + currSkim.emissions * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       averageSpeed =
         (prevSkim.averageSpeed * prevSkim.iterations + currSkim.averageSpeed * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       energyConsumed =
@@ -89,7 +90,8 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
       .getOrElse(EmissionsSkimmerInternal(init(), 0, 0, iterations = matsimServices.getIterationNumber + 1))
     val currSkim = currObservation.asInstanceOf[EmissionsSkimmerInternal]
     EmissionsSkimmerInternal(
-      emissions = prevSkim.emissions + currSkim.emissions,
+      emissions =
+        (prevSkim.emissions * prevSkim.observations + currSkim.emissions * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       averageSpeed =
         (prevSkim.averageSpeed * prevSkim.observations + currSkim.averageSpeed * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       energyConsumed =
@@ -120,7 +122,7 @@ object EmissionsSkimmer extends LazyLogging {
     iterations: Int = 0
   ) extends AbstractSkimmerInternal {
     private val pollutants: String = Emissions.values.toList.map(emissions.get(_).getOrElse(0.0).toString).mkString(",")
-    override def toCsv: String = s"$averageSpeed,$energyConsumed,$observations,$iterations,$pollutants"
+    override def toCsv: String = s"$pollutants,$averageSpeed,$energyConsumed,$observations,$iterations"
   }
 
   def emissionsSkimOutputDataDescriptor: OutputDataDescriptor =

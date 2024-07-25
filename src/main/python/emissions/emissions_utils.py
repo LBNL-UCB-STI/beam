@@ -13,6 +13,7 @@ class_78_t = 'Class 7&8 Tractor'
 class_car = "Car"  # these include light and medium duty trucks
 class_bike = "Bike"
 class_mdp = "MediumDutyPassenger"
+not_matched = "Not Matched"
 
 class_to_category = {
     class_2b3: 'Class2b3Vocational',
@@ -20,80 +21,6 @@ class_to_category = {
     class_78_v: 'Class78Vocational',
     class_78_t: 'Class78Tractor'
 }
-
-ft_emfac_class_map = {
-    # Class 2b&3 Vocational
-    'LHD1': class_2b3,
-    'LHD2': class_2b3,
-
-    # Class 4-6 Vocational
-    'T6 Instate Delivery Class 4': class_46,
-    'T6 Instate Delivery Class 5': class_46,
-    'T6 Instate Delivery Class 6': class_46,
-    'T6 Instate Other Class 4': class_46,
-    'T6 Instate Other Class 5': class_46,
-    'T6 Instate Other Class 6': class_46,
-    'T6 CAIRP Class 4': class_46,
-    'T6 CAIRP Class 5': class_46,
-    'T6 CAIRP Class 6': class_46,
-    'T6 OOS Class 4': class_46,
-    'T6 OOS Class 5': class_46,
-    'T6 OOS Class 6': class_46,
-    'T6 Instate Tractor Class 6': class_46,
-
-    # Class 7&8 Vocational
-    'T6 Instate Delivery Class 7': class_78_v,
-    'T6 Instate Other Class 7': class_78_v,
-    'T7 Single Concrete/Transit Mix Class 8': class_78_v,
-    'T7 Single Dump Class 8': class_78_v,
-    'T7 Single Other Class 8': class_78_v,
-    'T7IS': class_78_v,  # In-State
-
-    # Class 7&8 Tractor
-    'T6 Instate Tractor Class 7': class_78_t,
-    'T7 Tractor Class 8': class_78_t,
-    'T6 CAIRP Class 7': class_78_t,
-    'T6 OOS Class 7': class_78_t,
-    'T7 CAIRP Class 8': class_78_t,
-    'T7 NNOOS Class 8': class_78_t,
-    'T7 NOOS Class 8': class_78_t,
-}
-
-pax_emfac_class_map = {
-    "LDA": class_car,  # Passenger Cars
-    "LDT1": class_car,  # Light-Duty Trucks (GVWR* <6000 lbs and ETW** <= 3750 lbs)
-    "LDT2": class_car,  # Light-Duty Trucks (GVWR <6000 lbs and ETW 3751-5750 lbs)
-    "MDV": class_car,  # Medium-Duty Trucks (GVWR 5751-8500 lbs)
-    "MCY": class_bike,  # Motorcycles
-    "UBUS": class_mdp  # Urban Buses
-}
-
-non_mapped_emfac_classes = [
-    "SBUS",  # School Buses
-    "Motor Coach",  # Motor Coach
-    "OBUS",  # Other Buses
-    "All Other Buses",  # All Other Buses
-    "MH",  # Motor Homes
-    "T6 Utility Class 5",  # Medium-Heavy Duty Utility Fleet Truck (GVWR 16001-19500 lbs)
-    "T6 Utility Class 6",  # Medium-Heavy Duty Utility Fleet Truck (GVWR 19501-26000 lbs)
-    "T6 Utility Class 7",  # Medium-Heavy Duty Utility Fleet Truck (GVWR 26001-33000 lbs)
-
-    ## used by public entities such as municipalities, state governments, and other public agencies
-    "T6 Public Class 4",  # Medium-Heavy Duty Public Fleet Truck (GVWR 14001-16000 lbs)
-    "T6 Public Class 5",  # Medium-Heavy Duty Public Fleet Truck (GVWR 16001-19500 lbs)
-    "T6 Public Class 6",  # Medium-Heavy Duty Public Fleet Truck (GVWR 19501-26000 lbs)
-    "T6 Public Class 7",  # Medium-Heavy Duty Public Fleet Truck (GVWR 26001-33000 lbs)
-    "T7 Public Class 8",  # Heavy-Heavy Duty Public Fleet Truck (GVWR 33001 lbs and over)
-
-    "T6TS",
-    # Medium-Heavy Duty Truck; "Transit/Specialized," these trucks are designed for specific types of operations
-    "T7 Utility Class 8",  # Heavy-Heavy Duty Utility Fleet Truck (GVWR 33001 lbs and over)
-    "T7 Other Port Class 8",  # Heavy-Heavy Duty Drayage Truck at Other Facilities (GVWR 33001 lbs and over)
-    "T7 POAK Class 8",  # Heavy-Heavy Duty Drayage Truck in Bay Area (GVWR 33001 lbs and ove
-    "T7 POLA Class 8",  # Heavy-Heavy Duty Drayage Truck near South Coast (GVWR 33001 lbs and over)
-    "T7 SWCV Class 8",  # Heavy-Heavy Duty Solid Waste Collection Truck (GVWR 33001 lbs and over)
-    "PTO",  # Power Take Off
-]
 
 emfac_fuel_to_beam_fuel_map = {
     'Dsl': 'diesel',
@@ -104,6 +31,7 @@ emfac_fuel_to_beam_fuel_map = {
     'H2fc': 'hydrogen',
     'BioDsl': 'biodiesel'
 }
+
 beam_fuel_to_emfac_fuel_map = {
     'diesel': 'Dsl',
     'gasoline': 'Gas',
@@ -691,4 +619,54 @@ def update_sample_probability_string(row):
 
     return '; '.join(updated_groups)
 
+
+def create_vehicle_class_mapping(vehicle_list):
+  mapping = {}
+
+  for vehicle in vehicle_list:
+    if 'Utility' in vehicle or 'Public' in vehicle:
+        mapping[vehicle] = not_matched
+    elif 'Port' in vehicle or 'POLA' in vehicle or 'POAK' in vehicle:
+        mapping[vehicle] = not_matched
+    elif 'SWCV' in vehicle or 'PTO' in vehicle or 'T6TS' in vehicle:
+        mapping[vehicle] = not_matched
+
+    elif vehicle in ['LDA', 'LDT1', 'LDT2', 'MDV']:
+      mapping[vehicle] = class_car
+    elif vehicle in ['MCY']:
+      mapping[vehicle] = class_bike
+    elif vehicle in ['UBUS']:
+      mapping[vehicle] = class_mdp
+    elif 'LHD' in vehicle:
+      mapping[vehicle] = class_2b3
+
+    elif 'Class 4' in vehicle or 'Class 5' in vehicle or 'Class 6' in vehicle:
+      mapping[vehicle] = class_46
+
+    elif 'Class 7' in vehicle or 'Class 8' in vehicle:
+        if 'Tractor' in vehicle or 'CAIRP' in vehicle:
+            mapping[vehicle] = class_78_t
+        else:
+            mapping[vehicle] = class_78_v
+    elif "T7IS" in vehicle:
+        mapping[vehicle] = class_78_t
+
+    else:
+      mapping[vehicle] = not_matched
+
+  from collections import defaultdict
+  class_groups = defaultdict(list)
+  for vehicle, vehicle_class in mapping.items():
+      class_groups[vehicle_class].append(vehicle)
+  for vehicle_class, vehicles in class_groups.items():
+      print(f"Category: {vehicle_class}")
+      for vehicle in vehicles:
+          print(f"  - {vehicle}")
+
+  ft_emfac_class_map = {emfac: beam for emfac, beam in mapping.items() if
+                        beam in [class_46, class_78_v, class_78_t]}
+  pax_emfac_class_map = {emfac: beam for emfac, beam in mapping.items() if
+                         beam in [class_car, class_bike, class_mdp]}
+
+  return pax_emfac_class_map, ft_emfac_class_map
 

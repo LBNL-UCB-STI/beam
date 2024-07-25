@@ -142,7 +142,8 @@ abstract class InfrastructureFunctions(
         tazTreeMap.tazQuadTree,
         new Random(seed + inquiryHash),
         inquiry.departureLocation,
-        inquiry.reservedFor
+        inquiry.reservedFor,
+        inquiry.activityType
       )
 
     val closestZone =

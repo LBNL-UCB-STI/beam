@@ -1,6 +1,7 @@
 from emissions_utils import *
 pd.set_option('display.max_columns', 20)
 
+# HEADER
 # ### File Paths ###
 # mesozones_lookup_file = os.path.expanduser("~/Workspace/Simulation/sfbay/geo/zonal_id_lookup_final.csv")
 # county_data_file = os.path.expanduser("~/Workspace/Simulation/sfbay/geo/sfbay_counties_wgs84.geojson")
@@ -13,8 +14,8 @@ emfac_emissions_file = os.path.expanduser('~/Workspace/Models/emfac/imputed_MTC_
 ft_iteration = "2024-01-23"
 area = "sfbay"
 ##
-emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2050, 2050, "HOPhighp2", 2045, "LowTech"
-# emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2018, 2018, "Baseline", 2018, "Baseline"
+# emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2050, 2050, "HOPhighp2", 2045, "LowTech"
+emfac_year, ft_year, ft_scenario, pax_year, pax_scenario = 2018, 2018, "Baseline", 2018, "Baseline"
 ##
 input_dir = os.path.expanduser(f"~/Workspace/Simulation/{area}/beam-freight/{ft_iteration}")
 carriers_file = f"{input_dir}/{str(ft_year)}_{ft_scenario}/carriers--{str(ft_year)}-{ft_scenario}.csv"
@@ -64,15 +65,25 @@ pax_fuel_mapping_assumptions = {
     'BioDsl': 'Diesel'
 }
 
-print(f"Processing {area}, {str(ft_year)}-{ft_scenario} from {ft_iteration}..")
+
+
+
+#  ######### MAIN ##########
+
+print(f"Scenario {area}, {str(ft_year)}-{ft_scenario} from {ft_iteration}..")
 # all the readings:
 ft_payloads = pd.read_csv(payloads_file)
 ft_vehicle_types = pd.read_csv(ft_vehicle_types_file)
 pax_vehicle_types = pd.read_csv(pax_vehicle_types_file)
 ft_carriers = pd.read_csv(carriers_file, dtype=str)
+
 # ['Dsl', 'Elec', 'Gas', 'Phe', 'NG']
+print("Processing emfac population and rates")
 emfac_population = pd.read_csv(emfac_population_file, low_memory=False, dtype=str)
 emfac_population['population'] = pd.to_numeric(emfac_population['population'], errors='coerce')
+pax_emfac_class_map, ft_emfac_class_map = create_vehicle_class_mapping(emfac_population["vehicle_class"].unique())
+
+
 emissions_rates = pd.read_csv(emfac_emissions_file, low_memory=False, dtype={
     'calendar_year': int,
     'season_month': str,
@@ -221,7 +232,7 @@ print("------------------------------------------------------------------")
 print("Building new set of freight vehicle types")
 updated_vehicle_types = build_new_ft_vehtypes(updated_freight_population, ft_vehicle_types)
 print(f"Previous vehicle types had {len(ft_vehicle_types)} types while the new set has {len(updated_vehicle_types)} types")
-
+updated_vehicle_types[updated_vehicle_types["emfacId"].str.contains("T7-NNOOS")]
 ###
 print("------------------------------------------------------------------")
 print("Assigning new freight vehicle types to carriers")

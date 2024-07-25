@@ -81,14 +81,12 @@ object ParkingNetworkManager extends LazyLogging {
         None
     }
     stallForLeavingParkingEventMaybe.foreach { stall =>
-      val parkingDuration = tick - stall.getParkingTime
       val vehicleActivityData = BeamVehicle.collectVehicleActivityData(
         tick,
         Right(stall.link.getOrElse(NetworkUtils.getNearestLink(beamServices.beamScenario.network, stall.locationUTM))),
         currentBeamVehicle.beamVehicleType,
         None,
-        Some(if (parkingDuration < 0) 0.0 else parkingDuration),
-        Some(stall.parkingType),
+        Some(stall),
         beamServices
       )
       val emissionsProfile =

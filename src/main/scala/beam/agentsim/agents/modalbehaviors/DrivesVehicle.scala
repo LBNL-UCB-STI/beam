@@ -253,7 +253,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
         currentBeamVehicle.beamVehicleType,
         payloadInKg,
         None,
-        None,
         beamServices
       )
       val fuelConsumed = currentBeamVehicle.useFuel(currentLeg, vehicleActivityData, beamScenario)
@@ -554,7 +553,6 @@ trait DrivesVehicle[T <: DrivingData] extends BeamAgent[T] with Stash with Expon
           Left(currentLeg),
           currentBeamVehicle.beamVehicleType,
           payloadInKg,
-          None,
           None,
           beamServices
         )

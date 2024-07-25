@@ -158,6 +158,7 @@ class ZonalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
+            "work",
             VehicleManager.AnyManager
           )
         val response1 = zonalParkingManager.processParkingInquiry(firstInquiry)
@@ -221,6 +222,7 @@ class ZonalParkingManagerSpec
             None,
             Some(PricingModel.FlatFee(12.34)),
             ParkingType.Workplace,
+            "work",
             VehicleManager.AnyManager
           )
 
@@ -523,6 +525,7 @@ class ZonalParkingManagerSpec
         None,
         Some(pricingModel),
         parkingType,
+        "init",
         reservedFor = reservedFor
       )
     assert(

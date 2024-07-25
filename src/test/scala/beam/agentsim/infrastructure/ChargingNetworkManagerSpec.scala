@@ -127,6 +127,7 @@ class ChargingNetworkManagerSpec
       Some(chargingPointType),
       Some(pricingModel),
       ParkingType.Public,
+      "",
       reservedFor = VehicleManager.AnyManager
     )
   var scheduler: TestActorRef[BeamAgentSchedulerRedirect] = _

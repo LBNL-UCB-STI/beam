@@ -683,8 +683,8 @@ payload[,time24:=estimatedTimeOfArrivalInSec%%(24*3600),][,.N,by=.(timeBin=as.PO
 
 
 payload_carriers <- payload[carriers, on="tourId"]
-payload_carriers$vehicleCategory <- "MediumHeavyDutyTruck"
-payload_carriers[vehicleTypeId == "FREIGHT-2"]$vehicleCategory <- "HeavyHeavyDutyTruck"
+payload_carriers$vehicleCategory <- "Class456Vocational"
+payload_carriers[vehicleTypeId == "FREIGHT-2"]$vehicleCategory <- "Class78Vocational"
 p <- payload_carriers[,time24:=estimatedTimeOfArrivalInSec%%(24*3600),][,.N,by=.(timeBin=as.POSIXct(cut(toDateTime(time24),"30 min")), vehicleCategory)] %>%
   ggplot(aes(timeBin, N, colour=vehicleCategory)) +
   geom_line() +

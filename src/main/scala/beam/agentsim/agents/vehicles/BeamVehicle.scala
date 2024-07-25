@@ -599,6 +599,7 @@ object BeamVehicle {
     taz: Option[TAZ] = None,
     parkingDuration: Option[Double] = None,
     parkingType: Option[ParkingType] = None,
+    activityType: Option[String],
     linkTravelTime: Option[Double] = None
   ) {
     var primaryEnergyConsumed: Double = 0.0
@@ -624,10 +625,14 @@ object BeamVehicle {
     activity: Either[BeamLeg, Link],
     theVehicleType: BeamVehicleType,
     payloadInKg: Option[Double],
-    parkingDuration: Option[Double],
-    parkingType: Option[ParkingType],
+    parkingStall: Option[ParkingStall],
     beamServices: BeamServices
   ): IndexedSeq[VehicleActivityData] = {
+    val parkingDuration: Option[Double] = parkingStall.map { stall =>
+      if (time - stall.getParkingTime < 0) 0.0 else time - stall.getParkingTime
+    }
+    val parkingType: Option[ParkingType] = parkingStall.map(_.parkingType)
+    val activityType: Option[String] = parkingStall.map(_.activityType)
     activity match {
       case Left(beamLeg) =>
         if (beamLeg.mode.isTransit & !Modes.isOnStreetTransit(beamLeg.mode)) {
@@ -657,6 +662,7 @@ object BeamVehicle {
               taz = currentLink.flatMap(link => beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId)),
               parkingDuration = parkingDuration,
               parkingType = parkingType,
+              activityType = activityType,
               linkTravelTime = Some(travelTime)
             )
           }
@@ -674,6 +680,7 @@ object BeamVehicle {
             taz = beamServices.beamScenario.tazTreeMap.getTAZfromLink(link.getId),
             parkingDuration = parkingDuration,
             parkingType = parkingType,
+            activityType = activityType,
             linkTravelTime = None
           )
         )

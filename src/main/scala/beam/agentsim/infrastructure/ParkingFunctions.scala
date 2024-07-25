@@ -125,7 +125,7 @@ class ParkingFunctions(
       case _ =>
         inquiry.parkingActivityType match {
           case ParkingActivityType.Home if inquiry.searchMode != ParkingSearchMode.EnRouteCharging =>
-            val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc)
+            val newStall = ParkingStall.defaultResidentialStall(inquiry.destinationUtm.loc, inquiry.activityType)
             ParkingZoneSearch.ParkingZoneSearchResult(newStall, DefaultParkingZone)
           case _ =>
             // didn't find any stalls, so, as a last resort, create a very expensive stall

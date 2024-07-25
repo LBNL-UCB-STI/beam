@@ -73,7 +73,8 @@ object ParkingZoneSearch {
     zoneQuadTree: QuadTree[TAZ],
     random: Random,
     originUTM: Option[Location],
-    reservedFor: ReservedFor
+    reservedFor: ReservedFor,
+    activityType: String
   )
 
   /**
@@ -227,6 +228,7 @@ object ParkingZoneSearch {
                 parkingZone.chargingPointType,
                 parkingZone.pricingModel,
                 parkingType,
+                params.activityType,
                 parkingZone.reservedFor,
                 parkingZone.link
               )

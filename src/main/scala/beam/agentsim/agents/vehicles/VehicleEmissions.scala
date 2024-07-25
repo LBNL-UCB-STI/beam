@@ -1,5 +1,6 @@
 package beam.agentsim.agents.vehicles
 
+import beam.agentsim.agents.freight.FreightRequestType
 import beam.agentsim.agents.vehicles.VehicleEmissions.Emissions.{formatName, EmissionType}
 import beam.agentsim.agents.vehicles.VehicleEmissions.EmissionsProfile.EmissionsProcess
 import beam.agentsim.events.{LeavingParkingEvent, PathTraversalEvent}
@@ -56,7 +57,7 @@ class VehicleEmissions(
       return None
 
     val emissionsProfiles = for {
-      process                    <- identifyProcesses(vehicleActivityData, vehicleActivity, vehicleType)
+      process                    <- identifyProcesses(vehicleActivityData, vehicleActivity)
       data                       <- vehicleActivityData
       emissionsRatesFilterFuture <- emissionsRatesFilterStore.getEmissionsRateFilterFor(data.vehicleType)
       emissionsRatesFilter = Await.result(emissionsRatesFilterFuture, 1.minute)
@@ -163,6 +164,13 @@ object VehicleEmissions extends LazyLogging {
     def *(factor: Double): Emissions =
       Emissions(values.map { case (k, v) => k -> (v * factor) })
 
+    def /(factor: Double): Emissions = {
+      if (factor == 0) {
+        logger.error("Dividing Emissions rates by zero!!!")
+        this
+      } else this * (1 / factor)
+    }
+
     def +(other: Emissions): Emissions =
       Emissions((values.keySet ++ other.values.keySet).map { key =>
         key -> (values.getOrElse(key, 0.0) + other.values.getOrElse(key, 0.0))
@@ -212,34 +220,27 @@ object VehicleEmissions extends LazyLogging {
     type EmissionsProcess = Value
     val RUNEX, IDLEX, STREX, HOTSOAK, DIURN, RUNLOSS, PMTW, PMBW = Value
 
-    private lazy val truckCategory =
-      List(
-        VehicleCategory.Class2b3Vocational,
-        VehicleCategory.Class456Vocational,
-        VehicleCategory.Class78Vocational,
-        VehicleCategory.Class78Tractor
-      )
-
     def init(): EmissionsProfile = EmissionsProfile()
 
     def apply(values: (EmissionsProcess, Emissions)*): EmissionsProfile = new EmissionsProfile(values.toMap)
 
     def identifyProcesses(
       data: IndexedSeq[BeamVehicle.VehicleActivityData],
-      vehicleActivity: Class[_ <: org.matsim.api.core.v01.events.Event],
-      vehicleType: BeamVehicleType
+      vehicleActivity: Class[_ <: org.matsim.api.core.v01.events.Event]
     ): ValueSet = {
       // TODO uncomment once commercial deployment are deployed
+      if (data.isEmpty)
+        return ValueSet.empty
       EmissionsProfile.values.flatMap {
-        case process @ IDLEX
-            if data.nonEmpty && truckCategory
-              .contains(vehicleType.vehicleCategory) /* && data.head.parkingType.contains(ParkingType.Commercial) */ =>
+        case process @ IDLEX if vehicleActivity == classOf[LeavingParkingEvent] =>
+          // TODO In the future we will need to look at whether vehicle is hotelling
+          // If vehicle is loading or unloading
+          if (data.head.activityType.exists(_.toLowerCase.contains(FreightRequestType.Loading.toString.toLowerCase)))
+            Some(process)
+          else None
+        case process @ (STREX | DIURN | HOTSOAK | RUNLOSS) if vehicleActivity == classOf[LeavingParkingEvent] =>
           Some(process)
-        case process @ (STREX | DIURN | HOTSOAK | RUNLOSS)
-            if data.nonEmpty && vehicleActivity == classOf[LeavingParkingEvent] =>
-          Some(process)
-        case process @ (RUNEX | PMBW | PMTW | RUNLOSS)
-            if data.nonEmpty && vehicleActivity == classOf[PathTraversalEvent] =>
+        case process @ (RUNEX | PMBW | PMTW | RUNLOSS) if vehicleActivity == classOf[PathTraversalEvent] =>
           Some(process)
         case _ => None
       }
