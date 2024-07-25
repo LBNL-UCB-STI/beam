@@ -2973,8 +2973,8 @@ object BeamConfig {
               emissionsToFilterOut =
                 if (c.hasPathOrNull("emissionsToFilterOut")) scala.Some($_L$_str(c.getList("emissionsToFilterOut")))
                 else None,
-              events = !c.hasPathOrNull("events") || c.getBoolean("events"),
-              skims = !c.hasPathOrNull("skims") || c.getBoolean("skims")
+              events = c.hasPathOrNull("events") && c.getBoolean("events"),
+              skims = c.hasPathOrNull("skims") && c.getBoolean("skims")
             )
           }
         }
