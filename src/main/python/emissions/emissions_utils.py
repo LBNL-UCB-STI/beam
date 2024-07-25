@@ -1,10 +1,18 @@
 import pandas as pd
 import numpy as np
+import pyarrow as pa
+import pyarrow.csv as pv
+import pyarrow.compute as pc
+import matplotlib.pyplot as plt
+import seaborn as sns
+import time
 import os
 import re
 import shutil
 import math
 import warnings
+
+warnings.filterwarnings("ignore", category=FutureWarning, message="The default dtype for empty Series will be 'object' instead of 'float64' in a future version. Specify a dtype explicitly to silence this warning.")
 
 class_2b3 = 'Class 2b&3 Vocational'
 class_46 = 'Class 4-6 Vocational'
@@ -61,8 +69,6 @@ emissions_processes = ["RUNEX", "IDLEX", "STREX", "DIURN", "HOTSOAK", "RUNLOSS",
 region_to_emfac_area = {
     "sfbay": "SF"
 }
-
-warnings.filterwarnings("ignore", category=FutureWarning, message="The default dtype for empty Series will be 'object' instead of 'float64' in a future version. Specify a dtype explicitly to silence this warning.")
 
 
 def sanitize_name(filename):
@@ -670,3 +676,115 @@ def create_vehicle_class_mapping(vehicle_list):
 
   return pax_emfac_class_map, ft_emfac_class_map
 
+
+def read_skims_emissions(skims_file, vehicleTypeId_filter, selected_pollutants, scenario_name):
+    # Define the schema based on the provided dtypes
+    schema = pa.schema([
+        ('hour', pa.int64()),
+        ('linkId', pa.int64()),
+        ('tazId', pa.string()),
+        ('vehicleTypeId', pa.string()),
+        ('emissionsProcess', pa.string()),
+        ('speedInMps', pa.float64()),
+        ('energyInJoule', pa.float64()),
+        ('observations', pa.int64()),
+        ('iterations', pa.int64()),
+        ('CH4', pa.float64()),
+        ('CO', pa.float64()),
+        ('CO2', pa.float64()),
+        ('HC', pa.float64()),
+        ('NH3', pa.float64()),
+        ('NOx', pa.float64()),
+        ('PM', pa.float64()),
+        ('PM10', pa.float64()),
+        ('PM2_5', pa.float64()),
+        ('ROG', pa.float64()),
+        ('SOx', pa.float64()),
+        ('TOG', pa.float64())
+    ])
+    # pollutants
+    pollutants = ['CH4', 'CO', 'CO2', 'HC', 'NH3', 'NOx', 'PM', 'PM10', 'PM2_5', 'ROG', 'SOx', 'TOG']
+
+    start_time = time.time()
+    table = pv.read_csv(skims_file,
+                        read_options=pv.ReadOptions(use_threads=True),
+                        parse_options=pv.ParseOptions(delimiter=','),
+                        convert_options=pv.ConvertOptions(column_types=schema))
+
+    filtered_table = table.filter(pc.match_substring(table['vehicleTypeId'], pattern=vehicleTypeId_filter))
+    df = filtered_table.to_pandas()
+    # Convert from grams to tons
+    for pollutant in pollutants:
+        df[pollutant] = df[pollutant] / 1e6
+
+    grouped = df.groupby(['emissionsProcess', 'vehicleTypeId'])[selected_pollutants].sum().reset_index()
+    # Melt the dataframe for easier plotting
+    melted = pd.melt(grouped,
+                     id_vars=['emissionsProcess', 'vehicleTypeId'],
+                     value_vars=selected_pollutants,
+                     var_name='pollutant',
+                     value_name='emissions')
+    melted['scenario'] = scenario_name
+    end_time = time.time()
+    print(f"Time taken to read the file: {end_time - start_time:.2f} seconds to read file {skims_file}")
+    return melted
+
+
+def emissions_by_process_and_vehicle_type_and_scenarios(data, scenarios, label, output_png):
+    processes = data['emissionsProcess'].unique()
+    class_fuels = data['class_fuel'].unique()
+
+    # Set up the plot
+    fig, ax = plt.subplots(figsize=(15, 8))
+
+    # Set up x positions for the bars
+    x = np.arange(len(processes))
+    width = 0.35
+
+    # Colors for each class_fuel
+    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8dd3c7']  # Up to 6 class_fuels
+
+    # Patterns for each scenario
+    patterns = ['/', '\\', 'O', '*', '+', 'x']  # Up to 6 scenarios
+
+    # Plot bars for each scenario
+    for i, scenario in enumerate(scenarios):
+        scenario_data = data[data['scenario'] == scenario]
+
+        # Initialize bottom values for stacking
+        bottoms = np.zeros(len(processes))
+
+        # Plot bars for each class_fuel
+        for j, class_fuel in enumerate(class_fuels):
+            class_fuel_data = scenario_data[scenario_data['class_fuel'] == class_fuel]
+
+            # Group by emissionsProcess and sum emissions
+            data_to_plot = class_fuel_data.groupby('emissionsProcess')['emissions'].sum()
+
+            # Ensure all processes are present, fill with 0 if missing
+            data_to_plot = data_to_plot.reindex(processes, fill_value=0)
+
+            # Plot bars
+            bar = ax.bar(x + (i - 0.5) * width, data_to_plot, width, bottom=bottoms,
+                         label=f"{scenario} - {class_fuel}", color=colors[j % len(colors)],
+                         hatch=patterns[i % len(patterns)])
+
+            # Update bottom values for stacking
+            bottoms += data_to_plot
+
+    # Customize the plot
+    ax.set_title(f'{label} Emissions by Process, Class Fuel, and Scenario', fontsize=16)
+    ax.set_xlabel('Emissions Process', fontsize=12)
+    ax.set_ylabel('Emissions (tons)', fontsize=12)
+    ax.set_xticks(x)
+    ax.set_xticklabels(processes, rotation=45, ha='right')
+
+    # Add legend
+    ax.legend()
+
+    # Add grid lines for better readability
+    ax.grid(axis='y', linestyle='--', alpha=0.7)
+
+    # Adjust layout and save the figure
+    plt.tight_layout()
+    plt.savefig(output_png, dpi=300, bbox_inches='tight')
