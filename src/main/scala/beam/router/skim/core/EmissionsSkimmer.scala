@@ -22,7 +22,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
 
   override protected val skimFileHeader: String = {
     val emissionHeaders = Emissions.values.map(formatName).mkString(",")
-    s"hour,linkId,tazId,vehicleTypeId,emissionsProcess,$emissionHeaders,speedInMps,energyInJoule,observations,iterations"
+    s"hour,linkId,tazId,vehicleTypeId,emissionsProcess,$emissionHeaders,travelTimeInSecond,energyInJoule,observations,iterations"
   }
 
   override def fromCsv(
@@ -48,7 +48,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
             }
           }.toMap
         ),
-        line("speedInMps").toDouble,
+        line("travelTimeInSecond").toDouble,
         line("energyInJoule").toDouble,
         line("observations").toInt,
         line("iterations").toInt
@@ -71,8 +71,8 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
     EmissionsSkimmerInternal(
       emissions =
         (prevSkim.emissions * prevSkim.iterations + currSkim.emissions * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
-      averageSpeed =
-        (prevSkim.averageSpeed * prevSkim.iterations + currSkim.averageSpeed * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      travelTime =
+        (prevSkim.travelTime * prevSkim.iterations + currSkim.travelTime * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       energyConsumed =
         (prevSkim.energyConsumed * prevSkim.iterations + currSkim.energyConsumed * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       observations =
@@ -92,8 +92,8 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
     EmissionsSkimmerInternal(
       emissions =
         (prevSkim.emissions * prevSkim.observations + currSkim.emissions * currSkim.observations) / (prevSkim.observations + currSkim.observations),
-      averageSpeed =
-        (prevSkim.averageSpeed * prevSkim.observations + currSkim.averageSpeed * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+      travelTime =
+        (prevSkim.travelTime * prevSkim.observations + currSkim.travelTime * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       energyConsumed =
         (prevSkim.energyConsumed * prevSkim.observations + currSkim.energyConsumed * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       observations = prevSkim.observations + currSkim.observations,
@@ -116,13 +116,13 @@ object EmissionsSkimmer extends LazyLogging {
 
   case class EmissionsSkimmerInternal(
     emissions: Emissions,
-    averageSpeed: Double,
+    travelTime: Double,
     energyConsumed: Double,
     observations: Int = 0,
     iterations: Int = 0
   ) extends AbstractSkimmerInternal {
     private val pollutants: String = Emissions.values.toList.map(emissions.get(_).getOrElse(0.0).toString).mkString(",")
-    override def toCsv: String = s"$pollutants,$averageSpeed,$energyConsumed,$observations,$iterations"
+    override def toCsv: String = s"$pollutants,$travelTime,$energyConsumed,$observations,$iterations"
   }
 
   def emissionsSkimOutputDataDescriptor: OutputDataDescriptor =
@@ -145,7 +145,7 @@ object EmissionsSkimmer extends LazyLogging {
         ${ROG.toString}           | Reactive organic gases emissions rate
         ${SOx.toString}           | Sulfur oxides emissions rate
         ${TOG.toString}           | Total organic gases emissions rate
-        averageSpeed  | Average speed in meter per second
+        travelTimeInSecond  | Average travel time in second
         energyConsumption | Energy consumption in joule
         observations  | Number of events
         iterations    | The current iteration number
@@ -172,7 +172,7 @@ object EmissionsSkimmer extends LazyLogging {
         ${ROG.toString}           | Average (over last n iterations) reactive organic gases emissions rate
         ${SOx.toString}           | Average (over last n iterations) sulfur oxides emissions rate
         ${TOG.toString}           | Average (over last n iterations) total organic gases emissions rate
-        averageSpeed  | Average (over last n iterations) speed
+        travelTimeInSecond  | Average (over last n iterations) travel time
         energyConsumption | Average (over last n iterations) energy consumption
         observations  | Average (over last n iterations) number of events
         iterations    | Number of iterations

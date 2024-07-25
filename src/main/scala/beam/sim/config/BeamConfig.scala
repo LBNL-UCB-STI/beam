@@ -2961,8 +2961,8 @@ object BeamConfig {
         }
 
         case class Emissions(
-          emissionsToFilterOut: scala.Option[scala.List[java.lang.String]],
           events: scala.Boolean,
+          pollutantsToFilterOut: scala.Option[scala.List[java.lang.String]],
           skims: scala.Boolean
         )
 
@@ -2970,10 +2970,10 @@ object BeamConfig {
 
           def apply(c: com.typesafe.config.Config): BeamConfig.Beam.Exchange.Output.Emissions = {
             BeamConfig.Beam.Exchange.Output.Emissions(
-              emissionsToFilterOut =
-                if (c.hasPathOrNull("emissionsToFilterOut")) scala.Some($_L$_str(c.getList("emissionsToFilterOut")))
-                else None,
               events = c.hasPathOrNull("events") && c.getBoolean("events"),
+              pollutantsToFilterOut =
+                if (c.hasPathOrNull("pollutantsToFilterOut")) scala.Some($_L$_str(c.getList("pollutantsToFilterOut")))
+                else None,
               skims = c.hasPathOrNull("skims") && c.getBoolean("skims")
             )
           }

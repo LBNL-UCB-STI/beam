@@ -677,7 +677,7 @@ def create_vehicle_class_mapping(vehicle_list):
   return pax_emfac_class_map, ft_emfac_class_map
 
 
-def read_skims_emissions(skims_file, vehicleTypeId_filter, selected_pollutants, scenario_name):
+def read_skims_emissions(skims_file, vehicleTypes_file, network_file, vehicleTypeId_filter, scenario_name):
     # Define the schema based on the provided dtypes
     schema = pa.schema([
         ('hour', pa.int64()),
@@ -712,18 +712,36 @@ def read_skims_emissions(skims_file, vehicleTypeId_filter, selected_pollutants, 
                         convert_options=pv.ConvertOptions(column_types=schema))
 
     filtered_table = table.filter(pc.match_substring(table['vehicleTypeId'], pattern=vehicleTypeId_filter))
-    df = filtered_table.to_pandas()
+    skims = filtered_table.to_pandas()
+
+    vehicleTypes = pd.read_csv(vehicleTypes_file)
+    vehicleTypes['fuel'] = vehicleTypes['emfacId'].apply(lambda x: x.split('-')[-1])
+    vehicleTypes['class'] = vehicleTypes['vehicleClass'].replace('Vocational', '').replace('Tractor', '').str.strip
+    vehicleTypes['class_fuel'] = vehicleTypes['class'].astype(str) + ' - ' + vehicleTypes['fuel'].astype(str)
+    skims_types = pd.merge(skims, vehicleTypes[['vehicleTypeId', 'class_fuel']], on='vehicleTypeId', how='left')
+
+    network = pd.read_csv(network_file)
+    df = pd.merge(skims_types, network[['linkId', 'linkLength']], on='linkId', how='left')
+
     # Convert from grams to tons
     for pollutant in pollutants:
         df[pollutant] = df[pollutant] / 1e6
+        df['hourlyEnergyConsumedInKwh'] = df['observations'] * df['energyInJoule'] / 3.6e+6
+        df['hourlyTravelDistanceInMile'] = df['observations'] * df['linkLength'] / 1609
+        df['hourlySpeedInMph'] = df['speedInMps'] * 2.237
+        # df['travelTimeInHour'] = df['observations'] * df['travelTimeInSecond'] / 3.6e+6
+        # df[pollutant] = df['observations'] * df[pollutant] / 1e6
 
-    grouped = df.groupby(['emissionsProcess', 'vehicleTypeId'])[selected_pollutants].sum().reset_index()
+    df.rename(columns={'emissionsProcess': 'process'}, inplace=True)
+
     # Melt the dataframe for easier plotting
-    melted = pd.melt(grouped,
-                     id_vars=['emissionsProcess', 'vehicleTypeId'],
-                     value_vars=selected_pollutants,
+    melted = pd.melt(df,
+                     id_vars=['hour', 'linkId', 'tazId', 'class_fuel', 'process', 'hourlySpeedInMph',
+                              'hourlyEnergyConsumedInKwh', 'hourlyTravelDistanceInMile'],
+                     value_vars=pollutants,
                      var_name='pollutant',
-                     value_name='emissions')
+                     value_name='rate')
+
     melted['scenario'] = scenario_name
     end_time = time.time()
     print(f"Time taken to read the file: {end_time - start_time:.2f} seconds to read file {skims_file}")
@@ -788,3 +806,45 @@ def emissions_by_process_and_vehicle_type_and_scenarios(data, scenarios, label, 
     # Adjust layout and save the figure
     plt.tight_layout()
     plt.savefig(output_png, dpi=300, bbox_inches='tight')
+
+
+def emissions_by_scenario_hour_class_fuel(emissions_skims, pollutant, output_dir):
+    data = emissions_skims[emissions_skims['pollutant'] == pollutant].copy()
+    data['class'] = data['vehicleClass'].replace('Vocational', '').replace('Tractor', '').str.strip
+    data['class_fuel'] = data['class'].astype(str) + ' - ' + data['fuel'].astype(str)
+    grouped_data = data.groupby(['scenario', 'hour', 'class_fuel', 'pollutant'])['emissions'].sum().reset_index()
+    print(grouped_data.columns)
+
+    # Set up the plot
+    plt.figure(figsize=(20, 10))
+
+    # Set the positions and width for the bars
+    hours = grouped_data['hour'].unique()
+    x = np.arange(len(hours))
+    width = 0.35
+
+    # Plot bars for each scenario
+    scenarios = data["scenario"].unique()
+    class_fuels = [col for col in grouped_data.columns if col not in ['hour', 'scenario']]
+
+    for i, scenario in enumerate(scenarios):
+        scenario_data = grouped_data[grouped_data['scenario'] == scenario]
+        bottom = np.zeros(len(hours))
+
+        for class_fuel in class_fuels:
+            plt.bar(x + (i - 0.5) * width, scenario_data[class_fuel], width, bottom=bottom,
+                    label=f"{scenario} - {class_fuel}" if i == 0 else "")
+            bottom += scenario_data[class_fuel]
+
+    # Customize the plot
+    plt.title(f'{pollutant.replace("_",".").trim} Emissions by Hour, Scenario, and Class-Fuel', fontsize=16)
+    plt.xlabel('Hour', fontsize=12)
+    plt.ylabel('Emissions (tons)', fontsize=12)
+    plt.xticks(x, hours)
+    plt.legend(title='Scenario - Class-Fuel', bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+    # Adjust layout and save the figure
+    plt.tight_layout()
+    plt.savefig(f'{output_dir}/{pollutant}_emissions_by_scenario_hour_class_fuel.png', dpi=300, bbox_inches='tight')
+

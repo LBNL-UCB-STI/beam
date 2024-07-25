@@ -12,7 +12,7 @@ case class EmissionsSkimmerEvent(
   vehicleType: String,
   emissions: Emissions,
   emissionsProcess: EmissionsProfile.EmissionsProcess,
-  averageSpeed: Double,
+  travelTime: Double,
   energyConsumption: Double,
   beamServices: BeamServices
 ) extends AbstractSkimmerEvent(time) {
@@ -24,7 +24,7 @@ case class EmissionsSkimmerEvent(
   override def getSkimmerInternal: AbstractSkimmerInternal =
     EmissionsSkimmerInternal(
       emissions,
-      averageSpeed,
+      travelTime,
       energyConsumption,
       1,
       beamServices.matsimServices.getIterationNumber + 1

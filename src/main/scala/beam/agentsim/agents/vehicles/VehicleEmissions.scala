@@ -27,7 +27,7 @@ class VehicleEmissions(
   vehicleTypesBasePaths: IndexedSeq[String],
   vehicleTypes: Map[Id[BeamVehicleType], BeamVehicleType],
   linkToGradePercentFilePath: String,
-  emissionsToFilterOut: List[String]
+  pollutantsToFilterOut: List[String]
 ) {
   import VehicleEmissions._
   import EmissionsProfile._
@@ -44,7 +44,7 @@ class VehicleEmissions(
   private lazy val linkIdToGradePercentMap =
     BeamVehicleUtils.loadLinkIdToGradeMapFromCSV(csvParser, linkToGradePercentFilePath)
 
-  Emissions.setFilter(emissionsToFilterOut)
+  Emissions.setFilter(pollutantsToFilterOut)
 
   def getEmissionsProfileInGram(
     vehicleActivityData: IndexedSeq[BeamVehicle.VehicleActivityData],
@@ -53,7 +53,7 @@ class VehicleEmissions(
     beamServices: BeamServices
   ): Option[EmissionsProfile] = {
     val emissionsConfig = beamServices.beamConfig.beam.exchange.output.emissions
-    if (!(emissionsConfig.events && emissionsConfig.skims))
+    if (!emissionsConfig.events && !emissionsConfig.skims)
       return None
 
     val emissionsProfiles = for {
@@ -75,7 +75,7 @@ class VehicleEmissions(
             vehicleType = vehicleType.id.toString,
             emissions = emissions,
             emissionsProcess = process,
-            averageSpeed = data.averageSpeed.getOrElse(0.0),
+            travelTime = data.linkTravelTime.getOrElse(0.0),
             energyConsumption = data.primaryEnergyConsumed + data.secondaryEnergyConsumed,
             beamServices = beamServices
           )
@@ -189,8 +189,13 @@ object VehicleEmissions extends LazyLogging {
     var filter: Option[List[EmissionType]] = None
 
     def setFilter(emissionsStr: List[String]): Unit = {
-      if (filter.isEmpty)
+      if (filter.isEmpty) {
         filter = Some(emissionsStr.flatMap(fromString))
+        if (filter.exists(_.nonEmpty)) {
+          val to_filter_out = filter.map(_.map(_.toString).mkString(", ")).getOrElse("").trim
+          logger.info(s"Filtering out the following pollutants (see emissions.pollutantsToFilterOut): $to_filter_out")
+        }
+      }
     }
 
     def formatName(emissionType: EmissionType): String = emissionType match {
