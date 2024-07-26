@@ -8,6 +8,7 @@ import matplotlib.colors as mcolors
 import geopandas as gpd
 from pyproj import Transformer
 from shapely.geometry import LineString, Polygon
+from tqdm import tqdm
 import seaborn as sns
 import h3
 import time
@@ -74,6 +75,30 @@ emissions_processes = ["RUNEX", "IDLEX", "STREX", "DIURN", "HOTSOAK", "RUNLOSS",
 region_to_emfac_area = {
     "sfbay": "SF"
 }
+
+skims_schema = pa.schema([
+    ('hour', pa.int64()),
+    ('linkId', pa.int64()),
+    ('tazId', pa.string()),
+    ('vehicleTypeId', pa.string()),
+    ('emissionsProcess', pa.string()),
+    ('speedInMps', pa.float64()),
+    ('energyInJoule', pa.float64()),
+    ('observations', pa.int64()),
+    ('iterations', pa.int64()),
+    ('CH4', pa.float64()),
+    ('CO', pa.float64()),
+    ('CO2', pa.float64()),
+    ('HC', pa.float64()),
+    ('NH3', pa.float64()),
+    ('NOx', pa.float64()),
+    ('PM', pa.float64()),
+    ('PM10', pa.float64()),
+    ('PM2_5', pa.float64()),
+    ('ROG', pa.float64()),
+    ('SOx', pa.float64()),
+    ('TOG', pa.float64())
+])
 
 
 def sanitize_name(filename):
@@ -682,93 +707,82 @@ def create_vehicle_class_mapping(vehicle_list):
   return pax_emfac_class_map, ft_emfac_class_map
 
 
-def read_skims_emissions(skims_file, vehicleTypes_file, network_file, vehicleTypeId_filter, expansion_factor, source_epsg, scenario_name):
-    # Define the schema based on the provided dtypes
-    schema = pa.schema([
-        ('hour', pa.int64()),
-        ('linkId', pa.int64()),
-        ('tazId', pa.string()),
-        ('vehicleTypeId', pa.string()),
-        ('emissionsProcess', pa.string()),
-        ('speedInMps', pa.float64()),
-        ('energyInJoule', pa.float64()),
-        ('observations', pa.int64()),
-        ('iterations', pa.int64()),
-        ('CH4', pa.float64()),
-        ('CO', pa.float64()),
-        ('CO2', pa.float64()),
-        ('HC', pa.float64()),
-        ('NH3', pa.float64()),
-        ('NOx', pa.float64()),
-        ('PM', pa.float64()),
-        ('PM10', pa.float64()),
-        ('PM2_5', pa.float64()),
-        ('ROG', pa.float64()),
-        ('SOx', pa.float64()),
-        ('TOG', pa.float64())
-    ])
-    # pollutants
-    pollutants = ['CH4', 'CO', 'CO2', 'HC', 'NH3', 'NOx', 'PM', 'PM10', 'PM2_5', 'ROG', 'SOx', 'TOG']
-
-    start_time = time.time()
-    table = pv.read_csv(skims_file,
-                        read_options=pv.ReadOptions(use_threads=True),
-                        parse_options=pv.ParseOptions(delimiter=','),
-                        convert_options=pv.ConvertOptions(column_types=schema))
-
-    filtered_table = table.filter(pc.match_substring(table['vehicleTypeId'], pattern=vehicleTypeId_filter))
-    skims = filtered_table.to_pandas()
-
-    vehicleTypes = pd.read_csv(vehicleTypes_file)
-    vehicleTypes['fuel'] = vehicleTypes['emfacId'].apply(lambda x: x.split('-')[-1])
-    vehicleTypes['class'] = vehicleTypes['vehicleClass'].apply(lambda x: str(x).replace('Vocational', '').replace('Tractor', '').strip())
-    skims_types = pd.merge(skims, vehicleTypes[['vehicleTypeId', 'class', 'fuel']], on='vehicleTypeId', how='left')
-
+def load_network(network_file, source_epsg):
+    # Read and process network file
     network = pd.read_csv(network_file)
     transformer = Transformer.from_crs(source_epsg, "EPSG:4326", always_xy=True)
 
-    def convert_coordinates_series(x, y):
-        lon, lat = transformer.transform(x, y)
-        return pd.Series({'fromLocationX': lon, 'fromLocationY': lat})
-
+    # Vectorized coordinate conversion
     network[['fromLocationX', 'fromLocationY']] = network.apply(
-        lambda row: convert_coordinates_series(row['fromLocationX'], row['fromLocationY']),
-        axis=1
+        lambda row: pd.Series(transformer.transform(row['fromLocationX'], row['fromLocationY'])),
+        axis=1, result_type='expand'
     )
-
     network[['toLocationX', 'toLocationY']] = network.apply(
-        lambda row: convert_coordinates_series(row['toLocationX'], row['toLocationY']),
-        axis=1
+        lambda row: pd.Series(transformer.transform(row['toLocationX'], row['toLocationY'])),
+        axis=1, result_type='expand'
     )
 
-    df = pd.merge(skims_types, network[['linkId', 'linkLength',
-                                        'fromLocationX', 'fromLocationY',
-                                        'toLocationX', 'toLocationY']],
-                  on='linkId', how='left')
+    return network[['linkId', 'linkLength', 'fromLocationX', 'fromLocationY', 'toLocationX', 'toLocationY']]
 
-    # Convert from grams to tons
-    for pollutant in pollutants:
-        df[pollutant] = expansion_factor * df[pollutant] / 1e6
-        df['hourlyEnergyConsumedInKwh'] = expansion_factor * df['observations'] * df['energyInJoule'] / 3.6e+6
-        df['hourlyTravelDistanceInMile'] = expansion_factor * df['observations'] * df['linkLength'] / 1609
-        df['hourlySpeedInMph'] = df['speedInMps'] * 2.237
-        # df['travelTimeInHour'] = expansion_factor * df['observations'] * df['travelTimeInSecond'] / 3.6e+6
-        # df[pollutant] = expansion_factor * df['observations'] * df[pollutant] / 1e6
 
+def read_skims_emissions(skims_file, vehicleTypes_file, vehicleTypeId_filter, network, expansion_factor, scenario_name):
+    start_time = time.time()
+    # Read and filter the skims file using PyArrow
+    table = pv.read_csv(skims_file,
+                        read_options=pv.ReadOptions(use_threads=True),
+                        parse_options=pv.ParseOptions(delimiter=','),
+                        convert_options=pv.ConvertOptions(column_types=skims_schema))
+
+    filtered_table = table.filter(pc.match_substring(table['vehicleTypeId'], pattern=vehicleTypeId_filter))
+
+    # Perform calculations in PyArrow
+    annual_expansion = filtered_table['observations'] * expansion_factor * 365
+
+    for pollutant in pollutant_columns.keys():
+        filtered_table = filtered_table.append_column(
+            f'{pollutant}_annual',
+            pc.multiply(pc.divide(filtered_table[pollutant], 1e6), annual_expansion)
+        )
+
+    filtered_table = filtered_table.append_column(
+        'annualHourlyEnergyGwh',
+        pc.multiply(pc.divide(filtered_table['energyInJoule'], 3.6e12), annual_expansion)
+    )
+
+    filtered_table = filtered_table.append_column(
+        'annualHourlySpeedMph',
+        pc.divide(filtered_table['speedInMps'], 2.237)
+    )
+
+    # Convert to pandas
+    df = filtered_table.to_pandas()
+
+    # Process vehicleTypes file
+    vehicleTypes = pd.read_csv(vehicleTypes_file)
+    vehicleTypes['fuel'] = vehicleTypes['emfacId'].str.split('-').str[-1]
+    vehicleTypes['class'] = vehicleTypes['vehicleClass'].str.replace('Vocational|Tractor', '', regex=True).str.strip()
+
+    # Merge with vehicleTypes and network
+    df = (df.merge(vehicleTypes[['vehicleTypeId', 'class', 'fuel']], on='vehicleTypeId', how='left')
+          .merge(network[['linkId', 'linkLength']], on='linkId', how='left'))
+
+    # Calculate annualHourlyMVMT
+    df['annualHourlyMVMT'] = df['linkLength'] * 6.21371192e-13 * df['observations'] * expansion_factor * 365
+
+    # Rename column
     df.rename(columns={'emissionsProcess': 'process'}, inplace=True)
 
-    # Melt the dataframe for easier plotting
-    melted = pd.melt(df,
-                     id_vars=['hour', 'linkId', 'tazId', 'class', 'fuel', 'process', 'hourlySpeedInMph',
-                              'hourlyEnergyConsumedInKwh', 'hourlyTravelDistanceInMile',
-                              'fromLocationX', 'fromLocationY', 'toLocationX', 'toLocationY'],
-                     value_vars=pollutants,
-                     var_name='pollutant',
-                     value_name='rate')
-
+    # Melt the dataframe
+    id_vars = ['hour', 'linkId', 'tazId', 'class', 'fuel', 'process', 'annualHourlySpeedMph', 'annualHourlyEnergyGwh',
+               'annualHourlyMVMT']
+    value_vars = [f'{pollutant}_annual' for pollutant in pollutant_columns.keys()]
+    melted = df.melt(id_vars=id_vars, value_vars=value_vars, var_name='pollutant', value_name='rate')
+    melted['pollutant'] = melted['pollutant'].str.replace('_annual', '')
     melted['scenario'] = scenario_name
+
     end_time = time.time()
     print(f"Time taken to read the file: {end_time - start_time:.2f} seconds to read file {skims_file}")
+
     return melted
 
 
@@ -831,7 +845,7 @@ def emissions_by_scenario_hour_class_fuel(emissions_skims, pollutant, output_dir
             bottom += rates
 
     plt.title(
-        f'{pollutant.replace("_", ".")} Emissions by Hour, Scenario, Class and Fuel:\n{" vs ".join(scenarios_labeling)}',
+        f'{pollutant.replace("_", ".")} Annual Emissions by Hour, Scenario, Class and Fuel:\n{" vs ".join(scenarios_labeling)}',
         fontsize=28)
     plt.xlabel('Hour', fontsize=24)
     plt.ylabel('Emissions (tons)', fontsize=24)
@@ -889,17 +903,16 @@ def plot_hourly_activity(tours, output_dir):
 
 
 def plot_hourly_vmt(df_filtered, output_dir):
-    # Group by scenario, hour, fuel, class and sum hourlyTravelDistanceInMile
+    # Group by scenario, hour, fuel, class and sum annualHourlyMVMT
     hourly_vmt = df_filtered.groupby(['scenario', 'hour', 'fuel', 'class'])[
-        'hourlyTravelDistanceInMile'].sum().reset_index()
-    hourly_vmt['hourlyTravelDistanceInMile'] = hourly_vmt['hourlyTravelDistanceInMile'] / 1e6
+        'annualHourlyMVMT'].sum().reset_index()
 
     # Create a unique identifier for fuel and class combination
     hourly_vmt['fuel_class'] = hourly_vmt['fuel'] + ', ' + hourly_vmt['class']
 
     # Pivot the data to have scenarios as columns
     hourly_vmt_pivot = hourly_vmt.pivot_table(
-        values='hourlyTravelDistanceInMile',
+        values='annualHourlyMVMT',
         index=['hour', 'fuel_class'],
         columns='scenario',
         fill_value=0
@@ -963,10 +976,9 @@ def plot_hourly_vmt(df_filtered, output_dir):
             bottom += values
 
     plt.title(
-        f'Hourly VMT by Scenario, Fuel, and Vehicle Class:\n{" vs ".join(scenarios_labeling)}',
+        f'Annual VMT by Scenario, Fuel, and Vehicle Class:\n{" vs ".join(scenarios_labeling)}',
         fontsize=28)
 
-    plt.title('Hourly MVMT by Scenario, Fuel, and Vehicle Class', fontsize=28)
     plt.xlabel('Hour of Day', fontsize=24)
     plt.ylabel('Million Vehicle Miles Traveled (MVMT)', fontsize=24)
     plt.xticks(x + width / 2, range(24), fontsize=24)
@@ -982,61 +994,137 @@ def plot_hourly_vmt(df_filtered, output_dir):
     print("Hourly VMT plot has been saved.")
 
 
-def create_h3_grid(df, resolution=8):
-    """Create an H3 grid covering the area of the dataframe."""
-    lats = df[['fromLocationY', 'toLocationY']].values.flatten()
-    lons = df[['fromLocationX', 'toLocationX']].values.flatten()
-    return list(set(h3.polyfill(
-        {'type': 'Polygon', 'coordinates': [[[min(lons), min(lats)], [max(lons), min(lats)],
-                                             [max(lons), max(lats)], [min(lons), max(lats)]]]},
-        resolution
-    )))
+def generate_h3_intersections(network_df, resolution, output_dir):
+    print(f"Initial network_df shape: {network_df.shape}")
+
+    # Remove rows with NaN values in coordinate columns
+    coord_columns = ['fromLocationX', 'fromLocationY', 'toLocationX', 'toLocationY']
+    network_clean = network_df.dropna(subset=coord_columns)
+    print(f"Clean network_df shape: {network_clean.shape}")
+
+    # Create bounding box
+    lats = network_clean[['fromLocationY', 'toLocationY']].values.flatten()
+    lons = network_clean[['fromLocationX', 'toLocationX']].values.flatten()
+    bbox = [[
+        [min(lats), min(lons)],
+        [min(lats), max(lons)],
+        [max(lats), max(lons)],
+        [max(lats), min(lons)],
+        [min(lats), min(lons)]  # Close the polygon
+    ]]
+
+    # Generate H3 cells
+    h3_cells = list(h3.polyfill({'type': 'Polygon', 'coordinates': bbox}, resolution))
+    print(f"Number of H3 cells: {len(h3_cells)}")
+
+    if len(h3_cells) == 0:
+        print("No H3 cells created. Check your bounding box and resolution.")
+        return pd.DataFrame()
+
+    # Create GeoDataFrame of H3 cells
+    h3_gdf = gpd.GeoDataFrame(
+        {'h3_cell': h3_cells},
+        geometry=[Polygon(h3.h3_to_geo_boundary(h, geo_json=True)) for h in h3_cells],
+        crs="EPSG:4326"
+    )
+
+    # Create network GeoDataFrame
+    def create_linestring(row):
+        return LineString([(row['fromLocationX'], row['fromLocationY']),
+                           (row['toLocationX'], row['toLocationY'])])
+
+    network_gdf = gpd.GeoDataFrame(
+        network_clean,
+        geometry=network_clean.apply(create_linestring, axis=1),
+        crs="EPSG:4326"
+    )
+
+    # Spatial join
+    joined = gpd.sjoin(h3_gdf, network_gdf, how="inner", predicate="intersects")
+    print(f"Joined DataFrame shape after spatial join: {joined.shape}")
+
+    if joined.empty:
+        print("No intersections found between H3 cells and network geometries.")
+        return pd.DataFrame()
+
+    # Calculate intersections and lengths
+    def calculate_intersection(row):
+        try:
+            h3_poly = Polygon(h3.h3_to_geo_boundary(row['h3_cell'], geo_json=True))
+            line = row['geometry']
+            intersection = h3_poly.intersection(line)
+            return pd.Series({'intersection_length': intersection.length})
+        except Exception as e:
+            print(f"Error in calculate_intersection: {e}")
+            return pd.Series({'intersection_length': 0})
+
+    tqdm.pandas(desc="Calculating intersections")
+    joined['intersection_length'] = joined.progress_apply(calculate_intersection, axis=1)
+
+    # Calculate length ratios
+    joined['length_ratio'] = joined['intersection_length'] / joined['linkLength']
+
+    # Keep only necessary columns
+    intersection_df = joined[['h3_cell', 'linkId', 'length_ratio']]
+
+    intersection_df.to_csv(f'{output_dir}/network.h3.csv', index=False)
+
+    return intersection_df
 
 
-def split_link_to_h3_cells(row, resolution=8):
-    """Split a link into segments based on H3 cells it passes through."""
-    line = LineString([(row['fromLocationX'], row['fromLocationY']),
-                       (row['toLocationX'], row['toLocationY'])])
-    cells = h3.line(h3.geo_to_h3(row['fromLocationY'], row['fromLocationX'], resolution),
-                    h3.geo_to_h3(row['toLocationY'], row['toLocationX'], resolution))
-    segments = []
-    for cell in cells:
-        cell_boundary = h3.h3_to_geo_boundary(cell)
-        cell_poly = Polygon(cell_boundary)
-        intersection = line.intersection(cell_poly)
-        if not intersection.is_empty:
-            segments.append({
-                'h3_cell': cell,
-                'segment': intersection,
-                'length': intersection.length,
-                'PM2_5': row['PM2_5'] * (intersection.length / line.length)
-            })
-    return segments
+def process_h3_emissions(emissions_df, intersection_df, pollutant):
+    print(f"Initial emissions_df shape: {emissions_df.shape}")
+
+    # Filter emissions data for the specific pollutant
+    filtered_emissions = emissions_df[emissions_df['pollutant'] == pollutant][['linkId', 'rate']]
+    filtered_emissions['rate'] = pd.to_numeric(filtered_emissions['rate'], errors='coerce')
+    filtered_emissions = filtered_emissions.dropna()
+    print(f"Filtered emissions shape: {filtered_emissions.shape}")
+
+    # Merge with intersection data
+    merged = pd.merge(intersection_df, filtered_emissions, on='linkId', how='inner')
+    print(f"Merged DataFrame shape: {merged.shape}")
+
+    # Calculate normalized emissions
+    merged[f'{pollutant}'] = merged['rate'] * merged['length_ratio']
+
+    # Group by H3 cell and sum normalized emissions
+    result = merged.groupby('h3_cell')[f'{pollutant}'].sum().reset_index()
+    print(f"Final result shape: {result.shape}")
+    return result
 
 
-def process_dataframe(df, resolution=8):
-    """Process the dataframe to create H3 cell-based segments."""
-    segments = []
-    for _, row in df.iterrows():
-        segments.extend(split_link_to_h3_cells(row, resolution))
-    return pd.DataFrame(segments)
-
-
-def create_heatmap(segments_df, h3_grid):
+def create_h3_heatmap(result_df, output_dir, pollutant):
     """Create a heatmap using the H3 grid structure."""
-    heat_data = segments_df.groupby('h3_cell')['PM2_5'].sum().reindex(h3_grid, fill_value=0)
 
-    # Convert H3 cells to polygons for plotting
-    polygons = [Polygon(h3.h3_to_geo_boundary(h, geo_json=True)) for h in h3_grid]
-    gdf = gpd.GeoDataFrame({'h3_cell': h3_grid, 'geometry': polygons})
-    gdf['PM2_5'] = heat_data.values
+    # Create polygons for all H3 cells in the result
+    polygons = []
+    for h3_cell in result_df['h3_cell']:
+        polygons.append(Polygon(h3.h3_to_geo_boundary(h3_cell, geo_json=True)))
 
+    # Create GeoDataFrame
+    gdf = gpd.GeoDataFrame({
+        'h3_cell': result_df['h3_cell'],
+        f'{pollutant}': result_df[f'{pollutant}'],
+        'geometry': polygons
+    })
+    gdf = gdf.set_crs("EPSG:4326")
+
+    # Create figure and axis
     fig, ax = plt.subplots(figsize=(15, 10))
-    gdf.plot(column='PM2_5', ax=ax, legend=True, cmap='viridis', edgecolor='none')
-    plt.title('PM2.5 Emissions Heatmap')
+
+    # Plot all cells with a light grey color and no edge color
+    gdf.plot(ax=ax, facecolor='lightgrey', edgecolor='none', alpha=0.1)
+
+    # Plot cells with data, using a colormap
+    gdf.plot(column=f'{pollutant}', ax=ax, legend=True, cmap='viridis', edgecolor='none')
+
+    plt.title(f'{pollutant} Emissions Heatmap', fontsize=16)
     plt.axis('off')
     plt.tight_layout()
-    plt.savefig('pm25_emissions_heatmap.png', dpi=300, bbox_inches='tight')
+
+    # Save the figure
+    plt.savefig(f'{output_dir}/{pollutant.lower()}_emissions_heatmap.png', dpi=300, bbox_inches='tight')
     plt.close()
 
-
+    print(f"Heatmap saved as {output_dir}/{pollutant.lower()}_emissions_heatmap.png")
