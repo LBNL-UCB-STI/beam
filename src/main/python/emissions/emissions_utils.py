@@ -4,7 +4,12 @@ import pyarrow as pa
 import pyarrow.csv as pv
 import pyarrow.compute as pc
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+import geopandas as gpd
+from pyproj import Transformer
+from shapely.geometry import LineString, Polygon
 import seaborn as sns
+import h3
 import time
 import os
 import re
@@ -677,7 +682,7 @@ def create_vehicle_class_mapping(vehicle_list):
   return pax_emfac_class_map, ft_emfac_class_map
 
 
-def read_skims_emissions(skims_file, vehicleTypes_file, network_file, vehicleTypeId_filter, scenario_name):
+def read_skims_emissions(skims_file, vehicleTypes_file, network_file, vehicleTypeId_filter, expansion_factor, source_epsg, scenario_name):
     # Define the schema based on the provided dtypes
     schema = pa.schema([
         ('hour', pa.int64()),
@@ -716,28 +721,47 @@ def read_skims_emissions(skims_file, vehicleTypes_file, network_file, vehicleTyp
 
     vehicleTypes = pd.read_csv(vehicleTypes_file)
     vehicleTypes['fuel'] = vehicleTypes['emfacId'].apply(lambda x: x.split('-')[-1])
-    vehicleTypes['class'] = vehicleTypes['vehicleClass'].replace('Vocational', '').replace('Tractor', '').str.strip
-    vehicleTypes['class_fuel'] = vehicleTypes['class'].astype(str) + ' - ' + vehicleTypes['fuel'].astype(str)
-    skims_types = pd.merge(skims, vehicleTypes[['vehicleTypeId', 'class_fuel']], on='vehicleTypeId', how='left')
+    vehicleTypes['class'] = vehicleTypes['vehicleClass'].apply(lambda x: str(x).replace('Vocational', '').replace('Tractor', '').strip())
+    skims_types = pd.merge(skims, vehicleTypes[['vehicleTypeId', 'class', 'fuel']], on='vehicleTypeId', how='left')
 
     network = pd.read_csv(network_file)
-    df = pd.merge(skims_types, network[['linkId', 'linkLength']], on='linkId', how='left')
+    transformer = Transformer.from_crs(source_epsg, "EPSG:4326", always_xy=True)
+
+    def convert_coordinates_series(x, y):
+        lon, lat = transformer.transform(x, y)
+        return pd.Series({'fromLocationX': lon, 'fromLocationY': lat})
+
+    network[['fromLocationX', 'fromLocationY']] = network.apply(
+        lambda row: convert_coordinates_series(row['fromLocationX'], row['fromLocationY']),
+        axis=1
+    )
+
+    network[['toLocationX', 'toLocationY']] = network.apply(
+        lambda row: convert_coordinates_series(row['toLocationX'], row['toLocationY']),
+        axis=1
+    )
+
+    df = pd.merge(skims_types, network[['linkId', 'linkLength',
+                                        'fromLocationX', 'fromLocationY',
+                                        'toLocationX', 'toLocationY']],
+                  on='linkId', how='left')
 
     # Convert from grams to tons
     for pollutant in pollutants:
-        df[pollutant] = df[pollutant] / 1e6
-        df['hourlyEnergyConsumedInKwh'] = df['observations'] * df['energyInJoule'] / 3.6e+6
-        df['hourlyTravelDistanceInMile'] = df['observations'] * df['linkLength'] / 1609
+        df[pollutant] = expansion_factor * df[pollutant] / 1e6
+        df['hourlyEnergyConsumedInKwh'] = expansion_factor * df['observations'] * df['energyInJoule'] / 3.6e+6
+        df['hourlyTravelDistanceInMile'] = expansion_factor * df['observations'] * df['linkLength'] / 1609
         df['hourlySpeedInMph'] = df['speedInMps'] * 2.237
-        # df['travelTimeInHour'] = df['observations'] * df['travelTimeInSecond'] / 3.6e+6
-        # df[pollutant] = df['observations'] * df[pollutant] / 1e6
+        # df['travelTimeInHour'] = expansion_factor * df['observations'] * df['travelTimeInSecond'] / 3.6e+6
+        # df[pollutant] = expansion_factor * df['observations'] * df[pollutant] / 1e6
 
     df.rename(columns={'emissionsProcess': 'process'}, inplace=True)
 
     # Melt the dataframe for easier plotting
     melted = pd.melt(df,
-                     id_vars=['hour', 'linkId', 'tazId', 'class_fuel', 'process', 'hourlySpeedInMph',
-                              'hourlyEnergyConsumedInKwh', 'hourlyTravelDistanceInMile'],
+                     id_vars=['hour', 'linkId', 'tazId', 'class', 'fuel', 'process', 'hourlySpeedInMph',
+                              'hourlyEnergyConsumedInKwh', 'hourlyTravelDistanceInMile',
+                              'fromLocationX', 'fromLocationY', 'toLocationX', 'toLocationY'],
                      value_vars=pollutants,
                      var_name='pollutant',
                      value_name='rate')
@@ -748,103 +772,271 @@ def read_skims_emissions(skims_file, vehicleTypes_file, network_file, vehicleTyp
     return melted
 
 
-def emissions_by_process_and_vehicle_type_and_scenarios(data, scenarios, label, output_png):
-    processes = data['emissionsProcess'].unique()
-    class_fuels = data['class_fuel'].unique()
+def emissions_by_scenario_hour_class_fuel(emissions_skims, pollutant, output_dir):
+    data = emissions_skims[emissions_skims['pollutant'] == pollutant].copy()
+    grouped_data = data.groupby(['scenario', 'hour', 'class', 'fuel'])['rate'].sum().reset_index()
 
-    # Set up the plot
-    fig, ax = plt.subplots(figsize=(15, 8))
+    plt.figure(figsize=(20, 10))
 
-    # Set up x positions for the bars
-    x = np.arange(len(processes))
-    width = 0.35
+    grouped_data['fuel_class'] = grouped_data['fuel'].astype(str) + ', ' + grouped_data['class'].astype(str)
+    scenarios = grouped_data['scenario'].unique()
+    fuel_classes = sorted(grouped_data['fuel_class'].unique())
+    all_hours = sorted(grouped_data['hour'].unique())
 
-    # Colors for each class_fuel
-    colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8dd3c7']  # Up to 6 class_fuels
+    # Define base color map for fuel types
+    base_color_map = {
+        'Elec': '#2070b4',  # Darker Blue
+        'NG': '#1a8c4a',  # Darker Green
+        'Gas': '#cc5500',  # Darker Orange
+        'Dsl': '#5a6268',  # Darker Gray
+    }
 
-    # Patterns for each scenario
-    patterns = ['/', '\\', 'O', '*', '+', 'x']  # Up to 6 scenarios
+    # Function to darken a color
+    def darken_color(color, factor=0.7):
+        return mcolors.to_rgba(mcolors.to_rgb(color), alpha=None)[:3] + (factor,)
+
+    # Create color map for fuel_classes
+    fuel_class_colors = {}
+    for fc in fuel_classes:
+        fuel, vehicle_class = fc.split(',')
+        fuel = fuel.strip()
+        vehicle_class = vehicle_class.strip()
+        base_color = base_color_map.get(fuel, '#000000')  # Default to black if fuel not found
+        if any(c in vehicle_class for c in ['7', '8']):
+            fuel_class_colors[fc] = darken_color(base_color)
+        else:
+            fuel_class_colors[fc] = base_color
+
+    x = np.arange(len(all_hours))
+    width = 0.35 / len(scenarios)
+
+    scenarios_labeling = []
+    for i, scenario in enumerate(scenarios):
+        scenarios_labeling.append(scenario)
+        scenario_data = grouped_data[grouped_data['scenario'] == scenario]
+
+        bottom = np.zeros(len(all_hours))
+        for fuel_class in fuel_classes:
+            fuel_class_data = scenario_data[scenario_data['fuel_class'] == fuel_class]
+
+            # Create an array of rates for all hours, filling with zeros where data is missing
+            rates = np.zeros(len(all_hours))
+            for _, row in fuel_class_data.iterrows():
+                hour_index = all_hours.index(row['hour'])
+                rates[hour_index] = row['rate']
+
+            plt.bar(x + i * width, rates, width, bottom=bottom,
+                    label=f"{fuel_class}" if i == 0 else "",
+                    color=fuel_class_colors[fuel_class])
+            bottom += rates
+
+    plt.title(
+        f'{pollutant.replace("_", ".")} Emissions by Hour, Scenario, Class and Fuel:\n{" vs ".join(scenarios_labeling)}',
+        fontsize=28)
+    plt.xlabel('Hour', fontsize=24)
+    plt.ylabel('Emissions (tons)', fontsize=24)
+    plt.xticks(x + width * (len(scenarios) - 1) / 2, all_hours, fontsize=24)
+    plt.yticks(fontsize=24)
+    plt.legend(title='Fuel, Class', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=28, title_fontsize=28)
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+    plt.tight_layout()
+    plt.savefig(f'{output_dir}/{pollutant}_emissions_by_scenario_hour_class_fuel.png', dpi=300, bbox_inches='tight')
+
+
+def plot_hourly_activity(tours, output_dir):
+    # Convert departure time from seconds to hour
+    tours['departure_hour'] = (tours['departureTimeInSec'] / 3600).astype(int) % 24
+
+    # Group by scenario and hour, count the number of tours
+    hourly_activity = tours.groupby(['scenario', 'departure_hour']).size().unstack(level=0, fill_value=0)
+
+    # Ensure all hours are present
+    for hour in range(24):
+        if hour not in hourly_activity.index:
+            hourly_activity.loc[hour] = 0
+    hourly_activity = hourly_activity.sort_index()
+
+    # Print data info for debugging
+    print("Hourly activity data:")
+    print(hourly_activity)
+
+    # Create the plot
+    plt.figure(figsize=(20, 10))
+
+    x = np.arange(24)  # 24 hours
+    width = 0.35  # width of the bars
+
+    scenarios = hourly_activity.columns
 
     # Plot bars for each scenario
     for i, scenario in enumerate(scenarios):
-        scenario_data = data[data['scenario'] == scenario]
+        plt.bar(x + i*width, hourly_activity[scenario], width, label=scenario)
 
-        # Initialize bottom values for stacking
-        bottoms = np.zeros(len(processes))
+    plt.title('Hourly Tour Activity by Scenario', fontsize=20)
+    plt.xlabel('Hour of Day', fontsize=16)
+    plt.ylabel('Number of Tours Departing', fontsize=16)
+    plt.xticks(x + width/2, range(24), fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.legend(fontsize=12)
 
-        # Plot bars for each class_fuel
-        for j, class_fuel in enumerate(class_fuels):
-            class_fuel_data = scenario_data[scenario_data['class_fuel'] == class_fuel]
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
 
-            # Group by emissionsProcess and sum emissions
-            data_to_plot = class_fuel_data.groupby('emissionsProcess')['emissions'].sum()
-
-            # Ensure all processes are present, fill with 0 if missing
-            data_to_plot = data_to_plot.reindex(processes, fill_value=0)
-
-            # Plot bars
-            bar = ax.bar(x + (i - 0.5) * width, data_to_plot, width, bottom=bottoms,
-                         label=f"{scenario} - {class_fuel}", color=colors[j % len(colors)],
-                         hatch=patterns[i % len(patterns)])
-
-            # Update bottom values for stacking
-            bottoms += data_to_plot
-
-    # Customize the plot
-    ax.set_title(f'{label} Emissions by Process, Class Fuel, and Scenario', fontsize=16)
-    ax.set_xlabel('Emissions Process', fontsize=12)
-    ax.set_ylabel('Emissions (tons)', fontsize=12)
-    ax.set_xticks(x)
-    ax.set_xticklabels(processes, rotation=45, ha='right')
-
-    # Add legend
-    ax.legend()
-
-    # Add grid lines for better readability
-    ax.grid(axis='y', linestyle='--', alpha=0.7)
-
-    # Adjust layout and save the figure
+    # Adjust layout and save
     plt.tight_layout()
-    plt.savefig(output_png, dpi=300, bbox_inches='tight')
+    plt.savefig(f'{output_dir}/hourly_tour_activity.png', dpi=300, bbox_inches='tight')
+    plt.close()
 
 
-def emissions_by_scenario_hour_class_fuel(emissions_skims, pollutant, output_dir):
-    data = emissions_skims[emissions_skims['pollutant'] == pollutant].copy()
-    data['class'] = data['vehicleClass'].replace('Vocational', '').replace('Tractor', '').str.strip
-    data['class_fuel'] = data['class'].astype(str) + ' - ' + data['fuel'].astype(str)
-    grouped_data = data.groupby(['scenario', 'hour', 'class_fuel', 'pollutant'])['emissions'].sum().reset_index()
-    print(grouped_data.columns)
+def plot_hourly_vmt(df_filtered, output_dir):
+    # Group by scenario, hour, fuel, class and sum hourlyTravelDistanceInMile
+    hourly_vmt = df_filtered.groupby(['scenario', 'hour', 'fuel', 'class'])[
+        'hourlyTravelDistanceInMile'].sum().reset_index()
+    hourly_vmt['hourlyTravelDistanceInMile'] = hourly_vmt['hourlyTravelDistanceInMile'] / 1e6
+
+    # Create a unique identifier for fuel and class combination
+    hourly_vmt['fuel_class'] = hourly_vmt['fuel'] + ', ' + hourly_vmt['class']
+
+    # Pivot the data to have scenarios as columns
+    hourly_vmt_pivot = hourly_vmt.pivot_table(
+        values='hourlyTravelDistanceInMile',
+        index=['hour', 'fuel_class'],
+        columns='scenario',
+        fill_value=0
+    ).reset_index()
+
+    # Ensure all hours are present
+    for hour in range(24):
+        if hour not in hourly_vmt_pivot['hour'].values:
+            hourly_vmt_pivot = hourly_vmt_pivot.append({'hour': hour}, ignore_index=True)
+
+    hourly_vmt_pivot = hourly_vmt_pivot.sort_values('hour').fillna(0)
+
+    # Get unique scenarios and fuel_class combinations
+    scenarios = hourly_vmt['scenario'].unique()
+    fuel_classes = sorted(hourly_vmt['fuel_class'].unique())
 
     # Set up the plot
     plt.figure(figsize=(20, 10))
+    x = np.arange(24)  # 24 hours
+    width = 0.35  # Width of a group of bars for one scenario
 
-    # Set the positions and width for the bars
-    hours = grouped_data['hour'].unique()
-    x = np.arange(len(hours))
-    width = 0.35
+    # Define base color map for fuel types
+    base_color_map = {
+        'Elec': '#2070b4',  # Darker Blue
+        'NG': '#1a8c4a',  # Darker Green
+        'Gas': '#cc5500',  # Darker Orange
+        'Dsl': '#5a6268',  # Darker Gray
+    }
 
-    # Plot bars for each scenario
-    scenarios = data["scenario"].unique()
-    class_fuels = [col for col in grouped_data.columns if col not in ['hour', 'scenario']]
+    # Function to darken a color
+    def darken_color(color, factor=0.7):
+        return mcolors.to_rgba(mcolors.to_rgb(color), alpha=None)[:3] + (factor,)
 
+    # Create color map for fuel_classes
+    fuel_class_colors = {}
+    for fc in fuel_classes:
+        fuel, vehicle_class = fc.split(',')
+        fuel = fuel.strip()
+        vehicle_class = vehicle_class.strip()
+        base_color = base_color_map.get(fuel, '#000000')  # Default to black if fuel not found
+        if any(c in vehicle_class for c in ['7', '8']):
+            fuel_class_colors[fc] = darken_color(base_color)
+        else:
+            fuel_class_colors[fc] = base_color
+
+    # Plot bars for each scenario and fuel_class combination
+    scenarios_labeling = []
     for i, scenario in enumerate(scenarios):
-        scenario_data = grouped_data[grouped_data['scenario'] == scenario]
-        bottom = np.zeros(len(hours))
+        scenarios_labeling.append(scenario)
+        bottom = np.zeros(24)
+        for fuel_class in fuel_classes:
+            values = hourly_vmt_pivot[hourly_vmt_pivot['fuel_class'] == fuel_class][scenario].values
+            if len(values) < 24:
+                values = np.pad(values, (0, 24 - len(values)), 'constant')
+            elif len(values) > 24:
+                values = values[:24]
 
-        for class_fuel in class_fuels:
-            plt.bar(x + (i - 0.5) * width, scenario_data[class_fuel], width, bottom=bottom,
-                    label=f"{scenario} - {class_fuel}" if i == 0 else "")
-            bottom += scenario_data[class_fuel]
+            plt.bar(x + i * width, values, width / len(scenarios), bottom=bottom,
+                    label=f"{fuel_class}" if i == 0 else "",
+                    color=fuel_class_colors[fuel_class])
+            bottom += values
 
-    # Customize the plot
-    plt.title(f'{pollutant.replace("_",".").trim} Emissions by Hour, Scenario, and Class-Fuel', fontsize=16)
-    plt.xlabel('Hour', fontsize=12)
-    plt.ylabel('Emissions (tons)', fontsize=12)
-    plt.xticks(x, hours)
-    plt.legend(title='Scenario - Class-Fuel', bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.title(
+        f'Hourly VMT by Scenario, Fuel, and Vehicle Class:\n{" vs ".join(scenarios_labeling)}',
+        fontsize=28)
+
+    plt.title('Hourly MVMT by Scenario, Fuel, and Vehicle Class', fontsize=28)
+    plt.xlabel('Hour of Day', fontsize=24)
+    plt.ylabel('Million Vehicle Miles Traveled (MVMT)', fontsize=24)
+    plt.xticks(x + width / 2, range(24), fontsize=24)
+    plt.yticks(fontsize=24)
+    plt.legend(title='Fuel, Class', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=28)
     plt.grid(axis='y', linestyle='--', alpha=0.7)
 
-    # Adjust layout and save the figure
+    # Adjust layout and save
     plt.tight_layout()
-    plt.savefig(f'{output_dir}/{pollutant}_emissions_by_scenario_hour_class_fuel.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'{output_dir}/hourly_vmt_by_scenario_fuel_class.png', dpi=300, bbox_inches='tight')
+    plt.close()
+
+    print("Hourly VMT plot has been saved.")
+
+
+def create_h3_grid(df, resolution=8):
+    """Create an H3 grid covering the area of the dataframe."""
+    lats = df[['fromLocationY', 'toLocationY']].values.flatten()
+    lons = df[['fromLocationX', 'toLocationX']].values.flatten()
+    return list(set(h3.polyfill(
+        {'type': 'Polygon', 'coordinates': [[[min(lons), min(lats)], [max(lons), min(lats)],
+                                             [max(lons), max(lats)], [min(lons), max(lats)]]]},
+        resolution
+    )))
+
+
+def split_link_to_h3_cells(row, resolution=8):
+    """Split a link into segments based on H3 cells it passes through."""
+    line = LineString([(row['fromLocationX'], row['fromLocationY']),
+                       (row['toLocationX'], row['toLocationY'])])
+    cells = h3.line(h3.geo_to_h3(row['fromLocationY'], row['fromLocationX'], resolution),
+                    h3.geo_to_h3(row['toLocationY'], row['toLocationX'], resolution))
+    segments = []
+    for cell in cells:
+        cell_boundary = h3.h3_to_geo_boundary(cell)
+        cell_poly = Polygon(cell_boundary)
+        intersection = line.intersection(cell_poly)
+        if not intersection.is_empty:
+            segments.append({
+                'h3_cell': cell,
+                'segment': intersection,
+                'length': intersection.length,
+                'PM2_5': row['PM2_5'] * (intersection.length / line.length)
+            })
+    return segments
+
+
+def process_dataframe(df, resolution=8):
+    """Process the dataframe to create H3 cell-based segments."""
+    segments = []
+    for _, row in df.iterrows():
+        segments.extend(split_link_to_h3_cells(row, resolution))
+    return pd.DataFrame(segments)
+
+
+def create_heatmap(segments_df, h3_grid):
+    """Create a heatmap using the H3 grid structure."""
+    heat_data = segments_df.groupby('h3_cell')['PM2_5'].sum().reindex(h3_grid, fill_value=0)
+
+    # Convert H3 cells to polygons for plotting
+    polygons = [Polygon(h3.h3_to_geo_boundary(h, geo_json=True)) for h in h3_grid]
+    gdf = gpd.GeoDataFrame({'h3_cell': h3_grid, 'geometry': polygons})
+    gdf['PM2_5'] = heat_data.values
+
+    fig, ax = plt.subplots(figsize=(15, 10))
+    gdf.plot(column='PM2_5', ax=ax, legend=True, cmap='viridis', edgecolor='none')
+    plt.title('PM2.5 Emissions Heatmap')
+    plt.axis('off')
+    plt.tight_layout()
+    plt.savefig('pm25_emissions_heatmap.png', dpi=300, bbox_inches='tight')
+    plt.close()
+
 
