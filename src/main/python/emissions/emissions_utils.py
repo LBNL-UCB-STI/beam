@@ -5,11 +5,18 @@ import pyarrow.csv as pv
 import pyarrow.compute as pc
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import matplotlib.colors as colors
 import geopandas as gpd
+from matplotlib import colors
 from pyproj import Transformer
 from shapely.geometry import LineString, Polygon
 from tqdm import tqdm
+from tqdm.auto import tqdm
+from matplotlib.colors import LogNorm
+import contextily as cx
 import seaborn as sns
+import gzip
+import io
 import h3
 import time
 import os
@@ -18,7 +25,8 @@ import shutil
 import math
 import warnings
 
-warnings.filterwarnings("ignore", category=FutureWarning, message="The default dtype for empty Series will be 'object' instead of 'float64' in a future version. Specify a dtype explicitly to silence this warning.")
+warnings.filterwarnings("ignore", category=FutureWarning,
+                        message="The default dtype for empty Series will be 'object' instead of 'float64' in a future version. Specify a dtype explicitly to silence this warning.")
 
 class_2b3 = 'Class 2b&3 Vocational'
 class_46 = 'Class 4-6 Vocational'
@@ -36,7 +44,7 @@ class_to_category = {
     class_78_t: 'Class78Tractor'
 }
 
-emfac_fuel_to_beam_fuel_map = {
+fuel_emfac2beam_map = {
     'Dsl': 'diesel',
     'Gas': 'gasoline',
     'NG': 'naturalgas',
@@ -46,7 +54,7 @@ emfac_fuel_to_beam_fuel_map = {
     'BioDsl': 'biodiesel'
 }
 
-beam_fuel_to_emfac_fuel_map = {
+fuel_beam2emfac_map = {
     'diesel': 'Dsl',
     'gasoline': 'Gas',
     'naturalgas': 'NG',
@@ -55,6 +63,18 @@ beam_fuel_to_emfac_fuel_map = {
     'hydrogen': 'H2fc',
     "biodiesel": 'BioDsl'
 }
+
+# Fuel Color Map
+fuel_color_map = {
+    'Elec': '#2070b4',  # Darker Blue (Cleanest)
+    'H2fc': '#00CED1',  # Turquoise (Clean)
+    'NG': '#1a8c4a',    # Darker Green (Relatively Clean)
+    'Phe': '#90EE90',   # Light Green (Hybrid, intermediate)
+    'Gas': '#cc5500',   # Darker Orange (Less Clean)
+    'BioDsl': '#A52A2A',  # Brown (Biofuel, less clean than traditional diesel)
+    'Dsl': '#5a6268',   # Darker Gray (Least Clean)
+}
+
 pollutant_columns = {
     'CH4': 'rate_ch4_gram_float',
     'CO': 'rate_co_gram_float',
@@ -148,7 +168,8 @@ def prepare_emfac_emissions_for_mapping(emissions_rates, emfac_class_map):
     return grouped_data
 
 
-def prepare_emfac_population_for_mapping(emfac_population, year, emfac_class_map, fuel_assumption_mapping, ignore_model_year=True):
+def prepare_emfac_population_for_mapping(emfac_population, year, emfac_class_map, fuel_assumption_mapping,
+                                         ignore_model_year=True):
     df = emfac_population[(emfac_population["calendar_year"] == str(year))].drop(["calendar_year"], axis=1)
     if ignore_model_year:
         # Group by vehicle_class and fuel, aggregating population
@@ -160,7 +181,7 @@ def prepare_emfac_population_for_mapping(emfac_population, year, emfac_class_map
     # Validation checks
     if len(df["vehicle_class"].unique()) != len(emfac_class_map):
         print("Warning: Mismatch in vehicle class mapping")
-    if not df['fuel'].isin(emfac_fuel_to_beam_fuel_map.keys()).all():
+    if not df['fuel'].isin(fuel_emfac2beam_map.keys()).all():
         print("Warning: Missing fuel type from dictionary")
 
     df["mappedFuel"] = df['fuel'].map(fuel_assumption_mapping)
@@ -196,7 +217,7 @@ def unpacking_ft_vehicle_population_mesozones(carriers, mesozones_to_county_file
 
     # ### Mapping freight carriers with counties, payload and vehicle types ###
     carriers_by_zone = pd.merge(carriers, mesozones_to_county_studyarea, left_on='warehouseZone',
-                                        right_on='MESOZONE', how='left')
+                                right_on='MESOZONE', how='left')
     if not carriers_by_zone[carriers_by_zone['NAME'].isna()].empty:
         print(
             "Something went wrong with the mapping of freight carrier zones with mesozones. Here the non mapped ones:")
@@ -224,15 +245,15 @@ def prepare_pax_vehicle_population_for_mapping(vehicletypes, fuel_assumption_map
     # Load and process vehicle types
     data['beamClass'] = data['vehicleCategory']
     data['beamFuel'] = np.where(
-        (data['primaryFuelType'] == emfac_fuel_to_beam_fuel_map["Elec"]) &
+        (data['primaryFuelType'] == fuel_emfac2beam_map["Elec"]) &
         data['secondaryFuelType'].notna(),
-        emfac_fuel_to_beam_fuel_map['Phe'],
+        fuel_emfac2beam_map['Phe'],
         data['primaryFuelType']
     )
 
     def handle_missing_fuel(x):
         try:
-            return fuel_assumption_mapping[beam_fuel_to_emfac_fuel_map[x.lower()]]
+            return fuel_assumption_mapping[fuel_beam2emfac_map[x.lower()]]
         except KeyError:
             warnings.warn(f"Fuel type '{x}' not found in mapping. Using original value.")
             return None
@@ -258,15 +279,15 @@ def prepare_ft_vehicle_population_for_mapping(carriers, payloads_raw, ft_vehicle
 
     # Load and process vehicle types
     ft_vehicletypes['beamFuel'] = np.where(
-        (ft_vehicletypes['primaryFuelType'] == emfac_fuel_to_beam_fuel_map["Elec"]) &
+        (ft_vehicletypes['primaryFuelType'] == fuel_emfac2beam_map["Elec"]) &
         ft_vehicletypes['secondaryFuelType'].notna(),
-        emfac_fuel_to_beam_fuel_map['Phe'],
+        fuel_emfac2beam_map['Phe'],
         ft_vehicletypes['primaryFuelType']
     )
 
     def handle_missing_fuel(x):
         try:
-            return fuel_assumption_mapping[beam_fuel_to_emfac_fuel_map[x.lower()]]
+            return fuel_assumption_mapping[fuel_beam2emfac_map[x.lower()]]
         except KeyError:
             warnings.warn(f"Fuel type '{x}' not found in mapping. Using original value.")
             return x
@@ -353,7 +374,8 @@ def distribution_based_vehicle_classes_assignment(ft_df, emfac_df):
 
 def pivot_rates_for_beam(df_raw):
     unique_speed_time = df_raw.speed_time.unique()
-    has_non_empty_speed_time = any(len(str(x)) > 0 for x in unique_speed_time) and not pd.isnull(unique_speed_time).all()
+    has_non_empty_speed_time = any(len(str(x)) > 0 for x in unique_speed_time) and not pd.isnull(
+        unique_speed_time).all()
     index_ = ["emfacId", 'county', 'process']
     if has_non_empty_speed_time:
         index_.append("speed_time")
@@ -389,9 +411,11 @@ def process_rates_group(df, row):
         df_temp = df_subset[df_subset['process'] == process]
         if not df_temp.empty:
             if process in ['RUNEX', 'PMBW']:
-                df_temp = numerical_column_to_binned_and_pivot(df_temp, 'speed_time', 'speed_mph_float_bins', [0.0, 200.0])
+                df_temp = numerical_column_to_binned_and_pivot(df_temp, 'speed_time', 'speed_mph_float_bins',
+                                                               [0.0, 200.0])
             elif process == 'STREX':
-                df_temp = numerical_column_to_binned_and_pivot(df_temp, 'speed_time', 'time_minutes_float_bins', [0.0, 3600.0])
+                df_temp = numerical_column_to_binned_and_pivot(df_temp, 'speed_time', 'time_minutes_float_bins',
+                                                               [0.0, 3600.0])
             else:
                 df_temp = pivot_rates_for_beam(df_temp)
             df_output_list.append(df_temp)
@@ -657,54 +681,54 @@ def update_sample_probability_string(row):
 
 
 def create_vehicle_class_mapping(vehicle_list):
-  mapping = {}
+    mapping = {}
 
-  for vehicle in vehicle_list:
-    if 'Utility' in vehicle or 'Public' in vehicle:
-        mapping[vehicle] = not_matched
-    elif 'Port' in vehicle or 'POLA' in vehicle or 'POAK' in vehicle:
-        mapping[vehicle] = not_matched
-    elif 'SWCV' in vehicle or 'PTO' in vehicle or 'T6TS' in vehicle:
-        mapping[vehicle] = not_matched
+    for vehicle in vehicle_list:
+        if 'Utility' in vehicle or 'Public' in vehicle:
+            mapping[vehicle] = not_matched
+        elif 'Port' in vehicle or 'POLA' in vehicle or 'POAK' in vehicle:
+            mapping[vehicle] = not_matched
+        elif 'SWCV' in vehicle or 'PTO' in vehicle or 'T6TS' in vehicle:
+            mapping[vehicle] = not_matched
 
-    elif vehicle in ['LDA', 'LDT1', 'LDT2', 'MDV']:
-      mapping[vehicle] = class_car
-    elif vehicle in ['MCY']:
-      mapping[vehicle] = class_bike
-    elif vehicle in ['UBUS']:
-      mapping[vehicle] = class_mdp
-    elif 'LHD' in vehicle:
-      mapping[vehicle] = class_2b3
+        elif vehicle in ['LDA', 'LDT1', 'LDT2', 'MDV']:
+            mapping[vehicle] = class_car
+        elif vehicle in ['MCY']:
+            mapping[vehicle] = class_bike
+        elif vehicle in ['UBUS']:
+            mapping[vehicle] = class_mdp
+        elif 'LHD' in vehicle:
+            mapping[vehicle] = class_2b3
 
-    elif 'Class 4' in vehicle or 'Class 5' in vehicle or 'Class 6' in vehicle:
-      mapping[vehicle] = class_46
+        elif 'Class 4' in vehicle or 'Class 5' in vehicle or 'Class 6' in vehicle:
+            mapping[vehicle] = class_46
 
-    elif 'Class 7' in vehicle or 'Class 8' in vehicle:
-        if 'Tractor' in vehicle or 'CAIRP' in vehicle:
+        elif 'Class 7' in vehicle or 'Class 8' in vehicle:
+            if 'Tractor' in vehicle or 'CAIRP' in vehicle:
+                mapping[vehicle] = class_78_t
+            else:
+                mapping[vehicle] = class_78_v
+        elif "T7IS" in vehicle:
             mapping[vehicle] = class_78_t
+
         else:
-            mapping[vehicle] = class_78_v
-    elif "T7IS" in vehicle:
-        mapping[vehicle] = class_78_t
+            mapping[vehicle] = not_matched
 
-    else:
-      mapping[vehicle] = not_matched
+    from collections import defaultdict
+    class_groups = defaultdict(list)
+    for vehicle, vehicle_class in mapping.items():
+        class_groups[vehicle_class].append(vehicle)
+    for vehicle_class, vehicles in class_groups.items():
+        print(f"Category: {vehicle_class}")
+        for vehicle in vehicles:
+            print(f"  - {vehicle}")
 
-  from collections import defaultdict
-  class_groups = defaultdict(list)
-  for vehicle, vehicle_class in mapping.items():
-      class_groups[vehicle_class].append(vehicle)
-  for vehicle_class, vehicles in class_groups.items():
-      print(f"Category: {vehicle_class}")
-      for vehicle in vehicles:
-          print(f"  - {vehicle}")
+    ft_emfac_class_map = {emfac: beam for emfac, beam in mapping.items() if
+                          beam in [class_46, class_78_v, class_78_t]}
+    pax_emfac_class_map = {emfac: beam for emfac, beam in mapping.items() if
+                           beam in [class_car, class_bike, class_mdp]}
 
-  ft_emfac_class_map = {emfac: beam for emfac, beam in mapping.items() if
-                        beam in [class_46, class_78_v, class_78_t]}
-  pax_emfac_class_map = {emfac: beam for emfac, beam in mapping.items() if
-                         beam in [class_car, class_bike, class_mdp]}
-
-  return pax_emfac_class_map, ft_emfac_class_map
+    return pax_emfac_class_map, ft_emfac_class_map
 
 
 def load_network(network_file, source_epsg):
@@ -741,17 +765,18 @@ def read_skims_emissions(skims_file, vehicleTypes_file, vehicleTypeId_filter, ne
     for pollutant in pollutant_columns.keys():
         filtered_table = filtered_table.append_column(
             f'{pollutant}_annual',
-            pc.multiply(pc.divide(filtered_table[pollutant], 1e6), annual_expansion)
+            pc.multiply(pc.divide(filtered_table[pollutant], pc.cast(pa.scalar(1e6), pa.float64())), annual_expansion)
         )
 
     filtered_table = filtered_table.append_column(
         'annualHourlyEnergyGwh',
-        pc.multiply(pc.divide(filtered_table['energyInJoule'], 3.6e12), annual_expansion)
+        pc.multiply(pc.divide(filtered_table['energyInJoule'], pc.cast(pa.scalar(3.6e12), pa.float64())),
+                    annual_expansion)
     )
 
     filtered_table = filtered_table.append_column(
         'annualHourlySpeedMph',
-        pc.divide(filtered_table['speedInMps'], 2.237)
+        pc.divide(filtered_table['speedInMps'], pc.cast(pa.scalar(2.237), pa.float64()))
     )
 
     # Convert to pandas
@@ -767,7 +792,7 @@ def read_skims_emissions(skims_file, vehicleTypes_file, vehicleTypeId_filter, ne
           .merge(network[['linkId', 'linkLength']], on='linkId', how='left'))
 
     # Calculate annualHourlyMVMT
-    df['annualHourlyMVMT'] = df['linkLength'] * 6.21371192e-13 * df['observations'] * expansion_factor * 365
+    df['annualHourlyMVMT'] = (df['linkLength'] * 6.21371192e-13) * annual_expansion
 
     # Rename column
     df.rename(columns={'emissionsProcess': 'process'}, inplace=True)
@@ -786,6 +811,136 @@ def read_skims_emissions(skims_file, vehicleTypes_file, vehicleTypeId_filter, ne
     return melted
 
 
+def read_skims_emissions_chunked(skims_file, vehicleTypes_file, vehicleTypeId_filter, network, expansion_factor,
+                                 scenario_name, chunk_size=1000000):
+    start_time = time.time()
+
+    # Process vehicleTypes file
+    vehicleTypes = pd.read_csv(vehicleTypes_file)
+    vehicleTypes['fuel'] = vehicleTypes['emfacId'].str.split('-').str[-1]
+    vehicleTypes['class'] = vehicleTypes['vehicleClass'].str.replace('Vocational|Tractor', '', regex=True).str.strip()
+
+    # Initialize an empty list to store the processed chunks
+    result_chunks = []
+
+    # Set up the CSV reader with chunking
+    csv_reader = pv.open_csv(
+        skims_file,
+        read_options=pv.ReadOptions(block_size=chunk_size, use_threads=True),
+        parse_options=pv.ParseOptions(delimiter=','),
+        convert_options=pv.ConvertOptions(column_types=skims_schema)
+    )
+
+    # Get total file size for progress bar
+    total_size = os.path.getsize(skims_file)
+
+    # Initialize progress bar
+    pbar = tqdm(total=total_size, unit='B', unit_scale=True, desc="Processing chunks",
+                position=0, leave=True, mininterval=1.0, maxinterval=10.0, miniters=1)
+
+    # Process the skims file in chunks
+    for chunk in csv_reader:
+        chunk_size = chunk.nbytes
+
+        # Filter the chunk
+        mask = pc.match_substring(chunk['vehicleTypeId'], pattern=vehicleTypeId_filter)
+        filtered_chunk = chunk.filter(mask)
+        # del chunk  # Explicitly remove reference to the original chunk
+
+        # Perform calculations in PyArrow
+        observations_expansion = pc.multiply(
+            filtered_chunk['observations'], pc.cast(pa.scalar(expansion_factor), pa.float64())
+        )
+
+        new_columns = []
+        new_fields = []
+        for pollutant in pollutant_columns.keys():
+            new_fields.append(pa.field(f'scaled_{pollutant}', pa.float64(), True))
+            new_columns.append(pc.multiply(
+                pc.divide(
+                    filtered_chunk[pollutant], pc.cast(pa.scalar(1e6), pa.float64())
+                ),
+                observations_expansion
+            ))
+
+        new_fields.append(pa.field('kwh', pa.float64(), True))
+        new_columns.append(
+            pc.multiply(
+                pc.divide(
+                    filtered_chunk['energyInJoule'], pc.cast(pa.scalar(3.6e6), pa.float64())
+                ),
+                observations_expansion
+            )
+        )
+
+        new_fields.append(pa.field('vht', pa.float64(), True))
+        new_columns.append(
+            pc.multiply(
+                pc.divide(
+                    filtered_chunk['travelTimeInSecond'], pc.cast(pa.scalar(3.6e3), pa.float64())
+                ),
+                observations_expansion
+            )
+        )
+
+        # Create a new RecordBatch with additional columns
+        # new_schema = filtered_chunk.schema.append(new_columns[::2])
+        # new_columns = filtered_chunk.columns + new_columns[1::2]
+        new_schema = filtered_chunk.schema
+        for field in new_fields:
+            new_schema = new_schema.append(field)
+
+        new_columns = filtered_chunk.columns + new_columns
+        filtered_chunk = pa.RecordBatch.from_arrays(new_columns, schema=new_schema)
+
+        # Convert to pandas
+        df_chunk = filtered_chunk.to_pandas()
+        # del filtered_chunk
+
+        # Merge with vehicleTypes and network
+        df_chunk_merged = (
+            df_chunk
+            .merge(vehicleTypes[['vehicleTypeId', 'class', 'fuel']], on='vehicleTypeId', how='left')
+            .merge(network[['linkId', 'linkLength']], on='linkId', how='left')
+        )
+        # del df_chunk
+
+        # Calculate annualHourlyMVMT
+        df_chunk_merged['vmt'] = (df_chunk_merged['linkLength'] * 6.21371192e-4) * observations_expansion
+
+        # Rename column
+        df_chunk_merged.rename(columns={'emissionsProcess': 'process'}, inplace=True)
+
+        # Melt the dataframe
+        id_vars = ['hour', 'linkId', 'tazId', 'class', 'fuel', 'process', 'kwh', 'vmt', 'vht']
+        value_vars = [f'scaled_{pollutant}' for pollutant in pollutant_columns.keys()]
+        melted_chunk = df_chunk_merged.melt(
+            id_vars=id_vars,
+            value_vars=value_vars,
+            var_name='pollutant',
+            value_name='rate'
+        )
+        # del df_chunk_merged
+        melted_chunk['pollutant'] = melted_chunk['pollutant'].str.replace('scaled_', '')
+        melted_chunk['scenario'] = scenario_name
+
+        result_chunks.append(melted_chunk)
+
+        # Update progress bar
+        pbar.update(chunk_size)
+
+    # Close progress bar
+    pbar.close()
+
+    # Combine all processed chunks
+    melted = pd.concat(result_chunks, ignore_index=True)
+
+    end_time = time.time()
+    print(f"Time taken to read the file: {end_time - start_time:.2f} seconds to read file {skims_file}")
+
+    return melted
+
+
 def emissions_by_scenario_hour_class_fuel(emissions_skims, pollutant, output_dir):
     data = emissions_skims[emissions_skims['pollutant'] == pollutant].copy()
     grouped_data = data.groupby(['scenario', 'hour', 'class', 'fuel'])['rate'].sum().reset_index()
@@ -797,14 +952,6 @@ def emissions_by_scenario_hour_class_fuel(emissions_skims, pollutant, output_dir
     fuel_classes = sorted(grouped_data['fuel_class'].unique())
     all_hours = sorted(grouped_data['hour'].unique())
 
-    # Define base color map for fuel types
-    base_color_map = {
-        'Elec': '#2070b4',  # Darker Blue
-        'NG': '#1a8c4a',  # Darker Green
-        'Gas': '#cc5500',  # Darker Orange
-        'Dsl': '#5a6268',  # Darker Gray
-    }
-
     # Function to darken a color
     def darken_color(color, factor=0.7):
         return mcolors.to_rgba(mcolors.to_rgb(color), alpha=None)[:3] + (factor,)
@@ -815,7 +962,7 @@ def emissions_by_scenario_hour_class_fuel(emissions_skims, pollutant, output_dir
         fuel, vehicle_class = fc.split(',')
         fuel = fuel.strip()
         vehicle_class = vehicle_class.strip()
-        base_color = base_color_map.get(fuel, '#000000')  # Default to black if fuel not found
+        base_color = fuel_color_map.get(fuel, '#000000')  # Default to black if fuel not found
         if any(c in vehicle_class for c in ['7', '8']):
             fuel_class_colors[fc] = darken_color(base_color)
         else:
@@ -858,48 +1005,95 @@ def emissions_by_scenario_hour_class_fuel(emissions_skims, pollutant, output_dir
     plt.savefig(f'{output_dir}/{pollutant}_emissions_by_scenario_hour_class_fuel.png', dpi=300, bbox_inches='tight')
 
 
-def plot_hourly_activity(tours, output_dir):
-    # Convert departure time from seconds to hour
-    tours['departure_hour'] = (tours['departureTimeInSec'] / 3600).astype(int) % 24
+def plot_hourly_activity(tours_types, output_dir):
+    # Preprocess the data
+    tours_types['class'] = tours_types['vehicleCategory'].str.replace('Vocational|Tractor', '', regex=True).str.strip()
+    tours_types['fuel'] = tours_types['primaryFuelType'].str.lower().map(fuel_beam2emfac_map)
+    tours_types['fuel'] = np.where((tours_types['fuel'] == "Elec") & tours_types['secondaryFuelType'].notna(), 'Phe',
+                                   tours_types['fuel'])
+    tours_types['fuel_class'] = tours_types['fuel'] + '-' + tours_types['class']
+    tours_types['departure_hour'] = (tours_types['departureTimeInSec'] / 3600).astype(int) % 24
 
-    # Group by scenario and hour, count the number of tours
-    hourly_activity = tours.groupby(['scenario', 'departure_hour']).size().unstack(level=0, fill_value=0)
+    # Group by scenario, hour, and fuel_class, count the number of tours
+    hourly_activity = tours_types.groupby(['scenario', 'departure_hour', 'fuel_class']).size().unstack(
+        level=[0, 2], fill_value=0
+    )
 
-    # Ensure all hours are present
-    for hour in range(24):
-        if hour not in hourly_activity.index:
-            hourly_activity.loc[hour] = 0
-    hourly_activity = hourly_activity.sort_index()
-
-    # Print data info for debugging
-    print("Hourly activity data:")
-    print(hourly_activity)
+    scenarios = tours_types['scenario'].unique()
+    # If the DataFrame is empty, create a default one with all hours
+    if hourly_activity.empty:
+        fuel_classes = tours_types['fuel_class'].unique()
+        index = pd.Index(range(24), name='departure_hour')
+        columns = pd.MultiIndex.from_product([scenarios, fuel_classes], names=['scenario', 'fuel_class'])
+        hourly_activity = pd.DataFrame(0, index=index, columns=columns)
+    else:
+        # Ensure all hours are present
+        for hour in range(24):
+            if hour not in hourly_activity.index:
+                hourly_activity.loc[hour] = 0
+        hourly_activity = hourly_activity.sort_index()
 
     # Create the plot
     plt.figure(figsize=(20, 10))
-
     x = np.arange(24)  # 24 hours
     width = 0.35  # width of the bars
+    scenarios = hourly_activity.columns.levels[0]
 
-    scenarios = hourly_activity.columns
+    # Get all unique fuel classes across all scenarios
+    all_fuel_classes = set()
+    for scenario in scenarios:
+        all_fuel_classes.update(hourly_activity[scenario].columns)
 
-    # Plot bars for each scenario
+    # Define the order of fuels from most to least sustainable
+    fuel_order = ['Elec', 'H2fc', 'Phe', 'NG', 'BioDsl', 'Dsl', 'Gas']
+
+    # Sort fuel classes based on the defined order
+    sorted_fuel_classes = sorted(all_fuel_classes,
+                                 key=lambda x: (
+                                 fuel_order.index(x.split('-')[0]) if x.split('-')[0] in fuel_order else len(
+                                     fuel_order), x))
+
+    # Create a color map for all fuel types
+    color_map = {fuel: fuel_color_map[fuel] for fuel in fuel_order}
+
+    # Plot stacked bars for each scenario
+    legend_handles = []
+    legend_labels = []
     for i, scenario in enumerate(scenarios):
-        plt.bar(x + i*width, hourly_activity[scenario], width, label=scenario)
+        bottom = np.zeros(24)
+        for fuel_class in sorted_fuel_classes:
+            fuel_type = fuel_class.split('-')[0]
+            color = color_map[fuel_type]
 
-    plt.title('Hourly Tour Activity by Scenario', fontsize=20)
+            if fuel_class in hourly_activity[scenario].columns:
+                values = hourly_activity[scenario][fuel_class]
+            else:
+                values = np.zeros(24)
+
+            bar = plt.bar(x + i * width, values, width, bottom=bottom, color=color)
+            bottom += values
+
+            if fuel_class not in legend_labels:
+                legend_handles.append(bar)
+                legend_labels.append(fuel_class)
+
+    plt.title(f'Hourly Tour Activity by Scenario and Fuel Class, {" vs ".join(scenarios).replace("_", " ")}', fontsize=20)
     plt.xlabel('Hour of Day', fontsize=16)
     plt.ylabel('Number of Tours Departing', fontsize=16)
-    plt.xticks(x + width/2, range(24), fontsize=12)
+    plt.xticks(x + width / 2, range(24), fontsize=12)
     plt.yticks(fontsize=12)
-    plt.legend(fontsize=12)
+
+    # Create legend with ordered fuel classes
+    plt.legend(legend_handles, legend_labels, fontsize=12, loc='upper left', bbox_to_anchor=(1, 1))
 
     plt.grid(axis='y', linestyle='--', alpha=0.7)
 
     # Adjust layout and save
     plt.tight_layout()
-    plt.savefig(f'{output_dir}/hourly_tour_activity.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'{output_dir}/hourly_tour_activity_by_scenario_fuel_class.png', dpi=300, bbox_inches='tight')
     plt.close()
+
+    print(f"Plot saved as {output_dir}/hourly_tour_activity_by_scenario_fuel_class.png")
 
 
 def plot_hourly_vmt(df_filtered, output_dir):
@@ -1076,7 +1270,7 @@ def process_h3_emissions(emissions_df, intersection_df, pollutant):
     print(f"Initial emissions_df shape: {emissions_df.shape}")
 
     # Filter emissions data for the specific pollutant
-    filtered_emissions = emissions_df[emissions_df['pollutant'] == pollutant][['linkId', 'rate']]
+    filtered_emissions = emissions_df[emissions_df['pollutant'] == pollutant][['scenario', 'linkId', 'rate']]
     filtered_emissions['rate'] = pd.to_numeric(filtered_emissions['rate'], errors='coerce')
     filtered_emissions = filtered_emissions.dropna()
     print(f"Filtered emissions shape: {filtered_emissions.shape}")
@@ -1089,42 +1283,172 @@ def process_h3_emissions(emissions_df, intersection_df, pollutant):
     merged[f'{pollutant}'] = merged['rate'] * merged['length_ratio']
 
     # Group by H3 cell and sum normalized emissions
-    result = merged.groupby('h3_cell')[f'{pollutant}'].sum().reset_index()
+    result = merged.groupby(['scenario', 'h3_cell'])[f'{pollutant}'].sum().reset_index()
     print(f"Final result shape: {result.shape}")
     return result
 
 
-def create_h3_heatmap(result_df, output_dir, pollutant):
-    """Create a heatmap using the H3 grid structure."""
+def create_h3_heatmap(df, output_dir, pollutant, scenario, remove_outliers, in_log_scale):
+    """Create a heatmap using the H3 grid structure with linear or logarithmic color scale and a base map."""
+    subset_df = df[df["scenario"] == scenario]
+
+    if remove_outliers:
+        subset_df = remove_outliers_zscore(subset_df, pollutant)
 
     # Create polygons for all H3 cells in the result
-    polygons = []
-    for h3_cell in result_df['h3_cell']:
-        polygons.append(Polygon(h3.h3_to_geo_boundary(h3_cell, geo_json=True)))
+    polygons = [Polygon(h3.h3_to_geo_boundary(h3_cell, geo_json=True)) for h3_cell in subset_df['h3_cell']]
 
     # Create GeoDataFrame
     gdf = gpd.GeoDataFrame({
-        'h3_cell': result_df['h3_cell'],
-        f'{pollutant}': result_df[f'{pollutant}'],
+        'h3_cell': subset_df['h3_cell'],
+        'pollutant': subset_df[pollutant],
         'geometry': polygons
     })
     gdf = gdf.set_crs("EPSG:4326")
 
+    # Convert to Web Mercator projection for compatibility with contextily
+    gdf_mercator = gdf.to_crs(epsg=3857)
+
     # Create figure and axis
     fig, ax = plt.subplots(figsize=(15, 10))
 
-    # Plot all cells with a light grey color and no edge color
-    gdf.plot(ax=ax, facecolor='lightgrey', edgecolor='none', alpha=0.1)
+    vmin, vmax = gdf_mercator['pollutant'].min(), gdf_mercator['pollutant'].max()
 
-    # Plot cells with data, using a colormap
-    gdf.plot(column=f'{pollutant}', ax=ax, legend=True, cmap='viridis', edgecolor='none')
+    # Determine if we're dealing with a delta (difference) calculation
+    is_delta = 'Delta' in pollutant or 'Δ' in pollutant
 
-    plt.title(f'{pollutant} Emissions Heatmap', fontsize=16)
-    plt.axis('off')
+    if in_log_scale:
+        if is_delta:
+            norm = mcolors.SymLogNorm(linthresh=1e-5, vmin=vmin, vmax=vmax)
+        else:
+            gdf_mercator = gdf_mercator[gdf_mercator['pollutant'] > 0]
+            vmin, vmax = gdf_mercator['pollutant'].min(), gdf_mercator['pollutant'].max()
+            norm = LogNorm(vmin=vmin, vmax=vmax)
+        label_suffix = "in log scale"
+        file_suffix = "log"
+    else:
+        if is_delta:
+            norm = mcolors.TwoSlopeNorm(vmin=vmin, vcenter=0, vmax=vmax)
+        else:
+            norm = None
+        label_suffix = ""
+        file_suffix = "linear"
+
+    # Choose colormap based on whether it's a delta calculation
+    cmap = colors.LinearSegmentedColormap.from_list("", ["blue", "lightblue", "white", "pink", "red"])
+
+    # Plot cells with data
+    gdf_mercator.plot(column='pollutant', ax=ax, legend=False, cmap=cmap, edgecolor='none', norm=norm, alpha=0.7)
+
+    # Add base map
+    cx.add_basemap(ax, source=cx.providers.CartoDB.Positron)
+
+    # Add colorbar
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, ax=ax, extend='both')
+    cbar.set_label(f'{pollutant.replace("_", ".")} {label_suffix}', rotation=270, labelpad=15)
+
+    # Set title and adjust plot
+    title_label = f'Emissions Distribution of {pollutant.replace("_", ".")}, {scenario} '
+    plt.title(title_label, fontsize=16)
+    ax.set_axis_off()
     plt.tight_layout()
 
-    # Save the figure
-    plt.savefig(f'{output_dir}/{pollutant.lower()}_emissions_heatmap.png', dpi=300, bbox_inches='tight')
+    # Save figure
+    outlier_status = "no_outliers" if remove_outliers else "with_outliers"
+    file_name = f'{output_dir}/{pollutant.split(" ")[0]}_{scenario.replace(" ", "_").lower()}_emissions_heatmap_{file_suffix}_{outlier_status}_with_basemap.png'
+    plt.savefig(file_name, dpi=300, bbox_inches='tight')
     plt.close()
+    print(f"Heatmap with base map saved as {file_name}")
 
-    print(f"Heatmap saved as {output_dir}/{pollutant.lower()}_emissions_heatmap.png")
+
+def create_h3_histogram(df, output_dir, pollutant, scenario, remove_outliers, in_log_scale):
+    subset_df = df[df["scenario"] == scenario]
+    if remove_outliers:
+        subset_df = remove_outliers_zscore(subset_df, pollutant)
+    # Extract pollutant values
+    pollutant_values = subset_df[pollutant].values
+
+    # Create the histogram
+    plt.figure(figsize=(12, 6))
+
+    if in_log_scale:
+        # Use log-spaced bins, but with adjustments for potential zero values
+        bins = np.logspace(np.log10(pollutant_values.min() + 1e-10),
+                           np.log10(pollutant_values.max()),
+                           num=50)
+        x_label = f'{pollutant.replace("_", ".")} Emissions (log scale)'
+        title_label = f'Histogram of {pollutant.replace("_", ".")} Emissions by H3 Cell (Log Scale)'
+        file_name = f'{output_dir}/{pollutant}_{scenario.replace(" ","_").lower()}_emissions_histogram_log.png'
+    else:
+        # Use automatic binning based on Sturges' rule
+        bins = 'sturges'
+        x_label = f'{pollutant.replace("_", ".")} Emissions'
+        title_label = f'Histogram of {pollutant.replace("_", ".")} Emissions by H3 Cell'
+        file_name = f'{output_dir}/{pollutant}_{scenario.replace(" ","_").lower()}_emissions_histogram.png'
+
+    plt.hist(pollutant_values, bins=bins, edgecolor='black')
+
+    # Set x-axis to log scale if specified
+    if in_log_scale:
+        plt.xscale('log')
+
+    # Set labels and title
+    plt.xlabel(x_label, fontsize=12)
+    plt.ylabel('Frequency', fontsize=12)
+    plt.title(title_label, fontsize=14)
+
+    # Add grid for better readability
+    plt.grid(True, linestyle='--', alpha=0.7)
+
+    # Adjust layout and save
+    plt.tight_layout()
+    plt.savefig(file_name, dpi=300, bbox_inches='tight')
+    plt.close()
+    print(f"Histogram saved as {file_name}/")
+
+
+def remove_outliers_zscore(df, column, threshold=3):
+    mean = df[column].mean()
+    std = df[column].std()
+    z_scores = np.abs((df[column] - mean) / std)
+    df_filtered = df[z_scores < threshold].copy()
+    removed_rows = df[~df.index.isin(df_filtered.index)]
+    summary_df = pd.DataFrame({
+        'column': [column],
+        'mean': [mean],
+        'std': [std],
+        'num_outliers': [len(removed_rows)]
+    })
+    print(summary_df)
+    print(removed_rows)
+    return df_filtered
+
+
+def fast_df_to_gzip(df, output_file, compression_level=5, chunksize=100000):
+    """
+    Write a pandas DataFrame to a compressed CSV.gz file quickly with a progress bar.
+
+    :param df: pandas DataFrame to write
+    :param output_file: path to the output .csv.gz file
+    :param compression_level: gzip compression level (1-9, 9 being highest)
+    :param chunksize: number of rows to write at a time
+    """
+    total_rows = len(df)
+
+    with gzip.open(output_file, 'wt', compresslevel=compression_level) as gz_file:
+        # Write header
+        gz_file.write(','.join(df.columns) + '\n')
+
+        # Write data in chunks
+        with tqdm(total=total_rows, desc="Writing to gzip", unit="rows") as pbar:
+            for start in range(0, total_rows, chunksize):
+                end = min(start + chunksize, total_rows)
+                chunk = df.iloc[start:end]
+
+                csv_buffer = io.StringIO()
+                chunk.to_csv(csv_buffer, index=False, header=False)
+                gz_file.write(csv_buffer.getvalue())
+
+                pbar.update(end - start)
