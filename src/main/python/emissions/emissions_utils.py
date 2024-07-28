@@ -1370,7 +1370,7 @@ def create_h3_heatmap(df, df_col, scenario, output_dir, is_delta, remove_outlier
     else:
         cbar = fig.colorbar(sm, ax=ax, extend='max')
 
-    cbar.ax.tick_params(labelsize=16)
+    cbar.ax.tick_params(labelsize=14)
     cbar.set_label(f'{df_col.replace("_", ".")} {label_suffix}', rotation=270, labelpad=15, fontsize=18)
 
     # Set title and adjust plot

@@ -14,6 +14,7 @@ case class EmissionsSkimmerEvent(
   emissionsProcess: EmissionsProfile.EmissionsProcess,
   travelTime: Double,
   energyConsumption: Double,
+  parkingDuration: Double,
   beamServices: BeamServices
 ) extends AbstractSkimmerEvent(time) {
   override protected val skimName: String = beamServices.beamConfig.beam.router.skim.emissions_skimmer.name

@@ -22,7 +22,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
 
   override protected val skimFileHeader: String = {
     val emissionHeaders = Emissions.values.map(formatName).mkString(",")
-    s"hour,linkId,tazId,vehicleTypeId,emissionsProcess,$emissionHeaders,travelTimeInSecond,energyInJoule,observations,iterations"
+    s"hour,linkId,tazId,vehicleTypeId,emissionsProcess,$emissionHeaders,travelTimeInSecond,energyInJoule,parkingDurationInSecond,observations,iterations"
   }
 
   override def fromCsv(
@@ -50,6 +50,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
         ),
         line("travelTimeInSecond").toDouble,
         line("energyInJoule").toDouble,
+        line("parkingDurationInSecond").toDouble,
         line("observations").toInt,
         line("iterations").toInt
       )
@@ -62,11 +63,11 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
   ): AbstractSkimmerInternal = {
     val prevSkim = prevIteration
       .map(_.asInstanceOf[EmissionsSkimmerInternal])
-      .getOrElse(EmissionsSkimmerInternal(init(), 0, 0))
+      .getOrElse(EmissionsSkimmerInternal(init(), 0, 0, 0))
     val currSkim = currIteration
       .map(_.asInstanceOf[EmissionsSkimmerInternal])
       .getOrElse(
-        EmissionsSkimmerInternal(init(), 0, 0, iterations = matsimServices.getIterationNumber + 1)
+        EmissionsSkimmerInternal(init(), 0, 0, 0, iterations = matsimServices.getIterationNumber + 1)
       )
     EmissionsSkimmerInternal(
       emissions =
@@ -75,6 +76,8 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
         (prevSkim.travelTime * prevSkim.iterations + currSkim.travelTime * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       energyConsumed =
         (prevSkim.energyConsumed * prevSkim.iterations + currSkim.energyConsumed * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
+      parkingDuration =
+        (prevSkim.parkingDuration * prevSkim.iterations + currSkim.parkingDuration * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       observations =
         (prevSkim.observations * prevSkim.iterations + currSkim.observations * currSkim.iterations) / (prevSkim.iterations + currSkim.iterations),
       iterations = prevSkim.iterations + currSkim.iterations
@@ -87,7 +90,7 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
   ): AbstractSkimmerInternal = {
     val prevSkim = prevObservation
       .map(_.asInstanceOf[EmissionsSkimmerInternal])
-      .getOrElse(EmissionsSkimmerInternal(init(), 0, 0, iterations = matsimServices.getIterationNumber + 1))
+      .getOrElse(EmissionsSkimmerInternal(init(), 0, 0, 0, iterations = matsimServices.getIterationNumber + 1))
     val currSkim = currObservation.asInstanceOf[EmissionsSkimmerInternal]
     EmissionsSkimmerInternal(
       emissions =
@@ -96,6 +99,8 @@ class EmissionsSkimmer @Inject() (matsimServices: MatsimServices, beamConfig: Be
         (prevSkim.travelTime * prevSkim.observations + currSkim.travelTime * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       energyConsumed =
         (prevSkim.energyConsumed * prevSkim.observations + currSkim.energyConsumed * currSkim.observations) / (prevSkim.observations + currSkim.observations),
+      parkingDuration =
+        (prevSkim.parkingDuration * prevSkim.observations + currSkim.parkingDuration * currSkim.observations) / (prevSkim.observations + currSkim.observations),
       observations = prevSkim.observations + currSkim.observations,
       iterations = prevSkim.iterations
     )
@@ -118,11 +123,12 @@ object EmissionsSkimmer extends LazyLogging {
     emissions: Emissions,
     travelTime: Double,
     energyConsumed: Double,
+    parkingDuration: Double,
     observations: Int = 0,
     iterations: Int = 0
   ) extends AbstractSkimmerInternal {
     private val pollutants: String = Emissions.values.toList.map(emissions.get(_).getOrElse(0.0).toString).mkString(",")
-    override def toCsv: String = s"$pollutants,$travelTime,$energyConsumed,$observations,$iterations"
+    override def toCsv: String = s"$pollutants,$travelTime,$energyConsumed,$parkingDuration,$observations,$iterations"
   }
 
   def emissionsSkimOutputDataDescriptor: OutputDataDescriptor =
@@ -147,6 +153,7 @@ object EmissionsSkimmer extends LazyLogging {
         ${TOG.toString}           | Total organic gases emissions rate
         travelTimeInSecond  | Average travel time in second
         energyConsumption | Energy consumption in joule
+        parkingDuration | Parking duration in seconds
         observations  | Number of events
         iterations    | The current iteration number
         """
@@ -174,6 +181,7 @@ object EmissionsSkimmer extends LazyLogging {
         ${TOG.toString}           | Average (over last n iterations) total organic gases emissions rate
         travelTimeInSecond  | Average (over last n iterations) travel time
         energyConsumption | Average (over last n iterations) energy consumption
+        parkingDuration | Parking (over last n iterations) duration
         observations  | Average (over last n iterations) number of events
         iterations    | Number of iterations
         """

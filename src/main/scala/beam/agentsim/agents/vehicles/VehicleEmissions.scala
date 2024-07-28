@@ -76,6 +76,7 @@ class VehicleEmissions(
             emissions = emissions,
             emissionsProcess = process,
             travelTime = data.linkTravelTime.getOrElse(0.0),
+            parkingDuration = data.parkingDuration.getOrElse(0.0),
             energyConsumption = data.primaryEnergyConsumed + data.secondaryEnergyConsumed,
             beamServices = beamServices
           )
