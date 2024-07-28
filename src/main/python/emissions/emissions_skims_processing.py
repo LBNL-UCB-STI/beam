@@ -82,17 +82,32 @@ emfac_famos_vmt = create_model_vmt_comparison_chart(
     emfac_vmt_file, area, 2050, skims, scenario_2050.replace("_", " "), plot_dir
 )
 
+driving_process_activity = skims[
+    (skims["process"].isin(["RUNEX", "PMBW", "PMTW", "RUNLOSS"])) &
+    (skims["vht"] > 0)
+].groupby(["scenario", "linkId"])["vmt"].sum().reset_index(name="vmt")
+
+parking_process_activity = skims[
+    (skims["process"].isin(["STREX", "DIURN", "HOTSOAK", "RUNLOSS", "IDLEX"])) &
+    (skims["vht"] == 0)
+].groupby(["scenario", "linkId"]).size().reset_index(name='count')
+
 # ################
 # ### Plotting ###
 # ################
 plot_hourly_activity(tours_types, plot_dir)
 plot_hourly_vmt(skims, plot_dir)
-
 plot_multi_pie_emfac_famos_vmt(emfac_famos_vmt, plot_dir)
 
+h3_vmt = process_h3_data(network_h3_intersection, driving_process_activity, "vmt")
+vmt_column = "Weighted VMT from driving activities"
+h3_vmt.rename(columns={"weighted_vmt": vmt_column}, inplace=True)
+create_h3_heatmap(h3_vmt, vmt_column, "2018 Baseline", plot_dir, is_delta=False, remove_outliers=True, in_log_scale=True)
 
-
-
+h3_count = process_h3_data(network_h3_intersection, parking_process_activity, "count")
+count_column = "Weighted count of parking activities"
+h3_count.rename(columns={"weighted_count": count_column}, inplace=True)
+create_h3_heatmap(h3_count, count_column, "2018 Baseline", plot_dir, is_delta=False, remove_outliers=True, in_log_scale=True)
 
 
 

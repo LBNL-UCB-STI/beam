@@ -1265,6 +1265,27 @@ def generate_h3_intersections(network_df, resolution, output_dir):
     return intersection_df
 
 
+def process_h3_data(h3_df, data_df, data_col):
+    print(f"Initial emissions_df shape: {data_df.shape}")
+
+    # Filter emissions data for the specific pollutant
+    data_df[data_col] = pd.to_numeric(data_df[data_col], errors='coerce')
+    data_df_filtered = data_df.dropna()
+    print(f"Filtered emissions shape: {data_df_filtered.shape}")
+
+    # Merge with intersection data
+    merged = pd.merge(h3_df, data_df_filtered, on='linkId', how='inner')
+    print(f"Merged DataFrame shape: {merged.shape}")
+
+    # Calculate normalized emissions
+    merged[f'weighted_{data_col}'] = merged[data_col] * merged['length_ratio']
+
+    # Group by H3 cell and sum normalized emissions
+    result = merged.groupby(['scenario', 'h3_cell'])[f'weighted_{data_col}'].sum().reset_index()
+    print(f"Final result shape: {result.shape}")
+    return result
+
+
 def process_h3_emissions(emissions_df, intersection_df, pollutant):
     print(f"Initial emissions_df shape: {emissions_df.shape}")
 
@@ -1287,12 +1308,11 @@ def process_h3_emissions(emissions_df, intersection_df, pollutant):
     return result
 
 
-def create_h3_heatmap(df, output_dir, pollutant, scenario, remove_outliers, in_log_scale):
+def create_h3_heatmap(df, df_col, scenario, output_dir, is_delta, remove_outliers, in_log_scale):
     """Create a heatmap using the H3 grid structure with linear or logarithmic color scale and a base map."""
     subset_df = df[df["scenario"] == scenario]
-
     if remove_outliers:
-        subset_df = remove_outliers_zscore(subset_df, pollutant)
+        subset_df = remove_outliers_zscore(subset_df, df_col)
 
     # Create polygons for all H3 cells in the result
     polygons = [Polygon(h3.h3_to_geo_boundary(h3_cell, geo_json=True)) for h3_cell in subset_df['h3_cell']]
@@ -1300,7 +1320,7 @@ def create_h3_heatmap(df, output_dir, pollutant, scenario, remove_outliers, in_l
     # Create GeoDataFrame
     gdf = gpd.GeoDataFrame({
         'h3_cell': subset_df['h3_cell'],
-        'pollutant': subset_df[pollutant],
+        'h3_var': subset_df[df_col],
         'geometry': polygons
     })
     gdf = gdf.set_crs("EPSG:4326")
@@ -1311,17 +1331,14 @@ def create_h3_heatmap(df, output_dir, pollutant, scenario, remove_outliers, in_l
     # Create figure and axis
     fig, ax = plt.subplots(figsize=(15, 10))
 
-    vmin, vmax = gdf_mercator['pollutant'].min(), gdf_mercator['pollutant'].max()
-
-    # Determine if we're dealing with a delta (difference) calculation
-    is_delta = 'Delta' in pollutant or 'Δ' in pollutant
+    vmin, vmax = gdf_mercator['h3_var'].min(), gdf_mercator['h3_var'].max()
 
     if in_log_scale:
         if is_delta:
             norm = mcolors.SymLogNorm(linthresh=1e-5, vmin=vmin, vmax=vmax)
         else:
-            gdf_mercator = gdf_mercator[gdf_mercator['pollutant'] > 0]
-            vmin, vmax = gdf_mercator['pollutant'].min(), gdf_mercator['pollutant'].max()
+            gdf_mercator = gdf_mercator[gdf_mercator['h3_var'] > 0]
+            vmin, vmax = gdf_mercator['h3_var'].min(), gdf_mercator['h3_var'].max()
             norm = LogNorm(vmin=vmin, vmax=vmax)
         label_suffix = "in log scale"
         file_suffix = "log"
@@ -1334,10 +1351,13 @@ def create_h3_heatmap(df, output_dir, pollutant, scenario, remove_outliers, in_l
         file_suffix = "linear"
 
     # Choose colormap based on whether it's a delta calculation
-    cmap = colors.LinearSegmentedColormap.from_list("", ["blue", "lightblue", "white", "pink", "red"])
+    if is_delta:
+        cmap = mcolors.LinearSegmentedColormap.from_list("", ["blue", "lightblue", "white", "pink", "red"])
+    else:
+        cmap = plt.get_cmap('viridis')
 
     # Plot cells with data
-    gdf_mercator.plot(column='pollutant', ax=ax, legend=False, cmap=cmap, edgecolor='none', norm=norm, alpha=0.7)
+    gdf_mercator.plot(column='h3_var', ax=ax, legend=False, cmap=cmap, edgecolor='none', norm=norm, alpha=0.7)
 
     # Add base map
     cx.add_basemap(ax, source=cx.providers.CartoDB.Positron)
@@ -1345,18 +1365,22 @@ def create_h3_heatmap(df, output_dir, pollutant, scenario, remove_outliers, in_l
     # Add colorbar
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
-    cbar = fig.colorbar(sm, ax=ax, extend='both')
-    cbar.set_label(f'{pollutant.replace("_", ".")} {label_suffix}', rotation=270, labelpad=15)
+    if is_delta:
+        cbar = fig.colorbar(sm, ax=ax, extend='both')
+    else:
+        cbar = fig.colorbar(sm, ax=ax, extend='max')
+
+    cbar.ax.tick_params(labelsize=16)
+    cbar.set_label(f'{df_col.replace("_", ".")} {label_suffix}', rotation=270, labelpad=15, fontsize=18)
 
     # Set title and adjust plot
-    title_label = f'Emissions Distribution of {pollutant.replace("_", ".")}, {scenario} '
-    plt.title(title_label, fontsize=16)
+    # plt.title(f'Emissions Distribution of {df_col.replace("_", ".")}, {scenario} ', fontsize=16)
     ax.set_axis_off()
     plt.tight_layout()
 
     # Save figure
     outlier_status = "no_outliers" if remove_outliers else "with_outliers"
-    file_name = f'{output_dir}/{pollutant.split(" ")[0]}_{scenario.replace(" ", "_").lower()}_emissions_heatmap_{file_suffix}_{outlier_status}_with_basemap.png'
+    file_name = f'{output_dir}/{df_col.replace(" ", "_").lower()}_{scenario.replace(" ", "_").lower()}_heatmap_{file_suffix}_{outlier_status}_with_basemap.png'
     plt.savefig(file_name, dpi=300, bbox_inches='tight')
     plt.close()
     print(f"Heatmap with base map saved as {file_name}")
@@ -1542,7 +1566,7 @@ def plot_multi_pie_emfac_famos_vmt(data, plot_dir):
                                 horizontalalignment='center',
                                 verticalalignment='center',
                                 bbox=bbox_props, arrowprops=arrowprops,
-                                fontsize=12)
+                                fontsize=16)
                 else:
                     x = (radius + size / 2 + 0.05) * np.cos(theta)
                     y = (radius + size / 2 + 0.05) * np.sin(theta)
@@ -1552,7 +1576,7 @@ def plot_multi_pie_emfac_famos_vmt(data, plot_dir):
                                 horizontalalignment='center',
                                 verticalalignment='center',
                                 bbox=bbox_props,
-                                fontsize=12)
+                                fontsize=16)
 
     wedges_outer, texts_outer, autotexts_outer = ax.pie(famos_data['mvmt'], radius=outer_radius, colors=outer_colors,
                                                         labels=None, autopct='', pctdistance=0.85,
@@ -1567,7 +1591,7 @@ def plot_multi_pie_emfac_famos_vmt(data, plot_dir):
 
     add_labels(wedges_inner, emfac_data['fuel_class'], make_autopct(emfac_data['mvmt']), inner_colors, inner_radius, inner=True)
 
-    ax.set_title('VMT Distribution by Fuel-Class: FAMOS (outer) vs EMFAC (inner)', fontsize=16)
+    # ax.set_title('VMT Share by Fuel-Class: FAMOS (outer) vs EMFAC (inner)', fontsize=16)
 
     # handles = [plt.Rectangle((0, 0), 1, 1, fc="w", ec="k", lw=2, alpha=0.5) for _ in range(2)]
     # labels = ['FAMOS (Outer)', 'EMFAC (Inner)']
