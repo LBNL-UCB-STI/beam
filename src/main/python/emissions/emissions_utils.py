@@ -123,14 +123,32 @@ skims_schema = pa.schema([
 
 
 def sanitize_name(filename):
-    # First, replace forward slashes with dashes
-    sanitized = filename.replace('/', '-')
-    # Then remove or replace any other non-alphanumeric characters (except dashes)
-    sanitized = re.sub(r'[^\w\-]', '-', sanitized)
-    # Replace any sequence of dashes with a single dash
-    sanitized = re.sub(r'-+', '-', sanitized)
-    # Remove leading and trailing dashes
-    sanitized = sanitized.strip('-')
+    # Start with the original filename
+    sanitized = filename
+
+    # Replace other common superscripts if needed
+    superscript_map = {'¹': '1', '²': '2', '³': '3', '⁴': '4', '⁵': '5', '⁶': '6', '⁷': '7', '⁸': '8', '⁹': '9'}
+    for sup, normal in superscript_map.items():
+        sanitized = sanitized.replace(sup, normal)
+
+    # Replace parentheses with underscores
+    sanitized = sanitized.replace('(', '_').replace(')', '_')
+
+    # Replace forward slashes and backslashes with dashes
+    sanitized = sanitized.replace('/', '-').replace('\\', '-')
+
+    # Replace spaces with underscores
+    sanitized = sanitized.replace(' ', '_')
+
+    # Remove or replace any other non-alphanumeric characters (except dashes and underscores)
+    sanitized = re.sub(r'[^\w\-_]', '', sanitized)
+
+    # Replace any sequence of dashes or underscores with a single underscore
+    sanitized = re.sub(r'[_-]+', '_', sanitized)
+
+    # Remove leading and trailing underscores
+    sanitized = sanitized.strip('_')
+
     return sanitized
 
 
@@ -948,13 +966,13 @@ def read_skims_emissions_chunked(skims_file, vehicleTypes_file, vehicleTypeId_fi
     return melted
 
 
-def emissions_by_scenario_hour_class_fuel(emissions_skims, pollutant, output_dir):
+def plot_hourly_emissions_by_scenario_class_fuel(emissions_skims, pollutant, output_dir, plot_legend, height_size, font_size):
     data = emissions_skims[emissions_skims['pollutant'] == pollutant].copy()
-    grouped_data = data.groupby(['scenario', 'hour', 'class', 'fuel'])['rate'].sum().reset_index()
+    grouped_data = data.groupby(['scenario', 'hour', 'class', 'emfacFuel'])['rate'].sum().reset_index()
 
-    plt.figure(figsize=(20, 10))
+    plt.figure(figsize=(20, height_size))
 
-    grouped_data['fuel_class'] = grouped_data['fuel'].astype(str) + ', ' + grouped_data['class'].astype(str)
+    grouped_data['fuel_class'] = grouped_data['emfacFuel'].astype(str) + ', ' + grouped_data['class'].astype(str)
     scenarios = grouped_data['scenario'].unique()
     fuel_classes = sorted(grouped_data['fuel_class'].unique())
     all_hours = sorted(grouped_data['hour'].unique())
@@ -969,7 +987,7 @@ def emissions_by_scenario_hour_class_fuel(emissions_skims, pollutant, output_dir
         fuel, vehicle_class = fc.split(',')
         fuel = fuel.strip()
         vehicle_class = vehicle_class.strip()
-        base_color = fuel_color_map.get(fuel, '#000000')  # Default to black if fuel not found
+        base_color = fuel_color_map[fuel]  # Default to black if fuel not found
         if any(c in vehicle_class for c in ['7', '8']):
             fuel_class_colors[fc] = darken_color(base_color)
         else:
@@ -999,28 +1017,28 @@ def emissions_by_scenario_hour_class_fuel(emissions_skims, pollutant, output_dir
             bottom += rates
 
     plt.title(
-        f'{pollutant.replace("_", ".")} Annual Emissions by Hour, Scenario, Class and Fuel:\n{" vs ".join(scenarios_labeling)}',
-        fontsize=28)
-    plt.xlabel('Hour', fontsize=24)
-    plt.ylabel('Emissions (tons)', fontsize=24)
-    plt.xticks(x + width * (len(scenarios) - 1) / 2, all_hours, fontsize=24)
+        f'{pollutant.replace("_", ".")} Emissions: {" vs. ".join(scenarios_labeling)}',
+        fontsize=font_size+4)
+    plt.xlabel('Hour', fontsize=font_size)
+    plt.ylabel('Emissions (Metric Tons)', fontsize=font_size)
+    plt.xticks(x + width * (len(scenarios) - 1) / 2, all_hours, fontsize=font_size)
     plt.yticks(fontsize=24)
-    plt.legend(title='Fuel, Class', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=28, title_fontsize=28)
+    if plot_legend:
+        plt.legend(title='Fuel, Class', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=font_size+4, title_fontsize=font_size+4)
     plt.grid(axis='y', linestyle='--', alpha=0.7)
 
     plt.tight_layout()
-    plt.savefig(f'{output_dir}/{pollutant}_emissions_by_scenario_hour_class_fuel.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'{output_dir}/{pollutant.lower()}_emissions_by_scenario_hour_class_fuel.png', dpi=300, bbox_inches='tight')
 
 
-def plot_hourly_activity(tours_types, output_dir):
-    # Preprocess the data
+def plot_hourly_activity(tours_types, output_dir, height_size):
+    # Preprocess data
     tours_types['class'] = tours_types['vehicleCategory'].str.replace('Vocational|Tractor', '', regex=True).str.strip()
     tours_types['fuel'] = tours_types['primaryFuelType'].str.lower().map(fuel_beam2emfac_map)
     tours_types['fuel'] = np.where((tours_types['fuel'] == "Elec") & tours_types['secondaryFuelType'].notna(), 'Phe',
                                    tours_types['fuel'])
     tours_types['fuel_class'] = tours_types['fuel'] + '-' + tours_types['class']
     tours_types['departure_hour'] = (tours_types['departureTimeInSec'] / 3600).astype(int) % 24
-
     # Group by scenario, hour, and fuel_class, count the number of tours
     hourly_activity = tours_types.groupby(['scenario', 'departure_hour', 'fuel_class']).size().unstack(
         level=[0, 2], fill_value=0
@@ -1041,7 +1059,7 @@ def plot_hourly_activity(tours_types, output_dir):
         hourly_activity = hourly_activity.sort_index()
 
     # Create the plot
-    plt.figure(figsize=(20, 10))
+    plt.figure(figsize=(20, height_size))
     x = np.arange(24)  # 24 hours
     width = 0.35  # width of the bars
     scenarios = hourly_activity.columns.levels[0]
@@ -1101,16 +1119,15 @@ def plot_hourly_activity(tours_types, output_dir):
     print(f"Plot saved as {output_dir}/hourly_activity_by_scenario_fuel_class.png")
 
 
-def plot_hourly_vmt(df, output_dir):
-    # Group by scenario, hour, and fuel_class, sum annualHourlyMVMT
-    df_agg = df.groupby(['scenario', 'hour', 'beamFuel', 'class'])['vmt'].sum().reset_index().copy()
+def plot_hourly_vmt(df, output_dir, height_size):
     # Preprocess the data
-    df_agg['fuel_class'] = df_agg['beamFuel'].astype(str) + '-' + df_agg['class'].astype(str)
-    df_agg['hour'] = df_agg['hour'].astype(int) % 24
-    df_agg['mvmt'] = df_agg['vmt']/1e6
-    scenarios = df_agg['scenario'].unique()
+    df['fuel_class'] = df['beamFuel'].astype(str) + '-' + df['class'].astype(str)
+    df['hour'] = df['hour'].astype(int) % 24
+    df['mvmt'] = df['vmt'] / 1e6
 
-    hourly_vmt = df_agg.groupby(['scenario', 'hour', 'fuel_class'])['mvmt'].sum().unstack(
+    scenarios = df['scenario'].unique()
+
+    hourly_vmt = df.groupby(['scenario', 'hour', 'fuel_class'])['mvmt'].sum().unstack(
         level=[0, 2], fill_value=0
     ).copy().reset_index()
 
@@ -1121,7 +1138,7 @@ def plot_hourly_vmt(df, output_dir):
     hourly_vmt = hourly_vmt.sort_index()
 
     # Create the plot
-    plt.figure(figsize=(20, 10))
+    plt.figure(figsize=(20, height_size))
     x = np.arange(24)  # 24 hours
     width = 0.35  # width of the bars
 
@@ -1171,7 +1188,7 @@ def plot_hourly_vmt(df, output_dir):
 
     # plt.title(f'Weekday VMT by Fuel, Class and Scenario: {" vs ".join(scenarios).replace("_", " ")}', fontsize=20)
     plt.xlabel('Hour', fontsize=24)
-    plt.ylabel('Million Vehicle Miles Traveled (MVMT)', fontsize=24)
+    plt.ylabel('Million Vehicle Miles Traveled', fontsize=24)
     plt.xticks(x + width / 2, range(24), fontsize=24)
     plt.yticks(fontsize=24)
 
@@ -1308,7 +1325,7 @@ def process_h3_emissions(emissions_df, intersection_df, pollutant):
     return result
 
 
-def create_h3_heatmap(df, df_col, scenario, output_dir, is_delta, remove_outliers, in_log_scale):
+def plot_h3_heatmap(df, df_col, scenario, output_dir, is_delta, remove_outliers, in_log_scale):
     """Create a heatmap using the H3 grid structure with linear or logarithmic color scale and a base map."""
     subset_df = df[df["scenario"] == scenario]
     if remove_outliers:

@@ -37,6 +37,9 @@ plot_dir = f'{run_dir}/_plots'
 # ##### Main #####
 # ################
 
+scenario_2018_label = scenario_2018.replace("_", " ")
+scenario_2050_label = scenario_2050.replace("_", " ")
+
 # Network
 network = load_network(network_file, source_epsg)
 network_h3_intersection = generate_h3_intersections(network, h3_resolution, run_dir)
@@ -49,7 +52,7 @@ skims_2018 = read_skims_emissions_chunked(
     mode_to_filter,
     network,
     expansion_factor,
-    scenario_2018.replace("_", " ")
+    scenario_2018_label
 )
 skims_2050 = read_skims_emissions_chunked(
     skims_2050_file,
@@ -57,13 +60,13 @@ skims_2050 = read_skims_emissions_chunked(
     mode_to_filter,
     network,
     expansion_factor,
-    scenario_2050.replace("_", " ")
+    scenario_2050_label
 )
 skims = pd.concat([skims_2018, skims_2050])
 print(f"Read {len(skims)} rows of skims")
 # fast_df_to_gzip(skims, f'{run_dir}/skims_{scenario_2018}_{scenario_2050}.csv.gz')
 
-# Tours
+# FAMOS Tours
 tours_2018 = pd.read_csv(tours_2018_file)[["tourId", 'departureTimeInSec']]
 tours_2050 = pd.read_csv(tours_2050_file)[["tourId", 'departureTimeInSec']]
 carriers_2018 = pd.read_csv(carriers_2018_file)[["tourId", 'vehicleTypeId']]
@@ -75,68 +78,94 @@ tours_types_2018 = pd.merge(tours_2018, pd.merge(carriers_2018, types_2018, on="
 tours_types_2018["scenario"] = scenario_2018
 tours_types_2050 = pd.merge(tours_2050, pd.merge(carriers_2050, types_2050, on="vehicleTypeId"), on="tourId")
 tours_types_2050["scenario"] = scenario_2050
-tours_types = pd.concat([tours_types_2018, tours_types_2050])
+famos_tours = pd.concat([tours_types_2018, tours_types_2050])
 
-# VMT
+# FAMOS VMT
+# Group by scenario, hour, and fuel_class, sum annualHourlyMVMT
+famos_vmt = skims.groupby(['scenario', 'hour', 'beamFuel', 'class'])['vmt'].sum().reset_index().copy()
+
+# EMFAC VMT
 emfac_famos_vmt = create_model_vmt_comparison_chart(
     emfac_vmt_file, area, 2050, skims, scenario_2050.replace("_", " "), plot_dir
 )
 
+# Processes
 driving_process_activity = skims[
     (skims["process"].isin(["RUNEX", "PMBW", "PMTW", "RUNLOSS"])) &
     (skims["vht"] > 0)
 ].groupby(["scenario", "linkId"])["vmt"].sum().reset_index(name="vmt")
+h3_vmt = process_h3_data(network_h3_intersection, driving_process_activity, "vmt")
+vmt_column = "Weighted VMT from driving activities"
+h3_vmt.rename(columns={"weighted_vmt": vmt_column}, inplace=True)
 
 parking_process_activity = skims[
     (skims["process"].isin(["STREX", "DIURN", "HOTSOAK", "RUNLOSS", "IDLEX"])) &
     (skims["vht"] == 0)
 ].groupby(["scenario", "linkId"]).size().reset_index(name='count')
+h3_count = process_h3_data(network_h3_intersection, parking_process_activity, "count")
+count_column = "Weighted count of parking activities"
+h3_count.rename(columns={"weighted_count": count_column}, inplace=True)
+
+# Emissions
+pm25 = process_h3_emissions(skims, network_h3_intersection, 'PM2_5')
+nox = process_h3_emissions(skims, network_h3_intersection, 'NOx')
+co = process_h3_emissions(skims, network_h3_intersection, 'CO')
+co2 = process_h3_emissions(skims, network_h3_intersection, 'CO2')
+#
+pm25_column = "PM2_5 in grams per square meter"
+pm25[pm25_column] = pm25["PM2_5"] * 1e6  # from metric ton to gram
+#
+nox_column = "NOx in grams per square meter"
+nox[nox_column] = nox["NOx"] * 1e6  # from metric ton to gram
+#
+co_column = "CO in grams per square meter"
+co[co_column] = co["CO"] * 1e6  # from metric ton to gram
+#
+co2_column = "CO2 in grams per square meter"
+co2[co2_column] = co2["CO2"] * 1e6  # from metric ton to gram
+
+# Delta Emissions
+pm25_delta = pm25.pivot(index='h3_cell', columns='scenario', values='PM2_5').reset_index()
+pm25_delta = pm25_delta.fillna(0)
+pm25_delta["scenario"] = "-".join([scenario_2050_label, scenario_2018_label])
+pm25_delta['Delta_PM2_5'] = pm25_delta[scenario_2050_label] - pm25_delta[scenario_2018_label]
+pm25_delta_column = "Delta PM2_5 in grams per square meter"
+pm25_delta[pm25_delta_column] = pm25_delta["Delta_PM2_5"] * 1e6  # from metric ton to gram
+#
+nox_delta = nox.pivot(index='h3_cell', columns='scenario', values='NOx').reset_index()
+nox_delta = nox_delta.fillna(0)
+nox_delta["scenario"] = "-".join([scenario_2050_label, scenario_2018_label])
+nox_delta['Delta_NOx'] = nox_delta[scenario_2050_label] - nox_delta[scenario_2018_label]
+nox_delta_column = "Delta NOx in grams per square meter"
+nox_delta[nox_delta_column] = nox_delta["Delta_NOx"] * 1e6  # from metric ton to gram
+
 
 # ################
 # ### Plotting ###
 # ################
-plot_hourly_activity(tours_types, plot_dir)
-plot_hourly_vmt(skims, plot_dir)
+# Figure 1
+plot_hourly_activity(famos_tours, plot_dir, height_size=6)
+plot_hourly_vmt(famos_vmt, plot_dir, height_size=6)
+# Figure 2
 plot_multi_pie_emfac_famos_vmt(emfac_famos_vmt, plot_dir)
-
-h3_vmt = process_h3_data(network_h3_intersection, driving_process_activity, "vmt")
-vmt_column = "Weighted VMT from driving activities"
-h3_vmt.rename(columns={"weighted_vmt": vmt_column}, inplace=True)
-create_h3_heatmap(h3_vmt, vmt_column, "2018 Baseline", plot_dir, is_delta=False, remove_outliers=True, in_log_scale=True)
-
-h3_count = process_h3_data(network_h3_intersection, parking_process_activity, "count")
-count_column = "Weighted count of parking activities"
-h3_count.rename(columns={"weighted_count": count_column}, inplace=True)
-create_h3_heatmap(h3_count, count_column, "2018 Baseline", plot_dir, is_delta=False, remove_outliers=True, in_log_scale=True)
-
-
-
-
-test = skims.groupby(['scenario', 'hour', 'beamFuel', 'class'])['vmt'].sum().unstack(
-        level=[0, 2], fill_value=0
-    ).copy().reset_index()
-
-pm25 = process_h3_emissions(df_combined, network_h3_intersection, 'PM2_5')
-pm25["PM2_5 (g/m²)"] = pm25["PM2_5"] * 907184.74
-# create_h3_histogram(pm25_2018, plot_dir, 'PM2_5 (g/m²)', in_log_scale=True)
-create_h3_heatmap(pm25, plot_dir, 'PM2_5 (g/m²)', "2018 Baseline", remove_outliers=True, in_log_scale=True)
-create_h3_heatmap(pm25, plot_dir, 'PM2_5 (g/m²)', "2050 HOPhighp2", remove_outliers=True, in_log_scale=True)
-
-pm25_pivot = pm25.pivot(index='h3_cell', columns='scenario', values='PM2_5').reset_index()
-pm25_pivot = pm25_pivot.fillna(0)
-pm25_pivot['Delta_PM2_5'] = pm25_pivot["2050 HOPhighp2"] - pm25_pivot["2018 Baseline"]
-pm25_pivot["ΔPM2_5 (g/m²)"] = pm25_pivot["Delta_PM2_5"] * 907184.74
-pm25_pivot["scenario"] = "2050-2018"
-create_h3_heatmap(pm25_pivot, plot_dir, 'ΔPM2_5 (g/m²)', "2050-2018", remove_outliers=False, in_log_scale=True)
-
-
-# Plotting
-emissions_by_scenario_hour_class_fuel(df_combined, 'PM2_5', plot_dir)
-emissions_by_scenario_hour_class_fuel(df_combined, 'CO', plot_dir)
-emissions_by_scenario_hour_class_fuel(df_combined, 'CO2', plot_dir)
-emissions_by_scenario_hour_class_fuel(df_combined, 'NOx', plot_dir)
-
-plot_hourly_vmt(df_combined, plot_dir)
+# Figure 3
+plot_h3_heatmap(h3_vmt, vmt_column, scenario_2018_label, plot_dir, is_delta=False, remove_outliers=True, in_log_scale=True)
+plot_h3_heatmap(h3_count, count_column, scenario_2018_label, plot_dir, is_delta=False, remove_outliers=True, in_log_scale=True)
+# Figure 4
+plot_h3_heatmap(pm25, pm25_column, scenario_2018_label, plot_dir, is_delta=False, remove_outliers=True, in_log_scale=True)
+plot_h3_heatmap(nox, nox_column, scenario_2018_label, plot_dir, is_delta=False, remove_outliers=True, in_log_scale=True)
+# plot_h3_heatmap(co, co_column, scenario_2018_label, plot_dir, is_delta=False, remove_outliers=True, in_log_scale=True)
+# plot_h3_heatmap(co2, co2_column, scenario_2018_label, plot_dir, is_delta=False, remove_outliers=True, in_log_scale=True)
+# Figure 5
+plot_hourly_emissions_by_scenario_class_fuel(skims, 'PM2_5', plot_dir, plot_legend=True, height_size=6, font_size=24)
+plot_hourly_emissions_by_scenario_class_fuel(skims, 'NOx', plot_dir, plot_legend=True, height_size=6, font_size=24)
+plot_hourly_emissions_by_scenario_class_fuel(skims, 'CO', plot_dir, plot_legend=True, height_size=6, font_size=24)
+plot_hourly_emissions_by_scenario_class_fuel(skims, 'CO2', plot_dir, plot_legend=True, height_size=6, font_size=24)
+#plot_hourly_emissions_by_scenario_class_fuel(skims, 'NOx', plot_dir, plot_legend=False, height_size=11, font_size=30)
+#plot_hourly_emissions_by_scenario_class_fuel(skims, 'CO2', plot_dir, plot_legend=False, height_size=11, font_size=30)
+# Figure 6
+plot_h3_heatmap(pm25_delta, pm25_delta_column, "-".join([scenario_2050_label, scenario_2018_label]), plot_dir, is_delta=True, remove_outliers=True, in_log_scale=True)
+plot_h3_heatmap(nox_delta, nox_delta_column, "-".join([scenario_2050_label, scenario_2018_label]), plot_dir, is_delta=True, remove_outliers=True, in_log_scale=True)
 
 
 print("End.")
