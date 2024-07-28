@@ -1488,7 +1488,6 @@ def plot_multi_pie_emfac_famos_vmt(data, plot_dir):
         return fuel_color_map[fuel_class.split('-')[0]]
 
     models = data["model"].unique()
-    print(f"Models: {models}")
 
     emfac_data = data[data['model'] == 'emfac'].sort_values('mvmt', ascending=False)
     famos_data = data[data['model'] == 'famos'].sort_values('mvmt', ascending=False)
@@ -1524,8 +1523,8 @@ def plot_multi_pie_emfac_famos_vmt(data, plot_dir):
 
         return my_autopct
 
-    def add_labels(wedges, texts, autopct, colors, radius, inner=False):
-        for i, (wedge, text, color) in enumerate(zip(wedges, texts, colors)):
+    def add_labels(wedges, fuel_classes, autopct, colors, radius, inner=False):
+        for wedge, fuel_class, color in zip(wedges, fuel_classes, colors):
             ang = (wedge.theta2 + wedge.theta1) / 2
             pct = wedge.theta2 - wedge.theta1
             if pct * 100 / 360 >= 1:  # Only show labels for slices >= 1%
@@ -1539,32 +1538,34 @@ def plot_multi_pie_emfac_famos_vmt(data, plot_dir):
                     bbox_props = dict(boxstyle="round,pad=0.3", fc=color, ec="k", lw=0.72, alpha=0.7)
                     arrowprops = dict(arrowstyle="-", connectionstyle=f"arc3,rad=0", color='k')
 
-                    ax.annotate(f'{text.get_text()}\n{label}', xy=start_point, xytext=end_point,
+                    ax.annotate(f'{fuel_class}\n{label}', xy=start_point, xytext=end_point,
                                 horizontalalignment='center',
                                 verticalalignment='center',
-                                bbox=bbox_props, arrowprops=arrowprops)
+                                bbox=bbox_props, arrowprops=arrowprops,
+                                fontsize=12)
                 else:
                     x = (radius + size / 2 + 0.05) * np.cos(theta)
                     y = (radius + size / 2 + 0.05) * np.sin(theta)
 
                     bbox_props = dict(boxstyle="round,pad=0.3", fc=color, ec="k", lw=0.72, alpha=0.7)
-                    ax.annotate(f'{text.get_text()}\n{label}', xy=(x, y), xytext=(x, y),
+                    ax.annotate(f'{fuel_class}\n{label}', xy=(x, y), xytext=(x, y),
                                 horizontalalignment='center',
                                 verticalalignment='center',
-                                bbox=bbox_props)
+                                bbox=bbox_props,
+                                fontsize=12)
 
     wedges_outer, texts_outer, autotexts_outer = ax.pie(famos_data['mvmt'], radius=outer_radius, colors=outer_colors,
-                                                        labels=famos_data['fuel_class'], autopct='', pctdistance=0.85,
+                                                        labels=None, autopct='', pctdistance=0.85,
                                                         labeldistance=1.1,
                                                         wedgeprops=dict(width=size, edgecolor='white'))
 
-    add_labels(wedges_outer, texts_outer, make_autopct(famos_data['mvmt']), outer_colors, outer_radius)
+    add_labels(wedges_outer, famos_data['fuel_class'], make_autopct(famos_data['mvmt']), outer_colors, outer_radius)
 
     wedges_inner, texts_inner, autotexts_inner = ax.pie(emfac_data['mvmt'], radius=inner_radius, colors=inner_colors,
-                                                        labels=emfac_data['fuel_class'], autopct='', pctdistance=0.75,
+                                                        labels=None, autopct='', pctdistance=0.75,
                                                         wedgeprops=dict(width=size, edgecolor='white'))
 
-    add_labels(wedges_inner, texts_inner, make_autopct(emfac_data['mvmt']), inner_colors, inner_radius, inner=True)
+    add_labels(wedges_inner, emfac_data['fuel_class'], make_autopct(emfac_data['mvmt']), inner_colors, inner_radius, inner=True)
 
     ax.set_title('VMT Distribution by Fuel-Class: FAMOS (outer) vs EMFAC (inner)', fontsize=16)
 
