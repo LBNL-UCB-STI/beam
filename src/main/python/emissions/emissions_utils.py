@@ -6,6 +6,7 @@ import pyarrow.compute as pc
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.colors as colors
+import matplotlib.patches as patches
 import geopandas as gpd
 from matplotlib import colors
 from pyproj import Transformer
@@ -66,13 +67,13 @@ fuel_beam2emfac_map = {
 
 # Fuel Color Map
 fuel_color_map = {
-    'Elec': '#2070b4',  # Darker Blue (Cleanest)
-    'H2fc': '#00CED1',  # Turquoise (Clean)
-    'NG': '#1a8c4a',    # Darker Green (Relatively Clean)
-    'Phe': '#90EE90',   # Light Green (Hybrid, intermediate)
-    'Gas': '#cc5500',   # Darker Orange (Less Clean)
-    'BioDsl': '#A52A2A',  # Brown (Biofuel, less clean than traditional diesel)
-    'Dsl': '#5a6268',   # Darker Gray (Least Clean)
+    'Elec': '#4169E1',  # Royal Blue
+    'H2fc': '#6495ED',  # Cornflower Blue
+    'Phe': '#87CEEB',  # Sky Blue
+    'NG': '#B0E0E6',    # Pale Blue
+    'BioDsl': '#EEE8AA',  # Pale Gold
+    'Dsl': '#FFD700',  # Gold
+    'Gas': '#B8860B'   # Dark Goldenrod
 }
 
 pollutant_columns = {
@@ -141,7 +142,7 @@ def get_vehicle_class_from_freight(vehicle_type):
     elif 'hdv' in vehicle_type:
         return class_78_t
     else:
-        return 'Unknown'
+        return None
 
 
 def prepare_emfac_emissions_for_mapping(emissions_rates, emfac_class_map):
@@ -553,7 +554,7 @@ def build_new_ft_vehtypes(updated_ft_population, ft_vehicle_types):
         new_row = ft_vehicle_types_dict[row["oldVehicleTypeId"]].copy()
         new_row["vehicleTypeId"] = row["vehicleTypeId"]
         new_row['vehicleClass'] = row["beamClass"]
-        new_row['vehicleCategory'] = class_to_category.get(row['beamClass'], 'Unknown')
+        new_row['vehicleCategory'] = class_to_category[row['beamClass']]
         new_row["emfacId"] = row['emfacId']
         return new_row
 
@@ -817,8 +818,14 @@ def read_skims_emissions_chunked(skims_file, vehicleTypes_file, vehicleTypeId_fi
 
     # Process vehicleTypes file
     vehicleTypes = pd.read_csv(vehicleTypes_file)
-    vehicleTypes['fuel'] = vehicleTypes['emfacId'].str.split('-').str[-1]
-    vehicleTypes['class'] = vehicleTypes['vehicleClass'].str.replace('Vocational|Tractor', '', regex=True).str.strip()
+    vehicleTypes['emfacFuel'] = vehicleTypes['emfacId'].str.split('-').str[-1]
+    vehicleTypes['class'] = vehicleTypes['vehicleCategory'].str.replace('Vocational|Tractor', '', regex=True).str.strip()
+    vehicleTypes['beamFuel'] = np.where(
+        (vehicleTypes['primaryFuelType'].str.lower() == fuel_emfac2beam_map["Elec"]) & vehicleTypes[
+            'secondaryFuelType'].notna(),
+        'Phe',
+        vehicleTypes['primaryFuelType'].str.lower().map(fuel_beam2emfac_map)
+    )
 
     # Initialize an empty list to store the processed chunks
     result_chunks = []
@@ -900,7 +907,7 @@ def read_skims_emissions_chunked(skims_file, vehicleTypes_file, vehicleTypeId_fi
         # Merge with vehicleTypes and network
         df_chunk_merged = (
             df_chunk
-            .merge(vehicleTypes[['vehicleTypeId', 'class', 'fuel']], on='vehicleTypeId', how='left')
+            .merge(vehicleTypes[['vehicleTypeId', 'class', 'beamFuel', 'emfacFuel']], on='vehicleTypeId', how='left')
             .merge(network[['linkId', 'linkLength']], on='linkId', how='left')
         )
         # del df_chunk
@@ -912,7 +919,7 @@ def read_skims_emissions_chunked(skims_file, vehicleTypes_file, vehicleTypeId_fi
         df_chunk_merged.rename(columns={'emissionsProcess': 'process'}, inplace=True)
 
         # Melt the dataframe
-        id_vars = ['hour', 'linkId', 'tazId', 'class', 'fuel', 'process', 'kwh', 'vmt', 'vht']
+        id_vars = ['hour', 'linkId', 'tazId', 'class', 'beamFuel', 'emfacFuel', 'process', 'kwh', 'vmt', 'vht']
         value_vars = [f'scaled_{pollutant}' for pollutant in pollutant_columns.keys()]
         melted_chunk = df_chunk_merged.melt(
             id_vars=id_vars,
@@ -1044,9 +1051,7 @@ def plot_hourly_activity(tours_types, output_dir):
     for scenario in scenarios:
         all_fuel_classes.update(hourly_activity[scenario].columns)
 
-    # Define the order of fuels from most to least sustainable
-    fuel_order = ['Elec', 'H2fc', 'Phe', 'NG', 'BioDsl', 'Dsl', 'Gas']
-
+    fuel_order = list(fuel_color_map.keys())
     # Sort fuel classes based on the defined order
     sorted_fuel_classes = sorted(all_fuel_classes,
                                  key=lambda x: (
@@ -1077,107 +1082,101 @@ def plot_hourly_activity(tours_types, output_dir):
                 legend_handles.append(bar)
                 legend_labels.append(fuel_class)
 
-    plt.title(f'Hourly Tour Activity by Scenario and Fuel Class, {" vs ".join(scenarios).replace("_", " ")}', fontsize=20)
-    plt.xlabel('Hour of Day', fontsize=16)
-    plt.ylabel('Number of Tours Departing', fontsize=16)
-    plt.xticks(x + width / 2, range(24), fontsize=12)
+    # plt.title(f'Weekday Tour Activity by Fuel, Class and Scenario: {" vs ".join(scenarios).replace("_", " ")}', fontsize=24)
+    plt.xlabel('Hour', fontsize=24)
+    plt.ylabel('Number of Tours Departing', fontsize=24)
+    plt.xticks(x + width / 2, range(24), fontsize=24)
     plt.yticks(fontsize=12)
 
     # Create legend with ordered fuel classes
-    plt.legend(legend_handles, legend_labels, fontsize=12, loc='upper left', bbox_to_anchor=(1, 1))
+    plt.legend(legend_handles, legend_labels, fontsize=28, loc='upper left', bbox_to_anchor=(1, 1))
 
     plt.grid(axis='y', linestyle='--', alpha=0.7)
 
     # Adjust layout and save
     plt.tight_layout()
-    plt.savefig(f'{output_dir}/hourly_tour_activity_by_scenario_fuel_class.png', dpi=300, bbox_inches='tight')
+    plt.savefig(f'{output_dir}/hourly_activity_by_scenario_fuel_class.png', dpi=300, bbox_inches='tight')
     plt.close()
 
-    print(f"Plot saved as {output_dir}/hourly_tour_activity_by_scenario_fuel_class.png")
+    print(f"Plot saved as {output_dir}/hourly_activity_by_scenario_fuel_class.png")
 
 
-def plot_hourly_vmt(df_filtered, output_dir):
-    # Group by scenario, hour, fuel, class and sum annualHourlyMVMT
-    hourly_vmt = df_filtered.groupby(['scenario', 'hour', 'fuel', 'class'])[
-        'annualHourlyMVMT'].sum().reset_index()
+def plot_hourly_vmt(df, output_dir):
+    # Group by scenario, hour, and fuel_class, sum annualHourlyMVMT
+    df_agg = df.groupby(['scenario', 'hour', 'beamFuel', 'class'])['vmt'].sum().reset_index().copy()
+    # Preprocess the data
+    df_agg['fuel_class'] = df_agg['beamFuel'].astype(str) + '-' + df_agg['class'].astype(str)
+    df_agg['hour'] = df_agg['hour'].astype(int) % 24
+    df_agg['mvmt'] = df_agg['vmt']/1e6
+    scenarios = df_agg['scenario'].unique()
 
-    # Create a unique identifier for fuel and class combination
-    hourly_vmt['fuel_class'] = hourly_vmt['fuel'] + ', ' + hourly_vmt['class']
-
-    # Pivot the data to have scenarios as columns
-    hourly_vmt_pivot = hourly_vmt.pivot_table(
-        values='annualHourlyMVMT',
-        index=['hour', 'fuel_class'],
-        columns='scenario',
-        fill_value=0
-    ).reset_index()
+    hourly_vmt = df_agg.groupby(['scenario', 'hour', 'fuel_class'])['mvmt'].sum().unstack(
+        level=[0, 2], fill_value=0
+    ).copy().reset_index()
 
     # Ensure all hours are present
     for hour in range(24):
-        if hour not in hourly_vmt_pivot['hour'].values:
-            hourly_vmt_pivot = hourly_vmt_pivot.append({'hour': hour}, ignore_index=True)
+        if hour not in hourly_vmt.index:
+            hourly_vmt.loc[hour] = 0
+    hourly_vmt = hourly_vmt.sort_index()
 
-    hourly_vmt_pivot = hourly_vmt_pivot.sort_values('hour').fillna(0)
-
-    # Get unique scenarios and fuel_class combinations
-    scenarios = hourly_vmt['scenario'].unique()
-    fuel_classes = sorted(hourly_vmt['fuel_class'].unique())
-
-    # Set up the plot
+    # Create the plot
     plt.figure(figsize=(20, 10))
     x = np.arange(24)  # 24 hours
-    width = 0.35  # Width of a group of bars for one scenario
+    width = 0.35  # width of the bars
 
-    # Define base color map for fuel types
-    base_color_map = {
-        'Elec': '#2070b4',  # Darker Blue
-        'NG': '#1a8c4a',  # Darker Green
-        'Gas': '#cc5500',  # Darker Orange
-        'Dsl': '#5a6268',  # Darker Gray
-    }
+    # Get all unique fuel classes across all scenarios
+    all_fuel_classes = set()
+    for scenario in scenarios:
+        all_fuel_classes.update(hourly_vmt[scenario].columns)
+
+    fuel_order = list(fuel_color_map.keys())
+    # Sort fuel classes based on the defined order
+    sorted_fuel_classes = sorted(all_fuel_classes,
+                                 key=lambda x: (
+                                 fuel_order.index(x.split('-')[0]) if x.split('-')[0] in fuel_order else len(
+                                     fuel_order), x))
 
     # Function to darken a color
     def darken_color(color, factor=0.7):
         return mcolors.to_rgba(mcolors.to_rgb(color), alpha=None)[:3] + (factor,)
 
     # Create color map for fuel_classes
-    fuel_class_colors = {}
-    for fc in fuel_classes:
-        fuel, vehicle_class = fc.split(',')
-        fuel = fuel.strip()
-        vehicle_class = vehicle_class.strip()
-        base_color = base_color_map.get(fuel, '#000000')  # Default to black if fuel not found
+    color_map = {}
+    for fc in sorted_fuel_classes:
+        fuel, vehicle_class = fc.split('-')
+        base_color = fuel_color_map[fuel] # Default to black if fuel not found
         if any(c in vehicle_class for c in ['7', '8']):
-            fuel_class_colors[fc] = darken_color(base_color)
+            color_map[fc] = darken_color(base_color)
         else:
-            fuel_class_colors[fc] = base_color
+            color_map[fc] = base_color
 
-    # Plot bars for each scenario and fuel_class combination
-    scenarios_labeling = []
+    # Plot stacked bars for each scenario
+    legend_handles = []
+    legend_labels = []
     for i, scenario in enumerate(scenarios):
-        scenarios_labeling.append(scenario)
         bottom = np.zeros(24)
-        for fuel_class in fuel_classes:
-            values = hourly_vmt_pivot[hourly_vmt_pivot['fuel_class'] == fuel_class][scenario].values
-            if len(values) < 24:
-                values = np.pad(values, (0, 24 - len(values)), 'constant')
-            elif len(values) > 24:
-                values = values[:24]
+        for fuel_class in sorted_fuel_classes:
+            if fuel_class in hourly_vmt[scenario].columns:
+                values = hourly_vmt[scenario][fuel_class]
+            else:
+                values = np.zeros(24)
 
-            plt.bar(x + i * width, values, width / len(scenarios), bottom=bottom,
-                    label=f"{fuel_class}" if i == 0 else "",
-                    color=fuel_class_colors[fuel_class])
+            bar = plt.bar(x + i * width, values, width, bottom=bottom, color=color_map[fuel_class])
             bottom += values
 
-    plt.title(
-        f'Annual VMT by Scenario, Fuel, and Vehicle Class:\n{" vs ".join(scenarios_labeling)}',
-        fontsize=28)
+            if fuel_class not in legend_labels:
+                legend_handles.append(bar)
+                legend_labels.append(fuel_class)
 
-    plt.xlabel('Hour of Day', fontsize=24)
+    # plt.title(f'Weekday VMT by Fuel, Class and Scenario: {" vs ".join(scenarios).replace("_", " ")}', fontsize=20)
+    plt.xlabel('Hour', fontsize=24)
     plt.ylabel('Million Vehicle Miles Traveled (MVMT)', fontsize=24)
     plt.xticks(x + width / 2, range(24), fontsize=24)
     plt.yticks(fontsize=24)
-    plt.legend(title='Fuel, Class', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=28)
+
+    # Create legend with ordered fuel classes
+    plt.legend(legend_handles, legend_labels, title='Fuel, Class', fontsize=28, loc='upper left', bbox_to_anchor=(1, 1))
     plt.grid(axis='y', linestyle='--', alpha=0.7)
 
     # Adjust layout and save
@@ -1185,7 +1184,7 @@ def plot_hourly_vmt(df_filtered, output_dir):
     plt.savefig(f'{output_dir}/hourly_vmt_by_scenario_fuel_class.png', dpi=300, bbox_inches='tight')
     plt.close()
 
-    print("Hourly VMT plot has been saved.")
+    print(f"Hourly VMT plot saved as {output_dir}/hourly_vmt_by_scenario_fuel_class.png")
 
 
 def generate_h3_intersections(network_df, resolution, output_dir):
@@ -1452,3 +1451,129 @@ def fast_df_to_gzip(df, output_file, compression_level=5, chunksize=100000):
                 gz_file.write(csv_buffer.getvalue())
 
                 pbar.update(end - start)
+
+
+def create_model_vmt_comparison_chart(emfac_vmt_file, emfac_area, emfac_scenario, skims_data, famos_scenario, output_dir):
+    df = pd.read_csv(emfac_vmt_file)
+    _, ft_emfac_class_map = create_vehicle_class_mapping(df["vehicle_class"].unique())
+    filtered_df = df[
+        (df['calendar_year'] == emfac_scenario) &
+        (df['sub_area'].str.contains(f'\({region_to_emfac_area[emfac_area]}\)')) &
+        (df['vehicle_class'].map(ft_emfac_class_map))].copy()
+    filtered_df["class"] = df['vehicle_class'].map(ft_emfac_class_map).map(
+        {
+            'Class 4-6 Vocational': 'Class456',
+            'Class 7&8 Vocational': 'Class78',
+            'Class 7&8 Tractor': 'Class78'
+        }
+    )
+    filtered_df["fuel_class"] = filtered_df["fuel"] + "-" + filtered_df["class"]
+    emfac_vmt = filtered_df.groupby(["fuel_class"])["total_vmt"].sum().reset_index()
+    emfac_vmt.rename(columns={'total_vmt': 'mvmt'}, inplace=True)
+    emfac_vmt["model"] = "emfac"
+    famos_vmt = skims_data[skims_data["scenario"] == famos_scenario].groupby(
+        ["class", "beamFuel"]
+    )["vmt"].sum().reset_index()
+    famos_vmt["fuel_class"] = famos_vmt["beamFuel"] + "-" + famos_vmt["class"]
+    famos_vmt = famos_vmt[["fuel_class", "vmt"]].copy()
+    famos_vmt.rename(columns={'vmt': 'mvmt'}, inplace=True)
+    famos_vmt["model"] = "famos"
+    emfac_famos_vmt = pd.concat([emfac_vmt, famos_vmt], axis=0)
+    emfac_famos_vmt.to_csv(f"{output_dir}/emfac_famos_vmt_by_fuel_class.csv")
+    return emfac_famos_vmt
+
+
+def plot_multi_pie_emfac_famos_vmt(data, plot_dir):
+    def assign_color(fuel_class):
+        return fuel_color_map[fuel_class.split('-')[0]]
+
+    models = data["model"].unique()
+    print(f"Models: {models}")
+
+    emfac_data = data[data['model'] == 'emfac'].sort_values('mvmt', ascending=False)
+    famos_data = data[data['model'] == 'famos'].sort_values('mvmt', ascending=False)
+
+    all_fuel_classes = set(emfac_data['fuel_class']) | set(famos_data['fuel_class'])
+    for fuel_class in all_fuel_classes:
+        if fuel_class not in emfac_data['fuel_class'].values:
+            emfac_data = pd.concat(
+                [emfac_data, pd.DataFrame({'fuel_class': [fuel_class], 'model': ['EMFAC'], 'mvmt': [0]})],
+                ignore_index=True)
+        if fuel_class not in famos_data['fuel_class'].values:
+            famos_data = pd.concat(
+                [famos_data, pd.DataFrame({'fuel_class': [fuel_class], 'model': ['FAMOS'], 'mvmt': [0]})],
+                ignore_index=True)
+
+    emfac_data = emfac_data.sort_values('fuel_class')
+    famos_data = famos_data.sort_values('fuel_class')
+
+    if emfac_data['mvmt'].sum() == 0 and famos_data['mvmt'].sum() == 0:
+        print("Error: All VMT values are zero. Cannot create pie chart.")
+        return
+
+    fig, ax = plt.subplots(figsize=(14, 10))
+    size = 0.3
+    outer_radius = 1
+    inner_radius = outer_radius - size
+    outer_colors = [assign_color(fuel_class) for fuel_class in famos_data['fuel_class']]
+    inner_colors = [assign_color(fuel_class) for fuel_class in emfac_data['fuel_class']]
+
+    def make_autopct(values):
+        def my_autopct(pct):
+            return f'{pct:.1f}%' if pct >= 1 else ''
+
+        return my_autopct
+
+    def add_labels(wedges, texts, autopct, colors, radius, inner=False):
+        for i, (wedge, text, color) in enumerate(zip(wedges, texts, colors)):
+            ang = (wedge.theta2 + wedge.theta1) / 2
+            pct = wedge.theta2 - wedge.theta1
+            if pct * 100 / 360 >= 1:  # Only show labels for slices >= 1%
+                label = autopct(pct * 100 / 360)
+                theta = np.deg2rad(ang)
+
+                if inner:
+                    start_point = ((inner_radius - size) * np.cos(theta), (inner_radius - size) * np.sin(theta))
+                    end_point = (0.4 * np.cos(theta), 0.4 * np.sin(theta))
+
+                    bbox_props = dict(boxstyle="round,pad=0.3", fc=color, ec="k", lw=0.72, alpha=0.7)
+                    arrowprops = dict(arrowstyle="-", connectionstyle=f"arc3,rad=0", color='k')
+
+                    ax.annotate(f'{text.get_text()}\n{label}', xy=start_point, xytext=end_point,
+                                horizontalalignment='center',
+                                verticalalignment='center',
+                                bbox=bbox_props, arrowprops=arrowprops)
+                else:
+                    x = (radius + size / 2 + 0.05) * np.cos(theta)
+                    y = (radius + size / 2 + 0.05) * np.sin(theta)
+
+                    bbox_props = dict(boxstyle="round,pad=0.3", fc=color, ec="k", lw=0.72, alpha=0.7)
+                    ax.annotate(f'{text.get_text()}\n{label}', xy=(x, y), xytext=(x, y),
+                                horizontalalignment='center',
+                                verticalalignment='center',
+                                bbox=bbox_props)
+
+    wedges_outer, texts_outer, autotexts_outer = ax.pie(famos_data['mvmt'], radius=outer_radius, colors=outer_colors,
+                                                        labels=famos_data['fuel_class'], autopct='', pctdistance=0.85,
+                                                        labeldistance=1.1,
+                                                        wedgeprops=dict(width=size, edgecolor='white'))
+
+    add_labels(wedges_outer, texts_outer, make_autopct(famos_data['mvmt']), outer_colors, outer_radius)
+
+    wedges_inner, texts_inner, autotexts_inner = ax.pie(emfac_data['mvmt'], radius=inner_radius, colors=inner_colors,
+                                                        labels=emfac_data['fuel_class'], autopct='', pctdistance=0.75,
+                                                        wedgeprops=dict(width=size, edgecolor='white'))
+
+    add_labels(wedges_inner, texts_inner, make_autopct(emfac_data['mvmt']), inner_colors, inner_radius, inner=True)
+
+    ax.set_title('VMT Distribution by Fuel-Class: FAMOS (outer) vs EMFAC (inner)', fontsize=16)
+
+    # handles = [plt.Rectangle((0, 0), 1, 1, fc="w", ec="k", lw=2, alpha=0.5) for _ in range(2)]
+    # labels = ['FAMOS (Outer)', 'EMFAC (Inner)']
+    # ax.legend(handles, labels, title="Models", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
+
+    plt.tight_layout()
+    output_file = os.path.join(plot_dir, f"{'_'.join(models)}_vmt_multi_level_pie_chart.png")
+    plt.savefig(output_file, bbox_inches='tight', dpi=300)
+    plt.close()
+    print(f"Chart has been saved as '{output_file}'")

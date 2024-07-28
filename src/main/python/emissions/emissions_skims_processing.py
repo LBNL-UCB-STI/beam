@@ -2,6 +2,10 @@ from emissions_utils import *
 pd.set_option('display.max_columns', 20)
 
 
+# ################
+# #### Header ####
+# ################
+
 # Input
 area = "sfbay"
 batch = "2024-01-23"
@@ -10,6 +14,7 @@ expansion_factor = 1/0.1
 source_epsg = "EPSG:26910"
 selected_pollutants = ['PM2_5', 'NOx', 'CO', 'ROG', 'CO2', 'HC']
 h3_resolution = 8  # Adjust as needed
+emfac_vmt_file = os.path.expanduser(f"~/Workspace/Models/emfac/Default_Statewide_2018_2025_2030_2040_2050_Annual_vmt_20240612233346.csv")
 run_dir = os.path.expanduser(f"~/Workspace/Simulation/{area}/beam-runs/{batch}")
 scenario_2018 = "2018_Baseline"
 scenario_2050 = "2050_HOPhighp2"
@@ -24,9 +29,13 @@ tours_2050_file = f"{plan_dir}/{scenario_2050}/tours--2050-HOPhighp2.csv"
 carriers_2018_file = f"{plan_dir}/{scenario_2018}/carriers--2018-Baseline-TrAP.csv"
 carriers_2050_file = f"{plan_dir}/{scenario_2050}/carriers--2050-HOPhighp2-TrAP.csv"
 
-# ### Output ###
+# Output
 plot_dir = f'{run_dir}/_plots'
-# ### Main ###
+
+
+# ################
+# ##### Main #####
+# ################
 
 # Network
 network = load_network(network_file, source_epsg)
@@ -51,8 +60,8 @@ skims_2050 = read_skims_emissions_chunked(
     scenario_2050.replace("_", " ")
 )
 skims = pd.concat([skims_2018, skims_2050])
-fast_df_to_gzip(skims, f'{run_dir}/skims_{scenario_2018}_{scenario_2050}.csv.gz')
-
+print(f"Read {len(skims)} rows of skims")
+# fast_df_to_gzip(skims, f'{run_dir}/skims_{scenario_2018}_{scenario_2050}.csv.gz')
 
 # Tours
 tours_2018 = pd.read_csv(tours_2018_file)[["tourId", 'departureTimeInSec']]
@@ -68,10 +77,29 @@ tours_types_2050 = pd.merge(tours_2050, pd.merge(carriers_2050, types_2050, on="
 tours_types_2050["scenario"] = scenario_2050
 tours_types = pd.concat([tours_types_2018, tours_types_2050])
 
+# VMT
+emfac_famos_vmt = create_model_vmt_comparison_chart(
+    emfac_vmt_file, area, 2050, skims, scenario_2050.replace("_", " "), plot_dir
+)
+
+# ################
+# ### Plotting ###
+# ################
 plot_hourly_activity(tours_types, plot_dir)
+plot_hourly_vmt(skims, plot_dir)
+
+plot_multi_pie_emfac_famos_vmt(emfac_famos_vmt, plot_dir)
 
 
 
+
+
+
+
+
+test = skims.groupby(['scenario', 'hour', 'beamFuel', 'class'])['vmt'].sum().unstack(
+        level=[0, 2], fill_value=0
+    ).copy().reset_index()
 
 pm25 = process_h3_emissions(df_combined, network_h3_intersection, 'PM2_5')
 pm25["PM2_5 (g/m²)"] = pm25["PM2_5"] * 907184.74
