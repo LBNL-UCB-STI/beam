@@ -925,7 +925,7 @@ def read_skims_emissions_chunked(skims_file, vehicleTypes_file, vehicleTypeId_fi
         # Merge with vehicleTypes and network
         df_chunk_merged = (
             df_chunk
-            .merge(vehicleTypes[['vehicleTypeId', 'class', 'beamFuel', 'emfacFuel']], on='vehicleTypeId', how='left')
+            .merge(vehicleTypes[['vehicleTypeId', 'class', 'beamFuel', 'emfacFuel', 'emfacId']], on='vehicleTypeId', how='left')
             .merge(network[['linkId', 'linkLength']], on='linkId', how='left')
         )
         # del df_chunk
@@ -937,7 +937,7 @@ def read_skims_emissions_chunked(skims_file, vehicleTypes_file, vehicleTypeId_fi
         df_chunk_merged.rename(columns={'emissionsProcess': 'process'}, inplace=True)
 
         # Melt the dataframe
-        id_vars = ['hour', 'linkId', 'tazId', 'class', 'beamFuel', 'emfacFuel', 'process', 'kwh', 'vmt', 'vht']
+        id_vars = ['hour', 'linkId', 'tazId', 'emfacId', 'class', 'beamFuel', 'emfacFuel', 'process', 'kwh', 'vmt', 'vht']
         value_vars = [f'scaled_{pollutant}' for pollutant in pollutant_columns.keys()]
         melted_chunk = df_chunk_merged.melt(
             id_vars=id_vars,
@@ -1619,3 +1619,183 @@ def plot_multi_pie_emfac_famos_vmt(data, plot_dir):
     plt.savefig(output_file, bbox_inches='tight', dpi=300)
     plt.close()
     print(f"Chart has been saved as '{output_file}'")
+
+
+def plot_pollution_variability_by_process_vehicle_types(skims, pollutant, scenario, output_dir, height_size, font_size):
+    warnings.filterwarnings("ignore", category=FutureWarning, module="seaborn")
+    # Filter data for specified scenario and pollutant
+    data = skims[(skims['scenario'] == scenario) & (skims['pollutant'] == pollutant)].copy()
+    processes = sorted(skims["process"].unique().tolist())
+
+    # Create fuel_class category
+    data['fuel_class'] = data['emfacFuel'].astype(str) + ', ' + data['class'].astype(str)
+    data['rate_micro_gram'] = data['rate'] * 1e12
+
+    # Sort fuel_class by median emission rate
+    fuel_class_order = data.groupby('fuel_class')['rate_micro_gram'].median().sort_values(ascending=False).index
+
+    def darken_color(color, factor=0.7):
+        return mcolors.to_rgba(mcolors.to_rgb(color), alpha=None)[:3] + (factor,)
+
+    # Set up the plot
+    fig, ax = plt.subplots(figsize=(20, height_size))
+
+    # Create color map for fuel_classes
+    fuel_class_colors = {}
+    for fc in data['fuel_class'].unique():
+        fuel, vehicle_class = fc.split(',')
+        fuel = fuel.strip()
+        vehicle_class = vehicle_class.strip()
+        base_color = fuel_color_map[fuel]  # Default to black if fuel not found
+        if any(c in vehicle_class for c in ['7', '8']):
+            fuel_class_colors[fc] = darken_color(base_color)
+        else:
+            fuel_class_colors[fc] = base_color
+
+    # Create the box plot with adjusted parameters
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=FutureWarning)
+        sns.boxplot(x='process', y='rate_micro_gram', hue='fuel_class', data=data,
+                    order=processes, hue_order=fuel_class_order,
+                    palette=fuel_class_colors,
+                    ax=ax, whis=1.5, fliersize=2, showcaps=True, showfliers=True)
+
+        # Add strip plot for additional data points
+        sns.stripplot(x='process', y='rate_micro_gram', hue='fuel_class', data=data,
+                      order=processes, hue_order=fuel_class_order,
+                      palette=fuel_class_colors,
+                      ax=ax, size=1, jitter=True, dodge=True, alpha=0.3)
+
+    # Customize the plot
+    ax.set_title(f'{pollutant.replace("_", ".")} Emissions Variability - {scenario}', fontsize=font_size+4)
+    ax.set_xlabel('Process', fontsize=font_size)
+    ax.set_ylabel('Microgram per road link', fontsize=font_size)
+    ax.tick_params(axis='both', which='major', labelsize=font_size)
+
+    # Rotate x-axis labels if needed
+    plt.setp(ax.get_xticklabels(), rotation=0, ha='right')
+
+    # Move the legend outside the plot
+    ax.legend(title='Fuel, Class', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=font_size)
+
+    # Use log scale for y-axis if the range of values is large
+    min_rate = data['rate_micro_gram'].min()
+    max_rate = data['rate_micro_gram'].max()
+
+    if min_rate <= 0:
+        print(f"Warning: Minimum rate is {min_rate}, which is zero or negative. Using log scale by default.")
+        ax.set_yscale('log')
+        # Set a small positive value for the bottom of the y-axis
+        ax.set_ylim(bottom=1e-10)  # You might need to adjust this value
+        scale_label = "log"
+    elif max_rate / min_rate > 1000:
+        print(f"Using log scale. Max/min ratio: {max_rate/min_rate}")
+        ax.set_yscale('log')
+        scale_label = "log"
+    else:
+        print(f"Using linear scale. Max/min ratio: {max_rate/min_rate}")
+        scale_label = "linear"
+
+    plt.tight_layout()
+    plt.savefig(f'{output_dir}/{pollutant.lower()}_variability_by_process_fuel_class_{scenario.replace(" ", "_").lower()}_{scale_label}_scale.png', dpi=300, bbox_inches='tight')
+    plt.close()
+
+
+def plot_multiple_pollutants_variability(skims, pollutants, scenario, output_dir):
+    warnings.filterwarnings("ignore", category=FutureWarning, module="seaborn")
+
+    # Calculate figure size
+    fig_width = 20
+    fig_height = 4 + (3 * len(pollutants))  # Base height plus 3 inches per pollutant
+
+    # Set up the plot
+    fig, axes = plt.subplots(len(pollutants), 1, figsize=(fig_width, fig_height), sharex=True)
+    if len(pollutants) == 1:
+        axes = [axes]
+
+    processes = sorted(skims["process"].unique().tolist())
+
+    for idx, pollutant in enumerate(pollutants):
+        ax = axes[idx]
+
+        # Filter data for specified scenario and pollutant
+        data = skims[(skims['scenario'] == scenario) & (skims['pollutant'] == pollutant)].copy()
+
+        # Create fuel_class category
+        data['fuel_class'] = data['emfacFuel'].astype(str) + ', ' + data['class'].astype(str)
+
+        # Sort fuel_class by median emission rate
+        fuel_class_order = data.groupby('fuel_class')['rate'].median().sort_values(ascending=False).index
+
+        def darken_color(color, factor=0.7):
+            return mcolors.to_rgba(mcolors.to_rgb(color), alpha=None)[:3] + (factor,)
+
+        # Create color map for fuel_classes
+        fuel_class_colors = {}
+        for fc in data['fuel_class'].unique():
+            fuel, vehicle_class = fc.split(',')
+            fuel = fuel.strip()
+            vehicle_class = vehicle_class.strip()
+            base_color = fuel_color_map.get(fuel, 'black')  # Default to black if fuel not found
+            if any(c in vehicle_class for c in ['7', '8']):
+                fuel_class_colors[fc] = darken_color(base_color)
+            else:
+                fuel_class_colors[fc] = base_color
+
+        # Create the box plot with adjusted parameters
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=FutureWarning)
+            sns.boxplot(x='process', y='rate', hue='fuel_class', data=data,
+                        order=processes, hue_order=fuel_class_order,
+                        palette=fuel_class_colors,
+                        ax=ax, whis=1.5, fliersize=1, showcaps=True, showfliers=True)
+
+            # Add strip plot for additional data points
+            sns.stripplot(x='process', y='rate', hue='fuel_class', data=data,
+                          order=processes, hue_order=fuel_class_order,
+                          palette=fuel_class_colors,
+                          ax=ax, size=0.5, jitter=True, dodge=True, alpha=0.3)
+
+        # Customize the plot
+        ax.set_title(f'{pollutant.replace("_", ".")} Emissions', fontsize=12)
+        ax.set_ylabel('Emissions Rate', fontsize=10)
+        ax.tick_params(axis='both', which='major', labelsize=8)
+
+        # Use log scale for y-axis if the range of values is large
+        min_rate = data['rate'].min()
+        max_rate = data['rate'].max()
+
+        if min_rate <= 0:
+            print(
+                f"Warning: Minimum rate for {pollutant} is {min_rate}, which is zero or negative. Using log scale by default.")
+            ax.set_yscale('log')
+            ax.set_ylim(bottom=1e-10)  # You might need to adjust this value
+        elif max_rate / min_rate > 1000:
+            print(f"Using log scale for {pollutant}. Max/min ratio: {max_rate / min_rate}")
+            ax.set_yscale('log')
+        else:
+            print(f"Using linear scale for {pollutant}. Max/min ratio: {max_rate / min_rate}")
+
+        # Remove x-axis labels for all but the last subplot
+        if idx != len(pollutants) - 1:
+            ax.set_xticklabels([])
+            ax.set_xlabel('')
+
+        # Remove legend for all subplots
+        ax.get_legend().remove()
+
+    # Set common x-label
+    fig.text(0.5, 0.02, 'Process', ha='center', va='center', fontsize=12)
+
+    # Rotate x-axis labels if needed
+    plt.setp(axes[-1].get_xticklabels(), rotation=45, ha='right', fontsize=8)
+
+    # Add a common legend
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, title='Fuel, Class', bbox_to_anchor=(1.05, 0.5), loc='center left', fontsize=8)
+
+    plt.tight_layout()
+    plt.subplots_adjust(right=0.85, hspace=0.3)  # Adjust right to make room for legend
+    plt.savefig(f'{output_dir}/multiple_pollutants_variability_by_process_fuel_class_{scenario}.png', dpi=300,
+                bbox_inches='tight')
+    plt.close()

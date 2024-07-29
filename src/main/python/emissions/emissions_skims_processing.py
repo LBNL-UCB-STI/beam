@@ -166,6 +166,12 @@ plot_hourly_emissions_by_scenario_class_fuel(skims, 'CO2', plot_dir, plot_legend
 # Figure 6
 plot_h3_heatmap(pm25_delta, pm25_delta_column, "-".join([scenario_2050_label, scenario_2018_label]), plot_dir, is_delta=True, remove_outliers=True, in_log_scale=True)
 plot_h3_heatmap(nox_delta, nox_delta_column, "-".join([scenario_2050_label, scenario_2018_label]), plot_dir, is_delta=True, remove_outliers=True, in_log_scale=True)
+# Figure 7
 
+plot_pollution_variability_by_process_vehicle_types(skims, "PM2_5", scenario_2018_label, plot_dir, height_size=6, font_size=24)
+plot_pollution_variability_by_process_vehicle_types(skims, "NOx", scenario_2018_label, plot_dir, height_size=6, font_size=24)
+plot_pollution_variability_by_process_vehicle_types(skims, "CO", scenario_2018_label, plot_dir, height_size=6, font_size=24)
+plot_pollution_variability_by_process_vehicle_types(skims, "SOx", scenario_2018_label, plot_dir, height_size=6, font_size=24)
 
+# plot_multiple_pollutants_variability(skims, ['PM2_5', 'NOx', "CO", 'CO2'], scenario_2018_label, plot_dir)
 print("End.")
