@@ -378,7 +378,8 @@ object VehicleEmissions extends LazyLogging {
         * @return Total emissions in grams
         */
       RUNLOSS -> { (rates: Emissions, data: BeamVehicle.VehicleActivityData) =>
-        val vehicleHoursTraveledInHours = data.linkTravelTime.map(_ / 3600.0).getOrElse(0.0)
+        val vehicleHoursTraveledInHours =
+          data.linkTravelTime.map(_ / 3600.0).orElse(data.parkingDuration.map(_ / 3600.0)).getOrElse(0.0)
         rates * vehicleHoursTraveledInHours
       },
       /**

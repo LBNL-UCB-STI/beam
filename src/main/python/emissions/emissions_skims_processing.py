@@ -173,5 +173,6 @@ plot_pollution_variability_by_process_vehicle_types(skims, "NOx", scenario_2018_
 plot_pollution_variability_by_process_vehicle_types(skims, "CO", scenario_2018_label, plot_dir, height_size=6, font_size=24)
 plot_pollution_variability_by_process_vehicle_types(skims, "SOx", scenario_2018_label, plot_dir, height_size=6, font_size=24)
 
-# plot_multiple_pollutants_variability(skims, ['PM2_5', 'NOx', "CO", 'CO2'], scenario_2018_label, plot_dir)
+plot_pollutants_by_process(skims, scenario_2018_label, plot_dir, height_size=6, font_size=24)
+
 print("End.")
