@@ -139,11 +139,8 @@ class UrbanSimScenarioLoader(
 
     logger.info("Applying households...")
     applyHousehold(householdsWithMembers, householdIdToPersons, householdIdToVehicles, plans)
-    // beamServices.privateVehicles is properly populated here, after `applyHousehold` call.
-    // Here we add the freight vehicles back in
-    beamScenario.privateVehicles ++= beamScenario.freightCarriers.flatMap(_.fleet)
 
-    // beamServices.personHouseholds is used later on in PopulationAdjustment.createAttributesOfIndividual when we
+    // beamServices.personHouseholds is used later on in PopulationAdjustment.createAttributesOfIndividual
     logger.info("Applying persons...")
     applyPersons(personsWithPlans)
 

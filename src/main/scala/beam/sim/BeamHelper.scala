@@ -719,15 +719,6 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       )
     }
 
-    // write static metrics, such as population size, vehicles fleet size, etc.
-    // necessary to be called after population sampling
-    BeamStaticMetricsWriter.writeSimulationParameters(
-      scenario,
-      beamScenario,
-      beamServices,
-      beamServices.beamConfig
-    )
-
     if (beamServices.beamConfig.beam.agentsim.agents.freight.enabled) {
       logger.info(s"Generating freight population from ${beamScenario.freightCarriers.size} carriers ...")
       val freightReader = FreightReader(
@@ -761,6 +752,14 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       s"$vehicleType (${groupedValues.size})"
     } mkString " , "
     logger.info(s"Vehicles assigned to households : $vehicleInfo")
+
+    // write static metrics, such as population size, vehicles fleet size, etc.
+    BeamStaticMetricsWriter.writeSimulationParameters(
+      scenario,
+      beamScenario,
+      beamServices,
+      beamServices.beamConfig
+    )
 
     run(beamServices)
   }
