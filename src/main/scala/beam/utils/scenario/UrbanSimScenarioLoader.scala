@@ -77,10 +77,6 @@ class UrbanSimScenarioLoader(
   }
 
   def loadScenario(): (Scenario, Boolean) = {
-    // This is a hack for now. When initially building the scenario we skip reading personal vehicles but do read
-    // in any freight vehicles, so whenever this function is called beamScenario.privateVehicles should only be freight
-    val freightVehicleMap = beamScenario.privateVehicles
-
     clear()
 
     val plansF = Future {
@@ -143,10 +139,9 @@ class UrbanSimScenarioLoader(
 
     logger.info("Applying households...")
     applyHousehold(householdsWithMembers, householdIdToPersons, householdIdToVehicles, plans)
-    // beamServices.privateVehicles is properly populated here, after `applyHousehold` call. Here we add the freight
-    // vehicles back in
-    beamScenario.privateVehicles ++= freightVehicleMap
-    // TODO: Refactor this so we don't need to read vehicles.csv twice
+    // beamServices.privateVehicles is properly populated here, after `applyHousehold` call.
+    // Here we add the freight vehicles back in
+    beamScenario.privateVehicles ++= beamScenario.freightCarriers.flatMap(_.fleet)
 
     // beamServices.personHouseholds is used later on in PopulationAdjustment.createAttributesOfIndividual when we
     logger.info("Applying persons...")
@@ -163,7 +158,7 @@ class UrbanSimScenarioLoader(
   private def clear(): Unit = {
     scenario.getPopulation.getPersons.clear()
     scenario.getHouseholds.getHouseholds.clear()
-    scenario.getHouseholds.getHouseholds.values.asScala.map(_.getAttributes.clear())
+    scenario.getHouseholds.getHouseholds.values.asScala.foreach(_.getAttributes.clear())
 
     beamScenario.privateVehicles.clear()
     beamScenario.privateVehicleInitialSoc.clear()

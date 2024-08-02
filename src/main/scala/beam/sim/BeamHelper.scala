@@ -328,17 +328,19 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
     }
 
     val (privateVehicleMap, privateVehicleSoc) = beamConfig.beam.exchange.scenario.source.toLowerCase match {
-      // when reading an urbansim scenario, we read in the vehicles again in ScenarioAdjustment, so there's no need to
-      // bother reading it in now. For now we still do read in freight vehicles, although it's probably cleaner to move
-      // that back to ScenarioAdjustment as well
+      // when reading an urbansim scenario, we read in the vehicles again in ScenarioAdjustment,
+      // so there's no need to bother reading it in now.
       case "urbansim" | "urbansim_v2" =>
         (TrieMap.empty[Id[BeamVehicle], BeamVehicle], TrieMap.empty[Id[BeamVehicle], Double])
-      case _ => readPrivateVehicles(beamConfig, vehicleTypes)
+      case _ =>
+        val (vehMap, vehSOC) = readPrivateVehicles(beamConfig, vehicleTypes)
+        vehMap ++= freightCarriers.flatMap(_.fleet)
+        (vehMap, vehSOC)
     }
     BeamScenario(
       readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
       vehicleTypes,
-      privateVehicleMap ++ freightCarriers.flatMap(_.fleet),
+      privateVehicleMap,
       privateVehicleSoc,
       new VehicleEnergy(consumptionRateFilterStore, vehicleCsvReader.getLinkToGradeRecordsUsing),
       beamConfig,
