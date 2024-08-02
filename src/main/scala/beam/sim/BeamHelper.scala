@@ -332,11 +332,9 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       // so there's no need to bother reading it in now.
       case "urbansim" | "urbansim_v2" =>
         (TrieMap.empty[Id[BeamVehicle], BeamVehicle], TrieMap.empty[Id[BeamVehicle], Double])
-      case _ =>
-        val (vehMap, vehSOC) = readPrivateVehicles(beamConfig, vehicleTypes)
-        vehMap ++= freightCarriers.flatMap(_.fleet)
-        (vehMap, vehSOC)
+      case _ => readPrivateVehicles(beamConfig, vehicleTypes)
     }
+
     BeamScenario(
       readFuelTypeFile(beamConfig.beam.agentsim.agents.vehicles.fuelTypesFilePath).toMap,
       vehicleTypes,
@@ -551,12 +549,7 @@ trait BeamHelper extends LazyLogging with BeamValidationHelper {
       .withFallback(config)
 
     import akka.actor.{ActorSystem, DeadLetter, PoisonPill, Props}
-    import akka.cluster.singleton.{
-      ClusterSingletonManager,
-      ClusterSingletonManagerSettings,
-      ClusterSingletonProxy,
-      ClusterSingletonProxySettings
-    }
+    import akka.cluster.singleton.{ClusterSingletonManager, ClusterSingletonManagerSettings, ClusterSingletonProxy, ClusterSingletonProxySettings}
     import beam.router.ClusterWorkerRouter
     import beam.sim.monitoring.DeadLetterReplayer
 
